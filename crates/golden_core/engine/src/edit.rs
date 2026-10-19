@@ -136,10 +136,8 @@ pub enum Edit {
     SetNodeScriptProperty {
         /// Target node id.
         node: NodeId,
-        /// Property key as seen from scripts.
-        property: String,
-        /// Incoming script value converted to `ParamValue`.
-        value: ParamValue,
+        /// Prepared property key and retained immutable value.
+        write: crate::script::ScriptPropertyWrite,
     },
     /// Invokes one script-exposed method on a node.
     CallNodeScriptMethod {

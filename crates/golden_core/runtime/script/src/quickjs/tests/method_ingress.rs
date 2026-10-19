@@ -9,7 +9,7 @@ struct Host {
 
 impl ScriptHostBridge for Host {
     fn log(&mut self, _: ScriptLogLevel, _: &str) {}
-    fn emit_custom(&mut self, _: &str, _: JsonValue) -> Result<(), String> {
+    fn emit_custom(&mut self, _: ScriptCustomEvent) -> Result<(), String> {
         Ok(())
     }
     fn call_node_script_method(&mut self, node: NodeId, call: ScriptMethodCall) -> Result<(), String> {

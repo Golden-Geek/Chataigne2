@@ -7294,8 +7294,7 @@ fn script_property_mutation_rejects_read_only_parameters() {
 
     engine.edits.push(Edit::SetNodeScriptProperty {
         node: engine.root,
-        property: "value".to_string(),
-        value: ParamValue::Int(7),
+        write: crate::script::ScriptPropertyWrite::prepare("value", ParamValue::Int(7)).unwrap(),
     });
     let error = engine
         .apply_edits()

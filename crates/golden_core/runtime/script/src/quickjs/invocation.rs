@@ -1,6 +1,21 @@
 use super::*;
 
 impl QuickJsRuntime {
+    pub(super) fn enqueue_host_op(queue: &Mutex<Vec<ScriptHostOp>>, op: ScriptHostOp) -> Result<(), QuickJsError> {
+        let mut guard = queue
+            .lock()
+            .map_err(|_| QuickJsError::new_from_js_message("script", "host", "script host-op queue lock poisoned"))?;
+        if guard.len() >= 4096 {
+            return Err(QuickJsError::new_from_js_message(
+                "script",
+                "host",
+                "script host-op queue capacity exhausted",
+            ));
+        }
+        guard.push(op);
+        Ok(())
+    }
+
     pub(super) fn reset_host_callback_state(&self) -> Result<(), ScriptRuntimeError> {
         self.host_call_counter.store(0, Ordering::Relaxed);
         let mut guard = self
@@ -48,11 +63,11 @@ impl QuickJsRuntime {
                 ScriptHostOp::Log { level, message } => {
                     host.log(level, &message);
                 }
-                ScriptHostOp::EmitCustom { topic, payload } => {
-                    host.emit_custom(&topic, payload).map_err(ScriptRuntimeError::Host)?;
+                ScriptHostOp::EmitCustom { event } => {
+                    host.emit_custom(event).map_err(ScriptRuntimeError::Host)?;
                 }
-                ScriptHostOp::SetNodeScriptProperty { node, property, value } => {
-                    host.set_node_script_property(node, property, value)
+                ScriptHostOp::SetNodeScriptProperty { node, write } => {
+                    host.set_node_script_property(node, write)
                         .map_err(ScriptRuntimeError::Host)?;
                 }
                 ScriptHostOp::CallNodeScriptMethod { node, call } => {

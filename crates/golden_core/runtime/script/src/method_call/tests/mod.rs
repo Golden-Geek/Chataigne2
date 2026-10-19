@@ -1,4 +1,5 @@
 use super::*;
+use golden_io::PayloadPool;
 use std::time::Duration;
 
 #[test]

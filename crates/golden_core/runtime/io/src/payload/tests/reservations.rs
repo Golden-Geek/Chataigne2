@@ -1,6 +1,20 @@
 use super::*;
 
 #[test]
+fn fresh_shared_arc_sealing_keeps_raw_owners_charged_and_final_disposal_off_consumer() {
+    let pool = PayloadPool::new("reserved-shared", 1, 64).unwrap();
+    let permit = pool.try_reserve(64).unwrap();
+    let (tx, rx) = mpsc::channel();
+    let raw = permit.share(Payload(tx), 32).unwrap();
+    let routed = raw.clone();
+    let registered = pool.try_retain_arc(raw.clone(), 32).unwrap();
+    drop((raw, registered, pool));
+    assert!(rx.try_recv().is_err());
+    drop(routed);
+    assert_eq!(rx.recv_timeout(Duration::from_secs(2)).unwrap(), "reserved-shared");
+}
+
+#[test]
 fn reserved_capacity_is_charged_before_materialization_and_cancelled_on_drop() {
     let pool = PayloadPool::new("reserved-capacity", 2, 64).unwrap();
     let reservation = pool.try_reserve(64).unwrap();

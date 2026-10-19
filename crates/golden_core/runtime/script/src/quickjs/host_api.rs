@@ -17,15 +17,18 @@ impl QuickJsRuntime {
                     return Err(QuickJsError::new_from_js_message("script", "host", "script host-call budget exceeded in current callback"));
                 }
                 QuickJsRuntime::validate_host_input_size(
+                    level_label.as_str(), "log level", SCRIPT_MAX_HOST_LABEL_BYTES,
+                )?;
+                QuickJsRuntime::validate_host_input_size(
                     message.as_str(),
                     "log message",
                     SCRIPT_MAX_HOST_MESSAGE_BYTES,
                 )?;
 
                 let level = ScriptLogLevel::from_manifest_label(&level_label).ok_or_else(|| QuickJsError::new_from_js_message("string", "scriptLogLevel", format!("invalid log level '{level_label}'")))?;
-                let mut guard = log_host_ops.lock().map_err(|_| QuickJsError::new_from_js_message("script", "host", "script host-op queue lock poisoned"))?;
-                guard.push(ScriptHostOp::Log { level, message });
-                Ok(())
+                let message = crate::input::retain_log(message)
+                    .map_err(|error| QuickJsError::new_from_js_message("script", "host", error.to_string()))?;
+                QuickJsRuntime::enqueue_host_op(&log_host_ops, ScriptHostOp::Log { level, message })
             }));
             gc_table.set("log", log_fn)?;
 
@@ -50,11 +53,14 @@ impl QuickJsRuntime {
                     )?;
                 }
 
-                let payload_json = serde_json::from_str::<JsonValue>(payload_json.as_deref().unwrap_or("null")).unwrap_or(JsonValue::Null);
+                let reservation = ScriptCustomEvent::reserve(&topic)
+                    .map_err(|message| QuickJsError::new_from_js_message("script", "host", message))?;
+                let payload = super::bounded_json::parse(payload_json.as_deref().unwrap_or("null"))
+                    .map_err(|error| QuickJsError::new_from_js_message("script", "payload", error.to_string()))?;
+                let event = reservation.finish(payload)
+                    .map_err(|error| QuickJsError::new_from_js_message("script", "payload", error.to_string()))?;
 
-                let mut guard = emit_host_ops.lock().map_err(|_| QuickJsError::new_from_js_message("script", "host", "script host-op queue lock poisoned"))?;
-                guard.push(ScriptHostOp::EmitCustom { topic, payload: payload_json });
-                Ok(())
+                QuickJsRuntime::enqueue_host_op(&emit_host_ops, ScriptHostOp::EmitCustom { event })
             }));
             gc_table.set("__emit_raw", emit_raw_fn)?;
 
@@ -216,9 +222,6 @@ impl QuickJsRuntime {
                 if property.is_empty() {
                     return Ok(false);
                 }
-                let value_payload = serde_json::from_str::<JsonValue>(value_json.as_deref().unwrap_or("null")).unwrap_or(JsonValue::Null);
-                let value = QuickJsRuntime::param_value_from_json(&value_payload).map_err(|message| QuickJsError::new_from_js_message("script", "paramValue", message))?;
-
                 let mut target_node = NodeId(node_id);
                 let mut target_property = property.to_string();
                 let state = tree_set_property_state.lock().map_err(|_| QuickJsError::new_from_js_message("script", "host", "script tree bridge lock poisoned"))?;
@@ -232,8 +235,16 @@ impl QuickJsRuntime {
                                 }
                 drop(state);
 
-                let mut guard = tree_set_property_ops.lock().map_err(|_| QuickJsError::new_from_js_message("script", "host", "script host-op queue lock poisoned"))?;
-                guard.push(ScriptHostOp::SetNodeScriptProperty { node: target_node, property: target_property, value });
+                let reservation = ScriptPropertyWrite::reserve(&target_property)
+                    .map_err(|message| QuickJsError::new_from_js_message("script", "host", message))?;
+                let value_payload = super::bounded_json::parse(value_json.as_deref().unwrap_or("null"))
+                    .map_err(|error| QuickJsError::new_from_js_message("script", "property", error.to_string()))?;
+                let value = QuickJsRuntime::param_value_from_json(&value_payload)
+                    .map_err(|message| QuickJsError::new_from_js_message("script", "paramValue", message))?;
+                let write = reservation.finish(value)
+                    .map_err(|error| QuickJsError::new_from_js_message("script", "property", error.to_string()))?;
+
+                QuickJsRuntime::enqueue_host_op(&tree_set_property_ops, ScriptHostOp::SetNodeScriptProperty { node: target_node, write })?;
                 Ok(true)
             }));
             gc_table.set("__tree_set_property_raw", tree_set_property_fn)?;
@@ -373,14 +384,12 @@ impl QuickJsRuntime {
                         1
                     };
 
-                    let mut guard = tree_call_method_ops.lock().map_err(|_| QuickJsError::new_from_js_message("script", "host", "script host-op queue lock poisoned"))?;
-                    guard.push(ScriptHostOp::SetEventListener { target: NodeId(node_id), level });
+                    QuickJsRuntime::enqueue_host_op(&tree_call_method_ops, ScriptHostOp::SetEventListener { target: NodeId(node_id), level })?;
                     return Ok(Some(serde_json::json!({ "kind": "value", "value": true }).to_string()));
                 }
 
                 if method == "unlisten" {
-                    let mut guard = tree_call_method_ops.lock().map_err(|_| QuickJsError::new_from_js_message("script", "host", "script host-op queue lock poisoned"))?;
-                    guard.push(ScriptHostOp::RemoveEventListener { target: NodeId(node_id) });
+                    QuickJsRuntime::enqueue_host_op(&tree_call_method_ops, ScriptHostOp::RemoveEventListener { target: NodeId(node_id) })?;
                     return Ok(Some(serde_json::json!({ "kind": "value", "value": true }).to_string()));
                 }
 
@@ -438,11 +447,10 @@ impl QuickJsRuntime {
                     return Err(QuickJsError::new_from_js_message("script", "paramValue", message));
                 }
 
-                let mut guard = tree_call_method_ops.lock().map_err(|_| QuickJsError::new_from_js_message("script", "host", "script host-op queue lock poisoned"))?;
-                guard.push(ScriptHostOp::CallNodeScriptMethod {
+                QuickJsRuntime::enqueue_host_op(&tree_call_method_ops, ScriptHostOp::CallNodeScriptMethod {
                     node: NodeId(node_id),
                     call,
-                });
+                })?;
                 if let Some(predicted_result) = predicted_result {
                     return Ok(Some(predicted_result.to_string()));
                 }
@@ -458,8 +466,7 @@ impl QuickJsRuntime {
                     return Err(QuickJsError::new_from_js_message("script", "host", "script host-call budget exceeded in current callback"));
                 }
 
-                let mut guard = clear_listeners_ops.lock().map_err(|_| QuickJsError::new_from_js_message("script", "host", "script host-op queue lock poisoned"))?;
-                guard.push(ScriptHostOp::ClearEventListeners);
+                QuickJsRuntime::enqueue_host_op(&clear_listeners_ops, ScriptHostOp::ClearEventListeners)?;
                 Ok(true)
             }));
             gc_table.set("__listeners_clear_raw", clear_listeners_fn)?;

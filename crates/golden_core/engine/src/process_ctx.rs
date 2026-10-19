@@ -634,12 +634,8 @@ impl ProcessCtx {
     }
 
     /// Queues one script-property update on `node`.
-    pub fn set_node_script_property(&mut self, node: NodeId, property: impl Into<String>, value: ParamValue) {
-        self.edits.push(Edit::SetNodeScriptProperty {
-            node,
-            property: property.into(),
-            value,
-        });
+    pub fn set_node_script_property(&mut self, node: NodeId, write: crate::script::ScriptPropertyWrite) {
+        self.edits.push(Edit::SetNodeScriptProperty { node, write });
     }
 
     /// Queues one script-method invocation on `node`.

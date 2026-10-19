@@ -192,10 +192,31 @@ impl PayloadReservation {
     /// immediately; item and used-byte capacity stay charged until destruction finishes.
     /// Oversized values are returned to their producer and the reservation is released.
     pub fn retain<T: Send + Sync + 'static>(
-        mut self,
+        self,
         value: T,
         weight: usize,
     ) -> Result<RetainedPayload<T>, PayloadCapacityError<T>> {
+        let (value, shared) = self.seal(value, weight, false)?;
+        Ok(RetainedPayload {
+            value: Some(value),
+            shared,
+        })
+    }
+
+    /// Seal a fresh immutable Arc for APIs that already route shared data. The pool
+    /// remains its canonical final owner even after all handles disappear. Raw Arc
+    /// releases cannot notify the worker, so only its disposer polls these entries
+    /// at most once per 100ms. Never register the Arc in an independent pool.
+    pub fn share<T: Send + Sync + 'static>(self, value: T, weight: usize) -> Result<Arc<T>, PayloadCapacityError<T>> {
+        self.seal(value, weight, true).map(|(value, _)| value)
+    }
+
+    fn seal<T: Send + Sync + 'static>(
+        mut self,
+        value: T,
+        weight: usize,
+        external: bool,
+    ) -> Result<(Arc<T>, Arc<Shared>), PayloadCapacityError<T>> {
         if weight > self.weight {
             return Err(PayloadCapacityError(value));
         }
@@ -204,18 +225,16 @@ impl PayloadReservation {
         {
             let mut state = pool.0.state.lock().unwrap_or_else(|p| p.into_inner());
             state.retained_bytes -= self.weight - weight;
+            state.external += usize::from(external);
             state.entries.push(Entry {
                 value: value.clone(),
                 claim: claim::<T>,
                 weight,
-                external: false,
+                external,
             });
         }
         pool.0.changed.notify_all();
-        Ok(RetainedPayload {
-            value: Some(value),
-            shared: pool.0.clone(),
-        })
+        Ok((value, pool.0.clone()))
     }
 }
 

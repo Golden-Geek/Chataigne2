@@ -17,7 +17,7 @@ impl Node for OpaqueAuthoredProbe {
         &mut self,
         _ctx: &mut ProcessCtx,
         property: &str,
-        value: ParamValue,
+        value: &ParamValue,
     ) -> Result<bool, String> {
         if property != "count" {
             return Ok(false);
@@ -139,8 +139,7 @@ fn opaque_authored_edits_restore_defaults_on_undo_and_replay_without_calling_aga
             "rust" => rust_edit(root, false),
             "property" => Edit::SetNodeScriptProperty {
                 node: root,
-                property: "count".into(),
-                value: ParamValue::Int(5),
+                write: crate::script::ScriptPropertyWrite::prepare("count", ParamValue::Int(5)).unwrap(),
             },
             _ => Edit::CallNodeScriptMethod {
                 node: root,

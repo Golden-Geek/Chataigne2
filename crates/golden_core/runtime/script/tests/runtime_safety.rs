@@ -22,8 +22,8 @@ impl ScriptHostBridge for RecordingHost {
         self.effects.push(format!("log:{message}"));
     }
 
-    fn emit_custom(&mut self, topic: &str, _payload: JsonValue) -> Result<(), String> {
-        self.effects.push(format!("emit:{topic}"));
+    fn emit_custom(&mut self, event: golden_script::ScriptCustomEvent) -> Result<(), String> {
+        self.effects.push(format!("emit:{}", event.topic()));
         Ok(())
     }
 }

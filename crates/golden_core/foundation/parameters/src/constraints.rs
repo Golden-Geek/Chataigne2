@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use std::fmt;
 use std::path::Path;
 use ts_rs::TS;
@@ -365,22 +366,34 @@ impl fmt::Display for ParameterConstraints {
 impl ParameterConstraints {
     /// Normalizes or validates an incoming value according to constraint policy.
     pub fn normalize(&self, incoming: ParamValue) -> Result<ParamValue, String> {
+        match self.normalize_ref(&incoming)? {
+            Cow::Borrowed(_) => Ok(incoming),
+            Cow::Owned(value) => Ok(value),
+        }
+    }
+
+    /// Validate before copying owned storage. Unchanged strings, files and references
+    /// remain borrowed; normalization allocates only when the accepted value changes.
+    pub fn normalize_ref<'a>(&self, incoming: &'a ParamValue) -> Result<Cow<'a, ParamValue>, String> {
         if !incoming.has_only_finite_numbers() {
             return Err("parameter values must contain only finite numbers".to_string());
         }
         let mut normalized = match incoming {
-            ParamValue::Int(value) => self.normalize_int(value)?,
-            ParamValue::Float(value) => self.normalize_float(value)?,
-            ParamValue::CssValue(value) => self.normalize_css_value(value)?,
-            ParamValue::Vec2(x, y) => self.normalize_vec2(x, y)?,
-            ParamValue::Vec3(x, y, z) => self.normalize_vec3(x, y, z)?,
-            ParamValue::File(path) => self.normalize_file(path)?,
-            other => other,
+            ParamValue::Int(value) => Cow::Owned(self.normalize_int(*value)?),
+            ParamValue::Float(value) => Cow::Owned(self.normalize_float(*value)?),
+            ParamValue::CssValue(value) => Cow::Owned(self.normalize_css_value(*value)?),
+            ParamValue::Vec2(x, y) => Cow::Owned(self.normalize_vec2(*x, *y)?),
+            ParamValue::Vec3(x, y, z) => Cow::Owned(self.normalize_vec3(*x, *y, *z)?),
+            ParamValue::File(path) => {
+                self.validate_file(path)?;
+                Cow::Borrowed(incoming)
+            }
+            _ => Cow::Borrowed(incoming),
         };
 
         if !self.enum_options.is_empty() {
-            let matches_value = self.enum_options.iter().any(|option| option.value == normalized);
-            let matches_variant_id = self.enum_options.iter().any(|option| match &normalized {
+            let matches_value = self.enum_options.iter().any(|option| option.value == *normalized);
+            let matches_variant_id = self.enum_options.iter().any(|option| match normalized.as_ref() {
                 ParamValue::Enum(variant_id) => option.variant_id == *variant_id,
                 ParamValue::Str(variant_id) => option.variant_id == *variant_id,
                 _ => false,
@@ -395,10 +408,10 @@ impl ParameterConstraints {
                 return Err(format!("value is not in enum options: allowed variants {:?}", allowed));
             }
 
-            if let ParamValue::Str(variant_id) = &normalized
+            if let ParamValue::Str(variant_id) = normalized.as_ref()
                 && self.enum_options.iter().any(|option| option.variant_id == *variant_id)
             {
-                normalized = ParamValue::Enum(variant_id.clone());
+                normalized = Cow::Owned(ParamValue::Enum(variant_id.clone()));
             }
         }
 
@@ -590,12 +603,12 @@ impl ParameterConstraints {
         Ok(value)
     }
 
-    fn normalize_file(&self, path: String) -> Result<ParamValue, String> {
+    fn validate_file(&self, path: &str) -> Result<(), String> {
         if self.file.allowed_types.is_empty() && self.file.allowed_extensions.is_empty() {
-            return Ok(ParamValue::File(path));
+            return Ok(());
         }
 
-        let extension = Path::new(&path)
+        let extension = Path::new(path)
             .extension()
             .and_then(|ext| ext.to_str())
             .and_then(FileConstraints::normalize_extension_label)
@@ -618,7 +631,7 @@ impl ParameterConstraints {
             ));
         }
 
-        Ok(ParamValue::File(path))
+        Ok(())
     }
 }
 

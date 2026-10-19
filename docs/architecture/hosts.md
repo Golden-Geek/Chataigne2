@@ -144,21 +144,36 @@ are therefore finally disposed outside node callbacks, including after producer 
 removal. Graph-owned value copies and engine-owned event/replay payloads have separate lifetimes;
 these admission bounds are not a whole-process RSS or event-history budget.
 
-`golden_script::ScriptMethodCall` is the runtime-only method ingress contract shared by QuickJS,
-host bridges and engine edits. Its bounded name and `ScriptArguments` lease replace raw argument
-vectors in queues. The canonical pool admits 4096 allocations / 64 MiB, with 4096 arguments and
-4 MiB retained storage per call, including spare vector/string/reference capacity. Rust producers
-prepare before enqueueing and recover original allocations on rejection. Missing targets,
-unsupported methods, callback failure and unvisited edit/host-op suffixes release shallow handles;
-the disposer keeps final ownership. `ProcessCtx::capture_script_args` forwards that same lease.
+`golden_script::ScriptMethodCall`, `ScriptPropertyWrite` and `ScriptCustomEvent` are runtime-only
+ingress contracts shared by QuickJS, host bridges and engine edits. Method arguments, property
+values, event payloads and staged logs share one canonical pool: **16384 allocations / 64 MiB**.
+Methods admit 4096 arguments; each method/property/event admits at most 4 MiB retained storage,
+including spare vector/string/reference capacity. Logs admit 64 KiB and names/topics 1024 bytes.
+Rust producers prepare before enqueueing and recover rejected allocations. Event object containers
+are rebuilt during preparation to exclude hidden spare map capacity without copying their strings.
+Missing targets, unsupported operations, callback failure and unvisited edit/host-op suffixes
+release shallow handles; the disposer keeps final ownership. `ProcessCtx::capture_script_args`
+forwards the same argument lease. Property setters borrow the original value and validate before
+creating an accepted domain-owned copy.
 
-QuickJS method JSON remains limited to 1 MiB and is parsed with aggregate node (4097 including
-the root array) and depth (32) limits before expanding a wide/deep tree. Malformed JSON fails
-explicitly. Typed conversion reserves disposal capacity first and seals even its partial vector
-before reporting a conversion error. Unused capacity shrinks to measured retained bytes. JSON
-scratch parsing, VM string conversion and bounded-name cleanup still occur on the invocation
-thread. Property, custom-event and log host operations have separate ownership/admission work;
-this method contract does not qualify their aggregate memory or callback costs.
+Custom-event routing and replay share a protected raw Arc, retaining its original lifetime charge
+until every consumer releases it. Never register that Arc in an independent pool. Only the disposer
+polls external owners, at most once per 100ms while idle. Small-event item headroom accommodates
+the normal replay window and its deferred prefix compaction; byte exhaustion still rejects new
+inputs explicitly until owners release capacity. These limits do not bound the entire process.
+
+QuickJS method, property and event JSON is limited to 1 MiB, 4097 aggregate nodes including the
+root, and depth 32 before expanding a wide/deep tree. Malformed JSON fails explicitly. Disposal
+capacity is reserved before typed conversion; method conversion also seals partial vectors on
+failure. Unused capacity shrinks to measured retained bytes. Each callback queues at most 4096
+host operations even when its configured host-call budget is larger. Callback failure discards
+staged operations under the existing quarantine/reload policy; a host commit failure preserves
+the already accepted prefix and discards its unvisited suffix.
+
+JSON scratch parsing, VM string conversion and bounded-name cleanup remain on the invocation
+thread. Accepted domain values, logger records and UI projections may have separate copied storage.
+The input lifetime contract does not qualify whole-process RSS, replay projection cost or callback
+deadlines.
 
 The app-owned UDP adapter owns socket generations in `stream/udp/lifecycle.rs`, using one active
 or retiring generation per module and 16 global native lifetime slots. Bind/DNS/setup, packet

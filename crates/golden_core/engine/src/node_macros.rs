@@ -935,7 +935,7 @@ macro_rules! define_node_enum {
                 &mut self,
                 ctx: &mut $crate::process_ctx::ProcessCtx,
                 property: &str,
-                value: $crate::parameter::ParamValue,
+                value: &$crate::parameter::ParamValue,
             ) -> Result<bool, String> {
                 $crate::__dispatch_node_enum!(self, engine_set_script_property, ctx, property, value; $($variant),*)
             }

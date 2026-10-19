@@ -233,7 +233,7 @@ pub trait Node: Send + Any {
         &mut self,
         ctx: &mut ProcessCtx,
         property: &str,
-        value: ParamValue,
+        value: &ParamValue,
     ) -> Result<bool, String> {
         match property {
             "name" | "label" => {

@@ -242,7 +242,7 @@ pub trait ScriptHostBridge {
     fn log(&mut self, level: ScriptLogLevel, message: &str);
 
     /// Emit one custom engine event.
-    fn emit_custom(&mut self, topic: &str, payload: JsonValue) -> Result<(), String>;
+    fn emit_custom(&mut self, event: crate::ScriptCustomEvent) -> Result<(), String>;
 
     /// Returns a read-only tree snapshot for the current callback.
     fn tree_snapshot(&self) -> Option<Arc<dyn ScriptTreeView>> {
@@ -250,7 +250,7 @@ pub trait ScriptHostBridge {
     }
 
     /// Queues one script-exposed property write on `node`.
-    fn set_node_script_property(&mut self, _node: NodeId, _property: String, _value: ParamValue) -> Result<(), String> {
+    fn set_node_script_property(&mut self, _node: NodeId, _write: crate::ScriptPropertyWrite) -> Result<(), String> {
         Err("node script-property mutation is unavailable for this script host".to_string())
     }
 
@@ -281,7 +281,7 @@ pub struct NoopScriptHostBridge;
 impl ScriptHostBridge for NoopScriptHostBridge {
     fn log(&mut self, _level: ScriptLogLevel, _message: &str) {}
 
-    fn emit_custom(&mut self, _topic: &str, _payload: JsonValue) -> Result<(), String> {
+    fn emit_custom(&mut self, _event: crate::ScriptCustomEvent) -> Result<(), String> {
         Ok(())
     }
 

@@ -76,7 +76,8 @@ impl<T: Node> Engine<T> {
             Edit::SetParamConstraints { node, .. } => {
                 format!("SetParamConstraints target={}", self.describe_node(*node))
             }
-            Edit::SetNodeScriptProperty { node, property, .. } => {
+            Edit::SetNodeScriptProperty { node, write } => {
+                let property = write.property();
                 format!(
                     "SetNodeScriptProperty target={} property={property}",
                     self.describe_node(*node)

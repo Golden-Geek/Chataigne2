@@ -693,14 +693,14 @@ impl Node for Parameter {
         &mut self,
         ctx: &mut ProcessCtx,
         property: &str,
-        value: ParamValue,
+        value: &ParamValue,
     ) -> Result<bool, String> {
         match property {
             "value" => {
                 if self.read_only {
                     return Err("parameter is read-only".to_string());
                 }
-                let normalized = self.constraints.normalize(value)?;
+                let normalized = self.constraints.normalize_ref(value)?.into_owned();
                 ctx.set_param_with_behaviour(self.id(), normalized, ParameterEventBehaviour::Coalesce);
                 Ok(true)
             }

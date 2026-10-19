@@ -254,8 +254,11 @@ native error feedback without sending a prefix, replaying, reconnecting an other
 or blocking later commands. Script invocation success means native queue admission; content/output
 conversion failures are asynchronous feedback. Argument-shape, lifetime-capacity and endpoint
 admission failures remain synchronous. Method arguments enter the engine in a prepared Golden lease,
-so native admission rejection also preserves background final disposal. Other host operations and
-the broader ingress audit remain P03 work; this does not qualify engine bound-handle costs.
+so native admission rejection also preserves background final disposal. Properties, custom events
+and staged logs share the same bounded Golden input lifetime contract; event routing/replay keeps
+the original charge until its consumers release it. See [host ownership](hosts.md) for exact bounds.
+The remaining module audit stays P03 work; accepted domain copies and engine bound-handle costs
+have separate ownership and qualification.
 
 Encoded command delivery also retains its canonical preparation lease through native admission.
 Production send inputs accept only retained command or script data; raw vector/slice constructors

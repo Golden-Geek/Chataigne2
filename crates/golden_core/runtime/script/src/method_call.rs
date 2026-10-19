@@ -1,22 +1,9 @@
-use golden_io::{PayloadPool, PayloadReservation, RetainedPayload};
+use crate::input::{
+    self, MAX_INPUT_BYTES as MAX_ARGUMENT_BYTES, MAX_LABEL_BYTES as MAX_METHOD_BYTES, MAX_VALUES as MAX_ARGUMENTS,
+};
+use golden_io::{PayloadReservation, RetainedPayload};
 use golden_parameters::ParamValue;
-use std::{mem::size_of, ops::Deref, sync::Mutex};
-
-const MAX_ARGUMENTS: usize = 4096;
-const MAX_ARGUMENT_BYTES: usize = 4 * 1024 * 1024;
-const MAX_METHOD_BYTES: usize = 1024;
-
-fn pool() -> Result<PayloadPool, &'static str> {
-    static POOL: Mutex<Option<PayloadPool>> = Mutex::new(None);
-    let mut pool = POOL.lock().unwrap_or_else(|p| p.into_inner());
-    if pool.is_none() {
-        *pool = Some(
-            PayloadPool::new("script-method-input", 4096, 64 * 1024 * 1024)
-                .map_err(|_| "script argument disposer unavailable")?,
-        );
-    }
-    Ok(pool.as_ref().expect("initialized argument pool").clone())
-}
+use std::{mem::size_of, ops::Deref};
 
 fn argument_weight(args: &Vec<ParamValue>) -> Result<usize, &'static str> {
     if args.len() > MAX_ARGUMENTS {
@@ -28,12 +15,7 @@ fn argument_weight(args: &Vec<ParamValue>) -> Result<usize, &'static str> {
         if weight > MAX_ARGUMENT_BYTES {
             return Err("script method exceeds 4 MiB retained argument storage");
         }
-        if let ParamValue::Reference(reference) = arg
-            && reference.relative_path_from_root.len() > MAX_ARGUMENTS
-        {
-            return Err("script reference exceeds 4096 path segments");
-        }
-        weight = weight.saturating_add(arg.retained_bytes().saturating_sub(size_of::<ParamValue>()));
+        weight = weight.saturating_add(input::param_weight(arg)?.saturating_sub(size_of::<ParamValue>()));
     }
     if weight > MAX_ARGUMENT_BYTES {
         return Err("script method exceeds 4 MiB retained argument storage");
@@ -116,9 +98,7 @@ impl ScriptMethodCall {
                 return Err("script method name exceeds 1024 retained bytes");
             }
             let weight = argument_weight(&args)?;
-            let reservation = pool()?
-                .try_reserve(weight)
-                .map_err(|_| "script argument lifetime capacity exhausted")?;
+            let reservation = input::reserve(weight)?;
             Ok((reservation, weight))
         };
         match prepare() {
@@ -133,9 +113,7 @@ impl ScriptMethodCall {
         if method.len() > MAX_METHOD_BYTES {
             return Err("script method name exceeds 1024 bytes".into());
         }
-        let reservation = pool()?
-            .try_reserve(MAX_ARGUMENT_BYTES)
-            .map_err(|_| "script argument lifetime capacity exhausted")?;
+        let reservation = input::reserve(MAX_ARGUMENT_BYTES)?;
         Ok(ScriptCallReservation {
             method: method.to_owned(),
             reservation,

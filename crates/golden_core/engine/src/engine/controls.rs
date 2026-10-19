@@ -326,7 +326,7 @@ impl ScriptHostBridge for ExpressionScriptHostBridge {
         );
     }
 
-    fn emit_custom(&mut self, _topic: &str, _payload: JsonValue) -> Result<(), String> {
+    fn emit_custom(&mut self, _event: crate::script::ScriptCustomEvent) -> Result<(), String> {
         Err("expression mode cannot emit custom events".to_string())
     }
 
@@ -334,7 +334,11 @@ impl ScriptHostBridge for ExpressionScriptHostBridge {
         Some(Arc::clone(&self.tree_snapshot) as Arc<dyn ScriptTreeView>)
     }
 
-    fn set_node_script_property(&mut self, _node: NodeId, _property: String, _value: ParamValue) -> Result<(), String> {
+    fn set_node_script_property(
+        &mut self,
+        _node: NodeId,
+        _write: crate::script::ScriptPropertyWrite,
+    ) -> Result<(), String> {
         Err("expression mode cannot mutate node script properties".to_string())
     }
 

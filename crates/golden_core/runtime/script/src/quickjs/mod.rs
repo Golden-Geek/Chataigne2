@@ -26,16 +26,14 @@ const SCRIPT_MAX_HOST_JSON_BYTES: usize = 1_024 * 1_024;
 enum ScriptHostOp {
     Log {
         level: ScriptLogLevel,
-        message: String,
+        message: golden_io::RetainedPayload<String>,
     },
     EmitCustom {
-        topic: String,
-        payload: JsonValue,
+        event: ScriptCustomEvent,
     },
     SetNodeScriptProperty {
         node: NodeId,
-        property: String,
-        value: ParamValue,
+        write: ScriptPropertyWrite,
     },
     CallNodeScriptMethod {
         node: NodeId,

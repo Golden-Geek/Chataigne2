@@ -2,9 +2,7 @@ use std::time::Instant;
 
 use super::*;
 
-use crate::app::systems_alchemist_processor::{
-    processor_frozen_source, set_mapping_compression,
-};
+use crate::app::systems_alchemist_processor::{processor_frozen_source, set_mapping_compression};
 use crate::app::systems_state_machine_manager::StateMachineRuntimePerfStats;
 use golden_core::engine::TickStats;
 
@@ -125,9 +123,7 @@ fn sample_representation(
     latencies.sort_unstable();
     let after = runtime_stats(engine);
     let percentile = |percent: usize| latencies[(samples * percent).div_ceil(100) - 1];
-    let project_bytes = golden_core::app::to_sparse_project_json_pretty(engine)
-        .unwrap()
-        .len();
+    let project_bytes = golden_core::app::to_sparse_project_json_pretty(engine).unwrap().len();
     RepresentationSample {
         name,
         node_count: engine.nodes.len(),
@@ -161,11 +157,7 @@ fn expanded_and_compressed_mapping_report_the_same_real_workload() {
     activate_mapping_processor(&mut engine, processor);
     let source_uuid = source_param(&mut engine, "R08 source", 0.0);
     let value_sink_uuid = source_param(&mut engine, "R08 value sink", 0.0);
-    let trigger_sink = Parameter::new(
-        "R08 trigger sink",
-        ParamValue::Trigger(),
-        ParameterChangeCheck::None,
-    );
+    let trigger_sink = Parameter::new("R08 trigger sink", ParamValue::Trigger(), ParameterChangeCheck::None);
     let trigger_sink_uuid = trigger_sink.node_data().meta.uuid;
     engine.add_node(trigger_sink.into(), None);
     engine.apply_edits().unwrap();
@@ -214,14 +206,7 @@ fn expanded_and_compressed_mapping_report_the_same_real_workload() {
     let trigger_sink = snapshot.node_id_by_uuid(trigger_sink_uuid).unwrap();
     drop(snapshot);
 
-    let expanded = sample_representation(
-        &mut engine,
-        "expanded",
-        source,
-        value_sink,
-        trigger_sink,
-        samples,
-    );
+    let expanded = sample_representation(&mut engine, "expanded", source, value_sink, trigger_sink, samples);
     let transition_started = Instant::now();
     set_mapping_compression(&mut engine, processor, true).unwrap();
     let compress_ms = transition_started.elapsed().as_millis();
@@ -229,14 +214,7 @@ fn expanded_and_compressed_mapping_report_the_same_real_workload() {
         .unwrap()
         .map(|source| serde_json::to_vec(&source).unwrap().len())
         .unwrap();
-    let compressed = sample_representation(
-        &mut engine,
-        "compressed",
-        source,
-        value_sink,
-        trigger_sink,
-        samples,
-    );
+    let compressed = sample_representation(&mut engine, "compressed", source, value_sink, trigger_sink, samples);
 
     assert!(compressed.node_count < expanded.node_count);
     for result in [&expanded, &compressed] {
@@ -282,17 +260,15 @@ fn compressed_archive_rejects_script_and_headless_writes() {
             crate::app::systems_alchemist_processor::PROCESSOR_FROZEN_SOURCE_DECL_ID,
         )
         .unwrap();
-    let before = engine
-        .process_tree_snapshot()
-        .node(frozen)
-        .unwrap()
-        .param_value
-        .clone();
+    let before = engine.process_tree_snapshot().node(frozen).unwrap().param_value.clone();
 
     engine.edits.push(Edit::SetNodeScriptProperty {
         node: frozen,
-        property: "value".to_owned(),
-        value: ParamValue::Str("script replacement".to_owned()),
+        write: golden_core::script::ScriptPropertyWrite::prepare(
+            "value",
+            ParamValue::Str("script replacement".to_owned()),
+        )
+        .unwrap(),
     });
     let script_error = engine
         .apply_edits()
@@ -310,28 +286,25 @@ fn compressed_archive_rejects_script_and_headless_writes() {
             ProjectFileSpec::new("R08 compressed lock", "r08-compressed-lock"),
             None,
         ),
-    ).unwrap();
-    let headless = runtime.apply_ui_transaction(
-        UiEditIntent::SetParam {
-            node: frozen,
-            value: ParamValue::Str("headless replacement".to_owned()),
-            behaviour: ParameterEventBehaviour::Coalesce,
-        },
-        Some("r08-headless-client"),
-    ).unwrap();
+    )
+    .unwrap();
+    let headless = runtime
+        .apply_ui_transaction(
+            UiEditIntent::SetParam {
+                node: frozen,
+                value: ParamValue::Str("headless replacement".to_owned()),
+                behaviour: ParameterEventBehaviour::Coalesce,
+            },
+            Some("r08-headless-client"),
+        )
+        .unwrap();
     assert!(!headless.acknowledgement.success);
     assert_eq!(
         headless.acknowledgement.error_code.as_deref(),
         Some("param_constraint_violation")
     );
-    let published = runtime
-        .read_model()
-        .snapshot_for_scope(UiSubscriptionScope::WholeGraph);
-    let archive = published
-        .nodes
-        .iter()
-        .find(|node| node.node_id == frozen)
-        .unwrap();
+    let published = runtime.read_model().snapshot_for_scope(UiSubscriptionScope::WholeGraph);
+    let archive = published.nodes.iter().find(|node| node.node_id == frozen).unwrap();
     let UiNodeDataDto::Parameter { param } = &archive.data else {
         panic!("frozen source should remain a parameter");
     };

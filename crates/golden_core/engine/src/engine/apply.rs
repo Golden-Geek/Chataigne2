@@ -252,10 +252,10 @@ impl<T: Node> Engine<T> {
                             let should_clear_redo = effect.is_some();
                             (Ok(effect.map(Into::into)), should_clear_redo)
                         }
-                        Edit::SetNodeScriptProperty { node, property, value } => {
+                        Edit::SetNodeScriptProperty { node, write } => {
                             let capture = self.capture_opaque_history(capture_history, node);
                             let effect = self
-                                .apply_set_node_script_property(edit_index, node, property, value, capture)?
+                                .apply_set_node_script_property(edit_index, node, write, capture)?
                                 .capture_completion(&mut completion);
                             missing_reference_warning_dirty |= effect.is_some();
                             user_context_graph_dirty |= effect.is_some();

@@ -172,9 +172,14 @@ impl ScriptHostBridge for NodeScriptHostBridge<'_> {
         );
     }
 
-    fn emit_custom(&mut self, topic: &str, payload: JsonValue) -> Result<(), String> {
-        self.ctx
-            .emit_custom_event(CustomEvent::new(topic, Some(self.script_node), payload));
+    fn emit_custom(&mut self, event: crate::script::ScriptCustomEvent) -> Result<(), String> {
+        let (topic, payload) = event.into_parts();
+        self.ctx.emit_custom_event(CustomEvent::shared(
+            topic,
+            Some(self.script_node),
+            payload,
+            crate::events::CustomEventRetention::Replay,
+        ));
         Ok(())
     }
 
@@ -184,8 +189,12 @@ impl ScriptHostBridge for NodeScriptHostBridge<'_> {
             .map(|snapshot| snapshot as Arc<dyn ScriptTreeView>)
     }
 
-    fn set_node_script_property(&mut self, node: NodeId, property: String, value: ParamValue) -> Result<(), String> {
-        self.ctx.set_node_script_property(node, property, value);
+    fn set_node_script_property(
+        &mut self,
+        node: NodeId,
+        write: crate::script::ScriptPropertyWrite,
+    ) -> Result<(), String> {
+        self.ctx.set_node_script_property(node, write);
         Ok(())
     }
 

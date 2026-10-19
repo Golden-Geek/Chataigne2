@@ -1,6 +1,6 @@
 use crate::edit::NodeMutation;
 use crate::node::{Node, NodeData, NodeId, NodeMeta, NodeUuid, UserNodeRole};
-use crate::parameter::{ParamValue, ParameterSnapshot};
+use crate::parameter::ParameterSnapshot;
 use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 use crate::ui_sync::UiGraphOp;
 
@@ -147,8 +147,7 @@ impl<T: Node> Engine<T> {
         &mut self,
         edit_index: usize,
         node: NodeId,
-        property: String,
-        value: ParamValue,
+        write: crate::script::ScriptPropertyWrite,
         capture: bool,
     ) -> Result<AppliedEdit<Option<AuthoredNodeEffect>>, EngineEditError> {
         self.apply_opaque_edit(
@@ -158,8 +157,9 @@ impl<T: Node> Engine<T> {
             capture,
             false,
             move |target, ctx| {
+                let property = write.property();
                 target
-                    .engine_set_script_property(ctx, &property, value)
+                    .engine_set_script_property(ctx, property, write.value())
                     .and_then(|handled| {
                         handled
                             .then_some(())
