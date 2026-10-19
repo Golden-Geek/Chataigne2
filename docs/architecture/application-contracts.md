@@ -171,7 +171,30 @@ keep their separate delivery owners until their receipts settle. Disabled servic
 explicitly opts in for that accepted prefix, and retired client status cannot restore the live
 client list. A replacement starts after the old producer resolves; destroy alone cancels producers
 and discards runtime deliveries. Undo reserves a fresh wake source. The server has no periodic or
-compiled node kernel. WebSocket/serial and broader producer admission/disposal audits remain P03 work.
+compiled node kernel. WebSocket server/serial and broader producer admission/disposal audits remain P03 work.
+
+WebSocket client uses the same passive wake, retained input and callback-receipt contracts. Its
+native owner uses the locked Tungstenite public nonblocking handshake/framing/control API, with
+at most 16 live or retiring workers. Commands allow 256 items / 8 MiB, with a 1 MiB retained frame
+bound checked before copying; replies allow 64 items / 32 MiB and one input/output/status continuation
+per source. The protocol limits frames and reassembled messages to 1 MiB and bounds its write buffer
+to 2 MiB plus 1 KiB. Each native turn resets 64 KiB and four-syscall budgets per direction, preventing
+library fragment or partial-flush loops from escaping the native service budget.
+
+Frames submit once to the codec and retain a flush cursor with a five-second deadline. Failure
+reports an unconfirmed effect and never replays it. Generation-tagged queued frames cannot move
+onto a new connection. Native setup resolves at the I/O boundary, checks up to eight addresses with
+100ms connect attempts, and polls both cancellation and admission closure during its three-second
+handshake deadline. Reconnect backoff is 250ms–5s. Ping/close handling remains active even when
+application receive is disabled; shutdown and graceful retirement do not wait for peer ACKs.
+
+Applied host/port/path fence script and command admission before callback dispatch. Grammar and
+processing revisions discard partial frames; log-only revisions preserve them. Worker preparation
+keeps binary callbacks distinct from text callbacks. Shared stream envelope rejection and native
+oversize feedback invalidate partial input rather than joining later bytes across a dropped batch.
+An owner retains its accepted frame/input/callback prefix across reconfigure and disable, then
+starts the replacement. Destroy alone cancels producers and drops runtime deliveries; undo uses
+a fresh wake source. WebSocket server, serial and broader producer admission/disposal remain P03 work.
 
 HTTP admission reads applied snapshot values and compares them with the authored inputs captured
 for the active generation, so a configuration edit followed immediately by a command or script

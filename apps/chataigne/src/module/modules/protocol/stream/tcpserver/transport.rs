@@ -43,7 +43,7 @@ impl TcpServerTransportConfig {
         if self.bind_host.trim().is_empty() || self.bind_host.capacity() > 1024 {
             return Err("TCP server bind host must contain 1–1024 retained bytes; endpoint was not admitted".into());
         }
-        validate_input(&self.input)
+        self.input.validate()
     }
     pub(super) fn same_endpoint(&self, other: &Self) -> bool {
         self.bind_host == other.bind_host
@@ -189,7 +189,7 @@ impl TcpServerTransportHandle {
         self.worker.finish_admission();
     }
     pub(crate) fn update_input(&self, config: StreamInputConfig) -> Result<(), String> {
-        validate_input(&config)?;
+        config.validate()?;
         self.input.update(config);
         Ok(())
     }
@@ -197,13 +197,6 @@ impl TcpServerTransportHandle {
         self.clients.store(0, Ordering::Release);
         self.worker.cancel();
     }
-}
-
-fn validate_input(config: &StreamInputConfig) -> Result<(), String> {
-    if config.parse.mode.capacity() > 16 || !matches!(config.parse.mode.as_str(), "raw" | "line" | "json") {
-        return Err("TCP server input mode exceeds its supported configuration bound".into());
-    }
-    Ok(())
 }
 
 fn callback_weight(callback: &Result<NativeCallbackPayload, String>) -> usize {

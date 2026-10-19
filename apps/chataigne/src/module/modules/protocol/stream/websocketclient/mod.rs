@@ -1,8 +1,9 @@
 mod transport;
 
-#[cfg(test)]
-mod tests;
-
+use crate::app::module::common::{
+    streaming::{delivery::InputDelivery, input::StreamInputConfig},
+    worker_wake::ModuleWake,
+};
 use golden_core::{
     engine::NodeExecutionRule,
     events::{CustomEvent, Event},
@@ -12,13 +13,13 @@ use golden_core::{
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 use golden_io::PendingDrainState;
+use std::collections::VecDeque;
 
 use crate::app::{
     module::common::streaming::{
-        commands::{streaming_script_send_request, StreamingSendFrameKind, StreamingSendRequest},
-        module_helpers::{format_bytes_for_log, streaming_command_type_supported},
+        commands::{streaming_script_send_request, StreamingSendRequest},
+        module_helpers::streaming_command_type_supported,
         script as streaming_script,
-        websocket::normalize_websocket_path,
     },
     StreamingModuleBase,
 };
@@ -28,7 +29,6 @@ use self::transport::{
     WebSocketClientTransportHandle,
 };
 
-const WEBSOCKET_CLIENT_MODULE_UPDATE_RATE_HZ: u32 = 120;
 const WEBSOCKET_CLIENT_TARGET_WARNING_ID: &str = "websocket_client_target_transport";
 
 #[node("websocket_client_module", label = "WebSocket Client")]
@@ -43,7 +43,7 @@ const WEBSOCKET_CLIENT_TARGET_WARNING_ID: &str = "websocket_client_target_transp
             description = "WebSocket server port to connect to.",
             widget = "text"
         );
-        path: String = "/".to_string() (
+        path: String = "/" (
             label = "Path",
             description = "WebSocket request path used during the opening handshake."
         );
@@ -53,13 +53,47 @@ const WEBSOCKET_CLIENT_TARGET_WARNING_ID: &str = "websocket_client_target_transp
 pub struct WebSocketClientModule {
     stream: StreamingModuleBase,
     transport: Option<WebSocketClientTransportHandle>,
+    retiring_transport: Option<WebSocketClientTransportHandle>,
     last_transport_config: Option<WebSocketClientTransportConfig>,
     transport_dirty: bool,
+    wake: Option<ModuleWake>,
+    retry_at: Option<std::time::Instant>,
+    pending_inputs: VecDeque<InputDelivery>,
 }
 
 impl WebSocketClientModule {
     pub fn create() -> Self {
-        Self::new(StreamingModuleBase::create(), None, None, true)
+        Self::new(
+            StreamingModuleBase::create(),
+            None,
+            None,
+            None,
+            true,
+            None,
+            None,
+            VecDeque::new(),
+        )
+    }
+
+    fn request_service(&self) {
+        if let Some(wake) = &self.wake {
+            wake.notifier.notify();
+        }
+    }
+
+    fn retire_transport(&mut self) {
+        if let Some(mut transport) = self.transport.take() {
+            debug_assert!(self.retiring_transport.is_none());
+            transport.finish_admission();
+            self.retiring_transport = Some(transport);
+        }
+        self.last_transport_config = None;
+    }
+
+    fn transport_refresh_due(&self) -> bool {
+        self.transport_dirty
+            && self.retiring_transport.is_none()
+            && self.retry_at.is_none_or(|at| std::time::Instant::now() >= at)
     }
 
     fn module_enabled(&self, snapshot: &ProcessTreeSnapshot) -> bool {
@@ -67,21 +101,28 @@ impl WebSocketClientModule {
     }
 
     fn refresh_transport(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
+        if let Some(at) = self.retry_at.filter(|at| std::time::Instant::now() < *at) {
+            if let Some(wake) = &self.wake {
+                wake.later(at.saturating_duration_since(std::time::Instant::now()));
+            }
+            return;
+        }
+        self.retry_at = None;
         self.transport_dirty = false;
 
         if !self.module_enabled(snapshot) {
-            self.stop_transport();
+            self.retire_transport();
             self.last_transport_config = None;
             self.clear_target_warning(ctx);
             self.stream.set_connected(ctx, false);
             return;
         }
 
-        let config = match self.transport_config() {
+        let config = match self.transport_config(snapshot) {
             Ok(config) => config,
             Err(error) => {
-                logerror!("Invalid WebSocket client configuration: {}", error);
-                self.stop_transport();
+                logerror!("Invalid WebSocket module configuration: {}", error);
+                self.retire_transport();
                 self.last_transport_config = None;
                 self.set_target_warning(ctx, error.as_str());
                 self.stream.set_connected(ctx, false);
@@ -89,13 +130,32 @@ impl WebSocketClientModule {
             }
         };
 
-        if self.transport.is_some() && self.last_transport_config.as_ref() == Some(&config) {
+        if let Some(transport) = self.transport.as_ref().filter(|_| {
+            self.last_transport_config
+                .as_ref()
+                .is_some_and(|last| last.same_endpoint(&config))
+        }) {
+            if let Err(error) = transport.update_input(config.input.clone()) {
+                self.retire_transport();
+                self.set_target_warning(ctx, &error);
+                self.stream.set_connected(ctx, false);
+                return;
+            }
+            self.last_transport_config = Some(config);
             return;
         }
 
-        self.stop_transport();
+        self.retire_transport();
+        self.stream.set_connected(ctx, false);
+        if self.retiring_transport.is_some() {
+            self.transport_dirty = true;
+            return;
+        }
+        let Some(wake) = &self.wake else {
+            return;
+        };
 
-        match WebSocketClientTransportHandle::spawn(config.clone()) {
+        match WebSocketClientTransportHandle::spawn(config.clone(), wake.notifier.clone()) {
             Ok(handle) => {
                 self.transport = Some(handle);
                 self.last_transport_config = Some(config);
@@ -103,37 +163,72 @@ impl WebSocketClientModule {
                 self.stream.set_connected(ctx, false);
             }
             Err(error) => {
-                logerror!("Failed to start WebSocket client transport: {}", error);
+                logerror!("Failed to start WebSocket transport: {}", error);
                 self.transport = None;
                 self.last_transport_config = None;
+                self.transport_dirty = true;
+                self.retry_at = Some(std::time::Instant::now() + std::time::Duration::from_millis(250));
+                wake.later(std::time::Duration::from_millis(250));
                 self.set_target_warning(ctx, error.as_str());
                 self.stream.set_connected(ctx, false);
             }
         }
     }
 
-    fn transport_config(&self) -> Result<WebSocketClientTransportConfig, String> {
-        let remote_host = self.remote_host.get_ref().trim().to_string();
-        if remote_host.is_empty() {
-            return Err("WebSocket remote host cannot be empty".to_string());
+    fn transport_config(&self, snapshot: &ProcessTreeSnapshot) -> Result<WebSocketClientTransportConfig, String> {
+        let Some(ParamValue::Str(host)) = snapshot
+            .node(self.remote_host.id())
+            .and_then(|node| node.param_value.as_ref())
+        else {
+            return Err("WebSocket remote host is unavailable".into());
+        };
+        if host.trim().is_empty() || host.len() > 1024 {
+            return Err("WebSocket remote host must contain 1–1024 bytes".to_string());
         }
+        let remote_host = host.trim().to_string();
 
-        let remote_port = u16::try_from(self.remote_port.get()).map_err(|_| {
-            "WebSocket remote port 'connection/remote_port' must be between 0 and 65535".to_string()
-        })?;
+        let Some(ParamValue::Int(port)) = snapshot
+            .node(self.remote_port.id())
+            .and_then(|node| node.param_value.as_ref())
+        else {
+            return Err("WebSocket remote port is unavailable".into());
+        };
+        let remote_port = u16::try_from(*port)
+            .map_err(|_| "WebSocket remote port 'connection/remote_port' must be between 0 and 65535".to_string())?;
 
-        Ok(WebSocketClientTransportConfig {
+        let Some(ParamValue::Str(path)) = snapshot.node(self.path.id()).and_then(|node| node.param_value.as_ref())
+        else {
+            return Err("WebSocket path is unavailable".into());
+        };
+        if path.len() > 8192 {
+            return Err("WebSocket path exceeds 8192 UTF-8 bytes".into());
+        }
+        let path = crate::app::module::common::streaming::websocket::normalize_websocket_path(path);
+        let config = WebSocketClientTransportConfig {
             remote_host,
             remote_port,
-            path: normalize_websocket_path(self.path.get_ref().as_str()),
+            path,
             receive_enabled: true,
             send_enabled: true,
-        })
+            input: StreamInputConfig {
+                module: self.id(),
+                parse: self.stream.parse_config_cached(),
+                processing_enabled: self.stream.processing_enabled_cached(),
+                log_incoming: self.stream.log_incoming_enabled(),
+            },
+        };
+        config.validate()?;
+        Ok(config)
     }
 
     fn drain_transport_events(&mut self, ctx: &mut ProcessCtx) {
+        // Retain at most one native drain until its callback receipts complete.
+        if !self.pending_inputs.is_empty() {
+            return;
+        }
+        let retiring = self.retiring_transport.is_some();
         let (worker_events, worker_disconnected) = {
-            let Some(transport) = &self.transport else {
+            let Some(transport) = self.retiring_transport.as_ref().or(self.transport.as_ref()) else {
                 return;
             };
 
@@ -144,82 +239,60 @@ impl WebSocketClientModule {
             (worker_events, worker_disconnected)
         };
 
-        let processing_enabled = self.stream.processing_enabled_cached();
         let mut received_bytes = false;
         for event in worker_events {
             match event {
-                StreamingWorkerEvent::Bytes { frame_kind, bytes } if !processing_enabled => {
-                    streaming_script::emit_stream_bytes_callbacks(
-                        ctx,
-                        self.id(),
-                        bytes.as_slice(),
-                        None,
-                        frame_kind == StreamingSendFrameKind::Text,
-                    );
-                    if self.stream.log_incoming_enabled() {
-                        golden_core::log!(
-                            origin = self.id();
-                            format!(
-                                "Received WebSocket {} (processing disabled)",
-                                format_bytes_for_log(bytes.as_slice())
-                            )
-                        );
+                StreamingWorkerEvent::Input(input) => {
+                    received_bytes = true;
+                    if let Some(message) = &input.log_message {
+                        golden_core::log!(origin = self.id(); message.as_str());
                     }
-                }
-                StreamingWorkerEvent::Bytes { frame_kind, bytes } => {
-                    streaming_script::emit_stream_bytes_callbacks(
-                        ctx,
-                        self.id(),
-                        bytes.as_slice(),
-                        None,
-                        frame_kind == StreamingSendFrameKind::Text,
-                    );
-                    match self.stream.parse_bytes_cached(bytes.as_slice()) {
-                        Ok(messages) => {
-                            received_bytes = true;
-                            if self.stream.log_incoming_enabled() {
-                                golden_core::log!(
-                                    origin = self.id();
-                                    format!("Received WebSocket {}", format_bytes_for_log(bytes.as_slice()))
-                                );
-                            }
-                            self.stream.push_messages(messages);
-                        }
-                        Err(error) => {
-                            logerror!("Failed to parse WebSocket input: {}", error);
-                        }
+                    if let Err(error) = &input.values {
+                        logerror!("Failed to parse WebSocket input: {}", error);
                     }
+                    Self::report_rejected_input(input.rejected_lines);
+                    self.pending_inputs.push_back(InputDelivery::new(input));
                 }
+                StreamingWorkerEvent::RejectedInput(count) => Self::report_rejected_input(count),
                 StreamingWorkerEvent::Error(error) => {
-                    logerror!("WebSocket client transport error: {}", error);
+                    logerror!("WebSocket transport error: {}", error);
                 }
+                StreamingWorkerEvent::OutgoingLog(message) => {
+                    golden_core::log!(origin = self.id(); message.as_str());
+                }
+                StreamingWorkerEvent::Status(_) if retiring => {}
                 StreamingWorkerEvent::Status(status) => match status {
                     WebSocketClientConnectionStatus::Connected { remote_address } => {
                         golden_core::logsuccess!(
                             origin = self.id();
-                            format!("Connected WebSocket client to {remote_address}.")
+                            format!("Connected WebSocket stream to {remote_address}.")
                         );
-                        // clear_target_warning uses a bound handle — no snapshot needed.
-                        self.clear_target_warning(ctx);
                         self.stream.set_connected(ctx, true);
+                        self.clear_target_warning(ctx);
                     }
                     WebSocketClientConnectionStatus::Recovering { message, .. } => {
-                        logerror!("WebSocket client recovering: {}", message);
-                        self.set_target_warning(ctx, message.as_str());
+                        logerror!("WebSocket transport recovering: {}", message);
                         self.stream.set_connected(ctx, false);
+                        self.set_target_warning(ctx, &message);
                     }
                 },
             }
         }
 
         if worker_disconnected {
-            logerror!("WebSocket client worker stopped unexpectedly; restarting.");
-            self.stop_transport();
+            if retiring {
+                self.retiring_transport = None;
+            } else {
+                logerror!(
+                    "WebSocket transport worker stopped; outstanding commands have an unknown outcome and are not replayed."
+                );
+                self.transport = None;
+                self.retry_at = Some(std::time::Instant::now() + std::time::Duration::from_millis(250));
+                if let Some(wake) = &self.wake {
+                    wake.later(std::time::Duration::from_millis(250));
+                }
+            }
             self.last_transport_config = None;
-            self.set_target_warning(
-                ctx,
-                "WebSocket client worker stopped unexpectedly. Restarting.",
-            );
             self.stream.set_connected(ctx, false);
             self.transport_dirty = true;
         }
@@ -229,25 +302,38 @@ impl WebSocketClientModule {
         }
     }
 
+    fn report_rejected_input(count: u64) {
+        if count > 0 {
+            logerror!(
+                "Rejected {} WebSocket lines at an input/configuration/connection boundary",
+                count
+            );
+        }
+    }
+
     fn queue_send_request(
         &self,
         ctx: &mut ProcessCtx,
-        _snapshot: &ProcessTreeSnapshot,
-        request: &StreamingSendRequest,
+        snapshot: &ProcessTreeSnapshot,
+        request: StreamingSendRequest,
     ) -> Result<String, String> {
+        if !self.module_enabled(snapshot) {
+            return Err("WebSocket module is disabled; command was not admitted".into());
+        }
+        let applied = self.transport_config(snapshot)?;
+        if !self
+            .last_transport_config
+            .as_ref()
+            .is_some_and(|last| last.same_endpoint(&applied))
+        {
+            return Err("WebSocket endpoint configuration is pending; command was not admitted".into());
+        }
         let transport = self
             .transport
             .as_ref()
-            .ok_or_else(|| "WebSocket client transport is not available".to_string())?;
-        transport.send(request.frame_kind, request.bytes.clone())?;
+            .ok_or_else(|| "WebSocket transport is not available".to_string())?;
+        transport.send(request.frame_kind, &request.bytes, self.stream.log_outgoing_enabled())?;
         self.stream.emit_outgoing_traffic(ctx);
-
-        if self.stream.log_outgoing_enabled() {
-            golden_core::log!(
-                origin = self.id();
-                format!("Sent WebSocket {}", format_bytes_for_log(request.bytes.as_slice()))
-            );
-        }
 
         Ok(format!("Queued WebSocket {}", request.description))
     }
@@ -266,11 +352,11 @@ impl WebSocketClientModule {
         let snapshot = snapshot_arc.as_ref();
 
         if let Err(error) = serde_json::from_value::<StreamingSendRequest>(request.payload)
-            .map_err(|error| format!("invalid WebSocket client command payload: {error}"))
-            .and_then(|payload| self.queue_send_request(ctx, snapshot, &payload))
+            .map_err(|error| format!("invalid WebSocket command payload: {error}"))
+            .and_then(|payload| self.queue_send_request(ctx, snapshot, payload))
         {
             logerror!(format!(
-                "Failed to handle WebSocket client command {:?}: {error}",
+                "Failed to handle WebSocket command {:?}: {error}",
                 request.command_id
             ));
         }
@@ -279,6 +365,7 @@ impl WebSocketClientModule {
     fn on_param_change_inner(&mut self, param: NodeId) {
         if self.param_affects_transport(param) {
             self.transport_dirty = true;
+            self.retry_at = None;
         }
     }
 
@@ -286,6 +373,7 @@ impl WebSocketClientModule {
         (self.remote_host.is_bound() && self.remote_host.id() == param)
             || (self.remote_port.is_bound() && self.remote_port.id() == param)
             || (self.path.is_bound() && self.path.id() == param)
+            || self.stream.affects_input_configuration(param)
     }
 
     fn refresh_data_capabilities(&mut self, ctx: &mut ProcessCtx, _snapshot: &ProcessTreeSnapshot) {
@@ -294,20 +382,24 @@ impl WebSocketClientModule {
     }
 
     fn set_target_warning(&self, ctx: &mut ProcessCtx, message: &str) {
-        NodeHandle::new(self.remote_host.id()).set_warning_with(
-            ctx,
-            Some(WEBSOCKET_CLIENT_TARGET_WARNING_ID),
-            message,
-            None,
-        );
+        let Some(target_id) = self.stream.connection_id() else {
+            return;
+        };
+        NodeHandle::new(target_id).set_warning_with(ctx, Some(WEBSOCKET_CLIENT_TARGET_WARNING_ID), message, None);
     }
 
     fn clear_target_warning(&self, ctx: &mut ProcessCtx) {
-        NodeHandle::new(self.remote_host.id()).clear_warning(ctx, Some(WEBSOCKET_CLIENT_TARGET_WARNING_ID));
+        let Some(target_id) = self.stream.connection_id() else {
+            return;
+        };
+        NodeHandle::new(target_id).clear_warning(ctx, Some(WEBSOCKET_CLIENT_TARGET_WARNING_ID));
     }
 
     fn stop_transport(&mut self) {
         if let Some(mut transport) = self.transport.take() {
+            transport.stop();
+        }
+        if let Some(mut transport) = self.retiring_transport.take() {
             transport.stop();
         }
     }
@@ -334,55 +426,95 @@ impl Node for WebSocketClientModule {
     }
 
     fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
+        let source = match ctx.node_waker() {
+            Ok(source) => source,
+            Err(error) => {
+                logerror!("Failed to register WebSocket worker wake: {}", error);
+                return;
+            }
+        };
+        if !self.wake.as_ref().is_some_and(|wake| wake.matches(&source)) {
+            self.stop_transport();
+            self.stream.discard_pending_input();
+            self.pending_inputs.clear();
+            self.wake = match ModuleWake::new(source) {
+                Ok(wake) => Some(wake),
+                Err(error) => {
+                    logerror!("Failed to register WebSocket retry deadline: {}", error);
+                    return;
+                }
+            };
+        }
         let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
             return;
         };
         let snapshot = snapshot_arc.as_ref();
+        self.stream.refresh_config_cache(snapshot);
         self.refresh_transport(ctx, snapshot);
     }
 
-    fn update(&mut self, ctx: &mut ProcessCtx) {
-        // Drain transport bytes using only cached config — no snapshot needed.
+    fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
+        if let Some(wake) = &self.wake {
+            wake.cancel_deadline();
+        }
         self.drain_transport_events(ctx);
-
-        let needs_snapshot = self.transport_dirty || self.stream.has_pending_messages();
-        if !needs_snapshot {
-            return;
+        if let Some(input) = self.pending_inputs.front_mut() {
+            if input.service(ctx, &mut self.stream) {
+                self.pending_inputs.pop_front();
+            }
         }
 
-        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
-            return;
-        };
-        let snapshot = snapshot_arc.as_ref();
-
-        // Refresh cached config while we have the snapshot so the next drain is accurate.
-        self.stream.refresh_config_cache(snapshot);
-        self.refresh_data_capabilities(ctx, snapshot);
-
-        if self.transport_dirty {
-            self.refresh_transport(ctx, snapshot);
+        if let Some(snapshot_arc) = ctx.tree_snapshot_arc() {
+            let snapshot = snapshot_arc.as_ref();
+            self.stream.refresh_config_cache(snapshot);
+            self.refresh_data_capabilities(ctx, snapshot);
+            if self.transport_refresh_due() {
+                self.refresh_transport(ctx, snapshot);
+            }
+            self.stream.process_pending(ctx, snapshot);
         }
-
-        self.stream.process_pending(ctx, snapshot);
+        if self.stream.has_pending_messages()
+            || !self.pending_inputs.is_empty()
+            || self.transport.as_ref().is_some_and(|transport| transport.has_pending())
+            || self
+                .retiring_transport
+                .as_ref()
+                .is_some_and(|transport| transport.has_pending())
+        {
+            self.request_service();
+        } else if self.transport_dirty && self.retiring_transport.is_none() {
+            if let Some(wake) = &self.wake {
+                wake.later(self.retry_at.map_or(std::time::Duration::from_millis(1), |at| {
+                    at.saturating_duration_since(std::time::Instant::now())
+                }));
+            }
+        }
     }
 
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {
         self.stop_transport();
+        self.wake = None;
+        self.retry_at = None;
+        self.stream.discard_pending_input();
+        self.pending_inputs.clear();
     }
 
     fn needs_update(&self) -> bool {
-        self.transport_dirty
-            || self.stream.has_pending_messages()
-            || self.transport.as_ref().is_some_and(|t| t.has_pending())
+        false
     }
 
-    fn update_requires_tree_snapshot(&self) -> bool {
-        self.transport_dirty || self.stream.has_pending_messages()
+    fn worker_wake_requires_tree_snapshot(&self) -> bool {
+        self.transport_refresh_due() || self.stream.has_pending_messages()
+    }
+    fn worker_wake_when_disabled(&self) -> bool {
+        self.retiring_transport.is_some()
+            || self.transport_dirty
+            || !self.pending_inputs.is_empty()
+            || self.stream.has_pending_messages()
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
-        NodeExecutionRule::periodic(WEBSOCKET_CLIENT_MODULE_UPDATE_RATE_HZ)
-            .with_compiled_kernel("chataigne.runtime.websocket")
+        NodeExecutionRule::passive()
     }
 
     fn child_event_interest_depth(&self, _event: &Event) -> u32 {
@@ -404,7 +536,7 @@ impl Node for WebSocketClientModule {
             let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
                 return Err(format!("method '{method}' is unavailable without a tree snapshot"));
             };
-            self.queue_send_request(ctx, snapshot_arc.as_ref(), &request)?;
+            self.queue_send_request(ctx, snapshot_arc.as_ref(), request)?;
             return Ok(true);
         }
 
@@ -417,28 +549,32 @@ impl Node for WebSocketClientModule {
                 .emit_script_param_callback(ctx, snapshot_arc.as_ref(), param, &old_value);
         }
         self.on_param_change_inner(param);
+        if self.transport_dirty {
+            self.request_service();
+        }
     }
 
-    fn on_meta_changed(&mut self, ctx: &mut ProcessCtx, node: NodeId, patch: NodeMetaPatch) {
-        if let Some(enabled) = patch.enabled {
-            if node != self.id() {
-                let _ = ctx;
-                let _ = enabled;
-                self.transport_dirty = true;
-            }
+    fn on_meta_changed(&mut self, _ctx: &mut ProcessCtx, node: NodeId, patch: NodeMetaPatch) {
+        if patch.enabled.is_some() && node != self.id() {
+            self.transport_dirty = true;
+            self.retry_at = None;
+            self.request_service();
         }
     }
 
     fn on_effective_enabled_changed(&mut self, ctx: &mut ProcessCtx, enabled: bool) {
+        self.retry_at = None;
         if enabled {
             self.transport_dirty = true;
+            self.request_service();
         } else {
-            self.stop_transport();
+            self.retire_transport();
             self.last_transport_config = None;
             self.clear_target_warning(ctx);
             self.stream.set_connected(ctx, false);
             self.transport_dirty = false;
         }
+        self.request_service();
     }
 
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
@@ -449,3 +585,6 @@ impl Node for WebSocketClientModule {
         (node_type == Self::NODE_TYPE).then(Self::create)
     }
 }
+
+#[cfg(test)]
+mod tests;

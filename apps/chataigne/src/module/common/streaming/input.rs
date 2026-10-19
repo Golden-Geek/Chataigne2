@@ -20,6 +20,15 @@ pub(crate) struct StreamInputConfig {
     pub log_incoming: bool,
 }
 
+impl StreamInputConfig {
+    pub(crate) fn validate(&self) -> Result<(), String> {
+        if self.parse.mode.capacity() > 16 || !matches!(self.parse.mode.as_str(), "raw" | "line" | "json") {
+            return Err("Stream input mode exceeds its supported configuration bound".into());
+        }
+        Ok(())
+    }
+}
+
 #[derive(Clone)]
 pub(crate) struct InputSnapshot {
     pub generation: u64,
@@ -64,53 +73,61 @@ pub(crate) fn prepare(
     bytes: &[u8],
     transport: &str,
     peer: Option<&str>,
+    text_hint: bool,
 ) -> Result<RetainedPayload<PreparedStreamInput>, String> {
-    let config = &snapshot.config;
-    let values = if config.processing_enabled {
-        parser.push_bytes(bytes, &config.parse)
-    } else {
-        Ok(PreparedMessages::default())
-    };
-    let callbacks = prepare_stream_bytes_callbacks(bytes, peer, true)?;
-    let rejected_lines = parser.take_rejected_line_count();
-    let log_message = config.log_incoming.then(|| {
-        let prefix = &bytes[..bytes.len().min(1024)];
-        let suffix = if bytes.len() > prefix.len() {
-            format!(" ({} bytes total)", bytes.len())
+    let result = (|| {
+        let config = &snapshot.config;
+        let values = if config.processing_enabled {
+            parser.push_bytes(bytes, &config.parse)
         } else {
-            String::new()
+            Ok(PreparedMessages::default())
         };
-        format!(
-            "Received {transport}{} {}{}{}",
-            peer.map_or_else(String::new, |peer| format!(" from {peer}")),
-            format_bytes_for_log(prefix),
-            suffix,
-            if config.processing_enabled {
-                ""
+        let callbacks = prepare_stream_bytes_callbacks(bytes, peer, text_hint)?;
+        let rejected_lines = parser.take_rejected_line_count();
+        let log_message = config.log_incoming.then(|| {
+            let prefix = &bytes[..bytes.len().min(1024)];
+            let suffix = if bytes.len() > prefix.len() {
+                format!(" ({} bytes total)", bytes.len())
             } else {
-                " (processing disabled)"
-            }
+                String::new()
+            };
+            format!(
+                "Received {transport}{} {}{}{}",
+                peer.map_or_else(String::new, |peer| format!(" from {peer}")),
+                format_bytes_for_log(prefix),
+                suffix,
+                if config.processing_enabled {
+                    ""
+                } else {
+                    " (processing disabled)"
+                }
+            )
+        });
+        let own_weight = size_of::<PreparedStreamInput>()
+            + callbacks.capacity() * size_of::<NativeCallbackPayload>()
+            + log_message.as_ref().map_or(0, String::capacity)
+            + values.as_ref().err().map_or(0, String::capacity);
+        let weight = own_weight
+            + values.as_ref().map_or(0, PreparedMessages::retained_bytes)
+            + callbacks
+                .iter()
+                .map(NativeCallbackPayload::retained_bytes)
+                .sum::<usize>();
+        retain_payload(
+            PreparedStreamInput {
+                values,
+                module: config.module,
+                callbacks,
+                log_message,
+                rejected_lines,
+                weight,
+            },
+            own_weight,
         )
-    });
-    let own_weight = size_of::<PreparedStreamInput>()
-        + callbacks.capacity() * size_of::<NativeCallbackPayload>()
-        + log_message.as_ref().map_or(0, String::capacity)
-        + values.as_ref().err().map_or(0, String::capacity);
-    let weight = own_weight
-        + values.as_ref().map_or(0, PreparedMessages::retained_bytes)
-        + callbacks
-            .iter()
-            .map(NativeCallbackPayload::retained_bytes)
-            .sum::<usize>();
-    retain_payload(
-        PreparedStreamInput {
-            values,
-            module: config.module,
-            callbacks,
-            log_message,
-            rejected_lines,
-            weight,
-        },
-        own_weight,
-    )
+    })();
+    // A rejected envelope creates a gap in the stream; never join a partial frame across it.
+    if result.is_err() {
+        parser.discard_partial_input();
+    }
+    result
 }

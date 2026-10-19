@@ -146,6 +146,7 @@ fn callback_receipts_retry_only_discarded_publication_without_rebuilding_input_o
         b"value 7\n",
         "TCP server",
         Some("fixture"),
+        true,
     )
     .unwrap();
     let crate::app::AppNode::TcpServerModule(node) = engine.nodes.get_mut(module).unwrap() else {
@@ -207,6 +208,7 @@ fn destroy_undo_discards_runtime_delivery_and_rejects_the_previous_wake_source()
         b"stale 9\n",
         "TCP server",
         Some("stale"),
+        true,
     )
     .unwrap();
     let crate::app::AppNode::TcpServerModule(node) = engine.nodes.get_mut(module).unwrap() else {

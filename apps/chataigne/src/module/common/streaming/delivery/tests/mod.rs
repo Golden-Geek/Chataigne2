@@ -21,7 +21,15 @@ fn discarded_callback_publication_retries_only_the_unpublished_event() {
             log_incoming: false,
         },
     };
-    let packet = input::prepare(&mut StreamingParser::default(), &snapshot, b"value 7\n", "TCP", None).unwrap();
+    let packet = input::prepare(
+        &mut StreamingParser::default(),
+        &snapshot,
+        b"value 7\n",
+        "TCP",
+        None,
+        true,
+    )
+    .unwrap();
     let mut delivery = InputDelivery::new(packet);
     let mut stream = StreamingModuleBase::create();
     let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);

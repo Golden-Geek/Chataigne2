@@ -5,7 +5,7 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-19 on `main` at delivered `01158b6d` plus the verified P03 batch 22 diff.
+Last reconciled: 2026-10-19 on `main` at delivered `5a2cb368` plus the verified P03 batch 23 diff.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
 plan. Its complete contents, including the uncommitted clarification, survive in the
@@ -13,8 +13,9 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 
 ## Current handoff
 
-- Current batch: P03 batch 22 TCP server passive input/callback/lifecycle integration verified locally.
+- Current batch: P03 batch 23 WebSocket client native/passive ownership verified locally.
   Reconcile its milestone commit and `origin/main` before resuming.
+  Batch 22 TCP server passive integration delivered in `5a2cb368`.
   Batch 21 native transport ownership delivered in `01158b6d`.
   Batch 20 HTTP applied-configuration admission/bounds delivered in `36e69aeb`.
   Batch 19 passive HTTP service delivered in `0edb6f48`.
@@ -29,12 +30,17 @@ plan. Its complete contents, including the uncommitted clarification, survive in
   and both remote branches were pushed successfully on 2026-10-19. Unfinished shared-stream
   baseline work was preserved and restored on `main`. Earlier no-commit/no-push notes below
   describe historical actions only; future verified milestones are committed and pushed.
-- P00 resumed check: clean `main` and `origin/main` at delivered `01158b6d`;
+- P00 resumed check: clean `main` and `origin/main` at delivered `5a2cb368`;
   no unrelated changes or live owned jobs at resume. Previous turn: progress.
 - Scope selected by the user: **foundation and readiness**. Full lighting/video/projection
   authoring is deferred; current features and completed Mapping remain preservation contracts.
 - Runtime/source implementation under the new P tasks: **P01 and P02 verified locally; P03 in progress**.
-- Next implementation action: continue WebSocket/serial worker ownership and the broader
+- Next implementation action: continue WebSocket server/serial worker ownership and the broader
+  module/channel audit. WebSocket client native framing/flush ownership, bounded I/O, passive
+  prepared input, callback receipts, disabled/reconfigured prefix drain, and undo source fencing
+  are verified. Preserve its protocol/complexity rejection, parser-gap, reconnect, handshake-stop,
+  and input/output-pressure regressions. TCP/UDP input now shares the explicit text-hint and
+  rejected-envelope parser-reset contracts. Continue the broader
   module/channel audit. TCP server passive owner/receipt delivery, worker-prepared per-client
   parsing/callbacks, and accepted-prefix handoff across disable/reconfigure are verified. Preserve
   its occupied-bind, reply pressure, original-client cursor, applied-port/disable, native input
@@ -79,7 +85,7 @@ External qualification is separate from implementation. A historical pass is not
 | P00 Baseline                | VERIFIED_LOCAL | PASSED              | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                |
 | P01 Edit failures/history   | VERIFIED_LOCAL | PASSED batches 1–8  | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                 |
 | P02 Schedule/actor failures | VERIFIED_LOCAL | PASSED batches 1-3  | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                  |
-| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-22 | TCP server passive input/lifecycle integration verified; broader module/generator audit open                              |
+| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-23 | WebSocket client native/passive ownership verified; server/serial and broader module/generator audit open                 |
 | P04 Audio order/types       | NOT_STARTED    | PENDING             | Legal interleaving and invalid deserialization established from source                                                    |
 | P05 Transport trust         | NOT_STARTED    | PENDING             | Missing admission verified; exploit not demonstrated                                                                      |
 | P06 Dependencies            | NOT_STARTED    | FAILED baseline     | Four Rustls advisories on audit date; refresh DB before repair                                                            |
@@ -2442,3 +2448,67 @@ audio fixtures. They do not qualify external hardware/endpoints, other platforms
 timing, or native UI interaction. Commit and push this milestone on `main`, then continue WebSocket/
 serial and the broader module/channel/producer/generator audit. P03 remains **IN_PROGRESS**;
 P04-P18 retain their states.
+
+### P03 batch 23: WebSocket client native and passive ownership
+
+Resumed clean delivered `5a2cb36842f11ca9a2b3e1bf3eece857acb2d1b1` on `main`, matching fetched
+`origin/main`; previous turn **progress**, no owned jobs live. WebSocket client resolution, unbounded
+commands, join-on-stop and unbounded send/flush lived outside the reusable native boundary; its
+owner also parsed/constructed callback JSON on a 120 Hz periodic path. This batch moves those
+responsibilities to bounded native ownership and passive retained owner delivery. Requested
+**XHigh; actual effort unchanged/unobservable**, with no supported control exposed.
+
+The existing locked Tungstenite 0.29 implementation owns framing, masking, HTTP handshake and
+control messages through its public nonblocking API. The app's `BudgetSocket` bounds per-turn
+read/write bytes and syscall counts, including library fragment/flush loops. Native lifetimes,
+command/reply queues, frame sizes, write buffers and service turns are bounded. Frame cursors submit
+once, then flush retained encoded bytes; connection generations reject the accepted stale suffix
+without moving effects to a replacement. Setup polls both cancellation and canonical admission
+closure, with bounded connect/handshake/control deadlines and reconnect backoff. Local invalid UTF-8
+fails one frame without reconnecting. New input envelopes retain frame kind for text/binary callback
+semantics; shared input validation replaces the server-only validator.
+
+The app owner now reserves `ModuleWake`, uses passive receipt-driven input/graph service, captures
+applied host/port/path before admission, and retains one old producer through accepted-frame drain.
+Disabled service explicitly finishes that prefix; destroy/undo discards runtime input and fences
+the previous wake source. Script methods, commands and app-owned snippets retain their contracts.
+Shared stream envelope rejection now invalidates partial parser state, including callback admission
+failure, so later bytes cannot join across a dropped preparation boundary. WebSocket mailbox
+oversize feedback also invalidates that source's partial frame.
+
+`cargo check --locked -p Chataigne2 --tests` passed in **21.05s** with the temporary empty test-module
+import warning. The initial focused run passed **15/15** in **0.42s** after **2m13s** compilation.
+The expanded run passed **20/21** after **1m35s** compilation: a Windows test peer inherited its
+listener's nonblocking mode; made that fixture explicitly blocking. Added callback-complexity gap
+recovery, oversized wire rejection, unavailable-endpoint recovery, and partial-frame reconnect
+coverage. The next focused run passed **25/25** in **0.89s** after **1m26s** compilation. After adding
+the mailbox gap guard and independent syscall-count assertions, **25/25** passed again in **0.89s**
+after **1m23s** compilation; these overlapping runs are not summed.
+
+Strict Clippy found the HTTP test callback closure inferred the library's fixed large error type.
+The fixture now implements Tungstenite's public `Callback` trait, matching the library boundary
+without an allowance. App fixtures now materialize the module disabled, configure their ephemeral
+endpoint, then enable it, avoiding default-endpoint contact. Requested return to **High** after focused
+invariants passed; actual effort unchanged/unobservable. Final focused/integration/lint/native
+validation remains at that intermediate point. The settled focused run passed **25/25** in **0.79s**
+after **1m27s** compilation. Disjoint compiled-name preservation suites passed script API **8**,
+concrete streams **125** (including those 25), common streaming **45**, HTTP **59**, Sound Card **35**,
+OSC **25**, initial Formula **1**, and null-device Sound Card evidence **1**: **299 distinct app tests**.
+`cargo test-fast --locked -p golden_io` passed **38/38** in **0.20s** (0.13s preparation), for
+**337 distinct app/IO tests**. Repeated and overlapping profiles are not added twice.
+
+Final `cargo clippy --locked -p golden_io -p Chataigne2 --all-targets -- -D warnings` passed in
+**1m38s** including build-lock wait; `cargo check --locked --workspace --tests` passed in **17.91s**.
+Native `cargo build --locked -p Chataigne2 --bin Chataigne2` passed in **1m31s**, without linker
+repair or cache deletion. Root/Core `cargo fmt --all`, explicit changed-feature rustfmt,
+maintained-doc Prettier and whitespace checks pass. Inventory: **1638 source files / 42 oversized**.
+WebSocket owner/transport/native worker/socket/cursor are **590/194/309/119/93** lines; tests are
+separate beside each feature. All owned jobs are terminal.
+
+Evidence is the checked-in transport, cursor, passive module and shared input regressions plus
+terminal commands recorded here. These Windows/default-feature checks use controlled WebSocket/
+TCP/UDP/HTTP/OSC loopbacks, injected native/receipt failures, missing-serial recovery, and null-device
+audio. They do not qualify external endpoints/hardware, other platforms, native UI interaction or
+product-scale timing. Commit and push this milestone on `main`, then continue WebSocket server,
+serial, shared producer argument admission/disposal, Sound Card/channel and generator audits.
+P03 remains **IN_PROGRESS**; P04-P18 retain their states.

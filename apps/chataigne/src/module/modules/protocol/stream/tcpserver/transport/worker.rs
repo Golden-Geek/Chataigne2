@@ -113,6 +113,7 @@ impl Clients {
                         &buffer[..length],
                         "TCP server",
                         Some(&client.label),
+                        true,
                     ) {
                         Ok(input) => Event::Input(input),
                         Err(error) => Event::Error(format!("TCP server input was not admitted: {error}")),

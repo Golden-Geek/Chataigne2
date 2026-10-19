@@ -4,14 +4,16 @@ use std::{
     time::{Duration, Instant},
 };
 
+use golden_io::PendingDrainState;
 use tokio::runtime::Builder;
 use tokio_tungstenite::accept_async;
-use golden_io::PendingDrainState;
 
 use super::transport::{
     StreamingWorkerEvent, WebSocketClientConnectionStatus, WebSocketClientTransportConfig,
     WebSocketClientTransportHandle,
 };
+
+mod module;
 
 #[test]
 fn websocket_transport_client_connects_to_server() {
@@ -42,13 +44,22 @@ fn websocket_transport_client_connects_to_server() {
         });
     });
 
-    let mut handle = WebSocketClientTransportHandle::spawn(WebSocketClientTransportConfig {
-        remote_host: "127.0.0.1".to_string(),
-        remote_port: port,
-        path: "/transport-test".to_string(),
-        receive_enabled: true,
-        send_enabled: true,
-    })
+    let mut handle = WebSocketClientTransportHandle::spawn(
+        WebSocketClientTransportConfig {
+            remote_host: "127.0.0.1".to_string(),
+            remote_port: port,
+            path: "/transport-test".to_string(),
+            receive_enabled: true,
+            send_enabled: true,
+            input: crate::app::module::common::streaming::input::StreamInputConfig {
+                module: golden_core::node::NodeId(1),
+                parse: Default::default(),
+                processing_enabled: true,
+                log_incoming: false,
+            },
+        },
+        golden_io::WorkerNotifier::new(|| {}),
+    )
     .expect("spawn websocket client transport");
 
     let deadline = Instant::now() + Duration::from_secs(2);

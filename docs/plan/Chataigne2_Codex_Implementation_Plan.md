@@ -302,6 +302,9 @@ effects, generation fencing, coherent errors, and continued progress.
 
 ### P03 — Finish bounded I/O and lifecycle ownership
 
+<!-- Mode: Escalating to XHigh for WebSocket client bounded native lifetimes, cancellable connection/handshake recovery, retained frame submission/flush state, connection-generation fencing, and duplex reply backpressure. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
+<!-- Mode: Returning to High after 25 WebSocket client tests passed native frame/connection ownership, passive receipts, disabled/reconfigured accepted-prefix drain, source-fenced undo, and rejected-envelope partial-frame recovery. Routine lint/integration/native validation and delivery remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
+
 <!-- Mode: Escalating to XHigh for TCP server per-client grammar isolation, retained worker-prepared lifecycle/input callbacks, passive receipt delivery, disabled accepted-prefix drain, and destroy/undo wake-source fencing. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
 <!-- Mode: Returning to High after 27 TCP server tests and 312 distinct app/IO tests passed per-client input isolation, passive receipt retry, disabled/reconfigured accepted-prefix ownership, and fresh undo wake sources. Strict lint/native/workspace validation and delivery remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
 
