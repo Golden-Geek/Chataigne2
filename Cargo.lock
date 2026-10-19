@@ -2975,6 +2975,7 @@ dependencies = [
 name = "golden_script"
 version = "0.1.0"
 dependencies = [
+ "golden_io",
  "golden_model",
  "golden_parameters",
  "golden_script_contract",

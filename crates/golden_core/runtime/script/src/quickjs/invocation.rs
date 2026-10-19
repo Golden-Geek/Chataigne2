@@ -55,8 +55,8 @@ impl QuickJsRuntime {
                     host.set_node_script_property(node, property, value)
                         .map_err(ScriptRuntimeError::Host)?;
                 }
-                ScriptHostOp::CallNodeScriptMethod { node, method, args } => {
-                    host.call_node_script_method(node, method, args)
+                ScriptHostOp::CallNodeScriptMethod { node, call } => {
+                    host.call_node_script_method(node, call)
                         .map_err(ScriptRuntimeError::Host)?;
                 }
                 ScriptHostOp::SetEventListener { target, level } => {
@@ -200,44 +200,26 @@ impl QuickJsRuntime {
         }
     }
 
-    pub(super) fn method_args_from_json(method: &str, args_values: Vec<JsonValue>) -> Result<Vec<ParamValue>, String> {
-        if method == "addParameter" {
-            let mut args = Vec::with_capacity(args_values.len());
-            if let Some(value) = args_values.first() {
-                args.push(Self::param_value_from_json(value)?);
-            }
-            if let Some(value) = args_values.get(1) {
-                let converted = if value.is_object() {
-                    Self::param_value_from_parameter_spec_json(value)?
-                } else {
-                    Self::param_value_from_json(value)?
-                };
-                args.push(converted);
-            }
-            for value in args_values.iter().skip(2) {
-                args.push(Self::param_value_from_json(value)?);
-            }
-            return Ok(args);
-        }
-
-        if method == "addNode" {
-            let mut args = Vec::with_capacity(args_values.len());
-            for (index, value) in args_values.iter().enumerate() {
-                let converted = if index == 2 && value.is_object() {
-                    Self::param_value_from_parameter_spec_json(value)?
-                } else {
-                    Self::param_value_from_json(value)?
-                };
-                args.push(converted);
-            }
-            return Ok(args);
-        }
-
+    // Return the partial vector on failure so the admitted reservation can retain it.
+    // Using `?` here would destroy converted arguments on the engine thread.
+    pub(super) fn method_args_from_json(
+        method: &str,
+        args_values: Vec<JsonValue>,
+    ) -> (Vec<ParamValue>, Option<String>) {
         let mut args = Vec::with_capacity(args_values.len());
-        for value in args_values {
-            args.push(Self::param_value_from_json(&value)?);
+        for (index, value) in args_values.iter().enumerate() {
+            let parameter_spec = (method == "addParameter" && index == 1) || (method == "addNode" && index == 2);
+            let converted = if parameter_spec && value.is_object() {
+                Self::param_value_from_parameter_spec_json(value)
+            } else {
+                Self::param_value_from_json(value)
+            };
+            match converted {
+                Ok(value) => args.push(value),
+                Err(message) => return (args, Some(message)),
+            }
         }
-        Ok(args)
+        (args, None)
     }
 
     pub(super) fn param_value_to_tree_json(value: &ParamValue) -> JsonValue {

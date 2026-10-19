@@ -121,8 +121,8 @@ fn script_send_preserves_order_and_disabled_admission_is_rejected() {
     for text in ["first", "second"] {
         engine.edits.push(Edit::CallNodeScriptMethod {
             node: module,
-            method: "sendText".into(),
-            args: vec![ParamValue::Str(text.into())],
+            call: golden_core::script::ScriptMethodCall::prepare("sendText", vec![ParamValue::Str(text.into())])
+                .unwrap(),
         });
     }
     engine.apply_edits().unwrap();
@@ -135,8 +135,8 @@ fn script_send_preserves_order_and_disabled_admission_is_rejected() {
     settle_transport_state(&mut engine);
     engine.edits.push(Edit::CallNodeScriptMethod {
         node: module,
-        method: "sendText".into(),
-        args: vec![ParamValue::Str("rejected".into())],
+        call: golden_core::script::ScriptMethodCall::prepare("sendText", vec![ParamValue::Str("rejected".into())])
+            .unwrap(),
     });
     assert!(
         engine.apply_edits().is_err(),

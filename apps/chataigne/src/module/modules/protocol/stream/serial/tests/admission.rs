@@ -43,8 +43,7 @@ fn wait(mut condition: impl FnMut() -> bool) {
 fn send(engine: &mut crate::app::AppEngine, node: NodeId, text: &str) {
     engine.edits.push(Edit::CallNodeScriptMethod {
         node,
-        method: "sendText".into(),
-        args: vec![ParamValue::Str(text.into())],
+        call: golden_core::script::ScriptMethodCall::prepare("sendText", vec![ParamValue::Str(text.into())]).unwrap(),
     });
 }
 struct Fixture {
@@ -205,8 +204,7 @@ fn native_script_conversion_error_does_not_disconnect_or_block_a_later_valid_com
     } = configured();
     engine.edits.push(Edit::CallNodeScriptMethod {
         node: id,
-        method: "sendHex".into(),
-        args: vec![ParamValue::Str("zz".into())],
+        call: golden_core::script::ScriptMethodCall::prepare("sendHex", vec![ParamValue::Str("zz".into())]).unwrap(),
     });
     send(&mut engine, id, "valid");
     engine.apply_edits().unwrap();

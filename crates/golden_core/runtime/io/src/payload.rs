@@ -52,6 +52,13 @@ struct Shared {
 /// keeps its reservation; it cannot trigger another cleanup thread or release capacity early.
 pub struct PayloadPool(Arc<Shared>);
 
+/// Capacity admitted before constructing a payload. Dropping an unused reservation
+/// releases it; sealing transfers it to the background disposal lifetime.
+pub struct PayloadReservation {
+    pool: Option<PayloadPool>,
+    weight: usize,
+}
+
 /// Immutable shared data whose final destructor always runs on its pool's worker.
 pub struct RetainedPayload<T: Send + Sync + 'static> {
     value: Option<Arc<T>>,
@@ -90,12 +97,7 @@ impl PayloadPool {
         weight: usize,
     ) -> Result<RetainedPayload<T>, PayloadCapacityError<T>> {
         let mut state = self.0.state.lock().unwrap_or_else(|p| p.into_inner());
-        if state.active == self.0.maximum_items
-            || state
-                .retained_bytes
-                .checked_add(weight)
-                .is_none_or(|bytes| bytes > self.0.maximum_bytes)
-        {
+        if !self.0.admit(&mut state, weight) {
             return Err(PayloadCapacityError(value));
         }
         let value = Arc::new(value);
@@ -105,12 +107,24 @@ impl PayloadPool {
             weight,
             external: false,
         });
-        state.active += 1;
-        state.retained_bytes += weight;
         self.0.changed.notify_all();
         Ok(RetainedPayload {
             value: Some(value),
             shared: self.0.clone(),
+        })
+    }
+
+    /// Reserve before materializing data on a consumer thread. The eventual retained
+    /// weight must fit this reservation. Reserved items also keep the disposer alive.
+    pub fn try_reserve(&self, weight: usize) -> Result<PayloadReservation, PayloadCapacityError<()>> {
+        let mut state = self.0.state.lock().unwrap_or_else(|p| p.into_inner());
+        if !self.0.admit(&mut state, weight) {
+            return Err(PayloadCapacityError(()));
+        }
+        state.owners += 1;
+        Ok(PayloadReservation {
+            pool: Some(Self(self.0.clone())),
+            weight,
         })
     }
 
@@ -135,12 +149,7 @@ impl PayloadPool {
                 return Err(PayloadCapacityError(value));
             }
         } else {
-            if state.active == self.0.maximum_items
-                || state
-                    .retained_bytes
-                    .checked_add(weight)
-                    .is_none_or(|bytes| bytes > self.0.maximum_bytes)
-            {
+            if !self.0.admit(&mut state, weight) {
                 return Err(PayloadCapacityError(value));
             }
             state.entries.push(Entry {
@@ -149,9 +158,7 @@ impl PayloadPool {
                 weight,
                 external: true,
             });
-            state.active += 1;
             state.external += 1;
-            state.retained_bytes += weight;
             self.0.changed.notify_all();
         }
         Ok(RetainedPayload {
@@ -180,6 +187,49 @@ impl PayloadPool {
     }
 }
 
+impl PayloadReservation {
+    /// Seal admitted capacity without copying the value. Unused bytes become available
+    /// immediately; item and used-byte capacity stay charged until destruction finishes.
+    /// Oversized values are returned to their producer and the reservation is released.
+    pub fn retain<T: Send + Sync + 'static>(
+        mut self,
+        value: T,
+        weight: usize,
+    ) -> Result<RetainedPayload<T>, PayloadCapacityError<T>> {
+        if weight > self.weight {
+            return Err(PayloadCapacityError(value));
+        }
+        let pool = self.pool.take().expect("live payload reservation");
+        let value = Arc::new(value);
+        {
+            let mut state = pool.0.state.lock().unwrap_or_else(|p| p.into_inner());
+            state.retained_bytes -= self.weight - weight;
+            state.entries.push(Entry {
+                value: value.clone(),
+                claim: claim::<T>,
+                weight,
+                external: false,
+            });
+        }
+        pool.0.changed.notify_all();
+        Ok(RetainedPayload {
+            value: Some(value),
+            shared: pool.0.clone(),
+        })
+    }
+}
+
+impl Drop for PayloadReservation {
+    fn drop(&mut self) {
+        if let Some(pool) = &self.pool {
+            let mut state = pool.0.state.lock().unwrap_or_else(|p| p.into_inner());
+            state.active -= 1;
+            state.retained_bytes -= self.weight;
+            pool.0.changed.notify_all();
+        }
+    }
+}
+
 impl Clone for PayloadPool {
     fn clone(&self) -> Self {
         self.0.state.lock().unwrap_or_else(|p| p.into_inner()).owners += 1;
@@ -195,6 +245,20 @@ impl Drop for PayloadPool {
 }
 
 impl Shared {
+    fn admit(&self, state: &mut State, weight: usize) -> bool {
+        if state.active == self.maximum_items
+            || state
+                .retained_bytes
+                .checked_add(weight)
+                .is_none_or(|bytes| bytes > self.maximum_bytes)
+        {
+            return false;
+        }
+        state.active += 1;
+        state.retained_bytes += weight;
+        true
+    }
+
     fn run(&self) {
         let mut state = self.state.lock().unwrap_or_else(|p| p.into_inner());
         loop {

@@ -11,8 +11,9 @@ use crate::parameter::ParamValue;
 use crate::process_ctx::{ProcessCtx, ProcessTreeNodeSnapshot};
 
 pub use golden_script::{
-    NoopScriptHostBridge, QuickJsRuntime, ScriptBudgets, ScriptCancellationHandle, ScriptEvent, ScriptHostBridge,
-    ScriptLogLevel, ScriptRuntime, ScriptRuntimeError, ScriptTreeNodeView, ScriptTreeView, ScriptValue,
+    NoopScriptHostBridge, QuickJsRuntime, ScriptArguments, ScriptBudgets, ScriptCallPreparationError,
+    ScriptCallReservation, ScriptCancellationHandle, ScriptEvent, ScriptHostBridge, ScriptLogLevel, ScriptMethodCall,
+    ScriptRuntime, ScriptRuntimeError, ScriptTreeNodeView, ScriptTreeView, ScriptValue,
 };
 pub use golden_script_contract::{
     ScriptExportSpec, ScriptFnSignature, ScriptManifest, ScriptNodeSelector, ScriptParameterSpec,

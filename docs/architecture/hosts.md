@@ -130,6 +130,10 @@ a prepared value. Its retained handle gives consumers read-only access while the
 final strong owner. Destruction happens outside the pool lock, capacity stays reserved through
 blocked cleanup, and dropping the host handle does not join. Destructor panic is contained so
 later cleanup can continue. Consumers must not grow interior storage beyond the declared weight.
+`try_reserve` admits capacity before a consumer materializes data. An unused reservation releases
+its item/bytes on drop and keeps the disposer alive if the original pool handle disappears.
+Sealing transfers ownership without copying, immediately releases unused bytes, and keeps used
+capacity charged through final destruction. Oversized sealing returns the original producer data.
 `try_retain_arc` also protects existing immutable Arcs and deduplicates their reservation within
 one canonical pool. Ordinary Arc releases cannot notify it; while such entries exist, only the
 disposer checks final ownership every 100 ms. An atomic unwrap claims final ownership so a
@@ -139,6 +143,22 @@ App stream data uses one shared pool capped at 256 payloads / 256 MiB. Message v
 are therefore finally disposed outside node callbacks, including after producer failure or node
 removal. Graph-owned value copies and engine-owned event/replay payloads have separate lifetimes;
 these admission bounds are not a whole-process RSS or event-history budget.
+
+`golden_script::ScriptMethodCall` is the runtime-only method ingress contract shared by QuickJS,
+host bridges and engine edits. Its bounded name and `ScriptArguments` lease replace raw argument
+vectors in queues. The canonical pool admits 4096 allocations / 64 MiB, with 4096 arguments and
+4 MiB retained storage per call, including spare vector/string/reference capacity. Rust producers
+prepare before enqueueing and recover original allocations on rejection. Missing targets,
+unsupported methods, callback failure and unvisited edit/host-op suffixes release shallow handles;
+the disposer keeps final ownership. `ProcessCtx::capture_script_args` forwards that same lease.
+
+QuickJS method JSON remains limited to 1 MiB and is parsed with aggregate node (4097 including
+the root array) and depth (32) limits before expanding a wide/deep tree. Malformed JSON fails
+explicitly. Typed conversion reserves disposal capacity first and seals even its partial vector
+before reporting a conversion error. Unused capacity shrinks to measured retained bytes. JSON
+scratch parsing, VM string conversion and bounded-name cleanup still occur on the invocation
+thread. Property, custom-event and log host operations have separate ownership/admission work;
+this method contract does not qualify their aggregate memory or callback costs.
 
 The app-owned UDP adapter owns socket generations in `stream/udp/lifecycle.rs`, using one active
 or retiring generation per module and 16 global native lifetime slots. Bind/DNS/setup, packet

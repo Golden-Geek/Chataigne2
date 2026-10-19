@@ -228,13 +228,15 @@ active and queued tickets explicitly, and later admissions can restart the bound
 cancellation and target lifetime guards reject stale work across destroy/undo. Linked target and
 per-invocation values are captured before admission, while transport eligibility is checked when
 the module receives the request. Preparation admission does not claim a successful native send.
-Generic rejected-ingress disposal and broader module admission audits remain P03 work.
+Property/event/log ingress disposal and broader module admission audits remain P03 work.
 
 Stream script methods capture the original engine-owned argument vector through
 `ProcessCtx::capture_script_args`. Capturing an unrelated slice or a standalone callback is rejected;
 the public Golden contract exposes shared arguments without app-specific conversion policy. App
-common retains at most 64 canonical input allocations / 16 MiB, with 4096 values and 4 MiB retained
-storage per invocation, including spare vector/string capacity. Taking a lease does not clone strings.
+common retains at most 64 input wrappers / 16 MiB of referenced storage, with 4096 values and
+4 MiB retained storage per invocation, including spare vector/string capacity. Each wrapper owns
+the Golden script argument lease; independent pools never claim the same raw Arc as final owner.
+Taking a lease does not clone strings. Generic method admission is described in [hosts](hosts.md).
 
 All six stream modules enqueue that input directly into their existing native send queues, alongside
 prepared command-node payloads. Current enabled/configuration/connection checks still run before
@@ -251,8 +253,9 @@ does not discard queued script inputs; explicit destroy may cancel them. Convers
 native error feedback without sending a prefix, replaying, reconnecting an otherwise healthy endpoint
 or blocking later commands. Script invocation success means native queue admission; content/output
 conversion failures are asynchronous feedback. Argument-shape, lifetime-capacity and endpoint
-admission failures remain synchronous. Inputs rejected before a lease can be reserved still require
-the broader generic ingress/disposal audit in P03; this does not qualify engine bound-handle costs.
+admission failures remain synchronous. Method arguments enter the engine in a prepared Golden lease,
+so native admission rejection also preserves background final disposal. Other host operations and
+the broader ingress audit remain P03 work; this does not qualify engine bound-handle costs.
 
 Encoded command delivery also retains its canonical preparation lease through native admission.
 Production send inputs accept only retained command or script data; raw vector/slice constructors

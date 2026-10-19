@@ -338,12 +338,7 @@ impl ScriptHostBridge for ExpressionScriptHostBridge {
         Err("expression mode cannot mutate node script properties".to_string())
     }
 
-    fn call_node_script_method(
-        &mut self,
-        _node: NodeId,
-        _method: String,
-        _args: Vec<ParamValue>,
-    ) -> Result<(), String> {
+    fn call_node_script_method(&mut self, _node: NodeId, _call: crate::script::ScriptMethodCall) -> Result<(), String> {
         Err("expression mode cannot call node script methods".to_string())
     }
 

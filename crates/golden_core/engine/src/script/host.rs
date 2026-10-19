@@ -189,15 +189,15 @@ impl ScriptHostBridge for NodeScriptHostBridge<'_> {
         Ok(())
     }
 
-    fn call_node_script_method(&mut self, node: NodeId, method: String, args: Vec<ParamValue>) -> Result<(), String> {
+    fn call_node_script_method(&mut self, node: NodeId, call: crate::script::ScriptMethodCall) -> Result<(), String> {
         if let Some(load_declared_children) = self.load_declared_children.as_deref_mut()
-            && let Some(managed_child) = managed_child_from_script_call(node, method.as_str(), args.as_slice())
+            && let Some(managed_child) = managed_child_from_script_call(node, call.method(), call.args())
             && !load_declared_children.contains(&managed_child)
         {
             load_declared_children.push(managed_child);
         }
 
-        self.ctx.call_node_script_method(node, method, args);
+        self.ctx.call_node_script_method(node, call);
         Ok(())
     }
 

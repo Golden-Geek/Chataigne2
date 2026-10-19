@@ -1,10 +1,10 @@
 use super::*;
+use crate::script::ScriptArguments;
 use crate::{edit::Edit, parameter::ParamValue, process_ctx::ProcessCtx};
-use std::sync::Arc;
 
 #[crate::node("script_argument_probe")]
 struct ScriptArgumentProbe {
-    captured: Option<Arc<Vec<ParamValue>>>,
+    captured: Option<ScriptArguments>,
 }
 #[crate::node("script_argument_probe", from_struct)]
 impl Node for ScriptArgumentProbe {
@@ -21,21 +21,20 @@ impl Node for ScriptArgumentProbe {
         if method == "reject" {
             return Err("injected script rejection".into());
         }
-        Ok(true)
+        Ok(method != "unsupported")
     }
 }
 
 #[test]
 fn script_argument_capture_preserves_the_owned_vector_without_cloning_values() {
-    for method in ["accept", "reject"] {
+    for method in ["accept", "reject", "unsupported"] {
         let mut engine = Engine::new(ScriptArgumentProbe::new(None));
         let mut args = Vec::with_capacity(128);
         args.push(ParamValue::Str("shared".repeat(1024)));
         let pointer = args.as_ptr();
         engine.edits.push(Edit::CallNodeScriptMethod {
             node: engine.root,
-            method: method.into(),
-            args,
+            call: crate::script::ScriptMethodCall::prepare(method, args).unwrap(),
         });
         let result = engine.apply_edits();
         assert_eq!(result.is_ok(), method == "accept");
@@ -51,4 +50,27 @@ fn script_argument_capture_preserves_the_owned_vector_without_cloning_values() {
         engine.absorb_edits(&mut ctx).unwrap();
         engine.apply_edits().unwrap();
     }
+}
+
+#[test]
+fn missing_target_rejects_before_dispatch_and_discarded_suffix_cannot_run_later() {
+    let mut engine = Engine::new(ScriptArgumentProbe::new(None));
+    let call =
+        crate::script::ScriptMethodCall::prepare("accept", vec![ParamValue::Str("retained".repeat(1024))]).unwrap();
+    let args = call.args().clone();
+    let pointer = args.as_ptr();
+    engine.edits.push(Edit::CallNodeScriptMethod {
+        node: NodeId(u64::MAX),
+        call: call.clone(),
+    });
+    engine.edits.push(Edit::CallNodeScriptMethod {
+        node: engine.root,
+        call,
+    });
+    assert!(engine.apply_edits().is_err());
+    assert!(engine.nodes.get(engine.root).unwrap().captured.is_none());
+    engine.apply_edits().unwrap();
+    assert!(engine.nodes.get(engine.root).unwrap().captured.is_none());
+    assert_eq!(args.as_ptr(), pointer);
+    assert_eq!(args[0], ParamValue::Str("retained".repeat(1024)));
 }

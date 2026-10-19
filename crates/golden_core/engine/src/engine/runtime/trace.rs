@@ -82,7 +82,8 @@ impl<T: Node> Engine<T> {
                     self.describe_node(*node)
                 )
             }
-            Edit::CallNodeScriptMethod { node, method, .. } => {
+            Edit::CallNodeScriptMethod { node, call } => {
+                let method = call.method();
                 format!(
                     "CallNodeScriptMethod target={} method={method}",
                     self.describe_node(*node)

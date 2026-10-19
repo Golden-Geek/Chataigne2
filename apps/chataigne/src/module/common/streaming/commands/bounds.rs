@@ -19,20 +19,11 @@ pub(crate) fn validate_values(values: &[ParamValue]) -> Result<(), String> {
     Ok(())
 }
 pub(crate) fn value_weight(value: &ParamValue) -> usize {
-    std::mem::size_of::<ParamValue>()
-        + match value {
-            ParamValue::Str(text) | ParamValue::File(text) | ParamValue::Enum(text) => text.capacity(),
-            ParamValue::Reference(reference) => {
-                let path = reference.relative_path_from_root();
-                if path.len() > MAX_COMMAND_VALUES {
-                    return usize::MAX;
-                }
-                reference.cached_name.as_ref().map_or(0, String::capacity)
-                    + reference.relative_path_from_root.capacity() * std::mem::size_of::<String>()
-                    + path.iter().map(String::capacity).sum::<usize>()
-            }
-            _ => 0,
-        }
+    if matches!(value, ParamValue::Reference(reference) if reference.relative_path_from_root().len() > MAX_COMMAND_VALUES)
+    {
+        return usize::MAX;
+    }
+    value.retained_bytes()
 }
 pub(super) fn source(text: &str) -> Result<(), String> {
     if text.len() > MAX_SOURCE_BYTES {

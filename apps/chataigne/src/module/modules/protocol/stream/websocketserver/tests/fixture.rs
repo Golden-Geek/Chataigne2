@@ -81,8 +81,7 @@ pub(super) fn connect(engine: &mut crate::app::AppEngine, id: NodeId, port: u16,
 pub(super) fn send(engine: &mut crate::app::AppEngine, node: NodeId, text: &str) {
     engine.edits.push(Edit::CallNodeScriptMethod {
         node,
-        method: "sendText".into(),
-        args: vec![ParamValue::Str(text.into())],
+        call: golden_core::script::ScriptMethodCall::prepare("sendText", vec![ParamValue::Str(text.into())]).unwrap(),
     });
 }
 pub(super) fn no_stale_frame(socket: &mut WebSocket<TcpStream>) {

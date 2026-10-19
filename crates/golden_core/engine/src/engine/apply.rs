@@ -262,10 +262,10 @@ impl<T: Node> Engine<T> {
                             let changed = effect.is_some() || !capture;
                             (Ok(effect.map(Into::into)), changed)
                         }
-                        Edit::CallNodeScriptMethod { node, method, args } => {
+                        Edit::CallNodeScriptMethod { node, call } => {
                             let capture = self.capture_opaque_history(capture_history, node);
                             let effect = self
-                                .apply_call_node_script_method(edit_index, node, method, args, capture)?
+                                .apply_call_node_script_method(edit_index, node, call, capture)?
                                 .capture_completion(&mut completion);
                             missing_reference_warning_dirty |= effect.is_some();
                             user_context_graph_dirty |= effect.is_some();

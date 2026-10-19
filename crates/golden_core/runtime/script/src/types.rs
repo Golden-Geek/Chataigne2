@@ -255,12 +255,7 @@ pub trait ScriptHostBridge {
     }
 
     /// Queues one script-exposed method call on `node`.
-    fn call_node_script_method(
-        &mut self,
-        _node: NodeId,
-        _method: String,
-        _args: Vec<ParamValue>,
-    ) -> Result<(), String> {
+    fn call_node_script_method(&mut self, _node: NodeId, _call: crate::ScriptMethodCall) -> Result<(), String> {
         Err("node script-method invocation is unavailable for this script host".to_string())
     }
 

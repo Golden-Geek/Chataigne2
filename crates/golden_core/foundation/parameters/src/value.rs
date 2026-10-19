@@ -283,6 +283,30 @@ impl From<NodeUuid> for ParamValue {
 }
 
 impl ParamValue {
+    /// Storage owned by this value, including inline size and spare heap capacity.
+    /// Reference paths include their vector, segments and cached name. Callers that
+    /// accept untrusted collections must bound their shape before traversing them.
+    pub fn retained_bytes(&self) -> usize {
+        let heap = match self {
+            Self::Str(text) | Self::File(text) | Self::Enum(text) => text.capacity(),
+            Self::Reference(reference) => reference.relative_path_from_root.iter().fold(
+                reference
+                    .cached_name
+                    .as_ref()
+                    .map_or(0, String::capacity)
+                    .saturating_add(
+                        reference
+                            .relative_path_from_root
+                            .capacity()
+                            .saturating_mul(std::mem::size_of::<String>()),
+                    ),
+                |bytes, segment| bytes.saturating_add(segment.capacity()),
+            ),
+            _ => 0,
+        };
+        std::mem::size_of::<Self>().saturating_add(heap)
+    }
+
     /// Returns whether every floating-point component can cross JSON and UI protocol boundaries.
     ///
     /// Alchemist and other compute domains may use NaN or infinity internally, but authored

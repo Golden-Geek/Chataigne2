@@ -7,6 +7,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+golden_io.workspace = true
 golden_model.workspace = true
 golden_parameters.workspace = true
 golden_script_contract.workspace = true

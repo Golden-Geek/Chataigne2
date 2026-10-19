@@ -1,13 +1,10 @@
 use super::{
-    bounds::MAX_SOURCE_BYTES, streaming_script_send_request, validate_values, value_weight, StreamingSendFrameKind,
+    bounds::MAX_SOURCE_BYTES, streaming_script_send_request, validate_values, StreamingSendFrameKind,
     StreamingSendRequest,
 };
-use golden_core::{parameter::ParamValue, process_ctx::ProcessCtx};
+use golden_core::{parameter::ParamValue, process_ctx::ProcessCtx, script::ScriptArguments};
 use golden_io::{PayloadPool, RetainedPayload};
-use std::{
-    mem::size_of,
-    sync::{Arc, LazyLock},
-};
+use std::sync::LazyLock;
 
 #[derive(Clone, Copy, Debug)]
 enum Method {
@@ -21,7 +18,7 @@ enum Method {
 #[derive(Clone, Debug)]
 pub(crate) struct ScriptSend {
     method: Method,
-    args: RetainedPayload<Vec<ParamValue>>,
+    args: RetainedPayload<ScriptArguments>,
 }
 impl ScriptSend {
     pub fn capture(ctx: &ProcessCtx, method: &str, args: &[ParamValue]) -> Option<Result<Self, String>> {
@@ -36,15 +33,9 @@ impl ScriptSend {
             Self::retain(method, args)
         })())
     }
-    fn retain(method: Method, args: Arc<Vec<ParamValue>>) -> Result<Self, String> {
+    fn retain(method: Method, args: ScriptArguments) -> Result<Self, String> {
         validate_values(&args)?;
-        let weight = (size_of::<Vec<ParamValue>>() + 64)
-            .saturating_add(args.capacity().saturating_mul(size_of::<ParamValue>()))
-            .saturating_add(
-                args.iter()
-                    .map(|value| value_weight(value).saturating_sub(size_of::<ParamValue>()))
-                    .sum::<usize>(),
-            );
+        let weight = args.retained_bytes();
         if weight > MAX_SOURCE_BYTES {
             return Err("Stream script arguments exceed 4 MiB retained storage".into());
         }
@@ -53,7 +44,7 @@ impl ScriptSend {
         let args = POOL
             .as_ref()
             .map_err(|error| format!("Stream script input pool unavailable: {error}"))?
-            .try_retain_arc(args, weight)
+            .try_retain(args, weight)
             .map_err(|_| "Stream script input lifetime capacity exhausted; command was not admitted".to_string())?;
         Ok(Self { method, args })
     }

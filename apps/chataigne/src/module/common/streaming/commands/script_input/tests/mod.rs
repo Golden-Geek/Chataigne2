@@ -1,9 +1,17 @@
 use super::super::{OutgoingBytes, SendInput};
 use super::*;
+use golden_core::script::ScriptMethodCall;
+use std::mem::size_of;
+
+fn retain(method: Method, args: Vec<ParamValue>) -> Result<ScriptSend, String> {
+    let call = ScriptMethodCall::prepare("send", args).map_err(|error| error.to_string())?;
+    ScriptSend::retain(method, call.args().clone())
+}
 
 #[test]
 fn canonical_argument_storage_survives_original_owner_and_materializes_only_on_native_owner() {
-    let args = Arc::new(vec![ParamValue::Str(r"hello\n".into())]);
+    let call = ScriptMethodCall::prepare("sendText", vec![ParamValue::Str(r"hello\n".into())]).unwrap();
+    let args = call.args().clone();
     let pointer = args.as_ptr();
     let script = ScriptSend::retain(Method::Text, args.clone()).unwrap();
     assert_eq!(script.args.as_ptr(), pointer);
@@ -18,32 +26,33 @@ fn canonical_argument_storage_survives_original_owner_and_materializes_only_on_n
     );
     drop(script);
     drop(args);
+    drop(call);
     let result = std::thread::spawn(move || bytes.into_vec()).join().unwrap().unwrap();
     assert_eq!(result, b"hello\n");
 }
 
 #[test]
 fn argument_admission_counts_spare_vector_capacity_and_large_sources() {
-    let args = Arc::new(Vec::with_capacity(MAX_SOURCE_BYTES / size_of::<ParamValue>() + 1));
-    assert!(ScriptSend::retain(Method::Bytes, args).is_err());
-    let args = Arc::new(vec![ParamValue::Str("a".repeat(MAX_SOURCE_BYTES + 1))]);
-    assert!(ScriptSend::retain(Method::Text, args).is_err());
-    let args = Arc::new(vec![ParamValue::Int(0); 4097]);
-    assert!(ScriptSend::retain(Method::Bytes, args).is_err());
+    let args = Vec::with_capacity(MAX_SOURCE_BYTES / size_of::<ParamValue>() + 1);
+    assert!(retain(Method::Bytes, args).is_err());
+    let args = vec![ParamValue::Str("a".repeat(MAX_SOURCE_BYTES + 1))];
+    assert!(retain(Method::Text, args).is_err());
+    let args = vec![ParamValue::Int(0); 4097];
+    assert!(retain(Method::Bytes, args).is_err());
     let mut reference = golden_core::node::NodeReference::default();
     let mut name = String::with_capacity(MAX_SOURCE_BYTES + 1);
     name.push('x');
     reference.set_cached_name(Some(name));
-    assert!(ScriptSend::retain(Method::Text, Arc::new(vec![ParamValue::Reference(reference)])).is_err());
+    assert!(retain(Method::Text, vec![ParamValue::Reference(reference)]).is_err());
     let mut reference = golden_core::node::NodeReference::default();
     reference.set_relative_path_from_root(Vec::with_capacity(MAX_SOURCE_BYTES / size_of::<String>() + 1));
-    assert!(ScriptSend::retain(Method::Text, Arc::new(vec![ParamValue::Reference(reference)])).is_err());
+    assert!(retain(Method::Text, vec![ParamValue::Reference(reference)]).is_err());
 }
 
 #[test]
 fn encoding_failure_and_transport_output_limit_cannot_turn_into_an_empty_success() {
     for (method, text, limit) in [(Method::Hex, "zz", 100), (Method::Text, "too long", 3)] {
-        let script = ScriptSend::retain(method, Arc::new(vec![ParamValue::Str(text.into())])).unwrap();
+        let script = retain(method, vec![ParamValue::Str(text.into())]).unwrap();
         let mut bytes = OutgoingBytes::new(SendInput::Script(&script), limit).unwrap();
         assert!(bytes.prepare().is_err());
         assert_eq!(bytes.encoded_len(), None);
@@ -54,10 +63,10 @@ fn encoding_failure_and_transport_output_limit_cannot_turn_into_an_empty_success
 
 #[test]
 fn native_byte_and_hex_methods_keep_their_frame_kinds_and_numeric_arguments() {
-    let bytes = ScriptSend::retain(Method::Bytes, Arc::new(vec![ParamValue::Int(1), ParamValue::Int(255)])).unwrap();
+    let bytes = retain(Method::Bytes, vec![ParamValue::Int(1), ParamValue::Int(255)]).unwrap();
     assert!(matches!(bytes.frame_kind(), StreamingSendFrameKind::Binary));
     assert_eq!(bytes.materialize().unwrap().bytes, [1, 255]);
-    let hex = ScriptSend::retain(Method::Hex, Arc::new(vec![ParamValue::Str("48 69".into())])).unwrap();
+    let hex = retain(Method::Hex, vec![ParamValue::Str("48 69".into())]).unwrap();
     assert!(matches!(hex.frame_kind(), StreamingSendFrameKind::Text));
     assert_eq!(hex.materialize().unwrap().bytes, b"Hi");
 }
@@ -71,7 +80,7 @@ fn conservative_output_bounds_cover_scalar_extremes_without_encoding_at_admissio
         ParamValue::Vec3(f64::MAX, f64::MIN, f64::from_bits(1)),
         ParamValue::Color(f64::MAX, f64::MIN, f64::from_bits(1), 1.0),
     ] {
-        let script = ScriptSend::retain(Method::Text, Arc::new(vec![value])).unwrap();
+        let script = retain(Method::Text, vec![value]).unwrap();
         let bound = script.output_bound();
         let bytes = OutgoingBytes::new(SendInput::Script(&script), bound)
             .unwrap()
@@ -79,7 +88,7 @@ fn conservative_output_bounds_cover_scalar_extremes_without_encoding_at_admissio
             .unwrap();
         assert!(!bytes.is_empty() && bytes.capacity() <= bound);
     }
-    let script = ScriptSend::retain(Method::Bytes, Arc::new(vec![ParamValue::Str("1".into())])).unwrap();
+    let script = retain(Method::Bytes, vec![ParamValue::Str("1".into())]).unwrap();
     let bytes = OutgoingBytes::new(SendInput::Script(&script), 1)
         .unwrap()
         .into_vec()

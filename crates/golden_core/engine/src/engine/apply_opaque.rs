@@ -180,8 +180,7 @@ impl<T: Node> Engine<T> {
         &mut self,
         edit_index: usize,
         node: NodeId,
-        method: String,
-        args: Vec<ParamValue>,
+        call: crate::script::ScriptMethodCall,
         capture: bool,
     ) -> Result<AppliedEdit<Option<AuthoredNodeEffect>>, EngineEditError> {
         self.apply_opaque_edit(
@@ -191,10 +190,10 @@ impl<T: Node> Engine<T> {
             capture,
             true,
             move |target, ctx| {
-                let args = std::sync::Arc::new(args);
-                ctx.set_script_args(Some(args.clone()));
+                let method = call.method();
+                ctx.set_script_args(Some(call.args().clone()));
                 let result = target
-                    .engine_call_script_method(ctx, &method, &args)
+                    .engine_call_script_method(ctx, method, call.args())
                     .and_then(|handled| {
                         handled
                             .then_some(())

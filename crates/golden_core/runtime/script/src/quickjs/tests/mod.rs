@@ -2,6 +2,7 @@ use serde_json::json;
 
 use super::QuickJsRuntime;
 use crate::ScriptEvent;
+mod method_ingress;
 
 #[test]
 fn custom_event_payload_can_target_named_script_callback() {

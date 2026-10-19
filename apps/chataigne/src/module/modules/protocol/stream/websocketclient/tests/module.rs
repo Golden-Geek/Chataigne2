@@ -146,8 +146,7 @@ fn configured() -> (crate::app::AppEngine, NodeId, WebSocket<TcpStream>) {
 fn send(engine: &mut crate::app::AppEngine, id: NodeId, text: &str) {
     engine.edits.push(Edit::CallNodeScriptMethod {
         node: id,
-        method: "sendText".into(),
-        args: vec![ParamValue::Str(text.into())],
+        call: golden_core::script::ScriptMethodCall::prepare("sendText", vec![ParamValue::Str(text.into())]).unwrap(),
     });
 }
 fn callbacks(engine: &crate::app::AppEngine, id: NodeId) -> Vec<String> {

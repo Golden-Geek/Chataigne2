@@ -145,10 +145,8 @@ pub enum Edit {
     CallNodeScriptMethod {
         /// Target node id.
         node: NodeId,
-        /// Method name as seen from scripts.
-        method: String,
-        /// Method arguments converted to `ParamValue`.
-        args: Vec<ParamValue>,
+        /// Prepared name and retained arguments admitted before entering the edit queue.
+        call: crate::script::ScriptMethodCall,
     },
     /// Invokes one runtime Rust callback on a node.
     ///

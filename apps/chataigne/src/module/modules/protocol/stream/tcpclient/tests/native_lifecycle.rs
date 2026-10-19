@@ -68,8 +68,8 @@ fn endpoint_reconfiguration_finishes_the_old_admitted_prefix_before_opening_the_
     );
     engine.edits.push(Edit::CallNodeScriptMethod {
         node: module,
-        method: "sendText".into(),
-        args: vec![ParamValue::Str("too-early".into())],
+        call: golden_core::script::ScriptMethodCall::prepare("sendText", vec![ParamValue::Str("too-early".into())])
+            .unwrap(),
     });
     assert!(
         engine.apply_edits().is_err(),
@@ -87,8 +87,7 @@ fn endpoint_reconfiguration_finishes_the_old_admitted_prefix_before_opening_the_
     new_peer.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
     engine.edits.push(Edit::CallNodeScriptMethod {
         node: module,
-        method: "sendText".into(),
-        args: vec![ParamValue::Str("new".into())],
+        call: golden_core::script::ScriptMethodCall::prepare("sendText", vec![ParamValue::Str("new".into())]).unwrap(),
     });
     engine.apply_edits().unwrap();
     let mut bytes = [0; 3];

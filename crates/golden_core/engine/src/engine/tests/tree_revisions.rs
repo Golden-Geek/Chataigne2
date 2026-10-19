@@ -77,8 +77,7 @@ fn applied_parameter_write_fences_read_models_before_the_following_script_call()
     });
     engine.edits.push(Edit::CallNodeScriptMethod {
         node: probe,
-        method: "observe".into(),
-        args: Vec::new(),
+        call: crate::script::ScriptMethodCall::prepare("observe", Vec::new()).unwrap(),
     });
     engine.apply_edits().unwrap();
     let current = revision(&engine, left);
@@ -160,8 +159,7 @@ fn opaque_authored_changes_and_metadata_replay_advance_revisions_without_ui_even
     let unrelated = revision(&engine, other);
     engine.edits.push(Edit::CallNodeScriptMethod {
         node: target,
-        method: "increment".into(),
-        args: Vec::new(),
+        call: crate::script::ScriptMethodCall::prepare("increment", Vec::new()).unwrap(),
     });
     engine.apply_edits().unwrap();
     let changed = revision(&engine, target);

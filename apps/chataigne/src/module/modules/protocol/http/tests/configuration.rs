@@ -182,8 +182,7 @@ fn endpoint_edit_then_script_call_rejects_the_old_generation_and_recovers_on_the
     set(&mut engine, base, ParamValue::Str(new_address));
     engine.edits.push(Edit::CallNodeScriptMethod {
         node: id,
-        method: "get".into(),
-        args: vec![ParamValue::Str("stale".into())],
+        call: golden_core::script::ScriptMethodCall::prepare("get", vec![ParamValue::Str("stale".into())]).unwrap(),
     });
     assert!(
         engine.apply_edits().is_err(),
@@ -212,8 +211,7 @@ fn endpoint_edit_then_script_call_rejects_the_old_generation_and_recovers_on_the
     });
     engine.edits.push(Edit::CallNodeScriptMethod {
         node: id,
-        method: "get".into(),
-        args: vec![ParamValue::Str("new".into())],
+        call: golden_core::script::ScriptMethodCall::prepare("get", vec![ParamValue::Str("new".into())]).unwrap(),
     });
     engine.apply_edits().unwrap();
     server.join().unwrap();
@@ -242,8 +240,7 @@ fn auth_edit_then_script_call_is_fenced_after_an_initial_valid_admission() {
     set(&mut engine, token, ParamValue::Str("new-token".into()));
     engine.edits.push(Edit::CallNodeScriptMethod {
         node: id,
-        method: "get".into(),
-        args: vec![ParamValue::Str("stale".into())],
+        call: golden_core::script::ScriptMethodCall::prepare("get", vec![ParamValue::Str("stale".into())]).unwrap(),
     });
     assert!(engine.apply_edits().is_err());
     assert_eq!(calls.load(Ordering::Relaxed), 1);
@@ -310,8 +307,7 @@ fn install_counted_transport(engine: &mut crate::app::AppEngine, id: NodeId) -> 
 fn request_and_wait(engine: &mut crate::app::AppEngine, id: NodeId, calls: &AtomicUsize, expected: usize) {
     engine.edits.push(Edit::CallNodeScriptMethod {
         node: id,
-        method: "get".into(),
-        args: vec![ParamValue::Str("valid".into())],
+        call: golden_core::script::ScriptMethodCall::prepare("get", vec![ParamValue::Str("valid".into())]).unwrap(),
     });
     engine.apply_edits().unwrap();
     let deadline = Instant::now() + Duration::from_secs(2);

@@ -4,8 +4,7 @@ use std::io::ErrorKind;
 fn send(engine: &mut crate::app::AppEngine, module: NodeId, text: &str) {
     engine.edits.push(Edit::CallNodeScriptMethod {
         node: module,
-        method: "sendText".into(),
-        args: vec![ParamValue::Str(text.into())],
+        call: golden_core::script::ScriptMethodCall::prepare("sendText", vec![ParamValue::Str(text.into())]).unwrap(),
     });
 }
 fn assert_no_stale_bytes(client: &mut TcpStream) {

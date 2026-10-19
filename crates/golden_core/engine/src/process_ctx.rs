@@ -512,7 +512,7 @@ pub struct ProcessCtx {
     referenced_params: HashMap<NodeUuid, (NodeId, ParamValue)>,
     /// Scoped registration source supplied to engine-owned ready callbacks.
     node_wake_source: Option<(NodeWakeSource, NodeId)>,
-    script_args: Option<Arc<Vec<ParamValue>>>,
+    script_args: Option<crate::script::ScriptArguments>,
 }
 
 impl ProcessCtx {
@@ -537,14 +537,14 @@ impl ProcessCtx {
         self.node_wake_source = Some((source, node));
     }
 
-    pub(crate) fn set_script_args(&mut self, args: Option<Arc<Vec<ParamValue>>>) {
+    pub(crate) fn set_script_args(&mut self, args: Option<crate::script::ScriptArguments>) {
         self.script_args = args;
     }
 
     /// Captures the current script invocation without cloning its values. The caller
-    /// must reserve retained storage and final-disposal ownership before asynchronous use.
+    /// may retain the admitted lease for asynchronous use without copying argument data.
     /// Forwarding a different argument slice cannot capture the original invocation.
-    pub fn capture_script_args(&self, args: &[ParamValue]) -> Result<Arc<Vec<ParamValue>>, &'static str> {
+    pub fn capture_script_args(&self, args: &[ParamValue]) -> Result<crate::script::ScriptArguments, &'static str> {
         self.script_args
             .as_ref()
             .filter(|shared| shared.len() == args.len() && shared.as_ptr() == args.as_ptr())
@@ -643,12 +643,8 @@ impl ProcessCtx {
     }
 
     /// Queues one script-method invocation on `node`.
-    pub fn call_node_script_method(&mut self, node: NodeId, method: impl Into<String>, args: Vec<ParamValue>) {
-        self.edits.push(Edit::CallNodeScriptMethod {
-            node,
-            method: method.into(),
-            args,
-        });
+    pub fn call_node_script_method(&mut self, node: NodeId, call: crate::script::ScriptMethodCall) {
+        self.edits.push(Edit::CallNodeScriptMethod { node, call });
     }
 
     /// Queues one runtime Rust callback invocation on `node`.

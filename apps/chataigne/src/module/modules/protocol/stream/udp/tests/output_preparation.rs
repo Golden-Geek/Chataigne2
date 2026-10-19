@@ -20,8 +20,8 @@ fn immediate_endpoint_edit_invalidates_the_cache_without_reinterpreting_an_accep
         );
         engine.edits.push(Edit::CallNodeScriptMethod {
             node: module,
-            method: "sendText".into(),
-            args: vec![ParamValue::Str(text.into())],
+            call: golden_core::script::ScriptMethodCall::prepare("sendText", vec![ParamValue::Str(text.into())])
+                .unwrap(),
         });
         engine.apply_edits().unwrap();
         assert_eq!(socket.recv(&mut bytes).unwrap(), 3);
@@ -41,8 +41,8 @@ fn unavailable_transport_rejects_before_retaining_a_destination_plan() {
     node.output_plan = None;
     engine.edits.push(Edit::CallNodeScriptMethod {
         node: module,
-        method: "sendText".into(),
-        args: vec![ParamValue::Str("rejected".into())],
+        call: golden_core::script::ScriptMethodCall::prepare("sendText", vec![ParamValue::Str("rejected".into())])
+            .unwrap(),
     });
     assert!(engine.apply_edits().is_err());
     assert!(

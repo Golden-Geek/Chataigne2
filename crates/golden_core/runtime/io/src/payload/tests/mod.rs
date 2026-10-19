@@ -1,4 +1,5 @@
 use super::*;
+mod reservations;
 
 #[test]
 fn atomic_disposal_claim_rejects_a_new_strong_owner_and_invalidates_weak_revival() {

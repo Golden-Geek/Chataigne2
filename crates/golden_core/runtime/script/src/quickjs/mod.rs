@@ -39,8 +39,7 @@ enum ScriptHostOp {
     },
     CallNodeScriptMethod {
         node: NodeId,
-        method: String,
-        args: Vec<ParamValue>,
+        call: ScriptMethodCall,
     },
     SetEventListener {
         target: NodeId,
@@ -258,6 +257,7 @@ impl From<QuickJsError> for ScriptRuntimeError {
     }
 }
 
+mod bounded_json;
 mod core;
 mod host_api;
 mod invocation;

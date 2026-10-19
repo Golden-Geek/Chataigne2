@@ -264,7 +264,8 @@ impl QuickJsRuntime {
                     return Ok(None);
                 }
 
-                let args_payload = serde_json::from_str::<JsonValue>(args_json.as_deref().unwrap_or("[]")).unwrap_or(JsonValue::Null);
+                let args_payload = super::bounded_json::parse(args_json.as_deref().unwrap_or("[]"))
+                    .map_err(|error| QuickJsError::new_from_js_message("script", "args", error.to_string()))?;
                 let args_values = match args_payload {
                     JsonValue::Null => Vec::new(),
                     JsonValue::Array(values) => values,
@@ -427,13 +428,20 @@ impl QuickJsRuntime {
                     }
                 }
 
-                let args = QuickJsRuntime::method_args_from_json(method, args_values).map_err(|message| QuickJsError::new_from_js_message("script", "paramValue", message))?;
+                let reservation = ScriptMethodCall::reserve(method)
+                    .map_err(|message| QuickJsError::new_from_js_message("script", "args", message))?;
+                let (args, conversion_error) = QuickJsRuntime::method_args_from_json(method, args_values);
+                let call = reservation.finish(args)
+                    .map_err(|error| QuickJsError::new_from_js_message("script", "args", error.to_string()))?;
+                if let Some(message) = conversion_error {
+                    // The partially converted vector already has a background final owner.
+                    return Err(QuickJsError::new_from_js_message("script", "paramValue", message));
+                }
 
                 let mut guard = tree_call_method_ops.lock().map_err(|_| QuickJsError::new_from_js_message("script", "host", "script host-op queue lock poisoned"))?;
                 guard.push(ScriptHostOp::CallNodeScriptMethod {
                     node: NodeId(node_id),
-                    method: method.to_string(),
-                    args,
+                    call,
                 });
                 if let Some(predicted_result) = predicted_result {
                     return Ok(Some(predicted_result.to_string()));

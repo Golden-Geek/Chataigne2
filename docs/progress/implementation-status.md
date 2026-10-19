@@ -5,7 +5,8 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-19 on clean `main` at delivered `b7a5c9a2`, matching fetched `origin/main`.
+Last reconciled: 2026-10-20 on `main` at delivered `bf6b6d09`, matching fetched `origin/main`,
+with the retained P03 batch 33 runtime/tests/docs work in progress described below.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
 plan. Its complete contents, including the uncommitted clarification, survive in the
@@ -34,15 +35,15 @@ P03's approximately **50%** is a coarse scope score across seven equally weighte
 delivered = 100, partial = 50, open = 0. Partial does not mean exactly half the engineering effort.
 The score is `(100 + 100 + 50 + 50 + 50 + 0 + 0) / 7`.
 
-| Workstream                                    | Scope score   | Delivered / remaining acceptance                                                                                                                                 |
-| --------------------------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Shared IO and engine service/lifecycle bounds | 100%          | Bounded primitives, external-edit service, lifecycle expansion, completion and failure ownership delivered.                                                      |
-| Six native stream adapters                    | 100%          | UDP, TCP Client/Server, WebSocket Client/Server and Serial ownership/admission/passive service delivered; preserve their regression suites.                      |
-| HTTP                                          | 50% (partial) | Native lifecycle, admission, response bounds and passive service delivered; request argument conversion/disposal remains.                                        |
-| Generic script/event/property ingress         | 50% (partial) | Stream argument capture delivered; generic method ingress is currently unverified work, with property/event/log admission and rejected-input cleanup still open. |
-| Sound Card lifecycle/service                  | 50% (partial) | Wake/service repairs delivered; stop/join, event drain, admission/recovery and configuration-bound audit remains.                                                |
-| Remaining app module/channel audit            | 0% (open)     | Audit every remaining module/channel against bounded service, retirement, failure and reconnect criteria; repair and verify findings.                            |
-| Generator elapsed-time accounting             | 0% (open)     | Signal/metronome ordinary commands must preserve elapsed time and phase; add owning regressions.                                                                 |
+| Workstream                                    | Scope score   | Delivered / remaining acceptance                                                                                                            |
+| --------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Shared IO and engine service/lifecycle bounds | 100%          | Bounded primitives, external-edit service, lifecycle expansion, completion and failure ownership delivered.                                 |
+| Six native stream adapters                    | 100%          | UDP, TCP Client/Server, WebSocket Client/Server and Serial ownership/admission/passive service delivered; preserve their regression suites. |
+| HTTP                                          | 50% (partial) | Native lifecycle, admission, response bounds and passive service delivered; request argument conversion/disposal remains.                   |
+| Generic script/event/property ingress         | 50% (partial) | Stream capture and generic method ingress delivered; property/event/log admission and rejected-input cleanup remain open.                   |
+| Sound Card lifecycle/service                  | 50% (partial) | Wake/service repairs delivered; stop/join, event drain, admission/recovery and configuration-bound audit remains.                           |
+| Remaining app module/channel audit            | 0% (open)     | Audit every remaining module/channel against bounded service, retirement, failure and reconnect criteria; repair and verify findings.       |
+| Generator elapsed-time accounting             | 0% (open)     | Signal/metronome ordinary commands must preserve elapsed time and phase; add owning regressions.                                            |
 
 Recent batches mostly deepen the native-stream and shared ownership workstreams. They do not
 close the remaining module audit or generator criteria. P03 stays open until all seven workstreams
@@ -50,7 +51,9 @@ meet their acceptance; new audit findings must be reflected here instead of hidd
 
 ## Current handoff
 
-- Current batch: P03 batch 33 retained script-method ingress in progress.
+- Current batch: P03 batch 33 retained script-method ingress verified locally; ready for milestone delivery.
+  Completion overview/per-task checkpoints were committed and pushed separately in `bf6b6d09`;
+  the generic ingress workstream remains partial, so overall/P03 estimates stay **14% / 50%**.
   Batch 32 canonical encoded outbound ownership delivered in `b7a5c9a2`.
   Batch 31 native stream script ownership delivered in `cccd449e`.
   Batch 30 bounded native stream command preparation delivered in `b8c4c4e7`.
@@ -76,8 +79,17 @@ meet their acceptance; new audit findings must be reflected here instead of hidd
   and both remote branches were pushed successfully on 2026-10-19. Unfinished shared-stream
   baseline work was preserved and restored on `main`. Earlier no-commit/no-push notes below
   describe historical actions only; future verified milestones are committed and pushed.
-- P00 resumed check: clean `main` and `origin/main` at delivered `b7a5c9a2`;
-  no unrelated changes or live owned jobs at resume. Previous turn: progress.
+- P00 resumed check: `main` and fetched `origin/main` at delivered `bf6b6d09`, with only the
+  retained batch 33 diff and no unrelated changes. Previous turn: progress (completion overview
+  committed/pushed). Owned session `51520` was live at resume and subsequently passed in 7m24s:
+  engine 537 unit / 8 integration / 7 doctests, IO 42, script 11 unit / 7 integration tests.
+- Final owning batch 33 validation: owned exec session `9872` passed
+  `cargo test-fast --locked -p golden_parameters -p golden_io -p golden_script -p golden_engine -- --quiet`
+  after the last IO implementation and test-style edits: **619 passed**, three existing ignored
+  manual benchmarks, 4m24s preparation. Strict all-target Clippy for parameters/IO/script/engine/app
+  passed in 47.13s. Fresh app compilation passed in 2m30s; 409 disjoint app regressions passed.
+  Workspace/test compilation passed in 30.53s and default native build in 1m56s. **1,028 distinct
+  tests passed** across owning and app suites. All owned jobs are terminal.
 - Scope selected by the user: **foundation and readiness**. Full lighting/video/projection
   authoring is deferred; current features and completed Mapping remain preservation contracts.
 - Runtime/source implementation under the new P tasks: **P01 and P02 verified locally; P03 in progress**.
@@ -100,9 +112,9 @@ meet their acceptance; new audit findings must be reflected here instead of hidd
   destroy/undo wake fencing. WebSocket server also preserves per-peer grammar. Both servers use receipt-owned
   connection/warning/client projections, including stable IDs after partial failure. Detailed
   regressions and measurements remain under their implementation batches below.
-- XHigh requested for pre-materialization reservations, retained method ingress and QuickJS/engine
-  failure/suffix disposal across native consumers. Actual effort remains
-  unchanged/unobservable; no supported control is exposed.
+- Return to High requested after 619 final owning tests passed pre-materialization reservations,
+  retained method ingress and QuickJS/engine failure/suffix disposal. Actual effort remains
+  unchanged/unobservable; no supported control is exposed. Ordinary app integration also passed.
 - Known current failures: the advisory gate's Rustls 0.23.42 failure has not been refreshed.
   The reproduced edit-prefix undo loss is fixed locally. Compound creation now uses prepared
   validation/commit; its reference/dashboard regressions and optimized package checks pass.
@@ -117,27 +129,27 @@ Implementation states: `NOT_STARTED`, `IN_PROGRESS`, `IMPLEMENTED`, `VERIFIED_LO
 Check outcomes: `PENDING`, `PASSED`, `FAILED`, `UNAVAILABLE`, `SKIPPED_WITH_REASON`.
 External qualification is separate from implementation. A historical pass is not a current pass.
 
-| Task                        | Completion | Implementation | Local validation    | External qualification / evidence                                                                                         |
-| --------------------------- | ---------- | -------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| P00 Baseline                | 100%       | VERIFIED_LOCAL | PASSED              | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                |
-| P01 Edit failures/history   | 100%       | VERIFIED_LOCAL | PASSED batches 1–8  | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                 |
-| P02 Schedule/actor failures | 100%       | VERIFIED_LOCAL | PASSED batches 1-3  | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                  |
-| P03 Bounded I/O/lifecycle   | ~50%       | IN_PROGRESS    | PASSED batches 1-32 | Canonical stream outbound ownership verified; broader ingress/admission/module/generator audit open                       |
-| P04 Audio order/types       | 0%         | NOT_STARTED    | PENDING             | Legal interleaving and invalid deserialization established from source                                                    |
-| P05 Transport trust         | 0%         | NOT_STARTED    | PENDING             | Missing admission verified; exploit not demonstrated                                                                      |
-| P06 Dependencies            | 0%         | NOT_STARTED    | FAILED baseline     | Four Rustls advisories on audit date; refresh DB before repair                                                            |
-| P07 DMX streaming           | 0%         | NOT_STARTED    | PENDING             | Refresh/filter/service gaps; protocol loopback qualification needed                                                       |
-| P08 Formula backend intents | 0%         | NOT_STARTED    | PENDING             | UI polling/identity and mutation policy verified; corruption not reproduced                                               |
-| P09 Graph document          | 0%         | NOT_STARTED    | PENDING             | Ordered-map mutation costs source-derived                                                                                 |
-| P10 Canvas                  | 0%         | NOT_STARTED    | PENDING             | Projection diagnostic and crossing-edge reproduction; mounted performance open                                            |
-| P11 Workspace UX            | 0%         | NOT_STARTED    | PENDING             | Collection/keyboard gaps source-reviewed; native usability open                                                           |
-| P12 Boundaries/gates        | 0%         | NOT_STARTED    | PENDING             | App policy leak, omitted graph tests, oversized files, unsafe conversions; recurring incremental native-link artifact gap |
-| P13 Formula execution       | 0%         | NOT_STARTED    | PENDING             | Historical profiles retained; production parallelism not mandated                                                         |
-| P14 Production time         | 0%         | NOT_STARTED    | PENDING             | Clock helper unwired, no target-frame play, starvation/latency policy gaps                                                |
-| P15 Assets                  | 0%         | NOT_STARTED    | PENDING             | Audio path/cache identity exists; project asset boundary unimplemented                                                    |
-| P16 Product scale           | 0%         | NOT_STARTED    | PENDING             | Historical full-product gates remain open; 20k/50k/mounted canvas required                                                |
-| P17 Platforms/artifacts     | 0%         | NOT_STARTED    | PENDING             | Windows history retained; exact current app/native/platform checks required                                               |
-| P18 Named devices           | 0%         | NOT_STARTED    | PENDING             | Exact authorized ASIO4ALL/VB-Audio route must be verified first                                                           |
+| Task                        | Completion | Implementation | Local validation    | External qualification / evidence                                                                                          |
+| --------------------------- | ---------- | -------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| P00 Baseline                | 100%       | VERIFIED_LOCAL | PASSED              | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                 |
+| P01 Edit failures/history   | 100%       | VERIFIED_LOCAL | PASSED batches 1–8  | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                  |
+| P02 Schedule/actor failures | 100%       | VERIFIED_LOCAL | PASSED batches 1-3  | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                   |
+| P03 Bounded I/O/lifecycle   | ~50%       | IN_PROGRESS    | PASSED batches 1-33 | Generic method argument ownership verified; property/event/log, HTTP, Sound Card and remaining module/generator audit open |
+| P04 Audio order/types       | 0%         | NOT_STARTED    | PENDING             | Legal interleaving and invalid deserialization established from source                                                     |
+| P05 Transport trust         | 0%         | NOT_STARTED    | PENDING             | Missing admission verified; exploit not demonstrated                                                                       |
+| P06 Dependencies            | 0%         | NOT_STARTED    | FAILED baseline     | Four Rustls advisories on audit date; refresh DB before repair                                                             |
+| P07 DMX streaming           | 0%         | NOT_STARTED    | PENDING             | Refresh/filter/service gaps; protocol loopback qualification needed                                                        |
+| P08 Formula backend intents | 0%         | NOT_STARTED    | PENDING             | UI polling/identity and mutation policy verified; corruption not reproduced                                                |
+| P09 Graph document          | 0%         | NOT_STARTED    | PENDING             | Ordered-map mutation costs source-derived                                                                                  |
+| P10 Canvas                  | 0%         | NOT_STARTED    | PENDING             | Projection diagnostic and crossing-edge reproduction; mounted performance open                                             |
+| P11 Workspace UX            | 0%         | NOT_STARTED    | PENDING             | Collection/keyboard gaps source-reviewed; native usability open                                                            |
+| P12 Boundaries/gates        | 0%         | NOT_STARTED    | PENDING             | App policy leak, omitted graph tests, oversized files, unsafe conversions; recurring incremental native-link artifact gap  |
+| P13 Formula execution       | 0%         | NOT_STARTED    | PENDING             | Historical profiles retained; production parallelism not mandated                                                          |
+| P14 Production time         | 0%         | NOT_STARTED    | PENDING             | Clock helper unwired, no target-frame play, starvation/latency policy gaps                                                 |
+| P15 Assets                  | 0%         | NOT_STARTED    | PENDING             | Audio path/cache identity exists; project asset boundary unimplemented                                                     |
+| P16 Product scale           | 0%         | NOT_STARTED    | PENDING             | Historical full-product gates remain open; 20k/50k/mounted canvas required                                                 |
+| P17 Platforms/artifacts     | 0%         | NOT_STARTED    | PENDING             | Windows history retained; exact current app/native/platform checks required                                                |
+| P18 Named devices           | 0%         | NOT_STARTED    | PENDING             | Exact authorized ASIO4ALL/VB-Audio route must be verified first                                                            |
 
 For each implementation batch append a compact row under “New implementation evidence” with
 task, source/tree, changed ownership, invariant, exact commands, environment/features, outcome,
@@ -3244,3 +3256,54 @@ physical devices, other platforms, native UI or product-scale latency/memory. Co
 verified milestone on `main`. Next, continue generic script ingress/rejected-input disposal, HTTP
 argument conversion/disposal, Sound Card/module/channel ownership and generator elapsed-time
 accounting. P03 stays **IN_PROGRESS**; P04-P18 retain their states.
+
+### P03 batch 33: Retained script-method ingress
+
+Continued the retained runtime diff from `b7a5c9a2`; the independently requested completion
+overview was committed/pushed as `bf6b6d09` during this batch. Previous goal turn was **progress**.
+The live validation job was observed to completion, never restarted on observation timeouts.
+
+Golden IO now admits `PayloadReservation` before materialization. Cancellation releases capacity;
+sealing retains the original allocation, releases unused bytes and keeps item/used-byte capacity
+through background destruction. Reservations outlive the original pool handle. Ordinary prepared
+retention preserves its single-lock admission path; all admission forms share one accounting rule.
+
+`golden_script::ScriptMethodCall` / `ScriptArguments` replace raw method/argument ownership in
+QuickJS host ops, host bridges and engine edits. The canonical pool bounds 4096 allocations /
+64 MiB, with 4096 arguments / 4 MiB per call and 1024 retained method-name bytes. Rust producer
+rejection returns original allocations. Missing targets, unsupported methods and unvisited
+host/edit suffixes release shallow handles. QuickJS reserves before typed conversion and retains
+partial vectors on conversion failure. Method JSON parsing bounds aggregate nodes/depth before
+tree expansion and rejects malformed input explicitly. Public `ParamValue::retained_bytes`
+centralizes spare string/reference/vector accounting shared with app command bounds.
+
+Native stream input wrappers retain the Golden argument lease, preserving their existing 64-item /
+16 MiB quota without independent final owners of the same raw Arc. Twenty test producers migrated
+to explicit preparation. No wire DTO, persistence, UI or app-shell startup contract changed.
+See [host ownership](../architecture/hosts.md) and
+[app contracts](../architecture/application-contracts.md) for maintained boundaries and limits.
+
+XHigh was requested for the coupled lifetime/admission work; actual effort remained unchanged /
+unobservable. Initial test import and reused-runtime fixture errors were corrected. Return to
+High was requested after the final owning suites passed, before ordinary app integration.
+
+| Final check                                                                                                                            | Result                                                                                                                                                                                                                |
+| -------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cargo test-fast --locked -p golden_parameters -p golden_io -p golden_script -p golden_engine -- --quiet`                              | 619 passed, three existing ignored manual benchmarks; 4m24s preparation. Engine 537 unit + 8 integration + 7 doc, IO 42, parameters 7, script 11 unit + 7 integration.                                                |
+| `cargo clippy --locked -p golden_parameters -p golden_io -p golden_script -p golden_engine -p Chataigne2 --all-targets -- -D warnings` | Passed, 47.13s.                                                                                                                                                                                                       |
+| `cargo test-fast --locked -p Chataigne2 --bin Chataigne2 --no-run`                                                                     | Passed, 2m30s; fresh `Chataigne2-d57ae873474d576f.exe`.                                                                                                                                                               |
+| Disjoint app filters on that executable, `--test-threads=4 --quiet`                                                                    | 409 passed of 906 listed: script API 8, concrete streams 191, common streaming 61, common serial 28, HTTP 59, Sound Card 35, OSC 25, initial Formula 1, null-device audio 1. Name-set overlap checked before summing. |
+| `cargo check --locked --workspace --tests`                                                                                             | Passed, 30.53s.                                                                                                                                                                                                       |
+| `cargo build --locked -p Chataigne2 --bin Chataigne2`                                                                                  | Passed, 1m56s; no incremental-cache intervention. Frontend inputs unchanged, existing UI bundle reused.                                                                                                               |
+
+**1,028 distinct tests passed**; focused/intermediate reruns count once. Seven new source files
+are at most 182 lines. The documented generated/vendor exclusions count 1517 source files and
+42 existing oversized files; no new exception. Root/Core Cargo formatting, explicit affected-app
+rustfmt, maintained-doc Prettier and whitespace checks pass. All owned jobs are terminal.
+
+Controlled loopback, injected serial and null-audio fixtures do not qualify physical devices,
+native UI, other platforms or product-scale latency/memory. Commit/push this milestone on `main`.
+P03 stays approximately **50%**, overall approximately **14%**: the generic ingress workstream
+remains partial. Next finish property/event/log admission and rejected-input disposal, HTTP request
+conversion/disposal, Sound Card lifecycle/service, remaining module/channel audit and generator
+elapsed-time accounting. P04–P18 remain unchanged.

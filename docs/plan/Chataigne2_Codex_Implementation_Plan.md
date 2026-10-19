@@ -307,6 +307,7 @@ effects, generation fencing, coherent errors, and continued progress.
 ### P03 — Finish bounded I/O and lifecycle ownership
 
 <!-- Mode: Escalating to XHigh for pre-materialization payload reservations, typed retained script-method ingress, QuickJS conversion/queue rejection, engine failure/suffix disposal and shared argument ownership across native consumers. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
+<!-- Mode: Returning to High after final retained argument/reservation/JSON bounds, engine rejection/suffix and script failure/reload checks passed 619 owning tests. Subsequent app/native integration passed; evidence remains in the ledger. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
 
 <!-- Mode: Escalating to XHigh for canonical prepared-byte leases through all six native queues, rejected admission/final-owner disposal, output byte accounting and accepted-prefix lifetime semantics. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
 <!-- Mode: Returning to High after 23 common command tests and six owning transport tests passed allocation identity, canonical capacity, queue-full rejection, final reservation release and native-only owned-buffer creation. Routine preservation, lint/workspace checks and native cache recovery remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->

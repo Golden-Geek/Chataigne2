@@ -202,8 +202,7 @@ fn native_script_conversion_failure_does_not_poison_the_shared_destination_ticke
     for (method, text) in [("sendHex", "zz"), ("sendText", "valid")] {
         engine.edits.push(Edit::CallNodeScriptMethod {
             node: module,
-            method: method.into(),
-            args: vec![ParamValue::Str(text.into())],
+            call: golden_core::script::ScriptMethodCall::prepare(method, vec![ParamValue::Str(text.into())]).unwrap(),
         });
     }
     engine.apply_edits().unwrap();

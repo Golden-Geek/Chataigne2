@@ -144,8 +144,7 @@ fn opaque_authored_edits_restore_defaults_on_undo_and_replay_without_calling_aga
             },
             _ => Edit::CallNodeScriptMethod {
                 node: root,
-                method: "increment".into(),
-                args: Vec::new(),
+                call: crate::script::ScriptMethodCall::prepare("increment", Vec::new()).unwrap(),
             },
         });
         engine.apply_edits().unwrap();
