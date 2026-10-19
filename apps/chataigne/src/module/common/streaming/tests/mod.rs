@@ -10,9 +10,9 @@ use crate::app::module::common::{
 #[test]
 fn incoming_stream_queue_applies_bounded_backpressure_without_reordering() {
     let mut queue = StreamingIncomingQueue::with_limits(2, 4096);
-    queue.push_messages(vec![message("first")]);
-    queue.push_messages(vec![message("second")]);
-    queue.push_messages(vec![message("third")]);
+    queue.push_messages(vec![message("first")].try_into().unwrap());
+    queue.push_messages(vec![message("second")].try_into().unwrap());
+    queue.push_messages(vec![message("third")].try_into().unwrap());
 
     assert_eq!(queue.pending_message_count(), 2);
     assert_eq!(queue.take_dropped_message_count(), 1);
@@ -40,7 +40,7 @@ fn incoming_stream_queue_accounts_for_retained_string_capacity() {
     text.push('x');
     let mut input = message("large");
     input.payload = ReceivedValuePayload::Single(ParamValue::Str(text));
-    queue.push_messages(vec![input]);
+    queue.push_messages(vec![input].try_into().unwrap());
     assert_eq!(
         queue.pending_message_count(),
         0,
@@ -57,7 +57,7 @@ fn incoming_stream_queue_retains_work_until_graph_application_completes() {
     };
     let mut engine = crate::app::AppEngine::new(Folder::new("root").into());
     let mut queue = StreamingIncomingQueue::new();
-    queue.push_messages(vec![message("created")]);
+    queue.push_messages(vec![message("created")].try_into().unwrap());
     let snapshot = engine.process_tree_snapshot();
     let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);
     queue.process_pending(&mut ctx, &snapshot, Some(engine.root), true);

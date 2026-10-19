@@ -119,9 +119,11 @@ and host names fail admission synchronously. These bounds cover retained transpo
 shared stream parsing and graph application have separate limits and qualification work.
 
 The app's `common/received_values` owns the shared HTTP/stream message model, retained-weight
-accounting, and graph-application cursor. Stream admission retains complete parse batches in FIFO
-order, bounded by 65,536 messages / 16 MiB and 64 path levels. It charges vector/string capacity
-and active batches waiting for engine receipts; rejected batches produce backend diagnostics.
+accounting, and graph-application cursor. `common/streaming/admission.rs` owns immutable prepared
+stream batches, their cached retained weight, and shared preparation/queue limits. Node queue
+admission reads that metadata without walking or copying all values. It retains complete parse
+batches in FIFO order, bounded by 65,536 messages / 16 MiB, including active batches waiting for
+engine receipts. Rejected batches produce backend diagnostics.
 One maximum IPv4 UDP datagram in raw mode fits this admission budget. Each service turn uses the
 same 256 path/value/sibling work-unit and roughly 64 KiB copy targets as HTTP, with one admitted
 larger scalar allowed a whole turn. Compatible existing values compare against the planned ordered
@@ -129,12 +131,23 @@ prefix, preserving sequences such as `0 → 1 → 0`; conflicting structural cha
 snapshot. Failed or discarded graph application abandons the batch suffix and reports failure
 without replaying applied values or triggers. Later admitted batches can continue.
 
+Raw preparation rejects input above 65,536 byte messages before expansion. JSON input is bounded
+to 1 MiB before decoding, with a structural work/depth check before value conversion and path
+expansion. Prepared paths support 64 levels / 4096 UTF-8 bytes; provenance is capped at 4096 bytes
+without splitting UTF-8. Incremental preparation charges spare vector capacity, owned strings,
+and payload storage, stopping at 16 MiB. A list's value bound derives from that storage budget,
+so a valid 100,000-value list still uses the graph cursor instead of a smaller array-size limit.
+Failed raw/JSON preparation rejects the whole frame before publication. Temporary JSON DOM and
+conversion scratch allocations are additional to the retained-output budget; the input, nesting,
+work, and value limits bound them separately. The 16 MiB number is not a total process-RSS claim.
+
 Stream line parsing retains at most 1 MiB, scans incoming chunks without shifting their remaining
 suffix, and rejects each oversized line once while discarding through its delimiter. Valid
 surrounding frames survive. A changed grammar rejects a partial old line before interpreting new
-input. Line rejection is logged at the app-owned stream boundary. Stream parsing and callback
-preparation still run in node callbacks, JSON/raw expansion needs its own preparation admission,
-and UDP interface discovery and periodic polling remain open P03 work; these queue/cursor bounds
+input. Per-line preparation also enforces expansion/path admission and preserves other valid
+frames in the same input turn. Line rejection is logged at the app-owned stream boundary.
+Stream parsing and callback preparation still run in node callbacks, and UDP interface discovery
+and periodic polling remain open P03 work; these preparation/queue/cursor bounds
 do not qualify that remaining actor work.
 
 Reconfiguration and disable close send admission while retaining accepted work and results.

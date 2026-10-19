@@ -1,4 +1,4 @@
-use crate::app::module::common::received_values::ReceivedValueMessage;
+use crate::app::module::common::streaming::admission::PreparedMessages;
 use golden_core::{
     node,
     node::{Node, NodeId},
@@ -127,18 +127,18 @@ impl StreamingModuleBase {
         self.incoming.has_pending_messages()
     }
 
-    pub(crate) fn parse_bytes_cached(&mut self, bytes: &[u8]) -> Result<Vec<ReceivedValueMessage>, String> {
+    pub(crate) fn parse_bytes_cached(&mut self, bytes: &[u8]) -> Result<PreparedMessages, String> {
         let result = self.parser.push_bytes(bytes, &self.cached_parse_config);
         let rejected = self.parser.take_rejected_line_count();
         if rejected > 0 {
             golden_core::logerror!(
-                "Rejected {rejected} incoming stream lines: retained input exceeded 1 MiB or parsing configuration changed before the frame completed."
+                "Rejected {rejected} incoming stream lines: input, expansion, or path admission failed, or parsing configuration changed before the frame completed."
             );
         }
         result
     }
 
-    pub(crate) fn push_messages(&mut self, messages: Vec<ReceivedValueMessage>) {
+    pub(crate) fn push_messages(&mut self, messages: PreparedMessages) {
         self.incoming.push_messages(messages);
     }
 
@@ -148,7 +148,7 @@ impl StreamingModuleBase {
             ctx.set_node_warning_with(
                 self.id(),
                 Some(STREAM_BACKPRESSURE_WARNING_ID),
-                format!("Rejected {dropped} incoming stream messages: batch capacity, retained-byte, or path-depth limit exceeded."),
+                format!("Rejected {dropped} incoming stream messages: batch capacity or retained-byte limit exceeded."),
                 None,
             );
         } else {

@@ -2,6 +2,8 @@ use golden_core::parameter::ParamValue;
 
 use super::*;
 
+mod admission;
+
 #[test]
 fn oversized_line_rejection_preserves_surrounding_frames_and_split_crlf() {
     let mut parser = StreamingParser::default();
@@ -73,7 +75,9 @@ fn stream_parser_bounds_an_unterminated_line_across_input_chunks() {
 #[test]
 fn line_parser_splits_named_hierarchy() {
     let config = StreamingParseConfig::default();
-    let message = parse_line(b"my.received.value 42\n", &config).expect("line should parse");
+    let message = parse_line(b"my.received.value 42\n", &config)
+        .expect("line should parse")
+        .expect("nonempty line");
 
     assert_eq!(message.path_segments, vec!["my", "received", "value"]);
     assert_eq!(message.payload, ReceivedValuePayload::Single(ParamValue::Int(42)));
@@ -85,7 +89,9 @@ fn line_parser_supports_separate_name_and_value_separators() {
         value_separator: Some(StreamingSeparator::Comma),
         ..StreamingParseConfig::default()
     };
-    let message = parse_line(b"my.value cool,3\n", &config).expect("line should parse");
+    let message = parse_line(b"my.value cool,3\n", &config)
+        .expect("line should parse")
+        .expect("nonempty line");
 
     assert_eq!(message.path_segments, vec!["my", "value"]);
     assert_eq!(
@@ -100,7 +106,9 @@ fn line_parser_uses_default_name_when_name_separator_is_disabled() {
         name_separator: None,
         ..StreamingParseConfig::default()
     };
-    let message = parse_line(b"1.5:2.5\n", &config).expect("line should parse");
+    let message = parse_line(b"1.5:2.5\n", &config)
+        .expect("line should parse")
+        .expect("nonempty line");
 
     assert_eq!(message.path_segments, vec![DEFAULT_LINE_VALUE_NAME]);
     assert_eq!(
@@ -115,7 +123,9 @@ fn line_parser_keeps_value_text_whole_when_value_separator_is_disabled() {
         value_separator: None,
         ..StreamingParseConfig::default()
     };
-    let message = parse_line(b"message hello,3\n", &config).expect("line should parse");
+    let message = parse_line(b"message hello,3\n", &config)
+        .expect("line should parse")
+        .expect("nonempty line");
 
     assert_eq!(message.path_segments, vec!["message"]);
     assert_eq!(

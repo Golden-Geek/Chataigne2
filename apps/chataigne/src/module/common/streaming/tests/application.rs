@@ -33,8 +33,8 @@ fn apply(engine: &mut AppEngine, mut ctx: ProcessCtx) {
 #[test]
 fn stream_admission_rejects_an_entire_batch_without_losing_the_accepted_head() {
     let mut queue = StreamingIncomingQueue::with_limits(2, 4096);
-    queue.push_messages(vec![message("head")]);
-    queue.push_messages(vec![message("reject1"), message("reject2")]);
+    queue.push_messages(vec![message("head")].try_into().unwrap());
+    queue.push_messages(vec![message("reject1"), message("reject2")].try_into().unwrap());
     assert_eq!(queue.pending_message_count(), 1);
     assert_eq!(queue.take_dropped_message_count(), 2);
     assert_eq!(queue.take_pending_messages_for_test(), [message("head")]);
@@ -44,16 +44,16 @@ fn stream_admission_rejects_an_entire_batch_without_losing_the_accepted_head() {
 fn stream_admission_counts_inflight_receipts_until_completion() {
     let mut engine = AppEngine::new(Folder::new("root").into());
     let mut queue = StreamingIncomingQueue::with_limits(1, 4096);
-    queue.push_messages(vec![message("head")]);
+    queue.push_messages(vec![message("head")].try_into().unwrap());
     let ctx = plan(&mut queue, &engine);
-    queue.push_messages(vec![message("too_early")]);
+    queue.push_messages(vec![message("too_early")].try_into().unwrap());
     assert_eq!(queue.pending_message_count(), 1);
     assert_eq!(queue.take_dropped_message_count(), 1);
     assert!(plan(&mut queue, &engine).edits.pending.is_empty());
     apply(&mut engine, ctx);
     assert!(plan(&mut queue, &engine).edits.pending.is_empty());
     assert!(!queue.has_pending_messages());
-    queue.push_messages(vec![message("next")]);
+    queue.push_messages(vec![message("next")].try_into().unwrap());
     assert_eq!(queue.pending_message_count(), 1);
     assert_eq!(queue.take_dropped_message_count(), 0);
 }
@@ -65,7 +65,7 @@ fn stream_cursor_preserves_repeated_existing_values_within_one_turn() {
     let first = message("level");
     let mut second = first.clone();
     second.payload = ReceivedValuePayload::Single(ParamValue::Int(0));
-    queue.push_messages(vec![first, second]);
+    queue.push_messages(vec![first, second].try_into().unwrap());
     let ctx = plan(&mut queue, &engine);
     assert_eq!(ctx.edits.pending.len(), 2);
     apply(&mut engine, ctx);
@@ -83,7 +83,7 @@ fn stream_cursor_allows_one_admitted_scalar_above_the_turn_byte_target() {
     let mut queue = StreamingIncomingQueue::new();
     let mut input = message("large");
     input.payload = ReceivedValuePayload::Single(ParamValue::Str("x".repeat(256 * 1024)));
-    queue.push_messages(vec![input]);
+    queue.push_messages(vec![input].try_into().unwrap());
     let ctx = plan(&mut queue, &engine);
     assert_eq!(
         ctx.edits.pending.len(),
@@ -106,7 +106,7 @@ fn stream_cursor_materializes_large_lists_in_bounded_turns() {
     let mut queue = StreamingIncomingQueue::new();
     let mut input = message("list");
     input.payload = ReceivedValuePayload::Multi((0..1000).map(ParamValue::Int).collect());
-    queue.push_messages(vec![input]);
+    queue.push_messages(vec![input].try_into().unwrap());
     let mut turns = 0;
     while queue.has_pending_messages() {
         let ctx = plan(&mut queue, &engine);
@@ -170,7 +170,7 @@ fn stream_graph_failure_does_not_replay_an_applied_trigger_prefix() {
     let mut queue = StreamingIncomingQueue::new();
     let mut pulse = message("pulse");
     pulse.payload = ReceivedValuePayload::Single(ParamValue::Trigger());
-    queue.push_messages(vec![pulse.clone(), pulse]);
+    queue.push_messages(vec![pulse.clone(), pulse].try_into().unwrap());
     let mut ctx = plan(&mut queue, &engine);
     assert_eq!(ctx.edits.pending.len(), 2);
     let before = engine
@@ -198,7 +198,7 @@ fn stream_graph_failure_does_not_replay_an_applied_trigger_prefix() {
         .filter(|event| matches!(event.kind, EventKind::ParamChanged { param, .. } if param == id))
         .count();
     assert_eq!(after, before + 1);
-    queue.push_messages(vec![message("next")]);
+    queue.push_messages(vec![message("next")].try_into().unwrap());
     let ctx = plan(&mut queue, &engine);
     apply(&mut engine, ctx);
     plan(&mut queue, &engine);
@@ -209,7 +209,7 @@ fn stream_graph_failure_does_not_replay_an_applied_trigger_prefix() {
 fn stream_dropped_edit_context_fails_receipt_without_retry() {
     let mut engine = AppEngine::new(Folder::new("root").into());
     let mut queue = StreamingIncomingQueue::new();
-    queue.push_messages(vec![message("discarded")]);
+    queue.push_messages(vec![message("discarded")].try_into().unwrap());
     drop(plan(&mut queue, &engine));
     let ctx = plan(&mut queue, &engine);
     assert!(ctx.edits.pending.is_empty());

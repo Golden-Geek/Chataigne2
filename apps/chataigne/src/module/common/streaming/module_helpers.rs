@@ -7,16 +7,16 @@ use golden_core::{
 };
 
 use super::{
+    admission::{PreparedMessages, MAX_STREAM_BYTES, MAX_STREAM_MESSAGES},
     commands::STREAMING_COMMAND_NODE_TYPES,
     parser::{StreamingParseConfig, StreamingSeparator},
 };
-use crate::app::module::common::received_values::{
-    service::{ReceivedValueCursor, ReceivedValueProgress},
-    ReceivedValueMessage,
-};
+use crate::app::module::common::received_values::service::{ReceivedValueCursor, ReceivedValueProgress};
+#[cfg(test)]
+use crate::app::module::common::received_values::ReceivedValueMessage;
 
 struct PendingStreamBatch {
-    messages: Vec<ReceivedValueMessage>,
+    messages: PreparedMessages,
     cursor: ReceivedValueCursor,
     weight: usize,
 }
@@ -31,14 +31,9 @@ pub(crate) struct StreamingIncomingQueue {
     failed_batches: u64,
 }
 
-// One maximum IPv4 UDP datagram in raw mode fits without dropping its ordered suffix.
-const MAX_PENDING_STREAM_MESSAGES: usize = 65_536;
-const MAX_PENDING_STREAM_BYTES: usize = 16 * 1024 * 1024;
-const MAX_STREAM_PATH_DEPTH: usize = 64;
-
 impl StreamingIncomingQueue {
     pub(crate) fn new() -> Self {
-        Self::with_capacity(MAX_PENDING_STREAM_MESSAGES, MAX_PENDING_STREAM_BYTES)
+        Self::with_capacity(MAX_STREAM_MESSAGES, MAX_STREAM_BYTES)
     }
 
     fn with_capacity(maximum_items: usize, maximum_weight: usize) -> Self {
@@ -59,23 +54,15 @@ impl StreamingIncomingQueue {
     }
 
     /// Admit a whole parse batch or explicitly reject it; never keep a silent partial suffix.
-    pub(crate) fn push_messages(&mut self, messages: Vec<ReceivedValueMessage>) {
+    pub(crate) fn push_messages(&mut self, messages: PreparedMessages) {
         if messages.is_empty() {
             return;
         }
-        let weight = std::mem::size_of::<PendingStreamBatch>()
-            + messages.capacity() * std::mem::size_of::<ReceivedValueMessage>()
-            + messages
-                .iter()
-                .map(ReceivedValueMessage::retained_weight)
-                .sum::<usize>();
+        let weight = std::mem::size_of::<PendingStreamBatch>() + messages.retained_bytes();
         let next_items = self.retained_items.checked_add(messages.len());
         let next_weight = self.retained_weight.checked_add(weight);
         if next_items.is_none_or(|items| items > self.maximum_items)
             || next_weight.is_none_or(|bytes| bytes > self.maximum_weight)
-            || messages
-                .iter()
-                .any(|message| message.path_segments.len() > MAX_STREAM_PATH_DEPTH)
         {
             self.dropped_messages = self.dropped_messages.saturating_add(messages.len() as u64);
             return;

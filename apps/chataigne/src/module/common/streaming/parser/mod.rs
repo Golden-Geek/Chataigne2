@@ -1,3 +1,8 @@
+mod json;
+
+use super::admission::{bounded_description, validate_path, PreparedMessages, MAX_STREAM_MESSAGES, MAX_VALUE_UNITS};
+use json::parse_json_bytes;
+
 use golden_core::parameter::ParamValue;
 
 use crate::app::module::common::received_values::{ReceivedValueMessage, ReceivedValuePayload};
@@ -83,7 +88,7 @@ impl StreamingParser {
         &mut self,
         bytes: &[u8],
         config: &StreamingParseConfig,
-    ) -> Result<Vec<ReceivedValueMessage>, String> {
+    ) -> Result<PreparedMessages, String> {
         if self.active_config.as_ref() != Some(config) {
             if !self.pending_line_bytes.is_empty() {
                 self.rejected_lines = self.rejected_lines.saturating_add(1);
@@ -96,14 +101,18 @@ impl StreamingParser {
         if config.mode == STREAMING_INPUT_MODE_RAW {
             self.pending_line_bytes.clear();
             self.skip_lf_after_cr = false;
-            return Ok(bytes
-                .iter()
-                .map(|byte| ReceivedValueMessage {
+            if bytes.len() > MAX_STREAM_MESSAGES {
+                return Err("raw stream input exceeds 65536 byte messages".into());
+            }
+            let mut messages = PreparedMessages::default();
+            for byte in bytes {
+                messages.try_push(ReceivedValueMessage {
                     path_segments: vec![DEFAULT_RAW_VALUE_NAME.to_string()],
                     payload: ReceivedValuePayload::Single(ParamValue::Int(i32::from(*byte))),
                     source_description: format!("raw byte 0x{byte:02X}"),
-                })
-                .collect());
+                })?;
+            }
+            return Ok(messages);
         }
 
         if config.mode == STREAMING_INPUT_MODE_JSON {
@@ -112,7 +121,7 @@ impl StreamingParser {
             return parse_json_bytes(bytes);
         }
 
-        let mut messages = Vec::new();
+        let mut messages = PreparedMessages::default();
         for part in bytes.split_inclusive(|byte| matches!(byte, b'\r' | b'\n')) {
             if self.skip_lf_after_cr {
                 self.skip_lf_after_cr = false;
@@ -145,8 +154,10 @@ impl StreamingParser {
             }
             if let Some(delimiter) = delimiter {
                 if !self.discarding_line {
-                    if let Some(message) = parse_line(&self.pending_line_bytes, config) {
-                        messages.push(message);
+                    let result = parse_line(&self.pending_line_bytes, config)
+                        .and_then(|message| message.map_or(Ok(()), |message| messages.try_push(message)));
+                    if result.is_err() {
+                        self.rejected_lines = self.rejected_lines.saturating_add(1);
                     }
                 }
                 self.pending_line_bytes.clear();
@@ -163,129 +174,33 @@ impl StreamingParser {
     }
 }
 
-fn parse_json_bytes(bytes: &[u8]) -> Result<Vec<ReceivedValueMessage>, String> {
-    if bytes.iter().all(|byte| byte.is_ascii_whitespace()) {
-        return Ok(Vec::new());
-    }
-
-    let value: serde_json::Value =
-        serde_json::from_slice(bytes).map_err(|error| format!("invalid JSON input: {error}"))?;
-
-    let mut messages = Vec::new();
-    let mut path_segments = Vec::new();
-    collect_json_messages(&value, &mut path_segments, &mut messages)?;
-    Ok(messages)
-}
-
-fn collect_json_messages(
-    value: &serde_json::Value,
-    path_segments: &mut Vec<String>,
-    messages: &mut Vec<ReceivedValueMessage>,
-) -> Result<(), String> {
-    if let Some(payload) = decode_json_payload(value)? {
-        messages.push(ReceivedValueMessage {
-            path_segments: json_message_path_segments(path_segments.as_slice()),
-            payload,
-            source_description: json_source_description(path_segments.as_slice()),
-        });
-        return Ok(());
-    }
-
-    match value {
-        serde_json::Value::Object(entries) => {
-            for (key, child) in entries {
-                let key = key.trim();
-                if key.is_empty() {
-                    continue;
-                }
-
-                path_segments.push(key.to_string());
-                collect_json_messages(child, path_segments, messages)?;
-                path_segments.pop();
-            }
-        }
-        serde_json::Value::Array(items) => {
-            for (index, child) in items.iter().enumerate() {
-                path_segments.push((index + 1).to_string());
-                collect_json_messages(child, path_segments, messages)?;
-                path_segments.pop();
-            }
-        }
-        _ => {}
-    }
-
-    Ok(())
-}
-
-fn decode_json_payload(value: &serde_json::Value) -> Result<Option<ReceivedValuePayload>, String> {
-    match value {
-        serde_json::Value::Object(_) => Ok(None),
-        serde_json::Value::Array(items) => {
-            if let Ok(value) = ParamValue::from_script_json(value) {
-                return Ok(Some(ReceivedValuePayload::Single(value)));
-            }
-
-            let mut values = Vec::with_capacity(items.len());
-            for item in items {
-                let Ok(value) = ParamValue::from_script_json(item) else {
-                    return Ok(None);
-                };
-                values.push(value);
-            }
-
-            Ok(Some(match values.len() {
-                0 => ReceivedValuePayload::Single(ParamValue::Trigger()),
-                1 => ReceivedValuePayload::Single(values.remove(0)),
-                _ => ReceivedValuePayload::Multi(values),
-            }))
-        }
-        _ => ParamValue::from_script_json(value)
-            .map(ReceivedValuePayload::Single)
-            .map(Some)
-            .map_err(|error| format!("invalid JSON value: {error}")),
-    }
-}
-
-fn json_message_path_segments(path_segments: &[String]) -> Vec<String> {
-    if path_segments.is_empty() {
-        vec![DEFAULT_LINE_VALUE_NAME.to_string()]
-    } else {
-        path_segments.to_vec()
-    }
-}
-
-fn json_source_description(path_segments: &[String]) -> String {
-    if path_segments.is_empty() {
-        "streaming json root".to_string()
-    } else {
-        format!("streaming json path '{}'", path_segments.join("/"))
-    }
-}
-
-pub(crate) fn parse_line(line_bytes: &[u8], config: &StreamingParseConfig) -> Option<ReceivedValueMessage> {
+fn parse_line(line_bytes: &[u8], config: &StreamingParseConfig) -> Result<Option<ReceivedValueMessage>, String> {
     let line = String::from_utf8_lossy(line_bytes);
     let line = line.trim_matches(|character| character == '\r' || character == '\n');
     let line = line.trim();
     if line.is_empty() {
-        return None;
+        return Ok(None);
     }
 
-    let (name, value_text) = name_and_value_text(line, config.name_separator)?;
+    let Some((name, value_text)) = name_and_value_text(line, config.name_separator) else {
+        return Ok(None);
+    };
     if name.is_empty() {
-        return None;
+        return Ok(None);
     }
 
-    let values = split_value_fields(value_text, config.value_separator);
-    let path_segments = name_segments(name.as_str(), config.hierarchy_separator);
+    let path_segments = name_segments(name.as_str(), config.hierarchy_separator)?;
+    validate_path(&path_segments)?;
+    let values = split_value_fields(value_text, config.value_separator)?;
     if path_segments.is_empty() {
-        return None;
+        return Ok(None);
     }
 
-    Some(ReceivedValueMessage {
-        source_description: format!("streaming line '{line}'"),
+    Ok(Some(ReceivedValueMessage {
+        source_description: bounded_description("streaming line '", line, "'"),
         path_segments,
         payload: decode_value_fields(values.as_slice()),
-    })
+    }))
 }
 
 pub(crate) fn decode_text_escape_sequences(input: &str) -> String {
@@ -422,20 +337,23 @@ fn decode_vector_like_value(fields: &[String]) -> Option<ParamValue> {
     }
 }
 
-fn split_value_fields(text: &str, separator: Option<StreamingSeparator>) -> Vec<String> {
+fn split_value_fields(text: &str, separator: Option<StreamingSeparator>) -> Result<Vec<String>, String> {
     let text = text.trim();
     if text.is_empty() {
-        return Vec::new();
+        return Ok(Vec::new());
     }
 
     let Some(separator) = separator else {
-        return vec![text.to_string()];
+        return Ok(vec![text.to_string()]);
     };
 
-    split_all_by_separator(text, separator)
+    split_all_by_separator(text, separator, MAX_VALUE_UNITS)
 }
 
-fn name_segments(name: &str, hierarchy_separator: Option<StreamingSeparator>) -> Vec<String> {
+fn name_segments(name: &str, hierarchy_separator: Option<StreamingSeparator>) -> Result<Vec<String>, String> {
+    if name.len() > super::admission::MAX_STREAM_PATH_BYTES {
+        return Err("stream path exceeds 4096 UTF-8 bytes".into());
+    }
     let slash_segments = name
         .trim()
         .trim_matches('/')
@@ -445,14 +363,19 @@ fn name_segments(name: &str, hierarchy_separator: Option<StreamingSeparator>) ->
 
     let mut output = Vec::new();
     for slash_segment in slash_segments {
+        let remaining = super::admission::MAX_STREAM_PATH_DEPTH - output.len();
         if let Some(separator) = hierarchy_separator {
-            output.extend(split_all_by_separator(slash_segment, separator));
+            output.extend(split_all_by_separator(slash_segment, separator, remaining)?);
         } else {
+            if remaining == 0 {
+                return Err("stream path exceeds 64 levels".into());
+            }
             output.push(slash_segment.to_string());
         }
     }
 
-    output
+    validate_path(&output)?;
+    Ok(output)
 }
 
 fn split_once_by_separator(input: &str, separator: StreamingSeparator) -> Option<(&str, &str)> {
@@ -467,13 +390,19 @@ fn split_once_by_separator(input: &str, separator: StreamingSeparator) -> Option
     Some((&input[..index], &input[value_start..]))
 }
 
-fn split_all_by_separator(input: &str, separator: StreamingSeparator) -> Vec<String> {
-    input
+fn split_all_by_separator(input: &str, separator: StreamingSeparator, limit: usize) -> Result<Vec<String>, String> {
+    let mut fields = Vec::new();
+    for field in input
         .split(separator.character())
         .map(str::trim)
         .filter(|field| !field.is_empty())
-        .map(str::to_string)
-        .collect()
+    {
+        if fields.len() == limit {
+            return Err("stream field expansion exceeds its preparation limit".into());
+        }
+        fields.push(field.to_string());
+    }
+    Ok(fields)
 }
 
 fn parse_numeric_field(input: &str) -> Option<f64> {
