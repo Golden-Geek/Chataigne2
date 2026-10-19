@@ -70,7 +70,7 @@ fn full_input_replies_do_not_strand_a_cold_unlogged_send() {
             handle.drain_events(&mut events);
             for event in events {
                 if let StreamingWorkerEvent::Input(input) = event {
-                    inputs.push(input.callbacks[0].payload["args"][0][0].as_u64().unwrap());
+                    inputs.push(input.callbacks[0].payload()["args"][0][0].as_u64().unwrap());
                 }
             }
             inputs.len() == 2

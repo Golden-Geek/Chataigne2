@@ -5,7 +5,7 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-19 on `main` at delivered `1663106e` plus the verified P03 batch 16 diff.
+Last reconciled: 2026-10-19 on `main` at delivered `3166e805` plus the verified P03 batch 17 diff.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
 plan. Its complete contents, including the uncommitted clarification, survive in the
@@ -13,8 +13,9 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 
 ## Current handoff
 
-- Current batch: P03 batch 16 TCP worker input preparation and grammar/connection generation
-  isolation verified locally. Reconcile its milestone commit and `origin/main` before resuming.
+- Current batch: P03 batch 17 callback JSON lifetime admission across event routing/replay
+  verified locally. Reconcile its milestone commit and `origin/main` before resuming.
+  Batch 16 worker input/generation isolation delivered in `3166e805`.
   Batch 15 native ownership and disabled completion service delivered in `1663106e`.
   Batch 14 was delivered in `0196c0f8`; batch 13 in `df0c7876`; batch 12 in `a617d313`. Separately committed
   footer UI parent `3b4bdc7b` and build-cache ancestor `5b81c44e` are preserved.
@@ -23,15 +24,16 @@ plan. Its complete contents, including the uncommitted clarification, survive in
   and both remote branches were pushed successfully on 2026-10-19. Unfinished shared-stream
   baseline work was preserved and restored on `main`. Earlier no-commit/no-push notes below
   describe historical actions only; future verified milestones are committed and pushed.
-- P00 resumed check: clean `main` and `origin/main` at delivered `1663106e`;
+- P00 resumed check: clean `main` and `origin/main` at delivered `3166e805`;
   no unrelated changes or live owned jobs at resume. Previous turn: progress.
 - Scope selected by the user: **foundation and readiness**. Full lighting/video/projection
   authoring is deferred; current features and completed Mapping remain preservation contracts.
 - Runtime/source implementation under the new P tasks: **P01 and P02 verified locally; P03 in progress**.
-- Next implementation action: audit callback
-  JSON retained-byte admission and final disposal after prepared envelopes hand payloads to event
-  routing/replay. TCP input parsing/callback preparation, grammar/connection-generation fencing,
-  and connection-folder warning ownership have passed owning checks. Preserve native cursors,
+- Next implementation action: integrate HTTP's
+  response/callback envelope with the app's native callback lifetime boundary. TCP/UDP callback JSON
+  reservation now follows routing/replay/exported event copies and passes owning checks. TCP input
+  parsing/preparation, grammar/connection-generation fencing, and connection-folder warning ownership
+  remain verified. Preserve native cursors,
   applied-snapshot admission, passive receipt delivery, retirement, and disabled completions.
   Then continue TCP server/WebSocket/serial worker ownership and the full module/channel audit (including Sound Card
   stop/join, event-drain, admission/recovery, and configuration bounds) and generator time accounting.
@@ -61,7 +63,7 @@ External qualification is separate from implementation. A historical pass is not
 | P00 Baseline                | VERIFIED_LOCAL | PASSED              | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                |
 | P01 Edit failures/history   | VERIFIED_LOCAL | PASSED batches 1–8  | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                 |
 | P02 Schedule/actor failures | VERIFIED_LOCAL | PASSED batches 1-3  | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                  |
-| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-16 | TCP native input and owner delivery verified; callback payload lifetime and broader module/generator audit open           |
+| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-17 | TCP/UDP callback event lifetime verified; HTTP integration and broader module/generator audit open                        |
 | P04 Audio order/types       | NOT_STARTED    | PENDING             | Legal interleaving and invalid deserialization established from source                                                    |
 | P05 Transport trust         | NOT_STARTED    | PENDING             | Missing admission verified; exploit not demonstrated                                                                      |
 | P06 Dependencies            | NOT_STARTED    | FAILED baseline     | Four Rustls advisories on audit date; refresh DB before repair                                                            |
@@ -2067,3 +2069,59 @@ missing-serial endpoints, and null audio. Physical devices, other platforms, ful
 and UI/native interaction were not qualified by this batch. Commit and push this milestone on
 `main`, then audit the downstream callback JSON lifetime boundary. P03 remains **IN_PROGRESS**;
 P04-P18 retain their states.
+
+### P03 batch 17: callback JSON lifetime admission
+
+Resumed clean delivered `3166e80574cdff1d1557f851ecf808222612a59b` on `main`, matching fetched
+`origin/main`; no owned jobs are live. Previous turn: **progress**. Golden IO already owns atomic
+final claims of externally cloned immutable Arcs. App module script policy owns callback JSON
+construction and admission, so this batch adds a canonical app callback reservation and wires
+native TCP/UDP preparation through it. Payload storage must remain charged after its input
+envelope/delivery is gone and through ordinary event/routing/replay clones; final JSON destruction
+belongs to its disposer. HTTP's response/callback envelope boundary is a following integration,
+not evidence supplied by stream-only checks. **XHigh requested; actual effort unchanged/unobservable**
+because no supported control is exposed.
+
+`NativeCallbackPayload` now measures/reserves JSON on the preparing worker and binds origin/topic
+without copying its JSON on the owner. The app-owned canonical pool uses Golden IO external-Arc
+retention with **16,384 allocations / 256 MiB**, separate from stream envelopes/values (**256 /
+256 MiB**). Each callback admits at most **32 MiB / 262,144 values / 64 levels**, including spare
+vector/string capacity. TCP/UDP preparation now uses that typed payload and cached retained weight;
+the old stream-local recursive JSON estimator was removed. Callback multiplicity, names, argument
+shape, replay policy, and per-publication receipts remain intact. Seven lifetime/admission tests
+cover raw event copies, replay/export, failure/retry, retained spare storage, per-payload limits,
+and shallow binding. The first focused test job is live; no pass is claimed yet.
+
+The focused run passed **7/7** callback tests in **0.10s** after **2m17s** compilation. Current
+Golden IO verification passed **38/38**, including atomic final claims/Weak revival, externally
+cloned Arc admission, producer/pool-owner exit, destructor thread ownership, panic cleanup, and
+blocked cleanup capacity. Source-settled executable preservation filters passed script API **8**
+(including the same seven callback tests), concrete streams **77**, shared streams **45**, HTTP
+**36**, Sound Card **35** plus null product evidence **1**, OSC **25**, and initial Formula cache
+**1**. Their compiled-name sets were checked for overlap: **228 distinct app tests**, **266**
+including IO. Strict IO/app Clippy and workspace/test compilation are pending/live; native build
+and final delivery are still required. This does not qualify unintegrated HTTP callback ownership.
+
+Strict `cargo clippy --locked -p golden_io -p Chataigne2 --all-targets -- -D warnings` passed in
+**47.52s**. Focused lifetime/publication work is verified; **return to High requested, actual
+effort unchanged/unobservable** because no supported control is exposed. Workspace/native and
+routine documentation/delivery closeout remain; other callback producers keep their own open audit.
+
+`cargo check --locked --workspace --tests` passed in **48.84s**, including queue wait. Source is
+frozen for the default native build. A fresh explicit source inventory (`rg --files apps crates
+packages`, Rust/TS/Svelte/JS/MJS) is **1616 files / 42 oversized**; the new native payload module
+is **119** lines and its separate test module **149**. No new size exception is introduced.
+Maintained-doc Prettier and whitespace checks pass. Other producer integration remains open, in
+particular HTTP's retained response/body/parsed-values cleanup and worker-prepared callback binding.
+
+The default `cargo build --locked -p Chataigne2 --bin Chataigne2` **PASSED in 1m35s**, including
+queue wait, without artifact cleanup or flag changes this batch. All owned jobs are terminal.
+Final root/Core Cargo formatting, explicit app-module Rustfmt, maintained-doc Prettier, and
+whitespace checks pass. Evidence: **266 distinct passing IO/app tests**, strict IO/app Clippy,
+workspace/test compilation, and default native build. Source inventory remains **1616 / 42**;
+no new size exception, wire shape, persistence schema, dependency, or UI behavior changed.
+Checks used Windows/default features, controlled loopback/missing-serial endpoints, and null
+audio. Physical-device, other-platform, UI/native-interaction, and full-product scale qualification
+remain separate. Commit and push this verified milestone on `main`, then integrate HTTP callback
+and retained envelope ownership. P03 remains **IN_PROGRESS**; P04-P18 retain their states, including
+the previously recorded P12 incremental-link artifact issue.

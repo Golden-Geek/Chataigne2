@@ -1,5 +1,4 @@
 use golden_core::{
-    events::CustomEvent,
     node::{NodeData, NodeId, NodeScriptDescriptor},
     process_ctx::ProcessCtx,
 };
@@ -31,35 +30,44 @@ pub(crate) fn emit_stream_bytes_callbacks(
     source: Option<&str>,
     text_hint: bool,
 ) {
-    for event in prepare_stream_bytes_callbacks(module_id, bytes, source, text_hint) {
-        ctx.emit_custom_event(event);
+    for (callback, args) in stream_bytes_callback_args(bytes, source, text_hint) {
+        crate::app::module::script_api::emit_script_callback(ctx, module_id, callback, args);
     }
 }
 
 pub(crate) fn prepare_stream_bytes_callbacks(
-    module_id: NodeId,
     bytes: &[u8],
     source: Option<&str>,
     text_hint: bool,
-) -> Vec<CustomEvent> {
+) -> Result<Vec<crate::app::module::script_api::NativeCallbackPayload>, String> {
+    stream_bytes_callback_args(bytes, source, text_hint)
+        .into_iter()
+        .map(|(callback, args)| crate::app::module::script_api::NativeCallbackPayload::prepare(callback, args))
+        .collect()
+}
+
+fn stream_bytes_callback_args(
+    bytes: &[u8],
+    source: Option<&str>,
+    text_hint: bool,
+) -> Vec<(&'static str, Vec<JsonValue>)> {
     let source_arg = source
         .map(|source| JsonValue::String(source.to_string()))
         .unwrap_or(JsonValue::Null);
     let args = vec![crate::app::module::script_api::bytes_arg(bytes), source_arg.clone()];
-    let mut events = vec![
-        crate::app::module::script_api::script_callback_event(module_id, STREAM_DATA_RECEIVED_CALLBACK, args.clone()),
-        crate::app::module::script_api::script_callback_event(module_id, STREAM_DATA_RECEIVE_CALLBACK, args),
+    let mut callbacks = vec![
+        (STREAM_DATA_RECEIVED_CALLBACK, args.clone()),
+        (STREAM_DATA_RECEIVE_CALLBACK, args),
     ];
     if text_hint {
         if let Ok(text) = std::str::from_utf8(bytes) {
-            events.push(crate::app::module::script_api::script_callback_event(
-                module_id,
+            callbacks.push((
                 STREAM_TEXT_RECEIVED_CALLBACK,
                 vec![JsonValue::String(text.to_string()), source_arg],
             ));
         }
     }
-    events
+    callbacks
 }
 
 pub(crate) fn emit_client_connected(ctx: &mut ProcessCtx, module_id: NodeId, client_id: &str, info: String) {

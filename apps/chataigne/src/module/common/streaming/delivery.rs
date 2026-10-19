@@ -23,7 +23,9 @@ impl InputDelivery {
 
     pub(crate) fn service(&mut self, ctx: &mut ProcessCtx, stream: &mut StreamingModuleBase) -> bool {
         while let Some(event) = self.input.callbacks.get(self.next) {
-            let delivery = self.pending.get_or_insert_with(|| CallbackDelivery::new(event.clone()));
+            let delivery = self
+                .pending
+                .get_or_insert_with(|| CallbackDelivery::new(event.event(self.input.module)));
             if !delivery.service(ctx) {
                 return false;
             }

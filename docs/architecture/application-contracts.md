@@ -104,6 +104,18 @@ receipts, then submits the prepared values to the shared graph cursor. Callback-
 no tree snapshot. Destroy/undo restores authored state with fresh runtime input, and final prepared
 payload disposal uses the shared stream pool. TCP transport warnings belong on its connection folder.
 
+Worker-prepared TCP/UDP script callback JSON uses `NativeCallbackPayload` in the app's module
+script API. Its canonical Golden IO pool retains ordinary event `Arc` copies through routing,
+UI replay, and exported event batches, independently of the prepared input envelope. Reservations
+admit at most 16,384 allocations / 256 MiB across these callbacks; each payload is limited to
+32 MiB, 262,144 JSON values, and 64 levels. Measurement and admission run on the worker, including
+spare container/string storage. Owner binding uses the shared payload and cached weight. Capacity
+exhaustion explicitly rejects preparation and recovers after consumers release storage; it does
+not replay external work or evict accepted callbacks. Final JSON destruction belongs to the
+canonical disposer, including after node or engine removal. The stream envelope/value pool has
+its separate 256-allocation / 256 MiB limit. HTTP and other callback producers still need their
+own integration through this boundary; these stream limits do not qualify them.
+
 `golden_io::BoundedWorker::spawn_notified` can publish those node wakes after reply admission and
 final producer exit. `DelayedNotifier` provides bounded, coalesced host deadlines without a node
 polling clock. A `PayloadPool` can retain prepared data through consumer ownership and perform

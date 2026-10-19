@@ -46,8 +46,8 @@ fn prepared_values_callbacks_and_logs_keep_their_native_input_configuration() {
     let old = next_input(&handle);
     assert_eq!(old.values.as_ref().unwrap()[0].path_segments, ["old"]);
     assert_eq!(old.callbacks.len(), 3);
-    assert_eq!(old.callbacks[0].payload["callback"], "dataReceived");
-    assert_eq!(old.callbacks[2].payload["args"][0], "old 1\n");
+    assert_eq!(old.callbacks[0].payload()["callback"], "dataReceived");
+    assert_eq!(old.callbacks[2].payload()["args"][0], "old 1\n");
     assert!(old.log_message.as_ref().unwrap().starts_with("Received TCP "));
 
     input.parse.mode = "json".into();

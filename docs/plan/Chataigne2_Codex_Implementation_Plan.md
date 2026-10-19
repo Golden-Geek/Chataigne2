@@ -302,6 +302,9 @@ effects, generation fencing, coherent errors, and continued progress.
 
 ### P03 — Finish bounded I/O and lifecycle ownership
 
+<!-- Mode: Escalating to XHigh for worker-prepared callback JSON reservations across ordinary event Arc clones, routing/replay retention, failed publication, and final background disposal. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
+<!-- Mode: Returning to High after 266 distinct IO/app tests and strict IO/app Clippy passed callback reservation, shallow event binding, replay/export lifetime, and failed publication recovery. Workspace/native/delivery closeout and other producer integration remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
+
 <!-- Mode: Escalating to XHigh for TCP worker input preparation, grammar/connection generation isolation, and receipt-owned callback delivery across reconnect, disable, and reconfiguration. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
 <!-- Mode: Returning to High after 220 distinct app tests, strict IO/app Clippy, and workspace/test compilation passed native input configuration/generation, passive callback receipt, and destroy/undo invariants. Native build/delivery closeout remains. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
 

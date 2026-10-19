@@ -263,8 +263,8 @@ fn input_is_prepared_on_its_worker_and_cannot_be_reinterpreted_after_reconfigura
     let old = next_input(&handle);
     assert_eq!(old.values.as_ref().unwrap()[0].path_segments, ["old"]);
     assert_eq!(old.callbacks.len(), 3);
-    assert_eq!(old.callbacks[0].payload["callback"], "dataReceived");
-    assert_eq!(old.callbacks[2].payload["args"][0], "old 1\n");
+    assert_eq!(old.callbacks[0].payload()["callback"], "dataReceived");
+    assert_eq!(old.callbacks[2].payload()["args"][0], "old 1\n");
     changed.parse.mode = "json".into();
     handle.update_input(changed);
     sender.send_to(br#"{"new":2}"#, address).unwrap();

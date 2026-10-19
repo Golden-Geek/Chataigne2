@@ -4,7 +4,8 @@ use crate::app::module::common::streaming::{
     parser::{StreamingParseConfig, StreamingParser},
     script::prepare_stream_bytes_callbacks,
 };
-use golden_core::{events::CustomEvent, node::NodeId};
+use crate::app::module::script_api::NativeCallbackPayload;
+use golden_core::node::NodeId;
 use golden_io::RetainedPayload;
 use std::{
     mem::size_of,
@@ -50,7 +51,8 @@ impl InputPlan {
 #[derive(Debug)]
 pub(crate) struct PreparedStreamInput {
     pub values: Result<PreparedMessages, String>,
-    pub callbacks: Vec<CustomEvent>,
+    pub module: NodeId,
+    pub callbacks: Vec<NativeCallbackPayload>,
     pub log_message: Option<String>,
     pub rejected_lines: u64,
     pub weight: usize,
@@ -68,7 +70,7 @@ pub(crate) fn prepare(
     } else {
         Ok(PreparedMessages::default())
     };
-    let callbacks = prepare_stream_bytes_callbacks(config.module, bytes, None, true);
+    let callbacks = prepare_stream_bytes_callbacks(bytes, None, true)?;
     let rejected_lines = parser.take_rejected_line_count();
     let log_message = config.log_incoming.then(|| {
         let prefix = &bytes[..bytes.len().min(1024)];
@@ -89,17 +91,19 @@ pub(crate) fn prepare(
         )
     });
     let own_weight = size_of::<PreparedStreamInput>()
-        + callbacks.capacity() * size_of::<CustomEvent>()
-        + callbacks
-            .iter()
-            .map(|event| event.topic.capacity() + json_weight(&event.payload))
-            .sum::<usize>()
+        + callbacks.capacity() * size_of::<NativeCallbackPayload>()
         + log_message.as_ref().map_or(0, String::capacity)
         + values.as_ref().err().map_or(0, String::capacity);
-    let weight = own_weight + values.as_ref().map_or(0, PreparedMessages::retained_bytes);
+    let weight = own_weight
+        + values.as_ref().map_or(0, PreparedMessages::retained_bytes)
+        + callbacks
+            .iter()
+            .map(NativeCallbackPayload::retained_bytes)
+            .sum::<usize>();
     retain_payload(
         PreparedStreamInput {
             values,
+            module: config.module,
             callbacks,
             log_message,
             rejected_lines,
@@ -107,22 +111,4 @@ pub(crate) fn prepare(
         },
         own_weight,
     )
-}
-
-fn json_weight(value: &serde_json::Value) -> usize {
-    size_of::<serde_json::Value>()
-        + match value {
-            serde_json::Value::String(value) => value.capacity(),
-            serde_json::Value::Array(values) => {
-                values.capacity() * size_of::<serde_json::Value>() + values.iter().map(json_weight).sum::<usize>()
-            }
-            serde_json::Value::Object(values) => {
-                1024 + values.len() * (size_of::<String>() + 4 * size_of::<usize>())
-                    + values
-                        .iter()
-                        .map(|(key, value)| key.capacity() + json_weight(value))
-                        .sum::<usize>()
-            }
-            _ => 0,
-        }
 }

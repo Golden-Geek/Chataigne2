@@ -1,5 +1,7 @@
 mod callback_delivery;
 pub(crate) use callback_delivery::CallbackDelivery;
+mod native_callback;
+pub(crate) use native_callback::NativeCallbackPayload;
 
 use std::path::PathBuf;
 
