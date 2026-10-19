@@ -9,7 +9,7 @@ use golden_core::{
 use crate::app::module::{
     common::streaming::{
         module_helpers::{streaming_parse_config, StreamingIncomingQueue},
-        parser::{StreamingParseConfig, StreamingParser},
+        parser::StreamingParseConfig,
     },
     ModuleDataCapabilities,
 };
@@ -53,7 +53,6 @@ const STREAM_APPLICATION_WARNING_ID: &str = "stream_application";
 )]
 pub struct StreamingModuleBase {
     base: crate::app::ModuleBase,
-    parser: StreamingParser,
     incoming: StreamingIncomingQueue,
     cached_parse_config: StreamingParseConfig,
     cached_processing_enabled: bool,
@@ -63,7 +62,6 @@ impl StreamingModuleBase {
     pub fn create() -> Self {
         Self::new(
             crate::app::ModuleBase::new(),
-            StreamingParser::default(),
             StreamingIncomingQueue::new(),
             StreamingParseConfig::default(),
             true,
@@ -141,18 +139,6 @@ impl StreamingModuleBase {
 
     pub(crate) fn discard_pending_input(&mut self) {
         self.incoming = StreamingIncomingQueue::new();
-        self.parser.discard_partial_input();
-    }
-
-    pub(crate) fn parse_bytes_cached(&mut self, bytes: &[u8]) -> Result<PreparedMessages, String> {
-        let result = self.parser.push_bytes(bytes, &self.cached_parse_config);
-        let rejected = self.parser.take_rejected_line_count();
-        if rejected > 0 {
-            golden_core::logerror!(
-                "Rejected {rejected} incoming stream lines: input, expansion, or path admission failed, or parsing configuration changed before the frame completed."
-            );
-        }
-        result
     }
 
     pub(crate) fn push_messages(&mut self, messages: PreparedMessages) {

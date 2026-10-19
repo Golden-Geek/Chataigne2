@@ -5,7 +5,7 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-19 on `main` at delivered `d2e8764c` plus the verified P03 batch 27 diff.
+Last reconciled: 2026-10-19 on clean `main` at delivered `2066f735`, matching fetched `origin/main`.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
 plan. Its complete contents, including the uncommitted clarification, survive in the
@@ -13,8 +13,9 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 
 ## Current handoff
 
-- Current batch: P03 batch 27 serial connection/discovery native ownership verified locally.
-  Reconcile its milestone commit and `origin/main` before resuming.
+- Current batch: P03 batch 28 serial retained catalog/passive ownership verified locally.
+  Milestone commit/push follows the checks recorded below; reconcile delivery from Git on resume.
+  Batch 27 native connection/discovery ownership delivered in `2066f735`.
   Batch 26 shared TCP/WebSocket projection receipts delivered in `d2e8764c`.
   Batch 25 WebSocket server passive integration delivered in `86f380c8`.
   Batch 24 native ownership delivered in `b991a9ea`.
@@ -34,17 +35,17 @@ plan. Its complete contents, including the uncommitted clarification, survive in
   and both remote branches were pushed successfully on 2026-10-19. Unfinished shared-stream
   baseline work was preserved and restored on `main`. Earlier no-commit/no-push notes below
   describe historical actions only; future verified milestones are committed and pushed.
-- P00 resumed check: clean `main` and `origin/main` at delivered `d2e8764c`;
+- P00 resumed check: clean `main` and `origin/main` at delivered `2066f735`;
   no unrelated changes or live owned jobs at resume. Previous turn: progress.
 - Scope selected by the user: **foundation and readiness**. Full lighting/video/projection
   authoring is deferred; current features and completed Mapping remain preservation contracts.
 - Runtime/source implementation under the new P tasks: **P01 and P02 verified locally; P03 in progress**.
-- Next implementation action: complete serial passive ownership: bounded retained discovery
-  catalog/options preparation and disposal, notifications and producer-exit recovery, native
-  per-connection input generations/prepared callbacks, receipt-owned feedback and accepted-prefix
-  retirement across ordinary disable/reconfigure. Serial native connection/discovery lifetimes,
-  bounded cursors/queues, reconnect no-replay, duplex result pressure and applied configuration
-  admission are verified. The module still polls/parses on the actor and cancels ordinary changes.
+- Next implementation action: continue P03 admission/disposal: shared stream script/command
+  argument materialization and outgoing logging; HTTP request conversion/disposal; then Sound Card
+  and remaining module/channel/generator ownership. Serial now has bounded retained discovery
+  catalogs/options, subscriber/producer notifications and coarse recovery, native prepared input
+  generations, passive callback/feedback receipts and accepted-prefix retirement. Preserve its
+  applied-configuration admission, no-replay writes and destroy/undo wake fencing.
 - TCP/WebSocket Server share one app feedback component with verified discarded/partial projection
   recovery and newer desired state retained during an in-flight projection. Preserve each protocol's
   target IDs, client-parameter factory, native limits, callback receipts and accepted-prefix lifecycle.
@@ -58,8 +59,8 @@ plan. Its complete contents, including the uncommitted clarification, survive in
   destroy/undo wake fencing. WebSocket server also preserves per-peer grammar. Both servers use receipt-owned
   connection/warning/client projections, including stable IDs after partial failure. Detailed
   regressions and measurements remain under their implementation batches below.
-- Focused batch 27 invariants passed; requested return to High for routine integration/delivery.
-  Actual effort unchanged/unobservable; no supported client control was exposed.
+- Focused XHigh serial ownership work passed; requested return to High for routine closeout and
+  subsequent work. Actual effort remains unchanged/unobservable; no supported control is exposed.
 - Known current failures: the advisory gate's Rustls 0.23.42 failure has not been refreshed.
   The reproduced edit-prefix undo loss is fixed locally. Compound creation now uses prepared
   validation/commit; its reference/dashboard regressions and optimized package checks pass.
@@ -79,7 +80,7 @@ External qualification is separate from implementation. A historical pass is not
 | P00 Baseline                | VERIFIED_LOCAL | PASSED              | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                |
 | P01 Edit failures/history   | VERIFIED_LOCAL | PASSED batches 1–8  | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                 |
 | P02 Schedule/actor failures | VERIFIED_LOCAL | PASSED batches 1-3  | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                  |
-| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-27 | Serial native connection/discovery ownership verified; passive serial and broader module/generator audit open             |
+| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-28 | Serial native/passive/catalog/receipt ownership verified; broader admission/module/generator audit open                   |
 | P04 Audio order/types       | NOT_STARTED    | PENDING             | Legal interleaving and invalid deserialization established from source                                                    |
 | P05 Transport trust         | NOT_STARTED    | PENDING             | Missing admission verified; exploit not demonstrated                                                                      |
 | P06 Dependencies            | NOT_STARTED    | FAILED baseline     | Four Rustls advisories on audit date; refresh DB before repair                                                            |
@@ -2777,3 +2778,75 @@ or product-scale throughput/memory. Evidence is checked-in native cursor/pressur
 discovery and applied-admission regressions plus terminal commands above. Commit and push this
 milestone on `main`, then continue passive serial and the broader producer/module/Sound Card/
 generator audits. P03 remains **IN_PROGRESS**; P04-P18 retain their states.
+
+### P03 batch 28: Serial retained catalog and passive service ownership
+
+Resumed clean delivered `2066f735b44d6d32059ab100fb24420ee321baf8` on `main`, matching fetched
+`origin/main`; previous turn **progress**, no owned jobs live. Requested **XHigh** for catalog/
+subscription generations, producer-exit recovery, native input generations, receipt delivery and
+accepted-prefix retirement; actual effort unchanged/unobservable, with no supported control exposed.
+Ownership remains in app common serial/stream components and the concrete serial module.
+
+Discovery now admits at most **1024 subscribers**, one live/retiring producer, **128 retained ports**
+and **2 MiB** including prepared enum options. It bounds retained name/label/details/tag storage,
+prepares and compares catalogs on the native producer, and publishes a header plus canonical retained
+lease. Identical catalogs reuse the lease; failed enumeration or catalog admission retains the last
+good options. Final payload disposal uses the shared bounded worker disposer. Subscriber callbacks
+run outside the catalog lock, including startup-failure/producer-exit paths. Last unsubscribe
+invalidates the epoch and cancels without joining; blocked old enumeration retains the single slot
+and cannot restore a new subscription's state. Producer exit notifies owners and restarts through a
+one-second deadline, avoiding failure-driven worker churn.
+
+The connection worker now owns parsing, canonical byte/text callbacks and bounded incoming logs.
+Input/connection generations discard partial frames across reconnect, grammar and processing changes,
+including disable/re-enable without intervening bytes. Reply storage is **64 items / 32 MiB** for
+prepared envelopes, with the existing independent input/output/status continuations. Output cursors,
+original-device generation fencing, timeout-as-unknown-effect policy and native slot limits survive.
+No protocol implementation, schema, Golden/app boundary or shell bootstrap changes were needed.
+
+The module is **passive**: worker replies, receipts, configuration/metadata edits and coarse retry
+deadlines drive service. A bounded native drain waits behind callback receipts; canonical delivery
+retries only discarded publication. Ordinary disable/reconfigure closes admission and retains one
+old worker until accepted output and pending input complete, including while disabled. Retiring
+status cannot restore connected; destroy cancels and clears deliveries/subscriptions, and undo
+reserves a fresh wake source. One isolated receipt owns each connected/warning/catalog projection;
+only successful completion acknowledges its captured catalog/selection generation. Failed/partial
+edits reconcile against a fresh snapshot and newer desired state remains pending. Queued enum
+mutation retains the catalog lease rather than copying its option tree before application.
+The now-unused actor parser state and immediate byte-callback helper were removed from shared
+streaming code after all concrete streams moved to native preparation.
+
+Initial app/test compilation caught a fixture NodeId constructor and consumption of the final reply
+continuation; the corrected check passed in **24.12s**, with obsolete actor-helper warnings then
+removed. The first expanded run passed **38/41** matched tests after **2m20s** compilation: failures
+were two old polling/synchronous-retirement fixture assumptions and a fixture waiting for status
+instead of admitted input. Fixtures now wait for the native prefix and asynchronous owner state.
+Additional disabled-binary, callback-failure/undo and partial feedback coverage was added. The final
+serial-filtered run passed **44/44** in **2.26s** after **2m04s** compilation. Three matches are unrelated
+serialization tests; the owning suites contain **24 common serial** and **17 serial-module** tests.
+Requested return to **High** after focused proof; actual effort remains unchanged/unobservable.
+
+Disjoint compiled-name preservation suites passed script API **8**, concrete streams **176**,
+common streaming **45**, common serial **24**, HTTP **59**, Sound Card **35**, OSC **25**, initial
+Formula **1**, and null-device Sound Card evidence **1**: **374 distinct app tests**. The command
+runs `target/debug/deps/Chataigne2-c47f0ddae7812c83.exe` with these owning filters and
+`--test-threads=4`, checking compiled-name sets for overlap before summing.
+`cargo test-fast --locked -p golden_io` passed **38/38** in **0.20s** (0.13s preparation):
+**412 distinct app/IO preservation tests**. Overlapping focused runs are not counted twice.
+
+Strict `cargo clippy --locked -p golden_io -p Chataigne2 --all-targets -- -D warnings` passed in
+**29.43s**; `cargo check --locked --workspace --tests` passed in **23.38s**. Native
+`cargo build --locked -p Chataigne2 --bin Chataigne2` passed in **0.49s** with warm artifacts,
+without linker repair or cache deletion. Root/Core Cargo formatting, explicit serial/shared-stream
+rustfmt, maintained-doc Prettier and whitespace checks pass. Inventory: **1676 source files /
+42 oversized**. Serial connection/discovery/metadata/native-worker/catalog/discovery-worker are
+**190/277/235/225/62/145** lines; module owner/projection are **589/121**. Runtime/tests stay separate.
+All owned jobs are terminal. Fetched `origin/main` still matches the parent with no divergence.
+
+These checks use deterministic injected ports/providers, missing serial endpoints and null audio.
+They do not qualify physical device/line timing, other platforms, native UI interaction, or
+product-scale latency/memory. Evidence is the checked-in catalog/subscription/native-input/passive
+lifecycle/receipt regressions and terminal commands above. Commit and push this verified milestone
+on `main`, then continue shared stream/HTTP argument and disposal admission, Sound Card/module/
+channel ownership and generator elapsed-time accounting. P03 remains **IN_PROGRESS**; P04-P18
+retain their states.

@@ -66,7 +66,14 @@ fn configured() -> Fixture {
     let pool = RetirementPool::new(NonZeroUsize::MIN);
     let output = Arc::new(Mutex::new(Vec::new()));
     let native_output = output.clone();
-    let handle = spawn_for_test(config.clone(), &pool, move |_| Ok(Wire(native_output.clone()))).unwrap();
+    let notifier = serial_module(&engine, id).wake.as_ref().unwrap().notifier.clone();
+    let handle = spawn_for_test(
+        config.clone(),
+        &pool,
+        move |_| Ok(Wire(native_output.clone())),
+        notifier,
+    )
+    .unwrap();
     wait(|| {
         let mut events = Vec::new();
         handle.drain_events(&mut events);
@@ -154,8 +161,8 @@ fn native_capacity_retry_avoids_owner_work_and_snapshots_until_its_deadline() {
     let mut node = SerialModule::create();
     node.retry_at = Some(Instant::now() + Duration::from_secs(1));
     assert!(!node.needs_update());
-    assert!(!node.update_requires_tree_snapshot());
+    assert!(!node.worker_wake_requires_tree_snapshot());
     node.retry_at = Some(Instant::now() - Duration::from_millis(1));
-    assert!(node.needs_update());
-    assert!(node.update_requires_tree_snapshot());
+    assert!(!node.needs_update());
+    assert!(node.worker_wake_requires_tree_snapshot());
 }

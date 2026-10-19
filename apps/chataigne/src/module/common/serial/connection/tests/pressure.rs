@@ -55,7 +55,7 @@ fn output_reply_pressure_retains_each_failure_and_independent_replacement_input(
         for event in events {
             match event {
                 Event::Warning(message) if message.contains("will not be replayed") => failures += 1,
-                Event::Bytes(bytes) => input.extend(bytes),
+                Event::Input(prepared) => input.extend(input_bytes(&prepared)),
                 _ => {}
             }
         }
@@ -110,8 +110,8 @@ fn full_input_replies_retain_fifo_while_output_and_cancellation_remain_independe
         let mut events = Vec::new();
         handle.drain_events(&mut events);
         for event in events {
-            if let Event::Bytes(bytes) = event {
-                received.extend(bytes);
+            if let Event::Input(prepared) = event {
+                received.extend(input_bytes(&prepared));
             }
         }
         received.len() == 100

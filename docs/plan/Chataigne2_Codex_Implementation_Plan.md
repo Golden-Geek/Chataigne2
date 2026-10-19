@@ -302,6 +302,9 @@ effects, generation fencing, coherent errors, and continued progress.
 
 ### P03 — Finish bounded I/O and lifecycle ownership
 
+<!-- Mode: Escalating to XHigh for bounded retained serial catalog lifetimes, subscription/producer generations and passive recovery notifications, worker-prepared input generations, receipt delivery and accepted-prefix retirement. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
+<!-- Mode: Returning to High after 41 owning serial tests passed retained catalog bounds/reuse, stale subscription fencing and producer-exit recovery, native input generations, passive callbacks/receipts, disabled accepted-prefix retirement, partial feedback recovery and destroy/undo wake fencing. Routine preservation, workspace/native validation and delivery remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
+
 <!-- Mode: Escalating to XHigh for serial connection/discovery native lifetime and cancellation ownership, stale enumeration suppression, bounded command/result admission, original-connection partial-write cursors, reconnect generation fencing and independent reply pressure. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
 <!-- Mode: Returning to High after the serial-focused run passed 30 matched tests, including blocked connection/cleanup/enumeration ownership, bounded cursors and queues, reconnect no-replay, duplex reply pressure, applied port/baud/control-line/disable admission and discovery recovery. Strict Clippy passes; routine preservation, workspace/native validation and delivery remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
 

@@ -7,6 +7,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+mod input;
 mod lifecycle;
 mod pressure;
 
@@ -79,6 +80,12 @@ fn config() -> SerialConnectionConfig {
         baud_rate: 115200,
         dtr: false,
         rts: false,
+        input: StreamInputConfig {
+            module: golden_core::node::NodeId(1),
+            parse: Default::default(),
+            processing_enabled: true,
+            log_incoming: false,
+        },
     }
 }
 fn pool() -> RetirementPool {
@@ -105,7 +112,15 @@ fn spawn_using(
     pool: &RetirementPool,
     opener: impl FnMut(&SerialConnectionConfig) -> Result<Wire, String> + Send + 'static,
 ) -> Result<SerialConnectionHandle, String> {
-    SerialConnectionHandle::spawn_using(config, pool, opener)
+    SerialConnectionHandle::spawn_using(config, pool, opener, WorkerNotifier::new(|| {}))
+}
+fn input_bytes(input: &PreparedStreamInput) -> Vec<u8> {
+    input.callbacks[0].payload()["args"][0]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|value| value.as_u64().unwrap() as u8)
+        .collect()
 }
 fn wire() -> (Wire, Arc<Mutex<State>>) {
     let state = Arc::new(Mutex::new(State::default()));

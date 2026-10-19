@@ -3,8 +3,13 @@ mod outbound;
 mod tests;
 mod worker;
 
-use crate::app::module::common::streaming::native_replies::NativeReply;
-use golden_io::{BoundedWorker, PendingDrain, PendingSendError, RetirementPool, WorkerLimits};
+use crate::app::module::common::streaming::{
+    input::{InputPlan, PreparedStreamInput, StreamInputConfig},
+    native_replies::NativeReply,
+};
+use golden_io::{
+    BoundedWorker, PendingDrain, PendingSendError, RetainedPayload, RetirementPool, WorkerLimits, WorkerNotifier,
+};
 use outbound::Outbound;
 use std::{
     io::{Read, Write},
@@ -17,15 +22,16 @@ use std::{
 
 const COMMAND_BYTES: usize = 256 * 1024;
 const QUEUED_COMMAND_BYTES: usize = 256 * 1024;
-const EVENT_BYTES: usize = 2 * 1024 * 1024;
+const EVENT_BYTES: usize = 32 * 1024 * 1024;
 const TURN: usize = 4;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) struct SerialConnectionConfig {
     pub port_name: String,
     pub baud_rate: u32,
     pub dtr: bool,
     pub rts: bool,
+    pub input: StreamInputConfig,
 }
 impl SerialConnectionConfig {
     pub(crate) fn validate(&self) -> Result<(), String> {
@@ -35,7 +41,13 @@ impl SerialConnectionConfig {
         if self.baud_rate == 0 {
             return Err("Serial baud rate must be positive".into());
         }
-        Ok(())
+        self.input.validate()
+    }
+    pub(crate) fn same_endpoint(&self, other: &Self) -> bool {
+        self.port_name == other.port_name
+            && self.baud_rate == other.baud_rate
+            && self.dtr == other.dtr
+            && self.rts == other.rts
     }
 }
 
@@ -44,9 +56,10 @@ pub(crate) enum SerialConnectionStatus {
     Connected { port_name: String },
     Recovering { port_name: String, message: String },
 }
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub(crate) enum SerialConnectionEvent {
-    Bytes(Vec<u8>),
+    Input(RetainedPayload<PreparedStreamInput>),
+    RejectedInput(u64),
     Warning(String),
     Status(SerialConnectionStatus),
 }
@@ -63,7 +76,8 @@ impl NativeReply for Event {
     fn weight(&self) -> usize {
         std::mem::size_of::<Self>()
             + match self {
-                Self::Bytes(bytes) => bytes.capacity(),
+                Self::Input(input) => input.weight,
+                Self::RejectedInput(_) => 0,
                 Self::Warning(message) => message.capacity(),
                 Self::Status(SerialConnectionStatus::Connected { port_name }) => port_name.capacity(),
                 Self::Status(SerialConnectionStatus::Recovering { port_name, message }) => {
@@ -85,24 +99,28 @@ impl NativeReply for Event {
 pub(crate) struct SerialConnectionHandle {
     worker: BoundedWorker<Outbound, Event>,
     connection: Arc<AtomicU64>,
+    input: InputPlan,
 }
 fn lifetimes() -> &'static RetirementPool {
     static POOL: OnceLock<RetirementPool> = OnceLock::new();
     POOL.get_or_init(|| RetirementPool::new(NonZeroUsize::new(16).unwrap()))
 }
 impl SerialConnectionHandle {
-    pub(crate) fn spawn(config: SerialConnectionConfig) -> Result<Self, String> {
-        Self::spawn_using(config, lifetimes(), worker::open)
+    pub(crate) fn spawn(config: SerialConnectionConfig, notifier: WorkerNotifier) -> Result<Self, String> {
+        Self::spawn_using(config, lifetimes(), worker::open, notifier)
     }
     fn spawn_using<P: Read + Write + Send + 'static>(
         config: SerialConnectionConfig,
         pool: &RetirementPool,
         opener: impl FnMut(&SerialConnectionConfig) -> Result<P, String> + Send + 'static,
+        notifier: WorkerNotifier,
     ) -> Result<Self, String> {
         config.validate()?;
         let connection = Arc::new(AtomicU64::new(0));
         let native = connection.clone();
-        let worker = BoundedWorker::spawn(
+        let input = InputPlan::new(config.input.clone());
+        let native_input = input.clone();
+        let worker = BoundedWorker::spawn_notified(
             "serial-connection",
             pool,
             WorkerLimits {
@@ -111,10 +129,15 @@ impl SerialConnectionHandle {
                 event_items: 64,
                 event_weight: EVENT_BYTES,
             },
-            move |context| worker::run(context, config, native, opener),
+            notifier,
+            move |context| worker::run(context, config, native, native_input, opener),
         )
         .map_err(|error| format!("Serial worker could not start: {error}"))?;
-        Ok(Self { worker, connection })
+        Ok(Self {
+            worker,
+            connection,
+            input,
+        })
     }
     pub(crate) fn send(&self, bytes: &[u8]) -> Result<(), String> {
         if !self.worker.is_accepting_commands() {
@@ -141,6 +164,14 @@ impl SerialConnectionHandle {
         self.connection.store(0, Ordering::Release);
         self.worker.cancel();
     }
+    pub(crate) fn finish_admission(&mut self) {
+        self.worker.finish_admission();
+    }
+    pub(crate) fn update_input(&self, input: StreamInputConfig) -> Result<(), String> {
+        input.validate()?;
+        self.input.update(input);
+        Ok(())
+    }
 }
 impl Drop for SerialConnectionHandle {
     fn drop(&mut self) {
@@ -153,6 +184,7 @@ pub(crate) fn spawn_for_test<P: Read + Write + Send + 'static>(
     config: SerialConnectionConfig,
     pool: &RetirementPool,
     opener: impl FnMut(&SerialConnectionConfig) -> Result<P, String> + Send + 'static,
+    notifier: WorkerNotifier,
 ) -> Result<SerialConnectionHandle, String> {
-    SerialConnectionHandle::spawn_using(config, pool, opener)
+    SerialConnectionHandle::spawn_using(config, pool, opener, notifier)
 }

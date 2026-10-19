@@ -1,4 +1,6 @@
 use super::*;
+mod catalog;
+mod subscriptions;
 use std::{
     sync::{
         atomic::{AtomicUsize, Ordering},

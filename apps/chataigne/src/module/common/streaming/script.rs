@@ -1,7 +1,4 @@
-use golden_core::{
-    node::{NodeData, NodeId, NodeScriptDescriptor},
-    process_ctx::ProcessCtx,
-};
+use golden_core::node::{NodeData, NodeScriptDescriptor};
 use serde_json::Value as JsonValue;
 
 const STREAM_TEXT_RECEIVED_CALLBACK: &str = "textReceived";
@@ -19,18 +16,6 @@ pub(crate) const STREAMING_SCRIPT_METHODS: &[&str] = &[
 
 pub(crate) fn descriptor_for_node(node_data: &NodeData, node_type: &str) -> NodeScriptDescriptor {
     crate::app::module::script_api::descriptor_for_node(node_data, node_type, STREAMING_SCRIPT_METHODS)
-}
-
-pub(crate) fn emit_stream_bytes_callbacks(
-    ctx: &mut ProcessCtx,
-    module_id: NodeId,
-    bytes: &[u8],
-    source: Option<&str>,
-    text_hint: bool,
-) {
-    for (callback, args) in stream_bytes_callback_args(bytes, source, text_hint) {
-        crate::app::module::script_api::emit_script_callback(ctx, module_id, callback, args);
-    }
 }
 
 pub(crate) fn prepare_stream_bytes_callbacks(

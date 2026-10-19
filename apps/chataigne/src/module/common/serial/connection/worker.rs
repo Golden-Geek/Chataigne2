@@ -2,6 +2,11 @@ use super::{
     outbound::Outbound, Event, ReplySource, SerialConnectionConfig as Config, SerialConnectionStatus as Status, TURN,
 };
 use crate::app::module::common::streaming::native_replies::NativeReplies;
+use crate::app::module::common::streaming::{
+    input::{self, InputPlan},
+    native_replies::NativeReply,
+    parser::StreamingParser,
+};
 use golden_io::{PendingDrainState, ReconnectBackoff, WorkerContext};
 use std::{
     io::{self, Read, Write},
@@ -81,6 +86,7 @@ pub(super) fn run<P: Read + Write>(
     context: WorkerContext<Outbound, Event>,
     config: Config,
     published: Arc<AtomicU64>,
+    input: InputPlan,
     mut opener: impl FnMut(&Config) -> Result<P, String>,
 ) {
     let mut connection = Connection::new(published, &config);
@@ -89,6 +95,8 @@ pub(super) fn run<P: Read + Write>(
     let mut current: Option<Outbound> = None;
     let mut closed = false;
     let mut buffer = [0; 8192];
+    let mut parser = StreamingParser::default();
+    let mut input_generation = None;
     loop {
         if context.cancellation().is_cancelled() || !replies.flush(&context) {
             return;
@@ -131,9 +139,24 @@ pub(super) fn run<P: Read + Write>(
             }
         }
         if closed && current.is_none() {
+            parser.discard_partial_input();
+            let rejected = parser.take_rejected_line_count();
             connection.close();
-            replies.finish(&context);
+            if replies.finish(&context) && rejected > 0 {
+                let event = Event::RejectedInput(rejected);
+                let weight = event.weight();
+                let _ = context.publish_weighted(event, weight);
+            }
             return;
+        }
+        if connection.port.is_none() {
+            parser.discard_partial_input();
+            if replies.permits(ReplySource::Input) {
+                let rejected = parser.take_rejected_line_count();
+                if rejected > 0 && !replies.offer(&context, ReplySource::Input, Event::RejectedInput(rejected)) {
+                    return;
+                }
+            }
         }
         if connection.port.is_none()
             && !context.command_admission_closed()
@@ -163,7 +186,21 @@ pub(super) fn run<P: Read + Write>(
                 match port.read(&mut buffer) {
                     Ok(0) => {}
                     Ok(length) => {
-                        if !replies.offer(&context, ReplySource::Input, Event::Bytes(buffer[..length].to_vec())) {
+                        let snapshot = input.snapshot();
+                        let generation = (connection.generation, snapshot.generation);
+                        if input_generation != Some(generation) {
+                            parser.discard_partial_input();
+                            input_generation = Some(generation);
+                        }
+                        let event =
+                            match input::prepare(&mut parser, &snapshot, &buffer[..length], "serial", None, true) {
+                                Ok(input) => Event::Input(input),
+                                Err(error) => Event::Warning(format!("Serial input was not admitted: {error}")),
+                            };
+                        if event.weight() > Event::limit(ReplySource::Input) {
+                            parser.discard_partial_input();
+                        }
+                        if !replies.offer(&context, ReplySource::Input, event) {
                             return;
                         }
                     }

@@ -22,18 +22,24 @@ pub(crate) fn serial_port_options(ports: &[DiscoveredSerialPort]) -> Vec<Paramet
     options
 }
 
-pub(crate) fn sync_serial_port_enum_options(ctx: &mut ProcessCtx, param_id: NodeId, options: Vec<ParameterEnumOption>) {
+pub(crate) fn sync_serial_port_enum_options(
+    ctx: &mut ProcessCtx,
+    param_id: NodeId,
+    catalog: Option<golden_io::RetainedPayload<super::discovery::SerialCatalog>>,
+) {
     ctx.call_node_mutation(param_id, move |node, inner_ctx| {
         let Some(parameter) = node.as_any_mut().downcast_mut::<Parameter>() else {
             return Err("serial port target is not a parameter".to_string());
         };
 
-        let mut next_options = options.clone();
-        let current_variant = parameter
-            .value
-            .as_enum()
-            .filter(|variant| !variant.trim().is_empty())
-            .unwrap_or_else(|| NO_SERIAL_PORT_VARIANT.to_string());
+        let mut next_options = catalog
+            .as_ref()
+            .map_or_else(|| serial_port_options(&[]), |catalog| catalog.options.clone());
+        let current_variant = match &parameter.value {
+            ParamValue::Enum(value) if value.len() > 1024 => return Err("Serial selection exceeds 1024 bytes".into()),
+            ParamValue::Enum(value) if !value.trim().is_empty() => value.clone(),
+            _ => NO_SERIAL_PORT_VARIANT.to_string(),
+        };
 
         if current_variant != NO_SERIAL_PORT_VARIANT
             && !next_options.iter().any(|option| option.variant_id == current_variant)

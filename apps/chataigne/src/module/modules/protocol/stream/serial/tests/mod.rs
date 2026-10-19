@@ -12,6 +12,7 @@ use super::SerialModule;
 use crate::app::ModuleManager;
 
 mod admission;
+mod passive;
 
 #[test]
 fn serial_parameters_keep_port_before_input_and_no_sender_folder() {
@@ -421,12 +422,29 @@ fn bool_param_value(engine: &crate::app::AppEngine, start: NodeId, path: &str) -
 
 fn settle_transport_state(engine: &mut crate::app::AppEngine, context: &str) {
     engine.apply_edits().expect(context);
-    engine
-        .dispatch_inbox(ExecutionPhase::EngineTick)
-        .expect("transport edits should dispatch");
-    engine.apply_edits().expect("transport event reactions should apply");
-    engine
-        .run_tick(Duration::from_millis(20))
-        .expect("transport tick should succeed");
-    engine.apply_edits().expect("transport edits should apply");
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    loop {
+        engine
+            .dispatch_inbox(ExecutionPhase::EngineTick)
+            .expect("transport edits should dispatch");
+        engine.apply_edits().expect("transport event reactions should apply");
+        engine
+            .run_tick(Duration::from_millis(20))
+            .expect("transport tick should succeed");
+        engine.apply_edits().expect("transport edits should apply");
+        let pending = engine.nodes.iter().any(|(_, node)| match node {
+            crate::app::AppNode::SerialModule(node) => {
+                node.transport_dirty
+                    || node.retiring_transport.is_some()
+                    || node.projection.pending()
+                    || node.projection.needs_snapshot()
+            }
+            _ => false,
+        });
+        if !pending {
+            return;
+        }
+        assert!(std::time::Instant::now() < deadline, "{context}");
+        std::thread::sleep(Duration::from_millis(1));
+    }
 }

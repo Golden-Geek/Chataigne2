@@ -249,7 +249,7 @@ Serial and broader producer admission/disposal audits also remain P03 work.
 Serial's app-owned common layer separates connection, discovery and metadata responsibilities.
 The existing locked serialport crate owns platform APIs. Connections reserve at most 16 native
 lifetimes, including blocked open/cleanup, with 256 queued commands / 256 KiB and a 256 KiB retained
-command bound checked before copying. Replies allow 64 items / 2 MiB and one retained continuation
+command bound checked before copying. Replies allow 64 items / 32 MiB and one retained continuation
 per input/output/status producer. A native turn advances at most four command operations; each
 write slice and read buffer is at most 8 KiB. Driver I/O requests use a 20ms timeout; cancellation
 cannot interrupt an uncooperative driver, so that worker retains its lifetime instead of joining
@@ -269,11 +269,28 @@ Enumeration errors retain the last good catalog and recover on later scans. Appl
 DTR, RTS and enabled values fence new script/command admission before callbacks. Temporary native
 connection/discovery capacity retries use coarse owner deadlines.
 
-The serial module still polls at 120 Hz, prepares input/callbacks on the actor and cancels on ordinary
-disable/reconfigure. Passive notifications, bounded retained catalog preparation/options/disposal,
-producer-exit recovery, per-connection input generations and receipt-owned prefix retirement remain
-the next serial batch. Discovery catalog/registration retained-size and main-thread service budgets
-are not qualified by these native lifetime checks. Physical device/line timing is also unqualified.
+Serial owner service is passive. It reserves a wake before subscribing or opening a connection;
+replies, receipts, configuration edits and coarse retry deadlines drive service. Native workers
+prepare parsed values, canonical byte/text callbacks and bounded incoming logs. Connection and
+input-plan generations discard partial frames across reconnect, grammar and processing changes.
+Only a bounded drain is retained while callback receipts complete. Ordinary disable/reconfigure
+closes admission and retains the old worker until its accepted output and pending input complete;
+retiring status cannot restore connected. Destroy cancels, releases catalog subscriptions and
+clears deliveries; restored nodes reserve a fresh wake source.
+
+Discovery admits at most 1024 subscribers and one live/retiring producer. Catalogs admit 128 ports,
+2 MiB including prepared enum options, and bounded retained string/tag capacities; canonical
+payload leases own final disposal off the actor. Snapshot reads copy a header and lease. Catalog
+comparison/options preparation run on the discovery worker, and notifications run outside its
+lock. Last unsubscribe invalidates the producer epoch; late enumeration cannot restore state.
+Producer exit notifies subscribers, with coarse restart deadlines and no owner polling. Failed
+enumeration or catalog admission retains the last good catalog.
+
+One receipt owns each serial catalog/connected/warning projection. Only successful completion
+acknowledges its captured catalog/selection generation; failed or partly applied edits reconcile
+against a fresh snapshot, while newer desired state stays pending. A missing selected port remains
+selectable. These bounds and deterministic fixtures do not qualify physical line timing, native
+UI interaction, or product-scale main-thread latency and memory.
 
 HTTP admission reads applied snapshot values and compares them with the authored inputs captured
 for the active generation, so a configuration edit followed immediately by a command or script
