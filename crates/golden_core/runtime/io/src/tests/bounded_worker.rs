@@ -77,6 +77,64 @@ fn pool(capacity: usize) -> RetirementPool {
 }
 
 #[test]
+fn nonblocking_reply_admission_retains_full_and_oversized_events_and_services_commands() {
+    let pool = pool(1);
+    let (full_tx, full_rx) = mpsc::channel();
+    let (resume_tx, resume_rx) = mpsc::channel();
+    let (serviced_tx, serviced_rx) = mpsc::channel();
+    let worker = BoundedWorker::<u32, String>::spawn("duplex-replies", &pool, limits(), move |context| {
+        context.try_publish_weighted("first".into(), 5).unwrap();
+        let event = match context.try_publish_weighted("second".into(), 5) {
+            Err(PendingSendError::Full(event)) => event,
+            other => panic!("expected ownership at capacity, got {other:?}"),
+        };
+        assert_eq!(
+            context.try_publish_weighted("oversized".into(), 6),
+            Err(PendingSendError::Full("oversized".into()))
+        );
+        full_tx.send(()).unwrap();
+        // Reply pressure must not prevent this worker's independent native/command work.
+        assert_eq!(context.receive(), Some(7));
+        serviced_tx.send(()).unwrap();
+        resume_rx.recv().unwrap();
+        context.try_publish_weighted(event, 5).unwrap();
+    })
+    .unwrap();
+    full_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+    assert_eq!(worker.event_metrics().depth, 1);
+    assert_eq!(worker.event_metrics().retained_weight, 5);
+    assert_eq!(worker.event_metrics().rejected, 2);
+    worker.send_weighted(7, 1).unwrap();
+    serviced_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+    let mut replies = Vec::new();
+    worker.drain_events(&mut replies, NonZeroUsize::MIN);
+    resume_tx.send(()).unwrap();
+    assert!(pool.wait_for_idle(Duration::from_secs(2)));
+    worker.drain_events(&mut replies, NonZeroUsize::MIN);
+    assert_eq!(replies, ["first", "second"]);
+}
+
+#[test]
+fn nonblocking_reply_admission_observes_cancellation_without_losing_the_event() {
+    let pool = pool(1);
+    let (entered_tx, entered_rx) = mpsc::channel();
+    let (resume_tx, resume_rx) = mpsc::channel();
+    let worker = BoundedWorker::<(), String>::spawn("cancel-duplex", &pool, limits(), move |context| {
+        entered_tx.send(()).unwrap();
+        resume_rx.recv().unwrap();
+        assert_eq!(
+            context.try_publish_weighted("kept".into(), 1),
+            Err(PendingSendError::Disconnected("kept".into()))
+        );
+    })
+    .unwrap();
+    entered_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+    worker.cancel();
+    resume_tx.send(()).unwrap();
+    assert!(pool.wait_for_idle(Duration::from_secs(2)));
+}
+
+#[test]
 fn notified_worker_publishes_readiness_after_reply_and_after_native_cleanup() {
     let pool = pool(1);
     let (ready_tx, ready_rx) = mpsc::channel();

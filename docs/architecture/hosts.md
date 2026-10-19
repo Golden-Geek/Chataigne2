@@ -109,6 +109,11 @@ every already-accepted command before exiting. Neither path needs an extra stop 
 `WorkerContext::drain_commands` exposes a bounded nonblocking turn for workers that also receive
 unsolicited native input. Graceful closure drains accepted commands before disconnection;
 explicit cancellation ends service without consuming the remaining queue.
+`WorkerContext::try_publish_weighted` attempts one reply admission without waiting and returns
+the original event on overload or disconnection. A duplex adapter can retain a bounded reply
+continuation and keep servicing independent native work. `publish_weighted` remains the ordered,
+cancellable capacity wait for sequential workers and final retirement. `event_metrics` exposes
+the existing queue's item/weight/age/rejection diagnostics without consuming replies.
 
 `BoundedWorker::spawn_notified` publishes readiness after a reply enters its mailbox and after
 the final sender exits, including an unexpected worker failure. `WorkerNotifier` carries only a
@@ -147,6 +152,17 @@ retains at most one additional command outside the mailbox, bounded by another 1
 retirement completes that cursor and every queued command in FIFO order. Cancellation abandons
 the destination; network failure is reported per destination without replaying prior sends.
 Reply admission uses 64 items / 32 MiB, charging prepared values and callback allocations.
+The native loop uses nonblocking reply admission with one pending result per producer in
+`transport/replies.rs`: input (32 MiB), output outcome (64 KiB), and interface discovery
+(64 KiB plus its fixed event envelope). These are additional to mailbox and command-cursor
+bounds. The three pending entries share one FIFO, cache their weights, and retain the original
+events on retries. A producer pauses until its prior result enters the mailbox. Input/discovery
+pressure does not gate cold preparation or successful unlogged sends; output-outcome pressure
+pauses its own destination cursor after the attempted send, so reply retries never resend it.
+Graceful retirement finishes all admitted sends and then drains every pending result before
+producer disconnection. Cancellation abandons the pending results and unsent suffix without a join.
+Oversized reply details become one explicit bounded error; they never trigger a replay. Interface
+discovery bounds error text before caching as well as bounding successful choices.
 Each native turn services at most 16 destinations (across command boundaries), or yields cold
 preparation after 64 traversal steps, then services at most 16 incoming packets. An owner drain
 extracts at most four events. Oversized UDP payloads fail synchronously; cold plan validation

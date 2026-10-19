@@ -5,7 +5,7 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-19 on `main` at delivered `a617d313` plus the owned P03 batch 13 diff.
+Last reconciled: 2026-10-19 on `main` at delivered `df0c7876` plus the owned P03 batch 14 diff.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
 plan. Its complete contents, including the uncommitted clarification, survive in the
@@ -13,26 +13,28 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 
 ## Current handoff
 
-- Current batch: P03 batch 13 native cold UDP preparation, budgeted snapshot leases, and atomic
-  shared-Arc final-owner handoff verified locally. Reconcile its milestone commit and `origin/main` before resuming.
-  Batch 12 was delivered in `a617d313`; batch 11 in `95c64618`; batch 10 in `e59ad7d5`. Separately committed
+- Current batch: P03 batch 14 duplex UDP reply admission, per-source continuations, and native
+  send fairness verified locally. Reconcile its milestone commit and `origin/main` before resuming.
+  Batch 13 was delivered in `df0c7876`; batch 12 in `a617d313`; batch 11 in `95c64618`. Separately committed
   footer UI parent `3b4bdc7b` and build-cache ancestor `5b81c44e` are preserved.
 - Delivery: `f02205af3baa1c2ebf49527104364980c3a7b920` committed the verified P01/P02/P03-through-batch-7
   milestone and milestone delivery policy. `codex/builtin-mapping` was fast-forwarded into `main`
   and both remote branches were pushed successfully on 2026-10-19. Unfinished shared-stream
   baseline work was preserved and restored on `main`. Earlier no-commit/no-push notes below
   describe historical actions only; future verified milestones are committed and pushed.
-- P00 resumed check: clean `main` and `origin/main` at delivered `a617d313`;
+- P00 resumed check: clean `main` and `origin/main` at delivered `df0c7876`;
   no unrelated changes or live owned jobs at resume. Previous turn: progress.
 - Scope selected by the user: **foundation and readiness**. Full lighting/video/projection
   authoring is deferred; current features and completed Mapping remain preservation contracts.
 - Runtime/source implementation under the new P tasks: **P01 and P02 verified locally; P03 in progress**.
-- Next implementation action: continue the native reply-backpressure fairness audit and TCP/WebSocket/serial
+- Next implementation action: continue TCP/WebSocket/serial
   worker ownership and the full module/channel audit (including Sound Card
   stop/join, event-drain, admission/recovery, and configuration bounds) and generator time accounting.
   Cold UDP preparation now runs in bounded native slices with reserved snapshot storage; preserve
   revision-fenced pending/ready tickets, whole-command admission, FIFO fanout/retirement,
   passive input, configuration, callback, disposal, retry, and shared stream cursor/receipt regressions.
+  Duplex UDP reply saturation now retains bounded per-source continuations without gating
+  independent native work; preserve input/output FIFO resumption, cancellation, and no-send-replay checks.
   Preserve the lifecycle/replacement, bounded wake, and HTTP graph/callback failure regressions.
   Preserve the accumulated P01 repair and its regressions.
 - Known current failures: the advisory gate's Rustls 0.23.42 failure has not been refreshed.
@@ -54,7 +56,7 @@ External qualification is separate from implementation. A historical pass is not
 | P00 Baseline                | VERIFIED_LOCAL | PASSED              | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                |
 | P01 Edit failures/history   | VERIFIED_LOCAL | PASSED batches 1–8  | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                 |
 | P02 Schedule/actor failures | VERIFIED_LOCAL | PASSED batches 1-3  | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                  |
-| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-13 | Native cold UDP preparation and snapshot leases verified; broader module/channel/generator audit remains open             |
+| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-14 | Duplex UDP reply pressure and native send continuity verified; broader module/channel/generator audit remains open        |
 | P04 Audio order/types       | NOT_STARTED    | PENDING             | Legal interleaving and invalid deserialization established from source                                                    |
 | P05 Transport trust         | NOT_STARTED    | PENDING             | Missing admission verified; exploit not demonstrated                                                                      |
 | P06 Dependencies            | NOT_STARTED    | FAILED baseline     | Four Rustls advisories on audit date; refresh DB before repair                                                            |
@@ -1821,3 +1823,71 @@ implementation states. Preserve the user's running watcher and all earlier deliv
 Closeout formatting evidence: root and Golden Core `cargo fmt --all` / `--check`, maintained-doc
 Prettier, and `git diff --check` passed. Source inventory remains **1416 / 42 oversized**. No new
 size exception, generated protocol drift, dependency change, or unrelated source edit is included.
+
+P03 batch 14 resumed at clean delivered `df0c787621162dead9623751d989478cf09198ae` on `main`,
+matching fetched `origin/main`. Previous goal turn: **progress**; batch 13 was verified, committed,
+and pushed. No owned jobs are live. Golden IO owns nonblocking weighted reply admission and its
+queue diagnostics; the UDP adapter owns native per-source reply continuations and fairness.
+Current source blocks the socket loop inside `publish_weighted` when replies fill, including
+unsolicited input/interface results. That can strand admitted output behind input backpressure.
+**XHigh requested; actual effort unchanged/unobservable**, with no supported control exposed.
+
+### P03 batch 14: duplex UDP reply backpressure
+
+- Golden IO exposes one-attempt weighted reply admission returning the original event on `Full`
+  or disconnection, plus read-only event queue metrics. Sequential blocking publication retains
+  its existing cancellable behavior. All **38 IO tests passed**, including full/oversized ownership,
+  independent command service under reply pressure, cancellation, and the previous lifetime cases.
+- A controlled native regression with one reply slot filled by input reproduced the defect before
+  the UDP change: the admitted cold 20k-deep output command timed out at its loopback receiver.
+  `cargo test-fast --locked -p Chataigne2 --bin Chataigne2
+full_input_replies_do_not_strand` was **FAILED** as expected for that baseline; cancellation
+  still terminated its worker. This is an observed starvation case, not only a source finding.
+- The app-owned adapter now keeps one pending input, output-outcome, and interface result in a
+  shared FIFO. Local bounds are 32 MiB, 64 KiB, and 64 KiB plus the fixed event envelope, respectively.
+  Input/discovery backpressure pauses only those producers. Native cold preparation and successful
+  unlogged sends can progress; a pending output outcome pauses the already-advanced destination
+  cursor. Queue retry never repeats a native send. Retirement drains all results before exit;
+  cancellation abandons explicitly cancelled work without joining. Oversized details report a
+  bounded failure instead of stranding later results. Discovery errors are bounded before caching.
+- Tests now cover exact input resumption, pending-source FIFO reuse, logged fanout under pressure,
+  retirement, cancellation, and oversized-result recovery. `cargo check --locked -p Chataigne2
+-p golden_io --tests` passed the adapter change. Final runtime and strict lint checks are live;
+  no final acceptance claim yet. No engine, protocol, persistence, or UI source changed.
+
+Final `cargo test-fast --locked -p Chataigne2 --bin Chataigne2
+module_modules_protocol_stream_udp` **passed 39/39**, including the previously failing cold-send
+case, exact input resumption, source FIFO, logged fanout/retirement, cancellation, and oversized
+reply recovery. Strict `cargo clippy --locked -p golden_io -p Chataigne2 --all-targets -- -D
+warnings` and `cargo check --locked --workspace --tests` **passed**. Direct preservation filters
+on that binary passed concrete streams **60** (including UDP), shared streams **44**, HTTP **36**,
+Sound Card/null **36**, OSC/OSCQuery **25**, and initial Formula cache **1**: **202 distinct app
+tests**, or **240** with the **38 IO** tests. Prior full engine passes are not added to this batch.
+
+The default native build **failed** with the known incremental MSVC/LLVM anonymous-symbol
+artifact defect, **74 unresolved externals**. After all owned checks were terminal and no live
+native app/compiler was observed, the resolved Cargo target was verified inside this workspace.
+App-package-only `cargo clean --locked -p Chataigne2 --profile dev` removed **6849 files / 9.6 GiB**.
+A fresh `cargo build --locked -p Chataigne2 --bin Chataigne2` is running; no native pass is assumed.
+No user process was interrupted, dependency cache removed, or runtime workaround introduced.
+The recurring artifact issue remains P12 work. Source inventory: **1419 / 42 oversized**.
+
+Focused duplex reply/admitted-send ownership verification is complete. **Return to High requested;
+actual effort unchanged/unobservable** because no supported control is exposed. Only routine
+native-build/documentation/delivery closeout remains for this batch; P03 is still **IN_PROGRESS**.
+
+The fresh native build **PASSED in 1m53s**, completing the Windows/default-feature build gate.
+All owned jobs are terminal. Source stayed unchanged after the final strict lint, workspace/test,
+and runtime passes; the package clean removed build artifacts only. `cargo test-fast --locked
+-p golden_io` passed **38 tests**. The **202 distinct app** preservation cases make **240 current
+passing tests**, with no duplicated UDP/profile totals. Full engine/runtime/platform/device/scale
+qualification is not inferred from these filters. The fixtures used controlled loopback, missing
+serial endpoints, and null audio; occupied default-port/injected-error diagnostics occurred in
+passing suites. No physical device or GUI automation was used.
+
+Root and Golden Core `cargo fmt --all` / `--check`, explicit app UDP `rustfmt --edition 2021
+--check`, maintained-doc Prettier, and `git diff --check` passed. No new source-size exception,
+protocol-generation drift, dependency change, or unrelated source edit is included.
+Commit and push the verified batch on `main`, then resume TCP/WebSocket/serial worker ownership,
+the broader module/channel audit, and generator time accounting. P03 remains **IN_PROGRESS**;
+P04-P18 retain their states, including the recurring P12 native incremental-artifact gap.

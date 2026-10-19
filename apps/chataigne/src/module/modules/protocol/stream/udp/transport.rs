@@ -7,6 +7,8 @@ use super::{
 };
 use crate::app::module::common::streaming::parser::StreamingParser;
 use golden_io::RetainedPayload;
+mod replies;
+use replies::{NativeReplies, ReplySource};
 use std::{
     net::{SocketAddr, ToSocketAddrs, UdpSocket},
     num::NonZeroUsize,
@@ -23,6 +25,7 @@ const UDP_EVENT_DRAIN_BUDGET: NonZeroUsize = NonZeroUsize::new(4).unwrap();
 const UDP_COMMAND_TURN: NonZeroUsize = NonZeroUsize::new(16).unwrap();
 const UDP_RECEIVE_TURN: usize = 16;
 const UDP_HOST_BYTES: usize = 1024;
+const UDP_EVENT_BYTES: usize = 32 * 1024 * 1024;
 
 fn worker_lifetimes() -> &'static RetirementPool {
     static POOL: OnceLock<RetirementPool> = OnceLock::new();
@@ -105,7 +108,7 @@ impl UdpStreamingTransportHandle {
                 command_items: 256,
                 command_weight: UDP_COMMAND_BYTES,
                 event_items: 64,
-                event_weight: 32 * 1024 * 1024,
+                event_weight: UDP_EVENT_BYTES,
             },
             notifier,
             move |context| worker_loop(context, config.receive_enabled, worker_input, setup),
@@ -167,7 +170,13 @@ fn interface_weight(options: &Vec<golden_core::parameter::ParameterEnumOption>) 
 }
 
 fn discover_interfaces() -> Result<Vec<golden_core::parameter::ParameterEnumOption>, String> {
-    let options = crate::app::module::common::network_interfaces::available_interface_options()?;
+    let options = crate::app::module::common::network_interfaces::available_interface_options().map_err(|error| {
+        if error.capacity() > 64 * 1024 {
+            "UDP interface discovery error exceeds 64 KiB; existing choices retained".into()
+        } else {
+            error
+        }
+    })?;
     if options.len() > 256 || interface_weight(&options) > 64 * 1024 {
         return Err("UDP interface discovery exceeds 256 entries / 64 KiB; existing choices retained".into());
     }
@@ -234,11 +243,15 @@ fn worker_loop(
     let mut commands_closed = false;
     let mut parser = StreamingParser::default();
     let mut input_generation = None;
+    let mut replies = NativeReplies::default();
     loop {
-        if context.cancellation().is_cancelled() {
+        if context.cancellation().is_cancelled() || !replies.flush(&context) {
             return;
         }
         for _ in 0..UDP_COMMAND_TURN.get() {
+            if !replies.permits(ReplySource::Output) {
+                break;
+            }
             if current.is_none() {
                 let mut next = Vec::with_capacity(1);
                 let turn = context.drain_commands(&mut next, NonZeroUsize::MIN);
@@ -253,26 +266,36 @@ fn worker_loop(
             match command.prepare_turn(|| context.cancellation().is_cancelled()) {
                 Ok(false) => break,
                 Err(error) => {
-                    if !publish(
+                    current = None;
+                    if !replies.offer(
                         &context,
+                        ReplySource::Output,
                         StreamingWorkerEvent::Error(format!("UDP output preparation failed before send: {error}")),
                     ) {
                         return;
                     }
-                    current = None;
                     continue;
                 }
                 Ok(true) => {}
             }
-            if context.cancellation().is_cancelled() || !send_target(&socket, &context, command, *index) {
+            if context.cancellation().is_cancelled() {
                 return;
             }
+            let outcome = send_target(&socket, command, *index);
             *index += 1;
             if *index == command.len() {
                 current = None;
             }
+            if let Some(event) = outcome {
+                if !replies.offer(&context, ReplySource::Output, event) {
+                    return;
+                }
+            }
         }
         if commands_closed && current.is_none() {
+            if !replies.finish(&context) {
+                return;
+            }
             parser.discard_partial_input();
             let rejected = parser.take_rejected_line_count();
             if rejected > 0 {
@@ -285,10 +308,14 @@ fn worker_loop(
             }
             return;
         }
-        if std::time::Instant::now() >= next_interfaces {
+        if replies.permits(ReplySource::Interfaces) && std::time::Instant::now() >= next_interfaces {
             let options = discover_interfaces();
             if last_interfaces.as_ref() != Some(&options) {
-                if !publish(&context, StreamingWorkerEvent::Interfaces(options.clone())) {
+                if !replies.offer(
+                    &context,
+                    ReplySource::Interfaces,
+                    StreamingWorkerEvent::Interfaces(options.clone()),
+                ) {
                     return;
                 }
                 last_interfaces = Some(options);
@@ -297,6 +324,9 @@ fn worker_loop(
         }
         if receive_enabled {
             for _ in 0..UDP_RECEIVE_TURN {
+                if !replies.permits(ReplySource::Input) {
+                    break;
+                }
                 if context.cancellation().is_cancelled() {
                     return;
                 }
@@ -311,7 +341,7 @@ fn worker_loop(
                             Ok(input) => StreamingWorkerEvent::Input(input),
                             Err(error) => StreamingWorkerEvent::Error(format!("UDP input was not admitted: {error}")),
                         };
-                        if !publish(&context, event) {
+                        if !replies.offer(&context, ReplySource::Input, event) {
                             return;
                         }
                     }
@@ -321,17 +351,20 @@ fn worker_loop(
                         context.close_command_admission();
                         // Keep servicing accepted sends, but stop receiving after a
                         // terminal socket error; the owner will reconnect this endpoint.
-                        publish(
+                        if !replies.offer(
                             &context,
+                            ReplySource::Input,
                             StreamingWorkerEvent::Failed(format!("UDP socket receive error: {error}")),
-                        );
+                        ) {
+                            return;
+                        }
                         receive_enabled = false;
                         break;
                     }
                 }
             }
         }
-        if current.is_none() {
+        if current.is_none() || !replies.permits(ReplySource::Output) {
             context.cancellation().wait(Duration::from_millis(5));
         }
     }
@@ -341,12 +374,7 @@ fn should_ignore_receive_error(error: &std::io::Error) -> bool {
     error.raw_os_error() == Some(10054) || (cfg!(windows) && error.kind() == std::io::ErrorKind::ConnectionReset)
 }
 
-fn send_target(
-    socket: &UdpSocket,
-    context: &WorkerContext<UdpOutboundSend, StreamingWorkerEvent>,
-    command: &UdpOutboundSend,
-    index: usize,
-) -> bool {
+fn send_target(socket: &UdpSocket, command: &UdpOutboundSend, index: usize) -> Option<StreamingWorkerEvent> {
     let target = command.target(index);
     let outcome = resolve_socket_addr(&target.remote_host, target.remote_port).and_then(|address| {
         socket
@@ -364,19 +392,16 @@ fn send_target(
                 target.remote_host,
                 target.remote_port
             );
-            publish(context, StreamingWorkerEvent::OutgoingLog(message))
+            Some(StreamingWorkerEvent::OutgoingLog(message))
         }
-        Ok(_) => true,
-        Err(error) => publish(
-            context,
-            StreamingWorkerEvent::Error(format!(
-                "UDP output {}/{} to {}:{} failed: {error}",
-                index + 1,
-                command.len(),
-                target.remote_host,
-                target.remote_port
-            )),
-        ),
+        Ok(_) => None,
+        Err(error) => Some(StreamingWorkerEvent::Error(format!(
+            "UDP output {}/{} to {}:{} failed: {error}",
+            index + 1,
+            command.len(),
+            target.remote_host,
+            target.remote_port
+        ))),
     }
 }
 

@@ -5,8 +5,8 @@ use std::thread;
 use std::time::Duration;
 
 use crate::{
-    PendingDrain, PendingDrainState, PendingReceiver, PendingSendError, PendingSender, RetirementCapacityError,
-    RetirementPool, WorkerNotifier, bounded_pending_channel, notified_pending_channel,
+    PendingDrain, PendingDrainState, PendingMetricsSnapshot, PendingReceiver, PendingSendError, PendingSender,
+    RetirementCapacityError, RetirementPool, WorkerNotifier, bounded_pending_channel, notified_pending_channel,
 };
 
 /// Item and retained-weight bounds for both directions of a worker boundary.
@@ -229,6 +229,11 @@ impl<C: Send + 'static, E: Send + 'static> BoundedWorker<C, E> {
         self.events.has_pending() || self.events.is_disconnected()
     }
 
+    /// Read-only reply admission diagnostics, independent of owner draining.
+    pub fn event_metrics(&self) -> PendingMetricsSnapshot {
+        self.events.metrics()
+    }
+
     /// Cancels this lifetime, including retry and capacity waits, without waiting for native I/O.
     pub fn cancel(&self) {
         self.cancellation.cancel();
@@ -295,12 +300,22 @@ impl<C, E> WorkerContext<C, E> {
             if observed.cancelled {
                 return Err(PendingSendError::Disconnected(event));
             }
-            match self.events.send_weighted(event, weight) {
+            match self.try_publish_weighted(event, weight) {
                 Ok(()) => return Ok(()),
                 Err(PendingSendError::Disconnected(event)) => return Err(PendingSendError::Disconnected(event)),
                 Err(PendingSendError::Full(returned)) => event = returned,
             }
             self.cancellation.wait_for_change(observed);
         }
+    }
+
+    /// Attempts one reply admission without waiting for capacity. On `Full` the worker
+    /// keeps ownership and must bound its pending results and retry them explicitly.
+    /// This permits duplex native loops to pause one source while servicing another.
+    pub fn try_publish_weighted(&self, event: E, weight: usize) -> Result<(), PendingSendError<E>> {
+        if self.cancellation.is_cancelled() {
+            return Err(PendingSendError::Disconnected(event));
+        }
+        self.events.send_weighted(event, weight)
     }
 }
