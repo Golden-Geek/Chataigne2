@@ -145,6 +145,10 @@ update the ledger with evidence and remaining scope, then commit and push the mi
 `origin/main` before starting the next batch. Preserve unrelated changes and unfinished work
 outside the milestone commit. Do not publish known failing implementation as a verified milestone.
 
+At each milestone, refresh the ledger's whole-plan and per-task completion percentages and
+acceptance checkpoints using its documented scope-based rubric. Keep estimates distinct from
+verified task completion; batch counts and elapsed time are not measures of completion.
+
 Reconcile remote changes before pushing and preserve other contributors' commits. Never force
 push or rewrite published history. If a check, merge, or push fails, record the actual failure,
 repair it where possible, and retain the local work; do not report delivery until the push succeeds.
@@ -301,6 +305,8 @@ prerequisites during compilation, replace projects, and saturate admission. Veri
 effects, generation fencing, coherent errors, and continued progress.
 
 ### P03 — Finish bounded I/O and lifecycle ownership
+
+<!-- Mode: Escalating to XHigh for pre-materialization payload reservations, typed retained script-method ingress, QuickJS conversion/queue rejection, engine failure/suffix disposal and shared argument ownership across native consumers. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
 
 <!-- Mode: Escalating to XHigh for canonical prepared-byte leases through all six native queues, rejected admission/final-owner disposal, output byte accounting and accepted-prefix lifetime semantics. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
 <!-- Mode: Returning to High after 23 common command tests and six owning transport tests passed allocation identity, canonical capacity, queue-full rejection, final reservation release and native-only owned-buffer creation. Routine preservation, lint/workspace checks and native cache recovery remain. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
