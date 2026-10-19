@@ -1,5 +1,5 @@
 use super::transport::{self, HttpQueuedRequest, HttpTransportConfig, HttpTransportHandle, HttpWorkerEvent};
-use golden_io::{PendingDrainState, RetirementPool};
+use golden_io::{PendingDrainState, RetirementPool, WorkerNotifier};
 use std::collections::VecDeque;
 use std::num::NonZeroUsize;
 
@@ -42,16 +42,22 @@ impl HttpTransports {
         self.blocked = true;
     }
 
-    pub(super) fn configure(&mut self, config: HttpTransportConfig) -> Result<(), String> {
-        self.configure_using(config, HttpTransportHandle::spawn_generation)
+    pub(super) fn configure(&mut self, config: HttpTransportConfig, notifier: WorkerNotifier) -> Result<(), String> {
+        self.configure_using(config, notifier, HttpTransportHandle::spawn_generation)
     }
 
-    pub(super) fn configure_using<F>(&mut self, config: HttpTransportConfig, spawn: F) -> Result<(), String>
+    pub(super) fn configure_using<F>(
+        &mut self,
+        config: HttpTransportConfig,
+        notifier: WorkerNotifier,
+        spawn: F,
+    ) -> Result<(), String>
     where
         F: FnOnce(
             HttpTransportConfig,
             &RetirementPool,
             Option<transport::GenerationFence>,
+            WorkerNotifier,
         ) -> Result<HttpTransportHandle, String>,
     {
         if self
@@ -68,7 +74,7 @@ impl HttpTransports {
             return Err("HTTP configuration is waiting for older admitted requests to finish".into());
         }
         let predecessor = self.generations.back().map(|last| last.handle.completion_fence());
-        let next = match spawn(config.clone(), &self.lifetimes, predecessor) {
+        let next = match spawn(config.clone(), &self.lifetimes, predecessor, notifier) {
             Ok(handle) => handle,
             Err(error) => {
                 // Keep every old owner. Closing idle admission also lets its native slot

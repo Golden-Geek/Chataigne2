@@ -130,6 +130,16 @@ before the recovery callback is published. Such rejection precedes graph/callbac
 its budget, and never resends endpoint effects. Normal callback names, arguments, replay, and
 individual publication receipts remain unchanged.
 
+HTTP owner service is passive. The module reserves its node wake before starting workers and uses
+the app's module-common `ModuleWake` adapter for notifications and coalesced retry deadlines, shared
+with TCP client and UDP. Replies, request-resolution phase changes, and native producer exit signal
+the owner; resolved generations notify before native cleanup can block. Bounded owner turns re-arm
+while graph/callback receipts remain, and request snapshots only for configuration or graph planning.
+HTTP keeps accepted completions paused while disabled; enable explicitly re-arms delivery and
+admission recovery. Destroy/replacement cancels its producers, clears pending runtime results and
+deadlines, and starts a fresh wake source when restored. Script argument parsing lives beside the
+HTTP coordinator in `scripts.rs`; HTTP selects no periodic/compiled node kernel.
+
 `golden_io::BoundedWorker::spawn_notified` can publish those node wakes after reply admission and
 final producer exit. `DelayedNotifier` provides bounded, coalesced host deadlines without a node
 polling clock. A `PayloadPool` can retain prepared data through consumer ownership and perform

@@ -1,6 +1,9 @@
 mod callbacks;
 mod lifecycle;
 mod response_service;
+mod scripts;
+use crate::app::module::common::worker_wake::ModuleWake;
+use scripts::http_request_from_script;
 mod transport;
 
 use golden_io::ReconnectBackoff;
@@ -21,9 +24,8 @@ use golden_core::{
 use crate::app::module::common::{
     http::{
         body_looks_like_json, content_type_is_json, http_auth_mode_enum_options, parse_header_lines,
-        response_script_body_arg, response_script_json_arg, HttpAuthConfig, HttpAuthMode, HttpFilePart, HttpHeader,
-        HttpMethod, HttpRequestBody, HttpRequestPayload, HTTP_AUTH_NONE, HTTP_COMMAND_NODE_TYPES,
-        HTTP_TEXT_CONTENT_TYPE,
+        response_script_body_arg, response_script_json_arg, HttpAuthConfig, HttpAuthMode, HttpHeader,
+        HttpRequestPayload, HTTP_AUTH_NONE, HTTP_COMMAND_NODE_TYPES,
     },
     received_values::service::{ReceivedValueCursor, ReceivedValueProgress},
 };
@@ -35,7 +37,6 @@ use self::transport::{
 use lifecycle::HttpTransports;
 use response_service::{HttpCallbackDelivery, PendingHttpEvent};
 
-const HTTP_MODULE_UPDATE_RATE_HZ: u32 = 120;
 const HTTP_RESULT_WARNING_ID: &str = "http_result_admission";
 const HTTP_BASE_WARNING_ID: &str = "http_base_address";
 const HTTP_AUTH_DECL_ID: &str = "auth";
@@ -131,6 +132,7 @@ pub struct HttpModule {
     pending_events: VecDeque<PendingHttpEvent>,
     reconnect_backoff: ReconnectBackoff,
     retry_at: Option<Instant>,
+    wake: Option<ModuleWake>,
 }
 
 impl HttpModule {
@@ -141,6 +143,7 @@ impl HttpModule {
             true,
             VecDeque::new(),
             ReconnectBackoff::new(Duration::from_millis(250), Duration::from_secs(5)),
+            None,
             None,
         )
     }
@@ -155,7 +158,12 @@ impl HttpModule {
     fn install_transport_for_test(&mut self, config: HttpTransportConfig) {
         self.transports =
             HttpTransports::with_lifetimes(golden_io::RetirementPool::new(std::num::NonZeroUsize::new(3).unwrap()));
-        self.transports.configure(config).unwrap();
+        self.transports
+            .configure(
+                config,
+                self.wake.as_ref().expect("ready HTTP test owner").notifier.clone(),
+            )
+            .unwrap();
         self.transport_dirty = false;
     }
 
@@ -172,6 +180,7 @@ impl HttpModule {
             panic!("test response must fit native result admission")
         };
         self.enqueue_pending_response(response);
+        self.request_service();
     }
 
     #[cfg(test)]
@@ -184,6 +193,7 @@ impl HttpModule {
     }
 
     fn refresh_transport(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
+        self.retry_at = None;
         self.transport_dirty = false;
 
         if !self.module_enabled(snapshot) {
@@ -204,7 +214,10 @@ impl HttpModule {
             }
         };
 
-        match self.transports.configure(config) {
+        let Some(wake) = &self.wake else {
+            return;
+        };
+        match self.transports.configure(config, wake.notifier.clone()) {
             Ok(()) => {
                 self.clear_base_warning(ctx);
                 self.base.set_connected(ctx, true);
@@ -459,6 +472,7 @@ impl HttpModule {
             self.transports.block_admission();
             self.retry_at = None;
             self.reconnect_backoff.reset();
+            self.request_service();
         }
     }
 
@@ -484,7 +498,12 @@ impl HttpModule {
             self.clear_base_warning(ctx);
             self.base.set_connected(ctx, false);
             self.transport_dirty = false;
+            self.retry_at = None;
+            if let Some(wake) = &self.wake {
+                wake.cancel_deadline();
+            }
         }
+        self.request_service();
     }
 
     fn auth_node_id(&self, snapshot: &ProcessTreeSnapshot) -> Option<NodeId> {
@@ -516,6 +535,29 @@ impl HttpModule {
 
     fn stop_transport(&mut self) {
         self.transports.cancel_all();
+        self.pending_events.clear();
+        self.retry_at = None;
+        if let Some(wake) = &self.wake {
+            wake.cancel_deadline();
+        }
+    }
+
+    fn request_service(&self) {
+        if let Some(wake) = &self.wake {
+            wake.notifier.notify();
+        }
+    }
+
+    fn arm_service(&self) {
+        if !self.pending_events.is_empty() || self.transports.has_pending() {
+            self.request_service();
+        } else if self.transport_dirty {
+            if let Some(wake) = &self.wake {
+                wake.later(self.retry_at.map_or(Duration::from_millis(1), |at| {
+                    at.saturating_duration_since(Instant::now())
+                }));
+            }
+        }
     }
 
     fn transport_refresh_due(&self) -> bool {
@@ -556,49 +598,69 @@ impl Node for HttpModule {
     }
 
     fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
-        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
+        let source = match ctx.node_waker() {
+            Ok(source) => source,
+            Err(error) => {
+                logerror!("Failed to register HTTP worker wake: {}", error);
+                return;
+            }
+        };
+        if !self.wake.as_ref().is_some_and(|wake| wake.matches(&source)) {
+            self.stop_transport();
+            self.wake = match ModuleWake::new(source) {
+                Ok(wake) => Some(wake),
+                Err(error) => {
+                    logerror!("Failed to register HTTP retry deadline: {}", error);
+                    return;
+                }
+            };
+            self.transport_dirty = true;
+        }
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
             return;
         };
-        let snapshot = snapshot_arc.as_ref();
-        self.refresh_transport(ctx, snapshot);
+        self.refresh_transport(ctx, &snapshot);
+        self.arm_service();
     }
 
-    fn update(&mut self, ctx: &mut ProcessCtx) {
+    fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
+        if let Some(wake) = &self.wake {
+            wake.cancel_deadline();
+        }
         self.drain_transport_events(ctx);
-
-        let snapshot_arc = ctx.tree_snapshot_arc();
-        if let Some(snapshot) = snapshot_arc.as_deref() {
+        let snapshot = ctx.tree_snapshot_arc();
+        if let Some(snapshot) = snapshot.as_deref() {
             self.refresh_data_capabilities(ctx);
             if self.transport_refresh_due() {
-                self.retry_at = None;
                 self.refresh_transport(ctx, snapshot);
             }
         }
-
-        self.service_pending_events(ctx, snapshot_arc.as_deref());
+        self.service_pending_events(ctx, snapshot.as_deref());
+        self.arm_service();
     }
 
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {
         self.stop_transport();
+        self.wake = None;
     }
 
-    fn update_requires_tree_snapshot(&self) -> bool {
+    fn worker_wake_requires_tree_snapshot(&self) -> bool {
         self.transport_refresh_due()
             || match self.pending_events.front() {
                 Some(PendingHttpEvent::Response(response, cursor)) => cursor.requires_snapshot(response.messages()),
                 Some(PendingHttpEvent::Failure(_) | PendingHttpEvent::Callback(_) | PendingHttpEvent::Rejected(_)) => {
                     false
                 }
-                None => self.transports.has_pending(),
+                None => false,
             }
     }
 
     fn needs_update(&self) -> bool {
-        self.transport_refresh_due() || !self.pending_events.is_empty() || self.transports.has_pending()
+        false
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
-        NodeExecutionRule::periodic(HTTP_MODULE_UPDATE_RATE_HZ).with_compiled_kernel("chataigne.runtime.http")
+        NodeExecutionRule::passive()
     }
 
     fn child_event_interest_depth(&self, _event: &Event) -> u32 {
@@ -642,6 +704,8 @@ impl Node for HttpModule {
                 .is_some_and(|auth_id| auth_id == node)
         {
             self.transport_dirty = true;
+            self.retry_at = None;
+            self.request_service();
         }
     }
 
@@ -688,187 +752,6 @@ fn normalize_base_address(raw: &str) -> Result<String, String> {
 fn duration_ms(value: i32, label: &str) -> Result<Duration, String> {
     let value = u64::try_from(value).map_err(|_| format!("{label} cannot be negative"))?;
     Ok(Duration::from_millis(value))
-}
-
-fn http_request_from_script(method: &str, args: &[ParamValue]) -> Option<Result<HttpRequestPayload, String>> {
-    match method {
-        "request" => Some(script_request(args)),
-        "requestJson" => Some(script_json_request(args)),
-        "get" => Some(script_empty_body_request(HttpMethod::Get, method, args)),
-        "head" => Some(script_empty_body_request(HttpMethod::Head, method, args)),
-        "options" => Some(script_empty_body_request(HttpMethod::Options, method, args)),
-        "delete" => Some(script_empty_body_request(HttpMethod::Delete, method, args)),
-        "post" => Some(script_text_body_request(HttpMethod::Post, method, args)),
-        "put" => Some(script_text_body_request(HttpMethod::Put, method, args)),
-        "patch" => Some(script_text_body_request(HttpMethod::Patch, method, args)),
-        "postJson" => Some(script_fixed_json_request(HttpMethod::Post, method, args)),
-        "putJson" => Some(script_fixed_json_request(HttpMethod::Put, method, args)),
-        "patchJson" => Some(script_fixed_json_request(HttpMethod::Patch, method, args)),
-        "uploadFile" => Some(script_upload_file_request(args)),
-        _ => None,
-    }
-}
-
-fn script_request(args: &[ParamValue]) -> Result<HttpRequestPayload, String> {
-    let method = required_script_string(args, 0, "request method")?;
-    let method = HttpMethod::from_variant(method.as_str()).ok_or_else(|| format!("invalid HTTP method '{method}'"))?;
-    let path = required_script_string(args, 1, "request path")?;
-    let body = if args.get(2).is_some() {
-        HttpRequestBody::Text {
-            text: args.get(2).and_then(ParamValue::as_str).unwrap_or_default(),
-            content_type: script_content_type(args.get(3)),
-        }
-    } else {
-        HttpRequestBody::Empty
-    };
-
-    Ok(HttpRequestPayload {
-        method,
-        path,
-        query: String::new(),
-        value_path: optional_script_string(args, 5),
-        headers: script_headers(args.get(4))?,
-        body,
-        description: "script request".to_string(),
-    })
-}
-
-fn script_json_request(args: &[ParamValue]) -> Result<HttpRequestPayload, String> {
-    let method = required_script_string(args, 0, "request method")?;
-    let method = HttpMethod::from_variant(method.as_str()).ok_or_else(|| format!("invalid HTTP method '{method}'"))?;
-    let path = required_script_string(args, 1, "request path")?;
-    let value = args
-        .get(2)
-        .map(ParamValue::to_script_json)
-        .unwrap_or(serde_json::Value::Null);
-
-    Ok(HttpRequestPayload {
-        method,
-        path,
-        query: String::new(),
-        value_path: optional_script_string(args, 4),
-        headers: script_headers(args.get(3))?,
-        body: HttpRequestBody::Json { value },
-        description: "script JSON request".to_string(),
-    })
-}
-
-fn script_empty_body_request(
-    method: HttpMethod,
-    script_method: &str,
-    args: &[ParamValue],
-) -> Result<HttpRequestPayload, String> {
-    Ok(HttpRequestPayload {
-        method,
-        path: required_script_string(args, 0, "request path")?,
-        query: String::new(),
-        value_path: optional_script_string(args, 2),
-        headers: script_headers(args.get(1))?,
-        body: HttpRequestBody::Empty,
-        description: script_method.to_string(),
-    })
-}
-
-fn script_text_body_request(
-    method: HttpMethod,
-    script_method: &str,
-    args: &[ParamValue],
-) -> Result<HttpRequestPayload, String> {
-    Ok(HttpRequestPayload {
-        method,
-        path: required_script_string(args, 0, "request path")?,
-        query: String::new(),
-        value_path: optional_script_string(args, 4),
-        headers: script_headers(args.get(3))?,
-        body: HttpRequestBody::Text {
-            text: optional_script_string(args, 1),
-            content_type: script_content_type(args.get(2)),
-        },
-        description: script_method.to_string(),
-    })
-}
-
-fn script_fixed_json_request(
-    method: HttpMethod,
-    script_method: &str,
-    args: &[ParamValue],
-) -> Result<HttpRequestPayload, String> {
-    Ok(HttpRequestPayload {
-        method,
-        path: required_script_string(args, 0, "request path")?,
-        query: String::new(),
-        value_path: optional_script_string(args, 3),
-        headers: script_headers(args.get(2))?,
-        body: HttpRequestBody::Json {
-            value: args
-                .get(1)
-                .map(ParamValue::to_script_json)
-                .unwrap_or(serde_json::Value::Null),
-        },
-        description: script_method.to_string(),
-    })
-}
-
-fn script_upload_file_request(args: &[ParamValue]) -> Result<HttpRequestPayload, String> {
-    let method = required_script_string(args, 0, "upload method")?;
-    let method =
-        HttpMethod::from_variant(method.as_str()).ok_or_else(|| format!("invalid HTTP upload method '{method}'"))?;
-    if !matches!(method, HttpMethod::Post | HttpMethod::Put | HttpMethod::Patch) {
-        return Err("uploadFile only supports POST, PUT, and PATCH".to_string());
-    }
-
-    let path = required_script_string(args, 1, "request path")?;
-    let file_path = required_script_string(args, 2, "file path")?;
-    let field_name = optional_script_string(args, 3);
-    let field_name = if field_name.trim().is_empty() {
-        "file".to_string()
-    } else {
-        field_name
-    };
-    let content_type = optional_script_string(args, 4);
-
-    Ok(HttpRequestPayload {
-        method,
-        path,
-        query: String::new(),
-        value_path: optional_script_string(args, 6),
-        headers: script_headers(args.get(5))?,
-        body: HttpRequestBody::Multipart {
-            fields: Vec::new(),
-            files: vec![HttpFilePart {
-                field_name,
-                path: file_path,
-                file_name: None,
-                content_type: (!content_type.trim().is_empty()).then_some(content_type),
-            }],
-        },
-        description: "script file upload".to_string(),
-    })
-}
-
-fn required_script_string(args: &[ParamValue], index: usize, label: &str) -> Result<String, String> {
-    args.get(index)
-        .and_then(ParamValue::as_str)
-        .filter(|value| !value.trim().is_empty())
-        .ok_or_else(|| format!("HTTP script method expects a non-empty {label}"))
-}
-
-fn optional_script_string(args: &[ParamValue], index: usize) -> String {
-    args.get(index).and_then(ParamValue::as_str).unwrap_or_default()
-}
-
-fn script_headers(value: Option<&ParamValue>) -> Result<Vec<HttpHeader>, String> {
-    let Some(value) = value.and_then(ParamValue::as_str) else {
-        return Ok(Vec::new());
-    };
-    parse_header_lines(value.as_str(), "HTTP script")
-}
-
-fn script_content_type(value: Option<&ParamValue>) -> String {
-    value
-        .and_then(ParamValue::as_str)
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or_else(|| HTTP_TEXT_CONTENT_TYPE.to_string())
 }
 
 fn is_descendant_or_self(snapshot: &ProcessTreeSnapshot, start: NodeId, ancestor: NodeId) -> bool {

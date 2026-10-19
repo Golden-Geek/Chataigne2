@@ -2,13 +2,13 @@ use golden_core::engine::NodeWaker;
 use golden_io::{DelayedNotifier, WorkerNotifier};
 use std::time::Duration;
 
-pub(crate) struct StreamingWake {
+pub(crate) struct ModuleWake {
     pub notifier: WorkerNotifier,
     delayed: DelayedNotifier,
     waker: NodeWaker,
 }
 
-impl StreamingWake {
+impl ModuleWake {
     pub(crate) fn new(waker: NodeWaker) -> Result<Self, String> {
         let target = waker.clone();
         let notifier = WorkerNotifier::new(move || {

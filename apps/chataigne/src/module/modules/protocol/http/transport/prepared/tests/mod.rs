@@ -201,7 +201,7 @@ fn native_result_rejection_closes_admission_and_resolves_the_queued_suffix_witho
                 retry_count: 0,
                 retry_delay: Duration::ZERO,
             };
-            let mut guard = native_completion.guard();
+            let mut guard = native_completion.guard(golden_io::WorkerNotifier::new(|| {}));
             super::super::worker_loop(
                 config,
                 context,

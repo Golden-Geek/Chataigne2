@@ -5,7 +5,7 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-19 on `main` at delivered `8c2c5ff8` plus the verified P03 batch 18 diff.
+Last reconciled: 2026-10-19 on `main` at delivered `7836d1bf` plus the verified P03 batch 19 diff.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
 plan. Its complete contents, including the uncommitted clarification, survive in the
@@ -13,8 +13,9 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 
 ## Current handoff
 
-- Current batch: P03 batch 18 retained HTTP response/callback ownership and result-capacity outcomes
-  verified locally. Reconcile its milestone commit and `origin/main` before resuming.
+- Current batch: P03 batch 19 passive HTTP owner notifications and retry deadlines verified locally.
+  Reconcile its milestone commit and `origin/main` before resuming.
+  Batch 18 retained HTTP ownership delivered in `7836d1bf`.
   Batch 17 callback lifetime admission delivered in `8c2c5ff8`.
   Batch 16 worker input/generation isolation delivered in `3166e805`.
   Batch 15 native ownership and disabled completion service delivered in `1663106e`.
@@ -25,13 +26,14 @@ plan. Its complete contents, including the uncommitted clarification, survive in
   and both remote branches were pushed successfully on 2026-10-19. Unfinished shared-stream
   baseline work was preserved and restored on `main`. Earlier no-commit/no-push notes below
   describe historical actions only; future verified milestones are committed and pushed.
-- P00 resumed check: clean `main` and `origin/main` at delivered `8c2c5ff8`;
+- P00 resumed check: clean `main` and `origin/main` at delivered `7836d1bf`;
   no unrelated changes or live owned jobs at resume. Previous turn: progress.
 - Scope selected by the user: **foundation and readiness**. Full lighting/video/projection
   authoring is deferred; current features and completed Mapping remain preservation contracts.
 - Runtime/source implementation under the new P tasks: **P01 and P02 verified locally; P03 in progress**.
-- Next implementation action: replace HTTP's
-  periodic owner service with passive worker/deadline wakeups and preserve disabled completions.
+- Next implementation action: fence HTTP script/command admission against applied configuration
+  changes before callbacks dispatch, then audit HTTP configuration input bounds and ownership.
+  HTTP owner service is now passive and preserves disabled completions.
   HTTP response/callback envelopes now have worker-prepared retained lifetimes and explicit result
   rejection/receipt recovery. TCP/UDP callback JSON reservation follows routing/replay/exported event
   copies. TCP input
@@ -66,7 +68,7 @@ External qualification is separate from implementation. A historical pass is not
 | P00 Baseline                | VERIFIED_LOCAL | PASSED              | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                |
 | P01 Edit failures/history   | VERIFIED_LOCAL | PASSED batches 1–8  | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                 |
 | P02 Schedule/actor failures | VERIFIED_LOCAL | PASSED batches 1-3  | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                  |
-| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-18 | HTTP retained results/callbacks verified; HTTP passive service and broader module/generator audit open                    |
+| P03 Bounded I/O/lifecycle   | IN_PROGRESS    | PASSED batches 1-19 | HTTP passive service verified; HTTP applied-config admission/bounds and broader module/generator audit open               |
 | P04 Audio order/types       | NOT_STARTED    | PENDING             | Legal interleaving and invalid deserialization established from source                                                    |
 | P05 Transport trust         | NOT_STARTED    | PENDING             | Missing admission verified; exploit not demonstrated                                                                      |
 | P06 Dependencies            | NOT_STARTED    | FAILED baseline     | Four Rustls advisories on audit date; refresh DB before repair                                                            |
@@ -2215,3 +2217,62 @@ changed. Checks used Windows/default features, controlled HTTP/stream loopbacks,
 fixtures, and null audio. They do not qualify physical devices, other platforms, full-product
 scale, or UI/native interaction. Commit and push this milestone on `main`, then convert HTTP's
 periodic owner to worker/deadline wakeups. P03 remains **IN_PROGRESS**; P04-P18 retain their states.
+
+### P03 batch 19: passive HTTP service
+
+Resumed clean delivered `7836d1bf0bad9d6c4b7b0c89a2e1944d0f051587` on `main`; previous turn:
+**progress**, no owned jobs live. HTTP still selects a 120 Hz compiled kernel. This batch moves
+owner service to worker/deadline wakes, generalizes the app's existing stream wake adapter into
+module-common code, and signals resolved HTTP generations before potentially blocked native cleanup.
+Preserve HTTP's current disabled policy: accepted results stay bounded/paused until enable explicitly
+re-arms the owner. Destruction must discard pending runtime input so undo cannot revive it. Script
+argument helpers will be split out before the node coordinator grows past its size guardrail.
+Requested **XHigh; actual effort unchanged/unobservable**, with no supported control exposed.
+
+Review also identified an existing HTTP admission/configuration boundary for a following focused
+step: script admission currently trusts the dirty flag rather than fencing an applied parameter edit
+before callbacks dispatch; transport configuration reads cached handles and needs its own input-bound
+audit. This is separate from notification ownership and must not be inferred fixed by passive service.
+
+HTTP now uses passive worker callbacks and module-common `ModuleWake` notifications/deadlines;
+TCP/UDP use the same moved adapter with no legacy alias. Native HTTP workers notify on result
+publication, resolved/aborted generation phase, and producer exit. Phase notification precedes
+potentially blocked client cleanup. Changes to transport inputs, auth enablement, or effective
+enable re-arm the owner; retry deadlines replace periodic polling. Pending graph/callback work
+re-arms bounded wake service, and callback-only service needs no process snapshot. Disabled
+completions remain paused by the default engine policy; enable explicitly wakes the backlog.
+Destroy now clears pending owner results and deadline state, fixing undo reviving queued runtime
+input. Script helpers moved to a focused sibling file to keep the coordinator readable.
+
+`cargo check --locked -p Chataigne2 --tests` passed in **19.91s**. The first HTTP run passed
+**51/51** in **0.31s** after **2m05s** compilation, including five new passive/phase tests and
+the original disabled/reconfigure/receipt/lifetime regressions. The undo test was strengthened
+to assert that notifying the removed source fires no restored-owner callback; a settled rerun
+is live. No runtime behavior changed after the first pass. Incidental formatting from recursing
+through module-common was reverted through patches before that run; only owning files remain.
+Full preservation, strict lint, workspace/test compilation, native build and delivery are pending.
+
+The strengthened settled HTTP run passed **51/51** in **0.31s** after **57.03s** compilation;
+the removed source fired **zero** callbacks on the restored owner. IO passed **38/38** in
+**0.20s**, and strict `cargo clippy --locked -p golden_io -p Chataigne2 --all-targets -- -D warnings`
+passed in **24.40s**. Preservation filters passed script API **8**, concrete streams **77**, shared
+streams **45**, Sound Card **35** plus null product evidence **1**, OSC **25**, and first Formula
+cache **1**. Their disjoint compiled-name sets plus HTTP contain **243 distinct app tests**; with IO,
+**281** tests passed. Repeated HTTP profiles are not added twice. Source is settled. Focused wake/
+lifetime work is verified: **return to High requested; actual effort unchanged/unobservable**
+because no supported control is exposed. Workspace/test and default native closeout remain.
+
+The final `cargo check --locked --workspace --tests` **passed in 19.48s** and default
+`cargo build --locked -p Chataigne2 --bin Chataigne2` **passed in 1m43s**. All owned jobs are
+terminal. Final root/Core Cargo formatting, explicit owning app Rustfmt, maintained-doc Prettier,
+and whitespace checks pass. Source inventory is **1620 files / 42 oversized**; the HTTP coordinator
+is **774** lines, script helpers **189**, shared wake adapter **35**, and passive tests **165**.
+No new size exception, wire shape, persistence schema, dependency, or UI source changed. Evidence
+is **281 distinct IO/app passes** (243 app + 38 IO), strict IO/app Clippy, workspace/test compilation,
+and default native build. No artifact cleanup or compiler flag changes were needed this batch.
+Validation used Windows/default features, controlled loopbacks/injected native gates, missing-serial
+fixtures, and null audio; physical devices, other platforms, full-product scale, and UI/native
+interaction remain separate qualifications. Commit and push this milestone on `main`, then finish
+the HTTP applied-configuration admission and configuration-bound audit recorded above. P03 remains
+**IN_PROGRESS**; broader TCP server/WebSocket/serial, Sound Card/channel and generator work remains,
+and P04-P18 retain their states.

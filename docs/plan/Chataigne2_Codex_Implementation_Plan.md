@@ -302,6 +302,9 @@ effects, generation fencing, coherent errors, and continued progress.
 
 ### P03 — Finish bounded I/O and lifecycle ownership
 
+<!-- Mode: Escalating to XHigh for passive HTTP owner notifications, pre-cleanup generation completion wakes, retry deadlines, disabled backlog re-arming, and destruction/undo source fencing. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
+<!-- Mode: Returning to High after 51 HTTP and 38 IO tests, full affected-app preservation, and strict IO/app Clippy passed passive delivery, pre-cleanup phase notification, retry recovery, disabled backlogs, and fresh undo wake ownership. Routine workspace/native/delivery closeout remains. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
+
 <!-- Mode: Escalating to XHigh for retained HTTP response/callback ownership, graph-failure callback preparation, and truthful accepted-request completion under result-capacity failure, generation retirement, and cancellation. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
 <!-- Mode: Returning to High after 46 final HTTP and 38 IO tests, plus final strict IO/app Clippy, passed retained envelopes, alternate callbacks, native rejection/no-send suffixes, and warning set/clear receipt recovery. Routine preservation/workspace/native/delivery closeout remains. Actual effort remains unchanged/unobservable; no supported control is exposed. -->
 

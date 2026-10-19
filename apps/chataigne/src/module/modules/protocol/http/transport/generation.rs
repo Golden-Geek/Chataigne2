@@ -1,4 +1,4 @@
-use golden_io::WorkerCancellation;
+use golden_io::{WorkerCancellation, WorkerNotifier};
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 
@@ -23,6 +23,7 @@ enum FenceState {
 pub(super) struct CompletionGuard {
     fence: GenerationFence,
     completed: bool,
+    notifier: WorkerNotifier,
 }
 
 impl GenerationFence {
@@ -30,10 +31,11 @@ impl GenerationFence {
         self.0.state.load(Ordering::Acquire) == FenceState::Drained as u8
     }
 
-    pub(super) fn guard(&self) -> CompletionGuard {
+    pub(super) fn guard(&self, notifier: WorkerNotifier) -> CompletionGuard {
         CompletionGuard {
             fence: self.clone(),
             completed: false,
+            notifier,
         }
     }
 
@@ -66,10 +68,11 @@ impl GenerationFence {
 }
 
 impl CompletionGuard {
-    /// Accepted commands and their results are resolved before native client cleanup begins.
+    /// Announce resolved work before native client cleanup, even if that cleanup blocks.
     pub(super) fn drained(&mut self) {
         self.completed = true;
         self.fence.finish(FenceState::Drained);
+        self.notifier.notify();
     }
 }
 
@@ -77,6 +80,7 @@ impl Drop for CompletionGuard {
     fn drop(&mut self) {
         if !self.completed {
             self.fence.finish(FenceState::Aborted);
+            self.notifier.notify();
         }
     }
 }

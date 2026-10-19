@@ -3,8 +3,8 @@ mod outbound;
 mod output_plan;
 mod transport;
 
-use crate::app::module::common::streaming::wakeup::StreamingWake;
 use crate::app::module::common::streaming::{delivery::InputDelivery, input::StreamInputConfig};
+use crate::app::module::common::worker_wake::ModuleWake;
 use std::{collections::VecDeque, time::Duration};
 
 use golden_core::{
@@ -111,7 +111,7 @@ impl Node for UdpOutputManager {
 )]
 pub struct UdpModule {
     stream: StreamingModuleBase,
-    wake: Option<StreamingWake>,
+    wake: Option<ModuleWake>,
     transports: UdpTransports,
     transport_dirty: bool,
     pending_inputs: VecDeque<InputDelivery>,
@@ -476,7 +476,7 @@ impl Node for UdpModule {
             self.pending_inputs.clear();
             self.output_plan = None;
             self.stream.discard_pending_input();
-            match StreamingWake::new(source) {
+            match ModuleWake::new(source) {
                 Ok(wake) => self.wake = Some(wake),
                 Err(error) => {
                     logerror!("Failed to register UDP retry deadline: {}", error);

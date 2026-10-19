@@ -8,5 +8,4 @@ pub(crate) mod parser;
 pub(crate) mod script;
 #[cfg(test)]
 mod tests;
-pub(crate) mod wakeup;
 pub(crate) mod websocket;

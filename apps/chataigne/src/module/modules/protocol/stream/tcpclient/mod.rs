@@ -1,6 +1,9 @@
 mod transport;
 
-use crate::app::module::common::streaming::{delivery::InputDelivery, input::StreamInputConfig, wakeup::StreamingWake};
+use crate::app::module::common::{
+    streaming::{delivery::InputDelivery, input::StreamInputConfig},
+    worker_wake::ModuleWake,
+};
 use golden_core::{
     engine::NodeExecutionRule,
     events::{CustomEvent, Event},
@@ -48,7 +51,7 @@ pub struct TcpClientModule {
     retiring_transport: Option<TcpStreamingTransportHandle>,
     last_transport_config: Option<TcpStreamingTransportConfig>,
     transport_dirty: bool,
-    wake: Option<StreamingWake>,
+    wake: Option<ModuleWake>,
     retry_at: Option<std::time::Instant>,
     pending_inputs: VecDeque<InputDelivery>,
 }
@@ -405,7 +408,7 @@ impl Node for TcpClientModule {
             self.stop_transport();
             self.stream.discard_pending_input();
             self.pending_inputs.clear();
-            self.wake = match StreamingWake::new(source) {
+            self.wake = match ModuleWake::new(source) {
                 Ok(wake) => Some(wake),
                 Err(error) => {
                     logerror!("Failed to register TCP retry deadline: {}", error);

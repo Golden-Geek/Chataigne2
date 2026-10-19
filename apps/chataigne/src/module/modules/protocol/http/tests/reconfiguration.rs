@@ -220,15 +220,25 @@ fn http_invalid_settings_reject_new_admission_without_discarding_old_completions
     module.transports = super::super::lifecycle::HttpTransports::with_lifetimes(pool.clone());
     module
         .transports
-        .configure_using(config("http://127.0.0.1/".into()), |config, pool, previous| {
-            super::super::transport::HttpTransportHandle::spawn_using(config, pool, previous, |_, _, next, _, _| {
-                Some(super::super::transport::HttpOutcome::Response(test_response(
-                    &next.payload.path,
-                    None,
-                    Vec::new(),
-                )))
-            })
-        })
+        .configure_using(
+            config("http://127.0.0.1/".into()),
+            module.wake.as_ref().unwrap().notifier.clone(),
+            |config, pool, previous, notifier| {
+                super::super::transport::HttpTransportHandle::spawn_using(
+                    config,
+                    pool,
+                    previous,
+                    notifier,
+                    |_, _, next, _, _| {
+                        Some(super::super::transport::HttpOutcome::Response(test_response(
+                            &next.payload.path,
+                            None,
+                            Vec::new(),
+                        )))
+                    },
+                )
+            },
+        )
         .unwrap();
     module.transport_dirty = false;
     for path in ["first", "second"] {

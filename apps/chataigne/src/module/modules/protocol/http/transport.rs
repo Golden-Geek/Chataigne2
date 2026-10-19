@@ -14,6 +14,7 @@ pub(super) const HTTP_RESPONSE_BODY_BYTES: usize = 1024 * 1024;
 
 use golden_io::{
     BoundedWorker, PendingDrain, PendingSendError, RetirementPool, WorkerCancellation, WorkerContext, WorkerLimits,
+    WorkerNotifier,
 };
 
 mod generation;
@@ -130,21 +131,23 @@ impl HttpTransportHandle {
         config: HttpTransportConfig,
         lifetimes: &RetirementPool,
     ) -> Result<Self, String> {
-        Self::spawn_generation(config, lifetimes, None)
+        Self::spawn_generation(config, lifetimes, None, WorkerNotifier::new(|| {}))
     }
 
     pub(super) fn spawn_generation(
         config: HttpTransportConfig,
         lifetimes: &RetirementPool,
         predecessor: Option<GenerationFence>,
+        notifier: WorkerNotifier,
     ) -> Result<Self, String> {
-        Self::spawn_using(config, lifetimes, predecessor, execute_with_retries)
+        Self::spawn_using(config, lifetimes, predecessor, notifier, execute_with_retries)
     }
 
     pub(super) fn spawn_using<F>(
         config: HttpTransportConfig,
         lifetimes: &RetirementPool,
         predecessor: Option<GenerationFence>,
+        notifier: WorkerNotifier,
         execute: F,
     ) -> Result<Self, String>
     where
@@ -158,7 +161,7 @@ impl HttpTransportHandle {
             + Send
             + 'static,
     {
-        Self::spawn_worker(config, lifetimes, predecessor, Box::new(execute), None)
+        Self::spawn_worker(config, lifetimes, predecessor, notifier, Box::new(execute), None)
     }
 
     #[cfg(test)]
@@ -166,6 +169,7 @@ impl HttpTransportHandle {
         config: HttpTransportConfig,
         lifetimes: &RetirementPool,
         predecessor: Option<GenerationFence>,
+        notifier: WorkerNotifier,
         execute: F,
         retire: R,
     ) -> Result<Self, String>
@@ -185,6 +189,7 @@ impl HttpTransportHandle {
             config,
             lifetimes,
             predecessor,
+            notifier,
             Box::new(execute),
             Some(Box::new(retire)),
         )
@@ -194,13 +199,15 @@ impl HttpTransportHandle {
         config: HttpTransportConfig,
         lifetimes: &RetirementPool,
         predecessor: Option<GenerationFence>,
+        notifier: WorkerNotifier,
         execute: Box<HttpExecutor>,
         retirement_hook: Option<Box<dyn FnOnce() + Send>>,
     ) -> Result<Self, String> {
         let completion = GenerationFence::default();
         let worker_completion = completion.clone();
         let worker_predecessor = predecessor.clone();
-        let worker = BoundedWorker::spawn(
+        let phase_notifier = notifier.clone();
+        let worker = BoundedWorker::spawn_notified(
             "chataigne-http",
             lifetimes,
             WorkerLimits {
@@ -209,8 +216,9 @@ impl HttpTransportHandle {
                 event_items: HTTP_RESPONSE_CAPACITY,
                 event_weight: HTTP_EVENT_BYTES,
             },
+            notifier,
             move |context| {
-                let mut complete = worker_completion.guard();
+                let mut complete = worker_completion.guard(phase_notifier);
                 let ready = worker_predecessor
                     .as_ref()
                     .is_none_or(|previous| previous.wait(context.cancellation()));

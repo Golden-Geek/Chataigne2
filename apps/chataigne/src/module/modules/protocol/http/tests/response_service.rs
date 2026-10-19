@@ -123,7 +123,7 @@ fn http_result_rejection_is_visible_without_a_snapshot_and_clears_after_recovery
             }
             .into(),
         ));
-    assert!(!module.update_requires_tree_snapshot());
+    assert!(!module.worker_wake_requires_tree_snapshot());
     let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);
     module.service_pending_events(&mut ctx, None);
     assert!(
@@ -322,10 +322,10 @@ fn http_waits_for_edit_receipts_and_publishes_callbacks_without_tree_snapshots()
     ));
     module.service_pending_events(&mut values, Some(&snapshot));
     assert!(
-        !module.update_requires_tree_snapshot(),
+        !module.worker_wake_requires_tree_snapshot(),
         "a pending receipt cannot plan another turn"
     );
-    module.update(&mut waiting);
+    module.on_worker_wake(&mut waiting);
     assert!(
         waiting.edits.pending.is_empty(),
         "never advance a cursor before its edits apply"
@@ -338,13 +338,13 @@ fn http_waits_for_edit_receipts_and_publishes_callbacks_without_tree_snapshots()
         panic!("HTTP module")
     };
     assert!(
-        !module.update_requires_tree_snapshot(),
+        !module.worker_wake_requires_tree_snapshot(),
         "final application acknowledgement needs no graph copy"
     );
-    module.update(&mut delivery);
+    module.on_worker_wake(&mut delivery);
     let queued = delivery.edits.pending.len();
     assert_eq!(queued, 1);
-    module.update(&mut delivery);
+    module.on_worker_wake(&mut delivery);
     assert_eq!(
         delivery.edits.pending.len(),
         queued,
@@ -356,8 +356,8 @@ fn http_waits_for_edit_receipts_and_publishes_callbacks_without_tree_snapshots()
     let crate::app::AppNode::HttpModule(module) = engine.nodes.get_mut(module_id).unwrap() else {
         panic!("HTTP module")
     };
-    assert!(!module.update_requires_tree_snapshot());
-    module.update(&mut waiting);
+    assert!(!module.worker_wake_requires_tree_snapshot());
+    module.on_worker_wake(&mut waiting);
     assert!(!module.has_pending_responses_for_test());
     assert_eq!(callbacks(&engine), ["responseReceived"]);
     let value = find_path(&engine, module_id, "values/receipt/value").unwrap();

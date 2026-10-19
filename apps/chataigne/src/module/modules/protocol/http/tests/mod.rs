@@ -12,6 +12,7 @@ use golden_core::{
 use serde_json::json;
 
 mod generations;
+mod passive;
 mod reconfiguration;
 mod response_service;
 mod transport;

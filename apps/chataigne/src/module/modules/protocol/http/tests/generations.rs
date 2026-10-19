@@ -2,11 +2,47 @@ use super::super::lifecycle::HttpTransports;
 use super::super::transport::{HttpOutcome, HttpTransportHandle, HttpWorkerEvent};
 use super::transport::{config, request};
 use super::*;
-use golden_io::RetirementPool;
+use golden_io::{RetirementPool, WorkerNotifier};
 use std::num::NonZeroUsize;
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::Instant;
+
+fn notifier() -> WorkerNotifier {
+    WorkerNotifier::new(|| {})
+}
+
+#[test]
+fn resolved_empty_generation_notifies_before_native_cleanup_can_block() {
+    let pool = RetirementPool::new(NonZeroUsize::MIN);
+    let (wake_tx, wake_rx) = mpsc::channel();
+    let (retiring_tx, retiring_rx) = mpsc::channel();
+    let (release_tx, release_rx) = mpsc::channel();
+    let mut handle = HttpTransportHandle::spawn_with_retirement_hook(
+        settings(0),
+        &pool,
+        None,
+        WorkerNotifier::new(move || {
+            let _ = wake_tx.send(());
+        }),
+        |_, _, _, _, _| panic!("no request was admitted"),
+        move || {
+            retiring_tx.send(()).unwrap();
+            release_rx.recv_timeout(Duration::from_secs(3)).unwrap();
+        },
+    )
+    .unwrap();
+    handle.finish_admission();
+    retiring_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+    wake_rx
+        .recv_timeout(Duration::from_millis(100))
+        .expect("resolved phase must wake before cleanup exits");
+    assert!(handle.requests_drained());
+    assert_eq!(pool.metrics().active, 1);
+    assert!(!pool.wait_for_idle(Duration::from_millis(20)));
+    release_tx.send(()).unwrap();
+    assert!(pool.wait_for_idle(Duration::from_secs(2)));
+}
 
 fn named(path: &str) -> super::super::transport::HttpQueuedRequest {
     let mut next = request();
@@ -29,8 +65,11 @@ fn success_factory(
     config: super::super::transport::HttpTransportConfig,
     pool: &RetirementPool,
     previous: Option<super::super::transport::GenerationFence>,
+    notifier: WorkerNotifier,
 ) -> Result<HttpTransportHandle, String> {
-    HttpTransportHandle::spawn_using(config, pool, previous, |_, _, next, _, _| Some(succeeded(next)))
+    HttpTransportHandle::spawn_using(config, pool, previous, notifier, |_, _, next, _, _| {
+        Some(succeeded(next))
+    })
 }
 
 fn collect(manager: &mut HttpTransports, count: usize) -> Vec<HttpWorkerEvent> {
@@ -79,9 +118,9 @@ fn http_full_lifetime_capacity_preserves_the_old_owner_and_recovers() {
     let (entered_tx, entered_rx) = mpsc::channel();
     let (release_tx, release_rx) = mpsc::channel();
     manager
-        .configure_using(settings(0), move |config, pool, previous| {
+        .configure_using(settings(0), notifier(), move |config, pool, previous, notifier| {
             let mut first = true;
-            HttpTransportHandle::spawn_using(config, pool, previous, move |_, _, next, _, _| {
+            HttpTransportHandle::spawn_using(config, pool, previous, notifier, move |_, _, next, _, _| {
                 if first {
                     first = false;
                     entered_tx.send(()).unwrap();
@@ -107,7 +146,7 @@ fn http_full_lifetime_capacity_preserves_the_old_owner_and_recovers() {
     }
     assert_eq!(expected.len(), 257, "one in flight plus a full 256-command mailbox");
     assert!(manager
-        .configure_using(settings(1), success_factory)
+        .configure_using(settings(1), notifier(), success_factory)
         .unwrap_err()
         .contains("capacity"));
     assert!(manager
@@ -118,7 +157,9 @@ fn http_full_lifetime_capacity_preserves_the_old_owner_and_recovers() {
     assert_eq!(collect_paths(&mut manager, expected.len()), expected);
     assert!(pool.wait_for_idle(Duration::from_secs(2)));
     assert!(manager.poll().events.is_empty());
-    manager.configure_using(settings(1), success_factory).unwrap();
+    manager
+        .configure_using(settings(1), notifier(), success_factory)
+        .unwrap();
     manager.send(named("recovered")).unwrap();
     assert_eq!(paths(&collect(&mut manager, 1)), ["recovered"]);
     manager.pause_admission();
@@ -135,8 +176,8 @@ fn http_repeated_reconfiguration_has_a_fixed_owner_limit_and_coalesces_identical
     let executed = Arc::new(Mutex::new(Vec::<String>::new()));
     let old_executed = executed.clone();
     manager
-        .configure_using(settings(0), move |config, pool, previous| {
-            HttpTransportHandle::spawn_using(config, pool, previous, move |_, _, next, _, _| {
+        .configure_using(settings(0), notifier(), move |config, pool, previous, notifier| {
+            HttpTransportHandle::spawn_using(config, pool, previous, notifier, move |_, _, next, _, _| {
                 old_executed.lock().unwrap().push(next.payload.path.clone());
                 entered_tx.send(()).unwrap();
                 let _ = release_rx.recv_timeout(Duration::from_secs(3));
@@ -149,8 +190,8 @@ fn http_repeated_reconfiguration_has_a_fixed_owner_limit_and_coalesces_identical
     for index in 1..=2 {
         let executed = executed.clone();
         manager
-            .configure_using(settings(index), move |config, pool, previous| {
-                HttpTransportHandle::spawn_using(config, pool, previous, move |_, _, next, _, _| {
+            .configure_using(settings(index), notifier(), move |config, pool, previous, notifier| {
+                HttpTransportHandle::spawn_using(config, pool, previous, notifier, move |_, _, next, _, _| {
                     executed.lock().unwrap().push(next.payload.path.clone());
                     Some(succeeded(next))
                 })
@@ -159,7 +200,7 @@ fn http_repeated_reconfiguration_has_a_fixed_owner_limit_and_coalesces_identical
         for _ in 0..20 {
             manager.block_admission();
             manager
-                .configure_using(settings(index), |_, _, _| {
+                .configure_using(settings(index), notifier(), |_, _, _, _| {
                     panic!("identical settings must reuse admission")
                 })
                 .unwrap();
@@ -168,7 +209,7 @@ fn http_repeated_reconfiguration_has_a_fixed_owner_limit_and_coalesces_identical
     }
     for _ in 0..20 {
         assert!(manager
-            .configure_using(settings(3), success_factory)
+            .configure_using(settings(3), notifier(), success_factory)
             .unwrap_err()
             .contains("older admitted requests"));
         assert!(manager.send(named("rejected")).is_err());
@@ -182,7 +223,9 @@ fn http_repeated_reconfiguration_has_a_fixed_owner_limit_and_coalesces_identical
     assert_eq!(*executed.lock().unwrap(), ["first", "generation 1", "generation 2"]);
     assert!(pool.wait_for_idle(Duration::from_secs(2)));
     manager.poll();
-    manager.configure_using(settings(3), success_factory).unwrap();
+    manager
+        .configure_using(settings(3), notifier(), success_factory)
+        .unwrap();
     manager.send(named("after drain")).unwrap();
     assert_eq!(paths(&collect(&mut manager, 1)), ["after drain"]);
     manager.pause_admission();
@@ -200,8 +243,8 @@ fn http_worker_failure_resolves_queued_requests_without_sending_them_and_then_re
     let (entered_tx, entered_rx) = mpsc::channel();
     let (release_tx, release_rx) = mpsc::channel();
     manager
-        .configure_using(settings(0), move |config, pool, previous| {
-            HttpTransportHandle::spawn_using(config, pool, previous, move |_, _, _, _, progress| {
+        .configure_using(settings(0), notifier(), move |config, pool, previous, notifier| {
+            HttpTransportHandle::spawn_using(config, pool, previous, notifier, move |_, _, _, _, progress| {
                 progress.attempts = 1;
                 entered_tx.send(()).unwrap();
                 let _ = release_rx.recv_timeout(Duration::from_secs(3));
@@ -224,7 +267,9 @@ fn http_worker_failure_resolves_queued_requests_without_sending_them_and_then_re
     assert!(manager.send(named("rejected after failure")).is_err());
     assert!(pool.wait_for_idle(Duration::from_secs(2)));
     manager.poll();
-    manager.configure_using(settings(1), success_factory).unwrap();
+    manager
+        .configure_using(settings(1), notifier(), success_factory)
+        .unwrap();
     manager.send(named("recovered")).unwrap();
     assert_eq!(paths(&collect(&mut manager, 1)), ["recovered"]);
     manager.pause_admission();
@@ -236,7 +281,7 @@ fn stopping_a_gated_generation_wakes_it_without_issuing_its_requests() {
     let pool = RetirementPool::new(NonZeroUsize::new(2).unwrap());
     let (entered_tx, entered_rx) = mpsc::channel();
     let (release_tx, release_rx) = mpsc::channel();
-    let mut old = HttpTransportHandle::spawn_using(settings(0), &pool, None, move |_, _, next, _, _| {
+    let mut old = HttpTransportHandle::spawn_using(settings(0), &pool, None, notifier(), move |_, _, next, _, _| {
         entered_tx.send(()).unwrap();
         let _ = release_rx.recv_timeout(Duration::from_secs(3));
         Some(succeeded(next))
@@ -244,11 +289,14 @@ fn stopping_a_gated_generation_wakes_it_without_issuing_its_requests() {
     .unwrap();
     old.send(named("old")).unwrap();
     entered_rx.recv_timeout(Duration::from_secs(3)).unwrap();
-    let mut next =
-        HttpTransportHandle::spawn_using(settings(1), &pool, Some(old.completion_fence()), |_, _, _, _, _| {
-            panic!("gated request must never execute")
-        })
-        .unwrap();
+    let mut next = HttpTransportHandle::spawn_using(
+        settings(1),
+        &pool,
+        Some(old.completion_fence()),
+        notifier(),
+        |_, _, _, _, _| panic!("gated request must never execute"),
+    )
+    .unwrap();
     next.send(named("cancelled destination")).unwrap();
     next.stop();
     drop(next);
@@ -276,11 +324,12 @@ fn http_native_retirement_cannot_block_resolved_results_or_new_generations() {
     let (retiring_tx, retiring_rx) = mpsc::channel();
     let (release_tx, release_rx) = mpsc::channel();
     manager
-        .configure_using(settings(0), move |config, pool, previous| {
+        .configure_using(settings(0), notifier(), move |config, pool, previous, notifier| {
             HttpTransportHandle::spawn_with_retirement_hook(
                 config,
                 pool,
                 previous,
+                notifier,
                 |_, _, next, _, _| Some(succeeded(next)),
                 move || {
                     retiring_tx.send(()).unwrap();
@@ -290,7 +339,9 @@ fn http_native_retirement_cannot_block_resolved_results_or_new_generations() {
         })
         .unwrap();
     manager.send(named("old")).unwrap();
-    manager.configure_using(settings(1), success_factory).unwrap();
+    manager
+        .configure_using(settings(1), notifier(), success_factory)
+        .unwrap();
     manager.send(named("new")).unwrap();
     retiring_rx.recv_timeout(Duration::from_secs(3)).unwrap();
     let events = collect(&mut manager, 2);
