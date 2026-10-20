@@ -41,6 +41,7 @@ fn playback_lifecycle_events_have_outgoing_log_messages() {
     );
 
     let failed = AudioEvent::PlaybackFailed(PlaybackFailure {
+        terminated_voice: None,
         playback_id: PlaybackId::new("voice-b").expect("playback ID"),
         path: PathBuf::from("music/missing.wav"),
         error: AudioError::invalid_configuration("fixture failure"),

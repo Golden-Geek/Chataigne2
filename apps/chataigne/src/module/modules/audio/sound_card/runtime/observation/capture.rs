@@ -3,6 +3,7 @@ use std::{
     sync::{Arc, Mutex, OnceLock},
 };
 
+use super::telemetry::{PreparedTelemetry, TelemetryPreparer};
 use golden_audio::{AudioObservationReader, AudioObservationSnapshot};
 use golden_io::{PayloadPool, RetainedPayload};
 
@@ -13,6 +14,10 @@ pub(crate) const SNAPSHOT_ITEMS: usize = 65_536;
 pub(crate) enum ObservationCaptureError {
     Capacity,
     Oversized,
+    TelemetryCapacity,
+    TelemetryOversized,
+    VoiceCapacity,
+    ValueOversized,
 }
 
 impl ObservationCaptureError {
@@ -20,6 +25,12 @@ impl ObservationCaptureError {
         match self {
             Self::Capacity => "Sound Card observation lifetime capacity exhausted",
             Self::Oversized => "Sound Card observation exceeds 8 MiB / 65536 collection entries",
+            Self::TelemetryCapacity => "Sound Card telemetry lifetime capacity exhausted",
+            Self::TelemetryOversized => "Sound Card telemetry exceeds 4 MiB wire / 32 MiB retained / 65536 JSON values",
+            Self::VoiceCapacity => {
+                "Sound Card native voice telemetry exceeded its 256 voice / 128 MiB contract; restart the runtime"
+            }
+            Self::ValueOversized => "Sound Card pitch note exceeds its 64-byte value projection bound",
         }
     }
 }
@@ -29,6 +40,7 @@ pub(crate) struct ObservationView {
     pub error: Option<ObservationCaptureError>,
     pub header: ObservationHeader,
     pub sequence: u64,
+    pub telemetry: Option<PreparedTelemetry>,
 }
 
 #[derive(Clone, Copy)]
@@ -61,11 +73,28 @@ impl Deref for ObservationView {
     }
 }
 
+impl ObservationView {
+    pub(super) fn snapshot(&self) -> RetainedPayload<AudioObservationSnapshot> {
+        self.snapshot.clone()
+    }
+    pub(super) fn values_available(&self) -> bool {
+        !matches!(
+            self.error,
+            Some(
+                ObservationCaptureError::Capacity
+                    | ObservationCaptureError::Oversized
+                    | ObservationCaptureError::ValueOversized
+            )
+        )
+    }
+}
+
 struct State {
     snapshot: RetainedPayload<AudioObservationSnapshot>,
     error: Option<ObservationCaptureError>,
     header: ObservationHeader,
     sequence: u64,
+    telemetry: Option<PreparedTelemetry>,
 }
 
 #[derive(Clone)]
@@ -75,6 +104,7 @@ pub(crate) struct ObservationCollector {
     reader: AudioObservationReader,
     pool: PayloadPool,
     capture: ObservationCapture,
+    telemetry: TelemetryPreparer,
 }
 
 impl ObservationCapture {
@@ -85,6 +115,7 @@ impl ObservationCapture {
             error: state.error,
             header: state.header,
             sequence: state.sequence,
+            telemetry: state.telemetry.clone(),
         }
     }
 }
@@ -112,11 +143,14 @@ impl ObservationCollector {
     ) -> Result<(ObservationCapture, Self), ObservationCaptureError> {
         let snapshot = capture(&reader, &pool)?;
         let header = reader.inspect(ObservationHeader::from_snapshot);
+        let mut telemetry = TelemetryPreparer::new()?;
+        let prepared = telemetry.prepare(&snapshot);
         let state = ObservationCapture(Arc::new(Mutex::new(State {
             snapshot,
-            error: None,
+            error: prepared.as_ref().err().copied(),
             header,
             sequence: 1,
+            telemetry: prepared.ok(),
         })));
         Ok((
             state.clone(),
@@ -124,30 +158,43 @@ impl ObservationCollector {
                 reader,
                 pool,
                 capture: state,
+                telemetry,
             },
         ))
     }
 
     pub(crate) fn refresh(&mut self) {
         let result = capture(&self.reader, &self.pool);
+        let prepared = match &result {
+            Ok(snapshot) => Some(self.telemetry.prepare(snapshot)),
+            Err(_) => None,
+        };
         let header = self.reader.inspect(ObservationHeader::from_snapshot);
         let previous = {
             let mut state = self.capture.0.lock().unwrap_or_else(|p| p.into_inner());
             state.header = header;
             match result {
                 Ok(snapshot) => {
-                    state.error = None;
+                    let prepared = prepared.expect("successful snapshot");
+                    state.error = prepared.as_ref().err().copied();
                     state.sequence = state.sequence.wrapping_add(1);
-                    Some(std::mem::replace(&mut state.snapshot, snapshot))
+                    (
+                        Some(std::mem::replace(&mut state.snapshot, snapshot)),
+                        std::mem::replace(&mut state.telemetry, prepared.ok()),
+                    )
                 }
                 Err(error) => {
                     state.error = Some(error);
-                    None
+                    (None, state.telemetry.take())
                 }
             }
         };
         // No disposer/pool lock is acquired while holding the publication lock.
         drop(previous);
+    }
+
+    pub(crate) fn observe(&mut self, event: &golden_audio::AudioEvent) {
+        self.telemetry.observe(event);
     }
 }
 
@@ -192,3 +239,6 @@ fn capture(
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+pub(super) use tests::view_for_test;

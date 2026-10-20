@@ -152,3 +152,59 @@ fn stop_all_keeps_unreturned_voice_outcomes_for_shutdown() {
         matches!(&events[0], AudioEvent::PlaybackStopped(info) if info.reason == PlaybackStopReason::ModuleDisabled)
     );
 }
+
+#[test]
+fn decoder_failure_identifies_only_the_retired_voice_generation() {
+    let mut f = Fixture::new();
+    let id = PlaybackId::new("same").unwrap();
+    f.playing("same", 2, VoiceId::new(0, 2));
+    publish_render_event(
+        &f.sender,
+        &f.observations,
+        &mut f.scheduler,
+        &mut f.lifecycle,
+        PlaybackRenderEvent::Failed {
+            playback_id: id.clone(),
+            voice: VoiceId::new(0, 1),
+            path: "old.wav".into(),
+            rendered_frames: 1,
+        },
+    );
+    let events = f.events.drain();
+    assert!(
+        matches!(&events[0], AudioEvent::PlaybackFailed(failure) if failure.terminated_voice == Some(VoiceId::new(0, 1)))
+    );
+    assert!(f.lifecycle.current.contains_key(&id));
+    publish_render_event(
+        &f.sender,
+        &f.observations,
+        &mut f.scheduler,
+        &mut f.lifecycle,
+        PlaybackRenderEvent::Failed {
+            playback_id: id.clone(),
+            voice: VoiceId::new(0, 2),
+            path: "new.wav".into(),
+            rendered_frames: 2,
+        },
+    );
+    let events = f.events.drain();
+    assert!(
+        matches!(&events[0], AudioEvent::PlaybackFailed(failure) if failure.terminated_voice == Some(VoiceId::new(0, 2)))
+    );
+    assert!(!f.lifecycle.current.contains_key(&id));
+}
+
+#[test]
+fn failed_stop_admission_reports_no_retired_voice_and_keeps_the_active_lifecycle() {
+    let mut f = Fixture::new();
+    let id = PlaybackId::new("same").unwrap();
+    let voice = VoiceId::new(0, 1);
+    f.playing("same", 1, voice);
+    for _ in 0..f.voices.command_capacity() {
+        f.voices.try_stop(voice, PlaybackStopReason::Requested).unwrap();
+    }
+    f.stop(&id, PlaybackStopReason::Requested);
+    let events = f.events.drain();
+    assert!(matches!(&events[0], AudioEvent::PlaybackFailed(failure) if failure.terminated_voice.is_none()));
+    assert!(f.lifecycle.current.contains_key(&id));
+}

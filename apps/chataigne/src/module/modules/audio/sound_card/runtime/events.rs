@@ -166,6 +166,7 @@ impl SoundCardRuntimeEvents {
                         .recv_timeout(interval)
                     {
                         Ok(Some(event)) => {
+                            collector.observe(&event);
                             collector.refresh();
                             let mut draft = AudioEventDraft::new(event);
                             let mut guard = worker_capacity.lock.lock().unwrap_or_else(|p| p.into_inner());
@@ -259,6 +260,10 @@ impl SoundCardRuntimeEvents {
 
     pub(super) fn observation(&self) -> ObservationView {
         self.observation.latest()
+    }
+
+    pub(super) fn continue_service(&self) {
+        notify(&self.wake);
     }
 
     pub(super) fn inspector_state(&self) -> golden_audio::AudioDeviceInspectorState {

@@ -4,6 +4,14 @@ use std::fmt;
 /// Reject expansion before constructing a wide/deep value tree. The first pass
 /// validates through serde without retaining values; only bounded input is built.
 pub(crate) fn parse(source: &str, bytes: usize, nodes: usize, depth: usize) -> Result<serde_json::Value, String> {
+    validate(source, bytes, nodes, depth)?;
+    serde_json::from_str(source).map_err(|error| error.to_string())
+}
+
+/// Validate before materializing values and return their count, including
+/// duplicate object entries. Preparing workers can reserve construction storage
+/// from this count without first allocating a JSON tree.
+pub(crate) fn validate(source: &str, bytes: usize, nodes: usize, depth: usize) -> Result<usize, String> {
     if source.len() > bytes {
         return Err("JSON source exceeds its byte limit".into());
     }
@@ -19,7 +27,7 @@ pub(crate) fn parse(source: &str, bytes: usize, nodes: usize, depth: usize) -> R
     .deserialize(&mut deserializer)
     .map_err(|error| error.to_string())?;
     deserializer.end().map_err(|error| error.to_string())?;
-    serde_json::from_str(source).map_err(|error| error.to_string())
+    Ok(nodes - budget.remaining)
 }
 struct Budget {
     remaining: usize,
@@ -110,7 +118,9 @@ pub(crate) fn retained_weight(
                 pending.extend(values.iter().map(|value| (value, level + 1)));
             }
             Value::Object(values) => {
-                weight = weight.saturating_add(values.len().saturating_mul(256));
+                // A sparse B-tree node can contain only one live entry. Charge
+                // a full node per entry and a possible empty root.
+                weight = weight.saturating_add(values.len().saturating_add(1).saturating_mul(1024));
                 if weight > bytes || values.len().saturating_add(visited).saturating_add(pending.len()) > items {
                     return Err("JSON exceeds its retained-byte/item admission limit".into());
                 }

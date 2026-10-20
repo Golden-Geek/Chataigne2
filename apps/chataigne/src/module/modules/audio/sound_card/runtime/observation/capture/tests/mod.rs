@@ -35,7 +35,7 @@ fn retained_observation_capacity_failure_is_visible_and_recovers_without_actor_c
     );
     drop(repeated);
     collector.refresh();
-    assert!(capture.latest().error.is_none());
+    assert!(capture.latest().values_available());
     collector.refresh();
     let full = capture.latest();
     assert_eq!(full.error, Some(ObservationCaptureError::Capacity));
@@ -68,7 +68,7 @@ fn retained_observation_capacity_failure_is_visible_and_recovers_without_actor_c
     let deadline = std::time::Instant::now() + Duration::from_secs(3);
     loop {
         collector.refresh();
-        if capture.latest().error.is_none() {
+        if capture.latest().values_available() {
             break;
         }
         assert!(std::time::Instant::now() < deadline);
@@ -79,4 +79,20 @@ fn retained_observation_capacity_failure_is_visible_and_recovers_without_actor_c
     drop((capture, collector));
     assert!(pool.wait_for_idle(Duration::from_secs(3)));
     engine.shutdown().unwrap();
+}
+
+pub(in super::super) fn view_for_test(snapshot: AudioObservationSnapshot, sequence: u64) -> ObservationView {
+    let pool = PayloadPool::new("sound-card-test-frame", 1, SNAPSHOT_BYTES).unwrap();
+    let header = ObservationHeader::from_snapshot(&snapshot);
+    let bytes = snapshot
+        .retained_bytes_within(SNAPSHOT_BYTES - 16, SNAPSHOT_ITEMS)
+        .unwrap()
+        + 16;
+    ObservationView {
+        snapshot: pool.try_retain(snapshot, bytes).unwrap(),
+        error: None,
+        header,
+        sequence,
+        telemetry: None,
+    }
 }

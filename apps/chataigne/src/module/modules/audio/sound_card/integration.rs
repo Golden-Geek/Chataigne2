@@ -1,6 +1,4 @@
-use chataigne_sound_card_protocol::{
-    SoundCardUiControlRequest, SoundCardUiTelemetryDto, SOUND_CARD_TELEMETRY_TOPIC, SOUND_CARD_UI_CONTROL_TOPIC,
-};
+use chataigne_sound_card_protocol::{SoundCardUiControlRequest, SOUND_CARD_UI_CONTROL_TOPIC};
 use golden_audio::{AudioCommand, AudioError, AudioErrorCategory, CommandSequence, PlayFileRequest};
 use golden_core::{
     edit::NodeTree,
@@ -407,7 +405,7 @@ impl SoundCardModule {
                 let Some(runtime) = self.runtime.as_mut() else {
                     return;
                 };
-                match runtime.submit(built, snapshot) {
+                match runtime.submit(built) {
                     Ok(_) => {
                         let _ = runtime.set_enabled(module_enabled);
                         self.configuration_dirty = false;
@@ -449,6 +447,7 @@ impl SoundCardModule {
         let (input_device, output_device) = self.selected_device_values();
         let input_device = input_device.to_owned();
         let output_device = output_device.to_owned();
+        let module = self.id();
         let Some(runtime) = self.runtime.as_mut() else {
             self.service_observation_warning(ctx, None);
             self.base.set_connected(ctx, false);
@@ -456,7 +455,7 @@ impl SoundCardModule {
                 .set_data_capabilities(ctx, crate::app::module::ModuleDataCapabilities::new(false, false));
             return;
         };
-        let (observation, telemetry, events) = runtime.poll(ctx, !had_pending);
+        let (observation, events) = runtime.poll(ctx, module, !had_pending);
         self.service_observation_warning(ctx, observation.error);
         if observation.error.is_none()
             && selected_parameter_ids
@@ -484,9 +483,6 @@ impl SoundCardModule {
         let inventory_changed = events.iter().any(|event| runtime_event_changes_inventory(&event.event));
         if inventory_changed && observation.error.is_none() {
             self.sync_live_device_choices(ctx, &observation.device);
-        }
-        if let Some(telemetry) = telemetry {
-            self.emit_telemetry(ctx, &telemetry);
         }
         for event in events {
             if runtime_event_changes_inventory(&event.event) {
@@ -661,10 +657,6 @@ impl SoundCardModule {
         );
         sync_numeric_enum(ctx, self.sample_rate.id(), "Hz", sample_rates.as_slice());
         sync_numeric_enum(ctx, self.buffer_size.id(), "frames", buffer_sizes.as_slice());
-    }
-
-    fn emit_telemetry(&self, ctx: &mut ProcessCtx, telemetry: &SoundCardUiTelemetryDto) {
-        let _ = ctx.emit_latest_custom_payload(SOUND_CARD_TELEMETRY_TOPIC, Some(self.id()), telemetry);
     }
 
     pub(super) fn apply_runtime_warnings(&mut self, ctx: &mut ProcessCtx, warnings: &[runtime::RuntimeWarning]) {

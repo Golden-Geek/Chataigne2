@@ -515,10 +515,10 @@ borrowed bounded storage inspection. Each capture reserves up to **8 MiB / 65,53
 entries** before copying. A shared **128-item / 256 MiB** lifetime pool retains snapshots through
 actor reads and final disposal. Actor reads copy a handle and scalar health fields under a short
 publication lock; snapshot inspection/copying never holds that lock or the event-capacity lock.
-Repeated reads of one captured sequence skip value/telemetry reconstruction. Full event mailboxes
-and callback-preparation pressure continue native observation capture on timed, cancellable waits.
+Full event mailboxes and callback-preparation pressure continue native observation capture on
+timed, cancellable waits.
 
-Capture pressure preserves the last good frame, suppresses stale value/telemetry publication, and
+Capture pressure preserves the last good frame, prevents starting another stale value frame, and
 publishes a separate observation warning through a retryable single-edit receipt. Enable/readiness
 and output-activity scalars continue updating independently. Metering pressure does not disable
 audio or reject controls. Warning receipts remain serviceable after facade retirement.
@@ -530,9 +530,37 @@ configuration/resource allocation. Configuration copies and source storage are o
 pool. Live/replay UI custom-event DTOs now share the canonical JSON Arc, retaining its original
 pool admission until exported DTOs also disappear; their JSON wire shape is unchanged.
 
-Telemetry DTO/JSON preparation, value-service bounds and receipts, active-voice and logger copies,
-configuration preparation/admission, and remaining reconfiguration/apply-time/failure fences remain
-P03 work. These ownership budgets do not qualify whole-process memory or actor deadlines.
+The native owner maintains the active voice catalog and builds telemetry DTOs and JSON. The catalog
+admits **256 voices / 128 MiB**, matching the app's explicit native voice limit. Terminal outcomes
+match the full voice identity; a failed load/control admission does not remove an active voice.
+Golden Audio's optional `PlaybackFailure::terminated_voice` distinguishes actual decoder retirement
+from these nonterminal failures. The app's script callback arguments remain unchanged.
+
+Telemetry preparation reserves typed/encoding/validation scratch before DTO copying (at most
+**25 MiB**), then reserves JSON construction scratch from validated value counts and wire bytes
+(at most **128 MiB**). Both stages share a **128-item / 512 MiB** pool, and temporary buffers stay
+charged until disposal. Small frames reserve smaller allowances. Final JSON seals at its measured size;
+each frame admits **4 MiB wire / 32 MiB retained / 65,536 JSON values / depth 64**. Validation precedes
+JSON tree materialization, and spare capacities/sparse map nodes count toward retained storage.
+Unchanged JSON reuses its canonical payload. Actor service creates only a shared event handle.
+One pending telemetry receipt retries unpublished state; publication is acknowledged only after
+its own edit applies. Exported UI DTOs keep the original quota until their last release. Capacity
+errors remain visible and retry on native observation wakes without disabling audio or controls.
+
+Value projection services at most **64 receipt checks/cursor positions per actor turn**, including
+unbound and unchanged values, with at most 64 outstanding single-edit receipts. A retained frame
+finishes its cursor under continuous capture; newer frames coalesce until that prefix settles.
+The cache advances only for applied edits. Failed cells and their discarded suffix retry separately,
+one edit at a time, once per frame. A permanently missing target waits for a new native capture
+after that cursor settles, so it cannot poison its valid suffix or spin actor continuations.
+Binding changes reset
+the cursor/cache, and old receipts cannot populate the new binding generation. The last valid native
+plan remains observable while a replacement configuration is pending or rejected. Pitch-note value
+strings admit 64 UTF-8 bytes before actor copying. Already admitted frames retain their lifetime
+through receipt settlement; disabling/retiring a facade can cancel these latest-value projections.
+
+Logger copies, configuration preparation/admission, and remaining reconfiguration/apply-time/failure
+fences remain P03 work. These ownership budgets do not qualify whole-process memory or actor deadlines.
 
 ## Current qualification boundaries
 

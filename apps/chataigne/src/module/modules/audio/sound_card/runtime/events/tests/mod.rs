@@ -239,7 +239,7 @@ fn desired_disable_survives_full_control_admission_and_applies_after_pressure_cl
         },
     );
     loop {
-        let (observation, _, events) = runtime.poll(&mut ctx, true);
+        let (observation, events) = runtime.poll(&mut ctx, golden_core::node::NodeId(1), true);
         assert!(events.len() <= EVENT_SERVICE_ITEMS);
         if runtime.enabled_pending.is_none() && !observation.enabled {
             break;

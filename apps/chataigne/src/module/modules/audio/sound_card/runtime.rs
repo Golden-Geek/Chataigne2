@@ -3,20 +3,18 @@ use std::{
     time::Duration,
 };
 
-use chataigne_sound_card_protocol::{SoundCardPlaybackVoiceDto, SoundCardUiTelemetryDto};
 use golden_audio::{
-    match_device_selection, AnalysisProcessorConfiguration, AnalysisResult, AnalysisTapConfiguration, AnalysisTapId,
-    AnalysisTapObservation, AudioBufferPolicy, AudioChannelId, AudioCommand, AudioConfiguration, AudioControl,
-    AudioDeviceDescriptor, AudioDeviceInspectorState, AudioDeviceMatch, AudioDeviceSelection, AudioDeviceTargetId,
-    AudioDirection, AudioEngineBuilder, AudioObservationSnapshot, AudioRecoveryPolicy, AudioRouteId, BackendId,
-    BackendPolicy, ConfigGeneration, DirectionConfiguration, GainDb, InputPatchRoute, NullBackend, OutputPatchRoute,
-    PhysicalChannelKey, PitchAnalysisConfiguration, PlaybackId, PlaybackRoute, SampleRate,
-    SpectrumAnalysisConfiguration, SpectrumBandSpacing, SpectrumOverlap, SpectrumWindow, VirtualInputChannel,
-    VirtualOutputChannel,
+    match_device_selection, AnalysisProcessorConfiguration, AnalysisTapConfiguration, AnalysisTapId, AudioBufferPolicy,
+    AudioChannelId, AudioCommand, AudioConfiguration, AudioControl, AudioDeviceDescriptor, AudioDeviceInspectorState,
+    AudioDeviceMatch, AudioDeviceSelection, AudioDeviceTargetId, AudioDirection, AudioEngineBuilder,
+    AudioRecoveryPolicy, AudioRouteId, BackendId, BackendPolicy, ConfigGeneration, DirectionConfiguration, GainDb,
+    InputPatchRoute, NullBackend, OutputPatchRoute, PhysicalChannelKey, PitchAnalysisConfiguration, PlaybackRoute,
+    SampleRate, SpectrumAnalysisConfiguration, SpectrumBandSpacing, SpectrumOverlap, SpectrumWindow,
+    VirtualInputChannel, VirtualOutputChannel,
 };
 use golden_core::{
     node::{NodeId, NodeReference, NodeUuid},
-    parameter::{ParamValue, ParameterEventBehaviour},
+    parameter::ParamValue,
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 use uuid::Uuid;
@@ -32,7 +30,6 @@ use crate::app::module_modules_audio_sound_card_schema::{SoundCardInputRoute, So
 mod capabilities;
 mod events;
 pub(super) mod observation;
-mod playback;
 mod snapshot;
 mod wake;
 mod worker;
@@ -44,7 +41,7 @@ pub(super) use capabilities::{
     selected_devices_are_available, selected_physical_channels, selected_probe_targets, supported_buffer_sizes,
     supported_sample_rates, supports_system_default,
 };
-use observation::{collect_bindings, playback_status_updates, telemetry_from_observation, values_nearly_equal};
+use observation::collect_bindings;
 #[cfg(test)]
 pub(super) fn collect_bindings_for_test(snapshot: &ProcessTreeSnapshot, module: NodeId) -> SoundCardValueBindings {
     collect_bindings(snapshot, module)
@@ -55,7 +52,7 @@ pub(super) fn playback_status_updates_for_test(
     bindings: &SoundCardValueBindings,
     playback: golden_audio::PlaybackObservation,
 ) -> [(Option<NodeId>, ParamValue); 2] {
-    playback_status_updates(bindings, playback)
+    observation::playback_status_updates(bindings, playback)
 }
 
 #[cfg(test)]
@@ -73,6 +70,7 @@ pub(super) use worker::{
     SoundCardRuntimeRequest, SoundCardRuntimeStarted, SoundCardRuntimeWorker, SoundCardRuntimeWorkerPoll,
     StartRequestError,
 };
+pub(super) const MAX_PLAYBACK_VOICES: u16 = 256;
 pub(super) const OBSERVATION_EPSILON: f64 = 0.000_01;
 pub(super) const OUTPUT_ACTIVITY_RMS_THRESHOLD: f32 = 0.01;
 
@@ -148,7 +146,6 @@ impl SoundCardValueBindings {
     }
 }
 
-#[derive(Debug)]
 pub(crate) struct SoundCardRuntime {
     control: AudioControl,
     enabled_pending: Option<bool>,
@@ -160,13 +157,10 @@ pub(crate) struct SoundCardRuntime {
     probe_interests: Vec<AudioDeviceTargetId>,
     levels_update_rate_hz: u32,
     bindings: SoundCardValueBindings,
-    last_values: HashMap<NodeId, ParamValue>,
-    active_playback_voices: HashMap<PlaybackId, SoundCardPlaybackVoiceDto>,
-    last_telemetry: Option<SoundCardUiTelemetryDto>,
-    last_error: Option<String>,
+    values: observation::ValueDelivery,
+    telemetry: observation::TelemetryDelivery,
     outgoing_activity: Option<bool>,
     pending_outgoing_activity: Option<bool>,
-    last_observation_sequence: Option<u64>,
 }
 
 impl SoundCardRuntime {
@@ -178,6 +172,7 @@ impl SoundCardRuntime {
             .with_ordered_events()
             .with_managed_render_runtime();
         builder.config.sample_rate = sample_rate;
+        builder.limits.max_voices = MAX_PLAYBACK_VOICES;
         if driver == NullBackend::backend_id() {
             builder = builder.with_backend(NullBackend);
         } else {
@@ -208,13 +203,10 @@ impl SoundCardRuntime {
             probe_interests: Vec::new(),
             levels_update_rate_hz: LEVELS_UPDATE_RATE_DEFAULT_HZ as u32,
             bindings: SoundCardValueBindings::default(),
-            last_values: HashMap::new(),
-            active_playback_voices: HashMap::new(),
-            last_telemetry: None,
-            last_error: None,
+            values: observation::ValueDelivery::default(),
+            telemetry: observation::TelemetryDelivery::default(),
             outgoing_activity: None,
             pending_outgoing_activity: None,
-            last_observation_sequence: None,
         })
     }
 
@@ -259,11 +251,7 @@ impl SoundCardRuntime {
         self.pending_outgoing_activity.take()
     }
 
-    pub(super) fn submit(
-        &mut self,
-        built: BuiltSoundCardConfiguration,
-        snapshot: &ProcessTreeSnapshot,
-    ) -> Result<ConfigGeneration, String> {
+    pub(super) fn submit(&mut self, built: BuiltSoundCardConfiguration) -> Result<ConfigGeneration, String> {
         let generation = self.generation.next();
         self.control
             .submit(AudioCommand::ApplyConfiguration {
@@ -274,12 +262,7 @@ impl SoundCardRuntime {
         self.generation = generation;
         self.enabled_sent = None;
         self.bindings = built.bindings;
-        self.last_values.clear();
-        for node in &self.bindings.runtime_values {
-            if let Some(value) = snapshot.node(*node).and_then(|node| node.param_value.clone()) {
-                self.last_values.insert(*node, value);
-            }
-        }
+        self.values.reset();
         Ok(generation)
     }
 
@@ -313,10 +296,10 @@ impl SoundCardRuntime {
     pub(super) fn poll(
         &mut self,
         ctx: &mut ProcessCtx,
+        module: NodeId,
         drain_events: bool,
     ) -> (
         observation::ObservationView,
-        Option<SoundCardUiTelemetryDto>,
         Vec<super::prepared_event::PreparedAudioEvent>,
     ) {
         let events = if drain_events {
@@ -325,41 +308,18 @@ impl SoundCardRuntime {
             Vec::new()
         };
         let _ = self.retry_enabled();
-        for event in &events {
-            self.observe_event(&event.event);
-        }
         let observation = self.event_bridge.observation();
         let outgoing_activity = has_output_activity(observation.header.enabled, observation.header.output_rms);
         if self.outgoing_activity != Some(outgoing_activity) {
             self.outgoing_activity = Some(outgoing_activity);
             self.pending_outgoing_activity = Some(outgoing_activity);
         }
-        let changed_snapshot =
-            self.last_observation_sequence != Some(observation.sequence) && observation.error.is_none();
-        if changed_snapshot {
-            self.apply_observation_values(ctx, &observation);
-            self.last_observation_sequence = Some(observation.sequence);
+        self.values.service(ctx, &self.bindings, self.generation, &observation);
+        self.telemetry.service(ctx, module, &observation);
+        if self.values.has_pending() || self.telemetry.has_pending() {
+            self.event_bridge.continue_service();
         }
-        let playback_changed = events.iter().any(|event| {
-            matches!(
-                &event.event,
-                golden_audio::AudioEvent::PlaybackStarted(_)
-                    | golden_audio::AudioEvent::PlaybackStopped(_)
-                    | golden_audio::AudioEvent::PlaybackFailed(_)
-                    | golden_audio::AudioEvent::PlaybackFinished(_)
-            )
-        });
-        if observation.error.is_some() || (!changed_snapshot && !playback_changed) {
-            return (observation, None, events);
-        }
-        let mut playback_voices = self.active_playback_voices.values().cloned().collect::<Vec<_>>();
-        playback_voices.sort_by(|left, right| left.playback_id.cmp(&right.playback_id));
-        let telemetry = telemetry_from_observation(&observation, playback_voices);
-        let changed = self.last_telemetry.as_ref() != Some(&telemetry);
-        if changed {
-            self.last_telemetry = Some(telemetry.clone());
-        }
-        (observation, changed.then_some(telemetry), events)
+        (observation, events)
     }
 
     pub(super) fn stop(&mut self) {
@@ -375,64 +335,14 @@ impl SoundCardRuntime {
     pub(super) fn is_disconnected(&self) -> bool {
         self.event_bridge.is_disconnected() && !self.event_bridge.has_pending()
     }
+}
 
-    fn apply_observation_values(&mut self, ctx: &mut ProcessCtx, observation: &AudioObservationSnapshot) {
-        self.set_float(ctx, self.bindings.input_master_level, observation.input_global_max_rms);
-        self.set_float(
-            ctx,
-            self.bindings.output_master_level,
-            observation.output_global_max_rms,
-        );
-        for (node, value) in playback_status_updates(&self.bindings, observation.playback) {
-            self.set_value(ctx, node, value);
-        }
-        for channel in observation.inputs.iter().chain(&observation.outputs) {
-            self.set_float(
-                ctx,
-                self.bindings.channel_levels.get(&channel.channel).copied(),
-                channel.rms_linear,
-            );
-        }
-        for tap in &observation.analysis.taps {
-            self.apply_analysis_tap(ctx, tap);
-        }
-    }
-
-    fn apply_analysis_tap(&mut self, ctx: &mut ProcessCtx, tap: &AnalysisTapObservation) {
-        match tap.result.as_ref() {
-            Some(AnalysisResult::Pitch(value)) => {
-                let Some(binding) = self.bindings.pitch.get(&tap.tap).copied() else {
-                    return;
-                };
-                self.set_value(ctx, Some(binding.valid), ParamValue::Bool(value.valid));
-                self.set_float(ctx, Some(binding.frequency_hz), value.frequency_hz);
-                self.set_float(ctx, Some(binding.confidence), value.confidence);
-                self.set_float(ctx, Some(binding.midi_note), value.midi_note);
-                self.set_value(ctx, Some(binding.note_name), ParamValue::Str(value.note_name.clone()));
-                self.set_float(ctx, Some(binding.cents), value.cents);
-            }
-            Some(AnalysisResult::Spectrum(_)) => {}
-            None => {}
-        }
-    }
-
-    fn set_float(&mut self, ctx: &mut ProcessCtx, node: Option<NodeId>, value: impl Into<f64>) {
-        self.set_value(ctx, node, ParamValue::Float(value.into()));
-    }
-
-    fn set_value(&mut self, ctx: &mut ProcessCtx, node: Option<NodeId>, value: ParamValue) {
-        let Some(node) = node else {
-            return;
-        };
-        if self
-            .last_values
-            .get(&node)
-            .is_some_and(|current| values_nearly_equal(current, &value))
-        {
-            return;
-        }
-        self.last_values.insert(node, value.clone());
-        ctx.set_param_with_behaviour(node, value, ParameterEventBehaviour::Coalesce);
+impl std::fmt::Debug for SoundCardRuntime {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SoundCardRuntime")
+            .field("driver", &self.driver)
+            .field("generation", &self.generation)
+            .finish_non_exhaustive()
     }
 }
 

@@ -592,6 +592,7 @@ fn run_control_worker(mut command_receiver: Consumer<CommandEnvelope>, worker: C
                     &event_sender,
                     &observation,
                     AudioEvent::PlaybackFailed(crate::PlaybackFailure {
+                        terminated_voice: None,
                         playback_id: request.playback_id,
                         path: request.path,
                         error: AudioError::new(

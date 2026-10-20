@@ -77,6 +77,7 @@ fn largest_playback_failure_preserves_accepted_identity_and_path() {
     let path = std::path::PathBuf::from("x".repeat(crate::PlayFileRequest::MAX_PATH_BYTES));
     let id = PlaybackId::new("p".repeat(PlaybackId::MAX_BYTES)).unwrap();
     let mut event = AudioEvent::PlaybackFailed(PlaybackFailure {
+        terminated_voice: None,
         playback_id: id.clone(),
         path: path.clone(),
         error: AudioError::invalid_configuration("failure".repeat(50_000)),

@@ -1,10 +1,17 @@
 use super::*;
+use chataigne_sound_card_protocol::{SoundCardPlaybackVoiceDto, SoundCardUiTelemetryDto};
+use golden_audio::AudioObservationSnapshot;
 
 mod capture;
+mod publication;
+mod telemetry;
+mod values;
 pub(super) use capture::retain_reader;
 pub(in super::super) use capture::{
     ObservationCapture, ObservationCaptureError, ObservationCollector, ObservationView,
 };
+pub(super) use publication::TelemetryDelivery;
+pub(super) use values::ValueDelivery;
 
 pub(super) fn collect_bindings(snapshot: &ProcessTreeSnapshot, module: NodeId) -> SoundCardValueBindings {
     let mut bindings = SoundCardValueBindings {
@@ -78,6 +85,7 @@ pub(super) fn collect_bindings(snapshot: &ProcessTreeSnapshot, module: NodeId) -
     bindings
 }
 
+#[cfg(test)]
 pub(super) fn playback_status_updates(
     bindings: &SoundCardValueBindings,
     playback: golden_audio::PlaybackObservation,

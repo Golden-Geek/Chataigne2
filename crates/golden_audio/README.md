@@ -96,6 +96,11 @@ registrations receive `PlaybackStopped`, retaining an earlier stop reason or usi
 Fallback outcomes follow original start order. External hosts must quiesce their own callback
 renderer; the managed runtime stops its device/render paths before final lifecycle resolution.
 
+`PlaybackFailure::terminated_voice` identifies a voice retired by a decoder failure. Preparation
+and control-admission failures carry `None`: a failed load or stop request does not imply that an
+existing voice stopped. Consumers must match the full voice identity before removing a playback
+projection, including when an old generation fails after its playback ID was replaced.
+
 ## Playback ownership
 
 `AudioCommand::PlayFile` is ordered with configuration, gain, stop, and stop-all commands. A fixed

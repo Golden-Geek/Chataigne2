@@ -356,9 +356,11 @@ Its native owner validates and copies snapshots into a bounded retained pool; or
 borrow shared captures without copying the source snapshot. Golden Audio exposes
 `AudioObservationReader::inspect` and `AudioObservationSnapshot::retained_bytes_within` for bounded
 worker-side inspection before copying, including spare capacities and nested metadata/analysis.
-The inspection closure must not block or reenter the reader. Capture overload has a separate visible
-warning and leaves control admission independent. See [host ownership](hosts.md) for budgets and
-the remaining telemetry/configuration boundaries.
+The native owner also prepares telemetry JSON and tracks active voices. The actor publishes shared
+payloads with an application receipt and projects values through a bounded cursor; its value cache
+advances only after each edit applies. The inspection closure must not block or reenter the reader.
+Capture/telemetry overload has a separate visible warning and leaves control admission independent.
+See [host ownership](hosts.md) for budgets and the remaining configuration/logger/fence boundaries.
 Missing explicit device selections remain persisted; unresolved local routes remain authored and
 receive visible warnings so removal and undo stay atomic.
 

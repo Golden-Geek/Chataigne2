@@ -83,6 +83,7 @@ pub(super) fn schedule_playback(
             event_sender,
             observation,
             AudioEvent::PlaybackFailed(PlaybackFailure {
+                terminated_voice: None,
                 playback_id,
                 path,
                 error,
@@ -129,6 +130,7 @@ pub(super) fn stop_playback(
                     event_sender,
                     observation,
                     AudioEvent::PlaybackFailed(PlaybackFailure {
+                        terminated_voice: None,
                         playback_id: playback_id.clone(),
                         path: info.path,
                         error,
@@ -190,6 +192,7 @@ pub(super) fn stop_all_playback(
                         event_sender,
                         observation,
                         AudioEvent::PlaybackFailed(PlaybackFailure {
+                            terminated_voice: None,
                             playback_id: playback_id.clone(),
                             path: info.path.clone(),
                             error: error.clone(),
@@ -246,6 +249,7 @@ pub(super) fn drain_playback_work(
                     event_sender,
                     observation,
                     AudioEvent::PlaybackFailed(PlaybackFailure {
+                        terminated_voice: None,
                         playback_id: failure.playback_id,
                         path: failure.path,
                         error: failure.error,
@@ -324,6 +328,7 @@ pub(super) fn drain_playback_work(
                             event_sender,
                             observation,
                             AudioEvent::PlaybackFailed(PlaybackFailure {
+                                terminated_voice: None,
                                 playback_id: request.playback_id,
                                 path: request.path,
                                 error,
@@ -410,7 +415,13 @@ fn publish_render_event(
             voice: Some(voice),
             reason,
         }),
-        PlaybackRenderEvent::Failed { playback_id, path, .. } => AudioEvent::PlaybackFailed(PlaybackFailure {
+        PlaybackRenderEvent::Failed {
+            playback_id,
+            path,
+            voice,
+            ..
+        } => AudioEvent::PlaybackFailed(PlaybackFailure {
+            terminated_voice: Some(voice),
             playback_id,
             path,
             error: AudioError::new(

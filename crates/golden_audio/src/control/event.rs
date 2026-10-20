@@ -56,6 +56,9 @@ pub struct PlaybackStopInfo {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct PlaybackFailure {
+    /// Identifies a voice retired by this failure. Preparation and control-admission
+    /// failures leave active voices intact and carry no terminal identity.
+    pub terminated_voice: Option<VoiceId>,
     pub playback_id: PlaybackId,
     pub path: PathBuf,
     pub error: AudioError,
