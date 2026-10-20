@@ -49,6 +49,7 @@ pub(crate) struct PreparedConfiguration {
     pub(crate) sample_rate: golden_audio::SampleRate,
     pub(crate) bindings: SoundCardValueBindings,
     pub(crate) warnings: RetainedPayload<WarningPlan>,
+    pub(crate) value_cache: Mutex<super::super::observation::ValueCache>,
 }
 impl PreparedConfiguration {
     /// The preparing lease remains borrowed during rejection, so dropping the
@@ -63,13 +64,18 @@ impl PreparedConfiguration {
             config: self.configuration.clone(),
         })
     }
-    fn from_built(built: BuiltSoundCardConfiguration, warnings: RetainedPayload<WarningPlan>) -> Self {
-        Self {
+    fn from_built(
+        built: BuiltSoundCardConfiguration,
+        warnings: RetainedPayload<WarningPlan>,
+    ) -> Result<Self, &'static str> {
+        let value_cache = Mutex::new(super::super::observation::ValueCache::prepare(&built.bindings)?);
+        Ok(Self {
             configuration: Arc::new(built.configuration),
             sample_rate: built.sample_rate,
             bindings: built.bindings,
             warnings,
-        }
+            value_cache,
+        })
     }
     fn weight(&self) -> Option<usize> {
         let mut bytes = self.configuration.retained_bytes_within(MAX_RESULT_BYTES, MAX_NODES)?
@@ -80,6 +86,12 @@ impl PreparedConfiguration {
                 + self.bindings.pitch.capacity() * 256
                 + self.bindings.runtime_values.capacity() * 64
                 + 4096,
+        )?;
+        bytes = bytes.checked_add(
+            self.value_cache
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .retained_heap_bytes(),
         )?;
         (bytes <= MAX_RESULT_BYTES).then_some(bytes)
     }
@@ -230,7 +242,7 @@ impl Job {
                 "Sound Card warning-plan lifetime capacity exhausted".into(),
             )
         })?;
-        let data = PreparedConfiguration::from_built(built, warnings);
+        let data = PreparedConfiguration::from_built(built, warnings).map_err(reject)?;
         let bytes = data
             .weight()
             .ok_or_else(|| reject("Sound Card prepared configuration exceeds 64 MiB"))?;

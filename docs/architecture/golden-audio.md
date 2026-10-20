@@ -358,14 +358,17 @@ borrow shared captures without copying the source snapshot. Golden Audio exposes
 worker-side inspection before copying, including spare capacities and nested metadata/analysis.
 The native owner also prepares telemetry JSON and tracks active voices. The actor publishes shared
 payloads with an application receipt and projects values through a bounded cursor; its value cache
-advances only after each edit applies. The inspection closure must not block or reenter the reader.
+advances only after each edit applies. Each prepared binding plan owns a fixed cache allocated on
+the worker and charged through final background disposal. Generation tags avoid whole-cache clearing,
+and inline scalar/short-text slots cannot grow during actor service. The inspection closure must
+not block or reenter the reader.
 Capture/telemetry overload has a separate visible warning and leaves control admission independent.
 App-owned configuration conversion runs on a bounded preparation worker. Immutable prepared plans
 retain snapshot and output storage admission through retries and final disposal. Bindings promote
 only after a matching native configuration acknowledgement; rejected replacements preserve the
 previous bindings. Route-warning reconciliation also runs on that worker, comparing applied
 presentation state; actor publication has bounded receipts and no optimistic warning cache.
-See [host ownership](hosts.md) for budgets and the remaining probe, structure, value-cache,
+See [host ownership](hosts.md) for budgets and the remaining probe, structure,
 logger and fence boundaries.
 Missing explicit device selections remain persisted; unresolved local routes remain authored and
 receive visible warnings so removal and undo stay atomic.

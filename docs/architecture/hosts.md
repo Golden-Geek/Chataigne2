@@ -554,10 +554,24 @@ The cache advances only for applied edits. Failed cells and their discarded suff
 one edit at a time, once per frame. A permanently missing target waits for a new native capture
 after that cursor settles, so it cannot poison its valid suffix or spin actor continuations.
 Binding changes reset
-the cursor/cache, and old receipts cannot populate the new binding generation. The last valid native
+the cursor and advance the cache epoch; old receipts cannot populate the new binding generation. The last valid native
 plan remains observable while a replacement configuration is pending or rejected. Pitch-note value
 strings admit 64 UTF-8 bytes before actor copying. Already admitted frames retain their lifetime
 through receipt settlement; disabling/retiring a facade can cancel these latest-value projections.
+
+Each prepared configuration owns a fixed value cache allocated and sorted on the preparation worker.
+The cache admits **131,072 slots / 16 MiB** and is included in the existing combined **64 MiB**
+configuration/warning-plan allowance. Binary lookup updates only admitted binding slots; node churn
+cannot grow the cache. Boolean, integer, float and up to **64 UTF-8 bytes** of text are stored inline,
+so cache writes neither allocate nor retain a source string's spare capacity. Other value shapes do
+not enter this cache. Each cached value carries its binding generation; changing generations needs
+no whole-cache clear. Existing applied-only receipt, epsilon and bounded-cursor semantics remain.
+
+The actor is the only cache writer. Its configuration-owned mutex is held for one bounded service
+turn; no preparing worker accesses the cache after publication. The configuration's existing lifetime
+pool owns the fixed slot storage through replacement, exported plan handles and final background
+disposal. Facade retirement and binding replacement no longer clear or finally destroy a variable
+map on the actor, and cache storage cannot outgrow its sealed reservation.
 
 Sound Card configuration conversion lives in app-owned `runtime/configuration`. One shared native
 preparation worker accepts **16 queued requests**, with **32 live admission tickets** and one worker
@@ -603,7 +617,7 @@ destroy wholesale. Presentation-only metadata events do not request Sound Card s
 configuration; labels and enabled-state changes retain their existing behavior.
 
 Probe/selection setup and raw inspector copies, derived structure/default-route seeding, enum
-choices, value-cache retirement, logger copies and remaining reconfiguration,
+choices, logger copies and remaining reconfiguration,
 apply-time and failure fences remain P03 work. These budgets do not qualify whole-process memory
 or actor deadlines.
 

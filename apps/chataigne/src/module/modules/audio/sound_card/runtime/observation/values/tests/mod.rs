@@ -33,12 +33,13 @@ fn failed_value_receipts_retry_unchanged_input_without_optimistic_cache_or_dupli
     };
     let view = view(snapshot, 1);
     let mut values = ValueDelivery::default();
+    let mut cache = ValueCache::prepare(&bindings).unwrap();
     let mut first = context(&engine);
-    values.service(&mut first, &bindings, ConfigGeneration::INITIAL, &view);
+    values.service(&mut first, &bindings, ConfigGeneration::INITIAL, &view, &mut cache);
     let count = first.edits.pending.len();
-    values.service(&mut first, &bindings, ConfigGeneration::INITIAL, &view);
+    values.service(&mut first, &bindings, ConfigGeneration::INITIAL, &view, &mut cache);
     assert_eq!(first.edits.pending.len(), count);
-    assert!(values.cache.is_empty());
+    assert!(cache.applied_count(ConfigGeneration::INITIAL) == 0);
     engine.edits.push(Edit::SetParam {
         node: NodeId(u64::MAX),
         value: ParamValue::Int(1),
@@ -48,7 +49,7 @@ fn failed_value_receipts_retry_unchanged_input_without_optimistic_cache_or_dupli
     assert!(engine.apply_edits().is_err());
     for _ in 0..8 {
         let mut ctx = context(&engine);
-        values.service(&mut ctx, &bindings, ConfigGeneration::INITIAL, &view);
+        values.service(&mut ctx, &bindings, ConfigGeneration::INITIAL, &view, &mut cache);
         engine.absorb_edits(&mut ctx).unwrap();
         engine.apply_edits().unwrap();
         if !values.has_pending() {
@@ -56,7 +57,7 @@ fn failed_value_receipts_retry_unchanged_input_without_optimistic_cache_or_dupli
         }
     }
     assert!(!values.has_pending());
-    assert_eq!(values.cache.get(&engine.root.0), Some(&ParamValue::Float(0.75)));
+    assert!(cache.matches(engine.root, ConfigGeneration::INITIAL, &ParamValue::Float(0.75)));
     assert_eq!(engine.nodes.get(engine.root).unwrap().get(), &ParamValue::Float(0.75));
 }
 
@@ -91,9 +92,10 @@ fn value_cursor_bounds_work_and_finishes_a_pinned_frame_under_continuous_new_fra
         });
     }
     let mut values = ValueDelivery::default();
+    let mut cache = ValueCache::prepare(&bindings).unwrap();
     let first = view(snapshot.clone(), 1);
     let mut ctx = context(&engine);
-    values.service(&mut ctx, &bindings, ConfigGeneration::INITIAL, &first);
+    values.service(&mut ctx, &bindings, ConfigGeneration::INITIAL, &first, &mut cache);
     assert!(ctx.edits.pending.len() <= SERVICE_ITEMS);
     assert!(values.has_pending());
     engine.absorb_edits(&mut ctx).unwrap();
@@ -102,7 +104,7 @@ fn value_cursor_bounds_work_and_finishes_a_pinned_frame_under_continuous_new_fra
         snapshot.inputs.iter_mut().for_each(|channel| channel.rms_linear = 0.75);
         let newest = view(snapshot.clone(), sequence);
         let mut ctx = context(&engine);
-        values.service(&mut ctx, &bindings, ConfigGeneration::INITIAL, &newest);
+        values.service(&mut ctx, &bindings, ConfigGeneration::INITIAL, &newest, &mut cache);
         assert!(ctx.edits.pending.len() <= SERVICE_ITEMS);
         engine.absorb_edits(&mut ctx).unwrap();
         engine.apply_edits().unwrap();
@@ -115,8 +117,12 @@ fn value_cursor_bounds_work_and_finishes_a_pinned_frame_under_continuous_new_fra
         Some(1),
         "continuous producers cannot restart an unfinished cursor"
     );
-    assert!(values.cache.values().all(|value| *value == ParamValue::Float(0.25)));
-    assert_eq!(values.cache.len(), 150);
+    assert!(bindings.runtime_values.iter().all(|node| cache.matches(
+        *node,
+        ConfigGeneration::INITIAL,
+        &ParamValue::Float(0.25)
+    )));
+    assert_eq!(cache.applied_count(ConfigGeneration::INITIAL), 150);
 }
 
 #[test]
@@ -139,15 +145,22 @@ fn a_reconfigured_binding_never_uses_an_older_receipt_as_its_value_cache() {
         1,
     );
     let mut values = ValueDelivery::default();
+    let mut cache = ValueCache::prepare(&bindings).unwrap();
     let mut old = context(&engine);
-    values.service(&mut old, &bindings, ConfigGeneration::INITIAL, &view);
+    values.service(&mut old, &bindings, ConfigGeneration::INITIAL, &view, &mut cache);
     values.reset();
     engine.absorb_edits(&mut old).unwrap();
     engine.apply_edits().unwrap();
     let mut current = context(&engine);
-    values.service(&mut current, &bindings, ConfigGeneration::INITIAL.next(), &view);
+    values.service(
+        &mut current,
+        &bindings,
+        ConfigGeneration::INITIAL.next(),
+        &view,
+        &mut cache,
+    );
     assert!(
-        values.cache.is_empty(),
+        cache.applied_count(ConfigGeneration::INITIAL.next()) == 0,
         "an old receipt must not suppress current publication"
     );
     assert_eq!(
@@ -158,8 +171,14 @@ fn a_reconfigured_binding_never_uses_an_older_receipt_as_its_value_cache() {
     engine.absorb_edits(&mut current).unwrap();
     engine.apply_edits().unwrap();
     let mut settled = context(&engine);
-    values.service(&mut settled, &bindings, ConfigGeneration::INITIAL.next(), &view);
-    assert_eq!(values.cache.get(&engine.root.0), Some(&ParamValue::Float(0.5)));
+    values.service(
+        &mut settled,
+        &bindings,
+        ConfigGeneration::INITIAL.next(),
+        &view,
+        &mut cache,
+    );
+    assert!(cache.matches(engine.root, ConfigGeneration::INITIAL.next(), &ParamValue::Float(0.5)));
 }
 
 #[test]
@@ -185,9 +204,10 @@ fn one_missing_value_target_cannot_poison_its_valid_suffix_or_spin_actor_continu
         1,
     );
     let mut values = ValueDelivery::default();
+    let mut cache = ValueCache::prepare(&bindings).unwrap();
     for _ in 0..12 {
         let mut ctx = context(&engine);
-        values.service(&mut ctx, &bindings, ConfigGeneration::INITIAL, &view);
+        values.service(&mut ctx, &bindings, ConfigGeneration::INITIAL, &view, &mut cache);
         assert!(ctx.edits.pending.len() <= SERVICE_ITEMS);
         engine.absorb_edits(&mut ctx).unwrap();
         let _ = engine.apply_edits();
@@ -196,11 +216,11 @@ fn one_missing_value_target_cannot_poison_its_valid_suffix_or_spin_actor_continu
         }
     }
     assert!(!values.has_pending());
-    assert!(!values.cache.contains_key(&missing.0));
-    assert_eq!(values.cache.get(&engine.root.0), Some(&ParamValue::Float(0.75)));
+    assert_eq!(cache.applied_count(ConfigGeneration::INITIAL), 1);
+    assert!(cache.matches(engine.root, ConfigGeneration::INITIAL, &ParamValue::Float(0.75)));
     for _ in 0..32 {
         let mut settled = context(&engine);
-        values.service(&mut settled, &bindings, ConfigGeneration::INITIAL, &view);
+        values.service(&mut settled, &bindings, ConfigGeneration::INITIAL, &view, &mut cache);
         assert!(
             settled.edits.pending.is_empty(),
             "permanent failures wait for a new native capture"

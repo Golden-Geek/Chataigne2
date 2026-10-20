@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::VecDeque;
 
 use golden_audio::{AnalysisResult, AudioObservationSnapshot, ConfigGeneration};
 use golden_core::{
@@ -10,13 +10,15 @@ use golden_core::{
 use golden_io::RetainedPayload;
 
 use super::super::SoundCardValueBindings;
-use super::{capture::ObservationView, values_nearly_equal};
+use super::capture::ObservationView;
+
+mod cache;
+pub(crate) use cache::ValueCache;
 
 pub(super) const SERVICE_ITEMS: usize = 64;
 
 #[derive(Default)]
 pub(in super::super) struct ValueDelivery {
-    cache: BTreeMap<u64, ParamValue>,
     pending: VecDeque<PendingValue>,
     retry: VecDeque<PendingValue>,
     frame: Option<Frame>,
@@ -84,7 +86,9 @@ impl Frame {
             1 => (Some(binding.frequency_hz), ParamValue::Float(pitch.frequency_hz.into())),
             2 => (Some(binding.confidence), ParamValue::Float(pitch.confidence.into())),
             3 => (Some(binding.midi_note), ParamValue::Float(pitch.midi_note.into())),
-            4 if pitch.note_name.len() <= 64 => (Some(binding.note_name), ParamValue::Str(pitch.note_name.clone())),
+            4 if pitch.note_name.len() <= cache::TEXT_BYTES => {
+                (Some(binding.note_name), ParamValue::Str(pitch.note_name.clone()))
+            }
             4 => (None, ParamValue::Bool(false)),
             _ => (Some(binding.cents), ParamValue::Float(pitch.cents.into())),
         })
@@ -93,7 +97,6 @@ impl Frame {
 
 impl ValueDelivery {
     pub(in super::super) fn reset(&mut self) {
-        self.cache.clear();
         self.frame = None;
         self.completed = None;
         self.retry.clear();
@@ -111,6 +114,7 @@ impl ValueDelivery {
         bindings: &SoundCardValueBindings,
         generation: ConfigGeneration,
         view: &ObservationView,
+        cache: &mut ValueCache,
     ) {
         let mut budget = SERVICE_ITEMS;
         for _ in 0..self.pending.len().min(budget) {
@@ -120,7 +124,7 @@ impl ValueDelivery {
                 EditCompletionStatus::Pending => self.pending.push_back(pending),
                 EditCompletionStatus::Applied => {
                     if pending.generation == generation && bindings.is_runtime_value(pending.node) {
-                        self.cache.insert(pending.node.0, pending.value);
+                        cache.store(pending.node, generation, &pending.value);
                     }
                 }
                 EditCompletionStatus::Failed => {
@@ -188,11 +192,7 @@ impl ValueDelivery {
             let Some(node) = node else {
                 continue;
             };
-            if self
-                .cache
-                .get(&node.0)
-                .is_some_and(|current| values_nearly_equal(current, &value))
-            {
+            if cache.matches(node, generation, &value) {
                 continue;
             }
             self.stage(ctx, node, value, generation, false);

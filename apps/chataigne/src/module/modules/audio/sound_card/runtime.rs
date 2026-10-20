@@ -464,15 +464,11 @@ impl SoundCardRuntime {
         self.warnings.service(ctx, preparing);
         let configuring = preparing || self.pending_application.is_some();
         if !configuring {
-            static EMPTY: std::sync::LazyLock<SoundCardValueBindings> =
-                std::sync::LazyLock::new(SoundCardValueBindings::default);
-            let bindings = self
-                .active_configuration
-                .as_ref()
-                .map(|data| &data.bindings)
-                .unwrap_or(&EMPTY);
-            self.values
-                .service(ctx, bindings, self.binding_generation, &observation);
+            if let Some(active) = &self.active_configuration {
+                let mut cache = active.value_cache.lock().unwrap_or_else(|p| p.into_inner());
+                self.values
+                    .service(ctx, &active.bindings, self.binding_generation, &observation, &mut cache);
+            }
         }
         self.telemetry.service(ctx, module, &observation);
         if (!configuring && self.values.has_pending()) || self.telemetry.has_pending() || self.warnings.has_pending() {

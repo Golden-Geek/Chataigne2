@@ -11,6 +11,7 @@ pub(in super::super) use capture::{
     ObservationCapture, ObservationCaptureError, ObservationCollector, ObservationView,
 };
 pub(super) use publication::TelemetryDelivery;
+pub(crate) use values::ValueCache;
 pub(super) use values::ValueDelivery;
 
 pub(super) fn collect_bindings(snapshot: &ProcessTreeSnapshot, module: NodeId) -> SoundCardValueBindings {
@@ -122,12 +123,5 @@ pub(super) fn telemetry_from_observation(
         dropped_event_count: observation.dropped_event_count,
         queue_pressure_count: observation.queue_pressure_count,
         analysis: observation.analysis.clone(),
-    }
-}
-
-pub(super) fn values_nearly_equal(current: &ParamValue, next: &ParamValue) -> bool {
-    match (current, next) {
-        (ParamValue::Float(left), ParamValue::Float(right)) => (left - right).abs() <= OBSERVATION_EPSILON,
-        _ => current == next,
     }
 }
