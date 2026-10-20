@@ -2,17 +2,35 @@ use std::{
     num::NonZeroUsize,
     sync::{
         atomic::{AtomicBool, AtomicU32, Ordering},
-        Arc, Mutex, OnceLock,
+        Arc, Condvar, Mutex, OnceLock,
     },
     thread,
 };
 
 use golden_audio::{AudioEngine, AudioEvent, AudioEventReceiver};
-use golden_io::{pending_channel, PendingReceiver, PendingSender, RetirementPermit, RetirementPool};
+use golden_io::{
+    bounded_pending_channel, PendingReceiver, PendingSendError, PendingSender, RetirementPermit, RetirementPool,
+};
 
 use super::RuntimeWakeSender;
 
 type WakeSlot = Arc<Mutex<Option<RuntimeWakeSender>>>;
+pub(super) const EVENT_ITEMS: usize = 64;
+pub(super) const EVENT_SERVICE_ITEMS: usize = 8;
+
+#[derive(Default)]
+struct Capacity {
+    stopped: AtomicBool,
+    lock: Mutex<()>,
+    changed: Condvar,
+}
+impl Capacity {
+    fn notify(&self) {
+        let guard = self.lock.lock().unwrap_or_else(|p| p.into_inner());
+        drop(guard);
+        self.changed.notify_all();
+    }
+}
 
 pub(super) fn reserve_lifetime() -> Result<RetirementPermit, String> {
     static POOL: OnceLock<RetirementPool> = OnceLock::new();
@@ -25,7 +43,7 @@ pub(super) fn reserve_lifetime() -> Result<RetirementPermit, String> {
 pub(super) struct SoundCardRuntimeEvents {
     pending: PendingReceiver<AudioEvent>,
     refresh_rate_hz: Arc<AtomicU32>,
-    stopped: Arc<AtomicBool>,
+    capacity: Arc<Capacity>,
     wake: WakeSlot,
     completion: RetirementPool,
 }
@@ -92,11 +110,11 @@ impl SoundCardRuntimeEvents {
     where
         F: FnOnce(AudioEngine) + Send + 'static,
     {
-        let (pending_sender, pending) = pending_channel();
+        let (pending_sender, pending) = bounded_pending_channel(EVENT_ITEMS, EVENT_ITEMS);
         let refresh_rate_hz = Arc::new(AtomicU32::new(super::bounded_levels_update_rate_hz(refresh_rate_hz)));
         let worker_refresh_rate_hz = refresh_rate_hz.clone();
-        let stopped = Arc::new(AtomicBool::new(false));
-        let worker_stopped = stopped.clone();
+        let capacity = Arc::new(Capacity::default());
+        let worker_capacity = capacity.clone();
         let wake = Arc::new(Mutex::new(None));
         let completion = RetirementPool::new(NonZeroUsize::MIN);
         let owner = NativeOwner {
@@ -112,7 +130,7 @@ impl SoundCardRuntimeEvents {
             .name("chataigne-sound-card-native".to_owned())
             .spawn(move || {
                 let owner = owner;
-                while !worker_stopped.load(Ordering::Acquire) {
+                while !worker_capacity.stopped.load(Ordering::Acquire) {
                     let interval = super::levels_update_interval(worker_refresh_rate_hz.load(Ordering::Acquire));
                     match owner
                         .events
@@ -120,10 +138,22 @@ impl SoundCardRuntimeEvents {
                         .expect("live audio receiver")
                         .recv_timeout(interval)
                     {
-                        Ok(Some(event)) => {
-                            if owner.pending.as_ref().expect("live event sender").send(event).is_err() {
-                                break;
+                        Ok(Some(mut event)) => {
+                            let mut guard = worker_capacity.lock.lock().unwrap_or_else(|p| p.into_inner());
+                            loop {
+                                if worker_capacity.stopped.load(Ordering::Acquire) {
+                                    return;
+                                }
+                                match owner.pending.as_ref().expect("live event sender").send(event) {
+                                    Ok(()) => break,
+                                    Err(PendingSendError::Disconnected(_)) => return,
+                                    Err(PendingSendError::Full(returned)) => {
+                                        event = returned;
+                                        guard = worker_capacity.changed.wait(guard).unwrap_or_else(|p| p.into_inner());
+                                    }
+                                }
                             }
+                            drop(guard);
                             notify(&owner.wake);
                         }
                         Ok(None) => notify(&owner.wake),
@@ -135,7 +165,7 @@ impl SoundCardRuntimeEvents {
         Ok(Self {
             pending,
             refresh_rate_hz,
-            stopped,
+            capacity,
             wake,
             completion,
         })
@@ -159,15 +189,20 @@ impl SoundCardRuntimeEvents {
 
     pub(super) fn drain(&self) -> Vec<AudioEvent> {
         let mut events = Vec::new();
-        self.pending.drain_into(&mut events, NonZeroUsize::MAX);
-        if self.pending.is_disconnected() {
+        self.pending
+            .drain_into(&mut events, NonZeroUsize::new(EVENT_SERVICE_ITEMS).unwrap());
+        if !events.is_empty() {
+            self.capacity.notify();
+        }
+        if self.pending.has_pending() || self.pending.is_disconnected() {
             notify(&self.wake);
         }
         events
     }
 
     pub(super) fn stop(&self) {
-        self.stopped.store(true, Ordering::Release);
+        self.capacity.stopped.store(true, Ordering::Release);
+        self.capacity.notify();
     }
 
     pub(super) fn completion(&self) -> RetirementPool {

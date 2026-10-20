@@ -1,4 +1,12 @@
-use std::{fmt, num::NonZeroUsize, sync::OnceLock, time::Duration};
+use std::{
+    fmt,
+    num::NonZeroUsize,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, OnceLock,
+    },
+    time::Duration,
+};
 
 use golden_audio::{BackendId, SampleRate};
 use golden_io::{BoundedWorker, PendingDrainState, PendingSendError, RetirementPool, WorkerLimits, WorkerNotifier};
@@ -60,6 +68,7 @@ impl fmt::Display for StartRequestError {
 pub(crate) struct SoundCardRuntimeWorker {
     worker: BoundedWorker<SoundCardRuntimeRequest, SoundCardRuntimeStarted>,
     next_request_id: u64,
+    enabled: Arc<AtomicBool>,
 }
 
 impl SoundCardRuntimeWorker {
@@ -75,6 +84,8 @@ impl SoundCardRuntimeWorker {
         let event_weight = std::mem::size_of::<SoundCardRuntimeStarted>()
             + std::mem::size_of::<SoundCardRuntime>()
             + MAX_START_ERROR_BYTES;
+        let enabled = Arc::new(AtomicBool::new(true));
+        let worker_enabled = enabled.clone();
         let worker = BoundedWorker::<SoundCardRuntimeRequest, SoundCardRuntimeStarted>::spawn_notified(
             "chataigne-sound-card-runtime",
             lifetimes,
@@ -108,10 +119,17 @@ impl SoundCardRuntimeWorker {
                     if context.cancellation().is_cancelled() {
                         return;
                     }
+                    if !worker_enabled.load(Ordering::Acquire) {
+                        continue;
+                    }
                     let result = starter(request.sample_rate, request.driver.clone())
                         .map(Box::new)
                         .map_err(|error| bounded_error(&error));
                     previous = result.as_ref().ok().map(|runtime| runtime.completion());
+                    if !worker_enabled.load(Ordering::Acquire) {
+                        drop(result);
+                        continue;
+                    }
                     let started = SoundCardRuntimeStarted { request, result };
                     if context.publish_weighted(started, event_weight).is_err() {
                         return;
@@ -123,7 +141,12 @@ impl SoundCardRuntimeWorker {
         Ok(Self {
             worker,
             next_request_id: 1,
+            enabled,
         })
+    }
+
+    pub(crate) fn set_enabled(&self, enabled: bool) {
+        self.enabled.store(enabled, Ordering::Release);
     }
 
     pub(crate) fn request_start_for_driver(

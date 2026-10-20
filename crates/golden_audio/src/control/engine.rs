@@ -1,8 +1,8 @@
+use super::delivery::{AudioEventReceiver, EventCancellation, EventSender, event_channel};
 use std::{
     sync::{
         Arc, RwLock,
         atomic::{AtomicU8, AtomicU64, Ordering},
-        mpsc::{Receiver, RecvTimeoutError, SyncSender, sync_channel},
     },
     thread::{self, JoinHandle},
     time::Duration,
@@ -89,43 +89,13 @@ impl AudioControl {
 }
 
 #[derive(Debug)]
-pub struct AudioEventReceiver {
-    receiver: Receiver<AudioEvent>,
-}
-
-impl AudioEventReceiver {
-    #[must_use]
-    pub fn try_recv(&self) -> Option<AudioEvent> {
-        self.receiver.try_recv().ok()
-    }
-
-    #[must_use]
-    pub fn drain(&self) -> Vec<AudioEvent> {
-        self.receiver.try_iter().collect()
-    }
-
-    pub fn recv(&self) -> Result<AudioEvent, AudioError> {
-        self.receiver.recv().map_err(|_| AudioError::shutting_down())
-    }
-
-    /// Waits for an event until `timeout`, allowing host adapters to combine
-    /// event-driven delivery with a deliberately coarse observation cadence.
-    pub fn recv_timeout(&self, timeout: Duration) -> Result<Option<AudioEvent>, AudioError> {
-        match self.receiver.recv_timeout(timeout) {
-            Ok(event) => Ok(Some(event)),
-            Err(RecvTimeoutError::Timeout) => Ok(None),
-            Err(RecvTimeoutError::Disconnected) => Err(AudioError::shutting_down()),
-        }
-    }
-}
-
-#[derive(Debug)]
 pub struct AudioEngineBuilder {
     pub config: crate::AudioEngineConfig,
     pub limits: EngineLimits,
     pub backend_policy: BackendPolicy,
     backends: Vec<Arc<dyn AudioBackend>>,
     managed_render_runtime: bool,
+    ordered_events: bool,
 }
 
 impl Default for AudioEngineBuilder {
@@ -136,11 +106,21 @@ impl Default for AudioEngineBuilder {
             backend_policy: BackendPolicy::default(),
             backends: vec![Arc::new(NullBackend)],
             managed_render_runtime: false,
+            ordered_events: false,
         }
     }
 }
 
 impl AudioEngineBuilder {
+    /// Backpressure the control worker instead of dropping full-queue events.
+    /// Drain concurrently until EOF after AudioControl::shutdown for graceful
+    /// completion. AudioEngine::shutdown/Drop explicitly cancels publication.
+    #[must_use]
+    pub fn with_ordered_events(mut self) -> Self {
+        self.ordered_events = true;
+        self
+    }
+
     #[must_use]
     pub fn with_backend(mut self, backend: impl AudioBackend + 'static) -> Self {
         let id = backend.id();
@@ -200,7 +180,8 @@ impl AudioEngineBuilder {
         let pressure = QueuePressureCounters::default();
         let (command_sender, command_receiver, worker_thread) =
             command_queue(self.limits.command_queue_capacity, pressure.clone());
-        let (event_sender, event_receiver) = sync_channel(self.limits.event_queue_capacity);
+        let (event_sender, event_receiver) = event_channel(self.limits.event_queue_capacity, self.ordered_events);
+        let event_cancellation = event_receiver.cancellation();
         let observation = Arc::new(RwLock::new(AudioObservationSnapshot {
             device: AudioDeviceInspectorState {
                 engine_sample_rate: self.config.sample_rate.get(),
@@ -274,9 +255,8 @@ impl AudioEngineBuilder {
             control,
             raw_sender: command_sender,
             worker: Some(worker),
-            events: Some(AudioEventReceiver {
-                receiver: event_receiver,
-            }),
+            events: Some(event_receiver),
+            event_cancellation,
             observations,
             #[cfg(feature = "playback")]
             playback_renderer,
@@ -290,6 +270,7 @@ pub struct AudioEngine {
     raw_sender: CommandQueueProducer,
     worker: Option<JoinHandle<()>>,
     events: Option<AudioEventReceiver>,
+    event_cancellation: EventCancellation,
     observations: AudioObservationReader,
     #[cfg(feature = "playback")]
     playback_renderer: Option<PlaybackVoiceRenderer>,
@@ -316,6 +297,7 @@ impl AudioEngine {
     }
 
     pub fn shutdown(&mut self) -> Result<(), AudioError> {
+        self.event_cancellation.cancel_ordered();
         if self.worker.is_none() {
             return Ok(());
         }
@@ -361,7 +343,7 @@ fn next_sequence(counter: &AtomicU64) -> Result<CommandSequence, AudioError> {
 }
 
 struct ControlWorker {
-    event_sender: SyncSender<AudioEvent>,
+    event_sender: EventSender,
     observation: Arc<RwLock<AudioObservationSnapshot>>,
     state: Arc<AtomicU8>,
     engine_config: AudioEngineConfig,
@@ -657,7 +639,7 @@ fn refresh_managed_render_observation(
 }
 
 fn report_command_pressure(
-    event_sender: &SyncSender<AudioEvent>,
+    event_sender: &EventSender,
     observation: &Arc<RwLock<AudioObservationSnapshot>>,
     pressure: &QueuePressureCounters,
     capacity: usize,
@@ -683,7 +665,7 @@ fn report_command_pressure(
 }
 
 fn publish_command_failure(
-    event_sender: &SyncSender<AudioEvent>,
+    event_sender: &EventSender,
     observation: &Arc<RwLock<AudioObservationSnapshot>>,
     operation: &str,
     error: AudioError,
@@ -700,11 +682,11 @@ fn publish_command_failure(
 }
 
 pub(super) fn publish_event(
-    sender: &SyncSender<AudioEvent>,
+    sender: &EventSender,
     observation: &Arc<RwLock<AudioObservationSnapshot>>,
     event: AudioEvent,
 ) {
-    if sender.try_send(event).is_err() {
+    if !sender.publish(event) {
         update_observation(observation, |snapshot| {
             snapshot.dropped_event_count = snapshot.dropped_event_count.saturating_add(1);
         });

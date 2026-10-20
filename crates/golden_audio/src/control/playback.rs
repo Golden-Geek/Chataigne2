@@ -1,6 +1,7 @@
+use super::delivery::EventSender;
 use std::{
     collections::HashMap,
-    sync::{Arc, RwLock, mpsc::SyncSender},
+    sync::{Arc, RwLock},
 };
 
 use crate::{
@@ -27,7 +28,7 @@ pub(super) enum PlaybackLifecycle {
 pub(super) type PlaybackLifecycles = HashMap<PlaybackId, PlaybackLifecycle>;
 
 pub(super) fn schedule_playback(
-    event_sender: &SyncSender<AudioEvent>,
+    event_sender: &EventSender,
     observation: &Arc<RwLock<AudioObservationSnapshot>>,
     scheduler: &mut PlaybackScheduler,
     voices: &mut PlaybackVoiceController,
@@ -80,7 +81,7 @@ pub(super) fn schedule_playback(
 }
 
 pub(super) fn stop_playback(
-    event_sender: &SyncSender<AudioEvent>,
+    event_sender: &EventSender,
     observation: &Arc<RwLock<AudioObservationSnapshot>>,
     scheduler: &mut PlaybackScheduler,
     voices: &mut PlaybackVoiceController,
@@ -131,7 +132,7 @@ pub(super) fn stop_playback(
 }
 
 pub(super) fn stop_all_playback(
-    event_sender: &SyncSender<AudioEvent>,
+    event_sender: &EventSender,
     observation: &Arc<RwLock<AudioObservationSnapshot>>,
     scheduler: &mut PlaybackScheduler,
     voices: &mut PlaybackVoiceController,
@@ -182,7 +183,7 @@ pub(super) fn stop_all_playback(
 }
 
 pub(super) fn drain_playback_work(
-    event_sender: &SyncSender<AudioEvent>,
+    event_sender: &EventSender,
     observation: &Arc<RwLock<AudioObservationSnapshot>>,
     engine_config: &AudioEngineConfig,
     limits: &EngineLimits,
@@ -333,7 +334,7 @@ fn publish_playback_observation(
 }
 
 fn publish_render_event(
-    event_sender: &SyncSender<AudioEvent>,
+    event_sender: &EventSender,
     observation: &Arc<RwLock<AudioObservationSnapshot>>,
     scheduler: &mut PlaybackScheduler,
     lifecycle: &mut PlaybackLifecycles,

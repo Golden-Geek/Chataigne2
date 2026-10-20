@@ -1,5 +1,6 @@
 mod command;
 mod configuration;
+mod delivery;
 mod device_runtime;
 mod engine;
 mod event;
@@ -11,7 +12,8 @@ mod playback;
 mod render_runtime;
 
 pub use command::{AudioCommand, PlayFileRequest};
-pub use engine::{AudioControl, AudioEngine, AudioEngineBuilder, AudioEventReceiver};
+pub use delivery::AudioEventReceiver;
+pub use engine::{AudioControl, AudioEngine, AudioEngineBuilder};
 pub use event::{
     AudioEvent, AudioQueueKind, PlaybackCommandIgnored, PlaybackCommandIgnoredReason, PlaybackCommandKind,
     PlaybackFailure, PlaybackInfo, PlaybackStopInfo, PlaybackStopReason, QueuePressureEvent,

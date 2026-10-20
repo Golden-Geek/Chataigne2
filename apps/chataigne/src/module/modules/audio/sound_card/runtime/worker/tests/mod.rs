@@ -98,3 +98,50 @@ fn full_start_mailbox_preserves_worker_and_coalesces_the_latest_admitted_selecti
     drop(worker);
     assert!(pool.wait_for_idle(Duration::from_secs(3)));
 }
+
+#[test]
+fn disabling_during_startup_discards_the_result_and_queued_constructors_then_resumes() {
+    let engine = Engine::new(Folder::new("root"));
+    let pool = RetirementPool::new(NonZeroUsize::MIN);
+    let (started_tx, started_rx) = mpsc::channel();
+    let (release_tx, release_rx) = mpsc::channel();
+    let first = AtomicBool::new(true);
+    let mut worker = SoundCardRuntimeWorker::spawn_using(wake(&engine), &pool, move |rate, _| {
+        started_tx.send(rate).unwrap();
+        if first.swap(false, Ordering::Relaxed) {
+            let _ = release_rx.recv();
+        }
+        Err("injected startup outcome".into())
+    })
+    .unwrap();
+    worker.request_start_for_driver(rate(), driver()).unwrap();
+    assert_eq!(started_rx.recv_timeout(Duration::from_secs(3)).unwrap(), rate());
+    worker
+        .request_start_for_driver(SampleRate::new(44_100).unwrap(), driver())
+        .unwrap();
+    worker.set_enabled(false);
+    release_tx.send(()).unwrap();
+    assert!(
+        started_rx.recv_timeout(Duration::from_millis(100)).is_err(),
+        "disabled queued selection must not construct"
+    );
+    assert!(
+        matches!(worker.poll(), SoundCardRuntimeWorkerPoll::Pending),
+        "in-flight disabled result must not be adopted"
+    );
+    worker.set_enabled(true);
+    let resumed_rate = SampleRate::new(96_000).unwrap();
+    let resumed = worker.request_start_for_driver(resumed_rate, driver()).unwrap();
+    assert_eq!(started_rx.recv_timeout(Duration::from_secs(3)).unwrap(), resumed_rate);
+    let deadline = Instant::now() + Duration::from_secs(3);
+    loop {
+        if let SoundCardRuntimeWorkerPoll::Started(started) = worker.poll() {
+            assert_eq!(started.request, resumed);
+            break;
+        }
+        assert!(Instant::now() < deadline);
+        thread::sleep(Duration::from_millis(1));
+    }
+    drop(worker);
+    assert!(pool.wait_for_idle(Duration::from_secs(3)));
+}

@@ -430,10 +430,23 @@ Startup-result service drains at most two per actor turn. Queue overload retains
 disconnection and native failure use the module's existing capped retry deadlines. Error strings
 are limited to 4096 UTF-8-safe bytes and driver identifiers to 128 bytes at startup admission.
 
-Sound Card's event retained-byte accounting, budgeted drain, reliable occurrence delivery, remaining
-admission recovery and configuration-preparation bounds remain P03 work. The underlying audio
-event stream currently uses `try_send` with a dropped-event counter; wake/native-ownership evidence
-does not qualify that overload policy, whole-process memory or actor deadlines.
+Sound Card opts into `golden_audio` ordered event delivery. A full native event queue parks the
+non-realtime control worker; a full 64-item app mailbox parks its native bridge. Actor service
+drains at most eight events and re-arms remaining work. Receiver drop or forced engine shutdown
+cancels upstream capacity waits; facade cancellation also wakes downstream capacity waits.
+Ordinary consumers retain Golden Audio's default best-effort delivery and dropped-event counter.
+For graceful ordered shutdown, submit `AudioControl::shutdown` and drain concurrently through
+EOF. `AudioEngine::shutdown`/drop explicitly abandons further publication while preserving the
+buffered prefix, so an unread receiver cannot deadlock forced cleanup.
+
+Disabled Sound Card nodes continue servicing admitted native events and pending enable/disable
+state without requesting tree snapshots or starting new resources. A full control queue retains
+the latest desired enable state for later admission. Startup workers suppress queued constructors
+and discard in-flight results while disabled, retaining their native-cleanup completion fence.
+
+Event retained-byte accounting, worker-side callback preparation/final payload disposal,
+remaining idle-slot recovery and configuration-preparation bounds remain P03 work. Item limits
+and ordered delivery do not qualify whole-process memory or actor deadlines.
 
 ## Current qualification boundaries
 

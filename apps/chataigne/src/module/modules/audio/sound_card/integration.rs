@@ -349,6 +349,13 @@ impl SoundCardModule {
 
     pub(super) fn drive_runtime(&mut self, ctx: &mut ProcessCtx) {
         self.poll_runtime_worker(ctx);
+        if !self.node_data().effective_enabled {
+            if let Some(runtime) = self.runtime.as_mut() {
+                let _ = runtime.set_enabled(false);
+            }
+            self.poll_runtime(ctx);
+            return;
+        }
         if self.configuration_dirty {
             if let Some(snapshot) = ctx.tree_snapshot_arc() {
                 self.synchronize_derived_structure(ctx, snapshot.as_ref());
@@ -375,6 +382,9 @@ impl SoundCardModule {
     }
 
     pub(super) fn request_runtime_start(&mut self, ctx: &mut ProcessCtx) {
+        if !self.node_data().effective_enabled {
+            return;
+        }
         let sample_rate = match self.requested_sample_rate() {
             Ok(sample_rate) => sample_rate,
             Err(error) => {
@@ -503,6 +513,12 @@ impl SoundCardModule {
     }
 
     fn handle_runtime_started(&mut self, ctx: &mut ProcessCtx, started: runtime::SoundCardRuntimeStarted) {
+        if !self.node_data().effective_enabled {
+            self.runtime_request = None;
+            self.configuration_dirty = true;
+            drop(started);
+            return;
+        }
         if self.runtime_request.as_ref() != Some(&started.request) {
             drop(started);
             return;
@@ -690,11 +706,14 @@ impl SoundCardModule {
         }
         let input_ready = direction_ready(&observation.device.input);
         let output_ready = direction_ready(&observation.device.output);
-        self.base
-            .set_connected(ctx, observation.enabled && any_direction_connected(&observation.device));
+        let enabled = self.node_data().effective_enabled;
+        self.base.set_connected(
+            ctx,
+            enabled && observation.enabled && any_direction_connected(&observation.device),
+        );
         self.base.set_data_capabilities(
             ctx,
-            crate::app::module::ModuleDataCapabilities::new(input_ready, output_ready),
+            crate::app::module::ModuleDataCapabilities::new(enabled && input_ready, enabled && output_ready),
         );
         let inventory_changed = events.iter().any(runtime_event_changes_inventory);
         if inventory_changed {

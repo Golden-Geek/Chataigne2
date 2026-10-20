@@ -1,4 +1,5 @@
-use std::sync::{Arc, RwLock, mpsc::SyncSender};
+use super::delivery::EventSender;
+use std::sync::{Arc, RwLock};
 
 use crate::{
     AudioBackend, AudioConfiguration, AudioEngineConfig, AudioError, AudioEvent, AudioObservationSnapshot,
@@ -13,7 +14,7 @@ use super::{
 };
 
 pub(super) struct ApplyConfigurationContext<'a> {
-    pub(super) event_sender: &'a SyncSender<AudioEvent>,
+    pub(super) event_sender: &'a EventSender,
     pub(super) observation: &'a Arc<RwLock<AudioObservationSnapshot>>,
     pub(super) engine_config: &'a AudioEngineConfig,
     pub(super) limits: &'a EngineLimits,

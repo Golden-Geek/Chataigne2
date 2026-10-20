@@ -67,6 +67,16 @@ runs the host probe by default:
 .\tools\asio.ps1 -- cargo test -p golden_audio --features asio
 ```
 
+## Event delivery
+
+Control events use a bounded best-effort queue by default; full publication increments the
+observation's dropped-event counter. Hosts requiring every active occurrence can opt into
+`AudioEngineBuilder::with_ordered_events()`. Only the non-realtime control worker waits for
+capacity. Keep consuming events to allow control progress. For graceful completion, submit
+`AudioControl::shutdown()` and drain through EOF; `AudioEngine::shutdown()` and engine drop
+cancel publication before joining. Dropping the receiver also releases blocked publication.
+Cancellation preserves the already buffered prefix. Queue capacity counts items, not retained bytes.
+
 ## Playback ownership
 
 `AudioCommand::PlayFile` is ordered with configuration, gain, stop, and stop-all commands. A fixed

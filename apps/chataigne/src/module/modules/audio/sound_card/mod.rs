@@ -300,7 +300,16 @@ impl Node for SoundCardModule {
     }
 
     fn worker_wake_requires_tree_snapshot(&self) -> bool {
-        self.configuration_dirty || self.runtime_request.is_some()
+        self.node_data().effective_enabled && (self.configuration_dirty || self.runtime_request.is_some())
+    }
+
+    fn worker_wake_when_disabled(&self) -> bool {
+        self.runtime.is_some()
+            || self.runtime_request.is_some()
+            || self
+                .runtime_worker
+                .as_ref()
+                .is_some_and(runtime::SoundCardRuntimeWorker::has_pending)
     }
 
     fn attached_requires_tree_snapshot(&self) -> bool {
@@ -449,6 +458,12 @@ impl Node for SoundCardModule {
     }
 
     fn on_effective_enabled_changed(&mut self, _ctx: &mut ProcessCtx, enabled: bool) {
+        if let Some(worker) = &self.runtime_worker {
+            worker.set_enabled(enabled);
+        }
+        if !enabled {
+            self.runtime_request = None;
+        }
         if let Some(runtime) = self.runtime.as_mut() {
             let _ = runtime.set_enabled(enabled);
         } else {

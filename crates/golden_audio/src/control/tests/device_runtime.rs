@@ -1,6 +1,7 @@
+use super::super::delivery::event_channel;
 use std::{
     collections::HashMap,
-    sync::{Arc, Mutex, RwLock, mpsc::sync_channel},
+    sync::{Arc, Mutex, RwLock},
 };
 
 use crate::{
@@ -215,7 +216,7 @@ fn catalog_discovery_probes_only_explicit_interests_and_caches_the_result() {
         descriptors,
         probes: Arc::clone(&probes),
     })];
-    let (event_sender, _events) = sync_channel(32);
+    let (event_sender, _events) = event_channel(32, false);
     let observation = Arc::new(RwLock::new(AudioObservationSnapshot::default()));
     let mut cache = HashMap::new();
     let mut failures = HashMap::new();
@@ -275,7 +276,7 @@ fn transient_backend_failure_keeps_the_last_known_device_catalog() {
     let backends: Vec<Arc<dyn AudioBackend>> = vec![Arc::new(FailingInventoryBackend {
         backend: backend.clone(),
     })];
-    let (event_sender, _events) = sync_channel(32);
+    let (event_sender, _events) = event_channel(32, false);
     let mut previous = AudioObservationSnapshot::default();
     previous.device.device_catalog = vec![catalog_entry.clone()];
     let observation = Arc::new(RwLock::new(previous));
@@ -311,7 +312,7 @@ fn changing_from_output_only_to_input_only_stops_output_without_reopening_it() {
         .expect("null device");
     let engine_config = AudioEngineConfig::default();
     let limits = EngineLimits::default();
-    let (event_sender, _events) = sync_channel(64);
+    let (event_sender, _events) = event_channel(64, false);
     let observation = Arc::new(RwLock::new(AudioObservationSnapshot::default()));
     let mut runtime = DeviceRuntime::new(&engine_config).expect("device runtime");
 

@@ -145,6 +145,8 @@ impl SoundCardValueBindings {
 #[derive(Debug)]
 pub(crate) struct SoundCardRuntime {
     control: AudioControl,
+    enabled_pending: Option<bool>,
+    enabled_sent: Option<bool>,
     event_bridge: events::SoundCardRuntimeEvents,
     observations: AudioObservationReader,
     generation: ConfigGeneration,
@@ -167,6 +169,7 @@ impl SoundCardRuntime {
             driver.ok_or_else(|| "Sound Card runtime requires an explicitly selected audio driver".to_owned())?;
         let mut builder = AudioEngineBuilder::default()
             .without_backends()
+            .with_ordered_events()
             .with_managed_render_runtime();
         builder.config.sample_rate = sample_rate;
         if driver == NullBackend::backend_id() {
@@ -192,6 +195,8 @@ impl SoundCardRuntime {
         Ok(Self {
             observations,
             control,
+            enabled_pending: None,
+            enabled_sent: None,
             event_bridge,
             generation: ConfigGeneration::INITIAL,
             sample_rate,
@@ -262,6 +267,7 @@ impl SoundCardRuntime {
             })
             .map_err(|error| error.to_string())?;
         self.generation = generation;
+        self.enabled_sent = None;
         self.bindings = built.bindings;
         self.last_values.clear();
         for node in &self.bindings.runtime_values {
@@ -273,10 +279,23 @@ impl SoundCardRuntime {
     }
 
     pub(super) fn set_enabled(&mut self, enabled: bool) -> Result<(), String> {
+        if self.enabled_sent == Some(enabled) && self.enabled_pending.is_none() {
+            return Ok(());
+        }
+        self.enabled_pending = Some(enabled);
+        self.retry_enabled()
+    }
+
+    fn retry_enabled(&mut self) -> Result<(), String> {
+        let Some(enabled) = self.enabled_pending else {
+            return Ok(());
+        };
         self.control
             .submit(AudioCommand::SetEnabled(enabled))
-            .map(|_| ())
-            .map_err(|error| error.to_string())
+            .map_err(|error| error.to_string())?;
+        self.enabled_sent = Some(enabled);
+        self.enabled_pending = None;
+        Ok(())
     }
 
     pub(super) fn admit(
@@ -295,6 +314,7 @@ impl SoundCardRuntime {
         Vec<AudioEvent>,
     ) {
         let events = self.event_bridge.drain();
+        let _ = self.retry_enabled();
         for event in &events {
             self.observe_event(event);
         }

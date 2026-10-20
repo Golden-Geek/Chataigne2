@@ -1,6 +1,7 @@
+use super::delivery::EventSender;
 use std::{
     collections::HashMap,
-    sync::{Arc, RwLock, mpsc::SyncSender},
+    sync::{Arc, RwLock},
     time::{Duration, Instant},
 };
 
@@ -56,7 +57,7 @@ impl DeviceRuntime {
 
     pub(super) fn configure(
         &mut self,
-        event_sender: &SyncSender<AudioEvent>,
+        event_sender: &EventSender,
         observation: &Arc<RwLock<AudioObservationSnapshot>>,
         backends: &[Arc<dyn AudioBackend>],
         configuration: &AudioConfiguration,
@@ -82,7 +83,7 @@ impl DeviceRuntime {
 
     pub(super) fn set_enabled(
         &mut self,
-        event_sender: &SyncSender<AudioEvent>,
+        event_sender: &EventSender,
         observation: &Arc<RwLock<AudioObservationSnapshot>>,
         backends: &[Arc<dyn AudioBackend>],
         enabled: bool,
@@ -105,7 +106,7 @@ impl DeviceRuntime {
 
     pub(super) fn set_probe_interests(
         &mut self,
-        event_sender: &SyncSender<AudioEvent>,
+        event_sender: &EventSender,
         observation: &Arc<RwLock<AudioObservationSnapshot>>,
         backends: &[Arc<dyn AudioBackend>],
         targets: Vec<AudioDeviceTargetId>,
@@ -206,7 +207,7 @@ impl DeviceRuntime {
 
     pub(super) fn refresh(
         &mut self,
-        event_sender: &SyncSender<AudioEvent>,
+        event_sender: &EventSender,
         observation: &Arc<RwLock<AudioObservationSnapshot>>,
         backends: &[Arc<dyn AudioBackend>],
         force: bool,
@@ -299,7 +300,7 @@ impl DeviceRuntime {
 
     fn observe_runtime_statuses(
         &mut self,
-        event_sender: &SyncSender<AudioEvent>,
+        event_sender: &EventSender,
         observation: &Arc<RwLock<AudioObservationSnapshot>>,
     ) -> bool {
         let now_ms = elapsed_millis();
@@ -362,11 +363,7 @@ impl DeviceRuntime {
         );
     }
 
-    fn publish_state(
-        &self,
-        event_sender: &SyncSender<AudioEvent>,
-        observation: &Arc<RwLock<AudioObservationSnapshot>>,
-    ) {
+    fn publish_state(&self, event_sender: &EventSender, observation: &Arc<RwLock<AudioObservationSnapshot>>) {
         let state = self.supervisor.inspector_state();
         let previous = observation
             .read()
@@ -394,7 +391,7 @@ impl DeviceRuntime {
 
     pub(super) fn shutdown(
         &mut self,
-        event_sender: &SyncSender<AudioEvent>,
+        event_sender: &EventSender,
         observation: &Arc<RwLock<AudioObservationSnapshot>>,
         #[cfg(all(feature = "analysis", feature = "playback"))] managed_render_runtime: Option<
             &mut ManagedRenderRuntime,
@@ -423,7 +420,7 @@ fn observe_runtime_status(
     direction: &mut crate::SupervisorDirection,
     stream: Option<&dyn AudioStream>,
     now_ms: u64,
-    event_sender: &SyncSender<AudioEvent>,
+    event_sender: &EventSender,
     observation: &Arc<RwLock<AudioObservationSnapshot>>,
 ) -> bool {
     let Some(stream) = stream else {
@@ -727,7 +724,7 @@ fn elapsed_millis() -> u64 {
 }
 
 pub(super) fn discover_backend_inventory(
-    event_sender: &SyncSender<AudioEvent>,
+    event_sender: &EventSender,
     observation: &Arc<RwLock<AudioObservationSnapshot>>,
     backends: &[Arc<dyn AudioBackend>],
     probe_targets: &[AudioDeviceTargetId],
@@ -843,7 +840,7 @@ pub(super) fn discover_backend_inventory(
 }
 
 fn publish_probe_failure(
-    event_sender: &SyncSender<AudioEvent>,
+    event_sender: &EventSender,
     observation: &Arc<RwLock<AudioObservationSnapshot>>,
     failures: &mut HashMap<AudioDeviceTargetId, AudioError>,
     target: &AudioDeviceTargetId,

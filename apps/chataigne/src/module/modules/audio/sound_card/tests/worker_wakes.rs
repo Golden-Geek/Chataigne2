@@ -61,3 +61,29 @@ fn replacing_a_live_null_runtime_retires_it_and_undo_restarts_with_a_fresh_sourc
     assert!(engine.undo().unwrap());
     wait_for_null_runtime(&mut engine, module);
 }
+
+#[test]
+fn disabled_null_module_services_native_completions_without_scheduled_polling_or_a_tree_snapshot() {
+    let (mut engine, module) = create_sound_card();
+    wait_for_null_runtime(&mut engine, module);
+    patch_enabled(&mut engine, module, false);
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let mut wakes = 0;
+    loop {
+        engine.run_tick(Duration::from_millis(20)).unwrap();
+        wakes += engine.tick_stats().wake_callbacks_fired;
+        let crate::app::AppNode::SoundCardModule(node) = engine.nodes.get(module).unwrap() else {
+            panic!("Sound Card module")
+        };
+        assert!(!node.node_data().effective_enabled);
+        assert!(!node.worker_wake_requires_tree_snapshot());
+        assert!(node.execution_rule().update_rate.is_none());
+        if wakes > 0 && node.runtime.is_some() && node.runtime_request.is_none() {
+            break;
+        }
+        assert!(Instant::now() < deadline, "disabled module must service native wakes");
+        std::thread::sleep(Duration::from_millis(1));
+    }
+    patch_enabled(&mut engine, module, true);
+    wait_for_null_runtime(&mut engine, module);
+}
