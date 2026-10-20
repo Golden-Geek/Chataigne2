@@ -71,7 +71,7 @@ fn value(value: &ParamValue) -> usize {
     }
 }
 
-fn constraints(constraints: &ParameterConstraints) -> usize {
+pub(super) fn constraints(constraints: &ParameterConstraints) -> usize {
     let ParameterConstraints {
         range,
         step,

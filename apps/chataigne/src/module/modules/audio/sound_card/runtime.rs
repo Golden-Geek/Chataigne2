@@ -31,6 +31,9 @@ mod capabilities;
 mod configuration;
 #[cfg(test)]
 pub(super) use configuration::build_configuration;
+#[cfg(test)]
+pub(super) use configuration::choices::options::{device_options_for_current as native_device_options, DeviceChoice};
+pub(super) use configuration::choices::ChoicePlan;
 pub(super) use configuration::preparation::{Preparation, PreparedConfiguration};
 use configuration::selection::{ProbeTargets, SelectionPlan};
 mod events;
@@ -41,10 +44,11 @@ mod worker;
 
 pub(super) use events::{EVENT_BYTES, EVENT_SERVICE_ITEMS};
 
+#[cfg(test)]
+pub(super) use capabilities::device_selection_value;
 pub(super) use capabilities::{
-    configuration_capabilities, device_selection_value, probe_targets_are_pending, requires_disable_before_probe,
-    selected_physical_channels, selected_probe_targets, supported_buffer_sizes, supported_sample_rates,
-    supports_system_default,
+    configuration_capabilities, probe_targets_are_pending, requires_disable_before_probe, selected_physical_channels,
+    selected_probe_targets, supported_buffer_sizes, supported_sample_rates, supports_system_default,
 };
 use configuration::warnings::delivery::WarningDelivery;
 use configuration::{matched_device, parse_fixed_value, preferred_rate, resolve_selection};
@@ -237,6 +241,10 @@ impl SoundCardRuntime {
             outgoing_activity: None,
             pending_outgoing_activity: None,
         })
+    }
+
+    pub(super) fn device_revision(&self) -> u64 {
+        self.event_bridge.device_revision()
     }
 
     pub(super) fn device_inventory(&self) -> Option<observation::DeviceInventory> {

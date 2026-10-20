@@ -7,6 +7,8 @@ use golden_core::{
 };
 use std::time::{Duration, Instant};
 
+mod choices;
+
 fn fixture() -> (
     crate::app::AppEngine,
     NodeId,
@@ -180,7 +182,7 @@ fn preparation_capacity_and_dropped_jobs_are_retryable_without_disabling_audio()
         previous: None,
         snapshot: engine.process_tree_snapshot().try_lease().unwrap(),
         module,
-        reader: runtime::observation::retain_reader(native.observations()).unwrap(),
+        source: runtime::observation::retain_reader(native.observations()).unwrap(),
         state: state.clone(),
     };
     let too_small = PayloadPool::new("config-small-test", 4, 1024).unwrap();
@@ -218,7 +220,7 @@ fn cancellation_releases_a_queued_preparation_without_manufacturing_a_completion
         previous: None,
         snapshot: engine.process_tree_snapshot().try_lease().unwrap(),
         module,
-        reader: runtime::observation::retain_reader(native.observations()).unwrap(),
+        source: runtime::observation::retain_reader(native.observations()).unwrap(),
         state: state.clone(),
     };
     let pool = PayloadPool::new("config-cancel-test", 1, SCRATCH_BYTES).unwrap();

@@ -11,6 +11,8 @@ pub(super) use capture::retain_reader;
 pub(in super::super) use capture::{
     ObservationCapture, ObservationCaptureError, ObservationCollector, ObservationView,
 };
+#[cfg(test)]
+pub(crate) use inventory::tests::fixture_inventory;
 pub(crate) use inventory::{DeviceInventory, RouteValidationError};
 pub(super) use publication::TelemetryDelivery;
 pub(crate) use values::ValueCache;

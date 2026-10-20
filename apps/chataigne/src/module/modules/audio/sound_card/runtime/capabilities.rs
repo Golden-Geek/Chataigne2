@@ -125,6 +125,7 @@ pub(crate) fn selected_physical_channels(
         .collect()
 }
 
+#[cfg(test)]
 pub(crate) fn device_selection_value(selection: &AudioDeviceSelection) -> String {
     serde_json::to_string(selection).expect("audio device selections serialize")
 }

@@ -16,11 +16,11 @@ use crate::app::module_modules_audio_sound_card_commands::{
 use crate::app::module_modules_audio_sound_card_schema::{SoundCardInputRoute, SoundCardOutputRoute};
 
 mod command_admission;
-mod device_choices;
 mod lifecycle;
 
 use command_admission::*;
-use device_choices::{sync_device_enum_with_state, sync_numeric_enum, DeviceChoice};
+#[cfg(test)]
+use runtime::DeviceChoice;
 #[cfg(test)]
 pub(super) fn device_options_for_current(
     current: &str,
@@ -32,7 +32,7 @@ pub(super) fn device_options_for_current(
         golden_audio::AudioDirection::Input => DeviceChoice::Input,
         golden_audio::AudioDirection::Output => DeviceChoice::Output,
     };
-    device_choices::device_options_for_current(current, state, choice, driver)
+    runtime::native_device_options(current, state, choice, driver).expect("fixture choices fit native admission")
 }
 #[cfg(test)]
 pub(super) fn duplex_device_options_for_current(
@@ -40,7 +40,8 @@ pub(super) fn duplex_device_options_for_current(
     state: &golden_audio::AudioDeviceInspectorState,
     driver: Option<&golden_audio::BackendId>,
 ) -> Vec<golden_core::parameter::ParameterEnumOption> {
-    device_choices::device_options_for_current(current, state, DeviceChoice::Duplex, driver)
+    runtime::native_device_options(current, state, DeviceChoice::Duplex, driver)
+        .expect("fixture choices fit native admission")
 }
 
 pub(crate) const SOUND_CARD_COMMAND_RESULT_TOPIC: &str = "chataigne.sound_card.command.result";
@@ -124,18 +125,6 @@ impl SoundCardModule {
             ));
         }
         true
-    }
-
-    pub(super) fn sync_device_choices(&self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
-        if let Some(parameter) = find_path(snapshot, self.id(), "connection/device") {
-            sync_enum_options(ctx, parameter, device_options());
-        }
-        if let Some(parameter) = find_path(snapshot, self.id(), "connection/input_device") {
-            sync_enum_options(ctx, parameter, input_device_options());
-        }
-        if let Some(parameter) = find_path(snapshot, self.id(), "connection/output_device") {
-            sync_enum_options(ctx, parameter, output_device_options());
-        }
     }
 
     fn connect_route(
@@ -458,6 +447,8 @@ impl SoundCardModule {
         }
         let module = self.id();
         let Some(runtime) = self.runtime.as_mut() else {
+            self.choices.pause();
+            self.service_device_choices(ctx);
             self.service_observation_warning(ctx, None);
             self.base.set_connected(ctx, false);
             self.base
@@ -493,17 +484,10 @@ impl SoundCardModule {
             crate::app::module::ModuleDataCapabilities::new(enabled && input_ready, enabled && output_ready),
         );
         let inventory_changed = events.iter().any(|event| runtime_event_changes_inventory(&event.event));
-        self.choices_dirty |= inventory_changed;
-        if self.choices_dirty {
-            if let Some(inventory) = self
-                .runtime
-                .as_ref()
-                .and_then(runtime::SoundCardRuntime::device_inventory)
-            {
-                self.sync_live_device_choices(ctx, &inventory);
-                self.choices_dirty = false;
-            }
+        if inventory_changed {
+            self.choices.invalidate();
         }
+        self.service_device_choices(ctx);
         for event in events {
             if runtime_event_changes_inventory(&event.event) {
                 self.configuration_dirty = true;
@@ -648,50 +632,6 @@ impl SoundCardModule {
         Ok(sequence)
     }
 
-    pub(super) fn sync_live_device_choices(
-        &self,
-        ctx: &mut ProcessCtx,
-        inventory: &runtime::observation::DeviceInventory,
-    ) {
-        let state = inventory.state();
-        let driver = self.requested_driver().ok().flatten();
-        if self.uses_duplex_device() {
-            sync_device_enum_with_state(
-                ctx,
-                self.device.id(),
-                inventory.clone(),
-                DeviceChoice::Duplex,
-                driver.as_ref(),
-            );
-        } else {
-            sync_device_enum_with_state(
-                ctx,
-                self.input_device.id(),
-                inventory.clone(),
-                DeviceChoice::Input,
-                driver.as_ref(),
-            );
-            sync_device_enum_with_state(
-                ctx,
-                self.output_device.id(),
-                inventory.clone(),
-                DeviceChoice::Output,
-                driver.as_ref(),
-            );
-        }
-        let (input_device, output_device) = self.selected_device_values();
-        let (sample_rates, buffer_sizes) = runtime::configuration_capabilities(
-            driver.as_ref(),
-            state,
-            input_device,
-            output_device,
-            self.sample_rate.get_ref().0.as_str(),
-            self.buffer_size.get_ref().0.as_str(),
-        );
-        sync_numeric_enum(ctx, self.sample_rate.id(), "Hz", sample_rates.as_slice());
-        sync_numeric_enum(ctx, self.buffer_size.id(), "frames", buffer_sizes.as_slice());
-    }
-
     pub(super) fn set_runtime_error(&mut self, ctx: &mut ProcessCtx, node: NodeId, message: &str) {
         if let Some(previous) = self.runtime_error_node {
             if previous != node {
@@ -714,6 +654,7 @@ impl SoundCardModule {
     }
 
     pub(super) fn stop_runtime(&mut self) {
+        self.choices.pause();
         self.runtime_request = None;
         self.runtime_retry_at = None;
         self.runtime_retry.reset();

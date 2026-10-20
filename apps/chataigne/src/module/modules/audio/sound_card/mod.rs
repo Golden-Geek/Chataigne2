@@ -1,3 +1,4 @@
+mod choice_sync;
 mod connection_feedback;
 mod event_delivery;
 mod integration;
@@ -15,12 +16,11 @@ mod traffic_logging;
 use std::time::{Duration, Instant};
 
 use golden_core::{
-    edit::Edit,
     engine::NodeExecutionRule,
     events::{CustomEvent, Event, EventFrame, EventKind},
     node,
     node::{Node, NodeCreationContext, NodeId, NodeMetaPatch, NodeScriptDescriptor},
-    parameter::{Enum, ParamValue, Parameter},
+    parameter::{Enum, ParamValue},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 use golden_io::ReconnectBackoff;
@@ -29,11 +29,11 @@ pub(crate) use crate::app::module_modules_audio_sound_card_commands::SOUND_CARD_
 use crate::app::module_modules_audio_sound_card_schema::{
     SoundCardInputParameters, SoundCardInputRouting, SoundCardOutputParameters, SoundCardOutputRouting,
 };
+use settings::NO_AUDIO_DRIVER;
 pub(crate) use settings::{
     backend_options, buffer_size_options, default_audio_driver, device_options, input_device_options,
     output_device_options, sample_rate_options,
 };
-use settings::{enum_option, NO_AUDIO_DRIVER};
 
 pub(crate) const ASIO_AUDIO_DRIVER: &str = "asio";
 pub(crate) const NO_AUDIO_DEVICE: &str = "none";
@@ -138,7 +138,7 @@ pub struct SoundCardModule {
     input_route_reset_pending: bool,
     output_route_reset_pending: bool,
     configuration_dirty: bool,
-    choices_dirty: bool,
+    choices: choice_sync::ChoiceSync,
     outgoing_activity_active: bool,
     runtime_error_node: Option<NodeId>,
     pending_events: event_delivery::PendingAudioEvents,
@@ -161,7 +161,7 @@ impl SoundCardModule {
             false,
             false,
             true,
-            true,
+            choice_sync::ChoiceSync::default(),
             false,
             None,
             event_delivery::PendingAudioEvents::default(),
@@ -277,9 +277,8 @@ impl Node for SoundCardModule {
         self.input_route_reset_pending = false;
         self.output_route_reset_pending = false;
         self.synchronize_derived_structure(ctx, snapshot.as_ref());
-        self.sync_device_choices(ctx, snapshot.as_ref());
         self.configuration_dirty = true;
-        self.choices_dirty = true;
+        self.choices.invalidate();
         self.request_runtime_start(ctx);
     }
 
@@ -300,6 +299,9 @@ impl Node for SoundCardModule {
     fn worker_wake_requires_tree_snapshot(&self) -> bool {
         self.node_data().effective_enabled
             && (self.configuration_dirty
+                || self.runtime.as_ref().is_some_and(|runtime| {
+                    self.choices.needs_snapshot(runtime.device_revision()) && runtime.device_inventory().is_some()
+                })
                 || self
                     .runtime_request
                     .as_ref()
@@ -307,7 +309,8 @@ impl Node for SoundCardModule {
     }
 
     fn worker_wake_when_disabled(&self) -> bool {
-        !self.pending_events.is_empty()
+        self.choices.has_pending()
+            || !self.pending_events.is_empty()
             || self.observation_warning.has_pending()
             || self.runtime.is_some()
             || self.runtime_request.is_some()
@@ -416,29 +419,22 @@ impl Node for SoundCardModule {
         } else {
             self.configuration_dirty = true;
         }
-        if let Some(snapshot) = ctx.tree_snapshot_arc() {
-            if param == self.audio_driver.id() {
-                self.sync_device_choices(ctx, snapshot.as_ref());
-                self.choices_dirty = true;
-            } else if [
-                self.device.id(),
-                self.input_device.id(),
-                self.output_device.id(),
-                self.sample_rate.id(),
-                self.buffer_size.id(),
-            ]
-            .contains(&param)
-            {
-                self.choices_dirty = true;
-                if let Some(inventory) = self
-                    .runtime
-                    .as_ref()
-                    .and_then(runtime::SoundCardRuntime::device_inventory)
-                {
-                    self.sync_live_device_choices(ctx, &inventory);
-                    self.choices_dirty = false;
-                }
+        if [
+            self.audio_driver.id(),
+            self.device.id(),
+            self.input_device.id(),
+            self.output_device.id(),
+            self.sample_rate.id(),
+            self.buffer_size.id(),
+        ]
+        .contains(&param)
+        {
+            self.choices.invalidate();
+            if let Some(wake) = &self.runtime_wake {
+                wake.wake();
             }
+        }
+        if let Some(snapshot) = ctx.tree_snapshot_arc() {
             self.base
                 .emit_script_param_callback(ctx, snapshot.as_ref(), param, &old_value);
         }
@@ -468,6 +464,10 @@ impl Node for SoundCardModule {
     }
 
     fn on_effective_enabled_changed(&mut self, _ctx: &mut ProcessCtx, enabled: bool) {
+        self.choices.invalidate();
+        if !enabled {
+            self.choices.pause();
+        }
         if let Some(worker) = &self.runtime_worker {
             worker.set_enabled(enabled);
         }
@@ -500,41 +500,6 @@ impl Node for SoundCardModule {
     fn project_create(node_type: &str) -> Option<Self> {
         (node_type == Self::NODE_TYPE).then(Self::create)
     }
-}
-
-fn sync_enum_options(
-    ctx: &mut ProcessCtx,
-    parameter_id: NodeId,
-    mut options: Vec<golden_core::parameter::ParameterEnumOption>,
-) {
-    if parameter_id.0 == 0 {
-        return;
-    }
-    ctx.call_node_mutation_without_snapshot(parameter_id, move |node, inner_ctx| {
-        let Some(parameter) = node.as_any_mut().downcast_mut::<Parameter>() else {
-            return Err("Sound Card device selector is not a parameter".to_owned());
-        };
-        let current = parameter
-            .value
-            .as_enum()
-            .filter(|value| !value.trim().is_empty())
-            .unwrap_or_default();
-        if !options.iter().any(|option| option.variant_id == current) {
-            let mut missing = enum_option(current.as_str(), format!("Missing: {current}").as_str(), 1);
-            missing.tags.push("missing".to_owned());
-            options.push(missing);
-        }
-        if parameter.constraints.enum_options.as_slice() == options.as_slice() {
-            return Ok(());
-        }
-        let mut constraints = parameter.constraints.clone();
-        constraints.enum_options = (options).into();
-        inner_ctx.edits.push(Edit::SetParamConstraints {
-            node: parameter_id,
-            constraints,
-        });
-        Ok(())
-    });
 }
 
 pub(super) fn find_path(snapshot: &ProcessTreeSnapshot, start: NodeId, path: &str) -> Option<NodeId> {

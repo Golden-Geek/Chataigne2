@@ -22,6 +22,13 @@ mod lease;
 pub(crate) mod memory;
 pub use lease::SnapshotLeaseError;
 
+/// Conservative retained allocation weight for constraints, including shared enum
+/// storage and spare capacities. Intended for native preparation admission; this
+/// traverses nested storage and must not run in a realtime callback.
+pub fn parameter_constraints_retained_bytes(constraints: &ParameterConstraints) -> usize {
+    std::mem::size_of::<ParameterConstraints>().saturating_add(memory::constraints(constraints))
+}
+
 /// Parameter fields needed by a process-tree callback snapshot.
 ///
 /// The full parameter DTO also carries editor defaults and UI hints; cloning those

@@ -28,6 +28,16 @@ fn prepared(snapshot: &AudioObservationSnapshot) -> DeviceView {
     }
 }
 
+pub(crate) fn fixture_inventory(device: AudioDeviceInspectorState, revision: u64) -> DeviceInventory {
+    prepared(&AudioObservationSnapshot {
+        device,
+        device_revision: revision,
+        ..Default::default()
+    })
+    .catalog(revision)
+    .unwrap()
+}
+
 #[test]
 fn captured_inventory_routes_use_direction_and_borrowed_keys() {
     let snapshot = snapshot();

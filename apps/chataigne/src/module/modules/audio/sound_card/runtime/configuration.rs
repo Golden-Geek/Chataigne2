@@ -1,4 +1,5 @@
 use super::*;
+pub(super) mod choices;
 pub(super) mod preparation;
 pub(super) mod selection;
 pub(super) mod warnings;

@@ -263,6 +263,7 @@ impl SoundCardModule {
                 }
                 self.clear_device_connection_warnings(ctx);
                 self.runtime = Some(runtime);
+                self.choices.invalidate();
                 self.runtime_retry.reset();
                 self.runtime_retry_at = None;
                 self.configuration_dirty = true;

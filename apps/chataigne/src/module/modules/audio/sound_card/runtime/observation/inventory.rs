@@ -36,6 +36,10 @@ struct DirectionIndex {
 pub(crate) struct DeviceInventory(RetainedPayload<InventoryFrame>);
 
 impl DeviceInventory {
+    pub(crate) fn revision(&self) -> u64 {
+        self.0.revision
+    }
+
     pub(crate) fn state(&self) -> &AudioDeviceInspectorState {
         &self.0.metadata
     }
@@ -275,4 +279,4 @@ fn physical_channels(
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

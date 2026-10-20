@@ -14,9 +14,11 @@ use golden_core::{
 };
 use golden_io::{BoundedWorker, PayloadPool, RetainedPayload, RetirementPermit, RetirementPool, WorkerLimits};
 
+use super::super::observation::DeviceInventory;
 use super::super::{
     find_path, BuiltSoundCardConfiguration, ConfigurationError, RuntimeWakeSender, SoundCardValueBindings,
 };
+use super::choices::ChoicePlan;
 use super::selection::{ProbeTargets, SelectionPlan};
 use super::warnings::WarningPlan;
 
@@ -27,7 +29,7 @@ const SCRATCH_BYTES: usize = 256 * 1024 * 1024;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Key {
-    revisions: [Option<SubtreeRevision>; 4],
+    revisions: [Option<SubtreeRevision>; 6],
     scope: Scope,
     uuid: golden_core::node::NodeUuid,
     enabled: bool,
@@ -36,6 +38,7 @@ struct Key {
 enum Scope {
     Configuration,
     Selection,
+    Choices,
 }
 impl Key {
     #[cfg(test)]
@@ -45,12 +48,22 @@ impl Key {
     fn read(snapshot: &ProcessTreeSnapshot, module: NodeId, scope: Scope) -> Option<Self> {
         let node = snapshot.node(module)?;
         let paths = match scope {
-            Scope::Configuration => [Some("connection"), Some("parameters"), Some("values"), None],
+            Scope::Configuration => [Some("connection"), Some("parameters"), Some("values"), None, None, None],
+            Scope::Choices => [
+                Some("connection/audio_driver"),
+                Some("connection/device"),
+                Some("connection/input_device"),
+                Some("connection/output_device"),
+                Some("connection/sample_rate"),
+                Some("connection/buffer_size"),
+            ],
             Scope::Selection => [
                 Some("connection/audio_driver"),
                 Some("connection/device"),
                 Some("connection/input_device"),
                 Some("connection/output_device"),
+                None,
+                None,
             ],
         };
         let revisions = paths.map(|path| {
@@ -142,9 +155,9 @@ pub(crate) struct Preparation<T: Send + Sync + 'static = PreparedConfiguration> 
     state: Arc<State<T>>,
     ready: Option<RetainedPayload<T>>,
 }
-struct Mode<T: Send + Sync + 'static> {
+struct Mode<T: Send + Sync + 'static, S> {
     scope: Scope,
-    wrap: fn(Job<T>) -> Work,
+    wrap: fn(Job<T, S>) -> Work,
 }
 impl Preparation<PreparedConfiguration> {
     pub(crate) fn start(
@@ -187,7 +200,36 @@ impl Preparation<SelectionPlan> {
         )
     }
 }
+impl Preparation<ChoicePlan> {
+    pub(crate) fn start_choices(
+        snapshot: &Arc<ProcessTreeSnapshot>,
+        module: NodeId,
+        inventory: DeviceInventory,
+        wake: RuntimeWakeSender,
+    ) -> Result<Self, ConfigurationError> {
+        let revision = inventory.revision();
+        let request = Self::start_with(
+            snapshot,
+            module,
+            inventory,
+            wake,
+            None,
+            Mode {
+                scope: Scope::Choices,
+                wrap: Work::Choices,
+            },
+        )?;
+        // This source is already immutable, including while its job is queued.
+        request.state.device_revision.store(revision, Ordering::Release);
+        request.state.device_captured.store(true, Ordering::Release);
+        Ok(request)
+    }
+}
 impl<T: Send + Sync + 'static> Preparation<T> {
+    pub(crate) fn is_complete(&self) -> bool {
+        self.state.complete.load(Ordering::Acquire)
+    }
+
     pub(crate) fn matches_device_revision(&self, revision: u64) -> bool {
         !self.state.device_captured.load(Ordering::Acquire)
             || self.state.device_revision.load(Ordering::Acquire) == revision
@@ -195,13 +237,13 @@ impl<T: Send + Sync + 'static> Preparation<T> {
     pub(crate) fn matches(&self, snapshot: &ProcessTreeSnapshot, module: NodeId) -> bool {
         Some(self.key) == Key::read(snapshot, module, self.key.scope)
     }
-    fn start_with(
+    fn start_with<S>(
         snapshot: &Arc<ProcessTreeSnapshot>,
         module: NodeId,
-        reader: RetainedPayload<AudioObservationReader>,
+        source: S,
         wake: RuntimeWakeSender,
         previous: Option<ProbeTargets>,
-        mode: Mode<T>,
+        mode: Mode<T, S>,
     ) -> Result<Self, ConfigurationError> {
         let reject = |message| ConfigurationError {
             node: module,
@@ -237,7 +279,7 @@ impl<T: Send + Sync + 'static> Preparation<T> {
                 previous,
                 snapshot,
                 module,
-                reader,
+                source,
                 state,
             }))
             .map_err(|message| unavailable(module, message))?;
@@ -264,11 +306,11 @@ impl<T: Send + Sync + 'static> Drop for Preparation<T> {
     }
 }
 
-struct Job<T: Send + Sync + 'static = PreparedConfiguration> {
+struct Job<T: Send + Sync + 'static = PreparedConfiguration, S = RetainedPayload<AudioObservationReader>> {
     previous: Option<ProbeTargets>,
     snapshot: RetainedPayload<ProcessTreeSnapshot>,
     module: NodeId,
-    reader: RetainedPayload<AudioObservationReader>,
+    source: S,
     state: Arc<State<T>>,
 }
 impl<T: Send + Sync + 'static> Job<T> {
@@ -299,7 +341,7 @@ impl<T: Send + Sync + 'static> Job<T> {
             )
         })?;
         let inspector = self
-            .reader
+            .source
             .inspect(|snapshot| {
                 self.state
                     .device_revision
@@ -316,6 +358,8 @@ impl<T: Send + Sync + 'static> Job<T> {
             })?;
         Ok((reservation, inspector.0, inspector.1))
     }
+}
+impl<T: Send + Sync + 'static, S> Job<T, S> {
     fn finish(&self, mut result: Result<RetainedPayload<T>, ConfigurationError>) {
         if let Err(error) = &mut result {
             compact(&mut error.message);
@@ -407,7 +451,30 @@ impl Job<SelectionPlan> {
             .map_err(|_| unavailable(self.module, "Sound Card selection reservation rejected".into()))
     }
 }
-impl<T: Send + Sync + 'static> Drop for Job<T> {
+impl Job<ChoicePlan, DeviceInventory> {
+    fn run(&self, pool: &PayloadPool) -> Result<RetainedPayload<ChoicePlan>, ConfigurationError> {
+        let revision = self.source.revision();
+        self.state.device_revision.store(revision, Ordering::Release);
+        self.state.device_captured.store(true, Ordering::Release);
+        if self.state.cancelled.load(Ordering::Acquire) {
+            return Err(unavailable(self.module, "Sound Card choices superseded".into()));
+        }
+        let reservation = pool
+            .try_reserve(SCRATCH_BYTES)
+            .map_err(|_| unavailable(self.module, "Sound Card choices lifetime capacity exhausted".into()))?;
+        let options = super::choices::option_pool()
+            .map_err(|error| unavailable(self.module, format!("Sound Card enum storage unavailable: {error}")))?;
+        let plan = ChoicePlan::prepare(&self.snapshot, self.module, &self.source, &options)?;
+        let bytes = plan.bytes;
+        if self.state.cancelled.load(Ordering::Acquire) {
+            return Err(unavailable(self.module, "Sound Card choices superseded".into()));
+        }
+        reservation
+            .retain(plan, bytes)
+            .map_err(|_| unavailable(self.module, "Sound Card choices reservation rejected".into()))
+    }
+}
+impl<T: Send + Sync + 'static, S> Drop for Job<T, S> {
     fn drop(&mut self) {
         if !self.state.complete.load(Ordering::Acquire) && !self.state.cancelled.load(Ordering::Acquire) {
             self.state.finish(Err(ConfigurationError {
@@ -473,12 +540,14 @@ fn unavailable(node: NodeId, message: String) -> ConfigurationError {
 enum Work {
     Configuration(Job),
     Selection(Job<SelectionPlan>),
+    Choices(Job<ChoicePlan, DeviceInventory>),
 }
 impl Work {
     fn run(self, pool: &PayloadPool) {
         match self {
             Self::Configuration(job) => job.finish(job.run(pool)),
             Self::Selection(job) => job.finish(job.run(pool)),
+            Self::Choices(job) => job.finish(job.run(pool)),
         }
     }
 }

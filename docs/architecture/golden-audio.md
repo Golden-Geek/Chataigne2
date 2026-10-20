@@ -367,10 +367,13 @@ for route intents, with admission independent of metering/analysis capture. Mete
 reuse it; actor admission borrows keys and checks the atomic native device revision
 before and after lookup. Device changes reject stale route requests until a current capture is
 available. Route and device-choice readers share the same retained inventory through background
-disposal. Choice synchronization retries missing inventory independently of metering pressure;
-choice construction and publication still run on the actor.
+disposal. Choice synchronization retries missing inventory independently of metering pressure.
+Device/numeric option construction, serialization and comparison run on the shared preparation
+worker. The actor moves at most four prepared patches, waits for their Core receipt, and prepares
+fresh state after a failed prefix. Native option vectors retain a separate lifetime quota through
+exported constraints and DTOs. Core constraint validation/projection and apply-time fences remain open.
 Capture/telemetry overload has a separate visible warning and leaves control admission independent.
-App-owned selection/probe planning and configuration conversion run on one bounded preparation worker.
+App-owned selection/probe planning, choice planning and configuration conversion run on one bounded preparation worker.
 Queued/running requests lease their source snapshots; ready plans retain output storage admission
 and published revision fences through retries and final disposal. Bindings promote
 only after a matching native configuration acknowledgement; rejected replacements preserve the
@@ -378,7 +381,7 @@ previous bindings. Route-warning reconciliation also runs on that worker, compar
 presentation state; actor publication has bounded receipts and no optimistic warning cache.
 Native device-revision fences cover successful and failed preparation results without locking
 snapshots on the actor. Probe targets retain their canonical quota through native command Arcs.
-See [host ownership](hosts.md) for budgets and the remaining structure, choice/feedback inspection,
+See [host ownership](hosts.md) for budgets and the remaining structure, Core choice publication, feedback inspection,
 command/diagnostic and fence boundaries.
 Missing explicit device selections remain persisted; unresolved local routes remain authored and
 receive visible warnings so removal and undo stay atomic.

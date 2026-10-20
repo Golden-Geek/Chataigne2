@@ -552,9 +552,9 @@ frames reuse their original quota. Capacity failures retry on native observation
 metadata waits for a changed device revision. Errors are fenced by their source revision, and stale,
 overloaded or oversized route admission returns an explicit error. Metering-pool exhaustion and
 oversized analysis cannot prevent route metadata updates. Routing never falls back to an actor-side
-inspector copy. Device-choice callbacks retain the same native inventory handle instead of cloning
-the inspector on the actor. A dirty flag retries missing inventories independently of metering
-pressure. Choice construction and publication still run on the actor and remain an open boundary.
+inspector copy. Device-choice preparation retains that same inventory handle on the native worker.
+Missing inventories retry independently of metering pressure. The actor transfers prepared constraint
+patches into Core and acknowledges the inventory revision only after their edit receipt applies.
 
 Capture pressure preserves the last good frame, prevents starting another stale value frame, and
 publishes a separate observation warning through a retryable single-edit receipt. Enable/readiness
@@ -611,11 +611,11 @@ pool owns the fixed slot storage through replacement, exported plan handles and 
 disposal. Facade retirement and binding replacement no longer clear or finally destroy a variable
 map on the actor, and cache storage cannot outgrow its sealed reservation.
 
-Sound Card selection and configuration conversion live in app-owned `runtime/configuration`. One shared native
+Sound Card selection, choice planning and configuration conversion live in app-owned `runtime/configuration`. One shared native
 preparation worker accepts **16 queued requests**, with **32 live admission tickets** and one worker
 lifetime slot. Actor handoff retains a canonical whole-tree snapshot lease (the shared Core snapshot
-pool admits **384 allocations / 1 GiB**) and the opaque device reader; it does not copy the subtree.
-Before conversion, the worker limits the source to **131,072 nodes / 32 MiB of label and value text**,
+pool admits **384 allocations / 1 GiB**) and an opaque device reader or immutable inventory handle.
+Before selection/configuration conversion, the worker limits the source to **131,072 nodes / 32 MiB of label and value text**,
 with individual text values limited to 1 MiB. This bounds construction input, while the canonical
 snapshot lease separately accounts for retained source storage. Device metadata admits **8 MiB /
 131,072 entries** independently of metering, so oversized analysis storage cannot block controls.
@@ -633,6 +633,31 @@ and its separate canonical probe-target payload. Target storage stays charged th
 Arcs as well as actor plans; retiring a plan cannot release capacity while a command still holds it.
 Unchanged targets reuse the canonical payload, so actor admission compares pointers rather than
 serialized identities. The steady-state cache retains targets, not the completed inventory plan.
+
+Choice planning reads up to six selector parameters with **1 MiB text per selector**. The DSL omits
+inactive device selectors; the active branch remains required. A target index replaces repeated
+catalog-wide descriptor scans. The worker preserves authored identities and missing selections,
+serializes candidate identities through a **1 MiB JSON writer**, and admits **32,768 options / 32 MiB
+per domain**. It compares complete domains against the captured constraints before producing at most
+**four patches / 64 MiB per plan**, including nested constraint capacities measured through Core's
+public `process_ctx::parameter_constraints_retained_bytes` visitor.
+
+Canonical option vectors have a separate **512-allocation / 512 MiB** lifetime pool. Exported
+constraints, typed history and DTOs retain the original quota through the exact shared vector Arc;
+configuration admission remains independent of those long-lived owners. The plan itself uses the
+existing configuration-result pool and scratch reservation. The actor moves its patch vector once
+and retains the plan through a batch receipt. A failed prefix causes fresh preparation from applied
+state. Source invalidation waits for pending receipts before preparing a replacement. Choice revision
+keys cover all six selectors, module UUID and enabled state; disjoint level/value edits leave them valid.
+Core normalization, equality checks, history and DTO projection during constraint application keep
+their existing costs. Their publication costs and remaining apply-time fences are still open.
+
+Choice preparation waits passively for native completion and requests a source snapshot only when
+needed for admission or a completed result. Pending Core receipts and missing current inventory do
+not themselves request another snapshot. Full admission/publication retries after **250 ms**; an
+earlier wake re-arms the remaining deadline. Permanent preparation failures wait for source or device
+changes. A separate receipt-backed warning survives disabled/facade-retired service. Failure never
+advances the applied-revision cache; option-pool pressure leaves configuration storage independent.
 
 Selection keys fence the four selector parameters' published revisions, module UUID and enabled
 state. Unrelated value edits do not restart selection planning. Both selection and configuration
@@ -673,7 +698,7 @@ acknowledgement. There is no optimistic actor warning cache to acknowledge faile
 destroy wholesale. Presentation-only metadata events do not request Sound Card snapshots or redrive
 configuration; labels and enabled-state changes retain their existing behavior.
 
-Derived structure/default-route seeding, enum-choice construction/publication,
+Derived structure/default-route seeding, remaining Core enum-constraint publication costs,
 event-feedback selection parsing/control-value copies, command/error diagnostic preparation and remaining reconfiguration,
 apply-time and failure fences remain P03 work. These budgets do not qualify whole-process memory
 or actor deadlines.
