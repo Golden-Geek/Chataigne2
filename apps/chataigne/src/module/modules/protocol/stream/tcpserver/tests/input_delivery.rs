@@ -216,6 +216,7 @@ fn destroy_undo_discards_runtime_delivery_and_rejects_the_previous_wake_source()
         panic!("TCP server")
     };
     let old = node.wake.as_ref().unwrap().notifier.clone();
+    let old_source = node.wake.as_ref().unwrap().source();
     node.pending_deliveries
         .push_back(ServerDelivery::Input(InputDelivery::new(packet)));
     engine.edits.push(Edit::RemoveNode { node: module });
@@ -223,9 +224,10 @@ fn destroy_undo_discards_runtime_delivery_and_rejects_the_previous_wake_source()
     assert!(engine.undo().unwrap());
     assert!(tcp_server_module(&engine, module).pending_deliveries.is_empty());
     wait_owner(&mut engine, |engine| idle(engine, module));
+    assert!(old_source.is_closed());
+    assert_eq!(old_source.wake(), Err(golden_core::engine::NodeWakeError::Closed));
     old.notify();
     engine.run_tick(Duration::from_millis(10)).unwrap();
-    assert_eq!(engine.tick_stats().wake_callbacks_fired, 0);
     assert!(value(&engine, module, "stale").is_none());
     assert!(source_callbacks(&engine, module, "stale").is_empty());
 }

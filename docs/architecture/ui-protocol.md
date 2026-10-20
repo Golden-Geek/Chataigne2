@@ -90,6 +90,19 @@ may override it. A decoder-only project-load reset does not replace generated co
 restoration. Native parameter equality includes persisted reference hints but excludes runtime
 cached node IDs. Custom JSON codecs and copied non-enum fields retain their existing costs.
 
+Kind coercion lives in the parameter foundation. `coerce_param_value_for_target_ref` borrows an
+unchanged source, while `coerce_param_value_for_target_owned` moves accepted storage. The owned
+result API copies unchanged borrowed storage only for its final result. Text-to-text conversions
+move an owned string when allowed; file paths still cannot become enum IDs. Explicit forward and
+reverse projections retain their target-component semantics, and CSS sources keep their units.
+Compatibility checks use borrowed coercion instead of cloning an entire source first. Conversion
+that formats text or parses numeric/vector/CSS input retains its existing work and allocations.
+
+Constraint replacement validates the current value by reference and assigns a value only when
+normalization changes it. Rejection preserves both value and constraints. Parameter preparation
+and typed history restore consume accepted input. These guarantees avoid intermediate copies;
+full snapshots, events, history capture and wire publication still have their own costs.
+
 - Request, response, event, snapshot, and protocol-version types must have one source of truth.
 - DTO changes must update the generator, generated output, and consumers together once generation is in place.
 - Do not introduce new manual Rust/TypeScript wire mirrors.

@@ -267,6 +267,7 @@ fn snapshot_free_callback_receipts_recover_and_undo_fences_old_delivery() {
     .unwrap();
     let node = module_mut(&mut engine, id);
     let old = node.wake.as_ref().unwrap().notifier.clone();
+    let old_source = node.wake.as_ref().unwrap().source();
     node.pending_inputs.push_back(InputDelivery::new(packet));
     assert!(!node.worker_wake_requires_tree_snapshot());
     for turn in 0..10 {
@@ -293,9 +294,10 @@ fn snapshot_free_callback_receipts_recover_and_undo_fences_old_delivery() {
     assert!(engine.undo().unwrap());
     assert!(serial_module(&engine, id).pending_inputs.is_empty());
     wait(&mut engine, |engine| idle(engine, id));
+    assert!(old_source.is_closed());
+    assert_eq!(old_source.wake(), Err(golden_core::engine::NodeWakeError::Closed));
     old.notify();
     tick(&mut engine);
-    assert_eq!(engine.tick_stats().wake_callbacks_fired, 0);
     assert!(value(&engine, id, "values/stale").is_none());
 }
 

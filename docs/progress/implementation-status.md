@@ -5,8 +5,8 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-20 on clean `main` at delivered `7ee3f7ff`, matching fetched `origin/main`,
-plus the P03 batch 55 milestone recorded below.
+Last reconciled: 2026-10-20 on clean `main` at delivered `5ff3b1cd`, matching fetched `origin/main`,
+plus the P03 batch 56 milestone recorded below.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
 plan. Its complete contents, including the uncommitted clarification, survive in the
@@ -51,29 +51,29 @@ checkpoint. P03 closes only when all seven workstreams meet acceptance.
 
 ## Current handoff
 
-- Current milestone: P03 batch 55, native authored snapshots preserve enum ownership.
-  The previous goal turn was progress, pushed as `7ee3f7ff`. Core Parameter and generated inherited
-  captures retain exact shared domains and native admission through callback restoration and
-  undo/redo. Project and protocol formats are unchanged. Final owning checks passed; remaining
-  non-enum copies, coercion, distinct-domain equality, custom JSON codecs, DTO publication/disposal
-  and native fences remain open.
+- Current milestone: P03 batch 56, borrowed/consuming parameter coercion.
+  The previous goal turn was progress, pushed as `5ff3b1cd`. Foundation coercion borrows unchanged
+  input and moves accepted owned storage; Core constraint replacement revalidates in place.
+  Allocation-instrumented fixtures verify the large unchanged/rejected/moved cases. Four stream
+  lifecycle fixtures now assert rejection by the exact retired wake source instead of counting
+  unrelated replacement-worker wakes. Final owning checks passed; snapshot copies, conversion
+  parsing/formatting, distinct-domain equality, DTO publication/disposal and native fences remain open.
   Progress remains **15% overall / 79% P03**;
   Sound Card remains **50% partial** against the existing scope rubric.
-- Checkout reconciled on clean `main` at `7ee3f7ff`, matching fetched `origin/main`; no unrelated edits.
+- Checkout reconciled on clean `main` at `5ff3b1cd`, matching fetched `origin/main`; no unrelated edits.
   `d3a45301` removes automatic effort-switching rules; older effort notes below are historical only.
 - Validation: **589 distinct app tests** passed (143 Sound Card + 446 preservation cases of
-  1034 listed), **587 Core tests / three existing ignored**, **12 code-generation support tests +
-  one macro Clippy fixture**, **22 Golden UI tests** and zero Svelte errors/warnings.
+  1034 listed), **590 Core tests / three existing ignored** and **25 foundation parameter tests**.
   Final workspace/test compilation, strict Clippy, native
   build and codegen passed; generated protocol bindings are unchanged. All owned jobs are terminal.
-  The first preservation selection had one TCP-server global wake-count failure; three isolated
-  runs and the full 191-test stream rerun passed. It remains a fixture/recovery-audit concern.
-  Foundation parameter tests remain batch 54 evidence; IO/audio remain batch 53 evidence.
-  Formula was refreshed: **47 passed / the same three creation failures** as the pre-change artifact.
+  The initial stream selection repeated the wake-count race in WebSocket server; the four
+  source-specific fixture corrections passed in the final full 191-test stream selection.
+  UI, macro/code-generation-support suites retain batch 55 evidence; IO/audio retain batch 53.
+  Formula was refreshed: **47 passed / the same three creation failures** as batch 55.
   No full Formula-suite pass is claimed. Controller, Alchemist and graph retain dated evidence.
 - Scope: **foundation and readiness**. P01/P02 are verified locally, P03 remains in progress,
   P04-P18 have not started. Full lighting/video/projection authoring remains deferred.
-- Next checkpoints: bound choice application's remaining non-enum snapshot fields, kind coercion,
+- Next checkpoints: bound choice application's remaining non-enum snapshot fields, conversion parsing/formatting,
   distinct-domain equality, custom JSON codecs, owned-payload disposal and DTO publication; then derived structure/default routes,
   event-feedback selection parsing/control-value copies, command/diagnostic preparation and remaining apply-time,
   reconfiguration and failure fences. Then finish the remaining
@@ -93,27 +93,27 @@ Implementation states: `NOT_STARTED`, `IN_PROGRESS`, `IMPLEMENTED`, `VERIFIED_LO
 Check outcomes: `PENDING`, `PASSED`, `FAILED`, `UNAVAILABLE`, `SKIPPED_WITH_REASON`.
 External qualification is separate from implementation. A historical pass is not a current pass.
 
-| Task                        | Completion | Implementation | Local validation    | External qualification / evidence                                                                                                                                                                 |
-| --------------------------- | ---------- | -------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| P00 Baseline                | 100%       | VERIFIED_LOCAL | PASSED              | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                                                                                        |
-| P01 Edit failures/history   | 100%       | VERIFIED_LOCAL | PASSED batches 1–8  | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                                                                                         |
-| P02 Schedule/actor failures | 100%       | VERIFIED_LOCAL | PASSED batches 1-3  | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                                                                                          |
-| P03 Bounded I/O/lifecycle   | ~79%       | IN_PROGRESS    | PASSED batches 1-55 | Native authored history, indexed enum lookup, cached weights and domain ownership verified; remaining Core publication, feedback, structure/commands, native fences and module audit remain open. |
-| P04 Audio order/types       | 0%         | NOT_STARTED    | PENDING             | Legal interleaving and invalid deserialization established from source                                                                                                                            |
-| P05 Transport trust         | 0%         | NOT_STARTED    | PENDING             | Missing admission verified; exploit not demonstrated                                                                                                                                              |
-| P06 Dependencies            | 0%         | NOT_STARTED    | FAILED baseline     | Four Rustls advisories on audit date; refresh DB before repair                                                                                                                                    |
-| P07 DMX streaming           | 0%         | NOT_STARTED    | PENDING             | Refresh/filter/service gaps; protocol loopback qualification needed                                                                                                                               |
-| P08 Formula backend intents | 0%         | NOT_STARTED    | PENDING             | UI polling/identity and mutation policy verified; corruption not reproduced                                                                                                                       |
-| P09 Graph document          | 0%         | NOT_STARTED    | PENDING             | Ordered-map mutation costs source-derived                                                                                                                                                         |
-| P10 Canvas                  | 0%         | NOT_STARTED    | PENDING             | Projection diagnostic and crossing-edge reproduction; mounted performance open                                                                                                                    |
-| P11 Workspace UX            | 0%         | NOT_STARTED    | PENDING             | Collection/keyboard gaps source-reviewed; native usability open                                                                                                                                   |
-| P12 Boundaries/gates        | 0%         | NOT_STARTED    | PENDING             | App policy leak, omitted graph tests, oversized files, unsafe conversions; recurring incremental native-link artifact gap                                                                         |
-| P13 Formula execution       | 0%         | NOT_STARTED    | PENDING             | Historical profiles retained; production parallelism not mandated                                                                                                                                 |
-| P14 Production time         | 0%         | NOT_STARTED    | PENDING             | Clock helper unwired, no target-frame play, starvation/latency policy gaps                                                                                                                        |
-| P15 Assets                  | 0%         | NOT_STARTED    | PENDING             | Audio path/cache identity exists; project asset boundary unimplemented                                                                                                                            |
-| P16 Product scale           | 0%         | NOT_STARTED    | PENDING             | Historical full-product gates remain open; 20k/50k/mounted canvas required                                                                                                                        |
-| P17 Platforms/artifacts     | 0%         | NOT_STARTED    | PENDING             | Windows history retained; exact current app/native/platform checks required                                                                                                                       |
-| P18 Named devices           | 0%         | NOT_STARTED    | PENDING             | Exact authorized ASIO4ALL/VB-Audio route must be verified first                                                                                                                                   |
+| Task                        | Completion | Implementation | Local validation    | External qualification / evidence                                                                                                                                                      |
+| --------------------------- | ---------- | -------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P00 Baseline                | 100%       | VERIFIED_LOCAL | PASSED              | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                                                                             |
+| P01 Edit failures/history   | 100%       | VERIFIED_LOCAL | PASSED batches 1–8  | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                                                                              |
+| P02 Schedule/actor failures | 100%       | VERIFIED_LOCAL | PASSED batches 1-3  | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                                                                               |
+| P03 Bounded I/O/lifecycle   | ~79%       | IN_PROGRESS    | PASSED batches 1-56 | Borrowed/consuming coercion, native history and indexed enum ownership verified; remaining Core publication, feedback, structure/commands, native fences and module audit remain open. |
+| P04 Audio order/types       | 0%         | NOT_STARTED    | PENDING             | Legal interleaving and invalid deserialization established from source                                                                                                                 |
+| P05 Transport trust         | 0%         | NOT_STARTED    | PENDING             | Missing admission verified; exploit not demonstrated                                                                                                                                   |
+| P06 Dependencies            | 0%         | NOT_STARTED    | FAILED baseline     | Four Rustls advisories on audit date; refresh DB before repair                                                                                                                         |
+| P07 DMX streaming           | 0%         | NOT_STARTED    | PENDING             | Refresh/filter/service gaps; protocol loopback qualification needed                                                                                                                    |
+| P08 Formula backend intents | 0%         | NOT_STARTED    | PENDING             | UI polling/identity and mutation policy verified; corruption not reproduced                                                                                                            |
+| P09 Graph document          | 0%         | NOT_STARTED    | PENDING             | Ordered-map mutation costs source-derived                                                                                                                                              |
+| P10 Canvas                  | 0%         | NOT_STARTED    | PENDING             | Projection diagnostic and crossing-edge reproduction; mounted performance open                                                                                                         |
+| P11 Workspace UX            | 0%         | NOT_STARTED    | PENDING             | Collection/keyboard gaps source-reviewed; native usability open                                                                                                                        |
+| P12 Boundaries/gates        | 0%         | NOT_STARTED    | PENDING             | App policy leak, omitted graph tests, oversized files, unsafe conversions; recurring incremental native-link artifact gap                                                              |
+| P13 Formula execution       | 0%         | NOT_STARTED    | PENDING             | Historical profiles retained; production parallelism not mandated                                                                                                                      |
+| P14 Production time         | 0%         | NOT_STARTED    | PENDING             | Clock helper unwired, no target-frame play, starvation/latency policy gaps                                                                                                             |
+| P15 Assets                  | 0%         | NOT_STARTED    | PENDING             | Audio path/cache identity exists; project asset boundary unimplemented                                                                                                                 |
+| P16 Product scale           | 0%         | NOT_STARTED    | PENDING             | Historical full-product gates remain open; 20k/50k/mounted canvas required                                                                                                             |
+| P17 Platforms/artifacts     | 0%         | NOT_STARTED    | PENDING             | Windows history retained; exact current app/native/platform checks required                                                                                                            |
+| P18 Named devices           | 0%         | NOT_STARTED    | PENDING             | Exact authorized ASIO4ALL/VB-Audio route must be verified first                                                                                                                        |
 
 For each implementation batch append a compact row under “New implementation evidence” with
 task, source/tree, changed ownership, invariant, exact commands, environment/features, outcome,
@@ -4585,4 +4585,76 @@ Remaining: non-enum metadata/value copies, kind coercion, equality of distinct d
 codecs, DTO projection/encoding and owned-payload disposal; then derived structure/default routes,
 feedback/command/native failure fences and the remaining app-module/channel audit. Sound Card
 stays **50% partial**, P03 **79%**, whole plan **15%** under the existing scope rubric.
+Commit and push this verified milestone to `origin/main` before the next batch.
+
+### P03 batch 56: Borrow or move parameter coercion inputs
+
+Resumed clean `main` at delivered `5ff3b1cd`, matching fetched `origin/main`; the previous goal turn
+was progress. Kind coercion now belongs to a focused parameter-foundation module. The borrowed
+API returns `Cow` for unchanged inputs; the consuming API moves owned values. The ordinary owned
+result API copies unchanged borrowed storage only for its final result, instead of cloning the
+source first and cloning its strings/reference hints again during conversion. Forward and reverse
+coercion share the same implementation, and compatibility checks use borrowed results.
+
+All twelve value kinds retain their coercion meaning. Allowed text-to-text conversions move the
+original string allocation; file-to-enum conversion remains rejected. CSS source units and explicit
+projection target components remain intact. Parameter preparation and typed history restoration
+consume accepted input. Constraint replacement normalizes the current value by reference, retaining
+its storage when unchanged and assigning only an owned normalization result. Validation completes
+before replacing either value or constraints; rejection preserves both.
+
+Nine new tests cover all twelve borrowed value kinds, the text conversion direction matrix and
+allocation identity, scalar/CSS/vector/reference conversions, forward/reverse projection and
+compatibility, parameter preparation, repeated constraint replacement, failed updates and typed
+history restoration. Two of these are isolated integration tests with a thread-local counting
+allocator: a 6 MiB enum identifier incurs **zero allocations** for unchanged borrowed coercion,
+rejected integer coercion and accepted owned conversion to string. Direct reference binding
+compatibility and consuming reference coercion also allocate **zero** with 7 MiB of display hints
+and an 8 MiB recovery segment. Fixture construction is outside counting. This does not measure
+deallocation, peak RSS, complete edits or product-scale service deadlines.
+
+Initial Core/foundation checking exposed a private projection-helper import after the module extraction;
+the helpers now have sibling-module visibility without becoming public exports. Strict Clippy
+then requested direct initialization of two test references; their fixtures were corrected.
+Final workspace checking and strict Clippy passed. Windows toolchain: Rust/Cargo 1.97.0,
+Node 26.5.0, npm 11.17.0. Final verification:
+
+| Check                                                                                                                 | Result                                                                                                                                                                              |
+| --------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cargo test-fast --locked -p golden_parameters -p golden_engine -- --quiet`                                           | **590 Core passed / three existing ignored** (575 unit, eight integration, seven doc); **25 foundation parameter tests passed** (23 unit, two allocation-instrumented integration). |
+| `cargo check --locked --workspace --tests`                                                                            | Passed.                                                                                                                                                                             |
+| `cargo clippy --locked --workspace --all-targets -- -D warnings`                                                      | Passed.                                                                                                                                                                             |
+| `cargo test-fast --locked -p Chataigne2 --bin Chataigne2 module_modules_audio_sound_card -- --test-threads=4 --quiet` | Final **143/143** passed, **0.73s** execution.                                                                                                                                      |
+| Fresh compiled-name disjoint app preservation filters, from `apps/chataigne`, `--test-threads=4 --quiet`              | Final **446/446** passed; **589 distinct app passes of 1034 listed** with Sound Card. Final stream selection: **191/191** passed after fixture corrections.                         |
+| Fresh app binary `app::systems_alchemist_formula:: --test-threads=4 --quiet`, from `apps/chataigne`                   | **47 passed / the same three failed**, **0.17s**, exit 101; no full-suite pass.                                                                                                     |
+| `cargo build --locked -p Chataigne2 --bin Chataigne2`                                                                 | Final passed; existing UI bundle reused.                                                                                                                                            |
+| `npm run codegen:golden-ui-protocol --workspace chataigne-ui` and generated-directory diff/status                     | Passed; bindings unchanged.                                                                                                                                                         |
+
+The initial preservation selection passed 190 stream tests and failed the WebSocket-server
+destroy/undo fixture on the same global wake-count assertion exposed for TCP server in batch 55.
+Both fixtures start asynchronous replacement workers before asserting that no worker whatsoever
+woke. A replacement worker may legitimately wake during that interval. TCP server, WebSocket
+server/client and Serial fixtures now retain the exact old `NodeWaker`, require `is_closed()` and
+`wake() == Err(Closed)` after undo, then exercise the old notifier and retain their discarded-input
+and stale-callback assertions. A test-only `ModuleWake` source accessor lives under its adjacent
+`tests/` directory. No runtime wake policy, retirement behavior or timing delay was changed.
+
+Fresh final app binary SHA256:
+`af5db617711ad75b1d3919ffd9d076091a1df2cd39be146e06a40f511a4d431e`, modified 23:16:42 local.
+Formula still rejects catalog materialization, hosted curve-key editing and hosted gradient-stop
+editing at creation with the same float-compatible-value error as batch 55. P08/P12 stay open.
+
+Inventory: **1609 source files / 41 oversized**, using the maintained scan policy. Five focused
+sources added, with no new size exception. App changes are confined to fixture support and source
+fencing assertions; no app runtime behavior, project schema, protocol DTO, wire shape or startup
+path changed. No physical devices or desktop automation used.
+Root/Core Cargo formatting, affected app rustfmt, four maintained docs' Prettier and whitespace
+checks passed. All owned jobs are terminal. UI and macro/code-generation-support suites retain
+batch 55 evidence; IO/audio retain batch 53 evidence.
+
+Remaining: non-enum snapshot metadata/value copies, parsing and formatting conversions,
+distinct-domain equality, custom JSON codecs, DTO projection/encoding and owned-payload disposal;
+then derived structure/default routes, feedback/command/native failure fences and the remaining
+app-module/channel audit. Sound Card stays **50% partial**, P03 **79%**, whole plan **15%** under
+the existing scope rubric.
 Commit and push this verified milestone to `origin/main` before the next batch.

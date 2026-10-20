@@ -156,6 +156,7 @@ fn destroy_undo_discards_runtime_input_and_fences_the_previous_wake_source() {
         panic!("WebSocket server")
     };
     let old = node.wake.as_ref().unwrap().notifier.clone();
+    let old_source = node.wake.as_ref().unwrap().source();
     node.pending_deliveries
         .push_back(ServerDelivery::Input(InputDelivery::new(packet)));
     engine.edits.push(Edit::RemoveNode { node: id });
@@ -163,9 +164,10 @@ fn destroy_undo_discards_runtime_input_and_fences_the_previous_wake_source() {
     assert!(engine.undo().unwrap());
     assert!(module(&engine, id).pending_deliveries.is_empty());
     wait(&mut engine, |engine| idle(engine, id));
+    assert!(old_source.is_closed());
+    assert_eq!(old_source.wake(), Err(golden_core::engine::NodeWakeError::Closed));
     old.notify();
     engine.run_tick(Duration::from_millis(10)).unwrap();
-    assert_eq!(engine.tick_stats().wake_callbacks_fired, 0);
     assert!(value(&engine, id, "stale").is_none());
     assert!(source_callbacks(&engine, id, "stale").is_empty());
 }

@@ -690,10 +690,13 @@ Core's native Parameter authored capture and generated inherited captures retain
 through lifecycle restoration, opaque edits and undo/redo, including its original native quota.
 They no longer serialize and rebuild enum indexes during callback restoration. This in-memory
 contract is separate from project and wire codecs; see [UI protocol](ui-protocol.md#rules).
-Kind coercion, normalization beyond enum membership, non-enum field copies, equality between
-distinct domains, custom JSON codecs and DTO projection retain their existing costs, including
-owned constraint disposal on a rejected suffix. These publication costs and other native-execution
-fences remain open.
+Kind coercion now borrows unchanged values or moves accepted owned storage, including text kind
+conversions. Constraint replacement validates an unchanged value in place. This removes intermediate
+value copies without removing the owning snapshots/events/history around the operation. Parsing and
+formatting conversions, normalization beyond enum membership, non-enum field copies, equality
+between distinct domains, custom JSON codecs and DTO projection retain their existing costs,
+including owned constraint disposal on a rejected suffix. These publication costs and other
+native-execution fences remain open.
 
 Choice preparation waits passively for native completion and requests a source snapshot only when
 needed for admission or a completed result. Pending Core receipts and missing current inventory do

@@ -12,7 +12,7 @@ use crate::{
 
 use super::{
     ParamValue, ParameterChangeCheck, ParameterConstraints, ParameterControlState, ParameterEventBehaviour,
-    ParameterSnapshot, ParameterUiHints, coerce_param_value_for_target, default_control_modes_enabled,
+    ParameterSnapshot, ParameterUiHints, coerce_param_value_for_target_owned, default_control_modes_enabled,
 };
 
 mod authored;
@@ -125,7 +125,7 @@ impl Parameter {
     }
 
     fn coerce_for_current_value_kind(&self, incoming: ParamValue) -> Result<ParamValue, String> {
-        coerce_param_value_for_target(&incoming, &self.value, None).ok_or_else(|| match &self.value {
+        coerce_param_value_for_target_owned(incoming, &self.value, None).ok_or_else(|| match &self.value {
             ParamValue::Trigger() => "trigger parameter only accepts trigger values".to_string(),
             ParamValue::Int(_) => "parameter expects an int-compatible value".to_string(),
             ParamValue::Float(_) => "parameter expects a float-compatible value".to_string(),
@@ -709,8 +709,9 @@ impl Node for Parameter {
     }
 
     fn engine_set_param_constraints(&mut self, constraints: ParameterConstraints) -> Result<(), String> {
-        let value = self.coerce_for_current_value_kind(self.value.clone())?;
-        self.value = constraints.normalize(value)?;
+        if let std::borrow::Cow::Owned(value) = constraints.normalize_ref(&self.value)? {
+            self.value = value;
+        }
         self.constraints = constraints;
         Ok(())
     }

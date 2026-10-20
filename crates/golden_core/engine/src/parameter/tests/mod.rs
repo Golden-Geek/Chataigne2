@@ -2,6 +2,7 @@ use super::*;
 use crate::node::Node;
 
 mod authored;
+mod coercion;
 
 #[test]
 fn parameter_nodes_are_not_disableable_by_default() {

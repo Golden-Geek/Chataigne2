@@ -3,7 +3,10 @@ use ts_rs::TS;
 
 use crate::NodeReference;
 
-use super::{CssValue, ParamValue};
+use super::{
+    CssValue, ParamValue,
+    coercion::{coerce_param_value_for_target_ref, coerce_reverse_ref},
+};
 
 /// Explicit source projection used before coercion.
 ///
@@ -307,7 +310,7 @@ pub fn project_param_value(source: &ParamValue, projection: ParamValueProjection
     Some(projected)
 }
 
-fn project_param_value_for_target(
+pub(super) fn project_param_value_for_target(
     source: &ParamValue,
     target: &ParamValue,
     projection: ParamValueProjection,
@@ -355,7 +358,7 @@ fn project_param_value_for_target(
     Some(projected)
 }
 
-fn project_param_value_for_target_reverse(
+pub(super) fn project_param_value_for_target_reverse(
     source: &ParamValue,
     target: &ParamValue,
     projection: ParamValueProjection,
@@ -448,80 +451,17 @@ fn project_param_value_for_target_reverse(
     Some(projected)
 }
 
-fn coerce_param_value_for_target_kind(source: &ParamValue, target: &ParamValue) -> Option<ParamValue> {
-    match target {
-        ParamValue::Trigger() => {
-            if matches!(source, ParamValue::Trigger()) {
-                Some(ParamValue::Trigger())
-            } else {
-                None
-            }
-        }
-        ParamValue::Int(_) => source.as_int().map(ParamValue::Int),
-        ParamValue::Float(_) => source.as_float().map(ParamValue::Float),
-        ParamValue::Str(_) => source.as_str().map(ParamValue::Str),
-        ParamValue::File(_) => source.as_str().map(ParamValue::File),
-        ParamValue::Enum(_) => source.as_enum().map(ParamValue::Enum),
-        ParamValue::Bool(_) => source.as_bool().map(ParamValue::Bool),
-        ParamValue::CssValue(target_value) => source
-            .as_css_value_with_unit(target_value.unit)
-            .map(ParamValue::CssValue),
-        ParamValue::Vec2(_, _) => source.as_vec2().map(|(x, y)| ParamValue::Vec2(x, y)),
-        ParamValue::Vec3(_, _, _) => source.as_vec3().map(|(x, y, z)| ParamValue::Vec3(x, y, z)),
-        ParamValue::Color(_, _, _, _) => source.as_color().map(|(r, g, b, a)| ParamValue::Color(r, g, b, a)),
-        ParamValue::Reference(_) => match source {
-            ParamValue::Reference(reference) => Some(ParamValue::Reference(reference.clone())),
-            _ => None,
-        },
-    }
-}
-
-/// Coerces `source` to the value kind represented by `target`.
-///
-/// When `projection` is provided, it is applied before coercion.
-pub fn coerce_param_value_for_target(
-    source: &ParamValue,
-    target: &ParamValue,
-    projection: Option<ParamValueProjection>,
-) -> Option<ParamValue> {
-    let projected = if let Some(projection) = projection {
-        project_param_value_for_target(source, target, projection)?
-    } else {
-        source.clone()
-    };
-
-    coerce_param_value_for_target_kind(&projected, target)
-}
-
-/// Coerces `source` to `target` using the reverse direction of one projection.
-///
-/// This is primarily used by bidirectional binding so one selected projection
-/// can be applied in both write directions.
-pub fn coerce_param_value_for_target_reverse(
-    source: &ParamValue,
-    target: &ParamValue,
-    projection: Option<ParamValueProjection>,
-) -> Option<ParamValue> {
-    let projected = if let Some(projection) = projection {
-        project_param_value_for_target_reverse(source, target, projection)?
-    } else {
-        source.clone()
-    };
-
-    coerce_param_value_for_target_kind(&projected, target)
-}
-
 /// Computes compatibility between `source` and `target`.
 pub fn compatibility_for_values(source: &ParamValue, target: &ParamValue) -> ParamValueCompatibility {
     let projections = ParamValueProjection::available_for_source(source)
         .into_iter()
-        .filter(|projection| coerce_param_value_for_target(source, target, Some(*projection)).is_some())
+        .filter(|projection| coerce_param_value_for_target_ref(source, target, Some(*projection)).is_some())
         .collect::<Vec<_>>();
     let requires_explicit_projection = projections.iter().any(|projection| {
         project_param_value(source, *projection)
             .is_some_and(|projected| std::mem::discriminant(&projected) == std::mem::discriminant(target))
     });
-    let direct = !requires_explicit_projection && coerce_param_value_for_target(source, target, None).is_some();
+    let direct = !requires_explicit_projection && coerce_param_value_for_target_ref(source, target, None).is_some();
 
     ParamValueCompatibility { direct, projections }
 }
@@ -531,13 +471,13 @@ pub fn compatibility_for_values(source: &ParamValue, target: &ParamValue) -> Par
 /// Binding is bidirectional, so direct/projection compatibility is only
 /// considered valid when conversion succeeds in both directions.
 pub fn compatibility_for_binding_values(source: &ParamValue, target: &ParamValue) -> ParamValueCompatibility {
-    let direct = coerce_param_value_for_target(source, target, None).is_some()
-        && coerce_param_value_for_target(target, source, None).is_some();
+    let direct = coerce_param_value_for_target_ref(source, target, None).is_some()
+        && coerce_param_value_for_target_ref(target, source, None).is_some();
     let projections = ParamValueProjection::available_for_source(source)
         .into_iter()
         .filter(|projection| {
-            coerce_param_value_for_target(source, target, Some(*projection)).is_some()
-                && coerce_param_value_for_target_reverse(target, source, Some(*projection)).is_some()
+            coerce_param_value_for_target_ref(source, target, Some(*projection)).is_some()
+                && coerce_reverse_ref(target, source, Some(*projection)).is_some()
         })
         .collect();
 

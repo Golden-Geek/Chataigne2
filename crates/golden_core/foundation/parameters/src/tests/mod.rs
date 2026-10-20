@@ -3,5 +3,6 @@ use super::*;
 
 mod borrowed_constraints;
 mod canonical;
+mod coercion;
 mod constraints_and_projection;
 mod storage;

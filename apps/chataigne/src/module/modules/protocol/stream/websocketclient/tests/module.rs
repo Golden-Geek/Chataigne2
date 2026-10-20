@@ -330,6 +330,7 @@ fn snapshot_free_callback_recovery_retries_only_discarded_publication_and_undo_f
         panic!("WebSocket");
     };
     let old = node.wake.as_ref().unwrap().notifier.clone();
+    let old_source = node.wake.as_ref().unwrap().source();
     node.pending_inputs.push_back(InputDelivery::new(packet));
     assert!(!node.worker_wake_requires_tree_snapshot());
     for turn in 0..10 {
@@ -359,8 +360,9 @@ fn snapshot_free_callback_recovery_retries_only_discarded_publication_and_undo_f
     assert!(engine.undo().unwrap());
     assert!(module(&engine, id).pending_inputs.is_empty());
     wait(&mut engine, |engine| idle(engine, id));
+    assert!(old_source.is_closed());
+    assert_eq!(old_source.wake(), Err(golden_core::engine::NodeWakeError::Closed));
     old.notify();
     tick(&mut engine);
-    assert_eq!(engine.tick_stats().wake_callbacks_fired, 0);
     assert!(value(&engine, id, "stale").is_none());
 }

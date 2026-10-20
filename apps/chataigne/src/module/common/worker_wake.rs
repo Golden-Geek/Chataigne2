@@ -2,6 +2,9 @@ use golden_core::engine::NodeWaker;
 use golden_io::{DelayedNotifier, WorkerNotifier};
 use std::time::Duration;
 
+#[cfg(test)]
+mod tests;
+
 pub(crate) struct ModuleWake {
     pub notifier: WorkerNotifier,
     delayed: DelayedNotifier,
