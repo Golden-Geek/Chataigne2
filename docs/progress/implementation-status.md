@@ -49,6 +49,48 @@ The generator elapsed-time checkpoint is now verified. Sound Card and the remain
 stay open; generator channel/retirement/callback bounds belong to that audit rather than this time
 checkpoint. P03 closes only when all seven workstreams meet acceptance.
 
+### P03 remaining closure work packages
+
+The user requested a remaining-batch forecast on 2026-10-20. There is no defensible commit count
+yet: the coarse 79% score does not measure remaining effort. A source inventory finds **18 module
+families still requiring closure review, plus Sound Card**. Nine of those 18 contain explicit
+unbounded channels: Buttplug, Joy-Con, Keyboard, Mouse, Ultraleap, Signals, Metronomes, MIDI and
+MQTT. Worker joins also require caller/retirement review; finding a join is not proof that the
+actor blocks. Absence of these search patterns is not evidence of acceptance.
+
+Use these **12 fixed closure work packages** instead of an unbounded list of supporting batches.
+They cover the existing P03 acceptance scope; they are not 12 guaranteed commits. Each package
+closes only after its owning audit, required repairs and acceptance tests pass. A package may need
+several reviewable commits, and a review may establish that an existing implementation already
+passes. **Remaining closure packages: 12 open, zero closed.** This count does not discard prior P03
+work or replace the workstream percentages above.
+
+| ID  | Scope                            | Required closure                                                                                                                                               |
+| --- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| C01 | Sound Card                       | Finish bounded preparation/application/publication, derived structure/default routes, feedback, command diagnostics and native failure/reconfiguration fences. |
+| C02 | Signals and Metronomes           | Bound command/event admission and retained bytes, callback fan-out and retirement; preserve verified elapsed-time/occurrence semantics.                        |
+| C03 | MIDI and OSC                     | Audit and repair ingress/egress admission, service budgets, callback work, retirement, failure and endpoint recovery.                                          |
+| C04 | MQTT                             | Bound channels/payloads and service, preserve accepted delivery, retire workers safely and verify reconnect/failure behavior.                                  |
+| C05 | DMX                              | Close P03 lifecycle/admission/retirement/recovery requirements; DMX stream correctness remains separately P07.                                                 |
+| C06 | App Control and OS               | Close worker/service/cleanup bounds, failure ownership and recovery without recurring main-thread polling or blocking joins.                                   |
+| C07 | Buttplug                         | Close channel/payload/service bounds, accepted-command ownership, retirement and connection recovery.                                                          |
+| C08 | Joy-Con                          | Close channel/payload/service bounds, callback fan-out, retirement and device recovery.                                                                        |
+| C09 | Keyboard and Mouse               | Close bounded event delivery, callback work and hook-worker retirement/failure ownership.                                                                      |
+| C10 | Ultraleap                        | Close event/payload/service bounds, worker retirement and service/device recovery.                                                                             |
+| C11 | Gamepad, Kinect2 and Stream Deck | Audit indirect/shared runtime paths as well as local code; repair and verify any P03 ownership/bounds/recovery gaps.                                           |
+| C12 | Spatializer and Node Control     | Audit computation, graph mutation, callback fan-out and lifecycle work; prove bounds or repair concrete violations.                                            |
+
+Before starting another implementation batch, finish the ownership/acceptance audit across these
+packages and record which exact gaps block closure. Existing shared IO, stream, HTTP and generator
+time suites remain preservation gates. Map discoveries into this list, rather than creating a new
+open-ended prerequisite chain. General optimizations belong to P12/P16 unless evidence connects
+them to a concrete P03 resource, service, retirement or recovery violation. Keep the full plan's
+scope intact when assigning work to its owning task.
+
+An uncommitted six-file borrowed-parameter-view candidate is currently in progress. Root/Core
+formatting and `cargo check --locked --workspace --tests` passed, but behavior tests and delivery
+are pending. It receives no completion credit; classify its necessity against C01 before extending it.
+
 ## Current handoff
 
 - Current milestone: P03 batch 56, borrowed/consuming parameter coercion.
@@ -73,11 +115,11 @@ checkpoint. P03 closes only when all seven workstreams meet acceptance.
   No full Formula-suite pass is claimed. Controller, Alchemist and graph retain dated evidence.
 - Scope: **foundation and readiness**. P01/P02 are verified locally, P03 remains in progress,
   P04-P18 have not started. Full lighting/video/projection authoring remains deferred.
-- Next checkpoints: bound choice application's remaining non-enum snapshot fields, conversion parsing/formatting,
-  distinct-domain equality, custom JSON codecs, owned-payload disposal and DTO publication; then derived structure/default routes,
-  event-feedback selection parsing/control-value copies, command/diagnostic preparation and remaining apply-time,
-  reconfiguration and failure fences. Then finish the remaining
-  app-module/channel audit, including generator command/event bounds, callback fan-out and joins.
+- Next action: complete the ownership/acceptance audit of C01-C12 above before the next
+  implementation batch. Separate concrete P03 blockers from later performance/readability work.
+  C01 includes application/publication bounds, derived structure/default routes, feedback,
+  command diagnostics and native reconfiguration/failure fences; C02-C12 cover the 18 remaining
+  module families. The borrowed-view candidate is uncommitted and not behavior-qualified.
   Preserve verified idle recovery, generator time, ordered audio shutdown and stream/Mapping regressions.
 - Delivery: continue on `main`; commit and push every verified milestone to `origin/main`.
   Mapping was merged in `f02205af`. Earlier branch/pause/effort instructions below are historical.
