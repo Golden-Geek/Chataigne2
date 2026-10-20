@@ -13,6 +13,7 @@ use golden_io::{
 };
 
 use super::super::prepared_event::{AudioEventDraft, EventPreparer, PreparedAudioEvent};
+use super::observation::{ObservationCapture, ObservationCollector, ObservationView};
 use super::RuntimeWakeSender;
 
 type WakeSlot = Arc<Mutex<Option<RuntimeWakeSender>>>;
@@ -50,6 +51,8 @@ pub(super) struct SoundCardRuntimeEvents {
     capacity: Arc<Capacity>,
     wake: WakeSlot,
     completion: RetirementPool,
+    observation: ObservationCapture,
+    reader: golden_io::RetainedPayload<golden_audio::AudioObservationReader>,
 }
 
 struct NativeOwner<F: FnOnce(AudioEngine)> {
@@ -147,6 +150,9 @@ impl SoundCardRuntimeEvents {
         // Install native ownership before fallible preparation setup. Every
         // constructor failure retires the engine while its lifetime stays charged.
         let preparer = prepare()?;
+        let (observation, mut collector) =
+            ObservationCollector::new(owner.engine.as_ref().expect("live engine").observations())?;
+        let reader = super::observation::retain_reader(owner.engine.as_ref().expect("live engine").observations())?;
         thread::Builder::new()
             .name("chataigne-sound-card-native".to_owned())
             .spawn(move || {
@@ -160,6 +166,7 @@ impl SoundCardRuntimeEvents {
                         .recv_timeout(interval)
                     {
                         Ok(Some(event)) => {
+                            collector.refresh();
                             let mut draft = AudioEventDraft::new(event);
                             let mut guard = worker_capacity.lock.lock().unwrap_or_else(|p| p.into_inner());
                             let mut event = loop {
@@ -178,6 +185,13 @@ impl SoundCardRuntimeEvents {
                                     .wait_timeout(guard, std::time::Duration::from_millis(100))
                                     .unwrap_or_else(|p| p.into_inner())
                                     .0;
+                                if worker_capacity.stopped.load(Ordering::Acquire) {
+                                    return;
+                                }
+                                drop(guard);
+                                collector.refresh();
+                                notify(&owner.wake);
+                                guard = worker_capacity.lock.lock().unwrap_or_else(|p| p.into_inner());
                             };
                             let weight = event.retained_bytes;
                             loop {
@@ -194,14 +208,28 @@ impl SoundCardRuntimeEvents {
                                     Err(PendingSendError::Disconnected(_)) => return,
                                     Err(PendingSendError::Full(returned)) => {
                                         event = returned;
-                                        guard = worker_capacity.changed.wait(guard).unwrap_or_else(|p| p.into_inner());
+                                        guard = worker_capacity
+                                            .changed
+                                            .wait_timeout(guard, interval)
+                                            .unwrap_or_else(|p| p.into_inner())
+                                            .0;
+                                        if worker_capacity.stopped.load(Ordering::Acquire) {
+                                            return;
+                                        }
+                                        drop(guard);
+                                        collector.refresh();
+                                        notify(&owner.wake);
+                                        guard = worker_capacity.lock.lock().unwrap_or_else(|p| p.into_inner());
                                     }
                                 }
                             }
                             drop(guard);
                             notify(&owner.wake);
                         }
-                        Ok(None) => notify(&owner.wake),
+                        Ok(None) => {
+                            collector.refresh();
+                            notify(&owner.wake);
+                        }
                         Err(_) => break,
                     }
                 }
@@ -213,6 +241,8 @@ impl SoundCardRuntimeEvents {
             capacity,
             wake,
             completion,
+            observation,
+            reader,
         })
     }
 
@@ -225,6 +255,14 @@ impl SoundCardRuntimeEvents {
             return Err("Sound Card native owner stopped before activation".into());
         }
         Ok(())
+    }
+
+    pub(super) fn observation(&self) -> ObservationView {
+        self.observation.latest()
+    }
+
+    pub(super) fn inspector_state(&self) -> golden_audio::AudioDeviceInspectorState {
+        self.reader.inspect(|snapshot| snapshot.device.clone())
     }
 
     pub(super) fn set_refresh_rate_hz(&self, refresh_rate_hz: u32) {

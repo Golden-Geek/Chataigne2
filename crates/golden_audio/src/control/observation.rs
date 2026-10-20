@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{AnalysisObservationSnapshot, AudioDeviceInspectorState, ChannelObservation, ConfigGeneration};
 
+mod storage;
+
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 #[cfg_attr(feature = "codegen", derive(ts_rs::TS))]
 #[cfg_attr(feature = "codegen", ts(export))]
@@ -101,6 +103,19 @@ pub struct AudioObservationReader {
 impl AudioObservationReader {
     #[must_use]
     pub fn latest(&self) -> AudioObservationSnapshot {
-        self.shared.read().map(|snapshot| snapshot.clone()).unwrap_or_default()
+        self.inspect(Clone::clone)
+    }
+
+    /// Borrows the current snapshot without first copying its variable storage.
+    /// Use a bounded inspection to validate capacity before cloning on a host
+    /// worker. The closure must not block or reenter this reader.
+    pub fn inspect<R>(&self, inspect: impl FnOnce(&AudioObservationSnapshot) -> R) -> R {
+        match self.shared.read() {
+            Ok(snapshot) => inspect(&snapshot),
+            Err(_) => inspect(&AudioObservationSnapshot::default()),
+        }
     }
 }
+
+#[cfg(test)]
+mod tests;

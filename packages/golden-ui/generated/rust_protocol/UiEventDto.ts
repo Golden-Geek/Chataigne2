@@ -176,7 +176,7 @@ topic: string,
  */
 origin: NodeId | null,
 /**
- * Raw JSON payload.
+ * Immutable JSON shared by live publication and replay. Its wire representation is JSON.
  */
 payload: JsonValue,
 /**

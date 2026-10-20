@@ -28,8 +28,13 @@ fn ordinary_event_copies_keep_the_payload_reservation_after_preparation_is_gone(
 
 #[test]
 fn replay_and_exported_events_retain_the_same_allocation_and_release_capacity() {
+    use golden_core::{
+        ui_read_model::UiReadModel,
+        ui_sync::{UiEventKind, UiProjectFileSpec, UiSubscriptionScope},
+    };
     let pool = pool(1, 64 * 1024);
     let mut engine = crate::app::AppEngine::new(Folder::new("root").into());
+    let model = UiReadModel::from_engine(&engine, UiProjectFileSpec::default());
     let prepared = NativeCallbackPayload::prepare_in(&pool, "received", vec![Value::from("body")]).unwrap();
     let weak = Arc::downgrade(&prepared.payload);
     engine.edits.push(Edit::EmitCustomEvent {
@@ -40,12 +45,29 @@ fn replay_and_exported_events_retain_the_same_allocation_and_release_capacity() 
     engine.dispatch_inbox(ExecutionPhase::EngineTick).unwrap();
     let exported = engine.ui_events_since(None);
     assert_eq!(exported.len(), 1);
+    let direct = engine.ui_event_batch(None, UiSubscriptionScope::WholeGraph);
+    let live = model.publish_engine_events_since(&mut engine, None);
+    let replay = model.replay(None, UiSubscriptionScope::WholeGraph);
+    for batch in [&direct, &live, &replay] {
+        assert_eq!(batch.events.len(), 1);
+        let UiEventKind::Custom { payload, .. } = &batch.events[0].kind else {
+            panic!("custom event");
+        };
+        assert!(Arc::ptr_eq(payload, &weak.upgrade().unwrap()));
+    }
     assert!(pool.try_retain(1u8, 1).is_err());
     engine.clear_ui_event_log();
     assert!(pool.try_retain(1u8, 1).is_err());
     drop(engine);
     assert!(pool.try_retain(1u8, 1).is_err());
     drop(exported);
+    assert!(pool.try_retain(1u8, 1).is_err());
+    drop((direct, live, model));
+    assert!(
+        pool.try_retain(1u8, 1).is_err(),
+        "exported replay DTO pins canonical quota"
+    );
+    drop(replay);
     assert!(pool.wait_for_idle(Duration::from_secs(2)));
     assert!(weak.upgrade().is_none());
 }

@@ -22,7 +22,7 @@ mod device_choices;
 mod lifecycle;
 
 use command_admission::*;
-use device_choices::{direction_ready, sync_device_enum_with_state, sync_numeric_enum, DeviceChoice};
+use device_choices::{sync_device_enum_with_state, sync_numeric_enum, DeviceChoice};
 #[cfg(test)]
 pub(super) fn device_options_for_current(
     current: &str,
@@ -450,15 +450,18 @@ impl SoundCardModule {
         let input_device = input_device.to_owned();
         let output_device = output_device.to_owned();
         let Some(runtime) = self.runtime.as_mut() else {
+            self.service_observation_warning(ctx, None);
             self.base.set_connected(ctx, false);
             self.base
                 .set_data_capabilities(ctx, crate::app::module::ModuleDataCapabilities::new(false, false));
             return;
         };
         let (observation, telemetry, events) = runtime.poll(ctx, !had_pending);
-        if selected_parameter_ids
-            .iter()
-            .any(|node| self.runtime_error_node == Some(*node))
+        self.service_observation_warning(ctx, observation.error);
+        if observation.error.is_none()
+            && selected_parameter_ids
+                .iter()
+                .any(|node| self.runtime_error_node == Some(*node))
         {
             let driver = self.requested_driver().ok().flatten();
             if runtime::selected_devices_are_available(
@@ -470,19 +473,16 @@ impl SoundCardModule {
                 self.configuration_dirty = true;
             }
         }
-        let input_ready = direction_ready(&observation.device.input);
-        let output_ready = direction_ready(&observation.device.output);
+        let input_ready = observation.header.input_ready;
+        let output_ready = observation.header.output_ready;
         let enabled = self.node_data().effective_enabled;
-        self.base.set_connected(
-            ctx,
-            enabled && observation.enabled && any_direction_connected(&observation.device),
-        );
+        self.base.set_connected(ctx, enabled && observation.header.connected());
         self.base.set_data_capabilities(
             ctx,
             crate::app::module::ModuleDataCapabilities::new(enabled && input_ready, enabled && output_ready),
         );
         let inventory_changed = events.iter().any(|event| runtime_event_changes_inventory(&event.event));
-        if inventory_changed {
+        if inventory_changed && observation.error.is_none() {
             self.sync_live_device_choices(ctx, &observation.device);
         }
         if let Some(telemetry) = telemetry {
@@ -510,6 +510,19 @@ impl SoundCardModule {
             if let Some(wake) = &self.runtime_wake {
                 // One continuation lets the next batch drain after the last
                 // receipt settles, even if the native mailbox is already full.
+                wake.wake();
+            }
+        }
+    }
+
+    fn service_observation_warning(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        error: Option<runtime::observation::ObservationCaptureError>,
+    ) {
+        self.observation_warning.service(ctx, self.id(), error);
+        if self.observation_warning.has_pending() {
+            if let Some(wake) = &self.runtime_wake {
                 wake.wake();
             }
         }
@@ -711,8 +724,4 @@ impl SoundCardModule {
 
 pub(super) fn runtime_event_changes_inventory(event: &golden_audio::AudioEvent) -> bool {
     matches!(event, golden_audio::AudioEvent::DeviceInventoryChanged { .. })
-}
-
-pub(super) fn any_direction_connected(state: &golden_audio::AudioDeviceInspectorState) -> bool {
-    direction_ready(&state.input) || direction_ready(&state.output)
 }

@@ -510,9 +510,29 @@ One native preparation draft, one actor batch and externally exported callback o
 from mailbox capacity; the lifetime pools account for admitted storage through final disposal.
 Defensive callback-preparation rejection preserves the raw native result and publishes an explicit
 warning. Normalized identities/paths fit the envelope bound without truncation.
-Observation/value/active-voice copies, logger and UI DTO copies, configuration preparation/admission,
-and remaining reconfiguration/apply-time/failure fences remain P03 work. Event ownership budgets do not
-qualify whole-process memory or actor deadlines.
+The native owner also captures coalesced observations before publication, using Golden Audio's
+borrowed bounded storage inspection. Each capture reserves up to **8 MiB / 65,536 collection
+entries** before copying. A shared **128-item / 256 MiB** lifetime pool retains snapshots through
+actor reads and final disposal. Actor reads copy a handle and scalar health fields under a short
+publication lock; snapshot inspection/copying never holds that lock or the event-capacity lock.
+Repeated reads of one captured sequence skip value/telemetry reconstruction. Full event mailboxes
+and callback-preparation pressure continue native observation capture on timed, cancellable waits.
+
+Capture pressure preserves the last good frame, suppresses stale value/telemetry publication, and
+publishes a separate observation warning through a retryable single-edit receipt. Enable/readiness
+and output-activity scalars continue updating independently. Metering pressure does not disable
+audio or reject controls. Warning receipts remain serviceable after facade retirement.
+
+Configuration still reads device metadata through an opaque reader retained by a separate
+**64-handle / 64 KiB metadata** pool, so its final source-reader release occurs off the actor.
+That budget covers wrapper metadata only; the mutable source snapshot remains an engine-owned
+configuration/resource allocation. Configuration copies and source storage are outside the capture
+pool. Live/replay UI custom-event DTOs now share the canonical JSON Arc, retaining its original
+pool admission until exported DTOs also disappear; their JSON wire shape is unchanged.
+
+Telemetry DTO/JSON preparation, value-service bounds and receipts, active-voice and logger copies,
+configuration preparation/admission, and remaining reconfiguration/apply-time/failure fences remain
+P03 work. These ownership budgets do not qualify whole-process memory or actor deadlines.
 
 ## Current qualification boundaries
 

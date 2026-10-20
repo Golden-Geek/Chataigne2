@@ -118,8 +118,8 @@ pub enum UiEventKind {
         topic: String,
         /// Origin node when known.
         origin: Option<NodeId>,
-        /// Raw JSON payload.
-        payload: serde_json::Value,
+        /// Immutable JSON shared by live publication and replay. Its wire representation is JSON.
+        payload: std::sync::Arc<serde_json::Value>,
         /// Replay and transport retention policy.
         retention: CustomEventRetention,
     },

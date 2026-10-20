@@ -20,6 +20,14 @@ fn wait_for_pressure(bridge: &SoundCardRuntimeEvents) {
         thread::sleep(Duration::from_millis(1));
     }
     assert!(bridge.pending.metrics().depth <= EVENT_ITEMS);
+    let sequence = bridge.observation().sequence;
+    while bridge.observation().sequence == sequence {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "full event mailbox must not freeze native observations"
+        );
+        thread::sleep(Duration::from_millis(1));
+    }
 }
 
 fn pressured_bridge() -> PressureFixture {
@@ -193,7 +201,7 @@ fn desired_disable_survives_full_control_admission_and_applies_after_pressure_cl
     let PressureFixture {
         bridge,
         control,
-        observations,
+        observations: _,
         lifetimes,
         ..
     } = pressured_bridge();
@@ -208,7 +216,6 @@ fn desired_disable_survives_full_control_admission_and_applies_after_pressure_cl
     // configured with small queues. Facade behavior stays on the production path.
     runtime.event_bridge = bridge;
     runtime.control = control;
-    runtime.observations = observations;
     let mut filled = false;
     for _ in 0..512 {
         if runtime

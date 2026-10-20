@@ -197,7 +197,3 @@ pub(super) fn sync_numeric_enum(ctx: &mut ProcessCtx, parameter_id: NodeId, unit
         Ok(())
     });
 }
-
-pub(super) fn direction_ready(status: &golden_audio::AudioStreamStatus) -> bool {
-    status.enabled && status.readiness == golden_audio::AudioDeviceReadiness::Ready
-}

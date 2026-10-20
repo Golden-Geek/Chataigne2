@@ -1,5 +1,11 @@
 use super::*;
 
+mod capture;
+pub(super) use capture::retain_reader;
+pub(in super::super) use capture::{
+    ObservationCapture, ObservationCaptureError, ObservationCollector, ObservationView,
+};
+
 pub(super) fn collect_bindings(snapshot: &ProcessTreeSnapshot, module: NodeId) -> SoundCardValueBindings {
     let mut bindings = SoundCardValueBindings {
         input_master_level: find_path(snapshot, module, "values/levels/input/master_level"),

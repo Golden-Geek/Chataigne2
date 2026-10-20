@@ -1,6 +1,7 @@
 mod connection_feedback;
 mod event_delivery;
 mod integration;
+mod observation_warning;
 mod prepared_event;
 mod runtime;
 mod script;
@@ -143,6 +144,7 @@ pub struct SoundCardModule {
     active_runtime_warnings: HashSet<(NodeId, String)>,
     runtime_error_node: Option<NodeId>,
     pending_events: event_delivery::PendingAudioEvents,
+    observation_warning: observation_warning::ObservationWarning,
 }
 
 impl SoundCardModule {
@@ -165,6 +167,7 @@ impl SoundCardModule {
             HashSet::new(),
             None,
             event_delivery::PendingAudioEvents::default(),
+            observation_warning::ObservationWarning::default(),
         )
     }
 
@@ -314,6 +317,7 @@ impl Node for SoundCardModule {
 
     fn worker_wake_when_disabled(&self) -> bool {
         !self.pending_events.is_empty()
+            || self.observation_warning.has_pending()
             || self.runtime.is_some()
             || self.runtime_request.is_some()
             || self

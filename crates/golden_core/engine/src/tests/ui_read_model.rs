@@ -254,6 +254,47 @@ fn read_model_retains_only_latest_explicit_latest_custom_event() {
 }
 
 #[test]
+fn custom_ui_publication_and_replay_share_json_with_the_wire_payload_unchanged() {
+    let mut engine = Engine::new(Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None));
+    let model = UiReadModel::from_engine(&engine, UiProjectFileSpec::default());
+    let event = CustomEvent::new(
+        "test.shared",
+        Some(engine.root),
+        serde_json::json!({"values": [1, 2, 3]}),
+    );
+    let canonical = event.payload.clone();
+    engine.edits.push(Edit::EmitCustomEvent { event });
+    engine.apply_edits().unwrap();
+    let live = model.publish_engine_events_since(&mut engine, None);
+    let replay = model.replay(None, UiSubscriptionScope::WholeGraph);
+    for dto in live.events.iter().chain(&replay.events) {
+        let UiEventKind::Custom { payload, .. } = &dto.kind else {
+            panic!("custom event");
+        };
+        assert!(Arc::ptr_eq(payload, &canonical));
+        let json = serde_json::to_value(dto).unwrap();
+        assert_eq!(json["payload"], *canonical);
+        let roundtrip: crate::ui_sync::UiEventDto = serde_json::from_value(json).unwrap();
+        assert_eq!(roundtrip, *dto);
+    }
+    assert_eq!(live.events.len(), 1);
+    assert_eq!(replay.events.len(), 1);
+    let owned = crate::ui_sync::UiEventDto::from(crate::events::Event::custom(
+        engine.time,
+        CustomEvent::shared(
+            "test.owned",
+            None,
+            canonical.clone(),
+            crate::events::CustomEventRetention::Replay,
+        ),
+    ));
+    let UiEventKind::Custom { payload, .. } = owned.kind else {
+        panic!("custom event");
+    };
+    assert!(Arc::ptr_eq(&payload, &canonical));
+}
+
+#[test]
 fn replay_before_the_first_new_event_does_not_require_resync_without_eviction() {
     let mut root = Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None);
     root.event_behaviour = ParameterEventBehaviour::Append;

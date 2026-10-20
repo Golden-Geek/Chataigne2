@@ -723,7 +723,7 @@ fn custom_event_data_plane_uses_explicit_retention_not_topic_text() {
         kind: UiEventKind::Custom {
             topic: "test.named_preview_but_reliable".to_string(),
             origin: None,
-            payload: serde_json::Value::Null,
+            payload: serde_json::Value::Null.into(),
             retention: CustomEventRetention::Replay,
         },
     };
@@ -732,7 +732,7 @@ fn custom_event_data_plane_uses_explicit_retention_not_topic_text() {
         kind: UiEventKind::Custom {
             topic: "test.runtime_frame".to_string(),
             origin: None,
-            payload: serde_json::Value::Null,
+            payload: serde_json::Value::Null.into(),
             retention: CustomEventRetention::Latest,
         },
     };

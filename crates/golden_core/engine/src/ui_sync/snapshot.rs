@@ -596,7 +596,7 @@ impl<T: Node> Engine<T> {
             EventKind::Custom(custom) => UiEventKind::Custom {
                 topic: custom.topic.clone(),
                 origin: custom.origin,
-                payload: custom.payload.as_ref().clone(),
+                payload: custom.payload.clone(),
                 retention: custom.retention,
             },
         };

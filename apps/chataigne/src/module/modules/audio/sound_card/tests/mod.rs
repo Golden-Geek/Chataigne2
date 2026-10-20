@@ -407,19 +407,6 @@ fn asio_device_choices_expose_only_one_duplex_selector() {
 }
 
 #[test]
-fn module_connected_accepts_either_ready_direction() {
-    let mut state = AudioDeviceInspectorState::default();
-    state.input.enabled = true;
-    state.input.readiness = AudioDeviceReadiness::Ready;
-    state.output.enabled = true;
-    state.output.readiness = AudioDeviceReadiness::Recovering;
-    assert!(integration::any_direction_connected(&state));
-
-    state.input.readiness = AudioDeviceReadiness::Recovering;
-    assert!(!integration::any_direction_connected(&state));
-}
-
-#[test]
 fn catalog_choices_are_available_before_probe_and_keep_friendly_authored_labels() {
     let backend = BackendId::new("fixture").expect("backend");
     let target = target(&backend, "interface");

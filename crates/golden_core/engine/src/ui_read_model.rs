@@ -685,7 +685,7 @@ fn make_resync_event_batch(from: Option<EngineTime>, time: EngineTime, reason: &
             kind: UiEventKind::Custom {
                 topic: "__transport.resync_required".to_string(),
                 origin: None,
-                payload: serde_json::json!({ "reason": reason }),
+                payload: serde_json::json!({ "reason": reason }).into(),
                 retention: crate::events::CustomEventRetention::Replay,
             },
         }],

@@ -8,11 +8,11 @@ use golden_audio::{
     match_device_selection, AnalysisProcessorConfiguration, AnalysisResult, AnalysisTapConfiguration, AnalysisTapId,
     AnalysisTapObservation, AudioBufferPolicy, AudioChannelId, AudioCommand, AudioConfiguration, AudioControl,
     AudioDeviceDescriptor, AudioDeviceInspectorState, AudioDeviceMatch, AudioDeviceSelection, AudioDeviceTargetId,
-    AudioDirection, AudioEngineBuilder, AudioObservationReader, AudioObservationSnapshot, AudioRecoveryPolicy,
-    AudioRouteId, BackendId, BackendPolicy, ConfigGeneration, DirectionConfiguration, GainDb, InputPatchRoute,
-    NullBackend, OutputPatchRoute, PhysicalChannelKey, PitchAnalysisConfiguration, PlaybackId, PlaybackRoute,
-    SampleRate, SpectrumAnalysisConfiguration, SpectrumBandSpacing, SpectrumOverlap, SpectrumWindow,
-    VirtualInputChannel, VirtualOutputChannel,
+    AudioDirection, AudioEngineBuilder, AudioObservationSnapshot, AudioRecoveryPolicy, AudioRouteId, BackendId,
+    BackendPolicy, ConfigGeneration, DirectionConfiguration, GainDb, InputPatchRoute, NullBackend, OutputPatchRoute,
+    PhysicalChannelKey, PitchAnalysisConfiguration, PlaybackId, PlaybackRoute, SampleRate,
+    SpectrumAnalysisConfiguration, SpectrumBandSpacing, SpectrumOverlap, SpectrumWindow, VirtualInputChannel,
+    VirtualOutputChannel,
 };
 use golden_core::{
     node::{NodeId, NodeReference, NodeUuid},
@@ -31,7 +31,7 @@ use crate::app::module_modules_audio_sound_card_schema::{SoundCardInputRoute, So
 
 mod capabilities;
 mod events;
-mod observation;
+pub(super) mod observation;
 mod playback;
 mod snapshot;
 mod wake;
@@ -75,6 +75,10 @@ pub(super) use worker::{
 };
 pub(super) const OBSERVATION_EPSILON: f64 = 0.000_01;
 pub(super) const OUTPUT_ACTIVITY_RMS_THRESHOLD: f32 = 0.01;
+
+pub(super) fn direction_ready(status: &golden_audio::AudioStreamStatus) -> bool {
+    status.enabled && status.readiness == golden_audio::AudioDeviceReadiness::Ready
+}
 
 pub(super) fn levels_update_rate_hz(value: i32) -> u32 {
     value
@@ -150,7 +154,6 @@ pub(crate) struct SoundCardRuntime {
     enabled_pending: Option<bool>,
     enabled_sent: Option<bool>,
     event_bridge: events::SoundCardRuntimeEvents,
-    observations: AudioObservationReader,
     generation: ConfigGeneration,
     sample_rate: SampleRate,
     driver: Option<BackendId>,
@@ -163,6 +166,7 @@ pub(crate) struct SoundCardRuntime {
     last_error: Option<String>,
     outgoing_activity: Option<bool>,
     pending_outgoing_activity: Option<bool>,
+    last_observation_sequence: Option<u64>,
 }
 
 impl SoundCardRuntime {
@@ -190,12 +194,10 @@ impl SoundCardRuntime {
         let events = engine
             .take_event_receiver()
             .ok_or_else(|| "golden_audio event receiver was already taken".to_owned())?;
-        let observations = engine.observations();
         let control = engine.control();
         let event_bridge =
             events::SoundCardRuntimeEvents::spawn(engine, events, lifetime, LEVELS_UPDATE_RATE_DEFAULT_HZ as u32)?;
         Ok(Self {
-            observations,
             control,
             enabled_pending: None,
             enabled_sent: None,
@@ -212,11 +214,12 @@ impl SoundCardRuntime {
             last_error: None,
             outgoing_activity: None,
             pending_outgoing_activity: None,
+            last_observation_sequence: None,
         })
     }
 
     pub(super) fn inspector_state(&self) -> AudioDeviceInspectorState {
-        self.observations.latest().device
+        self.event_bridge.inspector_state()
     }
 
     pub(super) const fn sample_rate(&self) -> SampleRate {
@@ -312,7 +315,7 @@ impl SoundCardRuntime {
         ctx: &mut ProcessCtx,
         drain_events: bool,
     ) -> (
-        AudioObservationSnapshot,
+        observation::ObservationView,
         Option<SoundCardUiTelemetryDto>,
         Vec<super::prepared_event::PreparedAudioEvent>,
     ) {
@@ -325,13 +328,30 @@ impl SoundCardRuntime {
         for event in &events {
             self.observe_event(&event.event);
         }
-        let observation = self.observations.latest();
-        let outgoing_activity = has_output_activity(observation.enabled, observation.output_global_max_rms);
+        let observation = self.event_bridge.observation();
+        let outgoing_activity = has_output_activity(observation.header.enabled, observation.header.output_rms);
         if self.outgoing_activity != Some(outgoing_activity) {
             self.outgoing_activity = Some(outgoing_activity);
             self.pending_outgoing_activity = Some(outgoing_activity);
         }
-        self.apply_observation_values(ctx, &observation);
+        let changed_snapshot =
+            self.last_observation_sequence != Some(observation.sequence) && observation.error.is_none();
+        if changed_snapshot {
+            self.apply_observation_values(ctx, &observation);
+            self.last_observation_sequence = Some(observation.sequence);
+        }
+        let playback_changed = events.iter().any(|event| {
+            matches!(
+                &event.event,
+                golden_audio::AudioEvent::PlaybackStarted(_)
+                    | golden_audio::AudioEvent::PlaybackStopped(_)
+                    | golden_audio::AudioEvent::PlaybackFailed(_)
+                    | golden_audio::AudioEvent::PlaybackFinished(_)
+            )
+        });
+        if observation.error.is_some() || (!changed_snapshot && !playback_changed) {
+            return (observation, None, events);
+        }
         let mut playback_voices = self.active_playback_voices.values().cloned().collect::<Vec<_>>();
         playback_voices.sort_by(|left, right| left.playback_id.cmp(&right.playback_id));
         let telemetry = telemetry_from_observation(&observation, playback_voices);

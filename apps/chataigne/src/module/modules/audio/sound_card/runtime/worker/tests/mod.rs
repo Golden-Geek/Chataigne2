@@ -213,7 +213,6 @@ fn idle_selection_retains_the_lifecycle_slot_until_blocked_native_cleanup_finish
             .unwrap();
         let events = native.take_event_receiver().unwrap();
         let control = native.control();
-        let observations = native.observations();
         let cleanup_tx = cleanup_tx.clone();
         let release = release_rx.lock().unwrap().take().expect("one constructor");
         runtime.event_bridge = SoundCardRuntimeEvents::spawn_using(
@@ -228,7 +227,6 @@ fn idle_selection_retains_the_lifecycle_slot_until_blocked_native_cleanup_finish
             },
         )?;
         runtime.control = control;
-        runtime.observations = observations;
         Ok(runtime)
     })
     .unwrap();

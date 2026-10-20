@@ -200,7 +200,7 @@ impl From<Event> for UiEventDto {
             EventKind::Custom(custom) => UiEventKind::Custom {
                 topic: custom.topic,
                 origin: custom.origin,
-                payload: std::sync::Arc::unwrap_or_clone(custom.payload),
+                payload: custom.payload,
                 retention: custom.retention,
             },
         };

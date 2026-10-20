@@ -352,6 +352,13 @@ compile, log, or destroy final owners.
 Chataigne projects the coalesced observation at the Sound Card's app-owned Levels Update Rate,
 configurable from 1 through 30 Hz with a 5 Hz default. It updates cached value-node IDs only when
 values move beyond the configured epsilon and publishes one latest-only app telemetry envelope.
+Its native owner validates and copies snapshots into a bounded retained pool; ordinary actor wakes
+borrow shared captures without copying the source snapshot. Golden Audio exposes
+`AudioObservationReader::inspect` and `AudioObservationSnapshot::retained_bytes_within` for bounded
+worker-side inspection before copying, including spare capacities and nested metadata/analysis.
+The inspection closure must not block or reenter the reader. Capture overload has a separate visible
+warning and leaves control admission independent. See [host ownership](hosts.md) for budgets and
+the remaining telemetry/configuration boundaries.
 Missing explicit device selections remain persisted; unresolved local routes remain authored and
 receive visible warnings so removal and undo stay atomic.
 
