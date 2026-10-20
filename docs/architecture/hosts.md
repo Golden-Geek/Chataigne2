@@ -568,9 +568,11 @@ with individual text values limited to 1 MiB. This bounds construction input, wh
 snapshot lease separately accounts for retained source storage. Device metadata admits **8 MiB /
 131,072 entries** independently of metering, so oversized analysis storage cannot block controls.
 The worker reserves **256 MiB** of conversion scratch before copying metadata or building the plan.
-Prepared plans admit **64 MiB each** through a shared **128-item / 1 GiB** lifetime pool, including
-configuration capacities, warning strings and binding maps. Diagnostics crossing back to the actor
-are compacted to 4 KiB on the worker. Final plan disposal stays off the actor.
+Each prepared configuration and its separate warning plan admit **64 MiB combined** through a
+shared **128-item / 1 GiB** lifetime pool. Each configuration uses two lifetime items, including
+configuration capacities, warning strings and binding maps. Warning-plan sealing can temporarily
+charge its final storage in addition to the conversion scratch reservation. Diagnostics crossing
+back to the actor are compacted to 4 KiB on the worker. Final plan disposal stays off the actor.
 
 Preparation keys check the published connection, parameter and value subtree revisions, module UUID
 and effective enabled state before admission. They do not rely on delivery of change callbacks.
@@ -583,8 +585,25 @@ Only a matching native `ConfigurationApplied` promotes bindings and resets the v
 a matching rejection preserves the previous bindings. This is a control acknowledgement fence, not
 qualification of render-side ordering across configuration changes (P04).
 
+The preparing worker reconciles route warnings against the snapshot's applied presentation state,
+including changed text and warnings removed from authored routes. It owns only the two
+`sound-card-unresolved-*` route diagnostic IDs; other warning owners are preserved. Reconciliation
+bounds its node/warning scan and output at **262,144 entries/actions**. Actor delivery checks or
+stages at most **16 receipts/actions per turn**, retaining the immutable plan through receipt
+settlement. Warning text copies are bounded by the prepared 4 KiB message/detail limits. Failed
+prefixes retry in isolation once; a permanently failing target cannot discard its valid suffix or
+spin continuations. When no configuration refresh is already pending, remaining failures request
+a fresh reconciliation after 250 ms. Warning-plan capacity pressure preserves current audio and retries.
+
+Before replacement preparation captures its source, unqueued old warning actions cancel and already
+admitted receipts settle. This prevents a late old warning edit from invalidating the new diff.
+After configuration admission, warning projections continue independently of native binding
+acknowledgement. There is no optimistic actor warning cache to acknowledge failed edits, copy or
+destroy wholesale. Presentation-only metadata events do not request Sound Card snapshots or redrive
+configuration; labels and enabled-state changes retain their existing behavior.
+
 Probe/selection setup and raw inspector copies, derived structure/default-route seeding, enum
-choices, warning publication/cache retirement, logger copies and remaining reconfiguration,
+choices, value-cache retirement, logger copies and remaining reconfiguration,
 apply-time and failure fences remain P03 work. These budgets do not qualify whole-process memory
 or actor deadlines.
 

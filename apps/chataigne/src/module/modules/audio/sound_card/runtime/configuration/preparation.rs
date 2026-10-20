@@ -15,9 +15,9 @@ use golden_core::{
 use golden_io::{BoundedWorker, PayloadPool, RetainedPayload, RetirementPermit, RetirementPool, WorkerLimits};
 
 use super::super::{
-    find_path, BuiltSoundCardConfiguration, ConfigurationError, RuntimeWakeSender, RuntimeWarning,
-    SoundCardValueBindings,
+    find_path, BuiltSoundCardConfiguration, ConfigurationError, RuntimeWakeSender, SoundCardValueBindings,
 };
+use super::warnings::WarningPlan;
 
 const MAX_NODES: usize = 131_072;
 const MAX_INPUT_BYTES: usize = 32 * 1024 * 1024;
@@ -48,7 +48,7 @@ pub(crate) struct PreparedConfiguration {
     configuration: Arc<golden_audio::AudioConfiguration>,
     pub(crate) sample_rate: golden_audio::SampleRate,
     pub(crate) bindings: SoundCardValueBindings,
-    pub(crate) warnings: Vec<RuntimeWarning>,
+    pub(crate) warnings: RetainedPayload<WarningPlan>,
 }
 impl PreparedConfiguration {
     /// The preparing lease remains borrowed during rejection, so dropping the
@@ -63,29 +63,18 @@ impl PreparedConfiguration {
             config: self.configuration.clone(),
         })
     }
-    fn from_built(built: BuiltSoundCardConfiguration) -> Self {
+    fn from_built(built: BuiltSoundCardConfiguration, warnings: RetainedPayload<WarningPlan>) -> Self {
         Self {
             configuration: Arc::new(built.configuration),
             sample_rate: built.sample_rate,
             bindings: built.bindings,
-            warnings: built.warnings,
+            warnings,
         }
     }
     fn weight(&self) -> Option<usize> {
         let mut bytes = self.configuration.retained_bytes_within(MAX_RESULT_BYTES, MAX_NODES)?
             + size_of::<Self>()
             + 2 * size_of::<usize>();
-        bytes = bytes.checked_add(self.warnings.capacity() * size_of::<RuntimeWarning>())?;
-        for warning in &self.warnings {
-            bytes = bytes.checked_add(
-                warning.id.capacity()
-                    + warning.message.capacity()
-                    + warning.detail.as_ref().map_or(0, String::capacity),
-            )?;
-            if bytes > MAX_RESULT_BYTES {
-                return None;
-            }
-        }
         bytes = bytes.checked_add(
             self.bindings.channel_levels.capacity() * 128
                 + self.bindings.pitch.capacity() * 256
@@ -225,10 +214,35 @@ impl Job {
             }
         }
         drop(inspector);
-        let data = PreparedConfiguration::from_built(built);
+        let warnings = WarningPlan::prepare(&self.snapshot, self.module, &built.warnings)
+            .filter(|plan| plan.bytes <= MAX_RESULT_BYTES)
+            .ok_or_else(|| {
+                unavailable(
+                    self.module,
+                    "Sound Card warning reconciliation exceeds its item/storage bound".into(),
+                )
+            })?;
+        built.warnings.clear();
+        let warning_bytes = warnings.bytes;
+        let warnings = pool.try_retain(warnings, warning_bytes).map_err(|_| {
+            unavailable(
+                self.module,
+                "Sound Card warning-plan lifetime capacity exhausted".into(),
+            )
+        })?;
+        let data = PreparedConfiguration::from_built(built, warnings);
         let bytes = data
             .weight()
             .ok_or_else(|| reject("Sound Card prepared configuration exceeds 64 MiB"))?;
+        if bytes
+            .checked_add(data.warnings.bytes)
+            .is_none_or(|bytes| bytes > MAX_RESULT_BYTES)
+        {
+            return Err(unavailable(
+                self.module,
+                "Sound Card configuration and warning plan exceed 64 MiB".into(),
+            ));
+        }
         if self.state.cancelled.load(Ordering::Acquire) {
             return Err(reject("Sound Card preparation superseded"));
         }

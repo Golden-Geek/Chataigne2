@@ -183,6 +183,10 @@ fn preparation_capacity_and_dropped_jobs_are_retryable_without_disabling_audio()
     let too_small = PayloadPool::new("config-small-test", 4, 1024).unwrap();
     let error = job.run(&too_small).unwrap_err();
     assert!(error.retryable);
+    let no_warning_slot = PayloadPool::new("config-warning-capacity-test", 1, SCRATCH_BYTES).unwrap();
+    let error = job.run(&no_warning_slot).unwrap_err();
+    assert!(error.retryable);
+    assert!(error.message.contains("warning-plan lifetime capacity"));
     assert!(native.observations().inspect(|snapshot| snapshot.enabled));
     drop(job);
     let result = state.result.lock().unwrap_or_else(|p| p.into_inner()).take().unwrap();
@@ -215,5 +219,48 @@ fn cancellation_releases_a_queued_preparation_without_manufacturing_a_completion
     assert!(job.run(&pool).unwrap_err().message.contains("cancelled"));
     drop(job);
     assert!(state.result.lock().unwrap_or_else(|p| p.into_inner()).is_none());
+    native.shutdown().unwrap();
+}
+
+#[test]
+fn runtime_settles_old_warning_receipts_before_capturing_replacement_preparation() {
+    let (mut engine, module, mut native, wake) = fixture();
+    let mut runtime = runtime::SoundCardRuntime::start_selected(
+        golden_audio::SampleRate::default(),
+        Some(golden_audio::NullBackend::backend_id()),
+    )
+    .unwrap();
+    let warning = runtime::RuntimeWarning {
+        node: module,
+        id: "sound-card-unresolved-channel".into(),
+        message: "old projection".into(),
+        detail: None,
+    };
+    let pool = PayloadPool::new("warning-preparation-fence-test", 1, 64 * 1024).unwrap();
+    let plan = WarningPlan::prepare(&engine.process_tree_snapshot(), module, &[warning]).unwrap();
+    let bytes = plan.bytes;
+    runtime.warnings.start(pool.try_retain(plan, bytes).unwrap());
+    let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);
+    runtime.poll(&mut ctx, module, true);
+    assert!(!ctx.edits.pending.is_empty());
+    assert!(runtime
+        .prepare_configuration(&engine.process_tree_snapshot(), module, wake.clone())
+        .unwrap()
+        .is_none());
+    assert!(runtime.preparation_quiescing);
+    assert!(
+        runtime.preparation.is_none(),
+        "no source may be captured before admitted warning edits settle"
+    );
+    engine.absorb_edits(&mut ctx).unwrap();
+    engine.apply_edits().unwrap();
+    let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);
+    runtime.poll(&mut ctx, module, true);
+    runtime
+        .prepare_configuration(&engine.process_tree_snapshot(), module, wake)
+        .unwrap();
+    assert!(runtime.preparation.is_some());
+    assert!(!runtime.preparation_quiescing);
+    drop(runtime);
     native.shutdown().unwrap();
 }

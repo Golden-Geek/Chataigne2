@@ -247,28 +247,44 @@ fn telemetry_does_not_redrive_the_runtime_that_emitted_it() {
     assert!(!module.inbox_drives_runtime(&custom_event_frame(
         chataigne_sound_card_protocol::SOUND_CARD_TELEMETRY_TOPIC,
     )));
-}
 
-#[test]
-fn unchanged_runtime_warnings_are_not_republished() {
-    let mut module = SoundCardModule::create();
-    let warning = runtime::RuntimeWarning {
-        node: NodeId(42),
-        id: "sound-card-unresolved-physical-channel".to_owned(),
-        message: "unavailable channel".to_owned(),
-        detail: None,
-    };
-    let mut first = test_process_ctx(1);
-    module.apply_runtime_warnings(&mut first, std::slice::from_ref(&warning));
-    assert_eq!(first.edits.pending.len(), 1);
-
-    let mut unchanged = test_process_ctx(2);
-    module.apply_runtime_warnings(&mut unchanged, std::slice::from_ref(&warning));
-    assert!(unchanged.edits.pending.is_empty());
-
-    let mut cleared = test_process_ctx(3);
-    module.apply_runtime_warnings(&mut cleared, &[]);
-    assert_eq!(cleared.edits.pending.len(), 1);
+    for (patch, required) in [
+        (
+            NodeMetaPatch {
+                presentation: Some(Default::default()),
+                ..Default::default()
+            },
+            false,
+        ),
+        (
+            NodeMetaPatch {
+                label: Some("renamed".into()),
+                ..Default::default()
+            },
+            true,
+        ),
+        (
+            NodeMetaPatch {
+                enabled: Some(false),
+                ..Default::default()
+            },
+            true,
+        ),
+    ] {
+        let frame = EventFrame::from_shared(vec![Arc::new(Event {
+            time: EngineTime {
+                tick: 1,
+                micro: 0,
+                seq: 0,
+            },
+            kind: golden_core::events::EventKind::MetaChanged {
+                node: NodeId(42),
+                patch,
+            },
+        })]);
+        assert_eq!(module.inbox_drives_runtime(&frame), required);
+        assert_eq!(module.inbox_requires_tree_snapshot(&frame), required);
+    }
 }
 
 #[test]

@@ -1,5 +1,6 @@
 use super::*;
 pub(super) mod preparation;
+pub(super) mod warnings;
 
 pub(crate) fn build_configuration(
     snapshot: &ProcessTreeSnapshot,

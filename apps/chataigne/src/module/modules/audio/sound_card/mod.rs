@@ -11,10 +11,7 @@ mod structure;
 mod tests;
 mod traffic_logging;
 
-use std::{
-    collections::HashSet,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
 use golden_core::{
     edit::Edit,
@@ -141,7 +138,6 @@ pub struct SoundCardModule {
     output_route_reset_pending: bool,
     configuration_dirty: bool,
     outgoing_activity_active: bool,
-    active_runtime_warnings: HashSet<(NodeId, String)>,
     runtime_error_node: Option<NodeId>,
     pending_events: event_delivery::PendingAudioEvents,
     observation_warning: observation_warning::ObservationWarning,
@@ -164,7 +160,6 @@ impl SoundCardModule {
             false,
             true,
             false,
-            HashSet::new(),
             None,
             event_delivery::PendingAudioEvents::default(),
             observation_warning::ObservationWarning::default(),
@@ -178,6 +173,7 @@ impl SoundCardModule {
                 .as_ref()
                 .is_some_and(|runtime| runtime.bindings().is_runtime_value(*param)),
             EventKind::ParamConstraintsChanged { .. } => false,
+            EventKind::MetaChanged { patch, .. } => patch.label.is_some() || patch.enabled.is_some(),
             EventKind::ChildAdded { .. }
             | EventKind::ChildRemoved { .. }
             | EventKind::ChildReplaced { .. }
@@ -185,7 +181,6 @@ impl SoundCardModule {
             | EventKind::ChildReordered { .. }
             | EventKind::NodeCreated { .. }
             | EventKind::NodeDeleted { .. }
-            | EventKind::MetaChanged { .. }
             | EventKind::GraphTransaction { .. } => true,
             EventKind::Custom(custom) => {
                 custom.topic == crate::app::module_command::MODULE_COMMAND_REQUEST_TOPIC
@@ -372,10 +367,8 @@ impl Node for SoundCardModule {
                 .runtime
                 .as_ref()
                 .is_some_and(|runtime| runtime.bindings().is_runtime_value(*param)),
-            EventKind::ChildAdded { .. }
-            | EventKind::ChildRemoved { .. }
-            | EventKind::ChildReplaced { .. }
-            | EventKind::MetaChanged { .. } => true,
+            EventKind::ChildAdded { .. } | EventKind::ChildRemoved { .. } | EventKind::ChildReplaced { .. } => true,
+            EventKind::MetaChanged { patch, .. } => patch.label.is_some() || patch.enabled.is_some(),
             EventKind::Custom(custom) => {
                 custom.topic == crate::app::module_command::MODULE_COMMAND_REQUEST_TOPIC
                     || custom.topic == chataigne_sound_card_protocol::SOUND_CARD_UI_CONTROL_TOPIC

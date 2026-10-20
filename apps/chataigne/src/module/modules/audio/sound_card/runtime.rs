@@ -45,6 +45,7 @@ pub(super) use capabilities::{
     selected_devices_are_available, selected_physical_channels, selected_probe_targets, supported_buffer_sizes,
     supported_sample_rates, supports_system_default,
 };
+use configuration::warnings::delivery::WarningDelivery;
 use configuration::{matched_device, parse_fixed_value, preferred_rate, resolve_selection};
 use observation::collect_bindings;
 #[cfg(test)]
@@ -170,6 +171,8 @@ pub(crate) struct SoundCardRuntime {
     active_configuration: Option<golden_io::RetainedPayload<PreparedConfiguration>>,
     pending_application: Option<(ConfigGeneration, golden_io::RetainedPayload<PreparedConfiguration>)>,
     preparation: Option<Preparation>,
+    preparation_quiescing: bool,
+    warnings: WarningDelivery,
     preparation_retry_at: Option<std::time::Instant>,
     binding_generation: ConfigGeneration,
     configuration_feedback: Option<ConfigurationFeedback>,
@@ -221,6 +224,8 @@ impl SoundCardRuntime {
             active_configuration: None,
             pending_application: None,
             preparation: None,
+            preparation_quiescing: false,
+            warnings: WarningDelivery::default(),
             preparation_retry_at: None,
             binding_generation: ConfigGeneration::INITIAL,
             configuration_feedback: None,
@@ -315,6 +320,10 @@ impl SoundCardRuntime {
         self.pending_application.is_some()
     }
 
+    pub(super) fn take_warning_failure(&mut self) -> bool {
+        self.warnings.take_failure()
+    }
+
     pub(super) fn prepare_configuration(
         &mut self,
         snapshot: &std::sync::Arc<ProcessTreeSnapshot>,
@@ -325,6 +334,12 @@ impl SoundCardRuntime {
         if self.pending_application.is_some() {
             return Ok(None);
         }
+        if !self.warnings.quiesce() {
+            self.preparation_quiescing = true;
+            self.event_bridge.continue_service();
+            return Ok(None);
+        }
+        self.preparation_quiescing = false;
         if self
             .preparation
             .as_ref()
@@ -346,6 +361,7 @@ impl SoundCardRuntime {
 
     pub(super) fn cancel_preparation(&mut self) {
         self.preparation = None;
+        self.preparation_quiescing = false;
     }
 
     pub(super) fn submit(
@@ -361,6 +377,8 @@ impl SoundCardRuntime {
             .map_err(|error| error.to_string())?;
         self.generation = generation;
         self.preparation = None;
+        self.preparation_quiescing = false;
+        self.warnings.start(prepared.warnings.clone());
         self.pending_application = Some((generation, prepared));
         self.enabled_sent = None;
         Ok(generation)
@@ -442,7 +460,9 @@ impl SoundCardRuntime {
             self.outgoing_activity = Some(outgoing_activity);
             self.pending_outgoing_activity = Some(outgoing_activity);
         }
-        let configuring = self.preparation.is_some() || self.pending_application.is_some();
+        let preparing = self.preparation_quiescing || self.preparation.is_some();
+        self.warnings.service(ctx, preparing);
+        let configuring = preparing || self.pending_application.is_some();
         if !configuring {
             static EMPTY: std::sync::LazyLock<SoundCardValueBindings> =
                 std::sync::LazyLock::new(SoundCardValueBindings::default);
@@ -455,7 +475,7 @@ impl SoundCardRuntime {
                 .service(ctx, bindings, self.binding_generation, &observation);
         }
         self.telemetry.service(ctx, module, &observation);
-        if (!configuring && self.values.has_pending()) || self.telemetry.has_pending() {
+        if (!configuring && self.values.has_pending()) || self.telemetry.has_pending() || self.warnings.has_pending() {
             self.event_bridge.continue_service();
         }
         (observation, events)

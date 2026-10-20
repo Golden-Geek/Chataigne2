@@ -441,7 +441,6 @@ impl SoundCardModule {
                     self.configuration_dirty = true;
                     return;
                 }
-                self.apply_runtime_warnings(ctx, built.warnings.as_slice());
                 let module_enabled = snapshot.node(self.id()).is_some_and(|node| node.enabled);
                 let Some(runtime) = self.runtime.as_mut() else {
                     return;
@@ -501,6 +500,11 @@ impl SoundCardModule {
             return;
         };
         let (observation, events) = runtime.poll(ctx, module, !had_pending);
+        if runtime.take_warning_failure() && !self.configuration_dirty {
+            if let Some(wake) = &self.runtime_wake {
+                runtime.schedule_preparation_retry(wake);
+            }
+        }
         if runtime.take_preparation_retry_due() {
             self.configuration_dirty = true;
         }
@@ -715,30 +719,6 @@ impl SoundCardModule {
         );
         sync_numeric_enum(ctx, self.sample_rate.id(), "Hz", sample_rates.as_slice());
         sync_numeric_enum(ctx, self.buffer_size.id(), "frames", buffer_sizes.as_slice());
-    }
-
-    pub(super) fn apply_runtime_warnings(&mut self, ctx: &mut ProcessCtx, warnings: &[runtime::RuntimeWarning]) {
-        let next = warnings
-            .iter()
-            .map(|warning| (warning.node, warning.id.clone()))
-            .collect::<HashSet<_>>();
-        for (node, warning_id) in self.active_runtime_warnings.difference(&next) {
-            ctx.clear_node_warning(*node, Some(warning_id.as_str()));
-        }
-        for warning in warnings {
-            if !self
-                .active_runtime_warnings
-                .contains(&(warning.node, warning.id.clone()))
-            {
-                ctx.set_node_warning_with(
-                    warning.node,
-                    Some(warning.id.as_str()),
-                    warning.message.as_str(),
-                    warning.detail.as_deref(),
-                );
-            }
-        }
-        self.active_runtime_warnings = next;
     }
 
     pub(super) fn set_runtime_error(&mut self, ctx: &mut ProcessCtx, node: NodeId, message: &str) {

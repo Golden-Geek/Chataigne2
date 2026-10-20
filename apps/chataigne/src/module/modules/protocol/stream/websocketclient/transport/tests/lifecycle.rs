@@ -91,6 +91,7 @@ fn protocol_socket_enforces_per_turn_io_byte_and_call_limits() {
     let mut peer = listener.accept().unwrap().0;
     peer.write_all(&vec![7; 100_000]).unwrap();
     let mut budget = BudgetSocket::new(client);
+    wait(|| budget.stream.peek(&mut [0; 1]).is_ok_and(|count| count > 0));
     let mut read = 0;
     for _ in 0..5 {
         match budget.read(&mut [0; 100_000]) {
@@ -103,6 +104,8 @@ fn protocol_socket_enforces_per_turn_io_byte_and_call_limits() {
     }
     assert!(read > 0 && read <= 64 * 1024);
     budget.reset();
+    // Sender completion does not mean every segment has reached this socket.
+    wait(|| budget.stream.peek(&mut [0; 1]).is_ok_and(|count| count > 0));
     assert!(budget.read(&mut [0; 100_000]).unwrap() > 0);
     let written = budget.write(&vec![8; 100_000]).unwrap();
     assert!(written > 0 && written <= 64 * 1024);

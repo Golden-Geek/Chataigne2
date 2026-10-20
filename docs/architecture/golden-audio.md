@@ -363,8 +363,10 @@ Capture/telemetry overload has a separate visible warning and leaves control adm
 App-owned configuration conversion runs on a bounded preparation worker. Immutable prepared plans
 retain snapshot and output storage admission through retries and final disposal. Bindings promote
 only after a matching native configuration acknowledgement; rejected replacements preserve the
-previous bindings. See [host ownership](hosts.md) for budgets and the remaining probe, structure,
-warning, logger and fence boundaries.
+previous bindings. Route-warning reconciliation also runs on that worker, comparing applied
+presentation state; actor publication has bounded receipts and no optimistic warning cache.
+See [host ownership](hosts.md) for budgets and the remaining probe, structure, value-cache,
+logger and fence boundaries.
 Missing explicit device selections remain persisted; unresolved local routes remain authored and
 receive visible warnings so removal and undo stay atomic.
 
