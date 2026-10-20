@@ -4,6 +4,7 @@ use golden_audio::AudioObservationSnapshot;
 
 mod capture;
 mod publication;
+mod routing;
 mod telemetry;
 mod values;
 pub(super) use capture::retain_reader;
@@ -11,6 +12,7 @@ pub(in super::super) use capture::{
     ObservationCapture, ObservationCaptureError, ObservationCollector, ObservationView,
 };
 pub(super) use publication::TelemetryDelivery;
+pub(crate) use routing::RouteValidationError;
 pub(crate) use values::ValueCache;
 pub(super) use values::ValueDelivery;
 

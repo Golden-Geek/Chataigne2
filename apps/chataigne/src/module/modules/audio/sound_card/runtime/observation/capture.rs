@@ -3,6 +3,7 @@ use std::{
     sync::{Arc, Mutex, OnceLock},
 };
 
+use super::routing::{RoutePreparer, RouteView};
 use super::telemetry::{PreparedTelemetry, TelemetryPreparer};
 use golden_audio::{AudioObservationReader, AudioObservationSnapshot};
 use golden_io::{PayloadPool, RetainedPayload};
@@ -41,6 +42,7 @@ pub(crate) struct ObservationView {
     pub header: ObservationHeader,
     pub sequence: u64,
     pub telemetry: Option<PreparedTelemetry>,
+    pub(crate) routes: RouteView,
 }
 
 #[derive(Clone, Copy)]
@@ -95,6 +97,7 @@ struct State {
     header: ObservationHeader,
     sequence: u64,
     telemetry: Option<PreparedTelemetry>,
+    routes: RouteView,
 }
 
 #[derive(Clone)]
@@ -105,6 +108,7 @@ pub(crate) struct ObservationCollector {
     pool: PayloadPool,
     capture: ObservationCapture,
     telemetry: TelemetryPreparer,
+    routes: RoutePreparer,
 }
 
 impl ObservationCapture {
@@ -116,6 +120,7 @@ impl ObservationCapture {
             header: state.header,
             sequence: state.sequence,
             telemetry: state.telemetry.clone(),
+            routes: state.routes.clone(),
         }
     }
 }
@@ -141,6 +146,8 @@ impl ObservationCollector {
         reader: AudioObservationReader,
         pool: PayloadPool,
     ) -> Result<(ObservationCapture, Self), ObservationCaptureError> {
+        let mut routes = RoutePreparer::new().map_err(|_| ObservationCaptureError::Capacity)?;
+        let routing = routes.prepare(&reader);
         let snapshot = capture(&reader, &pool)?;
         let header = reader.inspect(ObservationHeader::from_snapshot);
         let mut telemetry = TelemetryPreparer::new()?;
@@ -151,6 +158,7 @@ impl ObservationCollector {
             header,
             sequence: 1,
             telemetry: prepared.ok(),
+            routes: routing,
         })));
         Ok((
             state.clone(),
@@ -159,11 +167,13 @@ impl ObservationCollector {
                 pool,
                 capture: state,
                 telemetry,
+                routes,
             },
         ))
     }
 
     pub(crate) fn refresh(&mut self) {
+        let routes = self.routes.prepare(&self.reader);
         let result = capture(&self.reader, &self.pool);
         let prepared = match &result {
             Ok(snapshot) => Some(self.telemetry.prepare(snapshot)),
@@ -173,7 +183,8 @@ impl ObservationCollector {
         let previous = {
             let mut state = self.capture.0.lock().unwrap_or_else(|p| p.into_inner());
             state.header = header;
-            match result {
+            let previous_routes = std::mem::replace(&mut state.routes, routes);
+            let previous = match result {
                 Ok(snapshot) => {
                     let prepared = prepared.expect("successful snapshot");
                     state.error = prepared.as_ref().err().copied();
@@ -187,7 +198,8 @@ impl ObservationCollector {
                     state.error = Some(error);
                     (None, state.telemetry.take())
                 }
-            }
+            };
+            (previous_routes, previous)
         };
         // No disposer/pool lock is acquired while holding the publication lock.
         drop(previous);

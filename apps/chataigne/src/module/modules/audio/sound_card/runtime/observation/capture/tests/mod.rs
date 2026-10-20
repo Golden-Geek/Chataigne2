@@ -94,5 +94,128 @@ pub(in super::super) fn view_for_test(snapshot: AudioObservationSnapshot, sequen
         header,
         sequence,
         telemetry: None,
+        routes: RouteView::default(),
     }
+}
+
+#[test]
+fn route_capture_recovers_independently_of_full_metering_and_route_pools() {
+    use super::super::routing::RouteValidationError;
+    use golden_audio::{
+        AudioCommand, AudioConfiguration, AudioDeviceSelection, AudioDirection, ConfigGeneration, NullBackend,
+    };
+    let mut engine = golden_audio::AudioEngineBuilder::default()
+        .without_backends()
+        .with_backend(NullBackend)
+        .build()
+        .unwrap();
+    let reader = engine.observations();
+    let pool = PayloadPool::new("route-metering-test", 1, SNAPSHOT_BYTES).unwrap();
+    let routes = PayloadPool::new("route-admission-test", 2, 16 * 1024 * 1024).unwrap();
+    let (capture, mut collector) = ObservationCollector::using(reader.clone(), pool.clone()).unwrap();
+    collector.routes = RoutePreparer::using(routes.clone());
+    collector.refresh();
+    let initial = capture.latest();
+    let blocker = routes.try_retain((), 1).unwrap();
+
+    let mut configuration = AudioConfiguration::empty();
+    configuration.physical_outputs = ["output:0", "output:1"]
+        .map(|key| golden_audio::PhysicalChannelKey::new(key).unwrap())
+        .into();
+    configuration.output.enabled = true;
+    configuration.output.device = Some(AudioDeviceSelection::follow_system_default(
+        NullBackend::backend_id(),
+        AudioDirection::Output,
+    ));
+    configuration.validate(&golden_audio::EngineLimits::default()).unwrap();
+    engine
+        .control()
+        .submit(AudioCommand::ApplyConfiguration {
+            generation: ConfigGeneration::new(1),
+            config: Arc::new(configuration),
+        })
+        .unwrap();
+    let deadline = std::time::Instant::now() + Duration::from_secs(3);
+    while !reader.inspect(|snapshot| {
+        snapshot.generation == ConfigGeneration::new(1) && snapshot.device.output.active_target.is_some()
+    }) {
+        assert!(std::time::Instant::now() < deadline, "Null stereo output must open");
+        std::thread::sleep(Duration::from_millis(1));
+    }
+    collector.refresh();
+    assert_eq!(capture.latest().error, Some(ObservationCaptureError::Capacity));
+    assert_eq!(
+        capture
+            .latest()
+            .routes
+            .validate(reader.device_revision(), AudioDirection::Output, "output:0"),
+        Err(RouteValidationError::Capacity)
+    );
+    drop(blocker);
+    let ready = loop {
+        collector.refresh();
+        let view = capture.latest();
+        if view
+            .routes
+            .validate(reader.device_revision(), AudioDirection::Output, "output:0")
+            .is_ok()
+        {
+            break view;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "routing must recover without metering capacity"
+        );
+        std::thread::sleep(Duration::from_millis(1));
+    };
+    assert_eq!(ready.error, Some(ObservationCaptureError::Capacity));
+    assert!(
+        routes.try_reserve(1).is_err(),
+        "retained old and current routes both stay charged"
+    );
+    collector.refresh();
+    assert!(
+        ready.routes.same_storage(&capture.latest().routes),
+        "unchanged routes reuse capacity even while full"
+    );
+
+    let ready_revision = reader.device_revision();
+    engine
+        .control()
+        .submit(AudioCommand::ApplyConfiguration {
+            generation: ConfigGeneration::new(2),
+            config: Arc::new(AudioConfiguration::empty()),
+        })
+        .unwrap();
+    while reader.device_revision() == ready_revision {
+        assert!(std::time::Instant::now() < deadline);
+        std::thread::sleep(Duration::from_millis(1));
+    }
+    assert_eq!(
+        ready
+            .routes
+            .validate(reader.device_revision(), AudioDirection::Output, "output:0"),
+        Err(RouteValidationError::Stale)
+    );
+    drop(initial);
+    loop {
+        collector.refresh();
+        if capture
+            .latest()
+            .routes
+            .validate(reader.device_revision(), AudioDirection::Output, "output:0")
+            == Err(RouteValidationError::NoDevice)
+        {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "device removal must replace the route frame"
+        );
+        std::thread::sleep(Duration::from_millis(1));
+    }
+    drop((ready, capture, collector));
+    assert!(pool.wait_for_idle(Duration::from_secs(3)));
+    assert!(routes.wait_for_idle(Duration::from_secs(3)));
+    engine.shutdown().unwrap();
 }

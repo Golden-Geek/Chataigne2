@@ -518,6 +518,24 @@ publication lock; snapshot inspection/copying never holds that lock or the event
 Full event mailboxes and callback-preparation pressure continue native observation capture on
 timed, cancellable waits.
 
+The native owner prepares app-owned route lookup frames independently of metering capture. It
+resolves active/selected endpoints and system defaults, copies physical keys, then sorts them after
+releasing the source reader lock. Metering-only captures reuse the same frame while the native
+device revision is unchanged. Route intents borrow a captured frame and perform a binary lookup;
+they neither clone the inspector nor scan the device/channel catalog on the actor. Atomic native
+revision checks before and after lookup reject a stale inventory with a retryable user-facing
+message. These checks cover intent admission, not later graph-edit/native-configuration races.
+
+Routing uses a separate **64-item / 256 MiB** lifetime pool. Native preparation reserves **8 MiB**
+before copying; source device metadata admits **8 MiB / 131,072 entries**, independently of analysis
+and metering. Final frames charge their actual vector/key capacities and metadata within **8 MiB**;
+the pool owns final destruction through replacement, exported views and native retirement. Unchanged
+frames reuse their original quota. Capacity failures retry on native observation wakes; oversized
+metadata waits for a changed device revision. Errors are fenced by their source revision, and stale,
+overloaded or oversized route admission returns an explicit error. Metering-pool exhaustion and
+oversized analysis cannot prevent route metadata updates. Routing never falls back to an actor-side
+inspector copy.
+
 Capture pressure preserves the last good frame, prevents starting another stale value frame, and
 publishes a separate observation warning through a retryable single-edit receipt. Enable/readiness
 and output-activity scalars continue updating independently. Metering pressure does not disable
@@ -635,8 +653,8 @@ acknowledgement. There is no optimistic actor warning cache to acknowledge faile
 destroy wholesale. Presentation-only metadata events do not request Sound Card snapshots or redrive
 configuration; labels and enabled-state changes retain their existing behavior.
 
-Derived structure/default-route seeding, enum-choice publication and its inspector copies, route-intent
-inspection, event-feedback selection parsing/control-value copies, logger copies and remaining reconfiguration,
+Derived structure/default-route seeding, enum-choice publication and its inspector copies,
+event-feedback selection parsing/control-value copies, logger copies and remaining reconfiguration,
 apply-time and failure fences remain P03 work. These budgets do not qualify whole-process memory
 or actor deadlines.
 

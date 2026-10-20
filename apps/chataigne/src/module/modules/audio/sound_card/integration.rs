@@ -252,44 +252,11 @@ impl SoundCardModule {
         direction: golden_audio::AudioDirection,
         physical_channel: &str,
     ) -> Result<(), AudioError> {
-        let state = self
-            .runtime
+        self.runtime
             .as_ref()
             .ok_or_else(|| command_error("Sound Card runtime is not available"))?
-            .inspector_state();
-        let status = match direction {
-            golden_audio::AudioDirection::Input => &state.input,
-            golden_audio::AudioDirection::Output => &state.output,
-        };
-        let selected = status
-            .active_target
-            .as_ref()
-            .or(status.selected_target.as_ref())
-            .ok_or_else(|| command_error("Sound Card device is not ready"))?;
-        let descriptor = state.devices.iter().find(|device| {
-            device.supports(direction)
-                && match selected {
-                    golden_audio::AudioDeviceTargetId::Device { .. } => device.target == *selected,
-                    golden_audio::AudioDeviceTargetId::SystemDefault { backend } => {
-                        device.target.backend() == backend
-                            && match direction {
-                                golden_audio::AudioDirection::Input => device.is_system_default_input,
-                                golden_audio::AudioDirection::Output => device.is_system_default_output,
-                            }
-                    }
-                }
-        });
-        let channels = descriptor.map(|device| match direction {
-            golden_audio::AudioDirection::Input => device.input_channels.as_slice(),
-            golden_audio::AudioDirection::Output => device.output_channels.as_slice(),
-        });
-        if channels.is_some_and(|channels| channels.iter().any(|channel| channel.key.as_str() == physical_channel)) {
-            Ok(())
-        } else {
-            Err(command_error(
-                "Sound Card physical channel is not available on the selected device",
-            ))
-        }
+            .validate_physical_channel(direction, physical_channel)
+            .map_err(|error| command_error(error.message()))
     }
 
     fn requested_sample_rate(&self) -> Result<golden_audio::SampleRate, String> {

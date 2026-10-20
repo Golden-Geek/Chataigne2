@@ -243,6 +243,20 @@ impl SoundCardRuntime {
         self.event_bridge.inspector_state()
     }
 
+    pub(super) fn validate_physical_channel(
+        &self,
+        direction: AudioDirection,
+        key: &str,
+    ) -> Result<(), observation::RouteValidationError> {
+        let view = self.event_bridge.observation();
+        let revision = self.event_bridge.device_revision();
+        view.routes.validate(revision, direction, key)?;
+        if self.event_bridge.device_revision() != revision {
+            return Err(observation::RouteValidationError::Stale);
+        }
+        Ok(())
+    }
+
     pub(super) const fn sample_rate(&self) -> SampleRate {
         self.sample_rate
     }
