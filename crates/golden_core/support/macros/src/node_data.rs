@@ -11,31 +11,35 @@ pub(crate) fn add_authored_methods(input: &mut ItemImpl, via: Option<&[Ident]>) 
     };
     let custom_codec = has("project_encode_data");
     let capture = !has("engine_capture_authored_data");
-    let restore = !has("engine_restore_authored_data") && !has("project_decode_data");
+    let restore = !has("engine_restore_authored_data");
     if capture {
         let body = if custom_codec {
-            quote! { self.project_encode_data() }
+            quote! { self.project_encode_data().map(golden_core::node::NodeAuthoredData::json) }
         } else if let Some(path) = via {
             quote! {
                 let inherited = golden_core::node::ViaTarget::via_capture_authored_data(&self.#(#path).*)?;
                 let state = Self::__golden_node_capture_authored_data(self)?;
-                Ok(serde_json::json!({"__golden_via": inherited, "__golden_state": state}))
+                Ok(golden_core::node::NodeAuthoredData::inherited(inherited, state))
             }
         } else {
-            quote! { Self::__golden_node_capture_authored_data(self) }
+            quote! { Self::__golden_node_capture_authored_data(self).map(golden_core::node::NodeAuthoredData::json) }
         };
         input.items.push(parse_quote! {
-            fn engine_capture_authored_data(&self) -> Result<serde_json::Value, String> { #body }
+            fn engine_capture_authored_data(&self) -> Result<golden_core::node::NodeAuthoredData, String> { #body }
         });
     }
-    if restore && let Some(path) = via {
-        input.items.push(parse_quote! {
-            fn engine_restore_authored_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
-                let inherited = data.get("__golden_via").unwrap_or(&serde_json::Value::Null);
-                let state = data.get("__golden_state").unwrap_or(&serde_json::Value::Null);
+    if restore && !custom_codec {
+        let body = if let Some(path) = via {
+            quote! {
+                let (inherited, state) = data.inherited_parts()?;
                 golden_core::node::ViaTarget::via_restore_authored_data(&mut self.#(#path).*, inherited)?;
                 Self::__golden_node_project_decode_data(self, state)
             }
+        } else {
+            quote! { Self::__golden_node_project_decode_data(self, data.as_json()?) }
+        };
+        input.items.push(parse_quote! {
+            fn engine_restore_authored_data(&mut self, data: golden_core::node::NodeAuthoredData) -> Result<(), String> { #body }
         });
     }
 }

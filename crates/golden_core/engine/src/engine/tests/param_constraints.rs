@@ -138,9 +138,7 @@ fn enum_domains_share_live_snapshots_and_retained_history_with_correct_replay() 
     );
     assert!(engine.undo().unwrap());
     let undone = engine.nodes.get(engine.root).unwrap().engine_param_snapshot().unwrap();
-    // Replay callbacks restore authored data through serialization. The retained
-    // history and pre-edit snapshot still own their original immutable domain.
-    assert_eq!(undone.constraints.enum_options, first);
+    assert!(undone.constraints.enum_options.same_storage(&first));
     assert!(std::sync::Arc::strong_count(first.shared()) >= 3);
     assert_eq!(undone.value, ParamValue::Enum("first".into()));
     assert!(engine.redo().unwrap());
@@ -153,7 +151,7 @@ fn enum_domains_share_live_snapshots_and_retained_history_with_correct_replay() 
             .unwrap()
             .constraints
             .enum_options
-            .eq(&second)
+            .same_storage(&second)
     );
     assert!(std::sync::Arc::strong_count(second.shared()) >= 3);
 }

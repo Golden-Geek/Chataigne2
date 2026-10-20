@@ -1,3 +1,4 @@
+mod authored;
 mod behavior;
 mod builtins;
 mod constants;
@@ -11,6 +12,7 @@ mod script_support;
 mod user_items;
 mod via_target;
 
+pub use authored::NodeAuthoredData;
 pub use behavior::Node;
 pub use builtins::{
     Folder, UserContextFolder, UserContextMultiplexListNode, UserContextMultiplexNode, UserContextNode,

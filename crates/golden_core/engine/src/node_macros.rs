@@ -808,11 +808,11 @@ macro_rules! define_node_enum {
                 $crate::__dispatch_node_enum!(self, project_encode_data; $($variant),*)
             }
 
-            fn engine_capture_authored_data(&self) -> Result<serde_json::Value, String> {
+            fn engine_capture_authored_data(&self) -> Result<$crate::node::NodeAuthoredData, String> {
                 $crate::__dispatch_node_enum!(self, engine_capture_authored_data; $($variant),*)
             }
 
-            fn engine_restore_authored_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
+            fn engine_restore_authored_data(&mut self, data: $crate::node::NodeAuthoredData) -> Result<(), String> {
                 $crate::__dispatch_node_enum!(self, engine_restore_authored_data, data; $($variant),*)
             }
 

@@ -15,6 +15,8 @@ use super::{
     ParameterSnapshot, ParameterUiHints, coerce_param_value_for_target, default_control_modes_enabled,
 };
 
+mod authored;
+
 fn is_legacy_vec2_display_decl_id(decl_id: &str) -> bool {
     matches!(
         decl_id,
@@ -167,8 +169,11 @@ impl Parameter {
     }
 }
 
+/// Complete native parameter state retained by in-memory authored snapshots.
+/// The same fields are used by the project codec; derived enum storage stays
+/// shared in memory and is serialized only for an actual project record.
 #[derive(Clone, Debug, serde::Serialize)]
-struct ParameterProjectData {
+pub(crate) struct ParameterAuthoredState {
     value: ParamValue,
     default_value: ParamValue,
     change_check: ParameterChangeCheck,
@@ -181,10 +186,10 @@ struct ParameterProjectData {
     control_modes_enabled: bool,
 }
 
-fn default_parameter_project_data(node_type: &str) -> Result<ParameterProjectData, String> {
+fn default_parameter_project_data(node_type: &str) -> Result<ParameterAuthoredState, String> {
     let fallback_value = crate::node::default_parameter_value_for_node_type(node_type)
         .ok_or_else(|| format!("unsupported parameter node type '{node_type}'"))?;
-    Ok(ParameterProjectData {
+    Ok(ParameterAuthoredState {
         value: fallback_value.clone(),
         default_value: fallback_value,
         change_check: ParameterChangeCheck::ValueChange,
@@ -198,19 +203,57 @@ fn default_parameter_project_data(node_type: &str) -> Result<ParameterProjectDat
     })
 }
 
-fn current_parameter_project_data(parameter: &Parameter) -> ParameterProjectData {
-    ParameterProjectData {
-        value: parameter.value.clone(),
-        default_value: parameter.default_value.clone(),
-        change_check: parameter.change_check.clone(),
-        event_behaviour: parameter.event_behaviour,
-        read_only: parameter.read_only,
-        persist_read_only_value: parameter.persist_read_only_value,
-        constraints: parameter.constraints.clone(),
-        ui_hints: parameter.ui_hints.clone(),
-        control: parameter.control.clone(),
-        control_modes_enabled: parameter.control_modes_enabled,
+fn current_parameter_project_data(parameter: &Parameter) -> ParameterAuthoredState {
+    let Parameter {
+        node_data: _,
+        value,
+        default_value,
+        change_check,
+        event_behaviour,
+        read_only,
+        persist_read_only_value,
+        constraints,
+        ui_hints,
+        control,
+        control_modes_enabled,
+    } = parameter;
+    ParameterAuthoredState {
+        value: value.clone(),
+        default_value: default_value.clone(),
+        change_check: change_check.clone(),
+        event_behaviour: *event_behaviour,
+        read_only: *read_only,
+        persist_read_only_value: *persist_read_only_value,
+        constraints: constraints.clone(),
+        ui_hints: ui_hints.clone(),
+        control: control.clone(),
+        control_modes_enabled: *control_modes_enabled,
     }
+}
+
+fn restore_parameter_state(parameter: &mut Parameter, state: ParameterAuthoredState) {
+    let ParameterAuthoredState {
+        value,
+        default_value,
+        change_check,
+        event_behaviour,
+        read_only,
+        persist_read_only_value,
+        constraints,
+        ui_hints,
+        control,
+        control_modes_enabled,
+    } = state;
+    parameter.value = value;
+    parameter.default_value = default_value;
+    parameter.change_check = change_check;
+    parameter.event_behaviour = event_behaviour;
+    parameter.read_only = read_only;
+    parameter.persist_read_only_value = persist_read_only_value;
+    parameter.constraints = constraints;
+    parameter.ui_hints = ui_hints;
+    parameter.control = control;
+    parameter.control_modes_enabled = control_modes_enabled;
 }
 
 fn decode_project_param_value(value: &JsonValue) -> Result<ParamValue, String> {
@@ -232,15 +275,15 @@ fn decode_project_param_value(value: &JsonValue) -> Result<ParamValue, String> {
     ParamValue::from_script_json(value)
 }
 
-fn decode_parameter_project_data(node_type: &str, data: &JsonValue) -> Result<ParameterProjectData, String> {
+fn decode_parameter_project_data(node_type: &str, data: &JsonValue) -> Result<ParameterAuthoredState, String> {
     let baseline = default_parameter_project_data(node_type)?;
     decode_parameter_project_data_with_baseline(baseline, data)
 }
 
 fn decode_parameter_project_data_with_baseline(
-    mut parsed: ParameterProjectData,
+    mut parsed: ParameterAuthoredState,
     data: &JsonValue,
-) -> Result<ParameterProjectData, String> {
+) -> Result<ParameterAuthoredState, String> {
     if data.is_null() {
         return Ok(parsed);
     }
@@ -450,8 +493,15 @@ impl Node for Parameter {
         false
     }
 
-    fn engine_capture_authored_data(&self) -> Result<serde_json::Value, String> {
-        serde_json::to_value(current_parameter_project_data(self)).map_err(|error| error.to_string())
+    fn engine_capture_authored_data(&self) -> Result<crate::node::NodeAuthoredData, String> {
+        Ok(crate::node::NodeAuthoredData::parameter(
+            current_parameter_project_data(self),
+        ))
+    }
+
+    fn engine_restore_authored_data(&mut self, data: crate::node::NodeAuthoredData) -> Result<(), String> {
+        restore_parameter_state(self, data.into_parameter()?);
+        Ok(())
     }
 
     fn project_encode_data(&self) -> Result<serde_json::Value, String> {
@@ -537,16 +587,7 @@ impl Node for Parameter {
 
     fn project_decode_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
         let parsed = decode_parameter_project_data_with_baseline(current_parameter_project_data(self), data)?;
-        self.value = parsed.value;
-        self.default_value = parsed.default_value;
-        self.change_check = parsed.change_check;
-        self.event_behaviour = parsed.event_behaviour;
-        self.read_only = parsed.read_only;
-        self.persist_read_only_value = parsed.persist_read_only_value;
-        self.constraints = parsed.constraints;
-        self.ui_hints = parsed.ui_hints;
-        self.control = parsed.control;
-        self.control_modes_enabled = parsed.control_modes_enabled;
+        restore_parameter_state(self, parsed);
         Ok(())
     }
 

@@ -56,12 +56,12 @@ pub trait ViaTarget {
         Ok(serde_json::Value::Null)
     }
 
-    fn via_capture_authored_data(&self) -> Result<serde_json::Value, String> {
-        self.via_project_encode_data()
+    fn via_capture_authored_data(&self) -> Result<super::NodeAuthoredData, String> {
+        self.via_project_encode_data().map(super::NodeAuthoredData::json)
     }
 
-    fn via_restore_authored_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
-        self.via_project_decode_data(data)
+    fn via_restore_authored_data(&mut self, data: super::NodeAuthoredData) -> Result<(), String> {
+        self.via_project_decode_data(data.as_json()?)
     }
 
     fn via_project_decode_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
@@ -148,11 +148,11 @@ impl<T: Node + ?Sized> ViaTarget for T {
         self.project_encode_data()
     }
 
-    fn via_capture_authored_data(&self) -> Result<serde_json::Value, String> {
+    fn via_capture_authored_data(&self) -> Result<super::NodeAuthoredData, String> {
         self.engine_capture_authored_data()
     }
 
-    fn via_restore_authored_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
+    fn via_restore_authored_data(&mut self, data: super::NodeAuthoredData) -> Result<(), String> {
         self.engine_restore_authored_data(data)
     }
 

@@ -686,10 +686,14 @@ covers index construction. A raw exported shared handle owns the whole immutable
 detach entries from their index admission. The Rust shared-storage API now takes an opaque domain
 rather than a mutable vector. Serialization and generated TypeScript retain the same option arrays.
 
-Core kind coercion, normalization beyond enum membership, equality checks, history and DTO projection
-retain their existing costs, including owned constraint disposal on a rejected suffix. History's
-serialization/reconstruction path can also rebuild indexes; these publication costs and other
-native-execution fences remain open.
+Core's native Parameter authored capture and generated inherited captures retain the exact domain
+through lifecycle restoration, opaque edits and undo/redo, including its original native quota.
+They no longer serialize and rebuild enum indexes during callback restoration. This in-memory
+contract is separate from project and wire codecs; see [UI protocol](ui-protocol.md#rules).
+Kind coercion, normalization beyond enum membership, non-enum field copies, equality between
+distinct domains, custom JSON codecs and DTO projection retain their existing costs, including
+owned constraint disposal on a rejected suffix. These publication costs and other native-execution
+fences remain open.
 
 Choice preparation waits passively for native completion and requests a source snapshot only when
 needed for admission or a completed result. Pending Core receipts and missing current inventory do

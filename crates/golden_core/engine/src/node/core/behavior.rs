@@ -98,17 +98,19 @@ pub trait Node: Send + Any {
 
     /// Captures complete authored data for in-place history restoration.
     /// Sparse custom codecs must override this to include default-valued fields.
-    /// Runtime resources and transient caches do not belong in this payload.
+    /// Snapshots belong to this live node instance. Immutable derived storage
+    /// may be shared; runtime resources and mutable service state stay node-owned.
     #[doc(hidden)]
-    fn engine_capture_authored_data(&self) -> Result<serde_json::Value, String> {
-        self.project_encode_data()
+    fn engine_capture_authored_data(&self) -> Result<super::NodeAuthoredData, String> {
+        self.project_encode_data().map(super::NodeAuthoredData::json)
     }
 
     /// Restores a payload captured by `engine_capture_authored_data` on this instance.
     /// Implementations must preserve runtime-only state and defer external activation.
+    /// Consumption permits moving uniquely owned native data back into the node.
     #[doc(hidden)]
-    fn engine_restore_authored_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
-        self.project_decode_data(data)
+    fn engine_restore_authored_data(&mut self, data: super::NodeAuthoredData) -> Result<(), String> {
+        self.project_decode_data(data.as_json()?)
     }
 
     #[doc(hidden)]

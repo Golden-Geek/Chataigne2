@@ -4,6 +4,9 @@ use crate::node::{Node, NodeId};
 use crate::parameter::ParamValue;
 use crate::process_ctx::ProcessCtx;
 
+mod native;
+use native::{NativeDecoderOnly, NativeEncoderOnly, NativeParameterWrapper};
+
 #[crate::node("opaque_authored_probe")]
 struct OpaqueAuthoredProbe {
     #[state(default = 0, persist)]
@@ -48,6 +51,9 @@ crate::define_node_enum!(
         ComposedAuthoredProbe,
         NestedReadyAuthoredProbe,
         AutoAuthoredProbe,
+        NativeParameterWrapper,
+        NativeEncoderOnly,
+        NativeDecoderOnly,
     }
 );
 

@@ -379,8 +379,11 @@ Core checks selector/module/connection state and the captured inventory lifetime
 patch. A late selector edit, native publication or owner retirement fails the receipt before any
 choice patch applies. The native revision uses the domain-neutral `golden_io` clock; read guards
 hold no device payload and never lock the observation snapshot. A successful check is an admission
-boundary, not a lock on later changes. Remaining Core coercion/equality, history reconstruction,
-constraint projection/disposal costs and other native-execution fences remain open.
+boundary, not a lock on later changes. Core native Parameter authored snapshots and generated
+inherited snapshots preserve the original enum domain and native admission through callback
+restoration and undo/redo. Project JSON and wire codecs remain separate. Remaining Core coercion,
+distinct-domain equality, non-enum field copies, custom JSON codecs, constraint projection/disposal
+costs and other native-execution fences remain open.
 Capture/telemetry overload has a separate visible warning and leaves control admission independent.
 App-owned selection/probe planning, choice planning and configuration conversion run on one bounded preparation worker.
 Queued/running requests lease their source snapshots; ready plans retain output storage admission

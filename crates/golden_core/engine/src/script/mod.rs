@@ -592,7 +592,8 @@ impl Node for ScriptNode {
         Ok(())
     }
 
-    fn engine_restore_authored_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
+    fn engine_restore_authored_data(&mut self, data: crate::node::NodeAuthoredData) -> Result<(), String> {
+        let data = data.as_json()?;
         let parsed: ScriptProjectData = serde_json::from_value(data.clone()).map_err(|error| error.to_string())?;
         self.reload_requested |= self.project_encode_data()? != *data;
         self.config = parsed.config;

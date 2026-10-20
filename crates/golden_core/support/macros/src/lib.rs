@@ -3135,8 +3135,8 @@ fn expand_struct(expansion: NodeExpansion, mut input: ItemStruct) -> proc_macro2
                     Self::__golden_node_project_decode_data(self, data)
                 }
 
-                fn engine_capture_authored_data(&self) -> Result<serde_json::Value, String> {
-                    Self::__golden_node_capture_authored_data(self)
+                fn engine_capture_authored_data(&self) -> Result<golden_core::node::NodeAuthoredData, String> {
+                    Self::__golden_node_capture_authored_data(self).map(golden_core::node::NodeAuthoredData::json)
                 }
 
                 #generated_user_item_kind

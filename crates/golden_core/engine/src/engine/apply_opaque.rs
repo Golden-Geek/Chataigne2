@@ -1,5 +1,5 @@
 use crate::edit::NodeMutation;
-use crate::node::{Node, NodeData, NodeId, NodeMeta, NodeUuid, UserNodeRole};
+use crate::node::{Node, NodeAuthoredData, NodeData, NodeId, NodeMeta, NodeUuid, UserNodeRole};
 use crate::parameter::ParameterSnapshot;
 use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 use crate::ui_sync::UiGraphOp;
@@ -11,7 +11,7 @@ use super::{Engine, EngineEditError};
 pub(crate) struct AuthoredNodeState {
     meta: NodeMeta,
     user_role: UserNodeRole,
-    data: serde_json::Value,
+    data: NodeAuthoredData,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -324,14 +324,14 @@ impl<T: Node> Engine<T> {
         state: &AuthoredNodeState,
     ) -> Result<(), EngineEditError> {
         let old_param = self.nodes.get(node).and_then(Node::engine_param_snapshot);
-        self.restore_authored_node_state_silent(node, state)?;
+        self.restore_authored_node_state_silent(node, state.clone())?;
         self.publish_authored_node_change(node, old_param)
     }
 
     pub(super) fn restore_authored_node_state_silent(
         &mut self,
         node: NodeId,
-        state: &AuthoredNodeState,
+        state: AuthoredNodeState,
     ) -> Result<(), EngineEditError> {
         let target = self.nodes.get_mut(node).ok_or(EngineEditError::NodeNotFound {
             edit_index: 0,
@@ -340,7 +340,7 @@ impl<T: Node> Engine<T> {
         })?;
         let node_type = target.get_type().to_string();
         target
-            .engine_restore_authored_data(&state.data)
+            .engine_restore_authored_data(state.data)
             .map_err(|message| EngineEditError::NodeMutationRejected {
                 edit_index: 0,
                 operation: "RestoreAuthoredState",
@@ -349,7 +349,7 @@ impl<T: Node> Engine<T> {
                 message,
             })?;
         self.unregister_node_uuid(node);
-        self.nodes.get_mut(node).expect("restored target").node_data_mut().meta = state.meta.clone();
+        self.nodes.get_mut(node).expect("restored target").node_data_mut().meta = state.meta;
         self.nodes
             .get_mut(node)
             .expect("restored target")
@@ -382,7 +382,7 @@ impl<T: Node> Engine<T> {
         crate::logger::with_node_origin(node, || callback(self.nodes.get_mut(node).expect("live callback"), ctx));
         // Even direct self writes must not duplicate authored effects during activation.
         binding.restore(self.nodes.get_mut(node).expect("live callback").node_data_mut());
-        self.restore_authored_node_state_silent(node, &state)
+        self.restore_authored_node_state_silent(node, state)
     }
 
     fn publish_authored_node_change(

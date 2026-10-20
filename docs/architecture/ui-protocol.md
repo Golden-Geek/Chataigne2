@@ -73,8 +73,22 @@ admission for both rows and indexes through exported constraints and raw shared 
 Serialization remains an ordinary option array in authored order, and Rust's TypeScript annotation
 generates that same array contract. Derived indexes and weights are native metadata, never wire
 fields. Membership rejection reports a bounded count rather than serializing every allowed ID.
-Wire projection and authored-state history callback serialization can still materialize copies;
-deserialization rebuilds indexes. Shared Rust storage does not remove those publication costs by itself.
+Wire projection and project serialization can still materialize copies; project deserialization
+rebuilds indexes. Shared Rust storage does not remove those publication costs by itself.
+
+In-memory history and callback restoration use the opaque `NodeAuthoredData` contract, separate
+from project JSON. The built-in Parameter captures all authored fields natively, preserving the
+exact shared enum domain and its original admission through restore, undo and redo. Generated
+node wrappers compose the inherited native capture with their complete declared fields, including
+defaults. Restoration consumes a capture, moving unique native fields when possible. Node
+metadata and topology remain Engine-owned; runtime resources stay with the live node. These
+captures are for the same live node, not transferable project records.
+
+Manual nodes default to their JSON project codecs. Generated nodes with a custom project encoder
+also retain the JSON path, paired with the project decoder; a custom authored capture/restore pair
+may override it. A decoder-only project-load reset does not replace generated complete-field
+restoration. Native parameter equality includes persisted reference hints but excludes runtime
+cached node IDs. Custom JSON codecs and copied non-enum fields retain their existing costs.
 
 - Request, response, event, snapshot, and protocol-version types must have one source of truth.
 - DTO changes must update the generator, generated output, and consumers together once generation is in place.

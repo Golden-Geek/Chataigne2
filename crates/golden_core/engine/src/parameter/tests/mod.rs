@@ -1,6 +1,8 @@
 use super::*;
 use crate::node::Node;
 
+mod authored;
+
 #[test]
 fn parameter_nodes_are_not_disableable_by_default() {
     let parameter = Parameter::new("Amount", ParamValue::Float(0.5), ParameterChangeCheck::ValueChange);
