@@ -23,8 +23,9 @@ pub(crate) mod memory;
 pub use lease::SnapshotLeaseError;
 
 /// Conservative retained allocation weight for constraints, including shared enum
-/// storage and spare capacities. Intended for native preparation admission; this
-/// traverses nested storage and must not run in a realtime callback.
+/// storage and spare capacities. Frozen enum storage uses its cached charge;
+/// remaining owned metadata is traversed. Intended for native preparation
+/// admission, not a realtime callback.
 pub fn parameter_constraints_retained_bytes(constraints: &ParameterConstraints) -> usize {
     std::mem::size_of::<ParameterConstraints>().saturating_add(memory::constraints(constraints))
 }

@@ -642,8 +642,8 @@ per domain**. It compares complete domains against the captured constraints befo
 **four patches / 64 MiB per plan**, including nested constraint capacities measured through Core's
 public `process_ctx::parameter_constraints_retained_bytes` visitor.
 
-Canonical option vectors have a separate **512-allocation / 512 MiB** lifetime pool. Exported
-constraints, typed history and DTOs retain the original quota through the exact shared vector Arc;
+Canonical enum domains have a separate **512-allocation / 512 MiB** lifetime pool. Exported
+constraints, typed history and DTOs retain the original quota through the exact shared domain Arc;
 configuration admission remains independent of those long-lived owners. The plan itself uses the
 existing configuration-result pool and scratch reservation. The actor moves its patch vector once
 and retains the plan through a batch receipt. A failed prefix causes fresh preparation from applied
@@ -670,9 +670,26 @@ Identity-only guards still check the engine epoch, UUID and effective enabled st
 unread metadata. Sound Card uses one for its module so its own warning receipt cannot invalidate
 choice publication; connection membership and selector constraints/values retain full read guards.
 
-Core normalization, equality checks, history and DTO projection during constraint application keep
-their existing costs, including owned constraint disposal on a rejected suffix. Bounding those
-costs and other native-execution fences remains open.
+`golden_parameters::ParameterEnumDomain` freezes the options, sorted membership indexes and cached
+allocation charge together. Authored order and option spare capacity remain intact; indexes contain
+only slot numbers. Canonical `Enum(variant_id)` values share the variant index; other values use a
+second index with the same equality semantics as `ParamValue`, including signed zero and reference
+UUID/projection identity. Construction sorts on the producing boundary. Core validation uses
+**O(log n) comparisons**, and fresh snapshot weighting reads the cached domain charge in constant
+time. Rejection messages contain the domain count rather than copying every allowed identifier.
+Reference/value/option allocation visitors belong to the parameter foundation and count nested
+cached hints and spare storage independently of semantic equality.
+
+Native choice admission includes the frozen domain header, all option capacities and its indexes
+within the existing **32 MiB per domain / 64 MiB per plan** limits. The native scratch allowance
+covers index construction. A raw exported shared handle owns the whole immutable domain; it cannot
+detach entries from their index admission. The Rust shared-storage API now takes an opaque domain
+rather than a mutable vector. Serialization and generated TypeScript retain the same option arrays.
+
+Core kind coercion, normalization beyond enum membership, equality checks, history and DTO projection
+retain their existing costs, including owned constraint disposal on a rejected suffix. History's
+serialization/reconstruction path can also rebuild indexes; these publication costs and other
+native-execution fences remain open.
 
 Choice preparation waits passively for native completion and requests a source snapshot only when
 needed for admission or a completed result. Pending Core receipts and missing current inventory do

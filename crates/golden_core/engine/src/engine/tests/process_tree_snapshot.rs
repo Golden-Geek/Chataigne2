@@ -139,6 +139,48 @@ fn snapshot_reservations_include_spare_dynamic_capacity_and_owned_overlays() {
 }
 
 #[test]
+fn fresh_snapshot_weights_share_and_charge_a_large_indexed_enum_domain() {
+    use crate::parameter::{ParameterConstraints, ParameterEnumOption, ParameterEnumOptions};
+    let options: ParameterEnumOptions = (0..32_768)
+        .map(|index| ParameterEnumOption {
+            variant_id: format!("device-{index}"),
+            value: ParamValue::Enum(format!("device-{index}")),
+            label: format!("Device {index}"),
+            tags: vec!["device".into()],
+            ordering: None,
+        })
+        .collect();
+    let empty = ParameterEnumOptions::default().retained_bytes();
+    let id = NodeId(1);
+    let mut node = snapshot_node(
+        id,
+        NodeUuid(Uuid::from_u128(1)),
+        Some(ParamValue::Enum("device-0".into())),
+    );
+    node.param_constraints = Some(ParameterConstraints::default());
+    let baseline = ProcessTreeSnapshot::new(id, HashMap::from([(id, node.clone())])).retained_bytes();
+    node.param_constraints.as_mut().unwrap().enum_options = options.clone();
+    let start = Instant::now();
+    for _ in 0..128 {
+        let snapshot = ProcessTreeSnapshot::new(id, HashMap::from([(id, node.clone())]));
+        assert!(snapshot.retained_bytes() >= baseline + options.retained_bytes() - empty - 128);
+        let retained = &snapshot
+            .node(id)
+            .unwrap()
+            .param_constraints
+            .as_ref()
+            .unwrap()
+            .enum_options;
+        assert!(retained.same_storage(&options));
+        assert!(retained.contains_variant("device-32767"));
+    }
+    eprintln!(
+        "128 fresh snapshot weights with a 32768-entry shared enum domain: {:?}",
+        start.elapsed()
+    );
+}
+
+#[test]
 fn snapshot_leases_share_identity_and_large_views_have_an_explicit_byte_budget() {
     let mut nodes = HashMap::new();
     for value in 1..=50_000 {

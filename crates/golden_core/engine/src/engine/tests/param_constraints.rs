@@ -164,7 +164,7 @@ fn native_option_quota_survives_live_state_snapshot_and_exported_constraint_owne
     let shared = pool
         .try_reserve(1024)
         .unwrap()
-        .share_retained(vec![option("first")], 1024)
+        .share_retained(crate::parameter::ParameterEnumDomain::new(vec![option("first")]), 1024)
         .unwrap();
     let options = crate::parameter::ParameterEnumOptions::from_shared(shared.arc().clone());
     let mut parameter = Parameter::new(
@@ -176,11 +176,17 @@ fn native_option_quota_survives_live_state_snapshot_and_exported_constraint_owne
     let engine = Engine::new(parameter);
     let snapshot = engine.build_process_tree_snapshot();
     let exported = snapshot.node(engine.root).unwrap().param_constraints.clone().unwrap();
+    let raw_domain = exported.enum_options.shared().clone();
     drop((engine, snapshot, shared, options));
     assert!(
         pool.try_reserve(1).is_err(),
         "exported constraints retain the original native quota"
     );
     drop(exported);
+    assert!(
+        pool.try_reserve(1).is_err(),
+        "raw domain exports retain options and membership-index admission"
+    );
+    drop(raw_domain);
     assert!(pool.wait_for_idle(std::time::Duration::from_secs(3)));
 }

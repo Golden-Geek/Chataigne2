@@ -395,24 +395,22 @@ impl ParameterConstraints {
         };
 
         if !self.enum_options.is_empty() {
-            let matches_value = self.enum_options.iter().any(|option| option.value == *normalized);
-            let matches_variant_id = self.enum_options.iter().any(|option| match normalized.as_ref() {
-                ParamValue::Enum(variant_id) => option.variant_id == *variant_id,
-                ParamValue::Str(variant_id) => option.variant_id == *variant_id,
+            let matches_variant_id = match normalized.as_ref() {
+                ParamValue::Enum(variant_id) | ParamValue::Str(variant_id) => {
+                    self.enum_options.contains_variant(variant_id)
+                }
                 _ => false,
-            });
+            };
 
-            if !matches_value && !matches_variant_id {
-                let allowed: Vec<String> = self
-                    .enum_options
-                    .iter()
-                    .map(|option| option.variant_id.clone())
-                    .collect();
-                return Err(format!("value is not in enum options: allowed variants {:?}", allowed));
+            if !matches_variant_id && !self.enum_options.contains_value(normalized.as_ref()) {
+                return Err(format!(
+                    "value is not in enum options ({} variants)",
+                    self.enum_options.len()
+                ));
             }
 
             if let ParamValue::Str(variant_id) = normalized.as_ref()
-                && self.enum_options.iter().any(|option| option.variant_id == *variant_id)
+                && matches_variant_id
             {
                 normalized = Cow::Owned(ParamValue::Enum(variant_id.clone()));
             }

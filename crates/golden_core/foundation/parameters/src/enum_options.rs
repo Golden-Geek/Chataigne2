@@ -5,24 +5,28 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::ParameterEnumOption;
+use crate::{ParamValue, ParameterEnumOption};
+
+mod domain;
+mod ordering;
+pub use domain::ParameterEnumDomain;
 
 /// Immutable enum-domain storage shared by live state, snapshots and history.
 ///
-/// Keeping the Vec behind an Arc also lets native producers protect the same
-/// allocation through a retained-payload owner, including exported snapshots.
+/// Native producers protect the exact same frozen domain and its indexes
+/// through retained-payload ownership, including exported snapshots.
 #[derive(Clone, Debug, Serialize)]
 #[serde(transparent)]
-pub struct ParameterEnumOptions(Arc<Vec<ParameterEnumOption>>);
+pub struct ParameterEnumOptions(Arc<ParameterEnumDomain>);
 
 impl ParameterEnumOptions {
     /// Adopts a shared allocation without copying its entries or changing identity.
-    pub fn from_shared(options: Arc<Vec<ParameterEnumOption>>) -> Self {
+    pub fn from_shared(options: Arc<ParameterEnumDomain>) -> Self {
         Self(options)
     }
 
     /// Shared backing storage, for native lifetime ownership and identity checks.
-    pub fn shared(&self) -> &Arc<Vec<ParameterEnumOption>> {
+    pub fn shared(&self) -> &Arc<ParameterEnumDomain> {
         &self.0
     }
 
@@ -38,18 +42,35 @@ impl ParameterEnumOptions {
 
     /// Whether this domain has no entries.
     pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.as_slice().is_empty()
     }
 
     /// Backing allocation capacity, including spare slots.
     pub fn capacity(&self) -> usize {
         self.0.capacity()
     }
+
+    /// Constant-time charge for the whole immutable domain, including indexes.
+    pub fn retained_bytes(&self) -> usize {
+        self.0.retained_bytes()
+    }
+
+    /// Looks up a variant id in O(log n) comparisons without copying entries.
+    pub fn contains_variant(&self, variant: &str) -> bool {
+        self.0.contains_variant(variant)
+    }
+
+    /// Looks up exact ParamValue equality in O(log n) comparisons. Reference
+    /// hints are ignored, signed zeros compare equal, and NaNs never match.
+    pub fn contains_value(&self, value: &ParamValue) -> bool {
+        self.0.contains_value(value)
+    }
 }
 
 impl Default for ParameterEnumOptions {
     fn default() -> Self {
-        static EMPTY: LazyLock<Arc<Vec<ParameterEnumOption>>> = LazyLock::new(|| Arc::new(Vec::new()));
+        static EMPTY: LazyLock<Arc<ParameterEnumDomain>> =
+            LazyLock::new(|| Arc::new(ParameterEnumDomain::new(Vec::new())));
         Self(EMPTY.clone())
     }
 }
@@ -59,7 +80,7 @@ impl From<Vec<ParameterEnumOption>> for ParameterEnumOptions {
         if options.capacity() == 0 {
             Self::default()
         } else {
-            Self(Arc::new(options))
+            Self(Arc::new(ParameterEnumDomain::new(options)))
         }
     }
 }

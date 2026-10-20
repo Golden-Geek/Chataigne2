@@ -6,6 +6,7 @@ mod control;
 mod enum_options;
 mod projection;
 mod reference;
+mod retained;
 mod types;
 mod value;
 mod value_type;

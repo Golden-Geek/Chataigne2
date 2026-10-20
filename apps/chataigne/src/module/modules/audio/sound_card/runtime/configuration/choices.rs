@@ -6,7 +6,7 @@ use std::{
 use golden_core::{
     edit::{EditPreconditions, NodeReadGuard},
     node::NodeId,
-    parameter::{ParamValue, ParameterConstraints, ParameterEnumOptions},
+    parameter::{ParamValue, ParameterConstraints, ParameterEnumDomain, ParameterEnumOptions},
     process_ctx::{parameter_constraints_retained_bytes, ProcessTreeSnapshot},
 };
 use golden_io::PayloadPool;
@@ -162,7 +162,9 @@ impl ChoicePlan {
                 message: "Sound Card enum-domain lifetime capacity exhausted".into(),
             };
             let reservation = pool.try_reserve(weight).map_err(|_| capacity())?;
-            let retained = reservation.share_retained(options, weight).map_err(|_| capacity())?;
+            let domain = ParameterEnumDomain::new(options);
+            debug_assert_eq!(domain.retained_bytes(), weight);
+            let retained = reservation.share_retained(domain, weight).map_err(|_| capacity())?;
             let mut constraints = previous.clone();
             constraints.enum_options = ParameterEnumOptions::from_shared(retained.arc().clone());
             bytes = bytes.saturating_add(parameter_constraints_retained_bytes(&constraints));

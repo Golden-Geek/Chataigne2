@@ -2,7 +2,7 @@ use std::{collections::HashMap, mem::size_of, sync::Arc};
 
 use super::{ProcessTreeChildIndexes, ProcessTreeNodeSnapshot, ProcessTreeSnapshot};
 use crate::{
-    node::{DashboardWidgetOptionsNodeKind, NodeReference},
+    node::DashboardWidgetOptionsNodeKind,
     parameter::{
         ParamValue, ParameterConstraints, ParameterControlSpec, ParameterControlState, RangeConstraint, ReferenceRoot,
     },
@@ -44,31 +44,8 @@ pub(crate) fn arc_map<K, V>(value: &Arc<HashMap<K, V>>) -> usize {
     sum([2 * size_of::<usize>(), size_of::<HashMap<K, V>>(), map(value)])
 }
 
-fn reference(value: &NodeReference) -> usize {
-    let NodeReference {
-        uuid,
-        projection,
-        cached_name,
-        cached_id,
-        relative_path_from_root,
-    } = value;
-    inline_only!(uuid, projection, cached_id);
-    sum([optional(cached_name), strings(relative_path_from_root)])
-}
-
 fn value(value: &ParamValue) -> usize {
-    match value {
-        ParamValue::Str(value) | ParamValue::File(value) | ParamValue::Enum(value) => value.capacity(),
-        ParamValue::Reference(value) => reference(value),
-        ParamValue::Trigger()
-        | ParamValue::Int(_)
-        | ParamValue::Float(_)
-        | ParamValue::Bool(_)
-        | ParamValue::CssValue(_)
-        | ParamValue::Vec2(..)
-        | ParamValue::Vec3(..)
-        | ParamValue::Color(..) => 0,
-    }
+    value.retained_heap_bytes()
 }
 
 pub(super) fn constraints(constraints: &ParameterConstraints) -> usize {
@@ -92,17 +69,6 @@ pub(super) fn constraints(constraints: &ParameterConstraints) -> usize {
         }
         None => 0,
     };
-    let options = sum(enum_options.iter().map(|option| {
-        let crate::parameter::ParameterEnumOption {
-            variant_id,
-            value: content,
-            label,
-            tags,
-            ordering,
-        } = option;
-        inline_only(ordering);
-        sum([variant_id.capacity(), value(content), label.capacity(), strings(tags)])
-    }));
     let crate::parameter::ReferenceConstraints {
         root,
         target_kind,
@@ -126,10 +92,7 @@ pub(super) fn constraints(constraints: &ParameterConstraints) -> usize {
     }
     sum([
         range,
-        2 * size_of::<usize>()
-            + size_of::<Vec<crate::parameter::ParameterEnumOption>>()
-            + slots::<crate::parameter::ParameterEnumOption>(enum_options.capacity()),
-        options,
+        enum_options.retained_bytes(),
         root,
         strings(allowed_node_types),
         strings(allowed_parameter_types),

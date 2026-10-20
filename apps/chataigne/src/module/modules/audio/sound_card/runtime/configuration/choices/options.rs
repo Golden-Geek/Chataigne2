@@ -154,7 +154,7 @@ impl Default for Options {
             values: Vec::new(),
             // Include the small initial Vec capacity as well as the shared
             // allocation headers before admitting any option payload.
-            bytes: size_of::<Vec<ParameterEnumOption>>()
+            bytes: size_of::<golden_core::parameter::ParameterEnumDomain>()
                 + 2 * size_of::<usize>()
                 + 4 * size_of::<ParameterEnumOption>(),
         }
@@ -173,7 +173,7 @@ impl std::ops::DerefMut for Options {
 }
 impl Options {
     fn push(&mut self, option: ParameterEnumOption) -> Result<(), &'static str> {
-        let weight = option_heap(&option) + 2 * size_of::<ParameterEnumOption>();
+        let weight = option.retained_heap_bytes() + 2 * size_of::<ParameterEnumOption>() + 2 * size_of::<usize>();
         if self.values.len() >= MAX_OPTIONS || self.bytes.saturating_add(weight) > MAX_OPTIONS_BYTES {
             return Err("Sound Card enum domain exceeds 32768 options / 32 MiB");
         }
@@ -182,22 +182,8 @@ impl Options {
         Ok(())
     }
 }
-fn option_heap(option: &ParameterEnumOption) -> usize {
-    let value = match &option.value {
-        ParamValue::Enum(value) => value.capacity(),
-        _ => unreachable!("native enum options"),
-    };
-    option.variant_id.capacity()
-        + option.label.capacity()
-        + value
-        + option.tags.capacity() * size_of::<String>()
-        + option.tags.iter().map(String::capacity).sum::<usize>()
-}
 pub(super) fn options_storage(options: &Vec<ParameterEnumOption>) -> usize {
-    size_of::<Vec<ParameterEnumOption>>()
-        + 2 * size_of::<usize>()
-        + options.capacity() * size_of::<ParameterEnumOption>()
-        + options.iter().map(option_heap).sum::<usize>()
+    golden_core::parameter::ParameterEnumDomain::retained_bytes_for(options)
 }
 fn selection_value(selection: &golden_audio::AudioDeviceSelection) -> Result<String, &'static str> {
     struct Limited(Vec<u8>);

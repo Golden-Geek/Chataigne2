@@ -64,12 +64,17 @@ consumed by engine adapters, transport hosts, code generation, and the Svelte cl
 
 Rust parameter constraints store enum domains in the immutable foundation type
 `ParameterEnumOptions`. Cloning constraints, process snapshots, or retained typed history records
-shares the option allocation. Producers build a complete vector before publishing; no mutable
-collection API is exposed. Native producers may adopt a canonical `Arc<Vec<ParameterEnumOption>>`
-to preserve retained-payload lifetime admission through exported constraints. Serialization remains
-an ordinary option array, and Rust's TypeScript annotation generates that same array contract.
+shares one `ParameterEnumDomain`: authored option rows, sorted membership indexes and a cached
+allocation charge. Producers freeze the complete vector before publishing; construction sorts on
+the producing boundary. Readers use binary search and cached weights. No mutable collection API
+is exposed. Native producers may adopt a canonical `Arc<ParameterEnumDomain>` to preserve lifetime
+admission for both rows and indexes through exported constraints and raw shared handles.
+
+Serialization remains an ordinary option array in authored order, and Rust's TypeScript annotation
+generates that same array contract. Derived indexes and weights are native metadata, never wire
+fields. Membership rejection reports a bounded count rather than serializing every allowed ID.
 Wire projection and authored-state history callback serialization can still materialize copies;
-shared Rust storage does not remove those costs or establish bounded publication by itself.
+deserialization rebuilds indexes. Shared Rust storage does not remove those publication costs by itself.
 
 - Request, response, event, snapshot, and protocol-version types must have one source of truth.
 - DTO changes must update the generator, generated output, and consumers together once generation is in place.

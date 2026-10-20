@@ -1,6 +1,9 @@
 use super::*;
 use crate::{ParamValue, ParameterConstraints};
 
+mod membership;
+mod retained;
+
 fn option(index: usize) -> ParameterEnumOption {
     ParameterEnumOption {
         variant_id: format!("variant-{index}"),
@@ -25,16 +28,16 @@ fn large_constraint_clones_share_the_original_option_payload() {
             constraints.enum_options[0].label.as_ptr()
         );
     }
-    let mut edited = constraints.enum_options.shared().clone();
-    Arc::make_mut(&mut edited)[0].label = "Changed".into();
-    let edited = ParameterEnumOptions::from_shared(edited);
+    let mut edited = constraints.enum_options.as_slice().to_vec();
+    edited[0].label = "Changed".into();
+    let edited = ParameterEnumOptions::from(edited);
     assert!(!edited.same_storage(&constraints.enum_options));
     assert_eq!(snapshots[0].enum_options[0].label, "Device 0");
 }
 
 #[test]
 fn enum_option_wire_shape_stays_an_array_and_empty_constraints_stay_sparse() {
-    let original = vec![option(1), option(2)];
+    let original = vec![option(2), option(1)];
     let shared = ParameterEnumOptions::from(original.clone());
     let json = serde_json::to_value(&shared).unwrap();
     assert_eq!(json, serde_json::to_value(original).unwrap());
@@ -57,7 +60,7 @@ fn empty_defaults_share_storage_but_explicit_spare_capacity_is_preserved() {
     assert!(spare.is_empty());
     assert!(spare.capacity() >= 64);
     assert!(!spare.same_storage(&left));
-    let external = Arc::new(vec![option(1)]);
+    let external = Arc::new(ParameterEnumDomain::new(vec![option(1)]));
     let shared = ParameterEnumOptions::from_shared(external.clone());
     assert!(Arc::ptr_eq(shared.shared(), &external));
 }
