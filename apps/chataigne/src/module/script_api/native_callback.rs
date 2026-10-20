@@ -22,20 +22,66 @@ pub(crate) struct NativeCallbackPayload {
     retained_bytes: usize,
 }
 
-impl NativeCallbackPayload {
-    pub(crate) fn prepare(callback: &str, args: Vec<Value>) -> Result<Self, String> {
-        Self::prepare_in(&callback_pool()?, callback, args)
-    }
+/// A measured immutable callback that can wait for lifetime admission without
+/// repeating JSON preparation or discarding an accepted native occurrence.
+pub(crate) struct NativeCallbackDraft {
+    payload: Arc<Value>,
+    retained_bytes: usize,
+}
 
-    fn prepare_in(pool: &PayloadPool, callback: &str, args: Vec<Value>) -> Result<Self, String> {
+pub(crate) struct NativeCallbackPreparer {
+    pool: PayloadPool,
+}
+
+impl NativeCallbackDraft {
+    pub(crate) fn new(callback: &str, args: Vec<Value>) -> Result<Self, String> {
         let payload = Arc::new(super::script_callback_payload(callback, args));
         let retained_bytes = json_weight(&payload)? + 2 * size_of::<usize>();
-        pool.try_retain_arc(payload.clone(), retained_bytes)
-            .map_err(|_| "native callback lifetime capacity exhausted; callback was not admitted".to_string())?;
         Ok(Self {
             payload,
             retained_bytes,
         })
+    }
+
+    pub(crate) fn retained_bytes(&self) -> usize {
+        self.retained_bytes
+    }
+}
+
+impl NativeCallbackPreparer {
+    pub(crate) fn new() -> Result<Self, String> {
+        Ok(Self { pool: callback_pool()? })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn using(pool: PayloadPool) -> Self {
+        Self { pool }
+    }
+
+    pub(crate) fn try_retain(&self, draft: &NativeCallbackDraft) -> Option<NativeCallbackPayload> {
+        self.pool
+            .try_retain_arc(draft.payload.clone(), draft.retained_bytes)
+            .ok()?;
+        Some(NativeCallbackPayload {
+            payload: draft.payload.clone(),
+            retained_bytes: draft.retained_bytes,
+        })
+    }
+}
+
+impl NativeCallbackPayload {
+    pub(crate) fn prepare(callback: &str, args: Vec<Value>) -> Result<Self, String> {
+        let draft = NativeCallbackDraft::new(callback, args)?;
+        NativeCallbackPreparer::new()?
+            .try_retain(&draft)
+            .ok_or_else(|| "native callback lifetime capacity exhausted; callback was not admitted".into())
+    }
+
+    #[cfg(test)]
+    fn prepare_in(pool: &PayloadPool, callback: &str, args: Vec<Value>) -> Result<Self, String> {
+        NativeCallbackPreparer::using(pool.clone())
+            .try_retain(&NativeCallbackDraft::new(callback, args)?)
+            .ok_or_else(|| "native callback lifetime capacity exhausted; callback was not admitted".into())
     }
 
     pub(crate) fn retained_bytes(&self) -> usize {

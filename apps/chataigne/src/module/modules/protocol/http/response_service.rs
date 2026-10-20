@@ -1,7 +1,8 @@
 use super::transport::{HttpResultRejection, PreparedHttpFailure, PreparedHttpResponse};
+use crate::app::module::common::edit_receipt::EditReceipt;
 use crate::app::module::common::received_values::service::ReceivedValueCursor;
 use golden_core::{
-    edit::{Edit, EditCompletion, EditCompletionStatus, EditQueue},
+    edit::Edit,
     events::CustomEvent,
     node::{NodeId, NodeWarning},
     process_ctx::ProcessCtx,
@@ -26,7 +27,7 @@ pub(super) struct HttpCallbackDelivery {
 
 struct WarningDelivery {
     change: WarningChange,
-    completion: Option<EditCompletion>,
+    completion: EditReceipt,
 }
 
 enum WarningChange {
@@ -40,7 +41,7 @@ impl HttpCallbackDelivery {
             callback: crate::app::module::script_api::CallbackDelivery::new(event),
             clear_warning: clear_warning.then_some(WarningDelivery {
                 change: WarningChange::Clear,
-                completion: None,
+                completion: EditReceipt::default(),
             }),
         }
     }
@@ -72,7 +73,7 @@ impl From<HttpResultRejection> for RejectionDelivery {
                     message,
                     detail: None,
                 }),
-                completion: None,
+                completion: EditReceipt::default(),
             },
             logged: false,
         }
@@ -93,20 +94,9 @@ impl RejectionDelivery {
 
 impl WarningDelivery {
     fn service(&mut self, ctx: &mut ProcessCtx, module: NodeId) -> bool {
-        if let Some(completion) = self.completion.take() {
-            match completion.status() {
-                EditCompletionStatus::Applied => return true,
-                EditCompletionStatus::Pending => {
-                    self.completion = Some(completion);
-                    return false;
-                }
-                EditCompletionStatus::Failed => {}
-            }
-        }
         // Set and clear each retain their own receipt; neither may be lost behind
         // another callback's failed edits. Native work is never part of this retry.
-        let mut delivery = EditQueue::new();
-        delivery.push(match &self.change {
+        self.completion.service(ctx, || match &self.change {
             WarningChange::Set(warning) => Edit::SetNodeWarning {
                 node: module,
                 warning: warning.clone(),
@@ -115,9 +105,6 @@ impl WarningDelivery {
                 node: module,
                 warning_id: Some(super::HTTP_RESULT_WARNING_ID.into()),
             },
-        });
-        self.completion = Some(delivery.completion());
-        ctx.edits.pending.extend(delivery.drain());
-        false
+        })
     }
 }

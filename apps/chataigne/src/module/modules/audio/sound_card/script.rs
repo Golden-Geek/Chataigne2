@@ -50,62 +50,63 @@ impl SoundCardModule {
                 .map_err(|error| format!("Sound Card {method} was not admitted: {error}"))
         }))
     }
+}
 
-    pub(super) fn emit_audio_event_callback(&self, ctx: &mut ProcessCtx, event: &AudioEvent) {
-        use crate::app::module::script_api::{emit_script_callback, emit_transient_script_callback};
-
-        match event {
-            AudioEvent::PlaybackStarted(info) => emit_transient_script_callback(
-                ctx,
-                self.id(),
-                PLAYBACK_STARTED_CALLBACK,
-                vec![
-                    serde_json::json!(info.playback_id.as_str()),
-                    serde_json::json!(info.path.to_string_lossy()),
-                    json_value(info),
-                ],
-            ),
-            AudioEvent::PlaybackFinished(info) => emit_transient_script_callback(
-                ctx,
-                self.id(),
-                PLAYBACK_FINISHED_CALLBACK,
-                vec![serde_json::json!(info.playback_id.as_str()), json_value(info)],
-            ),
-            AudioEvent::PlaybackStopped(info) => emit_transient_script_callback(
-                ctx,
-                self.id(),
-                PLAYBACK_STOPPED_CALLBACK,
-                vec![
-                    serde_json::json!(info.playback_id.as_str()),
-                    json_value(&info.reason),
-                    json_value(info),
-                ],
-            ),
-            AudioEvent::PlaybackFailed(failure) => emit_transient_script_callback(
-                ctx,
-                self.id(),
-                PLAYBACK_FAILED_CALLBACK,
-                vec![
-                    serde_json::json!(failure.playback_id.as_str()),
-                    serde_json::json!(failure.path.to_string_lossy()),
-                    json_value(&failure.error),
-                ],
-            ),
-            AudioEvent::DeviceStatusChanged(status) => emit_script_callback(
-                ctx,
-                self.id(),
-                AUDIO_DEVICE_STATUS_CHANGED_CALLBACK,
-                vec![json_value(&status.direction), json_value(status)],
-            ),
-            AudioEvent::BackendStatusChanged(status) => emit_script_callback(
-                ctx,
-                self.id(),
-                AUDIO_BACKEND_STATUS_CHANGED_CALLBACK,
-                vec![serde_json::json!(status.backend.as_str()), json_value(status)],
-            ),
-            _ => {}
-        }
-    }
+/// Called only while preparing a native event, before actor mailbox admission.
+pub(super) fn audio_event_callback(
+    event: &AudioEvent,
+) -> Option<(
+    &'static str,
+    Vec<serde_json::Value>,
+    golden_core::events::CustomEventRetention,
+)> {
+    use golden_core::events::CustomEventRetention::{Replay, Transient};
+    let (callback, args, retention) = match event {
+        AudioEvent::PlaybackStarted(info) => (
+            PLAYBACK_STARTED_CALLBACK,
+            vec![
+                serde_json::json!(info.playback_id.as_str()),
+                serde_json::json!(info.path.to_string_lossy()),
+                json_value(info),
+            ],
+            Transient,
+        ),
+        AudioEvent::PlaybackFinished(info) => (
+            PLAYBACK_FINISHED_CALLBACK,
+            vec![serde_json::json!(info.playback_id.as_str()), json_value(info)],
+            Transient,
+        ),
+        AudioEvent::PlaybackStopped(info) => (
+            PLAYBACK_STOPPED_CALLBACK,
+            vec![
+                serde_json::json!(info.playback_id.as_str()),
+                json_value(&info.reason),
+                json_value(info),
+            ],
+            Transient,
+        ),
+        AudioEvent::PlaybackFailed(failure) => (
+            PLAYBACK_FAILED_CALLBACK,
+            vec![
+                serde_json::json!(failure.playback_id.as_str()),
+                serde_json::json!(failure.path.to_string_lossy()),
+                json_value(&failure.error),
+            ],
+            Transient,
+        ),
+        AudioEvent::DeviceStatusChanged(status) => (
+            AUDIO_DEVICE_STATUS_CHANGED_CALLBACK,
+            vec![json_value(&status.direction), json_value(status)],
+            Replay,
+        ),
+        AudioEvent::BackendStatusChanged(status) => (
+            AUDIO_BACKEND_STATUS_CHANGED_CALLBACK,
+            vec![serde_json::json!(status.backend.as_str()), json_value(status)],
+            Replay,
+        ),
+        _ => return None,
+    };
+    Some((callback, args, retention))
 }
 
 fn script_request(method: &str, args: &[ParamValue]) -> Option<Result<SoundCardCommandRequest, String>> {

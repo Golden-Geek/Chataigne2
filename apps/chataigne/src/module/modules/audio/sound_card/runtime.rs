@@ -8,10 +8,10 @@ use golden_audio::{
     match_device_selection, AnalysisProcessorConfiguration, AnalysisResult, AnalysisTapConfiguration, AnalysisTapId,
     AnalysisTapObservation, AudioBufferPolicy, AudioChannelId, AudioCommand, AudioConfiguration, AudioControl,
     AudioDeviceDescriptor, AudioDeviceInspectorState, AudioDeviceMatch, AudioDeviceSelection, AudioDeviceTargetId,
-    AudioDirection, AudioEngineBuilder, AudioEvent, AudioObservationReader, AudioObservationSnapshot,
-    AudioRecoveryPolicy, AudioRouteId, BackendId, BackendPolicy, ConfigGeneration, DirectionConfiguration, GainDb,
-    InputPatchRoute, NullBackend, OutputPatchRoute, PhysicalChannelKey, PitchAnalysisConfiguration, PlaybackId,
-    PlaybackRoute, SampleRate, SpectrumAnalysisConfiguration, SpectrumBandSpacing, SpectrumOverlap, SpectrumWindow,
+    AudioDirection, AudioEngineBuilder, AudioObservationReader, AudioObservationSnapshot, AudioRecoveryPolicy,
+    AudioRouteId, BackendId, BackendPolicy, ConfigGeneration, DirectionConfiguration, GainDb, InputPatchRoute,
+    NullBackend, OutputPatchRoute, PhysicalChannelKey, PitchAnalysisConfiguration, PlaybackId, PlaybackRoute,
+    SampleRate, SpectrumAnalysisConfiguration, SpectrumBandSpacing, SpectrumOverlap, SpectrumWindow,
     VirtualInputChannel, VirtualOutputChannel,
 };
 use golden_core::{
@@ -36,6 +36,8 @@ mod playback;
 mod snapshot;
 mod wake;
 mod worker;
+
+pub(super) use events::{EVENT_BYTES, EVENT_SERVICE_ITEMS};
 
 pub(super) use capabilities::{
     configuration_capabilities, device_selection_value, probe_targets_are_pending, requires_disable_before_probe,
@@ -308,15 +310,20 @@ impl SoundCardRuntime {
     pub(super) fn poll(
         &mut self,
         ctx: &mut ProcessCtx,
+        drain_events: bool,
     ) -> (
         AudioObservationSnapshot,
         Option<SoundCardUiTelemetryDto>,
-        Vec<AudioEvent>,
+        Vec<super::prepared_event::PreparedAudioEvent>,
     ) {
-        let events = self.event_bridge.drain();
+        let events = if drain_events {
+            self.event_bridge.drain()
+        } else {
+            Vec::new()
+        };
         let _ = self.retry_enabled();
         for event in &events {
-            self.observe_event(event);
+            self.observe_event(&event.event);
         }
         let observation = self.observations.latest();
         let outgoing_activity = has_output_activity(observation.enabled, observation.output_global_max_rms);

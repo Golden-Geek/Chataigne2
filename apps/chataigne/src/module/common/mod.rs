@@ -1,5 +1,6 @@
 pub(crate) mod app_control;
 pub(crate) mod buttplug;
+pub(crate) mod edit_receipt;
 pub(crate) mod http;
 pub(crate) mod joycon;
 pub(crate) mod json;

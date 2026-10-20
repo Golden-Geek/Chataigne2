@@ -427,10 +427,15 @@ impl SoundCardModule {
     }
 
     pub(super) fn poll_runtime(&mut self, ctx: &mut ProcessCtx) {
-        if self
-            .runtime
-            .as_ref()
-            .is_some_and(runtime::SoundCardRuntime::is_disconnected)
+        let had_pending = !self.pending_events.is_empty();
+        if had_pending {
+            self.service_pending_audio_events(ctx);
+        }
+        if self.pending_events.is_empty()
+            && self
+                .runtime
+                .as_ref()
+                .is_some_and(runtime::SoundCardRuntime::is_disconnected)
         {
             self.runtime = None;
             self.runtime_request = None;
@@ -450,7 +455,7 @@ impl SoundCardModule {
                 .set_data_capabilities(ctx, crate::app::module::ModuleDataCapabilities::new(false, false));
             return;
         };
-        let (observation, telemetry, events) = runtime.poll(ctx);
+        let (observation, telemetry, events) = runtime.poll(ctx, !had_pending);
         if selected_parameter_ids
             .iter()
             .any(|node| self.runtime_error_node == Some(*node))
@@ -476,26 +481,37 @@ impl SoundCardModule {
             ctx,
             crate::app::module::ModuleDataCapabilities::new(enabled && input_ready, enabled && output_ready),
         );
-        let inventory_changed = events.iter().any(runtime_event_changes_inventory);
+        let inventory_changed = events.iter().any(|event| runtime_event_changes_inventory(&event.event));
         if inventory_changed {
             self.sync_live_device_choices(ctx, &observation.device);
         }
         if let Some(telemetry) = telemetry {
             self.emit_telemetry(ctx, &telemetry);
         }
-        for event in &events {
-            if runtime_event_changes_inventory(event) {
+        for event in events {
+            if runtime_event_changes_inventory(&event.event) {
                 self.configuration_dirty = true;
             }
-            if let golden_audio::AudioEvent::DeviceStatusChanged(status) = event {
-                self.apply_device_connection_feedback(ctx, status);
+            self.pending_events.push(event, self.id());
+        }
+        if !had_pending {
+            self.service_pending_audio_events(ctx);
+        }
+    }
+
+    fn service_pending_audio_events(&mut self, ctx: &mut ProcessCtx) {
+        if self.pending_events.is_empty() {
+            return;
+        }
+        let mut pending = std::mem::take(&mut self.pending_events);
+        pending.service(ctx, self);
+        self.pending_events = pending;
+        if self.pending_events.is_empty() {
+            if let Some(wake) = &self.runtime_wake {
+                // One continuation lets the next batch drain after the last
+                // receipt settles, even if the native mailbox is already full.
+                wake.wake();
             }
-            if self.base.log_outgoing_enabled() {
-                if let Some(message) = super::traffic_logging::outgoing_audio_log_message(event) {
-                    golden_core::log!(origin = self.id(); message);
-                }
-            }
-            self.emit_audio_event_callback(ctx, event);
         }
     }
 
@@ -689,6 +705,7 @@ impl SoundCardModule {
         self.runtime_retry.reset();
         self.runtime = None;
         self.runtime_worker = None;
+        self.pending_events = event_delivery::PendingAudioEvents::default();
     }
 }
 

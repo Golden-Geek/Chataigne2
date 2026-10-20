@@ -480,7 +480,7 @@ fn catalog_choices_are_available_before_probe_and_keep_friendly_authored_labels(
     assert!(!runtime::probe_targets_are_pending(&exact_state, &pending));
 }
 
-fn create_sound_card() -> (crate::app::AppEngine, NodeId) {
+pub(super) fn create_sound_card() -> (crate::app::AppEngine, NodeId) {
     let root: crate::app::AppNode = Folder::new("root").into();
     let mut engine = crate::app::AppEngine::new(root);
     engine.add_node(SoundCardModule::create().into(), None);
@@ -508,7 +508,7 @@ fn stabilize_sound_card(engine: &mut crate::app::AppEngine) {
     }
 }
 
-fn select_enum_parameter(engine: &mut crate::app::AppEngine, module: NodeId, path: &str, value: &str) {
+pub(super) fn select_enum_parameter(engine: &mut crate::app::AppEngine, module: NodeId, path: &str, value: &str) {
     let snapshot = engine.process_tree_snapshot();
     let node = find_path(&snapshot, module, path).expect("enum parameter");
     let mut constraints = snapshot

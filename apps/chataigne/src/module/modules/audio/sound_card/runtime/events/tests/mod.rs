@@ -1,4 +1,5 @@
 use super::*;
+use golden_audio::AudioEvent;
 use std::{sync::mpsc, time::Duration};
 
 struct PressureFixture {
@@ -96,7 +97,7 @@ fn large_playback_occurrences_hit_byte_pressure_before_the_app_item_limit() {
         let events = bridge.drain();
         assert!(events.len() <= EVENT_SERVICE_ITEMS);
         for event in events {
-            match event {
+            match &event.event {
                 AudioEvent::PlaybackFailed(failure) => {
                     assert_eq!(failure.playback_id, id);
                     assert_eq!(failure.path, path);
@@ -107,8 +108,8 @@ fn large_playback_occurrences_hit_byte_pressure_before_the_app_item_limit() {
                     path: reported,
                     ..
                 }) => {
-                    assert_eq!(playback_id, id);
-                    assert_eq!(reported, path);
+                    assert_eq!(playback_id, &id);
+                    assert_eq!(reported, &path);
                     outcomes += 1;
                 }
                 AudioEvent::PlaybackStopped(info) => {
@@ -153,8 +154,8 @@ fn pressure_preserves_every_configuration_completion_with_bounded_actor_service(
         let events = bridge.drain();
         assert!(events.len() <= EVENT_SERVICE_ITEMS);
         for event in events {
-            match event {
-                AudioEvent::ConfigurationApplied { generation } => applied.push(generation),
+            match &event.event {
+                AudioEvent::ConfigurationApplied { generation } => applied.push(*generation),
                 AudioEvent::ShutdownComplete => terminal = true,
                 AudioEvent::ConfigurationRejected { error, .. } => panic!("unexpected rejection: {error}"),
                 _ => {}
@@ -231,7 +232,7 @@ fn desired_disable_survives_full_control_admission_and_applies_after_pressure_cl
         },
     );
     loop {
-        let (observation, _, events) = runtime.poll(&mut ctx);
+        let (observation, _, events) = runtime.poll(&mut ctx, true);
         assert!(events.len() <= EVENT_SERVICE_ITEMS);
         if runtime.enabled_pending.is_none() && !observation.enabled {
             break;
@@ -313,7 +314,160 @@ fn producer_exit_preserves_its_published_prefix_until_the_consumer_drains_it() {
     assert!(bridge
         .drain()
         .iter()
-        .any(|event| matches!(event, AudioEvent::ShutdownComplete)));
+        .any(|event| matches!(&event.event, AudioEvent::ShutdownComplete)));
     assert!(!bridge.has_pending());
+    assert!(lifetimes.wait_for_idle(Duration::from_secs(3)));
+}
+
+fn preparation_pressure(
+    callback_pressure: bool,
+) -> (
+    SoundCardRuntimeEvents,
+    golden_audio::AudioControl,
+    RetirementPool,
+    golden_io::PayloadReservation,
+) {
+    let events_pool = golden_io::PayloadPool::new(
+        "audio-event-admission-test",
+        if callback_pressure { EVENT_ITEMS } else { 1 },
+        EVENT_BYTES,
+    )
+    .unwrap();
+    let callbacks_pool = golden_io::PayloadPool::new(
+        "audio-callback-admission-test",
+        if callback_pressure { 1 } else { EVENT_ITEMS },
+        EVENT_BYTES,
+    )
+    .unwrap();
+    let occupied = if callback_pressure {
+        callbacks_pool.try_reserve(1)
+    } else {
+        events_pool.try_reserve(1)
+    }
+    .unwrap();
+    let preparer = EventPreparer::using(events_pool, callbacks_pool);
+    let mut audio = golden_audio::AudioEngineBuilder::default()
+        .without_backends()
+        .with_backend(golden_audio::NullBackend)
+        .with_ordered_events()
+        .build()
+        .unwrap();
+    let control = audio.control();
+    let events = audio.take_event_receiver().unwrap();
+    let lifetimes = RetirementPool::new(NonZeroUsize::MIN);
+    let bridge = SoundCardRuntimeEvents::spawn_with_preparer(
+        audio,
+        events,
+        lifetimes.try_reserve().unwrap(),
+        30,
+        move || Ok(preparer),
+        |mut audio| {
+            let _ = audio.shutdown();
+        },
+    )
+    .unwrap();
+    control
+        .submit(golden_audio::AudioCommand::PlayFile(
+            golden_audio::PlayFileRequest::new(
+                "sound-card-admission-missing-file.wav",
+                golden_audio::PlaybackId::from_static("admitted"),
+            ),
+        ))
+        .unwrap();
+    let deadline = std::time::Instant::now() + Duration::from_secs(3);
+    while bridge.capacity.preparation_waits.load(Ordering::Acquire) == 0 {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "native owner must reach lifetime capacity wait"
+        );
+        thread::sleep(Duration::from_millis(1));
+    }
+    (bridge, control, lifetimes, occupied)
+}
+
+#[test]
+fn native_preparation_waits_recover_both_pools_and_preserve_the_original_outcome() {
+    for callback_pressure in [false, true] {
+        let (bridge, control, lifetimes, occupied) = preparation_pressure(callback_pressure);
+        drop(occupied);
+        control.shutdown().unwrap();
+        let deadline = std::time::Instant::now() + Duration::from_secs(4);
+        let mut failed = 0;
+        let mut terminal = false;
+        while !bridge.is_disconnected() || bridge.has_pending() {
+            for event in bridge.drain() {
+                assert!(event.preparation_error.is_none());
+                let playback_id = match &event.event {
+                    AudioEvent::PlaybackFailed(failure) => Some(&failure.playback_id),
+                    AudioEvent::PlaybackStopped(info) => Some(&info.playback_id),
+                    _ => None,
+                };
+                if let Some(id) = playback_id {
+                    assert_eq!(id.as_str(), "admitted");
+                    assert_eq!(
+                        event.callback(golden_core::node::NodeId(1)).unwrap().payload["args"][0],
+                        "admitted"
+                    );
+                    failed += 1;
+                }
+                terminal |= matches!(&event.event, AudioEvent::ShutdownComplete);
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "capacity release must resume native delivery"
+            );
+            thread::sleep(Duration::from_millis(1));
+        }
+        assert_eq!(failed, 1);
+        assert!(terminal);
+        assert!(lifetimes.wait_for_idle(Duration::from_secs(3)));
+    }
+}
+
+#[test]
+fn cancellation_wakes_both_native_preparation_capacity_waits_without_joining() {
+    for callback_pressure in [false, true] {
+        let (bridge, _control, lifetimes, occupied) = preparation_pressure(callback_pressure);
+        bridge.stop();
+        assert!(lifetimes.wait_for_idle(Duration::from_secs(3)));
+        assert!(bridge.is_disconnected());
+        drop(occupied);
+    }
+}
+
+#[test]
+fn preparation_setup_failure_keeps_the_native_lifetime_until_cleanup_finishes() {
+    let lifetimes = RetirementPool::new(NonZeroUsize::MIN);
+    let permit = lifetimes.try_reserve().unwrap();
+    let mut audio = golden_audio::AudioEngineBuilder::default()
+        .without_backends()
+        .with_backend(golden_audio::NullBackend)
+        .build()
+        .unwrap();
+    let events = audio.take_event_receiver().unwrap();
+    let (started_tx, started_rx) = mpsc::channel();
+    let (release_tx, release_rx) = mpsc::channel();
+    let owner = thread::spawn(move || {
+        SoundCardRuntimeEvents::spawn_with_preparer(
+            audio,
+            events,
+            permit,
+            30,
+            || Err("preparation setup fixture".into()),
+            move |mut audio| {
+                started_tx.send(()).unwrap();
+                release_rx.recv().unwrap();
+                let _ = audio.shutdown();
+            },
+        )
+    });
+    started_rx.recv_timeout(Duration::from_secs(3)).unwrap();
+    let charged = lifetimes.try_reserve().is_err();
+    release_tx.send(()).unwrap();
+    assert!(
+        charged,
+        "fallible setup must not release capacity ahead of native cleanup"
+    );
+    assert_eq!(owner.join().unwrap().unwrap_err(), "preparation setup fixture");
     assert!(lifetimes.wait_for_idle(Duration::from_secs(3)));
 }

@@ -7,23 +7,26 @@ use std::{
     thread,
 };
 
-use golden_audio::{AudioEngine, AudioEvent, AudioEventReceiver};
+use golden_audio::{AudioEngine, AudioEventReceiver};
 use golden_io::{
     bounded_pending_channel, PendingReceiver, PendingSendError, PendingSender, RetirementPermit, RetirementPool,
 };
 
+use super::super::prepared_event::{AudioEventDraft, EventPreparer, PreparedAudioEvent};
 use super::RuntimeWakeSender;
 
 type WakeSlot = Arc<Mutex<Option<RuntimeWakeSender>>>;
 pub(super) const EVENT_ITEMS: usize = 64;
-pub(super) const EVENT_BYTES: usize = 8 * 1024 * 1024;
-pub(super) const EVENT_SERVICE_ITEMS: usize = 8;
+pub(in super::super) const EVENT_BYTES: usize = 8 * 1024 * 1024;
+pub(in super::super) const EVENT_SERVICE_ITEMS: usize = 8;
 
 #[derive(Default)]
 struct Capacity {
     stopped: AtomicBool,
     lock: Mutex<()>,
     changed: Condvar,
+    #[cfg(test)]
+    preparation_waits: AtomicU32,
 }
 impl Capacity {
     fn notify(&self) {
@@ -42,7 +45,7 @@ pub(super) fn reserve_lifetime() -> Result<RetirementPermit, String> {
 
 /// The actor holds controls and observations, never the native engine's final owner.
 pub(super) struct SoundCardRuntimeEvents {
-    pending: PendingReceiver<AudioEvent>,
+    pending: PendingReceiver<PreparedAudioEvent>,
     refresh_rate_hz: Arc<AtomicU32>,
     capacity: Arc<Capacity>,
     wake: WakeSlot,
@@ -52,7 +55,7 @@ pub(super) struct SoundCardRuntimeEvents {
 struct NativeOwner<F: FnOnce(AudioEngine)> {
     engine: Option<AudioEngine>,
     events: Option<AudioEventReceiver>,
-    pending: Option<PendingSender<AudioEvent>>,
+    pending: Option<PendingSender<PreparedAudioEvent>>,
     wake: WakeSlot,
     retire: Option<F>,
     _lifetime: RetirementPermit,
@@ -111,6 +114,20 @@ impl SoundCardRuntimeEvents {
     where
         F: FnOnce(AudioEngine) + Send + 'static,
     {
+        Self::spawn_with_preparer(engine, events, lifetime, refresh_rate_hz, EventPreparer::new, retire)
+    }
+
+    fn spawn_with_preparer<F>(
+        engine: AudioEngine,
+        events: AudioEventReceiver,
+        lifetime: RetirementPermit,
+        refresh_rate_hz: u32,
+        prepare: impl FnOnce() -> Result<EventPreparer, String>,
+        retire: F,
+    ) -> Result<Self, String>
+    where
+        F: FnOnce(AudioEngine) + Send + 'static,
+    {
         let (pending_sender, pending) = bounded_pending_channel(EVENT_ITEMS, EVENT_BYTES);
         let refresh_rate_hz = Arc::new(AtomicU32::new(super::bounded_levels_update_rate_hz(refresh_rate_hz)));
         let worker_refresh_rate_hz = refresh_rate_hz.clone();
@@ -127,6 +144,9 @@ impl SoundCardRuntimeEvents {
             _lifetime: lifetime,
             _completion: completion.try_reserve().expect("fresh native completion"),
         };
+        // Install native ownership before fallible preparation setup. Every
+        // constructor failure retires the engine while its lifetime stays charged.
+        let preparer = prepare()?;
         thread::Builder::new()
             .name("chataigne-sound-card-native".to_owned())
             .spawn(move || {
@@ -139,9 +159,27 @@ impl SoundCardRuntimeEvents {
                         .expect("live audio receiver")
                         .recv_timeout(interval)
                     {
-                        Ok(Some(mut event)) => {
-                            let weight = event.retained_bytes();
+                        Ok(Some(event)) => {
+                            let mut draft = AudioEventDraft::new(event);
                             let mut guard = worker_capacity.lock.lock().unwrap_or_else(|p| p.into_inner());
+                            let mut event = loop {
+                                if worker_capacity.stopped.load(Ordering::Acquire) {
+                                    return;
+                                }
+                                if let Some(event) = preparer.try_prepare(&mut draft) {
+                                    break event;
+                                }
+                                #[cfg(test)]
+                                worker_capacity.preparation_waits.fetch_add(1, Ordering::AcqRel);
+                                // Shared lifetime capacity is released by background
+                                // disposers. A coarse native wait avoids actor polling.
+                                guard = worker_capacity
+                                    .changed
+                                    .wait_timeout(guard, std::time::Duration::from_millis(100))
+                                    .unwrap_or_else(|p| p.into_inner())
+                                    .0;
+                            };
+                            let weight = event.retained_bytes;
                             loop {
                                 if worker_capacity.stopped.load(Ordering::Acquire) {
                                     return;
@@ -194,7 +232,7 @@ impl SoundCardRuntimeEvents {
             .store(super::bounded_levels_update_rate_hz(refresh_rate_hz), Ordering::Release);
     }
 
-    pub(super) fn drain(&self) -> Vec<AudioEvent> {
+    pub(super) fn drain(&self) -> Vec<PreparedAudioEvent> {
         let mut events = Vec::new();
         self.pending
             .drain_into(&mut events, NonZeroUsize::new(EVENT_SERVICE_ITEMS).unwrap());

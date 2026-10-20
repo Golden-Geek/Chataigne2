@@ -1,5 +1,5 @@
 use golden_audio::{AudioDeviceReadiness, AudioDeviceSelection, AudioDirection, AudioStreamStatus, BackendId};
-use golden_core::{node::Node, process_ctx::ProcessCtx};
+use golden_core::process_ctx::ProcessCtx;
 
 use super::{SoundCardModule, NO_AUDIO_DEVICE, SYSTEM_DEFAULT_DEVICE};
 
@@ -99,44 +99,10 @@ pub(super) fn status_matches_selection(
 }
 
 impl SoundCardModule {
-    pub(super) fn apply_device_connection_feedback(&self, ctx: &mut ProcessCtx, status: &AudioStreamStatus) {
-        let driver = BackendId::new(self.audio_driver.get_ref().0.as_str()).ok();
-        let (input_device, output_device) = self.selected_device_values();
-        let selected_value = match status.direction {
-            AudioDirection::Input => input_device,
-            AudioDirection::Output => output_device,
-        };
-        if !status_matches_selection(status, selected_value, driver.as_ref()) {
-            return;
-        }
-
-        if let Some(log) = log_for_status(status) {
-            match log.level {
-                ConnectionLogLevel::Info => {
-                    golden_core::log!(origin = self.id(); log.message);
-                }
-                ConnectionLogLevel::Success => {
-                    golden_core::logsuccess!(origin = self.id(); log.message);
-                }
-                ConnectionLogLevel::Error => {
-                    golden_core::logerror!(origin = self.id(); log.message);
-                }
-            }
-        }
-
-        let parameter = self.device_parameter(status.direction);
-        let warning_id = warning_id(status.direction);
-        match warning_for_status(status) {
-            ConnectionWarning::Keep => {}
-            ConnectionWarning::Clear => ctx.clear_node_warning(parameter, Some(warning_id)),
-            ConnectionWarning::Set { message, detail } => {
-                ctx.set_node_warning_with(parameter, Some(warning_id), message, Some(detail.as_str()));
-            }
-        }
-    }
-
     pub(super) fn clear_device_connection_warning(&self, ctx: &mut ProcessCtx, direction: AudioDirection) {
-        ctx.clear_node_warning(self.device_parameter(direction), Some(warning_id(direction)));
+        if let Some(parameter) = self.device_parameter(direction) {
+            ctx.clear_node_warning(parameter, Some(warning_id(direction)));
+        }
     }
 
     pub(super) fn clear_device_connection_warnings(&self, ctx: &mut ProcessCtx) {
@@ -145,12 +111,13 @@ impl SoundCardModule {
         }
     }
 
-    fn device_parameter(&self, direction: AudioDirection) -> golden_core::node::NodeId {
-        match (self.uses_duplex_device(), direction) {
-            (true, _) => self.device.id(),
-            (false, AudioDirection::Input) => self.input_device.id(),
-            (false, AudioDirection::Output) => self.output_device.id(),
-        }
+    pub(super) fn device_parameter(&self, direction: AudioDirection) -> Option<golden_core::node::NodeId> {
+        let parameter = match (self.uses_duplex_device(), direction) {
+            (true, _) => &self.device,
+            (false, AudioDirection::Input) => &self.input_device,
+            (false, AudioDirection::Output) => &self.output_device,
+        };
+        parameter.is_bound().then(|| parameter.id())
     }
 }
 

@@ -459,10 +459,19 @@ Idle retirement does not consume a startup identity and remains admissible after
 
 Sound Card opts into `golden_audio` ordered event delivery. The native event queue has an 8 MiB
 retained-value budget in addition to its item limit; the app mailbox admits 64 events / 8 MiB.
-Admission uses `AudioEvent::retained_bytes`, including spare string/path capacity and conservative
-map storage. A full native queue parks the non-realtime control worker; a full app mailbox parks
-its native bridge. Actor service
-drains at most eight events and re-arms remaining work. Receiver drop or forced engine shutdown
+Golden Audio admission uses `AudioEvent::retained_bytes`, including spare string/path capacity
+and conservative map storage. The app mailbox charges the complete prepared envelope: raw event,
+callback JSON, outgoing log, connection log/warning and inline storage. The native bridge prepares
+these once, before mailbox admission. A shared 2048-item / 256 MiB pool keeps the envelope's final
+owner through publication receipts, cancellation and node removal; final envelope destruction
+runs on its disposer. Callback JSON retains its separate canonical app callback pool ownership.
+
+A full native queue parks the non-realtime control worker; a full app mailbox parks its native
+bridge. Full envelope or callback lifetime admission preserves the measured draft and waits on
+that same native owner with a cancellable 100ms capacity retry. It never reserializes the waiting
+callback, allocates another worker or polls on the actor. Actor service drains at most eight
+envelopes, then admits no next batch until that batch's publication receipts settle. Receiver drop
+or forced engine shutdown
 cancels upstream capacity waits; facade cancellation also wakes downstream capacity waits.
 Ordinary consumers retain Golden Audio's default best-effort delivery and dropped-event counter.
 For graceful ordered shutdown, submit `AudioControl::shutdown` and drain concurrently through
@@ -479,6 +488,17 @@ Disabled Sound Card nodes continue servicing admitted native events and pending 
 state without requesting tree snapshots or starting new resources. A full control queue retains
 the latest desired enable state for later admission. Startup workers suppress queued constructors
 and discard in-flight results while disabled, retaining their native-cleanup completion fence.
+Pending event publication also remains serviceable after its native facade disappears. Callback
+and connection-warning edits use separate single-edit receipts shared with the app's existing
+HTTP/callback delivery. An unpublished edit retries; applied publication is never replayed after
+a later edit or subscriber failure. Only the FIFO front advances. Prepared logs emit once.
+Connection warning retries recheck the current selected device and bound parameter, so deselection
+or selector removal cannot strand the original callback behind stale feedback. Playback callbacks
+remain transient; device/backend callbacks retain their ordinary replay policy.
+Selection checks cache their result by bound parameter and actual driver/selection values during
+receipt waits. The feedback phase closes before callback admission, so later selection changes
+cannot reopen feedback after a callback is queued. Selection parsing and the fence's control-value
+copies remain part of the configuration-preparation work below.
 
 Golden Audio prepares at most 1 MiB per event. String identities admit 64 KiB at construction and
 deserialization, and playback paths admit 128 KiB retained storage before command acceptance.
@@ -486,9 +506,13 @@ Accepted playback identities and paths are preserved; diagnostic/display text us
 See the [audio event contract](../../crates/golden_audio/README.md#event-delivery) for those limits.
 One normalized in-flight event per publishing stage is additional to the queue budget.
 
-Worker-side callback/log preparation, final payload disposal, observation copies,
-configuration-preparation and admission bounds remain P03 work. Event value budgets and ordered
-delivery do not qualify whole-process memory or actor deadlines.
+One native preparation draft, one actor batch and externally exported callback owners are separate
+from mailbox capacity; the lifetime pools account for admitted storage through final disposal.
+Defensive callback-preparation rejection preserves the raw native result and publishes an explicit
+warning. Normalized identities/paths fit the envelope bound without truncation.
+Observation/value/active-voice copies, logger and UI DTO copies, configuration preparation/admission,
+and remaining reconfiguration/apply-time/failure fences remain P03 work. Event ownership budgets do not
+qualify whole-process memory or actor deadlines.
 
 ## Current qualification boundaries
 

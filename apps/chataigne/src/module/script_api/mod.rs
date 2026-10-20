@@ -1,7 +1,7 @@
 mod callback_delivery;
 pub(crate) use callback_delivery::CallbackDelivery;
 mod native_callback;
-pub(crate) use native_callback::NativeCallbackPayload;
+pub(crate) use native_callback::{NativeCallbackDraft, NativeCallbackPayload, NativeCallbackPreparer};
 
 use std::path::PathBuf;
 
@@ -113,19 +113,6 @@ fn module_script_template_dir() -> PathBuf {
 
 pub(crate) fn emit_script_callback(ctx: &mut ProcessCtx, module_id: NodeId, callback: &str, args: Vec<JsonValue>) {
     ctx.emit_custom_event(script_callback_event(module_id, callback, args));
-}
-
-pub(crate) fn emit_transient_script_callback(
-    ctx: &mut ProcessCtx,
-    module_id: NodeId,
-    callback: &str,
-    args: Vec<JsonValue>,
-) {
-    ctx.emit_custom_event(CustomEvent::transient(
-        MODULE_SCRIPT_CALLBACK_TOPIC,
-        Some(module_id),
-        script_callback_payload(callback, args),
-    ));
 }
 
 pub(crate) fn script_callback_event(module_id: NodeId, callback: &str, args: Vec<JsonValue>) -> CustomEvent {
