@@ -1,7 +1,15 @@
-use std::{collections::HashSet, sync::Arc};
+use std::{
+    collections::HashSet,
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 mod osc_message;
 mod osc_runtime;
+mod osc_value_helpers;
+#[cfg(test)]
+mod tests;
+use osc_value_helpers::*;
 
 use golden_core::{
     engine::NodeExecutionRule,
@@ -95,6 +103,9 @@ pub struct OscModuleBase {
     base: crate::app::ModuleBase,
     interface_refresh_elapsed: f64,
     transport: Option<OscTransportHandle>,
+    retiring_transport: Option<OscTransportHandle>,
+    retry_at: Option<Instant>,
+    transport_ready: bool,
     last_transport_config: Option<OscTransportConfig>,
     transport_dirty: bool,
     ignored_param_changes: HashSet<NodeId>,
@@ -108,6 +119,9 @@ impl OscModuleBase {
             crate::app::ModuleBase::create_with_command_types(OSC_MODULE_COMMAND_TYPES),
             OSC_INTERFACE_REFRESH_INTERVAL_SECS,
             None,
+            None,
+            None,
+            false,
             None,
             true,
             HashSet::new(),
@@ -145,18 +159,33 @@ impl OscModuleBase {
     }
 
     pub(crate) fn stop_transport(&mut self) {
-        if let Some(mut transport) = self.transport.take() {
+        self.transport_ready = false;
+        for mut transport in self.transport.take().into_iter().chain(self.retiring_transport.take()) {
             transport.stop();
         }
+        self.retry_at = None;
+    }
+
+    fn retire_transport(&mut self) {
+        self.transport_ready = false;
+        if let Some(mut transport) = self.transport.take() {
+            transport.finish_admission();
+            self.retiring_transport = Some(transport);
+        }
+        self.last_transport_config = None;
+    }
+
+    fn retry_transport(&mut self) {
+        self.transport_dirty = true;
+        self.retry_at = Some(Instant::now() + Duration::from_millis(250));
+    }
+
+    fn transport_retry_due(&self) -> bool {
+        self.retry_at.is_none_or(|at| Instant::now() >= at)
     }
 
     pub(crate) fn script_descriptor_for_node(&self, node_data: &NodeData, node_type: &str) -> NodeScriptDescriptor {
         crate::app::module::script_api::descriptor_for_node(node_data, node_type, OSC_SCRIPT_METHODS)
-    }
-
-    #[cfg(test)]
-    pub(crate) fn set_transport_dirty(&mut self, transport_dirty: bool) {
-        self.transport_dirty = transport_dirty;
     }
 
     fn interface_refresh_due(&self) -> bool {
@@ -190,6 +219,10 @@ impl OscModuleBase {
     }
 
     fn refresh_transport(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
+        if !self.transport_retry_due() {
+            return;
+        }
+        self.retry_at = None;
         self.transport_dirty = false;
 
         if !self.module_enabled(snapshot) {
@@ -214,30 +247,36 @@ impl OscModuleBase {
 
                 if self.transport.is_some() && self.last_transport_config.as_ref() == Some(&config) {
                     self.clear_receiver_warning(ctx, snapshot);
-                    self.base.set_connected(ctx, connected);
+                    self.base.set_connected(
+                        ctx,
+                        connected
+                            && self.transport_ready
+                            && self.transport.as_ref().is_some_and(|transport| transport.is_ready()),
+                    );
                     return;
                 }
 
-                self.stop_transport();
+                self.retire_transport();
+                if self.retiring_transport.is_some() {
+                    self.transport_dirty = true;
+                    self.base.set_connected(ctx, false);
+                    return;
+                }
 
                 match OscTransportHandle::spawn(config.clone()) {
                     Ok(handle) => {
                         self.transport = Some(handle);
                         self.last_transport_config = Some(config);
                         self.clear_receiver_warning(ctx, snapshot);
-                        self.base.set_connected(ctx, connected);
-                        if binding.receive_enabled {
-                            self.log_receiver_bound(
-                                crate::app::module::common::network_interfaces::bind_host_for_interface_variant(
-                                    binding.interface_variant.as_str(),
-                                )
-                                .as_str(),
-                                binding.bind_port,
-                            );
-                        }
+                        self.base.set_connected(ctx, false);
                     }
                     Err(error) => {
-                        logerror!(format!("Failed to bind OSC at {}:{}, {}", binding.interface_variant.as_str(), binding.bind_port, error));
+                        logerror!(format!(
+                            "Failed to bind OSC at {}:{}, {}",
+                            binding.interface_variant.as_str(),
+                            binding.bind_port,
+                            error
+                        ));
                         self.transport = None;
                         self.last_transport_config = None;
                         if binding.receive_enabled {
@@ -246,6 +285,7 @@ impl OscModuleBase {
                             self.clear_receiver_warning(ctx, snapshot);
                         }
                         self.base.set_connected(ctx, false);
+                        self.retry_transport();
                     }
                 }
             }
@@ -292,16 +332,31 @@ impl OscModuleBase {
 
     fn drain_transport_events(&mut self, ctx: &mut ProcessCtx) {
         let mut worker_events = Vec::new();
-        let Some(transport) = &self.transport else {
-            return;
+        let retiring = self.transport.is_none();
+        let transport = if retiring {
+            self.retiring_transport.as_ref()
+        } else {
+            self.transport.as_ref()
         };
-
-        let worker_disconnected =
-            transport.drain_events(&mut worker_events).state == PendingDrainState::Disconnected;
-
+        let Some(transport) = transport else { return };
+        let disconnected = transport.drain_events(&mut worker_events).state == PendingDrainState::Disconnected;
         let mut received_message = false;
         for event in worker_events {
             match event {
+                OscWorkerEvent::Ready(address) => {
+                    if !retiring {
+                        self.transport_ready = true;
+                        NodeHandle::new(self.id()).clear_warning(ctx, Some(OSC_RECEIVER_WARNING_ID));
+                        self.transport_dirty = true;
+                        if self
+                            .last_transport_config
+                            .as_ref()
+                            .is_some_and(|config| config.receive_enabled)
+                        {
+                            self.log_receiver_bound(&address.ip().to_string(), address.port());
+                        }
+                    }
+                }
                 OscWorkerEvent::Message(message) => {
                     received_message = true;
                     self.enqueue_incoming_message(message);
@@ -309,18 +364,28 @@ impl OscModuleBase {
                 OscWorkerEvent::Error(error) => {
                     logerror!("OSC transport error: {}", error);
                 }
+                OscWorkerEvent::Failed(error) => {
+                    self.transport_ready = false;
+                    NodeHandle::new(self.id()).set_warning_with(ctx, Some(OSC_RECEIVER_WARNING_ID), &error, None);
+                    self.base.set_connected(ctx, false);
+                    logerror!("OSC transport failed: {}", error);
+                }
             }
         }
-
         if received_message {
             self.base.emit_incoming_traffic(ctx);
         }
-
-        if worker_disconnected {
-            logerror!("OSC transport worker disconnected");
-            self.stop_transport();
-            self.last_transport_config = None;
-            self.transport_dirty = true;
+        if disconnected {
+            if retiring {
+                self.retiring_transport = None;
+                self.transport_dirty = true;
+                self.retry_at = None;
+            } else {
+                self.stop_transport();
+                self.last_transport_config = None;
+                self.base.set_connected(ctx, false);
+                self.retry_transport();
+            }
         }
     }
 
@@ -455,18 +520,14 @@ impl OscModuleBase {
             });
         }
 
-        let transport = self
-            .transport
-            .as_ref()
-            .ok_or_else(|| OscQueueError {
-                queued: 0,
-                message: "OSC transport is not available".to_string(),
-            })?;
-        self::osc_message::encode_packet(address, payload)
-            .map_err(|error| OscQueueError {
-                queued: 0,
-                message: format!("cannot encode OSC message '{}': {error}", address.trim()),
-            })?;
+        let transport = self.transport.as_ref().ok_or_else(|| OscQueueError {
+            queued: 0,
+            message: "OSC transport is not available".to_string(),
+        })?;
+        self::osc_message::encode_packet(address, payload).map_err(|error| OscQueueError {
+            queued: 0,
+            message: format!("cannot encode OSC message '{}': {error}", address.trim()),
+        })?;
 
         let shared_address: Arc<str> = Arc::from(address);
         let mut queued = 0usize;
@@ -542,11 +603,7 @@ impl OscModuleBase {
         Ok(format!("Queued OSC {} for {} output(s)", request.address, queued))
     }
 
-    pub(crate) fn emit_osc_message_received_callback(
-        &self,
-        ctx: &mut ProcessCtx,
-        message: &OscDecodedMessage,
-    ) {
+    pub(crate) fn emit_osc_message_received_callback(&self, ctx: &mut ProcessCtx, message: &OscDecodedMessage) {
         crate::app::module::script_api::emit_script_callback(
             ctx,
             self.id(),
@@ -583,7 +640,10 @@ impl OscModuleBase {
             address,
             arguments: args.iter().skip(1).cloned().collect(),
         };
-        Some(self.queue_custom_message(ctx, snapshot_arc.as_ref(), &request).map(|_| ()))
+        Some(
+            self.queue_custom_message(ctx, snapshot_arc.as_ref(), &request)
+                .map(|_| ()),
+        )
     }
 
     fn on_custom_event_inner(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
@@ -751,7 +811,8 @@ impl Node for OscModuleBase {
         self.interface_refresh_elapsed += ctx.delta_time.as_secs_f64();
 
         let refresh_interface_options = self.interface_refresh_due();
-        let needs_snapshot = refresh_interface_options || self.transport_dirty || !self.pending_outbound_nodes.is_empty();
+        let needs_snapshot =
+            refresh_interface_options || self.transport_dirty || !self.pending_outbound_nodes.is_empty();
         if !needs_snapshot {
             return;
         }
@@ -777,10 +838,17 @@ impl Node for OscModuleBase {
 
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {
         self.stop_transport();
+        self.pending_incoming_messages.clear();
+        self.pending_outbound_nodes.clear();
+        self.ignored_param_changes.clear();
     }
 
     fn needs_update(&self) -> bool {
-        self.transport_dirty
+        self.transport_dirty && self.retiring_transport.is_none() && self.transport_retry_due()
+            || self
+                .retiring_transport
+                .as_ref()
+                .is_some_and(|transport| transport.has_pending())
             || !self.pending_outbound_nodes.is_empty()
             || !self.pending_incoming_messages.is_empty()
             || self.transport.as_ref().is_some_and(|t| t.has_pending())
@@ -794,14 +862,17 @@ impl Node for OscModuleBase {
         // triggers the snapshot. Removing it avoids a build_process_tree_snapshot()
         // call (O(N_total_nodes)) every tick for every idle-but-connected OSC module.
         self.interface_refresh_due()
-            || self.transport_dirty
+            || self.transport_dirty && self.retiring_transport.is_none() && self.transport_retry_due()
+            || self
+                .retiring_transport
+                .as_ref()
+                .is_some_and(|transport| transport.has_pending())
             || !self.pending_outbound_nodes.is_empty()
             || !self.pending_incoming_messages.is_empty()
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
-        NodeExecutionRule::periodic(OSC_MODULE_UPDATE_RATE_HZ)
-            .with_compiled_kernel(OSC_COMPILED_KERNEL)
+        NodeExecutionRule::periodic(OSC_MODULE_UPDATE_RATE_HZ).with_compiled_kernel(OSC_COMPILED_KERNEL)
     }
 
     fn child_event_interest_depth(&self, _event: &Event) -> u32 {
@@ -849,166 +920,4 @@ impl Node for OscModuleBase {
     fn project_create(node_type: &str) -> Option<Self> {
         (node_type == Self::NODE_TYPE).then(Self::create)
     }
-}
-
-fn collect_outputs_recursive(snapshot: &ProcessTreeSnapshot, parent: NodeId, output: &mut Vec<NodeId>) {
-    for child_id in snapshot.child_ids(parent) {
-        let Some(child_snapshot) = snapshot.node(child_id) else {
-            continue;
-        };
-
-        if child_snapshot.node_type == OSC_OUTPUT_NODE_TYPE {
-            output.push(child_id);
-        } else if child_snapshot.node_type == "folder" {
-            collect_outputs_recursive(snapshot, child_id, output);
-        }
-    }
-}
-
-fn resolve_outgoing_target(snapshot: &ProcessTreeSnapshot, node_id: NodeId) -> Option<NodeId> {
-    let node = snapshot.node(node_id)?;
-    node.param_value.as_ref()?;
-
-    let parent_id = node.parent?;
-    let parent = snapshot.node(parent_id)?;
-    if parent.node_type == "folder"
-        && indexed_value_label_index(node.label.as_str()).is_some()
-        && has_indexed_value_children(snapshot, parent_id)
-    {
-        return Some(parent_id);
-    }
-
-    Some(node_id)
-}
-
-fn outgoing_address_for_values_node(
-    snapshot: &ProcessTreeSnapshot,
-    values_id: NodeId,
-    target_id: NodeId,
-) -> Option<String> {
-    let mut segments = Vec::new();
-    let mut current = Some(target_id);
-
-    while let Some(node_id) = current {
-        if node_id == values_id {
-            break;
-        }
-
-        let node = snapshot.node(node_id)?;
-        let segment = node.label.trim().trim_matches('/');
-        if !segment.is_empty() {
-            segments.push(segment.to_string());
-        }
-        current = node.parent;
-    }
-
-    if current != Some(values_id) || segments.is_empty() {
-        return None;
-    }
-
-    segments.reverse();
-    Some(format!("/{}", segments.join("/")))
-}
-
-fn outgoing_payload_for_target(snapshot: &ProcessTreeSnapshot, target_id: NodeId) -> Option<OscValuePayload> {
-    let target = snapshot.node(target_id)?;
-    if let Some(value) = target.param_value.clone() {
-        return Some(OscValuePayload::Single(value));
-    }
-
-    if target.node_type != "folder" {
-        return None;
-    }
-
-    let mut indexed_values = snapshot
-        .child_ids(target_id)
-        .into_iter()
-        .filter_map(|child_id| {
-            let child = snapshot.node(child_id)?;
-            let index = indexed_value_label_index(child.label.as_str())?;
-            let value = child.param_value.clone()?;
-            Some((index, value))
-        })
-        .collect::<Vec<_>>();
-    indexed_values.sort_by_key(|(index, _)| *index);
-
-    if indexed_values.is_empty() {
-        return None;
-    }
-
-    Some(OscValuePayload::Multi(
-        indexed_values.into_iter().map(|(_, value)| value).collect(),
-    ))
-}
-
-fn child_string_param(snapshot: &ProcessTreeSnapshot, parent: NodeId, child_name: &str) -> Option<String> {
-    snapshot.find_child_by_decl_id(parent, child_name).and_then(|child_id| {
-        snapshot
-            .node(child_id)
-            .and_then(|node| node.param_value.as_ref())
-            .and_then(ParamValue::as_str)
-    })
-}
-
-fn child_int_param(snapshot: &ProcessTreeSnapshot, parent: NodeId, child_name: &str) -> Option<i32> {
-    snapshot.find_child_by_decl_id(parent, child_name).and_then(|child_id| {
-        snapshot
-            .node(child_id)
-            .and_then(|node| node.param_value.as_ref())
-            .and_then(ParamValue::as_int)
-    })
-}
-
-fn format_osc_payload(payload: &OscValuePayload) -> String {
-    match payload {
-        OscValuePayload::Single(value) => format_param_value(value),
-        OscValuePayload::Multi(values) => format!(
-            "[{}]",
-            values.iter().map(format_param_value).collect::<Vec<_>>().join(", ")
-        ),
-        OscValuePayload::Arguments(values) => format!(
-            "[{}]",
-            values.iter().map(format_param_value).collect::<Vec<_>>().join(", ")
-        ),
-    }
-}
-
-fn format_param_value(value: &ParamValue) -> String {
-    match value {
-        ParamValue::Trigger() => "trigger".to_string(),
-        ParamValue::Int(value) => value.to_string(),
-        ParamValue::Float(value) => value.to_string(),
-        ParamValue::Str(value) | ParamValue::File(value) | ParamValue::Enum(value) => value.clone(),
-        ParamValue::Bool(value) => value.to_string(),
-        ParamValue::Vec2(x, y) => format!("({}, {})", x, y),
-        ParamValue::Vec3(x, y, z) => format!("({}, {}, {})", x, y, z),
-        ParamValue::Color(r, g, b, a) => format!("rgba({}, {}, {}, {})", r, g, b, a),
-        ParamValue::CssValue(value) => format!("{value:?}"),
-        ParamValue::Reference(reference) => format!("{reference:?}"),
-    }
-}
-
-fn indexed_value_label_index(label: &str) -> Option<usize> {
-    let suffix = label.strip_prefix(VALUE_LABEL_PREFIX)?;
-    suffix.parse::<usize>().ok()?.checked_sub(1)
-}
-
-fn has_indexed_value_children(snapshot: &ProcessTreeSnapshot, folder_id: NodeId) -> bool {
-    snapshot.child_ids(folder_id).into_iter().any(|child_id| {
-        snapshot
-            .node(child_id)
-            .is_some_and(|child| indexed_value_label_index(child.label.as_str()).is_some())
-    })
-}
-
-fn is_descendant_of_node(snapshot: &ProcessTreeSnapshot, start: NodeId, ancestor: NodeId) -> bool {
-    let mut current = Some(start);
-    while let Some(node_id) = current {
-        if node_id == ancestor {
-            return true;
-        }
-        current = snapshot.node(node_id).and_then(|node| node.parent);
-    }
-
-    false
 }

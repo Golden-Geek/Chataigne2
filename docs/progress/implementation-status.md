@@ -5,10 +5,10 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-21 on `main`, after delivered `115eaf59`, plus the verified C02
-closure below. No unrelated edits were present. Signals/Metronomes now use bounded workers,
-passive engine service and nonblocking cancellation. The earlier borrowed-view candidate
-remains removed; general snapshot/DTO scaling is P16 work.
+Last reconciled: 2026-10-21 on `main`, after delivered `9a4079c6`, plus the C03 OSC native
+worker milestone below. No unrelated edits were present. C02 remains closed. C03 is in progress:
+OSC native ownership is delivered; remaining OSC actor work and MIDI are still open.
+General snapshot/DTO scaling remains P16 work.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
 plan. Its complete contents, including the uncommitted clarification, survive in the
@@ -73,20 +73,20 @@ several reviewable commits, and a review may establish that an existing implemen
 passes. **Remaining closure packages: 11 open, one closed (C02).** This count does not discard prior P03
 work or replace the workstream percentages above.
 
-| ID  | Status            | Scope                            | Required closure                                                                                                                                                    |
-| --- | ----------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| C01 | OPEN              | Sound Card                       | Finish bounded preparation/application/publication, derived structure/default routes, feedback, command diagnostics and native failure/reconfiguration fences.      |
-| C02 | **CLOSED (100%)** | Signals and Metronomes           | Verified: bounded command/configuration bytes, 64-row publication turns, elapsed-time/occurrence preservation, nonblocking retirement and passive failure/recovery. |
-| C03 | OPEN              | MIDI and OSC                     | Audit and repair ingress/egress admission, service budgets, callback work, retirement, failure and endpoint recovery.                                               |
-| C04 | OPEN              | MQTT                             | Bound channels/payloads and service, preserve accepted delivery, retire workers safely and verify reconnect/failure behavior.                                       |
-| C05 | OPEN              | DMX                              | Close P03 lifecycle/admission/retirement/recovery requirements; DMX stream correctness remains separately P07.                                                      |
-| C06 | OPEN              | App Control and OS               | Close worker/service/cleanup bounds, failure ownership and recovery without recurring main-thread polling or blocking joins.                                        |
-| C07 | OPEN              | Buttplug                         | Close channel/payload/service bounds, accepted-command ownership, retirement and connection recovery.                                                               |
-| C08 | OPEN              | Joy-Con                          | Close channel/payload/service bounds, callback fan-out, retirement and device recovery.                                                                             |
-| C09 | OPEN              | Keyboard and Mouse               | Close bounded event delivery, callback work and hook-worker retirement/failure ownership.                                                                           |
-| C10 | OPEN              | Ultraleap                        | Close event/payload/service bounds, worker retirement and service/device recovery.                                                                                  |
-| C11 | OPEN              | Gamepad, Kinect2 and Stream Deck | Audit indirect/shared runtime paths as well as local code; repair and verify any P03 ownership/bounds/recovery gaps.                                                |
-| C12 | OPEN              | Spatializer; Node Control absent | Bound Spatializer computation, graph mutation and callback fan-out; do not implement the empty Node Control placeholder.                                            |
+| ID  | Status            | Scope                            | Required closure                                                                                                                                                              |
+| --- | ----------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| C01 | OPEN              | Sound Card                       | Finish bounded preparation/application/publication, derived structure/default routes, feedback, command diagnostics and native failure/reconfiguration fences.                |
+| C02 | **CLOSED (100%)** | Signals and Metronomes           | Verified: bounded command/configuration bytes, 64-row publication turns, elapsed-time/occurrence preservation, nonblocking retirement and passive failure/recovery.           |
+| C03 | IN PROGRESS       | MIDI and OSC                     | OSC native startup/cleanup, queue weights, prefix preservation and recovery delivered. OSC actor-side capture/DNS/options/fan-out/publication and MIDI ownership remain open. |
+| C04 | OPEN              | MQTT                             | Bound channels/payloads and service, preserve accepted delivery, retire workers safely and verify reconnect/failure behavior.                                                 |
+| C05 | OPEN              | DMX                              | Close P03 lifecycle/admission/retirement/recovery requirements; DMX stream correctness remains separately P07.                                                                |
+| C06 | OPEN              | App Control and OS               | Close worker/service/cleanup bounds, failure ownership and recovery without recurring main-thread polling or blocking joins.                                                  |
+| C07 | OPEN              | Buttplug                         | Close channel/payload/service bounds, accepted-command ownership, retirement and connection recovery.                                                                         |
+| C08 | OPEN              | Joy-Con                          | Close channel/payload/service bounds, callback fan-out, retirement and device recovery.                                                                                       |
+| C09 | OPEN              | Keyboard and Mouse               | Close bounded event delivery, callback work and hook-worker retirement/failure ownership.                                                                                     |
+| C10 | OPEN              | Ultraleap                        | Close event/payload/service bounds, worker retirement and service/device recovery.                                                                                            |
+| C11 | OPEN              | Gamepad, Kinect2 and Stream Deck | Audit indirect/shared runtime paths as well as local code; repair and verify any P03 ownership/bounds/recovery gaps.                                                          |
+| C12 | OPEN              | Spatializer; Node Control absent | Bound Spatializer computation, graph mutation and callback fan-out; do not implement the empty Node Control placeholder.                                                      |
 
 The [initial ownership/acceptance audit](p03-closure-audit.md) is now complete across C01-C12.
 It records confirmed source gaps, existing safeguards, missing qualification and finish tests.
@@ -102,28 +102,31 @@ or completion credit. Snapshot/DTO scaling remains an explicit P16 investigation
 
 ## Current handoff
 
-- Current delivery: **C02 closed**. Signals/Metronomes have bounded command/configuration and
-  publication retention, 64-row actor drains, passive worker wakes, explicit rejection/retry,
-  node warnings, nonblocking cancellation and bounded lifetime ownership. Time/phase/due-prefix
-  behavior and script surfaces are preserved. **11 closure packages remain open; one is closed.**
-  Whole plan is **16%**, P03 **80%**, Sound Card **50% partial** under the rubric above.
-- Checkout reconciled at delivered `115eaf59`, matching fetched `origin/main`, before this
+- Current delivery: **C03 OSC native worker portion**, following C02 at `9a4079c6`.
+  Native binding/DNS/polling/cleanup runs on bounded owners, with 16 lifetime slots, item/byte
+  admission, received-prefix backpressure, independent output service and nonblocking drop.
+  The module consumes actual readiness before Connected, retires accepted prefixes before
+  replacement and retries terminal failure after 250 ms. **C03 is not closed.**
+  Counts and percentages remain **11 open / one closed**, **16% overall / 80% P03**;
+  Sound Card remains **50% partial**. OSC actor work and MIDI still require qualification.
+- Checkout reconciled at delivered `9a4079c6`, matching fetched `origin/main`, before this
   milestone. `d3a45301` removed automatic effort-switching rules; older effort notes are historical.
-- Current local checks: **64 generator tests**, **three generator preflight tests**,
-  **52 golden_io tests**, and **543 other app preservation tests** passed: **610 distinct app
-  passes of 1055 listed**. Workspace/test compilation, strict Clippy, native build and protocol
-  codegen passed; generated bindings are unchanged. The C02 entry below records final evidence.
-  Core/foundation suites retain batch 56 evidence (590 Core passed / three existing ignored;
-  25 parameter tests). UI/macro/codegen-support suites retain batch 55 evidence. No full Formula
-  pass is claimed: its three existing creation failures remain P08/P12 gates.
+- Current local checks are recorded in the C03 entry below. Core/foundation retain batch 56
+  evidence (590 Core passed / three existing ignored; 25 parameter tests). IO retains C02's
+  52-test evidence. UI/macro/codegen-support retain batch 55 evidence. No full Formula pass is
+  claimed: its three existing creation failures remain P08/P12 gates.
+- C03 current evidence: **39 OSC cases and 585 other app preservation cases passed**, or
+  **624 distinct app tests of 1069 listed**. Workspace/test check, strict all-target Clippy,
+  native build and unchanged protocol generation passed. Core/foundation/IO/UI suites above
+  retain their stated dates; they are not counted as fresh C03 checks.
 - Scope: **foundation and readiness**. P01/P02 are verified locally, P03 remains in progress,
   P04-P18 have not started. Full lighting/video/projection authoring remains deferred.
-- Next action: **C03 MIDI/OSC**. Repair and qualify its concrete ingress/egress admission,
-  callback service, retirement, failure and endpoint-recovery gaps using the existing public IO
-  contracts. C01 and C04-C12 remain explicit closure packages. Fifteen implemented families plus
-  Sound Card remain to qualify; Node Control is an empty placeholder. Generic Core copy/scaling
-  work is P16 unless a P03 failure is reproduced. Preserve generator, stream/HTTP, audio and
-  Mapping regression gates. Do not reopen C02 as another prerequisite chain.
+- Next action: **continue C03**. Finish OSC actor-side source capture/prevalidation, output DNS
+  and interface discovery, bounded fan-out and received-value/callback publication, then qualify
+  MIDI native setup/discovery/send/cleanup, callback admission and endpoint recovery. Reuse
+  existing public IO and app preparation contracts. Keep C01 and C04-C12 explicit; do not count
+  the OSC worker milestone as full OSC or C03 closure. Preserve generator, stream/HTTP, audio
+  and Mapping gates. General Core copy/scaling work remains P16 without a concrete P03 failure.
 - Delivery: continue on `main`; commit and push every verified milestone to `origin/main`.
   Mapping was merged in `f02205af`. Earlier branch/pause/effort instructions below are historical.
 - Known unrefreshed gate: October Rustls advisory failure. Native UI, physical devices, other
@@ -4788,3 +4791,65 @@ unchanged suites are not claimed as rerun. Product-scale timing stays P16. C02 i
 verified**, while **C01 and C03-C12 remain open (11 packages)**. Remaining-module closure coverage
 is now 1/11; P03 is approximately **80%**, whole plan **16%**. P04-P18 retain their prior states.
 Commit and push this verified package before starting C03.
+
+### P03 C03 progress: OSC native worker ownership
+
+Implemented after `9a4079c6` on 2026-10-21. C03 remains open: this delivers OSC's native worker
+boundary, not full OSC/MIDI qualification. The [OSC ownership contract](../architecture/osc-runtime.md)
+records the delivered limits and remaining actor-side responsibilities.
+
+OSC now uses `BoundedWorker` with 16 lifetime slots reserved before thread creation, a
+256-item / 4 MiB command mailbox, 128 KiB per-command retained-weight admission, and a
+128-item / 2 MiB event mailbox. Checks include spare string/vector storage, expanded argument
+count and reference shape. A packet framing/shape guard bounds datagram length, bundle width/
+depth and array nesting before rosc performs codec work. Encoded output over 65507 bytes is
+rejected on the worker before native transmission.
+
+Binding resolution, socket/poll setup and final native cleanup now belong to the worker.
+Explicit stop/drop cancels without joining. A blocked setup/cleanup keeps its lifetime slot;
+new admission recovers only after actual exit. Failed native wake preserves the accepted
+command result, with bounded fallback service instead of reporting false rejection or replay.
+Native wake-handle ownership is cleared on the worker before releasing its lifetime slot.
+Native replies backpressure input while independent output continues. An admitted bundle's
+remaining messages survive a fatal poll error behind a full mailbox. Setup failure closes
+admission and reports each accepted unsent command exactly once.
+
+Module reconfiguration retains the old handle through graceful command/input-prefix retirement
+before starting a replacement. Connected follows a consumed Ready event with the actual local
+address. Fatal failure is distinct from per-command errors, carries a node warning, and retries
+after 250 ms. Disable/removal remain explicit cancellation boundaries; destruction clears stale
+pending actor state. Native cleanup cannot run in those actor callbacks.
+
+The prior connection fixture assumed one engine tick completed native binding. It now drives
+normal edit/inbox/tick service until readiness is consumed, using a deadline rather than a fixed
+sleep. The one-packet fixture drains until the packet itself arrives: a scheduling hint can
+outlive a Ready event consumed before its final notification. Tests retain their no-extra-packet
+requirement. The oversized OSC helper/test files were split into cohesive source/test modules,
+with no new size exception.
+
+OSC actor-side remote DNS, interface enumeration, payload capture/prevalidation, recursive output
+fan-out and received-value/script publication remain open, as does passive module scheduling.
+MIDI remains untouched. These concrete C03 gaps are not deferred to P16 or waived by worker tests.
+**11 closure packages remain open; C02 is the only closed package. P03 stays 80%, whole plan 16%.**
+
+Final verification:
+
+| Check                                                                             | Result                                                                                   |
+| --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| OSC compiled-name selection, `--test-threads=4 --quiet`                           | 39 passed: 25 preserved and 14 new native ownership, pressure, shape and recovery cases. |
+| Disjoint app preservation selections                                              | 585 other passes; **624 distinct app passes of 1069 listed** with OSC.                   |
+| `cargo check --locked --workspace --tests`                                        | Passed.                                                                                  |
+| `cargo clippy --locked --workspace --all-targets -- -D warnings`                  | Passed.                                                                                  |
+| `cargo build --locked -p Chataigne2 --bin Chataigne2`                             | Passed; existing UI bundle reused.                                                       |
+| UI protocol codegen and generated-directory diff                                  | Passed; bindings unchanged.                                                              |
+| Root/Core Cargo format, touched app rustfmt, maintained-doc format and whitespace | Passed.                                                                                  |
+
+Final test executable SHA256:
+`78b15c870b4537e543a6022431eca5ef2c2fec42ddd50931e81148431628b360`.
+All selections ran from `apps/chataigne`. Windows permits a wildcard UDP bind while a specific
+loopback binding holds the same port; the recovery fixture now reserves the same wildcard
+address as the module. It proves an actual bind failure, then recovery after releasing that port.
+The source scan finds **1639 files / 39 oversized**, using the maintained extensions/directory
+exclusions; the two touched oversized OSC files were split, with no new size exception.
+No new dependencies, protocol DTOs, persistence formats, hardware or desktop automation were used.
+All owned jobs are terminal. Commit and push this milestone before continuing C03 actor work.

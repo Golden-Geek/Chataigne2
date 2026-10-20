@@ -4,9 +4,29 @@ use golden_core::parameter::ParamValue;
 use golden_io::PendingDrainState;
 use rosc::{decoder, encoder, OscMessage, OscPacket, OscType};
 
-use super::{
-    should_ignore_receive_error, OscOutboundMessage, OscTransportConfig, OscTransportHandle, OscValuePayload,
-};
+use super::{should_ignore_receive_error, OscOutboundMessage, OscTransportConfig, OscTransportHandle, OscValuePayload};
+
+mod admission;
+mod ownership;
+
+fn wait_ready(handle: &OscTransportHandle) -> std::net::SocketAddr {
+    let deadline = std::time::Instant::now() + Duration::from_secs(3);
+    loop {
+        let mut events = Vec::new();
+        handle.drain_events(&mut events);
+        if let Some(event) = events.into_iter().next() {
+            match event {
+                super::OscWorkerEvent::Ready(address) => return address,
+                super::OscWorkerEvent::Error(error) | super::OscWorkerEvent::Failed(error) => {
+                    panic!("OSC startup failed: {error}")
+                }
+                super::OscWorkerEvent::Message(_) => panic!("input preceded socket readiness"),
+            }
+        }
+        assert!(std::time::Instant::now() < deadline);
+        std::thread::yield_now();
+    }
+}
 
 #[test]
 fn ignores_windows_udp_icmp_connreset_receive_error() {
@@ -62,19 +82,13 @@ fn worker_send_uses_waker_and_pre_resolved_remote_address() {
 
 #[test]
 fn received_packet_publishes_pending_without_an_unrelated_wakeup() {
-    let reserved = UdpSocket::bind("127.0.0.1:0").expect("test port should be reservable");
-    let port = reserved
-        .local_addr()
-        .expect("reserved socket should expose its address")
-        .port();
-    drop(reserved);
-
     let mut handle = OscTransportHandle::spawn(OscTransportConfig {
         bind_interface_host: "127.0.0.1".to_string(),
-        bind_port: port,
+        bind_port: 0,
         receive_enabled: true,
     })
     .expect("OSC receiver should start");
+    let address = wait_ready(&handle);
     let sender = UdpSocket::bind("127.0.0.1:0").expect("test sender should bind");
     let packet = OscPacket::Message(OscMessage {
         addr: "/pending/only-packet".to_string(),
@@ -82,21 +96,22 @@ fn received_packet_publishes_pending_without_an_unrelated_wakeup() {
     });
     let bytes = encoder::encode(&packet).expect("test OSC packet should encode");
     sender
-        .send_to(bytes.as_slice(), ("127.0.0.1", port))
+        .send_to(bytes.as_slice(), address)
         .expect("test OSC packet should send");
 
     let deadline = std::time::Instant::now() + Duration::from_secs(2);
-    while !handle.has_pending() {
+    let mut events = Vec::new();
+    while events.is_empty() {
         assert!(
             std::time::Instant::now() < deadline,
             "the only OSC packet must publish readiness without a second packet or command wakeup"
         );
+        // Readiness is a scheduling hint: a Ready publication consumed before
+        // its final notification can leave an empty drain before this packet.
+        let drain = handle.drain_events(&mut events);
+        assert_ne!(drain.state, PendingDrainState::Disconnected);
         std::thread::yield_now();
     }
-
-    let mut events = Vec::new();
-    let drain = handle.drain_events(&mut events);
-    assert_ne!(drain.state, PendingDrainState::Disconnected);
     assert_eq!(
         events,
         vec![super::OscWorkerEvent::Message(super::OscDecodedMessage {
