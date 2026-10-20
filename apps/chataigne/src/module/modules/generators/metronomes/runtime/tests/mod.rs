@@ -1,3 +1,5 @@
+mod admission;
+
 use super::*;
 use golden_core::node::NodeUuid;
 
@@ -119,29 +121,73 @@ fn tempo_command_waits_for_the_old_tempos_entire_due_prefix() {
 
 #[test]
 fn stop_cancels_an_enormous_elapsed_backlog_between_worker_turns() {
+    let pool = golden_io::RetirementPool::new(NonZeroUsize::MIN);
     let origin = Instant::now() - Duration::from_secs(1_000_000);
     let state = WorkerState::new(config(0.001), origin);
-    let slot = MetronomeEventSlot::new();
-    let worker_slot = slot.clone();
-    let stopped = Arc::new(AtomicBool::new(false));
-    let worker_stopped = stopped.clone();
-    let (commands, receiver) = mpsc::channel();
-    let (done_tx, done_rx) = mpsc::channel();
-    commands.send(MetronomeWorkerCommand::Configure(config(2.0))).unwrap();
-    let worker = thread::spawn(move || {
-        worker_loop(receiver, worker_slot, state, worker_stopped);
-        done_tx.send(()).unwrap();
-    });
+    let worker = BoundedWorker::spawn("metronome-catch-up", &pool, generators::limits(), move |context| {
+        worker_loop(context, state)
+    })
+    .unwrap();
+    worker
+        .send_weighted(MetronomeWorkerCommand::Configure(config(2.0)), 1024)
+        .unwrap();
     let deadline = Instant::now() + Duration::from_secs(3);
-    while !slot.has_pending() {
+    while worker.event_metrics().depth == 0 {
         assert!(Instant::now() < deadline);
-        thread::yield_now();
+        std::thread::yield_now();
     }
-    stopped.store(true, Ordering::Release);
-    let _ = commands.send(MetronomeWorkerCommand::Stop);
-    done_rx
-        .recv_timeout(Duration::from_secs(3))
-        .expect("cancellation must not wait for one billion due ticks");
-    worker.join().unwrap();
-    assert!(slot.take().unwrap().ticks[&NodeId(1)].total_ticks < 1_000_000_000);
+    worker.cancel();
+    assert!(
+        pool.wait_for_idle(Duration::from_secs(3)),
+        "cancellation must not wait for one billion due ticks or a full event mailbox"
+    );
+    let mut events = Vec::new();
+    worker.drain_events(&mut events, NonZeroUsize::new(8).unwrap());
+    assert!(!events.is_empty());
+    assert!(events.last().unwrap().ticks[&NodeId(1)].total_ticks < 1_000_000_000);
+}
+
+use std::sync::Mutex;
+
+#[derive(Default)]
+struct MetronomeEventSlot(Mutex<Option<MetronomeWorkerEvent>>);
+
+impl MetronomeEventSlot {
+    fn new() -> Self {
+        Self::default()
+    }
+    fn take(&self) -> Option<MetronomeWorkerEvent> {
+        self.0.lock().unwrap().take()
+    }
+}
+
+impl EventSink<MetronomeWorkerEvent> for MetronomeEventSlot {
+    fn publish(&self, event: MetronomeWorkerEvent) -> bool {
+        if event.ticks.is_empty() {
+            return true;
+        }
+        let mut slot = self.0.lock().unwrap();
+        if let Some(existing) = slot.as_mut() {
+            merge_metronome_event(existing, event);
+        } else {
+            *slot = Some(event);
+        }
+        true
+    }
+}
+
+fn merge_metronome_event(existing: &mut MetronomeWorkerEvent, next: MetronomeWorkerEvent) {
+    for (item_id, next_tick) in next.ticks {
+        existing
+            .ticks
+            .entry(item_id)
+            .and_modify(|tick| {
+                tick.label = next_tick.label.clone();
+                tick.fired = tick.fired.saturating_add(next_tick.fired);
+                tick.total_ticks = next_tick.total_ticks;
+                tick.interval_seconds = next_tick.interval_seconds;
+                tick.last_gap_seconds = next_tick.last_gap_seconds;
+            })
+            .or_insert(next_tick);
+    }
 }

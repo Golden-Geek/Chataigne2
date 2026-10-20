@@ -6,6 +6,7 @@ use crate::{BoundedQueue, ReconnectBackoff, RetirementPool, WorkerTask};
 
 mod bounded_worker;
 mod pending;
+mod worker_deadlines;
 
 #[test]
 fn reconnect_backoff_is_capped_and_resets_after_success() {

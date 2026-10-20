@@ -13,7 +13,9 @@ mod worker;
 
 pub mod testkit;
 
-pub use bounded_worker::{BoundedWorker, WorkerCancellation, WorkerContext, WorkerLimits, WorkerStartError};
+pub use bounded_worker::{
+    BoundedWorker, WorkerCancellation, WorkerContext, WorkerLimits, WorkerReceive, WorkerStartError,
+};
 pub use deadline::DelayedNotifier;
 pub use notifier::WorkerNotifier;
 pub use payload::{PayloadCapacityError, PayloadPool, PayloadReservation, RetainedPayload, SharedPayload};

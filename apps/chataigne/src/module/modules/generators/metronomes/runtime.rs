@@ -1,15 +1,11 @@
+use crate::app::module::common::generators::{self, AdmissionError, EventSink, EVENT_ROWS};
+use golden_core::node::NodeId;
+use golden_io::{BoundedWorker, WorkerContext, WorkerNotifier, WorkerReceive};
 use std::{
     collections::{HashMap, HashSet},
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        mpsc::{self, Receiver, Sender},
-        Arc, Mutex,
-    },
-    thread::{self, JoinHandle},
+    num::NonZeroUsize,
     time::{Duration, Instant},
 };
-
-use golden_core::node::NodeId;
 
 use super::{
     metronome_gap_seconds, synchronize_metronome_state, MetronomeConfig, MetronomeRuntimeState, MAX_TICKS_PER_UPDATE,
@@ -19,6 +15,29 @@ use super::{
 pub(super) struct MetronomeWorkerConfig {
     pub(super) update_rate_hz: u32,
     pub(super) metronomes: Vec<MetronomeConfig>,
+}
+
+impl MetronomeWorkerConfig {
+    fn weight(&self) -> Result<usize, AdmissionError> {
+        generators::check_items(self.metronomes.len())?;
+        let mut weight = self
+            .metronomes
+            .capacity()
+            .saturating_mul(std::mem::size_of::<MetronomeConfig>());
+        for item in &self.metronomes {
+            generators::check_text(&item.label)?;
+            generators::check_text(&item.value_decl_id)?;
+            weight = weight
+                .saturating_add(item.label.capacity())
+                .saturating_add(item.value_decl_id.capacity());
+        }
+        if weight > generators::MAX_CONFIG_WEIGHT {
+            return Err(AdmissionError::Invalid(
+                "generator configuration exceeds 32 MiB retained-weight limit",
+            ));
+        }
+        Ok(weight)
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -36,130 +55,73 @@ pub(super) struct MetronomeWorkerEvent {
     pub(super) ticks: HashMap<NodeId, MetronomeWorkerTick>,
 }
 
+#[derive(Debug)]
 enum MetronomeWorkerCommand {
     Configure(MetronomeWorkerConfig),
     Reset(Vec<NodeId>),
     ManualTick(NodeId),
-    Stop,
-}
-
-#[derive(Clone)]
-struct MetronomeEventSlot {
-    event: Arc<Mutex<Option<MetronomeWorkerEvent>>>,
-    pending: Arc<AtomicBool>,
-}
-
-impl MetronomeEventSlot {
-    fn new() -> Self {
-        Self {
-            event: Arc::new(Mutex::new(None)),
-            pending: Arc::new(AtomicBool::new(false)),
-        }
-    }
-
-    fn publish(&self, event: MetronomeWorkerEvent) {
-        if event.ticks.is_empty() {
-            return;
-        }
-        let Ok(mut guard) = self.event.lock() else {
-            return;
-        };
-        if let Some(existing) = guard.as_mut() {
-            merge_metronome_event(existing, event);
-        } else {
-            *guard = Some(event);
-        }
-        self.pending.store(true, Ordering::Release);
-    }
-
-    fn take(&self) -> Option<MetronomeWorkerEvent> {
-        let Ok(mut guard) = self.event.lock() else {
-            return None;
-        };
-        let event = guard.take();
-        self.pending.store(false, Ordering::Release);
-        event
-    }
-
-    fn has_pending(&self) -> bool {
-        self.pending.load(Ordering::Acquire)
-    }
 }
 
 pub(super) struct MetronomeRuntimeHandle {
-    command_tx: Sender<MetronomeWorkerCommand>,
-    event_slot: MetronomeEventSlot,
-    stopped: Arc<AtomicBool>,
-    worker: Option<JoinHandle<()>>,
+    worker: BoundedWorker<MetronomeWorkerCommand, MetronomeWorkerEvent>,
 }
 
 impl MetronomeRuntimeHandle {
-    pub(super) fn spawn(config: MetronomeWorkerConfig) -> Result<Self, String> {
-        let (command_tx, command_rx) = mpsc::channel();
-        let event_slot = MetronomeEventSlot::new();
-        let worker_event_slot = event_slot.clone();
-        let stopped = Arc::new(AtomicBool::new(false));
-        let worker_stopped = stopped.clone();
-        let worker = thread::Builder::new()
-            .name("metronomes-generator-runtime".to_string())
-            .spawn(move || {
-                worker_loop(
-                    command_rx,
-                    worker_event_slot,
-                    WorkerState::new(config, Instant::now()),
-                    worker_stopped,
-                )
-            })
-            .map_err(|error| format!("failed to start Metronomes worker thread: {error}"))?;
-
-        Ok(Self {
-            command_tx,
-            event_slot,
-            stopped,
-            worker: Some(worker),
-        })
+    pub(super) fn spawn(config: MetronomeWorkerConfig, notifier: WorkerNotifier) -> Result<Self, String> {
+        config.weight().map_err(|error| error.to_string())?;
+        let worker = BoundedWorker::spawn_notified(
+            "metronomes-generator-runtime",
+            generators::lifetimes(),
+            generators::limits(),
+            notifier,
+            move |context| worker_loop(context, WorkerState::new(config, Instant::now())),
+        )
+        .map_err(|error| error.to_string())?;
+        Ok(Self { worker })
     }
 
-    pub(super) fn configure(&self, config: MetronomeWorkerConfig) -> Result<(), String> {
-        self.command_tx
-            .send(MetronomeWorkerCommand::Configure(config))
-            .map_err(|_| "Metronomes worker is no longer running".to_string())
+    pub(super) fn configure(&self, config: MetronomeWorkerConfig) -> Result<(), AdmissionError> {
+        let weight = config.weight()?;
+        self.worker
+            .send_weighted(MetronomeWorkerCommand::Configure(config), weight)
+            .map_err(generators::admission_error)
     }
 
     pub(super) fn reset(&self, item_ids: Vec<NodeId>) -> Result<(), String> {
-        self.command_tx
-            .send(MetronomeWorkerCommand::Reset(item_ids))
-            .map_err(|_| "Metronomes worker is no longer running".to_string())
+        generators::check_items(item_ids.len()).map_err(|error| error.to_string())?;
+        let weight = item_ids.capacity().saturating_mul(std::mem::size_of::<NodeId>());
+        self.worker
+            .send_weighted(MetronomeWorkerCommand::Reset(item_ids), weight)
+            .map_err(generators::admission_error)
+            .map_err(|error| error.to_string())
     }
 
     pub(super) fn manual_tick(&self, item_id: NodeId) -> Result<(), String> {
-        self.command_tx
-            .send(MetronomeWorkerCommand::ManualTick(item_id))
-            .map_err(|_| "Metronomes worker is no longer running".to_string())
+        self.worker
+            .send_weighted(
+                MetronomeWorkerCommand::ManualTick(item_id),
+                std::mem::size_of::<NodeId>(),
+            )
+            .map_err(generators::admission_error)
+            .map_err(|error| error.to_string())
     }
 
     pub(super) fn take_event(&self) -> Option<MetronomeWorkerEvent> {
-        self.event_slot.take()
+        let mut events = Vec::with_capacity(1);
+        self.worker.drain_events(&mut events, NonZeroUsize::MIN);
+        events.pop()
     }
 
     pub(super) fn has_pending(&self) -> bool {
-        self.event_slot.has_pending()
+        self.worker.has_pending()
+    }
+
+    pub(super) fn is_closed(&self) -> bool {
+        !self.worker.is_accepting_commands()
     }
 
     pub(super) fn stop(&mut self) {
-        // Explicit stop cancels catch-up between bounded turns, rather than
-        // waiting for an arbitrarily old elapsed-time backlog before joining.
-        self.stopped.store(true, Ordering::Release);
-        let _ = self.command_tx.send(MetronomeWorkerCommand::Stop);
-        if let Some(worker) = self.worker.take() {
-            let _ = worker.join();
-        }
-    }
-}
-
-impl Drop for MetronomeRuntimeHandle {
-    fn drop(&mut self) {
-        self.stop();
+        self.worker.cancel();
     }
 }
 
@@ -187,7 +149,7 @@ impl WorkerState {
         &mut self,
         now: Instant,
         command: Option<MetronomeWorkerCommand>,
-        event_slot: &MetronomeEventSlot,
+        event_slot: &impl EventSink<MetronomeWorkerEvent>,
     ) -> bool {
         // Settle time under the old configuration before applying a command.
         // Ordinary commands cannot discard elapsed time or postpone the deadline.
@@ -198,7 +160,9 @@ impl WorkerState {
             self.last_update = now;
             delta
         };
-        event_slot.publish(compute_metronome_update(&self.config, &mut self.states, delta_seconds));
+        if !event_slot.publish(compute_metronome_update(&self.config, &mut self.states, delta_seconds)) {
+            return true;
+        }
         let command = self.pending_command.take().or(command);
         if command.is_some()
             && self.config.metronomes.iter().filter(|item| item.enabled).any(|item| {
@@ -223,25 +187,46 @@ impl WorkerState {
     }
 }
 
-fn worker_loop(
-    command_rx: Receiver<MetronomeWorkerCommand>,
-    event_slot: MetronomeEventSlot,
-    mut state: WorkerState,
-    stopped: Arc<AtomicBool>,
-) {
-    while !stopped.load(Ordering::Acquire) {
-        let wait = state.next_update.saturating_duration_since(Instant::now());
+fn worker_loop(context: WorkerContext<MetronomeWorkerCommand, MetronomeWorkerEvent>, mut state: WorkerState) {
+    let publish = |event| publish_event(&context, event);
+    while !context.cancellation().is_cancelled() {
         let command = if state.pending_command.is_some() {
             None
         } else {
-            match command_rx.recv_timeout(wait) {
-                Ok(command) => Some(command),
-                Err(mpsc::RecvTimeoutError::Timeout) => None,
-                Err(mpsc::RecvTimeoutError::Disconnected) => return,
+            match context.receive_until(state.next_update) {
+                WorkerReceive::Command(command) => Some(command),
+                WorkerReceive::Deadline => None,
+                WorkerReceive::Disconnected => return,
             }
         };
-        if state.service(Instant::now(), command, &event_slot) {
+        if state.service(Instant::now(), command, &publish) {
             return;
+        }
+    }
+}
+
+// A slow owner backpressures the worker instead of growing a cross-generation
+// event map. Each actor turn receives at most EVENT_ROWS callbacks. Cancellation
+// interrupts capacity waits and preserves nonblocking owner destruction.
+fn publish_event(
+    context: &WorkerContext<MetronomeWorkerCommand, MetronomeWorkerEvent>,
+    event: MetronomeWorkerEvent,
+) -> bool {
+    let mut rows = event.ticks.into_iter();
+    loop {
+        let batch: HashMap<_, _> = rows.by_ref().take(EVENT_ROWS).collect();
+        if batch.is_empty() {
+            return true;
+        }
+        let weight = batch
+            .values()
+            .map(|row| std::mem::size_of_val(row) + row.label.capacity() + 64)
+            .sum();
+        if context
+            .publish_weighted(MetronomeWorkerEvent { ticks: batch }, weight)
+            .is_err()
+        {
+            return false;
         }
     }
 }
@@ -250,7 +235,7 @@ fn handle_command(
     command: MetronomeWorkerCommand,
     config: &mut MetronomeWorkerConfig,
     states: &mut HashMap<NodeId, MetronomeRuntimeState>,
-    event_slot: &MetronomeEventSlot,
+    event_slot: &impl EventSink<MetronomeWorkerEvent>,
 ) -> bool {
     match command {
         MetronomeWorkerCommand::Configure(next_config) => {
@@ -264,18 +249,20 @@ fn handle_command(
             false
         }
         MetronomeWorkerCommand::Reset(item_ids) => {
+            let active: HashSet<_> = config.metronomes.iter().map(|item| item.item_id).collect();
             for item_id in item_ids {
-                states.insert(item_id, MetronomeRuntimeState::default());
+                if active.contains(&item_id) {
+                    states.insert(item_id, MetronomeRuntimeState::default());
+                }
             }
             false
         }
         MetronomeWorkerCommand::ManualTick(item_id) => {
             if let Some(event) = manual_tick(config, states, item_id) {
-                event_slot.publish(event);
+                return !event_slot.publish(event);
             }
             false
         }
-        MetronomeWorkerCommand::Stop => true,
     }
 }
 
@@ -348,22 +335,6 @@ fn manual_tick(
         },
     );
     Some(event)
-}
-
-fn merge_metronome_event(existing: &mut MetronomeWorkerEvent, next: MetronomeWorkerEvent) {
-    for (item_id, next_tick) in next.ticks {
-        existing
-            .ticks
-            .entry(item_id)
-            .and_modify(|tick| {
-                tick.label = next_tick.label.clone();
-                tick.fired = tick.fired.saturating_add(next_tick.fired);
-                tick.total_ticks = next_tick.total_ticks;
-                tick.interval_seconds = next_tick.interval_seconds;
-                tick.last_gap_seconds = next_tick.last_gap_seconds;
-            })
-            .or_insert(next_tick);
-    }
 }
 
 fn update_interval(update_rate_hz: u32) -> Duration {

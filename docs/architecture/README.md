@@ -21,6 +21,8 @@ and superseded plans are [archived](../archive/2026-10-18/README.md).
 
 ## Chataigne systems
 
+- [Timed generators](generators.md): Signals/Metronomes admission, elapsed time, bounded
+  publication, passive service and worker lifetime ownership.
 - [Alchemist runtime](alchemist-runtime.md): formulas, processors, conditions, inputs, filters,
   outputs, lane memory, and diagnostics.
 - [Built-in Mapping](builtin-mapping.md): ordered tuple stages, bindings, flow, and ownership

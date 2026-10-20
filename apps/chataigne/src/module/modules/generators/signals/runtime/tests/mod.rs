@@ -1,3 +1,5 @@
+mod admission;
+
 use super::super::SignalShape;
 use super::*;
 
@@ -92,4 +94,48 @@ fn delayed_first_service_retains_all_crossed_cycles() {
     worker.service(origin + Duration::from_millis(2500), None, &slot);
     let sample = slot.take().unwrap().samples.remove(&NodeId(1)).unwrap();
     assert_eq!((sample.cycle, sample.cycles), (2, 2));
+}
+
+use std::sync::Mutex;
+
+#[derive(Default)]
+struct SignalEventSlot(Mutex<Option<SignalWorkerEvent>>);
+
+impl SignalEventSlot {
+    fn new() -> Self {
+        Self::default()
+    }
+    fn take(&self) -> Option<SignalWorkerEvent> {
+        self.0.lock().unwrap().take()
+    }
+}
+
+impl EventSink<SignalWorkerEvent> for SignalEventSlot {
+    fn publish(&self, event: SignalWorkerEvent) -> bool {
+        if event.samples.is_empty() {
+            return true;
+        }
+        let mut slot = self.0.lock().unwrap();
+        if let Some(existing) = slot.as_mut() {
+            merge_signal_event(existing, event);
+        } else {
+            *slot = Some(event);
+        }
+        true
+    }
+}
+
+fn merge_signal_event(existing: &mut SignalWorkerEvent, next: SignalWorkerEvent) {
+    for (item_id, next_sample) in next.samples {
+        existing
+            .samples
+            .entry(item_id)
+            .and_modify(|sample| {
+                sample.label = next_sample.label.clone();
+                sample.value = next_sample.value;
+                sample.cycle = next_sample.cycle;
+                sample.cycles = sample.cycles.saturating_add(next_sample.cycles);
+            })
+            .or_insert(next_sample);
+    }
 }

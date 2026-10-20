@@ -1,3 +1,5 @@
+mod lifecycle;
+
 use golden_core::{
     edit::Edit,
     node::{Folder, Node, NodeId, NodeMetaPatch},

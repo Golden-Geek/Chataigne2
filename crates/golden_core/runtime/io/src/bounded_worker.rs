@@ -2,7 +2,7 @@ use std::io;
 use std::num::NonZeroUsize;
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::{
     PendingDrain, PendingDrainState, PendingMetricsSnapshot, PendingReceiver, PendingSendError, PendingSender,
@@ -77,6 +77,26 @@ impl WorkerCancellation {
                 .unwrap_or_else(|poisoned| poisoned.into_inner()),
         );
     }
+
+    fn wait_for_change_until(&self, observed: WakeVersion, deadline: Instant) {
+        let state = self.0.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        drop(
+            self.0
+                .changed
+                .wait_timeout_while(state, deadline.saturating_duration_since(Instant::now()), |state| {
+                    !state.cancelled && state.version == observed.version
+                })
+                .unwrap_or_else(|poisoned| poisoned.into_inner()),
+        );
+    }
+}
+
+/// One ordered command, a worker-owned deadline, or the end of its lifetime.
+#[derive(Debug, PartialEq, Eq)]
+pub enum WorkerReceive<C> {
+    Command(C),
+    Deadline,
+    Disconnected,
 }
 
 /// Nonblocking owner of a bounded worker. Dropping it explicitly cancels queued work.
@@ -293,6 +313,30 @@ impl<C, E> WorkerContext<C, E> {
                 return None;
             }
             self.cancellation.wait_for_change(observed);
+        }
+    }
+
+    /// Waits for a command or a worker-owned deadline without polling. Already queued
+    /// commands take precedence over an elapsed deadline; cancellation takes precedence
+    /// over both. Graceful admission closure preserves the accepted command prefix.
+    pub fn receive_until(&self, deadline: Instant) -> WorkerReceive<C> {
+        loop {
+            let observed = self.cancellation.snapshot();
+            if observed.cancelled {
+                return WorkerReceive::Disconnected;
+            }
+            let mut command = Vec::with_capacity(1);
+            let drain = self.commands.drain_into(&mut command, NonZeroUsize::MIN);
+            if let Some(command) = command.pop() {
+                return WorkerReceive::Command(command);
+            }
+            if drain.state == PendingDrainState::Disconnected {
+                return WorkerReceive::Disconnected;
+            }
+            if Instant::now() >= deadline {
+                return WorkerReceive::Deadline;
+            }
+            self.cancellation.wait_for_change_until(observed, deadline);
         }
     }
 

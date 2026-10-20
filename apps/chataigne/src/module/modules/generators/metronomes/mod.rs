@@ -1,8 +1,13 @@
+mod lifecycle;
 mod runtime;
 #[cfg(test)]
 mod tests;
 
-use std::collections::{HashMap, HashSet};
+use crate::app::module::common::{generators, worker_wake::ModuleWake};
+use std::{
+    collections::{HashMap, HashSet},
+    time::Instant,
+};
 
 use golden_core::{
     edit::NodeTree,
@@ -10,8 +15,8 @@ use golden_core::{
     events::{CustomEvent, Event, EventKind},
     node,
     node::{
-        DeclId, Node, NodeHandle, NodeId, NodeMetaPatch, NodeScriptDescriptor, NodeUuid, UserContainerRules,
-        UserCreatableItem,
+        DeclId, Node, NodeCreationContext, NodeHandle, NodeId, NodeMetaPatch, NodeScriptDescriptor, NodeUuid,
+        UserContainerRules, UserCreatableItem,
     },
     parameter::{
         Enum, ParamValue, Parameter, ParameterChangeCheck, ParameterEnumOption, ParameterEventBehaviour, Vec2,
@@ -21,7 +26,6 @@ use golden_core::{
 
 const METRONOMES_UPDATE_RATE_DEFAULT_HZ: i32 = 60;
 const METRONOMES_UPDATE_RATE_MAX_HZ: i32 = 240;
-const METRONOMES_COMPILED_KERNEL: &str = "chataigne.runtime.metronomes";
 const METRONOME_ITEM_KIND: &str = "metronome";
 const METRONOME_ITEM_LABEL: &str = "Metronome";
 const METRONOME_MODE_FREQUENCY: &str = "frequency";
@@ -114,6 +118,8 @@ pub struct MetronomesModule {
     pending_value_items: HashSet<NodeId>,
     runtime: Option<runtime::MetronomeRuntimeHandle>,
     config_dirty: bool,
+    wake: Option<ModuleWake>,
+    retry_at: Option<Instant>,
 }
 
 impl MetronomesModule {
@@ -124,71 +130,19 @@ impl MetronomesModule {
             HashSet::new(),
             None,
             true,
+            None,
+            None,
         )
-    }
-
-    fn sync_configuration(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
-        let configs = self.collect_metronomes(snapshot);
-        let Some(values_root) = self.values_root(snapshot) else {
-            self.config_dirty = false;
-            self.pending_value_items.clear();
-            self.stop_runtime();
-            return;
-        };
-        let waiting_for_values = sync_value_folders(
-            ctx,
-            snapshot,
-            values_root,
-            configs.iter(),
-            &mut self.value_nodes_by_item,
-            &mut self.pending_value_items,
-            metronome_values_tree,
-        );
-        self.config_dirty = waiting_for_values;
-
-        self.configure_runtime(runtime::MetronomeWorkerConfig {
-            update_rate_hz: runtime_update_rate_hz(self.update_rate_hz.get()),
-            metronomes: configs,
-        });
-    }
-
-    fn configure_runtime(&mut self, config: runtime::MetronomeWorkerConfig) {
-        if self.runtime.is_none() {
-            match runtime::MetronomeRuntimeHandle::spawn(config) {
-                Ok(runtime) => self.runtime = Some(runtime),
-                Err(error) => {
-                    golden_core::log!(origin = self.id(); format!("{error}"));
-                }
-            }
-            return;
-        }
-
-        let send_result = self
-            .runtime
-            .as_ref()
-            .expect("runtime should exist")
-            .configure(config.clone());
-        if send_result.is_ok() {
-            return;
-        }
-
-        self.stop_runtime();
-        match runtime::MetronomeRuntimeHandle::spawn(config) {
-            Ok(runtime) => self.runtime = Some(runtime),
-            Err(error) => {
-                golden_core::log!(origin = self.id(); format!("{error}"));
-            }
-        }
-    }
-
-    fn stop_runtime(&mut self) {
-        if let Some(mut runtime) = self.runtime.take() {
-            runtime.stop();
-        }
     }
 
     fn drain_runtime_events(&mut self, ctx: &mut ProcessCtx) {
         let Some(event) = self.runtime.as_ref().and_then(|runtime| runtime.take_event()) else {
+            if self.runtime.as_ref().is_some_and(|runtime| runtime.is_closed()) {
+                self.runtime_warning(ctx, "Generator worker stopped; retrying.");
+                self.base.set_connected(ctx, false);
+                self.stop_runtime();
+                self.retry_configuration();
+            }
             return;
         };
 
@@ -223,16 +177,18 @@ impl MetronomesModule {
         }
     }
 
-    fn collect_metronomes(&self, snapshot: &ProcessTreeSnapshot) -> Vec<MetronomeConfig> {
+    fn collect_metronomes(&self, snapshot: &ProcessTreeSnapshot) -> Result<Vec<MetronomeConfig>, String> {
         let Some(list_id) = self.metronome_list_id(snapshot) else {
-            return Vec::new();
+            return Ok(Vec::new());
         };
 
-        snapshot
-            .child_ids(list_id)
-            .into_iter()
+        generators::preflight(snapshot, list_id, false).map_err(|error| error.to_string())?;
+        Ok(snapshot
+            .child_ids_slice(list_id)
+            .iter()
+            .copied()
             .filter_map(|item_id| metronome_config(snapshot, item_id))
-            .collect()
+            .collect())
     }
 
     fn metronome_list_id(&self, snapshot: &ProcessTreeSnapshot) -> Option<NodeId> {
@@ -259,7 +215,7 @@ impl MetronomesModule {
         snapshot: &ProcessTreeSnapshot,
         selector: Option<&ParamValue>,
     ) -> Result<(), String> {
-        let configs = self.collect_metronomes(snapshot);
+        let configs = self.collect_metronomes(snapshot)?;
         let mut matched_ids = Vec::new();
         for (index, config) in configs.iter().enumerate() {
             if !selector_matches(snapshot, index, config.item_id, config.label.as_str(), selector) {
@@ -285,7 +241,7 @@ impl MetronomesModule {
         snapshot: &ProcessTreeSnapshot,
         selector: Option<&ParamValue>,
     ) -> Result<(), String> {
-        let configs = self.collect_metronomes(snapshot);
+        let configs = self.collect_metronomes(snapshot)?;
         for (index, config) in configs.iter().enumerate() {
             if !selector_matches(snapshot, index, config.item_id, config.label.as_str(), selector) {
                 continue;
@@ -350,7 +306,7 @@ impl MetronomesModule {
             return;
         }
         self.config_dirty = true;
-        self.sync_configuration(ctx, snapshot);
+        self.request_service();
     }
 }
 
@@ -380,6 +336,7 @@ impl Node for MetronomesModule {
     fn child_event_interest_depth(&self, event: &Event) -> u32 {
         match event.kind {
             EventKind::ParamChanged { .. }
+            | EventKind::MetaChanged { .. }
             | EventKind::ChildAdded { .. }
             | EventKind::ChildRemoved { .. }
             | EventKind::ChildReplaced { .. }
@@ -408,10 +365,53 @@ impl Node for MetronomesModule {
             }
         }
         self.drain_runtime_events(ctx);
+        self.request_service();
+    }
+
+    fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
+        let source = match ctx.node_waker() {
+            Ok(source) => source,
+            Err(error) => {
+                golden_core::log!(origin = self.id(); error.to_string());
+                return;
+            }
+        };
+        if !self.wake.as_ref().is_some_and(|wake| wake.matches(&source)) {
+            self.stop_runtime();
+            self.wake = match ModuleWake::new(source) {
+                Ok(wake) => Some(wake),
+                Err(error) => {
+                    golden_core::log!(origin = self.id(); error);
+                    return;
+                }
+            };
+            self.config_dirty = true;
+        }
+        if let Some(snapshot) = ctx.tree_snapshot_arc() {
+            self.sync_configuration(ctx, &snapshot);
+        }
+        self.request_service();
+    }
+
+    fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
+        if let Some(wake) = &self.wake {
+            wake.cancel_deadline();
+        }
+        self.update(ctx);
+    }
+
+    fn worker_wake_requires_tree_snapshot(&self) -> bool {
+        self.config_dirty
+    }
+
+    fn destroy(&mut self, _ctx: &mut ProcessCtx) {
+        self.stop_runtime();
+        self.wake = None;
+        self.config_dirty = true;
     }
 
     fn needs_update(&self) -> bool {
-        self.config_dirty || self.runtime.as_ref().is_some_and(|runtime| runtime.has_pending())
+        false
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {
@@ -419,8 +419,7 @@ impl Node for MetronomesModule {
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
-        NodeExecutionRule::periodic(runtime_update_rate_hz(self.update_rate_hz.get()))
-            .with_compiled_kernel(METRONOMES_COMPILED_KERNEL)
+        NodeExecutionRule::passive()
     }
 
     fn engine_script_descriptor(&self) -> NodeScriptDescriptor {
@@ -449,15 +448,11 @@ impl Node for MetronomesModule {
             return;
         }
 
-        if self.update_rate_hz.is_bound() && self.update_rate_hz.id() == param {
-            ctx.reevaluate_graph();
-        }
-
         if let Some(snapshot_arc) = ctx.tree_snapshot_arc() {
             let snapshot = snapshot_arc.as_ref();
             if self.is_metronome_configuration_event(snapshot, param) {
                 self.config_dirty = true;
-                self.sync_configuration(ctx, snapshot);
+                self.request_service();
             }
             self.base.emit_script_param_callback(ctx, snapshot, param, &old_value);
         }
@@ -470,7 +465,7 @@ impl Node for MetronomesModule {
                 || self.is_metronome_configuration_event(snapshot, child)
             {
                 self.config_dirty = true;
-                self.sync_configuration(ctx, snapshot);
+                self.request_service();
             }
         }
     }
@@ -482,16 +477,27 @@ impl Node for MetronomesModule {
                 self.config_dirty = true;
                 self.value_nodes_by_item.remove(&child);
                 self.pending_value_items.remove(&child);
-                self.sync_configuration(ctx, snapshot);
+                self.request_service();
             }
         }
     }
 
-    fn on_effective_enabled_changed(&mut self, _ctx: &mut ProcessCtx, enabled: bool) {
+    fn on_meta_changed(&mut self, _ctx: &mut ProcessCtx, _node: NodeId, patch: NodeMetaPatch) {
+        if patch.label.is_some() {
+            self.config_dirty = true;
+            self.request_service();
+        }
+    }
+
+    fn on_effective_enabled_changed(&mut self, ctx: &mut ProcessCtx, enabled: bool) {
         if !enabled {
             self.stop_runtime();
+            self.base.set_connected(ctx, false);
         }
         self.config_dirty = true;
+        if enabled {
+            self.request_service();
+        }
     }
 
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
