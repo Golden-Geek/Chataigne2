@@ -161,6 +161,9 @@ pub struct Engine<T: Node> {
     ui_event_log_start: usize,
     /// Maximum number of events retained in `ui_event_log`.
     ui_event_log_capacity: usize,
+    /// Logical retained custom-JSON weight; other event variants have separate ownership.
+    ui_event_log_custom_bytes: u128,
+    ui_event_log_custom_byte_capacity: usize,
     /// Latest-wins custom event key -> retained event time.
     ui_latest_event_times: HashMap<(String, Option<NodeId>), EngineTime>,
     /// Nodes whose persisted representation may have changed without a structural or parameter
@@ -315,6 +318,8 @@ impl<T: Node> Engine<T> {
             ui_event_log: Vec::new(),
             ui_event_log_start: 0,
             ui_event_log_capacity: ui::DEFAULT_UI_EVENT_LOG_CAPACITY,
+            ui_event_log_custom_bytes: 0,
+            ui_event_log_custom_byte_capacity: ui::DEFAULT_UI_CUSTOM_EVENT_BYTES,
             ui_latest_event_times: HashMap::new(),
             project_dirty_nodes: HashSet::new(),
             ui_pending_param_event_times: HashMap::new(),

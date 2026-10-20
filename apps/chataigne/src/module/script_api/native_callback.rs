@@ -55,6 +55,7 @@ impl NativeCallbackPayload {
             self.payload.clone(),
             CustomEventRetention::Replay,
         )
+        .with_payload_storage_weight(self.retained_bytes)
     }
 }
 
@@ -90,8 +91,9 @@ fn json_weight(value: &Value) -> Result<usize, String> {
                 }
             }
             Value::Object(values) => {
-                // Cover map nodes, spare key/value slots, keys, and child allocations.
-                weight += 1024 + values.len() * (size_of::<String>() + size_of::<Value>() + 4 * size_of::<usize>());
+                // A full B-tree node per entry covers sparse nodes and spare
+                // key/value slots without depending on the allocator's layout.
+                weight = weight.saturating_add(values.len().saturating_add(1).saturating_mul(1024));
                 for (key, value) in values {
                     weight = weight
                         .saturating_add(key.capacity())

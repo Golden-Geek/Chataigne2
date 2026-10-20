@@ -39,6 +39,7 @@ enum ReplacementKey {
 struct RetainedEvent {
     event: UiEventDto,
     replacement: ReplacementKey,
+    custom_bytes: usize,
 }
 
 /// A time-ordered replay log with constant-time replacement-key lookup.
@@ -48,6 +49,7 @@ pub(super) struct RetainedEventLog {
     latest_custom: HashMap<LatestCustomKey, RetainedEventKey>,
     pending_params: HashMap<NodeId, RetainedEventKey>,
     next_ordinal: u64,
+    custom_bytes: u128,
 }
 
 impl RetainedEventLog {
@@ -75,7 +77,14 @@ impl RetainedEventLog {
     }
 
     /// Appends one event and returns the highest time evicted by the capacity limit.
-    pub(super) fn append(&mut self, nodes: &NodeStore, mut event: UiEventDto, capacity: usize) -> Option<EngineTime> {
+    pub(super) fn append(
+        &mut self,
+        nodes: &NodeStore,
+        mut event: UiEventDto,
+        capacity: usize,
+        byte_capacity: usize,
+        custom_bytes: usize,
+    ) -> Option<EngineTime> {
         debug_assert!(
             self.events
                 .last_key_value()
@@ -114,8 +123,10 @@ impl RetainedEventLog {
             RetainedEvent {
                 event,
                 replacement: replacement.clone(),
+                custom_bytes,
             },
         );
+        self.custom_bytes += custom_bytes as u128;
         match replacement {
             ReplacementKey::LatestCustom(custom_key) => {
                 self.latest_custom.insert(custom_key, key);
@@ -126,11 +137,16 @@ impl RetainedEventLog {
             ReplacementKey::None => {}
         }
 
+        self.trim_to(capacity, byte_capacity)
+    }
+
+    pub(super) fn trim_to(&mut self, capacity: usize, byte_capacity: usize) -> Option<EngineTime> {
         let mut evicted_through: Option<EngineTime> = None;
-        while self.events.len() > capacity {
+        while self.events.len() > 1 && (self.events.len() > capacity || self.custom_bytes > byte_capacity as u128) {
             let Some((evicted_key, evicted)) = self.events.pop_first() else {
                 break;
             };
+            self.custom_bytes -= evicted.custom_bytes as u128;
             self.remove_indexes_for(evicted_key, &evicted.replacement);
             evicted_through = Some(evicted_through.map_or(evicted.event.time, |time| time.max(evicted.event.time)));
         }
@@ -139,6 +155,7 @@ impl RetainedEventLog {
 
     fn remove_replaced(&mut self, key: RetainedEventKey) -> Option<RetainedEvent> {
         let retained = self.events.remove(&key)?;
+        self.custom_bytes -= retained.custom_bytes as u128;
         self.remove_indexes_for(key, &retained.replacement);
         Some(retained)
     }

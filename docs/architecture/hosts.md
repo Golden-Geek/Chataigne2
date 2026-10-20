@@ -158,9 +158,28 @@ creating an accepted domain-owned copy.
 
 Custom-event routing and replay share a protected raw Arc, retaining its original lifetime charge
 until every consumer releases it. Never register that Arc in an independent pool. Only the disposer
-polls external owners, at most once per 100ms while idle. Small-event item headroom accommodates
-the normal replay window and its deferred prefix compaction; byte exhaustion still rejects new
-inputs explicitly until owners release capacity. These limits do not bound the entire process.
+polls external owners, at most once per 100ms while idle. Byte exhaustion rejects new inputs
+explicitly until owners release capacity. These limits do not bound the entire process.
+
+Engine and read-model replay each retain at most 8192 events and target **64 MiB of custom JSON**.
+Native callback workers attach their measured retained allocation weight; replay accounting
+reuses it without an additional JSON walk on the actor. Other producers receive a fallback walk bounded
+to 4096 values / 64 levels; an unmeasurable value is charged as an oversized entry. Weight metadata
+is runtime-only and invalidates when the public payload Arc changes, including `Arc::make_mut`.
+Producer-supplied weights must include spare capacity. These budgets cover custom JSON only,
+not other event variants, fixed index storage, projection copies or externally exported owners.
+
+`UiReadModel::collect_event_batch` exclusively borrows the engine, captures the complete live
+batch and weights, then calls `Engine::finish_ui_event_capture` to enforce the byte target.
+Direct engine consumers must call that boundary after capturing their batch. Count eviction
+retains its existing semantics during mutation; byte eviction waits for capture so it cannot
+silently erase the new live batch. A mutation turn can temporarily exceed the replay byte target.
+Both logs retain one oversized entry; producers needing a hard replay-byte bound must admit each
+payload below the target. Native callbacks admit at most 32 MiB, below the default 64 MiB target.
+Read-model byte eviction advances the existing resync watermark, including an empty capture after
+lowering the target. Engine byte/count eviction releases custom payload leases immediately even
+when the dead Vec prefix awaits compaction, allowing native callback quota recovery before the
+event-count limit. Ordinary replay callbacks preserve their occurrence order and retention policy.
 
 `PayloadReservation::share_retained` supplies a `SharedPayload` that can forward both raw Arc
 routing and its original lease. The script bridge uses `CustomEvent::from_shared_payload`;

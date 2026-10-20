@@ -116,7 +116,7 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
             .submit(move |state| {
                 if state.release_closed_ui_session() || state.release_rebound_ui_session(client.as_ref()) {
                     let before = state.engine.ui_event_log().last().map(|event| event.time);
-                    let capture = read_model.collect_event_batch(&state.engine, before);
+                    let capture = read_model.collect_event_batch(&mut state.engine, before);
                     publish_event_capture(&project_document, &read_model, &publication_hook, &mut state.engine, capture);
                 }
                 if client.as_ref().is_some_and(UiClientLease::is_closed) {
@@ -127,7 +127,7 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
                         .into_iter()
                         .map(|_| {
                             let before = state.engine.ui_event_log().last().map(|event| event.time);
-                            let capture = read_model.collect_event_batch(&state.engine, before);
+                            let capture = read_model.collect_event_batch(&mut state.engine, before);
                             let events = publish_event_capture(
                                 &project_document,
                                 &read_model,
@@ -161,10 +161,8 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
                         |active_id| matches!(&intent, UiEditIntent::EndEdit { client_edit_id } if client_edit_id == active_id),
                     );
                     if failed && stop_after_failure && !is_matching_end_edit {
-                        let capture = read_model.collect_event_batch(
-                            &state.engine,
-                            state.engine.ui_event_log().last().map(|event| event.time),
-                        );
+                        let cursor = state.engine.ui_event_log().last().map(|event| event.time);
+                        let capture = read_model.collect_event_batch(&mut state.engine, cursor);
                         let events = publish_event_capture(
                             &project_document,
                             &read_model,
@@ -210,7 +208,7 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
                     }
                     let apply = apply_started.elapsed();
                     let event_collect_started = Instant::now();
-                    let capture = read_model.collect_event_batch(&state.engine, before_event_time);
+                    let capture = read_model.collect_event_batch(&mut state.engine, before_event_time);
                     let preferences_changed = if event_batch_has_structural_graph_changes(capture.batch()) {
                         #[cfg(test)]
                         preferences_subtree_collection_count.fetch_add(1, Ordering::Relaxed);

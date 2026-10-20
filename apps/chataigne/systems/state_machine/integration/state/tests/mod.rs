@@ -29,9 +29,7 @@ fn state_canvas_geometry_survives_project_reload() {
     let root: crate::app::AppNode = Folder::new("root").into();
     let mut engine = crate::app::AppEngine::new(root);
     engine.add_node(StateMachineManager::new().into(), None);
-    engine
-        .apply_edits()
-        .expect("state machine manager should attach");
+    engine.apply_edits().expect("state machine manager should attach");
     let manager_id = engine
         .nodes
         .get(engine.root)
@@ -40,9 +38,7 @@ fn state_canvas_geometry_survives_project_reload() {
     engine.add_user_item(StateMachineState::new().into(), Some(manager_id));
     engine.add_user_item(StateMachineState::new().into(), Some(manager_id));
     for _ in 0..3 {
-        engine
-            .apply_edits()
-            .expect("state defaults should materialize");
+        engine.apply_edits().expect("state defaults should materialize");
     }
 
     let state_id = engine
@@ -89,14 +85,9 @@ fn state_canvas_geometry_survives_project_reload() {
         "States should expose the node-level enable switch"
     );
     let transition_manager_id = child_by_decl(&engine, state_id, "transitions");
-    engine.add_user_item(
-        crate::app::StateTransition::new().into(),
-        Some(transition_manager_id),
-    );
+    engine.add_user_item(crate::app::StateTransition::new().into(), Some(transition_manager_id));
     for _ in 0..2 {
-        engine
-            .apply_edits()
-            .expect("state transition should materialize");
+        engine.apply_edits().expect("state transition should materialize");
     }
     let transition_id = engine
         .nodes
@@ -135,14 +126,11 @@ fn state_canvas_geometry_survives_project_reload() {
             ..Default::default()
         },
     });
-    engine
-        .apply_edits()
-        .expect("state canvas geometry should update");
+    engine.apply_edits().expect("state canvas geometry should update");
 
-    let json = golden_core::app::to_sparse_project_json_pretty(&engine)
-        .expect("state project should encode");
-    let loaded = golden_core::app::from_sparse_project_json::<crate::app::AppNode>(&json)
-        .expect("state project should decode");
+    let json = golden_core::app::to_sparse_project_json_pretty(&engine).expect("state project should encode");
+    let loaded =
+        golden_core::app::from_sparse_project_json::<crate::app::AppNode>(&json).expect("state project should decode");
     let loaded_state_id = loaded
         .nodes
         .get(loaded.root)
@@ -225,9 +213,7 @@ fn transition_creation_keeps_reload_snapshot_complete() {
     let root: crate::app::AppNode = Folder::new("root").into();
     let mut engine = crate::app::AppEngine::new(root);
     engine.add_node(StateMachineManager::new().into(), None);
-    engine
-        .apply_edits()
-        .expect("state machine manager should attach");
+    engine.apply_edits().expect("state machine manager should attach");
     let manager_id = engine
         .nodes
         .get(engine.root)
@@ -279,7 +265,7 @@ fn transition_creation_keeps_reload_snapshot_complete() {
             assert!(ack.success, "state geometry edit should succeed: {ack:?}");
         }
     }
-    let capture = read_model.collect_event_batch(&engine, previous_event_time);
+    let capture = read_model.collect_event_batch(&mut engine, previous_event_time);
     read_model.apply_event_capture(capture);
 
     let previous_event_time = read_model.current_event_time();
@@ -294,7 +280,7 @@ fn transition_creation_keeps_reload_snapshot_complete() {
     });
     assert!(ack.success, "transition creation should succeed: {ack:?}");
 
-    let capture = read_model.collect_event_batch(&engine, previous_event_time);
+    let capture = read_model.collect_event_batch(&mut engine, previous_event_time);
     read_model.apply_event_capture(capture);
 
     let engine_snapshot = engine.ui_snapshot(UiSubscriptionScope::WholeGraph);
@@ -306,8 +292,7 @@ fn transition_creation_keeps_reload_snapshot_complete() {
     let engine_transition_manager = snapshot_node(&engine_snapshot, transition_manager);
     let reload_transition_manager = snapshot_node(&reload_snapshot, transition_manager);
     assert_eq!(
-        reload_transition_manager.children,
-        engine_transition_manager.children,
+        reload_transition_manager.children, engine_transition_manager.children,
         "reload snapshot should retain transition children"
     );
     for transition_id in &engine_transition_manager.children {
@@ -349,10 +334,7 @@ fn assert_state_geometry_matches(
     }
 }
 
-fn snapshot_node(
-    snapshot: &golden_core::ui_sync::UiSnapshot,
-    node_id: NodeId,
-) -> &golden_core::ui_sync::UiNodeDto {
+fn snapshot_node(snapshot: &golden_core::ui_sync::UiSnapshot, node_id: NodeId) -> &golden_core::ui_sync::UiNodeDto {
     snapshot
         .nodes
         .iter()
@@ -377,15 +359,8 @@ fn snapshot_child_by_decl<'a>(
         .unwrap_or_else(|| panic!("snapshot parameter '{decl_id}' should exist"))
 }
 
-fn child_by_decl(
-    engine: &crate::app::AppEngine,
-    parent: NodeId,
-    decl_id: &str,
-) -> NodeId {
-    let mut child = engine
-        .nodes
-        .get(parent)
-        .and_then(|node| node.node_data().first_child);
+fn child_by_decl(engine: &crate::app::AppEngine, parent: NodeId, decl_id: &str) -> NodeId {
+    let mut child = engine.nodes.get(parent).and_then(|node| node.node_data().first_child);
     while let Some(child_id) = child {
         let node = engine.nodes.get(child_id).expect("child should exist");
         if node.node_data().meta.decl_id.0 == decl_id {

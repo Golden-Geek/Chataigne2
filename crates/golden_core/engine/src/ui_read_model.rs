@@ -59,6 +59,8 @@ pub struct UiEventCapture {
     batch: UiEventBatch,
     history: UiHistoryState,
     user_contexts: Option<UiUserContextsDto>,
+    custom_payload_weights: HashMap<EngineTime, usize>,
+    custom_byte_capacity: usize,
 }
 
 impl UiEventCapture {
@@ -405,7 +407,7 @@ impl UiReadModel {
     /// caller's mutation-ordering boundary.
     pub fn collect_event_batch<T: Node>(
         &self,
-        engine: &Engine<T>,
+        engine: &mut Engine<T>,
         previous_event_time: Option<EngineTime>,
     ) -> UiEventCapture {
         let batch = engine.ui_event_batch(previous_event_time, UiSubscriptionScope::WholeGraph);
@@ -415,11 +417,21 @@ impl UiReadModel {
             .iter()
             .any(event_requires_user_context_refresh)
             .then(|| engine.ui_user_contexts());
-        UiEventCapture {
+        let capture = UiEventCapture {
             batch,
             history,
             user_contexts,
-        }
+            custom_payload_weights: engine.ui_event_log()[engine.ui_event_log_start_index(previous_event_time)..]
+                .iter()
+                .filter_map(|event| match &event.kind {
+                    crate::events::EventKind::Custom(custom) => Some((event.time, custom.replay_payload_bytes())),
+                    _ => None,
+                })
+                .collect(),
+            custom_byte_capacity: engine.ui_event_log_custom_byte_capacity(),
+        };
+        engine.finish_ui_event_capture();
+        capture
     }
 
     /// Applies a previously collected capture after the live-engine borrow is no longer needed.
@@ -432,6 +444,8 @@ impl UiReadModel {
             mut batch,
             history,
             user_contexts,
+            custom_payload_weights,
+            custom_byte_capacity,
         } = capture;
         batch.runtime = self.runtime_stats();
         let batch_time = batch.events.iter().map(|event| event.time).max();
@@ -460,11 +474,11 @@ impl UiReadModel {
                 projection.advance_version();
             }
         }
-        if batch.events.is_empty() {
-            return batch;
-        }
-
-        self.append_events(batch.events.iter().cloned());
+        self.append_events(
+            batch.events.iter().cloned(),
+            &custom_payload_weights,
+            custom_byte_capacity,
+        );
 
         if let Some(t) = batch_time {
             let mut guard = self.latest_event_time.lock().expect("ui read model poisoned");
@@ -485,7 +499,7 @@ impl UiReadModel {
     /// same mutation-ordering boundary.
     pub fn publish_engine_events_since<T: Node>(
         &self,
-        engine: &Engine<T>,
+        engine: &mut Engine<T>,
         previous_event_time: Option<EngineTime>,
     ) -> UiEventBatch {
         let capture = self.collect_event_batch(engine, previous_event_time);
@@ -601,15 +615,24 @@ impl UiReadModel {
     // Internal helpers
     // -----------------------------------------------------------------------
 
-    fn append_events(&self, events: impl IntoIterator<Item = UiEventDto>) {
+    fn append_events(
+        &self,
+        events: impl IntoIterator<Item = UiEventDto>,
+        weights: &HashMap<EngineTime, usize>,
+        byte_capacity: usize,
+    ) {
         let mut evicted_through: Option<EngineTime> = None;
         let nodes = self.projection.read().expect("ui read model poisoned").nodes.clone();
         {
             let mut guard = self.events.lock().expect("ui read model event log poisoned");
             for event in events {
-                if let Some(evicted) = guard.append(&nodes, event, self.event_capacity) {
+                let weight = weights.get(&event.time).copied().unwrap_or(0);
+                if let Some(evicted) = guard.append(&nodes, event, self.event_capacity, byte_capacity, weight) {
                     evicted_through = Some(evicted_through.map_or(evicted, |time| time.max(evicted)));
                 }
+            }
+            if let Some(evicted) = guard.trim_to(self.event_capacity, byte_capacity) {
+                evicted_through = Some(evicted_through.map_or(evicted, |time| time.max(evicted)));
             }
             if let Some(evicted_through) = evicted_through {
                 let mut watermark = self

@@ -90,7 +90,7 @@ fn three_contended_clients_keep_captures_coherent_and_admission_bounded() {
     let root = engine.root;
     engine.add_node(Folder::new("new child"), Some(root));
     engine.apply_edits().expect("concurrent edit should apply");
-    read_model.publish_engine_events_since(&engine, previous_event_time);
+    read_model.publish_engine_events_since(&mut engine, previous_event_time);
     let new_revision = read_model.current_revision();
     assert!(new_revision > old_revision);
 

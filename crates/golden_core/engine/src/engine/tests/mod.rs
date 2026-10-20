@@ -18,6 +18,7 @@ mod parameter_cache_recovery;
 mod parameter_value_store;
 mod prepared_runtime_snapshot;
 mod process_tree_snapshot;
+mod replay_bytes;
 mod schedule_ordering;
 mod script_arguments;
 mod script_properties;

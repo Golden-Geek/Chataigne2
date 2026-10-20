@@ -9,6 +9,8 @@ use super::{Engine, EngineTime};
 
 /// Default retention size for the UI replay event log.
 pub const DEFAULT_UI_EVENT_LOG_CAPACITY: usize = 8192;
+/// Custom JSON retained for replay, independent of the event-count limit.
+pub const DEFAULT_UI_CUSTOM_EVENT_BYTES: usize = 64 * 1024 * 1024;
 const UI_EVENT_LOG_COMPACT_THRESHOLD: usize = 4096;
 
 impl<T: Node> Engine<T> {
@@ -25,7 +27,32 @@ impl<T: Node> Engine<T> {
     /// Updates the UI replay buffer capacity, trimming oldest events when needed.
     pub fn set_ui_event_log_capacity(&mut self, capacity: usize) {
         self.ui_event_log_capacity = capacity.max(1);
-        self.trim_ui_event_log();
+        self.trim_ui_event_log(false);
+    }
+
+    /// Logical custom-JSON weight in the retained replay window.
+    pub fn ui_event_log_custom_bytes(&self) -> usize {
+        usize::try_from(self.ui_event_log_custom_bytes).unwrap_or(usize::MAX)
+    }
+
+    /// Target custom-JSON replay budget, independent of the event-count limit.
+    pub fn ui_event_log_custom_byte_capacity(&self) -> usize {
+        self.ui_event_log_custom_byte_capacity
+    }
+
+    /// Trim custom JSON with ordinary replay-window eviction. One oversized new
+    /// entry remains visible for live forwarding; producers requiring a hard
+    /// byte bound must admit each payload below this capacity before publication.
+    pub fn set_ui_event_log_custom_byte_capacity(&mut self, bytes: usize) {
+        self.ui_event_log_custom_byte_capacity = bytes.max(1);
+        self.trim_ui_event_log(true);
+    }
+
+    /// Release old custom replay payloads after the current live event batch has
+    /// been captured. Byte trimming is deferred until this boundary so a mutation
+    /// turn cannot evict its own newly published events before live forwarding.
+    pub fn finish_ui_event_capture(&mut self) {
+        self.trim_ui_event_log(true);
     }
 
     pub(crate) fn ui_event_log_start_index(&self, after: Option<EngineTime>) -> usize {
@@ -46,6 +73,7 @@ impl<T: Node> Engine<T> {
     pub fn clear_ui_event_log(&mut self) {
         self.ui_event_log.clear();
         self.ui_event_log_start = 0;
+        self.ui_event_log_custom_bytes = 0;
         self.ui_latest_event_times.clear();
         self.ui_pending_param_event_times.clear();
     }
@@ -270,11 +298,13 @@ impl<T: Node> Engine<T> {
                         .is_some_and(|existing| existing == (key.0.as_str(), key.1))
                 });
             if let Some(index) = previous_index {
-                self.ui_event_log.remove(index);
+                let removed = self.ui_event_log.remove(index);
+                self.ui_event_log_custom_bytes -= custom_payload_bytes(&removed);
             }
             self.ui_latest_event_times.insert(key, event.time);
+            self.ui_event_log_custom_bytes += custom_payload_bytes(&event);
             self.ui_event_log.push(event);
-            self.trim_ui_event_log();
+            self.trim_ui_event_log(false);
             return;
         }
 
@@ -292,13 +322,14 @@ impl<T: Node> Engine<T> {
             }
             self.ui_pending_param_event_times.insert(param, event.time);
             self.ui_event_log.push(event);
-            self.trim_ui_event_log();
+            self.trim_ui_event_log(false);
             return;
         }
 
         self.ui_pending_param_event_times.clear();
+        self.ui_event_log_custom_bytes += custom_payload_bytes(&event);
         self.ui_event_log.push(event);
-        self.trim_ui_event_log();
+        self.trim_ui_event_log(false);
     }
 
     fn ui_event_log_index_at(&self, time: EngineTime) -> Option<usize> {
@@ -322,11 +353,16 @@ impl<T: Node> Engine<T> {
         (snapshot.event_behaviour == ParameterEventBehaviour::Coalesce).then_some(*param)
     }
 
-    fn trim_ui_event_log(&mut self) {
-        let retained_len = self.ui_event_log.len().saturating_sub(self.ui_event_log_start);
-        if retained_len > self.ui_event_log_capacity {
-            let overflow = retained_len - self.ui_event_log_capacity;
-            let eviction_end = self.ui_event_log_start + overflow;
+    fn trim_ui_event_log(&mut self, enforce_bytes: bool) {
+        let mut eviction_end = self.ui_event_log_start;
+        while self.ui_event_log.len().saturating_sub(eviction_end) > 1
+            && (self.ui_event_log.len() - eviction_end > self.ui_event_log_capacity
+                || (enforce_bytes && self.ui_event_log_custom_bytes > self.ui_event_log_custom_byte_capacity as u128))
+        {
+            self.ui_event_log_custom_bytes -= custom_payload_bytes(&self.ui_event_log[eviction_end]);
+            eviction_end += 1;
+        }
+        if eviction_end > self.ui_event_log_start {
             for index in self.ui_event_log_start..eviction_end {
                 let event = &self.ui_event_log[index];
                 let time = event.time;
@@ -351,8 +387,13 @@ impl<T: Node> Engine<T> {
                 {
                     self.ui_pending_param_event_times.remove(&param);
                 }
+                // The lazy Vec prefix may outlive its replay window. Release
+                // payload leases now, without moving every retained event.
+                if let EventKind::Custom(custom) = &mut self.ui_event_log[index].kind {
+                    custom.release_replay_payload();
+                }
             }
-            self.ui_event_log_start = self.ui_event_log_start.saturating_add(overflow);
+            self.ui_event_log_start = eviction_end;
         }
 
         if self.ui_event_log_start == 0 {
@@ -373,6 +414,13 @@ impl<T: Node> Engine<T> {
             self.ui_latest_event_times.len(),
             self.ui_pending_param_event_times.len(),
         )
+    }
+}
+
+fn custom_payload_bytes(event: &Event) -> u128 {
+    match &event.kind {
+        EventKind::Custom(custom) => custom.replay_payload_bytes() as u128,
+        _ => 0,
     }
 }
 

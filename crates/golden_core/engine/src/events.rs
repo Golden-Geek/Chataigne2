@@ -42,6 +42,8 @@ pub struct CustomEvent {
     local: Option<LocalPayload>,
     #[serde(skip)]
     payload_owner: Option<golden_io::SharedPayload<serde_json::Value>>,
+    #[serde(skip)]
+    payload_storage: Option<payload::PayloadStorage>,
 }
 
 impl CustomEvent {
@@ -54,6 +56,7 @@ impl CustomEvent {
             retention: CustomEventRetention::Replay,
             local: None,
             payload_owner: None,
+            payload_storage: None,
         }
     }
 
@@ -66,6 +69,7 @@ impl CustomEvent {
             retention: CustomEventRetention::Latest,
             local: None,
             payload_owner: None,
+            payload_storage: None,
         }
     }
 
@@ -78,6 +82,7 @@ impl CustomEvent {
             retention: CustomEventRetention::Transient,
             local: None,
             payload_owner: None,
+            payload_storage: None,
         }
     }
 
@@ -128,6 +133,7 @@ impl CustomEvent {
             retention,
             local: None,
             payload_owner: None,
+            payload_storage: None,
         }
     }
     /// Creates an inbox-only typed runtime message. Routing clones share the value;
@@ -141,6 +147,7 @@ impl CustomEvent {
             retention: CustomEventRetention::Transient,
             local: Some(LocalPayload::new(value)),
             payload_owner: None,
+            payload_storage: None,
         }
     }
     /// Borrows a local attachment without JSON decoding or cloning.

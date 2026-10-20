@@ -565,7 +565,7 @@ impl<T: Node> ProductionState<T> {
         compiled: CompiledProjectCandidate,
         project_generation: ProjectGeneration,
         project_was_saved: bool,
-        publish_read_model: impl FnOnce(&Engine<T>) -> R,
+        publish_read_model: impl FnOnce(&mut Engine<T>) -> R,
     ) -> Result<(Engine<T>, R), RejectedProjectCommit<T>> {
         let CompiledProjectCandidate { snapshot, generation } = compiled;
         if engine.is_resolve_pending() || snapshot.schedule_revision != engine.schedule_revision() {
@@ -631,7 +631,7 @@ impl<T: Node> ProductionState<T> {
         self.saved_document_revision = project_was_saved.then(|| self.engine.current_history_state_id());
         self.latest_save_request_id = 0;
 
-        let publication = publish_read_model(&self.engine);
+        let publication = publish_read_model(&mut self.engine);
         self.input_plane.current.store(next_input_generation);
         Ok((previous, publication))
     }

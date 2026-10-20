@@ -99,10 +99,14 @@ fn multiplex_sample_production_duplicate_transactions_stay_interactive() {
     let runtime = ProductionRuntime::new(
         engine,
         UiProjectFileSpec::from_project_file_spec(ProjectFileSpec::new("Noisette", "noisette"), None),
-    ).unwrap();
+    )
+    .unwrap();
 
-    let (processor_result, processor_transaction_ms) =
-        elapsed_ms(|| runtime.apply_ui_transaction(processor_intent, Some("multiplex-edit-performance")).unwrap());
+    let (processor_result, processor_transaction_ms) = elapsed_ms(|| {
+        runtime
+            .apply_ui_transaction(processor_intent, Some("multiplex-edit-performance"))
+            .unwrap()
+    });
     assert!(
         processor_result.acknowledgement.success,
         "processor duplication should apply: {:?}",
@@ -133,8 +137,11 @@ fn multiplex_sample_production_duplicate_transactions_stay_interactive() {
         .nodes
         .len();
 
-    let (state_result, state_transaction_ms) =
-        elapsed_ms(|| runtime.apply_ui_transaction(state_intent, Some("multiplex-edit-performance")).unwrap());
+    let (state_result, state_transaction_ms) = elapsed_ms(|| {
+        runtime
+            .apply_ui_transaction(state_intent, Some("multiplex-edit-performance"))
+            .unwrap()
+    });
     assert!(
         state_result.acknowledgement.success,
         "state duplication should apply: {:?}",
@@ -232,7 +239,7 @@ fn sample_project_structure_operations_stay_interactive() {
         elapsed_ms(|| duplicate_node(&mut engine, duplicate_source).expect("duplicate should apply"));
     let duplicate_node_count = engine.nodes.len().saturating_sub(node_count);
 
-    let (capture, collect_ms) = elapsed_ms(|| read_model.collect_event_batch(&engine, previous_event_time));
+    let (capture, collect_ms) = elapsed_ms(|| read_model.collect_event_batch(&mut engine, previous_event_time));
     let event_count = capture.batch().events.len();
     let (_batch, apply_capture_ms) = elapsed_ms(|| read_model.apply_event_capture(capture));
 

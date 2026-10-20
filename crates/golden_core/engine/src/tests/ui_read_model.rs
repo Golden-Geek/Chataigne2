@@ -62,7 +62,7 @@ fn child_insertion_replays_into_the_same_parent_order_as_the_live_engine() {
         prev_sibling: None,
     });
     engine.apply_edits().expect("large subtree should attach");
-    let batch = read_model.publish_engine_events_since(&engine, None);
+    let batch = read_model.publish_engine_events_since(&mut engine, None);
 
     assert!(batch.events.iter().any(|event| matches!(
         &event.kind,
@@ -92,7 +92,7 @@ fn publish_engine_events_since_survives_event_log_compaction() {
         apply_param_change(&mut engine, value);
     }
 
-    let initial_batch = read_model.publish_engine_events_since(&engine, None);
+    let initial_batch = read_model.publish_engine_events_since(&mut engine, None);
     assert_eq!(batch_param_values(&initial_batch), vec![1, 2, 3]);
 
     let before_event_time = engine.ui_event_log().last().map(|event| event.time);
@@ -106,7 +106,7 @@ fn publish_engine_events_since_survives_event_log_compaction() {
         "retained ui log should compact to capacity"
     );
 
-    let compacted_batch = read_model.publish_engine_events_since(&engine, before_event_time);
+    let compacted_batch = read_model.publish_engine_events_since(&mut engine, before_event_time);
     assert_eq!(batch_param_values(&compacted_batch), vec![4, 5, 6, 7]);
 }
 
@@ -125,7 +125,7 @@ fn retained_ui_event_logs_keep_latest_only_for_coalescable_value_params() {
         "engine replay log should retain only the latest coalescable value per parameter"
     );
 
-    let batch = read_model.publish_engine_events_since(&engine, None);
+    let batch = read_model.publish_engine_events_since(&mut engine, None);
     assert_eq!(batch_param_values(&batch), vec![200]);
 
     let replay = read_model.replay(None, UiSubscriptionScope::WholeGraph);
@@ -214,13 +214,13 @@ fn read_model_retains_only_latest_explicit_latest_custom_event() {
         event: CustomEvent::latest("test.runtime_frame", Some(root), serde_json::json!({ "generation": 1 })),
     });
     engine.apply_edits().expect("first latest event should apply");
-    let first = read_model.publish_engine_events_since(&engine, None);
+    let first = read_model.publish_engine_events_since(&mut engine, None);
 
     engine.edits.push(Edit::EmitCustomEvent {
         event: CustomEvent::latest("test.runtime_frame", Some(root), serde_json::json!({ "generation": 2 })),
     });
     engine.apply_edits().expect("second latest event should apply");
-    read_model.publish_engine_events_since(&engine, first.to);
+    read_model.publish_engine_events_since(&mut engine, first.to);
 
     let replay = read_model.replay(None, UiSubscriptionScope::WholeGraph);
     assert_eq!(replay.events.len(), 1);
@@ -241,7 +241,7 @@ fn read_model_retains_only_latest_explicit_latest_custom_event() {
         });
         engine.apply_edits().expect("replayed custom event should apply");
     }
-    read_model.publish_engine_events_since(&engine, replay.to);
+    read_model.publish_engine_events_since(&mut engine, replay.to);
     let replay = read_model.replay(None, UiSubscriptionScope::WholeGraph);
     assert_eq!(
         replay
@@ -263,7 +263,7 @@ fn replay_before_the_first_new_event_does_not_require_resync_without_eviction() 
 
     engine.time.tick += 1;
     apply_param_change(&mut engine, 1);
-    read_model.publish_engine_events_since(&engine, Some(snapshot_time));
+    read_model.publish_engine_events_since(&mut engine, Some(snapshot_time));
     let replay = read_model.replay(Some(snapshot_time), UiSubscriptionScope::WholeGraph);
 
     assert_eq!(batch_param_values(&replay), vec![1]);
@@ -285,7 +285,7 @@ fn replay_seeks_directly_to_the_suffix_after_a_near_tail_cursor() {
     for value in 1..=256 {
         apply_param_change(&mut engine, value);
     }
-    let published = read_model.publish_engine_events_since(&engine, None);
+    let published = read_model.publish_engine_events_since(&mut engine, None);
     let cursor = published.events[254].time;
 
     let replay = read_model.replay(Some(cursor), UiSubscriptionScope::WholeGraph);
@@ -306,7 +306,7 @@ fn replay_requires_resync_only_after_the_cursor_falls_behind_an_eviction() {
     for value in 1..=3 {
         apply_param_change(&mut engine, value);
     }
-    read_model.publish_engine_events_since(&engine, Some(snapshot_time));
+    read_model.publish_engine_events_since(&mut engine, Some(snapshot_time));
     let replay = read_model.replay(Some(snapshot_time), UiSubscriptionScope::WholeGraph);
 
     assert!(replay.events.iter().any(|event| {
@@ -370,7 +370,7 @@ fn ui_feedback_coalescing_keeps_latest_only_for_coalescable_value_params() {
         apply_param_change(&mut engine, value);
     }
 
-    let batch = read_model.publish_engine_events_since(&engine, None);
+    let batch = read_model.publish_engine_events_since(&mut engine, None);
     let coalesced = read_model.coalesce_ui_feedback_events(batch.events.clone());
     assert_eq!(event_param_values(&coalesced), vec![3]);
 
@@ -381,7 +381,7 @@ fn ui_feedback_coalescing_keeps_latest_only_for_coalescable_value_params() {
     for value in 1..=3 {
         apply_param_change(&mut append_engine, value);
     }
-    let append_batch = append_read_model.publish_engine_events_since(&append_engine, None);
+    let append_batch = append_read_model.publish_engine_events_since(&mut append_engine, None);
     let append_coalesced = append_read_model.coalesce_ui_feedback_events(append_batch.events.clone());
     assert_eq!(event_param_values(&append_coalesced), vec![1, 2, 3]);
 
@@ -399,7 +399,7 @@ fn ui_feedback_coalescing_keeps_latest_only_for_coalescable_value_params() {
         });
         assert!(ack.success, "trigger should apply: {:?}", ack.error_message);
     }
-    let trigger_batch = trigger_read_model.publish_engine_events_since(&trigger_engine, None);
+    let trigger_batch = trigger_read_model.publish_engine_events_since(&mut trigger_engine, None);
     let trigger_coalesced = trigger_read_model.coalesce_ui_feedback_events(trigger_batch.events.clone());
     let trigger_count = trigger_coalesced
         .iter()
@@ -449,7 +449,7 @@ fn scoped_replay_filters_unrelated_graph_transactions() {
         .into(),
     });
     assert!(ack.success, "rename should apply: {:?}", ack.error_message);
-    read_model.publish_engine_events_since(&engine, Some(snapshot.at));
+    read_model.publish_engine_events_since(&mut engine, Some(snapshot.at));
 
     let left_replay = read_model.replay(
         None,
@@ -502,7 +502,7 @@ fn first_param_change_survives_the_next_structural_rebuild() {
 
     let param_cursor = read_model.current_event_time();
     apply_param_change(&mut engine, 7);
-    let param_batch = read_model.publish_engine_events_since(&engine, param_cursor);
+    let param_batch = read_model.publish_engine_events_since(&mut engine, param_cursor);
     assert_eq!(batch_param_values(&param_batch), vec![7]);
 
     let structural_cursor = read_model.current_event_time();
@@ -512,7 +512,7 @@ fn first_param_change_survives_the_next_structural_rebuild() {
         Some(root),
     );
     engine.apply_edits().expect("child should attach");
-    read_model.publish_engine_events_since(&engine, structural_cursor);
+    read_model.publish_engine_events_since(&mut engine, structural_cursor);
 
     let snapshot = read_model.current_snapshot();
     let root = snapshot
@@ -561,7 +561,7 @@ fn snapshot_materializes_parameter_updates_without_a_structural_rebuild() {
         behaviour: ParameterEventBehaviour::Coalesce,
     });
     assert!(ack.success, "enum value should apply: {:?}", ack.error_message);
-    let batch = read_model.publish_engine_events_since(&engine, cursor);
+    let batch = read_model.publish_engine_events_since(&mut engine, cursor);
 
     let snapshot = read_model.snapshot_for_scope(UiSubscriptionScope::WholeGraph);
     assert_eq!(snapshot.at, batch.to.expect("parameter updates should advance time"));
@@ -588,7 +588,7 @@ fn snapshot_capture_keeps_one_coherent_revision_while_edits_publish() {
 
     engine.time.tick += 1;
     apply_param_change(&mut engine, 7);
-    let batch = read_model.publish_engine_events_since(&engine, Some(before_revision));
+    let batch = read_model.publish_engine_events_since(&mut engine, Some(before_revision));
     let after = read_model.capture_snapshot(UiSubscriptionScope::WholeGraph);
 
     assert_eq!(
@@ -642,7 +642,7 @@ fn project_file_path_survives_structural_rebuild() {
         Some(root),
     );
     engine.apply_edits().expect("child should attach");
-    read_model.publish_engine_events_since(&engine, structural_cursor);
+    read_model.publish_engine_events_since(&mut engine, structural_cursor);
 
     assert_eq!(read_model.current_snapshot().project_file, project_file);
 }
@@ -660,7 +660,7 @@ fn eventless_end_edit_updates_snapshot_history_after_structural_edit() {
         ui_client_instance_id: None,
     });
     engine.apply_edits().expect("edit session should begin");
-    read_model.publish_engine_events_since(&engine, read_model.current_event_time());
+    read_model.publish_engine_events_since(&mut engine, read_model.current_event_time());
 
     let structural_cursor = read_model.current_event_time();
     let root = engine.root;
@@ -671,7 +671,7 @@ fn eventless_end_edit_updates_snapshot_history_after_structural_edit() {
     engine
         .apply_edits()
         .expect("structural edit should apply inside edit session");
-    read_model.publish_engine_events_since(&engine, structural_cursor);
+    read_model.publish_engine_events_since(&mut engine, structural_cursor);
 
     assert!(
         read_model
@@ -686,7 +686,7 @@ fn eventless_end_edit_updates_snapshot_history_after_structural_edit() {
         client_edit_id: session_id.to_string(),
     });
     engine.apply_edits().expect("edit session should end");
-    let end_batch = read_model.publish_engine_events_since(&engine, end_cursor);
+    let end_batch = read_model.publish_engine_events_since(&mut engine, end_cursor);
 
     assert!(
         end_batch.events.is_empty(),
@@ -710,7 +710,7 @@ fn user_context_custom_events_refresh_the_read_model_snapshot() {
     let ack = engine.apply_ui_intent(UiEditIntent::EnsureUserContextScope { owner: engine.root });
     assert!(ack.success, "scope creation should apply: {:?}", ack.error_message);
 
-    let batch = read_model.publish_engine_events_since(&engine, cursor);
+    let batch = read_model.publish_engine_events_since(&mut engine, cursor);
     assert!(matches!(
         batch.events.as_slice(),
         [event]
@@ -739,7 +739,7 @@ fn structural_publication_defers_whole_graph_snapshot_materialization() {
         Some(root),
     );
     engine.apply_edits().expect("child should attach");
-    let batch = read_model.publish_engine_events_since(&engine, cursor);
+    let batch = read_model.publish_engine_events_since(&mut engine, cursor);
 
     assert!(!batch.events.is_empty());
     assert!(
@@ -777,7 +777,7 @@ fn concurrent_snapshot_consumers_share_one_lazy_materialization() {
         Some(root),
     );
     engine.apply_edits().expect("child should attach");
-    read_model.publish_engine_events_since(&engine, cursor);
+    read_model.publish_engine_events_since(&mut engine, cursor);
     assert!(read_model.snapshot_cache_is_dirty_for_tests());
 
     let worker_count = 8;
@@ -853,7 +853,7 @@ fn scoped_replay_parent_index_tracks_node_moves() {
         new_prev_sibling: None,
     });
     assert!(move_ack.success, "leaf move should apply: {:?}", move_ack.error_message);
-    read_model.publish_engine_events_since(&engine, move_cursor);
+    read_model.publish_engine_events_since(&mut engine, move_cursor);
 
     let value_cursor = read_model.current_event_time();
     let value_ack = engine.apply_ui_intent(UiEditIntent::SetParam {
@@ -866,7 +866,7 @@ fn scoped_replay_parent_index_tracks_node_moves() {
         "leaf value should apply: {:?}",
         value_ack.error_message
     );
-    read_model.publish_engine_events_since(&engine, value_cursor);
+    read_model.publish_engine_events_since(&mut engine, value_cursor);
 
     let left_replay = read_model.replay(
         value_cursor,

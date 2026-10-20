@@ -533,7 +533,7 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
             .call(move |state| {
                 if state.release_closed_ui_session() {
                     let before = state.engine.ui_event_log().last().map(|event| event.time);
-                    let capture = read_model.collect_event_batch(&state.engine, before);
+                    let capture = read_model.collect_event_batch(&mut state.engine, before);
                     publish_event_capture(
                         &project_document,
                         &read_model,
@@ -657,7 +657,7 @@ impl<T: ProjectLifecycle> HostLifecycle for ProductionRuntime<T> {
                 };
                 apply_preferences_runtime_limits(&mut state.engine);
                 state.recompile_blocking("runtime.start")?;
-                let capture = read_model.collect_event_batch(&state.engine, before);
+                let capture = read_model.collect_event_batch(&mut state.engine, before);
                 publish_event_capture(
                     &project_document,
                     &read_model,

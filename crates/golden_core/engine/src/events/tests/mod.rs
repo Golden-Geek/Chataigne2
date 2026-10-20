@@ -1,6 +1,41 @@
 use super::*;
 
 #[test]
+fn prepared_storage_cache_is_runtime_only_and_invalidates_after_payload_changes() {
+    let mut event = CustomEvent::new("weighted", None, serde_json::json!("small")).with_payload_storage_weight(4096);
+    assert_eq!(event.replay_payload_bytes(), 4096);
+    assert_eq!(event.clone().replay_payload_bytes(), 4096);
+    let encoded = serde_json::to_value(&event).unwrap();
+    assert!(encoded.get("payload_storage").is_none());
+    let decoded: CustomEvent = serde_json::from_value(encoded).unwrap();
+    assert_eq!(event, decoded);
+    assert!(decoded.replay_payload_bytes() < 4096);
+
+    *Arc::make_mut(&mut event.payload) = serde_json::json!("changed");
+    assert!(event.replay_payload_bytes() < 4096);
+    event = event.with_payload_storage_weight(8192);
+    event.payload = Arc::new(serde_json::Value::Null);
+    assert_eq!(
+        event.replay_payload_bytes(),
+        std::mem::size_of::<serde_json::Value>() + 2 * std::mem::size_of::<usize>()
+    );
+}
+
+#[test]
+fn unprepared_storage_walk_counts_spare_capacity_and_bounds_complexity() {
+    let mut text = String::with_capacity(8192);
+    text.push('x');
+    let event = CustomEvent::new("spare", None, serde_json::Value::String(text));
+    assert!(event.replay_payload_bytes() >= 8192);
+    let complex = CustomEvent::new(
+        "complex",
+        None,
+        serde_json::Value::Array(vec![serde_json::Value::Null; 4096]),
+    );
+    assert_eq!(complex.replay_payload_bytes(), usize::MAX);
+}
+
+#[test]
 fn shared_event_capture_reuses_canonical_owner_and_survives_serialization_without_metadata_drift() {
     use golden_io::PayloadPool;
     use std::time::Duration;

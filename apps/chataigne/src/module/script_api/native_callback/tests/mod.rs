@@ -146,4 +146,51 @@ fn binding_keeps_callback_shape_origin_retention_and_cached_storage() {
     assert_eq!(event.payload["args"], serde_json::json!([7]));
     assert!(Arc::ptr_eq(&prepared.payload, &event.payload));
     assert!(prepared.retained_bytes() >= size_of::<Value>());
+    assert_eq!(event.replay_payload_bytes(), prepared.retained_bytes());
+}
+
+#[test]
+fn replay_byte_eviction_recovers_callback_quota_below_the_event_count_limit() {
+    use golden_core::{ui_read_model::UiReadModel, ui_sync::UiProjectFileSpec};
+    let pool = pool(3, 64 * 1024);
+    let mut engine = crate::app::AppEngine::new(Folder::new("root").into());
+    let model = UiReadModel::from_engine(&engine, UiProjectFileSpec::default());
+    let mut exported = None;
+    for index in 0..8 {
+        let mut text = String::with_capacity(8192);
+        text.push('x');
+        let prepared = NativeCallbackPayload::prepare_in(&pool, "received", vec![Value::String(text)]).unwrap();
+        engine.set_ui_event_log_custom_byte_capacity(prepared.retained_bytes() * 2);
+        let before = engine.ui_event_log().last().map(|event| event.time);
+        let event = prepared.event(engine.root);
+        if index == 0 {
+            exported = Some(event.clone());
+        }
+        engine.edits.push(Edit::EmitCustomEvent { event });
+        drop(prepared);
+        engine.apply_edits().unwrap();
+        engine.dispatch_inbox(ExecutionPhase::EngineTick).unwrap();
+        let live = model.publish_engine_events_since(&mut engine, before);
+        assert_eq!(live.events.len(), 1);
+        drop(live);
+        if index == 2 {
+            assert!(pool.try_reserve(1).is_err(), "exported owner still pins its allocation");
+            drop(exported.take());
+        }
+        // Final disposal is asynchronous; wait for the evicted reservation to be
+        // reusable without opening or polling any physical endpoint.
+        if index >= 2 {
+            let deadline = std::time::Instant::now() + Duration::from_secs(2);
+            while pool.try_reserve(1).is_err() {
+                assert!(
+                    std::time::Instant::now() < deadline,
+                    "replay eviction did not recover quota"
+                );
+                std::thread::sleep(Duration::from_millis(1));
+            }
+        }
+    }
+    assert_eq!(engine.ui_event_log().len(), 2);
+    drop((model, engine));
+    assert!(pool.wait_for_idle(Duration::from_secs(2)));
 }

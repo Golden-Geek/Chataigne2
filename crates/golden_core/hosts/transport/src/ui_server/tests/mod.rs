@@ -668,7 +668,7 @@ fn cursor_resync_advances_past_the_replacement_marker() {
         json!({ "reason": "project_replaced" }),
     );
     let read_model = Arc::new(UiReadModel::from_engine(&engine, UiProjectFileSpec::default()));
-    read_model.publish_engine_events_since(&engine, None);
+    read_model.publish_engine_events_since(&mut engine, None);
     let replacement_marker_time = read_model.current_event_time().expect("replacement marker time");
     let server_time = replacement_marker_time.max(read_model.current_snapshot().at);
 

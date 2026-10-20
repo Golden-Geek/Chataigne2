@@ -5,8 +5,8 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-20 on clean `main` at delivered `412eb7ca`, matching fetched `origin/main`,
-plus the P03 batch 40 milestone recorded below.
+Last reconciled: 2026-10-20 on clean `main` at delivered `6b145fc5`, matching fetched `origin/main`,
+plus the P03 batch 41 milestone recorded below.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
 plan. Its complete contents, including the uncommitted clarification, survive in the
@@ -51,17 +51,18 @@ checkpoint. P03 closes only when all seven workstreams meet acceptance.
 
 ## Current handoff
 
-- Current milestone: P03 batch 40, audio event byte budgets and shutdown outcomes. The previous
-  goal turn was progress: idle lifecycle recovery was verified and pushed as `412eb7ca`.
-  Event value bytes are now bounded on both native and app queues; the large-payload regression
-  drains all 80 accepted requests through shutdown with unchanged identities and zero drops.
+- Current milestone: P03 batch 41, custom-event replay byte retention and callback quota recovery.
+  The previous goal turn was progress: audio event budgets and shutdown outcomes were verified
+  and pushed as `6b145fc5`. This batch adds the replay prerequisite for worker-prepared Sound Card
+  callbacks; their publication receipts and remaining configuration work are still open.
   Progress remains **15% overall / 79% P03**; Sound Card is still a partial checkpoint.
-- Checkout reconciled on clean `main` at `412eb7ca`, matching fetched `origin/main`; no unrelated edits.
+- Checkout reconciled on clean `main` at `6b145fc5`, matching fetched `origin/main`; no unrelated edits.
   `d3a45301` removes automatic effort-switching rules; older effort notes below are historical only.
-- Validation: **492 app + 173 audio tests passed** (665 distinct); 121 overlapping no-feature audio
-  cases also passed. App strict Clippy passed in 14.00s, audio Clippy in 1.68s, workspace/test check
-  in 9.36s. Generated audio bindings were regenerated into a temporary tree and compared: no drift.
-  Final native build passed in 1m11s; all owned validation jobs are terminal.
+- Validation: **685 engine/IO/script/protocol/transport + 497 app tests passed** (1182 distinct),
+  including quota recovery and state/read-model consumers. Strict all-target Clippy passed for
+  all six owning packages. Workspace/test check and default native build passed; all owned jobs
+  are terminal.
+  The previous batch's 173 audio tests were not rerun; its evidence remains historical.
 - Scope: **foundation and readiness**. P01/P02 are verified locally, P03 remains in progress,
   P04-P18 have not started. Full lighting/video/projection authoring remains deferred.
 - Next checkpoints: Sound Card worker-side callback/log preparation and publication receipts,
@@ -85,7 +86,7 @@ External qualification is separate from implementation. A historical pass is not
 | P00 Baseline                | 100%       | VERIFIED_LOCAL | PASSED              | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                |
 | P01 Edit failures/history   | 100%       | VERIFIED_LOCAL | PASSED batches 1–8  | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                 |
 | P02 Schedule/actor failures | 100%       | VERIFIED_LOCAL | PASSED batches 1-3  | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                  |
-| P03 Bounded I/O/lifecycle   | ~79%       | IN_PROGRESS    | PASSED batches 1-40 | Native/app audio event byte bounds and shutdown outcomes verified; actor preparation and app-module audit open.           |
+| P03 Bounded I/O/lifecycle   | ~79%       | IN_PROGRESS    | PASSED batches 1-41 | Replay byte retention and callback quota recovery verified; Sound Card preparation and app-module audit open.             |
 | P04 Audio order/types       | 0%         | NOT_STARTED    | PENDING             | Legal interleaving and invalid deserialization established from source                                                    |
 | P05 Transport trust         | 0%         | NOT_STARTED    | PENDING             | Missing admission verified; exploit not demonstrated                                                                      |
 | P06 Dependencies            | 0%         | NOT_STARTED    | FAILED baseline     | Four Rustls advisories on audit date; refresh DB before repair                                                            |
@@ -3679,3 +3680,51 @@ reconfiguration fencing remain open. These are not whole-process RSS or actor de
 Next finish those Sound Card contracts, then the remaining app-module/channel audit. Whole plan
 stays **15%**, P03 **79%**; P04–P18 retain their states. No physical-device, audible output,
 native-UI, cross-platform or product-scale qualification occurred.
+
+### P03 batch 41: custom-event replay bytes and callback quota recovery
+
+Resumed clean delivered `6b145fc5` on `main`, matching fetched `origin/main`. Preparing Sound Card
+callbacks exposed a prerequisite: replay could retain enough large callbacks to exhaust the shared
+payload pool before the 8192-event limit, preventing capacity recovery on the publishing worker.
+
+Golden Engine and its independent UI read-model log now target **64 MiB of custom JSON**, alongside
+their existing item limits. Native callback preparation attaches its full retained weight, including
+spare strings/arrays and a conservative B-tree node allowance. Runtime-only weight metadata follows
+the immutable Arc and invalidates after replacement or `Arc::make_mut`; serialization and logical
+equality are unchanged. Unprepared producers get a bounded 4096-value / 64-level accounting walk;
+unknown complexity is charged as an oversized entry. Replay accounting does not rescan prepared
+callbacks; DTO capture still copies JSON on the actor and remains separate work.
+
+`collect_event_batch` now requires exclusive engine access: capture the live batch and cached weights,
+then enforce replay bytes. All production, project-replacement and test consumers use that boundary.
+This preserves every live occurrence within the existing count limit even when one mutation turn
+exceeds the byte target. Engine eviction clears payload leases from the lazy dead prefix immediately,
+without repeated full-vector compaction. Read-model eviction updates indexes, weights and the existing
+resync watermark; an empty capture also applies a lowered budget. Latest replacement and ordinary
+callback retention policies are preserved.
+
+Both logs retain one oversized entry. Hard byte guarantees therefore require producer admission below
+the replay target; native callback payloads admit at most 32 MiB, below the default 64 MiB. Temporary
+live captures, exported event owners, other event kinds, projection storage and final actor-side DTO
+copy/disposal costs remain separate. This is not a whole-process RSS or actor-deadline qualification.
+
+Final validation passed:
+
+| Check                                                                                                                                                           | Result                                                                                                                                                                                                                                                                                                        |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cargo test-fast --locked -p golden_engine -p golden_io -p golden_script -p golden_protocol -p golden_transport_server -- --quiet`                              | Passed: 550 engine unit + 8 integration + 7 doc, 44 IO, 29 script, 1 protocol, 46 transport; **685 distinct**. Four existing ignored tests remain ignored.                                                                                                                                                    |
+| Fresh app executable, compiled-name disjoint preservation filters                                                                                               | Passed: **497/497 of 942 listed**. Script API 9; Sound Card 52; generators 46; null-device audio 1; HTTP 66; common JSON 1; module command 11; streams 191; common streaming 61; common serial 28; OSC 25; initial Formula 1; compressed-archive write rejection 1; state/read-model consumers 4. No overlap. |
+| `cargo clippy --locked -p golden_engine -p golden_io -p golden_script -p golden_protocol -p golden_transport_server -p Chataigne2 --all-targets -- -D warnings` | Passed.                                                                                                                                                                                                                                                                                                       |
+| `cargo check --locked --workspace --tests`                                                                                                                      | Passed.                                                                                                                                                                                                                                                                                                       |
+| `cargo build --locked -p Chataigne2 --bin Chataigne2`                                                                                                           | Passed; existing UI bundle reused.                                                                                                                                                                                                                                                                            |
+
+Inventory: **1547 source files / 41 oversized** using the maintained scan
+policy; one new focused replay test file and no new size exception. Next finish Sound Card callback/log
+preparation and publication receipts, retained raw-event disposal, observation/configuration admission
+and failure/reconfiguration fences, then the remaining app-module/channel audit. Progress stays
+**15% whole plan / 79% P03 / 50% Sound Card**; P04–P18 remain unstarted.
+
+Root/Core Cargo formatting, affected app rustfmt, maintained-doc Prettier and whitespace checks
+passed. No protocol DTO fields, persisted project format, frontend or app-shell startup changed.
+All validation jobs are terminal. No physical endpoint, native UI, cross-platform or product-scale
+qualification occurred. Commit and push this verified milestone on `main` before the next batch.
