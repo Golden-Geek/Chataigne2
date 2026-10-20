@@ -15,13 +15,14 @@ fn borrowed_validation_preserves_original_storage_until_an_accepted_value_needs_
     }
     let value = ParamValue::Str("large".repeat(4096));
     let constraints = ParameterConstraints {
-        enum_options: vec![ParameterEnumOption {
+        enum_options: (vec![ParameterEnumOption {
             variant_id: "allowed".into(),
             label: "Allowed".into(),
             value: ParamValue::Int(1),
             tags: Vec::new(),
             ordering: None,
-        }],
+        }])
+        .into(),
         ..Default::default()
     };
     assert!(constraints.normalize_ref(&value).is_err());

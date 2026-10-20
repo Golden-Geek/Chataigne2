@@ -15,8 +15,7 @@ use crate::app::module::common::buttplug::{
     ButtplugControlRequest, ButtplugSetOutputRequest, ButtplugTargetRequest, BUTTPLUG_DEVICE_VARIANT_PREFIX,
     BUTTPLUG_SET_OUTPUT_COMMAND_NODE_TYPE, BUTTPLUG_START_SCANNING_COMMAND_NODE_TYPE,
     BUTTPLUG_STOP_ALL_DEVICES_COMMAND_NODE_TYPE, BUTTPLUG_STOP_DEVICE_COMMAND_NODE_TYPE,
-    BUTTPLUG_STOP_SCANNING_COMMAND_NODE_TYPE, BUTTPLUG_TARGET_ALL, BUTTPLUG_TARGET_NONE,
-    BUTTPLUG_TARGET_SELECTED,
+    BUTTPLUG_STOP_SCANNING_COMMAND_NODE_TYPE, BUTTPLUG_TARGET_ALL, BUTTPLUG_TARGET_NONE, BUTTPLUG_TARGET_SELECTED,
 };
 
 use self::transport::{
@@ -28,8 +27,7 @@ const BUTTPLUG_MODULE_UPDATE_RATE_HZ: u32 = 120;
 const BUTTPLUG_TARGET_WARNING_ID: &str = "buttplug_target_transport";
 const BUTTPLUG_SELECTION_WARNING_ID: &str = "buttplug_selection";
 const BUTTPLUG_SAFETY_WARNING_ID: &str = "buttplug_safety";
-pub(crate) const BUTTPLUG_SAFETY_MANIFEST_URL: &str =
-    "https://buttplug.io/docs/dev-guide/intro/buttplug-ethics/";
+pub(crate) const BUTTPLUG_SAFETY_MANIFEST_URL: &str = "https://buttplug.io/docs/dev-guide/intro/buttplug-ethics/";
 
 const BUTTPLUG_DEVICE_ADDED_CALLBACK: &str = "buttplugDeviceAdded";
 const BUTTPLUG_DEVICE_REMOVED_CALLBACK: &str = "buttplugDeviceRemoved";
@@ -376,9 +374,11 @@ impl ButtplugModule {
         }
 
         let result = match request.command_type.as_str() {
-            BUTTPLUG_SET_OUTPUT_COMMAND_NODE_TYPE => serde_json::from_value::<ButtplugSetOutputRequest>(request.payload)
-                .map_err(|error| format!("invalid Buttplug set-output command payload: {error}"))
-                .and_then(|payload| self.queue_set_output(ctx, payload)),
+            BUTTPLUG_SET_OUTPUT_COMMAND_NODE_TYPE => {
+                serde_json::from_value::<ButtplugSetOutputRequest>(request.payload)
+                    .map_err(|error| format!("invalid Buttplug set-output command payload: {error}"))
+                    .and_then(|payload| self.queue_set_output(ctx, payload))
+            }
             BUTTPLUG_STOP_DEVICE_COMMAND_NODE_TYPE => serde_json::from_value::<ButtplugTargetRequest>(request.payload)
                 .map_err(|error| format!("invalid Buttplug stop-device command payload: {error}"))
                 .and_then(|payload| self.queue_stop_device(ctx, payload)),
@@ -439,11 +439,9 @@ impl ButtplugModule {
             "setOutput" => script_set_output_request(args)?
                 .and_then(|request| self.queue_set_output(ctx, request))
                 .map(|_| ()),
-            "vibrate" | "rotate" | "oscillate" | "position" => {
-                script_named_output_request(method, args)?
-                    .and_then(|request| self.queue_set_output(ctx, request))
-                    .map(|_| ())
-            }
+            "vibrate" | "rotate" | "oscillate" | "position" => script_named_output_request(method, args)?
+                .and_then(|request| self.queue_set_output(ctx, request))
+                .map(|_| ()),
             "positionWithDuration" => script_position_with_duration_request(args)?
                 .and_then(|request| self.queue_set_output(ctx, request))
                 .map(|_| ()),
@@ -506,8 +504,11 @@ impl ButtplugModule {
             self.set_device_warning(
                 ctx,
                 BUTTPLUG_SELECTION_WARNING_ID,
-                format!("Selected Buttplug device '{}' is not connected.", human_device_variant(selection.as_str()))
-                    .as_str(),
+                format!(
+                    "Selected Buttplug device '{}' is not connected.",
+                    human_device_variant(selection.as_str())
+                )
+                .as_str(),
             );
         } else {
             self.clear_device_warning(ctx, BUTTPLUG_SELECTION_WARNING_ID);
@@ -525,7 +526,12 @@ impl ButtplugModule {
 
     fn set_target_warning(&self, ctx: &mut ProcessCtx, message: &str) {
         if self.remote_host.is_bound() {
-            NodeHandle::new(self.remote_host.id()).set_warning_with(ctx, Some(BUTTPLUG_TARGET_WARNING_ID), message, None);
+            NodeHandle::new(self.remote_host.id()).set_warning_with(
+                ctx,
+                Some(BUTTPLUG_TARGET_WARNING_ID),
+                message,
+                None,
+            );
         }
     }
 
@@ -576,9 +582,7 @@ impl ButtplugModule {
 
     fn set_string_param(&mut self, ctx: &mut ProcessCtx, param: ButtplugStringParam, value: &str) {
         match param {
-            ButtplugStringParam::ServerName
-                if self.server_name.is_bound() && self.server_name.get_ref() != value =>
-            {
+            ButtplugStringParam::ServerName if self.server_name.is_bound() && self.server_name.get_ref() != value => {
                 self.server_name.set(ctx, value.to_string());
             }
             ButtplugStringParam::LastEvent if self.last_event.is_bound() && self.last_event.get_ref() != value => {
@@ -592,12 +596,7 @@ impl ButtplugModule {
         self.set_string_param(ctx, ButtplugStringParam::LastEvent, value.as_str());
     }
 
-    fn emit_buttplug_callback(
-        &self,
-        ctx: &mut ProcessCtx,
-        callback: &str,
-        args: Vec<serde_json::Value>,
-    ) {
+    fn emit_buttplug_callback(&self, ctx: &mut ProcessCtx, callback: &str, args: Vec<serde_json::Value>) {
         crate::app::module::script_api::emit_script_callback(ctx, self.id(), callback, args);
     }
 }
@@ -649,8 +648,7 @@ impl Node for ButtplugModule {
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
-        NodeExecutionRule::periodic(BUTTPLUG_MODULE_UPDATE_RATE_HZ)
-            .with_compiled_kernel("chataigne.runtime.buttplug")
+        NodeExecutionRule::periodic(BUTTPLUG_MODULE_UPDATE_RATE_HZ).with_compiled_kernel("chataigne.runtime.buttplug")
     }
 
     fn child_event_interest_depth(&self, _event: &Event) -> u32 {
@@ -658,11 +656,7 @@ impl Node for ButtplugModule {
     }
 
     fn engine_script_descriptor(&self) -> NodeScriptDescriptor {
-        crate::app::module::script_api::descriptor_for_node(
-            self.node_data(),
-            self.get_type(),
-            BUTTPLUG_SCRIPT_METHODS,
-        )
+        crate::app::module::script_api::descriptor_for_node(self.node_data(), self.get_type(), BUTTPLUG_SCRIPT_METHODS)
     }
 
     fn engine_call_script_method(
@@ -766,9 +760,7 @@ fn script_named_output_request(method: &str, args: &[ParamValue]) -> Option<Resu
 
 fn script_position_with_duration_request(args: &[ParamValue]) -> Option<Result<ButtplugSetOutputRequest, String>> {
     let Some(value) = args.first().and_then(param_value_as_number) else {
-        return Some(Err(
-            "method 'positionWithDuration' expects a numeric value".to_string(),
-        ));
+        return Some(Err("method 'positionWithDuration' expects a numeric value".to_string()));
     };
 
     Some(Ok(ButtplugSetOutputRequest {
@@ -828,7 +820,11 @@ fn buttplug_device_options(devices: &[ButtplugDeviceInfo]) -> Vec<ParameterEnumO
     ];
 
     options.extend(devices.iter().enumerate().map(|(index, device)| {
-        let mut option = enum_option(device.variant_id.as_str(), device_label(device).as_str(), 10 + index as i32);
+        let mut option = enum_option(
+            device.variant_id.as_str(),
+            device_label(device).as_str(),
+            10 + index as i32,
+        );
         option.tags = device.outputs.clone();
         option
     }));
@@ -849,23 +845,18 @@ fn sync_buttplug_device_enum_options(ctx: &mut ProcessCtx, param_id: NodeId, opt
             .unwrap_or_else(|| BUTTPLUG_TARGET_ALL.to_string());
 
         if specific_device_selected(current_variant.as_str())
-            && !next_options
-                .iter()
-                .any(|option| option.variant_id == current_variant)
+            && !next_options.iter().any(|option| option.variant_id == current_variant)
         {
             next_options.insert(2, missing_device_option(current_variant.as_str()));
         }
 
-        let next_value = if next_options
-            .iter()
-            .any(|option| option.variant_id == current_variant)
-        {
+        let next_value = if next_options.iter().any(|option| option.variant_id == current_variant) {
             ParamValue::Enum(current_variant.clone())
         } else {
             ParamValue::Enum(BUTTPLUG_TARGET_ALL.to_string())
         };
 
-        if parameter.constraints.enum_options == next_options && parameter.value == next_value {
+        if parameter.constraints.enum_options.as_slice() == next_options.as_slice() && parameter.value == next_value {
             return Ok(());
         }
 
@@ -878,7 +869,7 @@ fn sync_buttplug_device_enum_options(ctx: &mut ProcessCtx, param_id: NodeId, opt
         replacement.read_only = parameter.read_only;
         replacement.persist_read_only_value = parameter.persist_read_only_value;
         replacement.constraints = parameter.constraints.clone();
-        replacement.constraints.enum_options = next_options;
+        replacement.constraints.enum_options = (next_options).into();
         replacement.ui_hints = parameter.ui_hints.clone();
         replacement.control = parameter.control.clone();
         replacement.control_modes_enabled = parameter.control_modes_enabled;

@@ -362,11 +362,13 @@ advances only after each edit applies. Each prepared binding plan owns a fixed c
 the worker and charged through final background disposal. Generation tags avoid whole-cache clearing,
 and inline scalar/short-text slots cannot grow during actor service. The inspection closure must
 not block or reenter the reader.
-The native owner also prepares sorted physical-channel lookup frames for route intents, with
-admission independent of metering/analysis capture. Metering-only captures reuse them; actor
-admission borrows keys and checks the atomic native device revision
+The native owner also captures immutable inspector metadata with sorted physical-channel indices
+for route intents, with admission independent of metering/analysis capture. Metering-only captures
+reuse it; actor admission borrows keys and checks the atomic native device revision
 before and after lookup. Device changes reject stale route requests until a current capture is
-available. Route storage keeps its original lifetime admission through background disposal.
+available. Route and device-choice readers share the same retained inventory through background
+disposal. Choice synchronization retries missing inventory independently of metering pressure;
+choice construction and publication still run on the actor.
 Capture/telemetry overload has a separate visible warning and leaves control admission independent.
 App-owned selection/probe planning and configuration conversion run on one bounded preparation worker.
 Queued/running requests lease their source snapshots; ready plans retain output storage admission

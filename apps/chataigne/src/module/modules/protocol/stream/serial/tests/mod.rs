@@ -342,13 +342,15 @@ fn allow_serial_port_variant(engine: &mut crate::app::AppEngine, node: NodeId, v
         .and_then(|candidate| candidate.engine_param_snapshot())
         .expect("serial port parameter should exist");
     let mut constraints = snapshot.constraints.clone();
-    constraints.enum_options.push(ParameterEnumOption {
+    let mut options = constraints.enum_options.as_slice().to_vec();
+    options.push(ParameterEnumOption {
         variant_id: variant.to_string(),
         value: ParamValue::Enum(variant.to_string()),
         label: variant.to_string(),
         tags: Vec::new(),
         ordering: None,
     });
+    constraints.enum_options = options.into();
     set_param_constraints(engine, node, constraints);
     engine.apply_edits().expect("serial port test enum option should apply");
 }

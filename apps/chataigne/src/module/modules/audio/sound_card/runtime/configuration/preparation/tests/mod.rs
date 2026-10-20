@@ -82,7 +82,7 @@ fn input_admission_rejects_large_values_before_configuration_materialization() {
         .clone()
         .unwrap();
     // Exercise the preparation boundary with an authored value admitted by Core.
-    constraints.enum_options.clear();
+    constraints.enum_options = Default::default();
     engine.edits.push(Edit::SetParamConstraints {
         node: parameter,
         constraints,

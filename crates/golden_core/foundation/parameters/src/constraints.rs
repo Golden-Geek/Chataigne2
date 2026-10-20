@@ -7,7 +7,9 @@ use ts_rs::TS;
 use golden_model::NodeUuid;
 
 use super::control::{is_default_parameter_control_state, is_true};
-use super::{CssValue, ParamValue, ParameterChangeCheck, ParameterControlState, ParameterEventBehaviour};
+use super::{
+    CssValue, ParamValue, ParameterChangeCheck, ParameterControlState, ParameterEnumOptions, ParameterEventBehaviour,
+};
 
 type NumericBounds = (Option<f64>, Option<f64>);
 
@@ -290,8 +292,9 @@ pub struct ParameterConstraints {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub step_base: Option<f64>,
     /// Optional enum-domain constraints.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub enum_options: Vec<ParameterEnumOption>,
+    #[serde(default, skip_serializing_if = "ParameterEnumOptions::is_empty")]
+    #[ts(as = "Vec<ParameterEnumOption>")]
+    pub enum_options: ParameterEnumOptions,
     /// Enforcement strategy for invalid incoming values.
     #[serde(default)]
     pub policy: ParameterConstraintPolicy,

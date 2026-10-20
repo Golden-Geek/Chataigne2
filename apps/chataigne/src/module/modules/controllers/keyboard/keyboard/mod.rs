@@ -6,19 +6,17 @@ use golden_core::{
     engine::NodeExecutionRule,
     events::CustomEvent,
     logerror, node,
-    node::{Node, NodeId, NodeScriptDescriptor, NodeHandle},
+    node::{Node, NodeHandle, NodeId, NodeScriptDescriptor},
     parameter::{Enum, ParamValue, Parameter, ParameterEnumOption, ParameterEventBehaviour},
     process_ctx::ProcessCtx,
 };
 
 use crate::app::module::common::keyboard::{
-    KeyboardKey, KeyboardKeyAction, KeyboardKeyRequest, KEYBOARD_KEY_COMMAND_NODE_TYPE,
-    KEYBOARD_MODULE_COMMAND_TYPES,
+    KeyboardKey, KeyboardKeyAction, KeyboardKeyRequest, KEYBOARD_KEY_COMMAND_NODE_TYPE, KEYBOARD_MODULE_COMMAND_TYPES,
 };
 
 use self::keyboard_runtime::{
-    DiscoveredKeyboardDevice, KeyboardInputEvent, KeyboardInputRuntime,
-    KeyboardOutputController, KeyboardRuntimeEvent,
+    DiscoveredKeyboardDevice, KeyboardInputEvent, KeyboardInputRuntime, KeyboardOutputController, KeyboardRuntimeEvent,
 };
 
 const KEYBOARD_MODULE_UPDATE_RATE_HZ: u32 = 120;
@@ -378,10 +376,7 @@ impl KeyboardModule {
         Ok(())
     }
 
-    fn output_backend_mut(
-        &mut self,
-        ctx: &mut ProcessCtx,
-    ) -> Result<&mut KeyboardOutputController, String> {
+    fn output_backend_mut(&mut self, ctx: &mut ProcessCtx) -> Result<&mut KeyboardOutputController, String> {
         if !self.node_data().effective_enabled {
             return Err("keyboard module is disabled".to_string());
         }
@@ -411,8 +406,7 @@ impl KeyboardModule {
         let Some(request) = crate::app::module_command::decode_module_command_request(&event) else {
             return;
         };
-        if request.module_id != self.id() || !KEYBOARD_MODULE_COMMAND_TYPES.contains(&request.command_type.as_str())
-        {
+        if request.module_id != self.id() || !KEYBOARD_MODULE_COMMAND_TYPES.contains(&request.command_type.as_str()) {
             return;
         }
 
@@ -424,7 +418,10 @@ impl KeyboardModule {
         };
 
         if let Err(error) = result {
-            logerror!(format!("Failed to handle keyboard command {:?}: {error}", request.command_id));
+            logerror!(format!(
+                "Failed to handle keyboard command {:?}: {error}",
+                request.command_id
+            ));
         }
     }
 
@@ -675,11 +672,7 @@ impl KeyboardModule {
         }
     }
 
-    fn refresh_selection_warning(
-        &self,
-        ctx: &mut ProcessCtx,
-        selected: Option<&DiscoveredKeyboardDevice>,
-    ) {
+    fn refresh_selection_warning(&self, ctx: &mut ProcessCtx, selected: Option<&DiscoveredKeyboardDevice>) {
         if !self.receive_enabled.get() {
             self.clear_device_warning(ctx, KEYBOARD_SELECTION_WARNING_ID);
             return;
@@ -713,12 +706,7 @@ impl KeyboardModule {
         }
     }
 
-    fn emit_keyboard_callback(
-        &self,
-        ctx: &mut ProcessCtx,
-        callback: &str,
-        args: Vec<serde_json::Value>,
-    ) {
+    fn emit_keyboard_callback(&self, ctx: &mut ProcessCtx, callback: &str, args: Vec<serde_json::Value>) {
         crate::app::module::script_api::emit_script_callback(ctx, self.id(), callback, args);
     }
 
@@ -761,8 +749,7 @@ impl KeyboardModule {
 impl Node for KeyboardModule {
     fn init(&mut self, ctx: &mut ProcessCtx) {
         self.base.init(ctx);
-        self.base
-            .configure_command_tester(ctx, KEYBOARD_MODULE_COMMAND_TYPES);
+        self.base.configure_command_tester(ctx, KEYBOARD_MODULE_COMMAND_TYPES);
         self.refresh_data_capabilities(ctx);
         self.refresh_connection_state(ctx);
     }
@@ -803,16 +790,11 @@ impl Node for KeyboardModule {
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
-        NodeExecutionRule::periodic(KEYBOARD_MODULE_UPDATE_RATE_HZ)
-            .with_compiled_kernel("chataigne.runtime.keyboard")
+        NodeExecutionRule::periodic(KEYBOARD_MODULE_UPDATE_RATE_HZ).with_compiled_kernel("chataigne.runtime.keyboard")
     }
 
     fn engine_script_descriptor(&self) -> NodeScriptDescriptor {
-        crate::app::module::script_api::descriptor_for_node(
-            self.node_data(),
-            self.get_type(),
-            KEYBOARD_SCRIPT_METHODS,
-        )
+        crate::app::module::script_api::descriptor_for_node(self.node_data(), self.get_type(), KEYBOARD_SCRIPT_METHODS)
     }
 
     fn engine_call_script_method(
@@ -904,11 +886,7 @@ fn keyboard_device_options(devices: &[DiscoveredKeyboardDevice]) -> Vec<Paramete
     options
 }
 
-fn sync_keyboard_device_enum_options(
-    ctx: &mut ProcessCtx,
-    param_id: NodeId,
-    options: Vec<ParameterEnumOption>,
-) {
+fn sync_keyboard_device_enum_options(ctx: &mut ProcessCtx, param_id: NodeId, options: Vec<ParameterEnumOption>) {
     ctx.call_node_mutation(param_id, move |node, inner_ctx| {
         let Some(parameter) = node.as_any_mut().downcast_mut::<Parameter>() else {
             return Err("keyboard device target is not a parameter".to_string());
@@ -923,23 +901,18 @@ fn sync_keyboard_device_enum_options(
             .unwrap_or_else(|| AUTO_KEYBOARD_VARIANT.to_string());
 
         if keyboard_specific_device_selected(current_variant.as_str())
-            && !next_options
-                .iter()
-                .any(|option| option.variant_id == current_variant)
+            && !next_options.iter().any(|option| option.variant_id == current_variant)
         {
             next_options.insert(2, missing_keyboard_option(current_variant.as_str()));
         }
 
-        let next_value = if next_options
-            .iter()
-            .any(|option| option.variant_id == current_variant)
-        {
+        let next_value = if next_options.iter().any(|option| option.variant_id == current_variant) {
             ParamValue::Enum(current_variant.clone())
         } else {
             ParamValue::Enum(AUTO_KEYBOARD_VARIANT.to_string())
         };
 
-        if parameter.constraints.enum_options == next_options && parameter.value == next_value {
+        if parameter.constraints.enum_options.as_slice() == next_options.as_slice() && parameter.value == next_value {
             return Ok(());
         }
 
@@ -952,7 +925,7 @@ fn sync_keyboard_device_enum_options(
         replacement.read_only = parameter.read_only;
         replacement.persist_read_only_value = parameter.persist_read_only_value;
         replacement.constraints = parameter.constraints.clone();
-        replacement.constraints.enum_options = next_options;
+        replacement.constraints.enum_options = (next_options).into();
         replacement.ui_hints = parameter.ui_hints.clone();
         replacement.control = parameter.control.clone();
         replacement.control_modes_enabled = parameter.control_modes_enabled;
@@ -962,10 +935,7 @@ fn sync_keyboard_device_enum_options(
     });
 }
 
-fn selected_keyboard_device(
-    selection: &str,
-    devices: &[DiscoveredKeyboardDevice],
-) -> Option<DiscoveredKeyboardDevice> {
+fn selected_keyboard_device(selection: &str, devices: &[DiscoveredKeyboardDevice]) -> Option<DiscoveredKeyboardDevice> {
     devices
         .iter()
         .find(|device| selection_matches_keyboard(selection, device))
@@ -978,8 +948,7 @@ fn selection_matches_keyboard(selection: &str, device: &DiscoveredKeyboardDevice
         NO_KEYBOARD_VARIANT | "" => false,
         selected => {
             selected == device.variant_id
-                || legacy_keyboard_variant_identity(selected)
-                    .is_some_and(|identity| identity == device.variant_id)
+                || legacy_keyboard_variant_identity(selected).is_some_and(|identity| identity == device.variant_id)
         }
     }
 }

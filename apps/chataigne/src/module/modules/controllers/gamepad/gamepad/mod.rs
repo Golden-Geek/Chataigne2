@@ -341,8 +341,7 @@ impl GamepadModule {
                 }
             }
             GamepadRuntimeEvent::Disconnected { device } => {
-                self.known_devices
-                    .retain(|known| known.variant_id != device.variant_id);
+                self.known_devices.retain(|known| known.variant_id != device.variant_id);
             }
             GamepadRuntimeEvent::AxisChanged { .. }
             | GamepadRuntimeEvent::ButtonPressed { .. }
@@ -431,11 +430,7 @@ impl GamepadModule {
                     golden_core::log!(origin = self.id(); format!("Gamepad disconnected: {}", device.label));
                 }
             }
-            GamepadRuntimeEvent::AxisChanged {
-                device,
-                axis,
-                value,
-            } => {
+            GamepadRuntimeEvent::AxisChanged { device, axis, value } => {
                 if !event_device_is_selected(&device, selected) {
                     return;
                 }
@@ -498,11 +493,7 @@ impl GamepadModule {
                     ],
                 );
             }
-            GamepadRuntimeEvent::ButtonChanged {
-                device,
-                button,
-                value,
-            } => {
+            GamepadRuntimeEvent::ButtonChanged { device, button, value } => {
                 if !event_device_is_selected(&device, selected) {
                     return;
                 }
@@ -572,14 +563,10 @@ impl GamepadModule {
 
     fn set_axis_scalar(&mut self, ctx: &mut ProcessCtx, axis: GamepadAxis, value: f64) {
         match axis {
-            GamepadAxis::LeftZ
-                if self.left_z.is_bound() && float_changed(self.left_z.get(), value) =>
-            {
+            GamepadAxis::LeftZ if self.left_z.is_bound() && float_changed(self.left_z.get(), value) => {
                 self.left_z.set(ctx, value);
             }
-            GamepadAxis::RightZ
-                if self.right_z.is_bound() && float_changed(self.right_z.get(), value) =>
-            {
+            GamepadAxis::RightZ if self.right_z.is_bound() && float_changed(self.right_z.get(), value) => {
                 self.right_z.set(ctx, value);
             }
             _ => {}
@@ -622,21 +609,11 @@ impl GamepadModule {
             }
             GamepadAxis::DPadX => {
                 let y = self.axis_values[axis_index(GamepadAxis::DPadY)];
-                self.set_vec2_param(
-                    ctx,
-                    Vec2Param::DPad,
-                    value,
-                    y,
-                );
+                self.set_vec2_param(ctx, Vec2Param::DPad, value, y);
             }
             GamepadAxis::DPadY => {
                 let x = self.axis_values[axis_index(GamepadAxis::DPadX)];
-                self.set_vec2_param(
-                    ctx,
-                    Vec2Param::DPad,
-                    x,
-                    value,
-                );
+                self.set_vec2_param(ctx, Vec2Param::DPad, x, value);
             }
             GamepadAxis::LeftZ | GamepadAxis::RightZ => {}
         }
@@ -646,17 +623,22 @@ impl GamepadModule {
         let value: Vec2 = Vec2::new(x, y);
         match param {
             Vec2Param::LeftStick => {
-                if self.left_stick.is_bound() && (float_changed(self.left_stick.get().x, x) || float_changed(self.left_stick.get().y, y)) {
+                if self.left_stick.is_bound()
+                    && (float_changed(self.left_stick.get().x, x) || float_changed(self.left_stick.get().y, y))
+                {
                     self.left_stick.set(ctx, value);
                 }
             }
             Vec2Param::RightStick => {
-                if self.right_stick.is_bound() && (float_changed(self.right_stick.get().x, x) || float_changed(self.right_stick.get().y, y)) {
+                if self.right_stick.is_bound()
+                    && (float_changed(self.right_stick.get().x, x) || float_changed(self.right_stick.get().y, y))
+                {
                     self.right_stick.set(ctx, value);
                 }
             }
             Vec2Param::DPad => {
-                if self.dpad.is_bound() && (float_changed(self.dpad.get().x, x) || float_changed(self.dpad.get().y, y)) {
+                if self.dpad.is_bound() && (float_changed(self.dpad.get().x, x) || float_changed(self.dpad.get().y, y))
+                {
                     self.dpad.set(ctx, value);
                 }
             }
@@ -666,21 +648,26 @@ impl GamepadModule {
     fn set_button_value(&mut self, ctx: &mut ProcessCtx, button: GamepadButton, pressed: bool) {
         let button_index = button_state_index(button);
         let old_pressed = self.button_state.get(button_index).copied().unwrap_or(false);
-        
+
         // Only log if state actually changed
         if old_pressed != pressed && self.base.log_incoming_enabled() {
             golden_core::log!(origin = self.id(); format!("Button {} {}", button.label(), if pressed { "pressed" } else { "released" }));
         }
-        
-        if old_pressed == pressed && !matches!(button, GamepadButton::DPadUp | GamepadButton::DPadDown | GamepadButton::DPadLeft | GamepadButton::DPadRight) {
+
+        if old_pressed == pressed
+            && !matches!(
+                button,
+                GamepadButton::DPadUp | GamepadButton::DPadDown | GamepadButton::DPadLeft | GamepadButton::DPadRight
+            )
+        {
             return; // No change, skip update
         }
-        
+
         // Update state tracking
         if button_index < self.button_state.len() {
             self.button_state[button_index] = pressed;
         }
-        
+
         // Track D-pad button state and synthesize axis values
         match button {
             GamepadButton::DPadUp => {
@@ -723,12 +710,24 @@ impl GamepadModule {
 
     fn update_dpad_from_buttons(&mut self, ctx: &mut ProcessCtx) {
         let (up, down, left, right) = self.dpad_button_state;
-        let x = if right { 1.0 } else if left { -1.0 } else { 0.0 };
-        let y = if up { 1.0 } else if down { -1.0 } else { 0.0 };
-        
+        let x = if right {
+            1.0
+        } else if left {
+            -1.0
+        } else {
+            0.0
+        };
+        let y = if up {
+            1.0
+        } else if down {
+            -1.0
+        } else {
+            0.0
+        };
+
         self.axis_values[axis_index(GamepadAxis::DPadX)] = x;
         self.axis_values[axis_index(GamepadAxis::DPadY)] = y;
-        
+
         self.set_vec2_param(ctx, Vec2Param::DPad, x, y);
     }
 
@@ -861,8 +860,7 @@ impl GamepadModule {
 
     fn set_device_warning(&self, ctx: &mut ProcessCtx, warning_id: &str, message: &str, detail: Option<&str>) {
         if self.device.is_bound() {
-            self.device
-                .set_warning_with(ctx, Some(warning_id), message, detail);
+            self.device.set_warning_with(ctx, Some(warning_id), message, detail);
         }
     }
 
@@ -872,12 +870,7 @@ impl GamepadModule {
         }
     }
 
-    fn emit_gamepad_callback(
-        &self,
-        ctx: &mut ProcessCtx,
-        callback: &str,
-        args: Vec<serde_json::Value>,
-    ) {
+    fn emit_gamepad_callback(&self, ctx: &mut ProcessCtx, callback: &str, args: Vec<serde_json::Value>) {
         crate::app::module::script_api::emit_script_callback(ctx, self.id(), callback, args);
     }
 
@@ -944,10 +937,7 @@ impl Node for GamepadModule {
     }
 
     fn needs_update(&self) -> bool {
-        self.runtime.is_some()
-            || self.runtime_dirty
-            || self.devices_dirty
-            || !self.pending_runtime_events.is_empty()
+        self.runtime.is_some() || self.runtime_dirty || self.devices_dirty || !self.pending_runtime_events.is_empty()
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {
@@ -955,8 +945,7 @@ impl Node for GamepadModule {
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
-        NodeExecutionRule::periodic(GAMEPAD_MODULE_UPDATE_RATE_HZ)
-            .with_compiled_kernel("chataigne.runtime.gamepad")
+        NodeExecutionRule::periodic(GAMEPAD_MODULE_UPDATE_RATE_HZ).with_compiled_kernel("chataigne.runtime.gamepad")
     }
 
     fn child_event_interest_depth(&self, _event: &Event) -> u32 {
@@ -964,11 +953,7 @@ impl Node for GamepadModule {
     }
 
     fn engine_script_descriptor(&self) -> NodeScriptDescriptor {
-        crate::app::module::script_api::descriptor_for_node(
-            self.node_data(),
-            self.get_type(),
-            GAMEPAD_SCRIPT_METHODS,
-        )
+        crate::app::module::script_api::descriptor_for_node(self.node_data(), self.get_type(), GAMEPAD_SCRIPT_METHODS)
     }
 
     fn engine_call_script_method(
@@ -1151,23 +1136,18 @@ fn sync_gamepad_device_enum_options(ctx: &mut ProcessCtx, param_id: NodeId, opti
             .unwrap_or_else(|| AUTO_GAMEPAD_VARIANT.to_string());
 
         if gamepad_specific_device_selected(current_variant.as_str())
-            && !next_options
-                .iter()
-                .any(|option| option.variant_id == current_variant)
+            && !next_options.iter().any(|option| option.variant_id == current_variant)
         {
             next_options.insert(2, missing_gamepad_option(current_variant.as_str()));
         }
 
-        let next_value = if next_options
-            .iter()
-            .any(|option| option.variant_id == current_variant)
-        {
+        let next_value = if next_options.iter().any(|option| option.variant_id == current_variant) {
             ParamValue::Enum(current_variant.clone())
         } else {
             ParamValue::Enum(AUTO_GAMEPAD_VARIANT.to_string())
         };
 
-        if parameter.constraints.enum_options == next_options && parameter.value == next_value {
+        if parameter.constraints.enum_options.as_slice() == next_options.as_slice() && parameter.value == next_value {
             return Ok(());
         }
 
@@ -1180,7 +1160,7 @@ fn sync_gamepad_device_enum_options(ctx: &mut ProcessCtx, param_id: NodeId, opti
         replacement.read_only = parameter.read_only;
         replacement.persist_read_only_value = parameter.persist_read_only_value;
         replacement.constraints = parameter.constraints.clone();
-        replacement.constraints.enum_options = next_options;
+        replacement.constraints.enum_options = (next_options).into();
         replacement.ui_hints = parameter.ui_hints.clone();
         replacement.control = parameter.control.clone();
         replacement.control_modes_enabled = parameter.control_modes_enabled;

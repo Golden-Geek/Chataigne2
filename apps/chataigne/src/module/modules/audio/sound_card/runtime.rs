@@ -239,8 +239,11 @@ impl SoundCardRuntime {
         })
     }
 
-    pub(super) fn inspector_state(&self) -> AudioDeviceInspectorState {
-        self.event_bridge.inspector_state()
+    pub(super) fn device_inventory(&self) -> Option<observation::DeviceInventory> {
+        self.event_bridge
+            .observation()
+            .inventory
+            .catalog(self.event_bridge.device_revision())
     }
 
     pub(super) fn validate_physical_channel(
@@ -250,7 +253,7 @@ impl SoundCardRuntime {
     ) -> Result<(), observation::RouteValidationError> {
         let view = self.event_bridge.observation();
         let revision = self.event_bridge.device_revision();
-        view.routes.validate(revision, direction, key)?;
+        view.inventory.validate(revision, direction, key)?;
         if self.event_bridge.device_revision() != revision {
             return Err(observation::RouteValidationError::Stale);
         }

@@ -3,6 +3,7 @@
 mod canonical;
 mod constraints;
 mod control;
+mod enum_options;
 mod projection;
 mod reference;
 mod types;
@@ -12,6 +13,7 @@ mod value_type;
 pub use canonical::*;
 pub use constraints::*;
 pub use control::*;
+pub use enum_options::*;
 pub use golden_values::ColorValue as Color;
 pub use projection::*;
 pub use reference::*;

@@ -11,7 +11,7 @@ use golden_core::{
 };
 use midir::{Ignore, MidiInput, MidiInputConnection, MidiOutput, MidiOutputConnection};
 
-use super::midi_message::{MidiMessage, decode_midi_message};
+use super::midi_message::{decode_midi_message, MidiMessage};
 
 pub(crate) const NO_MIDI_PORT_VARIANT: &str = "none";
 const MIDI_CLOCK_STATUS: u8 = 0xF8;
@@ -261,7 +261,7 @@ pub(crate) fn sync_midi_port_enum_options(ctx: &mut ProcessCtx, param_id: NodeId
             ParamValue::Enum(NO_MIDI_PORT_VARIANT.to_string())
         };
 
-        if parameter.constraints.enum_options == next_options && parameter.value == next_value {
+        if parameter.constraints.enum_options.as_slice() == next_options.as_slice() && parameter.value == next_value {
             return Ok(());
         }
 
@@ -274,7 +274,7 @@ pub(crate) fn sync_midi_port_enum_options(ctx: &mut ProcessCtx, param_id: NodeId
         replacement.read_only = parameter.read_only;
         replacement.persist_read_only_value = parameter.persist_read_only_value;
         replacement.constraints = parameter.constraints.clone();
-        replacement.constraints.enum_options = next_options;
+        replacement.constraints.enum_options = (next_options).into();
         replacement.ui_hints = parameter.ui_hints.clone();
         replacement.control = parameter.control.clone();
         replacement.control_modes_enabled = parameter.control_modes_enabled;

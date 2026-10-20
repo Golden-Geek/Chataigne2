@@ -57,9 +57,7 @@ pub(super) fn hsl_color(hue: f64, saturation: f64, lightness: f64) -> Color {
 }
 
 pub(super) fn anode_default_color(family: &str, type_id: &str) -> Color {
-    if family == "Routing"
-        || type_id == chataigne_state_machine::alchemist::ROUTING_TYPE
-    {
+    if family == "Routing" || type_id == chataigne_state_machine::alchemist::ROUTING_TYPE {
         return Color::new(0.46, 0.48, 0.5, 1.0);
     }
     let variation = stable_hash(type_id);
@@ -106,17 +104,11 @@ pub(super) fn value_type_color(type_id: &str) -> Color {
         "vec2" => Color::new(0.32, 0.72, 0.92, 1.0),
         "vec3" => Color::new(0.48, 0.58, 0.94, 1.0),
         "color" => Color::new(0.98, 0.36, 0.32, 1.0),
-        chataigne_state_machine::alchemist::VALUE_SET_TYPE => {
-            Color::new(0.28, 0.68, 0.72, 1.0)
-        }
+        chataigne_state_machine::alchemist::VALUE_SET_TYPE => Color::new(0.28, 0.68, 0.72, 1.0),
         "value_array" => Color::new(0.51, 0.57, 0.63, 1.0),
-        "reference" | "chataigne.module_endpoint" => {
-            Color::new(0.64, 0.52, 0.92, 1.0)
-        }
+        "reference" | "chataigne.module_endpoint" => Color::new(0.64, 0.52, 0.92, 1.0),
         "css_value" => Color::new(0.62, 0.68, 0.74, 1.0),
-        "str" | "string" | "file" | "enum" => {
-            Color::new(0.92, 0.68, 0.26, 1.0)
-        }
+        "str" | "string" | "file" | "enum" => Color::new(0.92, 0.68, 0.26, 1.0),
         _ => Color::new(0.55, 0.62, 0.7, 1.0),
     }
 }
@@ -141,10 +133,7 @@ pub(super) fn formula_container_accepts(item_type: &str, item_kind: &str) -> boo
     match item_kind {
         FORMULA_ITEM_KIND => {
             item_type == FORMULA_EXTERNAL_FILE_CREATE_TYPE
-                || crate::app::declared_user_item_type_matches(
-                    item_type,
-                    FORMULA_ITEM_KIND,
-                )
+                || crate::app::declared_user_item_type_matches(item_type, FORMULA_ITEM_KIND)
         }
         FORMULA_FOLDER_ITEM_KIND => item_type == FORMULA_FOLDER_NODE_TYPE,
         _ => false,
@@ -166,17 +155,10 @@ pub(super) fn formula_container_creatable_items() -> Vec<UserCreatableItem> {
     items
 }
 
-pub(crate) fn anode_creatable_items_for_roles(
-    roles: &[SurfaceItemKind],
-) -> Vec<UserCreatableItem> {
+pub(crate) fn anode_creatable_items_for_roles(roles: &[SurfaceItemKind]) -> Vec<UserCreatableItem> {
     registry()
         .iter()
-        .filter(|declaration| {
-            roles.is_empty()
-                || roles
-                    .iter()
-                    .any(|role| declaration.supports_role(*role))
-        })
+        .filter(|declaration| roles.is_empty() || roles.iter().any(|role| declaration.supports_role(*role)))
         .map(|declaration| {
             UserCreatableItem::new(
                 format!("{ANODE_CREATE_PREFIX}{}", declaration.type_id()),
@@ -188,11 +170,7 @@ pub(crate) fn anode_creatable_items_for_roles(
         .collect()
 }
 
-pub(crate) fn anode_container_accepts_for_roles(
-    item_type: &str,
-    item_kind: &str,
-    roles: &[SurfaceItemKind],
-) -> bool {
+pub(crate) fn anode_container_accepts_for_roles(item_type: &str, item_kind: &str, roles: &[SurfaceItemKind]) -> bool {
     if item_kind != ANODE_ITEM_KIND {
         return false;
     }
@@ -202,16 +180,11 @@ pub(crate) fn anode_container_accepts_for_roles(
     let Some((type_id, variant)) = anode_create_spec(item_type) else {
         return false;
     };
-    registry()
-        .get(&ANodeTypeId::new(type_id))
-        .is_some_and(|declaration| {
-            variant.is_none_or(|variant| {
-                configured_managed_variant(declaration.as_ref(), variant.index, variant.input_count).is_some()
-            }) && (roles.is_empty()
-                || roles
-                    .iter()
-                    .any(|role| declaration.supports_role(*role)))
-        })
+    registry().get(&ANodeTypeId::new(type_id)).is_some_and(|declaration| {
+        variant.is_none_or(|variant| {
+            configured_managed_variant(declaration.as_ref(), variant.index, variant.input_count).is_some()
+        }) && (roles.is_empty() || roles.iter().any(|role| declaration.supports_role(*role)))
+    })
 }
 
 #[derive(Clone, Copy)]
@@ -227,10 +200,13 @@ fn anode_create_spec(node_type: &str) -> Option<(&str, Option<ManagedVariantSpec
             Some((index, input_count)) => (index, Some(input_count.parse().ok()?)),
             None => (variant, None),
         };
-        return Some((type_id, Some(ManagedVariantSpec {
-            index: index.parse().ok()?,
-            input_count,
-        })));
+        return Some((
+            type_id,
+            Some(ManagedVariantSpec {
+                index: index.parse().ok()?,
+                input_count,
+            }),
+        ));
     }
     Some((spec, None))
 }
@@ -279,12 +255,9 @@ pub(super) fn create_formula_container_item(node_type: &str) -> Option<Box<dyn N
     if node_type == FORMULA_EXTERNAL_FILE_CREATE_TYPE {
         return Some(Box::new(external_formula_node()));
     }
-    crate::app::create_declared_user_item(node_type, FORMULA_ITEM_KIND)
-        .or_else(|| {
-            (node_type == FORMULA_FOLDER_NODE_TYPE).then(|| {
-                Box::new(AlchemistFormulaFolder::new()) as Box<dyn Node>
-            })
-        })
+    crate::app::create_declared_user_item(node_type, FORMULA_ITEM_KIND).or_else(|| {
+        (node_type == FORMULA_FOLDER_NODE_TYPE).then(|| Box::new(AlchemistFormulaFolder::new()) as Box<dyn Node>)
+    })
 }
 
 pub(super) fn create_formula_container_item_tree(node_type: &str) -> Option<NodeTree> {
@@ -293,38 +266,23 @@ pub(super) fn create_formula_container_item_tree(node_type: &str) -> Option<Node
     }
     if node_type == AlchemistFormulaDefinition::NODE_TYPE {
         return Some(
-            NodeTree::new(AlchemistFormulaDefinition::new())
-                .with_child(NodeTree::new(formula_copy_source_parameter())),
+            NodeTree::new(AlchemistFormulaDefinition::new()).with_child(NodeTree::new(formula_copy_source_parameter())),
         );
     }
     create_formula_container_item(node_type).map(NodeTree::boxed)
 }
 
-pub(super) fn parameter(
-    label: &str,
-    decl_id: impl Into<String>,
-    value: ParamValue,
-    read_only: bool,
-) -> Parameter {
-    let mut parameter =
-        Parameter::new(label, value, ParameterChangeCheck::ValueChange);
+pub(super) fn parameter(label: &str, decl_id: impl Into<String>, value: ParamValue, read_only: bool) -> Parameter {
+    let mut parameter = Parameter::new(label, value, ParameterChangeCheck::ValueChange);
     parameter.read_only = read_only;
     parameter.control_modes_enabled = !read_only;
     parameter.node_data_mut().meta.decl_id = DeclId(decl_id.into());
     parameter
 }
 
-pub(super) fn hidden_parameter(
-    label: &str,
-    decl_id: impl Into<String>,
-    value: ParamValue,
-) -> Parameter {
+pub(super) fn hidden_parameter(label: &str, decl_id: impl Into<String>, value: ParamValue) -> Parameter {
     let mut parameter = parameter(label, decl_id, value, false);
-    parameter
-        .node_data_mut()
-        .meta
-        .presentation
-        .show_in_inspector_content = false;
+    parameter.node_data_mut().meta.presentation.show_in_inspector_content = false;
     parameter
 }
 
@@ -409,17 +367,8 @@ pub(super) fn declared_folder(label: &str, decl_id: &str) -> Folder {
 }
 
 pub(super) fn anode_position_parameter() -> Parameter {
-    let mut position = parameter(
-        "Position",
-        "position",
-        ParamValue::Vec2(0.0, 0.0),
-        false,
-    );
-    position
-        .node_data_mut()
-        .meta
-        .presentation
-        .show_in_inspector_content = false;
+    let mut position = parameter("Position", "position", ParamValue::Vec2(0.0, 0.0), false);
+    position.node_data_mut().meta.presentation.show_in_inspector_content = false;
     position
 }
 
@@ -466,7 +415,7 @@ pub(super) fn config_value_parameter_for_field(
             RuntimeValue::String(value) => value.to_string(),
             _ => String::new(),
         });
-        config_parameter.constraints.enum_options = field
+        config_parameter.constraints.enum_options = (field
             .enum_options
             .iter()
             .map(|(variant_id, label)| ParameterEnumOption {
@@ -476,15 +425,15 @@ pub(super) fn config_value_parameter_for_field(
                 tags: Vec::new(),
                 ordering: None,
             })
-            .collect();
+            .collect::<Vec<_>>())
+        .into();
         config_parameter.constraints.policy = ParameterConstraintPolicy::Reject;
     }
     if field.editor.as_deref() == Some("optional_count") {
         config_parameter.node_data_mut().meta.can_be_disabled = true;
         config_parameter.node_data_mut().meta.enabled = false;
     }
-    config_parameter.node_data_mut().meta.presentation.default_color =
-        Some(value_type_color(value_type.as_str()));
+    config_parameter.node_data_mut().meta.presentation.default_color = Some(value_type_color(value_type.as_str()));
     Some(config_parameter)
 }
 
@@ -497,11 +446,7 @@ pub(super) fn config_field_trees_for_instance(
         value_types,
         properties: None,
     };
-    let config_signature = declaration.signature(
-        &signature_ctx,
-        instance,
-        &instance.type_bindings,
-    );
+    let config_signature = declaration.signature(&signature_ctx, instance, &instance.type_bindings);
     let mut trees = Vec::new();
 
     for mut field in config_fields_for_instance(declaration, instance) {
@@ -561,12 +506,9 @@ pub(super) fn config_field_trees_for_instance(
         let default = if value_type == field.default_value.value_type() {
             field.default_value.clone()
         } else {
-            default_runtime_value(&value_type)
-                .unwrap_or_else(|_| field.default_value.clone())
+            default_runtime_value(&value_type).unwrap_or_else(|_| field.default_value.clone())
         };
-        if let Some(parameter) =
-            config_value_parameter_for_field(&field, &value_type, default)
-        {
+        if let Some(parameter) = config_value_parameter_for_field(&field, &value_type, default) {
             trees.push(NodeTree::new(parameter));
         }
     }
@@ -610,8 +552,7 @@ fn anode_tree_for_configured_instance(
         value_types,
         properties: None,
     };
-    let signature =
-        declaration.signature(&signature_ctx, &instance, &instance.type_bindings);
+    let signature = declaration.signature(&signature_ctx, &instance, &instance.type_bindings);
     let signature_bindings = local_signature_bindings(&signature, &instance);
 
     let mut config_tree = NodeTree::new(declared_folder("Config", "config"));
@@ -639,20 +580,17 @@ fn anode_tree_for_configured_instance(
 
     let mut outputs_tree = NodeTree::new(declared_folder("Outputs", "outputs"));
     for output in signature.outputs {
-        let value_type =
-            constraint_value_type(&output.constraint, &signature_bindings);
-        outputs_tree.push_child(output_socket_tree(
-            output.id.as_str(),
-            &output.label,
-            &value_type,
-        ));
+        let value_type = constraint_value_type(&output.constraint, &signature_bindings);
+        outputs_tree.push_child(output_socket_tree(output.id.as_str(), &output.label, &value_type));
     }
 
     let anode = AlchemistANode::for_type(type_id, label, category);
-    Some(NodeTree::new(anode)
-        .with_child(NodeTree::new(anode_position_parameter()))
-        .with_child(NodeTree::new(anode_size_parameter()))
-        .with_child(config_tree)
-        .with_child(inputs_tree)
-        .with_child(outputs_tree))
+    Some(
+        NodeTree::new(anode)
+            .with_child(NodeTree::new(anode_position_parameter()))
+            .with_child(NodeTree::new(anode_size_parameter()))
+            .with_child(config_tree)
+            .with_child(inputs_tree)
+            .with_child(outputs_tree),
+    )
 }

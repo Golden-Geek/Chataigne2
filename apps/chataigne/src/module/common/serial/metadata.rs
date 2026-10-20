@@ -53,7 +53,7 @@ pub(crate) fn sync_serial_port_enum_options(
             ParamValue::Enum(NO_SERIAL_PORT_VARIANT.to_string())
         };
 
-        if parameter.constraints.enum_options == next_options && parameter.value == next_value {
+        if parameter.constraints.enum_options.as_slice() == next_options.as_slice() && parameter.value == next_value {
             return Ok(());
         }
 
@@ -66,7 +66,7 @@ pub(crate) fn sync_serial_port_enum_options(
         replacement.read_only = parameter.read_only;
         replacement.persist_read_only_value = parameter.persist_read_only_value;
         replacement.constraints = parameter.constraints.clone();
-        replacement.constraints.enum_options = next_options;
+        replacement.constraints.enum_options = (next_options).into();
         replacement.ui_hints = parameter.ui_hints.clone();
         replacement.control = parameter.control.clone();
         replacement.control_modes_enabled = parameter.control_modes_enabled;

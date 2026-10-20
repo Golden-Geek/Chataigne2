@@ -196,13 +196,14 @@ fn snapshot_reservations_cover_constraints_controls_references_and_presentation_
     reference.cached_name = Some(text());
     reference.relative_path_from_root = vec![text()];
     let mut constraints = ParameterConstraints {
-        enum_options: vec![ParameterEnumOption {
+        enum_options: (vec![ParameterEnumOption {
             variant_id: text(),
             value: ParamValue::Reference(reference),
             label: text(),
             tags: vec![text()],
             ordering: None,
-        }],
+        }])
+        .into(),
         ..ParameterConstraints::default()
     };
     constraints.reference.root = ReferenceRoot::RelativeToOwner { path: vec![text()] };

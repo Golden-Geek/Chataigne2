@@ -4,20 +4,20 @@ use golden_core::{
     engine::NodeExecutionRule,
     events::CustomEvent,
     logerror, node,
-    node::{Node, NodeId, NodeScriptDescriptor, NodeHandle},
+    node::{Node, NodeHandle, NodeId, NodeScriptDescriptor},
     parameter::{Enum, ParamValue, Parameter, ParameterEnumOption, ParameterEventBehaviour, Vec2},
     process_ctx::ProcessCtx,
 };
 
 use crate::app::module::common::mouse::{
-    MouseButtonAction, MouseButtonKind, MouseButtonRequest, MouseMoveCoordinate,
-    MouseMoveRequest, MouseMoveUnits, MouseScrollRequest, MOUSE_BUTTON_COMMAND_NODE_TYPE,
-    MOUSE_MODULE_COMMAND_TYPES, MOUSE_MOVE_COMMAND_NODE_TYPE, MOUSE_SCROLL_COMMAND_NODE_TYPE,
+    MouseButtonAction, MouseButtonKind, MouseButtonRequest, MouseMoveCoordinate, MouseMoveRequest, MouseMoveUnits,
+    MouseScrollRequest, MOUSE_BUTTON_COMMAND_NODE_TYPE, MOUSE_MODULE_COMMAND_TYPES, MOUSE_MOVE_COMMAND_NODE_TYPE,
+    MOUSE_SCROLL_COMMAND_NODE_TYPE,
 };
 
 use self::mouse_runtime::{
-    DiscoveredMouseDevice, MouseInputConfig, MouseInputEvent, MouseInputRuntime,
-    MouseOutputController, MouseRuntimeEvent,
+    DiscoveredMouseDevice, MouseInputConfig, MouseInputEvent, MouseInputRuntime, MouseOutputController,
+    MouseRuntimeEvent,
 };
 
 const MOUSE_MODULE_UPDATE_RATE_HZ: u32 = 120;
@@ -34,13 +34,7 @@ const MOUSE_BUTTON_PRESSED_CALLBACK: &str = "mouseButtonPressed";
 const MOUSE_BUTTON_RELEASED_CALLBACK: &str = "mouseButtonReleased";
 const MOUSE_BUTTON_CHANGED_CALLBACK: &str = "mouseButtonChanged";
 
-const MOUSE_SCRIPT_METHODS: &[&str] = &[
-    "moveMouse",
-    "click",
-    "pressButton",
-    "releaseButton",
-    "scroll",
-];
+const MOUSE_SCRIPT_METHODS: &[&str] = &["moveMouse", "click", "pressButton", "releaseButton", "scroll"];
 
 #[node("mouse_module", label = "Mouse")]
 #[children(
@@ -368,7 +362,11 @@ impl MouseModule {
                     self.emit_mouse_callback(
                         ctx,
                         MOUSE_BUTTON_CHANGED_CALLBACK,
-                        vec![serde_json::json!(button.as_str()), serde_json::json!(pressed), self.mouse_state_arg()],
+                        vec![
+                            serde_json::json!(button.as_str()),
+                            serde_json::json!(pressed),
+                            self.mouse_state_arg(),
+                        ],
                     );
                     self.emit_mouse_callback(
                         ctx,
@@ -406,10 +404,7 @@ impl MouseModule {
         Ok(())
     }
 
-    fn output_backend_mut(
-        &mut self,
-        ctx: &mut ProcessCtx,
-    ) -> Result<&mut MouseOutputController, String> {
+    fn output_backend_mut(&mut self, ctx: &mut ProcessCtx) -> Result<&mut MouseOutputController, String> {
         if !self.node_data().effective_enabled {
             return Err("mouse module is disabled".to_string());
         }
@@ -457,7 +452,10 @@ impl MouseModule {
         };
 
         if let Err(error) = result {
-            logerror!(format!("Failed to handle mouse command {:?}: {error}", request.command_id));
+            logerror!(format!(
+                "Failed to handle mouse command {:?}: {error}",
+                request.command_id
+            ));
         }
     }
 
@@ -468,16 +466,14 @@ impl MouseModule {
         args: &[ParamValue],
     ) -> Option<Result<(), String>> {
         let result = match method {
-            "moveMouse" => script_move_request(args)?
-                .and_then(|request| self.execute_move_request(ctx, request)),
+            "moveMouse" => script_move_request(args)?.and_then(|request| self.execute_move_request(ctx, request)),
             "click" => script_button_request(method, args, MouseButtonAction::Click)?
                 .and_then(|request| self.execute_button_request(ctx, request)),
             "pressButton" => script_button_request(method, args, MouseButtonAction::Press)?
                 .and_then(|request| self.execute_button_request(ctx, request)),
             "releaseButton" => script_button_request(method, args, MouseButtonAction::Release)?
                 .and_then(|request| self.execute_button_request(ctx, request)),
-            "scroll" => script_scroll_request(args)?
-                .and_then(|request| self.execute_scroll_request(ctx, request)),
+            "scroll" => script_scroll_request(args)?.and_then(|request| self.execute_scroll_request(ctx, request)),
             _ => return None,
         };
 
@@ -701,11 +697,7 @@ impl MouseModule {
         }
     }
 
-    fn refresh_selection_warning(
-        &self,
-        ctx: &mut ProcessCtx,
-        selected: Option<&DiscoveredMouseDevice>,
-    ) {
+    fn refresh_selection_warning(&self, ctx: &mut ProcessCtx, selected: Option<&DiscoveredMouseDevice>) {
         if !self.receive_enabled.get() {
             self.clear_device_warning(ctx, MOUSE_SELECTION_WARNING_ID);
             return;
@@ -739,12 +731,7 @@ impl MouseModule {
         }
     }
 
-    fn emit_mouse_callback(
-        &self,
-        ctx: &mut ProcessCtx,
-        callback: &str,
-        args: Vec<serde_json::Value>,
-    ) {
+    fn emit_mouse_callback(&self, ctx: &mut ProcessCtx, callback: &str, args: Vec<serde_json::Value>) {
         crate::app::module::script_api::emit_script_callback(ctx, self.id(), callback, args);
     }
 
@@ -822,16 +809,11 @@ impl Node for MouseModule {
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
-        NodeExecutionRule::periodic(MOUSE_MODULE_UPDATE_RATE_HZ)
-            .with_compiled_kernel("chataigne.runtime.mouse")
+        NodeExecutionRule::periodic(MOUSE_MODULE_UPDATE_RATE_HZ).with_compiled_kernel("chataigne.runtime.mouse")
     }
 
     fn engine_script_descriptor(&self) -> NodeScriptDescriptor {
-        crate::app::module::script_api::descriptor_for_node(
-            self.node_data(),
-            self.get_type(),
-            MOUSE_SCRIPT_METHODS,
-        )
+        crate::app::module::script_api::descriptor_for_node(self.node_data(), self.get_type(), MOUSE_SCRIPT_METHODS)
     }
 
     fn engine_call_script_method(
@@ -915,8 +897,7 @@ fn script_move_request(args: &[ParamValue]) -> Option<Result<MouseMoveRequest, S
     };
     if coordinate == MouseMoveCoordinate::Relative && units == MouseMoveUnits::Normalized {
         return Some(Err(
-            "method 'moveMouse' only supports normalized coordinates with absolute movement"
-                .to_string(),
+            "method 'moveMouse' only supports normalized coordinates with absolute movement".to_string(),
         ));
     }
 
@@ -988,11 +969,7 @@ fn mouse_device_options(devices: &[DiscoveredMouseDevice]) -> Vec<ParameterEnumO
     options
 }
 
-fn sync_mouse_device_enum_options(
-    ctx: &mut ProcessCtx,
-    param_id: NodeId,
-    options: Vec<ParameterEnumOption>,
-) {
+fn sync_mouse_device_enum_options(ctx: &mut ProcessCtx, param_id: NodeId, options: Vec<ParameterEnumOption>) {
     ctx.call_node_mutation(param_id, move |node, inner_ctx| {
         let Some(parameter) = node.as_any_mut().downcast_mut::<Parameter>() else {
             return Err("mouse device target is not a parameter".to_string());
@@ -1007,23 +984,18 @@ fn sync_mouse_device_enum_options(
             .unwrap_or_else(|| AUTO_MOUSE_VARIANT.to_string());
 
         if mouse_specific_device_selected(current_variant.as_str())
-            && !next_options
-                .iter()
-                .any(|option| option.variant_id == current_variant)
+            && !next_options.iter().any(|option| option.variant_id == current_variant)
         {
             next_options.insert(2, missing_mouse_option(current_variant.as_str()));
         }
 
-        let next_value = if next_options
-            .iter()
-            .any(|option| option.variant_id == current_variant)
-        {
+        let next_value = if next_options.iter().any(|option| option.variant_id == current_variant) {
             ParamValue::Enum(current_variant.clone())
         } else {
             ParamValue::Enum(AUTO_MOUSE_VARIANT.to_string())
         };
 
-        if parameter.constraints.enum_options == next_options && parameter.value == next_value {
+        if parameter.constraints.enum_options.as_slice() == next_options.as_slice() && parameter.value == next_value {
             return Ok(());
         }
 
@@ -1036,7 +1008,7 @@ fn sync_mouse_device_enum_options(
         replacement.read_only = parameter.read_only;
         replacement.persist_read_only_value = parameter.persist_read_only_value;
         replacement.constraints = parameter.constraints.clone();
-        replacement.constraints.enum_options = next_options;
+        replacement.constraints.enum_options = (next_options).into();
         replacement.ui_hints = parameter.ui_hints.clone();
         replacement.control = parameter.control.clone();
         replacement.control_modes_enabled = parameter.control_modes_enabled;
@@ -1046,10 +1018,7 @@ fn sync_mouse_device_enum_options(
     });
 }
 
-fn selected_mouse_device(
-    selection: &str,
-    devices: &[DiscoveredMouseDevice],
-) -> Option<DiscoveredMouseDevice> {
+fn selected_mouse_device(selection: &str, devices: &[DiscoveredMouseDevice]) -> Option<DiscoveredMouseDevice> {
     devices
         .iter()
         .find(|device| selection_matches_mouse(selection, device))
@@ -1062,16 +1031,12 @@ fn selection_matches_mouse(selection: &str, device: &DiscoveredMouseDevice) -> b
         NO_MOUSE_VARIANT | "" => false,
         selected => {
             selected == device.variant_id
-                || legacy_mouse_variant_identity(selected)
-                    .is_some_and(|identity| identity == device.variant_id)
+                || legacy_mouse_variant_identity(selected).is_some_and(|identity| identity == device.variant_id)
         }
     }
 }
 
-fn canonical_mouse_variant(
-    selection: &str,
-    options: &[ParameterEnumOption],
-) -> String {
+fn canonical_mouse_variant(selection: &str, options: &[ParameterEnumOption]) -> String {
     let trimmed = selection.trim();
     if trimmed.is_empty() {
         return AUTO_MOUSE_VARIANT.to_string();

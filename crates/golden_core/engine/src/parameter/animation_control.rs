@@ -24,7 +24,7 @@ fn make_animation_waveform_parameter() -> Parameter {
     );
     waveform.node_data_mut().meta.decl_id = DeclId(PARAMETER_ANIMATION_WAVEFORM_DECL_ID.to_string());
     waveform.node_data_mut().meta.can_be_disabled = false;
-    waveform.constraints.enum_options = vec![
+    waveform.constraints.enum_options = (vec![
         ParameterEnumOption {
             variant_id: "sine".to_string(),
             value: ParamValue::Enum("sine".to_string()),
@@ -60,7 +60,8 @@ fn make_animation_waveform_parameter() -> Parameter {
             tags: Vec::new(),
             ordering: Some(4),
         },
-    ];
+    ])
+    .into();
     waveform
 }
 

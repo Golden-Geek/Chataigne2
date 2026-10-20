@@ -246,12 +246,13 @@ fn make_dashboard_node_widget_type_parameter(
     parameter.node_data_mut().meta.decl_id = DeclId("widget_type".to_string());
     parameter.node_data_mut().meta.description =
         Some("Widget rendering type used for the generated node UI.".to_string());
-    parameter.constraints.enum_options = descriptor
+    parameter.constraints.enum_options = (descriptor
         .widget_types
         .iter()
         .enumerate()
         .map(|(index, widget_type)| dashboard_widget_type_enum_option(widget_type, index as i32))
-        .collect();
+        .collect::<Vec<_>>())
+    .into();
     parameter
 }
 

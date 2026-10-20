@@ -92,3 +92,95 @@ fn set_param_constraints_emits_events_and_supports_undo_redo() {
     assert_eq!(redone.value, ParamValue::Float(1.0));
     assert_eq!(redone.constraints, constraints);
 }
+
+fn option(value: &str) -> crate::parameter::ParameterEnumOption {
+    crate::parameter::ParameterEnumOption {
+        variant_id: value.into(),
+        value: ParamValue::Enum(value.into()),
+        label: value.into(),
+        tags: Vec::new(),
+        ordering: None,
+    }
+}
+
+#[test]
+fn enum_domains_share_live_snapshots_and_retained_history_with_correct_replay() {
+    let first: crate::parameter::ParameterEnumOptions = vec![option("first")].into();
+    let second: crate::parameter::ParameterEnumOptions = vec![option("first"), option("second")].into();
+    let mut parameter = Parameter::new(
+        "Device",
+        ParamValue::Enum("first".into()),
+        ParameterChangeCheck::ValueChange,
+    );
+    parameter.constraints.enum_options = first.clone();
+    let mut engine = Engine::new(parameter);
+    let before = engine.build_process_tree_snapshot();
+    engine.edits.push(Edit::SetParamConstraints {
+        node: engine.root,
+        constraints: ParameterConstraints {
+            enum_options: second.clone(),
+            ..Default::default()
+        },
+    });
+    engine.apply_edits().unwrap();
+    let current = engine.nodes.get(engine.root).unwrap().engine_param_snapshot().unwrap();
+    assert!(current.constraints.enum_options.same_storage(&second));
+    assert_eq!(current.value, ParamValue::Enum("first".into()));
+    assert!(
+        before
+            .node(engine.root)
+            .unwrap()
+            .param_constraints
+            .as_ref()
+            .unwrap()
+            .enum_options
+            .same_storage(&first)
+    );
+    assert!(engine.undo().unwrap());
+    let undone = engine.nodes.get(engine.root).unwrap().engine_param_snapshot().unwrap();
+    // Replay callbacks restore authored data through serialization. The retained
+    // history and pre-edit snapshot still own their original immutable domain.
+    assert_eq!(undone.constraints.enum_options, first);
+    assert!(std::sync::Arc::strong_count(first.shared()) >= 3);
+    assert_eq!(undone.value, ParamValue::Enum("first".into()));
+    assert!(engine.redo().unwrap());
+    assert!(
+        engine
+            .nodes
+            .get(engine.root)
+            .unwrap()
+            .engine_param_snapshot()
+            .unwrap()
+            .constraints
+            .enum_options
+            .eq(&second)
+    );
+    assert!(std::sync::Arc::strong_count(second.shared()) >= 3);
+}
+
+#[test]
+fn native_option_quota_survives_live_state_snapshot_and_exported_constraint_owners() {
+    let pool = golden_io::PayloadPool::new("native-enum-domain-test", 1, 1024 * 1024).unwrap();
+    let shared = pool
+        .try_reserve(1024)
+        .unwrap()
+        .share_retained(vec![option("first")], 1024)
+        .unwrap();
+    let options = crate::parameter::ParameterEnumOptions::from_shared(shared.arc().clone());
+    let mut parameter = Parameter::new(
+        "Device",
+        ParamValue::Enum("first".into()),
+        ParameterChangeCheck::ValueChange,
+    );
+    parameter.constraints.enum_options = options.clone();
+    let engine = Engine::new(parameter);
+    let snapshot = engine.build_process_tree_snapshot();
+    let exported = snapshot.node(engine.root).unwrap().param_constraints.clone().unwrap();
+    drop((engine, snapshot, shared, options));
+    assert!(
+        pool.try_reserve(1).is_err(),
+        "exported constraints retain the original native quota"
+    );
+    drop(exported);
+    assert!(pool.wait_for_idle(std::time::Duration::from_secs(3)));
+}

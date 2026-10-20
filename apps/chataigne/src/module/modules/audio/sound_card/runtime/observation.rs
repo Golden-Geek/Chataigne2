@@ -3,16 +3,16 @@ use chataigne_sound_card_protocol::{SoundCardPlaybackVoiceDto, SoundCardUiTeleme
 use golden_audio::AudioObservationSnapshot;
 
 mod capture;
+mod inventory;
 mod publication;
-mod routing;
 mod telemetry;
 mod values;
 pub(super) use capture::retain_reader;
 pub(in super::super) use capture::{
     ObservationCapture, ObservationCaptureError, ObservationCollector, ObservationView,
 };
+pub(crate) use inventory::{DeviceInventory, RouteValidationError};
 pub(super) use publication::TelemetryDelivery;
-pub(crate) use routing::RouteValidationError;
 pub(crate) use values::ValueCache;
 pub(super) use values::ValueDelivery;
 

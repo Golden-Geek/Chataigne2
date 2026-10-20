@@ -266,10 +266,6 @@ impl SoundCardRuntimeEvents {
         notify(&self.wake);
     }
 
-    pub(super) fn inspector_state(&self) -> golden_audio::AudioDeviceInspectorState {
-        self.reader.inspect(|snapshot| snapshot.device.clone())
-    }
-
     pub(super) fn configuration_reader(&self) -> golden_io::RetainedPayload<golden_audio::AudioObservationReader> {
         self.reader.clone()
     }

@@ -94,13 +94,13 @@ pub(in super::super) fn view_for_test(snapshot: AudioObservationSnapshot, sequen
         header,
         sequence,
         telemetry: None,
-        routes: RouteView::default(),
+        inventory: DeviceView::default(),
     }
 }
 
 #[test]
 fn route_capture_recovers_independently_of_full_metering_and_route_pools() {
-    use super::super::routing::RouteValidationError;
+    use super::super::inventory::RouteValidationError;
     use golden_audio::{
         AudioCommand, AudioConfiguration, AudioDeviceSelection, AudioDirection, ConfigGeneration, NullBackend,
     };
@@ -111,9 +111,9 @@ fn route_capture_recovers_independently_of_full_metering_and_route_pools() {
         .unwrap();
     let reader = engine.observations();
     let pool = PayloadPool::new("route-metering-test", 1, SNAPSHOT_BYTES).unwrap();
-    let routes = PayloadPool::new("route-admission-test", 2, 16 * 1024 * 1024).unwrap();
+    let routes = PayloadPool::new("route-admission-test", 2, 32 * 1024 * 1024).unwrap();
     let (capture, mut collector) = ObservationCollector::using(reader.clone(), pool.clone()).unwrap();
-    collector.routes = RoutePreparer::using(routes.clone());
+    collector.inventory = InventoryPreparer::using(routes.clone());
     collector.refresh();
     let initial = capture.latest();
     let blocker = routes.try_retain((), 1).unwrap();
@@ -147,7 +147,7 @@ fn route_capture_recovers_independently_of_full_metering_and_route_pools() {
     assert_eq!(
         capture
             .latest()
-            .routes
+            .inventory
             .validate(reader.device_revision(), AudioDirection::Output, "output:0"),
         Err(RouteValidationError::Capacity)
     );
@@ -156,7 +156,7 @@ fn route_capture_recovers_independently_of_full_metering_and_route_pools() {
         collector.refresh();
         let view = capture.latest();
         if view
-            .routes
+            .inventory
             .validate(reader.device_revision(), AudioDirection::Output, "output:0")
             .is_ok()
         {
@@ -175,7 +175,7 @@ fn route_capture_recovers_independently_of_full_metering_and_route_pools() {
     );
     collector.refresh();
     assert!(
-        ready.routes.same_storage(&capture.latest().routes),
+        ready.inventory.same_storage(&capture.latest().inventory),
         "unchanged routes reuse capacity even while full"
     );
 
@@ -193,7 +193,7 @@ fn route_capture_recovers_independently_of_full_metering_and_route_pools() {
     }
     assert_eq!(
         ready
-            .routes
+            .inventory
             .validate(reader.device_revision(), AudioDirection::Output, "output:0"),
         Err(RouteValidationError::Stale)
     );
@@ -202,7 +202,7 @@ fn route_capture_recovers_independently_of_full_metering_and_route_pools() {
         collector.refresh();
         if capture
             .latest()
-            .routes
+            .inventory
             .validate(reader.device_revision(), AudioDirection::Output, "output:0")
             == Err(RouteValidationError::NoDevice)
         {

@@ -1,4 +1,7 @@
-use std::{collections::{HashSet, VecDeque}, time::Duration};
+use std::{
+    collections::{HashSet, VecDeque},
+    time::Duration,
+};
 
 pub(crate) mod midi_message;
 pub(crate) mod midi_runtime;
@@ -9,8 +12,7 @@ use golden_core::{
     events::{CustomEvent, Event},
     logerror, node,
     node::{
-        DeclId, Folder, Node, NodeCreationContext, NodeId, NodeMetaPatch, NodeScriptDescriptor,
-        NodeUserPermissions,
+        DeclId, Folder, Node, NodeCreationContext, NodeId, NodeMetaPatch, NodeScriptDescriptor, NodeUserPermissions,
     },
     parameter::{
         Enum, ParamValue, Parameter, ParameterChangeCheck, ParameterConstraints, ParameterEnumOption,
@@ -21,17 +23,17 @@ use golden_core::{
 
 use self::{
     midi_message::{
-        MIDI_DATA_MAX, MIDI_PITCH_BEND_CENTER, MIDI_U14_MAX, MidiMessage, MidiSystemMessage, ROTARY_ABSOLUTE,
-        ROTARY_BINARY_OFFSET, ROTARY_SIGN_MAGNITUDE, ROTARY_TWOS_COMPLEMENT, cc_decl_id, cc_label, cc_supports_14_bit,
-        channel_decl_id, channel_folder_label, clamp_channel_i32, clamp_i32_to_u7, clamp_i32_to_u14,
-        decode_rotary_delta, encode_14_bit_control_change, encode_midi_message, encode_rotary_delta,
-        message_description, normalize_sysex_bytes, note_decl_id, note_label,
+        cc_decl_id, cc_label, cc_supports_14_bit, channel_decl_id, channel_folder_label, clamp_channel_i32,
+        clamp_i32_to_u14, clamp_i32_to_u7, decode_rotary_delta, encode_14_bit_control_change, encode_midi_message,
+        encode_rotary_delta, message_description, normalize_sysex_bytes, note_decl_id, note_label, MidiMessage,
+        MidiSystemMessage, MIDI_DATA_MAX, MIDI_PITCH_BEND_CENTER, MIDI_U14_MAX, ROTARY_ABSOLUTE, ROTARY_BINARY_OFFSET,
+        ROTARY_SIGN_MAGNITUDE, ROTARY_TWOS_COMPLEMENT,
     },
     midi_runtime::{
+        available_midi_port_options, format_midi_bytes, midi_input_port_available, midi_input_port_options,
+        midi_output_port_available, midi_output_port_options, midi_port_selected, sync_midi_port_enum_options,
         MidiClockTiming, MidiInputConfig, MidiInputEvent, MidiInputHandle, MidiOutputConfig, MidiOutputHandle,
-        NO_MIDI_PORT_VARIANT, available_midi_port_options, format_midi_bytes, midi_input_port_available,
-        midi_input_port_options, midi_output_port_available, midi_output_port_options, midi_port_selected,
-        sync_midi_port_enum_options,
+        NO_MIDI_PORT_VARIANT,
     },
 };
 
@@ -712,9 +714,7 @@ impl MidiModule {
                     range: Some((0, i32::from(MIDI_U14_MAX))),
                 },
             ),
-            MidiMessage::System(system) => {
-                self.apply_system_message(ctx, snapshot, system, received_at, clock_timing)
-            }
+            MidiMessage::System(system) => self.apply_system_message(ctx, snapshot, system, received_at, clock_timing),
         }
     }
 
@@ -833,12 +833,7 @@ impl MidiModule {
         MidiApplyResult::Applied
     }
 
-    fn cc_parameter_range(
-        &self,
-        snapshot: &ProcessTreeSnapshot,
-        channel: u8,
-        controller: u8,
-    ) -> Option<(i32, i32)> {
+    fn cc_parameter_range(&self, snapshot: &ProcessTreeSnapshot, channel: u8, controller: u8) -> Option<(i32, i32)> {
         Some(if self.cc_parameter_is_14_bit(snapshot, channel, controller) {
             MIDI_14_BIT_VALUE_RANGE
         } else {
@@ -994,19 +989,17 @@ impl MidiModule {
                     range: Some(MIDI_7_BIT_VALUE_RANGE),
                 },
             ),
-            MidiSystemMessage::TuneRequest => self.apply_system_trigger(ctx, snapshot, "Tune Request", TUNE_REQUEST_DECL_ID),
+            MidiSystemMessage::TuneRequest => {
+                self.apply_system_trigger(ctx, snapshot, "Tune Request", TUNE_REQUEST_DECL_ID)
+            }
             MidiSystemMessage::TimingClock => {
                 self.apply_midi_clock_tick(ctx, snapshot, received_at, clock_timing.copied())
             }
-            MidiSystemMessage::Start => {
-                self.apply_midi_clock_transport_event(ctx, snapshot, START_DECL_ID, true, true)
-            }
+            MidiSystemMessage::Start => self.apply_midi_clock_transport_event(ctx, snapshot, START_DECL_ID, true, true),
             MidiSystemMessage::Continue => {
                 self.apply_midi_clock_transport_event(ctx, snapshot, CONTINUE_DECL_ID, true, false)
             }
-            MidiSystemMessage::Stop => {
-                self.apply_midi_clock_transport_event(ctx, snapshot, STOP_DECL_ID, false, false)
-            }
+            MidiSystemMessage::Stop => self.apply_midi_clock_transport_event(ctx, snapshot, STOP_DECL_ID, false, false),
             MidiSystemMessage::ActiveSensing => {
                 self.apply_system_trigger(ctx, snapshot, "Active Sensing", ACTIVE_SENSING_DECL_ID)
             }
@@ -1074,7 +1067,11 @@ impl MidiModule {
             ParamValue::Str(mtc_rate_label(self.mtc_state.rate_code()).to_string()),
         );
         self.set_internal_param(ctx, self.time.id(), ParamValue::Float(self.mtc_state.time_seconds()));
-        self.set_internal_param(ctx, self.timecode.id(), ParamValue::Str(self.mtc_state.timecode_string()));
+        self.set_internal_param(
+            ctx,
+            self.timecode.id(),
+            ParamValue::Str(self.mtc_state.timecode_string()),
+        );
         MidiApplyResult::Applied
     }
 
@@ -1162,17 +1159,17 @@ impl MidiModule {
         )
     }
 
-    fn apply_midi_clock_values(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        _snapshot: &ProcessTreeSnapshot,
-    ) -> MidiApplyResult {
+    fn apply_midi_clock_values(&mut self, ctx: &mut ProcessCtx, _snapshot: &ProcessTreeSnapshot) -> MidiApplyResult {
         if !self.playing.is_bound() || !self.bpm.is_bound() {
             return MidiApplyResult::Retry;
         }
 
         self.set_internal_param(ctx, self.playing.id(), ParamValue::Bool(self.midi_clock_state.running));
-        self.set_internal_param(ctx, self.bpm.id(), ParamValue::Float(self.quantized_midi_clock_bpm(self.midi_clock_state.bpm)));
+        self.set_internal_param(
+            ctx,
+            self.bpm.id(),
+            ParamValue::Float(self.quantized_midi_clock_bpm(self.midi_clock_state.bpm)),
+        );
         MidiApplyResult::Applied
     }
 
@@ -1235,10 +1232,9 @@ impl MidiModule {
         let now = self.midi_receive_now(ctx);
 
         if self.midi_clock_state.running
-            && self
-                .midi_clock_state
-                .last_tick_at
-                .is_some_and(|last_tick_at| now.saturating_sub(last_tick_at).as_secs_f64() > MIDI_CLOCK_PLAYING_TIMEOUT_SECS)
+            && self.midi_clock_state.last_tick_at.is_some_and(|last_tick_at| {
+                now.saturating_sub(last_tick_at).as_secs_f64() > MIDI_CLOCK_PLAYING_TIMEOUT_SECS
+            })
         {
             self.midi_clock_state.running = false;
             let _ = self.apply_midi_clock_values(ctx, snapshot);
@@ -1258,14 +1254,13 @@ impl MidiModule {
 
     fn transport_activity_timeout_due(&self, now: Duration) -> bool {
         (self.midi_clock_state.running
-            && self
-                .midi_clock_state
-                .last_tick_at
-                .is_some_and(|last_tick_at| now.saturating_sub(last_tick_at).as_secs_f64() > MIDI_CLOCK_PLAYING_TIMEOUT_SECS))
+            && self.midi_clock_state.last_tick_at.is_some_and(|last_tick_at| {
+                now.saturating_sub(last_tick_at).as_secs_f64() > MIDI_CLOCK_PLAYING_TIMEOUT_SECS
+            }))
             || (self.mtc_stream_active
-                && self
-                    .last_mtc_quarter_frame_at
-                    .is_some_and(|last_mtc_at| now.saturating_sub(last_mtc_at).as_secs_f64() > MTC_PLAYING_TIMEOUT_SECS))
+                && self.last_mtc_quarter_frame_at.is_some_and(|last_mtc_at| {
+                    now.saturating_sub(last_mtc_at).as_secs_f64() > MTC_PLAYING_TIMEOUT_SECS
+                }))
     }
 
     fn midi_receive_now(&self, ctx: &ProcessCtx) -> Duration {
@@ -1555,31 +1550,19 @@ impl MidiModule {
         }
     }
 
-    fn ensure_cc_rotary_mode_parameter(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        snapshot: &ProcessTreeSnapshot,
-        cc_id: NodeId,
-    ) {
+    fn ensure_cc_rotary_mode_parameter(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot, cc_id: NodeId) {
         match snapshot.find_child_by_decl_id(cc_id, MIDI_CC_ROTARY_MODE_DECL_ID) {
             Some(existing_id) if snapshot.node(existing_id).is_some_and(|node| node.node_type == "enum") => {
                 self.clear_pending_auto_child(cc_id, MIDI_CC_ROTARY_MODE_DECL_ID);
             }
             Some(existing_id) => {
                 if self.mark_pending_auto_child(cc_id, MIDI_CC_ROTARY_MODE_DECL_ID) {
-                    ctx.replace_node_boxed(
-                        existing_id,
-                        Box::new(create_cc_rotary_mode_parameter(ROTARY_ABSOLUTE)),
-                    );
+                    ctx.replace_node_boxed(existing_id, Box::new(create_cc_rotary_mode_parameter(ROTARY_ABSOLUTE)));
                 }
             }
             None => {
                 if self.mark_pending_auto_child(cc_id, MIDI_CC_ROTARY_MODE_DECL_ID) {
-                    ctx.add_child_boxed(
-                        cc_id,
-                        Box::new(create_cc_rotary_mode_parameter(ROTARY_ABSOLUTE)),
-                        None,
-                    );
+                    ctx.add_child_boxed(cc_id, Box::new(create_cc_rotary_mode_parameter(ROTARY_ABSOLUTE)), None);
                 }
             }
         }
@@ -2064,7 +2047,11 @@ impl MidiModule {
                     note: script_u7_arg(args, 1, "note"),
                     velocity: script_u7_arg_or(args, 2, DEFAULT_SCRIPT_MIDI_VELOCITY),
                 };
-                self.send_bytes(ctx, encode_midi_message(&message).as_slice(), message_description(&message).as_str())
+                self.send_bytes(
+                    ctx,
+                    encode_midi_message(&message).as_slice(),
+                    message_description(&message).as_str(),
+                )
             }
             "sendNoteOff" => {
                 let message = MidiMessage::NoteOff {
@@ -2072,7 +2059,11 @@ impl MidiModule {
                     note: script_u7_arg(args, 1, "note"),
                     velocity: script_u7_arg_or(args, 2, 0),
                 };
-                self.send_bytes(ctx, encode_midi_message(&message).as_slice(), message_description(&message).as_str())
+                self.send_bytes(
+                    ctx,
+                    encode_midi_message(&message).as_slice(),
+                    message_description(&message).as_str(),
+                )
             }
             "sendFullNote" => (|| -> Result<(), String> {
                 let channel = script_channel_arg(args, 0, "channel");
@@ -2108,28 +2099,44 @@ impl MidiModule {
                     controller: script_u7_arg(args, 1, "controller"),
                     value: script_u7_arg(args, 2, "value"),
                 };
-                self.send_bytes(ctx, encode_midi_message(&message).as_slice(), message_description(&message).as_str())
+                self.send_bytes(
+                    ctx,
+                    encode_midi_message(&message).as_slice(),
+                    message_description(&message).as_str(),
+                )
             }
             "sendProgramChange" => {
                 let message = MidiMessage::ProgramChange {
                     channel: script_channel_arg(args, 0, "channel"),
                     program: script_u7_arg(args, 1, "program"),
                 };
-                self.send_bytes(ctx, encode_midi_message(&message).as_slice(), message_description(&message).as_str())
+                self.send_bytes(
+                    ctx,
+                    encode_midi_message(&message).as_slice(),
+                    message_description(&message).as_str(),
+                )
             }
             "sendPitchBend" => {
                 let message = MidiMessage::PitchBend {
                     channel: script_channel_arg(args, 0, "channel"),
                     value: script_u14_arg(args, 1, "value"),
                 };
-                self.send_bytes(ctx, encode_midi_message(&message).as_slice(), message_description(&message).as_str())
+                self.send_bytes(
+                    ctx,
+                    encode_midi_message(&message).as_slice(),
+                    message_description(&message).as_str(),
+                )
             }
             "sendChannelPressure" => {
                 let message = MidiMessage::ChannelPressure {
                     channel: script_channel_arg(args, 0, "channel"),
                     pressure: script_u7_arg(args, 1, "pressure"),
                 };
-                self.send_bytes(ctx, encode_midi_message(&message).as_slice(), message_description(&message).as_str())
+                self.send_bytes(
+                    ctx,
+                    encode_midi_message(&message).as_slice(),
+                    message_description(&message).as_str(),
+                )
             }
             "sendPolyPressure" => {
                 let message = MidiMessage::PolyPressure {
@@ -2137,13 +2144,18 @@ impl MidiModule {
                     note: script_u7_arg(args, 1, "note"),
                     pressure: script_u7_arg(args, 2, "pressure"),
                 };
-                self.send_bytes(ctx, encode_midi_message(&message).as_slice(), message_description(&message).as_str())
+                self.send_bytes(
+                    ctx,
+                    encode_midi_message(&message).as_slice(),
+                    message_description(&message).as_str(),
+                )
             }
             "sendSysEx" | "sendSysex" => script_bytes_from_args(args)
                 .map(|bytes| normalize_sysex_bytes(bytes.as_slice()))
                 .and_then(|bytes| self.send_bytes(ctx, bytes.as_slice(), "sysex bytes")),
-            "sendRawBytes" => script_bytes_from_args(args)
-                .and_then(|bytes| self.send_bytes(ctx, bytes.as_slice(), "raw MIDI bytes")),
+            "sendRawBytes" => {
+                script_bytes_from_args(args).and_then(|bytes| self.send_bytes(ctx, bytes.as_slice(), "raw MIDI bytes"))
+            }
             _ => return None,
         };
 
@@ -2432,7 +2444,10 @@ fn parse_script_byte_token(token: &str) -> Result<u8, String> {
         return u8::from_str_radix(hex, 16).map_err(|error| format!("invalid MIDI byte '{token}': {error}"));
     }
 
-    if token.chars().any(|character| matches!(character, 'a'..='f' | 'A'..='F')) {
+    if token
+        .chars()
+        .any(|character| matches!(character, 'a'..='f' | 'A'..='F'))
+    {
         return u8::from_str_radix(token, 16).map_err(|error| format!("invalid MIDI byte '{token}': {error}"));
     }
 
@@ -2552,8 +2567,7 @@ impl Node for MidiModule {
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
-        NodeExecutionRule::periodic(MIDI_MODULE_UPDATE_RATE_HZ)
-            .with_compiled_kernel(MIDI_COMPILED_KERNEL)
+        NodeExecutionRule::periodic(MIDI_MODULE_UPDATE_RATE_HZ).with_compiled_kernel(MIDI_COMPILED_KERNEL)
     }
 
     fn child_event_interest_depth(&self, _event: &Event) -> u32 {
@@ -2561,11 +2575,7 @@ impl Node for MidiModule {
     }
 
     fn engine_script_descriptor(&self) -> NodeScriptDescriptor {
-        crate::app::module::script_api::descriptor_for_node(
-            self.node_data(),
-            self.get_type(),
-            MIDI_SCRIPT_METHODS,
-        )
+        crate::app::module::script_api::descriptor_for_node(self.node_data(), self.get_type(), MIDI_SCRIPT_METHODS)
     }
 
     fn engine_call_script_method(
@@ -2587,8 +2597,7 @@ impl Node for MidiModule {
             return;
         };
         let snapshot = snapshot_arc.as_ref();
-        self.base
-            .emit_script_param_callback(ctx, snapshot, param, &old_value);
+        self.base.emit_script_param_callback(ctx, snapshot, param, &old_value);
         self.on_param_change_inner(ctx, snapshot, param, old_value);
     }
 
@@ -2820,12 +2829,13 @@ fn create_cc_rotary_mode_parameter(value: &'static str) -> Parameter {
         ParameterChangeCheck::ValueChange,
     );
     apply_midi_value_identity(parameter.node_data_mut(), MIDI_CC_ROTARY_MODE_DECL_ID);
-    parameter.constraints.enum_options = vec![
+    parameter.constraints.enum_options = (vec![
         rotary_mode_option(ROTARY_ABSOLUTE, "Absolute", 0),
         rotary_mode_option(ROTARY_TWOS_COMPLEMENT, "Two's Complement", 1),
         rotary_mode_option(ROTARY_BINARY_OFFSET, "Binary Offset", 2),
         rotary_mode_option(ROTARY_SIGN_MAGNITUDE, "Sign Magnitude", 3),
-    ];
+    ])
+    .into();
     parameter
 }
 
@@ -2957,7 +2967,10 @@ fn reorder_ordered_midi_value_children(ctx: &mut ProcessCtx, snapshot: &ProcessT
     }
 
     for (_key, child_id) in ordered_children.into_iter().rev() {
-        let Some(current_index) = current_children.iter().position(|(_key, current_id)| *current_id == child_id) else {
+        let Some(current_index) = current_children
+            .iter()
+            .position(|(_key, current_id)| *current_id == child_id)
+        else {
             continue;
         };
         if current_index == 0 {

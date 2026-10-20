@@ -2446,7 +2446,7 @@ fn expand_struct(expansion: NodeExpansion, mut input: ItemStruct) -> proc_macro2
             });
             let set_enum_options = args.enum_options.map(|expr| {
                 quote! {
-                    __param_node.constraints.enum_options = #expr;
+                    __param_node.constraints.enum_options = (#expr).into();
                 }
             });
             let set_file_allowed_types = match args.file_allowed_types.as_ref() {
@@ -4261,7 +4261,7 @@ fn build_params_plan_param_create_tokens_with_insert_after(
     });
     let set_enum_options = param.enum_options.as_ref().map(|expr| {
         quote! {
-            __param_node.constraints.enum_options = #expr;
+            __param_node.constraints.enum_options = (#expr).into();
         }
     });
     let set_file_allowed_types = match param.file_allowed_types.as_ref() {

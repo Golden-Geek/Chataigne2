@@ -16,12 +16,12 @@ fn snapshot() -> AudioObservationSnapshot {
     snapshot
 }
 
-fn prepared(snapshot: &AudioObservationSnapshot) -> RouteView {
+fn prepared(snapshot: &AudioObservationSnapshot) -> DeviceView {
     let pool = PayloadPool::new("route-frame-test", 1, FRAME_BYTES).unwrap();
-    let mut frame = RoutePreparer::draft(snapshot).unwrap();
+    let mut frame = InventoryPreparer::draft(snapshot).unwrap();
     frame.sort();
-    let bytes = frame.retained_bytes();
-    RouteView {
+    let bytes = frame.retained_bytes().unwrap();
+    DeviceView {
         revision: frame.revision,
         frame: Some(pool.try_retain(frame, bytes).unwrap()),
         error: None,
@@ -29,7 +29,7 @@ fn prepared(snapshot: &AudioObservationSnapshot) -> RouteView {
 }
 
 #[test]
-fn route_lookup_uses_direction_and_prepared_keys() {
+fn captured_inventory_routes_use_direction_and_borrowed_keys() {
     let snapshot = snapshot();
     let index = prepared(&snapshot);
     for direction in [AudioDirection::Input, AudioDirection::Output] {
@@ -124,8 +124,8 @@ fn large_reversed_channel_inventory_is_sorted_natively_for_borrowed_lookup() {
         .collect();
     let index = prepared(&snapshot);
     let output = index.frame.as_ref().unwrap().output.as_ref().unwrap();
-    assert_eq!(output.len(), 32_768);
-    assert!(index.frame.as_ref().unwrap().retained_bytes() < 2 * 1024 * 1024);
+    assert_eq!(output.channels.len(), 32_768);
+    assert!(index.frame.as_ref().unwrap().retained_bytes().unwrap() < 4 * 1024 * 1024);
     for key in ["output:00000", "output:16384", "output:32767"] {
         assert_eq!(index.validate(7, AudioDirection::Output, key), Ok(()));
     }
@@ -156,9 +156,36 @@ fn oversized_metering_does_not_block_route_metadata_preparation() {
 #[test]
 fn oversized_device_metadata_rejects_before_route_key_copying() {
     let mut snapshot = snapshot();
-    snapshot.device.devices[0].label = "x".repeat(FRAME_BYTES);
+    snapshot.device.devices[0].label = "x".repeat(METADATA_BYTES);
     assert!(matches!(
-        RoutePreparer::draft(&snapshot),
+        InventoryPreparer::draft(&snapshot),
         Err((7, RouteValidationError::Oversized))
     ));
+}
+
+#[test]
+fn exported_catalog_handles_share_metadata_and_keep_the_original_quota() {
+    let snapshot = snapshot();
+    let pool = PayloadPool::new("inventory-export-test", 1, FRAME_BYTES).unwrap();
+    let mut frame = InventoryPreparer::draft(&snapshot).unwrap();
+    frame.sort();
+    let bytes = frame.retained_bytes().unwrap();
+    let view = DeviceView {
+        frame: Some(pool.try_retain(frame, bytes).unwrap()),
+        error: None,
+        revision: 7,
+    };
+    assert!(view.catalog(8).is_none(), "stale metadata cannot supply fresh choices");
+    let catalog = view.catalog(7).unwrap();
+    let exported = catalog.clone();
+    assert!(std::ptr::eq(catalog.state(), exported.state()));
+    assert_eq!(catalog.state().devices.as_ptr(), exported.state().devices.as_ptr());
+    assert_eq!(catalog.state(), &snapshot.device);
+    drop((view, catalog));
+    assert!(
+        pool.try_reserve(1).is_err(),
+        "catalog exports still own the same reservation"
+    );
+    drop(exported);
+    assert!(pool.wait_for_idle(std::time::Duration::from_secs(3)));
 }

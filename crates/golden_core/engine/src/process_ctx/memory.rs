@@ -126,7 +126,9 @@ fn constraints(constraints: &ParameterConstraints) -> usize {
     }
     sum([
         range,
-        vector(enum_options),
+        2 * size_of::<usize>()
+            + size_of::<Vec<crate::parameter::ParameterEnumOption>>()
+            + slots::<crate::parameter::ParameterEnumOption>(enum_options.capacity()),
         options,
         root,
         strings(allowed_node_types),

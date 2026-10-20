@@ -60,7 +60,7 @@ pub fn sync_interface_enum_options(
             .map(ParamValue::Enum)
             .unwrap_or_else(|| ParamValue::Enum(ANY_INTERFACE_VARIANT.to_string()));
 
-        if parameter.constraints.enum_options == options && parameter.value == next_value {
+        if parameter.constraints.enum_options.as_slice() == options.as_slice() && parameter.value == next_value {
             return Ok(());
         }
 
@@ -73,7 +73,7 @@ pub fn sync_interface_enum_options(
         replacement.read_only = parameter.read_only;
         replacement.persist_read_only_value = parameter.persist_read_only_value;
         replacement.constraints = parameter.constraints.clone();
-        replacement.constraints.enum_options = options.clone();
+        replacement.constraints.enum_options = (options.clone()).into();
         replacement.ui_hints = parameter.ui_hints.clone();
         replacement.control = parameter.control.clone();
         replacement.control_modes_enabled = parameter.control_modes_enabled;

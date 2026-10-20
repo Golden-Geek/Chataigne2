@@ -138,6 +138,7 @@ pub struct SoundCardModule {
     input_route_reset_pending: bool,
     output_route_reset_pending: bool,
     configuration_dirty: bool,
+    choices_dirty: bool,
     outgoing_activity_active: bool,
     runtime_error_node: Option<NodeId>,
     pending_events: event_delivery::PendingAudioEvents,
@@ -159,6 +160,7 @@ impl SoundCardModule {
             false,
             false,
             false,
+            true,
             true,
             false,
             None,
@@ -277,6 +279,7 @@ impl Node for SoundCardModule {
         self.synchronize_derived_structure(ctx, snapshot.as_ref());
         self.sync_device_choices(ctx, snapshot.as_ref());
         self.configuration_dirty = true;
+        self.choices_dirty = true;
         self.request_runtime_start(ctx);
     }
 
@@ -416,6 +419,7 @@ impl Node for SoundCardModule {
         if let Some(snapshot) = ctx.tree_snapshot_arc() {
             if param == self.audio_driver.id() {
                 self.sync_device_choices(ctx, snapshot.as_ref());
+                self.choices_dirty = true;
             } else if [
                 self.device.id(),
                 self.input_device.id(),
@@ -425,8 +429,14 @@ impl Node for SoundCardModule {
             ]
             .contains(&param)
             {
-                if let Some(inspector) = self.runtime.as_ref().map(runtime::SoundCardRuntime::inspector_state) {
-                    self.sync_live_device_choices(ctx, &inspector);
+                self.choices_dirty = true;
+                if let Some(inventory) = self
+                    .runtime
+                    .as_ref()
+                    .and_then(runtime::SoundCardRuntime::device_inventory)
+                {
+                    self.sync_live_device_choices(ctx, &inventory);
+                    self.choices_dirty = false;
                 }
             }
             self.base
@@ -514,11 +524,11 @@ fn sync_enum_options(
             missing.tags.push("missing".to_owned());
             options.push(missing);
         }
-        if parameter.constraints.enum_options == options {
+        if parameter.constraints.enum_options.as_slice() == options.as_slice() {
             return Ok(());
         }
         let mut constraints = parameter.constraints.clone();
-        constraints.enum_options = options;
+        constraints.enum_options = (options).into();
         inner_ctx.edits.push(Edit::SetParamConstraints {
             node: parameter_id,
             constraints,

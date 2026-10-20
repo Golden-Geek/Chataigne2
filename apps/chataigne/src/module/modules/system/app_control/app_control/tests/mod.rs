@@ -172,8 +172,7 @@ fn watched_app_file_parameter_populates_values_and_running_control() {
         Some(ParamValue::Float(0.0))
     );
     assert_eq!(
-        param_snapshot(&engine, values_folder_id, "uptime_seconds")
-            .and_then(|snapshot| snapshot.ui_hints.widget),
+        param_snapshot(&engine, values_folder_id, "uptime_seconds").and_then(|snapshot| snapshot.ui_hints.widget),
         Some("time".to_string())
     );
     assert_eq!(
@@ -241,8 +240,7 @@ fn watched_app_value_folder_survives_sibling_app_addition() {
 #[test]
 fn existing_command_updates_watched_app_enum_after_inbox_dispatch_without_periodic_update() {
     let (mut engine, module_id) = create_module();
-    let command_tester_id =
-        find_path(&engine, module_id, "command_tester").expect("command tester should exist");
+    let command_tester_id = find_path(&engine, module_id, "command_tester").expect("command tester should exist");
     engine.edits.push(golden_core::edit::Edit::AddUserItem {
         parent: command_tester_id,
         prev_sibling: None,
@@ -294,7 +292,7 @@ fn existing_command_updates_watched_app_enum_after_inbox_dispatch_without_period
         .constraints
         .enum_options
         .into_iter()
-        .map(|option| option.variant_id)
+        .map(|option| option.variant_id.clone())
         .collect::<Vec<_>>();
     assert_eq!(variants, vec!["Chataigne".to_string()]);
     assert_eq!(watched_app_snapshot.value, ParamValue::Enum("Chataigne".to_string()));
@@ -325,8 +323,7 @@ fn command_added_after_watched_app_populates_enum_without_waiting_for_tick() {
         .apply_edits()
         .expect("watched app file parameter should accept a target path");
 
-    let command_tester_id =
-        find_path(&engine, module_id, "command_tester").expect("command tester should exist");
+    let command_tester_id = find_path(&engine, module_id, "command_tester").expect("command tester should exist");
     engine.edits.push(golden_core::edit::Edit::AddUserItem {
         parent: command_tester_id,
         prev_sibling: None,
@@ -351,7 +348,7 @@ fn command_added_after_watched_app_populates_enum_without_waiting_for_tick() {
         .constraints
         .enum_options
         .into_iter()
-        .map(|option| option.variant_id)
+        .map(|option| option.variant_id.clone())
         .collect::<Vec<_>>();
     assert_eq!(variants, vec!["Chataigne".to_string()]);
     assert_eq!(watched_app_snapshot.value, ParamValue::Enum("Chataigne".to_string()));
@@ -360,15 +357,17 @@ fn command_added_after_watched_app_populates_enum_without_waiting_for_tick() {
 #[test]
 fn watched_app_added_after_command_populates_enum_via_ui_edit_flow() {
     let (mut engine, module_id) = create_module();
-    let command_tester_id =
-        find_path(&engine, module_id, "command_tester").expect("command tester should exist");
+    let command_tester_id = find_path(&engine, module_id, "command_tester").expect("command tester should exist");
     let command_ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
         parent: command_tester_id,
         node_type: crate::app::module::common::app_control::APP_CONTROL_LAUNCH_PROCESS_COMMAND_NODE_TYPE.to_string(),
         label: None,
         initial_params: Vec::new(),
     });
-    assert!(command_ack.success, "launch command should be creatable through the UI edit flow");
+    assert!(
+        command_ack.success,
+        "launch command should be creatable through the UI edit flow"
+    );
 
     let command_id = engine
         .nodes
@@ -387,7 +386,10 @@ fn watched_app_added_after_command_populates_enum_via_ui_edit_flow() {
         label: None,
         initial_params: Vec::new(),
     });
-    assert!(watched_app_ack.success, "watched app should be creatable through the UI edit flow");
+    assert!(
+        watched_app_ack.success,
+        "watched app should be creatable through the UI edit flow"
+    );
 
     let watched_app_id = engine
         .nodes
@@ -410,7 +412,7 @@ fn watched_app_added_after_command_populates_enum_via_ui_edit_flow() {
         .constraints
         .enum_options
         .into_iter()
-        .map(|option| option.variant_id)
+        .map(|option| option.variant_id.clone())
         .collect::<Vec<_>>();
     assert_eq!(variants, vec!["Chataigne".to_string()]);
     assert_eq!(watched_app_snapshot.value, ParamValue::Enum("Chataigne".to_string()));
@@ -441,8 +443,7 @@ fn watched_app_target_change_preserves_missing_command_selection_with_warning() 
     });
     assert!(initial_target_ack.success);
 
-    let command_tester_id =
-        find_path(&engine, module_id, "command_tester").expect("command tester should exist");
+    let command_tester_id = find_path(&engine, module_id, "command_tester").expect("command tester should exist");
     let create_command_ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
         parent: command_tester_id,
         node_type: crate::app::module::common::app_control::APP_CONTROL_LAUNCH_PROCESS_COMMAND_NODE_TYPE.to_string(),
@@ -470,7 +471,7 @@ fn watched_app_target_change_preserves_missing_command_selection_with_warning() 
         .constraints
         .enum_options
         .into_iter()
-        .map(|option| option.variant_id)
+        .map(|option| option.variant_id.clone())
         .collect::<Vec<_>>();
     assert_eq!(variants, vec!["Chataigne".to_string(), "SuperApp".to_string()]);
     assert_eq!(watched_app_snapshot.value, ParamValue::Enum("Chataigne".to_string()));
@@ -509,8 +510,7 @@ fn removing_watched_app_preserves_missing_command_selection_until_it_returns() {
     });
     assert!(initial_target_ack.success);
 
-    let command_tester_id =
-        find_path(&engine, module_id, "command_tester").expect("command tester should exist");
+    let command_tester_id = find_path(&engine, module_id, "command_tester").expect("command tester should exist");
     let create_command_ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
         parent: command_tester_id,
         node_type: crate::app::module::common::app_control::APP_CONTROL_LAUNCH_PROCESS_COMMAND_NODE_TYPE.to_string(),
@@ -534,7 +534,7 @@ fn removing_watched_app_preserves_missing_command_selection_until_it_returns() {
         .constraints
         .enum_options
         .into_iter()
-        .map(|option| option.variant_id)
+        .map(|option| option.variant_id.clone())
         .collect::<Vec<_>>();
     assert_eq!(missing_variants, vec!["Chataigne".to_string()]);
     assert_eq!(missing_snapshot.value, ParamValue::Enum("Chataigne".to_string()));
@@ -573,7 +573,7 @@ fn removing_watched_app_preserves_missing_command_selection_until_it_returns() {
         .constraints
         .enum_options
         .into_iter()
-        .map(|option| option.variant_id)
+        .map(|option| option.variant_id.clone())
         .collect::<Vec<_>>();
     assert_eq!(restored_variants, vec!["Chataigne".to_string()]);
     assert_eq!(restored_snapshot.value, ParamValue::Enum("Chataigne".to_string()));
@@ -624,8 +624,8 @@ fn stale_running_value_only_reflects_actual_state_during_periodic_updates() {
 
     let values_folder_id = find_path(&engine, module_id, "values/watched_apps_values/NeverLaunch")
         .expect("watched app values should exist");
-    let running_id = find_path(&engine, values_folder_id, "running")
-        .expect("watched app values should expose a running parameter");
+    let running_id =
+        find_path(&engine, values_folder_id, "running").expect("watched app values should expose a running parameter");
 
     golden_core::logger::clear();
     set_param(&mut engine, running_id, ParamValue::Bool(true));
@@ -636,9 +636,7 @@ fn stale_running_value_only_reflects_actual_state_during_periodic_updates() {
     engine
         .run_tick(Duration::from_millis(600))
         .expect("App Control runtime tick should succeed without dispatching the stale running change");
-    engine
-        .apply_edits()
-        .expect("periodic App Control edits should apply");
+    engine.apply_edits().expect("periodic App Control edits should apply");
     engine
         .resolve()
         .expect("App Control schedule should resolve after the periodic update");
@@ -650,10 +648,7 @@ fn stale_running_value_only_reflects_actual_state_during_periodic_updates() {
     let running_toggle_errors = golden_core::logger::records()
         .into_iter()
         .filter(|record| {
-            record.origin == Some(module_id)
-                && record
-                    .message
-                    .starts_with("Failed to apply App Control running toggle")
+            record.origin == Some(module_id) && record.message.starts_with("Failed to apply App Control running toggle")
         })
         .collect::<Vec<_>>();
     assert!(
@@ -693,8 +688,7 @@ fn launch_command_watched_app_param_tracks_available_watched_apps() {
         .resolve()
         .expect("App Control schedule should resolve after watched app rename");
 
-    let command_tester_id =
-        find_path(&engine, module_id, "command_tester").expect("command tester should exist");
+    let command_tester_id = find_path(&engine, module_id, "command_tester").expect("command tester should exist");
     engine.edits.push(golden_core::edit::Edit::AddUserItem {
         parent: command_tester_id,
         prev_sibling: None,
@@ -721,7 +715,7 @@ fn launch_command_watched_app_param_tracks_available_watched_apps() {
         .constraints
         .enum_options
         .into_iter()
-        .map(|option| option.variant_id)
+        .map(|option| option.variant_id.clone())
         .collect::<Vec<_>>();
     assert_eq!(variants, vec!["Chataigne".to_string()]);
     assert_eq!(watched_app_snapshot.value, ParamValue::Enum("Chataigne".to_string()));
@@ -730,8 +724,7 @@ fn launch_command_watched_app_param_tracks_available_watched_apps() {
 #[test]
 fn existing_launch_command_updates_watched_app_enum_when_app_is_added() {
     let (mut engine, module_id) = create_module();
-    let command_tester_id =
-        find_path(&engine, module_id, "command_tester").expect("command tester should exist");
+    let command_tester_id = find_path(&engine, module_id, "command_tester").expect("command tester should exist");
     engine.edits.push(golden_core::edit::Edit::AddUserItem {
         parent: command_tester_id,
         prev_sibling: None,
@@ -779,7 +772,7 @@ fn existing_launch_command_updates_watched_app_enum_when_app_is_added() {
         .constraints
         .enum_options
         .into_iter()
-        .map(|option| option.variant_id)
+        .map(|option| option.variant_id.clone())
         .collect::<Vec<_>>();
     assert_eq!(variants, vec!["Chataigne".to_string()]);
     assert_eq!(watched_app_snapshot.value, ParamValue::Enum("Chataigne".to_string()));
@@ -795,9 +788,7 @@ fn create_module() -> (crate::app::AppEngine, NodeId) {
             .apply_edits()
             .expect("App Control module defaults should materialize");
     }
-    engine
-        .resolve()
-        .expect("App Control module schedule should resolve");
+    engine.resolve().expect("App Control module schedule should resolve");
 
     let module_id = engine
         .nodes
@@ -824,9 +815,7 @@ fn run_app_control_ticks(engine: &mut crate::app::AppEngine, count: usize) {
         engine
             .run_tick(Duration::from_millis(600))
             .expect("App Control runtime tick should succeed");
-        engine
-            .apply_edits()
-            .expect("pending App Control edits should apply");
+        engine.apply_edits().expect("pending App Control edits should apply");
         engine
             .resolve()
             .expect("App Control schedule should resolve after tick");

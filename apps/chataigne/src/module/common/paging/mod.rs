@@ -190,7 +190,7 @@ pub(crate) fn sync_selector(
                 .unwrap_or_else(|| DEFAULT_PAGE_ID.to_string());
             let options_match = existing
                 .and_then(|node| node.param_constraints.as_ref())
-                .is_some_and(|constraints| constraints.enum_options == options);
+                .is_some_and(|constraints| constraints.enum_options.as_slice() == options.as_slice());
             let next_value = if pages.iter().any(|page| page.id == current_value) {
                 current_value
             } else {
@@ -435,9 +435,13 @@ fn authored_folder(label: &str) -> Folder {
 }
 
 fn active_page_param(value: String, options: Vec<ParameterEnumOption>) -> Parameter {
-    let mut param = Parameter::new("Active Page", ParamValue::Enum(value), ParameterChangeCheck::ValueChange);
+    let mut param = Parameter::new(
+        "Active Page",
+        ParamValue::Enum(value),
+        ParameterChangeCheck::ValueChange,
+    );
     param.event_behaviour = ParameterEventBehaviour::Coalesce;
-    param.constraints.enum_options = options;
+    param.constraints.enum_options = (options).into();
     param.node_data_mut().meta.decl_id = golden_core::node::DeclId(ACTIVE_PAGE_PARAM.to_string());
     crate::app::module::enable_module_authoring(param.node_data_mut());
     param

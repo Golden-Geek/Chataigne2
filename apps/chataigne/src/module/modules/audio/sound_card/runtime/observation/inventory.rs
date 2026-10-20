@@ -1,29 +1,44 @@
-use golden_audio::{
-    AudioDeviceInspectorState, AudioDeviceTargetId, AudioDirection, AudioObservationReader, PhysicalChannelKey,
-};
+use golden_audio::{AudioDeviceInspectorState, AudioDeviceTargetId, AudioDirection, AudioObservationReader};
 use golden_io::{PayloadPool, RetainedPayload};
 use std::sync::{Mutex, OnceLock};
 
-const FRAME_BYTES: usize = 8 * 1024 * 1024;
+const FRAME_BYTES: usize = 16 * 1024 * 1024;
+const METADATA_BYTES: usize = 8 * 1024 * 1024;
 const METADATA_ITEMS: usize = 131_072;
 
-/// Routing metadata has its own admission, independent of analysis and metering.
-pub(super) struct RoutePreparer {
+/// Device metadata has its own admission, independent of analysis and metering.
+pub(super) struct InventoryPreparer {
     pool: PayloadPool,
-    previous: RouteView,
+    previous: DeviceView,
 }
 
 #[derive(Clone, Default)]
-pub(crate) struct RouteView {
-    frame: Option<RetainedPayload<RouteFrame>>,
+pub(crate) struct DeviceView {
+    frame: Option<RetainedPayload<InventoryFrame>>,
     error: Option<RouteValidationError>,
     revision: u64,
 }
 
-struct RouteFrame {
+struct InventoryFrame {
     revision: u64,
-    input: Option<Vec<PhysicalChannelKey>>,
-    output: Option<Vec<PhysicalChannelKey>>,
+    metadata: AudioDeviceInspectorState,
+    input: Option<DirectionIndex>,
+    output: Option<DirectionIndex>,
+}
+
+struct DirectionIndex {
+    device: usize,
+    channels: Vec<usize>,
+}
+
+/// A borrowed native catalog; cloning this handle never clones device metadata.
+#[derive(Clone)]
+pub(crate) struct DeviceInventory(RetainedPayload<InventoryFrame>);
+
+impl DeviceInventory {
+    pub(crate) fn state(&self) -> &AudioDeviceInspectorState {
+        &self.0.metadata
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -40,14 +55,23 @@ impl RouteValidationError {
         match self {
             Self::Stale => "Sound Card device inventory is updating; retry the route connection",
             Self::Capacity => "Sound Card route inventory lifetime capacity exhausted; retry the route connection",
-            Self::Oversized => "Sound Card route inventory exceeds 8 MiB / 131072 metadata entries",
+            Self::Oversized => {
+                "Sound Card device inventory exceeds 8 MiB / 131072 source entries or 16 MiB prepared storage"
+            }
             Self::NoDevice => "Sound Card device is not ready",
             Self::UnavailableChannel => "Sound Card physical channel is not available on the selected device",
         }
     }
 }
 
-impl RouteView {
+impl DeviceView {
+    pub(crate) fn catalog(&self, revision: u64) -> Option<DeviceInventory> {
+        self.frame
+            .as_ref()
+            .filter(|frame| frame.revision == revision)
+            .cloned()
+            .map(DeviceInventory)
+    }
     #[cfg(test)]
     pub(super) fn same_storage(&self, other: &Self) -> bool {
         match (&self.frame, &other.frame) {
@@ -75,7 +99,7 @@ impl RouteView {
     }
 }
 
-impl RoutePreparer {
+impl InventoryPreparer {
     pub(super) fn new() -> Result<Self, std::io::Error> {
         static POOL: OnceLock<Mutex<Option<PayloadPool>>> = OnceLock::new();
         let mut pool = POOL
@@ -83,7 +107,11 @@ impl RoutePreparer {
             .lock()
             .unwrap_or_else(|p| p.into_inner());
         if pool.is_none() {
-            *pool = Some(PayloadPool::new("sound-card-route-disposer", 64, 256 * 1024 * 1024)?);
+            *pool = Some(PayloadPool::new(
+                "sound-card-inventory-disposer",
+                64,
+                512 * 1024 * 1024,
+            )?);
         }
         Ok(Self::using(pool.as_ref().unwrap().clone()))
     }
@@ -91,11 +119,11 @@ impl RoutePreparer {
     pub(super) fn using(pool: PayloadPool) -> Self {
         Self {
             pool,
-            previous: RouteView::default(),
+            previous: DeviceView::default(),
         }
     }
 
-    pub(super) fn prepare(&mut self, reader: &AudioObservationReader) -> RouteView {
+    pub(super) fn prepare(&mut self, reader: &AudioObservationReader) -> DeviceView {
         let revision = reader.device_revision();
         if self
             .previous
@@ -109,7 +137,7 @@ impl RoutePreparer {
         let result = self.capture(reader);
         match result {
             Ok(frame) => {
-                self.previous = RouteView {
+                self.previous = DeviceView {
                     revision: frame.revision,
                     frame: Some(frame),
                     error: None,
@@ -126,7 +154,7 @@ impl RoutePreparer {
     fn capture(
         &self,
         reader: &AudioObservationReader,
-    ) -> Result<RetainedPayload<RouteFrame>, (u64, RouteValidationError)> {
+    ) -> Result<RetainedPayload<InventoryFrame>, (u64, RouteValidationError)> {
         let reservation = self
             .pool
             .try_reserve(FRAME_BYTES)
@@ -136,7 +164,9 @@ impl RoutePreparer {
         // source lock or the actor-facing publication lock.
         frame.sort();
         let revision = frame.revision;
-        let bytes = frame.retained_bytes();
+        let bytes = frame
+            .retained_bytes()
+            .ok_or((revision, RouteValidationError::Oversized))?;
         if bytes > FRAME_BYTES {
             return Err((revision, RouteValidationError::Oversized));
         }
@@ -145,67 +175,75 @@ impl RoutePreparer {
             .map_err(|_| (revision, RouteValidationError::Oversized))
     }
 
-    fn draft(snapshot: &golden_audio::AudioObservationSnapshot) -> Result<RouteFrame, (u64, RouteValidationError)> {
+    fn draft(snapshot: &golden_audio::AudioObservationSnapshot) -> Result<InventoryFrame, (u64, RouteValidationError)> {
         snapshot
             .device
-            .retained_bytes_within(FRAME_BYTES, METADATA_ITEMS)
+            .retained_bytes_within(METADATA_BYTES, METADATA_ITEMS)
             .ok_or((snapshot.device_revision, RouteValidationError::Oversized))?;
-        Ok(RouteFrame::from_state(&snapshot.device, snapshot.device_revision))
+        Ok(InventoryFrame::from_state(&snapshot.device, snapshot.device_revision))
     }
 }
 
-impl RouteFrame {
+impl InventoryFrame {
     fn from_state(state: &AudioDeviceInspectorState, revision: u64) -> Self {
         Self {
             revision,
+            metadata: state.clone(),
             input: selected_channels(state, AudioDirection::Input),
             output: selected_channels(state, AudioDirection::Output),
         }
     }
 
     fn sort(&mut self) {
-        for channels in [&mut self.input, &mut self.output].into_iter().flatten() {
-            channels.sort_unstable();
+        for (index, direction) in [
+            (&mut self.input, AudioDirection::Input),
+            (&mut self.output, AudioDirection::Output),
+        ] {
+            if let Some(index) = index {
+                let channels = physical_channels(&self.metadata, index.device, direction);
+                index
+                    .channels
+                    .sort_unstable_by(|left, right| channels[*left].key.as_str().cmp(channels[*right].key.as_str()));
+            }
         }
     }
 
-    fn retained_bytes(&self) -> usize {
-        size_of::<Self>()
-            + 2 * size_of::<usize>()
-            + [&self.input, &self.output]
-                .into_iter()
-                .flatten()
-                .map(|channels| {
-                    channels.capacity() * size_of::<PhysicalChannelKey>()
-                        + channels
-                            .iter()
-                            .map(PhysicalChannelKey::retained_heap_bytes)
-                            .sum::<usize>()
-                })
-                .sum::<usize>()
+    fn retained_bytes(&self) -> Option<usize> {
+        Some(
+            size_of::<Self>() - size_of::<AudioDeviceInspectorState>()
+                + 2 * size_of::<usize>()
+                + self.metadata.retained_bytes_within(METADATA_BYTES, METADATA_ITEMS)?
+                + [&self.input, &self.output]
+                    .into_iter()
+                    .flatten()
+                    .map(|index| index.channels.capacity() * size_of::<usize>())
+                    .sum::<usize>(),
+        )
     }
 
     fn validate(&self, direction: AudioDirection, key: &str) -> Result<(), RouteValidationError> {
-        let channels = match direction {
+        let index = match direction {
             AudioDirection::Input => &self.input,
             AudioDirection::Output => &self.output,
         }
         .as_ref()
         .ok_or(RouteValidationError::NoDevice)?;
-        channels
-            .binary_search_by(|channel| channel.as_str().cmp(key))
+        let channels = physical_channels(&self.metadata, index.device, direction);
+        index
+            .channels
+            .binary_search_by(|position| channels[*position].key.as_str().cmp(key))
             .map(|_| ())
             .map_err(|_| RouteValidationError::UnavailableChannel)
     }
 }
 
-fn selected_channels(state: &AudioDeviceInspectorState, direction: AudioDirection) -> Option<Vec<PhysicalChannelKey>> {
+fn selected_channels(state: &AudioDeviceInspectorState, direction: AudioDirection) -> Option<DirectionIndex> {
     let status = match direction {
         AudioDirection::Input => &state.input,
         AudioDirection::Output => &state.output,
     };
     let selected = status.active_target.as_ref().or(status.selected_target.as_ref())?;
-    let device = state.devices.iter().find(|device| {
+    let device = state.devices.iter().position(|device| {
         device.supports(direction)
             && match selected {
                 AudioDeviceTargetId::Device { .. } => device.target == *selected,
@@ -218,11 +256,22 @@ fn selected_channels(state: &AudioDeviceInspectorState, direction: AudioDirectio
                 }
             }
     })?;
-    let channels = match direction {
-        AudioDirection::Input => &device.input_channels,
-        AudioDirection::Output => &device.output_channels,
-    };
-    Some(channels.iter().map(|channel| channel.key.clone()).collect())
+    let channels = physical_channels(state, device, direction);
+    Some(DirectionIndex {
+        device,
+        channels: (0..channels.len()).collect(),
+    })
+}
+
+fn physical_channels(
+    state: &AudioDeviceInspectorState,
+    device: usize,
+    direction: AudioDirection,
+) -> &[golden_audio::PhysicalChannelDescriptor] {
+    match direction {
+        AudioDirection::Input => &state.devices[device].input_channels,
+        AudioDirection::Output => &state.devices[device].output_channels,
+    }
 }
 
 #[cfg(test)]

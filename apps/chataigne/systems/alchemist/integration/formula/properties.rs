@@ -42,9 +42,7 @@ pub(super) fn property_default(property_type: &str) -> Option<ParamValue> {
         "vec2" => ParamValue::Vec2(0.0, 0.0),
         "vec3" => ParamValue::Vec3(0.0, 0.0, 0.0),
         "color" => ParamValue::Color(0.0, 0.0, 0.0, 1.0),
-        "reference" => {
-            ParamValue::Reference(NodeReference::new(NodeUuid::nil()))
-        }
+        "reference" => ParamValue::Reference(NodeReference::new(NodeUuid::nil())),
         _ => return None,
     })
 }
@@ -74,13 +72,14 @@ pub(super) fn property_parameter(property_type: &str) -> Option<Parameter> {
     permissions.can_edit_constraints = true;
     value.node_data_mut().meta.user_permissions = permissions;
     if property_type == "enum" {
-        value.constraints.enum_options = vec![ParameterEnumOption {
+        value.constraints.enum_options = (vec![ParameterEnumOption {
             variant_id: "option".to_owned(),
             value: ParamValue::Enum("option".to_owned()),
             label: "Option".to_owned(),
             tags: Vec::new(),
             ordering: None,
-        }];
+        }])
+        .into();
     }
     Some(value)
 }
@@ -121,18 +120,11 @@ pub(super) fn formula_properties_container_rules() -> UserContainerRules {
     ])
 }
 
-pub(super) fn formula_properties_accepts(
-    item_type: &str,
-    item_kind: &str,
-) -> bool {
+pub(super) fn formula_properties_accepts(item_type: &str, item_kind: &str) -> bool {
     match item_kind {
-        PROPERTY_ITEM_KIND => {
-            item_type == PROPERTY_NODE_TYPE
-                || item_type.starts_with(PROPERTY_CREATE_PREFIX)
-        }
+        PROPERTY_ITEM_KIND => item_type == PROPERTY_NODE_TYPE || item_type.starts_with(PROPERTY_CREATE_PREFIX),
         PROPERTY_MANAGER_ITEM_KIND => {
-            item_type == PROPERTY_MANAGER_NODE_TYPE
-                || item_type.starts_with(PROPERTY_MANAGER_CREATE_PREFIX)
+            item_type == PROPERTY_MANAGER_NODE_TYPE || item_type.starts_with(PROPERTY_MANAGER_CREATE_PREFIX)
         }
         PROPERTY_FOLDER_ITEM_KIND => item_type == PROPERTY_FOLDER_NODE_TYPE,
         _ => false,
@@ -147,8 +139,7 @@ pub(super) fn create_formula_property_item(node_type: &str) -> Option<Box<dyn No
         return Some(Box::new(AlchemistPropertyFolder::new()));
     }
     if let Some(property_type) = node_type.strip_prefix(PROPERTY_CREATE_PREFIX) {
-        return property_default(property_type)
-            .map(|_| Box::new(AlchemistProperty::for_type(property_type)) as _);
+        return property_default(property_type).map(|_| Box::new(AlchemistProperty::for_type(property_type)) as _);
     }
     let role = node_type.strip_prefix(PROPERTY_MANAGER_CREATE_PREFIX)?;
     PROPERTY_MANAGER_ROLES
@@ -163,8 +154,7 @@ pub(super) fn create_formula_property_item(node_type: &str) -> Option<Box<dyn No
 
 pub(super) fn properties_tree() -> NodeTree {
     let mut properties = AlchemistPropertiesManager::new();
-    properties.node_data_mut().meta.decl_id =
-        DeclId(PROPERTIES_DECL_ID.to_owned());
+    properties.node_data_mut().meta.decl_id = DeclId(PROPERTIES_DECL_ID.to_owned());
     NodeTree::new(properties)
 }
 
@@ -177,11 +167,7 @@ impl Node for AlchemistPropertiesManager {
         Some(formula_properties_container_rules())
     }
 
-    fn user_container_accepts_item(
-        &self,
-        item_type: &str,
-        item_kind: &str,
-    ) -> bool {
+    fn user_container_accepts_item(&self, item_type: &str, item_kind: &str) -> bool {
         formula_properties_accepts(item_type, item_kind)
     }
 
@@ -194,8 +180,7 @@ impl Node for AlchemistPropertiesManager {
     }
 
     fn init(&mut self, _ctx: &mut ProcessCtx) {
-        self.node_data_mut().meta.user_permissions =
-            locked_properties_permissions();
+        self.node_data_mut().meta.user_permissions = locked_properties_permissions();
         self.node_data_mut().meta.can_be_disabled = false;
     }
 
@@ -261,20 +246,11 @@ impl Node for AlchemistPropertyManager {
         self.reconcile_role(ctx);
     }
 
-    fn on_node_ready(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        _context: NodeCreationContext,
-    ) {
+    fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
         self.reconcile_role(ctx);
     }
 
-    fn on_param_change(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        param: NodeId,
-        _old_value: ParamValue,
-    ) {
+    fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
         if param == self.role.id() {
             self.reconcile_role(ctx);
         }
@@ -288,9 +264,7 @@ impl Node for AlchemistPropertyManager {
 impl AlchemistPropertyManager {
     fn for_role(role: &str) -> Self {
         let mut manager = Self::new();
-        manager
-            .role
-            .apply_runtime_value(&ParamValue::Enum(role.to_owned()));
+        manager.role.apply_runtime_value(&ParamValue::Enum(role.to_owned()));
         set_tag(
             &mut manager.node_data_mut().meta.tags,
             PROPERTY_MANAGER_ROLE_TAG_PREFIX,
@@ -306,10 +280,9 @@ impl AlchemistPropertyManager {
         };
 
         let tagged_role = property_manager_role_from_tags(&self.node_data().meta.tags);
-        let child_role = child_string(&snapshot, self.id(), "role")
-            .filter(|role| manager_role_anode_type(role).is_some());
-        let label_role =
-            property_manager_role_from_label(&self.node_data().meta.label).map(ToOwned::to_owned);
+        let child_role =
+            child_string(&snapshot, self.id(), "role").filter(|role| manager_role_anode_type(role).is_some());
+        let label_role = property_manager_role_from_label(&self.node_data().meta.label).map(ToOwned::to_owned);
         let Some(role) = tagged_role
             .clone()
             .or_else(|| {
@@ -346,18 +319,13 @@ impl AlchemistPropertyManager {
         if let Some(role_param) = snapshot.find_child_by_decl_id(self.id(), "role") {
             let desired = ParamValue::Enum(role);
             ctx.call_node_mutation(role_param, |node, _ctx| {
-                let Some(parameter) = node.as_any_mut().downcast_mut::<Parameter>()
-                else {
+                let Some(parameter) = node.as_any_mut().downcast_mut::<Parameter>() else {
                     return Err("expected an Alchemist manager role parameter".into());
                 };
                 parameter.persist_read_only_value = true;
                 Ok(())
             });
-            if snapshot
-                .node(role_param)
-                .and_then(|node| node.param_value.as_ref())
-                != Some(&desired)
-            {
+            if snapshot.node(role_param).and_then(|node| node.param_value.as_ref()) != Some(&desired) {
                 ctx.edits.push(Edit::SetParam {
                     node: role_param,
                     value: desired,
@@ -393,20 +361,11 @@ impl Node for AlchemistProperty {
         self.reconcile_value(ctx);
     }
 
-    fn on_node_ready(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        _context: NodeCreationContext,
-    ) {
+    fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
         self.reconcile_value(ctx);
     }
 
-    fn on_param_change(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        param: NodeId,
-        _old_value: ParamValue,
-    ) {
+    fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
         if param == self.property_type.id() {
             self.reconcile_value(ctx);
         }
@@ -420,16 +379,15 @@ impl Node for AlchemistProperty {
 impl AlchemistProperty {
     fn for_type(property_type: &str) -> Self {
         let mut property = Self::new();
-        property.property_type.apply_runtime_value(&ParamValue::Str(
-            property_type.to_owned(),
-        ));
+        property
+            .property_type
+            .apply_runtime_value(&ParamValue::Str(property_type.to_owned()));
         set_tag(
             &mut property.node_data_mut().meta.tags,
             PROPERTY_TYPE_TAG_PREFIX,
             property_type,
         );
-        property.node_data_mut().meta.presentation.default_color =
-            Some(value_type_color(property_type));
+        property.node_data_mut().meta.presentation.default_color = Some(value_type_color(property_type));
         property
     }
 
@@ -441,31 +399,26 @@ impl AlchemistProperty {
         // Newly created typed properties carry their type in node metadata so
         // persistence cannot collapse them back to the default hidden field.
         // Legacy files still resolve through the saved child.
-        let Some(property_type) =
-            tagged_value(&self.node_data().meta.tags, PROPERTY_TYPE_TAG_PREFIX)
-                .map(str::trim)
-                .filter(|value| property_default(value).is_some())
-                .map(ToOwned::to_owned)
-                .or_else(|| {
-                    child_string(&snapshot, self.id(), "property_type")
-                        .filter(|value| property_default(value).is_some())
-                })
-                .or_else(|| {
-                    let fallback = self.property_type.get_ref();
-                    (fallback != "float").then(|| fallback.to_owned())
-                })
+        let Some(property_type) = tagged_value(&self.node_data().meta.tags, PROPERTY_TYPE_TAG_PREFIX)
+            .map(str::trim)
+            .filter(|value| property_default(value).is_some())
+            .map(ToOwned::to_owned)
+            .or_else(|| {
+                child_string(&snapshot, self.id(), "property_type").filter(|value| property_default(value).is_some())
+            })
+            .or_else(|| {
+                let fallback = self.property_type.get_ref();
+                (fallback != "float").then(|| fallback.to_owned())
+            })
         else {
             return;
         };
 
         if self.node_data().meta.presentation.default_color.is_none() {
-            self.node_data_mut().meta.presentation.default_color =
-                Some(value_type_color(&property_type));
+            self.node_data_mut().meta.presentation.default_color = Some(value_type_color(&property_type));
         }
 
-        if let Some(property_type_param) =
-            snapshot.find_child_by_decl_id(self.id(), "property_type")
-        {
+        if let Some(property_type_param) = snapshot.find_child_by_decl_id(self.id(), "property_type") {
             let desired = ParamValue::Str(property_type.clone());
             if snapshot
                 .node(property_type_param)
@@ -482,9 +435,7 @@ impl AlchemistProperty {
 
         // Remove legacy / obsolete children
         for decl_id in ["value_type", "range_min", "range_max", "options"] {
-            if let Some(child) =
-                snapshot.find_child_by_decl_id(self.id(), decl_id)
-            {
+            if let Some(child) = snapshot.find_child_by_decl_id(self.id(), decl_id) {
                 self.remove_child(ctx, child);
             }
         }
@@ -500,18 +451,12 @@ impl AlchemistProperty {
         let value_children: Vec<NodeId> = snapshot
             .child_ids(self.id())
             .into_iter()
-            .filter(|child| {
-                snapshot
-                    .node(*child)
-                    .is_some_and(|node| node.decl_id == "value")
-            })
+            .filter(|child| snapshot.node(*child).is_some_and(|node| node.decl_id == "value"))
             .collect();
 
         let mut kept: Option<NodeId> = None;
         for child in value_children {
-            let matches_type = snapshot
-                .node(child)
-                .is_some_and(|node| node.node_type == desired_type);
+            let matches_type = snapshot.node(child).is_some_and(|node| node.node_type == desired_type);
             if kept.is_none() && matches_type {
                 kept = Some(child);
             } else {
@@ -538,9 +483,7 @@ pub(super) fn formula_surface_from_snapshot(
     formula_node: NodeId,
     anodes: &mut [ANodeInstance],
 ) -> Result<FormulaSurface, String> {
-    let Some(properties) =
-        snapshot.find_child_by_decl_id(formula_node, PROPERTIES_DECL_ID)
-    else {
+    let Some(properties) = snapshot.find_child_by_decl_id(formula_node, PROPERTIES_DECL_ID) else {
         return Ok(FormulaSurface::default());
     };
     let mut parameter_items = Vec::new();
@@ -550,12 +493,9 @@ pub(super) fn formula_surface_from_snapshot(
             continue;
         };
         if node.node_type == PROPERTY_NODE_TYPE {
-            parameter_items.push(surface_item_from_property(
-                snapshot, child, anodes,
-            )?);
+            parameter_items.push(surface_item_from_property(snapshot, child, anodes)?);
         } else if node.node_type == PROPERTY_MANAGER_NODE_TYPE {
-            let role = child_string(snapshot, child, "role")
-                .unwrap_or_else(|| "condition".to_owned());
+            let role = child_string(snapshot, child, "role").unwrap_or_else(|| "condition".to_owned());
             manager_sections.push(SurfaceSection {
                 id: SurfaceSectionId::new(role.clone()),
                 label: node.label.clone(),
@@ -581,18 +521,14 @@ pub(crate) fn formula_managed_regions_from_snapshot(
     snapshot: &ProcessTreeSnapshot,
     formula_node: NodeId,
 ) -> Result<Vec<ManagedRegionDefinition>, String> {
-    let Some(ParamValue::Str(raw)) =
-        child_param(snapshot, formula_node, FORMULA_MANAGED_REGIONS_JSON_DECL_ID)
-    else {
+    let Some(ParamValue::Str(raw)) = child_param(snapshot, formula_node, FORMULA_MANAGED_REGIONS_JSON_DECL_ID) else {
         return Ok(Vec::new());
     };
     let raw = raw.trim();
     if raw.is_empty() {
         return Ok(Vec::new());
     }
-    serde_json::from_str(raw).map_err(|error| {
-        format!("Formula managed region metadata is invalid: {error}")
-    })
+    serde_json::from_str(raw).map_err(|error| format!("Formula managed region metadata is invalid: {error}"))
 }
 
 pub(super) fn surface_item_from_property(
@@ -603,8 +539,8 @@ pub(super) fn surface_item_from_property(
     let node = snapshot
         .node(property)
         .ok_or_else(|| format!("Property {property:?} is missing"))?;
-    let value = child_param(snapshot, property, "value")
-        .ok_or_else(|| format!("Property `{}` has no value", node.label))?;
+    let value =
+        child_param(snapshot, property, "value").ok_or_else(|| format!("Property `{}` has no value", node.label))?;
     let value_type = ValueTypeId::new(property_value_type(
         child_string(snapshot, property, "property_type")
             .as_deref()

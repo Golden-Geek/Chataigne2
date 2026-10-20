@@ -519,13 +519,15 @@ pub(super) fn select_enum_parameter(engine: &mut crate::app::AppEngine, module: 
         .and_then(|state| state.param_constraints.clone())
         .expect("enum constraints");
     if !constraints.enum_options.iter().any(|option| option.variant_id == value) {
-        constraints.enum_options.push(ParameterEnumOption {
+        let mut options = constraints.enum_options.as_slice().to_vec();
+        options.push(ParameterEnumOption {
             variant_id: value.to_owned(),
             value: ParamValue::Enum(value.to_owned()),
             label: value.to_owned(),
             tags: Vec::new(),
             ordering: None,
         });
+        constraints.enum_options = options.into();
         engine.edits.push(Edit::SetParamConstraints { node, constraints });
         engine.apply_edits().expect("enum test option should be accepted");
     }

@@ -173,7 +173,7 @@ pub(super) fn parse_parameter_specs_json(
                     ordering: None,
                 });
             }
-            constraints.enum_options = mapped;
+            constraints.enum_options = (mapped).into();
         }
         constraints.file = parse_file_constraints_json(entry, name)?;
 

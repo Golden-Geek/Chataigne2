@@ -493,8 +493,16 @@ impl SoundCardModule {
             crate::app::module::ModuleDataCapabilities::new(enabled && input_ready, enabled && output_ready),
         );
         let inventory_changed = events.iter().any(|event| runtime_event_changes_inventory(&event.event));
-        if inventory_changed && observation.error.is_none() {
-            self.sync_live_device_choices(ctx, &observation.device);
+        self.choices_dirty |= inventory_changed;
+        if self.choices_dirty {
+            if let Some(inventory) = self
+                .runtime
+                .as_ref()
+                .and_then(runtime::SoundCardRuntime::device_inventory)
+            {
+                self.sync_live_device_choices(ctx, &inventory);
+                self.choices_dirty = false;
+            }
         }
         for event in events {
             if runtime_event_changes_inventory(&event.event) {
@@ -643,17 +651,30 @@ impl SoundCardModule {
     pub(super) fn sync_live_device_choices(
         &self,
         ctx: &mut ProcessCtx,
-        state: &golden_audio::AudioDeviceInspectorState,
+        inventory: &runtime::observation::DeviceInventory,
     ) {
+        let state = inventory.state();
         let driver = self.requested_driver().ok().flatten();
         if self.uses_duplex_device() {
-            sync_device_enum_with_state(ctx, self.device.id(), state, DeviceChoice::Duplex, driver.as_ref());
+            sync_device_enum_with_state(
+                ctx,
+                self.device.id(),
+                inventory.clone(),
+                DeviceChoice::Duplex,
+                driver.as_ref(),
+            );
         } else {
-            sync_device_enum_with_state(ctx, self.input_device.id(), state, DeviceChoice::Input, driver.as_ref());
+            sync_device_enum_with_state(
+                ctx,
+                self.input_device.id(),
+                inventory.clone(),
+                DeviceChoice::Input,
+                driver.as_ref(),
+            );
             sync_device_enum_with_state(
                 ctx,
                 self.output_device.id(),
-                state,
+                inventory.clone(),
                 DeviceChoice::Output,
                 driver.as_ref(),
             );

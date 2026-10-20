@@ -31,11 +31,10 @@ impl DeviceChoice {
 pub(super) fn sync_device_enum_with_state(
     ctx: &mut ProcessCtx,
     parameter_id: NodeId,
-    state: &golden_audio::AudioDeviceInspectorState,
+    inventory: runtime::observation::DeviceInventory,
     choice: DeviceChoice,
     driver: Option<&golden_audio::BackendId>,
 ) {
-    let state = state.clone();
     let driver = driver.cloned();
     ctx.call_node_mutation_without_snapshot(parameter_id, move |node, inner_ctx| {
         let Some(parameter) = node.as_any_mut().downcast_mut::<Parameter>() else {
@@ -46,12 +45,12 @@ pub(super) fn sync_device_enum_with_state(
             .as_enum()
             .filter(|value| !value.trim().is_empty())
             .unwrap_or_else(|| NO_AUDIO_DEVICE.to_owned());
-        let options = device_options_for_current(current.as_str(), &state, choice, driver.as_ref());
-        if parameter.constraints.enum_options == options {
+        let options = device_options_for_current(current.as_str(), inventory.state(), choice, driver.as_ref());
+        if parameter.constraints.enum_options.as_slice() == options.as_slice() {
             return Ok(());
         }
         let mut constraints = parameter.constraints.clone();
-        constraints.enum_options = options;
+        constraints.enum_options = (options).into();
         inner_ctx.edits.push(Edit::SetParamConstraints {
             node: parameter_id,
             constraints,
@@ -186,9 +185,9 @@ pub(super) fn sync_numeric_enum(ctx: &mut ProcessCtx, parameter_id: NodeId, unit
             missing.tags.push("missing".to_owned());
             options.push(missing);
         }
-        if parameter.constraints.enum_options != options {
+        if parameter.constraints.enum_options.as_slice() != options.as_slice() {
             let mut constraints = parameter.constraints.clone();
-            constraints.enum_options = options;
+            constraints.enum_options = (options).into();
             inner_ctx.edits.push(Edit::SetParamConstraints {
                 node: parameter_id,
                 constraints,

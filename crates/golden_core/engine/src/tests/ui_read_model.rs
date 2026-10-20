@@ -580,7 +580,7 @@ fn snapshot_materializes_parameter_updates_without_a_structural_rebuild() {
     let cursor = read_model.current_event_time();
 
     let mut constraints = engine.nodes.get(root).expect("root parameter").constraints.clone();
-    constraints.enum_options = ["wasapi", "asio"]
+    constraints.enum_options = (["wasapi", "asio"]
         .into_iter()
         .enumerate()
         .map(|(ordering, backend)| ParameterEnumOption {
@@ -590,7 +590,8 @@ fn snapshot_materializes_parameter_updates_without_a_structural_rebuild() {
             tags: Vec::new(),
             ordering: i32::try_from(ordering).ok(),
         })
-        .collect();
+        .collect::<Vec<_>>())
+    .into();
     engine.edits.push(Edit::SetParamConstraints {
         node: root,
         constraints: constraints.clone(),

@@ -169,11 +169,7 @@ impl DeckSurface {
     }
 
     pub(crate) fn needs_update(&self) -> bool {
-        self.hardware.is_some()
-            || self.hardware_dirty
-            || self.devices_dirty
-            || self.structure_dirty
-            || self.pages_dirty
+        self.hardware.is_some() || self.hardware_dirty || self.devices_dirty || self.structure_dirty || self.pages_dirty
     }
 
     pub(crate) fn mark_structure_dirty(&mut self) {
@@ -288,7 +284,12 @@ impl DeckSurface {
             }
             Err(error) => {
                 if let Some(param_id) = device_param_id {
-                    NodeHandle::new(param_id).set_warning_with(ctx, Some(self.config.connect_warning_id), error.as_str(), None);
+                    NodeHandle::new(param_id).set_warning_with(
+                        ctx,
+                        Some(self.config.connect_warning_id),
+                        error.as_str(),
+                        None,
+                    );
                 }
             }
         }
@@ -344,16 +345,32 @@ impl DeckSurface {
         snapshot
             .child_ids(container)
             .into_iter()
-            .find(|id| snapshot.node(*id).is_some_and(|node| paging::page_id_of(node) == active))
+            .find(|id| {
+                snapshot
+                    .node(*id)
+                    .is_some_and(|node| paging::page_id_of(node) == active)
+            })
             .or_else(|| self.value_keys_id(snapshot, base))
     }
 
     // ---- model-driven structure generation ---------------------------------
 
-    fn sync_structure(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot, base: &ModuleBase, target: usize) {
+    fn sync_structure(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        snapshot: &ProcessTreeSnapshot,
+        base: &ModuleBase,
+        target: usize,
+    ) {
         // Control side: default page + every derived control page.
         if let Some(control_keys) = self.control_keys_id(snapshot, base) {
-            resize(ctx, control_keys, &key_folders(snapshot, control_keys), target, build_control_key);
+            resize(
+                ctx,
+                control_keys,
+                &key_folders(snapshot, control_keys),
+                target,
+                build_control_key,
+            );
         }
         if let Some(params_id) = base.parameters_id() {
             if let Some(container) = paging::container_id(snapshot, params_id) {
@@ -365,7 +382,13 @@ impl DeckSurface {
 
         // Input side: default page + every derived input page.
         if let Some(value_keys) = self.value_keys_id(snapshot, base) {
-            resize(ctx, value_keys, &snapshot.child_ids(value_keys), target, build_value_key);
+            resize(
+                ctx,
+                value_keys,
+                &snapshot.child_ids(value_keys),
+                target,
+                build_value_key,
+            );
         }
         if let Some(values_id) = base.values_id() {
             if let Some(container) = paging::container_id(snapshot, values_id) {
@@ -397,21 +420,36 @@ impl DeckSurface {
         paging::ensure_container(ctx, snapshot, params_id);
         paging::complete_pages(ctx, snapshot, params_id, control_keys);
         if let Some(values_id) = base.values_id() {
-            paging::mirror_pages(ctx, snapshot, params_id, values_id, || (0..key_count).map(build_value_key).collect());
+            paging::mirror_pages(ctx, snapshot, params_id, values_id, || {
+                (0..key_count).map(build_value_key).collect()
+            });
         }
         paging::sync_selector(ctx, snapshot, params_id, params_id);
 
         let active = paging::active_page_value(snapshot, params_id);
         if active != self.last_active_page {
             self.last_active_page = active.clone();
-            self.last_visuals.iter_mut().for_each(|visual| *visual = KeyVisual::default());
-            emit_callback(ctx, module_id, self.config.page_changed_callback, vec![serde_json::json!(active)]);
+            self.last_visuals
+                .iter_mut()
+                .for_each(|visual| *visual = KeyVisual::default());
+            emit_callback(
+                ctx,
+                module_id,
+                self.config.page_changed_callback,
+                vec![serde_json::json!(active)],
+            );
             base.emit_incoming_traffic(ctx);
         }
         self.pages_dirty = false;
     }
 
-    fn push_feedback(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot, base: &ModuleBase, key_count: usize) {
+    fn push_feedback(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        snapshot: &ProcessTreeSnapshot,
+        base: &ModuleBase,
+        key_count: usize,
+    ) {
         if self.hardware.is_none() {
             return;
         }
@@ -429,7 +467,11 @@ impl DeckSurface {
         for slot in 0..count {
             let active_key = active_keys.get(slot).copied();
             let unpaged = active_key.is_some_and(|key| read_bool_field(snapshot, key, FIELD_UNPAGED));
-            let source = if unpaged { default_keys.get(slot).copied() } else { active_key };
+            let source = if unpaged {
+                default_keys.get(slot).copied()
+            } else {
+                active_key
+            };
             let visual = source.map(|key| read_key_visual(snapshot, key)).unwrap_or_default();
 
             if self.last_visuals.get(slot) == Some(&visual) {
@@ -444,7 +486,13 @@ impl DeckSurface {
         let _ = ctx;
     }
 
-    fn process_input(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot, base: &ModuleBase, module_id: NodeId) {
+    fn process_input(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        snapshot: &ProcessTreeSnapshot,
+        base: &ModuleBase,
+        module_id: NodeId,
+    ) {
         let events = match self.hardware.as_mut() {
             Some(hardware) => hardware.poll_input(),
             None => return,
@@ -468,8 +516,17 @@ impl DeckSurface {
                 }
             }
             base.emit_incoming_traffic(ctx);
-            let callback = if pressed { self.config.key_pressed_callback } else { self.config.key_released_callback };
-            emit_callback(ctx, module_id, callback, vec![serde_json::json!(index), serde_json::json!(active)]);
+            let callback = if pressed {
+                self.config.key_pressed_callback
+            } else {
+                self.config.key_released_callback
+            };
+            emit_callback(
+                ctx,
+                module_id,
+                callback,
+                vec![serde_json::json!(index), serde_json::json!(active)],
+            );
             if base.log_incoming_enabled() {
                 golden_core::log!(origin = module_id; format!("{} key {index} {}", self.config.product_label, if pressed { "pressed" } else { "released" }));
             }
@@ -562,10 +619,25 @@ fn resize(ctx: &mut ProcessCtx, parent: NodeId, existing: &[NodeId], target: usi
 
 fn build_control_key(slot: usize) -> NodeTree {
     let number = slot + 1; // keys are 1-based
-    let mut tree = NodeTree::new(authored_named_folder(&format!("Key {number}"), &format!("key_{number}")));
-    tree.push_child(NodeTree::new(authored_param("Color", ParamValue::Color(0.05, 0.05, 0.05, 1.0), false)));
-    tree.push_child(NodeTree::new(authored_param("Text", ParamValue::Str(String::new()), false)));
-    tree.push_child(NodeTree::new(authored_param("Image", ParamValue::File(String::new()), false)));
+    let mut tree = NodeTree::new(authored_named_folder(
+        &format!("Key {number}"),
+        &format!("key_{number}"),
+    ));
+    tree.push_child(NodeTree::new(authored_param(
+        "Color",
+        ParamValue::Color(0.05, 0.05, 0.05, 1.0),
+        false,
+    )));
+    tree.push_child(NodeTree::new(authored_param(
+        "Text",
+        ParamValue::Str(String::new()),
+        false,
+    )));
+    tree.push_child(NodeTree::new(authored_param(
+        "Image",
+        ParamValue::File(String::new()),
+        false,
+    )));
     tree.push_child(NodeTree::new(authored_param("Unpaged", ParamValue::Bool(false), false)));
     tree
 }
@@ -643,7 +715,12 @@ fn enum_option(variant_id: &str, label: &str, ordering: i32) -> ParameterEnumOpt
 }
 
 /// Swaps fresh enum options into a live selector parameter (mirrors the gamepad pattern).
-pub(crate) fn sync_enum_options(ctx: &mut ProcessCtx, param_id: NodeId, options: Vec<ParameterEnumOption>, fallback: &str) {
+pub(crate) fn sync_enum_options(
+    ctx: &mut ProcessCtx,
+    param_id: NodeId,
+    options: Vec<ParameterEnumOption>,
+    fallback: &str,
+) {
     let fallback = fallback.to_string();
     ctx.call_node_mutation(param_id, move |node, inner_ctx| {
         let Some(parameter) = node.as_any_mut().downcast_mut::<Parameter>() else {
@@ -659,7 +736,7 @@ pub(crate) fn sync_enum_options(ctx: &mut ProcessCtx, param_id: NodeId, options:
         } else {
             ParamValue::Enum(fallback.clone())
         };
-        if parameter.constraints.enum_options == options && parameter.value == next_value {
+        if parameter.constraints.enum_options.as_slice() == options.as_slice() && parameter.value == next_value {
             return Ok(());
         }
         let label = parameter.node_data().meta.label.clone();
@@ -671,7 +748,7 @@ pub(crate) fn sync_enum_options(ctx: &mut ProcessCtx, param_id: NodeId, options:
         replacement.read_only = parameter.read_only;
         replacement.persist_read_only_value = parameter.persist_read_only_value;
         replacement.constraints = parameter.constraints.clone();
-        replacement.constraints.enum_options = options.clone();
+        replacement.constraints.enum_options = (options.clone()).into();
         replacement.ui_hints = parameter.ui_hints.clone();
         replacement.control = parameter.control.clone();
         replacement.control_modes_enabled = parameter.control_modes_enabled;

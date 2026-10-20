@@ -5,11 +5,15 @@ impl<T: Node> Engine<T> {
         serde_json::to_string(options).unwrap_or_default()
     }
 
-    fn ui_enum_definition_from_options(enum_id: String, options: Vec<ParameterEnumOption>) -> UiEnumDefinition {
+    fn ui_enum_definition_from_options(
+        enum_id: String,
+        options: crate::parameter::ParameterEnumOptions,
+    ) -> UiEnumDefinition {
         UiEnumDefinition {
             enum_id,
             variants: options
-                .into_iter()
+                .iter()
+                .cloned()
                 .map(|option| UiEnumVariantDefinition {
                     variant_id: option.variant_id,
                     value: option.value,

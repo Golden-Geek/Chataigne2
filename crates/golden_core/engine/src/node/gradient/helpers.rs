@@ -34,11 +34,12 @@ pub(super) fn make_interpolation_parameter(interpolation: GradientInterpolation)
     );
     parameter.node_data_mut().meta.decl_id = DeclId(GRADIENT_STOP_INTERPOLATION_DECL_ID.to_string());
     parameter.node_data_mut().meta.can_be_disabled = false;
-    parameter.constraints.enum_options = vec![
+    parameter.constraints.enum_options = (vec![
         enum_option(GradientInterpolation::None.variant_id(), "None", 0),
         enum_option(GradientInterpolation::Linear.variant_id(), "Linear", 1),
         enum_option(GradientInterpolation::Smooth.variant_id(), "Smooth", 2),
-    ];
+    ])
+    .into();
     parameter
 }
 

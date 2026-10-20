@@ -27,19 +27,15 @@ pub(crate) const APP_CONTROL_WINDOW_ACTION_TRAY: &str = "tray";
 pub(crate) const APP_CONTROL_WINDOW_ACTION_SHOW: &str = "show";
 pub(crate) const APP_CONTROL_WINDOW_ACTION_ALWAYS_ON_TOP: &str = "always_on_top";
 
-pub(crate) const APP_CONTROL_LAUNCH_PROCESS_COMMAND_NODE_TYPE: &str =
-    "app_control_launch_process_command";
-pub(crate) const APP_CONTROL_KILL_PROCESS_COMMAND_NODE_TYPE: &str =
-    "app_control_kill_process_command";
-pub(crate) const APP_CONTROL_WINDOW_CONTROL_COMMAND_NODE_TYPE: &str =
-    "app_control_window_control_command";
+pub(crate) const APP_CONTROL_LAUNCH_PROCESS_COMMAND_NODE_TYPE: &str = "app_control_launch_process_command";
+pub(crate) const APP_CONTROL_KILL_PROCESS_COMMAND_NODE_TYPE: &str = "app_control_kill_process_command";
+pub(crate) const APP_CONTROL_WINDOW_CONTROL_COMMAND_NODE_TYPE: &str = "app_control_window_control_command";
 pub(crate) const APP_CONTROL_MODULE_COMMAND_TYPES: &[&str] = &[
     APP_CONTROL_LAUNCH_PROCESS_COMMAND_NODE_TYPE,
     APP_CONTROL_KILL_PROCESS_COMMAND_NODE_TYPE,
     APP_CONTROL_WINDOW_CONTROL_COMMAND_NODE_TYPE,
 ];
-pub(crate) const MISSING_WATCHED_APP_WARNING_ID: &str =
-    "app_control_missing_watched_app";
+pub(crate) const MISSING_WATCHED_APP_WARNING_ID: &str = "app_control_missing_watched_app";
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -109,12 +105,8 @@ impl ProcessMatchMode {
         match normalized_variant(variant).as_str() {
             APP_CONTROL_MATCH_MODE_EXACT => Some(Self::Exact),
             APP_CONTROL_MATCH_MODE_CONTAINS => Some(Self::Contains),
-            APP_CONTROL_MATCH_MODE_STARTS_WITH | "startwith" | "startswith" => {
-                Some(Self::StartsWith)
-            }
-            APP_CONTROL_MATCH_MODE_ENDS_WITH | "endwith" | "endswith" | "endwidth" => {
-                Some(Self::EndsWith)
-            }
+            APP_CONTROL_MATCH_MODE_STARTS_WITH | "startwith" | "startswith" => Some(Self::StartsWith),
+            APP_CONTROL_MATCH_MODE_ENDS_WITH | "endwith" | "endswith" | "endwidth" => Some(Self::EndsWith),
             _ => None,
         }
     }
@@ -274,10 +266,7 @@ fn enum_options(options: &[(&str, &str)]) -> Vec<ParameterEnumOption> {
 }
 
 fn normalized_variant(value: &str) -> String {
-    value
-        .trim()
-        .to_ascii_lowercase()
-        .replace(['-', ' '], "_")
+    value.trim().to_ascii_lowercase().replace(['-', ' '], "_")
 }
 
 pub(crate) fn sync_command_watched_app_options(
@@ -286,11 +275,8 @@ pub(crate) fn sync_command_watched_app_options(
     command_id: NodeId,
     options: &[ParameterEnumOption],
 ) {
-    let Some(param_id) = crate::app::module_command::resolve_module_command_child(
-        snapshot,
-        command_id,
-        "watched_app",
-    ) else {
+    let Some(param_id) = crate::app::module_command::resolve_module_command_child(snapshot, command_id, "watched_app")
+    else {
         return;
     };
     sync_watched_app_enum_options(ctx, snapshot, param_id, options.to_vec());
@@ -330,9 +316,7 @@ pub(crate) fn sync_watched_app_enum_options(
         };
 
         let next_value = ParamValue::Enum(next_variant.clone());
-        if parameter.constraints.enum_options == next_options
-            && parameter.value == next_value
-        {
+        if parameter.constraints.enum_options.as_slice() == next_options.as_slice() && parameter.value == next_value {
             return Ok(());
         }
 
@@ -345,7 +329,7 @@ pub(crate) fn sync_watched_app_enum_options(
         replacement.read_only = parameter.read_only;
         replacement.persist_read_only_value = parameter.persist_read_only_value;
         replacement.constraints = parameter.constraints.clone();
-        replacement.constraints.enum_options = next_options.clone();
+        replacement.constraints.enum_options = (next_options.clone()).into();
         replacement.ui_hints = parameter.ui_hints.clone();
         replacement.control = parameter.control.clone();
         replacement.control_modes_enabled = parameter.control_modes_enabled;
@@ -370,10 +354,7 @@ fn enum_options_with_missing_current(
         return (next_options, desired_value, None);
     }
 
-    if next_options
-        .iter()
-        .any(|option| option.variant_id == trimmed_value)
-    {
+    if next_options.iter().any(|option| option.variant_id == trimmed_value) {
         return (next_options, trimmed_value.to_string(), None);
     }
 
@@ -388,9 +369,5 @@ fn enum_options_with_missing_current(
         },
     );
 
-    (
-        next_options,
-        trimmed_value.to_string(),
-        Some(trimmed_value.to_string()),
-    )
+    (next_options, trimmed_value.to_string(), Some(trimmed_value.to_string()))
 }
