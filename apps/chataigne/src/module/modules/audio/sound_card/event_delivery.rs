@@ -8,7 +8,8 @@ use golden_core::{
 };
 
 use super::{
-    connection_feedback::{self, ConnectionLogLevel, ConnectionWarning},
+    connection_feedback::{self, ConnectionWarning},
+    native_logging::{LogDelivery, LogProgress, LogSelection},
     prepared_event::PreparedAudioEvent,
     SoundCardModule,
 };
@@ -22,7 +23,9 @@ struct AudioEventDelivery {
     callback: Option<CallbackDelivery>,
     connection_warning: EditReceipt,
     rejection_warning: EditReceipt,
-    logged: bool,
+    logging: LogDelivery,
+    logging_warning: EditReceipt,
+    external_wait: bool,
     phase: DeliveryPhase,
     selection: Option<SelectionFence>,
     #[cfg(test)]
@@ -53,7 +56,9 @@ impl PendingAudioEvents {
             prepared: event,
             connection_warning: EditReceipt::default(),
             rejection_warning: EditReceipt::default(),
-            logged: false,
+            logging: LogDelivery::default(),
+            logging_warning: EditReceipt::default(),
+            external_wait: false,
             phase: DeliveryPhase::Feedback,
             selection: None,
             #[cfg(test)]
@@ -68,7 +73,7 @@ impl PendingAudioEvents {
             }
             self.0.pop_front();
         }
-        if !self.0.is_empty() {
+        if self.0.front().is_some_and(|front| !front.external_wait) {
             if let Some(wake) = &module.runtime_wake {
                 wake.wake();
             }
@@ -78,35 +83,38 @@ impl PendingAudioEvents {
 
 impl AudioEventDelivery {
     fn service(&mut self, ctx: &mut ProcessCtx, module: &SoundCardModule) -> bool {
+        self.external_wait = false;
         if matches!(self.phase, DeliveryPhase::Feedback) {
             let matches_selection = self.matches_selection(module);
-            if !self.logged {
-                if module.base.log_outgoing_enabled() {
-                    if let Some(message) = &self.prepared.outgoing_log {
-                        golden_core::log!(origin = module.id(); message.as_str());
+            match self.logging.service(
+                &self.prepared,
+                LogSelection {
+                    outgoing: module.base.log_outgoing_enabled(),
+                    connection: matches_selection,
+                },
+                module.id(),
+                module.runtime_wake.as_ref(),
+            ) {
+                LogProgress::Waiting => {
+                    self.external_wait = true;
+                    return false;
+                }
+                LogProgress::Failed => {
+                    if !self.logging_warning.service(ctx, || Edit::SetNodeWarning {
+                        node: module.id(),
+                        warning: NodeWarning {
+                            id: "sound-card-event-logging".into(),
+                            message: "Sound Card event logging failed".into(),
+                            detail: Some(
+                                "The native logger did not confirm every message. Accepted logs are not replayed."
+                                    .into(),
+                            ),
+                        },
+                    }) {
+                        return false;
                     }
                 }
-                if let Some(error) = &self.prepared.preparation_error {
-                    golden_core::logerror!(origin = module.id(); error.as_str());
-                }
-                if let Some(connection) = &self.prepared.connection {
-                    if matches_selection {
-                        if let Some(log) = &connection.log {
-                            match log.level {
-                                ConnectionLogLevel::Info => {
-                                    golden_core::log!(origin = module.id(); log.message.as_str());
-                                }
-                                ConnectionLogLevel::Success => {
-                                    golden_core::logsuccess!(origin = module.id(); log.message.as_str());
-                                }
-                                ConnectionLogLevel::Error => {
-                                    golden_core::logerror!(origin = module.id(); log.message.as_str());
-                                }
-                            }
-                        }
-                    }
-                }
-                self.logged = true;
+                LogProgress::Applied => {}
             }
             if let Some(error) = &self.prepared.preparation_error {
                 if !self.rejection_warning.service(ctx, || Edit::SetNodeWarning {

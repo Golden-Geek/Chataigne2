@@ -495,6 +495,24 @@ a later edit or subscriber failure. Only the FIFO front advances. Prepared logs 
 Connection warning retries recheck the current selected device and bound parameter, so deselection
 or selector removal cannot strand the original callback behind stale feedback. Playback callbacks
 remain transient; device/backend callbacks retain their ordinary replay policy.
+
+Prepared-event log publication runs on one app-owned native worker, with **32 live admission
+tickets / 32 queued handles** and one worker lifetime slot, including retirement. Jobs retain the
+original event lease and its byte quota; actor service neither copies log strings nor enters the
+synchronous logger. The native writer bounds display messages to **16 KiB UTF-8**, marking
+truncation without changing typed callback identities or paths. It preserves severity, module
+origin and per-module event order. Golden Engine assigns timestamps when the native append commits;
+process stdout keeps its existing best-effort semantics.
+
+Only the FIFO front admits logging. A completion receipt precedes its warning/callback publication.
+Native waits do not self-wake the actor. Full admission retries after **250 ms**, re-arming the
+remaining deadline after an earlier coalesced wake. Policy changes can suppress an unadmitted log;
+admission freezes that log's policy and origin. Facade/actor retirement cannot release a queued
+job's event storage. Writer panic is contained, and cancelled/unvisited jobs settle as failed.
+An uncertain committed prefix is never replayed; a retryable warning edit records the logging
+failure before the original callback continues. Other modules' logger/UI record storage remains
+separately owned; this is not a whole-process logger-memory or latency qualification.
+
 Selection checks cache their result by bound parameter and actual driver/selection values during
 receipt waits. The feedback phase closes before callback admission, so later selection changes
 cannot reopen feedback after a callback is queued. Selection parsing and the fence's control-value
@@ -654,7 +672,7 @@ destroy wholesale. Presentation-only metadata events do not request Sound Card s
 configuration; labels and enabled-state changes retain their existing behavior.
 
 Derived structure/default-route seeding, enum-choice publication and its inspector copies,
-event-feedback selection parsing/control-value copies, logger copies and remaining reconfiguration,
+event-feedback selection parsing/control-value copies, command/error diagnostic preparation and remaining reconfiguration,
 apply-time and failure fences remain P03 work. These budgets do not qualify whole-process memory
 or actor deadlines.
 

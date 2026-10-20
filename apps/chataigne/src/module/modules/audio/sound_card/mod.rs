@@ -1,6 +1,7 @@
 mod connection_feedback;
 mod event_delivery;
 mod integration;
+mod native_logging;
 mod observation_warning;
 mod prepared_event;
 mod runtime;

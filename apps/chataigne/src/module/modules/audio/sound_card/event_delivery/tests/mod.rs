@@ -87,9 +87,20 @@ fn service(engine: &crate::app::AppEngine, id: NodeId, pending: &mut PendingAudi
     let crate::app::AppNode::SoundCardModule(module) = engine.nodes.get(id).unwrap() else {
         panic!("Sound Card");
     };
-    let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);
-    pending.service(&mut ctx, module);
-    ctx
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
+    loop {
+        let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);
+        pending.service(&mut ctx, module);
+        if !pending.0.front().is_some_and(|front| front.external_wait) {
+            return ctx;
+        }
+        assert!(ctx.edits.pending.is_empty());
+        assert!(
+            std::time::Instant::now() < deadline,
+            "native feedback logging must complete"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    }
 }
 
 #[test]
@@ -268,4 +279,97 @@ fn selection_changes_cannot_reopen_feedback_after_callback_publication_is_queued
         .warning(Some("sound-card-output-device-connection"))
         .is_none());
     assert_eq!(callback_count(&engine, "audioDeviceStatusChanged"), 1);
+}
+
+fn native_wait_fixture() -> (crate::app::AppEngine, SoundCardModule, PendingAudioEvents) {
+    let engine = crate::app::AppEngine::new(Folder::new("root").into());
+    let mut module = SoundCardModule::create();
+    module.node_data_mut().id = engine.root;
+    module.runtime_wake =
+        Some(super::super::runtime::RuntimeWakeSender::new(engine.node_waker(engine.root).unwrap()).unwrap());
+    let event = EventPreparer::new()
+        .unwrap()
+        .try_prepare(&mut AudioEventDraft::new(backend_event()))
+        .unwrap();
+    let mut pending = PendingAudioEvents::default();
+    pending.push(event, engine.root);
+    (engine, module, pending)
+}
+
+#[test]
+fn native_logging_wait_does_not_self_wake_or_overtake_callbacks() {
+    let (mut engine, module, mut pending) = native_wait_fixture();
+    let complete = pending
+        .0
+        .front_mut()
+        .unwrap()
+        .logging
+        .pending_for_test(module.runtime_wake.clone().unwrap());
+    let event = EventPreparer::new()
+        .unwrap()
+        .try_prepare(&mut AudioEventDraft::new(backend_event()))
+        .unwrap();
+    pending.push(event, engine.root);
+    for _ in 0..64 {
+        let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);
+        pending.service(&mut ctx, &module);
+        assert!(ctx.edits.pending.is_empty());
+        assert!(pending.0.front().unwrap().external_wait);
+        engine.run_tick(std::time::Duration::from_millis(1)).unwrap();
+        assert_eq!(engine.tick_stats().wake_callbacks_fired, 0);
+    }
+    complete(true);
+    engine.run_tick(std::time::Duration::from_millis(1)).unwrap();
+    assert_eq!(engine.tick_stats().wake_callbacks_fired, 1);
+    for expected in [1, 2] {
+        let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);
+        pending.service(&mut ctx, &module);
+        engine.absorb_edits(&mut ctx).unwrap();
+        engine.apply_edits().unwrap();
+        assert_eq!(callback_count(&engine, "audioBackendStatusChanged"), expected);
+    }
+    let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);
+    pending.service(&mut ctx, &module);
+    assert!(pending.is_empty());
+    assert!(ctx.edits.pending.is_empty());
+}
+
+#[test]
+fn failed_logging_warning_retries_before_the_single_callback_occurrence() {
+    let (mut engine, module, mut pending) = native_wait_fixture();
+    let complete = pending
+        .0
+        .front_mut()
+        .unwrap()
+        .logging
+        .pending_for_test(module.runtime_wake.clone().unwrap());
+    complete(false);
+    let mut warning = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);
+    pending.service(&mut warning, &module);
+    engine.edits.push(invalid_edit());
+    engine.absorb_edits(&mut warning).unwrap();
+    assert!(engine.apply_edits().is_err());
+    assert_eq!(callback_count(&engine, "audioBackendStatusChanged"), 0);
+    let mut retry = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);
+    pending.service(&mut retry, &module);
+    engine.absorb_edits(&mut retry).unwrap();
+    engine.apply_edits().unwrap();
+    assert!(engine
+        .nodes
+        .get(engine.root)
+        .unwrap()
+        .node_data()
+        .meta
+        .presentation
+        .warning(Some("sound-card-event-logging"))
+        .is_some());
+    assert_eq!(callback_count(&engine, "audioBackendStatusChanged"), 0);
+    let mut callback = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);
+    pending.service(&mut callback, &module);
+    engine.absorb_edits(&mut callback).unwrap();
+    engine.apply_edits().unwrap();
+    let mut settled = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);
+    pending.service(&mut settled, &module);
+    assert!(pending.is_empty());
+    assert_eq!(callback_count(&engine, "audioBackendStatusChanged"), 1);
 }

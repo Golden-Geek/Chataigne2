@@ -377,7 +377,7 @@ presentation state; actor publication has bounded receipts and no optimistic war
 Native device-revision fences cover successful and failed preparation results without locking
 snapshots on the actor. Probe targets retain their canonical quota through native command Arcs.
 See [host ownership](hosts.md) for budgets and the remaining structure, choice/feedback inspection,
-logger and fence boundaries.
+command/diagnostic and fence boundaries.
 Missing explicit device selections remain persisted; unresolved local routes remain authored and
 receive visible warnings so removal and undo stay atomic.
 
@@ -385,6 +385,10 @@ Post-gain output RMS at or above 0.01 linear publishes a latest-only outgoing-ac
 module traffic icon remains lit until the signal falls below the threshold. With outgoing traffic
 logging enabled, authoritative playback started, finished, stopped, failed, and no-effect events are
 logged at the Sound Card module origin.
+One bounded native logging worker appends prepared event messages before their callback receipts
+advance. Actor service forwards retained handles, waits for native completion wakes, and defers
+overload with a coarse deadline. Display logs admit 16 KiB with a truncation marker; typed callback
+data stays intact. Logging failure has an explicit warning and cannot replay a committed prefix.
 
 The app-owned Svelte adapter maps Sound Card connection paths and typed routing requests to public
 backend intents. `golden_audio_ui` owns generic driver/device presentation, status/error
