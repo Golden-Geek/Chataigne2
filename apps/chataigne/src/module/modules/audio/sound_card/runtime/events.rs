@@ -100,7 +100,7 @@ impl SoundCardRuntimeEvents {
         })
     }
 
-    fn spawn_using<F>(
+    pub(super) fn spawn_using<F>(
         engine: AudioEngine,
         events: AudioEventReceiver,
         lifetime: RetirementPermit,

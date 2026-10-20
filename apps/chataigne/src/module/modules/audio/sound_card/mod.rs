@@ -300,7 +300,12 @@ impl Node for SoundCardModule {
     }
 
     fn worker_wake_requires_tree_snapshot(&self) -> bool {
-        self.node_data().effective_enabled && (self.configuration_dirty || self.runtime_request.is_some())
+        self.node_data().effective_enabled
+            && (self.configuration_dirty
+                || self
+                    .runtime_request
+                    .as_ref()
+                    .is_some_and(|request| request.driver().is_some()))
     }
 
     fn worker_wake_when_disabled(&self) -> bool {

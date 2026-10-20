@@ -76,7 +76,11 @@ impl SoundCardRuntimeWorker {
         Self::spawn_using(wake, lifecycle_worker_lifetimes(), SoundCardRuntime::start_selected)
     }
 
-    fn spawn_using<F>(wake: RuntimeWakeSender, lifetimes: &RetirementPool, starter: F) -> Result<Self, String>
+    pub(in super::super) fn spawn_using<F>(
+        wake: RuntimeWakeSender,
+        lifetimes: &RetirementPool,
+        starter: F,
+    ) -> Result<Self, String>
     where
         F: Fn(SampleRate, Option<BackendId>) -> Result<SoundCardRuntime, String> + Send + 'static,
     {
@@ -117,6 +121,12 @@ impl SoundCardRuntimeWorker {
                         request = latest;
                     }
                     if context.cancellation().is_cancelled() {
+                        return;
+                    }
+                    // An idle selection retires this worker only after the previous
+                    // native lifetime completed. Newer selections can supersede it
+                    // in the bounded coalescing drain above.
+                    if request.driver.is_none() {
                         return;
                     }
                     if !worker_enabled.load(Ordering::Acquire) {
@@ -162,11 +172,17 @@ impl SoundCardRuntimeWorker {
                 "Sound Card driver identifier exceeds 128 bytes",
             ));
         }
-        let next = self.next_request_id.checked_add(1).ok_or(StartRequestError::Invalid(
-            "Sound Card runtime request identity exhausted",
-        ))?;
+        // Idle is an idempotent desired state, not a new startup identity. It
+        // remains admissible even after startup identities have been exhausted.
+        let next = if driver.is_some() {
+            self.next_request_id.checked_add(1).ok_or(StartRequestError::Invalid(
+                "Sound Card runtime request identity exhausted",
+            ))?
+        } else {
+            self.next_request_id
+        };
         let request = SoundCardRuntimeRequest {
-            id: self.next_request_id,
+            id: if driver.is_some() { self.next_request_id } else { 0 },
             sample_rate,
             driver,
         };

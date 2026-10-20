@@ -5,8 +5,8 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-20 on clean `main` at delivered `d9fb2af1`, matching fetched `origin/main`,
-plus the P03 batch 38 milestone recorded below.
+Last reconciled: 2026-10-20 on clean `main` at delivered `93236757`, matching fetched `origin/main`,
+plus the P03 batch 39 milestone recorded below.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
 plan. Its complete contents, including the uncommitted clarification, survive in the
@@ -35,15 +35,15 @@ P03's approximately **79%** is a coarse scope score across seven equally weighte
 delivered = 100, partial = 50, open = 0. Partial does not mean exactly half the engineering effort.
 The score is `(100 + 100 + 100 + 100 + 50 + 0 + 100) / 7`.
 
-| Workstream                                    | Scope score   | Delivered / remaining acceptance                                                                                                                              |
-| --------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Shared IO and engine service/lifecycle bounds | 100%          | Bounded primitives, external-edit service, lifecycle expansion, completion and failure ownership delivered.                                                   |
-| Six native stream adapters                    | 100%          | UDP, TCP Client/Server, WebSocket Client/Server and Serial ownership/admission/passive service delivered; preserve their regression suites.                   |
-| HTTP                                          | 100%          | Native lifecycle, admission, response bounds, passive service, worker request conversion and retained input disposal verified.                                |
-| Generic script/event/property ingress         | 100%          | Method/property/event/log admission, rejected-input disposal, routing lifetime and shared-budget recovery verified.                                           |
-| Sound Card lifecycle/service                  | 50% (partial) | Native lifetimes, ordered pressure, eight-event service and disabled completions verified; retained bytes, idle-slot recovery and configuration audit remain. |
-| Remaining app module/channel audit            | 0% (open)     | Audit every remaining module/channel against bounded service, retirement, failure and reconnect criteria; repair and verify findings.                         |
-| Generator elapsed-time accounting             | 100%          | Ordinary commands settle elapsed time; phase, due-prefix ordering, bounded catch-up, targeted reset and stop cancellation verified.                           |
+| Workstream                                    | Scope score   | Delivered / remaining acceptance                                                                                                                           |
+| --------------------------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Shared IO and engine service/lifecycle bounds | 100%          | Bounded primitives, external-edit service, lifecycle expansion, completion and failure ownership delivered.                                                |
+| Six native stream adapters                    | 100%          | UDP, TCP Client/Server, WebSocket Client/Server and Serial ownership/admission/passive service delivered; preserve their regression suites.                |
+| HTTP                                          | 100%          | Native lifecycle, admission, response bounds, passive service, worker request conversion and retained input disposal verified.                             |
+| Generic script/event/property ingress         | 100%          | Method/property/event/log admission, rejected-input disposal, routing lifetime and shared-budget recovery verified.                                        |
+| Sound Card lifecycle/service                  | 50% (partial) | Native lifetimes, ordered pressure, disabled service and idle-slot recovery verified; retained event bytes and configuration preparation/admission remain. |
+| Remaining app module/channel audit            | 0% (open)     | Audit every remaining module/channel against bounded service, retirement, failure and reconnect criteria; repair and verify findings.                      |
+| Generator elapsed-time accounting             | 100%          | Ordinary commands settle elapsed time; phase, due-prefix ordering, bounded catch-up, targeted reset and stop cancellation verified.                        |
 
 The generator elapsed-time checkpoint is now verified. Sound Card and the remaining module audit
 stay open; generator channel/retirement/callback bounds belong to that audit rather than this time
@@ -51,23 +51,24 @@ checkpoint. P03 closes only when all seven workstreams meet acceptance.
 
 ## Current handoff
 
-- Current milestone: P03 batch 38, generator elapsed-time accounting. The preceding Sound Card
-  milestone was progress, verified and pushed as `d9fb2af1`. All 46 generator tests and
-  484 disjoint app preservation tests pass. P03 advances from **64% to 79%**; the equal-weight,
-  whole-percent whole-plan estimate remains **15%**. Sound Card remains a partial checkpoint.
-- Checkout reconciled on clean `main` at `d9fb2af1`, matching fetched `origin/main`; no unrelated edits.
+- Current milestone: P03 batch 39, Sound Card idle lifecycle-slot recovery. The preceding goal
+  turn was progress: batches 37/38 were verified and pushed, ending at `93236757`.
+  All 51 Sound Card tests and 491 disjoint app preservation tests pass. Progress remains
+  **15% overall / 79% P03**; Sound Card is still a partial checkpoint.
+- Checkout reconciled on clean `main` at `93236757`, matching fetched `origin/main`; no unrelated edits.
   `d3a45301` removes automatic reasoning-effort switching rules at the user's request. Historical
   effort notes below are evidence only.
-- Validation: **484 distinct app tests passed** of 933 listed; ten new generator timing cases.
-  Strict app Clippy passed in 11.63s, workspace/test compilation in 17.86s and native build in
-  1m32s. All owned validation jobs are terminal.
-  No Golden runtime source changed since batch 37; its 160-test audio evidence is not a new run.
+- Validation: **491 distinct app tests passed** of 940 listed, including seven new lifecycle
+  regressions and all 46 generator cases. Strict app Clippy passed in 11.68s and workspace/test
+  compilation in 8.14s. The native build passed in 1m11s; all owned jobs are terminal.
+  No Golden runtime source changed; batch 37 audio evidence is not a new run.
 - Scope: **foundation and readiness**. P01/P02 are verified locally, P03 remains in progress,
   P04-P18 have not started. Full lighting/video/projection authoring remains deferred.
 - Next checkpoints: Sound Card retained event bytes, worker callback preparation/final disposal,
-  idle startup-slot recovery and configuration bounds; remaining app-module/channel audit,
-  including generator unbounded commands, variable event payloads, callback fan-out and synchronous
-  retirement. Preserve the newly verified generator time semantics and prior module/Mapping suites.
+  configuration preparation/admission and failure/reconfiguration fencing; remaining app-module
+  audit, including generator unbounded commands, variable events, callback fan-out and joins.
+  Preserve idle recovery, generator time semantics and prior stream/Mapping suites. Fixed event
+  item counts are not retained-byte bounds, and callback preparation still runs on the actor.
 - Delivery: continue on `main`; commit and push every verified milestone to `origin/main`.
   Mapping was merged in `f02205af`. Earlier branch/pause/effort instructions below are historical.
 - Known unrefreshed gate: October Rustls advisory failure. Native UI, physical devices, other
@@ -84,7 +85,7 @@ External qualification is separate from implementation. A historical pass is not
 | P00 Baseline                | 100%       | VERIFIED_LOCAL | PASSED              | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                |
 | P01 Edit failures/history   | 100%       | VERIFIED_LOCAL | PASSED batches 1–8  | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                 |
 | P02 Schedule/actor failures | 100%       | VERIFIED_LOCAL | PASSED batches 1-3  | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                  |
-| P03 Bounded I/O/lifecycle   | ~79%       | IN_PROGRESS    | PASSED batches 1-38 | Generator time criterion verified; Sound Card retained bytes and remaining app-module audit open.                         |
+| P03 Bounded I/O/lifecycle   | ~79%       | IN_PROGRESS    | PASSED batches 1-39 | Generator time and Sound Card idle recovery verified; retained event bytes and remaining app-module audit open.           |
 | P04 Audio order/types       | 0%         | NOT_STARTED    | PENDING             | Legal interleaving and invalid deserialization established from source                                                    |
 | P05 Transport trust         | 0%         | NOT_STARTED    | PENDING             | Missing admission verified; exploit not demonstrated                                                                      |
 | P06 Dependencies            | 0%         | NOT_STARTED    | FAILED baseline     | Four Rustls advisories on audit date; refresh DB before repair                                                            |
@@ -3559,3 +3560,53 @@ remains open. That audit includes the generators' unbounded command channels, va
 payloads, coalesced callback fan-out and synchronous shutdown joins. No physical-device, native-UI,
 platform or product-scale qualification is claimed. Next: Sound Card retained-byte/preparation/
 admission gates, then the remaining app-module audit. P04–P18 retain their states.
+
+### P03 batch 39: Sound Card idle lifecycle-slot recovery
+
+Resumed clean `main` at delivered `93236757`, matching fetched `origin/main`. The previous goal
+turn was progress: Sound Card event pressure and generator time milestones were pushed. This
+milestone closes the known idle startup-slot leak while retaining the native-cleanup fence.
+
+Clearing the audio driver now submits an idempotent idle selection to the existing lifecycle
+worker. It cancels queued startup construction through the shared gate, retains that worker
+during in-flight construction and native cleanup, then exits and releases its slot. Full idle
+admission keeps ownership and schedules a capped retry; the cancelled startup identity is
+invalidated even when the idle mailbox is full. Reselecting that same driver therefore admits
+fresh startup instead of waiting forever on a discarded result. A newer admitted selection
+can supersede idle in the bounded coalescing drain; reselection after worker exit uses existing
+recovery. Expected idle exit clears lifecycle state without reporting an unexpected failure.
+
+Idle retirement also runs while the module is disabled, and its completion service does not
+request a tree snapshot. Idle uses reserved identity zero without advancing the startup counter,
+so identity exhaustion cannot prevent retirement. Startup IDs remain checked and monotonic.
+The app startup/retry coordinator now lives in `sound_card/integration/lifecycle.rs` (289 lines);
+the integration coordinator falls from 940 to 701 lines. No lifecycle thread or join was added.
+
+Seven new owning regressions verify idle retirement while disabled/identity-exhausted, blocked
+construction, deliberately blocked native cleanup, newer-selection coalescing, repeated real
+null-runtime deselect/reselect, disabled module deselection, and full idle admission followed by
+reselection of the cancelled driver. The blocked-cleanup test checks that both native and startup
+capacity stay occupied until the release gate opens. All native endpoints are NullBackend.
+
+| Final check                                                                                                           | Result                                                                                                                                                                                                                                                                     |
+| --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cargo test-fast --locked -p Chataigne2 --bin Chataigne2 module_modules_audio_sound_card -- --test-threads=4 --quiet` | Final 51/51 passed in 0.38s after 1m25s preparation.                                                                                                                                                                                                                       |
+| Disjoint compiled-name preservation filters on fresh `Chataigne2-d57ae873474d576f.exe`                                | 491/491 of 940 listed: Sound Card 51, generators 46, null-device audio 1, script API 8, HTTP 66, common JSON 1, module command 11, streams 191, common streaming 61, common serial 28, OSC 25, initial Formula 1, compressed-archive write rejection 1. No filter overlap. |
+| `cargo clippy --locked -p Chataigne2 --all-targets -- -D warnings`                                                    | Final passed in 11.68s.                                                                                                                                                                                                                                                    |
+| `cargo check --locked --workspace --tests`                                                                            | Passed in 8.14s.                                                                                                                                                                                                                                                           |
+| `cargo build --locked -p Chataigne2 --bin Chataigne2`                                                                 | Passed in 1m11s; existing UI bundle reused, no cache intervention.                                                                                                                                                                                                         |
+
+**491 distinct app tests passed**; repeated focused cases count once. A fixture constant import
+was corrected before final checks. Inventory: **1543 source files / 41 oversized**; one new
+cohesive app lifecycle source, no new size exception. No Golden runtime, protocol DTO, generated
+binding, persistence format, UI or app-shell startup change. Earlier audio evidence is retained
+at its unchanged source, not claimed as rerun here. Root/Core Cargo formatting, affected-app
+rustfmt, maintained-doc Prettier with preserved line endings and whitespace checks pass. All owned
+validation jobs are terminal; commit and push this verified milestone on `main`.
+
+Sound Card remains **50% (partial)**: retained event bytes, worker-side callback/log preparation,
+final variable-payload disposal, configuration preparation/admission and remaining failure/
+reconfiguration fencing still need qualification. Fixed item counts do not bound retained bytes.
+The rest of the app-module/channel audit remains open, including generator retirement and event
+fan-out. Whole plan stays **15%**, P03 **79%**; P04–P18 retain their states. No physical-device,
+audible output, native-UI, cross-platform or product-scale qualification occurred.

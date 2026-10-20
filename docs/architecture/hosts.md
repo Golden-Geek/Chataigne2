@@ -430,6 +430,14 @@ Startup-result service drains at most two per actor turn. Queue overload retains
 disconnection and native failure use the module's existing capped retry deadlines. Error strings
 are limited to 4096 UTF-8-safe bytes and driver identifiers to 128 bytes at startup admission.
 
+Clearing the selected driver sends an idempotent idle selection through that same lifecycle.
+It suppresses queued constructors, waits for the preceding native cleanup, then exits and releases
+the startup slot. Idle service also runs while the module is disabled and requires no tree snapshot.
+Full idle admission retains the worker and schedules a bounded retry, invalidating the cancelled
+startup identity so reselecting the same driver cannot strand it. A newer admitted driver selection
+can supersede idle before the worker exits; selection after exit uses the normal recovery path.
+Idle retirement does not consume a startup identity and remains admissible after identity exhaustion.
+
 Sound Card opts into `golden_audio` ordered event delivery. A full native event queue parks the
 non-realtime control worker; a full 64-item app mailbox parks its native bridge. Actor service
 drains at most eight events and re-arms remaining work. Receiver drop or forced engine shutdown
@@ -445,7 +453,7 @@ the latest desired enable state for later admission. Startup workers suppress qu
 and discard in-flight results while disabled, retaining their native-cleanup completion fence.
 
 Event retained-byte accounting, worker-side callback preparation/final payload disposal,
-remaining idle-slot recovery and configuration-preparation bounds remain P03 work. Item limits
+configuration-preparation and admission bounds remain P03 work. Item limits
 and ordered delivery do not qualify whole-process memory or actor deadlines.
 
 ## Current qualification boundaries
