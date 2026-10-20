@@ -21,6 +21,7 @@ pub(crate) struct DeviceView {
 
 struct InventoryFrame {
     revision: u64,
+    guard: golden_io::RevisionGuard,
     metadata: AudioDeviceInspectorState,
     input: Option<DirectionIndex>,
     output: Option<DirectionIndex>,
@@ -36,6 +37,10 @@ struct DirectionIndex {
 pub(crate) struct DeviceInventory(RetainedPayload<InventoryFrame>);
 
 impl DeviceInventory {
+    pub(crate) fn guard(&self) -> golden_io::RevisionGuard {
+        self.0.guard.clone()
+    }
+
     pub(crate) fn revision(&self) -> u64 {
         self.0.revision
     }
@@ -163,7 +168,8 @@ impl InventoryPreparer {
             .pool
             .try_reserve(FRAME_BYTES)
             .map_err(|_| (reader.device_revision(), RouteValidationError::Capacity))?;
-        let mut frame = reader.inspect(Self::draft)?;
+        let mut frame =
+            reader.inspect(|snapshot| Self::draft(snapshot, reader.device_revision_guard(snapshot.device_revision)))?;
         // Both matching and copying happen natively; sorting never holds the
         // source lock or the actor-facing publication lock.
         frame.sort();
@@ -179,19 +185,27 @@ impl InventoryPreparer {
             .map_err(|_| (revision, RouteValidationError::Oversized))
     }
 
-    fn draft(snapshot: &golden_audio::AudioObservationSnapshot) -> Result<InventoryFrame, (u64, RouteValidationError)> {
+    fn draft(
+        snapshot: &golden_audio::AudioObservationSnapshot,
+        guard: golden_io::RevisionGuard,
+    ) -> Result<InventoryFrame, (u64, RouteValidationError)> {
         snapshot
             .device
             .retained_bytes_within(METADATA_BYTES, METADATA_ITEMS)
             .ok_or((snapshot.device_revision, RouteValidationError::Oversized))?;
-        Ok(InventoryFrame::from_state(&snapshot.device, snapshot.device_revision))
+        Ok(InventoryFrame::from_state(
+            &snapshot.device,
+            snapshot.device_revision,
+            guard,
+        ))
     }
 }
 
 impl InventoryFrame {
-    fn from_state(state: &AudioDeviceInspectorState, revision: u64) -> Self {
+    fn from_state(state: &AudioDeviceInspectorState, revision: u64, guard: golden_io::RevisionGuard) -> Self {
         Self {
             revision,
+            guard,
             metadata: state.clone(),
             input: selected_channels(state, AudioDirection::Input),
             output: selected_channels(state, AudioDirection::Output),
@@ -216,6 +230,7 @@ impl InventoryFrame {
         Some(
             size_of::<Self>() - size_of::<AudioDeviceInspectorState>()
                 + 2 * size_of::<usize>()
+                + self.guard.retained_heap_bytes()
                 + self.metadata.retained_bytes_within(METADATA_BYTES, METADATA_ITEMS)?
                 + [&self.input, &self.output]
                     .into_iter()

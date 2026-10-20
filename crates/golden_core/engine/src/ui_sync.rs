@@ -602,6 +602,7 @@ impl<T: Node> Engine<T> {
 
 fn ui_error_code(error: &crate::engine::EngineEditError) -> &'static str {
     match error {
+        crate::engine::EngineEditError::EditPreconditionFailed { .. } => "edit_precondition_failed",
         crate::engine::EngineEditError::LifecycleBudgetExceeded { .. } => "lifecycle_budget_exceeded",
         crate::engine::EngineEditError::AtomicRollbackFailed { .. } => "atomic_rollback_failed",
         crate::engine::EngineEditError::NodeTypeMismatch { .. } => "node_type_mismatch",

@@ -104,6 +104,17 @@ impl Default for TreeRevisions {
 }
 
 impl TreeRevisions {
+    pub(super) fn same_epoch(&self, captured: SubtreeRevision) -> bool {
+        self.epoch == captured.epoch
+    }
+
+    /// Snapshot subtree stamps are upper bounds on the node's local revision.
+    /// Every subsequent engine write receives a globally greater sequence,
+    /// so this validates a node-local read without folding the live graph.
+    pub(super) fn unchanged_since(&self, node: NodeId, captured: SubtreeRevision) -> bool {
+        self.same_epoch(captured) && self.by_node.get(&node).copied().unwrap_or(0) <= captured.sequence
+    }
+
     pub(super) fn next_change(&mut self) -> u64 {
         self.sequence = self.sequence.checked_add(1).expect("tree revision sequence exhausted");
         self.sequence

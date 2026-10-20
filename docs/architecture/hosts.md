@@ -649,8 +649,30 @@ existing configuration-result pool and scratch reservation. The actor moves its 
 and retains the plan through a batch receipt. A failed prefix causes fresh preparation from applied
 state. Source invalidation waits for pending receipts before preparing a replacement. Choice revision
 keys cover all six selectors, module UUID and enabled state; disjoint level/value edits leave them valid.
+The worker also captures at most eight read guards (module identity/enabled state, connection and
+present selectors' authored state) and the inventory's read-only native revision guard. It moves these with the patches
+once, without rebuilding their vectors on the actor. Core checks them at an explicit
+`Edit::CheckPreconditions` boundary before the first patch. Selector edits, connection child
+membership changes, module identity/enabled changes and a newer or retired native publication
+reject the suffix and fail its receipt. Disjoint gain changes remain valid. This is a freshness
+boundary, not an atomic transaction or a lock on later native changes. A later patch rejection
+still retains the normal committed prefix and triggers fresh preparation.
+
+Generic Core preconditions admit at most **32 node reads / eight native guards**, including spare
+vector capacity. A node-local check compares its live local revision against the captured subtree
+upper bound in the same engine epoch, plus UUID and effective enabled state. Later writes always
+have a greater global sequence; no live subtree fold, snapshot construction, domain comparison or
+callback is required. Descendant contents require explicit guards of their own. Synthetic snapshots
+and overlays have separate epochs and cannot authorize writes. Ordinary engine mutation accounting
+remains authoritative. The guard itself has no authored effect, undo step or redo invalidation;
+following constraint writes retain normal validation, events and history.
+Identity-only guards still check the engine epoch, UUID and effective enabled state, while ignoring
+unread metadata. Sound Card uses one for its module so its own warning receipt cannot invalidate
+choice publication; connection membership and selector constraints/values retain full read guards.
+
 Core normalization, equality checks, history and DTO projection during constraint application keep
-their existing costs. Their publication costs and remaining apply-time fences are still open.
+their existing costs, including owned constraint disposal on a rejected suffix. Bounding those
+costs and other native-execution fences remains open.
 
 Choice preparation waits passively for native completion and requests a source snapshot only when
 needed for admission or a completed result. Pending Core receipts and missing current inventory do
@@ -664,6 +686,9 @@ state. Unrelated value edits do not restart selection planning. Both selection a
 outcomes, including errors, check their captured native device revision before actor admission.
 Golden Audio publishes this revision with device state and exposes it through an atomic reader;
 actor checks never acquire the potentially large snapshot's lock. Metering does not advance it.
+Its owner uses `golden_io::RevisionSource`; readers can export only read access and captured guards.
+Advancement never wraps, retirement invalidates outstanding guards, and each retained inventory/plan
+charges the shared clock allocation conservatively. Guards retain no device payload or worker.
 The snapshot's revision is native metadata and omitted from serialization. A stale error cannot
 disable the current runtime. These checks do not qualify races after admission at native execution.
 

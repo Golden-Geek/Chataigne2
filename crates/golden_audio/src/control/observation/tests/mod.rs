@@ -3,9 +3,13 @@ use super::*;
 #[test]
 fn device_revision_reads_do_not_wait_for_snapshot_publication() {
     use std::{sync::mpsc, time::Duration};
+    let source = golden_io::RevisionSource::default();
+    for _ in 0..7 {
+        source.advance();
+    }
     let reader = AudioObservationReader {
         shared: Arc::new(RwLock::new(AudioObservationSnapshot::default())),
-        device_revision: Arc::new(AtomicU64::new(7)),
+        device_revision: source.reader(),
     };
     let writer = reader.shared.write().unwrap();
     let (sender, receiver) = mpsc::channel();
@@ -15,6 +19,14 @@ fn device_revision_reads_do_not_wait_for_snapshot_publication() {
     drop(writer);
     worker.join().unwrap();
     assert_eq!(result.unwrap(), 7);
+    let guard = reader.device_revision_guard(7);
+    assert!(guard.is_current());
+    source.advance();
+    assert!(!guard.is_current());
+    let guard = reader.device_revision_guard(8);
+    assert!(guard.is_current());
+    drop(source);
+    assert!(!guard.is_current());
 }
 
 #[test]
@@ -40,8 +52,9 @@ fn inspection_borrows_canonical_storage_before_any_snapshot_copy() {
         ..Default::default()
     };
     let original = snapshot.inputs.as_ptr();
+    let source = golden_io::RevisionSource::default();
     let reader = AudioObservationReader {
-        device_revision: Arc::new(AtomicU64::new(0)),
+        device_revision: source.reader(),
         shared: Arc::new(RwLock::new(snapshot)),
     };
     reader.inspect(|snapshot| {

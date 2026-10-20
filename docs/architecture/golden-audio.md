@@ -371,7 +371,13 @@ disposal. Choice synchronization retries missing inventory independently of mete
 Device/numeric option construction, serialization and comparison run on the shared preparation
 worker. The actor moves at most four prepared patches, waits for their Core receipt, and prepares
 fresh state after a failed prefix. Native option vectors retain a separate lifetime quota through
-exported constraints and DTOs. Core constraint validation/projection and apply-time fences remain open.
+exported constraints and DTOs. The native plan moves bounded read preconditions with its patches;
+Core checks selector/module/connection state and the captured inventory lifetime before the first
+patch. A late selector edit, native publication or owner retirement fails the receipt before any
+choice patch applies. The native revision uses the domain-neutral `golden_io` clock; read guards
+hold no device payload and never lock the observation snapshot. A successful check is an admission
+boundary, not a lock on later changes. Core constraint validation/projection costs and other
+native-execution fences remain open.
 Capture/telemetry overload has a separate visible warning and leaves control admission independent.
 App-owned selection/probe planning, choice planning and configuration conversion run on one bounded preparation worker.
 Queued/running requests lease their source snapshots; ready plans retain output storage admission

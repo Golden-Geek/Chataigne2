@@ -4,6 +4,7 @@ use std::{
 };
 
 use golden_core::{
+    edit::{EditPreconditions, NodeReadGuard},
     node::NodeId,
     parameter::{ParamValue, ParameterConstraints, ParameterEnumOptions},
     process_ctx::{parameter_constraints_retained_bytes, ProcessTreeSnapshot},
@@ -44,9 +45,14 @@ pub(crate) struct ChoicePatch {
 /// until the corresponding Core edits settle. Exported enum Arcs keep their own
 /// canonical native lifetime quota even after this plan disappears.
 pub(crate) struct ChoicePlan {
-    patches: Mutex<Option<Vec<ChoicePatch>>>,
+    publication: Mutex<Option<ChoicePublication>>,
     pub(crate) device_revision: u64,
     pub(crate) bytes: usize,
+}
+
+pub(crate) struct ChoicePublication {
+    pub(crate) patches: Vec<ChoicePatch>,
+    pub(crate) preconditions: EditPreconditions,
 }
 
 impl ChoicePlan {
@@ -93,7 +99,36 @@ impl ChoicePlan {
             retryable: false,
         };
         let mut patches = Vec::with_capacity(MAX_PATCHES);
-        let mut bytes = size_of::<Self>() + 2 * size_of::<usize>() + MAX_PATCHES * size_of::<ChoicePatch>();
+        // Guard the parent as well as present selectors: a formerly absent DSL
+        // branch must not appear between preparation and application.
+        let mut reads = Vec::with_capacity(8);
+        // Presentation warning receipts are not choice inputs. Fencing all
+        // module metadata would reject our own warning publication on retries.
+        reads.push(
+            NodeReadGuard::capture_identity(snapshot, module).ok_or_else(|| error("Sound Card module disappeared"))?,
+        );
+        for node in [selected.connection].into_iter().chain(
+            [
+                "audio_driver",
+                "device",
+                "input_device",
+                "output_device",
+                "sample_rate",
+                "buffer_size",
+            ]
+            .into_iter()
+            .filter_map(|key| find_path(snapshot, selected.connection, key)),
+        ) {
+            reads.push(
+                NodeReadGuard::capture(snapshot, node).ok_or_else(|| error("Sound Card choice source disappeared"))?,
+            );
+        }
+        let mut bytes = size_of::<Self>()
+            + 2 * size_of::<usize>()
+            + MAX_PATCHES * size_of::<ChoicePatch>()
+            + reads.capacity() * size_of::<NodeReadGuard>()
+            + size_of::<golden_io::RevisionGuard>()
+            + inventory.guard().retained_heap_bytes();
         let mut add = |node: NodeId,
                        options: Vec<golden_core::parameter::ParameterEnumOption>|
          -> Result<(), ConfigurationError> {
@@ -197,14 +232,26 @@ impl ChoicePlan {
         add(rate_node, numeric_options(rate, "Hz", &rates).map_err(error)?)?;
         add(buffer_node, numeric_options(buffer, "frames", &buffers).map_err(error)?)?;
         Ok(Self {
-            patches: Mutex::new(Some(patches)),
+            publication: Mutex::new(Some(ChoicePublication {
+                patches,
+                preconditions: EditPreconditions::new(reads, vec![inventory.guard()])
+                    .expect("at most eight choice reads"),
+            })),
             device_revision: inventory.revision(),
             bytes,
         })
     }
 
+    pub(crate) fn take_publication(&self) -> Option<ChoicePublication> {
+        self.publication
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
+            .take()
+    }
+
+    #[cfg(test)]
     pub(crate) fn take_patches(&self) -> Option<Vec<ChoicePatch>> {
-        self.patches.lock().unwrap_or_else(|poison| poison.into_inner()).take()
+        self.take_publication().map(|publication| publication.patches)
     }
 }
 

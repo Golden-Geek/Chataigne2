@@ -206,10 +206,10 @@ impl AudioEngineBuilder {
             state: Arc::clone(&state),
             next_sequence: Arc::clone(&next_sequence),
         };
-        let device_revision = Arc::new(AtomicU64::new(0));
+        let device_revision = golden_io::RevisionSource::default();
         let observations = AudioObservationReader {
             shared: Arc::clone(&observation),
-            device_revision: device_revision.clone(),
+            device_revision: device_revision.reader(),
         };
         let limits = self.limits;
         let engine_config = self.config;
@@ -356,7 +356,7 @@ fn next_sequence(counter: &AtomicU64) -> Result<CommandSequence, AudioError> {
 }
 
 struct ControlWorker {
-    device_revision: Arc<AtomicU64>,
+    device_revision: golden_io::RevisionSource,
     event_sender: EventSender,
     observation: Arc<RwLock<AudioObservationSnapshot>>,
     state: Arc<AtomicU8>,

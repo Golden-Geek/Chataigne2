@@ -17,25 +17,44 @@ fn snapshot() -> AudioObservationSnapshot {
 }
 
 fn prepared(snapshot: &AudioObservationSnapshot) -> DeviceView {
+    prepared_with_source(snapshot).0
+}
+
+fn prepared_with_source(snapshot: &AudioObservationSnapshot) -> (DeviceView, golden_io::RevisionSource) {
+    let source = golden_io::RevisionSource::default();
+    for _ in 0..snapshot.device_revision {
+        source.advance();
+    }
     let pool = PayloadPool::new("route-frame-test", 1, FRAME_BYTES).unwrap();
-    let mut frame = InventoryPreparer::draft(snapshot).unwrap();
+    let mut frame = InventoryPreparer::draft(snapshot, source.reader().guard_at(snapshot.device_revision)).unwrap();
     frame.sort();
     let bytes = frame.retained_bytes().unwrap();
-    DeviceView {
-        revision: frame.revision,
-        frame: Some(pool.try_retain(frame, bytes).unwrap()),
-        error: None,
-    }
+    (
+        DeviceView {
+            revision: frame.revision,
+            frame: Some(pool.try_retain(frame, bytes).unwrap()),
+            error: None,
+        },
+        source,
+    )
 }
 
 pub(crate) fn fixture_inventory(device: AudioDeviceInspectorState, revision: u64) -> DeviceInventory {
-    prepared(&AudioObservationSnapshot {
+    // Metadata-only fixtures need no live publisher. Application tests retain
+    // the explicit source returned by fixture_inventory_with_source instead.
+    fixture_inventory_with_source(device, revision).0
+}
+
+pub(crate) fn fixture_inventory_with_source(
+    device: AudioDeviceInspectorState,
+    revision: u64,
+) -> (DeviceInventory, golden_io::RevisionSource) {
+    let (view, source) = prepared_with_source(&AudioObservationSnapshot {
         device,
         device_revision: revision,
         ..Default::default()
-    })
-    .catalog(revision)
-    .unwrap()
+    });
+    (view.catalog(revision).unwrap(), source)
 }
 
 #[test]
@@ -168,7 +187,7 @@ fn oversized_device_metadata_rejects_before_route_key_copying() {
     let mut snapshot = snapshot();
     snapshot.device.devices[0].label = "x".repeat(METADATA_BYTES);
     assert!(matches!(
-        InventoryPreparer::draft(&snapshot),
+        InventoryPreparer::draft(&snapshot, golden_io::RevisionSource::default().reader().guard_at(7)),
         Err((7, RouteValidationError::Oversized))
     ));
 }
@@ -177,7 +196,8 @@ fn oversized_device_metadata_rejects_before_route_key_copying() {
 fn exported_catalog_handles_share_metadata_and_keep_the_original_quota() {
     let snapshot = snapshot();
     let pool = PayloadPool::new("inventory-export-test", 1, FRAME_BYTES).unwrap();
-    let mut frame = InventoryPreparer::draft(&snapshot).unwrap();
+    let mut frame =
+        InventoryPreparer::draft(&snapshot, golden_io::RevisionSource::default().reader().guard_at(7)).unwrap();
     frame.sort();
     let bytes = frame.retained_bytes().unwrap();
     let view = DeviceView {

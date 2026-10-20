@@ -2797,6 +2797,7 @@ dependencies = [
  "base64 0.22.1",
  "cpal",
  "criterion 0.8.2",
+ "golden_io",
  "realfft",
  "rtrb",
  "rubato",

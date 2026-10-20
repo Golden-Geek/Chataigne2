@@ -155,6 +155,23 @@ impl<T: Node> Engine<T> {
                 }
                 let (outcome, should_clear_redo): (Result<Option<HistoryStep<T>>, EngineEditError>, bool) =
                     match request.edit {
+                        Edit::CheckPreconditions { preconditions } => {
+                            let nodes_match = preconditions.nodes.iter().all(|guard| {
+                                self.nodes.get(guard.node).is_some_and(|node| {
+                                    node.node_data().meta.uuid == guard.uuid
+                                        && node.node_data().effective_enabled == guard.enabled
+                                        && if guard.authored {
+                                            self.tree_revisions.unchanged_since(guard.node, guard.revision)
+                                        } else {
+                                            self.tree_revisions.same_epoch(guard.revision)
+                                        }
+                                })
+                            });
+                            if !nodes_match || !preconditions.native.iter().all(|guard| guard.is_current()) {
+                                return Err(EngineEditError::EditPreconditionFailed { edit_index });
+                            }
+                            (Ok(None), false)
+                        }
                         Edit::BeginEditSession {
                             origin,
                             label,
@@ -633,6 +650,7 @@ fn pending_edit_kind_summary(pending: &[crate::edit::EditRequest]) -> String {
 
 fn edit_kind_name(edit: &Edit) -> &'static str {
     match edit {
+        Edit::CheckPreconditions { .. } => "CheckPreconditions",
         Edit::BeginEditSession { .. } => "BeginEditSession",
         Edit::EndEditSession { .. } => "EndEditSession",
         Edit::SetParam { .. } => "SetParam",

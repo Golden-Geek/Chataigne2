@@ -6,8 +6,10 @@ use crate::script::ScriptNodeConfig;
 use serde::{Deserialize, Serialize};
 
 mod completion;
+mod preconditions;
 pub(crate) use completion::CompletionToken;
 pub use completion::{EditCompletion, EditCompletionStatus};
+pub use preconditions::{EditPreconditions, NodeReadGuard};
 
 /// Deferred mutable node callback executed during edit application.
 /// Owned authored data is captured for history; identity and topology changes must
@@ -93,6 +95,13 @@ pub enum EditOrigin {
 
 /// Mutable operations queued and then applied by the engine.
 pub enum Edit {
+    /// Rejects stale prepared work before subsequent edits in this drain.
+    /// This has no authored effect or undo step. Include it in the same receipt
+    /// as its following writes; later writes retain normal validation/history.
+    CheckPreconditions {
+        /// Bounded authored and native reads required by subsequent writes.
+        preconditions: EditPreconditions,
+    },
     /// Begins a multi-intent edit session used as one undo/redo boundary.
     BeginEditSession {
         /// Source of the session request.

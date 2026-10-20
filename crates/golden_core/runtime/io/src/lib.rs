@@ -8,6 +8,7 @@ mod pending;
 mod queue;
 mod recovery;
 mod retirement;
+mod revision;
 mod worker;
 
 pub mod testkit;
@@ -25,6 +26,7 @@ pub use recovery::ReconnectBackoff;
 pub use retirement::{
     RetirementCapacityError, RetirementError, RetirementMetricsSnapshot, RetirementPermit, RetirementPool,
 };
+pub use revision::{RevisionGuard, RevisionReader, RevisionSource};
 pub use worker::WorkerTask;
 
 #[cfg(test)]

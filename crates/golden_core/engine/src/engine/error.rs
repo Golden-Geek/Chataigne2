@@ -6,6 +6,11 @@ use crate::node::NodeId;
 /// Error returned when edit validation or application fails.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EngineEditError {
+    /// A prepared read no longer matches the current engine/native source.
+    EditPreconditionFailed {
+        /// Index of the rejecting fence in the drained queue.
+        edit_index: usize,
+    },
     /// Callback-generated materialization exceeded its admitted scope budget.
     LifecycleBudgetExceeded {
         /// Bounded resource: passes or generated work.
@@ -267,6 +272,9 @@ pub enum EngineEditError {
 impl fmt::Display for EngineEditError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::EditPreconditionFailed { edit_index } => {
+                write!(f, "edit #{edit_index} rejected stale prepared reads")
+            }
             Self::LifecycleBudgetExceeded {
                 resource,
                 limit,

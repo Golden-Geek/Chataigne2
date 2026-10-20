@@ -205,9 +205,12 @@ impl ChoiceSync {
                 }
             }
             Ok(Some(plan)) => {
-                let patches = plan.take_patches().expect("choice plans publish once");
+                let publication = plan.take_publication().expect("choice plans publish once");
                 let mut queue = EditQueue::new();
-                for patch in patches {
+                queue.push(Edit::CheckPreconditions {
+                    preconditions: publication.preconditions,
+                });
+                for patch in publication.patches {
                     queue.push(Edit::SetParamConstraints {
                         node: patch.node,
                         constraints: patch.constraints,

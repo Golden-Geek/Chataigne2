@@ -59,6 +59,7 @@ impl<T: Node> Engine<T> {
     #[cfg(debug_assertions)]
     pub(super) fn describe_pending_edit(&self, request: &EditRequest) -> String {
         match &request.edit {
+            Edit::CheckPreconditions { .. } => "CheckPreconditions".into(),
             Edit::BeginEditSession {
                 origin, client_edit_id, ..
             } => format!("BeginEditSession origin={origin:?} client_edit_id={client_edit_id}"),

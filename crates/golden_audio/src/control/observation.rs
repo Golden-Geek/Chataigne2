@@ -1,7 +1,4 @@
-use std::sync::{
-    Arc, RwLock,
-    atomic::{AtomicU64, Ordering},
-};
+use std::sync::{Arc, RwLock};
 
 use serde::{Deserialize, Serialize};
 
@@ -105,7 +102,7 @@ impl Default for AudioObservationSnapshot {
 #[derive(Clone, Debug)]
 pub struct AudioObservationReader {
     pub(super) shared: Arc<RwLock<AudioObservationSnapshot>>,
-    pub(super) device_revision: Arc<AtomicU64>,
+    pub(super) device_revision: golden_io::RevisionReader,
 }
 
 impl AudioObservationReader {
@@ -126,7 +123,13 @@ impl AudioObservationReader {
 
     /// Reads the device-state fence without acquiring the snapshot lock.
     pub fn device_revision(&self) -> u64 {
-        self.device_revision.load(Ordering::Acquire)
+        self.device_revision.current()
+    }
+
+    /// Read-only application fence for an immutable device publication. Retiring
+    /// its native owner invalidates the fence even if no newer state is published.
+    pub fn device_revision_guard(&self, expected: u64) -> golden_io::RevisionGuard {
+        self.device_revision.guard_at(expected)
     }
 }
 

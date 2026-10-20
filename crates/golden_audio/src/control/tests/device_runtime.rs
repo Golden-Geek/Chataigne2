@@ -314,8 +314,9 @@ fn changing_from_output_only_to_input_only_stops_output_without_reopening_it() {
     let limits = EngineLimits::default();
     let (event_sender, _events) = event_channel(64, false);
     let observation = Arc::new(RwLock::new(AudioObservationSnapshot::default()));
-    let revision = Arc::new(std::sync::atomic::AtomicU64::new(0));
-    let mut runtime = DeviceRuntime::new(&engine_config, revision.clone()).expect("device runtime");
+    let source = golden_io::RevisionSource::default();
+    let revision = source.reader();
+    let mut runtime = DeviceRuntime::new(&engine_config, source).expect("device runtime");
 
     let output = single_direction_configuration(&device, AudioDirection::Output);
     runtime.configure(
@@ -331,10 +332,10 @@ fn changing_from_output_only_to_input_only_stops_output_without_reopening_it() {
         opened.lock().expect("open log lock").as_slice(),
         &[AudioDirection::Output],
     );
-    let output_revision = revision.load(std::sync::atomic::Ordering::Acquire);
+    let output_revision = revision.current();
     assert!(output_revision > 0);
     observation.write().unwrap().render_frame += 100;
-    assert_eq!(revision.load(std::sync::atomic::Ordering::Acquire), output_revision);
+    assert_eq!(revision.current(), output_revision);
 
     let input = single_direction_configuration(&device, AudioDirection::Input);
     runtime.configure(
@@ -361,10 +362,7 @@ fn changing_from_output_only_to_input_only_stops_output_without_reopening_it() {
     assert!(!state.device.output.enabled);
     assert!(state.device.input.enabled);
     assert!(state.device_revision > output_revision);
-    assert_eq!(
-        revision.load(std::sync::atomic::Ordering::Acquire),
-        state.device_revision
-    );
+    assert_eq!(revision.current(), state.device_revision);
 }
 
 fn single_direction_configuration(device: &AudioDeviceDescriptor, direction: AudioDirection) -> AudioConfiguration {

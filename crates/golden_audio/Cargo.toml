@@ -24,6 +24,7 @@ codegen = ["dep:ts-rs"]
 audio_thread_priority = { workspace = true, optional = true }
 asio-sys = { workspace = true, optional = true }
 cpal = { workspace = true, optional = true }
+golden_io.workspace = true
 rtrb.workspace = true
 rubato.workspace = true
 realfft = { workspace = true, optional = true }

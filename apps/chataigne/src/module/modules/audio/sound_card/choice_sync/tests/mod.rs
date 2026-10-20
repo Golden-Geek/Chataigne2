@@ -1,6 +1,8 @@
 use super::*;
 use golden_core::{engine::Engine, node::Folder, process_ctx::ExecutionPhase};
 
+mod publication;
+
 #[test]
 fn warning_cache_advances_only_after_core_receipts_and_failure_uses_coarse_retry() {
     let mut engine = Engine::new(Folder::new("root"));
@@ -60,11 +62,13 @@ fn choices_fixture() -> (
     NodeId,
     runtime::observation::DeviceInventory,
     RuntimeWakeSender,
+    golden_io::RevisionSource,
 ) {
     let (engine, module) = crate::app::module_modules_audio_sound_card::tests::create_sound_card();
-    let inventory = runtime::observation::fixture_inventory(golden_audio::AudioDeviceInspectorState::default(), 7);
+    let (inventory, source) =
+        runtime::observation::fixture_inventory_with_source(golden_audio::AudioDeviceInspectorState::default(), 7);
     let wake = RuntimeWakeSender::new(engine.node_waker(module).unwrap()).unwrap();
-    (engine, module, inventory, wake)
+    (engine, module, inventory, wake, source)
 }
 
 fn await_ready(choices: &ChoiceSync) {
@@ -77,7 +81,7 @@ fn await_ready(choices: &ChoiceSync) {
 
 #[test]
 fn publication_waits_for_receipts_and_does_not_request_snapshots_while_core_edits_are_pending() {
-    let (mut engine, module, inventory, wake) = choices_fixture();
+    let (mut engine, module, inventory, wake, _source) = choices_fixture();
     let mut choices = ChoiceSync {
         applied_warning: Some(None),
         ..Default::default()
@@ -97,7 +101,7 @@ fn publication_waits_for_receipts_and_does_not_request_snapshots_while_core_edit
     assert!(choices.applied_revision.is_none());
     assert!(choices.pending.is_some());
     assert!(!choices.needs_snapshot(7));
-    assert!(ctx.edits.pending.len() <= 4);
+    assert!(ctx.edits.pending.len() <= 5);
     engine.edits.pending.extend(ctx.edits.drain());
     engine.apply_edits().unwrap();
     choices.settle(Some(&wake));
@@ -110,7 +114,7 @@ fn publication_waits_for_receipts_and_does_not_request_snapshots_while_core_edit
 
 #[test]
 fn failed_publication_reprepares_from_the_committed_prefix_instead_of_replaying_it() {
-    let (mut engine, module, inventory, wake) = choices_fixture();
+    let (mut engine, module, inventory, wake, _source) = choices_fixture();
     let mut choices = ChoiceSync {
         applied_warning: Some(None),
         ..Default::default()
@@ -135,13 +139,15 @@ fn failed_publication_reprepares_from_the_committed_prefix_instead_of_replaying_
         Some(inventory.clone()),
     );
     let mut requests = ctx.edits.drain().into_iter();
+    let guard = requests.next().unwrap();
+    assert!(matches!(guard.edit, Edit::CheckPreconditions { .. }));
     let first = requests.next().unwrap();
     let Edit::SetParamConstraints { node: first_node, .. } = &first.edit else {
         panic!("constraint patch")
     };
     let first_node = *first_node;
     assert!(requests.len() > 0, "fixture has a rejected suffix");
-    engine.edits.pending.push(first);
+    engine.edits.pending.extend([guard, first]);
     engine.apply_edits().unwrap();
     drop(requests);
     choices.settle(Some(&wake));
@@ -211,7 +217,7 @@ fn an_earlier_coalesced_wake_rearms_the_choice_retry_without_snapshot_or_admissi
 #[test]
 fn permanent_preparation_failure_is_not_acknowledged_or_repeated_without_a_source_change() {
     use golden_core::parameter::{ParamValue, ParameterEventBehaviour};
-    let (mut engine, module, inventory, wake) = choices_fixture();
+    let (mut engine, module, inventory, wake, _source) = choices_fixture();
     let parameter = super::super::find_path(&engine.process_tree_snapshot(), module, "connection/sample_rate").unwrap();
     let mut constraints = engine
         .process_tree_snapshot()
@@ -258,7 +264,7 @@ fn permanent_preparation_failure_is_not_acknowledged_or_repeated_without_a_sourc
 
 #[test]
 fn unavailable_current_inventory_cancels_a_superseded_ready_result_without_a_snapshot() {
-    let (engine, module, inventory, wake) = choices_fixture();
+    let (engine, module, inventory, wake, _source) = choices_fixture();
     let source = engine.process_tree_snapshot();
     let mut choices = ChoiceSync {
         applied_warning: Some(None),
