@@ -107,6 +107,58 @@ fn drain_to_exit(handle: &OscTransportHandle) -> Vec<super::super::OscWorkerEven
 }
 
 #[test]
+fn captured_requests_reserve_whole_command_capacity_before_worker_preparation() {
+    use super::super::super::osc_outbound::{OutboundRequest, QueueError};
+    use golden_core::node::Folder;
+    let engine = crate::app::AppEngine::new(Folder::new("producer").into());
+    let snapshot = engine.process_tree_snapshot();
+    let pool = RetirementPool::new(NonZeroUsize::MIN);
+    let (release, gate) = mpsc::channel();
+    let mut handle =
+        OscTransportHandle::spawn_using::<FakeSocket>(config(), &pool, WorkerNotifier::new(|| {}), move |_, _| {
+            gate.recv().unwrap();
+            Err("injected setup failure".into())
+        })
+        .unwrap();
+    for _ in 0..4 {
+        handle
+            .enqueue(
+                OutboundRequest::values(
+                    &snapshot,
+                    engine.root,
+                    engine.root,
+                    engine.root,
+                    engine.node_waker(engine.root).unwrap(),
+                    false,
+                )
+                .unwrap(),
+            )
+            .unwrap();
+    }
+    let rejected = handle.enqueue(
+        OutboundRequest::values(
+            &snapshot,
+            engine.root,
+            engine.root,
+            engine.root,
+            engine.node_waker(engine.root).unwrap(),
+            false,
+        )
+        .unwrap(),
+    );
+    assert!(matches!(rejected, Err(QueueError::Full)));
+    handle.finish_admission();
+    release.send(()).unwrap();
+    let events = drain_to_exit(&handle);
+    assert_eq!(events.len(), 5);
+    assert!(events
+        .iter()
+        .skip(1)
+        .all(|event| matches!(event, super::super::OscWorkerEvent::Error(_))));
+    assert!(pool.wait_for_idle(Duration::from_secs(3)));
+}
+
+#[test]
 fn startup_failure_finishes_every_accepted_command_without_replay() {
     let pool = RetirementPool::new(NonZeroUsize::MIN);
     let (release, gate) = mpsc::channel();

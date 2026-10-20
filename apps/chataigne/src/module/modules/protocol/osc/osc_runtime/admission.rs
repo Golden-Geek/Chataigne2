@@ -1,12 +1,18 @@
+use super::super::OscValuePayload;
 use super::*;
 use golden_core::parameter::ParamValue;
 
+#[cfg(test)]
 pub(super) fn outbound_weight(message: &OscOutboundMessage) -> Result<usize, String> {
-    if message.address.is_empty() || message.address.len() > OSC_MAX_ADDRESS {
+    payload_weight(&message.address, &message.payload)
+}
+
+pub(crate) fn payload_weight(address: &str, payload: &super::super::OscValuePayload) -> Result<usize, String> {
+    if address.is_empty() || address.len() > OSC_MAX_ADDRESS {
         return Err("OSC address must contain 1-4096 bytes".into());
     }
-    let mut weight = std::mem::size_of::<OscOutboundMessage>() + message.address.len();
-    let values = match &message.payload {
+    let mut weight = 128 + address.len();
+    let values = match payload {
         OscValuePayload::Single(value) => std::slice::from_ref(value),
         OscValuePayload::Multi(values) | OscValuePayload::Arguments(values) => {
             if values.len() > OSC_MAX_ARGUMENTS || values.capacity() > OSC_MAX_ARGUMENTS {
@@ -16,7 +22,7 @@ pub(super) fn outbound_weight(message: &OscOutboundMessage) -> Result<usize, Str
             values.as_slice()
         }
     };
-    let expanded = !matches!(message.payload, OscValuePayload::Multi(_));
+    let expanded = !matches!(payload, OscValuePayload::Multi(_));
     let mut argument_slots = 0usize;
     for value in values {
         argument_slots += match (expanded, value) {
@@ -49,6 +55,7 @@ pub(super) fn event_weight(event: &OscWorkerEvent) -> usize {
     std::mem::size_of::<OscWorkerEvent>()
         + match event {
             OscWorkerEvent::Ready(_) => 0,
+            OscWorkerEvent::Sent(log) => log.as_ref().map_or(0, String::capacity),
             OscWorkerEvent::Error(error) | OscWorkerEvent::Failed(error) => error.capacity(),
             OscWorkerEvent::Message(message) => {
                 message.address.capacity()

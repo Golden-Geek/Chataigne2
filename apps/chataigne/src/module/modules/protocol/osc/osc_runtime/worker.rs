@@ -1,17 +1,20 @@
-use super::super::osc_message::{decode_packet_messages, encode_packet};
+use super::super::osc_message::decode_packet_messages;
 use super::*;
 use crate::app::module::common::streaming::native_replies::{NativeReplies, NativeReply};
 use golden_io::{PendingDrainState, WorkerContext};
 use mio::{net::UdpSocket, Events, Interest, Poll, Token};
-use rosc::{decoder, encoder};
+use rosc::decoder;
 use std::{collections::VecDeque, io, time::Duration};
 
 const SOCKET_TOKEN: Token = Token(0);
 const WAKE_TOKEN: Token = Token(1);
 const FALLBACK_WAIT: Duration = Duration::from_millis(250);
 
-pub(super) trait OscSocket: Send + 'static {
+pub(in super::super) trait OscSocket: Send + 'static {
     fn address(&self) -> SocketAddr;
+    fn resolve(&mut self, host: &str, port: u16) -> Result<SocketAddr, String> {
+        resolve_socket_addr(host, port)
+    }
     fn receive(&mut self, bytes: &mut [u8]) -> io::Result<usize>;
     fn send(&mut self, bytes: &[u8], remote: SocketAddr) -> io::Result<usize>;
     fn wait(&mut self, duration: Duration) -> io::Result<()>;
@@ -102,7 +105,7 @@ impl Drop for WakeGuard {
 }
 
 pub(super) fn run<S: OscSocket>(
-    context: WorkerContext<OscOutboundMessage, OscWorkerEvent>,
+    context: WorkerContext<OscWorkerCommand, OscWorkerEvent>,
     config: OscTransportConfig,
     wake: NativeWake,
     ready: Arc<AtomicBool>,
@@ -133,12 +136,12 @@ pub(super) fn run<S: OscSocket>(
     }
 }
 
-fn publish(context: &WorkerContext<OscOutboundMessage, OscWorkerEvent>, event: OscWorkerEvent) -> bool {
+fn publish(context: &WorkerContext<OscWorkerCommand, OscWorkerEvent>, event: OscWorkerEvent) -> bool {
     let weight = admission::event_weight(&event);
     context.publish_weighted(event, weight).is_ok()
 }
 
-fn fail_commands(context: &WorkerContext<OscOutboundMessage, OscWorkerEvent>, error: String) {
+fn fail_commands(context: &WorkerContext<OscWorkerCommand, OscWorkerEvent>, error: String) {
     context.close_command_admission();
     let error = if error.capacity() > 32 * 1024 {
         "OSC native error exceeds diagnostic capacity".into()
@@ -151,7 +154,7 @@ fn fail_commands(context: &WorkerContext<OscOutboundMessage, OscWorkerEvent>, er
     while let Some(command) = context.receive() {
         let message = format!(
             "OSC {} failed before send: {error}; command is not replayed",
-            command.address
+            command.description()
         );
         if !publish(context, OscWorkerEvent::Error(message)) {
             return;
@@ -160,13 +163,14 @@ fn fail_commands(context: &WorkerContext<OscOutboundMessage, OscWorkerEvent>, er
 }
 
 fn service<S: OscSocket>(
-    context: &WorkerContext<OscOutboundMessage, OscWorkerEvent>,
+    context: &WorkerContext<OscWorkerCommand, OscWorkerEvent>,
     socket: &mut S,
     receive_enabled: bool,
     wake: &NativeWake,
 ) -> Result<(), String> {
     let mut replies = NativeReplies::<OscWorkerEvent>::default();
     let mut incoming = VecDeque::new();
+    let mut current: Option<super::super::osc_outbound_work::Current> = None;
     let mut buffer = [0u8; 65_535];
     loop {
         if context.cancellation().is_cancelled() || !replies.flush(context) {
@@ -178,14 +182,43 @@ fn service<S: OscSocket>(
             if !replies.permits(Source::Output) {
                 break;
             }
-            let mut next = Vec::with_capacity(1);
-            let turn = context.drain_commands(&mut next, NonZeroUsize::MIN);
-            closed = turn.state == PendingDrainState::Disconnected;
-            let Some(command) = next.pop() else { break };
+            if current.is_none() {
+                let mut next = Vec::with_capacity(1);
+                let turn = context.drain_commands(&mut next, NonZeroUsize::MIN);
+                closed = turn.state == PendingDrainState::Disconnected;
+                let Some(command) = next.pop() else { break };
+                match super::super::osc_outbound_work::Current::new(command) {
+                    Ok(work) => current = Some(work),
+                    Err(error) => {
+                        worked = true;
+                        if !replies.offer(context, Source::Output, OscWorkerEvent::Error(error)) {
+                            return Ok(());
+                        }
+                        continue;
+                    }
+                }
+            }
             worked = true;
-            if let Err(error) = send(socket, command) {
-                if !replies.offer(context, Source::Output, OscWorkerEvent::Error(error)) {
-                    return Ok(());
+            let work = current.as_mut().expect("admitted outgoing work");
+            match work.service(socket, || context.cancellation().is_cancelled()) {
+                Ok(None) => break,
+                Ok(Some(outcome)) => {
+                    let event = match outcome {
+                        Ok(log) => OscWorkerEvent::Sent(log),
+                        Err(error) => OscWorkerEvent::Error(error),
+                    };
+                    if work.complete() {
+                        current = None;
+                    }
+                    if !replies.offer(context, Source::Output, event) {
+                        return Ok(());
+                    }
+                }
+                Err(error) => {
+                    current = None;
+                    if !replies.offer(context, Source::Output, OscWorkerEvent::Error(error)) {
+                        return Ok(());
+                    }
                 }
             }
         }
@@ -220,6 +253,9 @@ fn service<S: OscSocket>(
                     Err(error) => {
                         context.close_command_admission();
                         finish_input_prefix(context, replies, incoming);
+                        if let Some(work) = current {
+                            publish(context, OscWorkerEvent::Error(format!("OSC {} interrupted before its remaining destinations; native effects are not replayed", work.description())));
+                        }
                         return Err(format!("OSC receive failed: {error}"));
                     }
                 }
@@ -231,7 +267,7 @@ fn service<S: OscSocket>(
                 }
             }
         }
-        if closed && incoming.is_empty() {
+        if closed && current.is_none() && incoming.is_empty() {
             replies.finish(context);
             return Ok(());
         }
@@ -255,6 +291,15 @@ fn service<S: OscSocket>(
                 Err(error) => {
                     context.close_command_admission();
                     finish_input_prefix(context, replies, incoming);
+                    if let Some(work) = current {
+                        publish(
+                            context,
+                            OscWorkerEvent::Error(format!(
+                                "OSC {} interrupted before its remaining destinations; native effects are not replayed",
+                                work.description()
+                            )),
+                        );
+                    }
                     return Err(format!("OSC poll failed: {error}"));
                 }
             }
@@ -263,7 +308,7 @@ fn service<S: OscSocket>(
 }
 
 fn finish_input_prefix(
-    context: &WorkerContext<OscOutboundMessage, OscWorkerEvent>,
+    context: &WorkerContext<OscWorkerCommand, OscWorkerEvent>,
     replies: NativeReplies<OscWorkerEvent>,
     incoming: VecDeque<OscWorkerEvent>,
 ) {
@@ -274,18 +319,5 @@ fn finish_input_prefix(
         if !publish(context, event) {
             return;
         }
-    }
-}
-
-fn send(socket: &mut impl OscSocket, command: OscOutboundMessage) -> Result<(), String> {
-    let packet = encode_packet(&command.address, &command.payload)?;
-    let bytes = encoder::encode(&packet).map_err(|error| format!("failed to encode OSC packet: {error}"))?;
-    if bytes.len() > OSC_MAX_DATAGRAM {
-        return Err("OSC encoded output exceeds 65507 bytes; native send was not attempted".into());
-    }
-    match socket.send(&bytes, command.remote_address) {
-        Ok(length) if length == bytes.len() => Ok(()),
-        Ok(_) => Err("OSC output reported a partial datagram; effect is unconfirmed and is not replayed".into()),
-        Err(error) => Err(format!("OSC send failed: {error}; command is not replayed")),
     }
 }

@@ -23,6 +23,13 @@ impl GenericOscModule {
         Self::new(crate::app::OscModuleBase::create())
     }
 
+    pub(crate) fn queue_captured_osc(
+        &self,
+        request: crate::app::OscOutboundRequest,
+    ) -> Result<(), crate::app::OscQueueError> {
+        self.base.enqueue_outbound(request)
+    }
+
     #[cfg(test)]
     pub(crate) fn disable_transport_for_test(&mut self) {
         self.base.stop_transport();

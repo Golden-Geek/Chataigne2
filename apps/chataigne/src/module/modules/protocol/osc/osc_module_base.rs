@@ -5,6 +5,12 @@ use std::{
 };
 
 mod osc_message;
+mod osc_outbound;
+mod osc_outbound_work;
+pub(crate) use osc_outbound::{
+    dispatch as queue_osc_command, OutboundRequest as OscOutboundRequest, QueueError as OscQueueError,
+};
+use osc_outbound::{OutboundRequest, QueueError};
 mod osc_runtime;
 mod osc_value_helpers;
 #[cfg(test)]
@@ -21,9 +27,7 @@ use golden_core::{
 };
 use golden_io::PendingDrainState;
 
-use self::osc_runtime::{
-    resolve_socket_addr, OscOutboundMessage, OscTransportConfig, OscTransportHandle, OscWorkerEvent,
-};
+use self::osc_runtime::{OscTransportConfig, OscTransportHandle, OscWorkerEvent};
 use crate::app::module::ModuleDataCapabilities;
 
 pub(crate) use self::osc_message::{OscDecodedMessage, OscValuePayload};
@@ -33,9 +37,7 @@ const OSC_RECEIVER_WARNING_ID: &str = "receiver_transport";
 const OSC_INTERFACE_REFRESH_INTERVAL_SECS: f64 = 1.0;
 const OSC_MODULE_UPDATE_RATE_HZ: u32 = 120;
 const OSC_COMPILED_KERNEL: &str = "chataigne.runtime.osc";
-const OSC_OUTPUT_NODE_TYPE: &str = "osc_output";
 const OSC_MODULE_COMMAND_TYPES: &[&str] = &[crate::app::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE];
-const VALUE_LABEL_PREFIX: &str = "value ";
 const OSC_MESSAGE_RECEIVED_CALLBACK: &str = "messageReceived";
 const OSC_SCRIPT_METHODS: &[&str] = &["sendMessage", "sendOSC", "sendOsc"];
 
@@ -44,24 +46,6 @@ pub(crate) struct OscTransportBinding {
     pub interface_variant: String,
     pub bind_port: u16,
     pub receive_enabled: bool,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-struct OscOutputTarget {
-    remote_host: String,
-    remote_port: u16,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-struct OscQueueError {
-    queued: usize,
-    message: String,
-}
-
-#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
-pub(crate) struct OscSendCustomMessageRequest {
-    pub address: String,
-    pub arguments: Vec<ParamValue>,
 }
 
 #[node("osc_module_base", label = "OSC Module")]
@@ -110,6 +94,7 @@ pub struct OscModuleBase {
     transport_dirty: bool,
     ignored_param_changes: HashSet<NodeId>,
     pending_outbound_nodes: HashSet<NodeId>,
+    outbound_retry_at: Option<Instant>,
     pending_incoming_messages: Vec<OscDecodedMessage>,
 }
 
@@ -126,6 +111,7 @@ impl OscModuleBase {
             true,
             HashSet::new(),
             HashSet::new(),
+            None,
             Vec::new(),
         )
     }
@@ -361,6 +347,12 @@ impl OscModuleBase {
                     received_message = true;
                     self.enqueue_incoming_message(message);
                 }
+                OscWorkerEvent::Sent(log) => {
+                    self.base.emit_outgoing_traffic(ctx);
+                    if let Some(message) = log {
+                        golden_core::log!(origin = self.id(); message);
+                    }
+                }
                 OscWorkerEvent::Error(error) => {
                     logerror!("OSC transport error: {}", error);
                 }
@@ -389,87 +381,51 @@ impl OscModuleBase {
         }
     }
 
-    fn flush_outbound_values(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
-        if self.pending_outbound_nodes.is_empty() {
+    fn flush_outbound_values(&mut self, ctx: &mut ProcessCtx, snapshot: &Arc<ProcessTreeSnapshot>) {
+        if self.outbound_retry_at.is_some_and(|at| Instant::now() < at) {
             return;
         }
-
-        let outputs = self.collect_enabled_outputs(snapshot);
-        if outputs.is_empty() {
-            self.pending_outbound_nodes.clear();
-            return;
-        }
-
-        let changed_nodes = std::mem::take(&mut self.pending_outbound_nodes);
-        let target_nodes: HashSet<NodeId> = changed_nodes
-            .into_iter()
-            .filter_map(|node_id| resolve_outgoing_target(snapshot, node_id))
-            .collect();
-
-        let Some(values_id) = self.base.values_id() else {
-            return;
-        };
-
-        let mut sent_message = false;
-        for target_id in target_nodes {
-            let Some(address) = outgoing_address_for_values_node(snapshot, values_id, target_id) else {
-                continue;
+        self.outbound_retry_at = None;
+        let Some(root) = self.base.values_id() else { return };
+        for _ in 0..16 {
+            let Some(target) = self.pending_outbound_nodes.iter().next().copied() else {
+                break;
             };
-            let Some(payload) = outgoing_payload_for_target(snapshot, target_id) else {
-                continue;
-            };
-
-            match self.queue_message_for_outputs(outputs.as_slice(), address.as_str(), &payload) {
-                Ok(queued) => {
-                    sent_message = sent_message || queued > 0;
+            let result = ctx
+                .node_waker()
+                .map_err(|error| QueueError::Invalid(error.to_string()))
+                .and_then(|producer| {
+                    OutboundRequest::values(
+                        snapshot,
+                        self.id(),
+                        root,
+                        target,
+                        producer,
+                        self.base.log_outgoing_enabled(),
+                    )
+                })
+                .and_then(|request| self.enqueue_outbound(request));
+            match result {
+                Ok(()) => {
+                    self.pending_outbound_nodes.remove(&target);
+                }
+                Err(QueueError::Full) => {
+                    self.outbound_retry_at = Some(Instant::now() + Duration::from_millis(250));
+                    break;
                 }
                 Err(error) => {
-                    sent_message = sent_message || error.queued > 0;
-                    logerror!("Failed to send OSC message {} - {}", address, error.message);
+                    self.pending_outbound_nodes.remove(&target);
+                    logerror!(format!("OSC feedback was not admitted: {error}"));
                 }
             }
         }
-
-        if sent_message {
-            self.base.emit_outgoing_traffic(ctx);
-        }
     }
 
-    fn collect_enabled_outputs(&self, snapshot: &ProcessTreeSnapshot) -> Vec<OscOutputTarget> {
-        if !self.outputs_enabled(snapshot).unwrap_or(false) {
-            return Vec::new();
+    pub(crate) fn enqueue_outbound(&self, request: OutboundRequest) -> Result<(), QueueError> {
+        if !self.node_data().effective_enabled {
+            return Err(QueueError::Closed);
         }
-
-        let Some(outputs_id) = self.outputs.current_id() else {
-            return Vec::new();
-        };
-
-        let mut output_ids = Vec::new();
-        collect_outputs_recursive(snapshot, outputs_id, &mut output_ids);
-
-        output_ids
-            .into_iter()
-            .filter_map(|output_id| self.output_target(snapshot, output_id))
-            .collect()
-    }
-
-    fn output_target(&self, snapshot: &ProcessTreeSnapshot, output_id: NodeId) -> Option<OscOutputTarget> {
-        if !snapshot.node(output_id)?.enabled {
-            return None;
-        }
-
-        let remote_host = child_string_param(snapshot, output_id, "remote_host")?;
-        if remote_host.trim().is_empty() {
-            return None;
-        }
-
-        let remote_port =
-            child_int_param(snapshot, output_id, "remote_port").and_then(|value| u16::try_from(value).ok())?;
-
-        Some(OscOutputTarget {
-            remote_host,
-            remote_port,
-        })
+        self.transport.as_ref().ok_or(QueueError::Closed)?.enqueue(request)
     }
 
     fn log_incoming_message(&self, message: &OscDecodedMessage) {
@@ -488,119 +444,6 @@ impl OscModuleBase {
             origin = self.id();
             format!("Now receiving OSC on {}:{}", bind_host, bind_port)
         );
-    }
-
-    fn log_outgoing_message(&self, address: &str, payload: &OscValuePayload, remote_host: &str, remote_port: u16) {
-        if !self.base.log_outgoing_enabled() {
-            return;
-        }
-
-        golden_core::log!(
-            origin = self.id();
-            format!(
-                "Sent OSC {} -> {}:{} ({})",
-                address,
-                remote_host,
-                remote_port,
-                format_osc_payload(payload)
-            )
-        );
-    }
-
-    fn queue_message_for_outputs(
-        &self,
-        outputs: &[OscOutputTarget],
-        address: &str,
-        payload: &OscValuePayload,
-    ) -> Result<usize, OscQueueError> {
-        if outputs.is_empty() {
-            return Err(OscQueueError {
-                queued: 0,
-                message: "no enabled OSC outputs are configured".to_string(),
-            });
-        }
-
-        let transport = self.transport.as_ref().ok_or_else(|| OscQueueError {
-            queued: 0,
-            message: "OSC transport is not available".to_string(),
-        })?;
-        self::osc_message::encode_packet(address, payload).map_err(|error| OscQueueError {
-            queued: 0,
-            message: format!("cannot encode OSC message '{}': {error}", address.trim()),
-        })?;
-
-        let shared_address: Arc<str> = Arc::from(address);
-        let mut queued = 0usize;
-        let mut errors = Vec::new();
-
-        for output in outputs {
-            let remote_address = match resolve_socket_addr(output.remote_host.as_str(), output.remote_port) {
-                Ok(address) => address,
-                Err(error) => {
-                    errors.push(format!("{}:{} - {}", output.remote_host, output.remote_port, error));
-                    continue;
-                }
-            };
-            let message = OscOutboundMessage {
-                address: Arc::clone(&shared_address),
-                payload: payload.clone(),
-                remote_address,
-            };
-
-            match transport.send(message) {
-                Ok(()) => {
-                    queued = queued.saturating_add(1);
-                    self.log_outgoing_message(address, payload, output.remote_host.as_str(), output.remote_port);
-                }
-                Err(error) => {
-                    errors.push(format!("{}:{} - {}", output.remote_host, output.remote_port, error));
-                }
-            }
-        }
-
-        if errors.is_empty() {
-            return Ok(queued);
-        }
-
-        if queued == 0 {
-            return Err(OscQueueError {
-                queued,
-                message: errors.join("; "),
-            });
-        }
-
-        Err(OscQueueError {
-            queued,
-            message: format!(
-                "queued {} output(s), but {} output(s) failed: {}",
-                queued,
-                errors.len(),
-                errors.join("; ")
-            ),
-        })
-    }
-
-    fn queue_custom_message(
-        &self,
-        ctx: &mut ProcessCtx,
-        snapshot: &ProcessTreeSnapshot,
-        request: &OscSendCustomMessageRequest,
-    ) -> Result<String, String> {
-        let outputs = self.collect_enabled_outputs(snapshot);
-        let payload = OscValuePayload::Arguments(request.arguments.clone());
-        let queued = match self.queue_message_for_outputs(outputs.as_slice(), request.address.as_str(), &payload) {
-            Ok(queued) => queued,
-            Err(error) => {
-                if error.queued > 0 {
-                    self.base.emit_outgoing_traffic(ctx);
-                }
-                return Err(error.message);
-            }
-        };
-        if queued > 0 {
-            self.base.emit_outgoing_traffic(ctx);
-        }
-        Ok(format!("Queued OSC {} for {} output(s)", request.address, queued))
     }
 
     pub(crate) fn emit_osc_message_received_callback(&self, ctx: &mut ProcessCtx, message: &OscDecodedMessage) {
@@ -630,43 +473,18 @@ impl OscModuleBase {
             _ => return None,
         }
 
-        let Some(address) = args.first().and_then(ParamValue::as_str) else {
-            return Some(Err(format!("method '{method}' expects an OSC address string")));
-        };
-        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
-            return Some(Err(format!("method '{method}' is unavailable without a tree snapshot")));
-        };
-        let request = OscSendCustomMessageRequest {
-            address,
-            arguments: args.iter().skip(1).cloned().collect(),
-        };
-        Some(
-            self.queue_custom_message(ctx, snapshot_arc.as_ref(), &request)
-                .map(|_| ()),
-        )
-    }
-
-    fn on_custom_event_inner(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
-        let Some(request) = crate::app::module_command::decode_module_command_request(&event) else {
-            return;
-        };
-        if request.module_id != self.id() || !OSC_MODULE_COMMAND_TYPES.contains(&request.command_type.as_str()) {
-            return;
-        }
-        let command_id = request.command_id;
-        let payload = request.payload;
-
-        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
-            return;
-        };
-        let snapshot = snapshot_arc.as_ref();
-
-        if let Err(error) = serde_json::from_value::<OscSendCustomMessageRequest>(payload)
-            .map_err(|error| format!("invalid OSC command payload: {error}"))
-            .and_then(|payload| self.queue_custom_message(ctx, snapshot, &payload))
-        {
-            logerror!(format!("Failed to handle OSC command {:?}: {error}", command_id));
-        }
+        Some((|| {
+            let snapshot = ctx.tree_snapshot_arc().ok_or("OSC send requires a tree snapshot")?;
+            let args = ctx.capture_script_args(args).map_err(str::to_string)?;
+            let request = OutboundRequest::script(
+                &snapshot,
+                self.id(),
+                args,
+                ctx.node_waker().map_err(|error| error.to_string())?,
+            )
+            .map_err(|error| error.to_string())?;
+            self.enqueue_outbound(request).map_err(|error| error.to_string())
+        })())
     }
 
     fn on_param_change_inner(&mut self, ctx: &mut ProcessCtx, param: NodeId) {
@@ -684,13 +502,25 @@ impl OscModuleBase {
         };
         let snapshot = snapshot_arc.as_ref();
 
-        if self.auto_feedback.get()
-            && self
-                .base
-                .values_id()
-                .is_some_and(|values_id| is_descendant_of_node(snapshot, param, values_id))
-        {
-            self.pending_outbound_nodes.insert(param);
+        if self.auto_feedback.get() {
+            let Some(root) = self.base.values_id() else { return };
+            let Ok(target) = osc_outbound::feedback_target(snapshot, param) else {
+                return;
+            };
+            match is_descendant_of_node(snapshot, param, root) {
+                Ok(true)
+                    if self.pending_outbound_nodes.contains(&target) || self.pending_outbound_nodes.len() < 256 =>
+                {
+                    self.pending_outbound_nodes.insert(target);
+                }
+                Ok(true) => {
+                    logerror!("OSC feedback exceeds 256 pending nodes; value was not admitted");
+                }
+                Ok(false) => {}
+                Err(error) => {
+                    logerror!(error);
+                }
+            }
         }
     }
 
@@ -811,8 +641,10 @@ impl Node for OscModuleBase {
         self.interface_refresh_elapsed += ctx.delta_time.as_secs_f64();
 
         let refresh_interface_options = self.interface_refresh_due();
-        let needs_snapshot =
-            refresh_interface_options || self.transport_dirty || !self.pending_outbound_nodes.is_empty();
+        let needs_snapshot = refresh_interface_options
+            || self.transport_dirty
+            || (!self.pending_outbound_nodes.is_empty()
+                && self.outbound_retry_at.is_none_or(|at| Instant::now() >= at));
         if !needs_snapshot {
             return;
         }
@@ -833,13 +665,14 @@ impl Node for OscModuleBase {
             self.refresh_transport(ctx, snapshot);
         }
 
-        self.flush_outbound_values(ctx, snapshot);
+        self.flush_outbound_values(ctx, &snapshot_arc);
     }
 
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {
         self.stop_transport();
         self.pending_incoming_messages.clear();
         self.pending_outbound_nodes.clear();
+        self.outbound_retry_at = None;
         self.ignored_param_changes.clear();
     }
 
@@ -849,7 +682,7 @@ impl Node for OscModuleBase {
                 .retiring_transport
                 .as_ref()
                 .is_some_and(|transport| transport.has_pending())
-            || !self.pending_outbound_nodes.is_empty()
+            || (!self.pending_outbound_nodes.is_empty() && self.outbound_retry_at.is_none_or(|at| Instant::now() >= at))
             || !self.pending_incoming_messages.is_empty()
             || self.transport.as_ref().is_some_and(|t| t.has_pending())
             || self.interface_refresh_elapsed >= OSC_INTERFACE_REFRESH_INTERVAL_SECS
@@ -867,7 +700,7 @@ impl Node for OscModuleBase {
                 .retiring_transport
                 .as_ref()
                 .is_some_and(|transport| transport.has_pending())
-            || !self.pending_outbound_nodes.is_empty()
+            || (!self.pending_outbound_nodes.is_empty() && self.outbound_retry_at.is_none_or(|at| Instant::now() >= at))
             || !self.pending_incoming_messages.is_empty()
     }
 
@@ -914,7 +747,7 @@ impl Node for OscModuleBase {
     }
 
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
-        self.on_custom_event_inner(ctx, event);
+        self.base.on_custom_event(ctx, event);
     }
 
     fn project_create(node_type: &str) -> Option<Self> {

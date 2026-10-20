@@ -21,6 +21,7 @@ fn wait_ready(handle: &OscTransportHandle) -> std::net::SocketAddr {
                     panic!("OSC startup failed: {error}")
                 }
                 super::OscWorkerEvent::Message(_) => panic!("input preceded socket readiness"),
+                super::OscWorkerEvent::Sent(_) => panic!("output preceded socket readiness"),
             }
         }
         assert!(std::time::Instant::now() < deadline);

@@ -1,7 +1,7 @@
-mod admission;
+pub(super) mod admission;
 #[cfg(test)]
 mod tests;
-mod worker;
+pub(super) mod worker;
 
 use golden_io::{BoundedWorker, PendingDrain, PendingSendError, RetirementPool, WorkerLimits, WorkerNotifier};
 use mio::Waker;
@@ -14,7 +14,10 @@ use std::{
     },
 };
 
-use super::osc_message::{OscDecodedMessage, OscValuePayload};
+use super::osc_message::OscDecodedMessage;
+#[cfg(test)]
+use super::osc_message::OscValuePayload;
+use super::osc_outbound::{OutboundRequest, QueueError, CAPTURE_WEIGHT};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct OscTransportConfig {
@@ -23,11 +26,28 @@ pub(crate) struct OscTransportConfig {
     pub receive_enabled: bool,
 }
 
+#[cfg(test)]
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct OscOutboundMessage {
     pub address: Arc<str>,
     pub payload: OscValuePayload,
     pub remote_address: SocketAddr,
+}
+
+#[derive(Debug)]
+pub(super) enum OscWorkerCommand {
+    Captured(OutboundRequest),
+    #[cfg(test)]
+    Direct(OscOutboundMessage),
+}
+impl OscWorkerCommand {
+    pub(super) fn description(&self) -> String {
+        match self {
+            Self::Captured(request) => request.description(),
+            #[cfg(test)]
+            Self::Direct(message) => message.address.to_string(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -36,6 +56,7 @@ pub(crate) enum OscWorkerEvent {
     Message(OscDecodedMessage),
     Error(String),
     Failed(String),
+    Sent(Option<String>),
 }
 
 const OSC_EVENT_DRAIN_BUDGET: NonZeroUsize = NonZeroUsize::new(64).unwrap();
@@ -86,7 +107,7 @@ impl NativeWake {
 }
 
 pub(crate) struct OscTransportHandle {
-    worker: BoundedWorker<OscOutboundMessage, OscWorkerEvent>,
+    worker: BoundedWorker<OscWorkerCommand, OscWorkerEvent>,
     wake: NativeWake,
     ready: Arc<AtomicBool>,
 }
@@ -121,10 +142,22 @@ impl OscTransportHandle {
         Ok(Self { worker, wake, ready })
     }
 
+    pub(crate) fn enqueue(&self, request: OutboundRequest) -> Result<(), QueueError> {
+        self.worker
+            .send_weighted(OscWorkerCommand::Captured(request), CAPTURE_WEIGHT)
+            .map_err(|error| match error {
+                PendingSendError::Full(_) => QueueError::Full,
+                PendingSendError::Disconnected(_) => QueueError::Closed,
+            })?;
+        self.wake.wake();
+        Ok(())
+    }
+
+    #[cfg(test)]
     pub(crate) fn send(&self, message: OscOutboundMessage) -> Result<(), String> {
         let weight = admission::outbound_weight(&message)?;
         self.worker
-            .send_weighted(message, weight)
+            .send_weighted(OscWorkerCommand::Direct(message), weight)
             .map_err(|error| match error {
                 PendingSendError::Full(_) => "OSC output item/byte capacity exhausted; message rejected".to_string(),
                 PendingSendError::Disconnected(_) => "OSC worker is no longer accepting commands".to_string(),

@@ -3,7 +3,7 @@ use golden_core::{
     node,
     node::{Node, NodeId},
     parameter::ParamValue,
-    process_ctx::{ProcessCtx, ProcessTreeSnapshot},
+    process_ctx::ProcessCtx,
 };
 
 pub(crate) const OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE: &str = "osc_send_custom_message_command";
@@ -28,38 +28,6 @@ pub struct OscSendCustomMessageCommand {
 impl OscSendCustomMessageCommand {
     pub fn create() -> Self {
         Self::new(crate::app::ModuleCommandBase::new())
-    }
-
-    fn request_payload(
-        &self,
-        snapshot: &ProcessTreeSnapshot,
-    ) -> Result<crate::app::OscSendCustomMessageRequest, String> {
-        let address = command_string_param(snapshot, self.id(), "address")
-            .ok_or_else(|| "missing OSC command address 'address'".to_string())?;
-        if address.trim().is_empty() {
-            return Err("OSC address cannot be empty".to_string());
-        }
-
-        let arguments_id = crate::app::module_command::resolve_module_command_child(
-            snapshot,
-            self.id(),
-            "arguments",
-        )
-        .ok_or_else(|| "missing OSC command arguments folder 'arguments'".to_string())?;
-
-        let mut arguments = Vec::new();
-        for child_id in snapshot.child_ids(arguments_id) {
-            let child = snapshot
-                .node(child_id)
-                .ok_or_else(|| "OSC command argument disappeared while collecting values".to_string())?;
-            let value = child
-                .param_value
-                .clone()
-                .ok_or_else(|| format!("OSC command argument '{}' is not a parameter", child.label))?;
-            arguments.push(value);
-        }
-
-        Ok(crate::app::OscSendCustomMessageRequest { address, arguments })
     }
 }
 
@@ -88,42 +56,26 @@ impl Node for OscSendCustomMessageCommand {
     }
 
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
-        if crate::app::module_command::is_command_execute_request(&event, self.id()) {
-            self.run(ctx, Some(&event));
+        if event.topic == crate::app::module_command::MODULE_COMMAND_EXECUTE_TOPIC
+            && event.payload.get("command_id").and_then(serde_json::Value::as_u64) == Some(self.id().0)
+        {
+            self.run(ctx, Some(event));
         }
     }
 }
 
 impl OscSendCustomMessageCommand {
-    fn run(&self, ctx: &mut ProcessCtx, event: Option<&golden_core::events::CustomEvent>) {
-        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
+    fn run(&self, ctx: &mut ProcessCtx, event: Option<golden_core::events::CustomEvent>) {
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
             return;
         };
-        let snapshot = event
-            .map(|event| {
-                crate::app::module_command::command_execute_snapshot(
-                    event,
-                    snapshot_arc.as_ref(),
-                    self.id(),
-                )
-            })
-            .unwrap_or_else(|| std::borrow::Cow::Borrowed(snapshot_arc.as_ref()));
-        let snapshot = snapshot.as_ref();
-        if let Err(error) = self.request_payload(snapshot).and_then(|payload| {
-            crate::app::module_command::emit_module_command_request(ctx, snapshot, self.id(), self.get_type(), &payload)
-        }) {
-            golden_core::logerror!(format!("Failed to trigger OSC command: {error}"));
+        let result =
+            crate::app::module_command::CapturedInvocation::capture(&snapshot, self.id(), event, &["osc_module"])
+                .and_then(|invocation| crate::app::queue_osc_command(ctx, invocation));
+        if let Err(error) = result {
+            golden_core::logerror!(format!("OSC command was not admitted: {error}"));
         }
     }
-}
-
-fn command_string_param(snapshot: &ProcessTreeSnapshot, command_id: NodeId, path: &str) -> Option<String> {
-    crate::app::module_command::resolve_module_command_child(snapshot, command_id, path).and_then(|param_id| {
-        snapshot
-            .node(param_id)
-            .and_then(|node| node.param_value.as_ref())
-            .and_then(ParamValue::as_str)
-    })
 }
 
 #[cfg(test)]

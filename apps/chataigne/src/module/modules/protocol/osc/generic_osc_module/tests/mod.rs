@@ -19,6 +19,7 @@ mod authoring;
 mod commands;
 mod connection;
 mod input;
+mod outbound;
 mod persistence;
 
 fn find_child_by_key(engine: &crate::app::AppEngine, parent: NodeId, key: &str) -> Option<NodeId> {
