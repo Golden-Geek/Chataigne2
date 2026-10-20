@@ -450,6 +450,20 @@ and ordered delivery do not qualify whole-process memory or actor deadlines.
 
 ## Current qualification boundaries
 
+Signals and Metronomes own elapsed-time accounting on their app generator workers. Each worker
+settles time under the current configuration before applying an ordinary command. Unchanged-rate
+commands preserve the existing sample deadline; a command stream cannot restart a relative timeout
+indefinitely. Explicit reset restarts only the selected items. A frequency edit preserves a signal's
+accumulated phase; authored phase offsets still deliberately affect its waveform. Metronome interval
+edits retain elapsed time since the preceding tick, and manual ticks add occurrences without resetting
+the natural cadence.
+
+Metronome catch-up performs at most 128 natural ticks per item per turn and carries overdue time.
+A pending command waits for the old configuration's due prefix before applying; catch-up continuation
+does not add wall time twice. Explicit stop cancels between turns. This temporal contract does not
+qualify generator channel capacity, event retained bytes, actor callback fan-out or synchronous
+retirement. Those generator boundaries remain part of P03's app-module audit.
+
 The table describes reusable primitives and the named migrated adapters, not every app module.
 The October audit found blocking module stop/join paths, unbounded/unit-weight payload admission,
 unrestricted engine external-edit drains, and lifecycle expansion loops. The arbitrary engine

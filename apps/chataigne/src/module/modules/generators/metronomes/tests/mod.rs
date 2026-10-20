@@ -114,8 +114,8 @@ fn sparse_reload_preserves_default_metronome_and_derived_trigger_identity() {
     let trigger_uuid = engine.nodes.get(trigger).expect("trigger").node_data().meta.uuid;
 
     let json = golden_core::app::to_sparse_project_json_pretty(&engine).expect("sparse project should encode");
-    let mut loaded = golden_core::app::from_sparse_project_json::<crate::app::AppNode>(&json)
-        .expect("sparse project should decode");
+    let mut loaded =
+        golden_core::app::from_sparse_project_json::<crate::app::AppNode>(&json).expect("sparse project should decode");
     stabilize(&mut loaded);
     let loaded_module = loaded
         .nodes
@@ -126,7 +126,13 @@ fn sparse_reload_preserves_default_metronome_and_derived_trigger_identity() {
         find_path(&loaded, loaded_module, "parameters/metronomes").expect("metronomes list should reload");
     let loaded_metronome = nth_child(&loaded, loaded_metronomes, 0).expect("metronome should reload");
     assert_eq!(
-        loaded.nodes.get(loaded_metronome).expect("metronome").node_data().meta.uuid,
+        loaded
+            .nodes
+            .get(loaded_metronome)
+            .expect("metronome")
+            .node_data()
+            .meta
+            .uuid,
         metronome_uuid
     );
     let loaded_values = find_path(&loaded, loaded_module, "values").expect("values should reload");
@@ -148,10 +154,7 @@ fn metronome_config_uses_recursive_node_enablement() {
     stabilize(&mut engine);
     let snapshot = engine.process_tree_snapshot();
     let config = super::metronome_config(snapshot.as_ref(), metronome).expect("metronome config");
-    assert!(
-        !config.enabled,
-        "disabled metronome item should not be processed"
-    );
+    assert!(!config.enabled, "disabled metronome item should not be processed");
 
     patch_enabled(&mut engine, metronome, true);
     patch_enabled(&mut engine, module_id, false);
@@ -193,7 +196,7 @@ fn metronome_emits_regular_trigger_and_count() {
     let config = test_config(1.0, false, 1.0, 1.0, 0);
     let mut state = super::MetronomeRuntimeState::default();
 
-    super::reset_state_if_config_changed(&mut state, &config);
+    super::synchronize_metronome_state(&mut state, &config);
 
     assert_eq!(state.next_gap_seconds, 1.0);
     assert_eq!(super::metronome_gap_seconds(&config, 1), 1.0);

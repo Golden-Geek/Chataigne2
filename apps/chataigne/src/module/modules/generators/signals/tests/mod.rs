@@ -1,9 +1,7 @@
 use golden_core::{
     edit::Edit,
     node::{Folder, Node, NodeId, NodeMetaPatch},
-    parameter::{
-        ParamValue, Parameter, ParameterChangeCheck, ParameterEventBehaviour, RangeConstraint,
-    },
+    parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterEventBehaviour, RangeConstraint},
     process_ctx::ExecutionPhase,
     script::ScriptSource,
 };
@@ -72,8 +70,7 @@ fn signals_create_default_sine_item_and_direct_ranged_value() {
         find_child_by_key(&engine, values_root, "signal_values").is_none(),
         "signal values should be direct value params, not wrapped in a Signals folder"
     );
-    let signal_value =
-        find_child_by_key(&engine, values_root, "Signal").expect("default signal value");
+    let signal_value = find_child_by_key(&engine, values_root, "Signal").expect("default signal value");
     assert_eq!(
         count_children_by_key(&engine, values_root, "Signal"),
         1,
@@ -97,8 +94,7 @@ fn signals_create_default_sine_item_and_direct_ranged_value() {
 fn sparse_reload_preserves_referenced_default_signal_value() {
     let (mut engine, module_id) = create_signals_module();
     let values_root = find_path(&engine, module_id, "values").expect("values root");
-    let signal_value =
-        find_child_by_key(&engine, values_root, "Signal").expect("default signal value");
+    let signal_value = find_child_by_key(&engine, values_root, "Signal").expect("default signal value");
     let signal_value_uuid = engine
         .nodes
         .get(signal_value)
@@ -118,10 +114,9 @@ fn sparse_reload_preserves_referenced_default_signal_value() {
     );
     stabilize(&mut engine);
 
-    let json = golden_core::app::to_sparse_project_json_pretty(&engine)
-        .expect("sparse project should encode");
-    let mut loaded = golden_core::app::from_sparse_project_json::<crate::app::AppNode>(&json)
-        .expect("sparse project should decode");
+    let json = golden_core::app::to_sparse_project_json_pretty(&engine).expect("sparse project should encode");
+    let mut loaded =
+        golden_core::app::from_sparse_project_json::<crate::app::AppNode>(&json).expect("sparse project should decode");
     stabilize(&mut loaded);
 
     let loaded_module = loaded
@@ -131,8 +126,7 @@ fn sparse_reload_preserves_referenced_default_signal_value() {
         .map(|(id, _)| id)
         .expect("Signals module should reload");
     let loaded_values_root = find_path(&loaded, loaded_module, "values").expect("values root");
-    let loaded_signal_value =
-        find_child_by_key(&loaded, loaded_values_root, "Signal").expect("signal value");
+    let loaded_signal_value = find_child_by_key(&loaded, loaded_values_root, "Signal").expect("signal value");
 
     assert_eq!(
         loaded
@@ -145,8 +139,7 @@ fn sparse_reload_preserves_referenced_default_signal_value() {
         signal_value_uuid,
         "referenced generated signal value should keep its persisted UUID"
     );
-    let loaded_reference =
-        find_child_by_key(&loaded, loaded.root, "Signal Reference").expect("reference parameter");
+    let loaded_reference = find_child_by_key(&loaded, loaded.root, "Signal Reference").expect("reference parameter");
     assert!(
         matches!(
             param_value(&loaded, loaded_reference),

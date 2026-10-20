@@ -12,8 +12,7 @@ use std::{
 use golden_core::node::NodeId;
 
 use super::{
-    metronome_gap_seconds, reset_state_if_config_changed, MetronomeConfig, MetronomeRuntimeState,
-    MAX_TICKS_PER_UPDATE,
+    metronome_gap_seconds, synchronize_metronome_state, MetronomeConfig, MetronomeRuntimeState, MAX_TICKS_PER_UPDATE,
 };
 
 #[derive(Clone, Debug)]
@@ -90,6 +89,7 @@ impl MetronomeEventSlot {
 pub(super) struct MetronomeRuntimeHandle {
     command_tx: Sender<MetronomeWorkerCommand>,
     event_slot: MetronomeEventSlot,
+    stopped: Arc<AtomicBool>,
     worker: Option<JoinHandle<()>>,
 }
 
@@ -98,14 +98,24 @@ impl MetronomeRuntimeHandle {
         let (command_tx, command_rx) = mpsc::channel();
         let event_slot = MetronomeEventSlot::new();
         let worker_event_slot = event_slot.clone();
+        let stopped = Arc::new(AtomicBool::new(false));
+        let worker_stopped = stopped.clone();
         let worker = thread::Builder::new()
             .name("metronomes-generator-runtime".to_string())
-            .spawn(move || worker_loop(command_rx, worker_event_slot, config))
+            .spawn(move || {
+                worker_loop(
+                    command_rx,
+                    worker_event_slot,
+                    WorkerState::new(config, Instant::now()),
+                    worker_stopped,
+                )
+            })
             .map_err(|error| format!("failed to start Metronomes worker thread: {error}"))?;
 
         Ok(Self {
             command_tx,
             event_slot,
+            stopped,
             worker: Some(worker),
         })
     }
@@ -137,6 +147,9 @@ impl MetronomeRuntimeHandle {
     }
 
     pub(super) fn stop(&mut self) {
+        // Explicit stop cancels catch-up between bounded turns, rather than
+        // waiting for an arbitrarily old elapsed-time backlog before joining.
+        self.stopped.store(true, Ordering::Release);
         let _ = self.command_tx.send(MetronomeWorkerCommand::Stop);
         if let Some(worker) = self.worker.take() {
             let _ = worker.join();
@@ -150,41 +163,86 @@ impl Drop for MetronomeRuntimeHandle {
     }
 }
 
+struct WorkerState {
+    config: MetronomeWorkerConfig,
+    states: HashMap<NodeId, MetronomeRuntimeState>,
+    last_update: Instant,
+    next_update: Instant,
+    pending_command: Option<MetronomeWorkerCommand>,
+}
+
+impl WorkerState {
+    fn new(config: MetronomeWorkerConfig, now: Instant) -> Self {
+        let next_update = now + update_interval(config.update_rate_hz);
+        Self {
+            config,
+            states: HashMap::new(),
+            last_update: now,
+            next_update,
+            pending_command: None,
+        }
+    }
+
+    fn service(
+        &mut self,
+        now: Instant,
+        command: Option<MetronomeWorkerCommand>,
+        event_slot: &MetronomeEventSlot,
+    ) -> bool {
+        // Settle time under the old configuration before applying a command.
+        // Ordinary commands cannot discard elapsed time or postpone the deadline.
+        let delta_seconds = if self.pending_command.is_some() {
+            0.0
+        } else {
+            let delta = now.saturating_duration_since(self.last_update).as_secs_f64();
+            self.last_update = now;
+            delta
+        };
+        event_slot.publish(compute_metronome_update(&self.config, &mut self.states, delta_seconds));
+        let command = self.pending_command.take().or(command);
+        if command.is_some()
+            && self.config.metronomes.iter().filter(|item| item.enabled).any(|item| {
+                self.states
+                    .get(&item.item_id)
+                    .is_some_and(|state| state.elapsed_seconds + f64::EPSILON >= state.next_gap_seconds)
+            })
+        {
+            // Preserve the old tempo's due prefix before applying a new intent.
+            // The next turn continues with zero additional elapsed time.
+            self.pending_command = command;
+            return false;
+        }
+        let old_rate = self.config.update_rate_hz;
+        if command.is_some_and(|command| handle_command(command, &mut self.config, &mut self.states, event_slot)) {
+            return true;
+        }
+        if now >= self.next_update || old_rate != self.config.update_rate_hz {
+            self.next_update = now + update_interval(self.config.update_rate_hz);
+        }
+        false
+    }
+}
+
 fn worker_loop(
     command_rx: Receiver<MetronomeWorkerCommand>,
     event_slot: MetronomeEventSlot,
-    mut config: MetronomeWorkerConfig,
+    mut state: WorkerState,
+    stopped: Arc<AtomicBool>,
 ) {
-    let mut states = HashMap::<NodeId, MetronomeRuntimeState>::new();
-    let mut last_update = Instant::now();
-
-    loop {
-        let interval = update_interval(config.update_rate_hz);
-        match command_rx.recv_timeout(interval) {
-            Ok(command) => {
-                if handle_command(command, &mut config, &mut states, &event_slot) {
-                    break;
-                }
-                last_update = Instant::now();
-                continue;
+    while !stopped.load(Ordering::Acquire) {
+        let wait = state.next_update.saturating_duration_since(Instant::now());
+        let command = if state.pending_command.is_some() {
+            None
+        } else {
+            match command_rx.recv_timeout(wait) {
+                Ok(command) => Some(command),
+                Err(mpsc::RecvTimeoutError::Timeout) => None,
+                Err(mpsc::RecvTimeoutError::Disconnected) => return,
             }
-            Err(mpsc::RecvTimeoutError::Timeout) => {}
-            Err(mpsc::RecvTimeoutError::Disconnected) => break,
+        };
+        if state.service(Instant::now(), command, &event_slot) {
+            return;
         }
-
-        while let Ok(command) = command_rx.try_recv() {
-            if handle_command(command, &mut config, &mut states, &event_slot) {
-                return;
-            }
-            last_update = Instant::now();
-        }
-
-        let now = Instant::now();
-        let delta_seconds = now.duration_since(last_update).as_secs_f64().max(0.0);
-        last_update = now;
-
-        let event = compute_metronome_update(&config, &mut states, delta_seconds);
-        event_slot.publish(event);
     }
 }
 
@@ -227,33 +285,23 @@ pub(super) fn compute_metronome_update(
     delta_seconds: f64,
 ) -> MetronomeWorkerEvent {
     let mut event = MetronomeWorkerEvent::default();
-    if delta_seconds == 0.0 {
-        return event;
-    }
 
     for metronome in &config.metronomes {
         if !metronome.enabled {
             continue;
         }
         let state = states.entry(metronome.item_id).or_default();
-        reset_state_if_config_changed(state, metronome);
+        synchronize_metronome_state(state, metronome);
         state.elapsed_seconds += delta_seconds;
 
         let mut fired = 0u32;
         let mut last_gap_seconds = state.next_gap_seconds;
-        while state.elapsed_seconds + f64::EPSILON >= state.next_gap_seconds
-            && fired < MAX_TICKS_PER_UPDATE
-        {
+        while state.elapsed_seconds + f64::EPSILON >= state.next_gap_seconds && fired < MAX_TICKS_PER_UPDATE {
             state.elapsed_seconds -= state.next_gap_seconds;
             state.tick_count = state.tick_count.saturating_add(1);
             fired += 1;
             last_gap_seconds = state.next_gap_seconds;
             state.next_gap_seconds = metronome_gap_seconds(metronome, state.tick_count);
-        }
-        if fired == MAX_TICKS_PER_UPDATE
-            && state.elapsed_seconds + f64::EPSILON >= state.next_gap_seconds
-        {
-            state.elapsed_seconds = state.elapsed_seconds.min(state.next_gap_seconds);
         }
         if fired == 0 {
             continue;
@@ -284,7 +332,7 @@ fn manual_tick(
         .iter()
         .find(|metronome| metronome.item_id == item_id)?;
     let state = states.entry(metronome.item_id).or_default();
-    reset_state_if_config_changed(state, metronome);
+    synchronize_metronome_state(state, metronome);
     state.tick_count = state.tick_count.saturating_add(1);
 
     let mut event = MetronomeWorkerEvent::default();
@@ -321,3 +369,6 @@ fn merge_metronome_event(existing: &mut MetronomeWorkerEvent, next: MetronomeWor
 fn update_interval(update_rate_hz: u32) -> Duration {
     Duration::from_secs_f64(1.0 / update_rate_hz.max(1) as f64)
 }
+
+#[cfg(test)]
+mod tests;

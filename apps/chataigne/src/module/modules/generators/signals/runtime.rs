@@ -11,7 +11,7 @@ use std::{
 
 use golden_core::node::NodeId;
 
-use super::{reset_signal_state_if_config_changed, sample_signal, SignalConfig, SignalRuntimeState};
+use super::{sample_signal, synchronize_signal_state, SignalConfig, SignalRuntimeState};
 
 #[derive(Clone, Debug)]
 pub(super) struct SignalWorkerConfig {
@@ -139,41 +139,53 @@ impl Drop for SignalRuntimeHandle {
     }
 }
 
-fn worker_loop(
-    command_rx: Receiver<SignalWorkerCommand>,
-    event_slot: SignalEventSlot,
-    mut config: SignalWorkerConfig,
-) {
-    let mut states = HashMap::<NodeId, SignalRuntimeState>::new();
-    let mut last_update = Instant::now();
+struct WorkerState {
+    config: SignalWorkerConfig,
+    states: HashMap<NodeId, SignalRuntimeState>,
+    last_update: Instant,
+    next_update: Instant,
+}
 
+impl WorkerState {
+    fn new(config: SignalWorkerConfig, now: Instant) -> Self {
+        let next_update = now + update_interval(config.update_rate_hz);
+        Self {
+            config,
+            states: HashMap::new(),
+            last_update: now,
+            next_update,
+        }
+    }
+
+    fn service(&mut self, now: Instant, command: Option<SignalWorkerCommand>, event_slot: &SignalEventSlot) -> bool {
+        // Settle time under the old configuration before applying a command.
+        // Ordinary commands cannot discard elapsed time or postpone the deadline.
+        let delta_seconds = now.saturating_duration_since(self.last_update).as_secs_f64();
+        event_slot.publish(compute_signal_update(&self.config, &mut self.states, delta_seconds));
+        self.last_update = now;
+        let old_rate = self.config.update_rate_hz;
+        if command.is_some_and(|command| handle_command(command, &mut self.config, &mut self.states)) {
+            return true;
+        }
+        if now >= self.next_update || old_rate != self.config.update_rate_hz {
+            self.next_update = now + update_interval(self.config.update_rate_hz);
+        }
+        false
+    }
+}
+
+fn worker_loop(command_rx: Receiver<SignalWorkerCommand>, event_slot: SignalEventSlot, config: SignalWorkerConfig) {
+    let mut state = WorkerState::new(config, Instant::now());
     loop {
-        let interval = update_interval(config.update_rate_hz);
-        match command_rx.recv_timeout(interval) {
-            Ok(command) => {
-                if handle_command(command, &mut config, &mut states) {
-                    break;
-                }
-                last_update = Instant::now();
-                continue;
-            }
-            Err(mpsc::RecvTimeoutError::Timeout) => {}
-            Err(mpsc::RecvTimeoutError::Disconnected) => break,
+        let wait = state.next_update.saturating_duration_since(Instant::now());
+        let command = match command_rx.recv_timeout(wait) {
+            Ok(command) => Some(command),
+            Err(mpsc::RecvTimeoutError::Timeout) => None,
+            Err(mpsc::RecvTimeoutError::Disconnected) => return,
+        };
+        if state.service(Instant::now(), command, &event_slot) {
+            return;
         }
-
-        while let Ok(command) = command_rx.try_recv() {
-            if handle_command(command, &mut config, &mut states) {
-                return;
-            }
-            last_update = Instant::now();
-        }
-
-        let now = Instant::now();
-        let delta_seconds = now.duration_since(last_update).as_secs_f64().max(0.0);
-        last_update = now;
-
-        let event = compute_signal_update(&config, &mut states, delta_seconds);
-        event_slot.publish(event);
     }
 }
 
@@ -214,19 +226,17 @@ pub(super) fn compute_signal_update(
             continue;
         }
         let state = states.entry(signal.item_id).or_default();
-        reset_signal_state_if_config_changed(state, signal);
+        synchronize_signal_state(state, signal);
         state.elapsed_seconds += delta_seconds;
 
-        let was_sampled = state.sampled_once;
         let last_cycle = state.last_cycle;
         let sample = sample_signal(signal, state);
-        let cycles = if was_sampled && sample.cycle > last_cycle {
+        let cycles = if sample.cycle > last_cycle {
             sample.cycle.saturating_sub(last_cycle)
         } else {
             0
         };
         state.last_cycle = sample.cycle;
-        state.sampled_once = true;
 
         event.samples.insert(
             signal.item_id,
@@ -260,3 +270,6 @@ fn merge_signal_event(existing: &mut SignalWorkerEvent, next: SignalWorkerEvent)
 fn update_interval(update_rate_hz: u32) -> Duration {
     Duration::from_secs_f64(1.0 / update_rate_hz.max(1) as f64)
 }
+
+#[cfg(test)]
+mod tests;

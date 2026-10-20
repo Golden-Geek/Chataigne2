@@ -1,9 +1,11 @@
+mod runtime;
 #[cfg(test)]
 mod tests;
-mod runtime;
+mod waveform;
+
+use waveform::{sample_signal, synchronize_signal_state, SignalConfig, SignalRuntimeState, SignalShape};
 
 use std::collections::{HashMap, HashSet};
-use std::f64::consts::PI;
 
 use golden_core::{
     edit::NodeTree,
@@ -11,13 +13,10 @@ use golden_core::{
     events::{CustomEvent, Event, EventFrame, EventKind},
     node,
     node::{
-        curve_from_snapshot, Curve, CurveNode, DeclId, Node, NodeHandle, NodeId, NodeMetaPatch,
-        NodeScriptDescriptor, NodeUuid, UserContainerRules, UserCreatableItem,
+        curve_from_snapshot, CurveNode, DeclId, Node, NodeHandle, NodeId, NodeMetaPatch, NodeScriptDescriptor,
+        NodeUuid, UserContainerRules, UserCreatableItem,
     },
-    parameter::{
-        Enum, ParamValue, Parameter, ParameterChangeCheck, ParameterEnumOption, RangeConstraint,
-        Vec2,
-    },
+    parameter::{Enum, ParamValue, Parameter, ParameterChangeCheck, ParameterEnumOption, RangeConstraint, Vec2},
     process_ctx::{ProcessCtx, ProcessTreeNodeSnapshot, ProcessTreeSnapshot},
 };
 
@@ -36,74 +35,6 @@ const SIGNAL_SHAPE_CURVE: &str = "curve";
 const SIGNAL_SCRIPT_METHODS: &[&str] = &["resetSignals", "resetSignal"];
 const SIGNAL_CYCLE_CALLBACK: &str = "signalCycle";
 const SIGNAL_ENABLEMENT_CHANGED_EVENT: &str = "signals.itemEnablementChanged";
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-struct SignalSignature {
-    shape: SignalShape,
-    frequency_hz: u64,
-    phase: u64,
-    seed: i32,
-}
-
-#[derive(Clone, Debug)]
-struct SignalRuntimeState {
-    elapsed_seconds: f64,
-    last_cycle: i64,
-    sampled_once: bool,
-    pure_random_step: i64,
-    pure_random_value: f64,
-    signature: Option<SignalSignature>,
-}
-
-impl Default for SignalRuntimeState {
-    fn default() -> Self {
-        Self {
-            elapsed_seconds: 0.0,
-            last_cycle: 0,
-            sampled_once: false,
-            pure_random_step: i64::MIN,
-            pure_random_value: 0.0,
-            signature: None,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-enum SignalShape {
-    Sine,
-    Triangle,
-    Saw,
-    ReverseSaw,
-    RandomPerlin,
-    RandomPure,
-    Curve,
-}
-
-#[derive(Clone, Debug)]
-struct SignalConfig {
-    item_id: NodeId,
-    value_decl_id: String,
-    label: String,
-    enabled: bool,
-    shape: SignalShape,
-    frequency_hz: f64,
-    phase: f64,
-    range_min: f64,
-    range_max: f64,
-    curve: Option<Curve>,
-    seed: i32,
-}
-
-impl SignalConfig {
-    fn signature(&self) -> SignalSignature {
-        SignalSignature {
-            shape: self.shape,
-            frequency_hz: self.frequency_hz.to_bits(),
-            phase: self.phase.to_bits(),
-            seed: self.seed,
-        }
-    }
-}
 
 #[node("signals_module", label = "Signals")]
 #[children(
@@ -208,11 +139,7 @@ impl SignalsModule {
     }
 
     fn drain_runtime_events(&mut self, ctx: &mut ProcessCtx) {
-        let Some(event) = self
-            .runtime
-            .as_ref()
-            .and_then(|runtime| runtime.take_event())
-        else {
+        let Some(event) = self.runtime.as_ref().and_then(|runtime| runtime.take_event()) else {
             return;
         };
 
@@ -444,11 +371,7 @@ impl Node for SignalsModule {
     }
 
     fn engine_script_descriptor(&self) -> NodeScriptDescriptor {
-        crate::app::module::script_api::descriptor_for_node(
-            self.node_data(),
-            self.get_type(),
-            SIGNAL_SCRIPT_METHODS,
-        )
+        crate::app::module::script_api::descriptor_for_node(self.node_data(), self.get_type(), SIGNAL_SCRIPT_METHODS)
     }
 
     fn engine_call_script_method(
@@ -485,8 +408,7 @@ impl Node for SignalsModule {
                 self.config_dirty = true;
                 self.sync_configuration(ctx, snapshot);
             }
-            self.base
-                .emit_script_param_callback(ctx, snapshot, param, &old_value);
+            self.base.emit_script_param_callback(ctx, snapshot, param, &old_value);
         }
     }
 
@@ -602,12 +524,7 @@ impl Node for SignalItem {
     fn init(&mut self, ctx: &mut ProcessCtx) {
         crate::app::module::enable_module_authoring(self.node_data_mut());
         if let Some(snapshot_arc) = ctx.tree_snapshot_arc() {
-            sync_signal_curve_child(
-                ctx,
-                snapshot_arc.as_ref(),
-                self.id(),
-                self.shape.get_ref().as_str(),
-            );
+            sync_signal_curve_child(ctx, snapshot_arc.as_ref(), self.id(), self.shape.get_ref().as_str());
         }
     }
 
@@ -616,12 +533,7 @@ impl Node for SignalItem {
             return;
         }
         if let Some(snapshot_arc) = ctx.tree_snapshot_arc() {
-            sync_signal_curve_child(
-                ctx,
-                snapshot_arc.as_ref(),
-                self.id(),
-                self.shape.get_ref().as_str(),
-            );
+            sync_signal_curve_child(ctx, snapshot_arc.as_ref(), self.id(), self.shape.get_ref().as_str());
         }
     }
 
@@ -643,46 +555,6 @@ impl Node for SignalItem {
     fn project_create(node_type: &str) -> Option<Self> {
         (node_type == Self::NODE_TYPE).then(Self::new)
     }
-}
-
-#[derive(Clone, Copy, Debug)]
-struct SignalSample {
-    value: f64,
-    cycle: i64,
-}
-
-fn sample_signal(config: &SignalConfig, state: &mut SignalRuntimeState) -> SignalSample {
-    let phase_position = config.phase + state.elapsed_seconds * config.frequency_hz;
-    let phase = normalized_phase(phase_position);
-    let cycle = phase_position.floor() as i64;
-    let unit = match config.shape {
-        SignalShape::Sine => 0.5 + 0.5 * (phase * PI * 2.0).sin(),
-        SignalShape::Triangle => 1.0 - (2.0 * phase - 1.0).abs(),
-        SignalShape::Saw => phase,
-        SignalShape::ReverseSaw => 1.0 - phase,
-        SignalShape::RandomPerlin => smooth_noise(config.seed as i64, phase_position),
-        SignalShape::RandomPure => pure_random_unit(config, state, cycle),
-        SignalShape::Curve => curve_unit(config, phase),
-    }
-    .clamp(0.0, 1.0);
-
-    SignalSample {
-        value: config.range_min + (config.range_max - config.range_min) * unit,
-        cycle,
-    }
-}
-
-fn reset_signal_state_if_config_changed(state: &mut SignalRuntimeState, config: &SignalConfig) {
-    let signature = config.signature();
-    if state.signature == Some(signature) {
-        return;
-    }
-    state.elapsed_seconds = 0.0;
-    state.last_cycle = config.phase.floor() as i64;
-    state.sampled_once = false;
-    state.pure_random_step = i64::MIN;
-    state.pure_random_value = 0.0;
-    state.signature = Some(signature);
 }
 
 fn runtime_update_rate_hz(value: i32) -> u32 {
@@ -744,12 +616,7 @@ fn signal_config(snapshot: &ProcessTreeSnapshot, item_id: NodeId) -> Option<Sign
     })
 }
 
-fn sync_signal_curve_child(
-    ctx: &mut ProcessCtx,
-    snapshot: &ProcessTreeSnapshot,
-    item_id: NodeId,
-    shape: &str,
-) {
+fn sync_signal_curve_child(ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot, item_id: NodeId, shape: &str) {
     let curve_ids: Vec<NodeId> = snapshot
         .child_ids(item_id)
         .into_iter()
@@ -799,49 +666,6 @@ fn parse_signal_shape(shape: &str) -> SignalShape {
         SIGNAL_SHAPE_RANDOM_PURE => SignalShape::RandomPure,
         SIGNAL_SHAPE_CURVE => SignalShape::Curve,
         _ => SignalShape::Sine,
-    }
-}
-
-fn curve_unit(config: &SignalConfig, phase: f64) -> f64 {
-    config
-        .curve
-        .as_ref()
-        .and_then(|curve| curve.sample(phase))
-        .unwrap_or(0.0)
-}
-
-fn pure_random_unit(
-    config: &SignalConfig,
-    state: &mut SignalRuntimeState,
-    step: i64,
-) -> f64 {
-    if state.pure_random_step != step {
-        state.pure_random_step = step;
-        state.pure_random_value = hash_unit(config.seed as i64, step);
-    }
-    state.pure_random_value
-}
-
-fn smooth_noise(seed: i64, position: f64) -> f64 {
-    let left = position.floor();
-    let right = left + 1.0;
-    let t = smooth_step(position - left);
-    let a = hash_unit(seed, left as i64);
-    let b = hash_unit(seed, right as i64);
-    a + (b - a) * t
-}
-
-fn smooth_step(t: f64) -> f64 {
-    let t = t.clamp(0.0, 1.0);
-    t * t * (3.0 - 2.0 * t)
-}
-
-fn normalized_phase(value: f64) -> f64 {
-    let phase = value.fract();
-    if phase.is_sign_negative() {
-        phase + 1.0
-    } else {
-        phase
     }
 }
 
@@ -899,10 +723,7 @@ where
                     if node.param_constraints.as_ref().map(|constraints| &constraints.range)
                         != Some(&next_constraints.range)
                     {
-                        let value = node
-                            .param_value
-                            .clone()
-                            .unwrap_or(ParamValue::Float(config.range_min));
+                        let value = node.param_value.clone().unwrap_or(ParamValue::Float(config.range_min));
                         NodeHandle::new(node_id).replace_with(
                             ctx,
                             signal_value_param(config.label.as_str(), config.value_decl_id.as_str(), value, config),
@@ -947,9 +768,7 @@ fn adoptable_persisted_signal_value(
     snapshot.child_ids(root_id).into_iter().find(|child_id| {
         !used_node_ids.contains(child_id)
             && snapshot.node(*child_id).is_some_and(|child| {
-                child.decl_id.starts_with("signal_")
-                    && child.label == config.label
-                    && child.param_value.is_some()
+                child.decl_id.starts_with("signal_") && child.label == config.label && child.param_value.is_some()
             })
     })
 }
@@ -1031,11 +850,7 @@ fn selector_matches(
         })
 }
 
-fn node_is_descendant_or_self(
-    snapshot: &ProcessTreeSnapshot,
-    node_id: NodeId,
-    ancestor_id: NodeId,
-) -> bool {
+fn node_is_descendant_or_self(snapshot: &ProcessTreeSnapshot, node_id: NodeId, ancestor_id: NodeId) -> bool {
     let mut current = Some(node_id);
     while let Some(current_id) = current {
         if current_id == ancestor_id {
@@ -1072,24 +887,9 @@ fn child_enum(snapshot: &ProcessTreeSnapshot, parent: NodeId, key: &str, default
         .unwrap_or_else(|| default.to_string())
 }
 
-fn child_vec2(
-    snapshot: &ProcessTreeSnapshot,
-    parent: NodeId,
-    key: &str,
-    default: (f64, f64),
-) -> (f64, f64) {
+fn child_vec2(snapshot: &ProcessTreeSnapshot, parent: NodeId, key: &str, default: (f64, f64)) -> (f64, f64) {
     match child_value(snapshot, parent, key) {
         Some(ParamValue::Vec2(x, y)) if x.is_finite() && y.is_finite() => (x, y),
         _ => default,
     }
-}
-
-fn hash_unit(seed: i64, index: i64) -> f64 {
-    let mut x = (seed as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15) ^ index as u64;
-    x ^= x >> 30;
-    x = x.wrapping_mul(0xBF58_476D_1CE4_E5B9);
-    x ^= x >> 27;
-    x = x.wrapping_mul(0x94D0_49BB_1331_11EB);
-    x ^= x >> 31;
-    ((x >> 11) as f64) / ((1u64 << 53) as f64)
 }

@@ -1,6 +1,6 @@
+mod runtime;
 #[cfg(test)]
 mod tests;
-mod runtime;
 
 use std::collections::{HashMap, HashSet};
 
@@ -10,12 +10,11 @@ use golden_core::{
     events::{CustomEvent, Event, EventKind},
     node,
     node::{
-        DeclId, Node, NodeHandle, NodeId, NodeMetaPatch, NodeScriptDescriptor, NodeUuid,
-        UserContainerRules, UserCreatableItem,
+        DeclId, Node, NodeHandle, NodeId, NodeMetaPatch, NodeScriptDescriptor, NodeUuid, UserContainerRules,
+        UserCreatableItem,
     },
     parameter::{
-        Enum, ParamValue, Parameter, ParameterChangeCheck, ParameterEnumOption,
-        ParameterEventBehaviour, Vec2,
+        Enum, ParamValue, Parameter, ParameterChangeCheck, ParameterEnumOption, ParameterEventBehaviour, Vec2,
     },
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
@@ -28,11 +27,7 @@ const METRONOME_ITEM_LABEL: &str = "Metronome";
 const METRONOME_MODE_FREQUENCY: &str = "frequency";
 const METRONOME_MODE_TIME: &str = "time";
 const METRONOME_MODE_BPM: &str = "bpm";
-const METRONOME_SCRIPT_METHODS: &[&str] = &[
-    "resetMetronomes",
-    "resetMetronome",
-    "tickMetronome",
-];
+const METRONOME_SCRIPT_METHODS: &[&str] = &["resetMetronomes", "resetMetronome", "tickMetronome"];
 const METRONOME_TICK_CALLBACK: &str = "metronomeTick";
 const METRONOME_ENABLEMENT_CHANGED_EVENT: &str = "metronomes.itemEnablementChanged";
 const MAX_TICKS_PER_UPDATE: u32 = 128;
@@ -193,11 +188,7 @@ impl MetronomesModule {
     }
 
     fn drain_runtime_events(&mut self, ctx: &mut ProcessCtx) {
-        let Some(event) = self
-            .runtime
-            .as_ref()
-            .and_then(|runtime| runtime.take_event())
-        else {
+        let Some(event) = self.runtime.as_ref().and_then(|runtime| runtime.take_event()) else {
             return;
         };
 
@@ -212,11 +203,7 @@ impl MetronomesModule {
             }
 
             received_tick = true;
-            ctx.set_param_with_behaviour(
-                tick_param,
-                ParamValue::Trigger(),
-                ParameterEventBehaviour::Coalesce,
-            );
+            ctx.set_param_with_behaviour(tick_param, ParamValue::Trigger(), ParameterEventBehaviour::Coalesce);
             if self.base.log_incoming_enabled() {
                 golden_core::log!(origin = module_id; format!(
                     "Metronome '{}' ticked {} time(s), total {}.",
@@ -332,11 +319,7 @@ impl MetronomesModule {
         }
     }
 
-    fn is_metronome_configuration_event(
-        &self,
-        snapshot: &ProcessTreeSnapshot,
-        node_id: NodeId,
-    ) -> bool {
+    fn is_metronome_configuration_event(&self, snapshot: &ProcessTreeSnapshot, node_id: NodeId) -> bool {
         let Some(list_id) = self.metronome_list_id(snapshot) else {
             return false;
         };
@@ -345,9 +328,7 @@ impl MetronomesModule {
     }
 
     fn is_value_output(&self, node_id: NodeId) -> bool {
-        self.value_nodes_by_item
-            .values()
-            .any(|value_id| *value_id == node_id)
+        self.value_nodes_by_item.values().any(|value_id| *value_id == node_id)
     }
 
     fn handle_metronome_enablement_event(&mut self, ctx: &mut ProcessCtx, event: &CustomEvent) {
@@ -443,11 +424,7 @@ impl Node for MetronomesModule {
     }
 
     fn engine_script_descriptor(&self) -> NodeScriptDescriptor {
-        crate::app::module::script_api::descriptor_for_node(
-            self.node_data(),
-            self.get_type(),
-            METRONOME_SCRIPT_METHODS,
-        )
+        crate::app::module::script_api::descriptor_for_node(self.node_data(), self.get_type(), METRONOME_SCRIPT_METHODS)
     }
 
     fn engine_call_script_method(
@@ -482,8 +459,7 @@ impl Node for MetronomesModule {
                 self.config_dirty = true;
                 self.sync_configuration(ctx, snapshot);
             }
-            self.base
-                .emit_script_param_callback(ctx, snapshot, param, &old_value);
+            self.base.emit_script_param_callback(ctx, snapshot, param, &old_value);
         }
     }
 
@@ -644,12 +620,11 @@ fn enum_option(variant_id: &str, label: &str, ordering: i32) -> ParameterEnumOpt
     }
 }
 
-fn reset_state_if_config_changed(state: &mut MetronomeRuntimeState, config: &MetronomeConfig) {
+fn synchronize_metronome_state(state: &mut MetronomeRuntimeState, config: &MetronomeConfig) {
     let signature = config.signature();
     if state.signature == Some(signature) {
         return;
     }
-    state.elapsed_seconds = 0.0;
     state.next_gap_seconds = metronome_gap_seconds(config, state.tick_count);
     state.signature = Some(signature);
 }
@@ -666,10 +641,7 @@ fn metronome_gap_seconds(config: &MetronomeConfig, tick_count: u64) -> f64 {
     (interval * (min + (max - min) * random)).max(MIN_INTERVAL_SECONDS)
 }
 
-fn metronome_config(
-    snapshot: &ProcessTreeSnapshot,
-    item_id: NodeId,
-) -> Option<MetronomeConfig> {
+fn metronome_config(snapshot: &ProcessTreeSnapshot, item_id: NodeId) -> Option<MetronomeConfig> {
     let item = snapshot.node(item_id)?;
     if item.node_type != MetronomeItem::NODE_TYPE {
         return None;
@@ -727,12 +699,7 @@ where
             .or_else(|| {
                 existing_by_label
                     .get(config.label.as_str())
-                    .and_then(|nodes| {
-                        nodes
-                            .iter()
-                            .copied()
-                            .find(|node_id| !used_node_ids.contains(node_id))
-                    })
+                    .and_then(|nodes| nodes.iter().copied().find(|node_id| !used_node_ids.contains(node_id)))
             });
 
         match existing_node_id {
@@ -740,10 +707,7 @@ where
                 pending_value_items.remove(&config.item_id);
                 used_node_ids.insert(node_id);
                 next_value_nodes_by_item.insert(config.item_id, node_id);
-                if snapshot
-                    .node(node_id)
-                    .is_some_and(|node| node.label != config.label)
-                {
+                if snapshot.node(node_id).is_some_and(|node| node.label != config.label) {
                     ctx.patch_node_meta(
                         node_id,
                         NodeMetaPatch {
@@ -814,20 +778,14 @@ fn child_ids_by_decl(snapshot: &ProcessTreeSnapshot, root_id: NodeId) -> HashMap
     by_decl
 }
 
-fn metronome_value_child_ids_by_label(
-    snapshot: &ProcessTreeSnapshot,
-    root_id: NodeId,
-) -> HashMap<String, Vec<NodeId>> {
+fn metronome_value_child_ids_by_label(snapshot: &ProcessTreeSnapshot, root_id: NodeId) -> HashMap<String, Vec<NodeId>> {
     let mut by_label = HashMap::<String, Vec<NodeId>>::new();
     for child_id in snapshot.child_ids(root_id) {
         let Some(child) = snapshot.node(child_id) else {
             continue;
         };
         if child.decl_id.starts_with("metronome_") {
-            by_label
-                .entry(child.label.clone())
-                .or_default()
-                .push(child_id);
+            by_label.entry(child.label.clone()).or_default().push(child_id);
         }
     }
     by_label
@@ -835,9 +793,7 @@ fn metronome_value_child_ids_by_label(
 
 fn metronome_value_uuid(item_uuid: NodeUuid) -> NodeUuid {
     const METRONOME_VALUE_UUID_MASK: u128 = 0x6d657472_6f6e_6f6d_655f_76616c756500;
-    NodeUuid(uuid::Uuid::from_u128(
-        item_uuid.0.as_u128() ^ METRONOME_VALUE_UUID_MASK,
-    ))
+    NodeUuid(uuid::Uuid::from_u128(item_uuid.0.as_u128() ^ METRONOME_VALUE_UUID_MASK))
 }
 
 fn value_folder_decl_id(prefix: &str, item_uuid: NodeUuid) -> String {
@@ -870,11 +826,7 @@ fn selector_matches(
         })
 }
 
-fn node_is_descendant_or_self(
-    snapshot: &ProcessTreeSnapshot,
-    node_id: NodeId,
-    ancestor_id: NodeId,
-) -> bool {
+fn node_is_descendant_or_self(snapshot: &ProcessTreeSnapshot, node_id: NodeId, ancestor_id: NodeId) -> bool {
     let mut current = Some(node_id);
     while let Some(current_id) = current {
         if current_id == ancestor_id {
@@ -917,12 +869,7 @@ fn child_enum(snapshot: &ProcessTreeSnapshot, parent: NodeId, key: &str, default
         .unwrap_or_else(|| default.to_string())
 }
 
-fn child_vec2(
-    snapshot: &ProcessTreeSnapshot,
-    parent: NodeId,
-    key: &str,
-    default: (f64, f64),
-) -> (f64, f64) {
+fn child_vec2(snapshot: &ProcessTreeSnapshot, parent: NodeId, key: &str, default: (f64, f64)) -> (f64, f64) {
     match child_value(snapshot, parent, key) {
         Some(ParamValue::Vec2(x, y)) if x.is_finite() && y.is_finite() => (x, y),
         _ => default,
