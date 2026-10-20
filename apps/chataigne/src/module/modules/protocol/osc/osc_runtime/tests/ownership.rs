@@ -345,6 +345,115 @@ fn full_input_preserves_occurrences_and_services_independent_output() {
 }
 
 #[test]
+fn prepared_input_backpressure_keeps_occurrences_while_native_output_progresses() {
+    use super::super::super::osc_input::{InputMode, InputPlan};
+    let pool = RetirementPool::new(NonZeroUsize::MIN);
+    let bytes = encoder::encode(&OscPacket::Message(OscMessage {
+        addr: "/trigger".into(),
+        args: vec![],
+    }))
+    .unwrap();
+    let socket = FakeSocket::default().with_continuous_input(bytes);
+    let (sent, reads) = (socket.sent.clone(), socket.reads.clone());
+    let mut handle = OscTransportHandle::spawn_with_input(
+        config(),
+        &pool,
+        WorkerNotifier::new(|| {}),
+        InputMode::Prepared(InputPlan::new(golden_core::node::NodeId(1), false)),
+        move |_, _| Ok(socket),
+    )
+    .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(3);
+    while handle.worker.event_metrics().rejected == 0 {
+        assert!(Instant::now() < deadline, "prepared mailbox did not fill");
+        std::thread::yield_now();
+    }
+    handle.send(message(1)).unwrap();
+    while sent.lock().unwrap().is_empty() {
+        assert!(Instant::now() < deadline);
+        std::thread::yield_now();
+    }
+    assert!(reads.load(Ordering::Acquire) <= 129);
+    handle.finish_admission();
+    let events = drain_to_exit(&handle);
+    let delivered = events
+        .iter()
+        .filter(|event| matches!(event, super::super::OscWorkerEvent::Input(_)))
+        .count();
+    assert_eq!(delivered, reads.load(Ordering::Acquire));
+    assert_eq!(sent.lock().unwrap().len(), 1);
+    assert!(pool.wait_for_idle(Duration::from_secs(3)));
+}
+
+#[test]
+fn terminal_failure_retires_readiness_before_finishing_prepared_bundle_publication() {
+    use super::super::super::osc_input::{InputMode, InputPlan};
+    let pool = RetirementPool::new(NonZeroUsize::MIN);
+    let mut socket = FakeSocket::default();
+    // Ten bounded datagrams fill the prepared-event mailbox even though each
+    // envelope combines up to sixteen callbacks and received-value messages.
+    for group in 0..10 {
+        let content = (0..200)
+            .map(|index| {
+                OscPacket::Message(OscMessage {
+                    addr: format!("/prefix/{}", group * 200 + index),
+                    args: vec![],
+                })
+            })
+            .collect();
+        socket.incoming.push_back(
+            encoder::encode(&OscPacket::Bundle(rosc::OscBundle {
+                timetag: (0, 1).into(),
+                content,
+            }))
+            .unwrap(),
+        );
+    }
+    let reads = socket.reads.clone();
+    let (wait_failure, failed_wait) = (socket.wait_failure.clone(), socket.failed_wait.clone());
+    let handle = OscTransportHandle::spawn_with_input(
+        config(),
+        &pool,
+        WorkerNotifier::new(|| {}),
+        InputMode::Prepared(InputPlan::new(golden_core::node::NodeId(1), false)),
+        move |_, _| Ok(socket),
+    )
+    .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(3);
+    while handle.worker.event_metrics().rejected == 0 {
+        assert!(Instant::now() < deadline);
+        std::thread::yield_now();
+    }
+    wait_failure.store(true, Ordering::Release);
+    while !failed_wait.load(Ordering::Acquire) || handle.is_ready() {
+        assert!(Instant::now() < deadline);
+        std::thread::yield_now();
+    }
+    let events = drain_to_exit(&handle);
+    let addresses = events
+        .iter()
+        .flat_map(|event| match event {
+            super::super::OscWorkerEvent::Input(input) => input
+                .values
+                .iter()
+                .map(|value| value.path_segments.join("/"))
+                .collect::<Vec<_>>(),
+            _ => Vec::new(),
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        addresses,
+        (0..reads.load(Ordering::Acquire) * 200)
+            .map(|index| format!("prefix/{index}"))
+            .collect::<Vec<_>>()
+    );
+    assert!(events
+        .iter()
+        .any(|event| matches!(event, super::super::OscWorkerEvent::Failed(_))));
+    assert!(pool.wait_for_idle(Duration::from_secs(3)));
+}
+
+#[test]
 fn native_wake_failure_does_not_turn_an_accepted_send_into_a_retry() {
     let pool = RetirementPool::new(NonZeroUsize::MIN);
     let socket = FakeSocket::default();

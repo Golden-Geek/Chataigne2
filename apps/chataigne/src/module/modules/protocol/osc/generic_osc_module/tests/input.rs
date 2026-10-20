@@ -1,164 +1,170 @@
 use super::*;
 
+fn receiving() -> (crate::app::AppEngine, NodeId, std::net::SocketAddr) {
+    let (mut engine, module) = create_osc_module_with_output(9);
+    let input = find_path(&engine, module, "connection/input").unwrap();
+    let port = find_path(&engine, input, "port").unwrap();
+    let receiver_port = available_udp_port();
+    set_param(&mut engine, port, ParamValue::Int(i32::from(receiver_port)));
+    set_node_enabled(&mut engine, input, true);
+    settle_osc_module_state(&mut engine);
+    (engine, module, ([127, 0, 0, 1], receiver_port).into())
+}
+
+fn send(address: std::net::SocketAddr, packets: Vec<rosc::OscPacket>) {
+    let packet = OscPacket::Bundle(rosc::OscBundle {
+        timetag: (0, 1).into(),
+        content: packets,
+    });
+    let bytes = rosc::encoder::encode(&packet).unwrap();
+    UdpSocket::bind("127.0.0.1:0")
+        .unwrap()
+        .send_to(&bytes, address)
+        .unwrap();
+}
+
+fn message(address: &str, args: Vec<OscType>) -> OscPacket {
+    OscPacket::Message(rosc::OscMessage {
+        addr: address.into(),
+        args,
+    })
+}
+
+fn finish_input(engine: &mut crate::app::AppEngine, module: NodeId, path: &str) {
+    let deadline = std::time::Instant::now() + Duration::from_secs(3);
+    loop {
+        service_osc_module_turn(engine);
+        let crate::app::AppNode::GenericOscModule(node) = engine.nodes.get(module).unwrap() else {
+            unreachable!()
+        };
+        if find_path(engine, module, path).is_some() && !node.has_pending_incoming_messages_for_test() {
+            return;
+        }
+        assert!(std::time::Instant::now() < deadline, "OSC input did not finish: {path}");
+        std::thread::sleep(Duration::from_millis(1));
+    }
+}
+
 #[test]
 fn incoming_message_auto_adds_value_nodes_under_values_folder() {
-    let root: crate::app::AppNode = Folder::new("root").into();
-    let mut engine = crate::app::AppEngine::new(root);
-    engine.add_node(GenericOscModule::create().into(), None);
-    engine.apply_edits().expect("osc module should attach");
-    engine.resolve().expect("runtime schedule should resolve");
-
-    let module_id = engine
-        .nodes
-        .get(engine.root)
-        .and_then(|root| root.node_data().first_child)
-        .expect("module should be attached under root");
-
-    let crate::app::AppNode::GenericOscModule(module) = engine.nodes.get_mut(module_id).expect("module should exist")
-    else {
-        panic!("expected GenericOscModule node");
+    let (mut engine, module, address) = receiving();
+    send(address, vec![message("/foo", vec![OscType::Int(42)])]);
+    finish_input(&mut engine, module, "values/foo");
+    let crate::app::AppNode::GenericOscModule(node) = engine.nodes.get(module).unwrap() else {
+        unreachable!()
     };
-    module.disable_transport_for_test();
-    module.enqueue_incoming_message_for_test(OscDecodedMessage {
-        address: "/foo".to_string(),
-        payload: OscValuePayload::Single(ParamValue::Int(42)),
-    });
-
-    engine
-        .run_tick(Duration::from_millis(20))
-        .expect("runtime tick should process queued incoming OSC message");
-
-    let crate::app::AppNode::GenericOscModule(module) = engine.nodes.get(module_id).expect("module should still exist")
-    else {
-        panic!("expected GenericOscModule node");
-    };
-    assert!(
-        module.auto_add_enabled_for_test(),
-        "auto-add should remain enabled by default"
-    );
-    assert!(
-        !module.has_pending_incoming_messages_for_test(),
-        "incoming message queue should be drained after runtime tick"
-    );
-
-    let values_folder = find_path(&engine, module_id, "values").expect("module should contain a Values folder");
-    let value_child_labels = child_labels(&engine, values_folder);
-    let values_param = find_child_by_key(&engine, values_folder, "foo").unwrap_or_else(|| {
-        panic!("incoming OSC address should auto-create a parameter under Values; children were {value_child_labels:?}")
-    });
-    let values_node = engine
-        .nodes
-        .get(values_param)
-        .expect("auto-created value node should exist");
-
-    assert_eq!(values_node.node_data().meta.label, "foo");
+    assert!(node.auto_add_enabled_for_test());
+    let value = find_path(&engine, module, "values/foo").unwrap();
+    assert_eq!(param_value(&engine, value), ParamValue::Int(42));
     assert_eq!(
-        values_node.node_data().meta.user_permissions,
+        engine.nodes.get(value).unwrap().node_data().meta.user_permissions,
         NodeUserPermissions::all()
-    );
-    assert_eq!(
-        values_node.engine_param_snapshot().map(|snapshot| snapshot.value),
-        Some(ParamValue::Int(42))
     );
 }
 
 #[test]
 fn incoming_multi_message_auto_adds_missing_path_with_batched_trees() {
-    let root: crate::app::AppNode = Folder::new("root").into();
-    let mut engine = crate::app::AppEngine::new(root);
-    engine.add_node(GenericOscModule::create().into(), None);
-    engine.apply_edits().expect("osc module should attach");
-    engine.resolve().expect("runtime schedule should resolve");
-
-    let module_id = engine
-        .nodes
-        .get(engine.root)
-        .and_then(|root| root.node_data().first_child)
-        .expect("module should be attached under root");
-
-    let crate::app::AppNode::GenericOscModule(module) = engine.nodes.get_mut(module_id).expect("module should exist")
-    else {
-        panic!("expected GenericOscModule node");
-    };
-    module.disable_transport_for_test();
-    module.enqueue_incoming_message_for_test(OscDecodedMessage {
-        address: "/rig/arm/pose".to_string(),
-        payload: OscValuePayload::Multi(vec![
-            ParamValue::Float(1.0),
-            ParamValue::Float(2.0),
-            ParamValue::Float(3.0),
-        ]),
-    });
-
-    engine
-        .run_tick(Duration::from_millis(20))
-        .expect("runtime tick should materialize missing parent path and multi-value leaf subtree");
-
-    let crate::app::AppNode::GenericOscModule(module) = engine.nodes.get(module_id).expect("module should still exist")
-    else {
-        panic!("expected GenericOscModule node");
-    };
-    assert!(
-        !module.has_pending_incoming_messages_for_test(),
-        "batched missing path and multi-value leaf creation should drain the incoming queue"
+    let (mut engine, module, address) = receiving();
+    send(
+        address,
+        vec![message(
+            "/rig/arm/pose",
+            vec![OscType::Int(1), OscType::Int(2), OscType::Int(3)],
+        )],
     );
-
-    let first_value =
-        find_path(&engine, module_id, "values/rig/arm/pose/value 1").expect("first multi-value parameter should exist");
-    let second_value = find_path(&engine, module_id, "values/rig/arm/pose/value 2")
-        .expect("second multi-value parameter should exist");
-    let third_value =
-        find_path(&engine, module_id, "values/rig/arm/pose/value 3").expect("third multi-value parameter should exist");
-
-    assert_eq!(param_value(&engine, first_value), ParamValue::Float(1.0));
-    assert_eq!(param_value(&engine, second_value), ParamValue::Float(2.0));
-    assert_eq!(param_value(&engine, third_value), ParamValue::Float(3.0));
+    finish_input(&mut engine, module, "values/rig/arm/pose/value 3");
+    for index in 1..=3 {
+        let value = find_path(&engine, module, &format!("values/rig/arm/pose/value {index}")).unwrap();
+        assert_eq!(param_value(&engine, value), ParamValue::Int(index));
+    }
 }
 
 #[test]
-fn incoming_messages_auto_add_shared_missing_path_in_one_tick() {
-    let root: crate::app::AppNode = Folder::new("root").into();
-    let mut engine = crate::app::AppEngine::new(root);
-    engine.add_node(GenericOscModule::create().into(), None);
-    engine.apply_edits().expect("osc module should attach");
-    engine.resolve().expect("runtime schedule should resolve");
-
-    let module_id = engine
-        .nodes
-        .get(engine.root)
-        .and_then(|root| root.node_data().first_child)
-        .expect("module should be attached under root");
-
-    let crate::app::AppNode::GenericOscModule(module) = engine.nodes.get_mut(module_id).expect("module should exist")
-    else {
-        panic!("expected GenericOscModule node");
-    };
-    module.disable_transport_for_test();
-    module.enqueue_incoming_message_for_test(OscDecodedMessage {
-        address: "/rig/arm/x".to_string(),
-        payload: OscValuePayload::Single(ParamValue::Float(1.25)),
-    });
-    module.enqueue_incoming_message_for_test(OscDecodedMessage {
-        address: "/rig/arm/y".to_string(),
-        payload: OscValuePayload::Single(ParamValue::Float(2.5)),
-    });
-
-    engine
-        .run_tick(Duration::from_millis(20))
-        .expect("runtime tick should materialize queued shared OSC path values");
-
-    let crate::app::AppNode::GenericOscModule(module) = engine.nodes.get(module_id).expect("module should still exist")
-    else {
-        panic!("expected GenericOscModule node");
-    };
-    assert!(
-        !module.has_pending_incoming_messages_for_test(),
-        "batched shared missing path creation should drain the incoming queue"
+fn incoming_float_vector_cast_stays_one_parameter() {
+    let (mut engine, module, address) = receiving();
+    send(
+        address,
+        vec![message(
+            "/pose",
+            vec![OscType::Float(1.0), OscType::Float(2.0), OscType::Float(3.0)],
+        )],
     );
+    finish_input(&mut engine, module, "values/pose");
+    let pose = find_path(&engine, module, "values/pose").unwrap();
+    assert_eq!(param_value(&engine, pose), ParamValue::Vec3(1.0, 2.0, 3.0));
+    assert!(find_path(&engine, pose, "value 1").is_none());
+}
 
-    let x_value = find_path(&engine, module_id, "values/rig/arm/x").expect("x parameter should exist");
-    let y_value = find_path(&engine, module_id, "values/rig/arm/y").expect("y parameter should exist");
+#[test]
+fn incoming_messages_preserve_shared_missing_paths_across_bounded_turns() {
+    let (mut engine, module, address) = receiving();
+    send(
+        address,
+        vec![
+            message("/rig/arm/x", vec![OscType::Float(1.25)]),
+            message("/rig/arm/y", vec![OscType::Float(2.5)]),
+        ],
+    );
+    finish_input(&mut engine, module, "values/rig/arm/y");
+    let x = find_path(&engine, module, "values/rig/arm/x").unwrap();
+    let y = find_path(&engine, module, "values/rig/arm/y").unwrap();
+    assert_eq!(param_value(&engine, x), ParamValue::Float(1.25));
+    assert_eq!(param_value(&engine, y), ParamValue::Float(2.5));
+}
 
-    assert_eq!(param_value(&engine, x_value), ParamValue::Float(1.25));
-    assert_eq!(param_value(&engine, y_value), ParamValue::Float(2.5));
+#[test]
+fn incoming_values_do_not_echo_but_later_user_edits_still_send_feedback() {
+    let receiver = UdpSocket::bind("127.0.0.1:0").unwrap();
+    receiver.set_nonblocking(true).unwrap();
+    let (mut engine, module, address) = receiving();
+    let outputs = find_path(&engine, module, "connection/outputs").unwrap();
+    let output = engine.nodes.get(outputs).unwrap().node_data().first_child.unwrap();
+    let port = find_path(&engine, output, "remote_port").unwrap();
+    set_param(
+        &mut engine,
+        port,
+        ParamValue::Int(i32::from(receiver.local_addr().unwrap().port())),
+    );
+    let feedback = find_path(&engine, module, "parameters/processing/auto_feedback").unwrap();
+    set_param(&mut engine, feedback, ParamValue::Bool(true));
+    service_osc_module_turn(&mut engine);
+    send(address, vec![message("/gain", vec![OscType::Int(42)])]);
+    finish_input(&mut engine, module, "values/gain");
+    let mut bytes = [0u8; 4096];
+    assert!(matches!(receiver.recv(&mut bytes), Err(error) if error.kind() == std::io::ErrorKind::WouldBlock));
+    let gain = find_path(&engine, module, "values/gain").unwrap();
+    // The second input writes an existing parameter, exercising echo suppression.
+    send(
+        address,
+        vec![
+            message("/gain", vec![OscType::Int(43)]),
+            message("/gain", vec![OscType::Int(44)]),
+        ],
+    );
+    let deadline = std::time::Instant::now() + Duration::from_secs(3);
+    loop {
+        service_osc_module_turn(&mut engine);
+        let crate::app::AppNode::GenericOscModule(node) = engine.nodes.get(module).unwrap() else {
+            unreachable!()
+        };
+        if param_value(&engine, gain) == ParamValue::Int(44) && !node.has_pending_incoming_messages_for_test() {
+            break;
+        }
+        assert!(std::time::Instant::now() < deadline);
+        std::thread::sleep(Duration::from_millis(1));
+    }
+    assert!(matches!(receiver.recv(&mut bytes), Err(error) if error.kind() == std::io::ErrorKind::WouldBlock));
+    set_param(&mut engine, gain, ParamValue::Int(45));
+    loop {
+        service_osc_module_turn(&mut engine);
+        if let Ok(length) = receiver.recv(&mut bytes) {
+            assert!(
+                matches!(decoder::decode_udp(&bytes[..length]).unwrap().1, OscPacket::Message(message)
+                if message.addr == "/gain" && message.args == [OscType::Int(45)])
+            );
+            break;
+        }
+        assert!(std::time::Instant::now() < deadline);
+        std::thread::sleep(Duration::from_millis(1));
+    }
 }

@@ -5,10 +5,10 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-21 on `main`, after delivered `508d6286`, plus the C03 OSC outgoing
+Last reconciled: 2026-10-21 on `main`, after delivered `822d5ee5`, plus the C03 OSC incoming
 milestone below. No unrelated edits were present. C02 remains closed. C03 is in progress:
-OSC native/outgoing ownership is delivered; input publication, interface discovery, passive
-scheduling and MIDI are still open.
+OSC native/outgoing and received-value/messageReceived publication ownership is delivered;
+interface discovery, passive scheduling and MIDI are still open.
 General snapshot/DTO scaling remains P16 work.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
@@ -78,7 +78,7 @@ work or replace the workstream percentages above.
 | --- | ----------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | C01 | OPEN              | Sound Card                       | Finish bounded preparation/application/publication, derived structure/default routes, feedback, command diagnostics and native failure/reconfiguration fences.      |
 | C02 | **CLOSED (100%)** | Signals and Metronomes           | Verified: bounded command/configuration bytes, 64-row publication turns, elapsed-time/occurrence preservation, nonblocking retirement and passive failure/recovery. |
-| C03 | IN PROGRESS       | MIDI and OSC                     | OSC native and outgoing capture/preparation/DNS/fan-out delivered. OSC input publication, interface discovery, passive scheduling and MIDI ownership remain open.   |
+| C03 | IN PROGRESS       | MIDI and OSC                     | OSC native/outgoing and prepared incoming value/messageReceived publication delivered. Interface discovery, passive scheduling and MIDI ownership remain open.      |
 | C04 | OPEN              | MQTT                             | Bound channels/payloads and service, preserve accepted delivery, retire workers safely and verify reconnect/failure behavior.                                       |
 | C05 | OPEN              | DMX                              | Close P03 lifecycle/admission/retirement/recovery requirements; DMX stream correctness remains separately P07.                                                      |
 | C06 | OPEN              | App Control and OS               | Close worker/service/cleanup bounds, failure ownership and recovery without recurring main-thread polling or blocking joins.                                        |
@@ -103,28 +103,26 @@ or completion credit. Snapshot/DTO scaling remains an explicit P16 investigation
 
 ## Current handoff
 
-- Current delivery: **C03 OSC outgoing worker capture**, following native ownership at `508d6286`.
-  Commands, script aliases and latest-value feedback retain frozen sources; the worker prepares
-  the complete bounded destination plan, payload and codec before DNS/native effects. Source and
-  cancellation fences are rechecked after DNS. Native sends have explicit ordered outcomes without
-  replay, and outgoing traffic/logs follow success. Native lifecycle/readiness proofs are preserved.
-  **C03 is not closed.**
-  Counts and percentages remain **11 open / one closed**, **16% overall / 80% P03**;
-  Sound Card remains **50% partial**. OSC input/options/scheduling and MIDI still require qualification.
-- Checkout reconciled at delivered `508d6286`, matching `origin/main`, before this
-  milestone. `d3a45301` removed automatic effort-switching rules; older effort notes are historical.
+- Current delivery: **C03 OSC bounded incoming publication**, following outgoing capture at `822d5ee5`.
+  Worker-prepared batches retain at most 16 value messages/callbacks and 2 MiB of weighted storage.
+  The actor retains one envelope through bounded graph edits and independently receipted callback
+  publication; canonical capacity waits preserve its prepared draft without rebuilding JSON.
+  Native failure clears readiness before its accepted input prefix finishes publication.
+  **C03 is not closed.** Counts remain **11 open / one closed**, **16% overall / 80% P03**;
+  Sound Card remains **50% partial**. Interface discovery, passive scheduling and MIDI remain open.
+- Checkout reconciled at delivered `822d5ee5`, matching `origin/main`, before this milestone.
+  `d3a45301` removed automatic effort-switching rules; older effort notes are historical.
 - Current local checks are recorded in the C03 entry below. Core/foundation retain batch 56
   evidence (590 Core passed / three existing ignored; 25 parameter tests). IO retains C02's
   52-test evidence. UI/macro/codegen-support retain batch 55 evidence. No full Formula pass is
   claimed: its three existing creation failures remain P08/P12 gates.
-- C03 current evidence: **57 OSC cases and 585 other app preservation cases passed**, or
-  **642 distinct app tests of 1087 listed**. Workspace/test compilation, strict all-target Clippy,
+- C03 current evidence: **69 OSC cases and 585 other app preservation cases passed**, or
+  **654 distinct app tests of 1099 listed**. Workspace/test check, strict all-target Clippy,
   native build and unchanged protocol generation passed. Core/foundation/IO/UI suites above
-  retain their stated dates; they are not counted as fresh C03 checks.
+  retain their stated dates and are not claimed as fresh incoming checks.
 - Scope: **foundation and readiness**. P01/P02 are verified locally, P03 remains in progress,
   P04-P18 have not started. Full lighting/video/projection authoring remains deferred.
-- Next action: **continue C03**. Finish OSC interface discovery, bounded received-value/callback
-  publication and passive scheduling, then qualify
+- Next action: **continue C03**. Finish OSC interface discovery and passive scheduling, then qualify
   MIDI native setup/discovery/send/cleanup, callback admission and endpoint recovery. Reuse
   existing public IO and app preparation contracts. Keep C01 and C04-C12 explicit; do not count
   the OSC worker milestone as full OSC or C03 closure. Preserve generator, stream/HTTP, audio
@@ -4914,3 +4912,68 @@ protocol DTOs or persistence formats changed. No hardware or desktop automation 
 Core/foundation/IO/UI evidence retains its previously recorded dates; the full Formula gate is
 still open for the same three creation failures. All owned jobs are terminal. Commit and push this
 verified milestone, then continue C03's explicit input/options/scheduling and MIDI work.
+
+### P03 C03 progress: bounded OSC incoming preparation and publication
+
+Implemented after `822d5ee5` on 2026-10-21. This delivers worker preparation and bounded
+received-value / `messageReceived` publication. OSC interface discovery and passive scheduling,
+plus MIDI ownership/admission/recovery, remain open. **11 closure packages remain open; C02 is
+still the only closed package. P03 remains 80%, whole plan 16%.**
+
+Incoming address splitting, value conversion, callback JSON and bounded log preparation now run
+on the native worker. Up to 16 adjacent valid messages from an admitted datagram share one
+prepared envelope, preserving decoder-error boundaries and callback order. The batch admits its
+complete weighted storage before publication, with a 2 MiB ceiling, 64-segment / 4096-byte paths
+and the existing 128 KiB / 1024-value payload guard. Canonical received-value ownership is bounded
+by 1024 envelopes / 32 MiB; native callbacks retain their existing shared 256 MiB pool. Final
+value/JSON disposal follows those leases off the actor, including ordinary event/replay copies.
+
+If either canonical pool is full, one measured draft retains its values and admitted callback
+prefix and retries capacity without rebuilding JSON. Input pauses while independent outgoing
+service continues. Coarse worker waits recover later capacity and explicit cancellation interrupts
+terminal-prefix waits. No producer-driven threads or blocking actor joins are introduced.
+
+The actor stops its 64-event drain after retaining one prepared input and leaves later inputs in
+the weighted worker mailbox. `ReceivedValueCursor` applies detached subtrees, value writes and
+indexed-child trimming with 256 work units / 64 KiB per turn; one larger admitted scalar gets a
+whole turn. Graph edits have owning completions; failed edits abandon their unapplied suffix with
+an explicit diagnostic and never replay an applied prefix. At most 16 callbacks publish together,
+each with its own receipt so only unpublished events retry. Counted feedback guards cover repeated
+internal writes to one parameter and clear after the envelope completes.
+
+Native receive/poll failure clears readiness before a blocked accepted prefix is published.
+Module disconnection handling also waits for its final retained input instead of discarding it
+when the producer has already exited. The test-only decoded-message adapter remains separate
+from the production prepared-input path. Generic parameter-event conversion costs and product-scale
+throughput/latency retain their owning qualification gates; this does not claim a universal actor
+deadline or close the remaining OSC discovery/scheduling work.
+
+Final verification:
+
+| Check                                                                             | Result                                                                                   |
+| --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| OSC compiled-name selection, `--test-threads=4 --quiet`                           | **69 passed**: 57 preserved and 12 new incoming cases.                                   |
+| Disjoint app preservation selections                                              | **654 distinct passes of 1099 listed**, including OSC; all on the final test executable. |
+| `cargo check --locked --workspace --tests`                                        | Passed on the final source.                                                              |
+| `cargo clippy --locked --workspace --all-targets -- -D warnings`                  | Passed, including production and test paths.                                             |
+| `cargo build --locked -p Chataigne2 --bin Chataigne2`                             | Passed.                                                                                  |
+| UI protocol generation and generated-directory diff                               | Passed; bindings unchanged.                                                              |
+| Root/Core Cargo format, 17 touched app Rust files, maintained docs and whitespace | Passed.                                                                                  |
+
+New checks cover callback/path preservation, invalid input shape, the 16-message preparation cap,
+value- and callback-pool saturation/recovery, a 700-value tuple's bounded detached trees and edits,
+repeated trigger/callback occurrences, later failure after callback publication, prepared-mailbox
+backpressure with independent output, terminal-prefix readiness and real UDP feedback/vector casts.
+The former injected three-float multi-value fixture bypassed the native Vec3 cast; loopback tests
+now cover true multi-value input and the existing vector cast separately. The terminal-pressure
+fixture waits for an actual item/byte rejection and verifies the prefix of datagrams actually read;
+it does not assume that batching must fill the item quota before the byte quota.
+
+Final executable: `target/debug/deps/Chataigne2-b14ffd1b9e52f9ac.exe`, SHA256
+`c85616c56d3d4ebb2a5fbd24bbe5aa453802064da90a9c62cf29e49db5fc27b5`.
+Selections ran from `apps/chataigne`. The maintained source inventory is **1650 files / 39 oversized**;
+no touched OSC source exceeds 1000 lines and no new exception was introduced. No dependencies,
+protocol DTOs or persistence formats changed. No hardware or desktop automation was used.
+Core/foundation/IO/UI evidence retains its previously recorded dates. The same three Formula
+creation failures remain unqualified under P08/P12. All owned jobs are terminal. Commit and push
+this verified milestone, then finish OSC interface discovery/passive scheduling and MIDI under C03.

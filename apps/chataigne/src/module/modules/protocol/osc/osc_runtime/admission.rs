@@ -55,8 +55,10 @@ pub(super) fn event_weight(event: &OscWorkerEvent) -> usize {
     std::mem::size_of::<OscWorkerEvent>()
         + match event {
             OscWorkerEvent::Ready(_) => 0,
+            OscWorkerEvent::Input(input) => input.weight,
             OscWorkerEvent::Sent(log) => log.as_ref().map_or(0, String::capacity),
             OscWorkerEvent::Error(error) | OscWorkerEvent::Failed(error) => error.capacity(),
+            #[cfg(test)]
             OscWorkerEvent::Message(message) => {
                 message.address.capacity()
                     + match &message.payload {

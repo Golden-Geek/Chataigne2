@@ -21,6 +21,7 @@ fn wait_ready(handle: &OscTransportHandle) -> std::net::SocketAddr {
                     panic!("OSC startup failed: {error}")
                 }
                 super::OscWorkerEvent::Message(_) => panic!("input preceded socket readiness"),
+                super::OscWorkerEvent::Input(_) => panic!("input preceded socket readiness"),
                 super::OscWorkerEvent::Sent(_) => panic!("output preceded socket readiness"),
             }
         }
@@ -51,7 +52,7 @@ fn worker_send_uses_waker_and_pre_resolved_remote_address() {
         .local_addr()
         .expect("test receiver should have a local address");
 
-    let mut handle = OscTransportHandle::spawn(OscTransportConfig {
+    let mut handle = native_handle(OscTransportConfig {
         bind_interface_host: "127.0.0.1".to_string(),
         bind_port: 0,
         receive_enabled: false,
@@ -83,7 +84,7 @@ fn worker_send_uses_waker_and_pre_resolved_remote_address() {
 
 #[test]
 fn received_packet_publishes_pending_without_an_unrelated_wakeup() {
-    let mut handle = OscTransportHandle::spawn(OscTransportConfig {
+    let mut handle = native_handle(OscTransportConfig {
         bind_interface_host: "127.0.0.1".to_string(),
         bind_port: 0,
         receive_enabled: true,
@@ -113,13 +114,22 @@ fn received_packet_publishes_pending_without_an_unrelated_wakeup() {
         assert_ne!(drain.state, PendingDrainState::Disconnected);
         std::thread::yield_now();
     }
-    assert_eq!(
-        events,
-        vec![super::OscWorkerEvent::Message(super::OscDecodedMessage {
+    assert_eq!(events.len(), 1);
+    assert!(
+        matches!(&events[0], super::OscWorkerEvent::Message(message) if *message == super::OscDecodedMessage {
             address: "/pending/only-packet".to_string(),
             payload: OscValuePayload::Single(ParamValue::Int(17)),
-        })]
+        })
     );
 
     handle.stop();
+}
+
+fn native_handle(config: OscTransportConfig) -> Result<OscTransportHandle, String> {
+    OscTransportHandle::spawn_using(
+        config,
+        super::lifetimes(),
+        golden_io::WorkerNotifier::new(|| {}),
+        super::worker::NativeSocket::open,
+    )
 }

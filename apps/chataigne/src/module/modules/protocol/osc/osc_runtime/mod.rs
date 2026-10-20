@@ -14,6 +14,8 @@ use std::{
     },
 };
 
+use super::osc_input::{InputMode, InputPlan, PreparedInput};
+#[cfg(test)]
 use super::osc_message::OscDecodedMessage;
 #[cfg(test)]
 use super::osc_message::OscValuePayload;
@@ -50,16 +52,18 @@ impl OscWorkerCommand {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub(crate) enum OscWorkerEvent {
     Ready(SocketAddr),
+    #[cfg(test)]
     Message(OscDecodedMessage),
+    Input(golden_io::RetainedPayload<PreparedInput>),
     Error(String),
     Failed(String),
     Sent(Option<String>),
 }
 
-const OSC_EVENT_DRAIN_BUDGET: NonZeroUsize = NonZeroUsize::new(64).unwrap();
+pub(super) const OSC_EVENT_DRAIN_BUDGET: NonZeroUsize = NonZeroUsize::new(64).unwrap();
 const OSC_COMMAND_TURN: NonZeroUsize = NonZeroUsize::new(16).unwrap();
 const OSC_SOCKET_SERVICE_BUDGET: usize = 16;
 const OSC_EVENT_BYTES: usize = 2 * 1024 * 1024;
@@ -110,22 +114,35 @@ pub(crate) struct OscTransportHandle {
     worker: BoundedWorker<OscWorkerCommand, OscWorkerEvent>,
     wake: NativeWake,
     ready: Arc<AtomicBool>,
+    input: InputMode,
 }
 
 impl OscTransportHandle {
-    pub(crate) fn spawn(config: OscTransportConfig) -> Result<Self, String> {
-        Self::spawn_using(
+    pub(crate) fn spawn(config: OscTransportConfig, input: InputPlan) -> Result<Self, String> {
+        Self::spawn_with_input(
             config,
             lifetimes(),
             WorkerNotifier::new(|| {}),
+            InputMode::Prepared(input),
             worker::NativeSocket::open,
         )
     }
 
+    #[cfg(test)]
     fn spawn_using<S: worker::OscSocket>(
         config: OscTransportConfig,
         lifetimes: &RetirementPool,
         notifier: WorkerNotifier,
+        setup: impl FnOnce(&OscTransportConfig, &NativeWake) -> Result<S, String> + Send + 'static,
+    ) -> Result<Self, String> {
+        Self::spawn_with_input(config, lifetimes, notifier, InputMode::Decoded, setup)
+    }
+
+    fn spawn_with_input<S: worker::OscSocket>(
+        config: OscTransportConfig,
+        lifetimes: &RetirementPool,
+        notifier: WorkerNotifier,
+        input: InputMode,
         setup: impl FnOnce(&OscTransportConfig, &NativeWake) -> Result<S, String> + Send + 'static,
     ) -> Result<Self, String> {
         if config.bind_interface_host.len() > 1024 || config.bind_interface_host.capacity() > 1024 {
@@ -135,11 +152,33 @@ impl OscTransportHandle {
         let worker_wake = wake.clone();
         let ready = Arc::new(AtomicBool::new(false));
         let worker_ready = ready.clone();
+        let worker_input = input.clone();
         let worker = BoundedWorker::spawn_notified("osc-transport", lifetimes, limits(), notifier, move |context| {
-            worker::run(context, config, worker_wake, worker_ready, setup);
+            worker::run(context, config, worker_wake, worker_ready, worker_input, setup);
         })
         .map_err(|error| format!("failed to start OSC worker: {error}"))?;
-        Ok(Self { worker, wake, ready })
+        Ok(Self {
+            worker,
+            wake,
+            ready,
+            input,
+        })
+    }
+
+    pub(crate) fn log_incoming(&self, enabled: bool) {
+        match &self.input {
+            InputMode::Prepared(plan) => plan.set_log(enabled),
+            #[cfg(test)]
+            InputMode::Decoded => {}
+        }
+    }
+
+    pub(crate) fn drain_event(&self, events: &mut Vec<OscWorkerEvent>) -> PendingDrain {
+        let turn = self.worker.drain_events(events, NonZeroUsize::MIN);
+        if turn.received != 0 {
+            self.wake.wake();
+        }
+        turn
     }
 
     pub(crate) fn enqueue(&self, request: OutboundRequest) -> Result<(), QueueError> {
@@ -166,6 +205,7 @@ impl OscTransportHandle {
         Ok(())
     }
 
+    #[cfg(test)]
     pub(crate) fn drain_events(&self, events: &mut Vec<OscWorkerEvent>) -> PendingDrain {
         let turn = self.worker.drain_events(events, OSC_EVENT_DRAIN_BUDGET);
         if turn.received != 0 {

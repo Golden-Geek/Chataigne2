@@ -1,8 +1,5 @@
 use super::OscModuleBase;
 impl OscModuleBase {
-    pub(crate) fn set_transport_dirty(&mut self, dirty: bool) {
-        self.transport_dirty = dirty;
-    }
     pub(crate) fn transport_settled_for_test(&self) -> bool {
         !self.transport_dirty
             && self.retiring_transport.is_none()

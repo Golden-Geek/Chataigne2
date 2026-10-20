@@ -2,15 +2,8 @@ use golden_core::{
     engine::NodeExecutionRule,
     events::{CustomEvent, Event},
     node::{Node, NodeCreationContext, NodeId, NodeMetaPatch, NodeScriptDescriptor},
-    parameter::{ParamValue, ParameterEventBehaviour},
-    process_ctx::{ProcessCtx, ProcessTreeSnapshot},
-};
-
-use crate::app::{
-    module::common::received_values::{
-        apply_received_value_batch, ReceivedValueBatchMessage, ReceivedValueBatchOptions, ReceivedValuePayload,
-    },
-    OscDecodedMessage, OscValuePayload,
+    parameter::ParamValue,
+    process_ctx::ProcessCtx,
 };
 
 #[golden_core::node("osc_module", label = "OSC")]
@@ -31,17 +24,6 @@ impl GenericOscModule {
     }
 
     #[cfg(test)]
-    pub(crate) fn disable_transport_for_test(&mut self) {
-        self.base.stop_transport();
-        self.base.set_transport_dirty(false);
-    }
-
-    #[cfg(test)]
-    pub(crate) fn enqueue_incoming_message_for_test(&mut self, message: OscDecodedMessage) {
-        self.base.enqueue_incoming_message(message);
-    }
-
-    #[cfg(test)]
     pub(crate) fn auto_add_enabled_for_test(&self) -> bool {
         self.base.auto_add_enabled()
     }
@@ -50,77 +32,6 @@ impl GenericOscModule {
     pub(crate) fn has_pending_incoming_messages_for_test(&self) -> bool {
         self.base.has_pending_incoming_messages()
     }
-
-    fn process_pending_incoming(
-        base: &mut crate::app::OscModuleBase,
-        ctx: &mut ProcessCtx,
-        snapshot: &ProcessTreeSnapshot,
-    ) {
-        let messages = base.take_pending_incoming_messages();
-        if messages.is_empty() {
-            return;
-        }
-
-        let Some(values_id) = base.values_id() else {
-            for message in &messages {
-                base.emit_osc_message_received_callback(ctx, message);
-            }
-            return;
-        };
-
-        let received_values = messages
-            .iter()
-            .filter_map(received_value_for_message)
-            .collect::<Vec<_>>();
-
-        let result = apply_received_value_batch(
-            ctx,
-            snapshot,
-            values_id,
-            received_values.iter().map(|received| ReceivedValueBatchMessage {
-                path_segments: received.path_segments.as_slice(),
-                payload: &received.payload,
-                source_description: Some(received.source_description.as_str()),
-            }),
-            ReceivedValueBatchOptions {
-                auto_add: base.auto_add_enabled(),
-                event_behaviour: ParameterEventBehaviour::Coalesce,
-            },
-        );
-        base.mark_internal_param_changes(result.updated_params);
-
-        for message in &messages {
-            base.emit_osc_message_received_callback(ctx, message);
-        }
-    }
-}
-
-struct OscReceivedValue {
-    path_segments: Vec<String>,
-    payload: ReceivedValuePayload,
-    source_description: String,
-}
-
-fn received_value_for_message(message: &OscDecodedMessage) -> Option<OscReceivedValue> {
-    let payload = match &message.payload {
-        OscValuePayload::Single(value) => ReceivedValuePayload::Single(value.clone()),
-        OscValuePayload::Multi(values) => ReceivedValuePayload::Multi(values.clone()),
-        OscValuePayload::Arguments(_) => return None,
-    };
-    Some(OscReceivedValue {
-        path_segments: address_segments(message.address.as_str()),
-        payload,
-        source_description: format!("OSC address '{}'", message.address),
-    })
-}
-
-fn address_segments(address: &str) -> Vec<String> {
-    address
-        .split('/')
-        .map(str::trim)
-        .filter(|segment| !segment.is_empty())
-        .map(str::to_string)
-        .collect()
 }
 
 #[golden_core::item(
@@ -141,17 +52,6 @@ impl Node for GenericOscModule {
 
     fn update(&mut self, ctx: &mut ProcessCtx) {
         self.base.update(ctx);
-
-        if !self.base.has_pending_incoming_messages() {
-            return;
-        }
-
-        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
-            return;
-        };
-        let snapshot = snapshot_arc.as_ref();
-
-        Self::process_pending_incoming(&mut self.base, ctx, snapshot);
     }
 
     fn destroy(&mut self, ctx: &mut ProcessCtx) {

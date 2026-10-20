@@ -1,10 +1,11 @@
 use super::super::osc_message::decode_packet_messages;
+use super::super::{osc_input::InputMode, osc_input_queue::InputQueue};
 use super::*;
 use crate::app::module::common::streaming::native_replies::{NativeReplies, NativeReply};
 use golden_io::{PendingDrainState, WorkerContext};
 use mio::{net::UdpSocket, Events, Interest, Poll, Token};
 use rosc::decoder;
-use std::{collections::VecDeque, io, time::Duration};
+use std::{io, time::Duration};
 
 const SOCKET_TOKEN: Token = Token(0);
 const WAKE_TOKEN: Token = Token(1);
@@ -109,6 +110,7 @@ pub(super) fn run<S: OscSocket>(
     config: OscTransportConfig,
     wake: NativeWake,
     ready: Arc<AtomicBool>,
+    input: InputMode,
     setup: impl FnOnce(&OscTransportConfig, &NativeWake) -> Result<S, String>,
 ) {
     let _wake_guard = WakeGuard(wake.clone());
@@ -126,11 +128,18 @@ pub(super) fn run<S: OscSocket>(
     if context.cancellation().is_cancelled() {
         return;
     }
+    let incoming = match InputQueue::new(input) {
+        Ok(incoming) => incoming,
+        Err(error) => {
+            fail_commands(&context, error);
+            return;
+        }
+    };
     ready.store(true, Ordering::Release);
     if !publish(&context, OscWorkerEvent::Ready(socket.address())) {
         return;
     }
-    if let Err(error) = service(&context, &mut socket, config.receive_enabled, &wake) {
+    if let Err(error) = service(&context, &mut socket, config.receive_enabled, &wake, incoming, &ready) {
         ready.store(false, Ordering::Release);
         fail_commands(&context, error);
     }
@@ -167,9 +176,10 @@ fn service<S: OscSocket>(
     socket: &mut S,
     receive_enabled: bool,
     wake: &NativeWake,
+    mut incoming: InputQueue,
+    ready: &AtomicBool,
 ) -> Result<(), String> {
     let mut replies = NativeReplies::<OscWorkerEvent>::default();
-    let mut incoming = VecDeque::new();
     let mut current: Option<super::super::osc_outbound_work::Current> = None;
     let mut buffer = [0u8; 65_535];
     loop {
@@ -240,17 +250,15 @@ fn service<S: OscSocket>(
                                 .map_err(|error| format!("failed to decode OSC packet: {error}"))
                         });
                         match decoded {
-                            Ok(messages) => incoming.extend(messages.into_iter().map(|message| match message {
-                                Ok(message) => OscWorkerEvent::Message(message),
-                                Err(error) => OscWorkerEvent::Error(error),
-                            })),
-                            Err(error) => incoming.push_back(OscWorkerEvent::Error(error)),
+                            Ok(messages) => incoming.push(messages),
+                            Err(error) => incoming.push(vec![Err(error)]),
                         }
                     }
                     Err(error) if error.kind() == io::ErrorKind::WouldBlock || should_ignore_receive_error(&error) => {
                         break
                     }
                     Err(error) => {
+                        ready.store(false, Ordering::Release);
                         context.close_command_admission();
                         finish_input_prefix(context, replies, incoming);
                         if let Some(work) = current {
@@ -260,11 +268,13 @@ fn service<S: OscSocket>(
                     }
                 }
             }
-            if let Some(event) = incoming.pop_front() {
+            if let Some(event) = incoming.next() {
                 worked = true;
                 if !replies.offer(context, Source::Input, event) {
                     return Ok(());
                 }
+            } else {
+                break;
             }
         }
         if closed && current.is_none() && incoming.is_empty() {
@@ -289,6 +299,7 @@ fn service<S: OscSocket>(
                 Ok(()) => {}
                 Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
                 Err(error) => {
+                    ready.store(false, Ordering::Release);
                     context.close_command_admission();
                     finish_input_prefix(context, replies, incoming);
                     if let Some(work) = current {
@@ -310,13 +321,17 @@ fn service<S: OscSocket>(
 fn finish_input_prefix(
     context: &WorkerContext<OscWorkerCommand, OscWorkerEvent>,
     replies: NativeReplies<OscWorkerEvent>,
-    incoming: VecDeque<OscWorkerEvent>,
+    mut incoming: InputQueue,
 ) {
     if !replies.finish(context) {
         return;
     }
-    for event in incoming {
-        if !publish(context, event) {
+    while !incoming.is_empty() {
+        if let Some(event) = incoming.next() {
+            if !publish(context, event) {
+                return;
+            }
+        } else if context.cancellation().wait(FALLBACK_WAIT) {
             return;
         }
     }

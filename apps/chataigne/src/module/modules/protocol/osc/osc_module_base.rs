@@ -1,10 +1,15 @@
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     sync::Arc,
     time::{Duration, Instant},
 };
 
+mod osc_input;
+mod osc_input_delivery;
+mod osc_input_queue;
 mod osc_message;
+use osc_input::InputPlan;
+use osc_input_delivery::InputDelivery;
 mod osc_outbound;
 mod osc_outbound_work;
 pub(crate) use osc_outbound::{
@@ -30,7 +35,7 @@ use golden_io::PendingDrainState;
 use self::osc_runtime::{OscTransportConfig, OscTransportHandle, OscWorkerEvent};
 use crate::app::module::ModuleDataCapabilities;
 
-pub(crate) use self::osc_message::{OscDecodedMessage, OscValuePayload};
+use self::osc_message::OscValuePayload;
 
 const NETWORK_INTERFACE_WARNING_ID: &str = "network_interface_options";
 const OSC_RECEIVER_WARNING_ID: &str = "receiver_transport";
@@ -38,7 +43,6 @@ const OSC_INTERFACE_REFRESH_INTERVAL_SECS: f64 = 1.0;
 const OSC_MODULE_UPDATE_RATE_HZ: u32 = 120;
 const OSC_COMPILED_KERNEL: &str = "chataigne.runtime.osc";
 const OSC_MODULE_COMMAND_TYPES: &[&str] = &[crate::app::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE];
-const OSC_MESSAGE_RECEIVED_CALLBACK: &str = "messageReceived";
 const OSC_SCRIPT_METHODS: &[&str] = &["sendMessage", "sendOSC", "sendOsc"];
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -92,10 +96,10 @@ pub struct OscModuleBase {
     transport_ready: bool,
     last_transport_config: Option<OscTransportConfig>,
     transport_dirty: bool,
-    ignored_param_changes: HashSet<NodeId>,
+    ignored_param_changes: HashMap<NodeId, usize>,
     pending_outbound_nodes: HashSet<NodeId>,
     outbound_retry_at: Option<Instant>,
-    pending_incoming_messages: Vec<OscDecodedMessage>,
+    incoming: Option<InputDelivery>,
 }
 
 impl OscModuleBase {
@@ -109,39 +113,21 @@ impl OscModuleBase {
             false,
             None,
             true,
-            HashSet::new(),
+            HashMap::new(),
             HashSet::new(),
             None,
-            Vec::new(),
+            None,
         )
     }
 
-    pub(crate) fn enqueue_incoming_message(&mut self, message: OscDecodedMessage) {
-        self.log_incoming_message(&message);
-        self.pending_incoming_messages.push(message);
-    }
-
-    pub(crate) fn take_pending_incoming_messages(&mut self) -> Vec<OscDecodedMessage> {
-        std::mem::take(&mut self.pending_incoming_messages)
-    }
-
-    pub(crate) fn mark_internal_param_changes<I>(&mut self, params: I)
-    where
-        I: IntoIterator<Item = NodeId>,
-    {
-        self.ignored_param_changes.extend(params);
-    }
-
+    #[cfg(test)]
     pub(crate) fn has_pending_incoming_messages(&self) -> bool {
-        !self.pending_incoming_messages.is_empty()
+        self.incoming.is_some()
     }
 
+    #[cfg(test)]
     pub(crate) fn auto_add_enabled(&self) -> bool {
         self.auto_add.get()
-    }
-
-    pub(crate) fn values_id(&self) -> Option<NodeId> {
-        self.base.values_id()
     }
 
     pub(crate) fn stop_transport(&mut self) {
@@ -150,6 +136,8 @@ impl OscModuleBase {
             transport.stop();
         }
         self.retry_at = None;
+        self.incoming = None;
+        self.ignored_param_changes.clear();
     }
 
     fn retire_transport(&mut self) {
@@ -249,7 +237,10 @@ impl OscModuleBase {
                     return;
                 }
 
-                match OscTransportHandle::spawn(config.clone()) {
+                match OscTransportHandle::spawn(
+                    config.clone(),
+                    InputPlan::new(self.id(), self.base.log_incoming_enabled()),
+                ) {
                     Ok(handle) => {
                         self.transport = Some(handle);
                         self.last_transport_config = Some(config);
@@ -317,7 +308,16 @@ impl OscModuleBase {
     }
 
     fn drain_transport_events(&mut self, ctx: &mut ProcessCtx) {
-        let mut worker_events = Vec::new();
+        if let Some(transport) = &self.transport {
+            transport.log_incoming(self.base.log_incoming_enabled());
+            if self.transport_ready && !transport.is_ready() {
+                self.base.set_connected(ctx, false);
+            }
+        }
+        if self.incoming.is_some() {
+            return;
+        }
+        let mut worker_events = Vec::with_capacity(1);
         let retiring = self.transport.is_none();
         let transport = if retiring {
             self.retiring_transport.as_ref()
@@ -325,9 +325,11 @@ impl OscModuleBase {
             self.transport.as_ref()
         };
         let Some(transport) = transport else { return };
-        let disconnected = transport.drain_events(&mut worker_events).state == PendingDrainState::Disconnected;
-        let mut received_message = false;
-        for event in worker_events {
+        let mut disconnected = false;
+        for _ in 0..osc_runtime::OSC_EVENT_DRAIN_BUDGET.get() {
+            let turn = transport.drain_event(&mut worker_events);
+            disconnected = turn.state == PendingDrainState::Disconnected;
+            let Some(event) = worker_events.pop() else { break };
             match event {
                 OscWorkerEvent::Ready(address) => {
                     if !retiring {
@@ -343,10 +345,16 @@ impl OscModuleBase {
                         }
                     }
                 }
-                OscWorkerEvent::Message(message) => {
-                    received_message = true;
-                    self.enqueue_incoming_message(message);
+                OscWorkerEvent::Input(input) => {
+                    if let Some(log) = &input.log {
+                        golden_core::log!(origin = self.id(); log);
+                    }
+                    self.base.emit_incoming_traffic(ctx);
+                    self.incoming = Some(InputDelivery::new(input));
+                    break;
                 }
+                #[cfg(test)]
+                OscWorkerEvent::Message(_) => unreachable!("module input is worker-prepared"),
                 OscWorkerEvent::Sent(log) => {
                     self.base.emit_outgoing_traffic(ctx);
                     if let Some(message) = log {
@@ -364,10 +372,7 @@ impl OscModuleBase {
                 }
             }
         }
-        if received_message {
-            self.base.emit_incoming_traffic(ctx);
-        }
-        if disconnected {
+        if disconnected && self.incoming.is_none() {
             if retiring {
                 self.retiring_transport = None;
                 self.transport_dirty = true;
@@ -428,37 +433,10 @@ impl OscModuleBase {
         self.transport.as_ref().ok_or(QueueError::Closed)?.enqueue(request)
     }
 
-    fn log_incoming_message(&self, message: &OscDecodedMessage) {
-        if !self.base.log_incoming_enabled() {
-            return;
-        }
-
-        golden_core::log!(
-            origin = self.id();
-            format!("Received OSC {} -> {}", message.address, format_osc_payload(&message.payload))
-        );
-    }
-
     fn log_receiver_bound(&self, bind_host: &str, bind_port: u16) {
         golden_core::logsuccess!(
             origin = self.id();
             format!("Now receiving OSC on {}:{}", bind_host, bind_port)
-        );
-    }
-
-    pub(crate) fn emit_osc_message_received_callback(&self, ctx: &mut ProcessCtx, message: &OscDecodedMessage) {
-        crate::app::module::script_api::emit_script_callback(
-            ctx,
-            self.id(),
-            OSC_MESSAGE_RECEIVED_CALLBACK,
-            vec![
-                serde_json::json!(message.address.as_str()),
-                osc_payload_script_arg(&message.payload),
-                serde_json::json!({
-                    "address": message.address.as_str(),
-                    "payload": osc_payload_script_arg(&message.payload),
-                }),
-            ],
         );
     }
 
@@ -488,7 +466,11 @@ impl OscModuleBase {
     }
 
     fn on_param_change_inner(&mut self, ctx: &mut ProcessCtx, param: NodeId) {
-        if self.ignored_param_changes.remove(&param) {
+        if let Some(count) = self.ignored_param_changes.get_mut(&param) {
+            *count -= 1;
+            if *count == 0 {
+                self.ignored_param_changes.remove(&param);
+            }
             return;
         }
 
@@ -604,15 +586,6 @@ impl OscModuleBase {
     }
 }
 
-fn osc_payload_script_arg(payload: &OscValuePayload) -> serde_json::Value {
-    match payload {
-        OscValuePayload::Single(value) => value.to_script_json(),
-        OscValuePayload::Multi(values) | OscValuePayload::Arguments(values) => {
-            crate::app::module::script_api::param_values_arg(values.as_slice())
-        }
-    }
-}
-
 #[node("osc_module_base", via = base, from_struct)]
 impl Node for OscModuleBase {
     fn init(&mut self, ctx: &mut ProcessCtx) {
@@ -638,6 +611,19 @@ impl Node for OscModuleBase {
 
     fn update(&mut self, ctx: &mut ProcessCtx) {
         self.drain_transport_events(ctx);
+        if let Some(delivery) = self.incoming.as_mut() {
+            let snapshot = ctx.tree_snapshot_arc();
+            if delivery.service(
+                ctx,
+                snapshot.as_deref(),
+                self.base.values_id(),
+                self.auto_add.get(),
+                &mut self.ignored_param_changes,
+            ) {
+                self.incoming = None;
+                self.ignored_param_changes.clear();
+            }
+        }
         self.interface_refresh_elapsed += ctx.delta_time.as_secs_f64();
 
         let refresh_interface_options = self.interface_refresh_due();
@@ -670,7 +656,7 @@ impl Node for OscModuleBase {
 
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {
         self.stop_transport();
-        self.pending_incoming_messages.clear();
+        self.incoming = None;
         self.pending_outbound_nodes.clear();
         self.outbound_retry_at = None;
         self.ignored_param_changes.clear();
@@ -683,7 +669,7 @@ impl Node for OscModuleBase {
                 .as_ref()
                 .is_some_and(|transport| transport.has_pending())
             || (!self.pending_outbound_nodes.is_empty() && self.outbound_retry_at.is_none_or(|at| Instant::now() >= at))
-            || !self.pending_incoming_messages.is_empty()
+            || self.incoming.is_some()
             || self.transport.as_ref().is_some_and(|t| t.has_pending())
             || self.interface_refresh_elapsed >= OSC_INTERFACE_REFRESH_INTERVAL_SECS
     }
@@ -701,7 +687,7 @@ impl Node for OscModuleBase {
                 .as_ref()
                 .is_some_and(|transport| transport.has_pending())
             || (!self.pending_outbound_nodes.is_empty() && self.outbound_retry_at.is_none_or(|at| Instant::now() >= at))
-            || !self.pending_incoming_messages.is_empty()
+            || self.incoming.as_ref().is_some_and(InputDelivery::requires_snapshot)
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
