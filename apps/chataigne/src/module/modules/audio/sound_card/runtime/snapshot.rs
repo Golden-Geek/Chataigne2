@@ -84,6 +84,7 @@ pub(super) fn configuration_error(node: NodeId, message: impl Into<String>) -> C
     ConfigurationError {
         node,
         message: message.into(),
+        retryable: false,
     }
 }
 

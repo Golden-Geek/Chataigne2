@@ -329,7 +329,27 @@ impl SoundCardModule {
         }
     }
 
-    pub(super) fn refresh_configuration(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
+    pub(super) fn refresh_configuration(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        snapshot: &std::sync::Arc<ProcessTreeSnapshot>,
+    ) {
+        if self
+            .runtime
+            .as_ref()
+            .is_some_and(runtime::SoundCardRuntime::is_applying_configuration)
+        {
+            return;
+        }
+        let module = self.id();
+        if self
+            .runtime
+            .as_mut()
+            .is_some_and(|runtime| runtime.has_current_preparation(snapshot, module))
+        {
+            self.service_configuration_preparation(ctx, snapshot);
+            return;
+        }
         if self.reset_routes_for_device_selection(ctx, snapshot) {
             self.configuration_dirty = true;
             return;
@@ -367,7 +387,6 @@ impl SoundCardModule {
             return;
         }
         let inspector = runtime.inspector_state();
-        let runtime_sample_rate = runtime.sample_rate();
         if runtime::probe_targets_are_pending(&inspector, probe_targets.as_slice()) {
             let _ = runtime.set_enabled(false);
             self.configuration_dirty = false;
@@ -391,9 +410,31 @@ impl SoundCardModule {
             self.configuration_dirty = true;
             return;
         }
-        match runtime::build_configuration(snapshot, self.id(), &inspector) {
-            Ok(built) => {
+        self.service_configuration_preparation(ctx, snapshot);
+    }
+
+    fn service_configuration_preparation(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        snapshot: &std::sync::Arc<ProcessTreeSnapshot>,
+    ) {
+        let runtime_sample_rate = self.runtime.as_ref().expect("live configuration runtime").sample_rate();
+        let Some(wake) = self.runtime_wake.clone() else {
+            return;
+        };
+        let module = self.id();
+        let prepared = self
+            .runtime
+            .as_mut()
+            .unwrap()
+            .prepare_configuration(snapshot, module, wake.clone());
+        match prepared {
+            Ok(None) => {}
+            Ok(Some(built)) => {
                 if built.sample_rate != runtime_sample_rate {
+                    if let Some(runtime) = self.runtime.as_mut() {
+                        runtime.cancel_preparation();
+                    }
                     if self.sample_rate.get_ref().0 == AUTOMATIC_CONFIGURATION {
                         self.automatic_sample_rate = Some(built.sample_rate);
                     }
@@ -409,14 +450,18 @@ impl SoundCardModule {
                     Ok(_) => {
                         let _ = runtime.set_enabled(module_enabled);
                         self.configuration_dirty = false;
-                        self.clear_runtime_error(ctx);
                     }
                     Err(error) => self.set_runtime_error(ctx, self.id(), error.as_str()),
                 }
             }
             Err(error) => {
                 if let Some(runtime) = self.runtime.as_mut() {
-                    let _ = runtime.set_enabled(false);
+                    if error.retryable {
+                        runtime.schedule_preparation_retry(&wake);
+                    } else {
+                        runtime.cancel_preparation();
+                        let _ = runtime.set_enabled(false);
+                    }
                 }
                 self.set_runtime_error(ctx, error.node, error.message.as_str());
                 self.configuration_dirty = false;
@@ -456,6 +501,19 @@ impl SoundCardModule {
             return;
         };
         let (observation, events) = runtime.poll(ctx, module, !had_pending);
+        if runtime.take_preparation_retry_due() {
+            self.configuration_dirty = true;
+        }
+        let feedback = runtime.take_configuration_feedback();
+        match feedback {
+            Some(runtime::ConfigurationFeedback::Applied) => self.clear_runtime_error(ctx),
+            Some(runtime::ConfigurationFeedback::Rejected(event)) => {
+                if let golden_audio::AudioEvent::ConfigurationRejected { error, .. } = &event.event {
+                    self.set_runtime_error(ctx, self.id(), &error.message);
+                }
+            }
+            None => {}
+        }
         self.service_observation_warning(ctx, observation.error);
         if observation.error.is_none()
             && selected_parameter_ids

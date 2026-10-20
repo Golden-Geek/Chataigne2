@@ -9,7 +9,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .ok_or("audio event receiver was already taken")?;
     engine.control().submit(AudioCommand::ApplyConfiguration {
         generation: ConfigGeneration::new(1),
-        config: Box::new(AudioConfiguration::empty()),
+        config: std::sync::Arc::new(AudioConfiguration::empty()),
     })?;
 
     let mut clock = OfflineClock::new(SampleRate::new(48_000)?)?;

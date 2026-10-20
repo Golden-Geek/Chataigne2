@@ -270,6 +270,10 @@ impl SoundCardRuntimeEvents {
         self.reader.inspect(|snapshot| snapshot.device.clone())
     }
 
+    pub(super) fn configuration_reader(&self) -> golden_io::RetainedPayload<golden_audio::AudioObservationReader> {
+        self.reader.clone()
+    }
+
     pub(super) fn set_refresh_rate_hz(&self, refresh_rate_hz: u32) {
         self.refresh_rate_hz
             .store(super::bounded_levels_update_rate_hz(refresh_rate_hz), Ordering::Release);

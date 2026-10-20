@@ -17,7 +17,7 @@ fn external_consumer_can_use_backend_neutral_surface() {
     control
         .submit(AudioCommand::ApplyConfiguration {
             generation: ConfigGeneration::new(1),
-            config: Box::new(AudioConfiguration::empty()),
+            config: std::sync::Arc::new(AudioConfiguration::empty()),
         })
         .unwrap();
 

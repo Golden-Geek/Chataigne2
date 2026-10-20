@@ -50,7 +50,7 @@ fn pressured_bridge() -> PressureFixture {
         control
             .submit(golden_audio::AudioCommand::ApplyConfiguration {
                 generation,
-                config: Box::default(),
+                config: std::sync::Arc::default(),
             })
             .unwrap();
         generations.push(generation);

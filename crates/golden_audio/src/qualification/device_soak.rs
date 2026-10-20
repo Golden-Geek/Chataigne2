@@ -253,7 +253,7 @@ pub fn run_managed_device_soak_with_progress(
     };
     control.submit(AudioCommand::ApplyConfiguration {
         generation,
-        config: Box::new(configuration),
+        config: std::sync::Arc::new(configuration),
     })?;
 
     let wall_start = Instant::now();

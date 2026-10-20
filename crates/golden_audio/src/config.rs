@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
+mod storage;
 
 use crate::{
     AnalysisProcessorConfiguration, AnalysisTapId, AudioBufferPolicy, AudioChannelId, AudioDeviceSelection, AudioError,

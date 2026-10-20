@@ -1,47 +1,9 @@
 use std::mem::size_of;
 
 use super::AudioObservationSnapshot;
-use crate::{
-    AnalysisResult, AudioBackendStatus, AudioDeviceDescriptor, AudioDeviceFingerprint, AudioDeviceInspectorState,
-    AudioDeviceTargetId, AudioStreamStatus,
-};
+use crate::{AnalysisResult, AudioBackendStatus, AudioDeviceDescriptor, AudioDeviceInspectorState, AudioStreamStatus};
 
-struct Budget {
-    bytes: usize,
-    maximum: usize,
-    items: usize,
-}
-
-impl Budget {
-    fn add(&mut self, bytes: usize) -> Option<()> {
-        self.bytes = self.bytes.checked_add(bytes)?;
-        (self.bytes <= self.maximum).then_some(())
-    }
-
-    fn items(&mut self, count: usize) -> Option<()> {
-        self.items = self.items.checked_sub(count)?;
-        Some(())
-    }
-
-    fn vector<T>(&mut self, values: &Vec<T>) -> Option<()> {
-        self.items(values.len())?;
-        self.add(values.capacity().checked_mul(size_of::<T>())?)
-    }
-
-    fn optional(&mut self, value: &Option<String>) -> Option<()> {
-        self.add(value.as_ref().map_or(0, String::capacity))
-    }
-
-    fn target(&mut self, target: &AudioDeviceTargetId) -> Option<()> {
-        match target {
-            AudioDeviceTargetId::SystemDefault { backend } => self.add(backend.retained_heap_bytes()),
-            AudioDeviceTargetId::Device { backend, device } => {
-                self.add(backend.retained_heap_bytes())?;
-                self.add(device.retained_heap_bytes())
-            }
-        }
-    }
-}
+use crate::storage::Budget;
 
 impl AudioObservationSnapshot {
     /// Conservative owned storage, including spare capacities. Returns `None`
@@ -106,6 +68,22 @@ impl AudioObservationSnapshot {
     }
 }
 
+impl AudioDeviceInspectorState {
+    /// Bounded device metadata inspection independent of metering storage.
+    #[must_use]
+    pub fn retained_bytes_within(&self, maximum_bytes: usize, maximum_items: usize) -> Option<usize> {
+        let mut budget = Budget {
+            bytes: 0,
+            maximum: maximum_bytes,
+            items: maximum_items,
+        };
+        budget.items(1)?;
+        budget.add(size_of::<Self>())?;
+        inspector(&mut budget, self)?;
+        Some(budget.bytes)
+    }
+}
+
 fn inspector(budget: &mut Budget, state: &AudioDeviceInspectorState) -> Option<()> {
     let AudioDeviceInspectorState {
         discovery_in_progress: _,
@@ -160,25 +138,7 @@ fn device(budget: &mut Budget, device: &AudioDeviceDescriptor) -> Option<()> {
     budget.target(target)?;
     budget.add(label.capacity())?;
     budget.add(profile_key.retained_heap_bytes())?;
-    let AudioDeviceFingerprint {
-        vendor,
-        product,
-        serial,
-        transport,
-        backend_path,
-        input_channels: _,
-        output_channels: _,
-        properties,
-    } = fingerprint;
-    for value in [vendor, product, serial, transport, backend_path] {
-        budget.optional(value)?;
-    }
-    budget.items(properties.len())?;
-    budget.add(properties.len().checked_add(1)?.checked_mul(1024)?)?;
-    for (key, value) in properties {
-        budget.add(key.capacity())?;
-        budget.add(value.capacity())?;
-    }
+    budget.fingerprint(fingerprint)?;
     for channels in [input_channels, output_channels] {
         budget.vector(channels)?;
         for channel in channels {

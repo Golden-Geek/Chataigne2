@@ -15,7 +15,7 @@ fn engine_applies_configuration_and_shuts_down_twice() {
     control
         .submit(AudioCommand::ApplyConfiguration {
             generation,
-            config: Box::new(AudioConfiguration::empty()),
+            config: std::sync::Arc::new(AudioConfiguration::empty()),
         })
         .unwrap();
 
@@ -46,7 +46,7 @@ fn invalid_generation_leaves_last_valid_observation_active() {
     control
         .submit(AudioCommand::ApplyConfiguration {
             generation: valid_generation,
-            config: Box::new(AudioConfiguration::empty()),
+            config: std::sync::Arc::new(AudioConfiguration::empty()),
         })
         .unwrap();
 
@@ -56,7 +56,7 @@ fn invalid_generation_leaves_last_valid_observation_active() {
     control
         .submit(AudioCommand::ApplyConfiguration {
             generation: invalid_generation,
-            config: Box::new(invalid),
+            config: std::sync::Arc::new(invalid),
         })
         .unwrap();
 
@@ -88,7 +88,7 @@ fn stale_configuration_generation_cannot_replace_the_newest_plan() {
     control
         .submit(AudioCommand::ApplyConfiguration {
             generation: newest,
-            config: Box::new(AudioConfiguration::empty()),
+            config: std::sync::Arc::new(AudioConfiguration::empty()),
         })
         .unwrap();
 
@@ -105,7 +105,7 @@ fn stale_configuration_generation_cannot_replace_the_newest_plan() {
     control
         .submit(AudioCommand::ApplyConfiguration {
             generation: stale,
-            config: Box::new(AudioConfiguration::empty()),
+            config: std::sync::Arc::new(AudioConfiguration::empty()),
         })
         .unwrap();
     loop {
@@ -164,7 +164,7 @@ fn applied_configuration_drives_null_device_readiness_and_channel_observations()
         .control()
         .submit(AudioCommand::ApplyConfiguration {
             generation,
-            config: Box::new(configuration.clone()),
+            config: std::sync::Arc::new(configuration.clone()),
         })
         .unwrap();
 
@@ -214,7 +214,7 @@ fn applied_configuration_drives_null_device_readiness_and_channel_observations()
         .control()
         .submit(AudioCommand::ApplyConfiguration {
             generation: reapplied,
-            config: Box::new(configuration),
+            config: std::sync::Arc::new(configuration),
         })
         .unwrap();
     let mut reapplied_statuses = Vec::new();
@@ -253,7 +253,7 @@ fn gain_commands_are_processed_without_recompiling_configuration() {
     control
         .submit(AudioCommand::ApplyConfiguration {
             generation,
-            config: Box::new(configuration),
+            config: std::sync::Arc::new(configuration),
         })
         .unwrap();
     loop {

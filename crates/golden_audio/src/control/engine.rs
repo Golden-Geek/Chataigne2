@@ -465,7 +465,7 @@ fn run_control_worker(mut command_receiver: Consumer<CommandEnvelope>, worker: C
                         managed_render_runtime: managed_render_runtime.as_mut(),
                     },
                     generation,
-                    *config,
+                    Arc::unwrap_or_clone(config),
                 );
             }
             AudioCommand::SetEnabled(enabled) => {

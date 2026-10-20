@@ -360,7 +360,11 @@ The native owner also prepares telemetry JSON and tracks active voices. The acto
 payloads with an application receipt and projects values through a bounded cursor; its value cache
 advances only after each edit applies. The inspection closure must not block or reenter the reader.
 Capture/telemetry overload has a separate visible warning and leaves control admission independent.
-See [host ownership](hosts.md) for budgets and the remaining configuration/logger/fence boundaries.
+App-owned configuration conversion runs on a bounded preparation worker. Immutable prepared plans
+retain snapshot and output storage admission through retries and final disposal. Bindings promote
+only after a matching native configuration acknowledgement; rejected replacements preserve the
+previous bindings. See [host ownership](hosts.md) for budgets and the remaining probe, structure,
+warning, logger and fence boundaries.
 Missing explicit device selections remain persisted; unresolved local routes remain authored and
 receive visible warnings so removal and undo stay atomic.
 

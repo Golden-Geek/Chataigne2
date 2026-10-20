@@ -35,3 +35,48 @@ fn dropping_the_last_producer_is_visible_to_the_worker() {
     drop(clone);
     assert!(consumer.is_abandoned());
 }
+
+#[test]
+fn full_command_admission_can_retry_the_same_immutable_configuration_without_copying() {
+    use std::sync::Arc;
+    let (producer, mut consumer, _) = command_queue(1, QueuePressureCounters::default());
+    producer
+        .try_push(CommandEnvelope {
+            sequence: CommandSequence::FIRST,
+            command: AudioCommand::SetEnabled(true),
+        })
+        .unwrap();
+    let config = Arc::new(crate::AudioConfiguration::empty());
+    let pointer = Arc::as_ptr(&config);
+    let weak = Arc::downgrade(&config);
+    let rejected = producer
+        .try_push(CommandEnvelope {
+            sequence: CommandSequence::new(2).unwrap(),
+            command: AudioCommand::ApplyConfiguration {
+                generation: crate::ConfigGeneration::new(1),
+                config: config.clone(),
+            },
+        })
+        .unwrap_err();
+    assert_eq!(rejected.category, AudioErrorCategory::QueueFull);
+    assert_eq!(Arc::as_ptr(&config), pointer);
+    assert_eq!(Arc::strong_count(&config), 1);
+    consumer.pop().unwrap();
+    producer
+        .try_push(CommandEnvelope {
+            sequence: CommandSequence::new(3).unwrap(),
+            command: AudioCommand::ApplyConfiguration {
+                generation: crate::ConfigGeneration::new(1),
+                config: config.clone(),
+            },
+        })
+        .unwrap();
+    drop(config);
+    let admitted = consumer.pop().unwrap();
+    let AudioCommand::ApplyConfiguration { config, .. } = admitted.command else {
+        panic!("configuration");
+    };
+    assert_eq!(Arc::as_ptr(&config), pointer);
+    drop(config);
+    assert!(weak.upgrade().is_none());
+}

@@ -45,7 +45,7 @@ impl SoundCardModule {
         }
         if self.runtime_matches_requested_sample_rate() {
             if let Some(snapshot) = ctx.tree_snapshot_arc() {
-                self.refresh_configuration(ctx, snapshot.as_ref());
+                self.refresh_configuration(ctx, &snapshot);
                 if self.configuration_dirty && !self.runtime_matches_requested_sample_rate() {
                     self.request_runtime_start(ctx);
                 }

@@ -498,7 +498,7 @@ remain transient; device/backend callbacks retain their ordinary replay policy.
 Selection checks cache their result by bound parameter and actual driver/selection values during
 receipt waits. The feedback phase closes before callback admission, so later selection changes
 cannot reopen feedback after a callback is queued. Selection parsing and the fence's control-value
-copies remain part of the configuration-preparation work below.
+copies remain actor-side work; the prepared configuration worker below does not replace that phase.
 
 Golden Audio prepares at most 1 MiB per event. String identities admit 64 KiB at construction and
 deserialization, and playback paths admit 128 KiB retained storage before command acceptance.
@@ -559,8 +559,34 @@ plan remains observable while a replacement configuration is pending or rejected
 strings admit 64 UTF-8 bytes before actor copying. Already admitted frames retain their lifetime
 through receipt settlement; disabling/retiring a facade can cancel these latest-value projections.
 
-Logger copies, configuration preparation/admission, and remaining reconfiguration/apply-time/failure
-fences remain P03 work. These ownership budgets do not qualify whole-process memory or actor deadlines.
+Sound Card configuration conversion lives in app-owned `runtime/configuration`. One shared native
+preparation worker accepts **16 queued requests**, with **32 live admission tickets** and one worker
+lifetime slot. Actor handoff retains a canonical whole-tree snapshot lease (the shared Core snapshot
+pool admits **384 allocations / 1 GiB**) and the opaque device reader; it does not copy the subtree.
+Before conversion, the worker limits the source to **131,072 nodes / 32 MiB of label and value text**,
+with individual text values limited to 1 MiB. This bounds construction input, while the canonical
+snapshot lease separately accounts for retained source storage. Device metadata admits **8 MiB /
+131,072 entries** independently of metering, so oversized analysis storage cannot block controls.
+The worker reserves **256 MiB** of conversion scratch before copying metadata or building the plan.
+Prepared plans admit **64 MiB each** through a shared **128-item / 1 GiB** lifetime pool, including
+configuration capacities, warning strings and binding maps. Diagnostics crossing back to the actor
+are compacted to 4 KiB on the worker. Final plan disposal stays off the actor.
+
+Preparation keys check the published connection, parameter and value subtree revisions, module UUID
+and effective enabled state before admission. They do not rely on delivery of change callbacks.
+Readonly value projection pauses while preparing or awaiting native application; telemetry and
+health service continue. Source changes cancel obsolete preparation. Full control admission keeps
+the ready plan and retries its immutable configuration Arc without copying it; the native control
+worker obtains its owned configuration. Temporary preparation capacity failures retry after 250 ms
+and preserve the current audio state. Invalid authored configurations still disable the runtime.
+Only a matching native `ConfigurationApplied` promotes bindings and resets the value-cache epoch;
+a matching rejection preserves the previous bindings. This is a control acknowledgement fence, not
+qualification of render-side ordering across configuration changes (P04).
+
+Probe/selection setup and raw inspector copies, derived structure/default-route seeding, enum
+choices, warning publication/cache retirement, logger copies and remaining reconfiguration,
+apply-time and failure fences remain P03 work. These budgets do not qualify whole-process memory
+or actor deadlines.
 
 ## Current qualification boundaries
 

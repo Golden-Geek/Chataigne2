@@ -22,6 +22,7 @@ pub mod playback;
 pub mod qualification;
 pub mod realtime;
 pub mod render;
+mod storage;
 
 #[cfg(feature = "analysis")]
 pub use analysis::{

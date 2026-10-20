@@ -58,7 +58,7 @@ const fn default_force_restart() -> bool {
 pub enum AudioCommand {
     ApplyConfiguration {
         generation: ConfigGeneration,
-        config: Box<AudioConfiguration>,
+        config: std::sync::Arc<AudioConfiguration>,
     },
     PlayFile(PlayFileRequest),
     StopFile {

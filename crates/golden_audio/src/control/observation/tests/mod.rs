@@ -104,3 +104,13 @@ fn device_fingerprints_and_physical_channels_charge_nested_capacity() {
     assert!(snapshot.retained_bytes_within(1024 * 1024, 2).is_none());
     assert!(snapshot.retained_bytes_within(1024 * 1024, 3).is_some());
 }
+
+#[test]
+fn device_metadata_admission_is_independent_of_large_metering_storage() {
+    let snapshot = AudioObservationSnapshot {
+        inputs: Vec::with_capacity(100_000),
+        ..Default::default()
+    };
+    assert!(snapshot.retained_bytes_within(4096, 100).is_none());
+    assert!(snapshot.device.retained_bytes_within(4096, 100).is_some());
+}

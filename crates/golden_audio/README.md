@@ -167,5 +167,12 @@ The authored configuration uses stable IDs. Chataigne or another application is 
 mapping its persistent domain identities into these types. Physical device indices are intentionally
 absent from the command and project-facing contract.
 
+`AudioCommand::ApplyConfiguration` accepts `Arc<AudioConfiguration>`. Producers can retain the
+immutable configuration across full-queue retries; the native control worker obtains ownership
+or clones it there. The serialized command shape is unchanged. `AudioConfiguration::retained_bytes_within`
+accounts for spare capacities and bounds collection traversal before external lifetime admission.
+`AudioDeviceInspectorState::retained_bytes_within` measures device metadata independently of
+metering/analysis storage, allowing configuration preparation to use a separate budget.
+
 See [Golden Audio Architecture](../../docs/architecture/golden-audio.md) for ownership, signal,
 clock, recovery, and callback-safety rules.

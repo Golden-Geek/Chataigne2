@@ -95,7 +95,7 @@ fn managed_runtime_drives_playback_and_the_backend_output_callback() {
         .control()
         .submit(AudioCommand::ApplyConfiguration {
             generation,
-            config: Box::new(configuration),
+            config: std::sync::Arc::new(configuration),
         })
         .unwrap();
     wait_event(
@@ -190,7 +190,7 @@ fn managed_streaming_continues_while_the_host_thread_is_stalled() {
         .control()
         .submit(AudioCommand::ApplyConfiguration {
             generation,
-            config: Box::new(configuration),
+            config: std::sync::Arc::new(configuration),
         })
         .unwrap();
     wait_event(
@@ -314,7 +314,7 @@ fn managed_runtime_bridges_backend_input_into_monitoring_and_metering() {
         .control()
         .submit(AudioCommand::ApplyConfiguration {
             generation,
-            config: Box::new(configuration),
+            config: std::sync::Arc::new(configuration),
         })
         .unwrap();
     wait_event(
@@ -369,7 +369,7 @@ fn managed_runtime_uses_null_clock_without_false_callback_xruns() {
         .control()
         .submit(AudioCommand::ApplyConfiguration {
             generation,
-            config: Box::new(configuration),
+            config: std::sync::Arc::new(configuration),
         })
         .unwrap();
     wait_event(
@@ -437,7 +437,7 @@ fn managed_runtime_reopens_a_callback_stream_after_runtime_invalidation() {
         .control()
         .submit(AudioCommand::ApplyConfiguration {
             generation,
-            config: Box::new(configuration),
+            config: std::sync::Arc::new(configuration),
         })
         .unwrap();
     wait_event(
