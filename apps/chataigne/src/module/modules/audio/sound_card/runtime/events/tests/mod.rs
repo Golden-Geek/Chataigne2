@@ -18,7 +18,7 @@ fn wait_for_pressure(bridge: &SoundCardRuntimeEvents) {
         );
         thread::sleep(Duration::from_millis(1));
     }
-    assert_eq!(bridge.pending.metrics().depth, EVENT_ITEMS);
+    assert!(bridge.pending.metrics().depth <= EVENT_ITEMS);
 }
 
 fn pressured_bridge() -> PressureFixture {
@@ -56,6 +56,85 @@ fn pressured_bridge() -> PressureFixture {
 }
 
 #[test]
+fn large_playback_occurrences_hit_byte_pressure_before_the_app_item_limit() {
+    let lifetimes = RetirementPool::new(NonZeroUsize::MIN);
+    let mut builder = golden_audio::AudioEngineBuilder::default()
+        .without_backends()
+        .with_backend(golden_audio::NullBackend)
+        .with_ordered_events();
+    builder.limits.event_queue_capacity = 1;
+    builder.limits.command_queue_capacity = 256;
+    let mut audio = builder.build().unwrap();
+    let control = audio.control();
+    let observations = audio.observations();
+    let events = audio.take_event_receiver().unwrap();
+    let bridge = SoundCardRuntimeEvents::spawn(audio, events, lifetimes.try_reserve().unwrap(), 60).unwrap();
+    let id = golden_audio::PlaybackId::new("p".repeat(golden_audio::PlaybackId::MAX_BYTES)).unwrap();
+    // An overlong single filename fails native file lookup; no fixture or physical
+    // audio endpoint is opened. Both ignored and failed outcomes retain the path.
+    let path = std::path::PathBuf::from("x".repeat(golden_audio::PlayFileRequest::MAX_PATH_BYTES));
+    for _ in 0..80 {
+        control
+            .submit(golden_audio::AudioCommand::PlayFile(
+                golden_audio::PlayFileRequest::new(path.clone(), id.clone()).with_force_restart(false),
+            ))
+            .unwrap();
+    }
+    wait_for_pressure(&bridge);
+    let metrics = bridge.pending.metrics();
+    assert!(
+        metrics.depth < EVENT_ITEMS,
+        "byte capacity must fill before 64 large occurrences"
+    );
+    assert!(metrics.retained_weight <= EVENT_BYTES);
+    assert_eq!(observations.latest().dropped_event_count, 0);
+    control.shutdown().unwrap();
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    let mut outcomes = 0;
+    let mut terminal = false;
+    while !bridge.is_disconnected() || bridge.has_pending() {
+        let events = bridge.drain();
+        assert!(events.len() <= EVENT_SERVICE_ITEMS);
+        for event in events {
+            match event {
+                AudioEvent::PlaybackFailed(failure) => {
+                    assert_eq!(failure.playback_id, id);
+                    assert_eq!(failure.path, path);
+                    outcomes += 1;
+                }
+                AudioEvent::PlaybackCommandIgnored(golden_audio::PlaybackCommandIgnored::PlayFileAlreadyActive {
+                    playback_id,
+                    path: reported,
+                    ..
+                }) => {
+                    assert_eq!(playback_id, id);
+                    assert_eq!(reported, path);
+                    outcomes += 1;
+                }
+                AudioEvent::PlaybackStopped(info) => {
+                    assert_eq!(info.playback_id, id);
+                    outcomes += 1;
+                }
+                AudioEvent::ShutdownComplete => terminal = true,
+                AudioEvent::PlaybackStarted(_) | AudioEvent::PlaybackFinished(_) => {
+                    panic!("invalid filename cannot produce playable audio")
+                }
+                _ => {}
+            }
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "large accepted occurrences must drain through shutdown"
+        );
+        thread::sleep(Duration::from_millis(1));
+    }
+    assert_eq!(outcomes, 80);
+    assert!(terminal);
+    assert_eq!(observations.latest().dropped_event_count, 0);
+    assert!(lifetimes.wait_for_idle(Duration::from_secs(3)));
+}
+
+#[test]
 fn pressure_preserves_every_configuration_completion_with_bounded_actor_service() {
     let PressureFixture {
         bridge,
@@ -65,6 +144,7 @@ fn pressure_preserves_every_configuration_completion_with_bounded_actor_service(
         generations,
     } = pressured_bridge();
     wait_for_pressure(&bridge);
+    assert_eq!(bridge.pending.metrics().depth, EVENT_ITEMS);
     control.shutdown().unwrap();
     let deadline = std::time::Instant::now() + Duration::from_secs(5);
     let mut applied = Vec::new();

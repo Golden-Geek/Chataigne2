@@ -16,6 +16,7 @@ use super::RuntimeWakeSender;
 
 type WakeSlot = Arc<Mutex<Option<RuntimeWakeSender>>>;
 pub(super) const EVENT_ITEMS: usize = 64;
+pub(super) const EVENT_BYTES: usize = 8 * 1024 * 1024;
 pub(super) const EVENT_SERVICE_ITEMS: usize = 8;
 
 #[derive(Default)]
@@ -110,7 +111,7 @@ impl SoundCardRuntimeEvents {
     where
         F: FnOnce(AudioEngine) + Send + 'static,
     {
-        let (pending_sender, pending) = bounded_pending_channel(EVENT_ITEMS, EVENT_ITEMS);
+        let (pending_sender, pending) = bounded_pending_channel(EVENT_ITEMS, EVENT_BYTES);
         let refresh_rate_hz = Arc::new(AtomicU32::new(super::bounded_levels_update_rate_hz(refresh_rate_hz)));
         let worker_refresh_rate_hz = refresh_rate_hz.clone();
         let capacity = Arc::new(Capacity::default());
@@ -139,12 +140,18 @@ impl SoundCardRuntimeEvents {
                         .recv_timeout(interval)
                     {
                         Ok(Some(mut event)) => {
+                            let weight = event.retained_bytes();
                             let mut guard = worker_capacity.lock.lock().unwrap_or_else(|p| p.into_inner());
                             loop {
                                 if worker_capacity.stopped.load(Ordering::Acquire) {
                                     return;
                                 }
-                                match owner.pending.as_ref().expect("live event sender").send(event) {
+                                match owner
+                                    .pending
+                                    .as_ref()
+                                    .expect("live event sender")
+                                    .send_weighted(event, weight)
+                                {
                                     Ok(()) => break,
                                     Err(PendingSendError::Disconnected(_)) => return,
                                     Err(PendingSendError::Full(returned)) => {

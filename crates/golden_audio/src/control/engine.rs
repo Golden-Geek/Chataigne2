@@ -25,7 +25,10 @@ use super::configuration::{ApplyConfigurationContext, apply_configuration, valid
 use super::device_runtime::DeviceRuntime;
 use super::ingress::{CommandEnvelope, CommandQueueProducer, command_queue};
 #[cfg(feature = "playback")]
-use super::playback::{PlaybackLifecycles, drain_playback_work, schedule_playback, stop_all_playback, stop_playback};
+use super::playback::{
+    PlaybackLifecycles, drain_playback_work, finish_playback_shutdown, schedule_playback, stop_all_playback,
+    stop_playback,
+};
 #[cfg(all(feature = "analysis", feature = "playback"))]
 use super::render_runtime::ManagedRenderRuntime;
 
@@ -47,6 +50,13 @@ impl AudioControl {
         }
         if self.state.load(Ordering::Acquire) != STATE_RUNNING {
             return Err(AudioError::shutting_down());
+        }
+        if let AudioCommand::PlayFile(request) = &command
+            && request.path.capacity() > super::PlayFileRequest::MAX_PATH_BYTES
+        {
+            return Err(AudioError::capacity_exceeded(
+                "playback path exceeds 128 KiB retained storage",
+            ));
         }
         let sequence = next_sequence(&self.next_sequence)?;
         self.sender.try_push(CommandEnvelope { sequence, command })?;
@@ -407,7 +417,7 @@ fn run_control_worker(mut command_receiver: Consumer<CommandEnvelope>, worker: C
     );
     let mut reported_command_pressure = 0;
     #[cfg(feature = "playback")]
-    let mut playback_lifecycle = PlaybackLifecycles::new();
+    let mut playback_lifecycle = PlaybackLifecycles::default();
     loop {
         #[cfg(all(feature = "analysis", feature = "playback"))]
         refresh_managed_render_observation(managed_render_runtime.as_mut(), &observation);
@@ -611,6 +621,14 @@ fn run_control_worker(mut command_receiver: Consumer<CommandEnvelope>, worker: C
     if let Some(runtime) = &mut managed_render_runtime {
         let _ = runtime.shutdown();
     }
+    #[cfg(feature = "playback")]
+    finish_playback_shutdown(
+        &event_sender,
+        &observation,
+        &mut playback_scheduler,
+        &mut playback_voice_controller,
+        &mut playback_lifecycle,
+    );
     publish_event(&event_sender, &observation, AudioEvent::ShutdownComplete);
     state.store(STATE_STOPPED, Ordering::Release);
 }

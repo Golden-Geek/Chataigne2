@@ -75,7 +75,26 @@ observation's dropped-event counter. Hosts requiring every active occurrence can
 capacity. Keep consuming events to allow control progress. For graceful completion, submit
 `AudioControl::shutdown()` and drain through EOF; `AudioEngine::shutdown()` and engine drop
 cancel publication before joining. Dropping the receiver also releases blocked publication.
-Cancellation preserves the already buffered prefix. Queue capacity counts items, not retained bytes.
+Cancellation preserves the already buffered prefix. Event admission obeys both the configured item
+limit and an **8 MiB retained-value budget**, with at most **1 MiB per prepared event**. Ordered
+publication waits for either kind of capacity; best-effort publication rejects the new event.
+`AudioEvent::retained_bytes()` charges inline values, owned string/path capacity and a conservative
+map-node allowance. Queue metadata/spare deque storage, producer preparation scratch, observations,
+consumer copies and media resources are separate from that value budget.
+
+Immutable string identities admit 64 KiB through constructors and deserialization; accepted values
+are compacted without changing their text. Playback paths admit 128 KiB of retained native path
+storage before command acceptance, including spare capacity. Accepted playback IDs and paths stay
+verbatim in lifecycle events. Diagnostic/display strings are limited to 4096 bytes (diagnostic codes
+and context keys: 256); contexts retain 16 entries with 1024-byte values. Truncation uses a visible
+suffix or context marker. Preparation and discarded diagnostic storage remain on the control worker.
+
+Graceful shutdown resolves remaining pending/playing registrations before `ShutdownComplete`.
+Voices awaiting render retirement remain tracked by their full voice generation, including across
+replacement of a playback ID. Already returned render outcomes are delivered first; remaining
+registrations receive `PlaybackStopped`, retaining an earlier stop reason or using `StopAll`.
+Fallback outcomes follow original start order. External hosts must quiesce their own callback
+renderer; the managed runtime stops its device/render paths before final lifecycle resolution.
 
 ## Playback ownership
 

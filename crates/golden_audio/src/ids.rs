@@ -64,12 +64,14 @@ macro_rules! uuid_id {
 
 macro_rules! string_id {
     ($name:ident, $kind:literal) => {
-        #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+        #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
         #[cfg_attr(feature = "codegen", derive(ts_rs::TS))]
         #[cfg_attr(feature = "codegen", ts(export))]
         pub struct $name(String);
 
         impl $name {
+            pub const MAX_BYTES: usize = 64 * 1024;
+
             pub fn new(value: impl Into<String>) -> Result<Self, InvalidIdentifier> {
                 let value = value.into();
                 let trimmed = value.trim();
@@ -79,14 +81,18 @@ macro_rules! string_id {
                 if trimmed != value {
                     return Err(InvalidIdentifier::SurroundingWhitespace { kind: $kind });
                 }
-                Ok(Self(value))
+                if value.len() > Self::MAX_BYTES {
+                    return Err(InvalidIdentifier::TooLong {
+                        kind: $kind,
+                        maximum: Self::MAX_BYTES,
+                    });
+                }
+                Ok(Self(value.into_boxed_str().into_string()))
             }
 
             #[must_use]
             pub fn from_static(value: &'static str) -> Self {
-                debug_assert!(!value.is_empty());
-                debug_assert_eq!(value, value.trim());
-                Self(value.to_owned())
+                Self::new(value).expect("static audio identifier must satisfy its bounds")
             }
 
             #[must_use]
@@ -94,9 +100,21 @@ macro_rules! string_id {
                 self.0.as_str()
             }
 
+            /// Heap storage retained by this immutable identity, excluding its inline value.
+            #[must_use]
+            pub fn retained_heap_bytes(&self) -> usize {
+                self.0.capacity()
+            }
+
             #[must_use]
             pub fn into_inner(self) -> String {
                 self.0
+            }
+        }
+
+        impl<'de> Deserialize<'de> for $name {
+            fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+                Self::new(String::deserialize(deserializer)?).map_err(serde::de::Error::custom)
             }
         }
 
@@ -224,6 +242,8 @@ pub enum InvalidIdentifier {
     Empty { kind: &'static str },
     #[error("{kind} identifier must not contain surrounding whitespace")]
     SurroundingWhitespace { kind: &'static str },
+    #[error("{kind} identifier exceeds {maximum} bytes")]
+    TooLong { kind: &'static str, maximum: usize },
     #[error("command sequence must be greater than zero")]
     ZeroSequence,
 }

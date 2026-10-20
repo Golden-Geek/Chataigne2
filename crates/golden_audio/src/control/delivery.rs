@@ -1,26 +1,36 @@
 use crate::{AudioError, AudioEvent};
 use std::{
-    sync::{
-        Arc, Condvar, Mutex,
-        mpsc::{self, Receiver, SyncSender, TryRecvError, TrySendError},
-    },
+    collections::VecDeque,
+    sync::{Arc, Condvar, Mutex},
     time::{Duration, Instant},
 };
 
+pub(crate) const EVENT_QUEUE_BYTES: usize = 8 * 1024 * 1024;
+pub(crate) const EVENT_PAYLOAD_BYTES: usize = 1024 * 1024;
+
+#[derive(Debug)]
+struct Entry {
+    event: AudioEvent,
+    weight: usize,
+}
+#[derive(Debug)]
+struct State {
+    queue: VecDeque<Entry>,
+    retained_bytes: usize,
+    senders: usize,
+    cancelled: bool,
+}
 #[derive(Debug)]
 struct Shared {
-    cancelled: Mutex<bool>,
+    state: Mutex<State>,
     changed: Condvar,
     ordered: bool,
+    item_capacity: usize,
+    byte_capacity: usize,
 }
 impl Shared {
-    fn signal(&self) {
-        let guard = self.cancelled.lock().unwrap_or_else(|p| p.into_inner());
-        drop(guard);
-        self.changed.notify_all();
-    }
     fn cancel(&self) {
-        *self.cancelled.lock().unwrap_or_else(|p| p.into_inner()) = true;
+        self.state.lock().unwrap_or_else(|p| p.into_inner()).cancelled = true;
         self.changed.notify_all();
     }
 }
@@ -36,43 +46,52 @@ impl EventCancellation {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub(super) struct EventSender {
-    sender: Option<SyncSender<AudioEvent>>,
     shared: Arc<Shared>,
 }
 impl EventSender {
-    /// Only the non-realtime control worker may wait for ordered event capacity.
+    /// Preparation and capacity waits belong to the non-realtime control worker.
     pub fn publish(&self, mut event: AudioEvent) -> bool {
-        let mut cancelled = self.shared.cancelled.lock().unwrap_or_else(|p| p.into_inner());
+        event.prepare_delivery();
+        let weight = event.retained_bytes();
+        if weight > EVENT_PAYLOAD_BYTES.min(self.shared.byte_capacity) {
+            return false;
+        }
+        let mut state = self.shared.state.lock().unwrap_or_else(|p| p.into_inner());
         loop {
-            if *cancelled {
-                drop(cancelled);
-                drop(event);
+            if state.cancelled {
+                drop(state);
                 return false;
             }
-            match self.sender.as_ref().expect("live audio event sender").try_send(event) {
-                Ok(()) => {
-                    self.shared.changed.notify_all();
-                    return true;
-                }
-                Err(TrySendError::Full(returned)) if self.shared.ordered => {
-                    event = returned;
-                    cancelled = self.shared.changed.wait(cancelled).unwrap_or_else(|p| p.into_inner());
-                }
-                Err(TrySendError::Full(event) | TrySendError::Disconnected(event)) => {
-                    drop(cancelled);
-                    drop(event);
-                    return false;
-                }
+            if state.queue.len() < self.shared.item_capacity
+                && weight <= self.shared.byte_capacity - state.retained_bytes
+            {
+                state.queue.push_back(Entry { event, weight });
+                state.retained_bytes += weight;
+                self.shared.changed.notify_all();
+                return true;
             }
+            if !self.shared.ordered {
+                drop(state);
+                return false;
+            }
+            state = self.shared.changed.wait(state).unwrap_or_else(|p| p.into_inner());
+        }
+    }
+}
+impl Clone for EventSender {
+    fn clone(&self) -> Self {
+        self.shared.state.lock().unwrap_or_else(|p| p.into_inner()).senders += 1;
+        Self {
+            shared: self.shared.clone(),
         }
     }
 }
 impl Drop for EventSender {
     fn drop(&mut self) {
-        drop(self.sender.take());
-        self.shared.signal();
+        self.shared.state.lock().unwrap_or_else(|p| p.into_inner()).senders -= 1;
+        self.shared.changed.notify_all();
     }
 }
 
@@ -80,7 +99,6 @@ impl Drop for EventSender {
 /// control progress; dropping the receiver cancels blocked event publication.
 #[derive(Debug)]
 pub struct AudioEventReceiver {
-    receiver: Receiver<AudioEvent>,
     shared: Arc<Shared>,
 }
 impl AudioEventReceiver {
@@ -89,13 +107,11 @@ impl AudioEventReceiver {
     }
     #[must_use]
     pub fn try_recv(&self) -> Option<AudioEvent> {
-        let guard = self.shared.cancelled.lock().unwrap_or_else(|p| p.into_inner());
-        let result = self.receiver.try_recv().ok();
-        drop(guard);
-        if result.is_some() {
-            self.shared.changed.notify_all();
-        }
-        result
+        let mut state = self.shared.state.lock().unwrap_or_else(|p| p.into_inner());
+        let entry = state.queue.pop_front()?;
+        state.retained_bytes -= entry.weight;
+        self.shared.changed.notify_all();
+        Some(entry.event)
     }
     #[must_use]
     pub fn drain(&self) -> Vec<AudioEvent> {
@@ -114,30 +130,29 @@ impl AudioEventReceiver {
     }
     fn receive(&self, timeout: Option<Duration>) -> Result<Option<AudioEvent>, AudioError> {
         let deadline = timeout.and_then(|timeout| Instant::now().checked_add(timeout));
-        let mut cancelled = self.shared.cancelled.lock().unwrap_or_else(|p| p.into_inner());
+        let mut state = self.shared.state.lock().unwrap_or_else(|p| p.into_inner());
         loop {
-            match self.receiver.try_recv() {
-                Ok(event) => {
-                    self.shared.changed.notify_all();
-                    return Ok(Some(event));
-                }
-                Err(TryRecvError::Disconnected) => return Err(AudioError::shutting_down()),
-                Err(TryRecvError::Empty) if *cancelled => return Err(AudioError::shutting_down()),
-                Err(TryRecvError::Empty) => {}
+            if let Some(entry) = state.queue.pop_front() {
+                state.retained_bytes -= entry.weight;
+                self.shared.changed.notify_all();
+                return Ok(Some(entry.event));
+            }
+            if state.senders == 0 || state.cancelled {
+                return Err(AudioError::shutting_down());
             }
             if let Some(deadline) = deadline {
                 let remaining = deadline.saturating_duration_since(Instant::now());
                 if remaining.is_zero() {
                     return Ok(None);
                 }
-                cancelled = self
+                state = self
                     .shared
                     .changed
-                    .wait_timeout(cancelled, remaining)
+                    .wait_timeout(state, remaining)
                     .unwrap_or_else(|p| p.into_inner())
                     .0;
             } else {
-                cancelled = self.shared.changed.wait(cancelled).unwrap_or_else(|p| p.into_inner());
+                state = self.shared.changed.wait(state).unwrap_or_else(|p| p.into_inner());
             }
         }
     }
@@ -149,20 +164,23 @@ impl Drop for AudioEventReceiver {
 }
 
 pub(super) fn event_channel(capacity: usize, ordered: bool) -> (EventSender, AudioEventReceiver) {
-    assert!(capacity > 0);
-    let (sender, receiver) = mpsc::sync_channel(capacity);
+    event_channel_with_bytes(capacity, ordered, EVENT_QUEUE_BYTES)
+}
+fn event_channel_with_bytes(capacity: usize, ordered: bool, bytes: usize) -> (EventSender, AudioEventReceiver) {
+    assert!(capacity > 0 && bytes > 0);
     let shared = Arc::new(Shared {
-        cancelled: Mutex::new(false),
+        state: Mutex::new(State {
+            queue: VecDeque::new(),
+            retained_bytes: 0,
+            senders: 1,
+            cancelled: false,
+        }),
         changed: Condvar::new(),
         ordered,
+        item_capacity: capacity,
+        byte_capacity: bytes,
     });
-    (
-        EventSender {
-            sender: Some(sender),
-            shared: shared.clone(),
-        },
-        AudioEventReceiver { receiver, shared },
-    )
+    (EventSender { shared: shared.clone() }, AudioEventReceiver { shared })
 }
 
 #[cfg(test)]

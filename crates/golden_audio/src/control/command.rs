@@ -16,6 +16,9 @@ pub struct PlayFileRequest {
 }
 
 impl PlayFileRequest {
+    /// Retained native path storage admitted before a playback command enters the queue.
+    pub const MAX_PATH_BYTES: usize = 128 * 1024;
+
     #[must_use]
     pub fn new(path: impl Into<PathBuf>, playback_id: PlaybackId) -> Self {
         Self {

@@ -438,8 +438,11 @@ startup identity so reselecting the same driver cannot strand it. A newer admitt
 can supersede idle before the worker exits; selection after exit uses the normal recovery path.
 Idle retirement does not consume a startup identity and remains admissible after identity exhaustion.
 
-Sound Card opts into `golden_audio` ordered event delivery. A full native event queue parks the
-non-realtime control worker; a full 64-item app mailbox parks its native bridge. Actor service
+Sound Card opts into `golden_audio` ordered event delivery. The native event queue has an 8 MiB
+retained-value budget in addition to its item limit; the app mailbox admits 64 events / 8 MiB.
+Admission uses `AudioEvent::retained_bytes`, including spare string/path capacity and conservative
+map storage. A full native queue parks the non-realtime control worker; a full app mailbox parks
+its native bridge. Actor service
 drains at most eight events and re-arms remaining work. Receiver drop or forced engine shutdown
 cancels upstream capacity waits; facade cancellation also wakes downstream capacity waits.
 Ordinary consumers retain Golden Audio's default best-effort delivery and dropped-event counter.
@@ -447,14 +450,26 @@ For graceful ordered shutdown, submit `AudioControl::shutdown` and drain concurr
 EOF. `AudioEngine::shutdown`/drop explicitly abandons further publication while preserving the
 buffered prefix, so an unread receiver cannot deadlock forced cleanup.
 
+Before `ShutdownComplete`, graceful audio shutdown resolves remaining playback registrations.
+Returned render outcomes are handled first; pending, active and already-stopping generations then
+receive one remaining terminal outcome. Retiring generations are tracked separately from the
+current playback ID, so replacement cannot erase an older requested-stop outcome. Native lifetime
+completion still waits for actual worker/resource cleanup after event publication.
+
 Disabled Sound Card nodes continue servicing admitted native events and pending enable/disable
 state without requesting tree snapshots or starting new resources. A full control queue retains
 the latest desired enable state for later admission. Startup workers suppress queued constructors
 and discard in-flight results while disabled, retaining their native-cleanup completion fence.
 
-Event retained-byte accounting, worker-side callback preparation/final payload disposal,
-configuration-preparation and admission bounds remain P03 work. Item limits
-and ordered delivery do not qualify whole-process memory or actor deadlines.
+Golden Audio prepares at most 1 MiB per event. String identities admit 64 KiB at construction and
+deserialization, and playback paths admit 128 KiB retained storage before command acceptance.
+Accepted playback identities and paths are preserved; diagnostic/display text uses marked limits.
+See the [audio event contract](../../crates/golden_audio/README.md#event-delivery) for those limits.
+One normalized in-flight event per publishing stage is additional to the queue budget.
+
+Worker-side callback/log preparation, final payload disposal, observation copies,
+configuration-preparation and admission bounds remain P03 work. Event value budgets and ordered
+delivery do not qualify whole-process memory or actor deadlines.
 
 ## Current qualification boundaries
 

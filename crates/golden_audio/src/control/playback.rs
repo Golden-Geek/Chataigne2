@@ -25,7 +25,16 @@ pub(super) enum PlaybackLifecycle {
     },
 }
 
-pub(super) type PlaybackLifecycles = HashMap<PlaybackId, PlaybackLifecycle>;
+#[derive(Default)]
+pub(super) struct PlaybackLifecycles {
+    current: HashMap<PlaybackId, PlaybackLifecycle>,
+    stopping: HashMap<crate::VoiceId, StoppingPlayback>,
+}
+
+struct StoppingPlayback {
+    sequence: CommandSequence,
+    info: PlaybackStopInfo,
+}
 
 pub(super) fn schedule_playback(
     event_sender: &EventSender,
@@ -36,7 +45,7 @@ pub(super) fn schedule_playback(
     sequence: CommandSequence,
     request: PlayFileRequest,
 ) {
-    if lifecycle.contains_key(&request.playback_id) {
+    if lifecycle.current.contains_key(&request.playback_id) {
         if !request.force_restart {
             publish_event(
                 event_sender,
@@ -66,7 +75,9 @@ pub(super) fn schedule_playback(
         request: request.clone(),
     }) {
         Ok(()) => {
-            lifecycle.insert(playback_id, PlaybackLifecycle::Pending { sequence });
+            lifecycle
+                .current
+                .insert(playback_id, PlaybackLifecycle::Pending { sequence });
         }
         Err(error) => publish_event(
             event_sender,
@@ -89,7 +100,7 @@ pub(super) fn stop_playback(
     playback_id: &PlaybackId,
     reason: PlaybackStopReason,
 ) -> bool {
-    let Some(current) = lifecycle.remove(playback_id) else {
+    let Some(current) = lifecycle.current.remove(playback_id) else {
         return false;
     };
     match current {
@@ -107,7 +118,7 @@ pub(super) fn stop_playback(
         }
         PlaybackLifecycle::Playing { sequence, info } => {
             if let Err(error) = voices.try_stop(info.voice, reason) {
-                lifecycle.insert(
+                lifecycle.current.insert(
                     playback_id.clone(),
                     PlaybackLifecycle::Playing {
                         sequence,
@@ -126,6 +137,17 @@ pub(super) fn stop_playback(
                 return true;
             }
             scheduler.stop(playback_id);
+            lifecycle.stopping.insert(
+                info.voice,
+                StoppingPlayback {
+                    sequence,
+                    info: PlaybackStopInfo {
+                        playback_id: playback_id.clone(),
+                        voice: Some(info.voice),
+                        reason,
+                    },
+                },
+            );
         }
     }
     true
@@ -139,14 +161,14 @@ pub(super) fn stop_all_playback(
     lifecycle: &mut PlaybackLifecycles,
     reason: PlaybackStopReason,
 ) -> bool {
-    if lifecycle.is_empty() {
+    if lifecycle.current.is_empty() {
         return false;
     }
     let render_stop = voices.try_stop_all(reason);
     if render_stop.is_ok() {
         scheduler.stop_all();
     }
-    let stopped = std::mem::take(lifecycle);
+    let stopped = std::mem::take(&mut lifecycle.current);
     let mut still_playing = HashMap::new();
     for (playback_id, current) in stopped {
         match current {
@@ -174,11 +196,23 @@ pub(super) fn stop_all_playback(
                         }),
                     );
                     still_playing.insert(playback_id, PlaybackLifecycle::Playing { sequence, info });
+                } else {
+                    lifecycle.stopping.insert(
+                        info.voice,
+                        StoppingPlayback {
+                            sequence,
+                            info: PlaybackStopInfo {
+                                playback_id,
+                                voice: Some(info.voice),
+                                reason,
+                            },
+                        },
+                    );
                 }
             }
         }
     }
-    lifecycle.extend(still_playing);
+    lifecycle.current.extend(still_playing);
     true
 }
 
@@ -199,7 +233,7 @@ pub(super) fn drain_playback_work(
     while let Some(result) = scheduler.try_recv() {
         let sequence = result.sequence();
         let playback_id = result.playback_id().clone();
-        let is_current = lifecycle.get(&playback_id).is_some_and(
+        let is_current = lifecycle.current.get(&playback_id).is_some_and(
             |state| matches!(state, PlaybackLifecycle::Pending { sequence: active, .. } if *active == sequence),
         );
         if !is_current {
@@ -207,7 +241,7 @@ pub(super) fn drain_playback_work(
         }
         match result {
             PlaybackPreparationResult::Failed(failure) => {
-                lifecycle.remove(&failure.playback_id);
+                lifecycle.current.remove(&failure.playback_id);
                 publish_event(
                     event_sender,
                     observation,
@@ -274,7 +308,7 @@ pub(super) fn drain_playback_work(
                             path: request.path,
                             voice,
                         };
-                        lifecycle.insert(
+                        lifecycle.current.insert(
                             request.playback_id,
                             PlaybackLifecycle::Playing {
                                 sequence,
@@ -285,7 +319,7 @@ pub(super) fn drain_playback_work(
                     }
                     Err(error) => {
                         scheduler.complete(&request.playback_id, sequence);
-                        lifecycle.remove(&request.playback_id);
+                        lifecycle.current.remove(&request.playback_id);
                         publish_event(
                             event_sender,
                             observation,
@@ -311,10 +345,12 @@ fn publish_playback_observation(
 ) {
     let cache = scheduler.cache_observation();
     let loading_voices = lifecycle
+        .current
         .values()
         .filter(|state| matches!(state, PlaybackLifecycle::Pending { .. }))
         .count();
     let active_voices = lifecycle
+        .current
         .values()
         .filter(|state| matches!(state, PlaybackLifecycle::Playing { .. }))
         .count();
@@ -345,11 +381,12 @@ fn publish_render_event(
         | PlaybackRenderEvent::Stopped { playback_id, voice, .. }
         | PlaybackRenderEvent::Failed { playback_id, voice, .. } => (playback_id.clone(), *voice),
     };
-    if let Some(PlaybackLifecycle::Playing { sequence, info }) = lifecycle.get(&playback_id)
+    lifecycle.stopping.remove(&voice);
+    if let Some(PlaybackLifecycle::Playing { sequence, info }) = lifecycle.current.get(&playback_id)
         && info.voice == voice
     {
         let sequence = *sequence;
-        lifecycle.remove(&playback_id);
+        lifecycle.current.remove(&playback_id);
         scheduler.complete(&playback_id, sequence);
     }
     let audio_event = match event {
@@ -384,3 +421,45 @@ fn publish_render_event(
     };
     publish_event(event_sender, observation, audio_event);
 }
+
+/// Called after managed/device rendering has stopped. Resolve retired render
+/// outcomes first, then cancel every remaining accepted playback in start order.
+pub(super) fn finish_playback_shutdown(
+    event_sender: &EventSender,
+    observation: &Arc<RwLock<AudioObservationSnapshot>>,
+    scheduler: &mut PlaybackScheduler,
+    voices: &mut PlaybackVoiceController,
+    lifecycle: &mut PlaybackLifecycles,
+) {
+    scheduler.stop_all();
+    let mut retired = Vec::new();
+    voices.reclaim(|event| retired.push(event));
+    for event in retired {
+        publish_render_event(event_sender, observation, scheduler, lifecycle, event);
+    }
+    let mut stopped = std::mem::take(&mut lifecycle.stopping)
+        .into_values()
+        .collect::<Vec<_>>();
+    for (playback_id, current) in std::mem::take(&mut lifecycle.current) {
+        let (sequence, voice) = match current {
+            PlaybackLifecycle::Pending { sequence } => (sequence, None),
+            PlaybackLifecycle::Playing { sequence, info } => (sequence, Some(info.voice)),
+        };
+        stopped.push(StoppingPlayback {
+            sequence,
+            info: PlaybackStopInfo {
+                playback_id,
+                voice,
+                reason: PlaybackStopReason::StopAll,
+            },
+        });
+    }
+    stopped.sort_by_key(|stopped| stopped.sequence);
+    for stopped in stopped {
+        publish_event(event_sender, observation, AudioEvent::PlaybackStopped(stopped.info));
+    }
+    publish_playback_observation(observation, scheduler, voices, lifecycle);
+}
+
+#[cfg(test)]
+mod tests;
