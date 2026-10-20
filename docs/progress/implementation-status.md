@@ -5,8 +5,8 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-20 on `main` at delivered `d3a45301`, matching fetched `origin/main`,
-plus the P03 batch 34 milestone recorded below.
+Last reconciled: 2026-10-20 on `main` at delivered `da3becc6`, matching fetched `origin/main`,
+plus the P03 batch 35 milestone recorded below.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
 plan. Its complete contents, including the uncommitted clarification, survive in the
@@ -14,11 +14,11 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 
 ## Completion overview
 
-**Whole plan: approximately 14% complete.** P01 and P02 are complete against their local
-acceptance criteria; P03 is approximately 57%; P04–P18 have not started. P00 baseline reconciliation
+**Whole plan: approximately 15% complete.** P01 and P02 are complete against their local
+acceptance criteria; P03 is approximately 64%; P04–P18 have not started. P00 baseline reconciliation
 is complete and maintained separately. **2 of 18 implementation/qualification tasks are complete (11%).**
 
-Overall progress is the equal-weight average of P01–P18: `(100 + 100 + 400/7 + 15 × 0) / 18`,
+Overall progress is the equal-weight average of P01–P18: `(100 + 100 + 450/7 + 15 × 0) / 18`,
 rounded to a whole percent. This measures scope coverage, not elapsed time, remaining effort, or
 product readiness. Task sizes differ substantially. P00 housekeeping and preserved pre-plan
 features do not inflate this percentage. Later product, platform and device acceptance remains open.
@@ -31,15 +31,15 @@ record delivery history and are never the progress denominator.
 
 ### P03 completion checkpoints
 
-P03's approximately **57%** is a coarse scope score across seven equally weighted workstreams:
+P03's approximately **64%** is a coarse scope score across seven equally weighted workstreams:
 delivered = 100, partial = 50, open = 0. Partial does not mean exactly half the engineering effort.
-The score is `(100 + 100 + 50 + 100 + 50 + 0 + 0) / 7`.
+The score is `(100 + 100 + 100 + 100 + 50 + 0 + 0) / 7`.
 
 | Workstream                                    | Scope score   | Delivered / remaining acceptance                                                                                                            |
 | --------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | Shared IO and engine service/lifecycle bounds | 100%          | Bounded primitives, external-edit service, lifecycle expansion, completion and failure ownership delivered.                                 |
 | Six native stream adapters                    | 100%          | UDP, TCP Client/Server, WebSocket Client/Server and Serial ownership/admission/passive service delivered; preserve their regression suites. |
-| HTTP                                          | 50% (partial) | Native lifecycle, admission, response bounds and passive service delivered; request argument conversion/disposal remains.                   |
+| HTTP                                          | 100%          | Native lifecycle, admission, response bounds, passive service, worker request conversion and retained input disposal verified.              |
 | Generic script/event/property ingress         | 100%          | Method/property/event/log admission, rejected-input disposal, routing lifetime and shared-budget recovery verified.                         |
 | Sound Card lifecycle/service                  | 50% (partial) | Wake/service repairs delivered; stop/join, event drain, admission/recovery and configuration-bound audit remains.                           |
 | Remaining app module/channel audit            | 0% (open)     | Audit every remaining module/channel against bounded service, retirement, failure and reconnect criteria; repair and verify findings.       |
@@ -51,19 +51,19 @@ meet their acceptance; new audit findings must be reflected here instead of hidd
 
 ## Current handoff
 
-- Current milestone: P03 batch 34, shared property/event/log input admission and background
-  disposal. Owning, app, workspace and default native checks pass.
-  Completion: **14% overall / 57% P03**; generic input admission/ownership is verified.
-- Checkout reconciled on `main` at `d3a45301`, matching fetched `origin/main`; no unrelated edits.
-  That commit removes the automatic reasoning-effort switching rules at the user's request on
+- Current milestone: P03 batch 35, HTTP script/command capture and worker conversion.
+  The previous turn was progress: batch 34 was verified, committed and pushed as `da3becc6`.
+  Owning and app checks pass: **15% overall / 64% P03**; the HTTP checkpoint is verified.
+- Checkout reconciled on clean `main` at `da3becc6`, matching fetched `origin/main`; no unrelated edits.
+  `d3a45301` removes the automatic reasoning-effort switching rules at the user's request on
   2026-10-20. Earlier effort notes below are historical evidence, not active instructions.
-- Validation: **1167 distinct passed tests** across Golden Engine, IO, parameters, scripts,
-  standalone Chataigne Processor and 410 app regressions; three existing ignored engine benchmarks.
-  Strict all-target Clippy, fresh app test compilation and workspace/test compilation passed.
-  Default native build passed; all owned validation jobs are terminal.
+- Validation: **1058 distinct passed tests** across Golden Engine/IO/script (629) and app (429).
+  Three existing manual engine benchmarks remain ignored. Strict all-target Clippy, fresh app
+  test compilation and workspace/test compilation pass. Final native build passed in 45.64s;
+  all owned validation jobs are terminal.
 - Scope: **foundation and readiness**. P01/P02 are verified locally, P03 is in progress,
   P04-P18 have not started. Full lighting/video/projection authoring remains deferred.
-- Next checkpoints: HTTP request argument conversion/disposal; Sound Card stop/join, event
+- Next checkpoints: Sound Card stop/join, event
   drain, admission/recovery and configuration bounds; remaining module/channel audit; generator
   elapsed-time accounting. Preserve stream regression coverage and completed Mapping behavior.
 - Delivery: work on `main`, commit and push every verified milestone to `origin/main`.
@@ -83,7 +83,7 @@ External qualification is separate from implementation. A historical pass is not
 | P00 Baseline                | 100%       | VERIFIED_LOCAL | PASSED              | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                |
 | P01 Edit failures/history   | 100%       | VERIFIED_LOCAL | PASSED batches 1–8  | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                 |
 | P02 Schedule/actor failures | 100%       | VERIFIED_LOCAL | PASSED batches 1-3  | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                  |
-| P03 Bounded I/O/lifecycle   | ~57%       | IN_PROGRESS    | PASSED batches 1-34 | Generic script input ownership verified; HTTP, Sound Card and remaining module/generator audit open                       |
+| P03 Bounded I/O/lifecycle   | ~64%       | IN_PROGRESS    | PASSED batches 1-35 | Generic script and HTTP input ownership verified; Sound Card and remaining module/generator audit open                    |
 | P04 Audio order/types       | 0%         | NOT_STARTED    | PENDING             | Legal interleaving and invalid deserialization established from source                                                    |
 | P05 Transport trust         | 0%         | NOT_STARTED    | PENDING             | Missing admission verified; exploit not demonstrated                                                                      |
 | P06 Dependencies            | 0%         | NOT_STARTED    | FAILED baseline     | Four Rustls advisories on audit date; refresh DB before repair                                                            |
@@ -3317,3 +3317,70 @@ The generic ingress checkpoint is now verified: P03 advances from approximately 
 the equal-weight whole-plan estimate still rounds to **14%**. HTTP request conversion/disposal,
 Sound Card lifecycle/service, the remaining module/channel audit and generator elapsed-time
 accounting remain open. P04–P18 retain their states.
+
+### P03 batch 35: HTTP retained input and worker conversion
+
+Resumed clean `main` at delivered `da3becc6`, matching fetched `origin/main`. The previous
+goal turn was progress. Runtime and test work in this milestone is owned; no unrelated edits
+were present. Live validation jobs were observed to terminal state without timeout-driven restarts.
+
+HTTP native queues now accept only script argument leases or captured command invocations.
+Command nodes retain a frozen snapshot and bounded override JSON instead of parsing bodies,
+constructing requests, serializing them into an event and decoding them again on the actor.
+App-owned `CapturedInvocation` also supplies stream command target/capture policy. Only bounded
+dispatch-target decoding stays on the actor; override overlays and content conversion run on
+the consuming worker. HTTP parameters admit 4 MiB total retained storage, including spare
+capacity; overridden source weight is checked again before conversion. Header/form parsing
+stops at 256 entries; command JSON uses a non-materializing serde preflight before expanding
+at most 16384 nodes / depth 64. Converted requests retain the existing 8 MiB bound.
+
+Source and target wake identities fence pending command admission across retirement/restore.
+Applied settings still fence destination/credential changes. Once the native queue accepts an
+input, its frozen data and original transport generation own the occurrence; source removal or
+ordinary disable/reconfiguration does not revoke it. Module destruction may cancel it. Native
+queue rejection and discarded routing copies release shallow leases, leaving original input
+destruction to their canonical owners. Raw owned-request construction is confined to native
+test fixtures; there is no production compatibility path.
+
+Content conversion failure now produces an ordered warning with zero endpoint attempts and
+explicitly says the request was not sent. It neither disconnects a healthy generation nor blocks
+later valid requests. An unexpected preparation panic closes admission through existing worker
+failure/recovery handling. Request/response retries, passive service, result receipts, native
+callbacks and no-replay generation handoff are preserved.
+
+Golden IO adds `SharedPayload` with a transferable original lease beside raw Arc routing.
+Script events forward that owner through `CustomEvent::from_shared_payload`; asynchronous
+capture reuses it via `try_lease_payload`. Plain JSON uses one engine fallback pool. This fixes
+the cross-pool final-owner cycle exposed by script-generated command overrides. Lifetime
+metadata is runtime-only and does not change event JSON or logical equality. Replacing a public
+event payload cannot reuse its obsolete owner. IO/engine regressions prove pointer identity,
+raw-routing retention, canonical capacity recovery and serialization equality.
+
+The first app preservation run caught an extra test-only input pool capped below the native
+mailbox's in-flight-plus-256 capacity, causing three fixture failures. That redundant quota was
+removed; native fixtures now exercise their actual queue bounds. A fresh Cargo test invocation
+includes all final tests, including late lifecycle and ordinary-trigger/invocation coverage.
+
+| Final check                                                                                                                                           | Result                                                                                                                                                                                                                                                                         |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `cargo test-fast --locked -p golden_io -p golden_script -p golden_engine -- --quiet`                                                                  | 629 passed: engine 541 unit + 8 integration + 7 doc, IO 44, script 20 unit + 9 integration; three existing ignored manual benchmarks. Preparation 6m24s.                                                                                                                       |
+| Strict all-target Clippy for IO/script/engine/app; final `cargo clippy --locked -p Chataigne2 --all-targets -- -D warnings` after app fixture changes | Passed; final app run 33.72s.                                                                                                                                                                                                                                                  |
+| `cargo test-fast --locked -p Chataigne2 --bin Chataigne2 module_modules_protocol_http -- --test-threads=4 --quiet`                                    | Final 66/66 passed in 0.29s after 1m34s preparation. Tests include deferred/frozen conversion, spare source capacity, source retirement, malformed-then-valid service, full native queues and actual trigger/invocation routing.                                               |
+| Disjoint compiled-name app filters on fresh `Chataigne2-d57ae873474d576f.exe`, `--test-threads=4 --quiet`                                             | 429/429 passed of 914 listed: script API 8, HTTP 66, common JSON 1, module command 11, streams 191, common streaming 61, common serial 28, Sound Card 35, OSC 25, initial Formula 1, null-device audio 1, compressed-archive write rejection 1. Name sets checked for overlap. |
+| `cargo check --locked --workspace --tests`                                                                                                            | Final passed, 9.76s.                                                                                                                                                                                                                                                           |
+| `cargo build --locked -p Chataigne2 --bin Chataigne2`                                                                                                 | Final passed, 45.64s; no cache intervention. Frontend inputs unchanged, existing UI bundle reused.                                                                                                                                                                             |
+
+**1058 distinct tests passed**; repeated HTTP/focused checks count once. This selection differs
+from batch 34's standalone processor/parameter selection and is not a progress denominator.
+Inventory: **1535 source files / 42 oversized**; eight new source files are at most 199 lines.
+No new size exception, wire DTO, persistence format, frontend or app-shell startup change.
+Root/Core Cargo formatting, explicit affected-app rustfmt, maintained-doc Prettier and whitespace
+checks pass. All owned validation jobs are terminal; commit and push this verified milestone on `main`.
+
+Conversion scratch, materialized request copies, graph-owned values, logger records and UI
+projections have separate costs; this is not whole-process RSS or hard deadline qualification.
+Fixtures use injected HTTP executors, controlled loopback, injected serial and null audio, with
+no physical-device or native-UI qualification. The HTTP checkpoint is verified: P03 advances
+from approximately **57% to 64%**, and the whole-plan estimate from approximately **14% to 15%**.
+Next: Sound Card lifecycle/service, remaining module/channel audit and generator elapsed-time
+accounting. P03 remains **IN_PROGRESS**; P04–P18 retain their states.

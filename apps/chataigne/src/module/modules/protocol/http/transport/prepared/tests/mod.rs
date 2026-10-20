@@ -182,7 +182,7 @@ fn native_result_rejection_closes_admission_and_resolves_the_queued_suffix_witho
     let completion = GenerationFence::default();
     let native_completion = completion.clone();
     let (release_tx, release_rx) = mpsc::channel();
-    let worker = BoundedWorker::<HttpQueuedRequest, HttpWorkerEvent>::spawn(
+    let worker = BoundedWorker::<super::super::HttpInput, HttpWorkerEvent>::spawn(
         "http-rejection",
         &lifetimes,
         WorkerLimits {
@@ -219,7 +219,9 @@ fn native_result_rejection_closes_admission_and_resolves_the_queued_suffix_witho
     )
     .unwrap();
     for path in ["/first", "/second", "/third"] {
-        worker.send_weighted(request(path), 1024).unwrap();
+        worker
+            .send_weighted(super::super::HttpInput::prepare(request(path)).unwrap(), 1024)
+            .unwrap();
     }
     release_tx.send(()).unwrap();
     let mut events = Vec::new();
@@ -232,7 +234,9 @@ fn native_result_rejection_closes_admission_and_resolves_the_queued_suffix_witho
         thread::sleep(Duration::from_millis(1));
     }
     assert_eq!(calls.load(Ordering::Relaxed), 1);
-    assert!(worker.send_weighted(request("/late"), 1024).is_err());
+    assert!(worker
+        .send_weighted(super::super::HttpInput::prepare(request("/late")).unwrap(), 1024)
+        .is_err());
     let results: Vec<_> = events
         .iter()
         .map(|event| match event {

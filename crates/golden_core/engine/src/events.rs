@@ -4,6 +4,7 @@ use crate::parameter::{ParamValue, ParameterConstraints, ParameterControlState};
 use std::ops::Index;
 use std::sync::Arc;
 mod local;
+mod payload;
 #[cfg(test)]
 mod tests;
 use local::LocalPayload;
@@ -25,7 +26,7 @@ pub struct Event {
 }
 
 /// User-defined event payload transported through the engine.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CustomEvent {
     /// Logical topic identifier used for event routing.
     pub topic: String,
@@ -39,6 +40,8 @@ pub struct CustomEvent {
     pub retention: CustomEventRetention,
     #[serde(skip)]
     local: Option<LocalPayload>,
+    #[serde(skip)]
+    payload_owner: Option<golden_io::SharedPayload<serde_json::Value>>,
 }
 
 impl CustomEvent {
@@ -50,6 +53,7 @@ impl CustomEvent {
             payload: Arc::new(payload),
             retention: CustomEventRetention::Replay,
             local: None,
+            payload_owner: None,
         }
     }
 
@@ -61,6 +65,7 @@ impl CustomEvent {
             payload: Arc::new(payload),
             retention: CustomEventRetention::Latest,
             local: None,
+            payload_owner: None,
         }
     }
 
@@ -72,6 +77,7 @@ impl CustomEvent {
             payload: Arc::new(payload),
             retention: CustomEventRetention::Transient,
             local: None,
+            payload_owner: None,
         }
     }
 
@@ -107,6 +113,8 @@ impl CustomEvent {
         T::deserialize(self.payload.as_ref())
     }
     /// Shares already-prepared JSON without traversal or copying.
+    /// When the producer has a SharedPayload, prefer `from_shared_payload` so
+    /// downstream capture can reuse its canonical owner instead of registering it again.
     pub fn shared(
         topic: impl Into<String>,
         origin: Option<NodeId>,
@@ -119,6 +127,7 @@ impl CustomEvent {
             payload,
             retention,
             local: None,
+            payload_owner: None,
         }
     }
     /// Creates an inbox-only typed runtime message. Routing clones share the value;
@@ -131,6 +140,7 @@ impl CustomEvent {
             payload: Arc::new(serde_json::Value::Null),
             retention: CustomEventRetention::Transient,
             local: Some(LocalPayload::new(value)),
+            payload_owner: None,
         }
     }
     /// Borrows a local attachment without JSON decoding or cloning.

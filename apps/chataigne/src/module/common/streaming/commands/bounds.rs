@@ -33,50 +33,7 @@ pub(super) fn source(text: &str) -> Result<(), String> {
     }
 }
 
-/// A conservative allocation budget checked before any JSON clone or typed
-/// decode. Arrays include spare capacity; maps include per-entry tree overhead.
-pub(crate) fn json_weight(
-    value: &serde_json::Value,
-    bytes: usize,
-    items: usize,
-    depth: usize,
-) -> Result<usize, String> {
-    use serde_json::Value;
-    let mut pending = vec![(value, 0_usize)];
-    let mut visited = 0_usize;
-    let mut weight = std::mem::size_of::<Value>();
-    while let Some((value, level)) = pending.pop() {
-        visited += 1;
-        if visited > items || level > depth {
-            return Err("Stream JSON exceeds its item/depth admission limit".into());
-        }
-        match value {
-            Value::String(text) => weight = weight.saturating_add(text.capacity()),
-            Value::Array(values) => {
-                weight = weight.saturating_add(values.capacity().saturating_mul(std::mem::size_of::<Value>()));
-                if weight > bytes || values.len().saturating_add(visited).saturating_add(pending.len()) > items {
-                    return Err("Stream JSON exceeds its retained-byte/item admission limit".into());
-                }
-                pending.extend(values.iter().map(|value| (value, level + 1)));
-            }
-            Value::Object(values) => {
-                weight = weight.saturating_add(values.len().saturating_mul(256));
-                if weight > bytes || values.len().saturating_add(visited).saturating_add(pending.len()) > items {
-                    return Err("Stream JSON exceeds its retained-byte/item admission limit".into());
-                }
-                for (key, value) in values {
-                    weight = weight.saturating_add(key.capacity());
-                    pending.push((value, level + 1));
-                }
-            }
-            _ => {}
-        }
-        if weight > bytes {
-            return Err("Stream JSON exceeds its retained-byte admission limit".into());
-        }
-    }
-    Ok(weight)
-}
+pub(crate) use crate::app::module::common::json::retained_weight as json_weight;
 
 #[derive(Default)]
 pub(super) struct Output(pub Vec<u8>);

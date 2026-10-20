@@ -304,6 +304,56 @@ fn install_counted_transport(engine: &mut crate::app::AppEngine, id: NodeId) -> 
     calls
 }
 
+#[test]
+fn command_triggers_and_explicit_invocations_reach_the_http_worker_once_each() {
+    let (mut engine, id) = create_http_module();
+    let base = module(&engine, id).base_address.id();
+    set(&mut engine, base, ParamValue::Str("http://127.0.0.1/".into()));
+    engine.apply_edits().unwrap();
+    settle(&mut engine, id);
+    let calls = install_counted_transport(&mut engine, id);
+    engine.add_node(crate::app::HttpRequestCommand::create().into(), Some(id));
+    for _ in 0..5 {
+        engine.apply_edits().unwrap();
+    }
+    let snapshot = engine.process_tree_snapshot();
+    let command = *snapshot
+        .child_ids_slice(id)
+        .iter()
+        .find(|node| snapshot.node(**node).unwrap().node_type == "http_request_command")
+        .unwrap();
+    let trigger = crate::app::module_command::resolve_module_command_child(&snapshot, command, "trigger").unwrap();
+    let path = snapshot.find_child_by_decl_id(command, "path").unwrap();
+    set(&mut engine, trigger, ParamValue::Trigger());
+    engine.apply_edits().unwrap();
+    let deadline = Instant::now() + Duration::from_secs(3);
+    while calls.load(Ordering::Relaxed) < 1 {
+        run_http_runtime_ticks(&mut engine, 1);
+        assert!(
+            Instant::now() < deadline,
+            "ordinary command trigger must reach native admission"
+        );
+        thread::sleep(Duration::from_millis(1));
+    }
+    engine.edits.push(Edit::EmitCustomEvent { event: golden_core::events::CustomEvent::transient(
+        crate::app::module_command::MODULE_COMMAND_EXECUTE_TOPIC, Some(command),
+        serde_json::json!({"command_id":command,"param_overrides":[{"param_id":path,"value":ParamValue::Str("/invocation".into())}]}),
+    ) });
+    engine.apply_edits().unwrap();
+    while calls.load(Ordering::Relaxed) < 2 {
+        run_http_runtime_ticks(&mut engine, 1);
+        assert!(
+            Instant::now() < deadline,
+            "explicit invocation must reach native admission"
+        );
+        thread::sleep(Duration::from_millis(1));
+    }
+    for _ in 0..8 {
+        run_http_runtime_ticks(&mut engine, 1);
+    }
+    assert_eq!(calls.load(Ordering::Relaxed), 2, "accepted occurrences must not replay");
+}
+
 fn request_and_wait(engine: &mut crate::app::AppEngine, id: NodeId, calls: &AtomicUsize, expected: usize) {
     engine.edits.push(Edit::CallNodeScriptMethod {
         node: id,

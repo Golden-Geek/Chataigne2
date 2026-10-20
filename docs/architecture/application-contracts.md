@@ -393,6 +393,14 @@ Native configuration also checks retained allocation capacity (128 KiB total, in
 string spare capacity) before cloning settings or reserving a worker lifetime. Invalid/pending
 settings reject new admission while accepted requests and completions retain their existing order.
 
+HTTP scripts and command nodes enqueue typed retained input; parsing, header/form preparation,
+body encoding and invocation snapshot overlays run on the generation's HTTP worker. Commands
+capture one immutable view and use the shared app command-input boundary with stream commands.
+Overrides are limited to 256 KiB / 4096 nodes / depth 16; HTTP command parameters admit 4 MiB
+total retained storage. Content conversion failure produces bounded asynchronous warning feedback
+with zero endpoint attempts and does not disconnect or replay a healthy generation. Existing
+`responseReceived` / `requestFailed` native callbacks and their completion receipts are preserved.
+
 `golden_io::BoundedWorker::spawn_notified` can publish those node wakes after reply admission and
 final producer exit. `DelayedNotifier` provides bounded, coalesced host deadlines without a node
 polling clock. A `PayloadPool` can retain prepared data through consumer ownership and perform

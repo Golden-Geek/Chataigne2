@@ -2,7 +2,7 @@ use super::*;
 use serde_json::Value;
 use std::mem::size_of;
 
-pub(super) fn request_weight(request: &HttpQueuedRequest) -> Result<usize, String> {
+pub(in super::super) fn request_weight(request: &HttpQueuedRequest) -> Result<usize, String> {
     Ok(size_of::<HttpQueuedRequest>() + payload_weight(&request.payload)? + origin_weight(&request.origin))
 }
 

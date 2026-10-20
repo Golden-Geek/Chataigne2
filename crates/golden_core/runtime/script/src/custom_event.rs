@@ -2,7 +2,7 @@ use crate::{
     ScriptInputError,
     input::{self, MAX_INPUT_BYTES, MAX_LABEL_BYTES},
 };
-use golden_io::PayloadReservation;
+use golden_io::{PayloadReservation, SharedPayload};
 use serde_json::Value;
 use std::sync::Arc;
 
@@ -11,7 +11,7 @@ use std::sync::Arc;
 #[derive(Clone, Debug)]
 pub struct ScriptCustomEvent {
     topic: String,
-    payload: Arc<Value>,
+    payload: SharedPayload<Value>,
 }
 
 /// Capacity admitted before custom-event JSON materialization.
@@ -36,7 +36,7 @@ impl ScriptCustomEvent {
                 input::canonicalize_objects(&mut payload);
                 Ok(Self {
                     topic,
-                    payload: permit.share(payload, weight).expect("event fits admission"),
+                    payload: permit.share_retained(payload, weight).expect("event fits admission"),
                 })
             }
             Err(message) => Err(ScriptInputError::new((topic, payload), message)),
@@ -60,10 +60,15 @@ impl ScriptCustomEvent {
     }
     /// Shares the protected original allocation. Do not register it in another pool.
     pub fn payload(&self) -> &Arc<Value> {
-        &self.payload
+        self.payload.arc()
     }
     /// Transfer topic and protected payload into a shared-data consumer.
     pub fn into_parts(self) -> (String, Arc<Value>) {
+        (self.topic, self.payload.arc().clone())
+    }
+
+    /// Forward the original owner into an event adapter that supports lifetime leases.
+    pub fn into_shared_parts(self) -> (String, SharedPayload<Value>) {
         (self.topic, self.payload)
     }
 }
@@ -76,7 +81,10 @@ impl ScriptEventReservation {
                 input::canonicalize_objects(&mut payload);
                 Ok(ScriptCustomEvent {
                     topic: self.topic,
-                    payload: self.permit.share(payload, weight).expect("event fits admission"),
+                    payload: self
+                        .permit
+                        .share_retained(payload, weight)
+                        .expect("event fits admission"),
                 })
             }
             Err(message) => Err(ScriptInputError::new((self.topic, payload), message)),

@@ -65,6 +65,25 @@ pub struct RetainedPayload<T: Send + Sync + 'static> {
     shared: Arc<Shared>,
 }
 
+/// A retained value with external Arc consumers. Its disposer keeps polling raw
+/// ownership; consumers can forward the lease without registering another final owner.
+#[derive(Debug)]
+pub struct SharedPayload<T: Send + Sync + 'static>(RetainedPayload<T>);
+
+impl<T: Send + Sync + 'static> Clone for SharedPayload<T> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+impl<T: Send + Sync + 'static> SharedPayload<T> {
+    pub fn arc(&self) -> &Arc<T> {
+        self.0.value.as_ref().expect("live shared payload")
+    }
+    pub fn lease(&self) -> RetainedPayload<T> {
+        self.0.clone()
+    }
+}
+
 /// Rejected admission retains the original prepared value for its producer.
 pub struct PayloadCapacityError<T>(T);
 
@@ -209,6 +228,20 @@ impl PayloadReservation {
     /// at most once per 100ms. Never register the Arc in an independent pool.
     pub fn share<T: Send + Sync + 'static>(self, value: T, weight: usize) -> Result<Arc<T>, PayloadCapacityError<T>> {
         self.seal(value, weight, true).map(|(value, _)| value)
+    }
+
+    /// Preserve the canonical owner when an API needs both raw Arc routing and a
+    /// transferable lifetime proof. Reusing the lease avoids cross-pool ownership cycles.
+    pub fn share_retained<T: Send + Sync + 'static>(
+        self,
+        value: T,
+        weight: usize,
+    ) -> Result<SharedPayload<T>, PayloadCapacityError<T>> {
+        let (value, shared) = self.seal(value, weight, true)?;
+        Ok(SharedPayload(RetainedPayload {
+            value: Some(value),
+            shared,
+        }))
     }
 
     fn seal<T: Send + Sync + 'static>(

@@ -173,8 +173,8 @@ impl ScriptHostBridge for NodeScriptHostBridge<'_> {
     }
 
     fn emit_custom(&mut self, event: crate::script::ScriptCustomEvent) -> Result<(), String> {
-        let (topic, payload) = event.into_parts();
-        self.ctx.emit_custom_event(CustomEvent::shared(
+        let (topic, payload) = event.into_shared_parts();
+        self.ctx.emit_custom_event(CustomEvent::from_shared_payload(
             topic,
             Some(self.script_node),
             payload,

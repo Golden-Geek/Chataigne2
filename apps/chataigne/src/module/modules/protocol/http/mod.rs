@@ -1,11 +1,12 @@
 mod callbacks;
 mod configuration;
 use configuration::HttpSettings;
+mod input;
 mod lifecycle;
 mod response_service;
 mod scripts;
 use crate::app::module::common::worker_wake::ModuleWake;
-use scripts::http_request_from_script;
+use input::HttpInput;
 mod transport;
 
 use golden_io::ReconnectBackoff;
@@ -31,11 +32,9 @@ use crate::app::module::common::{
     received_values::service::{ReceivedValueCursor, ReceivedValueProgress},
 };
 
+use self::transport::{HttpFailure, HttpRequestOrigin, HttpResponse, HttpWorkerEvent, PreparedHttpResponse};
 #[cfg(test)]
-use self::transport::HttpTransportConfig;
-use self::transport::{
-    HttpFailure, HttpQueuedRequest, HttpRequestOrigin, HttpResponse, HttpWorkerEvent, PreparedHttpResponse,
-};
+use self::transport::{HttpQueuedRequest, HttpTransportConfig};
 use lifecycle::HttpTransports;
 use response_service::{HttpCallbackDelivery, PendingHttpEvent};
 
@@ -173,7 +172,7 @@ impl HttpModule {
 
     #[cfg(test)]
     fn send_for_test(&self, request: HttpQueuedRequest) -> Result<(), String> {
-        self.admit_request(request)
+        self.admit_request(HttpInput::prepare(request)?)
     }
 
     #[cfg(test)]
@@ -342,24 +341,26 @@ impl HttpModule {
         }
     }
 
-    fn queue_request(
-        &self,
-        ctx: &mut ProcessCtx,
-        payload: HttpRequestPayload,
-        origin: HttpRequestOrigin,
-    ) -> Result<String, String> {
+    fn queue_request(&self, ctx: &mut ProcessCtx, input: HttpInput) -> Result<String, String> {
         let snapshot = ctx
             .tree_snapshot_arc()
             .ok_or("HTTP admission requires an applied tree snapshot")?;
         if !self.module_enabled(&snapshot) {
             return Err("HTTP module is disabled; request was not admitted".into());
         }
+        if !input.eligible_for_admission()
+            || input.command_target().is_some_and(|(module, command)| {
+                module != self.id() || snapshot.node(command).is_none_or(|node| !node.enabled)
+            })
+        {
+            return Err("HTTP command source or target is no longer eligible; request was not admitted".into());
+        }
         let applied = HttpSettings::read(self, &snapshot)?;
         if self.active_settings.as_ref() != Some(&applied) {
             return Err("HTTP configuration is pending; request was not admitted".into());
         }
-        let description = format!("{} {}", payload.method.label(), diagnostic_url(payload.path.trim()));
-        self.admit_request(HttpQueuedRequest { origin, payload })?;
+        let description = input.description();
+        self.admit_request(input)?;
 
         self.base.emit_outgoing_traffic(ctx);
         if self.base.log_outgoing_enabled() {
@@ -372,11 +373,11 @@ impl HttpModule {
         Ok(format!("Queued HTTP {description}"))
     }
 
-    fn admit_request(&self, request: HttpQueuedRequest) -> Result<(), String> {
+    fn admit_request(&self, request: HttpInput) -> Result<(), String> {
         if self.transport_dirty {
             return Err("HTTP configuration is pending; request was not admitted".into());
         }
-        self.transports.send(request)
+        self.transports.send_input(request)
     }
 
     fn handle_script_http_method(
@@ -385,45 +386,38 @@ impl HttpModule {
         method: &str,
         args: &[ParamValue],
     ) -> Option<Result<(), String>> {
-        let request = http_request_from_script(method, args)?;
-
-        Some(request.and_then(|payload| {
-            self.queue_request(
-                ctx,
-                payload,
-                HttpRequestOrigin::Script {
-                    method: method.to_string(),
-                },
-            )
-            .map(|_| ())
-        }))
+        let input = HttpInput::capture(ctx, method, args)?;
+        Some(input.and_then(|input| self.queue_request(ctx, input).map(|_| ())))
     }
 
     fn on_custom_event_inner(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
-        let Some(request) = crate::app::module_command::decode_module_command_request(&event) else {
+        if event.topic != input::HTTP_INPUT_TOPIC {
+            return;
+        }
+        let Some(input) = event.local_payload::<HttpInput>() else {
             return;
         };
-        if request.module_id != self.id() || !HTTP_COMMAND_NODE_TYPES.contains(&request.command_type.as_str()) {
+        if input.command_target().is_none_or(|(module, _)| module != self.id()) {
             return;
         }
-
-        let command_id = request.command_id;
-        let command_type = request.command_type.clone();
-        if let Err(error) = serde_json::from_value::<HttpRequestPayload>(request.payload)
-            .map_err(|error| format!("invalid HTTP command payload: {error}"))
-            .and_then(|payload| {
-                self.queue_request(
-                    ctx,
-                    payload,
-                    HttpRequestOrigin::Command {
-                        command_id,
-                        command_type,
-                    },
-                )
-            })
-        {
-            logerror!(format!("Failed to handle HTTP command {:?}: {error}", command_id));
+        if let Err(error) = self.queue_request(ctx, input.clone()) {
+            logerror!(format!("Failed to handle HTTP command: {error}"));
         }
+    }
+
+    pub(crate) fn dispatch_command(
+        ctx: &mut ProcessCtx,
+        snapshot: &std::sync::Arc<ProcessTreeSnapshot>,
+        command: NodeId,
+        kind: crate::app::module::common::http::HttpCommandKind,
+        execution: Option<CustomEvent>,
+    ) -> Result<(), String> {
+        let input = HttpInput::capture_command(snapshot, command, kind, execution, |node| {
+            ctx.node_waker_for(node).map_err(|error| error.to_string())
+        })?;
+        let (module, _) = input.command_target().expect("captured command target");
+        ctx.emit_custom_event(CustomEvent::local(input::HTTP_INPUT_TOPIC, Some(module), input));
+        Ok(())
     }
 
     fn on_param_change_inner(&mut self, snapshot: &ProcessTreeSnapshot, param: NodeId) {

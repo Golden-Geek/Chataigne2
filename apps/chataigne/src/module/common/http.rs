@@ -202,6 +202,46 @@ pub(crate) fn http_body_mode_enum_options() -> Vec<ParameterEnumOption> {
     ])
 }
 
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum HttpCommandKind {
+    Request,
+    UploadFile,
+}
+impl HttpCommandKind {
+    pub fn node_type(self) -> &'static str {
+        match self {
+            Self::Request => HTTP_REQUEST_COMMAND_NODE_TYPE,
+            Self::UploadFile => HTTP_UPLOAD_FILE_COMMAND_NODE_TYPE,
+        }
+    }
+    pub fn paths(self) -> &'static [&'static str] {
+        match self {
+            Self::Request => &[
+                "method",
+                "path",
+                "query",
+                "value_path",
+                "headers",
+                "body_mode",
+                "body",
+                "content_type",
+            ],
+            Self::UploadFile => &[
+                "method",
+                "path",
+                "query",
+                "value_path",
+                "headers",
+                "file",
+                "field_name",
+                "file_name",
+                "content_type",
+                "form_fields",
+            ],
+        }
+    }
+}
+
 pub(crate) fn parse_header_lines(text: &str, context: &str) -> Result<Vec<HttpHeader>, String> {
     let mut headers = Vec::new();
     for (index, line) in text.lines().enumerate() {
@@ -209,6 +249,9 @@ pub(crate) fn parse_header_lines(text: &str, context: &str) -> Result<Vec<HttpHe
             continue;
         };
         let (name, value) = parsed?;
+        if headers.len() >= 256 {
+            return Err(format!("{context} supports at most 256 headers"));
+        }
         validate_header_name(name.as_str(), context)?;
         validate_header_value(value.as_str(), context)?;
         headers.push(HttpHeader { name, value });
@@ -223,6 +266,9 @@ pub(crate) fn parse_form_field_lines(text: &str, context: &str) -> Result<Vec<Ht
             continue;
         };
         let (name, value) = parsed?;
+        if fields.len() >= 256 {
+            return Err(format!("{context} supports at most 256 form fields"));
+        }
         if name.trim().is_empty() {
             return Err(format!("{context} form field name cannot be empty"));
         }

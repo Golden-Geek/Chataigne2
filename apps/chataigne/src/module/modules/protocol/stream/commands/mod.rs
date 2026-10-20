@@ -73,7 +73,7 @@ macro_rules! command_node_impl {
             };
             if let Err(error) = self.capture().and_then(|capture| {
                 self.preparation
-                    .enqueue(ctx, &snapshot, self.id(), capture, Some(event.payload))
+                    .enqueue(ctx, &snapshot, self.id(), capture, Some(event))
             }) {
                 golden_core::logerror!(format!("Failed to execute {}: {}", $context, error));
             }

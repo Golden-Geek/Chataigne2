@@ -2,27 +2,25 @@
 pub(crate) mod tests;
 mod worker;
 
-use super::{bounds::json_weight, CommandCapture, StreamingSendRequest};
+use super::{CommandCapture, StreamingSendRequest};
 use golden_core::{
     edit::{EditCompletion, EditCompletionStatus},
     engine::NodeWaker,
     events::CustomEvent,
     node::NodeId,
-    parameter::ParamValue,
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
-use golden_io::{PayloadPool, RetainedPayload, RetirementPermit, WorkerNotifier};
+use golden_io::{RetainedPayload, RetirementPermit, WorkerNotifier};
 use std::{
     collections::VecDeque,
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc, Mutex, OnceLock,
+        Arc, OnceLock,
     },
 };
 
 pub(crate) const PREPARED_COMMAND_TOPIC: &str = "chataigne.stream.prepared_command";
 const MAX_OWNER_COMMANDS: usize = 16;
-const OVERRIDE_BYTES: usize = 256 * 1024;
 
 pub(crate) struct PreparedCommand {
     pub module: NodeId,
@@ -89,7 +87,7 @@ impl CommandPreparation {
         snapshot: &Arc<ProcessTreeSnapshot>,
         command: NodeId,
         capture: CommandCapture,
-        execution: Option<Arc<serde_json::Value>>,
+        execution: Option<CustomEvent>,
     ) -> Result<(), String> {
         let result = self.enqueue_inner(ctx, snapshot, command, capture, execution);
         if result.is_err() && self.pending.is_empty() {
@@ -103,7 +101,7 @@ impl CommandPreparation {
         snapshot: &Arc<ProcessTreeSnapshot>,
         command: NodeId,
         capture: CommandCapture,
-        execution: Option<Arc<serde_json::Value>>,
+        execution: Option<CustomEvent>,
     ) -> Result<(), String> {
         if snapshot.node(command).is_none_or(|node| !node.enabled) {
             return Err("Stream command source is absent or disabled; command was not admitted".into());
@@ -119,45 +117,20 @@ impl CommandPreparation {
             .admission
             .try_reserve()
             .map_err(|_| "Stream preparation admission is full; command was not admitted")?;
-        let override_weight = execution
-            .as_ref()
-            .map(|value| json_weight(value, OVERRIDE_BYTES, 4096, 16))
-            .transpose()?;
-        let target_parameter =
-            snapshot.find_child_by_decl_id(command, crate::app::module_command::MODULE_COMMAND_TARGET_MODULE_PATH);
-        // Only dispatch-target validation happens here. All other override decoding,
-        // overlay creation, parameter collection and encoding belong to the native job.
-        let target_override = target_parameter
-            .and_then(|target| {
-                execution
-                    .as_ref()?
-                    .get("param_overrides")?
-                    .as_array()?
-                    .iter()
-                    .rev()
-                    .find(|value| value.get("param_id").and_then(serde_json::Value::as_u64) == Some(target.0))
-                    .and_then(|value| value.get("value"))
-            })
-            .map(|value| {
-                json_weight(value, 4096, 128, 8)?;
-                serde_json::from_value::<ParamValue>(value.clone())
-                    .map_err(|_| "Invalid stream target override".to_string())
-            })
-            .transpose()?;
-        let module = crate::app::module_command::module_command_target(snapshot, command, target_override.as_ref())?;
-        if !snapshot.node(module).is_some_and(|node| {
-            matches!(
-                node.node_type.as_str(),
-                "udp_module"
-                    | "tcp_client_module"
-                    | "tcp_server_module"
-                    | "websocket_client_module"
-                    | "websocket_server_module"
-                    | "serial_module"
-            )
-        }) {
-            return Err("Stream command target is not a supported stream module".into());
-        }
+        let invocation = crate::app::module_command::CapturedInvocation::capture(
+            snapshot,
+            command,
+            execution,
+            &[
+                "udp_module",
+                "tcp_client_module",
+                "tcp_server_module",
+                "websocket_client_module",
+                "websocket_server_module",
+                "serial_module",
+            ],
+        )?;
+        let module = invocation.module;
         let target = ctx.node_waker_for(module).map_err(|error| error.to_string())?;
         let source = ctx.node_waker().map_err(|error| error.to_string())?;
         if self.wake.as_ref().is_some_and(|(old, _)| *old != source) {
@@ -180,11 +153,8 @@ impl CommandPreparation {
             })
             .1
             .clone();
-        let snapshot = snapshot.try_lease().map_err(|error| error.to_string())?;
-        let execution = execution
-            .zip(override_weight)
-            .map(|(value, weight)| retain_execution(value, weight))
-            .transpose()?;
+        let snapshot = invocation.snapshot;
+        let execution = invocation.execution;
         let ticket = Ticket(Arc::new(State {
             result: OnceLock::new(),
             cancelled,
@@ -277,21 +247,4 @@ impl Drop for CommandPreparation {
     fn drop(&mut self) {
         self.clear();
     }
-}
-
-fn retain_execution(
-    value: Arc<serde_json::Value>,
-    weight: usize,
-) -> Result<RetainedPayload<serde_json::Value>, String> {
-    static POOL: Mutex<Option<PayloadPool>> = Mutex::new(None);
-    let mut pool = POOL.lock().unwrap_or_else(|p| p.into_inner());
-    if pool.is_none() {
-        *pool = Some(
-            PayloadPool::new("stream-command-overrides", 64, 64 * OVERRIDE_BYTES).map_err(|error| error.to_string())?,
-        );
-    }
-    pool.as_ref()
-        .unwrap()
-        .try_retain_arc(value, weight)
-        .map_err(|_| "Stream override lifetime capacity exhausted; command was not admitted".into())
 }

@@ -8,6 +8,8 @@ use golden_core::{
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 use serde::{Deserialize, Serialize};
+mod input;
+pub(crate) use input::CapturedInvocation;
 
 pub const MODULE_COMMAND_ITEM_KIND: &str = "module_command";
 pub const MODULE_COMMAND_REQUEST_TOPIC: &str = "chataigne.module.command.request";

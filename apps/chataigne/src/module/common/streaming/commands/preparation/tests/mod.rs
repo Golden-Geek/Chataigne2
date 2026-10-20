@@ -4,6 +4,8 @@ use golden_core::{
     node::{Folder, Node},
     process_ctx::ExecutionPhase,
 };
+use golden_io::PayloadPool;
+use std::sync::Mutex;
 use std::{
     sync::mpsc,
     thread,

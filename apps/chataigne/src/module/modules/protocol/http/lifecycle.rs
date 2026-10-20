@@ -1,4 +1,7 @@
-use super::transport::{self, HttpQueuedRequest, HttpTransportConfig, HttpTransportHandle, HttpWorkerEvent};
+use super::{
+    input::HttpInput,
+    transport::{self, HttpTransportConfig, HttpTransportHandle, HttpWorkerEvent},
+};
 use golden_io::{PendingDrainState, RetirementPool, WorkerNotifier};
 use std::collections::VecDeque;
 use std::num::NonZeroUsize;
@@ -97,7 +100,7 @@ impl HttpTransports {
         Ok(())
     }
 
-    pub(super) fn send(&self, request: HttpQueuedRequest) -> Result<(), String> {
+    pub(super) fn send_input(&self, request: HttpInput) -> Result<(), String> {
         if self.blocked {
             return Err("HTTP configuration is pending; request was not admitted".into());
         }
@@ -106,7 +109,12 @@ impl HttpTransports {
             .back()
             .filter(|last| last.accepting)
             .ok_or_else(|| "HTTP worker is not available".to_string())?;
-        active.handle.send(request)
+        active.handle.send_input(request)
+    }
+
+    #[cfg(test)]
+    pub(super) fn send(&self, request: super::transport::HttpQueuedRequest) -> Result<(), String> {
+        self.send_input(HttpInput::prepare(request)?)
     }
 
     /// Disabling or invalid settings stop admission, not previously accepted commands.

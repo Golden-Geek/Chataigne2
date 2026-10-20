@@ -1,6 +1,22 @@
 use super::*;
 
 #[test]
+fn shared_payload_forwards_one_owner_across_raw_routing_and_lease_consumers() {
+    let pool = PayloadPool::new("shared-lease", 1, 64).unwrap();
+    let (tx, rx) = mpsc::channel();
+    let shared = pool.try_reserve(64).unwrap().share_retained(Payload(tx), 32).unwrap();
+    let routed = shared.arc().clone();
+    let lease = shared.lease();
+    assert!(std::ptr::eq(&*lease, routed.as_ref()));
+    drop(shared);
+    assert!(pool.try_reserve(1).is_err());
+    drop((lease, pool));
+    assert!(rx.try_recv().is_err());
+    drop(routed);
+    assert_eq!(rx.recv_timeout(Duration::from_secs(2)).unwrap(), "shared-lease");
+}
+
+#[test]
 fn fresh_shared_arc_sealing_keeps_raw_owners_charged_and_final_disposal_off_consumer() {
     let pool = PayloadPool::new("reserved-shared", 1, 64).unwrap();
     let permit = pool.try_reserve(64).unwrap();

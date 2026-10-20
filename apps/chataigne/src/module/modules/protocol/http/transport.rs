@@ -7,7 +7,7 @@ use std::{
 };
 
 const HTTP_REQUEST_CHANNEL_CAPACITY: usize = 256;
-const HTTP_REQUEST_BYTES: usize = 8 * 1024 * 1024;
+pub(super) const HTTP_REQUEST_BYTES: usize = 8 * 1024 * 1024;
 pub(super) const HTTP_RESPONSE_CAPACITY: usize = 4;
 pub(super) const HTTP_EVENT_BYTES: usize = 32 * 1024 * 1024;
 pub(super) const HTTP_RESPONSE_BODY_BYTES: usize = 1024 * 1024;
@@ -20,7 +20,8 @@ use golden_io::{
 mod generation;
 pub(super) mod prepared;
 pub(super) use prepared::{HttpResultRejection, HttpWorkerEvent, PreparedHttpFailure, PreparedHttpResponse};
-mod weights;
+pub(super) mod weights;
+use super::input::HttpInput;
 pub(super) use generation::GenerationFence;
 
 pub(super) fn worker_lifetimes() -> &'static RetirementPool {
@@ -106,7 +107,7 @@ pub(crate) enum HttpOutcome {
 }
 
 pub(crate) struct HttpTransportHandle {
-    worker: BoundedWorker<HttpQueuedRequest, HttpWorkerEvent>,
+    worker: BoundedWorker<HttpInput, HttpWorkerEvent>,
     completion: GenerationFence,
     predecessor: Option<GenerationFence>,
 }
@@ -242,12 +243,17 @@ impl HttpTransportHandle {
         })
     }
 
-    pub(crate) fn send(&self, request: HttpQueuedRequest) -> Result<(), String> {
-        let weight = weights::request_weight(&request)?;
+    pub(super) fn send_input(&self, request: HttpInput) -> Result<(), String> {
+        let weight = request.queue_weight();
         self.worker.send_weighted(request, weight).map_err(|error| match error {
             PendingSendError::Full(_) => "HTTP request queue item/byte capacity is full".to_string(),
             PendingSendError::Disconnected(_) => "HTTP worker is no longer running".to_string(),
         })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn send(&self, request: HttpQueuedRequest) -> Result<(), String> {
+        self.send_input(HttpInput::prepare(request)?)
     }
 
     pub(crate) fn drain_events(&self, events: &mut Vec<HttpWorkerEvent>, budget: NonZeroUsize) -> PendingDrain {
@@ -291,7 +297,7 @@ pub(super) struct AttemptProgress {
 
 fn worker_loop(
     config: HttpTransportConfig,
-    context: WorkerContext<HttpQueuedRequest, HttpWorkerEvent>,
+    context: WorkerContext<HttpInput, HttpWorkerEvent>,
     predecessor_ready: bool,
     complete: &mut generation::CompletionGuard,
     mut execute: Box<HttpExecutor>,
@@ -322,7 +328,36 @@ fn worker_loop(
     if unavailable.is_some() {
         context.close_command_admission();
     }
-    while let Some(request) = context.receive() {
+    while let Some(input) = context.receive() {
+        if context.cancellation().is_cancelled() {
+            return;
+        }
+        let materialized = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| input.materialize()))
+            .unwrap_or_else(|_| {
+                context.close_command_admission();
+                unavailable =
+                    Some("HTTP worker unavailable after input preparation failed; request was not sent".into());
+                Err("HTTP input preparation failed before sending the request".into())
+            });
+        let request = match materialized {
+            Ok(request) => request,
+            Err(error) => {
+                let event = HttpWorkerEvent::Rejected(HttpResultRejection {
+                    description: input.description(),
+                    command_id: input.command_target().map(|(_, command)| command),
+                    attempts: 0,
+                    error: bounded_error(&error),
+                });
+                let weight = event.retained_weight();
+                if context.publish_weighted(event, weight).is_err() {
+                    return;
+                }
+                continue;
+            }
+        };
+        if context.cancellation().is_cancelled() {
+            return;
+        }
         let event = if let Some(error) = &unavailable {
             Some(failed_request(request, error.clone(), 0))
         } else {
@@ -368,6 +403,15 @@ fn worker_loop(
             retire();
         }
     }
+}
+
+fn bounded_error(text: &str) -> String {
+    let prefix = "Request was not sent: ";
+    let mut end = text.len().min(4096 - prefix.len());
+    while !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    format!("{prefix}{}", &text[..end])
 }
 
 fn failed_request(request: HttpQueuedRequest, error: String, attempts: u32) -> HttpOutcome {

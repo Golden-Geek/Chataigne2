@@ -162,6 +162,13 @@ polls external owners, at most once per 100ms while idle. Small-event item headr
 the normal replay window and its deferred prefix compaction; byte exhaustion still rejects new
 inputs explicitly until owners release capacity. These limits do not bound the entire process.
 
+`PayloadReservation::share_retained` supplies a `SharedPayload` that can forward both raw Arc
+routing and its original lease. The script bridge uses `CustomEvent::from_shared_payload`;
+command capture calls `try_lease_payload` to reuse that canonical owner. Plain event JSON uses
+one engine fallback pool capped at 16384 allocations / 64 MiB. Lifetime metadata is excluded
+from serialization and logical event equality. Do not erase the owner before asynchronous
+capture or register the same raw allocation in an independent pool.
+
 QuickJS method, property and event JSON is limited to 1 MiB, 4097 aggregate nodes including the
 root, and depth 32 before expanding a wide/deep tree. Malformed JSON fails explicitly. Disposal
 capacity is reserved before typed conversion; method conversion also seals partial vectors on
@@ -307,11 +314,31 @@ The app-owned HTTP adapter uses that boundary with 16 global worker lifetimes, 2
 of retained request weight, and four replies / 32 MiB of retained event weight per worker. Bodies are
 read up to a 1 MiB limit even without a declared content length. JSON expansion has value, depth,
 and retained-weight limits; request JSON, headers, form fields, and file descriptors are bounded
-before admission. Multipart file contents stream on the worker. Weight includes owned buffers,
+before endpoint dispatch. Multipart file contents stream on the worker. Weight includes owned buffers,
 parsed values, and prepared script arguments; it is an admission estimate, not a process-RSS limit.
 One in-flight request/result may additionally be retained, and parsing/preparing it can temporarily
 exceed the reply queue's retained-weight budget before rejection. Client creation, JSON parsing,
 success/failure script-argument preparation, retry waits, requests, and client destruction stay on the worker.
+
+HTTP native input is a typed script-argument lease or a captured command invocation, sharing
+the generation's existing FIFO and cancellation. Commands retain their immutable snapshot and
+bounded override JSON (256 KiB / 4096 nodes / depth 16); only target selection is decoded on
+the actor. HTTP and stream commands share this app-owned capture boundary. Command source
+parameters admit 4 MiB total before conversion, including spare capacity. JSON command bodies
+are checked through a non-materializing serde pass (16384 nodes / depth 64) before construction;
+headers and form fields stop at 256 entries. Worker materialization rechecks overridden source
+weight and converted request bounds. File contents continue to stream directly on the worker.
+
+Queue acceptance precedes content conversion. Failed conversion reports an ordered, bounded
+warning with zero attempts and sends nothing; later requests remain connected and may progress.
+Applied configuration and source/target eligibility are checked before native admission. Once
+accepted, a request retains that generation and its frozen input across disable/reconfigure or
+source removal; explicit module destruction may cancel it. Native queue rejection releases only
+leases on the actor. Snapshot, override and argument lifetimes keep their existing canonical
+budgets, while materialized request copies and conversion scratch belong to the native worker.
+Command capture also holds source/target wake identities: retirement fences pending admission
+even if a node ID is later restored. Conversion never reapplies that source check to an already
+admitted native input.
 
 HTTP module turns drain at most four events and retain at most that one FIFO batch. The shared
 received-value cursor services at most 256 path/value/sibling work units and about 64 KiB of value/path/provenance

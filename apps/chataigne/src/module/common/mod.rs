@@ -2,6 +2,7 @@ pub(crate) mod app_control;
 pub(crate) mod buttplug;
 pub(crate) mod http;
 pub(crate) mod joycon;
+pub(crate) mod json;
 pub(crate) mod keyboard;
 pub(crate) mod mouse;
 pub(crate) mod mqtt;
