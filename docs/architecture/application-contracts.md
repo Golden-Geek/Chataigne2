@@ -94,6 +94,14 @@ closes the registration, and enum dispatch forwards the hook for built-in and co
 These short-lock notifications belong on host workers; realtime audio callbacks keep using their
 realtime-safe queues.
 
+Sound Card runtime facades contain controls and observation readers. Native engine ownership,
+blocking shutdown and joins remain on a prestarted owner with a reserved lifetime, including
+startup failure, discarded results and node removal. Eight bounded startup workers and sixteen
+active/retiring native owners cap resource churn. Full startup queues retain their worker;
+replacements wait for the previous native cleanup within that controller lifetime. Producer exit
+drains its published event prefix before retry. Event byte/service bounds, overload delivery
+policy and configuration preparation remain separate P03 acceptance work.
+
 Engine-owned inbox, script/mutation, scheduled and worker callbacks also carry wake registration
 capability, allowing idle nodes to reserve only when admitting asynchronous work. A completed
 command releases its source registration instead of reserving one for every authored command.

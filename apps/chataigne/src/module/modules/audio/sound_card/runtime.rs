@@ -6,9 +6,9 @@ use std::{
 use chataigne_sound_card_protocol::{SoundCardPlaybackVoiceDto, SoundCardUiTelemetryDto};
 use golden_audio::{
     match_device_selection, AnalysisProcessorConfiguration, AnalysisResult, AnalysisTapConfiguration, AnalysisTapId,
-    AnalysisTapObservation, AudioBufferPolicy, AudioChannelId, AudioCommand, AudioConfiguration, AudioDeviceDescriptor,
-    AudioDeviceInspectorState, AudioDeviceMatch, AudioDeviceSelection, AudioDeviceTargetId, AudioDirection,
-    AudioEngine, AudioEngineBuilder, AudioEvent, AudioEventReceiver, AudioObservationReader, AudioObservationSnapshot,
+    AnalysisTapObservation, AudioBufferPolicy, AudioChannelId, AudioCommand, AudioConfiguration, AudioControl,
+    AudioDeviceDescriptor, AudioDeviceInspectorState, AudioDeviceMatch, AudioDeviceSelection, AudioDeviceTargetId,
+    AudioDirection, AudioEngineBuilder, AudioEvent, AudioObservationReader, AudioObservationSnapshot,
     AudioRecoveryPolicy, AudioRouteId, BackendId, BackendPolicy, ConfigGeneration, DirectionConfiguration, GainDb,
     InputPatchRoute, NullBackend, OutputPatchRoute, PhysicalChannelKey, PitchAnalysisConfiguration, PlaybackId,
     PlaybackRoute, SampleRate, SpectrumAnalysisConfiguration, SpectrumBandSpacing, SpectrumOverlap, SpectrumWindow,
@@ -68,8 +68,8 @@ pub(super) fn output_channel_names_for_test(
 use snapshot::*;
 pub(super) use wake::RuntimeWakeSender;
 pub(super) use worker::{
-    retire_detached, SoundCardRuntimeRequest, SoundCardRuntimeStarted, SoundCardRuntimeWorker,
-    SoundCardRuntimeWorkerPoll,
+    SoundCardRuntimeRequest, SoundCardRuntimeStarted, SoundCardRuntimeWorker, SoundCardRuntimeWorkerPoll,
+    StartRequestError,
 };
 pub(super) const OBSERVATION_EPSILON: f64 = 0.000_01;
 pub(super) const OUTPUT_ACTIVITY_RMS_THRESHOLD: f32 = 0.01;
@@ -144,9 +144,8 @@ impl SoundCardValueBindings {
 
 #[derive(Debug)]
 pub(crate) struct SoundCardRuntime {
-    engine: AudioEngine,
-    events: Option<AudioEventReceiver>,
-    event_bridge: Option<events::SoundCardRuntimeEvents>,
+    control: AudioControl,
+    event_bridge: events::SoundCardRuntimeEvents,
     observations: AudioObservationReader,
     generation: ConfigGeneration,
     sample_rate: SampleRate,
@@ -181,15 +180,19 @@ impl SoundCardRuntime {
             preferred: vec![driver.clone()],
             allow_null_fallback: false,
         };
+        let lifetime = events::reserve_lifetime()?;
         let mut engine = builder.build().map_err(|error| error.to_string())?;
         let events = engine
             .take_event_receiver()
             .ok_or_else(|| "golden_audio event receiver was already taken".to_owned())?;
+        let observations = engine.observations();
+        let control = engine.control();
+        let event_bridge =
+            events::SoundCardRuntimeEvents::spawn(engine, events, lifetime, LEVELS_UPDATE_RATE_DEFAULT_HZ as u32)?;
         Ok(Self {
-            observations: engine.observations(),
-            engine,
-            events: Some(events),
-            event_bridge: None,
+            observations,
+            control,
+            event_bridge,
             generation: ConfigGeneration::INITIAL,
             sample_rate,
             driver: Some(driver),
@@ -225,8 +228,7 @@ impl SoundCardRuntime {
         if self.probe_interests == targets {
             return Ok(());
         }
-        self.engine
-            .control()
+        self.control
             .set_device_probe_interests(targets.clone())
             .map_err(|error| error.to_string())?;
         self.probe_interests = targets;
@@ -234,27 +236,13 @@ impl SoundCardRuntime {
     }
 
     pub(super) fn enable_notifications(&mut self, wake: RuntimeWakeSender) -> Result<(), String> {
-        if self.event_bridge.is_some() {
-            return Ok(());
-        }
-        let events = self
-            .events
-            .take()
-            .ok_or_else(|| "Sound Card audio event receiver is unavailable".to_owned())?;
-        self.event_bridge = Some(events::SoundCardRuntimeEvents::spawn(
-            events,
-            wake,
-            self.levels_update_rate_hz,
-        )?);
-        Ok(())
+        self.event_bridge.enable_notifications(wake)
     }
 
     pub(super) fn set_levels_update_rate_hz(&mut self, rate_hz: u32) {
         let rate_hz = bounded_levels_update_rate_hz(rate_hz);
         self.levels_update_rate_hz = rate_hz;
-        if let Some(event_bridge) = &self.event_bridge {
-            event_bridge.set_refresh_rate_hz(rate_hz);
-        }
+        self.event_bridge.set_refresh_rate_hz(rate_hz);
     }
 
     pub(super) fn take_outgoing_activity_change(&mut self) -> Option<bool> {
@@ -267,8 +255,7 @@ impl SoundCardRuntime {
         snapshot: &ProcessTreeSnapshot,
     ) -> Result<ConfigGeneration, String> {
         let generation = self.generation.next();
-        self.engine
-            .control()
+        self.control
             .submit(AudioCommand::ApplyConfiguration {
                 generation,
                 config: Box::new(built.configuration),
@@ -286,8 +273,7 @@ impl SoundCardRuntime {
     }
 
     pub(super) fn set_enabled(&mut self, enabled: bool) -> Result<(), String> {
-        self.engine
-            .control()
+        self.control
             .submit(AudioCommand::SetEnabled(enabled))
             .map(|_| ())
             .map_err(|error| error.to_string())
@@ -297,7 +283,7 @@ impl SoundCardRuntime {
         &self,
         command: AudioCommand,
     ) -> Result<golden_audio::CommandSequence, golden_audio::AudioError> {
-        self.engine.control().submit(command)
+        self.control.submit(command)
     }
 
     pub(super) fn poll(
@@ -308,12 +294,7 @@ impl SoundCardRuntime {
         Option<SoundCardUiTelemetryDto>,
         Vec<AudioEvent>,
     ) {
-        let events = self
-            .event_bridge
-            .as_ref()
-            .map(events::SoundCardRuntimeEvents::drain)
-            .or_else(|| self.events.as_ref().map(AudioEventReceiver::drain))
-            .unwrap_or_default();
+        let events = self.event_bridge.drain();
         for event in &events {
             self.observe_event(event);
         }
@@ -335,10 +316,17 @@ impl SoundCardRuntime {
     }
 
     pub(super) fn stop(&mut self) {
-        let _ = self.engine.shutdown();
-        if let Some(mut event_bridge) = self.event_bridge.take() {
-            event_bridge.join();
-        }
+        // Request ordered shutdown promptly when the control queue has room;
+        // the native owner handles full queues and all blocking cleanup.
+        let _ = self.control.shutdown();
+        self.event_bridge.stop();
+    }
+
+    pub(super) fn completion(&self) -> golden_io::RetirementPool {
+        self.event_bridge.completion()
+    }
+    pub(super) fn is_disconnected(&self) -> bool {
+        self.event_bridge.is_disconnected() && !self.event_bridge.has_pending()
     }
 
     fn apply_observation_values(&mut self, ctx: &mut ProcessCtx, observation: &AudioObservationSnapshot) {

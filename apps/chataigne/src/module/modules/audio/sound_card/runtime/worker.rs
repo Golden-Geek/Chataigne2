@@ -1,43 +1,18 @@
-use std::{
-    fmt,
-    num::NonZeroUsize,
-    sync::{
-        mpsc::{RecvTimeoutError, TrySendError},
-        OnceLock,
-    },
-    time::Duration,
-};
+use std::{fmt, num::NonZeroUsize, sync::OnceLock, time::Duration};
 
 use golden_audio::{BackendId, SampleRate};
-use golden_io::{
-    bounded_pending_channel, PendingDrainState, PendingReceiver, RetirementError, RetirementPermit, RetirementPool,
-    WorkerTask,
-};
+use golden_io::{BoundedWorker, PendingDrainState, PendingSendError, RetirementPool, WorkerLimits, WorkerNotifier};
 
 use super::{RuntimeWakeSender, SoundCardRuntime};
 
 const START_COALESCE_WINDOW: Duration = Duration::from_millis(10);
 const LIFECYCLE_COMMAND_CAPACITY: usize = 8;
-const LIFECYCLE_WORKER_CAPACITY: usize = 8;
-const DETACHED_RUNTIME_RETIREMENT_CAPACITY: usize = 4;
+const MAX_DRIVER_BYTES: usize = 128;
+const MAX_START_ERROR_BYTES: usize = 4096;
 
-fn lifecycle_worker_retirements() -> &'static RetirementPool {
+fn lifecycle_worker_lifetimes() -> &'static RetirementPool {
     static POOL: OnceLock<RetirementPool> = OnceLock::new();
-    POOL.get_or_init(|| {
-        RetirementPool::new(
-            NonZeroUsize::new(LIFECYCLE_WORKER_CAPACITY).expect("Sound Card lifecycle worker capacity is non-zero"),
-        )
-    })
-}
-
-fn detached_runtime_retirements() -> &'static RetirementPool {
-    static POOL: OnceLock<RetirementPool> = OnceLock::new();
-    POOL.get_or_init(|| {
-        RetirementPool::new(
-            NonZeroUsize::new(DETACHED_RUNTIME_RETIREMENT_CAPACITY)
-                .expect("Sound Card runtime retirement capacity is non-zero"),
-        )
-    })
+    POOL.get_or_init(|| RetirementPool::new(NonZeroUsize::new(8).unwrap()))
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -46,12 +21,10 @@ pub(crate) struct SoundCardRuntimeRequest {
     sample_rate: SampleRate,
     driver: Option<BackendId>,
 }
-
 impl SoundCardRuntimeRequest {
     pub(crate) const fn sample_rate(&self) -> SampleRate {
         self.sample_rate
     }
-
     pub(crate) fn driver(&self) -> Option<&BackendId> {
         self.driver.as_ref()
     }
@@ -62,75 +35,93 @@ pub(crate) struct SoundCardRuntimeStarted {
     pub request: SoundCardRuntimeRequest,
     pub result: Result<Box<SoundCardRuntime>, String>,
 }
-
 pub(crate) enum SoundCardRuntimeWorkerPoll {
     Pending,
     Started(SoundCardRuntimeStarted),
     Disconnected,
 }
 
-enum SoundCardRuntimeWorkerCommand {
-    Start { request: SoundCardRuntimeRequest },
-    Retire(Box<SoundCardRuntime>),
+#[derive(Debug)]
+pub(crate) enum StartRequestError {
+    Full,
+    Disconnected,
+    Invalid(&'static str),
+}
+impl fmt::Display for StartRequestError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::Full => "Sound Card runtime worker queue is full",
+            Self::Disconnected => "Sound Card runtime worker stopped",
+            Self::Invalid(message) => message,
+        })
+    }
 }
 
 pub(crate) struct SoundCardRuntimeWorker {
-    task: Option<WorkerTask<SoundCardRuntimeWorkerCommand>>,
-    events: Option<PendingReceiver<SoundCardRuntimeStarted>>,
-    retirement_permit: Option<RetirementPermit>,
+    worker: BoundedWorker<SoundCardRuntimeRequest, SoundCardRuntimeStarted>,
     next_request_id: u64,
 }
 
 impl SoundCardRuntimeWorker {
     pub(crate) fn spawn(wake: RuntimeWakeSender) -> Result<Self, String> {
-        Self::spawn_using(wake, SoundCardRuntime::start_selected)
+        Self::spawn_using(wake, lifecycle_worker_lifetimes(), SoundCardRuntime::start_selected)
     }
 
-    fn spawn_using<F>(wake: RuntimeWakeSender, starter: F) -> Result<Self, String>
+    fn spawn_using<F>(wake: RuntimeWakeSender, lifetimes: &RetirementPool, starter: F) -> Result<Self, String>
     where
         F: Fn(SampleRate, Option<BackendId>) -> Result<SoundCardRuntime, String> + Send + 'static,
     {
-        let retirement_permit = lifecycle_worker_retirements()
-            .try_reserve()
-            .map_err(|error| format!("Sound Card lifecycle worker rejected: {error}"))?;
-        let (event_sender, events) = bounded_pending_channel(2, 2);
-        let task = WorkerTask::spawn_with_capacity(
+        let command_weight = std::mem::size_of::<SoundCardRuntimeRequest>() + MAX_DRIVER_BYTES;
+        let event_weight = std::mem::size_of::<SoundCardRuntimeStarted>()
+            + std::mem::size_of::<SoundCardRuntime>()
+            + MAX_START_ERROR_BYTES;
+        let worker = BoundedWorker::<SoundCardRuntimeRequest, SoundCardRuntimeStarted>::spawn_notified(
             "chataigne-sound-card-runtime",
-            LIFECYCLE_COMMAND_CAPACITY,
-            move |commands| {
-                while let Ok(command) = commands.recv() {
-                    match command {
-                        SoundCardRuntimeWorkerCommand::Start { request: first_request } => {
-                            // Driver construction may load native libraries and must never
-                            // churn through a FIFO of stale UI selections. Wait for one
-                            // short host-boundary window and construct only the newest
-                            // request observed before initialization begins.
-                            let mut request = first_request;
-                            loop {
-                                match commands.recv_timeout(START_COALESCE_WINDOW) {
-                                    Ok(SoundCardRuntimeWorkerCommand::Start { request: newer }) => request = newer,
-                                    Ok(SoundCardRuntimeWorkerCommand::Retire(mut runtime)) => runtime.stop(),
-                                    Err(RecvTimeoutError::Timeout) => break,
-                                    Err(RecvTimeoutError::Disconnected) => return,
-                                }
-                            }
-                            let result = starter(request.sample_rate, request.driver.clone()).map(Box::new);
-                            if event_sender.send(SoundCardRuntimeStarted { request, result }).is_ok() {
-                                wake.wake();
+            lifetimes,
+            WorkerLimits {
+                command_items: LIFECYCLE_COMMAND_CAPACITY,
+                command_weight: LIFECYCLE_COMMAND_CAPACITY * command_weight,
+                event_items: 2,
+                event_weight: 2 * event_weight,
+            },
+            WorkerNotifier::new(move || wake.wake()),
+            move |context| {
+                let mut previous: Option<RetirementPool> = None;
+                while let Some(mut request) = context.receive() {
+                    // One fixed window plus one bounded drain, so continuous edits
+                    // cannot postpone startup forever by restarting the timeout.
+                    if context.cancellation().wait(START_COALESCE_WINDOW) {
+                        return;
+                    }
+                    if let Some(previous) = &previous {
+                        while !previous.wait_for_idle(Duration::from_millis(100)) {
+                            if context.cancellation().is_cancelled() {
+                                return;
                             }
                         }
-                        SoundCardRuntimeWorkerCommand::Retire(mut runtime) => {
-                            runtime.stop();
-                        }
+                    }
+                    let mut newer = Vec::with_capacity(LIFECYCLE_COMMAND_CAPACITY);
+                    context.drain_commands(&mut newer, NonZeroUsize::new(LIFECYCLE_COMMAND_CAPACITY).unwrap());
+                    if let Some(latest) = newer.pop() {
+                        request = latest;
+                    }
+                    if context.cancellation().is_cancelled() {
+                        return;
+                    }
+                    let result = starter(request.sample_rate, request.driver.clone())
+                        .map(Box::new)
+                        .map_err(|error| bounded_error(&error));
+                    previous = result.as_ref().ok().map(|runtime| runtime.completion());
+                    let started = SoundCardRuntimeStarted { request, result };
+                    if context.publish_weighted(started, event_weight).is_err() {
+                        return;
                     }
                 }
             },
         )
-        .map_err(|error| format!("failed to start Sound Card runtime worker: {error}"))?;
+        .map_err(|error| format!("failed to start Sound Card lifecycle worker: {error}"))?;
         Ok(Self {
-            task: Some(task),
-            events: Some(events),
-            retirement_permit: Some(retirement_permit),
+            worker,
             next_request_id: 1,
         })
     }
@@ -139,32 +130,39 @@ impl SoundCardRuntimeWorker {
         &mut self,
         sample_rate: SampleRate,
         driver: Option<BackendId>,
-    ) -> Result<SoundCardRuntimeRequest, String> {
+    ) -> Result<SoundCardRuntimeRequest, StartRequestError> {
+        if driver
+            .as_ref()
+            .is_some_and(|driver| driver.as_str().len() > MAX_DRIVER_BYTES)
+        {
+            return Err(StartRequestError::Invalid(
+                "Sound Card driver identifier exceeds 128 bytes",
+            ));
+        }
+        let next = self.next_request_id.checked_add(1).ok_or(StartRequestError::Invalid(
+            "Sound Card runtime request identity exhausted",
+        ))?;
         let request = SoundCardRuntimeRequest {
             id: self.next_request_id,
             sample_rate,
             driver,
         };
-        self.next_request_id = self.next_request_id.saturating_add(1);
-        self.task
-            .as_ref()
-            .ok_or_else(|| "Sound Card runtime worker stopped".to_owned())?
-            .send(SoundCardRuntimeWorkerCommand::Start {
-                request: request.clone(),
-            })
+        self.worker
+            .send_weighted(
+                request.clone(),
+                std::mem::size_of::<SoundCardRuntimeRequest>() + MAX_DRIVER_BYTES,
+            )
             .map_err(|error| match error {
-                TrySendError::Full(_) => "Sound Card runtime worker queue is full".to_owned(),
-                TrySendError::Disconnected(_) => "Sound Card runtime worker stopped".to_owned(),
+                PendingSendError::Full(_) => StartRequestError::Full,
+                PendingSendError::Disconnected(_) => StartRequestError::Disconnected,
             })?;
+        self.next_request_id = next;
         Ok(request)
     }
 
     pub(crate) fn poll(&self) -> SoundCardRuntimeWorkerPoll {
-        let Some(events) = self.events.as_ref() else {
-            return SoundCardRuntimeWorkerPoll::Disconnected;
-        };
         let mut started = Vec::with_capacity(1);
-        let drain = events.drain_into(&mut started, NonZeroUsize::MIN);
+        let drain = self.worker.drain_events(&mut started, NonZeroUsize::MIN);
         match started.pop() {
             Some(started) => SoundCardRuntimeWorkerPoll::Started(started),
             None if drain.state == PendingDrainState::Disconnected => SoundCardRuntimeWorkerPoll::Disconnected,
@@ -172,59 +170,27 @@ impl SoundCardRuntimeWorker {
         }
     }
 
-    pub(crate) fn retire(&self, runtime: SoundCardRuntime) -> Result<(), RetirementError<SoundCardRuntime>> {
-        let Some(task) = self.task.as_ref() else {
-            return retire_detached(runtime);
-        };
-        if let Err(
-            TrySendError::Full(SoundCardRuntimeWorkerCommand::Retire(runtime))
-            | TrySendError::Disconnected(SoundCardRuntimeWorkerCommand::Retire(runtime)),
-        ) = task.send(SoundCardRuntimeWorkerCommand::Retire(Box::new(runtime)))
-        {
-            return retire_detached(*runtime);
-        }
-        Ok(())
+    pub(crate) fn has_pending(&self) -> bool {
+        self.worker.has_pending()
     }
 }
 
-impl Drop for SoundCardRuntimeWorker {
-    fn drop(&mut self) {
-        let (Some(events), Some(task), Some(permit)) =
-            (self.events.take(), self.task.take(), self.retirement_permit.take())
-        else {
-            return;
-        };
-        let worker = task.into_join_handle();
-        if let Err(error) = permit.spawn(
-            "chataigne-sound-card-lifecycle-retirement",
-            (events, worker),
-            |(events, worker)| {
-                drop(events);
-                if let Some(worker) = worker {
-                    let _ = worker.join();
-                }
-            },
-        ) {
-            eprintln!("Sound Card lifecycle retirement failed: {error}");
-            let (events, worker) = error.into_value();
-            drop(events);
-            if let Some(worker) = worker {
-                let _ = worker.join();
-            }
-        }
+fn bounded_error(error: &str) -> String {
+    let mut end = error.len().min(MAX_START_ERROR_BYTES);
+    while !error.is_char_boundary(end) {
+        end -= 1;
     }
+    error[..end].to_owned()
 }
 
 impl fmt::Debug for SoundCardRuntimeWorker {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("SoundCardRuntimeWorker")
-            .field("running", &self.task.as_ref().is_some_and(WorkerTask::is_running))
             .field("next_request_id", &self.next_request_id)
             .finish_non_exhaustive()
     }
 }
 
-pub(crate) fn retire_detached(runtime: SoundCardRuntime) -> Result<(), RetirementError<SoundCardRuntime>> {
-    detached_runtime_retirements().try_retire("chataigne-sound-card-retirement", runtime, |mut runtime| runtime.stop())
-}
+#[cfg(test)]
+mod tests;

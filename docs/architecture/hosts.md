@@ -295,11 +295,10 @@ Input pressure cannot gate successful unlogged output. Outgoing logs are bounded
 complete native writes. Connection status is a bounded latest-state read model.
 
 TCP client is passive: reply/exit notifications and bounded retry deadlines drive its owner,
-including explicit disabled-node completion service during retirement. TCP input parsing,
-callback preparation, and grammar/connection-generation handling still need their worker-side
-boundary; these native ownership checks do not qualify that remaining actor work. TCP server,
-WebSocket, and serial retain periodic service and still require worker/channel/retirement audits.
-The wider module/generator audit remains open P03 work.
+including explicit disabled-node completion service during retirement. Parsing, callback preparation
+and grammar/connection generations live at the native boundary. The six stream adapters use passive
+receipts and retained input/output ownership described above. The wider module/generator audit
+remains open P03 work.
 
 Reconfiguration and disable close send admission while retaining accepted work and results.
 The next generation waits for the old socket's release, including when rebinding the same port.
@@ -413,8 +412,28 @@ deadline; a full registration set rejects before worker startup. A later registr
 recover after an owner releases its slot. A paired condition-variable lock wakes the sleeping timer
 on deadline publication.
 There is no full-queue fallback that polls the node each engine tick, and no per-source timer
-thread. Startup failure does not permanently poison timer construction. This qualifies wake and
-retry scheduling only; the Sound Card worker, event-drain, and native-retirement audit remains open.
+thread. Startup failure does not permanently poison timer construction.
+
+Sound Card facades hold `AudioControl` and observation readers. A prestarted native owner keeps
+the `AudioEngine`, receives its events and performs all blocking shutdown/join/final engine cleanup.
+Sixteen global native lifetimes are reserved before engine construction and held through cleanup.
+Stopping a facade requests bounded control shutdown and signals cancellation; dropping it neither
+joins nor creates a cleanup thread. Producer exit is announced before cleanup can block; queued
+event prefixes drain before native-failure recovery. A separate completion lifetime resolves only
+after actual cleanup; the same startup worker waits for that completion before constructing
+a replacement. Destroy/restore starts a fresh node lifetime with the existing recovery policy.
+
+Eight `BoundedWorker` startup lifetimes own initialization and result publication. Their mailboxes
+admit eight bounded requests and two results. One fixed 10ms coalescing window and one eight-item
+drain select the latest admitted request without a producer extending the debounce forever.
+Startup-result service drains at most two per actor turn. Queue overload retains the worker;
+disconnection and native failure use the module's existing capped retry deadlines. Error strings
+are limited to 4096 UTF-8-safe bytes and driver identifiers to 128 bytes at startup admission.
+
+Sound Card's event retained-byte accounting, budgeted drain, reliable occurrence delivery, remaining
+admission recovery and configuration-preparation bounds remain P03 work. The underlying audio
+event stream currently uses `try_send` with a dropped-event counter; wake/native-ownership evidence
+does not qualify that overload policy, whole-process memory or actor deadlines.
 
 ## Current qualification boundaries
 

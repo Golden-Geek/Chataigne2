@@ -5,8 +5,8 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-20 on `main` at delivered `da3becc6`, matching fetched `origin/main`,
-plus the P03 batch 35 milestone recorded below.
+Last reconciled: 2026-10-20 on clean `main` at delivered `3e9c9cc0`, matching fetched `origin/main`,
+plus the P03 batch 36 milestone recorded below.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
 plan. Its complete contents, including the uncommitted clarification, survive in the
@@ -41,7 +41,7 @@ The score is `(100 + 100 + 100 + 100 + 50 + 0 + 0) / 7`.
 | Six native stream adapters                    | 100%          | UDP, TCP Client/Server, WebSocket Client/Server and Serial ownership/admission/passive service delivered; preserve their regression suites. |
 | HTTP                                          | 100%          | Native lifecycle, admission, response bounds, passive service, worker request conversion and retained input disposal verified.              |
 | Generic script/event/property ingress         | 100%          | Method/property/event/log admission, rejected-input disposal, routing lifetime and shared-budget recovery verified.                         |
-| Sound Card lifecycle/service                  | 50% (partial) | Wake/service repairs delivered; stop/join, event drain, admission/recovery and configuration-bound audit remains.                           |
+| Sound Card lifecycle/service                  | 50% (partial) | Wake/service and native-lifetime repairs; event byte/service bounds, delivery pressure, admission recovery and configuration audit remain.  |
 | Remaining app module/channel audit            | 0% (open)     | Audit every remaining module/channel against bounded service, retirement, failure and reconnect criteria; repair and verify findings.       |
 | Generator elapsed-time accounting             | 0% (open)     | Signal/metronome ordinary commands must preserve elapsed time and phase; add owning regressions.                                            |
 
@@ -51,21 +51,24 @@ meet their acceptance; new audit findings must be reflected here instead of hidd
 
 ## Current handoff
 
-- Current milestone: P03 batch 35, HTTP script/command capture and worker conversion.
-  The previous turn was progress: batch 34 was verified, committed and pushed as `da3becc6`.
-  Owning and app checks pass: **15% overall / 64% P03**; the HTTP checkpoint is verified.
-- Checkout reconciled on clean `main` at `da3becc6`, matching fetched `origin/main`; no unrelated edits.
+- Current milestone: P03 batch 36, Sound Card native ownership and bounded startup lifecycle.
+  The previous turn was progress: HTTP batch 35 was verified, committed and pushed as `3e9c9cc0`.
+  Current Sound Card owning tests (39), app preservation (433) and final native checks pass.
+  Progress remains **15% overall / 64% P03**; Sound Card is still a partial checkpoint.
+- Checkout reconciled on clean `main` at `3e9c9cc0`, matching fetched `origin/main`; no unrelated edits.
   `d3a45301` removes the automatic reasoning-effort switching rules at the user's request on
   2026-10-20. Earlier effort notes below are historical evidence, not active instructions.
-- Validation: **1058 distinct passed tests** across Golden Engine/IO/script (629) and app (429).
-  Three existing manual engine benchmarks remain ignored. Strict all-target Clippy, fresh app
-  test compilation and workspace/test compilation pass. Final native build passed in 45.64s;
-  all owned validation jobs are terminal.
+- Validation: **433 distinct app tests passed**, including 39 Sound Card tests. Final strict
+  app Clippy passed in 11.49s, workspace/test compilation in 11.69s and default native build
+  in 1m22s. All owned validation jobs are terminal. No Golden crate runtime source changed;
+  earlier owning evidence remains scoped to its delivered source.
 - Scope: **foundation and readiness**. P01/P02 are verified locally, P03 is in progress,
   P04-P18 have not started. Full lighting/video/projection authoring remains deferred.
-- Next checkpoints: Sound Card stop/join, event
-  drain, admission/recovery and configuration bounds; remaining module/channel audit; generator
+- Next checkpoints: Sound Card event retained-byte accounting and budgeted drain; upstream
+  event-loss policy (`golden_audio::publish_event` currently uses `try_send` and a dropped-event
+  counter); remaining admission/idle-slot recovery and configuration bounds; remaining module/channel audit; generator
   elapsed-time accounting. Preserve stream regression coverage and completed Mapping behavior.
+  Include disabled-node completion service and ignored `set_enabled` admission errors in that audit.
 - Delivery: work on `main`, commit and push every verified milestone to `origin/main`.
   Mapping was merged in `f02205af`; earlier no-commit/no-push or branch notes below are historical.
   Batch 33 method ingress was delivered in `03c76798`; batch-level evidence is retained below.
@@ -83,7 +86,7 @@ External qualification is separate from implementation. A historical pass is not
 | P00 Baseline                | 100%       | VERIFIED_LOCAL | PASSED              | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                |
 | P01 Edit failures/history   | 100%       | VERIFIED_LOCAL | PASSED batches 1–8  | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                 |
 | P02 Schedule/actor failures | 100%       | VERIFIED_LOCAL | PASSED batches 1-3  | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                  |
-| P03 Bounded I/O/lifecycle   | ~64%       | IN_PROGRESS    | PASSED batches 1-35 | Generic script and HTTP input ownership verified; Sound Card and remaining module/generator audit open                    |
+| P03 Bounded I/O/lifecycle   | ~64%       | IN_PROGRESS    | PASSED batches 1-36 | Script/HTTP ownership and Sound Card native lifetimes verified; remaining Sound Card and module/generator audit open      |
 | P04 Audio order/types       | 0%         | NOT_STARTED    | PENDING             | Legal interleaving and invalid deserialization established from source                                                    |
 | P05 Transport trust         | 0%         | NOT_STARTED    | PENDING             | Missing admission verified; exploit not demonstrated                                                                      |
 | P06 Dependencies            | 0%         | NOT_STARTED    | FAILED baseline     | Four Rustls advisories on audit date; refresh DB before repair                                                            |
@@ -3384,3 +3387,68 @@ no physical-device or native-UI qualification. The HTTP checkpoint is verified: 
 from approximately **57% to 64%**, and the whole-plan estimate from approximately **14% to 15%**.
 Next: Sound Card lifecycle/service, remaining module/channel audit and generator elapsed-time
 accounting. P03 remains **IN_PROGRESS**; P04–P18 retain their states.
+
+### P03 batch 36: Sound Card native ownership and bounded startup lifecycle
+
+Resumed clean `main` at delivered `3e9c9cc0`, matching fetched `origin/main`; no unrelated edits.
+The previous goal turn was progress. Live validation processes were observed through terminal
+state without timeout-driven restarts. This milestone closes native stop/join ownership, not
+the whole Sound Card service/admission/configuration checkpoint.
+
+`SoundCardRuntime` is now a facade containing `AudioControl` and observation readers. A
+prestarted native owner keeps the actual `AudioEngine` and event receiver, performs shutdown,
+joins and final engine destruction, and holds one of **16 global native lifetimes** through
+cleanup. Admission reserves that lifetime before engine construction. Facade stop requests
+bounded control shutdown and signals cancellation; full control queues and blocking cleanup
+are handled on the native owner. Facade drop never joins or creates a retirement thread.
+
+The native producer closes its event publication and notifies the actor before cleanup can
+block. Published event prefixes drain before native-failure recovery. A separate completion
+lifetime resolves after actual cleanup; the same startup worker waits before constructing
+a replacement. Destroy/restore remains a fresh node lifetime with existing backend recovery.
+Unexpected native exit schedules the module's capped recovery deadlines.
+
+The lifecycle service now uses `BoundedWorker`: **8 global startup lifetimes, 8 queued requests,
+2 results**, with no drop-time retirement thread or synchronous join fallback. One fixed 10ms
+coalescing window plus one bounded eight-item drain chooses the latest admitted selection;
+continuous edits cannot restart that window indefinitely. The actor handles at most two startup
+results per service turn and re-arms readiness. Full admission retains the worker; only
+disconnection discards it. Driver identifiers are limited to 128 bytes at startup admission,
+errors to 4096 UTF-8-safe bytes, and request identities reject exhaustion rather than saturating.
+Obsolete runtime-retirement queues, detached cleanup fallbacks and blocked-retirement state
+were removed from the app layer.
+
+Four owning regressions exercise a blocked constructor, blocked native cleanup, reservation
+recovery, early producer-exit notification with its retained event prefix, full startup queues
+and newest-selection coalescing. Drop acknowledgement must arrive before a deliberately blocked
+native operation is released; this proves ownership/ordering, not a product latency percentile.
+Existing null-runtime remove/replace/undo wake-source tests remain preserved.
+
+| Final check                                                                                                           | Result                                                                                                                                                                                                                                                                         |
+| --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `cargo test-fast --locked -p Chataigne2 --bin Chataigne2 module_modules_audio_sound_card -- --test-threads=4 --quiet` | 39/39 passed in 0.06s after 1m42s preparation.                                                                                                                                                                                                                                 |
+| Disjoint compiled-name preservation filters on fresh `Chataigne2-d57ae873474d576f.exe`, `--test-threads=4 --quiet`    | 433/433 passed of 918 listed: Sound Card 39, null-device audio 1, script API 8, HTTP 66, common JSON 1, module command 11, streams 191, common streaming 61, common serial 28, OSC 25, initial Formula 1, compressed-archive write rejection 1. Name sets checked for overlap. |
+| `cargo clippy --locked -p Chataigne2 --all-targets -- -D warnings`                                                    | Final passed, 11.49s.                                                                                                                                                                                                                                                          |
+| `cargo check --locked --workspace --tests`                                                                            | Passed, 11.69s.                                                                                                                                                                                                                                                                |
+| `cargo build --locked -p Chataigne2 --bin Chataigne2`                                                                 | Passed, 1m22s; existing UI bundle reused, no cache intervention.                                                                                                                                                                                                               |
+
+**433 distinct tests passed**; focused Sound Card reruns count once. No Golden crate runtime
+source changed, so earlier owning-core evidence is not reported as rerun here. The initial
+missing generic annotation was corrected before final validation. Inventory: **1537 source
+files / 42 oversized**; the two new test sources are 74/100 lines, and touched runtime modules
+remain below 1000 lines. No new size exception, protocol DTO, persistence format, UI or app-shell
+startup change. Root/Core Cargo formatting, affected-app rustfmt, maintained-doc Prettier and
+whitespace checks pass. All owned jobs are terminal; commit and push on `main`.
+
+Sound Card remains **50% (partial)** in the seven-workstream rubric: its event bridge still
+uses unit-weight pending admission and an unbounded-to-empty actor drain. Golden Audio's
+upstream `publish_event` uses `try_send` and increments `dropped_event_count` on failure;
+reliable occurrence delivery under pressure is not qualified. Next audit those contracts,
+disabled-node completions and ignored `set_enabled` admission failures, lifecycle-slot recovery
+when deselecting a driver, and configuration construction/admission/disposal bounds. Facade
+metadata, observations and graph copies retain separate memory/service costs. No physical
+device, audible output, native UI, cross-platform or product-scale qualification occurred.
+
+P03 stays approximately **64%**, whole plan approximately **15%**. Complete the remaining Sound
+Card gates, module/channel audit and generator elapsed-time accounting before closing P03.
+P04–P18 retain their states.

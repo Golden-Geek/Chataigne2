@@ -348,10 +348,6 @@ impl SoundCardModule {
     }
 
     pub(super) fn drive_runtime(&mut self, ctx: &mut ProcessCtx) {
-        if let Err(error) = self.retry_blocked_runtime_retirement() {
-            self.set_runtime_error(ctx, self.id(), &error);
-            return;
-        }
         self.poll_runtime_worker(ctx);
         if self.configuration_dirty {
             if let Some(snapshot) = ctx.tree_snapshot_arc() {
@@ -397,12 +393,7 @@ impl SoundCardModule {
             self.runtime_request = None;
             self.runtime_retry_at = None;
             self.runtime_retry.reset();
-            if let Some(runtime) = self.runtime.take() {
-                if let Err(error) = self.retire_runtime(runtime) {
-                    self.set_runtime_error(ctx, self.id(), &error);
-                    return;
-                }
-            }
+            self.runtime = None;
             self.configuration_dirty = false;
             self.clear_device_connection_warnings(ctx);
             self.clear_runtime_error(ctx);
@@ -440,12 +431,7 @@ impl SoundCardModule {
             .as_ref()
             .is_some_and(|runtime| runtime.sample_rate() != sample_rate || runtime.driver() != driver.as_ref())
         {
-            if let Some(runtime) = self.runtime.take() {
-                if let Err(error) = self.retire_runtime(runtime) {
-                    self.set_runtime_error(ctx, self.id(), &error);
-                    return;
-                }
-            }
+            self.runtime = None;
         }
         if self.runtime_worker.is_none() {
             let Some(wake) = self.runtime_wake.clone() else {
@@ -473,15 +459,17 @@ impl SoundCardModule {
         match request {
             Ok(request) => self.runtime_request = Some(request),
             Err(error) => {
-                self.runtime_worker = None;
+                if matches!(error, runtime::StartRequestError::Disconnected) {
+                    self.runtime_worker = None;
+                }
                 self.schedule_runtime_retry(sample_rate, driver);
-                self.set_runtime_error(ctx, self.id(), error.as_str());
+                self.set_runtime_error(ctx, self.id(), &error.to_string());
             }
         }
     }
 
     pub(super) fn poll_runtime_worker(&mut self, ctx: &mut ProcessCtx) {
-        loop {
+        for _ in 0..2 {
             let poll = self.runtime_worker.as_ref().map(runtime::SoundCardRuntimeWorker::poll);
             match poll {
                 None | Some(runtime::SoundCardRuntimeWorkerPoll::Pending) => return,
@@ -503,54 +491,45 @@ impl SoundCardModule {
                 }
             }
         }
+        if self
+            .runtime_worker
+            .as_ref()
+            .is_some_and(runtime::SoundCardRuntimeWorker::has_pending)
+        {
+            if let Some(wake) = &self.runtime_wake {
+                wake.wake();
+            }
+        }
     }
 
     fn handle_runtime_started(&mut self, ctx: &mut ProcessCtx, started: runtime::SoundCardRuntimeStarted) {
         if self.runtime_request.as_ref() != Some(&started.request) {
-            if let Ok(runtime) = started.result {
-                if let Err(error) = self.retire_runtime(*runtime) {
-                    self.set_runtime_error(ctx, self.id(), &error);
-                }
-            }
+            drop(started);
             return;
         }
         self.runtime_request = None;
         if self.requested_sample_rate().ok() != Some(started.request.sample_rate())
             || self.requested_driver().ok() != Some(started.request.driver().cloned())
         {
-            if let Ok(runtime) = started.result {
-                if let Err(error) = self.retire_runtime(*runtime) {
-                    self.set_runtime_error(ctx, self.id(), &error);
-                }
-            }
+            drop(started);
             return;
         }
         match started.result {
             Ok(runtime) => {
                 let mut runtime = *runtime;
                 let Some(wake) = self.runtime_wake.clone() else {
-                    let retirement = self.retire_runtime(runtime).err();
-                    self.set_runtime_error(
-                        ctx,
-                        self.id(),
-                        retirement
-                            .as_deref()
-                            .unwrap_or("Sound Card runtime lost its engine wake sender"),
-                    );
+                    drop(runtime);
+                    self.set_runtime_error(ctx, self.id(), "Sound Card runtime lost its engine wake sender");
                     return;
                 };
                 if let Err(error) = runtime.enable_notifications(wake) {
-                    let retirement = self.retire_runtime(runtime).err();
+                    drop(runtime);
                     self.schedule_runtime_retry(started.request.sample_rate(), started.request.driver().cloned());
-                    self.set_runtime_error(ctx, self.id(), retirement.as_deref().unwrap_or(error.as_str()));
+                    self.set_runtime_error(ctx, self.id(), error.as_str());
                     return;
                 }
                 self.clear_device_connection_warnings(ctx);
-                if let Some(previous) = self.runtime.replace(runtime) {
-                    if let Err(error) = self.retire_runtime(previous) {
-                        self.set_runtime_error(ctx, self.id(), &error);
-                    }
-                }
+                self.runtime = Some(runtime);
                 self.runtime_retry.reset();
                 self.runtime_retry_at = None;
                 self.configuration_dirty = true;
@@ -573,33 +552,6 @@ impl SoundCardModule {
         if let Some(wake) = &self.runtime_wake {
             wake.wake_after(retry_at.saturating_duration_since(now));
         }
-    }
-
-    fn retire_runtime(&mut self, runtime: runtime::SoundCardRuntime) -> Result<(), String> {
-        debug_assert!(
-            self.blocked_runtime_retirement.is_none(),
-            "blocked Sound Card retirement must be retried before accepting another"
-        );
-        let result = if let Some(worker) = self.runtime_worker.as_ref() {
-            worker.retire(runtime)
-        } else {
-            runtime::retire_detached(runtime)
-        };
-        match result {
-            Ok(()) => Ok(()),
-            Err(error) => {
-                let message = format!("Sound Card runtime retirement rejected: {error}");
-                self.blocked_runtime_retirement = Some(error.into_value());
-                Err(message)
-            }
-        }
-    }
-
-    fn retry_blocked_runtime_retirement(&mut self) -> Result<(), String> {
-        let Some(runtime) = self.blocked_runtime_retirement.take() else {
-            return Ok(());
-        };
-        self.retire_runtime(runtime)
     }
 
     pub(super) fn refresh_configuration(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
@@ -698,6 +650,19 @@ impl SoundCardModule {
     }
 
     pub(super) fn poll_runtime(&mut self, ctx: &mut ProcessCtx) {
+        if self
+            .runtime
+            .as_ref()
+            .is_some_and(runtime::SoundCardRuntime::is_disconnected)
+        {
+            self.runtime = None;
+            self.runtime_request = None;
+            if let (Ok(sample_rate), Ok(driver)) = (self.requested_sample_rate(), self.requested_driver()) {
+                self.schedule_runtime_retry(sample_rate, driver);
+            }
+            self.configuration_dirty = true;
+            self.set_runtime_error(ctx, self.id(), "Sound Card native runtime stopped unexpectedly");
+        }
         let selected_parameter_ids = self.selected_device_parameter_ids();
         let (input_device, output_device) = self.selected_device_values();
         let input_device = input_device.to_owned();
@@ -942,27 +907,8 @@ impl SoundCardModule {
         self.runtime_request = None;
         self.runtime_retry_at = None;
         self.runtime_retry.reset();
-        if let Err(error) = self.retry_blocked_runtime_retirement() {
-            eprintln!("{error}");
-        }
-        if self.blocked_runtime_retirement.is_none() {
-            if let Some(runtime) = self.runtime.take() {
-                if let Err(error) = self.retire_runtime(runtime) {
-                    eprintln!("{error}");
-                }
-            }
-        }
+        self.runtime = None;
         self.runtime_worker = None;
-        if let Err(error) = self.retry_blocked_runtime_retirement() {
-            eprintln!("{error}");
-        }
-        if self.blocked_runtime_retirement.is_none() {
-            if let Some(runtime) = self.runtime.take() {
-                if let Err(error) = self.retire_runtime(runtime) {
-                    eprintln!("{error}");
-                }
-            }
-        }
     }
 }
 
