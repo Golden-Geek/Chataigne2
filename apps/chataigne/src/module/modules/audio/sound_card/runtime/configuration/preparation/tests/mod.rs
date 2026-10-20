@@ -168,13 +168,16 @@ fn preparation_capacity_and_dropped_jobs_are_retryable_without_disabling_audio()
     let (engine, module, mut native, wake) = fixture();
     let admission = RetirementPool::new(NonZeroUsize::MIN);
     let state = Arc::new(State {
+        device_captured: AtomicBool::new(false),
+        device_revision: AtomicU64::new(0),
         cancelled: AtomicBool::new(false),
         complete: AtomicBool::new(false),
         result: Mutex::new(None),
         wake,
         _admission: admission.try_reserve().unwrap(),
     });
-    let job = Job {
+    let job: Job = Job {
+        previous: None,
         snapshot: engine.process_tree_snapshot().try_lease().unwrap(),
         module,
         reader: runtime::observation::retain_reader(native.observations()).unwrap(),
@@ -203,13 +206,16 @@ fn cancellation_releases_a_queued_preparation_without_manufacturing_a_completion
     let (engine, module, mut native, wake) = fixture();
     let admission = RetirementPool::new(NonZeroUsize::MIN);
     let state = Arc::new(State {
+        device_captured: AtomicBool::new(false),
+        device_revision: AtomicU64::new(0),
         cancelled: AtomicBool::new(true),
         complete: AtomicBool::new(false),
         result: Mutex::new(None),
         wake,
         _admission: admission.try_reserve().unwrap(),
     });
-    let job = Job {
+    let job: Job = Job {
+        previous: None,
         snapshot: engine.process_tree_snapshot().try_lease().unwrap(),
         module,
         reader: runtime::observation::retain_reader(native.observations()).unwrap(),
@@ -262,5 +268,116 @@ fn runtime_settles_old_warning_receipts_before_capturing_replacement_preparation
     assert!(runtime.preparation.is_some());
     assert!(!runtime.preparation_quiescing);
     drop(runtime);
+    native.shutdown().unwrap();
+}
+
+#[test]
+fn selection_ticket_ignores_value_edits_but_fences_actual_selector_edits_before_callbacks() {
+    let (mut engine, module, mut native, wake) = fixture();
+    let mut request = Preparation::<SelectionPlan>::start_selection(
+        &engine.process_tree_snapshot(),
+        module,
+        runtime::observation::retain_reader(native.observations()).unwrap(),
+        wake,
+        None,
+    )
+    .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(3);
+    while request.poll().unwrap().is_none() {
+        assert!(Instant::now() < deadline);
+        std::thread::sleep(Duration::from_millis(1));
+    }
+    let gain = find_path(
+        &engine.process_tree_snapshot(),
+        module,
+        "parameters/output/master_gain_db",
+    )
+    .unwrap();
+    engine.edits.push(Edit::SetParam {
+        node: gain,
+        value: ParamValue::Float(-3.0),
+        behaviour: ParameterEventBehaviour::Append,
+    });
+    engine.apply_edits().unwrap();
+    assert!(request.matches(&engine.process_tree_snapshot(), module));
+    let driver = find_path(&engine.process_tree_snapshot(), module, "connection/audio_driver").unwrap();
+    engine.edits.push(Edit::SetParam {
+        node: driver,
+        value: ParamValue::Enum("none".into()),
+        behaviour: ParameterEventBehaviour::Append,
+    });
+    engine.apply_edits().unwrap();
+    assert!(!request.matches(&engine.process_tree_snapshot(), module));
+    native.shutdown().unwrap();
+}
+
+#[test]
+fn stale_device_state_cannot_publish_a_preparation_error_or_disable_the_current_runtime() {
+    let (engine, module, mut native, wake) = fixture();
+    let mut runtime = runtime::SoundCardRuntime::start_selected(
+        golden_audio::SampleRate::default(),
+        Some(golden_audio::NullBackend::backend_id()),
+    )
+    .unwrap();
+    let admission = RetirementPool::new(NonZeroUsize::MIN);
+    runtime.preparation = Some(Preparation {
+        key: Key::from(&engine.process_tree_snapshot(), module).unwrap(),
+        state: Arc::new(State {
+            device_captured: AtomicBool::new(true),
+            device_revision: AtomicU64::new(u64::MAX),
+            cancelled: AtomicBool::new(false),
+            complete: AtomicBool::new(true),
+            result: Mutex::new(Some(Err(ConfigurationError {
+                node: module,
+                retryable: false,
+                message: "obsolete device failure".into(),
+            }))),
+            wake: wake.clone(),
+            _admission: admission.try_reserve().unwrap(),
+        }),
+        ready: None,
+    });
+    assert!(runtime
+        .prepare_configuration(&engine.process_tree_snapshot(), module, wake)
+        .unwrap()
+        .is_none());
+    assert!(runtime.preparation.is_none());
+    assert!(runtime
+        .event_bridge
+        .configuration_reader()
+        .inspect(|snapshot| snapshot.enabled));
+    drop(runtime);
+    native.shutdown().unwrap();
+}
+
+#[test]
+fn coarse_admission_retry_keeps_the_ready_selection_and_its_source_fence() {
+    let (engine, module, mut native, wake) = fixture();
+    let mut runtime = runtime::SoundCardRuntime::start_selected(
+        golden_audio::SampleRate::default(),
+        Some(golden_audio::NullBackend::backend_id()),
+    )
+    .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(3);
+    let ready = loop {
+        if let Some(ready) = runtime
+            .prepare_selection(&engine.process_tree_snapshot(), module, wake.clone())
+            .unwrap()
+        {
+            break ready;
+        }
+        assert!(Instant::now() < deadline);
+        std::thread::sleep(Duration::from_millis(1));
+    };
+    runtime.defer_preparation_retry(&wake);
+    assert!(runtime.preparation_retry_at.is_some());
+    let retained = runtime.selection_preparation.as_ref().unwrap().ready.as_ref().unwrap();
+    assert!(std::ptr::eq(&**retained, &*ready));
+    assert!(runtime
+        .selection_preparation
+        .as_ref()
+        .unwrap()
+        .matches(&engine.process_tree_snapshot(), module));
+    drop((runtime, ready));
     native.shutdown().unwrap();
 }

@@ -1,7 +1,7 @@
 use std::{
     num::NonZeroUsize,
     sync::{
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
         Arc, LazyLock, Mutex,
     },
 };
@@ -17,6 +17,7 @@ use golden_io::{BoundedWorker, PayloadPool, RetainedPayload, RetirementPermit, R
 use super::super::{
     find_path, BuiltSoundCardConfiguration, ConfigurationError, RuntimeWakeSender, SoundCardValueBindings,
 };
+use super::selection::{ProbeTargets, SelectionPlan};
 use super::warnings::WarningPlan;
 
 const MAX_NODES: usize = 131_072;
@@ -26,17 +27,39 @@ const SCRATCH_BYTES: usize = 256 * 1024 * 1024;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Key {
-    revisions: [Option<SubtreeRevision>; 3],
+    revisions: [Option<SubtreeRevision>; 4],
+    scope: Scope,
     uuid: golden_core::node::NodeUuid,
     enabled: bool,
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Scope {
+    Configuration,
+    Selection,
+}
 impl Key {
+    #[cfg(test)]
     fn from(snapshot: &ProcessTreeSnapshot, module: NodeId) -> Option<Self> {
+        Self::read(snapshot, module, Scope::Configuration)
+    }
+    fn read(snapshot: &ProcessTreeSnapshot, module: NodeId, scope: Scope) -> Option<Self> {
         let node = snapshot.node(module)?;
-        let revisions = ["connection", "parameters", "values"]
-            .map(|path| find_path(snapshot, module, path).and_then(|root| snapshot.subtree_revision(root)));
+        let paths = match scope {
+            Scope::Configuration => [Some("connection"), Some("parameters"), Some("values"), None],
+            Scope::Selection => [
+                Some("connection/audio_driver"),
+                Some("connection/device"),
+                Some("connection/input_device"),
+                Some("connection/output_device"),
+            ],
+        };
+        let revisions = paths.map(|path| {
+            path.and_then(|path| find_path(snapshot, module, path))
+                .and_then(|root| snapshot.subtree_revision(root))
+        });
         Some(Self {
             revisions,
+            scope,
             uuid: node.uuid,
             enabled: node.enabled,
         })
@@ -97,42 +120,95 @@ impl PreparedConfiguration {
     }
 }
 
-struct State {
+struct State<T: Send + Sync + 'static> {
+    device_captured: AtomicBool,
+    device_revision: AtomicU64,
     cancelled: AtomicBool,
     complete: AtomicBool,
-    result: Mutex<Option<Result<RetainedPayload<PreparedConfiguration>, ConfigurationError>>>,
+    result: Mutex<Option<Result<RetainedPayload<T>, ConfigurationError>>>,
     wake: RuntimeWakeSender,
     _admission: RetirementPermit,
 }
-impl State {
-    fn finish(&self, result: Result<RetainedPayload<PreparedConfiguration>, ConfigurationError>) {
+impl<T: Send + Sync + 'static> State<T> {
+    fn finish(&self, result: Result<RetainedPayload<T>, ConfigurationError>) {
         *self.result.lock().unwrap_or_else(|p| p.into_inner()) = Some(result);
         self.complete.store(true, Ordering::Release);
         self.wake.wake();
     }
 }
 
-pub(crate) struct Preparation {
+pub(crate) struct Preparation<T: Send + Sync + 'static = PreparedConfiguration> {
     key: Key,
-    state: Arc<State>,
-    ready: Option<RetainedPayload<PreparedConfiguration>>,
+    state: Arc<State<T>>,
+    ready: Option<RetainedPayload<T>>,
 }
-impl Preparation {
-    pub(crate) fn matches(&self, snapshot: &ProcessTreeSnapshot, module: NodeId) -> bool {
-        Some(self.key) == Key::from(snapshot, module)
-    }
+struct Mode<T: Send + Sync + 'static> {
+    scope: Scope,
+    wrap: fn(Job<T>) -> Work,
+}
+impl Preparation<PreparedConfiguration> {
     pub(crate) fn start(
         snapshot: &Arc<ProcessTreeSnapshot>,
         module: NodeId,
         reader: RetainedPayload<AudioObservationReader>,
         wake: RuntimeWakeSender,
     ) -> Result<Self, ConfigurationError> {
+        Self::start_with(
+            snapshot,
+            module,
+            reader,
+            wake,
+            None,
+            Mode {
+                scope: Scope::Configuration,
+                wrap: Work::Configuration,
+            },
+        )
+    }
+}
+impl Preparation<SelectionPlan> {
+    pub(crate) fn start_selection(
+        snapshot: &Arc<ProcessTreeSnapshot>,
+        module: NodeId,
+        reader: RetainedPayload<AudioObservationReader>,
+        wake: RuntimeWakeSender,
+        previous: Option<ProbeTargets>,
+    ) -> Result<Self, ConfigurationError> {
+        Self::start_with(
+            snapshot,
+            module,
+            reader,
+            wake,
+            previous,
+            Mode {
+                scope: Scope::Selection,
+                wrap: Work::Selection,
+            },
+        )
+    }
+}
+impl<T: Send + Sync + 'static> Preparation<T> {
+    pub(crate) fn matches_device_revision(&self, revision: u64) -> bool {
+        !self.state.device_captured.load(Ordering::Acquire)
+            || self.state.device_revision.load(Ordering::Acquire) == revision
+    }
+    pub(crate) fn matches(&self, snapshot: &ProcessTreeSnapshot, module: NodeId) -> bool {
+        Some(self.key) == Key::read(snapshot, module, self.key.scope)
+    }
+    fn start_with(
+        snapshot: &Arc<ProcessTreeSnapshot>,
+        module: NodeId,
+        reader: RetainedPayload<AudioObservationReader>,
+        wake: RuntimeWakeSender,
+        previous: Option<ProbeTargets>,
+        mode: Mode<T>,
+    ) -> Result<Self, ConfigurationError> {
         let reject = |message| ConfigurationError {
             node: module,
             message,
             retryable: false,
         };
-        let key = Key::from(snapshot, module)
+        let key = Key::read(snapshot, module, mode.scope)
             .filter(|key| key.enabled)
             .ok_or_else(|| reject("Sound Card preparation source is absent or disabled".into()))?;
         let admission = SERVICE
@@ -143,6 +219,8 @@ impl Preparation {
             .try_lease()
             .map_err(|error| unavailable(module, error.to_string()))?;
         let state = Arc::new(State {
+            device_captured: AtomicBool::new(false),
+            device_revision: AtomicU64::new(0),
             cancelled: AtomicBool::new(false),
             complete: AtomicBool::new(false),
             result: Mutex::new(None),
@@ -155,16 +233,17 @@ impl Preparation {
             ready: None,
         };
         SERVICE
-            .submit(Job {
+            .submit((mode.wrap)(Job {
+                previous,
                 snapshot,
                 module,
                 reader,
                 state,
-            })
+            }))
             .map_err(|message| unavailable(module, message))?;
         Ok(request)
     }
-    pub(crate) fn poll(&mut self) -> Result<Option<RetainedPayload<PreparedConfiguration>>, ConfigurationError> {
+    pub(crate) fn poll(&mut self) -> Result<Option<RetainedPayload<T>>, ConfigurationError> {
         if let Some(ready) = &self.ready {
             return Ok(Some(ready.clone()));
         }
@@ -179,20 +258,31 @@ impl Preparation {
         }
     }
 }
-impl Drop for Preparation {
+impl<T: Send + Sync + 'static> Drop for Preparation<T> {
     fn drop(&mut self) {
         self.state.cancelled.store(true, Ordering::Release);
     }
 }
 
-struct Job {
+struct Job<T: Send + Sync + 'static = PreparedConfiguration> {
+    previous: Option<ProbeTargets>,
     snapshot: RetainedPayload<ProcessTreeSnapshot>,
     module: NodeId,
     reader: RetainedPayload<AudioObservationReader>,
-    state: Arc<State>,
+    state: Arc<State<T>>,
 }
-impl Job {
-    fn run(&self, pool: &PayloadPool) -> Result<RetainedPayload<PreparedConfiguration>, ConfigurationError> {
+impl<T: Send + Sync + 'static> Job<T> {
+    fn capture(
+        &self,
+        pool: &PayloadPool,
+    ) -> Result<
+        (
+            golden_io::PayloadReservation,
+            golden_audio::AudioDeviceInspectorState,
+            u64,
+        ),
+        ConfigurationError,
+    > {
         let reject = |message: &str| ConfigurationError {
             node: self.module,
             retryable: false,
@@ -211,10 +301,36 @@ impl Job {
         let inspector = self
             .reader
             .inspect(|snapshot| {
+                self.state
+                    .device_revision
+                    .store(snapshot.device_revision, Ordering::Release);
+                self.state.device_captured.store(true, Ordering::Release);
                 snapshot.device.retained_bytes_within(8 * 1024 * 1024, MAX_NODES)?;
-                Some(snapshot.device.clone())
+                Some((snapshot.device.clone(), snapshot.device_revision))
             })
-            .ok_or_else(|| reject("Sound Card device metadata exceeds 8 MiB / 131072 entries"))?;
+            .ok_or_else(|| {
+                unavailable(
+                    self.module,
+                    "Sound Card device metadata exceeds 8 MiB / 131072 entries".into(),
+                )
+            })?;
+        Ok((reservation, inspector.0, inspector.1))
+    }
+    fn finish(&self, mut result: Result<RetainedPayload<T>, ConfigurationError>) {
+        if let Err(error) = &mut result {
+            compact(&mut error.message);
+        }
+        self.state.finish(result);
+    }
+}
+impl Job<PreparedConfiguration> {
+    fn run(&self, pool: &PayloadPool) -> Result<RetainedPayload<PreparedConfiguration>, ConfigurationError> {
+        let reject = |message: &str| ConfigurationError {
+            node: self.module,
+            retryable: false,
+            message: message.into(),
+        };
+        let (reservation, inspector, _revision) = self.capture(pool)?;
         let mut built = super::build_configuration(&self.snapshot, self.module, &inspector).map_err(|mut error| {
             compact(&mut error.message);
             error
@@ -263,7 +379,35 @@ impl Job {
             .map_err(|_| reject("Sound Card configuration reservation rejected"))
     }
 }
-impl Drop for Job {
+impl Job<SelectionPlan> {
+    fn run(&self, pool: &PayloadPool) -> Result<RetainedPayload<SelectionPlan>, ConfigurationError> {
+        let (reservation, inspector, revision) = self.capture(pool)?;
+        let data = SelectionPlan::prepare(
+            &self.snapshot,
+            self.module,
+            &inspector,
+            revision,
+            self.previous.as_ref(),
+            pool,
+        )
+        .map_err(|mut error| {
+            compact(&mut error.message);
+            error
+        })?;
+        drop(inspector);
+        if self.state.cancelled.load(Ordering::Acquire) {
+            return Err(unavailable(
+                self.module,
+                "Sound Card selection preparation superseded".into(),
+            ));
+        }
+        let bytes = data.bytes;
+        reservation
+            .retain(data, bytes)
+            .map_err(|_| unavailable(self.module, "Sound Card selection reservation rejected".into()))
+    }
+}
+impl<T: Send + Sync + 'static> Drop for Job<T> {
     fn drop(&mut self) {
         if !self.state.complete.load(Ordering::Acquire) && !self.state.cancelled.load(Ordering::Acquire) {
             self.state.finish(Err(ConfigurationError {
@@ -326,8 +470,20 @@ fn unavailable(node: NodeId, message: String) -> ConfigurationError {
     }
 }
 
+enum Work {
+    Configuration(Job),
+    Selection(Job<SelectionPlan>),
+}
+impl Work {
+    fn run(self, pool: &PayloadPool) {
+        match self {
+            Self::Configuration(job) => job.finish(job.run(pool)),
+            Self::Selection(job) => job.finish(job.run(pool)),
+        }
+    }
+}
 struct Service {
-    worker: Mutex<Option<BoundedWorker<Job, ()>>>,
+    worker: Mutex<Option<BoundedWorker<Work, ()>>>,
     lifetimes: RetirementPool,
     admission: RetirementPool,
     pool: Mutex<Option<PayloadPool>>,
@@ -341,7 +497,7 @@ impl Service {
             pool: Mutex::new(None),
         }
     }
-    fn submit(&self, job: Job) -> Result<(), String> {
+    fn submit(&self, job: Work) -> Result<(), String> {
         let mut worker = self.worker.lock().unwrap_or_else(|p| p.into_inner());
         if worker.as_ref().is_some_and(|worker| worker.has_pending()) {
             *worker = None;
@@ -356,22 +512,18 @@ impl Service {
             }
             let pool = pool.as_ref().unwrap().clone();
             *worker = Some(
-                BoundedWorker::<Job, ()>::spawn(
+                BoundedWorker::<Work, ()>::spawn(
                     "sound-card-config-preparation",
                     &self.lifetimes,
                     WorkerLimits {
                         command_items: 16,
-                        command_weight: 16 * size_of::<Job>(),
+                        command_weight: 16 * size_of::<Work>(),
                         event_items: 1,
                         event_weight: 1,
                     },
                     move |context| {
                         while let Some(job) = context.receive() {
-                            let mut result = job.run(&pool);
-                            if let Err(error) = &mut result {
-                                compact(&mut error.message);
-                            }
-                            job.state.finish(result);
+                            job.run(&pool);
                         }
                     },
                 )
@@ -381,7 +533,7 @@ impl Service {
         worker
             .as_ref()
             .unwrap()
-            .send_weighted(job, size_of::<Job>())
+            .send_weighted(job, size_of::<Work>())
             .map_err(|_| "Sound Card configuration preparation admission is full or closed".into())
     }
 }

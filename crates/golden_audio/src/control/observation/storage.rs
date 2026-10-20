@@ -12,6 +12,7 @@ impl AudioObservationSnapshot {
     #[must_use]
     pub fn retained_bytes_within(&self, maximum_bytes: usize, maximum_items: usize) -> Option<usize> {
         let Self {
+            device_revision: _,
             generation: _,
             render_frame: _,
             enabled: _,

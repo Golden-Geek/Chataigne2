@@ -3,6 +3,43 @@ use crate::{AudioCommand, AudioErrorCategory, CommandSequence, QueuePressureCoun
 use super::super::ingress::{CommandEnvelope, command_queue};
 
 #[test]
+fn full_probe_admission_retries_the_same_shared_targets() {
+    use std::sync::Arc;
+    let (producer, mut consumer, _) = command_queue(1, QueuePressureCounters::default());
+    producer
+        .try_push(CommandEnvelope {
+            sequence: CommandSequence::FIRST,
+            command: AudioCommand::SetEnabled(true),
+        })
+        .unwrap();
+    let targets = Arc::new(vec![crate::AudioDeviceTargetId::SystemDefault {
+        backend: crate::BackendId::from_static("null"),
+    }]);
+    let pointer = Arc::as_ptr(&targets);
+    let error = producer
+        .try_push(CommandEnvelope {
+            sequence: CommandSequence::new(2).unwrap(),
+            command: AudioCommand::SetDeviceProbeInterests {
+                targets: targets.clone(),
+            },
+        })
+        .unwrap_err();
+    assert_eq!(error.category, AudioErrorCategory::QueueFull);
+    assert_eq!(Arc::strong_count(&targets), 1);
+    consumer.pop().unwrap();
+    producer
+        .try_push(CommandEnvelope {
+            sequence: CommandSequence::new(3).unwrap(),
+            command: AudioCommand::SetDeviceProbeInterests { targets },
+        })
+        .unwrap();
+    let AudioCommand::SetDeviceProbeInterests { targets } = consumer.pop().unwrap().command else {
+        panic!("probe interests")
+    };
+    assert_eq!(Arc::as_ptr(&targets), pointer);
+}
+
+#[test]
 fn command_ingress_is_bounded_explicit_and_ordered() {
     let pressure = QueuePressureCounters::default();
     let (producer, mut consumer, _worker) = command_queue(1, pressure.clone());

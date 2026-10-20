@@ -67,7 +67,7 @@ impl AudioControl {
     /// should probe. Catalog-only entries remain lightweight until included.
     pub fn set_device_probe_interests(
         &self,
-        targets: Vec<crate::AudioDeviceTargetId>,
+        targets: Arc<Vec<crate::AudioDeviceTargetId>>,
     ) -> Result<CommandSequence, AudioError> {
         self.submit(AudioCommand::SetDeviceProbeInterests { targets })
     }
@@ -206,8 +206,10 @@ impl AudioEngineBuilder {
             state: Arc::clone(&state),
             next_sequence: Arc::clone(&next_sequence),
         };
+        let device_revision = Arc::new(AtomicU64::new(0));
         let observations = AudioObservationReader {
             shared: Arc::clone(&observation),
+            device_revision: device_revision.clone(),
         };
         let limits = self.limits;
         let engine_config = self.config;
@@ -238,6 +240,7 @@ impl AudioEngineBuilder {
                 run_control_worker(
                     command_receiver,
                     ControlWorker {
+                        device_revision,
                         event_sender,
                         observation,
                         state: worker_state,
@@ -353,6 +356,7 @@ fn next_sequence(counter: &AtomicU64) -> Result<CommandSequence, AudioError> {
 }
 
 struct ControlWorker {
+    device_revision: Arc<AtomicU64>,
     event_sender: EventSender,
     observation: Arc<RwLock<AudioObservationSnapshot>>,
     state: Arc<AtomicU8>,
@@ -370,6 +374,7 @@ struct ControlWorker {
 
 fn run_control_worker(mut command_receiver: Consumer<CommandEnvelope>, worker: ControlWorker) {
     let ControlWorker {
+        device_revision,
         event_sender,
         observation,
         state,
@@ -405,7 +410,7 @@ fn run_control_worker(mut command_receiver: Consumer<CommandEnvelope>, worker: C
             ),
         );
     }
-    let mut devices = DeviceRuntime::new(&engine_config)
+    let mut devices = DeviceRuntime::new(&engine_config, device_revision)
         .expect("validated audio engine configuration must create a device supervisor");
     devices.refresh(
         &event_sender,
@@ -521,7 +526,7 @@ fn run_control_worker(mut command_receiver: Consumer<CommandEnvelope>, worker: C
                     &event_sender,
                     &observation,
                     backends.as_slice(),
-                    targets,
+                    Arc::unwrap_or_clone(targets),
                     #[cfg(all(feature = "analysis", feature = "playback"))]
                     managed_render_runtime.as_mut(),
                 );

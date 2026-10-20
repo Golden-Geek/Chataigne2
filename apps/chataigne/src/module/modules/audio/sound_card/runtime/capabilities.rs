@@ -41,29 +41,6 @@ pub(crate) fn configuration_capabilities(
     (rates, buffers)
 }
 
-pub(crate) fn selected_devices_are_available(
-    driver: Option<&BackendId>,
-    inspector: &AudioDeviceInspectorState,
-    input_value: &str,
-    output_value: &str,
-) -> bool {
-    [
-        (input_value, AudioDirection::Input),
-        (output_value, AudioDirection::Output),
-    ]
-    .into_iter()
-    .all(|(value, direction)| {
-        resolve_selection(driver, inspector, value, direction)
-            .ok()
-            .is_some_and(|selection| {
-                selection.is_none()
-                    || selection
-                        .as_ref()
-                        .is_some_and(|selection| matched_device(inspector, selection, direction).is_some())
-            })
-    })
-}
-
 pub(crate) fn selected_probe_targets(
     driver: Option<&BackendId>,
     input_value: &str,

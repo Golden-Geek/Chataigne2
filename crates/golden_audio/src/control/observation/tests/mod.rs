@@ -1,6 +1,39 @@
 use super::*;
 
 #[test]
+fn device_revision_reads_do_not_wait_for_snapshot_publication() {
+    use std::{sync::mpsc, time::Duration};
+    let reader = AudioObservationReader {
+        shared: Arc::new(RwLock::new(AudioObservationSnapshot::default())),
+        device_revision: Arc::new(AtomicU64::new(7)),
+    };
+    let writer = reader.shared.write().unwrap();
+    let (sender, receiver) = mpsc::channel();
+    let worker_reader = reader.clone();
+    let worker = std::thread::spawn(move || sender.send(worker_reader.device_revision()).unwrap());
+    let result = receiver.recv_timeout(Duration::from_secs(1));
+    drop(writer);
+    worker.join().unwrap();
+    assert_eq!(result.unwrap(), 7);
+}
+
+#[test]
+fn native_device_revision_is_not_a_wire_or_saved_observation_field() {
+    let snapshot = AudioObservationSnapshot {
+        device_revision: 7,
+        ..Default::default()
+    };
+    let json = serde_json::to_value(&snapshot).unwrap();
+    assert!(json.get("device_revision").is_none());
+    assert_eq!(
+        serde_json::from_value::<AudioObservationSnapshot>(json)
+            .unwrap()
+            .device_revision,
+        0
+    );
+}
+
+#[test]
 fn inspection_borrows_canonical_storage_before_any_snapshot_copy() {
     let snapshot = AudioObservationSnapshot {
         inputs: Vec::with_capacity(4096),
@@ -8,6 +41,7 @@ fn inspection_borrows_canonical_storage_before_any_snapshot_copy() {
     };
     let original = snapshot.inputs.as_ptr();
     let reader = AudioObservationReader {
+        device_revision: Arc::new(AtomicU64::new(0)),
         shared: Arc::new(RwLock::new(snapshot)),
     };
     reader.inspect(|snapshot| {

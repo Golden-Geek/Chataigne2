@@ -78,7 +78,7 @@ pub enum AudioCommand {
     /// Hosts may make device probing expensive or exclusive. Callers should
     /// submit only targets currently selected in their editor or configuration.
     SetDeviceProbeInterests {
-        targets: Vec<AudioDeviceTargetId>,
+        targets: std::sync::Arc<Vec<AudioDeviceTargetId>>,
     },
     SetEnabled(bool),
     Shutdown,

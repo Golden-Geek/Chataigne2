@@ -363,12 +363,15 @@ the worker and charged through final background disposal. Generation tags avoid 
 and inline scalar/short-text slots cannot grow during actor service. The inspection closure must
 not block or reenter the reader.
 Capture/telemetry overload has a separate visible warning and leaves control admission independent.
-App-owned configuration conversion runs on a bounded preparation worker. Immutable prepared plans
-retain snapshot and output storage admission through retries and final disposal. Bindings promote
+App-owned selection/probe planning and configuration conversion run on one bounded preparation worker.
+Queued/running requests lease their source snapshots; ready plans retain output storage admission
+and published revision fences through retries and final disposal. Bindings promote
 only after a matching native configuration acknowledgement; rejected replacements preserve the
 previous bindings. Route-warning reconciliation also runs on that worker, comparing applied
 presentation state; actor publication has bounded receipts and no optimistic warning cache.
-See [host ownership](hosts.md) for budgets and the remaining probe, structure,
+Native device-revision fences cover successful and failed preparation results without locking
+snapshots on the actor. Probe targets retain their canonical quota through native command Arcs.
+See [host ownership](hosts.md) for budgets and the remaining structure, choice/feedback inspection,
 logger and fence boundaries.
 Missing explicit device selections remain persisted; unresolved local routes remain authored and
 receive visible warnings so removal and undo stay atomic.

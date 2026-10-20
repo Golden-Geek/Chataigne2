@@ -205,14 +205,6 @@ impl SoundCardModule {
         }
     }
 
-    fn selected_device_parameter_ids(&self) -> Vec<NodeId> {
-        if self.uses_duplex_device() {
-            vec![self.device.id()]
-        } else {
-            vec![self.input_device.id(), self.output_device.id()]
-        }
-    }
-
     fn synchronize_runtime_projection(&mut self, ctx: &mut ProcessCtx) {
         let rate_hz = runtime::levels_update_rate_hz(self.levels_update_rate_hz.get());
         let outgoing_activity = match self.runtime.as_mut() {

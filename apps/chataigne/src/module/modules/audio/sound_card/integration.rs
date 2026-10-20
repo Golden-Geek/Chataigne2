@@ -354,58 +354,44 @@ impl SoundCardModule {
             self.configuration_dirty = true;
             return;
         }
-        let driver = self.requested_driver().ok().flatten();
-        let (input_device, output_device) = self.selected_device_values();
-        let input_device = input_device.to_owned();
-        let output_device = output_device.to_owned();
-        let probe_targets =
-            match runtime::selected_probe_targets(driver.as_ref(), input_device.as_str(), output_device.as_str()) {
-                Ok(targets) => targets,
-                Err(error) => {
-                    if let Some(runtime) = self.runtime.as_mut() {
-                        let _ = runtime.set_enabled(false);
-                    }
-                    self.set_runtime_error(ctx, self.id(), error.as_str());
-                    self.configuration_dirty = false;
-                    return;
-                }
-            };
-        let Some(runtime) = self.runtime.as_mut() else {
-            return;
-        };
-        let inspector = runtime.inspector_state();
-        if runtime::requires_disable_before_probe(driver.as_ref(), &inspector, probe_targets.as_slice()) {
-            if let Err(error) = runtime.set_enabled(false) {
-                self.set_runtime_error(ctx, self.id(), error.as_str());
-                self.configuration_dirty = false;
+        let Some(wake) = self.runtime_wake.clone() else { return };
+        let prepared = self
+            .runtime
+            .as_mut()
+            .unwrap()
+            .prepare_selection(snapshot, module, wake.clone());
+        let selection = match prepared {
+            Ok(Some(selection)) => selection,
+            Ok(None) => return,
+            Err(error) => {
+                self.handle_preparation_error(ctx, error, &wake);
                 return;
             }
-        }
-        if let Err(error) = runtime.set_probe_interests(probe_targets.clone()) {
-            self.set_runtime_error(ctx, self.id(), error.as_str());
+        };
+        let runtime = self.runtime.as_mut().unwrap();
+        let admission = (|| {
+            if selection.disable_before_probe {
+                runtime.set_enabled(false)?;
+            }
+            runtime.set_probe_interests(selection.clone())?;
+            if selection.pending {
+                runtime.set_enabled(false)?;
+            }
+            Ok::<(), String>(())
+        })();
+        if let Err(error) = admission {
+            runtime.defer_preparation_retry(&wake);
             self.configuration_dirty = false;
+            self.set_runtime_error(ctx, self.id(), &error);
             return;
         }
-        let inspector = runtime.inspector_state();
-        if runtime::probe_targets_are_pending(&inspector, probe_targets.as_slice()) {
-            let _ = runtime.set_enabled(false);
+        if selection.pending {
+            runtime.schedule_preparation_retry(&wake);
             self.configuration_dirty = false;
             self.clear_runtime_error(ctx);
             return;
         }
-        let input_physical = runtime::selected_physical_channels(
-            driver.as_ref(),
-            &inspector,
-            input_device.as_str(),
-            golden_audio::AudioDirection::Input,
-        );
-        let output_physical = runtime::selected_physical_channels(
-            driver.as_ref(),
-            &inspector,
-            output_device.as_str(),
-            golden_audio::AudioDirection::Output,
-        );
-        if self.seed_default_routes_from_inventory(ctx, snapshot, input_physical.as_slice(), output_physical.as_slice())
+        if self.seed_default_routes_from_inventory(ctx, snapshot, &selection.input_physical, &selection.output_physical)
         {
             self.configuration_dirty = true;
             return;
@@ -450,22 +436,38 @@ impl SoundCardModule {
                         let _ = runtime.set_enabled(module_enabled);
                         self.configuration_dirty = false;
                     }
-                    Err(error) => self.set_runtime_error(ctx, self.id(), error.as_str()),
-                }
-            }
-            Err(error) => {
-                if let Some(runtime) = self.runtime.as_mut() {
-                    if error.retryable {
-                        runtime.schedule_preparation_retry(&wake);
-                    } else {
-                        runtime.cancel_preparation();
-                        let _ = runtime.set_enabled(false);
+                    Err(error) => {
+                        runtime.defer_preparation_retry(&wake);
+                        self.configuration_dirty = false;
+                        self.set_runtime_error(ctx, self.id(), &error);
                     }
                 }
-                self.set_runtime_error(ctx, error.node, error.message.as_str());
-                self.configuration_dirty = false;
+            }
+            Err(error) => self.handle_preparation_error(ctx, error, &wake),
+        }
+    }
+
+    fn handle_preparation_error(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        error: runtime::ConfigurationError,
+        wake: &runtime::RuntimeWakeSender,
+    ) {
+        let endpoint_error = error.node.0 != 0
+            && [self.device.id(), self.input_device.id(), self.output_device.id()].contains(&error.node);
+        if let Some(runtime) = self.runtime.as_mut() {
+            if error.retryable {
+                runtime.schedule_preparation_retry(wake);
+            } else {
+                runtime.cancel_preparation();
+                let _ = runtime.set_enabled(false);
+                if endpoint_error {
+                    runtime.schedule_preparation_retry(wake);
+                }
             }
         }
+        self.set_runtime_error(ctx, error.node, &error.message);
+        self.configuration_dirty = false;
     }
 
     pub(super) fn poll_runtime(&mut self, ctx: &mut ProcessCtx) {
@@ -487,10 +489,6 @@ impl SoundCardModule {
             self.configuration_dirty = true;
             self.set_runtime_error(ctx, self.id(), "Sound Card native runtime stopped unexpectedly");
         }
-        let selected_parameter_ids = self.selected_device_parameter_ids();
-        let (input_device, output_device) = self.selected_device_values();
-        let input_device = input_device.to_owned();
-        let output_device = output_device.to_owned();
         let module = self.id();
         let Some(runtime) = self.runtime.as_mut() else {
             self.service_observation_warning(ctx, None);
@@ -519,21 +517,6 @@ impl SoundCardModule {
             None => {}
         }
         self.service_observation_warning(ctx, observation.error);
-        if observation.error.is_none()
-            && selected_parameter_ids
-                .iter()
-                .any(|node| self.runtime_error_node == Some(*node))
-        {
-            let driver = self.requested_driver().ok().flatten();
-            if runtime::selected_devices_are_available(
-                driver.as_ref(),
-                &observation.device,
-                input_device.as_str(),
-                output_device.as_str(),
-            ) {
-                self.configuration_dirty = true;
-            }
-        }
         let input_ready = observation.header.input_ready;
         let output_ready = observation.header.output_ready;
         let enabled = self.node_data().effective_enabled;

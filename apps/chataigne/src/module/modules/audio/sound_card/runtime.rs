@@ -32,6 +32,7 @@ mod configuration;
 #[cfg(test)]
 pub(super) use configuration::build_configuration;
 pub(super) use configuration::preparation::{Preparation, PreparedConfiguration};
+use configuration::selection::{ProbeTargets, SelectionPlan};
 mod events;
 pub(super) mod observation;
 mod snapshot;
@@ -42,8 +43,8 @@ pub(super) use events::{EVENT_BYTES, EVENT_SERVICE_ITEMS};
 
 pub(super) use capabilities::{
     configuration_capabilities, device_selection_value, probe_targets_are_pending, requires_disable_before_probe,
-    selected_devices_are_available, selected_physical_channels, selected_probe_targets, supported_buffer_sizes,
-    supported_sample_rates, supports_system_default,
+    selected_physical_channels, selected_probe_targets, supported_buffer_sizes, supported_sample_rates,
+    supports_system_default,
 };
 use configuration::warnings::delivery::WarningDelivery;
 use configuration::{matched_device, parse_fixed_value, preferred_rate, resolve_selection};
@@ -166,11 +167,12 @@ pub(crate) struct SoundCardRuntime {
     generation: ConfigGeneration,
     sample_rate: SampleRate,
     driver: Option<BackendId>,
-    probe_interests: Vec<AudioDeviceTargetId>,
+    probe_interests: Option<ProbeTargets>,
     levels_update_rate_hz: u32,
     active_configuration: Option<golden_io::RetainedPayload<PreparedConfiguration>>,
     pending_application: Option<(ConfigGeneration, golden_io::RetainedPayload<PreparedConfiguration>)>,
     preparation: Option<Preparation>,
+    selection_preparation: Option<Preparation<SelectionPlan>>,
     preparation_quiescing: bool,
     warnings: WarningDelivery,
     preparation_retry_at: Option<std::time::Instant>,
@@ -219,11 +221,12 @@ impl SoundCardRuntime {
             generation: ConfigGeneration::INITIAL,
             sample_rate,
             driver: Some(driver),
-            probe_interests: Vec::new(),
+            probe_interests: None,
             levels_update_rate_hz: LEVELS_UPDATE_RATE_DEFAULT_HZ as u32,
             active_configuration: None,
             pending_application: None,
             preparation: None,
+            selection_preparation: None,
             preparation_quiescing: false,
             warnings: WarningDelivery::default(),
             preparation_retry_at: None,
@@ -257,14 +260,22 @@ impl SoundCardRuntime {
             .unwrap_or(&EMPTY)
     }
 
-    pub(super) fn set_probe_interests(&mut self, targets: Vec<AudioDeviceTargetId>) -> Result<(), String> {
-        if self.probe_interests == targets {
+    pub(super) fn set_probe_interests(
+        &mut self,
+        selection: golden_io::RetainedPayload<SelectionPlan>,
+    ) -> Result<(), String> {
+        if selection.device_revision != self.event_bridge.device_revision() {
+            return Err("Audio devices changed while preparing the connection; retrying".into());
+        }
+        if self
+            .probe_interests
+            .as_ref()
+            .is_some_and(|previous| selection.same_interests(previous))
+        {
             return Ok(());
         }
-        self.control
-            .set_device_probe_interests(targets.clone())
-            .map_err(|error| error.to_string())?;
-        self.probe_interests = targets;
+        selection.submit(&self.control).map_err(|error| error.to_string())?;
+        self.probe_interests = Some(selection.interests());
         Ok(())
     }
 
@@ -299,6 +310,10 @@ impl SoundCardRuntime {
 
     pub(super) fn schedule_preparation_retry(&mut self, wake: &RuntimeWakeSender) {
         self.cancel_preparation();
+        self.defer_preparation_retry(wake);
+    }
+
+    pub(super) fn defer_preparation_retry(&mut self, wake: &RuntimeWakeSender) {
         let delay = Duration::from_millis(250);
         self.preparation_retry_at = Some(std::time::Instant::now() + delay);
         wake.wake_after(delay);
@@ -322,6 +337,39 @@ impl SoundCardRuntime {
 
     pub(super) fn take_warning_failure(&mut self) -> bool {
         self.warnings.take_failure()
+    }
+
+    pub(super) fn prepare_selection(
+        &mut self,
+        snapshot: &std::sync::Arc<ProcessTreeSnapshot>,
+        module: NodeId,
+        wake: RuntimeWakeSender,
+    ) -> Result<Option<golden_io::RetainedPayload<SelectionPlan>>, ConfigurationError> {
+        if self
+            .selection_preparation
+            .as_ref()
+            .is_some_and(|request| !request.matches(snapshot, module))
+        {
+            self.cancel_preparation();
+        }
+        if self.selection_preparation.is_none() {
+            self.selection_preparation = Some(Preparation::start_selection(
+                snapshot,
+                module,
+                self.event_bridge.configuration_reader(),
+                wake,
+                self.probe_interests.clone(),
+            )?);
+            return Ok(None);
+        }
+        let request = self.selection_preparation.as_mut().unwrap();
+        let ready = request.poll();
+        if !request.matches_device_revision(self.event_bridge.device_revision()) {
+            self.cancel_preparation();
+            self.event_bridge.continue_service();
+            return Ok(None);
+        }
+        ready
     }
 
     pub(super) fn prepare_configuration(
@@ -356,11 +404,19 @@ impl SoundCardRuntime {
             )?);
             return Ok(None);
         }
-        self.preparation.as_mut().unwrap().poll()
+        let request = self.preparation.as_mut().unwrap();
+        let ready = request.poll();
+        if !request.matches_device_revision(self.event_bridge.device_revision()) {
+            self.cancel_preparation();
+            self.event_bridge.continue_service();
+            return Ok(None);
+        }
+        ready
     }
 
     pub(super) fn cancel_preparation(&mut self) {
         self.preparation = None;
+        self.selection_preparation = None;
         self.preparation_quiescing = false;
     }
 
@@ -368,6 +424,13 @@ impl SoundCardRuntime {
         &mut self,
         prepared: golden_io::RetainedPayload<PreparedConfiguration>,
     ) -> Result<ConfigGeneration, String> {
+        if self
+            .preparation
+            .as_ref()
+            .is_some_and(|request| !request.matches_device_revision(self.event_bridge.device_revision()))
+        {
+            return Err("Audio devices changed while preparing the configuration; retrying".into());
+        }
         if self.pending_application.is_some() {
             return Err("Sound Card configuration application is still pending".into());
         }
@@ -377,6 +440,7 @@ impl SoundCardRuntime {
             .map_err(|error| error.to_string())?;
         self.generation = generation;
         self.preparation = None;
+        self.selection_preparation = None;
         self.preparation_quiescing = false;
         self.warnings.start(prepared.warnings.clone());
         self.pending_application = Some((generation, prepared));
@@ -460,7 +524,8 @@ impl SoundCardRuntime {
             self.outgoing_activity = Some(outgoing_activity);
             self.pending_outgoing_activity = Some(outgoing_activity);
         }
-        let preparing = self.preparation_quiescing || self.preparation.is_some();
+        let preparing =
+            self.preparation_quiescing || self.preparation.is_some() || self.selection_preparation.is_some();
         self.warnings.service(ctx, preparing);
         let configuring = preparing || self.pending_application.is_some();
         if !configuring {

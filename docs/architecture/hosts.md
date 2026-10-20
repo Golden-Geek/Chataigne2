@@ -573,7 +573,7 @@ pool owns the fixed slot storage through replacement, exported plan handles and 
 disposal. Facade retirement and binding replacement no longer clear or finally destroy a variable
 map on the actor, and cache storage cannot outgrow its sealed reservation.
 
-Sound Card configuration conversion lives in app-owned `runtime/configuration`. One shared native
+Sound Card selection and configuration conversion live in app-owned `runtime/configuration`. One shared native
 preparation worker accepts **16 queued requests**, with **32 live admission tickets** and one worker
 lifetime slot. Actor handoff retains a canonical whole-tree snapshot lease (the shared Core snapshot
 pool admits **384 allocations / 1 GiB**) and the opaque device reader; it does not copy the subtree.
@@ -588,12 +588,31 @@ configuration capacities, warning strings and binding maps. Warning-plan sealing
 charge its final storage in addition to the conversion scratch reservation. Diagnostics crossing
 back to the actor are compacted to 4 KiB on the worker. Final plan disposal stays off the actor.
 
+Selection planning uses that same worker, queue, admission pool and scratch reservation. It parses
+the selectors, decides disable-before-probe policy and pending capability state, and copies physical
+channel identities off the actor. Selection results admit **16 MiB combined** for the immutable plan
+and its separate canonical probe-target payload. Target storage stays charged through native command
+Arcs as well as actor plans; retiring a plan cannot release capacity while a command still holds it.
+Unchanged targets reuse the canonical payload, so actor admission compares pointers rather than
+serialized identities. The steady-state cache retains targets, not the completed inventory plan.
+
+Selection keys fence the four selector parameters' published revisions, module UUID and enabled
+state. Unrelated value edits do not restart selection planning. Both selection and configuration
+outcomes, including errors, check their captured native device revision before actor admission.
+Golden Audio publishes this revision with device state and exposes it through an atomic reader;
+actor checks never acquire the potentially large snapshot's lock. Metering does not advance it.
+The snapshot's revision is native metadata and omitted from serialization. A stale error cannot
+disable the current runtime. These checks do not qualify races after admission at native execution.
+
 Preparation keys check the published connection, parameter and value subtree revisions, module UUID
 and effective enabled state before admission. They do not rely on delivery of change callbacks.
 Readonly value projection pauses while preparing or awaiting native application; telemetry and
 health service continue. Source changes cancel obsolete preparation. Full control admission keeps
 the ready plan and retries its immutable configuration Arc without copying it; the native control
-worker obtains its owned configuration. Temporary preparation capacity failures retry after 250 ms
+worker obtains its owned configuration. Full probe/configuration queues retain ready work and defer
+retry for 250 ms; catalog-only selections and unavailable endpoints also recover through native
+events and coarse retries. Actor health polling no longer copies or parses serialized selections
+to detect availability. Temporary preparation capacity failures retry after 250 ms
 and preserve the current audio state. Invalid authored configurations still disable the runtime.
 Only a matching native `ConfigurationApplied` promotes bindings and resets the value-cache epoch;
 a matching rejection preserves the previous bindings. This is a control acknowledgement fence, not
@@ -616,8 +635,8 @@ acknowledgement. There is no optimistic actor warning cache to acknowledge faile
 destroy wholesale. Presentation-only metadata events do not request Sound Card snapshots or redrive
 configuration; labels and enabled-state changes retain their existing behavior.
 
-Probe/selection setup and raw inspector copies, derived structure/default-route seeding, enum
-choices, logger copies and remaining reconfiguration,
+Derived structure/default-route seeding, enum-choice publication and its inspector copies, route-intent
+inspection, event-feedback selection parsing/control-value copies, logger copies and remaining reconfiguration,
 apply-time and failure fences remain P03 work. These budgets do not qualify whole-process memory
 or actor deadlines.
 

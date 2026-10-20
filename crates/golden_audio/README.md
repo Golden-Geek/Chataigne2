@@ -174,5 +174,12 @@ accounts for spare capacities and bounds collection traversal before external li
 `AudioDeviceInspectorState::retained_bytes_within` measures device metadata independently of
 metering/analysis storage, allowing configuration preparation to use a separate budget.
 
+`SetDeviceProbeInterests` and `AudioControl::set_device_probe_interests` accept
+`Arc<Vec<AudioDeviceTargetId>>`; ownership/cloning occurs on the native control worker. The JSON
+shape is unchanged. Producers retaining canonical shared payloads can charge targets through the
+last queued command. `AudioObservationReader::device_revision()` reads an atomic fence without
+the snapshot lock. Device-state changes advance it; metering does not. The matching revision in
+`AudioObservationSnapshot` is native metadata omitted from serialization.
+
 See [Golden Audio Architecture](../../docs/architecture/golden-audio.md) for ownership, signal,
 clock, recovery, and callback-safety rules.

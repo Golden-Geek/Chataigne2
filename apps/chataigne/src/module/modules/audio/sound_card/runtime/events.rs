@@ -274,6 +274,10 @@ impl SoundCardRuntimeEvents {
         self.reader.clone()
     }
 
+    pub(super) fn device_revision(&self) -> u64 {
+        self.reader.device_revision()
+    }
+
     pub(super) fn set_refresh_rate_hz(&self, refresh_rate_hz: u32) {
         self.refresh_rate_hz
             .store(super::bounded_levels_update_rate_hz(refresh_rate_hz), Ordering::Release);

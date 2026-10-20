@@ -1,7 +1,10 @@
 use super::delivery::EventSender;
 use std::{
     collections::HashMap,
-    sync::{Arc, RwLock},
+    sync::{
+        Arc, RwLock,
+        atomic::{AtomicU64, Ordering},
+    },
     time::{Duration, Instant},
 };
 
@@ -21,6 +24,7 @@ use super::render_runtime::ManagedRenderRuntime;
 const DEVICE_DISCOVERY_INTERVAL: Duration = Duration::from_millis(500);
 
 pub(super) struct DeviceRuntime {
+    device_revision: Arc<AtomicU64>,
     supervisor: DeviceSupervisor,
     input_stream: Option<Box<dyn AudioStream>>,
     output_stream: Option<Box<dyn AudioStream>>,
@@ -35,8 +39,9 @@ pub(super) struct DeviceRuntime {
 }
 
 impl DeviceRuntime {
-    pub(super) fn new(engine_config: &AudioEngineConfig) -> Result<Self, AudioError> {
+    pub(super) fn new(engine_config: &AudioEngineConfig, device_revision: Arc<AtomicU64>) -> Result<Self, AudioError> {
         Ok(Self {
+            device_revision,
             supervisor: DeviceSupervisor::new(
                 DeviceSupervisorConfig::default(),
                 engine_config.sample_rate,
@@ -370,7 +375,11 @@ impl DeviceRuntime {
             .map(|snapshot| snapshot.device.clone())
             .unwrap_or_default();
         update_observation(observation, |snapshot| {
+            if snapshot.device != state {
+                snapshot.device_revision = snapshot.device_revision.saturating_add(1);
+            }
             snapshot.device = state.clone();
+            self.device_revision.store(snapshot.device_revision, Ordering::Release);
         });
         if previous.input != state.input {
             publish_event(event_sender, observation, AudioEvent::DeviceStatusChanged(state.input));

@@ -1,5 +1,6 @@
 use super::*;
 pub(super) mod preparation;
+pub(super) mod selection;
 pub(super) mod warnings;
 
 pub(crate) fn build_configuration(
@@ -7,22 +8,14 @@ pub(crate) fn build_configuration(
     module: NodeId,
     inspector: &AudioDeviceInspectorState,
 ) -> Result<BuiltSoundCardConfiguration, ConfigurationError> {
-    let connection = required_path(snapshot, module, "connection")?;
-    let driver_value = child_enum(snapshot, connection, "audio_driver", NO_AUDIO_DRIVER);
-    let uses_duplex_device = driver_value == ASIO_AUDIO_DRIVER;
-    let driver = if driver_value == NO_AUDIO_DRIVER {
-        None
-    } else {
-        Some(BackendId::new(driver_value).map_err(|error| configuration_error(connection, error.to_string()))?)
-    };
-    let (input_value, output_value, input_parameter, output_parameter) = if uses_duplex_device {
-        let (parameter, value) = required_child_enum(snapshot, connection, "device")?;
-        (value.clone(), value, parameter, parameter)
-    } else {
-        let (input_parameter, input_value) = required_child_enum(snapshot, connection, "input_device")?;
-        let (output_parameter, output_value) = required_child_enum(snapshot, connection, "output_device")?;
-        (input_value, output_value, input_parameter, output_parameter)
-    };
+    let selection::Selectors {
+        connection,
+        driver,
+        input: input_value,
+        output: output_value,
+        input_parameter,
+        output_parameter,
+    } = selection::Selectors::read(snapshot, module)?;
     let input_selection = resolve_selection(driver.as_ref(), inspector, input_value.as_str(), AudioDirection::Input)?;
     let output_selection = resolve_selection(
         driver.as_ref(),
