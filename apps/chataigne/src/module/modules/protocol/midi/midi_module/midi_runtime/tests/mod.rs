@@ -394,7 +394,7 @@ fn clock_analysis_preserves_24_tick_beat_occurrences_and_timestamp_bpm() {
 fn discovery_recovers_from_failure_without_an_actor_native_call() {
     let pool = pool();
     let mut attempts = 0;
-    let discovery = MidiDiscovery::spawn_using(&pool, notify(), move || {
+    let discovery = MidiDiscovery::spawn_using(&pool, notify(), "none", "none", move || {
         attempts += 1;
         if attempts == 1 {
             Err("fake query failure".into())
@@ -410,7 +410,7 @@ fn discovery_recovers_from_failure_without_an_actor_native_call() {
     let mut recovered = false;
     until(|| {
         if let Some(event) = discovery.take().0 {
-            match event {
+            match event.result {
                 Err(_) => failure = true,
                 Ok(_) => recovered = true,
             }
@@ -428,7 +428,7 @@ fn blocked_discovery_is_bounded_and_cancellation_never_joins_native_query() {
     let _release = Release(gate.clone());
     let (started, seen) = mpsc::channel();
     let blocked = gate.clone();
-    let discovery = MidiDiscovery::spawn_using(&pool, notify(), move || {
+    let discovery = MidiDiscovery::spawn_using(&pool, notify(), "none", "none", move || {
         started.send(()).unwrap();
         blocked.wait();
         Ok(MidiPortOptions {

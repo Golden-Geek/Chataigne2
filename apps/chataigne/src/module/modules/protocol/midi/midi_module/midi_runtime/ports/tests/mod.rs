@@ -1,10 +1,4 @@
 use super::*;
-use golden_core::{
-    edit::Edit,
-    node::{Folder, NodeMetaPatch},
-    parameter::ParameterChangeCheck,
-    process_ctx::ExecutionPhase,
-};
 
 fn port(index: usize, label: &str) -> DiscoveredMidiPort {
     DiscoveredMidiPort {
@@ -41,71 +35,4 @@ fn availability_matches_connection_resolution_without_retargeting_reindexed_name
     assert!(resolve_port(vec![0u8], "same", |_, _| Ok("same".into()))
         .unwrap()
         .is_some());
-}
-
-fn fixture() -> (crate::app::AppEngine, NodeId) {
-    let mut engine = crate::app::AppEngine::new(Folder::new("root").into());
-    let mut parameter = Parameter::new(
-        "Port",
-        ParamValue::Enum("none".into()),
-        ParameterChangeCheck::ValueChange,
-    );
-    parameter.constraints.enum_options = midi_input_port_options(&[port(0, "first")]).into();
-    engine.add_node(parameter.into(), None);
-    engine.apply_edits().unwrap();
-    let id = engine.nodes.get(engine.root).unwrap().node_data().first_child.unwrap();
-    (engine, id)
-}
-
-#[test]
-fn a_queued_catalog_preserves_later_user_selection_and_metadata() {
-    let (mut engine, id) = fixture();
-    let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);
-    sync_midi_port_enum_options(&mut ctx, id, midi_input_port_options(&[]));
-    engine.absorb_edits(&mut ctx).unwrap();
-    engine.edits.push(Edit::SetParam {
-        node: id,
-        value: ParamValue::Enum("0|first".into()),
-        behaviour: Default::default(),
-    });
-    engine.edits.push(Edit::PatchMeta {
-        node: id,
-        patch: NodeMetaPatch {
-            label: Some("Authored port".into()),
-            ..Default::default()
-        },
-    });
-    engine.apply_edits().unwrap();
-    engine.apply_edits().unwrap();
-    let node = engine.nodes.get(id).unwrap();
-    assert_eq!(node.node_data().meta.label, "Authored port");
-    assert_eq!(
-        node.engine_param_snapshot().unwrap().value,
-        ParamValue::Enum("0|first".into())
-    );
-}
-
-#[test]
-fn missing_port_catalog_preserves_selected_identity() {
-    let (mut engine, id) = fixture();
-    engine.edits.push(Edit::SetParam {
-        node: id,
-        value: ParamValue::Enum("0|first".into()),
-        behaviour: Default::default(),
-    });
-    engine.apply_edits().unwrap();
-    let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);
-    sync_midi_port_enum_options(&mut ctx, id, midi_input_port_options(&[]));
-    engine.absorb_edits(&mut ctx).unwrap();
-    engine.apply_edits().unwrap();
-    engine.apply_edits().unwrap();
-    let snapshot = engine.nodes.get(id).unwrap().engine_param_snapshot().unwrap();
-    assert_eq!(snapshot.value, ParamValue::Enum("0|first".into()));
-    let missing = snapshot
-        .constraints
-        .enum_options
-        .iter()
-        .find(|o| o.variant_id == "0|first")
-        .unwrap();
-    assert!(missing.tags.iter().any(|tag| tag == "missing"));
 }

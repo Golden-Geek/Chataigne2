@@ -5,11 +5,10 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-21 on `main`, after delivered `3bcb3514`, plus the C03 MIDI
-authored-structure milestone below. No unrelated edits were present. C02 remains closed.
-OSC is locally qualified against P03's ownership criteria. MIDI native, input, outgoing and
-feedback ownership are delivered; authored structure is locally verified. Catalog lifetime and
-passive module service remain open within C03.
+Last reconciled: 2026-10-21 on `main`, after delivered `1f2ddedd`, plus the MIDI prepared-catalog
+milestone below. No unrelated edits were present. C02 remains closed. OSC is locally qualified;
+MIDI native/input/output/feedback, authored structure and catalog ownership are locally verified.
+Passive clock/MTC/recovery scheduling remains open within C03.
 General snapshot/DTO scaling remains P16 work.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
@@ -81,24 +80,24 @@ qualified within C03; MIDI remains. Do not increase the package denominator for 
 or move unrelated optimization work into P03. Report each milestone's closed acceptance item and
 the remaining package criteria, rather than using accumulated batch numbers as progress.
 
-| ID  | Status            | Scope                            | Required closure                                                                                                                                                            |
-| --- | ----------------- | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| C01 | OPEN              | Sound Card                       | Finish bounded preparation/application/publication, derived structure/default routes, feedback, command diagnostics and native failure/reconfiguration fences.              |
-| C02 | **CLOSED (100%)** | Signals and Metronomes           | Verified: bounded command/configuration bytes, 64-row publication turns, elapsed-time/occurrence preservation, nonblocking retirement and passive failure/recovery.         |
-| C03 | IN PROGRESS       | MIDI and OSC                     | OSC locally qualified. MIDI native, outgoing, input and feedback ownership delivered; authored structure locally verified. Catalogs and passive module service remain open. |
-| C04 | OPEN              | MQTT                             | Bound channels/payloads and service, preserve accepted delivery, retire workers safely and verify reconnect/failure behavior.                                               |
-| C05 | OPEN              | DMX                              | Close P03 lifecycle/admission/retirement/recovery requirements; DMX stream correctness remains separately P07.                                                              |
-| C06 | OPEN              | App Control and OS               | Close worker/service/cleanup bounds, failure ownership and recovery without recurring main-thread polling or blocking joins.                                                |
-| C07 | OPEN              | Buttplug                         | Close channel/payload/service bounds, accepted-command ownership, retirement and connection recovery.                                                                       |
-| C08 | OPEN              | Joy-Con                          | Close channel/payload/service bounds, callback fan-out, retirement and device recovery.                                                                                     |
-| C09 | OPEN              | Keyboard and Mouse               | Close bounded event delivery, callback work and hook-worker retirement/failure ownership.                                                                                   |
-| C10 | OPEN              | Ultraleap                        | Close event/payload/service bounds, worker retirement and service/device recovery.                                                                                          |
-| C11 | OPEN              | Gamepad, Kinect2 and Stream Deck | Audit indirect/shared runtime paths as well as local code; repair and verify any P03 ownership/bounds/recovery gaps.                                                        |
-| C12 | OPEN              | Spatializer; Node Control absent | Bound Spatializer computation, graph mutation and callback fan-out; do not implement the empty Node Control placeholder.                                                    |
+| ID  | Status            | Scope                            | Required closure                                                                                                                                                           |
+| --- | ----------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| C01 | OPEN              | Sound Card                       | Finish bounded preparation/application/publication, derived structure/default routes, feedback, command diagnostics and native failure/reconfiguration fences.             |
+| C02 | **CLOSED (100%)** | Signals and Metronomes           | Verified: bounded command/configuration bytes, 64-row publication turns, elapsed-time/occurrence preservation, nonblocking retirement and passive failure/recovery.        |
+| C03 | IN PROGRESS       | MIDI and OSC                     | OSC locally qualified. MIDI native, input/output, feedback, authored structure and catalog ownership locally verified. Passive clock/MTC/recovery scheduling remains open. |
+| C04 | OPEN              | MQTT                             | Bound channels/payloads and service, preserve accepted delivery, retire workers safely and verify reconnect/failure behavior.                                              |
+| C05 | OPEN              | DMX                              | Close P03 lifecycle/admission/retirement/recovery requirements; DMX stream correctness remains separately P07.                                                             |
+| C06 | OPEN              | App Control and OS               | Close worker/service/cleanup bounds, failure ownership and recovery without recurring main-thread polling or blocking joins.                                               |
+| C07 | OPEN              | Buttplug                         | Close channel/payload/service bounds, accepted-command ownership, retirement and connection recovery.                                                                      |
+| C08 | OPEN              | Joy-Con                          | Close channel/payload/service bounds, callback fan-out, retirement and device recovery.                                                                                    |
+| C09 | OPEN              | Keyboard and Mouse               | Close bounded event delivery, callback work and hook-worker retirement/failure ownership.                                                                                  |
+| C10 | OPEN              | Ultraleap                        | Close event/payload/service bounds, worker retirement and service/device recovery.                                                                                         |
+| C11 | OPEN              | Gamepad, Kinect2 and Stream Deck | Audit indirect/shared runtime paths as well as local code; repair and verify any P03 ownership/bounds/recovery gaps.                                                       |
+| C12 | OPEN              | Spatializer; Node Control absent | Bound Spatializer computation, graph mutation and callback fan-out; do not implement the empty Node Control placeholder.                                                   |
 
 The [initial ownership/acceptance audit](p03-closure-audit.md) is now complete across C01-C12.
 It records confirmed source gaps, existing safeguards, missing qualification and finish tests.
-C02 is closed and OSC locally qualified within C03. Next finish MIDI catalog lifetime and passive clock/MTC/recovery service;
+C02 is closed and OSC locally qualified within C03. Next finish passive MIDI clock/MTC/recovery service;
 do not continue the generic snapshot-copy prerequisite chain. Existing shared IO, stream, HTTP and
 generator time suites remain preservation gates. Map discoveries into the fixed packages. General
 optimizations belong to P12/P16 unless evidence connects them to a concrete P03 resource, service,
@@ -110,39 +109,33 @@ or completion credit. Snapshot/DTO scaling remains an explicit P16 investigation
 
 ## Current handoff
 
-- Current delivery: **C03 MIDI authored CC structure and startup surface locking**, after delivered
-  feedback provenance at `3bcb3514`. CC conversion now uses bounded guarded plans, coherent
-  value/default/range mutations, receipt-driven prefix recovery and a separate numeric ordering
-  pass. Startup permission locking yields without traversing control-owned children. Accepted
-  structure work finishes through worker wakes while disabled; native IO stays closed.
-- Checkout reconciled on `main` at `3bcb3514`, matching fetched `origin/main`, before this
-  milestone. No unrelated edits were present; remote divergence was rechecked before delivery.
-- Current app evidence: **91 MIDI cases** and **713 other preservation cases** passed, or
-  **804 distinct tests of 1178 listed**. Twelve new structure cases cover full conversions, rapid
-  toggles, pending/discarded receipts, stale fences, oversized retirement, startup idempotence,
-  bounded locking, disabled completion, ordering and partial-prefix repair in both directions.
-- Current Core/gates: **588 engine tests passed / three existing ignored** (591 listed),
-  including ten provenance cases. Workspace/test compilation and protocol generation passed.
-  Strict workspace all-target Clippy and formatting passed. The default incremental native build
-  hit the known anonymous-symbol link failure; the native retry with `CARGO_INCREMENTAL=0` passed.
-  The incremental artifact issue remains an explicit P12 gate.
-  The extension attributes direct parameter state changes made through public node mutations;
-  queued follow-up edits retain their own provenance.
+- Current delivery: **C03 MIDI prepared catalogs and canonical lifetime ownership**, after
+  authored structure at `1f2ddedd`. Discovery workers build both directions' choices, retain
+  canonical arrays through parameters/snapshots/history/edits, and tag results with the latest
+  selection generation. Actor publication has bounded guarded requests and completion receipts.
+- Checkout reconciled on `main` at `1f2ddedd`, matching delivered `origin/main`; no unrelated
+  edits were present. Commit and push this verified milestone before starting the next one.
+- Current app evidence: **96 MIDI cases + 713 preservation cases = 809 distinct passes of
+  1183 listed**. Seven new catalog preparation/lifetime/publication cases replace two older
+  publication fixtures. Existing native discovery failure/recovery and blocked-query tests pass.
+- Workspace/test compilation, final strict all-target Clippy and protocol generation passed;
+  generated bindings are unchanged. The final native build with `CARGO_INCREMENTAL=0` and all
+  formatting/whitespace checks passed. All owned check processes are terminal.
+  Default incremental native linking retains P12's known artifact gate. No Core source changed;
+  its previous **588 passes / three existing ignored** retain `1f2ddedd`'s evidence and date.
 - **C03 is not closed.** Counts remain **11 open / one closed**, **16% overall / 80% P03**;
-  Sound Card remains **50% partial**. The percentages describe scope coverage, not remaining
-  engineering effort. Supporting commits do not change the denominator.
-- Next action: close **prepared MIDI catalog lifetimes and passive clock/MTC/recovery scheduling**
-  after this verified structure milestone is committed and pushed.
-  Preserve the generator, stream/HTTP, Sound Card and Mapping gates. General Core copy/scaling
-  work remains P16 without a concrete P03 failure; C01 and C04-C12 remain explicit.
-- Scope remains the full P00-P18 foundation/readiness plan. P01/P02 are locally verified,
-  P03 is in progress, and P04-P18 have not started. Full lighting/video/projection authoring
-  remains deferred. Work on `main`; commit and push every verified milestone to `origin/main`.
-- The October Rustls advisory gate, three existing Formula catalog/curve/gradient creation
-  failures (P08/P12), native UI, physical devices, other platforms and product-scale performance
-  retain their previous scope and dates. No full Formula qualification is claimed.
-- `d3a45301` removed automatic effort-switching rules. Mapping was merged in `f02205af`.
-  Earlier pause/branch/effort instructions in historical evidence are non-operative.
+  Sound Card remains **50% partial**. These scores measure scope coverage, not remaining effort.
+- Next action: finish **passive MIDI clock/MTC/recovery scheduling** after this catalog milestone
+  is committed and pushed. The overall 240 Hz MIDI rule remains present.
+  Native output deadlines and catalog preparation are already worker-owned. Preserve generator,
+  stream/HTTP, Sound Card and Mapping gates; general snapshot/copy scaling remains P16.
+- Keep C01 and C04-C12 explicit. The full P00-P18 foundation/readiness goal remains active:
+  P01/P02 are locally verified, P03 is in progress, and P04-P18 have not started. Work on `main`;
+  commit and push every verified milestone to `origin/main`. Mapping was merged in `f02205af`.
+- The October Rustls advisory gate, three existing Formula creation failures (P08/P12), native UI,
+  physical devices, other platforms and product-scale performance retain their previous scope
+  and dates. No full Formula qualification is claimed. Automatic effort-switching rules were
+  removed at `d3a45301`; historical pause/branch/effort notes are non-operative.
 
 ## Task ledger
 
@@ -5425,3 +5418,63 @@ their dates and scope; no full Formula pass is claimed.
 **C03 remains open for prepared catalogs and passive clock/MTC/recovery service.** Output deadlines
 are already worker-owned; the overall 240 Hz MIDI rule is not yet removed. Counts remain **11 open /
 one closed, P03 80%, whole plan 16%**. No physical endpoint or desktop automation was used.
+
+### P03 C03: MIDI prepared catalog lifetimes and guarded publication
+
+Implemented from `1f2ddedd` on 2026-10-21, Windows/MSVC 1.97.0, default workspace features.
+The preceding goal turn delivered authored structure (**progress**); this checkout began clean.
+The app-owned discovery boundary now prepares enum choices instead of passing raw port inventories
+back for actor conversion and disposal. No Golden, protocol, dependency or persisted format changed.
+
+Native inventory admission still limits each direction to 64 ports and its existing metadata
+capacities. Prepared directions contain at most 66 options / 256 KiB, including None and a missing
+selection. Both authored selections have 1024-byte bounds. A one-slot command coalesces the latest
+selection profile; generation-tagged stale results cannot replace newer configuration. The worker
+retains one pending latest result behind a one-slot / 1 MiB result mailbox and reuses canonical
+choice identity when content is unchanged.
+
+The public `PayloadPool::try_retain_arc` contract admits at most 128 direction catalogs / 32 MiB
+across all modules, parameters, snapshots, history and queued edits. Only the pool's background
+disposer releases the last canonical array. Capacity pressure reports explicitly and recovers after
+old owners release; failed disposer startup remains retryable. Native queries and temporary raw
+inventories stay on the already admitted discovery worker, including cancellation during a blocked
+query. Actor publication uses at most six guarded choice/warning edits and one owning receipt.
+Pending receipts neither repeat publication nor request another snapshot; failed/dropped requests
+reuse the same canonical arrays. Read fences cover stale warning clears as well as choice updates.
+Disable/removal cancels discovery and its pending delivery. Discovery restart remains on the existing
+one-second module refresh path; overall passive service is deliberately still an open criterion.
+
+Current verification:
+
+| Check                                             | Result                                                                                                                       |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| MIDI, four threads                                | **96 passed**; seven new catalog cases replace two older publication fixtures.                                               |
+| Disjoint app preservation                         | **809 distinct passes of 1183 listed**: 96 MIDI + 664 existing preservation + 49 Formula/state-machine event-consumer cases. |
+| Workspace/test compilation                        | Passed `cargo check --locked --workspace --tests`; final strict Clippy checks the completed sources.                         |
+| Strict workspace Clippy                           | Passed `cargo clippy --locked --workspace --all-targets -- -D warnings`.                                                     |
+| Native app build                                  | Passed `cargo build --locked -p Chataigne2 --bin Chataigne2` with `CARGO_INCREMENTAL=0`.                                     |
+| UI protocol generation                            | Passed `npm run codegen:golden-ui-protocol --workspace chataigne-ui`; bindings unchanged.                                    |
+| Root/Core and touched app format; docs/whitespace | Passed.                                                                                                                      |
+
+New cases cover 64 ports plus a maximum-length missing selection, retained spare-capacity and
+metadata rejection, duplicate variants, canonical identity reuse under full lifetime admission,
+external snapshot owners holding capacity, release/recovery, changed selection generations with
+a full result slot, stale publication preserving authored values/metadata, pending receipts and
+discarded-request retries. Existing discovery failure/recovery and blocked-query cancellation
+cases use the new result shape. Both intermediate and final 96-case selections passed.
+
+App test executable: `target/debug/deps/Chataigne2-b14ffd1b9e52f9ac.exe`, SHA256
+`434d484d7cb99d4998cf1fdef7bca7837a6096653890e049d9be9e7649baf551`.
+Selections ran from `apps/chataigne` with four threads. The maintained source-policy scan counts
+**1688 sources / 37 oversized**; all twelve touched/new Rust sources remain below 1000 lines.
+Core/IO/UI/macro evidence retains its prior scope and dates; Core sources are unchanged. No physical
+endpoint or desktop automation was used. Default incremental linking retains the known P12 gate.
+
+**C03 remains open only for MIDI passive clock/MTC/recovery scheduling.** OSC is locally qualified;
+C01 and C04-C12 remain open separately. Counts stay **11 open / one closed, P03 80%, whole plan 16%**.
+
+Final native executable: `target/debug/Chataigne2.exe`, SHA256
+`91011da612f95aea63366b71b45117a4c50e14262692154962d60a79957f61b6`.
+Root and Core Cargo format, all twelve touched app Rust files, maintained docs and whitespace
+checks passed. All owned processes are terminal; no default incremental-link repair is claimed.
+Commit and push this verified milestone before continuing passive MIDI service.

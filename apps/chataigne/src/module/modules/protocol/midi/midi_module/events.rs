@@ -27,6 +27,7 @@ impl MidiModule {
             if self.output_port.is_bound() && self.output_port.id() == param {
                 self.output_dirty = true;
             }
+            self.select_catalog(ctx);
             self.refresh_data_capabilities(ctx);
             return;
         }

@@ -8,10 +8,15 @@ impl MidiModule {
     pub(super) fn refresh_port_options(&mut self, ctx: &mut ProcessCtx) {
         if !self.node_data().effective_enabled {
             self.discovery = None;
+            self.pending_catalog = None;
             return;
         }
         if self.discovery.is_none() {
-            match MidiDiscovery::spawn(Self::native_notifier(ctx)) {
+            match MidiDiscovery::spawn(
+                self.input_port.get_ref().as_str(),
+                self.output_port.get_ref().as_str(),
+                Self::native_notifier(ctx),
+            ) {
                 Ok(discovery) => self.discovery = Some(discovery),
                 Err(error) => {
                     self.set_port_options_warning(ctx, &error);
@@ -19,28 +24,67 @@ impl MidiModule {
                 }
             }
         }
-        let (event, stopped) = self.discovery.as_ref().unwrap().take();
-        if stopped {
-            self.discovery = None;
+        self.select_catalog(ctx);
+        self.service_catalog(ctx);
+    }
+    pub(super) fn select_catalog(&mut self, ctx: &mut ProcessCtx) {
+        if let Some(discovery) = &self.discovery {
+            if let Err(error) =
+                discovery.select(self.input_port.get_ref().as_str(), self.output_port.get_ref().as_str())
+            {
+                self.pending_catalog = None;
+                self.set_port_options_warning(ctx, &error);
+                return;
+            }
+            if self
+                .pending_catalog
+                .as_ref()
+                .is_some_and(|p| p.event.generation != discovery.generation())
+            {
+                self.pending_catalog = None;
+            }
         }
-        let event = match event {
-            Some(event) => event,
-            None if stopped => Err("MIDI discovery worker stopped; retrying".into()),
-            None => return,
-        };
-        match event {
-            Ok(options) => {
-                if self.input_port.is_bound() {
-                    sync_midi_port_enum_options(ctx, self.input_port.id(), midi_input_port_options(&options.inputs));
-                    self.input_port.clear_warning(ctx, Some(MIDI_PORT_OPTIONS_WARNING_ID));
+    }
+    pub(super) fn catalog_requires_snapshot(&self) -> bool {
+        self.pending_catalog.as_ref().map_or_else(
+            || self.discovery.as_ref().is_some_and(MidiDiscovery::has_pending),
+            catalog_delivery::CatalogDelivery::requires_snapshot,
+        )
+    }
+    pub(super) fn service_catalog(&mut self, ctx: &mut ProcessCtx) {
+        if !self.node_data().effective_enabled {
+            return;
+        }
+        if self.pending_catalog.is_none() {
+            if let Some(discovery) = self.discovery.as_ref().filter(|discovery| discovery.has_pending()) {
+                let generation = discovery.generation();
+                let (event, stopped) = discovery.take();
+                if let Some(event) = event.filter(|e| e.generation == generation) {
+                    self.pending_catalog = Some(catalog_delivery::CatalogDelivery::new(event));
                 }
-                if self.output_port.is_bound() {
-                    sync_midi_port_enum_options(ctx, self.output_port.id(), midi_output_port_options(&options.outputs));
-                    self.output_port.clear_warning(ctx, Some(MIDI_PORT_OPTIONS_WARNING_ID));
+                if stopped {
+                    self.discovery = None;
+                    self.pending_catalog = Some(catalog_delivery::CatalogDelivery::new(midi_runtime::CatalogEvent {
+                        generation,
+                        result: Err("MIDI discovery worker stopped; retrying".into()),
+                    }));
                 }
             }
-            Err(error) => {
-                self.set_port_options_warning(ctx, &error);
+        }
+        if let Some(delivery) = self.pending_catalog.as_mut() {
+            let snapshot = ctx.tree_snapshot_arc();
+            if delivery.service(
+                ctx,
+                snapshot.as_deref(),
+                self.input_port.is_bound().then(|| self.input_port.id()),
+                self.output_port.is_bound().then(|| self.output_port.id()),
+            ) {
+                self.pending_catalog = None;
+            }
+        }
+        if self.pending_catalog.is_some() || self.discovery.as_ref().is_some_and(MidiDiscovery::has_pending) {
+            if let Ok(waker) = ctx.node_waker() {
+                let _ = waker.wake();
             }
         }
     }

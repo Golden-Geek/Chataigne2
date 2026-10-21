@@ -15,29 +15,32 @@ and their monotonic deadlines. This closes outgoing preparation and delayed stor
 `midi_input` prepares immutable incoming values, callback payloads and logs on the input worker.
 `input_delivery` owns graph and callback completion without replaying applied prefixes.
 `structure/cc` owns bounded authored CC conversion and `structure/locks` owns startup surface
-permissions. Prepared catalog lifetimes and passive module service remain open in C03.
+permissions. `midi_runtime/discovery` prepares and retains port choices; `catalog_delivery`
+publishes them through guarded edit receipts. Passive module service remains open in C03.
 
 ## Native admission
 
-| Resource                        | Limit                                                                                                                   |
-| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| Live/cancelling native workers  | 32 shared input/output/discovery lifetimes, reserved before thread creation                                             |
-| Selected port identifier        | 1024 retained bytes                                                                                                     |
-| Native port inventory           | 64 retained ports per direction; 512-byte native names                                                                  |
-| Discovery metadata              | 1024-byte variant IDs / 512-byte labels / 128-byte details                                                              |
-| Discovery publication           | One catalog result / 256 KiB; bounded current, previous and pending copies (at most four results including the mailbox) |
-| Callback ingress                | 256 messages / 2 MiB retained weight                                                                                    |
-| MIDI message or outgoing packet | 64 KiB                                                                                                                  |
-| Prepared input events           | 256 events / 16 MiB, including decoded SysEx, prepared hex and both callback payloads                                   |
-| Worker input turn               | 32 raw messages, with cancellation-aware publication capacity waits                                                     |
-| Actor input admission           | At most 32 statuses or the first message; one graph cursor and sixteen callback-waiting deliveries                      |
-| Output commands                 | 256 requests / 2 MiB queued; captured command/script preparation reserves 1 MiB each                                    |
-| Live output requests            | 2048 per output lifetime; global 4096 requests / 128 MiB including queued, preparing and scheduled work                 |
-| One output batch                | One or two packets, each 64 KiB; complete validation precedes every first native effect                                 |
-| Worker output turn              | One source preparation and at most 16 native effects                                                                    |
-| Output events                   | 256 replies / 2 MiB                                                                                                     |
-| Actor output drain              | 32 events per active or retiring handle                                                                                 |
-| Output description / log bytes  | 512-byte description; log displays at most the first 256 payload bytes                                                  |
+| Resource                        | Limit                                                                                                                         |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Live/cancelling native workers  | 32 shared input/output/discovery lifetimes, reserved before thread creation                                                   |
+| Selected port identifier        | 1024 retained bytes                                                                                                           |
+| Native port inventory           | 64 retained ports per direction; 512-byte native names                                                                        |
+| Discovery metadata              | 1024-byte variant IDs / 512-byte labels / 128-byte details                                                                    |
+| Discovery publication           | One result slot / 1 MiB; one pending worker result and one actor delivery; previous/observed catalogs share canonical choices |
+| Prepared port choices           | 66 options / 256 KiB per direction, including None and a missing selected port                                                |
+| Canonical choice lifetimes      | Global 128 direction catalogs / 32 MiB, including engine parameters, snapshots, history and pending edits                     |
+| Callback ingress                | 256 messages / 2 MiB retained weight                                                                                          |
+| MIDI message or outgoing packet | 64 KiB                                                                                                                        |
+| Prepared input events           | 256 events / 16 MiB, including decoded SysEx, prepared hex and both callback payloads                                         |
+| Worker input turn               | 32 raw messages, with cancellation-aware publication capacity waits                                                           |
+| Actor input admission           | At most 32 statuses or the first message; one graph cursor and sixteen callback-waiting deliveries                            |
+| Output commands                 | 256 requests / 2 MiB queued; captured command/script preparation reserves 1 MiB each                                          |
+| Live output requests            | 2048 per output lifetime; global 4096 requests / 128 MiB including queued, preparing and scheduled work                       |
+| One output batch                | One or two packets, each 64 KiB; complete validation precedes every first native effect                                       |
+| Worker output turn              | One source preparation and at most 16 native effects                                                                          |
+| Output events                   | 256 replies / 2 MiB                                                                                                           |
+| Actor output drain              | 32 events per active or retiring handle                                                                                       |
+| Output description / log bytes  | 512-byte description; log displays at most the first 256 payload bytes                                                        |
 
 The native input callback timestamps arrival and copies only messages within the byte limit.
 It never waits for downstream capacity. Full or oversized ingress is rejected before runtime
@@ -180,8 +183,24 @@ cannot silently bind another index just because its label matches. Unindexed lab
 retain their existing resolution semantics. Missing selected ports stay configured and visible.
 
 Choice updates use Core's guarded `SetParamEnumOptions`, preserving live metadata and newer
-selections instead of replacing whole parameters. Remaining catalog preparation/lifetime work
-belongs with the actor closure below.
+selections instead of replacing whole parameters. The discovery worker builds choices and the
+missing-selection row after admitting the complete raw inventory. Selection strings are limited
+to 1024 bytes. A coalesced one-slot command captures the latest input/output selection profile;
+generation-tagged results from an older profile cannot replace its newer selection.
+
+Prepared choices use `ParameterEnumOptions` and the public `PayloadPool::try_retain_arc` contract.
+Unchanged choices reuse the previous canonical identity. The pool retains each immutable choice
+array through its last external owner, so dropping a module, edit or snapshot cannot release its
+quota early or run the final array destructor on the actor. Exhausted lifetime capacity reports
+an explicit diagnostic; discovery retries and can recover after owners release old catalogs.
+Disposer startup failure is also retryable rather than cached permanently.
+
+One actor delivery publishes at most six edits for both directions. Read fences cover choice
+updates and warning clears. Receipts retain the same canonical arrays after rejected or discarded
+edits, while pending receipts request no repeated snapshot or publication. Results whose selection
+has changed are discarded. Discovery uses worker wakes for result publication; disable/removal
+cancels discovery and drops its pending delivery. Ordinary discovery restart still uses the
+module's existing one-second refresh path until passive scheduling is completed.
 
 A source that retires before its first native effect cancels the whole request. Once a first effect
 succeeds, the worker finishes that admitted batch even if its command node disappears, so deleting
@@ -190,8 +209,8 @@ transport cancellation still cancels the remaining suffix without replaying an i
 
 ## Remaining C03 acceptance
 
-MIDI still needs prepared catalog lifetime ownership and passive module scheduling with
-clock/MTC/recovery deadlines. Output deadlines are already worker-owned.
+MIDI still needs passive module scheduling with clock/MTC/recovery deadlines.
+Output deadlines and catalog preparation/lifetimes are already worker-owned.
 The existing 240 Hz module rule is still present; native worker ownership does not qualify it.
 Keep those concrete gaps inside C03, preserving all commands and app-owned script surfaces.
 General snapshot scaling and product-size throughput remain their owning plan tasks.

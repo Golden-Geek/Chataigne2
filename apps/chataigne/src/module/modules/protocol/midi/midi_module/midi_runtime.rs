@@ -17,13 +17,12 @@ mod output;
 mod ports;
 #[cfg(test)]
 mod tests;
-pub(crate) use discovery::MidiDiscovery;
+#[cfg(test)]
+pub(crate) use discovery::PreparedCatalog;
+pub(crate) use discovery::{CatalogEvent, MidiDiscovery, PortCatalog};
 pub(crate) use input::MidiInputHandle;
 pub(crate) use output::{MidiOutputEvent, MidiOutputHandle};
-pub(crate) use ports::{
-    format_midi_bytes, midi_input_port_options, midi_output_port_options, midi_port_selected,
-    sync_midi_port_enum_options,
-};
+pub(crate) use ports::{format_midi_bytes, midi_port_selected};
 
 pub(crate) const NO_MIDI_PORT_VARIANT: &str = "none";
 const MESSAGE_BYTES: usize = 64 * 1024;

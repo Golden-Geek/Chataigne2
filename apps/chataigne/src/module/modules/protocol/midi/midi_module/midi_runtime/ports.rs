@@ -1,9 +1,4 @@
 use super::*;
-use golden_core::{
-    node::{Node, NodeId},
-    parameter::{ParamValue, Parameter, ParameterEnumOption},
-    process_ctx::ProcessCtx,
-};
 use midir::{MidiInput, MidiOutput};
 
 #[cfg(test)]
@@ -16,48 +11,12 @@ pub(crate) fn available_midi_port_options() -> Result<MidiPortOptions, String> {
     })
 }
 
-pub(crate) fn midi_input_port_options(ports: &[DiscoveredMidiPort]) -> Vec<ParameterEnumOption> {
-    midi_port_options("No Input", ports)
-}
-
-pub(crate) fn midi_output_port_options(ports: &[DiscoveredMidiPort]) -> Vec<ParameterEnumOption> {
-    midi_port_options("No Output", ports)
-}
-
 pub(super) fn midi_input_port_available(selection: &str) -> Result<bool, String> {
     midi_port_available(selection, available_input_ports)
 }
 
 pub(super) fn midi_output_port_available(selection: &str) -> Result<bool, String> {
     midi_port_available(selection, available_output_ports)
-}
-
-pub(crate) fn sync_midi_port_enum_options(ctx: &mut ProcessCtx, param_id: NodeId, options: Vec<ParameterEnumOption>) {
-    ctx.call_node_mutation_without_snapshot(param_id, move |node, inner_ctx| {
-        let Some(parameter) = node.as_any_mut().downcast_mut::<Parameter>() else {
-            return Ok(());
-        };
-        let Some(current) = parameter.value.as_enum() else {
-            return Ok(());
-        };
-        if current.capacity() > 1024 {
-            return Ok(());
-        }
-        let mut options = options;
-        if current != NO_MIDI_PORT_VARIANT && !options.iter().any(|option| option.variant_id == current) {
-            options.push(missing_midi_port_option(&current));
-        }
-        let options = options.into();
-        if parameter.constraints.enum_options != options {
-            inner_ctx.edits.push(golden_core::edit::Edit::SetParamEnumOptions {
-                node: param_id,
-                expected_uuid: parameter.node_data().meta.uuid,
-                expected_value: parameter.value.clone(),
-                options,
-            });
-        }
-        Ok(())
-    });
 }
 
 pub(crate) fn midi_port_selected(variant_id: &str) -> bool {
@@ -185,37 +144,6 @@ where
         "selected MIDI port '{}' is not available",
         human_midi_port_variant(selection)
     ))
-}
-
-fn midi_port_options(no_port_label: &str, ports: &[DiscoveredMidiPort]) -> Vec<ParameterEnumOption> {
-    let mut options = vec![ParameterEnumOption {
-        variant_id: NO_MIDI_PORT_VARIANT.to_string(),
-        value: ParamValue::Enum(NO_MIDI_PORT_VARIANT.to_string()),
-        label: no_port_label.to_string(),
-        tags: vec![],
-        ordering: Some(0),
-    }];
-
-    options.extend(ports.iter().enumerate().map(|(index, port)| ParameterEnumOption {
-        variant_id: port.variant_id.clone(),
-        value: ParamValue::Enum(port.variant_id.clone()),
-        label: port.label.clone(),
-        tags: vec![],
-        ordering: Some(10 + index as i32),
-    }));
-
-    options
-}
-
-fn missing_midi_port_option(port_variant: &str) -> ParameterEnumOption {
-    let variant_id = port_variant.to_string();
-    ParameterEnumOption {
-        variant_id: variant_id.clone(),
-        value: ParamValue::Enum(variant_id.clone()),
-        label: format!("Missing: {}", human_midi_port_variant(variant_id.as_str())),
-        tags: vec!["missing".to_string()],
-        ordering: Some(5),
-    }
 }
 
 fn midi_port_variant_id(index: usize, label: &str) -> String {

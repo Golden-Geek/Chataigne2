@@ -3,6 +3,7 @@ use std::{
     time::Duration,
 };
 
+mod catalog_delivery;
 mod events;
 mod feedback;
 mod helpers;
@@ -44,9 +45,8 @@ use self::{
         ROTARY_TWOS_COMPLEMENT,
     },
     midi_runtime::{
-        format_midi_bytes, midi_input_port_options, midi_output_port_options, midi_port_selected,
-        sync_midi_port_enum_options, MidiClockTiming, MidiDiscovery, MidiInputConfig, MidiInputEvent, MidiInputHandle,
-        MidiOutputConfig, MidiOutputEvent, MidiOutputHandle, NO_MIDI_PORT_VARIANT,
+        format_midi_bytes, midi_port_selected, MidiClockTiming, MidiDiscovery, MidiInputConfig, MidiInputEvent,
+        MidiInputHandle, MidiOutputConfig, MidiOutputEvent, MidiOutputHandle, NO_MIDI_PORT_VARIANT,
     },
 };
 
@@ -327,6 +327,7 @@ pub struct MidiModule {
     output: Option<MidiOutputHandle>,
     retiring_output: Option<MidiOutputHandle>,
     discovery: Option<MidiDiscovery>,
+    pending_catalog: Option<catalog_delivery::CatalogDelivery>,
     last_input_config: Option<MidiInputConfig>,
     last_output_config: Option<MidiOutputConfig>,
     input_dirty: bool,
@@ -349,6 +350,7 @@ impl MidiModule {
         Self::new(
             crate::app::ModuleBase::new(),
             MIDI_PORT_REFRESH_INTERVAL_SECS,
+            None,
             None,
             None,
             None,
@@ -417,6 +419,7 @@ impl Node for MidiModule {
     }
 
     fn update(&mut self, ctx: &mut ProcessCtx) {
+        self.service_catalog(ctx);
         self.drain_output_events(ctx);
         self.drain_input_events(ctx);
         self.port_refresh_elapsed += ctx.delta_time.as_secs_f64();
@@ -464,6 +467,7 @@ impl Node for MidiModule {
         self.stop_input();
         self.stop_output();
         self.discovery = None;
+        self.pending_catalog = None;
         self.structure_work.cancel();
         self.pending_incoming_messages.clear();
         self.incoming = None;
@@ -489,7 +493,8 @@ impl Node for MidiModule {
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {
-        self.structure_work.requires_snapshot()
+        self.catalog_requires_snapshot()
+            || self.structure_work.requires_snapshot()
             || self.port_refresh_due()
             || self.input_dirty
             || self.output_dirty
@@ -508,9 +513,12 @@ impl Node for MidiModule {
     fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
         let snapshot = ctx.tree_snapshot_arc();
         self.service_structure(ctx, snapshot.as_deref());
+        if self.node_data().effective_enabled {
+            self.service_catalog(ctx);
+        }
     }
     fn worker_wake_requires_tree_snapshot(&self) -> bool {
-        self.structure_work.requires_snapshot()
+        self.structure_work.requires_snapshot() || self.catalog_requires_snapshot()
     }
     fn worker_wake_when_disabled(&self) -> bool {
         self.structure_work.busy()
@@ -566,6 +574,7 @@ impl Node for MidiModule {
             self.stop_input();
             self.stop_output();
             self.discovery = None;
+            self.pending_catalog = None;
             self.pending_incoming_messages.clear();
             self.incoming = None;
             self.incoming_callbacks.clear();
