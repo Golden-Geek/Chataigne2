@@ -136,6 +136,7 @@ impl SoundCardModule {
         physical_channel: &str,
         channel_uuid: &str,
     ) -> Result<(), AudioError> {
+        self.require_route_authoring_ready(direction)?;
         self.validate_physical_channel(direction, physical_channel)?;
         let (channel, reference) = self.resolve_routing_channel(snapshot, direction, channel_uuid)?;
         let path = route_path(direction);
@@ -181,6 +182,7 @@ impl SoundCardModule {
         physical_channel: &str,
         channel_uuid: &str,
     ) -> Result<(), AudioError> {
+        self.require_route_authoring_ready(direction)?;
         let (_, reference) = self.resolve_routing_channel(snapshot, direction, channel_uuid)?;
         let parent = find_path(snapshot, self.id(), route_path(direction))
             .ok_or_else(|| command_error("Sound Card route container is missing"))?;
@@ -307,9 +309,17 @@ impl SoundCardModule {
             self.service_configuration_preparation(ctx, snapshot);
             return;
         }
-        if self.reset_routes_for_device_selection(ctx, snapshot) {
-            self.configuration_dirty = true;
-            return;
+        match self.reset_routes_for_device_selection(ctx, snapshot) {
+            Ok(true) => {
+                self.configuration_dirty = true;
+                return;
+            }
+            Ok(false) => {}
+            Err(error) => {
+                self.configuration_dirty = false;
+                self.set_runtime_error(ctx, self.id(), &error);
+                return;
+            }
         }
         let Some(wake) = self.runtime_wake.clone() else { return };
         let prepared = self
@@ -348,10 +358,22 @@ impl SoundCardModule {
             self.clear_runtime_error(ctx);
             return;
         }
-        if self.seed_default_routes_from_inventory(ctx, snapshot, &selection.input_physical, &selection.output_physical)
-        {
-            self.configuration_dirty = true;
-            return;
+        match self.seed_default_routes_from_inventory(
+            ctx,
+            snapshot,
+            &selection.input_physical,
+            &selection.output_physical,
+        ) {
+            Ok(true) => {
+                self.configuration_dirty = true;
+                return;
+            }
+            Ok(false) => {}
+            Err(error) => {
+                self.configuration_dirty = false;
+                self.set_runtime_error(ctx, self.id(), &error);
+                return;
+            }
         }
         self.service_configuration_preparation(ctx, snapshot);
     }
@@ -597,6 +619,7 @@ impl SoundCardModule {
     }
 
     pub(super) fn stop_runtime(&mut self) {
+        self.routes.invalidate();
         self.commands = command_service::CommandService::default();
         self.choices.pause();
         self.runtime_request = None;

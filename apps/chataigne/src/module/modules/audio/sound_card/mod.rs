@@ -6,6 +6,7 @@ mod integration;
 mod native_logging;
 mod observation_warning;
 mod prepared_event;
+mod routes;
 mod runtime;
 mod script;
 mod settings;
@@ -129,6 +130,7 @@ pub struct SoundCardModule {
     base: crate::app::ModuleBase,
     runtime: Option<runtime::SoundCardRuntime>,
     commands: command_service::CommandService,
+    routes: routes::RouteWork,
     runtime_worker: Option<runtime::SoundCardRuntimeWorker>,
     runtime_request: Option<runtime::SoundCardRuntimeRequest>,
     runtime_wake: Option<runtime::RuntimeWakeSender>,
@@ -153,6 +155,7 @@ impl SoundCardModule {
             crate::app::ModuleBase::create_with_command_types(SOUND_CARD_COMMAND_TYPES),
             None,
             command_service::CommandService::default(),
+            routes::RouteWork::default(),
             None,
             None,
             None,
@@ -179,7 +182,9 @@ impl SoundCardModule {
                 .as_ref()
                 .is_some_and(|runtime| runtime.bindings().is_runtime_value(*param)),
             EventKind::ParamConstraintsChanged { .. } => false,
-            EventKind::MetaChanged { patch, .. } => patch.label.is_some() || patch.enabled.is_some(),
+            EventKind::MetaChanged { patch, .. } => {
+                patch.label.is_some() || patch.short_name.is_some() || patch.enabled.is_some()
+            }
             EventKind::ChildAdded { .. }
             | EventKind::ChildRemoved { .. }
             | EventKind::ChildReplaced { .. }
@@ -272,6 +277,7 @@ impl Node for SoundCardModule {
             }
         }
         let fresh = context == NodeCreationContext::Fresh;
+        self.routes = routes::RouteWork::default();
         self.input_default_routes_pending = fresh;
         self.output_default_routes_pending = fresh;
         self.input_route_reset_pending = false;
@@ -369,7 +375,9 @@ impl Node for SoundCardModule {
                 .as_ref()
                 .is_some_and(|runtime| runtime.bindings().is_runtime_value(*param)),
             EventKind::ChildAdded { .. } | EventKind::ChildRemoved { .. } | EventKind::ChildReplaced { .. } => true,
-            EventKind::MetaChanged { patch, .. } => patch.label.is_some() || patch.enabled.is_some(),
+            EventKind::MetaChanged { patch, .. } => {
+                patch.label.is_some() || patch.short_name.is_some() || patch.enabled.is_some()
+            }
             EventKind::Custom(custom) => custom.topic == chataigne_sound_card_protocol::SOUND_CARD_UI_CONTROL_TOPIC,
             _ => false,
         })
@@ -440,7 +448,7 @@ impl Node for SoundCardModule {
     }
 
     fn on_meta_changed(&mut self, _ctx: &mut ProcessCtx, _node: NodeId, patch: NodeMetaPatch) {
-        if patch.label.is_none() && patch.enabled.is_none() {
+        if patch.label.is_none() && patch.short_name.is_none() && patch.enabled.is_none() {
             return;
         }
         self.configuration_dirty = true;
@@ -463,8 +471,10 @@ impl Node for SoundCardModule {
     }
 
     fn on_effective_enabled_changed(&mut self, _ctx: &mut ProcessCtx, enabled: bool) {
+        self.configuration_dirty = true;
         self.choices.invalidate();
         if !enabled {
+            self.routes.invalidate();
             self.commands = command_service::CommandService::default();
             self.choices.pause();
         }

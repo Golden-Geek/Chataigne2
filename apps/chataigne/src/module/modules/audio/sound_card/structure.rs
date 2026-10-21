@@ -1,6 +1,5 @@
 use std::collections::{HashMap, HashSet};
 
-use golden_audio::PhysicalChannelKey;
 use golden_core::{
     edit::{Edit, NodeTree},
     node::{DeclId, Folder, Node, NodeHandle, NodeId, NodeMetaPatch, NodeReference, NodeUserPermissions, NodeUuid},
@@ -11,8 +10,7 @@ use uuid::Uuid;
 
 use super::{find_child_by_key, find_path, SoundCardModule, NO_AUDIO_DEVICE};
 use crate::app::module_modules_audio_sound_card_schema::{
-    SoundCardInputRoute, SoundCardInputValues, SoundCardOutputRoute, SoundCardOutputValues, SoundCardPitchValues,
-    SoundCardSpectralValues,
+    SoundCardInputValues, SoundCardOutputValues, SoundCardPitchValues, SoundCardSpectralValues,
 };
 
 pub(super) const SPECTRAL_PARAMETERS_UUID_KEY: &[u8] = b"spectral-analysis-parameters";
@@ -33,23 +31,6 @@ impl SoundCardModule {
         synchronize_level_direction_order(ctx, snapshot, self.id());
     }
 
-    pub(super) fn reset_routes_for_device_selection(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        snapshot: &ProcessTreeSnapshot,
-    ) -> bool {
-        let mut changed = false;
-        if self.input_route_reset_pending {
-            changed |= clear_routes(ctx, snapshot, self.id(), "connection/input_routing/routes");
-            self.input_route_reset_pending = false;
-        }
-        if self.output_route_reset_pending {
-            changed |= clear_routes(ctx, snapshot, self.id(), "connection/output_routing/routes");
-            self.output_route_reset_pending = false;
-        }
-        changed
-    }
-
     fn synchronize_input_structure(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot, used: bool) {
         synchronize_direction_values_root(ctx, snapshot, self.id(), "input", used);
 
@@ -64,13 +45,15 @@ impl SoundCardModule {
                 channels.as_slice(),
             );
         }
-        remove_stale_routes(
-            ctx,
-            snapshot,
-            self.id(),
-            "connection/input_routing/routes",
-            channels.as_slice(),
-        );
+        if !self.input_route_reset_pending && !self.routes.seeding_input() {
+            remove_stale_routes(
+                ctx,
+                snapshot,
+                self.id(),
+                "connection/input_routing/routes",
+                channels.as_slice(),
+            );
+        }
     }
 
     fn synchronize_output_structure(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot, used: bool) {
@@ -87,13 +70,15 @@ impl SoundCardModule {
                 channels.as_slice(),
             );
         }
-        remove_stale_routes(
-            ctx,
-            snapshot,
-            self.id(),
-            "connection/output_routing/routes",
-            channels.as_slice(),
-        );
+        if !self.output_route_reset_pending && !self.routes.seeding_output() {
+            remove_stale_routes(
+                ctx,
+                snapshot,
+                self.id(),
+                "connection/output_routing/routes",
+                channels.as_slice(),
+            );
+        }
     }
 
     fn synchronize_processing_values(&self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
@@ -138,54 +123,6 @@ impl SoundCardModule {
             clear_spectral_value_children(ctx, snapshot, self.id());
         }
     }
-
-    /// Seeds fresh-project defaults only after the selected device has exposed
-    /// its real channel inventory. Persisted projects never enter this path.
-    pub(super) fn seed_default_routes_from_inventory(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        snapshot: &ProcessTreeSnapshot,
-        input_channels: &[PhysicalChannelKey],
-        output_channels: &[PhysicalChannelKey],
-    ) -> bool {
-        let mut changed = false;
-        if self.input_default_routes_pending && !input_channels.is_empty() {
-            let channels = channel_references(snapshot, self.id(), "parameters/input/channels");
-            if !channels.is_empty() {
-                add_default_input_routes(ctx, snapshot, self.id(), channels.as_slice(), input_channels);
-                self.input_default_routes_pending = false;
-                changed = true;
-            }
-        }
-        if self.output_default_routes_pending && !output_channels.is_empty() {
-            let channels = channel_references(snapshot, self.id(), "parameters/output/channels");
-            if !channels.is_empty() {
-                add_default_output_routes(ctx, snapshot, self.id(), channels.as_slice(), output_channels);
-                self.output_default_routes_pending = false;
-                changed = true;
-            }
-        }
-        changed
-    }
-}
-
-pub(super) fn channel_references(snapshot: &ProcessTreeSnapshot, module: NodeId, path: &str) -> Vec<NodeReference> {
-    let Some(parent) = find_path(snapshot, module, path) else {
-        return Vec::new();
-    };
-    snapshot
-        .child_ids_slice(parent)
-        .iter()
-        .filter_map(|channel| {
-            let state = snapshot.node(*channel)?;
-            if !matches!(state.param_value, Some(ParamValue::Float(_))) {
-                return None;
-            }
-            let mut reference = NodeReference::with_cached_id(state.uuid, Some(*channel));
-            reference.set_cached_name(Some(channel_name(state)));
-            Some(reference)
-        })
-        .collect()
 }
 
 fn synchronize_direction_values_root(
@@ -521,54 +458,6 @@ fn title_case(value: &str) -> String {
         .unwrap_or_default()
 }
 
-fn add_default_input_routes(
-    ctx: &mut ProcessCtx,
-    snapshot: &ProcessTreeSnapshot,
-    module: NodeId,
-    channels: &[NodeReference],
-    physical_channels: &[PhysicalChannelKey],
-) {
-    let Some(parent) = find_path(snapshot, module, "connection/input_routing/routes") else {
-        return;
-    };
-    for (channel, physical_channel) in channels.iter().zip(physical_channels).take(2) {
-        let physical_channel = physical_channel.as_str().to_owned();
-        let mut route = SoundCardInputRoute::connected(physical_channel.clone(), channel.clone());
-        set_route_identity(
-            &mut route,
-            snapshot.node(module).expect("module exists").uuid,
-            "input",
-            physical_channel.as_str(),
-            channel.uuid,
-        );
-        ctx.add_child_tree(parent, NodeTree::new(route), None);
-    }
-}
-
-fn add_default_output_routes(
-    ctx: &mut ProcessCtx,
-    snapshot: &ProcessTreeSnapshot,
-    module: NodeId,
-    channels: &[NodeReference],
-    physical_channels: &[PhysicalChannelKey],
-) {
-    let Some(parent) = find_path(snapshot, module, "connection/output_routing/routes") else {
-        return;
-    };
-    for (channel, physical_channel) in channels.iter().zip(physical_channels).take(2) {
-        let physical_channel = physical_channel.as_str().to_owned();
-        let mut route = SoundCardOutputRoute::connected(channel.clone(), physical_channel.clone());
-        set_route_identity(
-            &mut route,
-            snapshot.node(module).expect("module exists").uuid,
-            "output",
-            physical_channel.as_str(),
-            channel.uuid,
-        );
-        ctx.add_child_tree(parent, NodeTree::new(route), None);
-    }
-}
-
 fn remove_stale_routes(
     ctx: &mut ProcessCtx,
     snapshot: &ProcessTreeSnapshot,
@@ -596,17 +485,6 @@ fn remove_stale_routes(
             NodeHandle::new(route).remove(ctx);
         }
     }
-}
-
-fn clear_routes(ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot, module: NodeId, path: &str) -> bool {
-    let Some(parent) = find_path(snapshot, module, path) else {
-        return false;
-    };
-    let routes = snapshot.child_ids(parent);
-    for route in &routes {
-        NodeHandle::new(*route).remove(ctx);
-    }
-    !routes.is_empty()
 }
 
 fn synchronize_optional_node(
@@ -779,7 +657,7 @@ fn synchronize_level_direction_order(ctx: &mut ProcessCtx, snapshot: &ProcessTre
     }
 }
 
-fn direction_channel_count(snapshot: &ProcessTreeSnapshot, module: NodeId, path: &str) -> usize {
+pub(super) fn direction_channel_count(snapshot: &ProcessTreeSnapshot, module: NodeId, path: &str) -> usize {
     find_path(snapshot, module, path)
         .and_then(|id| snapshot.node(id))
         .and_then(|node| node.param_value.as_ref())
@@ -806,7 +684,7 @@ pub(super) fn set_route_identity(
 ) {
     let key = format!("{direction}-route-{physical_channel}-{}", channel_uuid.0.simple());
     let data = route.node_data_mut();
-    data.meta.uuid = derived_uuid(module_uuid, key.as_bytes());
+    data.meta.uuid = route_uuid(module_uuid, direction, physical_channel, channel_uuid);
     data.meta.label = format!(
         "{} -> {}",
         physical_channel,
@@ -814,6 +692,13 @@ pub(super) fn set_route_identity(
     );
     data.meta.decl_id = DeclId(key.clone());
     data.meta.short_name = key;
+}
+
+pub(super) fn route_uuid(module: NodeUuid, direction: &str, physical: &str, channel: NodeUuid) -> NodeUuid {
+    derived_uuid(
+        module,
+        format!("{direction}-route-{physical}-{}", channel.0.simple()).as_bytes(),
+    )
 }
 
 pub(super) fn patch_channel_label(ctx: &mut ProcessCtx, channel: NodeId, name: String) {

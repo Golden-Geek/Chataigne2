@@ -69,10 +69,10 @@ fn device_selection_rebases_one_to_one_default_routes_without_accumulation() {
         .expect("Sound Card module type");
     sound_card.input_default_routes_pending = true;
     sound_card.output_default_routes_pending = true;
-    assert!(sound_card.seed_default_routes_from_inventory(&mut ctx, &snapshot, &input_channels, &output_channels,));
-    for request in ctx.edits.drain() {
-        engine.edits.push(request.edit);
-    }
+    assert!(sound_card
+        .seed_default_routes_from_inventory(&mut ctx, &snapshot, &input_channels, &output_channels,)
+        .unwrap());
+    engine.edits.pending.extend(ctx.edits.drain());
     engine.apply_edits().expect("default routes should materialize");
 
     let snapshot = engine.process_tree_snapshot();
@@ -104,10 +104,10 @@ fn device_selection_rebases_one_to_one_default_routes_without_accumulation() {
     sound_card.output_default_routes_pending = true;
     sound_card.input_route_reset_pending = true;
     sound_card.output_route_reset_pending = true;
-    assert!(sound_card.reset_routes_for_device_selection(&mut reset_ctx, &snapshot,));
-    for request in reset_ctx.edits.drain() {
-        engine.edits.push(request.edit);
-    }
+    assert!(sound_card
+        .reset_routes_for_device_selection(&mut reset_ctx, &snapshot,)
+        .unwrap());
+    engine.edits.pending.extend(reset_ctx.edits.drain());
     engine.apply_edits().expect("previous routes should be cleared");
 
     let snapshot = engine.process_tree_snapshot();
@@ -131,15 +131,10 @@ fn device_selection_rebases_one_to_one_default_routes_without_accumulation() {
         .as_any_mut()
         .downcast_mut::<SoundCardModule>()
         .expect("Sound Card module type");
-    assert!(sound_card.seed_default_routes_from_inventory(
-        &mut reseed_ctx,
-        &snapshot,
-        &input_channels,
-        &output_channels,
-    ));
-    for request in reseed_ctx.edits.drain() {
-        engine.edits.push(request.edit);
-    }
+    assert!(sound_card
+        .seed_default_routes_from_inventory(&mut reseed_ctx, &snapshot, &input_channels, &output_channels,)
+        .unwrap());
+    engine.edits.pending.extend(reseed_ctx.edits.drain());
     engine.apply_edits().expect("replacement routes should materialize");
 
     let snapshot = engine.process_tree_snapshot();
@@ -176,21 +171,21 @@ fn authored_routes_survive_sparse_project_save_and_load() {
         .expect("Sound Card module type");
     sound_card.input_default_routes_pending = true;
     sound_card.output_default_routes_pending = true;
-    assert!(sound_card.seed_default_routes_from_inventory(
-        &mut ctx,
-        &snapshot,
-        &channels("input", 2)
-            .into_iter()
-            .map(|channel| channel.key)
-            .collect::<Vec<_>>(),
-        &channels("output", 2)
-            .into_iter()
-            .map(|channel| channel.key)
-            .collect::<Vec<_>>(),
-    ));
-    for request in ctx.edits.drain() {
-        engine.edits.push(request.edit);
-    }
+    assert!(sound_card
+        .seed_default_routes_from_inventory(
+            &mut ctx,
+            &snapshot,
+            &channels("input", 2)
+                .into_iter()
+                .map(|channel| channel.key)
+                .collect::<Vec<_>>(),
+            &channels("output", 2)
+                .into_iter()
+                .map(|channel| channel.key)
+                .collect::<Vec<_>>(),
+        )
+        .unwrap());
+    engine.edits.pending.extend(ctx.edits.drain());
     engine.apply_edits().expect("authored routes should materialize");
 
     let json = golden_core::app::to_sparse_project_json_pretty(&engine).expect("Sound Card project should serialize");

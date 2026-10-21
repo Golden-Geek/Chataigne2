@@ -5,11 +5,11 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-21 on `main`, starting clean at delivered `98f303f0`, matching
-fetched `origin/main`. The C01 command preparation/publication milestone below is locally verified. All owned checks are terminal.
-**C02 and C03 remain locally closed; ten packages remain open: C01 and C04-C12.**
-Device/platform and product-scale qualification remain separate at their owning tasks.
-General snapshot/DTO scaling remains P16 work.
+Last reconciled: 2026-10-21 on `main`, starting clean at delivered `f1a7175e`, matching
+fetched `origin/main`. The C01 route reset/default-seed milestone below is locally verified.
+All owned checks are terminal. **C02 and C03 remain locally closed; ten packages remain open:
+C01 and C04-C12.** Device/platform and product-scale qualification remain separate at their owning
+tasks. General snapshot/DTO scaling remains P16 work.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
 plan. Its complete contents, including the uncommitted clarification, survive in the
@@ -41,15 +41,15 @@ or approximately 18%. This replaces its all-open score without crediting unaudit
 complete. None of these scores measures elapsed or remaining engineering effort.
 The score is `(100 + 100 + 100 + 100 + 50 + 200/11 + 100) / 7`.
 
-| Workstream                                    | Scope score   | Delivered / remaining acceptance                                                                                                                                                                                                  |
-| --------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Shared IO and engine service/lifecycle bounds | 100%          | Bounded primitives, external-edit service, lifecycle expansion, completion and failure ownership delivered.                                                                                                                       |
-| Six native stream adapters                    | 100%          | UDP, TCP Client/Server, WebSocket Client/Server and Serial ownership/admission/passive service delivered; preserve their regression suites.                                                                                       |
-| HTTP                                          | 100%          | Native lifecycle, admission, response bounds, passive service, worker request conversion and retained input disposal verified.                                                                                                    |
-| Generic script/event/property ingress         | 100%          | Method/property/event/log admission, rejected-input disposal, routing lifetime and shared-budget recovery verified.                                                                                                               |
-| Sound Card lifecycle/service                  | 50% (partial) | Native lifecycle/planning, choice application fences, route lookup, logging and receipts verified. Command preparation/publication is locally verified; structure/default routes, feedback and remaining native fences stay open. |
-| Remaining app module/channel audit            | ~18% (2/11)   | C02 Signals/Metronomes and C03 MIDI/OSC locally closed with bounded native/actor service, occurrence, retirement and recovery evidence. C04-C12 remain open.                                                                      |
-| Generator elapsed-time accounting             | 100%          | Ordinary commands settle elapsed time; phase, due-prefix ordering, bounded catch-up, targeted reset and stop cancellation verified.                                                                                               |
+| Workstream                                    | Scope score   | Delivered / remaining acceptance                                                                                                                                                                                          |
+| --------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Shared IO and engine service/lifecycle bounds | 100%          | Bounded primitives, external-edit service, lifecycle expansion, completion and failure ownership delivered.                                                                                                               |
+| Six native stream adapters                    | 100%          | UDP, TCP Client/Server, WebSocket Client/Server and Serial ownership/admission/passive service delivered; preserve their regression suites.                                                                               |
+| HTTP                                          | 100%          | Native lifecycle, admission, response bounds, passive service, worker request conversion and retained input disposal verified.                                                                                            |
+| Generic script/event/property ingress         | 100%          | Method/property/event/log admission, rejected-input disposal, routing lifetime and shared-budget recovery verified.                                                                                                       |
+| Sound Card lifecycle/service                  | 50% (partial) | Lifecycle/configuration/choice and command receipts preserved; route reset/default-seed service locally verified. Derived channel/level work, stale pruning/manual lookup and remaining native/feedback fences stay open. |
+| Remaining app module/channel audit            | ~18% (2/11)   | C02 Signals/Metronomes and C03 MIDI/OSC locally closed with bounded native/actor service, occurrence, retirement and recovery evidence. C04-C12 remain open.                                                              |
+| Generator elapsed-time accounting             | 100%          | Ordinary commands settle elapsed time; phase, due-prefix ordering, bounded catch-up, targeted reset and stop cancellation verified.                                                                                       |
 
 The generator elapsed-time checkpoint is now verified. Sound Card and the remaining module audit
 stay open; generator channel/retirement/callback bounds belong to that audit rather than this time
@@ -82,7 +82,7 @@ and remaining package criteria instead of accumulated batch numbers.
 
 | ID  | Status            | Scope                            | Required closure                                                                                                                                                                                                                                                           |
 | --- | ----------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| C01 | OPEN              | Sound Card                       | Finish bounded preparation/application/publication, derived structure/default routes, feedback, command diagnostics and native failure/reconfiguration fences.                                                                                                             |
+| C01 | OPEN              | Sound Card                       | Finish derived channel/level/migration work, stale-route/manual lookup and publication; qualify feedback and remaining native failure/reconfiguration fences. Command and reset/default services are locally verified.                                                     |
 | C02 | **CLOSED (100%)** | Signals and Metronomes           | Verified: bounded command/configuration bytes, 64-row publication turns, elapsed-time/occurrence preservation, nonblocking retirement and passive failure/recovery.                                                                                                        |
 | C03 | **CLOSED (100%)** | MIDI and OSC                     | Locally verified: bounded native/input/output/catalog/feedback/structure ownership, passive service, explicit deadlines, retained occurrences, nonblocking cleanup and failure/recovery. Commands and scripts preserved; hardware/platform qualification remains separate. |
 | C04 | OPEN              | MQTT                             | Bound channels/payloads and service, preserve accepted delivery, retire workers safely and verify reconnect/failure behavior.                                                                                                                                              |
@@ -109,36 +109,39 @@ or completion credit. Snapshot/DTO scaling remains an explicit P16 investigation
 
 ## Current handoff
 
-- Current delivery: **C01 Sound Card command preparation and receipt-driven publication**, based on
-  `98f303f0`. Five command nodes and five script methods prepare on an app-owned bounded worker.
-  Frozen input leases replace the serialized request round trip. Runtime/source fences, authored
-  gain identity checks and separate publication receipts prevent redirection and native replay.
-- Checkout began clean on `main`, matching fetched `origin/main`. No Golden, protocol, dependency,
-  persisted format or app-shell source changed. Commit and push this verified milestone before the next C01 work.
-- Current app evidence: **156 Sound Card/command cases + 676 disjoint preservation cases =
-  832 distinct passes of 1206 listed**. Thirteen new cases cover bounded preparation/input,
-  frozen overrides, source/runtime/target retirement, worker restart, mailbox cancellation,
-  native non-replay after failed graph-publication prefixes, and passive command/script delivery.
-- Final workspace/test compilation, strict all-target Clippy, protocol generation and root/Core/app
-  formatting passed. Bindings are unchanged. Native build passed with `CARGO_INCREMENTAL=0`;
-  all owned checks are terminal.
+- Current delivery: **C01 Sound Card bounded route resets and default seeding**, based on
+  `f1a7175e`. A 16-root reset budget is shared across directions; pending receipts backpressure
+  subsequent service. Flags settle from committed snapshots, deterministic UUID lookup retries
+  partial seeds, and lifetime/read fences reject stale writes after replacement or disable/enable.
+- Checkout began clean on `main`, matching fetched `origin/main`; the final fetch still matches.
+  No Golden, protocol, dependency, persisted schema or app-shell source changed. Commit and push
+  this verified milestone before the next C01 work.
+- Current app evidence: **166 Sound Card/command cases + 676 disjoint preservation cases =
+  842 distinct passes of 1216 listed**. Ten new cases cover reset budgets, partial prefixes,
+  overlapping seed/reset, ownership cancellation, byte limits, direction failure and passive
+  Null-device reconfiguration. Existing command/MIDI/OSC/stream/HTTP/generator/consumer gates pass.
+- All owned processes are terminal. Final workspace/test compilation, strict all-target Clippy,
+  native build with `CARGO_INCREMENTAL=0`, protocol generation and root/Core/app formatting pass.
+  Generated bindings are unchanged. The default incremental MSVC artifact issue remains P12.
+- The 4096-route fixture records **36.9 microseconds** for preparing one bounded reset turn:
+  **16 removals + one fence**. This is one local sample, excluding fixture setup, snapshot capture,
+  edit application, UI forwarding and full-reset completion; it is not a P16 latency qualification.
 - **C01 remains OPEN**, Sound Card stays **50% partial**, P03 stays approximately **81%**, and the
   whole plan stays approximately **16%**. Counts remain **10 open / two closed (C02/C03)**.
-  These are scope scores; the command milestone does not close Sound Card's remaining criteria.
-- Next action: **C01 derived structure/default-route reconciliation**, including accepted-prefix
-  receipts (route-reset flags currently clear when edits are queued), bounded child/route scans
-  and publication. Finish feedback and remaining native/reconfiguration fences with controlled/Null
-  providers. Keep P04 audio ordering and P16 general scaling separate.
+  Reset/default receipts are now verified; unverified remaining criteria receive no closure credit.
+- Next action: **C01 derived channel/level structure and stale-route pruning**, replacing remaining
+  full child scans/clones and unbounded publication. Include manual routing lookup, feedback and
+  remaining native failure/reconfiguration fences in C01. Keep P04 gain/configuration ordering
+  and P16 general snapshot/DTO scaling separate; do not restart generic copy prerequisites.
 - Core's 588 passes / three existing ignored retain their earlier source/date; Core source is
-  unchanged. App evidence supersedes the previous 819/1193 selection without adding historical
-  totals. Source policy scan: **1693 files / 37 oversized**, unchanged oversized count.
+  unchanged. App evidence supersedes 832/1206 without adding historical totals. Source policy:
+  **1695 files / 37 oversized**, unchanged oversized count; new runtime/test modules are under 1000 lines.
 - The full P00-P18 goal stays active. P01/P02 are locally verified; P04-P18 have not started.
   Continue on `main`, committing and pushing every verified milestone. Mapping was merged at
   `f02205af`; effort-switching rules were removed at `d3a45301`.
 - The October Rustls advisory gate, three Formula creation failures (P08/P12), default incremental
-  MSVC native artifact failures (P12), native UI, physical devices/routes, other platforms and
-  product-scale performance retain their previous scope/dates. No full Formula or device/platform
-  qualification is claimed.
+  native artifacts (P12), native UI, real devices/routes, other platforms and product-scale
+  performance retain their previous scope/dates. No full Formula or device/platform pass is claimed.
 
 ## Task ledger
 
@@ -5627,3 +5630,74 @@ Final artifact provenance for this C01 source and its 832-case selection:
   `3518c4e5d5e33c95fdae094321ac38c3582cfa72ecf610e22a029184572cbb3b`, built with
   `CARGO_INCREMENTAL=0`. The final native build, workspace/test check, strict all-target Clippy and
   all owned test processes are terminal and passed. No app process or physical endpoint was launched.
+
+## C01 route reset and default-seed receipts
+
+Implemented from `f1a7175e` on 2026-10-21, Windows/MSVC Rust 1.97.0, default workspace features.
+The preceding goal turn committed/pushed command ownership (**progress**); this checkout began clean.
+The app-owned `routes` boundary now owns reset/default flags and graph publication. No Golden,
+protocol, dependency, persisted schema or app-shell source changed. C01 is still OPEN.
+
+Reset service uses one 16-root deletion budget across input/output. It reads a bounded prefix from
+indexed child slices instead of cloning/scanning the complete folder. Pending reset/seed receipts
+backpressure another reset turn; device selection cannot clear routes before an earlier accepted
+seed settles. A reset flag clears only after completion resolves and a fresh snapshot sees the
+folder empty. On prefix failure, the next turn reads only surviving roots rather than replaying
+committed deletions. Existing stale-route pruning is suspended while that direction is owned by
+reset/seed work, preventing competing deletions from the same snapshot.
+
+Defaults look up the first two derived logical channels and deterministic route UUIDs directly.
+They no longer build an all-channel reference vector. Existing committed roots are checked for
+parent/type/materialized parameter ownership, so a partial two-tree prefix retries only the missing
+tree. Pending flags survive until acknowledgement. Names keep the existing semantic channel label
+and cache behavior; physical keys admit at most 1024 bytes and naming metadata 64 KiB per field
+before copying. An invalid direction waits until the other direction's accepted writes settle,
+then reports a fixed backend warning instead of abandoning their receipt. Missing inventory or
+unpublished channels wait for subsequent native/structural publication.
+
+Each graph batch fences module/parent/target reads and the app module's publication lifetime using
+public Golden preconditions/revisions. Disable, destroy, replacement and restoration invalidate
+old work, including when authored UUIDs survive replacement or history retains the old node.
+Active reset/seed phases reject conflicting route intents explicitly. Re-enable requests fresh
+reconciliation. Short-name-only channel edits now request reconciliation too, restoring the
+existing label-derived naming invariant without depending on native telemetry.
+
+Verification on the final source:
+
+| Check                                          | Result                                                                                                                                                     |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sound Card and command selection, four threads | **166 passed**: 156 preserved plus ten new route cases.                                                                                                    |
+| Disjoint app preservation                      | **676 passed** across generators, HTTP, six native stream adapters, shared ingress, OSC, MIDI, module commands and scoped Formula/state-machine consumers. |
+| Current app total                              | **842 distinct passes / 1216 listed**; selector sets checked nonempty/disjoint. The repeated timing case is not added again.                               |
+| Workspace/test compilation                     | Passed `cargo check --locked --workspace --tests`.                                                                                                         |
+| Strict workspace Clippy                        | Passed `cargo clippy --locked --workspace --all-targets -- -D warnings`.                                                                                   |
+| Native app build                               | Passed with `CARGO_INCREMENTAL=0`; default incremental artifact failures remain P12.                                                                       |
+| UI protocol generation                         | Passed; generated bindings unchanged.                                                                                                                      |
+| Formatting / source policy                     | Root/Core actual fmt and touched app fmt passed; **1695 source files / 37 oversized**. Docs/whitespace checked before delivery.                            |
+
+The pure-tree and Null cases cover empty reset, shared turn admission and pending backpressure,
+five committed removals followed by a failed suffix, one committed default tree followed by a failed
+second tree, seed/reset ordering, replacement preserving UUIDs, disable/enable, oversized key/name
+rejection, one invalid direction with another accepted direction, and passive Null disconnect.
+The 4096-route fixture records **36.9 microseconds**, preparing exactly 17 edits (16 removals and
+one fence); setup/application/full teardown and snapshot/UI costs are excluded. This single sample
+proves no end-to-end percentile or cross-platform/device bound. The owning suite also verifies
+short-name normalization without telemetry. Initial failures identified missing reset-cohort
+backpressure and a test assumption that contradicted the existing label-derived naming policy;
+both are resolved in the final passing suite.
+
+Final artifact provenance:
+
+- App tests: `target/debug/deps/Chataigne2-b14ffd1b9e52f9ac.exe`, SHA-256
+  `15a889eade7aadabcedb5e0395066bc6e5a69ed34e89b157b9d21be0be8aa270`.
+- Native app: `target/debug/Chataigne2.exe`, SHA-256
+  `70155c2d7405824a88a3dad045d8287752a4f1e42284550552b89534b68e327e`, built with
+  `CARGO_INCREMENTAL=0`. All owned jobs are terminal. New scenarios use pure authored fixtures and
+  the explicit Null backend, with no real-device qualification.
+
+Remaining C01 work: bound derived gain/level/migration creation, stale-route scans and publication,
+manual route lookup, feedback and remaining native failure/reconfiguration fences. The route
+subsystem does not establish those broader criteria or P04 audio ordering. Core retains its
+previously dated 588 passes / three existing ignored. Formula/advisory/native-incremental/UI/device/
+platform/product-scale gates retain their owners. Counts remain **10 open / two closed**;
+P03 **~81%**, Sound Card **50% partial**, whole plan **~16%**. Commit/push on `main`; keep P00-P18 active.

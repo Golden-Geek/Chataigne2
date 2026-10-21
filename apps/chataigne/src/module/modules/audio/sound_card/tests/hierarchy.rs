@@ -312,9 +312,11 @@ fn channel_names_remain_free_form_while_gain_labels_and_runtime_names_diverge() 
     let channel = snapshot.node(channel).expect("renamed output gain");
     assert_eq!(channel.label, format!("{authored_name} Gain"));
     assert_eq!(channel.short_name, authored_name);
-    let references = structure::channel_references(&snapshot, module, "parameters/output/channels");
+    let reference = super::super::routes::default_channel_reference(&snapshot, module, "output", 1)
+        .expect("bounded default reference")
+        .expect("output channel");
     assert_eq!(
-        references[0].cached_name.as_deref(),
+        reference.cached_name.as_deref(),
         Some(authored_name),
         "route references must cache the semantic channel name",
     );

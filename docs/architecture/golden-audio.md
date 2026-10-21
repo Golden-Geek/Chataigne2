@@ -67,6 +67,22 @@ native retirement invalidates captured targets. This does not establish P04's or
 gain commands and configuration exchanges. Derived structure, route reconciliation and the remaining
 C01 feedback/failure qualification stay open in the status ledger.
 
+Sound Card's `routes` boundary owns device-selection resets and initial default seeding. Resets
+share a 16-root deletion budget across input/output and wait for the preceding edit completion
+before admitting another turn. A flag settles only after a fresh snapshot observes the committed
+result. Defaults use indexed channel/route UUID lookup, create at most two detached route trees
+per direction, and skip trees already committed by a partial prefix. Module lifetime and node
+read fences protect queued writes; disable, destroy and restoration invalidate old route work.
+Routing intents reject while their direction is actively resetting or seeding.
+
+Default physical keys admit at most 1024 bytes and channel naming metadata at most 64 KiB per
+field before copying. Existing channel/reference names and persisted route UUIDs remain unchanged.
+An invalid direction does not abandon accepted writes in the other direction: those settle before
+the input error is reported. Missing inventory/channels waits for subsequent structural/native
+publication. Channel short-name changes request backend reconciliation even without telemetry.
+This does not qualify all derived channel/level creation, stale-route pruning, manual route lookup
+or remaining native/feedback fences; those still belong to C01.
+
 `golden_audio_ui` owns generic audio driver/device controls, status rendering, the SVG channel patch
 bay, accessibility behavior, and application binding contracts. An application adapter may
 translate node paths and typed intents, but may not invent fallback policy, device identity, format
