@@ -227,9 +227,6 @@ impl MidiModule {
     }
 
     pub(super) fn midi_receive_now(&self, ctx: &ProcessCtx) -> Duration {
-        self.input
-            .as_ref()
-            .map(MidiInputHandle::elapsed)
-            .unwrap_or(ctx.runtime_elapsed)
+        ctx.runtime_elapsed
     }
 }

@@ -1,4 +1,4 @@
-# MIDI native and outgoing ownership
+# MIDI native, input and outgoing ownership
 
 MIDI is app-owned under `apps/chataigne/src/module/modules/protocol/midi/midi_module`.
 `midi_runtime` owns native Midir discovery, input/output creation, port resolution, sends,
@@ -11,8 +11,10 @@ script callbacks and feedback. Its focused `incoming`, `structure`, `timing`, `o
 `helpers` holds shared value-tree policy and `script_values` holds callback/scalar conversion.
 `midi_output` captures canonical command/script sources; `commands/preparation` builds the thirteen
 command types on the output worker. `midi_runtime/output/schedule` owns complete outgoing batches
-and their monotonic deadlines. This closes outgoing preparation and delayed storage/service;
-input publication, feedback accounting, catalogs and passive module service remain open in C03.
+and their monotonic deadlines. This closes outgoing preparation and delayed storage/service.
+`midi_input` prepares immutable incoming values, callback payloads and logs on the input worker.
+`input_delivery` owns graph and callback completion without replaying applied prefixes.
+Feedback accounting, catalogs and passive module service remain open in C03.
 
 ## Native admission
 
@@ -25,9 +27,9 @@ input publication, feedback accounting, catalogs and passive module service rema
 | Discovery publication           | One catalog result / 256 KiB; bounded current, previous and pending copies (at most four results including the mailbox) |
 | Callback ingress                | 256 messages / 2 MiB retained weight                                                                                    |
 | MIDI message or outgoing packet | 64 KiB                                                                                                                  |
-| Prepared input events           | 256 events / 4 MiB, including duplicate decoded SysEx storage                                                           |
+| Prepared input events           | 256 events / 16 MiB, including decoded SysEx, prepared hex and both callback payloads                                   |
 | Worker input turn               | 32 raw messages, with cancellation-aware publication capacity waits                                                     |
-| Actor input admission           | One batch of at most 32 events; no further drain until retained graph work clears                                       |
+| Actor input admission           | At most 32 statuses or the first message; one graph cursor and sixteen callback-waiting deliveries                      |
 | Output commands                 | 256 requests / 2 MiB queued; captured command/script preparation reserves 1 MiB each                                    |
 | Live output requests            | 2048 per output lifetime; global 4096 requests / 128 MiB including queued, preparing and scheduled work                 |
 | One output batch                | One or two packets, each 64 KiB; complete validation precedes every first native effect                                 |
@@ -41,12 +43,42 @@ It never waits for downstream capacity. Full or oversized ingress is rejected be
 admission and counted explicitly; accepted messages remain ordered. Decode and 24-tick clock
 analysis run on the input worker. BPM uses captured arrival times, so publication pressure does
 not turn worker service timing into source timing. All bytes and decoded SysEx capacity count
-toward input event admission. Undelivered callback storage and native shutdown remain worker-owned;
-canonical payload disposal through actor values/callbacks remains part of the actor closure.
+toward input event admission. Undelivered callback storage and native shutdown remain worker-owned.
+Prepared events use 256 slots / 16 MiB per native lifetime, including callback payload weights.
+The canonical input disposer admits 1024 envelopes / 64 MiB of message, hex and envelope storage;
+callbacks use the shared native callback disposer (16384 payloads / 256 MiB). Ordinary event/replay
+copies keep the same callback reservation after the input envelope retires. A preparing worker
+retains one measured draft and its admitted callback prefix while capacity is unavailable,
+without reconstructing JSON or losing the accepted message. Cancellation releases that draft
+on the worker.
+
+## Input publication
+
+The actor holds one graph delivery and at most sixteen deliveries awaiting callback receipts.
+It stops consuming native messages at that limit. A message advances note/CC/clock/MTC domain
+state once and produces at most twelve scalar graph operations. A graph service turn admits
+at most sixteen operations / 64 KiB; a single bounded SysEx string may occupy its own turn.
+Touched value-tree parents are limited to 256 children. A complete missing path is one detached
+`NodeTree`, including a CC's rotary selector. Numeric insertion uses a predecessor lookup;
+only a new minimum needs one follow-up move after its runtime ID is known.
+
+An owning edit receipt fences each graph segment. Failure abandons its unapplied suffix with
+a diagnostic and never replays an applied trigger or relative increment. A newly created scalar
+is initialized once; a newly created trigger receives one explicit occurrence after creation.
+Changes to auto-add, channel CC widths or BPM precision cancel unapplied graph work. A changed
+rotary mechanism or disappeared relative CC target also cancels its stale operation.
+
+Generic and message-specific callbacks have separate completion receipts. A failed publication
+retries only the unpublished callback; later edit/subscriber failures cannot replay a committed
+one. Callback receipts retain canonical payloads and do not stall subsequent clock inputs after
+their graph segment settles. Disable/removal cancels pending graph/callback ownership and clears
+held-note state. End-to-end authored feedback suppression remains a separate C03 acceptance item.
 
 The input worker services its callback mailbox with a 10 ms background fallback, independently
 of the actor. Presence checks run once per second on that worker. This is not an audio callback
 or a product latency qualification.
+
+## Outgoing preparation
 
 Command nodes and scripts retain frozen snapshot/override/argument leases rather than copying
 values, serializing a module request or parsing bytes on the actor. Source leases keep their existing
@@ -108,8 +140,7 @@ transport cancellation still cancels the remaining suffix without replaying an i
 
 ## Remaining C03 acceptance
 
-MIDI still needs input graph/edit and callback completion ownership, canonical input payload
-lifetimes, feedback occurrence accounting, prepared catalog lifetime ownership, and passive
+MIDI still needs feedback occurrence accounting, prepared catalog lifetime ownership, and passive
 module scheduling with clock/MTC/recovery deadlines. Output deadlines are already worker-owned.
 The existing 240 Hz module rule is still present; native worker ownership does not qualify it.
 Keep those concrete gaps inside C03, preserving all commands and app-owned script surfaces.

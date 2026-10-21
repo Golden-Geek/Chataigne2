@@ -204,16 +204,26 @@ impl MidiModule {
     }
 
     pub(super) fn drain_input_events(&mut self, ctx: &mut ProcessCtx) {
+        if let Some(input) = &self.input {
+            input.set_log(self.base.log_incoming_enabled());
+        }
         let mut events = Vec::new();
         // Retain one bounded actor batch while graph materialization catches up.
-        if !self.pending_incoming_messages.is_empty() {
+        if self.incoming.is_some() || !self.pending_incoming_messages.is_empty() || self.incoming_callbacks.len() >= 16
+        {
             return;
         }
         let mut stopped = false;
         if let Some(input) = &self.input {
             for _ in 0..32 {
                 match input.try_recv() {
-                    Ok(event) => events.push(event),
+                    Ok(event) => {
+                        let input = matches!(event, MidiInputEvent::Message(_));
+                        events.push(event);
+                        if input {
+                            break;
+                        }
+                    }
                     Err(std::sync::mpsc::TryRecvError::Disconnected) => {
                         stopped = true;
                         break;
@@ -234,26 +244,19 @@ impl MidiModule {
             match event {
                 MidiInputEvent::Ready => self.clear_input_warning(ctx),
                 MidiInputEvent::Error(error) => self.set_input_warning(ctx, &error),
-                MidiInputEvent::Rejected(count) => self.set_input_warning(ctx, &format!("MIDI input rejected {count} message(s) before admission: callback capacity or 64 KiB message limit exceeded")),
-                MidiInputEvent::Message {
-                    bytes,
-                    message,
-                    received_at,
-                    clock_timing,
-                } => {
+                MidiInputEvent::Rejected(count) => self.set_input_warning(
+                    ctx,
+                    &format!(
+                        "MIDI input rejected {count} message(s) before admission: callback capacity or 64 KiB message limit exceeded"
+                    ),
+                ),
+                MidiInputEvent::Message(input) => {
                     received = true;
-                    self.log_incoming_message(&message, bytes.as_slice());
-                    self.pending_incoming_messages.push(PendingIncomingMessage {
-                        message,
-                        received_at: Some(received_at),
-                        clock_timing,
-                    });
+                    self.pending_incoming_messages.push_back(input);
+                    break;
                 }
-                MidiInputEvent::UnsupportedMessage { bytes, .. } => {
-                    logerror!(
-                        "Ignored unsupported MIDI message {}",
-                        format_midi_bytes(bytes.as_slice())
-                    );
+                MidiInputEvent::UnsupportedMessage(error) => {
+                    logerror!(error);
                 }
             }
         }

@@ -9,8 +9,8 @@ use golden_core::{
 };
 
 use super::{
-    MidiMessage, MidiModule, midi_transport_connected,
     midi_message::{cc_decl_id, note_decl_id},
+    midi_transport_connected, MidiMessage, MidiModule,
 };
 
 #[test]
@@ -254,7 +254,10 @@ fn incoming_note_messages_update_note_info_folder() {
     assert_eq!(
         engine
             .nodes
-            .get(find_path(&engine, module_id, "values/note_info/current_note_on").expect("current note-on should exist"))
+            .get(
+                find_path(&engine, module_id, "values/note_info/current_note_on")
+                    .expect("current note-on should exist")
+            )
             .and_then(|node| node.engine_param_snapshot())
             .map(|snapshot| snapshot.value),
         Some(ParamValue::Int(1)),
@@ -309,12 +312,15 @@ fn incoming_system_messages_populate_mtc_and_midi_clock_folders() {
             super::midi_message::MidiSystemMessage::TimeCodeQuarterFrame { value: raw },
         ));
     }
-    module.enqueue_incoming_message_for_test(MidiMessage::System(
-        super::midi_message::MidiSystemMessage::Start,
-    ));
+    module.enqueue_incoming_message_for_test(MidiMessage::System(super::midi_message::MidiSystemMessage::Start));
 
-    for _ in 0..4 {
-        run_midi_runtime_tick(&mut engine, "runtime tick should process the queued MTC and clock start messages");
+    // Each input now waits for its own graph completion. Allow all nine
+    // occurrences to settle rather than assuming an unbounded single drain.
+    for _ in 0..12 {
+        run_midi_runtime_tick(
+            &mut engine,
+            "runtime tick should process the queued MTC and clock start messages",
+        );
     }
 
     assert_eq!(
@@ -335,22 +341,27 @@ fn incoming_system_messages_populate_mtc_and_midi_clock_folders() {
     );
 
     for _ in 0..48 {
-        let crate::app::AppNode::MidiModule(module) = engine.nodes.get_mut(module_id).expect("module should exist") else {
+        let crate::app::AppNode::MidiModule(module) = engine.nodes.get_mut(module_id).expect("module should exist")
+        else {
             panic!("expected MidiModule node");
         };
         module.enqueue_incoming_message_for_test(MidiMessage::System(
             super::midi_message::MidiSystemMessage::TimingClock,
         ));
-        run_midi_runtime_tick(&mut engine, "runtime tick should accumulate MIDI clock tempo from timed ticks");
+        run_midi_runtime_tick(
+            &mut engine,
+            "runtime tick should accumulate MIDI clock tempo from timed ticks",
+        );
     }
 
     let crate::app::AppNode::MidiModule(module) = engine.nodes.get_mut(module_id).expect("module should exist") else {
         panic!("expected MidiModule node");
     };
-    module.enqueue_incoming_message_for_test(MidiMessage::System(
-        super::midi_message::MidiSystemMessage::Stop,
-    ));
-    run_midi_runtime_tick(&mut engine, "runtime tick should process the queued MIDI clock stop message");
+    module.enqueue_incoming_message_for_test(MidiMessage::System(super::midi_message::MidiSystemMessage::Stop));
+    run_midi_runtime_tick(
+        &mut engine,
+        "runtime tick should process the queued MIDI clock stop message",
+    );
 
     let mtc_id = find_path(&engine, module_id, "values/mtc").expect("MTC folder should exist");
     let clock_id = find_path(&engine, module_id, "values/midi_clock").expect("MIDI clock folder should exist");
@@ -438,13 +449,15 @@ fn incoming_midi_clock_bpm_stays_steady_within_a_beat() {
     let crate::app::AppNode::MidiModule(module) = engine.nodes.get_mut(module_id).expect("module should exist") else {
         panic!("expected MidiModule node");
     };
-    module.enqueue_incoming_message_for_test(MidiMessage::System(
-        super::midi_message::MidiSystemMessage::Start,
-    ));
-    run_midi_runtime_tick(&mut engine, "runtime tick should process the queued MIDI clock start message");
+    module.enqueue_incoming_message_for_test(MidiMessage::System(super::midi_message::MidiSystemMessage::Start));
+    run_midi_runtime_tick(
+        &mut engine,
+        "runtime tick should process the queued MIDI clock start message",
+    );
 
     for _ in 0..48 {
-        let crate::app::AppNode::MidiModule(module) = engine.nodes.get_mut(module_id).expect("module should exist") else {
+        let crate::app::AppNode::MidiModule(module) = engine.nodes.get_mut(module_id).expect("module should exist")
+        else {
             panic!("expected MidiModule node");
         };
         module.enqueue_incoming_message_for_test(MidiMessage::System(
@@ -459,9 +472,7 @@ fn incoming_midi_clock_bpm_stays_steady_within_a_beat() {
     let crate::app::AppNode::MidiModule(module) = engine.nodes.get_mut(module_id).expect("module should exist") else {
         panic!("expected MidiModule node");
     };
-    module.enqueue_incoming_message_for_test(MidiMessage::System(
-        super::midi_message::MidiSystemMessage::TimingClock,
-    ));
+    module.enqueue_incoming_message_for_test(MidiMessage::System(super::midi_message::MidiSystemMessage::TimingClock));
     run_midi_runtime_tick_with_delta(
         &mut engine,
         Duration::from_millis(30),
@@ -494,13 +505,15 @@ fn incoming_midi_clock_bpm_precision_controls_exposed_decimals() {
     let crate::app::AppNode::MidiModule(module) = engine.nodes.get_mut(module_id).expect("module should exist") else {
         panic!("expected MidiModule node");
     };
-    module.enqueue_incoming_message_for_test(MidiMessage::System(
-        super::midi_message::MidiSystemMessage::Start,
-    ));
-    run_midi_runtime_tick(&mut engine, "runtime tick should process the queued MIDI clock start message");
+    module.enqueue_incoming_message_for_test(MidiMessage::System(super::midi_message::MidiSystemMessage::Start));
+    run_midi_runtime_tick(
+        &mut engine,
+        "runtime tick should process the queued MIDI clock start message",
+    );
 
     for _ in 0..48 {
-        let crate::app::AppNode::MidiModule(module) = engine.nodes.get_mut(module_id).expect("module should exist") else {
+        let crate::app::AppNode::MidiModule(module) = engine.nodes.get_mut(module_id).expect("module should exist")
+        else {
             panic!("expected MidiModule node");
         };
         module.enqueue_incoming_message_for_test(MidiMessage::System(
@@ -739,12 +752,14 @@ fn midi_value_nodes_lock_permissions_and_cc_range_tracks_14_bit_mode() {
     });
 
     for _ in 0..6 {
-        run_midi_runtime_tick(&mut engine, "runtime tick should materialize MIDI value nodes with fixed metadata");
+        run_midi_runtime_tick(
+            &mut engine,
+            "runtime tick should materialize MIDI value nodes with fixed metadata",
+        );
     }
 
     let values_id = find_path(&engine, module_id, "values").expect("values folder should exist");
-    let note_id = find_path(&engine, module_id, "values/channel_1/notes/note_24")
-        .expect("note parameter should exist");
+    let note_id = find_path(&engine, module_id, "values/channel_1/notes/note_24").expect("note parameter should exist");
     let cc_id =
         find_path(&engine, module_id, "values/channel_1/control_change/cc_7").expect("CC parameter should exist");
     let toggle_id = find_path(&engine, module_id, "parameters/fourteen_bit_channels/channel_1")
@@ -759,16 +774,15 @@ fn midi_value_nodes_lock_permissions_and_cc_range_tracks_14_bit_mode() {
     set_param(&mut engine, toggle_id, ParamValue::Bool(true));
     settle_midi_module_edits(&mut engine);
 
-    let cc_id =
-        find_path(&engine, module_id, "values/channel_1/control_change/cc_7").expect("merged CC should exist");
+    let cc_id = find_path(&engine, module_id, "values/channel_1/control_change/cc_7").expect("merged CC should exist");
     assert_node_permissions_none(&engine, cc_id);
     assert_uniform_int_range(&engine, cc_id, 0.0, 16383.0);
 
     set_param(&mut engine, toggle_id, ParamValue::Bool(false));
     settle_midi_module_edits(&mut engine);
 
-    let cc_id = find_path(&engine, module_id, "values/channel_1/control_change/cc_7")
-        .expect("restored 7-bit CC should exist");
+    let cc_id =
+        find_path(&engine, module_id, "values/channel_1/control_change/cc_7").expect("restored 7-bit CC should exist");
     assert_uniform_int_range(&engine, cc_id, 0.0, 127.0);
 }
 
@@ -908,7 +922,11 @@ fn assert_node_permissions_none(engine: &crate::app::AppEngine, node: NodeId) {
         .meta
         .user_permissions
         .clone();
-    assert_eq!(actual, NodeUserPermissions::none(), "MIDI value node should not be user-configurable");
+    assert_eq!(
+        actual,
+        NodeUserPermissions::none(),
+        "MIDI value node should not be user-configurable"
+    );
 }
 
 fn assert_uniform_int_range(engine: &crate::app::AppEngine, node: NodeId, min: f64, max: f64) {

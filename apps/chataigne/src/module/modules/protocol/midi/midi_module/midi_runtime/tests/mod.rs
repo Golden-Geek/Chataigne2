@@ -1,3 +1,4 @@
+use super::super::midi_message::MidiMessage;
 use super::input::{InputConnection, InputSink};
 use super::output::OutputConnection;
 use super::*;
@@ -296,10 +297,11 @@ fn callback_admission_counts_full_and_oversize_rejections_and_retains_ordered_pr
     until(|| {
         while let Ok(event) = handle.try_recv() {
             match event {
-                MidiInputEvent::Message {
-                    message: MidiMessage::NoteOn { note, .. },
-                    ..
-                } => notes.push(note),
+                MidiInputEvent::Message(input) => {
+                    if let MidiMessage::NoteOn { note, .. } = input.message {
+                        notes.push(note);
+                    }
+                }
                 MidiInputEvent::Rejected(n) => rejected += n,
                 _ => {}
             }
@@ -364,7 +366,7 @@ fn input_disappearance_clears_readiness_and_publishes_accepted_prefix_before_exi
     assert_eq!(
         events
             .iter()
-            .filter(|e| matches!(e, MidiInputEvent::Message { .. }))
+            .filter(|e| matches!(e, MidiInputEvent::Message(_)))
             .count(),
         1
     );

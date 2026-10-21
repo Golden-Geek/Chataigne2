@@ -361,8 +361,10 @@ pub(super) fn midi_cc_config(snapshot: &ProcessTreeSnapshot, cc_id: NodeId) -> M
         .find_child_by_decl_id(cc_id, MIDI_CC_ROTARY_MODE_DECL_ID)
         .and_then(|mode_id| snapshot.node(mode_id))
         .and_then(|mode| mode.param_value.as_ref())
-        .and_then(|value| value.as_enum().or_else(|| value.as_str()))
-        .and_then(|mechanism| normalize_rotary_mechanism(mechanism.as_str()))
+        .and_then(|value| match value {
+            ParamValue::Enum(value) | ParamValue::Str(value) => normalize_rotary_mechanism(value),
+            _ => None,
+        })
         .unwrap_or(ROTARY_ABSOLUTE);
 
     MidiCcConfig { rotary_mechanism }
@@ -422,8 +424,7 @@ pub(super) fn midi_cc_channel_is_14_bit(snapshot: &ProcessTreeSnapshot, start: N
 pub(super) fn merge_apply_results(current: MidiApplyResult, next: MidiApplyResult) -> MidiApplyResult {
     match (current, next) {
         (MidiApplyResult::Retry, _) | (_, MidiApplyResult::Retry) => MidiApplyResult::Retry,
-        (MidiApplyResult::Applied, _) | (_, MidiApplyResult::Applied) => MidiApplyResult::Applied,
-        _ => MidiApplyResult::Ignored,
+        _ => MidiApplyResult::Applied,
     }
 }
 

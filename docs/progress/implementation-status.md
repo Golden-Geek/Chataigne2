@@ -84,7 +84,7 @@ the remaining package criteria, rather than using accumulated batch numbers as p
 | --- | ----------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | C01 | OPEN              | Sound Card                       | Finish bounded preparation/application/publication, derived structure/default routes, feedback, command diagnostics and native failure/reconfiguration fences.      |
 | C02 | **CLOSED (100%)** | Signals and Metronomes           | Verified: bounded command/configuration bytes, 64-row publication turns, elapsed-time/occurrence preservation, nonblocking retirement and passive failure/recovery. |
-| C03 | IN PROGRESS       | MIDI and OSC                     | OSC locally qualified. MIDI native and complete outgoing batch ownership delivered; input/callback/feedback/catalog and passive module service remain open.         |
+| C03 | IN PROGRESS       | MIDI and OSC                     | OSC locally qualified. MIDI native, outgoing and input graph/callback ownership delivered; feedback, catalogs and passive module service remain open.               |
 | C04 | OPEN              | MQTT                             | Bound channels/payloads and service, preserve accepted delivery, retire workers safely and verify reconnect/failure behavior.                                       |
 | C05 | OPEN              | DMX                              | Close P03 lifecycle/admission/retirement/recovery requirements; DMX stream correctness remains separately P07.                                                      |
 | C06 | OPEN              | App Control and OS               | Close worker/service/cleanup bounds, failure ownership and recovery without recurring main-thread polling or blocking joins.                                        |
@@ -109,15 +109,15 @@ or completion credit. Snapshot/DTO scaling remains an explicit P16 investigation
 
 ## Current handoff
 
-- Current delivery: **C03 MIDI outgoing preparation and delayed ownership**, following native
-  ownership at `2e471a2b`. Commands and scripts capture canonical immutable sources; the output
-  worker prepares and validates complete batches, owns weighted delayed plans and services
-  monotonic deadlines. Full queues reject a complete request before native effects, and accepted
-  note-offs stay on their original native lifetime through ordinary reconfiguration/source deletion.
+- Current delivery: **C03 MIDI input preparation and graph/callback completion**, following
+  outgoing ownership at `17348c6a`. The native input worker prepares canonical message/hex/callback
+  storage. A graph cursor advances domain state once, waits for each edit segment, and never
+  replays an applied prefix. Generic and specific callback receipts settle independently.
   **C03 is not closed.** Counts remain **11 open / one closed**, **16% overall / 80% P03**;
-  Sound Card remains **50% partial**. MIDI input/callback/feedback/catalog and passive service
-  remain open. The outgoing worker no longer depends on the module's 240 Hz polling for deadlines.
-- Checkout reconciled at delivered `2e471a2b`, matching `origin/main`, before this milestone.
+  Sound Card remains **50% partial**. MIDI feedback accounting, prepared catalogs and passive
+  clock/MTC/recovery scheduling remain open. Package closure, not supporting commit count,
+  remains the audit progress denominator.
+- Checkout reconciled at delivered `17348c6a`, matching fetched `origin/main`, before this milestone.
   `d3a45301` removed automatic effort-switching rules; older effort notes are historical.
 - Current local checks are recorded in the C03 entry below. The OSC milestone's engine suite
   retains **578 passed / three existing ignored**. The older aggregate of 590 Core passes and the
@@ -125,15 +125,15 @@ or completion credit. Snapshot/DTO scaling remains an explicit P16 investigation
   IO retains C02's
   52-test evidence. UI/macro/codegen-support retain batch 55 evidence. No full Formula pass is
   claimed: its three existing creation failures remain P08/P12 gates.
-- C03 current evidence: **54 MIDI cases and 664 other app preservation cases passed**, or
-  **718 distinct app tests of 1141 listed**. Workspace/test check, strict all-target Clippy,
-  native build and unchanged protocol generation passed. Core/foundation/IO/UI suites above
+- C03 current evidence: **70 MIDI cases and 664 other app preservation cases passed**, or
+  **734 distinct app tests of 1157 listed**. Workspace/test check, strict all-target Clippy,
+  native build and protocol generation results are recorded in the current evidence entry. Core/foundation/IO/UI suites above
   retain their stated dates; they are not claimed as fresh MIDI tests.
 - Scope: **foundation and readiness**. P01/P02 are verified locally, P03 remains in progress,
   P04-P18 have not started. Full lighting/video/projection authoring remains deferred.
-- Next action: **finish MIDI input/publication acceptance within C03**: bounded graph/edit and
-  callback completion ownership, canonical input lifetimes, feedback occurrence accounting,
-  prepared catalog lifetimes and passive clock/MTC/recovery deadlines. Reuse
+- Next action: **finish the remaining MIDI acceptance within C03**: authored feedback occurrence
+  accounting and CC structure work, prepared catalog lifetimes, and passive clock/MTC/recovery
+  deadlines. Reuse
   existing public IO and app preparation contracts. Keep C01 and C04-C12 explicit; do not count
   OSC qualification as C03 closure while MIDI remains open. Preserve generator, stream/HTTP, audio
   and Mapping gates. General Core copy/scaling work remains P16 without a concrete P03 failure.
@@ -151,27 +151,27 @@ Implementation states: `NOT_STARTED`, `IN_PROGRESS`, `IMPLEMENTED`, `VERIFIED_LO
 Check outcomes: `PENDING`, `PASSED`, `FAILED`, `UNAVAILABLE`, `SKIPPED_WITH_REASON`.
 External qualification is separate from implementation. A historical pass is not a current pass.
 
-| Task                        | Completion | Implementation | Local validation             | External qualification / evidence                                                                                                                    |
-| --------------------------- | ---------- | -------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| P00 Baseline                | 100%       | VERIFIED_LOCAL | PASSED                       | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                                           |
-| P01 Edit failures/history   | 100%       | VERIFIED_LOCAL | PASSED batches 1–8           | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                                            |
-| P02 Schedule/actor failures | 100%       | VERIFIED_LOCAL | PASSED batches 1-3           | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                                             |
-| P03 Bounded I/O/lifecycle   | ~80%       | IN_PROGRESS    | PASSED C02/OSC + MIDI output | C02 closed; 11 closure packages remain open. Shared/stream/HTTP/script/time gates preserved; Sound Card and remaining module qualification continue. |
-| P04 Audio order/types       | 0%         | NOT_STARTED    | PENDING                      | Legal interleaving and invalid deserialization established from source                                                                               |
-| P05 Transport trust         | 0%         | NOT_STARTED    | PENDING                      | Missing admission verified; exploit not demonstrated                                                                                                 |
-| P06 Dependencies            | 0%         | NOT_STARTED    | FAILED baseline              | Four Rustls advisories on audit date; refresh DB before repair                                                                                       |
-| P07 DMX streaming           | 0%         | NOT_STARTED    | PENDING                      | Refresh/filter/service gaps; protocol loopback qualification needed                                                                                  |
-| P08 Formula backend intents | 0%         | NOT_STARTED    | PENDING                      | UI polling/identity and mutation policy verified; corruption not reproduced                                                                          |
-| P09 Graph document          | 0%         | NOT_STARTED    | PENDING                      | Ordered-map mutation costs source-derived                                                                                                            |
-| P10 Canvas                  | 0%         | NOT_STARTED    | PENDING                      | Projection diagnostic and crossing-edge reproduction; mounted performance open                                                                       |
-| P11 Workspace UX            | 0%         | NOT_STARTED    | PENDING                      | Collection/keyboard gaps source-reviewed; native usability open                                                                                      |
-| P12 Boundaries/gates        | 0%         | NOT_STARTED    | PENDING                      | App policy leak, omitted graph tests, oversized files, unsafe conversions; recurring incremental native-link artifact gap                            |
-| P13 Formula execution       | 0%         | NOT_STARTED    | PENDING                      | Historical profiles retained; production parallelism not mandated                                                                                    |
-| P14 Production time         | 0%         | NOT_STARTED    | PENDING                      | Clock helper unwired, no target-frame play, starvation/latency policy gaps                                                                           |
-| P15 Assets                  | 0%         | NOT_STARTED    | PENDING                      | Audio path/cache identity exists; project asset boundary unimplemented                                                                               |
-| P16 Product scale           | 0%         | NOT_STARTED    | PENDING                      | Snapshot/DTO scaling investigation retained from P03 audit; full-product 20k/50k/mounted canvas gates remain open                                    |
-| P17 Platforms/artifacts     | 0%         | NOT_STARTED    | PENDING                      | Windows history retained; exact current app/native/platform checks required                                                                          |
-| P18 Named devices           | 0%         | NOT_STARTED    | PENDING                      | Exact authorized ASIO4ALL/VB-Audio route must be verified first                                                                                      |
+| Task                        | Completion | Implementation | Local validation          | External qualification / evidence                                                                                                                    |
+| --------------------------- | ---------- | -------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P00 Baseline                | 100%       | VERIFIED_LOCAL | PASSED                    | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                                           |
+| P01 Edit failures/history   | 100%       | VERIFIED_LOCAL | PASSED batches 1–8        | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                                            |
+| P02 Schedule/actor failures | 100%       | VERIFIED_LOCAL | PASSED batches 1-3        | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                                             |
+| P03 Bounded I/O/lifecycle   | ~80%       | IN_PROGRESS    | PASSED C02/OSC + MIDI I/O | C02 closed; 11 closure packages remain open. Shared/stream/HTTP/script/time gates preserved; Sound Card and remaining module qualification continue. |
+| P04 Audio order/types       | 0%         | NOT_STARTED    | PENDING                   | Legal interleaving and invalid deserialization established from source                                                                               |
+| P05 Transport trust         | 0%         | NOT_STARTED    | PENDING                   | Missing admission verified; exploit not demonstrated                                                                                                 |
+| P06 Dependencies            | 0%         | NOT_STARTED    | FAILED baseline           | Four Rustls advisories on audit date; refresh DB before repair                                                                                       |
+| P07 DMX streaming           | 0%         | NOT_STARTED    | PENDING                   | Refresh/filter/service gaps; protocol loopback qualification needed                                                                                  |
+| P08 Formula backend intents | 0%         | NOT_STARTED    | PENDING                   | UI polling/identity and mutation policy verified; corruption not reproduced                                                                          |
+| P09 Graph document          | 0%         | NOT_STARTED    | PENDING                   | Ordered-map mutation costs source-derived                                                                                                            |
+| P10 Canvas                  | 0%         | NOT_STARTED    | PENDING                   | Projection diagnostic and crossing-edge reproduction; mounted performance open                                                                       |
+| P11 Workspace UX            | 0%         | NOT_STARTED    | PENDING                   | Collection/keyboard gaps source-reviewed; native usability open                                                                                      |
+| P12 Boundaries/gates        | 0%         | NOT_STARTED    | PENDING                   | App policy leak, omitted graph tests, oversized files, unsafe conversions; recurring incremental native-link artifact gap                            |
+| P13 Formula execution       | 0%         | NOT_STARTED    | PENDING                   | Historical profiles retained; production parallelism not mandated                                                                                    |
+| P14 Production time         | 0%         | NOT_STARTED    | PENDING                   | Clock helper unwired, no target-frame play, starvation/latency policy gaps                                                                           |
+| P15 Assets                  | 0%         | NOT_STARTED    | PENDING                   | Audio path/cache identity exists; project asset boundary unimplemented                                                                               |
+| P16 Product scale           | 0%         | NOT_STARTED    | PENDING                   | Snapshot/DTO scaling investigation retained from P03 audit; full-product 20k/50k/mounted canvas gates remain open                                    |
+| P17 Platforms/artifacts     | 0%         | NOT_STARTED    | PENDING                   | Windows history retained; exact current app/native/platform checks required                                                                          |
+| P18 Named devices           | 0%         | NOT_STARTED    | PENDING                   | Exact authorized ASIO4ALL/VB-Audio route must be verified first                                                                                      |
 
 For each implementation batch append a compact row under “New implementation evidence” with
 task, source/tree, changed ownership, invariant, exact commands, environment/features, outcome,
@@ -5210,3 +5210,70 @@ Formula creation failures retain their previous dates and scope. All owned jobs 
 Commit and push this milestone before continuing MIDI input graph/edit/callback completion,
 canonical input lifetimes, feedback occurrence accounting, catalogs and passive clock/MTC/recovery
 service. These are still C03 acceptance; the outgoing worker milestone does not close the package.
+
+### P03 C03: MIDI input preparation and graph/callback completion
+
+Implemented after `17348c6a` on 2026-10-21. The native worker now prepares immutable incoming
+messages, SysEx hex, generic/specific callback JSON and bounded logs. `midi_input` owns measurement
+and canonical retention; `input_delivery` owns the fixed graph plan and completion cursors.
+The old retry path could repeat note-info triggers before a missing value child materialized.
+Each accepted message now advances domain state once and resumes only its unapplied graph suffix.
+**C03 stays open for feedback accounting/CC authored structure, catalog lifetime and passive
+clock/MTC/recovery service. Counts remain 11 open / one closed, P03 80%, whole plan 16%.**
+
+Raw input retains the existing 256-slot / 2 MiB mailbox and 64 KiB wire-message limit.
+Prepared events have 256 slots / 16 MiB, including both callback weights. One maximum wire-sized
+SysEx produces 65534 payload bytes and bounded hex/JSON storage. Canonical envelopes share one
+1024-item / 64 MiB disposer; callbacks retain the existing shared 16384-item / 256 MiB disposer.
+A blocked preparer keeps the same draft and admitted callback prefix without rebuilding JSON.
+Callback events/replay owners retain their canonical reservation after the input envelope retires.
+
+The actor holds one graph cursor and at most sixteen callback-waiting deliveries; native input
+consumption stops at that limit. Plans have at most twelve scalar operations. Each graph service
+turn has sixteen operations / 64 KiB, with one bounded larger SysEx scalar allowed its own turn.
+Touched parents are limited to 256 children. A missing path is one detached `NodeTree`, including
+CC selector metadata. Numeric predecessor insertion preserves note/CC order; only a new minimum
+needs a follow-up move after its runtime ID exists. Scalar creation does not produce a duplicate
+value write, and a new trigger emits one occurrence after materialization.
+
+Graph edit failure reports and abandons its unapplied suffix without replaying the applied prefix.
+Auto-add/CC-width/precision changes fence stale suffixes; a changed rotary mechanism or missing
+relative CC target cannot silently apply a stale relative value. Generic and specific callback
+publications have separate receipts, so partial callback failure retries only the unpublished one.
+Callback waits do not stall the next clock input after graph completion. Arrival Instants are
+normalized against engine elapsed time; native BPM remains based on captured callback timestamps.
+Disable/removal cancels queued input/graph/callback ownership and clears held-note state.
+
+Verification on the current Windows/MSVC checkout:
+
+| Check                                       | Result                                                                                                |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| MIDI compiled-name selection, four threads  | **70 passed**: 54 preserved and 16 new preparation, ownership, bounds and receipt cases.              |
+| Disjoint app preservation selections        | **734 distinct passes of 1157 listed**, including MIDI and the unchanged 664-case preservation scope. |
+| Workspace/test compilation                  | Passed `cargo check --locked --workspace --tests`.                                                    |
+| Strict workspace all-target Clippy          | Passed `cargo clippy --locked --workspace --all-targets -- -D warnings`.                              |
+| Native app build                            | Passed `cargo build --locked -p Chataigne2 --bin Chataigne2`.                                         |
+| UI protocol generation                      | Passed `npm run codegen:golden-ui-protocol --workspace chataigne-ui`; generated bindings unchanged.   |
+| Root/Core Cargo format and touched app Rust | Passed; maintained docs and whitespace checks passed.                                                 |
+
+New cases cover maximum SysEx, retained spare-capacity rejection, velocity-zero callback meaning,
+value/callback capacity recovery, canonical event lifetime after envelope disposal, pending receipts,
+missing-subtree batching, trigger occurrence preservation, partial graph/callback failure,
+configuration fencing, oversized touched parents, missing relative targets, large-scalar yielding,
+and module-disable cancellation. The old MTC fixture now allows receipt-driven delivery to settle
+its nine queued messages rather than assuming an unbounded four-turn drain. Note/CC sorting,
+14-bit CC conversion, clock/MTC values, commands, scripts and native ownership gates are preserved.
+The initial five regression failures were repaired; the final expanded 70-case run passed.
+
+Test executable: `target/debug/deps/Chataigne2-b14ffd1b9e52f9ac.exe`, SHA256
+`af2a7bb9f7aa80675f3ac8d19bc04488863afd108114a6a30665347e894c1bfc`.
+Selections ran from `apps/chataigne`. The maintained source-policy scan counts **1678 sources /
+37 oversized**; all eighteen changed Rust sources remain below 1000 lines (largest: the existing
+MIDI test module, 947). No dependencies, protocol declarations or persisted formats changed.
+No physical endpoint was connected and no desktop automation was used. Prior Core/foundation/IO/UI
+evidence and the known Formula creation failures keep their previous scope and dates. All owned
+checks are terminal.
+
+Commit and push this verified milestone, then finish MIDI feedback/CC authored structure,
+catalog lifetime and passive service inside C03. Keep the remaining eleven packages explicit;
+this input ownership milestone does not close C03 or advance its package-closure score.

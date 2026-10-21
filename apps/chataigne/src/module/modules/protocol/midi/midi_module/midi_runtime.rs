@@ -1,4 +1,4 @@
-use super::midi_message::{decode_midi_message, MidiMessage};
+use super::midi_message::decode_midi_message;
 use golden_io::{BoundedWorker, PendingDrainState, RetirementPool, WorkerContext, WorkerLimits, WorkerNotifier};
 use std::{
     num::NonZeroUsize,
@@ -48,41 +48,25 @@ pub(crate) struct MidiInputConfig {
 pub(crate) struct MidiOutputConfig {
     pub port_variant: String,
 }
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub(crate) enum MidiInputEvent {
     Ready,
     Error(String),
     Rejected(u64),
-    Message {
-        bytes: Vec<u8>,
-        message: MidiMessage,
-        received_at: Duration,
-        clock_timing: Option<MidiClockTiming>,
-    },
-    UnsupportedMessage {
-        bytes: Vec<u8>,
-        received_at: Duration,
-    },
+    Message(golden_io::RetainedPayload<super::midi_input::PreparedInput>),
+    UnsupportedMessage(String),
 }
 impl MidiInputEvent {
     fn weight(&self) -> usize {
         std::mem::size_of::<Self>()
             + match self {
-                Self::Message { bytes, message, .. } => {
-                    bytes.capacity()
-                        + match message {
-                            MidiMessage::System(super::midi_message::MidiSystemMessage::Sysex { bytes }) => {
-                                bytes.capacity()
-                            }
-                            _ => 0,
-                        }
-                }
-                Self::UnsupportedMessage { bytes, .. } => bytes.capacity(),
-                Self::Error(error) => error.capacity(),
+                Self::Message(input) => input.weight,
+                Self::UnsupportedMessage(error) | Self::Error(error) => error.capacity(),
                 _ => 0,
             }
     }
 }
+
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub(crate) struct MidiClockTiming {
     pub beat_triggered: bool,

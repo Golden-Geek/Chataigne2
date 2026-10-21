@@ -8,7 +8,11 @@ impl MidiModule {
         param: NodeId,
         old_value: ParamValue,
     ) {
-        if self.ignored_param_changes.remove(&param) {
+        if let Some(count) = self.ignored_param_changes.get_mut(&param) {
+            *count -= 1;
+            if *count == 0 {
+                self.ignored_param_changes.remove(&param);
+            }
             return;
         }
 
@@ -75,19 +79,5 @@ impl MidiModule {
         if self.output_port.is_bound() {
             self.output_port.clear_warning(ctx, Some(MIDI_OUTPUT_WARNING_ID));
         }
-    }
-
-    pub(super) fn log_incoming_message(&self, message: &MidiMessage, bytes: &[u8]) {
-        if !self.base.log_incoming_enabled() {
-            return;
-        }
-        golden_core::log!(
-            origin = self.id();
-            format!(
-                "Received MIDI {} ({})",
-                message_description(message),
-                format_midi_bytes(bytes)
-            )
-        );
     }
 }

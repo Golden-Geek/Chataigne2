@@ -1,3 +1,4 @@
+use super::super::midi_input::{InputDraft, InputPreparer, INPUT_EVENT_BYTES};
 use super::*;
 use golden_io::{bounded_pending_channel, PendingSender};
 use std::sync::atomic::AtomicU64;
@@ -43,7 +44,7 @@ impl InputSink {
 pub(crate) struct MidiInputHandle {
     worker: BoundedWorker<(), MidiInputEvent>,
     ready: Arc<AtomicBool>,
-    origin: Instant,
+    log: Arc<AtomicBool>,
 }
 impl MidiInputHandle {
     pub(crate) fn spawn(config: MidiInputConfig, notifier: WorkerNotifier) -> Result<Self, String> {
@@ -63,6 +64,8 @@ impl MidiInputHandle {
         let state = ready.clone();
         let status = notifier.clone();
         let origin = Instant::now();
+        let log = Arc::new(AtomicBool::new(false));
+        let native_log = log.clone();
         let worker = BoundedWorker::spawn_notified(
             "midi-input",
             pool,
@@ -70,10 +73,19 @@ impl MidiInputHandle {
                 command_items: 1,
                 command_weight: 1,
                 event_items: 256,
-                event_weight: 4 * 1024 * 1024,
+                event_weight: INPUT_EVENT_BYTES,
             },
             notifier,
             move |ctx| {
+                let preparer = match InputPreparer::new() {
+                    Ok(preparer) => preparer,
+                    Err(error) => {
+                        let event = MidiInputEvent::Error(error);
+                        let weight = event.weight();
+                        publish(&ctx, event, weight);
+                        return;
+                    }
+                };
                 let (sender, receiver) = bounded_pending_channel(256, 2 * 1024 * 1024);
                 let rejected = Arc::new(AtomicU64::new(0));
                 let sink = InputSink {
@@ -130,16 +142,41 @@ impl MidiInputHandle {
                     for raw in raw {
                         let clock_timing = clock.observe(&raw.bytes, raw.received_at);
                         let event = match decode_midi_message(&raw.bytes) {
-                            Some(message) => MidiInputEvent::Message {
-                                bytes: raw.bytes,
-                                message,
-                                received_at: raw.received_at,
-                                clock_timing,
-                            },
-                            None => MidiInputEvent::UnsupportedMessage {
-                                bytes: raw.bytes,
-                                received_at: raw.received_at,
-                            },
+                            Some(message) => {
+                                let mut draft = match InputDraft::new(
+                                    message,
+                                    origin.checked_add(raw.received_at),
+                                    clock_timing,
+                                    native_log.load(Ordering::Acquire),
+                                ) {
+                                    Ok(draft) => draft,
+                                    Err(error) => {
+                                        let event = MidiInputEvent::Error(error);
+                                        let weight = event.weight();
+                                        if !publish(&ctx, event, weight) {
+                                            return;
+                                        }
+                                        continue;
+                                    }
+                                };
+                                let input = loop {
+                                    if ctx.cancellation().is_cancelled() {
+                                        return;
+                                    }
+                                    if let Some(input) = preparer.retain(&mut draft) {
+                                        break input;
+                                    }
+                                    if ctx.cancellation().wait(Duration::from_millis(10)) {
+                                        return;
+                                    }
+                                };
+                                MidiInputEvent::Message(input)
+                            }
+                            None => MidiInputEvent::UnsupportedMessage(format!(
+                                "Ignored unsupported MIDI message {}{}",
+                                format_midi_bytes(&raw.bytes[..raw.bytes.len().min(256)]),
+                                if raw.bytes.len() > 256 { " ..." } else { "" }
+                            )),
                         };
                         let weight = event.weight();
                         if !publish(&ctx, event, weight) {
@@ -170,13 +207,13 @@ impl MidiInputHandle {
             },
         )
         .map_err(|error| format!("failed to start MIDI input: {error}"))?;
-        Ok(Self { worker, ready, origin })
+        Ok(Self { worker, ready, log })
     }
     pub(crate) fn is_ready(&self) -> bool {
         self.ready.load(Ordering::Acquire)
     }
-    pub(crate) fn elapsed(&self) -> Duration {
-        self.origin.elapsed()
+    pub(crate) fn set_log(&self, enabled: bool) {
+        self.log.store(enabled, Ordering::Release);
     }
     pub(crate) fn try_recv(&self) -> Result<MidiInputEvent, std::sync::mpsc::TryRecvError> {
         let mut events = Vec::with_capacity(1);

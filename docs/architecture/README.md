@@ -23,8 +23,8 @@ and superseded plans are [archived](../archive/2026-10-18/README.md).
 
 - [OSC native workers](osc-runtime.md): bounded socket ownership, readiness, accepted
   command/input prefixes, interface catalogs and passive service.
-- [MIDI workers and outgoing batches](midi-runtime.md): native discovery/input/output,
-  captured command/script preparation, delayed deadlines and remaining C03 acceptance.
+- [MIDI workers and delivery](midi-runtime.md): native discovery/input/output,
+  prepared input and completion receipts, outgoing batches, deadlines and remaining C03 acceptance.
 - [Timed generators](generators.md): Signals/Metronomes admission, elapsed time, bounded
   publication, passive service and worker lifetime ownership.
 - [Alchemist runtime](alchemist-runtime.md): formulas, processors, conditions, inputs, filters,

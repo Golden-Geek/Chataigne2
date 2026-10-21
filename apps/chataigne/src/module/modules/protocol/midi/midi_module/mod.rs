@@ -1,11 +1,13 @@
 use std::{
-    collections::{HashSet, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
     time::Duration,
 };
 
 mod events;
 mod helpers;
 mod incoming;
+mod input_delivery;
+mod midi_input;
 pub(crate) mod midi_message;
 mod midi_output;
 pub(crate) mod midi_runtime;
@@ -168,32 +170,10 @@ enum MidiOrderedValueKind {
     ControlChange,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-struct PendingIncomingMessage {
-    message: MidiMessage,
-    received_at: Option<Duration>,
-    clock_timing: Option<MidiClockTiming>,
-}
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum MidiApplyResult {
     Applied,
     Retry,
-    Ignored,
-}
-
-struct MidiIntValue<'a> {
-    label: &'a str,
-    decl_id: &'a str,
-    value: i32,
-    range: Option<(i32, i32)>,
-}
-
-struct MidiStringValue<'a> {
-    label: &'a str,
-    decl_id: &'a str,
-    value: String,
-    read_only: bool,
 }
 
 struct MidiCcUpdate {
@@ -358,8 +338,10 @@ pub struct MidiModule {
     last_output_config: Option<MidiOutputConfig>,
     input_dirty: bool,
     output_dirty: bool,
-    pending_incoming_messages: Vec<PendingIncomingMessage>,
-    ignored_param_changes: HashSet<NodeId>,
+    pending_incoming_messages: VecDeque<golden_io::RetainedPayload<midi_input::PreparedInput>>,
+    incoming: Option<input_delivery::InputDelivery>,
+    incoming_callbacks: VecDeque<input_delivery::InputDelivery>,
+    ignored_param_changes: HashMap<NodeId, usize>,
     cc_14_bit_state: [[Cc14BitState; 32]; 16],
     active_notes: HashSet<(u8, u8)>,
     last_note_on: Option<LastNoteInfo>,
@@ -383,8 +365,10 @@ impl MidiModule {
             None,
             true,
             true,
-            Vec::new(),
-            HashSet::new(),
+            VecDeque::new(),
+            None,
+            VecDeque::new(),
+            HashMap::new(),
             [[Cc14BitState::default(); 32]; 16],
             HashSet::new(),
             None,
@@ -398,11 +382,8 @@ impl MidiModule {
 
     #[cfg(test)]
     pub(crate) fn enqueue_incoming_message_for_test(&mut self, message: MidiMessage) {
-        self.pending_incoming_messages.push(PendingIncomingMessage {
-            message,
-            received_at: None,
-            clock_timing: None,
-        });
+        self.pending_incoming_messages
+            .push_back(midi_input::InputDraft::prepared(message));
     }
 
     #[cfg(test)]
@@ -456,6 +437,8 @@ impl Node for MidiModule {
         self.drain_output_events(ctx);
         self.drain_input_events(ctx);
         self.port_refresh_elapsed += ctx.delta_time.as_secs_f64();
+        let input_snapshot = ctx.tree_snapshot_arc();
+        self.process_pending_incoming(ctx, input_snapshot.as_deref());
 
         let refresh_ports = self.port_refresh_due();
         let receive_now = self.midi_receive_now(ctx);
@@ -463,7 +446,8 @@ impl Node for MidiModule {
             || self.input_dirty
             || self.output_dirty
             || self.transport_activity_timeout_due(receive_now)
-            || !self.pending_incoming_messages.is_empty();
+            || !self.pending_incoming_messages.is_empty()
+            || self.incoming.is_some();
         if !needs_work {
             return;
         }
@@ -489,7 +473,6 @@ impl Node for MidiModule {
             self.refresh_output(ctx, snapshot);
         }
 
-        self.process_pending_incoming(ctx, snapshot);
         self.refresh_transport_activity(ctx, snapshot);
     }
 
@@ -498,6 +481,9 @@ impl Node for MidiModule {
         self.stop_output();
         self.discovery = None;
         self.pending_incoming_messages.clear();
+        self.incoming = None;
+        self.incoming_callbacks.clear();
+        self.ignored_param_changes.clear();
         self.active_notes.clear();
         self.midi_clock_state = MidiClockState::default();
         self.mtc_stream_active = false;
@@ -510,6 +496,8 @@ impl Node for MidiModule {
             || self.input_dirty
             || self.output_dirty
             || !self.pending_incoming_messages.is_empty()
+            || self.incoming.is_some()
+            || !self.incoming_callbacks.is_empty()
             || self.input.is_some()
             || self.output.is_some()
             || self.port_refresh_elapsed >= MIDI_PORT_REFRESH_INTERVAL_SECS
@@ -520,6 +508,10 @@ impl Node for MidiModule {
             || self.input_dirty
             || self.output_dirty
             || !self.pending_incoming_messages.is_empty()
+            || self
+                .incoming
+                .as_ref()
+                .is_some_and(input_delivery::InputDelivery::requires_snapshot)
             || self.midi_clock_state.running
             || self.mtc_stream_active
     }
@@ -578,6 +570,14 @@ impl Node for MidiModule {
             self.stop_input();
             self.stop_output();
             self.discovery = None;
+            self.pending_incoming_messages.clear();
+            self.incoming = None;
+            self.incoming_callbacks.clear();
+            self.ignored_param_changes.clear();
+            self.active_notes.clear();
+            self.midi_clock_state = MidiClockState::default();
+            self.mtc_stream_active = false;
+            self.last_mtc_quarter_frame_at = None;
             self.last_input_config = None;
             self.last_output_config = None;
             self.clear_input_warning(ctx);
