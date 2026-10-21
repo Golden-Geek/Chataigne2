@@ -22,7 +22,9 @@ and superseded plans are [archived](../archive/2026-10-18/README.md).
 ## Chataigne systems
 
 - [OSC native workers](osc-runtime.md): bounded socket ownership, readiness, accepted
-  command/input prefixes and the remaining module-level C03 work.
+  command/input prefixes, interface catalogs and passive service.
+- [MIDI native workers](midi-runtime.md): native discovery/input/output ownership, ordered
+  admission, readiness, retirement and remaining actor-side C03 acceptance.
 - [Timed generators](generators.md): Signals/Metronomes admission, elapsed time, bounded
   publication, passive service and worker lifetime ownership.
 - [Alchemist runtime](alchemist-runtime.md): formulas, processors, conditions, inputs, filters,
