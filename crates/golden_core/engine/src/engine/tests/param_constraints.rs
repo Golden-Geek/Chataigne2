@@ -104,6 +104,126 @@ fn option(value: &str) -> crate::parameter::ParameterEnumOption {
 }
 
 #[test]
+fn enum_catalog_update_preserves_parameter_identity_metadata_and_history() {
+    let original: crate::parameter::ParameterEnumOptions = vec![option("first")].into();
+    let next: crate::parameter::ParameterEnumOptions = vec![option("first"), option("second")].into();
+    let mut parameter = Parameter::new(
+        "Custom device",
+        ParamValue::Enum("first".into()),
+        ParameterChangeCheck::None,
+    );
+    parameter.read_only = true;
+    parameter.constraints.enum_options = original.clone();
+    let mut engine = Engine::new(parameter);
+    let identity = engine.nodes.get(engine.root).unwrap().node_data().meta.uuid;
+    engine.inbox.clear();
+    engine.edits.push(Edit::SetParamEnumOptions {
+        node: engine.root,
+        expected_uuid: identity,
+        expected_value: ParamValue::Enum("first".into()),
+        options: next.clone(),
+    });
+    engine.apply_edits().unwrap();
+    let parameter = engine.nodes.get(engine.root).unwrap();
+    assert_eq!(parameter.node_data().meta.uuid, identity);
+    assert_eq!(parameter.node_data().meta.label, "Custom device");
+    assert!(parameter.read_only);
+    assert_eq!(parameter.change_check, ParameterChangeCheck::None);
+    assert_eq!(parameter.value, ParamValue::Enum("first".into()));
+    assert!(parameter.constraints.enum_options.same_storage(&next));
+    assert!(
+        engine
+            .inbox
+            .events
+            .iter()
+            .any(|event| matches!(event.kind, EventKind::ParamConstraintsChanged { .. }))
+    );
+    assert!(engine.undo().unwrap());
+    assert!(
+        engine
+            .nodes
+            .get(engine.root)
+            .unwrap()
+            .constraints
+            .enum_options
+            .same_storage(&original)
+    );
+    assert!(engine.redo().unwrap());
+    assert!(
+        engine
+            .nodes
+            .get(engine.root)
+            .unwrap()
+            .constraints
+            .enum_options
+            .same_storage(&next)
+    );
+}
+
+#[test]
+fn stale_enum_catalog_skips_without_overwriting_selection_or_aborting_later_edits() {
+    let mut parameter = Parameter::new(
+        "Device",
+        ParamValue::Enum("first".into()),
+        ParameterChangeCheck::ValueChange,
+    );
+    let original: crate::parameter::ParameterEnumOptions = vec![option("first"), option("second")].into();
+    parameter.constraints.enum_options = original.clone();
+    let mut engine = Engine::new(parameter);
+    let identity = engine.nodes.get(engine.root).unwrap().node_data().meta.uuid;
+    engine.edits.push(Edit::SetParam {
+        node: engine.root,
+        value: ParamValue::Enum("second".into()),
+        behaviour: Default::default(),
+    });
+    engine.edits.push(Edit::SetParamEnumOptions {
+        node: engine.root,
+        expected_uuid: identity,
+        expected_value: ParamValue::Enum("first".into()),
+        options: vec![option("first")].into(),
+    });
+    engine.edits.push(Edit::PatchMeta {
+        node: engine.root,
+        patch: crate::node::NodeMetaPatch {
+            label: Some("New label".into()),
+            ..Default::default()
+        },
+    });
+    engine.apply_edits().unwrap();
+    let parameter = engine.nodes.get(engine.root).unwrap();
+    assert_eq!(parameter.value, ParamValue::Enum("second".into()));
+    assert!(parameter.constraints.enum_options.same_storage(&original));
+    assert_eq!(parameter.node_data().meta.label, "New label");
+}
+
+#[test]
+fn enum_catalog_update_skips_missing_or_replaced_identity() {
+    let mut engine = Engine::new(Parameter::new(
+        "Device",
+        ParamValue::Enum("first".into()),
+        ParameterChangeCheck::None,
+    ));
+    for node in [engine.root, NodeId(u64::MAX)] {
+        engine.edits.push(Edit::SetParamEnumOptions {
+            node,
+            expected_uuid: crate::node::NodeUuid(uuid::Uuid::nil()),
+            expected_value: ParamValue::Enum("first".into()),
+            options: vec![option("first")].into(),
+        });
+    }
+    engine.apply_edits().unwrap();
+    assert!(
+        engine
+            .nodes
+            .get(engine.root)
+            .unwrap()
+            .constraints
+            .enum_options
+            .is_empty()
+    );
+}
+
+#[test]
 fn enum_domains_share_live_snapshots_and_retained_history_with_correct_replay() {
     let first: crate::parameter::ParameterEnumOptions = vec![option("first")].into();
     let second: crate::parameter::ParameterEnumOptions = vec![option("first"), option("second")].into();

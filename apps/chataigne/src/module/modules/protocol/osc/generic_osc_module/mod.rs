@@ -50,16 +50,20 @@ impl Node for GenericOscModule {
         self.base.on_node_ready(ctx, context);
     }
 
-    fn update(&mut self, ctx: &mut ProcessCtx) {
-        self.base.update(ctx);
+    fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
+        self.base.on_worker_wake(ctx);
     }
 
     fn destroy(&mut self, ctx: &mut ProcessCtx) {
         self.base.destroy(ctx);
     }
 
-    fn update_requires_tree_snapshot(&self) -> bool {
-        self.base.update_requires_tree_snapshot()
+    fn needs_update(&self) -> bool {
+        false
+    }
+
+    fn worker_wake_requires_tree_snapshot(&self) -> bool {
+        self.base.worker_wake_requires_tree_snapshot()
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {

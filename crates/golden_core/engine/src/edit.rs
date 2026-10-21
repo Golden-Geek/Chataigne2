@@ -1,6 +1,8 @@
 use crate::events::CustomEvent;
-use crate::node::{EventSubscription, Node, NodeId, NodeMetaPatch, NodeWarning, UserNodeRole};
-use crate::parameter::{ParamValue, ParameterConstraints, ParameterControlState, ParameterEventBehaviour};
+use crate::node::{EventSubscription, Node, NodeId, NodeMetaPatch, NodeUuid, NodeWarning, UserNodeRole};
+use crate::parameter::{
+    ParamValue, ParameterConstraints, ParameterControlState, ParameterEnumOptions, ParameterEventBehaviour,
+};
 use crate::process_ctx::ProcessCtx;
 use crate::script::ScriptNodeConfig;
 use serde::{Deserialize, Serialize};
@@ -140,6 +142,18 @@ pub enum Edit {
         node: NodeId,
         /// New runtime constraints.
         constraints: ParameterConstraints,
+    },
+    /// Applies an immutable choice catalog only while its target identity and
+    /// selected value still match. A stale native result is a successful no-op.
+    SetParamEnumOptions {
+        /// Parameter receiving the new immutable domain.
+        node: NodeId,
+        /// Identity observed by the producer; replacement identities are skipped.
+        expected_uuid: NodeUuid,
+        /// Selected value observed by the producer; newer selections are skipped.
+        expected_value: ParamValue,
+        /// Choices prepared by the producer, sharing storage with its lifetime owner.
+        options: ParameterEnumOptions,
     },
     /// Sets one script-exposed property on a node.
     SetNodeScriptProperty {

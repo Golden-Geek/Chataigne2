@@ -5,10 +5,9 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-21 on `main`, after delivered `822d5ee5`, plus the C03 OSC incoming
-milestone below. No unrelated edits were present. C02 remains closed. C03 is in progress:
-OSC native/outgoing and received-value/messageReceived publication ownership is delivered;
-interface discovery, passive scheduling and MIDI are still open.
+Last reconciled: 2026-10-21 on `main`, after delivered `3f935b4f`, plus the C03 OSC
+discovery/passive-service milestone below. No unrelated edits were present. C02 remains closed.
+OSC is locally qualified against P03's ownership criteria; C03 remains open for MIDI.
 General snapshot/DTO scaling remains P16 work.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
@@ -60,7 +59,7 @@ checkpoint. P03 closes only when all seven workstreams meet acceptance.
 The user requested a remaining-batch forecast on 2026-10-20. There is no defensible commit count
 yet: the percentage does not measure remaining effort. The initial source audit covered
 **17 implemented module families plus Sound Card**. C02 is now verified, leaving
-**15 implemented families plus Sound Card** to repair/qualify.
+**14 implemented families plus Sound Card** to repair/qualify after OSC's local qualification.
 The earlier directory inventory counted an empty, untracked Node Control placeholder as a module;
 there is no implementation to qualify or build for that placeholder. At the initial audit, nine families contained explicit
 unbounded channels: Buttplug, Joy-Con, Keyboard, Mouse, Ultraleap, Signals, Metronomes, MIDI and
@@ -74,11 +73,16 @@ several reviewable commits, and a review may establish that an existing implemen
 passes. **Remaining closure packages: 11 open, one closed (C02).** This count does not discard prior P03
 work or replace the workstream percentages above.
 
+Latest count requested on 2026-10-21: **11 packages remain, not 11 promised batches**. OSC is
+qualified within C03; MIDI remains. Do not increase the package denominator for supporting commits
+or move unrelated optimization work into P03. Report each milestone's closed acceptance item and
+the remaining package criteria, rather than using accumulated batch numbers as progress.
+
 | ID  | Status            | Scope                            | Required closure                                                                                                                                                    |
 | --- | ----------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | C01 | OPEN              | Sound Card                       | Finish bounded preparation/application/publication, derived structure/default routes, feedback, command diagnostics and native failure/reconfiguration fences.      |
 | C02 | **CLOSED (100%)** | Signals and Metronomes           | Verified: bounded command/configuration bytes, 64-row publication turns, elapsed-time/occurrence preservation, nonblocking retirement and passive failure/recovery. |
-| C03 | IN PROGRESS       | MIDI and OSC                     | OSC native/outgoing and prepared incoming value/messageReceived publication delivered. Interface discovery, passive scheduling and MIDI ownership remain open.      |
+| C03 | IN PROGRESS       | MIDI and OSC                     | OSC locally qualified: native/input/output/discovery ownership, passive service and recovery. MIDI ownership/admission/service/retirement/recovery remain open.     |
 | C04 | OPEN              | MQTT                             | Bound channels/payloads and service, preserve accepted delivery, retire workers safely and verify reconnect/failure behavior.                                       |
 | C05 | OPEN              | DMX                              | Close P03 lifecycle/admission/retirement/recovery requirements; DMX stream correctness remains separately P07.                                                      |
 | C06 | OPEN              | App Control and OS               | Close worker/service/cleanup bounds, failure ownership and recovery without recurring main-thread polling or blocking joins.                                        |
@@ -91,7 +95,7 @@ work or replace the workstream percentages above.
 
 The [initial ownership/acceptance audit](p03-closure-audit.md) is now complete across C01-C12.
 It records confirmed source gaps, existing safeguards, missing qualification and finish tests.
-C02 is closed. Next implement C03 MIDI/OSC admission, service, occurrence, retirement and recovery;
+C02 is closed and OSC locally qualified within C03. Next implement MIDI admission, service, occurrence, retirement and recovery;
 do not continue the generic snapshot-copy prerequisite chain. Existing shared IO, stream, HTTP and
 generator time suites remain preservation gates. Map discoveries into the fixed packages. General
 optimizations belong to P12/P16 unless evidence connects them to a concrete P03 resource, service,
@@ -103,29 +107,31 @@ or completion credit. Snapshot/DTO scaling remains an explicit P16 investigation
 
 ## Current handoff
 
-- Current delivery: **C03 OSC bounded incoming publication**, following outgoing capture at `822d5ee5`.
-  Worker-prepared batches retain at most 16 value messages/callbacks and 2 MiB of weighted storage.
-  The actor retains one envelope through bounded graph edits and independently receipted callback
-  publication; canonical capacity waits preserve its prepared draft without rebuilding JSON.
-  Native failure clears readiness before its accepted input prefix finishes publication.
+- Current delivery: **C03 OSC discovery/passive service and local family qualification**, following
+  bounded incoming publication at `3f935b4f`. Dedicated bounded discovery owns native queries,
+  immutable catalogs and cleanup. Guarded enum edits preserve newer selections and metadata;
+  missing selected interfaces remain configured. Passive wakes and absolute deadlines replace
+  scheduled polling, including immediate fatal readiness notifications under input backpressure.
   **C03 is not closed.** Counts remain **11 open / one closed**, **16% overall / 80% P03**;
-  Sound Card remains **50% partial**. Interface discovery, passive scheduling and MIDI remain open.
-- Checkout reconciled at delivered `822d5ee5`, matching `origin/main`, before this milestone.
+  Sound Card remains **50% partial**. MIDI remains open within C03.
+- Checkout reconciled at delivered `3f935b4f`, matching `origin/main`, before this milestone.
   `d3a45301` removed automatic effort-switching rules; older effort notes are historical.
-- Current local checks are recorded in the C03 entry below. Core/foundation retain batch 56
-  evidence (590 Core passed / three existing ignored; 25 parameter tests). IO retains C02's
+- Current local checks are recorded in the C03 entry below. The engine suite was rerun:
+  **578 passed / three existing ignored**. The older aggregate of 590 Core passes and the
+  25 parameter tests retain batch 56's date; these differently scoped counts are not additive.
+  IO retains C02's
   52-test evidence. UI/macro/codegen-support retain batch 55 evidence. No full Formula pass is
   claimed: its three existing creation failures remain P08/P12 gates.
-- C03 current evidence: **69 OSC cases and 585 other app preservation cases passed**, or
-  **654 distinct app tests of 1099 listed**. Workspace/test check, strict all-target Clippy,
+- C03 current evidence: **77 OSC cases and 587 other app preservation cases passed**, or
+  **664 distinct app tests of 1109 listed**. Workspace/test check, strict all-target Clippy,
   native build and unchanged protocol generation passed. Core/foundation/IO/UI suites above
-  retain their stated dates and are not claimed as fresh incoming checks.
+  retain their stated dates, apart from the fresh engine suite explicitly noted above.
 - Scope: **foundation and readiness**. P01/P02 are verified locally, P03 remains in progress,
   P04-P18 have not started. Full lighting/video/projection authoring remains deferred.
-- Next action: **continue C03**. Finish OSC interface discovery and passive scheduling, then qualify
-  MIDI native setup/discovery/send/cleanup, callback admission and endpoint recovery. Reuse
+- Next action: **continue C03 with MIDI**. Qualify native setup/discovery/send/cleanup,
+  callback admission and endpoint recovery. Reuse
   existing public IO and app preparation contracts. Keep C01 and C04-C12 explicit; do not count
-  the OSC worker milestone as full OSC or C03 closure. Preserve generator, stream/HTTP, audio
+  OSC qualification as C03 closure while MIDI remains open. Preserve generator, stream/HTTP, audio
   and Mapping gates. General Core copy/scaling work remains P16 without a concrete P03 failure.
 - Delivery: continue on `main`; commit and push every verified milestone to `origin/main`.
   Mapping was merged in `f02205af`. Earlier branch/pause/effort instructions below are historical.
@@ -4977,3 +4983,70 @@ protocol DTOs or persistence formats changed. No hardware or desktop automation 
 Core/foundation/IO/UI evidence retains its previously recorded dates. The same three Formula
 creation failures remain unqualified under P08/P12. All owned jobs are terminal. Commit and push
 this verified milestone, then finish OSC interface discovery/passive scheduling and MIDI under C03.
+
+### P03 C03: OSC discovery/passive service and local family qualification
+
+Implemented after `3f935b4f` on 2026-10-21. OSC's remaining P03 discovery and scheduled-service
+gaps are closed locally. **C03 remains open for MIDI; 11 packages remain open, C02 alone is
+closed. P03 remains 80%, whole plan 16%.** The remaining inventory is 14 implemented families
+plus Sound Card. This qualifies one family within the fixed package, without adding another
+completion denominator or claiming hardware, other platforms or product-scale performance.
+
+Native interface enumeration runs on an independent worker with 16 admitted live/cancelling
+lifetimes. Its one-slot refresh command coalesces the latest selection behind a short profile
+lock; generation checks reject results from older selections. Queries run outside that lock,
+once per second or on selection change. One latest event has a 128 KiB mailbox allowance.
+Blocked queries and final provider cleanup retain lifetime capacity without joining on the actor.
+
+Before app label conversion, native inventory is limited to 256 retained slots and 512-byte
+names. Catalogs admit at most 64 retained options / 64 KiB, including an unavailable row for
+a missing selected address. A 63-row catalog can add that row without geometric capacity growth.
+The configured endpoint never silently changes to Any. Unchanged domains share storage and
+do not wake the actor. A global 128-domain / 8 MiB pool tracks the exact immutable domain Arc,
+including parameter/snapshot/history copies, and owns final disposal away from the actor.
+
+A narrow public `Edit::SetParamEnumOptions` fixes a concrete deferred native-result race:
+application checks the live UUID and selected value, then changes only the current enum domain.
+Stale/missing/replaced targets succeed without changing state or aborting later edits. Current
+metadata and other constraints survive; ordinary events, history and undo/redo remain intact.
+The shared network-choice helper used by UDP now uses this edit instead of whole-parameter
+replacement and preserves an unavailable configured selection. This is an internal Rust edit,
+not a wire DTO, persisted format or generic snapshot-optimization prerequisite.
+
+OSC now uses passive `ModuleWake` service while retaining its compiled-kernel identifier.
+Socket/output retries use absolute 250 ms deadlines; failed discovery startup/exit retries after
+one second. Earliest-deadline selection prevents unrelated traffic postponing recovery. Stable
+inventory produces no actor wake, scheduled callback or idle snapshot. Fatal native readiness
+loss notifies the actor before an accepted input prefix waits for publication capacity. Disable,
+removal and changed node lifetimes cancel workers/deadlines without blocking cleanup.
+
+The new tests cover catalog bounds and missing-device recovery, unchanged storage, coalesced
+selection generations, automatic query recovery, blocked native query/destructor admission,
+choice/metadata races, undo/redo, idle service and disable/enable script-output recovery. Existing
+terminal-prefix pressure now proves failure notification before the full mailbox is drained.
+
+Final verification:
+
+| Check                                                                             | Result                                                                                                                                  |
+| --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| OSC compiled-name selection, four test threads                                    | **77 passed**, including six discovery and two passive-service cases.                                                                   |
+| Shared network-choice helper                                                      | **2 passed**: missing endpoint and deferred selection/label race.                                                                       |
+| Disjoint app preservation selections                                              | **664 distinct passes of 1109 listed**: 77 OSC and 587 other cases, all on the final executable.                                        |
+| `golden_engine --lib`, four test threads                                          | **578 passed / three existing ignored**. Includes three new guarded-choice tests.                                                       |
+| `golden_core --lib`                                                               | Compiled and ran **zero tests**; compile evidence only.                                                                                 |
+| Workspace/test check and strict all-target Clippy                                 | Passed `cargo check --locked --workspace --tests` and `cargo clippy --locked --workspace --all-targets -- -D warnings` on final source. |
+| Native app build                                                                  | Passed `cargo build --locked -p Chataigne2 --bin Chataigne2`.                                                                           |
+| UI protocol generation and generated-directory diff                               | Passed; generated bindings unchanged.                                                                                                   |
+| Root/Core Cargo format, 15 touched app Rust files, maintained docs and whitespace | Passed.                                                                                                                                 |
+
+Final executable: `target/debug/deps/Chataigne2-b14ffd1b9e52f9ac.exe`, SHA256
+`216f3b902dec1e73583ba741c7864529305d890f47366b9ed5e7da7ab971afeb`.
+Selections ran from `apps/chataigne`. The explicit source-policy scan (`rg --files apps crates
+packages tools`, maintained extensions and directory exclusions) currently counts **1647 files /
+39 oversized**. All 20 touched Rust sources are below 1000 lines; seven new focused files add no
+size exception. No dependencies, protocol DTOs or persistence formats changed. No hardware or
+desktop automation was used. The older 590-test aggregate, parameter/IO/UI gates and the three
+existing Formula creation failures retain their previously recorded dates and qualification scope.
+
+All owned jobs are terminal. Commit and push this verified milestone, then continue C03 with
+MIDI native ownership, callback admission, bounded service, retirement and endpoint recovery.

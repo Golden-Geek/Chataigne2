@@ -111,6 +111,7 @@ pub(super) fn run<S: OscSocket>(
     wake: NativeWake,
     ready: Arc<AtomicBool>,
     input: InputMode,
+    status_notifier: WorkerNotifier,
     setup: impl FnOnce(&OscTransportConfig, &NativeWake) -> Result<S, String>,
 ) {
     let _wake_guard = WakeGuard(wake.clone());
@@ -139,7 +140,15 @@ pub(super) fn run<S: OscSocket>(
     if !publish(&context, OscWorkerEvent::Ready(socket.address())) {
         return;
     }
-    if let Err(error) = service(&context, &mut socket, config.receive_enabled, &wake, incoming, &ready) {
+    if let Err(error) = service(
+        &context,
+        &mut socket,
+        config.receive_enabled,
+        &wake,
+        incoming,
+        &ready,
+        &status_notifier,
+    ) {
         ready.store(false, Ordering::Release);
         fail_commands(&context, error);
     }
@@ -178,6 +187,7 @@ fn service<S: OscSocket>(
     wake: &NativeWake,
     mut incoming: InputQueue,
     ready: &AtomicBool,
+    status_notifier: &WorkerNotifier,
 ) -> Result<(), String> {
     let mut replies = NativeReplies::<OscWorkerEvent>::default();
     let mut current: Option<super::super::osc_outbound_work::Current> = None;
@@ -259,6 +269,7 @@ fn service<S: OscSocket>(
                     }
                     Err(error) => {
                         ready.store(false, Ordering::Release);
+                        status_notifier.notify();
                         context.close_command_admission();
                         finish_input_prefix(context, replies, incoming);
                         if let Some(work) = current {
@@ -300,6 +311,7 @@ fn service<S: OscSocket>(
                 Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
                 Err(error) => {
                     ready.store(false, Ordering::Release);
+                    status_notifier.notify();
                     context.close_command_admission();
                     finish_input_prefix(context, replies, incoming);
                     if let Some(work) = current {

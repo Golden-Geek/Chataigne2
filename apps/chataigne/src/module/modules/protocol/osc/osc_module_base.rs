@@ -4,6 +4,12 @@ use std::{
     time::{Duration, Instant},
 };
 
+mod osc_catalog_delivery;
+mod osc_discovery;
+mod osc_service;
+use crate::app::module::common::worker_wake::ModuleWake;
+use osc_catalog_delivery::CatalogDelivery;
+use osc_discovery::{Discovery, Selection};
 mod osc_input;
 mod osc_input_delivery;
 mod osc_input_queue;
@@ -39,15 +45,13 @@ use self::osc_message::OscValuePayload;
 
 const NETWORK_INTERFACE_WARNING_ID: &str = "network_interface_options";
 const OSC_RECEIVER_WARNING_ID: &str = "receiver_transport";
-const OSC_INTERFACE_REFRESH_INTERVAL_SECS: f64 = 1.0;
-const OSC_MODULE_UPDATE_RATE_HZ: u32 = 120;
 const OSC_COMPILED_KERNEL: &str = "chataigne.runtime.osc";
 const OSC_MODULE_COMMAND_TYPES: &[&str] = &[crate::app::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE];
 const OSC_SCRIPT_METHODS: &[&str] = &["sendMessage", "sendOSC", "sendOsc"];
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct OscTransportBinding {
-    pub interface_variant: String,
+struct OscTransportBinding {
+    pub interface_variant: Selection,
     pub bind_port: u16,
     pub receive_enabled: bool,
 }
@@ -89,7 +93,10 @@ pub(crate) struct OscTransportBinding {
 
 pub struct OscModuleBase {
     base: crate::app::ModuleBase,
-    interface_refresh_elapsed: f64,
+    wake: Option<ModuleWake>,
+    discovery: Option<Discovery>,
+    discovery_retry_at: Option<Instant>,
+    pending_catalog: Option<CatalogDelivery>,
     transport: Option<OscTransportHandle>,
     retiring_transport: Option<OscTransportHandle>,
     retry_at: Option<Instant>,
@@ -106,7 +113,10 @@ impl OscModuleBase {
     pub fn create() -> Self {
         Self::new(
             crate::app::ModuleBase::create_with_command_types(OSC_MODULE_COMMAND_TYPES),
-            OSC_INTERFACE_REFRESH_INTERVAL_SECS,
+            None,
+            None,
+            None,
+            None,
             None,
             None,
             None,
@@ -162,32 +172,6 @@ impl OscModuleBase {
         crate::app::module::script_api::descriptor_for_node(node_data, node_type, OSC_SCRIPT_METHODS)
     }
 
-    fn interface_refresh_due(&self) -> bool {
-        self.interface_refresh_elapsed >= OSC_INTERFACE_REFRESH_INTERVAL_SECS
-    }
-
-    fn refresh_interface_options(&self, ctx: &mut ProcessCtx) {
-        if !self.network_interface.is_bound() {
-            return;
-        }
-
-        match crate::app::module::common::network_interfaces::available_interface_options() {
-            Ok(options) => {
-                crate::app::module::common::network_interfaces::sync_interface_enum_options(
-                    ctx,
-                    self.network_interface.id(),
-                    options,
-                );
-                self.network_interface
-                    .clear_warning(ctx, Some(NETWORK_INTERFACE_WARNING_ID));
-            }
-            Err(error) => {
-                self.network_interface
-                    .set_warning_with(ctx, Some(NETWORK_INTERFACE_WARNING_ID), error.as_str(), None);
-            }
-        }
-    }
-
     fn module_enabled(&self, snapshot: &ProcessTreeSnapshot) -> bool {
         snapshot.node(self.id()).map(|node| node.enabled).unwrap_or(false)
     }
@@ -211,10 +195,7 @@ impl OscModuleBase {
             Ok(binding) => {
                 let connected = self.connected_for_binding(snapshot, &binding);
                 let config = OscTransportConfig {
-                    bind_interface_host:
-                        crate::app::module::common::network_interfaces::bind_host_for_interface_variant(
-                            binding.interface_variant.as_str(),
-                        ),
+                    bind_interface_host: binding.interface_variant.bind_host(),
                     bind_port: binding.bind_port,
                     receive_enabled: binding.receive_enabled,
                 };
@@ -240,6 +221,11 @@ impl OscModuleBase {
                 match OscTransportHandle::spawn(
                     config.clone(),
                     InputPlan::new(self.id(), self.base.log_incoming_enabled()),
+                    self.wake
+                        .as_ref()
+                        .expect("ready OSC module has a wake source")
+                        .notifier
+                        .clone(),
                 ) {
                     Ok(handle) => {
                         self.transport = Some(handle);
@@ -250,9 +236,7 @@ impl OscModuleBase {
                     Err(error) => {
                         logerror!(format!(
                             "Failed to bind OSC at {}:{}, {}",
-                            binding.interface_variant.as_str(),
-                            binding.bind_port,
-                            error
+                            binding.interface_variant, binding.bind_port, error
                         ));
                         self.transport = None;
                         self.last_transport_config = None;
@@ -301,7 +285,7 @@ impl OscModuleBase {
         };
 
         Ok(OscTransportBinding {
-            interface_variant: self.network_interface.get_ref().as_str().to_string(),
+            interface_variant: Selection::parse(self.network_interface.get_ref().as_str())?,
             bind_port,
             receive_enabled,
         })
@@ -594,9 +578,6 @@ impl Node for OscModuleBase {
         self.transport_dirty = true;
         crate::app::module::enable_module_authoring(self.node_data_mut());
 
-        self.refresh_interface_options(ctx);
-        self.interface_refresh_elapsed = 0.0;
-
         let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
             return;
         };
@@ -605,57 +586,22 @@ impl Node for OscModuleBase {
         self.refresh_data_capabilities(ctx, snapshot);
     }
 
-    fn on_node_ready(&mut self, _ctx: &mut ProcessCtx, _context: NodeCreationContext) {
-        self.transport_dirty = true;
+    fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
+        if let Err(error) = self.register_service(ctx) {
+            logerror!(error);
+        }
     }
 
-    fn update(&mut self, ctx: &mut ProcessCtx) {
-        self.drain_transport_events(ctx);
-        if let Some(delivery) = self.incoming.as_mut() {
-            let snapshot = ctx.tree_snapshot_arc();
-            if delivery.service(
-                ctx,
-                snapshot.as_deref(),
-                self.base.values_id(),
-                self.auto_add.get(),
-                &mut self.ignored_param_changes,
-            ) {
-                self.incoming = None;
-                self.ignored_param_changes.clear();
-            }
-        }
-        self.interface_refresh_elapsed += ctx.delta_time.as_secs_f64();
-
-        let refresh_interface_options = self.interface_refresh_due();
-        let needs_snapshot = refresh_interface_options
-            || self.transport_dirty
-            || (!self.pending_outbound_nodes.is_empty()
-                && self.outbound_retry_at.is_none_or(|at| Instant::now() >= at));
-        if !needs_snapshot {
-            return;
-        }
-
-        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
-            return;
-        };
-        let snapshot = snapshot_arc.as_ref();
-
-        if refresh_interface_options {
-            self.refresh_interface_options(ctx);
-            self.interface_refresh_elapsed = 0.0;
-        }
-
-        self.refresh_data_capabilities(ctx, snapshot);
-
-        if self.transport_dirty {
-            self.refresh_transport(ctx, snapshot);
-        }
-
-        self.flush_outbound_values(ctx, &snapshot_arc);
+    fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
+        self.service(ctx);
     }
 
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {
         self.stop_transport();
+        self.discovery = None;
+        self.pending_catalog = None;
+        self.discovery_retry_at = None;
+        self.wake = None;
         self.incoming = None;
         self.pending_outbound_nodes.clear();
         self.outbound_retry_at = None;
@@ -663,35 +609,22 @@ impl Node for OscModuleBase {
     }
 
     fn needs_update(&self) -> bool {
-        self.transport_dirty && self.retiring_transport.is_none() && self.transport_retry_due()
-            || self
-                .retiring_transport
-                .as_ref()
-                .is_some_and(|transport| transport.has_pending())
-            || (!self.pending_outbound_nodes.is_empty() && self.outbound_retry_at.is_none_or(|at| Instant::now() >= at))
-            || self.incoming.is_some()
-            || self.transport.as_ref().is_some_and(|t| t.has_pending())
-            || self.interface_refresh_elapsed >= OSC_INTERFACE_REFRESH_INTERVAL_SECS
+        false
     }
 
-    fn update_requires_tree_snapshot(&self) -> bool {
-        // transport.is_some() intentionally excluded: drain_transport_events() is
-        // cheap and safe without a snapshot. Messages from this tick's drain land in
-        // pending_incoming_messages and will be processed next tick when that flag
-        // triggers the snapshot. Removing it avoids a build_process_tree_snapshot()
-        // call (O(N_total_nodes)) every tick for every idle-but-connected OSC module.
-        self.interface_refresh_due()
-            || self.transport_dirty && self.retiring_transport.is_none() && self.transport_retry_due()
-            || self
-                .retiring_transport
-                .as_ref()
-                .is_some_and(|transport| transport.has_pending())
-            || (!self.pending_outbound_nodes.is_empty() && self.outbound_retry_at.is_none_or(|at| Instant::now() >= at))
+    fn worker_wake_requires_tree_snapshot(&self) -> bool {
+        self.transport_dirty && self.retiring_transport.is_none() && self.transport_retry_due()
+            || !self.pending_outbound_nodes.is_empty() && self.outbound_retry_at.is_none_or(|at| Instant::now() >= at)
             || self.incoming.as_ref().is_some_and(InputDelivery::requires_snapshot)
+            || self
+                .pending_catalog
+                .as_ref()
+                .is_some_and(CatalogDelivery::requires_snapshot)
+            || self.discovery.as_ref().is_some_and(Discovery::has_pending)
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
-        NodeExecutionRule::periodic(OSC_MODULE_UPDATE_RATE_HZ).with_compiled_kernel(OSC_COMPILED_KERNEL)
+        NodeExecutionRule::passive().with_compiled_kernel(OSC_COMPILED_KERNEL)
     }
 
     fn child_event_interest_depth(&self, _event: &Event) -> u32 {
@@ -722,14 +655,32 @@ impl Node for OscModuleBase {
                 .emit_script_param_callback(ctx, snapshot_arc.as_ref(), param, &_old_value);
         }
         self.on_param_change_inner(ctx, param);
+        if self.transport_dirty || !self.pending_outbound_nodes.is_empty() {
+            self.request_service();
+        }
     }
 
     fn on_meta_changed(&mut self, ctx: &mut ProcessCtx, node: NodeId, patch: NodeMetaPatch) {
         self.on_meta_changed_inner(ctx, node, patch);
+        if self.transport_dirty {
+            self.request_service();
+        }
     }
 
     fn on_effective_enabled_changed(&mut self, ctx: &mut ProcessCtx, enabled: bool) {
         self.on_effective_enabled_changed_inner(ctx, enabled);
+        if enabled {
+            self.request_service();
+        } else {
+            self.discovery = None;
+            self.pending_catalog = None;
+            self.discovery_retry_at = None;
+            self.pending_outbound_nodes.clear();
+            self.outbound_retry_at = None;
+            if let Some(wake) = &self.wake {
+                wake.cancel_deadline();
+            }
+        }
     }
 
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {

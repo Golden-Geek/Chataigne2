@@ -118,11 +118,15 @@ pub(crate) struct OscTransportHandle {
 }
 
 impl OscTransportHandle {
-    pub(crate) fn spawn(config: OscTransportConfig, input: InputPlan) -> Result<Self, String> {
+    pub(crate) fn spawn(
+        config: OscTransportConfig,
+        input: InputPlan,
+        notifier: WorkerNotifier,
+    ) -> Result<Self, String> {
         Self::spawn_with_input(
             config,
             lifetimes(),
-            WorkerNotifier::new(|| {}),
+            notifier,
             InputMode::Prepared(input),
             worker::NativeSocket::open,
         )
@@ -153,8 +157,17 @@ impl OscTransportHandle {
         let ready = Arc::new(AtomicBool::new(false));
         let worker_ready = ready.clone();
         let worker_input = input.clone();
+        let status_notifier = notifier.clone();
         let worker = BoundedWorker::spawn_notified("osc-transport", lifetimes, limits(), notifier, move |context| {
-            worker::run(context, config, worker_wake, worker_ready, worker_input, setup);
+            worker::run(
+                context,
+                config,
+                worker_wake,
+                worker_ready,
+                worker_input,
+                status_notifier,
+                setup,
+            );
         })
         .map_err(|error| format!("failed to start OSC worker: {error}"))?;
         Ok(Self {

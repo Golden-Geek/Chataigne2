@@ -269,6 +269,23 @@ impl<T: Node> Engine<T> {
                             let should_clear_redo = effect.is_some();
                             (Ok(effect.map(Into::into)), should_clear_redo)
                         }
+                        Edit::SetParamEnumOptions {
+                            node,
+                            expected_uuid,
+                            expected_value,
+                            options,
+                        } => {
+                            missing_reference_warning_dirty = true;
+                            let effect = self.apply_set_param_enum_options(
+                                edit_index,
+                                node,
+                                expected_uuid,
+                                expected_value,
+                                options,
+                            )?;
+                            let changed = effect.is_some();
+                            (Ok(effect.map(Into::into)), changed)
+                        }
                         Edit::SetNodeScriptProperty { node, write } => {
                             let capture = self.capture_opaque_history(capture_history, node);
                             let effect = self
@@ -655,6 +672,7 @@ fn edit_kind_name(edit: &Edit) -> &'static str {
         Edit::EndEditSession { .. } => "EndEditSession",
         Edit::SetParam { .. } => "SetParam",
         Edit::SetParamConstraints { .. } => "SetParamConstraints",
+        Edit::SetParamEnumOptions { .. } => "SetParamEnumOptions",
         Edit::SetParamControlState { .. } => "SetParamControlState",
         Edit::SetNodeScriptProperty { .. } => "SetNodeScriptProperty",
         Edit::CallNodeScriptMethod { .. } => "CallNodeScriptMethod",

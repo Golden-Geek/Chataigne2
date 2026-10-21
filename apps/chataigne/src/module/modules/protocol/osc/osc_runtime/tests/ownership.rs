@@ -411,10 +411,17 @@ fn terminal_failure_retires_readiness_before_finishing_prepared_bundle_publicati
     }
     let reads = socket.reads.clone();
     let (wait_failure, failed_wait) = (socket.wait_failure.clone(), socket.failed_wait.clone());
+    let notified = Arc::new(AtomicBool::new(false));
+    let notice = notified.clone();
+    let failure = failed_wait.clone();
     let handle = OscTransportHandle::spawn_with_input(
         config(),
         &pool,
-        WorkerNotifier::new(|| {}),
+        WorkerNotifier::new(move || {
+            if failure.load(Ordering::Acquire) {
+                notice.store(true, Ordering::Release);
+            }
+        }),
         InputMode::Prepared(InputPlan::new(golden_core::node::NodeId(1), false)),
         move |_, _| Ok(socket),
     )
@@ -425,7 +432,7 @@ fn terminal_failure_retires_readiness_before_finishing_prepared_bundle_publicati
         std::thread::yield_now();
     }
     wait_failure.store(true, Ordering::Release);
-    while !failed_wait.load(Ordering::Acquire) || handle.is_ready() {
+    while !failed_wait.load(Ordering::Acquire) || handle.is_ready() || !notified.load(Ordering::Acquire) {
         assert!(Instant::now() < deadline);
         std::thread::yield_now();
     }

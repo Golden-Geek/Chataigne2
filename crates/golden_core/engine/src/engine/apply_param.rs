@@ -8,6 +8,31 @@ use super::history::{PatchMetaEffect, SetParamConstraintsEffect, SetParamEffect,
 use super::{Engine, EngineEditError};
 
 impl<T: Node> Engine<T> {
+    pub(crate) fn apply_set_param_enum_options(
+        &mut self,
+        edit_index: usize,
+        node: NodeId,
+        expected_uuid: crate::node::NodeUuid,
+        expected_value: ParamValue,
+        options: crate::parameter::ParameterEnumOptions,
+    ) -> Result<Option<SetParamConstraintsEffect>, EngineEditError> {
+        let Some(target) = self.nodes.get(node) else {
+            return Ok(None);
+        };
+        if target.node_data().meta.uuid != expected_uuid {
+            return Ok(None);
+        }
+        let Some(snapshot) = target.engine_param_snapshot() else {
+            return Ok(None);
+        };
+        if snapshot.value != expected_value || snapshot.constraints.enum_options.same_storage(&options) {
+            return Ok(None);
+        }
+        let mut constraints = snapshot.constraints;
+        constraints.enum_options = options;
+        self.apply_set_param_constraints(edit_index, node, constraints)
+    }
+
     /// Resolves and validates a value without changing authored state or emitting events.
     pub(crate) fn prepare_set_param_value(
         &self,
