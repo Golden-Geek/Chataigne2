@@ -525,6 +525,7 @@ impl<T: Node> Engine<T> {
                 param,
                 old_value,
                 new_value,
+                ..
             } => UiEventKind::ParamChanged {
                 param: *param,
                 old_value: old_value.clone(),

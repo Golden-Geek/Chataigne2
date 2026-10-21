@@ -323,6 +323,7 @@ pub struct EditRequest {
     /// Edit operation to be applied.
     pub edit: Edit,
     pub(crate) completions: Vec<CompletionToken>,
+    pub(crate) param_source: Option<NodeId>,
 }
 
 impl EditRequest {
@@ -331,7 +332,14 @@ impl EditRequest {
         Self {
             edit,
             completions: Vec::new(),
+            param_source: None,
         }
+    }
+    /// Attribute direct parameter value/constraint changes from this request.
+    /// Attribution does not propagate into edits produced by lifecycle callbacks.
+    pub fn with_param_source(mut self, source: NodeId) -> Self {
+        self.param_source = Some(source);
+        self
     }
 }
 
@@ -351,6 +359,11 @@ impl EditQueue {
     /// Pushes a new edit at the back of the queue.
     pub fn push(&mut self, edit: Edit) {
         self.push_request(EditRequest::new(edit));
+    }
+    /// Queue an attributed parameter write or constraint update. Other edit kinds
+    /// retain their ordinary semantics and do not inherit this attribution.
+    pub fn push_from(&mut self, source: NodeId, edit: Edit) {
+        self.push_request(EditRequest::new(edit).with_param_source(source));
     }
 
     pub(crate) fn push_request(&mut self, mut request: EditRequest) {

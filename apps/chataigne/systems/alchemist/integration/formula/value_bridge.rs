@@ -27,21 +27,13 @@ pub(crate) fn runtime_value_to_param(value: &RuntimeValue) -> Result<ParamValue,
         RuntimeValue::Bool(value) => ParamValue::Bool(*value),
         RuntimeValue::Trigger(_) => ParamValue::Trigger(),
         RuntimeValue::Int(value) => ParamValue::Int(
-            i32::try_from(*value)
-                .map_err(|_| format!("integer value {value} exceeds Golden Core i32 range"))?,
+            i32::try_from(*value).map_err(|_| format!("integer value {value} exceeds Golden Core i32 range"))?,
         ),
         RuntimeValue::Float(value) => ParamValue::Float(*value),
         RuntimeValue::String(value) => ParamValue::Str(value.to_string()),
         RuntimeValue::Vec2(value) => ParamValue::Vec2(value[0], value[1]),
-        RuntimeValue::Vec3(value) => {
-            ParamValue::Vec3(value[0], value[1], value[2])
-        }
-        RuntimeValue::Color(value) => ParamValue::Color(
-            value.red,
-            value.green,
-            value.blue,
-            value.alpha,
-        ),
+        RuntimeValue::Vec3(value) => ParamValue::Vec3(value[0], value[1], value[2]),
+        RuntimeValue::Color(value) => ParamValue::Color(value.red, value.green, value.blue, value.alpha),
         RuntimeValue::Duration(value) => ParamValue::Float(value.as_secs_f64()),
         RuntimeValue::Array(values) => ParamValue::Str(
             values
@@ -64,13 +56,9 @@ pub(crate) fn runtime_value_to_param(value: &RuntimeValue) -> Result<ParamValue,
                 .unwrap_or_else(|_| NodeUuid::nil());
             ParamValue::Reference(NodeReference::new(uuid))
         }
-        RuntimeValue::Extension(value) => ParamValue::Str(
-            value
-                .payload
-                .iter()
-                .map(|byte| format!("{byte:02x}"))
-                .collect(),
-        ),
+        RuntimeValue::Extension(value) => {
+            ParamValue::Str(value.payload.iter().map(|byte| format!("{byte:02x}")).collect())
+        }
     };
     if !value.has_only_finite_numbers() {
         return Err("runtime value contains a non-finite number that cannot cross the parameter protocol".to_string());
@@ -78,19 +66,14 @@ pub(crate) fn runtime_value_to_param(value: &RuntimeValue) -> Result<ParamValue,
     Ok(value)
 }
 
-pub(super) fn default_runtime_value(
-    value_type: &ValueTypeId,
-) -> Result<RuntimeValue, String> {
+pub(super) fn default_runtime_value(value_type: &ValueTypeId) -> Result<RuntimeValue, String> {
     value_types()
         .get(value_type)
         .map(|descriptor| (descriptor.default_value)())
         .ok_or_else(|| format!("unknown Alchemist value type `{value_type}`"))
 }
 
-pub(crate) fn param_to_runtime_value(
-    value: &ParamValue,
-    value_type: &ValueTypeId,
-) -> Result<RuntimeValue, String> {
+pub(crate) fn param_to_runtime_value(value: &ParamValue, value_type: &ValueTypeId) -> Result<RuntimeValue, String> {
     match value_type.as_str() {
         "unit" => Ok(RuntimeValue::Unit),
         "trigger" => Ok(RuntimeValue::Trigger(TriggerValue {
@@ -101,14 +84,12 @@ pub(crate) fn param_to_runtime_value(
             param_to_untyped_runtime_value(value)?.convert_to(value_type)
         }
         "value_array" => match value {
-            ParamValue::Str(value) | ParamValue::File(value) | ParamValue::Enum(value) => {
-                Ok(RuntimeValue::Array(
-                    value
-                        .split(',')
-                        .map(|part| RuntimeValue::String(Arc::from(part.trim())))
-                        .collect(),
-                ))
-            }
+            ParamValue::Str(value) | ParamValue::File(value) | ParamValue::Enum(value) => Ok(RuntimeValue::Array(
+                value
+                    .split(',')
+                    .map(|part| RuntimeValue::String(Arc::from(part.trim())))
+                    .collect(),
+            )),
             _ => Ok(RuntimeValue::Array(vec![param_to_untyped_runtime_value(value)?])),
         },
         _ => match value {
@@ -118,10 +99,7 @@ pub(crate) fn param_to_runtime_value(
                 } else {
                     reference.uuid().0.to_string()
                 };
-                Ok(RuntimeValue::Ref(StableRef::new(
-                    value_type.clone(),
-                    stable_id,
-                )))
+                Ok(RuntimeValue::Ref(StableRef::new(value_type.clone(), stable_id)))
             }
             _ => Err(format!(
                 "Alchemist value type `{value_type}` requires a node reference parameter"
@@ -189,31 +167,19 @@ pub(super) fn child_param<'a>(
     snapshot.node(child)?.param_value.as_ref()
 }
 
-pub(super) fn child_string(
-    snapshot: &ProcessTreeSnapshot,
-    parent: NodeId,
-    decl_id: &str,
-) -> Option<String> {
+pub(super) fn child_string(snapshot: &ProcessTreeSnapshot, parent: NodeId, decl_id: &str) -> Option<String> {
     child_param(snapshot, parent, decl_id)
         .and_then(ParamValue::as_str)
         .map(|value| value.to_string())
 }
 
-pub(super) fn child_vec2(
-    snapshot: &ProcessTreeSnapshot,
-    parent: NodeId,
-    decl_id: &str,
-) -> Option<[f64; 2]> {
+pub(super) fn child_vec2(snapshot: &ProcessTreeSnapshot, parent: NodeId, decl_id: &str) -> Option<[f64; 2]> {
     child_param(snapshot, parent, decl_id)
         .and_then(ParamValue::as_vec2)
         .map(|value| [value.0, value.1])
 }
 
-pub(super) fn enabled_child_vec2(
-    snapshot: &ProcessTreeSnapshot,
-    parent: NodeId,
-    decl_id: &str,
-) -> Option<[f64; 2]> {
+pub(super) fn enabled_child_vec2(snapshot: &ProcessTreeSnapshot, parent: NodeId, decl_id: &str) -> Option<[f64; 2]> {
     let child = snapshot.find_child_by_decl_id(parent, decl_id)?;
     let node = snapshot.node(child)?;
     node.enabled.then_some(())?;
@@ -241,11 +207,7 @@ pub(super) fn is_anode_layout_decl_id(decl_id: &str) -> bool {
     matches!(decl_id, ANODE_POSITION_DECL_ID | ANODE_SIZE_DECL_ID)
 }
 
-pub(super) fn is_anode_layout_node(
-    snapshot: &ProcessTreeSnapshot,
-    formula_node: NodeId,
-    node: NodeId,
-) -> bool {
+pub(super) fn is_anode_layout_node(snapshot: &ProcessTreeSnapshot, formula_node: NodeId, node: NodeId) -> bool {
     let Some(anode) = direct_child_under(snapshot, formula_node, node) else {
         return false;
     };
@@ -263,38 +225,26 @@ pub(super) fn is_anode_layout_node(
         .is_some_and(|node| is_anode_layout_decl_id(node.decl_id.as_str()))
 }
 
-pub(super) fn constant_numeric_value_change_keeps_signature(
-    ctx: &ProcessCtx,
-    param: NodeId,
-) -> bool {
+pub(super) fn constant_numeric_value_change_keeps_signature(ctx: &ProcessCtx, param: NodeId) -> bool {
     let Some(snapshot) = ctx.tree_snapshot() else {
         return false;
     };
-    is_constant_value_param(snapshot, param)
-        && same_type_numeric_changes_for_param(&ctx.events, param)
+    is_constant_value_param(snapshot, param) && same_type_numeric_changes_for_param(&ctx.events, param)
 }
 
 pub(crate) fn is_constant_value_param(snapshot: &ProcessTreeSnapshot, param: NodeId) -> bool {
     constant_anode_for_value_param(snapshot, param).is_some()
 }
 
-pub(crate) fn constant_anode_for_value_param(
-    snapshot: &ProcessTreeSnapshot,
-    param: NodeId,
-) -> Option<NodeId> {
+pub(crate) fn constant_anode_for_value_param(snapshot: &ProcessTreeSnapshot, param: NodeId) -> Option<NodeId> {
     let config = snapshot.node(param).and_then(|node| node.parent)?;
     let anode = snapshot.node(config).and_then(|node| node.parent)?;
     (constant_value_param_from_snapshot(snapshot, anode) == Some(param)).then_some(anode)
 }
 
-pub(super) fn constant_value_param_from_snapshot(
-    snapshot: &ProcessTreeSnapshot,
-    anode: NodeId,
-) -> Option<NodeId> {
+pub(super) fn constant_value_param_from_snapshot(snapshot: &ProcessTreeSnapshot, anode: NodeId) -> Option<NodeId> {
     let node = snapshot.node(anode)?;
-    if node.node_type != ANODE_NODE_TYPE
-        || anode_type_from_tags(&node.tags).as_deref() != Some("constant")
-    {
+    if node.node_type != ANODE_NODE_TYPE || anode_type_from_tags(&node.tags).as_deref() != Some("constant") {
         return None;
     }
     let config = snapshot.find_child_by_decl_id(anode, "config")?;
@@ -306,7 +256,9 @@ pub(crate) fn same_type_numeric_change_param(event: &Event) -> Option<NodeId> {
         param,
         old_value,
         new_value,
-    } = &event.kind else {
+        ..
+    } = &event.kind
+    else {
         return None;
     };
     matches!(
@@ -317,12 +269,13 @@ pub(crate) fn same_type_numeric_change_param(event: &Event) -> Option<NodeId> {
 }
 
 pub(crate) fn same_type_numeric_changes_for_param(events: &EventFrame, param: NodeId) -> bool {
-    events.iter().any(|event| {
-        matches!(&event.kind, EventKind::ParamChanged { param: changed, .. } if *changed == param)
-    }) && events.iter().all(|event| {
-        !matches!(&event.kind, EventKind::ParamChanged { param: changed, .. } if *changed == param)
-            || same_type_numeric_change_param(event) == Some(param)
-    })
+    events
+        .iter()
+        .any(|event| matches!(&event.kind, EventKind::ParamChanged { param: changed, .. } if *changed == param))
+        && events.iter().all(|event| {
+            !matches!(&event.kind, EventKind::ParamChanged { param: changed, .. } if *changed == param)
+                || same_type_numeric_change_param(event) == Some(param)
+        })
 }
 
 pub(crate) fn formula_runtime_param_change_requires_rematerialization(
@@ -335,7 +288,10 @@ pub(crate) fn formula_runtime_param_change_requires_rematerialization(
     };
     if formula_child == param
         && snapshot.node(param).is_some_and(|node| {
-            matches!(node.decl_id.as_str(), "is_valid" | "diagnostics_json" | "managed_regions_json")
+            matches!(
+                node.decl_id.as_str(),
+                "is_valid" | "diagnostics_json" | "managed_regions_json"
+            )
         })
     {
         return false;
@@ -344,9 +300,10 @@ pub(crate) fn formula_runtime_param_change_requires_rematerialization(
 }
 
 pub(super) fn node_removal_pending(ctx: &ProcessCtx, node: NodeId) -> bool {
-    ctx.edits.pending.iter().any(|request| {
-        matches!(&request.edit, Edit::RemoveNode { node: pending } if *pending == node)
-    })
+    ctx.edits
+        .pending
+        .iter()
+        .any(|request| matches!(&request.edit, Edit::RemoveNode { node: pending } if *pending == node))
 }
 
 pub(super) fn child_add_pending(ctx: &ProcessCtx, parent: NodeId, decl_id: &str) -> bool {
@@ -355,28 +312,17 @@ pub(super) fn child_add_pending(ctx: &ProcessCtx, parent: NodeId, decl_id: &str)
             parent: pending_parent,
             node,
             ..
-        } => {
-            *pending_parent == parent
-                && node.node_data().meta.decl_id.0.as_str() == decl_id
-        }
+        } => *pending_parent == parent && node.node_data().meta.decl_id.0.as_str() == decl_id,
         Edit::AddNodeTree {
             parent: pending_parent,
             tree,
             ..
-        } => {
-            *pending_parent == parent
-                && tree.node.node_data().meta.decl_id.0.as_str() == decl_id
-        }
+        } => *pending_parent == parent && tree.node.node_data().meta.decl_id.0.as_str() == decl_id,
         _ => false,
     })
 }
 
-pub(super) fn replace_child_tree_once(
-    ctx: &mut ProcessCtx,
-    parent: NodeId,
-    existing: Option<NodeId>,
-    tree: NodeTree,
-) {
+pub(super) fn replace_child_tree_once(ctx: &mut ProcessCtx, parent: NodeId, existing: Option<NodeId>, tree: NodeTree) {
     let decl_id = tree.node.node_data().meta.decl_id.clone();
     if child_add_pending(ctx, parent, decl_id.0.as_str()) {
         if let Some(existing) = existing {
@@ -403,8 +349,8 @@ pub(super) fn is_anode_type_variable_config_param(
     let Some(anode_snapshot) = snapshot.node(anode) else {
         return false;
     };
-    let Some(type_id) = anode_type_from_tags(&anode_snapshot.tags)
-        .or_else(|| child_string(snapshot, anode, "anode_type"))
+    let Some(type_id) =
+        anode_type_from_tags(&anode_snapshot.tags).or_else(|| child_string(snapshot, anode, "anode_type"))
     else {
         return false;
     };
@@ -419,17 +365,10 @@ pub(super) fn is_anode_type_variable_config_param(
         .config_fields()
         .into_iter()
         .filter(|field| field.type_variable.is_some())
-        .any(|field| {
-            snapshot.find_child_by_decl_id(config_folder, &config_decl_id(field.id.as_str()))
-                == Some(param)
-        })
+        .any(|field| snapshot.find_child_by_decl_id(config_folder, &config_decl_id(field.id.as_str())) == Some(param))
 }
 
-pub(super) fn child_reference_uuid(
-    snapshot: &ProcessTreeSnapshot,
-    parent: NodeId,
-    decl_id: &str,
-) -> Option<NodeUuid> {
+pub(super) fn child_reference_uuid(snapshot: &ProcessTreeSnapshot, parent: NodeId, decl_id: &str) -> Option<NodeUuid> {
     child_param(snapshot, parent, decl_id).and_then(|value| match value {
         ParamValue::Reference(reference) => Some(reference.uuid()),
         _ => None,
@@ -446,16 +385,14 @@ pub(super) fn property_meta_by_uuid(
         let Some(node) = snapshot.node(candidate) else {
             continue;
         };
-        if matches!(
-            node.node_type.as_str(),
-            PROPERTY_NODE_TYPE | PROPERTY_MANAGER_NODE_TYPE
-        ) && node.uuid == property_uuid
+        if matches!(node.node_type.as_str(), PROPERTY_NODE_TYPE | PROPERTY_MANAGER_NODE_TYPE)
+            && node.uuid == property_uuid
         {
             let color = if node.node_type == PROPERTY_MANAGER_NODE_TYPE {
-                node.presentation.color.or(node.presentation.default_color).or_else(|| {
-                    child_string(snapshot, candidate, "role")
-                        .and_then(|role| manager_role_color(&role))
-                })
+                node.presentation
+                    .color
+                    .or(node.presentation.default_color)
+                    .or_else(|| child_string(snapshot, candidate, "role").and_then(|role| manager_role_color(&role)))
             } else {
                 node.presentation.color.or(node.presentation.default_color)
             };
@@ -483,26 +420,15 @@ pub(super) fn anode_property_ref_config_decl_id(type_id: &str) -> Option<&'stati
     manager_anode_uses_property_ref(type_id).then_some("config/manager_id")
 }
 
-pub(super) fn anode_parent_formula_is_read_only(
-    snapshot: &ProcessTreeSnapshot,
-    anode: NodeId,
-) -> bool {
+pub(super) fn anode_parent_formula_is_read_only(snapshot: &ProcessTreeSnapshot, anode: NodeId) -> bool {
     snapshot
         .node(anode)
         .and_then(|node| node.parent)
         .and_then(|formula| snapshot.node(formula))
-        .is_some_and(|formula| {
-            formula
-                .tags
-                .iter()
-                .any(|tag| tag == FORMULA_EXTERNAL_READ_ONLY_TAG)
-        })
+        .is_some_and(|formula| formula.tags.iter().any(|tag| tag == FORMULA_EXTERNAL_READ_ONLY_TAG))
 }
 
-pub(crate) fn constraint_value_type(
-    constraint: &TypeConstraint,
-    bindings: &TypeBindings,
-) -> ValueTypeId {
+pub(crate) fn constraint_value_type(constraint: &TypeConstraint, bindings: &TypeBindings) -> ValueTypeId {
     match constraint {
         TypeConstraint::Exact(value_type) => value_type.clone(),
         TypeConstraint::Generic(variable) => bindings
@@ -518,12 +444,8 @@ pub(crate) fn constraint_value_type(
 }
 
 pub(super) fn log_config_field() -> chataigne_alchemist::ANodeConfigFieldDecl {
-    chataigne_alchemist::ANodeConfigFieldDecl::new(
-        "log",
-        "Log",
-        RuntimeValue::Bool(false),
-    )
-    .with_description("Emit a debug log entry whenever this node processes successfully.")
+    chataigne_alchemist::ANodeConfigFieldDecl::new("log", "Log", RuntimeValue::Bool(false))
+        .with_description("Emit a debug log entry whenever this node processes successfully.")
 }
 
 pub(super) fn process_on_input_change_only_config_field(
@@ -585,8 +507,7 @@ pub(super) fn existing_or_default_config(
         let value = config_field_value(snapshot, config_folder, &field);
         config.set(field.id, value);
     }
-    let mut instance =
-        ANodeInstance::new(declaration.type_id(), declaration.label());
+    let mut instance = ANodeInstance::new(declaration.type_id(), declaration.label());
     instance.config = config.clone();
     for field in config_fields_for_instance(declaration, &instance) {
         let value = config_field_value(snapshot, config_folder, &field);
@@ -607,30 +528,21 @@ pub(super) fn config_field_value(
         return curve_config_value(snapshot, config_folder, field);
     }
     let value_type = if field.editor.as_deref() == Some("runtime_value") {
-        child_string(
-            snapshot,
-            config_folder,
-            &config_type_decl_id(field.id.as_str()),
-        )
-        .map(ValueTypeId::new)
-        .unwrap_or_else(|| field.default_value.value_type())
+        child_string(snapshot, config_folder, &config_type_decl_id(field.id.as_str()))
+            .map(ValueTypeId::new)
+            .unwrap_or_else(|| field.default_value.value_type())
     } else {
         field.default_value.value_type()
     };
-    child_param(
-        snapshot,
-        config_folder,
-        &config_decl_id(field.id.as_str()),
-    )
-    .and_then(|value| param_to_runtime_value(value, &value_type).ok())
-    .unwrap_or_else(|| {
-        if value_type == field.default_value.value_type() {
-            field.default_value.clone()
-        } else {
-            default_runtime_value(&value_type)
-                .unwrap_or_else(|_| field.default_value.clone())
-        }
-    })
+    child_param(snapshot, config_folder, &config_decl_id(field.id.as_str()))
+        .and_then(|value| param_to_runtime_value(value, &value_type).ok())
+        .unwrap_or_else(|| {
+            if value_type == field.default_value.value_type() {
+                field.default_value.clone()
+            } else {
+                default_runtime_value(&value_type).unwrap_or_else(|_| field.default_value.clone())
+            }
+        })
 }
 
 /// Reads a hosted gradient node subtree into the structured `Array` config value
@@ -703,11 +615,7 @@ pub(super) fn apply_forced_type_bindings_from_config(
         if !parameter_node.enabled {
             continue;
         }
-        let Some(selected_type) = parameter_node
-            .param_value
-            .as_ref()
-            .and_then(ParamValue::as_str)
-        else {
+        let Some(selected_type) = parameter_node.param_value.as_ref().and_then(ParamValue::as_str) else {
             continue;
         };
         let selected_type = ValueTypeId::new(selected_type);
@@ -715,10 +623,8 @@ pub(super) fn apply_forced_type_bindings_from_config(
         if !type_options.contains(&selected_type) {
             continue;
         }
-        instance.forced_type_bindings.insert(
-            variable,
-            selected_type,
-            TypeBindingSource::ForcedByUser,
-        );
+        instance
+            .forced_type_bindings
+            .insert(variable, selected_type, TypeBindingSource::ForcedByUser);
     }
 }

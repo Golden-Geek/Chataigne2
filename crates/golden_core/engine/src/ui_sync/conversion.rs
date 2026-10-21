@@ -133,6 +133,7 @@ impl From<Event> for UiEventDto {
                 param,
                 old_value,
                 new_value,
+                ..
             } => UiEventKind::ParamChanged {
                 param,
                 old_value,

@@ -14,146 +14,6 @@ pub(super) fn midi_transport_connected(
     }
 }
 
-pub(super) fn feedback_messages_for_param(
-    snapshot: &ProcessTreeSnapshot,
-    param: NodeId,
-    old_value: ParamValue,
-) -> Option<Vec<MidiMessage>> {
-    let param_snapshot = snapshot.node(param)?;
-    let parent_id = param_snapshot.parent?;
-    let parent = snapshot.node(parent_id)?;
-
-    if parent.decl_id.as_str() == NOTES_FOLDER_DECL_ID {
-        return feedback_messages_for_note_param(snapshot, param_snapshot);
-    }
-
-    if parent.decl_id.as_str() == CONTROL_CHANGE_FOLDER_DECL_ID {
-        return feedback_messages_for_cc_param(snapshot, param_snapshot, old_value);
-    }
-
-    if parent.decl_id.as_str() == POLY_PRESSURE_FOLDER_DECL_ID {
-        let channel = channel_for_descendant(snapshot, parent_id)?;
-        let note = note_from_decl_id(param_snapshot.decl_id.as_str())?;
-        let pressure = param_snapshot.param_value.as_ref()?.as_int().map(clamp_i32_to_u7)?;
-        return Some(vec![MidiMessage::PolyPressure {
-            channel,
-            note,
-            pressure,
-        }]);
-    }
-
-    let channel = channel_for_descendant(snapshot, param)?;
-    match param_snapshot.decl_id.as_str() {
-        PROGRAM_DECL_ID => Some(vec![MidiMessage::ProgramChange {
-            channel,
-            program: param_snapshot.param_value.as_ref()?.as_int().map(clamp_i32_to_u7)?,
-        }]),
-        CHANNEL_PRESSURE_DECL_ID => Some(vec![MidiMessage::ChannelPressure {
-            channel,
-            pressure: param_snapshot.param_value.as_ref()?.as_int().map(clamp_i32_to_u7)?,
-        }]),
-        PITCH_BEND_DECL_ID => Some(vec![MidiMessage::PitchBend {
-            channel,
-            value: param_snapshot
-                .param_value
-                .as_ref()?
-                .as_int()
-                .map(clamp_i32_to_u14)
-                .unwrap_or(MIDI_PITCH_BEND_CENTER),
-        }]),
-        _ => feedback_messages_for_system_param(param_snapshot),
-    }
-}
-
-pub(super) fn feedback_messages_for_note_param(
-    snapshot: &ProcessTreeSnapshot,
-    param: &golden_core::process_ctx::ProcessTreeNodeSnapshot,
-) -> Option<Vec<MidiMessage>> {
-    let channel = channel_for_descendant(snapshot, param.id)?;
-    let note = note_from_decl_id(param.decl_id.as_str())?;
-    let velocity = param.param_value.as_ref()?.as_int().map(clamp_i32_to_u7)?;
-
-    Some(vec![if velocity == 0 {
-        MidiMessage::NoteOff {
-            channel,
-            note,
-            velocity: 0,
-        }
-    } else {
-        MidiMessage::NoteOn {
-            channel,
-            note,
-            velocity,
-        }
-    }])
-}
-
-pub(super) fn feedback_messages_for_cc_param(
-    snapshot: &ProcessTreeSnapshot,
-    param: &golden_core::process_ctx::ProcessTreeNodeSnapshot,
-    old_value: ParamValue,
-) -> Option<Vec<MidiMessage>> {
-    let channel = channel_for_descendant(snapshot, param.id)?;
-    let controller = cc_from_decl_id(param.decl_id.as_str())?;
-    let value = param.param_value.as_ref()?.as_int().unwrap_or(0);
-    let config = midi_cc_config(snapshot, param.id);
-    let channel_14_bit = midi_cc_channel_is_14_bit(snapshot, param.id, channel);
-
-    if config.rotary_mechanism != ROTARY_ABSOLUTE {
-        let old = old_value.as_int().unwrap_or(value);
-        let delta = value.saturating_sub(old);
-        let raw_delta = encode_rotary_delta(config.rotary_mechanism, delta)?;
-        return Some(vec![MidiMessage::ControlChange {
-            channel,
-            controller,
-            value: raw_delta,
-        }]);
-    }
-
-    if channel_14_bit && cc_supports_14_bit(controller) {
-        return Some(encode_14_bit_control_change(
-            channel,
-            controller,
-            clamp_i32_to_u14(value),
-        ));
-    }
-
-    if channel_14_bit && (32..=63).contains(&controller) {
-        return None;
-    }
-
-    Some(vec![MidiMessage::ControlChange {
-        channel,
-        controller,
-        value: clamp_i32_to_u7(value),
-    }])
-}
-
-pub(super) fn feedback_messages_for_system_param(
-    param: &golden_core::process_ctx::ProcessTreeNodeSnapshot,
-) -> Option<Vec<MidiMessage>> {
-    let system = match param.decl_id.as_str() {
-        TIME_CODE_QUARTER_FRAME_DECL_ID => MidiSystemMessage::TimeCodeQuarterFrame {
-            value: param.param_value.as_ref()?.as_int().map(clamp_i32_to_u7)?,
-        },
-        SONG_POSITION_DECL_ID => MidiSystemMessage::SongPosition {
-            position: param.param_value.as_ref()?.as_int().map(clamp_i32_to_u14)?,
-        },
-        SONG_SELECT_DECL_ID => MidiSystemMessage::SongSelect {
-            song: param.param_value.as_ref()?.as_int().map(clamp_i32_to_u7)?,
-        },
-        TUNE_REQUEST_DECL_ID => MidiSystemMessage::TuneRequest,
-        TIMING_CLOCK_DECL_ID => MidiSystemMessage::TimingClock,
-        START_DECL_ID => MidiSystemMessage::Start,
-        CONTINUE_DECL_ID => MidiSystemMessage::Continue,
-        STOP_DECL_ID => MidiSystemMessage::Stop,
-        ACTIVE_SENSING_DECL_ID => MidiSystemMessage::ActiveSensing,
-        RESET_DECL_ID => MidiSystemMessage::Reset,
-        _ => return None,
-    };
-    Some(vec![MidiMessage::System(system)])
-}
-
 pub(super) fn create_folder(label: &str, decl_id: &str) -> Folder {
     let mut folder = Folder::new(label);
     apply_midi_value_identity(folder.node_data_mut(), decl_id);
@@ -235,16 +95,20 @@ pub(super) fn sync_int_parameter_constraints(
     snapshot: &ProcessTreeSnapshot,
     node_id: NodeId,
     range: Option<(i32, i32)>,
+    source: NodeId,
 ) {
     let expected = int_parameter_constraints(range);
     if snapshot.node(node_id).and_then(|node| node.param_constraints.as_ref()) == Some(&expected) {
         return;
     }
 
-    ctx.edits.push(Edit::SetParamConstraints {
-        node: node_id,
-        constraints: expected,
-    });
+    ctx.edits.push_from(
+        source,
+        Edit::SetParamConstraints {
+            node: node_id,
+            constraints: expected,
+        },
+    );
 }
 
 pub(super) fn lock_midi_value_node(ctx: &mut ProcessCtx, node_id: NodeId) {
@@ -260,18 +124,6 @@ pub(super) fn lock_midi_value_node(ctx: &mut ProcessCtx, node_id: NodeId) {
 pub(super) fn apply_node_identity(node_data: &mut golden_core::node::NodeData, decl_id: &str) {
     node_data.meta.decl_id = DeclId(decl_id.to_string());
     node_data.meta.short_name = decl_id.to_string();
-}
-
-pub(super) fn channel_for_descendant(snapshot: &ProcessTreeSnapshot, node_id: NodeId) -> Option<u8> {
-    let mut current = Some(node_id);
-    while let Some(current_id) = current {
-        let node = snapshot.node(current_id)?;
-        if let Some(channel) = node.decl_id.strip_prefix("channel_") {
-            return channel.parse::<u8>().ok().filter(|value| (1..=16).contains(value));
-        }
-        current = node.parent;
-    }
-    None
 }
 
 pub(super) fn note_from_decl_id(decl_id: &str) -> Option<u8> {
@@ -378,47 +230,6 @@ pub(super) fn normalize_rotary_mechanism(mechanism: &str) -> Option<&'static str
         ROTARY_SIGN_MAGNITUDE => Some(ROTARY_SIGN_MAGNITUDE),
         _ => None,
     }
-}
-
-pub(super) fn is_descendant_of(snapshot: &ProcessTreeSnapshot, start: NodeId, ancestor: NodeId) -> bool {
-    let mut current = Some(start);
-    while let Some(node_id) = current {
-        if node_id == ancestor {
-            return true;
-        }
-        current = snapshot.node(node_id).and_then(|node| node.parent);
-    }
-    false
-}
-
-pub(super) fn enclosing_midi_module(snapshot: &ProcessTreeSnapshot, start: NodeId) -> Option<NodeId> {
-    let mut current = Some(start);
-    while let Some(node_id) = current {
-        let node = snapshot.node(node_id)?;
-        if node.node_type == MidiModule::NODE_TYPE {
-            return Some(node_id);
-        }
-        current = node.parent;
-    }
-    None
-}
-
-pub(super) fn midi_cc_channel_is_14_bit(snapshot: &ProcessTreeSnapshot, start: NodeId, channel: u8) -> bool {
-    let Some(module_id) = enclosing_midi_module(snapshot, start) else {
-        return false;
-    };
-    let Some(parameters_id) = snapshot.find_child_by_decl_id(module_id, "parameters") else {
-        return false;
-    };
-    let Some(folder_id) = snapshot.find_child_by_decl_id(parameters_id, FOURTEEN_BIT_CHANNELS_FOLDER_DECL_ID) else {
-        return false;
-    };
-    snapshot
-        .find_child_by_decl_id(folder_id, channel_decl_id(channel).as_str())
-        .and_then(|param_id| snapshot.node(param_id))
-        .and_then(|node| node.param_value.as_ref())
-        .and_then(ParamValue::as_bool)
-        .unwrap_or(false)
 }
 
 pub(super) fn merge_apply_results(current: MidiApplyResult, next: MidiApplyResult) -> MidiApplyResult {

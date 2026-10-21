@@ -448,9 +448,10 @@ impl<T: Node> Engine<T> {
                     param,
                     old_value,
                     new_value,
+                    source: None,
                 });
             } else {
-                staging.apply_set_param(0, param, value)?;
+                staging.apply_set_param(0, param, value, None)?;
             }
             // Earlier initializer values may reveal declared conditional children
             // needed by later initializers. Staging runs no app lifecycle callbacks.

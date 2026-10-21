@@ -3,7 +3,6 @@ use super::*;
 use crate::app::module::script_api::CallbackDelivery;
 use golden_core::edit::{EditCompletion, EditCompletionStatus, EditQueue};
 use golden_io::RetainedPayload;
-use std::collections::HashMap;
 
 mod graph;
 mod plan;
@@ -26,6 +25,7 @@ pub(super) struct InputDelivery {
     values_done: bool,
     callbacks: Vec<CallbackDelivery>,
     mode: Mode,
+    module: NodeId,
 }
 impl InputDelivery {
     fn new(input: RetainedPayload<PreparedInput>, writes: Vec<Write>, module: NodeId, mode: Mode) -> Self {
@@ -42,6 +42,7 @@ impl InputDelivery {
             values_done: false,
             callbacks,
             mode,
+            module,
         }
     }
     pub(super) fn requires_snapshot(&self) -> bool {
@@ -61,7 +62,6 @@ impl InputDelivery {
         snapshot: Option<&ProcessTreeSnapshot>,
         root: Option<NodeId>,
         mode: Mode,
-        ignored: &mut HashMap<NodeId, usize>,
     ) -> bool {
         if let Some(receipt) = self.receipt.take() {
             match receipt.status() {
@@ -91,7 +91,7 @@ impl InputDelivery {
                 if units >= 16 || units != 0 && bytes + weight > 64 * 1024 {
                     break;
                 }
-                match write.apply(ctx, snapshot, root, &self.input, self.mode.auto_add) {
+                match write.apply(ctx, snapshot, root, &self.input, self.mode.auto_add, self.module) {
                     Ok(graph::Progress::Done) => self.next += 1,
                     Ok(graph::Progress::Pending) => break,
                     Err(error) => {
@@ -105,11 +105,6 @@ impl InputDelivery {
             }
             let mut owned = std::mem::replace(&mut ctx.edits, parent);
             if !owned.pending.is_empty() {
-                for queued in &owned.pending {
-                    if let Edit::SetParam { node, .. } = &queued.edit {
-                        *ignored.entry(*node).or_default() += 1;
-                    }
-                }
                 self.receipt = Some(owned.completion());
                 ctx.edits.pending.extend(owned.drain());
                 return false;

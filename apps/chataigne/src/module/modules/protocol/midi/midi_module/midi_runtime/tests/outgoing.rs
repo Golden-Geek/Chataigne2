@@ -3,6 +3,8 @@ use super::*;
 use crate::app::{MidiSendPacket, MidiSendRequest};
 use golden_core::node::Folder;
 
+mod feedback;
+
 fn packet(bytes: &[u8], delay_ms: u64) -> MidiSendPacket {
     MidiSendPacket {
         bytes: bytes.to_vec(),

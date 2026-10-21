@@ -185,6 +185,10 @@ pub enum EventKind {
         old_value: ParamValue,
         /// Value after the change.
         new_value: ParamValue,
+        /// Runtime producer of this particular change. Never accepted from wire data
+        /// or persisted into history; undo/redo represents a new authored change.
+        #[serde(skip)]
+        source: Option<NodeId>,
     },
     /// A parameter control state was changed.
     ParamControlChanged {

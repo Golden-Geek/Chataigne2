@@ -89,7 +89,7 @@ impl<T: Node> Engine<T> {
                             message: format!("prepared parameter '{}' disappeared during init", decl_id.0),
                         }
                     })?;
-                    self.apply_set_param(0, param, value.clone())?;
+                    self.apply_set_param(0, param, value.clone(), None)?;
                     self.stabilize_added_node_structure(event_cursor, None)?;
                 }
             }

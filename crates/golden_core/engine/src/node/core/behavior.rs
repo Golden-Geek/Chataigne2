@@ -923,6 +923,9 @@ pub trait Node: Send + Any {
         super::inbox::dispatch_inbox(self, ctx);
     }
 
+    /// The standard inbox dispatcher exposes this change's captured value and
+    /// runtime producer through `ctx.current_event()`. A tree snapshot instead
+    /// contains the latest value after all edits in the batch.
     fn on_param_change(&mut self, _ctx: &mut ProcessCtx, _param: NodeId, _old_value: ParamValue) {}
     fn on_param_control_changed(
         &mut self,

@@ -251,12 +251,6 @@ impl MidiModule {
                         let Edit::SetParam { node, value, .. } = queued.edit else {
                             unreachable!("MIDI clock direct writes")
                         };
-                        if let Some(count) = self.ignored_param_changes.get_mut(&node) {
-                            *count -= 1;
-                            if *count == 0 {
-                                self.ignored_param_changes.remove(&node);
-                            }
-                        }
                         writes.push(Write::direct(node, value));
                     }
                     if result == MidiApplyResult::Retry {

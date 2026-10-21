@@ -10,10 +10,7 @@ use golden_core::{
 
 use crate::app::AppNode;
 
-use super::super::{
-    StateProcessor, StateProcessorFolder, StateProcessorManagedRegion,
-    StateProcessorManager,
-};
+use super::super::{StateProcessor, StateProcessorFolder, StateProcessorManagedRegion, StateProcessorManager};
 
 #[test]
 fn condition_valid_cache_finds_the_real_processor_child() {
@@ -33,7 +30,11 @@ fn condition_valid_cache_finds_the_real_processor_child() {
         .child_ids_slice(processor)
         .iter()
         .copied()
-        .find(|child| snapshot.node(*child).is_some_and(|node| node.node_type == "sm_condition_manager"))
+        .find(|child| {
+            snapshot
+                .node(*child)
+                .is_some_and(|node| node.node_type == "sm_condition_manager")
+        })
         .expect("processor should contain a condition manager");
     let valid = snapshot
         .find_child_by_decl_id(condition_manager, "valid")
@@ -59,6 +60,7 @@ fn condition_valid_updates_skip_surface_snapshot_but_other_edits_do_not() {
         Arc::new(Event {
             time,
             kind: EventKind::ParamChanged {
+                source: None,
                 param,
                 old_value: ParamValue::Bool(false),
                 new_value: ParamValue::Bool(true),
@@ -71,14 +73,16 @@ fn condition_valid_updates_skip_surface_snapshot_but_other_edits_do_not() {
     ));
     assert!(!processor.inbox_requires_tree_snapshot(&EventFrame::from_shared(vec![changed(valid), custom])));
     assert!(processor.inbox_requires_tree_snapshot(&EventFrame::from_shared(vec![changed(NodeId(43))])));
-    assert!(processor.inbox_requires_tree_snapshot(&EventFrame::from_shared(vec![Arc::new(Event {
-        time,
-        kind: EventKind::ChildAdded {
-            parent: processor.id(),
-            child: NodeId(44),
-            decl_id: DeclId("surface".to_owned()),
-        },
-    })])));
+    assert!(
+        processor.inbox_requires_tree_snapshot(&EventFrame::from_shared(vec![Arc::new(Event {
+            time,
+            kind: EventKind::ChildAdded {
+                parent: processor.id(),
+                child: NodeId(44),
+                decl_id: DeclId("surface".to_owned()),
+            },
+        })]))
+    );
 }
 
 #[test]
@@ -96,6 +100,7 @@ fn filter_validation_requests_snapshots_only_for_watched_dependencies() {
         EventFrame::from_shared(vec![Arc::new(Event {
             time,
             kind: EventKind::ParamChanged {
+                source: None,
                 param,
                 old_value: ParamValue::Float(1.0),
                 new_value: ParamValue::Float(2.0),
@@ -105,25 +110,25 @@ fn filter_validation_requests_snapshots_only_for_watched_dependencies() {
 
     assert!(!region.inbox_requires_tree_snapshot(&changed(unrelated)));
     assert!(region.inbox_requires_tree_snapshot(&changed(relevant)));
-    assert!(region.inbox_requires_tree_snapshot(&EventFrame::from_shared(vec![Arc::new(
-        Event {
+    assert!(
+        region.inbox_requires_tree_snapshot(&EventFrame::from_shared(vec![Arc::new(Event {
             time,
             kind: EventKind::MetaChanged {
                 node: relevant,
                 patch: Default::default(),
             },
-        },
-    )])));
-    assert!(region.inbox_requires_tree_snapshot(&EventFrame::from_shared(vec![Arc::new(
-        Event {
+        },)]))
+    );
+    assert!(
+        region.inbox_requires_tree_snapshot(&EventFrame::from_shared(vec![Arc::new(Event {
             time,
             kind: EventKind::ChildAdded {
                 parent: relevant,
                 child: NodeId(44),
                 decl_id: DeclId("config".to_owned()),
             },
-        },
-    )])));
+        },)]))
+    );
 }
 
 #[test]
@@ -138,6 +143,7 @@ fn processor_palette_manager_requests_snapshot_only_for_structural_events() {
     let changed = Arc::new(Event {
         time,
         kind: EventKind::ParamChanged {
+            source: None,
             param: NodeId(42),
             old_value: ParamValue::Float(1.0),
             new_value: ParamValue::Float(2.0),

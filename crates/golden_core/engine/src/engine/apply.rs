@@ -233,7 +233,7 @@ impl<T: Node> Engine<T> {
                             }
                         }
                         Edit::SetParam { node, value, behaviour } => {
-                            match self.apply_set_param(edit_index, node, value)? {
+                            match self.apply_set_param(edit_index, node, value, request.param_source)? {
                                 Some(mut effect) => {
                                     if matches!(effect.old_value, ParamValue::Reference(_))
                                         || matches!(effect.new_value, ParamValue::Reference(_))
@@ -265,7 +265,8 @@ impl<T: Node> Engine<T> {
                         }
                         Edit::SetParamConstraints { node, constraints } => {
                             missing_reference_warning_dirty = true;
-                            let effect = self.apply_set_param_constraints(edit_index, node, constraints)?;
+                            let effect =
+                                self.apply_set_param_constraints(edit_index, node, constraints, request.param_source)?;
                             let should_clear_redo = effect.is_some();
                             (Ok(effect.map(Into::into)), should_clear_redo)
                         }

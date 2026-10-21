@@ -24,16 +24,19 @@ fn loaded_node_patches_wait_for_their_materializing_transaction() {
         param: engine.root,
         old_value: ParamValue::Int(0),
         new_value: ParamValue::Int(1),
+        source: None,
     });
     engine.emit_event(EventKind::ParamChanged {
         param: inserted,
         old_value: ParamValue::Int(0),
         new_value: ParamValue::Int(2),
+        source: None,
     });
     engine.emit_event(EventKind::ParamChanged {
         param: inserted,
         old_value: ParamValue::Trigger(),
         new_value: ParamValue::Trigger(),
+        source: None,
     });
 
     let deferred = engine.squash_pre_materialization_ui_events(&HashSet::from([inserted]));

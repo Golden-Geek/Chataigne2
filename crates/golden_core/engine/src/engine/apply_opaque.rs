@@ -395,7 +395,7 @@ impl<T: Node> Engine<T> {
         self.clear_tick_tree_snapshot();
         self.mark_schedule_dirty();
         if let (Some(old), Some(new)) = (old, self.nodes.get(node).and_then(Node::engine_param_snapshot)) {
-            self.emit_param_events_for_state_change(node, &old.value, &new.value);
+            self.emit_param_events_for_state_change(node, &old.value, &new.value, None);
             self.emit_param_constraints_event(node, old.constraints, new.constraints);
         }
         let changes = self.subtree_effective_enabled_changes(node);

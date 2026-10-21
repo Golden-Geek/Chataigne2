@@ -6,7 +6,7 @@ impl<T: Node> HistoryStep<T> {
         match self {
             Self::AuthoredNode(step) => engine.restore_authored_node_state(step.node, &step.old)?,
             Self::SetParam(step) => {
-                let _ = engine.apply_set_param(0, step.node, step.old_value.clone())?;
+                let _ = engine.apply_set_param(0, step.node, step.old_value.clone(), None)?;
             }
             Self::SetParamControlState(step) => {
                 engine.apply_set_param_control_state_for_history(
@@ -101,7 +101,7 @@ impl<T: Node> HistoryStep<T> {
         match self {
             Self::AuthoredNode(step) => engine.restore_authored_node_state(step.node, &step.new)?,
             Self::SetParam(step) => {
-                let _ = engine.apply_set_param(0, step.node, step.new_value.clone())?;
+                let _ = engine.apply_set_param(0, step.node, step.new_value.clone(), None)?;
             }
             Self::SetParamControlState(step) => {
                 engine.apply_set_param_control_state_for_history(

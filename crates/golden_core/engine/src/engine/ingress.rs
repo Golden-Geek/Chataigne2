@@ -6,10 +6,18 @@ impl<T: Node> Engine<T> {
         let mut validated = Vec::with_capacity(requests.len());
         let mut presentations = HashMap::new();
         for (index, request) in requests.into_iter().enumerate() {
-            let EditRequest { edit, completions } = request;
+            let EditRequest {
+                edit,
+                completions,
+                param_source,
+            } = request;
             let observed = !completions.is_empty();
             if let Some(edit) = self.validate_ingress_edit(index, edit, &mut presentations, observed)? {
-                validated.push(EditRequest { edit, completions });
+                validated.push(EditRequest {
+                    edit,
+                    completions,
+                    param_source,
+                });
             } else {
                 debug_assert!(!observed, "observed no-ops must settle at application");
             }

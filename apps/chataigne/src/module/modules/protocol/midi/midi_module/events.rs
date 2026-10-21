@@ -8,11 +8,8 @@ impl MidiModule {
         param: NodeId,
         old_value: ParamValue,
     ) {
-        if let Some(count) = self.ignored_param_changes.get_mut(&param) {
-            *count -= 1;
-            if *count == 0 {
-                self.ignored_param_changes.remove(&param);
-            }
+        if matches!(ctx.current_event().map(|event| &event.kind), Some(golden_core::events::EventKind::ParamChanged {source: Some(source), ..}) if *source == self.id())
+        {
             return;
         }
 

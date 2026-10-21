@@ -84,7 +84,7 @@ the remaining package criteria, rather than using accumulated batch numbers as p
 | --- | ----------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | C01 | OPEN              | Sound Card                       | Finish bounded preparation/application/publication, derived structure/default routes, feedback, command diagnostics and native failure/reconfiguration fences.      |
 | C02 | **CLOSED (100%)** | Signals and Metronomes           | Verified: bounded command/configuration bytes, 64-row publication turns, elapsed-time/occurrence preservation, nonblocking retirement and passive failure/recovery. |
-| C03 | IN PROGRESS       | MIDI and OSC                     | OSC locally qualified. MIDI native, outgoing and input graph/callback ownership delivered; feedback, catalogs and passive module service remain open.               |
+| C03 | IN PROGRESS       | MIDI and OSC                     | OSC locally qualified. MIDI native, outgoing, input and feedback ownership delivered; authored CC structure, catalogs and passive module service remain open.       |
 | C04 | OPEN              | MQTT                             | Bound channels/payloads and service, preserve accepted delivery, retire workers safely and verify reconnect/failure behavior.                                       |
 | C05 | OPEN              | DMX                              | Close P03 lifecycle/admission/retirement/recovery requirements; DMX stream correctness remains separately P07.                                                      |
 | C06 | OPEN              | App Control and OS               | Close worker/service/cleanup bounds, failure ownership and recovery without recurring main-thread polling or blocking joins.                                        |
@@ -109,31 +109,30 @@ or completion credit. Snapshot/DTO scaling remains an explicit P16 investigation
 
 ## Current handoff
 
-- Current delivery: **C03 MIDI input preparation and graph/callback completion**, following
-  outgoing ownership at `17348c6a`. The native input worker prepares canonical message/hex/callback
-  storage. A graph cursor advances domain state once, waits for each edit segment, and never
-  replays an applied prefix. Generic and specific callback receipts settle independently.
+- Current delivery: **C03 MIDI feedback provenance and captured event values**, following
+  input graph/callback ownership at `9eeb154f`. Golden attributes direct parameter/constraint
+  changes to their runtime producer and exposes the exact event during standard callbacks.
+  MIDI suppresses its own received writes without an ignore-next-change map and uses each
+  event's value for note, relative CC, 14-bit CC and clock/system feedback.
   **C03 is not closed.** Counts remain **11 open / one closed**, **16% overall / 80% P03**;
-  Sound Card remains **50% partial**. MIDI feedback accounting, prepared catalogs and passive
-  clock/MTC/recovery scheduling remain open. Package closure, not supporting commit count,
-  remains the audit progress denominator.
-- Checkout reconciled at delivered `17348c6a`, matching fetched `origin/main`, before this milestone.
+  Sound Card remains **50% partial**. MIDI authored CC structure, prepared catalogs and passive
+  clock/MTC/recovery scheduling remain open. Supporting commits do not change the denominator.
+- Checkout reconciled at delivered `9eeb154f`, matching fetched `origin/main`, before this milestone.
   `d3a45301` removed automatic effort-switching rules; older effort notes are historical.
-- Current local checks are recorded in the C03 entry below. The OSC milestone's engine suite
-  retains **578 passed / three existing ignored**. The older aggregate of 590 Core passes and the
-  25 parameter tests retain batch 56's date; these differently scoped counts are not additive.
-  IO retains C02's
-  52-test evidence. UI/macro/codegen-support retain batch 55 evidence. No full Formula pass is
-  claimed: its three existing creation failures remain P08/P12 gates.
-- C03 current evidence: **70 MIDI cases and 664 other app preservation cases passed**, or
-  **734 distinct app tests of 1157 listed**. Workspace/test check, strict all-target Clippy,
-  native build and protocol generation results are recorded in the current evidence entry. Core/foundation/IO/UI suites above
-  retain their stated dates; they are not claimed as fresh MIDI tests.
+- Current Core evidence: **586 passed / three existing ignored** across all 589 `golden_engine`
+  library tests, including eight new provenance cases. This supersedes the OSC milestone's
+  differently scoped 578-pass engine evidence. The older aggregate of 590 Core passes and the
+  25 parameter tests retain batch 56's date and are not additive. IO retains C02's 52-case
+  evidence; UI/macro/codegen-support retain their stated dates. No full Formula pass is claimed:
+  its three existing creation failures remain P08/P12 gates.
+- C03 current app evidence: **79 MIDI cases**, the preserved **664 other app cases**, and **49
+  additional Formula/state-machine event preservation cases** passed, or **792 distinct app tests
+  of 1166 listed**. Workspace/test compilation and strict all-target Clippy passed; native build,
+  protocol generation and final formatting results are recorded in the current evidence entry.
 - Scope: **foundation and readiness**. P01/P02 are verified locally, P03 remains in progress,
   P04-P18 have not started. Full lighting/video/projection authoring remains deferred.
-- Next action: **finish the remaining MIDI acceptance within C03**: authored feedback occurrence
-  accounting and CC structure work, prepared catalog lifetimes, and passive clock/MTC/recovery
-  deadlines. Reuse
+- Next action: **finish the remaining MIDI acceptance within C03**: bounded authored CC structure
+  work, prepared catalog lifetimes, and passive clock/MTC/recovery deadlines. Reuse
   existing public IO and app preparation contracts. Keep C01 and C04-C12 explicit; do not count
   OSC qualification as C03 closure while MIDI remains open. Preserve generator, stream/HTTP, audio
   and Mapping gates. General Core copy/scaling work remains P16 without a concrete P03 failure.
@@ -5277,3 +5276,77 @@ checks are terminal.
 Commit and push this verified milestone, then finish MIDI feedback/CC authored structure,
 catalog lifetime and passive service inside C03. Keep the remaining eleven packages explicit;
 this input ownership milestone does not close C03 or advance its package-closure score.
+
+### P03 C03: MIDI feedback provenance and captured event values
+
+Implemented after `9eeb154f` on 2026-10-21. The previous per-parameter suppression count could
+consume a later authored change after an unchanged received write or a rejected graph suffix.
+Feedback also read the final snapshot value for every event, so appended values and relative CC
+deltas could be repeated or misreported. These concrete occurrence failures justify the narrow
+Golden event contract below; this is not a generic snapshot/copy optimization prerequisite.
+**C03 remains open for authored CC structure, catalog lifetime and passive clock/MTC/recovery
+service. Counts remain 11 open / one closed, P03 80%, whole plan 16%.**
+
+`golden_engine` now owns per-request parameter provenance through `EditQueue::push_from`,
+`EditRequest::with_param_source` and `ProcessCtx::set_param_from`. Direct `SetParam` and
+`SetParamConstraints` changes carry the selected runtime producer in `EventKind::ParamChanged`.
+Ingress preserves it, coalescing replaces it with the retained request, and failed/no-op writes
+leave no future suppression state. Standard node inbox dispatch scopes `ProcessCtx::current_event`
+to the actual event without copying its payload. Lifecycle follow-up edits do not inherit a
+request's provenance. History replay has no original runtime producer. This metadata is skipped
+by event serialization and excluded from UI DTOs; it is not an authorization mechanism.
+
+MIDI received values, transport state and CC conversion/clamping use the module's producer ID.
+The ignore-next-change map and its retry/cleanup bookkeeping are removed. App-owned `feedback`
+uses the captured old/new values, bounded fixed MIDI paths and typed scalar matching. It retains
+individual note values, relative deltas, complete 14-bit pairs and clock/system trigger
+occurrences even when the tree snapshot already contains the last batch value. Static clock
+IDs are resolved using the DSL's scoped leaf declaration. String-to-number parsing and arbitrary
+ancestor walks are removed from feedback resolution. Native feedback keeps the existing 8 KiB
+reservation and complete-batch admission/service contract.
+
+Rust consumers and manually constructed Formula/state-machine test events now handle the
+runtime-only event field. Existing touched app fixtures were formatted consistently; their
+snapshot/value behavior is preserved. No dependency, persisted format or UI protocol declaration
+changed. Architecture contracts explain Core ownership and app feedback policy in the same change.
+
+Verification on the Windows/MSVC checkout:
+
+| Check                                             | Result                                                                                                                 |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| MIDI selection, four threads                      | **79 passed**: 70 preserved and nine new fake-output feedback cases.                                                   |
+| Full Golden engine library suite                  | **586 passed / three existing ignored**, including eight new provenance cases; 589 listed.                             |
+| Disjoint app preservation selections              | **792 distinct passes of 1166 listed**: 79 MIDI + 664 existing preservation + 49 newly exercised event-consumer cases. |
+| Workspace/test compilation                        | Passed `cargo check --locked --workspace --tests`.                                                                     |
+| Strict workspace Clippy                           | Passed `cargo clippy --locked --workspace --all-targets -- -D warnings`.                                               |
+| Native app build                                  | Passed `cargo build --locked -p Chataigne2 --bin Chataigne2`.                                                          |
+| UI protocol generation                            | Passed `npm run codegen:golden-ui-protocol --workspace chataigne-ui`; generated bindings unchanged.                    |
+| Root/Core and touched app format; docs/whitespace | Passed; maintained docs and whitespace checks passed.                                                                  |
+
+Core tests exercise unchanged writes, multiple sources/values, coalesced receipt rejection,
+applied-prefix failure, constraint clamping, serialization/source stripping, callback scope and
+undo/redo callback provenance. The first undo test incorrectly inspected an inbox already consumed
+by history replay; its corrected observer verifies actual callbacks, and the full suite passes.
+Fake MIDI output covers unchanged received writes followed by user edits, mixed received/authored
+values, rejected suffixes, separate relative deltas and 14-bit pairs, repeated clock triggers,
+other runtime producers, attributed clamping and 14-to-7-bit conversion suppression. The initial
+clock feedback test exposed scoped DSL IDs; the resolver was repaired and all 79 MIDI cases pass.
+
+App test executable: `target/debug/deps/Chataigne2-b14ffd1b9e52f9ac.exe`, SHA256
+`6d17c9e0bc6aae9e5fbfadec4448a93495a8e64ce18dff3c1aa6c68148926006`.
+Core test executable: `target/debug/deps/golden_engine-acb0109b8761871d.exe`, SHA256
+`5ab78d3f4d4c8298404d8c6769f61c9ba8b2e8ab1e2e2bae07603ec8c24146df`.
+App selections ran from `apps/chataigne`. They include the existing 664-case preservation scope
+plus Formula snapshot/value tests (four), managed-node tests (22), processor snapshot gates
+(four), state-machine command dispatch (13) and state-machine snapshot gates (six).
+
+The maintained source-policy scan counts **1681 sources / 37 oversized**. This change touches
+41 Rust sources, including the narrow consumer/fixture field updates; its three new files are
+focused runtime/test modules. The pre-existing centralized engine/macro and app test files retain
+P12's open readability gate; no oversized-file cleanup credit is claimed. No physical endpoint
+was connected and no desktop automation was used. Broader Formula, device/platform and
+product-scale qualifications remain open at their owning tasks. All owned checks are terminal.
+
+Commit and push this verified milestone before continuing bounded MIDI CC authored structure,
+prepared catalog lifetime and passive service. Feedback occurrence repair does not close C03 or
+advance the remaining-package score on its own.

@@ -123,7 +123,7 @@ impl MidiModule {
         let range = self.cc_parameter_range(snapshot, update.channel, update.controller);
         match update.existing_id {
             Some(node_id) if snapshot.node(node_id).is_some_and(|node| node.node_type == "int") => {
-                sync_int_parameter_constraints(ctx, snapshot, node_id, range);
+                sync_int_parameter_constraints(ctx, snapshot, node_id, range, self.id());
                 self.ensure_cc_rotary_mode_parameter(ctx, snapshot, node_id);
                 self.set_internal_param(ctx, node_id, ParamValue::Int(update.value));
             }
@@ -290,7 +290,6 @@ impl MidiModule {
     }
 
     pub(super) fn set_internal_param(&mut self, ctx: &mut ProcessCtx, param_id: NodeId, value: ParamValue) {
-        *self.ignored_param_changes.entry(param_id).or_default() += 1;
-        ctx.set_param_with_behaviour(param_id, value, ParameterEventBehaviour::Append);
+        ctx.set_param_from(self.id(), param_id, value, ParameterEventBehaviour::Append);
     }
 }

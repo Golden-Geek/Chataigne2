@@ -64,6 +64,7 @@ pub(super) fn dispatch_inbox<N: Node + ?Sized>(node: &mut N, ctx: &mut ProcessCt
     }
 
     for index in 0..ctx.events.len() {
+        let previous_event = ctx.swap_current_event(Some(index));
         let event = match &ctx.events[index].kind {
             EventKind::ParamChanged { param, old_value, .. } => InboxDispatchEvent::ParamChanged {
                 param: *param,
@@ -188,5 +189,6 @@ pub(super) fn dispatch_inbox<N: Node + ?Sized>(node: &mut N, ctx: &mut ProcessCt
                 node.on_custom_event(ctx, event);
             }
         }
+        ctx.swap_current_event(previous_event);
     }
 }

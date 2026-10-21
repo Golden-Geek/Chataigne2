@@ -15,6 +15,7 @@ mod local_events;
 mod node_wakes;
 mod opaque_edits;
 mod param_constraints;
+mod param_provenance;
 mod parameter_cache_recovery;
 mod parameter_value_store;
 mod prepared_runtime_snapshot;

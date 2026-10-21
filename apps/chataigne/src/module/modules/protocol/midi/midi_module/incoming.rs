@@ -11,7 +11,7 @@ impl MidiModule {
         // Callback receipts keep their own canonical leases, but do not stall
         // subsequent clock pulses after this message's graph writes settle.
         self.incoming_callbacks
-            .retain_mut(|delivery| !delivery.service(ctx, None, root, mode, &mut self.ignored_param_changes));
+            .retain_mut(|delivery| !delivery.service(ctx, None, root, mode));
         for _ in 0..2 {
             if self.incoming.is_none() {
                 if self.incoming_callbacks.len() >= 16 {
@@ -27,14 +27,12 @@ impl MidiModule {
                 self.incoming = Some(self.prepare_delivery(ctx, snapshot, input));
             }
             let delivery = self.incoming.as_mut().expect("current delivery");
-            let complete = delivery.service(ctx, snapshot, root, mode, &mut self.ignored_param_changes);
+            let complete = delivery.service(ctx, snapshot, root, mode);
             if complete {
                 self.incoming = None;
-                self.ignored_param_changes.clear();
             } else if delivery.graph_done() {
                 self.incoming_callbacks
                     .push_back(self.incoming.take().expect("settled graph"));
-                self.ignored_param_changes.clear();
             } else {
                 break;
             }

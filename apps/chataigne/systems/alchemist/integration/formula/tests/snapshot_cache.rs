@@ -5,12 +5,16 @@ use golden_core::{
     events::{Event, EventFrame, EventKind},
 };
 
-use super::super::{ANodeMaterializationCache, formula_from_snapshot_cached};
+use super::super::{formula_from_snapshot_cached, ANodeMaterializationCache};
 use super::*;
 
 fn frame(kind: EventKind) -> EventFrame {
     EventFrame::from_shared(vec![Arc::new(Event {
-        time: EngineTime { tick: 1, micro: 0, seq: 0 },
+        time: EngineTime {
+            tick: 1,
+            micro: 0,
+            seq: 0,
+        },
         kind,
     })])
 }
@@ -23,8 +27,8 @@ fn cached_anodes_rebuild_only_dirty_roots_and_retain_layout_invalidation() {
     let mut cache = ANodeMaterializationCache::default();
 
     let snapshot = engine.process_tree_snapshot();
-    let initial = formula_from_snapshot_cached(&snapshot, formula, &mut cache)
-        .expect("initial Formula should materialize");
+    let initial =
+        formula_from_snapshot_cached(&snapshot, formula, &mut cache).expect("initial Formula should materialize");
     assert_eq!(initial, formula_from_snapshot(&snapshot, formula).unwrap());
     let prior_changed = Arc::clone(cache.cached_instance(changed).unwrap());
     let prior_retained = Arc::clone(cache.cached_instance(retained).unwrap());
@@ -37,13 +41,14 @@ fn cached_anodes_rebuild_only_dirty_roots_and_retain_layout_invalidation() {
         &snapshot,
         formula,
         &frame(EventKind::ParamChanged {
+            source: None,
             param: value_type,
             old_value: ParamValue::Enum("float".into()),
             new_value: ParamValue::Enum("vec3".into()),
         }),
     );
-    let materialized = formula_from_snapshot_cached(&snapshot, formula, &mut cache)
-        .expect("changed Formula should materialize");
+    let materialized =
+        formula_from_snapshot_cached(&snapshot, formula, &mut cache).expect("changed Formula should materialize");
     assert_eq!(materialized, formula_from_snapshot(&snapshot, formula).unwrap());
     assert!(!Arc::ptr_eq(&prior_changed, cache.cached_instance(changed).unwrap()));
     assert!(Arc::ptr_eq(&prior_retained, cache.cached_instance(retained).unwrap()));
@@ -61,6 +66,7 @@ fn cached_anodes_rebuild_only_dirty_roots_and_retain_layout_invalidation() {
         &snapshot,
         formula,
         &frame(EventKind::ParamChanged {
+            source: None,
             param: position,
             old_value: ParamValue::Vec2(3.0, 4.0),
             new_value: ParamValue::Vec2(8.0, 9.0),
@@ -73,10 +79,13 @@ fn cached_anodes_rebuild_only_dirty_roots_and_retain_layout_invalidation() {
     cache.observe_events(
         &snapshot,
         formula,
-        &frame(EventKind::ChildRemoved { parent: formula, child: changed }),
+        &frame(EventKind::ChildRemoved {
+            parent: formula,
+            child: changed,
+        }),
     );
-    let materialized = formula_from_snapshot_cached(&snapshot, formula, &mut cache)
-        .expect("removed Formula should materialize");
+    let materialized =
+        formula_from_snapshot_cached(&snapshot, formula, &mut cache).expect("removed Formula should materialize");
     assert_eq!(materialized, formula_from_snapshot(&snapshot, formula).unwrap());
     assert!(cache.cached_instance(changed).is_none());
     assert!(!Arc::ptr_eq(&prior_retained, cache.cached_instance(retained).unwrap()));
@@ -98,7 +107,9 @@ fn connection_changes_reuse_anodes_but_unknown_deletions_force_refresh() {
     create_connection(&mut engine, formula, source, "value", target, "value1");
     let connection = direct_children(&engine, formula)
         .into_iter()
-        .find(|node| !before.contains(node) && engine.nodes.get(*node).unwrap().get_type() == AlchemistConnection::NODE_TYPE)
+        .find(|node| {
+            !before.contains(node) && engine.nodes.get(*node).unwrap().get_type() == AlchemistConnection::NODE_TYPE
+        })
         .expect("connection should exist");
     let snapshot = engine.process_tree_snapshot();
     cache.observe_events(
@@ -117,10 +128,7 @@ fn connection_changes_reuse_anodes_but_unknown_deletions_force_refresh() {
 
     let source_param = find_child_by_decl(&engine, connection, "source_node").unwrap();
     let formula_uuid = engine.nodes.get(formula).unwrap().node_data().meta.uuid;
-    let broken = snapshot.with_param_values([(
-        source_param,
-        ParamValue::Reference(NodeReference::new(formula_uuid)),
-    )]);
+    let broken = snapshot.with_param_values([(source_param, ParamValue::Reference(NodeReference::new(formula_uuid)))]);
     assert!(formula_from_snapshot_cached(&broken, formula, &mut cache).is_err());
     assert!(Arc::ptr_eq(&prior_source, cache.cached_instance(source).unwrap()));
     assert!(Arc::ptr_eq(&prior_target, cache.cached_instance(target).unwrap()));

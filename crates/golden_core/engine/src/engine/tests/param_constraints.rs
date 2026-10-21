@@ -64,6 +64,7 @@ fn set_param_constraints_emits_events_and_supports_undo_redo() {
                 param: changed_param,
                 old_value: ParamValue::Float(old),
                 new_value: ParamValue::Float(new),
+                ..
             } if *changed_param == param && (*old - 2.0).abs() < f64::EPSILON && (*new - 1.0).abs() < f64::EPSILON
         )),
         "expected a value change event after clamping the current value"

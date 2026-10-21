@@ -30,7 +30,7 @@ impl<T: Node> Engine<T> {
         }
         let mut constraints = snapshot.constraints;
         constraints.enum_options = options;
-        self.apply_set_param_constraints(edit_index, node, constraints)
+        self.apply_set_param_constraints(edit_index, node, constraints, None)
     }
 
     /// Resolves and validates a value without changing authored state or emitting events.
@@ -81,6 +81,7 @@ impl<T: Node> Engine<T> {
         edit_index: usize,
         node: NodeId,
         value: ParamValue,
+        source: Option<NodeId>,
     ) -> Result<Option<SetParamEffect>, EngineEditError> {
         const OP: &str = "SetParam";
         let prepared_value = self.prepare_set_param_value(edit_index, node, value)?;
@@ -141,6 +142,7 @@ impl<T: Node> Engine<T> {
             param: node,
             old_value: old_value.clone(),
             new_value: new_value.clone(),
+            source,
         });
         self.param_change_counter = self.param_change_counter.saturating_add(1);
         self.param_last_change_counter.insert(node, self.param_change_counter);
@@ -171,6 +173,7 @@ impl<T: Node> Engine<T> {
         edit_index: usize,
         node: NodeId,
         constraints: ParameterConstraints,
+        source: Option<NodeId>,
     ) -> Result<Option<SetParamConstraintsEffect>, EngineEditError> {
         const OP: &str = "SetParamConstraints";
         let old_snapshot = self.capture_param_snapshot(edit_index, OP, node)?;
@@ -207,7 +210,7 @@ impl<T: Node> Engine<T> {
         // CallNodeMutation closures compare against the updated constraints.
         self.clear_tick_tree_snapshot();
 
-        self.emit_param_events_for_state_change(node, &old_snapshot.value, &new_snapshot.value);
+        self.emit_param_events_for_state_change(node, &old_snapshot.value, &new_snapshot.value, source);
         self.emit_param_constraints_event(node, old_snapshot.constraints.clone(), new_snapshot.constraints.clone());
 
         Ok(Some(SetParamConstraintsEffect {
@@ -413,7 +416,7 @@ impl<T: Node> Engine<T> {
         }
 
         let new_snapshot = self.capture_param_snapshot(0, operation, node)?;
-        self.emit_param_events_for_state_change(node, &old_snapshot.value, &new_snapshot.value);
+        self.emit_param_events_for_state_change(node, &old_snapshot.value, &new_snapshot.value, None);
         self.emit_param_constraints_event(node, old_snapshot.constraints, new_snapshot.constraints);
         Ok(())
     }
@@ -563,6 +566,7 @@ impl<T: Node> Engine<T> {
         node: NodeId,
         old_value: &ParamValue,
         new_value: &ParamValue,
+        source: Option<NodeId>,
     ) {
         if old_value == new_value {
             return;
@@ -572,6 +576,7 @@ impl<T: Node> Engine<T> {
             param: node,
             old_value: old_value.clone(),
             new_value: new_value.clone(),
+            source,
         });
         self.param_change_counter = self.param_change_counter.saturating_add(1);
         self.param_last_change_counter.insert(node, self.param_change_counter);

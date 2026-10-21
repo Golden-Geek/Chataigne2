@@ -3368,7 +3368,7 @@ fn expand_struct(expansion: NodeExpansion, mut input: ItemStruct) -> proc_macro2
                 let __golden_events = ctx.events.clone();
                 for event in &__golden_events {
                     match &event.kind {
-                        golden_core::events::EventKind::ParamChanged { param, old_value, new_value } => {
+                        golden_core::events::EventKind::ParamChanged { param, old_value, new_value, .. } => {
                             let param = *param;
                             let old_value = old_value.clone();
                             let new_value = new_value.clone();

@@ -521,6 +521,7 @@ pub struct ProcessCtx {
     /// Scoped registration source supplied to engine-owned ready callbacks.
     node_wake_source: Option<(NodeWakeSource, NodeId)>,
     script_args: Option<crate::script::ScriptArguments>,
+    current_event: Option<usize>,
 }
 
 impl ProcessCtx {
@@ -537,6 +538,7 @@ impl ProcessCtx {
             referenced_params: HashMap::new(),
             node_wake_source: None,
             script_args: None,
+            current_event: None,
         }
     }
 
@@ -639,6 +641,27 @@ impl ProcessCtx {
     /// Queues a parameter update edit with an explicit coalescing strategy.
     pub fn set_param_with_behaviour(&mut self, node: NodeId, value: ParamValue, behaviour: ParameterEventBehaviour) {
         self.edits.push(Edit::SetParam { node, value, behaviour });
+    }
+    /// Queue a direct value change attributed to its runtime producer.
+    pub fn set_param_from(
+        &mut self,
+        source: NodeId,
+        node: NodeId,
+        value: ParamValue,
+        behaviour: ParameterEventBehaviour,
+    ) {
+        self.edits.push_from(source, Edit::SetParam { node, value, behaviour });
+    }
+
+    /// The exact event being dispatched by the standard node inbox callbacks.
+    /// Its value may differ from the latest tree snapshot after appended edits.
+    pub fn current_event(&self) -> Option<&crate::events::Event> {
+        self.current_event
+            .filter(|index| *index < self.events.len())
+            .map(|index| self.events[index].as_ref())
+    }
+    pub(crate) fn swap_current_event(&mut self, index: Option<usize>) -> Option<usize> {
+        std::mem::replace(&mut self.current_event, index)
     }
 
     /// Queues one script-property update on `node`.

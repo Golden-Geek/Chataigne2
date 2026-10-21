@@ -1,5 +1,5 @@
-use super::*;
 use super::super::indexed_command_dependency_observes;
+use super::*;
 
 #[test]
 fn command_observation_index_rejects_unrelated_parameter_changes() {
@@ -23,20 +23,37 @@ fn command_observation_index_rejects_unrelated_parameter_changes() {
         .find(|node| snapshot.node(*node).is_some_and(|node| node.label == "Unrelated"))
         .unwrap();
     engine.add_node(
-        Parameter::new("Command argument", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into(),
+        Parameter::new(
+            "Command argument",
+            ParamValue::Float(0.0),
+            ParameterChangeCheck::ValueChange,
+        )
+        .into(),
         Some(command_scope),
     );
     engine.apply_edits().unwrap();
     let snapshot = engine.process_tree_snapshot();
-    let argument = snapshot.child_ids(command_scope).into_iter().find(|node| {
-        snapshot.node(*node).is_some_and(|node| node.label == "Command argument")
-    }).unwrap();
+    let argument = snapshot
+        .child_ids(command_scope)
+        .into_iter()
+        .find(|node| {
+            snapshot
+                .node(*node)
+                .is_some_and(|node| node.label == "Command argument")
+        })
+        .unwrap();
     let mut manager = StateMachineManager::new();
     manager.runtime_cache.runtime_snapshot = Some(snapshot.clone());
     manager.runtime_cache.command_observation_index_ready = true;
-    manager.runtime_cache.registered_command_dependency_roots.insert(command_scope);
+    manager
+        .runtime_cache
+        .registered_command_dependency_roots
+        .insert(command_scope);
     manager.runtime_cache.command_action_target_roots.insert(command_scope);
-    manager.runtime_cache.command_dependency_target_uuids.insert(snapshot.node(argument).unwrap().uuid);
+    manager
+        .runtime_cache
+        .command_dependency_target_uuids
+        .insert(snapshot.node(argument).unwrap().uuid);
 
     assert_eq!(
         indexed_command_dependency_observes(
@@ -60,7 +77,10 @@ fn command_observation_index_rejects_unrelated_parameter_changes() {
     assert!(manager.command_target_may_be_observed(argument));
     assert!(manager.command_target_may_be_observed(NodeId(u64::MAX)));
     manager.runtime_cache.registered_command_dependency_roots.clear();
-    manager.runtime_cache.registered_command_dependency_parents.insert(command_scope);
+    manager
+        .runtime_cache
+        .registered_command_dependency_parents
+        .insert(command_scope);
     assert_eq!(
         indexed_command_dependency_observes(
             snapshot.as_ref(),
@@ -223,23 +243,13 @@ fn external_command_plan_dependency_survives_mutation_and_target_removal() {
     let listener_parents = cache.listener_parents().collect::<HashSet<_>>();
     for changed in [target, unrelated, external_module, processor_scope, engine.root] {
         assert_eq!(
-            indexed_command_dependency_observes(
-                previous.as_ref(),
-                changed,
-                &listener_roots,
-                &listener_parents,
-            ),
+            indexed_command_dependency_observes(previous.as_ref(), changed, &listener_roots, &listener_parents,),
             Some(cache.observes_change(Some(previous.as_ref()), changed)),
             "the reconciled listener index must match the plan for node {changed:?}"
         );
     }
     assert_eq!(
-        indexed_command_dependency_observes(
-            previous.as_ref(),
-            NodeId(u64::MAX),
-            &listener_roots,
-            &listener_parents,
-        ),
+        indexed_command_dependency_observes(previous.as_ref(), NodeId(u64::MAX), &listener_roots, &listener_parents,),
         None,
         "unknown nodes must use the exact plan fallback"
     );
@@ -483,7 +493,12 @@ fn change_aware_output_resends_to_a_new_destination_and_after_reset() {
     };
     let first = find("First");
     let second = find("Second");
-    let reference = |node| StableRef::new(ValueTypeId::new("test"), snapshot.node(node).unwrap().uuid.0.to_string());
+    let reference = |node| {
+        StableRef::new(
+            ValueTypeId::new("test"),
+            snapshot.node(node).unwrap().uuid.0.to_string(),
+        )
+    };
     let plan = |node| RuntimeCommandDispatchPlan {
         actions: vec![RuntimeCommandDispatchAction::Command {
             node,
@@ -514,7 +529,11 @@ fn change_aware_output_resends_to_a_new_destination_and_after_reset() {
     let second_plan = plan(second);
     let mut ctx = ProcessCtx::new(
         ExecutionPhase::EngineTick,
-        EngineTime { tick: 1, micro: 0, seq: 0 },
+        EngineTime {
+            tick: 1,
+            micro: 0,
+            seq: 0,
+        },
     );
     let provider = SnapshotProcessorContextProvider::default();
     let mut live_param_values = HashMap::new();
@@ -634,7 +653,11 @@ fn rejected_command_enqueue_does_not_advance_change_cache() {
     let mut budget = RuntimeCommandTickBudget::default();
     let mut ctx = ProcessCtx::new(
         ExecutionPhase::EngineTick,
-        EngineTime { tick: 1, micro: 0, seq: 0 },
+        EngineTime {
+            tick: 1,
+            micro: 0,
+            seq: 0,
+        },
     );
     for expected_count in [0, 1, 1] {
         dispatch_command_intent(
@@ -802,6 +825,7 @@ fn external_target_value_event_updates_overlay_without_invalidating_plan() {
     ctx.events.push_shared(Arc::new(golden_core::events::Event {
         time: ctx.time,
         kind: golden_core::events::EventKind::ParamChanged {
+            source: None,
             param: target,
             old_value: ParamValue::Float(1.0),
             new_value: ParamValue::Float(2.0),

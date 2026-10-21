@@ -37,14 +37,15 @@ use super::{
     condition_manager_edge_previous, condition_manager_value, dispatch_command_intent,
     formula_default_output_preview_samples, intern_runtime_command_invocation, latest_param_value,
     merge_output_preview_snapshot, output_preview_signature, processor_formula_from_snapshot,
-    processor_formula_source_ref, processor_override_value, processor_overview_publish_due, processor_overview_shard,
-    processor_overview_topic, processor_lane_catalog_entries, processor_preview_needs_hydration, processor_preview_plan,
-    processor_requires_forced_recompute, processor_should_evaluate, requested_inactive_processor_nodes,
-    requested_processor_overviews, resolve_multiplex_template_value, resolved_output_param_overrides,
-    retain_requested_preview_snapshots, runtime_invalidation_for_node, runtime_param_change_requires_snapshot,
-    selected_context_includes_lane, set_output_target_param, should_emit_runtime_log, sync_runtime_processor_warning,
-    ActivePreviewSelection, ContextKeyCardinalityError, FormulaDefaultPreviewState, FormulaPreviewDemandLease,
-    LaneParamResolver, OutputSendCache, PendingRuntimeCommandBatch, ProcessorContextAxisRuntime, ProcessorContextListRuntime,
+    processor_formula_source_ref, processor_lane_catalog_entries, processor_override_value,
+    processor_overview_publish_due, processor_overview_shard, processor_overview_topic,
+    processor_preview_needs_hydration, processor_preview_plan, processor_requires_forced_recompute,
+    processor_should_evaluate, requested_inactive_processor_nodes, requested_processor_overviews,
+    resolve_multiplex_template_value, resolved_output_param_overrides, retain_requested_preview_snapshots,
+    runtime_invalidation_for_node, runtime_param_change_requires_snapshot, selected_context_includes_lane,
+    set_output_target_param, should_emit_runtime_log, sync_runtime_processor_warning, ActivePreviewSelection,
+    ContextKeyCardinalityError, FormulaDefaultPreviewState, FormulaPreviewDemandLease, LaneParamResolver,
+    OutputSendCache, PendingRuntimeCommandBatch, ProcessorContextAxisRuntime, ProcessorContextListRuntime,
     ProcessorContextRuntime, ProcessorContextScopeCache, ProcessorLanePreviewKey, ProcessorOverviewDemandLease,
     RuntimeCommandDispatch, RuntimeCommandDispatchAction, RuntimeCommandDispatchPlan, RuntimeCommandDispatchPlanCache,
     RuntimeCommandTickBudget, RuntimeFormulaPreviewMode, RuntimeInvalidation, RuntimeLogKey, RuntimeProcessor,
@@ -576,7 +577,10 @@ fn mapping_inspection_catalog_does_not_enable_capture_or_force_evaluation() {
         },
     )]);
     let selection = ActivePreviewSelection::from_leases(&leases);
-    assert!(selection.is_empty(), "catalog inspection must not request value samples");
+    assert!(
+        selection.is_empty(),
+        "catalog inspection must not request value samples"
+    );
     assert!(selection.processor_ids().contains(&processor_id));
     let plan = processor_preview_plan(&selection, processor_id, true);
     assert_eq!(plan.capture, ProcessorDebugCapture::Off);
@@ -606,15 +610,23 @@ fn mapping_selected_stage_capture_is_bounded_to_one_context_and_released() {
         panic!("one selected stage should use targeted capture");
     };
     assert_eq!(nodes.len(), 1);
-    assert!(nodes.get(&context).is_some_and(|selected| selected.len() == 1 && selected.contains(&node_id)));
+    assert!(nodes
+        .get(&context)
+        .is_some_and(|selected| selected.len() == 1 && selected.contains(&node_id)));
     assert_eq!(history_len, RUNTIME_OUTPUT_PREVIEW_HISTORY_LEN);
-    assert!(!plan.force_evaluation, "preview focus must not evaluate or advance runtime state");
+    assert!(
+        !plan.force_evaluation,
+        "preview focus must not evaluate or advance runtime state"
+    );
 
     leases.remove("mapping-inspector");
     let selection = ActivePreviewSelection::from_leases(&leases);
     assert!(selection.is_empty());
     assert!(selection.processor_ids().is_empty());
-    assert_eq!(processor_preview_plan(&selection, processor_id, true).capture, ProcessorDebugCapture::Off);
+    assert_eq!(
+        processor_preview_plan(&selection, processor_id, true).capture,
+        ProcessorDebugCapture::Off
+    );
 }
 
 #[test]
@@ -892,6 +904,7 @@ fn live_source_cache_reads_the_latest_value_from_the_inbox_batch() {
         ctx.events.push_shared(Arc::new(golden_core::events::Event {
             time: ctx.time,
             kind: golden_core::events::EventKind::ParamChanged {
+                source: None,
                 param,
                 old_value: ParamValue::Float(value - 1.0),
                 new_value: ParamValue::Float(value),
@@ -920,23 +933,26 @@ fn continuous_processor_aggregate_tracks_runtime_cache_replacement() {
     let mut manager = StateMachineManager::new();
     manager.runtime_cache.topology_dirty = false;
     let snapshot = ProcessTreeSnapshot::new(NodeId(0), HashMap::new());
-    manager.runtime_cache.replace_processors(HashMap::from([(
-        NodeId(42),
-        RuntimeProcessor {
-            processor,
-            runtime,
-            managed_sources: Vec::new(),
-            compile_warning: None,
-            formula,
-            formula_node: None,
-            formula_ui: chataigne_state_machine::ProcessorFormulaUiState::project(),
-            formula_source_key: "test".to_owned(),
-            frozen_source: None,
-            command_dispatch_plans: Default::default(),
-            output_send_cache: Default::default(),
-            send_context_revision: 0,
-        },
-    )]), &snapshot);
+    manager.runtime_cache.replace_processors(
+        HashMap::from([(
+            NodeId(42),
+            RuntimeProcessor {
+                processor,
+                runtime,
+                managed_sources: Vec::new(),
+                compile_warning: None,
+                formula,
+                formula_node: None,
+                formula_ui: chataigne_state_machine::ProcessorFormulaUiState::project(),
+                formula_source_key: "test".to_owned(),
+                frozen_source: None,
+                command_dispatch_plans: Default::default(),
+                output_send_cache: Default::default(),
+                send_context_revision: 0,
+            },
+        )]),
+        &snapshot,
+    );
 
     assert_eq!(manager.runtime_cache.continuous_processor_nodes.len(), 1);
     let catalog = processor_lane_catalog_entries(

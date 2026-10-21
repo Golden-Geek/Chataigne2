@@ -54,6 +54,7 @@ impl Write {
         root: Option<NodeId>,
         input: &PreparedInput,
         auto_add: bool,
+        source: NodeId,
     ) -> Result<Progress, String> {
         let value = match &self.value {
             Value::Small(value) => value,
@@ -131,7 +132,7 @@ impl Write {
         };
         if matches!(self.target, Target::Path(_)) {
             if matches!(value, ParamValue::Int(_)) {
-                sync_int_parameter_constraints(ctx, snapshot, target, self.range);
+                sync_int_parameter_constraints(ctx, snapshot, target, self.range, source);
             }
             if let Some(expected) = self.rotary {
                 bounded_parent(snapshot, target)?;
@@ -176,7 +177,7 @@ impl Write {
         if node.param_value.is_none() {
             return Err("input target is not a parameter".into());
         }
-        ctx.set_param_with_behaviour(target, value.clone(), ParameterEventBehaviour::Append);
+        ctx.set_param_from(source, target, value.clone(), ParameterEventBehaviour::Append);
         Ok(Progress::Done)
     }
     fn parameter(&self, value: &ParamValue) -> Parameter {

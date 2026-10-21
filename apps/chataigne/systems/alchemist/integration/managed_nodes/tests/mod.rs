@@ -73,6 +73,7 @@ fn condition_manager_snapshot_gate_only_accepts_child_structure_changes() {
     };
     let event = |kind| Arc::new(Event { time, kind });
     let value_change = event(EventKind::ParamChanged {
+        source: None,
         param: NodeId(2),
         old_value: ParamValue::Bool(false),
         new_value: ParamValue::Bool(true),

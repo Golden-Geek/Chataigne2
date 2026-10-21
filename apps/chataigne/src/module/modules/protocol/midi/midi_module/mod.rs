@@ -1,9 +1,10 @@
 use std::{
-    collections::{HashMap, HashSet, VecDeque},
+    collections::{HashSet, VecDeque},
     time::Duration,
 };
 
 mod events;
+mod feedback;
 mod helpers;
 mod incoming;
 mod input_delivery;
@@ -63,7 +64,6 @@ const CONTROL_CHANGE_FOLDER_DECL_ID: &str = "control_change";
 const POLY_PRESSURE_FOLDER_DECL_ID: &str = "poly_pressure";
 const SYSTEM_FOLDER_DECL_ID: &str = "system";
 const SYSEX_FOLDER_DECL_ID: &str = "sysex";
-const FOURTEEN_BIT_CHANNELS_FOLDER_DECL_ID: &str = "fourteen_bit_channels";
 
 const MIDI_CC_ROTARY_MODE_DECL_ID: &str = "rotary_mode";
 
@@ -341,7 +341,6 @@ pub struct MidiModule {
     pending_incoming_messages: VecDeque<golden_io::RetainedPayload<midi_input::PreparedInput>>,
     incoming: Option<input_delivery::InputDelivery>,
     incoming_callbacks: VecDeque<input_delivery::InputDelivery>,
-    ignored_param_changes: HashMap<NodeId, usize>,
     cc_14_bit_state: [[Cc14BitState; 32]; 16],
     active_notes: HashSet<(u8, u8)>,
     last_note_on: Option<LastNoteInfo>,
@@ -368,7 +367,6 @@ impl MidiModule {
             VecDeque::new(),
             None,
             VecDeque::new(),
-            HashMap::new(),
             [[Cc14BitState::default(); 32]; 16],
             HashSet::new(),
             None,
@@ -483,7 +481,6 @@ impl Node for MidiModule {
         self.pending_incoming_messages.clear();
         self.incoming = None;
         self.incoming_callbacks.clear();
-        self.ignored_param_changes.clear();
         self.active_notes.clear();
         self.midi_clock_state = MidiClockState::default();
         self.mtc_stream_active = false;
@@ -573,7 +570,6 @@ impl Node for MidiModule {
             self.pending_incoming_messages.clear();
             self.incoming = None;
             self.incoming_callbacks.clear();
-            self.ignored_param_changes.clear();
             self.active_notes.clear();
             self.midi_clock_state = MidiClockState::default();
             self.mtc_stream_active = false;

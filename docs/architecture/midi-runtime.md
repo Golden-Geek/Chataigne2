@@ -14,7 +14,7 @@ command types on the output worker. `midi_runtime/output/schedule` owns complete
 and their monotonic deadlines. This closes outgoing preparation and delayed storage/service.
 `midi_input` prepares immutable incoming values, callback payloads and logs on the input worker.
 `input_delivery` owns graph and callback completion without replaying applied prefixes.
-Feedback accounting, catalogs and passive module service remain open in C03.
+Authored CC structure, catalogs and passive module service remain open in C03.
 
 ## Native admission
 
@@ -72,7 +72,7 @@ Generic and message-specific callbacks have separate completion receipts. A fail
 retries only the unpublished callback; later edit/subscriber failures cannot replay a committed
 one. Callback receipts retain canonical payloads and do not stall subsequent clock inputs after
 their graph segment settles. Disable/removal cancels pending graph/callback ownership and clears
-held-note state. End-to-end authored feedback suppression remains a separate C03 acceptance item.
+held-note state. Authored CC structure and passive lifecycle service remain separate C03 items.
 
 The input worker services its callback mailbox with a 10 ms background fallback, independently
 of the actor. Presence checks run once per second on that worker. This is not an audio callback
@@ -108,6 +108,21 @@ native outcome and is never replayed. Admission closes immediately; accepted uns
 suffixes receive explicit not-sent outcomes. Full reply storage retains the current receipt and
 backpressures native service without another unbounded queue.
 
+## Feedback
+
+Received values, clock/MTC publications and CC conversion writes carry the module's runtime
+producer ID through Golden's [parameter event attribution](application-contracts.md#parameter-event-attribution).
+The module suppresses only changes from that producer. There is no ignore-next-change map:
+unchanged writes and rejected suffixes cannot swallow later authored changes. Constraint-induced
+clamping carries the same provenance as its owning request. Undo/redo has no received-input source.
+
+Feedback uses each event's captured new value and old value. Several appended note/CC writes
+therefore retain their individual values, relative deltas and 14-bit packet pairs even when the
+tree snapshot already contains the final value. The resolver accepts fixed MIDI value-tree paths
+and typed scalars, without arbitrary ancestor traversal or string-to-number parsing. Clock/system
+triggers retain their occurrences. Each feedback request retains the existing 8 KiB admission
+reservation and native complete-batch guarantees; rejected output admission reports explicitly.
+
 ## Lifetime and recovery
 
 Spawning a worker does not report a successful connection. Connected state requires native
@@ -140,7 +155,7 @@ transport cancellation still cancels the remaining suffix without replaying an i
 
 ## Remaining C03 acceptance
 
-MIDI still needs feedback occurrence accounting, prepared catalog lifetime ownership, and passive
+MIDI still needs bounded authored CC structure service, prepared catalog lifetime ownership, and passive
 module scheduling with clock/MTC/recovery deadlines. Output deadlines are already worker-owned.
 The existing 240 Hz module rule is still present; native worker ownership does not qualify it.
 Keep those concrete gaps inside C03, preserving all commands and app-owned script surfaces.

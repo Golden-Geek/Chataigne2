@@ -29,13 +29,7 @@ fn fixture() -> (crate::app::AppEngine, NodeId) {
 fn service(engine: &mut crate::app::AppEngine, delivery: &mut InputDelivery) -> (bool, ProcessCtx) {
     let snapshot = engine.process_tree_snapshot();
     let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);
-    let done = delivery.service(
-        &mut ctx,
-        Some(&snapshot),
-        Some(engine.root),
-        mode(),
-        &mut HashMap::new(),
-    );
+    let done = delivery.service(&mut ctx, Some(&snapshot), Some(engine.root), mode());
     (done, ctx)
 }
 fn apply(engine: &mut crate::app::AppEngine, ctx: &mut ProcessCtx) {
@@ -206,13 +200,7 @@ fn disabling_auto_add_fences_unapplied_suffix_but_retains_callbacks() {
         auto_add: false,
         ..mode()
     };
-    delivery.service(
-        &mut ctx,
-        Some(&snapshot),
-        Some(engine.root),
-        changed,
-        &mut HashMap::new(),
-    );
+    delivery.service(&mut ctx, Some(&snapshot), Some(engine.root), changed);
     assert!(ctx
         .edits
         .pending
@@ -328,7 +316,6 @@ fn module_disable_cancels_input_graph_callback_and_held_note_state() {
         .incoming_callbacks
         .push_back(InputDelivery::new(input(), vec![], NodeId(1), mode()));
     module.active_notes.insert((1, 60));
-    module.ignored_param_changes.insert(NodeId(2), 1);
     let (engine, _) = fixture();
     let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);
     module.on_effective_enabled_changed(&mut ctx, false);
@@ -336,5 +323,4 @@ fn module_disable_cancels_input_graph_callback_and_held_note_state() {
     assert!(module.incoming.is_none());
     assert!(module.incoming_callbacks.is_empty());
     assert!(module.active_notes.is_empty());
-    assert!(module.ignored_param_changes.is_empty());
 }

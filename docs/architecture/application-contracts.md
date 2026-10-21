@@ -94,6 +94,25 @@ closes the registration, and enum dispatch forwards the hook for built-in and co
 These short-lock notifications belong on host workers; realtime audio callbacks keep using their
 realtime-safe queues.
 
+## Parameter event attribution
+
+`golden_engine` owns parameter-change provenance and callback scope. Trusted Rust producers use
+`ProcessCtx::set_param_from` or `EditQueue::push_from` to attribute a direct `SetParam` or
+`SetParamConstraints` request. The emitted `EventKind::ParamChanged::source` belongs to that
+particular applied change. Unchanged writes emit nothing, rejected suffixes leave no suppression
+state, and queue coalescing replaces the source together with the value. Attribution does not
+propagate into lifecycle callbacks or their follow-up edits.
+
+The source is runtime metadata, excluded from serialized events and UI DTOs. Undo/redo emits a
+new authored change without the original runtime source. It is not an authorization mechanism.
+During the standard node inbox callbacks, `ProcessCtx::current_event` exposes the exact event,
+including its captured old/new values; the shared tree snapshot contains the final batch value.
+The dispatcher restores this scope after each callback without copying event payloads.
+
+Modules use producer identity to suppress their own received-value echo, rather than counting
+future changes by parameter ID. App policy, feedback message construction and native admission
+remain in the app-owned module. MIDI's concrete contract is in [MIDI delivery](midi-runtime.md).
+
 Sound Card runtime facades contain controls and observation readers. Native engine ownership,
 blocking shutdown and joins remain on a prestarted owner with a reserved lifetime, including
 startup failure, discarded results and node removal. Eight bounded startup workers and sixteen

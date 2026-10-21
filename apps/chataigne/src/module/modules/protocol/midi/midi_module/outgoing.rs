@@ -14,11 +14,19 @@ impl MidiModule {
         let Some(values_id) = self.base.values_id() else {
             return;
         };
-        if !is_descendant_of(snapshot, param, values_id) {
+        let Some(golden_core::events::EventKind::ParamChanged {
+            param: changed,
+            new_value,
+            source,
+            ..
+        }) = ctx.current_event().map(|event| &event.kind)
+        else {
+            return;
+        };
+        if *changed != param || *source == Some(self.id()) {
             return;
         }
-
-        let Some(messages) = feedback_messages_for_param(snapshot, param, old_value) else {
+        let Some(messages) = self.feedback_messages(snapshot, values_id, param, new_value, &old_value) else {
             return;
         };
         if messages.is_empty() {

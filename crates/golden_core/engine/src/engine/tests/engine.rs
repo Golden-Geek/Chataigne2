@@ -4469,6 +4469,7 @@ fn apply_edits_set_param_updates_parameter_node() {
                 param,
                 old_value: ParamValue::Int(10),
                 new_value: ParamValue::Int(42),
+                ..
             }) if *param == engine.root
         ),
         "last event should report previous parameter value",
