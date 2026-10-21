@@ -228,22 +228,22 @@ impl MidiModule {
                     let start = ctx.edits.pending.len();
                     let result = match system {
                         MidiSystemMessage::TimeCodeQuarterFrame { value } => {
-                            self.apply_time_code_quarter_frame(ctx, snapshot, *value, received_at)
+                            self.apply_time_code_quarter_frame(ctx, *value, received_at)
                         }
                         MidiSystemMessage::TimingClock => {
-                            self.apply_midi_clock_tick(ctx, snapshot, received_at, input.clock_timing)
+                            self.apply_midi_clock_tick(ctx, received_at, input.clock_timing)
                         }
                         MidiSystemMessage::Start => {
-                            self.apply_midi_clock_transport_event(ctx, snapshot, START_DECL_ID, true, true)
+                            self.apply_midi_clock_transport_event(ctx, START_DECL_ID, true, true)
                         }
                         MidiSystemMessage::Continue => {
-                            self.apply_midi_clock_transport_event(ctx, snapshot, CONTINUE_DECL_ID, true, false)
+                            self.apply_midi_clock_transport_event(ctx, CONTINUE_DECL_ID, true, false)
                         }
                         MidiSystemMessage::Stop => {
-                            self.apply_midi_clock_transport_event(ctx, snapshot, STOP_DECL_ID, false, false)
+                            self.apply_midi_clock_transport_event(ctx, STOP_DECL_ID, false, false)
                         }
                         MidiSystemMessage::Reset => {
-                            self.apply_midi_clock_transport_event(ctx, snapshot, RESET_DECL_ID, false, true)
+                            self.apply_midi_clock_transport_event(ctx, RESET_DECL_ID, false, true)
                         }
                         _ => unreachable!(),
                     };

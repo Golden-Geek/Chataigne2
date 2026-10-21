@@ -14,10 +14,10 @@ use super::{
 };
 
 #[test]
-fn midi_module_declares_compiled_runtime_kernel_and_periodic_recovery() {
+fn midi_module_declares_compiled_runtime_kernel_and_passive_service() {
     let rule = MidiModule::create().execution_rule();
     assert_eq!(rule.compiled_kernel_key, Some("chataigne.runtime.midi"));
-    assert_eq!(rule.update_rate, Some(240));
+    assert_eq!(rule.update_rate, None);
 }
 
 #[test]

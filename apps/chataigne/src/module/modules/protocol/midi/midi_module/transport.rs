@@ -1,10 +1,6 @@
 use super::*;
 
 impl MidiModule {
-    pub(super) fn port_refresh_due(&self) -> bool {
-        self.port_refresh_elapsed >= MIDI_PORT_REFRESH_INTERVAL_SECS
-    }
-
     pub(super) fn refresh_port_options(&mut self, ctx: &mut ProcessCtx) {
         if !self.node_data().effective_enabled {
             self.discovery = None;
@@ -17,8 +13,12 @@ impl MidiModule {
                 self.output_port.get_ref().as_str(),
                 Self::native_notifier(ctx),
             ) {
-                Ok(discovery) => self.discovery = Some(discovery),
+                Ok(discovery) => {
+                    self.discovery = Some(discovery);
+                    self.service.discovery_retry = None;
+                }
                 Err(error) => {
+                    self.service.discovery_retry = Some(std::time::Instant::now() + service::RETRY_DELAY);
                     self.set_port_options_warning(ctx, &error);
                     return;
                 }
@@ -64,6 +64,7 @@ impl MidiModule {
                 }
                 if stopped {
                     self.discovery = None;
+                    self.service.discovery_retry = Some(std::time::Instant::now() + service::RETRY_DELAY);
                     self.pending_catalog = Some(catalog_delivery::CatalogDelivery::new(midi_runtime::CatalogEvent {
                         generation,
                         result: Err("MIDI discovery worker stopped; retrying".into()),
@@ -82,11 +83,6 @@ impl MidiModule {
                 self.pending_catalog = None;
             }
         }
-        if self.pending_catalog.is_some() || self.discovery.as_ref().is_some_and(MidiDiscovery::has_pending) {
-            if let Ok(waker) = ctx.node_waker() {
-                let _ = waker.wake();
-            }
-        }
     }
 
     fn set_port_options_warning(&self, ctx: &mut ProcessCtx, error: &str) {
@@ -100,21 +96,20 @@ impl MidiModule {
         }
     }
 
-    pub(super) fn refresh_input(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
+    pub(super) fn refresh_input(&mut self, ctx: &mut ProcessCtx) {
         self.input_dirty = false;
+        self.service.input_retry = None;
 
         if self.input_port.get_ref().as_str().len() > 1024 {
             self.stop_input();
             self.set_input_warning(ctx, "MIDI input selection exceeds 1024 bytes");
-            self.refresh_connected(ctx);
             return;
         }
 
-        if !self.module_enabled(snapshot) {
+        if !self.node_data().effective_enabled {
             self.stop_input();
             self.last_input_config = None;
             self.clear_input_warning(ctx);
-            self.refresh_connected(ctx);
             return;
         }
 
@@ -122,12 +117,10 @@ impl MidiModule {
             self.stop_input();
             self.last_input_config = None;
             self.clear_input_warning(ctx);
-            self.refresh_connected(ctx);
             return;
         };
 
         if self.input.is_some() && self.last_input_config.as_ref() == Some(&config) {
-            self.refresh_connected(ctx);
             return;
         }
 
@@ -141,27 +134,27 @@ impl MidiModule {
             Err(error) => {
                 logerror!("Failed to connect MIDI input: {}", error);
                 self.last_input_config = None;
+                self.input_dirty = true;
+                self.service.input_retry = Some(std::time::Instant::now() + service::RETRY_DELAY);
                 self.set_input_warning(ctx, error.as_str());
             }
         }
-        self.refresh_connected(ctx);
     }
 
-    pub(super) fn refresh_output(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
+    pub(super) fn refresh_output(&mut self, ctx: &mut ProcessCtx) {
         self.output_dirty = false;
+        self.service.output_retry = None;
 
         if self.output_port.get_ref().as_str().len() > 1024 {
             self.stop_output();
             self.set_output_warning(ctx, "MIDI output selection exceeds 1024 bytes");
-            self.refresh_connected(ctx);
             return;
         }
 
-        if !self.module_enabled(snapshot) {
+        if !self.node_data().effective_enabled {
             self.stop_output();
             self.last_output_config = None;
             self.clear_output_warning(ctx);
-            self.refresh_connected(ctx);
             return;
         }
 
@@ -169,12 +162,10 @@ impl MidiModule {
             self.stop_output();
             self.last_output_config = None;
             self.clear_output_warning(ctx);
-            self.refresh_connected(ctx);
             return;
         };
 
         if self.output.is_some() && self.last_output_config.as_ref() == Some(&config) {
-            self.refresh_connected(ctx);
             return;
         }
 
@@ -184,7 +175,6 @@ impl MidiModule {
         if let Some(mut previous) = self.output.take() {
             previous.finish_admission();
             self.retiring_output = Some(previous);
-            self.refresh_connected(ctx);
             return;
         }
         match MidiOutputHandle::spawn(config.clone(), Self::native_notifier(ctx)) {
@@ -196,10 +186,11 @@ impl MidiModule {
             Err(error) => {
                 logerror!("Failed to connect MIDI output: {}", error);
                 self.last_output_config = None;
+                self.output_dirty = true;
+                self.service.output_retry = Some(std::time::Instant::now() + service::RETRY_DELAY);
                 self.set_output_warning(ctx, error.as_str());
             }
         }
-        self.refresh_connected(ctx);
     }
 
     pub(super) fn input_config(&self) -> Option<MidiInputConfig> {
@@ -253,11 +244,7 @@ impl MidiModule {
         }
         let mut events = Vec::new();
         // Retain one bounded actor batch while graph materialization catches up.
-        if self.structure_work.busy()
-            || self.incoming.is_some()
-            || !self.pending_incoming_messages.is_empty()
-            || self.incoming_callbacks.len() >= 16
-        {
+        if !self.input_can_drain() {
             return;
         }
         let mut stopped = false;
@@ -282,9 +269,12 @@ impl MidiModule {
         if stopped {
             self.input = None;
             self.last_input_config = None;
+            if !self.input_dirty {
+                self.service.input_retry = Some(std::time::Instant::now() + service::RETRY_DELAY);
+            }
+            self.input_dirty = true;
             self.set_input_warning(ctx, "MIDI input worker stopped; reconnecting");
         }
-        self.refresh_connected(ctx);
 
         let mut received = false;
         for event in events {
@@ -331,6 +321,10 @@ impl MidiModule {
         if stopped {
             self.output = None;
             self.last_output_config = None;
+            if !self.output_dirty {
+                self.service.output_retry = Some(std::time::Instant::now() + service::RETRY_DELAY);
+            }
+            self.output_dirty = true;
             self.set_output_warning(ctx, "MIDI output worker stopped; reconnecting");
         }
         let retired = self
@@ -340,6 +334,7 @@ impl MidiModule {
         if retired {
             self.retiring_output = None;
             self.output_dirty = true;
+            self.service.output_retry = None;
         }
         for event in events {
             match event {
@@ -354,6 +349,5 @@ impl MidiModule {
                 MidiOutputEvent::Error(error) => self.set_output_warning(ctx, &error),
             }
         }
-        self.refresh_connected(ctx);
     }
 }

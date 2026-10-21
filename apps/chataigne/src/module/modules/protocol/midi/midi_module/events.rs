@@ -13,6 +13,10 @@ impl MidiModule {
             return;
         }
 
+        if let Some(input) = &self.input {
+            input.set_log(self.base.log_incoming_enabled());
+        }
+
         if let Some(channel) = self.channel_14_bit_toggle_channel(param) {
             if let ParamValue::Bool(previous) = old_value {
                 self.queue_cc_conversion(ctx, channel, previous);
@@ -27,13 +31,16 @@ impl MidiModule {
             if self.output_port.is_bound() && self.output_port.id() == param {
                 self.output_dirty = true;
             }
+            self.service.input_retry = None;
+            self.service.output_retry = None;
             self.select_catalog(ctx);
+            self.request_service(ctx);
             self.refresh_data_capabilities(ctx);
             return;
         }
 
         if self.clock_bpm_precision.is_bound() && self.clock_bpm_precision.id() == param {
-            let _ = self.apply_midi_clock_values(ctx, snapshot);
+            let _ = self.apply_midi_clock_values(ctx);
             return;
         }
 

@@ -209,6 +209,9 @@ impl MidiInputHandle {
         .map_err(|error| format!("failed to start MIDI input: {error}"))?;
         Ok(Self { worker, ready, log })
     }
+    pub(crate) fn has_pending(&self) -> bool {
+        self.worker.has_pending()
+    }
     pub(crate) fn is_ready(&self) -> bool {
         self.ready.load(Ordering::Acquire)
     }

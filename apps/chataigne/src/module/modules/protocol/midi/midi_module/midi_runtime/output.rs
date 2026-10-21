@@ -70,6 +70,9 @@ impl MidiOutputHandle {
             admission: RetirementPool::new(NonZeroUsize::new(2048).unwrap()),
         })
     }
+    pub(crate) fn has_pending(&self) -> bool {
+        self.worker.has_pending()
+    }
     pub(crate) fn is_ready(&self) -> bool {
         self.ready.load(Ordering::Acquire)
     }

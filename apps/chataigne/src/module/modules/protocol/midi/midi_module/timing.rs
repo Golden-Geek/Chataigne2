@@ -4,7 +4,6 @@ impl MidiModule {
     pub(super) fn apply_time_code_quarter_frame(
         &mut self,
         ctx: &mut ProcessCtx,
-        _snapshot: &ProcessTreeSnapshot,
         raw_value: u8,
         received_at: Duration,
     ) -> MidiApplyResult {
@@ -37,7 +36,6 @@ impl MidiModule {
     pub(super) fn apply_midi_clock_tick(
         &mut self,
         ctx: &mut ProcessCtx,
-        snapshot: &ProcessTreeSnapshot,
         received_at: Duration,
         clock_timing: Option<MidiClockTiming>,
     ) -> MidiApplyResult {
@@ -74,7 +72,7 @@ impl MidiModule {
         }
 
         if values_changed {
-            result = merge_apply_results(result, self.apply_midi_clock_values(ctx, snapshot));
+            result = merge_apply_results(result, self.apply_midi_clock_values(ctx));
         }
 
         result
@@ -83,7 +81,6 @@ impl MidiModule {
     pub(super) fn apply_midi_clock_transport_event(
         &mut self,
         ctx: &mut ProcessCtx,
-        snapshot: &ProcessTreeSnapshot,
         decl_id: &str,
         running: bool,
         reset_ticks: bool,
@@ -114,15 +111,11 @@ impl MidiModule {
                 self.set_internal_param(ctx, trigger_id, ParamValue::Trigger());
                 MidiApplyResult::Applied
             },
-            self.apply_midi_clock_values(ctx, snapshot),
+            self.apply_midi_clock_values(ctx),
         )
     }
 
-    pub(super) fn apply_midi_clock_values(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        _snapshot: &ProcessTreeSnapshot,
-    ) -> MidiApplyResult {
+    pub(super) fn apply_midi_clock_values(&mut self, ctx: &mut ProcessCtx) -> MidiApplyResult {
         if !self.playing.is_bound() || !self.bpm.is_bound() {
             return MidiApplyResult::Retry;
         }
@@ -191,22 +184,23 @@ impl MidiModule {
         (true, values_changed)
     }
 
-    pub(super) fn refresh_transport_activity(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
-        let now = self.midi_receive_now(ctx);
+    pub(super) fn refresh_transport_activity(&mut self, ctx: &mut ProcessCtx) {
+        let now = ctx.runtime_elapsed;
 
         if self.midi_clock_state.running
-            && self.midi_clock_state.last_tick_at.is_some_and(|last_tick_at| {
-                now.saturating_sub(last_tick_at).as_secs_f64() > MIDI_CLOCK_PLAYING_TIMEOUT_SECS
-            })
+            && self
+                .midi_clock_state
+                .last_tick_at
+                .is_some_and(|last_tick_at| now.saturating_sub(last_tick_at) >= MIDI_CLOCK_PLAYING_TIMEOUT)
         {
             self.midi_clock_state.running = false;
-            let _ = self.apply_midi_clock_values(ctx, snapshot);
+            let _ = self.apply_midi_clock_values(ctx);
         }
 
         if self.mtc_stream_active
             && self
                 .last_mtc_quarter_frame_at
-                .is_some_and(|last_mtc_at| now.saturating_sub(last_mtc_at).as_secs_f64() > MTC_PLAYING_TIMEOUT_SECS)
+                .is_some_and(|last_mtc_at| now.saturating_sub(last_mtc_at) >= MTC_PLAYING_TIMEOUT)
         {
             self.mtc_stream_active = false;
             if self.mtc_playing.is_bound() {
@@ -215,18 +209,18 @@ impl MidiModule {
         }
     }
 
-    pub(super) fn transport_activity_timeout_due(&self, now: Duration) -> bool {
-        (self.midi_clock_state.running
-            && self.midi_clock_state.last_tick_at.is_some_and(|last_tick_at| {
-                now.saturating_sub(last_tick_at).as_secs_f64() > MIDI_CLOCK_PLAYING_TIMEOUT_SECS
-            }))
-            || (self.mtc_stream_active
-                && self.last_mtc_quarter_frame_at.is_some_and(|last_mtc_at| {
-                    now.saturating_sub(last_mtc_at).as_secs_f64() > MTC_PLAYING_TIMEOUT_SECS
-                }))
-    }
-
-    pub(super) fn midi_receive_now(&self, ctx: &ProcessCtx) -> Duration {
-        ctx.runtime_elapsed
+    pub(super) fn activity_deadline(&self) -> Option<Duration> {
+        let clock = self
+            .midi_clock_state
+            .running
+            .then_some(self.midi_clock_state.last_tick_at)
+            .flatten()
+            .and_then(|at| at.checked_add(MIDI_CLOCK_PLAYING_TIMEOUT));
+        let mtc = self
+            .mtc_stream_active
+            .then_some(self.last_mtc_quarter_frame_at)
+            .flatten()
+            .and_then(|at| at.checked_add(MTC_PLAYING_TIMEOUT));
+        clock.into_iter().chain(mtc).min()
     }
 }

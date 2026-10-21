@@ -16,7 +16,8 @@ and their monotonic deadlines. This closes outgoing preparation and delayed stor
 `input_delivery` owns graph and callback completion without replaying applied prefixes.
 `structure/cc` owns bounded authored CC conversion and `structure/locks` owns startup surface
 permissions. `midi_runtime/discovery` prepares and retains port choices; `catalog_delivery`
-publishes them through guarded edit receipts. Passive module service remains open in C03.
+publishes them through guarded edit receipts. `service` owns passive worker wakes, runtime
+registration and the next clock/MTC/recovery deadline.
 
 ## Native admission
 
@@ -29,6 +30,7 @@ publishes them through guarded edit receipts. Passive module service remains ope
 | Discovery publication           | One result slot / 1 MiB; one pending worker result and one actor delivery; previous/observed catalogs share canonical choices |
 | Prepared port choices           | 66 options / 256 KiB per direction, including None and a missing selected port                                                |
 | Canonical choice lifetimes      | Global 128 direction catalogs / 32 MiB, including engine parameters, snapshots, history and pending edits                     |
+| Actor scheduling                | No periodic update rule; one reusable coalesced deadline registration per module on the shared bounded host timer             |
 | Callback ingress                | 256 messages / 2 MiB retained weight                                                                                          |
 | MIDI message or outgoing packet | 64 KiB                                                                                                                        |
 | Prepared input events           | 256 events / 16 MiB, including decoded SysEx, prepared hex and both callback payloads                                         |
@@ -113,8 +115,8 @@ Input consumption pauses during structure work. Worker wakes service accepted st
 while disabled, without reopening native IO. Removal cancels the cursor and invalidates deferred
 callbacks through the module generation and closed wake source. The first coalesced callback
 also has a completion receipt: discarding it cannot leave a permanent queued flag or pause input
-after the retained plan completes. The overall module's periodic
-native/clock service remains a separate unfinished item below.
+after the retained plan completes. The module's passive service also owns native, catalog,
+clock/MTC and recovery work.
 
 ## Outgoing preparation
 
@@ -173,8 +175,9 @@ and waits for producer disconnection before opening a replacement. Scheduled fol
 the admitted native lifetime and their original deadlines; they are never redirected to a new port. A retiring handle does not
 force repeated tree snapshots while native work is blocked. Disable, removal and explicit stop
 cancel without a join. A blocked setup, send, query or destructor retains its lifetime slot until
-it returns, so repeated reconfiguration cannot create unlimited threads. Module retry remains
-on its one-second refresh path at this stage.
+it returns, so repeated reconfiguration cannot create unlimited threads. Setup/admission or worker
+failure retains one retry deadline one second ahead. Healthy or blocked native lifetimes wait
+for worker notifications; they do not request recurring actor polls or tree snapshots.
 
 Discovery runs independently once per second, publishes only changed results and recovers from
 query errors. Native inventory count and name storage are checked before app-owned conversion.
@@ -199,21 +202,36 @@ One actor delivery publishes at most six edits for both directions. Read fences 
 updates and warning clears. Receipts retain the same canonical arrays after rejected or discarded
 edits, while pending receipts request no repeated snapshot or publication. Results whose selection
 has changed are discarded. Discovery uses worker wakes for result publication; disable/removal
-cancels discovery and drops its pending delivery. Ordinary discovery restart still uses the
-module's existing one-second refresh path until passive scheduling is completed.
+cancels discovery and drops its pending delivery. Discovery restart uses its one-second failure
+deadline; unchanged background queries do not wake the actor.
 
 A source that retires before its first native effect cancels the whole request. Once a first effect
 succeeds, the worker finishes that admitted batch even if its command node disappears, so deleting
 a command cannot discard an already-started note's note-off. Explicit module disable/removal or
 transport cancellation still cancels the remaining suffix without replaying an in-flight send.
 
-## Remaining C03 acceptance
+## Passive module service
 
-MIDI still needs passive module scheduling with clock/MTC/recovery deadlines.
-Output deadlines and catalog preparation/lifetimes are already worker-owned.
-The existing 240 Hz module rule is still present; native worker ownership does not qualify it.
-Keep those concrete gaps inside C03, preserving all commands and app-owned script surfaces.
-General snapshot scaling and product-size throughput remain their owning plan tasks.
+MIDI declares a passive execution rule and services discrete worker notifications. Registration
+publishes capabilities from the current bound configuration, including values applied between
+initialization and ready. Explicit selection changes request service and reset their retry delay.
+Native readiness and replies update connection state through the same service boundary.
+
+Clock/MTC activity uses captured arrival time normalized to engine elapsed time. A received pulse
+arms the earliest 500 ms clock or 250 ms MTC expiry; later pulses replace the old deadline.
+Start/Continue without a clock pulse preserves its explicit transport state. Native/discovery
+failure retries and activity expiry share one coalesced `ModuleWake` deadline. Output packet
+deadlines remain entirely on the output worker. Disable cancels the deadline and native work;
+accepted authored structure may finish through disabled worker wakes. Removal drops registration
+and invalidates late notifications through the owning node lifetime.
+
+Snapshot requests cover current structure/catalog reads or an input graph segment that can advance.
+Queued input waits without requesting snapshots while structure is blocked. Native statuses,
+outgoing receipts, retry decisions and clock/MTC expiry use bound handles. Accepted graph/callback
+and catalog receipts re-arm their bounded service turns until completion; a steady module requests
+no scheduled callbacks, worker polls or idle snapshots. A retiring output wakes reconfiguration only
+after its accepted work and cleanup settle. General snapshot scaling and product-size throughput
+remain their owning plan tasks.
 
 Tests use fake drivers and controlled setup/send/query/destructor gates, without connecting
 physical endpoints. Module, codec and command preservation tests exercise the authored product

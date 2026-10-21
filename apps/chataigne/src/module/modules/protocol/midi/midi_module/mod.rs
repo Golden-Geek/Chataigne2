@@ -15,6 +15,7 @@ mod midi_output;
 pub(crate) mod midi_runtime;
 mod outgoing;
 mod script_values;
+mod service;
 mod structure;
 mod timing;
 mod transport;
@@ -52,9 +53,7 @@ use self::{
 
 use crate::app::MidiSendRequest;
 
-const MIDI_MODULE_UPDATE_RATE_HZ: u32 = 240;
 const MIDI_COMPILED_KERNEL: &str = "chataigne.runtime.midi";
-const MIDI_PORT_REFRESH_INTERVAL_SECS: f64 = 1.0;
 const MIDI_INPUT_WARNING_ID: &str = "midi_input_connection";
 const MIDI_OUTPUT_WARNING_ID: &str = "midi_output_connection";
 const MIDI_PORT_OPTIONS_WARNING_ID: &str = "midi_port_options";
@@ -86,8 +85,8 @@ const SYSEX_LENGTH_DECL_ID: &str = "length";
 const MIDI_7_BIT_VALUE_RANGE: (i32, i32) = (0, 127);
 const MIDI_14_BIT_VALUE_RANGE: (i32, i32) = (0, MIDI_U14_MAX as i32);
 const MIDI_NONNEGATIVE_INT_RANGE: (i32, i32) = (0, i32::MAX);
-const MIDI_CLOCK_PLAYING_TIMEOUT_SECS: f64 = 0.5;
-const MTC_PLAYING_TIMEOUT_SECS: f64 = 0.25;
+const MIDI_CLOCK_PLAYING_TIMEOUT: Duration = Duration::from_millis(500);
+const MTC_PLAYING_TIMEOUT: Duration = Duration::from_millis(250);
 const MIDI_CLOCK_PULSES_PER_BEAT: u8 = 24;
 const MIDI_CLOCK_BPM_WINDOW_BEATS: usize = 4;
 const DEFAULT_MIDI_CLOCK_BPM_PRECISION: i32 = 2;
@@ -322,7 +321,7 @@ enum MidiApplyResult {
 )]
 pub struct MidiModule {
     base: crate::app::ModuleBase,
-    port_refresh_elapsed: f64,
+    service: service::ServiceState,
     input: Option<MidiInputHandle>,
     output: Option<MidiOutputHandle>,
     retiring_output: Option<MidiOutputHandle>,
@@ -349,7 +348,7 @@ impl MidiModule {
     pub fn create() -> Self {
         Self::new(
             crate::app::ModuleBase::new(),
-            MIDI_PORT_REFRESH_INTERVAL_SECS,
+            service::ServiceState::default(),
             None,
             None,
             None,
@@ -377,15 +376,14 @@ impl MidiModule {
     pub(crate) fn enqueue_incoming_message_for_test(&mut self, message: MidiMessage) {
         self.pending_incoming_messages
             .push_back(midi_input::InputDraft::prepared(message));
+        if let Some(wake) = &self.service.wake {
+            wake.notifier.notify();
+        }
     }
 
     #[cfg(test)]
     pub(crate) fn auto_add_enabled_for_test(&self) -> bool {
         self.auto_add.get()
-    }
-
-    fn module_enabled(&self, snapshot: &ProcessTreeSnapshot) -> bool {
-        snapshot.node(self.id()).map(|node| node.enabled).unwrap_or(false)
     }
 }
 
@@ -403,8 +401,6 @@ impl Node for MidiModule {
         crate::app::module::enable_module_authoring(self.node_data_mut());
         self.input_dirty = true;
         self.output_dirty = true;
-        self.refresh_port_options(ctx);
-        self.port_refresh_elapsed = 0.0;
         self.refresh_data_capabilities(ctx);
     }
 
@@ -414,53 +410,10 @@ impl Node for MidiModule {
         };
         let snapshot = snapshot_arc.as_ref();
         self.start_value_locks(ctx, snapshot);
-        self.refresh_input(ctx, snapshot);
-        self.refresh_output(ctx, snapshot);
-    }
-
-    fn update(&mut self, ctx: &mut ProcessCtx) {
-        self.service_catalog(ctx);
-        self.drain_output_events(ctx);
-        self.drain_input_events(ctx);
-        self.port_refresh_elapsed += ctx.delta_time.as_secs_f64();
-        let input_snapshot = ctx.tree_snapshot_arc();
-        self.service_structure(ctx, input_snapshot.as_deref());
-        self.process_pending_incoming(ctx, input_snapshot.as_deref());
-
-        let refresh_ports = self.port_refresh_due();
-        let receive_now = self.midi_receive_now(ctx);
-        let needs_work = refresh_ports
-            || self.input_dirty
-            || self.output_dirty
-            || self.transport_activity_timeout_due(receive_now)
-            || !self.pending_incoming_messages.is_empty()
-            || self.incoming.is_some();
-        if !needs_work {
-            return;
+        if let Err(error) = self.register_service(ctx) {
+            ctx.set_node_warning_with(self.id(), Some("midi_service"), error, None);
         }
-
-        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
-            return;
-        };
-        let snapshot = snapshot_arc.as_ref();
-
-        if refresh_ports {
-            self.refresh_port_options(ctx);
-            self.port_refresh_elapsed = 0.0;
-            self.input_dirty = true;
-            self.output_dirty = true;
-        }
-
-        self.refresh_data_capabilities(ctx);
-
-        if self.input_dirty {
-            self.refresh_input(ctx, snapshot);
-        }
-        if self.output_dirty {
-            self.refresh_output(ctx, snapshot);
-        }
-
-        self.refresh_transport_activity(ctx, snapshot);
+        self.request_service(ctx);
     }
 
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {
@@ -469,6 +422,7 @@ impl Node for MidiModule {
         self.discovery = None;
         self.pending_catalog = None;
         self.structure_work.cancel();
+        self.service = service::ServiceState::default();
         self.pending_incoming_messages.clear();
         self.incoming = None;
         self.incoming_callbacks.clear();
@@ -479,46 +433,16 @@ impl Node for MidiModule {
     }
 
     fn needs_update(&self) -> bool {
-        self.node_data().effective_enabled
-            || self.structure_work.busy()
-            || self.retiring_output.is_some()
-            || self.input_dirty
-            || self.output_dirty
-            || !self.pending_incoming_messages.is_empty()
-            || self.incoming.is_some()
-            || !self.incoming_callbacks.is_empty()
-            || self.input.is_some()
-            || self.output.is_some()
-            || self.port_refresh_elapsed >= MIDI_PORT_REFRESH_INTERVAL_SECS
+        false
     }
-
-    fn update_requires_tree_snapshot(&self) -> bool {
-        self.catalog_requires_snapshot()
-            || self.structure_work.requires_snapshot()
-            || self.port_refresh_due()
-            || self.input_dirty
-            || self.output_dirty
-            || !self.pending_incoming_messages.is_empty()
-            || self
-                .incoming
-                .as_ref()
-                .is_some_and(input_delivery::InputDelivery::requires_snapshot)
-            || self.midi_clock_state.running
-            || self.mtc_stream_active
-    }
-
     fn execution_rule(&self) -> NodeExecutionRule {
-        NodeExecutionRule::periodic(MIDI_MODULE_UPDATE_RATE_HZ).with_compiled_kernel(MIDI_COMPILED_KERNEL)
+        NodeExecutionRule::passive().with_compiled_kernel(MIDI_COMPILED_KERNEL)
     }
     fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
-        let snapshot = ctx.tree_snapshot_arc();
-        self.service_structure(ctx, snapshot.as_deref());
-        if self.node_data().effective_enabled {
-            self.service_catalog(ctx);
-        }
+        self.service(ctx);
     }
     fn worker_wake_requires_tree_snapshot(&self) -> bool {
-        self.structure_work.requires_snapshot() || self.catalog_requires_snapshot()
+        self.service_requires_snapshot()
     }
     fn worker_wake_when_disabled(&self) -> bool {
         self.structure_work.busy()
@@ -556,13 +480,12 @@ impl Node for MidiModule {
     }
 
     fn on_meta_changed(&mut self, ctx: &mut ProcessCtx, node: NodeId, patch: NodeMetaPatch) {
-        if let Some(enabled) = patch.enabled {
-            let _ = ctx;
-            if node != self.id() {
-                let _ = enabled;
-                self.input_dirty = true;
-                self.output_dirty = true;
-            }
+        if patch.enabled.is_some() && node != self.id() {
+            self.input_dirty = true;
+            self.output_dirty = true;
+            self.service.input_retry = None;
+            self.service.output_retry = None;
+            self.request_service(ctx);
         }
     }
 
@@ -570,7 +493,17 @@ impl Node for MidiModule {
         if enabled {
             self.input_dirty = true;
             self.output_dirty = true;
+            self.service.input_retry = None;
+            self.service.output_retry = None;
+            self.service.discovery_retry = None;
+            self.request_service(ctx);
         } else {
+            if let Some(wake) = &self.service.wake {
+                wake.cancel_deadline();
+            }
+            self.service.input_retry = None;
+            self.service.output_retry = None;
+            self.service.discovery_retry = None;
             self.stop_input();
             self.stop_output();
             self.discovery = None;

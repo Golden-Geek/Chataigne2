@@ -3,6 +3,7 @@ use super::input::{InputConnection, InputSink};
 use super::output::OutputConnection;
 use super::*;
 mod outgoing;
+mod passive;
 use std::sync::{mpsc, Condvar, Mutex};
 
 #[derive(Clone, Default)]
