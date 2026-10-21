@@ -1,5 +1,9 @@
 use std::{
     collections::{BTreeSet, HashMap, HashSet},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
     time::Duration,
 };
 
@@ -165,6 +169,7 @@ pub(super) enum ConfigurationFeedback {
 
 pub(crate) struct SoundCardRuntime {
     control: AudioControl,
+    command_lifetime: Arc<AtomicBool>,
     enabled_pending: Option<bool>,
     enabled_sent: Option<bool>,
     event_bridge: events::SoundCardRuntimeEvents,
@@ -219,6 +224,7 @@ impl SoundCardRuntime {
             events::SoundCardRuntimeEvents::spawn(engine, events, lifetime, LEVELS_UPDATE_RATE_DEFAULT_HZ as u32)?;
         Ok(Self {
             control,
+            command_lifetime: Arc::new(AtomicBool::new(true)),
             enabled_pending: None,
             enabled_sent: None,
             event_bridge,
@@ -567,7 +573,12 @@ impl SoundCardRuntime {
         (observation, events)
     }
 
+    pub(super) fn command_lifetime(&self) -> Arc<AtomicBool> {
+        self.command_lifetime.clone()
+    }
+
     pub(super) fn stop(&mut self) {
+        self.command_lifetime.store(false, Ordering::Release);
         // Request ordered shutdown promptly when the control queue has room;
         // the native owner handles full queues and all blocking cleanup.
         let _ = self.control.shutdown();

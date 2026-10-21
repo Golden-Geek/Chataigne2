@@ -1,4 +1,5 @@
 mod choice_sync;
+mod command_service;
 mod connection_feedback;
 mod event_delivery;
 mod integration;
@@ -127,6 +128,7 @@ pub(crate) const PITCH_VALUES_PATH: &str = "values/pitch_detection";
 pub struct SoundCardModule {
     base: crate::app::ModuleBase,
     runtime: Option<runtime::SoundCardRuntime>,
+    commands: command_service::CommandService,
     runtime_worker: Option<runtime::SoundCardRuntimeWorker>,
     runtime_request: Option<runtime::SoundCardRuntimeRequest>,
     runtime_wake: Option<runtime::RuntimeWakeSender>,
@@ -150,6 +152,7 @@ impl SoundCardModule {
         Self::new(
             crate::app::ModuleBase::create_with_command_types(SOUND_CARD_COMMAND_TYPES),
             None,
+            command_service::CommandService::default(),
             None,
             None,
             None,
@@ -185,10 +188,7 @@ impl SoundCardModule {
             | EventKind::NodeCreated { .. }
             | EventKind::NodeDeleted { .. }
             | EventKind::GraphTransaction { .. } => true,
-            EventKind::Custom(custom) => {
-                custom.topic == crate::app::module_command::MODULE_COMMAND_REQUEST_TOPIC
-                    || custom.topic == chataigne_sound_card_protocol::SOUND_CARD_UI_CONTROL_TOPIC
-            }
+            EventKind::Custom(custom) => custom.topic == chataigne_sound_card_protocol::SOUND_CARD_UI_CONTROL_TOPIC,
         })
     }
 
@@ -284,6 +284,7 @@ impl Node for SoundCardModule {
 
     fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
         self.drive_runtime(ctx);
+        self.service_commands(ctx);
         self.synchronize_runtime_projection(ctx);
     }
 
@@ -298,7 +299,8 @@ impl Node for SoundCardModule {
 
     fn worker_wake_requires_tree_snapshot(&self) -> bool {
         self.node_data().effective_enabled
-            && (self.configuration_dirty
+            && (self.commands.needs_snapshot()
+                || self.configuration_dirty
                 || self.runtime.as_ref().is_some_and(|runtime| {
                     self.choices.needs_snapshot(runtime.device_revision()) && runtime.device_inventory().is_some()
                 })
@@ -368,10 +370,7 @@ impl Node for SoundCardModule {
                 .is_some_and(|runtime| runtime.bindings().is_runtime_value(*param)),
             EventKind::ChildAdded { .. } | EventKind::ChildRemoved { .. } | EventKind::ChildReplaced { .. } => true,
             EventKind::MetaChanged { patch, .. } => patch.label.is_some() || patch.enabled.is_some(),
-            EventKind::Custom(custom) => {
-                custom.topic == crate::app::module_command::MODULE_COMMAND_REQUEST_TOPIC
-                    || custom.topic == chataigne_sound_card_protocol::SOUND_CARD_UI_CONTROL_TOPIC
-            }
+            EventKind::Custom(custom) => custom.topic == chataigne_sound_card_protocol::SOUND_CARD_UI_CONTROL_TOPIC,
             _ => false,
         })
     }
@@ -466,6 +465,7 @@ impl Node for SoundCardModule {
     fn on_effective_enabled_changed(&mut self, _ctx: &mut ProcessCtx, enabled: bool) {
         self.choices.invalidate();
         if !enabled {
+            self.commands = command_service::CommandService::default();
             self.choices.pause();
         }
         if let Some(worker) = &self.runtime_worker {
@@ -482,10 +482,7 @@ impl Node for SoundCardModule {
     }
 
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
-        if self.handle_sound_card_ui_control_event(ctx, &event) {
-            return;
-        }
-        self.handle_sound_card_command_event(ctx, &event);
+        self.handle_sound_card_ui_control_event(ctx, &event);
     }
 
     fn on_inbox(&mut self, ctx: &mut ProcessCtx) {

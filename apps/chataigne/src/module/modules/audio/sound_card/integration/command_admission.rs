@@ -1,32 +1,5 @@
 use super::*;
 
-pub(super) fn validate_request_type(command_type: &str, request: &SoundCardCommandRequest) -> Result<(), AudioError> {
-    let matches = matches!(
-        (command_type, request),
-        (
-            SOUND_CARD_PLAY_FILE_COMMAND_NODE_TYPE,
-            SoundCardCommandRequest::PlayFile { .. }
-        ) | (
-            SOUND_CARD_STOP_FILE_COMMAND_NODE_TYPE,
-            SoundCardCommandRequest::StopFile { .. }
-        ) | (
-            SOUND_CARD_STOP_ALL_FILES_COMMAND_NODE_TYPE,
-            SoundCardCommandRequest::StopAllFiles
-        ) | (
-            SOUND_CARD_SET_MASTER_VOLUME_COMMAND_NODE_TYPE,
-            SoundCardCommandRequest::SetMasterVolume { .. }
-        ) | (
-            SOUND_CARD_SET_CHANNEL_VOLUME_COMMAND_NODE_TYPE,
-            SoundCardCommandRequest::SetChannelVolume { .. }
-        )
-    );
-    matches.then_some(()).ok_or_else(|| {
-        command_error(format!(
-            "Sound Card command payload does not match node type '{command_type}'"
-        ))
-    })
-}
-
 pub(super) fn resolve_output_channel(
     snapshot: &ProcessTreeSnapshot,
     module: NodeId,
@@ -60,7 +33,7 @@ fn resolve_output_channel_node(
     Ok(target)
 }
 
-pub(super) fn authored_gain_change(
+pub(crate) fn authored_gain_change(
     snapshot: &ProcessTreeSnapshot,
     module: NodeId,
     request: &SoundCardCommandRequest,
@@ -108,6 +81,6 @@ pub(super) fn find_route(
     })
 }
 
-pub(super) fn command_error(message: impl Into<String>) -> AudioError {
+pub(crate) fn command_error(message: impl Into<String>) -> AudioError {
     AudioError::new(AudioErrorCategory::InvalidConfiguration, message)
 }

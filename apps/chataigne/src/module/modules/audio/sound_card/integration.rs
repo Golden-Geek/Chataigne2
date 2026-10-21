@@ -8,17 +8,14 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::*;
-use crate::app::module_modules_audio_sound_card_commands::{
-    SoundCardCommandRequest, SOUND_CARD_COMMAND_TYPES, SOUND_CARD_PLAY_FILE_COMMAND_NODE_TYPE,
-    SOUND_CARD_SET_CHANNEL_VOLUME_COMMAND_NODE_TYPE, SOUND_CARD_SET_MASTER_VOLUME_COMMAND_NODE_TYPE,
-    SOUND_CARD_STOP_ALL_FILES_COMMAND_NODE_TYPE, SOUND_CARD_STOP_FILE_COMMAND_NODE_TYPE,
-};
+use crate::app::module_modules_audio_sound_card_commands::SoundCardCommandRequest;
 use crate::app::module_modules_audio_sound_card_schema::{SoundCardInputRoute, SoundCardOutputRoute};
 
 mod command_admission;
 mod lifecycle;
 
 use command_admission::*;
+pub(super) use command_admission::{authored_gain_change as command_gain_change, command_error};
 #[cfg(test)]
 use runtime::DeviceChoice;
 #[cfg(test)]
@@ -64,9 +61,13 @@ impl SoundCardModule {
         if event.topic != SOUND_CARD_UI_CONTROL_TOPIC {
             return false;
         }
-        let result = event
-            .payload_as::<SoundCardUiControlRequest>()
-            .map_err(|error| command_error(format!("invalid Sound Card UI control payload: {error}")))
+        let result = crate::app::module::common::json::retained_weight(&event.payload, 64 * 1024, 256, 8)
+            .map_err(command_error)
+            .and_then(|_| {
+                event
+                    .payload_as::<SoundCardUiControlRequest>()
+                    .map_err(|_| command_error("invalid Sound Card UI control payload"))
+            })
             .and_then(|request| {
                 let snapshot = ctx
                     .tree_snapshot_arc()
@@ -528,65 +529,17 @@ impl SoundCardModule {
         }
     }
 
-    pub(super) fn handle_sound_card_command_event(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        event: &golden_core::events::CustomEvent,
-    ) {
-        let Some(request_event) = crate::app::module_command::decode_module_command_request(event) else {
-            return;
-        };
-        if request_event.module_id != self.id()
-            || !SOUND_CARD_COMMAND_TYPES.contains(&request_event.command_type.as_str())
-        {
-            return;
-        }
-
-        let result = serde_json::from_value::<SoundCardCommandRequest>(request_event.payload.clone())
-            .map_err(|error| command_error(format!("invalid Sound Card command payload: {error}")))
-            .and_then(|request| {
-                validate_request_type(request_event.command_type.as_str(), &request)?;
-                let snapshot = ctx
-                    .tree_snapshot_arc()
-                    .ok_or_else(|| command_error("Sound Card command admission requires a tree snapshot"))?;
-                self.admit_and_apply_request(ctx, snapshot.as_ref(), request)
-            });
-
-        let response = match result {
-            Ok(sequence) => {
-                self.base.emit_outgoing_traffic(ctx);
-                SoundCardCommandResultEvent {
-                    module_id: self.id(),
-                    command_id: request_event.command_id,
-                    command_type: request_event.command_type,
-                    admitted_sequence: Some(sequence.get()),
-                    error: None,
-                }
-            }
-            Err(error) => {
-                golden_core::logerror!(origin = self.id(); format!(
-                    "Sound Card command {:?} was not admitted: {error}",
-                    request_event.command_id
-                ));
-                SoundCardCommandResultEvent {
-                    module_id: self.id(),
-                    command_id: request_event.command_id,
-                    command_type: request_event.command_type,
-                    admitted_sequence: None,
-                    error: Some(error),
-                }
-            }
-        };
-        if let Err(error) = ctx.emit_custom_payload(SOUND_CARD_COMMAND_RESULT_TOPIC, Some(self.id()), &response) {
-            golden_core::logerror!(origin = self.id(); format!(
-                "Failed to emit Sound Card command result: {error}"
-            ));
-        }
-    }
-
     pub(super) fn admit_request(
         &self,
         snapshot: &ProcessTreeSnapshot,
+        request: SoundCardCommandRequest,
+    ) -> Result<CommandSequence, AudioError> {
+        self.admit_prepared_request(Some(snapshot), request)
+    }
+
+    pub(super) fn admit_prepared_request(
+        &self,
+        snapshot: Option<&ProcessTreeSnapshot>,
         request: SoundCardCommandRequest,
     ) -> Result<CommandSequence, AudioError> {
         if !self.node_data().effective_enabled {
@@ -611,25 +564,15 @@ impl SoundCardModule {
             SoundCardCommandRequest::StopAllFiles => AudioCommand::StopAllFiles,
             SoundCardCommandRequest::SetMasterVolume { gain } => AudioCommand::SetMasterGain { gain },
             SoundCardCommandRequest::SetChannelVolume { output_channel, gain } => AudioCommand::SetChannelGain {
-                channel: resolve_output_channel(snapshot, self.id(), &output_channel)?,
+                channel: resolve_output_channel(
+                    snapshot.ok_or_else(|| command_error("Sound Card channel command requires a snapshot"))?,
+                    self.id(),
+                    &output_channel,
+                )?,
                 gain,
             },
         };
         runtime.admit(command)
-    }
-
-    pub(super) fn admit_and_apply_request(
-        &self,
-        ctx: &mut ProcessCtx,
-        snapshot: &ProcessTreeSnapshot,
-        request: SoundCardCommandRequest,
-    ) -> Result<CommandSequence, AudioError> {
-        let authored_change = authored_gain_change(snapshot, self.id(), &request)?;
-        let sequence = self.admit_request(snapshot, request)?;
-        if let Some((parameter, value)) = authored_change {
-            ctx.set_param(parameter, value);
-        }
-        Ok(sequence)
     }
 
     pub(super) fn set_runtime_error(&mut self, ctx: &mut ProcessCtx, node: NodeId, message: &str) {
@@ -654,6 +597,7 @@ impl SoundCardModule {
     }
 
     pub(super) fn stop_runtime(&mut self) {
+        self.commands = command_service::CommandService::default();
         self.choices.pause();
         self.runtime_request = None;
         self.runtime_retry_at = None;

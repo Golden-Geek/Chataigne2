@@ -5,11 +5,10 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-21 on `main`, after delivered `a41f7dd1`, plus the passive MIDI
-qualification milestone below. The checkout began clean. **C02 and C03 are locally closed**;
-MIDI and OSC meet P03's bounded ownership/service acceptance with controlled providers.
-**Ten closure packages remain open: C01 and C04-C12.** Device/platform and product-scale
-qualification remain separate at their owning tasks.
+Last reconciled: 2026-10-21 on `main`, starting clean at delivered `98f303f0`, matching
+fetched `origin/main`. The C01 command preparation/publication milestone below is locally verified. All owned checks are terminal.
+**C02 and C03 remain locally closed; ten packages remain open: C01 and C04-C12.**
+Device/platform and product-scale qualification remain separate at their owning tasks.
 General snapshot/DTO scaling remains P16 work.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
@@ -42,15 +41,15 @@ or approximately 18%. This replaces its all-open score without crediting unaudit
 complete. None of these scores measures elapsed or remaining engineering effort.
 The score is `(100 + 100 + 100 + 100 + 50 + 200/11 + 100) / 7`.
 
-| Workstream                                    | Scope score   | Delivered / remaining acceptance                                                                                                                                                    |
-| --------------------------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Shared IO and engine service/lifecycle bounds | 100%          | Bounded primitives, external-edit service, lifecycle expansion, completion and failure ownership delivered.                                                                         |
-| Six native stream adapters                    | 100%          | UDP, TCP Client/Server, WebSocket Client/Server and Serial ownership/admission/passive service delivered; preserve their regression suites.                                         |
-| HTTP                                          | 100%          | Native lifecycle, admission, response bounds, passive service, worker request conversion and retained input disposal verified.                                                      |
-| Generic script/event/property ingress         | 100%          | Method/property/event/log admission, rejected-input disposal, routing lifetime and shared-budget recovery verified.                                                                 |
-| Sound Card lifecycle/service                  | 50% (partial) | Native lifecycle/planning, choice application fences, route lookup, logging and receipts verified. Core publication costs, feedback, structure and command diagnostics remain open. |
-| Remaining app module/channel audit            | ~18% (2/11)   | C02 Signals/Metronomes and C03 MIDI/OSC locally closed with bounded native/actor service, occurrence, retirement and recovery evidence. C04-C12 remain open.                        |
-| Generator elapsed-time accounting             | 100%          | Ordinary commands settle elapsed time; phase, due-prefix ordering, bounded catch-up, targeted reset and stop cancellation verified.                                                 |
+| Workstream                                    | Scope score   | Delivered / remaining acceptance                                                                                                                                                                                                  |
+| --------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Shared IO and engine service/lifecycle bounds | 100%          | Bounded primitives, external-edit service, lifecycle expansion, completion and failure ownership delivered.                                                                                                                       |
+| Six native stream adapters                    | 100%          | UDP, TCP Client/Server, WebSocket Client/Server and Serial ownership/admission/passive service delivered; preserve their regression suites.                                                                                       |
+| HTTP                                          | 100%          | Native lifecycle, admission, response bounds, passive service, worker request conversion and retained input disposal verified.                                                                                                    |
+| Generic script/event/property ingress         | 100%          | Method/property/event/log admission, rejected-input disposal, routing lifetime and shared-budget recovery verified.                                                                                                               |
+| Sound Card lifecycle/service                  | 50% (partial) | Native lifecycle/planning, choice application fences, route lookup, logging and receipts verified. Command preparation/publication is locally verified; structure/default routes, feedback and remaining native fences stay open. |
+| Remaining app module/channel audit            | ~18% (2/11)   | C02 Signals/Metronomes and C03 MIDI/OSC locally closed with bounded native/actor service, occurrence, retirement and recovery evidence. C04-C12 remain open.                                                                      |
+| Generator elapsed-time accounting             | 100%          | Ordinary commands settle elapsed time; phase, due-prefix ordering, bounded catch-up, targeted reset and stop cancellation verified.                                                                                               |
 
 The generator elapsed-time checkpoint is now verified. Sound Card and the remaining module audit
 stay open; generator channel/retirement/callback bounds belong to that audit rather than this time
@@ -110,34 +109,36 @@ or completion credit. Snapshot/DTO scaling remains an explicit P16 investigation
 
 ## Current handoff
 
-- Current delivery: **C03 passive MIDI service and local package closure**, after prepared catalog
-  ownership at `a41f7dd1`. MIDI now uses worker notifications and one coalesced clock/MTC/retry
-  deadline, with no 240 Hz update rule. Native statuses and timeout/retry decisions use bound
-  handles; queued input waits without snapshots while structure is blocked. Registration
-  publishes capabilities from current bound configuration, including values supplied after init.
-- Checkout reconciled at `a41f7dd1` on `main`, matching fetched `origin/main`, with no unrelated
-  changes. Commit and push this verified milestone before starting the next package.
-- Current app evidence: **106 MIDI cases + 713 preservation cases = 819 distinct passes of
-  1193 listed**. Ten new tests cover passive input service, idle work/snapshots, earliest activity
-  deadlines, a single retry, native failure, blocked retiring cleanup, disable/enable, discovery
-  recovery, structure backpressure and startup capability publication. OSC's 77 cases are included.
-- All owned checks are terminal: final workspace/test compilation, strict all-target Clippy,
-  native build with `CARGO_INCREMENTAL=0`, protocol generation and formatting passed. Bindings are
-  unchanged. The default incremental native artifact issue remains P12 work. Core/IO/UI/macro
-  evidence retains its previous dates and scope; no Core source changed in this milestone.
-- **C03 is locally CLOSED.** Counts are **10 open / two closed (C02/C03)**. Whole plan remains
-  **16%**, P03 advances to approximately **81%**, and Sound Card stays **50% partial**. P03 is
-  still `IN_PROGRESS`: C01 and C04-C12 remain open. Scores measure scope coverage, not effort.
-- Next action: **C01 Sound Card**, auditing and finishing the remaining P03 publication,
-  authored structure/default-route, feedback, command diagnostic and native failure/reconfiguration
-  fences. Use controlled/Null providers for local qualification. Keep P04 audio ordering and P16
-  general scaling separate; do not reopen a generic snapshot-copy prerequisite chain.
-- The full P00-P18 foundation/readiness goal stays active. P01/P02 are locally verified;
-  P04-P18 have not started. Continue on `main`, committing and pushing every verified milestone.
-  Mapping was merged at `f02205af`; automatic effort-switching rules were removed at `d3a45301`.
-- The October Rustls advisory gate, three existing Formula creation failures (P08/P12), native UI,
-  physical routes/devices, other platforms and product-scale performance retain their previous
-  scope and dates. No full Formula or device/platform qualification is claimed.
+- Current delivery: **C01 Sound Card command preparation and receipt-driven publication**, based on
+  `98f303f0`. Five command nodes and five script methods prepare on an app-owned bounded worker.
+  Frozen input leases replace the serialized request round trip. Runtime/source fences, authored
+  gain identity checks and separate publication receipts prevent redirection and native replay.
+- Checkout began clean on `main`, matching fetched `origin/main`. No Golden, protocol, dependency,
+  persisted format or app-shell source changed. Commit and push this verified milestone before the next C01 work.
+- Current app evidence: **156 Sound Card/command cases + 676 disjoint preservation cases =
+  832 distinct passes of 1206 listed**. Thirteen new cases cover bounded preparation/input,
+  frozen overrides, source/runtime/target retirement, worker restart, mailbox cancellation,
+  native non-replay after failed graph-publication prefixes, and passive command/script delivery.
+- Final workspace/test compilation, strict all-target Clippy, protocol generation and root/Core/app
+  formatting passed. Bindings are unchanged. Native build passed with `CARGO_INCREMENTAL=0`;
+  all owned checks are terminal.
+- **C01 remains OPEN**, Sound Card stays **50% partial**, P03 stays approximately **81%**, and the
+  whole plan stays approximately **16%**. Counts remain **10 open / two closed (C02/C03)**.
+  These are scope scores; the command milestone does not close Sound Card's remaining criteria.
+- Next action: **C01 derived structure/default-route reconciliation**, including accepted-prefix
+  receipts (route-reset flags currently clear when edits are queued), bounded child/route scans
+  and publication. Finish feedback and remaining native/reconfiguration fences with controlled/Null
+  providers. Keep P04 audio ordering and P16 general scaling separate.
+- Core's 588 passes / three existing ignored retain their earlier source/date; Core source is
+  unchanged. App evidence supersedes the previous 819/1193 selection without adding historical
+  totals. Source policy scan: **1693 files / 37 oversized**, unchanged oversized count.
+- The full P00-P18 goal stays active. P01/P02 are locally verified; P04-P18 have not started.
+  Continue on `main`, committing and pushing every verified milestone. Mapping was merged at
+  `f02205af`; effort-switching rules were removed at `d3a45301`.
+- The October Rustls advisory gate, three Formula creation failures (P08/P12), default incremental
+  MSVC native artifact failures (P12), native UI, physical devices/routes, other platforms and
+  product-scale performance retain their previous scope/dates. No full Formula or device/platform
+  qualification is claimed.
 
 ## Task ledger
 
@@ -5548,3 +5549,81 @@ criteria without pulling P04 ordering or P16 generic scaling into this package.
 Final root/Core Cargo format, all eleven touched app Rust files, maintained docs and whitespace
 checks passed. All owned jobs are terminal. Commit and push this C03 closure milestone before
 continuing C01; keep the full P00-P18 goal active.
+
+## C01 Sound Card command preparation and publication
+
+Implemented from `98f303f0` on 2026-10-21, Windows/MSVC Rust 1.97.0, default workspace features.
+The preceding goal turn only reported status (**no progress**); this turn changed app-owned code,
+qualified its command boundary and preserved the prior module/consumer gates. No Golden, protocol,
+dependency, persisted schema or app-shell source changed. C01 remains OPEN; no package or percentage
+completion credit is claimed for its still-unfinished structure/default-route and feedback criteria.
+
+Five command nodes dispatch frozen `CapturedInvocation` leases through a typed module callback.
+The event predicate checks only topic/ID, avoiding an earlier full JSON decode before admission.
+Five script methods retain the engine-owned argument lease. Script success means preparation-queue
+admission; later parsing/native failures publish bounded backend warnings. Existing script snippets,
+method names, argument shapes and native callback surfaces are preserved. Command nodes retain the
+structured command-result topic and native sequence. The serialized internal request round trip,
+request serde derives and obsolete request handler/type validator were removed.
+
+One passive preparation worker per active Sound Card uses the public `golden_io` primitives.
+A global 64-item pool reserves 4 MiB per request before queue transfer; the conservative 256 MiB
+reservation covers decoded override/argument preparation and retained results, while canonical
+snapshot/JSON/script leases keep their independent budgets. Sources admit at most 256 KiB, command
+paths at most 64 KiB and script calls at most four arguments. UI control JSON is checked before
+cloning/decoding at 64 KiB, 256 values and depth eight. Eight worker lifetime slots include retiring
+workers. Full/stopped capacity rejects explicitly. Source/module cancellation and final disposal
+stay off the actor; worker teardown never joins it.
+
+Worker preparation borrows indexed command parameters and applies last-override precedence without
+copying snapshot node metadata. Source retirement cancels work. Native retirement with a live
+source retains a failure result; it does not silently discard an admitted occurrence. Module lifetime
+wakers fence dispatch before enqueue, and a captured runtime lifetime fences native application.
+A replacement module/runtime cannot receive an old command. Preparation has no native effects.
+
+The actor services at most four prepared deliveries per wake. Only pending gain work requests a
+command-service tree snapshot. It checks target UUID, parent and float type before native admission;
+absolute gains do not require the old gain value, so queued gains preserve FIFO behavior. Native
+submission occurs once. Authored gain writeback, bounded warning edits and result publication have
+independent receipts; a failed edit prefix cannot replay an admitted command. If authored target
+retirement prevents writeback after native admission, the failure result retains its admitted
+sequence. Diagnostic text is bounded to 4 KiB on the worker. Disable/removal cancels the module's
+command service. A failed preparation worker retires and a later command can restart it.
+
+Verification on the final source:
+
+| Check                                          | Result                                                                                                                                       |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sound Card and command selection, four threads | **156 passed**: 143 preserved plus 13 new command/preparation/retirement cases.                                                              |
+| Disjoint app preservation                      | **676 passed**: generators, HTTP, six native streams, shared ingress, OSC, MIDI, module commands and scoped Formula/state-machine consumers. |
+| Current app totals                             | **832 distinct passes / 1206 listed**; selector sets were checked nonempty and disjoint. No full-app/Formula pass claimed.                   |
+| Workspace/test compilation                     | Passed `cargo check --locked --workspace --tests`.                                                                                           |
+| Strict workspace Clippy                        | Passed `cargo clippy --locked --workspace --all-targets -- -D warnings`.                                                                     |
+| Native app build                               | Passed on the final source with `CARGO_INCREMENTAL=0`. Default incremental MSVC artifact failures remain P12.                                |
+| UI protocol generation                         | Passed; generated bindings unchanged.                                                                                                        |
+| Formatting and source policy                   | Root/Core actual fmt and touched app fmt passed; source scan **1693 / 37 oversized**. Docs and whitespace passed.                            |
+
+The Null/fake fixtures exercise passive delivery of all five script methods, two queued absolute
+master gains and a real command dispatch/result through worker wakes. The missing-file play request
+opens no physical audio endpoint. Other new cases cover UTF-8 error bounds, byte/item recovery,
+input freezing, full-mailbox cancellation, retired source, removed gain target, replacement module,
+replacement runtime, retained native-retirement failure, worker restart and non-replay after a
+failed warning-publication prefix. Initial fixture failures (snapshot-budget saturation and
+an unaddressed execute event) were corrected; the final full owning selection passed.
+
+Core remains at its previously dated 588 passes / three existing ignored because its source is
+unchanged. The three known Formula catalog/curve/gradient creation failures, advisory/native
+incremental artifact gates, physical devices/routes, native UI, platforms and product-scale
+qualification remain at their owning tasks. P04 gain/configuration ordering is not qualified here.
+Next: C01 authored structure/default-route receipts and bounded scans, then remaining feedback and
+native reconfiguration/failure criteria. Counts stay **10 open / two closed**; P03 **~81%**, full plan
+**~16%**, Sound Card **50% partial**. Commit/push this verified milestone on `main`; keep P00-P18 active.
+
+Final artifact provenance for this C01 source and its 832-case selection:
+
+- App tests: `target/debug/deps/Chataigne2-b14ffd1b9e52f9ac.exe`, SHA-256
+  `e723897ff9796228c5b96a9ab69a3929c8c61de21283d159581f3b9780008027`.
+- Native app: `target/debug/Chataigne2.exe`, SHA-256
+  `3518c4e5d5e33c95fdae094321ac38c3582cfa72ecf610e22a029184572cbb3b`, built with
+  `CARGO_INCREMENTAL=0`. The final native build, workspace/test check, strict all-target Clippy and
+  all owned test processes are terminal and passed. No app process or physical endpoint was launched.

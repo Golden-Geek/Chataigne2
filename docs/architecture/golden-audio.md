@@ -44,6 +44,29 @@ Chataigne owns the `sound_card_module` tree, the one-driver product policy, stab
 identity mapping, authored channels and direct routes, lifecycle integration, command and script
 surfaces, project persistence, reference filters, telemetry adaptation, and the Sound Card editor.
 
+Sound Card's app-owned `command_service` prepares its five command nodes and five script methods
+on a passive `golden_io` worker. Command nodes dispatch frozen snapshot/override leases directly;
+scripts retain their engine-owned argument lease. Script success reports preparation-queue admission;
+later parse/native failures appear as backend warnings. Command nodes retain the existing structured
+command-result event, including the native admission sequence. The former serialized module-request
+round trip is removed.
+
+Preparation admits at most 64 live requests globally, with a conservative 4 MiB reservation per
+request covering decoded input, temporary preparation and result storage. Snapshot/JSON/script leases
+retain their separate canonical budgets. Source parameters/arguments are limited to 256 KiB and
+paths to 64 KiB; UI control payloads are checked before decoding at 64 KiB, 256 values and depth eight.
+Eight worker lifetime slots include retiring workers. Cancellation never joins on the actor, and
+captured source/result final disposal stays worker-owned.
+
+The actor services at most four prepared deliveries per wake. Native submission happens once against
+the captured runtime lifetime; a replacement runtime cannot receive an old request. Authored gain
+targets require a fresh identity/parent/type check. Gain writeback, bounded diagnostics and command
+result publication have separate edit receipts, so publication failures cannot replay native effects.
+Only pending gain work requests a command-service snapshot. Disable/removal cancels preparation;
+native retirement invalidates captured targets. This does not establish P04's ordering barrier between
+gain commands and configuration exchanges. Derived structure, route reconciliation and the remaining
+C01 feedback/failure qualification stay open in the status ledger.
+
 `golden_audio_ui` owns generic audio driver/device controls, status rendering, the SVG channel patch
 bay, accessibility behavior, and application binding contracts. An application adapter may
 translate node paths and typed intents, but may not invent fallback policy, device identity, format

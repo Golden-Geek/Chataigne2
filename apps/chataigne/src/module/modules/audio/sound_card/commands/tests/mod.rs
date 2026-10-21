@@ -6,7 +6,7 @@ use golden_core::{
     parameter::{ParamValue, ParameterEventBehaviour, RangeConstraint},
 };
 
-use super::{playback_start_offset, SoundCardCommand, SoundCardCommandRequest, SoundCardPlayFileCommand};
+use super::{playback_start_offset, SoundCardCommandRequest, SoundCardPlayFileCommand};
 
 #[test]
 fn play_file_command_declares_offset_and_restart_controls() {
@@ -61,15 +61,7 @@ fn play_file_command_builds_typed_offset_and_restart_request() {
     engine.apply_edits().expect("Play Audio File parameters should update");
 
     let snapshot = engine.process_tree_snapshot();
-    let request = engine
-        .nodes
-        .get(command)
-        .expect("Play Audio File command")
-        .as_any()
-        .downcast_ref::<SoundCardPlayFileCommand>()
-        .expect("Play Audio File command type")
-        .request(&snapshot)
-        .expect("Play Audio File request");
+    let request = super::preparation::request_from_snapshot(&snapshot, command).expect("Play Audio File request");
 
     assert_eq!(
         request,
@@ -79,11 +71,6 @@ fn play_file_command_builds_typed_offset_and_restart_request() {
             start_offset: Duration::from_millis(1_250),
             force_restart: false,
         }
-    );
-    let encoded = serde_json::to_value(&request).expect("serialize Play Audio File request");
-    assert_eq!(
-        serde_json::from_value::<SoundCardCommandRequest>(encoded).expect("deserialize Play Audio File request"),
-        request,
     );
 }
 
@@ -98,6 +85,61 @@ fn playback_start_offset_rejects_invalid_seconds() {
             playback_start_offset(invalid).is_err(),
             "{invalid} must not produce a playback offset"
         );
+    }
+}
+
+#[test]
+fn command_preparation_uses_last_frozen_override_without_changing_authored_values() {
+    use crate::app::module_command::CapturedInvocation;
+    let (engine, command) = materialized_play_file_command();
+    let snapshot = engine.process_tree_snapshot();
+    let path = direct_child(&snapshot, command, "audio_file");
+    let offset = direct_child(&snapshot, command, "start_offset");
+    let event = golden_core::events::CustomEvent::new(
+        "test",
+        None,
+        serde_json::json!({
+            "command_id": command,
+            "param_overrides": [
+                {"param_id": path, "value": ParamValue::File("old.wav".into())},
+                {"param_id": path, "value": ParamValue::File("captured.wav".into())},
+                {"param_id": offset, "value": ParamValue::Float(2.5)}
+            ]
+        }),
+    );
+    let execution = event.try_lease_payload(4096).unwrap();
+    let invocation = CapturedInvocation {
+        snapshot: snapshot.try_lease().unwrap(),
+        execution: Some(execution),
+        module: engine.root,
+        command,
+        override_weight: 4096,
+    };
+    let SoundCardCommandRequest::PlayFile {
+        path: prepared_path,
+        start_offset,
+        ..
+    } = super::prepare_command(&invocation).unwrap()
+    else {
+        panic!("play request");
+    };
+    assert_eq!(prepared_path, PathBuf::from("captured.wav"));
+    assert_eq!(start_offset, Duration::from_millis(2500));
+    assert_eq!(snapshot.node(offset).unwrap().param_value, Some(ParamValue::Float(0.0)));
+    assert_ne!(
+        snapshot.node(path).unwrap().param_value,
+        Some(ParamValue::File("captured.wav".into()))
+    );
+}
+
+#[test]
+fn command_preparation_rejects_oversized_paths_and_source_capacity_before_copying() {
+    let (engine, command) = materialized_play_file_command();
+    let snapshot = engine.process_tree_snapshot();
+    let path = direct_child(&snapshot, command, "audio_file");
+    for value in ["x".repeat(64 * 1024 + 1), String::with_capacity(256 * 1024 + 1)] {
+        let snapshot = snapshot.with_param_values([(path, ParamValue::File(value))]);
+        assert!(super::preparation::request_from_snapshot(&snapshot, command).is_err());
     }
 }
 

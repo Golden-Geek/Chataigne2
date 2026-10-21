@@ -40,15 +40,10 @@ impl SoundCardModule {
         method: &str,
         args: &[ParamValue],
     ) -> Option<Result<(), String>> {
-        let request = script_request(method, args)?;
-        Some(request.and_then(|request| {
-            let snapshot = ctx
-                .tree_snapshot_arc()
-                .ok_or_else(|| format!("{method} requires a tree snapshot"))?;
-            self.admit_and_apply_request(ctx, snapshot.as_ref(), request)
-                .map(|_| ())
-                .map_err(|error| format!("Sound Card {method} was not admitted: {error}"))
-        }))
+        let method = *SOUND_CARD_SCRIPT_METHODS
+            .iter()
+            .find(|candidate| **candidate == method)?;
+        Some(self.enqueue_script_command(ctx, method, args))
     }
 }
 
@@ -109,12 +104,12 @@ pub(super) fn audio_event_callback(
     Some((callback, args, retention))
 }
 
-fn script_request(method: &str, args: &[ParamValue]) -> Option<Result<SoundCardCommandRequest, String>> {
+pub(super) fn script_request(method: &str, args: &[ParamValue]) -> Option<Result<SoundCardCommandRequest, String>> {
     let result = match method {
         "playFile" => arg_count_range(method, args, 2, 4).and_then(|()| {
             let path = string_arg(method, args, 0, "path")?;
-            if path.trim().is_empty() {
-                return Err("playFile path cannot be empty".to_string());
+            if path.is_empty() || path.len() > 64 * 1024 || path.trim().is_empty() {
+                return Err("playFile path must contain 1 to 65536 bytes".to_string());
             }
             Ok(SoundCardCommandRequest::PlayFile {
                 path: PathBuf::from(path),
@@ -219,7 +214,7 @@ fn channel_reference_arg(method: &str, args: &[ParamValue], index: usize) -> Res
         if reference.is_empty() {
             return Err(format!("{method} received an empty channel reference"));
         }
-        return Ok(reference.clone());
+        return Ok(NodeReference::new(reference.uuid()));
     }
     let Some(token) = value.as_str() else {
         return Err(format!("{method} expects an output-channel node handle or UUID token"));

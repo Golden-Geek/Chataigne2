@@ -7,7 +7,6 @@ use golden_core::{
     parameter::{ParamValue, ReferenceTargetKind},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
-use serde::{Deserialize, Serialize};
 
 use crate::app::module_modules_audio_sound_card_schema::SOUND_CARD_OUTPUT_GAIN_FILTER_KEY;
 
@@ -25,7 +24,7 @@ pub(crate) const SOUND_CARD_COMMAND_TYPES: &[&str] = &[
     SOUND_CARD_SET_CHANNEL_VOLUME_COMMAND_NODE_TYPE,
 ];
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) enum SoundCardCommandRequest {
     PlayFile {
         path: PathBuf,
@@ -46,84 +45,41 @@ pub(crate) enum SoundCardCommandRequest {
     },
 }
 
-trait SoundCardCommand: Node {
-    fn request(&self, snapshot: &ProcessTreeSnapshot) -> Result<SoundCardCommandRequest, String>;
-}
+mod preparation;
+pub(crate) use preparation::prepare_command;
 
-fn trigger_command<T: SoundCardCommand>(command: &T, ctx: &mut ProcessCtx, changed_param: NodeId) {
-    let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
+fn trigger_command<T: Node>(command: &T, ctx: &mut ProcessCtx, changed_param: NodeId) {
+    let Some(snapshot) = ctx.tree_snapshot_arc() else {
         return;
     };
-    let snapshot = snapshot_arc.as_ref();
-    if !crate::app::module_command::module_command_triggered(snapshot, command.id(), changed_param) {
-        return;
+    if crate::app::module_command::module_command_triggered(&snapshot, command.id(), changed_param) {
+        dispatch(command, ctx, None);
     }
-    execute_command(command, ctx, snapshot);
 }
 
-fn execute_command_event<T: SoundCardCommand>(command: &T, ctx: &mut ProcessCtx, event: &CustomEvent) {
-    if !crate::app::module_command::is_command_execute_request(event, command.id()) {
-        return;
+fn execute_command_event<T: Node>(command: &T, ctx: &mut ProcessCtx, event: &CustomEvent) {
+    if event.topic == crate::app::module_command::MODULE_COMMAND_EXECUTE_TOPIC
+        && event.payload.get("command_id").and_then(serde_json::Value::as_u64) == Some(command.id().0)
+    {
+        dispatch(command, ctx, Some(event.clone()));
     }
-    let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
+}
+
+fn dispatch<T: Node>(command: &T, ctx: &mut ProcessCtx, event: Option<CustomEvent>) {
+    let Some(snapshot) = ctx.tree_snapshot_arc() else {
         return;
     };
-    let snapshot = crate::app::module_command::command_execute_snapshot(event, snapshot_arc.as_ref(), command.id());
-    execute_command(command, ctx, snapshot.as_ref());
-}
-
-fn execute_command<T: SoundCardCommand>(command: &T, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
-    if let Err(error) = command.request(snapshot).and_then(|request| {
-        crate::app::module_command::emit_module_command_request(
-            ctx,
-            snapshot,
-            command.id(),
-            command.get_type(),
-            &request,
-        )
-    }) {
-        golden_core::logerror!(origin = command.id(); format!(
-            "Failed to execute Sound Card command: {error}"
-        ));
+    let result =
+        crate::app::module_command::CapturedInvocation::capture(&snapshot, command.id(), event, &["sound_card_module"])
+            .and_then(|invocation| crate::app::SoundCardModule::dispatch_command(ctx, invocation));
+    if let Err(error) = result {
+        golden_core::logerror!(origin = command.id(); format!("Sound Card command was not admitted: {error}"));
     }
-}
-
-fn command_param<'a>(snapshot: &'a ProcessTreeSnapshot, command: NodeId, path: &str) -> Option<&'a ParamValue> {
-    crate::app::module_command::resolve_module_command_child(snapshot, command, path)
-        .and_then(|param| snapshot.node(param))
-        .and_then(|node| node.param_value.as_ref())
-}
-
-fn playback_id(snapshot: &ProcessTreeSnapshot, command: NodeId) -> Result<golden_audio::PlaybackId, String> {
-    let value = command_param(snapshot, command, "playback_id")
-        .and_then(ParamValue::as_str)
-        .unwrap_or_default();
-    golden_audio::PlaybackId::new(value).map_err(|error| format!("invalid Sound Card playback ID: {error}"))
 }
 
 pub(crate) fn playback_start_offset(seconds: f64) -> Result<Duration, String> {
     Duration::try_from_secs_f64(seconds)
         .map_err(|_| "Sound Card playback start offset must be a finite non-negative number of seconds".to_string())
-}
-
-fn start_offset(snapshot: &ProcessTreeSnapshot, command: NodeId) -> Result<Duration, String> {
-    let seconds = command_param(snapshot, command, "start_offset")
-        .and_then(ParamValue::as_float)
-        .ok_or_else(|| "Sound Card playback start offset must be numeric".to_string())?;
-    playback_start_offset(seconds)
-}
-
-fn force_restart(snapshot: &ProcessTreeSnapshot, command: NodeId) -> Result<bool, String> {
-    command_param(snapshot, command, "force_restart")
-        .and_then(ParamValue::as_bool)
-        .ok_or_else(|| "Sound Card Force Restart must be boolean".to_string())
-}
-
-fn gain(snapshot: &ProcessTreeSnapshot, command: NodeId) -> Result<golden_audio::GainDb, String> {
-    let value = command_param(snapshot, command, "volume_db")
-        .and_then(ParamValue::as_float)
-        .ok_or_else(|| "Sound Card volume must be numeric".to_string())?;
-    golden_audio::GainDb::new(value as f32).map_err(|error| format!("invalid Sound Card volume: {error}"))
 }
 
 #[node("sound_card_play_file_command", label = "Play Audio File")]
@@ -157,23 +113,6 @@ pub struct SoundCardPlayFileCommand {
 impl SoundCardPlayFileCommand {
     pub fn create() -> Self {
         Self::new(crate::app::ModuleCommandBase::new())
-    }
-}
-
-impl SoundCardCommand for SoundCardPlayFileCommand {
-    fn request(&self, snapshot: &ProcessTreeSnapshot) -> Result<SoundCardCommandRequest, String> {
-        let path = command_param(snapshot, self.id(), "audio_file")
-            .and_then(ParamValue::as_str)
-            .unwrap_or_default();
-        if path.trim().is_empty() {
-            return Err("Sound Card audio file path cannot be empty".to_string());
-        }
-        Ok(SoundCardCommandRequest::PlayFile {
-            path: PathBuf::from(path),
-            playback_id: playback_id(snapshot, self.id())?,
-            start_offset: start_offset(snapshot, self.id())?,
-            force_restart: force_restart(snapshot, self.id())?,
-        })
     }
 }
 
@@ -220,14 +159,6 @@ impl SoundCardStopFileCommand {
     }
 }
 
-impl SoundCardCommand for SoundCardStopFileCommand {
-    fn request(&self, snapshot: &ProcessTreeSnapshot) -> Result<SoundCardCommandRequest, String> {
-        Ok(SoundCardCommandRequest::StopFile {
-            playback_id: playback_id(snapshot, self.id())?,
-        })
-    }
-}
-
 #[golden_core::item(
     "module_command",
     node = "sound_card_stop_file_command",
@@ -262,12 +193,6 @@ pub struct SoundCardStopAllFilesCommand {
 impl SoundCardStopAllFilesCommand {
     pub fn create() -> Self {
         Self::new(crate::app::ModuleCommandBase::new())
-    }
-}
-
-impl SoundCardCommand for SoundCardStopAllFilesCommand {
-    fn request(&self, _snapshot: &ProcessTreeSnapshot) -> Result<SoundCardCommandRequest, String> {
-        Ok(SoundCardCommandRequest::StopAllFiles)
     }
 }
 
@@ -312,14 +237,6 @@ pub struct SoundCardSetMasterVolumeCommand {
 impl SoundCardSetMasterVolumeCommand {
     pub fn create() -> Self {
         Self::new(crate::app::ModuleCommandBase::new())
-    }
-}
-
-impl SoundCardCommand for SoundCardSetMasterVolumeCommand {
-    fn request(&self, snapshot: &ProcessTreeSnapshot) -> Result<SoundCardCommandRequest, String> {
-        Ok(SoundCardCommandRequest::SetMasterVolume {
-            gain: gain(snapshot, self.id())?,
-        })
     }
 }
 
@@ -370,21 +287,6 @@ pub struct SoundCardSetChannelVolumeCommand {
 impl SoundCardSetChannelVolumeCommand {
     pub fn create() -> Self {
         Self::new(crate::app::ModuleCommandBase::new())
-    }
-}
-
-impl SoundCardCommand for SoundCardSetChannelVolumeCommand {
-    fn request(&self, snapshot: &ProcessTreeSnapshot) -> Result<SoundCardCommandRequest, String> {
-        let Some(ParamValue::Reference(output_channel)) = command_param(snapshot, self.id(), "output_channel") else {
-            return Err("Sound Card channel volume requires an output-channel reference".to_string());
-        };
-        if output_channel.is_empty() {
-            return Err("Sound Card channel volume requires an output-channel reference".to_string());
-        }
-        Ok(SoundCardCommandRequest::SetChannelVolume {
-            output_channel: output_channel.clone(),
-            gain: gain(snapshot, self.id())?,
-        })
     }
 }
 
