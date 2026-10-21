@@ -16,22 +16,32 @@ use crate::app::module_modules_audio_sound_card_schema::{
 pub(super) const SPECTRAL_PARAMETERS_UUID_KEY: &[u8] = b"spectral-analysis-parameters";
 
 impl SoundCardModule {
-    pub(super) fn synchronize_derived_structure(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
+    pub(super) fn synchronize_derived_structure(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        snapshot: &std::sync::Arc<ProcessTreeSnapshot>,
+    ) -> bool {
         let driver_used = self.audio_driver.get_ref().0 != super::NO_AUDIO_DRIVER;
         let (input_device, output_device) = self.selected_device_values();
         let input_used = driver_used && input_device != NO_AUDIO_DEVICE;
         let output_used = driver_used && output_device != NO_AUDIO_DEVICE;
 
-        self.synchronize_input_structure(ctx, snapshot, input_used);
-        self.synchronize_output_structure(ctx, snapshot, output_used);
+        let input_pending = self.synchronize_input_structure(ctx, snapshot, input_used);
+        let output_pending = self.synchronize_output_structure(ctx, snapshot, output_used);
         reconcile_spectral_parameter_container(ctx, snapshot, self.id());
         self.synchronize_processing_values(ctx, snapshot);
         remove_obsolete_value_folders(ctx, snapshot, self.id());
         remove_empty_parameter_folders(ctx, snapshot, self.id());
         synchronize_level_direction_order(ctx, snapshot, self.id());
+        input_pending || output_pending
     }
 
-    fn synchronize_input_structure(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot, used: bool) {
+    fn synchronize_input_structure(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        snapshot: &std::sync::Arc<ProcessTreeSnapshot>,
+        used: bool,
+    ) -> bool {
         synchronize_direction_values_root(ctx, snapshot, self.id(), "input", used);
 
         let count = direction_channel_count(snapshot, self.id(), "connection/input_routing/channel_count");
@@ -46,17 +56,18 @@ impl SoundCardModule {
             );
         }
         if !self.input_route_reset_pending && !self.routes.seeding_input() {
-            remove_stale_routes(
-                ctx,
-                snapshot,
-                self.id(),
-                "connection/input_routing/routes",
-                channels.as_slice(),
-            );
+            self.prune_routes(ctx, snapshot, true, &channels)
+        } else {
+            false
         }
     }
 
-    fn synchronize_output_structure(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot, used: bool) {
+    fn synchronize_output_structure(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        snapshot: &std::sync::Arc<ProcessTreeSnapshot>,
+        used: bool,
+    ) -> bool {
         synchronize_direction_values_root(ctx, snapshot, self.id(), "output", used);
 
         let count = direction_channel_count(snapshot, self.id(), "connection/output_routing/channel_count");
@@ -71,13 +82,9 @@ impl SoundCardModule {
             );
         }
         if !self.output_route_reset_pending && !self.routes.seeding_output() {
-            remove_stale_routes(
-                ctx,
-                snapshot,
-                self.id(),
-                "connection/output_routing/routes",
-                channels.as_slice(),
-            );
+            self.prune_routes(ctx, snapshot, false, &channels)
+        } else {
+            false
         }
     }
 
@@ -456,35 +463,6 @@ fn title_case(value: &str) -> String {
         .next()
         .map(|first| first.to_uppercase().collect::<String>() + chars.as_str())
         .unwrap_or_default()
-}
-
-fn remove_stale_routes(
-    ctx: &mut ProcessCtx,
-    snapshot: &ProcessTreeSnapshot,
-    module: NodeId,
-    path: &str,
-    channels: &[NodeReference],
-) {
-    let Some(parent) = find_path(snapshot, module, path) else {
-        return;
-    };
-    let valid_channels = channels.iter().map(|channel| channel.uuid).collect::<HashSet<_>>();
-    for route in snapshot.child_ids(parent) {
-        let Some(channel_parameter) = find_child_by_key(snapshot, route, "channel") else {
-            NodeHandle::new(route).remove(ctx);
-            continue;
-        };
-        let Some(ParamValue::Reference(reference)) = snapshot
-            .node(channel_parameter)
-            .and_then(|node| node.param_value.as_ref())
-        else {
-            NodeHandle::new(route).remove(ctx);
-            continue;
-        };
-        if !valid_channels.contains(&reference.uuid) {
-            NodeHandle::new(route).remove(ctx);
-        }
-    }
 }
 
 fn synchronize_optional_node(

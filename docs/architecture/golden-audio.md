@@ -80,8 +80,27 @@ field before copying. Existing channel/reference names and persisted route UUIDs
 An invalid direction does not abandon accepted writes in the other direction: those settle before
 the input error is reported. Missing inventory/channels waits for subsequent structural/native
 publication. Channel short-name changes request backend reconciliation even without telemetry.
-This does not qualify all derived channel/level creation, stale-route pruning, manual route lookup
-or remaining native/feedback fences; those still belong to C01.
+`routes::prune` scans at most 32 captured roots and queues at most eight deletions per turn.
+The sweep retains a canonical snapshot instead of cloning a complete child list. Each turn checks
+current ownership/reference values; failed prefixes retry only survivors. Intent, parent, target and
+module-lifetime fences protect deletion. A final fresh sweep covers additions/rewires during earlier
+turns. Cleanup continues with the driver set to None. Snapshot-capacity rejection uses a 250 ms
+deadline and suppresses snapshot requests while waiting.
+
+`routes::lookup` owns ordered connect/disconnect requests. Its worker borrows immutable route fields,
+preserves first-match child order and authored UUIDs, and inspects at most 65536 roots per request.
+Each module admits 32 requests, with 256 global live request slots, eight worker lifetimes including
+retirement, and one weighted 8 KiB command/reply slot per worker. Keys/UUID tokens admit at most
+1024/128 retained bytes. Snapshot leases keep their independent canonical budgets. The actor checks
+the source revision on resumption, publishes through edit receipts, and retries stale/failed prefixes
+at most eight times. Device selection or module lifetime changes cancel old requests explicitly.
+An idle queue drops its worker; failed workers can recover for a subsequent request. Waiting for
+worker replies requires no route snapshot. Display-name caches are built only for route creation,
+with bounded naming metadata, rather than during rename/disconnect validation.
+
+Derived channel/level and migration work, feedback and remaining native failure/reconfiguration
+fences still belong to C01. General snapshot/publication scaling stays in P16; these route budgets
+do not qualify end-to-end latency or change P04's audio ordering requirement.
 
 `golden_audio_ui` owns generic audio driver/device controls, status rendering, the SVG channel patch
 bay, accessibility behavior, and application binding contracts. An application adapter may

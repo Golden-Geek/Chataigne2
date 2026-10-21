@@ -1,7 +1,7 @@
 use super::*;
 use golden_core::{engine::EngineTime, parameter::ParameterEventBehaviour, process_ctx::ExecutionPhase};
 
-fn context() -> ProcessCtx {
+pub(super) fn context() -> ProcessCtx {
     ProcessCtx::new(
         ExecutionPhase::EngineTick,
         EngineTime {
@@ -12,7 +12,7 @@ fn context() -> ProcessCtx {
     )
 }
 
-fn fixture() -> (crate::app::AppEngine, NodeId) {
+pub(super) fn fixture() -> (crate::app::AppEngine, NodeId) {
     let (mut engine, module) = super::super::tests::create_sound_card();
     super::super::tests::select_enum_parameter(
         &mut engine,
@@ -39,7 +39,7 @@ fn fixture() -> (crate::app::AppEngine, NodeId) {
     (engine, module)
 }
 
-fn module_mut(engine: &mut crate::app::AppEngine, module: NodeId) -> &mut SoundCardModule {
+pub(super) fn module_mut(engine: &mut crate::app::AppEngine, module: NodeId) -> &mut SoundCardModule {
     engine
         .nodes
         .get_mut(module)
@@ -49,18 +49,18 @@ fn module_mut(engine: &mut crate::app::AppEngine, module: NodeId) -> &mut SoundC
         .unwrap()
 }
 
-fn apply(engine: &mut crate::app::AppEngine, ctx: &mut ProcessCtx) {
+pub(super) fn apply(engine: &mut crate::app::AppEngine, ctx: &mut ProcessCtx) {
     engine.edits.pending.extend(ctx.edits.drain());
     engine.apply_edits().unwrap();
 }
 
-fn keys(prefix: &str) -> Vec<PhysicalChannelKey> {
+pub(super) fn keys(prefix: &str) -> Vec<PhysicalChannelKey> {
     (1..=2)
         .map(|index| PhysicalChannelKey::new(format!("{prefix}-{index}")).unwrap())
         .collect()
 }
 
-fn add_routes(engine: &mut crate::app::AppEngine, module: NodeId, direction: &str, count: usize) -> NodeId {
+pub(super) fn add_routes(engine: &mut crate::app::AppEngine, module: NodeId, direction: &str, count: usize) -> NodeId {
     let snapshot = engine.process_tree_snapshot();
     let path = if direction == "input" {
         INPUT_ROUTES_PATH
@@ -106,7 +106,7 @@ fn add_routes(engine: &mut crate::app::AppEngine, module: NodeId, direction: &st
     panic!("route fixture must materialize within lifecycle budget");
 }
 
-fn inject_failure_after(engine: &mut crate::app::AppEngine, ctx: &mut ProcessCtx, before: usize) {
+pub(super) fn inject_failure_after(engine: &mut crate::app::AppEngine, ctx: &mut ProcessCtx, before: usize) {
     for (index, request) in ctx.edits.drain().into_iter().enumerate() {
         if index == before {
             engine.edits.push(Edit::SetParam {

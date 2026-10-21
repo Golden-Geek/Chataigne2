@@ -282,13 +282,14 @@ impl Node for SoundCardModule {
         self.output_default_routes_pending = fresh;
         self.input_route_reset_pending = false;
         self.output_route_reset_pending = false;
-        self.synchronize_derived_structure(ctx, snapshot.as_ref());
+        self.synchronize_derived_structure(ctx, &snapshot);
         self.configuration_dirty = true;
         self.choices.invalidate();
         self.request_runtime_start(ctx);
     }
 
     fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
+        self.service_route_intents(ctx);
         self.drive_runtime(ctx);
         self.service_commands(ctx);
         self.synchronize_runtime_projection(ctx);
@@ -304,20 +305,25 @@ impl Node for SoundCardModule {
     }
 
     fn worker_wake_requires_tree_snapshot(&self) -> bool {
-        self.node_data().effective_enabled
-            && (self.commands.needs_snapshot()
-                || self.configuration_dirty
-                || self.runtime.as_ref().is_some_and(|runtime| {
-                    self.choices.needs_snapshot(runtime.device_revision()) && runtime.device_inventory().is_some()
-                })
-                || self
-                    .runtime_request
-                    .as_ref()
-                    .is_some_and(|request| request.driver().is_some()))
+        self.routes.prune_needs_snapshot()
+            || (self.node_data().effective_enabled
+                && (self.routes.lookup_needs_snapshot()
+                    || self.commands.needs_snapshot()
+                    || (self.configuration_dirty && !self.routes.prune_waiting())
+                    || self.input_route_reset_pending
+                    || self.output_route_reset_pending
+                    || self.runtime.as_ref().is_some_and(|runtime| {
+                        self.choices.needs_snapshot(runtime.device_revision()) && runtime.device_inventory().is_some()
+                    })
+                    || self
+                        .runtime_request
+                        .as_ref()
+                        .is_some_and(|request| request.driver().is_some())))
     }
 
     fn worker_wake_when_disabled(&self) -> bool {
-        self.choices.has_pending()
+        self.routes.pruning()
+            || self.choices.has_pending()
             || !self.pending_events.is_empty()
             || self.observation_warning.has_pending()
             || self.runtime.is_some()
@@ -498,6 +504,7 @@ impl Node for SoundCardModule {
     fn on_inbox(&mut self, ctx: &mut ProcessCtx) {
         let drive_runtime = self.inbox_drives_runtime(&ctx.events);
         self.dispatch_inbox(ctx);
+        self.service_route_intents(ctx);
         if drive_runtime {
             self.drive_runtime(ctx);
             self.synchronize_runtime_projection(ctx);

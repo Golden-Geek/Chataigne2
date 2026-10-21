@@ -52,35 +52,6 @@ pub(crate) fn authored_gain_change(
     }
 }
 
-pub(super) fn route_path(direction: golden_audio::AudioDirection) -> &'static str {
-    match direction {
-        golden_audio::AudioDirection::Input => INPUT_ROUTES_PATH,
-        golden_audio::AudioDirection::Output => OUTPUT_ROUTES_PATH,
-    }
-}
-
-pub(super) fn find_route(
-    snapshot: &ProcessTreeSnapshot,
-    parent: NodeId,
-    physical_channel: &str,
-    channel_uuid: NodeUuid,
-) -> Option<NodeId> {
-    snapshot.child_ids_slice(parent).iter().copied().find(|route| {
-        let physical = find_path(snapshot, *route, "physical_channel")
-            .and_then(|node| snapshot.node(node))
-            .and_then(|node| node.param_value.as_ref())
-            .and_then(ParamValue::as_str);
-        let channel = find_path(snapshot, *route, "channel")
-            .and_then(|node| snapshot.node(node))
-            .and_then(|node| node.param_value.as_ref())
-            .and_then(|value| match value {
-                ParamValue::Reference(reference) => Some(reference.uuid()),
-                _ => None,
-            });
-        physical.as_deref() == Some(physical_channel) && channel == Some(channel_uuid)
-    })
-}
-
 pub(crate) fn command_error(message: impl Into<String>) -> AudioError {
     AudioError::new(AudioErrorCategory::InvalidConfiguration, message)
 }

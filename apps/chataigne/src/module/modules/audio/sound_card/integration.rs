@@ -1,15 +1,11 @@
 use chataigne_sound_card_protocol::{SoundCardUiControlRequest, SOUND_CARD_UI_CONTROL_TOPIC};
 use golden_audio::{AudioCommand, AudioError, AudioErrorCategory, CommandSequence, PlayFileRequest};
-use golden_core::{
-    edit::NodeTree,
-    node::{Node, NodeHandle, NodeReference, NodeUuid},
-};
+use golden_core::node::{Node, NodeReference, NodeUuid};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::*;
 use crate::app::module_modules_audio_sound_card_commands::SoundCardCommandRequest;
-use crate::app::module_modules_audio_sound_card_schema::{SoundCardInputRoute, SoundCardOutputRoute};
 
 mod command_admission;
 mod lifecycle;
@@ -54,7 +50,7 @@ pub(crate) struct SoundCardCommandResultEvent {
 
 impl SoundCardModule {
     pub(super) fn handle_sound_card_ui_control_event(
-        &self,
+        &mut self,
         ctx: &mut ProcessCtx,
         event: &golden_core::events::CustomEvent,
     ) -> bool {
@@ -89,24 +85,12 @@ impl SoundCardModule {
                         direction,
                         physical_channel,
                         app_channel_uuid,
-                    } => self.connect_route(
-                        ctx,
-                        snapshot.as_ref(),
-                        direction,
-                        physical_channel.as_str(),
-                        app_channel_uuid.as_str(),
-                    ),
+                    } => self.enqueue_route_intent(&snapshot, direction, physical_channel, app_channel_uuid, true),
                     SoundCardUiControlRequest::DisconnectRoute {
                         direction,
                         physical_channel,
                         app_channel_uuid,
-                    } => self.disconnect_route(
-                        ctx,
-                        snapshot.as_ref(),
-                        direction,
-                        physical_channel.as_str(),
-                        app_channel_uuid.as_str(),
-                    ),
+                    } => self.enqueue_route_intent(&snapshot, direction, physical_channel, app_channel_uuid, false),
                     SoundCardUiControlRequest::RenameChannel {
                         direction,
                         app_channel_uuid,
@@ -128,70 +112,6 @@ impl SoundCardModule {
         true
     }
 
-    fn connect_route(
-        &self,
-        ctx: &mut ProcessCtx,
-        snapshot: &ProcessTreeSnapshot,
-        direction: golden_audio::AudioDirection,
-        physical_channel: &str,
-        channel_uuid: &str,
-    ) -> Result<(), AudioError> {
-        self.require_route_authoring_ready(direction)?;
-        self.validate_physical_channel(direction, physical_channel)?;
-        let (channel, reference) = self.resolve_routing_channel(snapshot, direction, channel_uuid)?;
-        let path = route_path(direction);
-        let parent = find_path(snapshot, self.id(), path)
-            .ok_or_else(|| command_error("Sound Card route container is missing"))?;
-        if find_route(snapshot, parent, physical_channel, reference.uuid()).is_some() {
-            return Ok(());
-        }
-        let module_uuid = self.node_data().meta.uuid;
-        let tree = match direction {
-            golden_audio::AudioDirection::Input => {
-                let mut route = SoundCardInputRoute::connected(physical_channel, reference);
-                structure::set_route_identity(
-                    &mut route,
-                    module_uuid,
-                    "input",
-                    physical_channel,
-                    snapshot.node(channel).expect("channel exists").uuid,
-                );
-                NodeTree::new(route)
-            }
-            golden_audio::AudioDirection::Output => {
-                let mut route = SoundCardOutputRoute::connected(reference, physical_channel);
-                structure::set_route_identity(
-                    &mut route,
-                    module_uuid,
-                    "output",
-                    physical_channel,
-                    snapshot.node(channel).expect("channel exists").uuid,
-                );
-                NodeTree::new(route)
-            }
-        };
-        ctx.add_child_tree(parent, tree, None);
-        Ok(())
-    }
-
-    fn disconnect_route(
-        &self,
-        ctx: &mut ProcessCtx,
-        snapshot: &ProcessTreeSnapshot,
-        direction: golden_audio::AudioDirection,
-        physical_channel: &str,
-        channel_uuid: &str,
-    ) -> Result<(), AudioError> {
-        self.require_route_authoring_ready(direction)?;
-        let (_, reference) = self.resolve_routing_channel(snapshot, direction, channel_uuid)?;
-        let parent = find_path(snapshot, self.id(), route_path(direction))
-            .ok_or_else(|| command_error("Sound Card route container is missing"))?;
-        if let Some(route) = find_route(snapshot, parent, physical_channel, reference.uuid()) {
-            NodeHandle::new(route).remove(ctx);
-        }
-        Ok(())
-    }
-
     pub(super) fn rename_channel(
         &self,
         ctx: &mut ProcessCtx,
@@ -204,17 +124,34 @@ impl SoundCardModule {
         if label.is_empty() {
             return Err(command_error("Sound Card channel name cannot be empty"));
         }
-        let (channel, _) = self.resolve_routing_channel(snapshot, direction, channel_uuid)?;
+        let channel = self.resolve_routing_channel_node(snapshot, direction, channel_uuid)?;
         structure::patch_channel_label(ctx, channel, label.to_owned());
         Ok(())
     }
 
-    fn resolve_routing_channel(
+    pub(super) fn resolve_routing_channel(
         &self,
         snapshot: &ProcessTreeSnapshot,
         direction: golden_audio::AudioDirection,
         channel_uuid: &str,
     ) -> Result<(NodeId, NodeReference), AudioError> {
+        let channel = self.resolve_routing_channel_node(snapshot, direction, channel_uuid)?;
+        let state = snapshot.node(channel).expect("validated routing channel");
+        let uuid = state.uuid;
+        if state.label.len() > 64 * 1024 {
+            return Err(command_error("Sound Card channel naming metadata exceeds 64 KiB"));
+        }
+        let mut reference = NodeReference::with_cached_id(uuid, Some(channel));
+        reference.set_cached_name(Some(structure::channel_name(state)));
+        Ok((channel, reference))
+    }
+
+    pub(super) fn resolve_routing_channel_node(
+        &self,
+        snapshot: &ProcessTreeSnapshot,
+        direction: golden_audio::AudioDirection,
+        channel_uuid: &str,
+    ) -> Result<NodeId, AudioError> {
         let uuid =
             NodeUuid(Uuid::parse_str(channel_uuid).map_err(|_| command_error("Sound Card channel UUID is invalid"))?);
         let channel = snapshot
@@ -234,12 +171,10 @@ impl SoundCardModule {
                 "Sound Card routing target is not a channel gain owned by this module",
             ));
         }
-        let mut reference = NodeReference::with_cached_id(uuid, Some(channel));
-        reference.set_cached_name(Some(structure::channel_name(state)));
-        Ok((channel, reference))
+        Ok(channel)
     }
 
-    fn validate_physical_channel(
+    pub(super) fn validate_physical_channel(
         &self,
         direction: golden_audio::AudioDirection,
         physical_channel: &str,

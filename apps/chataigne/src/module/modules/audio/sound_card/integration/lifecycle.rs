@@ -20,6 +20,22 @@ impl SoundCardModule {
 
     pub(in super::super) fn drive_runtime(&mut self, ctx: &mut ProcessCtx) {
         self.poll_runtime_worker(ctx);
+        let mut graph_pending = false;
+        if ((self.configuration_dirty || self.input_route_reset_pending || self.output_route_reset_pending)
+            && self.node_data().effective_enabled)
+            || self.routes.pruning()
+        {
+            if let Some(snapshot) = ctx.tree_snapshot_arc() {
+                graph_pending = self.synchronize_derived_structure(ctx, &snapshot);
+                match self.reset_routes_for_device_selection(ctx, &snapshot) {
+                    Ok(busy) => graph_pending |= busy,
+                    Err(error) => {
+                        self.set_runtime_error(ctx, self.id(), &error);
+                        self.configuration_dirty = false;
+                    }
+                }
+            }
+        }
         if self.requested_driver().ok() == Some(None) {
             self.retire_unselected_runtime(ctx);
             self.poll_runtime(ctx);
@@ -32,13 +48,14 @@ impl SoundCardModule {
             self.poll_runtime(ctx);
             return;
         }
-        if self.configuration_dirty {
-            if let Some(snapshot) = ctx.tree_snapshot_arc() {
-                self.synchronize_derived_structure(ctx, snapshot.as_ref());
-            }
-        }
         self.request_runtime_start(ctx);
         self.poll_runtime(ctx);
+        if self.routes.prune_waiting() && !self.routes.prune_needs_snapshot() && ctx.tree_snapshot().is_none() {
+            return;
+        }
+        if graph_pending {
+            return;
+        }
 
         if !self.configuration_dirty {
             return;

@@ -11,6 +11,9 @@ use golden_core::{
 use super::{find_path, structure, SoundCardModule, INPUT_ROUTES_PATH, OUTPUT_ROUTES_PATH};
 use crate::app::module_modules_audio_sound_card_schema::{SoundCardInputRoute, SoundCardOutputRoute};
 
+mod lookup;
+mod prune;
+
 const RESET_TURN: usize = 16;
 const PHYSICAL_KEY_BYTES: usize = 1024;
 const CHANNEL_NAME_BYTES: usize = 64 * 1024;
@@ -18,6 +21,9 @@ const CHANNEL_NAME_BYTES: usize = 64 * 1024;
 #[derive(Default)]
 pub(super) struct RouteWork {
     lifetime: golden_io::RevisionSource,
+    lookup: lookup::Lookup,
+    prune_input: prune::Pruning,
+    prune_output: prune::Pruning,
     input: DirectionWork,
     output: DirectionWork,
 }
@@ -176,14 +182,29 @@ enum SeedProgress {
 }
 
 impl RouteWork {
+    pub(super) fn lookup_needs_snapshot(&self) -> bool {
+        self.lookup.needs_snapshot()
+    }
+    pub(super) fn pruning(&self) -> bool {
+        self.prune_input.busy() || self.prune_output.busy()
+    }
+    pub(super) fn prune_needs_snapshot(&self) -> bool {
+        self.prune_input.needs_snapshot() || self.prune_output.needs_snapshot()
+    }
+    pub(super) fn prune_waiting(&self) -> bool {
+        self.prune_input.waiting() || self.prune_output.waiting()
+    }
     pub(super) fn seeding_input(&self) -> bool {
         pending(&self.input.seed)
     }
     pub(super) fn seeding_output(&self) -> bool {
         pending(&self.output.seed)
     }
-    pub(super) fn invalidate(&self) {
+    pub(super) fn invalidate(&mut self) {
         self.lifetime.advance();
+        self.lookup = lookup::Lookup::default();
+        self.prune_input = prune::Pruning::default();
+        self.prune_output = prune::Pruning::default();
     }
     fn guard(&self) -> golden_io::RevisionGuard {
         let reader = self.lifetime.reader();
@@ -257,6 +278,22 @@ impl SoundCardModule {
         {
             self.wake_route_work();
             return Ok(true);
+        }
+        if (self.input_route_reset_pending || self.output_route_reset_pending) && self.routes.lookup.pending() {
+            self.wake_route_work();
+            return Ok(true);
+        }
+        if (self.input_route_reset_pending && self.routes.prune_input.pending())
+            || (self.output_route_reset_pending && self.routes.prune_output.pending())
+        {
+            self.wake_route_work();
+            return Ok(true);
+        }
+        if self.input_route_reset_pending {
+            self.routes.prune_input = prune::Pruning::default();
+        }
+        if self.output_route_reset_pending {
+            self.routes.prune_output = prune::Pruning::default();
         }
         let mut budget = RESET_TURN;
         let mut busy = false;
