@@ -7,6 +7,7 @@ mod events;
 mod helpers;
 mod incoming;
 pub(crate) mod midi_message;
+mod midi_output;
 pub(crate) mod midi_runtime;
 mod outgoing;
 mod script_values;
@@ -19,7 +20,7 @@ use script_values::*;
 use golden_core::{
     edit::Edit,
     engine::NodeExecutionRule,
-    events::{CustomEvent, Event},
+    events::Event,
     logerror, node,
     node::{
         DeclId, Folder, Node, NodeCreationContext, NodeId, NodeMetaPatch, NodeScriptDescriptor, NodeUserPermissions,
@@ -34,10 +35,10 @@ use golden_core::{
 use self::{
     midi_message::{
         cc_decl_id, cc_label, cc_supports_14_bit, channel_decl_id, channel_folder_label, clamp_channel_i32,
-        clamp_i32_to_u14, clamp_i32_to_u7, decode_rotary_delta, encode_14_bit_control_change, encode_midi_message,
-        encode_rotary_delta, message_description, normalize_sysex_bytes, note_decl_id, note_label, MidiMessage,
-        MidiSystemMessage, MIDI_DATA_MAX, MIDI_PITCH_BEND_CENTER, MIDI_U14_MAX, ROTARY_ABSOLUTE, ROTARY_BINARY_OFFSET,
-        ROTARY_SIGN_MAGNITUDE, ROTARY_TWOS_COMPLEMENT,
+        clamp_i32_to_u14, clamp_i32_to_u7, decode_rotary_delta, encode_14_bit_control_change, encode_rotary_delta,
+        message_description, note_decl_id, note_label, MidiMessage, MidiSystemMessage, MIDI_DATA_MAX,
+        MIDI_PITCH_BEND_CENTER, MIDI_U14_MAX, ROTARY_ABSOLUTE, ROTARY_BINARY_OFFSET, ROTARY_SIGN_MAGNITUDE,
+        ROTARY_TWOS_COMPLEMENT,
     },
     midi_runtime::{
         format_midi_bytes, midi_input_port_options, midi_output_port_options, midi_port_selected,
@@ -165,13 +166,6 @@ struct MidiCcConfig {
 enum MidiOrderedValueKind {
     Note,
     ControlChange,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-struct PendingMidiPacket {
-    due_at: Duration,
-    bytes: Vec<u8>,
-    description: String,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -366,7 +360,6 @@ pub struct MidiModule {
     output_dirty: bool,
     pending_incoming_messages: Vec<PendingIncomingMessage>,
     ignored_param_changes: HashSet<NodeId>,
-    pending_packets: Vec<PendingMidiPacket>,
     cc_14_bit_state: [[Cc14BitState; 32]; 16],
     active_notes: HashSet<(u8, u8)>,
     last_note_on: Option<LastNoteInfo>,
@@ -392,7 +385,6 @@ impl MidiModule {
             true,
             Vec::new(),
             HashSet::new(),
-            Vec::new(),
             [[Cc14BitState::default(); 32]; 16],
             HashSet::new(),
             None,
@@ -471,8 +463,7 @@ impl Node for MidiModule {
             || self.input_dirty
             || self.output_dirty
             || self.transport_activity_timeout_due(receive_now)
-            || !self.pending_incoming_messages.is_empty()
-            || !self.pending_packets.is_empty();
+            || !self.pending_incoming_messages.is_empty();
         if !needs_work {
             return;
         }
@@ -500,14 +491,12 @@ impl Node for MidiModule {
 
         self.process_pending_incoming(ctx, snapshot);
         self.refresh_transport_activity(ctx, snapshot);
-        self.flush_pending_packets(ctx);
     }
 
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {
         self.stop_input();
         self.stop_output();
         self.discovery = None;
-        self.pending_packets.clear();
         self.pending_incoming_messages.clear();
         self.active_notes.clear();
         self.midi_clock_state = MidiClockState::default();
@@ -521,7 +510,6 @@ impl Node for MidiModule {
             || self.input_dirty
             || self.output_dirty
             || !self.pending_incoming_messages.is_empty()
-            || !self.pending_packets.is_empty()
             || self.input.is_some()
             || self.output.is_some()
             || self.port_refresh_elapsed >= MIDI_PORT_REFRESH_INTERVAL_SECS
@@ -532,7 +520,6 @@ impl Node for MidiModule {
             || self.input_dirty
             || self.output_dirty
             || !self.pending_incoming_messages.is_empty()
-            || !self.pending_packets.is_empty()
             || self.midi_clock_state.running
             || self.mtc_stream_active
     }
@@ -599,10 +586,6 @@ impl Node for MidiModule {
             self.input_dirty = false;
             self.output_dirty = false;
         }
-    }
-
-    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
-        self.on_custom_event_inner(ctx, event);
     }
 
     fn project_create(node_type: &str) -> Option<Self> {

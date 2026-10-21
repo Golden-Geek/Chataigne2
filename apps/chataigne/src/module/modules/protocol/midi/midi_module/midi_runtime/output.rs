@@ -1,14 +1,18 @@
+use super::super::midi_output::{MidiOutputRequest, PreparedOutput};
 use super::*;
-use golden_io::{PendingDrain, PendingSendError, WorkerReceive};
+use golden_io::{PayloadPool, PayloadReservation, PendingDrain, PendingSendError, RetirementPermit};
+use std::sync::LazyLock;
+mod schedule;
+mod worker;
 
 pub(super) trait OutputConnection: 'static {
     fn send(&mut self, bytes: &[u8]) -> Result<(), String>;
     fn is_present(&mut self) -> Result<bool, String>;
 }
-struct Packet {
-    bytes: Vec<u8>,
-    description: String,
-    log: bool,
+struct AdmittedRequest {
+    request: MidiOutputRequest,
+    local: RetirementPermit,
+    reservation: PayloadReservation,
 }
 #[derive(Debug)]
 pub(crate) enum MidiOutputEvent {
@@ -26,8 +30,9 @@ impl MidiOutputEvent {
     }
 }
 pub(crate) struct MidiOutputHandle {
-    worker: BoundedWorker<Packet, MidiOutputEvent>,
+    worker: BoundedWorker<AdmittedRequest, MidiOutputEvent>,
     ready: Arc<AtomicBool>,
+    admission: RetirementPool,
 }
 impl MidiOutputHandle {
     pub(crate) fn spawn(config: MidiOutputConfig, notifier: WorkerNotifier) -> Result<Self, String> {
@@ -56,120 +61,57 @@ impl MidiOutputHandle {
                 event_weight: 2 * 1024 * 1024,
             },
             notifier,
-            move |ctx| {
-                let mut connection = match open(&config) {
-                    Ok(connection) => connection,
-                    Err(error) => {
-                        let e = MidiOutputEvent::Error(diagnostic(error));
-                        let w = e.weight();
-                        publish(&ctx, e, w);
-                        return;
-                    }
-                };
-                let _readiness = Readiness {
-                    state: state.clone(),
-                    notifier: status.clone(),
-                };
-                if ctx.cancellation().is_cancelled() {
-                    return;
-                }
-                state.store(true, Ordering::Release);
-                if !publish(&ctx, MidiOutputEvent::Ready, std::mem::size_of::<MidiOutputEvent>()) {
-                    return;
-                }
-                let mut check_at = Instant::now() + Duration::from_secs(1);
-                let mut failed = false;
-                loop {
-                    if ctx.cancellation().is_cancelled() {
-                        break;
-                    }
-                    if !failed && !ctx.command_admission_closed() && Instant::now() >= check_at {
-                        match connection.is_present() {
-                            Ok(true) => check_at = Instant::now() + Duration::from_secs(1),
-                            result => {
-                                state.store(false, Ordering::Release);
-                                status.notify();
-                                ctx.close_command_admission();
-                                failed = true;
-                                let e = MidiOutputEvent::Error(diagnostic(
-                                    result
-                                        .err()
-                                        .unwrap_or_else(|| "selected MIDI output disappeared".into()),
-                                ));
-                                let w = e.weight();
-                                if !publish(&ctx, e, w) {
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    let command: Packet = match ctx.receive_until(check_at) {
-                        WorkerReceive::Command(command) => command,
-                        WorkerReceive::Deadline => continue,
-                        WorkerReceive::Disconnected => break,
-                    };
-                    let event = if failed {
-                        MidiOutputEvent::Error("accepted MIDI packet was not sent after output failure".into())
-                    } else {
-                        match connection.send(&command.bytes) {
-                            Ok(()) => {
-                                let log = command.log.then(|| {
-                                    let shown = &command.bytes[..command.bytes.len().min(256)];
-                                    format!(
-                                        "Sent MIDI {} ({}{}); {} bytes",
-                                        command.description,
-                                        format_midi_bytes(shown),
-                                        if shown.len() < command.bytes.len() { " ..." } else { "" },
-                                        command.bytes.len()
-                                    )
-                                });
-                                MidiOutputEvent::Sent(log)
-                            }
-                            Err(error) => {
-                                state.store(false, Ordering::Release);
-                                status.notify();
-                                ctx.close_command_admission();
-                                failed = true;
-                                MidiOutputEvent::Error(format!(
-                                    "{}; native outcome unconfirmed, packet is not replayed",
-                                    diagnostic(error)
-                                ))
-                            }
-                        }
-                    };
-                    let weight = event.weight();
-                    if !publish(&ctx, event, weight) {
-                        break;
-                    }
-                }
-                state.store(false, Ordering::Release);
-                status.notify();
-                drop(connection);
-            },
+            move |ctx| worker::run(ctx, config, state, status, open),
         )
         .map_err(|error| format!("failed to start MIDI output: {error}"))?;
-        Ok(Self { worker, ready })
+        Ok(Self {
+            worker,
+            ready,
+            admission: RetirementPool::new(NonZeroUsize::new(2048).unwrap()),
+        })
     }
     pub(crate) fn is_ready(&self) -> bool {
         self.ready.load(Ordering::Acquire)
     }
-    pub(crate) fn send(&self, bytes: &[u8], description: &str, log: bool) -> Result<(), String> {
-        if !self.is_ready() {
-            return Err("MIDI output is not connected; packet was not admitted".into());
+    pub(crate) fn enqueue(&self, request: MidiOutputRequest) -> Result<(), String> {
+        if !self.is_ready() || !self.worker.is_accepting_commands() {
+            return Err("MIDI output is not accepting commands; request was not admitted".into());
         }
+        if !request.is_live() {
+            return Err("MIDI source retired; request was not admitted".into());
+        }
+        let weight = request.reservation_weight();
+        let local = self
+            .admission
+            .try_reserve()
+            .map_err(|_| "MIDI output has 2048 live requests; request was not admitted")?;
+        let reservation = request_pool()?
+            .try_reserve(weight)
+            .map_err(|_| "MIDI global output capacity exhausted; request was not admitted")?;
+        self.worker
+            .send_weighted(
+                AdmittedRequest {
+                    request,
+                    local,
+                    reservation,
+                },
+                weight,
+            )
+            .map_err(|error| match error {
+                PendingSendError::Full(_) => "MIDI output capacity exhausted; request was not admitted".into(),
+                PendingSendError::Disconnected(_) => "MIDI output stopped; request was not admitted".into(),
+            })
+    }
+    #[cfg(test)]
+    pub(crate) fn send(&self, bytes: &[u8], description: &str, log: bool) -> Result<(), String> {
         if bytes.len() > MESSAGE_BYTES || description.len() > 512 {
             return Err("MIDI packet exceeds 64 KiB / 512-byte description; packet was not admitted".into());
         }
-        let packet = Packet {
-            bytes: bytes.to_vec(),
-            description: description.into(),
-            log,
-        };
-        let weight = std::mem::size_of::<Packet>() + packet.bytes.capacity() + packet.description.capacity();
-        self.worker.send_weighted(packet, weight).map_err(|error| match error {
-            PendingSendError::Full(_) => "MIDI output capacity exhausted; packet was not admitted".into(),
-            PendingSendError::Disconnected(_) => "MIDI output stopped; packet was not admitted".into(),
-        })
+        let mut request = MidiOutputRequest::for_test(crate::app::MidiSendRequest {
+            packets: vec![crate::app::MidiSendPacket::immediate_bytes(bytes.to_vec(), description)],
+        });
+        request.log = log;
+        self.enqueue(request)
     }
     pub(crate) fn drain(&self, events: &mut Vec<MidiOutputEvent>) -> PendingDrain {
         self.worker.drain_events(events, NonZeroUsize::new(TURN).unwrap())
@@ -186,4 +128,10 @@ impl Drop for MidiOutputHandle {
     fn drop(&mut self) {
         self.stop();
     }
+}
+fn request_pool() -> Result<&'static PayloadPool, String> {
+    static POOL: LazyLock<Result<PayloadPool, std::io::Error>> =
+        LazyLock::new(|| PayloadPool::new("midi-output-requests", 4096, 128 * 1024 * 1024));
+    POOL.as_ref()
+        .map_err(|error| format!("MIDI output admission unavailable: {error}"))
 }

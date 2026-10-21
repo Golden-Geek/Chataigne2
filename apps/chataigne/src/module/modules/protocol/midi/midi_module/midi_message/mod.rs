@@ -1,7 +1,7 @@
 use midly::{
-    MidiMessage as MidlyMidiMessage, PitchBend,
     live::{LiveEvent, MtcQuarterFrameMessage, SystemCommon, SystemRealtime},
-    num::{u4, u7, u14},
+    num::{u14, u4, u7},
+    MidiMessage as MidlyMidiMessage, PitchBend,
 };
 use serde::{Deserialize, Serialize};
 
@@ -196,7 +196,8 @@ pub(crate) fn note_pitch_from_name_octave(note_name: &str, octave: i32) -> Optio
     let note_index = NOTE_NAMES_SHARP
         .iter()
         .position(|candidate| candidate.eq_ignore_ascii_case(note_name.trim()))?;
-    let pitch = (octave + 1)
+    let pitch = octave
+        .checked_add(1)?
         .checked_mul(12)?
         .checked_add(i32::try_from(note_index).ok()?)?;
     u8::try_from(pitch).ok().filter(|value| *value <= MIDI_DATA_MAX)

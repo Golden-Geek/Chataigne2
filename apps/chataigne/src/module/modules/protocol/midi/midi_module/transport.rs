@@ -295,6 +295,7 @@ impl MidiModule {
             match event {
                 MidiOutputEvent::Ready => self.clear_output_warning(ctx),
                 MidiOutputEvent::Sent(log) => {
+                    self.clear_output_warning(ctx);
                     self.base.emit_outgoing_traffic(ctx);
                     if let Some(log) = log {
                         golden_core::log!(origin = self.id(); log);
