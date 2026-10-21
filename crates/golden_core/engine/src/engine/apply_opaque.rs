@@ -132,7 +132,7 @@ impl<T: Node> Engine<T> {
                     AuthoredNodeEffect { node, old, new }.into(),
                 );
                 self.project_dirty_nodes.insert(node);
-                self.publish_authored_node_change(node, old_param)?;
+                self.publish_authored_node_change(node, old_param, None)?;
             }
         }
         if invalid_binding {
@@ -156,6 +156,7 @@ impl<T: Node> Engine<T> {
             node,
             capture,
             false,
+            None,
             move |target, ctx| {
                 let property = write.property();
                 target
@@ -189,6 +190,7 @@ impl<T: Node> Engine<T> {
             node,
             capture,
             true,
+            None,
             move |target, ctx| {
                 let method = call.method();
                 ctx.set_script_args(Some(call.args().clone()));
@@ -219,6 +221,7 @@ impl<T: Node> Engine<T> {
         callback: NodeMutation,
         needs_tree_snapshot: bool,
         capture: bool,
+        source: Option<NodeId>,
     ) -> Result<AppliedEdit<Option<AuthoredNodeEffect>>, EngineEditError> {
         self.apply_opaque_edit(
             edit_index,
@@ -226,6 +229,7 @@ impl<T: Node> Engine<T> {
             node,
             capture,
             needs_tree_snapshot,
+            source,
             move |target, ctx| callback(target, ctx),
             |message, node_type| EngineEditError::NodeMutationRejected {
                 edit_index,
@@ -245,6 +249,7 @@ impl<T: Node> Engine<T> {
         node: NodeId,
         capture: bool,
         snapshot: bool,
+        source: Option<NodeId>,
         callback: impl FnOnce(&mut T, &mut ProcessCtx) -> Result<(), String>,
         reject: impl Fn(String, String) -> EngineEditError,
     ) -> Result<AppliedEdit<Option<AuthoredNodeEffect>>, EngineEditError> {
@@ -303,7 +308,7 @@ impl<T: Node> Engine<T> {
             None
         };
         let publication = if effect.is_some() {
-            self.publish_authored_node_change(node, old_param)
+            self.publish_authored_node_change(node, old_param, source)
         } else {
             if !capture {
                 // Uncaptured native callbacks can write state without semantic events.
@@ -325,7 +330,7 @@ impl<T: Node> Engine<T> {
     ) -> Result<(), EngineEditError> {
         let old_param = self.nodes.get(node).and_then(Node::engine_param_snapshot);
         self.restore_authored_node_state_silent(node, state.clone())?;
-        self.publish_authored_node_change(node, old_param)
+        self.publish_authored_node_change(node, old_param, None)
     }
 
     pub(super) fn restore_authored_node_state_silent(
@@ -389,13 +394,14 @@ impl<T: Node> Engine<T> {
         &mut self,
         node: NodeId,
         old: Option<ParameterSnapshot>,
+        source: Option<NodeId>,
     ) -> Result<(), EngineEditError> {
         self.mark_tree_changed(node);
         self.populate_param_cache_entry(node);
         self.clear_tick_tree_snapshot();
         self.mark_schedule_dirty();
         if let (Some(old), Some(new)) = (old, self.nodes.get(node).and_then(Node::engine_param_snapshot)) {
-            self.emit_param_events_for_state_change(node, &old.value, &new.value, None);
+            self.emit_param_events_for_state_change(node, &old.value, &new.value, source);
             self.emit_param_constraints_event(node, old.constraints, new.constraints);
         }
         let changes = self.subtree_effective_enabled_changes(node);

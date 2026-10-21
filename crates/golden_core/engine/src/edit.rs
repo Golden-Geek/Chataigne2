@@ -335,7 +335,8 @@ impl EditRequest {
             param_source: None,
         }
     }
-    /// Attribute direct parameter value/constraint changes from this request.
+    /// Attribute direct parameter changes, including parameter data updated by
+    /// a node-mutation callback, from this request.
     /// Attribution does not propagate into edits produced by lifecycle callbacks.
     pub fn with_param_source(mut self, source: NodeId) -> Self {
         self.param_source = Some(source);
@@ -360,8 +361,8 @@ impl EditQueue {
     pub fn push(&mut self, edit: Edit) {
         self.push_request(EditRequest::new(edit));
     }
-    /// Queue an attributed parameter write or constraint update. Other edit kinds
-    /// retain their ordinary semantics and do not inherit this attribution.
+    /// Queue an attributed parameter write, constraint update or direct parameter
+    /// node mutation. Callback-produced follow-up edits do not inherit attribution.
     pub fn push_from(&mut self, source: NodeId, edit: Edit) {
         self.push_request(EditRequest::new(edit).with_param_source(source));
     }

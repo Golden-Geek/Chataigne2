@@ -209,7 +209,10 @@ impl MidiModule {
         }
         let mut events = Vec::new();
         // Retain one bounded actor batch while graph materialization catches up.
-        if self.incoming.is_some() || !self.pending_incoming_messages.is_empty() || self.incoming_callbacks.len() >= 16
+        if self.structure_work.busy()
+            || self.incoming.is_some()
+            || !self.pending_incoming_messages.is_empty()
+            || self.incoming_callbacks.len() >= 16
         {
             return;
         }

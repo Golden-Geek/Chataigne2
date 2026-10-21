@@ -111,16 +111,6 @@ pub(super) fn sync_int_parameter_constraints(
     );
 }
 
-pub(super) fn lock_midi_value_node(ctx: &mut ProcessCtx, node_id: NodeId) {
-    ctx.edits.push(Edit::PatchMeta {
-        node: node_id,
-        patch: NodeMetaPatch {
-            user_permissions: Some(NodeUserPermissions::none()),
-            ..Default::default()
-        },
-    });
-}
-
 pub(super) fn apply_node_identity(node_data: &mut golden_core::node::NodeData, decl_id: &str) {
     node_data.meta.decl_id = DeclId(decl_id.to_string());
     node_data.meta.short_name = decl_id.to_string();
@@ -157,54 +147,6 @@ pub(super) fn ordered_midi_value_key(kind: MidiOrderedValueKind, decl_id: &str) 
     match kind {
         MidiOrderedValueKind::Note => note_from_decl_id(decl_id),
         MidiOrderedValueKind::ControlChange => cc_from_decl_id(decl_id),
-    }
-}
-
-pub(super) fn reorder_ordered_midi_value_children(
-    ctx: &mut ProcessCtx,
-    snapshot: &ProcessTreeSnapshot,
-    parent_id: NodeId,
-) {
-    let Some(kind) = ordered_midi_value_kind(snapshot, parent_id) else {
-        return;
-    };
-
-    let mut current_children = snapshot
-        .child_ids(parent_id)
-        .into_iter()
-        .filter_map(|child_id| {
-            let key = snapshot
-                .node(child_id)
-                .and_then(|node| ordered_midi_value_key(kind, node.decl_id.as_str()))?;
-            Some((key, child_id))
-        })
-        .collect::<Vec<_>>();
-
-    let mut ordered_children = current_children.clone();
-    ordered_children.sort_by_key(|(key, _child_id)| *key);
-
-    if current_children == ordered_children {
-        return;
-    }
-
-    for (_key, child_id) in ordered_children.into_iter().rev() {
-        let Some(current_index) = current_children
-            .iter()
-            .position(|(_key, current_id)| *current_id == child_id)
-        else {
-            continue;
-        };
-        if current_index == 0 {
-            continue;
-        }
-
-        let entry = current_children.remove(current_index);
-        current_children.insert(0, entry);
-        ctx.edits.push(Edit::MoveNode {
-            node: child_id,
-            new_parent: parent_id,
-            new_prev_sibling: None,
-        });
     }
 }
 

@@ -314,7 +314,14 @@ impl<T: Node> Engine<T> {
                         } => {
                             let capture = self.capture_opaque_history(capture_history, node);
                             let effect = self
-                                .apply_call_node_mutation(edit_index, node, callback, needs_tree_snapshot, capture)?
+                                .apply_call_node_mutation(
+                                    edit_index,
+                                    node,
+                                    callback,
+                                    needs_tree_snapshot,
+                                    capture,
+                                    request.param_source,
+                                )?
                                 .capture_completion(&mut completion);
                             missing_reference_warning_dirty |= effect.is_some();
                             user_context_graph_dirty |= effect.is_some();

@@ -97,11 +97,13 @@ realtime-safe queues.
 ## Parameter event attribution
 
 `golden_engine` owns parameter-change provenance and callback scope. Trusted Rust producers use
-`ProcessCtx::set_param_from` or `EditQueue::push_from` to attribute a direct `SetParam` or
-`SetParamConstraints` request. The emitted `EventKind::ParamChanged::source` belongs to that
+`ProcessCtx::set_param_from` or `EditQueue::push_from` to attribute a direct `SetParam`,
+`SetParamConstraints`, or parameter state change made by `CallNodeMutation`.
+The emitted `EventKind::ParamChanged::source` belongs to that
 particular applied change. Unchanged writes emit nothing, rejected suffixes leave no suppression
 state, and queue coalescing replaces the source together with the value. Attribution does not
-propagate into lifecycle callbacks or their follow-up edits.
+propagate into lifecycle callbacks or queued follow-up edits, including those queued by an
+attributed node mutation.
 
 The source is runtime metadata, excluded from serialized events and UI DTOs. Undo/redo emits a
 new authored change without the original runtime source. It is not an authorization mechanism.

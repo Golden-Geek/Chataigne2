@@ -1,29 +1,38 @@
 use super::*;
+use golden_core::edit::{EditCompletion, EditCompletionStatus, EditQueue};
+mod cc;
+mod locks;
+#[cfg(test)]
+mod tests;
 
-impl MidiModule {
-    pub(super) fn ensure_cc_rotary_mode_parameter(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        snapshot: &ProcessTreeSnapshot,
-        cc_id: NodeId,
-    ) {
-        match snapshot.find_child_by_decl_id(cc_id, MIDI_CC_ROTARY_MODE_DECL_ID) {
-            Some(existing_id) if snapshot.node(existing_id).is_some_and(|node| node.node_type == "enum") => {
-                self.clear_pending_auto_child(cc_id, MIDI_CC_ROTARY_MODE_DECL_ID);
-            }
-            Some(existing_id) => {
-                if self.mark_pending_auto_child(cc_id, MIDI_CC_ROTARY_MODE_DECL_ID) {
-                    ctx.replace_node_boxed(existing_id, Box::new(create_cc_rotary_mode_parameter(ROTARY_ABSOLUTE)));
-                }
-            }
-            None => {
-                if self.mark_pending_auto_child(cc_id, MIDI_CC_ROTARY_MODE_DECL_ID) {
-                    ctx.add_child_boxed(cc_id, Box::new(create_cc_rotary_mode_parameter(ROTARY_ABSOLUTE)), None);
-                }
-            }
-        }
+#[derive(Default)]
+pub(super) struct StructureWork {
+    cc: cc::CcWork,
+    locks: Option<locks::LockWork>,
+    queued: Option<EditCompletion>,
+    generation: u64,
+}
+impl StructureWork {
+    pub(super) fn busy(&self) -> bool {
+        self.queued
+            .as_ref()
+            .is_some_and(|receipt| receipt.status() == EditCompletionStatus::Pending)
+            || self.locks.is_some()
+            || self.cc.busy()
     }
-
+    pub(super) fn requires_snapshot(&self) -> bool {
+        self.locks
+            .as_ref()
+            .map_or_else(|| self.cc.requires_snapshot(), locks::LockWork::requires_snapshot)
+    }
+    pub(super) fn cancel(&mut self) {
+        self.cc = cc::CcWork::default();
+        self.locks = None;
+        self.queued = None;
+        self.generation = self.generation.wrapping_add(1);
+    }
+}
+impl MidiModule {
     pub(super) fn find_cc_folder(&self, snapshot: &ProcessTreeSnapshot, channel: u8) -> Option<NodeId> {
         let values_id = self.base.values_id()?;
         let channel_id = snapshot.find_child_by_decl_id(values_id, channel_decl_id(channel).as_str())?;
@@ -111,185 +120,101 @@ impl MidiModule {
         None
     }
 
-    pub(super) fn set_or_create_cc_param(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        snapshot: &ProcessTreeSnapshot,
-        cc_folder_id: NodeId,
-        update: MidiCcUpdate,
-    ) {
-        let decl_id = cc_decl_id(update.controller);
-        let label = cc_label(update.controller);
-        let range = self.cc_parameter_range(snapshot, update.channel, update.controller);
-        match update.existing_id {
-            Some(node_id) if snapshot.node(node_id).is_some_and(|node| node.node_type == "int") => {
-                sync_int_parameter_constraints(ctx, snapshot, node_id, range, self.id());
-                self.ensure_cc_rotary_mode_parameter(ctx, snapshot, node_id);
-                self.set_internal_param(ctx, node_id, ParamValue::Int(update.value));
-            }
-            Some(node_id) => {
-                self.clear_pending_auto_child(cc_folder_id, decl_id.as_str());
-                ctx.replace_node_boxed(
-                    node_id,
-                    Box::new(create_int_parameter(
-                        label.as_str(),
-                        decl_id.as_str(),
-                        update.value,
-                        range,
-                        false,
-                    )),
-                );
-            }
-            None => {
-                self.clear_pending_auto_child(cc_folder_id, decl_id.as_str());
-                ctx.add_child_boxed(
-                    cc_folder_id,
-                    Box::new(create_int_parameter(
-                        label.as_str(),
-                        decl_id.as_str(),
-                        update.value,
-                        range,
-                        false,
-                    )),
-                    None,
-                );
-                self.schedule_ordered_value_rebuild(ctx, cc_folder_id);
-            }
-        }
-    }
-
-    pub(super) fn schedule_ordered_value_rebuild(&self, ctx: &mut ProcessCtx, parent_id: NodeId) {
-        ctx.call_node_mutation(self.id(), move |_node, inner_ctx| {
-            let Some(snapshot_arc) = inner_ctx.tree_snapshot_arc() else {
-                return Ok(());
-            };
-            reorder_ordered_midi_value_children(inner_ctx, snapshot_arc.as_ref(), parent_id);
-            Ok(())
+    pub(super) fn queue_cc_conversion(&mut self, ctx: &mut ProcessCtx, channel: u8, previous: bool) {
+        self.structure_work.cc.pending[usize::from(channel - 1)].get_or_insert(cc::Pending {
+            previous,
+            restore: true,
         });
-    }
-
-    pub(super) fn set_channel_14_bit_mode(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        snapshot: &ProcessTreeSnapshot,
-        channel: u8,
-        enable_14_bit: bool,
-    ) {
-        let channel_index = usize::from(channel.saturating_sub(1).min(15));
-        self.cc_14_bit_state[channel_index] = [Cc14BitState::default(); 32];
-
-        let Some(cc_folder_id) = self.find_cc_folder(snapshot, channel) else {
+        if self
+            .structure_work
+            .queued
+            .as_ref()
+            .is_some_and(|receipt| receipt.status() == EditCompletionStatus::Pending)
+        {
             return;
-        };
-
-        for base_controller in 0..32u8 {
-            let lsb_controller = base_controller + 32;
-            let base_decl_id = cc_decl_id(base_controller);
-            let lsb_decl_id = cc_decl_id(lsb_controller);
-            let base_id = snapshot.find_child_by_decl_id(cc_folder_id, base_decl_id.as_str());
-            let lsb_id = snapshot.find_child_by_decl_id(cc_folder_id, lsb_decl_id.as_str());
-
-            if enable_14_bit {
-                if base_id.is_none() && lsb_id.is_none() {
-                    continue;
+        }
+        let generation = self.structure_work.generation;
+        let source = ctx.node_waker().ok();
+        let mut edits = EditQueue::new();
+        edits.push(Edit::CallNodeMutation {
+            node: self.id(),
+            needs_tree_snapshot: true,
+            callback: Box::new(move |node, inner| {
+                if source.as_ref().is_some_and(|source| source.is_closed()) {
+                    return Ok(());
                 }
-
-                let msb = base_id
-                    .and_then(|node_id| snapshot.node(node_id))
-                    .and_then(|node| node.param_value.as_ref())
-                    .and_then(ParamValue::as_int)
-                    .map(clamp_i32_to_u7)
-                    .unwrap_or(0);
-                let lsb = lsb_id
-                    .and_then(|node_id| snapshot.node(node_id))
-                    .and_then(|node| node.param_value.as_ref())
-                    .and_then(ParamValue::as_int)
-                    .map(clamp_i32_to_u7)
-                    .unwrap_or(0);
-                let combined = i32::from((u16::from(msb) << 7) | u16::from(lsb));
-
-                self.set_or_create_cc_param(
-                    ctx,
-                    snapshot,
-                    cc_folder_id,
-                    MidiCcUpdate {
-                        channel,
-                        controller: base_controller,
-                        existing_id: base_id,
-                        value: combined,
-                    },
-                );
-                if let Some(node_id) = lsb_id {
-                    self.clear_pending_auto_child(cc_folder_id, lsb_decl_id.as_str());
-                    ctx.edits.push(Edit::RemoveNode { node: node_id });
+                let module = node
+                    .as_any_mut()
+                    .downcast_mut::<MidiModule>()
+                    .ok_or("expected MIDI structure owner")?;
+                if module.structure_work.generation != generation {
+                    return Ok(());
                 }
-
-                self.cc_14_bit_state[channel_index][usize::from(base_controller)] = Cc14BitState {
-                    msb: Some(msb),
-                    lsb: Some(lsb),
-                };
-                continue;
-            }
-
-            if base_id.is_none() && lsb_id.is_none() {
-                continue;
-            }
-
-            let combined = base_id
-                .and_then(|node_id| snapshot.node(node_id))
-                .and_then(|node| node.param_value.as_ref())
-                .and_then(ParamValue::as_int)
-                .map(clamp_i32_to_u14)
-                .unwrap_or_else(|| {
-                    lsb_id
-                        .and_then(|node_id| snapshot.node(node_id))
-                        .and_then(|node| node.param_value.as_ref())
-                        .and_then(ParamValue::as_int)
-                        .map(clamp_i32_to_u7)
-                        .map(u16::from)
-                        .unwrap_or(0)
+                module.structure_work.queued = None;
+                let snapshot = inner.tree_snapshot_arc();
+                module.service_structure(inner, snapshot.as_deref());
+                Ok(())
+            }),
+        });
+        self.structure_work.queued = Some(edits.completion());
+        ctx.edits.pending.extend(edits.drain());
+        self.request_structure_wake(ctx);
+    }
+    pub(super) fn start_value_locks(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
+        self.structure_work.locks = self
+            .base
+            .values_id()
+            .and_then(|root| locks::LockWork::new(snapshot, root, self.id()));
+        for channel in 1..=16 {
+            if self.find_cc_folder(snapshot, channel).is_some() {
+                self.structure_work.cc.pending[usize::from(channel - 1)] = Some(cc::Pending {
+                    previous: !self.cc_channel_is_14_bit_handle(channel),
+                    restore: false,
                 });
-            let msb = i32::from((combined >> 7) & 0x7F);
-            let lsb = i32::from(combined & 0x7F);
-
-            self.set_or_create_cc_param(
-                ctx,
-                snapshot,
-                cc_folder_id,
-                MidiCcUpdate {
-                    channel,
-                    controller: base_controller,
-                    existing_id: base_id,
-                    value: msb,
-                },
-            );
-            self.set_or_create_cc_param(
-                ctx,
-                snapshot,
-                cc_folder_id,
-                MidiCcUpdate {
-                    channel,
-                    controller: lsb_controller,
-                    existing_id: lsb_id,
-                    value: lsb,
-                },
-            );
+            }
+        }
+        self.service_structure(ctx, Some(snapshot));
+    }
+    pub(super) fn service_structure(&mut self, ctx: &mut ProcessCtx, snapshot: Option<&ProcessTreeSnapshot>) {
+        if let Some(mut work) = self.structure_work.locks.take() {
+            if !work.service(ctx, snapshot) {
+                self.structure_work.locks = Some(work);
+                self.request_structure_wake(ctx);
+                return;
+            }
+        }
+        self.service_cc_structure(ctx, snapshot);
+        self.request_structure_wake(ctx);
+    }
+    pub(super) fn request_structure_wake(&self, ctx: &ProcessCtx) {
+        if self.structure_work.busy() {
+            if let Ok(waker) = ctx.node_waker() {
+                let _ = waker.wake();
+            }
         }
     }
-
-    pub(super) fn lock_existing_value_tree(&self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
-        let Some(values_id) = self.base.values_id() else {
-            return;
-        };
-
-        let mut pending = vec![values_id];
-        while let Some(node_id) = pending.pop() {
-            lock_midi_value_node(ctx, node_id);
-            pending.extend(snapshot.child_ids(node_id));
+    pub(super) fn channel_toggle_id(&self, channel: u8) -> Option<NodeId> {
+        match channel {
+            1 => self.channel_1.is_bound().then(|| self.channel_1.id()),
+            2 => self.channel_2.is_bound().then(|| self.channel_2.id()),
+            3 => self.channel_3.is_bound().then(|| self.channel_3.id()),
+            4 => self.channel_4.is_bound().then(|| self.channel_4.id()),
+            5 => self.channel_5.is_bound().then(|| self.channel_5.id()),
+            6 => self.channel_6.is_bound().then(|| self.channel_6.id()),
+            7 => self.channel_7.is_bound().then(|| self.channel_7.id()),
+            8 => self.channel_8.is_bound().then(|| self.channel_8.id()),
+            9 => self.channel_9.is_bound().then(|| self.channel_9.id()),
+            10 => self.channel_10.is_bound().then(|| self.channel_10.id()),
+            11 => self.channel_11.is_bound().then(|| self.channel_11.id()),
+            12 => self.channel_12.is_bound().then(|| self.channel_12.id()),
+            13 => self.channel_13.is_bound().then(|| self.channel_13.id()),
+            14 => self.channel_14.is_bound().then(|| self.channel_14.id()),
+            15 => self.channel_15.is_bound().then(|| self.channel_15.id()),
+            16 => self.channel_16.is_bound().then(|| self.channel_16.id()),
+            _ => None,
         }
     }
-
-    pub(super) fn set_internal_param(&mut self, ctx: &mut ProcessCtx, param_id: NodeId, value: ParamValue) {
-        ctx.set_param_from(self.id(), param_id, value, ParameterEventBehaviour::Append);
+    pub(super) fn set_internal_param(&mut self, ctx: &mut ProcessCtx, param: NodeId, value: ParamValue) {
+        ctx.set_param_from(self.id(), param, value, ParameterEventBehaviour::Append);
     }
 }

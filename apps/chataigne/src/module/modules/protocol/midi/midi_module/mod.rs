@@ -176,13 +176,6 @@ enum MidiApplyResult {
     Retry,
 }
 
-struct MidiCcUpdate {
-    channel: u8,
-    controller: u8,
-    existing_id: Option<NodeId>,
-    value: i32,
-}
-
 #[node("midi_module", label = "MIDI")]
 #[children(
     folder(connection) {
@@ -348,7 +341,7 @@ pub struct MidiModule {
     mtc_state: MtcQuarterFrameState,
     mtc_stream_active: bool,
     last_mtc_quarter_frame_at: Option<Duration>,
-    pending_auto_children: HashSet<(NodeId, String)>,
+    structure_work: structure::StructureWork,
 }
 
 impl MidiModule {
@@ -374,7 +367,7 @@ impl MidiModule {
             MtcQuarterFrameState::default(),
             false,
             None,
-            HashSet::new(),
+            structure::StructureWork::default(),
         )
     }
 
@@ -387,14 +380,6 @@ impl MidiModule {
     #[cfg(test)]
     pub(crate) fn auto_add_enabled_for_test(&self) -> bool {
         self.auto_add.get()
-    }
-
-    fn clear_pending_auto_child(&mut self, parent_id: NodeId, decl_id: &str) {
-        self.pending_auto_children.remove(&(parent_id, decl_id.to_string()));
-    }
-
-    fn mark_pending_auto_child(&mut self, parent_id: NodeId, decl_id: &str) -> bool {
-        self.pending_auto_children.insert((parent_id, decl_id.to_string()))
     }
 
     fn module_enabled(&self, snapshot: &ProcessTreeSnapshot) -> bool {
@@ -426,7 +411,7 @@ impl Node for MidiModule {
             return;
         };
         let snapshot = snapshot_arc.as_ref();
-        self.lock_existing_value_tree(ctx, snapshot);
+        self.start_value_locks(ctx, snapshot);
         self.refresh_input(ctx, snapshot);
         self.refresh_output(ctx, snapshot);
     }
@@ -436,6 +421,7 @@ impl Node for MidiModule {
         self.drain_input_events(ctx);
         self.port_refresh_elapsed += ctx.delta_time.as_secs_f64();
         let input_snapshot = ctx.tree_snapshot_arc();
+        self.service_structure(ctx, input_snapshot.as_deref());
         self.process_pending_incoming(ctx, input_snapshot.as_deref());
 
         let refresh_ports = self.port_refresh_due();
@@ -478,6 +464,7 @@ impl Node for MidiModule {
         self.stop_input();
         self.stop_output();
         self.discovery = None;
+        self.structure_work.cancel();
         self.pending_incoming_messages.clear();
         self.incoming = None;
         self.incoming_callbacks.clear();
@@ -489,6 +476,7 @@ impl Node for MidiModule {
 
     fn needs_update(&self) -> bool {
         self.node_data().effective_enabled
+            || self.structure_work.busy()
             || self.retiring_output.is_some()
             || self.input_dirty
             || self.output_dirty
@@ -501,7 +489,8 @@ impl Node for MidiModule {
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {
-        self.port_refresh_due()
+        self.structure_work.requires_snapshot()
+            || self.port_refresh_due()
             || self.input_dirty
             || self.output_dirty
             || !self.pending_incoming_messages.is_empty()
@@ -515,6 +504,16 @@ impl Node for MidiModule {
 
     fn execution_rule(&self) -> NodeExecutionRule {
         NodeExecutionRule::periodic(MIDI_MODULE_UPDATE_RATE_HZ).with_compiled_kernel(MIDI_COMPILED_KERNEL)
+    }
+    fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
+        let snapshot = ctx.tree_snapshot_arc();
+        self.service_structure(ctx, snapshot.as_deref());
+    }
+    fn worker_wake_requires_tree_snapshot(&self) -> bool {
+        self.structure_work.requires_snapshot()
+    }
+    fn worker_wake_when_disabled(&self) -> bool {
+        self.structure_work.busy()
     }
 
     fn child_event_interest_depth(&self, _event: &Event) -> u32 {
@@ -581,6 +580,7 @@ impl Node for MidiModule {
             self.base.set_connected(ctx, false);
             self.input_dirty = false;
             self.output_dirty = false;
+            self.request_structure_wake(ctx);
         }
     }
 

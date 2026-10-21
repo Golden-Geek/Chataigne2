@@ -14,17 +14,9 @@ impl MidiModule {
         }
 
         if let Some(channel) = self.channel_14_bit_toggle_channel(param) {
-            ctx.call_node_mutation(self.id(), move |node, inner_ctx| {
-                let Some(module) = node.as_any_mut().downcast_mut::<MidiModule>() else {
-                    return Err("expected MidiModule during deferred 14-bit channel conversion".to_string());
-                };
-                let Some(snapshot_arc) = inner_ctx.tree_snapshot_arc() else {
-                    return Ok(());
-                };
-                let enabled = module.cc_channel_is_14_bit(snapshot_arc.as_ref(), channel);
-                module.set_channel_14_bit_mode(inner_ctx, snapshot_arc.as_ref(), channel, enabled);
-                Ok(())
-            });
+            if let ParamValue::Bool(previous) = old_value {
+                self.queue_cc_conversion(ctx, channel, previous);
+            }
             return;
         }
 

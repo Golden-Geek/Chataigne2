@@ -237,3 +237,65 @@ fn default_callbacks_observe_the_exact_event_and_restore_the_context_scope() {
     );
     assert!(ctx.current_event().is_none());
 }
+
+fn state_mutation(node: NodeId, followup: bool) -> Edit {
+    Edit::CallNodeMutation {
+        node,
+        needs_tree_snapshot: false,
+        callback: Box::new(move |target, ctx| {
+            let parameter = target
+                .as_any_mut()
+                .downcast_mut::<Parameter>()
+                .ok_or("parameter expected")?;
+            let constraints = ParameterConstraints {
+                range: Some(RangeConstraint::Uniform {
+                    min: Some(0.0),
+                    max: Some(16383.0),
+                }),
+                ..Default::default()
+            };
+            let value = constraints.normalize(ParamValue::Int(512))?;
+            parameter.value = value;
+            parameter.constraints = constraints;
+            if followup {
+                ctx.set_param_with_behaviour(node, ParamValue::Int(513), ParameterEventBehaviour::Append);
+            }
+            Ok(())
+        }),
+    }
+}
+#[test]
+fn direct_parameter_mutation_is_attributed_but_its_followup_is_not() {
+    let mut engine = fixture();
+    let root = engine.root;
+    engine.edits.push_from(root, state_mutation(root, true));
+    engine.apply_edits().unwrap();
+    assert_eq!(changes(&engine), vec![(512, Some(root))]);
+    // Nested requests belong to the next ordinary edit drain.
+    engine.apply_edits().unwrap();
+    assert_eq!(changes(&engine), vec![(512, Some(root)), (513, None)]);
+    assert_eq!(engine.nodes.get(root).unwrap().value, ParamValue::Int(513));
+}
+#[test]
+fn a_parameter_state_mutation_is_coherent_before_later_failure_and_history_replay() {
+    let mut engine = fixture();
+    let root = engine.root;
+    engine.edits.push_from(root, state_mutation(root, false));
+    engine.edits.push(write(NodeId(u64::MAX), 1));
+    assert!(engine.apply_edits().is_err());
+    assert_eq!(engine.nodes.get(root).unwrap().value, ParamValue::Int(512));
+    assert_eq!(
+        engine.nodes.get(root).unwrap().constraints.range,
+        RangeConstraint::uniform(Some(0.0), Some(16383.0))
+    );
+    assert_eq!(changes(&engine), vec![(512, Some(root))]);
+    assert!(engine.undo().unwrap());
+    assert_eq!(engine.nodes.get(root).unwrap().value, ParamValue::Int(0));
+    assert_eq!(engine.nodes.get(root).unwrap().constraints.range, None);
+    assert!(engine.redo().unwrap());
+    assert_eq!(engine.nodes.get(root).unwrap().value, ParamValue::Int(512));
+    assert_eq!(
+        engine.nodes.get(root).unwrap().constraints.range,
+        RangeConstraint::uniform(Some(0.0), Some(16383.0))
+    );
+}

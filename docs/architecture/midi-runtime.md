@@ -1,4 +1,4 @@
-# MIDI native, input and outgoing ownership
+# MIDI runtime and authored structure ownership
 
 MIDI is app-owned under `apps/chataigne/src/module/modules/protocol/midi/midi_module`.
 `midi_runtime` owns native Midir discovery, input/output creation, port resolution, sends,
@@ -14,7 +14,8 @@ command types on the output worker. `midi_runtime/output/schedule` owns complete
 and their monotonic deadlines. This closes outgoing preparation and delayed storage/service.
 `midi_input` prepares immutable incoming values, callback payloads and logs on the input worker.
 `input_delivery` owns graph and callback completion without replaying applied prefixes.
-Authored CC structure, catalogs and passive module service remain open in C03.
+`structure/cc` owns bounded authored CC conversion and `structure/locks` owns startup surface
+permissions. Prepared catalog lifetimes and passive module service remain open in C03.
 
 ## Native admission
 
@@ -72,11 +73,45 @@ Generic and message-specific callbacks have separate completion receipts. A fail
 retries only the unpublished callback; later edit/subscriber failures cannot replay a committed
 one. Callback receipts retain canonical payloads and do not stall subsequent clock inputs after
 their graph segment settles. Disable/removal cancels pending graph/callback ownership and clears
-held-note state. Authored CC structure and passive lifecycle service remain separate C03 items.
+held-note state. Accepted authored structure work has a separate lifetime and may finish disabled.
 
 The input worker services its callback mailbox with a 10 ms background fallback, independently
 of the actor. Presence checks run once per second on that worker. This is not an audio callback
 or a product latency qualification.
+
+## Authored structure
+
+CC width changes coalesce by channel and retain the first unapplied width for rejection recovery.
+One channel's fixed 32 controller pairs is prepared per service turn. Every read fence precedes
+authored effects; data plans contain at most 200 requests plus one ordering callback. Touched
+parents admit at most 256 children, and existing parameter publication plus retired subtrees
+share a 256-node footprint. Oversized or unsupported shapes reject before any CC data changes.
+New parameters and rotary selectors are complete detached `NodeTree` values.
+
+An existing parameter's value, default and constraints change together in one public node mutation.
+Normalization completes before assignment, so a later drain failure cannot leave a widened range
+with an unconverted value. Golden records the change as one state/history effect and attributes
+its parameter event to the module. Follow-up edits retain their own provenance.
+
+Receipts separate read rejection, applied data and ordering. Read rejection restores an explicit
+unapplied width if no newer request supersedes it. After an applied prefix, a fresh plan uses each
+parameter's actual declared 7-bit or 14-bit range, preserving completed conversions without shifting
+twice. Narrowing writes the low-bit control before replacing the combined source, so an interrupted
+split retains all bits for reconciliation. Startup reconciliation uses the same idempotent path. Numeric ordering uses a separate
+bounded pass of at most 129 requests; one deferred module callback starts it after the data drain.
+No per-parameter snapshot callback or whole-tree sorting loop is needed.
+
+Startup permission locking follows only the known MIDI declaration shape. Each turn visits at
+most 64 cursor steps and emits at most 24 patches behind one read fence. The cursor keeps at
+most five ancestry frames and does not traverse control-owned subtrees. Failed metadata receipts
+recheck the current owned surface. Pending receipts request no new snapshot or repeated edits.
+
+Input consumption pauses during structure work. Worker wakes service accepted structure even
+while disabled, without reopening native IO. Removal cancels the cursor and invalidates deferred
+callbacks through the module generation and closed wake source. The first coalesced callback
+also has a completion receipt: discarding it cannot leave a permanent queued flag or pause input
+after the retained plan completes. The overall module's periodic
+native/clock service remains a separate unfinished item below.
 
 ## Outgoing preparation
 
@@ -155,8 +190,8 @@ transport cancellation still cancels the remaining suffix without replaying an i
 
 ## Remaining C03 acceptance
 
-MIDI still needs bounded authored CC structure service, prepared catalog lifetime ownership, and passive
-module scheduling with clock/MTC/recovery deadlines. Output deadlines are already worker-owned.
+MIDI still needs prepared catalog lifetime ownership and passive module scheduling with
+clock/MTC/recovery deadlines. Output deadlines are already worker-owned.
 The existing 240 Hz module rule is still present; native worker ownership does not qualify it.
 Keep those concrete gaps inside C03, preserving all commands and app-owned script surfaces.
 General snapshot scaling and product-size throughput remain their owning plan tasks.

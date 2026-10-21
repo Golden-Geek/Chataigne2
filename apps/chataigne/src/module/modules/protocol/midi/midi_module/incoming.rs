@@ -6,6 +6,9 @@ impl MidiModule {
         ctx: &mut ProcessCtx,
         snapshot: Option<&ProcessTreeSnapshot>,
     ) -> bool {
+        if self.structure_work.busy() {
+            return true;
+        }
         let mode = self.input_mode();
         let root = self.base.values_id();
         // Callback receipts keep their own canonical leases, but do not stall
