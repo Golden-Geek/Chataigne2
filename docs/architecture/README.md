@@ -28,7 +28,9 @@ and superseded plans are [archived](../archive/2026-10-18/README.md).
 - [MQTT ownership](mqtt-runtime.md): bounded native protocol ownership, retained publish outcomes,
   reconnect/retirement and locally qualified passive app service.
 - [DMX ownership](dmx-runtime.md): native setup/cleanup, bounded frames, completion receipts and
-  passive actor service; remaining C05 and P07 work is explicit.
+  passive actor service; P07 owns stream correctness.
+- [System module ownership](system-runtime.md): captured OS commands, bounded metrics/native
+  lifetimes, completion outcomes, passive service and the remaining App Control boundary.
 - [Timed generators](generators.md): Signals/Metronomes admission, elapsed time, bounded
   publication, passive service and worker lifetime ownership.
 - [Alchemist runtime](alchemist-runtime.md): formulas, processors, conditions, inputs, filters,

@@ -1,27 +1,26 @@
 mod os_runtime;
+mod service;
+pub(crate) use service::dispatch as queue_os_command;
 #[cfg(test)]
 mod tests;
 
 use golden_core::{
     edit::Edit,
     engine::NodeExecutionRule,
-    events::CustomEvent,
-    logerror, node,
+    node,
     node::{Node, NodeId, NodeScriptDescriptor},
     parameter::ParamValue,
     process_ctx::ProcessCtx,
 };
 
 use crate::app::module::common::os::{
-    OsControlRequest, WakeOnLanRequest, OS_LOGOUT_COMMAND_NODE_TYPE,
-    OS_MODULE_COMMAND_TYPES, OS_REBOOT_COMMAND_NODE_TYPE, OS_SHUTDOWN_COMMAND_NODE_TYPE,
+    OS_LOGOUT_COMMAND_NODE_TYPE, OS_MODULE_COMMAND_TYPES, OS_REBOOT_COMMAND_NODE_TYPE, OS_SHUTDOWN_COMMAND_NODE_TYPE,
     OS_WAKE_ON_LAN_COMMAND_NODE_TYPE,
 };
 use crate::app::module::common::system_metrics;
 
-use self::os_runtime::{HostControlAction, OsMetricsSnapshot, OsRuntime};
+use self::os_runtime::{OsMetricsSnapshot, OsRuntime};
 
-const OS_MODULE_UPDATE_RATE_HZ: u32 = 1;
 const OS_SCRIPT_METHODS: &[&str] = &["shutdown", "reboot", "logout", "wakeOnLan"];
 const SYSTEM_STATS_UPDATED_CALLBACK: &str = "systemStatsUpdated";
 const SYSTEM_COMMAND_REQUESTED_CALLBACK: &str = "systemCommandRequested";
@@ -152,42 +151,38 @@ const SYSTEM_COMMAND_FAILED_CALLBACK: &str = "systemCommandFailed";
 )]
 pub struct OsModule {
     base: crate::app::ModuleBase,
-    runtime: OsRuntime,
+    runtime: Option<OsRuntime>,
+    wake: Option<crate::app::module::common::worker_wake::ModuleWake>,
+    retry_at: Option<std::time::Instant>,
+    reconnect: golden_io::ReconnectBackoff,
+    pending: std::collections::VecDeque<os_runtime::Receipt>,
+    outgoing: std::collections::VecDeque<golden_io::RetainedPayload<os_runtime::Source>>,
+    admission: golden_io::RetirementPool,
+    output_retry_at: Option<std::time::Instant>,
 }
 
 impl OsModule {
     pub fn create() -> Self {
-        Self::new(crate::app::ModuleBase::new(), OsRuntime::create())
+        Self::new(
+            crate::app::ModuleBase::new(),
+            None,
+            None,
+            None,
+            golden_io::ReconnectBackoff::new(std::time::Duration::from_millis(250), std::time::Duration::from_secs(8)),
+            std::collections::VecDeque::new(),
+            std::collections::VecDeque::new(),
+            golden_io::RetirementPool::new(std::num::NonZeroUsize::new(64).unwrap()),
+            None,
+        )
     }
 
     fn refresh_static_values(&mut self, ctx: &mut ProcessCtx) {
         self.os_type.set(ctx, os_runtime::host_os_type().to_string());
         self.architecture.set(ctx, os_runtime::host_architecture());
-        self.os_version.set(ctx, os_runtime::current_os_version());
-    }
-
-    fn refresh_metrics(&mut self, ctx: &mut ProcessCtx) {
-        let snapshot = self.runtime.snapshot();
-        self.sync_metric_constraints(ctx, &snapshot);
-        self.apply_metrics_snapshot(ctx, &snapshot);
-        self.base.emit_incoming_traffic(ctx);
-
-        if self.base.log_incoming_enabled() {
-            golden_core::log!(origin = self.id(); format!(
-                "System stats refreshed: cpu {:.3} (app {:.3}), memory {:.1}/{:.1} MB, network down {:.3} MB/s up {:.3} MB/s.",
-                snapshot.global_cpu_ratio,
-                snapshot.app_cpu_ratio,
-                snapshot.system_used_mb,
-                snapshot.system_total_mb,
-                snapshot.received_mb_per_sec,
-                snapshot.transmitted_mb_per_sec,
-            ));
-        }
-
-        self.emit_system_stats_callback(ctx, &snapshot);
     }
 
     fn apply_metrics_snapshot(&mut self, ctx: &mut ProcessCtx, snapshot: &OsMetricsSnapshot) {
+        self.architecture.set(ctx, snapshot.architecture.clone());
         self.os_version.set(ctx, snapshot.os_version.clone());
         self.global_ratio.set(ctx, snapshot.global_cpu_ratio);
         self.app_ratio.set(ctx, snapshot.app_cpu_ratio);
@@ -196,20 +191,14 @@ impl OsModule {
         self.app_used_mb.set(ctx, snapshot.app_used_mb);
         self.app_virtual_mb.set(ctx, snapshot.app_virtual_mb);
         self.received_mb_per_sec.set(ctx, snapshot.received_mb_per_sec);
-        self.transmitted_mb_per_sec
-            .set(ctx, snapshot.transmitted_mb_per_sec);
+        self.transmitted_mb_per_sec.set(ctx, snapshot.transmitted_mb_per_sec);
         self.total_received_mb.set(ctx, snapshot.total_received_mb);
-        self.total_transmitted_mb
-            .set(ctx, snapshot.total_transmitted_mb);
+        self.total_transmitted_mb.set(ctx, snapshot.total_transmitted_mb);
         self.system_seconds.set(ctx, snapshot.system_uptime_seconds);
         self.app_seconds.set(ctx, snapshot.app_uptime_seconds);
     }
 
-    fn sync_metric_constraints(
-        &self,
-        ctx: &mut ProcessCtx,
-        metrics: &OsMetricsSnapshot,
-    ) {
+    fn sync_metric_constraints(&self, ctx: &mut ProcessCtx, metrics: &OsMetricsSnapshot) {
         sync_value_constraint(
             ctx,
             self.global_ratio.is_bound().then_some(self.global_ratio.id()),
@@ -224,33 +213,30 @@ impl OsModule {
         );
         sync_value_constraint(
             ctx,
-            self.system_used_mb
-                .is_bound()
-                .then_some(self.system_used_mb.id()),
+            self.system_used_mb.is_bound().then_some(self.system_used_mb.id()),
             Some(0.0),
             Some(metrics.system_total_mb.max(metrics.system_used_mb)),
         );
         sync_value_constraint(
             ctx,
-            self.system_total_mb
-                .is_bound()
-                .then_some(self.system_total_mb.id()),
+            self.system_total_mb.is_bound().then_some(self.system_total_mb.id()),
             Some(0.0),
-            Some(metrics.system_total_mb.max(metrics.system_used_mb).max(metrics.app_used_mb)),
+            Some(
+                metrics
+                    .system_total_mb
+                    .max(metrics.system_used_mb)
+                    .max(metrics.app_used_mb),
+            ),
         );
         sync_value_constraint(
             ctx,
-            self.app_used_mb
-                .is_bound()
-                .then_some(self.app_used_mb.id()),
+            self.app_used_mb.is_bound().then_some(self.app_used_mb.id()),
             Some(0.0),
             Some(metrics.system_total_mb.max(metrics.app_used_mb)),
         );
         sync_value_constraint(
             ctx,
-            self.app_virtual_mb
-                .is_bound()
-                .then_some(self.app_virtual_mb.id()),
+            self.app_virtual_mb.is_bound().then_some(self.app_virtual_mb.id()),
             Some(0.0),
             None,
         );
@@ -272,9 +258,7 @@ impl OsModule {
         );
         sync_value_constraint(
             ctx,
-            self.total_received_mb
-                .is_bound()
-                .then_some(self.total_received_mb.id()),
+            self.total_received_mb.is_bound().then_some(self.total_received_mb.id()),
             Some(0.0),
             None,
         );
@@ -285,171 +269,6 @@ impl OsModule {
                 .then_some(self.total_transmitted_mb.id()),
             Some(0.0),
             None,
-        );
-    }
-
-    fn on_custom_event_inner(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
-        let Some(request) = crate::app::module_command::decode_module_command_request(&event) else {
-            return;
-        };
-        if request.module_id != self.id() || !OS_MODULE_COMMAND_TYPES.contains(&request.command_type.as_str()) {
-            return;
-        }
-
-        let result = match request.command_type.as_str() {
-            OS_SHUTDOWN_COMMAND_NODE_TYPE => serde_json::from_value::<OsControlRequest>(request.payload)
-                .map_err(|error| format!("invalid OS shutdown command payload: {error}"))
-                .and_then(|payload| self.execute_control_action(ctx, HostControlAction::Shutdown, payload)),
-            OS_REBOOT_COMMAND_NODE_TYPE => serde_json::from_value::<OsControlRequest>(request.payload)
-                .map_err(|error| format!("invalid OS reboot command payload: {error}"))
-                .and_then(|payload| self.execute_control_action(ctx, HostControlAction::Reboot, payload)),
-            OS_LOGOUT_COMMAND_NODE_TYPE => serde_json::from_value::<OsControlRequest>(request.payload)
-                .map_err(|error| format!("invalid OS logout command payload: {error}"))
-                .and_then(|payload| self.execute_control_action(ctx, HostControlAction::Logout, payload)),
-            OS_WAKE_ON_LAN_COMMAND_NODE_TYPE => serde_json::from_value::<WakeOnLanRequest>(request.payload)
-                .map_err(|error| format!("invalid Wake-on-LAN command payload: {error}"))
-                .and_then(|payload| self.execute_wake_on_lan(ctx, payload)),
-            _ => Ok(()),
-        };
-
-        if let Err(error) = result {
-            logerror!(format!("Failed to handle OS command {:?}: {error}", request.command_id));
-        }
-    }
-
-    fn handle_script_method(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        method: &str,
-        args: &[ParamValue],
-    ) -> Option<Result<(), String>> {
-        let result = match method {
-            "shutdown" => script_no_args(method, args).and_then(|_| {
-                self.execute_control_action(
-                    ctx,
-                    HostControlAction::Shutdown,
-                    OsControlRequest {
-                        description: "shutdown host".to_string(),
-                    },
-                )
-            }),
-            "reboot" => script_no_args(method, args).and_then(|_| {
-                self.execute_control_action(
-                    ctx,
-                    HostControlAction::Reboot,
-                    OsControlRequest {
-                        description: "reboot host".to_string(),
-                    },
-                )
-            }),
-            "logout" => script_no_args(method, args).and_then(|_| {
-                self.execute_control_action(
-                    ctx,
-                    HostControlAction::Logout,
-                    OsControlRequest {
-                        description: "logout host user".to_string(),
-                    },
-                )
-            }),
-            "wakeOnLan" => script_wake_on_lan_request(args)
-                .and_then(|request| self.execute_wake_on_lan(ctx, request)),
-            _ => return None,
-        };
-
-        Some(result)
-    }
-
-    fn execute_control_action(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        action: HostControlAction,
-        request: OsControlRequest,
-    ) -> Result<(), String> {
-        self.base.emit_outgoing_traffic(ctx);
-        self.emit_system_command_requested(
-            ctx,
-            action.as_script_method(),
-            serde_json::json!({
-                "description": request.description,
-            }),
-        );
-
-        if self.base.log_outgoing_enabled() {
-            golden_core::log!(origin = self.id(); format!("Requested {}.", action.as_human_label()));
-        }
-
-        if let Err(error) = os_runtime::execute_control_action(action) {
-            self.emit_system_command_failed(ctx, action.as_script_method(), error.as_str());
-            return Err(error);
-        }
-
-        Ok(())
-    }
-
-    fn execute_wake_on_lan(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        request: WakeOnLanRequest,
-    ) -> Result<(), String> {
-        self.base.emit_outgoing_traffic(ctx);
-
-        if let Err(error) = os_runtime::send_wake_on_lan(&request) {
-            self.emit_system_command_failed(ctx, "wakeOnLan", error.as_str());
-            return Err(error);
-        }
-
-        self.emit_system_command_requested(
-            ctx,
-            "wakeOnLan",
-            serde_json::json!({
-                "description": request.description,
-                "macAddress": request.mac_address,
-                "broadcastHost": request.broadcast_host,
-                "port": request.port,
-            }),
-        );
-
-        if self.base.log_outgoing_enabled() {
-            golden_core::log!(origin = self.id(); format!(
-                "Sent Wake-on-LAN packet to {} via {}:{}.",
-                request.mac_address,
-                request.broadcast_host,
-                request.port,
-            ));
-        }
-
-        Ok(())
-    }
-
-    fn emit_system_stats_callback(&self, ctx: &mut ProcessCtx, snapshot: &OsMetricsSnapshot) {
-        crate::app::module::script_api::emit_script_callback(
-            ctx,
-            self.id(),
-            SYSTEM_STATS_UPDATED_CALLBACK,
-            vec![metrics_json(snapshot)],
-        );
-    }
-
-    fn emit_system_command_requested(
-        &self,
-        ctx: &mut ProcessCtx,
-        command: &str,
-        details: serde_json::Value,
-    ) {
-        crate::app::module::script_api::emit_script_callback(
-            ctx,
-            self.id(),
-            SYSTEM_COMMAND_REQUESTED_CALLBACK,
-            vec![serde_json::json!(command), details],
-        );
-    }
-
-    fn emit_system_command_failed(&self, ctx: &mut ProcessCtx, command: &str, error: &str) {
-        crate::app::module::script_api::emit_script_callback(
-            ctx,
-            self.id(),
-            SYSTEM_COMMAND_FAILED_CALLBACK,
-            vec![serde_json::json!(command), serde_json::json!(error)],
         );
     }
 }
@@ -467,39 +286,43 @@ impl Node for OsModule {
         self.base.configure_command_tester(ctx, OS_MODULE_COMMAND_TYPES);
         self.base
             .set_data_capabilities(ctx, crate::app::module::ModuleDataCapabilities::new(true, true));
-        self.base.set_connected(ctx, true);
+        self.base.set_connected(ctx, false);
         crate::app::module::enable_module_authoring(self.node_data_mut());
         self.refresh_static_values(ctx);
-        self.refresh_metrics(ctx);
     }
 
+    fn on_node_ready(&mut self, ctx: &mut ProcessCtx, context: golden_core::node::NodeCreationContext) {
+        self.ready(ctx, context);
+    }
     fn update(&mut self, ctx: &mut ProcessCtx) {
-        if !self.node_data().effective_enabled {
-            return;
-        }
-
-        self.refresh_metrics(ctx);
+        self.service(ctx);
     }
-
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {
-        self.runtime.stop();
+        self.clear_outgoing();
+        self.runtime = None;
+        self.wake = None;
     }
-
-    fn update_requires_tree_snapshot(&self) -> bool {
+    fn needs_update(&self) -> bool {
         false
     }
-
+    fn update_requires_tree_snapshot(&self) -> bool {
+        self.needs_service_snapshot()
+    }
     fn execution_rule(&self) -> NodeExecutionRule {
-        NodeExecutionRule::periodic(OS_MODULE_UPDATE_RATE_HZ)
-            .with_compiled_kernel("chataigne.runtime.os")
+        NodeExecutionRule::passive().with_compiled_kernel("chataigne.runtime.os")
+    }
+    fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
+        self.service(ctx);
+    }
+    fn worker_wake_requires_tree_snapshot(&self) -> bool {
+        self.needs_service_snapshot()
+    }
+    fn worker_wake_when_disabled(&self) -> bool {
+        !self.pending.is_empty()
     }
 
     fn engine_script_descriptor(&self) -> NodeScriptDescriptor {
-        crate::app::module::script_api::descriptor_for_node(
-            self.node_data(),
-            self.get_type(),
-            OS_SCRIPT_METHODS,
-        )
+        crate::app::module::script_api::descriptor_for_node(self.node_data(), self.get_type(), OS_SCRIPT_METHODS)
     }
 
     fn engine_call_script_method(
@@ -508,7 +331,7 @@ impl Node for OsModule {
         method: &str,
         args: &[ParamValue],
     ) -> Result<bool, String> {
-        if let Some(result) = self.handle_script_method(ctx, method, args) {
+        if let Some(result) = self.script(ctx, method, args) {
             result?;
             return Ok(true);
         }
@@ -524,58 +347,38 @@ impl Node for OsModule {
     }
 
     fn on_effective_enabled_changed(&mut self, ctx: &mut ProcessCtx, enabled: bool) {
-        self.runtime.set_polling_enabled(enabled);
-        self.base.set_connected(ctx, enabled);
+        self.retry_at = None;
         if enabled {
-            self.refresh_static_values(ctx);
-            self.refresh_metrics(ctx);
+            if let Err(error) = self.register_service(ctx) {
+                golden_core::logerror!(error);
+            }
+            self.request_service();
+        } else {
+            self.clear_outgoing();
+            self.runtime = None;
+            if let Some(wake) = &self.wake {
+                wake.cancel_deadline();
+            }
+            self.base.set_connected(ctx, false);
+            if self.pending.iter().any(os_runtime::Receipt::complete) {
+                self.request_service();
+            }
         }
     }
 
-    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
-        self.on_custom_event_inner(ctx, event);
+    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
+        self.accept_output(ctx, event);
     }
-
     fn project_create(node_type: &str) -> Option<Self> {
         (node_type == Self::NODE_TYPE).then(Self::create)
     }
-}
-
-fn script_no_args(method: &str, args: &[ParamValue]) -> Result<(), String> {
-    if args.is_empty() {
-        return Ok(());
-    }
-
-    Err(format!("method '{method}' does not accept arguments"))
-}
-
-fn script_wake_on_lan_request(args: &[ParamValue]) -> Result<WakeOnLanRequest, String> {
-    let Some(mac_address) = args.first().and_then(ParamValue::as_str) else {
-        return Err("method 'wakeOnLan' expects a MAC address string argument".to_string());
-    };
-
-    let broadcast_host = args
-        .get(1)
-        .and_then(ParamValue::as_str)
-        .unwrap_or_else(|| "255.255.255.255".to_string());
-    let port = args.get(2).and_then(ParamValue::as_int).unwrap_or(9);
-    if !(0..=65535).contains(&port) {
-        return Err("method 'wakeOnLan' expects a UDP port between 0 and 65535".to_string());
-    }
-
-    Ok(WakeOnLanRequest {
-        mac_address,
-        broadcast_host,
-        port: port as u16,
-        description: "send Wake-on-LAN packet".to_string(),
-    })
 }
 
 fn metrics_json(snapshot: &OsMetricsSnapshot) -> serde_json::Value {
     serde_json::json!({
         "info": {
             "osType": os_runtime::host_os_type(),
-            "architecture": os_runtime::host_architecture(),
+            "architecture": snapshot.architecture,
             "osVersion": snapshot.os_version,
         },
         "cpu": {
@@ -601,12 +404,7 @@ fn metrics_json(snapshot: &OsMetricsSnapshot) -> serde_json::Value {
     })
 }
 
-fn sync_value_constraint(
-    ctx: &mut ProcessCtx,
-    node_id: Option<NodeId>,
-    min: Option<f64>,
-    max: Option<f64>,
-) {
+fn sync_value_constraint(ctx: &mut ProcessCtx, node_id: Option<NodeId>, min: Option<f64>, max: Option<f64>) {
     let Some(node_id) = node_id else {
         return;
     };

@@ -47,6 +47,9 @@ fn repeated_session_churn_reuses_one_native_lifetime_and_never_replays_lost_publ
         );
         assert_eq!(control.published.load(Ordering::Acquire), round as usize + 1);
         assert_eq!(lifetimes.metrics().active, 1);
+        // A lost-session receipt resolves while ConnAck is still restoring the
+        // sendable state. Its completion is not a reconnect readiness barrier.
+        until(|| handle.is_connected());
     }
     handle.stop();
     drop(handle);

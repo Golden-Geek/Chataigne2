@@ -16,6 +16,7 @@ pub(crate) use module_modules_protocol_midi_midi_module::midi_message::{
 pub(crate) use module_modules_protocol_mqtt::queue_mqtt_command;
 pub(crate) use module_modules_protocol_osc_commands_osc_send_custom_message_command::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE;
 pub(crate) use module_modules_protocol_osc_osc_module_base::{queue_osc_command, OscOutboundRequest, OscQueueError};
+pub(crate) use module_modules_system_os_os::queue_os_command;
 
 const APP_UI_DEV_SERVER: golden_core::app::FrontendDevServerConfig = golden_core::app::FrontendDevServerConfig {
     working_dir: concat!(env!("CARGO_MANIFEST_DIR"), "/ui"),

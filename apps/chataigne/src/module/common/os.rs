@@ -13,11 +13,6 @@ pub const OS_MODULE_COMMAND_TYPES: &[&str] = &[
 ];
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct OsControlRequest {
-    pub description: String,
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct WakeOnLanRequest {
     pub mac_address: String,
     pub broadcast_host: String,

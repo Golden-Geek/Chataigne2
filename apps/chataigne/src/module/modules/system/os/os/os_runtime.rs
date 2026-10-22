@@ -1,20 +1,29 @@
+use crate::app::module::{common::os::WakeOnLanRequest, script_api::NativeCallbackPayload};
+use golden_io::{
+    BoundedWorker, PayloadPool, RetainedPayload, RetirementPool, RevisionGuard, RevisionSource, WorkerLimits,
+    WorkerNotifier,
+};
 use std::{
-    net::UdpSocket,
-    process::{Command, Stdio},
+    num::NonZeroUsize,
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc, Mutex, MutexGuard,
+        Arc, Mutex, OnceLock,
     },
-    thread::{self, JoinHandle},
-    time::Duration,
 };
-
-use sysinfo::{get_current_pid, Networks, Pid, ProcessesToUpdate, System};
-
-use crate::app::module::common::os::WakeOnLanRequest;
-use crate::app::module::common::system_metrics;
-
-const OS_METRICS_WORKER_INTERVAL: Duration = Duration::from_secs(1);
+mod input;
+mod native;
+mod outcomes;
+#[cfg(test)]
+mod tests;
+mod worker;
+use input::Request;
+pub(super) use input::{Input, Method, Source};
+#[cfg(test)]
+pub(crate) use native::{build_magic_packet, parse_mac_address};
+pub(crate) use native::{host_architecture, host_os_type};
+use outcomes::Work;
+pub(super) use outcomes::{Outcome, Receipt};
+const WEIGHT: usize = 24 * 1024;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum HostControlAction {
@@ -31,14 +40,11 @@ impl HostControlAction {
             Self::Logout => "logout",
         }
     }
-
-    pub(crate) fn as_script_method(self) -> &'static str {
-        self.as_human_label()
-    }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct OsMetricsSnapshot {
+    pub(crate) architecture: String,
     pub(crate) os_version: String,
     pub(crate) global_cpu_ratio: f64,
     pub(crate) app_cpu_ratio: f64,
@@ -54,447 +60,214 @@ pub(crate) struct OsMetricsSnapshot {
     pub(crate) app_uptime_seconds: f64,
 }
 
-impl OsMetricsSnapshot {
-    fn idle() -> Self {
-        Self {
-            os_version: current_os_version(),
-            global_cpu_ratio: 0.0,
-            app_cpu_ratio: 0.0,
-            system_used_mb: 0.0,
-            system_total_mb: 0.0,
-            app_used_mb: 0.0,
-            app_virtual_mb: 0.0,
-            received_mb_per_sec: 0.0,
-            transmitted_mb_per_sec: 0.0,
-            total_received_mb: 0.0,
-            total_transmitted_mb: 0.0,
-            system_uptime_seconds: 0.0,
-            app_uptime_seconds: 0.0,
-        }
+#[derive(Clone)]
+pub(super) struct Fence {
+    actor: RevisionGuard,
+    native: RevisionGuard,
+}
+impl Fence {
+    pub(super) fn current(&self) -> bool {
+        self.actor.is_current() && self.native.is_current()
+    }
+    pub(super) fn guards(&self) -> Vec<RevisionGuard> {
+        vec![self.actor.clone(), self.native.clone()]
     }
 }
-
-struct OsMetricsWorkerState {
-    latest_snapshot: Mutex<OsMetricsSnapshot>,
-    polling_enabled: AtomicBool,
-    reset_requested: AtomicBool,
-    stop_requested: AtomicBool,
+pub(super) struct Metrics {
+    pub(super) snapshot: OsMetricsSnapshot,
+    pub(super) callback: NativeCallbackPayload,
+    pub(super) fence: Fence,
 }
-
-struct OsMetricsWorker {
-    state: Arc<OsMetricsWorkerState>,
-    worker: Option<JoinHandle<()>>,
+pub(super) enum Status {
+    Ready,
+    Warning(String),
+    Error(String),
 }
-
-impl OsMetricsWorker {
-    fn create(process_id: Pid) -> Self {
-        let state = Arc::new(OsMetricsWorkerState {
-            latest_snapshot: Mutex::new(OsMetricsSnapshot::idle()),
-            polling_enabled: AtomicBool::new(true),
-            reset_requested: AtomicBool::new(true),
-            stop_requested: AtomicBool::new(false),
+struct Shared {
+    latest: Mutex<Option<RetainedPayload<Metrics>>>,
+    running: AtomicBool,
+    wake: WorkerNotifier,
+}
+pub(super) trait Provider: Send + 'static {
+    fn sample(&mut self) -> Result<OsMetricsSnapshot, String>;
+    fn execute(&mut self, request: &Request) -> Result<(), String>;
+}
+pub(super) struct OsRuntime {
+    worker: BoundedWorker<Work, Status>,
+    shared: Arc<Shared>,
+    source: Option<RevisionSource>,
+    fence: Fence,
+    commands: PayloadPool,
+}
+fn slots() -> &'static RetirementPool {
+    static POOL: OnceLock<RetirementPool> = OnceLock::new();
+    POOL.get_or_init(|| RetirementPool::new(NonZeroUsize::new(16).unwrap()))
+}
+fn pool(output: bool) -> Result<PayloadPool, String> {
+    static INPUT: OnceLock<Mutex<Option<PayloadPool>>> = OnceLock::new();
+    static OUTPUT: OnceLock<Mutex<Option<PayloadPool>>> = OnceLock::new();
+    let cell = (if output { &OUTPUT } else { &INPUT }).get_or_init(|| Mutex::new(None));
+    initialize_pool(cell, || {
+        PayloadPool::new(
+            if output { "os-command-lifetimes" } else { "os-metrics" },
+            512,
+            16 * 1024 * 1024,
+        )
+        .map_err(|error| error.to_string())
+    })
+}
+fn initialize_pool(
+    cell: &Mutex<Option<PayloadPool>>,
+    create: impl FnOnce() -> Result<PayloadPool, String>,
+) -> Result<PayloadPool, String> {
+    let mut pool = cell.lock().unwrap_or_else(|poison| poison.into_inner());
+    if pool.is_none() {
+        // Thread admission can fail transiently. Keep the cell retryable rather
+        // than caching the failure for the remainder of the host lifetime.
+        *pool = Some(create()?);
+    }
+    Ok(pool.as_ref().unwrap().clone())
+}
+impl OsRuntime {
+    pub(super) fn spawn(wake: WorkerNotifier) -> Result<Self, String> {
+        Self::spawn_using(wake, slots(), pool(false)?, pool(true)?, native::Native::open)
+    }
+    fn spawn_using<P: Provider>(
+        wake: WorkerNotifier,
+        slots: &RetirementPool,
+        input: PayloadPool,
+        commands: PayloadPool,
+        open: impl FnOnce() -> Result<P, String> + Send + 'static,
+    ) -> Result<Self, String> {
+        let shared = Arc::new(Shared {
+            latest: Mutex::new(None),
+            running: AtomicBool::new(true),
+            wake: wake.clone(),
         });
-        let worker_state = Arc::clone(&state);
-        let worker = thread::Builder::new()
-            .name("os-metrics".to_string())
-            .spawn(move || os_metrics_worker_loop(worker_state, process_id))
-            .ok();
-
-        let worker_handle = Self {
-            state,
-            worker,
+        let actor = RevisionSource::default();
+        let native = RevisionSource::default();
+        let fence = Fence {
+            actor: actor.reader().guard_at(0),
+            native: native.reader().guard_at(0),
         };
-        worker_handle.request_refresh();
-        worker_handle
+        let state = shared.clone();
+        let native_fence = fence.clone();
+        let output = commands.clone();
+        let worker = BoundedWorker::spawn_notified(
+            "os-runtime",
+            slots,
+            WorkerLimits {
+                command_items: 64,
+                command_weight: 4 * 1024 * 1024,
+                event_items: 4,
+                event_weight: 8192,
+            },
+            wake,
+            move |ctx| worker::run(ctx, state, native, native_fence, input, output, open),
+        )
+        .map_err(|error| error.to_string())?;
+        Ok(Self {
+            worker,
+            shared,
+            source: Some(actor),
+            fence,
+            commands,
+        })
     }
-
-    fn snapshot(&self) -> OsMetricsSnapshot {
-        lock_unpoisoned(&self.state.latest_snapshot).clone()
-    }
-
-    fn set_polling_enabled(&self, enabled: bool) {
-        let was_enabled = self.state.polling_enabled.swap(enabled, Ordering::Relaxed);
-        if enabled && !was_enabled {
-            self.state.reset_requested.store(true, Ordering::Relaxed);
-            self.request_refresh();
+    pub(super) fn capture(
+        &self,
+        input: Input,
+        producer: golden_core::engine::NodeWaker,
+        method: Method,
+        time: golden_core::engine::EngineTime,
+        admission: Option<golden_io::RetirementPermit>,
+    ) -> Result<RetainedPayload<Source>, String> {
+        if !self.is_running() || self.source.is_none() {
+            return Err("OS runtime is stopped; request was not admitted".into());
         }
+        let source = Source {
+            time,
+            _admission: admission,
+            input,
+            producer,
+            method,
+            fence: self.fence.clone(),
+        };
+        let weight = source.weight();
+        let reservation = self
+            .commands
+            .try_reserve(weight)
+            .map_err(|_| "OS command item/byte capacity exhausted")?;
+        let source = reservation
+            .retain(source, weight)
+            .map_err(|_| "OS command reservation failed")?;
+        Ok(source)
     }
-
-    fn request_refresh(&self) {
-        if let Some(worker) = &self.worker {
-            worker.thread().unpark();
-        }
+    pub(super) fn submit(&self, source: RetainedPayload<Source>) -> Result<Receipt, RetainedPayload<Source>> {
+        let weight = source.weight();
+        let (work, receipt) = Work::new(source.clone(), self.shared.wake.clone());
+        self.worker.send_weighted(work, weight).map_err(|error| {
+            let (golden_io::PendingSendError::Full(work) | golden_io::PendingSendError::Disconnected(work)) = error;
+            work.unadmitted();
+            source
+        })?;
+        Ok(receipt)
     }
-
-    fn stop(&mut self) {
-        self.state.stop_requested.store(true, Ordering::Relaxed);
-        self.request_refresh();
-        if let Some(worker) = self.worker.take() {
-            let _ = worker.join();
-        }
+    #[cfg(test)]
+    fn send(&self, input: Input, producer: golden_core::engine::NodeWaker, method: Method) -> Result<Receipt, String> {
+        let source = self.capture(
+            input,
+            producer,
+            method,
+            golden_core::engine::EngineTime {
+                tick: 0,
+                micro: 0,
+                seq: 0,
+            },
+            None,
+        )?;
+        self.submit(source)
+            .map_err(|_| "OS command mailbox is full or closed".into())
+    }
+    pub(super) fn is_running(&self) -> bool {
+        self.shared.running.load(Ordering::Acquire)
+    }
+    pub(super) fn has_metrics(&self) -> bool {
+        self.shared
+            .latest
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
+            .is_some()
+    }
+    pub(super) fn take_metrics(&self) -> Option<RetainedPayload<Metrics>> {
+        self.shared
+            .latest
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
+            .take()
+    }
+    pub(super) fn take_status(&self) -> Option<Status> {
+        let mut events = Vec::with_capacity(1);
+        self.worker.drain_events(&mut events, NonZeroUsize::MIN);
+        events.pop()
+    }
+    pub(super) fn pending(&self) -> bool {
+        self.worker.has_pending() || self.has_metrics() || !self.is_running()
+    }
+    pub(super) fn stop(&mut self) {
+        self.source = None;
+        self.worker.cancel();
     }
 }
-
-impl Drop for OsMetricsWorker {
+impl Drop for OsRuntime {
     fn drop(&mut self) {
         self.stop();
     }
 }
-
-pub(crate) struct OsRuntime {
-    metrics_worker: OsMetricsWorker,
-}
-
-impl OsRuntime {
-    pub(crate) fn create() -> Self {
-        let process_id = resolve_current_pid();
-
-        Self {
-            metrics_worker: OsMetricsWorker::create(process_id),
-        }
+fn diagnostic(value: String) -> String {
+    let mut end = value.len().min(1024);
+    while !value.is_char_boundary(end) {
+        end -= 1;
     }
-
-    pub(crate) fn snapshot(&self) -> OsMetricsSnapshot {
-        self.metrics_worker.snapshot()
-    }
-
-    pub(crate) fn set_polling_enabled(&self, enabled: bool) {
-        self.metrics_worker.set_polling_enabled(enabled);
-    }
-
-    pub(crate) fn stop(&mut self) {
-        self.metrics_worker.stop();
-    }
-}
-
-fn os_metrics_worker_loop(state: Arc<OsMetricsWorkerState>, process_id: Pid) {
-    let mut system = System::new_all();
-    let mut networks = Networks::new_with_refreshed_list();
-
-    loop {
-        if state.stop_requested.load(Ordering::Relaxed) {
-            break;
-        }
-
-        if state.reset_requested.swap(false, Ordering::Relaxed) {
-            system = System::new_all();
-            networks = Networks::new_with_refreshed_list();
-        }
-
-        if state.polling_enabled.load(Ordering::Relaxed) {
-            let snapshot = collect_metrics_snapshot(&mut system, &mut networks, process_id);
-            *lock_unpoisoned(&state.latest_snapshot) = snapshot;
-        }
-
-        if state.stop_requested.load(Ordering::Relaxed) {
-            break;
-        }
-
-        thread::park_timeout(OS_METRICS_WORKER_INTERVAL);
-    }
-}
-
-fn collect_metrics_snapshot(
-    system: &mut System,
-    networks: &mut Networks,
-    process_id: Pid,
-) -> OsMetricsSnapshot {
-    system.refresh_memory();
-    system.refresh_cpu_usage();
-    system.refresh_processes(ProcessesToUpdate::Some(&[process_id]), true);
-    networks.refresh(true);
-
-    let process = system.process(process_id);
-    let cpu_count = system.cpus().len();
-    let (received_bytes_per_sec, transmitted_bytes_per_sec, total_received_bytes, total_transmitted_bytes) =
-        network_counters(networks);
-
-    OsMetricsSnapshot {
-        os_version: current_os_version(),
-        global_cpu_ratio: system_metrics::percent_to_ratio(system.global_cpu_usage() as f64),
-        app_cpu_ratio: process
-            .map(|process| {
-                system_metrics::process_cpu_percent_to_ratio(process.cpu_usage() as f64, cpu_count)
-            })
-            .unwrap_or(0.0),
-        system_used_mb: system_metrics::bytes_to_mb(system.used_memory()),
-        system_total_mb: system_metrics::bytes_to_mb(system.total_memory()),
-        app_used_mb: process
-            .map(|process| system_metrics::bytes_to_mb(process.memory()))
-            .unwrap_or(0.0),
-        app_virtual_mb: process
-            .map(|process| system_metrics::bytes_to_mb(process.virtual_memory()))
-            .unwrap_or(0.0),
-        received_mb_per_sec: system_metrics::bytes_f64_to_mb(received_bytes_per_sec),
-        transmitted_mb_per_sec: system_metrics::bytes_f64_to_mb(transmitted_bytes_per_sec),
-        total_received_mb: system_metrics::bytes_f64_to_mb(total_received_bytes),
-        total_transmitted_mb: system_metrics::bytes_f64_to_mb(total_transmitted_bytes),
-        system_uptime_seconds: System::uptime() as f64,
-        app_uptime_seconds: process
-            .map(|process| system_metrics::uptime_seconds_from_unix_start(process.start_time()))
-            .unwrap_or(0.0),
-    }
-}
-
-pub(crate) fn host_os_type() -> &'static str {
-    if cfg!(target_os = "windows") {
-        "Windows"
-    } else if cfg!(target_os = "macos") {
-        "Mac"
-    } else if cfg!(target_os = "linux") {
-        "Linux"
-    } else {
-        std::env::consts::OS
-    }
-}
-
-pub(crate) fn host_architecture() -> String {
-    let raw = System::cpu_arch();
-    match raw.trim().to_ascii_lowercase().as_str() {
-        "x86_64" | "amd64" => "64-bit (x86_64)".to_string(),
-        "x86" | "i386" | "i586" | "i686" => "32-bit (x86)".to_string(),
-        "aarch64" => "arm64".to_string(),
-        "arm" | "armv7" | "armv7l" => "arm-v7".to_string(),
-        other if !other.is_empty() => other.to_string(),
-        _ => std::env::consts::ARCH.to_string(),
-    }
-}
-
-pub(crate) fn current_os_version() -> String {
-    System::long_os_version()
-        .or_else(System::os_version)
-        .or_else(System::name)
-        .unwrap_or_else(|| "Unknown".to_string())
-}
-
-pub(crate) fn execute_control_action(action: HostControlAction) -> Result<(), String> {
-    let candidates = control_command_candidates(action);
-    if candidates.is_empty() {
-        return Err(format!(
-            "no {} command is configured for this platform",
-            action.as_human_label()
-        ));
-    }
-
-    let mut errors = Vec::new();
-    for candidate in candidates {
-        let mut command = Command::new(candidate.program.as_str());
-        command
-            .args(candidate.args.iter().map(String::as_str))
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null());
-
-        match command.spawn() {
-            Ok(_) => return Ok(()),
-            Err(error) => errors.push(format!("{}: {error}", candidate.display())),
-        }
-    }
-
-    Err(format!(
-        "failed to {} using any known host command: {}",
-        action.as_human_label(),
-        errors.join("; "),
-    ))
-}
-
-pub(crate) fn send_wake_on_lan(request: &WakeOnLanRequest) -> Result<(), String> {
-    let mac = parse_mac_address(request.mac_address.as_str())?;
-    let broadcast_host = request.broadcast_host.trim();
-    if broadcast_host.is_empty() {
-        return Err("Wake-on-LAN broadcast host cannot be empty".to_string());
-    }
-
-    let packet = build_magic_packet(mac);
-    let socket = UdpSocket::bind("0.0.0.0:0")
-        .map_err(|error| format!("failed to bind Wake-on-LAN socket: {error}"))?;
-    socket
-        .set_broadcast(true)
-        .map_err(|error| format!("failed to enable UDP broadcast: {error}"))?;
-
-    let target = format!("{broadcast_host}:{}", request.port);
-    let sent = socket
-        .send_to(packet.as_slice(), target.as_str())
-        .map_err(|error| format!("failed to send Wake-on-LAN packet to {target}: {error}"))?;
-    if sent != packet.len() {
-        return Err(format!(
-            "incomplete Wake-on-LAN packet send: sent {sent} of {} byte(s)",
-            packet.len()
-        ));
-    }
-
-    Ok(())
-}
-
-pub(crate) fn parse_mac_address(input: &str) -> Result<[u8; 6], String> {
-    let normalized = input.trim();
-    let hex: String = normalized.chars().filter(|c| c.is_ascii_hexdigit()).collect();
-    if hex.len() != 12 {
-        return Err(format!(
-            "invalid Wake-on-LAN MAC address '{normalized}': expected 12 hexadecimal digits"
-        ));
-    }
-
-    let mut mac = [0u8; 6];
-    for (index, chunk) in hex.as_bytes().chunks(2).enumerate() {
-        let pair = std::str::from_utf8(chunk).map_err(|error| {
-            format!("invalid Wake-on-LAN MAC address '{normalized}': {error}")
-        })?;
-        mac[index] = u8::from_str_radix(pair, 16).map_err(|error| {
-            format!("invalid Wake-on-LAN MAC address '{normalized}': {error}")
-        })?;
-    }
-
-    Ok(mac)
-}
-
-pub(crate) fn build_magic_packet(mac: [u8; 6]) -> [u8; 102] {
-    let mut packet = [0u8; 102];
-    packet[..6].fill(0xFF);
-    for chunk in packet[6..].chunks_mut(6) {
-        chunk.copy_from_slice(&mac);
-    }
-    packet
-}
-
-fn resolve_current_pid() -> Pid {
-    get_current_pid().unwrap_or_else(|_| Pid::from_u32(std::process::id()))
-}
-
-fn network_counters(networks: &Networks) -> (f64, f64, f64, f64) {
-    let mut received_bytes_per_sec = 0.0;
-    let mut transmitted_bytes_per_sec = 0.0;
-    let mut total_received_bytes = 0.0;
-    let mut total_transmitted_bytes = 0.0;
-
-    for (_interface, data) in networks {
-        received_bytes_per_sec += data.received() as f64;
-        transmitted_bytes_per_sec += data.transmitted() as f64;
-        total_received_bytes += data.total_received() as f64;
-        total_transmitted_bytes += data.total_transmitted() as f64;
-    }
-
-    (
-        received_bytes_per_sec,
-        transmitted_bytes_per_sec,
-        total_received_bytes,
-        total_transmitted_bytes,
-    )
-}
-
-fn lock_unpoisoned<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
-    match mutex.lock() {
-        Ok(guard) => guard,
-        Err(poisoned) => poisoned.into_inner(),
-    }
-}
-
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-struct HostCommandCandidate {
-    program: String,
-    args: Vec<String>,
-}
-
-impl HostCommandCandidate {
-    fn new(program: &str, args: Vec<String>) -> Self {
-        Self {
-            program: program.to_string(),
-            args,
-        }
-    }
-
-    fn display(&self) -> String {
-        if self.args.is_empty() {
-            return self.program.clone();
-        }
-
-        format!("{} {}", self.program, self.args.join(" "))
-    }
-}
-
-fn control_command_candidates(action: HostControlAction) -> Vec<HostCommandCandidate> {
-    #[cfg(windows)]
-    {
-        match action {
-            HostControlAction::Shutdown => vec![candidate("shutdown", &["/s", "/t", "0"])],
-            HostControlAction::Reboot => vec![candidate("shutdown", &["/r", "/t", "0"])],
-            HostControlAction::Logout => vec![candidate("shutdown", &["/l"])],
-        }
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        match action {
-            HostControlAction::Shutdown => {
-                vec![candidate("osascript", &["-e", "tell application \"System Events\" to shut down"])]
-            }
-            HostControlAction::Reboot => {
-                vec![candidate("osascript", &["-e", "tell application \"System Events\" to restart"])]
-            }
-            HostControlAction::Logout => {
-                vec![candidate("osascript", &["-e", "tell application \"System Events\" to log out"])]
-            }
-        }
-    }
-
-    #[cfg(target_os = "linux")]
-    {
-        match action {
-            HostControlAction::Shutdown => vec![
-                candidate("systemctl", &["poweroff"]),
-                candidate("shutdown", &["-h", "now"]),
-            ],
-            HostControlAction::Reboot => vec![
-                candidate("systemctl", &["reboot"]),
-                candidate("shutdown", &["-r", "now"]),
-            ],
-            HostControlAction::Logout => linux_logout_candidates(),
-        }
-    }
-
-    #[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
-    {
-        let _ = action;
-        Vec::new()
-    }
-}
-
-#[cfg(target_os = "linux")]
-fn linux_logout_candidates() -> Vec<HostCommandCandidate> {
-    let mut candidates = Vec::new();
-
-    if let Some(session_id) = env_var_non_empty("XDG_SESSION_ID") {
-        candidates.push(HostCommandCandidate::new(
-            "loginctl",
-            vec!["terminate-session".to_string(), session_id],
-        ));
-    }
-
-    if let Some(user) = env_var_non_empty("USER") {
-        candidates.push(HostCommandCandidate::new(
-            "loginctl",
-            vec!["terminate-user".to_string(), user],
-        ));
-    }
-
-    candidates.push(candidate("gnome-session-quit", &["--logout", "--no-prompt"]));
-    candidates.push(candidate(
-        "qdbus",
-        &["org.kde.Shutdown", "/Shutdown", "logout"],
-    ));
-
-    candidates
-}
-
-#[cfg(target_os = "linux")]
-fn env_var_non_empty(key: &str) -> Option<String> {
-    std::env::var(key)
-        .ok()
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty())
-}
-
-fn candidate(program: &str, args: &[&str]) -> HostCommandCandidate {
-    HostCommandCandidate::new(program, args.iter().map(|arg| (*arg).to_string()).collect())
+    value[..end].to_owned()
 }
