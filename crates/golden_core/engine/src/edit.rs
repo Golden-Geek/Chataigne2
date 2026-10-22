@@ -418,6 +418,17 @@ impl EditQueue {
         completion
     }
 
+    /// Keep one already-admitted source alive until every currently queued request
+    /// applies or is discarded, including deferred/atomic requests and failed suffixes.
+    /// Later pushes are excluded. Only the cheap lease is dropped here; its payload's
+    /// final disposal remains on the owning pool's worker.
+    pub fn retain_payload<T: Send + Sync + 'static>(&mut self, payload: golden_io::RetainedPayload<T>) {
+        let lease = EditCompletion::retaining(self.pending.len(), payload);
+        for request in &mut self.pending {
+            request.completions.push(lease.token());
+        }
+    }
+
     /// Drains all edits and leaves the queue empty.
     pub fn drain(&mut self) -> Vec<EditRequest> {
         std::mem::take(&mut self.pending)

@@ -10,6 +10,7 @@ impl MqttModule {
     pub(in super::super) fn notice_configuration(&mut self, snapshot: &ProcessTreeSnapshot) {
         let key = Key::capture(snapshot, self.id());
         if self.configuration_key != key {
+            self.incoming.suspend();
             self.configuration_key = key;
             self.configuration = None;
             self.transport_dirty = self.module_enabled(snapshot);
@@ -71,6 +72,7 @@ impl MqttModule {
         self.retry_at = None;
         self.transport_dirty = false;
         if unchanged && self.transport.is_some() {
+            self.incoming.activate();
             self.configuration = None;
             self.retry_backoff.reset();
             return;
@@ -81,6 +83,7 @@ impl MqttModule {
         match MqttTransportHandle::spawn(config.clone(), self.id(), wake.notifier.clone()) {
             Ok(handle) => {
                 self.transport = Some(handle);
+                self.incoming.activate();
                 self.last_transport_config = Some(config);
                 self.configuration = None;
                 self.retry_backoff.reset();

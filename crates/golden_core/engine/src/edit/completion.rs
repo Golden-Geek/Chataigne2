@@ -18,13 +18,15 @@ pub enum EditCompletionStatus {
 /// Read-only completion of a particular set of deferred edits, independent of snapshots.
 ///
 /// This observes request application, not subsequent event delivery, external side effects,
-/// or edits later emitted by event subscribers. It retains no graph or edit payloads.
+/// or edits later emitted by event subscribers. Ordinary receipts retain no payloads;
+/// queues may separately attach an admitted source lease through `retain_payload`.
 #[derive(Clone)]
 pub struct EditCompletion(Arc<CompletionState>);
 
 struct CompletionState {
     pending: AtomicUsize,
     failed: AtomicBool,
+    _retained: Option<Box<dyn Send + Sync>>,
 }
 
 impl EditCompletion {
@@ -32,6 +34,15 @@ impl EditCompletion {
         Self(Arc::new(CompletionState {
             pending: AtomicUsize::new(requests),
             failed: AtomicBool::new(false),
+            _retained: None,
+        }))
+    }
+
+    pub(super) fn retaining<T: Send + Sync + 'static>(requests: usize, payload: golden_io::RetainedPayload<T>) -> Self {
+        Self(Arc::new(CompletionState {
+            pending: AtomicUsize::new(requests),
+            failed: AtomicBool::new(false),
+            _retained: Some(Box::new(payload)),
         }))
     }
 

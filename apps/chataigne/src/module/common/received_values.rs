@@ -8,13 +8,10 @@ use golden_core::{
 };
 use smallvec::SmallVec;
 
-mod incremental;
 mod message;
 pub(crate) mod service;
 
 pub(crate) use message::ReceivedValueMessage;
-
-use incremental::*;
 
 const VALUE_LABEL_PREFIX: &str = "value ";
 
@@ -22,54 +19,6 @@ const VALUE_LABEL_PREFIX: &str = "value ";
 pub(crate) enum ReceivedValuePayload {
     Single(ParamValue),
     Multi(Vec<ParamValue>),
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum ReceivedValueApplyResult {
-    Applied { needs_snapshot_refresh: bool },
-    Retry,
-    Ignored,
-}
-
-impl ReceivedValueApplyResult {
-    pub(crate) fn applied(needs_snapshot_refresh: bool) -> Self {
-        Self::Applied { needs_snapshot_refresh }
-    }
-}
-
-pub(crate) fn apply_received_value_payload(
-    ctx: &mut ProcessCtx,
-    snapshot: &ProcessTreeSnapshot,
-    values_id: NodeId,
-    path_segments: &[String],
-    payload: &ReceivedValuePayload,
-    options: ReceivedValueApplyOptions,
-) -> ReceivedValueApplyResult {
-    if path_segments.is_empty() {
-        return ReceivedValueApplyResult::Ignored;
-    }
-
-    let (parent_id, leaf_name) =
-        match resolve_or_create_parent(ctx, snapshot, values_id, path_segments, options.auto_add) {
-            ParentResolution::Ready { parent_id, leaf_name } => (parent_id, leaf_name),
-            ParentResolution::Retry => return ReceivedValueApplyResult::Retry,
-            ParentResolution::Ignored => return ReceivedValueApplyResult::Ignored,
-        };
-
-    match payload {
-        ReceivedValuePayload::Single(value) => {
-            apply_single_value_message(ctx, snapshot, parent_id, leaf_name, value, options)
-        }
-        ReceivedValuePayload::Multi(values) => {
-            apply_multi_value_message(ctx, snapshot, parent_id, leaf_name, values, options)
-        }
-    }
-}
-
-#[derive(Clone, Copy)]
-pub(crate) struct ReceivedValueApplyOptions {
-    pub(crate) auto_add: bool,
-    pub(crate) event_behaviour: ParameterEventBehaviour,
 }
 
 pub(crate) struct ReceivedValueBatchMessage<'a> {
@@ -802,30 +751,6 @@ fn create_auto_values_folder(label: &str) -> Folder {
     let mut folder = Folder::new(label);
     crate::app::module::enable_module_authoring(folder.node_data_mut());
     folder
-}
-
-fn folder_path_tree(segments: &[String]) -> NodeTree {
-    let (head, tail) = segments
-        .split_first()
-        .expect("folder_path_tree requires at least one segment");
-    let mut tree = NodeTree::new(create_auto_values_folder(head.as_str()));
-    if !tail.is_empty() {
-        tree.push_child(folder_path_tree(tail));
-    }
-    tree
-}
-
-fn multi_value_folder_tree(leaf_name: &str, values: &[ParamValue]) -> NodeTree {
-    let mut tree = NodeTree::new(create_auto_values_folder(leaf_name));
-    for (index, value) in values.iter().enumerate() {
-        let label = indexed_value_label(index);
-        tree.push_child(NodeTree::new(create_parameter_node(
-            label.as_str(),
-            value.clone(),
-            None,
-        )));
-    }
-    tree
 }
 
 pub(crate) fn indexed_value_label(index: usize) -> String {

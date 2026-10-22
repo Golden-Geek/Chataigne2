@@ -175,7 +175,7 @@ pub(super) fn create_mqtt_module() -> (crate::app::AppEngine, NodeId) {
 }
 
 fn run_mqtt_runtime_ticks(engine: &mut crate::app::AppEngine, count: usize) {
-    for _ in 0..count {
+    for turn in 0..200 {
         engine
             .dispatch_inbox(ExecutionPhase::EngineTick)
             .expect("pending MQTT events should dispatch");
@@ -185,7 +185,19 @@ fn run_mqtt_runtime_ticks(engine: &mut crate::app::AppEngine, count: usize) {
             .expect("MQTT runtime tick should succeed");
         engine.apply_edits().expect("pending MQTT edits should apply");
         engine.resolve().expect("MQTT runtime schedule should resolve");
+        let crate::app::AppNode::MqttModule(module) = engine
+            .nodes
+            .get(engine.nodes.get(engine.root).unwrap().node_data().first_child.unwrap())
+            .unwrap()
+        else {
+            unreachable!()
+        };
+        if turn + 1 >= count && !module.has_pending_incoming_messages_for_test() {
+            return;
+        }
+        std::thread::sleep(Duration::from_millis(1));
     }
+    panic!("MQTT incoming worker did not complete within the bounded fixture wait");
 }
 
 fn param_value(engine: &crate::app::AppEngine, node: NodeId) -> ParamValue {

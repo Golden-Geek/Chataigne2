@@ -5,6 +5,13 @@ graph-editing, runtime-value, observation, module-I/O, persistence, and host-lif
 `ApplicationFacades` composes those concerns independently so applications and hosts do not depend
 on engine internals.
 
+For queued native-derived edits, `golden_engine::edit::EditQueue::retain_payload` attaches an
+already-admitted Golden IO payload lease to the requests currently in the queue. Admission survives
+producer removal, ingress transfer, deferred/atomic application, coalescing and discarded suffixes.
+Final payload disposal stays on its pool worker. Ordinary `EditCompletion` observers retain no
+payloads, and later queue additions are excluded. Retention establishes lifetime only; callers still
+own validation, source fences, publication policy and their explicit applied-prefix failure behavior.
+
 `golden_engine::application::ProductionRuntime` is the production implementation. Desktop and
 transport code call it through typed operations for transactions, ticks, project replacement,
 persistence capture, and observation publication; they do not own or lock the engine directly.

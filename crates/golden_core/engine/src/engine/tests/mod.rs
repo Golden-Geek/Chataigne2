@@ -5,6 +5,7 @@ mod atomic_operations;
 mod direct_intents;
 mod edit_completions;
 mod edit_failures;
+mod edit_payloads;
 mod edit_preconditions;
 mod enabled_history;
 mod engine;

@@ -30,7 +30,7 @@ impl MqttModule {
     pub(super) fn service_needs_snapshot(&self) -> bool {
         self.node_data().effective_enabled
             && (self.configuration_needs_snapshot()
-                || !self.pending_incoming_messages.is_empty()
+                || self.incoming.requires_snapshot()
                 || self.retry_at.is_some_and(|at| Instant::now() >= at))
     }
     pub(super) fn service_io(&mut self, ctx: &mut ProcessCtx) {
@@ -42,19 +42,30 @@ impl MqttModule {
         if !self.node_data().effective_enabled {
             return;
         }
-        if self.configuration_needs_snapshot() || !self.pending_incoming_messages.is_empty() {
-            let Some(snapshot) = ctx.tree_snapshot_arc() else {
+        let snapshot = ctx.tree_snapshot_arc();
+        if self.configuration_needs_snapshot() {
+            let Some(snapshot) = &snapshot else {
                 self.request_service();
                 return;
             };
-            self.refresh_data_capabilities(ctx, &snapshot);
+            self.refresh_data_capabilities(ctx, snapshot);
             if self.transport_dirty {
-                self.refresh_transport(ctx, &snapshot);
+                self.refresh_transport(ctx, snapshot);
             }
-            self.process_pending_incoming(ctx, &snapshot);
         }
-        if !self.pending_incoming_messages.is_empty()
-            || self.transport.as_ref().is_some_and(MqttTransportHandle::has_pending)
+        if let Some(wake) = &self.wake {
+            let (id, log, notifier) = (self.id(), self.base.log_incoming_enabled(), wake.notifier.clone());
+            self.incoming.service(ctx, snapshot.as_deref(), id, log, notifier);
+        }
+        if let Some(error) = self.incoming.feedback.take() {
+            self.incoming.clear_feedback = false;
+            NodeHandle::new(self.id()).set_warning_with(ctx, Some("mqtt_incoming_pressure"), &error, None);
+            logerror!(error);
+        } else if std::mem::take(&mut self.incoming.clear_feedback) {
+            NodeHandle::new(self.id()).clear_warning(ctx, Some("mqtt_incoming_pressure"));
+        }
+        if self.incoming.needs_service()
+            || self.incoming.can_receive() && self.transport.as_ref().is_some_and(MqttTransportHandle::has_pending)
             || self
                 .pending_publishes
                 .iter()
@@ -62,7 +73,8 @@ impl MqttModule {
         {
             self.request_service();
         }
-        if let (Some(wake), Some(at)) = (&self.wake, self.retry_at) {
+        let retry = self.retry_at.into_iter().chain(self.incoming.retry_at()).min();
+        if let (Some(wake), Some(at)) = (&self.wake, retry) {
             wake.later(at.saturating_duration_since(Instant::now()));
         }
     }

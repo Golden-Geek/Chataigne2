@@ -88,9 +88,33 @@ Actor event and receipt service is capped at sixteen entries each. Local pending
 receipt queues have explicit 64/100-entry limits. Receiving data, configuration changes and completed
 receipts request continuations; pending protocol receipts alone do not busy-wake the actor.
 
-`payload.rs` owns the app's payload modes and script argument conversions. These conversions,
-incoming logging/callback preparation and graph-value publication still
-run through the app actor. Their large-input, source-lifetime, pressure-feedback and edit-receipt
-qualification is the remaining C04 work. The packet/queue caps and passive scheduling alone do not
-qualify these actor paths. Follow the ledger rather than treating transport tests as whole-module
+`input/` owns received-message preparation and delivery. A shared bounded worker parses payloads,
+prepares callbacks and optional 256-byte log previews. Thirty-two preparation reservations include
+queued, running and ready jobs. The actor captures only processing settings and source guards;
+waiting preparation does not request snapshots. One pending draft waits for derived/callback capacity
+without rebuilding its values or JSON. Cancellation and unexpected job destruction retain explicit
+ownership and completion outcomes. Native protocol polling runs independently of this preparation.
+
+Application input admits at most 64 KiB payload and 4096 topic bytes, independently of the protocol's
+1 MiB packet safety ceiling. JSON uses the existing non-materializing validation pass with 16384
+values and 24 levels before tree construction. Derived values admit 24 path levels, 8192 scalar/list
+units and 4 MiB of source data. A prepared result, including its callback, must fit 16 MiB. The
+derived pool admits 512 results / 64 MiB and charges a copy allowance for pending graph writes;
+callbacks retain the shared app callback pool's independent lifetime admission. Oversized application
+messages produce explicit warnings. A conversion failure retains the original raw callback with an
+empty graph result and a diagnostic; Auto retains its existing text fallback.
+
+`input/delivery.rs` uses the shared received-value cursor: at most 256 work units and a 64 KiB
+value-copy allowance per turn, with an already-admitted large scalar receiving one whole turn.
+The cursor waits for edit receipts before advancing. Applied prefixes are never reparsed or replayed,
+and callbacks publish only after value completion/failure through their own receipt. Processing
+fields, module lifetime and Values-root identity/placement are fenced before queued writes apply.
+Configuration/disable/destroy retire the source independently of blocked native cleanup. A prepared
+result keeps its raw and derived reservations through delivery and queued edits, even after the
+module is destroyed. Core's public `EditQueue::retain_payload` supplies only this generic lifetime
+mechanism; app-specific capture, limits and MQTT callback policy stay here.
+
+`payload.rs` now owns outgoing script conversions. Outgoing command/script preparation, deeper
+target-path fencing, full pressure/passive-receipt qualification and controlled actor/load acceptance
+remain open C04 work. Follow the ledger rather than treating transport or cursor tests as whole-module
 acceptance.

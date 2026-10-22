@@ -1,4 +1,5 @@
 mod configuration;
+mod input;
 mod payload;
 mod service;
 mod transport;
@@ -11,21 +12,16 @@ use golden_core::{
     events::{CustomEvent, Event},
     logerror, node,
     node::{Node, NodeCreationContext, NodeHandle, NodeId, NodeScriptDescriptor},
-    parameter::{Enum, ParamValue, ParameterEventBehaviour},
+    parameter::{Enum, ParamValue},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
-use crate::app::module::common::{
-    mqtt::{mqtt_qos_enum_options, MqttPublishRequest, MqttQos, MQTT_PUBLISH_COMMAND_NODE_TYPE, MQTT_QOS_AT_MOST_ONCE},
-    received_values::{
-        apply_received_value_payload, ReceivedValueApplyOptions, ReceivedValueApplyResult, ReceivedValuePayload,
-    },
-    streaming::parser::parse_scalar_value,
+use crate::app::module::common::mqtt::{
+    mqtt_qos_enum_options, MqttPublishRequest, MqttQos, MQTT_PUBLISH_COMMAND_NODE_TYPE, MQTT_QOS_AT_MOST_ONCE,
 };
 
 use self::transport::{
-    MqttConnectionStatus, MqttReceivedPublish, MqttTransportConfig, MqttTransportHandle, MqttWorkerEvent,
-    PublishReceipt, PublishStatus,
+    MqttConnectionStatus, MqttTransportConfig, MqttTransportHandle, MqttWorkerEvent, PublishReceipt, PublishStatus,
 };
 
 const MQTT_TARGET_WARNING_ID: &str = "mqtt_target_transport";
@@ -152,7 +148,7 @@ pub struct MqttModule {
     configuration: Option<configuration::Preparation>,
     configuration_key: Option<configuration::Key>,
     transport_dirty: bool,
-    pending_incoming_messages: Vec<golden_io::RetainedPayload<MqttReceivedPublish>>,
+    incoming: input::Inbox,
     pending_publishes: VecDeque<(PublishReceipt, String)>,
     wake: Option<crate::app::module::common::worker_wake::ModuleWake>,
     retry_at: Option<std::time::Instant>,
@@ -168,7 +164,7 @@ impl MqttModule {
             None,
             None,
             true,
-            Vec::new(),
+            input::Inbox::default(),
             VecDeque::new(),
             None,
             None,
@@ -186,15 +182,15 @@ impl MqttModule {
     }
 
     #[cfg(test)]
-    pub(crate) fn enqueue_incoming_message_for_test(&mut self, message: MqttReceivedPublish) {
-        self.pending_incoming_messages
-            .push(MqttTransportHandle::retain_for_test(message));
+    pub(crate) fn enqueue_incoming_message_for_test(&mut self, message: transport::MqttReceivedPublish) {
+        self.incoming.activate();
+        self.incoming.push(MqttTransportHandle::retain_for_test(message));
         self.request_service();
     }
 
     #[cfg(test)]
     pub(crate) fn has_pending_incoming_messages_for_test(&self) -> bool {
-        !self.pending_incoming_messages.is_empty()
+        !self.incoming.is_empty()
     }
 
     fn module_enabled(&self, snapshot: &ProcessTreeSnapshot) -> bool {
@@ -226,7 +222,7 @@ impl MqttModule {
             let mut worker_events = Vec::new();
             let mut worker_disconnected = false;
             for _ in 0..transport::EVENT_TURN {
-                if self.pending_incoming_messages.len() + worker_events.len() >= 64 {
+                if self.incoming.len() + worker_events.len() >= 64 {
                     break;
                 }
                 let drain = transport.drain_events(&mut worker_events);
@@ -247,8 +243,7 @@ impl MqttModule {
             match event {
                 MqttWorkerEvent::Publish(message) => {
                     received_message = true;
-                    self.log_incoming_message(&message);
-                    self.pending_incoming_messages.push(message);
+                    self.incoming.push(message);
                 }
                 MqttWorkerEvent::Status(status) => match status {
                     MqttConnectionStatus::Connected => {
@@ -293,76 +288,6 @@ impl MqttModule {
         {
             self.base.set_connected(ctx, false);
         }
-    }
-
-    fn process_pending_incoming(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) -> bool {
-        let Some(values_id) = self.base.values_id() else {
-            self.pending_incoming_messages.clear();
-            return false;
-        };
-        if self.pending_incoming_messages.is_empty() {
-            return false;
-        }
-
-        let mut remaining = Vec::new();
-        let mut messages = std::mem::take(&mut self.pending_incoming_messages).into_iter();
-
-        // At most one admitted message per actor turn. Native payload preparation
-        // and receipt-driven row publication remain part of the C04 actor audit.
-        for _ in 0..1 {
-            let Some(message) = messages.next() else { break };
-            let decoded = match received_values_for_publish(&message, self.payload_mode.get_ref().as_str()) {
-                Ok(decoded) => decoded,
-                Err(error) => {
-                    logerror!("Failed to parse MQTT payload from '{}': {}", message.topic, error);
-                    self.emit_message_received_callback(ctx, &message);
-                    continue;
-                }
-            };
-
-            let mut retry = false;
-            for received in decoded {
-                let result = apply_received_value_payload(
-                    ctx,
-                    snapshot,
-                    values_id,
-                    received.path_segments.as_slice(),
-                    &received.payload,
-                    ReceivedValueApplyOptions {
-                        auto_add: self.auto_add.get(),
-                        // source_description: received.source_description.as_str(),
-                        event_behaviour: ParameterEventBehaviour::Append,
-                    },
-                );
-
-                match result {
-                    ReceivedValueApplyResult::Applied { needs_snapshot_refresh } => {
-                        if needs_snapshot_refresh {
-                            retry = true;
-                            break;
-                        }
-                    }
-                    ReceivedValueApplyResult::Ignored => {}
-                    ReceivedValueApplyResult::Retry => {
-                        retry = true;
-                        break;
-                    }
-                }
-            }
-
-            if retry {
-                remaining.push(message);
-                remaining.extend(messages);
-                self.pending_incoming_messages = remaining;
-                return true;
-            }
-
-            self.emit_message_received_callback(ctx, &message);
-        }
-
-        remaining.extend(messages);
-        self.pending_incoming_messages = remaining;
-        false
     }
 
     fn queue_publish_request(&mut self, _ctx: &mut ProcessCtx, request: MqttPublishRequest) -> Result<String, String> {
@@ -427,7 +352,7 @@ impl MqttModule {
             self.base.set_connected(ctx, false);
             self.transport_dirty = false;
             self.retry_at = None;
-            self.pending_incoming_messages.clear();
+            self.incoming.suspend();
         }
     }
 
@@ -466,44 +391,10 @@ impl MqttModule {
     }
 
     fn stop_transport(&mut self) {
+        self.incoming.suspend();
         if let Some(mut transport) = self.transport.take() {
             transport.stop();
         }
-    }
-
-    fn log_incoming_message(&self, message: &MqttReceivedPublish) {
-        if !self.base.log_incoming_enabled() {
-            return;
-        }
-
-        golden_core::log!(
-            origin = self.id();
-            format!(
-                "Received MQTT {} on {}",
-                format_mqtt_payload_for_log(message.payload.as_slice()),
-                message.topic
-            )
-        );
-    }
-
-    fn emit_message_received_callback(&self, ctx: &mut ProcessCtx, message: &MqttReceivedPublish) {
-        let payload = mqtt_payload_script_arg(message.payload.as_slice());
-        crate::app::module::script_api::emit_script_callback(
-            ctx,
-            self.id(),
-            MQTT_MESSAGE_RECEIVED_CALLBACK,
-            vec![
-                serde_json::json!(message.topic.as_str()),
-                payload.clone(),
-                serde_json::json!({
-                    "topic": message.topic.as_str(),
-                    "payload": payload,
-                    "bytes": crate::app::module::script_api::bytes_arg(message.payload.as_slice()),
-                    "qos": message.qos.variant(),
-                    "retain": message.retain,
-                }),
-            ],
-        );
     }
 }
 
@@ -609,6 +500,8 @@ impl Node for MqttModule {
         self.dispatch_inbox(ctx);
         if let Some(snapshot) = ctx.tree_snapshot_arc() {
             self.notice_configuration(&snapshot);
+            let id = self.id();
+            self.incoming.notice_processing(&snapshot, id);
         }
     }
 
