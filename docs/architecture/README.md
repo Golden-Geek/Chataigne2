@@ -30,7 +30,9 @@ and superseded plans are [archived](../archive/2026-10-18/README.md).
 - [DMX ownership](dmx-runtime.md): native setup/cleanup, bounded frames, completion receipts and
   passive actor service; P07 owns stream correctness.
 - [System module ownership](system-runtime.md): captured OS commands, bounded metrics/native
-  lifetimes, completion outcomes, passive service and the remaining App Control boundary.
+  lifetimes, completion outcomes and passive App Control/OS service.
+- [Buttplug worker ownership](buttplug-runtime.md): bounded protocol workers, native lifetime
+  slots, retained command outcomes, passive service and remaining C07 qualification.
 - [Timed generators](generators.md): Signals/Metronomes admission, elapsed time, bounded
   publication, passive service and worker lifetime ownership.
 - [Alchemist runtime](alchemist-runtime.md): formulas, processors, conditions, inputs, filters,

@@ -1,7 +1,4 @@
-use golden_core::{
-    node::DeclaredUserItemNode,
-    script::ScriptSource,
-};
+use golden_core::{node::DeclaredUserItemNode, script::ScriptSource};
 
 use super::{buttplug_safety_warnings, normalize_buttplug_path, ButtplugModule, BUTTPLUG_SAFETY_MANIFEST_URL};
 

@@ -1,4 +1,5 @@
 use super::{normalize_path, output_command};
+mod lifecycle;
 use crate::app::module::common::buttplug::{
     ButtplugSetOutputRequest, BUTTPLUG_OUTPUT_HW_POSITION_WITH_DURATION, BUTTPLUG_OUTPUT_VIBRATE,
 };

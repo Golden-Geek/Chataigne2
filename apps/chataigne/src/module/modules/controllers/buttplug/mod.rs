@@ -1,6 +1,5 @@
+mod service;
 mod transport;
-
-use std::sync::mpsc::TryRecvError;
 
 use golden_core::{
     engine::NodeExecutionRule,
@@ -23,7 +22,6 @@ use self::transport::{
     ButtplugWorkerCommand, ButtplugWorkerEvent,
 };
 
-const BUTTPLUG_MODULE_UPDATE_RATE_HZ: u32 = 120;
 const BUTTPLUG_TARGET_WARNING_ID: &str = "buttplug_target_transport";
 const BUTTPLUG_SELECTION_WARNING_ID: &str = "buttplug_selection";
 const BUTTPLUG_SAFETY_WARNING_ID: &str = "buttplug_safety";
@@ -138,71 +136,32 @@ pub struct ButtplugModule {
     last_transport_config: Option<Box<ButtplugTransportConfig>>,
     transport_dirty: bool,
     known_devices: Vec<ButtplugDeviceInfo>,
+    service: service::Service,
 }
 
 impl ButtplugModule {
     pub fn create() -> Self {
-        Self::new(crate::app::ModuleBase::new(), None, None, true, Vec::new())
+        Self::new(
+            crate::app::ModuleBase::new(),
+            None,
+            None,
+            true,
+            Vec::new(),
+            service::Service::new(),
+        )
     }
 
     fn module_enabled(&self, snapshot: &ProcessTreeSnapshot) -> bool {
         snapshot.node(self.id()).map(|node| node.enabled).unwrap_or(false)
     }
 
-    fn refresh_transport(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
-        self.transport_dirty = false;
-
-        if !self.module_enabled(snapshot) {
-            self.stop_transport();
-            self.last_transport_config = None;
-            self.clear_target_warning(ctx);
-            self.base.set_connected(ctx, false);
-            self.set_bool_param(ctx, ButtplugBoolParam::Scanning, false);
-            self.sync_device_options(ctx);
-            self.refresh_device_values(ctx);
-            return;
-        }
-
-        let config = match self.transport_config() {
-            Ok(config) => config,
-            Err(error) => {
-                logerror!("Invalid Buttplug module configuration: {}", error);
-                self.stop_transport();
-                self.last_transport_config = None;
-                self.set_target_warning(ctx, error.as_str());
-                self.base.set_connected(ctx, false);
-                self.sync_device_options(ctx);
-                self.refresh_device_values(ctx);
-                return;
-            }
-        };
-
-        if self.transport.is_some() && self.last_transport_config.as_deref() == Some(&config) {
-            return;
-        }
-
-        self.stop_transport();
-
-        match ButtplugTransportHandle::spawn(config.clone()) {
-            Ok(handle) => {
-                self.transport = Some(Box::new(handle));
-                self.last_transport_config = Some(Box::new(config));
-                self.clear_target_warning(ctx);
-                self.base.set_connected(ctx, false);
-            }
-            Err(error) => {
-                logerror!("Failed to start Buttplug transport: {}", error);
-                self.transport = None;
-                self.last_transport_config = None;
-                self.set_target_warning(ctx, error.as_str());
-                self.base.set_connected(ctx, false);
-                self.sync_device_options(ctx);
-                self.refresh_device_values(ctx);
-            }
-        }
-    }
-
     fn transport_config(&self) -> Result<ButtplugTransportConfig, String> {
+        if self.remote_host.get_ref().len() > 1024
+            || self.path.get_ref().len() > 4095
+            || self.client_name.get_ref().len() > 256
+        {
+            return Err("Buttplug host/path/client name exceeds 1024 / 4095 / 256 bytes".into());
+        }
         let remote_host = self.remote_host.get_ref().trim().to_string();
         if remote_host.is_empty() {
             return Err("Buttplug remote host cannot be empty".to_string());
@@ -225,42 +184,6 @@ impl ButtplugModule {
             },
             auto_scan: self.auto_scan.get(),
         })
-    }
-
-    fn drain_transport_events(&mut self, ctx: &mut ProcessCtx) {
-        let (worker_events, worker_disconnected) = {
-            let Some(transport) = &self.transport else {
-                return;
-            };
-
-            let mut worker_events = Vec::new();
-            let mut worker_disconnected = false;
-            loop {
-                match transport.try_recv() {
-                    Ok(event) => worker_events.push(event),
-                    Err(TryRecvError::Empty) => break,
-                    Err(TryRecvError::Disconnected) => {
-                        worker_disconnected = true;
-                        break;
-                    }
-                }
-            }
-
-            (worker_events, worker_disconnected)
-        };
-
-        for event in worker_events {
-            self.handle_worker_event(ctx, event);
-        }
-
-        if worker_disconnected {
-            logerror!("Buttplug transport worker stopped unexpectedly; restarting.");
-            self.stop_transport();
-            self.last_transport_config = None;
-            self.set_target_warning(ctx, "Buttplug transport worker stopped unexpectedly. Restarting.");
-            self.base.set_connected(ctx, false);
-            self.transport_dirty = true;
-        }
     }
 
     fn handle_worker_event(&mut self, ctx: &mut ProcessCtx, event: ButtplugWorkerEvent) {
@@ -296,11 +219,6 @@ impl ButtplugModule {
                 self.emit_buttplug_callback(ctx, BUTTPLUG_SCANNING_FINISHED_CALLBACK, Vec::new());
                 self.base.emit_incoming_traffic(ctx);
             }
-            ButtplugWorkerEvent::CommandResult(message) => {
-                if self.base.log_outgoing_enabled() {
-                    golden_core::log!(origin = self.id(); format!("Buttplug {message}."));
-                }
-            }
             ButtplugWorkerEvent::Error(error) => {
                 logerror!("Buttplug transport error: {}", error);
                 self.set_target_warning(ctx, error.as_str());
@@ -331,7 +249,7 @@ impl ButtplugModule {
     }
 
     fn queue_runtime_command(
-        &self,
+        &mut self,
         ctx: &mut ProcessCtx,
         command: ButtplugWorkerCommand,
         description: &str,
@@ -340,7 +258,11 @@ impl ButtplugModule {
             .transport
             .as_ref()
             .ok_or_else(|| "Buttplug transport is not available".to_string())?;
-        transport.send(command)?;
+        if self.service.pending.len() >= 64 {
+            return Err("Buttplug module already owns 64 command results".into());
+        }
+        let receipt = transport.send(command)?;
+        self.service.pending.push_back(receipt);
         self.base.emit_outgoing_traffic(ctx);
         if self.base.log_outgoing_enabled() {
             golden_core::log!(origin = self.id(); format!("Queued Buttplug {description}."));
@@ -348,14 +270,18 @@ impl ButtplugModule {
         Ok(format!("Queued Buttplug {description}"))
     }
 
-    fn queue_set_output(&self, ctx: &mut ProcessCtx, mut request: ButtplugSetOutputRequest) -> Result<String, String> {
+    fn queue_set_output(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        mut request: ButtplugSetOutputRequest,
+    ) -> Result<String, String> {
         request.target = self.resolve_target_alias(request.target.as_str());
         request.value = request.value.clamp(0.0, self.max_output.get().clamp(0.0, 1.0));
         let description = request.description.clone();
         self.queue_runtime_command(ctx, ButtplugWorkerCommand::SetOutput(request), description.as_str())
     }
 
-    fn queue_stop_device(&self, ctx: &mut ProcessCtx, request: ButtplugTargetRequest) -> Result<String, String> {
+    fn queue_stop_device(&mut self, ctx: &mut ProcessCtx, request: ButtplugTargetRequest) -> Result<String, String> {
         self.queue_runtime_command(
             ctx,
             ButtplugWorkerCommand::StopDevice {
@@ -365,7 +291,7 @@ impl ButtplugModule {
         )
     }
 
-    fn on_custom_event_inner(&self, ctx: &mut ProcessCtx, event: CustomEvent) {
+    fn on_custom_event_inner(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
         let Some(request) = crate::app::module_command::decode_module_command_request(&event) else {
             return;
         };
@@ -454,6 +380,7 @@ impl ButtplugModule {
     fn on_param_change_inner(&mut self, ctx: &mut ProcessCtx, param: NodeId) {
         if self.param_affects_transport(param) {
             self.transport_dirty = true;
+            self.request_service();
         }
         if self.device.is_bound() && self.device.id() == param {
             self.refresh_selection_warning(ctx);
@@ -558,6 +485,10 @@ impl ButtplugModule {
             transport.stop();
         }
         self.known_devices.clear();
+        self.service.retry_at = None;
+        if let Some(wake) = &self.service.wake {
+            wake.cancel_deadline();
+        }
     }
 
     fn set_bool_param(&mut self, ctx: &mut ProcessCtx, param: ButtplugBoolParam, value: bool) {
@@ -617,38 +548,36 @@ impl Node for ButtplugModule {
     }
 
     fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
-        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
-            return;
-        };
-        self.refresh_transport(ctx, snapshot_arc.as_ref());
-    }
-
-    fn update(&mut self, ctx: &mut ProcessCtx) {
-        self.drain_transport_events(ctx);
-
-        if !self.transport_dirty {
-            return;
+        if let Err(error) = self.register_service(ctx) {
+            self.set_target_warning(ctx, &error);
         }
-
-        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
-            return;
-        };
-        let snapshot = snapshot_arc.as_ref();
-
-        self.refresh_data_capabilities(ctx);
-        self.refresh_transport(ctx, snapshot);
+        self.request_service();
     }
-
+    fn update(&mut self, ctx: &mut ProcessCtx) {
+        self.service_io(ctx);
+    }
+    fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
+        self.service_io(ctx);
+    }
+    fn needs_update(&self) -> bool {
+        false
+    }
+    fn worker_wake_requires_tree_snapshot(&self) -> bool {
+        true
+    }
+    fn worker_wake_when_disabled(&self) -> bool {
+        !self.service.pending.is_empty()
+    }
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {
         self.stop_transport();
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {
-        self.transport_dirty
+        true
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
-        NodeExecutionRule::periodic(BUTTPLUG_MODULE_UPDATE_RATE_HZ).with_compiled_kernel("chataigne.runtime.buttplug")
+        NodeExecutionRule::passive().with_compiled_kernel("chataigne.runtime.buttplug")
     }
 
     fn child_event_interest_depth(&self, _event: &Event) -> u32 {
@@ -684,12 +613,14 @@ impl Node for ButtplugModule {
     fn on_meta_changed(&mut self, _ctx: &mut ProcessCtx, node: NodeId, patch: NodeMetaPatch) {
         if node != self.id() && patch.enabled.is_some() {
             self.transport_dirty = true;
+            self.request_service();
         }
     }
 
     fn on_effective_enabled_changed(&mut self, ctx: &mut ProcessCtx, enabled: bool) {
         if enabled {
             self.transport_dirty = true;
+            self.request_service();
         } else {
             self.stop_transport();
             self.last_transport_config = None;
