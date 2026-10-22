@@ -96,7 +96,7 @@ fn deep_subtree_revisions_fold_iteratively_and_do_not_rewrite_a_retained_view() 
     let before = ProcessTreeSnapshot::from_indexed_nodes(NodeId(1), nodes.clone(), HashMap::new(), clock.snapshot());
     let change = clock.next_change();
     clock.mark(NodeId(20_000), change);
-    let after = ProcessTreeSnapshot::from_indexed_nodes(NodeId(1), nodes, HashMap::new(), clock.snapshot());
+    let after = ProcessTreeSnapshot::from_indexed_nodes(NodeId(1), nodes.clone(), HashMap::new(), clock.snapshot());
     assert_ne!(before.subtree_revision(NodeId(1)), after.subtree_revision(NodeId(1)));
     assert_eq!(
         after.subtree_revision(NodeId(1)),
@@ -105,6 +105,21 @@ fn deep_subtree_revisions_fold_iteratively_and_do_not_rewrite_a_retained_view() 
     assert_ne!(
         before.subtree_revision(NodeId(20_000)),
         after.subtree_revision(NodeId(20_000))
+    );
+    assert_eq!(
+        before.subtree_structure_revision(NodeId(1)),
+        after.subtree_structure_revision(NodeId(1))
+    );
+    let shape_change = clock.next_change();
+    clock.mark_structure(NodeId(20_000), shape_change);
+    let shaped = ProcessTreeSnapshot::from_indexed_nodes(NodeId(1), nodes, HashMap::new(), clock.snapshot());
+    assert_ne!(
+        after.subtree_structure_revision(NodeId(1)),
+        shaped.subtree_structure_revision(NodeId(1))
+    );
+    assert_eq!(
+        before.subtree_structure_revision(NodeId(1)),
+        after.subtree_structure_revision(NodeId(1))
     );
 }
 

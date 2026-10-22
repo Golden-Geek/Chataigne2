@@ -5,9 +5,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use crate::edit::{Edit, EditOrigin, EditQueue, NodeTree};
-pub use crate::engine::SubtreeRevision;
 use crate::engine::tree_revisions::RevisionSnapshot;
 use crate::engine::{EngineTime, NodeWakeError, NodeWakeSource, NodeWaker};
+pub use crate::engine::{SubtreeRevision, SubtreeStructureRevision};
 use crate::events::{CustomEvent, EventFrame};
 use crate::node::{
     DashboardWidgetTargetDescriptor, EventSubscription, Node, NodeId, NodeMetaPatch, NodeReference, NodeUuid,
@@ -355,6 +355,15 @@ impl ProcessTreeSnapshot {
     /// Custom events and writes in disjoint subtrees do not invalidate this revision.
     pub fn subtree_revision(&self, node: NodeId) -> Option<SubtreeRevision> {
         self.node(node).map(|_| self.revisions.revision(node))
+    }
+
+    /// Constant-time identity for named-node bindings: topology/order, UUID/type,
+    /// label/short-name aliases and enablement. Ignores parameter value/control/constraint
+    /// and presentation-only changes. Opaque writes invalidate conservatively. Ancestor
+    /// enablement is outside this subtree; inspect the root's `enabled` separately.
+    /// Tokens include their root and engine lifetime; synthetic overlays start a new lifetime.
+    pub fn subtree_structure_revision(&self, node: NodeId) -> Option<SubtreeStructureRevision> {
+        self.node(node).map(|_| self.revisions.structure_revision(node))
     }
 
     /// Returns one node snapshot by id.

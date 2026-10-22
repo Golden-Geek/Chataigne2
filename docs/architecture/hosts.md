@@ -756,13 +756,19 @@ acknowledgement. There is no optimistic actor warning cache to acknowledge faile
 destroy wholesale. Presentation-only metadata events do not request Sound Card snapshots or redrive
 configuration; labels and enabled-state changes retain their existing behavior.
 
-Derived structure/default routes, commands and feedback matching now have their own bounded
-services and recovery evidence. Remaining reconfiguration/apply-time/failure fences still need the
-C01 closing audit; do not infer closure from this list or from absence of blocking calls. In
-particular, exercise slow preparation under continuous value-only updates before deciding that its
-source key is appropriately scoped. Core enum-constraint conversion/projection costs retain their
-existing P03/P16 ownership distinction; general snapshot/DTO scaling remains P16. These service
-budgets do not qualify whole-process memory or actor deadlines.
+Derived structure/default routes, commands and feedback matching have their own bounded services
+and recovery evidence. Configuration preparation now watches authored connection/parameter inputs
+and the Values binding structure separately. A value-only write cannot cancel an otherwise current
+queued job; a binding replacement, alias change or topology edit still invalidates it before
+callbacks. Root ids accompany authored source revisions, and the structure token identifies its
+root/lifetime. Golden folds both counters in one snapshot pass and charges the combined entry to
+the existing lease; readiness checks add no per-target or ancestor walk.
+
+The remaining C01 audit still includes native constraint publication and apply-time/failure
+ownership. In particular, distinct enum-domain equality still has a semantic slice-comparison
+fallback; qualify its use in the native publication path before claiming closure. Core conversion/
+projection costs retain their existing P03/P16 ownership distinction; general snapshot/DTO scaling
+remains P16. These service budgets do not qualify whole-process memory or actor deadlines.
 
 ## Current qualification boundaries
 

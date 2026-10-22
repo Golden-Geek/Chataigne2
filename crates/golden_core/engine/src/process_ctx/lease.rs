@@ -53,7 +53,7 @@ pub(super) struct StorageLeases {
     _overlays: RetainedPayload<HashMap<NodeId, ProcessTreeNodeSnapshot>>,
     _uuids: RetainedPayload<HashMap<NodeUuid, NodeId>>,
     _children: RetainedPayload<ProcessTreeChildIndexes>,
-    _revisions: RetainedPayload<HashMap<NodeId, u64>>,
+    _revisions: RetainedPayload<HashMap<NodeId, crate::engine::tree_revisions::NodeRevisions>>,
 }
 
 impl ProcessTreeSnapshot {

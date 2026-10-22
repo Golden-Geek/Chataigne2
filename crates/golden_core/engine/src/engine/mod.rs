@@ -25,7 +25,7 @@ mod apply_param;
 mod apply_tree;
 mod change_targets;
 pub(crate) mod tree_revisions;
-pub use tree_revisions::SubtreeRevision;
+pub use tree_revisions::{SubtreeRevision, SubtreeStructureRevision};
 /// Unified node-type catalog and blueprint-backed dynamic type helpers.
 mod blueprints;
 /// UserContext and DynamicContext integration helpers.

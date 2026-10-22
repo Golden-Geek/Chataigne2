@@ -8,6 +8,7 @@ use golden_core::{
 use std::time::{Duration, Instant};
 
 mod choices;
+mod source_lifetime;
 
 fn fixture() -> (
     crate::app::AppEngine,

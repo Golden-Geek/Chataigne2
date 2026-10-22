@@ -1,3 +1,4 @@
+mod structure;
 use super::*;
 use crate::{
     edit::Edit,

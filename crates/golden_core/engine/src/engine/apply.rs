@@ -608,6 +608,11 @@ impl<T: Node> Engine<T> {
                 revisions.mark(node, sequence);
             }
         });
+        super::change_targets::visit_structure_changed_nodes(kind, &mut |node| {
+            if nodes.contains(node) {
+                revisions.mark_structure(node, sequence);
+            }
+        });
         if changed {
             self.clear_tick_tree_snapshot();
         }

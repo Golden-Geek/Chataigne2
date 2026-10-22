@@ -10,7 +10,7 @@ use golden_audio::{AudioCommand, AudioControl, AudioObservationReader};
 use golden_core::{
     node::NodeId,
     parameter::ParamValue,
-    process_ctx::{ProcessTreeSnapshot, SubtreeRevision},
+    process_ctx::{ProcessTreeSnapshot, SubtreeRevision, SubtreeStructureRevision},
 };
 use golden_io::{BoundedWorker, PayloadPool, RetainedPayload, RetirementPermit, RetirementPool, WorkerLimits};
 
@@ -29,7 +29,8 @@ const SCRATCH_BYTES: usize = 256 * 1024 * 1024;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Key {
-    revisions: [Option<SubtreeRevision>; 6],
+    revisions: [Option<(NodeId, SubtreeRevision)>; 6],
+    bindings: Option<SubtreeStructureRevision>,
     scope: Scope,
     uuid: golden_core::node::NodeUuid,
     enabled: bool,
@@ -48,7 +49,7 @@ impl Key {
     fn read(snapshot: &ProcessTreeSnapshot, module: NodeId, scope: Scope) -> Option<Self> {
         let node = snapshot.node(module)?;
         let paths = match scope {
-            Scope::Configuration => [Some("connection"), Some("parameters"), Some("values"), None, None, None],
+            Scope::Configuration => [Some("connection"), Some("parameters"), None, None, None, None],
             Scope::Choices => [
                 Some("connection/audio_driver"),
                 Some("connection/device"),
@@ -68,10 +69,15 @@ impl Key {
         };
         let revisions = paths.map(|path| {
             path.and_then(|path| find_path(snapshot, module, path))
-                .and_then(|root| snapshot.subtree_revision(root))
+                .and_then(|root| snapshot.subtree_revision(root).map(|revision| (root, revision)))
         });
         Some(Self {
             revisions,
+            bindings: if scope == Scope::Configuration {
+                find_path(snapshot, module, "values").and_then(|root| snapshot.subtree_structure_revision(root))
+            } else {
+                None
+            },
             scope,
             uuid: node.uuid,
             enabled: node.enabled,

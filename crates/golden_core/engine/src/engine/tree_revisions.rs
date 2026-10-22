@@ -12,10 +12,24 @@ pub struct SubtreeRevision {
     sequence: u64,
 }
 
+/// Root-specific identity of topology, node kinds and named-selector metadata.
+/// Parameter values, constraints, controls and presentation alone do not advance it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SubtreeStructureRevision {
+    node: NodeId,
+    revision: SubtreeRevision,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct NodeRevisions {
+    authored: u64,
+    structure: u64,
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct RevisionSnapshot {
     epoch: Uuid,
-    by_node: Arc<HashMap<NodeId, u64>>,
+    by_node: Arc<HashMap<NodeId, NodeRevisions>>,
 }
 
 impl Default for RevisionSnapshot {
@@ -28,8 +42,8 @@ impl Default for RevisionSnapshot {
 }
 
 type RevisionLease = Result<
-    golden_io::RetainedPayload<HashMap<NodeId, u64>>,
-    golden_io::PayloadCapacityError<Arc<HashMap<NodeId, u64>>>,
+    golden_io::RetainedPayload<HashMap<NodeId, NodeRevisions>>,
+    golden_io::PayloadCapacityError<Arc<HashMap<NodeId, NodeRevisions>>>,
 >;
 
 impl RevisionSnapshot {
@@ -63,9 +77,10 @@ impl RevisionSnapshot {
             else {
                 continue;
             };
-            let revision = revisions.get(&id).copied().unwrap_or(0);
+            let revision = revisions.get(&id).copied().unwrap_or_default();
             let parent_revision = revisions.entry(parent).or_default();
-            *parent_revision = (*parent_revision).max(revision);
+            parent_revision.authored = parent_revision.authored.max(revision.authored);
+            parent_revision.structure = parent_revision.structure.max(revision.structure);
             let count = children.get_mut(&parent).expect("indexed parent");
             *count -= 1;
             if *count == 0 {
@@ -82,14 +97,24 @@ impl RevisionSnapshot {
     pub(crate) fn revision(&self, node: NodeId) -> SubtreeRevision {
         SubtreeRevision {
             epoch: self.epoch,
-            sequence: self.by_node.get(&node).copied().unwrap_or(0),
+            sequence: self.by_node.get(&node).map_or(0, |revision| revision.authored),
+        }
+    }
+
+    pub(crate) fn structure_revision(&self, node: NodeId) -> SubtreeStructureRevision {
+        SubtreeStructureRevision {
+            node,
+            revision: SubtreeRevision {
+                epoch: self.epoch,
+                sequence: self.by_node.get(&node).map_or(0, |revision| revision.structure),
+            },
         }
     }
 }
 
 pub(super) struct TreeRevisions {
     epoch: Uuid,
-    by_node: HashMap<NodeId, u64>,
+    by_node: HashMap<NodeId, NodeRevisions>,
     sequence: u64,
 }
 
@@ -112,7 +137,8 @@ impl TreeRevisions {
     /// Every subsequent engine write receives a globally greater sequence,
     /// so this validates a node-local read without folding the live graph.
     pub(super) fn unchanged_since(&self, node: NodeId, captured: SubtreeRevision) -> bool {
-        self.same_epoch(captured) && self.by_node.get(&node).copied().unwrap_or(0) <= captured.sequence
+        self.same_epoch(captured)
+            && self.by_node.get(&node).map_or(0, |revision| revision.authored) <= captured.sequence
     }
 
     pub(super) fn next_change(&mut self) -> u64 {
@@ -121,7 +147,17 @@ impl TreeRevisions {
     }
 
     pub(super) fn mark(&mut self, node: NodeId, sequence: u64) {
-        self.by_node.insert(node, sequence);
+        self.by_node.entry(node).or_default().authored = sequence;
+    }
+
+    pub(super) fn mark_structure(&mut self, node: NodeId, sequence: u64) {
+        self.by_node.insert(
+            node,
+            NodeRevisions {
+                authored: sequence,
+                structure: sequence,
+            },
+        );
     }
 
     pub(super) fn remove(&mut self, node: NodeId) {
@@ -139,7 +175,8 @@ impl TreeRevisions {
 impl<T: crate::node::Node> super::Engine<T> {
     pub(super) fn mark_tree_changed(&mut self, node: NodeId) {
         let sequence = self.tree_revisions.next_change();
-        self.tree_revisions.mark(node, sequence);
+        // An opaque/direct write may alter lookup structure without semantic events.
+        self.tree_revisions.mark_structure(node, sequence);
         self.clear_tick_tree_snapshot();
     }
 }

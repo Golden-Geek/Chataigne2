@@ -113,9 +113,15 @@ current scan; value-only/meter updates cannot keep restarting a large scan. Pend
 250 ms capacity/error backoff suppress snapshot requests. Progress uses worker wakes, including
 driver None; no periodic actor update is introduced. An idle service owns no retained snapshot.
 
-Feedback and remaining native failure/reconfiguration fences still belong to C01. General
-snapshot/publication scaling stays in P16; these authored service budgets do not qualify end-to-end
-latency or change P04's audio ordering requirement.
+Configuration preparation distinguishes authored inputs from binding layout. Connection and
+parameter scopes retain full authored revisions plus root identity; Values uses Golden's typed
+structure revision. Meter/value writes and presentation-only warnings cannot cancel a queued
+configuration, while binding aliases, topology, enablement and replacements still invalidate it
+before callbacks. Both revision counters share one folded snapshot index and its existing lease.
+
+Remaining native constraint-publication and application/failure audit stays in C01. General
+snapshot/publication scaling stays in P16; these service budgets do not qualify end-to-end latency
+or change P04's audio ordering requirement.
 
 `golden_audio_ui` owns generic audio driver/device controls, status rendering, the SVG channel patch
 bay, accessibility behavior, and application binding contracts. An application adapter may

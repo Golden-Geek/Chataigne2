@@ -1,5 +1,36 @@
 use crate::events::EventKind;
 
+pub(super) fn visit_structure_changed_nodes(kind: &EventKind, visit: &mut impl FnMut(crate::node::NodeId)) {
+    match kind {
+        EventKind::ParamChanged { .. }
+        | EventKind::ParamControlChanged { .. }
+        | EventKind::ParamConstraintsChanged { .. }
+        | EventKind::Custom(_) => {}
+        EventKind::MetaChanged { node, patch } => {
+            if patch.label.is_some() || patch.short_name.is_some() || patch.enabled.is_some() {
+                visit(*node);
+            }
+        }
+        EventKind::GraphTransaction { transaction } => {
+            use crate::ui_sync::UiGraphOp;
+            for op in &transaction.ops {
+                match op {
+                    UiGraphOp::ParamPatched { .. }
+                    | UiGraphOp::HistoryPatched { .. }
+                    | UiGraphOp::LoggerPatched { .. } => {}
+                    UiGraphOp::NodeMetaPatched { node, patch } => {
+                        if patch.label.is_some() || patch.short_name.is_some() || patch.enabled.is_some() {
+                            visit(*node);
+                        }
+                    }
+                    _ => visit_graph_op_changed_nodes(op, visit),
+                }
+            }
+        }
+        _ => visit_changed_nodes(kind, visit),
+    }
+}
+
 pub(super) fn visit_changed_nodes(kind: &EventKind, visit: &mut impl FnMut(crate::node::NodeId)) {
     match kind {
         EventKind::ParamChanged { param, .. }

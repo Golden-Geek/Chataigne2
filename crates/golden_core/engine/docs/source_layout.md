@@ -21,6 +21,21 @@ areas under the same Golden Core parent; see the root
 - `src/*.rs`
   - Leaf top-level modules such as `app.rs`, `events.rs`, `process_ctx.rs`, `ui_sync.rs`, and `logger.rs`.
 
+## Snapshot read identities
+
+`engine/tree_revisions.rs` owns engine-local authored and structure counters. Immutable
+`ProcessTreeSnapshot` views fold both in one iterative pass and expose the public queries from
+`process_ctx`. Use `subtree_revision` for authored inputs, including parameter values. Use
+`subtree_structure_revision` for named-node binding layouts: it covers topology/order, identity,
+node kinds, selector aliases and enablement while ignoring parameter value/control/constraint and
+presentation-only changes. Opaque writes invalidate conservatively. Structure tokens identify
+their root and engine lifetime; ancestor enablement must be checked separately.
+
+Both counters share one per-node revision allocation and its existing canonical snapshot lease.
+The allocation reservation includes the complete revision entry. Querying a token does not scan
+the graph; edits do not walk ancestors to update it. These are in-process read identities, not
+protocol, persistence or application-domain types.
+
 ## Rules
 
 - `src/` is the real crate tree. Do not place runtime modules beside `src/` and reattach them with `#[path]`.
