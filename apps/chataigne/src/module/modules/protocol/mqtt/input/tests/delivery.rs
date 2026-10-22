@@ -1,6 +1,87 @@
 use super::*;
 
 #[test]
+fn processing_churn_after_a_committed_large_prefix_cancels_only_the_suffix_and_new_input_recovers() {
+    use golden_core::{
+        edit::NodeTree,
+        node::Folder,
+        parameter::{Parameter, ParameterChangeCheck},
+    };
+    let (mut engine, id) = create_mqtt_module();
+    let root = find_path(&engine, id, "values").unwrap();
+    engine.edits.push(Edit::AddNodeTree {
+        tree: NodeTree::new(Folder::new("packet")).with_child(NodeTree::new(Parameter::new(
+            "pulse",
+            ParamValue::Trigger(),
+            ParameterChangeCheck::None,
+        ))),
+        parent: root,
+        prev_sibling: None,
+    });
+    engine.apply_edits().unwrap();
+    let pulse = find_path(&engine, id, "values/packet/pulse").unwrap();
+    let count = |engine: &crate::app::AppEngine| {
+        engine
+            .inbox
+            .events
+            .iter()
+            .filter(|event| matches!(event.kind, EventKind::ParamChanged { param, .. } if param == pulse))
+            .count()
+    };
+    let before = count(&engine);
+    let bytes =
+        serde_json::to_vec(&serde_json::json!({ "pulse": null, "tuple": (0..700).collect::<Vec<_>>() })).unwrap();
+    let lifetime = RevisionSource::default();
+    let mut delivery = Delivery::new(prepared(&engine, id, &lifetime, "packet", &bytes));
+    let mut partial = None;
+    for _ in 0..20 {
+        let (done, mut ctx) = tick(&mut engine, &mut delivery);
+        assert!(!done);
+        engine.absorb_edits(&mut ctx).unwrap();
+        engine.apply_edits().unwrap();
+        if let Some(tuple) = find_path(&engine, id, "values/packet/tuple") {
+            let children = engine.process_tree_snapshot().child_ids_slice(tuple).len();
+            if children > 0 && children < 700 {
+                partial = Some((tuple, children));
+                break;
+            }
+        }
+    }
+    let (tuple, children) = partial.expect("fixture must commit a proper prefix before source churn");
+    assert_eq!(count(&engine) - before, 1);
+    let auto_add = find_path(&engine, id, "parameters/processing/auto_add").unwrap();
+    for value in [false, true, false, true] {
+        engine.edits.push(Edit::SetParam {
+            node: auto_add,
+            value: ParamValue::Bool(value),
+            behaviour: ParameterEventBehaviour::Append,
+        });
+        engine.apply_edits().unwrap();
+    }
+    let (done, ctx) = tick(&mut engine, &mut delivery);
+    assert!(done && ctx.edits.pending.is_empty());
+    assert_eq!(engine.process_tree_snapshot().child_ids_slice(tuple).len(), children);
+    assert_eq!(callbacks(&engine), 0);
+    let mut current = Delivery::new(prepared(&engine, id, &lifetime, "packet", &bytes));
+    for turn in 0..100 {
+        let (done, mut ctx) = tick(&mut engine, &mut current);
+        engine.absorb_edits(&mut ctx).unwrap();
+        engine.apply_edits().unwrap();
+        if done {
+            break;
+        }
+        assert!(turn < 99);
+    }
+    assert_eq!(engine.process_tree_snapshot().child_ids_slice(tuple).len(), 700);
+    assert_eq!(
+        count(&engine) - before,
+        2,
+        "old applied occurrence plus one new occurrence"
+    );
+    assert_eq!(callbacks(&engine), 1);
+}
+
+#[test]
 fn trigger_before_a_missing_json_field_is_not_replayed_during_materialization() {
     use golden_core::{
         edit::NodeTree,

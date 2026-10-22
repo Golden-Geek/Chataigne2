@@ -2,6 +2,59 @@ use super::super::publications::Publications;
 use super::*;
 
 #[test]
+fn repeated_session_churn_reuses_one_native_lifetime_and_never_replays_lost_publications() {
+    use super::super::super::output::{Method, Request};
+    use golden_core::{node::Folder, parameter::ParamValue, script::ScriptMethodCall};
+    let engine = crate::app::AppEngine::new(Folder::new("source").into());
+    let control = Control::default();
+    let lifetimes = slots();
+    let output = pool(16);
+    let mut handle = fake(control.clone(), &lifetimes, output.clone(), pool(16));
+    for round in 0..8 {
+        let call = ScriptMethodCall::prepare(
+            "publish",
+            vec![
+                ParamValue::Str("churn".into()),
+                ParamValue::Int(round),
+                ParamValue::Int(1),
+            ],
+        )
+        .unwrap();
+        let source = Request::script_arguments(
+            Method::Publish,
+            call.args().clone(),
+            engine.node_waker(engine.root).unwrap(),
+        )
+        .unwrap();
+        let receipt = handle.send_output(source, false).unwrap();
+        until(|| control.published.load(Ordering::Acquire) == round as usize + 1);
+        control.fail();
+        let present = round % 2 == 0;
+        control.event(ack(present));
+        if present {
+            let pkid = round as u16 + 1;
+            control.event(Event::Outgoing(rumqttc::Outgoing::Publish(pkid)));
+            control.event(Event::Incoming(Packet::PubAck(rumqttc::PubAck { pkid })));
+        }
+        until(|| receipt.status() != PublishStatus::Pending);
+        assert_eq!(
+            receipt.status(),
+            if present {
+                PublishStatus::Acknowledged
+            } else {
+                PublishStatus::FailedUnconfirmed
+            }
+        );
+        assert_eq!(control.published.load(Ordering::Acquire), round as usize + 1);
+        assert_eq!(lifetimes.metrics().active, 1);
+    }
+    handle.stop();
+    drop(handle);
+    assert!(lifetimes.wait_for_idle(Duration::from_secs(1)));
+    assert!(output.wait_for_idle(Duration::from_secs(1)));
+}
+
+#[test]
 fn protocol_retransmission_does_not_consume_a_second_accepted_command() {
     let source = pool(8);
     let mut ledger = Publications::default();

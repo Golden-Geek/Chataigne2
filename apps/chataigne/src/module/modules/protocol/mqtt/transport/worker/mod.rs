@@ -181,11 +181,13 @@ impl<B: Broker> Drop for Session<B> {
 }
 struct Ready {
     connected: Arc<AtomicBool>,
+    running: Arc<AtomicBool>,
     notifier: WorkerNotifier,
 }
 impl Drop for Ready {
     fn drop(&mut self) {
         self.connected.store(false, Ordering::Release);
+        self.running.store(false, Ordering::Release);
         self.notifier.notify();
     }
 }
@@ -194,18 +196,23 @@ pub(super) fn run<B: Broker>(
     ctx: WorkerContext<AdmittedPublish, MqttWorkerEvent>,
     config: RetainedPayload<MqttTransportConfig>,
     connected: Arc<AtomicBool>,
+    running: Arc<AtomicBool>,
     input: PayloadPool,
     notifier: WorkerNotifier,
     open: impl FnOnce(&MqttTransportConfig) -> B,
 ) {
+    let ready = Ready {
+        connected: connected.clone(),
+        running,
+        notifier,
+    };
     let mut session = Session {
         broker: Some(open(&config)),
         publications: Publications::default(),
     };
-    let _ready = Ready {
-        connected: connected.clone(),
-        notifier,
-    };
+    // Also cover setup panics, then announce termination before native cleanup
+    // can block. Cleanup still owns its original worker and payload reservations.
+    let _ready = ready;
     let mut pending = std::collections::VecDeque::new();
     let mut subscriptions = 0;
     let mut backoff = ReconnectBackoff::new(Duration::from_millis(250), Duration::from_secs(8));

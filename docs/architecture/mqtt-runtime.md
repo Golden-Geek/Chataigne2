@@ -18,6 +18,10 @@ One owned async protocol poll survives short service turns. A short wait expires
 the underlying connection or socket flush; another native operation cannot accumulate behind it.
 The worker owns its current-thread runtime and drops pending protocol work before releasing payload
 quotas. Protocol calls use rumqttc's public async API, not a second MQTT implementation.
+Worker termination has a separate atomic signal, announced before native cleanup can block. The
+actor can retire the failed handle and schedule recovery even when its event mailbox is full or its
+destructor is stalled. The original worker slot and library-held payload reservations stay owned
+until cleanup finishes; termination notification does not refund them.
 DNS resolution runs serially on the same worker before the library is given a numeric address.
 A blocked resolver retains that worker slot; timed-out connects cannot accumulate runtime DNS jobs.
 Reconnect rotates through at most sixteen resolved addresses. Cancellation is checked after
@@ -102,6 +106,8 @@ An in-flight preparation waits for its completion notification without requestin
 Actor event and receipt service is capped at sixteen entries each. Local pending input and publish
 receipt queues have explicit 64/100-entry limits. Receiving data, configuration changes and completed
 receipts request continuations; pending protocol receipts alone do not busy-wake the actor.
+Transport warnings live on the Connection group. Writing runtime feedback onto a watched connection
+scalar would change its authored revision and invalidate the transport's own coarse retry deadline.
 
 `input/` owns received-message preparation and delivery. A shared bounded worker parses payloads,
 prepares callbacks and optional 256-byte log previews. Thirty-two preparation reservations include
@@ -137,6 +143,7 @@ result keeps its raw and derived reservations through delivery and queued edits,
 module is destroyed. Core's public `EditQueue::retain_payload` supplies only this generic lifetime
 mechanism; app-specific capture, limits and MQTT callback policy stay here.
 
-`payload.rs` owns only shared receive-callback and log formatting helpers. Full pressure/passive-receipt,
-failure/cross-turn churn and controlled actor/load acceptance remain open C04 work. Follow the ledger
-rather than treating transport, cursor or outgoing-preparation tests as whole-module acceptance.
+`payload.rs` owns only shared receive-callback and log formatting helpers. C04's local qualification
+now includes pressure, passive receipts, failure/blocked-cleanup recovery, processing/session churn
+and controlled actor service. The ledger records its acceptance matrix and exact artifacts.
+Hardware/platform and full-product scale qualification remain with their later plan owners.

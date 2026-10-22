@@ -228,7 +228,7 @@ impl MqttModule {
             };
 
             let mut worker_events = Vec::new();
-            let mut worker_disconnected = false;
+            let mut worker_disconnected = !transport.is_running();
             for _ in 0..transport::EVENT_TURN {
                 if self.incoming.len() + worker_events.len() >= 64 {
                     break;
@@ -265,13 +265,13 @@ impl MqttModule {
                         self.base.set_connected(ctx, true);
                     }
                     MqttConnectionStatus::Recovering { message } => {
-                        logerror!("MQTT transport recovering: {}", message);
+                        logerror!(format!("MQTT transport recovering: {message}"));
                         self.set_target_warning(ctx, message.as_str());
                         self.base.set_connected(ctx, false);
                     }
                 },
                 MqttWorkerEvent::Error(error) => {
-                    logerror!("MQTT transport error: {}", error);
+                    logerror!(format!("MQTT transport error: {error}"));
                 }
             }
         }
@@ -359,14 +359,16 @@ impl MqttModule {
     }
 
     fn set_target_warning(&self, ctx: &mut ProcessCtx, message: &str) {
-        if self.remote_host.is_bound() {
-            NodeHandle::new(self.remote_host.id()).set_warning_with(ctx, Some(MQTT_TARGET_WARNING_ID), message, None);
+        // Transport feedback must not mutate a scalar watched by configuration
+        // capture: doing so invalidates its own coarse retry deadline.
+        if let Some(connection) = self.base.connection_id() {
+            NodeHandle::new(connection).set_warning_with(ctx, Some(MQTT_TARGET_WARNING_ID), message, None);
         }
     }
 
     fn clear_target_warning(&self, ctx: &mut ProcessCtx) {
-        if self.remote_host.is_bound() {
-            NodeHandle::new(self.remote_host.id()).clear_warning(ctx, Some(MQTT_TARGET_WARNING_ID));
+        if let Some(connection) = self.base.connection_id() {
+            NodeHandle::new(connection).clear_warning(ctx, Some(MQTT_TARGET_WARNING_ID));
         }
     }
 

@@ -4,7 +4,7 @@ use std::{
     net::{TcpListener, TcpStream},
 };
 
-fn packet(stream: &mut TcpStream) -> (u8, Vec<u8>) {
+pub(super) fn packet(stream: &mut TcpStream) -> (u8, Vec<u8>) {
     let mut byte = [0];
     stream.read_exact(&mut byte).unwrap();
     let kind = byte[0];

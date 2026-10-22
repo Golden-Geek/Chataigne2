@@ -11,6 +11,8 @@ use worker::{Broker, BrokerPoll};
 mod lifecycle;
 mod outcomes;
 mod outgoing;
+mod pressure;
+mod service;
 mod wire;
 
 fn config() -> MqttTransportConfig {
@@ -65,6 +67,7 @@ struct Control {
     published: Arc<AtomicUsize>,
     attempts: Arc<AtomicUsize>,
     last_request: Arc<Mutex<Option<MqttPublishRequest>>>,
+    incoming: Arc<AtomicUsize>,
     busy: Arc<AtomicBool>,
     panic: Arc<AtomicBool>,
     buffered: Arc<Mutex<VecDeque<Event>>>,
@@ -104,6 +107,15 @@ impl Broker for FakeBroker {
         if let Some(event) = self.control.events.lock().unwrap().pop_front() {
             return event;
         }
+        if let Ok(left) = self
+            .control
+            .incoming
+            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |left| left.checked_sub(1))
+        {
+            return Ok(BrokerPoll::Event(Event::Incoming(Packet::Publish(
+                rumqttc::Publish::new("stream", rumqttc::QoS::AtMostOnce, (left - 1).to_string().into_bytes()),
+            ))));
+        }
         std::thread::sleep(Duration::from_millis(1));
         Ok(BrokerPoll::Idle)
     }
@@ -116,8 +128,9 @@ impl Broker for FakeBroker {
         self.held.push(request.payload.clone());
         *self.control.last_request.lock().unwrap() = Some(request.clone());
         self.control.published.store(id, Ordering::Release);
-        self.control
-            .event(Event::Outgoing(rumqttc::Outgoing::Publish(id as u16)));
+        self.control.event(Event::Outgoing(rumqttc::Outgoing::Publish(
+            if request.qos == MqttQos::AtMost { 0 } else { id as u16 },
+        )));
         true
     }
     fn subscribe(&mut self, _: &MqttSubscriptionConfig) -> bool {

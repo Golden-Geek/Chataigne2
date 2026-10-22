@@ -1,6 +1,39 @@
 use super::*;
 
 #[test]
+fn transport_feedback_preserves_the_configuration_source_and_coarse_retry_deadline() {
+    let (mut engine, id) = create_mqtt_module();
+    let snapshot = engine.process_tree_snapshot();
+    let slots = slots();
+    let (request, job) = draft(&snapshot, id, &slots);
+    let time = engine.time;
+    let node = module(&mut engine, id);
+    node.schedule_retry();
+    let deadline = node.retry_at;
+    node.configuration = Some(request);
+    let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, time);
+    node.set_target_warning(&mut ctx, "controlled transport failure");
+    engine.absorb_edits(&mut ctx).unwrap();
+    engine.apply_edits().unwrap();
+    let snapshot = engine.process_tree_snapshot();
+    let node = module(&mut engine, id);
+    node.notice_configuration(&snapshot);
+    assert_eq!(node.retry_at, deadline);
+    assert!(node.configuration.as_ref().unwrap().matches(&snapshot, id));
+    node.clear_target_warning(&mut ctx);
+    engine.absorb_edits(&mut ctx).unwrap();
+    engine.apply_edits().unwrap();
+    let snapshot = engine.process_tree_snapshot();
+    let node = module(&mut engine, id);
+    node.notice_configuration(&snapshot);
+    assert_eq!(node.retry_at, deadline);
+    assert!(node.configuration.as_ref().unwrap().matches(&snapshot, id));
+    node.disable_transport_for_test(&snapshot);
+    job.run();
+    assert!(slots.wait_for_idle(Duration::from_secs(1)));
+}
+
+#[test]
 fn connection_status_values_and_processing_edits_do_not_cancel_configuration() {
     let (mut engine, id) = create_mqtt_module();
     let snapshot = engine.process_tree_snapshot();

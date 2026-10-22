@@ -75,6 +75,7 @@ fn payload_pool(incoming: bool) -> Result<PayloadPool, String> {
 pub(crate) struct MqttTransportHandle {
     worker: BoundedWorker<AdmittedPublish, MqttWorkerEvent>,
     connected: Arc<AtomicBool>,
+    running: Arc<AtomicBool>,
     commands: PayloadPool,
     notifier: WorkerNotifier,
     origin: NodeId,
@@ -125,6 +126,8 @@ impl MqttTransportHandle {
     ) -> Result<Self, String> {
         let connected = Arc::new(AtomicBool::new(false));
         let ready = connected.clone();
+        let running = Arc::new(AtomicBool::new(true));
+        let live = running.clone();
         let observer = notifier.clone();
         let worker = BoundedWorker::spawn_notified(
             "mqtt-transport",
@@ -136,12 +139,13 @@ impl MqttTransportHandle {
                 event_weight: 4 * 1024 * 1024,
             },
             notifier.clone(),
-            move |ctx| worker::run(ctx, config, ready, input, observer, open),
+            move |ctx| worker::run(ctx, config, ready, live, input, observer, open),
         )
         .map_err(|error| error.to_string())?;
         Ok(Self {
             worker,
             connected,
+            running,
             commands,
             notifier,
             origin,
@@ -198,6 +202,10 @@ impl MqttTransportHandle {
 
     pub(crate) fn is_connected(&self) -> bool {
         self.connected.load(Ordering::Acquire)
+    }
+
+    pub(crate) fn is_running(&self) -> bool {
+        self.running.load(Ordering::Acquire)
     }
 
     #[cfg(test)]
