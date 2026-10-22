@@ -1,5 +1,4 @@
 use golden_core::parameter::{ParamValue, ParameterEnumOption};
-use serde::{Deserialize, Serialize};
 
 pub(crate) const BUTTPLUG_SET_OUTPUT_COMMAND_NODE_TYPE: &str = "buttplug_set_output_command";
 pub(crate) const BUTTPLUG_STOP_DEVICE_COMMAND_NODE_TYPE: &str = "buttplug_stop_device_command";
@@ -22,23 +21,12 @@ pub(crate) const BUTTPLUG_OUTPUT_SPRAY: &str = "spray";
 pub(crate) const BUTTPLUG_OUTPUT_LED: &str = "led";
 pub(crate) const BUTTPLUG_OUTPUT_TEMPERATURE: &str = "temperature";
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) struct ButtplugSetOutputRequest {
     pub target: String,
     pub output: String,
     pub value: f64,
     pub duration_ms: u32,
-    pub description: String,
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-pub(crate) struct ButtplugTargetRequest {
-    pub target: String,
-    pub description: String,
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-pub(crate) struct ButtplugControlRequest {
     pub description: String,
 }
 
@@ -49,10 +37,7 @@ pub(crate) fn buttplug_output_enum_options() -> Vec<ParameterEnumOption> {
         (BUTTPLUG_OUTPUT_OSCILLATE, "Oscillate"),
         (BUTTPLUG_OUTPUT_CONSTRICT, "Constrict"),
         (BUTTPLUG_OUTPUT_POSITION, "Position"),
-        (
-            BUTTPLUG_OUTPUT_HW_POSITION_WITH_DURATION,
-            "Position With Duration",
-        ),
+        (BUTTPLUG_OUTPUT_HW_POSITION_WITH_DURATION, "Position With Duration"),
         (BUTTPLUG_OUTPUT_SPRAY, "Spray"),
         (BUTTPLUG_OUTPUT_LED, "LED"),
         (BUTTPLUG_OUTPUT_TEMPERATURE, "Temperature"),

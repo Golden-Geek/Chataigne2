@@ -38,15 +38,15 @@ impl<P: Provider> Provider for Exclusive<P> {
 }
 type Context = WorkerContext<AdmittedCommand, RetainedPayload<ButtplugWorkerEvent>>;
 struct Stopped {
-    connected: Arc<AtomicBool>,
-    running: Arc<AtomicBool>,
-    notifier: WorkerNotifier,
+    shared: Arc<Shared>,
+    life: Option<NativeLife>,
 }
 impl Drop for Stopped {
     fn drop(&mut self) {
-        self.connected.store(false, Ordering::Release);
-        self.running.store(false, Ordering::Release);
-        self.notifier.notify();
+        self.life = None;
+        self.shared.connected.store(false, Ordering::Release);
+        self.shared.running.store(false, Ordering::Release);
+        self.shared.notifier.notify();
     }
 }
 // Field destruction announces termination before the native provider can block in cleanup.
@@ -60,15 +60,13 @@ pub(super) fn run<P: Provider>(
     ctx: Context,
     config: RetainedPayload<ButtplugTransportConfig>,
     events: PayloadPool,
-    connected: Arc<AtomicBool>,
-    running: Arc<AtomicBool>,
-    notifier: WorkerNotifier,
+    shared: Arc<Shared>,
+    life: NativeLife,
     open: impl FnOnce() -> Result<P, String>,
 ) {
     let stopped = Stopped {
-        connected: connected.clone(),
-        running,
-        notifier,
+        shared: shared.clone(),
+        life: Some(life),
     };
     if ctx.cancellation().is_cancelled() {
         return;
@@ -86,6 +84,7 @@ pub(super) fn run<P: Provider>(
         provider,
     };
     let ctx = &owned.context;
+    let life = owned._stopped.life.as_ref().unwrap();
     let mut backoff = ReconnectBackoff::new(Duration::from_millis(250), Duration::from_secs(5));
     let mut next_connect = Instant::now();
     let mut active = false;
@@ -97,7 +96,8 @@ pub(super) fn run<P: Provider>(
                     if ctx.cancellation().is_cancelled() {
                         break;
                     }
-                    connected.store(true, Ordering::Release);
+                    life.session.advance();
+                    shared.connected.store(true, Ordering::Release);
                     active = true;
                     backoff.reset();
                     if !publish_all(ctx, &events, initial) {
@@ -105,7 +105,8 @@ pub(super) fn run<P: Provider>(
                     }
                 }
                 Err(error) => {
-                    connected.store(false, Ordering::Release);
+                    shared.connected.store(false, Ordering::Release);
+                    life.session.advance();
                     next_connect = backoff.schedule(Instant::now());
                     if !recovering(ctx, &events, error) {
                         break;
@@ -121,17 +122,28 @@ pub(super) fn run<P: Provider>(
         let remaining = NonZeroUsize::new(8 - commands.len()).unwrap();
         let drain = ctx.drain_commands(&mut commands, remaining);
         for command in commands {
-            if ctx.cancellation().is_cancelled() || !active {
+            if ctx.cancellation().is_cancelled() || !active || !command.source.live() {
                 command.finish(CommandStatus::NotSent);
                 continue;
             }
+            let request = match command.source.prepare() {
+                Ok(request) if command.source.live() => request,
+                Ok(_) => {
+                    command.finish(CommandStatus::NotSent);
+                    continue;
+                }
+                Err(error) => {
+                    command.finish(CommandStatus::Completed(Err(admission::diagnostic(error))));
+                    continue;
+                }
+            };
             command.started();
             let result = owned
                 .provider
-                .execute(&command.source)
+                .execute(&request)
                 .map(admission::diagnostic)
                 .map_err(admission::diagnostic);
-            let scanning = match (&*command.source, &result) {
+            let scanning = match (&request, &result) {
                 (ButtplugWorkerCommand::StartScanning, Ok(_)) => Some(true),
                 (ButtplugWorkerCommand::StopScanning, Ok(_)) => Some(false),
                 _ => None,
@@ -154,7 +166,8 @@ pub(super) fn run<P: Provider>(
                     }
                 }
                 Err(error) => {
-                    connected.store(false, Ordering::Release);
+                    shared.connected.store(false, Ordering::Release);
+                    life.session.advance();
                     active = false;
                     next_connect = backoff.schedule(Instant::now());
                     if !recovering(ctx, &events, error) {

@@ -28,11 +28,30 @@ Command targets/output names/descriptions admit 1024/64/256 retained bytes. Devi
 admit 64 entries with 1024-byte names/display names and the fixed output capability vocabulary.
 Server names and diagnostics admit 1024 bytes.
 
-The command mailbox admits 64 records / 256 KiB. Each command reserves a conservative 8 KiB,
-so its byte limit can refuse a suffix before the item limit. Global command/configuration
-lifetimes admit 512 records / 4 MiB. A command's original lease follows native execution,
-its completion receipt and disposal. The module retains at most 64 receipts across workers.
+The command mailbox admits 64 records / 4 MiB. A captured source charges 64 KiB plus three
+times execute-override storage for worker decoding scratch; configuration charges 8 KiB.
+Global source/configuration lifetimes admit 512 records / 32 MiB. Each module admits 64 source
+lifetimes across the internal inbox, outgoing queue, native work, completed receipts, queued
+publication and disposal. The original source lease retains that admission throughout.
 Failed disposer initialization remains retryable.
+
+## Capture and preparation
+
+Command nodes retain canonical snapshots and execute payloads. Scripts retain engine-owned
+argument arrays and snapshots, with at most four arguments / 64 KiB. Both use typed local inbox
+attachments, sorted by original engine time before native dispatch. There is no JSON request
+relay or full snapshot overlay. The worker decodes the last matching execute override, checks
+consumed text/numeric fields before copying/parsing, and resolves selected-device defaults and
+the max-output clamp against the captured module snapshot.
+
+Each source retains its producer node and actor/native/session revision guards. Removing or
+disabling a source, replacing its transport, worker termination and connection loss invalidate
+unstarted work. A source captured on a lost session cannot execute after reconnect. A full
+native mailbox retains the same source behind an absolute 250 ms retry deadline; unrelated
+wakes do not retry early and refused unpublished receipts do not emit cancellation wakes.
+The actor submits at most eight captured sources per turn.
+
+## Native events
 
 The event mailbox admits 64 records / 4 MiB. Each event reserves a conservative 256 KiB,
 so at most sixteen fit by weight. Global event lifetimes admit 128 records / 32 MiB.
@@ -55,12 +74,14 @@ An uninterruptible SDK call or destructor retains its lifetime slot.
 
 Unstarted cancellation is **not sent**. A panic during a started action is **unconfirmed**.
 Completed native success or failure is retained independently of event-mailbox pressure or
-provider cleanup. Commands are never automatically replayed, including after a timeout or
+provider cleanup. Snapshot-free wakes keep completed receipts. Queued outcome edits carry the
+module identity guard and original source lease through application/rejection; native/session
+retirement does not erase a completed effect. Commands are never automatically replayed, including after a timeout or
 partial device batch failure. Connection failures use 250 ms to five-second backoff;
 worker-start failures and unexpected termination also schedule an absolute actor recovery
 deadline. Unrelated wakes do not retry before that deadline.
 
 Tests use controlled providers; native endpoint creation is disabled in test builds.
 The [execution ledger](../progress/implementation-status.md) owns qualification and remaining
-C07 acceptance. Engine-level canonical command capture/source retirement, queued publication
-lifetimes and fences, and full package pressure/reconfiguration qualification remain open.
+C07 acceptance. Queued native-event/callback/catalog publication lifetimes and fences, and full
+package pressure/reconfiguration qualification remain open.

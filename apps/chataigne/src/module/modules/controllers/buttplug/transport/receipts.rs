@@ -12,10 +12,16 @@ struct State {
     complete: AtomicBool,
     started: AtomicBool,
     notifier: WorkerNotifier,
-    _source: RetainedPayload<ButtplugWorkerCommand>,
+    _source: RetainedPayload<Source>,
 }
 pub(in super::super) struct CommandReceipt(Arc<State>);
 impl CommandReceipt {
+    pub(in super::super) fn source(&self) -> RetainedPayload<Source> {
+        self.0._source.clone()
+    }
+    pub(in super::super) fn attempted(&self) -> bool {
+        self.0.started.load(Ordering::Acquire)
+    }
     pub(in super::super) fn take(&self) -> Option<CommandStatus> {
         self.0.result.lock().unwrap_or_else(|error| error.into_inner()).take()
     }
@@ -24,15 +30,12 @@ impl CommandReceipt {
     }
 }
 pub(super) struct AdmittedCommand {
-    pub(super) source: RetainedPayload<ButtplugWorkerCommand>,
+    pub(super) source: RetainedPayload<Source>,
     state: Arc<State>,
     admitted: bool,
 }
 impl AdmittedCommand {
-    pub(super) fn new(
-        source: RetainedPayload<ButtplugWorkerCommand>,
-        notifier: WorkerNotifier,
-    ) -> (Self, CommandReceipt) {
+    pub(super) fn new(source: RetainedPayload<Source>, notifier: WorkerNotifier) -> (Self, CommandReceipt) {
         let state = Arc::new(State {
             result: Mutex::new(None),
             complete: AtomicBool::new(false),

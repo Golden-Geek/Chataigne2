@@ -13,6 +13,9 @@ pub(super) struct Service {
     pub(super) retry_at: Option<Instant>,
     backoff: ReconnectBackoff,
     native_slot: golden_io::RetirementPool,
+    pub(super) admission: golden_io::RetirementPool,
+    pub(super) outgoing: VecDeque<golden_io::RetainedPayload<transport::Source>>,
+    pub(super) output_retry_at: Option<Instant>,
 }
 impl Service {
     pub(super) fn new() -> Self {
@@ -22,6 +25,9 @@ impl Service {
             retry_at: None,
             backoff: ReconnectBackoff::new(Duration::from_millis(250), Duration::from_secs(5)),
             native_slot: golden_io::RetirementPool::new(std::num::NonZeroUsize::MIN),
+            admission: golden_io::RetirementPool::new(std::num::NonZeroUsize::new(64).unwrap()),
+            outgoing: VecDeque::new(),
+            output_retry_at: None,
         }
     }
 }
@@ -55,7 +61,19 @@ impl ButtplugModule {
     pub(super) fn service_io(&mut self, ctx: &mut ProcessCtx) {
         for _ in 0..self.service.pending.len().min(16) {
             let receipt = self.service.pending.pop_front().unwrap();
+            let Some(snapshot) = ctx.tree_snapshot_arc() else {
+                self.service.pending.push_back(receipt);
+                continue;
+            };
             if let Some(result) = receipt.take() {
+                if let Some(guard) = golden_core::edit::NodeReadGuard::capture_identity(&snapshot, self.id()) {
+                    ctx.edits.push(golden_core::edit::Edit::CheckPreconditions {
+                        preconditions: golden_core::edit::EditPreconditions::new(vec![guard], vec![]).unwrap(),
+                    });
+                }
+                if receipt.attempted() {
+                    self.base.emit_outgoing_traffic(ctx);
+                }
                 match result {
                     CommandStatus::Completed(Ok(message)) => {
                         if self.base.log_outgoing_enabled() {
@@ -73,6 +91,7 @@ impl ButtplugModule {
                         logerror!("Buttplug request interrupted; its result is unconfirmed");
                     }
                 }
+                ctx.edits.retain_payload(receipt.source());
             } else {
                 self.service.pending.push_back(receipt);
             }
@@ -95,6 +114,7 @@ impl ButtplugModule {
             self.refresh_data_capabilities(ctx);
             self.refresh_transport(ctx, &snapshot);
         }
+        self.submit_outputs(ctx);
         if self
             .transport
             .as_deref()
@@ -102,7 +122,14 @@ impl ButtplugModule {
         {
             self.request_service();
         }
-        if let (Some(wake), Some(at)) = (&self.service.wake, self.service.retry_at) {
+        if let (Some(wake), Some(at)) = (
+            &self.service.wake,
+            self.service
+                .retry_at
+                .into_iter()
+                .chain(self.service.output_retry_at)
+                .min(),
+        ) {
             wake.later(at.saturating_duration_since(Instant::now()));
         }
     }

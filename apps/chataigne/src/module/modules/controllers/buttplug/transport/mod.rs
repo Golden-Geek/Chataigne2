@@ -11,16 +11,32 @@ use std::{
 };
 
 mod admission;
+mod input;
 mod native;
 mod receipts;
 #[cfg(test)]
 mod tests;
 mod worker;
 
+use golden_io::{RevisionGuard, RevisionReader, RevisionSource};
+pub(super) use input::{Input, Source};
 #[cfg(test)]
 use native::{normalize_path, output_command};
 use receipts::AdmittedCommand;
 pub(super) use receipts::{CommandReceipt, CommandStatus};
+
+struct Shared {
+    connected: AtomicBool,
+    running: AtomicBool,
+    notifier: WorkerNotifier,
+    actor: RevisionGuard,
+    native: RevisionReader,
+    session: RevisionReader,
+}
+struct NativeLife {
+    native: RevisionSource,
+    session: RevisionSource,
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ButtplugTransportConfig {
@@ -92,7 +108,7 @@ fn payloads(incoming: bool) -> Result<PayloadPool, String> {
                     "buttplug-output-disposer"
                 },
                 if incoming { 128 } else { 512 },
-                if incoming { 32 * 1024 * 1024 } else { 4 * 1024 * 1024 },
+                32 * 1024 * 1024,
             )
             .map_err(|error| error.to_string())?,
         );
@@ -102,8 +118,8 @@ fn payloads(incoming: bool) -> Result<PayloadPool, String> {
 
 pub(crate) struct ButtplugTransportHandle {
     worker: BoundedWorker<AdmittedCommand, RetainedPayload<ButtplugWorkerEvent>>,
-    connected: Arc<AtomicBool>,
-    running: Arc<AtomicBool>,
+    shared: Arc<Shared>,
+    actor: Option<RevisionSource>,
     commands: PayloadPool,
     notifier: WorkerNotifier,
 }
@@ -138,40 +154,61 @@ impl ButtplugTransportHandle {
         let config = commands
             .try_retain(config, COMMAND_WEIGHT)
             .map_err(|_| "Buttplug configuration lifetime capacity exhausted")?;
-        let connected = Arc::new(AtomicBool::new(false));
-        let running = Arc::new(AtomicBool::new(true));
-        let ready = connected.clone();
-        let live = running.clone();
-        let wake = notifier.clone();
+        let actor = RevisionSource::default();
+        let life = NativeLife {
+            native: RevisionSource::default(),
+            session: RevisionSource::default(),
+        };
+        let shared = Arc::new(Shared {
+            connected: AtomicBool::new(false),
+            running: AtomicBool::new(true),
+            notifier: notifier.clone(),
+            actor: actor.reader().guard_at(0),
+            native: life.native.reader(),
+            session: life.session.reader(),
+        });
+        let state = shared.clone();
         let worker = BoundedWorker::spawn_notified(
             "buttplug-transport",
             slots,
             WorkerLimits {
                 command_items: 64,
-                command_weight: 256 * 1024,
+                command_weight: 4 * 1024 * 1024,
                 event_items: 64,
                 event_weight: 4 * 1024 * 1024,
             },
             notifier.clone(),
-            move |ctx| worker::run(ctx, config, events, ready, live, wake, open),
+            move |ctx| worker::run(ctx, config, events, state, life, open),
         )
         .map_err(|error| error.to_string())?;
         Ok(Self {
             worker,
-            connected,
-            running,
+            shared,
+            actor: Some(actor),
             commands,
             notifier,
         })
     }
-    pub(super) fn send(&self, command: ButtplugWorkerCommand) -> Result<CommandReceipt, String> {
+    #[cfg(test)]
+    fn send(&self, command: ButtplugWorkerCommand) -> Result<CommandReceipt, String> {
         admission::command(&command)?;
-        if !self.connected.load(Ordering::Acquire) || !self.running.load(Ordering::Acquire) {
+        if !self.shared.connected.load(Ordering::Acquire) || !self.shared.running.load(Ordering::Acquire) {
             return Err("Buttplug transport is not connected".into());
         }
         let source = self
             .commands
-            .try_retain(command, COMMAND_WEIGHT)
+            .try_retain(
+                Source {
+                    input: Input::Prepared(command),
+                    origin: input::Origin::Fixture,
+                    time: golden_core::engine::EngineTime {
+                        tick: 0,
+                        micro: 0,
+                        seq: 0,
+                    },
+                },
+                COMMAND_WEIGHT,
+            )
             .map_err(|_| "Buttplug command lifetime capacity exhausted")?;
         let (mut command, receipt) = AdmittedCommand::new(source, self.notifier.clone());
         command.arm();
@@ -185,6 +222,49 @@ impl ButtplugTransportHandle {
         })?;
         Ok(receipt)
     }
+    pub(super) fn capture(
+        &self,
+        input: Input,
+        producer: golden_core::engine::NodeWaker,
+        time: golden_core::engine::EngineTime,
+        permit: golden_io::RetirementPermit,
+    ) -> Result<RetainedPayload<Source>, String> {
+        if !self.shared.connected.load(Ordering::Acquire) {
+            return Err("Buttplug connection is opening or stopped; request was not admitted".into());
+        }
+        let source = Source {
+            input,
+            time,
+            origin: input::Origin::Engine {
+                producer,
+                _permit: permit,
+                guards: [
+                    self.shared.actor.clone(),
+                    self.shared.native.guard_at(0),
+                    self.shared.session.guard_at(self.shared.session.current()),
+                ],
+            },
+        };
+        let weight = source.weight();
+        if weight > 4 * 1024 * 1024 {
+            return Err("Buttplug captured input exceeds 4 MiB native mailbox capacity".into());
+        }
+        self.commands
+            .try_retain(source, weight)
+            .map_err(|_| "Buttplug source lifetime capacity exhausted".into())
+    }
+    pub(super) fn submit(&self, source: RetainedPayload<Source>) -> Result<CommandReceipt, RetainedPayload<Source>> {
+        let weight = source.weight();
+        let (mut command, receipt) = AdmittedCommand::new(source.clone(), self.notifier.clone());
+        command.arm();
+        self.worker.send_weighted(command, weight).map_err(|error| {
+            let (golden_io::PendingSendError::Full(mut command)
+            | golden_io::PendingSendError::Disconnected(mut command)) = error;
+            command.disarm();
+            source
+        })?;
+        Ok(receipt)
+    }
     pub(crate) fn drain_events(&self, output: &mut Vec<RetainedPayload<ButtplugWorkerEvent>>) -> PendingDrain {
         self.worker.drain_events(output, NonZeroUsize::MIN)
     }
@@ -192,10 +272,11 @@ impl ButtplugTransportHandle {
         self.worker.has_pending()
     }
     pub(crate) fn is_running(&self) -> bool {
-        self.running.load(Ordering::Acquire)
+        self.shared.running.load(Ordering::Acquire)
     }
     pub(crate) fn stop(&mut self) {
-        self.connected.store(false, Ordering::Release);
+        self.actor = None;
+        self.shared.connected.store(false, Ordering::Release);
         self.worker.cancel();
     }
 }

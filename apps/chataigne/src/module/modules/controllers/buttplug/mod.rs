@@ -1,4 +1,6 @@
+mod output;
 mod service;
+pub(crate) use output::dispatch as queue_buttplug_command;
 mod transport;
 
 use golden_core::{
@@ -11,15 +13,13 @@ use golden_core::{
 };
 
 use crate::app::module::common::buttplug::{
-    ButtplugControlRequest, ButtplugSetOutputRequest, ButtplugTargetRequest, BUTTPLUG_DEVICE_VARIANT_PREFIX,
-    BUTTPLUG_SET_OUTPUT_COMMAND_NODE_TYPE, BUTTPLUG_START_SCANNING_COMMAND_NODE_TYPE,
+    BUTTPLUG_DEVICE_VARIANT_PREFIX, BUTTPLUG_SET_OUTPUT_COMMAND_NODE_TYPE, BUTTPLUG_START_SCANNING_COMMAND_NODE_TYPE,
     BUTTPLUG_STOP_ALL_DEVICES_COMMAND_NODE_TYPE, BUTTPLUG_STOP_DEVICE_COMMAND_NODE_TYPE,
-    BUTTPLUG_STOP_SCANNING_COMMAND_NODE_TYPE, BUTTPLUG_TARGET_ALL, BUTTPLUG_TARGET_NONE, BUTTPLUG_TARGET_SELECTED,
+    BUTTPLUG_STOP_SCANNING_COMMAND_NODE_TYPE, BUTTPLUG_TARGET_ALL, BUTTPLUG_TARGET_NONE,
 };
 
 use self::transport::{
-    ButtplugConnectionStatus, ButtplugDeviceInfo, ButtplugTransportConfig, ButtplugTransportHandle,
-    ButtplugWorkerCommand, ButtplugWorkerEvent,
+    ButtplugConnectionStatus, ButtplugDeviceInfo, ButtplugTransportConfig, ButtplugTransportHandle, ButtplugWorkerEvent,
 };
 
 const BUTTPLUG_TARGET_WARNING_ID: &str = "buttplug_target_transport";
@@ -248,135 +248,6 @@ impl ButtplugModule {
         }
     }
 
-    fn queue_runtime_command(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        command: ButtplugWorkerCommand,
-        description: &str,
-    ) -> Result<String, String> {
-        let transport = self
-            .transport
-            .as_ref()
-            .ok_or_else(|| "Buttplug transport is not available".to_string())?;
-        if self.service.pending.len() >= 64 {
-            return Err("Buttplug module already owns 64 command results".into());
-        }
-        let receipt = transport.send(command)?;
-        self.service.pending.push_back(receipt);
-        self.base.emit_outgoing_traffic(ctx);
-        if self.base.log_outgoing_enabled() {
-            golden_core::log!(origin = self.id(); format!("Queued Buttplug {description}."));
-        }
-        Ok(format!("Queued Buttplug {description}"))
-    }
-
-    fn queue_set_output(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        mut request: ButtplugSetOutputRequest,
-    ) -> Result<String, String> {
-        request.target = self.resolve_target_alias(request.target.as_str());
-        request.value = request.value.clamp(0.0, self.max_output.get().clamp(0.0, 1.0));
-        let description = request.description.clone();
-        self.queue_runtime_command(ctx, ButtplugWorkerCommand::SetOutput(request), description.as_str())
-    }
-
-    fn queue_stop_device(&mut self, ctx: &mut ProcessCtx, request: ButtplugTargetRequest) -> Result<String, String> {
-        self.queue_runtime_command(
-            ctx,
-            ButtplugWorkerCommand::StopDevice {
-                target: self.resolve_target_alias(request.target.as_str()),
-            },
-            request.description.as_str(),
-        )
-    }
-
-    fn on_custom_event_inner(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
-        let Some(request) = crate::app::module_command::decode_module_command_request(&event) else {
-            return;
-        };
-        if request.module_id != self.id() || !BUTTPLUG_MODULE_COMMAND_TYPES.contains(&request.command_type.as_str()) {
-            return;
-        }
-
-        let result = match request.command_type.as_str() {
-            BUTTPLUG_SET_OUTPUT_COMMAND_NODE_TYPE => {
-                serde_json::from_value::<ButtplugSetOutputRequest>(request.payload)
-                    .map_err(|error| format!("invalid Buttplug set-output command payload: {error}"))
-                    .and_then(|payload| self.queue_set_output(ctx, payload))
-            }
-            BUTTPLUG_STOP_DEVICE_COMMAND_NODE_TYPE => serde_json::from_value::<ButtplugTargetRequest>(request.payload)
-                .map_err(|error| format!("invalid Buttplug stop-device command payload: {error}"))
-                .and_then(|payload| self.queue_stop_device(ctx, payload)),
-            BUTTPLUG_STOP_ALL_DEVICES_COMMAND_NODE_TYPE => {
-                let description = serde_json::from_value::<ButtplugControlRequest>(request.payload)
-                    .map(|payload| payload.description)
-                    .unwrap_or_else(|_| "stop all devices".to_string());
-                self.queue_runtime_command(ctx, ButtplugWorkerCommand::StopAllDevices, description.as_str())
-            }
-            BUTTPLUG_START_SCANNING_COMMAND_NODE_TYPE => {
-                let description = serde_json::from_value::<ButtplugControlRequest>(request.payload)
-                    .map(|payload| payload.description)
-                    .unwrap_or_else(|_| "start scanning".to_string());
-                self.queue_runtime_command(ctx, ButtplugWorkerCommand::StartScanning, description.as_str())
-            }
-            BUTTPLUG_STOP_SCANNING_COMMAND_NODE_TYPE => {
-                let description = serde_json::from_value::<ButtplugControlRequest>(request.payload)
-                    .map(|payload| payload.description)
-                    .unwrap_or_else(|_| "stop scanning".to_string());
-                self.queue_runtime_command(ctx, ButtplugWorkerCommand::StopScanning, description.as_str())
-            }
-            _ => Ok(String::new()),
-        };
-
-        if let Err(error) = result {
-            logerror!(format!(
-                "Failed to handle Buttplug command {:?}: {error}",
-                request.command_id
-            ));
-        }
-    }
-
-    fn handle_script_method(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        method: &str,
-        args: &[ParamValue],
-    ) -> Option<Result<(), String>> {
-        let result = match method {
-            "startScanning" => self
-                .queue_runtime_command(ctx, ButtplugWorkerCommand::StartScanning, "start scanning")
-                .map(|_| ()),
-            "stopScanning" => self
-                .queue_runtime_command(ctx, ButtplugWorkerCommand::StopScanning, "stop scanning")
-                .map(|_| ()),
-            "stopAllDevices" | "stopAll" => self
-                .queue_runtime_command(ctx, ButtplugWorkerCommand::StopAllDevices, "stop all devices")
-                .map(|_| ()),
-            "stopDevice" => self
-                .queue_stop_device(
-                    ctx,
-                    ButtplugTargetRequest {
-                        target: script_target_arg(args.first(), BUTTPLUG_TARGET_SELECTED),
-                        description: "stop device".to_string(),
-                    },
-                )
-                .map(|_| ()),
-            "setOutput" => script_set_output_request(args)?
-                .and_then(|request| self.queue_set_output(ctx, request))
-                .map(|_| ()),
-            "vibrate" | "rotate" | "oscillate" | "position" => script_named_output_request(method, args)?
-                .and_then(|request| self.queue_set_output(ctx, request))
-                .map(|_| ()),
-            "positionWithDuration" => script_position_with_duration_request(args)?
-                .and_then(|request| self.queue_set_output(ctx, request))
-                .map(|_| ()),
-            _ => return None,
-        };
-
-        Some(result)
-    }
-
     fn on_param_change_inner(&mut self, ctx: &mut ProcessCtx, param: NodeId) {
         if self.param_affects_transport(param) {
             self.transport_dirty = true;
@@ -422,6 +293,14 @@ impl ButtplugModule {
 
     fn refresh_selection_warning(&self, ctx: &mut ProcessCtx) {
         let selection = self.device.get_ref();
+        if selection.as_str().len() > 1024 {
+            self.set_device_warning(
+                ctx,
+                BUTTPLUG_SELECTION_WARNING_ID,
+                "Buttplug selection exceeds 1024 bytes",
+            );
+            return;
+        }
         if specific_device_selected(selection.as_str())
             && !self
                 .known_devices
@@ -439,15 +318,6 @@ impl ButtplugModule {
             );
         } else {
             self.clear_device_warning(ctx, BUTTPLUG_SELECTION_WARNING_ID);
-        }
-    }
-
-    fn resolve_target_alias(&self, target: &str) -> String {
-        let target = target.trim();
-        if target.is_empty() || target.eq_ignore_ascii_case(BUTTPLUG_TARGET_SELECTED) {
-            self.device.get_ref().as_str().to_string()
-        } else {
-            target.to_string()
         }
     }
 
@@ -485,6 +355,14 @@ impl ButtplugModule {
             transport.stop();
         }
         self.known_devices.clear();
+        if !self.service.outgoing.is_empty() {
+            logerror!(format!(
+                "Buttplug retired {} captured requests; they were not sent",
+                self.service.outgoing.len()
+            ));
+        }
+        self.service.outgoing.clear();
+        self.service.output_retry_at = None;
         self.service.retry_at = None;
         if let Some(wake) = &self.service.wake {
             wake.cancel_deadline();
@@ -594,11 +472,10 @@ impl Node for ButtplugModule {
         method: &str,
         args: &[ParamValue],
     ) -> Result<bool, String> {
-        if let Some(result) = self.handle_script_method(ctx, method, args) {
-            result?;
+        if let Some(method) = BUTTPLUG_SCRIPT_METHODS.iter().copied().find(|value| *value == method) {
+            self.capture_script(ctx, method, args)?;
             return Ok(true);
         }
-
         self.base.engine_call_script_method(ctx, method, args)
     }
 
@@ -634,7 +511,7 @@ impl Node for ButtplugModule {
     }
 
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
-        self.on_custom_event_inner(ctx, event);
+        self.accept_output(ctx, event);
     }
 
     fn project_create(node_type: &str) -> Option<Self> {
@@ -656,71 +533,6 @@ enum ButtplugIntParam {
 enum ButtplugStringParam {
     ServerName,
     LastEvent,
-}
-
-fn script_set_output_request(args: &[ParamValue]) -> Option<Result<ButtplugSetOutputRequest, String>> {
-    let Some(output) = args.first().and_then(ParamValue::as_str) else {
-        return Some(Err("method 'setOutput' expects an output type string".to_string()));
-    };
-    let Some(value) = args.get(1).and_then(param_value_as_number) else {
-        return Some(Err("method 'setOutput' expects a numeric value".to_string()));
-    };
-
-    Some(Ok(ButtplugSetOutputRequest {
-        target: script_target_arg(args.get(2), BUTTPLUG_TARGET_SELECTED),
-        output: output.clone(),
-        value,
-        duration_ms: script_duration_arg(args.get(3), 1000),
-        description: format!("set {output}"),
-    }))
-}
-
-fn script_named_output_request(method: &str, args: &[ParamValue]) -> Option<Result<ButtplugSetOutputRequest, String>> {
-    let Some(value) = args.first().and_then(param_value_as_number) else {
-        return Some(Err(format!("method '{method}' expects a numeric value")));
-    };
-
-    Some(Ok(ButtplugSetOutputRequest {
-        target: script_target_arg(args.get(1), BUTTPLUG_TARGET_SELECTED),
-        output: method.to_string(),
-        value,
-        duration_ms: script_duration_arg(args.get(2), 1000),
-        description: method.to_string(),
-    }))
-}
-
-fn script_position_with_duration_request(args: &[ParamValue]) -> Option<Result<ButtplugSetOutputRequest, String>> {
-    let Some(value) = args.first().and_then(param_value_as_number) else {
-        return Some(Err("method 'positionWithDuration' expects a numeric value".to_string()));
-    };
-
-    Some(Ok(ButtplugSetOutputRequest {
-        target: script_target_arg(args.get(2), BUTTPLUG_TARGET_SELECTED),
-        output: crate::app::module::common::buttplug::BUTTPLUG_OUTPUT_HW_POSITION_WITH_DURATION.to_string(),
-        value,
-        duration_ms: script_duration_arg(args.get(1), 1000),
-        description: "position with duration".to_string(),
-    }))
-}
-
-fn script_target_arg(value: Option<&ParamValue>, default: &str) -> String {
-    value
-        .and_then(ParamValue::as_str)
-        .map(|target| target.trim().to_string())
-        .filter(|target| !target.is_empty())
-        .unwrap_or_else(|| default.to_string())
-}
-
-fn script_duration_arg(value: Option<&ParamValue>, default: u32) -> u32 {
-    value
-        .and_then(ParamValue::as_int)
-        .and_then(|value| u32::try_from(value).ok())
-        .filter(|value| *value > 0)
-        .unwrap_or(default)
-}
-
-fn param_value_as_number(value: &ParamValue) -> Option<f64> {
-    value.as_float().or_else(|| value.as_int().map(f64::from))
 }
 
 fn normalize_buttplug_path(path: &str) -> String {

@@ -115,7 +115,7 @@ fn spawn(
     .unwrap()
 }
 fn connected(handle: &ButtplugTransportHandle) {
-    until(|| handle.connected.load(Ordering::Acquire));
+    until(|| handle.shared.connected.load(Ordering::Acquire));
 }
 
 #[test]
@@ -179,7 +179,11 @@ fn cancelled_suffix_completes_before_blocked_cleanup_and_started_action_is_not_r
     while let Ok(receipt) = handle.send(ButtplugWorkerCommand::StopAllDevices) {
         accepted.push(receipt);
     }
-    assert_eq!(accepted.len(), 32, "256 KiB byte limit precedes 64-item limit");
+    assert_eq!(
+        accepted.len(),
+        64,
+        "native mailbox refuses source 65 while one action is executing"
+    );
     handle.stop();
     release.send(()).unwrap();
     until(|| !handle.is_running() && first.complete() && accepted.iter().all(CommandReceipt::complete));
@@ -302,7 +306,7 @@ fn connection_failures_use_backoff_and_a_lost_session_recovers_without_replaying
     let receipt = handle.send(ButtplugWorkerCommand::StopAllDevices).unwrap();
     until(|| receipt.complete());
     control.fail_poll.store(true, Ordering::Release);
-    until(|| !handle.connected.load(Ordering::Acquire));
+    until(|| !handle.shared.connected.load(Ordering::Acquire));
     connected(&handle);
     assert_eq!(control.connects.load(Ordering::Acquire), 4);
     assert_eq!(control.actions.load(Ordering::Acquire), 1);
