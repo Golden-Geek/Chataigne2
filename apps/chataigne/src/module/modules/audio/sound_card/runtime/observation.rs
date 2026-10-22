@@ -5,6 +5,7 @@ use golden_audio::AudioObservationSnapshot;
 mod capture;
 mod inventory;
 mod publication;
+mod reads;
 mod telemetry;
 mod values;
 pub(super) use capture::retain_reader;
@@ -15,6 +16,7 @@ pub(in super::super) use capture::{
 pub(crate) use inventory::tests::{fixture_inventory, fixture_inventory_with_source};
 pub(crate) use inventory::{DeviceInventory, RouteValidationError};
 pub(super) use publication::TelemetryDelivery;
+pub(crate) use reads::ProjectionReads;
 pub(crate) use values::ValueCache;
 pub(super) use values::ValueDelivery;
 

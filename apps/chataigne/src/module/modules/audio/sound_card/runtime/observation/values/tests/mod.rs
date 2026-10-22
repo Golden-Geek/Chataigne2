@@ -7,6 +7,8 @@ use golden_core::{
     process_ctx::ExecutionPhase,
 };
 
+mod placement;
+
 fn view(snapshot: AudioObservationSnapshot, sequence: u64) -> ObservationView {
     super::super::capture::view_for_test(snapshot, sequence)
 }
@@ -34,10 +36,25 @@ fn failed_value_receipts_retry_unchanged_input_without_optimistic_cache_or_dupli
     let view = view(snapshot, 1);
     let mut values = ValueDelivery::default();
     let mut cache = ValueCache::prepare(&bindings).unwrap();
+    let reads = ProjectionReads::prepare(&engine.process_tree_snapshot(), engine.root, &bindings).unwrap();
     let mut first = context(&engine);
-    values.service(&mut first, &bindings, ConfigGeneration::INITIAL, &view, &mut cache);
+    values.service(
+        &mut first,
+        &bindings,
+        &reads,
+        ConfigGeneration::INITIAL,
+        &view,
+        &mut cache,
+    );
     let count = first.edits.pending.len();
-    values.service(&mut first, &bindings, ConfigGeneration::INITIAL, &view, &mut cache);
+    values.service(
+        &mut first,
+        &bindings,
+        &reads,
+        ConfigGeneration::INITIAL,
+        &view,
+        &mut cache,
+    );
     assert_eq!(first.edits.pending.len(), count);
     assert!(cache.applied_count(ConfigGeneration::INITIAL) == 0);
     engine.edits.push(Edit::SetParam {
@@ -49,7 +66,14 @@ fn failed_value_receipts_retry_unchanged_input_without_optimistic_cache_or_dupli
     assert!(engine.apply_edits().is_err());
     for _ in 0..8 {
         let mut ctx = context(&engine);
-        values.service(&mut ctx, &bindings, ConfigGeneration::INITIAL, &view, &mut cache);
+        values.service(
+            &mut ctx,
+            &bindings,
+            &reads,
+            ConfigGeneration::INITIAL,
+            &view,
+            &mut cache,
+        );
         engine.absorb_edits(&mut ctx).unwrap();
         engine.apply_edits().unwrap();
         if !values.has_pending() {
@@ -93,9 +117,17 @@ fn value_cursor_bounds_work_and_finishes_a_pinned_frame_under_continuous_new_fra
     }
     let mut values = ValueDelivery::default();
     let mut cache = ValueCache::prepare(&bindings).unwrap();
+    let reads = ProjectionReads::prepare(&engine.process_tree_snapshot(), engine.root, &bindings).unwrap();
     let first = view(snapshot.clone(), 1);
     let mut ctx = context(&engine);
-    values.service(&mut ctx, &bindings, ConfigGeneration::INITIAL, &first, &mut cache);
+    values.service(
+        &mut ctx,
+        &bindings,
+        &reads,
+        ConfigGeneration::INITIAL,
+        &first,
+        &mut cache,
+    );
     assert!(ctx.edits.pending.len() <= SERVICE_ITEMS);
     assert!(values.has_pending());
     engine.absorb_edits(&mut ctx).unwrap();
@@ -104,7 +136,14 @@ fn value_cursor_bounds_work_and_finishes_a_pinned_frame_under_continuous_new_fra
         snapshot.inputs.iter_mut().for_each(|channel| channel.rms_linear = 0.75);
         let newest = view(snapshot.clone(), sequence);
         let mut ctx = context(&engine);
-        values.service(&mut ctx, &bindings, ConfigGeneration::INITIAL, &newest, &mut cache);
+        values.service(
+            &mut ctx,
+            &bindings,
+            &reads,
+            ConfigGeneration::INITIAL,
+            &newest,
+            &mut cache,
+        );
         assert!(ctx.edits.pending.len() <= SERVICE_ITEMS);
         engine.absorb_edits(&mut ctx).unwrap();
         engine.apply_edits().unwrap();
@@ -146,15 +185,27 @@ fn a_reconfigured_binding_never_uses_an_older_receipt_as_its_value_cache() {
     );
     let mut values = ValueDelivery::default();
     let mut cache = ValueCache::prepare(&bindings).unwrap();
+    let reads = ProjectionReads::prepare(&engine.process_tree_snapshot(), engine.root, &bindings).unwrap();
     let mut old = context(&engine);
-    values.service(&mut old, &bindings, ConfigGeneration::INITIAL, &view, &mut cache);
+    values.service(
+        &mut old,
+        &bindings,
+        &reads,
+        ConfigGeneration::INITIAL,
+        &view,
+        &mut cache,
+    );
     values.reset();
     engine.absorb_edits(&mut old).unwrap();
-    engine.apply_edits().unwrap();
+    assert!(
+        engine.apply_edits().is_err(),
+        "old queued values must fail after reconfiguration"
+    );
     let mut current = context(&engine);
     values.service(
         &mut current,
         &bindings,
+        &reads,
         ConfigGeneration::INITIAL.next(),
         &view,
         &mut cache,
@@ -164,7 +215,12 @@ fn a_reconfigured_binding_never_uses_an_older_receipt_as_its_value_cache() {
         "an old receipt must not suppress current publication"
     );
     assert_eq!(
-        current.edits.pending.len(),
+        current
+            .edits
+            .pending
+            .iter()
+            .filter(|request| matches!(request.edit, Edit::SetParam { .. }))
+            .count(),
         1,
         "the last valid native plan remains observable while a new configuration is pending"
     );
@@ -174,6 +230,7 @@ fn a_reconfigured_binding_never_uses_an_older_receipt_as_its_value_cache() {
     values.service(
         &mut settled,
         &bindings,
+        &reads,
         ConfigGeneration::INITIAL.next(),
         &view,
         &mut cache,
@@ -182,19 +239,23 @@ fn a_reconfigured_binding_never_uses_an_older_receipt_as_its_value_cache() {
 }
 
 #[test]
-fn one_missing_value_target_cannot_poison_its_valid_suffix_or_spin_actor_continuations() {
-    let mut engine = Engine::new(Parameter::new(
-        "value",
-        ParamValue::Float(0.0),
-        ParameterChangeCheck::ValueChange,
-    ));
-    let missing = NodeId(u64::MAX);
+fn one_rebound_value_target_cannot_poison_its_valid_suffix_or_spin_actor_continuations() {
+    let mut engine: Engine<crate::app::AppNode> = Engine::new(Folder::new("root").into());
+    let mut nodes = Vec::new();
+    for label in ["stale", "valid"] {
+        engine.add_node(
+            Parameter::new(label, ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into(),
+            None,
+        );
+        engine.apply_edits().unwrap();
+        nodes.push(engine.nodes.get(engine.root).unwrap().node_data().last_child.unwrap());
+    }
     let mut bindings = SoundCardValueBindings {
-        input_master_level: Some(missing),
-        output_master_level: Some(engine.root),
+        input_master_level: Some(nodes[0]),
+        output_master_level: Some(nodes[1]),
         ..Default::default()
     };
-    bindings.runtime_values.extend([missing, engine.root]);
+    bindings.runtime_values.extend(nodes.iter().copied());
     let view = view(
         AudioObservationSnapshot {
             input_global_max_rms: 0.5,
@@ -205,9 +266,25 @@ fn one_missing_value_target_cannot_poison_its_valid_suffix_or_spin_actor_continu
     );
     let mut values = ValueDelivery::default();
     let mut cache = ValueCache::prepare(&bindings).unwrap();
+    let reads = ProjectionReads::prepare(&engine.process_tree_snapshot(), engine.root, &bindings).unwrap();
+    engine.edits.push(Edit::PatchMeta {
+        node: nodes[0],
+        patch: golden_core::node::NodeMetaPatch {
+            short_name: Some("rebound".into()),
+            ..Default::default()
+        },
+    });
+    engine.apply_edits().unwrap();
     for _ in 0..12 {
         let mut ctx = context(&engine);
-        values.service(&mut ctx, &bindings, ConfigGeneration::INITIAL, &view, &mut cache);
+        values.service(
+            &mut ctx,
+            &bindings,
+            &reads,
+            ConfigGeneration::INITIAL,
+            &view,
+            &mut cache,
+        );
         assert!(ctx.edits.pending.len() <= SERVICE_ITEMS);
         engine.absorb_edits(&mut ctx).unwrap();
         let _ = engine.apply_edits();
@@ -217,10 +294,22 @@ fn one_missing_value_target_cannot_poison_its_valid_suffix_or_spin_actor_continu
     }
     assert!(!values.has_pending());
     assert_eq!(cache.applied_count(ConfigGeneration::INITIAL), 1);
-    assert!(cache.matches(engine.root, ConfigGeneration::INITIAL, &ParamValue::Float(0.75)));
+    assert!(values.take_failure(), "isolated rejection requests fresh preparation");
+    assert!(
+        !values.take_failure(),
+        "failure is a consumable signal, not an actor poll loop"
+    );
+    assert!(cache.matches(nodes[1], ConfigGeneration::INITIAL, &ParamValue::Float(0.75)));
     for _ in 0..32 {
         let mut settled = context(&engine);
-        values.service(&mut settled, &bindings, ConfigGeneration::INITIAL, &view, &mut cache);
+        values.service(
+            &mut settled,
+            &bindings,
+            &reads,
+            ConfigGeneration::INITIAL,
+            &view,
+            &mut cache,
+        );
         assert!(
             settled.edits.pending.is_empty(),
             "permanent failures wait for a new native capture"

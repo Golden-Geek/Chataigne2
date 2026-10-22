@@ -208,6 +208,64 @@ fn precondition_storage_has_a_fixed_admission_bound() {
 }
 
 #[test]
+fn structural_reads_survive_values_constraints_and_warnings_but_fence_aliases() {
+    let (mut engine, source, _) = fixture();
+    let guard = NodeReadGuard::capture_structure(&engine.build_process_tree_snapshot(), source).unwrap();
+    write(&mut engine, source, 3.0);
+    engine.edits.push(Edit::SetParamConstraints {
+        node: source,
+        constraints: ParameterConstraints {
+            range: RangeConstraint::uniform(Some(0.0), Some(10.0)),
+            ..Default::default()
+        },
+    });
+    engine.edits.push(Edit::SetNodeWarning {
+        node: source,
+        warning: crate::node::NodeWarning {
+            id: "status".into(),
+            message: "retrying".into(),
+            detail: None,
+        },
+    });
+    check(&mut engine, vec![guard], vec![]);
+    engine.apply_edits().unwrap();
+    engine.edits.push(Edit::PatchMeta {
+        node: source,
+        patch: NodeMetaPatch {
+            short_name: Some("different".into()),
+            ..Default::default()
+        },
+    });
+    check(&mut engine, vec![guard], vec![]);
+    assert!(engine.apply_edits().is_err());
+}
+
+#[test]
+fn structural_reads_fence_moves_lifetimes_and_overlay_epochs() {
+    let (mut engine, source, target) = fixture();
+    let snapshot = engine.build_process_tree_snapshot();
+    let guard = NodeReadGuard::capture_structure(&snapshot, source).unwrap();
+    let overlay = snapshot.with_param_values([(source, ParamValue::Float(2.0))]);
+    check(
+        &mut engine,
+        vec![NodeReadGuard::capture_structure(&overlay, source).unwrap()],
+        vec![],
+    );
+    assert!(engine.apply_edits().is_err());
+    engine.edits.push(Edit::MoveNode {
+        node: source,
+        new_parent: target,
+        new_prev_sibling: None,
+    });
+    check(&mut engine, vec![guard], vec![]);
+    assert!(engine.apply_edits().is_err());
+    let fresh = NodeReadGuard::capture_structure(&engine.build_process_tree_snapshot(), source).unwrap();
+    engine.edits.push(Edit::RemoveNode { node: source });
+    check(&mut engine, vec![fresh], vec![]);
+    assert!(engine.apply_edits().is_err());
+}
+
+#[test]
 fn identity_reads_tolerate_presentation_writes_but_still_fence_epoch_uuid_and_enable() {
     let (mut engine, source, _) = fixture();
     let snapshot = engine.build_process_tree_snapshot();

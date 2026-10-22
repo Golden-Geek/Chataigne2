@@ -36,6 +36,13 @@ The allocation reservation includes the complete revision entry. Querying a toke
 the graph; edits do not walk ancestors to update it. These are in-process read identities, not
 protocol, persistence or application-domain types.
 
+`NodeReadGuard::capture_structure` turns a snapshot's structure read into a node-local
+application-time precondition. It tolerates value/control/constraint and presentation changes.
+Path-dependent readers must capture every ancestor they depend on; one node guard does not fence
+its ancestors or descendants. Core checks each guarded node against its local counter without
+walking the tree or rebuilding a snapshot. Ordinary authored and identity-only reads retain their
+separate semantics.
+
 ## Rules
 
 - `src/` is the real crate tree. Do not place runtime modules beside `src/` and reattach them with `#[path]`.
@@ -62,6 +69,6 @@ protocol, persistence or application-domain types.
 
 ## Split Guidance
 
-- Split files by ownership and reason to change, not by macro category or by “all structs in one file”.
+- Split files by ownership and reason to change, not by macro category or by ï¿½all structs in one fileï¿½.
 - When a module starts carrying multiple independent node families, move them into sibling files under the same folder.
 - Favor predictable placement over barrel-heavy indirection. Re-exports can flatten the public API, but the disk layout must stay obvious.

@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 
 use golden_audio::{AnalysisResult, AudioObservationSnapshot, ConfigGeneration};
 use golden_core::{
-    edit::{Edit, EditCompletion, EditCompletionStatus, EditQueue},
+    edit::{Edit, EditCompletion, EditCompletionStatus, EditPreconditions, EditQueue},
     node::NodeId,
     parameter::{ParamValue, ParameterEventBehaviour},
     process_ctx::ProcessCtx,
@@ -11,6 +11,7 @@ use golden_io::RetainedPayload;
 
 use super::super::SoundCardValueBindings;
 use super::capture::ObservationView;
+use super::ProjectionReads;
 
 mod cache;
 pub(crate) use cache::ValueCache;
@@ -23,6 +24,8 @@ pub(in super::super) struct ValueDelivery {
     retry: VecDeque<PendingValue>,
     frame: Option<Frame>,
     completed: Option<u64>,
+    revision: golden_io::RevisionSource,
+    failed: bool,
 }
 
 struct PendingValue {
@@ -97,9 +100,11 @@ impl Frame {
 
 impl ValueDelivery {
     pub(in super::super) fn reset(&mut self) {
+        self.revision.advance();
         self.frame = None;
         self.completed = None;
         self.retry.clear();
+        self.failed = false;
         // Existing receipts settle without populating a new generation's cache.
         // Their bounded payloads remain alive until service sees their disposition.
     }
@@ -108,10 +113,15 @@ impl ValueDelivery {
         self.frame.is_some() || !self.pending.is_empty() || !self.retry.is_empty()
     }
 
+    pub(in super::super) fn take_failure(&mut self) -> bool {
+        std::mem::take(&mut self.failed)
+    }
+
     pub(in super::super) fn service(
         &mut self,
         ctx: &mut ProcessCtx,
         bindings: &SoundCardValueBindings,
+        reads: &ProjectionReads,
         generation: ConfigGeneration,
         view: &ObservationView,
         cache: &mut ValueCache,
@@ -131,6 +141,8 @@ impl ValueDelivery {
                     if pending.generation == generation && !pending.isolated {
                         pending.isolated = true;
                         self.retry.push_back(pending);
+                    } else if pending.generation == generation {
+                        self.failed = true;
                     }
                 }
             }
@@ -141,15 +153,15 @@ impl ValueDelivery {
         // A failing cell can discard its queued suffix. Retry failed cells one
         // at a time, once per frame, so one missing target cannot poison that
         // suffix again or create an endless actor continuation.
-        while budget > 0 {
+        while budget > 1 {
             let Some(retry) = self.retry.pop_front() else {
                 break;
             };
-            budget -= 1;
+            budget -= 2;
             if retry.generation != generation || !bindings.is_runtime_value(retry.node) {
                 continue;
             }
-            self.stage(ctx, retry.node, retry.value, generation, true);
+            self.stage(ctx, reads, retry.node, retry.value, generation, true);
             return;
         }
         if !self.retry.is_empty() {
@@ -176,8 +188,9 @@ impl ValueDelivery {
                 position: 0,
             });
         }
-        while budget > 0 {
-            budget -= 1;
+        // Each scalar needs a path fence and a write in the Core edit queue.
+        while budget > 1 {
+            budget -= 2;
             let frame = self.frame.as_mut().expect("active frame");
             let Some((node, value)) = frame.next(bindings) else {
                 if self.pending.is_empty() {
@@ -195,19 +208,29 @@ impl ValueDelivery {
             if cache.matches(node, generation, &value) {
                 continue;
             }
-            self.stage(ctx, node, value, generation, false);
+            self.stage(ctx, reads, node, value, generation, false);
         }
     }
 
     fn stage(
         &mut self,
         ctx: &mut ProcessCtx,
+        reads: &ProjectionReads,
         node: NodeId,
         value: ParamValue,
         generation: ConfigGeneration,
         isolated: bool,
     ) {
+        let Some(path) = reads.path(node) else {
+            self.failed = true;
+            return;
+        };
+        let reader = self.revision.reader();
         let mut edit = EditQueue::new();
+        edit.push(Edit::CheckPreconditions {
+            preconditions: EditPreconditions::new(path.to_vec(), vec![reader.guard_at(reader.current())])
+                .expect("native-prepared path has at most 32 reads"),
+        });
         edit.push(Edit::SetParam {
             node,
             value: value.clone(),

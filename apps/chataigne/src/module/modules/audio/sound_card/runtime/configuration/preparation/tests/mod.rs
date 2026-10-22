@@ -7,6 +7,7 @@ use golden_core::{
 };
 use std::time::{Duration, Instant};
 
+mod application;
 mod choices;
 mod source_lifetime;
 

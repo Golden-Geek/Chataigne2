@@ -160,10 +160,16 @@ impl<T: Node> Engine<T> {
                                 self.nodes.get(guard.node).is_some_and(|node| {
                                     node.node_data().meta.uuid == guard.uuid
                                         && node.node_data().effective_enabled == guard.enabled
-                                        && if guard.authored {
-                                            self.tree_revisions.unchanged_since(guard.node, guard.revision)
-                                        } else {
-                                            self.tree_revisions.same_epoch(guard.revision)
+                                        && match guard.revision {
+                                            crate::edit::ReadRevision::Authored(revision) => {
+                                                self.tree_revisions.unchanged_since(guard.node, revision)
+                                            }
+                                            crate::edit::ReadRevision::Structure(revision) => {
+                                                self.tree_revisions.structure_unchanged_since(guard.node, revision)
+                                            }
+                                            crate::edit::ReadRevision::Identity(revision) => {
+                                                self.tree_revisions.same_epoch(revision)
+                                            }
                                         }
                                 })
                             });

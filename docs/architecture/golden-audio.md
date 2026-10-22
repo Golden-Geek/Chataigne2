@@ -238,7 +238,7 @@ Analysis is split at the callback boundary:
 - The render plan resolves stable tap IDs and logical input-channel IDs to compact indices.
 - The callback accumulates input-channel RMS/peak before monitoring and output-channel RMS/peak
   after output/master gain. RMS windows are frame-counted and therefore independent of backend
-  callback partitioning; lock-free meter snapshots publish at the configured 1–60 Hz rate.
+  callback partitioning; lock-free meter snapshots publish at the configured 1ï¿½60 Hz rate.
 - Tap capture copies newest bounded windows into a preallocated frame pool. A full worker queue
   retains the newest pending frame and counts pressure instead of blocking audio.
 - One dedicated worker performs YIN pitch detection and real-valued FFT analysis. It owns all
@@ -252,7 +252,7 @@ scratch ownership explicit and passed the deterministic tone, harmonic, detuning
 low-amplitude, and chirp suite.
 
 Spectrum configuration supports power-of-two sizes from 256 through 16,384 frames, Hann and
-Blackman-Harris windows, zero/50/75-percent overlap, linear and logarithmic 1–256-band geometry,
+Blackman-Harris windows, zero/50/75-percent overlap, linear and logarithmic 1ï¿½256-band geometry,
 Nyquist clipping, normalized single-sided band amplitude, and attack/release smoothing. Band
 identity is the stable band index; frequency-range changes update its low, center, and high metadata.
 
@@ -441,13 +441,23 @@ advances only after each edit applies. Each prepared binding plan owns a fixed c
 the worker and charged through final background disposal. Generation tags avoid whole-cache clearing,
 and inline scalar/short-text slots cannot grow during actor service. The inspection closure must
 not block or reenter the reader.
+The configuration worker also prepares a fixed index of structural read paths for value targets.
+Each path reaches the owning module and has at most 32 nodes; all paths together have a 32 MiB
+admission limit and contribute to the configuration's existing retained-byte charge. A scalar
+publication queues its path precondition before its write. Core rejects moved/rebound targets or
+ancestors at application time while permitting ordinary value and presentation changes. The actor
+borrows this index without taking a tree snapshot. Its 64-item service budget includes both fence
+and write entries. A publication clock invalidates queued values when another configuration is
+submitted or acknowledged, or the runtime stops; retiring the publisher also closes its clock.
+Receipts advance the value cache only after application. Failed prefixes retry cells in isolation
+once, then request fresh configuration preparation through the existing coarse retry path.
 The native owner also captures immutable inspector metadata with sorted physical-channel indices
 for route intents, with admission independent of metering/analysis capture. Metering-only captures
 reuse it; actor admission borrows keys and checks the atomic native device revision
 before and after lookup. Device changes reject stale route requests until a current capture is
 available. Route and device-choice readers share the same retained inventory through background
 disposal. Choice synchronization retries missing inventory independently of metering pressure.
-Device/numeric option construction, serialization and comparison run on the shared preparation
+Device/numeric option construction, serialization and planning comparisons run on the shared preparation
 worker. The actor moves at most four prepared patches, waits for their Core receipt, and prepares
 fresh state after a failed prefix. Native enum domains retain their options, membership indexes and
 cached allocation charge under a separate lifetime quota through exported constraints and DTOs.
@@ -461,10 +471,14 @@ hold no device payload and never lock the observation snapshot. A successful che
 boundary, not a lock on later changes. Core native Parameter authored snapshots and generated
 inherited snapshots preserve the original enum domain and native admission through callback
 restoration and undo/redo. Kind coercion borrows unchanged inputs or moves accepted storage;
-constraint replacement revalidates the current value in place. Project JSON and wire codecs remain
-separate. Remaining conversion parsing/formatting, distinct-domain equality, non-enum snapshot
-copies, custom JSON codecs, constraint projection/disposal costs and other native-execution fences
-remain open.
+constraint replacement revalidates the current value in place. Core still performs exact semantic
+comparison of distinct domains during constraint application and event emission. Sound Card bounds
+this work to 32768 entries / 32 MiB per domain and four patches / 64 MiB per prepared plan; unchanged
+domains are omitted by the worker. The explicit capped-catalog fixture measures this complete Core
+application path, including late-entry changes, separately from native preparation. See the current
+ledger for samples and qualification limits. This is change-driven work, not idle actor polling.
+Project JSON and wire codecs remain separate. Whole-product snapshot/DTO and custom-codec scaling
+remain P16 qualification; the audio gain/configuration ordering barrier remains P04.
 Capture/telemetry overload has a separate visible warning and leaves control admission independent.
 App-owned selection/probe planning, choice planning and configuration conversion run on one bounded preparation worker.
 Queued/running requests lease their source snapshots; ready plans retain output storage admission

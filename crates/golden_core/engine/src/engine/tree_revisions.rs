@@ -141,6 +141,12 @@ impl TreeRevisions {
             && self.by_node.get(&node).map_or(0, |revision| revision.authored) <= captured.sequence
     }
 
+    pub(super) fn structure_unchanged_since(&self, node: NodeId, captured: SubtreeStructureRevision) -> bool {
+        captured.node == node
+            && self.same_epoch(captured.revision)
+            && self.by_node.get(&node).map_or(0, |revision| revision.structure) <= captured.revision.sequence
+    }
+
     pub(super) fn next_change(&mut self) -> u64 {
         self.sequence = self.sequence.checked_add(1).expect("tree revision sequence exhausted");
         self.sequence

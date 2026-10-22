@@ -1,6 +1,7 @@
 use super::*;
 use crate::{ParamValue, ParameterConstraints};
 
+mod comparison;
 mod membership;
 mod retained;
 

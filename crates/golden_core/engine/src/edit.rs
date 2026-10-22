@@ -11,6 +11,7 @@ mod completion;
 mod preconditions;
 pub(crate) use completion::CompletionToken;
 pub use completion::{EditCompletion, EditCompletionStatus};
+pub(crate) use preconditions::ReadRevision;
 pub use preconditions::{EditPreconditions, NodeReadGuard};
 
 /// Deferred mutable node callback executed during edit application.

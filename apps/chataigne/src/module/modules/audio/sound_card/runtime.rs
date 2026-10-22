@@ -366,8 +366,8 @@ impl SoundCardRuntime {
         self.pending_application.is_some()
     }
 
-    pub(super) fn take_warning_failure(&mut self) -> bool {
-        self.warnings.take_failure()
+    pub(super) fn take_projection_failure(&mut self) -> bool {
+        self.warnings.take_failure() | self.values.take_failure()
     }
 
     pub(super) fn prepare_selection(
@@ -470,6 +470,7 @@ impl SoundCardRuntime {
             .submit(&self.control, generation)
             .map_err(|error| error.to_string())?;
         self.generation = generation;
+        self.values.reset();
         self.preparation = None;
         self.selection_preparation = None;
         self.preparation_quiescing = false;
@@ -562,8 +563,14 @@ impl SoundCardRuntime {
         if !configuring {
             if let Some(active) = &self.active_configuration {
                 let mut cache = active.value_cache.lock().unwrap_or_else(|p| p.into_inner());
-                self.values
-                    .service(ctx, &active.bindings, self.binding_generation, &observation, &mut cache);
+                self.values.service(
+                    ctx,
+                    &active.bindings,
+                    &active.projection_reads,
+                    self.binding_generation,
+                    &observation,
+                    &mut cache,
+                );
             }
         }
         self.telemetry.service(ctx, module, &observation);
@@ -579,6 +586,7 @@ impl SoundCardRuntime {
 
     pub(super) fn stop(&mut self) {
         self.command_lifetime.store(false, Ordering::Release);
+        self.values.reset();
         // Request ordered shutdown promptly when the control queue has room;
         // the native owner handles full queues and all blocking cleanup.
         let _ = self.control.shutdown();

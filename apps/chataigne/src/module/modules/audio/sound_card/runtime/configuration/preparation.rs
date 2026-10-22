@@ -92,6 +92,7 @@ pub(crate) struct PreparedConfiguration {
     pub(crate) bindings: SoundCardValueBindings,
     pub(crate) warnings: RetainedPayload<WarningPlan>,
     pub(crate) value_cache: Mutex<super::super::observation::ValueCache>,
+    pub(crate) projection_reads: super::super::observation::ProjectionReads,
 }
 impl PreparedConfiguration {
     /// The preparing lease remains borrowed during rejection, so dropping the
@@ -109,14 +110,18 @@ impl PreparedConfiguration {
     fn from_built(
         built: BuiltSoundCardConfiguration,
         warnings: RetainedPayload<WarningPlan>,
+        snapshot: &ProcessTreeSnapshot,
+        module: NodeId,
     ) -> Result<Self, &'static str> {
         let value_cache = Mutex::new(super::super::observation::ValueCache::prepare(&built.bindings)?);
+        let projection_reads = super::super::observation::ProjectionReads::prepare(snapshot, module, &built.bindings)?;
         Ok(Self {
             configuration: Arc::new(built.configuration),
             sample_rate: built.sample_rate,
             bindings: built.bindings,
             warnings,
             value_cache,
+            projection_reads,
         })
     }
     fn weight(&self) -> Option<usize> {
@@ -135,6 +140,7 @@ impl PreparedConfiguration {
                 .unwrap_or_else(|p| p.into_inner())
                 .retained_heap_bytes(),
         )?;
+        bytes = bytes.checked_add(self.projection_reads.retained_heap_bytes())?;
         (bytes <= MAX_RESULT_BYTES).then_some(bytes)
     }
 }
@@ -408,7 +414,7 @@ impl Job<PreparedConfiguration> {
                 "Sound Card warning-plan lifetime capacity exhausted".into(),
             )
         })?;
-        let data = PreparedConfiguration::from_built(built, warnings).map_err(reject)?;
+        let data = PreparedConfiguration::from_built(built, warnings, &self.snapshot, self.module).map_err(reject)?;
         let bytes = data
             .weight()
             .ok_or_else(|| reject("Sound Card prepared configuration exceeds 64 MiB"))?;

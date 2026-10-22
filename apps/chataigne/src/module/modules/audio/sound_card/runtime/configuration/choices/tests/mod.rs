@@ -3,6 +3,8 @@ use crate::app::module_modules_audio_sound_card::{runtime::observation::fixture_
 use golden_audio::{AudioBackend, AudioDeviceCatalogEntry, AudioDeviceInspectorState, NullBackend};
 use golden_core::edit::Edit;
 
+mod publication;
+
 fn inventory() -> DeviceInventory {
     let devices = NullBackend.discover().unwrap();
     let device_catalog = devices.iter().map(AudioDeviceCatalogEntry::from).collect();

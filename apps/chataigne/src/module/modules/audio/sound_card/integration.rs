@@ -422,7 +422,7 @@ impl SoundCardModule {
             return;
         };
         let (observation, events) = runtime.poll(ctx, module, !had_pending);
-        if runtime.take_warning_failure() && !self.configuration_dirty {
+        if runtime.take_projection_failure() && !self.configuration_dirty {
             if let Some(wake) = &self.runtime_wake {
                 runtime.schedule_preparation_retry(wake);
             }

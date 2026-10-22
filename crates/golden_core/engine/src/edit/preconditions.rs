@@ -1,17 +1,23 @@
 use crate::{
     node::{NodeId, NodeUuid},
-    process_ctx::{ProcessTreeSnapshot, SubtreeRevision},
+    process_ctx::{ProcessTreeSnapshot, SubtreeRevision, SubtreeStructureRevision},
 };
 
-/// A read of one node's identity, effective enabled flag and optionally its
-/// authored state. Descendant contents require their own guards.
+/// A read of one node's identity, effective enabled flag and optional authored
+/// or structural state. Descendants and ancestors require their own guards.
 #[derive(Clone, Copy, Debug)]
 pub struct NodeReadGuard {
     pub(crate) node: NodeId,
     pub(crate) uuid: NodeUuid,
     pub(crate) enabled: bool,
-    pub(crate) revision: SubtreeRevision,
-    pub(crate) authored: bool,
+    pub(crate) revision: ReadRevision,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum ReadRevision {
+    Authored(SubtreeRevision),
+    Structure(SubtreeStructureRevision),
+    Identity(SubtreeRevision),
 }
 
 impl NodeReadGuard {
@@ -22,8 +28,7 @@ impl NodeReadGuard {
             node,
             uuid: state.uuid,
             enabled: state.enabled,
-            revision: snapshot.subtree_revision(node)?,
-            authored: true,
+            revision: ReadRevision::Authored(snapshot.subtree_revision(node)?),
         })
     }
 
@@ -31,7 +36,16 @@ impl NodeReadGuard {
     /// Use this when labels, warnings and other authored metadata are not inputs.
     pub fn capture_identity(snapshot: &ProcessTreeSnapshot, node: NodeId) -> Option<Self> {
         let mut guard = Self::capture(snapshot, node)?;
-        guard.authored = false;
+        guard.revision = ReadRevision::Identity(snapshot.subtree_revision(node)?);
+        Some(guard)
+    }
+
+    /// Captures node-local topology, named-selector metadata and identity while
+    /// allowing scalar values, constraints and presentation to change. Capture
+    /// each ancestor too when a read depends on a path through the tree.
+    pub fn capture_structure(snapshot: &ProcessTreeSnapshot, node: NodeId) -> Option<Self> {
+        let mut guard = Self::capture(snapshot, node)?;
+        guard.revision = ReadRevision::Structure(snapshot.subtree_structure_revision(node)?);
         Some(guard)
     }
 }
