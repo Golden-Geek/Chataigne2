@@ -1,6 +1,9 @@
+mod payload;
+mod service;
 mod transport;
+use payload::*;
 
-use std::sync::mpsc::TryRecvError;
+use std::collections::VecDeque;
 
 use golden_core::{
     engine::NodeExecutionRule,
@@ -12,20 +15,18 @@ use golden_core::{
 };
 
 use crate::app::module::common::{
-    mqtt::{
-        mqtt_qos_enum_options, MqttPublishRequest, MqttQos, MQTT_PUBLISH_COMMAND_NODE_TYPE,
-        MQTT_QOS_AT_MOST_ONCE,
+    mqtt::{mqtt_qos_enum_options, MqttPublishRequest, MqttQos, MQTT_PUBLISH_COMMAND_NODE_TYPE, MQTT_QOS_AT_MOST_ONCE},
+    received_values::{
+        apply_received_value_payload, ReceivedValueApplyOptions, ReceivedValueApplyResult, ReceivedValuePayload,
     },
-    received_values::{apply_received_value_payload, ReceivedValueApplyOptions, ReceivedValueApplyResult, ReceivedValuePayload},
     streaming::parser::parse_scalar_value,
 };
 
 use self::transport::{
-    MqttConnectionStatus, MqttCredentials, MqttReceivedPublish, MqttSubscriptionConfig,
-    MqttTransportConfig, MqttTransportHandle, MqttWorkerEvent,
+    MqttConnectionStatus, MqttCredentials, MqttReceivedPublish, MqttSubscriptionConfig, MqttTransportConfig,
+    MqttTransportHandle, MqttWorkerEvent, PublishReceipt, PublishStatus,
 };
 
-const MQTT_MODULE_UPDATE_RATE_HZ: u32 = 120;
 const MQTT_TARGET_WARNING_ID: &str = "mqtt_target_transport";
 const MQTT_SUBSCRIPTION_NODE_TYPE: &str = "mqtt_subscription";
 const MQTT_SUBSCRIPTIONS_DECL_ID: &str = "subscriptions";
@@ -143,23 +144,40 @@ pub struct MqttModule {
     transport: Option<MqttTransportHandle>,
     last_transport_config: Option<MqttTransportConfig>,
     transport_dirty: bool,
-    pending_incoming_messages: Vec<MqttReceivedPublish>,
+    pending_incoming_messages: Vec<golden_io::RetainedPayload<MqttReceivedPublish>>,
+    pending_publishes: VecDeque<(PublishReceipt, String)>,
+    wake: Option<crate::app::module::common::worker_wake::ModuleWake>,
+    retry_at: Option<std::time::Instant>,
+    retry_backoff: golden_io::ReconnectBackoff,
 }
 
 impl MqttModule {
     pub fn create() -> Self {
-        Self::new(crate::app::ModuleBase::new(), None, None, true, Vec::new())
+        Self::new(
+            crate::app::ModuleBase::new(),
+            None,
+            None,
+            true,
+            Vec::new(),
+            VecDeque::new(),
+            None,
+            None,
+            golden_io::ReconnectBackoff::new(std::time::Duration::from_millis(250), std::time::Duration::from_secs(8)),
+        )
     }
 
     #[cfg(test)]
     pub(crate) fn disable_transport_for_test(&mut self) {
         self.stop_transport();
         self.transport_dirty = false;
+        self.retry_at = None;
     }
 
     #[cfg(test)]
     pub(crate) fn enqueue_incoming_message_for_test(&mut self, message: MqttReceivedPublish) {
-        self.pending_incoming_messages.push(message);
+        self.pending_incoming_messages
+            .push(MqttTransportHandle::retain_for_test(message));
+        self.request_service();
     }
 
     #[cfg(test)]
@@ -173,6 +191,7 @@ impl MqttModule {
 
     fn refresh_transport(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
         self.transport_dirty = false;
+        self.retry_at = None;
 
         if !self.module_enabled(snapshot) {
             self.stop_transport();
@@ -200,10 +219,13 @@ impl MqttModule {
 
         self.stop_transport();
 
-        match MqttTransportHandle::spawn(config.clone()) {
+        let Some(wake) = &self.wake else { return };
+        let notifier = wake.notifier.clone();
+        match MqttTransportHandle::spawn(config.clone(), self.id(), notifier) {
             Ok(handle) => {
                 self.transport = Some(handle);
                 self.last_transport_config = Some(config);
+                self.retry_backoff.reset();
                 self.clear_target_warning(ctx);
                 self.base.set_connected(ctx, false);
             }
@@ -213,6 +235,7 @@ impl MqttModule {
                 self.last_transport_config = None;
                 self.set_target_warning(ctx, error.as_str());
                 self.base.set_connected(ctx, false);
+                self.schedule_retry();
             }
         }
     }
@@ -308,8 +331,8 @@ impl MqttModule {
             return Err(format!("invalid MQTT subscription filter '{topic_filter}'"));
         }
 
-        let qos_variant = child_enum_param(snapshot, subscription_id, "qos")
-            .unwrap_or_else(|| MQTT_QOS_AT_MOST_ONCE.to_string());
+        let qos_variant =
+            child_enum_param(snapshot, subscription_id, "qos").unwrap_or_else(|| MQTT_QOS_AT_MOST_ONCE.to_string());
         let qos = MqttQos::from_variant(qos_variant.as_str())
             .ok_or_else(|| format!("invalid MQTT subscription QoS '{qos_variant}'"))?;
 
@@ -317,6 +340,22 @@ impl MqttModule {
     }
 
     fn drain_transport_events(&mut self, ctx: &mut ProcessCtx) {
+        for _ in 0..self.pending_publishes.len().min(transport::EVENT_TURN) {
+            let (receipt, description) = self.pending_publishes.pop_front().unwrap();
+            match receipt.status() {
+                PublishStatus::Pending => self.pending_publishes.push_back((receipt, description)),
+                PublishStatus::Acknowledged | PublishStatus::DispatchedUnconfirmed => {
+                    self.base.emit_outgoing_traffic(ctx)
+                }
+                PublishStatus::FailedUnconfirmed => {
+                    let message = format!(
+                        "MQTT {description} failed or was cancelled; delivery is unconfirmed and is not replayed"
+                    );
+                    self.set_target_warning(ctx, &message);
+                    logerror!("{}", message);
+                }
+            }
+        }
         let (worker_events, worker_disconnected) = {
             let Some(transport) = &self.transport else {
                 return;
@@ -324,14 +363,17 @@ impl MqttModule {
 
             let mut worker_events = Vec::new();
             let mut worker_disconnected = false;
-            loop {
-                match transport.try_recv() {
-                    Ok(event) => worker_events.push(event),
-                    Err(TryRecvError::Empty) => break,
-                    Err(TryRecvError::Disconnected) => {
-                        worker_disconnected = true;
-                        break;
-                    }
+            for _ in 0..transport::EVENT_TURN {
+                if self.pending_incoming_messages.len() + worker_events.len() >= 64 {
+                    break;
+                }
+                let drain = transport.drain_events(&mut worker_events);
+                if drain.state == golden_io::PendingDrainState::Disconnected {
+                    worker_disconnected = true;
+                    break;
+                }
+                if drain.received == 0 {
+                    break;
                 }
             }
 
@@ -373,11 +415,19 @@ impl MqttModule {
             self.last_transport_config = None;
             self.set_target_warning(ctx, "MQTT transport worker stopped unexpectedly. Restarting.");
             self.base.set_connected(ctx, false);
-            self.transport_dirty = true;
+            self.transport_dirty = false;
+            self.schedule_retry();
         }
 
         if received_message {
             self.base.emit_incoming_traffic(ctx);
+        }
+        if self
+            .transport
+            .as_ref()
+            .is_some_and(|transport| !transport.is_connected())
+        {
+            self.base.set_connected(ctx, false);
         }
     }
 
@@ -393,7 +443,10 @@ impl MqttModule {
         let mut remaining = Vec::new();
         let mut messages = std::mem::take(&mut self.pending_incoming_messages).into_iter();
 
-        while let Some(message) = messages.next() {
+        // At most one admitted message per actor turn. Native payload preparation
+        // and receipt-driven row publication remain part of the C04 actor audit.
+        for _ in 0..1 {
+            let Some(message) = messages.next() else { break };
             let decoded = match received_values_for_publish(&message, self.payload_mode.get_ref().as_str()) {
                 Ok(decoded) => decoded,
                 Err(error) => {
@@ -419,9 +472,7 @@ impl MqttModule {
                 );
 
                 match result {
-                    ReceivedValueApplyResult::Applied {
-                        needs_snapshot_refresh,
-                    } => {
+                    ReceivedValueApplyResult::Applied { needs_snapshot_refresh } => {
                         if needs_snapshot_refresh {
                             retry = true;
                             break;
@@ -445,33 +496,28 @@ impl MqttModule {
             self.emit_message_received_callback(ctx, &message);
         }
 
+        remaining.extend(messages);
         self.pending_incoming_messages = remaining;
         false
     }
 
-    fn queue_publish_request(&self, ctx: &mut ProcessCtx, request: MqttPublishRequest) -> Result<String, String> {
+    fn queue_publish_request(&mut self, _ctx: &mut ProcessCtx, request: MqttPublishRequest) -> Result<String, String> {
         let topic = request.topic.trim();
         if !rumqttc::valid_topic(topic) || topic.is_empty() {
             return Err(format!("invalid MQTT publish topic '{}'", request.topic));
         }
 
+        if self.pending_publishes.len() >= 100 || request.description.capacity() > 256 {
+            return Err("MQTT pending publication capacity exhausted".into());
+        }
         let description = request.description.clone();
-        let log_topic = request.topic.clone();
-        let log_payload = request.payload.clone();
 
         let transport = self
             .transport
             .as_ref()
             .ok_or_else(|| "MQTT transport is not available".to_string())?;
-        transport.send(request)?;
-
-        self.base.emit_outgoing_traffic(ctx);
-        if self.base.log_outgoing_enabled() {
-            golden_core::log!(
-                origin = self.id();
-                format!("Sent MQTT {} to {}", format_mqtt_payload_for_log(log_payload.as_slice()), log_topic)
-            );
-        }
+        let receipt = transport.send(request, self.base.log_outgoing_enabled())?;
+        self.pending_publishes.push_back((receipt, description.clone()));
 
         Ok(format!("Queued MQTT {description}"))
     }
@@ -507,6 +553,9 @@ impl MqttModule {
     fn on_param_change_inner(&mut self, snapshot: &ProcessTreeSnapshot, param: NodeId) {
         if self.param_affects_transport(snapshot, param) {
             self.transport_dirty = true;
+            self.retry_at = None;
+            self.retry_backoff.reset();
+            self.request_service();
         }
     }
 
@@ -527,18 +576,22 @@ impl MqttModule {
     fn on_meta_changed_inner(&mut self, _ctx: &mut ProcessCtx, node: NodeId, patch: NodeMetaPatch) {
         if node != self.id() && patch.enabled.is_some() {
             self.transport_dirty = true;
+            self.request_service();
         }
     }
 
     fn on_effective_enabled_changed_inner(&mut self, ctx: &mut ProcessCtx, enabled: bool) {
         if enabled {
             self.transport_dirty = true;
+            self.request_service();
         } else {
             self.stop_transport();
             self.last_transport_config = None;
             self.clear_target_warning(ctx);
             self.base.set_connected(ctx, false);
             self.transport_dirty = false;
+            self.retry_at = None;
+            self.pending_incoming_messages.clear();
         }
     }
 
@@ -652,6 +705,9 @@ impl MqttModule {
 impl Node for MqttModule {
     fn init(&mut self, ctx: &mut ProcessCtx) {
         self.base.init(ctx);
+        if let Err(error) = self.register_service(ctx) {
+            self.set_target_warning(ctx, &error);
+        }
         self.base.configure_command_tester(ctx, MQTT_MODULE_COMMAND_TYPES);
         self.transport_dirty = true;
         crate::app::module::enable_module_authoring(self.node_data_mut());
@@ -666,6 +722,10 @@ impl Node for MqttModule {
     }
 
     fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
+        if let Err(error) = self.register_service(ctx) {
+            self.set_target_warning(ctx, &error);
+            return;
+        }
         let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
             return;
         };
@@ -674,25 +734,7 @@ impl Node for MqttModule {
     }
 
     fn update(&mut self, ctx: &mut ProcessCtx) {
-        self.drain_transport_events(ctx);
-
-        let needs_snapshot = self.transport_dirty || !self.pending_incoming_messages.is_empty();
-        if !needs_snapshot {
-            return;
-        }
-
-        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
-            return;
-        };
-        let snapshot = snapshot_arc.as_ref();
-
-        self.refresh_data_capabilities(ctx, snapshot);
-
-        if self.transport_dirty {
-            self.refresh_transport(ctx, snapshot);
-        }
-
-        self.process_pending_incoming(ctx, snapshot);
+        self.service_io(ctx);
     }
 
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {
@@ -700,12 +742,24 @@ impl Node for MqttModule {
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {
-        self.transport_dirty || !self.pending_incoming_messages.is_empty()
+        self.service_needs_snapshot()
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
-        NodeExecutionRule::periodic(MQTT_MODULE_UPDATE_RATE_HZ)
-            .with_compiled_kernel("chataigne.runtime.mqtt")
+        NodeExecutionRule::passive()
+    }
+
+    fn needs_update(&self) -> bool {
+        false
+    }
+    fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
+        self.service_io(ctx);
+    }
+    fn worker_wake_requires_tree_snapshot(&self) -> bool {
+        self.service_needs_snapshot()
+    }
+    fn worker_wake_when_disabled(&self) -> bool {
+        self.transport.is_some() || !self.pending_publishes.is_empty()
     }
 
     fn child_event_interest_depth(&self, _event: &Event) -> u32 {
@@ -713,11 +767,7 @@ impl Node for MqttModule {
     }
 
     fn engine_script_descriptor(&self) -> NodeScriptDescriptor {
-        crate::app::module::script_api::descriptor_for_node(
-            self.node_data(),
-            self.get_type(),
-            MQTT_SCRIPT_METHODS,
-        )
+        crate::app::module::script_api::descriptor_for_node(self.node_data(), self.get_type(), MQTT_SCRIPT_METHODS)
     }
 
     fn engine_call_script_method(
@@ -739,8 +789,7 @@ impl Node for MqttModule {
             return;
         };
         let snapshot = snapshot_arc.as_ref();
-        self.base
-            .emit_script_param_callback(ctx, snapshot, param, &old_value);
+        self.base.emit_script_param_callback(ctx, snapshot, param, &old_value);
         self.on_param_change_inner(snapshot, param);
     }
 
@@ -758,263 +807,6 @@ impl Node for MqttModule {
 
     fn project_create(node_type: &str) -> Option<Self> {
         (node_type == Self::NODE_TYPE).then(Self::create)
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-struct MqttReceivedValue {
-    path_segments: Vec<String>,
-    payload: ReceivedValuePayload,
-    source_description: String,
-}
-
-fn received_values_for_publish(
-    message: &MqttReceivedPublish,
-    payload_mode: &str,
-) -> Result<Vec<MqttReceivedValue>, String> {
-    let path_segments = mqtt_topic_segments(message.topic.as_str());
-    let source_description = format!("MQTT topic '{}'", message.topic);
-
-    match payload_mode {
-        MQTT_PAYLOAD_MODE_JSON => json_received_values(message.payload.as_slice(), path_segments, source_description),
-        MQTT_PAYLOAD_MODE_RAW => Ok(vec![MqttReceivedValue {
-            path_segments,
-            payload: raw_payload_value(message.payload.as_slice()),
-            source_description,
-        }]),
-        MQTT_PAYLOAD_MODE_TEXT => Ok(vec![MqttReceivedValue {
-            path_segments,
-            payload: text_payload_value(message.payload.as_slice()),
-            source_description,
-        }]),
-        _ => auto_received_values(message.payload.as_slice(), path_segments, source_description),
-    }
-}
-
-fn auto_received_values(
-    payload: &[u8],
-    path_segments: Vec<String>,
-    source_description: String,
-) -> Result<Vec<MqttReceivedValue>, String> {
-    if payload_looks_like_json(payload) {
-        if let Ok(values) = json_received_values(payload, path_segments.clone(), source_description.clone()) {
-            return Ok(values);
-        }
-    }
-
-    Ok(vec![MqttReceivedValue {
-        path_segments,
-        payload: text_payload_value(payload),
-        source_description,
-    }])
-}
-
-fn json_received_values(
-    payload: &[u8],
-    path_segments: Vec<String>,
-    source_description: String,
-) -> Result<Vec<MqttReceivedValue>, String> {
-    let value: serde_json::Value =
-        serde_json::from_slice(payload).map_err(|error| format!("invalid JSON payload: {error}"))?;
-    let mut messages = Vec::new();
-    let mut current_path = path_segments;
-    collect_json_received_values(&value, &mut current_path, source_description.as_str(), &mut messages)?;
-    Ok(messages)
-}
-
-fn collect_json_received_values(
-    value: &serde_json::Value,
-    path_segments: &mut Vec<String>,
-    source_description: &str,
-    messages: &mut Vec<MqttReceivedValue>,
-) -> Result<(), String> {
-    if let Some(payload) = decode_json_payload(value)? {
-        messages.push(MqttReceivedValue {
-            path_segments: path_segments.clone(),
-            payload,
-            source_description: source_description.to_string(),
-        });
-        return Ok(());
-    }
-
-    match value {
-        serde_json::Value::Object(entries) => {
-            for (key, child) in entries {
-                let key = key.trim();
-                if key.is_empty() {
-                    continue;
-                }
-                path_segments.push(key.to_string());
-                collect_json_received_values(child, path_segments, source_description, messages)?;
-                path_segments.pop();
-            }
-        }
-        serde_json::Value::Array(items) => {
-            for (index, child) in items.iter().enumerate() {
-                path_segments.push((index + 1).to_string());
-                collect_json_received_values(child, path_segments, source_description, messages)?;
-                path_segments.pop();
-            }
-        }
-        _ => {}
-    }
-
-    Ok(())
-}
-
-fn decode_json_payload(value: &serde_json::Value) -> Result<Option<ReceivedValuePayload>, String> {
-    match value {
-        serde_json::Value::Object(_) => Ok(None),
-        serde_json::Value::Array(items) => {
-            if let Ok(value) = ParamValue::from_script_json(value) {
-                return Ok(Some(ReceivedValuePayload::Single(value)));
-            }
-
-            let mut values = Vec::with_capacity(items.len());
-            for item in items {
-                let Ok(value) = ParamValue::from_script_json(item) else {
-                    return Ok(None);
-                };
-                values.push(value);
-            }
-
-            Ok(Some(match values.len() {
-                0 => ReceivedValuePayload::Single(ParamValue::Trigger()),
-                1 => ReceivedValuePayload::Single(values.remove(0)),
-                _ => ReceivedValuePayload::Multi(values),
-            }))
-        }
-        _ => ParamValue::from_script_json(value)
-            .map(ReceivedValuePayload::Single)
-            .map(Some)
-            .map_err(|error| format!("invalid JSON value: {error}")),
-    }
-}
-
-fn text_payload_value(payload: &[u8]) -> ReceivedValuePayload {
-    if payload.is_empty() {
-        return ReceivedValuePayload::Single(ParamValue::Trigger());
-    }
-
-    ReceivedValuePayload::Single(parse_scalar_value(String::from_utf8_lossy(payload).as_ref()))
-}
-
-fn raw_payload_value(payload: &[u8]) -> ReceivedValuePayload {
-    if payload.is_empty() {
-        return ReceivedValuePayload::Single(ParamValue::Trigger());
-    }
-
-    ReceivedValuePayload::Multi(
-        payload
-            .iter()
-            .map(|byte| ParamValue::Int(i32::from(*byte)))
-            .collect(),
-    )
-}
-
-fn payload_looks_like_json(payload: &[u8]) -> bool {
-    let trimmed = payload
-        .iter()
-        .copied()
-        .skip_while(u8::is_ascii_whitespace)
-        .collect::<Vec<_>>();
-    matches!(trimmed.first(), Some(b'{') | Some(b'['))
-}
-
-fn mqtt_topic_segments(topic: &str) -> Vec<String> {
-    let segments = topic
-        .split('/')
-        .enumerate()
-        .map(|(index, segment)| {
-            let segment = segment.trim();
-            if segment.is_empty() {
-                format!("level_{}", index + 1)
-            } else {
-                segment.to_string()
-            }
-        })
-        .collect::<Vec<_>>();
-
-    if segments.is_empty() {
-        vec!["message".to_string()]
-    } else {
-        segments
-    }
-}
-
-fn mqtt_publish_request_from_script(method: &str, args: &[ParamValue]) -> Option<Result<MqttPublishRequest, String>> {
-    match method {
-        "publish" | "publishText" | "publishJson" => {}
-        _ => return None,
-    }
-
-    let Some(topic) = args.first().and_then(ParamValue::as_str) else {
-        return Some(Err(format!("method '{method}' expects an MQTT topic string")));
-    };
-
-    let payload = match method {
-        "publishJson" => args
-            .get(1)
-            .map(ParamValue::to_script_json)
-            .map(|value| serde_json::to_vec(&value).map_err(|error| format!("failed to encode JSON payload: {error}")))
-            .transpose()
-            .map(|payload| payload.unwrap_or_default()),
-        _ => Ok(args
-            .get(1)
-            .and_then(ParamValue::as_str)
-            .unwrap_or_default()
-            .into_bytes()),
-    };
-
-    Some(payload.and_then(|payload| {
-        Ok(MqttPublishRequest {
-            topic,
-            payload,
-            qos: script_qos_arg(args.get(2))?,
-            retain: args.get(3).and_then(ParamValue::as_bool).unwrap_or(false),
-            description: method.to_string(),
-        })
-    }))
-}
-
-fn script_qos_arg(value: Option<&ParamValue>) -> Result<MqttQos, String> {
-    let Some(value) = value else {
-        return Ok(MqttQos::AtMost);
-    };
-
-    if let Some(value) = value.as_int() {
-        return match value {
-            0 => Ok(MqttQos::AtMost),
-            1 => Ok(MqttQos::AtLeast),
-            2 => Ok(MqttQos::Exactly),
-            _ => Err(format!("MQTT QoS integer must be 0, 1, or 2, got {value}")),
-        };
-    }
-
-    let variant = value
-        .as_str()
-        .ok_or_else(|| "MQTT QoS must be an integer or string".to_string())?;
-    MqttQos::from_variant(variant.as_str()).ok_or_else(|| format!("invalid MQTT QoS '{variant}'"))
-}
-
-fn mqtt_payload_script_arg(payload: &[u8]) -> serde_json::Value {
-    std::str::from_utf8(payload)
-        .map(|text| serde_json::json!(text))
-        .unwrap_or_else(|_| crate::app::module::script_api::bytes_arg(payload))
-}
-
-fn format_mqtt_payload_for_log(payload: &[u8]) -> String {
-    if payload.is_empty() {
-        return "<empty>".to_string();
-    }
-
-    match std::str::from_utf8(payload) {
-        Ok(text) if !text.chars().any(char::is_control) => format!("\"{text}\""),
-        _ => payload
-            .iter()
-            .map(|byte| format!("{byte:02X}"))
-            .collect::<Vec<_>>()
-            .join(" "),
     }
 }
 

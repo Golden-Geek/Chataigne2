@@ -25,6 +25,8 @@ and superseded plans are [archived](../archive/2026-10-18/README.md).
   command/input prefixes, interface catalogs and passive service.
 - [MIDI workers and delivery](midi-runtime.md): native discovery/input/output, prepared catalog lifetimes,
   prepared input, completion receipts, feedback provenance, outgoing batches and passive deadlines.
+- [MQTT ownership](mqtt-runtime.md): bounded native protocol ownership, retained publish outcomes,
+  reconnect/retirement and passive app service; remaining actor qualification is explicit.
 - [Timed generators](generators.md): Signals/Metronomes admission, elapsed time, bounded
   publication, passive service and worker lifetime ownership.
 - [Alchemist runtime](alchemist-runtime.md): formulas, processors, conditions, inputs, filters,

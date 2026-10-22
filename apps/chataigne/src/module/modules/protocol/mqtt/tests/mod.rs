@@ -10,6 +10,8 @@ use golden_core::{
 use super::{mqtt_publish_request_from_script, transport::MqttReceivedPublish, MqttModule};
 use crate::app::module::common::mqtt::{MqttQos, MQTT_PUBLISH_COMMAND_NODE_TYPE};
 
+mod service;
+
 #[test]
 fn mqtt_module_command_tester_advertises_publish_command() {
     let (engine, module_id) = create_mqtt_module();
@@ -77,7 +79,8 @@ fn incoming_text_publish_auto_adds_value_nodes_from_topic() {
         "text payloads should be parsed into scalar values"
     );
 
-    let crate::app::AppNode::MqttModule(module) = engine.nodes.get(module_id).expect("module should still exist") else {
+    let crate::app::AppNode::MqttModule(module) = engine.nodes.get(module_id).expect("module should still exist")
+    else {
         panic!("expected MqttModule node");
     };
     assert!(
@@ -113,8 +116,7 @@ fn incoming_json_publish_expands_under_topic() {
     assert_eq!(
         param_value(
             &engine,
-            find_path(&engine, module_id, "values/devices/kitchen/humidity")
-                .expect("humidity value should be created"),
+            find_path(&engine, module_id, "values/devices/kitchen/humidity").expect("humidity value should be created"),
         ),
         ParamValue::Float(0.42)
     );
