@@ -101,7 +101,22 @@ impl DmxTransportHandle {
             source: Some(source),
         })
     }
+    #[cfg(test)]
     pub(crate) fn send(&self, frame: DmxFrame) -> Result<SendReceipt, String> {
+        self.send_inner(frame, None)
+    }
+    pub(super) fn send_prepared(
+        &self,
+        frame: DmxFrame,
+        source: RetainedPayload<super::outgoing::Prepared>,
+    ) -> Result<SendReceipt, String> {
+        self.send_inner(frame, Some(source))
+    }
+    fn send_inner(
+        &self,
+        frame: DmxFrame,
+        source: Option<RetainedPayload<super::outgoing::Prepared>>,
+    ) -> Result<SendReceipt, String> {
         validate_frame(&frame, self.config.protocol)?;
         if frame.universe != self.config.universe {
             return Err("DMX frame belongs to another configured universe".into());
@@ -113,14 +128,23 @@ impl DmxTransportHandle {
             .output
             .try_retain(frame, FRAME_WEIGHT)
             .map_err(|_| "DMX output payload capacity exhausted")?;
-        let (output, receipt) = Output::new(frame, self.shared.wake.clone());
+        let (output, receipt) = Output::new(frame, source, self.shared.wake.clone());
         self.worker
             .send_weighted(output, FRAME_WEIGHT)
             .map_err(|error| match error {
-                golden_io::PendingSendError::Full(_) => "DMX output queue is full (64 frames)",
-                golden_io::PendingSendError::Disconnected(_) => "DMX worker is not running",
+                golden_io::PendingSendError::Full(output) => {
+                    output.unadmitted();
+                    "DMX output queue is full (64 frames)"
+                }
+                golden_io::PendingSendError::Disconnected(output) => {
+                    output.unadmitted();
+                    "DMX worker is not running"
+                }
             })?;
         Ok(receipt)
+    }
+    pub(super) fn source_guard(&self) -> Option<golden_io::RevisionGuard> {
+        Some(self.source.as_ref()?.reader().guard_at(0))
     }
     pub(crate) fn is_ready(&self) -> bool {
         self.shared.ready.load(Ordering::Acquire) && self.is_running()

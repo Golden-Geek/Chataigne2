@@ -45,16 +45,46 @@ source independently of native cleanup.
 
 `service.rs` owns passive worker wakes and coalesced startup/recovery deadlines, from 250 ms to 8 s.
 There is no periodic 120 Hz actor poll. Pending receipts and early retry wakes need no tree snapshot;
-configuration changes and received graph publication request one. Disable retires the endpoint
+configuration changes, pending output and received graph publication request one. Disable retires the endpoint
 immediately. Transport feedback belongs to the Connection group.
 
-Frame JSON is bounded at 8192 bytes before parsing; endpoint text is bounded at 128 bytes before
-address conversion. Commands update persisted output state after admission. Internal output changes
+Endpoint text is bounded at 128 bytes before address conversion. Commands update persisted output
+state after native-mailbox admission. Internal output changes
 use Core parameter-event attribution instead of an ID-based ignore set, preserving later authored
 changes after same-value updates. Existing command nodes, methods, callbacks and templates remain.
 
-C05 remains open for command/script capture/preparation and complete engine pressure, failure and
-reconfiguration qualification. P07 separately owns periodic refresh, filtering, sequencing, source
+### Captured output
+
+`outgoing/` captures command snapshots and execute overrides through their canonical Core leases;
+scripts share their original Core-owned argument arrays. The actor resolves fixed configuration
+fields and admits at most 64 pending preparations/native receipts per module. Global invocation
+admission bounds 512 records / 16 MiB, charging 16 KiB plus three times execute-override storage
+for worker scratch. Canonical snapshot/event/argument storage keeps its independent Core quotas.
+Scripts admit at most two arguments / 64 KiB of retained input.
+
+One shared preparation worker has 32 job tickets, including cancelled/retiring jobs. It decodes
+only consumed command fields, borrowing authored values and applying the last matching override;
+there is no whole-snapshot overlay or JSON command relay. Frame JSON is bounded at 8192 bytes,
+and numeric text at 32 bytes, before parsing. Prepared records have a separate 512-item / 8 MiB
+pool, charged at 16 KiB per operation. Their original invocation lease follows native submission,
+completion/cancellation and queued output projection through the existing retained-edit contract.
+
+The actor applies at most eight fixed-size prepared operations per turn. Engine timestamps order
+property occurrences, script calls and command invocations before preparation. Property capture
+copies only the bounded event text, because a snapshot may already contain a later authored edit.
+Channel changes preserve the preceding frame; snapshots provide the initial authored baseline.
+Only the final queued command reflects output state, behind configuration/output read fences.
+A newer authored frame takes precedence over an older asynchronous reflection.
+
+Temporary native-mailbox/payload pressure retains the same prepared operation behind an absolute
+250 ms retry, without reparsing or retrying early on unrelated input wakes. Refused enqueue
+disarms the unpublished receipt so its destructor cannot create a readiness feedback loop.
+Producer lifetime, configuration identity and native session fence
+preparation/application; the native worker checks producer/session lifetime again before sending.
+A retired source reports **not sent**, separately from an unconfirmed native failure. Neither is
+automatically replayed on reconnect.
+
+C05 qualification is tracked in the execution ledger. P07 separately owns periodic refresh, filtering, sequencing, source
 policy, synchronization and stream termination correctness. In particular, sacn 0.11 terminates via
 multicast even after unicast sends; loopback tests suppress multicast delivery through its public
 socket options while still exercising native destruction. They do not qualify termination semantics.

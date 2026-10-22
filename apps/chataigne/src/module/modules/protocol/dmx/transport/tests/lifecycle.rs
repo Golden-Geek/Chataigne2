@@ -2,6 +2,7 @@ use super::*;
 use std::sync::{atomic::AtomicUsize, mpsc};
 
 type Gate = (mpsc::SyncSender<()>, mpsc::Receiver<()>);
+mod engine;
 
 #[test]
 fn queued_input_projection_retains_its_source_until_retirement_rejects_the_entire_prefix() {
@@ -61,6 +62,7 @@ struct Control {
     reads: Arc<AtomicUsize>,
     fail: Arc<AtomicBool>,
     panic: Arc<AtomicBool>,
+    continuous: Arc<AtomicBool>,
     frames: Arc<Mutex<std::collections::VecDeque<DmxFrame>>>,
 }
 struct Fake {
@@ -70,6 +72,7 @@ struct Fake {
 }
 impl worker::Endpoint for Fake {
     fn send(&mut self, _: &DmxFrame, _: Option<SocketAddr>) -> Result<(), String> {
+        assert!(!self.control.panic.load(Ordering::Acquire), "injected DMX send panic");
         if let Some((entered, gate)) = self.send_gate.take() {
             let _ = entered.send(());
             let _ = gate.recv();
@@ -85,8 +88,13 @@ impl worker::Endpoint for Fake {
             !self.control.panic.load(Ordering::Acquire),
             "injected DMX worker failure"
         );
-        self.control.reads.fetch_add(1, Ordering::AcqRel);
-        Ok(self.control.frames.lock().unwrap().pop_front())
+        let sequence = self.control.reads.fetch_add(1, Ordering::AcqRel);
+        let frame = self.control.frames.lock().unwrap().pop_front();
+        if frame.is_none() && self.control.continuous.load(Ordering::Acquire) {
+            Ok(Some(DmxFrame::new(1, vec![(sequence % 256) as u8; 512])?))
+        } else {
+            Ok(frame)
+        }
     }
     fn shutdown(&mut self) {
         if let Some((entered, gate)) = self.cleanup.take() {

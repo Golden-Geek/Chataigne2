@@ -3,11 +3,8 @@ use golden_core::{
     node,
     node::{Node, NodeId},
     parameter::ParamValue,
-    process_ctx::{ProcessCtx, ProcessTreeSnapshot},
+    process_ctx::ProcessCtx,
 };
-use serde::{Deserialize, Serialize};
-
-use crate::app::module_modules_protocol_dmx::parse_slots_json;
 
 pub(crate) const DMX_SET_CHANNEL_COMMAND_NODE_TYPE: &str = "dmx_set_channel_command";
 pub(crate) const DMX_SEND_FRAME_COMMAND_NODE_TYPE: &str = "dmx_send_frame_command";
@@ -17,14 +14,6 @@ pub(crate) const DMX_COMMAND_TYPES: &[&str] = &[
     DMX_SEND_FRAME_COMMAND_NODE_TYPE,
     DMX_BLACKOUT_COMMAND_NODE_TYPE,
 ];
-
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
-#[serde(tag = "operation", rename_all = "snake_case")]
-pub(crate) enum DmxCommandRequest {
-    SetChannel { channel: u16, value: u8 },
-    SendFrame { slots: Vec<u8> },
-    Blackout,
-}
 
 #[node("dmx_set_channel_command", label = "Set DMX Channel")]
 #[children(
@@ -44,17 +33,6 @@ pub struct DmxSetChannelCommand {
 impl DmxSetChannelCommand {
     pub fn create() -> Self {
         Self::new(crate::app::ModuleCommandBase::new())
-    }
-
-    fn request(&self, snapshot: &ProcessTreeSnapshot) -> Result<DmxCommandRequest, String> {
-        let channel = command_int(snapshot, self.id(), "channel")
-            .and_then(|value| u16::try_from(value).ok())
-            .filter(|value| (1..=512).contains(value))
-            .ok_or_else(|| "DMX channel must be between 1 and 512".to_string())?;
-        let value = command_int(snapshot, self.id(), "value")
-            .and_then(|value| u8::try_from(value).ok())
-            .ok_or_else(|| "DMX value must be between 0 and 255".to_string())?;
-        Ok(DmxCommandRequest::SetChannel { channel, value })
     }
 }
 
@@ -77,15 +55,15 @@ impl Node for DmxSetChannelCommand {
 
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
         if command_triggered(ctx, self.id(), param) {
-            run_command(ctx, self.id(), self.get_type(), |snapshot| self.request(snapshot));
+            run_command(ctx, self.id(), None);
         }
     }
 
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
-        if crate::app::module_command::is_command_execute_request(&event, self.id()) {
-            run_command_with_event(ctx, self.id(), self.get_type(), &event, |snapshot| {
-                self.request(snapshot)
-            });
+        if event.topic == crate::app::module_command::MODULE_COMMAND_EXECUTE_TOPIC
+            && event.payload.get("command_id").and_then(serde_json::Value::as_u64) == Some(self.id().0)
+        {
+            run_command(ctx, self.id(), Some(event));
         }
     }
 }
@@ -104,13 +82,6 @@ pub struct DmxSendFrameCommand {
 impl DmxSendFrameCommand {
     pub fn create() -> Self {
         Self::new(crate::app::ModuleCommandBase::new())
-    }
-
-    fn request(&self, snapshot: &ProcessTreeSnapshot) -> Result<DmxCommandRequest, String> {
-        let slots = command_string(snapshot, self.id(), "slots")
-            .ok_or_else(|| "missing DMX frame channels".to_string())
-            .and_then(|value| parse_slots_json(value.as_str()))?;
-        Ok(DmxCommandRequest::SendFrame { slots })
     }
 }
 
@@ -133,15 +104,15 @@ impl Node for DmxSendFrameCommand {
 
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
         if command_triggered(ctx, self.id(), param) {
-            run_command(ctx, self.id(), self.get_type(), |snapshot| self.request(snapshot));
+            run_command(ctx, self.id(), None);
         }
     }
 
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
-        if crate::app::module_command::is_command_execute_request(&event, self.id()) {
-            run_command_with_event(ctx, self.id(), self.get_type(), &event, |snapshot| {
-                self.request(snapshot)
-            });
+        if event.topic == crate::app::module_command::MODULE_COMMAND_EXECUTE_TOPIC
+            && event.payload.get("command_id").and_then(serde_json::Value::as_u64) == Some(self.id().0)
+        {
+            run_command(ctx, self.id(), Some(event));
         }
     }
 }
@@ -176,17 +147,15 @@ impl Node for DmxBlackoutCommand {
 
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
         if command_triggered(ctx, self.id(), param) {
-            run_command(ctx, self.id(), self.get_type(), |_| {
-                Ok(DmxCommandRequest::Blackout)
-            });
+            run_command(ctx, self.id(), None);
         }
     }
 
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
-        if crate::app::module_command::is_command_execute_request(&event, self.id()) {
-            run_command_with_event(ctx, self.id(), self.get_type(), &event, |_| {
-                Ok(DmxCommandRequest::Blackout)
-            });
+        if event.topic == crate::app::module_command::MODULE_COMMAND_EXECUTE_TOPIC
+            && event.payload.get("command_id").and_then(serde_json::Value::as_u64) == Some(self.id().0)
+        {
+            run_command(ctx, self.id(), Some(event));
         }
     }
 }
@@ -196,69 +165,20 @@ fn command_triggered(ctx: &ProcessCtx, command_id: NodeId, param: NodeId) -> boo
         .is_some_and(|snapshot| crate::app::module_command::module_command_triggered(snapshot, command_id, param))
 }
 
-fn run_command(
-    ctx: &mut ProcessCtx,
-    command_id: NodeId,
-    command_type: &str,
-    request: impl FnOnce(&ProcessTreeSnapshot) -> Result<DmxCommandRequest, String>,
-) {
-    let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
+fn run_command(ctx: &mut ProcessCtx, command_id: NodeId, event: Option<CustomEvent>) {
+    let Some(snapshot) = ctx.tree_snapshot_arc() else {
         return;
     };
-    let snapshot = snapshot_arc.as_ref();
-    if let Err(error) = request(snapshot).and_then(|request| {
-        crate::app::module_command::emit_module_command_request(
-            ctx,
-            snapshot,
-            command_id,
-            command_type,
-            &request,
-        )
-    }) {
-        golden_core::logerror!(format!("Failed to trigger DMX command: {error}"));
-    }
-}
-
-fn run_command_with_event(
-    ctx: &mut ProcessCtx,
-    command_id: NodeId,
-    command_type: &str,
-    event: &CustomEvent,
-    request: impl FnOnce(&ProcessTreeSnapshot) -> Result<DmxCommandRequest, String>,
-) {
-    let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
-        return;
-    };
-    let snapshot = crate::app::module_command::command_execute_snapshot(
-        event,
-        snapshot_arc.as_ref(),
+    let result = crate::app::module_command::CapturedInvocation::capture(
+        &snapshot,
         command_id,
-    );
-    if let Err(error) = request(snapshot.as_ref()).and_then(|request| {
-        crate::app::module_command::emit_module_command_request(
-            ctx,
-            snapshot.as_ref(),
-            command_id,
-            command_type,
-            &request,
-        )
-    }) {
-        golden_core::logerror!(format!("Failed to trigger DMX command: {error}"));
+        event,
+        &["artnet_module", "sacn_module"],
+    )
+    .and_then(|invocation| crate::app::queue_dmx_command(ctx, invocation));
+    if let Err(error) = result {
+        golden_core::logerror!(format!("DMX command was not admitted: {error}"));
     }
-}
-
-fn command_int(snapshot: &ProcessTreeSnapshot, command_id: NodeId, path: &str) -> Option<i32> {
-    crate::app::module_command::resolve_module_command_child(snapshot, command_id, path)
-        .and_then(|param| snapshot.node(param))
-        .and_then(|node| node.param_value.as_ref())
-        .and_then(ParamValue::as_int)
-}
-
-fn command_string(snapshot: &ProcessTreeSnapshot, command_id: NodeId, path: &str) -> Option<String> {
-    crate::app::module_command::resolve_module_command_child(snapshot, command_id, path)
-        .and_then(|param| snapshot.node(param))
-        .and_then(|node| node.param_value.as_ref())
-        .and_then(ParamValue::as_str)
 }
 
 #[cfg(test)]

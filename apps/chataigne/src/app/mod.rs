@@ -5,6 +5,7 @@ include!(concat!(env!("OUT_DIR"), "/app_nodes.rs"));
 include!(concat!(env!("OUT_DIR"), "/ui_assets.rs"));
 
 pub type AppEngine = golden_core::engine::Engine<AppNode>;
+pub(crate) use module_modules_protocol_dmx::queue_dmx_command;
 pub(crate) use module_modules_protocol_midi_commands::{
     append_midi_bytes, normalize_midi_sysex, prepare_midi_command, MidiSendPacket, MidiSendRequest,
 };

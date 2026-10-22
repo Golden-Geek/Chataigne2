@@ -11,6 +11,7 @@ pub(crate) enum SendStatus {
     Pending,
     Sent,
     FailedUnconfirmed,
+    NotSent,
 }
 struct State {
     status: AtomicU8,
@@ -24,6 +25,7 @@ impl SendReceipt {
         match self.0.status.load(Ordering::Acquire) {
             0 => SendStatus::Pending,
             1 => SendStatus::Sent,
+            3 => SendStatus::NotSent,
             _ => SendStatus::FailedUnconfirmed,
         }
     }
@@ -33,10 +35,15 @@ impl SendReceipt {
 }
 pub(super) struct Output {
     pub frame: RetainedPayload<DmxFrame>,
+    source: Option<RetainedPayload<super::super::outgoing::Prepared>>,
     state: Arc<State>,
 }
 impl Output {
-    pub(super) fn new(frame: RetainedPayload<DmxFrame>, wake: WorkerNotifier) -> (Self, SendReceipt) {
+    pub(super) fn new(
+        frame: RetainedPayload<DmxFrame>,
+        source: Option<RetainedPayload<super::super::outgoing::Prepared>>,
+        wake: WorkerNotifier,
+    ) -> (Self, SendReceipt) {
         let state = Arc::new(State {
             status: AtomicU8::new(0),
             failure: OnceLock::new(),
@@ -45,10 +52,27 @@ impl Output {
         (
             Self {
                 frame,
+                source,
                 state: state.clone(),
             },
             SendReceipt(state),
         )
+    }
+    pub(super) fn is_live(&self) -> bool {
+        self.source.as_ref().is_none_or(|source| source.is_live())
+    }
+    pub(super) fn unadmitted(self) {
+        // No receipt escaped to the caller. A full mailbox must not wake its
+        // producer via cancellation and turn a coarse retry into an actor loop.
+        self.state.status.store(SendStatus::NotSent as u8, Ordering::Release);
+    }
+    pub(super) fn reject(self) {
+        let _ = self
+            .state
+            .failure
+            .set("DMX source/session retired before native dispatch; request was not sent".into());
+        self.state.status.store(SendStatus::NotSent as u8, Ordering::Release);
+        self.state.wake.notify();
     }
     pub(super) fn complete(self, result: Result<(), String>) {
         let status = match result {

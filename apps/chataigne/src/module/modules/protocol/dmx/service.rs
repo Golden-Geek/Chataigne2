@@ -5,6 +5,7 @@ impl DmxModuleBase {
     pub(super) fn register_service(&mut self, ctx: &ProcessCtx) -> Result<(), String> {
         let source = ctx.node_waker().map_err(|error| error.to_string())?;
         if !self.wake.as_ref().is_some_and(|wake| wake.matches(&source)) {
+            self.clear_output();
             self.stop_transport();
             self.wake = Some(ModuleWake::new(source)?);
             self.transport_dirty = true;
@@ -20,6 +21,7 @@ impl DmxModuleBase {
         self.node_data().effective_enabled
             && (self.transport_dirty
                 || self.retry_due()
+                || self.output_needs_snapshot()
                 || self.transport.as_ref().is_some_and(DmxTransportHandle::has_frame))
     }
     pub(super) fn service_io(&mut self, ctx: &mut ProcessCtx) {
@@ -38,6 +40,7 @@ impl DmxModuleBase {
                 self.request_service();
             }
         }
+        self.service_output(ctx);
         if self.transport.as_ref().is_some_and(DmxTransportHandle::has_pending)
             || self
                 .pending_sends

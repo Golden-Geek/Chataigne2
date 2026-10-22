@@ -9,7 +9,7 @@ use crate::app::{
     },
     AppNode, ArtNetModule, ModuleManager, SacnModule,
 };
-mod service;
+pub(super) mod service;
 
 #[test]
 fn lighting_modules_are_distinct_catalog_items_with_distinct_kernels() {

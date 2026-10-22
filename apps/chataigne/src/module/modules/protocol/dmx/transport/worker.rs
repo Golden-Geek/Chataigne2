@@ -78,6 +78,10 @@ pub(super) fn run<E: Endpoint>(
             if ctx.cancellation().is_cancelled() {
                 return;
             }
+            if !command.is_live() {
+                command.reject();
+                continue;
+            }
             let result = session.0.send(&command.frame, config.destination);
             let error = result.as_ref().err().cloned();
             command.complete(result);

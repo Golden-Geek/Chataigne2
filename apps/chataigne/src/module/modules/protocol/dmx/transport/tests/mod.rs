@@ -156,7 +156,8 @@ fn sacn_worker_round_trips_a_unicast_frame() {
 
 #[test]
 fn output_queue_reports_overload_instead_of_growing_without_bound() {
-    let destination = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).unwrap().local_addr().unwrap();
+    let receiver = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
+    let destination = receiver.local_addr().unwrap();
     let transport = spawn(DmxTransportConfig {
         protocol: DmxProtocol::ArtNet,
         bind_ip: IpAddr::V4(Ipv4Addr::LOCALHOST),

@@ -1,4 +1,5 @@
 mod frame;
+mod outgoing;
 mod service;
 mod transport;
 
@@ -18,8 +19,9 @@ use golden_core::{
 };
 use golden_io::ReconnectBackoff;
 
-pub(crate) use crate::app::module_modules_protocol_dmx_commands::{DmxCommandRequest, DMX_COMMAND_TYPES};
+pub(crate) use crate::app::module_modules_protocol_dmx_commands::DMX_COMMAND_TYPES;
 pub(crate) use frame::{parse_slots_json, slots_json, DmxFrame, DMX_SLOT_COUNT};
+pub(crate) use outgoing::{dispatch as queue_dmx_command, DmxCommandRequest};
 pub(crate) use transport::{DmxProtocol, DmxTransportConfig, DmxTransportHandle, DmxWorkerEvent};
 use transport::{ReceivedFrame, SendReceipt, SendStatus};
 
@@ -92,6 +94,7 @@ pub struct DmxModuleBase {
     retry_at: Option<Instant>,
     pending_sends: VecDeque<SendReceipt>,
     wake: Option<crate::app::module::common::worker_wake::ModuleWake>,
+    outgoing: outgoing::Outgoing,
 }
 
 impl DmxModuleBase {
@@ -107,6 +110,7 @@ impl DmxModuleBase {
             None,
             VecDeque::new(),
             None,
+            outgoing::Outgoing::default(),
         )
     }
 
@@ -246,7 +250,7 @@ impl DmxModuleBase {
             match receipt.status() {
                 SendStatus::Pending => self.pending_sends.push_back(receipt),
                 SendStatus::Sent => self.base.emit_outgoing_traffic(ctx),
-                SendStatus::FailedUnconfirmed => {
+                SendStatus::FailedUnconfirmed | SendStatus::NotSent => {
                     let message = receipt
                         .failure()
                         .unwrap_or("DMX send cancelled or worker stopped; delivery is unconfirmed");
@@ -352,48 +356,6 @@ impl DmxModuleBase {
         ctx.edits.retain_payload(frame);
     }
 
-    fn configured_frame(&self, slots: Vec<u8>) -> Result<DmxFrame, String> {
-        let universe = u16::try_from(self.universe.get()).map_err(|_| "DMX universe must be positive".to_string())?;
-        let priority =
-            u8::try_from(self.priority.get()).map_err(|_| "sACN priority must be between 1 and 200".to_string())?;
-        DmxFrame::with_metadata(universe, 0, priority, slots)
-    }
-
-    fn send_frame(&mut self, _ctx: &mut ProcessCtx, frame: DmxFrame) -> Result<(), String> {
-        if !self.node_data().effective_enabled || self.pending_sends.len() >= 64 {
-            return Err("DMX module is disabled or its pending sends are full".into());
-        }
-        let transport = self
-            .transport
-            .as_ref()
-            .ok_or_else(|| format!("{} transport is not connected", self.protocol.label()))?;
-        self.pending_sends.push_back(transport.send(frame)?);
-        Ok(())
-    }
-
-    fn apply_command(&mut self, ctx: &mut ProcessCtx, request: DmxCommandRequest) -> Result<(), String> {
-        let frame = match request {
-            DmxCommandRequest::SetChannel { channel, value } => {
-                let mut frame = self.configured_frame(self.output_slots.clone())?;
-                frame.set_channel(channel, value)?;
-                frame
-            }
-            DmxCommandRequest::SendFrame { slots } => self.configured_frame(slots)?,
-            DmxCommandRequest::Blackout => {
-                let mut frame = DmxFrame::blackout(
-                    u16::try_from(self.universe.get()).map_err(|_| "DMX universe must be positive".to_string())?,
-                )?;
-                frame.priority = u8::try_from(self.priority.get())
-                    .map_err(|_| "sACN priority must be between 1 and 200".to_string())?;
-                frame
-            }
-        };
-        self.send_frame(ctx, frame.clone())?;
-        self.output_slots = frame.slots;
-        self.persist_output_slots(ctx);
-        Ok(())
-    }
-
     fn persist_output_slots(&mut self, ctx: &mut ProcessCtx) {
         let text = slots_json(self.output_slots.as_slice());
         if self.output_frame.get_ref() == &text {
@@ -407,29 +369,6 @@ impl DmxModuleBase {
             value,
             golden_core::parameter::ParameterEventBehaviour::Coalesce,
         );
-    }
-
-    fn on_custom_event_inner(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
-        if event.topic != crate::app::module_command::MODULE_COMMAND_REQUEST_TOPIC {
-            return;
-        }
-        if crate::app::module::common::json::retained_weight(&event.payload, 64 * 1024, 2048, 16).is_err() {
-            self.set_transport_warning(ctx, "DMX command event exceeds its 64 KiB / 2048-value bound");
-            return;
-        }
-        let Some(request) = crate::app::module_command::decode_module_command_request(&event) else {
-            return;
-        };
-        if request.module_id != self.id() || !DMX_COMMAND_TYPES.contains(&request.command_type.as_str()) {
-            return;
-        }
-        if let Err(error) = serde_json::from_value::<DmxCommandRequest>(request.payload)
-            .map_err(|error| format!("invalid DMX command payload: {error}"))
-            .and_then(|request| self.apply_command(ctx, request))
-        {
-            golden_core::logerror!(format!("Failed to execute DMX command: {error}"));
-            self.set_transport_warning(ctx, error.as_str());
-        }
     }
 
     fn on_param_change_inner(&mut self, ctx: &mut ProcessCtx, param: NodeId) {
@@ -457,36 +396,10 @@ impl DmxModuleBase {
             );
         }
         if param == self.output_frame.id() {
-            match parse_slots_json(self.output_frame.get_ref().as_str()) {
-                Ok(slots) => {
-                    self.output_slots = slots.clone();
-                    match self.configured_frame(slots) {
-                        Ok(frame) => {
-                            if let Err(error) = self.send_frame(ctx, frame) {
-                                self.set_transport_warning(ctx, error.as_str());
-                            }
-                        }
-                        Err(error) => self.set_transport_warning(ctx, error.as_str()),
-                    }
-                }
-                Err(error) => self.set_transport_warning(ctx, error.as_str()),
+            if let Err(error) = self.capture_property_output(ctx) {
+                self.set_transport_warning(ctx, &error);
             }
         }
-    }
-
-    fn handle_script_method(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        method: &str,
-        args: &[ParamValue],
-    ) -> Option<Result<(), String>> {
-        let request = match method {
-            "setChannel" => Some(script_set_channel(args)),
-            "sendFrame" => Some(script_send_frame(args)),
-            "blackout" => Some(script_blackout(args)),
-            _ => None,
-        }?;
-        Some(request.and_then(|request| self.apply_command(ctx, request)))
     }
 
     fn script_descriptor_for_node(&self, node_data: &NodeData, node_type: &str) -> NodeScriptDescriptor {
@@ -522,7 +435,6 @@ impl Node for DmxModuleBase {
             ctx,
             crate::app::module::ModuleDataCapabilities::new(self.receive_enabled.get(), true),
         );
-        self.output_slots = parse_slots_json(self.output_frame.get_ref().as_str()).unwrap_or_default();
         self.transport_dirty = true;
         self.request_service();
     }
@@ -532,6 +444,7 @@ impl Node for DmxModuleBase {
     }
 
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {
+        self.clear_output();
         self.wake = None;
         self.stop_transport();
     }
@@ -571,7 +484,7 @@ impl Node for DmxModuleBase {
         method: &str,
         args: &[ParamValue],
     ) -> Result<bool, String> {
-        if let Some(result) = self.handle_script_method(ctx, method, args) {
+        if let Some(result) = self.capture_script_output(ctx, method, args) {
             result?;
             return Ok(true);
         }
@@ -591,6 +504,7 @@ impl Node for DmxModuleBase {
             self.transport_dirty = true;
             self.request_service();
         } else {
+            self.clear_output();
             self.stop_transport();
             self.last_transport_config = None;
             self.transport_dirty = false;
@@ -600,10 +514,6 @@ impl Node for DmxModuleBase {
             }
             self.base.set_connected(ctx, false);
         }
-    }
-
-    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
-        self.on_custom_event_inner(ctx, event);
     }
 }
 
@@ -756,6 +666,9 @@ pub(crate) fn parse_destination(
 pub(crate) fn script_set_channel(args: &[ParamValue]) -> Result<DmxCommandRequest, String> {
     if args.len() != 2 {
         return Err("setChannel expects channel and value".to_string());
+    }
+    if args.iter().any(|value| matches!(value, ParamValue::Str(text) | ParamValue::File(text) | ParamValue::Enum(text) if text.len() > 32)) {
+        return Err("setChannel numeric text exceeds 32 bytes".into());
     }
     let channel = args[0]
         .as_int()
