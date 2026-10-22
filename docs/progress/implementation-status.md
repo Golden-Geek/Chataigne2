@@ -5,10 +5,11 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-22 on `main`, starting clean at delivered `3a38df47`, matching
-`origin/main`. MQTT queued target/ancestor reads now use bounded public precondition groups before
-all prefix mutations, with their storage admitted on the preparation worker. The final verification
-pipeline passes; all owned jobs are terminal. **C01-C03 remain locally closed; nine P03 packages remain open: C04-C12.**
+Last reconciled: 2026-10-22 on `main`, starting clean at delivered `b0b5a167`, matching
+`origin/main`. MQTT outgoing commands and scripts now capture canonical source leases; the existing
+native worker owns conversion, bounded encoding, packet validation and explicit not-sent outcomes.
+Queued target/ancestor fences remain preserved. The final verification pipeline passes; all owned jobs
+are terminal. **C01-C03 remain locally closed; nine P03 packages remain open: C04-C12.**
 P03 stays ~88% scope coverage and the whole plan ~16%.
 Device/platform and product-scale qualification remain separate; general snapshot/DTO scaling is P16.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
@@ -17,6 +18,10 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 [previous plan](../archive/2026-10-18/plan/Chataigne2_Codex_Implementation_Plan.md).
 
 ## Completion overview
+
+**P03 remaining-module audit: 3/12 packages closed; 9 remain (C04-C12).** MQTT is current,
+with eight packages after it. These are fixed acceptance packages, not promised commit counts.
+The ~88% scope score below is not a forecast of remaining effort.
 
 **Whole plan: approximately 16% complete.** P01 and P02 are complete against their local
 acceptance criteria; P03 is approximately 88%; P04-P18 have not started. P00 baseline reconciliation
@@ -86,7 +91,7 @@ instead of accumulated batch numbers.
 | C01 | **CLOSED (100%)** | Sound Card                       | Locally verified: bounded native/actor service and lifetime ownership; retained source, path and publication guards; matching application/rejection, isolated failure recovery and capped constraint publication. Hardware/platform and P04 audio ordering remain separate. |
 | C02 | **CLOSED (100%)** | Signals and Metronomes           | Verified: bounded command/configuration bytes, 64-row publication turns, elapsed-time/occurrence preservation, nonblocking retirement and passive failure/recovery.                                                                                                         |
 | C03 | **CLOSED (100%)** | MIDI and OSC                     | Locally verified: bounded native/input/output/catalog/feedback/structure ownership, passive service, explicit deadlines, retained occurrences, nonblocking cleanup and failure/recovery. Commands and scripts preserved; hardware/platform qualification remains separate.  |
-| C04 | OPEN              | MQTT                             | Native/configuration ownership, incoming preparation/cursor and queued target/ancestor fences locally verified. Finish outgoing capture/preparation and full pressure/passive-receipt/failure/cross-turn-churn/actor qualification.                                         |
+| C04 | OPEN              | MQTT                             | Native/configuration ownership, incoming preparation/cursor, target fences and outgoing capture/preparation locally verified. Finish full pressure/passive-receipt/failure/cross-turn-churn/actor qualification.                                                            |
 | C05 | OPEN              | DMX                              | Close P03 lifecycle/admission/retirement/recovery requirements; DMX stream correctness remains separately P07.                                                                                                                                                              |
 | C06 | OPEN              | App Control and OS               | Close worker/service/cleanup bounds, failure ownership and recovery without recurring main-thread polling or blocking joins.                                                                                                                                                |
 | C07 | OPEN              | Buttplug                         | Close channel/payload/service bounds, accepted-command ownership, retirement and connection recovery.                                                                                                                                                                       |
@@ -112,6 +117,11 @@ or completion credit. Snapshot/DTO scaling remains an explicit P16 investigation
 
 - **C04 MQTT remains OPEN. Nine P03 packages remain (C04-C12); C01-C03 stay closed.** Native
   transport/outcome ownership, passive service and worker configuration capture remain delivered.
+- `mqtt/output/` retains canonical command snapshots/execute events and Core script arguments.
+  The existing native worker decodes escapes/overrides, encodes bounded JSON and validates packets
+  once, preserving prepared bytes under backpressure. Output/scratch quotas precede admission;
+  source retirement and invalid preparation produce an explicit not-sent receipt. Public script
+  methods, manual triggers and execute overrides share the path; no actor JSON relay remains.
 - `mqtt/input/` now owns incoming preparation and receipt-driven delivery. The actor captures fixed
   processing/source reads; one bounded worker performs payload conversion, JSON validation, callback
   construction and optional 256-byte log previews. Waiting preparation is snapshot-free. Thirty-two
@@ -133,23 +143,22 @@ or completion credit. Snapshot/DTO scaling remains an explicit P16 investigation
   MQTT queue lifetime gap; it does not move MQTT policy into Core or replace validation/source guards.
 - The old incremental received-value API and its last MQTT caller are removed. Other modules retain
   their shared batch planner/cursor paths. No wire DTO, dependency, persisted schema or app-shell change.
-- **Remaining C04 acceptance:** outgoing command/script capture and serialization at the IO boundary;
-  complete pressure/passive-receipt/failure, cross-turn churn and actor/load
+- **Remaining C04 acceptance:** complete pressure/passive-receipt/failure, cross-turn churn and actor/load
   qualification. Then continue C05-C12. Keep product-scale performance under P16 and physical/platform
   qualification under its existing plan owners.
 - Target capture reuses shared ancestors and caps each prefix at 282 reads. Groups contain at most
   32 public node guards, all before writes, so replacement followed by child creation cannot make
   a later guard falsely stale. The prepared-result byte charge includes worst-case queued guard,
   request and receipt metadata; existing retained edit leases keep that charge through discard.
-- Current final app test artifact: **56 owning + 890 disjoint preservation = 946 passes / six selected
-  ignored / 1308 listed**, with 356 outside these scopes. Six ignores are five existing authored-scale
+- Current final app test artifact: **64 owning + 890 disjoint preservation = 954 passes / six selected
+  ignored / 1316 listed**, with 356 outside these scopes. Six ignores are five existing authored-scale
   cases and the already-qualified Sound Card catalog measurement. No full app/Formula acceptance is
   claimed. Core source is unchanged; its prior 597-pass/three-ignore/600-listed run remains baseline,
   rather than another run or an addition to app counts.
 - Strict workspace/all-target Clippy, workspace/test checking, protocol codegen, native build with
   `CARGO_INCREMENTAL=0`, root/Core Cargo fmt, explicit MQTT Rustfmt and docs formatting/whitespace
   checks pass. Generated bindings and app-shell source are unchanged. All owned jobs are terminal.
-- Source inventory: **1744 files / 36 oversized**; MQTT entrypoint 543 lines. Commit/push each verified
+- Source inventory: **1749 files / 36 oversized**; MQTT entrypoint 519 lines. Commit/push each verified
   milestone on `main`; keep the full P00-P18 goal active. P03 remains ~88% scope coverage, full plan ~16%.
 
 ## Task ledger
@@ -6241,3 +6250,36 @@ C04 stays open for outgoing command/script preparation and complete pressure/pas
 failure, cross-turn churn and actor/load qualification. Counts remain **nine open / three closed**,
 P03 ~88% scope coverage and whole plan ~16%. All owned jobs are terminal. Commit/push this verified
 milestone on `main`; retain the full P00-P18 goal.
+
+## C04 MQTT outgoing source capture and native preparation
+
+Implemented 2026-10-22 after `b0b5a167`, starting clean on `main`. App-owned `mqtt/output/`
+captures canonical command snapshots/execute events and Core script arguments. The existing native
+worker owns escape/override conversion, bounded JSON encoding, wire validation and one prepared packet
+across backpressure. Output/copy/scratch admission precedes queueing; original inputs keep their
+canonical leases. Invalid preparation or producer retirement before dispatch reports **not sent**,
+without an empty substitute or automatic replay. Command admission failure preserves unrelated edits.
+The old actor JSON relay and outgoing script converter are removed. No Core API, protocol DTO,
+dependency, persisted format or app-shell startup changes.
+
+Verification on Windows/default features, Rust 1.97.0:
+
+| Check                                                                                                         | Result / boundary                                                                                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cargo test --locked -p Chataigne2 --bin Chataigne2 module_modules_protocol_mqtt -- --test-threads=4 --quiet` | **64 passed**. Eight new cases cover frozen command text/escapes, last override, canonical script arguments, JSON expansion/topic refusal, ACK-held quota/recovery, rejection without dispatch, prepared producer retirement and actual engine script/manual/execute dispatch. Fake brokers and existing ephemeral loopback only. |
+| Final test artifact preservation scopes                                                                       | **890 passed / six existing ignored / 896 selected**, disjoint from MQTT. **954 distinct passes / six selected ignores / 1316 listed**; 356 outside these scopes. No full-app/Formula or product-scale acceptance claim.                                                                                                          |
+| Strict workspace/all-target Clippy; workspace/test check                                                      | Passed. An initial lint pass found two unnecessary test mutabilities; both were removed before the passing pipeline.                                                                                                                                                                                                              |
+| Protocol codegen; `CARGO_INCREMENTAL=0 cargo build --locked -p Chataigne2 --bin Chataigne2`                   | Passed; generated bindings unchanged.                                                                                                                                                                                                                                                                                             |
+| Root/Core `cargo fmt --all`, explicit app/MQTT Rustfmt, docs formatting and whitespace                        | Passed. Source inventory **1749 files / 36 oversized**; MQTT entrypoint **519 lines**. Core unchanged; its prior 597-pass/three-ignore/600-listed qualification remains baseline, not a rerun or an addition to app counts.                                                                                                       |
+
+Final artifact SHA-256:
+
+- App `target/debug/deps/Chataigne2-b14ffd1b9e52f9ac.exe`:
+  `3a4de2afdd4076c9e6dd1e6213d87f18b50230065314865bf0bb84463b40fc15`.
+- Native `target/debug/Chataigne2.exe`:
+  `df14f7621a424702f3a10ce028fac5b271238934b44bbd3a2aadd0dca5416677`.
+
+**C04 remains open** for complete pressure/passive-receipt/failure, cross-turn churn and controlled
+actor/load qualification. Then continue C05-C12. **3/12 audit packages closed; nine remain**;
+P03 ~88% scope coverage and whole plan ~16%, neither a remaining-effort estimate. All owned jobs are
+terminal. Commit/push this verified milestone on `main`; retain the full P00-P18 goal.

@@ -12,6 +12,7 @@ pub(crate) use module_modules_protocol_midi_midi_module::midi_message::{
     cc_supports_14_bit, clamp_channel_i32, clamp_i32_to_u14, clamp_i32_to_u7, encode_14_bit_control_change,
     encode_midi_message, message_description, note_pitch_from_name_octave, MidiMessage, MidiSystemMessage,
 };
+pub(crate) use module_modules_protocol_mqtt::queue_mqtt_command;
 pub(crate) use module_modules_protocol_osc_commands_osc_send_custom_message_command::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE;
 pub(crate) use module_modules_protocol_osc_osc_module_base::{queue_osc_command, OscOutboundRequest, OscQueueError};
 

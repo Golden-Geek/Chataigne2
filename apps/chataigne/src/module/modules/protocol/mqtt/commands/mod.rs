@@ -3,14 +3,11 @@ use golden_core::{
     node,
     node::{Node, NodeId},
     parameter::{Enum, ParamValue},
-    process_ctx::{ProcessCtx, ProcessTreeSnapshot},
+    process_ctx::ProcessCtx,
 };
 
 use crate::app::{
-    module::common::{
-        mqtt::{mqtt_qos_enum_options, MqttPublishRequest, MqttQos, MQTT_PUBLISH_COMMAND_NODE_TYPE},
-        streaming::parser::decode_text_escape_sequences,
-    },
+    module::common::mqtt::{mqtt_qos_enum_options, MQTT_PUBLISH_COMMAND_NODE_TYPE},
     module_command,
 };
 
@@ -44,21 +41,15 @@ impl MqttPublishCommand {
         Self::new(crate::app::ModuleCommandBase::new())
     }
 
-    fn request_payload(&self, snapshot: &ProcessTreeSnapshot) -> Result<MqttPublishRequest, String> {
-        let topic = command_string_param(snapshot, self.id(), "topic").unwrap_or_default();
-        let payload_text = command_string_param(snapshot, self.id(), "payload").unwrap_or_default();
-        let qos_variant = command_enum_param(snapshot, self.id(), "qos")
-            .unwrap_or_else(|| crate::app::module::common::mqtt::MQTT_QOS_AT_MOST_ONCE.to_string());
-        let qos = MqttQos::from_variant(qos_variant.as_str())
-            .ok_or_else(|| format!("invalid MQTT QoS variant '{qos_variant}'"))?;
-
-        Ok(MqttPublishRequest {
-            topic,
-            payload: decode_text_escape_sequences(payload_text.as_str()).into_bytes(),
-            qos,
-            retain: command_bool_param(snapshot, self.id(), "retain").unwrap_or(false),
-            description: "publish".to_string(),
-        })
+    fn run(&self, ctx: &mut ProcessCtx, event: Option<golden_core::events::CustomEvent>) {
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        let result = module_command::CapturedInvocation::capture(&snapshot, self.id(), event, &["mqtt_module"])
+            .and_then(|invocation| crate::app::queue_mqtt_command(ctx, invocation));
+        if let Err(error) = result {
+            golden_core::logerror!(format!("MQTT command was not admitted: {error}"));
+        }
     }
 }
 
@@ -89,68 +80,17 @@ impl Node for MqttPublishCommand {
             return;
         }
 
-        if let Err(error) = self.request_payload(snapshot).and_then(|payload| {
-            module_command::emit_module_command_request(
-                ctx,
-                snapshot,
-                self.id(),
-                self.get_type(),
-                &payload,
-            )
-        }) {
-            golden_core::logerror!(format!("Failed to trigger MQTT publish command: {error}"));
-        }
+        self.run(ctx, None);
     }
 
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
-        if !module_command::is_command_execute_request(&event, self.id()) {
+        if event.topic != module_command::MODULE_COMMAND_EXECUTE_TOPIC
+            || event.payload.get("command_id").and_then(serde_json::Value::as_u64) != Some(self.id().0)
+        {
             return;
         }
-        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
-            return;
-        };
-        let snapshot =
-            module_command::command_execute_snapshot(&event, snapshot_arc.as_ref(), self.id());
-        let snapshot = snapshot.as_ref();
-        if let Err(error) = self.request_payload(snapshot).and_then(|payload| {
-            module_command::emit_module_command_request(
-                ctx,
-                snapshot,
-                self.id(),
-                self.get_type(),
-                &payload,
-            )
-        }) {
-            golden_core::logerror!(format!("Failed to execute MQTT publish command: {error}"));
-        }
+        self.run(ctx, Some(event));
     }
-}
-
-fn command_string_param(snapshot: &ProcessTreeSnapshot, command_id: NodeId, path: &str) -> Option<String> {
-    module_command::resolve_module_command_child(snapshot, command_id, path).and_then(|param_id| {
-        snapshot
-            .node(param_id)
-            .and_then(|node| node.param_value.as_ref())
-            .and_then(ParamValue::as_str)
-    })
-}
-
-fn command_enum_param(snapshot: &ProcessTreeSnapshot, command_id: NodeId, path: &str) -> Option<String> {
-    module_command::resolve_module_command_child(snapshot, command_id, path).and_then(|param_id| {
-        snapshot
-            .node(param_id)
-            .and_then(|node| node.param_value.as_ref())
-            .and_then(ParamValue::as_enum)
-    })
-}
-
-fn command_bool_param(snapshot: &ProcessTreeSnapshot, command_id: NodeId, path: &str) -> Option<bool> {
-    module_command::resolve_module_command_child(snapshot, command_id, path).and_then(|param_id| {
-        snapshot
-            .node(param_id)
-            .and_then(|node| node.param_value.as_ref())
-            .and_then(ParamValue::as_bool)
-    })
 }
 
 #[cfg(test)]

@@ -231,8 +231,12 @@ pub(super) fn run<B: Broker>(
                 }
             }
             for _ in 0..COMMAND_TURN.get() {
-                let Some(command) = pending.front() else { break };
-                if !session.broker.as_mut().unwrap().publish(&command.request) {
+                let Some(command) = pending.front_mut() else { break };
+                if let Err(error) = command.prepare() {
+                    pending.pop_front().unwrap().reject(error);
+                    continue;
+                }
+                if !session.broker.as_mut().unwrap().publish(command.request()) {
                     break;
                 }
                 session.publications.queued(pending.pop_front().unwrap());

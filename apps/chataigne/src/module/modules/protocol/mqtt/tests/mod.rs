@@ -7,7 +7,7 @@ use golden_core::{
     script::ScriptSource,
 };
 
-use super::{mqtt_publish_request_from_script, transport::MqttReceivedPublish, MqttModule};
+use super::{transport::MqttReceivedPublish, MqttModule};
 use crate::app::module::common::mqtt::{MqttQos, MQTT_PUBLISH_COMMAND_NODE_TYPE};
 
 mod service;
@@ -131,16 +131,16 @@ fn incoming_json_publish_expands_under_topic() {
 
 #[test]
 fn script_publish_json_request_encodes_payload_qos_and_retain() {
-    let request = mqtt_publish_request_from_script(
-        "publishJson",
+    let request = super::output::script::prepare(
+        super::output::Method::Json,
         &[
             ParamValue::Str("app/state".to_string()),
             ParamValue::Bool(true),
             ParamValue::Int(1),
             ParamValue::Bool(true),
         ],
+        super::output::MAX_PACKET,
     )
-    .expect("publishJson should be handled")
     .expect("publishJson request should decode");
 
     assert_eq!(request.topic, "app/state");

@@ -39,6 +39,21 @@ Full input capacity pauses the native reader with a cancellable wait; it never g
 
 ## Accepted publication outcomes
 
+`output/` captures canonical command snapshots/execute-event leases and Core-owned script arguments.
+The actor performs bounded target inspection and queue admission; it does not clone payload text,
+decode escapes or encode MQTT JSON. The existing native transport worker prepares each packet once,
+validates its wire size, then preserves it across library backpressure. Command preparation borrows
+only its four consumed fields and applies the last override without cloning a snapshot overlay.
+Script JSON uses a bounded writer; prepared/library bytes and conversion scratch are reserved before
+queue admission. Original snapshot, event and argument allocations keep their independent canonical
+leases. Public commands, scripts and templates share this path.
+
+Producer retirement before dispatch rejects queued output, including an already prepared packet
+waiting for native capacity. Invalid topics, oversized encoded output and preparation failures report
+an explicit **not sent** receipt and never dispatch an empty replacement packet. Refused command
+admission logs the failure without rejecting unrelated queued edits. No output preparation worker or
+second actor relay is introduced.
+
 `transport/publications.rs` owns publish receipts independently of the event mailbox. Every
 admitted command remains pending while queued or in protocol state. QoS 0 is explicitly dispatched
 without broker confirmation. QoS 1 waits for PUBACK; QoS 2 waits for PUBCOMP. Retransmissions retain
@@ -122,7 +137,6 @@ result keeps its raw and derived reservations through delivery and queued edits,
 module is destroyed. Core's public `EditQueue::retain_payload` supplies only this generic lifetime
 mechanism; app-specific capture, limits and MQTT callback policy stay here.
 
-`payload.rs` now owns outgoing script conversions. Outgoing command/script preparation,
-full pressure/passive-receipt qualification and controlled actor/load acceptance
-remain open C04 work. Follow the ledger rather than treating transport or cursor tests as whole-module
-acceptance.
+`payload.rs` owns only shared receive-callback and log formatting helpers. Full pressure/passive-receipt,
+failure/cross-turn churn and controlled actor/load acceptance remain open C04 work. Follow the ledger
+rather than treating transport, cursor or outgoing-preparation tests as whole-module acceptance.

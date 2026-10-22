@@ -4,7 +4,7 @@ use std::{
     collections::{HashMap, VecDeque},
     sync::{
         atomic::{AtomicU8, Ordering},
-        Arc,
+        Arc, OnceLock,
     },
 };
 
@@ -15,11 +15,13 @@ pub(crate) enum PublishStatus {
     DispatchedUnconfirmed,
     Acknowledged,
     FailedUnconfirmed,
+    Rejected,
 }
 
 struct State {
     status: AtomicU8,
     notifier: WorkerNotifier,
+    failure: OnceLock<String>,
 }
 
 #[derive(Clone)]
@@ -30,31 +32,58 @@ impl PublishReceipt {
             0 => PublishStatus::Pending,
             1 => PublishStatus::DispatchedUnconfirmed,
             2 => PublishStatus::Acknowledged,
+            4 => PublishStatus::Rejected,
             _ => PublishStatus::FailedUnconfirmed,
         }
     }
+    pub(crate) fn failure(&self) -> Option<&str> {
+        self.0.failure.get().map(String::as_str)
+    }
+}
+
+enum Data {
+    Captured {
+        // Native bytes must drop before the source releases their reservation.
+        prepared: Option<MqttPublishRequest>,
+        source: RetainedPayload<super::super::output::Request>,
+    },
+    #[cfg(test)]
+    Ready(RetainedPayload<MqttPublishRequest>),
 }
 
 pub(super) struct AdmittedPublish {
-    pub(super) request: RetainedPayload<MqttPublishRequest>,
+    data: Data,
     state: Arc<State>,
     origin: NodeId,
     log: bool,
 }
 impl AdmittedPublish {
+    #[cfg(test)]
     pub(super) fn new(
         request: RetainedPayload<MqttPublishRequest>,
         notifier: WorkerNotifier,
         origin: NodeId,
         log: bool,
     ) -> (Self, PublishReceipt) {
+        Self::with_data(Data::Ready(request), notifier, origin, log)
+    }
+    pub(super) fn captured(
+        source: RetainedPayload<super::super::output::Request>,
+        notifier: WorkerNotifier,
+        origin: NodeId,
+        log: bool,
+    ) -> (Self, PublishReceipt) {
+        Self::with_data(Data::Captured { prepared: None, source }, notifier, origin, log)
+    }
+    fn with_data(data: Data, notifier: WorkerNotifier, origin: NodeId, log: bool) -> (Self, PublishReceipt) {
         let state = Arc::new(State {
             status: AtomicU8::new(0),
             notifier,
+            failure: OnceLock::new(),
         });
         (
             Self {
-                request,
+                data,
                 state: state.clone(),
                 origin,
                 log,
@@ -62,14 +91,49 @@ impl AdmittedPublish {
             PublishReceipt(state),
         )
     }
+    pub(super) fn prepare(&mut self) -> Result<(), String> {
+        match &mut self.data {
+            Data::Captured { prepared, source } => {
+                if !source.is_live() {
+                    return Err("MQTT producer retired; request was not sent".into());
+                }
+                if prepared.is_none() {
+                    let request = source.prepare()?;
+                    let bytes = admission::publish_bytes(&request)?;
+                    if bytes > source.reservation_weight() {
+                        return Err("MQTT encoded output exceeds its retained reservation".into());
+                    }
+                    *prepared = Some(request);
+                }
+            }
+            #[cfg(test)]
+            Data::Ready(_) => {}
+        }
+        Ok(())
+    }
+    pub(super) fn request(&self) -> &MqttPublishRequest {
+        match &self.data {
+            Data::Captured { prepared, .. } => prepared.as_ref().expect("native preparation precedes dispatch"),
+            #[cfg(test)]
+            Data::Ready(request) => request,
+        }
+    }
+    pub(super) fn reject(self, message: String) {
+        let _ = self.state.failure.set(admission::diagnostic(message));
+        self.state
+            .status
+            .store(PublishStatus::Rejected as u8, Ordering::Release);
+        self.state.notifier.notify();
+    }
     fn complete(self, status: PublishStatus) {
         if self.log {
-            let bytes = &self.request.payload[..self.request.payload.len().min(256)];
+            let request = self.request();
+            let bytes = &request.payload[..request.payload.len().min(256)];
             let outcome = match status {
                 PublishStatus::Acknowledged => "acknowledged by broker",
                 _ => "dispatched without broker acknowledgement",
             };
-            golden_core::log!(origin = self.origin; format!("MQTT {} on {}: {}{}", outcome, self.request.topic, super::super::format_mqtt_payload_for_log(bytes), if self.request.payload.len() > bytes.len() { " (preview)" } else { "" }));
+            golden_core::log!(origin = self.origin; format!("MQTT {} on {}: {}{}", outcome, request.topic, super::super::format_mqtt_payload_for_log(bytes), if request.payload.len() > bytes.len() { " (preview)" } else { "" }));
         }
         self.state.status.store(status as u8, Ordering::Release);
         self.state.notifier.notify();

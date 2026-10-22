@@ -10,6 +10,7 @@ use worker::{Broker, BrokerPoll};
 
 mod lifecycle;
 mod outcomes;
+mod outgoing;
 mod wire;
 
 fn config() -> MqttTransportConfig {
@@ -62,6 +63,8 @@ fn until(mut ready: impl FnMut() -> bool) {
 struct Control {
     events: Arc<Mutex<VecDeque<Result<BrokerPoll, String>>>>,
     published: Arc<AtomicUsize>,
+    attempts: Arc<AtomicUsize>,
+    last_request: Arc<Mutex<Option<MqttPublishRequest>>>,
     busy: Arc<AtomicBool>,
     panic: Arc<AtomicBool>,
     buffered: Arc<Mutex<VecDeque<Event>>>,
@@ -105,11 +108,14 @@ impl Broker for FakeBroker {
         Ok(BrokerPoll::Idle)
     }
     fn publish(&mut self, request: &MqttPublishRequest) -> bool {
+        self.control.attempts.fetch_add(1, Ordering::AcqRel);
         if self.control.busy.load(Ordering::Acquire) {
             return false;
         }
-        let id = self.control.published.fetch_add(1, Ordering::AcqRel) + 1;
+        let id = self.control.published.load(Ordering::Acquire) + 1;
         self.held.push(request.payload.clone());
+        *self.control.last_request.lock().unwrap() = Some(request.clone());
+        self.control.published.store(id, Ordering::Release);
         self.control
             .event(Event::Outgoing(rumqttc::Outgoing::Publish(id as u16)));
         true

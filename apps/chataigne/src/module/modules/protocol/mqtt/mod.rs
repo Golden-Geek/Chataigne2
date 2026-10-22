@@ -1,5 +1,7 @@
 mod configuration;
 mod input;
+mod output;
+pub(crate) use output::dispatch as queue_mqtt_command;
 mod payload;
 mod service;
 mod transport;
@@ -9,16 +11,14 @@ use std::collections::VecDeque;
 
 use golden_core::{
     engine::NodeExecutionRule,
-    events::{CustomEvent, Event},
+    events::Event,
     logerror, node,
     node::{Node, NodeCreationContext, NodeHandle, NodeId, NodeScriptDescriptor},
     parameter::{Enum, ParamValue},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
-use crate::app::module::common::mqtt::{
-    mqtt_qos_enum_options, MqttPublishRequest, MqttQos, MQTT_PUBLISH_COMMAND_NODE_TYPE, MQTT_QOS_AT_MOST_ONCE,
-};
+use crate::app::module::common::mqtt::{mqtt_qos_enum_options, MQTT_PUBLISH_COMMAND_NODE_TYPE, MQTT_QOS_AT_MOST_ONCE};
 
 use self::transport::{
     MqttConnectionStatus, MqttTransportConfig, MqttTransportHandle, MqttWorkerEvent, PublishReceipt, PublishStatus,
@@ -149,7 +149,7 @@ pub struct MqttModule {
     configuration_key: Option<configuration::Key>,
     transport_dirty: bool,
     incoming: input::Inbox,
-    pending_publishes: VecDeque<(PublishReceipt, String)>,
+    pending_publishes: VecDeque<(PublishReceipt, &'static str)>,
     wake: Option<crate::app::module::common::worker_wake::ModuleWake>,
     retry_at: Option<std::time::Instant>,
     retry_backoff: golden_io::ReconnectBackoff,
@@ -205,12 +205,20 @@ impl MqttModule {
                 PublishStatus::Acknowledged | PublishStatus::DispatchedUnconfirmed => {
                     self.base.emit_outgoing_traffic(ctx)
                 }
+                PublishStatus::Rejected => {
+                    let message = format!(
+                        "MQTT {description} was not sent: {}",
+                        receipt.failure().unwrap_or("native preparation rejected the request")
+                    );
+                    self.set_target_warning(ctx, &message);
+                    logerror!(message);
+                }
                 PublishStatus::FailedUnconfirmed => {
                     let message = format!(
                         "MQTT {description} failed or was cancelled; delivery is unconfirmed and is not replayed"
                     );
                     self.set_target_warning(ctx, &message);
-                    logerror!("{}", message);
+                    logerror!(message);
                 }
             }
         }
@@ -290,25 +298,15 @@ impl MqttModule {
         }
     }
 
-    fn queue_publish_request(&mut self, _ctx: &mut ProcessCtx, request: MqttPublishRequest) -> Result<String, String> {
-        let topic = request.topic.trim();
-        if !rumqttc::valid_topic(topic) || topic.is_empty() {
-            return Err(format!("invalid MQTT publish topic '{}'", request.topic));
+    fn queue_output_request(&mut self, _ctx: &mut ProcessCtx, request: output::Request) -> Result<(), String> {
+        if !self.node_data().effective_enabled || self.pending_publishes.len() >= 100 {
+            return Err("MQTT module is disabled or its pending publication capacity is exhausted".into());
         }
-
-        if self.pending_publishes.len() >= 100 || request.description.capacity() > 256 {
-            return Err("MQTT pending publication capacity exhausted".into());
-        }
-        let description = request.description.clone();
-
-        let transport = self
-            .transport
-            .as_ref()
-            .ok_or_else(|| "MQTT transport is not available".to_string())?;
-        let receipt = transport.send(request, self.base.log_outgoing_enabled())?;
-        self.pending_publishes.push_back((receipt, description.clone()));
-
-        Ok(format!("Queued MQTT {description}"))
+        let description = request.description();
+        let transport = self.transport.as_ref().ok_or("MQTT transport is not available")?;
+        let receipt = transport.send_output(request, self.base.log_outgoing_enabled())?;
+        self.pending_publishes.push_back((receipt, description));
+        Ok(())
     }
 
     fn handle_script_publish_method(
@@ -317,26 +315,8 @@ impl MqttModule {
         method: &str,
         args: &[ParamValue],
     ) -> Option<Result<(), String>> {
-        let request = mqtt_publish_request_from_script(method, args)?;
-
-        Some(request.and_then(|request| self.queue_publish_request(ctx, request).map(|_| ())))
-    }
-
-    fn on_custom_event_inner(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
-        let Some(request) = crate::app::module_command::decode_module_command_request(&event) else {
-            return;
-        };
-        if request.module_id != self.id() || !MQTT_MODULE_COMMAND_TYPES.contains(&request.command_type.as_str()) {
-            return;
-        }
-        let command_id = request.command_id;
-
-        if let Err(error) = serde_json::from_value::<MqttPublishRequest>(request.payload)
-            .map_err(|error| format!("invalid MQTT publish command payload: {error}"))
-            .and_then(|payload| self.queue_publish_request(ctx, payload))
-        {
-            logerror!(format!("Failed to handle MQTT command {:?}: {error}", command_id));
-        }
+        output::Request::script(ctx, method, args)
+            .map(|request| request.and_then(|request| self.queue_output_request(ctx, request)))
     }
 
     fn on_effective_enabled_changed_inner(&mut self, ctx: &mut ProcessCtx, enabled: bool) {
@@ -507,10 +487,6 @@ impl Node for MqttModule {
 
     fn on_effective_enabled_changed(&mut self, ctx: &mut ProcessCtx, enabled: bool) {
         self.on_effective_enabled_changed_inner(ctx, enabled);
-    }
-
-    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
-        self.on_custom_event_inner(ctx, event);
     }
 
     fn project_create(node_type: &str) -> Option<Self> {

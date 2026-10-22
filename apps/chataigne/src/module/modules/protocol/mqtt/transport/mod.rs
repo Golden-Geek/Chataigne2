@@ -148,6 +148,7 @@ impl MqttTransportHandle {
         })
     }
 
+    #[cfg(test)]
     pub(crate) fn send(&self, request: MqttPublishRequest, log: bool) -> Result<PublishReceipt, String> {
         let bytes = admission::publish_bytes(&request)?;
         if !self.connected.load(Ordering::Acquire) {
@@ -158,6 +159,23 @@ impl MqttTransportHandle {
             .try_retain(request, bytes)
             .map_err(|_| "MQTT publish lifetime capacity exhausted")?;
         let (command, receipt) = AdmittedPublish::new(request, self.notifier.clone(), self.origin, log);
+        self.worker.send_weighted(command, bytes).map_err(|error| match error {
+            golden_io::PendingSendError::Full(_) => "MQTT request queue is full",
+            golden_io::PendingSendError::Disconnected(_) => "MQTT worker is no longer running",
+        })?;
+        Ok(receipt)
+    }
+
+    pub(super) fn send_output(&self, request: super::output::Request, log: bool) -> Result<PublishReceipt, String> {
+        if !self.connected.load(Ordering::Acquire) {
+            return Err("MQTT transport is not connected".into());
+        }
+        let bytes = request.reservation_weight();
+        let source = self
+            .commands
+            .try_retain(request, bytes)
+            .map_err(|_| "MQTT output lifetime capacity exhausted")?;
+        let (command, receipt) = AdmittedPublish::captured(source, self.notifier.clone(), self.origin, log);
         self.worker.send_weighted(command, bytes).map_err(|error| match error {
             golden_io::PendingSendError::Full(_) => "MQTT request queue is full",
             golden_io::PendingSendError::Disconnected(_) => "MQTT worker is no longer running",
