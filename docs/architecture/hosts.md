@@ -496,7 +496,8 @@ Connection warning retries recheck the current selected device and bound paramet
 or selector removal cannot strand the original callback behind stale feedback. Playback callbacks
 remain transient; device/backend callbacks retain their ordinary replay policy.
 
-Prepared-event log publication runs on one app-owned native worker, with **32 live admission
+Prepared-event selection matching and log publication share one app-owned `native_feedback`
+worker, with **32 live admission
 tickets / 32 queued handles** and one worker lifetime slot, including retirement. Jobs retain the
 original event lease and its byte quota; actor service neither copies log strings nor enters the
 synchronous logger. The native writer bounds display messages to **16 KiB UTF-8**, marking
@@ -513,10 +514,18 @@ An uncertain committed prefix is never replayed; a retryable warning edit record
 failure before the original callback continues. Other modules' logger/UI record storage remains
 separately owned; this is not a whole-process logger-memory or latency qualification.
 
-Selection checks cache their result by bound parameter and actual driver/selection values during
-receipt waits. The feedback phase closes before callback admission, so later selection changes
-cannot reopen feedback after a callback is queued. Selection parsing and the fence's control-value
-copies remain actor-side work; the prepared configuration worker below does not replace that phase.
+Selection checks admit borrowed driver/device lengths before capture: **128 bytes / 256 KiB**.
+A separate **32-source / 16 MiB** retained pool reserves before copying and owns final disposal,
+including cached results and cancelled jobs. The shared native worker parses/matches the selection;
+the actor compares its bounded captured controls against the current preprocessed parameter handles
+before using a result. Changing/removing a selector abandons the old result without joining or
+releasing its worker-owned input early. None bypasses pending matching. Cache hits during receipts
+do not parse again. Full admission retries after 250 ms and re-arms a deadline consumed by an earlier
+wake. Matching waits neither self-wake nor request a tree snapshot. Failed inspection records a
+retryable warning edit and preserves the original status callback. The feedback phase closes before
+callback admission, so later selection changes cannot reopen feedback after a callback is queued.
+Driver startup applies the same 128-byte bound before copying, and sample-rate text admits at most
+32 bytes before numeric parsing. These are app control-admission bounds, not new protocol types.
 
 Golden Audio prepares at most 1 MiB per event. String identities admit 64 KiB at construction and
 deserialization, and playback paths admit 128 KiB retained storage before command acceptance.
@@ -747,10 +756,13 @@ acknowledgement. There is no optimistic actor warning cache to acknowledge faile
 destroy wholesale. Presentation-only metadata events do not request Sound Card snapshots or redrive
 configuration; labels and enabled-state changes retain their existing behavior.
 
-Derived structure/default-route seeding, remaining Core enum-constraint publication costs,
-event-feedback selection parsing/control-value copies, command/error diagnostic preparation and remaining reconfiguration,
-apply-time and failure fences remain P03 work. These budgets do not qualify whole-process memory
-or actor deadlines.
+Derived structure/default routes, commands and feedback matching now have their own bounded
+services and recovery evidence. Remaining reconfiguration/apply-time/failure fences still need the
+C01 closing audit; do not infer closure from this list or from absence of blocking calls. In
+particular, exercise slow preparation under continuous value-only updates before deciding that its
+source key is appropriately scoped. Core enum-constraint conversion/projection costs retain their
+existing P03/P16 ownership distinction; general snapshot/DTO scaling remains P16. These service
+budgets do not qualify whole-process memory or actor deadlines.
 
 ## Current qualification boundaries
 

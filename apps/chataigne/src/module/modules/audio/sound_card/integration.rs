@@ -9,6 +9,8 @@ use crate::app::module_modules_audio_sound_card_commands::SoundCardCommandReques
 
 mod command_admission;
 mod lifecycle;
+#[cfg(test)]
+mod tests;
 
 use command_admission::*;
 pub(super) use command_admission::{authored_gain_change as command_gain_change, command_error};
@@ -188,6 +190,9 @@ impl SoundCardModule {
 
     fn requested_sample_rate(&self) -> Result<golden_audio::SampleRate, String> {
         let value = &self.sample_rate.get_ref().0;
+        if value.len() > 32 {
+            return Err("Sound Card sample rate is invalid".into());
+        }
         let sample_rate = if value == AUTOMATIC_CONFIGURATION {
             return Ok(self
                 .automatic_sample_rate
@@ -202,6 +207,9 @@ impl SoundCardModule {
 
     fn requested_driver(&self) -> Result<Option<golden_audio::BackendId>, String> {
         let value = &self.audio_driver.get_ref().0;
+        if value.len() > DRIVER_SELECTION_BYTES {
+            return Err("Sound Card audio driver exceeds 128 bytes".into());
+        }
         if value == NO_AUDIO_DRIVER {
             return Ok(None);
         }

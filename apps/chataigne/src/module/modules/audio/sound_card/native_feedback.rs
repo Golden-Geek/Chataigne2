@@ -13,12 +13,17 @@ use golden_io::{BoundedWorker, RetirementPermit, RetirementPool, WorkerLimits};
 
 use super::{connection_feedback::ConnectionLogLevel, prepared_event::PreparedAudioEvent, runtime::RuntimeWakeSender};
 
+mod selection;
+pub(super) use selection::{SelectionDelivery, SelectionProgress};
+
 const TICKETS: usize = 32;
 const MESSAGE_BYTES: usize = 16 * 1024;
 const RETRY_DELAY: Duration = Duration::from_millis(250);
 const PENDING: u8 = 0;
 const APPLIED: u8 = 1;
 const FAILED: u8 = 2;
+const MATCHED: u8 = 3;
+const UNMATCHED: u8 = 4;
 
 #[derive(Clone, Copy)]
 pub(super) struct LogSelection {
@@ -56,9 +61,13 @@ struct Completion {
 
 struct Job {
     event: PreparedAudioEvent,
-    selection: LogSelection,
-    origin: NodeId,
+    operation: Operation,
     completion: Arc<Completion>,
+}
+
+enum Operation {
+    Log { selection: LogSelection, origin: NodeId },
+    Selection(golden_io::RetainedPayload<selection::Controls>),
 }
 
 type Sink = Arc<dyn Fn(LogLevel, NodeId, &str) + Send + Sync>;
@@ -68,6 +77,7 @@ struct Service {
     lifetime: RetirementPool,
     admission: RetirementPool,
     sink: Sink,
+    inputs: Mutex<Option<golden_io::PayloadPool>>,
 }
 
 impl LogDelivery {
@@ -148,16 +158,30 @@ impl LogSelection {
 }
 
 impl Job {
-    fn publish(&self, sink: &Sink) {
-        if self.selection.outgoing {
+    fn publish(&self, sink: &Sink) -> u8 {
+        let Operation::Log { selection, origin } = self.operation else {
+            let Operation::Selection(controls) = &self.operation else {
+                unreachable!()
+            };
+            let golden_audio::AudioEvent::DeviceStatusChanged(status) = &self.event.event else {
+                return UNMATCHED;
+            };
+            let driver = golden_audio::BackendId::new(controls.driver.clone()).ok();
+            return if super::connection_feedback::status_matches_selection(status, &controls.value, driver.as_ref()) {
+                MATCHED
+            } else {
+                UNMATCHED
+            };
+        };
+        if selection.outgoing {
             if let Some(message) = &self.event.outgoing_log {
-                sink(LogLevel::Info, self.origin, message);
+                sink(LogLevel::Info, origin, message);
             }
         }
         if let Some(error) = &self.event.preparation_error {
-            sink(LogLevel::Error, self.origin, error);
+            sink(LogLevel::Error, origin, error);
         }
-        if self.selection.connection {
+        if selection.connection {
             if let Some(log) = self
                 .event
                 .connection
@@ -169,9 +193,10 @@ impl Job {
                     ConnectionLogLevel::Success => LogLevel::Success,
                     ConnectionLogLevel::Error => LogLevel::Error,
                 };
-                sink(level, self.origin, &log.message);
+                sink(level, origin, &log.message);
             }
         }
+        APPLIED
     }
 }
 
@@ -196,6 +221,7 @@ impl Service {
             lifetime: RetirementPool::new(NonZeroUsize::MIN),
             admission: RetirementPool::new(NonZeroUsize::new(TICKETS).unwrap()),
             sink,
+            inputs: Mutex::new(None),
         }
     }
 
@@ -204,6 +230,15 @@ impl Service {
         event: PreparedAudioEvent,
         selection: LogSelection,
         origin: NodeId,
+        wake: Option<RuntimeWakeSender>,
+    ) -> Result<Arc<Completion>, ()> {
+        self.submit_operation(event, Operation::Log { selection, origin }, wake)
+    }
+
+    fn submit_operation(
+        &self,
+        event: PreparedAudioEvent,
+        operation: Operation,
         wake: Option<RuntimeWakeSender>,
     ) -> Result<Arc<Completion>, ()> {
         let admission = self.admission.try_reserve().map_err(|_| ())?;
@@ -215,7 +250,7 @@ impl Service {
             let sink = self.sink.clone();
             *worker = Some(
                 BoundedWorker::<Job, ()>::spawn(
-                    "sound-card-native-logging",
+                    "sound-card-native-feedback",
                     &self.lifetime,
                     WorkerLimits {
                         command_items: TICKETS,
@@ -225,8 +260,8 @@ impl Service {
                     },
                     move |context| {
                         while let Some(job) = context.receive() {
-                            if catch_unwind(AssertUnwindSafe(|| job.publish(&sink))).is_ok() {
-                                job.completion.status.store(APPLIED, Ordering::Release);
+                            if let Ok(status) = catch_unwind(AssertUnwindSafe(|| job.publish(&sink))) {
+                                job.completion.status.store(status, Ordering::Release);
                             }
                         }
                     },
@@ -245,8 +280,7 @@ impl Service {
             .send_weighted(
                 Job {
                     event,
-                    selection,
-                    origin,
+                    operation,
                     completion: completion.clone(),
                 },
                 size_of::<Job>(),

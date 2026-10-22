@@ -477,10 +477,17 @@ Post-gain output RMS at or above 0.01 linear publishes a latest-only outgoing-ac
 module traffic icon remains lit until the signal falls below the threshold. With outgoing traffic
 logging enabled, authoritative playback started, finished, stopped, failed, and no-effect events are
 logged at the Sound Card module origin.
-One bounded native logging worker appends prepared event messages before their callback receipts
-advance. Actor service forwards retained handles, waits for native completion wakes, and defers
-overload with a coarse deadline. Display logs admit 16 KiB with a truncation marker; typed callback
-data stays intact. Logging failure has an explicit warning and cannot replay a committed prefix.
+One bounded `native_feedback` worker matches status selections and appends prepared event messages
+before callback receipts advance. Its 32 shared job tickets and one live/retiring worker include
+both operations. Driver/device controls admit 128 bytes / 256 KiB before copying under a separate
+32-source / 16 MiB retained quota; cached and worker-owned sources retain that charge through final
+disposal. Parsing runs natively. The actor rechecks bounded controls before using a cached result;
+selection changes cannot reuse an old match. Matching waits require no snapshot or busy wake.
+Full admission retries after 250 ms, preserving the remaining deadline after an earlier wake.
+Failed inspection warns before delivering the unchanged status callback. None can bypass a pending
+check. Display logs admit 16 KiB with a truncation marker; typed callback data stays intact. Logging
+failure cannot replay a committed prefix. Startup bounds driver text before copying and numeric
+sample-rate text before parsing. See [host ownership](hosts.md) for the exact service boundaries.
 
 The app-owned Svelte adapter maps Sound Card connection paths and typed routing requests to public
 backend intents. `golden_audio_ui` owns generic driver/device presentation, status/error

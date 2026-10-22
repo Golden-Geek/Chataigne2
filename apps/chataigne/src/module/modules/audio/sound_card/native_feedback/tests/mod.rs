@@ -132,7 +132,7 @@ fn slow_logging_is_native_and_completion_wakes_without_actor_polling() {
     assert_eq!(seen[0].0, LogLevel::Info);
     assert_eq!(seen[0].1, NodeId(42), "admission freezes origin and policy");
     assert_eq!(seen[0].2, event.outgoing_log.as_ref().unwrap().as_str());
-    assert_eq!(seen[0].3, "sound-card-native-logging");
+    assert_eq!(seen[0].3, "sound-card-native-feedback");
 }
 
 #[test]

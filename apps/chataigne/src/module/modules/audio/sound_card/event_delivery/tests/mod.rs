@@ -229,16 +229,69 @@ fn receipt_waits_reuse_selection_validation_until_the_parameter_values_change() 
         let waiting = service(&engine, id, &mut pending);
         assert!(waiting.edits.pending.is_empty());
     }
-    assert_eq!(pending.0.front().unwrap().selection_checks, 1);
+    assert_eq!(pending.0.front().unwrap().selection.checks, 1);
     engine.absorb_edits(&mut warning).unwrap();
     engine.apply_edits().unwrap();
     let mut callback = service(&engine, id, &mut pending);
-    assert_eq!(pending.0.front().unwrap().selection_checks, 1);
+    assert_eq!(pending.0.front().unwrap().selection.checks, 1);
     engine.absorb_edits(&mut callback).unwrap();
     engine.apply_edits().unwrap();
     service(&engine, id, &mut pending);
     assert!(pending.is_empty());
     assert_eq!(callback_count(&engine, "audioDeviceStatusChanged"), 1);
+}
+
+#[test]
+fn rejected_feedback_controls_warn_once_and_preserve_the_original_status_callback() {
+    let (mut engine, id, mut pending) = status_fixture();
+    let parameter = super::super::find_path(&engine.process_tree_snapshot(), id, "connection/output_device").unwrap();
+    let mut constraints = engine
+        .process_tree_snapshot()
+        .node(parameter)
+        .unwrap()
+        .param_constraints
+        .clone()
+        .unwrap();
+    constraints.enum_options = Default::default();
+    engine.edits.push(Edit::SetParamConstraints {
+        node: parameter,
+        constraints,
+    });
+    engine.edits.push(Edit::SetParam {
+        node: parameter,
+        value: ParamValue::Enum("x".repeat(256 * 1024 + 1)),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().unwrap();
+    assert!(
+        matches!(engine.process_tree_snapshot().node(parameter).unwrap().param_value.as_ref(), Some(ParamValue::Enum(value)) if value.len() == 256 * 1024 + 1)
+    );
+    // Direct service calls bypass normal callback preprocessing of typed handles.
+    engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).unwrap();
+    engine.apply_edits().unwrap();
+    let mut warning = service(&engine, id, &mut pending);
+    engine.edits.push(invalid_edit());
+    engine.absorb_edits(&mut warning).unwrap();
+    assert!(engine.apply_edits().is_err());
+    let mut retry = service(&engine, id, &mut pending);
+    engine.absorb_edits(&mut retry).unwrap();
+    engine.apply_edits().unwrap();
+    assert_eq!(callback_count(&engine, "audioDeviceStatusChanged"), 0);
+    let mut callback = service(&engine, id, &mut pending);
+    engine.absorb_edits(&mut callback).unwrap();
+    engine.apply_edits().unwrap();
+    service(&engine, id, &mut pending);
+    assert!(pending.is_empty());
+    assert_eq!(callback_count(&engine, "audioDeviceStatusChanged"), 1);
+    assert!(engine
+        .nodes
+        .get(id)
+        .unwrap()
+        .node_data()
+        .meta
+        .presentation
+        .warning(Some("sound-card-feedback-selection"))
+        .is_some());
 }
 
 #[test]

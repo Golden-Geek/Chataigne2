@@ -9,7 +9,7 @@ use golden_core::{
 
 use super::{
     connection_feedback::{self, ConnectionWarning},
-    native_logging::{LogDelivery, LogProgress, LogSelection},
+    native_feedback::{LogDelivery, LogProgress, LogSelection, SelectionDelivery, SelectionProgress},
     prepared_event::PreparedAudioEvent,
     SoundCardModule,
 };
@@ -25,23 +25,15 @@ struct AudioEventDelivery {
     rejection_warning: EditReceipt,
     logging: LogDelivery,
     logging_warning: EditReceipt,
+    selection_warning: EditReceipt,
     external_wait: bool,
     phase: DeliveryPhase,
-    selection: Option<SelectionFence>,
-    #[cfg(test)]
-    selection_checks: usize,
+    selection: SelectionDelivery,
 }
 
 enum DeliveryPhase {
     Feedback,
     Callback,
-}
-
-struct SelectionFence {
-    parameter: golden_core::node::NodeId,
-    driver: String,
-    value: String,
-    matches: bool,
 }
 
 impl PendingAudioEvents {
@@ -58,11 +50,10 @@ impl PendingAudioEvents {
             rejection_warning: EditReceipt::default(),
             logging: LogDelivery::default(),
             logging_warning: EditReceipt::default(),
+            selection_warning: EditReceipt::default(),
             external_wait: false,
             phase: DeliveryPhase::Feedback,
-            selection: None,
-            #[cfg(test)]
-            selection_checks: 0,
+            selection: SelectionDelivery::default(),
         });
     }
 
@@ -85,7 +76,28 @@ impl AudioEventDelivery {
     fn service(&mut self, ctx: &mut ProcessCtx, module: &SoundCardModule) -> bool {
         self.external_wait = false;
         if matches!(self.phase, DeliveryPhase::Feedback) {
-            let matches_selection = self.matches_selection(module);
+            let matches_selection = match self.selection.service(&self.prepared, module) {
+                SelectionProgress::Waiting => {
+                    self.external_wait = true;
+                    return false;
+                }
+                SelectionProgress::Ready(matches) => matches,
+                SelectionProgress::Failed => {
+                    if !self.selection_warning.service(ctx, || Edit::SetNodeWarning {
+                        node: module.id(),
+                        warning: NodeWarning {
+                            id: "sound-card-feedback-selection".into(),
+                            message: "An audio status selection could not be inspected".into(),
+                            detail: Some(
+                                "Connection feedback was suppressed; the original status callback is preserved.".into(),
+                            ),
+                        },
+                    }) {
+                        return false;
+                    }
+                    false
+                }
+            };
             match self.logging.service(
                 &self.prepared,
                 LogSelection {
@@ -134,42 +146,6 @@ impl AudioEventDelivery {
             self.phase = DeliveryPhase::Callback;
         }
         self.callback.as_mut().is_none_or(|callback| callback.service(ctx))
-    }
-
-    fn matches_selection(&mut self, module: &SoundCardModule) -> bool {
-        let AudioEvent::DeviceStatusChanged(status) = &self.prepared.event else {
-            return false;
-        };
-        let Some(parameter) = module.device_parameter(status.direction) else {
-            return false;
-        };
-        let driver_value = module.audio_driver.get_ref().0.as_str();
-        let (input, output) = module.selected_device_values();
-        let selected = match status.direction {
-            golden_audio::AudioDirection::Input => input,
-            golden_audio::AudioDirection::Output => output,
-        };
-        if let Some(fence) = &self.selection {
-            if fence.parameter == parameter && fence.driver == driver_value && fence.value == selected {
-                return fence.matches;
-            }
-        }
-        // Receipt waits must not repeat selection parsing. Compare the actual
-        // cached parameter values rather than an inbox-driven revision, since a
-        // wake can observe a new value before its change event is dispatched.
-        #[cfg(test)]
-        {
-            self.selection_checks += 1;
-        }
-        let driver = golden_audio::BackendId::new(driver_value).ok();
-        let matches = connection_feedback::status_matches_selection(status, selected, driver.as_ref());
-        self.selection = Some(SelectionFence {
-            parameter,
-            driver: driver_value.to_owned(),
-            value: selected.to_owned(),
-            matches,
-        });
-        matches
     }
 
     fn service_connection_warning(
