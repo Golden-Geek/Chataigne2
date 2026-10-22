@@ -5,22 +5,16 @@ use golden_core::{
 
 use crate::app::{
     module_modules_protocol_dmx::{
-        parse_destination, script_blackout, script_send_frame, script_set_channel,
-        DmxCommandRequest, DmxProtocol,
+        parse_destination, script_blackout, script_send_frame, script_set_channel, DmxCommandRequest, DmxProtocol,
     },
     AppNode, ArtNetModule, ModuleManager, SacnModule,
 };
+mod service;
 
 #[test]
 fn lighting_modules_are_distinct_catalog_items_with_distinct_kernels() {
-    assert_eq!(
-        <ArtNetModule as DeclaredUserItemNode>::ITEM_NODE_TYPE,
-        "artnet_module"
-    );
-    assert_eq!(
-        <SacnModule as DeclaredUserItemNode>::ITEM_NODE_TYPE,
-        "sacn_module"
-    );
+    assert_eq!(<ArtNetModule as DeclaredUserItemNode>::ITEM_NODE_TYPE, "artnet_module");
+    assert_eq!(<SacnModule as DeclaredUserItemNode>::ITEM_NODE_TYPE, "sacn_module");
     assert_ne!(
         ArtNetModule::create().execution_rule(),
         SacnModule::create().execution_rule()
@@ -37,26 +31,15 @@ fn script_requests_cover_channel_frame_and_blackout_semantics() {
         }
     );
     assert_eq!(
-        script_send_frame(&[
-            ParamValue::from_script_json(&serde_json::json!("[1,2,3]")).unwrap(),
-        ])
-        .unwrap(),
-        DmxCommandRequest::SendFrame {
-            slots: vec![1, 2, 3]
-        }
+        script_send_frame(&[ParamValue::from_script_json(&serde_json::json!("[1,2,3]")).unwrap(),]).unwrap(),
+        DmxCommandRequest::SendFrame { slots: vec![1, 2, 3] }
     );
-    assert_eq!(
-        script_blackout(&[]).unwrap(),
-        DmxCommandRequest::Blackout
-    );
+    assert_eq!(script_blackout(&[]).unwrap(), DmxCommandRequest::Blackout);
 }
 
 #[test]
 fn protocol_destinations_preserve_multicast_and_broadcast_policy() {
-    assert_eq!(
-        parse_destination("", 5568, DmxProtocol::Sacn).unwrap(),
-        None
-    );
+    assert_eq!(parse_destination("", 5568, DmxProtocol::Sacn).unwrap(), None);
     assert_eq!(
         parse_destination("127.0.0.1", 6454, DmxProtocol::ArtNet).unwrap(),
         Some("127.0.0.1:6454".parse().unwrap())
@@ -69,9 +52,7 @@ fn dmx_modules_round_trip_through_sparse_project_persistence() {
     let root: AppNode = Folder::new("root").into();
     let mut engine = crate::app::AppEngine::new(root);
     engine.add_node(ModuleManager::new().into(), None);
-    engine
-        .apply_edits()
-        .expect("module manager should attach");
+    engine.apply_edits().expect("module manager should attach");
     let manager_id = engine
         .nodes
         .get(engine.root)
@@ -80,19 +61,13 @@ fn dmx_modules_round_trip_through_sparse_project_persistence() {
 
     engine.add_user_item(ArtNetModule::create().into(), Some(manager_id));
     engine.add_user_item(SacnModule::create().into(), Some(manager_id));
-    engine
-        .apply_edits()
-        .expect("DMX modules should attach");
+    engine.apply_edits().expect("DMX modules should attach");
     for _ in 0..4 {
-        engine
-            .apply_edits()
-            .expect("DMX defaults should materialize");
+        engine.apply_edits().expect("DMX defaults should materialize");
     }
 
-    let json = golden_core::app::to_sparse_project_json_pretty(&engine)
-        .expect("DMX project should encode");
-    let reopened = golden_core::app::from_sparse_project_json::<AppNode>(&json)
-        .expect("DMX project should decode");
+    let json = golden_core::app::to_sparse_project_json_pretty(&engine).expect("DMX project should encode");
+    let reopened = golden_core::app::from_sparse_project_json::<AppNode>(&json).expect("DMX project should decode");
     for node_type in ["artnet_module", "sacn_module"] {
         assert_eq!(
             reopened
@@ -104,8 +79,8 @@ fn dmx_modules_round_trip_through_sparse_project_persistence() {
             "{node_type} should survive the sparse-project round trip"
         );
     }
-    let round_tripped = golden_core::app::to_sparse_project_json_pretty(&reopened)
-        .expect("reopened DMX project should encode");
+    let round_tripped =
+        golden_core::app::to_sparse_project_json_pretty(&reopened).expect("reopened DMX project should encode");
     assert_eq!(
         serde_json::from_str::<serde_json::Value>(&round_tripped).unwrap(),
         serde_json::from_str::<serde_json::Value>(&json).unwrap(),

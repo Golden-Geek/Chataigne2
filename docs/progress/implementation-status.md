@@ -5,11 +5,11 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-22 on `main`, starting clean at delivered `38fab0cc`, matching
-`origin/main`. **C01-C04 are locally closed; eight P03 packages remain: C05-C12.** MQTT's
-pressure, passive receipts, failure/recovery, processing/session churn and bounded actor service
-are now qualified. Runtime fixes preserve coarse retry deadlines and detect stopped workers before
-blocked native cleanup releases their reservations. P03 is ~90% scope coverage; whole plan ~16%.
+Last reconciled: 2026-10-22 on `main`, starting clean at delivered `d0901774`, matching
+`origin/main`. C05 DMX now has native setup/cleanup behind bounded lifetime ownership, explicit
+send receipts, retained prepared input and passive actor wakes. **C05 remains open** for command/script
+capture/preparation and full engine pressure/reconfiguration/failure qualification. C01-C04 stay locally
+closed; eight packages remain (C05-C12). P03 ~90% scope coverage; whole plan ~16%.
 Device/platform and product-scale qualification remain separate; general snapshot/DTO scaling is P16.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
@@ -90,7 +90,7 @@ instead of accumulated batch numbers.
 | C02 | **CLOSED (100%)** | Signals and Metronomes           | Verified: bounded command/configuration bytes, 64-row publication turns, elapsed-time/occurrence preservation, nonblocking retirement and passive failure/recovery.                                                                                                                                                          |
 | C03 | **CLOSED (100%)** | MIDI and OSC                     | Locally verified: bounded native/input/output/catalog/feedback/structure ownership, passive service, explicit deadlines, retained occurrences, nonblocking cleanup and failure/recovery. Commands and scripts preserved; hardware/platform qualification remains separate.                                                   |
 | C04 | **CLOSED (100%)** | MQTT                             | Locally verified: bounded native/configuration/input/output ownership, passive receipts, item/byte pressure, source/session churn, stopped-worker and blocked-cleanup recovery, preserved command/script/callback contracts and controlled actor service. Hardware/platform and product-scale qualification remain separate. |
-| C05 | OPEN              | DMX                              | Close P03 lifecycle/admission/retirement/recovery requirements; DMX stream correctness remains separately P07.                                                                                                                                                                                                               |
+| C05 | OPEN              | DMX                              | Native setup/cleanup, bounded queues/payloads, send receipts, retained prepared input and passive service locally verified. Finish command/script capture/preparation and full engine pressure/reconfiguration/failure qualification; stream correctness remains P07.                                                        |
 | C06 | OPEN              | App Control and OS               | Close worker/service/cleanup bounds, failure ownership and recovery without recurring main-thread polling or blocking joins.                                                                                                                                                                                                 |
 | C07 | OPEN              | Buttplug                         | Close channel/payload/service bounds, accepted-command ownership, retirement and connection recovery.                                                                                                                                                                                                                        |
 | C08 | OPEN              | Joy-Con                          | Close channel/payload/service bounds, callback fan-out, retirement and device recovery.                                                                                                                                                                                                                                      |
@@ -114,27 +114,28 @@ or completion credit. Snapshot/DTO scaling remains an explicit P16 investigation
 ## Current handoff
 
 - **C01-C04 are locally closed. Eight P03 packages remain (C05-C12); continue C05 DMX.**
-  Close its P03 worker/admission/service/retirement/recovery requirements; DMX streaming correctness
-  remains P07. Use the [ownership audit](p03-closure-audit.md), not an expanding prerequisite chain.
-- MQTT warnings now belong to the Connection group, preserving watched scalar revisions and coarse
-  retry deadlines. A separate termination signal lets the actor retire a stopped worker even while
-  native cleanup or a full event mailbox delays channel disconnection. Its original slot and
-  library-held payload reservations remain occupied through cleanup.
-- MQTT's complete local matrix now covers continuous input, byte/item pressure, passive pending
-  receipts, bounded completion rotation, ACK/session ownership, native failure/retry, queued target
-  fences and processing changes between committed value prefixes. Commands, scripts, callbacks and
-  templates retain their contracts. See [MQTT ownership](../architecture/mqtt-runtime.md).
-- Controlled load: **256 ordered callbacks / 1536 turns**, unrelated marker edits progress each turn,
-  no scheduled MQTT polling; measured whole-fixture turn p95 **171 us**, maximum **359 us**.
-  This small fake-provider measurement does not qualify product-scale or platform performance.
-- Final app artifact: **73 owning + 890 disjoint preservation = 963 passes / six selected ignored /
-  1325 listed**, with 356 outside these scopes. Six ignores are existing cases. Core source is unchanged;
-  its prior 597-pass/three-ignore/600-listed run remains baseline, not a rerun or an addition to app counts.
+  Native ownership/service is delivered. Finish command/script invocation capture/preparation and
+  full engine pressure, failure/recovery and reconfiguration qualification. Legacy command execution
+  overlays still copy authored command values; do not claim the actor ingress path is fully qualified.
+- DMX endpoint open, native IO, sACN termination and destructors execute on bounded workers. Sixteen
+  global slots include opening/retiring endpoints; stop cancels out of band without joining. Readiness
+  reflects native setup, and termination notification precedes blocked cleanup. Protocol implementations
+  remain the existing Art-Net/sACN crates; stream correctness remains P07.
+- Output has 64 slots / 1 MiB, with retained send/cancel outcomes. Separate input/output pools each
+  bound 512 records / 8 MiB. Input prepares channel JSON and canonical callbacks natively, coalesces
+  latest frames separately from status/errors, and retains source quota through fenced queued edits.
+- DMX actor service is passive, with one coalesced retry deadline. Fixed source/target reads fence
+  input publication. Internal output uses parameter-event attribution; same-value updates preserve
+  subsequent authored changes. Refused commands leave persisted output state unchanged.
+  See [DMX ownership](../architecture/dmx-runtime.md).
+- Final app artifact: **25 owning + 963 disjoint preservation = 988 passes / six selected ignored /
+  1337 listed**, with 343 outside these scopes. Preservation includes all 73 MQTT cases; its C04 closure
+  stays intact. Core source is unchanged; its prior 597-pass/three-ignore/600-listed run remains baseline.
 - Strict workspace/all-target Clippy, workspace/test check, protocol codegen, native build with
-  `CARGO_INCREMENTAL=0`, root/Core Cargo fmt, explicit MQTT Rustfmt and docs formatting/whitespace
+  `CARGO_INCREMENTAL=0`, root/Core Cargo fmt, explicit DMX Rustfmt and docs formatting/whitespace
   checks pass. Generated bindings and app-shell source are unchanged. All owned jobs are terminal.
-- Source inventory: **1752 files / 36 oversized**; MQTT entrypoint **521 lines**. Commit/push each verified
-  milestone on `main`; keep the full P00-P18 goal active. P03 ~90% scope coverage; full plan ~16%.
+- Source inventory: **1759 files / 36 oversized**; DMX entrypoint **791 lines**. Commit/push each verified
+  milestone on `main`; keep the full P00-P18 goal active. No new package closure credit: P03 ~90%, full plan ~16%.
 
 ## Task ledger
 
@@ -6307,3 +6308,51 @@ Final artifact SHA-256:
 C05 DMX's P03 ownership and qualification. Hardware/platform and product-scale checks retain their
 later plan owners. P03 ~90% scope coverage; whole plan ~16%. All owned jobs are terminal.
 Commit/push this verified milestone on `main`; retain the full P00-P18 goal.
+
+## C05 DMX native ownership and passive service
+
+Implemented 2026-10-22 after `d0901774`, starting clean on `main`. `dmx/transport/native.rs`
+preserves the existing Art-Net/sACN implementations behind a bounded worker. Endpoint open, IO,
+termination and destructors run natively; stop cancels out of band and never joins. Sixteen worker
+slots include opening and retiring endpoints. Separate status and latest-frame delivery preserve
+failure ownership under input replacement pressure. Outgoing admission validates 512-slot retained
+capacity and the configured universe; 64 command slots / 1 MiB and separate 512-record / 8 MiB
+input/output pools bound queued and consumer-owned work. Every admitted send has an explicit native
+completion/cancellation receipt; no failed output is replayed automatically.
+
+Input prepares channel JSON and canonical callbacks on the worker. Nine fixed source/target reads
+and the transport lifetime fence queued projection/callback edits. Public Core retained-edit payloads
+hold the original input quota until application or rejection. Passive wakes replace 120 Hz actor
+polling; startup/recovery uses coalesced deadlines. Disable retires immediately. Internal output uses
+Core parameter-event attribution, preserving authored changes after same-value updates. Refused
+commands leave persisted output state unchanged. Existing commands, script functions/callbacks,
+templates, distinct compiled kernel identities and sparse persistence remain wired.
+
+Verification on Windows x86-64, Rust 1.97.0, default features:
+
+| Check                                                                                                        | Outcome / scope                                                                                                                                                                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cargo test --locked -p Chataigne2 --bin Chataigne2 module_modules_protocol_dmx -- --test-threads=4 --quiet` | **25 passed**. Slow setup/cleanup, late cancellation, full command queues, payload pressure, retained consumption, queued-source rejection, error/frame separation, same-value echo, passive 100-tick idle, native script output and maximum 512-channel request/callback cases. |
+| Disjoint preservation filters, including all 73 MQTT cases                                                   | **963 passed / six existing ignored / 969 selected**. Final app artifact **988 distinct passes / six selected ignores / 1337 listed**, with 343 outside these scopes. No full-app/Formula or product-scale claim.                                                                |
+| Strict workspace/all-target Clippy; workspace/test check                                                     | Passed. Initial compiler findings were corrected before the passing pipeline; an intermediate 22-pass/one-fail echo run led to explicit event-source attribution.                                                                                                                |
+| Protocol codegen; native build with `CARGO_INCREMENTAL=0`                                                    | Passed; generated bindings unchanged. A maximum-frame review corrected command-envelope admission to 64 KiB / 2048 values and excludes non-command topics before validation.                                                                                                     |
+| Root/Core Cargo fmt, explicit DMX Rustfmt, docs formatting and whitespace                                    | Passed. Source inventory **1759 files / 36 oversized**; DMX entrypoint **791 lines**. Core is unchanged; prior 597-pass/three-ignore/600-listed evidence remains baseline, not a rerun.                                                                                          |
+
+Final tests use controlled fakes and ephemeral loopback. The pinned sACN crate always terminates via
+multicast; loopback tests suppress multicast delivery through its public TTL/loopback options while
+still exercising destruction. This does not qualify production termination behavior, which stays P07.
+No Core API, dependency, wire DTO, persisted schema or app-shell change.
+
+Final artifact SHA-256:
+
+- App `target/debug/deps/Chataigne2-b14ffd1b9e52f9ac.exe`:
+  `ef64540f6552abe9ef5f09e665089cebb14248df3943a78d2194ef7e5a9f99af`.
+- Native `target/debug/Chataigne2.exe`:
+  `5ac3b9051c7bba100631ce3e202a94e673573932cc0c44aa671dd395f2a51859`.
+
+**C05 remains open** for bounded command/script invocation capture/preparation and full engine
+pressure, reconfiguration and failure/recovery qualification. In particular, legacy execution
+overlays still copy authored command values. P07 keeps refresh, filtering, sequencing, source-loss,
+synchronization and termination correctness. Four of twelve audit packages remain closed; eight
+remain open. P03 ~90% scope coverage and whole plan ~16%, without additional closure credit.
+All owned jobs are terminal. Commit/push the milestone on `main`; retain the full P00-P18 goal.

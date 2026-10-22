@@ -7,23 +7,34 @@ use std::{
 use artnet_protocol::{ArtCommand, Output};
 
 use super::*;
+mod lifecycle;
+fn until(mut ready: impl FnMut() -> bool) {
+    let deadline = Instant::now() + Duration::from_secs(3);
+    while !ready() {
+        assert!(Instant::now() < deadline, "DMX worker did not make expected progress");
+        thread::sleep(Duration::from_millis(1));
+    }
+}
+fn spawn(config: DmxTransportConfig) -> DmxTransportHandle {
+    let handle = DmxTransportHandle::spawn(config, WorkerNotifier::new(|| {})).unwrap();
+    until(|| handle.is_ready());
+    assert!(matches!(handle.take_status(), Some(DmxWorkerEvent::Ready)));
+    handle
+}
 
 #[test]
 fn artnet_worker_sends_a_protocol_encoded_frame() {
     let receiver = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
-    receiver
-        .set_read_timeout(Some(Duration::from_secs(1)))
-        .unwrap();
+    receiver.set_read_timeout(Some(Duration::from_secs(1))).unwrap();
     let destination = receiver.local_addr().unwrap();
-    let mut transport = DmxTransportHandle::spawn(DmxTransportConfig {
+    let mut transport = spawn(DmxTransportConfig {
         protocol: DmxProtocol::ArtNet,
         bind_ip: IpAddr::V4(Ipv4Addr::LOCALHOST),
         listen_port: 6454,
         receive_enabled: false,
         universe: 2,
         destination: Some(destination),
-    })
-    .unwrap();
+    });
 
     transport
         .send(DmxFrame::with_metadata(2, 7, 100, vec![1, 2, 3]).unwrap())
@@ -46,15 +57,14 @@ fn artnet_worker_receives_latest_frame_without_an_unbounded_queue() {
     let probe = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
     let listen_port = probe.local_addr().unwrap().port();
     drop(probe);
-    let mut transport = DmxTransportHandle::spawn(DmxTransportConfig {
+    let mut transport = spawn(DmxTransportConfig {
         protocol: DmxProtocol::ArtNet,
         bind_ip: IpAddr::V4(Ipv4Addr::LOCALHOST),
         listen_port,
         receive_enabled: true,
         universe: 1,
         destination: Some(SocketAddr::from((Ipv4Addr::LOCALHOST, listen_port))),
-    })
-    .unwrap();
+    });
     let sender = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
     let send_frame = |value| {
         let packet = ArtCommand::Output(Output {
@@ -106,15 +116,14 @@ fn sacn_worker_round_trips_a_unicast_frame() {
     let probe = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
     let listen_port = probe.local_addr().unwrap().port();
     drop(probe);
-    let mut transport = DmxTransportHandle::spawn(DmxTransportConfig {
+    let mut transport = spawn(DmxTransportConfig {
         protocol: DmxProtocol::Sacn,
         bind_ip: IpAddr::V4(Ipv4Addr::LOCALHOST),
         listen_port,
         receive_enabled: true,
         universe: 1,
         destination: Some(SocketAddr::from((Ipv4Addr::LOCALHOST, listen_port))),
-    })
-    .unwrap();
+    });
     transport
         .send(DmxFrame::with_metadata(1, 0, 110, vec![7, 8, 9]).unwrap())
         .unwrap();
@@ -147,19 +156,15 @@ fn sacn_worker_round_trips_a_unicast_frame() {
 
 #[test]
 fn output_queue_reports_overload_instead_of_growing_without_bound() {
-    let destination = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0))
-        .unwrap()
-        .local_addr()
-        .unwrap();
-    let transport = DmxTransportHandle::spawn(DmxTransportConfig {
+    let destination = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).unwrap().local_addr().unwrap();
+    let transport = spawn(DmxTransportConfig {
         protocol: DmxProtocol::ArtNet,
         bind_ip: IpAddr::V4(Ipv4Addr::LOCALHOST),
         listen_port: 6454,
         receive_enabled: false,
         universe: 1,
         destination: Some(destination),
-    })
-    .unwrap();
+    });
     let frame = DmxFrame::new(1, vec![1]).unwrap();
     let mut overload_observed = false;
     for _ in 0..10_000 {

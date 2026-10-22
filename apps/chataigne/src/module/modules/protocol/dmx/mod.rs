@@ -1,9 +1,10 @@
 mod frame;
+mod service;
 mod transport;
 
 use std::{
-    collections::HashSet,
-    net::{IpAddr, Ipv4Addr, SocketAddr},
+    collections::VecDeque,
+    net::{IpAddr, SocketAddr},
     time::{Duration, Instant},
 };
 
@@ -17,19 +18,14 @@ use golden_core::{
 };
 use golden_io::ReconnectBackoff;
 
-pub(crate) use crate::app::module_modules_protocol_dmx_commands::{
-    DmxCommandRequest, DMX_COMMAND_TYPES,
-};
+pub(crate) use crate::app::module_modules_protocol_dmx_commands::{DmxCommandRequest, DMX_COMMAND_TYPES};
 pub(crate) use frame::{parse_slots_json, slots_json, DmxFrame, DMX_SLOT_COUNT};
-pub(crate) use transport::{
-    DmxProtocol, DmxTransportConfig, DmxTransportHandle, DmxWorkerEvent,
-};
+pub(crate) use transport::{DmxProtocol, DmxTransportConfig, DmxTransportHandle, DmxWorkerEvent};
+use transport::{ReceivedFrame, SendReceipt, SendStatus};
 
-const DMX_UPDATE_RATE_HZ: u32 = 120;
 const ARTNET_COMPILED_KERNEL: &str = "chataigne.runtime.artnet";
 const SACN_COMPILED_KERNEL: &str = "chataigne.runtime.sacn";
 const DMX_TRANSPORT_WARNING_ID: &str = "dmx_transport";
-const DMX_FRAME_RECEIVED_CALLBACK: &str = "dmxFrameReceived";
 const DMX_SCRIPT_METHODS: &[&str] = &["setChannel", "sendFrame", "blackout"];
 
 #[node("dmx_module_base", label = "DMX Module")]
@@ -92,9 +88,10 @@ pub struct DmxModuleBase {
     last_transport_config: Option<DmxTransportConfig>,
     transport_dirty: bool,
     output_slots: Vec<u8>,
-    ignored_param_changes: HashSet<NodeId>,
     reconnect: ReconnectBackoff,
     retry_at: Option<Instant>,
+    pending_sends: VecDeque<SendReceipt>,
+    wake: Option<crate::app::module::common::worker_wake::ModuleWake>,
 }
 
 impl DmxModuleBase {
@@ -106,8 +103,9 @@ impl DmxModuleBase {
             None,
             true,
             Vec::new(),
-            HashSet::new(),
             ReconnectBackoff::new(Duration::from_millis(250), Duration::from_secs(8)),
+            None,
+            VecDeque::new(),
             None,
         )
     }
@@ -120,10 +118,7 @@ impl DmxModuleBase {
     }
 
     fn initialize_fresh_defaults(&mut self, ctx: &mut ProcessCtx) {
-        self.ignored_param_changes.insert(self.listen_port.id());
-        self.listen_port
-            .set(ctx, i32::from(self.protocol.default_port()));
-        self.ignored_param_changes.insert(self.destination.id());
+        self.listen_port.set(ctx, i32::from(self.protocol.default_port()));
         self.destination.set(
             ctx,
             match self.protocol {
@@ -136,17 +131,18 @@ impl DmxModuleBase {
     }
 
     fn transport_config(&self) -> Result<DmxTransportConfig, String> {
-        let bind_host =
-            crate::app::module::common::network_interfaces::bind_host_for_interface_variant(
-                self.network_interface.get_ref().as_str(),
-            );
+        if self.network_interface.get_ref().as_str().len() > 128 || self.destination.get_ref().len() > 128 {
+            return Err("DMX interface and destination text are limited to 128 bytes".into());
+        }
+        let bind_host = crate::app::module::common::network_interfaces::bind_host_for_interface_variant(
+            self.network_interface.get_ref().as_str(),
+        );
         let bind_ip = bind_host
             .parse::<IpAddr>()
-            .unwrap_or(IpAddr::V4(Ipv4Addr::UNSPECIFIED));
+            .map_err(|_| "DMX network interface must be an IP address or any".to_owned())?;
         let listen_port = u16::try_from(self.listen_port.get())
             .map_err(|_| "DMX UDP port must be between 1 and 65535".to_string())?;
-        let universe = u16::try_from(self.universe.get())
-            .map_err(|_| "DMX universe must be positive".to_string())?;
+        let universe = u16::try_from(self.universe.get()).map_err(|_| "DMX universe must be positive".to_string())?;
         if universe == 0 || universe > self.protocol.maximum_universe() {
             return Err(format!(
                 "{} universe must be between 1 and {}",
@@ -154,11 +150,7 @@ impl DmxModuleBase {
                 self.protocol.maximum_universe()
             ));
         }
-        let destination = parse_destination(
-            self.destination.get_ref().as_str(),
-            listen_port,
-            self.protocol,
-        )?;
+        let destination = parse_destination(self.destination.get_ref().as_str(), listen_port, self.protocol)?;
         Ok(DmxTransportConfig {
             protocol: self.protocol,
             bind_ip,
@@ -170,9 +162,7 @@ impl DmxModuleBase {
     }
 
     fn module_enabled(&self, snapshot: &ProcessTreeSnapshot) -> bool {
-        snapshot
-            .node(self.id())
-            .is_some_and(|node| node.enabled)
+        snapshot.node(self.id()).is_some_and(|node| node.enabled)
     }
 
     fn refresh_transport(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
@@ -198,13 +188,14 @@ impl DmxModuleBase {
         }
 
         self.stop_transport();
-        match DmxTransportHandle::spawn(config.clone()) {
+        let Some(wake) = &self.wake else { return };
+        match DmxTransportHandle::spawn(config.clone(), wake.notifier.clone()) {
             Ok(transport) => {
                 self.transport = Some(transport);
                 self.last_transport_config = Some(config);
                 self.retry_at = None;
                 self.reconnect.reset();
-                self.base.set_connected(ctx, true);
+                self.base.set_connected(ctx, false);
                 self.clear_transport_warning(ctx);
             }
             Err(error) => self.transport_failed(ctx, error),
@@ -217,6 +208,9 @@ impl DmxModuleBase {
         self.base.set_connected(ctx, false);
         self.set_transport_warning(ctx, error.as_str());
         self.retry_at = Some(self.reconnect.schedule(Instant::now()));
+        if let (Some(wake), Some(at)) = (&self.wake, self.retry_at) {
+            wake.later(at.saturating_duration_since(Instant::now()));
+        }
     }
 
     fn retry_due(&self) -> bool {
@@ -242,114 +236,187 @@ impl DmxModuleBase {
 
     fn clear_transport_warning(&self, ctx: &mut ProcessCtx) {
         if let Some(connection) = self.base.connection_id() {
-            golden_core::node::NodeHandle::new(connection)
-                .clear_warning(ctx, Some(DMX_TRANSPORT_WARNING_ID));
+            golden_core::node::NodeHandle::new(connection).clear_warning(ctx, Some(DMX_TRANSPORT_WARNING_ID));
         }
     }
 
     fn drain_transport(&mut self, ctx: &mut ProcessCtx) {
-        let Some(transport) = &self.transport else {
-            return;
-        };
-        let replaced_frames = transport.take_replaced_frames();
-        let Some(event) = transport.take_latest_event() else {
-            return;
-        };
-        if replaced_frames > 0 {
-            self.ignored_param_changes.insert(self.dropped_frames.id());
-            self.dropped_frames.set(
-                ctx,
-                self.dropped_frames.get().saturating_add(
-                    i32::try_from(replaced_frames).unwrap_or(i32::MAX),
-                ),
-            );
+        for _ in 0..self.pending_sends.len().min(16) {
+            let receipt = self.pending_sends.pop_front().unwrap();
+            match receipt.status() {
+                SendStatus::Pending => self.pending_sends.push_back(receipt),
+                SendStatus::Sent => self.base.emit_outgoing_traffic(ctx),
+                SendStatus::FailedUnconfirmed => {
+                    let message = receipt
+                        .failure()
+                        .unwrap_or("DMX send cancelled or worker stopped; delivery is unconfirmed");
+                    self.set_transport_warning(ctx, message);
+                    golden_core::logerror!(message);
+                }
+            }
         }
-        match event {
-            DmxWorkerEvent::Frame(frame) => self.apply_received_frame(ctx, frame),
-            DmxWorkerEvent::Error(error) => self.transport_failed(ctx, error),
+        let Some(transport) = &self.transport else { return };
+        let mut events = Vec::with_capacity(4);
+        for _ in 0..4 {
+            if let Some(event) = transport.take_status() {
+                events.push(event);
+            } else {
+                break;
+            }
         }
+        let stopped = !transport.is_running();
+        let frame = if !self.transport_dirty && ctx.tree_snapshot().is_some() {
+            transport.take_frame()
+        } else {
+            None
+        };
+        let replaced_frames = if frame.is_some() {
+            transport.take_replaced_frames()
+        } else {
+            0
+        };
+        for event in events {
+            match event {
+                DmxWorkerEvent::Ready => {
+                    self.base.set_connected(ctx, true);
+                    self.clear_transport_warning(ctx);
+                    self.reconnect.reset();
+                }
+                DmxWorkerEvent::Warning(message) => self.set_transport_warning(ctx, &message),
+                DmxWorkerEvent::Error(error) => {
+                    self.transport_failed(ctx, error);
+                    return;
+                }
+                #[cfg(test)]
+                DmxWorkerEvent::Frame(_) => unreachable!(),
+            }
+        }
+        if stopped {
+            self.transport_failed(ctx, "DMX native worker stopped unexpectedly".into());
+            return;
+        }
+        let Some(frame) = frame else { return };
+        self.apply_received_frame(ctx, frame, replaced_frames);
     }
 
-    fn apply_received_frame(&mut self, ctx: &mut ProcessCtx, frame: DmxFrame) {
-        self.ignored_param_changes.insert(self.received_universe.id());
-        self.received_universe.set(ctx, i32::from(frame.universe));
-        self.ignored_param_changes.insert(self.received_frame.id());
-        self.received_frame.set(ctx, slots_json(frame.slots.as_slice()));
-        self.base.emit_incoming_traffic(ctx);
-        crate::app::module::script_api::emit_script_callback(
-            ctx,
+    fn apply_received_frame(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        frame: golden_io::RetainedPayload<ReceivedFrame>,
+        replaced_frames: u64,
+    ) {
+        use golden_core::edit::{Edit, EditPreconditions, NodeReadGuard};
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        let mut guards = Vec::with_capacity(9);
+        for id in [
             self.id(),
-            DMX_FRAME_RECEIVED_CALLBACK,
-            vec![
-                serde_json::json!(frame.universe),
-                serde_json::json!(frame.slots),
-                serde_json::json!({
-                    "protocol": self.protocol.label(),
-                    "sequence": frame.sequence,
-                    "priority": frame.priority,
-                }),
-            ],
-        );
+            self.received_universe.id(),
+            self.received_frame.id(),
+            self.dropped_frames.id(),
+        ] {
+            let Some(guard) = NodeReadGuard::capture_structure(&snapshot, id) else {
+                return;
+            };
+            guards.push(guard);
+        }
+        for id in [
+            self.network_interface.id(),
+            self.receive_enabled.id(),
+            self.listen_port.id(),
+            self.destination.id(),
+            self.universe.id(),
+        ] {
+            let Some(guard) = NodeReadGuard::capture(&snapshot, id) else {
+                return;
+            };
+            guards.push(guard);
+        }
+        ctx.edits.push(Edit::CheckPreconditions {
+            preconditions: EditPreconditions::new(guards, vec![frame.source.clone()])
+                .expect("nine fixed DMX source reads"),
+        });
+        if replaced_frames > 0 {
+            self.dropped_frames.set(
+                ctx,
+                self.dropped_frames
+                    .get()
+                    .saturating_add(i32::try_from(replaced_frames).unwrap_or(i32::MAX)),
+            );
+        }
+        self.received_universe.set(ctx, i32::from(frame.universe));
+        self.received_frame.set(ctx, frame.json.clone());
+        self.base.emit_incoming_traffic(ctx);
+        ctx.emit_custom_event(frame.callback.event(self.id()));
+        ctx.edits.retain_payload(frame);
     }
 
     fn configured_frame(&self, slots: Vec<u8>) -> Result<DmxFrame, String> {
-        let universe = u16::try_from(self.universe.get())
-            .map_err(|_| "DMX universe must be positive".to_string())?;
-        let priority = u8::try_from(self.priority.get())
-            .map_err(|_| "sACN priority must be between 1 and 200".to_string())?;
+        let universe = u16::try_from(self.universe.get()).map_err(|_| "DMX universe must be positive".to_string())?;
+        let priority =
+            u8::try_from(self.priority.get()).map_err(|_| "sACN priority must be between 1 and 200".to_string())?;
         DmxFrame::with_metadata(universe, 0, priority, slots)
     }
 
-    fn send_frame(&mut self, ctx: &mut ProcessCtx, frame: DmxFrame) -> Result<(), String> {
+    fn send_frame(&mut self, _ctx: &mut ProcessCtx, frame: DmxFrame) -> Result<(), String> {
+        if !self.node_data().effective_enabled || self.pending_sends.len() >= 64 {
+            return Err("DMX module is disabled or its pending sends are full".into());
+        }
         let transport = self
             .transport
             .as_ref()
             .ok_or_else(|| format!("{} transport is not connected", self.protocol.label()))?;
-        transport.send(frame)?;
-        self.base.emit_outgoing_traffic(ctx);
+        self.pending_sends.push_back(transport.send(frame)?);
         Ok(())
     }
 
-    fn apply_command(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        request: DmxCommandRequest,
-    ) -> Result<(), String> {
-        match request {
+    fn apply_command(&mut self, ctx: &mut ProcessCtx, request: DmxCommandRequest) -> Result<(), String> {
+        let frame = match request {
             DmxCommandRequest::SetChannel { channel, value } => {
                 let mut frame = self.configured_frame(self.output_slots.clone())?;
                 frame.set_channel(channel, value)?;
-                self.output_slots = frame.slots.clone();
-                self.persist_output_slots(ctx);
-                self.send_frame(ctx, frame)
+                frame
             }
-            DmxCommandRequest::SendFrame { slots } => {
-                let frame = self.configured_frame(slots)?;
-                self.output_slots = frame.slots.clone();
-                self.persist_output_slots(ctx);
-                self.send_frame(ctx, frame)
-            }
+            DmxCommandRequest::SendFrame { slots } => self.configured_frame(slots)?,
             DmxCommandRequest::Blackout => {
                 let mut frame = DmxFrame::blackout(
-                    u16::try_from(self.universe.get())
-                        .map_err(|_| "DMX universe must be positive".to_string())?,
+                    u16::try_from(self.universe.get()).map_err(|_| "DMX universe must be positive".to_string())?,
                 )?;
                 frame.priority = u8::try_from(self.priority.get())
                     .map_err(|_| "sACN priority must be between 1 and 200".to_string())?;
-                self.output_slots = frame.slots.clone();
-                self.persist_output_slots(ctx);
-                self.send_frame(ctx, frame)
+                frame
             }
-        }
+        };
+        self.send_frame(ctx, frame.clone())?;
+        self.output_slots = frame.slots;
+        self.persist_output_slots(ctx);
+        Ok(())
     }
 
     fn persist_output_slots(&mut self, ctx: &mut ProcessCtx) {
-        self.ignored_param_changes.insert(self.output_frame.id());
-        self.output_frame
-            .set(ctx, slots_json(self.output_slots.as_slice()));
+        let text = slots_json(self.output_slots.as_slice());
+        if self.output_frame.get_ref() == &text {
+            return;
+        }
+        let value = ParamValue::Str(text);
+        self.output_frame.apply_runtime_value(&value);
+        ctx.set_param_from(
+            self.id(),
+            self.output_frame.id(),
+            value,
+            golden_core::parameter::ParameterEventBehaviour::Coalesce,
+        );
     }
 
     fn on_custom_event_inner(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
+        if event.topic != crate::app::module_command::MODULE_COMMAND_REQUEST_TOPIC {
+            return;
+        }
+        if crate::app::module::common::json::retained_weight(&event.payload, 64 * 1024, 2048, 16).is_err() {
+            self.set_transport_warning(ctx, "DMX command event exceeds its 64 KiB / 2048-value bound");
+            return;
+        }
         let Some(request) = crate::app::module_command::decode_module_command_request(&event) else {
             return;
         };
@@ -366,7 +433,8 @@ impl DmxModuleBase {
     }
 
     fn on_param_change_inner(&mut self, ctx: &mut ProcessCtx, param: NodeId) {
-        if self.ignored_param_changes.remove(&param) {
+        if matches!(ctx.current_event().map(|event| &event.kind), Some(golden_core::events::EventKind::ParamChanged { source: Some(source), .. }) if *source == self.id())
+        {
             return;
         }
         if [
@@ -379,14 +447,13 @@ impl DmxModuleBase {
         .contains(&param)
         {
             self.transport_dirty = true;
+            self.retry_at = None;
+            self.request_service();
         }
         if param == self.receive_enabled.id() {
             self.base.set_data_capabilities(
                 ctx,
-                crate::app::module::ModuleDataCapabilities::new(
-                    self.receive_enabled.get(),
-                    true,
-                ),
+                crate::app::module::ModuleDataCapabilities::new(self.receive_enabled.get(), true),
             );
         }
         if param == self.output_frame.id() {
@@ -422,16 +489,8 @@ impl DmxModuleBase {
         Some(request.and_then(|request| self.apply_command(ctx, request)))
     }
 
-    fn script_descriptor_for_node(
-        &self,
-        node_data: &NodeData,
-        node_type: &str,
-    ) -> NodeScriptDescriptor {
-        crate::app::module::script_api::descriptor_for_node(
-            node_data,
-            node_type,
-            DMX_SCRIPT_METHODS,
-        )
+    fn script_descriptor_for_node(&self, node_data: &NodeData, node_type: &str) -> NodeScriptDescriptor {
+        crate::app::module::script_api::descriptor_for_node(node_data, node_type, DMX_SCRIPT_METHODS)
     }
 }
 
@@ -439,6 +498,9 @@ impl DmxModuleBase {
 impl Node for DmxModuleBase {
     fn init(&mut self, ctx: &mut ProcessCtx) {
         self.base.init(ctx);
+        if let Err(error) = self.register_service(ctx) {
+            self.set_transport_warning(ctx, &error);
+        }
         self.base.configure_command_tester(ctx, DMX_COMMAND_TYPES);
         crate::app::module::enable_module_authoring(self.node_data_mut());
         self.transport_dirty = true;
@@ -449,6 +511,10 @@ impl Node for DmxModuleBase {
     }
 
     fn on_node_ready(&mut self, ctx: &mut ProcessCtx, context: NodeCreationContext) {
+        if let Err(error) = self.register_service(ctx) {
+            self.set_transport_warning(ctx, &error);
+            return;
+        }
         if context == NodeCreationContext::Fresh {
             self.initialize_fresh_defaults(ctx);
         }
@@ -456,46 +522,39 @@ impl Node for DmxModuleBase {
             ctx,
             crate::app::module::ModuleDataCapabilities::new(self.receive_enabled.get(), true),
         );
-        self.output_slots =
-            parse_slots_json(self.output_frame.get_ref().as_str()).unwrap_or_default();
+        self.output_slots = parse_slots_json(self.output_frame.get_ref().as_str()).unwrap_or_default();
         self.transport_dirty = true;
+        self.request_service();
     }
 
     fn update(&mut self, ctx: &mut ProcessCtx) {
-        self.drain_transport(ctx);
-        if self.retry_due() {
-            self.retry_at = None;
-            self.transport_dirty = true;
-        }
-        if !self.transport_dirty {
-            return;
-        }
-        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
-            return;
-        };
-        self.refresh_transport(ctx, snapshot_arc.as_ref());
+        self.service_io(ctx);
     }
 
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {
+        self.wake = None;
         self.stop_transport();
     }
 
     fn needs_update(&self) -> bool {
-        self.transport_dirty
-            || self.retry_due()
-            || self
-                .transport
-                .as_ref()
-                .is_some_and(DmxTransportHandle::has_pending)
+        false
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {
-        self.transport_dirty
+        self.service_needs_snapshot()
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
-        NodeExecutionRule::periodic(DMX_UPDATE_RATE_HZ)
-            .with_compiled_kernel(self.compiled_kernel())
+        NodeExecutionRule::passive().with_compiled_kernel(self.compiled_kernel())
+    }
+    fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
+        self.service_io(ctx);
+    }
+    fn worker_wake_requires_tree_snapshot(&self) -> bool {
+        self.service_needs_snapshot()
+    }
+    fn worker_wake_when_disabled(&self) -> bool {
+        self.transport.is_some() || !self.pending_sends.is_empty()
     }
 
     fn child_event_interest_depth(&self, _event: &Event) -> u32 {
@@ -527,8 +586,20 @@ impl Node for DmxModuleBase {
         self.on_param_change_inner(ctx, param);
     }
 
-    fn on_effective_enabled_changed(&mut self, _ctx: &mut ProcessCtx, _enabled: bool) {
-        self.transport_dirty = true;
+    fn on_effective_enabled_changed(&mut self, ctx: &mut ProcessCtx, enabled: bool) {
+        if enabled {
+            self.transport_dirty = true;
+            self.request_service();
+        } else {
+            self.stop_transport();
+            self.last_transport_config = None;
+            self.transport_dirty = false;
+            self.retry_at = None;
+            if let Some(wake) = &self.wake {
+                wake.cancel_deadline();
+            }
+            self.base.set_connected(ctx, false);
+        }
     }
 
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
@@ -561,6 +632,15 @@ macro_rules! delegate_dmx_module_node {
         fn update_requires_tree_snapshot(&self) -> bool {
             self.base.update_requires_tree_snapshot()
         }
+        fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
+            self.base.on_worker_wake(ctx);
+        }
+        fn worker_wake_requires_tree_snapshot(&self) -> bool {
+            self.base.worker_wake_requires_tree_snapshot()
+        }
+        fn worker_wake_when_disabled(&self) -> bool {
+            self.base.worker_wake_when_disabled()
+        }
 
         fn execution_rule(&self) -> NodeExecutionRule {
             self.base.execution_rule()
@@ -584,12 +664,7 @@ macro_rules! delegate_dmx_module_node {
             self.base.engine_call_script_method(ctx, method, args)
         }
 
-        fn on_param_change(
-            &mut self,
-            ctx: &mut ProcessCtx,
-            param: NodeId,
-            old_value: ParamValue,
-        ) {
+        fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, old_value: ParamValue) {
             self.base.on_param_change(ctx, param, old_value);
         }
 
@@ -698,10 +773,11 @@ pub(crate) fn script_send_frame(args: &[ParamValue]) -> Result<DmxCommandRequest
     if args.len() != 1 {
         return Err("sendFrame expects one JSON channel array".to_string());
     }
-    let value = args[0]
-        .as_str()
-        .ok_or_else(|| "sendFrame expects a JSON string".to_string())?;
-    parse_slots_json(value.as_str()).map(|slots| DmxCommandRequest::SendFrame { slots })
+    let value = match &args[0] {
+        ParamValue::Str(value) | ParamValue::File(value) | ParamValue::Enum(value) => value.as_str(),
+        _ => return Err("sendFrame expects a JSON string".into()),
+    };
+    parse_slots_json(value).map(|slots| DmxCommandRequest::SendFrame { slots })
 }
 
 pub(crate) fn script_blackout(args: &[ParamValue]) -> Result<DmxCommandRequest, String> {
