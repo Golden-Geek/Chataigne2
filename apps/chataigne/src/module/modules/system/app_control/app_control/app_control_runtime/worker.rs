@@ -86,8 +86,16 @@ pub(super) fn run<P: Provider>(
             if let Some(config) = config.filter(|value| {
                 value.fence.current()
                     && (initial_pending
-                        || value.value.apps.iter().any(|entry| !entry.target_path.is_empty())
-                        || value.value.folders.iter().any(|entry| !entry.target_path.is_empty()))
+                        || value
+                            .value
+                            .apps
+                            .iter()
+                            .any(|entry| !entry.target_path.trim().is_empty())
+                        || value
+                            .value
+                            .folders
+                            .iter()
+                            .any(|entry| !entry.target_path.trim().is_empty()))
             }) {
                 let result = (|| {
                     let reservation = reports

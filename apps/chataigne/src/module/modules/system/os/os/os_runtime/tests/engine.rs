@@ -381,6 +381,15 @@ fn local_capture_admits_64_sources_and_completed_outcomes_drain_in_sixteen_recor
     until(|| control.actions.lock().unwrap().len() == 64);
     until(|| module(&mut engine, id).pending.iter().all(Receipt::complete));
     assert_eq!(module(&mut engine, id).pending.len(), 64);
+    engine.edits.push(Edit::PatchMeta {
+        node: id,
+        patch: NodeMetaPatch {
+            enabled: Some(false),
+            ..Default::default()
+        },
+    });
+    engine.apply_edits().unwrap();
+    assert!(slots.wait_for_idle(Duration::from_secs(1)));
     let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);
     ctx.set_tree_snapshot(engine.process_tree_snapshot());
     module(&mut engine, id).service(&mut ctx);

@@ -303,6 +303,25 @@ fn sync_enum_options(
         return;
     };
     let (uuid, command_id) = (original.uuid, original.parent);
+    if let Some(command) = command_id.and_then(|id| snapshot.node(id)) {
+        let controller = match command.node_type.as_str() {
+            APP_CONTROL_LAUNCH_PROCESS_COMMAND_NODE_TYPE => Some("mode"),
+            APP_CONTROL_KILL_PROCESS_COMMAND_NODE_TYPE | APP_CONTROL_WINDOW_CONTROL_COMMAND_NODE_TYPE => {
+                Some("target_source")
+            }
+            _ => None,
+        };
+        // Dependency reconciliation can already have queued this selector's
+        // removal. The shared dispatch snapshot still contains the old child.
+        if controller
+            .and_then(|key| snapshot.find_child_by_decl_id(command.id, key))
+            .and_then(|id| snapshot.node(id))
+            .and_then(|node| node.param_value.as_ref())
+            .is_some_and(|value| matches!(value,ParamValue::Enum(value) if value!="watched_app"))
+        {
+            return;
+        }
+    }
     if options.len() > 64
         || options
             .iter()

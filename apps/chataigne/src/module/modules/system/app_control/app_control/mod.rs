@@ -380,9 +380,9 @@ impl AppControlModule {
         let Some(new_target_path) = ctx.events.iter().rev().find_map(|event| match &event.kind {
             EventKind::ParamChanged {
                 param: changed_param,
-                new_value,
+                new_value: ParamValue::File(value) | ParamValue::Str(value) | ParamValue::Enum(value),
                 ..
-            } if *changed_param == param => new_value.as_str(),
+            } if *changed_param == param => Some(value.as_str()),
             _ => None,
         }) else {
             return;
@@ -397,7 +397,7 @@ impl AppControlModule {
             .cloned()
             .unwrap_or_else(|| WATCHED_APP_DEFAULT_LABEL.to_string());
         let mut watched_apps = self.collect_watched_apps(snapshot);
-        let next_auto_label = watched_app_label_from_target_path(new_target_path.as_str());
+        let next_auto_label = watched_app_label_from_target_path(new_target_path);
 
         for entry in &mut watched_apps {
             if entry.item_id != param {

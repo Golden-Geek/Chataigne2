@@ -219,7 +219,7 @@ impl AppControlRuntime {
     pub(super) fn spawn(wake: WorkerNotifier) -> Result<Self, String> {
         Self::spawn_using(wake, slots(), pool(1)?, pool(2)?, native::Native::open)
     }
-    fn spawn_using<P: Provider>(
+    pub(super) fn spawn_using<P: Provider>(
         wake: WorkerNotifier,
         slots: &RetirementPool,
         reports: PayloadPool,

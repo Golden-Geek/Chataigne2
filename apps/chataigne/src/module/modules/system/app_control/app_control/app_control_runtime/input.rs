@@ -178,13 +178,32 @@ fn command(invocation: &CapturedInvocation) -> Result<Raw, String> {
         .node(invocation.command)
         .map(|node| node.node_type.as_str());
     if kind == Some("app_control_launch_process_command") {
+        let mode = LaunchMode::from_variant(&string("mode")?).ok_or("Invalid launch mode")?;
+        // Params DSL dependencies physically omit inactive fields. Consume the
+        // selected branch rather than requiring dormant controls to exist.
         return Ok(Raw::Launch(LaunchProcessRequest {
-            mode: LaunchMode::from_variant(&string("mode")?).ok_or("Invalid launch mode")?,
-            watched_app: string("watched_app")?,
-            executable_path: string("executable_path")?,
-            arguments: string("arguments")?,
+            mode,
+            watched_app: if mode == LaunchMode::WatchedApp {
+                string("watched_app")?
+            } else {
+                String::new()
+            },
+            executable_path: if mode == LaunchMode::Executable {
+                string("executable_path")?
+            } else {
+                String::new()
+            },
+            arguments: if mode != LaunchMode::CommandLine {
+                string("arguments")?
+            } else {
+                String::new()
+            },
             working_directory: string("working_directory")?,
-            command_line: string("command_line")?,
+            command_line: if mode == LaunchMode::CommandLine {
+                string("command_line")?
+            } else {
+                String::new()
+            },
         }));
     }
     let source = CommandTargetSource::from_variant(&string("target_source")?).ok_or("Invalid target source")?;
@@ -193,7 +212,11 @@ fn command(invocation: &CapturedInvocation) -> Result<Raw, String> {
     } else {
         "target"
     })?;
-    let mode = ProcessMatchMode::from_variant(&string("match_mode")?).ok_or("Invalid process match mode")?;
+    let mode = if source == CommandTargetSource::FreeProcess {
+        ProcessMatchMode::from_variant(&string("match_mode")?).ok_or("Invalid process match mode")?
+    } else {
+        ProcessMatchMode::Exact
+    };
     match kind {
         Some("app_control_kill_process_command") => Ok(Raw::Kill(KillProcessRequest {
             target_source: source,

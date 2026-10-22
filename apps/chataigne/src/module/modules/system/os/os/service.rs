@@ -68,6 +68,9 @@ impl OsModule {
                 None => self.pending.push_back(receipt),
             }
         }
+        if self.pending.iter().any(Receipt::complete) {
+            self.request_service();
+        }
         if !self.node_data().effective_enabled {
             return;
         }
@@ -125,7 +128,7 @@ impl OsModule {
         if let Some(metrics) = metrics {
             self.project_metrics(ctx, metrics);
         }
-        if self.runtime.as_ref().is_some_and(OsRuntime::pending) || self.pending.iter().any(Receipt::complete) {
+        if self.runtime.as_ref().is_some_and(OsRuntime::pending) {
             self.request_service();
         }
     }

@@ -79,3 +79,18 @@ fn depth_and_combined_root_entry_caps_reject_before_storing_a_partial_baseline()
     assert!(sample(&mut stored, &other, &mut budget).is_err());
     assert!(!stored.contains_key(&NodeId(2)));
 }
+
+#[test]
+fn metadata_failures_are_not_converted_into_missing_files_and_removal_events() {
+    for error in [
+        std::io::ErrorKind::PermissionDenied,
+        std::io::ErrorKind::Interrupted,
+        std::io::ErrorKind::Other,
+    ] {
+        assert!(classify_metadata(Err(std::io::Error::from(error))).is_err());
+    }
+    assert!(matches!(
+        classify_metadata(Err(std::io::Error::from(std::io::ErrorKind::NotFound))),
+        Ok(PathKind::Missing)
+    ));
+}

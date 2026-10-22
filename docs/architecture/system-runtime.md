@@ -8,7 +8,8 @@ public worker, retained-payload, lifetime and notification contracts. OS policy 
 App Control has its own watched-application/folder model under the adjacent `app_control/` tree.
 Its native runtime owns process/window operations and recursive folder observations. The module
 owns authored watch configuration, detached value trees, command catalogs and guarded publication.
-The [closure audit](../progress/p03-closure-audit.md) records remaining C06 qualification.
+The [closure audit](../progress/p03-closure-audit.md) records local C06 qualification; device,
+platform and product-scale evidence retain their later owners.
 
 ## Capture and dispatch
 
@@ -58,7 +59,9 @@ Metrics pressure withholds a latest-state sample and reports a warning without r
 The native worker services at most eight commands before checking its one-second metrics deadline.
 An uninterruptible native call holds that provider and can delay its next sample.
 The actor services at most eight captured inputs, sixteen completed outcomes, four statuses and
-one latest metrics record per wake. It has no periodic polling callback.
+one latest metrics record per wake. It has no periodic polling callback. Both system modules
+rearm finished receipt backlogs before the disabled early return, so already completed effects
+continue publishing in bounded turns while the module is disabled.
 
 ## Publication
 
@@ -76,14 +79,14 @@ does not erase a known physical outcome.
 Tests use controlled providers. Test builds disable the native host-control executor, so an
 incorrect fixture cannot perform shutdown, reboot, logout or Wake-on-LAN. Physical control and
 platform qualification remain separate; the [execution ledger](../progress/implementation-status.md)
-owns acceptance evidence and the remaining App Control work.
+owns acceptance evidence and the remaining plan work.
 
 ## App Control
 
 `app_control/app_control_runtime/native/` owns sysinfo refresh, directory traversal, process
 creation/termination, window enumeration/actions and child reaping. Construction is inert;
 engine readiness registers a passive wake. The native worker samples active watches every 500 ms,
-servicing at most eight commands between sample checks. An empty configuration receives one
+servicing at most eight commands between sample checks. An empty or whitespace-only configuration receives one
 initial observation and then remains idle. Native actions are disabled in test builds.
 
 Configuration admits 64 combined watch targets, with labels up to 128 bytes and paths up to
@@ -91,7 +94,10 @@ Configuration admits 64 combined watch targets, with labels up to 128 bytes and 
 detached trees. A later notified turn binds their materialized identities. Command catalogs walk
 at most 64 DFS steps per turn, prioritizing the command tester; they do not scan every descendant
 in one callback. Superseded catalog mutations skip themselves and current jobs update live scalar
-choices/selection in one drain, preserving identity and a later authored selection. The actor
+choices/selection in one drain, preserving identity and a later authored selection. Inactive
+watched-app selectors are skipped before queuing; dependency reconciliation may already have
+queued their removal. Native command decoding reads only the selected Params DSL branch because
+inactive controls are physically absent. The actor
 services at most eight captured inputs, sixteen completed outcomes, four native events and eight
 watch rows per turn.
 
@@ -101,10 +107,15 @@ handles remain owned and are reaped on the native worker. Cleanup can wait for s
 it retains that provider's original slot and never kills an application merely because its module
 was removed. Process/CPU inventories reject above 16384/4096 entries. Window enumeration rejects
 above 4096 callbacks; an action batch rejects above 64 processes or windows before acting.
+Rejected process/CPU SDK caches are released on the native thread. Initial SDK enumeration and
+transient allocations are not RSS-qualified by these retained-ownership bounds.
 
 Folder collection admits 1024 entries / 512 KiB of retained entry data across all watch roots,
 4096 bytes per relative path and depth 32. Directory symlinks are not followed. Collection stages
-all baselines and commits them only after every root succeeds. Report backpressure retains a
+all baselines and commits them only after every root succeeds. Only metadata `NotFound` becomes
+a missing target; permission/interruption/other errors reject the observation and preserve the
+last accepted baselines and values. Watch-path admission checks borrowed text before copying.
+Report backpressure retains a
 prepared report and withholds further sampling, preserving accepted change order.
 
 Canonical command snapshots and execute overrides, shared script arguments, and authored Running

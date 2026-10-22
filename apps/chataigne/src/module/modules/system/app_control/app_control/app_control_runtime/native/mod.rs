@@ -32,6 +32,9 @@ impl Native {
         self.system.refresh_memory();
         self.system.refresh_processes(ProcessesToUpdate::All, true);
         if self.system.processes().len() > 16384 || self.system.cpus().len() > 4096 {
+            // The SDK enumerates before exposing a count. Reject its sample
+            // and release the rejected cache on this native thread as well.
+            self.system = System::new();
             return Err("App Control process/CPU inventory exceeds 16384 / 4096 entries".into());
         }
         self.children
@@ -79,8 +82,8 @@ impl Native {
 }
 impl Provider for Native {
     fn sample(&mut self, config: &Config) -> Result<Observation, String> {
-        if config.apps.iter().all(|entry| entry.target_path.is_empty())
-            && config.folders.iter().all(|entry| entry.target_path.is_empty())
+        if config.apps.iter().all(|entry| entry.target_path.trim().is_empty())
+            && config.folders.iter().all(|entry| entry.target_path.trim().is_empty())
         {
             return Ok(Observation {
                 apps: config
@@ -116,14 +119,16 @@ impl Provider for Native {
         let apps = config
             .apps
             .iter()
-            .map(|entry| AppObservation {
-                metrics: metrics
-                    .get(&watched_app_target_key(&entry.target_path))
-                    .cloned()
-                    .unwrap_or_default(),
-                kind: kind(&entry.target_path),
+            .map(|entry| {
+                Ok(AppObservation {
+                    metrics: metrics
+                        .get(&watched_app_target_key(&entry.target_path))
+                        .cloned()
+                        .unwrap_or_default(),
+                    kind: kind(&entry.target_path)?,
+                })
             })
-            .collect();
+            .collect::<Result<Vec<_>, String>>()?;
         let mut budget = folders::Budget::default();
         let mut rows = Vec::with_capacity(config.folders.len());
         let mut staged = self.folders.clone();
@@ -252,15 +257,18 @@ impl Drop for Native {
         }
     }
 }
-fn kind(path: &str) -> PathKind {
+fn kind(path: &str) -> Result<PathKind, String> {
     if path.trim().is_empty() {
-        PathKind::Empty
-    } else {
-        match fs::metadata(path) {
-            Ok(value) if value.is_dir() => PathKind::Directory,
-            Ok(_) => PathKind::File,
-            Err(_) => PathKind::Missing,
-        }
+        return Ok(PathKind::Empty);
+    }
+    classify_metadata(fs::metadata(path))
+}
+fn classify_metadata(result: std::io::Result<fs::Metadata>) -> Result<PathKind, String> {
+    match result {
+        Ok(value) if value.is_dir() => Ok(PathKind::Directory),
+        Ok(_) => Ok(PathKind::File),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(PathKind::Missing),
+        Err(error) => Err(format!("App Control cannot inspect target metadata: {error}")),
     }
 }
 

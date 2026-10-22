@@ -341,3 +341,50 @@ fn initial_empty_report_retries_quota_pressure_and_then_stops_sampling() {
     std::thread::sleep(Duration::from_millis(550));
     assert_eq!(observed.samples.load(Ordering::Acquire), 1);
 }
+
+#[test]
+fn callback_admission_failure_keeps_the_completed_native_effect_without_a_retryable_action_error() {
+    let slots = slots();
+    let runtime = spawn(Control::default(), &slots, payloads(32), None, None);
+    let engine = engine();
+    let admission = RetirementPool::new(NonZeroUsize::MIN);
+    let captured = source(&runtime, &engine, &admission);
+    let control = Control::default();
+    let mut provider = Fake {
+        control: control.clone(),
+        execute_gate: None,
+        cleanup: None,
+    };
+    let started = AtomicBool::new(false);
+    let result = outcomes::execute_with(&mut provider, captured, &payloads(32), &started, |_, _| {
+        Err("injected callback quota exhaustion".into())
+    })
+    .unwrap();
+    assert!(started.load(Ordering::Acquire));
+    assert!(result.attempted);
+    assert!(result.error.is_none());
+    assert!(result.callback_error.is_some());
+    assert!(result.requested.is_none());
+    assert_eq!(control.actions.lock().unwrap().len(), 1);
+}
+
+#[test]
+fn whitespace_only_targets_receive_initial_values_then_stay_idle() {
+    let slots = slots();
+    let control = Control::default();
+    let mut runtime = spawn(control.clone(), &slots, payloads(32), None, None);
+    runtime
+        .configure(Config {
+            apps: vec![WatchedAppEntry {
+                label: "Blank".into(),
+                item_id: golden_core::node::NodeId(1),
+                uuid: golden_core::node::NodeUuid::nil(),
+                target_path: " \t ".into(),
+            }],
+            folders: vec![],
+        })
+        .unwrap();
+    until(|| control.samples.load(Ordering::Acquire) == 1);
+    std::thread::sleep(Duration::from_millis(550));
+    assert_eq!(control.samples.load(Ordering::Acquire), 1);
+}

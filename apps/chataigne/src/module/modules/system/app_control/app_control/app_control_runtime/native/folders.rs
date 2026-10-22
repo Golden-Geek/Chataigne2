@@ -30,7 +30,7 @@ pub(super) fn sample(
     budget: &mut Budget,
 ) -> Result<FolderObservation, String> {
     let path = entry.target_path.trim();
-    let status = kind(path);
+    let status = kind(path)?;
     let mut entries = BTreeMap::new();
     if status == PathKind::Directory {
         collect(Path::new(path), Path::new(path), &mut entries, budget, 0)?;

@@ -45,61 +45,77 @@ impl Work {
         self.state.wake.notify();
     }
     pub(super) fn run<P: Provider>(self, provider: &mut P, pool: &PayloadPool) {
-        let result = (|| {
-            let reservation = pool
-                .try_reserve(COMMAND_WEIGHT)
-                .map_err(|_| "App Control outcome capacity exhausted; request was not sent")?;
-            let request = self.source.prepare();
-            let result = match request {
-                Ok(request) if self.source.live() => {
-                    self.state.started.store(true, Ordering::Release);
-                    provider.execute(&request)
-                }
-                Ok(_) => Err("App Control source retired; request was not sent".into()),
-                Err(error) => Err(error),
-            };
-            let attempted = result
-                .as_ref()
-                .map_or(self.state.started.load(Ordering::Acquire), |value| value.attempted);
-            let error = result.as_ref().err().cloned().map(diagnostic);
-            let method = result.as_ref().map_or(self.source.method(), |value| value.method);
-            let mut callback_error = None;
-            let mut prepare = |name, args| match NativeCallbackPayload::prepare(name, args) {
-                Ok(value) => Some(value),
-                Err(error) => {
-                    callback_error = Some(diagnostic(error));
-                    None
-                }
-            };
-            let requested = result.as_ref().ok().filter(|value| value.attempted).and_then(|value| {
-                prepare(
-                    super::super::APP_CONTROL_COMMAND_REQUESTED_CALLBACK,
-                    vec![serde_json::json!(method), value.details.clone()],
-                )
-            });
-            let failed = error.as_ref().and_then(|error| {
-                prepare(
-                    super::super::APP_CONTROL_COMMAND_FAILED_CALLBACK,
-                    vec![serde_json::json!(method), serde_json::json!(error)],
-                )
-            });
-            reservation
-                .retain(
-                    Outcome {
-                        source: self.source.clone(),
-                        attempted,
-                        error,
-                        callback_error,
-                        requested,
-                        failed,
-                    },
-                    COMMAND_WEIGHT,
-                )
-                .map_err(|_| "App Control outcome reservation failed".into())
-        })();
+        let result = execute_with(
+            provider,
+            self.source.clone(),
+            pool,
+            &self.state.started,
+            NativeCallbackPayload::prepare,
+        );
         self.finish(result);
     }
 }
+pub(super) fn execute_with<P: Provider>(
+    provider: &mut P,
+    source: RetainedPayload<Source>,
+    pool: &PayloadPool,
+    started: &AtomicBool,
+    mut prepare_callback: impl FnMut(&str, Vec<serde_json::Value>) -> Result<NativeCallbackPayload, String>,
+) -> Result<RetainedPayload<Outcome>, String> {
+    (|| {
+        let reservation = pool
+            .try_reserve(COMMAND_WEIGHT)
+            .map_err(|_| "App Control outcome capacity exhausted; request was not sent")?;
+        let request = source.prepare();
+        let result = match request {
+            Ok(request) if source.live() => {
+                started.store(true, Ordering::Release);
+                provider.execute(&request)
+            }
+            Ok(_) => Err("App Control source retired; request was not sent".into()),
+            Err(error) => Err(error),
+        };
+        let attempted = result
+            .as_ref()
+            .map_or(started.load(Ordering::Acquire), |value| value.attempted);
+        let error = result.as_ref().err().cloned().map(diagnostic);
+        let method = result.as_ref().map_or(source.method(), |value| value.method);
+        let mut callback_error = None;
+        let mut prepare = |name, args| match prepare_callback(name, args) {
+            Ok(value) => Some(value),
+            Err(error) => {
+                callback_error = Some(diagnostic(error));
+                None
+            }
+        };
+        let requested = result.as_ref().ok().filter(|value| value.attempted).and_then(|value| {
+            prepare(
+                super::super::APP_CONTROL_COMMAND_REQUESTED_CALLBACK,
+                vec![serde_json::json!(method), value.details.clone()],
+            )
+        });
+        let failed = error.as_ref().and_then(|error| {
+            prepare(
+                super::super::APP_CONTROL_COMMAND_FAILED_CALLBACK,
+                vec![serde_json::json!(method), serde_json::json!(error)],
+            )
+        });
+        reservation
+            .retain(
+                Outcome {
+                    source: source.clone(),
+                    attempted,
+                    error,
+                    callback_error,
+                    requested,
+                    failed,
+                },
+                COMMAND_WEIGHT,
+            )
+            .map_err(|_| "App Control outcome reservation failed".into())
+    })()
+}
+
 impl Drop for Work {
     fn drop(&mut self) {
         if self.admitted && !self.state.complete.load(Ordering::Acquire) {

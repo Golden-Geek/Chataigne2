@@ -8,6 +8,8 @@ use std::{
     num::NonZeroUsize,
     time::{Duration, Instant},
 };
+#[cfg(test)]
+mod tests;
 
 const OUTPUT_TOPIC: &str = "chataigne.app-control.captured-output";
 pub(super) struct Service {
@@ -126,6 +128,9 @@ impl AppControlModule {
                 None => self.service.pending.push_back(receipt),
             }
         }
+        if self.service.pending.iter().any(Receipt::complete) {
+            self.request_service();
+        }
         if !self.node_data().effective_enabled {
             return;
         }
@@ -195,7 +200,6 @@ impl AppControlModule {
             || self.service.catalog.is_some()
             || self.service.structure_pending
             || self.service.runtime.as_ref().is_some_and(AppControlRuntime::pending)
-            || self.service.pending.iter().any(Receipt::complete)
         {
             self.request_service();
         }
