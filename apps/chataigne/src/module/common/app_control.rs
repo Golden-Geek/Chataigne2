@@ -274,12 +274,13 @@ pub(crate) fn sync_command_watched_app_options(
     snapshot: &ProcessTreeSnapshot,
     command_id: NodeId,
     options: &[ParameterEnumOption],
+    guard: golden_io::RevisionGuard,
 ) {
     let Some(param_id) = crate::app::module_command::resolve_module_command_child(snapshot, command_id, "watched_app")
     else {
         return;
     };
-    sync_watched_app_enum_options(ctx, snapshot, param_id, options.to_vec());
+    sync_enum_options(ctx, snapshot, param_id, options.to_vec(), Some(guard));
 }
 
 pub(crate) fn sync_watched_app_enum_options(
@@ -288,53 +289,74 @@ pub(crate) fn sync_watched_app_enum_options(
     param_id: NodeId,
     options: Vec<ParameterEnumOption>,
 ) {
-    let Some(command_id) = snapshot.node(param_id).and_then(|node| node.parent) else {
+    sync_enum_options(ctx, snapshot, param_id, options, None);
+}
+
+fn sync_enum_options(
+    ctx: &mut ProcessCtx,
+    snapshot: &ProcessTreeSnapshot,
+    param_id: NodeId,
+    options: Vec<ParameterEnumOption>,
+    guard: Option<golden_io::RevisionGuard>,
+) {
+    let Some(original) = snapshot.node(param_id) else {
         return;
     };
-    let current_variant = snapshot
-        .node(param_id)
-        .and_then(|node| node.param_value.as_ref())
-        .and_then(ParamValue::as_str)
-        .unwrap_or_default();
-    let (next_options, next_variant, missing_value) =
-        enum_options_with_missing_current(current_variant.as_str(), options.as_slice());
-
-    if let Some(missing_value) = missing_value.as_deref() {
-        ctx.set_node_warning_with(
-            command_id,
-            Some(MISSING_WATCHED_APP_WARNING_ID),
-            format!("Missing app: {missing_value}"),
-            None,
-        );
-    } else {
-        ctx.clear_node_warning(command_id, Some(MISSING_WATCHED_APP_WARNING_ID));
+    let (uuid, command_id) = (original.uuid, original.parent);
+    if options.len() > 64
+        || options
+            .iter()
+            .any(|option| option.label.len() > 128 || option.variant_id.len() > 128)
+    {
+        return;
     }
-
-    ctx.call_node_mutation(param_id, move |node, inner_ctx| {
+    // Stale catalog jobs are superseded metadata work. Skipping them must not
+    // reject unrelated edits in the same engine drain. Read the live selection
+    // here so a queued catalog cannot restore an older authored selection.
+    ctx.call_node_mutation_without_snapshot(param_id, move |node, inner_ctx| {
+        if guard.as_ref().is_some_and(|guard| !guard.is_current()) {
+            return Ok(());
+        }
         let Some(parameter) = node.as_any_mut().downcast_mut::<Parameter>() else {
-            return Err("watched app target is not a parameter".to_string());
+            return Ok(());
         };
-
+        if parameter.node_data().meta.uuid != uuid || parameter.node_data().parent != command_id {
+            return Ok(());
+        }
+        let current = match &parameter.value {
+            ParamValue::Enum(value) | ParamValue::Str(value) if value.len() <= 128 => value.as_str(),
+            _ => {
+                if let Some(command) = command_id {
+                    inner_ctx.set_node_warning_with(
+                        command,
+                        Some(MISSING_WATCHED_APP_WARNING_ID),
+                        "Watched app selection must be text within 128 bytes",
+                        None,
+                    );
+                }
+                return Ok(());
+            }
+        };
+        let (next_options, next_variant, missing_value) = enum_options_with_missing_current(current, &options);
+        if let Some(command) = command_id {
+            if let Some(missing) = missing_value {
+                inner_ctx.set_node_warning_with(
+                    command,
+                    Some(MISSING_WATCHED_APP_WARNING_ID),
+                    format!("Missing app: {missing}"),
+                    None,
+                );
+            } else {
+                inner_ctx.clear_node_warning(command, Some(MISSING_WATCHED_APP_WARNING_ID));
+            }
+        }
         let next_value = ParamValue::Enum(next_variant.clone());
         if parameter.constraints.enum_options.as_slice() == next_options.as_slice() && parameter.value == next_value {
             return Ok(());
         }
 
-        let label = parameter.node_data().meta.label.clone();
-        let change_check = parameter.change_check.clone();
-        let mut replacement = Parameter::new(label.as_str(), next_value, change_check);
-        *replacement.node_data_mut() = parameter.node_data().clone();
-        replacement.default_value = parameter.default_value.clone();
-        replacement.event_behaviour = parameter.event_behaviour;
-        replacement.read_only = parameter.read_only;
-        replacement.persist_read_only_value = parameter.persist_read_only_value;
-        replacement.constraints = parameter.constraints.clone();
-        replacement.constraints.enum_options = (next_options.clone()).into();
-        replacement.ui_hints = parameter.ui_hints.clone();
-        replacement.control = parameter.control.clone();
-        replacement.control_modes_enabled = parameter.control_modes_enabled;
-
-        inner_ctx.replace_node(param_id, replacement);
+        parameter.constraints.enum_options = next_options.into();
+        parameter.value = next_value;
         Ok(())
     });
 }

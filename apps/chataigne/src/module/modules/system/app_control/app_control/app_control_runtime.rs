@@ -1,35 +1,37 @@
+use super::{WatchedAppEntry, WatchedFolderEntry};
+use crate::app::module::{
+    common::app_control::{
+        CommandTargetSource, KillProcessRequest, LaunchMode, LaunchProcessRequest, ProcessMatchMode,
+        WindowControlRequest,
+    },
+    script_api::NativeCallbackPayload,
+};
+use golden_io::{
+    BoundedWorker, PayloadPool, RetainedPayload, RetirementPool, RevisionGuard, RevisionSource, WorkerLimits,
+    WorkerNotifier,
+};
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
-    fs,
+    num::NonZeroUsize,
     path::Path,
-    process::{Command, Stdio},
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc, Mutex, MutexGuard,
+        Arc, Mutex, OnceLock,
     },
-    thread::{self, JoinHandle},
-    time::{Duration, SystemTime, UNIX_EPOCH},
 };
+mod input;
+mod native;
+mod outcomes;
+#[cfg(test)]
+pub(super) mod tests;
+mod worker;
+pub(super) use input::{Input, Request, Source};
+use outcomes::Work;
+pub(super) use outcomes::{Outcome, Receipt};
+const COMMAND_WEIGHT: usize = 64 * 1024;
+const REPORT_WEIGHT: usize = 2 * 1024 * 1024;
+const CONFIG_WEIGHT: usize = 1024 * 1024;
 
-#[cfg(windows)]
-use std::os::windows::process::CommandExt;
-
-use sysinfo::{Process, ProcessesToUpdate, System};
-
-use crate::app::module::common::app_control::{
-    CommandTargetSource, KillProcessRequest, LaunchMode, LaunchProcessRequest,
-    ProcessMatchMode, WindowControlRequest,
-};
-use crate::app::module::common::system_metrics;
-
-const WATCHED_APP_WORKER_INTERVAL: Duration = Duration::from_millis(500);
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct LaunchExecution {
-    pub effective_program: String,
-}
-
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct WatchedAppMetrics {
     pub target_path: String,
     pub target_name: String,
@@ -47,7 +49,7 @@ pub(crate) struct WatchedAppMetrics {
 }
 
 impl WatchedAppMetrics {
-    fn idle(target_path: &str) -> Self {
+    pub(super) fn idle(target_path: &str) -> Self {
         let trimmed_path = target_path.trim();
         let path = Path::new(trimmed_path);
 
@@ -58,7 +60,7 @@ impl WatchedAppMetrics {
                 .or_else(|| path.file_name())
                 .map(|value| value.to_string_lossy().to_string())
                 .unwrap_or_default(),
-            exists: !trimmed_path.is_empty() && path.exists(),
+            exists: false,
             running: false,
             uptime_seconds: 0.0,
             process_count: 0,
@@ -113,767 +115,249 @@ impl FolderWatchUpdate {
     }
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
-struct FileStamp {
-    is_dir: bool,
-    len: u64,
-    modified_ms: u64,
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum PathKind {
+    Empty,
+    Missing,
+    File,
+    Directory,
 }
-
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
-struct FolderTreeSnapshot {
-    exists: bool,
-    entries: BTreeMap<String, FileStamp>,
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct Config {
+    pub(super) apps: Vec<WatchedAppEntry>,
+    pub(super) folders: Vec<WatchedFolderEntry>,
 }
-
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
-struct StoredFolderSnapshot {
-    path: String,
-    snapshot: FolderTreeSnapshot,
-    last_change_ms: u64,
+pub(super) struct AppObservation {
+    pub(super) metrics: WatchedAppMetrics,
+    pub(super) kind: PathKind,
 }
-
-struct WatchedAppWorkerState {
-    target_paths: Mutex<Vec<String>>,
-    metrics_by_target: Mutex<HashMap<String, WatchedAppMetrics>>,
-    stop_requested: AtomicBool,
+pub(super) struct FolderObservation {
+    pub(super) update: FolderWatchUpdate,
+    pub(super) kind: PathKind,
 }
-
-struct WatchedAppMetricsWorker {
-    state: Arc<WatchedAppWorkerState>,
-    worker: Option<JoinHandle<()>>,
+pub(super) struct Observation {
+    pub(super) apps: Vec<AppObservation>,
+    pub(super) folders: Vec<FolderObservation>,
 }
-
-impl WatchedAppMetricsWorker {
-    fn create() -> Self {
-        let state = Arc::new(WatchedAppWorkerState {
-            target_paths: Mutex::new(Vec::new()),
-            metrics_by_target: Mutex::new(HashMap::new()),
-            stop_requested: AtomicBool::new(false),
+pub(super) struct Report {
+    pub(super) config: RetainedPayload<Config>,
+    pub(super) rows: Observation,
+    pub(super) callbacks: Vec<Option<NativeCallbackPayload>>,
+    pub(super) fence: Fence,
+}
+#[derive(Clone)]
+pub(super) struct Fence {
+    actor: RevisionGuard,
+    native: RevisionGuard,
+    config: RevisionGuard,
+}
+impl Fence {
+    pub(super) fn current(&self) -> bool {
+        self.actor.is_current() && self.native.is_current() && self.config.is_current()
+    }
+    pub(super) fn guards(&self) -> Vec<RevisionGuard> {
+        vec![self.actor.clone(), self.native.clone(), self.config.clone()]
+    }
+}
+pub(super) struct Execution {
+    pub(super) attempted: bool,
+    pub(super) method: &'static str,
+    pub(super) details: serde_json::Value,
+}
+pub(super) trait Provider: Send + 'static {
+    fn sample(&mut self, config: &Config) -> Result<Observation, String>;
+    fn execute(&mut self, request: &Request) -> Result<Execution, String>;
+}
+pub(super) enum Event {
+    Ready,
+    Warning(String),
+    Error(String),
+    Report(RetainedPayload<Report>),
+}
+#[derive(Clone)]
+struct Configuration {
+    value: RetainedPayload<Config>,
+    fence: Fence,
+}
+struct Shared {
+    configuration: Mutex<Option<Configuration>>,
+    running: AtomicBool,
+    wake: WorkerNotifier,
+}
+pub(super) struct AppControlRuntime {
+    worker: BoundedWorker<Work, Event>,
+    shared: Arc<Shared>,
+    actor: Option<RevisionSource>,
+    generation: RevisionSource,
+    native: RevisionGuard,
+    configuration: Option<RetainedPayload<Config>>,
+    commands: PayloadPool,
+}
+fn slots() -> &'static RetirementPool {
+    static POOL: OnceLock<RetirementPool> = OnceLock::new();
+    POOL.get_or_init(|| RetirementPool::new(NonZeroUsize::new(16).unwrap()))
+}
+fn pool(which: usize) -> Result<PayloadPool, String> {
+    static POOLS: [OnceLock<Mutex<Option<PayloadPool>>>; 3] = [const { OnceLock::new() }; 3];
+    let mut cell = POOLS[which]
+        .get_or_init(|| Mutex::new(None))
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    if cell.is_none() {
+        *cell = Some(
+            PayloadPool::new(
+                ["app-control-config", "app-control-reports", "app-control-commands"][which],
+                [64, 32, 512][which],
+                [64, 64, 32][which] * 1024 * 1024,
+            )
+            .map_err(|error| error.to_string())?,
+        );
+    }
+    Ok(cell.as_ref().unwrap().clone())
+}
+impl AppControlRuntime {
+    pub(super) fn spawn(wake: WorkerNotifier) -> Result<Self, String> {
+        Self::spawn_using(wake, slots(), pool(1)?, pool(2)?, native::Native::open)
+    }
+    fn spawn_using<P: Provider>(
+        wake: WorkerNotifier,
+        slots: &RetirementPool,
+        reports: PayloadPool,
+        commands: PayloadPool,
+        open: impl FnOnce() -> Result<P, String> + Send + 'static,
+    ) -> Result<Self, String> {
+        let shared = Arc::new(Shared {
+            configuration: Mutex::new(None),
+            running: AtomicBool::new(true),
+            wake: wake.clone(),
         });
-
-        Self {
-            state,
-            worker: None,
-        }
+        let actor = RevisionSource::default();
+        let native = RevisionSource::default();
+        let generation = RevisionSource::default();
+        let native_guard = native.reader().guard_at(0);
+        let state = shared.clone();
+        let output = commands.clone();
+        let worker = BoundedWorker::spawn_notified(
+            "app-control",
+            slots,
+            WorkerLimits {
+                command_items: 64,
+                command_weight: 4 * 1024 * 1024,
+                event_items: 8,
+                event_weight: 8 * 1024 * 1024,
+            },
+            wake,
+            move |ctx| worker::run(ctx, state, native, reports, output, open),
+        )
+        .map_err(|error| error.to_string())?;
+        Ok(Self {
+            worker,
+            shared,
+            actor: Some(actor),
+            generation,
+            native: native_guard,
+            configuration: None,
+            commands,
+        })
     }
-
-    fn ensure_started(&mut self) {
-        if self.worker.is_some() {
-            return;
-        }
-
-        self.state.stop_requested.store(false, Ordering::Relaxed);
-        let worker_state = Arc::clone(&self.state);
-        self.worker = thread::Builder::new()
-            .name("app-control-metrics".to_string())
-            .spawn(move || watched_app_worker_loop(worker_state))
-            .ok();
-    }
-
-    fn sync_targets<'a, I>(&mut self, target_paths: I)
-    where
-        I: IntoIterator<Item = &'a str>,
-    {
-        let target_paths = dedupe_watched_app_paths(target_paths);
-        let has_targets = !target_paths.is_empty();
-        let allowed_keys = target_paths
-            .iter()
-            .map(|path| watched_app_target_key(path.as_str()))
-            .collect::<HashSet<_>>();
-
-        {
-            let mut metrics_by_target = lock_unpoisoned(&self.state.metrics_by_target);
-            metrics_by_target.retain(|key, _| allowed_keys.contains(key));
-            for target_path in &target_paths {
-                metrics_by_target
-                    .entry(watched_app_target_key(target_path.as_str()))
-                    .or_insert_with(|| WatchedAppMetrics::idle(target_path.as_str()));
+    pub(super) fn configure(&mut self, config: Config) -> Result<RetainedPayload<Config>, String> {
+        if let Some(current) = &self.configuration {
+            if **current == config {
+                return Ok(current.clone());
             }
         }
-
-        *lock_unpoisoned(&self.state.target_paths) = target_paths;
-        if has_targets {
-            self.ensure_started();
-        }
-        if self.worker.is_some() {
-            self.request_refresh();
-        }
+        input::validate_config(&config)?;
+        let value = pool(0)?
+            .try_retain(config, CONFIG_WEIGHT)
+            .map_err(|_| "App Control configuration capacity exhausted")?;
+        let version = self.generation.advance();
+        let fence = Fence {
+            actor: self
+                .actor
+                .as_ref()
+                .ok_or("App Control runtime retired")?
+                .reader()
+                .guard_at(0),
+            native: self.native.clone(),
+            config: self.generation.reader().guard_at(version),
+        };
+        *self
+            .shared
+            .configuration
+            .lock()
+            .unwrap_or_else(|error| error.into_inner()) = Some(Configuration {
+            value: value.clone(),
+            fence,
+        });
+        self.configuration = Some(value.clone());
+        Ok(value)
     }
-
-    fn watched_app_metrics(&self, target_path: &str) -> WatchedAppMetrics {
-        lock_unpoisoned(&self.state.metrics_by_target)
-            .get(&watched_app_target_key(target_path))
-            .cloned()
-            .unwrap_or_else(|| WatchedAppMetrics::idle(target_path))
-    }
-
-    fn request_refresh(&self) {
-        if let Some(worker) = &self.worker {
-            worker.thread().unpark();
+    pub(super) fn capture(
+        &self,
+        input: Input,
+        producer: golden_core::engine::NodeWaker,
+        time: golden_core::engine::EngineTime,
+        permit: golden_io::RetirementPermit,
+    ) -> Result<RetainedPayload<Source>, String> {
+        let actor = self.actor.as_ref().ok_or("App Control runtime retired")?;
+        let source = Source {
+            input,
+            producer,
+            time,
+            fence: Fence {
+                actor: actor.reader().guard_at(0),
+                native: self.native.clone(),
+                config: self.generation.reader().guard_at(self.generation.reader().current()),
+            },
+            _permit: permit,
+        };
+        let weight = source.weight();
+        if weight > 4 * 1024 * 1024 {
+            return Err("App Control source exceeds native mailbox byte capacity; request was not admitted".into());
         }
+        let reservation = self
+            .commands
+            .try_reserve(weight)
+            .map_err(|_| "App Control source capacity exhausted")?;
+        reservation
+            .retain(source, weight)
+            .map_err(|_| "App Control source reservation failed".into())
     }
-
-    fn reset(&mut self) {
-        self.sync_targets(std::iter::empty::<&str>());
+    pub(super) fn submit(&self, source: RetainedPayload<Source>) -> Result<Receipt, RetainedPayload<Source>> {
+        let weight = source.weight();
+        let (work, receipt) = Work::new(source.clone(), self.shared.wake.clone());
+        self.worker.send_weighted(work, weight).map_err(|error| {
+            let (golden_io::PendingSendError::Full(work) | golden_io::PendingSendError::Disconnected(work)) = error;
+            work.unadmitted();
+            source
+        })?;
+        Ok(receipt)
     }
-
-    fn stop(&mut self) {
-        self.state.stop_requested.store(true, Ordering::Relaxed);
-        self.request_refresh();
-        if let Some(worker) = self.worker.take() {
-            let _ = worker.join();
-        }
+    pub(super) fn running(&self) -> bool {
+        self.shared.running.load(Ordering::Acquire)
+    }
+    pub(super) fn pending(&self) -> bool {
+        self.worker.has_pending() || !self.running()
+    }
+    pub(super) fn event(&self) -> Option<Event> {
+        let mut values = Vec::with_capacity(1);
+        self.worker.drain_events(&mut values, NonZeroUsize::MIN);
+        values.pop()
+    }
+    pub(super) fn stop(&mut self) {
+        self.actor = None;
+        self.worker.cancel();
     }
 }
-
-impl Drop for WatchedAppMetricsWorker {
+impl Drop for AppControlRuntime {
     fn drop(&mut self) {
         self.stop();
     }
 }
-
-pub(crate) struct AppControlRuntime {
-    system: System,
-    watched_app_worker: WatchedAppMetricsWorker,
-    folder_snapshots: HashMap<String, StoredFolderSnapshot>,
-}
-
-impl AppControlRuntime {
-    pub(crate) fn create() -> Self {
-        Self {
-            system: System::new(),
-            watched_app_worker: WatchedAppMetricsWorker::create(),
-            folder_snapshots: HashMap::new(),
-        }
+fn diagnostic(value: String) -> String {
+    let mut end = value.len().min(1024);
+    while !value.is_char_boundary(end) {
+        end -= 1;
     }
-
-    pub(crate) fn reset(&mut self) {
-        self.watched_app_worker.reset();
-        self.folder_snapshots.clear();
-    }
-
-    pub(crate) fn sync_watched_app_targets<'a, I>(&mut self, target_paths: I)
-    where
-        I: IntoIterator<Item = &'a str>,
-    {
-        self.watched_app_worker.sync_targets(target_paths);
-    }
-
-    pub(crate) fn sync_folder_keys<'a, I>(&mut self, keys: I)
-    where
-        I: IntoIterator<Item = &'a str>,
-    {
-        let allowed = keys
-            .into_iter()
-            .map(str::to_string)
-            .collect::<HashSet<_>>();
-        self.folder_snapshots
-            .retain(|key, _| allowed.contains(key.as_str()));
-    }
-
-    pub(crate) fn refresh_processes(&mut self) {
-        self.system.refresh_cpu_usage();
-        self.system.refresh_memory();
-        self.system.refresh_processes(ProcessesToUpdate::All, true);
-    }
-
-    pub(crate) fn watched_app_metrics(&self, target_path: &str) -> WatchedAppMetrics {
-        self.watched_app_worker.watched_app_metrics(target_path)
-    }
-
-    pub(crate) fn poll_folder(&mut self, key: &str, path: &str) -> FolderWatchUpdate {
-        let normalized_path = path.trim().to_string();
-        let current = capture_folder_snapshot(normalized_path.as_str());
-        let timestamp_ms = unix_time_ms();
-        let previous = self.folder_snapshots.get(key).cloned();
-        let mut update = FolderWatchUpdate {
-            path: normalized_path.clone(),
-            exists: current.exists,
-            entry_count: saturating_i32(current.entries.len()),
-            created: Vec::new(),
-            modified: Vec::new(),
-            removed: Vec::new(),
-            timestamp_ms,
-            last_change_ms: previous.as_ref().map(|snapshot| snapshot.last_change_ms).unwrap_or(0),
-        };
-
-        let Some(previous) = previous else {
-            self.folder_snapshots.insert(
-                key.to_string(),
-                StoredFolderSnapshot {
-                    path: normalized_path,
-                    snapshot: current,
-                    last_change_ms: update.last_change_ms,
-                },
-            );
-            return update;
-        };
-        if previous.path != normalized_path {
-            self.folder_snapshots.insert(
-                key.to_string(),
-                StoredFolderSnapshot {
-                    path: normalized_path,
-                    snapshot: current,
-                    last_change_ms: 0,
-                },
-            );
-            return update;
-        }
-
-        for (entry_path, stamp) in &current.entries {
-            match previous.snapshot.entries.get(entry_path) {
-                None => update.created.push(entry_path.clone()),
-                Some(previous_stamp) if previous_stamp != stamp => {
-                    update.modified.push(entry_path.clone())
-                }
-                Some(_) => {}
-            }
-        }
-
-        for entry_path in previous.snapshot.entries.keys() {
-            if !current.entries.contains_key(entry_path) {
-                update.removed.push(entry_path.clone());
-            }
-        }
-
-        if update.has_changes() {
-            update.last_change_ms = timestamp_ms;
-        }
-
-        self.folder_snapshots.insert(
-            key.to_string(),
-            StoredFolderSnapshot {
-                path: normalized_path,
-                snapshot: current,
-                last_change_ms: update.last_change_ms,
-            },
-        );
-
-        update
-    }
-
-    pub(crate) fn execute_launch(
-        &mut self,
-        request: &LaunchProcessRequest,
-        watched_target: Option<&str>,
-    ) -> Result<LaunchExecution, String> {
-        match request.mode {
-            LaunchMode::WatchedApp => {
-                let program = watched_target
-                    .map(str::trim)
-                    .filter(|value| !value.is_empty())
-                    .ok_or_else(|| "watched app launch target is empty".to_string())?;
-                spawn_executable(program, request.arguments.as_str(), optional_non_empty(request.working_directory.as_str()))?;
-                Ok(LaunchExecution {
-                    effective_program: program.to_string(),
-                })
-            }
-            LaunchMode::Executable => {
-                let program = request.executable_path.trim();
-                if program.is_empty() {
-                    return Err("application launch path cannot be empty".to_string());
-                }
-                spawn_executable(program, request.arguments.as_str(), optional_non_empty(request.working_directory.as_str()))?;
-                Ok(LaunchExecution {
-                    effective_program: program.to_string(),
-                })
-            }
-            LaunchMode::CommandLine => {
-                let command_line = request.command_line.trim();
-                if command_line.is_empty() {
-                    return Err("command line cannot be empty".to_string());
-                }
-                spawn_command_line(command_line, optional_non_empty(request.working_directory.as_str()))?;
-                Ok(LaunchExecution {
-                    effective_program: command_line.to_string(),
-                })
-            }
-        }
-    }
-
-    pub(crate) fn execute_kill(
-        &mut self,
-        request: &KillProcessRequest,
-        watched_target: Option<&str>,
-    ) -> Result<usize, String> {
-        self.refresh_processes();
-
-        let pids = resolve_target_pids(
-            &self.system,
-            request.target_source,
-            request.target.as_str(),
-            request.match_mode,
-            watched_target,
-        )?;
-
-        for pid in &pids {
-            terminate_pid(*pid, request.hard_kill)?;
-        }
-
-        Ok(pids.len())
-    }
-
-    pub(crate) fn execute_window_control(
-        &mut self,
-        request: &WindowControlRequest,
-        watched_target: Option<&str>,
-    ) -> Result<usize, String> {
-        self.refresh_processes();
-
-        let pids = resolve_target_pids(
-            &self.system,
-            request.target_source,
-            request.target.as_str(),
-            request.match_mode,
-            watched_target,
-        )?;
-        if pids.is_empty() {
-            return Err("no matching process is running".to_string());
-        }
-
-        let affected = control_windows_for_pids(
-            &pids,
-            request.action,
-            request.x,
-            request.y,
-            request.width,
-            request.height,
-            request.always_on_top,
-        )?;
-        if affected == 0 {
-            return Err("no application windows matched the requested target".to_string());
-        }
-
-        Ok(affected)
-    }
-}
-
-fn watched_app_worker_loop(state: Arc<WatchedAppWorkerState>) {
-    let mut system = System::new_all();
-
-    loop {
-        if state.stop_requested.load(Ordering::Relaxed) {
-            break;
-        }
-
-        let target_paths = lock_unpoisoned(&state.target_paths).clone();
-        if target_paths.is_empty() {
-            lock_unpoisoned(&state.metrics_by_target).clear();
-        } else {
-            let metrics_by_target = collect_watched_app_metrics(&mut system, target_paths.as_slice());
-            *lock_unpoisoned(&state.metrics_by_target) = metrics_by_target;
-        }
-
-        if state.stop_requested.load(Ordering::Relaxed) {
-            break;
-        }
-
-        thread::park_timeout(WATCHED_APP_WORKER_INTERVAL);
-    }
-}
-
-fn collect_watched_app_metrics(
-    system: &mut System,
-    target_paths: &[String],
-) -> HashMap<String, WatchedAppMetrics> {
-    if target_paths.is_empty() {
-        return HashMap::new();
-    }
-
-    system.refresh_cpu_usage();
-    system.refresh_memory();
-    system.refresh_processes(ProcessesToUpdate::All, true);
-
-    let window_counts_by_pid = visible_window_counts_by_pid();
-    target_paths
-        .iter()
-        .map(|target_path| {
-            (
-                watched_app_target_key(target_path.as_str()),
-                watched_app_metrics_from_system(system, target_path.as_str(), &window_counts_by_pid),
-            )
-        })
-        .collect()
-}
-
-fn watched_app_metrics_from_system(
-    system: &System,
-    target_path: &str,
-    window_counts_by_pid: &HashMap<u32, usize>,
-) -> WatchedAppMetrics {
-    let trimmed_path = target_path.trim();
-    let path = Path::new(trimmed_path);
-    let processes = watched_processes(system, trimmed_path);
-    let cpu_ratio = system_metrics::process_cpu_percent_to_ratio(
-        processes.iter().map(|process| process.cpu_usage() as f64).sum(),
-        system.cpus().len(),
-    );
-    let memory_mb = system_metrics::bytes_f64_to_mb(
-        processes.iter().map(|process| process.memory() as f64).sum(),
-    );
-    let virtual_memory_mb = system_metrics::bytes_f64_to_mb(
-        processes
-            .iter()
-            .map(|process| process.virtual_memory() as f64)
-            .sum(),
-    );
-    let memory_max_mb = system_metrics::bytes_to_mb(system.total_memory());
-    let pids = processes
-        .iter()
-        .map(|process| process.pid().as_u32())
-        .collect::<HashSet<_>>();
-    let uptime_seconds = processes
-        .iter()
-        .map(|process| system_metrics::uptime_seconds_from_unix_start(process.start_time()))
-        .max_by(f64::total_cmp)
-        .unwrap_or(0.0);
-    let window_count = window_count_for_pids(&pids, window_counts_by_pid);
-    let main_pid = processes
-        .iter()
-        .map(|process| process.pid().as_u32())
-        .min()
-        .map(|pid| pid.min(i32::MAX as u32) as i32)
-        .unwrap_or(0);
-
-    WatchedAppMetrics {
-        target_path: trimmed_path.to_string(),
-        target_name: path
-            .file_stem()
-            .or_else(|| path.file_name())
-            .map(|value| value.to_string_lossy().to_string())
-            .unwrap_or_default(),
-        exists: !trimmed_path.is_empty() && path.exists(),
-        running: !processes.is_empty(),
-        uptime_seconds,
-        process_count: saturating_i32(processes.len()),
-        main_pid,
-        window_opened: window_count > 0,
-        window_count,
-        cpu_ratio,
-        memory_mb,
-        memory_max_mb,
-        virtual_memory_mb,
-    }
-}
-
-fn resolve_target_pids(
-    system: &System,
-    target_source: CommandTargetSource,
-    target: &str,
-    match_mode: ProcessMatchMode,
-    watched_target: Option<&str>,
-) -> Result<Vec<u32>, String> {
-    let pids = match target_source {
-        CommandTargetSource::WatchedApp => watched_processes(
-            system,
-            watched_target.ok_or_else(|| "missing watched app executable path".to_string())?,
-        )
-        .into_iter()
-        .map(|process| process.pid().as_u32())
-        .collect::<Vec<_>>(),
-        CommandTargetSource::FreeProcess => free_processes(system, target, match_mode)
-            .into_iter()
-            .map(|process| process.pid().as_u32())
-            .collect::<Vec<_>>(),
-    };
-
-    if pids.is_empty() {
-        return Err(match target_source {
-            CommandTargetSource::WatchedApp => "watched app is not currently running".to_string(),
-            CommandTargetSource::FreeProcess => {
-                format!("no process matches '{}' using {}", target, match_mode.as_str())
-            }
-        });
-    }
-
-    let mut unique = pids.into_iter().collect::<HashSet<_>>().into_iter().collect::<Vec<_>>();
-    unique.sort_unstable();
-    Ok(unique)
-}
-
-fn watched_processes<'a>(system: &'a System, target_path: &str) -> Vec<&'a Process> {
-    let normalized_target_path = normalize_path_text(target_path);
-    let normalized_target_name = Path::new(target_path)
-        .file_name()
-        .map(|value| value.to_string_lossy().to_ascii_lowercase())
-        .unwrap_or_default();
-    if normalized_target_path.is_empty() && normalized_target_name.is_empty() {
-        return Vec::new();
-    }
-
-    system
-        .processes()
-        .values()
-        .filter(|process| {
-            let process_name = process.name().to_string_lossy().to_ascii_lowercase();
-            let process_exe = process
-                .exe()
-                .map(normalize_path)
-                .unwrap_or_default();
-            let process_file_name = process
-                .exe()
-                .and_then(|path| path.file_name())
-                .map(|value| value.to_string_lossy().to_ascii_lowercase())
-                .unwrap_or_default();
-
-            (!normalized_target_path.is_empty() && process_exe == normalized_target_path)
-                || (!normalized_target_name.is_empty()
-                    && (process_file_name == normalized_target_name
-                        || process_name == normalized_target_name))
-        })
-        .collect()
-}
-
-fn dedupe_watched_app_paths<'a, I>(target_paths: I) -> Vec<String>
-where
-    I: IntoIterator<Item = &'a str>,
-{
-    let mut seen = HashSet::new();
-    let mut deduped = Vec::new();
-    for target_path in target_paths {
-        let trimmed = target_path.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-
-        let key = watched_app_target_key(trimmed);
-        if seen.insert(key) {
-            deduped.push(trimmed.to_string());
-        }
-    }
-    deduped
-}
-
-fn watched_app_target_key(target_path: &str) -> String {
-    normalize_path_text(target_path)
-}
-
-fn free_processes<'a>(
-    system: &'a System,
-    target: &str,
-    match_mode: ProcessMatchMode,
-) -> Vec<&'a Process> {
-    let target = target.trim();
-    if target.is_empty() {
-        return Vec::new();
-    }
-
-    system
-        .processes()
-        .values()
-        .filter(|process| {
-            let process_name = process.name().to_string_lossy().to_string();
-            let process_exe = process
-                .exe()
-                .map(|path| path.to_string_lossy().to_string())
-                .unwrap_or_default();
-            match_mode.matches(process_name.as_str(), target)
-                || match_mode.matches(process_exe.as_str(), target)
-        })
-        .collect()
-}
-
-fn optional_non_empty(value: &str) -> Option<&str> {
-    let trimmed = value.trim();
-    (!trimmed.is_empty()).then_some(trimmed)
-}
-
-fn spawn_executable(
-    program: &str,
-    arguments: &str,
-    working_directory: Option<&str>,
-) -> Result<(), String> {
-    let mut command = Command::new(program);
-    if let Some(working_directory) = working_directory {
-        command.current_dir(working_directory);
-    }
-    command
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
-
-    #[cfg(windows)]
-    {
-        if let Some(arguments) = optional_non_empty(arguments) {
-            command.raw_arg(arguments);
-        }
-    }
-
-    #[cfg(not(windows))]
-    {
-        for argument in arguments.split_whitespace() {
-            command.arg(argument);
-        }
-    }
-
-    command
-        .spawn()
-        .map(|_| ())
-        .map_err(|error| format!("failed to launch '{program}': {error}"))
-}
-
-fn spawn_command_line(command_line: &str, working_directory: Option<&str>) -> Result<(), String> {
-    #[cfg(windows)]
-    let mut command = {
-        let mut command = Command::new("cmd");
-        command.args(["/C", command_line]);
-        command
-    };
-
-    #[cfg(not(windows))]
-    let mut command = {
-        let mut command = Command::new("sh");
-        command.args(["-c", command_line]);
-        command
-    };
-
-    if let Some(working_directory) = working_directory {
-        command.current_dir(working_directory);
-    }
-    command
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .map(|_| ())
-        .map_err(|error| format!("failed to launch command line '{command_line}': {error}"))
-}
-
-#[cfg(windows)]
-fn terminate_pid(pid: u32, hard_kill: bool) -> Result<(), String> {
-    let pid_string = pid.to_string();
-    let mut command = Command::new("taskkill");
-    command.arg("/PID").arg(pid_string.as_str());
-    if hard_kill {
-        command.arg("/F");
-    }
-
-    let status = command
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .map_err(|error| format!("failed to terminate process {pid}: {error}"))?;
-
-    if !status.success() {
-        return Err(format!(
-            "taskkill returned exit code {:?} for process {pid}",
-            status.code(),
-        ));
-    }
-
-    Ok(())
-}
-
-#[cfg(not(windows))]
-fn terminate_pid(pid: u32, hard_kill: bool) -> Result<(), String> {
-    let signal = if hard_kill { "-9" } else { "-TERM" };
-    let status = Command::new("kill")
-        .arg(signal)
-        .arg(pid.to_string())
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .map_err(|error| format!("failed to terminate process {pid}: {error}"))?;
-
-    if !status.success() {
-        return Err(format!(
-            "kill returned exit code {:?} for process {pid}",
-            status.code(),
-        ));
-    }
-
-    Ok(())
-}
-
-fn capture_folder_snapshot(path: &str) -> FolderTreeSnapshot {
-    let trimmed = path.trim();
-    if trimmed.is_empty() {
-        return FolderTreeSnapshot::default();
-    }
-
-    let root = Path::new(trimmed);
-    if !root.is_dir() {
-        return FolderTreeSnapshot {
-            exists: root.exists(),
-            entries: BTreeMap::new(),
-        };
-    }
-
-    let mut snapshot = FolderTreeSnapshot {
-        exists: true,
-        entries: BTreeMap::new(),
-    };
-    let _ = collect_folder_entries(root, root, &mut snapshot.entries);
-    snapshot
-}
-
-fn collect_folder_entries(
-    root: &Path,
-    current: &Path,
-    entries: &mut BTreeMap<String, FileStamp>,
-) -> Result<(), std::io::Error> {
-    for entry in fs::read_dir(current)? {
-        let entry = entry?;
-        let entry_path = entry.path();
-        let file_type = entry.file_type()?;
-        let metadata = entry.metadata()?;
-        let relative_path = entry_path
-            .strip_prefix(root)
-            .unwrap_or(entry_path.as_path())
-            .to_string_lossy()
-            .replace('\\', "/");
-        entries.insert(
-            relative_path,
-            FileStamp {
-                is_dir: file_type.is_dir(),
-                len: metadata.len(),
-                modified_ms: metadata
-                    .modified()
-                    .ok()
-                    .and_then(|value| value.duration_since(UNIX_EPOCH).ok())
-                    .map(|duration| duration.as_millis().min(u64::MAX as u128) as u64)
-                    .unwrap_or(0),
-            },
-        );
-
-        if file_type.is_dir() && !file_type.is_symlink() {
-            collect_folder_entries(root, entry_path.as_path(), entries)?;
-        }
-    }
-
-    Ok(())
-}
-
-mod windows;
-
-use windows::{control_windows_for_pids, visible_window_counts_by_pid, window_count_for_pids};
-
-fn normalize_path(path: &Path) -> String {
-    path.to_string_lossy().replace('\\', "/").to_ascii_lowercase()
-}
-
-fn normalize_path_text(path: &str) -> String {
-    normalize_path(Path::new(path))
-}
-
-fn lock_unpoisoned<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
-    match mutex.lock() {
-        Ok(guard) => guard,
-        Err(poisoned) => poisoned.into_inner(),
-    }
-}
-
-fn unix_time_ms() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis()
-        .min(u64::MAX as u128) as u64
-}
-
-fn saturating_i32(value: usize) -> i32 {
-    value.min(i32::MAX as usize) as i32
+    value[..end].to_owned()
 }

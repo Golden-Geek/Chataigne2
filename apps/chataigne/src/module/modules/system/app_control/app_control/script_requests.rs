@@ -90,13 +90,9 @@ pub(super) fn optional_script_string(args: &[ParamValue], index: usize) -> Strin
 }
 
 pub(super) fn optional_script_bool(args: &[ParamValue], index: usize, default: bool) -> bool {
-    args.get(index)
-        .and_then(ParamValue::as_bool)
-        .unwrap_or(default)
+    args.get(index).and_then(ParamValue::as_bool).unwrap_or(default)
 }
 
 pub(super) fn optional_script_int(args: &[ParamValue], index: usize, default: i32) -> i32 {
-    args.get(index)
-        .and_then(ParamValue::as_int)
-        .unwrap_or(default)
+    args.get(index).and_then(ParamValue::as_int).unwrap_or(default)
 }

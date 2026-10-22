@@ -50,10 +50,6 @@ where
     seen
 }
 
-pub(super) struct ValueRootSyncResult {
-    pub(super) removed_folder_ids: Vec<NodeId>,
-}
-
 pub(super) fn watched_app_values_tree(label: &str) -> NodeTree {
     let mut tree = NodeTree::new(create_values_folder(label));
     tree.push_child(NodeTree::new(create_running_control_param()));
@@ -182,24 +178,16 @@ pub(super) fn create_watched_app_parameter() -> Parameter {
         ParameterChangeCheck::ValueChange,
     );
     crate::app::module::enable_module_authoring(parameter.node_data_mut());
-    parameter.node_data_mut().meta.description = Some(
-        "Executable path used for monitoring, watched-app commands, and the Values Running toggle."
-            .to_string(),
-    );
+    parameter.node_data_mut().meta.description =
+        Some("Executable path used for monitoring, watched-app commands, and the Values Running toggle.".to_string());
     parameter
 }
 
 pub(super) fn create_running_control_param() -> Parameter {
-    let mut parameter = Parameter::new(
-        "Running",
-        ParamValue::Bool(false),
-        ParameterChangeCheck::ValueChange,
-    );
+    let mut parameter = Parameter::new("Running", ParamValue::Bool(false), ParameterChangeCheck::ValueChange);
     crate::app::module::enable_module_authoring(parameter.node_data_mut());
-    parameter.node_data_mut().meta.description = Some(
-        "Indicates if the watched application is currently running and can launch or stop it."
-            .to_string(),
-    );
+    parameter.node_data_mut().meta.description =
+        Some("Indicates if the watched application is currently running and can launch or stop it.".to_string());
     let meta = &mut parameter.node_data_mut().meta;
     meta.decl_id = DeclId("running".to_string());
     meta.short_name = "running".to_string();
@@ -239,10 +227,7 @@ pub(super) fn last_changed_ago_seconds(update: &FolderWatchUpdate) -> f64 {
         return 0.0;
     }
 
-    update
-        .timestamp_ms
-        .saturating_sub(update.last_change_ms) as f64
-        / 1000.0
+    update.timestamp_ms.saturating_sub(update.last_change_ms) as f64 / 1000.0
 }
 
 pub(super) fn child_ids_by_label(snapshot: &ProcessTreeSnapshot, parent: NodeId) -> HashMap<String, NodeId> {
@@ -263,8 +248,7 @@ pub(super) fn sync_values_root<'a, I>(
     items: I,
     value_folders_by_item: &mut HashMap<NodeId, NodeId>,
     build_tree: fn(&str) -> NodeTree,
-) -> ValueRootSyncResult
-where
+) where
     I: IntoIterator<Item = (NodeId, &'a str)>,
 {
     let existing_by_label = child_ids_by_label(snapshot, root_id);
@@ -304,52 +288,15 @@ where
         }
     }
 
-    let mut removed_folder_ids = Vec::new();
     for child_id in snapshot.child_ids(root_id) {
         if used_folder_ids.contains(&child_id) {
             continue;
         }
 
-        removed_folder_ids.push(child_id);
         NodeHandle::new(child_id).remove(ctx);
     }
 
     *value_folders_by_item = next_value_folders_by_item;
-
-    ValueRootSyncResult {
-        removed_folder_ids,
-    }
-}
-
-pub(super) fn descendant_ids_matching_command_types(snapshot: &ProcessTreeSnapshot, root_id: NodeId) -> Vec<NodeId> {
-    let mut pending = snapshot.child_ids(root_id);
-    let mut matching = Vec::new();
-
-    while let Some(node_id) = pending.pop() {
-        let Some(node) = snapshot.node(node_id) else {
-            continue;
-        };
-
-        if is_app_control_command_type(node.node_type.as_str()) {
-            matching.push(node_id);
-        }
-
-        pending.extend(snapshot.child_ids(node_id));
-    }
-
-    matching
-}
-
-pub(super) fn node_is_within_subtree(snapshot: &ProcessTreeSnapshot, node_id: NodeId, root_id: NodeId) -> bool {
-    let mut current = Some(node_id);
-    while let Some(id) = current {
-        if id == root_id {
-            return true;
-        }
-        current = snapshot.node(id).and_then(|node| node.parent);
-    }
-
-    false
 }
 
 pub(super) fn is_app_control_command_type(node_type: &str) -> bool {
@@ -364,6 +311,7 @@ pub(super) fn is_app_control_command_type(node_type: &str) -> bool {
 pub(super) fn set_value_param(
     snapshot: &ProcessTreeSnapshot,
     ctx: &mut ProcessCtx,
+    source: NodeId,
     parent: NodeId,
     key: &str,
     value: ParamValue,
@@ -378,7 +326,7 @@ pub(super) fn set_value_param(
         return;
     }
 
-    ctx.set_param_with_behaviour(param_id, value, ParameterEventBehaviour::Coalesce);
+    ctx.set_param_from(source, param_id, value, ParameterEventBehaviour::Coalesce);
 }
 
 pub(super) fn find_child_by_key(snapshot: &ProcessTreeSnapshot, parent: NodeId, key: &str) -> Option<NodeId> {
@@ -392,27 +340,15 @@ pub(super) fn find_child_by_key(snapshot: &ProcessTreeSnapshot, parent: NodeId, 
     })
 }
 
-pub(super) fn resolve_watched_app_target<'a>(
-    watched_apps: &'a [WatchedAppEntry],
-    target: &str,
-) -> Result<&'a str, String> {
-    let normalized_target = target.trim();
-    if normalized_target.is_empty() {
-        return Err("watched app target cannot be empty".to_string());
-    }
-
-    watched_apps
-        .iter()
-        .find(|entry| {
-            entry.label.eq_ignore_ascii_case(normalized_target)
-                || entry.target_path.eq_ignore_ascii_case(normalized_target)
-        })
-        .map(|entry| entry.target_path.as_str())
-        .filter(|value| !value.trim().is_empty())
-        .ok_or_else(|| format!("No watched app matches '{normalized_target}'"))
-}
-
 pub(super) fn watched_app_label_from_target_path(target_path: &str) -> String {
+    let truncate = |mut value: String| {
+        let mut end = value.len().min(128);
+        while !value.is_char_boundary(end) {
+            end -= 1;
+        }
+        value.truncate(end);
+        value
+    };
     let trimmed = target_path.trim();
     if trimmed.is_empty() {
         return WATCHED_APP_DEFAULT_LABEL.to_string();
@@ -421,7 +357,7 @@ pub(super) fn watched_app_label_from_target_path(target_path: &str) -> String {
     Path::new(trimmed)
         .file_stem()
         .or_else(|| Path::new(trimmed).file_name())
-        .map(|value| value.to_string_lossy().trim().to_string())
+        .map(|value| truncate(value.to_string_lossy().trim().to_string()))
         .filter(|value| !value.is_empty())
         .unwrap_or_else(|| WATCHED_APP_DEFAULT_LABEL.to_string())
 }
@@ -430,22 +366,22 @@ pub(super) fn should_auto_rename_watched_app(current_label: &str, previous_auto_
     let trimmed_label = current_label.trim();
     trimmed_label.is_empty()
         || trimmed_label.eq_ignore_ascii_case(WATCHED_APP_DEFAULT_LABEL)
-    || trimmed_label == previous_auto_label
+        || trimmed_label == previous_auto_label
 }
 
-pub(super) fn watched_app_command_enum_options(
-    watched_apps: &[WatchedAppEntry],
-) -> Vec<ParameterEnumOption> {
-    unique_labels_in_order(
-        watched_apps
-            .iter()
-            .filter(|entry| !entry.target_path.trim().is_empty())
-            .map(|entry| entry.label.as_str())
-            .filter(|label| {
-                let trimmed = label.trim();
-                !trimmed.is_empty() && !trimmed.eq_ignore_ascii_case(WATCHED_APP_DEFAULT_LABEL)
-            }),
-    )
+pub(super) fn watched_app_command_enum_options(watched_apps: &[WatchedAppEntry]) -> Vec<ParameterEnumOption> {
+    let labels = watched_apps
+        .iter()
+        .filter(|entry| !entry.target_path.trim().is_empty())
+        .map(|entry| {
+            if entry.label.trim().is_empty() || entry.label.eq_ignore_ascii_case(WATCHED_APP_DEFAULT_LABEL) {
+                watched_app_label_from_target_path(&entry.target_path)
+            } else {
+                entry.label.clone()
+            }
+        })
+        .collect::<Vec<_>>();
+    unique_labels_in_order(labels.iter().map(String::as_str))
         .into_iter()
         .map(|label| ParameterEnumOption {
             variant_id: label.clone(),

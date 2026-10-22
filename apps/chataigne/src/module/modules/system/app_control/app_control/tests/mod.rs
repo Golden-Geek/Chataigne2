@@ -30,7 +30,7 @@ fn app_control_module_stays_idle_without_watch_entries() {
 }
 
 #[test]
-fn watched_app_configuration_changes_drive_app_control_tick_need() {
+fn watched_app_configuration_changes_use_passive_service() {
     let (mut engine, module_id) = create_module();
     let watched_apps_id =
         find_path(&engine, module_id, "parameters/watched_apps_targets").expect("watched apps root should exist");
@@ -45,7 +45,7 @@ fn watched_app_configuration_changes_drive_app_control_tick_need() {
         .dispatch_inbox(ExecutionPhase::EngineTick)
         .expect("watched app add should dispatch App Control inbox callbacks");
 
-    assert!(module_needs_update(&engine, module_id));
+    assert!(!module_needs_update(&engine, module_id));
 
     run_app_control_ticks(&mut engine, 1);
     assert!(!module_needs_update(&engine, module_id));
@@ -68,10 +68,17 @@ fn watched_app_configuration_changes_drive_app_control_tick_need() {
         .dispatch_inbox(ExecutionPhase::EngineTick)
         .expect("watched app target change should dispatch App Control inbox callbacks");
 
-    assert!(module_needs_update(&engine, module_id));
+    assert!(!module_needs_update(&engine, module_id));
 
     run_app_control_ticks(&mut engine, 1);
-    assert!(module_needs_update(&engine, module_id));
+    assert!(!module_needs_update(&engine, module_id));
+
+    let folder = find_path(&engine, module_id, "values/watched_apps_values/Chataigne").unwrap();
+    assert_eq!(
+        param_snapshot(&engine, folder, "target_path").unwrap().value,
+        ParamValue::Str("C:/Program Files/Chataigne/Chataigne.exe".into())
+    );
+    assert_eq!(engine.tick_stats().callbacks_fired, 0);
 
     set_param(&mut engine, watched_app_id, ParamValue::File(String::new()));
     engine
@@ -81,11 +88,16 @@ fn watched_app_configuration_changes_drive_app_control_tick_need() {
         .dispatch_inbox(ExecutionPhase::EngineTick)
         .expect("watched app target clear should dispatch App Control inbox callbacks");
 
-    assert!(module_needs_update(&engine, module_id));
+    assert!(!module_needs_update(&engine, module_id));
 
     run_app_control_ticks(&mut engine, 1);
 
     assert!(!module_needs_update(&engine, module_id));
+    assert_eq!(
+        param_snapshot(&engine, folder, "target_path").unwrap().value,
+        ParamValue::Str(String::new())
+    );
+    assert_eq!(engine.tick_stats().callbacks_fired, 0);
 }
 
 #[test]
@@ -294,7 +306,16 @@ fn existing_command_updates_watched_app_enum_after_inbox_dispatch_without_period
         .into_iter()
         .map(|option| option.variant_id.clone())
         .collect::<Vec<_>>();
-    assert_eq!(variants, vec!["Chataigne".to_string()]);
+    let crate::app::AppNode::AppControlModule(module) = engine.nodes.get(module_id).unwrap() else {
+        panic!()
+    };
+    assert_eq!(
+        variants,
+        vec!["Chataigne".to_string()],
+        "pending catalog: {:?}; inherited tester: {:?}",
+        module.service.catalog,
+        module.base.command_tester_id()
+    );
     assert_eq!(watched_app_snapshot.value, ParamValue::Enum("Chataigne".to_string()));
 }
 
@@ -588,7 +609,7 @@ fn removing_watched_app_preserves_missing_command_selection_until_it_returns() {
 }
 
 #[test]
-fn stale_running_value_only_reflects_actual_state_during_periodic_updates() {
+fn stale_running_value_only_reflects_actual_state_when_native_observation_arrives() {
     golden_core::logger::clear();
 
     let (mut engine, module_id) = create_module();
@@ -633,9 +654,10 @@ fn stale_running_value_only_reflects_actual_state_during_periodic_updates() {
         .apply_edits()
         .expect("stale running value should apply without dispatching callbacks");
 
+    std::thread::sleep(Duration::from_millis(550));
     engine
         .run_tick(Duration::from_millis(600))
-        .expect("App Control runtime tick should succeed without dispatching the stale running change");
+        .expect("native observation should project without dispatching the stale running change");
     engine.apply_edits().expect("periodic App Control edits should apply");
     engine
         .resolve()
@@ -796,6 +818,13 @@ fn create_module() -> (crate::app::AppEngine, NodeId) {
         .and_then(|root| root.node_data().first_child)
         .expect("App Control module should be attached under root");
 
+    let crate::app::AppNode::AppControlModule(module) = engine.nodes.get_mut(module_id).unwrap() else {
+        panic!()
+    };
+    let wake = module.service.wake.as_ref().unwrap().notifier.clone();
+    module.service.runtime = Some(super::app_control_runtime::tests::fixture(wake));
+    module.request_service();
+    run_app_control_ticks(&mut engine, 1);
     (engine, module_id)
 }
 
@@ -808,7 +837,7 @@ fn create_test_watched_app() -> Parameter {
 }
 
 fn run_app_control_ticks(engine: &mut crate::app::AppEngine, count: usize) {
-    for _ in 0..count {
+    for _ in 0..count * 70 {
         engine
             .dispatch_inbox(ExecutionPhase::EngineTick)
             .expect("pending App Control events should dispatch");
@@ -819,6 +848,7 @@ fn run_app_control_ticks(engine: &mut crate::app::AppEngine, count: usize) {
         engine
             .resolve()
             .expect("App Control schedule should resolve after tick");
+        std::thread::sleep(Duration::from_millis(1));
     }
 }
 
@@ -892,9 +922,8 @@ fn warning_message(engine: &crate::app::AppEngine, node: NodeId, warning_id: &st
 }
 
 fn module_needs_update(engine: &crate::app::AppEngine, module_id: NodeId) -> bool {
-    engine
-        .nodes
-        .get(module_id)
-        .expect("App Control module should be present")
-        .needs_update()
+    let crate::app::AppNode::AppControlModule(module) = engine.nodes.get(module_id).unwrap() else {
+        panic!()
+    };
+    module.needs_update()
 }

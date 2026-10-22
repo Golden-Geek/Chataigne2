@@ -10,86 +10,56 @@ use golden_core::{
 };
 
 use crate::app::module::common::app_control::{
-    launch_mode_enum_options, match_mode_enum_options, target_source_enum_options,
-    window_action_enum_options, CommandTargetSource, KillProcessRequest, LaunchMode,
-    LaunchProcessRequest, ProcessMatchMode, WindowAction, WindowControlRequest,
-    sync_watched_app_enum_options, APP_CONTROL_KILL_PROCESS_COMMAND_NODE_TYPE,
-    APP_CONTROL_LAUNCH_MODE_COMMAND_LINE, APP_CONTROL_LAUNCH_MODE_EXECUTABLE,
-    APP_CONTROL_LAUNCH_MODE_WATCHED_APP, APP_CONTROL_MATCH_MODE_EXACT,
-    APP_CONTROL_LAUNCH_PROCESS_COMMAND_NODE_TYPE,
-    APP_CONTROL_TARGET_SOURCE_FREE_PROCESS, APP_CONTROL_TARGET_SOURCE_WATCHED_APP,
-    APP_CONTROL_WINDOW_ACTION_ALWAYS_ON_TOP, APP_CONTROL_WINDOW_ACTION_BOUNDS,
-    APP_CONTROL_WINDOW_ACTION_MINIMIZE, APP_CONTROL_WINDOW_ACTION_MOVE,
-    APP_CONTROL_WINDOW_ACTION_RESIZE, APP_CONTROL_WINDOW_CONTROL_COMMAND_NODE_TYPE,
+    launch_mode_enum_options, match_mode_enum_options, sync_watched_app_enum_options, target_source_enum_options,
+    window_action_enum_options, APP_CONTROL_KILL_PROCESS_COMMAND_NODE_TYPE, APP_CONTROL_LAUNCH_MODE_COMMAND_LINE,
+    APP_CONTROL_LAUNCH_MODE_EXECUTABLE, APP_CONTROL_LAUNCH_MODE_WATCHED_APP,
+    APP_CONTROL_LAUNCH_PROCESS_COMMAND_NODE_TYPE, APP_CONTROL_MATCH_MODE_EXACT, APP_CONTROL_TARGET_SOURCE_FREE_PROCESS,
+    APP_CONTROL_TARGET_SOURCE_WATCHED_APP, APP_CONTROL_WINDOW_ACTION_ALWAYS_ON_TOP, APP_CONTROL_WINDOW_ACTION_BOUNDS,
+    APP_CONTROL_WINDOW_ACTION_MINIMIZE, APP_CONTROL_WINDOW_ACTION_MOVE, APP_CONTROL_WINDOW_ACTION_RESIZE,
+    APP_CONTROL_WINDOW_CONTROL_COMMAND_NODE_TYPE,
 };
+use crate::app::module_command;
 
 const WATCHED_APP_DEFAULT_LABEL: &str = "Watched App";
 
-fn handle_command_param_change<TCommand, TPayload, F>(
-    command: &TCommand,
-    ctx: &mut ProcessCtx,
-    param: NodeId,
-    context: &str,
-    request_payload: F,
-) where
-    TCommand: Node,
-    TPayload: serde::Serialize,
-    F: FnOnce(&TCommand, &ProcessTreeSnapshot) -> Result<TPayload, String>,
-{
-    let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
-        return;
+macro_rules! app_control_command_node_impl {
+    () => {
+        fn child_event_interest_depth(&self, event: &Event) -> u32 {
+            if matches!(event.kind, EventKind::ParamChanged { .. }) {
+                u32::MAX
+            } else {
+                0
+            }
+        }
+        fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
+            if ctx
+                .tree_snapshot()
+                .is_some_and(|snapshot| module_command::module_command_triggered(snapshot, self.id(), param))
+            {
+                run(ctx, self.id(), None);
+            }
+        }
+        fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
+            if event.topic == module_command::MODULE_COMMAND_EXECUTE_TOPIC
+                && event
+                    .payload
+                    .get("command_id")
+                    .and_then(serde_json::Value::as_u64)
+                    == Some(self.id().0)
+            {
+                run(ctx, self.id(), Some(event));
+            }
+        }
     };
-    let snapshot = snapshot_arc.as_ref();
-    if !crate::app::module_command::module_command_triggered(snapshot, command.id(), param) {
-        return;
-    }
-
-    if let Err(error) = request_payload(command, snapshot).and_then(|payload| {
-        crate::app::module_command::emit_module_command_request(
-            ctx,
-            snapshot,
-            command.id(),
-            command.get_type(),
-            &payload,
-        )
-    }) {
-        golden_core::logerror!(format!("Failed to trigger {context}: {error}"));
-    }
 }
-
-fn handle_command_execute_event<TCommand, TPayload, F>(
-    command: &TCommand,
-    ctx: &mut ProcessCtx,
-    event: &golden_core::events::CustomEvent,
-    context: &str,
-    request_payload: F,
-) where
-    TCommand: Node,
-    TPayload: serde::Serialize,
-    F: FnOnce(&TCommand, &ProcessTreeSnapshot) -> Result<TPayload, String>,
-{
-    if !crate::app::module_command::is_command_execute_request(event, command.id()) {
-        return;
-    }
-    let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
+fn run(ctx: &mut ProcessCtx, command: NodeId, event: Option<golden_core::events::CustomEvent>) {
+    let Some(snapshot) = ctx.tree_snapshot_arc() else {
         return;
     };
-    let snapshot = crate::app::module_command::command_execute_snapshot(
-        event,
-        snapshot_arc.as_ref(),
-        command.id(),
-    );
-    let snapshot = snapshot.as_ref();
-    if let Err(error) = request_payload(command, snapshot).and_then(|payload| {
-        crate::app::module_command::emit_module_command_request(
-            ctx,
-            snapshot,
-            command.id(),
-            command.get_type(),
-            &payload,
-        )
-    }) {
-        golden_core::logerror!(format!("Failed to execute {context}: {error}"));
+    if let Err(error) = module_command::CapturedInvocation::capture(&snapshot, command, event, &["app_control_module"])
+        .and_then(|invocation| crate::app::queue_app_control_command(ctx, invocation))
+    {
+        golden_core::logerror!(format!("App Control command was not admitted: {error}"));
     }
 }
 
@@ -135,26 +105,6 @@ impl AppControlLaunchProcessCommand {
     pub fn create() -> Self {
         Self::new(crate::app::ModuleCommandBase::new())
     }
-
-    fn request_payload(&self, snapshot: &ProcessTreeSnapshot) -> Result<LaunchProcessRequest, String> {
-        let mode_variant = command_enum_param(snapshot, self.id(), "mode")
-            .unwrap_or_else(|| APP_CONTROL_LAUNCH_MODE_WATCHED_APP.to_string());
-        let Some(mode) = LaunchMode::from_variant(mode_variant.as_str()) else {
-            return Err(format!("invalid App Control launch mode '{mode_variant}'"));
-        };
-
-        Ok(LaunchProcessRequest {
-            mode,
-            watched_app: command_enum_param(snapshot, self.id(), "watched_app").unwrap_or_default(),
-            executable_path: command_string_param(snapshot, self.id(), "executable_path")
-                .unwrap_or_default(),
-            arguments: command_string_param(snapshot, self.id(), "arguments").unwrap_or_default(),
-            working_directory: command_string_param(snapshot, self.id(), "working_directory")
-                .unwrap_or_default(),
-            command_line: command_string_param(snapshot, self.id(), "command_line")
-                .unwrap_or_default(),
-        })
-    }
 }
 
 #[golden_core::item(
@@ -182,24 +132,7 @@ impl Node for AppControlLaunchProcessCommand {
         );
     }
 
-    fn child_event_interest_depth(&self, event: &Event) -> u32 {
-        match event.kind {
-            EventKind::ParamChanged { .. } => u32::MAX,
-            _ => 0,
-        }
-    }
-
-    fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
-        handle_command_param_change(self, ctx, param, "App Control launch command", |command, snapshot| {
-            command.request_payload(snapshot)
-        });
-    }
-
-    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
-        handle_command_execute_event(self, ctx, &event, "App Control launch command", |command, snapshot| {
-            command.request_payload(snapshot)
-        });
-    }
+    app_control_command_node_impl!();
 }
 
 #[node("app_control_kill_process_command", label = "Kill")]
@@ -239,34 +172,6 @@ impl AppControlKillProcessCommand {
     pub fn create() -> Self {
         Self::new(crate::app::ModuleCommandBase::new())
     }
-
-    fn request_payload(&self, snapshot: &ProcessTreeSnapshot) -> Result<KillProcessRequest, String> {
-        let target_source_variant = command_enum_param(snapshot, self.id(), "target_source")
-            .unwrap_or_else(|| APP_CONTROL_TARGET_SOURCE_WATCHED_APP.to_string());
-        let Some(target_source) = CommandTargetSource::from_variant(target_source_variant.as_str()) else {
-            return Err(format!("invalid App Control target source '{target_source_variant}'"));
-        };
-
-        let match_mode_variant = command_enum_param(snapshot, self.id(), "match_mode")
-            .unwrap_or_else(|| APP_CONTROL_MATCH_MODE_EXACT.to_string());
-        let Some(match_mode) = ProcessMatchMode::from_variant(match_mode_variant.as_str()) else {
-            return Err(format!("invalid App Control match mode '{match_mode_variant}'"));
-        };
-
-        Ok(KillProcessRequest {
-            target_source,
-            target: match target_source {
-                CommandTargetSource::WatchedApp => {
-                    command_enum_param(snapshot, self.id(), "watched_app").unwrap_or_default()
-                }
-                CommandTargetSource::FreeProcess => {
-                    command_string_param(snapshot, self.id(), "target").unwrap_or_default()
-                }
-            },
-            match_mode,
-            hard_kill: command_bool_param(snapshot, self.id(), "hard_kill").unwrap_or(false),
-        })
-    }
 }
 
 #[golden_core::item(
@@ -294,24 +199,7 @@ impl Node for AppControlKillProcessCommand {
         );
     }
 
-    fn child_event_interest_depth(&self, event: &Event) -> u32 {
-        match event.kind {
-            EventKind::ParamChanged { .. } => u32::MAX,
-            _ => 0,
-        }
-    }
-
-    fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
-        handle_command_param_change(self, ctx, param, "App Control kill command", |command, snapshot| {
-            command.request_payload(snapshot)
-        });
-    }
-
-    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
-        handle_command_execute_event(self, ctx, &event, "App Control kill command", |command, snapshot| {
-            command.request_payload(snapshot)
-        });
-    }
+    app_control_command_node_impl!();
 }
 
 #[node("app_control_window_control_command", label = "Window Control")]
@@ -377,46 +265,6 @@ impl AppControlWindowControlCommand {
     pub fn create() -> Self {
         Self::new(crate::app::ModuleCommandBase::new())
     }
-
-    fn request_payload(&self, snapshot: &ProcessTreeSnapshot) -> Result<WindowControlRequest, String> {
-        let target_source_variant = command_enum_param(snapshot, self.id(), "target_source")
-            .unwrap_or_else(|| APP_CONTROL_TARGET_SOURCE_WATCHED_APP.to_string());
-        let Some(target_source) = CommandTargetSource::from_variant(target_source_variant.as_str()) else {
-            return Err(format!("invalid App Control target source '{target_source_variant}'"));
-        };
-
-        let match_mode_variant = command_enum_param(snapshot, self.id(), "match_mode")
-            .unwrap_or_else(|| APP_CONTROL_MATCH_MODE_EXACT.to_string());
-        let Some(match_mode) = ProcessMatchMode::from_variant(match_mode_variant.as_str()) else {
-            return Err(format!("invalid App Control match mode '{match_mode_variant}'"));
-        };
-
-        let action_variant = command_enum_param(snapshot, self.id(), "action")
-            .unwrap_or_else(|| APP_CONTROL_WINDOW_ACTION_MINIMIZE.to_string());
-        let Some(action) = WindowAction::from_variant(action_variant.as_str()) else {
-            return Err(format!("invalid App Control window action '{action_variant}'"));
-        };
-
-        Ok(WindowControlRequest {
-            target_source,
-            target: match target_source {
-                CommandTargetSource::WatchedApp => {
-                    command_enum_param(snapshot, self.id(), "watched_app").unwrap_or_default()
-                }
-                CommandTargetSource::FreeProcess => {
-                    command_string_param(snapshot, self.id(), "target").unwrap_or_default()
-                }
-            },
-            match_mode,
-            action,
-            x: command_int_param(snapshot, self.id(), "x").unwrap_or(0),
-            y: command_int_param(snapshot, self.id(), "y").unwrap_or(0),
-            width: command_int_param(snapshot, self.id(), "width").unwrap_or(1280),
-            height: command_int_param(snapshot, self.id(), "height").unwrap_or(720),
-            always_on_top: command_bool_param(snapshot, self.id(), "always_on_top")
-                .unwrap_or(true),
-        })
-    }
 }
 
 #[golden_core::item(
@@ -444,76 +292,7 @@ impl Node for AppControlWindowControlCommand {
         );
     }
 
-    fn child_event_interest_depth(&self, event: &Event) -> u32 {
-        match event.kind {
-            EventKind::ParamChanged { .. } => u32::MAX,
-            _ => 0,
-        }
-    }
-
-    fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
-        handle_command_param_change(
-            self,
-            ctx,
-            param,
-            "App Control window command",
-            |command, snapshot| command.request_payload(snapshot),
-        );
-    }
-
-    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
-        handle_command_execute_event(
-            self,
-            ctx,
-            &event,
-            "App Control window command",
-            |command, snapshot| command.request_payload(snapshot),
-        );
-    }
-}
-
-fn command_string_param(snapshot: &ProcessTreeSnapshot, command_id: NodeId, path: &str) -> Option<String> {
-    crate::app::module_command::resolve_module_command_child(snapshot, command_id, path).and_then(
-        |param_id| {
-            snapshot
-                .node(param_id)
-                .and_then(|node| node.param_value.as_ref())
-                .and_then(ParamValue::as_str)
-        },
-    )
-}
-
-fn command_enum_param(snapshot: &ProcessTreeSnapshot, command_id: NodeId, path: &str) -> Option<String> {
-    crate::app::module_command::resolve_module_command_child(snapshot, command_id, path).and_then(
-        |param_id| {
-            snapshot
-                .node(param_id)
-                .and_then(|node| node.param_value.as_ref())
-                .and_then(ParamValue::as_enum)
-        },
-    )
-}
-
-fn command_bool_param(snapshot: &ProcessTreeSnapshot, command_id: NodeId, path: &str) -> Option<bool> {
-    crate::app::module_command::resolve_module_command_child(snapshot, command_id, path).and_then(
-        |param_id| {
-            snapshot
-                .node(param_id)
-                .and_then(|node| node.param_value.as_ref())
-                .and_then(ParamValue::as_bool)
-        },
-    )
-}
-
-fn command_int_param(snapshot: &ProcessTreeSnapshot, command_id: NodeId, path: &str) -> Option<i32> {
-    crate::app::module_command::resolve_module_command_child(snapshot, command_id, path).and_then(
-        |param_id| {
-            snapshot
-                .node(param_id)
-                .and_then(|node| node.param_value.as_ref())
-                .and_then(ParamValue::as_int)
-        },
-    )
+    app_control_command_node_impl!();
 }
 
 fn sync_watched_app_options_from_enclosing_module(
@@ -537,10 +316,7 @@ fn sync_watched_app_options_from_enclosing_module(
     );
 }
 
-fn watched_app_enum_options_for_module(
-    snapshot: &ProcessTreeSnapshot,
-    module_id: NodeId,
-) -> Vec<ParameterEnumOption> {
+fn watched_app_enum_options_for_module(snapshot: &ProcessTreeSnapshot, module_id: NodeId) -> Vec<ParameterEnumOption> {
     let Some(parameters_id) = snapshot.find_child_by_decl_id(module_id, "parameters") else {
         return Vec::new();
     };
@@ -548,6 +324,12 @@ fn watched_app_enum_options_for_module(
         return Vec::new();
     };
 
+    if snapshot
+        .node(watched_apps_root_id)
+        .is_none_or(|node| node.child_count > 64)
+    {
+        return Vec::new();
+    }
     let mut seen = HashSet::new();
     let mut options = Vec::new();
     for item_id in snapshot.child_ids(watched_apps_root_id) {
@@ -558,6 +340,10 @@ fn watched_app_enum_options_for_module(
             continue;
         }
 
+        if item.label.len() > 128 || matches!(item.param_value.as_ref(),Some(ParamValue::File(text)) if text.len()>4096)
+        {
+            return Vec::new();
+        }
         let target_path = item
             .param_value
             .as_ref()
@@ -587,8 +373,7 @@ fn watched_app_enum_options_for_module(
 
 fn watched_app_option_label(current_label: &str, target_path: &str) -> Option<String> {
     let trimmed_label = current_label.trim();
-    if !trimmed_label.is_empty() && !trimmed_label.eq_ignore_ascii_case(WATCHED_APP_DEFAULT_LABEL)
-    {
+    if !trimmed_label.is_empty() && !trimmed_label.eq_ignore_ascii_case(WATCHED_APP_DEFAULT_LABEL) {
         return Some(trimmed_label.to_string());
     }
 

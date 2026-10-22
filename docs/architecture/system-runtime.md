@@ -6,8 +6,9 @@ command preparation, DNS/UDP, process creation and native cleanup. `golden_io` p
 public worker, retained-payload, lifetime and notification contracts. OS policy stays in the app layer.
 
 App Control has its own watched-application/folder model under the adjacent `app_control/` tree.
-Its remaining C06 ownership work is recorded in the
-[closure audit](../progress/p03-closure-audit.md).
+Its native runtime owns process/window operations and recursive folder observations. The module
+owns authored watch configuration, detached value trees, command catalogs and guarded publication.
+The [closure audit](../progress/p03-closure-audit.md) records remaining C06 qualification.
 
 ## Capture and dispatch
 
@@ -76,3 +77,48 @@ Tests use controlled providers. Test builds disable the native host-control exec
 incorrect fixture cannot perform shutdown, reboot, logout or Wake-on-LAN. Physical control and
 platform qualification remain separate; the [execution ledger](../progress/implementation-status.md)
 owns acceptance evidence and the remaining App Control work.
+
+## App Control
+
+`app_control/app_control_runtime/native/` owns sysinfo refresh, directory traversal, process
+creation/termination, window enumeration/actions and child reaping. Construction is inert;
+engine readiness registers a passive wake. The native worker samples active watches every 500 ms,
+servicing at most eight commands between sample checks. An empty configuration receives one
+initial observation and then remains idle. Native actions are disabled in test builds.
+
+Configuration admits 64 combined watch targets, with labels up to 128 bytes and paths up to
+4096 bytes. Derived filename labels truncate at a UTF-8 boundary. Value folders are authored as
+detached trees. A later notified turn binds their materialized identities. Command catalogs walk
+at most 64 DFS steps per turn, prioritizing the command tester; they do not scan every descendant
+in one callback. Superseded catalog mutations skip themselves and current jobs update live scalar
+choices/selection in one drain, preserving identity and a later authored selection. The actor
+services at most eight captured inputs, sixteen completed outcomes, four native events and eight
+watch rows per turn.
+
+Sixteen global native slots include blocked opening and retiring providers. Stop cancels without
+joining; the native fence and stopped notification retire before provider cleanup. Launched child
+handles remain owned and are reaped on the native worker. Cleanup can wait for surviving children;
+it retains that provider's original slot and never kills an application merely because its module
+was removed. Process/CPU inventories reject above 16384/4096 entries. Window enumeration rejects
+above 4096 callbacks; an action batch rejects above 64 processes or windows before acting.
+
+Folder collection admits 1024 entries / 512 KiB of retained entry data across all watch roots,
+4096 bytes per relative path and depth 32. Directory symlinks are not followed. Collection stages
+all baselines and commits them only after every root succeeds. Report backpressure retains a
+prepared report and withholds further sampling, preserving accepted change order.
+
+Canonical command snapshots and execute overrides, shared script arguments, and authored Running
+events use the same typed local inbox boundary before dispatch. Each module admits 64 source
+lifetimes through native execution, outcome publication and disposal. The native command mailbox
+admits 64 records / 4 MiB. Global source/outcome storage admits 512 records / 32 MiB, charging
+64 KiB plus three times execute-override storage per source; configuration and reports have
+separate 64-record / 64 MiB and 32-record / 64 MiB pools, charging 1 MiB and 2 MiB respectively.
+Core snapshots, arguments and callbacks retain their own canonical quotas.
+
+Observation edits carry native/configuration lifetime guards and current watch/value identities.
+Running observations carry the module's source ID, preventing feedback from becoming another
+launch/kill request. Accepted folder changes append distinct triggers and carry callbacks prepared
+on the worker. Completed command callbacks describe past effects and use current module identity;
+retiring the native session does not erase a completed outcome. Commands are never replayed.
+Startup or unexpected worker failure schedules 250 ms to 8 s recovery, reset by a healthy report.
+Native-mailbox pressure retains the same captured source behind an absolute 250 ms retry deadline.

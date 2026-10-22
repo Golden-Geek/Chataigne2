@@ -5,12 +5,11 @@ use std::ptr;
 
 #[cfg(windows)]
 use windows_sys::Win32::{
-    Foundation::{HWND, LPARAM, RECT},
+    Foundation::{HWND, LPARAM},
     UI::WindowsAndMessaging::{
-        EnumWindows, GetWindowRect, GetWindowTextLengthW, GetWindowTextW,
-        GetWindowThreadProcessId, IsWindowVisible, SetWindowPos, ShowWindow,
-        HWND_NOTOPMOST, HWND_TOPMOST, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE,
-        SW_SHOW, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER,
+        EnumWindows, GetWindowTextLengthW, GetWindowThreadProcessId, IsWindowVisible, SetWindowPos, ShowWindow,
+        HWND_NOTOPMOST, HWND_TOPMOST, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SW_HIDE, SW_MAXIMIZE,
+        SW_MINIMIZE, SW_RESTORE, SW_SHOW,
     },
 };
 
@@ -27,19 +26,19 @@ struct WindowInfo {
 }
 
 #[cfg(windows)]
-pub(super) fn visible_window_counts_by_pid() -> HashMap<u32, usize> {
+pub(super) fn visible_window_counts_by_pid() -> Result<HashMap<u32, usize>, String> {
     let mut counts = HashMap::new();
-    for window in enumerate_windows() {
+    for window in enumerate_windows()? {
         if window.visible {
             *counts.entry(window.pid).or_default() += 1;
         }
     }
-    counts
+    Ok(counts)
 }
 
 #[cfg(not(windows))]
-pub(super) fn visible_window_counts_by_pid() -> HashMap<u32, usize> {
-    HashMap::new()
+pub(super) fn visible_window_counts_by_pid() -> Result<HashMap<u32, usize>, String> {
+    Ok(HashMap::new())
 }
 
 pub(super) fn window_count_for_pids(pids: &HashSet<u32>, counts_by_pid: &HashMap<u32, usize>) -> i32 {
@@ -61,11 +60,14 @@ pub(super) fn control_windows_for_pids(
     always_on_top: bool,
 ) -> Result<usize, String> {
     let wanted = pids.iter().copied().collect::<HashSet<_>>();
-    let windows = enumerate_windows()
+    let windows = enumerate_windows()?
         .into_iter()
         .filter(|window| wanted.contains(&window.pid))
         .collect::<Vec<_>>();
 
+    if windows.len() > 64 {
+        return Err("App Control refuses a batch above 64 windows".into());
+    }
     if windows.is_empty() {
         return Ok(0);
     }
@@ -124,11 +126,7 @@ pub(super) fn control_windows_for_pids(
                 WindowAction::AlwaysOnTop => {
                     SetWindowPos(
                         window.hwnd,
-                        if always_on_top {
-                            HWND_TOPMOST
-                        } else {
-                            HWND_NOTOPMOST
-                        },
+                        if always_on_top { HWND_TOPMOST } else { HWND_NOTOPMOST },
                         0,
                         0,
                         0,
@@ -157,53 +155,41 @@ pub(super) fn control_windows_for_pids(
 }
 
 #[cfg(windows)]
-fn enumerate_windows() -> Vec<WindowInfo> {
+fn enumerate_windows() -> Result<Vec<WindowInfo>, String> {
+    struct Enumeration {
+        windows: Vec<WindowInfo>,
+        visited: usize,
+        overflow: bool,
+    }
     unsafe extern "system" fn collect_window(hwnd: HWND, lparam: LPARAM) -> i32 {
-        let windows = &mut *(lparam as *mut Vec<WindowInfo>);
-        let mut pid = 0u32;
+        let state = &mut *(lparam as *mut Enumeration);
+        if state.visited >= 4096 {
+            state.overflow = true;
+            return 0;
+        }
+        state.visited += 1;
+        let mut pid = 0;
         GetWindowThreadProcessId(hwnd, &mut pid);
         if pid == 0 {
             return 1;
         }
-
         let visible = IsWindowVisible(hwnd) != 0;
-        let title = read_window_title(hwnd);
-        if !visible && title.trim().is_empty() {
-            return 1;
+        if visible || GetWindowTextLengthW(hwnd) > 0 {
+            state.windows.push(WindowInfo { hwnd, pid, visible });
         }
-
-        let mut rect = RECT {
-            left: 0,
-            top: 0,
-            right: 0,
-            bottom: 0,
-        };
-        let _ = GetWindowRect(hwnd, &mut rect);
-        windows.push(WindowInfo { hwnd, pid, visible });
         1
     }
-
-    let mut windows = Vec::new();
+    let mut state = Enumeration {
+        windows: Vec::new(),
+        visited: 0,
+        overflow: false,
+    };
     unsafe {
-        EnumWindows(Some(collect_window), &mut windows as *mut _ as LPARAM);
+        EnumWindows(Some(collect_window), &mut state as *mut _ as LPARAM);
     }
-    windows
-}
-
-#[cfg(windows)]
-fn read_window_title(hwnd: HWND) -> String {
-    unsafe {
-        let length = GetWindowTextLengthW(hwnd);
-        if length <= 0 {
-            return String::new();
-        }
-
-        let mut buffer = vec![0u16; length as usize + 1];
-        let copied = GetWindowTextW(hwnd, buffer.as_mut_ptr(), buffer.len() as i32);
-        if copied <= 0 {
-            return String::new();
-        }
-
-        String::from_utf16_lossy(&buffer[..copied as usize])
+    if state.overflow {
+        Err("App Control window inventory exceeds 4096 entries".into())
+    } else {
+        Ok(state.windows)
     }
 }
