@@ -1,8 +1,15 @@
-use std::collections::{HashMap, HashSet};
+//! App-owned derived-state reconciliation.
+mod channels;
+mod migration;
+mod service;
+#[cfg(test)]
+mod tests;
+pub(super) use service::DerivedWork;
+use service::{Position, Repair, Stage};
 
 use golden_core::{
     edit::{Edit, NodeTree},
-    node::{DeclId, Folder, Node, NodeHandle, NodeId, NodeMetaPatch, NodeReference, NodeUserPermissions, NodeUuid},
+    node::{DeclId, Folder, Node, NodeId, NodeMetaPatch, NodeReference, NodeUserPermissions, NodeUuid},
     parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterConstraints, RangeConstraint},
     process_ctx::{ProcessCtx, ProcessTreeNodeSnapshot, ProcessTreeSnapshot},
 };
@@ -15,374 +22,177 @@ use crate::app::module_modules_audio_sound_card_schema::{
 
 pub(super) const SPECTRAL_PARAMETERS_UUID_KEY: &[u8] = b"spectral-analysis-parameters";
 
+const INTENT_PATHS: [&str; 8] = [
+    "connection/audio_driver",
+    "connection/device",
+    "connection/input_device",
+    "connection/output_device",
+    "connection/input_routing/channel_count",
+    "connection/output_routing/channel_count",
+    "parameters/processing/pitch_detection",
+    "parameters/processing/spectral_analysis",
+];
+
+fn advance(pos: &mut Position) {
+    *pos = Position {
+        stage: pos.stage.next(),
+        ..Position::default()
+    };
+}
+
+fn direction_used(snapshot: &ProcessTreeSnapshot, module: NodeId, direction: &str) -> bool {
+    let value = |path: &str| {
+        find_path(snapshot, module, path)
+            .and_then(|id| snapshot.node(id))
+            .and_then(|n| n.param_value.as_ref())
+            .and_then(|v| match v {
+                ParamValue::Enum(v) | ParamValue::Str(v) => Some(v.as_str()),
+                _ => None,
+            })
+    };
+    let driver = value("connection/audio_driver");
+    if driver == Some(super::NO_AUDIO_DRIVER) {
+        return false;
+    }
+    let path = if driver == Some(super::ASIO_AUDIO_DRIVER) {
+        "connection/device"
+    } else if direction == "input" {
+        "connection/input_device"
+    } else {
+        "connection/output_device"
+    };
+    value(path).is_some_and(|v| v != NO_AUDIO_DEVICE)
+}
+
+fn scan_child<'a>(
+    source: &ProcessTreeSnapshot,
+    snapshot: &'a ProcessTreeSnapshot,
+    module: NodeId,
+    path: &str,
+    pos: &mut Position,
+) -> Option<&'a ProcessTreeNodeSnapshot> {
+    let parent = find_path(source, module, path);
+    let children = parent.map(|p| source.child_ids_slice(p)).unwrap_or_default();
+    let Some(&id) = children.get(pos.row) else {
+        advance(pos);
+        return None;
+    };
+    pos.row += 1;
+    if parent != find_path(snapshot, module, path) {
+        return None;
+    }
+    snapshot
+        .node(id)
+        .filter(|n| n.parent == parent && source.node(id).is_some_and(|old| old.uuid == n.uuid))
+}
+
+fn step(
+    source: &ProcessTreeSnapshot,
+    snapshot: &ProcessTreeSnapshot,
+    module: NodeId,
+    pos: &mut Position,
+    wanted: &mut [std::collections::HashSet<NodeUuid>; 4],
+) -> Result<Option<Repair>, String> {
+    if matches!(
+        pos.stage,
+        Stage::InputRoot | Stage::OutputRoot | Stage::SpectralParameters
+    ) {
+        let namespace = snapshot.node(module).ok_or("Sound Card retired")?.uuid;
+        let key = match pos.stage {
+            Stage::InputRoot => b"input-values".as_slice(),
+            Stage::OutputRoot => b"output-values".as_slice(),
+            _ => SPECTRAL_PARAMETERS_UUID_KEY,
+        };
+        let uuid = derived_uuid(namespace, key);
+        if let Some(state) = snapshot.node_id_by_uuid(uuid).and_then(|id| snapshot.node(id)) {
+            let allowed = if pos.stage == Stage::SpectralParameters {
+                state.parent == find_path(snapshot, module, "parameters/processing")
+            } else {
+                state.parent == find_path(snapshot, module, "values/levels")
+                    || state.parent == find_path(snapshot, module, "values")
+            };
+            if !allowed {
+                return Err("Sound Card derived identity belongs to another folder".into());
+            }
+        }
+    }
+    Ok(match pos.stage {
+        Stage::InputRoot => migration::direction_root(source, snapshot, module, "input", pos),
+        Stage::OutputRoot => migration::direction_root(source, snapshot, module, "output", pos),
+        Stage::InputGains => return channels::desired(snapshot, module, "input", pos, false, &mut wanted[0]),
+        Stage::OutputGains => return channels::desired(snapshot, module, "output", pos, false, &mut wanted[1]),
+        Stage::StaleInputGains => channels::stale(source, snapshot, module, "input", pos, false, &wanted[0]),
+        Stage::StaleOutputGains => channels::stale(source, snapshot, module, "output", pos, false, &wanted[1]),
+        Stage::InputLevels => return channels::desired(snapshot, module, "input", pos, true, &mut wanted[2]),
+        Stage::OutputLevels => return channels::desired(snapshot, module, "output", pos, true, &mut wanted[3]),
+        Stage::StaleInputLevels => channels::stale(source, snapshot, module, "input", pos, true, &wanted[2]),
+        Stage::StaleOutputLevels => channels::stale(source, snapshot, module, "output", pos, true, &wanted[3]),
+        Stage::SpectralParameters => migration::spectral(source, snapshot, module, pos),
+        Stage::PitchValues => migration::optional(snapshot, module, pos, false),
+        Stage::SpectralValues => migration::optional(snapshot, module, pos, true),
+        Stage::ClearSpectralValues => migration::cleanup(source, snapshot, module, pos, 0),
+        Stage::ObsoleteValues => migration::cleanup(source, snapshot, module, pos, 1),
+        Stage::EmptyParameters => migration::cleanup(source, snapshot, module, pos, 2),
+        Stage::DirectionOrder => migration::order(snapshot, module, pos),
+        Stage::Done => None,
+    })
+}
+
 impl SoundCardModule {
     pub(super) fn synchronize_derived_structure(
         &mut self,
         ctx: &mut ProcessCtx,
         snapshot: &std::sync::Arc<ProcessTreeSnapshot>,
     ) -> bool {
-        let driver_used = self.audio_driver.get_ref().0 != super::NO_AUDIO_DRIVER;
-        let (input_device, output_device) = self.selected_device_values();
-        let input_used = driver_used && input_device != NO_AUDIO_DEVICE;
-        let output_used = driver_used && output_device != NO_AUDIO_DEVICE;
-
-        let input_pending = self.synchronize_input_structure(ctx, snapshot, input_used);
-        let output_pending = self.synchronize_output_structure(ctx, snapshot, output_used);
-        reconcile_spectral_parameter_container(ctx, snapshot, self.id());
-        self.synchronize_processing_values(ctx, snapshot);
-        remove_obsolete_value_folders(ctx, snapshot, self.id());
-        remove_empty_parameter_folders(ctx, snapshot, self.id());
-        synchronize_level_direction_order(ctx, snapshot, self.id());
-        input_pending || output_pending
-    }
-
-    fn synchronize_input_structure(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        snapshot: &std::sync::Arc<ProcessTreeSnapshot>,
-        used: bool,
-    ) -> bool {
-        synchronize_direction_values_root(ctx, snapshot, self.id(), "input", used);
-
-        let count = direction_channel_count(snapshot, self.id(), "connection/input_routing/channel_count");
-        let channels = synchronize_input_channels(ctx, snapshot, self.id(), if used { count } else { 0 });
-        if used {
-            synchronize_channel_values(
-                ctx,
-                snapshot,
-                self.id(),
-                "values/levels/input/channels",
-                channels.as_slice(),
-            );
-        }
-        if !self.input_route_reset_pending && !self.routes.seeding_input() {
-            self.prune_routes(ctx, snapshot, true, &channels)
-        } else {
-            false
-        }
-    }
-
-    fn synchronize_output_structure(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        snapshot: &std::sync::Arc<ProcessTreeSnapshot>,
-        used: bool,
-    ) -> bool {
-        synchronize_direction_values_root(ctx, snapshot, self.id(), "output", used);
-
-        let count = direction_channel_count(snapshot, self.id(), "connection/output_routing/channel_count");
-        let channels = synchronize_output_channels(ctx, snapshot, self.id(), if used { count } else { 0 });
-        if used {
-            synchronize_channel_values(
-                ctx,
-                snapshot,
-                self.id(),
-                "values/levels/output/channels",
-                channels.as_slice(),
-            );
-        }
-        if !self.output_route_reset_pending && !self.routes.seeding_output() {
-            self.prune_routes(ctx, snapshot, false, &channels)
-        } else {
-            false
-        }
-    }
-
-    fn synchronize_processing_values(&self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
-        synchronize_optional_node(
-            ctx,
-            snapshot,
-            self.id(),
-            "values/pitch_detection",
-            self.pitch_detection.get(),
-            || {
-                let mut node = SoundCardPitchValues::new();
-                set_derived_identity(
-                    &mut node,
-                    self.node_data().meta.uuid,
-                    "pitch-values",
-                    "Pitch Detection",
-                    "pitch_detection",
-                );
-                NodeTree::new(node)
-            },
-        );
-        let spectral_enabled = spectral_analysis_enabled(snapshot, self.id());
-        synchronize_optional_node(
-            ctx,
-            snapshot,
-            self.id(),
-            "values/spectral_analysis",
-            spectral_enabled,
-            || {
-                let mut node = SoundCardSpectralValues::new();
-                set_derived_identity(
-                    &mut node,
-                    self.node_data().meta.uuid,
-                    "spectral-values",
-                    "Spectral Analysis",
-                    "spectral_analysis",
-                );
-                NodeTree::new(node)
-            },
-        );
-        if spectral_enabled {
-            clear_spectral_value_children(ctx, snapshot, self.id());
-        }
-    }
-}
-
-fn synchronize_direction_values_root(
-    ctx: &mut ProcessCtx,
-    snapshot: &ProcessTreeSnapshot,
-    module: NodeId,
-    direction: &str,
-    used: bool,
-) {
-    let Some(parent) = find_path(snapshot, module, "values/levels") else {
-        return;
-    };
-    let namespace = snapshot.node(module).expect("module exists").uuid;
-    let uuid = derived_uuid(namespace, format!("{direction}-values").as_bytes());
-    let expected_type = if direction == "input" {
-        SoundCardInputValues::NODE_TYPE
-    } else {
-        SoundCardOutputValues::NODE_TYPE
-    };
-    let mut candidates = snapshot
-        .child_ids_slice(parent)
-        .iter()
-        .copied()
-        .filter(|child| {
-            snapshot
-                .node(*child)
-                .is_some_and(|node| node.uuid == uuid || node.decl_id == direction)
-        })
-        .collect::<Vec<_>>();
-    if let Some(legacy) = snapshot.node_id_by_uuid(uuid) {
-        if !candidates.contains(&legacy) {
-            candidates.push(legacy);
-        }
-    }
-    let retained = used
-        .then(|| {
-            candidates.iter().copied().find(|child| {
-                snapshot
-                    .node(*child)
-                    .is_some_and(|node| node.node_type == expected_type)
-            })
-        })
-        .flatten();
-    for candidate in candidates {
-        if Some(candidate) != retained {
-            NodeHandle::new(candidate).remove(ctx);
-        }
-    }
-    if !used {
-        return;
-    }
-    if let Some(retained) = retained {
-        if snapshot.node(retained).and_then(|node| node.parent) != Some(parent) {
-            NodeHandle::new(retained).move_to(ctx, parent, None);
-        }
-        return;
-    }
-    let tree = if direction == "input" {
-        let mut node = SoundCardInputValues::new();
-        set_derived_identity(&mut node, namespace, "input-values", "Input", "input");
-        NodeTree::new(node)
-    } else {
-        let mut node = SoundCardOutputValues::new();
-        set_derived_identity(&mut node, namespace, "output-values", "Output", "output");
-        NodeTree::new(node)
-    };
-    ctx.add_child_tree(parent, tree, None);
-}
-
-fn synchronize_input_channels(
-    ctx: &mut ProcessCtx,
-    snapshot: &ProcessTreeSnapshot,
-    module: NodeId,
-    count: usize,
-) -> Vec<NodeReference> {
-    let Some(parent) = find_path(snapshot, module, "parameters/input/channels") else {
-        return Vec::new();
-    };
-    let module_uuid = snapshot.node(module).expect("module exists").uuid;
-    synchronize_channel_gains(ctx, snapshot, parent, module_uuid, count, "input")
-}
-
-fn synchronize_output_channels(
-    ctx: &mut ProcessCtx,
-    snapshot: &ProcessTreeSnapshot,
-    module: NodeId,
-    count: usize,
-) -> Vec<NodeReference> {
-    let Some(parent) = find_path(snapshot, module, "parameters/output/channels") else {
-        return Vec::new();
-    };
-    let module_uuid = snapshot.node(module).expect("module exists").uuid;
-    synchronize_channel_gains(ctx, snapshot, parent, module_uuid, count, "output")
-}
-
-fn synchronize_channel_gains(
-    ctx: &mut ProcessCtx,
-    snapshot: &ProcessTreeSnapshot,
-    parent: NodeId,
-    namespace: NodeUuid,
-    count: usize,
-    direction: &str,
-) -> Vec<NodeReference> {
-    let existing = snapshot
-        .child_ids(parent)
-        .into_iter()
-        .filter_map(|id| snapshot.node(id).map(|state| (id, state.uuid)))
-        .collect::<Vec<_>>();
-    let by_uuid = existing
-        .iter()
-        .map(|(id, uuid)| (*uuid, *id))
-        .collect::<HashMap<_, _>>();
-    let desired = (0..count)
-        .map(|index| derived_uuid(namespace, format!("{direction}-channel-{}", index + 1).as_bytes()))
-        .collect::<Vec<_>>();
-    for (index, uuid) in desired.iter().enumerate() {
-        let number = index + 1;
-        let default_name = format!("{} {number}", title_case(direction));
-        let decl_id = format!("{direction}_{number}");
-        if let Some(existing) = by_uuid.get(uuid).copied() {
-            let Some(state) = snapshot.node(existing) else {
-                continue;
-            };
-            if !matches!(state.param_value, Some(ParamValue::Float(_))) {
-                let gain = find_child_by_key(snapshot, existing, "volume_db")
-                    .and_then(|node| snapshot.node(node))
-                    .and_then(|node| node.param_value.as_ref())
-                    .and_then(ParamValue::as_float)
-                    .unwrap_or(0.0);
-                for child in snapshot.child_ids(existing) {
-                    NodeHandle::new(child).remove(ctx);
+        let module = self.id();
+        let queued = ctx.edits.pending.len();
+        let pending = match self.derived.service(ctx, snapshot, module) {
+            Ok(pending) => pending,
+            Err(error) => {
+                self.set_runtime_error(ctx, module, &error);
+                if let Some(wake) = &self.runtime_wake {
+                    wake.wake_after(std::time::Duration::from_millis(250));
                 }
-                let existing_name = channel_name(state);
-                ctx.replace_node(
-                    existing,
-                    channel_gain_parameter(*uuid, existing_name.as_str(), decl_id.as_str(), gain),
-                );
-            } else {
-                let name = channel_name(state);
-                synchronize_channel_gain_meta(ctx, state, name.as_str());
-                synchronize_float_range(ctx, state, -120.0, 24.0);
+                return true;
             }
-        } else {
-            ctx.add_child_tree(
-                parent,
-                NodeTree::new(channel_gain_parameter(
-                    *uuid,
-                    default_name.as_str(),
-                    decl_id.as_str(),
-                    0.0,
-                )),
-                None,
-            );
-        }
-    }
-    let desired_set = desired.iter().copied().collect::<HashSet<_>>();
-    for (id, uuid) in existing {
-        if !desired_set.contains(&uuid) {
-            NodeHandle::new(id).remove(ctx);
-        }
-    }
-    desired
-        .into_iter()
-        .enumerate()
-        .map(|(index, uuid)| {
-            let id = by_uuid.get(&uuid).copied();
-            let name = id
-                .and_then(|id| snapshot.node(id))
-                .map(channel_name)
-                .unwrap_or_else(|| format!("{} {}", title_case(direction), index + 1));
-            let mut reference = NodeReference::with_cached_id(uuid, id);
-            reference.set_cached_name(Some(name));
-            reference
-        })
-        .collect()
-}
-
-fn synchronize_channel_values(
-    ctx: &mut ProcessCtx,
-    snapshot: &ProcessTreeSnapshot,
-    module: NodeId,
-    path: &str,
-    channels: &[NodeReference],
-) {
-    let Some(parent) = find_path(snapshot, module, path) else {
-        return;
-    };
-    let desired = channels
-        .iter()
-        .map(|channel| (derived_uuid(channel.uuid, b"sound-card-channel-value"), channel))
-        .collect::<HashMap<_, _>>();
-    let existing = snapshot.child_ids(parent);
-    let existing_by_uuid = existing
-        .iter()
-        .filter_map(|id| snapshot.node(*id).map(|node| (node.uuid, *id)))
-        .collect::<HashMap<_, _>>();
-
-    for (uuid, channel) in &desired {
-        let label = channel.cached_name.as_deref().unwrap_or("Channel");
-        if let Some(existing) = existing_by_uuid.get(uuid).copied() {
-            let is_direct_level = snapshot
-                .node(existing)
-                .is_some_and(|node| matches!(node.param_value, Some(ParamValue::Float(_))));
-            if !is_direct_level {
-                let level = find_child_by_key(snapshot, existing, "volume")
-                    .and_then(|node| snapshot.node(node))
-                    .and_then(|node| node.param_value.as_ref())
-                    .and_then(ParamValue::as_float)
-                    .unwrap_or(0.0);
-                for child in snapshot.child_ids(existing) {
-                    NodeHandle::new(child).remove(ctx);
-                }
-                ctx.replace_node(
-                    existing,
-                    channel_level_parameter(
-                        *uuid,
-                        label,
-                        format!("channel_{}", channel.uuid.0.simple()).as_str(),
-                        level,
-                    ),
-                );
-            } else if let Some(state) = snapshot.node(existing) {
-                if state.label != label {
-                    ctx.patch_node_meta(
-                        existing,
-                        NodeMetaPatch {
-                            label: Some(label.to_owned()),
-                            ..NodeMetaPatch::default()
-                        },
-                    );
-                }
-                synchronize_float_range(ctx, state, 0.0, 1.0);
-            }
-            continue;
-        }
-        ctx.add_child_tree(
-            parent,
-            NodeTree::new(channel_level_parameter(
-                *uuid,
-                label,
-                format!("channel_{}", channel.uuid.0.simple()).as_str(),
-                0.0,
-            )),
-            None,
-        );
-    }
-    for id in existing {
-        let Some(state) = snapshot.node(id) else {
-            continue;
         };
-        if !desired.contains_key(&state.uuid) {
-            NodeHandle::new(id).remove(ctx);
+        if pending {
+            if !self.derived.waiting() || ctx.edits.pending.len() != queued {
+                self.wake_route_work();
+            }
+            return true;
         }
+        let mut pending = false;
+        for (input, direction) in [(true, "input"), (false, "output")] {
+            let resetting = if input {
+                self.input_route_reset_pending || self.routes.seeding_input()
+            } else {
+                self.output_route_reset_pending || self.routes.seeding_output()
+            };
+            if resetting {
+                continue;
+            }
+            let count = if direction_used(snapshot, module, direction) {
+                direction_channel_count(
+                    snapshot,
+                    module,
+                    &format!("connection/{direction}_routing/channel_count"),
+                )
+            } else {
+                0
+            };
+            let namespace = snapshot.node(module).expect("live Sound Card").uuid;
+            let desired = (0..count)
+                .map(|index| {
+                    NodeReference::new(derived_uuid(
+                        namespace,
+                        format!("{direction}-channel-{}", index + 1).as_bytes(),
+                    ))
+                })
+                .collect::<Vec<_>>();
+            pending |= self.prune_routes(ctx, snapshot, input, &desired);
+        }
+        pending
     }
 }
 
@@ -416,35 +226,6 @@ fn channel_level_parameter(uuid: NodeUuid, name: &str, decl_id: &str, value: f64
     parameter
 }
 
-fn synchronize_channel_gain_meta(ctx: &mut ProcessCtx, state: &ProcessTreeNodeSnapshot, name: &str) {
-    let expected_label = channel_gain_label(name);
-    if state.label == expected_label && state.short_name == name {
-        return;
-    }
-    ctx.patch_node_meta(
-        state.id,
-        NodeMetaPatch {
-            short_name: (state.short_name != name).then(|| name.to_owned()),
-            label: (state.label != expected_label).then_some(expected_label),
-            ..NodeMetaPatch::default()
-        },
-    );
-}
-
-fn synchronize_float_range(ctx: &mut ProcessCtx, state: &ProcessTreeNodeSnapshot, min: f64, max: f64) {
-    let expected = ParameterConstraints {
-        range: RangeConstraint::uniform(Some(min), Some(max)),
-        ..ParameterConstraints::default()
-    };
-    if state.param_constraints.as_ref() == Some(&expected) {
-        return;
-    }
-    ctx.edits.push(Edit::SetParamConstraints {
-        node: state.id,
-        constraints: expected,
-    });
-}
-
 fn channel_gain_label(name: &str) -> String {
     format!("{name} Gain")
 }
@@ -465,26 +246,6 @@ fn title_case(value: &str) -> String {
         .unwrap_or_default()
 }
 
-fn synchronize_optional_node(
-    ctx: &mut ProcessCtx,
-    snapshot: &ProcessTreeSnapshot,
-    module: NodeId,
-    path: &str,
-    enabled: bool,
-    create: impl FnOnce() -> NodeTree,
-) {
-    let existing = find_path(snapshot, module, path);
-    if enabled && existing.is_none() {
-        if let Some(parent) = find_path(snapshot, module, "values") {
-            ctx.add_child_tree(parent, create(), None);
-        }
-    } else if !enabled {
-        if let Some(existing) = existing {
-            NodeHandle::new(existing).remove(ctx);
-        }
-    }
-}
-
 pub(super) fn spectral_analysis_enabled(snapshot: &ProcessTreeSnapshot, module: NodeId) -> bool {
     let Some(namespace) = snapshot.node(module).map(|node| node.uuid) else {
         return false;
@@ -494,145 +255,6 @@ pub(super) fn spectral_analysis_enabled(snapshot: &ProcessTreeSnapshot, module: 
         .node_id_by_uuid(uuid)
         .and_then(|node| snapshot.node(node))
         .is_some_and(|node| node.node_type == "folder" && node.enabled)
-}
-
-fn reconcile_spectral_parameter_container(ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot, module: NodeId) {
-    let Some(processing) = find_path(snapshot, module, "parameters/processing") else {
-        return;
-    };
-    let namespace = snapshot.node(module).expect("module exists").uuid;
-    let expected_uuid = derived_uuid(namespace, SPECTRAL_PARAMETERS_UUID_KEY);
-    let candidates = snapshot
-        .child_ids_slice(processing)
-        .iter()
-        .copied()
-        .filter(|child| {
-            snapshot.node(*child).is_some_and(|node| {
-                node.decl_id
-                    .rsplit('/')
-                    .next()
-                    .is_some_and(|decl_id| decl_id == "spectral_analysis")
-                    || node.label == "Spectral Analysis"
-            })
-        })
-        .collect::<Vec<_>>();
-    let retained = candidates.iter().copied().find(|candidate| {
-        snapshot
-            .node(*candidate)
-            .is_some_and(|node| node.uuid == expected_uuid && node.node_type == "folder")
-    });
-    let migrated_enabled = retained
-        .and_then(|candidate| snapshot.node(candidate))
-        .map(|node| node.enabled)
-        .unwrap_or_else(|| {
-            candidates.iter().any(|candidate| {
-                snapshot.node(*candidate).is_some_and(|node| {
-                    if node.node_type == "folder" {
-                        node.enabled
-                    } else {
-                        node.param_value.as_ref().and_then(ParamValue::as_bool).unwrap_or(false)
-                    }
-                })
-            })
-        });
-    for candidate in &candidates {
-        if Some(*candidate) != retained {
-            NodeHandle::new(*candidate).remove(ctx);
-        }
-    }
-    if let Some(retained) = retained {
-        let state = snapshot.node(retained).expect("retained spectral container exists");
-        if state.label != "Spectral Analysis" || state.short_name != "spectral_analysis" || !state.can_be_disabled {
-            ctx.patch_node_meta(
-                retained,
-                NodeMetaPatch {
-                    short_name: (state.short_name != "spectral_analysis").then(|| "spectral_analysis".to_owned()),
-                    can_be_disabled: (!state.can_be_disabled).then_some(true),
-                    label: (state.label != "Spectral Analysis").then(|| "Spectral Analysis".to_owned()),
-                    ..NodeMetaPatch::default()
-                },
-            );
-        }
-        return;
-    }
-
-    let mut container = Folder::new("Spectral Analysis");
-    let data = container.node_data_mut();
-    data.meta.uuid = expected_uuid;
-    data.meta.decl_id = DeclId("parameters/processing/spectral_analysis".to_owned());
-    data.meta.short_name = "spectral_analysis".to_owned();
-    data.meta.enabled = migrated_enabled;
-    data.meta.can_be_disabled = true;
-    data.meta.user_permissions = NodeUserPermissions::none();
-    let after = find_child_by_key(snapshot, processing, "pitch_detection");
-    ctx.add_child(processing, container, after);
-}
-
-fn clear_spectral_value_children(ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot, module: NodeId) {
-    let Some(parent) = find_path(snapshot, module, "values/spectral_analysis") else {
-        return;
-    };
-    for child in snapshot.child_ids(parent) {
-        NodeHandle::new(child).remove(ctx);
-    }
-}
-
-fn remove_obsolete_value_folders(ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot, module: NodeId) {
-    let Some(values) = find_path(snapshot, module, "values") else {
-        return;
-    };
-    const OBSOLETE_DECL_IDS: &[&str] = &[
-        "input_levels",
-        "output_levels",
-        "global_levels",
-        "pitch_results",
-        "spectrum_bands",
-        "diagnostics",
-    ];
-    for child in snapshot.child_ids(values) {
-        if snapshot.node(child).is_some_and(|node| {
-            node.decl_id
-                .rsplit('/')
-                .next()
-                .is_some_and(|decl_id| OBSOLETE_DECL_IDS.contains(&decl_id))
-        }) {
-            NodeHandle::new(child).remove(ctx);
-        }
-    }
-}
-
-fn remove_empty_parameter_folders(ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot, module: NodeId) {
-    let Some(parameters) = find_path(snapshot, module, "parameters") else {
-        return;
-    };
-    for child in snapshot.child_ids(parameters) {
-        if snapshot.node(child).is_some_and(|node| {
-            node.node_type == "folder"
-                && node.label == "Folder"
-                && node.child_count == 0
-                && !matches!(node.decl_id.as_str(), "input" | "output" | "processing")
-        }) {
-            NodeHandle::new(child).remove(ctx);
-        }
-    }
-}
-
-fn synchronize_level_direction_order(ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot, module: NodeId) {
-    let Some(levels) = find_path(snapshot, module, "values/levels") else {
-        return;
-    };
-    let Some(input) = find_child_by_key(snapshot, levels, "input") else {
-        return;
-    };
-    let Some(output) = find_child_by_key(snapshot, levels, "output") else {
-        return;
-    };
-    if snapshot.child_at(levels, 0) != Some(input) {
-        NodeHandle::new(input).move_to(ctx, levels, None);
-    }
-    if snapshot.node(output).and_then(|node| node.parent) != Some(levels) {
-        NodeHandle::new(output).move_to(ctx, levels, Some(input));
-    }
 }
 
 pub(super) fn direction_channel_count(snapshot: &ProcessTreeSnapshot, module: NodeId, path: &str) -> usize {

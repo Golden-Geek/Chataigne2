@@ -555,6 +555,7 @@ impl SoundCardModule {
 
     pub(super) fn stop_runtime(&mut self) {
         self.routes.invalidate();
+        self.derived.invalidate();
         self.commands = command_service::CommandService::default();
         self.choices.pause();
         self.runtime_request = None;

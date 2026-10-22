@@ -64,8 +64,8 @@ targets require a fresh identity/parent/type check. Gain writeback, bounded diag
 result publication have separate edit receipts, so publication failures cannot replay native effects.
 Only pending gain work requests a command-service snapshot. Disable/removal cancels preparation;
 native retirement invalidates captured targets. This does not establish P04's ordering barrier between
-gain commands and configuration exchanges. Derived structure, route reconciliation and the remaining
-C01 feedback/failure qualification stay open in the status ledger.
+gain commands and configuration exchanges. Remaining C01 feedback/failure qualification stays open
+in the status ledger.
 
 Sound Card's `routes` boundary owns device-selection resets and initial default seeding. Resets
 share a 16-root deletion budget across input/output and wait for the preceding edit completion
@@ -98,9 +98,24 @@ An idle queue drops its worker; failed workers can recover for a subsequent requ
 worker replies requires no route snapshot. Display-name caches are built only for route creation,
 with bounded naming metadata, rather than during rename/disconnect validation.
 
-Derived channel/level and migration work, feedback and remaining native failure/reconfiguration
-fences still belong to C01. General snapshot/publication scaling stays in P16; these route budgets
-do not qualify end-to-end latency or change P04's audio ordering requirement.
+Sound Card's `structure` boundary reconciles gains, levels, optional analysis values and legacy
+containers through one typed staged pass. A turn performs at most 32 reconciliation steps and
+eight graph writes, with at most 32 node reads in one precondition fence. One edit receipt
+backpressures the next turn. Child scans borrow a canonical retained snapshot; four incrementally
+built UUID sets hold at most 256 desired identities each. Names admit at most 64 KiB before copying.
+Root retirement ends its turn so later stages cannot queue edits against retired descendants.
+Gain/level migration replaces the legacy root before pruning its children, preserving the only
+copy of its value through a failed suffix. Legacy spectral toggles merge enabled intent into the
+typed container before removal; deterministic bool identities are replaced without an absent gap.
+Failed prefixes re-read committed state. Disable/destroy/restoration invalidate queued writes.
+Authored topology/metadata callbacks and the service's own edits request a fresh pass after the
+current scan; value-only/meter updates cannot keep restarting a large scan. Pending receipts and
+250 ms capacity/error backoff suppress snapshot requests. Progress uses worker wakes, including
+driver None; no periodic actor update is introduced. An idle service owns no retained snapshot.
+
+Feedback and remaining native failure/reconfiguration fences still belong to C01. General
+snapshot/publication scaling stays in P16; these authored service budgets do not qualify end-to-end
+latency or change P04's audio ordering requirement.
 
 `golden_audio_ui` owns generic audio driver/device controls, status rendering, the SVG channel patch
 bay, accessibility behavior, and application binding contracts. An application adapter may
@@ -477,8 +492,9 @@ editable Sound Card Input Channels are on the right; editable Sound Card Output 
 left and output device channels are on the right. It renders one element per endpoint and one curve
 per authored route, so DOM/SVG work is `O(endpoints + routes)`, never the Cartesian product of both
 channel sets. Connect, disconnect, rename, and channel-count operations cross the public UI boundary
-as typed Sound Card intents. The backend applies each accepted operation atomically and owns route
-identity, validation, stereo defaults, and cleanup; acknowledgement-keyed optimistic presentation
+as typed Sound Card intents. The backend owns intent validation, route identity, stereo defaults,
+and receipt-driven derived cleanup; a channel-count edit converges through bounded structure turns.
+Acknowledgement-keyed optimistic presentation
 rolls back on rejection. During pointer routing, the preview cable snaps to a nearby compatible
 connector using a row-scaled capture area; releasing while snapped submits that route and both the
 connector and cable provide visible snap feedback.

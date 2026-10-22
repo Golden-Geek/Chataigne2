@@ -1,7 +1,7 @@
 use super::*;
 use golden_core::{engine::EngineTime, parameter::ParameterEventBehaviour, process_ctx::ExecutionPhase};
 
-pub(super) fn context() -> ProcessCtx {
+pub(in super::super) fn context() -> ProcessCtx {
     ProcessCtx::new(
         ExecutionPhase::EngineTick,
         EngineTime {
@@ -12,7 +12,7 @@ pub(super) fn context() -> ProcessCtx {
     )
 }
 
-pub(super) fn fixture() -> (crate::app::AppEngine, NodeId) {
+pub(in super::super) fn fixture() -> (crate::app::AppEngine, NodeId) {
     let (mut engine, module) = super::super::tests::create_sound_card();
     super::super::tests::select_enum_parameter(
         &mut engine,
@@ -39,7 +39,7 @@ pub(super) fn fixture() -> (crate::app::AppEngine, NodeId) {
     (engine, module)
 }
 
-pub(super) fn module_mut(engine: &mut crate::app::AppEngine, module: NodeId) -> &mut SoundCardModule {
+pub(in super::super) fn module_mut(engine: &mut crate::app::AppEngine, module: NodeId) -> &mut SoundCardModule {
     engine
         .nodes
         .get_mut(module)
@@ -49,18 +49,23 @@ pub(super) fn module_mut(engine: &mut crate::app::AppEngine, module: NodeId) -> 
         .unwrap()
 }
 
-pub(super) fn apply(engine: &mut crate::app::AppEngine, ctx: &mut ProcessCtx) {
+pub(in super::super) fn apply(engine: &mut crate::app::AppEngine, ctx: &mut ProcessCtx) {
     engine.edits.pending.extend(ctx.edits.drain());
     engine.apply_edits().unwrap();
 }
 
-pub(super) fn keys(prefix: &str) -> Vec<PhysicalChannelKey> {
+pub(in super::super) fn keys(prefix: &str) -> Vec<PhysicalChannelKey> {
     (1..=2)
         .map(|index| PhysicalChannelKey::new(format!("{prefix}-{index}")).unwrap())
         .collect()
 }
 
-pub(super) fn add_routes(engine: &mut crate::app::AppEngine, module: NodeId, direction: &str, count: usize) -> NodeId {
+pub(in super::super) fn add_routes(
+    engine: &mut crate::app::AppEngine,
+    module: NodeId,
+    direction: &str,
+    count: usize,
+) -> NodeId {
     let snapshot = engine.process_tree_snapshot();
     let path = if direction == "input" {
         INPUT_ROUTES_PATH
@@ -106,7 +111,7 @@ pub(super) fn add_routes(engine: &mut crate::app::AppEngine, module: NodeId, dir
     panic!("route fixture must materialize within lifecycle budget");
 }
 
-pub(super) fn inject_failure_after(engine: &mut crate::app::AppEngine, ctx: &mut ProcessCtx, before: usize) {
+pub(in super::super) fn inject_failure_after(engine: &mut crate::app::AppEngine, ctx: &mut ProcessCtx, before: usize) {
     for (index, request) in ctx.edits.drain().into_iter().enumerate() {
         if index == before {
             engine.edits.push(Edit::SetParam {

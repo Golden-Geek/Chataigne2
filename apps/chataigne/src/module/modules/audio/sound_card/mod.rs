@@ -131,6 +131,7 @@ pub struct SoundCardModule {
     runtime: Option<runtime::SoundCardRuntime>,
     commands: command_service::CommandService,
     routes: routes::RouteWork,
+    derived: structure::DerivedWork,
     runtime_worker: Option<runtime::SoundCardRuntimeWorker>,
     runtime_request: Option<runtime::SoundCardRuntimeRequest>,
     runtime_wake: Option<runtime::RuntimeWakeSender>,
@@ -156,6 +157,7 @@ impl SoundCardModule {
             None,
             command_service::CommandService::default(),
             routes::RouteWork::default(),
+            structure::DerivedWork::default(),
             None,
             None,
             None,
@@ -278,6 +280,7 @@ impl Node for SoundCardModule {
         }
         let fresh = context == NodeCreationContext::Fresh;
         self.routes = routes::RouteWork::default();
+        self.derived.invalidate();
         self.input_default_routes_pending = fresh;
         self.output_default_routes_pending = fresh;
         self.input_route_reset_pending = false;
@@ -307,9 +310,10 @@ impl Node for SoundCardModule {
     fn worker_wake_requires_tree_snapshot(&self) -> bool {
         self.routes.prune_needs_snapshot()
             || (self.node_data().effective_enabled
-                && (self.routes.lookup_needs_snapshot()
+                && (self.derived.needs_snapshot()
+                    || self.routes.lookup_needs_snapshot()
                     || self.commands.needs_snapshot()
-                    || (self.configuration_dirty && !self.routes.prune_waiting())
+                    || (self.configuration_dirty && !self.routes.prune_waiting() && !self.derived.waiting())
                     || self.input_route_reset_pending
                     || self.output_route_reset_pending
                     || self.runtime.as_ref().is_some_and(|runtime| {
@@ -458,22 +462,27 @@ impl Node for SoundCardModule {
             return;
         }
         self.configuration_dirty = true;
+        self.derived.request();
     }
 
     fn on_structure_changed(&mut self, _ctx: &mut ProcessCtx) {
         self.configuration_dirty = true;
+        self.derived.request();
     }
 
     fn on_child_added(&mut self, _ctx: &mut ProcessCtx, _parent: NodeId, _child: NodeId) {
         self.configuration_dirty = true;
+        self.derived.request();
     }
 
     fn on_child_removed(&mut self, _ctx: &mut ProcessCtx, _parent: NodeId, _child: NodeId) {
         self.configuration_dirty = true;
+        self.derived.request();
     }
 
     fn on_child_replaced(&mut self, _ctx: &mut ProcessCtx, _parent: NodeId, _old: NodeId, _new: NodeId) {
         self.configuration_dirty = true;
+        self.derived.request();
     }
 
     fn on_effective_enabled_changed(&mut self, _ctx: &mut ProcessCtx, enabled: bool) {
@@ -481,6 +490,7 @@ impl Node for SoundCardModule {
         self.choices.invalidate();
         if !enabled {
             self.routes.invalidate();
+            self.derived.invalidate();
             self.commands = command_service::CommandService::default();
             self.choices.pause();
         }

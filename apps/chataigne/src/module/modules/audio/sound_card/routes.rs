@@ -378,7 +378,7 @@ impl SoundCardModule {
         }
     }
 
-    fn wake_route_work(&self) {
+    pub(super) fn wake_route_work(&self) {
         if let Some(wake) = &self.runtime_wake {
             wake.wake();
         }
@@ -386,4 +386,4 @@ impl SoundCardModule {
 }
 
 #[cfg(test)]
-mod tests;
+pub(super) mod tests;

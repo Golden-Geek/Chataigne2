@@ -20,10 +20,11 @@ impl SoundCardModule {
 
     pub(in super::super) fn drive_runtime(&mut self, ctx: &mut ProcessCtx) {
         self.poll_runtime_worker(ctx);
-        let mut graph_pending = false;
+        let mut graph_pending = self.derived.busy() || self.routes.pruning();
         if ((self.configuration_dirty || self.input_route_reset_pending || self.output_route_reset_pending)
             && self.node_data().effective_enabled)
             || self.routes.pruning()
+            || self.derived.busy()
         {
             if let Some(snapshot) = ctx.tree_snapshot_arc() {
                 graph_pending = self.synchronize_derived_structure(ctx, &snapshot);
@@ -39,6 +40,9 @@ impl SoundCardModule {
         if self.requested_driver().ok() == Some(None) {
             self.retire_unselected_runtime(ctx);
             self.poll_runtime(ctx);
+            if !graph_pending {
+                self.configuration_dirty = false;
+            }
             return;
         }
         if !self.node_data().effective_enabled {
