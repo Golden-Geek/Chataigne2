@@ -68,10 +68,24 @@ impl Delivery {
         };
         let mut owned = std::mem::replace(&mut ctx.edits, parent);
         if !owned.pending.is_empty() {
+            let snapshot = snapshot.unwrap();
+            let targets = match targets::capture(snapshot, self.input.source.root, &owned.pending) {
+                Ok(targets) => targets,
+                Err(error) => {
+                    self.error = Some(error);
+                    self.values_done = true;
+                    return false;
+                }
+            };
             let mut fenced = EditQueue::new();
             fenced.push(Edit::CheckPreconditions {
-                preconditions: self.input.source.preconditions(snapshot.unwrap()),
+                preconditions: self.input.source.preconditions(snapshot),
             });
+            // Every read precedes every mutation. A structural prefix can then
+            // change its own parents without making a later guard falsely stale.
+            for preconditions in targets {
+                fenced.push(Edit::CheckPreconditions { preconditions });
+            }
             fenced.pending.extend(owned.drain());
             fenced.retain_payload(self.input.clone());
             ctx.edits.pending.extend(fenced.drain());

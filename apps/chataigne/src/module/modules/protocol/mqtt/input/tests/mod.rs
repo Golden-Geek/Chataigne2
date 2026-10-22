@@ -14,6 +14,7 @@ use golden_io::PayloadPool;
 
 mod delivery;
 mod preparation;
+mod targets;
 
 fn raw(topic: &str, payload: &[u8]) -> RetainedPayload<MqttReceivedPublish> {
     MqttTransportHandle::retain_for_test(MqttReceivedPublish {

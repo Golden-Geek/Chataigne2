@@ -7,9 +7,9 @@ extraction notes and September counts are [archived](../archive/2026-10-18/progr
 
 ## Scan and policy
 
-Refreshed 2026-10-22 against delivered `57400e38` plus C04 MQTT incoming preparation and delivery
-on `main`. Scanned **1742 source files**; **36 exceed 1,000 lines**. The MQTT entrypoint is
-543 lines after moving incoming processing into focused modules. The unused incremental
+Refreshed 2026-10-22 against delivered `3a38df47` plus C04 MQTT queued target-path fencing
+on `main`. Scanned **1744 source files**; **36 exceed 1,000 lines**. The MQTT entrypoint stays
+543 lines with target capture and its tests in focused input modules. The unused incremental
 received-value path is removed; the shared planner and receipt-driven cursor remain. No new source-size exception is introduced. Remaining decomposition and exceptions belong
 to P12; this inventory does not qualify that task.
 

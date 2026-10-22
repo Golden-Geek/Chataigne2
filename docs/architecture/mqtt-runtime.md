@@ -109,12 +109,20 @@ value-copy allowance per turn, with an already-admitted large scalar receiving o
 The cursor waits for edit receipts before advancing. Applied prefixes are never reparsed or replayed,
 and callbacks publish only after value completion/failure through their own receipt. Processing
 fields, module lifetime and Values-root identity/placement are fenced before queued writes apply.
+`input/targets.rs` also captures each existing write/replacement/removal target or insertion parent
+and its ancestor path to Values. Shared ancestors are visited once, within a 282-read prefix bound.
+Public read guards are split into groups of at most 32; every source/target check precedes every
+prefix mutation. Replacement followed by child creation therefore uses the original binding checks
+without invalidating later guards with its own edits. A moved, replaced, renamed or newly disabled
+target rejects the queued prefix; ordinary scalar writes do not invalidate its structural binding.
+The native prepared result reserves the worst-case queued read/receipt metadata before actor delivery,
+and its existing edit-source lease retains that reservation through application or suffix discard.
 Configuration/disable/destroy retire the source independently of blocked native cleanup. A prepared
 result keeps its raw and derived reservations through delivery and queued edits, even after the
 module is destroyed. Core's public `EditQueue::retain_payload` supplies only this generic lifetime
 mechanism; app-specific capture, limits and MQTT callback policy stay here.
 
-`payload.rs` now owns outgoing script conversions. Outgoing command/script preparation, deeper
-target-path fencing, full pressure/passive-receipt qualification and controlled actor/load acceptance
+`payload.rs` now owns outgoing script conversions. Outgoing command/script preparation,
+full pressure/passive-receipt qualification and controlled actor/load acceptance
 remain open C04 work. Follow the ledger rather than treating transport or cursor tests as whole-module
 acceptance.

@@ -32,6 +32,7 @@ impl Draft {
             ],
         )?;
         let weight = size_of::<Prepared>()
+            + targets::QUEUED_READ_BYTES
             + 2 * size_of::<usize>()
             + source.lifetime.retained_heap_bytes()
             + 4 * (values.capacity() * size_of::<ReceivedValueMessage>()
