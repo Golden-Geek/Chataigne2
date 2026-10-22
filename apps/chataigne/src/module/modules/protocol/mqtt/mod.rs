@@ -1,3 +1,4 @@
+mod configuration;
 mod payload;
 mod service;
 mod transport;
@@ -9,7 +10,7 @@ use golden_core::{
     engine::NodeExecutionRule,
     events::{CustomEvent, Event},
     logerror, node,
-    node::{Node, NodeCreationContext, NodeHandle, NodeId, NodeMetaPatch, NodeScriptDescriptor},
+    node::{Node, NodeCreationContext, NodeHandle, NodeId, NodeScriptDescriptor},
     parameter::{Enum, ParamValue, ParameterEventBehaviour},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
@@ -23,14 +24,13 @@ use crate::app::module::common::{
 };
 
 use self::transport::{
-    MqttConnectionStatus, MqttCredentials, MqttReceivedPublish, MqttSubscriptionConfig, MqttTransportConfig,
-    MqttTransportHandle, MqttWorkerEvent, PublishReceipt, PublishStatus,
+    MqttConnectionStatus, MqttReceivedPublish, MqttTransportConfig, MqttTransportHandle, MqttWorkerEvent,
+    PublishReceipt, PublishStatus,
 };
 
 const MQTT_TARGET_WARNING_ID: &str = "mqtt_target_transport";
 const MQTT_SUBSCRIPTION_NODE_TYPE: &str = "mqtt_subscription";
 const MQTT_SUBSCRIPTIONS_DECL_ID: &str = "subscriptions";
-const MQTT_CREDENTIALS_DECL_ID: &str = "credentials";
 const MQTT_PAYLOAD_MODE_AUTO: &str = "auto";
 const MQTT_PAYLOAD_MODE_TEXT: &str = "text";
 const MQTT_PAYLOAD_MODE_JSON: &str = "json";
@@ -76,6 +76,12 @@ impl Node for MqttSubscriptionManager {
                 create: |_this: &Self| MqttSubscription::new()
             }
         ];
+    }
+
+    fn on_node_ready(&mut self, ctx: &mut ProcessCtx, context: NodeCreationContext) {
+        if context == NodeCreationContext::Fresh && self.node_data().first_child.is_none() {
+            ctx.add_user_item_boxed(self.id(), Box::new(MqttSubscription::new()), None);
+        }
     }
 
     fn init(&mut self, _ctx: &mut ProcessCtx) {
@@ -142,7 +148,9 @@ impl Node for MqttSubscriptionManager {
 pub struct MqttModule {
     base: crate::app::ModuleBase,
     transport: Option<MqttTransportHandle>,
-    last_transport_config: Option<MqttTransportConfig>,
+    last_transport_config: Option<golden_io::RetainedPayload<MqttTransportConfig>>,
+    configuration: Option<configuration::Preparation>,
+    configuration_key: Option<configuration::Key>,
     transport_dirty: bool,
     pending_incoming_messages: Vec<golden_io::RetainedPayload<MqttReceivedPublish>>,
     pending_publishes: VecDeque<(PublishReceipt, String)>,
@@ -157,6 +165,8 @@ impl MqttModule {
             crate::app::ModuleBase::new(),
             None,
             None,
+            None,
+            None,
             true,
             Vec::new(),
             VecDeque::new(),
@@ -167,7 +177,9 @@ impl MqttModule {
     }
 
     #[cfg(test)]
-    pub(crate) fn disable_transport_for_test(&mut self) {
+    pub(crate) fn disable_transport_for_test(&mut self, snapshot: &ProcessTreeSnapshot) {
+        self.configuration = None;
+        self.configuration_key = configuration::Key::capture(snapshot, self.id());
         self.stop_transport();
         self.transport_dirty = false;
         self.retry_at = None;
@@ -187,156 +199,6 @@ impl MqttModule {
 
     fn module_enabled(&self, snapshot: &ProcessTreeSnapshot) -> bool {
         snapshot.node(self.id()).map(|node| node.enabled).unwrap_or(false)
-    }
-
-    fn refresh_transport(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
-        self.transport_dirty = false;
-        self.retry_at = None;
-
-        if !self.module_enabled(snapshot) {
-            self.stop_transport();
-            self.last_transport_config = None;
-            self.clear_target_warning(ctx);
-            self.base.set_connected(ctx, false);
-            return;
-        }
-
-        let config = match self.transport_config(snapshot) {
-            Ok(config) => config,
-            Err(error) => {
-                logerror!("Invalid MQTT module configuration: {}", error);
-                self.stop_transport();
-                self.last_transport_config = None;
-                self.set_target_warning(ctx, error.as_str());
-                self.base.set_connected(ctx, false);
-                return;
-            }
-        };
-
-        if self.transport.is_some() && self.last_transport_config.as_ref() == Some(&config) {
-            return;
-        }
-
-        self.stop_transport();
-
-        let Some(wake) = &self.wake else { return };
-        let notifier = wake.notifier.clone();
-        match MqttTransportHandle::spawn(config.clone(), self.id(), notifier) {
-            Ok(handle) => {
-                self.transport = Some(handle);
-                self.last_transport_config = Some(config);
-                self.retry_backoff.reset();
-                self.clear_target_warning(ctx);
-                self.base.set_connected(ctx, false);
-            }
-            Err(error) => {
-                logerror!("Failed to start MQTT transport: {}", error);
-                self.transport = None;
-                self.last_transport_config = None;
-                self.set_target_warning(ctx, error.as_str());
-                self.base.set_connected(ctx, false);
-                self.schedule_retry();
-            }
-        }
-    }
-
-    fn transport_config(&self, snapshot: &ProcessTreeSnapshot) -> Result<MqttTransportConfig, String> {
-        let remote_host = self.remote_host.get_ref().trim().to_string();
-        if remote_host.is_empty() {
-            return Err("MQTT remote host cannot be empty".to_string());
-        }
-
-        let remote_port = u16::try_from(self.remote_port.get())
-            .map_err(|_| "MQTT remote port 'connection/remote_port' must be between 0 and 65535".to_string())?;
-
-        let client_id = self.effective_client_id();
-        if client_id.is_empty() && !self.clean_session.get() {
-            return Err("MQTT client ID cannot be empty when Clean Session is disabled".to_string());
-        }
-
-        let keep_alive_secs = u64::try_from(self.keep_alive_secs.get())
-            .ok()
-            .filter(|value| *value > 0)
-            .ok_or_else(|| "MQTT keep alive 'connection/keep_alive_secs' must be positive".to_string())?;
-
-        Ok(MqttTransportConfig {
-            remote_host,
-            remote_port,
-            client_id,
-            credentials: self.credentials_config(snapshot)?,
-            clean_session: self.clean_session.get(),
-            keep_alive_secs,
-            subscriptions: self.collect_enabled_subscriptions(snapshot)?,
-        })
-    }
-
-    fn effective_client_id(&self) -> String {
-        let configured = self.client_id.get_ref().trim();
-        if !configured.is_empty() {
-            configured.to_string()
-        } else {
-            format!("chataigne2-{}", self.id().0)
-        }
-    }
-
-    fn credentials_config(&self, snapshot: &ProcessTreeSnapshot) -> Result<Option<MqttCredentials>, String> {
-        if !self.credentials_enabled(snapshot).unwrap_or(false) {
-            return Ok(None);
-        }
-
-        let username = self.username.get_ref().trim().to_string();
-        if username.is_empty() {
-            return Err("MQTT username cannot be empty when Credentials is enabled".to_string());
-        }
-
-        Ok(Some(MqttCredentials {
-            username,
-            password: self.password.get_ref().clone(),
-        }))
-    }
-
-    fn collect_enabled_subscriptions(
-        &self,
-        snapshot: &ProcessTreeSnapshot,
-    ) -> Result<Vec<MqttSubscriptionConfig>, String> {
-        if !self.subscriptions_enabled(snapshot).unwrap_or(false) {
-            return Ok(Vec::new());
-        }
-
-        let Some(subscriptions_id) = self.subscriptions_node_id(snapshot) else {
-            return Ok(Vec::new());
-        };
-
-        let mut subscription_ids = Vec::new();
-        collect_subscriptions_recursive(snapshot, subscriptions_id, &mut subscription_ids);
-
-        subscription_ids
-            .into_iter()
-            .filter_map(|subscription_id| self.subscription_config(snapshot, subscription_id).transpose())
-            .collect()
-    }
-
-    fn subscription_config(
-        &self,
-        snapshot: &ProcessTreeSnapshot,
-        subscription_id: NodeId,
-    ) -> Result<Option<MqttSubscriptionConfig>, String> {
-        if !snapshot.node(subscription_id).is_some_and(|node| node.enabled) {
-            return Ok(None);
-        }
-
-        let topic_filter = child_string_param(snapshot, subscription_id, "topic_filter").unwrap_or_default();
-        let topic_filter = topic_filter.trim().to_string();
-        if !rumqttc::valid_filter(topic_filter.as_str()) {
-            return Err(format!("invalid MQTT subscription filter '{topic_filter}'"));
-        }
-
-        let qos_variant =
-            child_enum_param(snapshot, subscription_id, "qos").unwrap_or_else(|| MQTT_QOS_AT_MOST_ONCE.to_string());
-        let qos = MqttQos::from_variant(qos_variant.as_str())
-            .ok_or_else(|| format!("invalid MQTT subscription QoS '{qos_variant}'"))?;
-
-        Ok(Some(MqttSubscriptionConfig { topic_filter, qos }))
     }
 
     fn drain_transport_events(&mut self, ctx: &mut ProcessCtx) {
@@ -390,10 +252,12 @@ impl MqttModule {
                 }
                 MqttWorkerEvent::Status(status) => match status {
                     MqttConnectionStatus::Connected => {
-                        golden_core::logsuccess!(
-                            origin = self.id();
-                            format!("Connected MQTT broker {}:{}.", self.remote_host.get_ref(), self.remote_port.get())
-                        );
+                        if let Some(config) = &self.last_transport_config {
+                            golden_core::logsuccess!(
+                                origin = self.id();
+                                format!("Connected MQTT broker {}:{}.", config.remote_host, config.remote_port)
+                            );
+                        }
                         self.clear_target_warning(ctx);
                         self.base.set_connected(ctx, true);
                     }
@@ -550,37 +414,9 @@ impl MqttModule {
         }
     }
 
-    fn on_param_change_inner(&mut self, snapshot: &ProcessTreeSnapshot, param: NodeId) {
-        if self.param_affects_transport(snapshot, param) {
-            self.transport_dirty = true;
-            self.retry_at = None;
-            self.retry_backoff.reset();
-            self.request_service();
-        }
-    }
-
-    fn param_affects_transport(&self, snapshot: &ProcessTreeSnapshot, param: NodeId) -> bool {
-        (self.remote_host.is_bound() && self.remote_host.id() == param)
-            || (self.remote_port.is_bound() && self.remote_port.id() == param)
-            || (self.client_id.is_bound() && self.client_id.id() == param)
-            || (self.clean_session.is_bound() && self.clean_session.id() == param)
-            || (self.keep_alive_secs.is_bound() && self.keep_alive_secs.id() == param)
-            || self
-                .credentials_node_id(snapshot)
-                .is_some_and(|node| is_descendant_or_self(snapshot, param, node))
-            || self
-                .subscriptions_node_id(snapshot)
-                .is_some_and(|node| is_descendant_or_self(snapshot, param, node))
-    }
-
-    fn on_meta_changed_inner(&mut self, _ctx: &mut ProcessCtx, node: NodeId, patch: NodeMetaPatch) {
-        if node != self.id() && patch.enabled.is_some() {
-            self.transport_dirty = true;
-            self.request_service();
-        }
-    }
-
     fn on_effective_enabled_changed_inner(&mut self, ctx: &mut ProcessCtx, enabled: bool) {
+        self.configuration = None;
+        self.configuration_key = None;
         if enabled {
             self.transport_dirty = true;
             self.request_service();
@@ -593,30 +429,6 @@ impl MqttModule {
             self.retry_at = None;
             self.pending_incoming_messages.clear();
         }
-    }
-
-    fn ensure_default_subscription(&self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
-        let Some(subscriptions_id) = self.subscriptions_node_id(snapshot) else {
-            return;
-        };
-
-        let mut subscription_ids = Vec::new();
-        collect_subscriptions_recursive(snapshot, subscriptions_id, &mut subscription_ids);
-        if !subscription_ids.is_empty() {
-            return;
-        }
-
-        ctx.add_user_item_boxed(subscriptions_id, Box::new(MqttSubscription::new()), None);
-    }
-
-    fn credentials_node_id(&self, snapshot: &ProcessTreeSnapshot) -> Option<NodeId> {
-        let connection_id = self.base.connection_id()?;
-        snapshot.find_child_by_decl_id(connection_id, MQTT_CREDENTIALS_DECL_ID)
-    }
-
-    fn credentials_enabled(&self, snapshot: &ProcessTreeSnapshot) -> Option<bool> {
-        let credentials_id = self.credentials_node_id(snapshot)?;
-        snapshot.node(credentials_id).map(|node| node.enabled)
     }
 
     fn subscriptions_node_id(&self, snapshot: &ProcessTreeSnapshot) -> Option<NodeId> {
@@ -718,7 +530,6 @@ impl Node for MqttModule {
         let snapshot = snapshot_arc.as_ref();
 
         self.refresh_data_capabilities(ctx, snapshot);
-        self.ensure_default_subscription(ctx, snapshot);
     }
 
     fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
@@ -729,8 +540,7 @@ impl Node for MqttModule {
         let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
             return;
         };
-        let snapshot = snapshot_arc.as_ref();
-        self.refresh_transport(ctx, snapshot);
+        self.refresh_transport(ctx, &snapshot_arc);
     }
 
     fn update(&mut self, ctx: &mut ProcessCtx) {
@@ -738,6 +548,9 @@ impl Node for MqttModule {
     }
 
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {
+        self.configuration = None;
+        self.configuration_key = None;
+        self.wake = None;
         self.stop_transport();
     }
 
@@ -790,11 +603,13 @@ impl Node for MqttModule {
         };
         let snapshot = snapshot_arc.as_ref();
         self.base.emit_script_param_callback(ctx, snapshot, param, &old_value);
-        self.on_param_change_inner(snapshot, param);
     }
 
-    fn on_meta_changed(&mut self, ctx: &mut ProcessCtx, node: NodeId, patch: NodeMetaPatch) {
-        self.on_meta_changed_inner(ctx, node, patch);
+    fn on_inbox(&mut self, ctx: &mut ProcessCtx) {
+        self.dispatch_inbox(ctx);
+        if let Some(snapshot) = ctx.tree_snapshot_arc() {
+            self.notice_configuration(&snapshot);
+        }
     }
 
     fn on_effective_enabled_changed(&mut self, ctx: &mut ProcessCtx, enabled: bool) {
@@ -808,49 +623,6 @@ impl Node for MqttModule {
     fn project_create(node_type: &str) -> Option<Self> {
         (node_type == Self::NODE_TYPE).then(Self::create)
     }
-}
-
-fn collect_subscriptions_recursive(snapshot: &ProcessTreeSnapshot, parent: NodeId, output: &mut Vec<NodeId>) {
-    for child_id in snapshot.child_ids(parent) {
-        let Some(child_snapshot) = snapshot.node(child_id) else {
-            continue;
-        };
-
-        if child_snapshot.node_type == MQTT_SUBSCRIPTION_NODE_TYPE {
-            output.push(child_id);
-        } else if child_snapshot.node_type == "folder" {
-            collect_subscriptions_recursive(snapshot, child_id, output);
-        }
-    }
-}
-
-fn child_string_param(snapshot: &ProcessTreeSnapshot, parent: NodeId, child_name: &str) -> Option<String> {
-    snapshot.find_child_by_decl_id(parent, child_name).and_then(|child_id| {
-        snapshot
-            .node(child_id)
-            .and_then(|node| node.param_value.as_ref())
-            .and_then(ParamValue::as_str)
-    })
-}
-
-fn child_enum_param(snapshot: &ProcessTreeSnapshot, parent: NodeId, child_name: &str) -> Option<String> {
-    snapshot.find_child_by_decl_id(parent, child_name).and_then(|child_id| {
-        snapshot
-            .node(child_id)
-            .and_then(|node| node.param_value.as_ref())
-            .and_then(ParamValue::as_enum)
-    })
-}
-
-fn is_descendant_or_self(snapshot: &ProcessTreeSnapshot, start: NodeId, ancestor: NodeId) -> bool {
-    let mut current = Some(start);
-    while let Some(node_id) = current {
-        if node_id == ancestor {
-            return true;
-        }
-        current = snapshot.node(node_id).and_then(|node| node.parent);
-    }
-    false
 }
 
 fn mqtt_payload_mode_options() -> Vec<golden_core::parameter::ParameterEnumOption> {

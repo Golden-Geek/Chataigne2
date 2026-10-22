@@ -6,8 +6,11 @@ impl MqttModule {
     pub(super) fn register_service(&mut self, ctx: &ProcessCtx) -> Result<(), String> {
         let source = ctx.node_waker().map_err(|error| error.to_string())?;
         if !self.wake.as_ref().is_some_and(|wake| wake.matches(&source)) {
+            self.configuration = None;
+            self.configuration_key = None;
             self.stop_transport();
             self.wake = Some(ModuleWake::new(source)?);
+            self.transport_dirty = true;
         }
         Ok(())
     }
@@ -26,7 +29,7 @@ impl MqttModule {
     }
     pub(super) fn service_needs_snapshot(&self) -> bool {
         self.node_data().effective_enabled
-            && (self.transport_dirty
+            && (self.configuration_needs_snapshot()
                 || !self.pending_incoming_messages.is_empty()
                 || self.retry_at.is_some_and(|at| Instant::now() >= at))
     }
@@ -39,7 +42,7 @@ impl MqttModule {
         if !self.node_data().effective_enabled {
             return;
         }
-        if self.transport_dirty || !self.pending_incoming_messages.is_empty() {
+        if self.configuration_needs_snapshot() || !self.pending_incoming_messages.is_empty() {
             let Some(snapshot) = ctx.tree_snapshot_arc() else {
                 self.request_service();
                 return;

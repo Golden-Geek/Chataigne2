@@ -8,7 +8,9 @@ use std::{
 
 use crate::app::module::common::mqtt::MqttPublishRequest;
 use golden_core::node::NodeId;
-use golden_io::{BoundedWorker, PayloadPool, PendingDrain, RetirementPool, WorkerLimits, WorkerNotifier};
+use golden_io::{
+    BoundedWorker, PayloadPool, PendingDrain, RetainedPayload, RetirementPool, WorkerLimits, WorkerNotifier,
+};
 
 mod admission;
 mod publications;
@@ -25,6 +27,26 @@ const MAX_PACKET: usize = 1024 * 1024;
 const COMMAND_ITEMS: usize = 100;
 const EVENT_ITEMS: usize = 128;
 pub(super) const EVENT_TURN: usize = 16;
+pub(super) const MAX_HOST_BYTES: usize = 1024;
+pub(super) const MAX_CLIENT_BYTES: usize = 256;
+pub(super) const MAX_CREDENTIAL_BYTES: usize = 4096;
+pub(super) const MAX_FILTER_BYTES: usize = 1024;
+pub(super) const MAX_SUBSCRIPTIONS: usize = 128;
+
+pub(super) enum ConfigAdmissionError {
+    Invalid(String),
+    Unavailable(String),
+}
+
+pub(super) fn retain_configuration(
+    config: MqttTransportConfig,
+) -> Result<RetainedPayload<MqttTransportConfig>, ConfigAdmissionError> {
+    let bytes = admission::config_bytes(&config).map_err(ConfigAdmissionError::Invalid)?;
+    payload_pool(false)
+        .map_err(ConfigAdmissionError::Unavailable)?
+        .try_retain(config, bytes)
+        .map_err(|_| ConfigAdmissionError::Unavailable("MQTT configuration lifetime capacity exhausted".into()))
+}
 
 fn lifetimes() -> &'static RetirementPool {
     static POOL: OnceLock<RetirementPool> = OnceLock::new();
@@ -59,8 +81,12 @@ pub(crate) struct MqttTransportHandle {
 }
 
 impl MqttTransportHandle {
-    pub(crate) fn spawn(config: MqttTransportConfig, origin: NodeId, notifier: WorkerNotifier) -> Result<Self, String> {
-        Self::spawn_using(
+    pub(super) fn spawn(
+        config: RetainedPayload<MqttTransportConfig>,
+        origin: NodeId,
+        notifier: WorkerNotifier,
+    ) -> Result<Self, String> {
+        Self::spawn_shared_using(
             config,
             origin,
             notifier,
@@ -71,6 +97,7 @@ impl MqttTransportHandle {
         )
     }
 
+    #[cfg(test)]
     fn spawn_using<B: worker::Broker>(
         config: MqttTransportConfig,
         origin: NodeId,
@@ -84,6 +111,18 @@ impl MqttTransportHandle {
         let config = commands
             .try_retain(config, bytes)
             .map_err(|_| "MQTT configuration lifetime capacity exhausted")?;
+        Self::spawn_shared_using(config, origin, notifier, lifetimes, commands, input, open)
+    }
+
+    fn spawn_shared_using<B: worker::Broker>(
+        config: RetainedPayload<MqttTransportConfig>,
+        origin: NodeId,
+        notifier: WorkerNotifier,
+        lifetimes: &RetirementPool,
+        commands: PayloadPool,
+        input: PayloadPool,
+        open: impl FnOnce(&MqttTransportConfig) -> B + Send + 'static,
+    ) -> Result<Self, String> {
         let connected = Arc::new(AtomicBool::new(false));
         let ready = connected.clone();
         let observer = notifier.clone();

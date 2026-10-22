@@ -5,10 +5,11 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-22 on `main`, starting clean at delivered `a08ddec5`, matching
-`origin/main`. C04 MQTT native ownership, accepted-publish outcomes and passive service are delivered
-and locally verified. Actor configuration/payload preparation, graph publication/lifetimes and
-pressure qualification remain open. All owned checks are terminal. **C01-C03 remain locally closed;
+Last reconciled: 2026-10-22 on `main`, starting at delivered `cee7643a`, matching
+`origin/main`, with only the unfinished MQTT configuration directory. C04 native ownership and
+passive service stay delivered. Bounded configuration capture is wired and locally verified.
+Payload/command preparation, graph publication/lifetimes and pressure qualification remain open.
+All owned checks are terminal. **C01-C03 remain locally closed;
 nine P03 packages remain open: C04-C12.** P03 stays ~88% scope coverage and the whole plan ~16%.
 Device/platform and product-scale qualification remain separate; general snapshot/DTO scaling is P16.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
@@ -86,7 +87,7 @@ instead of accumulated batch numbers.
 | C01 | **CLOSED (100%)** | Sound Card                       | Locally verified: bounded native/actor service and lifetime ownership; retained source, path and publication guards; matching application/rejection, isolated failure recovery and capped constraint publication. Hardware/platform and P04 audio ordering remain separate. |
 | C02 | **CLOSED (100%)** | Signals and Metronomes           | Verified: bounded command/configuration bytes, 64-row publication turns, elapsed-time/occurrence preservation, nonblocking retirement and passive failure/recovery.                                                                                                         |
 | C03 | **CLOSED (100%)** | MIDI and OSC                     | Locally verified: bounded native/input/output/catalog/feedback/structure ownership, passive service, explicit deadlines, retained occurrences, nonblocking cleanup and failure/recovery. Commands and scripts preserved; hardware/platform qualification remains separate.  |
-| C04 | OPEN              | MQTT                             | Native bounds, retained outcomes, DNS/worker retirement and passive wakes verified. Finish native configuration/payload/command preparation, receipt-driven graph publication and source lifetimes, pressure feedback and full actor qualification.                         |
+| C04 | OPEN              | MQTT                             | Native bounds/outcomes, passive wakes and bounded configuration/subscription capture verified. Finish native payload/command preparation, receipt-driven graph publication and source lifetimes, pressure feedback and full actor qualification.                            |
 | C05 | OPEN              | DMX                              | Close P03 lifecycle/admission/retirement/recovery requirements; DMX stream correctness remains separately P07.                                                                                                                                                              |
 | C06 | OPEN              | App Control and OS               | Close worker/service/cleanup bounds, failure ownership and recovery without recurring main-thread polling or blocking joins.                                                                                                                                                |
 | C07 | OPEN              | Buttplug                         | Close channel/payload/service bounds, accepted-command ownership, retirement and connection recovery.                                                                                                                                                                       |
@@ -129,20 +130,24 @@ or completion credit. Snapshot/DTO scaling remains an explicit P16 investigation
 - MQTT no longer polls the actor at 120 Hz. Worker notifications, bounded continuations and a coarse
   retry deadline drive service. Idle and early retry wakes request no snapshot. Per-turn event/receipt
   budgets are 16 each; local pending input/publication queues are bounded to 64/100 entries.
-- **Remaining C04 acceptance:** (1) configuration/subscription collection and input admission before
-  actor copies; (2) incoming JSON/mode/log/callback and outgoing command/script preparation at the IO
+- **Configuration capture:** the actor now uses fixed revision/identity lookups and a canonical
+  snapshot lease. A bounded worker validates borrowed text before copying, traverses at most 8192
+  subscription nodes and compares/retains configurations. Runtime Connected/Values traffic does not
+  invalidate preparation. Cancellation, failure/retry and stale-source behavior pass owning tests;
+  no additional package is closed.
+- **Remaining C04 acceptance:** (1) incoming admission before actor copies; (2) incoming JSON/mode/log/callback and outgoing command/script preparation at the IO
   boundary; (3) bounded graph-row publication with edit receipts, source lifetimes and no applied-prefix
   replay before callbacks; (4) visible pressure feedback and complete controlled actor/load qualification.
   Current packet caps and one-message actor turns do not qualify these remaining paths.
-- Final app artifact: **22 owning + 890 disjoint preservation = 912 passes / six selected ignored /
-  1274 listed**. The preservation scopes include Sound Card, Signals/Metronomes, MIDI/OSC, streams,
+- Current app test artifact: **37 owning + 890 disjoint preservation = 927 passes / six selected ignored /
+  1289 listed**. The preservation scopes include Sound Card, Signals/Metronomes, MIDI/OSC, streams,
   HTTP, module/command/manager and the prior targeted Formula/state-machine scopes. Six ignores are
   five authored-scale cases and the already-qualified Sound Card catalog measurement, not new failures.
   Full app/Formula/product-scale passes are not claimed. Golden Core source is unchanged; its prior
   595-pass C01 run remains baseline evidence and was not rerun or added to this milestone's totals.
 - Strict workspace Clippy, workspace/test check, native build (`CARGO_INCREMENTAL=0`), protocol
-  codegen and root/Core/app/docs formatting pass; generated bindings are unchanged. All owned jobs
-  are terminal. Source inventory: **1725 files / 36 oversized**, down one oversized entrypoint.
+  codegen and root/Core/app/docs formatting pass; generated bindings are unchanged. Source inventory:
+  **1733 files / 36 oversized**; MQTT entrypoint 650 lines.
 - P03 stays **~88% scope coverage**, whole plan **~16%**. Commit/push each verified milestone on
   `main`; keep P00-P18 active. P04 ordering, P12 advisory/default-incremental MSVC, P16 scale and
   P18 hardware/platform qualification retain their owners.
@@ -6095,3 +6100,49 @@ Keep the fixed count at **nine open / three closed**, P03 ~88% scope coverage an
 No physical endpoint or external broker qualification is claimed; new endpoint tests use a local
 fixture listener. All owned checks are terminal. Commit/push this native/service milestone on `main`
 before continuing C04's actor boundary; retain the full P00-P18 goal.
+
+## C04 MQTT bounded configuration capture
+
+Implemented 2026-10-22 after `cee7643a` on `main`, starting with three unfinished, untracked
+configuration sources. The app-owned `mqtt/configuration/` now owns capture, preparation and
+application. The actor captures a fixed revision key and canonical snapshot lease. One bounded
+worker validates borrowed fields before copying, walks subscriptions iteratively in authored order,
+compares configurations and admits their retained storage. Limits: 32 queued/running/ready jobs,
+8192 scanned subscription nodes and 128 enabled subscriptions; existing field/native limits remain.
+Cancellation retains admission until queued/running work releases it. An abandoned job produces
+an explicit retryable completion; ready results keep one admitted lease across native-slot retries.
+Unchanged capture reuses its prior lease. No actor configuration-string copy, recursive scan or deep comparison
+remains in this configuration path. No Core API, protocol DTO, dependency or app-shell change.
+
+The configuration key excludes runtime Connected and Values traffic and includes endpoint fields,
+credentials, subscription topology/order/enablement, UUID and engine lifetime. Inbox handling notices
+structural edits, and application checks the current snapshot before accepting a result. Waiting
+preparation is snapshot-free; failure uses the existing coarse retry and authored edits cancel stale
+work. Fresh empty managers create their default `#`; loaded empty managers preserve authored intent
+without a recursive initialization scan. No persisted format changes. See the maintained
+[ownership contract](../architecture/mqtt-runtime.md).
+
+Windows/default features, Rust 1.97.0:
+
+- MQTT command/module/transport/configuration filter: **37 passed**, including 15 new cases covering
+  pre-copy field limits, credentials, subscription count/order/disablement, bounded scan frontier,
+  cancellation/admission recovery, abandoned work, shared ready/unchanged leases, passive completion,
+  retry, topology invalidation before callbacks and loaded-empty meaning. The initial move fixture
+  used an invalid destination; it was corrected to an accepting subscription manager.
+- Disjoint preservation scopes: **890 passed / six existing ignored / 896 selected**. Together:
+  **927 distinct passes / six selected ignored / 1289 listed**, with 356 tests outside these scopes.
+  No full-app/Formula or physical-device claim. Core is untouched; its prior C01 595-pass result
+  remains baseline evidence rather than an additional run.
+- Strict workspace/all-target Clippy, workspace/test check, protocol codegen, root/Core Cargo fmt
+  and explicit MQTT Rustfmt, native build with `CARGO_INCREMENTAL=0`, docs formatting and whitespace
+  checks pass. Generated bindings are unchanged. All owned jobs are terminal. Source inventory: **1733 files / 36 oversized**; MQTT root 650 lines.
+- Final test artifact `target/debug/deps/Chataigne2-b14ffd1b9e52f9ac.exe` SHA-256:
+  `30bd73bc4172659179c602a74914801712aff748d4c03079252d2b33f2c25d90`.
+- Final native artifact `target/debug/Chataigne2.exe` SHA-256:
+  `2fe03115979a014ee6b307685e6d8eb73350ab80e365fb859cee003b37977626`.
+
+**C04 stays open; nine packages remain and three are closed.** Next move incoming JSON/mode/log/
+callback and outgoing command/script preparation behind bounded IO ownership, then qualify
+receipt-driven graph rows, source lifetimes without prefix replay, visible pressure and actor load.
+P03 stays ~88% scope coverage, whole plan ~16%; P04-P18 retain their owners. Commit/push this
+verified configuration milestone on `main`; keep the full P00-P18 goal active.

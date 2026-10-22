@@ -7,10 +7,10 @@ extraction notes and September counts are [archived](../archive/2026-10-18/progr
 
 ## Scan and policy
 
-Refreshed 2026-10-22 against delivered `a08ddec5` plus C04 MQTT native ownership and passive
-service on `main`. Scanned **1725 source files**; **36 exceed 1,000 lines**. The MQTT entrypoint is
-now below the limit after extracting payload conversion, passive service and the focused transport
-modules. No new source-size exception is introduced. Remaining decomposition and exceptions belong
+Refreshed 2026-10-22 against delivered `cee7643a` plus C04 MQTT configuration preparation on
+`main`. Scanned **1733 source files**; **36 exceed 1,000 lines**. The MQTT entrypoint is
+650 lines after extracting configuration capture as well as payload conversion, passive service
+and the focused transport modules. No new source-size exception is introduced. Remaining decomposition and exceptions belong
 to P12; this inventory does not qualify that task.
 
 The node enum macro remains the centralized built-in/consumer-variant dispatch registry:

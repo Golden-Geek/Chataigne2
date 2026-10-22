@@ -32,13 +32,13 @@ pub(super) fn incoming_bytes(topic_capacity: usize, payload_capacity: usize) -> 
 
 pub(super) fn config_bytes(config: &MqttTransportConfig) -> Result<usize, String> {
     let text = |value: &String, max: usize| value.capacity() <= max && !value.contains('\0');
-    if !text(&config.remote_host, 1024)
+    if !text(&config.remote_host, MAX_HOST_BYTES)
         || config.remote_host.trim().is_empty()
-        || !text(&config.client_id, 256)
+        || !text(&config.client_id, MAX_CLIENT_BYTES)
         || config.client_id.is_empty()
         || !(1..=65535).contains(&config.keep_alive_secs)
-        || config.subscriptions.len() > 128
-        || config.subscriptions.capacity() > 128
+        || config.subscriptions.len() > MAX_SUBSCRIPTIONS
+        || config.subscriptions.capacity() > MAX_SUBSCRIPTIONS
     {
         return Err("MQTT configuration exceeds host/client/subscription/keepalive limits".into());
     }
@@ -48,13 +48,13 @@ pub(super) fn config_bytes(config: &MqttTransportConfig) -> Result<usize, String
         + config.client_id.capacity()
         + config.subscriptions.capacity() * size_of::<MqttSubscriptionConfig>();
     if let Some(credentials) = &config.credentials {
-        if !text(&credentials.username, 4096) || !text(&credentials.password, 4096) {
+        if !text(&credentials.username, MAX_CREDENTIAL_BYTES) || !text(&credentials.password, MAX_CREDENTIAL_BYTES) {
             return Err("MQTT credentials exceed 4096 bytes".into());
         }
         bytes += credentials.username.capacity() + credentials.password.capacity();
     }
     for subscription in &config.subscriptions {
-        if !text(&subscription.topic_filter, 1024) || !rumqttc::valid_filter(&subscription.topic_filter) {
+        if !text(&subscription.topic_filter, MAX_FILTER_BYTES) || !rumqttc::valid_filter(&subscription.topic_filter) {
             return Err("MQTT subscription exceeds 1024 bytes or has an invalid filter".into());
         }
         bytes += subscription.topic_filter.capacity();

@@ -58,15 +58,38 @@ with a 256-byte payload preview. Incoming callbacks, command nodes, `publish`, `
 
 ## App service
 
+`configuration/` owns bounded background configuration capture. The actor captures only a fixed
+input key and a canonical snapshot lease; one shared preparation worker owns text validation,
+subscription traversal, copies and exact configuration comparison. Thirty-two job reservations
+include queued, running and ready work. Snapshot storage retains the public canonical lease
+budget through cancellation and final disposal. Subscription traversal is iterative, preserves
+authored order and rejects more than 8192 scanned nodes or 128 enabled subscriptions. Text limits
+are checked on borrowed values before trimming or copying.
+
+The key includes connection structure, the five connection scalars, credentials and subscriptions,
+plus module UUID, effective enablement and engine lifetime. Runtime Connection/Connected and Values
+traffic do not invalidate it. Inbox handling notices topology and authored changes; result application
+also checks the current snapshot before using a prepared result. A stale or disabled preparation
+cannot start a transport. Cancellation releases no queued job reservation prematurely and never joins.
+Unexpected job destruction produces a retryable completion. Ready configurations retain their
+payload admission across native-slot retries and transfer directly into the transport; unchanged
+configurations reuse their existing lease. Transport startup adopts the shared configuration without
+copying or comparing its text on the actor.
+
+Fresh subscription managers create their default `#` subscription only when initially empty.
+Loaded, duplicated and history-restored managers preserve deliberately empty authored subscriptions;
+no recursive actor scan or load-time default reinsertion is performed. No persisted format changes.
+
 `service.rs` owns passive worker wakes and coarse startup retry deadlines. Idle MQTT modules have
 no periodic actor update and request no tree snapshot. An early retry wake preserves its deadline;
-only authored configuration work, pending received data or a due retry asks for a snapshot.
+only configuration admission/completion, pending received data or a due retry asks for a snapshot.
+An in-flight preparation waits for its completion notification without requesting actor snapshots.
 Actor event and receipt service is capped at sixteen entries each. Local pending input and publish
 receipt queues have explicit 64/100-entry limits. Receiving data, configuration changes and completed
 receipts request continuations; pending protocol receipts alone do not busy-wake the actor.
 
 `payload.rs` owns the app's payload modes and script argument conversions. These conversions,
-incoming logging/callback preparation, configuration collection and graph-value publication still
+incoming logging/callback preparation and graph-value publication still
 run through the app actor. Their large-input, source-lifetime, pressure-feedback and edit-receipt
 qualification is the remaining C04 work. The packet/queue caps and passive scheduling alone do not
 qualify these actor paths. Follow the ledger rather than treating transport tests as whole-module

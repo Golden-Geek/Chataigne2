@@ -149,7 +149,7 @@ fn script_publish_json_request_encodes_payload_qos_and_retain() {
     assert!(request.retain);
 }
 
-fn create_mqtt_module() -> (crate::app::AppEngine, NodeId) {
+pub(super) fn create_mqtt_module() -> (crate::app::AppEngine, NodeId) {
     let root: crate::app::AppNode = Folder::new("root").into();
     let mut engine = crate::app::AppEngine::new(root);
     engine.add_node(MqttModule::create().into(), None);
@@ -165,10 +165,11 @@ fn create_mqtt_module() -> (crate::app::AppEngine, NodeId) {
         .and_then(|root| root.node_data().first_child)
         .expect("MQTT module should be attached under root");
 
+    let snapshot = engine.process_tree_snapshot();
     let crate::app::AppNode::MqttModule(module) = engine.nodes.get_mut(module_id).expect("module should exist") else {
         panic!("expected MqttModule node");
     };
-    module.disable_transport_for_test();
+    module.disable_transport_for_test(&snapshot);
 
     (engine, module_id)
 }
@@ -214,7 +215,7 @@ fn find_child_by_key(engine: &crate::app::AppEngine, parent: NodeId, key: &str) 
     None
 }
 
-fn find_path(engine: &crate::app::AppEngine, start: NodeId, path: &str) -> Option<NodeId> {
+pub(super) fn find_path(engine: &crate::app::AppEngine, start: NodeId, path: &str) -> Option<NodeId> {
     let mut current = start;
     let mut remaining = path.trim_matches('/');
 
