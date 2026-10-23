@@ -36,7 +36,7 @@ impl<P: Provider> Provider for Exclusive<P> {
         self.provider.disconnect();
     }
 }
-type Context = WorkerContext<AdmittedCommand, RetainedPayload<ButtplugWorkerEvent>>;
+pub(super) type Context = WorkerContext<AdmittedCommand, RetainedPayload<Publication>>;
 struct Stopped {
     shared: Arc<Shared>,
     life: Option<NativeLife>,
@@ -74,7 +74,8 @@ pub(super) fn run<P: Provider>(
     let provider = match open() {
         Ok(provider) => provider,
         Err(error) => {
-            publish(&ctx, &events, ButtplugWorkerEvent::Error(admission::diagnostic(error)));
+            publication::Publisher::new(&ctx, &events, &shared)
+                .publish(ButtplugWorkerEvent::Error(admission::diagnostic(error)));
             return;
         }
     };
@@ -85,6 +86,7 @@ pub(super) fn run<P: Provider>(
     };
     let ctx = &owned.context;
     let life = owned._stopped.life.as_ref().unwrap();
+    let mut publisher = publication::Publisher::new(ctx, &events, &shared);
     let mut backoff = ReconnectBackoff::new(Duration::from_millis(250), Duration::from_secs(5));
     let mut next_connect = Instant::now();
     let mut active = false;
@@ -100,7 +102,7 @@ pub(super) fn run<P: Provider>(
                     shared.connected.store(true, Ordering::Release);
                     active = true;
                     backoff.reset();
-                    if !publish_all(ctx, &events, initial) {
+                    if !publisher.all(initial) {
                         break;
                     }
                 }
@@ -108,12 +110,15 @@ pub(super) fn run<P: Provider>(
                     shared.connected.store(false, Ordering::Release);
                     life.session.advance();
                     next_connect = backoff.schedule(Instant::now());
-                    if !recovering(ctx, &events, error) {
+                    if !publisher.recovering(error) {
                         break;
                     }
                     owned.provider.disconnect();
                 }
             }
+        }
+        if !publisher.selection_changed() {
+            break;
         }
         let mut commands = Vec::with_capacity(8);
         if let Some(command) = waiting.take() {
@@ -150,7 +155,7 @@ pub(super) fn run<P: Provider>(
             };
             command.finish(CommandStatus::Completed(result));
             if let Some(scanning) = scanning {
-                if !publish(ctx, &events, ButtplugWorkerEvent::Scanning(scanning)) {
+                if !publisher.publish(ButtplugWorkerEvent::Scanning(scanning)) {
                     return;
                 }
             }
@@ -161,7 +166,7 @@ pub(super) fn run<P: Provider>(
         if active {
             match owned.provider.poll() {
                 Ok(input) => {
-                    if !publish_all(ctx, &events, input) {
+                    if !publisher.all(input) {
                         break;
                     }
                 }
@@ -170,7 +175,7 @@ pub(super) fn run<P: Provider>(
                     life.session.advance();
                     active = false;
                     next_connect = backoff.schedule(Instant::now());
-                    if !recovering(ctx, &events, error) {
+                    if !publisher.recovering(error) {
                         break;
                     }
                     owned.provider.disconnect();
@@ -184,44 +189,4 @@ pub(super) fn run<P: Provider>(
             }
         }
     }
-}
-fn recovering(ctx: &Context, pool: &PayloadPool, message: String) -> bool {
-    publish(
-        ctx,
-        pool,
-        ButtplugWorkerEvent::Status(ButtplugConnectionStatus::Recovering {
-            message: admission::diagnostic(message),
-        }),
-    )
-}
-fn publish_all(ctx: &Context, pool: &PayloadPool, input: Vec<ButtplugWorkerEvent>) -> bool {
-    // Native adapters return at most one SDK event plus its bounded catalog/state effects.
-    if input.len() > 4 {
-        recovering(ctx, pool, "Buttplug provider event turn exceeds four records".into());
-        return false;
-    }
-    for event in input {
-        if !publish(ctx, pool, event) {
-            return false;
-        }
-    }
-    true
-}
-fn publish(ctx: &Context, pool: &PayloadPool, mut event: ButtplugWorkerEvent) -> bool {
-    if let Err(error) = admission::event(&event) {
-        event = ButtplugWorkerEvent::Error(error);
-    }
-    // One local pending event is retained under pressure; cancellation wakes the wait.
-    let retained = loop {
-        match pool.try_retain(event, EVENT_WEIGHT) {
-            Ok(event) => break event,
-            Err(error) => {
-                event = error.into_value();
-                if ctx.cancellation().wait(Duration::from_millis(10)) {
-                    return false;
-                }
-            }
-        }
-    };
-    ctx.publish_weighted(retained, EVENT_WEIGHT).is_ok()
 }

@@ -13,6 +13,7 @@ use std::{
 mod admission;
 mod input;
 mod native;
+mod publication;
 mod receipts;
 #[cfg(test)]
 mod tests;
@@ -22,6 +23,7 @@ use golden_io::{RevisionGuard, RevisionReader, RevisionSource};
 pub(super) use input::{Input, Source};
 #[cfg(test)]
 use native::{normalize_path, output_command};
+pub(super) use publication::Publication;
 use receipts::AdmittedCommand;
 pub(super) use receipts::{CommandReceipt, CommandStatus};
 
@@ -32,6 +34,8 @@ struct Shared {
     actor: RevisionGuard,
     native: RevisionReader,
     session: RevisionReader,
+    selection: std::sync::Mutex<String>,
+    pressure: AtomicBool,
 }
 struct NativeLife {
     native: RevisionSource,
@@ -85,7 +89,7 @@ pub(crate) enum ButtplugWorkerCommand {
 }
 
 const COMMAND_WEIGHT: usize = 8192;
-const EVENT_WEIGHT: usize = 256 * 1024;
+const EVENT_WEIGHT: usize = 1024 * 1024;
 
 fn lifetimes() -> &'static RetirementPool {
     static POOL: OnceLock<RetirementPool> = OnceLock::new();
@@ -108,7 +112,7 @@ fn payloads(incoming: bool) -> Result<PayloadPool, String> {
                     "buttplug-output-disposer"
                 },
                 if incoming { 128 } else { 512 },
-                32 * 1024 * 1024,
+                if incoming { 128 * 1024 * 1024 } else { 32 * 1024 * 1024 },
             )
             .map_err(|error| error.to_string())?,
         );
@@ -117,7 +121,7 @@ fn payloads(incoming: bool) -> Result<PayloadPool, String> {
 }
 
 pub(crate) struct ButtplugTransportHandle {
-    worker: BoundedWorker<AdmittedCommand, RetainedPayload<ButtplugWorkerEvent>>,
+    worker: BoundedWorker<AdmittedCommand, RetainedPayload<Publication>>,
     shared: Arc<Shared>,
     actor: Option<RevisionSource>,
     commands: PayloadPool,
@@ -166,6 +170,8 @@ impl ButtplugTransportHandle {
             actor: actor.reader().guard_at(0),
             native: life.native.reader(),
             session: life.session.reader(),
+            selection: std::sync::Mutex::new("all".into()),
+            pressure: AtomicBool::new(false),
         });
         let state = shared.clone();
         let worker = BoundedWorker::spawn_notified(
@@ -265,7 +271,23 @@ impl ButtplugTransportHandle {
         })?;
         Ok(receipt)
     }
-    pub(crate) fn drain_events(&self, output: &mut Vec<RetainedPayload<ButtplugWorkerEvent>>) -> PendingDrain {
+    pub(super) fn select(&self, selection: &str) -> Result<(), String> {
+        if selection.len() > 1024 {
+            return Err("Buttplug selection exceeds 1024 bytes".into());
+        }
+        let mut current = self.shared.selection.lock().unwrap_or_else(|error| error.into_inner());
+        if current.as_str() != selection {
+            *current = selection.to_owned();
+        }
+        Ok(())
+    }
+    pub(super) fn pressure(&self) -> bool {
+        self.shared.pressure.load(Ordering::Acquire)
+    }
+    pub(super) fn queued_events(&self) -> usize {
+        self.worker.event_metrics().depth
+    }
+    pub(super) fn drain_events(&self, output: &mut Vec<RetainedPayload<Publication>>) -> PendingDrain {
         self.worker.drain_events(output, NonZeroUsize::MIN)
     }
     pub(crate) fn has_pending(&self) -> bool {

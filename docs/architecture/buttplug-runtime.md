@@ -53,12 +53,34 @@ The actor submits at most eight captured sources per turn.
 
 ## Native events
 
-The event mailbox admits 64 records / 4 MiB. Each event reserves a conservative 256 KiB,
-so at most sixteen fit by weight. Global event lifetimes admit 128 records / 32 MiB.
+The event mailbox admits 64 records / 4 MiB. Each prepared publication reserves a conservative
+1 MiB, so at most four fit by weight. Global publication lifetimes admit 128 records / 128 MiB.
 The worker retains one pending event while waiting for capacity; it stops consuming native
 input and cancellation wakes the wait. Native adapters return at most four records for one
 SDK event and its catalog/state effects. Actor turns consume at most sixteen events and
 sixteen completed receipts; disabled modules still finish receipt backlogs.
+
+The worker prepares callback JSON and immutable enum domains before publication. Canonical
+callback quota follows ordinary event copies through routing and replay. A separate catalog
+pool admits 128 domains / 64 MiB, with a 512 KiB domain limit; its original allocation remains
+charged while live parameters or snapshots retain it. Equal catalogs reuse their frozen domain.
+Catalogs include the bounded selected-device identity, including a missing entry when needed.
+Selection changes reach worker preparation through shared bounded state without reconnecting.
+While disconnected, the worker observes it by its next reconnect deadline.
+
+Actor publication binds prepared callbacks and choice-only domain edits. It never reconstructs
+parameters or rewrites an authored selection. Expected UUID/value checks skip superseded choices.
+The current observation retains its prepared publication rather than copying device metadata.
+Disabling an endpoint authors only the two fixed choices plus one bounded missing selection.
+
+Publication edits carry actor/native/session guards and bounded module, ancestor and target
+reads before all writes/callbacks. The original publication lease follows application/rejection.
+Snapshot-free service leaves input in its native mailbox. Retirement cancels old-source input
+explicitly; accepted occurrences within a live source preserve order and multiplicity. This is
+separate from completed command effects, whose results survive session retirement.
+Callback or publication quota pressure preserves one prepared record/draft, publishes a passive
+pressure warning and withholds further native consumption. Capacity recovery resumes the same
+provider. Cancellation wakes those waits; pressure does not create replacement workers.
 
 These bounds cover application-owned retained work. The locked client uses 256-item SDK
 request/event channels; catalog size is exposed only after SDK enumeration. This is not an
@@ -82,6 +104,6 @@ worker-start failures and unexpected termination also schedule an absolute actor
 deadline. Unrelated wakes do not retry before that deadline.
 
 Tests use controlled providers; native endpoint creation is disabled in test builds.
-The [execution ledger](../progress/implementation-status.md) owns qualification and remaining
-C07 acceptance. Queued native-event/callback/catalog publication lifetimes and fences, and full
-package pressure/reconfiguration qualification remain open.
+The [execution ledger](../progress/implementation-status.md) records local C07 closure and the
+remaining P03 packages. Physical devices, platform behavior and product-scale
+performance retain their later plan owners.

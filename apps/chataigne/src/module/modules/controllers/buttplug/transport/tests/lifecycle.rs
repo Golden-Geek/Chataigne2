@@ -229,7 +229,7 @@ fn full_event_storage_preserves_ordered_occurrences_and_cancellation_wakes_capac
     };
     let handle = spawn(control.clone(), &slots, None, None);
     connected(&handle);
-    until(|| handle.worker.event_metrics().depth == 16);
+    until(|| handle.worker.event_metrics().depth == 4);
     let polls = control.polls.load(Ordering::Acquire);
     thread::sleep(Duration::from_millis(30));
     assert!(control.polls.load(Ordering::Acquire) <= polls + 1);
@@ -238,7 +238,7 @@ fn full_event_storage_preserves_ordered_occurrences_and_cancellation_wakes_capac
         let mut events = Vec::new();
         handle.drain_events(&mut events);
         for event in events {
-            if let ButtplugWorkerEvent::DeviceAdded(device) = &*event {
+            if let ButtplugWorkerEvent::DeviceAdded(device) = &event.event {
                 indices.push(device.index);
             }
         }
@@ -257,7 +257,7 @@ fn full_event_storage_preserves_ordered_occurrences_and_cancellation_wakes_capac
         None,
     );
     connected(&handle);
-    until(|| handle.worker.event_metrics().depth == 16);
+    until(|| handle.worker.event_metrics().depth == 4);
     drop(handle);
     assert!(slots.wait_for_idle(Duration::from_secs(1)));
 }

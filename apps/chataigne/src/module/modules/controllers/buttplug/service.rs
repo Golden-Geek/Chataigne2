@@ -12,7 +12,8 @@ pub(super) struct Service {
     pub(super) pending: VecDeque<CommandReceipt>,
     pub(super) retry_at: Option<Instant>,
     backoff: ReconnectBackoff,
-    native_slot: golden_io::RetirementPool,
+    input_pressure: bool,
+    pub(super) native_slot: golden_io::RetirementPool,
     pub(super) admission: golden_io::RetirementPool,
     pub(super) outgoing: VecDeque<golden_io::RetainedPayload<transport::Source>>,
     pub(super) output_retry_at: Option<Instant>,
@@ -23,6 +24,7 @@ impl Service {
             wake: None,
             pending: VecDeque::new(),
             retry_at: None,
+            input_pressure: false,
             backoff: ReconnectBackoff::new(Duration::from_millis(250), Duration::from_secs(5)),
             native_slot: golden_io::RetirementPool::new(std::num::NonZeroUsize::MIN),
             admission: golden_io::RetirementPool::new(std::num::NonZeroUsize::new(64).unwrap()),
@@ -99,6 +101,20 @@ impl ButtplugModule {
         if self.service.pending.iter().any(CommandReceipt::complete) {
             self.request_service();
         }
+        let pressure = self.transport.as_ref().is_some_and(|transport| transport.pressure());
+        if pressure != self.service.input_pressure {
+            self.service.input_pressure = pressure;
+            if pressure {
+                NodeHandle::new(self.id()).set_warning_with(
+                    ctx,
+                    Some("buttplug_input_pressure"),
+                    "Buttplug input lifetime capacity is full; native input is paused",
+                    None,
+                );
+            } else {
+                NodeHandle::new(self.id()).clear_warning(ctx, Some("buttplug_input_pressure"));
+            }
+        }
         if !self.node_data().effective_enabled {
             return;
         }
@@ -152,13 +168,15 @@ impl ButtplugModule {
             let Some(event) = events.pop() else {
                 break;
             };
-            if matches!(
-                &*event,
-                ButtplugWorkerEvent::Status(ButtplugConnectionStatus::Connected { .. })
-            ) {
+            if event.current()
+                && matches!(
+                    &event.event,
+                    ButtplugWorkerEvent::Status(ButtplugConnectionStatus::Connected { .. })
+                )
+            {
                 self.service.backoff.reset();
             }
-            self.handle_worker_event(ctx, (*event).clone());
+            self.project_event(ctx, event);
         }
     }
     fn refresh_transport(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
@@ -200,6 +218,10 @@ impl ButtplugModule {
         };
         match ButtplugTransportHandle::spawn(config.clone(), wake.notifier.clone(), &self.service.native_slot) {
             Ok(handle) => {
+                if let Err(error) = handle.select(self.device.get_ref().as_str()) {
+                    self.set_target_warning(ctx, &error);
+                }
+
                 self.service.retry_at = None;
                 self.transport = Some(Box::new(handle));
                 self.last_transport_config = Some(Box::new(config));

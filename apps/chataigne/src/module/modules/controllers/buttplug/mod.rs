@@ -1,4 +1,5 @@
 mod output;
+mod publication;
 mod service;
 pub(crate) use output::dispatch as queue_buttplug_command;
 mod transport;
@@ -8,7 +9,7 @@ use golden_core::{
     events::{CustomEvent, Event},
     logerror, node,
     node::{Node, NodeCreationContext, NodeHandle, NodeId, NodeMetaPatch, NodeScriptDescriptor, NodeWarning},
-    parameter::{Enum, ParamValue, Parameter, ParameterEnumOption, ParameterEventBehaviour},
+    parameter::{Enum, ParamValue, ParameterEnumOption},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
@@ -135,7 +136,7 @@ pub struct ButtplugModule {
     transport: Option<Box<ButtplugTransportHandle>>,
     last_transport_config: Option<Box<ButtplugTransportConfig>>,
     transport_dirty: bool,
-    known_devices: Vec<ButtplugDeviceInfo>,
+    known_devices: Option<golden_io::RetainedPayload<transport::Publication>>,
     service: service::Service,
 }
 
@@ -146,7 +147,7 @@ impl ButtplugModule {
             None,
             None,
             true,
-            Vec::new(),
+            None,
             service::Service::new(),
         )
     }
@@ -186,68 +187,6 @@ impl ButtplugModule {
         })
     }
 
-    fn handle_worker_event(&mut self, ctx: &mut ProcessCtx, event: ButtplugWorkerEvent) {
-        match event {
-            ButtplugWorkerEvent::Status(status) => self.handle_connection_status(ctx, status),
-            ButtplugWorkerEvent::Devices(devices) => {
-                self.known_devices = devices;
-                self.sync_device_options(ctx);
-                self.refresh_device_values(ctx);
-                self.refresh_selection_warning(ctx);
-            }
-            ButtplugWorkerEvent::DeviceAdded(device) => {
-                self.set_last_event(ctx, format!("Device added: {}", device_label(&device)));
-                self.emit_buttplug_callback(ctx, BUTTPLUG_DEVICE_ADDED_CALLBACK, vec![device_arg(&device)]);
-                if self.base.log_incoming_enabled() {
-                    golden_core::log!(origin = self.id(); format!("Buttplug device added: {}", device_label(&device)));
-                }
-                self.base.emit_incoming_traffic(ctx);
-            }
-            ButtplugWorkerEvent::DeviceRemoved(device) => {
-                self.set_last_event(ctx, format!("Device removed: {}", device_label(&device)));
-                self.emit_buttplug_callback(ctx, BUTTPLUG_DEVICE_REMOVED_CALLBACK, vec![device_arg(&device)]);
-                if self.base.log_incoming_enabled() {
-                    golden_core::log!(origin = self.id(); format!("Buttplug device removed: {}", device_label(&device)));
-                }
-                self.base.emit_incoming_traffic(ctx);
-            }
-            ButtplugWorkerEvent::Scanning(scanning) => {
-                self.set_bool_param(ctx, ButtplugBoolParam::Scanning, scanning);
-            }
-            ButtplugWorkerEvent::ScanningFinished => {
-                self.set_last_event(ctx, "Scanning finished".to_string());
-                self.emit_buttplug_callback(ctx, BUTTPLUG_SCANNING_FINISHED_CALLBACK, Vec::new());
-                self.base.emit_incoming_traffic(ctx);
-            }
-            ButtplugWorkerEvent::Error(error) => {
-                logerror!("Buttplug transport error: {}", error);
-                self.set_target_warning(ctx, error.as_str());
-            }
-        }
-    }
-
-    fn handle_connection_status(&mut self, ctx: &mut ProcessCtx, status: ButtplugConnectionStatus) {
-        match status {
-            ButtplugConnectionStatus::Connected { server_name } => {
-                golden_core::logsuccess!(origin = self.id(); format!("Connected Buttplug server '{server_name}'."));
-                self.clear_target_warning(ctx);
-                self.base.set_connected(ctx, true);
-                self.set_string_param(ctx, ButtplugStringParam::ServerName, server_name.as_str());
-                self.set_last_event(ctx, format!("Connected to {server_name}"));
-            }
-            ButtplugConnectionStatus::Recovering { message } => {
-                logerror!("Buttplug transport recovering: {}", message);
-                self.set_target_warning(ctx, message.as_str());
-                self.base.set_connected(ctx, false);
-                self.set_bool_param(ctx, ButtplugBoolParam::Scanning, false);
-                self.known_devices.clear();
-                self.sync_device_options(ctx);
-                self.refresh_device_values(ctx);
-                self.set_last_event(ctx, format!("Recovering: {message}"));
-            }
-        }
-    }
-
     fn on_param_change_inner(&mut self, ctx: &mut ProcessCtx, param: NodeId) {
         if self.param_affects_transport(param) {
             self.transport_dirty = true;
@@ -255,6 +194,11 @@ impl ButtplugModule {
         }
         if self.device.is_bound() && self.device.id() == param {
             self.refresh_selection_warning(ctx);
+            if let Some(transport) = &self.transport {
+                if let Err(error) = transport.select(self.device.get_ref().as_str()) {
+                    self.set_target_warning(ctx, &error);
+                }
+            }
         }
     }
 
@@ -277,17 +221,13 @@ impl ButtplugModule {
         self.set_int_param(
             ctx,
             ButtplugIntParam::ConnectedDevices,
-            clamp_usize_to_i32(self.known_devices.len()),
+            clamp_usize_to_i32(self.devices().len()),
         );
     }
 
     fn sync_device_options(&self, ctx: &mut ProcessCtx) {
         if self.device.is_bound() {
-            sync_buttplug_device_enum_options(
-                ctx,
-                self.device.id(),
-                buttplug_device_options(self.known_devices.as_slice()),
-            );
+            sync_buttplug_device_enum_options(ctx, self.device.id(), buttplug_device_options(&[]));
         }
     }
 
@@ -303,7 +243,7 @@ impl ButtplugModule {
         }
         if specific_device_selected(selection.as_str())
             && !self
-                .known_devices
+                .devices()
                 .iter()
                 .any(|device| device.variant_id == selection.as_str())
         {
@@ -352,9 +292,15 @@ impl ButtplugModule {
 
     fn stop_transport(&mut self) {
         if let Some(mut transport) = self.transport.take() {
+            let queued = transport.queued_events();
+            if queued != 0 {
+                logerror!(format!(
+                    "Buttplug retired {queued} native input records; publication was cancelled"
+                ));
+            }
             transport.stop();
         }
-        self.known_devices.clear();
+        self.known_devices = None;
         if !self.service.outgoing.is_empty() {
             logerror!(format!(
                 "Buttplug retired {} captured requests; they were not sent",
@@ -403,10 +349,6 @@ impl ButtplugModule {
 
     fn set_last_event(&mut self, ctx: &mut ProcessCtx, value: String) {
         self.set_string_param(ctx, ButtplugStringParam::LastEvent, value.as_str());
-    }
-
-    fn emit_buttplug_callback(&self, ctx: &mut ProcessCtx, callback: &str, args: Vec<serde_json::Value>) {
-        crate::app::module::script_api::emit_script_callback(ctx, self.id(), callback, args);
     }
 }
 
@@ -574,51 +516,28 @@ fn buttplug_device_options(devices: &[ButtplugDeviceInfo]) -> Vec<ParameterEnumO
     options
 }
 
-fn sync_buttplug_device_enum_options(ctx: &mut ProcessCtx, param_id: NodeId, options: Vec<ParameterEnumOption>) {
-    ctx.call_node_mutation(param_id, move |node, inner_ctx| {
-        let Some(parameter) = node.as_any_mut().downcast_mut::<Parameter>() else {
-            return Err("Buttplug device target is not a parameter".to_string());
-        };
-
-        let mut next_options = options.clone();
-        let current_variant = parameter
-            .value
-            .as_enum()
-            .filter(|variant| !variant.trim().is_empty())
-            .unwrap_or_else(|| BUTTPLUG_TARGET_ALL.to_string());
-
-        if specific_device_selected(current_variant.as_str())
-            && !next_options.iter().any(|option| option.variant_id == current_variant)
-        {
-            next_options.insert(2, missing_device_option(current_variant.as_str()));
-        }
-
-        let next_value = if next_options.iter().any(|option| option.variant_id == current_variant) {
-            ParamValue::Enum(current_variant.clone())
-        } else {
-            ParamValue::Enum(BUTTPLUG_TARGET_ALL.to_string())
-        };
-
-        if parameter.constraints.enum_options.as_slice() == next_options.as_slice() && parameter.value == next_value {
-            return Ok(());
-        }
-
-        let label = parameter.node_data().meta.label.clone();
-        let change_check = parameter.change_check.clone();
-        let mut replacement = Parameter::new(label.as_str(), next_value, change_check);
-        *replacement.node_data_mut() = parameter.node_data().clone();
-        replacement.default_value = parameter.default_value.clone();
-        replacement.event_behaviour = ParameterEventBehaviour::Coalesce;
-        replacement.read_only = parameter.read_only;
-        replacement.persist_read_only_value = parameter.persist_read_only_value;
-        replacement.constraints = parameter.constraints.clone();
-        replacement.constraints.enum_options = (next_options).into();
-        replacement.ui_hints = parameter.ui_hints.clone();
-        replacement.control = parameter.control.clone();
-        replacement.control_modes_enabled = parameter.control_modes_enabled;
-
-        inner_ctx.replace_node(param_id, replacement);
-        Ok(())
+// Disabling an endpoint needs only the two fixed choices and one bounded missing selection.
+fn sync_buttplug_device_enum_options(ctx: &mut ProcessCtx, param_id: NodeId, mut options: Vec<ParameterEnumOption>) {
+    let Some(snapshot) = ctx.tree_snapshot_arc() else {
+        return;
+    };
+    let Some(node) = snapshot.node(param_id) else {
+        return;
+    };
+    let Some(ParamValue::Enum(current)) = &node.param_value else {
+        return;
+    };
+    if current.len() > 1024 {
+        return;
+    }
+    if specific_device_selected(current) {
+        options.push(missing_device_option(current));
+    }
+    ctx.edits.push(golden_core::edit::Edit::SetParamEnumOptions {
+        node: param_id,
+        expected_uuid: node.uuid,
+        expected_value: ParamValue::Enum(current.clone()),
+        options: options.into(),
     });
 }
 

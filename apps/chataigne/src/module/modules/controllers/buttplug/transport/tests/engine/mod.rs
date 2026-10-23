@@ -15,15 +15,21 @@ use std::{
 };
 
 mod commands;
+mod publication;
+mod recovery;
 
 #[derive(Clone, Default)]
 struct Control {
     actions: Arc<Mutex<Vec<ButtplugWorkerCommand>>>,
     fail_poll: Arc<AtomicBool>,
+    input: Arc<Mutex<std::collections::VecDeque<ButtplugWorkerEvent>>>,
+    polls: Arc<std::sync::atomic::AtomicUsize>,
+    panic_poll: Arc<AtomicBool>,
 }
 struct Fake {
     control: Control,
     gate: Option<mpsc::Receiver<()>>,
+    cleanup: Option<mpsc::Receiver<()>>,
 }
 impl worker::Provider for Fake {
     fn connect(&mut self, _: &ButtplugTransportConfig) -> Result<Vec<ButtplugWorkerEvent>, String> {
@@ -33,10 +39,15 @@ impl worker::Provider for Fake {
     }
     fn poll(&mut self) -> Result<Vec<ButtplugWorkerEvent>, String> {
         thread::sleep(Duration::from_millis(1));
+        self.control.polls.fetch_add(1, Ordering::AcqRel);
+        assert!(
+            !self.control.panic_poll.load(Ordering::Acquire),
+            "controlled provider panic"
+        );
         if self.control.fail_poll.swap(false, Ordering::AcqRel) {
             return Err("controlled lost session".into());
         }
-        Ok(Vec::new())
+        Ok(self.control.input.lock().unwrap().pop_front().into_iter().collect())
     }
     fn execute(&mut self, request: &ButtplugWorkerCommand) -> Result<String, String> {
         self.control.actions.lock().unwrap().push(request.clone());
@@ -46,6 +57,13 @@ impl worker::Provider for Fake {
         Ok("completed fixture action".into())
     }
     fn disconnect(&mut self) {}
+}
+impl Drop for Fake {
+    fn drop(&mut self) {
+        if let Some(gate) = self.cleanup.take() {
+            let _ = gate.recv();
+        }
+    }
 }
 fn module(engine: &mut AppEngine, id: NodeId) -> &mut ButtplugModule {
     let AppNode::ButtplugModule(module) = engine.nodes.get_mut(id).unwrap() else {
@@ -83,10 +101,24 @@ fn attach(
     slots: &RetirementPool,
     gate: Option<mpsc::Receiver<()>>,
 ) {
+    install(
+        engine,
+        id,
+        Fake {
+            control,
+            gate,
+            cleanup: None,
+        },
+        slots,
+        pool(),
+    );
+}
+fn install(engine: &mut AppEngine, id: NodeId, provider: Fake, slots: &RetirementPool, events: PayloadPool) {
     let config = module(engine, id).transport_config().unwrap();
     let wake = module(engine, id).service.wake.as_ref().unwrap().notifier.clone();
-    let handle = ButtplugTransportHandle::spawn_using(config.clone(), wake, slots, pool(), pool(), move || {
-        Ok(Fake { control, gate })
+    let permit = module(engine, id).service.native_slot.try_reserve().unwrap();
+    let handle = ButtplugTransportHandle::spawn_using(config.clone(), wake, slots, pool(), events, move || {
+        Ok(worker::Exclusive::new(provider, permit))
     })
     .unwrap();
     until(|| handle.shared.connected.load(Ordering::Acquire));

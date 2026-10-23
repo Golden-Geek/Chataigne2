@@ -373,3 +373,51 @@ fn oversized_consumed_command_field_fails_before_io_and_the_same_provider_remain
     assert_eq!(control.actions.lock().unwrap().len(), 1);
     finish(&mut engine, id, &slots);
 }
+
+#[test]
+fn full_native_mailbox_retains_one_actor_source_behind_its_absolute_deadline_without_wake_spin() {
+    let (mut engine, id) = create();
+    let slots = slots();
+    let control = Control::default();
+    let (release, gate) = mpsc::channel();
+    attach(&mut engine, id, control.clone(), &slots, Some(gate));
+    quiet(&mut engine, id);
+    let first = module(&mut engine, id)
+        .transport
+        .as_ref()
+        .unwrap()
+        .send(ButtplugWorkerCommand::StopAllDevices)
+        .unwrap();
+    until(|| control.actions.lock().unwrap().len() == 1);
+    let mut suffix = Vec::new();
+    for _ in 0..64 {
+        suffix.push(
+            module(&mut engine, id)
+                .transport
+                .as_ref()
+                .unwrap()
+                .send(ButtplugWorkerCommand::StopAllDevices)
+                .unwrap(),
+        );
+    }
+    invoke(&mut engine, id, "vibrate", vec![ParamValue::Float(0.25)]);
+    turn(&mut engine);
+    assert_eq!(module(&mut engine, id).service.outgoing.len(), 1);
+    let retry = module(&mut engine, id).service.output_retry_at.unwrap();
+    for _ in 0..20 {
+        module(&mut engine, id).request_service();
+        turn(&mut engine);
+        assert_eq!(module(&mut engine, id).service.output_retry_at, Some(retry));
+    }
+    for _ in 0..20 {
+        turn(&mut engine);
+        assert_eq!(engine.tick_stats().wake_callbacks_fired, 0);
+    }
+    assert!(Instant::now() < retry);
+    release.send(()).unwrap();
+    quiet(&mut engine, id);
+    assert!(first.complete());
+    assert!(suffix.iter().all(CommandReceipt::complete));
+    assert_eq!(control.actions.lock().unwrap().len(), 66);
+    finish(&mut engine, id, &slots);
+}
