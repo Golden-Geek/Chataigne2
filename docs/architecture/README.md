@@ -43,6 +43,8 @@ and superseded plans are [archived](../archive/2026-10-18/README.md).
   ordering and passive service.
 - [Ultraleap worker ownership](ultraleap-runtime.md): bounded SDK lifetimes, prepared tracking
   publication, ordered status boundaries, queued projection guards and passive recovery.
+- [Gamepad worker ownership](gamepad-runtime.md): bounded Gilrs ownership, prepared calibration
+  and callbacks, retained choices, configuration fences and passive recovery.
 - [Timed generators](generators.md): Signals/Metronomes admission, elapsed time, bounded
   publication, passive service and worker lifetime ownership.
 - [Alchemist runtime](alchemist-runtime.md): formulas, processors, conditions, inputs, filters,

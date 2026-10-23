@@ -1,17 +1,9 @@
-use std::time::Duration;
-
 use golden_core::{
-    edit::Edit,
     node::{Folder, Node, NodeId},
-    parameter::{ParamValue, ParameterEventBehaviour},
-    process_ctx::ExecutionPhase,
     script::ScriptSource,
 };
 
-use super::{
-    gamepad_connection_warning, gamepad_runtime::DiscoveredGamepad, gamepad_runtime::GamepadRuntimeEvent,
-    process_axis_value, GamepadAxis, GamepadButton, GamepadModule, GAMEPAD_UDEV_HELP_URL,
-};
+use super::{gamepad_connection_warning, process_axis_value, GamepadAxis, GamepadModule, GAMEPAD_UDEV_HELP_URL};
 
 #[test]
 fn axis_processing_applies_offset_dead_zone_and_rescales() {
@@ -74,48 +66,7 @@ fn gamepad_module_materializes_axis_processing_for_every_axis() {
 
 #[test]
 fn selected_gamepad_events_update_values_after_axis_processing() {
-    let (mut engine, module_id) = create_gamepad_module();
-    let device = test_device();
-
-    enqueue_event(
-        &mut engine,
-        module_id,
-        GamepadRuntimeEvent::Connected {
-            device: device.clone(),
-        },
-    );
-    enqueue_event(
-        &mut engine,
-        module_id,
-        GamepadRuntimeEvent::AxisChanged {
-            device: device.clone(),
-            axis: GamepadAxis::LeftStickX,
-            value: 0.55,
-        },
-    );
-    enqueue_event(
-        &mut engine,
-        module_id,
-        GamepadRuntimeEvent::ButtonPressed {
-            device,
-            button: GamepadButton::South,
-        },
-    );
-
-    run_gamepad_tick(&mut engine);
-
-    let Some(ParamValue::Vec2(left_x, left_y)) = param_value(&engine, module_id, "values/axes/left_stick") else {
-        panic!("left stick vec2 should exist");
-    };
-    assert!(
-        (left_x - 0.55).abs() < 0.000_001 && left_y.abs() < 0.000_001,
-        "left stick vec2 should mirror processed X/Y values, got ({left_x}, {left_y})"
-    );
-    assert_eq!(
-        bool_param_value(&engine, module_id, "values/buttons/south"),
-        Some(true),
-        "button press should update the South button value"
-    );
+    super::service::tests::assert_selected_event_values();
 }
 
 #[test]
@@ -139,13 +90,9 @@ fn create_gamepad_module() -> (crate::app::AppEngine, NodeId) {
     engine.add_node(module.into(), None);
     engine.apply_edits().expect("gamepad module should attach");
     for _ in 0..4 {
-        engine
-            .apply_edits()
-            .expect("gamepad defaults should materialize");
+        engine.apply_edits().expect("gamepad defaults should materialize");
     }
-    engine
-        .resolve()
-        .expect("gamepad runtime schedule should resolve");
+    engine.resolve().expect("gamepad runtime schedule should resolve");
 
     let module_id = engine
         .nodes
@@ -154,36 +101,6 @@ fn create_gamepad_module() -> (crate::app::AppEngine, NodeId) {
         .expect("gamepad module should be attached under root");
 
     (engine, module_id)
-}
-
-fn enqueue_event(engine: &mut crate::app::AppEngine, module_id: NodeId, event: GamepadRuntimeEvent) {
-    let crate::app::AppNode::GamepadModule(module) =
-        engine.nodes.get_mut(module_id).expect("gamepad module should exist")
-    else {
-        panic!("expected GamepadModule node");
-    };
-    module.enqueue_runtime_event_for_test(event);
-}
-
-fn test_device() -> DiscoveredGamepad {
-    DiscoveredGamepad {
-        index: 0,
-        variant_id: "gamepad:0|Test Pad".to_string(),
-        label: "Test Pad".to_string(),
-        details: "index=0, vid=1234, pid=5678".to_string(),
-    }
-}
-
-fn run_gamepad_tick(engine: &mut crate::app::AppEngine) {
-    engine
-        .dispatch_inbox(ExecutionPhase::EngineTick)
-        .expect("gamepad inbox should dispatch");
-    engine
-        .run_tick(Duration::from_millis(20))
-        .expect("gamepad tick should run");
-    engine
-        .apply_edits()
-        .expect("gamepad tick edits should apply");
 }
 
 fn find_path(engine: &crate::app::AppEngine, start: NodeId, path: &str) -> Option<NodeId> {
@@ -214,30 +131,4 @@ fn node_key_matches(node: &golden_core::node::NodeData, key: &str) -> bool {
         || node.meta.decl_id.0.rsplit('/').next() == Some(key)
         || node.meta.short_name == key
         || node.meta.label == key
-}
-
-fn param_value(engine: &crate::app::AppEngine, start: NodeId, path: &str) -> Option<ParamValue> {
-    let param_id = find_path(engine, start, path)?;
-    engine
-        .nodes
-        .get(param_id)?
-        .engine_param_snapshot()
-        .map(|snapshot| snapshot.value)
-}
-
-fn bool_param_value(engine: &crate::app::AppEngine, start: NodeId, path: &str) -> Option<bool> {
-    match param_value(engine, start, path)? {
-        ParamValue::Bool(value) => Some(value),
-        _ => None,
-    }
-}
-
-
-#[allow(dead_code)]
-fn set_param(engine: &mut crate::app::AppEngine, node: NodeId, value: ParamValue) {
-    engine.edits.push(Edit::SetParam {
-        node,
-        value,
-        behaviour: ParameterEventBehaviour::Coalesce,
-    });
 }
