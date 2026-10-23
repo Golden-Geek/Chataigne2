@@ -1,7 +1,7 @@
 use super::*;
 use crate::app::module::common::keyboard::{KeyboardKey, KeyboardKeyAction};
 use crate::app::module::common::worker_wake::ModuleWake;
-use golden_io::{ReconnectBackoff, RetainedPayload, RevisionGuard};
+use golden_io::{ReconnectBackoff, RetainedPayload, RevisionGuard, WorkerNotifier};
 use std::{
     collections::VecDeque,
     time::{Duration, Instant},

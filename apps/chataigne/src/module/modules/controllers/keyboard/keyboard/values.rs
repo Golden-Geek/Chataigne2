@@ -2,8 +2,9 @@ use super::*;
 
 impl KeyboardModule {
     pub(super) fn clear_input_values(&mut self, ctx: &mut ProcessCtx) {
-        self.pressed_keys.clear();
-        self.sync_pressed_key_values(ctx);
+        self.project_modifiers(ctx, [false; 9]);
+        self.set_held_keys(ctx, "");
+        self.set_held_key_count(ctx, 0);
         self.set_last_key(ctx, "");
         self.set_last_pressed(ctx, false);
     }
@@ -17,53 +18,31 @@ impl KeyboardModule {
         self.set_selected_device_name(ctx, "");
         self.set_last_event(ctx, String::new());
     }
-
-    pub(super) fn sync_pressed_key_values(&mut self, ctx: &mut ProcessCtx) {
-        let held_keys = self
-            .pressed_keys
-            .iter()
-            .map(|key| key.as_str())
-            .collect::<Vec<_>>()
-            .join(", ");
-        self.set_held_keys(ctx, held_keys.as_str());
-        self.set_held_key_count(ctx, self.pressed_keys.len());
-
-        let left_shift = self.pressed_keys.contains(&KeyboardKey::LeftShift);
-        if self.left_shift.is_bound() && self.left_shift.get() != left_shift {
-            self.left_shift.set(ctx, left_shift);
+    pub(super) fn project_key_frame(&mut self, ctx: &mut ProcessCtx, frame: &keyboard_runtime::preparation::Frame) {
+        self.project_modifiers(ctx, frame.modifiers);
+        self.set_held_keys(ctx, &frame.held);
+        self.set_held_key_count(ctx, frame.count);
+        self.set_last_key(ctx, frame.key.as_str());
+        self.set_last_pressed(ctx, frame.pressed);
+        self.set_last_event(ctx, frame.message.clone());
+    }
+    fn project_modifiers(&mut self, ctx: &mut ProcessCtx, modifiers: [bool; 9]) {
+        macro_rules! field {
+            ($index:literal, $field:ident) => {
+                if self.$field.is_bound() && self.$field.get() != modifiers[$index] {
+                    self.$field.set(ctx, modifiers[$index]);
+                }
+            };
         }
-        let right_shift = self.pressed_keys.contains(&KeyboardKey::RightShift);
-        if self.right_shift.is_bound() && self.right_shift.get() != right_shift {
-            self.right_shift.set(ctx, right_shift);
-        }
-        let left_control = self.pressed_keys.contains(&KeyboardKey::LeftControl);
-        if self.left_control.is_bound() && self.left_control.get() != left_control {
-            self.left_control.set(ctx, left_control);
-        }
-        let right_control = self.pressed_keys.contains(&KeyboardKey::RightControl);
-        if self.right_control.is_bound() && self.right_control.get() != right_control {
-            self.right_control.set(ctx, right_control);
-        }
-        let left_alt = self.pressed_keys.contains(&KeyboardKey::LeftAlt);
-        if self.left_alt.is_bound() && self.left_alt.get() != left_alt {
-            self.left_alt.set(ctx, left_alt);
-        }
-        let right_alt = self.pressed_keys.contains(&KeyboardKey::RightAlt);
-        if self.right_alt.is_bound() && self.right_alt.get() != right_alt {
-            self.right_alt.set(ctx, right_alt);
-        }
-        let left_meta = self.pressed_keys.contains(&KeyboardKey::LeftMeta);
-        if self.left_meta.is_bound() && self.left_meta.get() != left_meta {
-            self.left_meta.set(ctx, left_meta);
-        }
-        let right_meta = self.pressed_keys.contains(&KeyboardKey::RightMeta);
-        if self.right_meta.is_bound() && self.right_meta.get() != right_meta {
-            self.right_meta.set(ctx, right_meta);
-        }
-        let caps_lock = self.pressed_keys.contains(&KeyboardKey::CapsLock);
-        if self.caps_lock.is_bound() && self.caps_lock.get() != caps_lock {
-            self.caps_lock.set(ctx, caps_lock);
-        }
+        field!(0, left_shift);
+        field!(1, right_shift);
+        field!(2, left_control);
+        field!(3, right_control);
+        field!(4, left_alt);
+        field!(5, right_alt);
+        field!(6, left_meta);
+        field!(7, right_meta);
+        field!(8, caps_lock);
     }
 
     pub(super) fn set_input_active(&mut self, ctx: &mut ProcessCtx, value: bool) {

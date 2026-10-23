@@ -47,7 +47,7 @@ fn create(count: usize) -> (crate::app::AppEngine, NodeId, RetirementPool, Paylo
             pressed: index % 2 == 0,
         },
     }));
-    let owner = module(&mut engine, id).input_owner.clone();
+    let owner = module(&mut engine, id).input.owner.clone();
     let slots = RetirementPool::new(NonZeroUsize::MIN);
     let input_pool = PayloadPool::new("keyboard-engine-input", 64, 8 * 1024 * 1024).unwrap();
     let provider = Fake(Arc::new(Mutex::new(input)));
@@ -56,12 +56,43 @@ fn create(count: usize) -> (crate::app::AppEngine, NodeId, RetirementPool, Paylo
         &slots,
         input_pool.clone(),
         WorkerNotifier::new(|| {}),
+        "auto",
         move || Ok(provider),
     )
     .unwrap();
-    module(&mut engine, id).input_backend = Some(runtime);
-    until(|| module(&mut engine, id).input_backend.as_ref().unwrap().queued() >= (count + 1).min(32));
+    module(&mut engine, id).input.runtime = Some(runtime);
+    until(|| module(&mut engine, id).input.runtime.as_ref().unwrap().queued() >= (count + 1).min(32));
     (engine, id, slots, input_pool)
+}
+pub(super) fn install_sequence(engine: &mut crate::app::AppEngine, id: NodeId, events: Vec<KeyboardInputEvent>) {
+    let input = VecDeque::from([KeyboardRuntimeEvent::DevicesChanged(vec![DiscoveredKeyboardDevice {
+        index: 0,
+        variant_id: "fake:keyboard".into(),
+        label: "Fake Keyboard".into(),
+        details: "fixture".into(),
+    }])]);
+    let input = Arc::new(Mutex::new(input));
+    input
+        .lock()
+        .unwrap()
+        .extend(events.into_iter().map(|event| KeyboardRuntimeEvent::Input {
+            device: "fake:keyboard".into(),
+            event,
+        }));
+    let target = module(engine, id);
+    let notifier = target.input.wake.as_ref().unwrap().notifier.clone();
+    target.input.runtime = Some(
+        keyboard_runtime::KeyboardInputRuntime::spawn_using(
+            &target.input.owner,
+            &RetirementPool::new(NonZeroUsize::MIN),
+            PayloadPool::new("keyboard-value-fixture", 16, 4 * 1024 * 1024).unwrap(),
+            notifier,
+            "auto",
+            move || Ok(Fake(input)),
+        )
+        .unwrap(),
+    );
+    target.request_input_service();
 }
 fn context(engine: &crate::app::AppEngine) -> ProcessCtx {
     let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);
@@ -87,7 +118,7 @@ fn native_turns_preserve_64_edges_and_cap_projection_at_sixteen_records() {
     until(|| {
         let before = callbacks(&engine).len();
         let mut ctx = context(&engine);
-        module(&mut engine, id).update(&mut ctx);
+        module(&mut engine, id).service_input(&mut ctx);
         engine.absorb_edits(&mut ctx).unwrap();
         engine
             .apply_edits()
@@ -108,7 +139,7 @@ fn native_turns_preserve_64_edges_and_cap_projection_at_sixteen_records() {
 fn queued_native_retirement_rejects_values_and_callbacks_and_releases_original_pool() {
     let (mut engine, id, slots, pool) = create(1);
     let mut ctx = context(&engine);
-    module(&mut engine, id).update(&mut ctx);
+    module(&mut engine, id).service_input(&mut ctx);
     engine.absorb_edits(&mut ctx).unwrap();
     module(&mut engine, id).stop_input_backend();
     assert!(slots.wait_for_idle(Duration::from_secs(1)));
@@ -126,7 +157,7 @@ fn queued_target_rename_and_receive_disable_reject_before_input_projection() {
     for rename in [true, false] {
         let (mut engine, id, slots, _) = create(1);
         let mut ctx = context(&engine);
-        module(&mut engine, id).update(&mut ctx);
+        module(&mut engine, id).service_input(&mut ctx);
         if rename {
             let target = find_path(&engine, id, "values/info/last_key").unwrap();
             engine.edits.push(Edit::PatchMeta {

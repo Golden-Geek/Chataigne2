@@ -16,24 +16,26 @@ use crate::app::module::common::keyboard::KeyboardKey;
 fn keyboard_events_update_values() {
     let (mut engine, module_id) = create_keyboard_module();
 
-    enqueue_event(
+    native_ownership::install_sequence(
         &mut engine,
         module_id,
-        KeyboardInputEvent::KeyChanged {
-            key: KeyboardKey::LeftShift,
-            pressed: true,
-        },
+        vec![
+            KeyboardInputEvent::KeyChanged {
+                key: KeyboardKey::LeftShift,
+                pressed: true,
+            },
+            KeyboardInputEvent::KeyChanged {
+                key: KeyboardKey::A,
+                pressed: true,
+            },
+        ],
     );
-    enqueue_event(
-        &mut engine,
-        module_id,
-        KeyboardInputEvent::KeyChanged {
-            key: KeyboardKey::A,
-            pressed: true,
-        },
-    );
-
-    run_keyboard_tick(&mut engine);
+    let deadline = std::time::Instant::now() + Duration::from_secs(3);
+    while int_param_value(&engine, module_id, "values/info/held_key_count") != Some(2) {
+        assert!(std::time::Instant::now() < deadline);
+        run_keyboard_tick(&mut engine);
+        std::thread::sleep(Duration::from_millis(1));
+    }
 
     assert_eq!(
         bool_param_value(&engine, module_id, "values/modifiers/left_shift"),
@@ -142,15 +144,6 @@ fn create_keyboard_module() -> (crate::app::AppEngine, NodeId) {
         .expect("keyboard module should be attached under root");
 
     (engine, module_id)
-}
-
-fn enqueue_event(engine: &mut crate::app::AppEngine, module_id: NodeId, event: KeyboardInputEvent) {
-    let crate::app::AppNode::KeyboardModule(module) =
-        engine.nodes.get_mut(module_id).expect("keyboard module should exist")
-    else {
-        panic!("expected KeyboardModule node");
-    };
-    module.enqueue_input_event_for_test(event);
 }
 
 fn run_keyboard_tick(engine: &mut crate::app::AppEngine) {

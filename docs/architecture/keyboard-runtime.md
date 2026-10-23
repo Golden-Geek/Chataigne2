@@ -49,15 +49,48 @@ message pump or silently discard a successful admission.
 The owner drains at most 16 records per poll. Terminal state is observable independently of
 sender destruction, including when native teardown still owns the sender.
 
-The owner publishes through a 32-record / 8 MiB mailbox. A global payload pool admits 128
-lifetimes / 32 MiB, charging 4 KiB per input and 2 MiB per catalog publication. Input forwarding
-pauses on mailbox or lifetime pressure and resumes with the same prepared record. Cancellation
-does not require a free mailbox slot. At most one bounded provider turn remains staged.
+The owner publishes through a 32-record / 8 MiB mailbox. A global source pool admits 128
+lifetimes / 32 MiB. Every prepared envelope charges 64 KiB; each canonical shared catalog
+metadata allocation independently charges 2 MiB in the same pool. A frame that outlives its
+catalog envelope retains the original metadata reservation through its shared catalog Arc.
+Input forwarding pauses on mailbox, source, choice-domain or callback lifetime pressure and
+resumes with the same prepared occurrence. Cancellation does not require a free mailbox slot.
+At most one 16-record provider turn and one prepared candidate batch remain staged.
 
-Catalogs admit 64 keyboards and 1024 UTF-8 bytes per identity, label or detail field. Windows
+Catalogs admit 64 keyboards and 1024 bytes per identity, label or detail backing allocation;
+native-to-owner validation also bounds spare vector capacity. Windows
 raw-device enumeration admits at most 1024 entries before allocating its list, and device names
 admit 1024 UTF-16 units before allocation. Keyboard packets use fixed aligned storage and reject
 invalid sizes. These bounds do not qualify device-query library internals or physical hardware.
+
+## Prepared input and passive service
+
+The input worker owns device matching, held-key state, modifier derivation, callback JSON,
+message formatting and native choice preparation. It publishes immutable typed key frames and
+catalogs. Each key occurrence has changed/edge callbacks for both output-status candidates;
+the actor chooses the observed output status and binds existing shared payloads without JSON
+construction. Four candidates admit atomically under a 1 MiB batch cap, using the app's shared
+native-callback pool (16384 payloads / 256 MiB). Ordinary event, replay and exported Arc copies
+retain the same canonical quota after the input envelope is disposed.
+
+Native device choices admit 67 rows / 2 MiB per domain in a separate 128-domain / 64 MiB pool.
+Identical domains reuse immutable backing storage, including selection changes that leave the
+choices unchanged. Live parameters, snapshots and history retain original quota through their
+shared Golden domain allocation. Missing selection and the narrow persisted label-suffix
+normalization remain backend responsibilities. Disabled input uses a bounded authored fallback
+of two fixed choices plus at most one missing-selection row; it does not rebuild native domains.
+
+Selection configuration is at most 1024 bytes. Updating it advances a revision before replacing
+the worker's desired settings. Old staged or queued publications are cancelled without reopening
+the native endpoint; the worker resets held state and prepares a catalog for the latest selection.
+Losing the selected device also clears held state. Choosing No Input Device keeps discovery and
+device choices available while filtering key occurrences on the worker.
+
+The actor is passive: input notifications drain at most 16 publications per turn. Startup and
+worker failure use absolute recovery deadlines with backoff from 250 ms to five seconds.
+Blocked cleanup retains native and per-module lifetime slots; admission refusal backs off rather
+than growing native threads. Healthy idle input produces no actor updates, snapshots or wakes.
+The remaining 8 ms native-owner poll and 10 ms pressure wait run on IO workers.
 
 ## Output capture and service
 
@@ -93,20 +126,21 @@ rejects stale readiness while preserving an already completed effect's message p
 
 ## Actor input projection and remaining C09 work
 
-Actor turns drain at most 16 publications. The original publication reservation follows queued
-application, rejection or disposal; the current catalog also retains its original publication
-while the module keeps its catalog copy. Before catalog/value/callback work, input projection
-fences actor/native lifetimes, bound targets and their named ancestors, and authored device,
-receive and send settings. Renaming a queued target, disabling receive or retiring the source
-rejects the stale projection before its values and callbacks apply.
+The original publication reservation follows queued application, rejection or disposal; the
+current catalog also retains its envelope. Before any writes in a bounded input turn, projection
+checks authored device/receive/send settings and current target identities and named ancestors.
+This prelude precedes the turn's own enum-constraint edits, so a new catalog cannot invalidate
+later frames in that turn. Every publication also has a separate actor/native/configuration fence
+at its projection position. A current snapshot with a changed selection or disabled receive
+rejects an old frame even before its parameter notification has dispatched. Renaming a queued
+target or retiring a source rejects stale values and callbacks.
 Device choices use the public enum-options edit, preserving parameter identity and read guards
 instead of replacing the parameter. The existing narrow normalization of persisted label-suffixed
 device IDs remains in this backend boundary.
 
-Input and output lifecycle ownership and canonical output capture are implemented within C09.
-Native input callback preparation, canonical published choice lifetimes, passive input service and
-full package recovery qualification remain open. Input still uses its existing periodic service
-and retry clock; output uses notifications and explicit deadlines.
+Input/output lifecycle ownership, canonical output capture, prepared input callbacks and choice
+lifetimes, and passive input/output service are implemented within C09. Both services use
+notifications and explicit deadlines; Keyboard no longer has a periodic actor update.
 Windows uses process-owned raw-input registration and bounded fan-out because
 [only one window per device class can receive raw input in a process](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-registerrawinputdevices).
 Shared input registration is locally qualified with controlled providers; shared output endpoint

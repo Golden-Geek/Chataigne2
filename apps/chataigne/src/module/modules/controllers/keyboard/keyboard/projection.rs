@@ -9,6 +9,24 @@ impl KeyboardModule {
         let Some(snapshot) = ctx.tree_snapshot_arc() else {
             return false;
         };
+        let catalog = &publication.prepared.catalog;
+        if !snapshot.node(self.id()).is_some_and(|node| node.enabled)
+            || snapshot
+                .node(self.receive_enabled.id())
+                .and_then(|node| node.param_value.as_ref())
+                != Some(&ParamValue::Bool(true))
+        {
+            return false;
+        }
+        let Some(ParamValue::Enum(selection)) = snapshot
+            .node(self.device.id())
+            .and_then(|node| node.param_value.as_ref())
+        else {
+            return false;
+        };
+        if selection != &catalog.requested && selection != &catalog.selection {
+            return false;
+        }
         let mut ids = Vec::new();
         let mut collect =
             |path: &str, id: Option<NodeId>, name: &str| collect_target(&snapshot, self.id(), path, id, name, &mut ids);

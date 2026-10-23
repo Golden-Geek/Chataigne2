@@ -163,7 +163,7 @@ impl Record for KeyboardRuntimeEvent {
     fn weight(&self) -> Result<usize, String> {
         match self {
             Self::DevicesChanged(devices) => catalog_weight(devices),
-            Self::Input { device, .. } if device.len() <= MAX_DEVICE_TEXT => Ok(INPUT_WEIGHT),
+            Self::Input { device, .. } if device.capacity() <= MAX_DEVICE_TEXT => Ok(INPUT_WEIGHT),
             _ => Err("Keyboard native input device id exceeds 1024 bytes".into()),
         }
     }

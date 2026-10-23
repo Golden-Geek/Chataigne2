@@ -1,5 +1,6 @@
 use super::*;
 use std::{collections::VecDeque, sync::mpsc, thread, time::Instant};
+mod publication;
 
 #[derive(Default)]
 struct Control {
@@ -32,7 +33,12 @@ fn slots(count: usize) -> RetirementPool {
     RetirementPool::new(NonZeroUsize::new(count).unwrap())
 }
 fn pool(count: usize) -> PayloadPool {
-    PayloadPool::new("keyboard-fake-input", count, count * INPUT_WEIGHT).unwrap()
+    PayloadPool::new(
+        "keyboard-fake-input",
+        count + 1,
+        count * preparation::FRAME_WEIGHT + CATALOG_WEIGHT,
+    )
+    .unwrap()
 }
 fn event(pressed: bool) -> KeyboardRuntimeEvent {
     KeyboardRuntimeEvent::Input {
@@ -42,6 +48,14 @@ fn event(pressed: bool) -> KeyboardRuntimeEvent {
             pressed,
         },
     }
+}
+fn catalog() -> KeyboardRuntimeEvent {
+    KeyboardRuntimeEvent::DevicesChanged(vec![DiscoveredKeyboardDevice {
+        index: 0,
+        variant_id: "fake:keyboard".into(),
+        label: "Fake Keyboard".into(),
+        details: "fixture".into(),
+    }])
 }
 fn until(mut predicate: impl FnMut() -> bool) {
     let limit = Instant::now() + Duration::from_secs(3);
@@ -55,12 +69,19 @@ fn spawn(
     cleanup: Option<mpsc::Receiver<()>>,
     input: PayloadPool,
 ) -> (KeyboardInputRuntime, RetirementPool, RetirementPool) {
+    let pending = std::mem::take(&mut *control.input.lock().unwrap());
+    control.input.lock().unwrap().push_back(catalog());
+    let control_next = control.clone();
     let owner = slots(1);
     let global = slots(1);
-    let handle = KeyboardInputRuntime::spawn_using(&owner, &global, input, WorkerNotifier::new(|| {}), move || {
-        Ok(Fake { control, cleanup })
-    })
-    .unwrap();
+    let mut handle =
+        KeyboardInputRuntime::spawn_using(&owner, &global, input, WorkerNotifier::new(|| {}), "auto", move || {
+            Ok(Fake { control, cleanup })
+        })
+        .unwrap();
+    until(|| handle.queued() == 1);
+    drop(handle.poll_events().unwrap());
+    control_next.input.lock().unwrap().extend(pending);
     (handle, owner, global)
 }
 #[test]
@@ -79,11 +100,8 @@ fn input_capacity_follows_the_original_publication_until_disposal_and_pauses_pol
     drop(events);
     until(|| handle.worker.event_metrics().depth == 1);
     assert!(matches!(
-        handle.poll_events().unwrap()[0].event,
-        KeyboardRuntimeEvent::Input {
-            event: KeyboardInputEvent::KeyChanged { pressed: false, .. },
-            ..
-        }
+        handle.poll_events().unwrap()[0].prepared.row,
+        preparation::Row::Input(preparation::Frame { pressed: false, .. })
     ));
     drop(handle);
     assert!(global.wait_for_idle(Duration::from_secs(1)));
@@ -97,10 +115,17 @@ fn blocked_startup_returns_immediately_and_holds_both_lifetime_slots_until_clean
     let (release, gate) = mpsc::channel();
     let control = Arc::new(Control::default());
     let start = Instant::now();
-    let handle = KeyboardInputRuntime::spawn_using(&owner, &global, pool(1), WorkerNotifier::new(|| {}), move || {
-        gate.recv().unwrap();
-        Ok(Fake { control, cleanup: None })
-    })
+    let handle = KeyboardInputRuntime::spawn_using(
+        &owner,
+        &global,
+        pool(1),
+        WorkerNotifier::new(|| {}),
+        "auto",
+        move || {
+            gate.recv().unwrap();
+            Ok(Fake { control, cleanup: None })
+        },
+    )
     .unwrap();
     assert!(start.elapsed() < Duration::from_millis(100));
     drop(handle);
@@ -148,6 +173,17 @@ fn actor_drain_is_capped_at_sixteen_and_retirement_rejects_retained_sources() {
 }
 #[test]
 fn catalog_and_id_admission_rejects_overlarge_native_records() {
+    let mut spare = String::with_capacity(1025);
+    spare.push('a');
+    assert!(validate(&KeyboardRuntimeEvent::Input {
+        device: spare,
+        event: KeyboardInputEvent::KeyChanged {
+            key: KeyboardKey::A,
+            pressed: true
+        }
+    })
+    .is_err());
+    assert!(validate(&KeyboardRuntimeEvent::DevicesChanged(Vec::with_capacity(65))).is_err());
     assert!(validate(&KeyboardRuntimeEvent::Input {
         device: "a".repeat(1025),
         event: KeyboardInputEvent::KeyChanged {

@@ -111,12 +111,14 @@ pub(super) fn finish(engine: &mut AppEngine, id: NodeId, slots: &RetirementPool)
 }
 
 #[test]
-fn output_worker_is_passive_while_idle_despite_the_remaining_input_tick() {
+fn keyboard_is_passive_while_input_and_output_are_idle() {
     let (mut engine, id, slots) = create(Control::default());
     for _ in 0..100 {
         engine.run_tick(Duration::from_millis(1)).unwrap();
         engine.apply_edits().unwrap();
         assert_eq!(engine.tick_stats().wake_callbacks_fired, 0);
+        assert_eq!(engine.tick_stats().callbacks_fired, 0);
+        assert_eq!(engine.tick_stats().snapshot_builds, 0);
     }
     finish(&mut engine, id, &slots);
 }

@@ -90,7 +90,7 @@ fn catalog_weight(devices: &[DiscoveredKeyboardDevice]) -> Result<usize, String>
         || devices.iter().any(|device| {
             [&device.variant_id, &device.label, &device.details]
                 .iter()
-                .any(|text| text.len() > MAX_DEVICE_TEXT)
+                .any(|text| text.capacity() > MAX_DEVICE_TEXT)
         })
     {
         return Err("keyboard native catalog exceeds 64 devices / 1024 bytes per field".into());
