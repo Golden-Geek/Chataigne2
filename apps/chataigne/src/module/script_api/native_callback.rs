@@ -67,6 +67,25 @@ impl NativeCallbackPreparer {
             retained_bytes: draft.retained_bytes,
         })
     }
+    pub(crate) fn try_retain_batch(&self, drafts: &[&NativeCallbackDraft]) -> Option<Vec<NativeCallbackPayload>> {
+        self.pool
+            .try_retain_arcs(
+                drafts
+                    .iter()
+                    .map(|draft| (draft.payload.clone(), draft.retained_bytes))
+                    .collect(),
+            )
+            .ok()?;
+        Some(
+            drafts
+                .iter()
+                .map(|draft| NativeCallbackPayload {
+                    payload: draft.payload.clone(),
+                    retained_bytes: draft.retained_bytes,
+                })
+                .collect(),
+        )
+    }
 }
 
 impl NativeCallbackPayload {

@@ -18,6 +18,9 @@ pub(super) struct Service {
     input_pressure: bool,
 }
 impl Service {
+    pub(super) fn connected_observation(&mut self) {
+        self.backoff.reset();
+    }
     pub(super) fn new() -> Self {
         Self {
             wake: None,
@@ -54,13 +57,14 @@ impl JoyConModule {
             wake.notifier.notify();
         }
     }
-    fn schedule_retry(&mut self) {
+    pub(super) fn schedule_retry(&mut self) {
         self.service.retry_at = Some(self.service.backoff.schedule(Instant::now()));
     }
     pub(super) fn service_io(&mut self, ctx: &mut ProcessCtx) {
         if ctx.tree_snapshot_arc().is_none() {
             return;
         }
+        self.guard_settings(ctx);
         let now = Instant::now();
         let elapsed = now.saturating_duration_since(self.service.last_turn);
         self.service.last_turn = now;
@@ -72,8 +76,9 @@ impl JoyConModule {
         self.runtime_contact_elapsed = self.runtime_contact_elapsed.saturating_add(elapsed);
         self.project_results(ctx);
         self.ensure_runtime(ctx);
+        self.configure_projection(ctx);
         let pressure = self.runtime.as_ref().is_some_and(|runtime| runtime.pressure());
-        if pressure != self.service.input_pressure {
+        if pressure != self.service.input_pressure && self.guard_warning(ctx) {
             self.service.input_pressure = pressure;
             if pressure {
                 self.motion_data_mode.set_warning_with(
@@ -86,8 +91,8 @@ impl JoyConModule {
                 self.motion_data_mode.clear_warning(ctx, Some("joycon_input_pressure"));
             }
         }
-        let force = self.drain_runtime_events(ctx);
-        self.apply_pending_state_if_due(ctx, force);
+        self.drain_runtime_events(ctx);
+        self.apply_pending_state_if_due(ctx, false);
         if self.node_data().effective_enabled {
             self.submit_outputs(ctx);
         }
@@ -119,7 +124,12 @@ impl JoyConModule {
                         .saturating_sub(self.processing_elapsed),
                 );
             }
-            if self.runtime.is_some() && runtime_expected_to_be_live(self.pending_state.as_ref(), &self.last_state) {
+            if self.runtime.is_some()
+                && runtime_expected_to_be_live(
+                    self.pending_state.as_ref().and_then(|value| value.state()),
+                    &self.last_state,
+                )
+            {
                 deadlines.push(now + JOYCON_RUNTIME_STALL_TIMEOUT.saturating_sub(self.runtime_contact_elapsed));
             }
             if let Some(at) = self.service.activity_until {
@@ -135,6 +145,12 @@ impl JoyConModule {
     pub(super) fn has_pending_results(&self) -> bool {
         !self.service.pending.is_empty()
     }
+    pub(super) fn clear_input_pressure(&mut self, ctx: &mut ProcessCtx) {
+        if self.service.input_pressure && self.guard_warning(ctx) {
+            self.motion_data_mode.clear_warning(ctx, Some("joycon_input_pressure"));
+            self.service.input_pressure = false;
+        }
+    }
     fn project_results(&mut self, ctx: &mut ProcessCtx) {
         for _ in 0..self.service.pending.len().min(16) {
             let receipt = self.service.pending.pop_front().unwrap();
@@ -142,11 +158,12 @@ impl JoyConModule {
                 self.service.pending.push_back(receipt);
                 continue;
             };
-            let snapshot = ctx.tree_snapshot_arc().unwrap();
-            if let Some(guard) = golden_core::edit::NodeReadGuard::capture_identity(&snapshot, self.id()) {
-                ctx.edits.push(golden_core::edit::Edit::CheckPreconditions {
-                    preconditions: golden_core::edit::EditPreconditions::new(vec![guard], vec![]).unwrap(),
-                });
+            if !self.guard_result(ctx, &[]) {
+                golden_core::logerror!(format!(
+                    "Joy-Con completion target unavailable; disposition: {result:?}"
+                ));
+                ctx.edits.retain_payload(receipt.source());
+                continue;
             }
             match result {
                 runtime::Outcome::Completed(Ok(message)) => self.set_last_event(ctx, message),
@@ -170,6 +187,7 @@ impl JoyConModule {
             self.stop_runtime();
             self.pending_state = None;
             self.clear_runtime_warning(ctx);
+            self.clear_input_pressure(ctx);
             self.apply_runtime_state(ctx, JoyConRuntimeState::disconnected());
             self.set_bool_handle(ctx, JoyConBoolParam::Activity, false);
             return;
@@ -208,89 +226,7 @@ impl JoyConModule {
         self.service.output_retry_at = None;
         self.service.retry_at = None;
     }
-    pub(super) fn drain_runtime_events(&mut self, ctx: &mut ProcessCtx) -> bool {
-        for _ in 0..2 {
-            let Some(runtime) = &self.runtime else {
-                break;
-            };
-            match runtime.try_recv() {
-                Ok(publication) => {
-                    if !publication.guards.iter().all(golden_io::RevisionGuard::is_current) {
-                        continue;
-                    }
-                    let snapshot = ctx.tree_snapshot_arc().unwrap();
-                    let Some(read) = golden_core::edit::NodeReadGuard::capture_identity(&snapshot, self.id()) else {
-                        continue;
-                    };
-                    ctx.edits.push(golden_core::edit::Edit::CheckPreconditions {
-                        preconditions: golden_core::edit::EditPreconditions::new(
-                            vec![read],
-                            publication.guards.to_vec(),
-                        )
-                        .unwrap(),
-                    });
-                    self.runtime_contact_elapsed = Duration::ZERO;
-                    match &publication.event {
-                        JoyConWorkerEvent::Heartbeat => {}
-                        JoyConWorkerEvent::State(state) => {
-                            self.service.backoff.reset();
-                            self.clear_runtime_warning(ctx);
-                            let reference = self.pending_state.as_ref().unwrap_or(&self.last_state);
-                            let discrete = connection_state_changed(reference, state)
-                                || JoyConSide::ALL
-                                    .iter()
-                                    .any(|side| controller_buttons_changed(reference.side(*side), state.side(*side)));
-                            self.pending_state = Some((**state).clone());
-                            if discrete {
-                                self.apply_pending_state_if_due(ctx, true);
-                            }
-                        }
-                        JoyConWorkerEvent::Error(error) => {
-                            self.set_runtime_warning(ctx, error);
-                            self.set_last_event(ctx, error.clone());
-                        }
-                    }
-                    ctx.edits.retain_payload(publication);
-                }
-                Err(TryRecvError::Empty) => break,
-                Err(TryRecvError::Disconnected) => {
-                    self.stop_runtime();
-                    self.runtime_dirty = true;
-                    self.pending_state = None;
-                    self.apply_runtime_state(ctx, JoyConRuntimeState::disconnected());
-                    self.set_runtime_warning(ctx, "Joy-Con runtime stopped unexpectedly");
-                    self.schedule_retry();
-                    break;
-                }
-            }
-        }
-        false
-    }
-
-    fn apply_pending_state_if_due(&mut self, ctx: &mut ProcessCtx, force_apply: bool) {
-        let Some(state) = self.pending_state.clone() else {
-            return;
-        };
-
-        if !force_apply {
-            let processing_interval = processing_interval_from_fps_cap(self.processing_fps_cap.get());
-            if self.processing_elapsed < processing_interval {
-                return;
-            }
-            self.processing_elapsed = self.processing_elapsed.saturating_sub(processing_interval);
-        } else {
-            self.processing_elapsed = Duration::ZERO;
-        }
-
-        self.pending_state = None;
-        let previous_state = self.last_state.clone();
-        let motion_mode = self.motion_data_mode();
-        self.note_incoming_state(ctx, &previous_state, &state, motion_mode);
-        self.apply_runtime_state(ctx, state);
-        self.emit_runtime_callbacks(ctx, &previous_state, motion_mode);
-    }
-
-    fn note_incoming_state(
+    pub(super) fn note_incoming_state(
         &mut self,
         ctx: &mut ProcessCtx,
         previous_state: &JoyConRuntimeState,
@@ -342,9 +278,15 @@ impl JoyConModule {
     }
 
     fn update_activity_indicator(&mut self, ctx: &mut ProcessCtx) {
-        if self.service.activity_until.is_some_and(|at| Instant::now() >= at) {
+        if !self.activity.get() {
             self.service.activity_until = None;
-            self.set_bool_handle(ctx, JoyConBoolParam::Activity, false);
+            return;
+        }
+        if self.service.activity_until.is_some_and(|at| Instant::now() >= at) {
+            if self.guard_activity(ctx) {
+                self.set_bool_handle(ctx, JoyConBoolParam::Activity, false);
+            }
+            self.service.activity_until = Some(Instant::now() + Duration::from_millis(250));
         }
     }
 
@@ -355,7 +297,10 @@ impl JoyConModule {
         if self.runtime_contact_elapsed < JOYCON_RUNTIME_STALL_TIMEOUT {
             return;
         }
-        if !runtime_expected_to_be_live(self.pending_state.as_ref(), &self.last_state) {
+        if !runtime_expected_to_be_live(
+            self.pending_state.as_ref().and_then(|value| value.state()),
+            &self.last_state,
+        ) {
             return;
         }
 

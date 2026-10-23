@@ -1,4 +1,5 @@
 use super::*;
+mod batch;
 mod reservations;
 
 #[test]

@@ -18,7 +18,9 @@ pub use bounded_worker::{
 };
 pub use deadline::DelayedNotifier;
 pub use notifier::WorkerNotifier;
-pub use payload::{PayloadCapacityError, PayloadPool, PayloadReservation, RetainedPayload, SharedPayload};
+pub use payload::{
+    PayloadBatch, PayloadCapacityError, PayloadPool, PayloadReservation, RetainedPayload, SharedPayload,
+};
 pub use pending::{
     PendingDrain, PendingDrainState, PendingMetricsSnapshot, PendingReceiver, PendingSendError, PendingSender,
     bounded_pending_channel, notified_pending_channel, pending_channel,

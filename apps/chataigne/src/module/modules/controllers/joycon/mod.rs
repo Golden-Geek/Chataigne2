@@ -1,6 +1,7 @@
 mod output;
 mod runtime;
 pub(crate) use output::dispatch as queue_joycon_command;
+mod projection;
 mod service;
 mod state;
 use state::*;
@@ -178,7 +179,7 @@ pub struct JoyConModule {
     service: service::Service,
     last_state: JoyConRuntimeState,
     runtime_dirty: bool,
-    pending_state: Option<JoyConRuntimeState>,
+    pending_state: Option<golden_io::RetainedPayload<runtime::Publication>>,
     processing_elapsed: Duration,
     incoming_log_elapsed: Duration,
     runtime_contact_elapsed: Duration,
@@ -205,6 +206,9 @@ impl JoyConModule {
     }
 
     fn apply_runtime_state(&mut self, ctx: &mut ProcessCtx, state: JoyConRuntimeState) {
+        if !self.guard_projection(ctx, &[]) {
+            return;
+        }
         self.base.set_connected(ctx, state.any_connected());
         self.set_bool_handle(ctx, JoyConBoolParam::IsConnected, state.any_connected());
         self.set_bool_handle(ctx, JoyConBoolParam::LeftControllerConnected, state.left.connected);
@@ -410,144 +414,19 @@ impl JoyConModule {
         processed_stick_values(x, y, self.stick_dead_zone.get())
     }
 
-    fn emit_joycon_callback(&self, ctx: &mut ProcessCtx, callback: &str, args: Vec<serde_json::Value>) {
-        crate::app::module::script_api::emit_script_callback(ctx, self.id(), callback, args);
-    }
-
-    fn emit_runtime_callbacks(
-        &self,
-        ctx: &mut ProcessCtx,
-        previous_state: &JoyConRuntimeState,
-        motion_mode: JoyConMotionDataMode,
-    ) {
-        for side in JoyConSide::ALL {
-            let previous = previous_state.side(side);
-            let next = self.last_state.side(side);
-
-            if previous.connected != next.connected {
-                self.emit_joycon_callback(
-                    ctx,
-                    if next.connected {
-                        JOYCON_CONNECTED_CALLBACK
-                    } else {
-                        JOYCON_DISCONNECTED_CALLBACK
-                    },
-                    vec![
-                        serde_json::json!(joycon_side_id(side)),
-                        self.controller_state_arg(side, next, motion_mode),
-                    ],
-                );
-            }
-
-            if !next.connected {
-                continue;
-            }
-
-            self.emit_button_callbacks_for_side(ctx, side, previous, next, motion_mode);
-
-            let (previous_x, previous_y) =
-                processed_stick_values(previous.stick_x, previous.stick_y, self.stick_dead_zone.get());
-            let (next_x, next_y) = processed_stick_values(next.stick_x, next.stick_y, self.stick_dead_zone.get());
-            if float_changed(previous_x, next_x) || float_changed(previous_y, next_y) {
-                self.emit_joycon_callback(
-                    ctx,
-                    JOYCON_STICK_CHANGED_CALLBACK,
-                    vec![
-                        serde_json::json!(joycon_side_id(side)),
-                        serde_json::json!({ "x": next_x, "y": next_y }),
-                        self.controller_state_arg(side, next, motion_mode),
-                    ],
-                );
-            }
-
-            if controller_motion_changed(previous, next, motion_mode) {
-                self.emit_joycon_callback(
-                    ctx,
-                    JOYCON_MOTION_CHANGED_CALLBACK,
-                    vec![
-                        serde_json::json!(joycon_side_id(side)),
-                        controller_motion_arg(next, motion_mode),
-                        self.controller_state_arg(side, next, motion_mode),
-                    ],
-                );
-            }
-        }
-    }
-
-    fn emit_button_callbacks_for_side(
-        &self,
-        ctx: &mut ProcessCtx,
-        side: JoyConSide,
-        previous: &runtime::JoyConControllerStateSnapshot,
-        next: &runtime::JoyConControllerStateSnapshot,
-        motion_mode: JoyConMotionDataMode,
-    ) {
-        for button in joycon_side_button_params(side) {
-            let was_pressed = joycon_button_state(previous, *button);
-            let is_pressed = joycon_button_state(next, *button);
-            if was_pressed == is_pressed {
-                continue;
-            }
-
-            self.emit_joycon_callback(
-                ctx,
-                JOYCON_BUTTON_CHANGED_CALLBACK,
-                vec![
-                    serde_json::json!(joycon_side_id(side)),
-                    serde_json::json!(joycon_button_id(*button)),
-                    serde_json::json!(is_pressed),
-                    self.controller_state_arg(side, next, motion_mode),
-                ],
-            );
-            self.emit_joycon_callback(
-                ctx,
-                if is_pressed {
-                    JOYCON_BUTTON_PRESSED_CALLBACK
-                } else {
-                    JOYCON_BUTTON_RELEASED_CALLBACK
-                },
-                vec![
-                    serde_json::json!(joycon_side_id(side)),
-                    serde_json::json!(joycon_button_id(*button)),
-                    self.controller_state_arg(side, next, motion_mode),
-                ],
-            );
-        }
-    }
-
-    fn controller_state_arg(
-        &self,
-        side: JoyConSide,
-        state: &runtime::JoyConControllerStateSnapshot,
-        motion_mode: JoyConMotionDataMode,
-    ) -> serde_json::Value {
-        let (stick_x, stick_y) = self.process_stick_values(state.stick_x, state.stick_y);
-
-        serde_json::json!({
-            "side": joycon_side_id(side),
-            "connected": state.connected,
-            "stick": {
-                "x": stick_x,
-                "y": stick_y,
-            },
-            "buttons": joycon_buttons_arg(side, state),
-            "motion": controller_motion_arg(state, motion_mode),
-        })
-    }
-
     fn on_custom_event_inner(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
         self.accept_output(ctx, event);
     }
 
     fn set_runtime_warning(&self, ctx: &mut ProcessCtx, message: &str) {
-        if self.motion_data_mode.is_bound() {
+        if self.motion_data_mode.is_bound() && self.guard_warning(ctx) {
             self.motion_data_mode
                 .set_warning_with(ctx, Some(JOYCON_RUNTIME_WARNING_ID), message, None);
         }
     }
 
     fn clear_runtime_warning(&self, ctx: &mut ProcessCtx) {
-        if self.motion_data_mode.is_bound() {
+        if self.motion_data_mode.is_bound() && self.guard_warning(ctx) {
             self.motion_data_mode
                 .clear_warning(ctx, Some(JOYCON_RUNTIME_WARNING_ID));
         }
@@ -825,11 +704,17 @@ impl Node for JoyConModule {
         if (self.motion_data_mode.is_bound() && self.motion_data_mode.id() == param)
             || (self.stick_dead_zone.is_bound() && self.stick_dead_zone.id() == param)
         {
+            self.guard_settings(ctx);
             self.apply_runtime_state(
                 ctx,
-                self.pending_state.clone().unwrap_or_else(|| self.last_state.clone()),
+                self.pending_state
+                    .as_ref()
+                    .and_then(|value| value.state())
+                    .cloned()
+                    .unwrap_or_else(|| self.last_state.clone()),
             );
         }
+        self.configure_projection(ctx);
         if self.processing_fps_cap.is_bound() && self.processing_fps_cap.id() == param {
             self.processing_elapsed = processing_interval_from_fps_cap(self.processing_fps_cap.get());
         }
@@ -852,6 +737,7 @@ impl Node for JoyConModule {
             self.incoming_log_elapsed = JOYCON_INCOMING_LOG_INTERVAL;
             self.runtime_contact_elapsed = Duration::ZERO;
             self.clear_runtime_warning(ctx);
+            self.clear_input_pressure(ctx);
             self.apply_runtime_state(ctx, JoyConRuntimeState::disconnected());
             self.set_bool_handle(ctx, JoyConBoolParam::Activity, false);
         }

@@ -3,6 +3,7 @@ use std::time::Duration;
 mod capture;
 mod engine;
 mod ownership;
+mod qualification;
 
 use super::{
     low_pass_vec2, low_pass_vec3, manager_scan_interval_for_connected_slots, report_is_stale, should_attempt_attach,

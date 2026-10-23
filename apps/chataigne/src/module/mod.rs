@@ -132,6 +132,9 @@ impl ModuleBase {
     pub fn set_connected(&mut self, ctx: &mut ProcessCtx, connected: bool) {
         self.connected.set(ctx, connected);
     }
+    pub(crate) fn connection_status_parameter(&self) -> Option<NodeId> {
+        self.connected.is_bound().then(|| self.connected.id())
+    }
 
     pub(crate) fn configure_command_tester(
         &mut self,

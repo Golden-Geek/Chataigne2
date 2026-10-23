@@ -18,7 +18,9 @@ use std::{
 
 mod input;
 mod native;
+mod publication;
 mod receipts;
+pub(super) use publication::Settings;
 #[cfg(test)]
 mod tests;
 pub(super) use input::{Input, Source};
@@ -146,6 +148,17 @@ pub(crate) enum JoyConWorkerCommand {
 pub(super) struct Publication {
     pub(super) event: JoyConWorkerEvent,
     pub(super) guards: Vec<RevisionGuard>,
+    pub(super) rows: Option<[Arc<publication::Side>; 2]>,
+    pub(super) settings: Option<Settings>,
+}
+impl Publication {
+    pub(super) fn state(&self) -> Option<&JoyConRuntimeState> {
+        if let JoyConWorkerEvent::State(state) = &self.event {
+            Some(state)
+        } else {
+            None
+        }
+    }
 }
 
 fn lifetimes() -> &'static RetirementPool {
@@ -197,10 +210,17 @@ impl<P: Provider> Provider for Exclusive<P> {
         self.provider.idle_interval()
     }
 }
+#[derive(Clone, Copy)]
+struct ProjectionControl {
+    settings: Settings,
+    version: u64,
+}
 struct Shared {
     running: AtomicBool,
     pressure: AtomicBool,
     notifier: WorkerNotifier,
+    projection: Mutex<ProjectionControl>,
+    projection_revision: RevisionReader,
     native: RevisionReader,
     session: RevisionReader,
 }
@@ -230,6 +250,7 @@ pub(crate) struct JoyConRuntimeHandle {
     actor: Option<RevisionSource>,
     shared: Arc<Shared>,
     commands: PayloadPool,
+    projection: Option<RevisionSource>,
     #[cfg(test)]
     admission: RetirementPool,
 }
@@ -252,6 +273,17 @@ impl JoyConRuntimeHandle {
         events: PayloadPool,
         open: impl FnOnce() -> Result<P, String> + Send + 'static,
     ) -> Result<Self, String> {
+        Self::spawn_prepared(notifier, slots, commands, events, None, open)
+    }
+    fn spawn_prepared<P: Provider>(
+        notifier: WorkerNotifier,
+        slots: &RetirementPool,
+        commands: PayloadPool,
+        events: PayloadPool,
+        callbacks: Option<crate::app::module::script_api::NativeCallbackPreparer>,
+        open: impl FnOnce() -> Result<P, String> + Send + 'static,
+    ) -> Result<Self, String> {
+        let projection = RevisionSource::default();
         let actor = RevisionSource::default();
         let actor_guard = actor.reader().guard_at(0);
         let native = RevisionSource::default();
@@ -261,6 +293,11 @@ impl JoyConRuntimeHandle {
             running: AtomicBool::new(true),
             pressure: AtomicBool::new(false),
             notifier: notifier.clone(),
+            projection: Mutex::new(ProjectionControl {
+                settings: Settings::default(),
+                version: 0,
+            }),
+            projection_revision: projection.reader(),
             native: native.reader(),
             session: session.reader(),
         });
@@ -302,6 +339,7 @@ impl JoyConRuntimeHandle {
                     },
                     events,
                     guards,
+                    callbacks,
                 );
             },
         )
@@ -311,6 +349,7 @@ impl JoyConRuntimeHandle {
             actor: Some(actor),
             shared,
             commands,
+            projection: Some(projection),
             #[cfg(test)]
             admission: RetirementPool::new(NonZeroUsize::new(64).unwrap()),
         })
@@ -418,8 +457,21 @@ impl JoyConRuntimeHandle {
     pub(super) fn has_pending(&self) -> bool {
         self.worker.as_ref().is_some_and(BoundedWorker::has_pending)
     }
+    pub(super) fn configure(&self, settings: Settings) -> Result<(), String> {
+        if !settings.dead_zone.is_finite() || !(0.0..=1.0).contains(&settings.dead_zone) {
+            return Err("Joy-Con dead zone must be finite within 0..1".into());
+        }
+        let source = self.projection.as_ref().ok_or("Joy-Con runtime is stopped")?;
+        let mut control = self.shared.projection.lock().unwrap_or_else(|error| error.into_inner());
+        if control.settings != settings {
+            control.settings = settings;
+            control.version = source.advance();
+        }
+        Ok(())
+    }
     pub(crate) fn stop(&mut self) {
         self.actor.take();
+        self.projection.take();
         self.worker.take();
     }
 }
@@ -428,15 +480,43 @@ impl Drop for JoyConRuntimeHandle {
         self.stop();
     }
 }
-fn run<P: Provider>(mut owned: Owned<P>, events: PayloadPool, guards: [RevisionGuard; 2]) {
+fn run<P: Provider>(
+    mut owned: Owned<P>,
+    events: PayloadPool,
+    guards: [RevisionGuard; 2],
+    mut callbacks: Option<crate::app::module::script_api::NativeCallbackPreparer>,
+) {
     let ctx = &owned.context;
     let mut waiting = None;
-    let mut pending = std::collections::VecDeque::with_capacity(8);
-    let mut prepared = None;
+    let mut pending = std::collections::VecDeque::<(JoyConWorkerEvent, RevisionGuard)>::with_capacity(8);
+    let mut drafting: Option<publication::Pending> = None;
+    let mut prepared: Option<RetainedPayload<Publication>> = None;
+    let mut cache = [None, None];
+    let mut latest: Option<(Box<JoyConRuntimeState>, RevisionGuard)> = None;
+    let mut version = 0;
     let mut connected = [false; 2];
     while !ctx.cancellation().is_cancelled() {
-        // Input pressure must not delay native rumble stop deadlines or admitted command outcomes.
         owned.provider.maintain();
+        let control = *owned
+            ._stopped
+            .shared
+            .projection
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        if control.version != version {
+            version = control.version;
+            if drafting.as_ref().is_some_and(publication::Pending::is_state) {
+                drafting = None;
+            }
+            if prepared.as_ref().is_some_and(|value| value.settings.is_some()) {
+                prepared = None;
+            }
+            pending.retain(|(event, _)| !matches!(event, JoyConWorkerEvent::State(_)));
+            cache = [None, None];
+            if let Some((state, session)) = latest.as_ref().filter(|(_, session)| session.is_current()) {
+                pending.push_back((JoyConWorkerEvent::State(state.clone()), session.clone()));
+            }
+        }
         let mut commands = Vec::with_capacity(COMMAND_TURN);
         if let Some(command) = waiting.take() {
             commands.push(command);
@@ -467,14 +547,20 @@ fn run<P: Provider>(mut owned: Owned<P>, events: PayloadPool, guards: [RevisionG
         if drain.state == PendingDrainState::Disconnected || ctx.cancellation().is_cancelled() {
             break;
         }
-        if pending.is_empty() && prepared.is_none() {
+        if pending.is_empty() && prepared.is_none() && drafting.is_none() {
             let input = owned.provider.poll();
-            if input.len() > 8 {
+            if input.len() > 8
+                || input
+                    .iter()
+                    .filter(|event| matches!(event, JoyConWorkerEvent::State(_)))
+                    .count()
+                    > 1
+            {
                 publish(
                     ctx,
                     &events,
                     &guards,
-                    JoyConWorkerEvent::Error("Joy-Con provider event turn exceeds eight records".into()),
+                    JoyConWorkerEvent::Error("Joy-Con provider turn exceeds eight records / one state".into()),
                 );
                 break;
             }
@@ -487,36 +573,68 @@ fn run<P: Provider>(mut owned: Owned<P>, events: PayloadPool, guards: [RevisionG
                     }
                 }
             }
-            pending.extend(input);
+            let session = owned
+                ._stopped
+                .shared
+                .session
+                .guard_at(owned._stopped.shared.session.current());
+            for event in input {
+                let event = publication::normalize(event);
+                if let JoyConWorkerEvent::State(state) = &event {
+                    latest = Some((state.clone(), session.clone()));
+                }
+                pending.push_back((event, session.clone()));
+            }
         }
-        loop {
-            if prepared.is_none() {
-                let Some(event) = pending.pop_front() else {
-                    break;
-                };
-                match try_prepare(&events, &guards, event) {
-                    Ok(event) => prepared = Some(event),
-                    Err(event) => {
-                        pending.push_front(event);
-                        break;
+        let mut blocked = false;
+        if prepared.is_none() {
+            if drafting.is_none() {
+                if let Some((event, session)) = pending.pop_front() {
+                    let mut scope = guards.to_vec();
+                    scope.push(session.clone());
+                    match publication::Pending::begin(
+                        event,
+                        &scope,
+                        &control,
+                        &events,
+                        &mut cache,
+                        &owned._stopped.shared.projection_revision,
+                    ) {
+                        Ok(value) => drafting = Some(value),
+                        Err(event) => {
+                            pending.push_front((event, session));
+                            blocked = true;
+                        }
                     }
                 }
             }
-            match ctx.try_publish_weighted(prepared.take().unwrap(), EVENT_WEIGHT) {
-                Ok(()) => {}
-                Err(golden_io::PendingSendError::Full(event)) => {
-                    prepared = Some(event);
-                    break;
+            if let Some(draft) = &drafting {
+                if draft.is_state() && callbacks.is_none() {
+                    callbacks = crate::app::module::script_api::NativeCallbackPreparer::new().ok();
                 }
+                if let Some(rows) = draft.try_finish(callbacks.as_ref()) {
+                    if let Some(rows) = &rows {
+                        cache = [Some(rows[0].clone()), Some(rows[1].clone())];
+                    }
+                    prepared = Some(drafting.take().unwrap().finish(rows));
+                }
+            }
+        }
+        if let Some(event) = prepared.take() {
+            match ctx.try_publish_weighted(event, EVENT_WEIGHT) {
+                Ok(()) => {}
+                Err(golden_io::PendingSendError::Full(event)) => prepared = Some(event),
                 Err(golden_io::PendingSendError::Disconnected(_)) => return,
             }
         }
-        let pressure = !pending.is_empty() || prepared.is_some();
+        let pressure = blocked || prepared.is_some() || drafting.is_some();
         if owned._stopped.shared.pressure.swap(pressure, Ordering::AcqRel) != pressure {
             owned._stopped.shared.notifier.notify();
         }
         let idle = if pressure {
             Duration::from_millis(10)
+        } else if !pending.is_empty() {
+            Duration::ZERO
         } else {
             owned.provider.idle_interval()
         };
@@ -534,28 +652,13 @@ fn try_prepare(
     guards: &[RevisionGuard],
     event: JoyConWorkerEvent,
 ) -> Result<RetainedPayload<Publication>, JoyConWorkerEvent> {
-    let event = match event {
-        JoyConWorkerEvent::Error(message) => JoyConWorkerEvent::Error(bounded_text(message)),
-        JoyConWorkerEvent::State(state)
-            if [
-                state.left.left_buttons.len(),
-                state.left.right_buttons.len(),
-                state.left.shared_buttons.len(),
-                state.right.left_buttons.len(),
-                state.right.right_buttons.len(),
-                state.right.shared_buttons.len(),
-            ]
-            .iter()
-            .any(|len| *len > 16) =>
-        {
-            JoyConWorkerEvent::Error("Joy-Con report exceeds the fixed button vocabulary".into())
-        }
-        other => other,
-    };
+    let event = publication::normalize(event);
     pool.try_retain(
         Publication {
             event,
             guards: guards.to_vec(),
+            rows: None,
+            settings: None,
         },
         EVENT_WEIGHT,
     )

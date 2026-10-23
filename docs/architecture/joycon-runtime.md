@@ -51,8 +51,9 @@ its module also cancels its unstarted work. Completed effects retain their resul
 
 The input mailbox admits 32 records / 256 KiB. Each publication charges 8 KiB; global input
 storage admits 128 lifetimes / 1 MiB, retained through queued edit disposal. A native poll
-returns at most eight bounded records, with at most sixteen buttons in each of the six button
-lists and 1024-byte diagnostics. Pending input prevents further native reads, while command
+returns at most eight bounded records, including at most one state frame, with at most sixteen
+buttons in each of the six button lists, finite numeric samples and 1024-byte diagnostics.
+Pending input prevents further native reads, while command
 handling and rumble-stop maintenance continue. This prevents a stalled consumer from extending
 a rumble simply because input publication is full. Pressure transitions notify a warning.
 Failed rumble-stop writes keep a 250 ms retry deadline for that controller; other controllers
@@ -65,10 +66,35 @@ payload through queued application/rejection; completed effects use the current 
 Startup failure diagnostics retain the actor guard after native termination, so the cause can
 still be published while a live runtime handle observes the failed start.
 
-## Remaining qualification
+## Callback preparation and projection
 
-The [execution ledger](../progress/implementation-status.md) owns C08 acceptance. Native-prepared
-callbacks and callback-capacity recovery, complete queued target/path guards, and engine-level
-package pressure/reconfiguration/recovery
-qualification remain open. These runtime bounds do not qualify the SDK's transient discovery
+The native worker prepares immutable callback candidates for the fixed two-controller vocabulary:
+connection, eleven changed/edge button pairs, stick and optional motion per side. A draft admits
+at most 50 candidates / 8 MiB. Unchanged per-side candidates are cached; changed rows release their
+old cache before replacement admission. JSON construction, transformation and retained-byte
+measurement happen on the worker. The actor compares the previous applied raw state and binds
+only matching candidates. Preparing candidates rather than worker-selected transitions preserves
+analog coalescing and cross-controller changes under the authored processing cap.
+
+Candidates use the app's canonical native callback pool (16384 items / 256 MiB). Golden IO's
+domain-neutral atomic Arc-batch admission registers all fresh allocations or none, so pressure
+cannot strand a partially admitted frame. Ordinary event Arc copies keep this quota after the
+input envelope is disposed. Callback pressure pauses input preparation while command service,
+rumble-stop maintenance and cancellation remain available. The original input reservation also
+follows analog state held for its processing deadline, through queued application or rejection.
+
+Dead-zone and motion settings have a separate publication revision. A change cancels old drafts
+and re-prepares the latest current-session raw frame; it does not open another native lifetime or
+replay commands. Actor service additionally fences authored settings before any queued writes.
+Every projection guards its fixed bound targets and their named ancestor paths, without scanning
+the project. Node identity/structure guards are split into the public 32-read chunks, all checked
+before values or callbacks. Native, session and configuration guards reject retired publications;
+scalar value and warning changes do not masquerade as structural changes.
+
+## Qualification boundary
+
+The [execution ledger](../progress/implementation-status.md) records C08 local closure after 71
+owning passes, including callback-capacity recovery, queued target/path/settings rejection,
+continuous input, eight reconfigurations and recovery before blocked cleanup. Tests use controlled
+providers and never open native endpoints. These runtime bounds do not qualify the SDK's transient discovery
 allocation, physical devices, cross-platform behavior or full-product scale.

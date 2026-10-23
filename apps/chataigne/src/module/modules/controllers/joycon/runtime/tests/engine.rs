@@ -15,6 +15,9 @@ pub(super) struct Control {
     pub(super) actions: Arc<Mutex<Vec<JoyConWorkerCommand>>>,
     pub(super) gate: Arc<Mutex<Option<std::sync::mpsc::Receiver<()>>>>,
     pub(super) cleanup: Arc<Mutex<Option<std::sync::mpsc::Receiver<()>>>>,
+    pub(super) polls: Arc<std::sync::atomic::AtomicUsize>,
+    pub(super) maintenance: Arc<std::sync::atomic::AtomicUsize>,
+    pub(super) panic_poll: Arc<AtomicBool>,
 }
 struct Fake(Control);
 impl Provider for Fake {
@@ -27,7 +30,15 @@ impl Provider for Fake {
         Ok("sent".into())
     }
     fn poll(&mut self) -> Vec<JoyConWorkerEvent> {
+        self.0.polls.fetch_add(1, Ordering::AcqRel);
+        assert!(
+            !self.0.panic_poll.swap(false, Ordering::AcqRel),
+            "controlled Joy-Con failure"
+        );
         self.0.input.lock().unwrap().pop_front().into_iter().collect()
+    }
+    fn maintain(&mut self) {
+        self.0.maintenance.fetch_add(1, Ordering::AcqRel);
     }
 }
 impl Drop for Fake {
@@ -67,6 +78,22 @@ pub(super) fn create_controlled(
     RetirementPool,
     Arc<Mutex<VecDeque<JoyConWorkerEvent>>>,
 ) {
+    create_prepared(
+        control,
+        None,
+        PayloadPool::new("joycon-engine-input", 64, 64 * EVENT_WEIGHT).unwrap(),
+    )
+}
+pub(super) fn create_prepared(
+    control: Control,
+    callbacks: Option<crate::app::module::script_api::NativeCallbackPreparer>,
+    events: PayloadPool,
+) -> (
+    AppEngine,
+    NodeId,
+    RetirementPool,
+    Arc<Mutex<VecDeque<JoyConWorkerEvent>>>,
+) {
     let mut engine = AppEngine::new(Folder::new("root").into());
     engine.add_node(JoyConModule::create().into(), None);
     for _ in 0..8 {
@@ -76,24 +103,33 @@ pub(super) fn create_controlled(
     let id = engine.nodes.get(engine.root).unwrap().node_data().first_child.unwrap();
     let slots = RetirementPool::new(NonZeroUsize::MIN);
     let input = control.input.clone();
+    install(&mut engine, id, control, &slots, callbacks, events);
+    (engine, id, slots, input)
+}
+pub(super) fn install(
+    engine: &mut AppEngine,
+    id: NodeId,
+    control: Control,
+    slots: &RetirementPool,
+    callbacks: Option<crate::app::module::script_api::NativeCallbackPreparer>,
+    events: PayloadPool,
+) {
     let provider = Fake(control);
-    let wake = module(&mut engine, id).service.wake.as_ref().unwrap().notifier.clone();
-    let permit = module(&mut engine, id).service.owner.try_reserve().unwrap();
+    let wake = module(engine, id).service.wake.as_ref().unwrap().notifier.clone();
+    let permit = module(engine, id).service.owner.try_reserve().unwrap();
     let commands = PayloadPool::new("joycon-engine-output", 128, 128 * 64 * 1024).unwrap();
-    let events = PayloadPool::new("joycon-engine-input", 64, 64 * EVENT_WEIGHT).unwrap();
-    let handle = JoyConRuntimeHandle::spawn_using(wake, &slots, commands, events, move || {
+    let handle = JoyConRuntimeHandle::spawn_prepared(wake, slots, commands, events, callbacks, move || {
         Ok(Exclusive {
             provider,
             _permit: permit,
         })
     })
     .unwrap();
-    let module = module(&mut engine, id);
+    let module = module(engine, id);
     module.runtime = Some(Box::new(handle));
     module.runtime_dirty = false;
     module.service.retry_at = None;
     module.request_service();
-    (engine, id, slots, input)
 }
 pub(super) fn context(engine: &AppEngine) -> ProcessCtx {
     let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);
@@ -105,11 +141,17 @@ pub(super) fn flush(engine: &mut AppEngine, ctx: &mut ProcessCtx) {
     engine.apply_edits().unwrap();
 }
 pub(super) fn service(engine: &mut AppEngine, id: NodeId) {
+    sync_handles(engine, id);
     let mut ctx = context(engine);
     module(engine, id).service_io(&mut ctx);
     flush(engine, &mut ctx);
 }
-fn state(pressed: bool, x: f64) -> JoyConWorkerEvent {
+pub(super) fn sync_handles(engine: &mut AppEngine, id: NodeId) {
+    let snapshot = engine.process_tree_snapshot();
+    // Direct service fixtures must perform the same cache refresh as engine dispatch.
+    module(engine, id).engine_sync_bound_param_handles(&mut |node| snapshot.node(node)?.param_value.clone());
+}
+pub(super) fn state(pressed: bool, x: f64) -> JoyConWorkerEvent {
     let mut state = JoyConRuntimeState::disconnected();
     state.left.connected = true;
     state.left.stick_x = x;
@@ -129,7 +171,7 @@ pub(super) fn queued(engine: &mut AppEngine, id: NodeId) -> usize {
         .event_metrics()
         .depth
 }
-fn buttons(engine: &AppEngine) -> Vec<bool> {
+pub(super) fn buttons(engine: &AppEngine) -> Vec<bool> {
     engine
         .inbox
         .events
@@ -251,7 +293,14 @@ fn activity_after_long_idle_uses_its_own_deadline_and_processing_cap_does_not_ac
     service(&mut engine, id);
     assert_eq!(module(&mut engine, id).last_state.left.stick_x, 0.5);
     assert_eq!(
-        module(&mut engine, id).pending_state.as_ref().unwrap().left.stick_x,
+        module(&mut engine, id)
+            .pending_state
+            .as_ref()
+            .unwrap()
+            .state()
+            .unwrap()
+            .left
+            .stick_x,
         0.8
     );
     module(&mut engine, id).service.activity_until = Some(Instant::now() - Duration::from_millis(1));

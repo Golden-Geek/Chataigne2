@@ -87,6 +87,9 @@ impl<T: Send + Sync + 'static> SharedPayload<T> {
 /// Rejected admission retains the original prepared value for its producer.
 pub struct PayloadCapacityError<T>(T);
 
+/// Immutable allocations and their retained storage weights, in publication order.
+pub type PayloadBatch<T> = Vec<(Arc<T>, usize)>;
+
 impl PayloadPool {
     pub fn new(name: impl Into<String>, maximum_items: usize, maximum_bytes: usize) -> io::Result<Self> {
         assert!(maximum_items > 0 && maximum_bytes > 0);
@@ -184,6 +187,67 @@ impl PayloadPool {
             value: Some(value),
             shared: self.0.clone(),
         })
+    }
+
+    /// Atomically registers a set of canonical immutable allocations. Failure registers
+    /// none of the new allocations, so a producer never holds partial quota while
+    /// waiting for the rest of one publication. Duplicate Arcs share their largest
+    /// requested weight; existing registrations cannot increase their reservation.
+    pub fn try_retain_arcs<T: Send + Sync + 'static>(
+        &self,
+        values: PayloadBatch<T>,
+    ) -> Result<Vec<RetainedPayload<T>>, PayloadCapacityError<PayloadBatch<T>>> {
+        let mut distinct = std::collections::BTreeMap::new();
+        for (index, (value, weight)) in values.iter().enumerate() {
+            let pointer = Arc::as_ptr(value).cast::<()>() as usize;
+            let entry = distinct.entry(pointer).or_insert((index, *weight));
+            entry.1 = entry.1.max(*weight);
+        }
+        let mut state = self.0.state.lock().unwrap_or_else(|error| error.into_inner());
+        let mut fresh = Vec::new();
+        let mut bytes = 0usize;
+        for (pointer, (index, weight)) in distinct {
+            if let Some(entry) = state
+                .entries
+                .iter()
+                .find(|entry| Arc::as_ptr(&entry.value).cast::<()>() as usize == pointer)
+            {
+                if !entry.external || weight > entry.weight {
+                    return Err(PayloadCapacityError(values));
+                }
+            } else {
+                let Some(total) = bytes.checked_add(weight) else {
+                    return Err(PayloadCapacityError(values));
+                };
+                bytes = total;
+                fresh.push((index, weight));
+            }
+        }
+        if fresh.len() > self.0.maximum_items.saturating_sub(state.active)
+            || bytes > self.0.maximum_bytes.saturating_sub(state.retained_bytes)
+        {
+            return Err(PayloadCapacityError(values));
+        }
+        state.active += fresh.len();
+        state.external += fresh.len();
+        state.retained_bytes += bytes;
+        for (index, weight) in fresh {
+            state.entries.push(Entry {
+                value: values[index].0.clone(),
+                claim: claim::<T>,
+                weight,
+                external: true,
+            });
+        }
+        let retained = values
+            .into_iter()
+            .map(|(value, _)| RetainedPayload {
+                value: Some(value),
+                shared: self.0.clone(),
+            })
+            .collect();
+        self.0.changed.notify_all();
+        Ok(retained)
     }
 
     /// Intended for host shutdown and controlled tests, never a graph callback.
