@@ -7,50 +7,12 @@ use golden_core::{
     script::ScriptSource,
 };
 
-use super::{mouse_runtime::MouseInputEvent, MouseModule};
-use crate::app::module::common::mouse::MouseButtonKind;
+use super::MouseModule;
 mod service;
 
 #[test]
 fn mouse_events_update_values() {
-    let (mut engine, module_id) = create_mouse_module();
-
-    enqueue_event(
-        &mut engine,
-        module_id,
-        MouseInputEvent::Moved {
-            x: 240,
-            y: 135,
-            dx: 12,
-            dy: -4,
-        },
-    );
-    enqueue_event(
-        &mut engine,
-        module_id,
-        MouseInputEvent::ButtonChanged {
-            button: MouseButtonKind::Left,
-            pressed: true,
-        },
-    );
-
-    run_mouse_tick(&mut engine);
-
-    let Some(ParamValue::Vec2(x, y)) = param_value(&engine, module_id, "values/pointer/position") else {
-        panic!("mouse position value should exist");
-    };
-    assert!((x - 240.0).abs() < 0.000_001 && (y - 135.0).abs() < 0.000_001);
-
-    let Some(ParamValue::Vec2(dx, dy)) = param_value(&engine, module_id, "values/pointer/delta") else {
-        panic!("mouse delta value should exist");
-    };
-    assert!((dx - 12.0).abs() < 0.000_001 && (dy + 4.0).abs() < 0.000_001);
-
-    assert_eq!(
-        bool_param_value(&engine, module_id, "values/buttons/left"),
-        Some(true),
-        "left button state should update from incoming mouse events"
-    );
+    super::input::tests::assert_events_update_values();
 }
 
 #[test]
@@ -208,14 +170,6 @@ fn create_mouse_module() -> (crate::app::AppEngine, NodeId) {
     (engine, module_id)
 }
 
-fn enqueue_event(engine: &mut crate::app::AppEngine, module_id: NodeId, event: MouseInputEvent) {
-    let crate::app::AppNode::MouseModule(module) = engine.nodes.get_mut(module_id).expect("mouse module should exist")
-    else {
-        panic!("expected MouseModule node");
-    };
-    module.enqueue_input_event_for_test(event);
-}
-
 fn run_mouse_tick(engine: &mut crate::app::AppEngine) {
     engine
         .dispatch_inbox(ExecutionPhase::EngineTick)
@@ -226,7 +180,7 @@ fn run_mouse_tick(engine: &mut crate::app::AppEngine) {
     engine.apply_edits().expect("mouse tick edits should apply");
 }
 
-fn find_path(engine: &crate::app::AppEngine, start: NodeId, path: &str) -> Option<NodeId> {
+pub(super) fn find_path(engine: &crate::app::AppEngine, start: NodeId, path: &str) -> Option<NodeId> {
     let mut current = start;
     for segment in path.split('/') {
         if segment.trim().is_empty() {

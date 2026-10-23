@@ -5,14 +5,13 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-23 on `main`, continuing after delivered `b02a1f94`, matching
-`origin/main` at milestone start. **C01-C08 remain locally closed. Four packages remain
-(C09-C12); C09 Mouse is current. Keyboard is locally qualified.** Mouse native input/output
-ownership and canonical command/script capture are verified. Mouse and Keyboard share one
-app-owned output ordering coordinator. Finish Mouse prepared input publication, retained quotas
-and queued guards, then combined qualification. No package closes in this milestone: P03 remains
-~95% scope coverage and whole-plan coverage remains ~16%. Hardware/platform and product-scale
-qualification retain their later plan owners.
+Last reconciled: 2026-10-23 on `main`, continuing after delivered `7e647d66`, matching
+`origin/main` at milestone start. **C01-C09 are locally closed: 9/12 packages (75%). Three
+packages remain (C10-C12), covering five module families.** Mouse prepared input publication,
+lifetime quotas, queued guards and combined service qualification are complete locally. Continue
+C10 Ultraleap. P03 scope coverage is approximately 96%; whole-plan scope coverage remains
+approximately 16%. These scope scores do not forecast remaining effort. Hardware/platform and
+product-scale qualification retain their later plan owners.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
 plan. Its complete contents, including the uncommitted clarification, survive in the
@@ -20,15 +19,16 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 
 ## Completion overview
 
-**P03 remaining-module audit: 8/12 packages closed (67%); 4 remain (C09-C12).** Keyboard is locally qualified; Mouse is the remaining C09 family, with native input/output ownership and canonical capture verified. Six implemented families still need local qualification. These are fixed acceptance packages, not promised commit counts.
-The ~95% scope score below is not a forecast of remaining effort. Report package closures first;
-there is no qualified estimate of the number of implementation batches still needed.
+**P03 closure packages: 9/12 closed (75%); 3 remain (C10-C12).** C09 Keyboard/Mouse is locally
+qualified. Remaining families: Ultraleap, Gamepad, Kinect2, Stream Deck and Spatializer. These are
+fixed acceptance packages, not promised commit counts. The ~96% scope score below is not a
+forecast of remaining effort; there is no qualified remaining-batch estimate.
 
 **Whole plan: approximately 16% complete.** P01 and P02 are complete against their local
-acceptance criteria; P03 is approximately 95%; P04-P18 have not started. P00 baseline reconciliation
+acceptance criteria; P03 is approximately 96%; P04-P18 have not started. P00 baseline reconciliation
 is complete and maintained separately. **2 of 18 implementation/qualification tasks are complete (11%).**
 
-Overall progress is the equal-weight average of P01–P18: `(100 + 100 + (600 + 700/11)/7 + 15 * 0) / 18`,
+Overall progress is the equal-weight average of P01–P18: `(100 + 100 + (600 + 800/11)/7 + 15 * 0) / 18`,
 rounded to a whole percent. This measures scope coverage, not elapsed time, remaining effort, or
 product readiness. Task sizes differ substantially. P00 housekeeping and preserved pre-plan
 features do not inflate this percentage. Later product, platform and device acceptance remains open.
@@ -41,22 +41,22 @@ record delivery history and are never the progress denominator.
 
 ### P03 completion checkpoints
 
-P03's approximately **95%** is a scope score across seven equally weighted workstreams.
+P03's approximately **96%** is a scope score across seven equally weighted workstreams.
 Six workstreams, including locally qualified Sound Card C01, score 100. The remaining-module audit
-uses verified closure coverage across C02-C12: **7 of 11 closed**, or approximately 64%.
-**This average is not a remaining-effort forecast:** six module families still need local
-qualification under the four open packages. Report package closures before the percentage.
-The score is `(100 + 100 + 100 + 100 + 100 + 700/11 + 100) / 7`.
+uses verified closure coverage across C02-C12: **8 of 11 closed**, or approximately 73%.
+**This average is not a remaining-effort forecast:** five module families still need local
+qualification under the three open packages. Report package closures before the percentage.
+The score is `(100 + 100 + 100 + 100 + 100 + 800/11 + 100) / 7`.
 
-| Workstream                                    | Scope score  | Delivered / remaining acceptance                                                                                                                                                                                               |
-| --------------------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Shared IO and engine service/lifecycle bounds | 100%         | Bounded primitives, external-edit service, lifecycle expansion, completion and failure ownership delivered.                                                                                                                    |
-| Six native stream adapters                    | 100%         | UDP, TCP Client/Server, WebSocket Client/Server and Serial ownership/admission/passive service delivered; preserve their regression suites.                                                                                    |
-| HTTP                                          | 100%         | Native lifecycle, admission, response bounds, passive service, worker request conversion and retained input disposal verified.                                                                                                 |
-| Generic script/event/property ingress         | 100%         | Method/property/event/log admission, rejected-input disposal, routing lifetime and shared-budget recovery verified.                                                                                                            |
-| Sound Card lifecycle/service                  | 100% locally | C01 closed: command/route/derived/feedback/source-lifetime gates preserved; queued projection path and publication-lifetime guards verified; capped native constraint publication qualified.                                   |
-| Remaining app module/channel audit            | ~64% (7/11)  | C02 Signals/Metronomes, C03 MIDI/OSC, C04 MQTT, C05 DMX, C06 App Control/OS, C07 Buttplug and C08 Joy-Con locally closed with bounded native/actor service, occurrence, retirement and recovery evidence. C09-C12 remain open. |
-| Generator elapsed-time accounting             | 100%         | Ordinary commands settle elapsed time; phase, due-prefix ordering, bounded catch-up, targeted reset and stop cancellation verified.                                                                                            |
+| Workstream                                    | Scope score  | Delivered / remaining acceptance                                                                                                                                                             |
+| --------------------------------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Shared IO and engine service/lifecycle bounds | 100%         | Bounded primitives, external-edit service, lifecycle expansion, completion and failure ownership delivered.                                                                                  |
+| Six native stream adapters                    | 100%         | UDP, TCP Client/Server, WebSocket Client/Server and Serial ownership/admission/passive service delivered; preserve their regression suites.                                                  |
+| HTTP                                          | 100%         | Native lifecycle, admission, response bounds, passive service, worker request conversion and retained input disposal verified.                                                               |
+| Generic script/event/property ingress         | 100%         | Method/property/event/log admission, rejected-input disposal, routing lifetime and shared-budget recovery verified.                                                                          |
+| Sound Card lifecycle/service                  | 100% locally | C01 closed: command/route/derived/feedback/source-lifetime gates preserved; queued projection path and publication-lifetime guards verified; capped native constraint publication qualified. |
+| Remaining app module/channel audit            | ~73% (8/11)  | C02-C09 are locally closed with bounded native/actor service, occurrence, retirement and recovery evidence. C10-C12 remain open.                                                             |
+| Generator elapsed-time accounting             | 100%         | Ordinary commands settle elapsed time; phase, due-prefix ordering, bounded catch-up, targeted reset and stop cancellation verified.                                                          |
 
 The generator elapsed-time checkpoint and Sound Card are locally verified. The remaining module
 channel/retirement/callback audit stays open; P03 closes only when all seven workstreams meet
@@ -66,8 +66,8 @@ acceptance. Hardware/platform and whole-product qualification keep their later p
 
 The user requested a remaining-batch forecast on 2026-10-20. There is no defensible commit count
 yet: the percentage does not measure remaining effort. The initial source audit covered
-**17 implemented module families plus Sound Card**. C01-C08 are now locally verified, leaving
-**six implemented families** to repair/qualify under C09-C12.
+**17 implemented module families plus Sound Card**. C01-C09 are now locally verified, leaving
+**five implemented families** to repair/qualify under C10-C12.
 The earlier directory inventory counted an empty, untracked Node Control placeholder as a module;
 there is no implementation to qualify or build for that placeholder. At the initial audit, nine families contained explicit
 unbounded channels: Buttplug, Joy-Con, Keyboard, Mouse, Ultraleap, Signals, Metronomes, MIDI and
@@ -79,32 +79,32 @@ Use these **12 fixed closure work packages** instead of an unbounded list of sup
 They cover the existing P03 acceptance scope; they are not 12 guaranteed commits. Each package
 closes only after its owning audit, required repairs and acceptance tests pass. A package may need
 several reviewable commits, and a review may establish that an existing implementation already
-passes. **Remaining closure packages: four open, eight closed (C01-C08).** This count does not discard prior P03
+passes. **Remaining closure packages: three open, nine closed (C01-C09).** This count does not discard prior P03
 work or replace the workstream percentages above.
 
-Latest count on 2026-10-23: **four packages remain, not four promised batches**. C08 Joy-Con
-has joined C01-C07 in local closure. Do not increase the denominator for supporting commits or move
+Latest count on 2026-10-23: **three packages remain, not three promised batches**. C09 Keyboard/Mouse
+has joined C01-C08 in local closure. Do not increase the denominator for supporting commits or move
 unrelated optimization into P03. Report closed acceptance items and remaining package criteria
 instead of accumulated batch numbers.
 
-| ID  | Status               | Scope                            | Required closure                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| --- | -------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| C01 | **CLOSED (100%)**    | Sound Card                       | Locally verified: bounded native/actor service and lifetime ownership; retained source, path and publication guards; matching application/rejection, isolated failure recovery and capped constraint publication. Hardware/platform and P04 audio ordering remain separate.                                                                                                                                                         |
-| C02 | **CLOSED (100%)**    | Signals and Metronomes           | Verified: bounded command/configuration bytes, 64-row publication turns, elapsed-time/occurrence preservation, nonblocking retirement and passive failure/recovery.                                                                                                                                                                                                                                                                 |
-| C03 | **CLOSED (100%)**    | MIDI and OSC                     | Locally verified: bounded native/input/output/catalog/feedback/structure ownership, passive service, explicit deadlines, retained occurrences, nonblocking cleanup and failure/recovery. Commands and scripts preserved; hardware/platform qualification remains separate.                                                                                                                                                          |
-| C04 | **CLOSED (100%)**    | MQTT                             | Locally verified: bounded native/configuration/input/output ownership, passive receipts, item/byte pressure, source/session churn, stopped-worker and blocked-cleanup recovery, preserved command/script/callback contracts and controlled actor service. Hardware/platform and product-scale qualification remain separate.                                                                                                        |
-| C05 | **CLOSED (100%)**    | DMX                              | Locally verified: native setup/cleanup and fixed lifetime slots; captured command/script/property preparation; bounded queues/payloads and actor turns; retained source/session fences, send/cancel outcomes, full mailbox/payload pressure, continuous input, eight reconfigurations and failure recovery before blocked cleanup. Stream correctness remains P07.                                                                  |
-| C06 | **CLOSED (100%)**    | App Control and OS               | Locally verified: 50 App Control and 23 OS owning passes; canonical command/script ordering, source retirement, 64-source and byte pressure, bounded catalog/report/callback publication, queued lifetime guards, disabled-backlog completion, repeated reconfiguration and failure/recovery. Native actions use controlled providers; hardware/platform and product-scale qualification remain separate.                           |
-| C07 | **CLOSED (100%)**    | Buttplug                         | Locally verified: 40 owning passes cover canonical command/script capture, native-prepared callbacks/catalogs, retained source/publication/domain quotas and queued guards, continuous input, mailbox/callback pressure, eight reconfigurations and failure/recovery before blocked cleanup. Protocol library, reconnect and selected-device identity preserved. Hardware/platform and product-scale qualification remain separate. |
-| C08 | **CLOSED (100%)**    | Joy-Con                          | Locally verified: 71 owning passes cover canonical capture, native-prepared callbacks and atomic quota recovery, retained source/input/callback lifetimes, queued target/path/settings guards, 512 ordered edges, eight reconfigurations and failure/recovery before blocked cleanup. Hardware/platform and product-scale qualification remain separate.                                                                            |
-| C09 | OPEN (Mouse pending) | Keyboard and Mouse               | Keyboard locally qualified; its 70 controller cases and three relocated shared ordering cases are preserved. Mouse input/output ownership and canonical capture verified with 61 owning cases. Complete prepared input callbacks/catalogs, retained publication quotas and queued source/target/settings guards, then combined pressure/recovery qualification.                                                                     |
-| C10 | OPEN                 | Ultraleap                        | Close event/payload/service bounds, worker retirement and service/device recovery.                                                                                                                                                                                                                                                                                                                                                  |
-| C11 | OPEN                 | Gamepad, Kinect2 and Stream Deck | Audit indirect/shared runtime paths as well as local code; repair and verify any P03 ownership/bounds/recovery gaps.                                                                                                                                                                                                                                                                                                                |
-| C12 | OPEN                 | Spatializer; Node Control absent | Bound Spatializer computation, graph mutation and callback fan-out; do not implement the empty Node Control placeholder.                                                                                                                                                                                                                                                                                                            |
+| ID  | Status            | Scope                            | Required closure                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| --- | ----------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| C01 | **CLOSED (100%)** | Sound Card                       | Locally verified: bounded native/actor service and lifetime ownership; retained source, path and publication guards; matching application/rejection, isolated failure recovery and capped constraint publication. Hardware/platform and P04 audio ordering remain separate.                                                                                                                                                         |
+| C02 | **CLOSED (100%)** | Signals and Metronomes           | Verified: bounded command/configuration bytes, 64-row publication turns, elapsed-time/occurrence preservation, nonblocking retirement and passive failure/recovery.                                                                                                                                                                                                                                                                 |
+| C03 | **CLOSED (100%)** | MIDI and OSC                     | Locally verified: bounded native/input/output/catalog/feedback/structure ownership, passive service, explicit deadlines, retained occurrences, nonblocking cleanup and failure/recovery. Commands and scripts preserved; hardware/platform qualification remains separate.                                                                                                                                                          |
+| C04 | **CLOSED (100%)** | MQTT                             | Locally verified: bounded native/configuration/input/output ownership, passive receipts, item/byte pressure, source/session churn, stopped-worker and blocked-cleanup recovery, preserved command/script/callback contracts and controlled actor service. Hardware/platform and product-scale qualification remain separate.                                                                                                        |
+| C05 | **CLOSED (100%)** | DMX                              | Locally verified: native setup/cleanup and fixed lifetime slots; captured command/script/property preparation; bounded queues/payloads and actor turns; retained source/session fences, send/cancel outcomes, full mailbox/payload pressure, continuous input, eight reconfigurations and failure recovery before blocked cleanup. Stream correctness remains P07.                                                                  |
+| C06 | **CLOSED (100%)** | App Control and OS               | Locally verified: 50 App Control and 23 OS owning passes; canonical command/script ordering, source retirement, 64-source and byte pressure, bounded catalog/report/callback publication, queued lifetime guards, disabled-backlog completion, repeated reconfiguration and failure/recovery. Native actions use controlled providers; hardware/platform and product-scale qualification remain separate.                           |
+| C07 | **CLOSED (100%)** | Buttplug                         | Locally verified: 40 owning passes cover canonical command/script capture, native-prepared callbacks/catalogs, retained source/publication/domain quotas and queued guards, continuous input, mailbox/callback pressure, eight reconfigurations and failure/recovery before blocked cleanup. Protocol library, reconnect and selected-device identity preserved. Hardware/platform and product-scale qualification remain separate. |
+| C08 | **CLOSED (100%)** | Joy-Con                          | Locally verified: 71 owning passes cover canonical capture, native-prepared callbacks and atomic quota recovery, retained source/input/callback lifetimes, queued target/path/settings guards, 512 ordered edges, eight reconfigurations and failure/recovery before blocked cleanup. Hardware/platform and product-scale qualification remain separate.                                                                            |
+| C09 | **CLOSED (100%)** | Keyboard and Mouse               | Locally verified: 71 Keyboard, 87 Mouse and three shared ordering cases cover canonical capture, worker-prepared callbacks/catalogs, retained quotas, queued source/target/settings guards, passive service, continuous input under output pressure, reconfiguration and failure/recovery. Physical/platform and product-scale qualification remain separate.                                                                       |
+| C10 | OPEN              | Ultraleap                        | Close event/payload/service bounds, worker retirement and service/device recovery.                                                                                                                                                                                                                                                                                                                                                  |
+| C11 | OPEN              | Gamepad, Kinect2 and Stream Deck | Audit indirect/shared runtime paths as well as local code; repair and verify any P03 ownership/bounds/recovery gaps.                                                                                                                                                                                                                                                                                                                |
+| C12 | OPEN              | Spatializer; Node Control absent | Bound Spatializer computation, graph mutation and callback fan-out; do not implement the empty Node Control placeholder.                                                                                                                                                                                                                                                                                                            |
 
 The [initial ownership/acceptance audit](p03-closure-audit.md) is now complete across C01-C12.
 It records confirmed source gaps, existing safeguards, missing qualification and finish tests.
-C01-C08 are locally closed. Keyboard is locally qualified; continue C09 Mouse;
+C01-C09 are locally closed. Continue C10 Ultraleap, then C11-C12;
 do not continue the generic snapshot-copy prerequisite chain. Existing shared IO, stream, HTTP and
 generator time suites remain preservation gates. Map discoveries into the fixed packages. General
 optimizations belong to P12/P16 unless evidence connects them to a concrete P03 resource, service,
@@ -116,21 +116,19 @@ or completion credit. Snapshot/DTO scaling remains an explicit P16 investigation
 
 ## Current handoff
 
-- **C01-C08 remain locally closed: 8/12 packages (67%). Four P03 packages remain (C09-C12).**
-  Keyboard is locally qualified. Mouse native input/output ownership, canonical command/script
-  capture, source/receipt bounds and passive service pass. Shared OS output ordering covers both
-  families. Continue Mouse worker-prepared input callbacks/catalogs, retained publication quotas
-  and queued source/target/settings guards, then combined qualification without desktop operation.
-- Current app evidence: **61 Mouse + 70 Keyboard + 71 Joy-Con + 40 Buttplug + 1075 disjoint
-  preservation = 1317 passes / six existing ignored / 1323 selected / 1596 listed**, with 273
-  outside these scopes. The three shared ordering cases relocated from Keyboard are included in
-  preservation, counted once. Owning scope is 61 Mouse + three shared cases = 64 passes.
-  Preservation passed with builds idle. Core engine and Golden IO are unchanged; prior Core
-  **600 passes / three ignored / 603 listed** at `dc5e5609` and IO 57-pass results remain dated.
-- Source inventory: **2067 files / 32 oversized**, using the same explicit inventory scope below.
-  Every touched source stays below 1000 lines. Commit/push each verified milestone on `main`;
-  keep the full P00-P18 goal active. P03 ~95% and whole-plan ~16% remain unchanged scope scores,
-  not remaining-effort forecasts. Native queue ownership alone does not close Mouse or C09.
+- **C01-C09 are locally closed: 9/12 packages (75%). Three P03 packages remain (C10-C12),
+  covering five families.** Continue C10 Ultraleap, then C11 Gamepad/Kinect2/Stream Deck and C12
+  Spatializer. Node Control is an empty placeholder and is outside implemented-module scope.
+- Current app evidence: **87 Mouse + 71 Keyboard + 71 Joy-Con + 40 Buttplug + 1075 disjoint
+  preservation = 1344 passes / six existing ignored / 1350 selected / 1623 listed**, with 273
+  outside these scopes. Three shared ordering cases are included once in preservation. The owning
+  gate passed 161 cases (87 Mouse / 71 Keyboard / three shared); the final artifact also passed
+  the other 111 controller cases and preservation with builds idle.
+- Core engine: **602 passes / three existing ignored / 605 listed**, including atomic choice/value
+  publication, history and rejection. Golden IO is unchanged; its prior 57-pass result remains dated.
+  Inventory: **2074 source files / 32 oversized**; all touched sources remain below 1000 lines.
+  P03 ~96% and whole-plan ~16% remain scope scores. Commit/push verified milestones on `main`;
+  keep the complete P00-P18 goal active.
 
 ## Task ledger
 
@@ -138,27 +136,27 @@ Implementation states: `NOT_STARTED`, `IN_PROGRESS`, `IMPLEMENTED`, `VERIFIED_LO
 Check outcomes: `PENDING`, `PASSED`, `FAILED`, `UNAVAILABLE`, `SKIPPED_WITH_REASON`.
 External qualification is separate from implementation. A historical pass is not a current pass.
 
-| Task                        | Completion | Implementation | Local validation                   | External qualification / evidence                                                                                                                                   |
-| --------------------------- | ---------- | -------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| P00 Baseline                | 100%       | VERIFIED_LOCAL | PASSED                             | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                                                          |
-| P01 Edit failures/history   | 100%       | VERIFIED_LOCAL | PASSED batches 1–8                 | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                                                           |
-| P02 Schedule/actor failures | 100%       | VERIFIED_LOCAL | PASSED batches 1-3                 | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                                                            |
-| P03 Bounded I/O/lifecycle   | ~95%       | IN_PROGRESS    | PASSED C01-C08; Keyboard qualified | Four packages remain (C09-C12). Keyboard locally qualified; Mouse native input/output verified; continue C09 prepared input publication and combined qualification. |
-| P04 Audio order/types       | 0%         | NOT_STARTED    | PENDING                            | Legal interleaving and invalid deserialization established from source                                                                                              |
-| P05 Transport trust         | 0%         | NOT_STARTED    | PENDING                            | Missing admission verified; exploit not demonstrated                                                                                                                |
-| P06 Dependencies            | 0%         | NOT_STARTED    | FAILED baseline                    | Four Rustls advisories on audit date; refresh DB before repair                                                                                                      |
-| P07 DMX streaming           | 0%         | NOT_STARTED    | PENDING                            | Refresh/filter/service gaps; protocol loopback qualification needed                                                                                                 |
-| P08 Formula backend intents | 0%         | NOT_STARTED    | PENDING                            | UI polling/identity and mutation policy verified; corruption not reproduced                                                                                         |
-| P09 Graph document          | 0%         | NOT_STARTED    | PENDING                            | Ordered-map mutation costs source-derived                                                                                                                           |
-| P10 Canvas                  | 0%         | NOT_STARTED    | PENDING                            | Projection diagnostic and crossing-edge reproduction; mounted performance open                                                                                      |
-| P11 Workspace UX            | 0%         | NOT_STARTED    | PENDING                            | Collection/keyboard gaps source-reviewed; native usability open                                                                                                     |
-| P12 Boundaries/gates        | 0%         | NOT_STARTED    | PENDING                            | App policy leak, omitted graph tests, oversized files, unsafe conversions; recurring incremental native-link artifact gap                                           |
-| P13 Formula execution       | 0%         | NOT_STARTED    | PENDING                            | Historical profiles retained; production parallelism not mandated                                                                                                   |
-| P14 Production time         | 0%         | NOT_STARTED    | PENDING                            | Clock helper unwired, no target-frame play, starvation/latency policy gaps                                                                                          |
-| P15 Assets                  | 0%         | NOT_STARTED    | PENDING                            | Audio path/cache identity exists; project asset boundary unimplemented                                                                                              |
-| P16 Product scale           | 0%         | NOT_STARTED    | PENDING                            | Snapshot/DTO scaling investigation retained from P03 audit; full-product 20k/50k/mounted canvas gates remain open                                                   |
-| P17 Platforms/artifacts     | 0%         | NOT_STARTED    | PENDING                            | Windows history retained; exact current app/native/platform checks required                                                                                         |
-| P18 Named devices           | 0%         | NOT_STARTED    | PENDING                            | Exact authorized ASIO4ALL/VB-Audio route must be verified first                                                                                                     |
+| Task                        | Completion | Implementation | Local validation   | External qualification / evidence                                                                                                |
+| --------------------------- | ---------- | -------------- | ------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| P00 Baseline                | 100%       | VERIFIED_LOCAL | PASSED             | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                       |
+| P01 Edit failures/history   | 100%       | VERIFIED_LOCAL | PASSED batches 1–8 | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                        |
+| P02 Schedule/actor failures | 100%       | VERIFIED_LOCAL | PASSED batches 1-3 | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                         |
+| P03 Bounded I/O/lifecycle   | ~96%       | IN_PROGRESS    | PASSED C01-C09     | Three packages remain (C10-C12), covering five families. Continue C10 Ultraleap ownership, bounds, passive service and recovery. |
+| P04 Audio order/types       | 0%         | NOT_STARTED    | PENDING            | Legal interleaving and invalid deserialization established from source                                                           |
+| P05 Transport trust         | 0%         | NOT_STARTED    | PENDING            | Missing admission verified; exploit not demonstrated                                                                             |
+| P06 Dependencies            | 0%         | NOT_STARTED    | FAILED baseline    | Four Rustls advisories on audit date; refresh DB before repair                                                                   |
+| P07 DMX streaming           | 0%         | NOT_STARTED    | PENDING            | Refresh/filter/service gaps; protocol loopback qualification needed                                                              |
+| P08 Formula backend intents | 0%         | NOT_STARTED    | PENDING            | UI polling/identity and mutation policy verified; corruption not reproduced                                                      |
+| P09 Graph document          | 0%         | NOT_STARTED    | PENDING            | Ordered-map mutation costs source-derived                                                                                        |
+| P10 Canvas                  | 0%         | NOT_STARTED    | PENDING            | Projection diagnostic and crossing-edge reproduction; mounted performance open                                                   |
+| P11 Workspace UX            | 0%         | NOT_STARTED    | PENDING            | Collection/keyboard gaps source-reviewed; native usability open                                                                  |
+| P12 Boundaries/gates        | 0%         | NOT_STARTED    | PENDING            | App policy leak, omitted graph tests, oversized files, unsafe conversions; recurring incremental native-link artifact gap        |
+| P13 Formula execution       | 0%         | NOT_STARTED    | PENDING            | Historical profiles retained; production parallelism not mandated                                                                |
+| P14 Production time         | 0%         | NOT_STARTED    | PENDING            | Clock helper unwired, no target-frame play, starvation/latency policy gaps                                                       |
+| P15 Assets                  | 0%         | NOT_STARTED    | PENDING            | Audio path/cache identity exists; project asset boundary unimplemented                                                           |
+| P16 Product scale           | 0%         | NOT_STARTED    | PENDING            | Snapshot/DTO scaling investigation retained from P03 audit; full-product 20k/50k/mounted canvas gates remain open                |
+| P17 Platforms/artifacts     | 0%         | NOT_STARTED    | PENDING            | Windows history retained; exact current app/native/platform checks required                                                      |
+| P18 Named devices           | 0%         | NOT_STARTED    | PENDING            | Exact authorized ASIO4ALL/VB-Audio route must be verified first                                                                  |
 
 For each implementation batch append a compact row under “New implementation evidence” with
 task, source/tree, changed ownership, invariant, exact commands, environment/features, outcome,
@@ -7426,3 +7424,75 @@ Final SHA-256:
   `f73cd31c0f75ad801be0bca81de9246c06e7a403ba6c8955ebeae161b45f981a`.
 - Native `target/debug/Chataigne2.exe`:
   `70c47d67c54cb637502206093756ec1755cdc1ee4635e66984eb723bf423ba16`.
+
+## C09 Mouse prepared input and local closure
+
+Implemented 2026-10-23 after `7e647d66`, continuing its unfinished prepared-input work on `main`.
+**C01-C09 are locally closed: nine of twelve packages (75%). Three remain (C10-C12), covering
+five families.** Continue Ultraleap. P03 scope coverage advances to approximately 96%; whole-plan
+coverage remains approximately 16%. These are scope scores, not remaining-effort forecasts.
+
+The Mouse IO owner now prepares device matching, immutable pointer/button state, callback JSON,
+messages and shared choice domains. Motion admits two callback candidates; button edges admit four
+atomically, covering both observed output-readiness states. Callback, domain and catalog metadata
+quotas follow original shared storage through queued edits, history, exported Arcs and disposal.
+Pressure pauses provider polling and retries the same staged occurrence. A worker-owned value-only
+delta reset removes the actor's short timer. See [Mouse ownership](../architecture/mouse-runtime.md)
+for the exact pool, mailbox, frame and native limits.
+
+Actor/native/configuration guards fence each publication; authored settings and leaf/ancestor
+guards precede the complete bounded turn. Queued work retains its original source through
+application, rejection or disposal. Missing snapshots preserve pending rows. Input and output
+prefixes precede independently fenced final readiness. Healthy combined service has no recurring
+actor callbacks, snapshots or wakes; stopped owners recover with bounded absolute backoff.
+
+Selection changes without capture advance a revision without reopening the native endpoint.
+Capture-mode and captured-device changes retire mismatched owners. Notifications and worker service
+share configuration reconciliation, preserving matching owners and values already received from
+them. Notification guard preludes precede owned warning edits, so missing-device feedback cannot
+invalidate its own settings reads. These repairs also preserve Keyboard notification behavior.
+
+The public `Edit::SetParamEnumOptions` gains an optional atomic `selected_value`. UUID/current-value
+guards still skip stale results; disjoint old/new domains and normalized selections validate and
+apply together, preserving identity, metadata, events and reversible history. Failed validation
+preserves both fields. Keyboard and Mouse use this for their existing narrow persisted-ID
+normalization; other callers retain choice-only behavior. No dependency, wire DTO, project codec,
+UI policy or app-shell startup change. See [application contracts](../architecture/application-contracts.md).
+
+Final Windows/default-feature gates use `CARGO_INCREMENTAL=0`:
+
+- Strict workspace/all-target Clippy passed in 41.87s; workspace/test compilation passed in 35.22s.
+- Core: `cargo test --locked -p golden_engine --lib -- --test-threads=1` passed **602 / zero failed /
+  three existing ignored / 605 listed**, in 1.09s after a 7m40s build. New atomic-domain/history and
+  invalid-update cases pass; stale publication also skips an invalid proposed selection.
+- App owning gate: `cargo test --locked -p Chataigne2 --bin Chataigne2 -- --test-threads=1 app::module_modules_controllers_mouse app::module::common::desktop_output app::module_modules_controllers_keyboard`
+  passed **161** in 14.00s after a 5m01s build: **87 Mouse / 71 Keyboard / three shared**. New Mouse
+  coverage includes callback/domain pressure and exported lifetimes, 512 ordered edges, eight
+  selector revisions, passive recovery, blocked cleanup, queued rename/reparent/settings/retirement,
+  retained rejected-source disposal, missing-device and persisted-ID publication, fresh values
+  across delayed notifications, and combined input/output pressure and independent prefixes.
+- Native `cargo build --locked -p Chataigne2 --bin Chataigne2` passed in 3m20s. The final artifact's
+  listed scopes are disjoint: **87 Mouse / 182 neighboring controllers / 1081 preservation**, with
+  **1623 listed / 273 outside scope**. Keyboard is already covered by the owning gate; the other
+  **111 Joy-Con/Buttplug cases passed** in 7.42s. Preservation finally passed **1075 / zero failed /
+  six existing ignored**, in 82.34s with builds idle. Shared ordering cases are counted once:
+  **1344 unique app passes / six ignored / 1350 selected**.
+- The initial preservation run passed 1073 but failed two unchanged multiplex timing gates
+  (active average 6357us; production average 6989us). Both passed in isolation; the complete
+  preservation rerun then passed on the same artifact. No fixture, threshold or implementation
+  changed between these runs. Background Code CPU use was observed; it does not establish a cause.
+  Keep this timing variance visible rather than attributing an isolated pass to the original run.
+- Actual root/Core Cargo fmt, explicit app Rustfmt, documentation formatting and diff checks pass.
+  All 31 tested live Rust source hashes remain unchanged through final formatting. Inventory:
+  **2074 source files / 32 oversized**, with every touched source below 1000 lines. Golden IO is
+  unchanged; its prior 57-pass result remains dated.
+
+No physical mouse/keyboard capture or injection was operated. Physical/platform and product-scale
+qualification retain P17/P18 and P16 ownership. Keep the full P00-P18 implementation goal active.
+
+Final SHA-256:
+
+- App `target/debug/deps/Chataigne2-b14ffd1b9e52f9ac.exe`:
+  `25449c293ad485a2fbcf04eaaa41549dced9600c9934e5c0e7e3c96f64469235`.
+- Native `target/debug/Chataigne2.exe`:
+  `4e2840849302ddb071c0e52178a9a173da469e8e5b0d3452608edb74f31f0434`.

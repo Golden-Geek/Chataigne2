@@ -14,7 +14,7 @@ use golden_core::{
     events::CustomEvent,
     node,
     node::{Node, NodeHandle, NodeId, NodeScriptDescriptor},
-    parameter::{Enum, ParamValue, ParameterEnumOption, ParameterEventBehaviour},
+    parameter::{Enum, ParamValue, ParameterEnumOption},
     process_ctx::ProcessCtx,
 };
 
@@ -151,6 +151,15 @@ impl KeyboardModule {
     }
 
     fn on_param_change_inner(&mut self, ctx: &mut ProcessCtx, param: NodeId) {
+        let settings_changed = [
+            self.device.is_bound().then(|| self.device.id()),
+            self.receive_enabled.is_bound().then(|| self.receive_enabled.id()),
+            self.send_enabled.is_bound().then(|| self.send_enabled.id()),
+        ]
+        .into_iter()
+        .any(|id| id == Some(param));
+        // Read authored settings before our own warning/metadata edits can change them.
+        let can_project = settings_changed && self.guard_output(ctx) && self.guard_output_settings(ctx);
         if self.device.is_bound() && self.device.id() == param {
             if let Some(runtime) = self.input.runtime.as_mut() {
                 if let Err(error) = runtime.configure(self.device.get_ref().as_str()) {
@@ -159,10 +168,11 @@ impl KeyboardModule {
                 }
             }
             self.request_input_service();
-            self.clear_input_values(ctx);
+            if self.input.catalog.as_ref().is_none_or(|row| !row.current()) {
+                self.clear_input_values(ctx);
+            }
             self.refresh_data_capabilities(ctx);
             self.refresh_selection_warning(ctx, self.selected_input_device().as_ref());
-            self.refresh_connection_state(ctx);
         }
 
         if self.receive_enabled.is_bound() && self.receive_enabled.id() == param {
@@ -178,7 +188,6 @@ impl KeyboardModule {
                 self.clear_backend_warning(ctx, "keyboard_input_pressure");
                 self.clear_input_values(ctx);
             }
-            self.refresh_connection_state(ctx);
         }
 
         if self.send_enabled.is_bound() && self.send_enabled.id() == param {
@@ -189,7 +198,9 @@ impl KeyboardModule {
                 self.stop_output_backend();
                 self.clear_backend_warning(ctx, KEYBOARD_OUTPUT_WARNING_ID);
             }
-            self.refresh_connection_state(ctx);
+        }
+        if can_project {
+            self.project_connection_state(ctx);
         }
     }
 

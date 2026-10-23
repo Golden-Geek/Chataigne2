@@ -31,7 +31,12 @@ fn slots(count: usize) -> RetirementPool {
     RetirementPool::new(NonZeroUsize::new(count).unwrap())
 }
 fn pool(count: usize) -> PayloadPool {
-    PayloadPool::new("mouse-fixture", count, count * INPUT_WEIGHT).unwrap()
+    PayloadPool::new(
+        "mouse-fixture",
+        count + 1,
+        CATALOG_WEIGHT + count * preparation::FRAME_WEIGHT,
+    )
+    .unwrap()
 }
 fn edge(pressed: bool) -> MouseRuntimeEvent {
     MouseRuntimeEvent::Input {
@@ -56,10 +61,21 @@ fn spawn(
 ) -> (MouseInputRuntime, RetirementPool, RetirementPool) {
     let owner = slots(1);
     let global = slots(1);
-    let handle = MouseInputRuntime::spawn_using(&owner, &global, input, WorkerNotifier::new(|| {}), move || {
-        Ok(Fake { control, cleanup })
-    })
+    let pending = std::mem::take(&mut *control.input.lock().unwrap());
+    control.input.lock().unwrap().push_back(catalog());
+    let next = control.clone();
+    let mut handle = MouseInputRuntime::spawn_using(
+        &owner,
+        &global,
+        input,
+        WorkerNotifier::new(|| {}),
+        MouseInputConfig::default(),
+        move || Ok(Fake { control, cleanup }),
+    )
     .unwrap();
+    until(|| handle.has_pending());
+    drop(handle.poll_events().unwrap());
+    next.input.lock().unwrap().extend(pending);
     (handle, owner, global)
 }
 #[test]
@@ -78,7 +94,9 @@ fn retained_source_capacity_pauses_polling_until_the_original_is_disposed() {
     assert_eq!(polls, control.polls.load(Ordering::Acquire));
     drop(retained);
     until(|| handle.has_pending());
-    assert_eq!(handle.poll_events().unwrap()[0].event, edge(false));
+    assert!(
+        matches!(&handle.poll_events().unwrap()[0].prepared.row,preparation::Row::Input(frame) if !frame.buttons[0])
+    );
     drop(handle);
     assert!(global.wait_for_idle(Duration::from_secs(1)));
     assert!(owner.wait_for_idle(Duration::from_secs(1)));
@@ -90,13 +108,20 @@ fn blocked_startup_and_drop_never_wait_and_keep_both_lifetime_slots() {
     let global = slots(1);
     let (release, gate) = mpsc::channel();
     let start = Instant::now();
-    let handle = MouseInputRuntime::spawn_using(&owner, &global, pool(1), WorkerNotifier::new(|| {}), move || {
-        gate.recv().unwrap();
-        Ok(Fake {
-            control: Arc::new(Control::default()),
-            cleanup: None,
-        })
-    })
+    let handle = MouseInputRuntime::spawn_using(
+        &owner,
+        &global,
+        pool(1),
+        WorkerNotifier::new(|| {}),
+        MouseInputConfig::default(),
+        move || {
+            gate.recv().unwrap();
+            Ok(Fake {
+                control: Arc::new(Control::default()),
+                cleanup: None,
+            })
+        },
+    )
     .unwrap();
     assert!(start.elapsed() < Duration::from_millis(100));
     drop(handle);
@@ -107,6 +132,7 @@ fn blocked_startup_and_drop_never_wait_and_keep_both_lifetime_slots() {
         &slots(1),
         pool(1),
         WorkerNotifier::new(|| {}),
+        MouseInputConfig::default(),
         || -> Result<Fake, String> { panic!("owner must reject before open") }
     )
     .is_err());
@@ -146,10 +172,13 @@ fn actor_turn_is_sixteen_and_ordered_edges_survive_continuous_input() {
     while actual.len() < 80 {
         let batch = handle.poll_events().unwrap();
         assert!(batch.len() <= 16);
-        actual.extend(batch.into_iter().map(|row| row.event.clone()));
+        actual.extend(batch.into_iter().filter_map(|row| match &row.prepared.row {
+            preparation::Row::Input(frame) => Some(frame.buttons[0]),
+            _ => None,
+        }));
         thread::sleep(Duration::from_millis(1));
     }
-    assert_eq!(actual, (0..80).map(|i| edge(i % 2 == 0)).collect::<Vec<_>>());
+    assert_eq!(actual, (0..80).map(|i| i % 2 == 0).collect::<Vec<_>>());
     drop(handle);
     assert!(global.wait_for_idle(Duration::from_secs(1)));
     assert!(owner.wait_for_idle(Duration::from_secs(1)));
@@ -171,11 +200,15 @@ fn repeated_failed_startup_and_reconfigure_do_not_grow_worker_lifetimes() {
     let owner = slots(1);
     let global = slots(1);
     for _ in 0..8 {
-        let mut handle =
-            MouseInputRuntime::spawn_using::<Fake>(&owner, &global, pool(1), WorkerNotifier::new(|| {}), || {
-                Err("controlled startup failure".into())
-            })
-            .unwrap();
+        let mut handle = MouseInputRuntime::spawn_using::<Fake>(
+            &owner,
+            &global,
+            pool(1),
+            WorkerNotifier::new(|| {}),
+            MouseInputConfig::default(),
+            || Err("controlled startup failure".into()),
+        )
+        .unwrap();
         until(|| !handle.is_running());
         assert!(handle.poll_events().err().unwrap().contains("startup failure"));
         drop(handle);
@@ -207,8 +240,15 @@ fn metadata_admission_counts_backing_capacity_and_provider_turns() {
     }
     let owner = slots(1);
     let global = slots(1);
-    let mut handle =
-        MouseInputRuntime::spawn_using(&owner, &global, pool(32), WorkerNotifier::new(|| {}), || Ok(TooMany)).unwrap();
+    let mut handle = MouseInputRuntime::spawn_using(
+        &owner,
+        &global,
+        pool(32),
+        WorkerNotifier::new(|| {}),
+        MouseInputConfig::default(),
+        || Ok(TooMany),
+    )
+    .unwrap();
     until(|| !handle.is_running());
     assert!(handle.poll_events().err().unwrap().contains("16 records"));
     drop(handle);
@@ -232,9 +272,31 @@ fn ordinary_motion_keeps_its_delta_and_button_occurrences_in_source_order() {
     ];
     control.input.lock().unwrap().extend(expected.clone());
     let (mut handle, _, global) = spawn(control, None, pool(4));
-    until(|| handle.worker.event_metrics().depth == 3);
-    let rows = handle.poll_events().unwrap();
-    assert_eq!(rows.iter().map(|row| row.event.clone()).collect::<Vec<_>>(), expected);
+    let mut states = Vec::new();
+    until(|| {
+        states.extend(
+            handle
+                .poll_events()
+                .unwrap()
+                .into_iter()
+                .filter_map(|row| match &row.prepared.row {
+                    preparation::Row::Input(frame) => Some((frame.position, frame.buttons[0])),
+                    _ => None,
+                }),
+        );
+        states.len() == 3
+    });
+    assert_eq!(states, vec![((10, 20), false), ((10, 20), true), ((10, 20), false)]);
     drop(handle);
     assert!(global.wait_for_idle(Duration::from_secs(1)));
 }
+
+fn catalog() -> MouseRuntimeEvent {
+    MouseRuntimeEvent::DevicesChanged(vec![DiscoveredMouseDevice {
+        index: 0,
+        variant_id: "fake:mouse".into(),
+        label: "Fake Mouse".into(),
+        details: "fixture".into(),
+    }])
+}
+mod publication;

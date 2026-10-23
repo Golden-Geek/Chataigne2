@@ -280,6 +280,7 @@ impl<T: Node> Engine<T> {
                             node,
                             expected_uuid,
                             expected_value,
+                            selected_value,
                             options,
                         } => {
                             missing_reference_warning_dirty = true;
@@ -288,6 +289,7 @@ impl<T: Node> Engine<T> {
                                 node,
                                 expected_uuid,
                                 expected_value,
+                                selected_value,
                                 options,
                             )?;
                             let changed = effect.is_some();

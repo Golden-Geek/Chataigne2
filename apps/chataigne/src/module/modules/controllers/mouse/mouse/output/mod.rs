@@ -12,7 +12,6 @@ use std::{
 use crate::app::module::common::desktop_output as coordination;
 mod native;
 mod preparation;
-mod projection;
 mod receipts;
 mod route;
 mod runtime;

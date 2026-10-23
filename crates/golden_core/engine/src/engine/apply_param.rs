@@ -14,6 +14,7 @@ impl<T: Node> Engine<T> {
         node: NodeId,
         expected_uuid: crate::node::NodeUuid,
         expected_value: ParamValue,
+        selected_value: Option<ParamValue>,
         options: crate::parameter::ParameterEnumOptions,
     ) -> Result<Option<SetParamConstraintsEffect>, EngineEditError> {
         let Some(target) = self.nodes.get(node) else {
@@ -25,12 +26,17 @@ impl<T: Node> Engine<T> {
         let Some(snapshot) = target.engine_param_snapshot() else {
             return Ok(None);
         };
-        if snapshot.value != expected_value || snapshot.constraints.enum_options.same_storage(&options) {
+        if snapshot.value != expected_value {
+            return Ok(None);
+        }
+        if snapshot.constraints.enum_options.same_storage(&options)
+            && selected_value.as_ref().is_none_or(|value| value == &snapshot.value)
+        {
             return Ok(None);
         }
         let mut constraints = snapshot.constraints;
         constraints.enum_options = options;
-        self.apply_set_param_constraints(edit_index, node, constraints, None)
+        self.apply_set_param_configuration(edit_index, node, selected_value, constraints, None)
     }
 
     /// Resolves and validates a value without changing authored state or emitting events.
@@ -175,6 +181,17 @@ impl<T: Node> Engine<T> {
         constraints: ParameterConstraints,
         source: Option<NodeId>,
     ) -> Result<Option<SetParamConstraintsEffect>, EngineEditError> {
+        self.apply_set_param_configuration(edit_index, node, None, constraints, source)
+    }
+
+    fn apply_set_param_configuration(
+        &mut self,
+        edit_index: usize,
+        node: NodeId,
+        value: Option<ParamValue>,
+        constraints: ParameterConstraints,
+        source: Option<NodeId>,
+    ) -> Result<Option<SetParamConstraintsEffect>, EngineEditError> {
         const OP: &str = "SetParamConstraints";
         let old_snapshot = self.capture_param_snapshot(edit_index, OP, node)?;
 
@@ -190,14 +207,16 @@ impl<T: Node> Engine<T> {
                 operation: OP,
                 node,
             })?;
-            target.engine_set_param_constraints(constraints).map_err(|message| {
-                EngineEditError::ParamConstraintsRejected {
-                    edit_index,
-                    operation: OP,
-                    node,
-                    node_type: node_type.clone(),
-                    message,
-                }
+            let result = match value {
+                Some(value) => target.engine_restore_param_state(value, constraints),
+                None => target.engine_set_param_constraints(constraints),
+            };
+            result.map_err(|message| EngineEditError::ParamConstraintsRejected {
+                edit_index,
+                operation: OP,
+                node,
+                node_type: node_type.clone(),
+                message,
             })?;
         }
 

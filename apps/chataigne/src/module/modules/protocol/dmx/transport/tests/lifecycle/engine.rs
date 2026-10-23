@@ -36,6 +36,7 @@ fn continuous_full_frames_use_bounded_actor_turns_and_settle_without_polling() {
         node: interface,
         expected_uuid: interface_uuid,
         expected_value: ParamValue::Enum("any".into()),
+        selected_value: None,
         options: options.to_vec().into(),
     });
     engine.apply_edits().unwrap();

@@ -1,5 +1,7 @@
 use super::super::mouse_runtime::{DiscoveredMouseDevice, MouseInputRuntime, MouseRuntimeEvent, Provider};
+use super::super::mouse_runtime::{MouseInputConfig, MouseInputEvent};
 use super::*;
+use crate::app::module::common::mouse::MouseButtonKind;
 use golden_io::{PayloadPool, RetirementPool};
 use std::{
     collections::VecDeque,
@@ -55,18 +57,20 @@ fn install(engine: &mut crate::app::AppEngine, id: NodeId) -> (Arc<Control>, Ret
     let global = RetirementPool::new(NonZeroUsize::MIN);
     let module = target(engine, id);
     let notifier = module
+        .input
         .wake
         .as_ref()
         .expect("ready hook registers wake")
         .notifier
         .clone();
     let state = control.clone();
-    module.input_backend = Some(
+    module.input.runtime = Some(
         MouseInputRuntime::spawn_using(
-            &module.input_owner,
+            &module.input.owner,
             &global,
             PayloadPool::new("engine-mouse-input", 64, 8 * 1024 * 1024).unwrap(),
             notifier,
+            MouseInputConfig::default(),
             move || Ok(Fake(state)),
         )
         .unwrap(),
@@ -76,7 +80,7 @@ fn install(engine: &mut crate::app::AppEngine, id: NodeId) -> (Arc<Control>, Ret
 fn finish(engine: &mut crate::app::AppEngine, id: NodeId, global: RetirementPool) {
     target(engine, id).stop_input_backend();
     assert!(global.wait_for_idle(Duration::from_secs(1)));
-    assert!(target(engine, id).input_owner.wait_for_idle(Duration::from_secs(1)));
+    assert!(target(engine, id).input.owner.wait_for_idle(Duration::from_secs(1)));
 }
 #[test]
 fn healthy_native_input_publishes_then_stays_idle_without_actor_polling() {
@@ -125,7 +129,7 @@ fn worker_failure_wakes_the_engine_and_clears_held_buttons_without_periodic_serv
             && bool_param_value(engine, id, "values/info/input_active") == Some(false)
     });
     assert_eq!(
-        target(&mut engine, id).last_input_error.as_deref(),
+        target(&mut engine, id).input.last_error.as_deref(),
         Some("controlled engine input failure")
     );
     assert_eq!(engine.tick_stats().nodes_due, 0);

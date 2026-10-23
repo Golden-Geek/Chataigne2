@@ -2,7 +2,7 @@ use super::*;
 use crate::app::module::common::keyboard::KeyboardKey;
 use crate::app::module::script_api::NativeCallbackPreparer;
 use crate::app::{AppEngine, AppNode};
-use golden_core::{events::EventKind, node::Folder, process_ctx::ExecutionPhase};
+use golden_core::{events::EventKind, node::Folder, parameter::ParameterEventBehaviour, process_ctx::ExecutionPhase};
 use golden_io::PayloadPool;
 use keyboard_runtime::{KeyboardInputEvent, KeyboardRuntimeEvent};
 use std::{
@@ -153,6 +153,82 @@ fn healthy_input_is_passive_with_no_idle_actor_updates_snapshots_or_worker_wakes
         assert_eq!(stats.snapshot_builds, 0);
     }
     assert_eq!(control.opens.load(Ordering::Acquire), 1);
+    finish(&mut engine, id, &native);
+}
+
+#[test]
+fn persisted_label_selection_publishes_its_canonical_domain_before_normalization() {
+    let (mut engine, id, control, native) = create();
+    quiet(&mut engine);
+    let device = module(&mut engine, id).device.id();
+    let uuid = engine.nodes.get(device).unwrap().node_data().meta.uuid;
+    let legacy = "fake:keyboard|Old Keyboard Label";
+    let mut options = keyboard_device_options(&[]);
+    options.push(enum_option(legacy, "Old Keyboard Label", 10));
+    engine.edits.push(Edit::SetParamEnumOptions {
+        node: device,
+        expected_uuid: uuid,
+        expected_value: ParamValue::Enum("auto".into()),
+        selected_value: None,
+        options: options.into(),
+    });
+    engine.edits.push(Edit::SetParam {
+        node: device,
+        value: ParamValue::Enum(legacy.into()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().unwrap();
+    until(|| {
+        tick(&mut engine);
+        module(&mut engine, id).device.get_ref().as_str() == "fake:keyboard"
+            && module(&mut engine, id)
+                .input
+                .catalog
+                .as_ref()
+                .is_some_and(|row| row.current() && row.prepared.catalog.selection == "fake:keyboard")
+    });
+    assert_eq!(engine.nodes.get(device).unwrap().node_data().meta.uuid, uuid);
+    assert_eq!(control.opens.load(Ordering::Acquire), 1);
+    let mut options = engine
+        .nodes
+        .get(device)
+        .unwrap()
+        .engine_param_snapshot()
+        .unwrap()
+        .constraints
+        .enum_options
+        .iter()
+        .cloned()
+        .collect::<Vec<_>>();
+    options.push(enum_option("absent:keyboard", "Missing Keyboard", 20));
+    engine.edits.push(Edit::SetParamEnumOptions {
+        node: device,
+        expected_uuid: uuid,
+        expected_value: ParamValue::Enum("fake:keyboard".into()),
+        selected_value: None,
+        options: options.into(),
+    });
+    engine.edits.push(Edit::SetParam {
+        node: device,
+        value: ParamValue::Enum("absent:keyboard".into()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().unwrap();
+    until(|| {
+        tick(&mut engine);
+        module(&mut engine, id).input.catalog.as_ref().is_some_and(|row| {
+            row.current()
+                && row.prepared.catalog.selection == "absent:keyboard"
+                && row.prepared.catalog.selected.is_none()
+        })
+    });
+    let receive = module(&mut engine, id).receive_enabled.id();
+    engine.edits.push(Edit::SetParam {
+        node: receive,
+        value: ParamValue::Bool(false),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    tick(&mut engine);
     finish(&mut engine, id, &native);
 }
 

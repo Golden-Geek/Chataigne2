@@ -62,6 +62,7 @@ impl ButtplugModule {
                         node: node.id,
                         expected_uuid: node.uuid,
                         expected_value: ParamValue::Enum(catalog.selection.clone()),
+                        selected_value: None,
                         options: catalog.options.clone(),
                     });
                 }

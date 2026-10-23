@@ -154,6 +154,9 @@ pub enum Edit {
         expected_uuid: NodeUuid,
         /// Selected value observed by the producer; newer selections are skipped.
         expected_value: ParamValue,
+        /// Optional selection validated and applied atomically with the new domain.
+        /// Omit this when publishing choices without changing the selected value.
+        selected_value: Option<ParamValue>,
         /// Choices prepared by the producer, sharing storage with its lifetime owner.
         options: ParameterEnumOptions,
     },

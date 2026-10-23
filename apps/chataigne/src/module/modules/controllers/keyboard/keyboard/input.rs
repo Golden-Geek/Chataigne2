@@ -237,18 +237,15 @@ impl KeyboardModule {
         let Some(node) = snapshot.node(self.device.id()) else {
             return;
         };
-        if node.param_value.as_ref() != Some(&ParamValue::Enum(catalog.selection.clone())) {
-            // Existing persisted label-suffixed IDs normalize at the owning backend boundary.
-            ctx.set_param_with_behaviour(
-                self.device.id(),
-                ParamValue::Enum(catalog.selection.clone()),
-                ParameterEventBehaviour::Coalesce,
-            );
-        }
+        let Some(current) = &node.param_value else {
+            return;
+        };
+        // Normalize persisted IDs atomically with their canonical domain.
         ctx.edits.push(Edit::SetParamEnumOptions {
             node: self.device.id(),
             expected_uuid: node.uuid,
-            expected_value: ParamValue::Enum(catalog.selection.clone()),
+            expected_value: current.clone(),
+            selected_value: Some(ParamValue::Enum(catalog.selection.clone())),
             options: catalog.options.clone(),
         });
     }

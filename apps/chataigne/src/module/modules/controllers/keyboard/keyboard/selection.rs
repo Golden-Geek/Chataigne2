@@ -39,18 +39,11 @@ pub(super) fn sync_keyboard_device_enum_options(
     if keyboard_specific_device_selected(&canonical) && !options.iter().any(|option| option.variant_id == canonical) {
         options.insert(2, missing_keyboard_option(&canonical));
     }
-    if canonical != *current {
-        // Preserve the existing narrow normalization of persisted label-suffixed device IDs.
-        ctx.set_param_with_behaviour(
-            param_id,
-            ParamValue::Enum(canonical.clone()),
-            ParameterEventBehaviour::Coalesce,
-        );
-    }
     ctx.edits.push(golden_core::edit::Edit::SetParamEnumOptions {
         node: param_id,
         expected_uuid: node.uuid,
-        expected_value: ParamValue::Enum(canonical),
+        expected_value: ParamValue::Enum(current.clone()),
+        selected_value: Some(ParamValue::Enum(canonical)),
         options: options.into(),
     });
 }

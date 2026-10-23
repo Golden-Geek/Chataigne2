@@ -17,53 +17,30 @@ pub(super) fn mouse_device_options(devices: &[DiscoveredMouseDevice]) -> Vec<Par
 pub(super) fn sync_mouse_device_enum_options(
     ctx: &mut ProcessCtx,
     param_id: NodeId,
-    options: Vec<ParameterEnumOption>,
+    mut options: Vec<ParameterEnumOption>,
 ) {
-    ctx.call_node_mutation(param_id, move |node, inner_ctx| {
-        let Some(parameter) = node.as_any_mut().downcast_mut::<Parameter>() else {
-            return Err("mouse device target is not a parameter".to_string());
-        };
-
-        let mut next_options = options.clone();
-        let current_variant = parameter
-            .value
-            .as_enum()
-            .filter(|variant| !variant.trim().is_empty())
-            .map(|variant| canonical_mouse_variant(variant.as_str(), options.as_slice()))
-            .unwrap_or_else(|| AUTO_MOUSE_VARIANT.to_string());
-
-        if mouse_specific_device_selected(current_variant.as_str())
-            && !next_options.iter().any(|option| option.variant_id == current_variant)
-        {
-            next_options.insert(2, missing_mouse_option(current_variant.as_str()));
-        }
-
-        let next_value = if next_options.iter().any(|option| option.variant_id == current_variant) {
-            ParamValue::Enum(current_variant.clone())
-        } else {
-            ParamValue::Enum(AUTO_MOUSE_VARIANT.to_string())
-        };
-
-        if parameter.constraints.enum_options.as_slice() == next_options.as_slice() && parameter.value == next_value {
-            return Ok(());
-        }
-
-        let label = parameter.node_data().meta.label.clone();
-        let change_check = parameter.change_check.clone();
-        let mut replacement = Parameter::new(label.as_str(), next_value, change_check);
-        *replacement.node_data_mut() = parameter.node_data().clone();
-        replacement.default_value = parameter.default_value.clone();
-        replacement.event_behaviour = ParameterEventBehaviour::Coalesce;
-        replacement.read_only = parameter.read_only;
-        replacement.persist_read_only_value = parameter.persist_read_only_value;
-        replacement.constraints = parameter.constraints.clone();
-        replacement.constraints.enum_options = (next_options).into();
-        replacement.ui_hints = parameter.ui_hints.clone();
-        replacement.control = parameter.control.clone();
-        replacement.control_modes_enabled = parameter.control_modes_enabled;
-
-        inner_ctx.replace_node(param_id, replacement);
-        Ok(())
+    let Some(snapshot) = ctx.tree_snapshot_arc() else {
+        return;
+    };
+    let Some(node) = snapshot.node(param_id) else {
+        return;
+    };
+    let Some(ParamValue::Enum(current)) = &node.param_value else {
+        return;
+    };
+    if current.len() > 1024 {
+        return;
+    }
+    let canonical = canonical_mouse_variant(current, &options);
+    if mouse_specific_device_selected(&canonical) && !options.iter().any(|option| option.variant_id == canonical) {
+        options.insert(2, missing_mouse_option(&canonical));
+    }
+    ctx.edits.push(golden_core::edit::Edit::SetParamEnumOptions {
+        node: param_id,
+        expected_uuid: node.uuid,
+        expected_value: ParamValue::Enum(current.clone()),
+        selected_value: Some(ParamValue::Enum(canonical)),
+        options: options.into(),
     });
 }
 

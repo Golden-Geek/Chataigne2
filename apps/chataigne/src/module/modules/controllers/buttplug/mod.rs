@@ -537,6 +537,7 @@ fn sync_buttplug_device_enum_options(ctx: &mut ProcessCtx, param_id: NodeId, mut
         node: param_id,
         expected_uuid: node.uuid,
         expected_value: ParamValue::Enum(current.clone()),
+        selected_value: None,
         options: options.into(),
     });
 }

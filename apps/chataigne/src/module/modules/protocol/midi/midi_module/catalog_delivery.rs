@@ -78,6 +78,7 @@ fn publish(edits: &mut EditQueue, snapshot: &ProcessTreeSnapshot, id: NodeId, ca
         node: id,
         expected_uuid: node.uuid,
         expected_value: expected,
+        selected_value: None,
         options: catalog.options.clone(),
     });
     edits.push(Edit::ClearNodeWarning {

@@ -77,7 +77,9 @@ Native device choices admit 67 rows / 2 MiB per domain in a separate 128-domain 
 Identical domains reuse immutable backing storage, including selection changes that leave the
 choices unchanged. Live parameters, snapshots and history retain original quota through their
 shared Golden domain allocation. Missing selection and the narrow persisted label-suffix
-normalization remain backend responsibilities. Disabled input uses a bounded authored fallback
+normalization remain backend responsibilities. Publication atomically applies the canonical domain
+and normalized selection through the public enum-options edit, preserving parameter identity and
+history even when the old and new domains do not overlap. Disabled input uses a bounded authored fallback
 of two fixed choices plus at most one missing-selection row; it does not rebuild native domains.
 
 Selection configuration is at most 1024 bytes. Updating it advances a revision before replacing
@@ -150,7 +152,7 @@ state. Rejecting a readiness suffix therefore preserves input effects, and rejec
 erase an earlier output report. Golden edit fences stop scalar/removal coalescing across these
 boundaries; see [application contracts](application-contracts.md).
 
-## Actor input projection and remaining C09 work
+## Actor input projection
 
 The original publication reservation follows queued application, rejection or disposal; the
 current catalog also retains its envelope. Before any writes in a bounded input turn, projection
@@ -160,6 +162,8 @@ later frames in that turn. Every publication also has a separate actor/native/co
 at its projection position. A current snapshot with a changed selection or disabled receive
 rejects an old frame even before its parameter notification has dispatched. Renaming a queued
 target or retiring a source rejects stale values and callbacks.
+Settings notifications capture their authored guard prelude before changing device warnings and
+preserve values from an already reconciled input configuration.
 Device choices use the public enum-options edit, preserving parameter identity and read guards
 instead of replacing the parameter. The existing narrow normalization of persisted label-suffixed
 device IDs remains in this backend boundary.
@@ -170,7 +174,6 @@ notifications and explicit deadlines; Keyboard no longer has a periodic actor up
 Windows uses process-owned raw-input registration and bounded fan-out because
 [only one window per device class can receive raw input in a process](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-registerrawinputdevices).
 Shared input registration and output coordination use controlled providers for local qualification.
-The execution ledger records full package qualification and the remaining Mouse scope.
-Mouse native input and output ownership are implemented; its prepared input publication and combined
-qualification remain open. The [execution ledger](../progress/implementation-status.md) owns
-package counts and qualification; this page does not claim C09 closure.
+Mouse uses the same publication and ordering contracts; see [Mouse ownership](mouse-runtime.md).
+The [execution ledger](../progress/implementation-status.md) owns package counts, current local
+qualification and the remaining platform/product-scale gates.

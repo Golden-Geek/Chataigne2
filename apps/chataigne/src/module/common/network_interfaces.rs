@@ -83,6 +83,7 @@ pub fn sync_interface_enum_options(
             node: param_id,
             expected_uuid: parameter.node_data().meta.uuid,
             expected_value: parameter.value.clone(),
+            selected_value: None,
             options,
         });
         Ok(())

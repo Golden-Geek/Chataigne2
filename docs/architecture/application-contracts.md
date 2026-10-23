@@ -16,6 +16,13 @@ own validation, source fences, publication policy and their explicit applied-pre
 merge only within the requests after the most recent fence. A later guarded update therefore
 cannot erase an earlier applied prefix or borrow its successful completion when that fence fails.
 
+`Edit::SetParamEnumOptions` publishes shared choice storage behind target UUID and current-value
+guards; stale results are successful no-ops. Its optional `selected_value` validates and applies a
+new selection atomically with the domain, including disjoint old/new choice lists. Failed validation
+preserves both fields. Normal value/constraint events and one reversible history effect retain the
+parameter's identity, metadata and canonical domain ownership. App-specific normalization policy
+stays with the producer; the engine does not interpret device IDs.
+
 `golden_engine::application::ProductionRuntime` is the production implementation. Desktop and
 transport code call it through typed operations for transactions, ticks, project replacement,
 persistence capture, and observation publication; they do not own or lock the engine directly.

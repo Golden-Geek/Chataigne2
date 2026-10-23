@@ -122,6 +122,7 @@ fn enum_catalog_update_preserves_parameter_identity_metadata_and_history() {
         node: engine.root,
         expected_uuid: identity,
         expected_value: ParamValue::Enum("first".into()),
+        selected_value: None,
         options: next.clone(),
     });
     engine.apply_edits().unwrap();
@@ -181,6 +182,7 @@ fn stale_enum_catalog_skips_without_overwriting_selection_or_aborting_later_edit
         node: engine.root,
         expected_uuid: identity,
         expected_value: ParamValue::Enum("first".into()),
+        selected_value: Some(ParamValue::Enum("invalid_stale_selection".into())),
         options: vec![option("first")].into(),
     });
     engine.edits.push(Edit::PatchMeta {
@@ -198,6 +200,75 @@ fn stale_enum_catalog_skips_without_overwriting_selection_or_aborting_later_edit
 }
 
 #[test]
+fn enum_catalog_and_selection_replace_disjoint_domains_atomically_with_history() {
+    let original: crate::parameter::ParameterEnumOptions = vec![option("device|old label")].into();
+    let next: crate::parameter::ParameterEnumOptions = vec![option("device")].into();
+    let mut parameter = Parameter::new(
+        "Device",
+        ParamValue::Enum("device|old label".into()),
+        ParameterChangeCheck::None,
+    );
+    parameter.constraints.enum_options = original.clone();
+    let mut engine = Engine::new(parameter);
+    let identity = engine.nodes.get(engine.root).unwrap().node_data().meta.uuid;
+    engine.edits.push(Edit::SetParamEnumOptions {
+        node: engine.root,
+        expected_uuid: identity,
+        expected_value: ParamValue::Enum("device|old label".into()),
+        selected_value: Some(ParamValue::Enum("device".into())),
+        options: next.clone(),
+    });
+    engine.apply_edits().unwrap();
+    let parameter = engine.nodes.get(engine.root).unwrap();
+    assert_eq!(parameter.value, ParamValue::Enum("device".into()));
+    assert!(parameter.constraints.enum_options.same_storage(&next));
+    assert_eq!(parameter.node_data().meta.uuid, identity);
+    assert!(engine.inbox.events.iter().any(|event| matches!(&event.kind,
+        EventKind::ParamChanged { old_value: ParamValue::Enum(old), new_value: ParamValue::Enum(new), .. }
+        if old == "device|old label" && new == "device")));
+    assert!(engine.undo().unwrap());
+    let parameter = engine.nodes.get(engine.root).unwrap();
+    assert_eq!(parameter.value, ParamValue::Enum("device|old label".into()));
+    assert!(parameter.constraints.enum_options.same_storage(&original));
+    assert!(engine.redo().unwrap());
+    let parameter = engine.nodes.get(engine.root).unwrap();
+    assert_eq!(parameter.value, ParamValue::Enum("device".into()));
+    assert!(parameter.constraints.enum_options.same_storage(&next));
+}
+
+#[test]
+fn invalid_enum_catalog_selection_preserves_both_original_fields_and_later_edits_work() {
+    let original: crate::parameter::ParameterEnumOptions = vec![option("first")].into();
+    let mut parameter = Parameter::new("Device", ParamValue::Enum("first".into()), ParameterChangeCheck::None);
+    parameter.constraints.enum_options = original.clone();
+    let mut engine = Engine::new(parameter);
+    let identity = engine.nodes.get(engine.root).unwrap().node_data().meta.uuid;
+    engine.edits.push(Edit::SetParamEnumOptions {
+        node: engine.root,
+        expected_uuid: identity,
+        expected_value: ParamValue::Enum("first".into()),
+        selected_value: Some(ParamValue::Enum("invalid".into())),
+        options: vec![option("second")].into(),
+    });
+    assert!(engine.apply_edits().is_err());
+    let parameter = engine.nodes.get(engine.root).unwrap();
+    assert_eq!(parameter.value, ParamValue::Enum("first".into()));
+    assert!(parameter.constraints.enum_options.same_storage(&original));
+    engine.edits.push(Edit::SetParamEnumOptions {
+        node: engine.root,
+        expected_uuid: identity,
+        expected_value: ParamValue::Enum("first".into()),
+        selected_value: Some(ParamValue::Enum("second".into())),
+        options: vec![option("second")].into(),
+    });
+    engine.apply_edits().unwrap();
+    assert_eq!(
+        engine.nodes.get(engine.root).unwrap().value,
+        ParamValue::Enum("second".into())
+    );
+}
+
+#[test]
 fn enum_catalog_update_skips_missing_or_replaced_identity() {
     let mut engine = Engine::new(Parameter::new(
         "Device",
@@ -209,6 +280,7 @@ fn enum_catalog_update_skips_missing_or_replaced_identity() {
             node,
             expected_uuid: crate::node::NodeUuid(uuid::Uuid::nil()),
             expected_value: ParamValue::Enum("first".into()),
+            selected_value: None,
             options: vec![option("first")].into(),
         });
     }

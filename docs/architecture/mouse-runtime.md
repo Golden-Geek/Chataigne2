@@ -12,12 +12,13 @@ readiness waits, platform polling and final joins happen on those owners. Cancel
 invalidates retained input immediately, and termination becomes visible before endpoint
 cleanup. A blocked startup or cleanup retains both slots and prevents replacement growth.
 
-Input publications use a shared 128-item / 32 MiB payload pool. The original reservation
-survives mailbox draining and shared copies until final disposal. Input records weigh 4 KiB;
-catalogs weigh 512 KiB and admit at most 64 devices, with 1024 bytes of backing storage per
-string field. The actor mailbox admits 32 records / 8 MiB; a service turn drains at most 16.
-Providers also return at most 16 records per poll. Full capacity pauses the IO owner with
-cancellable waits; the engine never waits for payload or mailbox capacity.
+Prepared publications use a shared 128-item / 32 MiB payload pool. Each envelope charges
+64 KiB and each canonical shared catalog metadata allocation independently charges 2 MiB.
+Frames retain the original metadata quota after their catalog envelope is disposed. Raw native
+records weigh 4 KiB and raw catalogs 512 KiB; catalogs admit at most 64 devices, with 1024 bytes
+of backing storage per string field. The actor mailbox admits 32 records / 8 MiB; a service turn
+drains at most 16. Providers also return at most 16 records per poll. Full capacity pauses the
+IO owner with cancellable waits; the engine never waits for payload or mailbox capacity.
 
 Windows uses one process-owned raw-input registration and up to four bounded subscriptions.
 Each subscription admits 64 records / 2 MiB. Late subscribers receive the latest catalog
@@ -71,23 +72,45 @@ follow the existing module flag. Disabled worker wakes drain accepted receipts w
 new work. Input service never writes output readiness or shared connection state. Native input and
 output, including direct output-provider calls, are disabled in test builds.
 
-## Engine service and remaining C09 work
+## Prepared input and engine service
 
-Mouse uses worker wakes rather than periodic engine updates. Startup and input failures use
-an explicit two-second retry deadline. Pointer delta clears through one short deadline after
-motion; a healthy idle module has no recurring actor callbacks or snapshots. Receive-disabled
-and module-disabled states stop input; the No Input Device selection preserves discovery.
+The input worker owns selection, pointer/button state, callback JSON, messages and native device
+choices. Motion prepares two callback candidates, and button edges prepare four: changed and
+pressed/released callbacks for both output-readiness states. Admission is atomic under a 1 MiB
+batch cap in the shared native-callback pool (16384 payloads / 256 MiB). The actor selects existing
+shared payloads without constructing JSON. Events, replay and exported payload Arcs retain the
+original callback quota through final disposal.
 
-`input.rs` projects the bounded input turn. `devices.rs` owns selection and device options;
-`output/preparation.rs` owns command/script parsing. Commands, script methods, callbacks and app-owned
-template snippets remain at the Mouse module boundary. Native input and output are disabled
-in test builds; qualification uses controlled providers.
+Native choices admit 67 rows / 2 MiB per domain in a separate 128-domain / 64 MiB pool. Identical
+domains reuse canonical backing storage; live parameters, snapshots and history retain that
+original quota. The public enum-options edit atomically applies a canonical domain and an optional
+normalized selection behind UUID/current-value guards. Disjoint old and new choice lists remain
+valid without replacing the parameter. Disabled input uses the bounded fixed/missing-choice fallback.
 
-Native input and output ownership are implemented. This does not close C09. Remaining work includes
-worker-prepared input callback/catalog publication, retained
-publication quotas and queued projection guards, and combined pressure/retirement/recovery
-qualification. The [ledger](../progress/implementation-status.md) owns current acceptance.
-Catalog/readiness projection is still actor-authored: configuration restarts must publish
-metadata and readiness from the matching current input generation before C09 closes. Input restart
-now drops its previous catalog before asynchronous replacement.
-Physical/platform and product-scale checks retain P17/P18 and P16 ownership.
+Selection changes advance a configuration revision before replacing desired settings, reset
+worker state and fence old frames. Non-capturing selection changes reuse the native endpoint;
+capture-mode and captured-device changes retire it immediately and open a bounded replacement.
+Parameter notifications and worker service reconcile the same applied configuration; a delayed
+notification preserves an owner that already matches it.
+It also preserves values already received from that owner. Settings notifications capture their
+authored guard prelude before queuing their own device-warning edits.
+No Input Device preserves discovery while filtering input. Dropping the actor handle clears its
+retained catalog. Readiness and device metadata require a matching current publication.
+
+`input.rs` projects typed values and shared callbacks behind actor/native/configuration fences,
+authored settings and target/ancestor identity guards. Queued edits retain the original source
+through application, rejection or disposal. Input frames do not write output readiness. Final
+connection status fences both current services independently of completed input/output prefixes.
+
+Mouse uses worker wakes rather than periodic engine updates. Startup and failure recovery use
+absolute deadlines with backoff from 250 ms to five seconds. The worker emits one value-only
+delta reset after motion; the actor has no delta timer. Healthy idle service has no recurring
+callbacks, snapshots or wakes. The 8 ms provider poll and 10 ms pressure waits run on IO owners.
+Receive-disabled and module-disabled states stop input. Callback/domain pressure preserves the
+same staged occurrence and pauses provider polling; retirement cancels without capacity becoming free.
+
+`devices.rs` owns selection policy; `output/preparation.rs` owns command/script parsing. Commands,
+script methods, callbacks and app-owned snippets remain at the Mouse boundary. Native input and
+output are disabled in test builds; local qualification uses controlled providers. The
+[ledger](../progress/implementation-status.md) owns current acceptance. Physical/platform and
+product-scale checks retain P17/P18 and P16 ownership.
