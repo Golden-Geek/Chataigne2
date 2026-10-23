@@ -30,5 +30,8 @@ fn joycon_command_constructors_match_declared_node_types() {
 
 #[test]
 fn joycon_commands_default_to_fixed_controller_slots() {
-    assert_eq!(crate::app::module::common::joycon::JoyConControllerTarget::Both.variant_id(), "both");
+    assert_eq!(
+        crate::app::module::common::joycon::JoyConControllerTarget::Both.variant_id(),
+        "both"
+    );
 }

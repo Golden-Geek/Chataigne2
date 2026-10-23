@@ -7,11 +7,6 @@ pub(in super::super) enum Outcome {
     Unconfirmed,
 }
 
-pub(in super::super) struct Source {
-    pub(super) command: JoyConWorkerCommand,
-    pub(super) _admission: golden_io::RetirementPermit,
-}
-
 struct State {
     result: Mutex<Option<Outcome>>,
     complete: AtomicBool,
@@ -22,6 +17,9 @@ struct State {
 
 pub(in super::super) struct Receipt(Arc<State>);
 impl Receipt {
+    pub(in super::super) fn attempted(&self) -> bool {
+        self.0.started.load(Ordering::Acquire)
+    }
     pub(in super::super) fn take(&self) -> Option<Outcome> {
         self.0.result.lock().unwrap_or_else(|error| error.into_inner()).take()
     }
@@ -35,15 +33,10 @@ impl Receipt {
 
 pub(super) struct AdmittedCommand {
     state: Arc<State>,
-    actor: golden_io::RevisionGuard,
     pub(super) armed: bool,
 }
 impl AdmittedCommand {
-    pub(super) fn new(
-        source: RetainedPayload<Source>,
-        actor: golden_io::RevisionGuard,
-        notifier: golden_io::WorkerNotifier,
-    ) -> (Self, Receipt) {
+    pub(super) fn new(source: RetainedPayload<Source>, notifier: golden_io::WorkerNotifier) -> (Self, Receipt) {
         let state = Arc::new(State {
             result: Mutex::new(None),
             complete: AtomicBool::new(false),
@@ -54,17 +47,16 @@ impl AdmittedCommand {
         (
             Self {
                 state: state.clone(),
-                actor,
                 armed: true,
             },
             Receipt(state),
         )
     }
     pub(super) fn current(&self) -> bool {
-        self.actor.is_current()
+        self.state.source.live()
     }
-    pub(super) fn command(&self) -> &JoyConWorkerCommand {
-        &self.state.source.command
+    pub(super) fn prepare(&self) -> Result<JoyConWorkerCommand, String> {
+        self.state.source.prepare()
     }
     pub(super) fn started(&self) {
         self.state.started.store(true, Ordering::Release);

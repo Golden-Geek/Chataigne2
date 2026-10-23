@@ -3,8 +3,8 @@ use crate::app::module::common::joycon::{
     JOYCON_LED_STATE_ON,
 };
 use golden_io::{
-    BoundedWorker, PayloadPool, PendingDrainState, RetainedPayload, RetirementPool, RevisionGuard, RevisionSource,
-    WorkerContext, WorkerLimits, WorkerNotifier, WorkerReceive,
+    BoundedWorker, PayloadPool, PendingDrainState, RetainedPayload, RetirementPool, RevisionGuard, RevisionReader,
+    RevisionSource, WorkerContext, WorkerLimits, WorkerNotifier, WorkerReceive,
 };
 use joycon_rs::joycon::{device::JoyConDeviceType, Buttons};
 use std::{
@@ -16,10 +16,12 @@ use std::{
     time::{Duration, Instant},
 };
 
+mod input;
 mod native;
 mod receipts;
 #[cfg(test)]
 mod tests;
+pub(super) use input::{Input, Source};
 #[cfg(test)]
 use native::{
     low_pass_vec2, low_pass_vec3, manager_scan_interval_for_connected_slots, report_is_stale, should_attempt_attach,
@@ -29,6 +31,7 @@ use native::{
 use receipts::AdmittedCommand;
 pub(super) use receipts::{Outcome, Receipt};
 
+#[cfg(test)]
 const COMMAND_WEIGHT: usize = 4096;
 const EVENT_WEIGHT: usize = 8192;
 const COMMAND_TURN: usize = 8;
@@ -161,11 +164,7 @@ fn payloads(incoming: bool) -> Result<PayloadPool, String> {
             PayloadPool::new(
                 if incoming { "joycon-input" } else { "joycon-output" },
                 if incoming { 128 } else { 512 },
-                if incoming {
-                    128 * EVENT_WEIGHT
-                } else {
-                    512 * COMMAND_WEIGHT
-                },
+                if incoming { 128 * EVENT_WEIGHT } else { 32 * 1024 * 1024 },
             )
             .map_err(|error| error.to_string())?,
         );
@@ -202,14 +201,18 @@ struct Shared {
     running: AtomicBool,
     pressure: AtomicBool,
     notifier: WorkerNotifier,
+    native: RevisionReader,
+    session: RevisionReader,
 }
 struct Stopped {
     shared: Arc<Shared>,
     native: Option<RevisionSource>,
+    session: Option<RevisionSource>,
 }
 impl Drop for Stopped {
     fn drop(&mut self) {
         self.native.take();
+        self.session.take();
         self.shared.running.store(false, Ordering::Release);
         self.shared.notifier.notify();
     }
@@ -227,6 +230,7 @@ pub(crate) struct JoyConRuntimeHandle {
     actor: Option<RevisionSource>,
     shared: Arc<Shared>,
     commands: PayloadPool,
+    #[cfg(test)]
     admission: RetirementPool,
 }
 impl JoyConRuntimeHandle {
@@ -252,10 +256,13 @@ impl JoyConRuntimeHandle {
         let actor_guard = actor.reader().guard_at(0);
         let native = RevisionSource::default();
         let native_guard = native.reader().guard_at(0);
+        let session = RevisionSource::default();
         let shared = Arc::new(Shared {
             running: AtomicBool::new(true),
             pressure: AtomicBool::new(false),
             notifier: notifier.clone(),
+            native: native.reader(),
+            session: session.reader(),
         });
         let state = shared.clone();
         let worker = BoundedWorker::spawn_notified(
@@ -263,7 +270,7 @@ impl JoyConRuntimeHandle {
             slots,
             WorkerLimits {
                 command_items: 64,
-                command_weight: 64 * COMMAND_WEIGHT,
+                command_weight: 4 * 1024 * 1024,
                 event_items: 32,
                 event_weight: 32 * EVENT_WEIGHT,
             },
@@ -272,6 +279,7 @@ impl JoyConRuntimeHandle {
                 let stopped = Stopped {
                     shared: state,
                     native: Some(native),
+                    session: Some(session),
                 };
                 let guards = [actor_guard, native_guard];
                 let provider = match open() {
@@ -303,43 +311,89 @@ impl JoyConRuntimeHandle {
             actor: Some(actor),
             shared,
             commands,
+            #[cfg(test)]
             admission: RetirementPool::new(NonZeroUsize::new(64).unwrap()),
         })
     }
+    #[cfg(test)]
     pub(super) fn send(&self, command: JoyConWorkerCommand) -> Result<Receipt, String> {
         validate_command(&command)?;
-        if !self.is_running() {
-            return Err("Joy-Con worker is no longer running".into());
-        }
-        let worker = self.worker.as_ref().ok_or("Joy-Con runtime is stopped")?;
         let permit = self
             .admission
             .try_reserve()
             .map_err(|_| "Joy-Con has 64 retained command lifetimes")?;
+        let source = Source {
+            input: Input::Prepared(command),
+            time: golden_core::engine::EngineTime {
+                tick: 0,
+                micro: 0,
+                seq: 0,
+            },
+            origin: input::Origin::Fixture,
+            guards: self.source_guards()?,
+            _admission: permit,
+            ingress: input::Ingress::ready(),
+        };
+        let weight = source.weight();
         let source = self
             .commands
-            .try_retain(
-                receipts::Source {
-                    command,
-                    _admission: permit,
-                },
-                COMMAND_WEIGHT,
-            )
+            .try_retain(source, weight)
             .map_err(|_| "Joy-Con command lifetime capacity is full")?;
-        let actor = self
-            .actor
-            .as_ref()
-            .ok_or("Joy-Con runtime is stopped")?
-            .reader()
-            .guard_at(0);
-        let (command, receipt) = AdmittedCommand::new(source, actor, self.shared.notifier.clone());
-        worker.send_weighted(command, COMMAND_WEIGHT).map_err(|error| {
-            let (mut command, message) = match error {
-                golden_io::PendingSendError::Full(command) => (command, "Joy-Con command mailbox is full"),
-                golden_io::PendingSendError::Disconnected(command) => (command, "Joy-Con worker is no longer running"),
-            };
+        self.submit(source)
+            .map_err(|_| "Joy-Con command mailbox is full or disconnected".into())
+    }
+    fn source_guards(&self) -> Result<[RevisionGuard; 3], String> {
+        Ok([
+            self.actor
+                .as_ref()
+                .ok_or("Joy-Con runtime is stopped")?
+                .reader()
+                .guard_at(0),
+            self.shared.native.guard_at(0),
+            self.shared.session.guard_at(self.shared.session.current()),
+        ])
+    }
+    pub(super) fn capture(
+        &self,
+        input: Input,
+        producer: golden_core::engine::NodeWaker,
+        time: golden_core::engine::EngineTime,
+        permit: golden_io::RetirementPermit,
+        ingress: golden_io::RetirementPermit,
+    ) -> Result<RetainedPayload<Source>, String> {
+        if !self.is_running() {
+            return Err("Joy-Con worker is stopped; request was not admitted".into());
+        }
+        let source = Source {
+            input,
+            time,
+            origin: input::Origin::Engine(producer),
+            guards: self.source_guards()?,
+            _admission: permit,
+            ingress: input::Ingress::new(ingress, self.shared.notifier.clone()),
+        };
+        let weight = source.weight();
+        if weight > 4 * 1024 * 1024 {
+            return Err("Joy-Con source exceeds 4 MiB mailbox capacity".into());
+        }
+        self.commands
+            .try_retain(source, weight)
+            .map_err(|_| "Joy-Con source lifetime capacity is full".into())
+    }
+    pub(super) fn submit(&self, source: RetainedPayload<Source>) -> Result<Receipt, RetainedPayload<Source>> {
+        if source.pending_ingress() {
+            return Err(source);
+        }
+        let Some(worker) = &self.worker else {
+            return Err(source);
+        };
+        let weight = source.weight();
+        let (command, receipt) = AdmittedCommand::new(source.clone(), self.shared.notifier.clone());
+        worker.send_weighted(command, weight).map_err(|error| {
+            let (golden_io::PendingSendError::Full(mut command)
+            | golden_io::PendingSendError::Disconnected(mut command)) = error;
             command.armed = false;
-            message
+            source
         })?;
         Ok(receipt)
     }
@@ -379,6 +433,7 @@ fn run<P: Provider>(mut owned: Owned<P>, events: PayloadPool, guards: [RevisionG
     let mut waiting = None;
     let mut pending = std::collections::VecDeque::with_capacity(8);
     let mut prepared = None;
+    let mut connected = [false; 2];
     while !ctx.cancellation().is_cancelled() {
         // Input pressure must not delay native rumble stop deadlines or admitted command outcomes.
         owned.provider.maintain();
@@ -393,13 +448,20 @@ fn run<P: Provider>(mut owned: Owned<P>, events: PayloadPool, guards: [RevisionG
                 command.finish(Outcome::NotSent);
                 continue;
             }
+            let request = match command.prepare().map_err(bounded_text) {
+                Ok(request) => request,
+                Err(error) => {
+                    command.finish(Outcome::Completed(Err(error)));
+                    continue;
+                }
+            };
+            if !command.current() || ctx.cancellation().is_cancelled() {
+                command.finish(Outcome::NotSent);
+                continue;
+            }
             command.started();
             command.finish(Outcome::Completed(
-                owned
-                    .provider
-                    .execute(command.command())
-                    .map(bounded_text)
-                    .map_err(bounded_text),
+                owned.provider.execute(&request).map(bounded_text).map_err(bounded_text),
             ));
         }
         if drain.state == PendingDrainState::Disconnected || ctx.cancellation().is_cancelled() {
@@ -415,6 +477,15 @@ fn run<P: Provider>(mut owned: Owned<P>, events: PayloadPool, guards: [RevisionG
                     JoyConWorkerEvent::Error("Joy-Con provider event turn exceeds eight records".into()),
                 );
                 break;
+            }
+            for event in &input {
+                if let JoyConWorkerEvent::State(state) = event {
+                    let next = [state.left.connected, state.right.connected];
+                    if next != connected {
+                        owned._stopped.session.as_ref().unwrap().advance();
+                        connected = next;
+                    }
+                }
             }
             pending.extend(input);
         }

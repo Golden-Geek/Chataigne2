@@ -3,13 +3,13 @@ use golden_core::{
     node,
     node::{Node, NodeId},
     parameter::{Enum, ParamValue},
-    process_ctx::{ProcessCtx, ProcessTreeSnapshot},
+    process_ctx::ProcessCtx,
 };
 
 use crate::app::{
     module::common::joycon::{
-        joycon_led_state_enum_options, joycon_target_enum_options, JoyConSetLedRequest, JoyConVibrateRequest,
-        JOYCON_LED_STATE_OFF, JOYCON_SET_LED_COMMAND_NODE_TYPE, JOYCON_TARGET_BOTH, JOYCON_VIBRATE_COMMAND_NODE_TYPE,
+        joycon_led_state_enum_options, joycon_target_enum_options, JOYCON_LED_STATE_OFF,
+        JOYCON_SET_LED_COMMAND_NODE_TYPE, JOYCON_TARGET_BOTH, JOYCON_VIBRATE_COMMAND_NODE_TYPE,
     },
     module_command,
 };
@@ -17,48 +17,42 @@ use crate::app::{
 macro_rules! joycon_command_node_impl {
     ($context:literal) => {
         fn child_event_interest_depth(&self, event: &Event) -> u32 {
-            match event.kind {
-                EventKind::ParamChanged { .. } => u32::MAX,
-                _ => 0,
+            if matches!(event.kind, EventKind::ParamChanged { .. }) {
+                u32::MAX
+            } else {
+                0
             }
         }
-
         fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
-            let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
-                return;
-            };
-            let snapshot = snapshot_arc.as_ref();
-            if !module_command::module_command_triggered(snapshot, self.id(), param) {
-                return;
-            }
-
-            if let Err(error) = self.request_payload(snapshot).and_then(|payload| {
-                module_command::emit_module_command_request(ctx, snapshot, self.id(), self.get_type(), &payload)
-            }) {
-                golden_core::logerror!(format!("Failed to trigger {}: {error}", $context));
+            if ctx
+                .tree_snapshot()
+                .is_some_and(|snapshot| module_command::module_command_triggered(snapshot, self.id(), param))
+            {
+                run(ctx, self.id(), None);
             }
         }
-
         fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
-            if !module_command::is_command_execute_request(&event, self.id()) {
-                return;
-            }
-            let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
-                return;
-            };
-            let snapshot = module_command::command_execute_snapshot(
-                &event,
-                snapshot_arc.as_ref(),
-                self.id(),
-            );
-            let snapshot = snapshot.as_ref();
-            if let Err(error) = self.request_payload(snapshot).and_then(|payload| {
-                module_command::emit_module_command_request(ctx, snapshot, self.id(), self.get_type(), &payload)
-            }) {
-                golden_core::logerror!(format!("Failed to execute {}: {error}", $context));
+            if event.topic == module_command::MODULE_COMMAND_EXECUTE_TOPIC
+                && event
+                    .payload
+                    .get("command_id")
+                    .and_then(serde_json::Value::as_u64)
+                    == Some(self.id().0)
+            {
+                run(ctx, self.id(), Some(event));
             }
         }
     };
+}
+fn run(ctx: &mut ProcessCtx, command: NodeId, event: Option<golden_core::events::CustomEvent>) {
+    let Some(snapshot) = ctx.tree_snapshot_arc() else {
+        return;
+    };
+    if let Err(error) = module_command::CapturedInvocation::capture(&snapshot, command, event, &["joycon_module"])
+        .and_then(|invocation| crate::app::queue_joycon_command(ctx, invocation))
+    {
+        golden_core::logerror!(format!("Joy-Con command was not admitted: {error}"));
+    }
 }
 
 #[node("joycon_vibrate_command", label = "Vibrate")]
@@ -91,23 +85,6 @@ pub struct JoyConVibrateCommand {
 impl JoyConVibrateCommand {
     pub fn create() -> Self {
         Self::new(crate::app::ModuleCommandBase::new())
-    }
-
-    fn request_payload(&self, snapshot: &ProcessTreeSnapshot) -> Result<JoyConVibrateRequest, String> {
-        let target = command_enum_param(snapshot, self.id(), "target").unwrap_or_else(|| JOYCON_TARGET_BOTH.to_string());
-        let frequency_hz = command_float_param(snapshot, self.id(), "frequency_hz").unwrap_or(300.0) as f32;
-        let amplitude = command_float_param(snapshot, self.id(), "amplitude").unwrap_or(0.9) as f32;
-        let duration_ms = command_int_param(snapshot, self.id(), "duration_ms")
-            .and_then(|value| u32::try_from(value).ok())
-            .unwrap_or(60);
-
-        Ok(JoyConVibrateRequest {
-            target,
-            frequency_hz,
-            amplitude,
-            duration_ms,
-            description: "vibrate".to_string(),
-        })
     }
 }
 
@@ -161,17 +138,6 @@ impl JoyConSetLedCommand {
     pub fn create() -> Self {
         Self::new(crate::app::ModuleCommandBase::new())
     }
-
-    fn request_payload(&self, snapshot: &ProcessTreeSnapshot) -> Result<JoyConSetLedRequest, String> {
-        Ok(JoyConSetLedRequest {
-            target: command_enum_param(snapshot, self.id(), "target").unwrap_or_else(|| JOYCON_TARGET_BOTH.to_string()),
-            led_1: command_enum_param(snapshot, self.id(), "led_1").unwrap_or_else(|| JOYCON_LED_STATE_OFF.to_string()),
-            led_2: command_enum_param(snapshot, self.id(), "led_2").unwrap_or_else(|| JOYCON_LED_STATE_OFF.to_string()),
-            led_3: command_enum_param(snapshot, self.id(), "led_3").unwrap_or_else(|| JOYCON_LED_STATE_OFF.to_string()),
-            led_4: command_enum_param(snapshot, self.id(), "led_4").unwrap_or_else(|| JOYCON_LED_STATE_OFF.to_string()),
-            description: "set leds".to_string(),
-        })
-    }
 }
 
 #[golden_core::item(
@@ -186,33 +152,6 @@ impl Node for JoyConSetLedCommand {
     }
 
     joycon_command_node_impl!("Joy-Con set-led command");
-}
-
-fn command_enum_param(snapshot: &ProcessTreeSnapshot, command_id: NodeId, path: &str) -> Option<String> {
-    module_command::resolve_module_command_child(snapshot, command_id, path).and_then(|param_id| {
-        snapshot
-            .node(param_id)
-            .and_then(|node| node.param_value.as_ref())
-            .and_then(ParamValue::as_enum)
-    })
-}
-
-fn command_float_param(snapshot: &ProcessTreeSnapshot, command_id: NodeId, path: &str) -> Option<f64> {
-    module_command::resolve_module_command_child(snapshot, command_id, path).and_then(|param_id| {
-        snapshot
-            .node(param_id)
-            .and_then(|node| node.param_value.as_ref())
-            .and_then(ParamValue::as_float)
-    })
-}
-
-fn command_int_param(snapshot: &ProcessTreeSnapshot, command_id: NodeId, path: &str) -> Option<i32> {
-    module_command::resolve_module_command_child(snapshot, command_id, path).and_then(|param_id| {
-        snapshot
-            .node(param_id)
-            .and_then(|node| node.param_value.as_ref())
-            .and_then(ParamValue::as_int)
-    })
 }
 
 #[cfg(test)]

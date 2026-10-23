@@ -5,7 +5,11 @@ use std::{collections::VecDeque, num::NonZeroUsize, time::Instant};
 
 pub(super) struct Service {
     pub(super) wake: Option<ModuleWake>,
-    pending: VecDeque<runtime::Receipt>,
+    pub(super) pending: VecDeque<runtime::Receipt>,
+    pub(super) outgoing: VecDeque<golden_io::RetainedPayload<runtime::Source>>,
+    pub(super) admission: RetirementPool,
+    pub(super) ingress: RetirementPool,
+    pub(super) output_retry_at: Option<Instant>,
     pub(super) owner: RetirementPool,
     pub(super) retry_at: Option<Instant>,
     backoff: ReconnectBackoff,
@@ -18,6 +22,10 @@ impl Service {
         Self {
             wake: None,
             pending: VecDeque::new(),
+            outgoing: VecDeque::new(),
+            admission: RetirementPool::new(NonZeroUsize::new(64).unwrap()),
+            ingress: RetirementPool::new(NonZeroUsize::new(64).unwrap()),
+            output_retry_at: None,
             owner: RetirementPool::new(NonZeroUsize::MIN),
             retry_at: None,
             backoff: ReconnectBackoff::new(Duration::from_millis(250), Duration::from_secs(5)),
@@ -80,6 +88,9 @@ impl JoyConModule {
         }
         let force = self.drain_runtime_events(ctx);
         self.apply_pending_state_if_due(ctx, force);
+        if self.node_data().effective_enabled {
+            self.submit_outputs(ctx);
+        }
         self.update_activity_indicator(ctx);
         self.restart_stalled_runtime_if_needed(ctx);
         if self.runtime.as_ref().is_some_and(|runtime| runtime.has_pending())
@@ -97,6 +108,9 @@ impl JoyConModule {
         let mut deadlines = Vec::with_capacity(4);
         if self.node_data().effective_enabled {
             if let Some(at) = self.service.retry_at {
+                deadlines.push(at);
+            }
+            if let Some(at) = self.service.output_retry_at {
                 deadlines.push(at);
             }
             if self.pending_state.is_some() {
@@ -117,12 +131,6 @@ impl JoyConModule {
         } else {
             wake.cancel_deadline();
         }
-    }
-    pub(super) fn enqueue_receipt(&mut self, receipt: runtime::Receipt) {
-        self.service.pending.push_back(receipt);
-    }
-    pub(super) fn can_accept_command(&self) -> bool {
-        self.service.pending.len() < 64
     }
     pub(super) fn has_pending_results(&self) -> bool {
         !self.service.pending.is_empty()
@@ -150,6 +158,9 @@ impl JoyConModule {
                 runtime::Outcome::Unconfirmed => {
                     self.set_last_event(ctx, "Joy-Con command interrupted; result unconfirmed".into())
                 }
+            }
+            if receipt.attempted() {
+                self.base.emit_outgoing_traffic(ctx);
             }
             ctx.edits.retain_payload(receipt.source());
         }
@@ -190,6 +201,11 @@ impl JoyConModule {
     }
     pub(super) fn stop_runtime(&mut self) {
         self.runtime.take();
+        if !self.service.outgoing.is_empty() {
+            golden_core::logerror!(origin=self.id(); format!("Joy-Con retirement cancelled {} captured requests; not sent", self.service.outgoing.len()));
+        }
+        self.service.outgoing.clear();
+        self.service.output_retry_at = None;
         self.service.retry_at = None;
     }
     pub(super) fn drain_runtime_events(&mut self, ctx: &mut ProcessCtx) -> bool {

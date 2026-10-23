@@ -1,4 +1,6 @@
+mod output;
 mod runtime;
+pub(crate) use output::dispatch as queue_joycon_command;
 mod service;
 mod state;
 use state::*;
@@ -9,19 +11,17 @@ use std::time::Duration;
 use golden_core::{
     engine::NodeExecutionRule,
     events::{CustomEvent, Event},
-    logerror, node,
+    node,
     node::{Node, NodeCreationContext, NodeId, NodeScriptDescriptor},
     parameter::{Enum, ParamValue, Vec2, Vec3},
     process_ctx::ProcessCtx,
 };
 use joycon_rs::joycon::Buttons;
 
-use self::runtime::{JoyConRuntimeHandle, JoyConRuntimeState, JoyConSide, JoyConWorkerCommand, JoyConWorkerEvent};
+use self::runtime::{JoyConRuntimeHandle, JoyConRuntimeState, JoyConSide, JoyConWorkerEvent};
 use crate::app::module::common::joycon::{
-    joycon_motion_data_enum_options, JoyConControllerTarget, JoyConMotionDataMode, JoyConSetLedRequest,
-    JoyConVibrateRequest, JOYCON_LED_STATE_FLASH, JOYCON_LED_STATE_OFF, JOYCON_LED_STATE_ON, JOYCON_MOTION_DATA_ALL,
-    JOYCON_MOTION_DATA_NONE, JOYCON_MOTION_DATA_ORIENTATION, JOYCON_SET_LED_COMMAND_NODE_TYPE, JOYCON_TARGET_BOTH,
-    JOYCON_VIBRATE_COMMAND_NODE_TYPE,
+    joycon_motion_data_enum_options, JoyConMotionDataMode, JOYCON_MOTION_DATA_ALL, JOYCON_MOTION_DATA_NONE,
+    JOYCON_MOTION_DATA_ORIENTATION, JOYCON_SET_LED_COMMAND_NODE_TYPE, JOYCON_VIBRATE_COMMAND_NODE_TYPE,
 };
 
 const JOYCON_MODULE_UPDATE_RATE_HZ: u32 = 120;
@@ -410,42 +410,6 @@ impl JoyConModule {
         processed_stick_values(x, y, self.stick_dead_zone.get())
     }
 
-    fn execute_vibrate_request(&mut self, ctx: &mut ProcessCtx, request: JoyConVibrateRequest) -> Result<(), String> {
-        self.enqueue_command(ctx, JoyConWorkerCommand::Vibrate(request), "vibrate")
-    }
-
-    fn execute_set_player_lights_request(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        request: JoyConSetLedRequest,
-    ) -> Result<(), String> {
-        self.enqueue_command(ctx, JoyConWorkerCommand::SetPlayerLights(request), "set player lights")
-    }
-
-    fn enqueue_command(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        command: JoyConWorkerCommand,
-        description: &str,
-    ) -> Result<(), String> {
-        if !self.can_accept_command() {
-            return Err("Joy-Con has 64 pending command outcomes".into());
-        }
-        self.ensure_runtime(ctx);
-        let Some(runtime) = self.runtime.as_ref() else {
-            return Err("Joy-Con runtime is not ready".to_string());
-        };
-
-        let receipt = runtime.send(command)?;
-        self.enqueue_receipt(receipt);
-        self.base.emit_outgoing_traffic(ctx);
-        if self.base.log_outgoing_enabled() {
-            golden_core::log!(origin = self.id(); format!("Queued Joy-Con {description}."));
-        }
-        self.set_last_event(ctx, format!("Queued {description}"));
-        Ok(())
-    }
-
     fn emit_joycon_callback(&self, ctx: &mut ProcessCtx, callback: &str, args: Vec<serde_json::Value>) {
         crate::app::module::script_api::emit_script_callback(ctx, self.id(), callback, args);
     }
@@ -571,47 +535,8 @@ impl JoyConModule {
         })
     }
 
-    fn handle_script_method(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        method: &str,
-        args: &[ParamValue],
-    ) -> Option<Result<(), String>> {
-        let result = match method {
-            "vibrate" => script_vibrate_request(args)?.and_then(|request| self.execute_vibrate_request(ctx, request)),
-            "setPlayerLights" => script_set_player_lights_request(args)?
-                .and_then(|request| self.execute_set_player_lights_request(ctx, request)),
-            _ => return None,
-        };
-
-        Some(result)
-    }
-
     fn on_custom_event_inner(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
-        let Some(request) = crate::app::module_command::decode_module_command_request(&event) else {
-            return;
-        };
-        if request.module_id != self.id() || !JOYCON_MODULE_COMMAND_TYPES.contains(&request.command_type.as_str()) {
-            return;
-        }
-
-        let result = match request.command_type.as_str() {
-            JOYCON_VIBRATE_COMMAND_NODE_TYPE => serde_json::from_value::<JoyConVibrateRequest>(request.payload)
-                .map_err(|error| format!("invalid Joy-Con vibrate command payload: {error}"))
-                .and_then(|payload| self.execute_vibrate_request(ctx, payload)),
-            JOYCON_SET_LED_COMMAND_NODE_TYPE => serde_json::from_value::<JoyConSetLedRequest>(request.payload)
-                .map_err(|error| format!("invalid Joy-Con set-led command payload: {error}"))
-                .and_then(|payload| self.execute_set_player_lights_request(ctx, payload)),
-            _ => Ok(()),
-        };
-
-        if let Err(error) = result {
-            logerror!(format!(
-                "Failed to handle Joy-Con command {:?}: {error}",
-                request.command_id
-            ));
-            self.set_last_event(ctx, format!("Command failed: {error}"));
-        }
+        self.accept_output(ctx, event);
     }
 
     fn set_runtime_warning(&self, ctx: &mut ProcessCtx, message: &str) {
@@ -879,8 +804,12 @@ impl Node for JoyConModule {
         method: &str,
         args: &[ParamValue],
     ) -> Result<bool, String> {
-        if let Some(result) = self.handle_script_method(ctx, method, args) {
-            result?;
+        if let Some(method) = match method {
+            "vibrate" => Some("vibrate"),
+            "setPlayerLights" => Some("setPlayerLights"),
+            _ => None,
+        } {
+            self.capture_script(ctx, method, args)?;
             return Ok(true);
         }
 

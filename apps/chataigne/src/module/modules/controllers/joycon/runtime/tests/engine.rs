@@ -9,22 +9,42 @@ use golden_core::{
 };
 use std::{collections::VecDeque, thread};
 
-struct Fake(Arc<Mutex<VecDeque<JoyConWorkerEvent>>>);
+#[derive(Clone, Default)]
+pub(super) struct Control {
+    pub(super) input: Arc<Mutex<VecDeque<JoyConWorkerEvent>>>,
+    pub(super) actions: Arc<Mutex<Vec<JoyConWorkerCommand>>>,
+    pub(super) gate: Arc<Mutex<Option<std::sync::mpsc::Receiver<()>>>>,
+    pub(super) cleanup: Arc<Mutex<Option<std::sync::mpsc::Receiver<()>>>>,
+}
+struct Fake(Control);
 impl Provider for Fake {
-    fn execute(&mut self, _: &JoyConWorkerCommand) -> Result<String, String> {
+    fn execute(&mut self, command: &JoyConWorkerCommand) -> Result<String, String> {
+        self.0.actions.lock().unwrap().push(command.clone());
+        let gate = self.0.gate.lock().unwrap().take();
+        if let Some(gate) = gate {
+            gate.recv().unwrap();
+        }
         Ok("sent".into())
     }
     fn poll(&mut self) -> Vec<JoyConWorkerEvent> {
-        self.0.lock().unwrap().pop_front().into_iter().collect()
+        self.0.input.lock().unwrap().pop_front().into_iter().collect()
     }
 }
-fn module(engine: &mut AppEngine, id: NodeId) -> &mut JoyConModule {
+impl Drop for Fake {
+    fn drop(&mut self) {
+        let gate = self.0.cleanup.lock().unwrap().take();
+        if let Some(gate) = gate {
+            let _ = gate.recv();
+        }
+    }
+}
+pub(super) fn module(engine: &mut AppEngine, id: NodeId) -> &mut JoyConModule {
     let AppNode::JoyConModule(module) = engine.nodes.get_mut(id).unwrap() else {
         panic!("Joy-Con fixture")
     };
     module
 }
-fn until(mut predicate: impl FnMut() -> bool) {
+pub(super) fn until(mut predicate: impl FnMut() -> bool) {
     let deadline = Instant::now() + Duration::from_secs(3);
     while !predicate() {
         assert!(Instant::now() < deadline, "Joy-Con engine deadline");
@@ -32,6 +52,16 @@ fn until(mut predicate: impl FnMut() -> bool) {
     }
 }
 fn create() -> (
+    AppEngine,
+    NodeId,
+    RetirementPool,
+    Arc<Mutex<VecDeque<JoyConWorkerEvent>>>,
+) {
+    create_controlled(Control::default())
+}
+pub(super) fn create_controlled(
+    control: Control,
+) -> (
     AppEngine,
     NodeId,
     RetirementPool,
@@ -45,11 +75,11 @@ fn create() -> (
     engine.resolve().unwrap();
     let id = engine.nodes.get(engine.root).unwrap().node_data().first_child.unwrap();
     let slots = RetirementPool::new(NonZeroUsize::MIN);
-    let input = Arc::new(Mutex::new(VecDeque::new()));
-    let provider = Fake(input.clone());
+    let input = control.input.clone();
+    let provider = Fake(control);
     let wake = module(&mut engine, id).service.wake.as_ref().unwrap().notifier.clone();
     let permit = module(&mut engine, id).service.owner.try_reserve().unwrap();
-    let commands = PayloadPool::new("joycon-engine-output", 128, 128 * COMMAND_WEIGHT).unwrap();
+    let commands = PayloadPool::new("joycon-engine-output", 128, 128 * 64 * 1024).unwrap();
     let events = PayloadPool::new("joycon-engine-input", 64, 64 * EVENT_WEIGHT).unwrap();
     let handle = JoyConRuntimeHandle::spawn_using(wake, &slots, commands, events, move || {
         Ok(Exclusive {
@@ -65,16 +95,16 @@ fn create() -> (
     module.request_service();
     (engine, id, slots, input)
 }
-fn context(engine: &AppEngine) -> ProcessCtx {
+pub(super) fn context(engine: &AppEngine) -> ProcessCtx {
     let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);
     ctx.set_tree_snapshot(engine.process_tree_snapshot());
     ctx
 }
-fn flush(engine: &mut AppEngine, ctx: &mut ProcessCtx) {
+pub(super) fn flush(engine: &mut AppEngine, ctx: &mut ProcessCtx) {
     engine.absorb_edits(ctx).unwrap();
     engine.apply_edits().unwrap();
 }
-fn service(engine: &mut AppEngine, id: NodeId) {
+pub(super) fn service(engine: &mut AppEngine, id: NodeId) {
     let mut ctx = context(engine);
     module(engine, id).service_io(&mut ctx);
     flush(engine, &mut ctx);
@@ -88,7 +118,7 @@ fn state(pressed: bool, x: f64) -> JoyConWorkerEvent {
     }
     JoyConWorkerEvent::State(Box::new(state))
 }
-fn queued(engine: &mut AppEngine, id: NodeId) -> usize {
+pub(super) fn queued(engine: &mut AppEngine, id: NodeId) -> usize {
     module(engine, id)
         .runtime
         .as_ref()
@@ -114,15 +144,15 @@ fn buttons(engine: &AppEngine) -> Vec<bool> {
         })
         .collect()
 }
-fn path(engine: &AppEngine, id: NodeId, path: &str) -> NodeId {
+pub(super) fn path(engine: &AppEngine, id: NodeId, path: &str) -> NodeId {
     let snapshot = engine.process_tree_snapshot();
     path.split('/')
         .fold(id, |parent, key| snapshot.find_child_by_decl_id(parent, key).unwrap())
 }
-fn value(engine: &AppEngine, id: NodeId) -> ParamValue {
+pub(super) fn value(engine: &AppEngine, id: NodeId) -> ParamValue {
     engine.nodes.get(id).unwrap().engine_param_snapshot().unwrap().value
 }
-fn finish(engine: &mut AppEngine, id: NodeId, slots: &RetirementPool) {
+pub(super) fn finish(engine: &mut AppEngine, id: NodeId, slots: &RetirementPool) {
     module(engine, id).stop_runtime();
     assert!(slots.wait_for_idle(Duration::from_secs(1)));
 }

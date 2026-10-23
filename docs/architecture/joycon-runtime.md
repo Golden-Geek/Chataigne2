@@ -20,12 +20,34 @@ Discovery/attach retry, stale reports, stick calibration and IMU filtering remai
 
 ## Admission and delivery
 
-The command mailbox admits 64 records / 256 KiB. Each command charges 4 KiB; a module admits
-64 lifetimes including completed receipts and queued projection. Global output storage admits
-512 lifetimes / 2 MiB. Text fields admit 256 bytes and rumble numbers must be finite.
+The command mailbox admits 64 records / 4 MiB. Captured sources charge 64 KiB plus three times
+execute-override storage for bounded worker decoding. A module admits 64 lifetimes across local
+inboxes, outgoing/native queues, completed receipts, queued projection and disposal. Global output
+storage admits 512 lifetimes / 32 MiB. Text fields admit 256 UTF-8 bytes; numeric text admits
+32 bytes, diagnostics 1024 bytes, and rumble numbers must be finite.
 Native turns service eight commands before checking input. Completed outcomes retain their
 original admission independently of input pressure, retirement and cleanup. Unstarted
 cancellation is **not sent**; an interrupted started effect is **unconfirmed**. No command replays.
+
+Command nodes retain canonical snapshots and execute payloads. The worker reads only consumed
+fields and applies the last matching execute override, without constructing a snapshot overlay.
+Both script methods retain engine-owned argument arrays, bounded to five arguments / 64 KiB.
+Their defaults are static app policy; they do not need an otherwise unused module snapshot.
+Target/LED validation, defaults, numeric parsing and native request construction run on the worker.
+Calls acknowledge admission; worker validation and native results arrive through retained receipts
+and module diagnostics.
+
+Typed local inboxes retain original engine timestamps. A separate ingress permit tracks every
+admitted source until arrival or disposal; native submission waits for those handoffs to settle,
+then services the sorted prefix. This also preserves order when a caller dispatches an inbox
+before the next ordinary tick. Ingress release wakes service rather than requiring polling.
+Full native admission preserves the same source behind an absolute 250 ms retry deadline.
+Refused unpublished receipts do not emit cancellation wakes.
+
+Producer identity and actor/native/session guards fence unstarted work before preparation and
+native dispatch. Any controller-slot connection change retires the captured pair's session;
+reconnect cannot make an earlier request live again. Removing/disabling a command or retiring
+its module also cancels its unstarted work. Completed effects retain their result independently.
 
 The input mailbox admits 32 records / 256 KiB. Each publication charges 8 KiB; global input
 storage admits 128 lifetimes / 1 MiB, retained through queued edit disposal. A native poll
@@ -46,7 +68,7 @@ still be published while a live runtime handle observes the failed start.
 ## Remaining qualification
 
 The [execution ledger](../progress/implementation-status.md) owns C08 acceptance. Native-prepared
-callbacks and callback-capacity recovery, complete queued target/path guards, canonical command/
-script capture with producer retirement, and engine-level pressure/reconfiguration/recovery
+callbacks and callback-capacity recovery, complete queued target/path guards, and engine-level
+package pressure/reconfiguration/recovery
 qualification remain open. These runtime bounds do not qualify the SDK's transient discovery
 allocation, physical devices, cross-platform behavior or full-product scale.

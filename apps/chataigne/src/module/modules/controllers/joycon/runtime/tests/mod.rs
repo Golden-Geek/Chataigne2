@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+mod capture;
 mod engine;
 mod ownership;
 
