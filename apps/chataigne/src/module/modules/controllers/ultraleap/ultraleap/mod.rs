@@ -1,21 +1,17 @@
+mod projection;
+mod service;
 mod ultraleap_runtime;
-
-use std::collections::VecDeque;
 
 use golden_core::{
     engine::NodeExecutionRule,
-    logerror, node,
+    node,
     node::{Node, NodeCreationContext, NodeHandle, NodeId, NodeScriptDescriptor},
     parameter::{ParamValue, Vec3},
     process_ctx::ProcessCtx,
 };
 
-use self::ultraleap_runtime::{
-    UltraleapFrameSnapshot, UltraleapHandSnapshot, UltraleapRuntime, UltraleapRuntimePoll, UltraleapVec3,
-};
+use self::ultraleap_runtime::{UltraleapFrameSnapshot, UltraleapHandSnapshot, UltraleapRuntime, UltraleapVec3};
 
-const ULTRALEAP_MODULE_UPDATE_RATE_HZ: u32 = 120;
-const ULTRALEAP_RUNTIME_RETRY_INTERVAL_SECS: f64 = 2.0;
 const ULTRALEAP_RUNTIME_WARNING_ID: &str = "ultraleap_runtime";
 
 const ULTRALEAP_SCRIPT_METHODS: &[&str] = &[];
@@ -106,90 +102,18 @@ const ULTRALEAP_MODULE_COMMAND_TYPES: &[&str] = &[];
 )]
 pub struct UltraleapModule {
     base: crate::app::ModuleBase,
-    runtime: Option<UltraleapRuntime>,
-    runtime_retry_elapsed: f64,
-    last_runtime_error: Option<String>,
-    pending_polls: VecDeque<UltraleapRuntimePoll>,
-    runtime_start_suppressed: bool,
-    was_tracking_active: bool,
+    service: service::Service,
 }
 
 impl UltraleapModule {
     pub fn create() -> Self {
-        Self::new(
-            crate::app::ModuleBase::new(),
-            None,
-            ULTRALEAP_RUNTIME_RETRY_INTERVAL_SECS,
-            None,
-            VecDeque::new(),
-            false,
-            false,
-        )
+        Self::new(crate::app::ModuleBase::new(), service::Service::new())
     }
 
     #[cfg(test)]
     pub(crate) fn disable_runtime_for_test(&mut self) {
-        self.runtime = None;
-        self.runtime_start_suppressed = true;
-    }
-
-    #[cfg(test)]
-    pub(crate) fn enqueue_poll_for_test(&mut self, poll: UltraleapRuntimePoll) {
-        self.pending_polls.push_back(poll);
-    }
-
-    fn ensure_runtime(&mut self, ctx: &mut ProcessCtx) {
-        if self.runtime_start_suppressed || self.runtime.is_some() {
-            return;
-        }
-        if self.runtime_retry_elapsed < ULTRALEAP_RUNTIME_RETRY_INTERVAL_SECS {
-            return;
-        }
-
-        self.runtime_retry_elapsed = 0.0;
-        match UltraleapRuntime::create() {
-            Ok(runtime) => {
-                golden_core::log!(origin = self.id(); "Started Ultraleap input runtime.");
-                self.runtime = Some(runtime);
-                self.last_runtime_error = None;
-                self.clear_runtime_warning(ctx);
-            }
-            Err(error) => {
-                if self.last_runtime_error.as_deref() != Some(error.as_str()) {
-                    logerror!(origin = self.id(); format!("Failed to start Ultraleap input runtime: {error}"));
-                }
-                self.runtime = None;
-                self.last_runtime_error = Some(error.clone());
-                self.set_runtime_warning(ctx, error.as_str());
-            }
-        }
-    }
-
-    fn stop_runtime(&mut self) {
-        self.runtime = None;
-        self.was_tracking_active = false;
-    }
-
-    fn poll_runtime(&mut self) -> Result<UltraleapRuntimePoll, String> {
-        if let Some(poll) = self.pending_polls.pop_front() {
-            return Ok(poll);
-        }
-
-        let Some(runtime) = self.runtime.as_mut() else {
-            return Ok(UltraleapRuntimePoll::default());
-        };
-
-        runtime.poll()
-    }
-
-    fn handle_runtime_error(&mut self, ctx: &mut ProcessCtx, error: String) {
-        if self.last_runtime_error.as_deref() != Some(error.as_str()) {
-            logerror!(origin = self.id(); format!("Ultraleap runtime stopped: {error}"));
-        }
         self.stop_runtime();
-        self.last_runtime_error = Some(error.clone());
-        self.set_runtime_warning(ctx, error.as_str());
-        self.reset_all_values(ctx);
+        self.service.suppressed = true;
     }
 
     fn refresh_connection_state(&mut self, ctx: &mut ProcessCtx, service_connected: bool, connected_devices: usize) {
@@ -214,34 +138,17 @@ impl UltraleapModule {
         );
     }
 
-    fn apply_frame(&mut self, ctx: &mut ProcessCtx, frame: UltraleapFrameSnapshot) {
-        let tracking_active = frame.hand_count > 0;
-        self.set_bool_info(ctx, UltraleapBoolInfoParam::TrackingActive, tracking_active);
+    fn apply_frame(&mut self, ctx: &mut ProcessCtx, frame: UltraleapFrameSnapshot, distance: f64) {
+        self.set_bool_info(ctx, UltraleapBoolInfoParam::TrackingActive, frame.hand_count > 0);
         self.set_int_info(
             ctx,
             UltraleapIntInfoParam::VisibleHands,
             clamp_usize_to_i32(frame.hand_count),
         );
-
-        let hands_distance = if frame.left.active && frame.right.active {
-            frame.left.palm_position.distance(frame.right.palm_position)
-        } else {
-            0.0
-        };
-
-        self.set_hands_distance(ctx, hands_distance);
+        self.set_hands_distance(ctx, distance);
         self.set_left_hand_snapshot(ctx, &frame.left);
         self.set_right_hand_snapshot(ctx, &frame.right);
-
-        if tracking_active && !self.was_tracking_active {
-            let suffix = if frame.hand_count == 1 { "" } else { "s" };
-            self.set_last_event(ctx, format!("Tracking {} hand{}", frame.hand_count, suffix));
-        } else if !tracking_active && self.was_tracking_active {
-            self.set_last_event(ctx, "Lost Ultraleap tracking".to_string());
-        }
-
-        self.was_tracking_active = tracking_active;
-        if tracking_active {
+        if frame.hand_count > 0 {
             self.base.emit_incoming_traffic(ctx);
         }
     }
@@ -252,7 +159,6 @@ impl UltraleapModule {
         self.set_hands_distance(ctx, 0.0);
         self.set_left_hand_snapshot(ctx, &UltraleapHandSnapshot::default());
         self.set_right_hand_snapshot(ctx, &UltraleapHandSnapshot::default());
-        self.was_tracking_active = false;
     }
 
     fn reset_all_values(&mut self, ctx: &mut ProcessCtx) {
@@ -476,50 +382,20 @@ impl Node for UltraleapModule {
     }
 
     fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
-        self.ensure_runtime(ctx);
+        if let Err(error) = self.register_service(ctx) {
+            self.set_runtime_warning(ctx, &error);
+        }
+        self.request_service();
     }
 
-    fn update(&mut self, ctx: &mut ProcessCtx) {
-        self.runtime_retry_elapsed += ctx.delta_time.as_secs_f64();
-
-        if !self.node_data().effective_enabled {
-            self.stop_runtime();
-            self.clear_runtime_warning(ctx);
-            self.reset_all_values(ctx);
-            return;
-        }
-
-        self.ensure_runtime(ctx);
-
-        let poll = match self.poll_runtime() {
-            Ok(poll) => poll,
-            Err(error) => {
-                self.handle_runtime_error(ctx, error);
-                return;
-            }
-        };
-
-        self.clear_runtime_warning(ctx);
-        self.last_runtime_error = None;
-        self.refresh_connection_state(ctx, poll.service_connected, poll.connected_devices);
-
-        if let Some(last_event) = poll.last_event {
-            self.set_last_event(ctx, last_event);
-        }
-
-        if !poll.service_connected || poll.connected_devices == 0 {
-            self.reset_tracking_values(ctx);
-            return;
-        }
-
-        if let Some(frame) = poll.frame {
-            self.apply_frame(ctx, frame);
-        }
+    fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
+        self.service_runtime(ctx);
     }
-
+    fn worker_wake_requires_tree_snapshot(&self) -> bool {
+        true
+    }
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {
         self.stop_runtime();
-        self.pending_polls.clear();
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {
@@ -527,8 +403,7 @@ impl Node for UltraleapModule {
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
-        NodeExecutionRule::periodic(ULTRALEAP_MODULE_UPDATE_RATE_HZ)
-            .with_compiled_kernel("chataigne.runtime.ultraleap")
+        NodeExecutionRule::passive().with_compiled_kernel("chataigne.runtime.ultraleap")
     }
 
     fn engine_script_descriptor(&self) -> NodeScriptDescriptor {
@@ -553,12 +428,14 @@ impl Node for UltraleapModule {
 
     fn on_effective_enabled_changed(&mut self, ctx: &mut ProcessCtx, enabled: bool) {
         if enabled {
-            self.runtime_retry_elapsed = ULTRALEAP_RUNTIME_RETRY_INTERVAL_SECS;
+            self.service.retry_at = None;
+            self.request_service();
             self.refresh_data_capabilities(ctx);
             return;
         }
 
         self.stop_runtime();
+        NodeHandle::new(self.id()).clear_warning(ctx, Some("ultraleap_pressure"));
         self.clear_runtime_warning(ctx);
         self.reset_all_values(ctx);
     }

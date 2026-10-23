@@ -1,9 +1,9 @@
-use std::time::Duration;
+use super::service::tests::fixture::{create, until, Control};
+use std::sync::Arc;
 
 use golden_core::{
-    node::{DeclaredUserItemNode, Folder, Node, NodeId},
+    node::{DeclaredUserItemNode, Node, NodeId},
     parameter::ParamValue,
-    process_ctx::ExecutionPhase,
     script::ScriptSource,
 };
 
@@ -26,11 +26,12 @@ fn ultraleap_module_is_a_module_item() {
 
 #[test]
 fn ultraleap_frame_updates_hand_values_and_distance() {
-    let (mut engine, module_id) = create_ultraleap_module();
+    let (mut engine, module_id, control, _native) = create();
 
     enqueue_poll(
         &mut engine,
         module_id,
+        &control,
         UltraleapRuntimePoll {
             service_connected: true,
             connected_devices: 1,
@@ -132,11 +133,12 @@ fn ultraleap_frame_updates_hand_values_and_distance() {
 
 #[test]
 fn ultraleap_disconnect_resets_tracking_outputs() {
-    let (mut engine, module_id) = create_ultraleap_module();
+    let (mut engine, module_id, control, _native) = create();
 
     enqueue_poll(
         &mut engine,
         module_id,
+        &control,
         UltraleapRuntimePoll {
             service_connected: true,
             connected_devices: 1,
@@ -163,6 +165,7 @@ fn ultraleap_disconnect_resets_tracking_outputs() {
     enqueue_poll(
         &mut engine,
         module_id,
+        &control,
         UltraleapRuntimePoll {
             service_connected: true,
             connected_devices: 0,
@@ -217,47 +220,22 @@ fn ultraleap_script_template_resolves_to_inline_module_template() {
     assert!(!source.contains("function noteOnReceived"));
 }
 
-fn create_ultraleap_module() -> (crate::app::AppEngine, NodeId) {
-    let root: crate::app::AppNode = Folder::new("root").into();
-    let mut engine = crate::app::AppEngine::new(root);
-    let mut module = UltraleapModule::create();
-    module.disable_runtime_for_test();
-    engine.add_node(module.into(), None);
-    engine.apply_edits().expect("ultraleap module should attach");
-    for _ in 0..12 {
-        engine
-            .apply_edits()
-            .expect("ultraleap module defaults should materialize");
-    }
-    engine.resolve().expect("ultraleap module schedule should resolve");
-
-    let module_id = engine
-        .nodes
-        .get(engine.root)
-        .and_then(|root| root.node_data().first_child)
-        .expect("ultraleap module should be attached under root");
-
-    (engine, module_id)
+fn enqueue_poll(
+    engine: &mut crate::app::AppEngine,
+    module_id: NodeId,
+    control: &Arc<Control>,
+    poll: UltraleapRuntimePoll,
+) {
+    control.rows.lock().unwrap().push_back(poll);
+    until(|| {
+        let crate::app::AppNode::UltraleapModule(module) = engine.nodes.get_mut(module_id).unwrap() else {
+            panic!("fixture")
+        };
+        module.service.runtime.as_ref().unwrap().has_pending()
+    });
 }
-
-fn enqueue_poll(engine: &mut crate::app::AppEngine, module_id: NodeId, poll: UltraleapRuntimePoll) {
-    let crate::app::AppNode::UltraleapModule(module) =
-        engine.nodes.get_mut(module_id).expect("ultraleap module should exist")
-    else {
-        panic!("expected UltraleapModule node");
-    };
-    module.enqueue_poll_for_test(poll);
-}
-
 fn run_ultraleap_tick(engine: &mut crate::app::AppEngine) {
-    engine
-        .dispatch_inbox(ExecutionPhase::EngineTick)
-        .expect("ultraleap inbox should dispatch");
-    engine
-        .run_tick(Duration::from_millis(20))
-        .expect("ultraleap tick should run");
-    engine.apply_edits().expect("ultraleap tick edits should apply");
-    engine.resolve().expect("ultraleap schedule should resolve after tick");
+    super::service::tests::fixture::tick(engine);
 }
 
 struct TestHandSnapshot {

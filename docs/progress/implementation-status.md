@@ -5,13 +5,13 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-23 on `main`, continuing after delivered `7e647d66`, matching
-`origin/main` at milestone start. **C01-C09 are locally closed: 9/12 packages (75%). Three
-packages remain (C10-C12), covering five module families.** Mouse prepared input publication,
-lifetime quotas, queued guards and combined service qualification are complete locally. Continue
-C10 Ultraleap. P03 scope coverage is approximately 96%; whole-plan scope coverage remains
-approximately 16%. These scope scores do not forecast remaining effort. Hardware/platform and
-product-scale qualification retain their later plan owners.
+Last reconciled: 2026-10-23 on `main`, continuing after delivered `2e3bc6db`, matching
+`origin/main` at milestone start. **C01-C10 are locally closed: 10/12 packages (83%). Two
+packages remain (C11-C12), covering four module families.** Ultraleap now uses bounded SDK
+ownership, prepared publication, queued source/target guards and passive recovery. Continue C11
+Gamepad/Kinect2/Stream Deck, then C12 Spatializer. P03 scope coverage is approximately 97%;
+whole-plan scope coverage is approximately 17%. These scores do not forecast remaining effort.
+Hardware/platform and product-scale qualification retain their later plan owners.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
 plan. Its complete contents, including the uncommitted clarification, survive in the
@@ -19,16 +19,16 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 
 ## Completion overview
 
-**P03 closure packages: 9/12 closed (75%); 3 remain (C10-C12).** C09 Keyboard/Mouse is locally
-qualified. Remaining families: Ultraleap, Gamepad, Kinect2, Stream Deck and Spatializer. These are
-fixed acceptance packages, not promised commit counts. The ~96% scope score below is not a
-forecast of remaining effort; there is no qualified remaining-batch estimate.
+**P03 closure packages: 10/12 closed (83%); 2 remain (C11-C12).** C10 Ultraleap is locally
+qualified. Remaining families: Gamepad, Kinect2, Stream Deck and Spatializer. These are fixed
+acceptance packages, not promised commit counts. The ~97% scope score below is not a forecast
+of remaining effort; there is no qualified remaining-batch estimate.
 
-**Whole plan: approximately 16% complete.** P01 and P02 are complete against their local
-acceptance criteria; P03 is approximately 96%; P04-P18 have not started. P00 baseline reconciliation
+**Whole plan: approximately 17% complete.** P01 and P02 are complete against their local
+acceptance criteria; P03 is approximately 97%; P04-P18 have not started. P00 baseline reconciliation
 is complete and maintained separately. **2 of 18 implementation/qualification tasks are complete (11%).**
 
-Overall progress is the equal-weight average of P01–P18: `(100 + 100 + (600 + 800/11)/7 + 15 * 0) / 18`,
+Overall progress is the equal-weight average of P01–P18: `(100 + 100 + (600 + 900/11)/7 + 15 * 0) / 18`,
 rounded to a whole percent. This measures scope coverage, not elapsed time, remaining effort, or
 product readiness. Task sizes differ substantially. P00 housekeeping and preserved pre-plan
 features do not inflate this percentage. Later product, platform and device acceptance remains open.
@@ -41,12 +41,12 @@ record delivery history and are never the progress denominator.
 
 ### P03 completion checkpoints
 
-P03's approximately **96%** is a scope score across seven equally weighted workstreams.
+P03's approximately **97%** is a scope score across seven equally weighted workstreams.
 Six workstreams, including locally qualified Sound Card C01, score 100. The remaining-module audit
-uses verified closure coverage across C02-C12: **8 of 11 closed**, or approximately 73%.
-**This average is not a remaining-effort forecast:** five module families still need local
-qualification under the three open packages. Report package closures before the percentage.
-The score is `(100 + 100 + 100 + 100 + 100 + 800/11 + 100) / 7`.
+uses verified closure coverage across C02-C12: **9 of 11 closed**, or approximately 82%.
+**This average is not a remaining-effort forecast:** four module families still need local
+qualification under the two open packages. Report package closures before the percentage.
+The score is `(100 + 100 + 100 + 100 + 100 + 900/11 + 100) / 7`.
 
 | Workstream                                    | Scope score  | Delivered / remaining acceptance                                                                                                                                                             |
 | --------------------------------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -55,7 +55,7 @@ The score is `(100 + 100 + 100 + 100 + 100 + 800/11 + 100) / 7`.
 | HTTP                                          | 100%         | Native lifecycle, admission, response bounds, passive service, worker request conversion and retained input disposal verified.                                                               |
 | Generic script/event/property ingress         | 100%         | Method/property/event/log admission, rejected-input disposal, routing lifetime and shared-budget recovery verified.                                                                          |
 | Sound Card lifecycle/service                  | 100% locally | C01 closed: command/route/derived/feedback/source-lifetime gates preserved; queued projection path and publication-lifetime guards verified; capped native constraint publication qualified. |
-| Remaining app module/channel audit            | ~73% (8/11)  | C02-C09 are locally closed with bounded native/actor service, occurrence, retirement and recovery evidence. C10-C12 remain open.                                                             |
+| Remaining app module/channel audit            | ~82% (9/11)  | C02-C10 are locally closed with bounded native/actor service, occurrence, retirement and recovery evidence. C11-C12 remain open.                                                             |
 | Generator elapsed-time accounting             | 100%         | Ordinary commands settle elapsed time; phase, due-prefix ordering, bounded catch-up, targeted reset and stop cancellation verified.                                                          |
 
 The generator elapsed-time checkpoint and Sound Card are locally verified. The remaining module
@@ -66,24 +66,24 @@ acceptance. Hardware/platform and whole-product qualification keep their later p
 
 The user requested a remaining-batch forecast on 2026-10-20. There is no defensible commit count
 yet: the percentage does not measure remaining effort. The initial source audit covered
-**17 implemented module families plus Sound Card**. C01-C09 are now locally verified, leaving
-**five implemented families** to repair/qualify under C10-C12.
+**17 implemented module families plus Sound Card**. C01-C10 are now locally verified, leaving
+**four implemented families** to repair/qualify under C11-C12.
 The earlier directory inventory counted an empty, untracked Node Control placeholder as a module;
 there is no implementation to qualify or build for that placeholder. At the initial audit, nine families contained explicit
 unbounded channels: Buttplug, Joy-Con, Keyboard, Mouse, Ultraleap, Signals, Metronomes, MIDI and
 MQTT. Signals/Metronomes, MIDI, MQTT, Buttplug, Joy-Con, Keyboard and Mouse input now use bounded app-owned paths;
-Ultraleap is the remaining explicit unbounded channel path. MIDI's actor service is now qualified within C03. Worker joins also require caller/retirement review; finding a join is not proof that the
+Ultraleap now also uses a bounded app-owned path. MIDI's actor service is now qualified within C03. Worker joins also require caller/retirement review; finding a join is not proof that the
 actor blocks. Absence of these search patterns is not evidence of acceptance.
 
 Use these **12 fixed closure work packages** instead of an unbounded list of supporting batches.
 They cover the existing P03 acceptance scope; they are not 12 guaranteed commits. Each package
 closes only after its owning audit, required repairs and acceptance tests pass. A package may need
 several reviewable commits, and a review may establish that an existing implementation already
-passes. **Remaining closure packages: three open, nine closed (C01-C09).** This count does not discard prior P03
+passes. **Remaining closure packages: two open, ten closed (C01-C10).** This count does not discard prior P03
 work or replace the workstream percentages above.
 
-Latest count on 2026-10-23: **three packages remain, not three promised batches**. C09 Keyboard/Mouse
-has joined C01-C08 in local closure. Do not increase the denominator for supporting commits or move
+Latest count on 2026-10-23: **two packages remain, not two promised batches**. C10 Ultraleap
+has joined C01-C09 in local closure. Do not increase the denominator for supporting commits or move
 unrelated optimization into P03. Report closed acceptance items and remaining package criteria
 instead of accumulated batch numbers.
 
@@ -98,13 +98,13 @@ instead of accumulated batch numbers.
 | C07 | **CLOSED (100%)** | Buttplug                         | Locally verified: 40 owning passes cover canonical command/script capture, native-prepared callbacks/catalogs, retained source/publication/domain quotas and queued guards, continuous input, mailbox/callback pressure, eight reconfigurations and failure/recovery before blocked cleanup. Protocol library, reconnect and selected-device identity preserved. Hardware/platform and product-scale qualification remain separate. |
 | C08 | **CLOSED (100%)** | Joy-Con                          | Locally verified: 71 owning passes cover canonical capture, native-prepared callbacks and atomic quota recovery, retained source/input/callback lifetimes, queued target/path/settings guards, 512 ordered edges, eight reconfigurations and failure/recovery before blocked cleanup. Hardware/platform and product-scale qualification remain separate.                                                                            |
 | C09 | **CLOSED (100%)** | Keyboard and Mouse               | Locally verified: 71 Keyboard, 87 Mouse and three shared ordering cases cover canonical capture, worker-prepared callbacks/catalogs, retained quotas, queued source/target/settings guards, passive service, continuous input under output pressure, reconfiguration and failure/recovery. Physical/platform and product-scale qualification remain separate.                                                                       |
-| C10 | OPEN              | Ultraleap                        | Close event/payload/service bounds, worker retirement and service/device recovery.                                                                                                                                                                                                                                                                                                                                                  |
+| C10 | **CLOSED (100%)** | Ultraleap                        | Locally verified: 24 owning passes cover bounded SDK/actor lifetimes and publication, prepared tracking and ordered status boundaries, retained source quotas, queued path/retirement/disable guards, 512 ordered statuses, eight enable/disable cycles, idle service and failure recovery before blocked cleanup. Physical SDK/platform and product-scale qualification remain separate.                                           |
 | C11 | OPEN              | Gamepad, Kinect2 and Stream Deck | Audit indirect/shared runtime paths as well as local code; repair and verify any P03 ownership/bounds/recovery gaps.                                                                                                                                                                                                                                                                                                                |
 | C12 | OPEN              | Spatializer; Node Control absent | Bound Spatializer computation, graph mutation and callback fan-out; do not implement the empty Node Control placeholder.                                                                                                                                                                                                                                                                                                            |
 
 The [initial ownership/acceptance audit](p03-closure-audit.md) is now complete across C01-C12.
 It records confirmed source gaps, existing safeguards, missing qualification and finish tests.
-C01-C09 are locally closed. Continue C10 Ultraleap, then C11-C12;
+C01-C10 are locally closed. Continue C11 Gamepad/Kinect2/Stream Deck, then C12 Spatializer;
 do not continue the generic snapshot-copy prerequisite chain. Existing shared IO, stream, HTTP and
 generator time suites remain preservation gates. Map discoveries into the fixed packages. General
 optimizations belong to P12/P16 unless evidence connects them to a concrete P03 resource, service,
@@ -116,19 +116,18 @@ or completion credit. Snapshot/DTO scaling remains an explicit P16 investigation
 
 ## Current handoff
 
-- **C01-C09 are locally closed: 9/12 packages (75%). Three P03 packages remain (C10-C12),
-  covering five families.** Continue C10 Ultraleap, then C11 Gamepad/Kinect2/Stream Deck and C12
-  Spatializer. Node Control is an empty placeholder and is outside implemented-module scope.
-- Current app evidence: **87 Mouse + 71 Keyboard + 71 Joy-Con + 40 Buttplug + 1075 disjoint
-  preservation = 1344 passes / six existing ignored / 1350 selected / 1623 listed**, with 273
-  outside these scopes. Three shared ordering cases are included once in preservation. The owning
-  gate passed 161 cases (87 Mouse / 71 Keyboard / three shared); the final artifact also passed
-  the other 111 controller cases and preservation with builds idle.
-- Core engine: **602 passes / three existing ignored / 605 listed**, including atomic choice/value
-  publication, history and rejection. Golden IO is unchanged; its prior 57-pass result remains dated.
-  Inventory: **2074 source files / 32 oversized**; all touched sources remain below 1000 lines.
-  P03 ~96% and whole-plan ~16% remain scope scores. Commit/push verified milestones on `main`;
-  keep the complete P00-P18 goal active.
+- **C01-C10 are locally closed: 10/12 packages (83%). Two P03 packages remain (C11-C12),
+  covering four families.** Continue C11 Gamepad, Kinect2 and Stream Deck, then C12 Spatializer.
+  Node Control is an empty placeholder outside implemented-module scope.
+- Current app evidence: **24 Ultraleap + 269 controller preservation + 1075 disjoint preservation
+  = 1368 passes / six existing ignored / 1374 selected / 1643 listed**, with 269 outside these
+  scopes. The 269 controller cases cover 87 Mouse / 71 Keyboard / 71 Joy-Con / 40 Buttplug;
+  three shared ordering cases are included once in preservation. The final artifact and source
+  hashes match the owning run; preservation passed with builds idle.
+- Core and Golden IO are unchanged. Prior Core **602 passes / three ignored / 605 listed** at
+  `2e3bc6db` and the prior 57-pass IO result remain dated. Inventory: **2086 source files /
+  32 oversized**; all touched sources remain below 1000 lines. P03 ~97% and whole-plan ~17%
+  remain scope scores. Commit/push verified milestones on `main`; keep the full P00-P18 goal active.
 
 ## Task ledger
 
@@ -136,27 +135,27 @@ Implementation states: `NOT_STARTED`, `IN_PROGRESS`, `IMPLEMENTED`, `VERIFIED_LO
 Check outcomes: `PENDING`, `PASSED`, `FAILED`, `UNAVAILABLE`, `SKIPPED_WITH_REASON`.
 External qualification is separate from implementation. A historical pass is not a current pass.
 
-| Task                        | Completion | Implementation | Local validation   | External qualification / evidence                                                                                                |
-| --------------------------- | ---------- | -------------- | ------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| P00 Baseline                | 100%       | VERIFIED_LOCAL | PASSED             | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                       |
-| P01 Edit failures/history   | 100%       | VERIFIED_LOCAL | PASSED batches 1–8 | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                        |
-| P02 Schedule/actor failures | 100%       | VERIFIED_LOCAL | PASSED batches 1-3 | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                         |
-| P03 Bounded I/O/lifecycle   | ~96%       | IN_PROGRESS    | PASSED C01-C09     | Three packages remain (C10-C12), covering five families. Continue C10 Ultraleap ownership, bounds, passive service and recovery. |
-| P04 Audio order/types       | 0%         | NOT_STARTED    | PENDING            | Legal interleaving and invalid deserialization established from source                                                           |
-| P05 Transport trust         | 0%         | NOT_STARTED    | PENDING            | Missing admission verified; exploit not demonstrated                                                                             |
-| P06 Dependencies            | 0%         | NOT_STARTED    | FAILED baseline    | Four Rustls advisories on audit date; refresh DB before repair                                                                   |
-| P07 DMX streaming           | 0%         | NOT_STARTED    | PENDING            | Refresh/filter/service gaps; protocol loopback qualification needed                                                              |
-| P08 Formula backend intents | 0%         | NOT_STARTED    | PENDING            | UI polling/identity and mutation policy verified; corruption not reproduced                                                      |
-| P09 Graph document          | 0%         | NOT_STARTED    | PENDING            | Ordered-map mutation costs source-derived                                                                                        |
-| P10 Canvas                  | 0%         | NOT_STARTED    | PENDING            | Projection diagnostic and crossing-edge reproduction; mounted performance open                                                   |
-| P11 Workspace UX            | 0%         | NOT_STARTED    | PENDING            | Collection/keyboard gaps source-reviewed; native usability open                                                                  |
-| P12 Boundaries/gates        | 0%         | NOT_STARTED    | PENDING            | App policy leak, omitted graph tests, oversized files, unsafe conversions; recurring incremental native-link artifact gap        |
-| P13 Formula execution       | 0%         | NOT_STARTED    | PENDING            | Historical profiles retained; production parallelism not mandated                                                                |
-| P14 Production time         | 0%         | NOT_STARTED    | PENDING            | Clock helper unwired, no target-frame play, starvation/latency policy gaps                                                       |
-| P15 Assets                  | 0%         | NOT_STARTED    | PENDING            | Audio path/cache identity exists; project asset boundary unimplemented                                                           |
-| P16 Product scale           | 0%         | NOT_STARTED    | PENDING            | Snapshot/DTO scaling investigation retained from P03 audit; full-product 20k/50k/mounted canvas gates remain open                |
-| P17 Platforms/artifacts     | 0%         | NOT_STARTED    | PENDING            | Windows history retained; exact current app/native/platform checks required                                                      |
-| P18 Named devices           | 0%         | NOT_STARTED    | PENDING            | Exact authorized ASIO4ALL/VB-Audio route must be verified first                                                                  |
+| Task                        | Completion | Implementation | Local validation   | External qualification / evidence                                                                                                 |
+| --------------------------- | ---------- | -------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| P00 Baseline                | 100%       | VERIFIED_LOCAL | PASSED             | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                        |
+| P01 Edit failures/history   | 100%       | VERIFIED_LOCAL | PASSED batches 1–8 | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                         |
+| P02 Schedule/actor failures | 100%       | VERIFIED_LOCAL | PASSED batches 1-3 | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                          |
+| P03 Bounded I/O/lifecycle   | ~97%       | IN_PROGRESS    | PASSED C01-C10     | Two packages remain (C11-C12), covering four families. Continue C11 controller ownership/bounds/recovery audit, then Spatializer. |
+| P04 Audio order/types       | 0%         | NOT_STARTED    | PENDING            | Legal interleaving and invalid deserialization established from source                                                            |
+| P05 Transport trust         | 0%         | NOT_STARTED    | PENDING            | Missing admission verified; exploit not demonstrated                                                                              |
+| P06 Dependencies            | 0%         | NOT_STARTED    | FAILED baseline    | Four Rustls advisories on audit date; refresh DB before repair                                                                    |
+| P07 DMX streaming           | 0%         | NOT_STARTED    | PENDING            | Refresh/filter/service gaps; protocol loopback qualification needed                                                               |
+| P08 Formula backend intents | 0%         | NOT_STARTED    | PENDING            | UI polling/identity and mutation policy verified; corruption not reproduced                                                       |
+| P09 Graph document          | 0%         | NOT_STARTED    | PENDING            | Ordered-map mutation costs source-derived                                                                                         |
+| P10 Canvas                  | 0%         | NOT_STARTED    | PENDING            | Projection diagnostic and crossing-edge reproduction; mounted performance open                                                    |
+| P11 Workspace UX            | 0%         | NOT_STARTED    | PENDING            | Collection/keyboard gaps source-reviewed; native usability open                                                                   |
+| P12 Boundaries/gates        | 0%         | NOT_STARTED    | PENDING            | App policy leak, omitted graph tests, oversized files, unsafe conversions; recurring incremental native-link artifact gap         |
+| P13 Formula execution       | 0%         | NOT_STARTED    | PENDING            | Historical profiles retained; production parallelism not mandated                                                                 |
+| P14 Production time         | 0%         | NOT_STARTED    | PENDING            | Clock helper unwired, no target-frame play, starvation/latency policy gaps                                                        |
+| P15 Assets                  | 0%         | NOT_STARTED    | PENDING            | Audio path/cache identity exists; project asset boundary unimplemented                                                            |
+| P16 Product scale           | 0%         | NOT_STARTED    | PENDING            | Snapshot/DTO scaling investigation retained from P03 audit; full-product 20k/50k/mounted canvas gates remain open                 |
+| P17 Platforms/artifacts     | 0%         | NOT_STARTED    | PENDING            | Windows history retained; exact current app/native/platform checks required                                                       |
+| P18 Named devices           | 0%         | NOT_STARTED    | PENDING            | Exact authorized ASIO4ALL/VB-Audio route must be verified first                                                                   |
 
 For each implementation batch append a compact row under “New implementation evidence” with
 task, source/tree, changed ownership, invariant, exact commands, environment/features, outcome,
@@ -7496,3 +7495,73 @@ Final SHA-256:
   `25449c293ad485a2fbcf04eaaa41549dced9600c9934e5c0e7e3c96f64469235`.
 - Native `target/debug/Chataigne2.exe`:
   `4e2840849302ddb071c0e52178a9a173da469e8e5b0d3452608edb74f31f0434`.
+
+## C10 Ultraleap local closure
+
+Implemented 2026-10-23 after `2e3bc6db`, starting clean on `main`.
+**C01-C10 are locally closed: ten of twelve packages (83%). Two remain (C11-C12), covering
+four families.** Continue Gamepad/Kinect2/Stream Deck, then Spatializer. P03 scope coverage is
+approximately 97%; whole-plan scope coverage rounds to 17% under the existing equal-weight rubric.
+Neither score forecasts remaining effort. No new closure package or generic prerequisite is added.
+
+Ultraleap no longer waits for SDK startup, drains an unbounded channel or joins a thread on the
+actor. Its app-owned IO runtime uses public Golden admission, lifetime, payload, wake and recovery
+primitives. Four process lifetimes and one per-module lifetime include blocked setup and cleanup.
+Actor retirement fences queued publications immediately; worker failure becomes observable before
+provider cleanup. The original source reservation survives draining, cloning, queued application,
+rejection and disposal. Source/mailbox pressure retains the same occurrence and pauses polling.
+
+The source pool admits 128 lifetimes / 2 MiB, charging 16 KiB per publication. The mailbox admits
+32 rows / 512 KiB; provider and actor turns admit at most 16 rows. Consecutive native poses
+coalesce within that provider turn only while service/device and hand-presence state match;
+status messages and presence transitions preserve ordered boundaries. Native SDK calls and waits,
+device enumeration, frame conversion, finite/count validation, distance and tracking messages run
+on IO owners. Device enumeration admits at most 64 entries before allocation; hand traversal
+admits two hands and rejects invalid/null/duplicate identity data. Message backing storage admits
+1024 bytes. Existing LeapC bindings and dynamic library locations remain in use.
+
+The actor projects prepared typed state behind module/leaf/ancestor and actor/native source guards,
+retaining the original source through application or rejection. Missing snapshots keep input queued.
+Healthy idle service has no periodic actor updates, snapshots or wakes. SDK service-unavailable
+responses use a 250 ms native retry; startup, failure and full lifetime capacity use absolute
+actor recovery deadlines with 250 ms to five-second backoff. Disable/destroy retire the source;
+enable requests a bounded replacement. Existing parameters, base functions/callbacks, empty
+module-specific command/method registries and app-owned template remain unchanged. See
+[Ultraleap ownership](../architecture/ultraleap-runtime.md).
+
+Final Windows/default-feature gates use `CARGO_INCREMENTAL=0`:
+
+- Strict workspace/all-target Clippy passed in 39.23s; `cargo check --locked --workspace --tests`
+  passed in 30.02s.
+- `cargo test --locked -p Chataigne2 --bin Chataigne2 -- --test-threads=1 app::module_modules_controllers_ultraleap`:
+  **24 passed**, in 2.13s after a 4m18s build. Twenty new cases cover blocked open/cleanup,
+  bounded retained and mailbox pressure, SDK decode/count/finite limits, prepared coalescing and
+  status boundaries, queued path/source/disable rejection, original-source disposal, missing
+  snapshots, 512 ordered status applications with unrelated actor progress, eight enable/disable
+  cycles, idle service and failure recovery. The first run passed 17 and exposed seven fixture
+  path lookup failures; fixtures now use stable declaration IDs. Ordered application is observed
+  at the engine boundary rather than through the UI's latest-value retention.
+- Native `cargo build --locked -p Chataigne2 --bin Chataigne2` passed in 2m54s.
+  Final artifact scopes are disjoint: **24 Ultraleap / 269 controllers / 1081 preservation**;
+  **1643 listed / 269 outside scope**. Controller preservation passed **87 Mouse + 71 Keyboard +
+  71 Joy-Con + 40 Buttplug = 269**, in 21.30s. Broader preservation passed **1075 / zero failed /
+  six existing ignored**, in 84.50s with builds idle. Total: **1368 unique app passes / six ignored /
+  1374 selected**. Shared ordering cases are included once in preservation. Artifact hashes remain
+  unchanged across owning and preservation runs; no timing threshold or fixture was relaxed.
+- Actual root/Core Cargo fmt, explicit app Rustfmt, documentation formatting and diff checks pass;
+  all 15 tested live Rust source hashes remain unchanged through final formatting. Inventory:
+  **2086 source files / 32 oversized**, with every touched source below 1000 lines. Core, Golden IO,
+  Golden UI, dependencies, generated protocol, project codec and app-shell startup are unchanged.
+  Prior Core **602 passes / three ignored** at `2e3bc6db` and Golden IO 57-pass evidence remain dated.
+
+Tests use fake providers and in-memory SDK records; native SDK endpoints cannot open in test builds.
+No tracking service or physical device was operated. Vendor SDK internal queues/memory, physical
+service/device behavior, cross-platform builds and product scale remain unqualified here and keep
+P17/P18 and P16 ownership. The complete P00-P18 goal remains active.
+
+Final SHA-256:
+
+- App `target/debug/deps/Chataigne2-b14ffd1b9e52f9ac.exe`:
+  `1d7e368530c7de8f8f6b3c6e508004985c71c3f5f0721aa1a3e0ea9af5a4e329`.
+- Native `target/debug/Chataigne2.exe`:
+  `09c31b0500601afd85af55dcede491cb272fc1e436804fea617e1cd868a271aa`.
