@@ -4,11 +4,11 @@
 //! so (like the concrete module files) it is compiled exactly once via the generated app
 //! node registry. That keeps `PageHost` a single `AppNode` type. The paging runtime
 //! constructs it through the registered re-export `crate::app::PageHost` (see
-//! `paging::ensure_container`).
+//! the controller's bounded layout planner).
 //!
 //! A `PageHost` is a user-container that offers a "+ New Page" item and accepts plain
 //! folders — each folder is one page. Page contents are cloned from the owning module's
-//! default layout by `paging::complete_pages`; deletion uses standard node removal.
+//! default layout by its bounded page planner; deletion uses standard node removal.
 
 use golden_core::{
     node,

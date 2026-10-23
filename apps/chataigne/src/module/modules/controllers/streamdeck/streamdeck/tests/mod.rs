@@ -8,16 +8,16 @@ use golden_core::{
     script::ScriptSource,
 };
 
-use super::streamdeck_runtime::SimulatedStreamDeck;
+use super::runtime::tests::SimulatedStreamDeck;
 use super::StreamDeckModule;
+mod contracts;
 
 /// "mini" model => 6 keys.
 const MODEL_KEYS: usize = 6;
 
 #[test]
 fn streamdeck_script_template_scaffolds_functions_and_callbacks() {
-    let config =
-        crate::app::module::script_api::module_script_config(StreamDeckModule::NODE_TYPE);
+    let config = crate::app::module::script_api::module_script_config(StreamDeckModule::NODE_TYPE);
     let ScriptSource::Inline { text: source } = config.source else {
         panic!("Stream Deck module script template should resolve to inline source");
     };
@@ -96,7 +96,12 @@ fn deriving_a_page_creates_control_page_and_values_mirror() {
     );
     for number in 1..=MODEL_KEYS {
         assert!(
-            find_path(&engine, module_id, &format!("parameters/pages/lighting/Key {number}/Color")).is_some(),
+            find_path(
+                &engine,
+                module_id,
+                &format!("parameters/pages/lighting/Key {number}/Color")
+            )
+            .is_some(),
             "control page should clone key {number}"
         );
         // Values mirror: a flat boolean per key, named after the page.
@@ -140,7 +145,10 @@ fn feedback_pushes_active_page_color_to_device() {
     set_param(&mut engine, color, ParamValue::Color(1.0, 0.0, 0.0, 1.0));
     run_tick(&mut engine);
     with_module(&engine, module_id, |module| {
-        assert_eq!(module.simulated().rendered(0).expect("slot 0 visual").color, (1.0, 0.0, 0.0, 1.0));
+        assert_eq!(
+            module.simulated().rendered(0).expect("slot 0 visual").color,
+            (1.0, 0.0, 0.0, 1.0)
+        );
     });
 }
 
@@ -240,9 +248,20 @@ fn brightness_reaches_device() {
     });
 }
 
+#[test]
+fn worker_input_release_preserves_flat_input_and_owns_native_calls() {
+    let (mut engine, module_id) = create_streamdeck_module();
+    press_key(&mut engine, module_id, 0);
+    run_tick(&mut engine);
+    assert_eq!(bool_param(&engine, module_id, "values/keys/Key 1"), Some(true));
+    module_mut(&mut engine, module_id).simulated_mut().release(0);
+    run_tick(&mut engine);
+    assert_eq!(bool_param(&engine, module_id, "values/keys/Key 1"), Some(false));
+}
+
 // --- harness helpers --------------------------------------------------------
 
-fn create_streamdeck_module() -> (crate::app::AppEngine, NodeId) {
+pub(super) fn create_streamdeck_module() -> (crate::app::AppEngine, NodeId) {
     let root: crate::app::AppNode = Folder::new("root").into();
     let mut engine = crate::app::AppEngine::new(root);
     engine.add_node(StreamDeckModule::create().into(), None);
@@ -298,7 +317,7 @@ fn create_page(engine: &mut crate::app::AppEngine, module_id: NodeId, name: &str
     }
 }
 
-fn module_mut(engine: &mut crate::app::AppEngine, module_id: NodeId) -> &mut StreamDeckModule {
+pub(super) fn module_mut(engine: &mut crate::app::AppEngine, module_id: NodeId) -> &mut StreamDeckModule {
     match engine.nodes.get_mut(module_id).expect("module should exist") {
         crate::app::AppNode::StreamDeckModule(module) => module,
         _ => panic!("expected StreamDeckModule node"),
@@ -312,10 +331,15 @@ fn with_module<R>(engine: &crate::app::AppEngine, module_id: NodeId, f: impl FnO
     }
 }
 
-fn run_tick(engine: &mut crate::app::AppEngine) {
-    engine.dispatch_inbox(ExecutionPhase::EngineTick).expect("inbox should dispatch");
-    engine.run_tick(Duration::from_millis(20)).expect("tick should run");
-    engine.apply_edits().expect("tick edits should apply");
+pub(super) fn run_tick(engine: &mut crate::app::AppEngine) {
+    for _ in 0..20 {
+        engine
+            .dispatch_inbox(ExecutionPhase::EngineTick)
+            .expect("inbox should dispatch");
+        engine.run_tick(Duration::from_millis(2)).expect("tick should run");
+        engine.apply_edits().expect("tick edits should apply");
+        std::thread::sleep(Duration::from_millis(2));
+    }
 }
 
 fn active_page_param(engine: &crate::app::AppEngine, module_id: NodeId) -> NodeId {
@@ -327,7 +351,14 @@ fn enum_option_ids(engine: &crate::app::AppEngine, param_id: NodeId) -> Vec<Stri
         .nodes
         .get(param_id)
         .and_then(|node| node.engine_param_snapshot())
-        .map(|snapshot| snapshot.constraints.enum_options.iter().map(|option| option.variant_id.clone()).collect())
+        .map(|snapshot| {
+            snapshot
+                .constraints
+                .enum_options
+                .iter()
+                .map(|option| option.variant_id.clone())
+                .collect()
+        })
         .unwrap_or_default()
 }
 
@@ -372,7 +403,11 @@ fn node_key_matches(node: &golden_core::node::NodeData, key: &str) -> bool {
 
 fn param_value(engine: &crate::app::AppEngine, start: NodeId, path: &str) -> Option<ParamValue> {
     let param_id = find_path(engine, start, path)?;
-    engine.nodes.get(param_id)?.engine_param_snapshot().map(|snapshot| snapshot.value)
+    engine
+        .nodes
+        .get(param_id)?
+        .engine_param_snapshot()
+        .map(|snapshot| snapshot.value)
 }
 
 fn bool_param(engine: &crate::app::AppEngine, start: NodeId, path: &str) -> Option<bool> {
