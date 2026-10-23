@@ -1,5 +1,7 @@
 use std::time::Duration;
 
+mod native_ownership;
+
 use golden_core::{
     node::{Folder, Node, NodeId},
     parameter::ParamValue,
@@ -53,8 +55,8 @@ fn keyboard_events_update_values() {
         Some(2),
         "held key count should track supported pressed keys"
     );
-    let held_keys = string_param_value(&engine, module_id, "values/info/held_keys")
-        .expect("held keys value should exist");
+    let held_keys =
+        string_param_value(&engine, module_id, "values/info/held_keys").expect("held keys value should exist");
     assert!(held_keys.contains("a"));
     assert!(held_keys.contains("left_shift"));
 }
@@ -131,9 +133,7 @@ fn create_keyboard_module() -> (crate::app::AppEngine, NodeId) {
             .apply_edits()
             .expect("keyboard module defaults should materialize");
     }
-    engine
-        .resolve()
-        .expect("keyboard module schedule should resolve");
+    engine.resolve().expect("keyboard module schedule should resolve");
 
     let module_id = engine
         .nodes
@@ -160,9 +160,7 @@ fn run_keyboard_tick(engine: &mut crate::app::AppEngine) {
     engine
         .run_tick(Duration::from_millis(20))
         .expect("keyboard tick should run");
-    engine
-        .apply_edits()
-        .expect("keyboard tick edits should apply");
+    engine.apply_edits().expect("keyboard tick edits should apply");
 }
 
 fn find_path(engine: &crate::app::AppEngine, start: NodeId, path: &str) -> Option<NodeId> {

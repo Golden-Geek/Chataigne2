@@ -1,0 +1,61 @@
+# Keyboard input ownership
+
+The app-owned Keyboard module projects authored values, device choices and script callbacks.
+Its input owner uses public Golden IO workers, revision fences and payload pools. Golden packages
+contain no Keyboard types or policy. Platform files own raw-input discovery, native message
+processing and the existing key mappings.
+
+## Input lifetimes
+
+Four global input-owner slots include startup, running and cleanup. Each module also reserves
+one owner slot, held until the provider and its native child thread finish cleanup. The actor
+never waits for native readiness or joins a native thread. A bounded IO owner performs those
+operations; dropping the actor handle invalidates its publications and cancels forwarding.
+A blocked open or join keeps both slots, so retries cannot grow an unbounded set of workers.
+
+The platform thread remains separate because Windows requires a thread-affine message pump,
+while the other platform adapter owns its device-query loop. Native shutdown, startup failure
+joins and window destruction run behind the IO owner. Windows window ownership uses RAII.
+Foreground raw-input packets run the default procedure for system cleanup, as required by
+[the Windows contract](https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-input).
+Native input creation and output injection are disabled in test builds; controlled providers
+exercise the handoff and lifecycle.
+
+## Bounded handoffs
+
+The native channel admits 64 records / 2 MiB. Input records charge 4 KiB; native catalogs charge
+512 KiB. A full channel rejects the occurrence explicitly, records overload and ends the native
+producer; it does not block the message pump or silently discard a successful admission.
+The owner drains at most 16 records per poll. Terminal state is observable independently of
+sender destruction, including when native teardown still owns the sender.
+
+The owner publishes through a 32-record / 8 MiB mailbox. A global payload pool admits 128
+lifetimes / 32 MiB, charging 4 KiB per input and 2 MiB per catalog publication. Input forwarding
+pauses on mailbox or lifetime pressure and resumes with the same prepared record. Cancellation
+does not require a free mailbox slot. At most one bounded provider turn remains staged.
+
+Catalogs admit 64 keyboards and 1024 UTF-8 bytes per identity, label or detail field. Windows
+raw-device enumeration admits at most 1024 entries before allocating its list, and device names
+admit 1024 UTF-16 units before allocation. Keyboard packets use fixed aligned storage and reject
+invalid sizes. These bounds do not qualify device-query library internals or physical hardware.
+
+## Actor projection and remaining C09 work
+
+Actor turns drain at most 16 publications. The original publication reservation follows queued
+application, rejection or disposal; the current catalog also retains its original publication
+while the module keeps its catalog copy. Before catalog/value/callback work, input projection
+fences actor/native lifetimes, bound targets and their named ancestors, and authored device,
+receive and send settings. Renaming a queued target, disabling receive or retiring the source
+rejects the stale projection before its values and callbacks apply.
+Device choices use the public enum-options edit, preserving parameter identity and read guards
+instead of replacing the parameter. The existing narrow normalization of persisted label-suffixed
+device IDs remains in this backend boundary.
+
+This is the input-lifecycle slice of C09. Keyboard output execution/capture, native callback
+preparation, canonical published choice lifetimes, passive service and full recovery qualification
+remain open. The Keyboard actor still uses its existing periodic service and retry clock.
+Windows also needs process-owned raw-input registration and bounded fan-out before C09 closes:
+[only one window per device class can receive raw input in a process](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-registerrawinputdevices).
+The existing per-module registration policy is not qualified by the controlled-provider tests.
+Mouse has not yet migrated. The [execution ledger](../progress/implementation-status.md) owns
+package counts and qualification; this page does not claim C09 closure.

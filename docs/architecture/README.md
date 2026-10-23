@@ -35,6 +35,8 @@ and superseded plans are [archived](../archive/2026-10-18/README.md).
   slots, retained command outcomes, passive service and local C07 qualification.
 - [Joy-Con worker ownership](joycon-runtime.md): bounded native lifetime, command/input admission,
   canonical command/script capture, retained outcomes, rumble maintenance under pressure and passive actor service.
+- [Keyboard input ownership](keyboard-runtime.md): bounded native handoffs and input lifetimes,
+  asynchronous startup/cleanup, queued projection guards and remaining C09 work.
 - [Timed generators](generators.md): Signals/Metronomes admission, elapsed time, bounded
   publication, passive service and worker lifetime ownership.
 - [Alchemist runtime](alchemist-runtime.md): formulas, processors, conditions, inputs, filters,

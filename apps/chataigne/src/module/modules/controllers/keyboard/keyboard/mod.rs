@@ -1,4 +1,10 @@
 mod keyboard_runtime;
+mod projection;
+mod selection;
+mod values;
+use golden_io::{RetainedPayload, RetirementPool, WorkerNotifier};
+use selection::*;
+use std::num::NonZeroUsize;
 
 use std::collections::BTreeSet;
 
@@ -7,7 +13,7 @@ use golden_core::{
     events::CustomEvent,
     logerror, node,
     node::{Node, NodeHandle, NodeId, NodeScriptDescriptor},
-    parameter::{Enum, ParamValue, Parameter, ParameterEnumOption, ParameterEventBehaviour},
+    parameter::{Enum, ParamValue, ParameterEnumOption, ParameterEventBehaviour},
     process_ctx::ProcessCtx,
 };
 
@@ -125,9 +131,12 @@ const KEYBOARD_SCRIPT_METHODS: &[&str] = &["tapKey", "pressKey", "releaseKey"];
 pub struct KeyboardModule {
     base: crate::app::ModuleBase,
     input_backend: Option<KeyboardInputRuntime>,
+    input_owner: RetirementPool,
+    input_pressure: bool,
     output_backend: Option<KeyboardOutputController>,
     pending_input_events: Vec<KeyboardInputEvent>,
     known_devices: Vec<DiscoveredKeyboardDevice>,
+    input_catalog: Option<RetainedPayload<keyboard_runtime::Publication>>,
     devices_dirty: bool,
     input_retry_elapsed: f64,
     output_retry_elapsed: f64,
@@ -143,9 +152,12 @@ impl KeyboardModule {
         Self::new(
             crate::app::ModuleBase::new(),
             None,
+            RetirementPool::new(NonZeroUsize::MIN),
+            false,
             None,
             Vec::new(),
             Vec::new(),
+            None,
             true,
             KEYBOARD_BACKEND_RETRY_INTERVAL_SECS,
             KEYBOARD_BACKEND_RETRY_INTERVAL_SECS,
@@ -178,6 +190,7 @@ impl KeyboardModule {
         if !self.receive_enabled.get() {
             self.stop_input_backend();
             self.clear_backend_warning(ctx, KEYBOARD_INPUT_WARNING_ID);
+            self.clear_backend_warning(ctx, "keyboard_input_pressure");
             return;
         }
         if self.suppress_input_backend || self.input_backend.is_some() {
@@ -212,12 +225,17 @@ impl KeyboardModule {
         }
 
         self.input_retry_elapsed = 0.0;
-        match KeyboardInputRuntime::create() {
+        let waker = ctx.node_waker().map_err(|error| error.to_string())?;
+        let notifier = WorkerNotifier::new(move || {
+            let _ = waker.wake();
+        });
+        match KeyboardInputRuntime::create(&self.input_owner, notifier) {
             Ok(backend) => {
                 golden_core::log!(origin = self.id(); "Started keyboard input backend.");
                 self.input_backend = Some(backend);
                 self.last_input_error = None;
                 self.clear_backend_warning(ctx, KEYBOARD_INPUT_WARNING_ID);
+                self.clear_backend_warning(ctx, "keyboard_input_pressure");
                 self.refresh_connection_state(ctx);
                 Ok(())
             }
@@ -264,10 +282,12 @@ impl KeyboardModule {
 
     fn stop_input_backend(&mut self) {
         self.input_backend = None;
+        self.input_pressure = false;
         if !self.known_devices.is_empty() {
             self.known_devices.clear();
             self.devices_dirty = true;
         }
+        self.input_catalog = None;
     }
 
     fn stop_output_backend(&mut self) {
@@ -281,6 +301,7 @@ impl KeyboardModule {
             return events;
         };
 
+        let pressure = input_backend.pressure();
         let runtime_events = match input_backend.poll_events() {
             Ok(runtime_events) => runtime_events,
             Err(error) => {
@@ -290,26 +311,49 @@ impl KeyboardModule {
                 self.stop_input_backend();
                 self.last_input_error = Some(error.clone());
                 self.set_backend_warning(ctx, KEYBOARD_INPUT_WARNING_ID, error.as_str());
+                self.clear_backend_warning(ctx, "keyboard_input_pressure");
                 self.clear_input_values(ctx);
                 self.refresh_connection_state(ctx);
                 return events;
             }
         };
 
-        for runtime_event in runtime_events {
-            match runtime_event {
+        if pressure != self.input_pressure {
+            self.input_pressure = pressure;
+            if pressure {
+                self.set_backend_warning(
+                    ctx,
+                    "keyboard_input_pressure",
+                    "Keyboard input lifetime capacity is full; input forwarding is paused",
+                );
+            } else {
+                self.clear_backend_warning(ctx, "keyboard_input_pressure");
+            }
+        }
+        for publication in runtime_events {
+            if !self.guard_input(ctx, &publication) {
+                self.set_backend_warning(
+                    ctx,
+                    KEYBOARD_INPUT_WARNING_ID,
+                    "Keyboard input publication cancelled; source or target retired",
+                );
+                continue;
+            }
+            match &publication.event {
                 KeyboardRuntimeEvent::DevicesChanged(devices) => {
-                    if self.known_devices != devices {
-                        self.known_devices = devices;
+                    if self.known_devices != *devices {
+                        self.known_devices = devices.clone();
+                        self.input_catalog = Some(publication.clone());
                         self.devices_dirty = true;
                     }
                 }
                 KeyboardRuntimeEvent::Input { device, event } => {
                     if self.input_event_matches_selection(device.as_str()) {
-                        events.push(event);
+                        events.push(*event);
                     }
                 }
             }
+            ctx.edits.retain_payload(publication);
         }
 
         events
@@ -461,6 +505,7 @@ impl KeyboardModule {
                 self.stop_input_backend();
                 self.clear_backend_warning(ctx, KEYBOARD_INPUT_WARNING_ID);
                 self.clear_device_warning(ctx, KEYBOARD_SELECTION_WARNING_ID);
+                self.clear_backend_warning(ctx, "keyboard_input_pressure");
                 self.clear_input_values(ctx);
             }
             self.refresh_connection_state(ctx);
@@ -510,133 +555,6 @@ impl KeyboardModule {
             }
         }
         self.base.set_connected(ctx, input_active || output_active);
-    }
-
-    fn clear_input_values(&mut self, ctx: &mut ProcessCtx) {
-        self.pressed_keys.clear();
-        self.sync_pressed_key_values(ctx);
-        self.set_last_key(ctx, "");
-        self.set_last_pressed(ctx, false);
-    }
-
-    fn reset_values(&mut self, ctx: &mut ProcessCtx) {
-        self.clear_input_values(ctx);
-        self.set_input_active(ctx, false);
-        self.set_output_active(ctx, false);
-        self.set_connected_devices(ctx, 0);
-        self.set_selected_device_id(ctx, "");
-        self.set_selected_device_name(ctx, "");
-        self.set_last_event(ctx, String::new());
-    }
-
-    fn sync_pressed_key_values(&mut self, ctx: &mut ProcessCtx) {
-        let held_keys = self
-            .pressed_keys
-            .iter()
-            .map(|key| key.as_str())
-            .collect::<Vec<_>>()
-            .join(", ");
-        self.set_held_keys(ctx, held_keys.as_str());
-        self.set_held_key_count(ctx, self.pressed_keys.len());
-
-        let left_shift = self.pressed_keys.contains(&KeyboardKey::LeftShift);
-        if self.left_shift.is_bound() && self.left_shift.get() != left_shift {
-            self.left_shift.set(ctx, left_shift);
-        }
-        let right_shift = self.pressed_keys.contains(&KeyboardKey::RightShift);
-        if self.right_shift.is_bound() && self.right_shift.get() != right_shift {
-            self.right_shift.set(ctx, right_shift);
-        }
-        let left_control = self.pressed_keys.contains(&KeyboardKey::LeftControl);
-        if self.left_control.is_bound() && self.left_control.get() != left_control {
-            self.left_control.set(ctx, left_control);
-        }
-        let right_control = self.pressed_keys.contains(&KeyboardKey::RightControl);
-        if self.right_control.is_bound() && self.right_control.get() != right_control {
-            self.right_control.set(ctx, right_control);
-        }
-        let left_alt = self.pressed_keys.contains(&KeyboardKey::LeftAlt);
-        if self.left_alt.is_bound() && self.left_alt.get() != left_alt {
-            self.left_alt.set(ctx, left_alt);
-        }
-        let right_alt = self.pressed_keys.contains(&KeyboardKey::RightAlt);
-        if self.right_alt.is_bound() && self.right_alt.get() != right_alt {
-            self.right_alt.set(ctx, right_alt);
-        }
-        let left_meta = self.pressed_keys.contains(&KeyboardKey::LeftMeta);
-        if self.left_meta.is_bound() && self.left_meta.get() != left_meta {
-            self.left_meta.set(ctx, left_meta);
-        }
-        let right_meta = self.pressed_keys.contains(&KeyboardKey::RightMeta);
-        if self.right_meta.is_bound() && self.right_meta.get() != right_meta {
-            self.right_meta.set(ctx, right_meta);
-        }
-        let caps_lock = self.pressed_keys.contains(&KeyboardKey::CapsLock);
-        if self.caps_lock.is_bound() && self.caps_lock.get() != caps_lock {
-            self.caps_lock.set(ctx, caps_lock);
-        }
-    }
-
-    fn set_input_active(&mut self, ctx: &mut ProcessCtx, value: bool) {
-        if self.input_active.is_bound() && self.input_active.get() != value {
-            self.input_active.set(ctx, value);
-        }
-    }
-
-    fn set_output_active(&mut self, ctx: &mut ProcessCtx, value: bool) {
-        if self.output_active.is_bound() && self.output_active.get() != value {
-            self.output_active.set(ctx, value);
-        }
-    }
-
-    fn set_last_event(&mut self, ctx: &mut ProcessCtx, value: String) {
-        if self.last_event.is_bound() && self.last_event.get_ref().as_str() != value.as_str() {
-            self.last_event.set(ctx, value);
-        }
-    }
-
-    fn set_last_key(&mut self, ctx: &mut ProcessCtx, value: &str) {
-        if self.last_key.is_bound() && self.last_key.get_ref().as_str() != value {
-            self.last_key.set(ctx, value.to_string());
-        }
-    }
-
-    fn set_last_pressed(&mut self, ctx: &mut ProcessCtx, value: bool) {
-        if self.last_pressed.is_bound() && self.last_pressed.get() != value {
-            self.last_pressed.set(ctx, value);
-        }
-    }
-
-    fn set_held_keys(&mut self, ctx: &mut ProcessCtx, value: &str) {
-        if self.held_keys.is_bound() && self.held_keys.get_ref().as_str() != value {
-            self.held_keys.set(ctx, value.to_string());
-        }
-    }
-
-    fn set_held_key_count(&mut self, ctx: &mut ProcessCtx, value: usize) {
-        let value = clamp_usize_to_i32(value);
-        if self.held_key_count.is_bound() && self.held_key_count.get() != value {
-            self.held_key_count.set(ctx, value);
-        }
-    }
-
-    fn set_connected_devices(&mut self, ctx: &mut ProcessCtx, value: usize) {
-        let value = clamp_usize_to_i32(value);
-        if self.connected_devices.is_bound() && self.connected_devices.get() != value {
-            self.connected_devices.set(ctx, value);
-        }
-    }
-
-    fn set_selected_device_id(&mut self, ctx: &mut ProcessCtx, value: &str) {
-        if self.device_id.is_bound() && self.device_id.get_ref().as_str() != value {
-            self.device_id.set(ctx, value.to_string());
-        }
-    }
-
-    fn set_selected_device_name(&mut self, ctx: &mut ProcessCtx, value: &str) {
-        if self.device_name.is_bound() && self.device_name.get_ref().as_str() != value {
-            self.device_name.set(ctx, value.to_string());
-        }
     }
 
     fn set_backend_warning(&self, ctx: &mut ProcessCtx, warning_id: &str, message: &str) {
@@ -786,7 +704,7 @@ impl Node for KeyboardModule {
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {
-        false
+        true
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
@@ -832,6 +750,7 @@ impl Node for KeyboardModule {
         self.pending_input_events.clear();
         self.clear_backend_warning(ctx, KEYBOARD_INPUT_WARNING_ID);
         self.clear_backend_warning(ctx, KEYBOARD_OUTPUT_WARNING_ID);
+        self.clear_backend_warning(ctx, "keyboard_input_pressure");
         self.clear_device_warning(ctx, KEYBOARD_SELECTION_WARNING_ID);
         self.base.set_connected(ctx, false);
         self.reset_values(ctx);
@@ -843,177 +762,6 @@ impl Node for KeyboardModule {
 
     fn project_create(node_type: &str) -> Option<Self> {
         (node_type == Self::NODE_TYPE).then(Self::create)
-    }
-}
-
-fn clamp_usize_to_i32(value: usize) -> i32 {
-    i32::try_from(value).unwrap_or(i32::MAX)
-}
-
-fn script_key_request(
-    method: &str,
-    args: &[ParamValue],
-    action: KeyboardKeyAction,
-) -> Option<Result<KeyboardKeyRequest, String>> {
-    let Some(value) = args.first().and_then(ParamValue::as_str) else {
-        return Some(Err(format!(
-            "method '{method}' expects a keyboard key id string argument"
-        )));
-    };
-    let key = match KeyboardKey::parse(&value) {
-        Ok(key) => key,
-        Err(error) => return Some(Err(format!("method '{method}' {error}"))),
-    };
-
-    Some(Ok(KeyboardKeyRequest {
-        key: key.as_str().to_string(),
-        action,
-        description: format!("{} {} key", action.as_str(), key.as_str()),
-    }))
-}
-
-fn keyboard_device_options(devices: &[DiscoveredKeyboardDevice]) -> Vec<ParameterEnumOption> {
-    let mut options = vec![
-        enum_option(AUTO_KEYBOARD_VARIANT, "Auto", 0),
-        enum_option(NO_KEYBOARD_VARIANT, "No Input Device", 1),
-    ];
-
-    options.extend(devices.iter().enumerate().map(|(index, device)| {
-        let mut option = enum_option(device.variant_id.as_str(), device.label.as_str(), 10 + index as i32);
-        option.tags = vec![device.details.clone()];
-        option
-    }));
-    options
-}
-
-fn sync_keyboard_device_enum_options(ctx: &mut ProcessCtx, param_id: NodeId, options: Vec<ParameterEnumOption>) {
-    ctx.call_node_mutation(param_id, move |node, inner_ctx| {
-        let Some(parameter) = node.as_any_mut().downcast_mut::<Parameter>() else {
-            return Err("keyboard device target is not a parameter".to_string());
-        };
-
-        let mut next_options = options.clone();
-        let current_variant = parameter
-            .value
-            .as_enum()
-            .filter(|variant| !variant.trim().is_empty())
-            .map(|variant| canonical_keyboard_variant(variant.as_str(), options.as_slice()))
-            .unwrap_or_else(|| AUTO_KEYBOARD_VARIANT.to_string());
-
-        if keyboard_specific_device_selected(current_variant.as_str())
-            && !next_options.iter().any(|option| option.variant_id == current_variant)
-        {
-            next_options.insert(2, missing_keyboard_option(current_variant.as_str()));
-        }
-
-        let next_value = if next_options.iter().any(|option| option.variant_id == current_variant) {
-            ParamValue::Enum(current_variant.clone())
-        } else {
-            ParamValue::Enum(AUTO_KEYBOARD_VARIANT.to_string())
-        };
-
-        if parameter.constraints.enum_options.as_slice() == next_options.as_slice() && parameter.value == next_value {
-            return Ok(());
-        }
-
-        let label = parameter.node_data().meta.label.clone();
-        let change_check = parameter.change_check.clone();
-        let mut replacement = Parameter::new(label.as_str(), next_value, change_check);
-        *replacement.node_data_mut() = parameter.node_data().clone();
-        replacement.default_value = parameter.default_value.clone();
-        replacement.event_behaviour = ParameterEventBehaviour::Coalesce;
-        replacement.read_only = parameter.read_only;
-        replacement.persist_read_only_value = parameter.persist_read_only_value;
-        replacement.constraints = parameter.constraints.clone();
-        replacement.constraints.enum_options = (next_options).into();
-        replacement.ui_hints = parameter.ui_hints.clone();
-        replacement.control = parameter.control.clone();
-        replacement.control_modes_enabled = parameter.control_modes_enabled;
-
-        inner_ctx.replace_node(param_id, replacement);
-        Ok(())
-    });
-}
-
-fn selected_keyboard_device(selection: &str, devices: &[DiscoveredKeyboardDevice]) -> Option<DiscoveredKeyboardDevice> {
-    devices
-        .iter()
-        .find(|device| selection_matches_keyboard(selection, device))
-        .cloned()
-}
-
-fn selection_matches_keyboard(selection: &str, device: &DiscoveredKeyboardDevice) -> bool {
-    match selection.trim() {
-        AUTO_KEYBOARD_VARIANT => true,
-        NO_KEYBOARD_VARIANT | "" => false,
-        selected => {
-            selected == device.variant_id
-                || legacy_keyboard_variant_identity(selected).is_some_and(|identity| identity == device.variant_id)
-        }
-    }
-}
-
-fn canonical_keyboard_variant(selection: &str, options: &[ParameterEnumOption]) -> String {
-    let trimmed = selection.trim();
-    if trimmed.is_empty() {
-        return AUTO_KEYBOARD_VARIANT.to_string();
-    }
-    if options.iter().any(|option| option.variant_id == trimmed) {
-        return trimmed.to_string();
-    }
-    if let Some(identity) = legacy_keyboard_variant_identity(trimmed) {
-        if options.iter().any(|option| option.variant_id == identity) {
-            return identity.to_string();
-        }
-    }
-
-    trimmed.to_string()
-}
-
-fn legacy_keyboard_variant_identity(selection: &str) -> Option<&str> {
-    let (identity, label) = selection.split_once('|')?;
-    if identity.trim().is_empty() || label.trim().is_empty() {
-        return None;
-    }
-    Some(identity)
-}
-
-fn keyboard_specific_device_selected(selection: &str) -> bool {
-    let trimmed = selection.trim();
-    !trimmed.is_empty() && trimmed != AUTO_KEYBOARD_VARIANT && trimmed != NO_KEYBOARD_VARIANT
-}
-
-fn missing_keyboard_option(variant_id: &str) -> ParameterEnumOption {
-    let mut option = enum_option(
-        variant_id,
-        format!("Missing: {}", human_keyboard_variant(variant_id)).as_str(),
-        5,
-    );
-    option.tags = vec!["missing".to_string()];
-    option
-}
-
-fn human_keyboard_variant(variant_id: &str) -> String {
-    if let Some((_, label)) = variant_id.rsplit_once('|') {
-        if !label.trim().is_empty() {
-            return label.to_string();
-        }
-    }
-    variant_id
-        .split('#')
-        .nth(1)
-        .or_else(|| variant_id.split('#').next())
-        .map(str::to_string)
-        .unwrap_or_else(|| variant_id.to_string())
-}
-
-fn enum_option(variant_id: &str, label: &str, ordering: i32) -> ParameterEnumOption {
-    ParameterEnumOption {
-        variant_id: variant_id.to_string(),
-        value: ParamValue::Enum(variant_id.to_string()),
-        label: label.to_string(),
-        tags: Vec::new(),
-        ordering: Some(ordering),
     }
 }
 
