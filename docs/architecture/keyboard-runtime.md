@@ -1,7 +1,7 @@
-# Keyboard input ownership
+# Keyboard worker ownership
 
 The app-owned Keyboard module projects authored values, device choices and script callbacks.
-Its input owner uses public Golden IO workers, revision fences and payload pools. Golden packages
+Its input and output owners use public Golden IO workers, revision fences and payload pools. Golden packages
 contain no Keyboard types or policy. Platform files own raw-input discovery, native message
 processing and the existing key mappings.
 
@@ -39,7 +39,39 @@ raw-device enumeration admits at most 1024 entries before allocating its list, a
 admit 1024 UTF-16 units before allocation. Keyboard packets use fixed aligned storage and reject
 invalid sizes. These bounds do not qualify device-query library internals or physical hardware.
 
-## Actor projection and remaining C09 work
+## Output capture and service
+
+Output has a separate app-owned worker. Four global lifetimes and one per-module lease include
+opening, execution and cleanup. The existing system-wide key injection policy remains independent
+of the selected input keyboard. Native calls and request preparation run on that worker.
+
+Command nodes capture the canonical snapshot and original execute payload; script methods retain
+engine-owned argument arrays. The worker reads consumed fields, applies the last matching override
+and constructs one typed key/action request. It does not build an execute-overlay snapshot or relay
+another request JSON object through the engine. Key/action text admits 64 UTF-8 bytes; scripts admit
+one argument / 64 KiB. Methods acknowledge admission; validation/native outcomes arrive separately.
+
+Each module admits 64 source lifetimes across local inboxes, staging, native execution, receipts
+and queued application or disposal. Global source storage admits 512 / 32 MiB. Sources charge
+64 KiB plus three times retained execute-override storage. The native mailbox admits 64 / 4 MiB.
+Original engine timestamps order staging, and ingress permits hold submission until deferred
+handoffs have arrived or been disposed. Full mailbox admission retains the same source behind an
+absolute 250 ms retry deadline; refusal does not publish a spurious cancellation.
+
+Producer identity and actor/native lifetime guards fence preparation and execution. Stopping
+output cancels unstarted work as **not sent**; an interrupted started call is **unconfirmed**.
+Completed effects retain their result independently of retirement. There is no automatic replay.
+Termination and queued disposition precede provider cleanup, and cleanup retains both leases.
+
+Output service uses worker notifications and explicit deadlines, with at most eight submissions
+and sixteen completions per actor turn. Startup/stopped-worker recovery backs off from 250 ms to
+five seconds. Previously accepted results can drain while the module is disabled. Queued result
+projection checks current target identity and named ancestors independently of retired native
+sources, retaining the original source reservation through application, rejection or disposal.
+Ready-status projection has a separate native fence after completion messages, so retirement
+rejects stale readiness while preserving an already completed effect's message prefix.
+
+## Actor input projection and remaining C09 work
 
 Actor turns drain at most 16 publications. The original publication reservation follows queued
 application, rejection or disposal; the current catalog also retains its original publication
@@ -51,9 +83,10 @@ Device choices use the public enum-options edit, preserving parameter identity a
 instead of replacing the parameter. The existing narrow normalization of persisted label-suffixed
 device IDs remains in this backend boundary.
 
-This is the input-lifecycle slice of C09. Keyboard output execution/capture, native callback
-preparation, canonical published choice lifetimes, passive service and full recovery qualification
-remain open. The Keyboard actor still uses its existing periodic service and retry clock.
+Input and output lifecycle ownership and canonical output capture are implemented within C09.
+Native input callback preparation, canonical published choice lifetimes, passive input service and
+full package recovery qualification remain open. Input still uses its existing periodic service
+and retry clock; output uses notifications and explicit deadlines.
 Windows also needs process-owned raw-input registration and bounded fan-out before C09 closes:
 [only one window per device class can receive raw input in a process](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-registerrawinputdevices).
 The existing per-module registration policy is not qualified by the controlled-provider tests.

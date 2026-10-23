@@ -55,14 +55,6 @@ fn stopped_producer_is_observable_before_its_sender_or_cleanup_is_dropped() {
     assert!(sender.send(Input).is_err());
 }
 #[test]
-fn native_endpoints_cannot_open_or_inject_in_test_builds() {
+fn native_input_endpoint_cannot_open_in_test_builds() {
     assert!(create().is_err());
-    assert!(KeyboardOutputController::create().is_err());
-    let mut output = KeyboardOutputController;
-    assert!(output
-        .execute_key(
-            KeyboardKey::A,
-            crate::app::module::common::keyboard::KeyboardKeyAction::Tap
-        )
-        .is_err());
 }

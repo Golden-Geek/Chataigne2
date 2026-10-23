@@ -13,7 +13,6 @@ use std::{
 };
 
 mod native;
-pub(crate) use native::KeyboardOutputController;
 
 pub(super) const MAX_DEVICES: usize = 64;
 pub(super) const MAX_DEVICE_TEXT: usize = 1024;

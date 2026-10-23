@@ -39,3 +39,9 @@ fn simulate_event(event: &EventType) -> Result<(), SimulateError> {
     }
     simulate(event)
 }
+
+impl super::Provider for KeyboardOutputController {
+    fn execute(&mut self, request: super::Request) -> Result<String, String> {
+        self.execute_key(request.key, request.action)
+    }
+}

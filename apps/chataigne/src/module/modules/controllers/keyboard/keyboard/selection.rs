@@ -4,28 +4,6 @@ pub(super) fn clamp_usize_to_i32(value: usize) -> i32 {
     i32::try_from(value).unwrap_or(i32::MAX)
 }
 
-pub(super) fn script_key_request(
-    method: &str,
-    args: &[ParamValue],
-    action: KeyboardKeyAction,
-) -> Option<Result<KeyboardKeyRequest, String>> {
-    let Some(value) = args.first().and_then(ParamValue::as_str) else {
-        return Some(Err(format!(
-            "method '{method}' expects a keyboard key id string argument"
-        )));
-    };
-    let key = match KeyboardKey::parse(&value) {
-        Ok(key) => key,
-        Err(error) => return Some(Err(format!("method '{method}' {error}"))),
-    };
-
-    Some(Ok(KeyboardKeyRequest {
-        key: key.as_str().to_string(),
-        action,
-        description: format!("{} {} key", action.as_str(), key.as_str()),
-    }))
-}
-
 pub(super) fn keyboard_device_options(devices: &[DiscoveredKeyboardDevice]) -> Vec<ParameterEnumOption> {
     let mut options = vec![
         enum_option(AUTO_KEYBOARD_VARIANT, "Auto", 0),

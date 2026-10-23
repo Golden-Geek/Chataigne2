@@ -5,12 +5,10 @@ use std::sync::mpsc::TryRecvError;
 
 #[cfg(not(windows))]
 mod global;
-mod output;
 #[cfg(windows)]
 mod windows;
 #[cfg(not(windows))]
 use global::GlobalKeyboardInputRuntime as NativeInput;
-pub(crate) use output::KeyboardOutputController;
 #[cfg(windows)]
 use windows::WindowsKeyboardInputRuntime as NativeInput;
 

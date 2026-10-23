@@ -290,18 +290,14 @@ impl KeyboardKey {
             "page_down" | "pagedown" => Self::PageDown,
             "insert" => Self::Insert,
             "delete" => Self::Delete,
-            "left_control" | "control_left" | "left_ctrl" | "ctrl_left" | "ctrl" | "control" => {
-                Self::LeftControl
-            }
+            "left_control" | "control_left" | "left_ctrl" | "ctrl_left" | "ctrl" | "control" => Self::LeftControl,
             "right_control" | "control_right" | "right_ctrl" | "ctrl_right" => Self::RightControl,
             "left_shift" | "shift_left" | "shift" => Self::LeftShift,
             "right_shift" | "shift_right" => Self::RightShift,
             "left_alt" | "alt_left" | "alt" => Self::LeftAlt,
             "right_alt" | "alt_right" | "altgr" => Self::RightAlt,
             "left_meta" | "meta_left" | "command" | "super" | "windows" => Self::LeftMeta,
-            "right_meta" | "meta_right" | "right_command" | "right_super" | "right_windows" => {
-                Self::RightMeta
-            }
+            "right_meta" | "meta_right" | "right_command" | "right_super" | "right_windows" => Self::RightMeta,
             "caps_lock" | "capslock" | "caps" => Self::CapsLock,
             "grave" | "backquote" | "back_quote" => Self::Grave,
             "minus" => Self::Minus,
@@ -779,14 +775,6 @@ impl KeyboardKeyAction {
         }
     }
 
-    pub(crate) fn as_str(self) -> &'static str {
-        match self {
-            Self::Tap => KEYBOARD_ACTION_TAP,
-            Self::Press => KEYBOARD_ACTION_PRESS,
-            Self::Release => KEYBOARD_ACTION_RELEASE,
-        }
-    }
-
     pub(crate) fn label(self) -> &'static str {
         match self {
             Self::Tap => "Tap",
@@ -802,13 +790,6 @@ impl KeyboardKeyAction {
             Self::Release => "Released",
         }
     }
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-pub(crate) struct KeyboardKeyRequest {
-    pub key: String,
-    pub action: KeyboardKeyAction,
-    pub description: String,
 }
 
 pub(crate) fn keyboard_key_enum_options() -> Vec<ParameterEnumOption> {
@@ -845,8 +826,5 @@ pub(crate) fn keyboard_key_action_enum_options() -> Vec<ParameterEnumOption> {
 }
 
 fn normalize_key_identifier(value: &str) -> String {
-    value
-        .trim()
-        .to_ascii_lowercase()
-        .replace([' ', '-'], "_")
+    value.trim().to_ascii_lowercase().replace([' ', '-'], "_")
 }

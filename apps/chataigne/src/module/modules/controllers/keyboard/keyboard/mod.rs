@@ -1,4 +1,6 @@
 mod keyboard_runtime;
+mod output;
+pub(crate) use output::dispatch as queue_keyboard_command;
 mod projection;
 mod selection;
 mod values;
@@ -17,12 +19,10 @@ use golden_core::{
     process_ctx::ProcessCtx,
 };
 
-use crate::app::module::common::keyboard::{
-    KeyboardKey, KeyboardKeyAction, KeyboardKeyRequest, KEYBOARD_KEY_COMMAND_NODE_TYPE, KEYBOARD_MODULE_COMMAND_TYPES,
-};
+use crate::app::module::common::keyboard::{KeyboardKey, KEYBOARD_MODULE_COMMAND_TYPES};
 
 use self::keyboard_runtime::{
-    DiscoveredKeyboardDevice, KeyboardInputEvent, KeyboardInputRuntime, KeyboardOutputController, KeyboardRuntimeEvent,
+    DiscoveredKeyboardDevice, KeyboardInputEvent, KeyboardInputRuntime, KeyboardRuntimeEvent,
 };
 
 const KEYBOARD_MODULE_UPDATE_RATE_HZ: u32 = 120;
@@ -133,15 +133,13 @@ pub struct KeyboardModule {
     input_backend: Option<KeyboardInputRuntime>,
     input_owner: RetirementPool,
     input_pressure: bool,
-    output_backend: Option<KeyboardOutputController>,
+    output: output::Service,
     pending_input_events: Vec<KeyboardInputEvent>,
     known_devices: Vec<DiscoveredKeyboardDevice>,
     input_catalog: Option<RetainedPayload<keyboard_runtime::Publication>>,
     devices_dirty: bool,
     input_retry_elapsed: f64,
-    output_retry_elapsed: f64,
     last_input_error: Option<String>,
-    last_output_error: Option<String>,
     suppress_input_backend: bool,
     suppress_output_backend: bool,
     pressed_keys: BTreeSet<KeyboardKey>,
@@ -154,14 +152,12 @@ impl KeyboardModule {
             None,
             RetirementPool::new(NonZeroUsize::MIN),
             false,
-            None,
+            output::Service::new(),
             Vec::new(),
             Vec::new(),
             None,
             true,
             KEYBOARD_BACKEND_RETRY_INTERVAL_SECS,
-            KEYBOARD_BACKEND_RETRY_INTERVAL_SECS,
-            None,
             None,
             false,
             false,
@@ -174,7 +170,7 @@ impl KeyboardModule {
         self.suppress_input_backend = true;
         self.suppress_output_backend = true;
         self.input_backend = None;
-        self.output_backend = None;
+        self.stop_output_backend();
         self.pending_input_events.clear();
         self.known_devices.clear();
         self.devices_dirty = true;
@@ -201,22 +197,6 @@ impl KeyboardModule {
         }
 
         let _ = self.try_start_input_backend(ctx);
-    }
-
-    fn ensure_output_backend(&mut self, ctx: &mut ProcessCtx) {
-        if !self.send_enabled.get() {
-            self.stop_output_backend();
-            self.clear_backend_warning(ctx, KEYBOARD_OUTPUT_WARNING_ID);
-            return;
-        }
-        if self.suppress_output_backend || self.output_backend.is_some() {
-            return;
-        }
-        if self.output_retry_elapsed < KEYBOARD_BACKEND_RETRY_INTERVAL_SECS {
-            return;
-        }
-
-        let _ = self.try_start_output_backend(ctx);
     }
 
     fn try_start_input_backend(&mut self, ctx: &mut ProcessCtx) -> Result<(), String> {
@@ -252,34 +232,6 @@ impl KeyboardModule {
         }
     }
 
-    fn try_start_output_backend(&mut self, ctx: &mut ProcessCtx) -> Result<(), String> {
-        if self.suppress_output_backend {
-            return Err("keyboard output backend is suppressed for tests".to_string());
-        }
-
-        self.output_retry_elapsed = 0.0;
-        match KeyboardOutputController::create() {
-            Ok(backend) => {
-                golden_core::log!(origin = self.id(); "Started keyboard output backend.");
-                self.output_backend = Some(backend);
-                self.last_output_error = None;
-                self.clear_backend_warning(ctx, KEYBOARD_OUTPUT_WARNING_ID);
-                self.refresh_connection_state(ctx);
-                Ok(())
-            }
-            Err(error) => {
-                if self.last_output_error.as_deref() != Some(error.as_str()) {
-                    logerror!(origin = self.id(); format!("Failed to start keyboard output backend: {error}"));
-                }
-                self.output_backend = None;
-                self.last_output_error = Some(error.clone());
-                self.set_backend_warning(ctx, KEYBOARD_OUTPUT_WARNING_ID, error.as_str());
-                self.refresh_connection_state(ctx);
-                Err(error)
-            }
-        }
-    }
-
     fn stop_input_backend(&mut self) {
         self.input_backend = None;
         self.input_pressure = false;
@@ -288,10 +240,6 @@ impl KeyboardModule {
             self.devices_dirty = true;
         }
         self.input_catalog = None;
-    }
-
-    fn stop_output_backend(&mut self) {
-        self.output_backend = None;
     }
 
     fn drain_input_events(&mut self, ctx: &mut ProcessCtx) -> Vec<KeyboardInputEvent> {
@@ -413,81 +361,6 @@ impl KeyboardModule {
         self.base.emit_incoming_traffic(ctx);
     }
 
-    fn execute_key_request(&mut self, ctx: &mut ProcessCtx, request: KeyboardKeyRequest) -> Result<(), String> {
-        let key = KeyboardKey::parse(request.key.as_str())?;
-        let message = self.output_backend_mut(ctx)?.execute_key(key, request.action)?;
-        self.finish_output_request(ctx, message);
-        Ok(())
-    }
-
-    fn output_backend_mut(&mut self, ctx: &mut ProcessCtx) -> Result<&mut KeyboardOutputController, String> {
-        if !self.node_data().effective_enabled {
-            return Err("keyboard module is disabled".to_string());
-        }
-        if !self.send_enabled.get() {
-            return Err("keyboard output is disabled".to_string());
-        }
-        if self.output_backend.is_none() {
-            self.try_start_output_backend(ctx)?;
-        }
-
-        self.output_backend
-            .as_mut()
-            .ok_or_else(|| "keyboard output backend is unavailable".to_string())
-    }
-
-    fn finish_output_request(&mut self, ctx: &mut ProcessCtx, message: String) {
-        self.clear_backend_warning(ctx, KEYBOARD_OUTPUT_WARNING_ID);
-        self.base.emit_outgoing_traffic(ctx);
-        if self.base.log_outgoing_enabled() {
-            golden_core::log!(origin = self.id(); format!("{message}"));
-        }
-        self.set_last_event(ctx, message);
-        self.refresh_connection_state(ctx);
-    }
-
-    fn on_custom_event_inner(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
-        let Some(request) = crate::app::module_command::decode_module_command_request(&event) else {
-            return;
-        };
-        if request.module_id != self.id() || !KEYBOARD_MODULE_COMMAND_TYPES.contains(&request.command_type.as_str()) {
-            return;
-        }
-
-        let result = match request.command_type.as_str() {
-            KEYBOARD_KEY_COMMAND_NODE_TYPE => serde_json::from_value::<KeyboardKeyRequest>(request.payload)
-                .map_err(|error| format!("invalid keyboard key command payload: {error}"))
-                .and_then(|payload| self.execute_key_request(ctx, payload)),
-            _ => Ok(()),
-        };
-
-        if let Err(error) = result {
-            logerror!(format!(
-                "Failed to handle keyboard command {:?}: {error}",
-                request.command_id
-            ));
-        }
-    }
-
-    fn handle_script_method(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        method: &str,
-        args: &[ParamValue],
-    ) -> Option<Result<(), String>> {
-        let result = match method {
-            "tapKey" => script_key_request(method, args, KeyboardKeyAction::Tap)?
-                .and_then(|request| self.execute_key_request(ctx, request)),
-            "pressKey" => script_key_request(method, args, KeyboardKeyAction::Press)?
-                .and_then(|request| self.execute_key_request(ctx, request)),
-            "releaseKey" => script_key_request(method, args, KeyboardKeyAction::Release)?
-                .and_then(|request| self.execute_key_request(ctx, request)),
-            _ => return None,
-        };
-
-        Some(result)
-    }
-
     fn on_param_change_inner(&mut self, ctx: &mut ProcessCtx, param: NodeId) {
         if self.device.is_bound() && self.device.id() == param {
             self.pending_input_events.clear();
@@ -514,7 +387,7 @@ impl KeyboardModule {
         if self.send_enabled.is_bound() && self.send_enabled.id() == param {
             self.refresh_data_capabilities(ctx);
             if self.send_enabled.get() {
-                self.output_retry_elapsed = KEYBOARD_BACKEND_RETRY_INTERVAL_SECS;
+                self.request_output_service();
             } else {
                 self.stop_output_backend();
                 self.clear_backend_warning(ctx, KEYBOARD_OUTPUT_WARNING_ID);
@@ -534,12 +407,16 @@ impl KeyboardModule {
     }
 
     fn refresh_connection_state(&mut self, ctx: &mut ProcessCtx) {
+        self.refresh_connection_state_with_output(ctx, self.output.is_ready());
+    }
+
+    fn refresh_connection_state_with_output(&mut self, ctx: &mut ProcessCtx, output_ready: bool) {
         let selected_device = self.selected_input_device();
         let input_active = self.receive_enabled.get()
             && self.device.get_ref().as_str() != NO_KEYBOARD_VARIANT
             && self.input_backend.is_some()
             && selected_device.is_some();
-        let output_active = self.send_enabled.get() && self.output_backend.is_some();
+        let output_active = self.send_enabled.get() && output_ready;
 
         self.set_input_active(ctx, input_active);
         self.set_output_active(ctx, output_active);
@@ -672,16 +549,30 @@ impl Node for KeyboardModule {
         self.refresh_connection_state(ctx);
     }
 
+    fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: golden_core::node::NodeCreationContext) {
+        if let Err(error) = self.register_output(ctx) {
+            self.set_backend_warning(ctx, KEYBOARD_OUTPUT_WARNING_ID, &error);
+        }
+        self.request_output_service();
+    }
+    fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
+        self.service_output(ctx);
+    }
+    fn worker_wake_requires_tree_snapshot(&self) -> bool {
+        true
+    }
+    fn worker_wake_when_disabled(&self) -> bool {
+        self.output.has_results()
+    }
+
     fn update(&mut self, ctx: &mut ProcessCtx) {
         self.input_retry_elapsed += ctx.delta_time.as_secs_f64();
-        self.output_retry_elapsed += ctx.delta_time.as_secs_f64();
 
         if !self.node_data().effective_enabled {
             return;
         }
 
         self.ensure_input_backend(ctx);
-        self.ensure_output_backend(ctx);
 
         let events = self.drain_input_events(ctx);
         if self.devices_dirty {
@@ -721,8 +612,13 @@ impl Node for KeyboardModule {
         method: &str,
         args: &[ParamValue],
     ) -> Result<bool, String> {
-        if let Some(result) = self.handle_script_method(ctx, method, args) {
-            result?;
+        if let Some(method) = match method {
+            "tapKey" => Some("tapKey"),
+            "pressKey" => Some("pressKey"),
+            "releaseKey" => Some("releaseKey"),
+            _ => None,
+        } {
+            self.capture_keyboard_script(ctx, method, args)?;
             return Ok(true);
         }
 
@@ -738,9 +634,10 @@ impl Node for KeyboardModule {
     }
 
     fn on_effective_enabled_changed(&mut self, ctx: &mut ProcessCtx, enabled: bool) {
+        self.request_output_service();
         if enabled {
             self.input_retry_elapsed = KEYBOARD_BACKEND_RETRY_INTERVAL_SECS;
-            self.output_retry_elapsed = KEYBOARD_BACKEND_RETRY_INTERVAL_SECS;
+            self.request_output_service();
             self.refresh_data_capabilities(ctx);
             return;
         }
@@ -757,7 +654,7 @@ impl Node for KeyboardModule {
     }
 
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
-        self.on_custom_event_inner(ctx, event);
+        self.accept_keyboard_output(ctx, event);
     }
 
     fn project_create(node_type: &str) -> Option<Self> {
