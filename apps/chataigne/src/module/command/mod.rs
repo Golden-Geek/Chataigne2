@@ -12,9 +12,8 @@ mod input;
 pub(crate) use input::CapturedInvocation;
 
 pub const MODULE_COMMAND_ITEM_KIND: &str = "module_command";
-pub const MODULE_COMMAND_REQUEST_TOPIC: &str = "chataigne.module.command.request";
 /// Topic for asking a specific command node to run once (state-machine outputs
-/// fire one event per lane, which the command turns into a module request).
+/// fire one event per lane, which the command captures for its module worker).
 pub const MODULE_COMMAND_EXECUTE_TOPIC: &str = "chataigne.module.command.execute";
 /// Topic for an ordered chunk of executions targeting one command node.
 ///
@@ -33,17 +32,6 @@ pub const MODULE_COMMAND_TARGET_MODULE_PATH: &str = "target_module";
 pub const COMMAND_PRIMARY_VALUE_TAG: &str = "chataigne.command.primary_value";
 const MODULE_COMMAND_TRIGGER_PATH: &str = "trigger";
 const MODULE_COMMAND_AUTO_TRIGGER_PATH: &str = "auto_trigger";
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-pub(crate) struct ModuleCommandRequestEvent {
-    pub module_id: NodeId,
-    pub module_type: String,
-    pub module_label: String,
-    pub command_id: NodeId,
-    pub command_type: String,
-    pub command_label: String,
-    pub payload: serde_json::Value,
-}
 
 pub fn enable_module_command_authoring(node_data: &mut NodeData) {
     node_data.meta.user_permissions = NodeUserPermissions::all();
@@ -206,42 +194,6 @@ pub(crate) fn module_command_target(
     linked
         .or_else(|| crate::app::module::resolve_enclosing_module_root(snapshot, command_id))
         .ok_or_else(|| "command is not attached under a module root".to_string())
-}
-
-pub(crate) fn emit_module_command_request<T: Serialize>(
-    ctx: &mut ProcessCtx,
-    snapshot: &ProcessTreeSnapshot,
-    command_id: NodeId,
-    command_type: &str,
-    payload: &T,
-) -> Result<(), String> {
-    let module_id = module_command_target(snapshot, command_id, None)?;
-    let module_snapshot = snapshot
-        .node(module_id)
-        .ok_or_else(|| "module root disappeared while executing command".to_string())?;
-    let command_snapshot = snapshot
-        .node(command_id)
-        .ok_or_else(|| "command disappeared while executing".to_string())?;
-
-    let event = ModuleCommandRequestEvent {
-        module_id,
-        module_type: module_snapshot.node_type.clone(),
-        module_label: module_snapshot.label.clone(),
-        command_id,
-        command_type: command_type.to_string(),
-        command_label: command_snapshot.label.clone(),
-        payload: serde_json::to_value(payload)
-            .map_err(|error| format!("failed to serialize module command payload: {error}"))?,
-    };
-
-    ctx.emit_custom_payload(MODULE_COMMAND_REQUEST_TOPIC, Some(module_id), &event)
-        .map_err(|error| format!("failed to emit module command request: {error}"))
-}
-
-pub(crate) fn decode_module_command_request(event: &CustomEvent) -> Option<ModuleCommandRequestEvent> {
-    (event.topic == MODULE_COMMAND_REQUEST_TOPIC)
-        .then(|| event.payload_as::<ModuleCommandRequestEvent>().ok())
-        .flatten()
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
@@ -415,24 +367,6 @@ pub(crate) fn command_execute_batch_requests(
             .iter()
             .all(|execution| execution.command_id == command_id))
     .then_some(decoded.executions)
-}
-
-pub(crate) fn command_execute_param_overrides(
-    event: &CustomEvent,
-    command_id: NodeId,
-) -> Option<ModuleCommandParamOverrides> {
-    command_execute_request(event, command_id).map(|decoded| decoded.param_overrides)
-}
-
-pub(crate) fn command_execute_snapshot<'a>(
-    event: &CustomEvent,
-    snapshot: &'a ProcessTreeSnapshot,
-    command_id: NodeId,
-) -> Cow<'a, ProcessTreeSnapshot> {
-    let Some(overrides) = command_execute_param_overrides(event, command_id) else {
-        return Cow::Borrowed(snapshot);
-    };
-    snapshot_with_command_overrides(snapshot, overrides)
 }
 
 pub(crate) fn snapshot_with_command_overrides(

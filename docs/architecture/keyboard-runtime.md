@@ -100,7 +100,8 @@ of the selected input keyboard. Native calls and request preparation run on that
 
 ### Shared output ordering
 
-Keyboard output workers share one app-owned process coordinator because all module outputs
+Keyboard and Mouse output workers share one app-owned process coordinator in
+`src/module/common/desktop_output.rs` because both families' effects
 target the same system input stream. Capture reserves one of 512 ordering claims. Pending claims
 sort by original engine time and then capture sequence, including sources still in local staging;
 an already started native prefix is never reordered. Module ingress settlement and local sorting
@@ -115,7 +116,7 @@ unsubmitted heads are pruned without waiting for their retained data or native c
 cancellation is not sent; started panic remains unconfirmed. Completion releases ordering before
 actor report disposal. A permit stays held through a blocked native call, and unwinding releases
 it before provider cleanup, allowing peers to progress while the old worker still holds its IO leases.
-This orders app-owned keyboard requests; it does not control physical input or other processes.
+This orders app-owned keyboard and mouse requests; it does not control physical input or other processes.
 
 Command nodes capture the canonical snapshot and original execute payload; script methods retain
 engine-owned argument arrays. The worker reads consumed fields, applies the last matching override
@@ -170,5 +171,6 @@ Windows uses process-owned raw-input registration and bounded fan-out because
 [only one window per device class can receive raw input in a process](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-registerrawinputdevices).
 Shared input registration and output coordination use controlled providers for local qualification.
 The execution ledger records full package qualification and the remaining Mouse scope.
-Mouse has not yet migrated. The [execution ledger](../progress/implementation-status.md) owns
+Mouse native input and output ownership are implemented; its prepared input publication and combined
+qualification remain open. The [execution ledger](../progress/implementation-status.md) owns
 package counts and qualification; this page does not claim C09 closure.

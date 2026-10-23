@@ -105,6 +105,14 @@ closes the registration, and enum dispatch forwards the hook for built-in and co
 These short-lock notifications belong on host workers; realtime audio callbacks keep using their
 realtime-safe queues.
 
+App endpoint command nodes capture a leased canonical snapshot and original execute payload
+through the app-owned `CapturedInvocation`. Consuming workers decode fields and the last matching
+override; scripts retain engine-owned argument arrays. The old second command-request JSON relay
+and actor-side execute-overlay helpers are removed. Native admission and completion are separate:
+failed validation sends nothing, cancellation reports not sent, and interrupted started effects
+remain unconfirmed. Keyboard and Mouse share app-owned OS output ordering; see their focused
+[Keyboard](keyboard-runtime.md) and [Mouse](mouse-runtime.md) contracts.
+
 ## Parameter event attribution
 
 `golden_engine` owns parameter-change provenance and callback scope. Trusted Rust producers use

@@ -8,6 +8,7 @@ pub type AppEngine = golden_core::engine::Engine<AppNode>;
 pub(crate) use module_modules_controllers_buttplug::queue_buttplug_command;
 pub(crate) use module_modules_controllers_joycon::queue_joycon_command;
 pub(crate) use module_modules_controllers_keyboard_keyboard::queue_keyboard_command;
+pub(crate) use module_modules_controllers_mouse_mouse::queue_mouse_command;
 pub(crate) use module_modules_protocol_dmx::queue_dmx_command;
 pub(crate) use module_modules_protocol_midi_commands::{
     append_midi_bytes, normalize_midi_sysex, prepare_midi_command, MidiSendPacket, MidiSendRequest,

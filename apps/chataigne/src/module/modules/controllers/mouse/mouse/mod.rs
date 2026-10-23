@@ -1,12 +1,10 @@
 mod devices;
 mod input;
 mod mouse_runtime;
-mod output_native;
-mod script;
+mod output;
 use crate::app::module::common::worker_wake::ModuleWake;
 use devices::*;
-use output_native::MouseOutputController;
-use script::*;
+pub(crate) use output::dispatch as queue_mouse_command;
 use std::time::{Duration, Instant};
 
 use golden_core::{
@@ -19,8 +17,7 @@ use golden_core::{
 };
 
 use crate::app::module::common::mouse::{
-    MouseButtonAction, MouseButtonKind, MouseButtonRequest, MouseMoveCoordinate, MouseMoveRequest, MouseMoveUnits,
-    MouseScrollRequest, MOUSE_BUTTON_COMMAND_NODE_TYPE, MOUSE_MODULE_COMMAND_TYPES, MOUSE_MOVE_COMMAND_NODE_TYPE,
+    MouseButtonKind, MOUSE_BUTTON_COMMAND_NODE_TYPE, MOUSE_MODULE_COMMAND_TYPES, MOUSE_MOVE_COMMAND_NODE_TYPE,
     MOUSE_SCROLL_COMMAND_NODE_TYPE,
 };
 
@@ -49,7 +46,7 @@ const MOUSE_SCRIPT_METHODS: &[&str] = &["moveMouse", "click", "pressButton", "re
         device: Enum = AUTO_MOUSE_VARIANT (
             label = "Input Device",
             description = "Mouse device to read. Auto uses the first connected mouse. Output remains system-wide.",
-            enum_options = ["auto (Auto)", "none (No Input Device)"]
+            enum_options = mouse_device_options(&[])
         );
         receive_enabled: bool = true (
             label = "Receive Input",
@@ -125,16 +122,14 @@ pub struct MouseModule {
     base: crate::app::ModuleBase,
     input_backend: Option<MouseInputRuntime>,
     input_owner: golden_io::RetirementPool,
-    output_backend: Option<MouseOutputController>,
+    output: output::Service,
     pending_input_events: Vec<MouseInputEvent>,
     known_devices: Vec<DiscoveredMouseDevice>,
     devices_dirty: bool,
     input_retry_at: Option<Instant>,
-    output_retry_at: Option<Instant>,
     wake: Option<ModuleWake>,
     delta_reset_at: Option<Instant>,
     last_input_error: Option<String>,
-    last_output_error: Option<String>,
     suppress_input_backend: bool,
     suppress_output_backend: bool,
 }
@@ -145,12 +140,10 @@ impl MouseModule {
             crate::app::ModuleBase::new(),
             None,
             golden_io::RetirementPool::new(std::num::NonZeroUsize::MIN),
-            None,
+            output::Service::new(),
             Vec::new(),
             Vec::new(),
             true,
-            None,
-            None,
             None,
             None,
             None,
@@ -165,7 +158,7 @@ impl MouseModule {
         self.suppress_input_backend = true;
         self.suppress_output_backend = true;
         self.input_backend = None;
-        self.output_backend = None;
+        self.stop_output_backend();
         self.pending_input_events.clear();
         self.known_devices.clear();
         self.devices_dirty = true;
@@ -205,10 +198,7 @@ impl MouseModule {
         if self.input_backend.as_ref().is_some_and(MouseInputRuntime::has_pending) {
             wake.notifier.notify();
         }
-        let next = [self.input_retry_at, self.output_retry_at, self.delta_reset_at]
-            .into_iter()
-            .flatten()
-            .min();
+        let next = [self.input_retry_at, self.delta_reset_at].into_iter().flatten().min();
         if let Some(at) = next {
             wake.later(at.saturating_duration_since(Instant::now()));
         } else {
@@ -230,22 +220,6 @@ impl MouseModule {
         }
 
         let _ = self.try_start_input_backend(ctx);
-    }
-
-    fn ensure_output_backend(&mut self, ctx: &mut ProcessCtx) {
-        if !self.send_enabled.get() {
-            self.stop_output_backend();
-            self.clear_backend_warning(ctx, MOUSE_OUTPUT_WARNING_ID);
-            return;
-        }
-        if self.suppress_output_backend || self.output_backend.is_some() {
-            return;
-        }
-        if self.output_retry_at.is_some_and(|at| Instant::now() < at) {
-            return;
-        }
-
-        let _ = self.try_start_output_backend(ctx);
     }
 
     fn try_start_input_backend(&mut self, ctx: &mut ProcessCtx) -> Result<(), String> {
@@ -279,7 +253,7 @@ impl MouseModule {
                 self.input_retry_at = None;
                 self.last_input_error = None;
                 self.clear_backend_warning(ctx, MOUSE_INPUT_WARNING_ID);
-                self.refresh_connection_state(ctx);
+                self.refresh_input_state(ctx);
                 Ok(())
             }
             Err(error) => {
@@ -289,36 +263,7 @@ impl MouseModule {
                 self.input_backend = None;
                 self.last_input_error = Some(error.clone());
                 self.set_backend_warning(ctx, MOUSE_INPUT_WARNING_ID, error.as_str());
-                self.refresh_connection_state(ctx);
-                Err(error)
-            }
-        }
-    }
-
-    fn try_start_output_backend(&mut self, ctx: &mut ProcessCtx) -> Result<(), String> {
-        if self.suppress_output_backend {
-            return Err("mouse output backend is suppressed for tests".to_string());
-        }
-
-        self.output_retry_at = Some(Instant::now() + MOUSE_BACKEND_RETRY);
-        match MouseOutputController::create() {
-            Ok(backend) => {
-                golden_core::log!(origin = self.id(); "Started mouse output backend.");
-                self.output_backend = Some(backend);
-                self.output_retry_at = None;
-                self.last_output_error = None;
-                self.clear_backend_warning(ctx, MOUSE_OUTPUT_WARNING_ID);
-                self.refresh_connection_state(ctx);
-                Ok(())
-            }
-            Err(error) => {
-                if self.last_output_error.as_deref() != Some(error.as_str()) {
-                    logerror!(origin = self.id(); format!("Failed to start mouse output backend: {error}"));
-                }
-                self.output_backend = None;
-                self.last_output_error = Some(error.clone());
-                self.set_backend_warning(ctx, MOUSE_OUTPUT_WARNING_ID, error.as_str());
-                self.refresh_connection_state(ctx);
+                self.refresh_input_state(ctx);
                 Err(error)
             }
         }
@@ -333,13 +278,8 @@ impl MouseModule {
         }
     }
 
-    fn stop_output_backend(&mut self) {
-        self.output_backend = None;
-        self.output_retry_at = None;
-    }
-
     fn restart_input_backend(&mut self, ctx: &mut ProcessCtx) {
-        self.input_backend = None;
+        self.stop_input_backend();
         self.input_retry_at = None;
         let _ = self.try_start_input_backend(ctx);
     }
@@ -364,7 +304,7 @@ impl MouseModule {
                 self.clear_input_values(ctx);
                 self.last_input_error = Some(error.clone());
                 self.set_backend_warning(ctx, MOUSE_INPUT_WARNING_ID, error.as_str());
-                self.refresh_connection_state(ctx);
+                self.refresh_input_state(ctx);
                 return events;
             }
         };
@@ -400,104 +340,9 @@ impl MouseModule {
         events
     }
 
-    fn execute_move_request(&mut self, ctx: &mut ProcessCtx, request: MouseMoveRequest) -> Result<(), String> {
-        let message = self.output_backend_mut(ctx)?.execute_move(&request)?;
-        self.finish_output_request(ctx, message);
-        Ok(())
-    }
-
-    fn execute_button_request(&mut self, ctx: &mut ProcessCtx, request: MouseButtonRequest) -> Result<(), String> {
-        let message = self
-            .output_backend_mut(ctx)?
-            .execute_button(request.button, request.action)?;
-        self.finish_output_request(ctx, message);
-        Ok(())
-    }
-
-    fn execute_scroll_request(&mut self, ctx: &mut ProcessCtx, request: MouseScrollRequest) -> Result<(), String> {
-        let message = self.output_backend_mut(ctx)?.execute_scroll(&request)?;
-        self.finish_output_request(ctx, message);
-        Ok(())
-    }
-
-    fn output_backend_mut(&mut self, ctx: &mut ProcessCtx) -> Result<&mut MouseOutputController, String> {
-        if !self.node_data().effective_enabled {
-            return Err("mouse module is disabled".to_string());
-        }
-        if !self.send_enabled.get() {
-            return Err("mouse output is disabled".to_string());
-        }
-        if self.output_backend.is_none() {
-            self.try_start_output_backend(ctx)?;
-        }
-
-        self.output_backend
-            .as_mut()
-            .ok_or_else(|| "mouse output backend is unavailable".to_string())
-    }
-
-    fn finish_output_request(&mut self, ctx: &mut ProcessCtx, message: String) {
-        self.clear_backend_warning(ctx, MOUSE_OUTPUT_WARNING_ID);
-        self.base.emit_outgoing_traffic(ctx);
-        if self.base.log_outgoing_enabled() {
-            golden_core::log!(origin = self.id(); format!("{message}"));
-        }
-        self.set_last_event(ctx, message);
-        self.refresh_connection_state(ctx);
-    }
-
-    fn on_custom_event_inner(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
-        let Some(request) = crate::app::module_command::decode_module_command_request(&event) else {
-            return;
-        };
-        if request.module_id != self.id() || !MOUSE_MODULE_COMMAND_TYPES.contains(&request.command_type.as_str()) {
-            return;
-        }
-
-        let result = match request.command_type.as_str() {
-            MOUSE_MOVE_COMMAND_NODE_TYPE => serde_json::from_value::<MouseMoveRequest>(request.payload)
-                .map_err(|error| format!("invalid mouse move command payload: {error}"))
-                .and_then(|payload| self.execute_move_request(ctx, payload)),
-            MOUSE_BUTTON_COMMAND_NODE_TYPE => serde_json::from_value::<MouseButtonRequest>(request.payload)
-                .map_err(|error| format!("invalid mouse button command payload: {error}"))
-                .and_then(|payload| self.execute_button_request(ctx, payload)),
-            MOUSE_SCROLL_COMMAND_NODE_TYPE => serde_json::from_value::<MouseScrollRequest>(request.payload)
-                .map_err(|error| format!("invalid mouse scroll command payload: {error}"))
-                .and_then(|payload| self.execute_scroll_request(ctx, payload)),
-            _ => Ok(()),
-        };
-
-        if let Err(error) = result {
-            logerror!(format!(
-                "Failed to handle mouse command {:?}: {error}",
-                request.command_id
-            ));
-        }
-    }
-
-    fn handle_script_method(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        method: &str,
-        args: &[ParamValue],
-    ) -> Option<Result<(), String>> {
-        let result = match method {
-            "moveMouse" => script_move_request(args)?.and_then(|request| self.execute_move_request(ctx, request)),
-            "click" => script_button_request(method, args, MouseButtonAction::Click)?
-                .and_then(|request| self.execute_button_request(ctx, request)),
-            "pressButton" => script_button_request(method, args, MouseButtonAction::Press)?
-                .and_then(|request| self.execute_button_request(ctx, request)),
-            "releaseButton" => script_button_request(method, args, MouseButtonAction::Release)?
-                .and_then(|request| self.execute_button_request(ctx, request)),
-            "scroll" => script_scroll_request(args)?.and_then(|request| self.execute_scroll_request(ctx, request)),
-            _ => return None,
-        };
-
-        Some(result)
-    }
-
     fn on_param_change_inner(&mut self, ctx: &mut ProcessCtx, param: NodeId) {
         self.request_service();
+        self.request_output_service();
         if self.device.is_bound() && self.device.id() == param {
             self.pending_input_events.clear();
             self.clear_input_values(ctx);
@@ -536,7 +381,7 @@ impl MouseModule {
         if self.send_enabled.is_bound() && self.send_enabled.id() == param {
             self.refresh_data_capabilities(ctx);
             if self.send_enabled.get() {
-                self.output_retry_at = None;
+                self.request_output_service();
             } else {
                 self.stop_output_backend();
                 self.clear_backend_warning(ctx, MOUSE_OUTPUT_WARNING_ID);
@@ -556,27 +401,38 @@ impl MouseModule {
     }
 
     fn refresh_connection_state(&mut self, ctx: &mut ProcessCtx) {
-        let selected_device = self.selected_input_device();
-        let input_active = self.receive_enabled.get()
-            && self.device.get_ref().as_str() != NO_MOUSE_VARIANT
-            && self.input_backend.as_ref().is_some_and(MouseInputRuntime::is_running)
-            && selected_device.is_some();
-        let output_active = self.send_enabled.get() && self.output_backend.is_some();
-
-        self.set_input_active(ctx, input_active);
-        self.set_output_active(ctx, output_active);
-        self.set_connected_devices(ctx, self.known_devices.len());
-        match selected_device {
-            Some(device) => {
-                self.set_selected_device_id(ctx, device.variant_id.as_str());
-                self.set_selected_device_name(ctx, device.label.as_str());
-            }
-            None => {
-                self.set_selected_device_id(ctx, "");
-                self.set_selected_device_name(ctx, "");
-            }
+        if self.guard_output(ctx) && self.guard_output_settings(ctx) {
+            self.project_connection_state(ctx);
         }
-        self.base.set_connected(ctx, input_active || output_active);
+    }
+    fn refresh_input_state(&mut self, ctx: &mut ProcessCtx) {
+        let selected = self.selected_input_device();
+        self.set_input_active(
+            ctx,
+            self.receive_enabled.get()
+                && self.device.get_ref().as_str() != NO_MOUSE_VARIANT
+                && self.input_backend.as_ref().is_some_and(MouseInputRuntime::is_running)
+                && selected.is_some(),
+        );
+        self.set_connected_devices(ctx, self.known_devices.len());
+        self.set_selected_device_id(ctx, selected.as_ref().map_or("", |d| d.variant_id.as_str()));
+        self.set_selected_device_name(ctx, selected.as_ref().map_or("", |d| d.label.as_str()));
+    }
+    fn project_connection_state(&mut self, ctx: &mut ProcessCtx) {
+        let ready = self.output.is_ready();
+        let output_active = self.send_enabled.get() && ready;
+        if output_active {
+            ctx.edits.push(golden_core::edit::Edit::CheckPreconditions {
+                preconditions: golden_core::edit::EditPreconditions::new(
+                    vec![],
+                    self.output.readiness_guards().unwrap().to_vec(),
+                )
+                .unwrap(),
+            });
+        }
+        self.refresh_input_state(ctx);
+        self.set_output_active(ctx, output_active);
+        self.base.set_connected(ctx, self.input_active.get() || output_active);
     }
 
     fn input_config(&self) -> MouseInputConfig {
@@ -796,6 +652,10 @@ impl Node for MouseModule {
             self.set_backend_warning(ctx, MOUSE_INPUT_WARNING_ID, &error);
         }
         self.request_service();
+        if let Err(error) = self.register_output(ctx) {
+            self.set_backend_warning(ctx, MOUSE_OUTPUT_WARNING_ID, &error);
+        }
+        self.request_output_service();
     }
 
     fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
@@ -803,23 +663,29 @@ impl Node for MouseModule {
             self.set_backend_warning(ctx, MOUSE_INPUT_WARNING_ID, &error);
             return;
         }
-        if !self.node_data().effective_enabled {
-            return;
+        let can_project = self.service_output_work(ctx);
+        if self.node_data().effective_enabled {
+            self.ensure_input_backend(ctx);
+            let events = self.drain_input_events(ctx);
+            if self.devices_dirty {
+                self.sync_device_options(ctx);
+                self.devices_dirty = false;
+            }
+            self.refresh_selection_warning(ctx, self.selected_input_device().as_ref());
+            self.handle_input_events(ctx, events);
+            if can_project {
+                self.project_connection_state(ctx);
+            }
+            self.schedule_service();
+        } else if can_project {
+            self.project_connection_state(ctx);
         }
-        self.ensure_input_backend(ctx);
-        self.ensure_output_backend(ctx);
-        let events = self.drain_input_events(ctx);
-        if self.devices_dirty {
-            self.sync_device_options(ctx);
-            self.devices_dirty = false;
-        }
-        self.refresh_selection_warning(ctx, self.selected_input_device().as_ref());
-        self.handle_input_events(ctx, events);
-        self.refresh_connection_state(ctx);
-        self.schedule_service();
     }
     fn worker_wake_requires_tree_snapshot(&self) -> bool {
-        false
+        true
+    }
+    fn worker_wake_when_disabled(&self) -> bool {
+        self.output.has_results()
     }
 
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {
@@ -848,8 +714,16 @@ impl Node for MouseModule {
         method: &str,
         args: &[ParamValue],
     ) -> Result<bool, String> {
-        if let Some(result) = self.handle_script_method(ctx, method, args) {
-            result?;
+        let output_method = match method {
+            "moveMouse" => Some("moveMouse"),
+            "click" => Some("click"),
+            "pressButton" => Some("pressButton"),
+            "releaseButton" => Some("releaseButton"),
+            "scroll" => Some("scroll"),
+            _ => None,
+        };
+        if let Some(method) = output_method {
+            self.capture_mouse_script(ctx, method, args)?;
             return Ok(true);
         }
 
@@ -868,7 +742,7 @@ impl Node for MouseModule {
         if enabled {
             self.request_service();
             self.input_retry_at = None;
-            self.output_retry_at = None;
+            self.request_output_service();
             self.refresh_data_capabilities(ctx);
             return;
         }
@@ -889,7 +763,7 @@ impl Node for MouseModule {
     }
 
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
-        self.on_custom_event_inner(ctx, event);
+        self.accept_mouse_output(ctx, event);
     }
 
     fn project_create(node_type: &str) -> Option<Self> {

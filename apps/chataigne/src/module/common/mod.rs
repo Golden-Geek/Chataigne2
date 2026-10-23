@@ -1,5 +1,6 @@
 pub(crate) mod app_control;
 pub(crate) mod buttplug;
+pub(crate) mod desktop_output;
 pub(crate) mod edit_receipt;
 pub(crate) mod generators;
 pub(crate) mod http;

@@ -3,76 +3,55 @@ use golden_core::{
     node,
     node::{Node, NodeId},
     parameter::{Enum, ParamValue},
-    process_ctx::{ProcessCtx, ProcessTreeSnapshot},
+    process_ctx::ProcessCtx,
 };
 
 use crate::app::{
     module::common::mouse::{
-        MouseButtonAction, MouseButtonKind, MouseButtonRequest, MouseMoveCoordinate,
-        MouseMoveRequest, MouseMoveUnits, MouseScrollRequest, MOUSE_ACTION_CLICK,
-        MOUSE_BUTTON_COMMAND_NODE_TYPE, MOUSE_BUTTON_LEFT, MOUSE_MOVE_COMMAND_NODE_TYPE,
-        MOUSE_COORDINATE_ABSOLUTE, MOUSE_SCROLL_COMMAND_NODE_TYPE, MOUSE_UNITS_PIXELS,
+        MOUSE_ACTION_CLICK, MOUSE_BUTTON_COMMAND_NODE_TYPE, MOUSE_BUTTON_LEFT, MOUSE_COORDINATE_ABSOLUTE,
+        MOUSE_MOVE_COMMAND_NODE_TYPE, MOUSE_SCROLL_COMMAND_NODE_TYPE, MOUSE_UNITS_PIXELS,
     },
     module_command,
 };
-
 macro_rules! mouse_command_node_impl {
     ($context:literal) => {
         fn child_event_interest_depth(&self, event: &Event) -> u32 {
-            match event.kind {
-                EventKind::ParamChanged { .. } => u32::MAX,
-                _ => 0,
+            if matches!(event.kind, EventKind::ParamChanged { .. }) {
+                u32::MAX
+            } else {
+                0
             }
         }
-
-        fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
-            let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
-                return;
-            };
-            let snapshot = snapshot_arc.as_ref();
-            if !module_command::module_command_triggered(snapshot, self.id(), param) {
-                return;
-            }
-
-            if let Err(error) = self.request_payload(snapshot).and_then(|payload| {
-                module_command::emit_module_command_request(
-                    ctx,
-                    snapshot,
-                    self.id(),
-                    self.get_type(),
-                    &payload,
-                )
-            }) {
-                golden_core::logerror!(format!("Failed to trigger {}: {error}", $context));
+        fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old: ParamValue) {
+            if ctx
+                .tree_snapshot()
+                .is_some_and(|snapshot| module_command::module_command_triggered(snapshot, self.id(), param))
+            {
+                run(ctx, self.id(), None);
             }
         }
-
         fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
-            if !module_command::is_command_execute_request(&event, self.id()) {
-                return;
-            }
-            let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
-                return;
-            };
-            let snapshot = module_command::command_execute_snapshot(
-                &event,
-                snapshot_arc.as_ref(),
-                self.id(),
-            );
-            let snapshot = snapshot.as_ref();
-            if let Err(error) = self.request_payload(snapshot).and_then(|payload| {
-                module_command::emit_module_command_request(
-                    ctx,
-                    snapshot,
-                    self.id(),
-                    self.get_type(),
-                    &payload,
-                )
-            }) {
-                golden_core::logerror!(format!("Failed to execute {}: {error}", $context));
+            if event.topic == module_command::MODULE_COMMAND_EXECUTE_TOPIC
+                && event
+                    .payload
+                    .get("command_id")
+                    .and_then(serde_json::Value::as_u64)
+                    == Some(self.id().0)
+            {
+                run(ctx, self.id(), Some(event));
             }
         }
     };
+}
+fn run(ctx: &mut ProcessCtx, command: NodeId, event: Option<golden_core::events::CustomEvent>) {
+    let Some(snapshot) = ctx.tree_snapshot_arc() else {
+        return;
+    };
+    if let Err(error) = module_command::CapturedInvocation::capture(&snapshot, command, event, &["mouse_module"])
+        .and_then(|invocation| crate::app::queue_mouse_command(ctx, invocation))
+    {
+        golden_core::logerror!(format!("Mouse command was not admitted: {error}"));
+    }
 }
 
 #[node("mouse_move_command", label = "Move Mouse")]
@@ -80,12 +59,12 @@ macro_rules! mouse_command_node_impl {
     coordinate: Enum = MOUSE_COORDINATE_ABSOLUTE (
         label = "Coordinate",
         description = "Absolute moves go to a point. Relative moves apply X/Y deltas.",
-        enum_options = ["absolute (Absolute)", "relative (Relative)"]
+        enum_options = ["absolute", "relative"]
     );
     units: Enum = MOUSE_UNITS_PIXELS (
         label = "Units",
         description = "Normalized coordinates use 0.0-1.0 across the main display and only support Absolute moves.",
-        enum_options = ["pixels (Pixels)", "normalized (Normalized 0-1)"]
+        enum_options = ["pixels", "normalized"]
     );
     x: f64 = 0.0 (
         label = "X",
@@ -106,31 +85,6 @@ impl MouseMoveCommand {
     pub fn create() -> Self {
         Self::new(crate::app::ModuleCommandBase::new())
     }
-
-    fn request_payload(&self, snapshot: &ProcessTreeSnapshot) -> Result<MouseMoveRequest, String> {
-        let coordinate = command_enum_param(snapshot, self.id(), "coordinate")
-            .map(|value| MouseMoveCoordinate::parse(value.as_str()))
-            .transpose()?
-            .unwrap_or(MouseMoveCoordinate::Absolute);
-        let units = command_enum_param(snapshot, self.id(), "units")
-            .map(|value| MouseMoveUnits::parse(value.as_str()))
-            .transpose()?
-            .unwrap_or(MouseMoveUnits::Pixels);
-        if coordinate == MouseMoveCoordinate::Relative && units == MouseMoveUnits::Normalized {
-            return Err(
-                "normalized mouse movement only supports absolute coordinates on the main display"
-                    .to_string(),
-            );
-        }
-
-        Ok(MouseMoveRequest {
-            x: command_float_param(snapshot, self.id(), "x").unwrap_or(0.0),
-            y: command_float_param(snapshot, self.id(), "y").unwrap_or(0.0),
-            coordinate,
-            units,
-            description: "move mouse".to_string(),
-        })
-    }
 }
 
 #[golden_core::item("module_command", node = "mouse_move_command", via = base, from_struct)]
@@ -147,12 +101,12 @@ impl Node for MouseMoveCommand {
     button: Enum = MOUSE_BUTTON_LEFT (
         label = "Button",
         description = "Mouse button to control.",
-        enum_options = ["left (Left)", "middle (Middle)", "right (Right)"]
+        enum_options = ["left", "middle", "right"]
     );
     action: Enum = MOUSE_ACTION_CLICK (
         label = "Action",
         description = "Button action to send.",
-        enum_options = ["click (Click)", "press (Press)", "release (Release)"]
+        enum_options = ["click", "press", "release"]
     );
 )]
 pub struct MouseButtonCommand {
@@ -162,23 +116,6 @@ pub struct MouseButtonCommand {
 impl MouseButtonCommand {
     pub fn create() -> Self {
         Self::new(crate::app::ModuleCommandBase::new())
-    }
-
-    fn request_payload(&self, snapshot: &ProcessTreeSnapshot) -> Result<MouseButtonRequest, String> {
-        let button = command_enum_param(snapshot, self.id(), "button")
-            .map(|value| MouseButtonKind::parse(value.as_str()))
-            .transpose()?
-            .unwrap_or(MouseButtonKind::Left);
-        let action = command_enum_param(snapshot, self.id(), "action")
-            .map(|value| MouseButtonAction::parse(value.as_str()))
-            .transpose()?
-            .unwrap_or(MouseButtonAction::Click);
-
-        Ok(MouseButtonRequest {
-            button,
-            action,
-            description: format!("{} {} mouse button", action.as_str(), button.as_str()),
-        })
     }
 }
 
@@ -212,14 +149,6 @@ impl MouseScrollCommand {
     pub fn create() -> Self {
         Self::new(crate::app::ModuleCommandBase::new())
     }
-
-    fn request_payload(&self, snapshot: &ProcessTreeSnapshot) -> Result<MouseScrollRequest, String> {
-        Ok(MouseScrollRequest {
-            vertical: command_int_param(snapshot, self.id(), "vertical").unwrap_or(0),
-            horizontal: command_int_param(snapshot, self.id(), "horizontal").unwrap_or(0),
-            description: "scroll mouse".to_string(),
-        })
-    }
 }
 
 #[golden_core::item("module_command", node = "mouse_scroll_command", via = base, from_struct)]
@@ -229,31 +158,4 @@ impl Node for MouseScrollCommand {
     }
 
     mouse_command_node_impl!("mouse scroll command");
-}
-
-fn command_enum_param(snapshot: &ProcessTreeSnapshot, command_id: NodeId, path: &str) -> Option<String> {
-    module_command::resolve_module_command_child(snapshot, command_id, path).and_then(|param_id| {
-        snapshot
-            .node(param_id)
-            .and_then(|node| node.param_value.as_ref())
-            .and_then(ParamValue::as_enum)
-    })
-}
-
-fn command_float_param(snapshot: &ProcessTreeSnapshot, command_id: NodeId, path: &str) -> Option<f64> {
-    module_command::resolve_module_command_child(snapshot, command_id, path).and_then(|param_id| {
-        snapshot
-            .node(param_id)
-            .and_then(|node| node.param_value.as_ref())
-            .and_then(ParamValue::as_float)
-    })
-}
-
-fn command_int_param(snapshot: &ProcessTreeSnapshot, command_id: NodeId, path: &str) -> Option<i32> {
-    module_command::resolve_module_command_child(snapshot, command_id, path).and_then(|param_id| {
-        snapshot
-            .node(param_id)
-            .and_then(|node| node.param_value.as_ref())
-            .and_then(ParamValue::as_int)
-    })
 }

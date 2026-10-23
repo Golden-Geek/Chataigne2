@@ -37,6 +37,40 @@ aligned storage; native inventory and name sizes are checked before allocation.
 On other platforms the input owner directly owns `device_query::DeviceState` and polls at
 8 ms on that IO thread. It creates no additional producer thread. OS capture remains Windows-only.
 
+## Output capture and native service
+
+`output/` owns canonical request capture, worker preparation, native effects and receipts.
+The old actor-side request parsing, second JSON relay and synchronous native calls are removed.
+Command snapshots and original execute payloads remain leased; the worker reads consumed fields
+and the last matching override without constructing a snapshot overlay. Script calls capture
+engine-owned arrays (up to four arguments / 64 KiB). Button/coordinate option text admits 64 bytes;
+move coordinates must be finite, pixel coordinates and scroll amounts must fit signed 32-bit
+values, and normalized movement remains absolute-only. All five script methods and three command
+node types retain their existing authored controls and app-owned snippets.
+
+Each module admits 64 original sources across local ingress, native queues, receipts and queued
+reports. Shared output sources admit 512 items / 32 MiB; native mailboxes admit 64 items / 4 MiB.
+Sources weigh 64 KiB plus three times retained override bytes. Original source and command/script
+leases survive mailbox draining, shared copies, cancellation and queued reports until disposal.
+An actor turn submits at most eight sources and services at most sixteen receipts. Full admission
+rejects explicitly; mailbox retry retains the same source. Four process workers and one per-module
+lifetime include blocked open, execution and cleanup. Recovery backs off from 250 ms to five seconds
+without replaying native effects.
+
+Keyboard and Mouse share the app-owned `common/desktop_output.rs` coordinator, with 512 weak
+ordering claims. Pending claims sort by original engine time and capture sequence; local ingress
+settles before native submission. One permit covers a complete native request, including both
+halves of a click. Pointer/display queries for relative/normalized moves also run inside that permit
+on the IO worker. Already-started effects are never reordered. Source retirement unblocks waiting
+peers before cleanup; waiting cancellation is not sent and a started panic is unconfirmed.
+Finished receipts retain source quotas while releasing ordering. No payload buffers live in the coordinator.
+
+Completed reports precede independently fenced readiness. Queued structural/settings guards reject
+stale targets; readiness additionally fences the current output runtime. Successful outgoing logs
+follow the existing module flag. Disabled worker wakes drain accepted receipts without admitting
+new work. Input service never writes output readiness or shared connection state. Native input and
+output, including direct output-provider calls, are disabled in test builds.
+
 ## Engine service and remaining C09 work
 
 Mouse uses worker wakes rather than periodic engine updates. Startup and input failures use
@@ -45,15 +79,15 @@ motion; a healthy idle module has no recurring actor callbacks or snapshots. Rec
 and module-disabled states stop input; the No Input Device selection preserves discovery.
 
 `input.rs` projects the bounded input turn. `devices.rs` owns selection and device options;
-`script.rs` preserves script request parsing. Commands, script methods, callbacks and app-owned
+`output/preparation.rs` owns command/script parsing. Commands, script methods, callbacks and app-owned
 template snippets remain at the Mouse module boundary. Native input and output are disabled
 in test builds; qualification uses controlled providers.
 
-This is the native input ownership milestone, not C09 closure. Output still uses the old
-synchronous `output_native.rs` path. Remaining work includes canonical command/script capture,
-bounded ordered output and receipts, worker-prepared callback/catalog publication, retained
+Native input and output ownership are implemented. This does not close C09. Remaining work includes
+worker-prepared input callback/catalog publication, retained
 publication quotas and queued projection guards, and combined pressure/retirement/recovery
 qualification. The [ledger](../progress/implementation-status.md) owns current acceptance.
 Catalog/readiness projection is still actor-authored: configuration restarts must publish
-metadata and readiness from the matching current input generation before C09 closes.
+metadata and readiness from the matching current input generation before C09 closes. Input restart
+now drops its previous catalog before asynchronous replacement.
 Physical/platform and product-scale checks retain P17/P18 and P16 ownership.

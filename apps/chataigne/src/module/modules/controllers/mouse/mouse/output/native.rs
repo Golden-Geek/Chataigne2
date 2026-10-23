@@ -1,21 +1,27 @@
-use crate::app::module::common::mouse::{
-    MouseButtonAction, MouseButtonKind, MouseMoveCoordinate, MouseMoveRequest, MouseMoveUnits, MouseScrollRequest,
-};
+use super::{Provider, Request};
+use crate::app::module::common::mouse::{MouseButtonAction, MouseButtonKind, MouseMoveCoordinate, MouseMoveUnits};
 use device_query::{DeviceQuery, DeviceState};
 use rdev::{display_size, simulate, Button as RdevButton, EventType, SimulateError};
 
-pub(crate) struct MouseOutputController;
+pub(super) struct MouseOutputController;
 
 impl MouseOutputController {
-    pub(crate) fn create() -> Result<Self, String> {
+    pub(super) fn create() -> Result<Self, String> {
         if cfg!(test) {
             return Err("mouse native output is disabled in test builds".into());
         }
         Ok(Self)
     }
 
-    pub(crate) fn execute_move(&mut self, request: &MouseMoveRequest) -> Result<String, String> {
-        let (x, y) = self.resolve_move(request)?;
+    fn execute_move(
+        &mut self,
+        x: f64,
+        y: f64,
+        coordinate: MouseMoveCoordinate,
+        units: MouseMoveUnits,
+    ) -> Result<String, String> {
+        let requested = (x, y);
+        let (x, y) = self.resolve_move(x, y, coordinate, units)?;
 
         simulate_event(&EventType::MouseMove {
             x: f64::from(x),
@@ -23,12 +29,12 @@ impl MouseOutputController {
         })
         .map_err(|error| format!("failed to move the mouse: {error}"))?;
 
-        let summary = match (request.coordinate, request.units) {
+        let summary = match (coordinate, units) {
             (MouseMoveCoordinate::Absolute, MouseMoveUnits::Pixels) => {
                 format!("Moved mouse to ({x}, {y}) pixels")
             }
             (MouseMoveCoordinate::Absolute, MouseMoveUnits::Normalized) => {
-                format!("Moved mouse to normalized ({:.3}, {:.3})", request.x, request.y)
+                format!("Moved mouse to normalized ({:.3}, {:.3})", requested.0, requested.1)
             }
             (MouseMoveCoordinate::Relative, MouseMoveUnits::Pixels) => {
                 format!("Moved mouse by ({x}, {y}) pixels")
@@ -41,11 +47,7 @@ impl MouseOutputController {
         Ok(summary)
     }
 
-    pub(crate) fn execute_button(
-        &mut self,
-        button: MouseButtonKind,
-        action: MouseButtonAction,
-    ) -> Result<String, String> {
+    fn execute_button(&mut self, button: MouseButtonKind, action: MouseButtonAction) -> Result<String, String> {
         let button_name = button.label().to_ascii_lowercase();
         let button = button_to_rdev(button)?;
         match action {
@@ -64,25 +66,30 @@ impl MouseOutputController {
         Ok(format!("{} {} mouse button", action.label(), button_name))
     }
 
-    pub(crate) fn execute_scroll(&mut self, request: &MouseScrollRequest) -> Result<String, String> {
+    fn execute_scroll(&mut self, vertical: i32, horizontal: i32) -> Result<String, String> {
         simulate_event(&EventType::Wheel {
-            delta_x: i64::from(request.horizontal),
-            delta_y: -i64::from(request.vertical),
+            delta_x: i64::from(horizontal),
+            delta_y: -i64::from(vertical),
         })
         .map_err(|error| format!("failed to scroll the mouse: {error}"))?;
 
         Ok(format!(
             "Scrolled mouse vertical={} horizontal={}",
-            request.vertical, request.horizontal
+            vertical, horizontal
         ))
     }
 
-    fn resolve_move(&self, request: &MouseMoveRequest) -> Result<(i32, i32), String> {
-        match (request.coordinate, request.units) {
-            (MouseMoveCoordinate::Absolute, MouseMoveUnits::Pixels) => Ok((
-                round_f64_to_i32(request.x, "mouse x")?,
-                round_f64_to_i32(request.y, "mouse y")?,
-            )),
+    fn resolve_move(
+        &self,
+        x: f64,
+        y: f64,
+        coordinate: MouseMoveCoordinate,
+        units: MouseMoveUnits,
+    ) -> Result<(i32, i32), String> {
+        match (coordinate, units) {
+            (MouseMoveCoordinate::Absolute, MouseMoveUnits::Pixels) => {
+                Ok((round_f64_to_i32(x, "mouse x")?, round_f64_to_i32(y, "mouse y")?))
+            }
             (MouseMoveCoordinate::Relative, MouseMoveUnits::Pixels) => {
                 let Some(device_state) = DeviceState::checked_new() else {
                     return Err("relative mouse movement requires a readable current mouse position".to_string());
@@ -92,12 +99,12 @@ impl MouseOutputController {
                     current
                         .coords
                         .0
-                        .checked_add(round_f64_to_i32(request.x, "mouse dx")?)
+                        .checked_add(round_f64_to_i32(x, "mouse dx")?)
                         .ok_or("relative mouse x overflow")?,
                     current
                         .coords
                         .1
-                        .checked_add(round_f64_to_i32(request.y, "mouse dy")?)
+                        .checked_add(round_f64_to_i32(y, "mouse dy")?)
                         .ok_or("relative mouse y overflow")?,
                 ))
             }
@@ -108,8 +115,8 @@ impl MouseOutputController {
                     return Err("the main display reported a non-positive size".to_string());
                 }
 
-                let x = clamp_unit(request.x) * (width.saturating_sub(1) as f64);
-                let y = clamp_unit(request.y) * (height.saturating_sub(1) as f64);
+                let x = clamp_unit(x) * (width.saturating_sub(1) as f64);
+                let y = clamp_unit(y) * (height.saturating_sub(1) as f64);
                 Ok((x.round() as i32, y.round() as i32))
             }
             (MouseMoveCoordinate::Relative, MouseMoveUnits::Normalized) => {
@@ -148,6 +155,9 @@ fn button_to_rdev(button: MouseButtonKind) -> Result<RdevButton, String> {
 }
 
 fn simulate_event(event: &EventType) -> Result<(), SimulateError> {
+    if cfg!(test) {
+        return Err(SimulateError);
+    }
     simulate(event)
 }
 
@@ -161,6 +171,24 @@ impl MouseButtonActionLabel for MouseButtonAction {
             MouseButtonAction::Click => "Clicked",
             MouseButtonAction::Press => "Pressed",
             MouseButtonAction::Release => "Released",
+        }
+    }
+}
+
+impl Provider for MouseOutputController {
+    fn execute(&mut self, request: Request) -> Result<String, String> {
+        if cfg!(test) {
+            return Err("mouse native output is disabled in test builds".into());
+        }
+        match request {
+            Request::Move {
+                x,
+                y,
+                coordinate,
+                units,
+            } => self.execute_move(x, y, coordinate, units),
+            Request::Button { button, action } => self.execute_button(button, action),
+            Request::Scroll { vertical, horizontal } => self.execute_scroll(vertical, horizontal),
         }
     }
 }

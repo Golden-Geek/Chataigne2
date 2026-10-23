@@ -7,7 +7,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-mod coordination;
+use crate::app::module::common::desktop_output as coordination;
 pub(super) mod native;
 mod receipts;
 mod route;

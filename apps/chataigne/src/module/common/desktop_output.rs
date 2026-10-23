@@ -1,13 +1,14 @@
-use super::*;
 use golden_core::engine::{EngineTime, NodeWaker};
+use golden_io::RevisionGuard;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc, Condvar, Mutex, OnceLock, Weak,
 };
+use std::time::Duration;
 
 const MAX_SOURCES: usize = 512;
 
-pub(super) enum Origin {
+pub(crate) enum Origin {
     Engine(NodeWaker),
     #[cfg(test)]
     Fixture,
@@ -36,22 +37,22 @@ struct State {
     pending: Vec<Weak<Claim>>,
     active: Option<u64>,
 }
-pub(super) struct Coordinator {
+pub(crate) struct Coordinator {
     state: Mutex<State>,
     changed: Condvar,
 }
 impl Coordinator {
-    pub(super) fn new() -> Arc<Self> {
+    pub(crate) fn new() -> Arc<Self> {
         Arc::new(Self {
             state: Mutex::new(State::default()),
             changed: Condvar::new(),
         })
     }
-    pub(super) fn process() -> Arc<Self> {
+    pub(crate) fn process() -> Arc<Self> {
         static SHARED: OnceLock<Arc<Coordinator>> = OnceLock::new();
         SHARED.get_or_init(Self::new).clone()
     }
-    pub(super) fn capture(
+    pub(crate) fn capture(
         self: &Arc<Self>,
         time: EngineTime,
         origin: Origin,
@@ -60,12 +61,12 @@ impl Coordinator {
         let mut state = self.state.lock().unwrap_or_else(|error| error.into_inner());
         prune(&mut state);
         if state.pending.len() + usize::from(state.active.is_some()) >= MAX_SOURCES {
-            return Err("Keyboard process output's 512 ordering slots are occupied".into());
+            return Err("Desktop process output's 512 ordering slots are occupied".into());
         }
         let sequence = state
             .sequence
             .checked_add(1)
-            .ok_or("Keyboard output ordering sequence exhausted")?;
+            .ok_or("Desktop output ordering sequence exhausted")?;
         state.sequence = sequence;
         let claim = Arc::new(Claim {
             time,
@@ -92,22 +93,22 @@ fn prune(state: &mut State) {
         .pending
         .retain(|pending| pending.upgrade().is_some_and(|claim| claim.live()));
 }
-pub(super) struct Ticket {
+pub(crate) struct Ticket {
     claim: Arc<Claim>,
     coordinator: Arc<Coordinator>,
 }
 impl Ticket {
-    pub(super) fn live(&self) -> bool {
+    pub(crate) fn live(&self) -> bool {
         self.claim.live()
     }
-    pub(super) fn finish(&self) {
+    pub(crate) fn finish(&self) {
         if !self.claim.done.swap(true, Ordering::AcqRel) {
             let mut state = self.coordinator.state.lock().unwrap_or_else(|error| error.into_inner());
             prune(&mut state);
             self.coordinator.changed.notify_all();
         }
     }
-    pub(super) fn acquire(&self, cancelled: impl Fn() -> bool) -> Option<Permit> {
+    pub(crate) fn acquire(&self, cancelled: impl Fn() -> bool) -> Option<Permit> {
         let mut state = self.coordinator.state.lock().unwrap_or_else(|error| error.into_inner());
         loop {
             prune(&mut state);
@@ -146,7 +147,7 @@ impl Drop for Ticket {
         self.finish();
     }
 }
-pub(super) struct Permit {
+pub(crate) struct Permit {
     coordinator: Arc<Coordinator>,
     sequence: u64,
 }

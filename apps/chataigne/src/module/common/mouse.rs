@@ -138,35 +138,4 @@ impl MouseButtonAction {
             "unsupported mouse button action '{value}', expected '{MOUSE_ACTION_CLICK}', '{MOUSE_ACTION_PRESS}', or '{MOUSE_ACTION_RELEASE}'"
         ))
     }
-
-    pub(crate) fn as_str(self) -> &'static str {
-        match self {
-            Self::Click => MOUSE_ACTION_CLICK,
-            Self::Press => MOUSE_ACTION_PRESS,
-            Self::Release => MOUSE_ACTION_RELEASE,
-        }
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-pub(crate) struct MouseMoveRequest {
-    pub x: f64,
-    pub y: f64,
-    pub coordinate: MouseMoveCoordinate,
-    pub units: MouseMoveUnits,
-    pub description: String,
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-pub(crate) struct MouseButtonRequest {
-    pub button: MouseButtonKind,
-    pub action: MouseButtonAction,
-    pub description: String,
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-pub(crate) struct MouseScrollRequest {
-    pub vertical: i32,
-    pub horizontal: i32,
-    pub description: String,
 }
