@@ -5,10 +5,10 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-23 on `main`, based on delivered `d59a8f2d`, matching
+Last reconciled: 2026-10-23 on `main`, based on delivered `cf7b45b5`, matching
 `origin/main` at milestone start. **C01-C10 are locally closed: 10/12 packages (83%). Two
-packages remain (C11-C12), with three unfinished module families.** Gamepad is now locally
-qualified within C11. Continue Kinect2 and Stream Deck, then C12 Spatializer. P03 scope coverage
+packages remain (C11-C12), with two unfinished module families.** Gamepad and Kinect2 are
+locally qualified within C11. Continue Stream Deck, then C12 Spatializer. P03 scope coverage
 remains approximately 97%; whole-plan scope coverage remains approximately 17%. These fixed-rubric
 scores do not forecast remaining effort. Hardware/platform and product-scale qualification retain
 their later plan owners.
@@ -19,8 +19,8 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 
 ## Completion overview
 
-**P03 closure packages: 10/12 closed (83%); 2 remain (C11-C12).** Gamepad is locally
-qualified, completing one of C11's three families. **Unfinished families: Kinect2, Stream Deck
+**P03 closure packages: 10/12 closed (83%); 2 remain (C11-C12).** Gamepad and Kinect2
+are locally qualified, completing two of C11's three families. **Unfinished families: Stream Deck
 and Spatializer.** These are fixed acceptance packages, not promised commit counts. The ~97%
 scope score below is not a forecast of remaining effort; there is no qualified remaining-batch estimate.
 
@@ -44,7 +44,7 @@ record delivery history and are never the progress denominator.
 P03's approximately **97%** is a scope score across seven equally weighted workstreams.
 Six workstreams, including locally qualified Sound Card C01, score 100. The remaining-module audit
 uses verified closure coverage across C02-C12: **9 of 11 closed**, or approximately 82%.
-**This average is not a remaining-effort forecast:** three unfinished module families still need local
+**This average is not a remaining-effort forecast:** two unfinished module families still need local
 qualification under the two open packages. Report package closures before the percentage.
 The score is `(100 + 100 + 100 + 100 + 100 + 900/11 + 100) / 7`.
 
@@ -67,7 +67,7 @@ acceptance. Hardware/platform and whole-product qualification keep their later p
 The user requested a remaining-batch forecast on 2026-10-20. There is no defensible commit count
 yet: the percentage does not measure remaining effort. The initial source audit covered
 **17 implemented module families plus Sound Card**. C01-C10 are now locally verified, leaving
-**three unfinished families** to repair/qualify under C11-C12; Gamepad is locally qualified within
+**two unfinished families** to repair/qualify under C11-C12; Gamepad and Kinect2 are locally qualified within
 the still-open C11 package.
 The earlier directory inventory counted an empty, untracked Node Control placeholder as a module;
 there is no implementation to qualify or build for that placeholder. At the initial audit, nine families contained explicit
@@ -83,8 +83,8 @@ several reviewable commits, and a review may establish that an existing implemen
 passes. **Remaining closure packages: two open, ten closed (C01-C10).** This count does not discard prior P03
 work or replace the workstream percentages above.
 
-Latest count on 2026-10-23: **two packages remain, not two promised batches**. Gamepad is locally qualified
-within C11; Kinect2 and Stream Deck remain open there. Do not increase the denominator for supporting commits or move
+Latest count on 2026-10-23: **two packages remain, not two promised batches**. Gamepad and Kinect2 are locally qualified
+within C11; Stream Deck remains open there. Do not increase the denominator for supporting commits or move
 unrelated optimization into P03. Report closed acceptance items and remaining package criteria
 instead of accumulated batch numbers.
 
@@ -100,12 +100,12 @@ instead of accumulated batch numbers.
 | C08 | **CLOSED (100%)**   | Joy-Con                          | Locally verified: 71 owning passes cover canonical capture, native-prepared callbacks and atomic quota recovery, retained source/input/callback lifetimes, queued target/path/settings guards, 512 ordered edges, eight reconfigurations and failure/recovery before blocked cleanup. Hardware/platform and product-scale qualification remain separate.                                                                            |
 | C09 | **CLOSED (100%)**   | Keyboard and Mouse               | Locally verified: 71 Keyboard, 87 Mouse and three shared ordering cases cover canonical capture, worker-prepared callbacks/catalogs, retained quotas, queued source/target/settings guards, passive service, continuous input under output pressure, reconfiguration and failure/recovery. Physical/platform and product-scale qualification remain separate.                                                                       |
 | C10 | **CLOSED (100%)**   | Ultraleap                        | Locally verified: 24 owning passes cover bounded SDK/actor lifetimes and publication, prepared tracking and ordered status boundaries, retained source quotas, queued path/retirement/disable guards, 512 ordered statuses, eight enable/disable cycles, idle service and failure recovery before blocked cleanup. Physical SDK/platform and product-scale qualification remain separate.                                           |
-| C11 | OPEN (1/3 families) | Gamepad, Kinect2 and Stream Deck | Gamepad locally qualified with 34 owning passes, native build and scoped preservation. Kinect2 and Stream Deck still require bounded native ownership/service, admission, queued lifetime guards and recovery qualification.                                                                                                                                                                                                        |
+| C11 | OPEN (2/3 families) | Gamepad, Kinect2 and Stream Deck | Gamepad and Kinect2 are locally qualified with 34 and 36 owning passes, native builds and scoped preservation. Stream Deck still requires bounded discovery/HID/image ownership, input/output admission, queued lifetime guards and recovery qualification.                                                                                                                                                                         |
 | C12 | OPEN                | Spatializer; Node Control absent | Bound Spatializer computation, graph mutation and callback fan-out; do not implement the empty Node Control placeholder.                                                                                                                                                                                                                                                                                                            |
 
 The [initial ownership/acceptance audit](p03-closure-audit.md) is now complete across C01-C12.
 It records confirmed source gaps, existing safeguards, missing qualification and finish tests.
-C01-C10 are locally closed. Gamepad is locally qualified within C11. Continue Kinect2/Stream Deck, then C12 Spatializer;
+C01-C10 are locally closed. Gamepad and Kinect2 are locally qualified within C11. Continue Stream Deck, then C12 Spatializer;
 do not continue the generic snapshot-copy prerequisite chain. Existing shared IO, stream, HTTP and
 generator time suites remain preservation gates. Map discoveries into the fixed packages. General
 optimizations belong to P12/P16 unless evidence connects them to a concrete P03 resource, service,
@@ -118,20 +118,21 @@ or completion credit. Snapshot/DTO scaling remains an explicit P16 investigation
 ## Current handoff
 
 - **C01-C10 are locally closed: 10/12 packages (83%). Two P03 packages remain (C11-C12),
-  with three unfinished families.** C11 Gamepad is locally qualified; continue Kinect2 and
-  Stream Deck, then C12 Spatializer. Node Control remains an empty placeholder outside scope.
-- Current app evidence: **34 Gamepad + 293 controller preservation + 1075 disjoint preservation
-  = 1402 unique passes / six existing ignored / 1408 selected / 1672 listed**, with 264 outside
-  these scopes. Controllers cover 24 Ultraleap / 87 Mouse / 71 Keyboard / 71 Joy-Con / 40 Buttplug;
-  three shared ordering cases appear once in broader preservation. The first broader run failed
-  one multiplex timing gate; isolated and complete broader reruns pass on the same artifact,
-  without threshold changes. The failure is retained in the Gamepad evidence below.
+  with two unfinished families.** Gamepad and Kinect2 qualify two of C11's three families;
+  continue Stream Deck, then C12 Spatializer. Node Control remains an empty placeholder outside scope.
+- Current app evidence: **36 Kinect2 + 327 controller preservation + 1075 disjoint preservation
+  = 1438 unique passes / six existing ignored / 1444 selected / 1704 listed**, with 260 outside
+  these scopes. Controllers cover 34 Gamepad / 24 Ultraleap / 87 Mouse / 71 Keyboard / 71 Joy-Con /
+  40 Buttplug; three shared ordering cases appear once in broader preservation. Both preservation
+  groups pass on the owning artifact with compilation idle.
 - Native build, strict workspace Clippy, workspace test compilation and formatting pass. All
-  fourteen tested Gamepad Rust hashes remain unchanged; its entrypoint is 409 lines and the
-  largest touched source is 453. Core and Golden IO are unchanged: prior Core **602 passes /
-  three ignored / 605 listed** at `2e3bc6db` and IO 57-pass evidence remain dated. P03 ~97% and
-  whole-plan ~17% remain scope scores. Commit/push verified milestones on `main`; keep the full
-  P00-P18 goal active.
+  seventeen tested Kinect2 Rust hashes remain unchanged; every touched source is below 1000 lines
+  (largest: 750). Core and Golden IO are unchanged: prior Core **602 passes / three ignored /
+  605 listed** at `2e3bc6db` and IO 57-pass evidence remain dated. P03 ~97% and whole-plan ~17%
+  remain scope scores. Commit/push verified milestones on `main`; keep the full P00-P18 goal active.
+- Delivered `cf7b45b5`'s remote benchmark comparison failed because its historical baseline is
+  explicitly unqualified; tick/dispatch commands succeeded, but comparison did not run. Retain this
+  as P16 baseline qualification work. Other remote workflows were still running when observed.
 
 ## Task ledger
 
@@ -139,27 +140,27 @@ Implementation states: `NOT_STARTED`, `IN_PROGRESS`, `IMPLEMENTED`, `VERIFIED_LO
 Check outcomes: `PENDING`, `PASSED`, `FAILED`, `UNAVAILABLE`, `SKIPPED_WITH_REASON`.
 External qualification is separate from implementation. A historical pass is not a current pass.
 
-| Task                        | Completion | Implementation | Local validation        | External qualification / evidence                                                                                             |
-| --------------------------- | ---------- | -------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| P00 Baseline                | 100%       | VERIFIED_LOCAL | PASSED                  | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                    |
-| P01 Edit failures/history   | 100%       | VERIFIED_LOCAL | PASSED batches 1–8      | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                     |
-| P02 Schedule/actor failures | 100%       | VERIFIED_LOCAL | PASSED batches 1-3      | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                      |
-| P03 Bounded I/O/lifecycle   | ~97%       | IN_PROGRESS    | PASSED C01-C10; Gamepad | Two packages remain (C11-C12), with Kinect2, Stream Deck and Spatializer unfinished. Gamepad is locally qualified within C11. |
-| P04 Audio order/types       | 0%         | NOT_STARTED    | PENDING                 | Legal interleaving and invalid deserialization established from source                                                        |
-| P05 Transport trust         | 0%         | NOT_STARTED    | PENDING                 | Missing admission verified; exploit not demonstrated                                                                          |
-| P06 Dependencies            | 0%         | NOT_STARTED    | FAILED baseline         | Four Rustls advisories on audit date; refresh DB before repair                                                                |
-| P07 DMX streaming           | 0%         | NOT_STARTED    | PENDING                 | Refresh/filter/service gaps; protocol loopback qualification needed                                                           |
-| P08 Formula backend intents | 0%         | NOT_STARTED    | PENDING                 | UI polling/identity and mutation policy verified; corruption not reproduced                                                   |
-| P09 Graph document          | 0%         | NOT_STARTED    | PENDING                 | Ordered-map mutation costs source-derived                                                                                     |
-| P10 Canvas                  | 0%         | NOT_STARTED    | PENDING                 | Projection diagnostic and crossing-edge reproduction; mounted performance open                                                |
-| P11 Workspace UX            | 0%         | NOT_STARTED    | PENDING                 | Collection/keyboard gaps source-reviewed; native usability open                                                               |
-| P12 Boundaries/gates        | 0%         | NOT_STARTED    | PENDING                 | App policy leak, omitted graph tests, oversized files, unsafe conversions; recurring incremental native-link artifact gap     |
-| P13 Formula execution       | 0%         | NOT_STARTED    | PENDING                 | Historical profiles retained; production parallelism not mandated                                                             |
-| P14 Production time         | 0%         | NOT_STARTED    | PENDING                 | Clock helper unwired, no target-frame play, starvation/latency policy gaps                                                    |
-| P15 Assets                  | 0%         | NOT_STARTED    | PENDING                 | Audio path/cache identity exists; project asset boundary unimplemented                                                        |
-| P16 Product scale           | 0%         | NOT_STARTED    | PENDING                 | Snapshot/DTO scaling investigation retained from P03 audit; full-product 20k/50k/mounted canvas gates remain open             |
-| P17 Platforms/artifacts     | 0%         | NOT_STARTED    | PENDING                 | Windows history retained; exact current app/native/platform checks required                                                   |
-| P18 Named devices           | 0%         | NOT_STARTED    | PENDING                 | Exact authorized ASIO4ALL/VB-Audio route must be verified first                                                               |
+| Task                        | Completion | Implementation | Local validation        | External qualification / evidence                                                                                                               |
+| --------------------------- | ---------- | -------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| P00 Baseline                | 100%       | VERIFIED_LOCAL | PASSED                  | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                                      |
+| P01 Edit failures/history   | 100%       | VERIFIED_LOCAL | PASSED batches 1–8      | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                                       |
+| P02 Schedule/actor failures | 100%       | VERIFIED_LOCAL | PASSED batches 1-3      | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                                        |
+| P03 Bounded I/O/lifecycle   | ~97%       | IN_PROGRESS    | PASSED C01-C10; C11 2/3 | Two packages remain (C11-C12), with Stream Deck and Spatializer unfinished. Gamepad and Kinect2 are locally qualified within C11.               |
+| P04 Audio order/types       | 0%         | NOT_STARTED    | PENDING                 | Legal interleaving and invalid deserialization established from source                                                                          |
+| P05 Transport trust         | 0%         | NOT_STARTED    | PENDING                 | Missing admission verified; exploit not demonstrated                                                                                            |
+| P06 Dependencies            | 0%         | NOT_STARTED    | FAILED baseline         | Four Rustls advisories on audit date; refresh DB before repair                                                                                  |
+| P07 DMX streaming           | 0%         | NOT_STARTED    | PENDING                 | Refresh/filter/service gaps; protocol loopback qualification needed                                                                             |
+| P08 Formula backend intents | 0%         | NOT_STARTED    | PENDING                 | UI polling/identity and mutation policy verified; corruption not reproduced                                                                     |
+| P09 Graph document          | 0%         | NOT_STARTED    | PENDING                 | Ordered-map mutation costs source-derived                                                                                                       |
+| P10 Canvas                  | 0%         | NOT_STARTED    | PENDING                 | Projection diagnostic and crossing-edge reproduction; mounted performance open                                                                  |
+| P11 Workspace UX            | 0%         | NOT_STARTED    | PENDING                 | Collection/keyboard gaps source-reviewed; native usability open                                                                                 |
+| P12 Boundaries/gates        | 0%         | NOT_STARTED    | PENDING                 | App policy leak, omitted graph tests, oversized files, unsafe conversions; recurring incremental native-link artifact gap                       |
+| P13 Formula execution       | 0%         | NOT_STARTED    | PENDING                 | Historical profiles retained; production parallelism not mandated                                                                               |
+| P14 Production time         | 0%         | NOT_STARTED    | PENDING                 | Clock helper unwired, no target-frame play, starvation/latency policy gaps                                                                      |
+| P15 Assets                  | 0%         | NOT_STARTED    | PENDING                 | Audio path/cache identity exists; project asset boundary unimplemented                                                                          |
+| P16 Product scale           | 0%         | NOT_STARTED    | PENDING                 | Unqualified historical benchmark baseline blocks CI comparison; snapshot/DTO scaling and full-product 20k/50k/mounted canvas gates remain open. |
+| P17 Platforms/artifacts     | 0%         | NOT_STARTED    | PENDING                 | Windows history retained; exact current app/native/platform checks required                                                                     |
+| P18 Named devices           | 0%         | NOT_STARTED    | PENDING                 | Exact authorized ASIO4ALL/VB-Audio route must be verified first                                                                                 |
 
 For each implementation batch append a compact row under “New implementation evidence” with
 task, source/tree, changed ownership, invariant, exact commands, environment/features, outcome,
@@ -7624,3 +7625,60 @@ Owning app SHA-256:
 `d499f1b9af09b074d1289deed94558f579e2cbfbb630dd677d4badca22c824fb`.
 Native SHA-256:
 `84e3333f77938e173e2ee57b393151bb37a7b3a7dbc5abafea31b891c70c5dfb`.
+
+## C11 Kinect2 local qualification
+
+Implemented 2026-10-23 on clean `main` at delivered `cf7b45b5`. **Kinect2 is locally qualified**,
+joining Gamepad within C11. C11 remains open for Stream Deck; C12 Spatializer follows. Two
+unfinished families remain under the same two packages. No package is added.
+
+Native SDK loading, sensor/reader calls, body collection and cleanup now belong to bounded
+app-owned IO lifetimes. Preparation owns the 25-joint transform, nearest-body selection, hand
+metrics, SDK-timestamp speed history, tracking messages and existing noise threshold. Reference
+revisions reproject held raw frames without reopening the sensor; the actor is passive and
+projects behind source/settings/target/ancestor guards. Missing snapshots leave input queued.
+See [Kinect2 ownership](../architecture/kinect2-runtime.md).
+
+The Windows adapter now owns all six returned body references before fallible inspection,
+preventing an early body error from leaking unvisited references. Fake COM tests cover that
+failure path. Fixed native joint decoding validates identities, state and finite positions;
+signed SDK timestamps reject negative values before conversion. Native endpoints are disabled
+in test builds. Existing script/base callbacks and the empty custom command/method surfaces remain.
+
+Current Windows/default-feature gates use `CARGO_INCREMENTAL=0`:
+
+- Strict workspace/all-target Clippy passed in 38.92s; workspace test compilation passed
+  in 31.97s.
+- `cargo test --locked -p Chataigne2 --bin Chataigne2 -- --test-threads=1 app::module_modules_controllers_kinect2`:
+  **36 passed**, in 3.95s after a 3m46s build. The four existing cases remain, including real
+  worker/engine reference-space and hand-metric projection. Thirty-two new cases cover blocked
+  setup/poll/cleanup, bounded mailbox/item/byte pressure, original source retention, 512 ordered
+  tracking transitions with unrelated actor progress, queued source/path/settings/disable
+  rejection, eight reference and enable/disable cycles, sensor loss/recovery and passive idle.
+  Three cases use fake Windows COM objects or SDK records to verify complete body-reference
+  cleanup, joint decode bounds and signed timestamp conversion.
+- The initial 34-case run passed. Review then strengthened source-revision coverage: rapid
+  reference changes under a full mailbox and cancellation of an unprojected tracking-loss
+  snapshot. Prepared tracking messages now carry current snapshot state, preserving acquired
+  and lost status through cancellation; unchanged messages use normal parameter no-op behavior.
+- Actual root/Core Cargo fmt and explicit app Rustfmt pass. Seventeen tested live Rust hashes
+  remain unchanged; every touched source is below 1000 lines (largest: 750). Core, Golden IO/UI,
+  dependencies, protocol, persistence and app-shell startup are unchanged.
+- Native build passed in 2m26s. The artifact lists **1704 tests**, with disjoint
+  **36 Kinect2 / 327 controllers / 1081 broader preservation**, leaving 260 outside these scopes.
+  Controller preservation passed **327 / zero failed** in 26.70s. Broader preservation passed
+  **1075 / zero failed / six existing ignored** in 83.76s with compilation idle. Final unique
+  evidence is **1438 passes / six ignored / 1444 selected / 1704 listed / 260 outside**. App and
+  native hashes remained unchanged across owning and preservation runs.
+
+Owning app SHA-256:
+`cd19be6625663c73166c8a7d68e7e69bcb1884a4d14f9f30e7fe0c2d8f5801d9`.
+Native SHA-256:
+`200e51950285ddb4ece4100c10d1a2e894608e3348448eb5cf7b71816091c429`.
+
+Remote evidence for delivered `cf7b45b5`: [benchmark workflow 40005299037](https://github.com/Golden-Geek/Chataigne2/actions/runs/40005299037)
+failed at evidence comparison because the historical baseline explicitly lacks a qualified CPU,
+toolchain, profile, feature, raw-sample and runner-image fingerprint. Tick and dispatch benchmark
+commands succeeded; **the regression comparison did not run**. This is P16 baseline qualification
+work, not evidence of a measured Gamepad regression. Do not replace or waive the baseline to make
+the gate green. CI and cross-platform product qualification were still running when observed.

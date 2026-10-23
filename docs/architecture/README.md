@@ -45,6 +45,8 @@ and superseded plans are [archived](../archive/2026-10-18/README.md).
   publication, ordered status boundaries, queued projection guards and passive recovery.
 - [Gamepad worker ownership](gamepad-runtime.md): bounded Gilrs ownership, prepared calibration
   and callbacks, retained choices, configuration fences and passive recovery.
+- [Kinect2 worker ownership](kinect2-runtime.md): bounded sensor/reader lifetimes, prepared skeletons
+  and SDK-time hand metrics, reference-space revisions, guarded projection and passive recovery.
 - [Timed generators](generators.md): Signals/Metronomes admission, elapsed time, bounded
   publication, passive service and worker lifetime ownership.
 - [Alchemist runtime](alchemist-runtime.md): formulas, processors, conditions, inputs, filters,
