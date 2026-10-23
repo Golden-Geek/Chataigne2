@@ -21,11 +21,31 @@ Foreground raw-input packets run the default procedure for system cleanup, as re
 Native input creation and output injection are disabled in test builds; controlled providers
 exercise the handoff and lifecycle.
 
+### Process-owned Windows registration
+
+Windows input owners subscribe to one app-owned process registry and raw-input message pump.
+The registry runs only on IO owner threads. It serializes opening, shares the running endpoint,
+and holds one native lifetime permit until the last subscriber's endpoint cleanup and join finish.
+A replacement open is refused during retirement and uses the existing module recovery path.
+Dropping one subscriber leaves the other subscribers and their native registration intact.
+The last subscriber requests shutdown; the window owner removes registration before destroying
+the window. No control-engine callback acquires the registry lock or joins the message pump.
+
+Fan-out admits four subscriber lifetimes, each with its own 64-record / 2 MiB native queue.
+Failed subscribers occupy their slot until disposal, including their accepted queued prefix.
+One slow subscriber receives an explicit overload failure while accepting peers continue in order.
+All subscribers keep the original device identities, so module selection remains independent.
+A bounded latest catalog seeds a new subscription under the fan-out lock before later edges.
+Native failure or panic stops publication and exposes terminal state to every subscriber before window cleanup.
+Controlled endpoint tests cover sharing, pressure, ordering and retirement; they do not qualify
+the physical Windows message pump.
+
 ## Bounded handoffs
 
-The native channel admits 64 records / 2 MiB. Input records charge 4 KiB; native catalogs charge
+Each native channel admits 64 records / 2 MiB. Input records charge 4 KiB; native catalogs charge
 512 KiB. A full channel rejects the occurrence explicitly, records overload and ends the native
-producer; it does not block the message pump or silently discard a successful admission.
+producer's subscription on Windows, or the producer on other platforms. It does not block the
+message pump or silently discard a successful admission.
 The owner drains at most 16 records per poll. Terminal state is observable independently of
 sender destruction, including when native teardown still owns the sender.
 
@@ -87,8 +107,9 @@ Input and output lifecycle ownership and canonical output capture are implemente
 Native input callback preparation, canonical published choice lifetimes, passive input service and
 full package recovery qualification remain open. Input still uses its existing periodic service
 and retry clock; output uses notifications and explicit deadlines.
-Windows also needs process-owned raw-input registration and bounded fan-out before C09 closes:
+Windows uses process-owned raw-input registration and bounded fan-out because
 [only one window per device class can receive raw input in a process](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-registerrawinputdevices).
-The existing per-module registration policy is not qualified by the controlled-provider tests.
+Shared input registration is locally qualified with controlled providers; shared output endpoint
+coordination and full package recovery qualification remain open.
 Mouse has not yet migrated. The [execution ledger](../progress/implementation-status.md) owns
 package counts and qualification; this page does not claim C09 closure.

@@ -5,13 +5,14 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-23 on `main`, continuing after delivered `d351fcef`, matching
+Last reconciled: 2026-10-23 on `main`, continuing after delivered `45c7f3a9`, matching
 `origin/main` at milestone start. **C01-C08 remain locally closed. Four packages remain
 (C09-C12); C09 Keyboard and Mouse is current.** Keyboard input/output ownership and canonical
 output command/script capture are delivered. Output uses passive service, retained outcomes,
-bounded admission and independent native readiness fencing. Finish native input callbacks/catalog
-ownership, passive input service, shared endpoint ownership and full package qualification, then
-Mouse. P03 remains ~95% scope coverage; whole-plan coverage remains ~16%. No package closes in
+bounded admission and independent native readiness fencing. Shared Windows input registration
+is locally qualified. Finish native input callbacks/catalog ownership, passive input service,
+shared output coordination and full package qualification, then Mouse.
+P03 remains ~95% scope coverage; whole-plan coverage remains ~16%. No package closes in
 this milestone. Hardware/platform and product-scale qualification retain their later plan owners.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
@@ -20,7 +21,7 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 
 ## Completion overview
 
-**P03 remaining-module audit: 8/12 packages closed; 4 remain (C09-C12).** Joy-Con is locally qualified. Keyboard input/output ownership and output capture are delivered; C09 remains open. These are fixed acceptance packages, not promised commit counts.
+**P03 remaining-module audit: 8/12 packages closed; 4 remain (C09-C12).** Joy-Con is locally qualified. Keyboard input/output ownership, output capture and shared Windows input registration are delivered; C09 remains open. These are fixed acceptance packages, not promised commit counts.
 The ~95% scope score below is not a forecast of remaining effort. Report package closures first;
 there is no qualified estimate of the number of implementation batches still needed.
 
@@ -97,7 +98,7 @@ instead of accumulated batch numbers.
 | C06 | **CLOSED (100%)**       | App Control and OS               | Locally verified: 50 App Control and 23 OS owning passes; canonical command/script ordering, source retirement, 64-source and byte pressure, bounded catalog/report/callback publication, queued lifetime guards, disabled-backlog completion, repeated reconfiguration and failure/recovery. Native actions use controlled providers; hardware/platform and product-scale qualification remain separate.                           |
 | C07 | **CLOSED (100%)**       | Buttplug                         | Locally verified: 40 owning passes cover canonical command/script capture, native-prepared callbacks/catalogs, retained source/publication/domain quotas and queued guards, continuous input, mailbox/callback pressure, eight reconfigurations and failure/recovery before blocked cleanup. Protocol library, reconnect and selected-device identity preserved. Hardware/platform and product-scale qualification remain separate. |
 | C08 | **CLOSED (100%)**       | Joy-Con                          | Locally verified: 71 owning passes cover canonical capture, native-prepared callbacks and atomic quota recovery, retained source/input/callback lifetimes, queued target/path/settings guards, 512 ordered edges, eight reconfigurations and failure/recovery before blocked cleanup. Hardware/platform and product-scale qualification remain separate.                                                                            |
-| C09 | OPEN (Keyboard partial) | Keyboard and Mouse               | Keyboard input/output ownership and canonical output capture are delivered (37 owning passes). Finish native input callbacks and canonical choices, passive input service, process-owned Windows registration/shared endpoint coordination and full package qualification, then Mouse.                                                                                                                                              |
+| C09 | OPEN (Keyboard partial) | Keyboard and Mouse               | Keyboard input/output ownership, canonical output capture and shared Windows input registration are delivered (45 owning passes). Finish native input callbacks and canonical choices, passive input service, shared output coordination and full package qualification, then Mouse.                                                                                                                                                |
 | C10 | OPEN                    | Ultraleap                        | Close event/payload/service bounds, worker retirement and service/device recovery.                                                                                                                                                                                                                                                                                                                                                  |
 | C11 | OPEN                    | Gamepad, Kinect2 and Stream Deck | Audit indirect/shared runtime paths as well as local code; repair and verify any P03 ownership/bounds/recovery gaps.                                                                                                                                                                                                                                                                                                                |
 | C12 | OPEN                    | Spatializer; Node Control absent | Bound Spatializer computation, graph mutation and callback fan-out; do not implement the empty Node Control placeholder.                                                                                                                                                                                                                                                                                                            |
@@ -117,16 +118,16 @@ or completion credit. Snapshot/DTO scaling remains an explicit P16 investigation
 ## Current handoff
 
 - **C01-C08 remain locally closed. Four P03 packages remain (C09-C12); continue C09 Keyboard.**
-  Input/output lifetime ownership and canonical output command/script capture are delivered.
-  Finish native input callbacks and canonical published choice lifetimes, passive input service,
-  process-owned Windows registration/shared endpoint coordination and full package qualification.
+  Input/output lifetime ownership, canonical output capture and process-owned Windows input
+  registration are delivered. Finish native input callbacks and canonical published choices,
+  passive input service, shared output coordination and full package qualification.
   Preserve independent module selection; then complete Mouse under the same C09 package.
-- Current app evidence: **37 Keyboard + 71 Joy-Con + 40 Buttplug + 7 Mouse + 1072 disjoint
-  preservation = 1227 passes / six existing ignored / 1233 selected / 1506 listed**, with 273
-  outside these scopes. The final full preservation rerun passed without a concurrent build;
-  the initial contention-sensitive timing failures are recorded below. Core is unchanged; prior
+- Current app evidence: **45 Keyboard + 71 Joy-Con + 40 Buttplug + 7 Mouse + 1072 disjoint
+  preservation = 1235 passes / six existing ignored / 1241 selected / 1514 listed**, with 273
+  outside these scopes. One existing multiplex timing gate failed initially; isolated and full
+  reruns passed on the same artifact. Both outcomes are recorded below. Core is unchanged; prior
   Golden IO 57-pass and Core facade 597-pass/three-ignore results remain dated baselines.
-- Source inventory: **2030 files / 34 oversized**, using the same explicit inventory scope below.
+- Source inventory: **2032 files / 34 oversized**, using the same explicit inventory scope below.
   Every touched source stays below 1000 lines. Commit/push each verified milestone on `main`;
   keep the full P00-P18 goal active. P03 ~95% and whole-plan ~16% remain unchanged scope scores,
   not remaining-effort forecasts.
@@ -142,7 +143,7 @@ External qualification is separate from implementation. A historical pass is not
 | P00 Baseline                | 100%       | VERIFIED_LOCAL | PASSED                               | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                |
 | P01 Edit failures/history   | 100%       | VERIFIED_LOCAL | PASSED batches 1–8                   | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                 |
 | P02 Schedule/actor failures | 100%       | VERIFIED_LOCAL | PASSED batches 1-3                   | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                  |
-| P03 Bounded I/O/lifecycle   | ~95%       | IN_PROGRESS    | PASSED C01-C08; C09 Keyboard partial | Four packages remain (C09-C12). Keyboard input/output ownership and output capture are delivered; continue C09.           |
+| P03 Bounded I/O/lifecycle   | ~95%       | IN_PROGRESS    | PASSED C01-C08; C09 Keyboard partial | Four packages remain (C09-C12). Keyboard shared Windows input registration delivered; continue C09.                       |
 | P04 Audio order/types       | 0%         | NOT_STARTED    | PENDING                              | Legal interleaving and invalid deserialization established from source                                                    |
 | P05 Transport trust         | 0%         | NOT_STARTED    | PENDING                              | Missing admission verified; exploit not demonstrated                                                                      |
 | P06 Dependencies            | 0%         | NOT_STARTED    | FAILED baseline                      | Four Rustls advisories on audit date; refresh DB before repair                                                            |
@@ -7105,3 +7106,60 @@ Final SHA-256:
   `5b72e14e5ed00af0e34af5a0c2593c15ef3d7c03ecf02febb3230ea9560e27d0`.
 - Native `target/debug/Chataigne2.exe`:
   `a8ff9e3cb8dfc078591313076024c8f5b21b0b012d533435ca397d547c4b32c4`.
+
+## C09 Keyboard shared Windows input registration
+
+Implemented 2026-10-23 after `45c7f3a9`, starting clean on `main`. One C09 ownership gap is
+locally qualified: Keyboard modules share one process-owned Windows raw-input registration.
+**C09 remains open: eight of twelve packages closed, four remain (C09-C12).** P03 ~95% and
+whole-plan ~16% scope coverage are unchanged. Continue native input callback/catalog preparation,
+canonical published choices, passive input service, shared output coordination and package
+qualification, then Mouse. No new prerequisite package is added.
+
+The app-owned registry runs behind existing input IO owners. Overlapping startup shares one
+endpoint; dropping one subscription leaves its peers running. The final subscription stops and
+joins the native thread behind the IO boundary. A separate single process lifetime permit survives
+the join, refusing replacement registration while cleanup is blocked. Window cleanup removes
+registration before destruction. Failure and panic are observable to subscribers before window cleanup.
+
+Fan-out admits four subscriber lifetimes, each with 64 records / 2 MiB. Input charges 4 KiB;
+catalogs charge 512 KiB and retain the existing 64-device / 1024-byte field limits. A rejected
+subscriber keeps its slot and accepted queue prefix until disposal; peers continue in order.
+Latest catalog seeding and subsequent edges share one lock, preserving catalog-before-edge order
+and original device identities. Existing module recovery handles native failure, overload and
+endpoint retirement. The duplicated Windows event enum and per-module native registration are removed.
+See [Keyboard worker ownership](../architecture/keyboard-runtime.md).
+
+Windows/default-feature validation uses `CARGO_INCREMENTAL=0`:
+
+- `cargo test --locked -p Chataigne2 --bin Chataigne2 app::module_modules_controllers_keyboard -- --test-threads=1`:
+  **45 passed**, including eight new controlled-endpoint cases and all 37 preserved Keyboard cases.
+  New cases cover shared startup, independent retirement and ordered device edges, four-slot
+  admission including a failed subscriber, item/catalog byte pressure, accepted prefixes, catalog
+  seeding, blocked cleanup/replacement refusal, invalid metadata, and eight panic/recovery cycles.
+- The final artifact passes **71 Joy-Con + 40 Buttplug + 7 Mouse + 1072 disjoint preservation**,
+  with six existing ignored: **1235 passes / six ignored / 1241 selected / 1514 listed**;
+  273 are outside scope. Listing and disjointness were checked before runs.
+- The initial preservation run had **1071 passed / one failed / six ignored** in 88.72s:
+  the existing active multiplex timing gate averaged 5.197 ms against its 5 ms limit, with zero
+  deadline misses. No build was running; no cause is established. Isolation passed at 3.807 ms
+  with uncaptured output and 3.788 ms with the normal captured-output harness, both without
+  deadline misses. The complete selection then passed **1072 / zero failed / six ignored** in
+  90.51s on the same executable. No runtime source, test or threshold was changed between runs.
+- Strict workspace/all-target Clippy and `cargo check --locked --workspace --tests` passed.
+  Actual root/Core Cargo fmt and explicit app Rustfmt passed; source hashes remain unchanged
+  through final validation. Native `cargo build --locked -p Chataigne2 --bin Chataigne2` passed in 2m39s.
+
+Inventory: **2032 source files / 34 oversized**, using Rust/TS/TSX/Svelte/JS/MJS under
+`apps`, `crates`, `packages`, `xtask`, including generated files. All four touched Rust sources
+are below 1000 lines. No Core API, wire DTO, generated binding, persistence, dependency or app
+startup change. Prior Golden IO/Core results remain dated baselines. Tests use fake endpoints;
+native input/output remain disabled in test builds. No desktop input was captured or injected.
+Physical/cross-platform and full-product qualification remain with P17/P18 and P16.
+
+Final SHA-256:
+
+- App `target/debug/deps/Chataigne2-b14ffd1b9e52f9ac.exe`:
+  `af14c9c4cc9e574d752701fa29ea4a0bc39ef44e7503cf4911b9c4beb4ac9132`.
+- Native `target/debug/Chataigne2.exe`:
+  `983c16699079336d026b3666697390624c9f29a27e3c9ccf08186eb201cc65fc`.

@@ -3,19 +3,22 @@ use golden_io::{bounded_pending_channel, PendingReceiver, PendingSender};
 #[cfg(not(windows))]
 use std::sync::mpsc::TryRecvError;
 
+#[cfg(any(windows, test))]
+mod broker;
 #[cfg(not(windows))]
 mod global;
 #[cfg(windows)]
 mod windows;
 #[cfg(not(windows))]
 use global::GlobalKeyboardInputRuntime as NativeInput;
-#[cfg(windows)]
-use windows::WindowsKeyboardInputRuntime as NativeInput;
 
 pub(super) fn create() -> Result<impl Provider, String> {
     if cfg!(test) {
         return Err("keyboard native input is disabled in test builds".into());
     }
+    #[cfg(windows)]
+    return windows::create();
+    #[cfg(not(windows))]
     NativeInput::create()
 }
 
@@ -25,7 +28,9 @@ struct NativeState {
     error: Mutex<Option<String>>,
     stopped: AtomicBool,
 }
+#[cfg(any(not(windows), test))]
 struct NativeStopped(Failure);
+#[cfg(any(not(windows), test))]
 impl Drop for NativeStopped {
     fn drop(&mut self) {
         self.0.stopped.store(true, Ordering::Release);

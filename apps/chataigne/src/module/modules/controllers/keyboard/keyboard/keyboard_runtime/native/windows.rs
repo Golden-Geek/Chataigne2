@@ -10,8 +10,8 @@ use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::System::Threading::GetCurrentThreadId;
 use windows_sys::Win32::UI::Input::{
     GetRawInputData, GetRawInputDeviceInfoW, GetRawInputDeviceList, RegisterRawInputDevices, HRAWINPUT, RAWINPUT,
-    RAWINPUTDEVICE, RAWINPUTDEVICELIST, RAWINPUTHEADER, RIDEV_DEVNOTIFY, RIDEV_INPUTSINK, RIDI_DEVICENAME, RID_INPUT,
-    RIM_TYPEKEYBOARD,
+    RAWINPUTDEVICE, RAWINPUTDEVICELIST, RAWINPUTHEADER, RIDEV_DEVNOTIFY, RIDEV_INPUTSINK, RIDEV_REMOVE,
+    RIDI_DEVICENAME, RID_INPUT, RIM_TYPEKEYBOARD,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetMessageW, PostThreadMessageW, RegisterClassW,
@@ -86,13 +86,6 @@ const VK_SNAPSHOT: u16 = 0x2C;
 #[derive(Clone)]
 pub(super) struct WorkerReady {
     pub thread_id: u32,
-    pub devices: Vec<DiscoveredKeyboardDevice>,
-}
-
-#[derive(Clone, Debug)]
-pub(super) enum WorkerEvent {
-    DevicesChanged(Vec<DiscoveredKeyboardDevice>),
-    Input { device: String, event: KeyboardInputEvent },
 }
 
 #[derive(Clone)]
@@ -102,7 +95,7 @@ struct KnownKeyboardDevice {
 }
 
 pub(super) fn spawn_worker(
-    event_tx: Sender<WorkerEvent>,
+    event_tx: broker::Broadcast,
     ready_tx: SyncSender<Result<WorkerReady, String>>,
 ) -> Result<JoinHandle<()>, String> {
     thread::Builder::new()
@@ -121,7 +114,7 @@ pub(super) fn stop_worker(thread_id: u32) {
     }
 }
 
-fn worker_main(event_tx: Sender<WorkerEvent>, ready_tx: SyncSender<Result<WorkerReady, String>>) -> Result<(), String> {
+fn worker_main(event_tx: broker::Broadcast, ready_tx: SyncSender<Result<WorkerReady, String>>) -> Result<(), String> {
     let thread_id = unsafe { GetCurrentThreadId() };
     let class_name = wide_null("Chataigne2KeyboardRawInputWindow");
     let instance = unsafe { GetModuleHandleW(null()) };
@@ -158,21 +151,41 @@ fn worker_main(event_tx: Sender<WorkerEvent>, ready_tx: SyncSender<Result<Worker
         return Err(error);
     }
 
-    let _window = Window(hwnd);
-    let _stopped = NativeStopped(event_tx.failure.clone());
+    let mut window = Window {
+        hwnd,
+        registered: false,
+    };
+    let _stopped = broker::Stopped(event_tx.clone());
+    let result = pump_input(&mut window, &event_tx, ready_tx, thread_id);
+    if let Err(error) = &result {
+        event_tx.fail(error.clone());
+    }
+    result
+}
+
+fn pump_input(
+    window: &mut Window,
+    event_tx: &broker::Broadcast,
+    ready_tx: SyncSender<Result<WorkerReady, String>>,
+    thread_id: u32,
+) -> Result<(), String> {
+    let hwnd = window.hwnd;
     if let Err(error) = register_keyboard_input(hwnd) {
         let _ = ready_tx.send(Err(error.clone()));
 
         return Err(error);
     }
 
+    window.registered = true;
     let mut known_devices = enumerate_keyboards()?;
     let mut device_lookup = build_device_lookup(known_devices.as_slice());
 
-    let _ = ready_tx.send(Ok(WorkerReady {
-        thread_id,
-        devices: public_devices(known_devices.as_slice()),
-    }));
+    event_tx.send(KeyboardRuntimeEvent::DevicesChanged(public_devices(
+        known_devices.as_slice(),
+    )))?;
+    ready_tx
+        .send(Ok(WorkerReady { thread_id }))
+        .map_err(|_| "keyboard raw-input owner retired during startup")?;
 
     let mut message = MaybeUninit::<MSG>::zeroed();
     loop {
@@ -193,13 +206,15 @@ fn worker_main(event_tx: Sender<WorkerEvent>, ready_tx: SyncSender<Result<Worker
                     DefWindowProcW(message.hwnd, message.message, message.wParam, message.lParam);
                 }
                 if let Some((device, event)) = input? {
-                    event_tx.send(WorkerEvent::Input { device, event })?;
+                    event_tx.send(KeyboardRuntimeEvent::Input { device, event })?;
                 }
             }
             WM_INPUT_DEVICE_CHANGE => {
                 known_devices = enumerate_keyboards()?;
                 device_lookup = build_device_lookup(known_devices.as_slice());
-                event_tx.send(WorkerEvent::DevicesChanged(public_devices(known_devices.as_slice())))?;
+                event_tx.send(KeyboardRuntimeEvent::DevicesChanged(public_devices(
+                    known_devices.as_slice(),
+                )))?;
             }
             _ => unsafe {
                 TranslateMessage(&message);
@@ -631,33 +646,39 @@ fn stable_keyboard_identity_label(path: &str) -> Option<String> {
 fn wide_null(value: &str) -> Vec<u16> {
     value.encode_utf16().chain(std::iter::once(0)).collect()
 }
-struct Window(HWND);
+struct Window {
+    hwnd: HWND,
+    registered: bool,
+}
 impl Drop for Window {
     fn drop(&mut self) {
         unsafe {
-            DestroyWindow(self.0);
+            if self.registered {
+                let device = RAWINPUTDEVICE {
+                    usUsagePage: HID_USAGE_PAGE_GENERIC,
+                    usUsage: HID_USAGE_GENERIC_KEYBOARD,
+                    dwFlags: RIDEV_REMOVE,
+                    hwndTarget: null_mut(),
+                };
+                RegisterRawInputDevices(&device, 1, size_of::<RAWINPUTDEVICE>() as u32);
+            }
+            DestroyWindow(self.hwnd);
         }
     }
-}
-impl Record for WorkerEvent {
-    fn weight(&self) -> Result<usize, String> {
-        match self {
-            Self::DevicesChanged(devices) => catalog_weight(devices),
-            Self::Input { .. } => Ok(INPUT_WEIGHT),
-        }
-    }
-}
-pub(super) struct WindowsKeyboardInputRuntime {
-    event_rx: PendingReceiver<WorkerEvent>,
-    pending_events: Vec<KeyboardRuntimeEvent>,
-    worker: Option<JoinHandle<()>>,
-    thread_id: u32,
-    failure: Failure,
 }
 
-impl WindowsKeyboardInputRuntime {
-    pub(super) fn create() -> Result<Self, String> {
-        let (event_tx, event_rx, failure) = channel();
+pub(super) fn create() -> Result<impl Provider, String> {
+    static REGISTRY: OnceLock<broker::Registry<NativeWorker>> = OnceLock::new();
+    REGISTRY
+        .get_or_init(broker::Registry::new)
+        .subscribe(NativeWorker::create)
+}
+struct NativeWorker {
+    worker: Option<JoinHandle<()>>,
+    thread_id: u32,
+}
+impl NativeWorker {
+    fn create(event_tx: broker::Broadcast) -> Result<Self, String> {
         let (ready_tx, ready_rx) = mpsc::sync_channel(1);
         let worker = spawn_worker(event_tx, ready_tx)?;
         let ready = match ready_rx.recv() {
@@ -670,40 +691,17 @@ impl WindowsKeyboardInputRuntime {
                 });
             }
         };
-
         Ok(Self {
-            event_rx,
-            failure,
-            pending_events: vec![KeyboardRuntimeEvent::DevicesChanged(ready.devices)],
             worker: Some(worker),
             thread_id: ready.thread_id,
         })
     }
-
-    fn poll_events(&mut self) -> Result<Vec<KeyboardRuntimeEvent>, String> {
-        drain(
-            &self.event_rx,
-            &mut self.pending_events,
-            &self.failure,
-            |event| match event {
-                WorkerEvent::DevicesChanged(devices) => KeyboardRuntimeEvent::DevicesChanged(devices),
-                WorkerEvent::Input { device, event } => KeyboardRuntimeEvent::Input { device, event },
-            },
-        )
-    }
 }
-
-impl Drop for WindowsKeyboardInputRuntime {
+impl Drop for NativeWorker {
     fn drop(&mut self) {
         stop_worker(self.thread_id);
         if let Some(worker) = self.worker.take() {
             let _ = worker.join();
         }
-    }
-}
-
-impl Provider for WindowsKeyboardInputRuntime {
-    fn poll(&mut self) -> Result<Vec<KeyboardRuntimeEvent>, String> {
-        self.poll_events()
     }
 }
