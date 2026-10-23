@@ -44,6 +44,7 @@ pub(super) struct Runtime {
     pub(super) actor: Option<RevisionSource>,
     pub(super) shared: Arc<Shared>,
     pub(super) pool: golden_io::PayloadPool,
+    pub(super) coordinator: Arc<coordination::Coordinator>,
 }
 fn lifetimes() -> &'static RetirementPool {
     static POOL: OnceLock<RetirementPool> = OnceLock::new();
@@ -65,19 +66,31 @@ fn sources() -> Result<golden_io::PayloadPool, String> {
 }
 impl Runtime {
     pub(super) fn create(owner: &RetirementPool, notifier: WorkerNotifier) -> Result<Self, String> {
-        Self::spawn_using(
+        Self::spawn_shared_using(
             owner,
             lifetimes(),
             sources()?,
             notifier,
+            coordination::Coordinator::process(),
             native::KeyboardOutputController::create,
         )
     }
+    #[cfg(test)]
     pub(super) fn spawn_using<P: Provider>(
         owner: &RetirementPool,
         slots: &RetirementPool,
         pool: golden_io::PayloadPool,
         notifier: WorkerNotifier,
+        open: impl FnOnce() -> Result<P, String> + Send + 'static,
+    ) -> Result<Self, String> {
+        Self::spawn_shared_using(owner, slots, pool, notifier, coordination::Coordinator::new(), open)
+    }
+    pub(super) fn spawn_shared_using<P: Provider>(
+        owner: &RetirementPool,
+        slots: &RetirementPool,
+        pool: golden_io::PayloadPool,
+        notifier: WorkerNotifier,
+        coordinator: Arc<coordination::Coordinator>,
         open: impl FnOnce() -> Result<P, String> + Send + 'static,
     ) -> Result<Self, String> {
         let permit = owner.try_reserve().map_err(|error| error.to_string())?;
@@ -128,6 +141,7 @@ impl Runtime {
             actor: Some(RevisionSource::default()),
             shared,
             pool,
+            coordinator,
         })
     }
     pub(super) fn is_running(&self) -> bool {
@@ -176,6 +190,14 @@ fn run<P: Provider>(mut owned: Owned<P>) {
                 command.finish(Outcome::Completed(Err(bounded(error))));
                 continue;
             }
+        };
+        if owned.context.cancellation().is_cancelled() || !command.current() {
+            command.finish(Outcome::NotSent);
+            continue;
+        }
+        let Some(_permit) = command.acquire(|| owned.context.cancellation().is_cancelled()) else {
+            command.finish(Outcome::NotSent);
+            continue;
         };
         if owned.context.cancellation().is_cancelled() || !command.current() {
             command.finish(Outcome::NotSent);

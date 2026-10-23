@@ -98,6 +98,25 @@ Output has a separate app-owned worker. Four global lifetimes and one per-module
 opening, execution and cleanup. The existing system-wide key injection policy remains independent
 of the selected input keyboard. Native calls and request preparation run on that worker.
 
+### Shared output ordering
+
+Keyboard output workers share one app-owned process coordinator because all module outputs
+target the same system input stream. Capture reserves one of 512 ordering claims. Pending claims
+sort by original engine time and then capture sequence, including sources still in local staging;
+an already started native prefix is never reordered. Module ingress settlement and local sorting
+keep each native mailbox in that order, so a later local request cannot block its own predecessor.
+The coordinator stores only weak claims and small lifetime fences, never invocation snapshots or
+payload buffers. Original source item/byte quotas remain authoritative through receipt disposal.
+
+One permit covers a complete native request, including both press and release of an app-owned tap.
+Registration is bounded work in the actor; all waits and native calls run on IO workers. A waiting
+request checks cancellation and source/producer liveness before being marked started. Retired
+unsubmitted heads are pruned without waiting for their retained data or native cleanup. Waiting
+cancellation is not sent; started panic remains unconfirmed. Completion releases ordering before
+actor report disposal. A permit stays held through a blocked native call, and unwinding releases
+it before provider cleanup, allowing peers to progress while the old worker still holds its IO leases.
+This orders app-owned keyboard requests; it does not control physical input or other processes.
+
 Command nodes capture the canonical snapshot and original execute payload; script methods retain
 engine-owned argument arrays. The worker reads consumed fields, applies the last matching override
 and constructs one typed key/action request. It does not build an execute-overlay snapshot or relay
@@ -123,6 +142,12 @@ projection checks current target identity and named ancestors independently of r
 sources, retaining the original source reservation through application, rejection or disposal.
 Ready-status projection has a separate native fence after completion messages, so retirement
 rejects stale readiness while preserving an already completed effect's message prefix.
+Combined worker turns project completed output reports, then input values/callbacks, then derived
+connection status. The final status group fences every native source contributing an active flag;
+output readiness is sampled once for that projection. Input projection never authors output-ready
+state. Rejecting a readiness suffix therefore preserves input effects, and rejecting input cannot
+erase an earlier output report. Golden edit fences stop scalar/removal coalescing across these
+boundaries; see [application contracts](application-contracts.md).
 
 ## Actor input projection and remaining C09 work
 
@@ -143,7 +168,7 @@ lifetimes, and passive input/output service are implemented within C09. Both ser
 notifications and explicit deadlines; Keyboard no longer has a periodic actor update.
 Windows uses process-owned raw-input registration and bounded fan-out because
 [only one window per device class can receive raw input in a process](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-registerrawinputdevices).
-Shared input registration is locally qualified with controlled providers; shared output endpoint
-coordination and full package recovery qualification remain open.
+Shared input registration and output coordination use controlled providers for local qualification.
+The execution ledger records full package qualification and the remaining Mouse scope.
 Mouse has not yet migrated. The [execution ledger](../progress/implementation-status.md) owns
 package counts and qualification; this page does not claim C09 closure.

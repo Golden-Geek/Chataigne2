@@ -101,6 +101,7 @@ pub enum Edit {
     /// Rejects stale prepared work before subsequent edits in this drain.
     /// This has no authored effect or undo step. Include it in the same receipt
     /// as its following writes; later writes retain normal validation/history.
+    /// Coalescing never removes requests from before this fence.
     CheckPreconditions {
         /// Bounded authored and native reads required by subsequent writes.
         preconditions: EditPreconditions,
@@ -375,27 +376,39 @@ impl EditQueue {
                 behaviour: ParameterEventBehaviour::Coalesce,
                 ..
             } => {
-                // Keep only the latest coalescable set for a given parameter id in this queue.
-                self.pending.retain(|request| {
-                    !matches!(
-                        &request.edit,
+                // A rejected fence preserves its applied prefix. Later writes
+                // cannot supersede that prefix before the fence is checked.
+                for index in (0..self.pending.len()).rev() {
+                    if matches!(self.pending[index].edit, Edit::CheckPreconditions { .. }) {
+                        break;
+                    }
+                    if matches!(
+                        &self.pending[index].edit,
                         Edit::SetParam {
                             node: existing_node,
                             behaviour: ParameterEventBehaviour::Coalesce,
                             ..
                         } if existing_node == node
-                    )
-                });
+                    ) {
+                        self.pending.remove(index);
+                    }
+                }
 
                 self.pending.push(request);
             }
             Edit::RemoveNode { node } => {
-                if let Some(existing) = self.pending.iter_mut().find(|request| {
-                    matches!(
-                        &request.edit,
-                        Edit::RemoveNode { node: existing_node } if existing_node == node
-                    )
-                }) {
+                if let Some(existing) = self
+                    .pending
+                    .iter_mut()
+                    .rev()
+                    .take_while(|request| !matches!(request.edit, Edit::CheckPreconditions { .. }))
+                    .find(|request| {
+                        matches!(
+                            &request.edit,
+                            Edit::RemoveNode { node: existing_node } if existing_node == node
+                        )
+                    })
+                {
                     existing.completions.append(&mut request.completions);
                 } else {
                     self.pending.push(request);
@@ -434,3 +447,6 @@ impl EditQueue {
         std::mem::take(&mut self.pending)
     }
 }
+
+#[cfg(test)]
+mod tests;

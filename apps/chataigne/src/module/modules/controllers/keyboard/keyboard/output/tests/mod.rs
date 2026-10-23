@@ -9,9 +9,11 @@ use std::{
 };
 
 mod capture;
+mod coordination;
 mod engine;
 mod flow;
 mod ownership;
+mod qualification;
 
 #[derive(Clone, Default)]
 struct Control {

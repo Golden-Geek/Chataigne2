@@ -1,3 +1,4 @@
+use super::coordination::Origin;
 use super::*;
 use crate::app::module_command::{CapturedInvocation, ModuleCommandExecuteEvent};
 use golden_core::{
@@ -20,8 +21,7 @@ pub(super) enum Input {
 pub(super) struct Source {
     input: Input,
     pub(super) time: EngineTime,
-    producer: Origin,
-    guards: [RevisionGuard; 2],
+    pub(super) ticket: coordination::Ticket,
     _admission: RetirementPermit,
     ingress: Ingress,
 }
@@ -50,21 +50,12 @@ impl Drop for Ingress {
         self.arrive();
     }
 }
-enum Origin {
-    Engine(NodeWaker),
-    #[cfg(test)]
-    Fixture,
-}
 impl Source {
     pub(super) fn arrive(&self) {
         self.ingress.arrive();
     }
     pub(super) fn live(&self) -> bool {
-        (match &self.producer {
-            Origin::Engine(producer) => !producer.is_closed(),
-            #[cfg(test)]
-            Origin::Fixture => true,
-        }) && self.guards.iter().all(RevisionGuard::is_current)
+        self.ticket.live()
     }
     fn weight(&self) -> usize {
         match &self.input {
@@ -178,8 +169,11 @@ impl Runtime {
         let source = Source {
             input,
             time,
-            producer,
-            guards: [actor.reader().guard_at(0), self.shared.native.guard_at(0)],
+            ticket: self.coordinator.capture(
+                time,
+                producer,
+                [actor.reader().guard_at(0), self.shared.native.guard_at(0)],
+            )?,
             _admission: permit,
             ingress: Ingress {
                 permit: Mutex::new(Some(ingress)),

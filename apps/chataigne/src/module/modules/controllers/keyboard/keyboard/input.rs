@@ -82,14 +82,14 @@ impl KeyboardModule {
                 self.stop_input_backend();
                 self.clear_input_values(ctx);
                 self.sync_device_options(ctx);
-                self.refresh_connection_state(ctx);
+                self.refresh_input_state(ctx);
             }
             return;
         }
         if self.device.get_ref().as_str().len() > keyboard_runtime::MAX_DEVICE_TEXT {
             self.stop_input_backend();
             self.clear_input_values(ctx);
-            self.refresh_connection_state(ctx);
+            self.refresh_input_state(ctx);
             self.set_backend_warning(ctx, KEYBOARD_INPUT_WARNING_ID, "Keyboard selection exceeds 1024 bytes");
             return;
         }
@@ -119,7 +119,7 @@ impl KeyboardModule {
                 self.clear_input_values(ctx);
                 self.sync_device_options(ctx);
                 self.set_backend_warning(ctx, KEYBOARD_INPUT_WARNING_ID, &error);
-                self.refresh_connection_state(ctx);
+                self.refresh_input_state(ctx);
                 return;
             }
             let pressure = runtime.pressure();
@@ -171,7 +171,7 @@ impl KeyboardModule {
                                 self.input.last_error = None;
                                 self.clear_backend_warning(ctx, KEYBOARD_INPUT_WARNING_ID);
                                 self.refresh_selection_warning(ctx, publication.prepared.catalog.selected.as_ref());
-                                self.refresh_connection_state(ctx);
+                                self.refresh_input_state(ctx);
                             }
                             Row::Input(frame) => {
                                 self.project_key_frame(ctx, frame);
@@ -215,7 +215,7 @@ impl KeyboardModule {
         self.clear_backend_warning(ctx, "keyboard_input_pressure");
         self.clear_input_values(ctx);
         self.sync_device_options(ctx);
-        self.refresh_connection_state(ctx);
+        self.refresh_input_state(ctx);
         self.input.retry_at = Some(self.input.backoff.schedule(Instant::now()));
     }
     fn start_input(

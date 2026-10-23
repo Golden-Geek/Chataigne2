@@ -204,34 +204,49 @@ impl KeyboardModule {
     }
 
     fn refresh_connection_state(&mut self, ctx: &mut ProcessCtx) {
-        self.refresh_connection_state_with_output(ctx, self.output.is_ready());
+        if self.guard_output(ctx) && self.guard_output_settings(ctx) {
+            self.project_connection_state(ctx);
+        }
     }
-
-    fn refresh_connection_state_with_output(&mut self, ctx: &mut ProcessCtx, output_ready: bool) {
-        let selected_device = self.selected_input_device();
-        let input_active = self.receive_enabled.get()
+    fn input_is_ready(&self) -> bool {
+        self.receive_enabled.get()
             && self.device.get_ref().as_str() != NO_KEYBOARD_VARIANT
             && self
                 .input
                 .runtime
                 .as_ref()
                 .is_some_and(KeyboardInputRuntime::is_running)
-            && selected_device.is_some();
-        let output_active = self.send_enabled.get() && output_ready;
-
-        self.set_input_active(ctx, input_active);
-        self.set_output_active(ctx, output_active);
+            && self
+                .input
+                .catalog
+                .as_ref()
+                .is_some_and(|row| row.current() && row.prepared.catalog.selected.is_some())
+    }
+    fn refresh_input_state(&mut self, ctx: &mut ProcessCtx) {
+        let selected = self.selected_input_device();
+        self.set_input_active(ctx, self.input_is_ready());
         self.set_connected_devices(ctx, self.devices().len());
-        match selected_device {
-            Some(device) => {
-                self.set_selected_device_id(ctx, device.variant_id.as_str());
-                self.set_selected_device_name(ctx, device.label.as_str());
-            }
-            None => {
-                self.set_selected_device_id(ctx, "");
-                self.set_selected_device_name(ctx, "");
-            }
+        self.set_selected_device_id(ctx, selected.as_ref().map_or("", |device| device.variant_id.as_str()));
+        self.set_selected_device_name(ctx, selected.as_ref().map_or("", |device| device.label.as_str()));
+    }
+    fn project_connection_state(&mut self, ctx: &mut ProcessCtx) {
+        let input_active = self.input_is_ready();
+        let output_ready = self.output.is_ready();
+        let output_active = self.send_enabled.get() && output_ready;
+        let mut guards = Vec::with_capacity(5);
+        if input_active {
+            guards.extend(self.input.catalog.as_ref().unwrap().guards.iter().cloned());
         }
+        if output_active {
+            guards.extend(self.output.readiness_guards().unwrap());
+        }
+        if !guards.is_empty() {
+            ctx.edits.push(golden_core::edit::Edit::CheckPreconditions {
+                preconditions: golden_core::edit::EditPreconditions::new(vec![], guards).unwrap(),
+            });
+        }
+        self.refresh_input_state(ctx);
+        self.set_output_active(ctx, output_active);
         self.base.set_connected(ctx, input_active || output_active);
     }
 
@@ -314,8 +329,11 @@ impl Node for KeyboardModule {
         self.request_input_service();
     }
     fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
-        self.service_output(ctx);
+        let can_project = self.service_output_work(ctx);
         self.service_input(ctx);
+        if can_project {
+            self.project_connection_state(ctx);
+        }
     }
     fn worker_wake_requires_tree_snapshot(&self) -> bool {
         true

@@ -12,6 +12,10 @@ Final payload disposal stays on its pool worker. Ordinary `EditCompletion` obser
 payloads, and later queue additions are excluded. Retention establishes lifetime only; callers still
 own validation, source fences, publication policy and their explicit applied-prefix failure behavior.
 
+`Edit::CheckPreconditions` is also a coalescing boundary. Scalar writes and duplicate removals
+merge only within the requests after the most recent fence. A later guarded update therefore
+cannot erase an earlier applied prefix or borrow its successful completion when that fence fails.
+
 `golden_engine::application::ProductionRuntime` is the production implementation. Desktop and
 transport code call it through typed operations for transactions, ticks, project replacement,
 persistence capture, and observation publication; they do not own or lock the engine directly.

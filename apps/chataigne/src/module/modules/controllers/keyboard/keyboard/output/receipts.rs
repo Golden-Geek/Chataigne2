@@ -65,12 +65,16 @@ impl Command {
     pub(super) fn started(&self) {
         self.state.started.store(true, Ordering::Release);
     }
+    pub(super) fn acquire(&self, cancelled: impl Fn() -> bool) -> Option<coordination::Permit> {
+        self.state.source.ticket.acquire(cancelled)
+    }
     pub(super) fn finish(&self, result: Outcome) {
         let mut slot = self.state.result.lock().unwrap_or_else(|error| error.into_inner());
         if self.state.complete.load(Ordering::Acquire) {
             return;
         }
         *slot = Some(result);
+        self.state.source.ticket.finish();
         self.state.complete.store(true, Ordering::Release);
         drop(slot);
         self.state.notifier.notify();

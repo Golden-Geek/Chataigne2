@@ -7,6 +7,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+mod coordination;
 pub(super) mod native;
 mod receipts;
 mod route;
@@ -18,6 +19,8 @@ use runtime::{Provider, Request, Runtime};
 use source::{Input, Source};
 
 pub(super) struct Service {
+    #[cfg(test)]
+    factory: Option<Factory>,
     runtime: Option<Runtime>,
     wake: Option<ModuleWake>,
     owner: RetirementPool,
@@ -31,9 +34,13 @@ pub(super) struct Service {
     observed_ready: bool,
     last_error: Option<String>,
 }
+#[cfg(test)]
+type Factory = Box<dyn Fn(&RetirementPool, WorkerNotifier) -> Result<Runtime, String> + Send + Sync>;
 impl Service {
     pub(super) fn new() -> Self {
         Self {
+            #[cfg(test)]
+            factory: None,
             runtime: None,
             wake: None,
             owner: RetirementPool::new(NonZeroUsize::MIN),
@@ -50,6 +57,9 @@ impl Service {
     }
     pub(super) fn is_ready(&self) -> bool {
         self.runtime.as_ref().is_some_and(Runtime::is_ready)
+    }
+    pub(super) fn readiness_guards(&self) -> Option<[RevisionGuard; 2]> {
+        self.runtime.as_ref().map(Runtime::status_guards)
     }
     pub(super) fn has_results(&self) -> bool {
         !self.receipts.is_empty()
@@ -105,7 +115,7 @@ impl KeyboardModule {
             .ok_or("Keyboard output wake is unavailable")?
             .notifier
             .clone();
-        match Runtime::create(&self.output.owner, notifier) {
+        match self.start_output(notifier) {
             Ok(runtime) => {
                 self.output.runtime = Some(runtime);
                 self.output.retry_at = None;
@@ -118,13 +128,26 @@ impl KeyboardModule {
             }
         }
     }
+    fn start_output(&self, notifier: WorkerNotifier) -> Result<Runtime, String> {
+        #[cfg(test)]
+        if let Some(factory) = &self.output.factory {
+            return factory(&self.output.owner, notifier);
+        }
+        Runtime::create(&self.output.owner, notifier)
+    }
+    #[cfg(test)]
     pub(super) fn service_output(&mut self, ctx: &mut ProcessCtx) {
+        if self.service_output_work(ctx) {
+            self.project_connection_state(ctx);
+        }
+    }
+    pub(super) fn service_output_work(&mut self, ctx: &mut ProcessCtx) -> bool {
         if ctx.tree_snapshot_arc().is_none() {
-            return;
+            return false;
         }
         if let Err(error) = self.register_output(ctx) {
             self.set_backend_warning(ctx, KEYBOARD_OUTPUT_WARNING_ID, &error);
-            return;
+            return false;
         }
         let can_project = self.guard_output(ctx);
         for _ in 0..self.output.receipts.len().min(16) {
@@ -137,6 +160,9 @@ impl KeyboardModule {
                 match outcome {
                     Outcome::Completed(Ok(message)) => {
                         self.clear_backend_warning(ctx, KEYBOARD_OUTPUT_WARNING_ID);
+                        if self.base.log_outgoing_enabled() {
+                            golden_core::log!(origin=self.id(); message.clone());
+                        }
                         self.set_last_event(ctx, message);
                     }
                     Outcome::Completed(Err(error)) => {
@@ -189,17 +215,9 @@ impl KeyboardModule {
         } else {
             self.stop_output_backend();
         }
-        if can_project && self.guard_output_settings(ctx) {
-            let output_ready = self.output.is_ready();
-            if let Some(runtime) = self.output.runtime.as_ref().filter(|_| output_ready) {
-                // Completion messages survive native retirement; readiness does not.
-                ctx.edits.push(golden_core::edit::Edit::CheckPreconditions {
-                    preconditions: golden_core::edit::EditPreconditions::new(vec![], runtime.status_guards().to_vec())
-                        .unwrap(),
-                });
-            }
-            self.refresh_connection_state_with_output(ctx, output_ready);
-        }
+        // Authored reads precede input's catalog/constraint edits. Derived
+        // readiness is projected last, independently of completed effects.
+        let can_project = can_project && self.guard_output_settings(ctx);
         if self.output.receipts.iter().any(Receipt::complete) {
             self.request_output_service();
         }
@@ -214,6 +232,7 @@ impl KeyboardModule {
                 wake.cancel_deadline();
             }
         }
+        can_project
     }
 }
 #[cfg(test)]
