@@ -7,8 +7,8 @@ use golden_core::{
 };
 use joycon_rs::joycon::Buttons;
 
-use crate::app::AppNode;
 use crate::app::module::common::joycon::JoyConMotionDataMode;
+use crate::app::AppNode;
 
 use golden_core::node::DeclaredUserItemNode;
 
@@ -65,8 +65,7 @@ fn joycon_module_defaults_stick_dead_zone_to_requested_value() {
 #[test]
 fn joycon_module_exposes_activity_indicator() {
     let (engine, module_id) = create_joycon_module();
-    let activity_id = find_path(&engine, module_id, "values/info/activity")
-        .expect("activity indicator should exist");
+    let activity_id = find_path(&engine, module_id, "values/info/activity").expect("activity indicator should exist");
 
     assert_eq!(param_value(&engine, activity_id), ParamValue::Bool(false));
 }
@@ -104,8 +103,13 @@ fn joycon_module_command_tester_creates_joycon_commands() {
     let (mut engine, module_id) = create_joycon_module();
     let command_tester_id = find_path(&engine, module_id, "command_tester").expect("command tester should exist");
 
-    engine.add_user_item(crate::app::JoyConVibrateCommand::create().into(), Some(command_tester_id));
-    engine.apply_edits().expect("joycon command should attach under the command tester");
+    engine.add_user_item(
+        crate::app::JoyConVibrateCommand::create().into(),
+        Some(command_tester_id),
+    );
+    engine
+        .apply_edits()
+        .expect("joycon command should attach under the command tester");
 
     let command_id = engine
         .nodes
@@ -113,7 +117,11 @@ fn joycon_module_command_tester_creates_joycon_commands() {
         .and_then(|tester| tester.node_data().first_child)
         .expect("command tester should contain the new command");
     assert_eq!(
-        engine.nodes.get(command_id).expect("joycon command should exist").get_type(),
+        engine
+            .nodes
+            .get(command_id)
+            .expect("joycon command should exist")
+            .get_type(),
         crate::app::JoyConVibrateCommand::NODE_TYPE,
     );
 }
@@ -138,11 +146,9 @@ fn joycon_module_script_template_scaffolds_joycon_functions_and_callbacks() {
     };
 
     assert!(source.contains("local.vibrate(frequencyHz = 300, amplitude = 0.9, durationMs = 60, target = \"both\")"));
-    assert!(
-        source.contains(
-            "local.setPlayerLights(led1 = \"off\", led2 = \"off\", led3 = \"off\", led4 = \"off\", target = \"both\")"
-        )
-    );
+    assert!(source.contains(
+        "local.setPlayerLights(led1 = \"off\", led2 = \"off\", led3 = \"off\", led4 = \"off\", target = \"both\")"
+    ));
     assert!(source.contains("function joyConButtonPressed"));
     assert!(source.contains("function joyConStickChanged"));
     assert!(source.contains("function joyConMotionChanged"));

@@ -32,7 +32,9 @@ and superseded plans are [archived](../archive/2026-10-18/README.md).
 - [System module ownership](system-runtime.md): captured OS commands, bounded metrics/native
   lifetimes, completion outcomes and passive App Control/OS service.
 - [Buttplug worker ownership](buttplug-runtime.md): bounded protocol workers, native lifetime
-  slots, retained command outcomes, passive service and remaining C07 qualification.
+  slots, retained command outcomes, passive service and local C07 qualification.
+- [Joy-Con worker ownership](joycon-runtime.md): bounded native lifetime, command/input admission,
+  retained outcomes, rumble maintenance under pressure and passive actor service.
 - [Timed generators](generators.md): Signals/Metronomes admission, elapsed time, bounded
   publication, passive service and worker lifetime ownership.
 - [Alchemist runtime](alchemist-runtime.md): formulas, processors, conditions, inputs, filters,
