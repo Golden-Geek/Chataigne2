@@ -1,4 +1,13 @@
+mod devices;
+mod input;
 mod mouse_runtime;
+mod output_native;
+mod script;
+use crate::app::module::common::worker_wake::ModuleWake;
+use devices::*;
+use output_native::MouseOutputController;
+use script::*;
+use std::time::{Duration, Instant};
 
 use golden_core::{
     engine::NodeExecutionRule,
@@ -16,12 +25,10 @@ use crate::app::module::common::mouse::{
 };
 
 use self::mouse_runtime::{
-    DiscoveredMouseDevice, MouseInputConfig, MouseInputEvent, MouseInputRuntime, MouseOutputController,
-    MouseRuntimeEvent,
+    DiscoveredMouseDevice, MouseInputConfig, MouseInputEvent, MouseInputRuntime, MouseRuntimeEvent,
 };
 
-const MOUSE_MODULE_UPDATE_RATE_HZ: u32 = 120;
-const MOUSE_BACKEND_RETRY_INTERVAL_SECS: f64 = 2.0;
+const MOUSE_BACKEND_RETRY: Duration = Duration::from_secs(2);
 const MOUSE_INPUT_WARNING_ID: &str = "mouse_input_backend";
 const MOUSE_OUTPUT_WARNING_ID: &str = "mouse_output_backend";
 const MOUSE_SELECTION_WARNING_ID: &str = "mouse_selection";
@@ -117,12 +124,15 @@ const MOUSE_SCRIPT_METHODS: &[&str] = &["moveMouse", "click", "pressButton", "re
 pub struct MouseModule {
     base: crate::app::ModuleBase,
     input_backend: Option<MouseInputRuntime>,
+    input_owner: golden_io::RetirementPool,
     output_backend: Option<MouseOutputController>,
     pending_input_events: Vec<MouseInputEvent>,
     known_devices: Vec<DiscoveredMouseDevice>,
     devices_dirty: bool,
-    input_retry_elapsed: f64,
-    output_retry_elapsed: f64,
+    input_retry_at: Option<Instant>,
+    output_retry_at: Option<Instant>,
+    wake: Option<ModuleWake>,
+    delta_reset_at: Option<Instant>,
     last_input_error: Option<String>,
     last_output_error: Option<String>,
     suppress_input_backend: bool,
@@ -134,12 +144,15 @@ impl MouseModule {
         Self::new(
             crate::app::ModuleBase::new(),
             None,
+            golden_io::RetirementPool::new(std::num::NonZeroUsize::MIN),
             None,
             Vec::new(),
             Vec::new(),
             true,
-            MOUSE_BACKEND_RETRY_INTERVAL_SECS,
-            MOUSE_BACKEND_RETRY_INTERVAL_SECS,
+            None,
+            None,
+            None,
+            None,
             None,
             None,
             false,
@@ -160,7 +173,47 @@ impl MouseModule {
 
     #[cfg(test)]
     pub(crate) fn enqueue_input_event_for_test(&mut self, event: MouseInputEvent) {
+        assert!(
+            self.pending_input_events.len() < 16,
+            "fixture input turn exceeds 16 records"
+        );
         self.pending_input_events.push(event);
+        self.request_service();
+    }
+
+    fn register_wake(&mut self, ctx: &ProcessCtx) -> Result<(), String> {
+        let waker = match ctx.node_waker() {
+            Ok(waker) => waker,
+            Err(golden_core::engine::NodeWakeError::Unavailable) => return Ok(()),
+            Err(error) => return Err(error.to_string()),
+        };
+        if !self.wake.as_ref().is_some_and(|wake| wake.matches(&waker)) {
+            self.stop_input_backend();
+            self.wake = Some(ModuleWake::new(waker)?);
+        }
+        Ok(())
+    }
+    fn request_service(&self) {
+        if let Some(wake) = &self.wake {
+            wake.notifier.notify();
+        }
+    }
+    fn schedule_service(&self) {
+        let Some(wake) = &self.wake else {
+            return;
+        };
+        if self.input_backend.as_ref().is_some_and(MouseInputRuntime::has_pending) {
+            wake.notifier.notify();
+        }
+        let next = [self.input_retry_at, self.output_retry_at, self.delta_reset_at]
+            .into_iter()
+            .flatten()
+            .min();
+        if let Some(at) = next {
+            wake.later(at.saturating_duration_since(Instant::now()));
+        } else {
+            wake.cancel_deadline();
+        }
     }
 
     fn ensure_input_backend(&mut self, ctx: &mut ProcessCtx) {
@@ -172,7 +225,7 @@ impl MouseModule {
         if self.suppress_input_backend || self.input_backend.is_some() {
             return;
         }
-        if self.input_retry_elapsed < MOUSE_BACKEND_RETRY_INTERVAL_SECS {
+        if self.input_retry_at.is_some_and(|at| Instant::now() < at) {
             return;
         }
 
@@ -188,7 +241,7 @@ impl MouseModule {
         if self.suppress_output_backend || self.output_backend.is_some() {
             return;
         }
-        if self.output_retry_elapsed < MOUSE_BACKEND_RETRY_INTERVAL_SECS {
+        if self.output_retry_at.is_some_and(|at| Instant::now() < at) {
             return;
         }
 
@@ -200,8 +253,19 @@ impl MouseModule {
             return Err("mouse input backend is suppressed for tests".to_string());
         }
 
-        self.input_retry_elapsed = 0.0;
-        match MouseInputRuntime::create(self.input_config()) {
+        self.input_retry_at = Some(Instant::now() + MOUSE_BACKEND_RETRY);
+        if self.device.get_ref().as_str().len() > mouse_runtime::MAX_DEVICE_TEXT {
+            let error = "Mouse selection exceeds 1024 bytes".to_string();
+            self.set_backend_warning(ctx, MOUSE_INPUT_WARNING_ID, &error);
+            return Err(error);
+        }
+        let notifier = self
+            .wake
+            .as_ref()
+            .ok_or("mouse worker wake is unavailable")?
+            .notifier
+            .clone();
+        match MouseInputRuntime::create(&self.input_owner, notifier, self.input_config()) {
             Ok(backend) => {
                 if self.capture_os_input.get() {
                     golden_core::log!(
@@ -212,6 +276,7 @@ impl MouseModule {
                     golden_core::log!(origin = self.id(); "Started mouse input backend.");
                 }
                 self.input_backend = Some(backend);
+                self.input_retry_at = None;
                 self.last_input_error = None;
                 self.clear_backend_warning(ctx, MOUSE_INPUT_WARNING_ID);
                 self.refresh_connection_state(ctx);
@@ -235,11 +300,12 @@ impl MouseModule {
             return Err("mouse output backend is suppressed for tests".to_string());
         }
 
-        self.output_retry_elapsed = 0.0;
+        self.output_retry_at = Some(Instant::now() + MOUSE_BACKEND_RETRY);
         match MouseOutputController::create() {
             Ok(backend) => {
                 golden_core::log!(origin = self.id(); "Started mouse output backend.");
                 self.output_backend = Some(backend);
+                self.output_retry_at = None;
                 self.last_output_error = None;
                 self.clear_backend_warning(ctx, MOUSE_OUTPUT_WARNING_ID);
                 self.refresh_connection_state(ctx);
@@ -260,6 +326,7 @@ impl MouseModule {
 
     fn stop_input_backend(&mut self) {
         self.input_backend = None;
+        self.input_retry_at = None;
         if !self.known_devices.is_empty() {
             self.known_devices.clear();
             self.devices_dirty = true;
@@ -268,11 +335,12 @@ impl MouseModule {
 
     fn stop_output_backend(&mut self) {
         self.output_backend = None;
+        self.output_retry_at = None;
     }
 
     fn restart_input_backend(&mut self, ctx: &mut ProcessCtx) {
         self.input_backend = None;
-        self.input_retry_elapsed = MOUSE_BACKEND_RETRY_INTERVAL_SECS;
+        self.input_retry_at = None;
         let _ = self.try_start_input_backend(ctx);
     }
 
@@ -280,6 +348,7 @@ impl MouseModule {
         let mut events = std::mem::take(&mut self.pending_input_events);
 
         let Some(input_backend) = self.input_backend.as_mut() else {
+            self.clear_backend_warning(ctx, "mouse_input_pressure");
             return events;
         };
 
@@ -290,6 +359,9 @@ impl MouseModule {
                     logerror!(origin = self.id(); format!("Mouse input runtime stopped: {error}"));
                 }
                 self.stop_input_backend();
+                self.input_retry_at = Some(Instant::now() + MOUSE_BACKEND_RETRY);
+                self.clear_backend_warning(ctx, "mouse_input_pressure");
+                self.clear_input_values(ctx);
                 self.last_input_error = Some(error.clone());
                 self.set_backend_warning(ctx, MOUSE_INPUT_WARNING_ID, error.as_str());
                 self.refresh_connection_state(ctx);
@@ -298,90 +370,34 @@ impl MouseModule {
         };
 
         for runtime_event in runtime_events {
-            match runtime_event {
+            if !runtime_event.current() {
+                continue;
+            }
+            match &runtime_event.event {
                 MouseRuntimeEvent::DevicesChanged(devices) => {
-                    if self.known_devices != devices {
-                        self.known_devices = devices;
+                    if self.known_devices != *devices {
+                        self.known_devices = devices.clone();
                         self.devices_dirty = true;
                     }
                 }
                 MouseRuntimeEvent::Input { device, event } => {
                     if self.input_event_matches_selection(device.as_str()) {
-                        events.push(event);
+                        events.push(*event);
                     }
                 }
             }
         }
 
+        if self.input_backend.as_ref().is_some_and(MouseInputRuntime::pressure) {
+            self.set_backend_warning(
+                ctx,
+                "mouse_input_pressure",
+                "Mouse input capacity is full; native service is backpressured",
+            );
+        } else {
+            self.clear_backend_warning(ctx, "mouse_input_pressure");
+        }
         events
-    }
-
-    fn handle_input_events(&mut self, ctx: &mut ProcessCtx, events: Vec<MouseInputEvent>) {
-        if events.is_empty() {
-            self.set_delta(ctx, 0, 0);
-            return;
-        }
-
-        let device_label = self
-            .selected_input_device()
-            .map(|device| device.label)
-            .unwrap_or_else(|| "Selected Mouse".to_string());
-        self.set_delta(ctx, 0, 0);
-        for event in events {
-            match event {
-                MouseInputEvent::Moved { x, y, dx, dy } => {
-                    self.set_position(ctx, x, y);
-                    self.set_delta(ctx, dx, dy);
-                    self.set_last_event(ctx, format!("{device_label}: moved mouse to ({x}, {y})"));
-                    if self.base.log_incoming_enabled() {
-                        golden_core::log!(
-                            origin = self.id();
-                            format!("Observed {device_label} move to ({x}, {y}) with delta ({dx}, {dy})")
-                        );
-                    }
-                    self.emit_mouse_callback(
-                        ctx,
-                        MOUSE_MOVED_CALLBACK,
-                        vec![
-                            serde_json::json!({ "x": x, "y": y }),
-                            serde_json::json!({ "x": dx, "y": dy }),
-                            self.mouse_state_arg(),
-                        ],
-                    );
-                }
-                MouseInputEvent::ButtonChanged { button, pressed } => {
-                    self.set_input_button(ctx, button, pressed);
-                    let action = if pressed { "pressed" } else { "released" };
-                    self.set_last_event(ctx, format!("{device_label}: {} button {action}", button.label()));
-                    if self.base.log_incoming_enabled() {
-                        golden_core::log!(
-                            origin = self.id();
-                            format!("Observed {device_label} {} mouse button {action}", button.label().to_ascii_lowercase())
-                        );
-                    }
-                    self.emit_mouse_callback(
-                        ctx,
-                        MOUSE_BUTTON_CHANGED_CALLBACK,
-                        vec![
-                            serde_json::json!(button.as_str()),
-                            serde_json::json!(pressed),
-                            self.mouse_state_arg(),
-                        ],
-                    );
-                    self.emit_mouse_callback(
-                        ctx,
-                        if pressed {
-                            MOUSE_BUTTON_PRESSED_CALLBACK
-                        } else {
-                            MOUSE_BUTTON_RELEASED_CALLBACK
-                        },
-                        vec![serde_json::json!(button.as_str()), self.mouse_state_arg()],
-                    );
-                }
-            }
-        }
-
-        self.base.emit_incoming_traffic(ctx);
     }
 
     fn execute_move_request(&mut self, ctx: &mut ProcessCtx, request: MouseMoveRequest) -> Result<(), String> {
@@ -481,6 +497,7 @@ impl MouseModule {
     }
 
     fn on_param_change_inner(&mut self, ctx: &mut ProcessCtx, param: NodeId) {
+        self.request_service();
         if self.device.is_bound() && self.device.id() == param {
             self.pending_input_events.clear();
             self.clear_input_values(ctx);
@@ -495,7 +512,7 @@ impl MouseModule {
         if self.receive_enabled.is_bound() && self.receive_enabled.id() == param {
             self.refresh_data_capabilities(ctx);
             if self.receive_enabled.get() {
-                self.input_retry_elapsed = MOUSE_BACKEND_RETRY_INTERVAL_SECS;
+                self.input_retry_at = None;
             } else {
                 self.stop_input_backend();
                 self.clear_backend_warning(ctx, MOUSE_INPUT_WARNING_ID);
@@ -511,7 +528,7 @@ impl MouseModule {
             self.stop_input_backend();
             self.clear_backend_warning(ctx, MOUSE_INPUT_WARNING_ID);
             if self.node_data().effective_enabled && self.receive_enabled.get() {
-                self.input_retry_elapsed = MOUSE_BACKEND_RETRY_INTERVAL_SECS;
+                self.input_retry_at = None;
             }
             self.refresh_connection_state(ctx);
         }
@@ -519,7 +536,7 @@ impl MouseModule {
         if self.send_enabled.is_bound() && self.send_enabled.id() == param {
             self.refresh_data_capabilities(ctx);
             if self.send_enabled.get() {
-                self.output_retry_elapsed = MOUSE_BACKEND_RETRY_INTERVAL_SECS;
+                self.output_retry_at = None;
             } else {
                 self.stop_output_backend();
                 self.clear_backend_warning(ctx, MOUSE_OUTPUT_WARNING_ID);
@@ -542,7 +559,7 @@ impl MouseModule {
         let selected_device = self.selected_input_device();
         let input_active = self.receive_enabled.get()
             && self.device.get_ref().as_str() != NO_MOUSE_VARIANT
-            && self.input_backend.is_some()
+            && self.input_backend.as_ref().is_some_and(MouseInputRuntime::is_running)
             && selected_device.is_some();
         let output_active = self.send_enabled.get() && self.output_backend.is_some();
 
@@ -774,27 +791,35 @@ impl Node for MouseModule {
         self.refresh_connection_state(ctx);
     }
 
-    fn update(&mut self, ctx: &mut ProcessCtx) {
-        self.input_retry_elapsed += ctx.delta_time.as_secs_f64();
-        self.output_retry_elapsed += ctx.delta_time.as_secs_f64();
+    fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: golden_core::node::NodeCreationContext) {
+        if let Err(error) = self.register_wake(ctx) {
+            self.set_backend_warning(ctx, MOUSE_INPUT_WARNING_ID, &error);
+        }
+        self.request_service();
+    }
 
+    fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
+        if let Err(error) = self.register_wake(ctx) {
+            self.set_backend_warning(ctx, MOUSE_INPUT_WARNING_ID, &error);
+            return;
+        }
         if !self.node_data().effective_enabled {
             return;
         }
-
         self.ensure_input_backend(ctx);
         self.ensure_output_backend(ctx);
-
         let events = self.drain_input_events(ctx);
         if self.devices_dirty {
             self.sync_device_options(ctx);
             self.devices_dirty = false;
         }
-        let selected_device = self.selected_input_device();
-        self.refresh_selection_warning(ctx, selected_device.as_ref());
-        self.refresh_connection_state(ctx);
+        self.refresh_selection_warning(ctx, self.selected_input_device().as_ref());
         self.handle_input_events(ctx, events);
         self.refresh_connection_state(ctx);
+        self.schedule_service();
+    }
+    fn worker_wake_requires_tree_snapshot(&self) -> bool {
+        false
     }
 
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {
@@ -802,6 +827,7 @@ impl Node for MouseModule {
         self.stop_output_backend();
         self.pending_input_events.clear();
         self.devices_dirty = false;
+        self.wake = None;
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {
@@ -809,7 +835,7 @@ impl Node for MouseModule {
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
-        NodeExecutionRule::periodic(MOUSE_MODULE_UPDATE_RATE_HZ).with_compiled_kernel("chataigne.runtime.mouse")
+        NodeExecutionRule::passive().with_compiled_kernel("chataigne.runtime.mouse")
     }
 
     fn engine_script_descriptor(&self) -> NodeScriptDescriptor {
@@ -840,17 +866,23 @@ impl Node for MouseModule {
 
     fn on_effective_enabled_changed(&mut self, ctx: &mut ProcessCtx, enabled: bool) {
         if enabled {
-            self.input_retry_elapsed = MOUSE_BACKEND_RETRY_INTERVAL_SECS;
-            self.output_retry_elapsed = MOUSE_BACKEND_RETRY_INTERVAL_SECS;
+            self.request_service();
+            self.input_retry_at = None;
+            self.output_retry_at = None;
             self.refresh_data_capabilities(ctx);
             return;
         }
 
         self.stop_input_backend();
         self.stop_output_backend();
+        self.delta_reset_at = None;
+        if let Some(wake) = &self.wake {
+            wake.cancel_deadline();
+        }
         self.pending_input_events.clear();
         self.clear_backend_warning(ctx, MOUSE_INPUT_WARNING_ID);
         self.clear_backend_warning(ctx, MOUSE_OUTPUT_WARNING_ID);
+        self.clear_backend_warning(ctx, "mouse_input_pressure");
         self.clear_device_warning(ctx, MOUSE_SELECTION_WARNING_ID);
         self.base.set_connected(ctx, false);
         self.reset_values(ctx);
@@ -871,233 +903,6 @@ fn float_changed(a: f64, b: f64) -> bool {
 
 fn clamp_usize_to_i32(value: usize) -> i32 {
     i32::try_from(value).unwrap_or(i32::MAX)
-}
-
-fn script_move_request(args: &[ParamValue]) -> Option<Result<MouseMoveRequest, String>> {
-    let Some(x) = args.first().and_then(param_value_as_number) else {
-        return Some(Err("method 'moveMouse' expects a numeric x argument".to_string()));
-    };
-    let Some(y) = args.get(1).and_then(param_value_as_number) else {
-        return Some(Err("method 'moveMouse' expects a numeric y argument".to_string()));
-    };
-
-    let coordinate = match args.get(2).and_then(ParamValue::as_str) {
-        Some(value) => match MouseMoveCoordinate::parse(&value) {
-            Ok(value) => value,
-            Err(error) => return Some(Err(error)),
-        },
-        None => MouseMoveCoordinate::Absolute,
-    };
-    let units = match args.get(3).and_then(ParamValue::as_str) {
-        Some(value) => match MouseMoveUnits::parse(&value) {
-            Ok(value) => value,
-            Err(error) => return Some(Err(error)),
-        },
-        None => MouseMoveUnits::Pixels,
-    };
-    if coordinate == MouseMoveCoordinate::Relative && units == MouseMoveUnits::Normalized {
-        return Some(Err(
-            "method 'moveMouse' only supports normalized coordinates with absolute movement".to_string(),
-        ));
-    }
-
-    Some(Ok(MouseMoveRequest {
-        x,
-        y,
-        coordinate,
-        units,
-        description: "move mouse".to_string(),
-    }))
-}
-
-fn script_button_request(
-    method: &str,
-    args: &[ParamValue],
-    action: MouseButtonAction,
-) -> Option<Result<MouseButtonRequest, String>> {
-    let button = match args.first().and_then(ParamValue::as_str) {
-        Some(value) => match MouseButtonKind::parse(&value) {
-            Ok(value) => value,
-            Err(error) => return Some(Err(format!("method '{method}' {error}"))),
-        },
-        None => MouseButtonKind::Left,
-    };
-
-    Some(Ok(MouseButtonRequest {
-        button,
-        action,
-        description: format!("{} {} mouse button", action.as_str(), button.as_str()),
-    }))
-}
-
-fn script_scroll_request(args: &[ParamValue]) -> Option<Result<MouseScrollRequest, String>> {
-    let Some(vertical) = args.first().and_then(param_value_as_i32) else {
-        return Some(Err("method 'scroll' expects a numeric vertical argument".to_string()));
-    };
-
-    Some(Ok(MouseScrollRequest {
-        vertical,
-        horizontal: args.get(1).and_then(param_value_as_i32).unwrap_or(0),
-        description: "scroll mouse".to_string(),
-    }))
-}
-
-fn param_value_as_number(value: &ParamValue) -> Option<f64> {
-    value.as_float().or_else(|| value.as_int().map(f64::from))
-}
-
-fn param_value_as_i32(value: &ParamValue) -> Option<i32> {
-    let number = param_value_as_number(value)?;
-    if !number.is_finite() {
-        return None;
-    }
-    let rounded = number.round();
-    (rounded >= f64::from(i32::MIN) && rounded <= f64::from(i32::MAX)).then_some(rounded as i32)
-}
-
-fn mouse_device_options(devices: &[DiscoveredMouseDevice]) -> Vec<ParameterEnumOption> {
-    let mut options = vec![
-        enum_option(AUTO_MOUSE_VARIANT, "Auto", 0),
-        enum_option(NO_MOUSE_VARIANT, "No Input Device", 1),
-    ];
-
-    options.extend(devices.iter().enumerate().map(|(index, device)| {
-        let mut option = enum_option(device.variant_id.as_str(), device.label.as_str(), 10 + index as i32);
-        option.tags = vec![device.details.clone()];
-        option
-    }));
-    options
-}
-
-fn sync_mouse_device_enum_options(ctx: &mut ProcessCtx, param_id: NodeId, options: Vec<ParameterEnumOption>) {
-    ctx.call_node_mutation(param_id, move |node, inner_ctx| {
-        let Some(parameter) = node.as_any_mut().downcast_mut::<Parameter>() else {
-            return Err("mouse device target is not a parameter".to_string());
-        };
-
-        let mut next_options = options.clone();
-        let current_variant = parameter
-            .value
-            .as_enum()
-            .filter(|variant| !variant.trim().is_empty())
-            .map(|variant| canonical_mouse_variant(variant.as_str(), options.as_slice()))
-            .unwrap_or_else(|| AUTO_MOUSE_VARIANT.to_string());
-
-        if mouse_specific_device_selected(current_variant.as_str())
-            && !next_options.iter().any(|option| option.variant_id == current_variant)
-        {
-            next_options.insert(2, missing_mouse_option(current_variant.as_str()));
-        }
-
-        let next_value = if next_options.iter().any(|option| option.variant_id == current_variant) {
-            ParamValue::Enum(current_variant.clone())
-        } else {
-            ParamValue::Enum(AUTO_MOUSE_VARIANT.to_string())
-        };
-
-        if parameter.constraints.enum_options.as_slice() == next_options.as_slice() && parameter.value == next_value {
-            return Ok(());
-        }
-
-        let label = parameter.node_data().meta.label.clone();
-        let change_check = parameter.change_check.clone();
-        let mut replacement = Parameter::new(label.as_str(), next_value, change_check);
-        *replacement.node_data_mut() = parameter.node_data().clone();
-        replacement.default_value = parameter.default_value.clone();
-        replacement.event_behaviour = ParameterEventBehaviour::Coalesce;
-        replacement.read_only = parameter.read_only;
-        replacement.persist_read_only_value = parameter.persist_read_only_value;
-        replacement.constraints = parameter.constraints.clone();
-        replacement.constraints.enum_options = (next_options).into();
-        replacement.ui_hints = parameter.ui_hints.clone();
-        replacement.control = parameter.control.clone();
-        replacement.control_modes_enabled = parameter.control_modes_enabled;
-
-        inner_ctx.replace_node(param_id, replacement);
-        Ok(())
-    });
-}
-
-fn selected_mouse_device(selection: &str, devices: &[DiscoveredMouseDevice]) -> Option<DiscoveredMouseDevice> {
-    devices
-        .iter()
-        .find(|device| selection_matches_mouse(selection, device))
-        .cloned()
-}
-
-fn selection_matches_mouse(selection: &str, device: &DiscoveredMouseDevice) -> bool {
-    match selection.trim() {
-        AUTO_MOUSE_VARIANT => true,
-        NO_MOUSE_VARIANT | "" => false,
-        selected => {
-            selected == device.variant_id
-                || legacy_mouse_variant_identity(selected).is_some_and(|identity| identity == device.variant_id)
-        }
-    }
-}
-
-fn canonical_mouse_variant(selection: &str, options: &[ParameterEnumOption]) -> String {
-    let trimmed = selection.trim();
-    if trimmed.is_empty() {
-        return AUTO_MOUSE_VARIANT.to_string();
-    }
-    if options.iter().any(|option| option.variant_id == trimmed) {
-        return trimmed.to_string();
-    }
-    if let Some(identity) = legacy_mouse_variant_identity(trimmed) {
-        if options.iter().any(|option| option.variant_id == identity) {
-            return identity.to_string();
-        }
-    }
-
-    trimmed.to_string()
-}
-
-fn legacy_mouse_variant_identity(selection: &str) -> Option<&str> {
-    let (identity, label) = selection.split_once('|')?;
-    if identity.trim().is_empty() || label.trim().is_empty() {
-        return None;
-    }
-    Some(identity)
-}
-
-fn mouse_specific_device_selected(selection: &str) -> bool {
-    let trimmed = selection.trim();
-    !trimmed.is_empty() && trimmed != AUTO_MOUSE_VARIANT && trimmed != NO_MOUSE_VARIANT
-}
-
-fn missing_mouse_option(variant_id: &str) -> ParameterEnumOption {
-    let mut option = enum_option(
-        variant_id,
-        format!("Missing: {}", human_mouse_variant(variant_id)).as_str(),
-        5,
-    );
-    option.tags = vec!["missing".to_string()];
-    option
-}
-
-fn human_mouse_variant(variant_id: &str) -> String {
-    if let Some((_, label)) = variant_id.rsplit_once('|') {
-        if !label.trim().is_empty() {
-            return label.to_string();
-        }
-    }
-    variant_id
-        .split('#')
-        .nth(1)
-        .or_else(|| variant_id.split('#').next())
-        .map(str::to_string)
-        .unwrap_or_else(|| variant_id.to_string())
-}
-
-fn enum_option(variant_id: &str, label: &str, ordering: i32) -> ParameterEnumOption {
-    ParameterEnumOption {
-        variant_id: variant_id.to_string(),
-        value: ParamValue::Enum(variant_id.to_string()),
-        label: label.to_string(),
-        tags: Vec::new(),
-        ordering: Some(ordering),
-    }
 }
 
 #[cfg(test)]

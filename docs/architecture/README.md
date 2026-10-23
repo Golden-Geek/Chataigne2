@@ -38,6 +38,8 @@ and superseded plans are [archived](../archive/2026-10-18/README.md).
 - [Keyboard worker ownership](keyboard-runtime.md): bounded input/output lifetimes, canonical
   command/script capture, prepared input callbacks and shared choices, Windows input registration,
   passive input/output service, queued projection guards and remaining C09 work.
+- [Mouse worker ownership](mouse-runtime.md): bounded native input lifetimes, shared Windows
+  registration and subscriber capture policy, retained input and passive actor service; C09 remains open.
 - [Timed generators](generators.md): Signals/Metronomes admission, elapsed time, bounded
   publication, passive service and worker lifetime ownership.
 - [Alchemist runtime](alchemist-runtime.md): formulas, processors, conditions, inputs, filters,

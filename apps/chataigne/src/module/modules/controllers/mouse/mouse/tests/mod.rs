@@ -9,6 +9,7 @@ use golden_core::{
 
 use super::{mouse_runtime::MouseInputEvent, MouseModule};
 use crate::app::module::common::mouse::MouseButtonKind;
+mod service;
 
 #[test]
 fn mouse_events_update_values() {
@@ -66,6 +67,22 @@ fn mouse_script_template_scaffolds_mouse_functions_and_callbacks() {
 }
 
 #[test]
+fn idle_mouse_has_no_periodic_engine_callbacks_or_snapshots() {
+    let (mut engine, _) = create_mouse_module();
+    for _ in 0..5 {
+        run_mouse_tick(&mut engine);
+    }
+    for _ in 0..100 {
+        run_mouse_tick(&mut engine);
+        let stats = engine.tick_stats();
+        assert_eq!(stats.nodes_due, 0);
+        assert_eq!(stats.callbacks_fired, 0);
+        assert_eq!(stats.wake_callbacks_fired, 0);
+        assert_eq!(stats.snapshot_builds, 0);
+    }
+}
+
+#[test]
 fn mouse_device_selection_prefers_exact_device_and_auto_picks_first() {
     let devices = vec![
         super::mouse_runtime::DiscoveredMouseDevice {
@@ -83,13 +100,11 @@ fn mouse_device_selection_prefers_exact_device_and_auto_picks_first() {
     ];
 
     assert_eq!(
-        super::selected_mouse_device(super::AUTO_MOUSE_VARIANT, devices.as_slice())
-            .map(|device| device.variant_id),
+        super::selected_mouse_device(super::AUTO_MOUSE_VARIANT, devices.as_slice()).map(|device| device.variant_id),
         Some("raw:a".to_string())
     );
     assert_eq!(
-        super::selected_mouse_device("raw:b", devices.as_slice())
-            .map(|device| device.variant_id),
+        super::selected_mouse_device("raw:b", devices.as_slice()).map(|device| device.variant_id),
         Some("raw:b".to_string())
     );
     assert!(super::selected_mouse_device(super::NO_MOUSE_VARIANT, devices.as_slice()).is_none());
@@ -97,14 +112,12 @@ fn mouse_device_selection_prefers_exact_device_and_auto_picks_first() {
 
 #[test]
 fn mouse_device_selection_accepts_legacy_label_suffixed_values() {
-    let devices = vec![
-        super::mouse_runtime::DiscoveredMouseDevice {
-            index: 0,
-            variant_id: r"\\?\HID#FTCS0038&Col01#5&4ea287c&0&0000#{378de44c-56ef-11d1-bc8c-00a0c91405dd}".to_string(),
-            label: "Mouse FTCS0038".to_string(),
-            details: "first".to_string(),
-        },
-    ];
+    let devices = vec![super::mouse_runtime::DiscoveredMouseDevice {
+        index: 0,
+        variant_id: r"\\?\HID#FTCS0038&Col01#5&4ea287c&0&0000#{378de44c-56ef-11d1-bc8c-00a0c91405dd}".to_string(),
+        label: "Mouse FTCS0038".to_string(),
+        details: "first".to_string(),
+    }];
 
     assert_eq!(
         super::selected_mouse_device(
@@ -120,7 +133,9 @@ fn mouse_device_selection_accepts_legacy_label_suffixed_values() {
 #[test]
 fn mouse_capture_only_swallows_non_injected_events_while_active() {
     assert!(super::mouse_runtime::should_swallow_captured_mouse_input(0, true));
-    assert!(!super::mouse_runtime::should_swallow_captured_mouse_input(0x00000001, true));
+    assert!(!super::mouse_runtime::should_swallow_captured_mouse_input(
+        0x00000001, true
+    ));
     assert!(!super::mouse_runtime::should_swallow_captured_mouse_input(0, false));
 }
 
@@ -180,13 +195,9 @@ fn create_mouse_module() -> (crate::app::AppEngine, NodeId) {
     engine.add_node(module.into(), None);
     engine.apply_edits().expect("mouse module should attach");
     for _ in 0..4 {
-        engine
-            .apply_edits()
-            .expect("mouse module defaults should materialize");
+        engine.apply_edits().expect("mouse module defaults should materialize");
     }
-    engine
-        .resolve()
-        .expect("mouse module schedule should resolve");
+    engine.resolve().expect("mouse module schedule should resolve");
 
     let module_id = engine
         .nodes
@@ -198,8 +209,7 @@ fn create_mouse_module() -> (crate::app::AppEngine, NodeId) {
 }
 
 fn enqueue_event(engine: &mut crate::app::AppEngine, module_id: NodeId, event: MouseInputEvent) {
-    let crate::app::AppNode::MouseModule(module) =
-        engine.nodes.get_mut(module_id).expect("mouse module should exist")
+    let crate::app::AppNode::MouseModule(module) = engine.nodes.get_mut(module_id).expect("mouse module should exist")
     else {
         panic!("expected MouseModule node");
     };
@@ -213,9 +223,7 @@ fn run_mouse_tick(engine: &mut crate::app::AppEngine) {
     engine
         .run_tick(Duration::from_millis(20))
         .expect("mouse tick should run");
-    engine
-        .apply_edits()
-        .expect("mouse tick edits should apply");
+    engine.apply_edits().expect("mouse tick edits should apply");
 }
 
 fn find_path(engine: &crate::app::AppEngine, start: NodeId, path: &str) -> Option<NodeId> {
