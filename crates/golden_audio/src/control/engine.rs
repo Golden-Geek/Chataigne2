@@ -2,7 +2,7 @@ use super::delivery::{AudioEventReceiver, EventCancellation, EventSender, event_
 use std::{
     sync::{
         Arc, RwLock,
-        atomic::{AtomicU8, AtomicU64, Ordering},
+        atomic::{AtomicU8, Ordering},
     },
     thread::{self, JoinHandle},
     time::Duration,
@@ -23,7 +23,7 @@ use crate::{
 
 use super::configuration::{ApplyConfigurationContext, apply_configuration, validate_backends};
 use super::device_runtime::DeviceRuntime;
-use super::ingress::{CommandEnvelope, CommandQueueProducer, command_queue};
+use super::ingress::{CommandEnvelope, CommandQueueProducer, STATE_STOPPED, command_queue};
 #[cfg(feature = "playback")]
 use super::playback::{
     PlaybackLifecycles, drain_playback_work, finish_playback_shutdown, schedule_playback, stop_all_playback,
@@ -32,15 +32,9 @@ use super::playback::{
 #[cfg(all(feature = "analysis", feature = "playback"))]
 use super::render_runtime::ManagedRenderRuntime;
 
-const STATE_RUNNING: u8 = 0;
-const STATE_STOPPING: u8 = 1;
-const STATE_STOPPED: u8 = 2;
-
 #[derive(Clone, Debug)]
 pub struct AudioControl {
     sender: CommandQueueProducer,
-    state: Arc<AtomicU8>,
-    next_sequence: Arc<AtomicU64>,
 }
 
 impl AudioControl {
@@ -48,7 +42,7 @@ impl AudioControl {
         if matches!(command, AudioCommand::Shutdown) {
             return self.shutdown();
         }
-        if self.state.load(Ordering::Acquire) != STATE_RUNNING {
+        if !self.sender.accepting() {
             return Err(AudioError::shutting_down());
         }
         if let AudioCommand::PlayFile(request) = &command
@@ -58,9 +52,7 @@ impl AudioControl {
                 "playback path exceeds 128 KiB retained storage",
             ));
         }
-        let sequence = next_sequence(&self.next_sequence)?;
-        self.sender.try_push(CommandEnvelope { sequence, command })?;
-        Ok(sequence)
+        self.sender.try_push(command)
     }
 
     /// Replaces the exact device targets whose capabilities the control worker
@@ -73,28 +65,7 @@ impl AudioControl {
     }
 
     pub fn shutdown(&self) -> Result<CommandSequence, AudioError> {
-        match self
-            .state
-            .compare_exchange(STATE_RUNNING, STATE_STOPPING, Ordering::AcqRel, Ordering::Acquire)
-        {
-            Ok(_) => {}
-            Err(STATE_STOPPING) | Err(STATE_STOPPED) => {
-                return Ok(CommandSequence::FIRST);
-            }
-            Err(_) => return Err(AudioError::shutting_down()),
-        }
-
-        let sequence = next_sequence(&self.next_sequence)?;
-        match self.sender.try_push(CommandEnvelope {
-            sequence,
-            command: AudioCommand::Shutdown,
-        }) {
-            Ok(()) => Ok(sequence),
-            Err(error) => {
-                self.state.store(STATE_RUNNING, Ordering::Release);
-                Err(error)
-            }
-        }
+        self.sender.try_push(AudioCommand::Shutdown)
     }
 }
 
@@ -199,12 +170,9 @@ impl AudioEngineBuilder {
             },
             ..AudioObservationSnapshot::default()
         }));
-        let state = Arc::new(AtomicU8::new(STATE_RUNNING));
-        let next_sequence = Arc::new(AtomicU64::new(CommandSequence::FIRST.get()));
+        let state = command_sender.state();
         let control = AudioControl {
             sender: command_sender.clone(),
-            state: Arc::clone(&state),
-            next_sequence: Arc::clone(&next_sequence),
         };
         let device_revision = golden_io::RevisionSource::default();
         let observations = AudioObservationReader {
@@ -314,14 +282,7 @@ impl AudioEngine {
         if self.worker.is_none() {
             return Ok(());
         }
-        let previous = self.control.state.swap(STATE_STOPPING, Ordering::AcqRel);
-        if previous == STATE_RUNNING {
-            let sequence = next_sequence(&self.control.next_sequence)?;
-            self.raw_sender.push_blocking(CommandEnvelope {
-                sequence,
-                command: AudioCommand::Shutdown,
-            })?;
-        }
+        self.raw_sender.shutdown_blocking()?;
         if let Some(worker) = self.worker.take() {
             worker.join().map_err(|_| {
                 AudioError::new(
@@ -334,7 +295,6 @@ impl AudioEngine {
         if let Some(renderer) = self.playback_renderer.take() {
             renderer.into_retirement().reclaim();
         }
-        self.control.state.store(STATE_STOPPED, Ordering::Release);
         Ok(())
     }
 }
@@ -343,16 +303,6 @@ impl Drop for AudioEngine {
     fn drop(&mut self) {
         let _ = self.shutdown();
     }
-}
-
-fn next_sequence(counter: &AtomicU64) -> Result<CommandSequence, AudioError> {
-    let value = counter.fetch_add(1, Ordering::Relaxed);
-    CommandSequence::new(value).map_err(|error| {
-        AudioError::new(
-            AudioErrorCategory::InternalInvariant,
-            format!("audio command sequence exhausted: {error}"),
-        )
-    })
 }
 
 struct ControlWorker {
@@ -437,6 +387,9 @@ fn run_control_worker(mut command_receiver: Consumer<CommandEnvelope>, worker: C
             &mut playback_lifecycle,
         );
         let Ok(envelope) = command_receiver.pop() else {
+            if command_receiver.is_abandoned() {
+                break;
+            }
             devices.refresh(
                 &event_sender,
                 &observation,

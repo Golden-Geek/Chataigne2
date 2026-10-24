@@ -201,14 +201,23 @@ Current implementation/qualification gaps are recorded in the
 
 File playback is a three-stage ownership pipeline:
 
-1. The control worker receives play, stop, stop-all, gain, and configuration commands and assigns
-   monotonic sequences. The current separate gain/plan delivery paths do not yet preserve one
+1. Command ingress assigns sequences while holding its producer admission lock. Accepted queue
+   order and sequence order agree across concurrent callers; rejection consumes no sequence.
+   The control worker receives play, stop, stop-all, gain, and configuration commands in that order.
+   The current separate gain/plan delivery paths do not yet preserve one
    render-side order across configuration changes; P04 owns that repair.
 2. A fixed decoder-worker pool privately uses Symphonia to probe and decode, resamples to the engine
    rate, maintains the bounded resident cache, and primes bounded stream rings.
 3. The render stage activates prebuilt fixed-slot voices, reads planar resident assets or
    streaming rings, applies bounded start/stop ramps and explicit routes, and returns completed
    ownership for control-thread destruction.
+
+Shutdown uses the same admission boundary. A full nonblocking shutdown rejects without closing
+the queue. Forced host shutdown closes admission before waiting for capacity, retains its terminal
+sequence, and publishes that barrier after the accepted prefix. Repeated shutdown calls observe
+the same accepted terminal sequence. Ordinary admission reserves the final sequence number for
+shutdown; counters cannot wrap or alias old commands. Consumer loss rejects new work and ends a
+blocked shutdown wait. The worker also exits when its final producer disappears.
 
 Playback-ID cancellation watermarks make a late decoder result stale. Reusing an ID replaces its
 pending or active generation by default without allowing an older load to start. A play request may
