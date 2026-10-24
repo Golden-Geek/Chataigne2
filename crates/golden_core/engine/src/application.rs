@@ -9,10 +9,13 @@ mod graph_editing;
 
 pub use error::{ApplicationError, CommittedSave};
 pub use golden_runtime::{ControlError, ControlErrorKind};
+mod app_operations;
 mod project_document;
 mod project_persistence;
 mod project_replacement;
 mod transactions;
+
+pub use app_operations::apply_project_intent;
 
 pub use crate::runtime_center::UiClientLease;
 pub use transactions::PendingUiTransactionBatch;
@@ -684,6 +687,18 @@ pub(crate) fn apply_ui_intent_to_engine<T: ProjectLifecycle>(
     let before_event_time = engine.ui_event_log().last().map(|event| event.time);
 
     match intent {
+        UiEditIntent::InvokeAppOperation {
+            namespace,
+            operation,
+            payload,
+        } => app_operations::apply(
+            engine,
+            namespace,
+            operation,
+            payload,
+            ui_client_instance_id,
+            before_event_time,
+        ),
         UiEditIntent::DuplicateNode {
             source,
             new_parent,
@@ -737,6 +752,7 @@ fn applied_ack_since<T: Node>(engine: &Engine<T>, previous_event_time: Option<En
         earliest_event_time: events.first().map(|event| event.time),
         latest_event_time: events.last().map(|event| event.time),
         history: engine.ui_history_state(),
+        result: None,
     }
 }
 
@@ -749,6 +765,7 @@ fn rejected_ack<T: Node>(engine: &Engine<T>, code: &str, message: String) -> UiA
         earliest_event_time: None,
         latest_event_time: None,
         history: engine.ui_history_state(),
+        result: None,
     }
 }
 
@@ -761,5 +778,6 @@ fn skipped_after_failed_batch_ack<T: Node>(engine: &Engine<T>) -> UiAck {
         earliest_event_time: None,
         latest_event_time: None,
         history: engine.ui_history_state(),
+        result: None,
     }
 }

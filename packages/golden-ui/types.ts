@@ -1,5 +1,7 @@
 import type { CustomEventRetention } from './generated/rust_protocol/CustomEventRetention';
 import type { UiControlPhase } from './generated/rust_protocol/UiControlPhase';
+import type { UiEditIntent as RustUiEditIntent } from './generated/rust_protocol/UiEditIntent';
+import type { UiAck as RustUiAck } from './generated/rust_protocol/UiAck';
 import type { UiDataPlane } from './generated/rust_protocol/UiDataPlane';
 import type { UiGraphOp as GeneratedUiGraphOp } from './generated/rust_protocol/UiGraphOp';
 
@@ -708,21 +710,14 @@ export type UiEditIntent =
 	  }
 	| { kind: 'removeUserContextEntry'; owner: NodeId; symbol: string }
 	| { kind: 'sendNodeEvent'; node: NodeId; topic: string; payload: unknown }
+	| Extract<RustUiEditIntent, { kind: 'invokeAppOperation' }>
 	| { kind: 'reevaluateGraph' }
 	| { kind: 'clearLogs' }
 	| { kind: 'setLogMaxEntries'; max_entries: number }
 	| { kind: 'undo' }
 	| { kind: 'redo' };
 
-export interface UiAck {
-	success: boolean;
-	status: UiAckStatus;
-	error_code?: string;
-	error_message?: string;
-	earliest_event_time?: EventTime;
-	latest_event_time?: EventTime;
-	history?: UiHistoryState;
-}
+export type UiAck = Omit<RustUiAck, 'history'> & { history?: UiHistoryState };
 
 export interface UiProjectLoadProblem {
 	stage: string;

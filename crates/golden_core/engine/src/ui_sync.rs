@@ -431,6 +431,10 @@ impl<T: Node> Engine<T> {
                 let result = self.apply_edits();
                 self.finish_ui_apply_now(before_event_time, result)
             }
+            UiEditIntent::InvokeAppOperation { .. } => self.rejected_ui_ack(
+                "app_operation_requires_project",
+                "app operations require the project-aware application facade".into(),
+            ),
             UiEditIntent::ClearLogs => {
                 crate::logger::clear();
                 self.push_ui_custom_event(crate::logger::UI_LOG_CLEARED_TOPIC, None, serde_json::json!({}));
@@ -496,15 +500,15 @@ impl<T: Node> Engine<T> {
         })
     }
 
-    fn apply_implicit_ui_edit_session<F>(
+    pub(crate) fn apply_implicit_ui_edit_session<R, F>(
         &mut self,
         label: &str,
         client_edit_id: &str,
         ui_client_instance_id: Option<&str>,
         operation: F,
-    ) -> Result<(), crate::engine::EngineEditError>
+    ) -> Result<R, crate::engine::EngineEditError>
     where
-        F: FnOnce(&mut Self) -> Result<(), crate::engine::EngineEditError>,
+        F: FnOnce(&mut Self) -> Result<R, crate::engine::EngineEditError>,
     {
         self.settle_edit_notifications(16)?;
         if self.has_active_edit_session() {
@@ -524,8 +528,9 @@ impl<T: Node> Engine<T> {
         self.edits.push(Edit::EndEditSession { client_edit_id });
         let end_result = self.apply_edits();
 
-        operation_result?;
-        end_result
+        let result = operation_result?;
+        end_result?;
+        Ok(result)
     }
 
     fn applied_ui_ack_since(&self, previous_event_time: Option<EngineTime>) -> UiAck {
@@ -539,6 +544,7 @@ impl<T: Node> Engine<T> {
             earliest_event_time: events.first().map(|event| event.time),
             latest_event_time: events.last().map(|event| event.time),
             history: self.ui_history_state(),
+            result: None,
         }
     }
 
@@ -551,6 +557,7 @@ impl<T: Node> Engine<T> {
             earliest_event_time: None,
             latest_event_time: None,
             history: self.ui_history_state(),
+            result: None,
         }
     }
 

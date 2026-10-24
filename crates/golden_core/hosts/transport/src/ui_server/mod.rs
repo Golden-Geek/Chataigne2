@@ -250,6 +250,7 @@ fn ui_intent_kind(intent: &UiEditIntent) -> &'static str {
         UiEditIntent::UpsertUserContextEntry { .. } => "upsert_user_context_entry",
         UiEditIntent::RemoveUserContextEntry { .. } => "remove_user_context_entry",
         UiEditIntent::SendNodeEvent { .. } => "send_node_event",
+        UiEditIntent::InvokeAppOperation { .. } => "invoke_app_operation",
         UiEditIntent::ReevaluateGraph => "reevaluate_graph",
         UiEditIntent::ClearLogs => "clear_logs",
         UiEditIntent::SetLogMaxEntries { .. } => "set_log_max_entries",

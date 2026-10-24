@@ -193,11 +193,12 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
                     };
 
                     let before_event_time = state.engine.ui_event_log().last().map(|event| event.time);
+                    let is_app_operation = matches!(&intent, UiEditIntent::InvokeAppOperation { .. });
                     let apply_started = Instant::now();
                     let mut acknowledgement =
                         apply_ui_intent_to_engine(&mut state.engine, intent, ui_client_instance_id.as_deref());
                     let began_edit_session = acknowledgement.success && begin_edit_id.is_some();
-                    if acknowledgement.success
+                    if acknowledgement.success && !is_app_operation
                         && let Err(error) = T::settle_pending_operations(&mut state.engine)
                     {
                         acknowledgement = rejected_ack(

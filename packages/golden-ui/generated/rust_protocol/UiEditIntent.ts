@@ -273,6 +273,18 @@ topic: string,
 /**
  * App-owned event payload.
  */
+payload: JsonValue, } | { "kind": "invokeAppOperation",
+/**
+ * App-owned namespace; Golden does not interpret domain payloads.
+ */
+namespace: string,
+/**
+ * Operation name within that namespace.
+ */
+operation: string,
+/**
+ * App-owned request DTO serialized as JSON.
+ */
 payload: JsonValue, } | { "kind": "reevaluateGraph" } | { "kind": "clearLogs" } | { "kind": "setLogMaxEntries",
 /**
  * Requested maximum number of retained records.

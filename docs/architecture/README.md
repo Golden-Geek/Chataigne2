@@ -10,6 +10,7 @@ and superseded plans are [archived](../archive/2026-10-18/README.md).
 ## Foundation
 
 - [Application contracts](application-contracts.md): reusable application/host seams and parameter event attribution.
+- [App operations](app-operations.md): domain-owned mutations with atomic completion and authoritative replies.
 - [Foundation ownership](foundations.md): identities, values, parameters, and contexts.
 - [Golden Audio](golden-audio.md): reusable audio ownership, stable identities, render plans,
   callback safety, clocks, and device recovery.

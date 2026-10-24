@@ -1,2 +1,2 @@
 // Generated from golden_protocol::UI_PROTOCOL_VERSION. Do not edit manually.
-export const UI_PROTOCOL_VERSION = "0.9.0" as const;
+export const UI_PROTOCOL_VERSION = "0.10.0" as const;

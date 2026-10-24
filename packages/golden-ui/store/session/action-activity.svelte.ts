@@ -71,6 +71,8 @@ export const userActionLabelForIntent = (intent: UiEditIntent): string | null =>
 			return null;
 		case 'setTextParamSmart':
 			return 'Updating text';
+		case 'invokeAppOperation':
+			return 'Applying change';
 		case 'setParamControlState':
 			return 'Changing control mode';
 		case 'setParamConstraints':

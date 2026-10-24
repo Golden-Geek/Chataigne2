@@ -5,10 +5,10 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-24 on `main`, based on delivered `2d080975`, matching
+Last reconciled: 2026-10-24 on `main`, based on delivered `d52f5caf`, matching
 `origin/main` at milestone start. **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
-Whole-plan scope coverage is approximately 39%; P01-P07 are locally complete.
+Whole-plan scope coverage is approximately 40%; P01-P07 are locally complete.
 Hardware/platform and product-scale
 qualification retain their later owners.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
@@ -22,12 +22,13 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 packages, not commit counts. Spatializer's admitted preparation, bounded publication, source/path
 fences, identity preservation and passive failure recovery are qualified under C12.
 
-**Whole plan: approximately 39% complete.** P01-P07 are complete against their local
-acceptance criteria; P07 has all six checkpoints complete (100%); P08-P18 have
-not started. P00 baseline reconciliation is maintained separately.
+**Whole plan: approximately 40% complete.** P01-P07 are complete against their local
+acceptance criteria. P08's public operation boundary is complete locally: one of four checkpoints
+(25%). P09-P18 have not started.
+P00 baseline reconciliation is maintained separately.
 **7 of 18 implementation/qualification tasks are fully complete.**
 
-Overall progress is the equal-weight average of P01-P18: `(7 * 100 + 11 * 0) / 18`,
+Overall progress is the equal-weight average of P01-P18: `(7 * 100 + 25 + 10 * 0) / 18`,
 rounded to a whole percent. This measures scope coverage, not elapsed time, remaining effort, or
 product readiness. Task sizes differ substantially. P00 housekeeping and preserved pre-plan
 features do not inflate this percentage. Later product, platform and device acceptance remains open.
@@ -147,11 +148,25 @@ closed locally (100%); none remain.**
 | Termination and recovery | Complete locally | Confirmed-look/sequence continuity, terminal-owner fencing, authored initialization, immutable command outcomes, capped open-failure backoff and real coalesced-timer recovery pass 93 owning cases, script API, default build and strict workspace Clippy. |
 | Complete local qualification | Complete locally | 98 DMX cases cover both protocols' fake-time/native loopback acceptance, including live priority and ordered metadata. Script API, strict workspace Clippy, default build, formatting and diff checks pass; controlled actor timing and the acceptance map are recorded below. |
 
+### P08 completion checkpoints
+
+P08 has four fixed, equally weighted scope checkpoints. These measure verified requirements,
+not effort or commit counts. **One of four is complete locally (25%); three remain.**
+
+| Checkpoint | Status | Acceptance |
+| --- | --- | --- |
+| Public operation and result boundary | Complete locally | Domain-neutral operation/result envelope, atomic authored/history/lifecycle/app settlement, exact replies through public headless and workbench APIs, generated protocol 0.10.0 and null/absence distinction. Engine 614, protocol two, transport 74 plus headless integration, UI 56/93, type/build/strict/format gates pass. |
+| Atomic fragment paste | Open | Typed app-owned complete fragments, detached batch restoration/remapping, labels and exact source-to-created identity map; invalid/duplicate identities, references and compressed content validated before publication. |
+| Backend connection policy | Open | Typed app-owned connect operation validates membership, socket compatibility and replacement conflicts; the UI sends intent and owns no connection mutation semantics. |
+| Shared callers and complete acceptance | Open | UI/script/transport/headless use the same operations; paste polling/inferred identities and UI repair writes are removed. Concurrent creates, slow projection, undo/redo and project replacement pass owning acceptance. |
+
 ## Current handoff
 
-- **Next dependency-ready task: P08 Formula backend intents (0%, not started).** Resume through
-  the main plan's P08 acceptance; keep graph-domain mutation policy in the app backend behind
-  public Golden extension contracts. P03 remains closed with zero packages left.
+- **Active task: P08 Formula backend intents (25%, one of four checkpoints complete locally).**
+  The public operation/result boundary passes its complete gates. Next: typed app-owned complete
+  fragments and atomic paste. Backend connections and shared UI/script caller qualification remain
+  open; existing Formula UI mutation policy and identity polling are not claimed removed.
+  P03 remains closed with zero packages left.
 - **P07 is locally complete: six of six fixed checkpoints (100%).** All 98 DMX cases,
   script-template/API, default build, strict workspace Clippy, formatting and diff checks pass.
   Typed priority controls preserve property/script/command occurrence order, confirmed channels
@@ -221,7 +236,7 @@ External qualification is separate from implementation. A historical pass is not
 | P05 Transport trust | 100% | VERIFIED_LOCAL | PASSED all four checkpoints | Bundled/dev/LAN browser and native HTTP/WS operation, independent denial gates, exact CSP, reload reuse and restart fencing verified; native webview/platform interaction remains P17. |
 | P06 Dependencies | 100% | VERIFIED_LOCAL | PASSED all four checkpoints | Refreshed advisory DB, narrow necessary updates, supported frontend migration, licensing/provenance and correctly selected network/audio/build/browser checks verified. Unix/native platform behavior retains P17. |
 | P07 DMX streaming | 100% | VERIFIED_LOCAL | PASSED six of six checkpoints | 98 DMX cases, script API, default app, strict Clippy and formatting pass. Complete fake-time/native-loopback acceptance includes live priority, ordered metadata, termination/recovery and passive bounded actor service; P17/P18 retain platform/device qualification. |
-| P08 Formula backend intents | 0%         | NOT_STARTED    | PENDING                 | UI polling/identity and mutation policy verified; corruption not reproduced                                                                     |
+| P08 Formula backend intents | 25% | IN_PROGRESS | PASSED one of four checkpoints | Public atomic operation/result boundary, generated protocol and headless/workbench completion pass owning gates. Three checkpoints remain: atomic fragment paste, backend connections, shared caller/full acceptance and UI policy removal. |
 | P09 Graph document          | 0%         | NOT_STARTED    | PENDING                 | Ordered-map mutation costs source-derived                                                                                                       |
 | P10 Canvas                  | 0%         | NOT_STARTED    | PENDING                 | Projection diagnostic and crossing-edge reproduction; mounted performance open                                                                  |
 | P11 Workspace UX            | 0%         | NOT_STARTED    | PENDING                 | Collection/keyboard gaps source-reviewed; native usability open                                                                                 |
@@ -9036,5 +9051,101 @@ their owning `tests/` directories. Qualification uses fake clocks, controlled wo
 loopback; native webview, other platforms, physical interfaces and named devices retain P17/P18.
 
 **P07 closes locally: 6/6 (100%); P01-P07 are locally complete, 7/18 tasks. Whole-plan scope
-coverage is approximately 39%. P03 still has zero packages left.** Next: P08 Formula backend
-intents. Commit/push this verified milestone on `main` and retain the full P00-P18 goal.
+coverage is approximately 39%. P03 still has zero packages left.** Delivered as `d52f5caf`, pushed
+on `main`. Next: P08 Formula backend intents; retain the full P00-P18 goal.
+
+### P08 public operation boundary in progress
+
+The previous goal turn made progress: it closed P07 locally and pushed `d52f5caf`. This
+continuation reconciled the clean, synchronized checkout and traced the concrete Formula gaps:
+the UI polls for unseen ANode children, repairs pasted values/references in later writes and
+selects/replaces connection edges itself. Golden's existing ephemeral node-event intent cannot
+return authoritative created identities.
+
+The first of four fixed P08 checkpoints adds a domain-neutral operation envelope and a project
+lifecycle hook. The app owns its payload/validation; Golden owns the actor, existing atomic edit
+journal, grouped history, lifecycle and app settlement. Success carries the app's exact result
+only after stabilization; rejection rolls back and returns no result. A public synchronous facade
+supports exclusive headless engine owners. Protocol 0.10.0 and generated TypeScript carry the
+same envelope/result; the Golden UI adapter inherits the generated acknowledgement fields.
+
+Six owning Rust cases exercise exact identities without projection, domain/lifecycle/app-settle
+rollback, undo/redo, outer-group prefix preservation, production actor parity and early rejection.
+Generator and Rust test handle **2633** is live. Golden UI passes **48 cases**; the first Svelte
+check found the new variant missing from the exhaustive activity-label switch. That presentation
+case is now added; fresh UI checking is required. No Formula paste/connect/schema/script
+implementation or UI policy removal receives credit from this boundary alone.
+
+Handle **2633** completed successfully: optimized engine test compilation **8m08s**, all **six
+owning operation tests passed / 611 filtered**. UI checking then passed with zero errors and
+warnings after adding the exhaustive activity-label branch. The app lifecycle traits now live
+in focused `app/lifecycle.rs`, re-exported through their public module; the older aggregation
+file shrinks, while its remaining persistence/preferences decomposition stays P12.
+
+Public protocol qualification first passed the existing case and failed the new round trip:
+`Option<Value>` deserialization collapsed an explicit null reply into an absent result. A custom
+deserializer passed both cases but produced a ts-rs attribute warning, so it was rejected.
+Handle **48683** was intentionally stopped at its specifically identified owned compiler to
+correct that confirmed schema issue, not because an observation timed out. No result from its
+unfinished full-engine/transport/build gates receives credit.
+
+The final wire representation uses the generated `UiAppOperationResult { value }` container,
+so absent results and present null values round-trip with ordinary Serde. Rust/UI tests retain
+both assertions; no custom coercion or generator-warning suppression remains. Final protocol,
+generator, complete engine/transport, strict workspace and default build gates run in handle
+**57860**. Poll that handle before relevant Rust edits. P08 remains uncredited pending these gates.
+
+The final protocol cases pass (**two / zero failed**, compilation **12.72s**) and generation
+passes (**17.01s**) without warnings. The ordinary workbench action API discards replies, so a
+focused `session.invokeAppOperation` adapter now retains the exact app value through the existing
+queue/history/activity path. Eight cases cover null/exact values, delayed presentation, absent/
+staged/rejected/multiple acknowledgements and project/transport rejection. Golden UI now passes
+**56 cases**, app UI **93**, and the previous generated-client type check was clean; the final
+type check is live in **58585**. Full Rust gate handle **57860** remains live.
+
+Handle **58585** completed successfully: Golden UI **56 passes**, app UI **93 passes**, Svelte
+**zero errors / zero warnings**. Handle **57860** compiled the final engine artifact in **7m59s**
+and passed its complete selection: **614 passed / zero failed / three existing ignored / 617
+listed**, 1.07s. The six operation cases are included in those 614; do not add them again.
+The transport suite is now compiling in the same handle, followed by strict workspace Clippy
+and the default app build. Keep P08's boundary uncredited until those final gates pass.
+
+Handle **57860** passed transport qualification: **74 unit cases / one existing ignored**, one
+public headless-host integration case, and documentation tests (zero selected), after **1m53s**
+compilation. Strict workspace/all-target Clippy passed in **51.64s**. The default non-test app
+build is now live in that same handle and rebuilds the bundled UI from the changed generated
+protocol/session sources. The full-engine test executable SHA-256 is
+`42a97d7c31a725de3c9f380232c0f772ebc1259b56101e36c322b6904f074d74`.
+
+### P08 public operation boundary closure
+
+Handle **57860** is terminal and successful: default app build **2m34s**, including the rebuilt
+bundled UI. The executable SHA-256 is
+`2fab396c8f99792baf10c13059727ab5ecf72a0ca9b6cc460a0a791665b7b95f`.
+Final root and Golden Core `cargo fmt`, repository-configured Prettier and diff hygiene pass.
+A fresh supported codegen output matches all **119 generated protocol files** by hash. The first
+comparison command used an unavailable .NET path helper on Windows PowerShell; the corrected
+bounded-prefix comparison passes. No generated drift was established by that tooling failure.
+
+This closes **one of four P08 checkpoints locally (25%)**. Whole-plan scope coverage is now
+approximately **40%**, with **7/18 fully complete tasks**. The final evidence is **614 engine
+passes / three existing ignored**, **two protocol integration cases**, **74 transport unit passes /
+one existing ignored plus one public headless integration case**, **56 Golden UI cases**, **93 app
+UI cases**, zero Svelte errors/warnings, strict all-target workspace Clippy, default build and
+format/generated consistency checks. The six new Rust operation cases are included in the 614.
+
+Golden stays domain neutral. The public lifecycle hook and synchronous project facade share the
+production actor's atomic/history boundary. Results survive the ordinary workbench queue and
+activity path without identifying unseen children, while failed/staged/missing completion never
+fabricates an identity. App settlement occurs inside the same rollback boundary. Lifecycle traits
+live in a focused conventional module; their original public path remains the supported facade.
+The older app aggregation is reduced, with remaining oversized persistence/preferences cleanup
+retaining its P12 owner. No app-shell, manifest or lockfile change was made.
+
+**Remaining P08 checkpoints: three.** Atomic complete-fragment paste/remapping comes next,
+followed by backend connection policy and full shared UI/script/transport/headless qualification.
+The current Formula UI still owns paste polling, restoration writes and connection replacement;
+this milestone deliberately receives no credit for removing those. Use the existing public sparse
+capture/persistence boundary for complete authored content, including compressed state; do not
+base a full fragment on a UI projection alone or import private persistence helpers by path.
+Commit/push this verified boundary milestone on `main`; retain the full P00-P18 goal.

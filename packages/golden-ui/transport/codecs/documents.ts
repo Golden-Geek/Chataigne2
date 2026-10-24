@@ -490,6 +490,7 @@ export const fromRustAck = (ack: RustUiAck): UiAck => ({
 	error_message: ack.error_message ?? undefined,
 	earliest_event_time: ack.earliest_event_time ?? undefined,
 	latest_event_time: ack.latest_event_time ?? undefined,
+	result: ack.result,
 	history: ack.history
 });
 

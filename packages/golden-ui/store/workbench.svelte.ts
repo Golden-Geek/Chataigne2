@@ -33,6 +33,11 @@ import { createWorkbenchDescriptionStore } from './session/descriptions.svelte';
 import { createWorkbenchCustomEventStore } from './session/custom-events.svelte';
 import { createWorkbenchFooterHoverStore } from './session/footer-hover.svelte';
 import { createWorkbenchHistoryStore } from './session/history.svelte';
+import {
+	invokeWorkbenchAppOperation,
+	type WorkbenchAppOperation,
+	type WorkbenchAppOperationValue
+} from './session/app-operations';
 import { createWorkbenchLoggerStore } from './session/logger.svelte';
 import {
 	formatReconnectDelay,
@@ -166,6 +171,7 @@ export interface WorkbenchSession {
 	): void;
 	sendIntent(intent: UiEditIntent): Promise<void>;
 	sendIntents(intents: UiEditIntent[]): Promise<void>;
+	invokeAppOperation(request: WorkbenchAppOperation): Promise<WorkbenchAppOperationValue>;
 	setLogUiUpdateHz(hz: number): void;
 	dismissToast(toastId: number): void;
 	undo(): Promise<void>;
@@ -929,6 +935,8 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 		appendUiLogRecord,
 		sendIntent,
 		sendIntents,
+		invokeAppOperation: (request) =>
+			invokeWorkbenchAppOperation(request, intentPipeline, userActions),
 		setLogUiUpdateHz,
 		dismissToast,
 		undo,

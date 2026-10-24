@@ -1,7 +1,7 @@
 use super::*;
 
 /// Current UI protocol version.
-pub const UI_PROTOCOL_VERSION: &str = "0.9.0";
+pub const UI_PROTOCOL_VERSION: &str = "0.10.0";
 
 /// Stable control-plane failure category shared by HTTP and WebSocket clients.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]

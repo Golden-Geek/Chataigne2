@@ -232,6 +232,18 @@ pub enum UiEditIntent {
         /// App-owned event payload.
         payload: serde_json::Value,
     },
+    /// Executes an app-owned operation on the authoritative control thread.
+    ///
+    /// The app supplies domain validation and edits. The host returns the operation's
+    /// result only after atomic edit application and lifecycle stabilization succeed.
+    InvokeAppOperation {
+        /// App-owned namespace; Golden does not interpret domain payloads.
+        namespace: String,
+        /// Operation name within that namespace.
+        operation: String,
+        /// App-owned request DTO serialized as JSON.
+        payload: serde_json::Value,
+    },
     /// Request graph reevaluation.
     ReevaluateGraph,
     /// Clears retained logger records.
@@ -280,4 +292,17 @@ pub struct UiAck {
     pub latest_event_time: Option<EngineTime>,
     /// Current undo/redo state after applying the intent.
     pub history: UiHistoryState,
+    /// App-owned result, present only after a successful app operation commits.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub result: Option<UiAppOperationResult>,
+}
+
+/// Present app reply, including an explicit JSON null value.
+///
+/// The container distinguishes a valid null result from the absence of a result
+/// with ordinary Serde and generated TypeScript, without custom wire coercion.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct UiAppOperationResult {
+    /// App-owned result DTO serialized as JSON.
+    pub value: serde_json::Value,
 }
