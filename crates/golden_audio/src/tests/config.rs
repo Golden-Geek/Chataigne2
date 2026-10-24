@@ -4,6 +4,34 @@ use crate::{
 };
 
 #[test]
+fn serialized_gain_rejects_invalid_values_from_json_and_other_serde_formats() {
+    for value in [GainDb::SILENCE_DB - 0.1, GainDb::MAX_DB + 0.1, f32::MIN, f32::MAX] {
+        assert!(serde_json::from_value::<GainDb>(serde_json::json!(value)).is_err());
+    }
+    for value in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+        let deserializer = serde::de::value::F32Deserializer::<serde::de::value::Error>::new(value);
+        assert!(<GainDb as serde::Deserialize>::deserialize(deserializer).is_err());
+    }
+    for gain in [GainDb::SILENCE, GainDb::UNITY, GainDb::new(GainDb::MAX_DB).unwrap()] {
+        let encoded = serde_json::to_value(gain).unwrap();
+        assert_eq!(encoded, serde_json::json!(gain.get()));
+        assert_eq!(serde_json::from_value::<GainDb>(encoded).unwrap(), gain);
+    }
+}
+
+#[test]
+fn nested_engine_configuration_fails_before_invalid_scalars_can_be_used() {
+    let original = serde_json::to_value(crate::AudioEngineConfig::default()).unwrap();
+    for (field, invalid) in [("sample_rate", 0), ("internal_block_frames", 0)] {
+        let mut value = original.clone();
+        value[field] = serde_json::json!(invalid);
+        assert!(serde_json::from_value::<crate::AudioEngineConfig>(value).is_err());
+    }
+    let request = serde_json::json!({"SetMasterGain": {"gain": 25.0}});
+    assert!(serde_json::from_value::<crate::AudioCommand>(request).is_err());
+}
+
+#[test]
 fn gain_validates_and_converts_decibels() {
     assert_eq!(GainDb::SILENCE.to_linear(), 0.0);
     assert!((GainDb::UNITY.to_linear() - 1.0).abs() < f32::EPSILON);

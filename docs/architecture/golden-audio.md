@@ -64,8 +64,8 @@ targets require a fresh identity/parent/type check. Gain writeback, bounded diag
 result publication have separate edit receipts, so publication failures cannot replay native effects.
 Only pending gain work requests a command-service snapshot. Disable/removal cancels preparation;
 native retirement invalidates captured targets. This does not establish P04's ordering barrier between
-gain commands and configuration exchanges. Remaining C01 feedback/failure qualification stays open
-in the status ledger.
+gain commands and configuration exchanges. C01's local feedback/failure qualification is recorded
+in the status ledger; later platform and device qualification remains separate.
 
 Sound Card's `routes` boundary owns device-selection resets and initial default seeding. Resets
 share a 16-root deletion budget across input/output and wait for the preceding edit completion
@@ -139,6 +139,12 @@ it to a dense immutable `RenderPlan`:
 4. All render, conversion, bridge, voice, and analysis-frame storage is preallocated from explicit
    `EngineLimits`.
 5. A rejected generation leaves the last valid plan active.
+
+`SampleRate`, `FrameCount` and `GainDb` enforce their invariants at construction and deserialization.
+Serde decoding calls the same checked constructors, including when those scalars are nested in
+configuration or command DTOs. Zero/unsupported rates, zero frame counts and non-finite/out-of-range
+gains fail before they can enter render arithmetic. Their wire representation remains a primitive
+number; hosts and UI do not repair invalid values after decoding.
 
 Channel identity is independent of label, order, driver, device, and physical-channel index.
 Chataigne derives it from the persistent channel node UUID. The engine may describe these stable

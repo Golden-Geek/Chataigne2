@@ -2,9 +2,15 @@ use serde::{Deserialize, Serialize};
 
 use crate::AudioError;
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(transparent)]
 pub struct SampleRate(u32);
+
+impl<'de> Deserialize<'de> for SampleRate {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        Self::new(u32::deserialize(deserializer)?).map_err(serde::de::Error::custom)
+    }
+}
 
 impl SampleRate {
     pub const MIN: u32 = 8_000;
@@ -33,9 +39,15 @@ impl Default for SampleRate {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(transparent)]
 pub struct FrameCount(u32);
+
+impl<'de> Deserialize<'de> for FrameCount {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        Self::new(u32::deserialize(deserializer)?).map_err(serde::de::Error::custom)
+    }
+}
 
 impl FrameCount {
     pub fn new(value: u32) -> Result<Self, AudioError> {

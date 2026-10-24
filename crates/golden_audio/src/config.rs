@@ -8,9 +8,15 @@ use crate::{
     AudioRecoveryPolicy, AudioRouteId, EngineLimits, FrameCount, PhysicalChannelKey, SampleRate,
 };
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, PartialOrd, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Serialize)]
 #[serde(transparent)]
 pub struct GainDb(f32);
+
+impl<'de> Deserialize<'de> for GainDb {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        Self::new(f32::deserialize(deserializer)?).map_err(serde::de::Error::custom)
+    }
+}
 
 impl GainDb {
     pub const SILENCE_DB: f32 = -120.0;
