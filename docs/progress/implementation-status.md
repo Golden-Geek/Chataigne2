@@ -5,8 +5,9 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-25 on `main`, based on delivered `a25f2123`. P10's retained spatial
-primitive is verified; canvas integration remains and no P10 checkpoint is complete yet. **C01-C12 are locally closed: 12/12 packages (100%).
+Last reconciled: 2026-10-25 on `main`, based on delivered `2cf7c50a`. P10's spatial primitive
+is delivered and focused canvas decomposition is verified. Retained projection integration
+remains; no P10 checkpoint is complete yet. **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
 Whole-plan scope coverage is 50%; P01-P09 are locally complete.
 Hardware/platform and product-scale
@@ -33,8 +34,9 @@ rounded to a whole percent. This measures scope coverage, not elapsed time, rema
 product readiness. Task sizes differ substantially. P00 housekeeping and preserved pre-plan
 features do not inflate this percentage. Later product, platform and device acceptance remains open.
 
-Per-task percentages below use the task's acceptance scope: 0% means not started and 100% means
-its required implementation and owning checks are complete. Partial percentages are coarse
+Per-task percentages below use the task's acceptance scope: 0% means no acceptance checkpoint
+is closed (an in-progress task may still be 0%); 100% means its required implementation and
+owning checks are complete. Partial percentages are coarse
 estimates supported by the checkpoints below; unverified work receives no completion credit.
 Update the overview, task percentages and remaining checkpoints at every milestone. Batch counts
 record delivery history and are never the progress denominator.
@@ -178,7 +180,7 @@ P10 has three fixed, equally weighted checkpoints derived from its acceptance cr
 
 | Checkpoint | Status | Acceptance |
 | --- | --- | --- |
-| Independent revisions and retained geometry | In progress | Separate topology, geometry, payload, activity and preview invalidation. Retain identity/spatial indexes and use transient drag overlays so local edits avoid full-document projection rebuilds. Mutable spatial operations are implemented; canvas integration remains. |
+| Independent revisions and retained geometry | In progress | Separate topology, geometry, payload, activity and preview invalidation. Retain identity/spatial indexes and use transient drag overlays so local edits avoid full-document projection rebuilds. Mutable spatial operations and focused canvas ownership are implemented; retained projection integration remains. |
 | Scoped routing and correct culling | Not started | Invalidate incident/obstacle routes, retain bounded routing caches/work and interactive previews, and cull crossing edges by their paths/bounds even when both endpoints are offscreen. Preserve loops and changing-obstacle correctness. |
 | Mounted correctness and performance qualification | Not started | Exercise mounted drag, pan/zoom, frame selection, activity, crossing wires, loops and changing obstacles. Retain action/frame measurements against documented normal/stress targets; node counts or two animation frames alone do not prove this checkpoint. |
 
@@ -270,7 +272,7 @@ External qualification is separate from implementation. A historical pass is not
 | P07 DMX streaming           | 100%       | VERIFIED_LOCAL | PASSED six of six checkpoints  | 98 DMX cases, script API, default app, strict Clippy and formatting pass. Complete fake-time/native-loopback acceptance includes live priority, ordered metadata, termination/recovery and passive bounded actor service; P17/P18 retain platform/device qualification. |
 | P08 Formula backend intents | 100%       | VERIFIED_LOCAL | PASSED four of four checkpoints | Shared UI/script/HTTP/WS/headless operations, complete atomic fragments, backend connection policy and exact identity replies pass. Final native acceptance uses the default executable and isolated authenticated sessions; later product/platform qualification retains its owners. |
 | P09 Graph document          | 100%       | VERIFIED_LOCAL | PASSED three of three checkpoints | Stable storage, indexed structural edits and exact rollback pass. Current/pre-P09 harness preserves 1,240 fixed-delta samples; public default/no-Serde contracts, Alchemist/statechart consumers, native selection drag/delete undo/redo, strict checks and default build qualify the final checkpoint. |
-| P10 Canvas                  | 0%         | IN_PROGRESS    | Spatial primitive in validation | Mutable spatial entry operations, exact queries and bounded grid expansion pass owning UI checks. Canvas decomposition/retained integration, independent revisions, routing/culling and mounted qualification remain. |
+| P10 Canvas                  | 0%         | IN_PROGRESS    | Retained projection integration next | Mutable spatial operations and focused canvas ownership pass owning UI/mounted checks. Retained projection integration, independent revisions, routing/culling and mounted performance qualification remain. |
 | P11 Workspace UX            | 0%         | NOT_STARTED    | PENDING                        | Collection/keyboard gaps source-reviewed; native usability open                                                                                                                                                                                                         |
 | P12 Boundaries/gates        | 0%         | NOT_STARTED    | PENDING                        | App policy leak, omitted graph tests, oversized files, unsafe conversions; recurring incremental native-link artifact gap                                                                                                                                               |
 | P13 Formula execution       | 0%         | NOT_STARTED    | PENDING                        | Historical profiles retained; production parallelism not mandated                                                                                                                                                                                                       |
@@ -9751,3 +9753,51 @@ Preserve backend mutation semantics and component public methods/snippet hooks t
 
 **P10 remains 0%, zero of three fixed checkpoints; whole-plan coverage stays 50%.** Do not count
 support batches as additional checkpoints or promote helper tests into mounted-canvas evidence.
+
+### P10 focused canvas ownership
+
+Previous goal turn: **progress**. The retained spatial prerequisite and its final gates are
+committed/pushed as `2cf7c50a`. The next dependency-ready work is the first P10 checkpoint;
+this change removes the oversized component before changing its reactive projection path.
+
+`GraphCanvas.svelte` is now a **648-line** composition/rendering facade, down from 3,110 lines.
+Focused Svelte 5 controllers own viewport/navigation (**424 lines**), gestures/selection and
+connection input (**736**), optimistic editing/rename lifecycle (**452**), and node/socket
+geometry with projection/routing composition (**755**). `NodeView.svelte` owns node markup and
+scoped node/socket styles (**919**); internal props/gesture contracts occupy **169** lines.
+Every touched source remains below 1,000 lines. Controllers expose reactive getters and explicit
+operations; only the owning binding/transient-edit boundaries expose setters. App policy,
+protocol declarations, backend mutation semantics and public component methods are unchanged.
+
+The four controllers preserve all **174 original top-level operations**, checked by comparing
+their TypeScript syntax trees after reversing only the new ownership qualifiers and normalizing
+shorthand/export/parenthesis presentation. Props and snippet signatures remain the existing
+consumer contract. Node styles move with their markup; ancestor gesture/socket-label selectors
+become equivalent node-local classes/attributes, without global CSS or new wrapper elements.
+
+The passive mounted fixture now checks actual node elements, live label/activity/selection
+updates, app-provided node/header/socket/world/toolbar snippets, connected and nested inputs,
+collapsed/header sockets, self-loop gradient paths, bypass wires, scoped label opacity, and
+public Frame Selection/Home/coordinate methods. The first style assertion sampled the existing
+opacity transition before it completed; the test now waits for the final computed style instead
+of sleeping or disabling animation. Headless Edge **156.0.4314.42** passes the expanded case.
+This fixture changes data and calls public component methods; it synthesizes no input events.
+
+Final root unit tests pass **224 cases** (27 audio UI, 19 graph UI, 61 Golden UI, 117 app UI).
+Svelte checking passes with **zero errors / zero warnings** and the expanded mounted browser
+case passes. The bundled default build passes (**2m58s**, frontend rebuilt), SHA-256
+`ee1a1a90aa32aa6916a2bd1b37861d2739c23a19cb7b6da9fc005dea68f3cbf1`.
+Root/Core formatters, focused Prettier checks and final diff checks pass. Remote `main` is
+reconciled without divergent commits; no owned validation process remains running. Rust runtime
+source and wire declarations are unchanged.
+
+The remaining first-checkpoint work is explicit: retain the actual canvas's node/identity/spatial
+state, apply sparse drag/resize overlays, and separate topology/geometry/payload/activity/preview
+invalidation. Geometry still calls the full projection/index builders and the app adapter still
+advances every revision plane conservatively. Then qualify scoped routing/crossing-edge culling
+and real action/frame performance at normal/stress tiers. The expanded smoke does not close
+the mounted interaction/performance checkpoint.
+
+**P10 remains 0%, zero of three fixed checkpoints; whole-plan coverage stays 50%, nine of eighteen
+tasks complete.** No new checkpoint or delivery-batch denominator was added. Keep the full
+P00-P18 goal active after committing/pushing this verified decomposition milestone.

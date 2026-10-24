@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
 import { createServer } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
+import { verifyCanvasPresentation } from "./canvas-presentation.mjs";
 
 const fixtureRoot = fileURLToPath(new URL("./fixture/", import.meta.url));
 const repositoryRoot = fileURLToPath(new URL("../../../../", import.meta.url));
@@ -61,7 +62,7 @@ try {
     );
     assert.deepEqual(
       await page
-        .locator(".graph-canvas [data-node-id]")
+        .locator(".graph-canvas article.node[data-node-id]")
         .evaluateAll((elements) =>
           elements.map((element) => element.getAttribute("data-node-id")),
         ),
@@ -78,10 +79,11 @@ try {
   await expectVisible(1, []);
   await setNodes([]);
   await expectVisible(0, []);
+  await verifyCanvasPresentation(page);
   assert.deepEqual(errors, []);
   console.log(
     JSON.stringify({
-      test: "mounted canvas spatial queries",
+      test: "mounted canvas spatial queries, presentation and navigation",
       passed: true,
       browser: await browser.version(),
     }),
