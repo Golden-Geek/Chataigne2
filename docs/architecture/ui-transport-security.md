@@ -80,6 +80,10 @@ URLs and handshake response headers. Origin checks remain mandatory alongside th
 Concurrent callers share one pending bootstrap. An invalidation revision prevents a delayed
 renewal from restoring rejected credentials. A socket opens only after bootstrap, with one opening
 attempt shared across callers. Reconnect validates/renews its credential before opening again.
+Browser tabs retain only the opaque token in session storage, keyed by backend base URL. Reload
+revalidates it with the host before admitting any operation, preserving the existing registry slot.
+Blocked storage falls back to an in-memory session. Revocation/restart rejects stored credentials;
+stored capability or expiry claims are never trusted.
 Observation-only clients omit authoring identity binding. A selected socket host also supplies
 the default HTTP/bootstrap base, so LAN requests cannot fall back to localhost.
 HTTP retries a rejected mutation only after a pre-dispatch 401; 403, 503, timeouts and network
@@ -91,6 +95,29 @@ cache supplies authenticated HTTP calls and the server-prepared WebSocket offers
 lives in focused `transport/codecs/{values,documents,projects}.ts`; `http.ts` owns request delivery,
 and `ws-contracts.ts` owns socket bookkeeping types. UI stores continue to use transport interfaces.
 
-CSP and the complete supported-surface qualification remain P05's final checkpoint in the
-[current status](../progress/implementation-status.md). See the
-[Tauri security reference](../reference/tauri-security.md) for native command permissions and CSP.
+## Frontend content policy
+
+`ui_server/content_security.rs` prepares inline-script hashes from immutable bundled HTML at host
+startup, using an HTML5 parser and SHA-256. Preparation is bounded to 256 HTML assets, 2 MiB per
+asset and 64 inline scripts per asset; invalid UTF-8 or duplicate HTML paths fail startup. No HTML
+rewriting or engine work is needed. Each served HTML response carries a CSP header with its own
+hashes and the admitted authority's exact WebSocket endpoint. All responses disable MIME sniffing.
+
+Scripts allow same-origin assets and the prepared bootstrap hashes, without inline/eval exceptions.
+Styles retain an inline exception for Svelte's dynamic presentation. Images/fonts permit local
+data assets; workers permit local/blob sources. Objects, base-URL changes, framing and form
+submissions are disabled. Native IPC sources remain explicit. This is the built-in plain-HTTP host's
+policy; HTTPS termination and unrelated proxy configurations require their own qualification.
+
+`golden_ui/host/content-security-policy.mjs` supplies SvelteKit's generated hash/nonce policy.
+The app's development response hook retains framework nonces while narrowing connections to the
+browser-visible host, selected backend port and HMR endpoint. Golden's launcher and `xtask watch`
+forward that port through `VITE_GC_UI_BACKEND_PORT`; separately launched Vite must receive the same
+setting when the backend uses a non-default port. Bundled HTML's static meta policy and the HTTP
+header are enforced together. The header supplies `frame-ancestors`, which meta CSP cannot enforce.
+
+The [Tauri security reference](../reference/tauri-security.md) records the compiled-asset policy
+and native command permissions. Qualification results and limits live in the
+[current status](../progress/implementation-status.md). Reproduce the network/DOM surface check
+with `node tools/qualification/transport-security.mjs BINARY HEADLESS_BROWSER OUTPUT_JSON`; it owns
+an isolated preferences directory, temporary listener ports and a separate headless browser.

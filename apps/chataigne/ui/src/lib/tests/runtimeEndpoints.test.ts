@@ -28,4 +28,21 @@ describe('resolveRuntimeEndpoints', () => {
 			wsUrl: 'wss://chataigne.example.test/api/ui/ws'
 		});
 	});
+	it('uses the configured development backend port without replacing the visible hostname', () => {
+		expect(
+			resolveRuntimeEndpoints(
+				{ origin: 'http://127.0.0.1:5174' },
+				{ development: true, developmentBackendPort: 7041 }
+			)
+		).toEqual({
+			httpBaseUrl: 'http://127.0.0.1:7041/api/ui',
+			wsUrl: 'ws://127.0.0.1:7041/api/ui/ws'
+		});
+		expect(() =>
+			resolveRuntimeEndpoints(
+				{ origin: 'http://localhost:5173' },
+				{ development: true, developmentBackendPort: NaN }
+			)
+		).toThrow();
+	});
 });

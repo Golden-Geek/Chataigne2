@@ -22,6 +22,7 @@ impl TestHost {
             listener: TcpListener::bind("127.0.0.1:0").unwrap(),
             commands,
             state: ServerState {
+                frontend_security: Arc::new(FrontendSecurity::default()),
                 sessions: Arc::new(SessionRegistry::new(UiSessionCapabilities::ALL)),
                 request_access: Arc::new(RequestAccessPolicy::new(&["http://127.0.0.1:5173".into()], &[]).unwrap()),
                 read_model: runtime.read_model(),

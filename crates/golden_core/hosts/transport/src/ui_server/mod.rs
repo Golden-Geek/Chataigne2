@@ -42,6 +42,7 @@ use crate::project_host;
 mod access;
 mod admission;
 mod application_error;
+mod content_security;
 mod delivery;
 mod http;
 mod hub;
@@ -49,6 +50,7 @@ mod session;
 mod websocket;
 
 use application_error::*;
+use content_security::FrontendSecurity;
 use delivery::*;
 use http::*;
 use hub::*;
@@ -194,6 +196,7 @@ impl Default for UiServerConfig {
 }
 
 struct ServerState<T: ProjectLifecycle> {
+    frontend_security: Arc<FrontendSecurity>,
     sessions: Arc<SessionRegistry>,
     request_access: Arc<RequestAccessPolicy>,
     runtime: ProductionRuntime<T>,
@@ -207,6 +210,7 @@ struct ServerState<T: ProjectLifecycle> {
 impl<T: ProjectLifecycle> Clone for ServerState<T> {
     fn clone(&self) -> Self {
         Self {
+            frontend_security: self.frontend_security.clone(),
             sessions: self.sessions.clone(),
             request_access: self.request_access.clone(),
             runtime: self.runtime.clone(),
@@ -495,6 +499,7 @@ pub fn run_with_ui_server_config<T: ProjectLifecycle + 'static>(
 
 /// Runs the built-in HTTP and WebSocket host through the production application facade.
 pub fn run_ui_server<T: ProjectLifecycle + 'static>(engine: Engine<T>, config: UiServerConfig) -> std::io::Result<()> {
+    let frontend_security = Arc::new(FrontendSecurity::prepare(config.frontend_assets)?);
     let request_access = Arc::new(RequestAccessPolicy::new(
         &config.allowed_origins,
         &config.allowed_hosts,
@@ -525,6 +530,7 @@ pub fn run_ui_server<T: ProjectLifecycle + 'static>(engine: Engine<T>, config: U
     );
 
     let state = ServerState {
+        frontend_security,
         sessions: Arc::new(SessionRegistry::new(config.session_capabilities)),
         request_access,
         runtime,

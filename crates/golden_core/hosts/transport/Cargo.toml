@@ -8,6 +8,7 @@ repository.workspace = true
 
 [dependencies]
 base64.workspace = true
+dom_query = "0.27"
 getrandom = "0.4"
 golden_engine = { path = "../../engine" }
 golden_persistence.workspace = true
@@ -16,6 +17,7 @@ futures-util = "0.3"
 httparse = "1.10"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+sha2.workspace = true
 tokio = { version = "1", features = ["net", "rt", "time"] }
 tokio-tungstenite = "0.29"
 url = "2.5"

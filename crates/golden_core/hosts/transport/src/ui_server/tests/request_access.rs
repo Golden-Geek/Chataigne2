@@ -133,6 +133,7 @@ fn exchange(build: impl FnOnce(std::net::SocketAddr) -> String) -> String {
             .unwrap();
     let (cmd_tx, commands) = mpsc::sync_channel(64);
     let state = ServerState {
+        frontend_security: Arc::new(FrontendSecurity::default()),
         sessions: Arc::new(SessionRegistry::new(golden_protocol::UiSessionCapabilities::ALL)),
         request_access: Arc::new(RequestAccessPolicy::new(&["http://127.0.0.1:5173".into()], &[]).unwrap()),
         read_model: runtime.read_model(),

@@ -8,7 +8,15 @@
   and `apps/chataigne/capabilities/default.json` grants it only to the `main` window.
 - The main webview loads from the loopback UI server in both bundled and development modes, so its
   capability is limited to `localhost` and `127.0.0.1` origins.
-- `apps/chataigne/tauri.conf.json` still sets `security.csp` to `null`.
+- `apps/chataigne/tauri.conf.json` sets explicit production and development CSP baselines.
+  Compiled assets permit local scripts with Tauri's generated bootstrap hashes, local/blob
+  workers, explicit native IPC and inline styles required by Svelte. Objects, base changes,
+  framing and form submissions are disabled. Development additionally permits local backend
+  HTTP ports. No inline-script or eval exception is enabled.
+- The main webview's remote HTTP pages receive policy from their serving host: the bundled
+  Golden HTTP host hashes its exact HTML assets; SvelteKit preserves generated nonces while
+  the development response hook restricts backend/HMR connection endpoints. Tauri's compiled
+  asset policy does not replace those HTTP response policies.
 
 ## Rules
 
@@ -29,8 +37,8 @@ expiry or host restart. Native/headless peers retain the listener's trusted-netw
 capabilities scope transport operations without establishing that peer's identity.
 
 The [implementation plan](../plan/Chataigne2_Codex_Implementation_Plan.md#p05--establish-transport-trust-while-keeping-lan-convenient)
-owns the remaining CSP and supported-surface qualification, preserving password-free LAN and
-development use. CSP remains open: it must permit the configured UI assets and transport without restoring broad global Tauri
-access. Treat direct Tauri imports outside `golden_ui/host/desktop.ts` and unreviewed permission
+owns the supported-surface qualification, preserving password-free LAN and
+development use. Native webview, focus and dialog behavior require their own platform evidence;
+a headless browser run does not prove those checks. Treat direct Tauri imports outside `golden_ui/host/desktop.ts` and unreviewed permission
 additions as regressions. Current qualification is recorded only in the
 [status ledger](../progress/implementation-status.md).

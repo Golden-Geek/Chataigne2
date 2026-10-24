@@ -13,6 +13,7 @@ pub(super) struct HttpResponse<'a> {
     pub(super) stream: &'a mut TcpStream,
     pub(super) cors_origin: Option<String>,
     sensitive: bool,
+    content_security_policy: Option<String>,
 }
 
 impl<'a> HttpResponse<'a> {
@@ -21,6 +22,7 @@ impl<'a> HttpResponse<'a> {
             stream,
             cors_origin: None,
             sensitive: false,
+            content_security_policy: None,
         }
     }
 }
@@ -145,6 +147,7 @@ pub(super) fn handle_connection<T: ProjectLifecycle>(
     if request.method.eq_ignore_ascii_case("GET")
         && let Some(asset) = resolve_frontend_asset(state.frontend_assets, &request.path)
     {
+        stream.content_security_policy = state.frontend_security.policy(asset, &admission.authority);
         write_response(stream, "200 OK", asset.content_type, asset.bytes)?;
         return Ok(());
     }
@@ -633,7 +636,8 @@ pub(super) fn write_response(
          Content-Type: {content_type}\r\n\
          Content-Length: {}\r\n\
          Vary: Origin\r\n\
-         {}{}\
+         X-Content-Type-Options: nosniff\r\n\
+         {}{}{}\
          {cors}\
          Connection: close\r\n\r\n",
         body.len(),
@@ -647,6 +651,10 @@ pub(super) fn write_response(
         } else {
             ""
         },
+        stream
+            .content_security_policy
+            .as_ref()
+            .map_or_else(String::new, |policy| format!("Content-Security-Policy: {policy}\r\n")),
     );
 
     stream.stream.write_all(headers.as_bytes())?;

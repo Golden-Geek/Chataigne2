@@ -24,6 +24,47 @@ afterEach(() => {
 });
 
 describe('host session credentials', () => {
+	it('reuses a tab credential after reload and validates it again before use', async () => {
+		const entries = new Map<string, string>();
+		const storage = {
+			getItem: (key: string) => entries.get(key) ?? null,
+			setItem: (key: string, value: string) => {
+				entries.set(key, value);
+			},
+			removeItem: (key: string) => {
+				entries.delete(key);
+			}
+		};
+		const fetchImpl = vi
+			.fn<typeof fetch>()
+			.mockResolvedValueOnce(Response.json(credential()))
+			.mockResolvedValueOnce(Response.json(credential()))
+			.mockResolvedValueOnce(new Response(null, { status: 401 }))
+			.mockResolvedValueOnce(Response.json(credential('b')));
+		const options = { baseUrl: 'http://localhost:7010/api/ui', fetchImpl, storage };
+		await createUiSessionProvider(options).credentials();
+		await createUiSessionProvider(options).credentials();
+		expect(new Headers(fetchImpl.mock.calls[1][1]?.headers).get('authorization')).toBe(
+			`Bearer ${credential().token}`
+		);
+		const restarted = await createUiSessionProvider(options).credentials();
+		expect(restarted.token).toBe(credential('b').token);
+		expect(new Headers(fetchImpl.mock.calls[3][1]?.headers).has('authorization')).toBe(false);
+		expect([...entries.values()]).toEqual([credential('b').token]);
+	});
+
+	it('continues with an admitted memory session when tab storage is unavailable', async () => {
+		const denied = () => {
+			throw new Error('storage denied');
+		};
+		const session = createUiSessionProvider({
+			baseUrl: '/api/ui',
+			fetchImpl: async () => Response.json(credential()),
+			storage: { getItem: denied, setItem: denied, removeItem: denied }
+		});
+		expect((await session.credentials()).token).toBe(credential().token);
+	});
+
 	it('shares one bootstrap across concurrent callers and renews the same credential on reconnect', async () => {
 		const fetchImpl = vi.fn(async () => Response.json(credential()));
 		const session = createUiSessionProvider({

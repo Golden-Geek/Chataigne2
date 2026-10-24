@@ -211,7 +211,10 @@ fn frontend_command(workspace_root: &Path, config: &WatchConfig) -> Command {
     ];
     eprintln!("[watch][frontend] command: {}", command_display(&npm, &args));
     let mut command = Command::new(npm);
-    command.args(args).current_dir(workspace_root.join("apps/chataigne/ui"));
+    command
+        .args(args)
+        .env("VITE_GC_UI_BACKEND_PORT", config.backend_port.to_string())
+        .current_dir(workspace_root.join("apps/chataigne/ui"));
     command
 }
 

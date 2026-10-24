@@ -5,10 +5,10 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-24 on `main`, based on delivered `90c5264e`, matching
+Last reconciled: 2026-10-24 on `main`, based on delivered `cbd3e277`, matching
 `origin/main` at milestone start. **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
-Whole-plan scope coverage is approximately 26%; P01-P04 are locally complete and P05 is 75%.
+Whole-plan scope coverage is approximately 28%; P01-P05 are locally complete.
 Hardware/platform and product-scale
 qualification retain their later owners.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
@@ -22,11 +22,11 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 packages, not commit counts. Spatializer's admitted preparation, bounded publication, source/path
 fences, identity preservation and passive failure recovery are qualified under C12.
 
-**Whole plan: approximately 26% complete.** P01-P04 are complete against their local
-acceptance criteria; P05 is 75%; P06-P18 have not started. P00 baseline reconciliation is maintained separately.
-**4 of 18 implementation/qualification tasks are complete (22%).**
+**Whole plan: approximately 28% complete.** P01-P05 are complete against their local
+acceptance criteria; P06-P18 have not started. P00 baseline reconciliation is maintained separately.
+**5 of 18 implementation/qualification tasks are complete (28%).**
 
-Overall progress is the equal-weight average of P01-P18: `(4 * 100 + 75 + 13 * 0) / 18`,
+Overall progress is the equal-weight average of P01-P18: `(5 * 100 + 13 * 0) / 18`,
 rounded to a whole percent. This measures scope coverage, not elapsed time, remaining effort, or
 product readiness. Task sizes differ substantially. P00 housekeeping and preserved pre-plan
 features do not inflate this percentage. Later product, platform and device acceptance remains open.
@@ -110,25 +110,29 @@ or a promised commit count. **Four of four are complete locally (100%).**
 ### P05 completion checkpoints
 
 P05 has four equally weighted acceptance checkpoints, fixed before continuing scoped sessions.
-These measure verified scope, not effort or a promised number of commits. **Three of four are complete locally (75%).**
+These measure verified scope, not effort or a promised number of commits. **All four are complete locally (100%).**
 
 | Checkpoint | Status | Acceptance |
 | --- | --- | --- |
 | HTTP/WS request admission | Complete locally | Host and Origin checks precede dispatch/upgrade; CORS is exact; framing is bounded and unambiguous; the selected frontend origin is registered explicitly. |
 | Scoped session capabilities | Complete locally | Host-owned 128-session registry, one-hour expiry/renewal, revocation/restart fencing, generated capability DTOs and exhaustive HTTP/WS privilege admission verified. |
 | Client bootstrap and recovery | Complete locally | Shared credentials, coalesced startup/reconnect, stale-token renewal, observation-only binding and selected LAN endpoint ownership verified. Rejected/uncertain mutations retain explicit outcomes. |
-| CSP and complete qualification | Open | CSP covers supported bundled/dev assets and transport, explicit native permissions remain scoped, and HTTP/WS independently reject missing/stale/underprivileged capabilities before mutation or file access. |
+| CSP and local surface qualification | Complete locally | Exact bundled HTML hashes and dev nonces work over loopback, the local LAN interface and a separate configured frontend; real HTTP/WS admission, reload reuse, CSP injection denial and host restart verified. Native permission scope is unchanged; native webview/platform interaction remains P17. |
 
 ## Current handoff
 
-- **P05 is 75% complete: three of four fixed checkpoints.** Request admission, scoped sessions
-  and shared client bootstrap/recovery are locally verified. Continue CSP and the supported-surface
-  matrix, including served/dev/LAN/native clients and reload/session pressure. Native peers retain
-  the trusted-listener policy; capabilities do not establish peer identity.
-- Golden Transport passes **71 unit cases and one public headless-host integration case**, with
-  one existing manual snapshot benchmark ignored. Golden UI passes **35 cases**, the app UI
-  **92 cases**, and the native Node loopback/restart check **one case**. Svelte reports zero
-  errors/warnings; the production UI build and strict workspace/all-target Clippy pass.
+- **P05 is locally complete: four of four fixed checkpoints (100%).** Bundled/dev/LAN browser
+  operation, native HTTP/WS, missing/stale/underprivileged denial, CSP and reload session reuse
+  are verified. Native webview/focus/dialog qualification remains P17; it was not automated.
+  Native peers retain the trusted-listener policy; capabilities do not establish peer identity.
+  Continue P06's authoritative dependency/advisory refresh after delivering this milestone.
+- Golden Transport passes **74 unit cases and one public headless-host integration case**, with
+  one existing manual snapshot benchmark ignored.
+  Golden Desktop passes **seven cases / one subprocess helper ignored**; xtask passes **one unit
+  and six integration cases**. Golden UI passes **39 cases**, the app UI **93 cases**, and the
+  native Node loopback/restart check **one case**. Svelte reports zero errors/warnings; production
+  UI and default app builds and strict workspace/all-target Clippy pass. The latest complete
+  transport integration outcome is recorded in the milestone evidence below.
 - Prior request-admission milestone: Golden Desktop passed seven unit cases, with one subprocess
   helper ignored in direct selection. Those executions predate this session-contract milestone.
 - **P04 is locally complete: four of four checkpoints (100%).** Validated scalar decoding,
@@ -169,7 +173,7 @@ External qualification is separate from implementation. A historical pass is not
 | P02 Schedule/actor failures | 100%       | VERIFIED_LOCAL | PASSED batches 1-3      | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                                        |
 | P03 Bounded I/O/lifecycle | 100% | VERIFIED_LOCAL | PASSED C01-C12 | All twelve closure packages locally verified; Spatializer closes the bounded service/lifecycle audit. External qualification retains later owners. |
 | P04 Audio order/types | 100% | VERIFIED_LOCAL | PASSED all four checkpoints | Checked scalar decoding, ordered command/shutdown admission, production plan/gain sequence and generation barriers, dense targets and allocation/deallocation transition guards verified. Native/platform qualification retains P17/P18. |
-| P05 Transport trust | 75% | IN_PROGRESS | PASSED admission/session/client checkpoints | Bounded scoped credentials, exhaustive HTTP/WS gates, generated contracts and shared renewal verified. CSP and the supported-surface matrix remain open. |
+| P05 Transport trust | 100% | VERIFIED_LOCAL | PASSED all four checkpoints | Bundled/dev/LAN browser and native HTTP/WS operation, independent denial gates, exact CSP, reload reuse and restart fencing verified; native webview/platform interaction remains P17. |
 | P06 Dependencies | 0% | NOT_STARTED | FAILED baseline | Latest product CI reports eight RustSec IDs and npm audit failures; refresh advisories before repair. |
 | P07 DMX streaming           | 0%         | NOT_STARTED    | PENDING                 | Refresh/filter/service gaps; protocol loopback qualification needed                                                                             |
 | P08 Formula backend intents | 0%         | NOT_STARTED    | PENDING                 | UI polling/identity and mutation policy verified; corruption not reproduced                                                                     |
@@ -8216,3 +8220,68 @@ supported-surface matrix remain open, including real served/dev/LAN/browser beha
 session-pressure qualification. Whole-plan coverage is **~26%**, with P01-P04 still the four
 locally complete tasks. Commit/push this verified contract milestone before continuing that final
 checkpoint. P03 remains closed at 12/12 packages; keep the full P00-P18 goal active.
+
+## P05 closed: frontend policy and supported transport surfaces
+
+2026-10-24 on `main`, based on delivered `cbd3e277`. The previous user-facing turn answered a
+status question without changing authoritative state and is classified as no progress; this turn
+revalidated the checkout and took the next ready P05 action. The old transport test handle was
+missing, so it was rerun; the prior UI build handle was terminal/successful. No work was restarted
+on P03 or P04. **P05 is now locally complete, four of four checkpoints; whole-plan coverage ~28%.**
+
+Golden Transport prepares bounded HTML5-normalized SHA-256 bootstrap hashes before starting its
+runtime, then emits asset-specific CSP and exact admitted-authority WebSocket sources. Scripts
+have no inline/eval exception; inline styles remain necessary for Svelte presentation. MIME
+sniffing, objects, base changes, framing and form submission are disabled. Existing locked
+`dom_query 0.27.0` and `sha2` provide the parser/hash primitives; Cargo.lock only adds their two
+direct transport edges, without package upgrades. SvelteKit supplies framework hashes/nonces;
+the app development response hook retains those while limiting backend and HMR connections.
+Tauri's null policy is replaced by explicit production/dev baselines. Native permissions remain
+unchanged and limited to the main window's declared loopback remote origins.
+
+The shared client persists only its opaque token in per-tab session storage and revalidates it
+on reload, retaining one host slot. Storage failures preserve in-memory operation. Stale/revoked
+tokens are discarded without trusting stored privilege/expiry claims. The default launcher and
+watch frontend forward the selected backend port instead of silently falling back to 7010.
+
+Local validation, Windows x86_64 MSVC / Rust 1.97.0 / Node 26, incremental disabled:
+
+- `cargo test --locked -p golden_transport_server -- --test-threads=1`: **74 unit passes /
+  one manual benchmark ignored**, **one public integration pass**; final run 3.91s build / 0.10s
+  unit execution. New CSP cases cover HTML5 newline/raw-script text, exact IPv6 authority,
+  asset-specific hashes, invalid UTF-8, duplicate paths and script-count rejection. Preserved
+  HTTP/WS suites independently prove denied file/intent/script access before dispatch.
+- `cargo test --locked -p golden_host_desktop --lib`: **seven passes / one helper ignored**.
+  `cargo test --locked -p xtask`: **one unit and six integration passes**.
+- Golden UI: **39 passes / six files**; app UI: **93 passes / 25 files**. Session reload and denied
+  storage cases, CSP nonce/exact-endpoint assertions and selected backend-port cases are included.
+  `node --test tools/qualification/tests/ui-session.test.mjs`: **one pass**.
+- Svelte check: **zero errors / zero warnings** after replacing direct `process.env` access with
+  SvelteKit's private server environment API. Production UI build passed (server/static build
+  5.22s); the existing >500 kB chunk warning remains visible with P16 ownership.
+- `cargo build --locked -p Chataigne2`: **passed, 2m50s**, default features and a freshly rebuilt
+  bundled UI. `cargo clippy --locked --workspace --all-targets -- -D warnings`: **passed, 51.24s**.
+
+The new network/DOM-only harness ran against that exact binary, SHA-256
+`49eb15bd7382f0e30af7bc48735c7df862a712238ea70f207a3bfcf8763d1024`, using a separate
+headless Edge **156.0.4314.42** profile and isolated preferences. The
+[raw surface report](evidence/p05-transport-security-2026-10-24.json) records **PASSED**:
+
+- Real bundled pages at loopback and the machine's private LAN interface, plus a separately
+  configured Vite origin/backend port, mount the workbench, establish authenticated subscriptions
+  and return authorized snapshots. Each survives three reloads with the same credential.
+- All three browser surfaces have zero runtime errors and zero unexpected CSP violations.
+  Both injected inline and data-URL scripts are blocked on each surface.
+- A separate unapproved browser origin cannot bootstrap HTTP or upgrade WS. Native HTTP and WS
+  independently reject missing/revoked tokens; observation-only sessions read snapshots but cannot
+  dispatch edits or privileged project/script requests. Host mismatch and unapproved Origin fail.
+- Restarting the real host rejects its old credential and admits a fresh HTTP/WS session. Existing
+  unit pressure tests retain the 128-session cap and in-place renewal contract.
+
+No keyboard/pointer synthesis, desktop control, physical stream or native webview was used.
+LAN evidence uses the local NIC address from the same machine, not a second physical device.
+Native webview/dialog/focus/DPI, other platforms, proxy/TLS behavior and product-scale qualification
+retain P17/P16 owners. Owned headless app, Vite and headless browser processes were closed.
+Actual root/Core formatting, diff hygiene and touched-source limits are checked before delivery.
+Commit/push this verified P05 milestone, then refresh authoritative dependency/advisory evidence
+for P06. Keep the full P00-P18 objective active; P03 remains closed at 12/12 packages.

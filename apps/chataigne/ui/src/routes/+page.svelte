@@ -191,7 +191,12 @@
 	];
 
 	const runtimeEndpoints = browser
-		? resolveRuntimeEndpoints(window.location, { development: dev })
+		? resolveRuntimeEndpoints(window.location, {
+				development: dev,
+				developmentBackendPort: dev
+					? Number(import.meta.env.VITE_GC_UI_BACKEND_PORT ?? 7010)
+					: undefined
+			})
 		: undefined;
 </script>
 

@@ -18,6 +18,13 @@ const runtimeOrigin = (
 ): URL => {
 	const origin = new URL(location.origin);
 	if (development) {
+		if (
+			!Number.isInteger(developmentBackendPort) ||
+			developmentBackendPort < 1 ||
+			developmentBackendPort > 65535
+		) {
+			throw new Error('Development backend port must be an integer from 1 through 65535');
+		}
 		origin.port = String(developmentBackendPort);
 	}
 	return origin;

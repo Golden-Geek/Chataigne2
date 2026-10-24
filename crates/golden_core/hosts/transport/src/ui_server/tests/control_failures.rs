@@ -74,6 +74,7 @@ fn saturated_actor_rejects_http_and_websocket_without_false_acceptance_then_reco
     let encoding = SnapshotEncodingService::spawn().unwrap();
     let (cmd_tx, _cmd_rx) = mpsc::sync_channel(1);
     let state = ServerState {
+        frontend_security: Arc::new(FrontendSecurity::default()),
         sessions: Arc::new(SessionRegistry::new(golden_protocol::UiSessionCapabilities::ALL)),
         request_access: Arc::new(RequestAccessPolicy::new(&[], &[]).unwrap()),
         runtime: runtime.clone(),

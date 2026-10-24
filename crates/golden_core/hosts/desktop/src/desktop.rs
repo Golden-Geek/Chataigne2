@@ -318,7 +318,7 @@ where
 
     if args.headless {
         let dev_server_process = if args.dev && configured_frontend_url.is_none() {
-            spawn_frontend_dev_server(dev_server, &frontend_url, args.show_output)?
+            spawn_frontend_dev_server(dev_server, &frontend_url, &endpoint.connect_addr, args.show_output)?
         } else {
             None
         };
@@ -347,7 +347,7 @@ where
     wait_for_ui_server(&endpoint.connect_addr, UI_STARTUP_TIMEOUT)?;
 
     let dev_server_process = if args.dev && configured_frontend_url.is_none() {
-        spawn_frontend_dev_server(dev_server, &frontend_url, args.show_output)?
+        spawn_frontend_dev_server(dev_server, &frontend_url, &endpoint.connect_addr, args.show_output)?
     } else {
         None
     };
@@ -557,6 +557,7 @@ fn default_frontend_url(
 fn spawn_frontend_dev_server(
     dev_server: Option<FrontendDevServerConfig>,
     frontend_url: &str,
+    backend_connect_addr: &str,
     show_output: bool,
 ) -> std::io::Result<Option<DevFrontendProcess>> {
     let Some(connect_addr) = url_connect_addr(frontend_url) else {
@@ -578,9 +579,17 @@ fn spawn_frontend_dev_server(
     };
 
     let mut command = Command::new(npm_command_name());
+    let backend: Url = format!("http://{backend_connect_addr}")
+        .parse()
+        .map_err(|error| Error::new(ErrorKind::InvalidInput, error))?;
+    let backend_port = backend
+        .port_or_known_default()
+        .filter(|port| *port > 0)
+        .ok_or_else(|| Error::new(ErrorKind::InvalidInput, "invalid UI backend port"))?;
     command
         .arg("run")
         .arg(dev_server.npm_script)
+        .env("VITE_GC_UI_BACKEND_PORT", backend_port.to_string())
         .current_dir(dev_server.working_dir);
 
     if show_output {

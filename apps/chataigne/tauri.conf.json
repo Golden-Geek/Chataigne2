@@ -1,33 +1,34 @@
 {
-  "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Chataigne2",
-  "version": "0.1.0",
-  "identifier": "com.goldengeek.chataigne2",
-  "build": {
-    "devUrl": "http://localhost:7010",
-    "frontendDist": "ui/build"
-  },
-  "app": {
-    "withGlobalTauri": false,
-    "windows": [],
-    "security": {
-      "csp": null
-    }
-  },
-  "bundle": {
-    "active": true,
-    "targets": "all",
-    "category": "DeveloperTool",
-    "shortDescription": "Modular event and control orchestration",
-    "longDescription": "Chataigne is a modular application for routing, transforming, and authoring event-driven control workflows.",
-    "licenseFile": "../../LICENSE",
-    "icon": ["icons/icon.png", "icons/icon.ico"],
-    "windows": {
-      "digestAlgorithm": "sha256",
-      "signCommand": "powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ../../tools/release/sign-windows.ps1 %1",
-      "webviewInstallMode": {
-        "type": "downloadBootstrapper"
-      }
-    }
-  }
+	"$schema": "https://schema.tauri.app/config/2",
+	"productName": "Chataigne2",
+	"version": "0.1.0",
+	"identifier": "com.goldengeek.chataigne2",
+	"build": {
+		"devUrl": "http://localhost:7010",
+		"frontendDist": "ui/build"
+	},
+	"app": {
+		"withGlobalTauri": false,
+		"windows": [],
+		"security": {
+			"csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: ipc: http://ipc.localhost; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
+			"devCsp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: http://localhost:* http://127.0.0.1:* ipc: http://ipc.localhost; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'"
+		}
+	},
+	"bundle": {
+		"active": true,
+		"targets": "all",
+		"category": "DeveloperTool",
+		"shortDescription": "Modular event and control orchestration",
+		"longDescription": "Chataigne is a modular application for routing, transforming, and authoring event-driven control workflows.",
+		"licenseFile": "../../LICENSE",
+		"icon": ["icons/icon.png", "icons/icon.ico"],
+		"windows": {
+			"digestAlgorithm": "sha256",
+			"signCommand": "powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ../../tools/release/sign-windows.ps1 %1",
+			"webviewInstallMode": {
+				"type": "downloadBootstrapper"
+			}
+		}
+	}
 }
