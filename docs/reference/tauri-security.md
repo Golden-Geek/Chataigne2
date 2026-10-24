@@ -20,14 +20,15 @@
 
 ## Remaining boundaries
 
-Tauri capabilities do not authenticate the separate HTTP/WebSocket UI server. The October audit
-found privileged project/script endpoints without session/origin admission and wildcard CORS.
-Default loopback binding limits network reach but is not a request trust boundary. No browser
-exploit or arbitrary-code-execution path was demonstrated by that audit.
+Tauri capabilities do not authenticate the separate HTTP/WebSocket UI server. Golden's
+[transport request boundary](../architecture/ui-transport-security.md) now validates Host and
+browser Origin before API dispatch or WebSocket upgrade, and HTTP CORS names only an admitted
+origin. The selected development frontend origin is explicit. Native/headless peers retain the
+listener's trusted-network policy; these checks do not establish their identity.
 
 The [implementation plan](../plan/Chataigne2_Codex_Implementation_Plan.md#p05--establish-transport-trust-while-keeping-lan-convenient)
-owns the transport repair, preserving password-free LAN and development use. CSP also remains
-open: it must permit the configured UI assets and transport without restoring broad global Tauri
+owns the remaining scoped-session and client-recovery work, preserving password-free LAN and
+development use. CSP remains open: it must permit the configured UI assets and transport without restoring broad global Tauri
 access. Treat direct Tauri imports outside `golden_ui/host/desktop.ts` and unreviewed permission
 additions as regressions. Current qualification is recorded only in the
 [status ledger](../progress/implementation-status.md).

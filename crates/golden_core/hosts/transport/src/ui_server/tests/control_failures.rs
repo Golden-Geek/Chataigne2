@@ -37,7 +37,8 @@ fn http_intent(state: &ServerState<ControlTestNode>) -> (String, serde_json::Val
     let body = serde_json::to_vec(&UiEditIntent::ReevaluateGraph).unwrap();
     write!(
         client,
-        "POST /api/ui/intent HTTP/1.1\r\nContent-Length: {}\r\n\r\n",
+        "POST /api/ui/intent HTTP/1.1\r\nHost: {}\r\nContent-Length: {}\r\n\r\n",
+        listener.local_addr().unwrap(),
         body.len()
     )
     .unwrap();
@@ -67,6 +68,7 @@ fn saturated_actor_rejects_http_and_websocket_without_false_acceptance_then_reco
     let encoding = SnapshotEncodingService::spawn().unwrap();
     let (cmd_tx, _cmd_rx) = mpsc::sync_channel(1);
     let state = ServerState {
+        request_access: Arc::new(RequestAccessPolicy::new(&[], &[]).unwrap()),
         runtime: runtime.clone(),
         read_model: read_model.clone(),
         ws_hub: WsHubHandle {

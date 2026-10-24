@@ -11,6 +11,7 @@ use super::*;
 
 mod control_failures;
 mod outbound_recovery;
+mod request_access;
 mod snapshot_encoding;
 
 #[test]

@@ -32,13 +32,14 @@ use tokio_tungstenite::{
     WebSocketStream,
     tungstenite::{
         handshake::server::{Request as WsRequest, create_response, write_response as write_ws_handshake_response},
-        http::{HeaderValue, Method, Version},
+        http::{Method, Version},
         protocol::{Message, Role, WebSocketConfig},
     },
 };
 
 use crate::project_host;
 
+mod access;
 mod admission;
 mod application_error;
 mod delivery;
@@ -59,6 +60,7 @@ mod snapshot_encoding;
 #[cfg(test)]
 mod tests;
 
+use access::{RequestAccessPolicy, validate_preflight};
 use admission::ConnectionLimiter;
 use outbound_queue::{DEFAULT_OUTBOUND_CAPACITY, QueuePushResult, WsOutboundQueue};
 use pending_value_events::PendingValueEvents;
@@ -115,6 +117,11 @@ pub struct UiPreferencesConfig {
 pub struct UiServerConfig {
     /// Socket address where the built-in UI server listens.
     pub bind_addr: String,
+    /// Explicit browser origins allowed to call this host across origins (for example a dev frontend).
+    pub allowed_origins: Vec<String>,
+    /// Additional exact Host authorities, including their listener port, for trusted DNS/proxy names.
+    /// Direct listener IPs and loopback localhost are admitted automatically; wildcard names are not.
+    pub allowed_hosts: Vec<String>,
     /// Runtime tick interval used by the engine loop hosted by the UI server.
     pub tick_interval: Duration,
     /// Minimum interval between value-only WebSocket batches.
@@ -171,6 +178,8 @@ impl Default for UiServerConfig {
     fn default() -> Self {
         Self {
             bind_addr: "127.0.0.1:7010".to_string(),
+            allowed_origins: Vec::new(),
+            allowed_hosts: Vec::new(),
             tick_interval: Duration::from_millis(16),
             value_flush_interval: DEFAULT_WS_VALUE_FLUSH_INTERVAL,
             frontend_assets: &[],
@@ -180,6 +189,7 @@ impl Default for UiServerConfig {
 }
 
 struct ServerState<T: ProjectLifecycle> {
+    request_access: Arc<RequestAccessPolicy>,
     runtime: ProductionRuntime<T>,
     read_model: Arc<UiReadModel>,
     ws_hub: WsHubHandle,
@@ -191,6 +201,7 @@ struct ServerState<T: ProjectLifecycle> {
 impl<T: ProjectLifecycle> Clone for ServerState<T> {
     fn clone(&self) -> Self {
         Self {
+            request_access: self.request_access.clone(),
             runtime: self.runtime.clone(),
             read_model: self.read_model.clone(),
             ws_hub: self.ws_hub.clone(),
@@ -477,6 +488,10 @@ pub fn run_with_ui_server_config<T: ProjectLifecycle + 'static>(
 
 /// Runs the built-in HTTP and WebSocket host through the production application facade.
 pub fn run_ui_server<T: ProjectLifecycle + 'static>(engine: Engine<T>, config: UiServerConfig) -> std::io::Result<()> {
+    let request_access = Arc::new(RequestAccessPolicy::new(
+        &config.allowed_origins,
+        &config.allowed_hosts,
+    )?);
     let project_file = UiProjectFileSpec::from_project_file_spec(T::project_file_spec(), None);
     let runtime = ProductionRuntime::new(engine, project_file).map_err(Error::other)?;
     if let Some(preferences) = config.preferences.as_ref() {
@@ -503,6 +518,7 @@ pub fn run_ui_server<T: ProjectLifecycle + 'static>(engine: Engine<T>, config: U
     );
 
     let state = ServerState {
+        request_access,
         runtime,
         read_model,
         ws_hub,
@@ -544,7 +560,10 @@ pub fn run_ui_server<T: ProjectLifecycle + 'static>(engine: Engine<T>, config: U
 fn reject_overloaded_connection(stream: &mut TcpStream) {
     let _ = stream.set_write_timeout(Some(Duration::from_millis(100)));
     let _ = write_json_error(
-        stream,
+        &mut HttpResponse {
+            stream,
+            cors_origin: None,
+        },
         "503 Service Unavailable",
         "UI host connection capacity is exhausted; retry later",
     );

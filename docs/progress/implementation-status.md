@@ -5,10 +5,10 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-24 on `main`, based on delivered `189175c9`, matching
+Last reconciled: 2026-10-24 on `main`, based on delivered `5a7db40a`, matching
 `origin/main` at milestone start. **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
-Whole-plan scope coverage is approximately 22%; P01-P04 are locally complete.
+Whole-plan scope coverage is approximately 24%; P01-P04 are locally complete and P05 is 25%.
 Hardware/platform and product-scale
 qualification retain their later owners.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
@@ -22,11 +22,11 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 packages, not commit counts. Spatializer's admitted preparation, bounded publication, source/path
 fences, identity preservation and passive failure recovery are qualified under C12.
 
-**Whole plan: approximately 22% complete.** P01-P04 are complete against their local
-acceptance criteria; P05-P18 have not started. P00 baseline reconciliation is maintained separately.
+**Whole plan: approximately 24% complete.** P01-P04 are complete against their local
+acceptance criteria; P05 is 25%; P06-P18 have not started. P00 baseline reconciliation is maintained separately.
 **4 of 18 implementation/qualification tasks are complete (22%).**
 
-Overall progress is the equal-weight average of P01-P18: `(4 * 100 + 14 * 0) / 18`,
+Overall progress is the equal-weight average of P01-P18: `(4 * 100 + 25 + 13 * 0) / 18`,
 rounded to a whole percent. This measures scope coverage, not elapsed time, remaining effort, or
 product readiness. Task sizes differ substantially. P00 housekeeping and preserved pre-plan
 features do not inflate this percentage. Later product, platform and device acceptance remains open.
@@ -107,12 +107,31 @@ or a promised commit count. **Four of four are complete locally (100%).**
 | Production plan/control barrier | Complete locally | Managed rendering shares plan/gain sequence and generation ownership; channel UUIDs and linear gains resolve on the control worker. Plan markers and gains use one bounded ordered queue. |
 | Realtime transition qualification | Complete locally | Ten owning cases cover configuration/gain/remove/re-add ordering, admission/retirement pressure, sidecar acknowledgements and stale outcomes. Allocation/deallocation guards cover the production control transition and rendering path. |
 
+### P05 completion checkpoints
+
+P05 has four equally weighted acceptance checkpoints, fixed before continuing scoped sessions.
+These measure verified scope, not effort or a promised number of commits. **One of four is complete (25%).**
+
+| Checkpoint | Status | Acceptance |
+| --- | --- | --- |
+| HTTP/WS request admission | Complete locally | Host and Origin checks precede dispatch/upgrade; CORS is exact; framing is bounded and unambiguous; the selected frontend origin is registered explicitly. |
+| Scoped session capabilities | Open | Host-owned bounded sessions bootstrap without passwords, expire/revoke across host restart, and enforce read/edit/project/script privileges before HTTP dispatch and WS operations. |
+| Client bootstrap and recovery | Open | Shared HTTP/WS credentials and reconnect/renewal preserve served, configured development, LAN and headless clients without replaying rejected mutations. |
+| CSP and complete qualification | Open | CSP covers supported bundled/dev assets and transport, explicit native permissions remain scoped, and HTTP/WS independently reject missing/stale/underprivileged capabilities before mutation or file access. |
+
 ## Current handoff
 
+- **P05 is 25% complete: one of four fixed checkpoints.** Host/Origin admission, exact CORS,
+  strict HTTP parsing and configured frontend registration are locally verified. Continue bounded
+  scoped capabilities and enforcement on HTTP and WebSocket; native peers still share the trusted
+  listener boundary. Client bootstrap/recovery and CSP remain open.
+- Golden Transport passes **59 unit cases and one public headless-host integration case**, with
+  one existing manual snapshot benchmark ignored. Golden Desktop passes **seven unit cases**, with
+  one subprocess helper ignored in direct selection. Strict workspace/all-target Clippy passes.
 - **P04 is locally complete: four of four checkpoints (100%).** Validated scalar decoding,
   ordered command admission, production plan/control barriers and realtime transitions are verified.
-  Continue P05's password-free transport trust boundary.
-- Golden Audio passes **190 default-feature unit cases**, **21 public integration cases**, and
+  Its delivered milestone is `5a7db40a`.
+- Prior P04 Golden Audio evidence: **190 default-feature unit cases**, **21 public integration cases**, and
   **136 no-default-feature unit cases**. These feature runs overlap; do not add them as unique tests.
   Strict workspace/all-target Clippy passes. Primitive numeric serialization is unchanged.
 
@@ -131,8 +150,8 @@ or a promised commit count. **Four of four are complete locally (100%).**
 - Prior-commit CI/product qualification failures remain recorded: dependency advisories/audits
   retain P06, structural gates P12, timing/baseline work P16 and platform qualification P17.
   Cancelled macOS product work is not a pass.
-- Whole-plan scope coverage is **~22%**, with **4/18 tasks locally complete**. Commit/push this
-  verified milestone on `main`, then continue P05. Keep the full P00-P18 goal active.
+- Whole-plan scope coverage is **~24%**, with **4/18 tasks locally complete**. Commit/push this
+  verified milestone on `main`, then continue P05's remaining three checkpoints. Keep the full P00-P18 goal active.
 
 ## Task ledger
 
@@ -147,7 +166,7 @@ External qualification is separate from implementation. A historical pass is not
 | P02 Schedule/actor failures | 100%       | VERIFIED_LOCAL | PASSED batches 1-3      | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                                        |
 | P03 Bounded I/O/lifecycle | 100% | VERIFIED_LOCAL | PASSED C01-C12 | All twelve closure packages locally verified; Spatializer closes the bounded service/lifecycle audit. External qualification retains later owners. |
 | P04 Audio order/types | 100% | VERIFIED_LOCAL | PASSED all four checkpoints | Checked scalar decoding, ordered command/shutdown admission, production plan/gain sequence and generation barriers, dense targets and allocation/deallocation transition guards verified. Native/platform qualification retains P17/P18. |
-| P05 Transport trust         | 0%         | NOT_STARTED    | PENDING                 | Missing admission verified; exploit not demonstrated                                                                                            |
+| P05 Transport trust | 25% | IN_PROGRESS | PASSED request admission | HTTP/WS Host/Origin guards, exact CORS, bounded parser and configured dev origin verified. Scoped sessions, client recovery and CSP qualification remain open. |
 | P06 Dependencies | 0% | NOT_STARTED | FAILED baseline | Latest product CI reports eight RustSec IDs and npm audit failures; refresh advisories before repair. |
 | P07 DMX streaming           | 0%         | NOT_STARTED    | PENDING                 | Refresh/filter/service gaps; protocol loopback qualification needed                                                                             |
 | P08 Formula backend intents | 0%         | NOT_STARTED    | PENDING                 | UI polling/identity and mutation policy verified; corruption not reproduced                                                                     |
@@ -8045,3 +8064,65 @@ is **~22%**, with P01-P04 the four locally complete tasks. P03 remains closed at
 do not reopen a generic optimization chain. Native/platform/device qualification retains P17/P18.
 Commit/push this verified milestone, then continue the earliest unfinished task, P05. The full
 P00-P18 goal remains active.
+
+## P05 HTTP/WebSocket request admission
+
+2026-10-24, based on delivered `5a7db40a`, matching `origin/main` at milestone start and final
+fetch. The previous goal turn made verified progress by delivering P04; it was not a no-progress
+turn. This milestone implements P05's request-admission checkpoint in the reusable Golden host.
+
+`golden_transport_server::UiServerConfig` now exposes bounded exact `allowed_origins` and
+`allowed_hosts` lists. The private `ui_server/access.rs` boundary validates Host against the
+accepted socket's local address and listener port or an explicitly admitted DNS authority.
+It then admits the same HTTP origin or an explicit frontend origin. Arbitrary hostnames are
+never resolved to infer trust. IPv4/IPv6 LAN addresses, loopback localhost, native/headless
+requests without Origin and ordinary asset navigation remain usable. Cross-origin browser API
+Fetch Metadata cannot omit Origin to bypass admission.
+
+Golden Desktop registers the origin of the selected development or `GC_UI_FRONTEND_URL`
+frontend, including the existing `cargo xtask watch` path. `GC_UI_ALLOWED_HOSTS` supplies explicit
+comma-separated DNS authorities with their listener port. UI components and the app shell do not
+own trust policy. Invalid configuration rejects startup; each list has at most 32 entries of at
+most 2,048 bytes. Wildcards, opaque origins, userinfo and malformed authorities are rejected.
+
+HTTP admission precedes API body parsing/dispatch and WebSocket upgrade. A response context
+carries only its admitted origin, replacing wildcard CORS with exact ACAO and `Vary: Origin`.
+Preflight checks methods and headers. WebSocket upgrades have their own Origin gate and no
+wildcard CORS header. The existing overload error path also uses this response boundary.
+
+`ui_server/http/request.rs` replaces manual request/header splitting with existing locked
+`httparse 1.10.1`; `url 2.5.8` supplies authority/origin parsing. Cargo.lock only gains those two
+direct dependency edges; no resolved package version changed. The parser retains 32 KiB header
+and 16 MiB total byte limits, adds a 128-field cap, rejects ambiguous authority/credential/framing
+duplicates, transfer encoding and non-origin-form targets, and preserves supported list headers
+and JSON bodies. HTTP connections still close after one request. No protocol DTO shape changed.
+
+Fourteen new owning tests cover policy and parsing, actual loopback HTTP/WS requests, exact
+development CORS, preflight rejection, rebinding/duplicate Host, rejected privileged payloads,
+headless access, body truncation and framing/resource bounds. Synthetic socket addresses cover
+LAN/IPv6 admission without opening a physical endpoint. The initial unit run had **58 passed,
+one failed and one ignored**: the URL parser accepted a literal wildcard hostname. The policy
+now rejects wildcard entries explicitly; the assertion and accepted-origin scope were retained.
+
+Final Windows x86_64 MSVC validation with Rust/Cargo 1.97.0, `CARGO_INCREMENTAL=0`:
+
+- `cargo test --locked -p golden_transport_server -- --test-threads=1`: **59 unit passes /
+  one existing ignored manual measurement**, plus **one public headless-host integration pass**.
+  Unit execution 0.07s after a 1m15s build. The initial pre-correction build took 1m50s.
+- `cargo test --locked -p golden_host_desktop --lib -- --test-threads=1`: **seven passed /
+  one subprocess helper ignored**, 0.33s after a 44.69s build. Controlled Windows process-job
+  tests preserve frontend descendant cleanup; no desktop input or GUI automation was performed.
+- `cargo clippy --locked --workspace --all-targets -- -D warnings`: passed in **40.09s**.
+- Actual root/Core formatting, final source/diff checks and local documentation links pass.
+  Touched Rust sources remain below 1,000 lines. No physical stream or native-webview qualification
+  was performed. App/browser end-to-end, CSP and session enforcement remain open checkpoints.
+
+Transport unit artifact SHA-256:
+`17a18ce729de8acf61ca1ce6931b40c6800e0ca8722c7fb00237403f6f3264df`.
+
+**P05 is 25% complete: one of four fixed acceptance checkpoints.** Origin/Host admission is
+implemented; scoped session capabilities are not yet implemented and are the next checkpoint.
+This does not authenticate an already trusted native/network peer or qualify all of P05.
+Whole-plan scope coverage is **~24%**, with P01-P04 still the four locally complete tasks.
+Commit/push this verified milestone before implementing the remaining P05 boundary. Keep the
+full P00-P18 goal active; P03 remains closed at 12/12 packages.

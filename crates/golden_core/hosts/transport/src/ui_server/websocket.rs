@@ -19,7 +19,7 @@ pub(super) fn handle_ws_connection<T: ProjectLifecycle>(
         .map_err(|error| Error::other(format!("failed to build websocket runtime: {error}")))?;
 
     let ws_request = build_websocket_request(request)?;
-    let mut response = match create_response(&ws_request) {
+    let response = match create_response(&ws_request) {
         Ok(response) => response,
         Err(tokio_tungstenite::tungstenite::Error::Http(response)) => {
             write_ws_handshake_response(&mut *stream, &response)
@@ -34,9 +34,6 @@ pub(super) fn handle_ws_connection<T: ProjectLifecycle>(
             ));
         }
     };
-    response
-        .headers_mut()
-        .insert("Access-Control-Allow-Origin", HeaderValue::from_static("*"));
     write_ws_handshake_response(&mut *stream, &response)
         .map_err(|error| Error::other(format!("failed to write websocket handshake response: {error}")))?;
     stream.flush()?;

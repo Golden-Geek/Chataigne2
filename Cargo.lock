@@ -3003,10 +3003,12 @@ dependencies = [
  "golden_engine",
  "golden_persistence",
  "golden_protocol",
+ "httparse",
  "serde",
  "serde_json",
  "tokio",
  "tokio-tungstenite 0.29.0",
+ "url",
  "windows-sys 0.61.2",
 ]
 

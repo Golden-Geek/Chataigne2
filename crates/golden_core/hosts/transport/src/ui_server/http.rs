@@ -1,13 +1,30 @@
 use super::*;
 
+mod request;
+pub(super) use request::read_http_request;
+#[cfg(test)]
+pub(super) use request::validate_http_request_size;
+#[cfg(test)]
+mod tests;
+
+pub(super) struct HttpResponse<'a> {
+    pub(super) stream: &'a mut TcpStream,
+    pub(super) cors_origin: Option<String>,
+}
+
 pub(super) fn handle_connection<T: ProjectLifecycle>(
     stream: &mut TcpStream,
     state: &ServerState<T>,
 ) -> std::io::Result<()> {
     stream.set_read_timeout(Some(HTTP_IO_TIMEOUT))?;
     stream.set_write_timeout(Some(HTTP_IO_TIMEOUT))?;
+    let mut response = HttpResponse {
+        stream,
+        cors_origin: None,
+    };
+    let stream = &mut response;
 
-    let request = match read_http_request(stream) {
+    let request = match read_http_request(stream.stream) {
         Ok(request) => request,
         Err(err) => {
             if is_client_disconnect_error(&err) {
@@ -23,7 +40,19 @@ pub(super) fn handle_connection<T: ProjectLifecycle>(
         }
     };
 
+    match state.request_access.admit(&request, stream.stream.local_addr()?) {
+        Ok(origin) => stream.cors_origin = origin,
+        Err(reason) => {
+            write_json_error(stream, "403 Forbidden", reason)?;
+            return Ok(());
+        }
+    }
+
     if request.method.eq_ignore_ascii_case("OPTIONS") {
+        if let Err(reason) = validate_preflight(&request) {
+            write_json_error(stream, "403 Forbidden", reason)?;
+            return Ok(());
+        }
         write_response(stream, "204 No Content", "text/plain", &[])?;
         return Ok(());
     }
@@ -33,7 +62,7 @@ pub(super) fn handle_connection<T: ProjectLifecycle>(
             write_json_error(stream, "426 Upgrade Required", "websocket upgrade required")?;
             return Ok(());
         }
-        return handle_ws_connection(stream, state, &request);
+        return handle_ws_connection(stream.stream, state, &request);
     }
 
     if request.method.eq_ignore_ascii_case("GET")
@@ -434,152 +463,8 @@ pub(super) fn header_contains_token(request: &HttpRequest, header_name: &str, ex
     })
 }
 
-pub(super) fn read_http_request(stream: &mut TcpStream) -> std::io::Result<HttpRequest> {
-    let mut buffer = Vec::<u8>::with_capacity(2048);
-    let mut temp = [0u8; 1024];
-    let mut header_end = None::<usize>;
-    let mut content_length = 0usize;
-    let mut parsed_headers = HashMap::<String, String>::new();
-
-    loop {
-        let read = stream.read(&mut temp)?;
-        if read == 0 {
-            if buffer.is_empty() {
-                return Err(Error::new(
-                    ErrorKind::UnexpectedEof,
-                    "peer disconnected before sending a request",
-                ));
-            }
-            break;
-        }
-
-        buffer.extend_from_slice(&temp[..read]);
-        if buffer.len() > HTTP_MAX_REQUEST_BYTES {
-            return Err(Error::new(
-                ErrorKind::InvalidData,
-                format!("request exceeds {} bytes", HTTP_MAX_REQUEST_BYTES),
-            ));
-        }
-        if header_end.is_none() {
-            if let Some(idx) = find_header_end(&buffer) {
-                let parsed_header_end = idx + 4;
-                let header_text = std::str::from_utf8(&buffer[..idx])
-                    .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid header utf-8: {err}")))?;
-                parsed_headers = parse_headers(header_text)?;
-                content_length = parse_content_length(&parsed_headers)?;
-                validate_http_request_size(parsed_header_end, content_length)?;
-                header_end = Some(parsed_header_end);
-            } else if buffer.len() > HTTP_MAX_HEADER_BYTES {
-                return Err(Error::new(
-                    ErrorKind::InvalidData,
-                    format!("request headers exceed {HTTP_MAX_HEADER_BYTES} bytes"),
-                ));
-            }
-        }
-
-        if let Some(end) = header_end
-            && buffer.len() >= end + content_length
-        {
-            break;
-        }
-    }
-
-    let header_end =
-        header_end.ok_or_else(|| Error::new(ErrorKind::InvalidData, "malformed request: missing header terminator"))?;
-    if buffer.len() < header_end + content_length {
-        return Err(Error::new(ErrorKind::UnexpectedEof, "request body truncated"));
-    }
-
-    let header_text = std::str::from_utf8(&buffer[..header_end - 4])
-        .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid header utf-8: {err}")))?;
-    let mut lines = header_text.lines();
-    let request_line = lines
-        .next()
-        .ok_or_else(|| Error::new(ErrorKind::InvalidData, "missing request line"))?;
-
-    let mut parts = request_line.split_whitespace();
-    let method = parts
-        .next()
-        .ok_or_else(|| Error::new(ErrorKind::InvalidData, "missing method"))?
-        .to_string();
-    let target = parts
-        .next()
-        .ok_or_else(|| Error::new(ErrorKind::InvalidData, "missing request target"))?;
-
-    let path = target.split('?').next().unwrap_or(target).to_string();
-    let body = buffer[header_end..header_end + content_length].to_vec();
-
-    Ok(HttpRequest {
-        method,
-        path,
-        headers: parsed_headers,
-        body,
-    })
-}
-
-pub(super) fn validate_http_request_size(header_bytes: usize, content_length: usize) -> std::io::Result<()> {
-    if header_bytes > HTTP_MAX_HEADER_BYTES {
-        return Err(Error::new(
-            ErrorKind::InvalidData,
-            format!("request headers exceed {HTTP_MAX_HEADER_BYTES} bytes"),
-        ));
-    }
-    if header_bytes
-        .checked_add(content_length)
-        .is_none_or(|total| total > HTTP_MAX_REQUEST_BYTES)
-    {
-        return Err(Error::new(
-            ErrorKind::InvalidData,
-            format!("request exceeds {HTTP_MAX_REQUEST_BYTES} bytes"),
-        ));
-    }
-    Ok(())
-}
-
-pub(super) fn find_header_end(buffer: &[u8]) -> Option<usize> {
-    buffer.windows(4).position(|chunk| chunk == b"\r\n\r\n")
-}
-
-pub(super) fn parse_headers(raw_headers: &str) -> std::io::Result<HashMap<String, String>> {
-    let mut lines = raw_headers.lines();
-    let _request_line = lines
-        .next()
-        .ok_or_else(|| Error::new(ErrorKind::InvalidData, "missing request line"))?;
-
-    let mut headers = HashMap::<String, String>::new();
-    for line in lines {
-        if line.trim().is_empty() {
-            continue;
-        }
-        let (name, value) = line
-            .split_once(':')
-            .ok_or_else(|| Error::new(ErrorKind::InvalidData, "malformed header line"))?;
-        let key = name.trim().to_ascii_lowercase();
-        let value = value.trim();
-        headers
-            .entry(key)
-            .and_modify(|existing| {
-                existing.push(',');
-                existing.push_str(value);
-            })
-            .or_insert_with(|| value.to_string());
-    }
-    Ok(headers)
-}
-
-pub(super) fn parse_content_length(headers: &HashMap<String, String>) -> std::io::Result<usize> {
-    let Some(value) = headers.get("content-length") else {
-        return Ok(0);
-    };
-
-    value
-        .trim()
-        .parse::<usize>()
-        .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid content-length: {err}")))
-}
-
 pub(super) fn write_json<T: serde::Serialize>(
-    stream: &mut TcpStream,
+    stream: &mut HttpResponse<'_>,
     status: &str,
     payload: &T,
 ) -> std::io::Result<()> {
@@ -588,7 +473,7 @@ pub(super) fn write_json<T: serde::Serialize>(
     write_response(stream, status, "application/json; charset=utf-8", &body)
 }
 
-pub(super) fn write_json_error(stream: &mut TcpStream, status: &str, message: &str) -> std::io::Result<()> {
+pub(super) fn write_json_error(stream: &mut HttpResponse<'_>, status: &str, message: &str) -> std::io::Result<()> {
     write_json(
         stream,
         status,
@@ -619,7 +504,7 @@ pub(super) fn project_path_dto(load: project_host::ProjectLoadResult) -> Project
 }
 
 pub(super) fn write_project_load_error(
-    stream: &mut TcpStream,
+    stream: &mut HttpResponse<'_>,
     status: &str,
     operation: &str,
     error: &project_host::ProjectLoadError,
@@ -647,27 +532,33 @@ pub(super) fn write_project_load_error(
 }
 
 pub(super) fn write_response(
-    stream: &mut TcpStream,
+    stream: &mut HttpResponse<'_>,
     status: &str,
     content_type: &str,
     body: &[u8],
 ) -> std::io::Result<()> {
+    let cors = stream.cors_origin.as_ref().map_or_else(String::new, |origin| {
+        format!(
+            "Access-Control-Allow-Origin: {origin}\r\n\
+         Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n\
+         Access-Control-Allow-Headers: Content-Type, X-GC-UI-Client-Instance, Authorization\r\n"
+        )
+    });
     let headers = format!(
         "HTTP/1.1 {status}\r\n\
          Content-Type: {content_type}\r\n\
          Content-Length: {}\r\n\
-         Access-Control-Allow-Origin: *\r\n\
-         Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n\
-         Access-Control-Allow-Headers: Content-Type, X-GC-UI-Client-Instance\r\n\
+         Vary: Origin\r\n\
+         {cors}\
          Connection: close\r\n\r\n",
         body.len()
     );
 
-    stream.write_all(headers.as_bytes())?;
+    stream.stream.write_all(headers.as_bytes())?;
     if !body.is_empty() {
-        stream.write_all(body)?;
+        stream.stream.write_all(body)?;
     }
-    stream.flush()?;
+    stream.stream.flush()?;
     Ok(())
 }
 

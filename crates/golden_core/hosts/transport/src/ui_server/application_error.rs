@@ -10,7 +10,7 @@ pub(super) fn application_error_code(error: &ApplicationError) -> Option<UiContr
     })
 }
 
-pub(super) fn write_application_error(stream: &mut TcpStream, error: &ApplicationError) -> std::io::Result<()> {
+pub(super) fn write_application_error(stream: &mut HttpResponse<'_>, error: &ApplicationError) -> std::io::Result<()> {
     let code = application_error_code(error);
     let status = if code.is_some() {
         "503 Service Unavailable"

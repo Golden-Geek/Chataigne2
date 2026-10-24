@@ -15,6 +15,8 @@ and superseded plans are [archived](../archive/2026-10-18/README.md).
   callback safety, clocks, and device recovery.
 - [Golden Graph](graph-foundation.md): graph documents, transactions, revisions, and presentation.
 - [Hosts](hosts.md): desktop, headless/browser, transport, and native-dialog ownership.
+- [UI transport request boundary](ui-transport-security.md): browser origins, Host authorities,
+  HTTP parsing, CORS and trusted-network ownership.
 - [Persistence transactions](persistence.md): save ordering, destination identity, recovery, and
   project-generation fencing.
 - [UI protocol](ui-protocol.md): Rust DTO source of truth and generated TypeScript.

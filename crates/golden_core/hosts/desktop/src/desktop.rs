@@ -289,6 +289,12 @@ where
     {
         config.bind_addr = bind_addr;
     }
+    if let Ok(authorities) = std::env::var("GC_UI_ALLOWED_HOSTS") {
+        config.allowed_hosts = authorities
+            .split(',')
+            .map(|authority| authority.trim().to_owned())
+            .collect();
+    }
 
     if args.no_remote {
         config.bind_addr = force_loopback_bind_addr(&config.bind_addr);
@@ -303,6 +309,12 @@ where
     let frontend_url = configured_frontend_url
         .clone()
         .unwrap_or_else(|| default_frontend_url(&endpoint, frontend_assets, args.dev, dev_server));
+    if args.dev || configured_frontend_url.is_some() {
+        let frontend: Url = frontend_url
+            .parse()
+            .map_err(|error| Error::new(ErrorKind::InvalidInput, error))?;
+        config.allowed_origins.push(frontend.origin().ascii_serialization());
+    }
 
     if args.headless {
         let dev_server_process = if args.dev && configured_frontend_url.is_none() {
