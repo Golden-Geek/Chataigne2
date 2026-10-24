@@ -1,17 +1,5 @@
 use super::*;
 
-fn duplicate_unique_label_base(label: &str) -> (&str, u64) {
-    let Some((base, suffix)) = label.rsplit_once(' ') else {
-        return (label, 2);
-    };
-    if base.trim().is_empty() {
-        return (label, 2);
-    }
-    match suffix.parse::<u64>() {
-        Ok(suffix) if suffix >= 2 => (base, suffix.saturating_add(1)),
-        _ => (label, 2),
-    }
-}
 impl<T: Node> Engine<T> {
     fn ui_find_created_item_param_node(&self, created_child: NodeId, decl_id: &str) -> Option<NodeId> {
         let snapshot = self.build_process_tree_snapshot();
@@ -592,7 +580,7 @@ impl<T: Node> Engine<T> {
         const OPERATION: &str = "DuplicateNodes";
 
         let mut copied_by_source = HashMap::<NodeId, (NodeUuid, String)>::new();
-        let mut reserved_labels = HashMap::<NodeId, HashSet<String>>::new();
+        let mut reserved_labels = HashMap::<NodeId, crate::engine::labels::UniqueLabels>::new();
         let catalog_labels_by_parent = self.ui_duplicate_catalog_labels(&created_items, &dependent_items);
         let mut prepared_duplicates = Vec::with_capacity(nodes.len());
         let mut prepared_created_items = Vec::with_capacity(created_items.len());
@@ -612,8 +600,7 @@ impl<T: Node> Engine<T> {
                 &mut encode_data,
                 &mut decode_node,
             )?;
-            let resolved_label =
-                self.ui_reserve_duplicate_label(spec.new_parent, prepared.root_label(), &mut reserved_labels);
+            let resolved_label = self.reserve_child_label(spec.new_parent, prepared.root_label(), &mut reserved_labels);
             prepared.set_root_label(resolved_label.clone());
             let prepared = self.prepare_project_subtree_initial_params(
                 prepared,
@@ -637,8 +624,7 @@ impl<T: Node> Engine<T> {
                 spec.label,
                 OPERATION,
             )?;
-            let resolved_label =
-                self.ui_reserve_duplicate_label(spec.parent, preferred_label.as_str(), &mut reserved_labels);
+            let resolved_label = self.reserve_child_label(spec.parent, preferred_label.as_str(), &mut reserved_labels);
             let prepared = self.prepare_prevalidated_catalog_item_subtree(
                 spec.parent,
                 None,
@@ -661,8 +647,7 @@ impl<T: Node> Engine<T> {
                 item.label,
                 OPERATION,
             )?;
-            let resolved_label =
-                self.ui_reserve_duplicate_label(item.parent, preferred_label.as_str(), &mut reserved_labels);
+            let resolved_label = self.reserve_child_label(item.parent, preferred_label.as_str(), &mut reserved_labels);
             prepared_dependent_items.push(self.prepare_prevalidated_catalog_item_subtree(
                 item.parent,
                 None,
@@ -796,50 +781,6 @@ impl<T: Node> Engine<T> {
                 })
             })?;
         Ok(label.unwrap_or_else(|| catalog_label.clone()))
-    }
-
-    fn ui_reserve_duplicate_label(
-        &self,
-        parent: NodeId,
-        preferred_label: &str,
-        reserved_labels: &mut HashMap<NodeId, HashSet<String>>,
-    ) -> String {
-        reserved_labels.entry(parent).or_insert_with(|| {
-            let mut labels = HashSet::new();
-            for child in self.ui_direct_children(parent).unwrap_or_default() {
-                if let Some(label) = self
-                    .nodes
-                    .get(child)
-                    .map(|node| node.node_data().meta.label.trim())
-                    .filter(|label| !label.is_empty())
-                {
-                    labels.insert(label.to_string());
-                }
-            }
-            labels
-        });
-
-        let labels = reserved_labels
-            .get_mut(&parent)
-            .expect("reserved duplicate labels should be initialized");
-        let preferred_label = preferred_label.trim();
-        let preferred_label = if preferred_label.is_empty() {
-            "Item"
-        } else {
-            preferred_label
-        };
-        if labels.insert(preferred_label.to_string()) {
-            return preferred_label.to_string();
-        }
-
-        let (base_label, mut suffix) = duplicate_unique_label_base(preferred_label);
-        loop {
-            let candidate = format!("{base_label} {suffix}");
-            if labels.insert(candidate.clone()) {
-                return candidate;
-            }
-            suffix = suffix.saturating_add(1);
-        }
     }
 
     /// Applies one prevalidated parameter batch to an existing item, retaining user history.

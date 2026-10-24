@@ -70,6 +70,7 @@ impl ANodeInstance {
     }
 }
 
+#[cfg(feature = "serde")]
 const fn default_node_enabled() -> bool {
     true
 }

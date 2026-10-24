@@ -352,6 +352,11 @@ impl AlchemistANode {
             desired_outputs.insert(decl_id.clone());
             let value_type = constraint_value_type(&output.constraint, &signature_bindings);
             let existing = snapshot.find_child_by_decl_id(outputs_folder, &decl_id);
+            // The Formula resolves property types with its shared schema. This local
+            // signature has no schema, so its unit fallback cannot replace a loaded socket.
+            if type_id == PROPERTY_ANODE_TYPE && existing.is_some() {
+                continue;
+            }
             if existing.is_none_or(|socket| !output_socket_matches(&snapshot, socket, output.id.as_str(), &value_type))
             {
                 replace_child_tree_once(

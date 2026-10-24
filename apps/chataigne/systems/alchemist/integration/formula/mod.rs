@@ -3,24 +3,20 @@ use std::{
     fs,
     path::{Path, PathBuf},
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc, Mutex, OnceLock,
+        atomic::{AtomicBool, Ordering},
     },
 };
 
 use chataigne_alchemist::{
-    ANodeFieldPath, ANodeId, ANodeInstance, ANodeTypeId, AlchemistFormula,
-    AlchemistGraphDomain, ColorValue, CompileCtx, DiagnosticOrigin,
-    DiagnosticSeverity, FormulaContextContract, FormulaId, FormulaPropertyDecl,
-    FormulaPropertyId, FormulaPropertySchema, FormulaSurface, InputSocketRef,
-    ManagedRegionDefinition, OutputSocketRef, ParamUiHints,
-    SignatureCtx, StableRef, SurfaceItem, SurfaceItemId, SurfaceItemKind,
-    SurfaceSection, SurfaceSectionId, SurfaceSource, TriggerValue,
-    TypeBindingSource, TypeBindings, TypeConstraint, TypeSolveCtx,
-    ValueTypeId, ValueTypeSpec, PROCESS_ON_INPUT_CHANGE_ONLY_CONFIG,
-    SEND_ON_OUTPUT_CHANGE_ONLY_CONFIG, compile_graph, solve_document_types,
+    ANodeFieldPath, ANodeId, ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraphDomain, ColorValue,
+    CompileCtx, DiagnosticOrigin, DiagnosticSeverity, FormulaContextContract, FormulaId, FormulaPropertyDecl,
+    FormulaPropertyId, FormulaPropertySchema, FormulaSurface, InputSocketRef, ManagedRegionDefinition, OutputSocketRef,
+    PROCESS_ON_INPUT_CHANGE_ONLY_CONFIG, ParamUiHints, SEND_ON_OUTPUT_CHANGE_ONLY_CONFIG, SignatureCtx, StableRef,
+    SurfaceItem, SurfaceItemId, SurfaceItemKind, SurfaceSection, SurfaceSectionId, SurfaceSource, TriggerValue,
+    TypeBindingSource, TypeBindings, TypeConstraint, TypeSolveCtx, ValueTypeId, ValueTypeSpec, compile_graph,
+    solve_document_types,
 };
-use golden_values::Value as RuntimeValue;
 use golden_core::{
     color::Color,
     edit::{Edit, NodeTree},
@@ -28,24 +24,22 @@ use golden_core::{
     events::{Event, EventFrame, EventKind},
     item, node,
     node::{
-        CurveNode, DeclId, Folder, GRADIENT_NODE_TYPE, GradientNode, GradientStop, Node,
-        PARAMETER_ANIMATION_CURVE_NODE_TYPE,
-        NodeCreationContext, NodeId, NodeMetaPatch, NodeReference,
-        NodeUserPermissions, NodeUuid, UserContainerRules, UserCreatableItem,
-        curve_from_snapshot, gradient_from_snapshot,
+        CurveNode, DeclId, Folder, GRADIENT_NODE_TYPE, GradientNode, GradientStop, Node, NodeCreationContext, NodeId,
+        NodeMetaPatch, NodeReference, NodeUserPermissions, NodeUuid, PARAMETER_ANIMATION_CURVE_NODE_TYPE,
+        UserContainerRules, UserCreatableItem, curve_from_snapshot, gradient_from_snapshot,
     },
     parameter::{
-        CssValue, ParamValue, Parameter, ParameterChangeCheck,
-        ParameterConstraintPolicy, ParameterEnumOption, ParameterEventBehaviour,
-        ReferenceTargetKind,
+        CssValue, ParamValue, Parameter, ParameterChangeCheck, ParameterConstraintPolicy, ParameterEnumOption,
+        ParameterEventBehaviour, ReferenceTargetKind,
     },
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
+use golden_values::Value as RuntimeValue;
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 
 use crate::app::{
-    systems_alchemist_processor::{shared_formula_dir_from_snapshot, FormulaCatalog},
     AppNode,
+    systems_alchemist_processor::{FormulaCatalog, shared_formula_dir_from_snapshot},
 };
 
 mod anode;
@@ -54,105 +48,85 @@ mod construction;
 mod external_files;
 mod gate_migration;
 mod library;
+mod operations;
 mod properties;
 mod reconcile;
 mod snapshot;
 mod value_bridge;
+pub(crate) use operations::apply_operation as apply_formula_operation;
 
 pub use anode::{AlchemistANode, AlchemistInputSocket, AlchemistOutputSocket};
-pub use library::FormulaLibrary;
-pub(crate) use gate_migration::{migrate_legacy_gate_semantics, GATE_SEMANTICS_V2_TAG};
-pub(crate) use binding_migration::{migrate_output_binding_documents, OUTPUT_BINDINGS_V2_TAG};
+use anode::{input_socket_matches, input_socket_tree, output_socket_matches, output_socket_tree, value_type_parameter};
+pub(crate) use binding_migration::{OUTPUT_BINDINGS_V2_TAG, migrate_output_binding_documents};
+use construction::*;
 pub(crate) use construction::{
-    anode_container_accepts_for_roles, anode_creatable_items_for_roles,
-    create_anode_user_item, create_anode_user_item_tree, external_formula_tree_for_path,
+    anode_container_accepts_for_roles, anode_creatable_items_for_roles, create_anode_user_item,
+    create_anode_user_item_tree, external_formula_tree_for_path,
 };
-pub(crate) use snapshot::{
-    anode_from_snapshot, formula_from_snapshot, formula_from_snapshot_cached,
-    local_signature_bindings, node_has_warning, node_warning_detail, node_warning_matches,
-    ANodeMaterializationCache,
-};
-pub(crate) use value_bridge::{
-    constraint_value_type, param_to_runtime_value, param_to_untyped_runtime_value,
-    runtime_value_to_param,
-};
-pub(crate) use value_bridge::formula_runtime_param_change_requires_rematerialization;
-pub(crate) use properties::formula_managed_regions_from_snapshot;
-pub(crate) use value_bridge::{
-    constant_anode_for_value_param, is_constant_value_param,
-    same_type_numeric_change_param, same_type_numeric_changes_for_param,
-};
+use external_files::*;
+pub(crate) use gate_migration::{GATE_SEMANTICS_V2_TAG, migrate_legacy_gate_semantics};
+pub use library::FormulaLibrary;
 #[cfg(test)]
 pub(crate) use library::reset_shared_formula_watcher_for_test;
+pub(crate) use properties::formula_managed_regions_from_snapshot;
 pub use properties::{
-    AlchemistPropertiesManager, AlchemistProperty, AlchemistPropertyFolder,
-    AlchemistPropertyManager,
-};
-use anode::{
-    input_socket_matches, input_socket_tree, output_socket_matches, output_socket_tree,
-    value_type_parameter,
+    AlchemistPropertiesManager, AlchemistProperty, AlchemistPropertyFolder, AlchemistPropertyManager,
 };
 use properties::{PROPERTY_MANAGER_ROLES, formula_surface_from_snapshot, properties_tree, property_value_type};
-use external_files::*;
-use construction::*;
 use snapshot::*;
+pub(crate) use snapshot::{
+    ANodeMaterializationCache, anode_from_snapshot, formula_from_snapshot, formula_from_snapshot_cached,
+    local_signature_bindings, node_has_warning, node_warning_detail, node_warning_matches,
+};
+pub(crate) use value_bridge::formula_runtime_param_change_requires_rematerialization;
 use value_bridge::*;
+pub(crate) use value_bridge::{
+    constant_anode_for_value_param, is_constant_value_param, same_type_numeric_change_param,
+    same_type_numeric_changes_for_param,
+};
+pub(crate) use value_bridge::{
+    constraint_value_type, param_to_runtime_value, param_to_untyped_runtime_value, runtime_value_to_param,
+};
 
 pub(crate) const FORMULA_ITEM_KIND: &str = "alchemist_formula";
-pub(crate) const FORMULA_FOLDER_ITEM_KIND: &str =
-    "alchemist_formula_folder";
-pub(crate) const FORMULA_FOLDER_NODE_TYPE: &str =
-    "alchemist_formula_folder";
-pub(crate) const FORMULA_EXTERNAL_FILE_CREATE_TYPE: &str =
-    "alchemist_formula:external_file";
+pub(crate) const FORMULA_FOLDER_ITEM_KIND: &str = "alchemist_formula_folder";
+pub(crate) const FORMULA_FOLDER_NODE_TYPE: &str = "alchemist_formula_folder";
+pub(crate) const FORMULA_EXTERNAL_FILE_CREATE_TYPE: &str = "alchemist_formula:external_file";
 const FORMULA_LIBRARY_FILE_WATCH_RATE_HZ: u32 = 4;
-pub(crate) const FORMULA_EXTERNAL_FILE_DECL_ID: &str =
-    "external_formula_file";
-pub(crate) const FORMULA_EXTERNAL_FILE_TAG: &str =
-    "chataigne.formula.external.file";
-pub(crate) const FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX: &str =
-    "chataigne.formula.external.builtin:";
-pub(crate) const FORMULA_EXTERNAL_READ_ONLY_TAG: &str =
-    "chataigne.formula.external.read_only";
-pub(crate) const FORMULA_EXTERNAL_SOURCE_DECL_ID: &str =
-    "external_formula_source";
-pub(crate) const FORMULA_EXTERNAL_DELETE_FILE_DECL_ID: &str =
-    "external_formula_delete_file";
+pub(crate) const FORMULA_EXTERNAL_FILE_DECL_ID: &str = "external_formula_file";
+pub(crate) const FORMULA_EXTERNAL_FILE_TAG: &str = "chataigne.formula.external.file";
+pub(crate) const FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX: &str = "chataigne.formula.external.builtin:";
+pub(crate) const FORMULA_EXTERNAL_READ_ONLY_TAG: &str = "chataigne.formula.external.read_only";
+pub(crate) const FORMULA_EXTERNAL_SOURCE_DECL_ID: &str = "external_formula_source";
+pub(crate) const FORMULA_EXTERNAL_DELETE_FILE_DECL_ID: &str = "external_formula_delete_file";
 pub(crate) const FORMULA_COPY_SOURCE_DECL_ID: &str = "formula_copy_source";
 pub(crate) const ANODE_ITEM_KIND: &str = "alchemist_anode";
 pub(crate) const CONNECTION_ITEM_KIND: &str = "alchemist_connection";
 pub(crate) const ANODE_CREATE_PREFIX: &str = "alchemist_anode:";
 pub(crate) const ANODE_MANAGED_VARIANT_SEPARATOR: &str = "@managed/";
 pub(crate) const PROPERTY_ITEM_KIND: &str = "alchemist_property";
-pub(crate) const PROPERTY_MANAGER_ITEM_KIND: &str =
-    "alchemist_property_manager";
+pub(crate) const PROPERTY_MANAGER_ITEM_KIND: &str = "alchemist_property_manager";
 pub(crate) const PROPERTY_FOLDER_ITEM_KIND: &str = "alchemist_property_folder";
 pub(crate) const PROPERTY_CREATE_PREFIX: &str = "alchemist_property:";
-pub(crate) const PROPERTY_MANAGER_CREATE_PREFIX: &str =
-    "alchemist_property_manager:";
+pub(crate) const PROPERTY_MANAGER_CREATE_PREFIX: &str = "alchemist_property_manager:";
 
 pub(crate) const ANODE_NODE_TYPE: &str = "alchemist_anode";
 const CONNECTION_NODE_TYPE: &str = "alchemist_connection";
-pub(crate) const PROPERTY_MANAGER_NODE_TYPE: &str =
-    "alchemist_property_manager";
-pub(crate) const PROPERTY_FOLDER_NODE_TYPE: &str =
-    "alchemist_property_folder";
+pub(crate) const PROPERTY_MANAGER_NODE_TYPE: &str = "alchemist_property_manager";
+pub(crate) const PROPERTY_FOLDER_NODE_TYPE: &str = "alchemist_property_folder";
 pub(crate) const PROPERTY_NODE_TYPE: &str = "alchemist_property";
 const PROPERTY_ANODE_TYPE: &str = "property";
 
 pub(crate) const PROPERTIES_DECL_ID: &str = "properties";
-pub(crate) const FORMULA_MANAGED_REGIONS_JSON_DECL_ID: &str =
-    "managed_regions_json";
+pub(crate) const FORMULA_MANAGED_REGIONS_JSON_DECL_ID: &str = "managed_regions_json";
 const ANODE_TYPE_TAG_PREFIX: &str = "alchemist.anode.type:";
 const PROPERTY_TYPE_TAG_PREFIX: &str = "alchemist.property.type:";
 const PROPERTY_MANAGER_ROLE_TAG_PREFIX: &str = "alchemist.manager.role:";
 const ANODE_POSITION_DECL_ID: &str = "position";
 const ANODE_SIZE_DECL_ID: &str = "size";
 pub(crate) const FORMULA_WARNING_ID: &str = "alchemist_formula";
-const FORMULA_EXTERNAL_FILE_WARNING_ID: &str =
-    "alchemist_formula_external_file";
-const ANODE_FORMULA_DIAGNOSTIC_WARNING_ID: &str =
-    "alchemist_formula_diagnostic";
+const FORMULA_EXTERNAL_FILE_WARNING_ID: &str = "alchemist_formula_external_file";
+const ANODE_FORMULA_DIAGNOSTIC_WARNING_ID: &str = "alchemist_formula_diagnostic";
 
 #[node("alchemist_connection", label = "Connection")]
 #[children(
@@ -217,7 +191,12 @@ fn formula_inbox_requires_bulk(events: &EventFrame) -> bool {
     events.len() >= FORMULA_BULK_INBOX_THRESHOLD
         || events
             .iter()
-            .filter(|event| matches!(&event.kind, EventKind::ChildAdded { .. } | EventKind::ChildRemoved { .. }))
+            .filter(|event| {
+                matches!(
+                    &event.kind,
+                    EventKind::ChildAdded { .. } | EventKind::ChildRemoved { .. }
+                )
+            })
             .nth(1)
             .is_some()
 }
@@ -250,9 +229,7 @@ impl AlchemistFormulaDefinition {
             .events
             .iter()
             .filter_map(|event| match &event.kind {
-                EventKind::ParamChanged {
-                    param, old_value, ..
-                } => Some((*param, old_value.clone())),
+                EventKind::ParamChanged { param, old_value, .. } => Some((*param, old_value.clone())),
                 _ => None,
             })
             .collect::<Vec<_>>();
@@ -281,9 +258,7 @@ impl AlchemistFormulaDefinition {
             if self.is_formula_copy_source_param(ctx, param) && self.copy_formula_from_source(ctx) {
                 continue;
             }
-            if self.is_external_formula_source_param(ctx, param)
-                && self.write_external_formula_from_source(ctx)
-            {
+            if self.is_external_formula_source_param(ctx, param) && self.write_external_formula_from_source(ctx) {
                 continue;
             }
             if self.is_external_formula_delete_file_param(ctx, param)
@@ -291,9 +266,7 @@ impl AlchemistFormulaDefinition {
             {
                 continue;
             }
-            if self.is_external_formula_file_param(ctx, param)
-                && self.sync_external_formula_file(ctx)
-            {
+            if self.is_external_formula_file_param(ctx, param) && self.sync_external_formula_file(ctx) {
                 continue;
             }
             if self.is_formula_internal_param(param) {
@@ -413,11 +386,7 @@ impl Node for AlchemistFormulaDefinition {
         self.reconcile_properties(ctx);
     }
 
-    fn on_node_ready(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        _context: NodeCreationContext,
-    ) {
+    fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
         self.anode_materialization.invalidate();
         if let Some(snapshot) = ctx.tree_snapshot() {
             self.index_constant_value_params(snapshot);
@@ -446,7 +415,8 @@ impl Node for AlchemistFormulaDefinition {
         let formula_id = self.id();
         if let Some(snapshot) = ctx.tree_snapshot() {
             self.index_constant_value_params(snapshot);
-            self.anode_materialization.observe_events(snapshot, formula_id, &ctx.events);
+            self.anode_materialization
+                .observe_events(snapshot, formula_id, &ctx.events);
         } else {
             for event in &ctx.events {
                 let Some(anode) = same_type_numeric_change_param(event)
@@ -465,30 +435,18 @@ impl Node for AlchemistFormulaDefinition {
         self.dispatch_bulk_inbox(ctx);
     }
 
-    fn on_param_change(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        param: NodeId,
-        _old_value: ParamValue,
-    ) {
-        if self.is_formula_copy_source_param(ctx, param)
-            && self.copy_formula_from_source(ctx)
+    fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
+        if self.is_formula_copy_source_param(ctx, param) && self.copy_formula_from_source(ctx) {
+            return;
+        }
+        if self.is_external_formula_source_param(ctx, param) && self.write_external_formula_from_source(ctx) {
+            return;
+        }
+        if self.is_external_formula_delete_file_param(ctx, param) && self.delete_external_formula_file_if_requested(ctx)
         {
             return;
         }
-        if self.is_external_formula_source_param(ctx, param)
-            && self.write_external_formula_from_source(ctx)
-        {
-            return;
-        }
-        if self.is_external_formula_delete_file_param(ctx, param)
-            && self.delete_external_formula_file_if_requested(ctx)
-        {
-            return;
-        }
-        if self.is_external_formula_file_param(ctx, param)
-            && self.sync_external_formula_file(ctx)
-        {
+        if self.is_external_formula_file_param(ctx, param) && self.sync_external_formula_file(ctx) {
             return;
         }
         if self.is_formula_internal_param(param) {
@@ -514,21 +472,14 @@ impl Node for AlchemistFormulaDefinition {
                 .node(child)
                 .is_some_and(|node| node.node_type == ANODE_NODE_TYPE)
                 .then_some(child)
-                .filter(|anode| {
-                    !is_anode_type_variable_config_param(snapshot, *anode, param)
-                })
+                .filter(|anode| !is_anode_type_variable_config_param(snapshot, *anode, param))
         });
         let materialized_formula = self.sync_anode_sockets(ctx, skip_anode);
         self.validate(ctx, materialized_formula);
         self.save_external_formula_file(ctx);
     }
 
-    fn on_child_added(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        _parent: NodeId,
-        _child: NodeId,
-    ) {
+    fn on_child_added(&mut self, ctx: &mut ProcessCtx, _parent: NodeId, _child: NodeId) {
         let materialized_formula = self.sync_anode_sockets(ctx, None);
         self.validate(ctx, materialized_formula);
         if self.is_read_only_external_formula() {
@@ -538,24 +489,14 @@ impl Node for AlchemistFormulaDefinition {
         self.save_external_formula_file(ctx);
     }
 
-    fn on_child_removed(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        _parent: NodeId,
-        _child: NodeId,
-    ) {
+    fn on_child_removed(&mut self, ctx: &mut ProcessCtx, _parent: NodeId, _child: NodeId) {
         self.remove_dangling_connections(ctx);
         let materialized_formula = self.sync_anode_sockets(ctx, None);
         self.validate(ctx, materialized_formula);
         self.save_external_formula_file(ctx);
     }
 
-    fn on_meta_changed(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        node: NodeId,
-        patch: NodeMetaPatch,
-    ) {
+    fn on_meta_changed(&mut self, ctx: &mut ProcessCtx, node: NodeId, patch: NodeMetaPatch) {
         if ctx
             .tree_snapshot()
             .is_some_and(|snapshot| is_anode_layout_node(snapshot, self.id(), node))
@@ -594,33 +535,18 @@ impl Node for AlchemistFormulaDefinition {
     }
 
     fn user_container_rules(&self) -> Option<UserContainerRules> {
-        Some(UserContainerRules::new(&[
-            ANODE_ITEM_KIND,
-            CONNECTION_ITEM_KIND,
-        ]))
+        Some(UserContainerRules::new(&[ANODE_ITEM_KIND, CONNECTION_ITEM_KIND]))
     }
 
-    fn user_container_accepts_item(
-        &self,
-        item_type: &str,
-        item_kind: &str,
-    ) -> bool {
-        (item_kind == ANODE_ITEM_KIND
-            && (item_type == ANODE_NODE_TYPE
-                || item_type.starts_with(ANODE_CREATE_PREFIX)))
-            || (item_type == CONNECTION_NODE_TYPE
-                && item_kind == CONNECTION_ITEM_KIND)
+    fn user_container_accepts_item(&self, item_type: &str, item_kind: &str) -> bool {
+        (item_kind == ANODE_ITEM_KIND && (item_type == ANODE_NODE_TYPE || item_type.starts_with(ANODE_CREATE_PREFIX)))
+            || (item_type == CONNECTION_NODE_TYPE && item_kind == CONNECTION_ITEM_KIND)
     }
 
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
         let mut items = anode_creatable_items_for_roles(&[]);
         items.push(
-            UserCreatableItem::new(
-                CONNECTION_NODE_TYPE,
-                CONNECTION_ITEM_KIND,
-                "Connection",
-            )
-            .with_menu_path(["Graph"]),
+            UserCreatableItem::new(CONNECTION_NODE_TYPE, CONNECTION_ITEM_KIND, "Connection").with_menu_path(["Graph"]),
         );
         items
     }
@@ -653,11 +579,7 @@ impl Node for AlchemistFormulaFolder {
         Some(formula_container_rules())
     }
 
-    fn user_container_accepts_item(
-        &self,
-        item_type: &str,
-        item_kind: &str,
-    ) -> bool {
+    fn user_container_accepts_item(&self, item_type: &str, item_kind: &str) -> bool {
         formula_container_accepts(item_type, item_kind)
     }
 

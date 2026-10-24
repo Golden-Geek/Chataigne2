@@ -30,3 +30,13 @@ pub struct MidiModule {}
     assert!(declares_node_type(&stripped));
     assert!(!stripped.contains("'A'"));
 }
+
+#[test]
+fn impl_only_node_attributes_do_not_register_unrelated_helper_structs() {
+    let source = r#"
+#[node("root", from_struct)]
+impl Node for RootNode {}
+pub struct Helper {}
+"#;
+    assert!(!declares_node_type(&strip_for_scanning(source)));
+}

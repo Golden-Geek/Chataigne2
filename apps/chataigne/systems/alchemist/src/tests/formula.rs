@@ -1,14 +1,15 @@
+#[cfg(feature = "serde")]
+use crate::ManagedFilterValueMode;
 use crate::test_support::TestGraph;
 
 use crate::{
     AEdge, ANodeDeclaration, ANodeFieldPath, ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraphDomain,
     FormulaContextContract, FormulaId, FormulaMaterializationError, FormulaPropertySchema, FormulaSurface,
-    InputSocketRef, ManagedFilterValueMode, ManagedItemId, ManagedItemInstance, ManagedItemUiState,
-    ManagedRegionDefinition, ManagedRegionId, ManagedRegionInstance, ManagedRegionInstances, ManagedRegionKind,
-    ManagedSocketRef, OutputSocketRef, ParamUiHints, PipelineLoweringCtx, PipelineLoweringDiagnosticKind,
-    PrimitiveNodeDeclaration, PrimitiveNodeKind, RuntimeValue, SurfaceItem, SurfaceItemId, SurfaceItemKind,
-    SurfaceSection, SurfaceSectionId, SurfaceSource, ValueTypeId, ValueTypeRegistry, ValueTypeSpec,
-    primitive_node_registry, single_shape, value_set_shape,
+    InputSocketRef, ManagedItemId, ManagedItemInstance, ManagedItemUiState, ManagedRegionDefinition, ManagedRegionId,
+    ManagedRegionInstance, ManagedRegionInstances, ManagedRegionKind, ManagedSocketRef, OutputSocketRef, ParamUiHints,
+    PipelineLoweringCtx, PipelineLoweringDiagnosticKind, PrimitiveNodeDeclaration, PrimitiveNodeKind, RuntimeValue,
+    SurfaceItem, SurfaceItemId, SurfaceItemKind, SurfaceSection, SurfaceSectionId, SurfaceSource, ValueTypeId,
+    ValueTypeRegistry, ValueTypeSpec, primitive_node_registry, single_shape, value_set_shape,
 };
 
 #[test]
@@ -108,6 +109,7 @@ fn formula_instance_references_shared_definition_and_materializes_overrides() {
 }
 
 #[test]
+#[cfg(feature = "serde")]
 fn formula_authoring_document_roundtrips_through_versioned_graph_envelope() {
     let mut graph = TestGraph::new();
     graph
@@ -126,6 +128,7 @@ fn formula_authoring_document_roundtrips_through_versioned_graph_envelope() {
 }
 
 #[test]
+#[cfg(feature = "serde")]
 fn managed_region_kind_roundtrips_through_json() {
     let encoded = serde_json::to_string(&ManagedRegionKind::FilterPipeline).unwrap();
     assert_eq!(encoded, "\"filter_pipeline\"");
@@ -135,6 +138,7 @@ fn managed_region_kind_roundtrips_through_json() {
 }
 
 #[test]
+#[cfg(feature = "serde")]
 fn persisted_filter_regions_keep_routed_semantics_until_tuple_mode_is_authored() {
     let mut definition = filter_region(crate::ANodeId::new(), crate::ANodeId::new());
     let mut historical = serde_json::to_value(&definition).unwrap();

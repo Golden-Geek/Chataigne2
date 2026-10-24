@@ -1,8 +1,12 @@
-use golden_graph::{GraphDomain, GraphEnvelope, GraphNode, GraphTransaction, GraphTransactionError};
+#[cfg(feature = "serde")]
+use crate::AlchemistGraphEnvelope;
+#[cfg(feature = "serde")]
+use golden_graph::GraphEnvelope;
+use golden_graph::{GraphDomain, GraphNode, GraphTransaction, GraphTransactionError};
 
 use crate::{
-    ANodeInstance, ANodeTypeId, AlchemistGraphDocument, AlchemistGraphDomain, AlchemistGraphEnvelope, AlchemistGraphId,
-    AlchemistNodeData, InputSocketRef, OutputSocketRef, SocketId,
+    ANodeInstance, ANodeTypeId, AlchemistGraphDocument, AlchemistGraphDomain, AlchemistGraphId, AlchemistNodeData,
+    InputSocketRef, OutputSocketRef, SocketId,
 };
 
 fn representative_document() -> (AlchemistGraphDocument, AlchemistGraphId, crate::ANodeId) {
@@ -78,6 +82,7 @@ fn generic_transaction_rejects_unknown_anode_without_mutating_document() {
 }
 
 #[test]
+#[cfg(feature = "serde")]
 fn common_graph_envelope_rebuilds_indexes_and_preserves_alchemist_semantics() {
     let (document, _, _) = representative_document();
     let domain = AlchemistGraphDomain::with_primitives();

@@ -22,6 +22,39 @@ value conversion, snapshot reconstruction, external-file workflow, reconciliatio
 Library watcher. These files adapt the typed Alchemist model to Golden node contracts; formula
 compilation and evaluation remain in the Alchemist crate.
 
+The processor's `integration/processor/lifecycle.rs` owns its Golden lifecycle and hierarchy
+callbacks. Moves and reorders of Formula properties trigger the same surface reconciliation as
+additions and removals, preserving the shared source's authored order.
+
+## Authored fragment operations
+
+`src/authoring.rs` owns the Formula copy/paste DTOs and TypeScript export. Generate the
+app UI contracts with `npm run codegen:alchemist-authoring --workspace chataigne-ui`.
+The command exports Rust DTOs and formats their generated files with the UI formatter.
+The app's `integration/formula/operations` adapter handles the `chataigne.alchemist`
+operation namespace through Golden's public project lifecycle hook. The same synchronous
+project intent facade is available to headless callers; workbench replies retain exact
+operation results through the ordinary queue and history boundary.
+
+Copy captures complete dense persisted subtrees and internal edges, including authored
+children omitted by UI projection. Paste validates the Formula's live ID and persistent UUID,
+read-only policy, record budgets, domain admission and placement. Golden owns detached forest
+decoding, one shared UUID remap, label reservations and one lifecycle/history batch. Internal
+typed references follow that map; external UUIDs remain external. The returned mapping covers
+every persisted record and names the created roots in input order. Missing records, lifecycle
+failures or invalid graph reconstruction reject the operation atomically. Opaque authored
+strings are not UUID-remapped.
+
+Initial parameter declarations resolve the root's exact child before nested paths, so placement
+cannot accidentally target a Curve key with the same declaration name. Loaded property-getter
+sockets retain their identities during local ANode reconciliation; the Formula owns their
+schema-dependent types. A schema-free fallback must not replace an already restored socket.
+
+The UI's `formulaOperations.ts` checks result envelopes against generated types and retains
+opaque document capsules. It owns no label allocation, remapping, graph repair or identity
+detection. Migration of the existing Formula editor and qualification of managed/compressed
+content are tracked by P08 in the implementation ledger.
+
 ## Formula Catalog And Library
 
 The Formula Catalog resolves every formula source the processor runtime may use:

@@ -8,7 +8,7 @@ description = "Chataigne-owned Alchemist formula domain"
 
 [features]
 default = ["serde"]
-serde = ["dep:serde"]
+serde = ["dep:serde", "dep:ts-rs"]
 rhai = []
 debug_trace = []
 golden_core_integration = []
@@ -23,4 +23,10 @@ serde_json.workspace = true
 smallvec.workspace = true
 smol_str.workspace = true
 thiserror.workspace = true
+ts-rs = { workspace = true, optional = true }
 uuid = { workspace = true, features = ["v5"] }
+
+[[bin]]
+name = "generate_alchemist_authoring"
+path = "src/bin/generate_alchemist_authoring.rs"
+required-features = ["serde"]

@@ -36,6 +36,19 @@ impl golden_core::app::ProjectLifecycle for AppNode {
         Ok(())
     }
 
+    fn apply_app_operation(
+        engine: &mut AppEngine,
+        namespace: &str,
+        operation: &str,
+        payload: serde_json::Value,
+    ) -> Result<serde_json::Value, String> {
+        if namespace == chataigne_alchemist::authoring::FORMULA_OPERATION_NAMESPACE {
+            super::systems_alchemist_formula::apply_formula_operation(engine, operation, payload)
+        } else {
+            Err(format!("unsupported app operation '{namespace}.{operation}'"))
+        }
+    }
+
     fn initialize_new_project(engine: &mut AppEngine) -> Result<(), String> {
         super::default_project::initialize_default_project(engine);
         Ok(())

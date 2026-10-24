@@ -58,3 +58,27 @@ fn filesystem_descendant_without_mod_declaration_remains_standalone() {
     assert!(generated.contains("pub mod module_modules_device;"));
     assert!(generated.contains("pub use module_modules_device::DeviceNode;"));
 }
+
+#[test]
+fn lifecycle_implementation_in_a_child_file_uses_the_public_declaration_once() {
+    let fixture = tempfile::tempdir().unwrap();
+    let source_root = fixture.path().join("src");
+    let feature_dir = source_root.join("feature");
+    fs::create_dir_all(&feature_dir).unwrap();
+    fs::write(
+        feature_dir.join("mod.rs"),
+        "mod lifecycle;\n#[node(\"root\")]\npub struct RootNode;\n",
+    )
+    .unwrap();
+    fs::write(
+        feature_dir.join("lifecycle.rs"),
+        "use super::*;\n#[node(\"root\", from_struct)]\nimpl Node for RootNode {}\n",
+    )
+    .unwrap();
+    let output = fixture.path().join("registry.rs");
+    generate_app_nodes_from_roots(&[AppNodeSourceRoot::new(&source_root, "")], &output);
+    let generated = fs::read_to_string(output).unwrap();
+    assert!(generated.contains("pub use feature::RootNode;"));
+    assert_eq!(generated.matches("pub use feature::RootNode;").count(), 1);
+    assert!(!generated.contains("feature_lifecycle"));
+}

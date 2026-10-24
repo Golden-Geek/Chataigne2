@@ -1,7 +1,7 @@
 use crate::{
-    ANodeDeclaration, ANodeInstance, ANodeRoleCapability, AutoWirePolicy, ExecutionKind, PipelineCardinality,
-    PrimitiveNodeDeclaration, PrimitiveNodeKind, RuntimeValue, SignatureCtx, SurfaceItemKind, TypeConstraint, TypeVar,
-    ValueTypeRegistry, primitive_node_registry,
+    ANodeDeclaration, ANodeInstance, AutoWirePolicy, ExecutionKind, PipelineCardinality, PrimitiveNodeDeclaration,
+    PrimitiveNodeKind, RuntimeValue, SignatureCtx, SurfaceItemKind, TypeConstraint, TypeVar, ValueTypeRegistry,
+    primitive_node_registry,
 };
 
 fn signature(kind: PrimitiveNodeKind) -> crate::ANodeSignature {
@@ -116,6 +116,7 @@ fn condition_gate_declares_filter_gate_capability() {
 }
 
 #[test]
+#[cfg(feature = "serde")]
 fn capability_metadata_roundtrips_through_json() {
     let capability = PrimitiveNodeDeclaration::new(PrimitiveNodeKind::ConvertToColor)
         .role_capabilities()
@@ -124,7 +125,7 @@ fn capability_metadata_roundtrips_through_json() {
         .expect("Convert To Color should expose a reshape capability");
 
     let encoded = serde_json::to_string(&capability).unwrap();
-    let decoded: ANodeRoleCapability = serde_json::from_str(&encoded).unwrap();
+    let decoded: crate::ANodeRoleCapability = serde_json::from_str(&encoded).unwrap();
 
     assert_eq!(decoded, capability);
     assert_eq!(decoded.cardinality, PipelineCardinality::Reshape);

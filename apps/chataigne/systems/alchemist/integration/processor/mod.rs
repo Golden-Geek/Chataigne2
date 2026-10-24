@@ -7,36 +7,33 @@ use golden_core::{
     node,
     node::{
         CONTEXT_LINK_LANE_DEFERRED_TAG, DeclId, EventPropagation, Node, NodeCreationContext, NodeId, NodeMetaPatch,
-        NodeReference, NodeUuid, NodeUserPermissions, UserContainerRules,
-        UserContextNode, UserCreatableItem, USER_CONTEXT_DEFAULT_LABEL,
-        USER_CONTEXT_ITEM_KIND, USER_CONTEXT_NODE_TYPE,
+        NodeReference, NodeUserPermissions, NodeUuid, USER_CONTEXT_DEFAULT_LABEL, USER_CONTEXT_ITEM_KIND,
+        USER_CONTEXT_NODE_TYPE, UserContainerRules, UserContextNode, UserCreatableItem,
     },
     parameter::{ParamValue, ReferenceTargetKind},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
 use crate::app::systems_alchemist_formula::{
-    anode_container_accepts_for_roles, anode_creatable_items_for_roles, create_anode_user_item,
-    create_anode_user_item_tree, formula_from_snapshot, node_has_warning, node_warning_detail, node_warning_matches,
     ANODE_ITEM_KIND, FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX, FORMULA_WARNING_ID, PROPERTIES_DECL_ID,
-    PROPERTY_FOLDER_NODE_TYPE, PROPERTY_MANAGER_NODE_TYPE, PROPERTY_NODE_TYPE,
-};
-use crate::app::{
-    AppEngine, ConditionManager, FilterChainManager, InputsManager, OutputsManager,
-};
-use crate::app::systems_alchemist_managed_nodes::{
-    OUTPUT_GROUP_ITEM_KIND, ensure_mapping_command_bindings,
-    is_output_node, output_container_accepts_item, output_container_create_item,
-    mapping_command_bindings_tree, output_generic_items, output_group_item,
-    output_module_command_items,
+    PROPERTY_FOLDER_NODE_TYPE, PROPERTY_MANAGER_NODE_TYPE, PROPERTY_NODE_TYPE, anode_container_accepts_for_roles,
+    anode_creatable_items_for_roles, create_anode_user_item, create_anode_user_item_tree, formula_from_snapshot,
+    node_has_warning, node_warning_detail, node_warning_matches,
 };
 use crate::app::systems_alchemist_generic_commands::GENERIC_COMMAND_ITEM_KIND;
+use crate::app::systems_alchemist_managed_nodes::{
+    OUTPUT_GROUP_ITEM_KIND, ensure_mapping_command_bindings, is_output_node, mapping_command_bindings_tree,
+    output_container_accepts_item, output_container_create_item, output_generic_items, output_group_item,
+    output_module_command_items,
+};
+use crate::app::{AppEngine, ConditionManager, FilterChainManager, InputsManager, OutputsManager};
 
 mod catalog;
 mod conversion;
 mod factory;
 mod filter_validation;
 mod frozen;
+mod lifecycle;
 mod managed_regions;
 mod output_migration;
 mod palette;
@@ -44,17 +41,14 @@ mod source_schema;
 mod surface;
 mod transition;
 
-pub(crate) use managed_regions::managed_regions_from_snapshot;
 pub(crate) use frozen::FrozenMappingSource;
-pub(crate) use output_migration::{
-    migrate_mapping_output_adapters, MAPPING_CONCRETE_OUTPUTS_V1_TAG,
-};
+pub(crate) use managed_regions::managed_regions_from_snapshot;
+pub(crate) use output_migration::{MAPPING_CONCRETE_OUTPUTS_V1_TAG, migrate_mapping_output_adapters};
 pub(crate) use source_schema::{managed_source_node, managed_source_schema};
 pub(crate) use transition::settle_pending_mapping_transitions;
 #[cfg(test)]
 pub(crate) use transition::{
-    commit_mapping_compression, prepare_mapping_compression,
-    set_mapping_compression, MappingCompressionError,
+    MappingCompressionError, commit_mapping_compression, prepare_mapping_compression, set_mapping_compression,
 };
 
 use self::catalog::BUILTIN_FORMULA_CONTENT_TAG_PREFIX;
@@ -62,7 +56,7 @@ use self::factory::ProcessorTreeTemplates;
 use self::surface::{processor_surface_child_tree, processor_surface_role};
 
 pub(crate) use self::catalog::{
-    shared_formula_dir_from_snapshot, FormulaCatalog, FormulaSourceRef, ProcessorFormulaSourceState,
+    FormulaCatalog, FormulaSourceRef, ProcessorFormulaSourceState, shared_formula_dir_from_snapshot,
 };
 
 /// Adds any built-in/shared formulas not yet present in the project's
@@ -81,8 +75,7 @@ pub(crate) fn sync_external_formulas(engine: &mut AppEngine) -> Result<(), Strin
         return Ok(());
     };
 
-    let builtin_candidates = FormulaCatalog::default_builtin_formula_trees()
-        .map_err(|error| error.to_string())?;
+    let builtin_candidates = FormulaCatalog::default_builtin_formula_trees().map_err(|error| error.to_string())?;
     let existing_builtins = builtin_formula_nodes(&snapshot, library);
     let candidate_uuids = builtin_candidates
         .iter()
@@ -99,11 +92,7 @@ pub(crate) fn sync_external_formulas(engine: &mut AppEngine) -> Result<(), Strin
     }
     let existing_by_uuid = existing_builtins
         .iter()
-        .filter_map(|node_id| {
-            snapshot
-                .node(*node_id)
-                .map(|node| (node.uuid, *node_id))
-        })
+        .filter_map(|node_id| snapshot.node(*node_id).map(|node| (node.uuid, *node_id)))
         .collect::<HashMap<_, _>>();
     let mut stale_builtins = existing_builtins.iter().copied().collect::<HashSet<_>>();
     let mut builtin_trees = Vec::new();
@@ -124,12 +113,10 @@ pub(crate) fn sync_external_formulas(engine: &mut AppEngine) -> Result<(), Strin
     }
 
     let shared_sync = if let Some(shared_dir) = shared_formula_dir_from_snapshot(&snapshot) {
-        let stale_nodes =
-            FormulaCatalog::stale_shared_formula_nodes(&snapshot, library, &shared_dir)
-                .map_err(|error| error.to_string())?;
-        let missing_trees =
-            FormulaCatalog::missing_shared_formula_trees(&snapshot, library, &shared_dir)
-                .map_err(|error| error.to_string())?;
+        let stale_nodes = FormulaCatalog::stale_shared_formula_nodes(&snapshot, library, &shared_dir)
+            .map_err(|error| error.to_string())?;
+        let missing_trees = FormulaCatalog::missing_shared_formula_trees(&snapshot, library, &shared_dir)
+            .map_err(|error| error.to_string())?;
         Some((stale_nodes, missing_trees))
     } else {
         None
@@ -245,15 +232,12 @@ const PROCESSOR_SURFACE_DECL_PREFIX: &str = "surface/";
 const PROCESSOR_SURFACE_IDENTITY_TAG_PREFIX: &str = "chataigne.processor.surface.identity:";
 const PROCESSOR_FORMULA_WARNING_ID: &str = "state_processor_formula";
 pub(crate) const PROCESSOR_FORMULA_SOURCE_DECL_ID: &str = "formula_source_key";
-pub(crate) const PROCESSOR_COMPRESSION_ENABLED_DECL_ID: &str =
-    "compression_enabled";
-pub(crate) const PROCESSOR_COMPRESSION_ERROR_DECL_ID: &str =
-    "compression_error";
+pub(crate) const PROCESSOR_COMPRESSION_ENABLED_DECL_ID: &str = "compression_enabled";
+pub(crate) const PROCESSOR_COMPRESSION_ERROR_DECL_ID: &str = "compression_error";
 pub(crate) const PROCESSOR_FROZEN_SOURCE_DECL_ID: &str = "frozen_source";
 pub(crate) const PROCESSOR_MANAGED_REGIONS_DECL_ID: &str = "managed_regions";
 pub(crate) const PROCESSOR_MANAGED_REGION_DECL_PREFIX: &str = "managed_region/";
-const PROCESSOR_MANAGED_REGION_ROLE_TAG_PREFIX: &str =
-    "state_processor.managed_region.role:";
+const PROCESSOR_MANAGED_REGION_ROLE_TAG_PREFIX: &str = "state_processor.managed_region.role:";
 pub(crate) const PROCESSOR_ITEM_KIND: &str = "state_processor";
 pub(crate) const PROCESSOR_FOLDER_ITEM_KIND: &str = "state_processor_folder";
 pub(crate) const PROCESSOR_FOLDER_NODE_TYPE: &str = "state_processor_folder";
@@ -272,7 +256,8 @@ pub(crate) fn processor_formula_source_ref(
             return Some(source);
         }
     }
-    snapshot.find_child_by_decl_id(processor_node, "formula")
+    snapshot
+        .find_child_by_decl_id(processor_node, "formula")
         .and_then(|node| snapshot.node(node))
         .and_then(|node| match node.param_value.as_ref()? {
             ParamValue::Reference(reference) => Some(reference.uuid()),
@@ -281,15 +266,9 @@ pub(crate) fn processor_formula_source_ref(
         .map(FormulaSourceRef::project_uuid)
 }
 
-pub(crate) fn processor_compression_enabled(
-    snapshot: &ProcessTreeSnapshot,
-    processor_node: NodeId,
-) -> bool {
+pub(crate) fn processor_compression_enabled(snapshot: &ProcessTreeSnapshot, processor_node: NodeId) -> bool {
     snapshot
-        .find_child_by_decl_id(
-            processor_node,
-            PROCESSOR_COMPRESSION_ENABLED_DECL_ID,
-        )
+        .find_child_by_decl_id(processor_node, PROCESSOR_COMPRESSION_ENABLED_DECL_ID)
         .and_then(|node| snapshot.node(node))
         .and_then(|node| node.param_value.as_ref())
         .is_some_and(|value| matches!(value, ParamValue::Bool(true)))
@@ -318,18 +297,12 @@ pub(crate) fn processor_frozen_source(
 }
 
 fn processor_container_rules() -> UserContainerRules {
-    UserContainerRules::new(&[
-        PROCESSOR_ITEM_KIND,
-        PROCESSOR_FOLDER_ITEM_KIND,
-        USER_CONTEXT_ITEM_KIND,
-    ])
+    UserContainerRules::new(&[PROCESSOR_ITEM_KIND, PROCESSOR_FOLDER_ITEM_KIND, USER_CONTEXT_ITEM_KIND])
 }
 
 fn processor_container_accepts(item_type: &str, item_kind: &str) -> bool {
     match item_kind {
-        PROCESSOR_ITEM_KIND => {
-            item_type == StateProcessor::NODE_TYPE || item_type.starts_with("state_processor:")
-        }
+        PROCESSOR_ITEM_KIND => item_type == StateProcessor::NODE_TYPE || item_type.starts_with("state_processor:"),
         PROCESSOR_FOLDER_ITEM_KIND => item_type == PROCESSOR_FOLDER_NODE_TYPE,
         USER_CONTEXT_ITEM_KIND => item_type == USER_CONTEXT_NODE_TYPE,
         _ => false,
@@ -347,12 +320,8 @@ fn processor_context_creatable_item(separator_before: bool) -> UserCreatableItem
 }
 
 fn create_processor_context_item(node_type: &str) -> Option<Box<dyn Node>> {
-    (node_type == USER_CONTEXT_NODE_TYPE).then(|| {
-        Box::new(UserContextNode::new_with_multiplex(
-            USER_CONTEXT_DEFAULT_LABEL,
-            true,
-        )) as Box<dyn Node>
-    })
+    (node_type == USER_CONTEXT_NODE_TYPE)
+        .then(|| Box::new(UserContextNode::new_with_multiplex(USER_CONTEXT_DEFAULT_LABEL, true)) as Box<dyn Node>)
 }
 
 fn initialize_processor_item(node: &mut dyn Node) {
@@ -364,14 +333,11 @@ fn initialize_processor_item(node: &mut dyn Node) {
 }
 
 fn find_formula_library(snapshot: &ProcessTreeSnapshot) -> Option<NodeId> {
-    snapshot
-        .child_ids(snapshot.root())
-        .into_iter()
-        .find(|node| {
-            snapshot
-                .node(*node)
-                .is_some_and(|snapshot_node| snapshot_node.node_type == FORMULA_LIBRARY_NODE_TYPE)
-        })
+    snapshot.child_ids(snapshot.root()).into_iter().find(|node| {
+        snapshot
+            .node(*node)
+            .is_some_and(|snapshot_node| snapshot_node.node_type == FORMULA_LIBRARY_NODE_TYPE)
+    })
 }
 
 fn locked_instance_permissions() -> NodeUserPermissions {
@@ -400,18 +366,12 @@ fn processor_surface_decl_id_for_source(source_uuid: NodeUuid, tags: &[String]) 
 /// Property surfaces are flattened to the processor's top level and carry a
 /// `surface/` decl-id prefix, so this leaves the processor's own declared
 /// children (formula reference, formula source key, managed regions) untouched.
-fn remove_processor_surface_children(
-    snapshot: &ProcessTreeSnapshot,
-    processor: NodeId,
-    ctx: &mut ProcessCtx,
-) {
+fn remove_processor_surface_children(snapshot: &ProcessTreeSnapshot, processor: NodeId, ctx: &mut ProcessCtx) {
     for child in snapshot.child_ids(processor) {
         let Some(node) = snapshot.node(child) else {
             continue;
         };
-        if node.decl_id.starts_with(PROCESSOR_SURFACE_DECL_PREFIX)
-            && !node_removal_pending(ctx, child)
-        {
+        if node.decl_id.starts_with(PROCESSOR_SURFACE_DECL_PREFIX) && !node_removal_pending(ctx, child) {
             ctx.edits.push(Edit::RemoveNode { node: child });
         }
     }
@@ -525,10 +485,7 @@ fn sync_processor_surface_order(
 
     let mut previous = None;
     for desired_child in desired_children {
-        let Some(current_index) = current_children
-            .iter()
-            .position(|child| child == desired_child)
-        else {
+        let Some(current_index) = current_children.iter().position(|child| child == desired_child) else {
             continue;
         };
         let target_index = previous
@@ -549,12 +506,7 @@ fn sync_processor_surface_order(
             };
             current_children.insert(insert_index, child);
 
-            if !processor_surface_move_pending(
-                ctx,
-                *desired_child,
-                dest_container,
-                previous,
-            ) {
+            if !processor_surface_move_pending(ctx, *desired_child, dest_container, previous) {
                 ctx.edits.push(Edit::MoveNode {
                     node: *desired_child,
                     new_parent: dest_container,
@@ -579,38 +531,27 @@ fn reconcile_properties_level(
     let mut desired_children = Vec::new();
     let mut previous_existing = None;
     for source in source_snapshot.child_ids(source_container) {
-        if processor_surface_role(source_snapshot, source)
-            .is_some_and(|role| managed_roles.contains(&role))
-        {
+        if processor_surface_role(source_snapshot, source).is_some_and(|role| managed_roles.contains(&role)) {
             continue;
         }
         let Some(source_node) = source_snapshot.node(source) else {
             continue;
         };
         let decl_id = processor_surface_decl_id_for_source(source_node.uuid, &source_node.tags);
-        let Some(expected_tree) =
-            processor_surface_child_tree(source_snapshot, source, managed_roles)
-        else {
+        let Some(expected_tree) = processor_surface_child_tree(source_snapshot, source, managed_roles) else {
             continue;
         };
         desired.insert(decl_id.clone());
-        let Some(existing) =
-            dest_snapshot.find_child_by_decl_id(dest_container, &decl_id)
-        else {
+        let Some(existing) = dest_snapshot.find_child_by_decl_id(dest_container, &decl_id) else {
             let already_queued = ctx.edits.pending.iter().any(|req| {
                 if let Edit::AddNodeTree { tree, parent: p, .. } = &req.edit {
-                    *p == dest_container
-                        && tree.node.node_data().meta.decl_id.0 == decl_id
+                    *p == dest_container && tree.node.node_data().meta.decl_id.0 == decl_id
                 } else {
                     false
                 }
             });
             if !already_queued {
-                ctx.add_child_tree(
-                    dest_container,
-                    expected_tree,
-                    previous_existing,
-                );
+                ctx.add_child_tree(dest_container, expected_tree, previous_existing);
             }
             continue;
         };
@@ -648,9 +589,7 @@ fn reconcile_properties_level(
             );
         }
         if source_node.node_type == PROPERTY_NODE_TYPE {
-            let Some(source_value) =
-                source_snapshot.find_child_by_decl_id(source, "value")
-            else {
+            let Some(source_value) = source_snapshot.find_child_by_decl_id(source, "value") else {
                 continue;
             };
             if let Some(constraints) = source_snapshot
@@ -669,14 +608,7 @@ fn reconcile_properties_level(
                 });
             }
         } else if source_node.node_type == PROPERTY_FOLDER_NODE_TYPE {
-            reconcile_properties_level(
-                source_snapshot,
-                source,
-                dest_snapshot,
-                existing,
-                managed_roles,
-                ctx,
-            );
+            reconcile_properties_level(source_snapshot, source, dest_snapshot, existing, managed_roles, ctx);
         }
     }
 
@@ -708,9 +640,7 @@ fn managed_surface_nodes_for_roles(
         };
         let decl_id = processor_surface_decl_id_for_source(source_node.uuid, &source_node.tags);
         if processor_surface_role(snapshot, source).is_some_and(|role| roles.contains(&role)) {
-            if let Some(destination) =
-                snapshot.find_child_by_decl_id(destination_container, &decl_id)
-            {
+            if let Some(destination) = snapshot.find_child_by_decl_id(destination_container, &decl_id) {
                 matches.push(destination);
             }
             continue;
@@ -718,17 +648,10 @@ fn managed_surface_nodes_for_roles(
         if source_node.node_type != PROPERTY_FOLDER_NODE_TYPE {
             continue;
         }
-        let Some(destination) =
-            snapshot.find_child_by_decl_id(destination_container, &decl_id)
-        else {
+        let Some(destination) = snapshot.find_child_by_decl_id(destination_container, &decl_id) else {
             continue;
         };
-        matches.extend(managed_surface_nodes_for_roles(
-            snapshot,
-            source,
-            destination,
-            roles,
-        ));
+        matches.extend(managed_surface_nodes_for_roles(snapshot, source, destination, roles));
     }
     matches
 }
@@ -753,9 +676,9 @@ fn migrate_legacy_managed_root(
         .child_ids(processor)
         .into_iter()
         .filter(|child| {
-            snapshot.node(*child).is_some_and(|node| {
-                node.decl_id.starts_with(PROCESSOR_SURFACE_DECL_PREFIX)
-            })
+            snapshot
+                .node(*child)
+                .is_some_and(|node| node.decl_id.starts_with(PROCESSOR_SURFACE_DECL_PREFIX))
         })
         .collect::<Vec<_>>();
     let mut previous_region = None;
@@ -763,10 +686,7 @@ fn migrate_legacy_managed_root(
         let Some(region_node) = snapshot.node(region) else {
             continue;
         };
-        if !region_node
-            .decl_id
-            .starts_with(PROCESSOR_MANAGED_REGION_DECL_PREFIX)
-        {
+        if !region_node.decl_id.starts_with(PROCESSOR_MANAGED_REGION_DECL_PREFIX) {
             ctx.edits.push(Edit::MoveNode {
                 node: region,
                 new_parent: processor,
@@ -781,8 +701,7 @@ fn migrate_legacy_managed_root(
             let Some(surface_node) = snapshot.node(*surface) else {
                 continue;
             };
-            if !surface_role_from_processor_node_type(&surface_node.node_type)
-                .is_some_and(|role| roles.contains(&role))
+            if !surface_role_from_processor_node_type(&surface_node.node_type).is_some_and(|role| roles.contains(&role))
             {
                 continue;
             }
@@ -816,8 +735,7 @@ pub struct StateProcessorManagedRegions {}
 #[node("state_processor_managed_regions", from_struct)]
 impl Node for StateProcessorManagedRegions {
     fn init(&mut self, _ctx: &mut ProcessCtx) {
-        self.node_data_mut().meta.user_permissions =
-            locked_instance_permissions();
+        self.node_data_mut().meta.user_permissions = locked_instance_permissions();
         self.node_data_mut().meta.can_be_disabled = false;
     }
 
@@ -889,8 +807,7 @@ impl Node for StateProcessorManagedRegion {
     }
 
     fn user_creatable_items_require_tree_snapshot(&self) -> bool {
-        managed_region_roles_from_tags(&self.node_data().meta.tags)
-            .contains(&SurfaceItemKind::Output)
+        managed_region_roles_from_tags(&self.node_data().meta.tags).contains(&SurfaceItemKind::Output)
     }
 
     fn user_creatable_items_with_context(
@@ -899,9 +816,7 @@ impl Node for StateProcessorManagedRegion {
         _parent: NodeId,
         child_catalog: &dyn Fn(NodeId) -> Vec<UserCreatableItem>,
     ) -> Vec<UserCreatableItem> {
-        if managed_region_roles_from_tags(&self.node_data().meta.tags)
-            .contains(&SurfaceItemKind::Output)
-        {
+        if managed_region_roles_from_tags(&self.node_data().meta.tags).contains(&SurfaceItemKind::Output) {
             return output_module_command_items(snapshot, child_catalog)
                 .into_iter()
                 .chain(output_generic_items())
@@ -912,29 +827,22 @@ impl Node for StateProcessorManagedRegion {
     }
 
     fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
-        if managed_region_roles_from_tags(&self.node_data().meta.tags)
-            .contains(&SurfaceItemKind::Output)
-        {
+        if managed_region_roles_from_tags(&self.node_data().meta.tags).contains(&SurfaceItemKind::Output) {
             return output_container_create_item(node_type);
         }
         create_anode_user_item(node_type)
     }
 
     fn create_user_item_tree(&self, node_type: &str) -> Option<NodeTree> {
-        if managed_region_roles_from_tags(&self.node_data().meta.tags)
-            .contains(&SurfaceItemKind::Output)
-        {
-            return output_container_create_item(node_type).map(|command| {
-                NodeTree::boxed(command)
-                    .with_child(mapping_command_bindings_tree(None))
-            });
+        if managed_region_roles_from_tags(&self.node_data().meta.tags).contains(&SurfaceItemKind::Output) {
+            return output_container_create_item(node_type)
+                .map(|command| NodeTree::boxed(command).with_child(mapping_command_bindings_tree(None)));
         }
         create_anode_user_item_tree(node_type)
     }
 
     fn child_event_interest_depth(&self, event: &Event) -> u32 {
-        if managed_region_roles_from_tags(&self.node_data().meta.tags)
-            .contains(&SurfaceItemKind::Output)
+        if managed_region_roles_from_tags(&self.node_data().meta.tags).contains(&SurfaceItemKind::Output)
             && matches!(
                 event.kind,
                 EventKind::ChildAdded { .. } | EventKind::ChildReplaced { .. }
@@ -950,30 +858,20 @@ impl Node for StateProcessorManagedRegion {
         self.ensure_output_bindings_for_descendant(ctx, child);
     }
 
-    fn on_child_replaced(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        _parent: NodeId,
-        _old: NodeId,
-        new: NodeId,
-    ) {
+    fn on_child_replaced(&mut self, ctx: &mut ProcessCtx, _parent: NodeId, _old: NodeId, new: NodeId) {
         self.ensure_output_bindings_for_descendant(ctx, new);
     }
 
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         self.node_data_mut().meta.user_permissions = locked_instance_permissions();
         self.node_data_mut().meta.can_be_disabled = false;
-        if managed_region_roles_from_tags(&self.node_data().meta.tags)
-            .contains(&SurfaceItemKind::Filter)
-        {
+        if managed_region_roles_from_tags(&self.node_data().meta.tags).contains(&SurfaceItemKind::Filter) {
             self.filter_items = palette::filter_catalog_items();
         }
     }
 
     fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
-        if !managed_region_roles_from_tags(&self.node_data().meta.tags)
-            .contains(&SurfaceItemKind::Filter)
-        {
+        if !managed_region_roles_from_tags(&self.node_data().meta.tags).contains(&SurfaceItemKind::Filter) {
             return;
         }
         let processor = ctx.tree_snapshot().and_then(|snapshot| {
@@ -988,10 +886,7 @@ impl Node for StateProcessorManagedRegion {
 
     fn on_inbox(&mut self, ctx: &mut ProcessCtx) {
         self.dispatch_inbox(ctx);
-        if filter_validation_events_require_refresh(
-            &ctx.events,
-            &self.filter_validation_dependencies,
-        ) {
+        if filter_validation_events_require_refresh(&ctx.events, &self.filter_validation_dependencies) {
             self.reconcile_filter_validation(ctx);
         }
     }
@@ -1006,10 +901,7 @@ impl Node for StateProcessorManagedRegion {
                 )
             });
         output_structure_changed
-            || filter_validation_events_require_refresh(
-                events,
-                &self.filter_validation_dependencies,
-            )
+            || filter_validation_events_require_refresh(events, &self.filter_validation_dependencies)
     }
 
     fn project_create(node_type: &str) -> Option<Self> {
@@ -1067,7 +959,8 @@ impl Node for StateProcessorManager {
     }
 
     fn create_user_item_tree(&self, node_type: &str) -> Option<NodeTree> {
-        self.tree_templates.create_tree(node_type, || self.create_user_item(node_type))
+        self.tree_templates
+            .create_tree(node_type, || self.create_user_item(node_type))
     }
 
     fn init(&mut self, _ctx: &mut ProcessCtx) {
@@ -1201,7 +1094,8 @@ impl Node for StateProcessorFolder {
     }
 
     fn create_user_item_tree(&self, node_type: &str) -> Option<NodeTree> {
-        self.tree_templates.create_tree(node_type, || self.create_user_item(node_type))
+        self.tree_templates
+            .create_tree(node_type, || self.create_user_item(node_type))
     }
 
     fn init(&mut self, _ctx: &mut ProcessCtx) {
@@ -1338,10 +1232,7 @@ pub struct StateProcessor {
     compression_request: Option<bool>,
 }
 
-fn processor_palette_inbox_requires_tree_snapshot(
-    events: &EventFrame,
-    templates: &ProcessorTreeTemplates,
-) -> bool {
+fn processor_palette_inbox_requires_tree_snapshot(events: &EventFrame, templates: &ProcessorTreeTemplates) -> bool {
     events.iter().any(|event| {
         matches!(
             event.kind,
@@ -1354,40 +1245,23 @@ fn processor_palette_inbox_requires_tree_snapshot(
     })
 }
 
-fn filter_validation_events_require_refresh(
-    events: &EventFrame,
-    dependencies: &HashSet<NodeId>,
-) -> bool {
+fn filter_validation_events_require_refresh(events: &EventFrame, dependencies: &HashSet<NodeId>) -> bool {
     events.iter().any(|event| match &event.kind {
         EventKind::ParamChanged { param, .. }
         | EventKind::ParamControlChanged { param, .. }
-        | EventKind::ParamConstraintsChanged { param, .. } => {
-            dependencies.contains(param)
-        }
+        | EventKind::ParamConstraintsChanged { param, .. } => dependencies.contains(param),
         EventKind::ChildAdded { parent, child, .. }
         | EventKind::ChildRemoved { parent, child }
-        | EventKind::ChildReordered { parent, child } => {
-            dependencies.contains(parent) || dependencies.contains(child)
-        }
-        EventKind::ChildReplaced {
-            parent, old, new, ..
-        } => {
-            dependencies.contains(parent)
-                || dependencies.contains(old)
-                || dependencies.contains(new)
+        | EventKind::ChildReordered { parent, child } => dependencies.contains(parent) || dependencies.contains(child),
+        EventKind::ChildReplaced { parent, old, new, .. } => {
+            dependencies.contains(parent) || dependencies.contains(old) || dependencies.contains(new)
         }
         EventKind::ChildMoved {
             child,
             old_parent,
             new_parent,
-        } => {
-            dependencies.contains(child)
-                || dependencies.contains(old_parent)
-                || dependencies.contains(new_parent)
-        }
-        EventKind::NodeDeleted { node } | EventKind::MetaChanged { node, .. } => {
-            dependencies.contains(node)
-        }
+        } => dependencies.contains(child) || dependencies.contains(old_parent) || dependencies.contains(new_parent),
+        EventKind::NodeDeleted { node } | EventKind::MetaChanged { node, .. } => dependencies.contains(node),
         EventKind::GraphTransaction { .. } => true,
         EventKind::NodeCreated { .. } | EventKind::Custom(_) => false,
     })
@@ -1421,14 +1295,8 @@ impl StateProcessorManagedRegion {
         self.filter_validation_formula_root = watch.formula_root;
     }
 
-    fn ensure_output_bindings_for_descendant(
-        &self,
-        ctx: &mut ProcessCtx,
-        descendant: NodeId,
-    ) {
-        if !managed_region_roles_from_tags(&self.node_data().meta.tags)
-            .contains(&SurfaceItemKind::Output)
-        {
+    fn ensure_output_bindings_for_descendant(&self, ctx: &mut ProcessCtx, descendant: NodeId) {
+        if !managed_region_roles_from_tags(&self.node_data().meta.tags).contains(&SurfaceItemKind::Output) {
             return;
         }
         let Some(snapshot) = ctx.tree_snapshot_arc() else {
@@ -1447,144 +1315,6 @@ impl StateProcessorManagedRegion {
         if is_output_node(snapshot.as_ref(), output) {
             ensure_mapping_command_bindings(ctx, output);
         }
-    }
-
-}
-
-#[node(
-    "state_processor",
-    from_struct,
-    contextualizable = golden_core::node::UserContextHostPolicy::multiplex_contextualizable()
-)]
-impl Node for StateProcessor {
-    fn user_container_rules(&self) -> Option<UserContainerRules> {
-        Some(UserContainerRules::new(&[USER_CONTEXT_ITEM_KIND]))
-    }
-
-    fn user_container_accepts_item(&self, item_type: &str, item_kind: &str) -> bool {
-        item_kind == USER_CONTEXT_ITEM_KIND && item_type == USER_CONTEXT_NODE_TYPE
-    }
-
-    fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
-        vec![processor_context_creatable_item(false)]
-    }
-
-    fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
-        create_processor_context_item(node_type)
-    }
-
-    fn init(&mut self, ctx: &mut ProcessCtx) {
-        initialize_processor_item(self);
-        self.sync_formula_source_key();
-        self.reconcile_formula(ctx);
-    }
-
-    fn on_node_ready(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        _context: NodeCreationContext,
-    ) {
-        self.refresh_formula_subscription(ctx);
-        self.refresh_condition_valid_params(ctx);
-        self.reconcile_formula(ctx);
-    }
-
-    fn on_param_change(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        param: NodeId,
-        old_value: ParamValue,
-    ) {
-        if self.compression_enabled.get()
-            && (param == self.formula.id()
-                || param == self.convert_to_formula.id())
-        {
-            ctx.set_param(param, old_value);
-            ctx.set_param(
-                self.compression_error.id(),
-                ParamValue::Str(
-                    "Mapping workflow is compressed; expand it before editing the Formula"
-                        .to_owned(),
-                ),
-            );
-            return;
-        }
-        if param == self.convert_to_formula.id() {
-            self.convert_mapping_to_formula(ctx);
-            return;
-        }
-        if param == self.compress.id() {
-            self.compression_request = Some(true);
-            return;
-        }
-        if param == self.expand.id() {
-            self.compression_request = Some(false);
-            return;
-        }
-        if self.condition_valid_params.contains(&param) {
-            return;
-        }
-        if param == self.formula.id() {
-            self.sync_formula_source_from_reference();
-            self.refresh_formula_subscription(ctx);
-        }
-        self.reconcile_formula(ctx);
-    }
-
-    fn on_node_created(&mut self, ctx: &mut ProcessCtx, _node: NodeId) {
-        self.refresh_condition_valid_params(ctx);
-        self.reconcile_formula(ctx);
-    }
-
-    fn on_node_deleted(&mut self, ctx: &mut ProcessCtx, _node: NodeId) {
-        self.refresh_condition_valid_params(ctx);
-        self.refresh_formula_subscription(ctx);
-        self.reconcile_formula(ctx);
-    }
-
-    fn on_child_added(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        _parent: NodeId,
-        _child: NodeId,
-    ) {
-        self.refresh_condition_valid_params(ctx);
-        self.reconcile_formula(ctx);
-    }
-
-    fn on_child_removed(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        _parent: NodeId,
-        _child: NodeId,
-    ) {
-        self.refresh_condition_valid_params(ctx);
-        self.reconcile_formula(ctx);
-    }
-
-    fn on_meta_changed(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        _node: NodeId,
-        _patch: NodeMetaPatch,
-    ) {
-        self.reconcile_formula(ctx);
-    }
-
-    fn child_event_interest_depth(&self, _event: &Event) -> u32 {
-        3
-    }
-
-    fn inbox_requires_tree_snapshot(&self, events: &EventFrame) -> bool {
-        events.iter().any(|event| match &event.kind {
-            EventKind::Custom(_) => false,
-            EventKind::ParamChanged { param, .. } => !self.condition_valid_params.contains(param),
-            _ => true,
-        })
-    }
-
-    fn project_create(node_type: &str) -> Option<Self> {
-        (node_type == Self::NODE_TYPE).then(Self::new)
     }
 }
 
@@ -1614,8 +1344,7 @@ impl StateProcessor {
     fn set_formula_source(&mut self, source: FormulaSourceRef) {
         self.formula_source = ProcessorFormulaSourceState::from_source(&source);
         let FormulaSourceRef::ProjectNode(reference) = source;
-        self.formula
-            .apply_runtime_value(&ParamValue::Reference(reference));
+        self.formula.apply_runtime_value(&ParamValue::Reference(reference));
         self.sync_formula_source_key();
     }
 
@@ -1624,9 +1353,7 @@ impl StateProcessor {
         self.formula_source = if reference.is_empty() {
             ProcessorFormulaSourceState::Empty
         } else {
-            ProcessorFormulaSourceState::from_source(&FormulaSourceRef::ProjectNode(
-                reference.clone(),
-            ))
+            ProcessorFormulaSourceState::from_source(&FormulaSourceRef::ProjectNode(reference.clone()))
         };
         self.sync_formula_source_key();
     }
@@ -1641,9 +1368,7 @@ impl StateProcessor {
         self.formula_source_key.apply_runtime_value(&ParamValue::Str(value));
     }
 
-    fn formula_source_ref(
-        &self,
-    ) -> Result<Option<FormulaSourceRef>, catalog::FormulaSourceParseError> {
+    fn formula_source_ref(&self) -> Result<Option<FormulaSourceRef>, catalog::FormulaSourceParseError> {
         match self.formula_source.to_source_ref()? {
             Some(source) => Ok(Some(source)),
             None => {
@@ -1667,9 +1392,7 @@ impl StateProcessor {
     }
 
     fn refresh_formula_subscription(&mut self, ctx: &mut ProcessCtx) {
-        let next = ctx
-            .tree_snapshot()
-            .and_then(|snapshot| self.formula_node(snapshot));
+        let next = ctx.tree_snapshot().and_then(|snapshot| self.formula_node(snapshot));
         if self.subscribed_formula == next {
             return;
         }
@@ -1717,23 +1440,17 @@ impl StateProcessor {
 
         let warning = match self.formula_source_ref() {
             Err(error) => Some(("Invalid formula source", error.to_string())),
-            Ok(None) => Some((
-                "Missing formula",
-                "This processor has no formula assigned.".to_owned(),
-            )),
+            Ok(None) => Some(("Missing formula", "This processor has no formula assigned.".to_owned())),
             Ok(Some(FormulaSourceRef::ProjectNode(_))) => match self.formula_node(&snapshot) {
                 None => Some((
                     "Missing formula",
                     "The referenced formula could not be found.".to_owned(),
                 )),
-                Some(formula) => {
-                node_has_warning(&snapshot, formula, FORMULA_WARNING_ID).then(|| {
-                    let detail =
-                        node_warning_detail(&snapshot, formula, FORMULA_WARNING_ID)
-                            .unwrap_or_else(|| "The formula has errors.".to_owned());
+                Some(formula) => node_has_warning(&snapshot, formula, FORMULA_WARNING_ID).then(|| {
+                    let detail = node_warning_detail(&snapshot, formula, FORMULA_WARNING_ID)
+                        .unwrap_or_else(|| "The formula has errors.".to_owned());
                     ("Formula has errors", detail)
-                })
-                }
+                }),
             },
         };
 
@@ -1751,12 +1468,7 @@ impl StateProcessor {
                     message,
                     Some(&detail),
                 ) {
-                    ctx.set_node_warning_with(
-                        self.id(),
-                        Some(PROCESSOR_FORMULA_WARNING_ID),
-                        message,
-                        Some(&detail),
-                    );
+                    ctx.set_node_warning_with(self.id(), Some(PROCESSOR_FORMULA_WARNING_ID), message, Some(&detail));
                 }
             }
         }
@@ -1787,20 +1499,11 @@ impl StateProcessor {
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default();
-        let Some(source_properties) =
-            snapshot.find_child_by_decl_id(formula, PROPERTIES_DECL_ID)
-        else {
+        let Some(source_properties) = snapshot.find_child_by_decl_id(formula, PROPERTIES_DECL_ID) else {
             remove_processor_surface_children(&snapshot, self.id(), ctx);
             return;
         };
-        reconcile_properties_level(
-            &snapshot,
-            source_properties,
-            &snapshot,
-            self.id(),
-            &managed_roles,
-            ctx,
-        );
+        reconcile_properties_level(&snapshot, source_properties, &snapshot, self.id(), &managed_roles, ctx);
     }
 
     fn reconcile_formula_managed_regions(&self, ctx: &mut ProcessCtx) {
@@ -1850,18 +1553,13 @@ impl StateProcessor {
             let Some(existing) = direct else {
                 let already_queued = ctx.edits.pending.iter().any(|req| {
                     if let Edit::AddNodeTree { tree, parent: p, .. } = &req.edit {
-                        *p == self.id()
-                            && tree.node.node_data().meta.decl_id.0 == decl_id
+                        *p == self.id() && tree.node.node_data().meta.decl_id.0 == decl_id
                     } else {
                         false
                     }
                 });
                 if !already_queued {
-                    ctx.add_child_tree(
-                        self.id(),
-                        processor_managed_region_tree(&definition),
-                        previous_region,
-                    );
+                    ctx.add_child_tree(self.id(), processor_managed_region_tree(&definition), previous_region);
                 }
                 continue;
             };
@@ -1871,9 +1569,7 @@ impl StateProcessor {
                 continue;
             };
             let desired_tags = managed_region_tags(&definition);
-            if existing_node.label != definition.label
-                || existing_node.tags != desired_tags
-            {
+            if existing_node.label != definition.label || existing_node.tags != desired_tags {
                 ctx.patch_node_meta(
                     existing,
                     NodeMetaPatch {
@@ -1885,12 +1581,9 @@ impl StateProcessor {
             }
 
             if let Some(source_properties) = source_properties {
-                for surface in managed_surface_nodes_for_roles(
-                    &snapshot,
-                    source_properties,
-                    self.id(),
-                    &definition.accepted_roles,
-                ) {
+                for surface in
+                    managed_surface_nodes_for_roles(&snapshot, source_properties, self.id(), &definition.accepted_roles)
+                {
                     let mut previous_child = snapshot.child_ids(existing).last().copied();
                     for child in snapshot.child_ids(surface) {
                         ctx.edits.push(Edit::MoveNode {
@@ -1910,9 +1603,7 @@ impl StateProcessor {
             let Some(node) = snapshot.node(child) else {
                 continue;
             };
-            if node.decl_id.starts_with(PROCESSOR_MANAGED_REGION_DECL_PREFIX)
-                && !desired.contains(&node.decl_id)
-            {
+            if node.decl_id.starts_with(PROCESSOR_MANAGED_REGION_DECL_PREFIX) && !desired.contains(&node.decl_id) {
                 ctx.edits.push(Edit::RemoveNode { node: child });
             }
         }

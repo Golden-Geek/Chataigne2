@@ -42,6 +42,7 @@ mod error;
 mod history;
 /// Typed ingress validation and transfer of deferred request ownership.
 mod ingress;
+pub(crate) mod labels;
 /// Limits and accounting for callback-generated structure.
 mod lifecycle_budget;
 /// Two-way listener index for O(tree_depth) subscription routing.
@@ -92,6 +93,8 @@ pub use persistence::ProjectNodeRecord;
 /// Project persistence error type.
 pub use persistence::ProjectPersistenceError;
 pub(crate) use persistence::remap_record_uuids as remap_project_record_uuids;
+/// Detached forest-import input and authoritative identity results.
+pub use persistence::{ProjectImportResult, ProjectImportSpec, ProjectImportedIdentity};
 /// Default runtime loop frequency cap in hertz.
 pub use runtime::DEFAULT_RUNTIME_LOOP_MAX_FREQUENCY_HZ;
 /// Runtime error type returned by resolve/scheduling and tick execution.

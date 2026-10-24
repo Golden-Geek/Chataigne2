@@ -21,11 +21,13 @@ use super::history::AddNodeEffect;
 use super::{Engine, EngineEditError};
 
 mod duplicate;
+mod import;
 mod lifecycle;
 mod transaction;
 mod types;
 
 use duplicate::DecodedProjectTree;
+pub use import::{ProjectImportResult, ProjectImportSpec, ProjectImportedIdentity};
 pub use types::{
     ProjectLoadRecoveryProblem, ProjectLoadRecoveryReport, ProjectLoadRecoveryStage, ProjectNodeMeta,
     ProjectPersistenceError,
@@ -448,15 +450,11 @@ impl<T: Node> Engine<T> {
             .iter()
             .any(|node| self.catalog_creatable_items_require_tree_snapshot(*node))
             .then(|| self.build_process_tree_snapshot());
-        let mut ops = Vec::new();
-        for nodes in &loaded_by_root {
-            match self.loaded_subtree_ui_ops(nodes, catalog_snapshot.as_deref()) {
-                Ok(mut subtree_ops) => ops.append(&mut subtree_ops),
-                Err(error) => {
-                    return Err(self.abort_project_subtree_commit(checkpoint, error));
-                }
-            }
-        }
+        let groups = loaded_by_root.iter().map(Vec::as_slice).collect::<Vec<_>>();
+        let ops = match self.loaded_forest_ui_ops(&groups, catalog_snapshot.as_deref()) {
+            Ok(ops) => ops,
+            Err(error) => return Err(self.abort_project_subtree_commit(checkpoint, error)),
+        };
         self.push_ui_graph_transaction(ops);
         for root in &roots {
             self.record_single_history_step(
@@ -478,24 +476,23 @@ impl<T: Node> Engine<T> {
             .iter()
             .any(|node_id| self.catalog_creatable_items_require_tree_snapshot(*node_id))
             .then(|| self.build_process_tree_snapshot());
-        let ops = self.loaded_subtree_ui_ops(node_ids, catalog_snapshot.as_deref())?;
+        let ops = self.loaded_forest_ui_ops(&[node_ids], catalog_snapshot.as_deref())?;
         self.push_ui_graph_transaction(ops);
         Ok(())
     }
 
-    fn loaded_subtree_ui_ops(
+    fn loaded_forest_ui_ops(
         &self,
-        node_ids: &[NodeId],
+        node_groups: &[&[NodeId]],
         catalog_snapshot: Option<&ProcessTreeSnapshot>,
     ) -> Result<Vec<UiGraphOp>, ProjectPersistenceError> {
-        let mut ops = Vec::<UiGraphOp>::with_capacity(node_ids.len().saturating_add(1));
-        let mut root_parent = None;
-        // Match the normal add-node path: large loaded/duplicated subtrees should
-        // reach the UI as one transaction instead of many indexed inserts.
+        let mut ops = Vec::<UiGraphOp>::new();
+        let mut parents = Vec::new();
+        let mut order_ops = HashMap::new();
         const SUBTREE_COMPACT_THRESHOLD: usize = 8;
-        if node_ids.len() > SUBTREE_COMPACT_THRESHOLD {
+        for node_ids in node_groups {
             let Some(root) = node_ids.first().copied() else {
-                return Ok(ops);
+                continue;
             };
             let parent = self
                 .nodes
@@ -503,61 +500,57 @@ impl<T: Node> Engine<T> {
                 .ok_or(ProjectPersistenceError::MissingNode(root))?
                 .node_data()
                 .parent;
-            if let Some(parent) = parent {
-                let mut nodes = Vec::with_capacity(node_ids.len());
-                for node in node_ids {
-                    let snapshot = match catalog_snapshot {
-                        Some(catalog_snapshot) => {
-                            self.ui_node_dto_for_event_with_catalog_snapshot(*node, catalog_snapshot)
-                        }
-                        None => self.ui_node_dto_for_event_without_catalog_snapshot(*node),
-                    }
-                    .ok_or(ProjectPersistenceError::MissingNode(*node))?;
-                    nodes.push(snapshot);
+            let compact = parent.is_some() && (node_groups.len() > 1 || node_ids.len() > SUBTREE_COMPACT_THRESHOLD);
+            let mut snapshots = Vec::new();
+            for node in *node_ids {
+                let snapshot = match catalog_snapshot {
+                    Some(catalog_snapshot) => self.ui_node_dto_for_event_with_catalog_snapshot(*node, catalog_snapshot),
+                    None => self.ui_node_dto_for_event_without_catalog_snapshot(*node),
                 }
-                let parent_children_after = self.ui_direct_children(parent).unwrap_or_default();
+                .ok_or(ProjectPersistenceError::MissingNode(*node))?;
+                if compact {
+                    snapshots.push(snapshot);
+                } else {
+                    let parent = self.nodes.get(*node).unwrap().node_data().parent;
+                    let index = parent.and_then(|parent| self.ui_child_index(parent, *node));
+                    ops.push(UiGraphOp::NodeCreated {
+                        snapshot: Box::new(snapshot),
+                        parent,
+                        index,
+                    });
+                }
+            }
+            if let Some(parent) = parent {
+                if !order_ops.contains_key(&parent) {
+                    parents.push(parent);
+                }
+                order_ops.insert(parent, compact.then_some(ops.len()));
+            }
+            if compact {
                 ops.push(UiGraphOp::SubtreeInserted {
                     root,
-                    parent,
-                    nodes,
-                    parent_children_after: Some(parent_children_after),
+                    parent: parent.unwrap(),
+                    nodes: snapshots,
+                    parent_children_after: None,
                 });
-                return Ok(ops);
             }
         }
-
-        for node in node_ids {
-            let parent = {
-                let node_data = self
-                    .nodes
-                    .get(*node)
-                    .ok_or(ProjectPersistenceError::MissingNode(*node))?
-                    .node_data();
-                node_data.parent
-            };
-            if root_parent.is_none() {
-                root_parent = parent;
+        // Build each sibling order once, before the transaction compacts it to a splice.
+        // Encoding and then discarding one full sibling list per root is still quadratic.
+        for parent in parents {
+            let children = self.ui_direct_children(parent).unwrap_or_default();
+            if let Some(index) = order_ops[&parent] {
+                let UiGraphOp::SubtreeInserted {
+                    parent_children_after, ..
+                } = &mut ops[index]
+                else {
+                    unreachable!()
+                };
+                *parent_children_after = Some(children);
+            } else {
+                ops.push(UiGraphOp::ChildrenReordered { parent, children });
             }
-
-            let snapshot = match catalog_snapshot {
-                Some(catalog_snapshot) => self.ui_node_dto_for_event_with_catalog_snapshot(*node, catalog_snapshot),
-                None => self.ui_node_dto_for_event_without_catalog_snapshot(*node),
-            }
-            .ok_or(ProjectPersistenceError::MissingNode(*node))?;
-            let index = parent.and_then(|parent| self.ui_child_index(parent, *node));
-            ops.push(UiGraphOp::NodeCreated {
-                snapshot: Box::new(snapshot),
-                parent,
-                index,
-            });
         }
-
-        if let Some(parent) = root_parent
-            && let Some(children) = self.ui_direct_children(parent)
-        {
-            ops.push(UiGraphOp::ChildrenReordered { parent, children });
-        }
-
         Ok(ops)
     }
 

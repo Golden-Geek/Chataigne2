@@ -38,6 +38,15 @@ pub(crate) struct CommittedProjectSubtree {
 }
 
 impl<T: Node> PreparedProjectSubtree<T> {
+    pub(super) fn for_import(parent: NodeId, prev_sibling: Option<NodeId>, tree: DecodedProjectTree<T>) -> Self {
+        Self {
+            parent,
+            prev_sibling,
+            tree,
+            blueprint_meta: None,
+            initial_params: Vec::new(),
+        }
+    }
     pub(crate) fn root_uuid(&self) -> NodeUuid {
         self.tree.node.node_data().meta.uuid
     }
@@ -462,6 +471,14 @@ impl<T: Node> Engine<T> {
     }
 
     pub(super) fn find_staged_parameter(&self, root: NodeId, decl_id: &str) -> Option<NodeId> {
+        let mut direct = self.nodes.get(root)?.node_data().first_child;
+        while let Some(child) = direct {
+            let node = self.nodes.get(child)?;
+            if node.node_data().meta.decl_id.0 == decl_id && node.engine_param_snapshot().is_some() {
+                return Some(child);
+            }
+            direct = node.node_data().next_sibling;
+        }
         if decl_id.contains('/') {
             let path_target = (|| {
                 let mut current = root;
@@ -501,10 +518,7 @@ impl<T: Node> Engine<T> {
 
         while let Some(node_id) = stack.pop() {
             let node = self.nodes.get(node_id)?;
-            if node.engine_param_snapshot().is_some()
-                && (node.node_data().meta.decl_id.0 == decl_id
-                    || node.node_data().meta.decl_id.0.rsplit('/').next() == Some(decl_id))
-            {
+            if node.engine_param_snapshot().is_some() && node.node_data().meta.decl_id.0 == decl_id {
                 return Some(node_id);
             }
 
@@ -587,6 +601,23 @@ impl<T: Node> Engine<T> {
         prepared: Vec<(PreparedProjectSubtree<T>, NodeCreationContext)>,
         operation: &'static str,
     ) -> Result<Vec<NodeId>, ProjectPersistenceError> {
+        self.commit_project_forest(prepared, operation, false)
+    }
+
+    pub(super) fn commit_imported_project_forest(
+        &mut self,
+        prepared: Vec<(PreparedProjectSubtree<T>, NodeCreationContext)>,
+        operation: &'static str,
+    ) -> Result<Vec<NodeId>, ProjectPersistenceError> {
+        self.commit_project_forest(prepared, operation, true)
+    }
+
+    fn commit_project_forest(
+        &mut self,
+        prepared: Vec<(PreparedProjectSubtree<T>, NodeCreationContext)>,
+        operation: &'static str,
+        contiguous: bool,
+    ) -> Result<Vec<NodeId>, ProjectPersistenceError> {
         if prepared.is_empty() {
             return Ok(Vec::new());
         }
@@ -608,7 +639,12 @@ impl<T: Node> Engine<T> {
                 } else {
                     context
                 };
-                let root = self.insert_decoded_project_tree(parent, prev_sibling, tree, operation)?;
+                let previous = if contiguous {
+                    roots.last().copied().or(prev_sibling)
+                } else {
+                    prev_sibling
+                };
+                let root = self.insert_decoded_project_tree(parent, previous, tree, operation)?;
                 let effect = AddNodeEffect {
                     node: root,
                     parent,
@@ -698,10 +734,11 @@ impl<T: Node> Engine<T> {
             .copied()
             .any(|node| self.catalog_creatable_items_require_tree_snapshot(node))
             .then(|| self.build_process_tree_snapshot());
-        let mut ui_ops = Vec::new();
-        for subtree in &committed {
-            ui_ops.extend(self.loaded_subtree_ui_ops(subtree.node_ids.as_slice(), catalog_snapshot.as_deref())?);
-        }
+        let node_groups = committed
+            .iter()
+            .map(|subtree| subtree.node_ids.as_slice())
+            .collect::<Vec<_>>();
+        let ui_ops = self.loaded_forest_ui_ops(&node_groups, catalog_snapshot.as_deref())?;
         let deferred_triggers =
             self.squash_pre_materialization_ui_events(&inserted_node_ids.iter().copied().collect::<HashSet<_>>());
         self.push_ui_graph_transaction(ui_ops);

@@ -1,5 +1,7 @@
 //! Chataigne-owned Alchemist formula authoring, compilation, and runtime.
 
+#[cfg(feature = "serde")]
+pub mod authoring;
 pub mod channel;
 pub mod compile;
 pub mod diagnostics;

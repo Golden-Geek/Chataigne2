@@ -504,12 +504,28 @@ fn ensure_unique_type_names(entries: &[NodeEntry]) {
 }
 
 fn declares_node_type(source: &str) -> bool {
-    source.contains("#[node(")
-        || source.contains("#[node]")
-        || source.contains("#[golden_core::node(")
-        || source.contains("#[golden_core::node]")
-        || source.contains("#[::golden_core::node(")
-        || source.contains("#[::golden_core::node]")
+    let mut offset = 0;
+    while let Some(found) = source[offset..].find("#[") {
+        let content_start = offset + found + 2;
+        let Some(end) = find_attribute_end(source, content_start) else {
+            break;
+        };
+        let attr = source[content_start..end].trim_start();
+        let path_end = attr
+            .find(|ch: char| ch == '(' || ch.is_ascii_whitespace())
+            .unwrap_or(attr.len());
+        let path = &attr[..path_end];
+        let target = skip_leading_outer_attrs(&source[end + 1..]);
+        // Implementations may live beside the declaration in a focused child module.
+        // Only the declaration owns registry discovery and the public module path.
+        if matches!(path, "node" | "golden_core::node" | "::golden_core::node")
+            && target.split_whitespace().next() != Some("impl")
+        {
+            return true;
+        }
+        offset = end + 1;
+    }
+    false
 }
 
 fn render_registry(entries: &[NodeEntry]) -> String {
