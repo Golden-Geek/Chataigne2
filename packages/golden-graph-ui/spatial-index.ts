@@ -5,6 +5,11 @@ export interface SpatialBounds {
   bottom: number;
 }
 
+export interface LimitedSpatialQuery<T> {
+  values: T[];
+  complete: boolean;
+}
+
 interface SpatialEntry<T> {
   value: T;
   order: number;
@@ -119,6 +124,42 @@ export class SpatialIndex<T> {
       )
       .sort((left, right) => left.order - right.order)
       .map((entry) => entry.value);
+  }
+
+  /** Unordered query with a strict candidate-visit budget, including coarse false positives. */
+  queryLimited(
+    bounds: SpatialBounds,
+    maximumVisits: number,
+  ): LimitedSpatialQuery<T> {
+    if (!Number.isSafeInteger(maximumVisits) || maximumVisits < 0)
+      throw new RangeError(
+        "Spatial visit budget must be a nonnegative safe integer.",
+      );
+    const normalized = normalizedBounds(bounds);
+    const cells = this.#cells(normalized);
+    const groups =
+      cells === null
+        ? [this.#entries.keys()]
+        : [
+            this.#oversized.values(),
+            ...cells.map(
+              (key) =>
+                this.#buckets.get(key)?.values() ?? [][Symbol.iterator](),
+            ),
+          ];
+    const seen = new Set<string>();
+    const values: T[] = [];
+    let visits = 0;
+    for (const group of groups)
+      for (const id of group) {
+        if (visits >= maximumVisits) return { values, complete: false };
+        visits += 1;
+        if (seen.has(id)) continue;
+        seen.add(id);
+        const entry = this.#entries.get(id)!;
+        if (intersects(entry.bounds, normalized)) values.push(entry.value);
+      }
+    return { values, complete: true };
   }
 
   #require(id: string): SpatialEntry<T> {

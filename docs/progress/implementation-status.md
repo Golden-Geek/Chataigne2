@@ -5,11 +5,11 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-25 on `main`, based on delivered `23bef838`. P10's independent revisions
-and retained geometry are verified: **one of three fixed checkpoints (33%)**; two remain.
+Last reconciled: 2026-10-25 on `main`, based on delivered `dc21c067`. P10's retained geometry and
+scoped routing/culling are verified: **two of three fixed checkpoints (67%)**; one remains.
 **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
-Whole-plan scope coverage is 52%; P01-P09 are locally complete.
+Whole-plan scope coverage is 54%; P01-P09 are locally complete.
 Hardware/platform and product-scale
 qualification retain their later owners.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
@@ -23,14 +23,14 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 packages, not commit counts. Spatializer's admitted preparation, bounded publication, source/path
 fences, identity preservation and passive failure recovery are qualified under C12.
 
-**Whole plan: 52% complete.** P01-P09 are complete against their local acceptance criteria.
+**Whole plan: 54% complete.** P01-P09 are complete against their local acceptance criteria.
 P09 has all three checkpoints complete: stable storage/layout, indexed structural edits, and
-consumer/scale qualification. P10 has one of three fixed checkpoints complete; two remain.
+consumer/scale qualification. P10 has two of three fixed checkpoints complete; one remains.
 P11-P18 have not started.
 P00 baseline reconciliation is maintained separately.
 **9 of 18 implementation/qualification tasks are fully complete.**
 
-Overall progress is the equal-weight average of P01-P18: `(9 * 100 + 33 + 8 * 0) / 18`,
+Overall progress is the equal-weight average of P01-P18: `(9 * 100 + 67 + 8 * 0) / 18`,
 rounded to a whole percent. This measures scope coverage, not elapsed time, remaining effort, or
 product readiness. Task sizes differ substantially. P00 housekeeping and preserved pre-plan
 features do not inflate this percentage. Later product, platform and device acceptance remains open.
@@ -177,21 +177,22 @@ P09 has three fixed, equally weighted scope checkpoints derived from its accepta
 ### P10 completion checkpoints
 
 P10 has three fixed, equally weighted checkpoints derived from its acceptance criteria.
-**One of three is complete (33%); two remain.** Delivery batches do not add checkpoints.
+**Two of three are complete (67%); one remains.** Delivery batches do not add checkpoints.
 
 | Checkpoint | Status | Acceptance |
 | --- | --- | --- |
 | Independent revisions and retained geometry | Complete locally | UI-only revision planes, sequential deltas/recovery, retained identity/spatial/order state and sparse previews are integrated. Owning/consumer suites and 155 actual mounted preview frames at 1k/10k/20k/50k/100k establish one-entry work with no per-preview full materialization. Activity/preview preserve geometry/topology; [scope and evidence](p10-retained-presentation.md) retain the one-visible-node limit. |
-| Scoped routing and correct culling | In progress | Bound caches/curve previews are implemented. Incident/obstacle-scoped invalidation and path/bounds culling of crossing edges remain; routing still rebuilds full obstacles after preview completion. Preserve loops and changing-obstacle correctness. |
+| Scoped routing and correct culling | Complete locally | Retained world-unit obstacle/edge indexes, incident/search-region invalidation, bounded deferred jobs/cache admission and conservative path culling are integrated. Unit scaling and actual SVG crossing/obstacle/loop/overflow cases pass. Preview completion uses one local route job without full-node materialization; [scope and limits](p10-routing-qualification.md) keep dense-scene performance distinct. |
 | Mounted correctness and performance qualification | In progress | Sparse preview/activity, snippet, socket and navigation correctness plus narrow action/frame samples pass. Full mounted drag, pan/zoom, frame selection, crossing wires, loops and changing obstacles still need normal/stress qualification; narrow retained-state samples do not close this checkpoint. |
 
 ## Current handoff
 
-- **Active task: P10 generic canvas interaction (33%, one of three fixed checkpoints).**
+- **Active task: P10 generic canvas interaction (67%, two of three fixed checkpoints).**
   Own rendering, geometry, routing and interaction mechanics in `packages/golden-graph-ui`;
   preserve app-owned presentation adapters and backend mutation semantics. Independent revision
-  planes and retained projection/spatial state are qualified. Continue scoped routes/culling,
-  then broader mounted qualification. Keep DOM/SVG unless measurements justify replacing it.
+  planes, retained geometry and scoped routes/culling are qualified. Continue the full mounted
+  action/frame matrix and profile dense routing settlement/rendering (the 1,100-wire case takes
+  8.05s to finish routing). Keep DOM/SVG unless measurements justify replacing it.
 - **P09 is locally complete: three of three checkpoints (100%).** Public-API current/baseline
   measurements retain 1,240 samples at 1k/10k/50k/100k nodes. Alchemist/statechart consumers,
   exact rollback, grouped native drag/delete history and default/no-Serde graph contracts pass.
@@ -252,7 +253,7 @@ P10 has three fixed, equally weighted checkpoints derived from its acceptance cr
 - Prior-commit CI/product qualification failures remain recorded: dependency advisories/audits
   retain P06, structural gates P12, timing/baseline work P16 and platform qualification P17.
   Cancelled macOS product work is not a pass.
-- Whole-plan scope coverage is **50%**, with **9/18 tasks fully complete**. Continue P10;
+- Whole-plan scope coverage is **54%**, with **9/18 tasks fully complete**. Continue P10;
   P03 has no remaining closure packages. Keep the full P00-P18 goal active.
 
 ## Task ledger
@@ -273,7 +274,7 @@ External qualification is separate from implementation. A historical pass is not
 | P07 DMX streaming           | 100%       | VERIFIED_LOCAL | PASSED six of six checkpoints  | 98 DMX cases, script API, default app, strict Clippy and formatting pass. Complete fake-time/native-loopback acceptance includes live priority, ordered metadata, termination/recovery and passive bounded actor service; P17/P18 retain platform/device qualification. |
 | P08 Formula backend intents | 100%       | VERIFIED_LOCAL | PASSED four of four checkpoints | Shared UI/script/HTTP/WS/headless operations, complete atomic fragments, backend connection policy and exact identity replies pass. Final native acceptance uses the default executable and isolated authenticated sessions; later product/platform qualification retains its owners. |
 | P09 Graph document          | 100%       | VERIFIED_LOCAL | PASSED three of three checkpoints | Stable storage, indexed structural edits and exact rollback pass. Current/pre-P09 harness preserves 1,240 fixed-delta samples; public default/no-Serde contracts, Alchemist/statechart consumers, native selection drag/delete undo/redo, strict checks and default build qualify the final checkpoint. |
-| P10 Canvas                  | 33%        | IN_PROGRESS    | Scoped routes/culling next | First of three checkpoints complete: independent revisions and retained geometry, with owning tests and 155 mounted preview samples. Scoped routing/culling and broader mounted qualification remain. |
+| P10 Canvas                  | 67%        | IN_PROGRESS    | Full mounted action/frame qualification | Two of three checkpoints complete: retained revisions/geometry and scoped routing/culling, with owning tests and mounted SVG/overflow cases. Dense settlement and broader normal/stress qualification remain. |
 | P11 Workspace UX            | 0%         | NOT_STARTED    | PENDING                        | Collection/keyboard gaps source-reviewed; native usability open                                                                                                                                                                                                         |
 | P12 Boundaries/gates        | 0%         | NOT_STARTED    | PENDING                        | App policy leak, omitted graph tests, oversized files, unsafe conversions; recurring incremental native-link artifact gap                                                                                                                                               |
 | P13 Formula execution       | 0%         | NOT_STARTED    | PENDING                        | Historical profiles retained; production parallelism not mandated                                                                                                                                                                                                       |
@@ -9861,3 +9862,55 @@ checkpoint's work; the retained-state samples do not close the third checkpoint.
 **P10 is 33%, one of three fixed checkpoints complete; two remain. Whole-plan scope coverage is
 52%, with nine of eighteen tasks fully complete.** Commit/push this verified milestone on `main`,
 then continue the routing/culling checkpoint. Keep the full P00-P18 goal active; P03 remains closed.
+
+### P10 scoped routing and crossing-edge culling
+
+Previous goal turn: **progress**. Independent revision/retained geometry integration was
+committed/pushed as `dc21c067`; the checkout was clean on resume. This change closes the second
+fixed checkpoint without promoting sparse/dense correctness cases into full performance evidence.
+
+`RetainedEdgePresentation` owns retained world-unit node obstacles, conservative edge envelopes,
+incident edges and cached-route search dependencies. Geometry deltas update affected records;
+obstacle insertion/movement/removal invalidates overlapping bounded search regions. Endpoint,
+port, order, removal and producer changes retire stale geometry. Unchanged distant cached paths
+survive previews. No full obstacle rebuild or full-node materialization runs when previews end.
+
+Visible edges are selected by conservative path/search envelopes and actual route/curve bounds,
+including wires whose endpoints are offscreen. Self-loops use exterior paths. Search detects thin
+obstacles between grid points; corner guards preserve obstacle clearance. Limited spatial queries
+cap candidate visits, including coarse false positives, and report incompleteness instead of
+pretending all obstacles were considered. Unsafe ranges, unavailable routes and budget exhaustion
+retain curves. Obsolete full-map/index builders and endpoint-only edge culling are removed.
+
+The current view admits at most **1,024 routed edges** in document order; overflow remains visible
+as curves. Pending work runs in animation-frame slices of at most **four jobs / 4,096 visits**,
+with per-job limits of **2,048 visits, 128 obstacles, 512 shortcut obstacle checks and 256 path
+points**. Obstacle lookup visits at most **512 candidates**. Eviction prefers non-admitted entries,
+avoiding overflow requeue loops. The driver stops when its queue is empty. `routingWork` exposes
+read-only cumulative counters and slice maxima separately from projection/DOM/paint evidence.
+
+Owning evidence passes **46 Graph UI**, **115 app UI**, **61 Golden UI** and **27 audio UI** cases
+(**249 total**), Svelte **zero errors / zero warnings**, and actual mounted cases on headless Edge
+**156.0.4314.42**. SVG stroke queries verify crossing wires with zero mounted endpoints. Obstacle
+changes invalidate one route while preserving the distant path. Routing toggles, exterior loops,
+empty scenes and 1,100 mounted wires at overflow pass, with stable counters over ten idle frames.
+At 1k/10k/20k/50k/100k nodes, ending the preview requires **one route job** and **zero full-node
+materialization**. Source/port/order/recovery and fixed-delta unit cases cover retained indexes.
+
+The sparse fixture retains **155 measured frames** with one mounted node and two edge elements.
+DOM/layout-flush p95 is **1.1 / 0.9 / 0.8 / 1.0 / 0.6ms**; callback interval p95 remains **4.3ms**.
+The dense 1,100-wire case settles its cache/queue, but its single completion sample is **8,053ms**
+(including browser messaging/setup). This is a known remaining performance qualification issue,
+not a first-feedback p95 or evidence that dense scenes meet the final checkpoint. The final
+checkpoint must profile settlement/per-edge rendering and exercise the complete action/frame
+matrix at normal/stress tiers. See [scope/reproduction](p10-routing-qualification.md) and
+[raw samples/source hashes](evidence/p10-scoped-routing-2026-10-25.json).
+
+Root/Core Cargo formatting, focused Prettier and final source-hash/diff checks pass. The default
+build passes (**2m33s**, frontend rebuilt), SHA-256
+`d6d551726ec38311e3bdd09baa40f43991c538ac258b533549b02ee2394bb333`.
+Rust runtime and wire declarations are unchanged. No owned validation process remains running.
+
+**P10 is 67%, two of three fixed checkpoints complete; one remains. Whole-plan scope coverage is
+54%, with nine of eighteen tasks fully complete.** Commit/push this verified milestone on `main`,
+then continue the mounted correctness/performance checkpoint. Keep the full P00-P18 goal active.

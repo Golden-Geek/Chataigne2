@@ -14,6 +14,7 @@ export async function verifyCanvasRetention(page) {
           ?.getAttribute("data-node-count") === String(count),
       nodes,
     );
+    await page.evaluate(() => window.goldenGraphFixture.settleRouting());
     assert.equal(
       await page.locator('article.node[data-node-id="n0"]').count(),
       1,
@@ -21,7 +22,8 @@ export async function verifyCanvasRetention(page) {
     const visibleNodes = await page.locator("article.node").count();
     const visibleEdges = await page.locator(".wires path.edge").count();
     assert.equal(visibleNodes, 1);
-    assert.equal(visibleEdges, 1);
+    // Path-bounds culling also retains the first row-wrap wire with offscreen endpoints.
+    assert.equal(visibleEdges, 2);
     const samples = await page.evaluate(() =>
       window.goldenGraphFixture.samplePreviews(3, 31),
     );
@@ -59,6 +61,12 @@ export async function verifyCanvasRetention(page) {
     assert.equal(probes.resize.measuredNodes, 1);
     assert.equal(probes.resize.spatialUpdates, 1);
     assert.equal(probes.resize.materializedNodes, 0);
+    assert.equal(probes.finish.after.pendingRoutes, 0);
+    assert.equal(
+      probes.finish.after.routeJobs - probes.finish.before.routeJobs,
+      1,
+    );
+    assert.equal(probes.finish.projection.materializedNodes, 0);
     measurements.push({
       nodes,
       edges: nodes - 1,

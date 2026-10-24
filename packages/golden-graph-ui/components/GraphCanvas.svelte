@@ -216,6 +216,7 @@
 	export const previewNodeResize = editing.previewResize;
 	export const clearNodePreviews = editing.clearPreviews;
 	export const presentationWork = geometry.presentationWork;
+	export const routingWork = geometry.routingWork;
 	let nodes = $derived(geometry.nodes);
 	let effectiveMaxZoom = $derived(viewport.effectiveMaxZoom);
 	let effectiveMinZoom = $derived(viewport.effectiveMinZoom);
@@ -334,8 +335,8 @@
 			{/if}
 
 			<svg class="wires" aria-label="Graph connections">
-				{#each visibleEdges as edge, index (`${edge.id ?? index}:${edge.from.nodeId}:${edge.to.nodeId}`)}
-					{@const path = edgePath(edge)}
+				{#each visibleEdges as { edge, index } (`${edge.id ?? index}:${edge.from.nodeId}:${edge.to.nodeId}`)}
+					{@const path = edgePath(index)}
 					{@const start = socketPoint(edge.from, 'output')}
 					{@const end = socketPoint(edge.to, 'input')}
 					{@const gradientId = edgeGradientId(edge, index)}

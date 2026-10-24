@@ -81,8 +81,6 @@ export const FRAME_PADDING_REM = 3;
 
 export const CAMERA_ANIMATION_MS = 240;
 
-export const ROUTING_CLEARANCE_REM = 0.7;
-
 export const SCROLL_TARGET_ACTIVATION_MS = 300;
 
 export const TITLE_DOUBLE_CLICK_MS = 300;

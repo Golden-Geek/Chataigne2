@@ -6,7 +6,6 @@ import {
   NODE_HEADER_REM,
   SOCKET_ROW_REM,
   HEADER_SOCKET_INSET_REM,
-  ROUTING_CLEARANCE_REM,
   clamp,
   type CanvasProps,
 } from "./contracts";
@@ -24,17 +23,8 @@ import type {
 import { untrack } from "svelte";
 import { RetainedGraphPresentation } from "../../retained-presentation";
 import type { SpatialBounds } from "../../spatial-index";
-import {
-  indexGraphEdgesByNode,
-  projectVisibleEdges,
-  viewportWorldBounds,
-} from "../../presentation-projection";
-import {
-  ROUTING_GRID_REM,
-  routeEdgeAroundObstacles,
-  routingObstacleBuckets,
-  type RoutingObstacle,
-} from "../../edge-routing";
+import { viewportWorldBounds } from "../../presentation-projection";
+import { RetainedEdgePresentation } from "../../retained-edges";
 import type { GraphNodePresentationChanges } from "../../presentation-projection";
 import type { CanvasViewport } from "./viewport.svelte";
 
@@ -53,11 +43,11 @@ export function createCanvasGeometry(
   let expandedSockets = $state.raw<Record<string, boolean>>({});
   const layoutDirtyIds = new Set<string>();
   const projection = new RetainedGraphPresentation();
-  const routedPathCache = new Map<string, string>();
+  const routes = new RetainedEdgePresentation();
+  let routeRevision = $state(0);
   let cachedTopologySource: object | null = null;
   let cachedTopologyRevision = -1;
   let cachedTopology = {
-    indexes: new Map<string, number[]>(),
     connectedSockets: new Set<string>(),
   };
   let topologyView = $derived.by(() => {
@@ -69,7 +59,6 @@ export function createCanvasGeometry(
       cachedTopologySource = document.source;
       cachedTopologyRevision = document.revision.topology;
       cachedTopology = {
-        indexes: indexGraphEdgesByNode(document.edges),
         connectedSockets: new Set(
           document.edges.flatMap((edge) => [
             `${edge.from.nodeId}:${edge.from.socketId}`,
@@ -94,18 +83,25 @@ export function createCanvasGeometry(
     expandedSockets;
     topologyView;
     return untrack(() => {
-      projection.synchronize(
+      const delta = projection.synchronize(
         document,
         changes,
         nodeWidth,
         nodeHeight,
         layoutDirtyIds,
       );
+      routes.synchronize(document, delta, (reference, direction) => {
+        const node = projection.nodesById.get(reference.nodeId);
+        if (!node) return null;
+        const point = localSocketPoint(node, reference.socketId, direction);
+        return point
+          ? { x: node.position.x + point.x, y: node.position.y + point.y }
+          : null;
+      });
       layoutDirtyIds.clear();
       return { geometry: projection.geometryRevision };
     });
   });
-  let geometryRevision = $derived(frame.geometry);
   let effectiveNodes = $derived.by(() => {
     frame;
     return projection.all();
@@ -403,14 +399,6 @@ export function createCanvasGeometry(
             minimumNodeHeight(node),
         );
 
-  let routingGeometryKey = $derived.by(() =>
-    !props.routeEdgesAroundNodes || edges.length === 0
-      ? `${viewport.remPx}:inactive`
-      : `${viewport.remPx}:${geometryRevision}`,
-  );
-
-  let appliedRoutingKey: string | null = null;
-
   let visibleNodes = $derived(
     queryNodes(
       viewportWorldBounds(
@@ -445,37 +433,35 @@ export function createCanvasGeometry(
     props.onVisibleNodeIdsChange?.(nodeIds);
   });
 
-  let visibleNodeIds = $derived(new Set(visibleNodes.map((node) => node.id)));
-
-  let visibleEdges = $derived(
-    projectVisibleEdges(edges, topologyView.indexes, visibleNodeIds),
-  );
-
   let connectedSockets = $derived(topologyView.connectedSockets);
-  let edgeCount = $derived(edges.length);
   let routingPreview = $derived(
     Object.keys(interaction.dragPositions).length > 0 ||
       Object.keys(interaction.resizeSizes).length > 0,
   );
-
-  let routingObstacles = $derived.by((): RoutingObstacle[] => {
-    geometryRevision;
-    if (!props.routeEdgesAroundNodes || edgeCount === 0) return [];
-    const clearance = ROUTING_CLEARANCE_REM * viewport.remPx;
-    return untrack(() =>
-      projection.all().map((node) => ({
-        left: node.position.x * viewport.remPx - clearance,
-        top: node.position.y * viewport.remPx - clearance,
-        right: (node.position.x + nodeWidth(node)) * viewport.remPx + clearance,
-        bottom:
-          (node.position.y + nodeHeight(node)) * viewport.remPx + clearance,
-      })),
+  let visibleEdges = $derived.by(() => {
+    frame;
+    routeRevision;
+    return routes.visible(
+      viewportWorldBounds(
+        viewport.camera,
+        viewport.viewportWidth,
+        viewport.viewportHeight,
+        viewport.remPx,
+        8,
+      ),
+      props.routeEdgesAroundNodes,
+      routingPreview,
     );
   });
-
-  let obstacleBuckets = $derived(
-    routingObstacleBuckets(routingObstacles, viewport.remPx),
-  );
+  $effect(() => {
+    visibleEdges;
+    if (!routes.pending) return;
+    const handle = requestAnimationFrame(() => {
+      routes.processPending();
+      routeRevision += 1;
+    });
+    return () => cancelAnimationFrame(handle);
+  });
 
   const socketIndex = (
     node: GraphNode,
@@ -492,70 +478,16 @@ export function createCanvasGeometry(
   const socketPoint = (
     reference: GraphSocketRef,
     direction: GraphSocketDirection,
-  ): { x: number; y: number } | null => {
+  ): GraphNodePosition | null => {
     const node = nodeById(reference.nodeId);
-    if (!node) {
-      return null;
-    }
-    if (
-      node.collapsed === true &&
-      allNodeSockets(node, direction).some(
-        (socket) => socket.id === reference.socketId,
-      )
-    ) {
-      return {
-        x:
-          (node.position.x +
-            (direction === "output"
-              ? nodeWidth(node) - HEADER_SOCKET_INSET_REM
-              : HEADER_SOCKET_INSET_REM)) *
-          viewport.remPx,
-        y:
-          (node.position.y + NODE_BORDER_REM + nodeHeaderHeight(node) * 0.5) *
-          viewport.remPx,
-      };
-    }
-    if (node.socketPlacement === "header") {
-      return {
-        x:
-          (node.position.x +
-            (direction === "output"
-              ? nodeWidth(node) - HEADER_SOCKET_INSET_REM
-              : HEADER_SOCKET_INSET_REM)) *
-          viewport.remPx,
-        y:
-          (node.position.y + NODE_BORDER_REM + nodeHeaderHeight(node) * 0.5) *
-          viewport.remPx,
-      };
-    }
-    if (direction === "input" && node.headerInputs) {
-      const headerIdx = node.headerInputs.findIndex(
-        (s) => s.id === reference.socketId,
-      );
-      if (headerIdx >= 0) {
-        return {
-          x:
-            (node.position.x +
-              HEADER_SOCKET_INSET_REM +
-              headerIdx * SOCKET_ROW_REM * 0.8) *
-            viewport.remPx,
-          y:
-            (node.position.y + NODE_BORDER_REM + nodeHeaderHeight(node) * 0.5) *
-            viewport.remPx,
-        };
-      }
-    }
-    return {
-      x:
-        (node.position.x + (direction === "output" ? nodeWidth(node) : 0)) *
-        viewport.remPx,
-      y:
-        (node.position.y +
-          socketStart(node) +
-          (socketIndex(node, reference.socketId, direction) + 0.5) *
-            SOCKET_ROW_REM) *
-        viewport.remPx,
-    };
+    if (!node) return null;
+    const point = localSocketPoint(node, reference.socketId, direction);
+    return point
+      ? {
+          x: (node.position.x + point.x) * viewport.remPx,
+          y: (node.position.y + point.y) * viewport.remPx,
+        }
+      : null;
   };
 
   const localSocketPoint = (
@@ -634,72 +566,9 @@ export function createCanvasGeometry(
     return start && end ? localWirePath(start, end) : null;
   };
 
-  const routedWirePath = (
-    edge: GraphEdge,
-    start: GraphNodePosition,
-    end: GraphNodePosition,
-  ): string | null => {
-    const sourceNode = nodeById(edge.from.nodeId);
-    const targetNode = nodeById(edge.to.nodeId);
-    if (!sourceNode || !targetNode || sourceNode.id === targetNode.id) {
-      return null;
-    }
-    const grid = ROUTING_GRID_REM * viewport.remPx;
-    const clearance = ROUTING_CLEARANCE_REM * viewport.remPx;
-    const routeStart = {
-      x:
-        Math.ceil(
-          ((sourceNode.position.x + nodeWidth(sourceNode)) * viewport.remPx +
-            clearance) /
-            grid,
-        ) *
-          grid +
-        grid,
-      y: start.y,
-    };
-    const routeEnd = {
-      x:
-        Math.floor(
-          (targetNode.position.x * viewport.remPx - clearance) / grid,
-        ) *
-          grid -
-        grid,
-      y: end.y,
-    };
-    return routeEdgeAroundObstacles(
-      start,
-      end,
-      routeStart,
-      routeEnd,
-      routingObstacles,
-      obstacleBuckets,
-      viewport.remPx,
-    );
-  };
-
-  const edgePath = (edge: GraphEdge): string | null => {
-    const start = socketPoint(edge.from, "output");
-    const end = socketPoint(edge.to, "input");
-    if (!start || !end) {
-      return null;
-    }
-    if (!props.routeEdgesAroundNodes || routingPreview) {
-      return wirePath(start, end);
-    }
-    if (appliedRoutingKey !== routingGeometryKey) {
-      routedPathCache.clear();
-      appliedRoutingKey = routingGeometryKey;
-    }
-    const cacheKey = `${edge.id ?? ""}:${edge.from.nodeId}:${edge.from.socketId}:${edge.to.nodeId}:${edge.to.socketId}`;
-    const cached = routedPathCache.get(cacheKey);
-    if (cached) {
-      return cached;
-    }
-    const path = routedWirePath(edge, start, end) ?? wirePath(start, end);
-    if (routedPathCache.size >= 1024)
-      routedPathCache.delete(routedPathCache.keys().next().value!);
-    routedPathCache.set(cacheKey, path);
-    return path;
+  const edgePath = (index: number): string | null => {
+    visibleEdges;
+    return routes.path(index, viewport.remPx);
   };
 
   const edgeUsesGradient = (edge: GraphEdge): boolean =>
@@ -756,6 +625,10 @@ export function createCanvasGeometry(
     get nodeCount() {
       frame;
       return projection.size;
+    },
+    routingWork() {
+      frame;
+      return routes.statistics;
     },
     presentationWork() {
       frame;

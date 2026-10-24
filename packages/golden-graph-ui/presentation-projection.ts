@@ -1,7 +1,6 @@
-import { SpatialIndex, type SpatialBounds } from "./spatial-index";
+import type { SpatialBounds } from "./spatial-index";
 import type {
   GraphCamera,
-  GraphEdge,
   GraphNode,
   GraphNodePosition,
   GraphNodeSize,
@@ -16,11 +15,6 @@ export interface GraphNodePresentationChanges {
   optimisticCollapsed: Record<string, boolean>;
   optimisticEnabled: Record<string, boolean>;
 }
-
-export const projectEffectiveNodes = (
-  nodes: readonly GraphNode[],
-  changes: GraphNodePresentationChanges,
-): GraphNode[] => nodes.map((node) => projectEffectiveNode(node, changes));
 
 export const projectEffectiveNode = (
   node: GraphNode,
@@ -51,27 +45,6 @@ export const projectEffectiveNode = (
     : node;
 };
 
-export const buildGraphNodeSpatialIndex = (
-  nodes: readonly GraphNode[],
-  nodeWidth: (node: GraphNode) => number,
-  nodeHeight: (node: GraphNode) => number,
-): SpatialIndex<GraphNode> => {
-  const index = new SpatialIndex<GraphNode>(32);
-  for (const node of nodes) {
-    index.insert(
-      node.id,
-      {
-        left: node.position.x,
-        top: node.position.y,
-        right: node.position.x + nodeWidth(node),
-        bottom: node.position.y + nodeHeight(node),
-      },
-      node,
-    );
-  }
-  return index;
-};
-
 export const viewportWorldBounds = (
   camera: GraphCamera,
   viewportWidth: number,
@@ -84,41 +57,3 @@ export const viewportWorldBounds = (
   right: (viewportWidth - camera.x) / camera.zoom / remPx + margin,
   bottom: (viewportHeight - camera.y) / camera.zoom / remPx + margin,
 });
-
-export const indexGraphEdgesByNode = (
-  edges: readonly GraphEdge[],
-): Map<string, number[]> => {
-  const indexes = new Map<string, number[]>();
-  const append = (nodeId: string, index: number): void => {
-    const nodeIndexes = indexes.get(nodeId);
-    if (nodeIndexes) {
-      nodeIndexes.push(index);
-    } else {
-      indexes.set(nodeId, [index]);
-    }
-  };
-  for (let index = 0; index < edges.length; index += 1) {
-    const edge = edges[index];
-    append(edge.from.nodeId, index);
-    if (edge.to.nodeId !== edge.from.nodeId) {
-      append(edge.to.nodeId, index);
-    }
-  }
-  return indexes;
-};
-
-export const projectVisibleEdges = (
-  edges: readonly GraphEdge[],
-  indexesByNode: Map<string, number[]>,
-  visibleNodeIds: ReadonlySet<string>,
-): GraphEdge[] => {
-  const indexes = new Set<number>();
-  for (const nodeId of visibleNodeIds) {
-    for (const index of indexesByNode.get(nodeId) ?? []) {
-      indexes.add(index);
-    }
-  }
-  return [...indexes]
-    .sort((left, right) => left - right)
-    .map((index) => edges[index]);
-};

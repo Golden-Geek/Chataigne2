@@ -9,6 +9,34 @@ const bounds = (x: number, y = 0): SpatialBounds => ({
 });
 
 describe("retained graph spatial index", () => {
+  it("bounds candidate visits even when coarse neighbors do not intersect", () => {
+    const index = new SpatialIndex<string>(32);
+    for (let value = 0; value < 100; value += 1)
+      index.insert(String(value), bounds(20), String(value));
+    expect(index.queryLimited(bounds(0), 2)).toEqual({
+      values: [],
+      complete: false,
+    });
+    expect(index.queryLimited(bounds(20), 2)).toEqual({
+      values: ["0", "1"],
+      complete: false,
+    });
+    expect(index.queryLimited(bounds(0), 100)).toEqual({
+      values: [],
+      complete: true,
+    });
+    expect(() => index.queryLimited(bounds(0), -1)).toThrow(RangeError);
+    const oversized = new SpatialIndex<string>();
+    oversized.insert(
+      "huge",
+      { left: -1e300, top: -1e300, right: 1e300, bottom: 1e300 },
+      "huge",
+    );
+    expect(oversized.queryLimited(bounds(0), 1)).toEqual({
+      values: ["huge"],
+      complete: true,
+    });
+  });
   it("retains a coordinate snapshot without interpreting unrelated metadata", () => {
     const index = new SpatialIndex<string>();
     const rectangle = { ...bounds(0), label: "presentation metadata" };

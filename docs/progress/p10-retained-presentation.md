@@ -1,5 +1,9 @@
 # P10 retained presentation qualification
 
+This records the first-checkpoint capture based on `23bef838`. The routing limitations below
+describe that capture; subsequent [scoped routing work](p10-routing-qualification.md) has its own
+evidence. The [current ledger](implementation-status.md) owns execution state.
+
 Golden Graph UI owns presentation invalidation and retained geometry. App-owned adapters supply
 domain-neutral node/edge views; backend editing semantics and Rust wire revisions are unchanged.
 See [package ownership](../../packages/golden-graph-ui/README.md) and the

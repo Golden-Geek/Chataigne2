@@ -22,18 +22,20 @@ Controllers expose reactive getters and explicit operations. The facade supplies
 views to camera/editing controllers; geometry receives presentation overlays and a connection
 draft. Backend mutation semantics stay with the consuming domain.
 
-`edge-routing.ts` owns the pure obstacle index, bounded route search, and SVG path construction.
-`presentation-projection.ts` owns optimistic node overlays, spatial-index construction, viewport
-queries, and document-ordered visible-edge selection. `camera-geometry.ts` owns inset normalization,
-anchored zoom, graph bounds, and framing targets. Home and Frame Selection scan nodes once rather
-than spreading large node arrays into `Math.min`/`Math.max`.
+`retained-edges.ts` owns world-unit obstacle/edge indexes, incident connections, bounded cached
+route dependencies and deferred route jobs. `edge-routing.ts` owns bounded orthogonal search and
+obstacle-aware smoothing; `wire-geometry.ts` owns conservative curve/route bounds and SVG
+serialization. `presentation-projection.ts` applies one node's overlays and maps viewport bounds.
+`camera-geometry.ts` owns inset normalization, anchored zoom, graph bounds, and framing targets.
+Frame Selection looks up selected identities; Home scans nodes without array spreads.
 
 `spatial-index.ts` owns retained grid membership and exact bounding-box queries. `update` moves
 only the requested entry, `setValue` replaces payload without moving geometry, and `remove`
 retires its cell membership. Updates preserve insertion/document order. Coordinates are copied
 and validated before mutation. Entries or queries exceeding the bounded cell budget use an
 oversized-entry set or an entry scan instead of expanding an unbounded grid; broad queries can
-therefore still visit the complete retained set.
+therefore still visit the complete retained set. `queryLimited` caps candidate visits (including
+coarse false positives) and reports completeness; routing uses a curve when the query is incomplete.
 
 `presentation-document.ts` owns immutable presentation snapshots, sequential deltas and independent
 topology, geometry, payload, activity and preview revisions. These are UI contracts; generated
@@ -51,9 +53,23 @@ Navigation and selection query retained state; Home may materialize the complete
 The component exposes `previewNodeMoves`, `previewNodeResize` and `clearNodePreviews` for
 programmatic presentation previews. They use the pointer handlers' preview state and do not
 persist edits. `presentationWork` returns read-only projection counters, excluding adapter
-classification, routing, DOM, layout and paint. During move/resize previews, wires use cheap
-curves; the obstacle cache rebuilds when routing resumes. Route caches are capped at 1,024
-entries. Incident/obstacle-scoped invalidation and crossing-edge culling remain P10 work.
+classification, routing, DOM, layout and paint. `routingWork` reports routing counters, cache/queue
+size and maximum work per routing slice. Geometry deltas update individual obstacles and incident
+edge envelopes. Cached routes depend on their bounded search regions, so obstacle insertion,
+movement and removal invalidate affected routes while preserving unrelated cached paths.
+
+Edge culling queries conservative curve/search envelopes and then actual route/curve bounds;
+crossing wires remain candidates with both endpoints offscreen. During previews, unchanged cached
+routes stay intact and invalidated routes use curves. No full obstacle rebuild runs when a preview
+ends. Routing runs only while queued, in animation-frame slices of at most four jobs / 4,096 search
+visits. Each job has at most 2,048 visits, 128 obstacles, 512 smoothing obstacle checks and 256
+path points; obstacle lookup is capped at 512 candidate visits. Unsafe integer ranges, unavailable
+paths and exhausted budgets use curves. Corner rounding never cuts an indexed obstacle.
+
+The current view admits at most 1,024 routed edges in document order; additional edges remain
+visible as curves. Cache eviction prefers entries outside that admission set, avoiding endless
+eviction/requeue cycles. This limits route detail and work, not the number of rendered edges.
+Normal/stress action and frame qualification remains P10's final checkpoint.
 
 Domain packages adapt their typed graph model into these presentation contracts. Product DTO
 adaptation, command registration, persistence, and panel composition remain in the consuming app.
@@ -67,9 +83,13 @@ snippets, selection, nested/collapsed/header sockets, self-loops, gradients, byp
 label styling, and public Frame/Home/coordinate methods. Tests change fixture data and call public
 component methods; they perform no keyboard/mouse synthesis. The retained-state fixture measures
 31 preview frames after three warmups at 1k/10k/20k/50k/100k authored nodes, with chain edges and
-one mounted node/edge. It checks actual DOM geometry and bounded projection work. Its DOM-flush
+one mounted node and two edge elements. It checks actual DOM geometry and bounded projection work,
+including local routing resumption. Further cases exercise actual SVG strokes crossing the viewport,
+obstacle changes, preserved distant paths, exterior loops and 1,100 mounted wires at cache overflow.
+Its DOM-flush
 and animation-frame samples do not qualify input delivery, compositor paint, dense visible scenes
-or the full interaction workload. See the [scope and retained samples](../../docs/progress/p10-retained-presentation.md).
+or the full interaction workload. See [retained-state samples](../../docs/progress/p10-retained-presentation.md)
+and [scoped routing qualification](../../docs/progress/p10-routing-qualification.md).
 
 The browser test defaults to installed Edge on Windows, or Playwright's Chromium elsewhere.
 Set `GOLDEN_GRAPH_BROWSER_PATH` for an explicit Chromium executable, or

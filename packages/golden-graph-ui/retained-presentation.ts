@@ -15,6 +15,12 @@ export interface GraphPresentationWork {
   resets: number;
 }
 
+export interface GraphGeometryDelta {
+  reset: boolean;
+  updated: { id: string; bounds: SpatialBounds }[];
+  removed: string[];
+}
+
 const emptyWork = (): GraphPresentationWork => ({
   sourceNodes: 0,
   projectedNodes: 0,
@@ -59,7 +65,7 @@ export class RetainedGraphPresentation {
     width: (node: GraphNode) => number,
     height: (node: GraphNode) => number,
     layoutDirtyIds: ReadonlySet<string>,
-  ): void {
+  ): GraphGeometryDelta {
     const replaced =
       this.#source !== document.source ||
       document.revision.sequence < this.#sequence;
@@ -75,6 +81,11 @@ export class RetainedGraphPresentation {
       this.#work.resets += 1;
     }
     const affected = new Set<string>(layoutDirtyIds);
+    const delta: GraphGeometryDelta = {
+      reset: replaced,
+      updated: [],
+      removed: [],
+    };
     let geometryChanged = replaced;
     if (changed) {
       const updates = recover ? document.nodes : document.changes.updatedNodes;
@@ -85,6 +96,7 @@ export class RetainedGraphPresentation {
         ? [...this.#sourceNodes.keys()].filter((id) => !retainedIds!.has(id))
         : document.changes.removedNodeIds;
       for (const id of removed) {
+        delta.removed.push(id);
         this.#sourceNodes.delete(id);
         this.#nodes.delete(id);
         this.#spatial.remove(id);
@@ -131,6 +143,7 @@ export class RetainedGraphPresentation {
           bottom: next.position.y + height(next),
         };
         this.#work.measuredNodes += 1;
+        delta.updated.push({ id, bounds });
         this.#work.spatialUpdates += 1;
         if (previous) this.#spatial.update(id, bounds, next);
         else this.#spatial.insert(id, bounds, next);
@@ -144,6 +157,7 @@ export class RetainedGraphPresentation {
       }
     }
     if (geometryChanged) this.#geometryRevision += 1;
+    return delta;
   }
 
   query(bounds: SpatialBounds): GraphNode[] {

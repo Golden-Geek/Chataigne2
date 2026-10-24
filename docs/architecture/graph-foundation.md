@@ -45,9 +45,13 @@ state/transition vocabulary into it. Product DTO mapping and preview content sta
 The canvas retains identity/spatial state and applies sparse transient overlays. Activity and
 preview updates preserve geometry and topology indexes. Pointer previews, box selection and
 connection snapping avoid whole-document node projection; Home and delta recovery remain explicit
-whole-document operations. Routing resumes from a full obstacle set after previews; scoped route
-invalidation and crossing-edge culling remain open. See [package ownership and tests](../../packages/golden-graph-ui/README.md)
-and [retained-state qualification scope](../progress/p10-retained-presentation.md).
+whole-document operations. Routing retains obstacle/edge geometry, invalidates incident and
+search-region dependencies, and processes bounded deferred jobs. Conservative path bounds retain
+crossing wires with offscreen endpoints; overflow and pending routes remain curves. See
+[package ownership and limits](../../packages/golden-graph-ui/README.md),
+[retained-state evidence](../progress/p10-retained-presentation.md) and
+[routing qualification](../progress/p10-routing-qualification.md). Full mounted action/frame
+qualification remains distinct from those correctness and bounded-work results.
 
 ## Mutation Cost
 

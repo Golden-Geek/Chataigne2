@@ -15,6 +15,25 @@
 	>;
 	let canvas = $state<ReturnType<typeof GraphCanvas>>();
 	let options = $state.raw<SceneOptions>({});
+	let canvasSize = $state.raw({ width: 10, height: 10 });
+
+	export function setCanvasSize(width: number, height: number): void {
+		canvasSize = { width, height };
+	}
+
+	export function routingWork() {
+		if (!canvas) throw new Error('Canvas is not mounted.');
+		return canvas.routingWork();
+	}
+
+	export async function settleRouting() {
+		for (let frame = 0; frame < 1024; frame += 1) {
+			await tick();
+			if (routingWork().pendingRoutes === 0) return routingWork();
+			await new Promise<number>(requestAnimationFrame);
+		}
+		throw new Error('Routing queue did not settle.');
+	}
 
 	const adapter = new GraphPresentationAdapter();
 	let graph = $state.raw<GraphPresentationDocument>(adapter.update([], []));
@@ -130,15 +149,25 @@
 		await tick();
 		if (renderedNode().style.width !== '20rem') throw new Error('Resize preview did not render.');
 		const resize = difference(beforeResize, work());
+		const beforeFinish = routingWork();
 		canvas!.clearNodePreviews();
 		await tick();
 		if (renderedNode().style.left !== '0rem')
 			throw new Error('Preview cancellation did not restore source geometry.');
-		return { activity, preview, resize };
+		const finishedRouting = await settleRouting();
+		return {
+			activity,
+			preview,
+			resize,
+			finish: { before: beforeFinish, after: finishedRouting, projection: work() }
+		};
 	}
 </script>
 
-<div class="fixture">
+<div
+	class="fixture"
+	style:--fixture-width={`${canvasSize.width}rem`}
+	style:--fixture-height={`${canvasSize.height}rem`}>
 	<GraphCanvas bind:this={canvas} graphDocument={graph} autoHomeOnMount={false} {...options}>
 		{#snippet nodeContent(node)}
 			<span data-fixture-node>{node.label}</span>
@@ -163,7 +192,7 @@
 
 <style>
 	.fixture {
-		inline-size: 10rem;
-		block-size: 10rem;
+		inline-size: var(--fixture-width);
+		block-size: var(--fixture-height);
 	}
 </style>
