@@ -60,7 +60,7 @@ impl DmxModuleBase {
 
     pub(super) fn capture_output(
         &mut self,
-        _ctx: &ProcessCtx,
+        ctx: &ProcessCtx,
         input: Input,
         snapshot: RetainedPayload<ProcessTreeSnapshot>,
         producer: NodeWaker,
@@ -99,9 +99,25 @@ impl DmxModuleBase {
         let universe = int("universe")
             .and_then(|value| u16::try_from(value).ok())
             .ok_or("Invalid DMX universe")?;
-        let priority = int("priority")
-            .and_then(|value| u8::try_from(value).ok())
-            .ok_or("Invalid DMX priority")?;
+        let priority = if matches!(input, Input::Property(_)) && ctx.current_event().is_some() {
+            // Inbox snapshots and bound handles contain the latest state. The first
+            // later priority occurrence owns the value in effect for this frame.
+            ctx.events
+                .iter()
+                .find_map(|event| match &event.kind {
+                    EventKind::ParamChanged {
+                        param,
+                        old_value: ParamValue::Int(value),
+                        ..
+                    } if *param == self.priority.id() && event.time > time => Some(*value),
+                    _ => None,
+                })
+                .or_else(|| int("priority"))
+        } else {
+            int("priority")
+        }
+        .and_then(|value| u8::try_from(value).ok())
+        .ok_or("Invalid DMX priority")?;
         if universe == 0 || universe > self.protocol.maximum_universe() || priority > 200 {
             return Err("DMX universe or priority is outside the protocol's range".into());
         }
@@ -199,6 +215,51 @@ impl DmxModuleBase {
         self.capture_output(ctx, Input::Property(slots), snapshot, producer, time)
     }
 
+    pub(in super::super) fn capture_priority_output(&mut self, ctx: &mut ProcessCtx) -> Result<(), String> {
+        let Some(event) = ctx.current_event() else {
+            return Ok(());
+        };
+        let EventKind::ParamChanged {
+            new_value: ParamValue::Int(value),
+            old_value: ParamValue::Int(previous),
+            ..
+        } = &event.kind
+        else {
+            return Ok(());
+        };
+        let priority = u8::try_from(*value)
+            .ok()
+            .filter(|value| *value <= 200)
+            .ok_or("DMX priority must be between 0 and 200")?;
+        let previous = u8::try_from(*previous)
+            .ok()
+            .filter(|value| *value <= 200)
+            .ok_or("DMX previous priority must be between 0 and 200")?;
+        self.continuity.set_priority(priority);
+        // An unopened endpoint will obtain the current authored priority when it
+        // claims recovery state. No command or failed channel frame is replayed.
+        if !self.node_data().effective_enabled || !self.transport.as_ref().is_some_and(DmxTransportHandle::is_ready) {
+            return Ok(());
+        }
+        let time = event.time;
+        let snapshot = ctx
+            .tree_snapshot_arc()
+            .ok_or("Missing DMX priority snapshot")?
+            .try_lease()
+            .map_err(|error| error.to_string())?;
+        let producer = ctx.node_waker().map_err(|error| error.to_string())?;
+        self.capture_output(
+            ctx,
+            Input::Priority {
+                value: priority,
+                previous,
+            },
+            snapshot,
+            producer,
+            time,
+        )
+    }
+
     pub(in super::super) fn service_output(&mut self, ctx: &mut ProcessCtx) {
         if self.outgoing.retry_at.is_some_and(|at| Instant::now() < at) {
             return;
@@ -252,15 +313,39 @@ impl DmxModuleBase {
             }
             let ready = pending.ready.as_ref().unwrap();
             let source = &ready.source;
+            // Command inbox capture can follow later authored edits. Its original
+            // timestamp orders it before those controls; their old value supplies
+            // the metadata at that occurrence without cloning a snapshot overlay.
+            let priority = if matches!(source.input, Input::Command(_)) {
+                self.outgoing
+                    .pending
+                    .iter()
+                    .find_map(|pending| match pending.source.input {
+                        Input::Priority { previous, .. } => Some(previous),
+                        _ => None,
+                    })
+                    .unwrap_or(source.priority)
+            } else {
+                source.priority
+            };
             let result = (|| {
-                let slots = match &ready.operation {
+                let operation = match &ready.operation {
+                    Operation::Priority(priority) => {
+                        let transport = self.transport.as_ref().ok_or("DMX transport retired")?;
+                        self.pending_sends
+                            .push_back(transport.send_priority(*priority, ready.clone())?);
+                        return Ok(());
+                    }
+                    Operation::Frame(operation) => operation,
+                };
+                let slots = match operation {
                     DmxCommandRequest::SetChannel { channel, value } => {
                         let baseline = if self.outgoing.authored == Some(source.output) {
                             &self.output_slots
                         } else {
                             ready.baseline.as_ref().unwrap()
                         };
-                        let mut frame = DmxFrame::with_metadata(source.universe, 0, source.priority, baseline.clone())?;
+                        let mut frame = DmxFrame::with_metadata(source.universe, 0, priority, baseline.clone())?;
                         frame.set_channel(*channel, *value)?;
                         frame.slots
                     }
@@ -279,7 +364,7 @@ impl DmxModuleBase {
                     }
                     DmxCommandRequest::Blackout => DmxFrame::blackout(source.universe)?.slots,
                 };
-                let frame = DmxFrame::with_metadata(source.universe, 0, source.priority, slots)?;
+                let frame = DmxFrame::with_metadata(source.universe, 0, priority, slots)?;
                 let transport = self.transport.as_ref().ok_or("DMX transport retired")?;
                 let receipt = transport.send_prepared(frame.clone(), ready.clone())?;
                 self.pending_sends.push_back(receipt);
@@ -301,7 +386,9 @@ impl DmxModuleBase {
                 self.set_transport_warning(ctx, &error);
                 continue;
             }
-            self.outgoing.reflect = (!matches!(source.input, Input::Property(_))).then(|| ready.clone());
+            if matches!(ready.operation, Operation::Frame(_)) {
+                self.outgoing.reflect = (!matches!(source.input, Input::Property(_))).then(|| ready.clone());
+            }
         }
         if self.outgoing.pending.is_empty() {
             self.reflect_output(ctx, &snapshot);

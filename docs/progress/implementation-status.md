@@ -5,10 +5,10 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-24 on `main`, based on delivered `7fe772c8`, matching
+Last reconciled: 2026-10-24 on `main`, based on delivered `2d080975`, matching
 `origin/main` at milestone start. **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
-Whole-plan scope coverage is approximately 38%; P01-P06 are locally complete.
+Whole-plan scope coverage is approximately 39%; P01-P07 are locally complete.
 Hardware/platform and product-scale
 qualification retain their later owners.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
@@ -22,12 +22,12 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 packages, not commit counts. Spatializer's admitted preparation, bounded publication, source/path
 fences, identity preservation and passive failure recovery are qualified under C12.
 
-**Whole plan: approximately 38% complete.** P01-P06 are complete against their local
-acceptance criteria; P07 has five of six checkpoints complete (83%); P08-P18 have
+**Whole plan: approximately 39% complete.** P01-P07 are complete against their local
+acceptance criteria; P07 has all six checkpoints complete (100%); P08-P18 have
 not started. P00 baseline reconciliation is maintained separately.
-**6 of 18 implementation/qualification tasks are fully complete.**
+**7 of 18 implementation/qualification tasks are fully complete.**
 
-Overall progress is the equal-weight average of P01-P18: `(6 * 100 + 5 * 100 / 6 + 11 * 0) / 18`,
+Overall progress is the equal-weight average of P01-P18: `(7 * 100 + 11 * 0) / 18`,
 rounded to a whole percent. This measures scope coverage, not elapsed time, remaining effort, or
 product readiness. Task sizes differ substantially. P00 housekeeping and preserved pre-plan
 features do not inflate this percentage. Later product, platform and device acceptance remains open.
@@ -71,7 +71,7 @@ Keyboard, Mouse, Ultraleap, Signals, Metronomes, MIDI and MQTT. Their owning pat
 admission/service/lifetime and recovery evidence. Spatializer's Cartesian matrix preparation and
 publication are also bounded. Absence of a search pattern alone was never acceptance evidence.
 
-**Remaining P03 closure packages: zero open, twelve closed (C01-C12).** P04-P06 are also locally complete; the active task is P07.
+**Remaining P03 closure packages: zero open, twelve closed (C01-C12).** P04-P07 are also locally complete; the next task is P08.
 General optimization and external qualification retain their explicit later plan owners.
 
 | ID  | Status              | Scope                            | Required closure                                                                                                                                                                                                                                                                                                                                                                                                                    |
@@ -135,8 +135,8 @@ P06 has four equally weighted checkpoints derived from its dependency-repair acc
 ### P07 completion checkpoints
 
 P07 uses six fixed acceptance workstreams, derived from the plan's explicit streaming requirements.
-These are scope checkpoints, not forecasts of effort or remaining commits. **Five of six are
-closed locally (83%); one remains.**
+These are scope checkpoints, not forecasts of effort or remaining commits. **All six are
+closed locally (100%); none remain.**
 
 | Checkpoint | Status | Acceptance |
 | --- | --- | --- |
@@ -145,17 +145,21 @@ closed locally (83%); one remains.**
 | Receive source policy and synchronization | Complete locally | Bounded per-CID protocol receivers, priority/HTP/PAP merge, data/sync admission, Art-Net source/sync policy, loss/recovery and bounded memberships pass 71 owning cases, script API, default app and strict workspace Clippy. |
 | Backend frame publication | Complete locally | Typed frame parameters, atomic channel batches and narrow saved-value migration pass 77 DMX cases, Core suites, script API, UI checks, default app and strict workspace Clippy. Native health pressure cannot park the stream clock. |
 | Termination and recovery | Complete locally | Confirmed-look/sequence continuity, terminal-owner fencing, authored initialization, immutable command outcomes, capped open-failure backoff and real coalesced-timer recovery pass 93 owning cases, script API, default build and strict workspace Clippy. |
-| Complete local qualification | Open | Fake-time and loopback matrix for both protocols, preserved lifecycle/retention contracts, docs, build and strict gates. |
+| Complete local qualification | Complete locally | 98 DMX cases cover both protocols' fake-time/native loopback acceptance, including live priority and ordered metadata. Script API, strict workspace Clippy, default build, formatting and diff checks pass; controlled actor timing and the acceptance map are recorded below. |
 
 ## Current handoff
 
-- **P07 is in progress: five of six fixed checkpoints complete locally (83%).**
-  Termination/recovery joins typed publication, receive/wire admission, clocked output/identity
-  and source/sync policy. All 93 DMX cases, script-template/API, default build and strict workspace
-  Clippy pass; unchanged Core/UI evidence remains at the preceding milestone. One checkpoint
-  remains: full local qualification. Live output-priority edits on a retained static look still
-  need implementation and owning ordering/reconnect checks, followed by the complete acceptance
-  matrix. P03 remains closed with zero packages left.
+- **Next dependency-ready task: P08 Formula backend intents (0%, not started).** Resume through
+  the main plan's P08 acceptance; keep graph-domain mutation policy in the app backend behind
+  public Golden extension contracts. P03 remains closed with zero packages left.
+- **P07 is locally complete: six of six fixed checkpoints (100%).** All 98 DMX cases,
+  script-template/API, default build, strict workspace Clippy, formatting and diff checks pass.
+  Typed priority controls preserve property/script/command occurrence order, confirmed channels
+  and current recovery metadata. The complete fake-time/native loopback acceptance map is in
+  [DMX runtime architecture](../architecture/dmx-runtime.md#local-qualification-map). The controlled
+  256-turn actor fixture measures p95 182 us / maximum 297 us on 24 logical processors; this is
+  a small fixture, not product-scale qualification. Unchanged Core/UI evidence remains at the
+  preceding typed-publication milestone. Platform/device qualification keeps P17/P18 ownership.
 - **P05 is locally complete: four of four fixed checkpoints (100%).** Bundled/dev/LAN browser
   operation, native HTTP/WS, missing/stale/underprivileged denial, CSP and reload session reuse
   are verified. Native webview/focus/dialog qualification remains P17; it was not automated.
@@ -216,7 +220,7 @@ External qualification is separate from implementation. A historical pass is not
 | P04 Audio order/types | 100% | VERIFIED_LOCAL | PASSED all four checkpoints | Checked scalar decoding, ordered command/shutdown admission, production plan/gain sequence and generation barriers, dense targets and allocation/deallocation transition guards verified. Native/platform qualification retains P17/P18. |
 | P05 Transport trust | 100% | VERIFIED_LOCAL | PASSED all four checkpoints | Bundled/dev/LAN browser and native HTTP/WS operation, independent denial gates, exact CSP, reload reuse and restart fencing verified; native webview/platform interaction remains P17. |
 | P06 Dependencies | 100% | VERIFIED_LOCAL | PASSED all four checkpoints | Refreshed advisory DB, narrow necessary updates, supported frontend migration, licensing/provenance and correctly selected network/audio/build/browser checks verified. Unix/native platform behavior retains P17. |
-| P07 DMX streaming | 83% | IN_PROGRESS | PASSED five of six checkpoints | 93 DMX cases, script API, default app and strict Clippy pass for wire admission, clocked output/identity, source/sync policy, typed publication and termination/recovery. Full local qualification, including live static-look priority edits and ordering/reconnect checks, remains open. |
+| P07 DMX streaming | 100% | VERIFIED_LOCAL | PASSED six of six checkpoints | 98 DMX cases, script API, default app, strict Clippy and formatting pass. Complete fake-time/native-loopback acceptance includes live priority, ordered metadata, termination/recovery and passive bounded actor service; P17/P18 retain platform/device qualification. |
 | P08 Formula backend intents | 0%         | NOT_STARTED    | PENDING                 | UI polling/identity and mutation policy verified; corruption not reproduced                                                                     |
 | P09 Graph document          | 0%         | NOT_STARTED    | PENDING                 | Ordered-map mutation costs source-derived                                                                                                       |
 | P10 Canvas                  | 0%         | NOT_STARTED    | PENDING                 | Projection diagnostic and crossing-edge reproduction; mounted performance open                                                                  |
@@ -8952,10 +8956,85 @@ All 93 owning cases, script API, strict workspace/all-target Clippy, default bui
 formatting and diff hygiene pass. The largest touched Rust file is 755 lines; new sources stay
 below 1,000. Manifest/lockfiles, generated protocol and UI are unchanged. Qualification is controlled
 and IPv4 loopback; no physical device, desktop automation or native-webview claim is made.
-Commit and push the milestone on `main`; keep the full P00-P18 goal active.
+Delivered on `main` as `2d080975`, pushed to `origin/main`. The full P00-P18 goal remains active.
 
-**Remaining P07 checkpoint: full local qualification.** Priority changes currently do not
-republish a retained static look. Implement that control behavior at the app/backend boundary,
-check interleaved priority/frame/command order and reconnect metadata, then audit/run the full
-P07 fake-time and loopback acceptance matrix. Platform and named-device qualification retain
-P17/P18; do not reopen P03 or claim all of P07 complete from this milestone.
+At the recovery milestone, the remaining P07 checkpoint was full local qualification. Priority
+changes did not republish a retained static look. The following final checkpoint implements
+that control behavior and checks interleaved ordering/reconnect metadata. Platform and named-device
+qualification retain P17/P18 ownership.
+
+### P07 final local qualification in progress
+
+The preceding goal turn delivered the verified recovery milestone, so it made authoritative
+progress. The checkout was clean and synchronized at `2d080975` before this continuation.
+P07's final checkpoint now implements typed priority controls through the existing bounded
+preparation/native FIFO. Controls act only on native-confirmed channels, retain source/session
+guards and pacing, and never write channel projection. A no-look control completes as Applied
+without emitting data or consuming initialization. Recovery takes the latest authored priority,
+including edits during native opening, without replaying failed channels. Property frames derive
+their occurrence's priority from the first later priority event; commands/scripts retain their
+canonical snapshot metadata.
+
+New loopback cases cover interleaved property/script/command/control order, live static priority,
+priority boundaries and silence before a look. New fake-time continuity cases cover priority
+edits during recovery opening and preservation of confirmed channels and initialization.
+The first compile caught one misplaced operation-wrapper expression; the next caught two test
+API mismatches (`u8` priority and the ByteArray accessor). Those are corrected. Fresh strict
+workspace/all-target Clippy, the expanded owning suite (expected **98 DMX cases**) and the default
+app build are running in handle **17150**. Poll that live handle before relevant Rust edits.
+P07 remains 5/6 (83%); whole-plan coverage remains approximately 38% until final acceptance passes.
+
+Handle **17150** passed strict Clippy (**39.85s**) and optimized compilation (**4m01s**),
+then passed **97 / failed one / 98 selected / zero ignored / 1709 filtered** (9.33s).
+The unchanged-artifact exact rerun/backtrace reproduces the command metadata failure: a command
+before priority 50 emitted at 50 instead of its occurrence's 200. Command inbox capture sees a
+later snapshot even though the original event timestamp is retained. Priority controls now carry
+their previous value, and the earliest later queued control supplies deferred command metadata.
+Property occurrence and script-prefix behavior is preserved. Internal echo suppression is also
+limited to channel reflection; the static-loopback case now exercises module-attributed priority.
+Its receive loop has an absolute failure deadline. No acceptance assertion was removed or relaxed.
+Fresh strict Clippy is running in handle **34965**; the full owning/default gates remain pending.
+
+Handle **34965** passed strict Clippy (**38.84s**). The interleaving fixture now also starts
+with a command before any confirmed look, and the static-loopback fixture checks the next
+native refresh retains priority 180. Fresh strict/owning/default gates run in handle **31363**.
+The owning denominator remains **98 cases**, including the five new priority cases.
+
+Handle **31363** passed strict workspace/all-target Clippy (**39.06s**), optimized test compilation
+(**3m56s**) and **98 DMX cases / zero failed / zero ignored / 1709 filtered** (9.33s).
+The original command-order assertions pass, including the command before the first confirmed look
+and module-attributed priority followed by native refresh. The default non-test build remains live
+in that handle; poll it before relevant Rust edits. Final completion credit is still pending that
+build, the script-template/API check, final formatting and diff hygiene.
+
+### P07 local completion
+
+Handle **31363** is terminal and successful: the default non-test app build passed in **2m16s**.
+The same optimized test artifact passes the separate script-template/API case (one case, 0.01s).
+Its SHA-256 is `2fe5dc08bc39f1d8ff520fcd3b671d94b8b8f46c583a6fd58b786e94c257ceb7`.
+The default executable SHA-256 is
+`748b8650a695cb07550b6db1b0b210b12cdbc991372f11e03b70e5e2328ee95b`.
+
+The unchanged optimized artifact's exact continuous-input actor rerun passes (0.45s): **256 full
+engine turns / 256 wake turns, p95 182 us / maximum 297 us / 24 logical processors**. Its
+subsequent 100 idle turns have zero wake callbacks and snapshot rebuilds. This repeats one of
+the 98 owning cases, not an additional unique test or a product-scale result.
+
+The P07 acceptance audit maps every explicit criterion to current source and the executed owning
+selection in [the local qualification map](../architecture/dmx-runtime.md#local-qualification-map):
+eight-second fake-time static refresh and native clocks; wrong universes/START codes and bursts;
+sequence wrap, CID/source/priority/PAP handling; synchronized input; explicit/identical frames,
+batched channels and blackout; shutdown/termination; overload/retained lifetimes; confirmed-only
+recovery and actual coalesced timers without actor joins or periodic polling. New priority controls
+and command metadata correction pass the original assertions. Existing commands, scripts,
+callbacks, templates and typed persistence remain covered. No Core, UI, protocol, dependency or
+generated declaration changed in this checkpoint.
+
+Actual root and Golden Core `cargo fmt`, explicit app Rust formatting, strict all-target workspace
+Clippy and diff hygiene pass. The largest touched Rust file is **770 lines**; new tests live under
+their owning `tests/` directories. Qualification uses fake clocks, controlled workers and IPv4
+loopback; native webview, other platforms, physical interfaces and named devices retain P17/P18.
+
+**P07 closes locally: 6/6 (100%); P01-P07 are locally complete, 7/18 tasks. Whole-plan scope
+coverage is approximately 39%. P03 still has zero packages left.** Next: P08 Formula backend
+intents. Commit/push this verified milestone on `main` and retain the full P00-P18 goal.

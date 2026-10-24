@@ -6,6 +6,8 @@ use crate::app::{
 };
 use golden_core::{edit::Edit, events::CustomEvent, parameter::ParameterEventBehaviour, script::ScriptMethodCall};
 
+mod priority;
+
 fn script(engine: &mut AppEngine, id: NodeId, method: &str, args: Vec<ParamValue>) {
     engine.edits.push(Edit::CallNodeScriptMethod {
         node: id,

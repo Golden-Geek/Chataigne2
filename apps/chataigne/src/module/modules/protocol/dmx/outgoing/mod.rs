@@ -69,6 +69,10 @@ enum Input {
         args: ScriptArguments,
     },
     Property(Vec<u8>),
+    Priority {
+        value: u8,
+        previous: u8,
+    },
 }
 struct Source {
     input: Input,
@@ -104,8 +108,12 @@ impl Source {
 
 pub(super) struct Prepared {
     source: RetainedPayload<Source>,
-    operation: DmxCommandRequest,
+    operation: Operation,
     baseline: Option<Vec<u8>>,
+}
+enum Operation {
+    Frame(DmxCommandRequest),
+    Priority(u8),
 }
 impl Prepared {
     pub(super) fn is_live(&self) -> bool {

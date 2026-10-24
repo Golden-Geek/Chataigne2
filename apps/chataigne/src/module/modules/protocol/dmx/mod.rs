@@ -198,6 +198,14 @@ impl DmxModuleBase {
 
         self.stop_transport();
         let Some(wake) = &self.wake else { return };
+        let Some(priority) = u8::try_from(self.priority.get())
+            .ok()
+            .filter(|priority| *priority <= 200)
+        else {
+            self.transport_failed(ctx, "DMX priority must be between 0 and 200".into());
+            return;
+        };
+        self.continuity.set_priority(priority);
         match DmxTransportHandle::spawn_with_continuity(config.clone(), wake.notifier.clone(), &mut self.continuity) {
             Ok(transport) => {
                 self.transport = Some(transport);
@@ -255,6 +263,7 @@ impl DmxModuleBase {
             match receipt.status() {
                 SendStatus::Pending => self.pending_sends.push_back(receipt),
                 SendStatus::Sent => self.base.emit_outgoing_traffic(ctx),
+                SendStatus::Applied => {}
                 SendStatus::FailedUnconfirmed | SendStatus::NotSent => {
                     let message = receipt
                         .failure()
@@ -393,7 +402,8 @@ impl DmxModuleBase {
     }
 
     fn on_param_change_inner(&mut self, ctx: &mut ProcessCtx, param: NodeId) {
-        if matches!(ctx.current_event().map(|event| &event.kind), Some(golden_core::events::EventKind::ParamChanged { source: Some(source), .. }) if *source == self.id())
+        if param == self.output_frame.id()
+            && matches!(ctx.current_event().map(|event| &event.kind), Some(golden_core::events::EventKind::ParamChanged { source: Some(source), .. }) if *source == self.id())
         {
             return;
         }
@@ -418,6 +428,11 @@ impl DmxModuleBase {
         }
         if param == self.output_frame.id() {
             if let Err(error) = self.capture_property_output(ctx) {
+                self.set_transport_warning(ctx, &error);
+            }
+        }
+        if param == self.priority.id() {
+            if let Err(error) = self.capture_priority_output(ctx) {
                 self.set_transport_warning(ctx, &error);
             }
         }

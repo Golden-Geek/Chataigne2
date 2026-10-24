@@ -6,6 +6,8 @@ use std::{
     time::Duration,
 };
 
+mod priority;
+
 fn config(protocol: DmxProtocol) -> DmxTransportConfig {
     DmxTransportConfig {
         protocol,

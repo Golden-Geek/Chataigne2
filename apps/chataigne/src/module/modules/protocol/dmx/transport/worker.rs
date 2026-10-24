@@ -129,11 +129,25 @@ pub(super) fn run<E: Endpoint>(
                 break;
             }
             let command = commands.pop_front().unwrap();
-            session.output.finish_initial_look();
-            let result = session.endpoint.send(&command.frame);
-            if result.is_ok() {
-                session.output.confirm(&command.frame, Instant::now());
-            }
+            let result = (|| {
+                let updated;
+                let frame = match &*command.intent {
+                    Intent::Frame(frame) => {
+                        session.output.finish_initial_look();
+                        frame
+                    }
+                    Intent::Priority(priority) => {
+                        let Some(frame) = session.output.frame_with_priority(*priority, Instant::now())? else {
+                            return Ok(false);
+                        };
+                        updated = frame;
+                        &updated
+                    }
+                };
+                session.endpoint.send(frame)?;
+                session.output.confirm(frame, Instant::now());
+                Ok(true)
+            })();
             let error = result.as_ref().err().cloned();
             command.complete(result);
             if let Some(error) = error {

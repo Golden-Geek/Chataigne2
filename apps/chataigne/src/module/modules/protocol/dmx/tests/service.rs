@@ -35,10 +35,19 @@ pub(in super::super) fn set(engine: &mut crate::app::AppEngine, id: NodeId, valu
     engine.apply_edits().unwrap();
 }
 pub(in super::super) fn fixture(destination: &UdpSocket) -> (crate::app::AppEngine, NodeId) {
+    fixture_protocol(destination, super::super::DmxProtocol::ArtNet)
+}
+pub(in super::super) fn fixture_protocol(
+    destination: &UdpSocket,
+    protocol: super::super::DmxProtocol,
+) -> (crate::app::AppEngine, NodeId) {
     let mut engine = crate::app::AppEngine::new(Folder::new("root").into());
-    let mut node = ArtNetModule::create();
+    let mut node: AppNode = match protocol {
+        super::super::DmxProtocol::ArtNet => ArtNetModule::create().into(),
+        super::super::DmxProtocol::Sacn => crate::app::SacnModule::create().into(),
+    };
     node.node_data_mut().meta.enabled = false;
-    engine.add_node(node.into(), None);
+    engine.add_node(node, None);
     for _ in 0..8 {
         turn(&mut engine);
     }

@@ -15,6 +15,13 @@ pub(super) fn prepare(source: RetainedPayload<Source>) -> Result<Prepared, Strin
             _ => unreachable!(),
         },
         Input::Property(slots) => DmxCommandRequest::SendFrame { slots: slots.clone() },
+        Input::Priority { value, .. } => {
+            return Ok(Prepared {
+                source: source.clone(),
+                operation: Operation::Priority(*value),
+                baseline: None,
+            });
+        }
     };
     let baseline = if matches!(
         operation,
@@ -30,7 +37,7 @@ pub(super) fn prepare(source: RetainedPayload<Source>) -> Result<Prepared, Strin
     };
     Ok(Prepared {
         source,
-        operation,
+        operation: Operation::Frame(operation),
         baseline,
     })
 }

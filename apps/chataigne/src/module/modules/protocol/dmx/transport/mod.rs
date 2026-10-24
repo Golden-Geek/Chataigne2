@@ -21,7 +21,7 @@ mod types;
 mod worker;
 pub(crate) use continuity::OutputContinuity;
 use continuity::OutputSession;
-use receipts::Output;
+use receipts::{Intent, Output};
 pub(crate) use receipts::{SendReceipt, SendStatus};
 pub(crate) use types::*;
 
@@ -163,14 +163,32 @@ impl DmxTransportHandle {
         if frame.universe != self.config.universe {
             return Err("DMX frame belongs to another configured universe".into());
         }
+        self.admit(Intent::Frame(frame), source)
+    }
+    pub(super) fn send_priority(
+        &self,
+        priority: u8,
+        source: RetainedPayload<super::outgoing::Prepared>,
+    ) -> Result<SendReceipt, String> {
+        if priority > 200 {
+            return Err("DMX priority exceeds 200".into());
+        }
+        self.admit(Intent::Priority(priority), Some(source))
+    }
+    fn admit(
+        &self,
+        intent: Intent,
+        source: Option<RetainedPayload<super::outgoing::Prepared>>,
+    ) -> Result<SendReceipt, String> {
+        let initializes = matches!(intent, Intent::Frame(_));
         if !self.is_ready() {
             return Err("DMX endpoint is opening or stopped; frame was not admitted".into());
         }
-        let frame = self
+        let intent = self
             .output
-            .try_retain(frame, FRAME_WEIGHT)
+            .try_retain(intent, FRAME_WEIGHT)
             .map_err(|_| "DMX output payload capacity exhausted")?;
-        let (output, receipt) = Output::new(frame, source, self.shared.wake.clone());
+        let (output, receipt) = Output::new(intent, source, self.shared.wake.clone());
         self.worker
             .send_weighted(output, FRAME_WEIGHT)
             .map_err(|error| match error {
@@ -183,7 +201,9 @@ impl DmxTransportHandle {
                     "DMX worker is not running"
                 }
             })?;
-        self.session.finish_initial_look();
+        if initializes {
+            self.session.finish_initial_look();
+        }
         Ok(receipt)
     }
     pub(super) fn source_guard(&self) -> Option<golden_io::RevisionGuard> {

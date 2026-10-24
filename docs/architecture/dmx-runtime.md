@@ -92,6 +92,12 @@ frames and blackout are submitted separately. Input/cancellation service continu
 sends. Automatic refresh retains one already-submitted look independently of command receipts.
 Only actual local datagram submission completes a receipt as Sent.
 
+Live priority edits share that bounded FIFO as typed controls. The native worker applies them
+to confirmed channels, so a metadata edit cannot resurrect an unconfirmed frame. A control with
+no confirmed look completes as Applied, emits no packet and does not consume authored
+initialization. Frame and control submissions share the data clock and retain their original
+source leases. Art-Net retains priority as metadata; sACN sends it on the wire.
+
 sACN unicast uses the configured destination for both ordinary data and stream termination;
 discovery packets are skipped for a unicast-only endpoint. Multicast output uses the crate's
 IPv4/IPv6 universe address helpers. Shutdown drains termination on the retiring native worker,
@@ -112,6 +118,9 @@ source without terminating it, retaining its sequence, clock and confirmed chann
 matching endpoint restores that look at the existing send clock. Failed or cancelled queued
 frames cannot become a recovery look; failure before the first confirmed frame stays silent
 until a new intent. Unconfirmed attempts still consume their sequence and pacing slot.
+Recovery restores those confirmed channels with the current authored priority. A separate atomic
+priority value lets edits during socket opening reach native activation without actor/native
+locking; it does not change the metadata of older commands already queued in the active lifetime.
 
 Native activation, rather than a potentially failed socket-open reservation, transfers egress
 ownership. The final native submission gate orders packets across distinct protocol locks.
@@ -185,6 +194,12 @@ completion/cancellation and queued output projection through the existing retain
 The actor applies at most eight fixed-size prepared operations per turn. Engine timestamps order
 property occurrences, script calls and command invocations before preparation. Property capture
 copies only the bounded event slots, because a snapshot may already contain a later authored edit.
+The first later priority occurrence's old value supplies metadata for an earlier property frame.
+Deferred command capture may also see later authored metadata: the first later control in the
+ordered queue supplies that command's occurrence priority. Script calls keep their prefix snapshot
+metadata. These lookups inspect only the admitted prefix and the current inbox. Priority controls
+never rewrite persisted channels or suppress a preceding command's final reflection. Internal
+echo suppression applies only to channel reflection, so module-attributed priority edits still work.
 Channel changes preserve the preceding frame; snapshots provide the initial authored baseline.
 Only the final queued command reflects output state, behind configuration/output read fences.
 A newer authored frame takes precedence over an older asynchronous reflection.
@@ -197,10 +212,9 @@ preparation/application; the native worker checks producer/session lifetime agai
 A retired source reports **not sent**, separately from an unconfirmed native failure. Neither is
 automatically replayed on reconnect.
 
-C05 qualification is tracked in the execution ledger. Receive source/sync state is qualified locally.
-P07 retains complete termination/recovery
-qualification. Clocked output evidence does not close those remaining contracts. The replaced
-sacn 0.11 multicast-only termination behavior is removed.
+C05 and P07 qualification are tracked in the execution ledger. Receive source/sync state and
+termination/recovery are qualified locally. P07's final priority-control and complete local
+acceptance gates are also locally verified. The replaced sacn 0.11 multicast-only termination behavior is removed.
 
 ### Typed frame publication
 
@@ -223,3 +237,22 @@ changes only its former string frame parameters and their saved/default values, 
 UUIDs and metadata. Ordinary string parameters do not gain implicit binary coercion. New script
 arrays use `{ Bytes: [...] }` to preserve existing untagged vector/color array semantics;
 explicit `sendFrame("[...]")` calls remain supported at the script boundary.
+
+## Local qualification map
+
+All paths below are relative to the app's `src/module/modules/protocol/dmx` directory. The
+execution ledger records the exact artifact, results and remaining plan scope.
+
+| P07 contract | Owning qualification |
+| --- | --- |
+| Static looks past source-loss timeout | `transport/output/tests` drives eight seconds of fake time for both protocols; `transport/tests/stream.rs` exercises native deadline-driven refresh. |
+| Universe/START-code filtering and bursts | `transport/native/tests` checks real datagrams; `transport/tests/lifecycle.rs` checks continuous malformed/ignored input alongside output. |
+| CID, sequencing and priority | `transport/output/tests` covers wrap/pacing; `transport/input/tests` covers source merging/PAP; `outgoing/tests/priority.rs` covers ordered live control and retained native metadata. |
+| Synchronized input | `transport/input/tests` covers source/address/sequence fences, merged Art-Net controllers, independent sACN synchronization addresses and hold/live timeouts. |
+| Explicit frames, batches and blackout | `outgoing/tests` checks property/script/command order and atomic ranges; output and native stream suites preserve every explicit submission. |
+| Shutdown and termination | Output fake time verifies three spaced sACN termination packets; native streams verify the original unicast route and replacement-owner fences. |
+| Overload and source retention | Lifecycle suites check bounded mailbox/payload/preparation admission, retained queued publication, cancellation and immutable receipts. |
+| Recovery without actor blocking | Continuity and engine lifecycle suites check confirmed-only restoration, current priority, failed opening/backoff, actual coalesced deadlines, blocked cleanup and passive idle turns. |
+
+These checks use deterministic clocks, controlled workers and IPv4 loopback. Native webview,
+other operating systems, physical interfaces and named lighting devices keep their P17/P18 owners.

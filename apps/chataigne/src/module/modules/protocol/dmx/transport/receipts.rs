@@ -12,6 +12,7 @@ pub(crate) enum SendStatus {
     Sent,
     FailedUnconfirmed,
     NotSent,
+    Applied,
 }
 struct State {
     status: AtomicU8,
@@ -26,6 +27,7 @@ impl SendReceipt {
             0 => SendStatus::Pending,
             1 => SendStatus::Sent,
             3 => SendStatus::NotSent,
+            4 => SendStatus::Applied,
             _ => SendStatus::FailedUnconfirmed,
         }
     }
@@ -34,13 +36,17 @@ impl SendReceipt {
     }
 }
 pub(super) struct Output {
-    pub frame: RetainedPayload<DmxFrame>,
+    pub intent: RetainedPayload<Intent>,
     source: Option<RetainedPayload<super::super::outgoing::Prepared>>,
     state: Arc<State>,
 }
+pub(super) enum Intent {
+    Frame(DmxFrame),
+    Priority(u8),
+}
 impl Output {
     pub(super) fn new(
-        frame: RetainedPayload<DmxFrame>,
+        intent: RetainedPayload<Intent>,
         source: Option<RetainedPayload<super::super::outgoing::Prepared>>,
         wake: WorkerNotifier,
     ) -> (Self, SendReceipt) {
@@ -51,7 +57,7 @@ impl Output {
         });
         (
             Self {
-                frame,
+                intent,
                 source,
                 state: state.clone(),
             },
@@ -74,9 +80,10 @@ impl Output {
         self.state.status.store(SendStatus::NotSent as u8, Ordering::Release);
         self.state.wake.notify();
     }
-    pub(super) fn complete(self, result: Result<(), String>) {
+    pub(super) fn complete(self, result: Result<bool, String>) {
         let status = match result {
-            Ok(()) => SendStatus::Sent,
+            Ok(true) => SendStatus::Sent,
+            Ok(false) => SendStatus::Applied,
             Err(error) => {
                 let _ = self.state.failure.set(super::diagnostic(error));
                 SendStatus::FailedUnconfirmed

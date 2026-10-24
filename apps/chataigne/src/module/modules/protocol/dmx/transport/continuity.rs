@@ -5,7 +5,7 @@ use std::{
     net::SocketAddr,
     sync::{
         Arc, Mutex, Weak,
-        atomic::{AtomicU64, Ordering},
+        atomic::{AtomicU16, AtomicU64, Ordering},
     },
     time::Instant,
 };
@@ -20,6 +20,8 @@ struct StreamKey(DmxProtocol, [u8; 16], u16);
 struct Gate {
     epoch: AtomicU64,
     active: AtomicU64,
+    // Zero means no authored override; priorities 0..=200 are stored as 1..=201.
+    priority: AtomicU16,
     emit: Mutex<()>,
 }
 
@@ -47,6 +49,9 @@ pub(crate) struct OutputContinuity {
 }
 
 impl OutputContinuity {
+    pub(crate) fn set_priority(&mut self, priority: u8) {
+        self.gate.priority.store(u16::from(priority) + 1, Ordering::Release);
+    }
     pub(super) fn claim(&mut self, config: &DmxTransportConfig) -> OutputSession {
         let key = StreamKey(config.protocol, config.source_id, config.universe);
         self.retiring.retain(|stream| stream.strong_count() != 0);
@@ -159,7 +164,10 @@ impl OutputSession {
                 state.revision = revision;
             }
             state.output.route(&self.config);
-            if let Some(frame) = &state.confirmed {
+            if let Some(frame) = &mut state.confirmed {
+                if let Some(priority) = self.gate.priority.load(Ordering::Acquire).checked_sub(1) {
+                    frame.priority = priority as u8;
+                }
                 state
                     .output
                     .restore(frame, now.saturating_duration_since(state.origin))?;
@@ -202,6 +210,17 @@ impl OutputSession {
         )?;
         state.confirmed = Some(frame.clone());
         Ok(())
+    }
+
+    /// Metadata changes operate on native-confirmed channels, never actor projection.
+    pub(super) fn frame_with_priority(&self, priority: u8, now: Instant) -> Result<Option<DmxFrame>, String> {
+        let mut state = self.stream.state.lock().unwrap_or_else(|poison| poison.into_inner());
+        let state = self.state(&mut state, now)?;
+        Ok(state.confirmed.as_ref().map(|frame| {
+            let mut frame = frame.clone();
+            frame.priority = priority;
+            frame
+        }))
     }
 
     /// Also used by controlled endpoints; successful native submission alone confirms a look.
