@@ -8,17 +8,20 @@ use std::{
     time::{Duration, Instant},
 };
 
-use rtrb::{Consumer, Producer, PushError, RingBuffer};
+use rtrb::{Consumer, Producer, RingBuffer};
 
 use crate::realtime::AudioThreadPriorityGuard;
 use crate::{
     AnalysisController, AnalysisObservationSnapshot, AudioCallbackTimestamp, AudioChannelId, AudioDirection,
-    AudioEngineConfig, AudioError, AudioErrorCategory, AudioStreamHandler, ClockBridgeConfig, ConfigGeneration,
-    DriftControllerConfig, EngineLimits, GainDb, InputClockReader, InputClockWriter, InputReadError, InputWriteError,
-    InterleavedInput, InterleavedOutput, PlanPublishError, PlanarBuffer, PlaybackRendererRetirement,
+    AudioEngineConfig, AudioError, AudioErrorCategory, AudioStreamHandler, ClockBridgeConfig, CommandSequence,
+    ConfigGeneration, DriftControllerConfig, EngineLimits, GainDb, InputClockReader, InputClockWriter, InputReadError,
+    InputWriteError, InterleavedInput, InterleavedOutput, PlanPublishError, PlanarBuffer, PlaybackRendererRetirement,
     PlaybackVoiceRenderer, RealtimePlanRetirement, RealtimePlanSlot, RealtimeScope, RenderPlan, RenderPlanPublisher,
     RenderProcessor, RenderRuntimeObservation, acknowledged_plan_exchange, analysis_pipeline, input_clock_bridge,
 };
+
+mod controls;
+use controls::{RenderControlReader, RenderControlWriter, render_controls};
 
 const CONTROL_QUEUE_CAPACITY: usize = 4_096;
 const OUTPUT_QUEUE_MIN_BLOCKS: usize = 8;
@@ -28,14 +31,9 @@ const INPUT_RING_CAPACITY_FRAMES: usize = 8_192;
 const BRIDGE_PUBLISH_ATTEMPTS: usize = 50;
 const OUTPUT_PREFILL_ATTEMPTS: usize = 250;
 
-#[derive(Clone, Copy, Debug)]
-enum RenderControl {
-    MasterGain(GainDb),
-    ChannelGain { channel: AudioChannelId, gain: GainDb },
-}
-
 #[derive(Debug)]
 struct RenderRuntimePlan {
+    generation: ConfigGeneration,
     processor: RenderProcessor,
     physical_inputs: PlanarBuffer,
     physical_outputs: PlanarBuffer,
@@ -55,6 +53,7 @@ impl RenderRuntimePlan {
         processor.attach_analysis(analysis_renderer)?;
         Ok((
             Self {
+                generation,
                 processor,
                 physical_inputs: PlanarBuffer::new(physical_input_channels, block_frames)?,
                 physical_outputs: PlanarBuffer::new(physical_output_channels, block_frames)?,
@@ -86,6 +85,7 @@ struct SharedRenderObservation {
     maximum_render_time_micros: AtomicU64,
     deadline_miss_count: AtomicU64,
     control_queue_pressure_count: AtomicU64,
+    rejected_control_count: AtomicU64,
     input_underflow_count: AtomicU64,
     input_overflow_count: AtomicU64,
     output_underflow_count: AtomicU64,
@@ -129,10 +129,9 @@ struct RuntimeThreadRetirement {
 
 #[derive(Debug)]
 pub(super) struct ManagedRenderRuntime {
-    plan_publisher: RenderPlanPublisher<Option<RenderRuntimePlan>>,
     input_publisher: RenderPlanPublisher<Option<InputRuntimeBridge>>,
     output_publisher: RenderPlanPublisher<Option<OutputRuntimeBridge>>,
-    controls: Producer<RenderControl>,
+    controls: RenderControlWriter,
     observation: Arc<SharedRenderObservation>,
     active_analysis: Option<AnalysisController>,
     pending_analysis: Option<AnalysisController>,
@@ -149,10 +148,9 @@ impl ManagedRenderRuntime {
         limits: &EngineLimits,
         playback: PlaybackVoiceRenderer,
     ) -> Result<Self, AudioError> {
-        let (plan_publisher, plans) = acknowledged_plan_exchange(Box::new(None));
         let (input_publisher, inputs) = acknowledged_plan_exchange(Box::new(None));
         let (output_publisher, outputs) = acknowledged_plan_exchange(Box::new(None));
-        let (controls, control_reader) = RingBuffer::new(CONTROL_QUEUE_CAPACITY);
+        let (controls, control_reader) = render_controls(CONTROL_QUEUE_CAPACITY);
         let observation = Arc::new(SharedRenderObservation::default());
         let thread_observation = Arc::clone(&observation);
         let shutdown = Arc::new(AtomicBool::new(false));
@@ -173,7 +171,6 @@ impl ManagedRenderRuntime {
                 };
                 let _ = priority_sender.try_send(priority_error);
                 let retirement = run_render_thread(
-                    plans,
                     inputs,
                     outputs,
                     control_reader,
@@ -206,7 +203,6 @@ impl ManagedRenderRuntime {
             }
         };
         Ok(Self {
-            plan_publisher,
             input_publisher,
             output_publisher,
             controls,
@@ -221,14 +217,17 @@ impl ManagedRenderRuntime {
         })
     }
 
-    pub(super) fn publish_plan(&mut self, generation: ConfigGeneration, plan: RenderPlan) -> Result<(), AudioError> {
-        self.reclaim();
+    pub(super) fn publish_plan(
+        &mut self,
+        sequence: CommandSequence,
+        generation: ConfigGeneration,
+        plan: RenderPlan,
+    ) -> Result<(), AudioError> {
         let (runtime_plan, analysis) = RenderRuntimePlan::new(generation, plan, &self.limits)?;
-        self.plan_publisher
-            .publish(Box::new(Some(runtime_plan)))
-            .map_err(|error| publish_error(error, "managed_render_plan"))?;
+        self.reclaim();
+        let result = self.controls.publish_plan(sequence, runtime_plan);
+        self.finish_control_admission(result)?;
         self.pending_analysis = Some(analysis);
-        self.unpark();
         Ok(())
     }
 
@@ -265,12 +264,29 @@ impl ManagedRenderRuntime {
         }
     }
 
-    pub(super) fn set_master_gain(&mut self, gain: GainDb) -> Result<(), AudioError> {
-        self.push_control(RenderControl::MasterGain(gain))
+    pub(super) fn set_master_gain(&mut self, sequence: CommandSequence, gain: GainDb) -> Result<(), AudioError> {
+        let result = self.controls.set_master_gain(sequence, gain);
+        self.finish_control_admission(result)
     }
 
-    pub(super) fn set_channel_gain(&mut self, channel: AudioChannelId, gain: GainDb) -> Result<(), AudioError> {
-        self.push_control(RenderControl::ChannelGain { channel, gain })
+    pub(super) fn set_channel_gain(
+        &mut self,
+        sequence: CommandSequence,
+        channel: AudioChannelId,
+        gain: GainDb,
+    ) -> Result<(), AudioError> {
+        let result = self.controls.set_channel_gain(sequence, channel, gain);
+        self.finish_control_admission(result)
+    }
+
+    pub(super) fn take_control_failure(&self) -> Option<AudioError> {
+        let rejected = self.observation.rejected_control_count.swap(0, Ordering::Relaxed);
+        (rejected > 0).then(|| {
+            AudioError::new(
+                AudioErrorCategory::InternalInvariant,
+                format!("{rejected} managed render controls rejected by sequence, generation or target fences"),
+            )
+        })
     }
 
     pub(super) fn refresh_observation(&mut self) -> (RenderRuntimeObservation, Option<AnalysisObservationSnapshot>) {
@@ -418,23 +434,25 @@ impl ManagedRenderRuntime {
         ))
     }
 
-    fn push_control(&mut self, control: RenderControl) -> Result<(), AudioError> {
-        match self.controls.push(control) {
+    fn finish_control_admission(&self, result: Result<(), AudioError>) -> Result<(), AudioError> {
+        match result {
             Ok(()) => {
                 self.unpark();
                 Ok(())
             }
-            Err(PushError::Full(_)) => {
-                self.observation
-                    .control_queue_pressure_count
-                    .fetch_add(1, Ordering::Relaxed);
-                Err(AudioError::queue_full("managed_render_control"))
+            Err(error) => {
+                if error.category == AudioErrorCategory::QueueFull {
+                    self.observation
+                        .control_queue_pressure_count
+                        .fetch_add(1, Ordering::Relaxed);
+                }
+                Err(error)
             }
         }
     }
 
     fn reclaim(&mut self) {
-        if self.plan_publisher.reclaim_acknowledged() > 0 {
+        if self.controls.reclaim_acknowledged() > 0 {
             if let Some(mut previous) = self.active_analysis.take() {
                 let _ = previous.shutdown();
             }
@@ -526,10 +544,9 @@ impl AudioStreamHandler for ManagedOutputHandler {
 
 #[allow(clippy::too_many_arguments)]
 fn run_render_thread(
-    mut plans: RealtimePlanSlot<Option<RenderRuntimePlan>>,
     mut inputs: RealtimePlanSlot<Option<InputRuntimeBridge>>,
     mut outputs: RealtimePlanSlot<Option<OutputRuntimeBridge>>,
-    mut controls: Consumer<RenderControl>,
+    mut controls: RenderControlReader,
     mut playback: PlaybackVoiceRenderer,
     mut playback_buffer: PlanarBuffer,
     block_frames: usize,
@@ -542,10 +559,11 @@ fn run_render_thread(
     while !shutdown.load(Ordering::Acquire) {
         {
             let _scope = RealtimeScope::enter();
-            let _ = plans.begin_block();
             let _ = inputs.begin_block();
             let _ = outputs.begin_block();
-            apply_controls(plans.active_mut(), &mut controls);
+            controls.begin_block(|_| {
+                observation.rejected_control_count.fetch_add(1, Ordering::Relaxed);
+            });
         }
 
         let output_attached = outputs.active().is_some();
@@ -566,7 +584,7 @@ fn run_render_thread(
         {
             let _scope = RealtimeScope::enter();
             render_block(
-                plans.active_mut(),
+                controls.active_mut(),
                 inputs.active_mut(),
                 outputs.active_mut(),
                 &mut playback,
@@ -598,7 +616,7 @@ fn run_render_thread(
         }
     }
     RuntimeThreadRetirement {
-        plans: plans.retire(),
+        plans: controls.retire(),
         inputs: inputs.retire(),
         outputs: outputs.retire(),
         playback: playback.into_retirement(),
@@ -703,20 +721,6 @@ fn write_physical_output(
     }
     if output.producer.slots() < block_samples {
         output.prefilled.store(true, Ordering::Release);
-    }
-}
-
-fn apply_controls(plan: &mut Option<RenderRuntimePlan>, controls: &mut Consumer<RenderControl>) {
-    while let Ok(control) = controls.pop() {
-        let Some(plan) = plan else {
-            continue;
-        };
-        match control {
-            RenderControl::MasterGain(gain) => plan.processor.set_master_gain(gain),
-            RenderControl::ChannelGain { channel, gain } => {
-                let _ = plan.processor.set_output_gain(channel, gain);
-            }
-        }
     }
 }
 

@@ -63,8 +63,8 @@ the captured runtime lifetime; a replacement runtime cannot receive an old reque
 targets require a fresh identity/parent/type check. Gain writeback, bounded diagnostics and command
 result publication have separate edit receipts, so publication failures cannot replay native effects.
 Only pending gain work requests a command-service snapshot. Disable/removal cancels preparation;
-native retirement invalidates captured targets. This does not establish P04's ordering barrier between
-gain commands and configuration exchanges. C01's local feedback/failure qualification is recorded
+native retirement invalidates captured targets. Golden Audio's managed render control boundary owns
+the ordering barrier between gain commands and configuration exchanges. C01's local feedback/failure qualification is recorded
 in the status ledger; later platform and device qualification remains separate.
 
 Sound Card's `routes` boundary owns device-selection resets and initial default seeding. Resets
@@ -119,9 +119,9 @@ structure revision. Meter/value writes and presentation-only warnings cannot can
 configuration, while binding aliases, topology, enablement and replacements still invalidate it
 before callbacks. Both revision counters share one folded snapshot index and its existing lease.
 
-Remaining native constraint-publication and application/failure audit stays in C01. General
+Native constraint-publication and application/failure evidence is recorded under C01. General
 snapshot/publication scaling stays in P16; these service budgets do not qualify end-to-end latency
-or change P04's audio ordering requirement.
+or establish audio render ordering.
 
 `golden_audio_ui` owns generic audio driver/device controls, status rendering, the SVG channel patch
 bay, accessibility behavior, and application binding contracts. An application adapter may
@@ -204,8 +204,7 @@ File playback is a three-stage ownership pipeline:
 1. Command ingress assigns sequences while holding its producer admission lock. Accepted queue
    order and sequence order agree across concurrent callers; rejection consumes no sequence.
    The control worker receives play, stop, stop-all, gain, and configuration commands in that order.
-   The current separate gain/plan delivery paths do not yet preserve one
-   render-side order across configuration changes; P04 owns that repair.
+   Managed plan markers and gain commands preserve that order through the render boundary.
 2. A fixed decoder-worker pool privately uses Symphonia to probe and decode, resamples to the engine
    rate, maintains the bounded resident cache, and primes bounded stream rings.
 3. The render stage activates prebuilt fixed-slot voices, reads planar resident assets or
@@ -443,6 +442,21 @@ exchanges and retire back to the control thread. Callback handlers only convert 
 preallocated samples and update atomic pressure counters; they do not lock, allocate, decode,
 compile, log, or destroy final owners.
 
+`control::render_runtime::controls` pairs plan publication with a marker in the same bounded
+4,096-slot queue as gain updates. The control worker resolves channel UUIDs against the latest
+accepted generation and converts gains to linear values before publication. A full control queue
+rejects a replacement before publishing its plan; a pending replacement preserves its accepted
+target layout. Gain rejection leaves the device runtime's desired configuration unchanged.
+
+At each block boundary the render worker consumes only the queue prefix present at entry.
+Older gains apply before the replacement marker; later gains carry the new generation and dense
+output index. Generation, sequence and index failures return scalar rejection outcomes; atomic
+counts become diagnostics on the control worker. No UUID search or formatted error enters this
+transition path. Saturated retirement retains old ownership and defers following controls until
+it can return that ownership. Plan acknowledgements are reclaimed explicitly with their analysis
+controller sidecars; publication cannot silently consume an acknowledgement. Final plan and
+analysis destruction remains on the control side, including shutdown with pending work.
+
 Chataigne projects the coalesced observation at the Sound Card's app-owned Levels Update Rate,
 configurable from 1 through 30 Hz with a 5 Hz default. It updates cached value-node IDs only when
 values move beyond the configured epsilon and publishes one latest-only app telemetry envelope.
@@ -493,7 +507,7 @@ domains are omitted by the worker. The explicit capped-catalog fixture measures 
 application path, including late-entry changes, separately from native preparation. See the current
 ledger for samples and qualification limits. This is change-driven work, not idle actor polling.
 Project JSON and wire codecs remain separate. Whole-product snapshot/DTO and custom-codec scaling
-remain P16 qualification; the audio gain/configuration ordering barrier remains P04.
+remain P16 qualification; audio gain/configuration order belongs to the managed boundary above.
 Capture/telemetry overload has a separate visible warning and leaves control admission independent.
 App-owned selection/probe planning, choice planning and configuration conversion run on one bounded preparation worker.
 Queued/running requests lease their source snapshots; ready plans retain output storage admission

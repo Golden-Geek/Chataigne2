@@ -52,8 +52,13 @@ impl<T> fmt::Debug for RenderPlanPublisher<T> {
 
 impl<T> RenderPlanPublisher<T> {
     pub fn publish(&mut self, plan: Box<T>) -> Result<(), PlanPublishError<T>> {
-        assert_not_realtime("render-plan publication");
         self.reclaim_acknowledged();
+        self.publish_without_reclaim(plan)
+    }
+
+    /// Lets owners retire sidecar state together with the acknowledgement before publishing.
+    pub(crate) fn publish_without_reclaim(&mut self, plan: Box<T>) -> Result<(), PlanPublishError<T>> {
+        assert_not_realtime("render-plan publication");
         if self.pending {
             return Err(PlanPublishError::Pending(plan));
         }
@@ -119,19 +124,8 @@ impl<T> RealtimePlanSlot<T> {
     /// Applies at most one ownership transition at a block boundary.
     #[inline]
     pub fn begin_block(&mut self) -> PlanSwapResult {
-        if let Some(retired) = self.retained_retired.take() {
-            return match self.retired_producer.push(ReturnedPlan {
-                plan: retired,
-                acknowledges_pending: true,
-            }) {
-                Ok(()) => PlanSwapResult::ReturnedRetainedPlan,
-                Err(PushError::Full(returned)) => {
-                    self.retained_retired = Some(returned.plan);
-                    self.pressure.plan_return_full();
-                    self.metrics.retained_returns = self.metrics.retained_returns.saturating_add(1);
-                    PlanSwapResult::Unchanged
-                }
-            };
+        if let Some(result) = self.return_retained_plan() {
+            return result;
         }
 
         let Ok(next) = self.pending_consumer.pop() else {
@@ -151,6 +145,28 @@ impl<T> RealtimePlanSlot<T> {
                 PlanSwapResult::SwappedAndRetainedOldPlan
             }
         }
+    }
+
+    /// Returns old ownership without adopting a pending plan before its control barrier.
+    #[inline]
+    pub(crate) fn return_retained_plan(&mut self) -> Option<PlanSwapResult> {
+        if let Some(retired) = self.retained_retired.take() {
+            return Some(
+                match self.retired_producer.push(ReturnedPlan {
+                    plan: retired,
+                    acknowledges_pending: true,
+                }) {
+                    Ok(()) => PlanSwapResult::ReturnedRetainedPlan,
+                    Err(PushError::Full(returned)) => {
+                        self.retained_retired = Some(returned.plan);
+                        self.pressure.plan_return_full();
+                        self.metrics.retained_returns = self.metrics.retained_returns.saturating_add(1);
+                        PlanSwapResult::Unchanged
+                    }
+                },
+            );
+        }
+        None
     }
 
     #[inline]
@@ -186,7 +202,7 @@ impl<T> RealtimePlanSlot<T> {
     }
 
     #[cfg(test)]
-    pub(super) fn fill_return_queue_for_test(&mut self, plan: Box<T>) {
+    pub(crate) fn fill_return_queue_for_test(&mut self, plan: Box<T>) {
         assert!(
             self.retired_producer
                 .push(ReturnedPlan {

@@ -52,6 +52,7 @@ pub(super) fn validate_backends(backends: &[Arc<dyn AudioBackend>], policy: &Bac
 #[cfg_attr(not(all(feature = "analysis", feature = "playback")), allow(unused_mut))]
 pub(super) fn apply_configuration(
     mut runtime: ApplyConfigurationContext<'_>,
+    #[cfg(all(feature = "analysis", feature = "playback"))] sequence: crate::CommandSequence,
     generation: ConfigGeneration,
     config: AudioConfiguration,
 ) {
@@ -110,7 +111,7 @@ pub(super) fn apply_configuration(
                 .collect();
             #[cfg(all(feature = "analysis", feature = "playback"))]
             if let Some(managed) = runtime.managed_render_runtime.as_deref_mut()
-                && let Err(error) = managed.publish_plan(generation, compilation.plan.clone())
+                && let Err(error) = managed.publish_plan(sequence, generation, compilation.plan.clone())
             {
                 publish_event(
                     runtime.event_sender,

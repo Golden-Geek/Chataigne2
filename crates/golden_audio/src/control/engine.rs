@@ -375,7 +375,7 @@ fn run_control_worker(mut command_receiver: Consumer<CommandEnvelope>, worker: C
     let mut playback_lifecycle = PlaybackLifecycles::default();
     loop {
         #[cfg(all(feature = "analysis", feature = "playback"))]
-        refresh_managed_render_observation(managed_render_runtime.as_mut(), &observation);
+        refresh_managed_render_observation(managed_render_runtime.as_mut(), &event_sender, &observation);
         #[cfg(feature = "playback")]
         drain_playback_work(
             &event_sender,
@@ -422,6 +422,8 @@ fn run_control_worker(mut command_receiver: Consumer<CommandEnvelope>, worker: C
                         #[cfg(all(feature = "analysis", feature = "playback"))]
                         managed_render_runtime: managed_render_runtime.as_mut(),
                     },
+                    #[cfg(all(feature = "analysis", feature = "playback"))]
+                    sequence,
                     generation,
                     Arc::unwrap_or_clone(config),
                 );
@@ -451,25 +453,25 @@ fn run_control_worker(mut command_receiver: Consumer<CommandEnvelope>, worker: C
                 );
             }
             AudioCommand::SetMasterGain { gain } => {
-                let applied = devices.set_master_gain(gain);
-                #[cfg(all(feature = "analysis", feature = "playback"))]
-                let applied = applied.and_then(|()| {
-                    managed_render_runtime
-                        .as_mut()
-                        .map_or(Ok(()), |runtime| runtime.set_master_gain(gain))
-                });
+                let applied = (|| {
+                    #[cfg(all(feature = "analysis", feature = "playback"))]
+                    if let Some(runtime) = managed_render_runtime.as_mut() {
+                        runtime.set_master_gain(sequence, gain)?;
+                    }
+                    devices.set_master_gain(gain)
+                })();
                 if let Err(error) = applied {
                     publish_command_failure(&event_sender, &observation, "set_master_gain", error);
                 }
             }
             AudioCommand::SetChannelGain { channel, gain } => {
-                let applied = devices.set_channel_gain(channel, gain);
-                #[cfg(all(feature = "analysis", feature = "playback"))]
-                let applied = applied.and_then(|()| {
-                    managed_render_runtime
-                        .as_mut()
-                        .map_or(Ok(()), |runtime| runtime.set_channel_gain(channel, gain))
-                });
+                let applied = (|| {
+                    #[cfg(all(feature = "analysis", feature = "playback"))]
+                    if let Some(runtime) = managed_render_runtime.as_mut() {
+                        runtime.set_channel_gain(sequence, channel, gain)?;
+                    }
+                    devices.set_channel_gain(channel, gain)
+                })();
                 if let Err(error) = applied {
                     publish_command_failure(&event_sender, &observation, "set_channel_gain", error);
                 }
@@ -595,12 +597,16 @@ fn run_control_worker(mut command_receiver: Consumer<CommandEnvelope>, worker: C
 #[cfg(all(feature = "analysis", feature = "playback"))]
 fn refresh_managed_render_observation(
     runtime: Option<&mut ManagedRenderRuntime>,
+    event_sender: &EventSender,
     observation: &Arc<RwLock<AudioObservationSnapshot>>,
 ) {
     let Some(runtime) = runtime else {
         return;
     };
     let (render, analysis) = runtime.refresh_observation();
+    if let Some(error) = runtime.take_control_failure() {
+        publish_command_failure(event_sender, observation, "render_control", error);
+    }
     update_observation(observation, |snapshot| {
         snapshot.runtime = render;
         snapshot.render_frame = render.rendered_frames;

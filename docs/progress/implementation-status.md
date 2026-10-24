@@ -5,10 +5,10 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-24 on `main`, based on delivered `bf3ccc88`, matching
+Last reconciled: 2026-10-24 on `main`, based on delivered `189175c9`, matching
 `origin/main` at milestone start. **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
-Whole-plan scope coverage is approximately 19%; P04's scalar and command-admission checkpoints are complete.
+Whole-plan scope coverage is approximately 22%; P01-P04 are locally complete.
 Hardware/platform and product-scale
 qualification retain their later owners.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
@@ -22,11 +22,11 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 packages, not commit counts. Spatializer's admitted preparation, bounded publication, source/path
 fences, identity preservation and passive failure recovery are qualified under C12.
 
-**Whole plan: approximately 19% complete.** P01, P02 and P03 are complete against their local
-acceptance criteria; P04 is 50%; P05-P18 have not started. P00 baseline reconciliation is maintained separately.
-**3 of 18 implementation/qualification tasks are complete (17%).**
+**Whole plan: approximately 22% complete.** P01-P04 are complete against their local
+acceptance criteria; P05-P18 have not started. P00 baseline reconciliation is maintained separately.
+**4 of 18 implementation/qualification tasks are complete (22%).**
 
-Overall progress is the equal-weight average of P01-P18: `(100 + 100 + 100 + 50 + 14 * 0) / 18`,
+Overall progress is the equal-weight average of P01-P18: `(4 * 100 + 14 * 0) / 18`,
 rounded to a whole percent. This measures scope coverage, not elapsed time, remaining effort, or
 product readiness. Task sizes differ substantially. P00 housekeeping and preserved pre-plan
 features do not inflate this percentage. Later product, platform and device acceptance remains open.
@@ -70,7 +70,7 @@ Keyboard, Mouse, Ultraleap, Signals, Metronomes, MIDI and MQTT. Their owning pat
 admission/service/lifetime and recovery evidence. Spatializer's Cartesian matrix preparation and
 publication are also bounded. Absence of a search pattern alone was never acceptance evidence.
 
-**Remaining P03 closure packages: zero open, twelve closed (C01-C12).** Continue P04.
+**Remaining P03 closure packages: zero open, twelve closed (C01-C12).** P04 is also locally complete; continue P05.
 General optimization and external qualification retain their explicit later plan owners.
 
 | ID  | Status              | Scope                            | Required closure                                                                                                                                                                                                                                                                                                                                                                                                                    |
@@ -98,24 +98,25 @@ establishes another repair. The discarded borrowed-parameter-view candidate rece
 ### P04 completion checkpoints
 
 P04 has four equally weighted acceptance checkpoints. These measure verified scope, not effort
-or a promised commit count. **Two of four are complete (50%).**
+or a promised commit count. **Four of four are complete locally (100%).**
 
 | Checkpoint | Status | Acceptance |
 | --- | --- | --- |
 | Validated scalar decoding | Complete locally | SampleRate, FrameCount and GainDb reject invalid input during deserialization; valid primitive wire values and nested DTOs are preserved. |
 | Ordered command admission | Complete locally | Concurrent producers and shutdown share accepted queue/sequence order; overload, closure, disconnection and exhaustion retain explicit outcomes. |
-| Production plan/control barrier | Open | Managed rendering shares plan/gain sequence and generation ownership; targets resolve to dense locations off realtime paths. |
-| Realtime transition qualification | Open | Deterministic configuration/gain/remove/re-add cases and allocation/deallocation guards cover actual production transitions. |
+| Production plan/control barrier | Complete locally | Managed rendering shares plan/gain sequence and generation ownership; channel UUIDs and linear gains resolve on the control worker. Plan markers and gains use one bounded ordered queue. |
+| Realtime transition qualification | Complete locally | Ten owning cases cover configuration/gain/remove/re-add ordering, admission/retirement pressure, sidecar acknowledgements and stale outcomes. Allocation/deallocation guards cover the production control transition and rendering path. |
 
 ## Current handoff
 
-- **P04 is 50% complete:** validated scalar decoding and ordered command admission are locally
-  verified. Continue production plan/control ordering and realtime transition qualification.
-- Golden Audio passes **180 default-feature unit cases**, **21 public integration cases**, and
+- **P04 is locally complete: four of four checkpoints (100%).** Validated scalar decoding,
+  ordered command admission, production plan/control barriers and realtime transitions are verified.
+  Continue P05's password-free transport trust boundary.
+- Golden Audio passes **190 default-feature unit cases**, **21 public integration cases**, and
   **136 no-default-feature unit cases**. These feature runs overlap; do not add them as unique tests.
   Strict workspace/all-target Clippy passes. Primitive numeric serialization is unchanged.
 
-- **P03 is locally complete: C01-C12 closed, 12/12 packages (100%). Continue P04 audio order/types.**
+- **P03 is locally complete: C01-C12 closed, 12/12 packages (100%). No P03 packages remain.**
   Node Control remains an empty placeholder outside scope.
 - Prior P03 default app artifact: **29 Spatializer + 400 controllers + 1075 disjoint broader cases =
   1504 unique passes / six existing ignored / 1510 selected / 1745 listed**, with 235 outside.
@@ -130,8 +131,8 @@ or a promised commit count. **Two of four are complete (50%).**
 - Prior-commit CI/product qualification failures remain recorded: dependency advisories/audits
   retain P06, structural gates P12, timing/baseline work P16 and platform qualification P17.
   Cancelled macOS product work is not a pass.
-- Whole-plan scope coverage is **~19%**, with **3/18 tasks locally complete**. Commit/push this
-  verified milestone on `main`, then continue P04's remaining checkpoints. Keep the full P00-P18 goal active.
+- Whole-plan scope coverage is **~22%**, with **4/18 tasks locally complete**. Commit/push this
+  verified milestone on `main`, then continue P05. Keep the full P00-P18 goal active.
 
 ## Task ledger
 
@@ -145,7 +146,7 @@ External qualification is separate from implementation. A historical pass is not
 | P01 Edit failures/history   | 100%       | VERIFIED_LOCAL | PASSED batches 1–8      | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                                       |
 | P02 Schedule/actor failures | 100%       | VERIFIED_LOCAL | PASSED batches 1-3      | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                                        |
 | P03 Bounded I/O/lifecycle | 100% | VERIFIED_LOCAL | PASSED C01-C12 | All twelve closure packages locally verified; Spatializer closes the bounded service/lifecycle audit. External qualification retains later owners. |
-| P04 Audio order/types | 50% | IN_PROGRESS | PASSED scalar/admission boundaries | Checked deserialization and linearized command/shutdown admission verified. Shared production plan/control ordering, dense generation targets and realtime transitions remain open. |
+| P04 Audio order/types | 100% | VERIFIED_LOCAL | PASSED all four checkpoints | Checked scalar decoding, ordered command/shutdown admission, production plan/gain sequence and generation barriers, dense targets and allocation/deallocation transition guards verified. Native/platform qualification retains P17/P18. |
 | P05 Transport trust         | 0%         | NOT_STARTED    | PENDING                 | Missing admission verified; exploit not demonstrated                                                                                            |
 | P06 Dependencies | 0% | NOT_STARTED | FAILED baseline | Latest product CI reports eight RustSec IDs and npm audit failures; refresh advisories before repair. |
 | P07 DMX streaming           | 0%         | NOT_STARTED    | PENDING                 | Refresh/filter/service gaps; protocol loopback qualification needed                                                                             |
@@ -7984,3 +7985,63 @@ gains still require a shared sequence/generation barrier and dense control-threa
 realtime allocation/deallocation and remove/re-add transitions remain unqualified. Whole-plan
 scope coverage becomes ~19%, with P01-P03 still the three locally complete tasks. Commit/push
 this verified milestone before editing the remaining production boundary.
+
+## P04 production plan/control order and realtime transitions
+
+2026-10-24, based on delivered `189175c914fb085726b9aa9eecaafa622ef0c3a7`, matching
+`origin/main` at milestone start and after the final fetch. The reusable Golden Audio managed
+runtime owns this repair; no application policy or protocol declaration was added.
+
+`control::render_runtime::controls` pairs each prepared plan with a marker in the same bounded
+4,096-slot queue as gains. Accepted ingress sequences reach configuration and gain delivery.
+The control worker resolves output UUIDs against the latest accepted generation and converts
+validated gains to linear values. Rendering checks sequence, generation and dense index using
+scalar outcomes; rejection counts become diagnostics only on the control worker. UUID-based
+processor setters explicitly reject realtime use. Queue rejection happens before the device
+runtime's desired gain is mutated.
+
+Plan publication preflights marker capacity before transferring ownership. A rejected pending
+plan preserves the previous generation and target map. The render worker consumes a finite
+initial queue prefix, applies old gains before the replacement marker and new gains after it.
+Retirement pressure retains old owners and defers following controls; final destruction stays
+off realtime paths. Publication uses explicit acknowledgement reclamation so the control owner
+can retire the associated analysis controller without losing its acknowledgement to an implicit
+publisher drain. Generic acknowledged exchange behavior remains available to its existing users.
+
+Ten owning cases exercise older master/channel gains followed by configuration, gains after
+configuration, channel removal/re-addition and dense-index reuse, full control queues, rejected
+pending plans, sidecar acknowledgement ownership, saturated returns, bounded service under refill,
+stale/missing/invalid/out-of-order controls, and disconnection. Allocation/deallocation guards
+measure the same `RenderControlReader::begin_block` used by the managed render thread, together
+with compiled rendering, across initial adoption, replacement, remove/re-add, retained returns
+and rejection. All measured allocation/retained-byte deltas are zero.
+
+The first owning selection had **eight passes and one failure**: the saturation fixture injected
+its dummy return before publication, allowing the publisher to reclaim it before the measured
+transition. Injecting after publication exercises actual saturated returns. The corrected nine-case
+selection passed; the final full suite includes the additional sidecar acknowledgement case.
+No assertion, gain ramp, queue capacity or expected order was weakened.
+
+Validation on Windows x86_64 MSVC, Rust/Cargo 1.97.0, `CARGO_INCREMENTAL=0`:
+
+- `cargo test --locked -p golden_audio -- --test-threads=1`: **190 unit + 21 public integration
+  passes**, no failures/ignores. Unit execution 1.85s after a 24.74s build; playback integration
+  includes the managed native-bridge/recovery and null-clock paths using controlled backends.
+- `cargo test --locked -p golden_audio --no-default-features --lib -- --test-threads=1`:
+  **136 passed**, 0.14s after an 8.15s build. This overlaps the default inventory.
+- `cargo clippy --locked --workspace --all-targets -- -D warnings`: passed in **45.12s**,
+  including application consumers.
+- Actual root/Core formatting, final diff checks and source-size checks pass. The largest touched
+  Rust file is 730 lines. Primitive wire serialization and generated DTO shapes are unchanged.
+  No physical device stream, desktop automation or platform qualification was performed.
+
+Final default unit SHA-256:
+`ab7da167c8eb869b10a8945ebf620698e5a7531e825c6fcdc734780c2aa70c51`.
+Final no-default unit SHA-256:
+`86dc552fcc3f13e30866c0128959921dd8298dc30fe083c38428cc656ccb60c7`.
+
+**P04 is locally complete: four of four acceptance checkpoints (100%).** Whole-plan coverage
+is **~22%**, with P01-P04 the four locally complete tasks. P03 remains closed at 12/12 packages;
+do not reopen a generic optimization chain. Native/platform/device qualification retains P17/P18.
+Commit/push this verified milestone, then continue the earliest unfinished task, P05. The full
+P00-P18 goal remains active.

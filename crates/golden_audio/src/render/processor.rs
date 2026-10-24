@@ -80,6 +80,7 @@ impl RenderProcessor {
     }
 
     pub fn set_route_gain(&mut self, route: AudioRouteId, gain: GainDb) -> Result<(), AudioError> {
+        crate::realtime::assert_not_realtime("render route ID resolution");
         let target = gain.to_linear();
         let ramp_frames = self.plan.gain_ramp_frames;
         let found = self
@@ -103,6 +104,7 @@ impl RenderProcessor {
     }
 
     pub fn set_output_gain(&mut self, channel: AudioChannelId, gain: GainDb) -> Result<(), AudioError> {
+        crate::realtime::assert_not_realtime("render output ID resolution");
         let Some(index) = self
             .plan
             .virtual_outputs
@@ -113,13 +115,24 @@ impl RenderProcessor {
                 "render plan does not contain output channel {channel}"
             )));
         };
-        self.output_gains[index].set_target(gain.to_linear(), self.plan.gain_ramp_frames);
+        self.set_output_gain_at(index, gain.to_linear());
         Ok(())
     }
 
     pub fn set_master_gain(&mut self, gain: GainDb) {
-        self.master_gain
-            .set_target(gain.to_linear(), self.plan.gain_ramp_frames);
+        self.set_master_gain_linear(gain.to_linear());
+    }
+
+    pub(crate) fn set_output_gain_at(&mut self, index: usize, linear: f32) -> bool {
+        let Some(gain) = self.output_gains.get_mut(index) else {
+            return false;
+        };
+        gain.set_target(linear, self.plan.gain_ramp_frames);
+        true
+    }
+
+    pub(crate) fn set_master_gain_linear(&mut self, linear: f32) {
+        self.master_gain.set_target(linear, self.plan.gain_ramp_frames);
     }
 
     pub fn render(
