@@ -796,8 +796,8 @@ do not infer that all module I/O is already bounded from the generic channel API
 
 The HTTP/WebSocket UI host now validates Host and browser Origin before API dispatch or upgrade,
 and uses exact-origin CORS. The [transport request boundary](ui-transport-security.md) explains
-configured development origins, LAN authorities and HTTP parsing. Scoped session capabilities
-and client recovery remain P05 work. Loopback defaults and Tauri capabilities are separate from
-request admission. The
+configured development origins, LAN authorities, HTTP parsing, scoped sessions and shared client
+renewal. CSP and the complete supported-surface matrix remain P05 work. Loopback defaults and
+Tauri capabilities are separate from request admission. The
 [security reference](../reference/tauri-security.md) and [current status](../progress/implementation-status.md)
 record the boundary and evidence.

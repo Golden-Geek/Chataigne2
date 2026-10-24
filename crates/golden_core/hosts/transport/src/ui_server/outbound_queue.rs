@@ -206,7 +206,6 @@ impl WsOutboundQueue {
         Some(queued.outbound)
     }
 
-    #[cfg(test)]
     pub(super) fn len(&self) -> usize {
         self.queue
             .lock()

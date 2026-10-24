@@ -12,6 +12,7 @@ use super::*;
 mod control_failures;
 mod outbound_recovery;
 mod request_access;
+mod session_admission;
 mod snapshot_encoding;
 
 #[test]
@@ -476,6 +477,7 @@ fn websocket_intent_queues_received_control_after_hub_admission() {
         7,
         &hub,
         &outbound,
+        &super::session::tests::authoring_grant(),
     ));
 
     assert_received_control(&outbound, "intent-request");
@@ -513,6 +515,7 @@ fn websocket_intent_batch_queues_received_control_after_hub_admission() {
         11,
         &hub,
         &outbound,
+        &super::session::tests::authoring_grant(),
     ));
 
     assert_received_control(&outbound, "batch-request");
@@ -556,6 +559,7 @@ fn websocket_command_overload_is_rejected_without_a_received_control_update() {
         7,
         &hub,
         &outbound,
+        &super::session::tests::authoring_grant(),
     ));
 
     let Some(WsOutbound::Message(WsServerMessage::Error {
@@ -589,6 +593,7 @@ fn websocket_intent_batch_rejects_excess_operation_weight_before_hub_admission()
         7,
         &hub,
         &outbound,
+        &super::session::tests::authoring_grant(),
     ));
 
     let Some(WsOutbound::Message(WsServerMessage::Error {

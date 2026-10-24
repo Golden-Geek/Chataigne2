@@ -3,6 +3,7 @@ import { UI_PROTOCOL_VERSION } from '../../../../../../packages/golden-ui/genera
 import { graphIndexMutationCopies } from '../../../../../../packages/golden-ui/store/graph-index';
 import { createGraphStore } from '../../../../../../packages/golden-ui/store/graph.svelte';
 import { createWebSocketUiClient } from '../../../../../../packages/golden-ui/transport/ws';
+import { testSessionProvider } from '../../../../../../packages/golden-ui/transport/tests/fixtures/session';
 import type {
 	EventTime,
 	UiEventBatch,
@@ -384,12 +385,14 @@ describe('websocket event burst scheduling', () => {
 	it('stages an atomic multi-plane envelope in exact order before applying bounded frame slices', async () => {
 		const applied: UiEventBatch[] = [];
 		const client = createWebSocketUiClient({
+			sessionProvider: testSessionProvider,
 			webSocketImpl: FakeWebSocket as unknown as typeof WebSocket
 		});
 		const initial = time(0);
 		const unsubscribe = client.subscribe({ kind: 'wholeGraph' }, initial, (batch) =>
 			applied.push(batch)
 		);
+		await flushMicrotasks();
 		const socket = FakeWebSocket.instances[0];
 		if (!socket) {
 			throw new Error('websocket was not created');
@@ -462,12 +465,14 @@ describe('websocket event burst scheduling', () => {
 		vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 		const applied: UiEventBatch[] = [];
 		const client = createWebSocketUiClient({
+			sessionProvider: testSessionProvider,
 			webSocketImpl: FakeWebSocket as unknown as typeof WebSocket
 		});
 		const initial = time(0);
 		const unsubscribe = client.subscribe({ kind: 'wholeGraph' }, initial, (batch) =>
 			applied.push(batch)
 		);
+		await flushMicrotasks();
 		const firstSocket = FakeWebSocket.instances[0];
 		if (!firstSocket) {
 			throw new Error('websocket was not created');
@@ -486,6 +491,7 @@ describe('websocket event burst scheduling', () => {
 
 		firstSocket.close();
 		await vi.advanceTimersByTimeAsync(251);
+		await flushMicrotasks();
 		const secondSocket = FakeWebSocket.instances[1];
 		if (!secondSocket) {
 			throw new Error('reconnect websocket was not created');
@@ -519,6 +525,7 @@ describe('websocket event burst scheduling', () => {
 		const committed = time(20_000);
 		graph.loadSnapshot(graphSnapshot(initial));
 		const client = createWebSocketUiClient({
+			sessionProvider: testSessionProvider,
 			webSocketImpl: FakeWebSocket as unknown as typeof WebSocket
 		});
 		const unsubscribe = client.subscribe(
@@ -527,6 +534,7 @@ describe('websocket event burst scheduling', () => {
 			(batch) => graph.applyBatch(batch),
 			{ createEventWork: (event) => graph.createEventWork(event) }
 		);
+		await flushMicrotasks();
 		const firstSocket = FakeWebSocket.instances[0];
 		if (!firstSocket) {
 			throw new Error('websocket was not created');
@@ -551,6 +559,7 @@ describe('websocket event burst scheduling', () => {
 
 		firstSocket.close();
 		await vi.advanceTimersByTimeAsync(251);
+		await flushMicrotasks();
 		const secondSocket = FakeWebSocket.instances[1];
 		if (!secondSocket) {
 			throw new Error('reconnect websocket was not created');
@@ -591,6 +600,7 @@ describe('websocket event burst scheduling', () => {
 
 		secondSocket.close();
 		await vi.advanceTimersByTimeAsync(251);
+		await flushMicrotasks();
 		const thirdSocket = FakeWebSocket.instances[2];
 		if (!thirdSocket) {
 			throw new Error('second reconnect websocket was not created');
@@ -613,6 +623,7 @@ describe('websocket event burst scheduling', () => {
 			graph.loadSnapshot(chainGraphSnapshot(initial, baseNodeCount));
 			const initialState = graph.state;
 			const client = createWebSocketUiClient({
+				sessionProvider: testSessionProvider,
 				webSocketImpl: FakeWebSocket as unknown as typeof WebSocket
 			});
 			const unsubscribe = client.subscribe(
@@ -621,6 +632,7 @@ describe('websocket event burst scheduling', () => {
 				(batch) => graph.applyBatch(batch),
 				{ createEventWork: (event) => graph.createEventWork(event) }
 			);
+			await flushMicrotasks();
 			const socket = FakeWebSocket.instances.at(-1);
 			if (!socket) {
 				throw new Error('websocket was not created');
@@ -671,6 +683,7 @@ describe('websocket event burst scheduling', () => {
 			graph.loadSnapshot(chainGraphSnapshot(initial, baseNodeCount));
 			const initialState = graph.state;
 			const client = createWebSocketUiClient({
+				sessionProvider: testSessionProvider,
 				webSocketImpl: FakeWebSocket as unknown as typeof WebSocket
 			});
 			const unsubscribe = client.subscribe(
@@ -679,6 +692,7 @@ describe('websocket event burst scheduling', () => {
 				(batch) => graph.applyBatch(batch),
 				{ createEventWork: (event) => graph.createEventWork(event) }
 			);
+			await flushMicrotasks();
 			const socket = FakeWebSocket.instances.at(-1);
 			if (!socket) {
 				throw new Error('websocket was not created');
@@ -722,6 +736,7 @@ describe('websocket event burst scheduling', () => {
 		graph.loadSnapshot(chainGraphSnapshot(initial, 2_000));
 		const initialState = graph.state;
 		const client = createWebSocketUiClient({
+			sessionProvider: testSessionProvider,
 			webSocketImpl: FakeWebSocket as unknown as typeof WebSocket
 		});
 		const unsubscribe = client.subscribe(
@@ -730,6 +745,7 @@ describe('websocket event burst scheduling', () => {
 			(batch) => graph.applyBatch(batch),
 			{ createEventWork: (event) => graph.createEventWork(event) }
 		);
+		await flushMicrotasks();
 		const firstSocket = FakeWebSocket.instances.at(-1);
 		if (!firstSocket) {
 			throw new Error('websocket was not created');
@@ -753,6 +769,7 @@ describe('websocket event burst scheduling', () => {
 		firstSocket.close();
 		await vi.advanceTimersByTimeAsync(251);
 
+		await flushMicrotasks();
 		const secondSocket = FakeWebSocket.instances.at(-1);
 		if (!secondSocket || secondSocket === firstSocket) {
 			throw new Error('reconnect websocket was not created');
@@ -790,6 +807,7 @@ describe('websocket event burst scheduling', () => {
 		graph.loadSnapshot(wideGraphSnapshot(initial, 1_000));
 		const initialState = graph.state;
 		const client = createWebSocketUiClient({
+			sessionProvider: testSessionProvider,
 			webSocketImpl: FakeWebSocket as unknown as typeof WebSocket
 		});
 		const unsubscribe = client.subscribe(
@@ -798,6 +816,7 @@ describe('websocket event burst scheduling', () => {
 			(batch) => graph.applyBatch(batch),
 			{ createEventWork: (event) => graph.createEventWork(event) }
 		);
+		await flushMicrotasks();
 		const socket = FakeWebSocket.instances.at(-1);
 		if (!socket) {
 			throw new Error('websocket was not created');
@@ -829,12 +848,14 @@ describe('websocket event burst scheduling', () => {
 	it('bounds sustained value-plane input by keeping only the newest value per parameter', async () => {
 		const applied: UiEventBatch[] = [];
 		const client = createWebSocketUiClient({
+			sessionProvider: testSessionProvider,
 			webSocketImpl: FakeWebSocket as unknown as typeof WebSocket
 		});
 		const initial = time(0);
 		const unsubscribe = client.subscribe({ kind: 'wholeGraph' }, initial, (batch) =>
 			applied.push(batch)
 		);
+		await flushMicrotasks();
 		const socket = FakeWebSocket.instances[0];
 		if (!socket) {
 			throw new Error('websocket was not created');
@@ -881,11 +902,13 @@ describe('websocket event burst scheduling', () => {
 	it('never coalesces latest values across a reliable event in the same envelope', async () => {
 		const applied: UiEventBatch[] = [];
 		const client = createWebSocketUiClient({
+			sessionProvider: testSessionProvider,
 			webSocketImpl: FakeWebSocket as unknown as typeof WebSocket
 		});
 		const unsubscribe = client.subscribe({ kind: 'wholeGraph' }, time(0), (batch) =>
 			applied.push(batch)
 		);
+		await flushMicrotasks();
 		const socket = FakeWebSocket.instances[0];
 		if (!socket) {
 			throw new Error('websocket was not created');

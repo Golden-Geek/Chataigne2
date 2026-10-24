@@ -1,14 +1,18 @@
 import type { UiDataPlane } from '../generated/rust_protocol/UiDataPlane';
 import type { EventTime, UiClient, UiSubscriptionScope } from '../types';
-import { createWebSocketUiClient, type UiTransportConnectionState } from './ws';
+import { createWebSocketUiClient } from './ws';
+import type { UiTransportConnectionState } from './ws-contracts';
+import type { UiSessionProvider } from './session';
+export { createUiSessionProvider, type UiSessionProvider } from './session';
 
-export type { UiTransportConnectionState } from './ws';
+export type { UiTransportConnectionState } from './ws-contracts';
 
 export interface UiTransportOptions {
 	wsUrl?: string;
 	httpBaseUrl?: string;
 	fetchImpl?: typeof fetch;
 	webSocketImpl?: typeof WebSocket;
+	sessionProvider?: UiSessionProvider;
 	onConnectionStateChange?: (state: UiTransportConnectionState, detail?: string) => void;
 	onResyncRequired?: (
 		scope: UiSubscriptionScope,

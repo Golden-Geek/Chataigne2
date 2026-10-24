@@ -15,12 +15,14 @@ mod edit;
 mod event;
 mod intent;
 mod message;
+mod session;
 mod snapshot;
 
 pub use edit::*;
 pub use event::*;
 pub use intent::*;
 pub use message::*;
+pub use session::*;
 pub use snapshot::*;
 
 fn is_default_presentation_hint(value: &PresentationHint) -> bool {

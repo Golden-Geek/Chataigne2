@@ -11,6 +11,12 @@ use super::HttpRequest;
 const MAX_TRUST_ENTRIES: usize = 32;
 const MAX_TRUST_ENTRY_BYTES: usize = 2_048;
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct RequestAdmission {
+    pub(super) origin: Option<String>,
+    pub(super) authority: String,
+}
+
 /// Host policy is configured once, rather than inferred from the client's Origin or DNS.
 #[derive(Debug)]
 pub(super) struct RequestAccessPolicy {
@@ -40,7 +46,7 @@ impl RequestAccessPolicy {
         })
     }
 
-    pub(super) fn admit(&self, request: &HttpRequest, local: SocketAddr) -> Result<Option<String>, &'static str> {
+    pub(super) fn admit(&self, request: &HttpRequest, local: SocketAddr) -> Result<RequestAdmission, &'static str> {
         let host = request.headers.get("host").ok_or("Host is required")?;
         let host = parse_authority(host).map_err(|_| "invalid Host authority")?;
         if host.port_or_known_default() != Some(local.port()) {
@@ -67,7 +73,10 @@ impl RequestAccessPolicy {
                 return Err("cross-origin browser API requests require an admitted Origin");
             }
             // Native/headless peers share the configured listener's trusted-network boundary.
-            return Ok(None);
+            return Ok(RequestAdmission {
+                origin: None,
+                authority: host.authority().to_owned(),
+            });
         };
         let origin = parse_origin(origin)
             .map_err(|_| "invalid browser Origin")?
@@ -76,7 +85,10 @@ impl RequestAccessPolicy {
         if origin != host.origin().ascii_serialization() && !self.allowed_origins.contains(&origin) {
             return Err("browser Origin is not admitted");
         }
-        Ok(Some(origin))
+        Ok(RequestAdmission {
+            origin: Some(origin),
+            authority: host.authority().to_owned(),
+        })
     }
 }
 

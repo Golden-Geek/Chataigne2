@@ -31,13 +31,15 @@ fn host_policy_admits_loopback_lan_ipv6_and_native_clients_without_dns_inference
         assert_eq!(
             policy
                 .admit(&request(host, Some(origin)), local.parse().unwrap())
-                .unwrap(),
+                .unwrap()
+                .origin,
             Some(origin.into())
         );
         assert!(
             policy
                 .admit(&request(host, None), local.parse().unwrap())
                 .unwrap()
+                .origin
                 .is_none()
         );
     }
@@ -131,6 +133,7 @@ fn exchange(build: impl FnOnce(std::net::SocketAddr) -> String) -> String {
             .unwrap();
     let (cmd_tx, commands) = mpsc::sync_channel(64);
     let state = ServerState {
+        sessions: Arc::new(SessionRegistry::new(golden_protocol::UiSessionCapabilities::ALL)),
         request_access: Arc::new(RequestAccessPolicy::new(&["http://127.0.0.1:5173".into()], &[]).unwrap()),
         read_model: runtime.read_model(),
         runtime,
@@ -142,6 +145,16 @@ fn exchange(build: impl FnOnce(std::net::SocketAddr) -> String) -> String {
         frontend_assets: &[],
         preferences: None,
     };
+    let mut wire = build(address);
+    if wire.starts_with("GET /api/ui/ws ") {
+        let origin = wire.lines().find_map(|line| line.strip_prefix("Origin: "));
+        let admission = super::super::access::RequestAdmission {
+            origin: origin.map(str::to_owned),
+            authority: address.to_string(),
+        };
+        let session = state.sessions.bootstrap(&admission, Default::default(), None).unwrap();
+        wire = wire.replacen("\r\n", &format!("\r\nAuthorization: Bearer {}\r\n", session.token), 1);
+    }
     let server = thread::spawn(move || {
         let _commands = commands;
         let (mut stream, _) = listener.accept().unwrap();
@@ -149,7 +162,7 @@ fn exchange(build: impl FnOnce(std::net::SocketAddr) -> String) -> String {
     });
     let mut client = TcpStream::connect(address).unwrap();
     client.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
-    client.write_all(build(address).as_bytes()).unwrap();
+    client.write_all(wire.as_bytes()).unwrap();
     client.shutdown(Shutdown::Write).unwrap();
     let mut response = String::new();
     client.read_to_string(&mut response).unwrap();

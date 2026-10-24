@@ -5,10 +5,10 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-24 on `main`, based on delivered `5a7db40a`, matching
+Last reconciled: 2026-10-24 on `main`, based on delivered `90c5264e`, matching
 `origin/main` at milestone start. **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
-Whole-plan scope coverage is approximately 24%; P01-P04 are locally complete and P05 is 25%.
+Whole-plan scope coverage is approximately 26%; P01-P04 are locally complete and P05 is 75%.
 Hardware/platform and product-scale
 qualification retain their later owners.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
@@ -22,11 +22,11 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 packages, not commit counts. Spatializer's admitted preparation, bounded publication, source/path
 fences, identity preservation and passive failure recovery are qualified under C12.
 
-**Whole plan: approximately 24% complete.** P01-P04 are complete against their local
-acceptance criteria; P05 is 25%; P06-P18 have not started. P00 baseline reconciliation is maintained separately.
+**Whole plan: approximately 26% complete.** P01-P04 are complete against their local
+acceptance criteria; P05 is 75%; P06-P18 have not started. P00 baseline reconciliation is maintained separately.
 **4 of 18 implementation/qualification tasks are complete (22%).**
 
-Overall progress is the equal-weight average of P01-P18: `(4 * 100 + 25 + 13 * 0) / 18`,
+Overall progress is the equal-weight average of P01-P18: `(4 * 100 + 75 + 13 * 0) / 18`,
 rounded to a whole percent. This measures scope coverage, not elapsed time, remaining effort, or
 product readiness. Task sizes differ substantially. P00 housekeeping and preserved pre-plan
 features do not inflate this percentage. Later product, platform and device acceptance remains open.
@@ -110,24 +110,27 @@ or a promised commit count. **Four of four are complete locally (100%).**
 ### P05 completion checkpoints
 
 P05 has four equally weighted acceptance checkpoints, fixed before continuing scoped sessions.
-These measure verified scope, not effort or a promised number of commits. **One of four is complete (25%).**
+These measure verified scope, not effort or a promised number of commits. **Three of four are complete locally (75%).**
 
 | Checkpoint | Status | Acceptance |
 | --- | --- | --- |
 | HTTP/WS request admission | Complete locally | Host and Origin checks precede dispatch/upgrade; CORS is exact; framing is bounded and unambiguous; the selected frontend origin is registered explicitly. |
-| Scoped session capabilities | Open | Host-owned bounded sessions bootstrap without passwords, expire/revoke across host restart, and enforce read/edit/project/script privileges before HTTP dispatch and WS operations. |
-| Client bootstrap and recovery | Open | Shared HTTP/WS credentials and reconnect/renewal preserve served, configured development, LAN and headless clients without replaying rejected mutations. |
+| Scoped session capabilities | Complete locally | Host-owned 128-session registry, one-hour expiry/renewal, revocation/restart fencing, generated capability DTOs and exhaustive HTTP/WS privilege admission verified. |
+| Client bootstrap and recovery | Complete locally | Shared credentials, coalesced startup/reconnect, stale-token renewal, observation-only binding and selected LAN endpoint ownership verified. Rejected/uncertain mutations retain explicit outcomes. |
 | CSP and complete qualification | Open | CSP covers supported bundled/dev assets and transport, explicit native permissions remain scoped, and HTTP/WS independently reject missing/stale/underprivileged capabilities before mutation or file access. |
 
 ## Current handoff
 
-- **P05 is 25% complete: one of four fixed checkpoints.** Host/Origin admission, exact CORS,
-  strict HTTP parsing and configured frontend registration are locally verified. Continue bounded
-  scoped capabilities and enforcement on HTTP and WebSocket; native peers still share the trusted
-  listener boundary. Client bootstrap/recovery and CSP remain open.
-- Golden Transport passes **59 unit cases and one public headless-host integration case**, with
-  one existing manual snapshot benchmark ignored. Golden Desktop passes **seven unit cases**, with
-  one subprocess helper ignored in direct selection. Strict workspace/all-target Clippy passes.
+- **P05 is 75% complete: three of four fixed checkpoints.** Request admission, scoped sessions
+  and shared client bootstrap/recovery are locally verified. Continue CSP and the supported-surface
+  matrix, including served/dev/LAN/native clients and reload/session pressure. Native peers retain
+  the trusted-listener policy; capabilities do not establish peer identity.
+- Golden Transport passes **71 unit cases and one public headless-host integration case**, with
+  one existing manual snapshot benchmark ignored. Golden UI passes **35 cases**, the app UI
+  **92 cases**, and the native Node loopback/restart check **one case**. Svelte reports zero
+  errors/warnings; the production UI build and strict workspace/all-target Clippy pass.
+- Prior request-admission milestone: Golden Desktop passed seven unit cases, with one subprocess
+  helper ignored in direct selection. Those executions predate this session-contract milestone.
 - **P04 is locally complete: four of four checkpoints (100%).** Validated scalar decoding,
   ordered command admission, production plan/control barriers and realtime transitions are verified.
   Its delivered milestone is `5a7db40a`.
@@ -150,8 +153,8 @@ These measure verified scope, not effort or a promised number of commits. **One 
 - Prior-commit CI/product qualification failures remain recorded: dependency advisories/audits
   retain P06, structural gates P12, timing/baseline work P16 and platform qualification P17.
   Cancelled macOS product work is not a pass.
-- Whole-plan scope coverage is **~24%**, with **4/18 tasks locally complete**. Commit/push this
-  verified milestone on `main`, then continue P05's remaining three checkpoints. Keep the full P00-P18 goal active.
+- Whole-plan scope coverage is **~26%**, with **4/18 tasks locally complete**. Commit/push this
+  verified milestone on `main`, then continue P05's final checkpoint. Keep the full P00-P18 goal active.
 
 ## Task ledger
 
@@ -166,7 +169,7 @@ External qualification is separate from implementation. A historical pass is not
 | P02 Schedule/actor failures | 100%       | VERIFIED_LOCAL | PASSED batches 1-3      | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                                        |
 | P03 Bounded I/O/lifecycle | 100% | VERIFIED_LOCAL | PASSED C01-C12 | All twelve closure packages locally verified; Spatializer closes the bounded service/lifecycle audit. External qualification retains later owners. |
 | P04 Audio order/types | 100% | VERIFIED_LOCAL | PASSED all four checkpoints | Checked scalar decoding, ordered command/shutdown admission, production plan/gain sequence and generation barriers, dense targets and allocation/deallocation transition guards verified. Native/platform qualification retains P17/P18. |
-| P05 Transport trust | 25% | IN_PROGRESS | PASSED request admission | HTTP/WS Host/Origin guards, exact CORS, bounded parser and configured dev origin verified. Scoped sessions, client recovery and CSP qualification remain open. |
+| P05 Transport trust | 75% | IN_PROGRESS | PASSED admission/session/client checkpoints | Bounded scoped credentials, exhaustive HTTP/WS gates, generated contracts and shared renewal verified. CSP and the supported-surface matrix remain open. |
 | P06 Dependencies | 0% | NOT_STARTED | FAILED baseline | Latest product CI reports eight RustSec IDs and npm audit failures; refresh advisories before repair. |
 | P07 DMX streaming           | 0%         | NOT_STARTED    | PENDING                 | Refresh/filter/service gaps; protocol loopback qualification needed                                                                             |
 | P08 Formula backend intents | 0%         | NOT_STARTED    | PENDING                 | UI polling/identity and mutation policy verified; corruption not reproduced                                                                     |
@@ -8126,3 +8129,90 @@ This does not authenticate an already trusted native/network peer or qualify all
 Whole-plan scope coverage is **~24%**, with P01-P04 still the four locally complete tasks.
 Commit/push this verified milestone before implementing the remaining P05 boundary. Keep the
 full P00-P18 goal active; P03 remains closed at 12/12 packages.
+
+## P05 scoped sessions and authenticated client recovery
+
+2026-10-24, based on delivered `90c5264e83d6e2d68b6af333daebd5d2ad61b15d`, matching
+`origin/main` at milestone start and final fetch. The previous goal turn delivered request
+admission and is classified as progress. This milestone completes two more P05 checkpoints;
+the complete P00-P18 goal remains active.
+
+`ui_server/session.rs` owns a per-host registry of at most 128 live credentials. OS randomness
+comes from existing locked `getrandom 0.4.3`; `base64 0.22.1` encodes 32 random bytes as an opaque
+URL-safe token. Cargo.lock only gains these two direct edges; package versions did not change.
+Each grant retains its exact admitted Host/Origin, independent observation/authoring/project-file/
+script flags, atomic validity and a one-hour renewable lifetime. Renewal retains its registry slot
+and cannot change privileges. Capacity returns 503 without evicting live clients. Expiry, revocation,
+registry teardown and a new host registry invalidate old credentials. The trusted listener still
+determines who can bootstrap without an account/password; this does not authenticate a hostile
+peer already inside that policy. Authoring can invoke application side effects and is privileged.
+
+`golden_protocol` owns `UiSessionCapabilities`, `UiSessionRequest` and `UiSessionResponse`.
+The canonical protocol version is now **0.8.0**. Codegen exports the three new DTOs and version
+with the rest of the bindings. The response supplies the WebSocket offers, so clients do not
+duplicate the credential protocol declaration. Debug output redacts secrets. HTTP uses a bearer
+header; the WebSocket server selects only the non-secret application protocol. Credentials stay
+out of URLs and handshake response headers. API/session responses use `Cache-Control: no-store`.
+
+The typed `http/routes.rs` set owns both route dispatch and exhaustive capability selection.
+WebSocket message privilege matching is also exhaustive; a new operation requires an explicit
+decision rather than inheriting observation rights. HTTP gates privileged handlers before payload
+interpretation/file access. Snapshot edit cancellation additionally checks authoring before its
+effect. Every WS operation checks its grant before hub admission; observation-only clients cannot
+bind an authoring identity or forward intents. Expiry/revocation closes existing sockets with
+policy code 1008 and retires their application client leases. Previously admitted effects retain
+their existing completion/cancellation contract.
+
+`golden_ui/transport/session.ts` coalesces bootstrap, caches current credentials and renews them
+before reconnect. An invalidation revision rejects late stale renewals. Socket opening is shared
+across concurrent callers and starts only after credential admission. Observation-only clients
+omit authoring identity binding. A selected socket URL also supplies the HTTP/bootstrap base,
+preserving LAN callers that supply only a socket endpoint. HTTP retries only a pre-dispatch 401;
+403, 503, timeout and network outcomes are not replayed. A timed-out intent cannot be resurrected
+when a delayed bootstrap finally opens its socket.
+
+The Node 26 qualification helper imports the same credential implementation and has a bounded
+16-origin cache. Both native qualification scripts now authenticate their HTTP/WS calls and use
+the server's canonical protocol version, replacing the transport probe's old hard-coded 0.4.0.
+The HTTP codec extraction is mechanical: values/constraints/control descriptions, document/event/
+intent conversion and project/script conversion have focused owners below 1,000 lines. HTTP
+delivery and socket bookkeeping remain separate. Existing domain-inference cleanup is not claimed
+complete by this move; P08/P12 retain their acceptance scope. Tests inject a credential provider
+and wait for bootstrap rather than bypassing production authentication.
+
+Final validation on Windows x86_64 MSVC, Rust/Cargo 1.97.0, incremental disabled:
+
+- `cargo test --locked -p golden_transport_server -- --test-threads=1`: **71 unit passes /
+  one existing manual measurement ignored**, plus **one public headless-host integration pass**.
+  Final typed-route execution 0.10s after a 1m29s build. The 12 added cases cover bound/scoped
+  credentials, full registry pressure/renewal/recovery, revocation/teardown/new host, real HTTP and
+  WS rejection, denied save without file creation, read snapshots, and live WS revocation.
+- `cargo clippy --locked --workspace --all-targets -- -D warnings`: passed in **47.25s**;
+  the final repeat after frontend corrections passed in **45.53s**, rebuilding the current UI bundle.
+  The first run rejected a nested conditional; it was collapsed without suppressing the lint.
+  The first socket-test build also caught the explicit `HandshakeError::Failure` wrapper; its
+  corrected test retained the 401-before-upgrade assertion. No security assertion was weakened.
+- Golden UI: **35 passed / five files**. App UI: **92 passed / 25 files**. The final app run
+  took 4.89s. Svelte check reports **zero errors and zero warnings**.
+- `node --test tools/qualification/tests/ui-session.test.mjs`: **one pass**, exercising native
+  TypeScript import, actual loopback requests, restart renewal and no replay after 503. A separate
+  loopback observation confirmed Node's WebSocket handshake omits Origin, matching native binding.
+- `npm run build --workspace chataigne-ui`: passed; client build 2.27s and server/static build
+  5.24s. The >500 kB minified-chunk warning remains visible, with no threshold change. Bundle and
+  product-scale qualification retain P16.
+- Regeneration of **118 bindings** was byte-identical: aggregate path/content SHA-256
+  `97240d59d9ee0277e18cbc69c4fbe3c1ceff24971f57e72f2a55e2c562f84e1e` before and after.
+- Actual root/Core formatting, final diff/source-size and local documentation-link checks pass.
+  The largest touched source is 965 lines. No GUI input, physical stream or native-webview test
+  was performed. The final small frontend endpoint/binding corrections were followed by the
+  complete UI suites, Svelte check, production UI build and final workspace Clippy. Rust source
+  was unchanged; all 37 touched code-file hashes also match across final formatting/checks.
+
+Final transport unit artifact SHA-256:
+`b9ecd71558a490daf5f82f174971ba5e7eb68658f454ce94625c9c9f28096dc5`.
+
+**P05 is 75% complete: three of four checkpoints locally verified.** CSP and the complete
+supported-surface matrix remain open, including real served/dev/LAN/browser behavior and reload/
+session-pressure qualification. Whole-plan coverage is **~26%**, with P01-P04 still the four
+locally complete tasks. Commit/push this verified contract milestone before continuing that final
+checkpoint. P03 remains closed at 12/12 packages; keep the full P00-P18 goal active.

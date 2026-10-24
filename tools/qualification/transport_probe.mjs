@@ -3,9 +3,9 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { join, resolve } from 'node:path';
+import { nativeUiFetch, nativeUiSession } from './ui-session.mjs';
 
 const RESULT_PREFIX = 'PRODUCT_TRANSPORT_RESULT=';
-const PROTOCOL_VERSION = '0.4.0';
 const STARTUP_TIMEOUT_MS = 60_000;
 const REQUEST_TIMEOUT_MS = 120_000;
 const WORKBENCH_PLANES = ['structure', 'value', 'trigger', 'observation', 'catalog', 'preview'];
@@ -27,7 +27,7 @@ async function availablePort() {
 }
 
 async function jsonRequest(baseUrl, path, body, timeoutMs = REQUEST_TIMEOUT_MS) {
-	const response = await fetch(`${baseUrl}${path}`, {
+	const response = await nativeUiFetch(baseUrl, path, {
 		method: body === undefined ? 'GET' : 'POST',
 		headers: body === undefined ? {} : { 'content-type': 'application/json' },
 		body: body === undefined ? undefined : JSON.stringify(body),
@@ -59,9 +59,10 @@ async function waitForHealth(baseUrl, child, predicate, timeoutMs) {
 }
 
 class ProbeClient {
-	constructor(socket, name) {
+	constructor(socket, name, protocolVersion) {
 		this.socket = socket;
 		this.name = name;
+		this.protocolVersion = protocolVersion;
 		this.messages = [];
 		this.waiters = [];
 		this.closed = false;
@@ -98,7 +99,8 @@ class ProbeClient {
 	}
 
 	static async connect(url, name) {
-		const socket = new WebSocket(url);
+		const credential = await nativeUiSession(url).credentials(true);
+		const socket = new WebSocket(url, credential.websocket_protocols);
 		await new Promise((done, reject) => {
 			const timer = setTimeout(() => reject(new Error(`${name} WebSocket open timed out`)), 10_000);
 			socket.addEventListener(
@@ -118,7 +120,7 @@ class ProbeClient {
 				{ once: true }
 			);
 		});
-		return new ProbeClient(socket, name);
+		return new ProbeClient(socket, name, credential.protocol_version);
 	}
 
 	failAll(error) {
@@ -171,10 +173,16 @@ class ProbeClient {
 
 async function openSession(url, name) {
 	const client = await ProbeClient.connect(url, name);
-	client.send({ kind: 'hello', protocol_version: PROTOCOL_VERSION, client_instance_id: name });
+	client.send({
+		kind: 'hello',
+		protocol_version: client.protocolVersion,
+		client_instance_id: name
+	});
 	const hello = await client.waitFor((message) => message.kind === 'hello');
-	if (hello.protocol_version !== PROTOCOL_VERSION) {
-		throw new Error(`${name} negotiated ${hello.protocol_version}, expected ${PROTOCOL_VERSION}`);
+	if (hello.protocol_version !== client.protocolVersion) {
+		throw new Error(
+			`${name} negotiated ${hello.protocol_version}, expected ${client.protocolVersion}`
+		);
 	}
 	return { client, hello };
 }
@@ -260,10 +268,18 @@ function constantValueTarget(snapshotValue) {
 	for (const { value } of authoredConstantValues(snapshotValue.nodes, roots)) {
 		const before = value?.data?.param?.value;
 		if (typeof before?.Float === 'number') {
-			return { node_id: value.node_id, uuid: value.uuid, after: { Float: before.Float + 1 } };
+			return {
+				node_id: value.node_id,
+				uuid: value.uuid,
+				after: { Float: before.Float + 1 }
+			};
 		}
 		if (Number.isInteger(before?.Int)) {
-			return { node_id: value.node_id, uuid: value.uuid, after: { Int: before.Int + 1 } };
+			return {
+				node_id: value.node_id,
+				uuid: value.uuid,
+				after: { Int: before.Int + 1 }
+			};
 		}
 	}
 	throw new Error('loaded snapshot contains no numeric authored Constant value');
@@ -363,7 +379,10 @@ async function run(binary, fixture, minimumNodes, expectedRoots, outputDir) {
 		);
 
 		const loadStarted = performance.now();
-		await jsonRequest(baseUrl, '/api/ui/project-load', { path: fixture, recover: false });
+		await jsonRequest(baseUrl, '/api/ui/project-load', {
+			path: fixture,
+			recover: false
+		});
 		const loadMs = Math.round(performance.now() - loadStarted);
 		const resync = await Promise.all(
 			sessions.map(({ client }) =>
@@ -452,7 +471,11 @@ async function run(binary, fixture, minimumNodes, expectedRoots, outputDir) {
 		reconnected.client.send({
 			kind: 'subscribe',
 			subscription_id: 'workbench',
-			interest: { view_id: 'transport-probe-0', scope: 'wholeGraph', planes: WORKBENCH_PLANES },
+			interest: {
+				view_id: 'transport-probe-0',
+				scope: 'wholeGraph',
+				planes: WORKBENCH_PLANES
+			},
 			from: reconnectedSnapshot.at
 		});
 		const finalHealth = await waitForHealth(
@@ -466,11 +489,11 @@ async function run(binary, fixture, minimumNodes, expectedRoots, outputDir) {
 		const nextTarget = { ...editTarget, after: nextValue };
 		const savedPath = join(outputDir, 'concurrent-save.noisette');
 		let saveSettled = false;
-		const savePromise = jsonRequest(baseUrl, '/api/ui/project-save', { path: savedPath }).finally(
-			() => {
-				saveSettled = true;
-			}
-		);
+		const savePromise = jsonRequest(baseUrl, '/api/ui/project-save', {
+			path: savedPath
+		}).finally(() => {
+			saveSettled = true;
+		});
 		const savePendingAtEditSend = !saveSettled;
 		const concurrentRequestId = 'edit-during-save-request';
 		const concurrentDeltas = activeClients.map((client) =>
@@ -519,7 +542,10 @@ async function run(binary, fixture, minimumNodes, expectedRoots, outputDir) {
 				30_000
 			)
 		);
-		await jsonRequest(baseUrl, '/api/ui/project-load', { path: savedPath, recover: false });
+		await jsonRequest(baseUrl, '/api/ui/project-load', {
+			path: savedPath,
+			recover: false
+		});
 		const savedResyncReasons = (await Promise.all(savedResync)).map(resyncReason);
 		const restored = await Promise.all(
 			activeClients.map((client, index) => snapshot(client, `saved-reload-${index}`))

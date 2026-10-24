@@ -22,7 +22,13 @@ consumed by engine adapters, transport hosts, code generation, and the Svelte cl
   directory as generated output.
 - The generated `protocol-version.ts` binding comes from the Rust
   `UI_PROTOCOL_VERSION` constant; transports must not hard-code a second version string.
-- The HTTP transport adapter in `packages/golden-ui/transport/http.ts` converts those generated Rust-wire types into the UI-local model types in `packages/golden-ui/types.ts`.
+- `packages/golden-ui/transport/codecs/{values,documents,projects}.ts` converts generated
+  Rust-wire types into the UI-local models in `packages/golden-ui/types.ts`. HTTP delivery and
+  socket bookkeeping stay in their focused transport modules.
+- Session capabilities, bootstrap requests and credential responses also belong to `golden_protocol`.
+  The transport host admits operations before engine dispatch; the shared client session helper
+  consumes generated types and server-prepared WebSocket offers. See the
+  [request/session boundary](ui-transport-security.md) for lifetime, privilege and renewal ownership.
 - `types.ts` is a frontend model layer, not a second source of truth for the wire protocol.
 - `crates/golden_core/engine/src/ui_read_model.rs` maintains an incremental graph projection,
   indexed retained-event replay, and a bounded cache of completed immutable whole-graph snapshots.

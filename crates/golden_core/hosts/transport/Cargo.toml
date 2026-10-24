@@ -7,6 +7,8 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+base64.workspace = true
+getrandom = "0.4"
 golden_engine = { path = "../../engine" }
 golden_persistence.workspace = true
 golden_protocol = { path = "../../services/protocol" }

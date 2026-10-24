@@ -18,19 +18,28 @@ import type { UiServerMessage as WsServerMessage } from '../generated/rust_proto
 import { UI_PROTOCOL_VERSION } from '../generated/rust_protocol/protocol-version';
 import { wholeGraphScope } from '../types';
 import {
-	createHttpAuxiliaryClient,
 	fromRustAck,
 	fromRustEventBatch,
 	fromRustSnapshot,
-	toRustIntent,
-	toRustScope
-} from './http';
+	toRustIntent
+} from './codecs/documents';
+import { toRustScope } from './codecs/values';
+import { createHttpAuxiliaryClient } from './http';
 import { getUiClientInstanceId } from './client-instance';
+import { createUiSessionProvider } from './session';
 import { createStagedFrameBatchScheduler } from './staged-frame-batches';
-import {
-	createSubscriptionResyncCoordinator,
-	type SubscriptionResyncState
-} from './subscription-resync';
+import { createSubscriptionResyncCoordinator } from './subscription-resync';
+import type {
+	UiTransportConnectionState,
+	WebSocketUiClientOptions,
+	PendingIntent,
+	PendingIntentBatch,
+	PendingSnapshot,
+	PendingReplay,
+	SubscriptionState,
+	SocketOpenAttempt,
+	WsMessageTiming
+} from './ws-contracts';
 
 const DEFAULT_WS_URL = 'ws://localhost:7010/api/ui/ws';
 const INTENT_SEND_TIMEOUT_MS = 4000;
@@ -41,63 +50,6 @@ const SNAPSHOT_TIMEOUT_MS = 120000;
 const RECONNECT_BASE_MS = 250;
 const RECONNECT_MAX_MS = 5000;
 const RESYNC_RETRY_MS = 1000;
-
-export type UiTransportConnectionState =
-	'connecting' | 'connected' | 'disconnected' | 'reconnecting';
-
-interface WebSocketUiClientOptions {
-	wsUrl?: string;
-	httpBaseUrl?: string;
-	fetchImpl?: typeof fetch;
-	webSocketImpl?: typeof WebSocket;
-	onConnectionStateChange?: (state: UiTransportConnectionState, detail?: string) => void;
-	onResyncRequired?: (
-		scope: UiSubscriptionScope,
-		plane: UiDataPlane | undefined,
-		reason: string
-	) => EventTime | Promise<EventTime>;
-}
-
-interface PendingIntent {
-	resolve: (ack: UiAck) => void;
-	reject: (error: Error) => void;
-	timer: ReturnType<typeof setTimeout> | null;
-	receiptConfirmed: boolean;
-	onLifecycle?: (phase: UiControlLifecycle) => void;
-}
-
-interface PendingIntentBatch {
-	resolve: (acks: UiAck[]) => void;
-	reject: (error: Error) => void;
-	timer: ReturnType<typeof setTimeout> | null;
-	receiptConfirmed: boolean;
-	onLifecycle?: (phase: UiControlLifecycle) => void;
-}
-
-interface PendingSnapshot {
-	resolve: (snapshot: UiSnapshot) => void;
-	reject: (error: Error) => void;
-	timer: ReturnType<typeof setTimeout>;
-}
-
-interface PendingReplay {
-	resolve: (batch: UiEventBatch) => void;
-	reject: (error: Error) => void;
-	timer: ReturnType<typeof setTimeout>;
-}
-
-interface SubscriptionState extends SubscriptionResyncState {
-	interest: UiInterest;
-	onBatch: UiEventBatchHandler;
-}
-
-interface SocketOpenAttempt {
-	socket: WebSocket;
-	generation: number;
-	promise: Promise<WebSocket>;
-	resolve: (socket: WebSocket) => void;
-	reject: (error: Error) => void;
-}
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
 	typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -131,12 +83,6 @@ const logUiPerf = (message: string): void => {
 	console.info(`[ui-perf] ${message}`);
 };
 
-interface WsMessageTiming {
-	bytes: number;
-	receivedAtMs: number;
-	parseMs: number;
-}
-
 export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}): UiClient => {
 	const wsUrl = toWsUrl(
 		options.wsUrl ??
@@ -145,15 +91,24 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 	const WebSocketImpl =
 		options.webSocketImpl ?? (typeof WebSocket !== 'undefined' ? WebSocket : null);
 	const clientInstanceId = getUiClientInstanceId();
+	const httpBaseUrl = options.httpBaseUrl ?? wsUrl.replace(/^ws/i, 'http').replace(/\/ws\/?$/, '');
+	const session =
+		options.sessionProvider ??
+		createUiSessionProvider({
+			baseUrl: httpBaseUrl,
+			fetchImpl: options.fetchImpl
+		});
 	const httpClient = createHttpAuxiliaryClient({
-		baseUrl: options.httpBaseUrl,
-		fetchImpl: options.fetchImpl
+		baseUrl: httpBaseUrl,
+		fetchImpl: options.fetchImpl,
+		sessionProvider: session
 	});
 
 	let socket: WebSocket | null = null;
 	let socketGeneration = 0;
 	let nextSocketGeneration = 0;
 	let openAttempt: SocketOpenAttempt | null = null;
+	let sessionOpening: Promise<WebSocket> | null = null;
 	let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 	let reconnectAttempts = 0;
 	let reconnecting = false;
@@ -564,7 +519,7 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 		scheduleReconnect(reason);
 	};
 
-	const ensureSocket = async (): Promise<WebSocket> => {
+	const openSocket = async (): Promise<WebSocket> => {
 		if (!WebSocketImpl) {
 			throw new Error('WebSocket API is unavailable in this environment');
 		}
@@ -580,7 +535,8 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 		}
 
 		emitConnectionState('connecting');
-		const currentSocket = new WebSocketImpl(wsUrl);
+		const credential = await session.credentials(true);
+		const currentSocket = new WebSocketImpl(wsUrl, credential.websocket_protocols);
 		nextSocketGeneration += 1;
 		const generation = nextSocketGeneration;
 		let resolveOpen!: (openSocket: WebSocket) => void;
@@ -609,7 +565,7 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 				{
 					kind: 'hello',
 					protocol_version: UI_PROTOCOL_VERSION,
-					client_instance_id: clientInstanceId
+					client_instance_id: credential.capabilities.author ? clientInstanceId : null
 				},
 				generation
 			);
@@ -653,6 +609,18 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 		};
 
 		return promise;
+	};
+
+	const ensureSocket = async (): Promise<WebSocket> => {
+		if (WebSocketImpl && socket?.readyState === WebSocketImpl.OPEN) return socket;
+		if (sessionOpening) return sessionOpening;
+		const operation = openSocket();
+		sessionOpening = operation;
+		const clear = (): void => {
+			if (sessionOpening === operation) sessionOpening = null;
+		};
+		void operation.then(clear, clear);
+		return operation;
 	};
 
 	const connectAndResubscribe = async (): Promise<void> => {

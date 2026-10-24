@@ -45,12 +45,14 @@ mod application_error;
 mod delivery;
 mod http;
 mod hub;
+mod session;
 mod websocket;
 
 use application_error::*;
 use delivery::*;
 use http::*;
 use hub::*;
+use session::{Capability, SessionGrant, SessionRegistry};
 use websocket::*;
 
 mod outbound_queue;
@@ -122,6 +124,8 @@ pub struct UiServerConfig {
     /// Additional exact Host authorities, including their listener port, for trusted DNS/proxy names.
     /// Direct listener IPs and loopback localhost are admitted automatically; wildcard names are not.
     pub allowed_hosts: Vec<String>,
+    /// Maximum capabilities granted by password-free bootstrap on this trusted listener.
+    pub session_capabilities: golden_protocol::UiSessionCapabilities,
     /// Runtime tick interval used by the engine loop hosted by the UI server.
     pub tick_interval: Duration,
     /// Minimum interval between value-only WebSocket batches.
@@ -180,6 +184,7 @@ impl Default for UiServerConfig {
             bind_addr: "127.0.0.1:7010".to_string(),
             allowed_origins: Vec::new(),
             allowed_hosts: Vec::new(),
+            session_capabilities: golden_protocol::UiSessionCapabilities::ALL,
             tick_interval: Duration::from_millis(16),
             value_flush_interval: DEFAULT_WS_VALUE_FLUSH_INTERVAL,
             frontend_assets: &[],
@@ -189,6 +194,7 @@ impl Default for UiServerConfig {
 }
 
 struct ServerState<T: ProjectLifecycle> {
+    sessions: Arc<SessionRegistry>,
     request_access: Arc<RequestAccessPolicy>,
     runtime: ProductionRuntime<T>,
     read_model: Arc<UiReadModel>,
@@ -201,6 +207,7 @@ struct ServerState<T: ProjectLifecycle> {
 impl<T: ProjectLifecycle> Clone for ServerState<T> {
     fn clone(&self) -> Self {
         Self {
+            sessions: self.sessions.clone(),
             request_access: self.request_access.clone(),
             runtime: self.runtime.clone(),
             read_model: self.read_model.clone(),
@@ -518,6 +525,7 @@ pub fn run_ui_server<T: ProjectLifecycle + 'static>(engine: Engine<T>, config: U
     );
 
     let state = ServerState {
+        sessions: Arc::new(SessionRegistry::new(config.session_capabilities)),
         request_access,
         runtime,
         read_model,
@@ -560,10 +568,7 @@ pub fn run_ui_server<T: ProjectLifecycle + 'static>(engine: Engine<T>, config: U
 fn reject_overloaded_connection(stream: &mut TcpStream) {
     let _ = stream.set_write_timeout(Some(Duration::from_millis(100)));
     let _ = write_json_error(
-        &mut HttpResponse {
-            stream,
-            cors_origin: None,
-        },
+        &mut HttpResponse::new(stream),
         "503 Service Unavailable",
         "UI host connection capacity is exhausted; retry later",
     );

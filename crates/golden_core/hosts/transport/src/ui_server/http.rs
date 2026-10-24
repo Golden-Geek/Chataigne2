@@ -1,15 +1,28 @@
 use super::*;
 
 mod request;
+mod routes;
 pub(super) use request::read_http_request;
 #[cfg(test)]
 pub(super) use request::validate_http_request_size;
+use routes::HttpRoute;
 #[cfg(test)]
 mod tests;
 
 pub(super) struct HttpResponse<'a> {
     pub(super) stream: &'a mut TcpStream,
     pub(super) cors_origin: Option<String>,
+    sensitive: bool,
+}
+
+impl<'a> HttpResponse<'a> {
+    pub(super) fn new(stream: &'a mut TcpStream) -> Self {
+        Self {
+            stream,
+            cors_origin: None,
+            sensitive: false,
+        }
+    }
 }
 
 pub(super) fn handle_connection<T: ProjectLifecycle>(
@@ -18,10 +31,7 @@ pub(super) fn handle_connection<T: ProjectLifecycle>(
 ) -> std::io::Result<()> {
     stream.set_read_timeout(Some(HTTP_IO_TIMEOUT))?;
     stream.set_write_timeout(Some(HTTP_IO_TIMEOUT))?;
-    let mut response = HttpResponse {
-        stream,
-        cors_origin: None,
-    };
+    let mut response = HttpResponse::new(stream);
     let stream = &mut response;
 
     let request = match read_http_request(stream.stream) {
@@ -40,13 +50,17 @@ pub(super) fn handle_connection<T: ProjectLifecycle>(
         }
     };
 
-    match state.request_access.admit(&request, stream.stream.local_addr()?) {
-        Ok(origin) => stream.cors_origin = origin,
+    stream.sensitive = request.path.starts_with("/api/");
+    let admission = match state.request_access.admit(&request, stream.stream.local_addr()?) {
+        Ok(admission) => {
+            stream.cors_origin = admission.origin.clone();
+            admission
+        }
         Err(reason) => {
             write_json_error(stream, "403 Forbidden", reason)?;
             return Ok(());
         }
-    }
+    };
 
     if request.method.eq_ignore_ascii_case("OPTIONS") {
         if let Err(reason) = validate_preflight(&request) {
@@ -57,12 +71,75 @@ pub(super) fn handle_connection<T: ProjectLifecycle>(
         return Ok(());
     }
 
-    if request.method.eq_ignore_ascii_case("GET") && request.path == UI_WEBSOCKET_PATH {
+    let route = HttpRoute::resolve(&request.method, &request.path);
+    if route == HttpRoute::Bootstrap {
+        if request.body.len() > 1_024
+            || !request.headers.get("content-type").is_some_and(|value| {
+                value
+                    .split(';')
+                    .next()
+                    .unwrap_or_default()
+                    .trim()
+                    .eq_ignore_ascii_case("application/json")
+            })
+        {
+            write_json_error(
+                stream,
+                "400 Bad Request",
+                "session bootstrap requires a bounded JSON request",
+            )?;
+            return Ok(());
+        }
+        let payload: golden_protocol::UiSessionRequest = match serde_json::from_slice(&request.body) {
+            Ok(payload) => payload,
+            Err(_) => {
+                write_json_error(stream, "400 Bad Request", "invalid session bootstrap request")?;
+                return Ok(());
+            }
+        };
+        let result = session::request_token(&request)
+            .and_then(|previous| state.sessions.bootstrap(&admission, payload, previous));
+        match result {
+            Ok(session) => write_json(stream, "200 OK", &session)?,
+            Err(error) => write_json_error(stream, error.status, error.message)?,
+        }
+        return Ok(());
+    }
+
+    let grant = if let Some(capability) = route.capability() {
+        match state.sessions.authenticate(&admission, &request).and_then(|grant| {
+            grant.require(capability)?;
+            Ok(grant)
+        }) {
+            Ok(grant) => Some(grant),
+            Err(error) => {
+                write_json_error(stream, error.status, error.message)?;
+                return Ok(());
+            }
+        }
+    } else {
+        None
+    };
+
+    if route == HttpRoute::Revoke {
+        match state.sessions.revoke(&request) {
+            Ok(()) => write_response(stream, "204 No Content", "text/plain", &[])?,
+            Err(error) => write_json_error(stream, error.status, error.message)?,
+        }
+        return Ok(());
+    }
+
+    if route == HttpRoute::WebSocket {
         if !is_websocket_upgrade_request(&request) {
             write_json_error(stream, "426 Upgrade Required", "websocket upgrade required")?;
             return Ok(());
         }
-        return handle_ws_connection(stream.stream, state, &request);
+        return handle_ws_connection(
+            stream.stream,
+            state,
+            &request,
+            grant.expect("WebSocket route requires a session"),
+        );
     }
 
     if request.method.eq_ignore_ascii_case("GET")
@@ -72,18 +149,17 @@ pub(super) fn handle_connection<T: ProjectLifecycle>(
         return Ok(());
     }
 
-    let route = request.path.as_str();
-    match (request.method.as_str(), route) {
-        ("GET", "/.well-known/chataigne") => {
+    match route {
+        HttpRoute::Discovery => {
             write_json(stream, "200 OK", &ui_discovery_document())?;
         }
-        ("GET", "/api/ui/health") => {
+        HttpRoute::Health => {
             write_json(stream, "200 OK", &state.ws_hub.readiness.snapshot(&state.read_model))?;
         }
-        ("GET", "/api/ui/user-contexts") => {
+        HttpRoute::UserContexts => {
             write_json(stream, "200 OK", &state.read_model.current_user_contexts())?;
         }
-        ("POST", "/api/ui/snapshot") => {
+        HttpRoute::Snapshot => {
             let request_started = Instant::now();
             let payload: SnapshotRequest = if request.body.is_empty() {
                 SnapshotRequest {
@@ -98,6 +174,16 @@ pub(super) fn handle_connection<T: ProjectLifecycle>(
             let scope = payload.scope;
             let cancel_active_edit_session = payload.cancel_active_edit_session;
             let client_instance_id = ui_client_instance_id_from_headers(&request.headers);
+
+            if cancel_active_edit_session
+                && let Err(error) = grant
+                    .as_ref()
+                    .expect("snapshot route requires a session")
+                    .require(Capability::Author)
+            {
+                write_json_error(stream, error.status, error.message)?;
+                return Ok(());
+            }
 
             let cancel_edit_started = Instant::now();
             let lock_wait_elapsed = if payload.cancel_active_edit_session {
@@ -155,7 +241,7 @@ pub(super) fn handle_connection<T: ProjectLifecycle>(
 
             write_result?;
         }
-        ("POST", "/api/ui/replay") => {
+        HttpRoute::Replay => {
             let payload: ReplayRequest = serde_json::from_slice(&request.body)
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid replay payload: {err}")))?;
             eprintln!("[ui-http] replay scope={:?} from={:?}", payload.scope, payload.from);
@@ -164,7 +250,7 @@ pub(super) fn handle_connection<T: ProjectLifecycle>(
 
             write_json(stream, "200 OK", &batch)?;
         }
-        ("POST", "/api/ui/reference-targets") => {
+        HttpRoute::ReferenceTargets => {
             let payload: ReferenceTargetsRequest = serde_json::from_slice(&request.body).map_err(|err| {
                 Error::new(
                     ErrorKind::InvalidData,
@@ -182,7 +268,7 @@ pub(super) fn handle_connection<T: ProjectLifecycle>(
 
             write_json(stream, "200 OK", &targets)?;
         }
-        ("POST", "/api/ui/context-candidates") => {
+        HttpRoute::ContextCandidates => {
             let payload: ContextCandidatesRequest = serde_json::from_slice(&request.body).map_err(|err| {
                 Error::new(
                     ErrorKind::InvalidData,
@@ -200,7 +286,7 @@ pub(super) fn handle_connection<T: ProjectLifecycle>(
 
             write_json(stream, "200 OK", &candidates)?;
         }
-        ("POST", "/api/ui/param-control-info") => {
+        HttpRoute::ParamControlInfo => {
             let payload: ParamControlInfoRequest = serde_json::from_slice(&request.body).map_err(|err| {
                 Error::new(
                     ErrorKind::InvalidData,
@@ -219,7 +305,7 @@ pub(super) fn handle_connection<T: ProjectLifecycle>(
                 }
             }
         }
-        ("POST", "/api/ui/script-state") => {
+        HttpRoute::ScriptState => {
             let payload: ScriptStateRequest = serde_json::from_slice(&request.body)
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid script-state payload: {err}")))?;
 
@@ -234,7 +320,7 @@ pub(super) fn handle_connection<T: ProjectLifecycle>(
                 }
             }
         }
-        ("POST", "/api/ui/script-config") => {
+        HttpRoute::ScriptConfig => {
             let payload: ScriptConfigRequest = serde_json::from_slice(&request.body)
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid script-config payload: {err}")))?;
 
@@ -251,7 +337,7 @@ pub(super) fn handle_connection<T: ProjectLifecycle>(
                 }
             }
         }
-        ("POST", "/api/ui/script-reload") => {
+        HttpRoute::ScriptReload => {
             let payload: ScriptReloadRequest = serde_json::from_slice(&request.body)
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid script-reload payload: {err}")))?;
 
@@ -266,17 +352,15 @@ pub(super) fn handle_connection<T: ProjectLifecycle>(
                 }
             }
         }
-        ("POST", "/api/ui/project-new") => {
-            match project_host::create_new_project(&state.runtime, state.preferences.as_ref()) {
-                Ok(_) => {
-                    write_json(stream, "200 OK", &serde_json::json!({ "ok": true }))?;
-                }
-                Err(err) => {
-                    write_application_error(stream, &err)?;
-                }
+        HttpRoute::ProjectNew => match project_host::create_new_project(&state.runtime, state.preferences.as_ref()) {
+            Ok(_) => {
+                write_json(stream, "200 OK", &serde_json::json!({ "ok": true }))?;
             }
-        }
-        ("POST", "/api/ui/project-save") => {
+            Err(err) => {
+                write_application_error(stream, &err)?;
+            }
+        },
+        HttpRoute::ProjectSave => {
             let payload: ProjectPathRequest = serde_json::from_slice(&request.body)
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid project-save payload: {err}")))?;
             match project_host::save_project(&state.runtime, &payload.path, payload.ui_state) {
@@ -288,7 +372,7 @@ pub(super) fn handle_connection<T: ProjectLifecycle>(
                 }
             }
         }
-        ("POST", "/api/ui/project-load") => {
+        HttpRoute::ProjectLoad => {
             let payload: ProjectPathRequest = serde_json::from_slice(&request.body)
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid project-load payload: {err}")))?;
             let load = if payload.recover {
@@ -305,7 +389,7 @@ pub(super) fn handle_connection<T: ProjectLifecycle>(
                 }
             }
         }
-        ("POST", "/api/ui/project-upload-load") => {
+        HttpRoute::ProjectUploadLoad => {
             let payload: ProjectUploadRequest = serde_json::from_slice(&request.body).map_err(|err| {
                 Error::new(
                     ErrorKind::InvalidData,
@@ -336,7 +420,7 @@ pub(super) fn handle_connection<T: ProjectLifecycle>(
                 }
             }
         }
-        ("POST", "/api/ui/intent") => {
+        HttpRoute::Intent => {
             let intent: UiEditIntent = serde_json::from_slice(&request.body)
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid intent payload: {err}")))?;
             let client_instance_id = ui_client_instance_id_from_headers(&request.headers);
@@ -358,7 +442,7 @@ pub(super) fn handle_connection<T: ProjectLifecycle>(
 
             write_json(stream, "200 OK", &result.acknowledgement)?;
         }
-        ("POST", "/api/ui/intent/batch") => {
+        HttpRoute::IntentBatch => {
             let intents: Vec<UiEditIntent> = serde_json::from_slice(&request.body)
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid intent batch payload: {err}")))?;
             if intents.len() > MAX_UI_INTENTS_PER_BATCH {
@@ -406,7 +490,7 @@ pub(super) fn handle_connection<T: ProjectLifecycle>(
 
             write_json(stream, "200 OK", &acks)?;
         }
-        _ => {
+        HttpRoute::Unknown | HttpRoute::Bootstrap | HttpRoute::Revoke | HttpRoute::WebSocket => {
             write_json_error(stream, "404 Not Found", "unknown route")?;
         }
     }
@@ -549,9 +633,20 @@ pub(super) fn write_response(
          Content-Type: {content_type}\r\n\
          Content-Length: {}\r\n\
          Vary: Origin\r\n\
+         {}{}\
          {cors}\
          Connection: close\r\n\r\n",
-        body.len()
+        body.len(),
+        if stream.sensitive {
+            "Cache-Control: no-store\r\n"
+        } else {
+            ""
+        },
+        if status == "401 Unauthorized" {
+            "WWW-Authenticate: Bearer\r\n"
+        } else {
+            ""
+        },
     );
 
     stream.stream.write_all(headers.as_bytes())?;

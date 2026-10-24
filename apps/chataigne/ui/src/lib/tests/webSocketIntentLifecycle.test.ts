@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createWebSocketUiClient } from '../../../../../../packages/golden-ui/transport/ws';
+import { testSessionProvider } from '../../../../../../packages/golden-ui/transport/tests/fixtures/session';
 import type { UiControlLifecycle } from '../../../../../../packages/golden-ui/types';
 
 class FakeWebSocket {
@@ -71,6 +72,7 @@ const appliedAcknowledgement = {
 
 const startIntent = async (onLifecycle?: (phase: UiControlLifecycle) => void) => {
 	const client = createWebSocketUiClient({
+		sessionProvider: testSessionProvider,
 		webSocketImpl: FakeWebSocket as unknown as typeof WebSocket
 	});
 	const completion = client.sendIntent(
@@ -81,6 +83,7 @@ const startIntent = async (onLifecycle?: (phase: UiControlLifecycle) => void) =>
 		},
 		onLifecycle
 	);
+	await flushMicrotasks();
 	const socket = FakeWebSocket.instances[0];
 	if (!socket) {
 		throw new Error('websocket was not created');
@@ -102,6 +105,7 @@ describe('websocket intent lifecycle deadlines', () => {
 
 	it('rejects a request that cannot leave a stuck connecting socket', async () => {
 		const client = createWebSocketUiClient({
+			sessionProvider: testSessionProvider,
 			webSocketImpl: FakeWebSocket as unknown as typeof WebSocket
 		});
 		const completion = client.sendIntent({
@@ -109,6 +113,7 @@ describe('websocket intent lifecycle deadlines', () => {
 			source: 10,
 			new_parent: 20
 		});
+		await flushMicrotasks();
 		const socket = FakeWebSocket.instances[0];
 		if (!socket) {
 			throw new Error('websocket was not created');

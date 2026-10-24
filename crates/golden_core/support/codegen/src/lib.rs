@@ -12,8 +12,8 @@ use golden_protocol::{
     UI_PROTOCOL_VERSION, UiAck, UiClientMessage, UiContextCandidatesRequest, UiEditIntent, UiErrorResponse,
     UiEventBatch, UiParamControlInfoDto, UiParamControlInfoRequest, UiProjectLoadProblemDto, UiProjectLoadRecoveryDto,
     UiProjectPathDto, UiProjectPathRequest, UiProjectUploadRequest, UiReferenceTargetsDto, UiReferenceTargetsRequest,
-    UiReplayRequest, UiScriptConfigRequest, UiScriptReloadRequest, UiScriptStateRequest, UiServerMessage, UiSnapshot,
-    UiSnapshotRequest,
+    UiReplayRequest, UiScriptConfigRequest, UiScriptReloadRequest, UiScriptStateRequest, UiServerMessage,
+    UiSessionCapabilities, UiSessionRequest, UiSessionResponse, UiSnapshot, UiSnapshotRequest,
 };
 use golden_script_contract::ScriptUiState;
 use ts_rs::{Config, TS};
@@ -174,6 +174,9 @@ pub fn generate_ui_protocol_bindings(out_dir: &Path) {
     export_binding::<UiParamControlInfoDto>(&config, "UiParamControlInfoDto");
     export_binding::<ScriptUiState>(&config, "ScriptUiState");
     export_binding::<UiSnapshotRequest>(&config, "UiSnapshotRequest");
+    export_binding::<UiSessionRequest>(&config, "UiSessionRequest");
+    export_binding::<UiSessionResponse>(&config, "UiSessionResponse");
+    export_binding::<UiSessionCapabilities>(&config, "UiSessionCapabilities");
     export_binding::<UiReplayRequest>(&config, "UiReplayRequest");
     export_binding::<UiReferenceTargetsRequest>(&config, "UiReferenceTargetsRequest");
     export_binding::<UiContextCandidatesRequest>(&config, "UiContextCandidatesRequest");

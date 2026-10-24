@@ -4,6 +4,7 @@ import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { join, resolve } from 'node:path';
 import { chromium } from 'playwright-core';
+import { nativeUiFetch } from './ui-session.mjs';
 
 const [binaryArg, fixtureArg, targetArg, outputArg, sampleArg = '20'] = process.argv.slice(2);
 if (!binaryArg || !fixtureArg || !targetArg || !outputArg) {
@@ -47,7 +48,7 @@ async function availablePort() {
 }
 
 async function request(baseUrl, route, body) {
-	const response = await fetch(`${baseUrl}${route}`, {
+	const response = await nativeUiFetch(baseUrl, route, {
 		method: body === undefined ? 'GET' : 'POST',
 		headers: body === undefined ? {} : { 'content-type': 'application/json' },
 		body: body === undefined ? undefined : JSON.stringify(body),
@@ -227,7 +228,10 @@ async function run() {
 			globalThis.__gcLongTasks = [];
 			new PerformanceObserver((entries) => {
 				for (const entry of entries.getEntries()) {
-					globalThis.__gcLongTasks.push({ start_ms: entry.startTime, duration_ms: entry.duration });
+					globalThis.__gcLongTasks.push({
+						start_ms: entry.startTime,
+						duration_ms: entry.duration
+					});
 				}
 			}).observe({ type: 'longtask', buffered: true });
 		}, process.env.GC_UI_PERF_TRACE === '1');
@@ -236,14 +240,19 @@ async function run() {
 			timeout: 180_000
 		});
 		await page.locator('.gc-loading-overlay').waitFor({ state: 'hidden', timeout: 180_000 });
-		await request(baseUrl, '/api/ui/project-load', { path: fixture, recover: false });
+		await request(baseUrl, '/api/ui/project-load', {
+			path: fixture,
+			recover: false
+		});
 		await page.waitForFunction(
 			(target) =>
 				Number(document.querySelector('.gc-main')?.getAttribute('data-graph-node-count')) >= target,
 			minimumNodes,
 			{ timeout: 180_000 }
 		);
-		const snapshot = await request(baseUrl, '/api/ui/snapshot', { scope: 'wholeGraph' });
+		const snapshot = await request(baseUrl, '/api/ui/snapshot', {
+			scope: 'wholeGraph'
+		});
 		report.base_nodes = snapshot.nodes.length;
 		report.base_dom = await page.evaluate(() => ({
 			outliner_items: document.querySelectorAll('.outliner-item').length,
@@ -266,7 +275,9 @@ async function run() {
 			if (sample === 0 && process.env.GC_CAPTURE_CPU_PROFILE === '1') {
 				cpuProfiler = await page.context().newCDPSession(page);
 				await cpuProfiler.send('Profiler.enable');
-				await cpuProfiler.send('Profiler.setSamplingInterval', { interval: 1000 });
+				await cpuProfiler.send('Profiler.setSamplingInterval', {
+					interval: 1000
+				});
 				await cpuProfiler.send('Profiler.start');
 			}
 			const baseCount = await page.evaluate(() =>
@@ -297,7 +308,10 @@ async function run() {
 							)
 						);
 					});
-					observer.observe(root, { attributes: true, attributeFilter: ['data-graph-node-count'] });
+					observer.observe(root, {
+						attributes: true,
+						attributeFilter: ['data-graph-node-count']
+					});
 				});
 			}, baseCount);
 			const httpStarted = performance.now();
@@ -455,5 +469,11 @@ async function run() {
 }
 
 const report = await run();
-console.log(JSON.stringify({ status: report.status, p95_ms: report.p95_ms, error: report.error }));
+console.log(
+	JSON.stringify({
+		status: report.status,
+		p95_ms: report.p95_ms,
+		error: report.error
+	})
+);
 if (report.status !== 'PASS') process.exitCode = 1;

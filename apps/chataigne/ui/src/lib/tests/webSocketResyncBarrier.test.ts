@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createWebSocketUiClient } from '../../../../../../packages/golden-ui/transport/ws';
+import { testSessionProvider } from '../../../../../../packages/golden-ui/transport/tests/fixtures/session';
 import type {
 	EventTime,
 	UiAck,
@@ -162,6 +163,7 @@ describe('websocket resync and socket-generation barriers', () => {
 		const snapshots: Array<ReturnType<typeof deferred<EventTime>>> = [];
 		const applied: UiEventBatch[] = [];
 		const client = createWebSocketUiClient({
+			sessionProvider: testSessionProvider,
 			webSocketImpl: FakeWebSocket as unknown as typeof WebSocket,
 			onResyncRequired: () => {
 				const snapshot = deferred<EventTime>();
@@ -172,6 +174,7 @@ describe('websocket resync and socket-generation barriers', () => {
 		const unsubscribe = client.subscribe({ kind: 'wholeGraph' }, time(0), (batch) =>
 			applied.push(batch)
 		);
+		await flushMicrotasks();
 		const socket = FakeWebSocket.instances[0];
 		if (!socket) {
 			throw new Error('websocket was not created');
@@ -227,10 +230,12 @@ describe('websocket resync and socket-generation barriers', () => {
 		const snapshot = deferred<EventTime>();
 		const onResyncRequired = vi.fn(() => snapshot.promise);
 		const client = createWebSocketUiClient({
+			sessionProvider: testSessionProvider,
 			webSocketImpl: FakeWebSocket as unknown as typeof WebSocket,
 			onResyncRequired
 		});
 		const unsubscribe = client.subscribe({ kind: 'wholeGraph' }, time(0), () => undefined);
+		await flushMicrotasks();
 		const socket = FakeWebSocket.instances[0];
 		if (!socket) {
 			throw new Error('websocket was not created');
@@ -264,6 +269,7 @@ describe('websocket resync and socket-generation barriers', () => {
 	it('invalidates an old resync completion and restarts the barrier after reconnect', async () => {
 		const snapshots: Array<ReturnType<typeof deferred<EventTime>>> = [];
 		const client = createWebSocketUiClient({
+			sessionProvider: testSessionProvider,
 			webSocketImpl: FakeWebSocket as unknown as typeof WebSocket,
 			onResyncRequired: () => {
 				const snapshot = deferred<EventTime>();
@@ -272,6 +278,7 @@ describe('websocket resync and socket-generation barriers', () => {
 			}
 		});
 		const unsubscribe = client.subscribe({ kind: 'wholeGraph' }, time(0), () => undefined);
+		await flushMicrotasks();
 		const firstSocket = FakeWebSocket.instances[0];
 		if (!firstSocket) {
 			throw new Error('websocket was not created');
@@ -293,6 +300,7 @@ describe('websocket resync and socket-generation barriers', () => {
 
 		firstSocket.close();
 		await vi.advanceTimersByTimeAsync(251);
+		await flushMicrotasks();
 		const secondSocket = FakeWebSocket.instances[1];
 		if (!secondSocket) {
 			throw new Error('reconnect websocket was not created');
@@ -316,9 +324,11 @@ describe('websocket resync and socket-generation barriers', () => {
 	it('ignores stale socket events without rejecting work owned by the replacement socket', async () => {
 		const phases: UiControlLifecycle[] = [];
 		const client = createWebSocketUiClient({
+			sessionProvider: testSessionProvider,
 			webSocketImpl: FakeWebSocket as unknown as typeof WebSocket
 		});
 		const unsubscribe = client.subscribe({ kind: 'wholeGraph' }, time(0), () => undefined);
+		await flushMicrotasks();
 		const firstSocket = FakeWebSocket.instances[0];
 		if (!firstSocket) {
 			throw new Error('websocket was not created');
@@ -327,6 +337,7 @@ describe('websocket resync and socket-generation barriers', () => {
 		await flushMicrotasks();
 		firstSocket.close();
 		await vi.advanceTimersByTimeAsync(251);
+		await flushMicrotasks();
 		const secondSocket = FakeWebSocket.instances[1];
 		if (!secondSocket) {
 			throw new Error('reconnect websocket was not created');
@@ -364,9 +375,11 @@ describe('websocket resync and socket-generation barriers', () => {
 
 	it('recovers from close-before-open and subscribes exactly once on the winning generation', async () => {
 		const client = createWebSocketUiClient({
+			sessionProvider: testSessionProvider,
 			webSocketImpl: FakeWebSocket as unknown as typeof WebSocket
 		});
 		const unsubscribe = client.subscribe({ kind: 'wholeGraph' }, time(0), () => undefined);
+		await flushMicrotasks();
 		const firstSocket = FakeWebSocket.instances[0];
 		if (!firstSocket) {
 			throw new Error('websocket was not created');
@@ -374,6 +387,7 @@ describe('websocket resync and socket-generation barriers', () => {
 		firstSocket.close();
 		await flushMicrotasks();
 		await vi.advanceTimersByTimeAsync(251);
+		await flushMicrotasks();
 		const secondSocket = FakeWebSocket.instances[1];
 		if (!secondSocket) {
 			throw new Error('replacement websocket was not created');
@@ -393,12 +407,14 @@ describe('websocket resync and socket-generation barriers', () => {
 		const onResyncRequired = vi.fn(() => time(9_000));
 		const applied: UiEventBatch[] = [];
 		const client = createWebSocketUiClient({
+			sessionProvider: testSessionProvider,
 			webSocketImpl: FakeWebSocket as unknown as typeof WebSocket,
 			onResyncRequired
 		});
 		const unsubscribe = client.subscribe({ kind: 'wholeGraph' }, time(0), (batch) =>
 			applied.push(batch)
 		);
+		await flushMicrotasks();
 		const socket = FakeWebSocket.instances[0];
 		if (!socket) {
 			throw new Error('websocket was not created');
@@ -451,12 +467,14 @@ describe('websocket resync and socket-generation barriers', () => {
 	it('lets a batch consumer invalidate only its subscription before the cursor commits', async () => {
 		const onResyncRequired = vi.fn(() => time(100));
 		const client = createWebSocketUiClient({
+			sessionProvider: testSessionProvider,
 			webSocketImpl: FakeWebSocket as unknown as typeof WebSocket,
 			onResyncRequired
 		});
 		const unsubscribe = client.subscribe({ kind: 'wholeGraph' }, time(0), (_batch, control) =>
 			control?.requestResync('graph_projection_invalidated')
 		);
+		await flushMicrotasks();
 		const socket = FakeWebSocket.instances[0];
 		if (!socket) {
 			throw new Error('websocket was not created');

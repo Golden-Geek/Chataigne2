@@ -12,6 +12,7 @@ pub(super) fn handle_ws_connection<T: ProjectLifecycle>(
     stream: &mut TcpStream,
     state: &ServerState<T>,
     request: &HttpRequest,
+    grant: Arc<SessionGrant>,
 ) -> std::io::Result<()> {
     let runtime = Builder::new_current_thread()
         .enable_all()
@@ -19,7 +20,7 @@ pub(super) fn handle_ws_connection<T: ProjectLifecycle>(
         .map_err(|error| Error::other(format!("failed to build websocket runtime: {error}")))?;
 
     let ws_request = build_websocket_request(request)?;
-    let response = match create_response(&ws_request) {
+    let mut response = match create_response(&ws_request) {
         Ok(response) => response,
         Err(tokio_tungstenite::tungstenite::Error::Http(response)) => {
             write_ws_handshake_response(&mut *stream, &response)
@@ -34,6 +35,12 @@ pub(super) fn handle_ws_connection<T: ProjectLifecycle>(
             ));
         }
     };
+    if header_contains_token(request, "sec-websocket-protocol", session::SESSION_PROTOCOL) {
+        response.headers_mut().insert(
+            "Sec-WebSocket-Protocol",
+            session::SESSION_PROTOCOL.parse().expect("constant subprotocol"),
+        );
+    }
     write_ws_handshake_response(&mut *stream, &response)
         .map_err(|error| Error::other(format!("failed to write websocket handshake response: {error}")))?;
     stream.flush()?;
@@ -71,7 +78,14 @@ pub(super) fn handle_ws_connection<T: ProjectLifecycle>(
     let mut awaiting_pong_since = None::<Instant>;
 
     'connection: loop {
-        while let Some(message) = outbound.pop() {
+        if grant.check().is_err() {
+            close_expired_session(&runtime, &mut websocket);
+            break;
+        }
+        for _ in 0..outbound.len() {
+            let Some(message) = outbound.pop() else {
+                break;
+            };
             match send_ws_outbound(&runtime, &mut websocket, message) {
                 Ok(true) => break 'connection,
                 Ok(false) => {}
@@ -100,7 +114,10 @@ pub(super) fn handle_ws_connection<T: ProjectLifecycle>(
                         }
                     };
 
-                    if !handle_ws_client_message(message, client_id, &state.ws_hub, &outbound) {
+                    if !handle_ws_client_message(message, client_id, &state.ws_hub, &outbound, &grant) {
+                        if grant.check().is_err() {
+                            close_expired_session(&runtime, &mut websocket);
+                        }
                         break;
                     }
                 }
@@ -159,6 +176,14 @@ pub(super) fn handle_ws_connection<T: ProjectLifecycle>(
     let _ = runtime.block_on(websocket.close(None));
     eprintln!("[ui-ws] websocket loop ended (client_id={client_id})");
     Ok(())
+}
+
+fn close_expired_session(runtime: &Runtime, websocket: &mut UiWebSocketStream) {
+    use tokio_tungstenite::tungstenite::protocol::{CloseFrame, frame::coding::CloseCode};
+    let _ = runtime.block_on(websocket.close(Some(CloseFrame {
+        code: CloseCode::Policy,
+        reason: "session expired or revoked".into(),
+    })));
 }
 
 pub(super) fn send_ws_outbound(
@@ -235,7 +260,39 @@ pub(super) fn handle_ws_client_message(
     client_id: u64,
     hub: &WsHubHandle,
     outbound: &Arc<WsOutboundQueue>,
+    grant: &SessionGrant,
 ) -> bool {
+    let capability = match &message {
+        WsClientMessage::Intent { .. }
+        | WsClientMessage::IntentBatch { .. }
+        | WsClientMessage::Hello {
+            client_instance_id: Some(_),
+            ..
+        } => Capability::Author,
+        WsClientMessage::Hello {
+            client_instance_id: None,
+            ..
+        }
+        | WsClientMessage::Subscribe { .. }
+        | WsClientMessage::Unsubscribe { .. }
+        | WsClientMessage::Snapshot { .. }
+        | WsClientMessage::Replay { .. } => Capability::Observe,
+    };
+    if let Err(error) = grant.require(capability) {
+        let request_id = match &message {
+            WsClientMessage::Intent { request_id, .. }
+            | WsClientMessage::IntentBatch { request_id, .. }
+            | WsClientMessage::Snapshot { request_id, .. }
+            | WsClientMessage::Replay { request_id, .. } => Some(request_id.clone()),
+            _ => None,
+        };
+        let _ = outbound.push(WsOutbound::Message(WsServerMessage::Error {
+            code: None,
+            message: error.message.into(),
+            request_id,
+        }));
+        return grant.check().is_ok();
+    }
     match message {
         WsClientMessage::Hello {
             protocol_version,
