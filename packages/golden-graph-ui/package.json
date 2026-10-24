@@ -4,6 +4,10 @@
   "version": "0.1.0",
   "license": "GPL-3.0-only",
   "type": "module",
+  "scripts": {
+    "test": "vitest run tests",
+    "test:browser": "node tests/browser/canvas-smoke.mjs"
+  },
   "svelte": "./index.ts",
   "types": "./index.ts",
   "exports": {
@@ -18,5 +22,12 @@
   },
   "peerDependencies": {
     "svelte": "^5.0.0"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "7.2.0",
+    "playwright-core": "1.61.1",
+    "svelte": "5.57.1",
+    "vite": "8.1.6",
+    "vitest": "4.1.12"
   }
 }

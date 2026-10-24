@@ -5,8 +5,8 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-24 on `main`, based on delivered `3214b4d9`. P09's final consumer/scale
-checkpoint passes its delivery gates. **C01-C12 are locally closed: 12/12 packages (100%).
+Last reconciled: 2026-10-25 on `main`, based on delivered `a25f2123`. P10's retained spatial
+primitive is verified; canvas integration remains and no P10 checkpoint is complete yet. **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
 Whole-plan scope coverage is 50%; P01-P09 are locally complete.
 Hardware/platform and product-scale
@@ -24,7 +24,7 @@ fences, identity preservation and passive failure recovery are qualified under C
 
 **Whole plan: 50% complete.** P01-P09 are complete against their local acceptance criteria.
 P09 has all three checkpoints complete: stable storage/layout, indexed structural edits, and
-consumer/scale qualification. P10 is next, with three fixed checkpoints. P10-P18 have not started.
+consumer/scale qualification. P10 is in progress with three fixed checkpoints; P11-P18 have not started.
 P00 baseline reconciliation is maintained separately.
 **9 of 18 implementation/qualification tasks are fully complete.**
 
@@ -72,7 +72,7 @@ Keyboard, Mouse, Ultraleap, Signals, Metronomes, MIDI and MQTT. Their owning pat
 admission/service/lifetime and recovery evidence. Spatializer's Cartesian matrix preparation and
 publication are also bounded. Absence of a search pattern alone was never acceptance evidence.
 
-**Remaining P03 closure packages: zero open, twelve closed (C01-C12).** P04-P07 are also locally complete; the next task is P08.
+**Remaining P03 closure packages: zero open, twelve closed (C01-C12).** P04-P09 are also locally complete; the active task is P10.
 General optimization and external qualification retain their explicit later plan owners.
 
 | ID  | Status            | Scope                            | Required closure                                                                                                                                                                                                                                                                                                                                                                                                                      |
@@ -178,13 +178,13 @@ P10 has three fixed, equally weighted checkpoints derived from its acceptance cr
 
 | Checkpoint | Status | Acceptance |
 | --- | --- | --- |
-| Independent revisions and retained geometry | Not started | Separate topology, geometry, payload, activity and preview invalidation. Retain identity/spatial indexes and use transient drag overlays so local edits avoid full-document projection rebuilds. |
+| Independent revisions and retained geometry | In progress | Separate topology, geometry, payload, activity and preview invalidation. Retain identity/spatial indexes and use transient drag overlays so local edits avoid full-document projection rebuilds. Mutable spatial operations are implemented; canvas integration remains. |
 | Scoped routing and correct culling | Not started | Invalidate incident/obstacle routes, retain bounded routing caches/work and interactive previews, and cull crossing edges by their paths/bounds even when both endpoints are offscreen. Preserve loops and changing-obstacle correctness. |
 | Mounted correctness and performance qualification | Not started | Exercise mounted drag, pan/zoom, frame selection, activity, crossing wires, loops and changing obstacles. Retain action/frame measurements against documented normal/stress targets; node counts or two animation frames alone do not prove this checkpoint. |
 
 ## Current handoff
 
-- **Next task: P10 generic canvas interaction (0%, zero of three fixed checkpoints).**
+- **Active task: P10 generic canvas interaction (0%, zero of three fixed checkpoints).**
   Own rendering, geometry, routing and interaction mechanics in `packages/golden-graph-ui`;
   preserve app-owned presentation adapters and backend mutation semantics. Start with independent
   revision planes and retained projection/spatial state, then scoped routes/culling and mounted
@@ -270,7 +270,7 @@ External qualification is separate from implementation. A historical pass is not
 | P07 DMX streaming           | 100%       | VERIFIED_LOCAL | PASSED six of six checkpoints  | 98 DMX cases, script API, default app, strict Clippy and formatting pass. Complete fake-time/native-loopback acceptance includes live priority, ordered metadata, termination/recovery and passive bounded actor service; P17/P18 retain platform/device qualification. |
 | P08 Formula backend intents | 100%       | VERIFIED_LOCAL | PASSED four of four checkpoints | Shared UI/script/HTTP/WS/headless operations, complete atomic fragments, backend connection policy and exact identity replies pass. Final native acceptance uses the default executable and isolated authenticated sessions; later product/platform qualification retains its owners. |
 | P09 Graph document          | 100%       | VERIFIED_LOCAL | PASSED three of three checkpoints | Stable storage, indexed structural edits and exact rollback pass. Current/pre-P09 harness preserves 1,240 fixed-delta samples; public default/no-Serde contracts, Alchemist/statechart consumers, native selection drag/delete undo/redo, strict checks and default build qualify the final checkpoint. |
-| P10 Canvas                  | 0%         | NOT_STARTED    | PENDING                        | Projection diagnostic and crossing-edge reproduction; mounted performance open                                                                                                                                                                                          |
+| P10 Canvas                  | 0%         | IN_PROGRESS    | Spatial primitive in validation | Mutable spatial entry operations, exact queries and bounded grid expansion pass owning UI checks. Canvas decomposition/retained integration, independent revisions, routing/culling and mounted qualification remain. |
 | P11 Workspace UX            | 0%         | NOT_STARTED    | PENDING                        | Collection/keyboard gaps source-reviewed; native usability open                                                                                                                                                                                                         |
 | P12 Boundaries/gates        | 0%         | NOT_STARTED    | PENDING                        | App policy leak, omitted graph tests, oversized files, unsafe conversions; recurring incremental native-link artifact gap                                                                                                                                               |
 | P13 Formula execution       | 0%         | NOT_STARTED    | PENDING                        | Historical profiles retained; production parallelism not mandated                                                                                                                                                                                                       |
@@ -9707,3 +9707,47 @@ remains running. The comparison worktree is retained for reproducibility, withou
 eighteen tasks complete.** Commit/push this verified qualification milestone on `main`, then
 continue P10's three fixed canvas checkpoints. Do not promote generic transaction timings into
 mounted-canvas/product evidence. Keep the full P00-P18 goal active; P03 still has zero packages left.
+
+### P10 retained spatial-index prerequisite
+
+Previous goal turn: **progress**. P09 qualification was committed/pushed as `a25f2123`, and the
+checkout was clean on resume. P10 owns rendering mechanics in `packages/golden-graph-ui`;
+the app-owned adapter remains under `apps/chataigne/ui/src/lib/graph`.
+
+The existing `SpatialIndex` now updates/removes individual entries and replaces payloads without
+changing geometry or document order. It copies/validates finite bounds before mutation, filters
+coarse bucket neighbors by exact intersection, and preserves touching/reversed bounds. Oversized
+entries and broad/unsafe-integer cell ranges avoid unbounded grid expansion. Broad queries may
+still scan the complete retained set; this is not a constant-time or mounted-performance claim.
+
+Owning evidence passes **19 graph UI cases** (six new), **61 Golden UI cases**, **117 app UI cases**
+and Svelte **zero errors / zero warnings**. Strict workspace/all-target Clippy passes (**1m13s**).
+The first default build passes (**4m05s**). A new passive mounted smoke test also passes against
+the real canvas in isolated headless Edge **156.0.4314.42**: offscreen filtering, changed data,
+huge finite coordinates and empty scenes produce the expected actual node elements, with no
+page errors. It changes fixture data and performs no keyboard/mouse synthesis. This is a narrow
+integration smoke, not P10's mounted interaction/performance checkpoint.
+
+The package now owns its test commands and exact already-installed browser/Vite/Svelte tool
+versions. The lockfile adds only that workspace's dependency metadata; no resolved versions
+change. The root unit-test command now includes Graph UI, fixing its earlier omission without
+claiming P12's wider gate cleanup. Final root tests pass **224 cases** (27 audio UI, 19 graph UI,
+61 Golden UI, 117 app UI); Svelte checking passes with **zero errors / zero warnings**. The final
+bundled default build passes (**2m21s**), SHA-256
+`170073f8d79e7aa4b95c592be5d2e887e1d66945fd4a8ed1cbaf6a80cda26309`.
+Root/Core Cargo formatters, remote reconciliation and diff checks pass. The status-only answer
+was a **no-progress** turn; this continuation revalidated the pending work and completed its
+delivery gates. A stale summary pointing to P08 now correctly names P10. No owned validation
+process remains running.
+
+This support primitive does **not** close the first checkpoint. The canvas still rebuilds full
+effective-node arrays, identity maps, spatial indexes and routing geometry. Next, split the
+**3,110-line** `GraphCanvas.svelte` into cohesive viewport/navigation, interaction/editing,
+geometry/socket and rendering/routing modules before changing its reactive flow. Keep touched
+source files below 1,000 lines. Then wire retained source/geometry state and sparse transient
+overlays into the actual canvas. The app's current `GraphDocumentAdapter` also advances every
+revision plane on any array change; activity/preview must stop invalidating topology/geometry.
+Preserve backend mutation semantics and component public methods/snippet hooks through this work.
+
+**P10 remains 0%, zero of three fixed checkpoints; whole-plan coverage stays 50%.** Do not count
+support batches as additional checkpoints or promote helper tests into mounted-canvas evidence.
