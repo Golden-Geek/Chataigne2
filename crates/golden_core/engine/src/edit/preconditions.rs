@@ -3,8 +3,8 @@ use crate::{
     process_ctx::{ProcessTreeSnapshot, SubtreeRevision, SubtreeStructureRevision},
 };
 
-/// A read of one node's identity, effective enabled flag and optional authored
-/// or structural state. Descendants and ancestors require their own guards.
+/// A read of one node's identity, effective enabled flag and selected revision.
+/// Node-local, whole-subtree and structural reads are explicit capture choices.
 #[derive(Clone, Copy, Debug)]
 pub struct NodeReadGuard {
     pub(crate) node: NodeId,
@@ -16,11 +16,22 @@ pub struct NodeReadGuard {
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum ReadRevision {
     Authored(SubtreeRevision),
+    Subtree(SubtreeRevision),
     Structure(SubtreeStructureRevision),
     Identity(SubtreeRevision),
 }
 
 impl NodeReadGuard {
+    /// Captures authored state throughout this subtree, including changes whose
+    /// callbacks have not run. Application shares the engine's ordinary snapshot;
+    /// unlike node-local guards, a cold check may require rebuilding that view.
+    /// Ancestors outside the subtree still require their own identity guards.
+    pub fn capture_subtree(snapshot: &ProcessTreeSnapshot, node: NodeId) -> Option<Self> {
+        let mut guard = Self::capture(snapshot, node)?;
+        guard.revision = ReadRevision::Subtree(snapshot.subtree_revision(node)?);
+        Some(guard)
+    }
+
     /// Captures a node-local read from this snapshot's engine lifetime.
     pub fn capture(snapshot: &ProcessTreeSnapshot, node: NodeId) -> Option<Self> {
         let state = snapshot.node(node)?;

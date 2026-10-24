@@ -208,6 +208,79 @@ fn precondition_storage_has_a_fixed_admission_bound() {
 }
 
 #[test]
+fn subtree_reads_fence_descendant_writes_before_callback_delivery() {
+    let (mut engine, source, target) = fixture();
+    let root = engine.root;
+    let guard = NodeReadGuard::capture_subtree(&engine.build_process_tree_snapshot(), root).unwrap();
+    write(&mut engine, source, 3.0);
+    check(&mut engine, vec![guard], vec![]);
+    write(&mut engine, target, 5.0);
+    let completion = engine.edits.completion();
+    assert!(matches!(
+        engine.apply_edits(),
+        Err(EngineEditError::EditPreconditionFailed { edit_index: 1 })
+    ));
+    assert_eq!(value(&engine, source), ParamValue::Float(3.0));
+    assert_eq!(value(&engine, target), ParamValue::Float(2.0));
+    assert_eq!(completion.status(), EditCompletionStatus::Failed);
+    assert!(engine.undo().unwrap());
+    check(&mut engine, vec![guard], vec![]);
+    assert!(engine.apply_edits().is_err(), "undo does not revive a prepared subtree");
+}
+
+#[test]
+fn subtree_reads_ignore_disjoint_changes_but_fence_descendant_metadata_and_removal() {
+    for remove in [false, true] {
+        let (mut engine, source, target) = fixture();
+        let guard = NodeReadGuard::capture_subtree(&engine.build_process_tree_snapshot(), source).unwrap();
+        write(&mut engine, target, 4.0);
+        engine.apply_edits().unwrap();
+        check(&mut engine, vec![guard], vec![]);
+        engine.apply_edits().unwrap();
+        let guard = NodeReadGuard::capture_subtree(&engine.build_process_tree_snapshot(), engine.root).unwrap();
+        engine.edits.push(if remove {
+            Edit::RemoveNode { node: source }
+        } else {
+            Edit::PatchMeta {
+                node: source,
+                patch: crate::node::NodeMetaPatch {
+                    label: Some("new source".into()),
+                    ..Default::default()
+                },
+            }
+        });
+        check(&mut engine, vec![guard], vec![]);
+        assert!(matches!(
+            engine.apply_edits(),
+            Err(EngineEditError::EditPreconditionFailed { .. })
+        ));
+    }
+}
+
+#[test]
+fn subtree_reads_reject_overlay_epochs_and_inherited_disable() {
+    let (mut engine, source, _) = fixture();
+    let snapshot = engine.build_process_tree_snapshot();
+    let overlay = snapshot.with_param_values([(source, ParamValue::Float(2.0))]);
+    check(
+        &mut engine,
+        vec![NodeReadGuard::capture_subtree(&overlay, source).unwrap()],
+        vec![],
+    );
+    assert!(engine.apply_edits().is_err());
+    let guard = NodeReadGuard::capture_subtree(&snapshot, source).unwrap();
+    engine.edits.push(Edit::PatchMeta {
+        node: engine.root,
+        patch: crate::node::NodeMetaPatch {
+            enabled: Some(false),
+            ..Default::default()
+        },
+    });
+    check(&mut engine, vec![guard], vec![]);
+    assert!(engine.apply_edits().is_err());
+}
+
+#[test]
 fn structural_reads_survive_values_constraints_and_warnings_but_fence_aliases() {
     let (mut engine, source, _) = fixture();
     let guard = NodeReadGuard::capture_structure(&engine.build_process_tree_snapshot(), source).unwrap();

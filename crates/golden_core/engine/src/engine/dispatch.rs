@@ -452,13 +452,22 @@ impl<T: Node> Engine<T> {
             return;
         };
 
-        if !self.nodes.contains(origin) {
-            return;
+        if self.nodes.contains(origin) {
+            self.origin_ancestry_depths_into(origin, ancestry_depths);
+            self.collect_bubbling_recipients(event, origin, recipients, dedupe);
+            self.collect_subscription_recipients(event, ancestry_depths, recipients, dedupe);
         }
 
-        self.origin_ancestry_depths_into(origin, ancestry_depths);
-        self.collect_bubbling_recipients(event, origin, recipients, dedupe);
-        self.collect_subscription_recipients(event, ancestry_depths, recipients, dedupe);
+        // Moving away changes the former parent's membership just like a
+        // removal. Its owner cannot discover this through the child's new path.
+        // Share deduplication so common ancestors and subscriptions see one event.
+        if let EventKind::ChildMoved { old_parent, .. } = &event.kind
+            && self.nodes.contains(*old_parent)
+        {
+            self.origin_ancestry_depths_into(*old_parent, ancestry_depths);
+            self.collect_bubbling_recipients(event, *old_parent, recipients, dedupe);
+            self.collect_subscription_recipients(event, ancestry_depths, recipients, dedupe);
+        }
     }
 
     fn origin_ancestry_depths_into(&self, origin: NodeId, out: &mut HashMap<NodeId, u32>) {

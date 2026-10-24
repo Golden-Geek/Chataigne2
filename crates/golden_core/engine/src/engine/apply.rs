@@ -156,6 +156,11 @@ impl<T: Node> Engine<T> {
                 let (outcome, should_clear_redo): (Result<Option<HistoryStep<T>>, EngineEditError>, bool) =
                     match request.edit {
                         Edit::CheckPreconditions { preconditions } => {
+                            let subtree_snapshot = preconditions
+                                .nodes
+                                .iter()
+                                .any(|guard| matches!(guard.revision, crate::edit::ReadRevision::Subtree(_)))
+                                .then(|| self.get_or_build_tick_snapshot());
                             let nodes_match = preconditions.nodes.iter().all(|guard| {
                                 self.nodes.get(guard.node).is_some_and(|node| {
                                     node.node_data().meta.uuid == guard.uuid
@@ -163,6 +168,12 @@ impl<T: Node> Engine<T> {
                                         && match guard.revision {
                                             crate::edit::ReadRevision::Authored(revision) => {
                                                 self.tree_revisions.unchanged_since(guard.node, revision)
+                                            }
+                                            crate::edit::ReadRevision::Subtree(revision) => {
+                                                subtree_snapshot
+                                                    .as_ref()
+                                                    .and_then(|snapshot| snapshot.subtree_revision(guard.node))
+                                                    == Some(revision)
                                             }
                                             crate::edit::ReadRevision::Structure(revision) => {
                                                 self.tree_revisions.structure_unchanged_since(guard.node, revision)

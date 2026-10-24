@@ -5,11 +5,10 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-23 on `main`, based on delivered `4a3e6638`, matching
-`origin/main` at milestone start. **C01-C11 are locally closed: 11/12 packages (92%).
-Only C12 Spatializer remains in P03.** Gamepad, Kinect2 and Stream Deck qualify C11.
-P03 scope coverage is approximately 99%; whole-plan scope coverage remains approximately 17%.
-These fixed-rubric scores do not forecast remaining effort. Hardware/platform and product-scale
+Last reconciled: 2026-10-24 on `main`, based on delivered `9561a399`, matching
+`origin/main` at milestone start. **C01-C12 are locally closed: 12/12 packages (100%).
+P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
+Whole-plan scope coverage remains approximately 17%. Hardware/platform and product-scale
 qualification retain their later owners.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
 branch `codex/builtin-mapping`. At audit start the only local modification was the user's main
@@ -18,15 +17,15 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 
 ## Completion overview
 
-**P03 closure packages: 11/12 closed (92%); one remains: C12 Spatializer.** C11's
-Gamepad, Kinect2 and Stream Deck families are locally qualified. These are fixed acceptance
-packages, not promised commit counts. The ~99% scope score does not forecast remaining effort.
+**P03 closure packages: 12/12 closed locally (100%); none remain.** These are fixed acceptance
+packages, not commit counts. Spatializer's admitted preparation, bounded publication, source/path
+fences, identity preservation and passive failure recovery are qualified under C12.
 
-**Whole plan: approximately 17% complete.** P01 and P02 are complete against their local
-acceptance criteria; P03 is approximately 99%; P04-P18 have not started. P00 baseline reconciliation
-is complete and maintained separately. **2 of 18 implementation/qualification tasks are complete (11%).**
+**Whole plan: approximately 17% complete.** P01, P02 and P03 are complete against their local
+acceptance criteria; P04-P18 have not started. P00 baseline reconciliation is maintained separately.
+**3 of 18 implementation/qualification tasks are complete (17%).**
 
-Overall progress is the equal-weight average of P01–P18: `(100 + 100 + (600 + 1000/11)/7 + 15 * 0) / 18`,
+Overall progress is the equal-weight average of P01-P18: `(100 + 100 + 100 + 15 * 0) / 18`,
 rounded to a whole percent. This measures scope coverage, not elapsed time, remaining effort, or
 product readiness. Task sizes differ substantially. P00 housekeeping and preserved pre-plan
 features do not inflate this percentage. Later product, platform and device acceptance remains open.
@@ -39,12 +38,10 @@ record delivery history and are never the progress denominator.
 
 ### P03 completion checkpoints
 
-P03's approximately **99%** is a scope score across seven equally weighted workstreams.
-Six workstreams, including locally qualified Sound Card C01, score 100. The remaining-module audit
-uses verified closure coverage across C02-C12: **10 of 11 closed**, or approximately 91%.
-**This average is not a remaining-effort forecast:** Spatializer still needs local qualification
-under C12. Report package closures before the percentage.
-The score is `(100 + 100 + 100 + 100 + 100 + 1000/11 + 100) / 7`.
+P03's **100% local scope coverage** covers seven equally weighted workstreams. All seven meet
+their owning acceptance criteria. The app-module audit covers C02-C12, **11 of 11 closed**;
+Sound Card C01 is the separate workstream below. This does not close external platform, device,
+whole-product timing or interaction qualification.
 
 | Workstream                                    | Scope score  | Delivered / remaining acceptance                                                                                                                                                             |
 | --------------------------------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -53,37 +50,27 @@ The score is `(100 + 100 + 100 + 100 + 100 + 1000/11 + 100) / 7`.
 | HTTP                                          | 100%         | Native lifecycle, admission, response bounds, passive service, worker request conversion and retained input disposal verified.                                                               |
 | Generic script/event/property ingress         | 100%         | Method/property/event/log admission, rejected-input disposal, routing lifetime and shared-budget recovery verified.                                                                          |
 | Sound Card lifecycle/service                  | 100% locally | C01 closed: command/route/derived/feedback/source-lifetime gates preserved; queued projection path and publication-lifetime guards verified; capped native constraint publication qualified. |
-| Remaining app module/channel audit            | ~91% (10/11)  | C02-C11 are locally closed with bounded native/actor service, occurrence, retirement and recovery evidence. C12 remains open.                                                             |
+| App module/channel audit                     | 100% locally | C02-C12 are locally closed; Spatializer completes admitted geometry preparation, bounded graph publication, identity preservation and passive recovery. |
 | Generator elapsed-time accounting             | 100%         | Ordinary commands settle elapsed time; phase, due-prefix ordering, bounded catch-up, targeted reset and stop cancellation verified.                                                          |
 
-The generator elapsed-time checkpoint and Sound Card are locally verified. The remaining module
-channel/retirement/callback audit stays open; P03 closes only when all seven workstreams meet
-acceptance. Hardware/platform and whole-product qualification keep their later plan owners.
+Shared service/lifecycle, stream/HTTP ingress, scripting, Sound Card, app-module ownership and
+generator time acceptance are locally verified. Hardware/platform and whole-product qualification
+keep their later plan owners.
 
-### P03 remaining closure work packages
+### P03 closure packages
 
-The user requested a remaining-batch forecast on 2026-10-20. There is no defensible commit count
-yet: the percentage does not measure remaining effort. The initial source audit covered
-**17 implemented module families plus Sound Card**. C01-C11 are now locally verified, leaving
-**one unfinished family: Spatializer**, under C12.
-The earlier directory inventory counted an empty, untracked Node Control placeholder as a module;
-there is no implementation to qualify or build for that placeholder. At the initial audit, nine families contained explicit
-unbounded channels: Buttplug, Joy-Con, Keyboard, Mouse, Ultraleap, Signals, Metronomes, MIDI and
-MQTT. Signals/Metronomes, MIDI, MQTT, Buttplug, Joy-Con, Keyboard and Mouse input now use bounded app-owned paths;
-Ultraleap now also uses a bounded app-owned path. MIDI's actor service is now qualified within C03. Worker joins also require caller/retirement review; finding a join is not proof that the
-actor blocks. Absence of these search patterns is not evidence of acceptance.
+The user requested a remaining-batch forecast on 2026-10-20. The audit fixed **12 closure packages**
+covering **17 implemented module families plus Sound Card**. All twelve are now locally closed.
+Supporting commits did not change that denominator. The initial directory inventory counted an empty,
+untracked Node Control placeholder as a module; there is no implementation to qualify or build there.
 
-Use these **12 fixed closure work packages** instead of an unbounded list of supporting batches.
-They cover the existing P03 acceptance scope; they are not 12 guaranteed commits. Each package
-closes only after its owning audit, required repairs and acceptance tests pass. A package may need
-several reviewable commits, and a review may establish that an existing implementation already
-passes. **Remaining closure packages: one open, eleven closed (C01-C11).** This count does not discard prior P03
-work or replace the workstream percentages above.
+At the initial audit, nine families contained explicit unbounded channels: Buttplug, Joy-Con,
+Keyboard, Mouse, Ultraleap, Signals, Metronomes, MIDI and MQTT. Their owning paths now have bounded
+admission/service/lifetime and recovery evidence. Spatializer's Cartesian matrix preparation and
+publication are also bounded. Absence of a search pattern alone was never acceptance evidence.
 
-Latest count on 2026-10-23: **one package remains: C12 Spatializer**. C11's three families
-are locally qualified. Do not increase the denominator for supporting commits or move unrelated
-optimization into P03. Report closed acceptance items and remaining package criteria instead of
-accumulated batch numbers.
+**Remaining P03 closure packages: zero open, twelve closed (C01-C12).** Continue P04.
+General optimization and external qualification retain their explicit later plan owners.
 
 | ID  | Status              | Scope                            | Required closure                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | --- | ------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -98,42 +85,33 @@ accumulated batch numbers.
 | C09 | **CLOSED (100%)**   | Keyboard and Mouse               | Locally verified: 71 Keyboard, 87 Mouse and three shared ordering cases cover canonical capture, worker-prepared callbacks/catalogs, retained quotas, queued source/target/settings guards, passive service, continuous input under output pressure, reconfiguration and failure/recovery. Physical/platform and product-scale qualification remain separate.                                                                       |
 | C10 | **CLOSED (100%)**   | Ultraleap                        | Locally verified: 24 owning passes cover bounded SDK/actor lifetimes and publication, prepared tracking and ordered status boundaries, retained source quotas, queued path/retirement/disable guards, 512 ordered statuses, eight enable/disable cycles, idle service and failure recovery before blocked cleanup. Physical SDK/platform and product-scale qualification remain separate.                                           |
 | C11 | **CLOSED (100%)** | Gamepad, Kinect2 and Stream Deck | Locally verified: 34 Gamepad, 36 Kinect2 and 37 default / 43 hardware-feature Stream Deck owning passes. Bounded native ownership, prepared input/catalogs, latest feedback, retained source/target guards, nonblocking retirement, recovery and passive service are qualified. Stream Deck page preparation preserves identities and values across bounded turns. Physical/platform and product-scale qualification remain separate. |
-| C12 | OPEN                | Spatializer; Node Control absent | Bound Spatializer computation, graph mutation and callback fan-out; do not implement the empty Node Control placeholder.                                                                                                                                                                                                                                                                                                            |
+| C12 | **CLOSED (100%)** | Spatializer; Node Control absent | Locally verified: 29 owning cases cover admitted worker/retained lifetimes, bounded endpoint/matrix/tree publication, stale source/destination fences, applied-prefix recovery, stable IDs/UUIDs/values, pressure, blocked cancellation, failure/recovery and zero idle polling. |
 
 The [initial ownership/acceptance audit](p03-closure-audit.md) is now complete across C01-C12.
 It records confirmed source gaps, existing safeguards, missing qualification and finish tests.
-C01-C11 are locally closed. Continue C12 Spatializer;
-do not continue the generic snapshot-copy prerequisite chain. Existing shared IO, stream, HTTP and
-generator time suites remain preservation gates. Map discoveries into the fixed packages. General
-optimizations belong to P12/P16 unless evidence connects them to a concrete P03 resource, service,
-retirement or recovery violation; keep the full plan's scope intact when assigning ownership.
-
-The six-file borrowed-parameter-view candidate passed formatting and workspace/test compilation,
-but no concrete P03 violation requiring that API was established. It was removed without delivery
-or completion credit. Snapshot/DTO scaling remains an explicit P16 investigation.
+C01-C12 are locally closed. Existing shared IO, stream, HTTP, Mapping and generator time suites
+remain preservation gates. No generic snapshot-copy prerequisite chain was added. Snapshot/DTO
+scaling stays P16 unless a concrete owning resource, service, retirement or recovery violation
+establishes another repair. The discarded borrowed-parameter-view candidate receives no credit.
 
 ## Current handoff
 
-- **C01-C11 are locally closed: 11/12 packages (92%). Only C12 Spatializer remains in P03.**
+- **P03 is locally complete: C01-C12 closed, 12/12 packages (100%). Continue P04 audio order/types.**
   Node Control remains an empty placeholder outside scope.
-- Current default unit artifact: **37 Stream Deck + 363 controller preservation + 1075 disjoint
-  preservation = 1475 unique passes / six existing ignored / 1481 selected / 1729 listed**,
-  with 248 outside these scopes. The hardware-feature run passes 43 owning cases: the same 37
-  plus six image/endpoint cases. Across both artifacts, that adds six unique passes.
-- Final controller and broader preservation pass with compilation idle. The 200 Hz multiplex
-  gate failed twice on the earlier artifact and once on delivered `4a3e6638` in an isolated
-  checkout. An isolated current run and the final rebuilt broad run passed without source,
-  fixture or threshold changes. Keep every sample; this does not establish stable performance
-  or disprove an incremental regression. P16 owns further timing qualification.
-- Default and hardware-feature production builds, strict workspace/all-target Clippy and actual
-  root/Core/app formatting pass. Eighteen tested Rust hashes are unchanged; every touched source
-  is below 1000 lines. Core and Golden IO are unchanged: Core **602 passes / three ignored /
-  605 listed** at `2e3bc6db` and IO's 57-pass evidence remain dated.
-- Prior-commit product qualification failed. Dependency advisories/audits retain P06, structural
-  gates P12, timing/baseline work P16 and platform qualification P17. ARM compatibility builds
-  passed; cancelled Windows/macOS product jobs are not passes. See the dated evidence below.
-- P03 **~99%** and whole-plan **~17%** are scope scores. Commit/push this verified milestone on
-  `main`, then continue Spatializer. Keep the full P00-P18 goal active.
+- Current default app artifact: **29 Spatializer + 400 controllers + 1075 disjoint broader cases =
+  1504 unique passes / six existing ignored / 1510 selected / 1745 listed**, with 235 outside.
+  Current Core development-profile suite: **606 passed / three ignored / 609 listed**.
+- The first broad run failed two multiplex timing gates; isolated cases and the full-selection
+  comparison passed on the unchanged executable. Every sample is retained below. Thresholds and
+  fixtures were unchanged; stable 200 Hz behavior and incremental performance remain P16 work.
+- Default non-test production build, strict workspace/all-target Clippy, actual root/Core/app
+  formatting and final source checks pass. Fifteen tested Rust files remain unchanged and below
+  1000 lines. Prior optional Stream Deck feature evidence stays dated at its own milestone.
+- Prior-commit CI/product qualification failures remain recorded: dependency advisories/audits
+  retain P06, structural gates P12, timing/baseline work P16 and platform qualification P17.
+  Cancelled macOS product work is not a pass.
+- Whole-plan scope coverage remains **~17%**, with **3/18 tasks locally complete**. Commit/push this
+  verified milestone on `main`, then continue P04. Keep the full P00-P18 goal active.
 
 ## Task ledger
 
@@ -146,7 +124,7 @@ External qualification is separate from implementation. A historical pass is not
 | P00 Baseline                | 100%       | VERIFIED_LOCAL | PASSED                  | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                                      |
 | P01 Edit failures/history   | 100%       | VERIFIED_LOCAL | PASSED batches 1–8      | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                                       |
 | P02 Schedule/actor failures | 100%       | VERIFIED_LOCAL | PASSED batches 1-3      | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                                        |
-| P03 Bounded I/O/lifecycle | ~99% | IN_PROGRESS | PASSED C01-C11 | Only C12 Spatializer remains: matrix admission, bounded graph work and callback publication. |
+| P03 Bounded I/O/lifecycle | 100% | VERIFIED_LOCAL | PASSED C01-C12 | All twelve closure packages locally verified; Spatializer closes the bounded service/lifecycle audit. External qualification retains later owners. |
 | P04 Audio order/types       | 0%         | NOT_STARTED    | PENDING                 | Legal interleaving and invalid deserialization established from source                                                                          |
 | P05 Transport trust         | 0%         | NOT_STARTED    | PENDING                 | Missing admission verified; exploit not demonstrated                                                                                            |
 | P06 Dependencies | 0% | NOT_STARTED | FAILED baseline | Latest product CI reports eight RustSec IDs and npm audit failures; refresh advisories before repair. |
@@ -7802,3 +7780,108 @@ Linux ARM64 and Windows ARM64 passed; Windows and macOS product jobs were still 
 The prior Kinect2 product workflow subsequently completed with failure: Windows and macOS product
 jobs were cancelled, the three compatibility builds passed, and aggregation failed its schema-v1
 report gate. This is the final observed state of run 40010170429, not a completed platform pass.
+
+## C12 Spatializer closed: P03 locally complete
+
+2026-10-24, based on delivered `9561a399` on `main`. **C12 and P03 are locally complete.**
+This is the last fixed P03 closure package; no additional package or generic optimization chain
+has been introduced. Whole-plan scope coverage remains ~17%; P03 is 100% locally, with 12/12
+packages closed and 3/18 implementation/qualification tasks locally complete. Continue P04.
+
+Environment: Windows 11 Home build 26300, Intel Core Ultra 9 275HX (24 logical processors),
+Rust 1.97.0 `2d8144b78`, Cargo 1.97.0 `c980f4866`, x86_64 MSVC. Owned Cargo commands used
+`CARGO_INCREMENTAL=0`. App tests used default features and the optimization-level-3 test profile;
+Core's final suite used the explicitly recorded development profile. No physical endpoint or
+desktop automation was used.
+
+Spatializer now owns passive, admitted preparation and receipt-driven matrix publication under
+`apps/chataigne/src/module/modules/generators/spatializer`. Geometry runs on a bounded worker;
+callbacks normalize one endpoint, service 16 existing pairs, or prepare 32 detached child nodes
+per turn. The existing 512-source/1,024-target mathematical fixture is preserved. Counts, retained
+bytes, worker slots, queued edits and detached rows are admitted before construction. Idle modules
+release prepared storage. See the [ownership contract](../architecture/spatializer-runtime.md)
+for exact limits, identity rules and the separate P09/P16 scale boundary.
+
+Two concrete Golden contracts support this package: an explicit whole-subtree read fence rejects
+descendant changes before their callbacks run; move routing also notifies the former parent's
+membership ancestry without duplicating shared recipients. Cold subtree fences may rebuild an
+ordinary snapshot. These changes do not qualify full-product snapshot or interaction performance.
+
+Qualification retained the failures that drove repairs:
+
+- First owning run: **six passed / seven failed**. Control lookup used a generated short name for
+  `value_layout`; it now uses the public declaration-ID lookup.
+- Expanded run: **18 passed / eight failed**. The async harness could return while publication was
+  active, invalid configuration retained normalization state, and reload had not activated the
+  runtime. The harness now waits for true quiescence, rejection clears pending preparation, and
+  reload uses `prepare_engine_for_runtime`.
+- Next run: **26 passed / three failed**, 2.45s after a 5m45s optimized build. Rejected/settled state
+  could outlive its input revision, and a moved row exposed the former-parent routing gap. Both
+  owning fixes and a Core move/removal regression case are now in the final validation candidate.
+  The 3-by-97 callback sample used 172 turns, p95 **34 us**, maximum **73 us**, excluding snapshot
+  construction and edit application; it is not a whole-product latency result.
+- Core's first optimized suite: **605 passed / one failed / three ignored / 609 listed**, 1.45s
+  after an 8m48s build. All subtree guards passed. The new routing fixture used non-observing
+  `Folder` nodes; its corrected version uses observing parameters and a subscription to exercise
+  shared-recipient deduplication. Runtime routing code is unchanged by that fixture correction.
+- Corrected Core suite: **606 passed / three ignored / 609 listed**, 1.22s after an 8m41s build,
+  using `cargo test -p golden_engine --profile dev --lib -- --test-threads=1` (development profile,
+  optimization level 1, incremental disabled). All functional cases passed; this is not a Core
+  performance qualification. Artifact SHA-256:
+  `72213001f9160659b62a921b5bcc9540749a4c6be1b7bea363a1bb28757e6ab3`.
+- Final owning app run: **29 passed**, 2.58s after a 4m38s optimized build;
+  `cargo test -p Chataigne2 --bin Chataigne2 spatializer -- --test-threads=1 --show-output`.
+  Strict workspace/all-target Clippy also passed in 1m26s. App unit artifact SHA-256:
+  `73baf23e37decbff286d5b958463182eb1a10452bca788cd703895221bd74688`.
+- Controller preservation passed **400 cases**, 45.51s. The first broader selection reported
+  **1073 passed / two failed / six ignored**, 85.18s. Both failures were multiplex timing gates:
+  active average **6368 us**, p95 **12223 us**, maximum **25177 us**, 28 deadline misses;
+  production average **8614 us**, p95 **15999 us**, maximum **31258 us**, 57 deadline misses.
+  Active snapshot/provider rebuilds and rejected actions/intents remained zero.
+- Separate processes on that same unchanged executable passed both timing cases: active average
+  **3762 us**, p95 **5392 us**, maximum **6287 us**, zero deadline misses (1.06s); production
+  average **4862 us**, p95 **6439 us**, maximum **7209 us**, zero deadline misses (1.32s).
+  The full-selection comparison then passed **1075 cases / six ignored**, 84.12s. Active average
+  was **3493 us**, p95 **4903 us**, maximum **5701 us**; production average **5296 us**, p95
+  **6475 us**, maximum **8421 us**. Both recorded zero deadline misses; active snapshot/provider
+  rebuilds and rejected actions/intents remained zero. No source, fixture or threshold changed.
+  These observations do not qualify stable 200 Hz behavior or exclude an incremental regression;
+  retain the earlier delivered-baseline failures and the P16 timing owner.
+
+The current default artifact lists **1745** cases. Its disjoint selections are **29 Spatializer /
+400 controllers / 1081 broader preservation**: **1504 unique passes / six existing ignored /
+1510 selected / 235 outside**. Compilation was idle during preservation. Standalone default-feature
+production linking passed in **2m44s** with `cargo build -p Chataigne2 --bin Chataigne2` and
+incremental disabled. This compiles non-test paths with default ASIO/JACK/realtime support; the
+executable was not launched and no physical endpoint was operated. Standalone SHA-256:
+`b5fcea031dbdea72758c7f2fc84b006e3f85a2c3cb4f4be5b35b4e1a85625954`.
+
+Final Core tests, owning tests, preservation, strict Clippy, production linking and formatting
+pass. Actual root and Core `cargo fmt` plus explicit app `rustfmt` leave all **15** Rust source
+hashes unchanged; the largest touched source is **866 lines**. `git diff --check` passes.
+The owning checks cover count/byte admission, four process-wide and one per-module blocked
+worker slots, latest-input recovery, failure, teardown, source/destination fences, applied prefixes,
+detached construction, stable identities/values, empty collections, callbacks, persistence activation
+and zero idle polling/snapshots. **C12 closes locally; all C01-C12 packages and all seven P03
+workstreams are locally complete.** Commit/push this verified milestone, then continue P04.
+
+### Delivered Stream Deck CI follow-up
+
+All observations below refer to **prior commit `9561a399`**, not the Spatializer candidate.
+CI [40027958206](https://github.com/Golden-Geek/Chataigne2/actions/runs/40027958206) finished with
+failure: every product build, UI job, Core tests and Windows/macOS audio host job passed; Linux
+audio failed its null-backend soak with **168 passed / one failed** and
+`1 backend runtime warnings were observed`. This remains a failed gate, not a waived assertion.
+
+Benchmarks [40027958251](https://github.com/Golden-Geek/Chataigne2/actions/runs/40027958251) ran
+tick/dispatch commands and evidence tests successfully, but comparison did not run because the
+historical baseline lacks a qualified fingerprint. P16 retains that work.
+
+Product workflow [40027958198](https://github.com/Golden-Geek/Chataigne2/actions/runs/40027958198)
+finished with failure. Windows reported **1713 passed / six failed / ten ignored**: Mouse combined
+native recovery, Serial inflight catalog selection/warning projection, three Alchemist catalog/
+hosted curve/gradient cases and processor property order. Linux reported **1708 passed / five
+failed / ten ignored**: Serial partial catalog suffix reconciliation and the same four Alchemist/
+processor cases. macOS was cancelled; the three ARM compatibility builds passed. The schema-v1
+aggregate gate failed. Dependencies remain P06, structural gates P12, timing P16 and product/
+platform qualification P17. These dated failures neither close those tasks nor expand P03.

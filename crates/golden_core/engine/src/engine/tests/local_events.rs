@@ -9,6 +9,62 @@ use crate::{
 use std::sync::mpsc;
 
 #[test]
+fn moves_notify_the_former_parent_and_deduplicate_shared_ancestors() {
+    let observer = |label| Parameter::new(label, ParamValue::Int(0), ParameterChangeCheck::ValueChange);
+    let mut engine = Engine::new(observer("root"));
+    engine.add_node(observer("left"), None);
+    engine.add_node(observer("right"), None);
+    engine.apply_edits().unwrap();
+    let root = engine.root;
+    let left = engine.nodes.get(root).unwrap().node_data().first_child.unwrap();
+    let right = engine.nodes.get(left).unwrap().node_data().next_sibling.unwrap();
+    engine.add_node(observer("moving"), Some(left));
+    engine.apply_edits().unwrap();
+    let child = engine.nodes.get(left).unwrap().node_data().first_child.unwrap();
+    engine.edits.push(Edit::AddEventListener {
+        subscriber: root,
+        subscription: crate::node::EventSubscription::node(child),
+    });
+    engine.apply_edits().unwrap();
+    engine.inbox.clear();
+    engine.edits.push(Edit::MoveNode {
+        node: child,
+        new_parent: right,
+        new_prev_sibling: None,
+    });
+    engine.apply_edits().unwrap();
+    let routed = engine.precompute_inbox_dispatch_since(0);
+    for expected in [root, left, right, child] {
+        let count = routed
+            .iter()
+            .filter(|(node, frame)| {
+                *node == expected
+                    && frame
+                        .iter()
+                        .any(|event| matches!(event.kind, EventKind::ChildMoved { .. }))
+            })
+            .count();
+        assert_eq!(count, 1, "moved-child notification for {expected:?}");
+    }
+    // A later removal must not hide the earlier departure from its owner.
+    engine.inbox.clear();
+    engine.edits.push(Edit::MoveNode {
+        node: child,
+        new_parent: left,
+        new_prev_sibling: None,
+    });
+    engine.edits.push(Edit::RemoveNode { node: child });
+    engine.apply_edits().unwrap();
+    let routed = engine.precompute_inbox_dispatch_since(0);
+    assert!(routed.iter().any(|(node, frame)| {
+        *node == right
+            && frame
+                .iter()
+                .any(|event| matches!(event.kind, EventKind::ChildMoved { .. }))
+    }));
+}
+
+#[test]
 fn typed_local_delivery_is_shallow_inbox_only_and_keeps_redo() {
     let mut engine = Engine::new(Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None));
     let root = engine.root;

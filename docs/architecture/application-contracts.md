@@ -16,6 +16,14 @@ own validation, source fences, publication policy and their explicit applied-pre
 merge only within the requests after the most recent fence. A later guarded update therefore
 cannot erase an earlier applied prefix or borrow its successful completion when that fence fails.
 
+`NodeReadGuard::capture` validates one node; `capture_subtree` additionally fences descendant
+authored changes before their callbacks run. A subtree check shares the ordinary snapshot cache
+and may rebuild a cold view. It does not promise constant-time snapshot construction.
+
+Move events notify the child's current ancestry and the former parent's membership ancestry.
+Shared ancestors and subscriptions receive the event once. This lets an owner react when a child
+moves away, including when a later queued removal makes the child unavailable before dispatch.
+
 `Edit::SetParamEnumOptions` publishes shared choice storage behind target UUID and current-value
 guards; stale results are successful no-ops. Its optional `selected_value` validates and applies a
 new selection atomically with the domain, including disjoint old/new choice lists. Failed validation

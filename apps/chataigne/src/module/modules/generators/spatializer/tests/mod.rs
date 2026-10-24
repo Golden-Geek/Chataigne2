@@ -6,10 +6,11 @@ use golden_core::{
     script::ScriptSource,
 };
 
+mod runtime;
+
 use super::{
-    SpatialPoint, SpatializerConfig, SpatializerDimension, SpatializerEndpointConfig,
-    SpatializerMode, SpatializerModule, SpatializerSourceItem, SpatializerTargetItem,
-    SpatializerValueLayout,
+    SpatialPoint, SpatializerConfig, SpatializerDimension, SpatializerEndpointConfig, SpatializerMode,
+    SpatializerModule, SpatializerSourceItem, SpatializerTargetItem, SpatializerValueLayout,
 };
 
 #[test]
@@ -105,17 +106,13 @@ fn spatializer_creates_default_source_target_and_matrix_value() {
     assert_eq!(count_direct_children_by_decl(&engine, source, "position_3d"), 0);
     assert_eq!(count_direct_children_by_decl(&engine, target, "position_3d"), 0);
 
-    let value_layout =
-        find_path(&engine, module_id, "parameters/value_layout").expect("value layout");
+    let value_layout = find_path(&engine, module_id, "parameters/value_layout").expect("value layout");
     let layout_snapshot = engine
         .nodes
         .get(value_layout)
         .and_then(|node| node.engine_param_snapshot())
         .expect("value layout should be a parameter");
-    assert_eq!(
-        layout_snapshot.value,
-        ParamValue::Enum("sourceCentric".to_string())
-    );
+    assert_eq!(layout_snapshot.value, ParamValue::Enum("sourceCentric".to_string()));
 
     let values_root = find_path(&engine, module_id, "values").expect("values root");
     let source_values = find_child_by_key(&engine, values_root, "Source").expect("source row");
@@ -161,11 +158,7 @@ fn dimension_and_mode_changes_materialize_endpoint_parameters() {
     assert_eq!(count_direct_children_by_decl(&engine, target, "position_3d"), 1);
 
     let mode = find_path(&engine, module_id, "parameters/mode").expect("mode");
-    set_param(
-        &mut engine,
-        mode,
-        ParamValue::Enum("sourceRadius".to_string()),
-    );
+    set_param(&mut engine, mode, ParamValue::Enum("sourceRadius".to_string()));
     stabilize(&mut engine);
     assert!(find_child_by_key(&engine, source, "radius").is_some());
     assert!(find_child_by_key(&engine, target, "radius").is_none());
@@ -184,9 +177,7 @@ fn adding_sources_expands_source_centric_value_rows() {
     let sources = find_path(&engine, module_id, "parameters/sources").expect("sources list");
 
     engine.add_user_item(SpatializerSourceItem::new().into(), Some(sources));
-    engine
-        .apply_edits()
-        .expect("second source should attach under sources");
+    engine.apply_edits().expect("second source should attach under sources");
     stabilize(&mut engine);
 
     let values_root = find_path(&engine, module_id, "values").expect("values root");
@@ -204,18 +195,14 @@ fn value_layout_switches_between_source_and_target_centric_trees() {
     let targets = find_path(&engine, module_id, "parameters/targets").expect("targets list");
 
     engine.add_user_item(SpatializerSourceItem::new().into(), Some(sources));
-    engine
-        .apply_edits()
-        .expect("second source should attach under sources");
+    engine.apply_edits().expect("second source should attach under sources");
     engine.add_user_item(SpatializerTargetItem::new().into(), Some(targets));
-    engine
-        .apply_edits()
-        .expect("second target should attach under targets");
+    engine.apply_edits().expect("second target should attach under targets");
     stabilize(&mut engine);
 
     let values_root = find_path(&engine, module_id, "values").expect("values root");
-    let source_values = find_child_by_key(&engine, values_root, "Source")
-        .expect("source-centric default should create a source row");
+    let source_values =
+        find_child_by_key(&engine, values_root, "Source").expect("source-centric default should create a source row");
     assert!(
         find_child_by_key(&engine, source_values, "Target").is_some(),
         "source-centric rows should contain target values"
@@ -226,18 +213,13 @@ fn value_layout_switches_between_source_and_target_centric_trees() {
     );
     assert_eq!(child_count(&engine, values_root), 2);
 
-    let value_layout =
-        find_path(&engine, module_id, "parameters/value_layout").expect("value layout");
-    set_param(
-        &mut engine,
-        value_layout,
-        ParamValue::Enum("targetCentric".to_string()),
-    );
+    let value_layout = find_path(&engine, module_id, "parameters/value_layout").expect("value layout");
+    set_param(&mut engine, value_layout, ParamValue::Enum("targetCentric".to_string()));
     stabilize(&mut engine);
 
     let values_root = find_path(&engine, module_id, "values").expect("values root");
-    let target_values = find_child_by_key(&engine, values_root, "Target")
-        .expect("target-centric layout should create a target row");
+    let target_values =
+        find_child_by_key(&engine, values_root, "Target").expect("target-centric layout should create a target row");
     assert!(
         find_child_by_key(&engine, target_values, "Source").is_some(),
         "target-centric rows should contain source values"
@@ -249,16 +231,12 @@ fn value_layout_switches_between_source_and_target_centric_trees() {
     assert_eq!(child_count(&engine, values_root), 2);
     assert_eq!(child_count(&engine, target_values), 2);
 
-    set_param(
-        &mut engine,
-        value_layout,
-        ParamValue::Enum("sourceCentric".to_string()),
-    );
+    set_param(&mut engine, value_layout, ParamValue::Enum("sourceCentric".to_string()));
     stabilize(&mut engine);
 
     let values_root = find_path(&engine, module_id, "values").expect("values root");
-    let source_values = find_child_by_key(&engine, values_root, "Source")
-        .expect("source-centric layout should be restored");
+    let source_values =
+        find_child_by_key(&engine, values_root, "Source").expect("source-centric layout should be restored");
     assert!(
         find_child_by_key(&engine, source_values, "Target").is_some(),
         "restored source-centric rows should contain target values"
@@ -299,8 +277,8 @@ fn endpoint_renames_update_generated_value_names_without_reload() {
     stabilize(&mut engine);
 
     let values_root = find_path(&engine, module_id, "values").expect("values root");
-    let source_values = find_child_by_key(&engine, values_root, "Projector")
-        .expect("source-centric row should follow source rename");
+    let source_values =
+        find_child_by_key(&engine, values_root, "Projector").expect("source-centric row should follow source rename");
     assert!(
         find_child_by_key(&engine, values_root, "Source").is_none(),
         "old source value row label should be replaced"
@@ -314,8 +292,7 @@ fn endpoint_renames_update_generated_value_names_without_reload() {
     stabilize(&mut engine);
 
     let values_root = find_path(&engine, module_id, "values").expect("values root");
-    let source_values = find_child_by_key(&engine, values_root, "Projector")
-        .expect("renamed source row should remain");
+    let source_values = find_child_by_key(&engine, values_root, "Projector").expect("renamed source row should remain");
     assert!(
         find_child_by_key(&engine, source_values, "Screen").is_some(),
         "source-centric value should follow target rename"
@@ -325,18 +302,13 @@ fn endpoint_renames_update_generated_value_names_without_reload() {
         "old target value label should be replaced"
     );
 
-    let value_layout =
-        find_path(&engine, module_id, "parameters/value_layout").expect("value layout");
-    set_param(
-        &mut engine,
-        value_layout,
-        ParamValue::Enum("targetCentric".to_string()),
-    );
+    let value_layout = find_path(&engine, module_id, "parameters/value_layout").expect("value layout");
+    set_param(&mut engine, value_layout, ParamValue::Enum("targetCentric".to_string()));
     stabilize(&mut engine);
 
     let values_root = find_path(&engine, module_id, "values").expect("values root");
-    let target_values = find_child_by_key(&engine, values_root, "Screen")
-        .expect("target-centric row should use target label");
+    let target_values =
+        find_child_by_key(&engine, values_root, "Screen").expect("target-centric row should use target label");
     assert!(
         find_child_by_key(&engine, target_values, "Projector").is_some(),
         "target-centric row should contain source values"
@@ -346,8 +318,8 @@ fn endpoint_renames_update_generated_value_names_without_reload() {
     stabilize(&mut engine);
 
     let values_root = find_path(&engine, module_id, "values").expect("values root");
-    let target_values = find_child_by_key(&engine, values_root, "Screen")
-        .expect("target row should remain after source rename");
+    let target_values =
+        find_child_by_key(&engine, values_root, "Screen").expect("target row should remain after source rename");
     assert!(
         find_child_by_key(&engine, target_values, "Camera").is_some(),
         "target-centric source value should follow source rename"
@@ -361,8 +333,8 @@ fn endpoint_renames_update_generated_value_names_without_reload() {
     stabilize(&mut engine);
 
     let values_root = find_path(&engine, module_id, "values").expect("values root");
-    let target_values = find_child_by_key(&engine, values_root, "Wall")
-        .expect("target-centric row should follow target rename");
+    let target_values =
+        find_child_by_key(&engine, values_root, "Wall").expect("target-centric row should follow target rename");
     assert!(
         find_child_by_key(&engine, values_root, "Screen").is_none(),
         "old target row label should be replaced"
@@ -381,9 +353,7 @@ fn voronoi_values_update_when_source_position_changes() {
     let source = nth_child(&engine, sources, 0).expect("source");
 
     engine.add_user_item(SpatializerTargetItem::new().into(), Some(targets));
-    engine
-        .apply_edits()
-        .expect("second target should attach under targets");
+    engine.apply_edits().expect("second target should attach under targets");
     stabilize(&mut engine);
 
     let target_a = nth_child(&engine, targets, 0).expect("first target");
@@ -409,31 +379,20 @@ fn voronoi_values_update_when_source_position_changes() {
 #[test]
 fn voronoi_weights_do_not_jump_when_source_crosses_target_cell_boundary() {
     let left_target = test_endpoint(NodeId(20), "Left", SpatialPoint::new(0.0, 0.0, 0.0), 1.0);
-    let right_target =
-        test_endpoint(NodeId(21), "Right", SpatialPoint::new(10.0, 0.0, 0.0), 1.0);
+    let right_target = test_endpoint(NodeId(21), "Right", SpatialPoint::new(10.0, 0.0, 0.0), 1.0);
     let top_target = test_endpoint(NodeId(22), "Top", SpatialPoint::new(5.0, 8.0, 0.0), 1.0);
-    let before_source =
-        test_endpoint(NodeId(10), "Source", SpatialPoint::new(4.999, 1.0, 0.0), 1.0);
-    let after_source =
-        test_endpoint(NodeId(11), "Source", SpatialPoint::new(5.001, 1.0, 0.0), 1.0);
+    let before_source = test_endpoint(NodeId(10), "Source", SpatialPoint::new(4.999, 1.0, 0.0), 1.0);
+    let after_source = test_endpoint(NodeId(11), "Source", SpatialPoint::new(5.001, 1.0, 0.0), 1.0);
 
     let before = test_config(
         SpatializerMode::Voronoi,
         vec![before_source.clone()],
-        vec![
-            left_target.clone(),
-            right_target.clone(),
-            top_target.clone(),
-        ],
+        vec![left_target.clone(), right_target.clone(), top_target.clone()],
     );
     let after = test_config(
         SpatializerMode::Voronoi,
         vec![after_source.clone()],
-        vec![
-            left_target.clone(),
-            right_target.clone(),
-            top_target.clone(),
-        ],
+        vec![left_target.clone(), right_target.clone(), top_target.clone()],
     );
 
     let before_values = [
@@ -468,30 +427,26 @@ fn sparse_reload_preserves_single_declared_parameter_block() {
     set_param(&mut engine, source_position, ParamValue::Vec2(3.6, 1.8));
 
     engine.add_user_item(SpatializerTargetItem::new().into(), Some(targets));
-    engine
-        .apply_edits()
-        .expect("second target should attach under targets");
+    engine.apply_edits().expect("second target should attach under targets");
     stabilize(&mut engine);
     let second_target = nth_child(&engine, targets, 1).expect("second target");
-    let target_position =
-        find_child_by_key(&engine, second_target, "position_2d").expect("target position");
+    let target_position = find_child_by_key(&engine, second_target, "position_2d").expect("target position");
     set_param(&mut engine, target_position, ParamValue::Vec2(2.6, 2.5));
     stabilize(&mut engine);
 
     assert_single_spatializer_parameter_block(&engine, parameters);
 
-    let json = golden_core::app::to_sparse_project_json_pretty(&engine)
-        .expect("sparse project should encode");
-    let mut loaded = golden_core::app::from_sparse_project_json::<crate::app::AppNode>(&json)
-        .expect("sparse project should decode");
+    let json = golden_core::app::to_sparse_project_json_pretty(&engine).expect("sparse project should encode");
+    let mut loaded =
+        golden_core::app::from_sparse_project_json::<crate::app::AppNode>(&json).expect("sparse project should decode");
+    golden_core::app::prepare_engine_for_runtime(&mut loaded).expect("activate loaded Spatializer");
     stabilize(&mut loaded);
     let loaded_module = loaded
         .nodes
         .get(loaded.root)
         .and_then(|root| root.node_data().first_child)
         .expect("Spatializer module should reload");
-    let loaded_parameters =
-        find_path(&loaded, loaded_module, "parameters").expect("parameters should reload");
+    let loaded_parameters = find_path(&loaded, loaded_module, "parameters").expect("parameters should reload");
 
     assert_single_spatializer_parameter_block(&loaded, loaded_parameters);
 }
@@ -501,11 +456,9 @@ fn spatializer_math_covers_all_modes() {
     let source = test_endpoint(NodeId(10), "Source", SpatialPoint::new(0.0, 0.0, 0.0), 10.0);
     let target = test_endpoint(NodeId(20), "Target", SpatialPoint::new(3.0, 4.0, 0.0), 10.0);
 
-    let moving_source =
-        test_endpoint(NodeId(11), "Source", SpatialPoint::new(3.0, 4.0, 0.0), 1.0);
+    let moving_source = test_endpoint(NodeId(11), "Source", SpatialPoint::new(3.0, 4.0, 0.0), 1.0);
     let left_target = test_endpoint(NodeId(23), "Left", SpatialPoint::new(0.0, 0.0, 0.0), 1.0);
-    let right_target =
-        test_endpoint(NodeId(24), "Right", SpatialPoint::new(20.0, 0.0, 0.0), 1.0);
+    let right_target = test_endpoint(NodeId(24), "Right", SpatialPoint::new(20.0, 0.0, 0.0), 1.0);
     let config = test_config(
         SpatializerMode::Voronoi,
         vec![moving_source.clone()],
@@ -517,51 +470,30 @@ fn spatializer_math_covers_all_modes() {
     assert!(right_value > 0.0);
     assert!((left_value + right_value - 1.0).abs() < 0.000_001);
 
-    let exact_source =
-        test_endpoint(NodeId(12), "Source", SpatialPoint::new(0.0, 0.0, 0.0), 1.0);
+    let exact_source = test_endpoint(NodeId(12), "Source", SpatialPoint::new(0.0, 0.0, 0.0), 1.0);
     let config = test_config(
         SpatializerMode::Voronoi,
         vec![exact_source.clone()],
         vec![left_target.clone(), right_target.clone()],
     );
     assert_eq!(super::spatializer_value(&config, &left_target, &exact_source), 1.0);
-    assert_eq!(
-        super::spatializer_value(&config, &right_target, &exact_source),
-        0.0
-    );
+    assert_eq!(super::spatializer_value(&config, &right_target, &exact_source), 0.0);
 
-    let middle_source =
-        test_endpoint(NodeId(13), "Source", SpatialPoint::new(10.0, 0.0, 0.0), 1.0);
+    let middle_source = test_endpoint(NodeId(13), "Source", SpatialPoint::new(10.0, 0.0, 0.0), 1.0);
     let config = test_config(
         SpatializerMode::Voronoi,
         vec![middle_source.clone()],
         vec![left_target.clone(), right_target.clone()],
     );
-    assert_eq!(
-        super::spatializer_value(&config, &left_target, &middle_source),
-        0.5
-    );
-    assert_eq!(
-        super::spatializer_value(&config, &right_target, &middle_source),
-        0.5
-    );
+    assert_eq!(super::spatializer_value(&config, &left_target, &middle_source), 0.5);
+    assert_eq!(super::spatializer_value(&config, &right_target, &middle_source), 0.5);
 
-    let center_target = test_endpoint(
-        NodeId(25),
-        "Center",
-        SpatialPoint::new(10.0, 0.0, 0.0),
-        1.0,
-    );
-    let near_left_source =
-        test_endpoint(NodeId(14), "Source", SpatialPoint::new(2.5, 0.0, 0.0), 1.0);
+    let center_target = test_endpoint(NodeId(25), "Center", SpatialPoint::new(10.0, 0.0, 0.0), 1.0);
+    let near_left_source = test_endpoint(NodeId(14), "Source", SpatialPoint::new(2.5, 0.0, 0.0), 1.0);
     let config = test_config(
         SpatializerMode::Voronoi,
         vec![near_left_source.clone()],
-        vec![
-            left_target.clone(),
-            center_target.clone(),
-            right_target.clone(),
-        ],
+        vec![left_target.clone(), center_target.clone(), right_target.clone()],
     );
     let left_value = super::spatializer_value(&config, &left_target, &near_left_source);
     let center_value = super::spatializer_value(&config, &center_target, &near_left_source);
@@ -575,24 +507,16 @@ fn spatializer_math_covers_all_modes() {
         freeze_radius: 3.0,
         ..left_target.clone()
     };
-    let frozen_source =
-        test_endpoint(NodeId(15), "Source", SpatialPoint::new(2.0, 0.0, 0.0), 1.0);
+    let frozen_source = test_endpoint(NodeId(15), "Source", SpatialPoint::new(2.0, 0.0, 0.0), 1.0);
     let config = test_config(
         SpatializerMode::Voronoi,
         vec![frozen_source.clone()],
         vec![frozen_target.clone(), center_target.clone()],
     );
-    assert_eq!(
-        super::spatializer_value(&config, &frozen_target, &frozen_source),
-        1.0
-    );
-    assert_eq!(
-        super::spatializer_value(&config, &center_target, &frozen_source),
-        0.0
-    );
+    assert_eq!(super::spatializer_value(&config, &frozen_target, &frozen_source), 1.0);
+    assert_eq!(super::spatializer_value(&config, &center_target, &frozen_source), 0.0);
 
-    let thawed_source =
-        test_endpoint(NodeId(16), "Source", SpatialPoint::new(4.0, 0.0, 0.0), 1.0);
+    let thawed_source = test_endpoint(NodeId(16), "Source", SpatialPoint::new(4.0, 0.0, 0.0), 1.0);
     let config = test_config(
         SpatializerMode::Voronoi,
         vec![thawed_source.clone()],
@@ -618,23 +542,16 @@ fn spatializer_math_covers_all_modes() {
     );
     assert!((super::spatializer_value(&config, &target, &source) - 0.5).abs() < 0.000_001);
 
-    let overlap_source =
-        test_endpoint(NodeId(12), "Source", SpatialPoint::new(0.0, 0.0, 0.0), 5.0);
-    let overlap_target =
-        test_endpoint(NodeId(21), "Target", SpatialPoint::new(6.0, 0.0, 0.0), 3.0);
+    let overlap_source = test_endpoint(NodeId(12), "Source", SpatialPoint::new(0.0, 0.0, 0.0), 5.0);
+    let overlap_target = test_endpoint(NodeId(21), "Target", SpatialPoint::new(6.0, 0.0, 0.0), 3.0);
     let config = test_config(
         SpatializerMode::Overlap,
         vec![overlap_source.clone()],
         vec![overlap_target.clone()],
     );
-    assert!(
-        (super::spatializer_value(&config, &overlap_target, &overlap_source) - (1.0 / 3.0))
-            .abs()
-            < 0.000_001
-    );
+    assert!((super::spatializer_value(&config, &overlap_target, &overlap_source) - (1.0 / 3.0)).abs() < 0.000_001);
 
-    let contained_target =
-        test_endpoint(NodeId(22), "Target", SpatialPoint::new(3.0, 0.0, 0.0), 2.0);
+    let contained_target = test_endpoint(NodeId(22), "Target", SpatialPoint::new(3.0, 0.0, 0.0), 2.0);
     let config = test_config(
         SpatializerMode::Overlap,
         vec![source.clone()],
@@ -686,12 +603,10 @@ fn spatializer_supported_scale_uses_sparse_delaunay_topology() {
         directed_edge_count <= TARGET_COUNT * 6,
         "planar topology should stay linear at the supported target scale; got {directed_edge_count} directed edges"
     );
-    assert!(
-        topology
-            .target_indices
-            .iter()
-            .all(|target_index| !topology.neighbours(*target_index).is_empty())
-    );
+    assert!(topology
+        .target_indices
+        .iter()
+        .all(|target_index| !topology.neighbours(*target_index).is_empty()));
 
     let values = super::spatializer_values_by_target(&config);
     for source in sources {
@@ -732,12 +647,7 @@ fn test_config(
     }
 }
 
-fn test_endpoint(
-    item_id: NodeId,
-    label: &str,
-    position: SpatialPoint,
-    radius: f64,
-) -> SpatializerEndpointConfig {
+fn test_endpoint(item_id: NodeId, label: &str, position: SpatialPoint, radius: f64) -> SpatializerEndpointConfig {
     SpatializerEndpointConfig {
         item_id,
         item_uuid: golden_core::node::NodeUuid(uuid::Uuid::from_u128(item_id.0 as u128 + 1)),
@@ -760,17 +670,36 @@ fn create_spatializer_module() -> (crate::app::AppEngine, NodeId) {
         .get(engine.root)
         .and_then(|root| root.node_data().first_child)
         .expect("Spatializer module should be attached under root");
+    if let crate::app::AppNode::SpatializerModule(module) = engine.nodes.get(module_id).unwrap() {
+        assert!(
+            module.service.warning_text().is_none(),
+            "initial Spatializer warning: {:?}",
+            module.service.warning_text()
+        );
+    }
     (engine, module_id)
 }
 
 fn stabilize(engine: &mut crate::app::AppEngine) {
-    for _ in 0..10 {
+    engine.resolve().expect("schedule should resolve");
+    for _ in 0..2000 {
         engine.apply_edits().expect("edits should apply");
         engine
             .dispatch_inbox(ExecutionPhase::EndOfTickStabilization)
             .expect("stabilization inbox should dispatch");
+        engine
+            .run_tick(std::time::Duration::from_millis(2))
+            .expect("service tick");
+        let idle = engine.nodes.iter().all(|(_, node)| match node {
+            crate::app::AppNode::SpatializerModule(module) => module.service.idle(),
+            _ => true,
+        });
+        if idle && engine.edits.pending.is_empty() {
+            return;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(1));
     }
-    engine.resolve().expect("schedule should resolve");
+    panic!("Spatializer did not reach a settled service state");
 }
 
 fn set_param(engine: &mut crate::app::AppEngine, node: NodeId, value: ParamValue) {
@@ -787,14 +716,9 @@ fn set_position_2d(engine: &mut crate::app::AppEngine, item: NodeId, x: f64, y: 
     set_param(engine, position, ParamValue::Vec2(x, y));
 }
 
-fn source_target_values(
-    engine: &crate::app::AppEngine,
-    module_id: NodeId,
-    source_index: usize,
-) -> Vec<f64> {
+fn source_target_values(engine: &crate::app::AppEngine, module_id: NodeId, source_index: usize) -> Vec<f64> {
     let values_root = find_path(engine, module_id, "values").expect("values root");
-    let source_folder_id =
-        nth_child(engine, values_root, source_index).expect("source-centric source row");
+    let source_folder_id = nth_child(engine, values_root, source_index).expect("source-centric source row");
     let source_folder = engine.nodes.get(source_folder_id).expect("source row");
     let mut values = Vec::new();
     let mut current = source_folder.node_data().first_child;
@@ -862,10 +786,7 @@ fn find_child_by_key(engine: &crate::app::AppEngine, parent: NodeId, key: &str) 
 }
 
 fn child_count(engine: &crate::app::AppEngine, parent: NodeId) -> usize {
-    let mut current = engine
-        .nodes
-        .get(parent)
-        .and_then(|node| node.node_data().first_child);
+    let mut current = engine.nodes.get(parent).and_then(|node| node.node_data().first_child);
     let mut count = 0usize;
     while let Some(child_id) = current {
         count += 1;
@@ -877,15 +798,8 @@ fn child_count(engine: &crate::app::AppEngine, parent: NodeId) -> usize {
     count
 }
 
-fn count_direct_children_by_decl(
-    engine: &crate::app::AppEngine,
-    parent: NodeId,
-    decl_id: &str,
-) -> usize {
-    let mut current = engine
-        .nodes
-        .get(parent)
-        .and_then(|node| node.node_data().first_child);
+fn count_direct_children_by_decl(engine: &crate::app::AppEngine, parent: NodeId, decl_id: &str) -> usize {
+    let mut current = engine.nodes.get(parent).and_then(|node| node.node_data().first_child);
     let mut count = 0usize;
     while let Some(child_id) = current {
         let Some(child) = engine.nodes.get(child_id) else {
@@ -910,15 +824,8 @@ fn assert_single_spatializer_parameter_block(engine: &crate::app::AppEngine, par
     }
 }
 
-fn count_direct_children_by_decl_tail(
-    engine: &crate::app::AppEngine,
-    parent: NodeId,
-    decl_tail: &str,
-) -> usize {
-    let mut current = engine
-        .nodes
-        .get(parent)
-        .and_then(|node| node.node_data().first_child);
+fn count_direct_children_by_decl_tail(engine: &crate::app::AppEngine, parent: NodeId, decl_tail: &str) -> usize {
+    let mut current = engine.nodes.get(parent).and_then(|node| node.node_data().first_child);
     let mut count = 0usize;
     while let Some(child_id) = current {
         let Some(child) = engine.nodes.get(child_id) else {
@@ -933,10 +840,7 @@ fn count_direct_children_by_decl_tail(
 }
 
 fn direct_child_decl_ids(engine: &crate::app::AppEngine, parent: NodeId) -> Vec<String> {
-    let mut current = engine
-        .nodes
-        .get(parent)
-        .and_then(|node| node.node_data().first_child);
+    let mut current = engine.nodes.get(parent).and_then(|node| node.node_data().first_child);
     let mut decls = Vec::new();
     while let Some(child_id) = current {
         let Some(child) = engine.nodes.get(child_id) else {
