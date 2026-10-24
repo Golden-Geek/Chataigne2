@@ -5,10 +5,10 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-24 on `main`, based on delivered `f788ebce`, matching
+Last reconciled: 2026-10-24 on `main`, based on delivered `cb882b15`, matching
 `origin/main` at milestone start. **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
-Whole-plan scope coverage is approximately 40%; P01-P07 are locally complete.
+Whole-plan scope coverage is approximately 43%; P01-P07 are locally complete.
 Hardware/platform and product-scale
 qualification retain their later owners.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
@@ -22,14 +22,14 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 packages, not commit counts. Spatializer's admitted preparation, bounded publication, source/path
 fences, identity preservation and passive failure recovery are qualified under C12.
 
-**Whole plan: approximately 40% complete.** P01-P07 are complete against their local
-acceptance criteria. P08's public operation boundary is complete locally: one of four checkpoints
-(25%). Its complete-record paste backend passes owning checks; managed/compressed fragment
-context and the other two checkpoints remain open. P09-P18 have not started.
+**Whole plan: approximately 43% complete.** P01-P07 are complete against their local
+acceptance criteria. P08 has three of four checkpoints complete locally (75%): public operation
+boundary, complete-record fragment paste, and backend connection policy. Shared caller migration
+and full acceptance remain open. P09-P18 have not started.
 P00 baseline reconciliation is maintained separately.
 **7 of 18 implementation/qualification tasks are fully complete.**
 
-Overall progress is the equal-weight average of P01-P18: `(7 * 100 + 25 + 10 * 0) / 18`,
+Overall progress is the equal-weight average of P01-P18: `(7 * 100 + 75 + 10 * 0) / 18`,
 rounded to a whole percent. This measures scope coverage, not elapsed time, remaining effort, or
 product readiness. Task sizes differ substantially. P00 housekeeping and preserved pre-plan
 features do not inflate this percentage. Later product, platform and device acceptance remains open.
@@ -152,23 +152,25 @@ closed locally (100%); none remain.**
 ### P08 completion checkpoints
 
 P08 has four fixed, equally weighted scope checkpoints. These measure verified requirements,
-not effort or commit counts. **One of four is complete locally (25%); three remain.**
+not effort or commit counts. **Three of four are complete locally (75%); one remains.**
 
 | Checkpoint                             | Status           | Acceptance                                                                                                                                                                                                                                                                                                                     |
 | -------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Public operation and result boundary   | Complete locally | Domain-neutral operation/result envelope, atomic authored/history/lifecycle/app settlement, exact replies through public headless and workbench APIs, generated protocol 0.10.0 and null/absence distinction. Engine 614, protocol two, transport 74 plus headless integration, UI 56/93, type/build/strict/format gates pass. |
-| Atomic fragment paste                  | Open             | Typed app-owned complete fragments, detached batch restoration/remapping, labels and exact source-to-created identity map; invalid/duplicate identities, references and compressed content validated before publication.                                                                                                       |
-| Backend connection policy              | Open             | Typed app-owned connect operation validates membership, socket compatibility and replacement conflicts; the UI sends intent and owns no connection mutation semantics.                                                                                                                                                         |
+| Atomic fragment paste                  | Complete locally | Complete dense capsules, shared detached restoration/remapping and labels, exact all-record results, invalid/duplicate identity rejection, external references, managed metadata and compressed archive preservation, concurrent creates, project replacement and undo/redo verified. Core 620 and app Alchemist 208 pass; later shared caller acceptance remains separate. |
+| Backend connection policy              | Complete locally | Typed connect checks owner/endpoints, graph compatibility and inferred types before edits; whole/component replacement, exact replies, idempotence and one-step undo/redo pass. Generic vector components and backend input growth work without UI repair. Editor sends intent; strict Clippy, generated types, UI 101, Svelte and default build pass. |
 | Shared callers and complete acceptance | Open             | UI/script/transport/headless use the same operations; paste polling/inferred identities and UI repair writes are removed. Concurrent creates, slow projection, undo/redo and project replacement pass owning acceptance.                                                                                                       |
 
 ## Current handoff
 
-- **Active task: P08 Formula backend intents (25%, one of four checkpoints complete locally).**
-  The public operation/result boundary and normal complete-record copy/paste backend pass their
-  owning checks. Core imports share remapping/lifecycle/publication and return exact identities;
-  Formula/resource/reference/history cases and generated app DTO consumers pass. Next: finish
-  managed/compressed fragment context and its acceptance, then backend connections and shared
-  UI/script caller migration. Existing Formula UI mutation policy and identity polling remain.
+- **Active task: P08 Formula backend intents (75%, three of four checkpoints complete locally).**
+  Public operations, atomic complete-record paste and backend connection policy pass owning
+  acceptance. Real Mapping fixtures preserve external references, managed definitions and frozen
+  archives; eight concurrent pastes interleaved with independent creates return disjoint exact
+  identities. Connect owns compatibility, inferred types and replacement, including components.
+  Next: migrate the editor's clipboard/paste path and script callers to these operations, remove
+  paste polling/identity inference/repair writes, and finish shared transport/headless/slow-projection
+  acceptance. Existing legacy clipboard policy is confined to this remaining checkpoint.
   P03 remains closed with zero packages left.
 - **P07 is locally complete: six of six fixed checkpoints (100%).** All 98 DMX cases,
   script-template/API, default build, strict workspace Clippy, formatting and diff checks pass.
@@ -239,7 +241,7 @@ External qualification is separate from implementation. A historical pass is not
 | P05 Transport trust         | 100%       | VERIFIED_LOCAL | PASSED all four checkpoints    | Bundled/dev/LAN browser and native HTTP/WS operation, independent denial gates, exact CSP, reload reuse and restart fencing verified; native webview/platform interaction remains P17.                                                                                  |
 | P06 Dependencies            | 100%       | VERIFIED_LOCAL | PASSED all four checkpoints    | Refreshed advisory DB, narrow necessary updates, supported frontend migration, licensing/provenance and correctly selected network/audio/build/browser checks verified. Unix/native platform behavior retains P17.                                                      |
 | P07 DMX streaming           | 100%       | VERIFIED_LOCAL | PASSED six of six checkpoints  | 98 DMX cases, script API, default app, strict Clippy and formatting pass. Complete fake-time/native-loopback acceptance includes live priority, ordered metadata, termination/recovery and passive bounded actor service; P17/P18 retain platform/device qualification. |
-| P08 Formula backend intents | 25%        | IN_PROGRESS    | PASSED one of four checkpoints | Public atomic operation/result boundary, generated protocol and headless/workbench completion pass owning gates. Three checkpoints remain: atomic fragment paste, backend connections, shared caller/full acceptance and UI policy removal.                             |
+| P08 Formula backend intents | 75%        | IN_PROGRESS    | PASSED three of four checkpoints | Public operations, complete atomic fragment paste and backend connection policy pass owning gates. One checkpoint remains: shared caller/full acceptance, editor clipboard/paste migration, script integration and removal of paste polling/repair writes. |
 | P09 Graph document          | 0%         | NOT_STARTED    | PENDING                        | Ordered-map mutation costs source-derived                                                                                                                                                                                                                               |
 | P10 Canvas                  | 0%         | NOT_STARTED    | PENDING                        | Projection diagnostic and crossing-edge reproduction; mounted performance open                                                                                                                                                                                          |
 | P11 Workspace UX            | 0%         | NOT_STARTED    | PENDING                        | Collection/keyboard gaps source-reviewed; native usability open                                                                                                                                                                                                         |
@@ -9346,3 +9348,86 @@ checkpoints open**. Continue managed/compressed Formula fragment context and ful
 acceptance, backend connections, then shared UI/script/transport/headless migration. Existing
 compressed Mapping tests preserve the old workflow; they do not qualify new clipboard context.
 Keep the full P00-P18 goal active; do not reopen P03.
+
+### P08 managed context and connection ownership resumed
+
+Previous goal turn: **progress**. Milestone `cb882b15` was committed and pushed to `main`;
+the checkout is clean and matches `origin/main` on resume. P08 is **25%**, overall **40%**,
+with no P03 packages remaining. No owned validation job is left running from that milestone.
+
+The remaining clipboard context audit follows actual ownership: fragments select ANodes and
+internal edges; Formula surfaces/managed-region definitions and processor-owned frozen archives
+remain independently owned. Copying graph nodes must preserve their external references and
+must neither mutate source definitions nor replace compressed consumers' archives. Qualify
+these relationships through the new public operations with real Mapping fixtures, rather than
+invent a second processor-context clipboard schema.
+
+Backend connection work belongs in the Formula operation adapter and Alchemist graph domain.
+The current UI replaces whole-input/component conflicts itself. The generic domain currently
+declares only whole-value ports even though compilation supports component sockets; backend
+validation needs the same typed component declarations. No additional checkpoint credit yet.
+
+The connection candidate now preflights a detached typed graph, applies whole/component input
+replacement policy in the app, constructs one complete connection tree with its UUID known
+before insertion, and returns exact created/existing/replaced identities. Component ports use
+the shared value component/type contract. The Formula editor sends the generated request;
+its local compatibility gate, conflict scan and remove/create batch are removed. Existing
+copy/paste UI migration and script integration remain under the fourth checkpoint.
+
+Initial owning check passed (**32.84s**); Alchemist domain suite passed **180 cases**, including
+component declarations. App handle **30225** produced **202 passed / one failed / four ignored**
+after **3m18s** compilation: a test incorrectly called float-to-vector incompatible, though the
+declared conversion contract permits scalar broadcast. The test now uses an incompatible trigger
+input. Real compressed Mapping paste, frozen archive preservation, managed metadata ownership,
+connection replacement/components and undo/redo passed in that run.
+
+Generated authoring output now includes connect request/result/socket DTOs. UI handle **93144**
+passed **101 cases**, Svelte **zero errors / zero warnings**. Additional owning cases verify real
+external manager references in the copied Mapping graph, eight simultaneous pastes interleaved
+with independent creates through the production facade, and stale owner rejection after project
+replacement reuses live IDs. One attempted private engine observation was replaced by the
+runtime's public immutable read model; no private API was exposed for a test. The app crate's
+2021 edition also requires ordinary matching rather than 2024-only let chains in test code.
+
+Pipeline **1246** passed app all-target check (**32.26s**), strict workspace/all-target Clippy
+(**45.15s**), **205 app Alchemist cases / four ignored** and default build (**2m15s**).
+Pipeline **22146** then verified the whole-graph connection type preflight: **181 Alchemist
+library cases**, no-default selection, strict workspace Clippy, **206 app Alchemist cases /
+four ignored**, and default build (**2m17s**). These counts include the context/concurrency
+cases above. Generic per-port admission alone cannot enforce cross-input type variables; the
+new app preflight rejects incompatible inferred bindings before any engine edit.
+
+Final component review found that an unbound generic port's scalar default is a fallback, not
+a restriction on a type inferred from another edge. Domain component admission now uses the
+generic constraint's possible compound types without a graph solve per port. The operation's
+single whole-graph solve validates the actual inferred binding. Backend dynamic-input counting
+also recognizes component links. Handle **16311** owns the final app suite, including inferred
+vector input/output components, trailing-input growth and rejection of a scalar-only component.
+That run passed **208 cases / four ignored** after **3m20s** compilation.
+
+Final pipeline **18017** passes the final source: **181 library cases**, **176 no-default library
+cases**, strict workspace/all-target Clippy (**41.66s**), **208 app Alchemist cases / four ignored**
+(**3m19s** compilation, **3.44s** execution), and default app build (**2m15s**). The component
+helper borrows only the remaining generic constraints after socket declarations move, preserving
+ownership without cloning the signature. Unconstrained generics admit possible components too;
+forced scalar bindings remain scalar. No relevant compiler remains running.
+
+Fresh authoring export plus the UI formatter matches **all 14 generated files**, including the
+nested JSON-value DTO. Initial enumeration omitted the nested file; recursive enumeration fixes
+the check without any schema change. The prior UI run remains **101 passes**, Svelte zero
+errors/warnings; unchanged Golden UI has **56 passes** from the preceding milestone. Core's
+unchanged detached-forest implementation retains **620 passes / three ignored** and its
+1k/10k proportional import evidence. Actual root and Core Cargo formatters, explicit touched-app
+Rust formatting and diff checks pass.
+
+Final app test artifact `target/debug/deps/Chataigne2-8412ec1027fd3b87.exe` has SHA-256
+`353757a2aa0910578c33dc0e6b8274b1e1a113fcfa6b2da3f0a16b7e91551852`;
+default `target/debug/Chataigne2.exe` has SHA-256
+`2d57334bc6cc363d089f70a33a54f615be8da3a4ac4a214bbe59d37b037b1e4e`.
+
+This closes P08's atomic-fragment and backend-connection checkpoints. **P08 is 75% (three of
+four); overall scope coverage is approximately 43%, with seven of eighteen tasks fully closed.**
+Commit/push the verified milestone on `main`. Then finish the fourth checkpoint: editor clipboard
+and paste migration, shared script calls, slow-projection/transport acceptance, and deletion of
+legacy UI identity polling, remapping, label allocation and repair writes. Preserve the full plan
+goal. **P03 remains 100%, twelve of twelve packages closed, zero remaining.**

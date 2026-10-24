@@ -10,6 +10,7 @@ use ts_rs::{Config, TS};
 pub const FORMULA_OPERATION_NAMESPACE: &str = "chataigne.alchemist";
 pub const FORMULA_COPY_OPERATION: &str = "copyFragment";
 pub const FORMULA_PASTE_OPERATION: &str = "pasteFragment";
+pub const FORMULA_CONNECT_OPERATION: &str = "connect";
 pub const FORMULA_FRAGMENT_VERSION: u32 = 1;
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
@@ -60,12 +61,34 @@ pub struct FormulaPasteResult {
     pub identities: Vec<FormulaImportedIdentity>,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct FormulaSocketDto {
+    pub node: NodeId,
+    pub uuid: NodeUuid,
+    pub socket: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct FormulaConnectRequest {
+    pub formula: FormulaOwnerDto,
+    pub from: FormulaSocketDto,
+    pub to: FormulaSocketDto,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct FormulaConnectResult {
+    pub connection: FormulaOwnerDto,
+    pub replaced: Vec<FormulaOwnerDto>,
+}
+
 pub fn export_typescript(directory: impl AsRef<std::path::Path>) -> Result<(), Box<dyn std::error::Error>> {
     let directory = directory.as_ref();
     let config = Config::default().with_out_dir(directory).with_large_int("number");
     FormulaCopyRequest::export_all(&config)?;
     FormulaPasteRequest::export_all(&config)?;
     FormulaPasteResult::export_all(&config)?;
+    FormulaConnectRequest::export_all(&config)?;
+    FormulaConnectResult::export_all(&config)?;
     std::fs::write(
         directory.join("constants.ts"),
         format!(
@@ -73,6 +96,7 @@ pub fn export_typescript(directory: impl AsRef<std::path::Path>) -> Result<(), B
              export const FORMULA_OPERATION_NAMESPACE = {FORMULA_OPERATION_NAMESPACE:?};\n\
              export const FORMULA_COPY_OPERATION = {FORMULA_COPY_OPERATION:?};\n\
              export const FORMULA_PASTE_OPERATION = {FORMULA_PASTE_OPERATION:?};\n\
+             export const FORMULA_CONNECT_OPERATION = {FORMULA_CONNECT_OPERATION:?};\n\
              export const FORMULA_FRAGMENT_VERSION = {FORMULA_FRAGMENT_VERSION};\n"
         ),
     )?;

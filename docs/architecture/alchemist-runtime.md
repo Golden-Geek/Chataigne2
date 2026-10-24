@@ -28,7 +28,7 @@ additions and removals, preserving the shared source's authored order.
 
 ## Authored fragment operations
 
-`src/authoring.rs` owns the Formula copy/paste DTOs and TypeScript export. Generate the
+`src/authoring.rs` owns the Formula copy/paste/connect DTOs and TypeScript export. Generate the
 app UI contracts with `npm run codegen:alchemist-authoring --workspace chataigne-ui`.
 The command exports Rust DTOs and formats their generated files with the UI formatter.
 The app's `integration/formula/operations` adapter handles the `chataigne.alchemist`
@@ -45,6 +45,22 @@ every persisted record and names the created roots in input order. Missing recor
 failures or invalid graph reconstruction reject the operation atomically. Opaque authored
 strings are not UUID-remapped.
 
+Fragments contain selected ANodes, their complete children, and internal connections. Formula
+surface and managed-region definitions remain Formula-owned; compressed processor archives
+remain processor-owned. Copying nodes neither relocates managed anchors nor replaces a frozen
+consumer's archive. The real Mapping acceptance cases preserve external manager references,
+source definitions and compressed contents through paste, undo/redo and expansion. Whole-Formula
+duplication continues through the Formula Catalog creation boundary.
+
+Connect validates both endpoint IDs and UUIDs against the writable Formula, preflights the
+complete replacement graph, and solves its types before editing the engine. Whole-input links
+replace all links to that input's components; component links replace the same component and
+any whole-input link while preserving other components. Repeating an existing connection
+returns its existing identity without adding history. Replies include exact connection and
+replaced identities. Generic component declarations admit possible compound types without
+solving the graph per port; the single graph solve checks the final inferred type. Component
+links also participate in backend dynamic-input growth.
+
 Initial parameter declarations resolve the root's exact child before nested paths, so placement
 cannot accidentally target a Curve key with the same declaration name. Loaded property-getter
 sockets retain their identities during local ANode reconciliation; the Formula owns their
@@ -52,8 +68,9 @@ schema-dependent types. A schema-free fallback must not replace an already resto
 
 The UI's `formulaOperations.ts` checks result envelopes against generated types and retains
 opaque document capsules. It owns no label allocation, remapping, graph repair or identity
-detection. Migration of the existing Formula editor and qualification of managed/compressed
-content are tracked by P08 in the implementation ledger.
+detection. The Formula editor's connect handler now sends this operation directly; compatibility,
+replacement and dynamic-input policy stay in the backend. Remaining editor paste and script
+caller migration are tracked by P08 in the implementation ledger.
 
 ## Formula Catalog And Library
 

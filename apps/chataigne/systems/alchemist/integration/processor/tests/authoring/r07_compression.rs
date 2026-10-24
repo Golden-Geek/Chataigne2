@@ -1,14 +1,13 @@
 use super::*;
 
+mod fragment_operations;
+
 use golden_core::app::ProjectNode;
 
 use crate::app::systems_alchemist_processor::{
-    commit_mapping_compression, prepare_mapping_compression,
-    processor_compression_enabled, processor_frozen_source,
-    set_mapping_compression, MappingCompressionError,
-    settle_pending_mapping_transitions,
-    PROCESSOR_COMPRESSION_ENABLED_DECL_ID,
-    PROCESSOR_FROZEN_SOURCE_DECL_ID,
+    MappingCompressionError, PROCESSOR_COMPRESSION_ENABLED_DECL_ID, PROCESSOR_FROZEN_SOURCE_DECL_ID,
+    commit_mapping_compression, prepare_mapping_compression, processor_compression_enabled, processor_frozen_source,
+    set_mapping_compression, settle_pending_mapping_transitions,
 };
 
 #[test]
@@ -35,22 +34,21 @@ fn compression_removes_real_workflow_nodes_and_expansion_restores_their_uuids() 
     let archived_value = before
         .find_child_by_decl_id(command, "value")
         .expect("Set Parameter value should be addressable while editable");
-    let region_uuids = ["inputs", "filters", "outputs"]
-        .map(|id| before.node(region(&engine, processor, id)).unwrap().uuid);
+    let region_uuids =
+        ["inputs", "filters", "outputs"].map(|id| before.node(region(&engine, processor, id)).unwrap().uuid);
     let workflow_ids = region_uuids.map(|uuid| before.node_id_by_uuid(uuid).unwrap());
     assert!(!processor_compression_enabled(&before, processor));
     drop(before);
 
-    set_mapping_compression(&mut engine, processor, true)
-        .expect("valid Mapping should compress");
+    set_mapping_compression(&mut engine, processor, true).expect("valid Mapping should compress");
     let compressed = engine.process_tree_snapshot();
     assert!(processor_compression_enabled(&compressed, processor));
-    assert!(region_uuids
-        .iter()
-        .all(|uuid| compressed.node_id_by_uuid(*uuid).is_none()));
-    assert!(workflow_ids
-        .iter()
-        .all(|node| compressed.node(*node).is_none()));
+    assert!(
+        region_uuids
+            .iter()
+            .all(|uuid| compressed.node_id_by_uuid(*uuid).is_none())
+    );
+    assert!(workflow_ids.iter().all(|node| compressed.node(*node).is_none()));
     let frozen = processor_frozen_source(&compressed, processor)
         .expect("compressed source should decode")
         .expect("compressed source should exist");
@@ -108,13 +106,14 @@ fn compression_removes_real_workflow_nodes_and_expansion_restores_their_uuids() 
     assert_eq!(locked.node(formula).unwrap().param_value, Some(formula_before));
     drop(locked);
 
-    set_mapping_compression(&mut engine, processor, false)
-        .expect("compressed Mapping should expand");
+    set_mapping_compression(&mut engine, processor, false).expect("compressed Mapping should expand");
     let expanded = engine.process_tree_snapshot();
     assert!(!processor_compression_enabled(&expanded, processor));
-    assert!(region_uuids
-        .iter()
-        .all(|uuid| expanded.node_id_by_uuid(*uuid).is_some()));
+    assert!(
+        region_uuids
+            .iter()
+            .all(|uuid| expanded.node_id_by_uuid(*uuid).is_some())
+    );
     let frozen_value = expanded
         .find_child_by_decl_id(processor, PROCESSOR_FROZEN_SOURCE_DECL_ID)
         .and_then(|node| expanded.node(node))
@@ -126,8 +125,7 @@ fn compression_removes_real_workflow_nodes_and_expansion_restores_their_uuids() 
 fn compression_commit_rejects_stale_preparation_without_changing_representation() {
     let (mut engine, _, processor) = mapping_engine();
     let sink_uuid = source_param(&mut engine, "Stale sink", 0.0);
-    let prepared = prepare_mapping_compression(&engine, processor)
-        .expect("empty Mapping should prepare");
+    let prepared = prepare_mapping_compression(&engine, processor).expect("empty Mapping should prepare");
     let outputs = region(&engine, processor, "outputs");
     create_parameter_output(&mut engine, outputs, sink_uuid);
 
@@ -136,9 +134,11 @@ fn compression_commit_rejects_stale_preparation_without_changing_representation(
     assert_eq!(error, MappingCompressionError::Stale);
     let snapshot = engine.process_tree_snapshot();
     assert!(!processor_compression_enabled(&snapshot, processor));
-    assert!(snapshot
-        .find_child_by_decl_id(processor, PROCESSOR_COMPRESSION_ENABLED_DECL_ID)
-        .is_some());
+    assert!(
+        snapshot
+            .find_child_by_decl_id(processor, PROCESSOR_COMPRESSION_ENABLED_DECL_ID)
+            .is_some()
+    );
     assert!(snapshot.node(outputs).is_some());
 }
 
@@ -176,14 +176,8 @@ fn compressed_runtime_tracks_live_sources_without_replaying_on_mode_changes() {
     for _ in 0..8 {
         engine.run_tick(Duration::from_millis(8)).unwrap();
     }
-    let source = engine
-        .process_tree_snapshot()
-        .node_id_by_uuid(source_uuid)
-        .unwrap();
-    let sink = engine
-        .process_tree_snapshot()
-        .node_id_by_uuid(sink_uuid)
-        .unwrap();
+    let source = engine.process_tree_snapshot().node_id_by_uuid(source_uuid).unwrap();
+    let sink = engine.process_tree_snapshot().node_id_by_uuid(sink_uuid).unwrap();
     assert_eq!(
         engine.process_tree_snapshot().node(sink).unwrap().param_value,
         Some(ParamValue::Float(1.0))
@@ -265,9 +259,7 @@ fn production_runtime_trigger_uses_the_backend_transition_and_reports_blockers()
     let compression = snapshot
         .find_child_by_decl_id(processor, PROCESSOR_COMPRESSION_ENABLED_DECL_ID)
         .unwrap();
-    let error = snapshot
-        .find_child_by_decl_id(processor, "compression_error")
-        .unwrap();
+    let error = snapshot.find_child_by_decl_id(processor, "compression_error").unwrap();
     drop(snapshot);
     let runtime = ProductionRuntime::new(
         engine,
@@ -275,22 +267,22 @@ fn production_runtime_trigger_uses_the_backend_transition_and_reports_blockers()
             ProjectFileSpec::new("Mapping compression", "mapping-compression"),
             None,
         ),
-    ).unwrap();
-    let result = runtime.apply_ui_transaction(
-        UiEditIntent::SetParam {
-            node: compress,
-            value: ParamValue::Trigger(),
-            behaviour: ParameterEventBehaviour::Append,
-        },
-        Some("mapping-compression-test"),
-    ).unwrap();
+    )
+    .unwrap();
+    let result = runtime
+        .apply_ui_transaction(
+            UiEditIntent::SetParam {
+                node: compress,
+                value: ParamValue::Trigger(),
+                behaviour: ParameterEventBehaviour::Append,
+            },
+            Some("mapping-compression-test"),
+        )
+        .unwrap();
     assert!(result.acknowledgement.success, "{result:?}");
-    let snapshot = runtime
-        .read_model()
-        .snapshot_for_scope(UiSubscriptionScope::WholeGraph);
+    let snapshot = runtime.read_model().snapshot_for_scope(UiSubscriptionScope::WholeGraph);
     let node = |id| snapshot.nodes.iter().find(|node| node.node_id == id).unwrap();
-    let UiNodeDataDto::Parameter { param: compression } = &node(compression).data
-    else {
+    let UiNodeDataDto::Parameter { param: compression } = &node(compression).data else {
         panic!("compression status should remain an ordinary parameter");
     };
     assert_eq!(compression.value, ParamValue::Bool(false));
@@ -319,20 +311,22 @@ fn compressed_mapping_persists_and_restores_after_reload() {
     let loaded_processor = loaded.node_id_by_uuid(processor_uuid).unwrap();
     let snapshot = loaded.process_tree_snapshot();
     assert!(processor_compression_enabled(&snapshot, loaded_processor));
-    assert!(region_uuids
-        .iter()
-        .all(|uuid| snapshot.node_id_by_uuid(*uuid).is_none()));
-    assert!(processor_frozen_source(&snapshot, loaded_processor)
-        .unwrap()
-        .is_some());
+    assert!(
+        region_uuids
+            .iter()
+            .all(|uuid| snapshot.node_id_by_uuid(*uuid).is_none())
+    );
+    assert!(processor_frozen_source(&snapshot, loaded_processor).unwrap().is_some());
     drop(snapshot);
 
     set_mapping_compression(&mut loaded, loaded_processor, false).unwrap();
     let restored = loaded.process_tree_snapshot();
     assert!(!processor_compression_enabled(&restored, loaded_processor));
-    assert!(region_uuids
-        .iter()
-        .all(|uuid| restored.node_id_by_uuid(*uuid).is_some()));
+    assert!(
+        region_uuids
+            .iter()
+            .all(|uuid| restored.node_id_by_uuid(*uuid).is_some())
+    );
 }
 
 #[test]
@@ -344,39 +338,45 @@ fn compression_and_expansion_each_undo_and_redo_as_one_transition() {
     });
     set_mapping_compression(&mut engine, processor, true).unwrap();
     assert!(
-        engine
-            .apply_ui_intent(UiEditIntent::Undo)
-            .success,
+        engine.apply_ui_intent(UiEditIntent::Undo).success,
         "one undo should reverse compression"
     );
     let editable = engine.process_tree_snapshot();
     assert!(!processor_compression_enabled(&editable, processor));
-    assert!(region_uuids
-        .iter()
-        .all(|uuid| editable.node_id_by_uuid(*uuid).is_some()));
+    assert!(
+        region_uuids
+            .iter()
+            .all(|uuid| editable.node_id_by_uuid(*uuid).is_some())
+    );
     drop(editable);
     assert!(engine.apply_ui_intent(UiEditIntent::Redo).success);
     let compressed = engine.process_tree_snapshot();
     assert!(processor_compression_enabled(&compressed, processor));
-    assert!(region_uuids
-        .iter()
-        .all(|uuid| compressed.node_id_by_uuid(*uuid).is_none()));
+    assert!(
+        region_uuids
+            .iter()
+            .all(|uuid| compressed.node_id_by_uuid(*uuid).is_none())
+    );
     drop(compressed);
 
     set_mapping_compression(&mut engine, processor, false).unwrap();
     assert!(engine.apply_ui_intent(UiEditIntent::Undo).success);
     let recompressed = engine.process_tree_snapshot();
     assert!(processor_compression_enabled(&recompressed, processor));
-    assert!(region_uuids
-        .iter()
-        .all(|uuid| recompressed.node_id_by_uuid(*uuid).is_none()));
+    assert!(
+        region_uuids
+            .iter()
+            .all(|uuid| recompressed.node_id_by_uuid(*uuid).is_none())
+    );
     drop(recompressed);
     assert!(engine.apply_ui_intent(UiEditIntent::Redo).success);
     let reexpanded = engine.process_tree_snapshot();
     assert!(!processor_compression_enabled(&reexpanded, processor));
-    assert!(region_uuids
-        .iter()
-        .all(|uuid| reexpanded.node_id_by_uuid(*uuid).is_some()));
+    assert!(
+        region_uuids
+            .iter()
+            .all(|uuid| reexpanded.node_id_by_uuid(*uuid).is_some())
+    );
 }
 
 #[test]
@@ -385,9 +385,7 @@ fn duplicated_compressed_mapping_gets_a_disjoint_archived_identity_map() {
     set_mapping_compression(&mut engine, processor, true).unwrap();
     let snapshot = engine.process_tree_snapshot();
     let parent = snapshot.node(processor).unwrap().parent.unwrap();
-    let original = processor_frozen_source(&snapshot, processor)
-        .unwrap()
-        .unwrap();
+    let original = processor_frozen_source(&snapshot, processor).unwrap().unwrap();
     let original_uuids = original
         .authored_regions
         .iter()
@@ -417,26 +415,26 @@ fn duplicated_compressed_mapping_gets_a_disjoint_archived_identity_map() {
                     .is_some_and(|node| node.node_type == StateProcessor::NODE_TYPE)
         })
         .expect("compressed Mapping duplicate should exist");
-    let duplicate_source = processor_frozen_source(&snapshot, duplicate)
-        .unwrap()
-        .unwrap();
+    let duplicate_source = processor_frozen_source(&snapshot, duplicate).unwrap().unwrap();
     let duplicate_uuids = duplicate_source
         .authored_regions
         .iter()
         .map(|region| region.document.root.uuid)
         .collect::<Vec<_>>();
-    assert!(original_uuids
-        .iter()
-        .all(|uuid| !duplicate_uuids.contains(uuid)));
+    assert!(original_uuids.iter().all(|uuid| !duplicate_uuids.contains(uuid)));
     drop(snapshot);
 
     set_mapping_compression(&mut engine, processor, false).unwrap();
     set_mapping_compression(&mut engine, duplicate, false).unwrap();
     let expanded = engine.process_tree_snapshot();
-    assert!(original_uuids
-        .iter()
-        .all(|uuid| expanded.node_id_by_uuid(*uuid).is_some()));
-    assert!(duplicate_uuids
-        .iter()
-        .all(|uuid| expanded.node_id_by_uuid(*uuid).is_some()));
+    assert!(
+        original_uuids
+            .iter()
+            .all(|uuid| expanded.node_id_by_uuid(*uuid).is_some())
+    );
+    assert!(
+        duplicate_uuids
+            .iter()
+            .all(|uuid| expanded.node_id_by_uuid(*uuid).is_some())
+    );
 }

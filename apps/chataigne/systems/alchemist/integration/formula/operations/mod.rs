@@ -8,6 +8,7 @@ const MAX_ITEMS: usize = 16_384;
 const MAX_RECORDS: usize = 100_000;
 const MAX_DEPTH: usize = 32;
 
+mod connection;
 #[cfg(test)]
 mod tests;
 
@@ -24,6 +25,11 @@ pub(crate) fn apply_operation(
         )?)
         .map_err(|error| error.to_string()),
         FORMULA_PASTE_OPERATION => serde_json::to_value(paste_fragment(
+            engine,
+            serde_json::from_value(payload).map_err(|error| error.to_string())?,
+        )?)
+        .map_err(|error| error.to_string()),
+        FORMULA_CONNECT_OPERATION => serde_json::to_value(connection::connect(
             engine,
             serde_json::from_value(payload).map_err(|error| error.to_string())?,
         )?)

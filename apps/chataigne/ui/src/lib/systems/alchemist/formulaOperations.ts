@@ -2,12 +2,16 @@ import type { WorkbenchSession } from 'golden_ui';
 import {
 	FORMULA_OPERATION_NAMESPACE,
 	FORMULA_COPY_OPERATION,
-	FORMULA_PASTE_OPERATION
+	FORMULA_PASTE_OPERATION,
+	FORMULA_CONNECT_OPERATION
 } from './generated/authoring/constants';
 import type { FormulaCopyRequest } from './generated/authoring/FormulaCopyRequest';
 import type { FormulaFragment } from './generated/authoring/FormulaFragment';
 import type { FormulaPasteRequest } from './generated/authoring/FormulaPasteRequest';
 import type { FormulaPasteResult } from './generated/authoring/FormulaPasteResult';
+import type { FormulaConnectRequest } from './generated/authoring/FormulaConnectRequest';
+import type { FormulaConnectResult } from './generated/authoring/FormulaConnectResult';
+import type { FormulaOwnerDto } from './generated/authoring/FormulaOwnerDto';
 
 type OperationSession = Pick<WorkbenchSession, 'invokeAppOperation'>;
 type OperationValue = Awaited<ReturnType<OperationSession['invokeAppOperation']>>;
@@ -17,6 +21,9 @@ const record = (value: OperationValue): value is { [key: string]: OperationValue
 
 const nodeId = (value: OperationValue): value is number =>
 	typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+
+const ownerReply = (value: OperationValue): value is FormulaOwnerDto =>
+	record(value) && nodeId(value.node) && typeof value.uuid === 'string';
 
 /** Checks the reply envelope; authored document capsules remain opaque JSON. */
 const fragmentReply = (value: OperationValue): value is FormulaFragment =>
@@ -75,4 +82,25 @@ export const pasteFormulaFragment = async (
 	});
 	if (!pasteReply(result)) throw new Error('Formula paste returned an invalid result.');
 	return result;
+};
+
+export const connectFormulaNodes = async (
+	session: OperationSession,
+	request: FormulaConnectRequest
+): Promise<FormulaConnectResult> => {
+	const result = await session.invokeAppOperation({
+		kind: 'invokeAppOperation',
+		namespace: FORMULA_OPERATION_NAMESPACE,
+		operation: FORMULA_CONNECT_OPERATION,
+		payload: request
+	});
+	if (
+		!record(result) ||
+		!ownerReply(result.connection) ||
+		!Array.isArray(result.replaced) ||
+		!result.replaced.every(ownerReply)
+	) {
+		throw new Error('Formula connect returned an invalid result.');
+	}
+	return { connection: result.connection, replaced: result.replaced };
 };

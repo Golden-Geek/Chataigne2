@@ -155,6 +155,10 @@ pub(super) fn socket_value_decl_id(direction: &str, socket: &str) -> String {
 }
 
 pub(super) fn numbered_socket_index(socket: &str, prefix: &str) -> Option<i32> {
+    let socket = socket
+        .rsplit_once('.')
+        .filter(|(_, component)| chataigne_alchemist::ValueComponent::parse(component).is_some())
+        .map_or(socket, |(root, _)| root);
     let index = socket.strip_prefix(prefix)?;
     index.parse::<i32>().ok().filter(|index| *index > 0)
 }

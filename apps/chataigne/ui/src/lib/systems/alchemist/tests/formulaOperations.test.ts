@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { copyFormulaFragment, pasteFormulaFragment } from '../formulaOperations';
+import {
+	copyFormulaFragment,
+	pasteFormulaFragment,
+	connectFormulaNodes
+} from '../formulaOperations';
 import type { FormulaFragment } from '../generated/authoring/FormulaFragment';
 import type { FormulaPasteResult } from '../generated/authoring/FormulaPasteResult';
 
@@ -11,6 +15,37 @@ const fragment: FormulaFragment = {
 };
 
 describe('Formula operation adapter', () => {
+	it('sends endpoint identities and retains authoritative connection replacement results', async () => {
+		const result = {
+			connection: { node: 90, uuid: 'created-edge' },
+			replaced: [{ node: 89, uuid: 'old-edge' }]
+		};
+		const session = { invokeAppOperation: vi.fn().mockResolvedValue(result) };
+		const request = {
+			formula,
+			from: { node: 7, uuid: 'source', socket: 'value.x' },
+			to: { node: 8, uuid: 'target', socket: 'value.y' }
+		};
+		expect(await connectFormulaNodes(session, request)).toEqual(result);
+		expect(session.invokeAppOperation).toHaveBeenCalledWith({
+			kind: 'invokeAppOperation',
+			namespace: 'chataigne.alchemist',
+			operation: 'connect',
+			payload: request
+		});
+	});
+	it('rejects a connection reply with missing authoritative identity data', async () => {
+		const session = {
+			invokeAppOperation: vi.fn().mockResolvedValue({ connection: { node: 90 }, replaced: [] })
+		};
+		await expect(
+			connectFormulaNodes(session, {
+				formula,
+				from: { node: 7, uuid: 'source', socket: 'value' },
+				to: { node: 8, uuid: 'target', socket: 'value1' }
+			})
+		).rejects.toThrow('invalid result');
+	});
 	it('retains complete copy capsules without consulting the projected graph', async () => {
 		const session = { invokeAppOperation: vi.fn().mockResolvedValue(fragment) };
 		expect(await copyFormulaFragment(session, { formula, nodes: [10, 11] })).toBe(fragment);

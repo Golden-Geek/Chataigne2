@@ -9,8 +9,8 @@ use uuid::Uuid;
 use crate::{
     AEdge, ALCHEMIST_SCHEMA_VERSION, ANodeConfig, ANodeId, ANodeInstance, ANodeRegistry, ANodeTypeId, ANodeUiState,
     AlchemistGraphId, ExposedSurface, FormulaPropertySchema, GraphMetadata, InputSocketRef, OutputSocketRef,
-    RuntimeValue, SignatureCtx, SocketId, TypeBindings, TypeConstraint, ValueTypeId, ValueTypeRegistry,
-    primitive_node_registry,
+    RuntimeValue, SignatureCtx, SocketId, TypeBindings, TypeConstraint, ValueComponent, ValueTypeId, ValueTypeRegistry,
+    component_value_type, primitive_node_registry,
 };
 
 const PORT_NAMESPACE: Uuid = Uuid::from_u128(0x4b95_7068_e36a_53e7_9578_1558_f053_66ec);
@@ -301,6 +301,36 @@ impl AlchemistGraphDomain {
                 constraint: socket.constraint,
             },
         }));
+        let mut components = Vec::new();
+        for port in &ports {
+            let restriction = match &port.data.constraint {
+                TypeConstraint::Generic(variable) => signature.generic_constraints.get(variable),
+                _ => None,
+            };
+            for name in ["x", "y", "z", "r", "g", "b", "a"] {
+                let component = ValueComponent::parse(name).unwrap();
+                let Some(component_type) =
+                    component_port_type(&port.data.constraint, node, restriction, &self.value_types, component)
+                else {
+                    continue;
+                };
+                let socket = SocketId::new(format!("{}.{name}", port.data.socket));
+                let id = match port.direction {
+                    PortDirection::Input => Self::input_port_id(&socket),
+                    PortDirection::Output => Self::output_port_id(&socket),
+                };
+                components.push(PortDefinition {
+                    id,
+                    direction: port.direction,
+                    data: AlchemistPortData {
+                        socket,
+                        label: format!("{} {name}", port.data.label),
+                        constraint: TypeConstraint::Exact(component_type),
+                    },
+                });
+            }
+        }
+        ports.extend(components);
         PortSchema { ports }
     }
 }
@@ -451,6 +481,30 @@ fn resolved_constraint_type(constraint: &TypeConstraint, node: &AlchemistNodeDat
         TypeConstraint::OneOf(constraints) if constraints.len() == 1 => resolved_constraint_type(&constraints[0], node),
         _ => None,
     }
+}
+
+fn component_port_type(
+    constraint: &TypeConstraint,
+    node: &AlchemistNodeData,
+    restriction: Option<&TypeConstraint>,
+    value_types: &ValueTypeRegistry,
+    component: ValueComponent,
+) -> Option<ValueTypeId> {
+    if let Some(value_type) = resolved_constraint_type(constraint, node) {
+        return component_value_type(&value_type, component);
+    }
+    let TypeConstraint::Generic(_) = constraint else {
+        return None;
+    };
+    // Defaults are fallbacks, not inference restrictions. Declare possible generic
+    // components here; one graph type solve checks the final binding, not one per port.
+    ["vec2", "vec3", "color"].into_iter().find_map(|candidate| {
+        let value_type = ValueTypeId::new(candidate);
+        restriction
+            .is_none_or(|constraint| constraint.accepts_value_type(&value_type, value_types))
+            .then(|| component_value_type(&value_type, component))
+            .flatten()
+    })
 }
 
 fn socket_for(

@@ -51,11 +51,11 @@
 		anodeDefaultColor,
 		directChild,
 		formulaANodes,
-		canConnectGraphConnection,
 		parameterChild,
 		toGraphEdges,
 		toGraphNodes
 	} from '../alchemistGraph';
+	import { connectFormulaNodes } from '../formulaOperations';
 	import type {
 		FormulaPreviewDemandDto,
 		FormulaPreviewModeDto,
@@ -1692,78 +1692,19 @@
 		persistFormulaCamera(formula.uuid, camera);
 	};
 
-	const socketRootId = (socketId: string): string => {
-		const dotIndex = socketId.lastIndexOf('.');
-		if (dotIndex < 0) return socketId;
-		const component = socketId.slice(dotIndex + 1);
-		return ['x', 'y', 'z', 'r', 'g', 'b', 'a'].includes(component)
-			? socketId.slice(0, dotIndex)
-			: socketId;
-	};
-
-	const targetInputConflict = (edgeSocketId: string, nextSocketId: string): boolean => {
-		const edgeRoot = socketRootId(edgeSocketId);
-		const nextRoot = socketRootId(nextSocketId);
-		if (edgeRoot !== nextRoot) return false;
-		const edgeIsComponent = edgeSocketId !== edgeRoot;
-		const nextIsComponent = nextSocketId !== nextRoot;
-		return !edgeIsComponent || !nextIsComponent || edgeSocketId === nextSocketId;
-	};
-
 	const connectNodes = (connection: GraphConnectionRequest): void => {
-		if (!formula || formulaReadOnly || !graphState) return;
+		const activeSession = session;
+		const currentFormula = formula;
+		if (!activeSession || !currentFormula || formulaReadOnly || !graphState) return;
 		const source = graphState.nodesById.get(Number(connection.from.nodeId));
 		const target = graphState.nodesById.get(Number(connection.to.nodeId));
-		if (source?.node_type !== ANODE_NODE_TYPE || target?.node_type !== ANODE_NODE_TYPE) return;
-		const graphNodes = toGraphNodes(formula, graphState.nodesById, anodeItems);
-		if (!canConnectGraphConnection(graphNodes, connection)) return;
-		const edges = toGraphEdges(formula, graphState.nodesById);
-		if (
-			edges.some(
-				(edge) =>
-					edge.from.nodeId === connection.from.nodeId &&
-					edge.from.socketId === connection.from.socketId &&
-					edge.to.nodeId === connection.to.nodeId &&
-					edge.to.socketId === connection.to.socketId
-			)
-		) {
-			return;
-		}
-		const replacedEdges = edges
-			.filter(
-				(edge) =>
-					edge.to.nodeId === connection.to.nodeId &&
-					targetInputConflict(edge.to.socketId, connection.to.socketId)
-			)
-			.flatMap((edge) => (edge.id === undefined ? [] : [Number(edge.id)]));
+		if (!source || !target) return;
 		void runMutation(async () => {
-			const intents: UiEditIntent[] = [];
-			if (replacedEdges.length > 0) intents.push({ kind: 'removeNodes', nodes: replacedEdges });
-			intents.push({
-				kind: 'createUserItem',
-				parent: formula.node_id,
-				node_type: CONNECTION_NODE_TYPE,
-				label: 'Connection',
-				initial_params: [
-					initialParam('source_node', {
-						kind: 'reference',
-						uuid: source.uuid,
-						cached_id: source.node_id,
-						cached_name: source.meta.label,
-						relative_path_from_root: []
-					}),
-					initialParam('source_socket', { kind: 'str', value: connection.from.socketId }),
-					initialParam('target_node', {
-						kind: 'reference',
-						uuid: target.uuid,
-						cached_id: target.node_id,
-						cached_name: target.meta.label,
-						relative_path_from_root: []
-					}),
-					initialParam('target_socket', { kind: 'str', value: connection.to.socketId })
-				]
+			await connectFormulaNodes(activeSession, {
+				formula: { node: currentFormula.node_id, uuid: currentFormula.uuid },
+				from: { node: source.node_id, uuid: source.uuid, socket: connection.from.socketId },
+				to: { node: target.node_id, uuid: target.uuid, socket: connection.to.socketId }
 			});
-			await editParameters('Connect ANodes', intents);
 		});
 	};
 

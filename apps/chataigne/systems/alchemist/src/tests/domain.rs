@@ -101,3 +101,81 @@ fn common_graph_envelope_rebuilds_indexes_and_preserves_alchemist_semantics() {
     );
     assert_eq!(restored, document);
 }
+
+#[test]
+fn vector_component_ports_have_stable_ids_and_scalar_compatibility() {
+    let domain = AlchemistGraphDomain::with_primitives();
+    let mut graph = AlchemistGraphDomain::new_document();
+    let source = ANodeInstance::new(ANodeTypeId::new("pack_vec3"), "Vector");
+    let target = ANodeInstance::new(ANodeTypeId::new("extract_vec3"), "Components");
+    let mut transaction = GraphTransaction::for_document(&graph);
+    AlchemistGraphDomain::insert_node(&mut transaction, source.clone());
+    AlchemistGraphDomain::insert_node(&mut transaction, target.clone());
+    transaction.commit(&mut graph, &domain).unwrap();
+    let mut transaction = GraphTransaction::for_document(&graph);
+    AlchemistGraphDomain::connect(
+        &mut transaction,
+        &graph,
+        OutputSocketRef::new(source.id, "value.x"),
+        InputSocketRef::new(target.id, "value.y"),
+    );
+    transaction.commit(&mut graph, &domain).unwrap();
+    let ports = domain.node_ports(
+        &graph.node(AlchemistGraphDomain::node_id(source.id)).unwrap().data,
+        &graph,
+    );
+    assert!(
+        ports
+            .get(AlchemistGraphDomain::output_port_id(&SocketId::new("value.x")))
+            .is_some()
+    );
+    assert!(
+        ports
+            .get(AlchemistGraphDomain::output_port_id(&SocketId::new("value.a")))
+            .is_none()
+    );
+    let mut invalid = GraphTransaction::for_document(&graph);
+    AlchemistGraphDomain::connect(
+        &mut invalid,
+        &graph,
+        OutputSocketRef::new(source.id, "value.a"),
+        InputSocketRef::new(target.id, "value.x"),
+    );
+    assert!(invalid.commit(&mut graph, &domain).is_err());
+    assert_eq!(graph.edges().len(), 1);
+}
+
+#[test]
+fn generic_port_admission_requires_the_graph_type_solver_for_cross_input_constraints() {
+    let domain = AlchemistGraphDomain::with_primitives();
+    let mut graph = AlchemistGraphDomain::new_document();
+    let trigger = ANodeInstance::new(ANodeTypeId::new("trigger_on_off"), "Trigger");
+    let scalar = ANodeInstance::new(ANodeTypeId::new("constant"), "Scalar");
+    let compare = ANodeInstance::new(ANodeTypeId::new("compare"), "Compare");
+    let mut transaction = GraphTransaction::for_document(&graph);
+    for node in [&trigger, &scalar, &compare] {
+        AlchemistGraphDomain::insert_node(&mut transaction, node.clone());
+    }
+    AlchemistGraphDomain::connect(
+        &mut transaction,
+        &graph,
+        OutputSocketRef::new(trigger.id, "on"),
+        InputSocketRef::new(compare.id, "left"),
+    );
+    AlchemistGraphDomain::connect(
+        &mut transaction,
+        &graph,
+        OutputSocketRef::new(scalar.id, "value"),
+        InputSocketRef::new(compare.id, "right"),
+    );
+    transaction.commit(&mut graph, &domain).unwrap();
+    let solved = crate::solve_document_types(
+        &graph,
+        &crate::TypeSolveCtx {
+            nodes: &crate::primitive_node_registry(),
+            value_types: &crate::ValueTypeRegistry::with_primitives(),
+            properties: None,
+        },
+    );
+    assert!(solved.has_errors());
+}
