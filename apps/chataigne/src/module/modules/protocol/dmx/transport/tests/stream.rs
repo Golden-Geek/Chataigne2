@@ -75,3 +75,55 @@ fn native_worker_clocks_fifo_blackout_and_refresh_then_terminates_on_the_unicast
         }
     }
 }
+
+#[test]
+fn native_receive_reports_source_loss_once_holds_last_look_and_recovers() {
+    let probe = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
+    let listen_port = probe.local_addr().unwrap().port();
+    drop(probe);
+    let mut transport = spawn(DmxTransportConfig {
+        protocol: DmxProtocol::Sacn,
+        source_id: [77; 16],
+        bind_ip: Ipv4Addr::LOCALHOST.into(),
+        listen_port,
+        receive_enabled: true,
+        universe: 1,
+        destination: Some((Ipv4Addr::LOCALHOST, listen_port).into()),
+    });
+    let sender = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
+    let packet = super::super::input::tests::sacn_packet(1, 0, 100, &[33, 44]);
+    sender.send_to(&packet, (Ipv4Addr::LOCALHOST, listen_port)).unwrap();
+    until(|| transport.has_frame());
+    assert!(!transport.take_frame().unwrap().metadata.stale);
+    let mut losses = 0;
+    let started = Instant::now();
+    loop {
+        while let Some(status) = transport.take_status() {
+            match status {
+                DmxWorkerEvent::InputLost => losses += 1,
+                other => panic!("unexpected source status: {other:?}"),
+            }
+        }
+        if let Some(frame) = transport.take_frame() {
+            assert!(frame.metadata.stale);
+            assert_eq!(&frame.slots[..2], &[33, 44]);
+            break;
+        }
+        assert!(started.elapsed() < Duration::from_secs(4));
+        thread::sleep(Duration::from_millis(1));
+    }
+    assert_eq!(losses, 1);
+    sender.send_to(&packet, (Ipv4Addr::LOCALHOST, listen_port)).unwrap();
+    until(|| transport.has_frame());
+    assert!(!transport.take_frame().unwrap().metadata.stale);
+    let mut recoveries = 0;
+    while let Some(status) = transport.take_status() {
+        match status {
+            DmxWorkerEvent::InputRecovered => recoveries += 1,
+            other => panic!("unexpected source status: {other:?}"),
+        }
+    }
+    assert_eq!(recoveries, 1);
+    assert!(transport.is_running());
+    transport.stop();
+}

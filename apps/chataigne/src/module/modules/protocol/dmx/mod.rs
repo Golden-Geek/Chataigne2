@@ -285,9 +285,21 @@ impl DmxModuleBase {
                 DmxWorkerEvent::Ready => {
                     self.base.set_connected(ctx, true);
                     self.clear_transport_warning(ctx);
+                    golden_core::node::NodeHandle::new(self.id()).clear_warning(ctx, Some("dmx_input"));
                     self.reconnect.reset();
                 }
                 DmxWorkerEvent::Warning(message) => self.set_transport_warning(ctx, &message),
+                DmxWorkerEvent::InputLost => {
+                    golden_core::node::NodeHandle::new(self.id()).set_warning_with(
+                        ctx,
+                        Some("dmx_input"),
+                        "DMX input sources lost; holding last look",
+                        None,
+                    );
+                }
+                DmxWorkerEvent::InputRecovered => {
+                    golden_core::node::NodeHandle::new(self.id()).clear_warning(ctx, Some("dmx_input"));
+                }
                 DmxWorkerEvent::Error(error) => {
                     self.transport_failed(ctx, error);
                     return;

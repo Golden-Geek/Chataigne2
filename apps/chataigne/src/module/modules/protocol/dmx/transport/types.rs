@@ -1,4 +1,5 @@
-use super::super::frame::{ARTNET_MAX_UNIVERSE, DmxFrame, SACN_MAX_UNIVERSE};
+use super::super::frame::{ARTNET_MAX_UNIVERSE, SACN_MAX_UNIVERSE};
+pub(crate) use super::input::InputFrame;
 use crate::app::module::script_api::NativeCallbackPayload;
 #[cfg(test)]
 use golden_io::RetainedPayload;
@@ -49,19 +50,19 @@ pub(super) enum ReceivePoll {
     Empty,
     Ignored,
     Invalid(&'static str),
-    Frame(DmxFrame),
+    Frame(InputFrame),
 }
 
 #[derive(Debug)]
 pub(crate) struct ReceivedFrame {
-    pub frame: DmxFrame,
+    pub frame: InputFrame,
     pub json: String,
     pub callback: NativeCallbackPayload,
     pub source: RevisionGuard,
 }
 impl Deref for ReceivedFrame {
-    type Target = DmxFrame;
-    fn deref(&self) -> &DmxFrame {
+    type Target = InputFrame;
+    fn deref(&self) -> &InputFrame {
         &self.frame
     }
 }
@@ -70,6 +71,8 @@ impl Deref for ReceivedFrame {
 pub(crate) enum DmxWorkerEvent {
     Ready,
     Warning(String),
+    InputLost,
+    InputRecovered,
     Error(String),
     #[cfg(test)]
     Frame(RetainedPayload<ReceivedFrame>),

@@ -86,6 +86,7 @@ pub(super) fn run<E: Endpoint>(
     let mut commands = std::collections::VecDeque::<Output>::with_capacity(TURN);
     let mut pressured = false;
     let mut invalid_reported = false;
+    let mut input_lost = false;
     while !ctx.cancellation().is_cancelled() {
         let remaining = TURN - commands.len();
         if remaining != 0 {
@@ -142,26 +143,41 @@ pub(super) fn run<E: Endpoint>(
                             invalid_reported = true;
                         }
                     }
-                    Ok(ReceivePoll::Frame(frame)) => match prepare_input(frame, &config, source.clone(), &input) {
-                        Ok(frame) => {
-                            let mut latest = shared.latest.lock().unwrap_or_else(|poison| poison.into_inner());
-                            if latest.replace(frame).is_some() {
-                                shared.replaced.fetch_add(1, Ordering::Relaxed);
+                    Ok(ReceivePoll::Frame(frame)) => {
+                        if frame.metadata.stale != input_lost {
+                            input_lost = frame.metadata.stale;
+                            if !publish(
+                                &ctx,
+                                if input_lost {
+                                    DmxWorkerEvent::InputLost
+                                } else {
+                                    DmxWorkerEvent::InputRecovered
+                                },
+                            ) {
+                                return;
                             }
-                            drop(latest);
-                            shared.wake.notify();
-                            pressured = false;
                         }
-                        Err(error) => {
-                            shared.replaced.fetch_add(1, Ordering::Relaxed);
-                            if !pressured {
-                                if !publish(&ctx, DmxWorkerEvent::Warning(diagnostic(error))) {
-                                    return;
+                        match prepare_input(frame, &config, source.clone(), &input) {
+                            Ok(frame) => {
+                                let mut latest = shared.latest.lock().unwrap_or_else(|poison| poison.into_inner());
+                                if latest.replace(frame).is_some() {
+                                    shared.replaced.fetch_add(1, Ordering::Relaxed);
                                 }
-                                pressured = true;
+                                drop(latest);
+                                shared.wake.notify();
+                                pressured = false;
+                            }
+                            Err(error) => {
+                                shared.replaced.fetch_add(1, Ordering::Relaxed);
+                                if !pressured {
+                                    if !publish(&ctx, DmxWorkerEvent::Warning(diagnostic(error))) {
+                                        return;
+                                    }
+                                    pressured = true;
+                                }
                             }
                         }
-                    },
+                    }
                     Err(error) => {
                         publish(&ctx, DmxWorkerEvent::Error(diagnostic(error)));
                         return;
@@ -209,22 +225,39 @@ fn publish(ctx: &WorkerContext<Output, DmxWorkerEvent>, event: DmxWorkerEvent) -
     ctx.publish_weighted(event, weight).is_ok()
 }
 fn prepare_input(
-    frame: DmxFrame,
+    frame: InputFrame,
     config: &DmxTransportConfig,
     source: golden_io::RevisionGuard,
     input: &PayloadPool,
 ) -> Result<RetainedPayload<ReceivedFrame>, String> {
-    validate_frame(&frame, config.protocol)?;
+    if frame.universe == 0
+        || frame.universe > config.protocol.maximum_universe()
+        || frame.slots.len() > DMX_SLOT_COUNT
+        || frame.slots.capacity() > DMX_SLOT_COUNT
+        || frame.metadata.sources.len() > input::MAX_SOURCES
+        || frame
+            .metadata
+            .priorities
+            .as_ref()
+            .is_some_and(|priorities| priorities.len() > DMX_SLOT_COUNT)
+    {
+        return Err("DMX input exceeds its universe/source/512-slot bounds".into());
+    }
     let reservation = input
         .try_reserve(FRAME_WEIGHT)
         .map_err(|_| "DMX incoming payload capacity exhausted")?;
     let json = super::super::frame::slots_json(&frame.slots);
+    let mut metadata = serde_json::to_value(&frame.metadata).map_err(|error| error.to_string())?;
+    metadata
+        .as_object_mut()
+        .unwrap()
+        .insert("protocol".into(), serde_json::json!(config.protocol.label()));
     let callback = NativeCallbackPayload::prepare(
         "dmxFrameReceived",
         vec![
             serde_json::json!(frame.universe),
             serde_json::json!(&frame.slots),
-            serde_json::json!({"protocol": config.protocol.label(), "sequence": frame.sequence, "priority": frame.priority}),
+            metadata,
         ],
     )?;
     reservation

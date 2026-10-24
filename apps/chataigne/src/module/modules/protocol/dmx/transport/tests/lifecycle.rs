@@ -112,9 +112,12 @@ impl worker::Endpoint for Fake {
         }
         let frame = self.control.frames.lock().unwrap().pop_front();
         if frame.is_none() && self.control.continuous.load(Ordering::Acquire) {
-            Ok(ReceivePoll::Frame(DmxFrame::new(1, vec![(sequence % 256) as u8; 512])?))
+            Ok(ReceivePoll::Frame(input(DmxFrame::new(
+                1,
+                vec![(sequence % 256) as u8; 512],
+            )?)))
         } else {
-            Ok(frame.map_or(ReceivePoll::Empty, ReceivePoll::Frame))
+            Ok(frame.map_or(ReceivePoll::Empty, |frame| ReceivePoll::Frame(input(frame))))
         }
     }
     fn command_at(&self) -> Option<Instant> {

@@ -9,6 +9,20 @@ use artnet_protocol::{ArtCommand, Output};
 use super::*;
 mod lifecycle;
 mod stream;
+fn input(frame: DmxFrame) -> InputFrame {
+    InputFrame {
+        universe: frame.universe,
+        slots: frame.slots,
+        metadata: super::input::InputMetadata {
+            sequence: Some(frame.sequence),
+            priority: Some(frame.priority),
+            sources: Vec::new(),
+            priorities: None,
+            synchronized: false,
+            stale: false,
+        },
+    }
+}
 fn until(mut ready: impl FnMut() -> bool) {
     let deadline = Instant::now() + Duration::from_secs(3);
     while !ready() {
@@ -149,7 +163,7 @@ fn sacn_worker_round_trips_a_unicast_frame() {
         panic!("expected a received sACN frame");
     };
     assert_eq!(frame.universe, 1);
-    assert_eq!(frame.priority, 110);
+    assert_eq!(frame.metadata.priority, Some(110));
     assert_eq!(&frame.slots[..3], &[7, 8, 9]);
     let stop_started = Instant::now();
     transport.stop();

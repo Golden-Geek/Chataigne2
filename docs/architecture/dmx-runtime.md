@@ -24,9 +24,39 @@ Native endpoints reuse one 64 KiB whole-UDP buffer, then check protocol size lim
 decoding: 1,024 bytes for Art-Net and 1,144 for sACN. This avoids treating Windows UDP truncation
 errors as endpoint failures. The sixteen native slots therefore admit at most 1 MiB of this
 scratch storage, separately from library state and retained payload quotas. Art-Net filters its
-configured universe; non-DMX sACN START codes are ignored. Malformed/oversized datagrams are
+configured universe; unsupported sACN START codes are ignored. Malformed/oversized datagrams are
 consumed without retiring the endpoint and produce at most one warning per worker lifetime.
 Actual socket errors still enter the existing explicit failure/reconnect path.
+
+## Receive source state
+
+`transport/input` owns caller-clocked receive state. Art-Net uses the established codec, two
+IP/Physical source slots and HTP merging. Its sequence filter handles non-zero wrap and disabled
+ordering; ArtSync follows the current controller, is ignored across different-IP merges and
+returns to live input after four seconds. Ten-second source expiry frees admission; losing every
+source holds the last published look.
+
+sACN uses eight admitted CIDs, with a fixed-capacity protocol receiver per CID and the crate's
+fixed-capacity merger for the combined look. This composition matters: x39-sacn 0.2.1's combined
+receiver keys synchronization by address and drops the synchronization CID and sequence before
+release. The app scopes those state machines per CID and rejects unrelated/old sync packets at
+admission. The library continues to own data sequencing, source loss, per-address priority,
+synchronization buffering and timeout policy. Each CID admits eight synchronization-history
+addresses; current multicast interest remains at most one address per CID. Native membership
+updates leave obsolete groups before joining replacements, bounding memberships through churn
+to eight sync groups plus the configured data group. Output-only endpoints allocate no receive state.
+
+The module selects one local interface, so input starts without interface sampling or a wait
+for potential per-address-priority data. Actual PAP packets remain supported. Preview and other
+START codes are filtered. Source overflow is rejected with a bounded diagnostic; source loss or
+termination frees its slot. If every source is lost, the module publishes its held look with
+`metadata.stale` and a separate input warning; valid input clears that warning.
+
+Receive frames have their own typed metadata instead of reusing output packet metadata. The
+existing callback keeps `(universe, channels, metadata)`, adding bounded source identities,
+effective sACN slot priorities, synchronization and stale flags. A combined result has no invented
+wire sequence or singular priority: these fields are nullable. Raw universe priorities remain
+on the source entries. The app-owned callback snippet documents these fields.
 
 Sixteen global worker slots include opening, active and retiring endpoints. Stop cancels out of
 band, retires the input source and returns without joining or admitting a stop command. A blocked
@@ -128,8 +158,7 @@ preparation/application; the native worker checks producer/session lifetime agai
 A retired source reports **not sent**, separately from an unconfirmed native failure. Neither is
 automatically replayed on reconnect.
 
-C05 qualification is tracked in the execution ledger. P07's remaining work includes receive
-source/priority/sequence policy, synchronized input, typed backend frame publication and complete
-termination/recovery qualification. Raw sACN receive still discards synchronized and terminated
-packets; source arbitration has not yet been integrated. Clocked output evidence does not close
-those remaining contracts. The replaced sacn 0.11 multicast-only termination behavior is removed.
+C05 qualification is tracked in the execution ledger. Receive source/sync state is qualified locally.
+P07 retains typed backend frame publication and complete termination/recovery
+qualification. Clocked output evidence does not close those remaining contracts. The replaced
+sacn 0.11 multicast-only termination behavior is removed.
