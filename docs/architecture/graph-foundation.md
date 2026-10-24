@@ -75,5 +75,8 @@ Final removal clears the reinsertion marker, while a wholly transient insert/rem
 no-op. Graph UI exports generated Rust-owned `GraphChangeSet` and `GraphDelta` declarations;
 presentation IDs supplied by adapters are independent of the backend graph's UUID identities.
 
-P09's final qualification checkpoint covers consumer history and fixed-delta work at
-1k/10k/50k/100k nodes; the earlier localized test alone does not establish those scale claims.
+Local [P09 qualification](../progress/p09-graph-qualification.md) covers consumer selection/history
+and fixed-delta work at 1k/10k/50k/100k nodes with an identical pre-P09 comparison harness and raw
+samples. These timings cover generic transaction work, with full-document preparation/disposal,
+application semantic validation and rendering excluded. Mounted-canvas and whole-product
+qualification retain P10/P16.

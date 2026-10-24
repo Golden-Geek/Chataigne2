@@ -9,6 +9,8 @@ use crate::{
     InputSocketRef, OutputSocketRef, SocketId,
 };
 
+mod selection;
+
 fn representative_document() -> (AlchemistGraphDocument, AlchemistGraphId, crate::ANodeId) {
     let graph_id = AlchemistGraphId::new();
     let domain = AlchemistGraphDomain::with_primitives();

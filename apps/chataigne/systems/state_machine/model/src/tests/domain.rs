@@ -5,6 +5,8 @@ use crate::{
     StatechartGraphEnvelope, TransitionId,
 };
 
+mod selection;
+
 fn representative_chart() -> Statechart {
     let mut chart = Statechart::new();
     let root = chart.root_region();

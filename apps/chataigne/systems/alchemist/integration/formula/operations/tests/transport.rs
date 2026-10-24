@@ -2,6 +2,7 @@ use super::*;
 use golden_core::ui_sync::{UiNodeDataDto, UiSnapshot};
 use std::time::{Duration, Instant};
 
+mod history;
 mod host;
 use host::Host;
 
