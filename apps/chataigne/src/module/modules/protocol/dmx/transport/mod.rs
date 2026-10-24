@@ -13,6 +13,7 @@ mod input;
 mod native;
 mod output;
 mod receipts;
+mod status;
 #[cfg(test)]
 mod tests;
 mod types;
@@ -28,10 +29,11 @@ struct Shared {
     replaced: AtomicU64,
     ready: AtomicBool,
     running: AtomicBool,
+    status: Mutex<status::Status>,
     wake: WorkerNotifier,
 }
 pub(crate) struct DmxTransportHandle {
-    worker: BoundedWorker<Output, DmxWorkerEvent>,
+    worker: BoundedWorker<Output, ()>,
     shared: Arc<Shared>,
     output: PayloadPool,
     config: DmxTransportConfig,
@@ -76,6 +78,7 @@ impl DmxTransportHandle {
             replaced: AtomicU64::new(0),
             ready: AtomicBool::new(false),
             running: AtomicBool::new(true),
+            status: Mutex::new(status::Status::default()),
             wake: wake.clone(),
         });
         let source = RevisionSource::default();
@@ -88,8 +91,8 @@ impl DmxTransportHandle {
             WorkerLimits {
                 command_items: WORKER_COMMAND_CAPACITY,
                 command_weight: WORKER_COMMAND_CAPACITY * FRAME_WEIGHT,
-                event_items: 4,
-                event_weight: 8 * 1024,
+                event_items: 1,
+                event_weight: 1,
             },
             wake,
             move |ctx| worker::run(ctx, native, state, input, guard, open),
@@ -162,12 +165,22 @@ impl DmxTransportHandle {
             .is_some()
     }
     pub(crate) fn has_pending(&self) -> bool {
-        self.has_frame() || self.worker.has_pending() || !self.is_running()
+        self.has_frame()
+            || self
+                .shared
+                .status
+                .lock()
+                .unwrap_or_else(|poison| poison.into_inner())
+                .has_pending()
+            || self.worker.has_pending()
+            || !self.is_running()
     }
     pub(crate) fn take_status(&self) -> Option<DmxWorkerEvent> {
-        let mut events = Vec::with_capacity(1);
-        self.worker.drain_events(&mut events, NonZeroUsize::MIN);
-        events.pop()
+        self.shared
+            .status
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
+            .take()
     }
     pub(crate) fn take_frame(&self) -> Option<RetainedPayload<ReceivedFrame>> {
         self.shared

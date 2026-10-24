@@ -9,6 +9,7 @@ use crate::app::{
         DmxCommandRequest, DmxProtocol, parse_destination, script_blackout, script_send_frame, script_set_channel,
     },
 };
+mod persistence;
 pub(super) mod service;
 
 #[test]

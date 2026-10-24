@@ -808,6 +808,13 @@ macro_rules! define_node_enum {
                 $crate::__dispatch_node_enum!(self, project_encode_data; $($variant),*)
             }
 
+            fn project_migrate_children<'a>(
+                &self,
+                children: &'a [$crate::engine::ProjectNodeRecord],
+            ) -> Result<std::borrow::Cow<'a, [$crate::engine::ProjectNodeRecord]>, String> {
+                $crate::__dispatch_node_enum!(self, project_migrate_children, children; $($variant),*)
+            }
+
             fn engine_capture_authored_data(&self) -> Result<$crate::node::NodeAuthoredData, String> {
                 $crate::__dispatch_node_enum!(self, engine_capture_authored_data; $($variant),*)
             }

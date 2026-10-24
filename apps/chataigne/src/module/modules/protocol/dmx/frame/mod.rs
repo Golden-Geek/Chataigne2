@@ -81,10 +81,6 @@ pub(crate) fn parse_slots_json(value: &str) -> Result<Vec<u8>, String> {
         .collect()
 }
 
-pub(crate) fn slots_json(slots: &[u8]) -> String {
-    serde_json::to_string(slots).expect("DMX byte arrays are always JSON serializable")
-}
-
 const fn default_priority() -> u8 {
     100
 }

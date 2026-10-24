@@ -96,6 +96,15 @@ pub trait Node: Send + Any {
         Ok(serde_json::Value::Null)
     }
 
+    /// Migrates app-owned child records before decoding or matching declared defaults.
+    /// Borrow unchanged records; migrations must be deterministic and have no runtime effects.
+    fn project_migrate_children<'a>(
+        &self,
+        children: &'a [crate::engine::ProjectNodeRecord],
+    ) -> Result<std::borrow::Cow<'a, [crate::engine::ProjectNodeRecord]>, String> {
+        Ok(std::borrow::Cow::Borrowed(children))
+    }
+
     /// Captures complete authored data for in-place history restoration.
     /// Sparse custom codecs must override this to include default-valued fields.
     /// Snapshots belong to this live node instance. Immutable derived storage

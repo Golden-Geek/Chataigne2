@@ -10,6 +10,7 @@ pub(super) fn parameter_node_type(value: &ParamValue) -> &'static str {
         ParamValue::Int(_) => "int",
         ParamValue::Float(_) => "float",
         ParamValue::Str(_) => "str",
+        ParamValue::Bytes(_) => "bytes",
         ParamValue::File(_) => "file",
         ParamValue::Enum(_) => "enum",
         ParamValue::Bool(_) => "bool",
@@ -56,9 +57,8 @@ pub(crate) fn runtime_value_to_param(value: &RuntimeValue) -> Result<ParamValue,
                 .unwrap_or_else(|_| NodeUuid::nil());
             ParamValue::Reference(NodeReference::new(uuid))
         }
-        RuntimeValue::Extension(value) => {
-            ParamValue::Str(value.payload.iter().map(|byte| format!("{byte:02x}")).collect())
-        }
+        RuntimeValue::Extension(value) => ParamValue::try_from(&RuntimeValue::Extension(value.clone()))
+            .unwrap_or_else(|_| ParamValue::Str(value.payload.iter().map(|byte| format!("{byte:02x}")).collect())),
     };
     if !value.has_only_finite_numbers() {
         return Err("runtime value contains a non-finite number that cannot cross the parameter protocol".to_string());
@@ -114,6 +114,7 @@ pub(crate) fn param_to_untyped_runtime_value(value: &ParamValue) -> Result<Runti
         ParamValue::Bool(value) => RuntimeValue::Bool(*value),
         ParamValue::Int(value) => RuntimeValue::Int(i64::from(*value)),
         ParamValue::Float(value) => RuntimeValue::Float(*value),
+        ParamValue::Bytes(_) => RuntimeValue::try_from(value).map_err(|error| error.to_string())?,
         ParamValue::Str(value) | ParamValue::File(value) | ParamValue::Enum(value) => {
             RuntimeValue::String(Arc::from(value.as_str()))
         }

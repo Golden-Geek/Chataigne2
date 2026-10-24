@@ -57,7 +57,7 @@ impl Drop for Running {
     }
 }
 pub(super) fn run<E: Endpoint>(
-    ctx: WorkerContext<Output, DmxWorkerEvent>,
+    ctx: WorkerContext<Output, ()>,
     config: DmxTransportConfig,
     shared: Arc<Shared>,
     input: PayloadPool,
@@ -68,7 +68,7 @@ pub(super) fn run<E: Endpoint>(
     let endpoint = match open(&config) {
         Ok(endpoint) => endpoint,
         Err(error) => {
-            publish(&ctx, DmxWorkerEvent::Error(diagnostic(error)));
+            shared.publish_status(DmxWorkerEvent::Error(diagnostic(error)));
             return;
         }
     };
@@ -80,9 +80,7 @@ pub(super) fn run<E: Endpoint>(
         return;
     }
     shared.ready.store(true, Ordering::Release);
-    if !publish(&ctx, DmxWorkerEvent::Ready) {
-        return;
-    }
+    shared.publish_status(DmxWorkerEvent::Ready);
     let mut commands = std::collections::VecDeque::<Output>::with_capacity(TURN);
     let mut pressured = false;
     let mut invalid_reported = false;
@@ -110,7 +108,7 @@ pub(super) fn run<E: Endpoint>(
             let error = result.as_ref().err().cloned();
             command.complete(result);
             if let Some(error) = error {
-                publish(&ctx, DmxWorkerEvent::Error(diagnostic(error)));
+                shared.publish_status(DmxWorkerEvent::Error(diagnostic(error)));
                 return;
             }
         }
@@ -118,7 +116,7 @@ pub(super) fn run<E: Endpoint>(
             return;
         }
         if let Err(error) = session.0.service() {
-            publish(&ctx, DmxWorkerEvent::Error(diagnostic(error)));
+            shared.publish_status(DmxWorkerEvent::Error(diagnostic(error)));
             return;
         }
         let mut receive_may_have_more = false;
@@ -137,25 +135,18 @@ pub(super) fn run<E: Endpoint>(
                     Ok(ReceivePoll::Invalid(message)) => {
                         // An untrusted sender cannot fill the status mailbox or force reconnects.
                         if !invalid_reported {
-                            if !publish(&ctx, DmxWorkerEvent::Warning(message.into())) {
-                                return;
-                            }
+                            shared.publish_status(DmxWorkerEvent::Warning(message.into()));
                             invalid_reported = true;
                         }
                     }
                     Ok(ReceivePoll::Frame(frame)) => {
                         if frame.metadata.stale != input_lost {
                             input_lost = frame.metadata.stale;
-                            if !publish(
-                                &ctx,
-                                if input_lost {
-                                    DmxWorkerEvent::InputLost
-                                } else {
-                                    DmxWorkerEvent::InputRecovered
-                                },
-                            ) {
-                                return;
-                            }
+                            shared.publish_status(if input_lost {
+                                DmxWorkerEvent::InputLost
+                            } else {
+                                DmxWorkerEvent::InputRecovered
+                            });
                         }
                         match prepare_input(frame, &config, source.clone(), &input) {
                             Ok(frame) => {
@@ -170,16 +161,14 @@ pub(super) fn run<E: Endpoint>(
                             Err(error) => {
                                 shared.replaced.fetch_add(1, Ordering::Relaxed);
                                 if !pressured {
-                                    if !publish(&ctx, DmxWorkerEvent::Warning(diagnostic(error))) {
-                                        return;
-                                    }
+                                    shared.publish_status(DmxWorkerEvent::Warning(diagnostic(error)));
                                     pressured = true;
                                 }
                             }
                         }
                     }
                     Err(error) => {
-                        publish(&ctx, DmxWorkerEvent::Error(diagnostic(error)));
+                        shared.publish_status(DmxWorkerEvent::Error(diagnostic(error)));
                         return;
                     }
                 }
@@ -217,13 +206,6 @@ pub(super) fn run<E: Endpoint>(
         }
     }
 }
-fn publish(ctx: &WorkerContext<Output, DmxWorkerEvent>, event: DmxWorkerEvent) -> bool {
-    let weight = match &event {
-        DmxWorkerEvent::Warning(text) | DmxWorkerEvent::Error(text) => 128 + text.capacity(),
-        _ => 128,
-    };
-    ctx.publish_weighted(event, weight).is_ok()
-}
 fn prepare_input(
     frame: InputFrame,
     config: &DmxTransportConfig,
@@ -246,7 +228,6 @@ fn prepare_input(
     let reservation = input
         .try_reserve(FRAME_WEIGHT)
         .map_err(|_| "DMX incoming payload capacity exhausted")?;
-    let json = super::super::frame::slots_json(&frame.slots);
     let mut metadata = serde_json::to_value(&frame.metadata).map_err(|error| error.to_string())?;
     metadata
         .as_object_mut()
@@ -264,7 +245,6 @@ fn prepare_input(
         .retain(
             ReceivedFrame {
                 frame,
-                json,
                 callback,
                 source,
             },

@@ -146,6 +146,8 @@ fn parse_multiplex_token_selector(selector: &str) -> Option<MultiplexTokenSelect
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum UserContextValueType {
+    /// Binary buffer.
+    Bytes,
     /// Trigger pulse.
     Trigger,
     /// Signed integer.
@@ -177,6 +179,7 @@ impl UserContextValueType {
     /// Infers the value type from a parameter value.
     pub fn from_param_value(value: &ParamValue) -> Self {
         match value {
+            ParamValue::Bytes(_) => Self::Bytes,
             ParamValue::Trigger() => Self::Trigger,
             ParamValue::Int(_) => Self::Int,
             ParamValue::Float(_) => Self::Float,
@@ -195,6 +198,7 @@ impl UserContextValueType {
     /// Infers the value type from a built-in parameter node type id.
     pub fn from_parameter_node_type(node_type: &str) -> Option<Self> {
         match node_type {
+            "bytes" => Some(Self::Bytes),
             "trigger" => Some(Self::Trigger),
             "int" => Some(Self::Int),
             "float" => Some(Self::Float),

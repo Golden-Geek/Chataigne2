@@ -77,6 +77,8 @@ const SERVER_STREAM_FUNCTION_DOCS: &[&str] = &[
 const DMX_FUNCTION_DOCS: &[&str] = &[
     "Art-Net and sACN DMX functions",
     "local.setChannel(channel, value)",
+    "local.setChannels(channel, { Bytes: [0, 127, 255] })",
+    "local.sendFrame({ Bytes: [0, 127, 255] })",
     "local.sendFrame(\"[0, 127, 255]\")",
     "local.blackout()",
 ];

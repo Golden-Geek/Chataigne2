@@ -8,6 +8,7 @@ use thiserror::Error;
 use super::{CssValue, ParamValue};
 
 const FILE_VALUE_TYPE: &str = "golden.parameter.file";
+const BYTES_VALUE_TYPE: &str = "golden.parameter.bytes";
 const ENUM_VALUE_TYPE: &str = "golden.parameter.enum";
 const CSS_VALUE_TYPE: &str = "golden.parameter.css-value";
 const NODE_REFERENCE_VALUE_TYPE: &str = "golden.parameter.node-reference";
@@ -51,6 +52,7 @@ impl TryFrom<&ParamValue> for Value {
             ParamValue::Int(value) => Value::Int(i64::from(*value)),
             ParamValue::Float(value) => Value::Float(*value),
             ParamValue::Str(value) => Value::String(Arc::from(value.as_str())),
+            ParamValue::Bytes(value) => extension(BYTES_VALUE_TYPE, value),
             ParamValue::File(value) => extension(FILE_VALUE_TYPE, value.as_bytes()),
             ParamValue::Enum(value) => extension(ENUM_VALUE_TYPE, value.as_bytes()),
             ParamValue::Bool(value) => Value::Bool(*value),
@@ -109,6 +111,7 @@ fn extension_json<T: serde::Serialize>(value_type: &str, value: &T) -> Result<Va
 fn parameter_from_extension(value: &ExtensionValue) -> Result<ParamValue, CanonicalValueError> {
     match value.value_type.as_str() {
         FILE_VALUE_TYPE => extension_text(value).map(ParamValue::File),
+        BYTES_VALUE_TYPE => Ok(ParamValue::Bytes(value.payload.to_vec())),
         ENUM_VALUE_TYPE => extension_text(value).map(ParamValue::Enum),
         CSS_VALUE_TYPE => extension_json_value::<CssValue>(value).map(ParamValue::CssValue),
         NODE_REFERENCE_VALUE_TYPE => extension_json_value(value).map(ParamValue::Reference),

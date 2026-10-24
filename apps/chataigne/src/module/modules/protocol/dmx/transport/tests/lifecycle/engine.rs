@@ -297,7 +297,7 @@ fn deleting_a_command_after_native_admission_rejects_its_queued_frame_without_ki
         .process_tree_snapshot()
         .find_child_by_decl_id(command, "slots")
         .unwrap();
-    set(&mut engine, slots_id, ParamValue::Str("[7]".into()));
+    set(&mut engine, slots_id, ParamValue::Bytes(vec![7]));
     let lifetimes = slots();
     let control = Control::default();
     let (entered, entered_rx) = mpsc::sync_channel(1);

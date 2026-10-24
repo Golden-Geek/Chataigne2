@@ -132,6 +132,9 @@ export const fromRustParamValue = (value: unknown): ParamValue => {
 	if ('Str' in value) {
 		return { kind: 'str', value: String(value.Str ?? '') };
 	}
+	if ('Bytes' in value && Array.isArray(value.Bytes)) {
+		return { kind: 'bytes', value: value.Bytes as number[] };
+	}
 	if ('File' in value) {
 		return { kind: 'file', value: String(value.File ?? '') };
 	}
@@ -196,6 +199,8 @@ export const toRustParamValue = (value: ParamValue): RustParamValue => {
 			return { Float: value.value };
 		case 'str':
 			return { Str: value.value };
+		case 'bytes':
+			return { Bytes: value.value };
 		case 'file':
 			return { File: value.value };
 		case 'enum':

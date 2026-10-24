@@ -28,6 +28,7 @@ fn coerce_kind<'a>(source: Cow<'a, ParamValue>, target: &ParamValue) -> Option<C
     let source = source.as_ref();
     let converted = match target {
         ParamValue::Trigger() => return None,
+        ParamValue::Bytes(_) => return None,
         ParamValue::Int(_) => source.as_int().map(ParamValue::Int),
         ParamValue::Float(_) => source.as_float().map(ParamValue::Float),
         ParamValue::Str(_) => source.as_str().map(ParamValue::Str),

@@ -1,5 +1,6 @@
 //! Parameter values, constraints, projections, references, and control contracts.
 
+mod bytes;
 mod canonical;
 mod coercion;
 mod constraints;
@@ -12,6 +13,7 @@ mod types;
 mod value;
 mod value_type;
 
+pub use bytes::ByteArray;
 pub use canonical::*;
 pub use coercion::*;
 pub use constraints::*;

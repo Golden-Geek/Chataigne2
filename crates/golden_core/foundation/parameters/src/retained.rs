@@ -39,6 +39,7 @@ impl ParamValue {
     pub fn retained_heap_bytes(&self) -> usize {
         match self {
             Self::Str(value) | Self::File(value) | Self::Enum(value) => value.capacity(),
+            Self::Bytes(value) => value.capacity(),
             Self::Reference(value) => value.retained_heap_bytes(),
             Self::Trigger()
             | Self::Int(_)

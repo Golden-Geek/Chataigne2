@@ -338,6 +338,8 @@ export const formatParamValue = (value: ParamValue | null | undefined): string =
 			return value.value;
 		case 'bool':
 			return value.value ? 'True' : 'False';
+		case 'bytes':
+			return value.value.join(' ');
 		case 'css_value':
 			return formatCssValue(value);
 		case 'vec2':

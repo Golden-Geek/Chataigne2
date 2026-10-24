@@ -17,6 +17,7 @@ pub(super) fn compare(left: &ParamValue, right: &ParamValue) -> Ordering {
         | (ParamValue::Enum(left), ParamValue::Enum(right))
         | (ParamValue::File(left), ParamValue::File(right)) => left.cmp(right),
         (ParamValue::Bool(left), ParamValue::Bool(right)) => left.cmp(right),
+        (ParamValue::Bytes(left), ParamValue::Bytes(right)) => left.cmp(right),
         (ParamValue::CssValue(left), ParamValue::CssValue(right)) => (left.unit as usize)
             .cmp(&(right.unit as usize))
             .then_with(|| number(left.value, right.value)),
@@ -62,5 +63,6 @@ fn rank(value: &ParamValue) -> u8 {
         ParamValue::Vec3(..) => 9,
         ParamValue::Color(..) => 10,
         ParamValue::Reference(_) => 11,
+        ParamValue::Bytes(_) => 12,
     }
 }

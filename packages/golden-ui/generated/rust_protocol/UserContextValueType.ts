@@ -3,4 +3,4 @@
 /**
  * Typed value family used by `UserContext` entries and lookups.
  */
-export type UserContextValueType = "trigger" | "int" | "float" | "str" | "file" | "enum" | "bool" | "css_value" | "vec2" | "vec3" | "color" | "reference";
+export type UserContextValueType = "bytes" | "trigger" | "int" | "float" | "str" | "file" | "enum" | "bool" | "css_value" | "vec2" | "vec3" | "color" | "reference";

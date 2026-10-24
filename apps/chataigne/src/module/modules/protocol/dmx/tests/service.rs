@@ -134,7 +134,7 @@ fn same_value_internal_echo_does_not_swallow_the_next_authored_frame_change() {
         turn(&mut engine);
     }
     let output = base(&mut engine, id).output_frame.id();
-    set(&mut engine, output, ParamValue::Str("[9]".into()));
+    set(&mut engine, output, ParamValue::Bytes(vec![9]));
     settle(&mut engine, id);
     assert_eq!(receive(&receiver)[0], 9);
     base(&mut engine, id).stop_transport();

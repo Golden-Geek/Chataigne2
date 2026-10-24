@@ -20,6 +20,7 @@ export type ParamValue =
 	| { kind: 'int'; value: number }
 	| { kind: 'float'; value: number }
 	| { kind: 'str'; value: string }
+	| { kind: 'bytes'; value: number[] }
 	| { kind: 'file'; value: string }
 	| { kind: 'enum'; value: string }
 	| { kind: 'bool'; value: boolean }

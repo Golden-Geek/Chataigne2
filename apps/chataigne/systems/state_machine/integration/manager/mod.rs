@@ -5,51 +5,51 @@ use std::{
 };
 
 use chataigne_alchemist::{
-    compile_graph, formula_input_value_ref, ANodeId, AlchemistFormula, AlchemistGraphDomain, AxisSet,
-    CompiledAlchemistFormula, ContextAxisId, ContextItemId, ContextKey, ContextKeyPart, ContextValuePath,
-    DebugValueSample, EvaluationCtx, FormulaCompileKey, FormulaRef, ManagedItemId,
-    OutputPreviewStatus, RuntimeInputSnapshot, RuntimeIntent,
-    RuntimeRegistries, SignatureCtx, SocketId, StableRef, SurfaceItemId, TriggerValue, ValueTypeId,
+    ANodeId, AlchemistFormula, AlchemistGraphDomain, AxisSet, CompiledAlchemistFormula, ContextAxisId, ContextItemId,
+    ContextKey, ContextKeyPart, ContextValuePath, DebugValueSample, EvaluationCtx, FormulaCompileKey, FormulaRef,
+    ManagedItemId, OutputPreviewStatus, RuntimeInputSnapshot, RuntimeIntent, RuntimeRegistries, SignatureCtx, SocketId,
+    StableRef, SurfaceItemId, TriggerValue, ValueTypeId, compile_graph, formula_input_value_ref,
 };
 use chataigne_state_machine::{
-    alchemist::{
-        shared_node_registry, shared_value_type_registry, ConditionManagerValue, CONDITIONS_MANAGER_TYPE,
-        INPUTS_MANAGER_TYPE,
-    },
-    processor_output_preview_samples, processor_output_preview_samples_from_lanes, ANodeOutputPreviewSample,
-    ANodeOutputPreviewSampleDto, ContextKeyDto, ContextKeyPartDto, DefaultProcessorContextProvider, Processor,
-    ProcessorBindingAnalysis, ProcessorContextPropertyBinding, ProcessorContextProvider, ProcessorDebugCapture,
-    ProcessorCommandPolicy, ProcessorFormulaUiState, ProcessorId, ProcessorLaneCatalogEntryDto, ProcessorLaneConditionPreviewDto,
+    ANodeOutputPreviewSample, ANodeOutputPreviewSampleDto, ContextKeyDto, ContextKeyPartDto,
+    DefaultProcessorContextProvider, ManagedStageSpecializationCache, Processor, ProcessorBindingAnalysis,
+    ProcessorCommandPolicy, ProcessorContextPropertyBinding, ProcessorContextProvider, ProcessorDebugCapture,
+    ProcessorFormulaUiState, ProcessorId, ProcessorLaneCatalogEntryDto, ProcessorLaneConditionPreviewDto,
     ProcessorLaneInspectionDto, ProcessorLaneParameterPreviewDto, ProcessorLifecycleEvent, ProcessorLifecyclePolicy,
     ProcessorOverviewDemandDto, ProcessorOverviewLaneSelectionDto, ProcessorRuntime, ProcessorRuntimeOverviewDto,
-    ProcessorUiDto,
-    StateMachinePreviewCatalogDto, StateMachineProcessorOverviewDto, StateMachineRuntimePreviewDto,
-    RuntimeInputBinding, ValueLaneKey, ValueSet, ValueSetEntry, ManagedStageSpecializationCache,
+    ProcessorUiDto, RuntimeInputBinding, StateMachinePreviewCatalogDto, StateMachineProcessorOverviewDto,
+    StateMachineRuntimePreviewDto, ValueLaneKey, ValueSet, ValueSetEntry,
+    alchemist::{
+        CONDITIONS_MANAGER_TYPE, ConditionManagerValue, INPUTS_MANAGER_TYPE, shared_node_registry,
+        shared_value_type_registry,
+    },
+    processor_output_preview_samples, processor_output_preview_samples_from_lanes,
 };
 
 use crate::app::systems_alchemist_conditions::compiler::{
-    compile_manager_condition, param_to_condition_value, CompiledManagerCondition, ConditionBinding,
+    CompiledManagerCondition, ConditionBinding, compile_manager_condition, param_to_condition_value,
 };
 use chataigne_condition::{ConditionEvaluationFrame, ConditionInputProvider, ConditionRuntime};
 use chataigne_state_machine::protocol::{FormulaPreviewDemandDto, FormulaPreviewModeDto};
 use golden_core::{
     contexts::{
-        parse_multiplex_context_link_symbol, parse_multiplex_template_token, MultiplexContextLinkTarget,
-        MultiplexTemplateToken, MultiplexTokenSelector, UserContextValueType,
+        MultiplexContextLinkTarget, MultiplexTemplateToken, MultiplexTokenSelector, UserContextValueType,
+        parse_multiplex_context_link_symbol, parse_multiplex_template_token,
     },
-    engine::{NodeExecutionRule, DEFAULT_RUNTIME_LOOP_MAX_FREQUENCY_HZ},
+    engine::{DEFAULT_RUNTIME_LOOP_MAX_FREQUENCY_HZ, NodeExecutionRule},
     events::{CustomEvent, Event, EventFrame, EventKind},
     log,
-    logger::{log_messages, LogLevel, LogMessage},
+    logger::{LogLevel, LogMessage, log_messages},
     node,
     node::{
-        user_context_multiplex_list_value_type, Node, NodeCreationContext, NodeId, NodeMetaPatch, NodeUserPermissions,
-        NodeUuid, UserContainerRules, UserCreatableItem, USER_CONTEXT_MULTIPLEX_COUNT_DECL_ID,
-        USER_CONTEXT_MULTIPLEX_DEFAULT_PREVIEW_INDEX_DECL_ID, USER_CONTEXT_MULTIPLEX_NODE_TYPE, USER_CONTEXT_NODE_TYPE,
+        Node, NodeCreationContext, NodeId, NodeMetaPatch, NodeUserPermissions, NodeUuid,
+        USER_CONTEXT_MULTIPLEX_COUNT_DECL_ID, USER_CONTEXT_MULTIPLEX_DEFAULT_PREVIEW_INDEX_DECL_ID,
+        USER_CONTEXT_MULTIPLEX_NODE_TYPE, USER_CONTEXT_NODE_TYPE, UserContainerRules, UserCreatableItem,
+        user_context_multiplex_list_value_type,
     },
     parameter::{
-        coerce_param_value_for_target, project_param_value, ParamValue, ParameterControlMode, ParameterControlSpec,
-        ParameterControlState,
+        ParamValue, ParameterControlMode, ParameterControlSpec, ParameterControlState, coerce_param_value_for_target,
+        project_param_value,
     },
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
@@ -57,17 +57,15 @@ use golden_values::Value as RuntimeValue;
 use smallvec::SmallVec;
 
 use crate::app::systems_alchemist_formula::{
-    constant_anode_for_value_param, constraint_value_type,
-    formula_from_snapshot_cached, local_signature_bindings,
+    ANODE_NODE_TYPE, ANodeMaterializationCache, FORMULA_EXTERNAL_READ_ONLY_TAG, constant_anode_for_value_param,
+    constraint_value_type, formula_from_snapshot_cached, local_signature_bindings,
     param_to_runtime_value as formula_param_to_runtime_value, runtime_value_to_param,
-    same_type_numeric_changes_for_param, ANodeMaterializationCache, ANODE_NODE_TYPE,
-    FORMULA_EXTERNAL_READ_ONLY_TAG,
+    same_type_numeric_changes_for_param,
 };
 use crate::app::systems_alchemist_processor::{
-    managed_regions_from_snapshot, processor_formula_source_ref,
-    processor_frozen_source, FormulaCatalog, FormulaSourceRef,
-    FrozenMappingSource,
-    PROCESSOR_MANAGED_REGIONS_DECL_ID, PROCESSOR_MANAGED_REGION_DECL_PREFIX,
+    FormulaCatalog, FormulaSourceRef, FrozenMappingSource, PROCESSOR_MANAGED_REGION_DECL_PREFIX,
+    PROCESSOR_MANAGED_REGIONS_DECL_ID, managed_regions_from_snapshot, processor_formula_source_ref,
+    processor_frozen_source,
 };
 
 mod command_dispatch;
@@ -1238,6 +1236,7 @@ fn runtime_value_type_for_context(value_type: UserContextValueType) -> Option<Va
         UserContextValueType::Vec3 => Some(ValueTypeId::new("vec3")),
         UserContextValueType::Color => Some(ValueTypeId::new("color")),
         UserContextValueType::Reference => None,
+        UserContextValueType::Bytes => None,
     }
 }
 
@@ -1257,7 +1256,9 @@ fn processor_binding_analysis(
         &mut analysis.input_axes,
     );
     for (_, source) in managed_source_bindings(snapshot, processor, runtime) {
-        analysis.input_axes.extend(context_control_multiplex_axes(snapshot, source, processor.id, provider));
+        analysis
+            .input_axes
+            .extend(context_control_multiplex_axes(snapshot, source, processor.id, provider));
     }
     analysis
 }
@@ -1582,9 +1583,7 @@ impl StateMachineRuntimeCache {
     fn replace_processors(&mut self, processors: HashMap<NodeId, RuntimeProcessor>, snapshot: &ProcessTreeSnapshot) {
         self.continuous_processor_nodes = processors
             .iter()
-            .filter_map(|(node, processor)| {
-                processor_needs_continuous_evaluation(&processor.runtime).then_some(*node)
-            })
+            .filter_map(|(node, processor)| processor_needs_continuous_evaluation(&processor.runtime).then_some(*node))
             .collect();
         self.formula_value_processor_nodes.clear();
         for (node, processor) in &processors {
@@ -1629,11 +1628,13 @@ impl Node for StateMachineManager {
         self.runtime_cache.numeric_change_values.clear();
         for event in &ctx.events {
             if let EventKind::ParamChanged { param, new_value, .. } = &event.kind {
-                let numeric = crate::app::systems_alchemist_formula::same_type_numeric_change_param(event)
-                    == Some(*param);
+                let numeric =
+                    crate::app::systems_alchemist_formula::same_type_numeric_change_param(event) == Some(*param);
                 *self.runtime_cache.numeric_change_events.entry(*param).or_insert(true) &= numeric;
                 if numeric {
-                    self.runtime_cache.numeric_change_values.insert(*param, new_value.clone());
+                    self.runtime_cache
+                        .numeric_change_values
+                        .insert(*param, new_value.clone());
                 } else {
                     self.runtime_cache.numeric_change_values.remove(param);
                 }
@@ -1725,8 +1726,7 @@ impl Node for StateMachineManager {
                     && !self.runtime_cache.topology_dirty
                     && !self.runtime_cache.context_provider_dirty
                     && !self.runtime_cache.command_dispatch_snapshot_dirty
-                    && crate::app::systems_alchemist_formula::same_type_numeric_change_param(event)
-                        == Some(*param)
+                    && crate::app::systems_alchemist_formula::same_type_numeric_change_param(event) == Some(*param)
                     && self.runtime_cache.runtime_snapshot.as_deref().is_some_and(|snapshot| {
                         crate::app::systems_alchemist_formula::is_constant_value_param(snapshot, *param)
                     })
@@ -1868,9 +1868,12 @@ impl Node for StateMachineManager {
         }) {
             return;
         }
-        let numeric_change = self.runtime_cache.numeric_change_events.get(&param).copied().unwrap_or_else(|| {
-            same_type_numeric_changes_for_param(&ctx.events, param)
-        });
+        let numeric_change = self
+            .runtime_cache
+            .numeric_change_events
+            .get(&param)
+            .copied()
+            .unwrap_or_else(|| same_type_numeric_changes_for_param(&ctx.events, param));
         if numeric_change {
             if let Some(anode) = constant_anode_for_value_param(snapshot, param) {
                 let was_structurally_dirty = self.runtime_cache.structure_dirty.contains(&formula_uuid)
@@ -1947,15 +1950,12 @@ impl StateMachineManager {
         let Some(snapshot) = ctx.tree_snapshot() else {
             return false;
         };
-        let Some((processor_node, item, socket, socket_node)) =
-            managed_runtime_input_location(snapshot, param)
-        else {
+        let Some((processor_node, item, socket, socket_node)) = managed_runtime_input_location(snapshot, param) else {
             return false;
         };
-        let Some(value_type_node) = snapshot.find_child_by_decl_id(
-            socket_node,
-            &format!("inputs/{}/value_type", socket.as_str()),
-        ) else {
+        let Some(value_type_node) =
+            snapshot.find_child_by_decl_id(socket_node, &format!("inputs/{}/value_type", socket.as_str()))
+        else {
             return false;
         };
         let Some(value_type) = snapshot
@@ -1982,7 +1982,13 @@ impl StateMachineManager {
         {
             return false;
         }
-        for region in processor.processor.formula_instance.managed_regions.regions.values_mut() {
+        for region in processor
+            .processor
+            .formula_instance
+            .managed_regions
+            .regions
+            .values_mut()
+        {
             if let Some(authored) = region.items.iter_mut().find(|candidate| candidate.id == item) {
                 authored.anode.input_defaults.insert(socket.clone(), value.clone());
                 break;
@@ -2151,9 +2157,9 @@ impl StateMachineManager {
         let Some(snapshot) = ctx.tree_snapshot() else {
             return true;
         };
-        [parent, child].into_iter().any(|node| {
-            self.runtime_invalidation_for_change(snapshot, node) == RuntimeInvalidation::Topology
-        })
+        [parent, child]
+            .into_iter()
+            .any(|node| self.runtime_invalidation_for_change(snapshot, node) == RuntimeInvalidation::Topology)
     }
 
     fn mark_runtime_structure_dirty(&mut self, ctx: &mut ProcessCtx, node: NodeId) {
@@ -2175,7 +2181,10 @@ impl StateMachineManager {
                 let membership_snapshot = if snapshot.node(node).is_some() {
                     snapshot.as_ref()
                 } else {
-                    self.runtime_cache.runtime_snapshot.as_deref().unwrap_or(snapshot.as_ref())
+                    self.runtime_cache
+                        .runtime_snapshot
+                        .as_deref()
+                        .unwrap_or(snapshot.as_ref())
                 };
                 if processor_managed_structure_contains(membership_snapshot, processor, node) {
                     self.runtime_cache.dirty_processor_structures.insert(processor);
@@ -2265,15 +2274,11 @@ impl StateMachineManager {
             return false;
         }
         let snapshot = self.runtime_cache.runtime_snapshot.as_deref();
-        self.runtime_cache
-            .processors
-            .values()
-            .any(|processor| {
-                processor.command_dispatch_plans.depends_on_change(snapshot, None, node)
-                    || snapshot.is_some_and(|snapshot| {
-                        processor.command_dispatch_plans.contains_target_param(snapshot, node)
-                    })
-            })
+        self.runtime_cache.processors.values().any(|processor| {
+            processor.command_dispatch_plans.depends_on_change(snapshot, None, node)
+                || snapshot
+                    .is_some_and(|snapshot| processor.command_dispatch_plans.contains_target_param(snapshot, node))
+        })
     }
 
     fn command_target_may_be_observed(&self, node: NodeId) -> bool {
@@ -2291,12 +2296,19 @@ impl StateMachineManager {
         let Some(changed) = snapshot.node(node) else {
             return true;
         };
-        if self.runtime_cache.command_dependency_target_uuids.contains(&changed.uuid) {
+        if self
+            .runtime_cache
+            .command_dependency_target_uuids
+            .contains(&changed.uuid)
+        {
             return true;
         }
         let mut current = Some(node);
         while let Some(candidate) = current {
-            if self.runtime_cache.registered_command_dependency_roots.contains(&candidate)
+            if self
+                .runtime_cache
+                .registered_command_dependency_roots
+                .contains(&candidate)
                 || self.runtime_cache.command_action_target_roots.contains(&candidate)
             {
                 return true;
@@ -2430,7 +2442,10 @@ impl StateMachineManager {
                 .compiled_formulas
                 .retain(|key, _| !previous_project_formula_ids.contains(&key.formula_id));
             let StateMachineRuntimeCache {
-                formulas, formula_materialization, perf_stats, ..
+                formulas,
+                formula_materialization,
+                perf_stats,
+                ..
             } = &mut self.runtime_cache;
             let formulas = Arc::make_mut(formulas);
             formulas.clear();
@@ -2460,7 +2475,11 @@ impl StateMachineManager {
                 self.runtime_cache.formula_materialization.remove(&formula_uuid);
                 continue;
             };
-            let cache = self.runtime_cache.formula_materialization.entry(formula_uuid).or_default();
+            let cache = self
+                .runtime_cache
+                .formula_materialization
+                .entry(formula_uuid)
+                .or_default();
             let Ok(formula) = formula_from_snapshot_cached(snapshot, formula_node, cache) else {
                 cache.invalidate();
                 continue;
@@ -2927,9 +2946,9 @@ impl StateMachineManager {
             }
             let context_revision = runtime_processor.runtime.managed_context_revision();
             if context_revision != runtime_processor.send_context_revision {
-                runtime_processor.output_send_cache.retain_context_keys(|key| {
-                    runtime_processor.runtime.has_managed_context_key(key)
-                });
+                runtime_processor
+                    .output_send_cache
+                    .retain_context_keys(|key| runtime_processor.runtime.has_managed_context_key(key));
                 runtime_processor.send_context_revision = context_revision;
             }
             #[cfg(test)]
@@ -3344,10 +3363,7 @@ impl StateMachineManager {
         self.runtime_cache.dirty_formula_values.clear();
         if preview_catalog_dirty {
             let selected_processor_ids = preview_selection.processor_ids();
-            let processors = processor_ui_dtos(
-                &self.runtime_cache.processors,
-                Some(&selected_processor_ids),
-            );
+            let processors = processor_ui_dtos(&self.runtime_cache.processors, Some(&selected_processor_ids));
             let mut processor_lanes = processor_lane_catalog_entries(
                 &self.runtime_cache.processors,
                 provider.as_ref(),
@@ -3575,17 +3591,11 @@ impl StateMachineManager {
                 return None;
             }
         };
-        let (formula_node, formula, formula_ui, formula_source_key) =
-            if let Some(source) = frozen_source.as_deref() {
-                processor_formula_from_frozen_source(snapshot, source)
-            } else {
-                processor_formula_from_snapshot(
-                    snapshot,
-                    processor_node,
-                    formulas,
-                    catalog,
-                )?
-            };
+        let (formula_node, formula, formula_ui, formula_source_key) = if let Some(source) = frozen_source.as_deref() {
+            processor_formula_from_frozen_source(snapshot, source)
+        } else {
+            processor_formula_from_snapshot(snapshot, processor_node, formulas, catalog)?
+        };
         let mut processor = if let Some(source) = frozen_source.as_deref() {
             processor_from_frozen_source(snapshot, processor_node, source)?
         } else {
@@ -3606,13 +3616,7 @@ impl StateMachineManager {
                     previous.send_context_revision,
                 )
             })
-            .unwrap_or_else(|| {
-                (
-                    ProcessorRuntime::new(processor.id),
-                    OutputSendCache::default(),
-                    0,
-                )
-            });
+            .unwrap_or_else(|| (ProcessorRuntime::new(processor.id), OutputSendCache::default(), 0));
         if runtime.id != processor.id {
             runtime = ProcessorRuntime::new(processor.id);
             output_send_cache.clear();
@@ -3629,10 +3633,12 @@ impl StateMachineManager {
             Err(_) => compile_processor_runtime_for_cache_rebuild(&mut runtime, &processor, &formula, compile_ctx),
         };
         let managed_error = runtime.managed_formula.as_mut().and_then(|managed| {
-            managed.reconcile_input_source_schema_with_cache(
-                |source| managed_source_schema(snapshot, source),
-                Some(&mut self.runtime_cache.managed_stage_specializations),
-            ).err()
+            managed
+                .reconcile_input_source_schema_with_cache(
+                    |source| managed_source_schema(snapshot, source),
+                    Some(&mut self.runtime_cache.managed_stage_specializations),
+                )
+                .err()
         });
         if let Some(error) = managed_error {
             runtime.invalidate(error.into_diagnostic());
@@ -3695,8 +3701,7 @@ impl StateMachineManager {
             compile_ctx: &compile_ctx,
         };
         for processor_node in active_processors.iter().copied() {
-            let previous_runtime =
-                self.runtime_cache.processors.remove(&processor_node);
+            let previous_runtime = self.runtime_cache.processors.remove(&processor_node);
             if let Some(runtime_processor) =
                 self.materialize_runtime_processor(ctx, processor_node, previous_runtime, &materialization)
             {
@@ -3870,14 +3875,11 @@ impl StateMachineManager {
                     .flatten()
                     .is_some();
             if !representation_changed {
-                self.runtime_cache
-                    .command_invocation_streams
-                    .remove(&processor_node);
+                self.runtime_cache.command_invocation_streams.remove(&processor_node);
             }
             let previous_formula = processor_formula_node_uuid(snapshot, runtime_processor);
             if structural_processors.contains(&processor_node) {
-                let previous_runtime =
-                    self.runtime_cache.processors.remove(&processor_node);
+                let previous_runtime = self.runtime_cache.processors.remove(&processor_node);
                 let Some(processor) =
                     self.materialize_runtime_processor(ctx, processor_node, previous_runtime, &materialization)
                 else {
@@ -3900,31 +3902,21 @@ impl StateMachineManager {
                     if let Some(source) = frozen_source.as_deref() {
                         processor_formula_from_frozen_source(snapshot, source)
                     } else {
-                        let Some(source) = processor_formula_from_snapshot(
-                            snapshot,
-                            processor_node,
-                            formulas,
-                            catalog,
-                        ) else {
+                        let Some(source) = processor_formula_from_snapshot(snapshot, processor_node, formulas, catalog)
+                        else {
                             self.runtime_cache.topology_dirty = true;
                             continue;
                         };
                         source
                     };
                 let mut processor = if let Some(source) = frozen_source.as_deref() {
-                    let Some(processor) = processor_from_frozen_source(
-                        snapshot,
-                        processor_node,
-                        source,
-                    ) else {
+                    let Some(processor) = processor_from_frozen_source(snapshot, processor_node, source) else {
                         self.runtime_cache.topology_dirty = true;
                         continue;
                     };
                     processor
                 } else {
-                    let Some(processor) =
-                        processor_from_snapshot(snapshot, processor_node, &formula)
-                    else {
+                    let Some(processor) = processor_from_snapshot(snapshot, processor_node, &formula) else {
                         self.runtime_cache.topology_dirty = true;
                         continue;
                     };
@@ -3937,19 +3929,30 @@ impl StateMachineManager {
                     &mut processor,
                     context_provider,
                 );
-                let bindings = processor_binding_analysis(snapshot, processor_node, &processor, &runtime_processor.runtime, context_provider);
+                let bindings = processor_binding_analysis(
+                    snapshot,
+                    processor_node,
+                    &processor,
+                    &runtime_processor.runtime,
+                    context_provider,
+                );
                 runtime_processor
                     .runtime
                     .rebuild_execution_plan(context_provider, &bindings);
                 runtime_processor.processor = processor;
-                runtime_processor.managed_sources = managed_source_bindings(snapshot, &runtime_processor.processor, &runtime_processor.runtime);
+                runtime_processor.managed_sources =
+                    managed_source_bindings(snapshot, &runtime_processor.processor, &runtime_processor.runtime);
                 runtime_processor.formula = formula;
                 runtime_processor.formula_node = formula_node;
                 runtime_processor.formula_ui = formula_ui;
                 runtime_processor.formula_source_key = formula_source_key;
                 runtime_processor.frozen_source = frozen_source;
             }
-            let runtime_processor = self.runtime_cache.processors.get_mut(&processor_node).expect("dirty processor must remain materialized");
+            let runtime_processor = self
+                .runtime_cache
+                .processors
+                .get_mut(&processor_node)
+                .expect("dirty processor must remain materialized");
             let current_formula = processor_formula_node_uuid(snapshot, runtime_processor);
             if previous_formula != current_formula {
                 if let Some(previous) = previous_formula {
@@ -3999,7 +4002,10 @@ impl StateMachineManager {
         let mut source_listener_processors = collect_source_listener_processors(snapshot, active_states);
         for (processor, runtime) in &self.runtime_cache.processors {
             for (_, source) in &runtime.managed_sources {
-                source_listener_processors.entry(*source).or_default().insert(*processor);
+                source_listener_processors
+                    .entry(*source)
+                    .or_default()
+                    .insert(*processor);
             }
         }
         let next_listeners = source_listener_processors.keys().copied().collect::<HashSet<_>>();
@@ -4304,7 +4310,12 @@ fn managed_runtime_input_location(
     if snapshot.node(processor_node)?.node_type != PROCESSOR_NODE_TYPE {
         return None;
     }
-    Some((processor_node, ManagedItemId::from_uuid(anode.uuid.0), SocketId::new(socket), socket_node))
+    Some((
+        processor_node,
+        ManagedItemId::from_uuid(anode.uuid.0),
+        SocketId::new(socket),
+        socket_node,
+    ))
 }
 
 fn managed_anode_presentation_param(snapshot: &ProcessTreeSnapshot, param: NodeId) -> bool {
@@ -4357,10 +4368,7 @@ fn processor_managed_structure_contains(snapshot: &ProcessTreeSnapshot, processo
             return false;
         }
         if snapshot.node(candidate).is_some_and(|entry| {
-            entry.parent == Some(processor)
-                && entry
-                    .decl_id
-                    .starts_with(PROCESSOR_MANAGED_REGION_DECL_PREFIX)
+            entry.parent == Some(processor) && entry.decl_id.starts_with(PROCESSOR_MANAGED_REGION_DECL_PREFIX)
         }) {
             return true;
         }
@@ -4488,9 +4496,7 @@ fn processor_for_override_change(snapshot: &ProcessTreeSnapshot, changed_node: N
         // A change inside the managed-regions subtree is a managed ANode edit,
         // not a processor property override.
         if node_matches_decl_id(node.decl_id.as_str(), PROCESSOR_MANAGED_REGIONS_DECL_ID)
-            || node
-                .decl_id
-                .starts_with(PROCESSOR_MANAGED_REGION_DECL_PREFIX)
+            || node.decl_id.starts_with(PROCESSOR_MANAGED_REGION_DECL_PREFIX)
         {
             return None;
         }
@@ -4682,13 +4688,17 @@ fn processor_lane_catalog_entries(
     overview_selections: &HashMap<ProcessorId, usize>,
 ) -> Vec<ProcessorLaneCatalogEntryDto> {
     let mut lanes = Vec::new();
-    for runtime_processor in processors.values().filter(|processor| selected.contains(&processor.processor.id)) {
+    for runtime_processor in processors
+        .values()
+        .filter(|processor| selected.contains(&processor.processor.id))
+    {
         let processor_id = runtime_processor.processor.id;
         let preview_context = processor_overview_lane(
             runtime_processor,
             context_provider,
             overview_selections.get(&processor_id).copied(),
-        ).context_key;
+        )
+        .context_key;
         let has_memory = processor_needs_continuous_evaluation(&runtime_processor.runtime);
         if let Some(plan) = runtime_processor.runtime.plan.as_ref() {
             for key in context_provider.iter_context_keys(processor_id, &plan.required_eval_axes) {
@@ -4898,7 +4908,9 @@ fn runtime_formula_preview_mode(mode: FormulaPreviewModeDto) -> Option<RuntimeFo
         }
         FormulaPreviewModeDto::ProcessorInspection { processor_id } => {
             let processor_id = processor_id.parse::<uuid::Uuid>().ok()?;
-            Some(RuntimeFormulaPreviewMode::ProcessorInspection(ProcessorId::from_uuid(processor_id)))
+            Some(RuntimeFormulaPreviewMode::ProcessorInspection(ProcessorId::from_uuid(
+                processor_id,
+            )))
         }
         FormulaPreviewModeDto::ProcessorSelectedStages {
             processor_id,
@@ -5315,28 +5327,18 @@ fn apply_processor_managed_regions(
 fn processor_formula_from_frozen_source(
     snapshot: &ProcessTreeSnapshot,
     source: &FrozenMappingSource,
-) -> (
-    Option<NodeId>,
-    AlchemistFormula,
-    ProcessorFormulaUiState,
-    String,
-) {
+) -> (Option<NodeId>, AlchemistFormula, ProcessorFormulaUiState, String) {
     let formula_node = snapshot.node_id_by_uuid(source.formula_source_uuid);
     let formula_ui = formula_node
         .and_then(|node| snapshot.node(node))
-        .filter(|node| {
-            node.tags
-                .iter()
-                .any(|tag| tag == FORMULA_EXTERNAL_READ_ONLY_TAG)
-        })
+        .filter(|node| node.tags.iter().any(|tag| tag == FORMULA_EXTERNAL_READ_ONLY_TAG))
         .map(|_| ProcessorFormulaUiState::builtin(true, false))
         .unwrap_or_else(ProcessorFormulaUiState::project);
     (
         formula_node,
         source.formula.clone(),
         formula_ui,
-        FormulaSourceRef::project_uuid(source.formula_source_uuid)
-            .processor_create_type(),
+        FormulaSourceRef::project_uuid(source.formula_source_uuid).processor_create_type(),
     )
 }
 
@@ -6060,6 +6062,7 @@ fn child_reference_uuid(snapshot: &ProcessTreeSnapshot, parent: NodeId, decl_id:
 fn param_to_runtime_value(value: &ParamValue) -> Option<RuntimeValue> {
     match value {
         ParamValue::Bool(value) => Some(RuntimeValue::Bool(*value)),
+        ParamValue::Bytes(_) => RuntimeValue::try_from(value).ok(),
         ParamValue::Int(value) => Some(RuntimeValue::Int(i64::from(*value))),
         ParamValue::Float(value) => Some(RuntimeValue::Float(*value)),
         ParamValue::Str(value) => Some(RuntimeValue::String(value.clone().into())),

@@ -1,5 +1,6 @@
 mod frame;
 mod outgoing;
+mod persistence;
 mod service;
 mod transport;
 
@@ -14,21 +15,22 @@ use golden_core::{
     events::{CustomEvent, Event},
     node,
     node::{Node, NodeCreationContext, NodeData, NodeId, NodeScriptDescriptor},
-    parameter::{Enum, ParamValue},
+    parameter::{ByteArray, Enum, ParamValue},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 use golden_io::ReconnectBackoff;
 
 pub(crate) use crate::app::module_modules_protocol_dmx_commands::DMX_COMMAND_TYPES;
-pub(crate) use frame::{DMX_SLOT_COUNT, DmxFrame, parse_slots_json, slots_json};
+pub(crate) use frame::{DMX_SLOT_COUNT, DmxFrame, parse_slots_json};
 pub(crate) use outgoing::{DmxCommandRequest, dispatch as queue_dmx_command};
+pub(crate) use persistence::migrate_command_children;
 pub(crate) use transport::{DmxProtocol, DmxTransportConfig, DmxTransportHandle, DmxWorkerEvent};
 use transport::{ReceivedFrame, SendReceipt, SendStatus};
 
 const ARTNET_COMPILED_KERNEL: &str = "chataigne.runtime.artnet";
 const SACN_COMPILED_KERNEL: &str = "chataigne.runtime.sacn";
 const DMX_TRANSPORT_WARNING_ID: &str = "dmx_transport";
-const DMX_SCRIPT_METHODS: &[&str] = &["setChannel", "sendFrame", "blackout"];
+const DMX_SCRIPT_METHODS: &[&str] = &["setChannel", "setChannels", "sendFrame", "blackout"];
 
 #[node("dmx_module_base", label = "DMX Module")]
 #[children(
@@ -61,9 +63,9 @@ const DMX_SCRIPT_METHODS: &[&str] = &["setChannel", "sendFrame", "blackout"];
             label = "Priority",
             description = "sACN source priority. Art-Net keeps this value only as frame metadata."
         );
-        output_frame: String = "[]".to_string() (
+        output_frame: ByteArray = ByteArray::default() (
             label = "Output Channels",
-            description = "Persistent JSON array containing up to 512 channel values."
+            description = "Persistent byte array containing up to 512 channel values."
         );
     }
     folder(values) {
@@ -71,9 +73,9 @@ const DMX_SCRIPT_METHODS: &[&str] = &["setChannel", "sendFrame", "blackout"];
             label = "Received Universe",
             read_only = true
         );
-        received_frame: String = "[]".to_string() (
+        received_frame: ByteArray = ByteArray::default() (
             label = "Received Channels",
-            description = "Latest received DMX frame as a JSON channel array.",
+            description = "Latest received DMX frame as a byte array.",
             read_only = true
         );
         dropped_frames: i32 = 0 (
@@ -363,18 +365,17 @@ impl DmxModuleBase {
             );
         }
         self.received_universe.set(ctx, i32::from(frame.universe));
-        self.received_frame.set(ctx, frame.json.clone());
+        self.received_frame.set(ctx, ByteArray(frame.slots.clone()));
         self.base.emit_incoming_traffic(ctx);
         ctx.emit_custom_event(frame.callback.event(self.id()));
         ctx.edits.retain_payload(frame);
     }
 
     fn persist_output_slots(&mut self, ctx: &mut ProcessCtx) {
-        let text = slots_json(self.output_slots.as_slice());
-        if self.output_frame.get_ref() == &text {
+        if self.output_frame.get_ref().as_slice() == self.output_slots.as_slice() {
             return;
         }
-        let value = ParamValue::Str(text);
+        let value = ParamValue::Bytes(self.output_slots.clone());
         self.output_frame.apply_runtime_value(&value);
         ctx.set_param_from(
             self.id(),
@@ -532,6 +533,13 @@ impl Node for DmxModuleBase {
 
 macro_rules! delegate_dmx_module_node {
     () => {
+        fn project_migrate_children<'a>(
+            &self,
+            children: &'a [golden_core::engine::ProjectNodeRecord],
+        ) -> Result<std::borrow::Cow<'a, [golden_core::engine::ProjectNodeRecord]>, String> {
+            persistence::migrate_module_children(children)
+        }
+
         fn init(&mut self, ctx: &mut ProcessCtx) {
             self.base.init(ctx);
         }
@@ -697,13 +705,35 @@ pub(crate) fn script_set_channel(args: &[ParamValue]) -> Result<DmxCommandReques
 
 pub(crate) fn script_send_frame(args: &[ParamValue]) -> Result<DmxCommandRequest, String> {
     if args.len() != 1 {
-        return Err("sendFrame expects one JSON channel array".to_string());
+        return Err("sendFrame expects one byte array or JSON channel string".to_string());
     }
     let value = match &args[0] {
         ParamValue::Str(value) | ParamValue::File(value) | ParamValue::Enum(value) => value.as_str(),
-        _ => return Err("sendFrame expects a JSON string".into()),
+        ParamValue::Bytes(slots) if slots.len() <= DMX_SLOT_COUNT => {
+            return Ok(DmxCommandRequest::SendFrame { slots: slots.clone() });
+        }
+        _ => return Err("sendFrame expects up to 512 bytes or a JSON channel string".into()),
     };
     parse_slots_json(value).map(|slots| DmxCommandRequest::SendFrame { slots })
+}
+
+pub(crate) fn script_set_channels(args: &[ParamValue]) -> Result<DmxCommandRequest, String> {
+    if args.len() != 2 {
+        return Err("setChannels expects a starting channel and a byte array".into());
+    }
+    let channel = args[0]
+        .as_int()
+        .and_then(|value| u16::try_from(value).ok())
+        .filter(|value| (1..=512).contains(value))
+        .ok_or("setChannels start must be between 1 and 512")?;
+    let slots = args[1].as_bytes().ok_or("setChannels expects a byte array")?;
+    if slots.is_empty() || usize::from(channel - 1) + slots.len() > DMX_SLOT_COUNT {
+        return Err("setChannels requires nonempty data contained within channels 1..512".into());
+    }
+    Ok(DmxCommandRequest::SetChannels {
+        channel,
+        slots: slots.to_vec(),
+    })
 }
 
 pub(crate) fn script_blackout(args: &[ParamValue]) -> Result<DmxCommandRequest, String> {

@@ -19,6 +19,7 @@ use preparation::Preparation;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum DmxCommandRequest {
     SetChannel { channel: u16, value: u8 },
+    SetChannels { channel: u16, slots: Vec<u8> },
     SendFrame { slots: Vec<u8> },
     Blackout,
 }
@@ -67,7 +68,7 @@ enum Input {
         method: &'static str,
         args: ScriptArguments,
     },
-    Property(String),
+    Property(Vec<u8>),
 }
 struct Source {
     input: Input,
@@ -120,7 +121,8 @@ struct Pending {
 pub(super) struct Outgoing {
     pending: VecDeque<Pending>,
     authored: Option<FrameRevision>,
-    projection: Option<String>,
+    projection: Option<Vec<u8>>,
+    reflect: Option<RetainedPayload<Prepared>>,
     retry_at: Option<Instant>,
 }
 

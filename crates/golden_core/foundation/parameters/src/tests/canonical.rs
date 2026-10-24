@@ -15,6 +15,7 @@ fn every_parameter_variant_round_trips_through_the_canonical_value() {
         ParamValue::Int(-12),
         ParamValue::Float(3.5),
         ParamValue::Str("hello".into()),
+        ParamValue::Bytes(vec![0, 127, 255]),
         ParamValue::File("fixtures/example.noisette".into()),
         ParamValue::Enum("multiply".into()),
         ParamValue::Bool(true),

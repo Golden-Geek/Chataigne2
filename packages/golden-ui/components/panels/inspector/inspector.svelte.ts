@@ -4,6 +4,7 @@ import CssValueEditor from './parameters/CssValueEditor.svelte';
 import DropdownEditor from './parameters/DropdownEditor.svelte';
 import NumberEditor from './parameters/NumberEditor.svelte';
 import TextInputEditor from './parameters/TextInputEditor.svelte';
+import BytesEditor from './parameters/BytesEditor.svelte';
 import TriggerEditor from './parameters/TriggerEditor.svelte';
 import ReferenceEditor from './parameters/ReferenceEditor.svelte';
 import MultiNumberEditor from './parameters/MultiNumberEditor.svelte';
@@ -14,6 +15,7 @@ export const propertiesInspectorClass: Record<string, { component: any }> = {
 	trigger: { component: TriggerEditor },
 	int: { component: NumberEditor },
 	str: { component: TextInputEditor },
+	bytes: { component: BytesEditor },
 	file: { component: FilePathEditor },
 	float: { component: NumberEditor },
 	bool: { component: CheckboxEditor },

@@ -120,19 +120,19 @@ impl DmxModuleBase {
             return Ok(());
         };
         let EventKind::ParamChanged {
-            new_value: ParamValue::Str(text),
+            new_value: ParamValue::Bytes(slots),
             ..
         } = &event.kind
         else {
             return Ok(());
         };
-        if text.len() > frame::MAX_SLOTS_TEXT {
-            return Err("DMX channel JSON exceeds 8192 bytes".into());
+        if slots.len() > DMX_SLOT_COUNT {
+            return Err("DMX frame exceeds 512 slots".into());
         }
         let time = event.time;
         // The event owns this occurrence. A later edit may already be visible in
         // the snapshot; copying that value would lose an accepted frame change.
-        let text = text.clone();
+        let slots = slots.clone();
         let snapshot = ctx
             .tree_snapshot_arc()
             .ok_or("Missing DMX property snapshot")?
@@ -140,7 +140,7 @@ impl DmxModuleBase {
             .map_err(|error| error.to_string())?;
         let producer = ctx.node_waker().map_err(|error| error.to_string())?;
         self.outgoing.projection = None;
-        self.capture_output(ctx, Input::Property(text), snapshot, producer, time)
+        self.capture_output(ctx, Input::Property(slots), snapshot, producer, time)
     }
 
     pub(in super::super) fn service_output(&mut self, ctx: &mut ProcessCtx) {
@@ -209,6 +209,18 @@ impl DmxModuleBase {
                         frame.slots
                     }
                     DmxCommandRequest::SendFrame { slots } => slots.clone(),
+                    DmxCommandRequest::SetChannels { channel, slots } => {
+                        let baseline = if self.outgoing.authored == Some(source.output) {
+                            &self.output_slots
+                        } else {
+                            ready.baseline.as_ref().unwrap()
+                        };
+                        let mut channels = baseline.clone();
+                        channels.resize(DMX_SLOT_COUNT, 0);
+                        let start = usize::from(*channel - 1);
+                        channels[start..start + slots.len()].copy_from_slice(slots);
+                        channels
+                    }
                     DmxCommandRequest::Blackout => DmxFrame::blackout(source.universe)?.slots,
                 };
                 let frame = DmxFrame::with_metadata(source.universe, 0, source.priority, slots)?;
@@ -233,34 +245,48 @@ impl DmxModuleBase {
                 self.set_transport_warning(ctx, &error);
                 continue;
             }
-            if self.outgoing.pending.is_empty() && !matches!(source.input, Input::Property(_)) {
-                let current = snapshot
-                    .subtree_revision(source.output.0)
-                    .map(|revision| (source.output.0, revision));
-                let current_text = snapshot
-                    .node(source.output.0)
-                    .and_then(|node| node.param_value.as_ref());
-                let own_projection = matches!(current_text, Some(ParamValue::Str(text)) if self.outgoing.projection.as_ref() == Some(text));
-                if current == Some(source.output) || own_projection {
-                    use golden_core::edit::{Edit, EditPreconditions, NodeReadGuard};
-                    let mut guards = Vec::with_capacity(7);
-                    guards.push(NodeReadGuard::capture_structure(&snapshot, self.id()).unwrap());
-                    guards.push(NodeReadGuard::capture(&snapshot, source.output.0).unwrap());
-                    for (id, _) in source.key.configuration.iter().flatten() {
-                        guards.push(NodeReadGuard::capture(&snapshot, *id).unwrap());
-                    }
-                    ctx.edits.push(Edit::CheckPreconditions {
-                        preconditions: EditPreconditions::new(guards, vec![source.session.clone()]).unwrap(),
-                    });
-                    self.persist_output_slots(ctx);
-                    self.outgoing.projection = Some(slots_json(&self.output_slots));
-                    ctx.edits.retain_payload(ready.clone());
-                }
-            }
+            self.outgoing.reflect = (!matches!(source.input, Input::Property(_))).then(|| ready.clone());
         }
-        if !self.outgoing.pending.is_empty() {
+        if self.outgoing.pending.is_empty() {
+            self.reflect_output(ctx, &snapshot);
+        } else {
             self.request_service();
         }
+    }
+
+    fn reflect_output(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
+        // A rejected trailing operation must not hide the final admitted frame.
+        let Some(ready) = self.outgoing.reflect.take() else {
+            return;
+        };
+        let source = &ready.source;
+        if source.rejection(snapshot).is_some() {
+            return;
+        }
+        let current = snapshot
+            .subtree_revision(source.output.0)
+            .map(|revision| (source.output.0, revision));
+        let current_value = snapshot
+            .node(source.output.0)
+            .and_then(|node| node.param_value.as_ref());
+        let own_projection =
+            matches!(current_value, Some(ParamValue::Bytes(slots)) if self.outgoing.projection.as_ref() == Some(slots));
+        if current != Some(source.output) && !own_projection {
+            return;
+        }
+        use golden_core::edit::{Edit, EditPreconditions, NodeReadGuard};
+        let mut guards = Vec::with_capacity(7);
+        guards.push(NodeReadGuard::capture_structure(snapshot, self.id()).unwrap());
+        guards.push(NodeReadGuard::capture(snapshot, source.output.0).unwrap());
+        for (id, _) in source.key.configuration.iter().flatten() {
+            guards.push(NodeReadGuard::capture(snapshot, *id).unwrap());
+        }
+        ctx.edits.push(Edit::CheckPreconditions {
+            preconditions: EditPreconditions::new(guards, vec![source.session.clone()]).unwrap(),
+        });
+        self.persist_output_slots(ctx);
+        self.outgoing.projection = Some(self.output_slots.clone());
+        ctx.edits.retain_payload(ready);
     }
 
     pub(in super::super) fn output_needs_snapshot(&self) -> bool {

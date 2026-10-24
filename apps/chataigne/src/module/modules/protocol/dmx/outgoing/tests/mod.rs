@@ -18,6 +18,85 @@ fn child(engine: &AppEngine, parent: NodeId, name: &str) -> NodeId {
         .find_child_by_decl_id(parent, name)
         .unwrap()
 }
+
+#[test]
+fn typed_channel_batches_publish_one_frame_each_and_preserve_ordered_deltas() {
+    let receiver = receiver();
+    let (mut engine, id) = fixture(&receiver);
+    script(&mut engine, id, "sendFrame", vec![ParamValue::Bytes(vec![8, 9, 10])]);
+    script(
+        &mut engine,
+        id,
+        "setChannels",
+        vec![ParamValue::Int(2), ParamValue::Bytes(vec![255, 7])],
+    );
+    script(
+        &mut engine,
+        id,
+        "setChannel",
+        vec![ParamValue::Int(512), ParamValue::Int(42)],
+    );
+    engine.apply_edits().unwrap();
+    settle(&mut engine, id);
+    assert_eq!(&receive(&receiver)[..3], &[8, 9, 10]);
+    let batch = receive(&receiver);
+    assert_eq!(&batch[..3], &[8, 255, 7]);
+    assert!(batch[3..].iter().all(|value| *value == 0));
+    let delta = receive(&receiver);
+    assert_eq!(&delta[..3], &[8, 255, 7]);
+    assert_eq!(delta[511], 42);
+    receiver.set_read_timeout(Some(Duration::from_millis(20))).unwrap();
+    assert!(
+        receiver.recv(&mut [0; 1024]).is_err(),
+        "three invocations produce exactly three frames"
+    );
+    assert_eq!(base(&mut engine, id).output_frame.get_ref().as_slice(), delta);
+    base(&mut engine, id).stop_transport();
+}
+
+#[test]
+fn channel_batch_command_and_invalid_script_range_cannot_publish_partial_updates() {
+    let receiver = receiver();
+    let (mut engine, id) = fixture(&receiver);
+    let tester = child(&engine, id, "command_tester");
+    engine.add_user_item(crate::app::DmxSetChannelsCommand::create().into(), Some(tester));
+    for _ in 0..5 {
+        turn(&mut engine);
+    }
+    let command = engine.nodes.get(tester).unwrap().node_data().first_child.unwrap();
+    let start = child(&engine, command, "channel");
+    let slots = child(&engine, command, "slots");
+    set(&mut engine, start, ParamValue::Int(511));
+    set(&mut engine, slots, ParamValue::Bytes(vec![41, 42]));
+    let execution = ModuleCommandExecuteEvent {
+        command_id: command,
+        invocation_id: None,
+        delivery_policy: ModuleCommandDeliveryPolicy::Standard,
+        param_overrides: vec![],
+    };
+    engine.edits.push(Edit::EmitCustomEvent {
+        event: CustomEvent::new(
+            crate::app::module_command::MODULE_COMMAND_EXECUTE_TOPIC,
+            Some(command),
+            serde_json::to_value(execution).unwrap(),
+        ),
+    });
+    script(
+        &mut engine,
+        id,
+        "setChannels",
+        vec![ParamValue::Int(512), ParamValue::Bytes(vec![1, 2])],
+    );
+    engine.apply_edits().unwrap();
+    settle(&mut engine, id);
+    let frame = receive(&receiver);
+    assert!(frame[..510].iter().all(|value| *value == 0));
+    assert_eq!(&frame[510..], &[41, 42]);
+    assert_eq!(base(&mut engine, id).output_frame.get_ref().as_slice(), frame);
+    receiver.set_read_timeout(Some(Duration::from_millis(20))).unwrap();
+    assert!(receiver.recv(&mut [0; 1024]).is_err());
+    base(&mut engine, id).stop_transport();
+}
 fn command(engine: &mut AppEngine, module: NodeId) -> NodeId {
     let tester = child(engine, module, "command_tester");
     engine.add_user_item(DmxSendFrameCommand::create().into(), Some(tester));
@@ -51,10 +130,7 @@ fn ordered_script_deltas_preserve_every_prior_channel_and_reflect_the_last_frame
     }
     let output = base(&mut engine, id).output_frame.id();
     let value = engine.nodes.get(output).unwrap().engine_param_snapshot().unwrap().value;
-    assert_eq!(
-        parse_slots_json(&value.as_str().unwrap()).unwrap(),
-        base(&mut engine, id).output_slots
-    );
+    assert_eq!(value.as_bytes().unwrap(), base(&mut engine, id).output_slots);
     assert!(base(&mut engine, id).outgoing.pending.is_empty());
     base(&mut engine, id).stop_transport();
 }
@@ -66,7 +142,7 @@ fn authored_frame_occurrences_and_script_calls_share_engine_order() {
     let output = base(&mut engine, id).output_frame.id();
     engine.edits.push(Edit::SetParam {
         node: output,
-        value: ParamValue::Str("[5]".into()),
+        value: ParamValue::Bytes(vec![5]),
         behaviour: ParameterEventBehaviour::Append,
     });
     script(
@@ -77,7 +153,7 @@ fn authored_frame_occurrences_and_script_calls_share_engine_order() {
     );
     engine.edits.push(Edit::SetParam {
         node: output,
-        value: ParamValue::Str("[9]".into()),
+        value: ParamValue::Bytes(vec![9]),
         behaviour: ParameterEventBehaviour::Append,
     });
     script(
@@ -99,9 +175,10 @@ fn authored_frame_occurrences_and_script_calls_share_engine_order() {
         .engine_param_snapshot()
         .unwrap()
         .value
-        .as_str()
-        .unwrap();
-    assert_eq!(&parse_slots_json(&text).unwrap()[..3], &[9, 0, 11]);
+        .as_bytes()
+        .unwrap()
+        .to_vec();
+    assert_eq!(&text[..3], &[9, 0, 11]);
     base(&mut engine, id).stop_transport();
 }
 
@@ -111,7 +188,7 @@ fn captured_command_last_override_replaces_large_authored_frame_without_an_overl
     let (mut engine, id) = fixture(&receiver);
     let command = command(&mut engine, id);
     let slots = child(&engine, command, "slots");
-    set(&mut engine, slots, ParamValue::Str("x".repeat(1024 * 1024)));
+    set(&mut engine, slots, ParamValue::Bytes(vec![5; 1024 * 1024]));
     let execution = ModuleCommandExecuteEvent {
         command_id: command,
         invocation_id: None,
@@ -119,11 +196,11 @@ fn captured_command_last_override_replaces_large_authored_frame_without_an_overl
         param_overrides: vec![
             ModuleCommandParamOverride {
                 param_id: slots,
-                value: ParamValue::Str("[1]".into()),
+                value: ParamValue::Bytes(vec![1]),
             },
             ModuleCommandParamOverride {
                 param_id: slots,
-                value: ParamValue::Str(slots_json(&vec![5; 512])),
+                value: ParamValue::Bytes(vec![5; 512]),
             },
         ],
     };
@@ -145,7 +222,7 @@ fn captured_command_last_override_replaces_large_authored_frame_without_an_overl
             .engine_param_snapshot()
             .unwrap()
             .value
-            .as_str()
+            .as_bytes()
             .unwrap()
             .len(),
         1024 * 1024
@@ -166,13 +243,13 @@ fn script_capture_keeps_canonical_arguments_and_a_newer_authored_frame_wins_proj
     };
     assert_eq!(pointer, args.as_ptr());
     let output = base(&mut engine, id).output_frame.id();
-    set(&mut engine, output, ParamValue::Str("[9]".into()));
+    set(&mut engine, output, ParamValue::Bytes(vec![9]));
     settle(&mut engine, id);
     assert_eq!(receive(&receiver)[0], 7);
     assert_eq!(receive(&receiver)[0], 9);
     assert_eq!(
         engine.nodes.get(output).unwrap().engine_param_snapshot().unwrap().value,
-        ParamValue::Str("[9]".into())
+        ParamValue::Bytes(vec![9])
     );
     base(&mut engine, id).stop_transport();
 }
@@ -203,7 +280,7 @@ fn command_and_script_occurrences_are_ordered_without_an_explicit_inbox_flush() 
     let (mut engine, id) = fixture(&receiver);
     let command = command(&mut engine, id);
     let slots = child(&engine, command, "slots");
-    set(&mut engine, slots, ParamValue::Str("[3]".into()));
+    set(&mut engine, slots, ParamValue::Bytes(vec![3]));
     let execution = ModuleCommandExecuteEvent {
         command_id: command,
         param_overrides: vec![],

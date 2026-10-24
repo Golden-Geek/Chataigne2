@@ -63,6 +63,7 @@ fn encode_param_value(value: &ParamValue) -> Result<Vec<OscType>, String> {
         ParamValue::Trigger() => Vec::new(),
         ParamValue::Int(value) => vec![OscType::Int(*value)],
         ParamValue::Float(value) => vec![OscType::Float(*value as f32)],
+        ParamValue::Bytes(value) => vec![OscType::Blob(value.clone())],
         ParamValue::Str(value) | ParamValue::File(value) | ParamValue::Enum(value) => {
             vec![OscType::String(value.clone())]
         }
@@ -104,6 +105,7 @@ fn encode_single_argument(value: &ParamValue) -> Result<OscType, String> {
         ParamValue::Trigger() => Err("Trigger values cannot be encoded as one OSC argument".to_string()),
         ParamValue::Int(value) => Ok(OscType::Int(*value)),
         ParamValue::Float(value) => Ok(OscType::Float(*value as f32)),
+        ParamValue::Bytes(value) => Ok(OscType::Blob(value.clone())),
         ParamValue::Str(value) | ParamValue::File(value) | ParamValue::Enum(value) => {
             Ok(OscType::String(value.clone()))
         }
@@ -138,16 +140,20 @@ fn try_decode_supported_cast(args: &[OscType]) -> Option<ParamValue> {
     match args {
         [] => Some(ParamValue::Trigger()),
         [value] => decode_supported_single(value),
-        [OscType::Float(first), OscType::Float(second)] => Some(ParamValue::Vec2(
-            f64::from(*first),
-            f64::from(*second),
-        )),
+        [OscType::Float(first), OscType::Float(second)] => {
+            Some(ParamValue::Vec2(f64::from(*first), f64::from(*second)))
+        }
         [OscType::Float(first), OscType::Float(second), OscType::Float(third)] => Some(ParamValue::Vec3(
             f64::from(*first),
             f64::from(*second),
             f64::from(*third),
         )),
-        [OscType::Float(r), OscType::Float(g), OscType::Float(b), OscType::Float(a)] => Some(ParamValue::Color(
+        [
+            OscType::Float(r),
+            OscType::Float(g),
+            OscType::Float(b),
+            OscType::Float(a),
+        ] => Some(ParamValue::Color(
             f64::from(*r),
             f64::from(*g),
             f64::from(*b),

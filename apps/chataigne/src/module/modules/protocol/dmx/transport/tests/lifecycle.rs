@@ -52,7 +52,7 @@ fn queued_input_projection_retains_its_source_until_retirement_rejects_the_entir
     ));
     assert_eq!(
         engine.nodes.get(target).unwrap().engine_param_snapshot().unwrap().value,
-        ParamValue::Str("[]".into())
+        ParamValue::Bytes(vec![])
     );
     assert!(input.wait_for_idle(Duration::from_secs(1)));
 }
@@ -63,6 +63,7 @@ struct Control {
     fail: Arc<AtomicBool>,
     panic: Arc<AtomicBool>,
     continuous: Arc<AtomicBool>,
+    health_flips: Arc<AtomicBool>,
     ignored: Arc<AtomicUsize>,
     invalid: Arc<AtomicBool>,
     paced: Arc<AtomicBool>,
@@ -112,10 +113,9 @@ impl worker::Endpoint for Fake {
         }
         let frame = self.control.frames.lock().unwrap().pop_front();
         if frame.is_none() && self.control.continuous.load(Ordering::Acquire) {
-            Ok(ReceivePoll::Frame(input(DmxFrame::new(
-                1,
-                vec![(sequence % 256) as u8; 512],
-            )?)))
+            let mut frame = input(DmxFrame::new(1, vec![(sequence % 256) as u8; 512])?);
+            frame.metadata.stale = self.control.health_flips.load(Ordering::Acquire) && sequence.is_multiple_of(2);
+            Ok(ReceivePoll::Frame(frame))
         } else {
             Ok(frame.map_or(ReceivePoll::Empty, |frame| ReceivePoll::Frame(input(frame))))
         }
@@ -151,6 +151,9 @@ fn paced_output_keeps_fifo_receipts_while_continuous_input_makes_progress() {
     let control = Control::default();
     control.paced.store(true, Ordering::Release);
     control.continuous.store(true, Ordering::Release);
+    // Leave every status unconsumed: neither health changes nor input pressure
+    // may gate command deadlines or require an actor poll to release capacity.
+    control.health_flips.store(true, Ordering::Release);
     let mut handle = fake(control.clone(), &lifetimes, pool(32), pool(32));
     let started = Instant::now();
     let receipts: Vec<_> = (0..10)
@@ -159,7 +162,7 @@ fn paced_output_keeps_fifo_receipts_while_continuous_input_makes_progress() {
     until(|| receipts.iter().all(|receipt| receipt.status() == SendStatus::Sent));
     assert!(started.elapsed() >= Duration::from_millis(270));
     assert_eq!(*control.sent_values.lock().unwrap(), (0..10).collect::<Vec<_>>());
-    assert!(control.reads.load(Ordering::Acquire) > 10);
+    assert!(control.reads.load(Ordering::Acquire) > 64);
     assert!(handle.has_frame());
     handle.stop();
     assert!(lifetimes.wait_for_idle(Duration::from_secs(1)));

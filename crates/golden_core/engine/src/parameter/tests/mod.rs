@@ -2,6 +2,7 @@ use super::*;
 use crate::node::Node;
 
 mod authored;
+mod bytes;
 mod coercion;
 
 #[test]

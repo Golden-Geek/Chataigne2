@@ -1,6 +1,6 @@
 use super::{
-    bounds::MAX_SOURCE_BYTES, streaming_script_send_request, validate_values, StreamingSendFrameKind,
-    StreamingSendRequest,
+    StreamingSendFrameKind, StreamingSendRequest, bounds::MAX_SOURCE_BYTES, streaming_script_send_request,
+    validate_values,
 };
 use golden_core::{parameter::ParamValue, process_ctx::ProcessCtx, script::ScriptArguments};
 use golden_io::{PayloadPool, RetainedPayload};
@@ -72,6 +72,7 @@ impl ScriptSend {
                 ParamValue::Trigger() => 7,
                 ParamValue::Int(_) => 12,
                 ParamValue::Bool(_) => 5,
+                ParamValue::Bytes(bytes) => bytes.len().saturating_mul(5).saturating_add(2),
                 // Even four f64 decimal expansions and CSS units fit in 4096 bytes.
                 ParamValue::Float(_)
                 | ParamValue::CssValue(_)

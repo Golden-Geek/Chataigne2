@@ -1,15 +1,11 @@
 use std::{collections::HashMap, sync::Arc};
 
 use chataigne_condition::{
-    CompiledConditionProgram, ConditionBehavior, ConditionDefinition, ConditionGroupPolicy,
-    ConditionId, ConditionKind, ConditionOperand, ConditionProjection, EdgePolicy,
-    InputNodeCondition, InputValueCondition, ScriptCondition, TypedComparator, compile_condition,
+    CompiledConditionProgram, ConditionBehavior, ConditionDefinition, ConditionGroupPolicy, ConditionId, ConditionKind,
+    ConditionOperand, ConditionProjection, EdgePolicy, InputNodeCondition, InputValueCondition, ScriptCondition,
+    TypedComparator, compile_condition,
 };
-use golden_core::{
-    node::NodeId,
-    parameter::ParamValue,
-    process_ctx::ProcessTreeSnapshot,
-};
+use golden_core::{node::NodeId, parameter::ParamValue, process_ctx::ProcessTreeSnapshot};
 use golden_values::{StableRef, Value, ValueTypeId};
 
 const CONDITION_GROUP_NODE_TYPE: &str = "sm_condition_group";
@@ -39,12 +35,10 @@ pub(crate) fn compile_manager_condition(
     root: NodeId,
 ) -> Result<CompiledManagerCondition, Vec<String>> {
     let mut bindings = HashMap::new();
-    let current_definition = definition(snapshot, root, false, &mut bindings).ok_or_else(|| {
-        vec![format!("condition manager `{root:?}` has no compilable condition tree")]
-    })?;
-    let settled_definition = definition(snapshot, root, true, &mut bindings).ok_or_else(|| {
-        vec![format!("condition manager `{root:?}` has no settled condition tree")]
-    })?;
+    let current_definition = definition(snapshot, root, false, &mut bindings)
+        .ok_or_else(|| vec![format!("condition manager `{root:?}` has no compilable condition tree")])?;
+    let settled_definition = definition(snapshot, root, true, &mut bindings)
+        .ok_or_else(|| vec![format!("condition manager `{root:?}` has no settled condition tree")])?;
     let current = Arc::new(compile_condition(&current_definition).map_err(diagnostic_messages)?);
     let settled = if current_definition == settled_definition {
         Arc::clone(&current)
@@ -58,13 +52,8 @@ pub(crate) fn compile_manager_condition(
     })
 }
 
-fn diagnostic_messages(
-    diagnostics: Vec<chataigne_condition::ConditionCompileDiagnostic>,
-) -> Vec<String> {
-    diagnostics
-        .into_iter()
-        .map(|diagnostic| diagnostic.message)
-        .collect()
+fn diagnostic_messages(diagnostics: Vec<chataigne_condition::ConditionCompileDiagnostic>) -> Vec<String> {
+    diagnostics.into_iter().map(|diagnostic| diagnostic.message).collect()
 }
 
 fn definition(
@@ -87,8 +76,7 @@ fn definition(
                         .flatten()
                 })
                 .collect::<Vec<_>>();
-            let operator = child_string(snapshot, node_id, "operator")
-                .unwrap_or_else(|| "all".to_owned());
+            let operator = child_string(snapshot, node_id, "operator").unwrap_or_else(|| "all".to_owned());
             let count = child_number(snapshot, node_id, "operator_count")
                 .unwrap_or(1.0)
                 .max(0.0) as usize;
@@ -108,8 +96,7 @@ fn definition(
             }
         }
         INPUT_VALUE_CONDITION_NODE_TYPE => {
-            let comparator_name = child_string(snapshot, node_id, "comparator")
-                .unwrap_or_else(|| "equal".to_owned());
+            let comparator_name = child_string(snapshot, node_id, "comparator").unwrap_or_else(|| "equal".to_owned());
             if settled && comparator_is_transient(snapshot, node_id, &comparator_name) {
                 ConditionKind::Constant(false)
             } else {
@@ -119,35 +106,14 @@ fn definition(
                     child_string(snapshot, node_id, "source_projection").as_deref(),
                     &comparator_name,
                 );
-                let input = bind_source(
-                    snapshot,
-                    node_id,
-                    "source",
-                    node.uuid.0,
-                    bindings,
-                )?;
-                let expected = bind_expected(
-                    snapshot,
-                    node_id,
-                    &comparator_name,
-                    node.uuid.0,
-                    bindings,
-                )?;
-                let expected_max = matches!(
-                    comparator,
-                    TypedComparator::Between | TypedComparator::Outside
-                )
-                .then(|| {
-                    bind_param(
-                        snapshot,
-                        node_id,
-                        "reference_max",
-                        node.uuid.0,
-                        bindings,
-                    )
-                    .map(ConditionOperand::Input)
-                })
-                .flatten();
+                let input = bind_source(snapshot, node_id, "source", node.uuid.0, bindings)?;
+                let expected = bind_expected(snapshot, node_id, &comparator_name, node.uuid.0, bindings)?;
+                let expected_max = matches!(comparator, TypedComparator::Between | TypedComparator::Outside)
+                    .then(|| {
+                        bind_param(snapshot, node_id, "reference_max", node.uuid.0, bindings)
+                            .map(ConditionOperand::Input)
+                    })
+                    .flatten();
                 ConditionKind::InputValue(InputValueCondition {
                     input,
                     projection,
@@ -159,41 +125,19 @@ fn definition(
             }
         }
         INPUT_NODE_CONDITION_NODE_TYPE => {
-            let comparator_name = child_string(snapshot, node_id, "comparator")
-                .unwrap_or_else(|| "equal".to_owned());
+            let comparator_name = child_string(snapshot, node_id, "comparator").unwrap_or_else(|| "equal".to_owned());
             if settled && comparator_name == "value_changed" {
                 ConditionKind::Constant(false)
             } else {
                 let (_, comparator) = comparison_plan(snapshot, node_id, None, &comparator_name);
-                let node_ref = bind_source(
-                    snapshot,
-                    node_id,
-                    "provider_node",
-                    node.uuid.0,
-                    bindings,
-                )?;
-                let expected = bind_expected(
-                    snapshot,
-                    node_id,
-                    &comparator_name,
-                    node.uuid.0,
-                    bindings,
-                )?;
-                let expected_max = matches!(
-                    comparator,
-                    TypedComparator::Between | TypedComparator::Outside
-                )
-                .then(|| {
-                    bind_param(
-                        snapshot,
-                        node_id,
-                        "reference_max",
-                        node.uuid.0,
-                        bindings,
-                    )
-                    .map(ConditionOperand::Input)
-                })
-                .flatten();
+                let node_ref = bind_source(snapshot, node_id, "provider_node", node.uuid.0, bindings)?;
+                let expected = bind_expected(snapshot, node_id, &comparator_name, node.uuid.0, bindings)?;
+                let expected_max = matches!(comparator, TypedComparator::Between | TypedComparator::Outside)
+                    .then(|| {
+                        bind_param(snapshot, node_id, "reference_max", node.uuid.0, bindings)
+                            .map(ConditionOperand::Input)
+                    })
+                    .flatten();
                 ConditionKind::InputNode(InputNodeCondition {
                     provider: child_string(snapshot, node_id, "endpoint_id").unwrap_or_default(),
                     node: node_ref,
@@ -224,12 +168,8 @@ fn behavior(snapshot: &ProcessTreeSnapshot, node: NodeId) -> ConditionBehavior {
         edge: EdgePolicy::Level,
         toggle: child_bool(snapshot, node, "toggle_mode").unwrap_or(false),
         transient_ticks: 0,
-        validation_delay_ms: seconds_to_millis(
-            child_number(snapshot, node, "validation_delay_s").unwrap_or(0.0),
-        ),
-        invalidation_delay_ms: seconds_to_millis(
-            child_number(snapshot, node, "invalidation_delay_s").unwrap_or(0.0),
-        ),
+        validation_delay_ms: seconds_to_millis(child_number(snapshot, node, "validation_delay_s").unwrap_or(0.0)),
+        invalidation_delay_ms: seconds_to_millis(child_number(snapshot, node, "invalidation_delay_s").unwrap_or(0.0)),
     }
 }
 
@@ -273,9 +213,7 @@ fn comparison_plan(
         "starts_with" => (authored_projection, TypedComparator::StartsWith),
         "ends_with" => (authored_projection, TypedComparator::EndsWith),
         "regex_match" => (authored_projection, TypedComparator::RegexMatch),
-        "value_changed" if source_is_trigger(snapshot, condition) => {
-            (authored_projection, TypedComparator::Triggered)
-        }
+        "value_changed" if source_is_trigger(snapshot, condition) => (authored_projection, TypedComparator::Triggered),
         "value_changed" => (authored_projection, TypedComparator::Changed),
         "magnitude_greater_than" => (magnitude_projection(snapshot, condition), TypedComparator::Greater),
         "magnitude_less_than" => (magnitude_projection(snapshot, condition), TypedComparator::Less),
@@ -291,10 +229,7 @@ fn comparison_plan(
     }
 }
 
-fn magnitude_projection(
-    snapshot: &ProcessTreeSnapshot,
-    condition: NodeId,
-) -> ConditionProjection {
+fn magnitude_projection(snapshot: &ProcessTreeSnapshot, condition: NodeId) -> ConditionProjection {
     let is_vec2 = condition_value_target(snapshot, condition)
         .and_then(|source| snapshot.node(source))
         .and_then(|source| source.param_value.as_ref())
@@ -308,9 +243,7 @@ fn magnitude_projection(
 
 fn expected_field(comparator: &str) -> &'static str {
     match comparator {
-        "contains" | "does_not_contain" | "starts_with" | "ends_with" | "regex_match" => {
-            "reference_string"
-        }
+        "contains" | "does_not_contain" | "starts_with" | "ends_with" | "regex_match" => "reference_string",
         "is_true" => "true",
         "is_false" => "false",
         "equal" | "not_equal" => "reference_auto",
@@ -333,10 +266,7 @@ fn source_is_trigger(snapshot: &ProcessTreeSnapshot, condition: NodeId) -> bool 
         .is_some_and(|source| matches!(source.param_value, Some(ParamValue::Trigger())))
 }
 
-fn condition_source_target(
-    snapshot: &ProcessTreeSnapshot,
-    condition: NodeId,
-) -> Option<NodeId> {
+fn condition_source_target(snapshot: &ProcessTreeSnapshot, condition: NodeId) -> Option<NodeId> {
     child_reference_target(snapshot, condition, "source")
         .or_else(|| child_reference_target(snapshot, condition, "provider_node"))
 }
@@ -403,14 +333,7 @@ fn bind_expected(
             bindings,
         )
         .map(ConditionOperand::Input),
-        field => bind_param(
-            snapshot,
-            condition,
-            field,
-            condition_uuid,
-            bindings,
-        )
-        .map(ConditionOperand::Input),
+        field => bind_param(snapshot, condition, field, condition_uuid, bindings).map(ConditionOperand::Input),
     }
 }
 
@@ -420,9 +343,7 @@ fn automatic_reference_field(snapshot: &ProcessTreeSnapshot, condition: NodeId) 
         .and_then(|source| source.param_value.as_ref());
     match source {
         Some(ParamValue::Bool(_)) => "reference_bool",
-        Some(ParamValue::Str(_) | ParamValue::File(_) | ParamValue::Enum(_)) => {
-            "reference_string"
-        }
+        Some(ParamValue::Str(_) | ParamValue::File(_) | ParamValue::Enum(_)) => "reference_string",
         Some(ParamValue::Vec2(_, _)) => "reference_vec2",
         Some(ParamValue::Vec3(_, _, _)) => "reference_vec3",
         Some(ParamValue::Color(_, _, _, _)) => "reference_color",
@@ -431,39 +352,24 @@ fn automatic_reference_field(snapshot: &ProcessTreeSnapshot, condition: NodeId) 
 }
 
 fn condition_ref(value_type: &str, condition: uuid::Uuid, field: &str) -> StableRef {
-    StableRef::new(
-        ValueTypeId::new(value_type),
-        format!("{condition}/{field}"),
-    )
+    StableRef::new(ValueTypeId::new(value_type), format!("{condition}/{field}"))
 }
 
-fn child_reference_target(
-    snapshot: &ProcessTreeSnapshot,
-    parent: NodeId,
-    decl_id: &str,
-) -> Option<NodeId> {
+fn child_reference_target(snapshot: &ProcessTreeSnapshot, parent: NodeId, decl_id: &str) -> Option<NodeId> {
     let ParamValue::Reference(reference) = child_param(snapshot, parent, decl_id)? else {
         return None;
     };
     snapshot.node_id_by_uuid(reference.uuid())
 }
 
-fn child_param<'a>(
-    snapshot: &'a ProcessTreeSnapshot,
-    parent: NodeId,
-    decl_id: &str,
-) -> Option<&'a ParamValue> {
+fn child_param<'a>(snapshot: &'a ProcessTreeSnapshot, parent: NodeId, decl_id: &str) -> Option<&'a ParamValue> {
     snapshot.child_ids(parent).into_iter().find_map(|child| {
         let node = snapshot.node(child)?;
         (node.decl_id == decl_id).then_some(node.param_value.as_ref()).flatten()
     })
 }
 
-fn child_param_id(
-    snapshot: &ProcessTreeSnapshot,
-    parent: NodeId,
-    decl_id: &str,
-) -> Option<NodeId> {
+fn child_param_id(snapshot: &ProcessTreeSnapshot, parent: NodeId, decl_id: &str) -> Option<NodeId> {
     snapshot.child_ids(parent).into_iter().find(|child| {
         snapshot
             .node(*child)
@@ -473,9 +379,7 @@ fn child_param_id(
 
 fn child_string(snapshot: &ProcessTreeSnapshot, parent: NodeId, decl_id: &str) -> Option<String> {
     match child_param(snapshot, parent, decl_id)? {
-        ParamValue::Str(value) | ParamValue::File(value) | ParamValue::Enum(value) => {
-            Some(value.clone())
-        }
+        ParamValue::Str(value) | ParamValue::File(value) | ParamValue::Enum(value) => Some(value.clone()),
         _ => None,
     }
 }
@@ -500,20 +404,19 @@ pub(crate) fn param_to_condition_value(value: &ParamValue) -> Option<Value> {
         ParamValue::Trigger() => Some(Value::Trigger(Default::default())),
         ParamValue::Int(value) => Some(Value::Int(i64::from(*value))),
         ParamValue::Float(value) => Some(Value::Float(*value)),
+        ParamValue::Bytes(_) => Value::try_from(value).ok(),
         ParamValue::Str(value) | ParamValue::File(value) | ParamValue::Enum(value) => {
             Some(Value::String(Arc::from(value.as_str())))
         }
         ParamValue::Bool(value) => Some(Value::Bool(*value)),
         ParamValue::Vec2(x, y) => Some(Value::Vec2([*x, *y])),
         ParamValue::Vec3(x, y, z) => Some(Value::Vec3([*x, *y, *z])),
-        ParamValue::Color(red, green, blue, alpha) => Some(Value::Color(
-            golden_values::ColorValue {
-                red: *red,
-                green: *green,
-                blue: *blue,
-                alpha: *alpha,
-            },
-        )),
+        ParamValue::Color(red, green, blue, alpha) => Some(Value::Color(golden_values::ColorValue {
+            red: *red,
+            green: *green,
+            blue: *blue,
+            alpha: *alpha,
+        })),
         ParamValue::CssValue(_) | ParamValue::Reference(_) => None,
     }
 }

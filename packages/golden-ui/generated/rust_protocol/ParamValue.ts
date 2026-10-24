@@ -5,4 +5,4 @@ import type { NodeReference } from "./NodeReference";
 /**
  * Runtime value variants used by parameter nodes.
  */
-export type ParamValue = { "Trigger": never[] } | { "Int": number } | { "Float": number } | { "Str": string } | { "File": string } | { "Enum": string } | { "Bool": boolean } | { "CssValue": CssValue } | { "Vec2": [number, number] } | { "Vec3": [number, number, number] } | { "Color": [number, number, number, number] } | { "Reference": NodeReference };
+export type ParamValue = { "Trigger": never[] } | { "Int": number } | { "Float": number } | { "Str": string } | { "Bytes": Array<number> } | { "File": string } | { "Enum": string } | { "Bool": boolean } | { "CssValue": CssValue } | { "Vec2": [number, number] } | { "Vec3": [number, number, number] } | { "Color": [number, number, number, number] } | { "Reference": NodeReference };

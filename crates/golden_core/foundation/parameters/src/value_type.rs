@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use golden_model::NodeUuid;
 
-use super::{Color, CssUnit, CssValue, Enum, File, NodeReference, ParamValue, Vec2, Vec3};
+use super::{ByteArray, Color, CssUnit, CssValue, Enum, File, NodeReference, ParamValue, Vec2, Vec3};
 
 /// Typed conversion contract between Rust values and [`ParamValue`].
 pub trait ParameterValueType: Clone {
@@ -11,6 +11,15 @@ pub trait ParameterValueType: Clone {
 
     /// Attempts to decode a runtime parameter value to this type.
     fn from_param_value(value: &ParamValue) -> Option<Self>;
+}
+
+impl ParameterValueType for ByteArray {
+    fn to_param_value(value: Self) -> ParamValue {
+        ParamValue::Bytes(value.0)
+    }
+    fn from_param_value(value: &ParamValue) -> Option<Self> {
+        value.as_bytes().map(|bytes| Self(bytes.to_vec()))
+    }
 }
 
 impl ParameterValueType for i32 {

@@ -1201,7 +1201,13 @@ where
     };
     let current_node = decode_sparse_baseline_node(parent_node, &expanded)?;
 
-    expanded.children = expand_sparse_child_records(record, &current_node, &expanded, baseline_children, cache)?;
+    let children = current_node
+        .project_migrate_children(&record.children)
+        .map_err(|message| ProjectPersistenceError::Codec {
+            node_type: record.node_type.clone(),
+            message,
+        })?;
+    expanded.children = expand_sparse_child_records(&children, &current_node, &expanded, baseline_children, cache)?;
 
     Ok(expanded)
 }
@@ -1383,7 +1389,7 @@ fn merge_sparse_json_value(baseline: &serde_json::Value, overlay: &serde_json::V
 }
 
 fn expand_sparse_child_records<T>(
-    record: &ProjectNodeRecord,
+    records: &[ProjectNodeRecord],
     current_node: &T,
     expanded_parent_record: &ProjectNodeRecord,
     baseline_children: &[ProjectNodeRecord],
@@ -1392,13 +1398,12 @@ fn expand_sparse_child_records<T>(
 where
     T: ProjectNode + From<Folder>,
 {
-    let mut consumed_overlay_children = vec![false; record.children.len()];
-    let mut expanded_children = Vec::with_capacity(baseline_children.len().max(record.children.len()));
+    let mut consumed_overlay_children = vec![false; records.len()];
+    let mut expanded_children = Vec::with_capacity(baseline_children.len().max(records.len()));
 
     // Saved sparse children are overlays. Declared baseline children own the structural order.
     for baseline_child in baseline_children {
-        let matching_indices = record
-            .children
+        let matching_indices = records
             .iter()
             .enumerate()
             .filter_map(|(index, child)| {
@@ -1409,7 +1414,7 @@ where
         let matched_index = matching_indices
             .iter()
             .copied()
-            .find(|index| sparse_overlay_has_payload(&record.children[*index]))
+            .find(|index| sparse_overlay_has_payload(&records[*index]))
             .or_else(|| matching_indices.first().copied());
 
         if let Some(index) = matched_index {
@@ -1421,7 +1426,7 @@ where
                 }
             }
             match expand_sparse_node_record(
-                &record.children[index],
+                &records[index],
                 Some(current_node),
                 Some(expanded_parent_record),
                 Some(baseline_child),
@@ -1432,7 +1437,7 @@ where
                     // A saved overlay could not be restored onto its declared baseline
                     // (e.g. stale/renamed node type or corrupt data). Keep the declared
                     // default so the rest of the project still loads, and warn the user.
-                    let overlay_child = &record.children[index];
+                    let overlay_child = &records[index];
                     crate::logwarning!(format!(
                         "Project load: could not restore saved node '{}' (uuid {}): {}. Falling back to declared defaults; edits under it were skipped.",
                         overlay_child.node_type, overlay_child.uuid.0, err
@@ -1445,7 +1450,7 @@ where
         }
     }
 
-    for (index, child) in record.children.iter().enumerate() {
+    for (index, child) in records.iter().enumerate() {
         if consumed_overlay_children[index] {
             continue;
         }

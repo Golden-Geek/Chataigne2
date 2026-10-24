@@ -5,7 +5,7 @@ use ts_rs::TS;
 
 use golden_model::NodeUuid;
 
-use super::{Color, CssUnit, CssValue, Enum, File, NodeReference, Vec2, Vec3};
+use super::{ByteArray, Color, CssUnit, CssValue, Enum, File, NodeReference, Vec2, Vec3};
 
 /// Runtime value variants used by parameter nodes.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -19,6 +19,8 @@ pub enum ParamValue {
     Float(f64),
     /// UTF-8 string value.
     Str(String),
+    /// Binary data with no application-specific meaning or implicit text encoding.
+    Bytes(Vec<u8>),
     /// File path value.
     File(String),
     /// Enum variant identifier.
@@ -63,6 +65,7 @@ pub fn dependency_truthy(value: &ParamValue) -> bool {
         ParamValue::Int(value) => *value != 0,
         ParamValue::Float(value) => value.abs() > f64::EPSILON,
         ParamValue::Str(value) | ParamValue::File(value) | ParamValue::Enum(value) => !value.is_empty(),
+        ParamValue::Bytes(value) => !value.is_empty(),
         ParamValue::Bool(value) => *value,
         ParamValue::CssValue(value) => value.value.abs() > f64::EPSILON,
         ParamValue::Vec2(x, y) => x.abs() > f64::EPSILON || y.abs() > f64::EPSILON,
@@ -152,6 +155,7 @@ where
 impl fmt::Display for ParamValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            ParamValue::Bytes(bytes) => write!(f, "[{} bytes]", bytes.len()),
             Self::Trigger() => write!(f, "trigger"),
             Self::Int(value) => write!(f, "{value}"),
             Self::Float(value) => write!(f, "{value}"),
@@ -195,6 +199,12 @@ impl From<String> for ParamValue {
 impl From<&str> for ParamValue {
     fn from(value: &str) -> Self {
         ParamValue::Str(value.to_string())
+    }
+}
+
+impl From<ByteArray> for ParamValue {
+    fn from(value: ByteArray) -> Self {
+        Self::Bytes(value.0)
     }
 }
 
@@ -289,6 +299,7 @@ impl ParamValue {
     pub fn retained_bytes(&self) -> usize {
         let heap = match self {
             Self::Str(text) | Self::File(text) | Self::Enum(text) => text.capacity(),
+            Self::Bytes(bytes) => bytes.capacity(),
             Self::Reference(reference) => reference.relative_path_from_root.iter().fold(
                 reference
                     .cached_name
@@ -324,6 +335,7 @@ impl ParamValue {
             | ParamValue::File(_)
             | ParamValue::Enum(_)
             | ParamValue::Bool(_)
+            | ParamValue::Bytes(_)
             | ParamValue::Reference(_) => true,
         }
     }
@@ -355,6 +367,7 @@ impl ParamValue {
     /// Coerces this value into a string, when possible.
     pub fn as_str(&self) -> Option<String> {
         match self {
+            ParamValue::Bytes(_) => None,
             ParamValue::Trigger() => Some("trigger".to_string()),
             ParamValue::Int(i) => Some(i.to_string()),
             ParamValue::Float(f) => Some(f.to_string()),
@@ -547,6 +560,9 @@ impl ParamValue {
     /// Encodes this runtime value into script-facing JSON.
     pub fn to_script_json(&self) -> JsonValue {
         match self {
+            // Keep the explicit tag: plain arrays of length 2/3/4 retain their
+            // established vector/color meaning at the generic script boundary.
+            ParamValue::Bytes(value) => serde_json::json!({"Bytes": value}),
             ParamValue::Trigger() => JsonValue::Null,
             ParamValue::Int(value) => serde_json::json!(value),
             ParamValue::Float(value) => serde_json::json!(value),
@@ -564,6 +580,14 @@ impl ParamValue {
                 "relativePathFromRoot": reference.relative_path_from_root(),
                 "projection": reference.projection().map(|projection| projection.variant_id()),
             }),
+        }
+    }
+
+    /// Borrows binary data; textual values are deliberately not decoded here.
+    pub fn as_bytes(&self) -> Option<&[u8]> {
+        match self {
+            Self::Bytes(bytes) => Some(bytes),
+            _ => None,
         }
     }
 }

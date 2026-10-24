@@ -739,9 +739,20 @@ impl<T: Node> Engine<T> {
     where
         F: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
     {
+        let parent_node = self
+            .nodes
+            .get(parent)
+            .ok_or(ProjectPersistenceError::MissingNode(parent))?;
+        let migrated =
+            parent_node
+                .project_migrate_children(children)
+                .map_err(|message| ProjectPersistenceError::Codec {
+                    node_type: parent_node.get_type().to_owned(),
+                    message,
+                })?;
         let mut prev_sibling = None;
 
-        for child_record in children {
+        for child_record in migrated.iter() {
             let mut child = {
                 let parent_node = self
                     .nodes
@@ -817,8 +828,14 @@ impl<T: Node> Engine<T> {
         let mut node = Self::decode_node_record_with(Some(parent), record, decode_node)?;
         remap_node_references(&mut node, uuid_map);
 
-        let mut children = Vec::with_capacity(record.children.len());
-        for child_record in &record.children {
+        let migrated =
+            node.project_migrate_children(&record.children)
+                .map_err(|message| ProjectPersistenceError::Codec {
+                    node_type: record.node_type.clone(),
+                    message,
+                })?;
+        let mut children = Vec::with_capacity(migrated.len());
+        for child_record in migrated.iter() {
             children.push(Self::decode_project_record_tree_with(
                 &node,
                 child_record,

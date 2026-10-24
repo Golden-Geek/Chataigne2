@@ -56,7 +56,6 @@ pub(super) enum ReceivePoll {
 #[derive(Debug)]
 pub(crate) struct ReceivedFrame {
     pub frame: InputFrame,
-    pub json: String,
     pub callback: NativeCallbackPayload,
     pub source: RevisionGuard,
 }

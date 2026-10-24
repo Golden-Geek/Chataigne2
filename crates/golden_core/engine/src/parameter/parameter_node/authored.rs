@@ -54,6 +54,7 @@ fn value_eq(left: &ParamValue, right: &ParamValue) -> bool {
         ParamValue::Trigger()
         | ParamValue::Int(_)
         | ParamValue::Str(_)
+        | ParamValue::Bytes(_)
         | ParamValue::File(_)
         | ParamValue::Enum(_)
         | ParamValue::Bool(_) => left == right,

@@ -771,6 +771,7 @@ fn param_to_runtime_value(value: &ParamValue, revision: u64, source_time_ns: u64
         }),
         ParamValue::Int(value) => RuntimeValue::Int(i64::from(*value)),
         ParamValue::Float(value) => RuntimeValue::Float(*value),
+        ParamValue::Bytes(_) => RuntimeValue::try_from(value).map_err(|error| error.to_string())?,
         ParamValue::Str(value) | ParamValue::File(value) | ParamValue::Enum(value) => {
             RuntimeValue::String(value.clone().into())
         }
@@ -809,6 +810,7 @@ fn runtime_to_param_value(value: &RuntimeValue, current: Option<&ParamValue>) ->
         RuntimeValue::Vec2(value) => Ok(ParamValue::Vec2(value[0], value[1])),
         RuntimeValue::Vec3(value) => Ok(ParamValue::Vec3(value[0], value[1], value[2])),
         RuntimeValue::Color(value) => Ok(ParamValue::Color(value.red, value.green, value.blue, value.alpha)),
+        RuntimeValue::Extension(_) => ParamValue::try_from(value).map_err(|error| error.to_string()),
         other => Err(format!("runtime value {other:?} cannot be applied to a parameter")),
     }
 }

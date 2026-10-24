@@ -307,6 +307,11 @@
 				return (
 					left.value === (right as typeof left).value && left.unit === (right as typeof left).unit
 				);
+			case 'bytes':
+				return (
+					left.value.length === (right as typeof left).value.length &&
+					left.value.every((value, index) => value === (right as typeof left).value[index])
+				);
 			case 'vec2':
 				return (
 					left.value[0] === (right as typeof left).value[0] &&

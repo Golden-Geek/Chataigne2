@@ -105,8 +105,11 @@ commands report an unconfirmed outcome and are never automatically replayed. Pen
 are capped at 64 and serviced at most sixteen per turn. Outgoing activity follows native completion.
 
 Input frames coalesce in one latest-state slot with explicit replacement accounting. Readiness,
-pressure and failure use a separate bounded status mailbox, so frames cannot overwrite errors.
-Native input preparation builds the bounded channel JSON and canonical `dmxFrameReceived` callback.
+pressure and failure use separate bounded status state, so frames cannot overwrite errors.
+Readiness, the latest warning and current input health coalesce independently. A terminal error
+supersedes older health and survives subsequent updates. Two diagnostics of at most 1 KiB each
+bound storage; the native worker never waits for actor consumption to publish health.
+Native input preparation retains bounded typed slots and builds the canonical `dmxFrameReceived` callback.
 Callback payloads keep their existing independent shared admission. Input pressure reports a warning
 and replacement count while keeping endpoint ownership intact.
 
@@ -138,14 +141,15 @@ Scripts admit at most two arguments / 64 KiB of retained input.
 
 One shared preparation worker has 32 job tickets, including cancelled/retiring jobs. It decodes
 only consumed command fields, borrowing authored values and applying the last matching override;
-there is no whole-snapshot overlay or JSON command relay. Frame JSON is bounded at 8192 bytes,
-and numeric text at 32 bytes, before parsing. Prepared records have a separate 512-item / 8 MiB
+there is no whole-snapshot overlay or JSON command relay. Frame buffers are typed bytes, bounded
+at 512 slots. Explicit `sendFrame` JSON strings remain bounded at 8192 bytes, and numeric text at
+32 bytes, before parsing. Prepared records have a separate 512-item / 8 MiB
 pool, charged at 16 KiB per operation. Their original invocation lease follows native submission,
 completion/cancellation and queued output projection through the existing retained-edit contract.
 
 The actor applies at most eight fixed-size prepared operations per turn. Engine timestamps order
 property occurrences, script calls and command invocations before preparation. Property capture
-copies only the bounded event text, because a snapshot may already contain a later authored edit.
+copies only the bounded event slots, because a snapshot may already contain a later authored edit.
 Channel changes preserve the preceding frame; snapshots provide the initial authored baseline.
 Only the final queued command reflects output state, behind configuration/output read fences.
 A newer authored frame takes precedence over an older asynchronous reflection.
@@ -159,6 +163,28 @@ A retired source reports **not sent**, separately from an unconfirmed native fai
 automatically replayed on reconnect.
 
 C05 qualification is tracked in the execution ledger. Receive source/sync state is qualified locally.
-P07 retains typed backend frame publication and complete termination/recovery
+P07 retains complete termination/recovery
 qualification. Clocked output evidence does not close those remaining contracts. The replaced
 sacn 0.11 multicast-only termination behavior is removed.
+
+### Typed frame publication
+
+Golden's generic `ByteArray` / `ParamValue::Bytes` owns binary parameter storage, persistence,
+script conversion and generated protocol transport. Its canonical runtime extension contains
+raw bytes. DMX keeps the 512-channel policy and channel numbering in the app layer. Output,
+received and Send Frame command parameters use this type; the generic inspector/dashboard
+editor accepts decimal bytes separated by spaces or commas.
+
+`setChannels(start, { Bytes: [...] })` and the Set DMX Channels command apply a contiguous range
+as one ordered operation and one universe frame. The range must be nonempty and fit within
+channels 1..512. Scalar `setChannel` ordering remains explicit. The preparation worker borrows
+the typed authored baseline, and only the final queued command projects typed output state.
+No internal sample reparses or persists a JSON channel string. The existing receive callback
+keeps its `(universe, channels, metadata)` shape and is prepared at the native boundary.
+
+The public `Node::project_migrate_children` persistence hook runs before sparse declaration
+matching and dense child decoding. Unchanged records are borrowed. DMX's narrow migration
+changes only its former string frame parameters and their saved/default values, preserving
+UUIDs and metadata. Ordinary string parameters do not gain implicit binary coercion. New script
+arrays use `{ Bytes: [...] }` to preserve existing untagged vector/color array semantics;
+explicit `sendFrame("[...]")` calls remain supported at the script boundary.

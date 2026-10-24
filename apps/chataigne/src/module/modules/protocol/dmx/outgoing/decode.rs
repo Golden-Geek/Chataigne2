@@ -9,20 +9,22 @@ pub(super) fn prepare(source: RetainedPayload<Source>) -> Result<Prepared, Strin
         Input::Command(invocation) => command(invocation)?,
         Input::Script { method, args } => match *method {
             "setChannel" => script_set_channel(args)?,
+            "setChannels" => script_set_channels(args)?,
             "sendFrame" => script_send_frame(args)?,
             "blackout" => script_blackout(args)?,
             _ => unreachable!(),
         },
-        Input::Property(text) => DmxCommandRequest::SendFrame {
-            slots: parse_slots_json(text)?,
-        },
+        Input::Property(slots) => DmxCommandRequest::SendFrame { slots: slots.clone() },
     };
-    let baseline = if matches!(operation, DmxCommandRequest::SetChannel { .. }) {
+    let baseline = if matches!(
+        operation,
+        DmxCommandRequest::SetChannel { .. } | DmxCommandRequest::SetChannels { .. }
+    ) {
         let text = source
             .snapshot
             .node(source.output.0)
             .and_then(|node| node.param_value.as_ref());
-        Some(parse_slots_json(text_value(text, 8192, "output channels")?)?)
+        Some(bytes_value(text, "output channels")?.to_vec())
     } else {
         None
     };
@@ -67,8 +69,13 @@ fn command(invocation: &CapturedInvocation) -> Result<DmxCommandRequest, String>
         Some(DMX_SET_CHANNEL_COMMAND_NODE_TYPE) => {
             script_set_channel(&[integer(value("channel"), "channel")?, integer(value("value"), "value")?])
         }
-        Some(DMX_SEND_FRAME_COMMAND_NODE_TYPE) => parse_slots_json(text_value(value("slots"), 8192, "channels")?)
-            .map(|slots| DmxCommandRequest::SendFrame { slots }),
+        Some(DMX_SET_CHANNELS_COMMAND_NODE_TYPE) => script_set_channels(&[
+            integer(value("channel"), "channel")?,
+            ParamValue::Bytes(bytes_value(value("slots"), "channels")?.to_vec()),
+        ]),
+        Some(DMX_SEND_FRAME_COMMAND_NODE_TYPE) => Ok(DmxCommandRequest::SendFrame {
+            slots: bytes_value(value("slots"), "channels")?.to_vec(),
+        }),
         Some(DMX_BLACKOUT_COMMAND_NODE_TYPE) => Ok(DmxCommandRequest::Blackout),
         _ => Err("Unsupported DMX command type".into()),
     }
@@ -83,11 +90,9 @@ fn integer(value: Option<&ParamValue>, name: &str) -> Result<ParamValue, String>
         .map(ParamValue::Int)
         .ok_or_else(|| format!("Invalid DMX {name}"))
 }
-fn text_value<'a>(value: Option<&'a ParamValue>, limit: usize, name: &str) -> Result<&'a str, String> {
+fn bytes_value<'a>(value: Option<&'a ParamValue>, name: &str) -> Result<&'a [u8], String> {
     match value {
-        Some(ParamValue::Str(text) | ParamValue::File(text) | ParamValue::Enum(text)) if text.len() <= limit => {
-            Ok(text)
-        }
-        _ => Err(format!("DMX {name} requires text within {limit} bytes")),
+        Some(ParamValue::Bytes(slots)) if slots.len() <= DMX_SLOT_COUNT => Ok(slots),
+        _ => Err(format!("DMX {name} requires a byte array of at most 512 slots")),
     }
 }
