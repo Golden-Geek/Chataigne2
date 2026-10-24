@@ -2,6 +2,8 @@ export { default as GraphCanvas } from "./components/GraphCanvas.svelte";
 export { SpatialIndex, type SpatialBounds } from "./spatial-index";
 export type {
   GraphCamera,
+  GraphChangeSet,
+  GraphDelta,
   GraphConnectionRequest,
   GraphEdge,
   GraphNode,

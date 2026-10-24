@@ -7,7 +7,7 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use golden_graph::GraphRevision;
+use golden_graph::{GraphChangeSet, GraphDelta, GraphRevision};
 use golden_protocol::{
     UI_PROTOCOL_VERSION, UiAck, UiClientMessage, UiContextCandidatesRequest, UiEditIntent, UiErrorResponse,
     UiEventBatch, UiParamControlInfoDto, UiParamControlInfoRequest, UiProjectLoadProblemDto, UiProjectLoadRecoveryDto,
@@ -203,6 +203,8 @@ pub fn generate_graph_ui_bindings(out_dir: &Path) {
 
     let config = Config::new().with_out_dir(out_dir).with_large_int("number");
     export_binding::<GraphRevision>(&config, "GraphRevision");
+    export_binding::<GraphChangeSet>(&config, "GraphChangeSet");
+    export_binding::<GraphDelta>(&config, "GraphDelta");
     normalize_generated_typescript_bindings(out_dir);
 }
 

@@ -30,8 +30,9 @@ app-local or disconnected crate.
 ## Graph UI Boundary
 
 `golden_graph_ui` owns the domain-neutral Svelte canvas, graph presentation document, viewport
-mechanics, spatial visible-node queries, and incident-edge indexes. Its `GraphRevision` TypeScript
-type is generated from the Rust contract by `golden_codegen_support`; it is not hand-maintained.
+mechanics, spatial visible-node queries, and incident-edge indexes. Its `GraphRevision`,
+`GraphChangeSet` and `GraphDelta` TypeScript declarations are generated from Rust by
+`golden_codegen_support`; they are not hand-maintained.
 Alchemist-specific assets and domain presentation adapters are app-owned in the Chataigne UI. The
 generic canvas remains in the app-agnostic `golden_graph_ui` package.
 
@@ -62,6 +63,17 @@ Layout map iteration is deterministic by node identity and does not define autho
 The persisted layout remains a keyed object with the same values, so this storage change needs
 no persisted-data migration. Comments, groups and bookmarks retain their own authored order.
 
-P09's remaining structural checkpoint removes repeated group-membership scans. Its final
-qualification checkpoint covers consumer history and fixed-delta work at 1k/10k/50k/100k nodes;
-the earlier localized test alone does not establish those scale claims.
+Group membership has a reverse index rebuilt and validated on document load. A selection delete
+visits only its incident edges and member groups; shared edges disappear from neighboring indexes
+as they are removed, so they are not removed twice. Rollback restores both authored membership and
+its reverse index. Group objects retain their order even when their final member is removed.
+
+Removing and reinserting an existing identity is an update with structural effects, not a pure
+payload update. `GraphChangeSet.reinserted_nodes` and `reinserted_edges` identify these subsets of
+the updated sets; topology revision advances for possible node-order or edge-endpoint changes.
+Final removal clears the reinsertion marker, while a wholly transient insert/remove remains a net
+no-op. Graph UI exports generated Rust-owned `GraphChangeSet` and `GraphDelta` declarations;
+presentation IDs supplied by adapters are independent of the backend graph's UUID identities.
+
+P09's final qualification checkpoint covers consumer history and fixed-delta work at
+1k/10k/50k/100k nodes; the earlier localized test alone does not establish those scale claims.

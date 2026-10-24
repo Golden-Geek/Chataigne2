@@ -6,7 +6,9 @@ use crate::{
 
 type TestDocument = GraphDocument<TestGraphData, TestNodeData, TestEdgeData>;
 
+mod coalescing;
 mod storage;
+mod structural;
 
 fn node(kind: TestNodeKind, label: &str) -> GraphNode<TestNodeData> {
     GraphNode::new(TestNodeData {
@@ -107,9 +109,10 @@ fn node_payload_change_cannot_invalidate_connected_port_schema() {
 #[test]
 fn rollback_restores_group_membership_removed_with_a_node() {
     let domain = TestDomain;
-    let (mut graph, source, sink) = connected_document();
+    let (graph, source, sink) = connected_document();
     let group_id = GraphGroupId::new();
-    graph.presentation.groups.insert(
+    let mut persisted = crate::GraphDocumentData::from_document(&graph);
+    persisted.presentation.groups.insert(
         group_id,
         GraphGroup {
             id: group_id,
@@ -119,6 +122,7 @@ fn rollback_restores_group_membership_removed_with_a_node() {
             size: [100.0; 2],
         },
     );
+    let mut graph = persisted.into_document().unwrap();
     let before = graph.clone();
     let mut transaction = GraphTransaction::for_document(&graph);
     transaction.remove_node(source.id);

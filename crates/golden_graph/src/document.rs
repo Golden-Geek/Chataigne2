@@ -5,7 +5,8 @@ use indexmap::IndexMap;
 use crate::ordered_records::{OrderedRecords, RecordOrder};
 
 use crate::{
-    GraphEdgeId, GraphEditError, GraphId, GraphNodeId, GraphPortId, GraphPresentation, GraphRevision, NodePresentation,
+    GraphEdgeId, GraphEditError, GraphGroupId, GraphId, GraphNodeId, GraphPortId, GraphPresentation, GraphRevision,
+    NodePresentation,
 };
 
 /// Stable reference to one port on one graph node.
@@ -137,6 +138,7 @@ pub struct GraphDocument<G, N, E> {
     pub(crate) edges: OrderedRecords<GraphEdgeId, GraphEdge<E>>,
     pub(crate) presentation: GraphPresentation,
     topology: TopologyIndex,
+    groups_by_node: HashMap<GraphNodeId, BTreeSet<GraphGroupId>>,
 }
 
 impl<G, N, E> GraphDocument<G, N, E> {
@@ -150,6 +152,7 @@ impl<G, N, E> GraphDocument<G, N, E> {
             edges: OrderedRecords::default(),
             presentation: GraphPresentation::default(),
             topology: TopologyIndex::default(),
+            groups_by_node: HashMap::new(),
         }
     }
 
@@ -169,6 +172,7 @@ impl<G, N, E> GraphDocument<G, N, E> {
             edges: OrderedRecords::default(),
             presentation,
             topology: TopologyIndex::default(),
+            groups_by_node: HashMap::new(),
         };
 
         for (key, node) in nodes {
@@ -191,14 +195,13 @@ impl<G, N, E> GraphDocument<G, N, E> {
         {
             return Err(GraphEditError::PresentationForMissingNode(*node));
         }
-        if let Some(node) = document
-            .presentation
-            .groups
-            .values()
-            .flat_map(|group| &group.nodes)
-            .find(|node| !document.nodes.contains_key(*node))
-        {
-            return Err(GraphEditError::PresentationForMissingNode(*node));
+        for (group_id, group) in &document.presentation.groups {
+            for node in &group.nodes {
+                if !document.nodes.contains_key(node) {
+                    return Err(GraphEditError::PresentationForMissingNode(*node));
+                }
+                document.groups_by_node.entry(*node).or_default().insert(*group_id);
+            }
         }
         Ok(document)
     }
@@ -301,12 +304,15 @@ impl<G, N, E> GraphDocument<G, N, E> {
         let (order, node) = self.nodes.remove(&node).expect("node was checked");
         self.topology.remove_node(node.id);
         let presentation = self.presentation.nodes.remove(&node.id);
-        let group_memberships = self
-            .presentation
-            .groups
-            .iter_mut()
-            .filter_map(|(group_id, group)| group.nodes.remove(&node.id).then_some(*group_id))
-            .collect();
+        let group_memberships = self.groups_by_node.remove(&node.id).unwrap_or_default();
+        for group_id in &group_memberships {
+            self.presentation
+                .groups
+                .get_mut(group_id)
+                .expect("group membership is indexed")
+                .nodes
+                .remove(&node.id);
+        }
 
         Ok(RemovedNode {
             order,
@@ -324,13 +330,16 @@ impl<G, N, E> GraphDocument<G, N, E> {
         if let Some(presentation) = removed.presentation {
             self.presentation.nodes.insert(node_id, presentation);
         }
-        for group_id in removed.group_memberships {
+        for group_id in &removed.group_memberships {
             self.presentation
                 .groups
-                .get_mut(&group_id)
+                .get_mut(group_id)
                 .expect("rollback group must exist")
                 .nodes
                 .insert(node_id);
+        }
+        if !removed.group_memberships.is_empty() {
+            self.groups_by_node.insert(node_id, removed.group_memberships);
         }
         for edge in removed.edges {
             self.insert_edge_at(Some(edge.order), edge.edge)
@@ -374,5 +383,5 @@ pub(crate) struct RemovedNode<N, E> {
     pub node: GraphNode<N>,
     pub edges: Vec<RemovedEdge<E>>,
     pub presentation: Option<NodePresentation>,
-    pub group_memberships: Vec<crate::GraphGroupId>,
+    pub group_memberships: BTreeSet<GraphGroupId>,
 }

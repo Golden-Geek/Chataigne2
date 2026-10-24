@@ -1,6 +1,8 @@
 import type { GraphRevision } from "./generated/GraphRevision";
 
 export type { GraphRevision } from "./generated/GraphRevision";
+export type { GraphChangeSet } from "./generated/GraphChangeSet";
+export type { GraphDelta } from "./generated/GraphDelta";
 
 export interface GraphCamera {
   x: number;

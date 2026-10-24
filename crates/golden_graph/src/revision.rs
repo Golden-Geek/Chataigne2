@@ -36,9 +36,15 @@ pub struct GraphChangeSet {
     pub inserted_nodes: BTreeSet<GraphNodeId>,
     pub removed_nodes: BTreeSet<GraphNodeId>,
     pub updated_nodes: BTreeSet<GraphNodeId>,
+    /// Existing identities removed and reinserted; also included in `updated_nodes`.
+    /// Authored order may change even when the node's payload is unchanged.
+    pub reinserted_nodes: BTreeSet<GraphNodeId>,
     pub inserted_edges: BTreeSet<GraphEdgeId>,
     pub removed_edges: BTreeSet<GraphEdgeId>,
     pub updated_edges: BTreeSet<GraphEdgeId>,
+    /// Existing identities removed and reconnected; also included in `updated_edges`.
+    /// Endpoints or authored order may change without changing the edge payload.
+    pub reinserted_edges: BTreeSet<GraphEdgeId>,
     pub presentation_nodes: BTreeSet<GraphNodeId>,
     pub presentation_groups: BTreeSet<GraphGroupId>,
     pub graph_data_changed: bool,
@@ -50,9 +56,11 @@ impl GraphChangeSet {
         self.inserted_nodes.is_empty()
             && self.removed_nodes.is_empty()
             && self.updated_nodes.is_empty()
+            && self.reinserted_nodes.is_empty()
             && self.inserted_edges.is_empty()
             && self.removed_edges.is_empty()
             && self.updated_edges.is_empty()
+            && self.reinserted_edges.is_empty()
             && self.presentation_nodes.is_empty()
             && self.presentation_groups.is_empty()
             && !self.graph_data_changed
@@ -64,6 +72,8 @@ impl GraphChangeSet {
             || !self.removed_nodes.is_empty()
             || !self.inserted_edges.is_empty()
             || !self.removed_edges.is_empty()
+            || !self.reinserted_nodes.is_empty()
+            || !self.reinserted_edges.is_empty()
     }
 
     #[must_use]
@@ -72,9 +82,11 @@ impl GraphChangeSet {
             || !self.inserted_nodes.is_empty()
             || !self.removed_nodes.is_empty()
             || !self.updated_nodes.is_empty()
+            || !self.reinserted_nodes.is_empty()
             || !self.inserted_edges.is_empty()
             || !self.removed_edges.is_empty()
             || !self.updated_edges.is_empty()
+            || !self.reinserted_edges.is_empty()
     }
 
     #[must_use]
@@ -85,6 +97,7 @@ impl GraphChangeSet {
     pub(crate) fn node_inserted(&mut self, node: GraphNodeId) {
         if self.removed_nodes.remove(&node) {
             self.updated_nodes.insert(node);
+            self.reinserted_nodes.insert(node);
         } else {
             self.inserted_nodes.insert(node);
         }
@@ -98,12 +111,14 @@ impl GraphChangeSet {
             self.presentation_nodes.remove(&node);
         }
         self.updated_nodes.remove(&node);
+        self.reinserted_nodes.remove(&node);
         removed_existing
     }
 
     pub(crate) fn edge_inserted(&mut self, edge: GraphEdgeId) {
         if self.removed_edges.remove(&edge) {
             self.updated_edges.insert(edge);
+            self.reinserted_edges.insert(edge);
         } else {
             self.inserted_edges.insert(edge);
         }
@@ -114,6 +129,7 @@ impl GraphChangeSet {
             self.removed_edges.insert(edge);
         }
         self.updated_edges.remove(&edge);
+        self.reinserted_edges.remove(&edge);
     }
 }
 
