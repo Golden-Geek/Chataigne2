@@ -79,8 +79,9 @@ storage. Library packet buffers and fixed endpoint state have separate bounds; t
 numbers with 255-to-1 wrap, a 23 ms minimum explicit-send interval, and a 900 ms static refresh.
 The sACN core owns its three-packet pre-suppression burst, 900 ms keepalive,
 sequence wrap, discovery and three-packet termination. A source CID comes from the app node's
-persistent UUID, so reopening the endpoint keeps its identity. An endpoint opens without a look;
-old admitted commands are never replayed automatically.
+persistent UUID, so reopening the endpoint keeps its identity. `transport/continuity.rs` retains
+the pure source state and last confirmed look across matching endpoint lifetimes. Old admitted
+commands and their receipts are never replayed automatically.
 The caller applies a conservative 23 ms floor to all universe data packets, including sACN's
 scheduled bursts and termination; the core's 22 ms quantum remains an earliest poll hint.
 Returned deadlines include this floor so a suppressed timer cannot spin on a past deadline.
@@ -95,7 +96,36 @@ sACN unicast uses the configured destination for both ordinary data and stream t
 discovery packets are skipped for a unicast-only endpoint. Multicast output uses the crate's
 IPv4/IPv6 universe address helpers. Shutdown drains termination on the retiring native worker,
 with a 200 ms ceiling; it never waits on the engine. Submission failures retire through the
-existing explicit recovery path. Full failure/reconnect and destination qualification remains P07.
+existing explicit recovery path. The execution ledger records the remaining qualification.
+
+### Recovery ownership
+
+The app module owns `OutputContinuity`. Its current stream is keyed by protocol, CID and
+universe; up to sixteen weak references let still-retiring streams retain sequence state during
+rapid route/universe changes. Those weak references do not retain old protocol storage. Socket
+opening and protocol initialization remain native work. Actor lifetime claims and authored
+restarts use only atomics and bounded weak-reference bookkeeping; the actor never locks native
+protocol state or joins cleanup.
+
+A successful local submission confirms one recovery look. An I/O error or panic suspends the
+source without terminating it, retaining its sequence, clock and confirmed channels. The next
+matching endpoint restores that look at the existing send clock. Failed or cancelled queued
+frames cannot become a recovery look; failure before the first confirmed frame stays silent
+until a new intent. Unconfirmed attempts still consume their sequence and pacing slot.
+
+Native activation, rather than a potentially failed socket-open reservation, transfers egress
+ownership. The final native submission gate orders packets across distinct protocol locks.
+Old cleanup can finish termination while a replacement is opening, but cannot emit after that
+replacement activates. Deliberate shutdown drains termination with no locks held across timed
+waits, rechecks its 200 ms budget after waking, and stops if a replacement takes ownership.
+
+Fresh/loaded/re-enabled authored state initializes once through the ordinary guarded frame
+preparation path. Current explicit intent defers initialization and consumes it on native-mailbox
+admission. Retired receipts do not consume it. Monotonic authored revisions prevent an old
+in-flight attempt from consuming or rearming a newer lifecycle's initialization. Re-enabling or
+restoring an authored lifecycle uses its current saved channels; automatic socket recovery uses
+the last confirmed channels. Neither path invokes old script/command calls or changes their
+original Sent, NotSent or unconfirmed outcomes. Empty authored channels do not start a stream.
 
 ## Outcomes and received state
 
@@ -121,6 +151,11 @@ source independently of native cleanup.
 ## Actor service and authoring
 
 `service.rs` owns passive worker wakes and coalesced startup/recovery deadlines, from 250 ms to 8 s.
+Repeated native open failures grow that backoff through the cap. Worker admission does not reset
+it; actual native readiness does.
+The module re-arms any later owned deadline after an earlier coalesced wake. Readiness clears
+obsolete connection deadlines while retaining a live output retry; unrelated input cannot push
+an absolute retry deadline into the future.
 There is no periodic 120 Hz actor poll. Pending receipts and early retry wakes need no tree snapshot;
 configuration changes, pending output and received graph publication request one. Disable retires the endpoint
 immediately. Transport feedback belongs to the Connection group.

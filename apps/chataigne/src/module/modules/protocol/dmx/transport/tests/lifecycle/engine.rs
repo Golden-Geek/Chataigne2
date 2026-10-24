@@ -1,4 +1,5 @@
 use super::*;
+mod recovery;
 use crate::app::{
     AppEngine, DmxSendFrameCommand,
     module_command::{ModuleCommandDeliveryPolicy, ModuleCommandExecuteEvent},
@@ -100,14 +101,16 @@ fn attach(
     let config = node.transport_config().unwrap();
     node.stop_transport();
     let wake = node.wake.as_ref().unwrap().notifier.clone();
-    let handle = DmxTransportHandle::spawn_using(config.clone(), wake, lifetimes, output, pool(8), move |_| {
-        Ok(Fake {
-            control,
-            send_gate,
-            cleanup,
+    let session = node.continuity.claim(&config);
+    let handle =
+        DmxTransportHandle::spawn_using_session(config.clone(), wake, lifetimes, output, pool(8), session, move |_| {
+            Ok(Fake {
+                control,
+                send_gate,
+                cleanup,
+            })
         })
-    })
-    .unwrap();
+        .unwrap();
     until(|| handle.is_ready());
     while handle.take_status().is_some() {}
     let node = base(engine, id);

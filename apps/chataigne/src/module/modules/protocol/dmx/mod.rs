@@ -97,6 +97,7 @@ pub struct DmxModuleBase {
     pending_sends: VecDeque<SendReceipt>,
     wake: Option<crate::app::module::common::worker_wake::ModuleWake>,
     outgoing: outgoing::Outgoing,
+    continuity: transport::OutputContinuity,
 }
 
 impl DmxModuleBase {
@@ -113,6 +114,7 @@ impl DmxModuleBase {
             VecDeque::new(),
             None,
             outgoing::Outgoing::default(),
+            transport::OutputContinuity::default(),
         )
     }
 
@@ -196,12 +198,11 @@ impl DmxModuleBase {
 
         self.stop_transport();
         let Some(wake) = &self.wake else { return };
-        match DmxTransportHandle::spawn(config.clone(), wake.notifier.clone()) {
+        match DmxTransportHandle::spawn_with_continuity(config.clone(), wake.notifier.clone(), &mut self.continuity) {
             Ok(transport) => {
                 self.transport = Some(transport);
                 self.last_transport_config = Some(config);
                 self.retry_at = None;
-                self.reconnect.reset();
                 self.base.set_connected(ctx, false);
                 self.clear_transport_warning(ctx);
             }
@@ -211,6 +212,7 @@ impl DmxModuleBase {
 
     fn transport_failed(&mut self, ctx: &mut ProcessCtx, error: String) {
         self.stop_transport();
+        self.clear_output();
         self.last_transport_config = None;
         self.base.set_connected(ctx, false);
         self.set_transport_warning(ctx, error.as_str());
@@ -289,6 +291,11 @@ impl DmxModuleBase {
                     self.clear_transport_warning(ctx);
                     golden_core::node::NodeHandle::new(self.id()).clear_warning(ctx, Some("dmx_input"));
                     self.reconnect.reset();
+                    if self.output_retry_at().is_none() {
+                        if let Some(wake) = &self.wake {
+                            wake.cancel_deadline();
+                        }
+                    }
                 }
                 DmxWorkerEvent::Warning(message) => self.set_transport_warning(ctx, &message),
                 DmxWorkerEvent::InputLost => {
@@ -515,6 +522,7 @@ impl Node for DmxModuleBase {
 
     fn on_effective_enabled_changed(&mut self, ctx: &mut ProcessCtx, enabled: bool) {
         if enabled {
+            self.continuity.restart_from_authored();
             self.transport_dirty = true;
             self.request_service();
         } else {

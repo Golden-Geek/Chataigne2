@@ -79,6 +79,15 @@ impl ClockedOutput {
         if now < self.command_at {
             return Err("DMX command dispatched before its protocol deadline".into());
         }
+        self.restore(frame, now)?;
+        if !self.poll(now, emit)? {
+            return Err("DMX protocol source did not emit the admitted frame".into());
+        }
+        Ok(())
+    }
+
+    /// Stages confirmed state for a new I/O owner without bypassing the existing data clock.
+    pub(super) fn restore(&mut self, frame: &DmxFrame, now: Duration) -> Result<(), String> {
         match &mut self.stream {
             Stream::ArtNet { last, .. } => *last = Some(frame.clone()),
             Stream::Sacn(source) => {
@@ -95,10 +104,16 @@ impl ClockedOutput {
             }
         }
         self.next_poll = Some(now);
-        if !self.poll(now, emit)? {
-            return Err("DMX protocol source did not emit the admitted frame".into());
-        }
         Ok(())
+    }
+
+    pub(super) fn route(&mut self, config: &DmxTransportConfig) {
+        self.bind_ip = config.bind_ip;
+        self.destination = config.destination;
+    }
+
+    pub(super) fn suspend(&mut self) {
+        self.next_poll = None;
     }
 
     pub(super) fn poll(
@@ -124,10 +139,12 @@ impl ClockedOutput {
                     })
                     .write_to_buffer()
                     .map_err(|error| error.to_string())?;
-                    emit(&packet, destination)?;
+                    // A failed submission has an unconfirmed outcome. Its sequence and
+                    // pacing slot must not be reused by the replacement endpoint.
                     *sequence = if *sequence == 255 { 1 } else { *sequence + 1 };
                     self.command_at = now + DATA_INTERVAL;
                     self.next_poll = Some(now + ARTNET_REFRESH);
+                    emit(&packet, destination)?;
                     sent = true;
                 }
             }
@@ -148,9 +165,11 @@ impl ClockedOutput {
                         _ => return Err("Unsupported sACN transmission route".into()),
                     };
                     let destination = self.destination.unwrap_or_else(|| multicast(self.bind_ip, universe));
-                    emit(transmission.data, destination)?;
                     if matches!(transmission.route, Route::Universe(_)) {
                         self.command_at = now + DATA_INTERVAL;
+                    }
+                    emit(transmission.data, destination)?;
+                    if matches!(transmission.route, Route::Universe(_)) {
                         sent = true;
                     }
                 }

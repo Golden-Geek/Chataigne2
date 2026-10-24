@@ -1,5 +1,7 @@
 use super::super::frame::DmxFrame;
-use super::{DmxProtocol, DmxTransportConfig, ReceivePoll, input::Receiver, output::ClockedOutput};
+use super::{
+    DmxProtocol, DmxTransportConfig, ReceivePoll, continuity::OutputSession, input::Receiver, worker::StopReason,
+};
 use std::{
     io,
     net::{IpAddr, SocketAddr, UdpSocket},
@@ -22,12 +24,12 @@ pub(super) struct WorkerEndpoint {
     input: Option<Receiver>,
     sync_groups: Vec<u16>,
     packet: Box<[u8; UDP_PACKET_CAPACITY]>,
-    output: ClockedOutput,
+    output: OutputSession,
     origin: Instant,
 }
 
 impl WorkerEndpoint {
-    pub(super) fn open(config: &DmxTransportConfig) -> Result<Self, String> {
+    pub(super) fn open(config: &DmxTransportConfig, output: OutputSession) -> Result<Self, String> {
         let port = if config.protocol == DmxProtocol::ArtNet && config.receive_enabled {
             config.listen_port
         } else {
@@ -54,29 +56,28 @@ impl WorkerEndpoint {
             input: config.receive_enabled.then(|| Receiver::new(config)),
             sync_groups: Vec::new(),
             packet: Box::new([0; UDP_PACKET_CAPACITY]),
-            output: ClockedOutput::new(config),
+            output,
             origin: Instant::now(),
         })
     }
 
     pub(super) fn send(&mut self, frame: &DmxFrame) -> Result<(), String> {
         let socket = &self.socket;
-        self.output
-            .send(frame, self.origin.elapsed(), &mut |bytes, destination| {
-                send(socket, bytes, destination)
-            })
+        self.output.send(frame, Instant::now(), &mut |bytes, destination| {
+            send(socket, bytes, destination)
+        })
     }
 
     pub(super) fn command_at(&self) -> Instant {
-        self.origin + self.output.command_at()
+        self.output.command_at(Instant::now())
     }
     pub(super) fn deadline(&self) -> Option<Instant> {
-        self.output.deadline().map(|deadline| self.origin + deadline)
+        self.output.deadline(Instant::now())
     }
 
     pub(super) fn service(&mut self) -> Result<(), String> {
         let socket = &self.socket;
-        self.output.poll(self.origin.elapsed(), &mut |bytes, destination| {
+        self.output.poll(Instant::now(), &mut |bytes, destination| {
             send(socket, bytes, destination)
         })?;
         Ok(())
@@ -113,15 +114,20 @@ impl WorkerEndpoint {
         )
     }
 
-    pub(super) fn shutdown(&mut self) {
+    pub(super) fn shutdown(&mut self, reason: StopReason) {
         // Retirement retains this native slot. The engine never waits for these timed sends.
-        self.output.terminate();
+        if reason == StopReason::Interrupted || !self.output.terminate() {
+            return;
+        }
         let limit = Instant::now() + Duration::from_millis(200);
         while let Some(deadline) = self.deadline() {
             if deadline > limit || Instant::now() >= limit {
                 break;
             }
             std::thread::sleep(deadline.saturating_duration_since(Instant::now()));
+            if Instant::now() >= limit {
+                break;
+            }
             if self.service().is_err() {
                 break;
             }

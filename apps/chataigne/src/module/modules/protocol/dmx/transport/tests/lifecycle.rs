@@ -123,7 +123,7 @@ impl worker::Endpoint for Fake {
     fn command_at(&self) -> Option<Instant> {
         *self.control.command_at.lock().unwrap()
     }
-    fn shutdown(&mut self) {
+    fn shutdown(&mut self, _reason: worker::StopReason) {
         if let Some((entered, gate)) = self.cleanup.take() {
             let _ = entered.send(());
             let _ = gate.recv();

@@ -9,6 +9,7 @@ use std::{
         atomic::{AtomicBool, AtomicU64, Ordering},
     },
 };
+mod continuity;
 mod input;
 mod native;
 mod output;
@@ -18,11 +19,14 @@ mod status;
 mod tests;
 mod types;
 mod worker;
+pub(crate) use continuity::OutputContinuity;
+use continuity::OutputSession;
 use receipts::Output;
 pub(crate) use receipts::{SendReceipt, SendStatus};
 pub(crate) use types::*;
 
 const WORKER_COMMAND_CAPACITY: usize = 64;
+const NATIVE_LIFETIME_CAPACITY: usize = 16;
 const FRAME_WEIGHT: usize = 16 * 1024;
 struct Shared {
     latest: Mutex<Option<RetainedPayload<ReceivedFrame>>>,
@@ -38,10 +42,11 @@ pub(crate) struct DmxTransportHandle {
     output: PayloadPool,
     config: DmxTransportConfig,
     source: Option<RevisionSource>,
+    session: OutputSession,
 }
 fn lifetimes() -> &'static RetirementPool {
     static POOL: OnceLock<RetirementPool> = OnceLock::new();
-    POOL.get_or_init(|| RetirementPool::new(NonZeroUsize::new(16).unwrap()))
+    POOL.get_or_init(|| RetirementPool::new(NonZeroUsize::new(NATIVE_LIFETIME_CAPACITY).unwrap()))
 }
 fn payloads(incoming: bool) -> Result<PayloadPool, String> {
     static INPUT: OnceLock<Result<PayloadPool, String>> = OnceLock::new();
@@ -54,22 +59,46 @@ fn payloads(incoming: bool) -> Result<PayloadPool, String> {
     .clone()
 }
 impl DmxTransportHandle {
+    #[cfg(test)]
     pub(crate) fn spawn(config: DmxTransportConfig, wake: WorkerNotifier) -> Result<Self, String> {
-        Self::spawn_using(
+        Self::spawn_with_continuity(config, wake, &mut OutputContinuity::default())
+    }
+    pub(crate) fn spawn_with_continuity(
+        config: DmxTransportConfig,
+        wake: WorkerNotifier,
+        continuity: &mut OutputContinuity,
+    ) -> Result<Self, String> {
+        let session = continuity.claim(&config);
+        let endpoint = session.clone();
+        Self::spawn_using_session(
             config,
             wake,
             lifetimes(),
             payloads(false)?,
             payloads(true)?,
-            native::WorkerEndpoint::open,
+            session,
+            move |config| native::WorkerEndpoint::open(config, endpoint),
         )
     }
+    #[cfg(test)]
     fn spawn_using<E: worker::Endpoint>(
         config: DmxTransportConfig,
         wake: WorkerNotifier,
         lifetimes: &RetirementPool,
         output: PayloadPool,
         input: PayloadPool,
+        open: impl FnOnce(&DmxTransportConfig) -> Result<E, String> + Send + 'static,
+    ) -> Result<Self, String> {
+        let session = OutputContinuity::default().claim(&config);
+        Self::spawn_using_session(config, wake, lifetimes, output, input, session, open)
+    }
+    fn spawn_using_session<E: worker::Endpoint>(
+        config: DmxTransportConfig,
+        wake: WorkerNotifier,
+        lifetimes: &RetirementPool,
+        output: PayloadPool,
+        input: PayloadPool,
+        session: OutputSession,
         open: impl FnOnce(&DmxTransportConfig) -> Result<E, String> + Send + 'static,
     ) -> Result<Self, String> {
         validate_config(&config)?;
@@ -85,6 +114,7 @@ impl DmxTransportHandle {
         let guard = source.reader().guard_at(0);
         let state = shared.clone();
         let native = config.clone();
+        let native_session = session.clone();
         let worker = BoundedWorker::spawn_notified(
             "dmx-transport",
             lifetimes,
@@ -95,7 +125,7 @@ impl DmxTransportHandle {
                 event_weight: 1,
             },
             wake,
-            move |ctx| worker::run(ctx, native, state, input, guard, open),
+            move |ctx| worker::run(ctx, native, state, input, guard, native_session, open),
         )
         .map_err(|error| error.to_string())?;
         Ok(Self {
@@ -104,7 +134,14 @@ impl DmxTransportHandle {
             output,
             config,
             source: Some(source),
+            session,
         })
+    }
+    pub(crate) fn needs_initial_look(&self) -> bool {
+        self.is_ready() && self.session.needs_initial_look()
+    }
+    pub(crate) fn finish_initial_look(&self) {
+        self.session.finish_initial_look();
     }
     #[cfg(test)]
     pub(crate) fn send(&self, frame: DmxFrame) -> Result<SendReceipt, String> {
@@ -146,6 +183,7 @@ impl DmxTransportHandle {
                     "DMX worker is not running"
                 }
             })?;
+        self.session.finish_initial_look();
         Ok(receipt)
     }
     pub(super) fn source_guard(&self) -> Option<golden_io::RevisionGuard> {

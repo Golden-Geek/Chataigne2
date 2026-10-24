@@ -8,6 +8,12 @@ const RECEIVE_TURN: usize = 64;
 const RECEIVE_BUDGET: Duration = Duration::from_millis(2);
 const RECEIVE_WAIT: Duration = Duration::from_millis(5);
 
+#[derive(Clone, Copy, Eq, PartialEq)]
+pub(super) enum StopReason {
+    Cancelled,
+    Interrupted,
+}
+
 pub(super) trait Endpoint: Send + 'static {
     fn send(&mut self, frame: &DmxFrame) -> Result<(), String>;
     fn receive(&mut self) -> Result<ReceivePoll, String>;
@@ -20,7 +26,7 @@ pub(super) trait Endpoint: Send + 'static {
     fn service(&mut self) -> Result<(), String> {
         Ok(())
     }
-    fn shutdown(&mut self) {}
+    fn shutdown(&mut self, _reason: StopReason) {}
 }
 impl Endpoint for native::WorkerEndpoint {
     fn send(&mut self, frame: &DmxFrame) -> Result<(), String> {
@@ -38,14 +44,24 @@ impl Endpoint for native::WorkerEndpoint {
     fn service(&mut self) -> Result<(), String> {
         self.service()
     }
-    fn shutdown(&mut self) {
-        self.shutdown();
+    fn shutdown(&mut self, reason: StopReason) {
+        self.shutdown(reason);
     }
 }
-struct Session<E: Endpoint>(E);
+struct Session<E: Endpoint> {
+    endpoint: E,
+    output: OutputSession,
+    reason: StopReason,
+}
 impl<E: Endpoint> Drop for Session<E> {
     fn drop(&mut self) {
-        self.0.shutdown();
+        if std::thread::panicking() {
+            self.reason = StopReason::Interrupted;
+        }
+        if self.reason == StopReason::Interrupted {
+            self.output.suspend();
+        }
+        self.endpoint.shutdown(self.reason);
     }
 }
 struct Running(Arc<Shared>);
@@ -62,6 +78,7 @@ pub(super) fn run<E: Endpoint>(
     shared: Arc<Shared>,
     input: PayloadPool,
     source: golden_io::RevisionGuard,
+    output: OutputSession,
     open: impl FnOnce(&DmxTransportConfig) -> Result<E, String>,
 ) {
     let running = Running(shared.clone());
@@ -72,7 +89,11 @@ pub(super) fn run<E: Endpoint>(
             return;
         }
     };
-    let mut session = Session(endpoint);
+    let mut session = Session {
+        endpoint,
+        output,
+        reason: StopReason::Cancelled,
+    };
     // Publish termination before shutdown/destruction can block, retaining the
     // original worker slot through both. Setup failure is guarded as well.
     let _running = running;
@@ -100,14 +121,23 @@ pub(super) fn run<E: Endpoint>(
                 commands.pop_front().unwrap().reject();
                 continue;
             }
-            if session.0.command_at().is_some_and(|deadline| Instant::now() < deadline) {
+            if session
+                .endpoint
+                .command_at()
+                .is_some_and(|deadline| Instant::now() < deadline)
+            {
                 break;
             }
             let command = commands.pop_front().unwrap();
-            let result = session.0.send(&command.frame);
+            session.output.finish_initial_look();
+            let result = session.endpoint.send(&command.frame);
+            if result.is_ok() {
+                session.output.confirm(&command.frame, Instant::now());
+            }
             let error = result.as_ref().err().cloned();
             command.complete(result);
             if let Some(error) = error {
+                session.reason = StopReason::Interrupted;
                 shared.publish_status(DmxWorkerEvent::Error(diagnostic(error)));
                 return;
             }
@@ -115,7 +145,8 @@ pub(super) fn run<E: Endpoint>(
         if ctx.cancellation().is_cancelled() {
             return;
         }
-        if let Err(error) = session.0.service() {
+        if let Err(error) = session.endpoint.service() {
+            session.reason = StopReason::Interrupted;
             shared.publish_status(DmxWorkerEvent::Error(diagnostic(error)));
             return;
         }
@@ -126,7 +157,7 @@ pub(super) fn run<E: Endpoint>(
                 if ctx.cancellation().is_cancelled() {
                     return;
                 }
-                match session.0.receive() {
+                match session.endpoint.receive() {
                     Ok(ReceivePoll::Empty) => {
                         receive_may_have_more = false;
                         break;
@@ -168,6 +199,7 @@ pub(super) fn run<E: Endpoint>(
                         }
                     }
                     Err(error) => {
+                        session.reason = StopReason::Interrupted;
                         shared.publish_status(DmxWorkerEvent::Error(diagnostic(error)));
                         return;
                     }
@@ -186,11 +218,11 @@ pub(super) fn run<E: Endpoint>(
             RECEIVE_WAIT
         };
         let mut deadline = Instant::now() + wait;
-        if let Some(output_deadline) = session.0.deadline() {
+        if let Some(output_deadline) = session.endpoint.deadline() {
             deadline = deadline.min(output_deadline);
         }
         if !commands.is_empty() {
-            if let Some(command_at) = session.0.command_at() {
+            if let Some(command_at) = session.endpoint.command_at() {
                 deadline = deadline.min(command_at);
             }
             // Keep this bounded FIFO prefix and its original receipt/source leases intact.

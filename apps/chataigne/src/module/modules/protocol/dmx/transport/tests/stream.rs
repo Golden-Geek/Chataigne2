@@ -4,15 +4,19 @@ use sacn::{Cid, Packet, packet::Payload};
 fn data(socket: &UdpSocket, protocol: DmxProtocol) -> (u8, Vec<u8>, bool) {
     let mut bytes = [0; 2048];
     let (length, _) = socket.recv_from(&mut bytes).unwrap();
+    decode(&bytes[..length], protocol)
+}
+
+fn decode(bytes: &[u8], protocol: DmxProtocol) -> (u8, Vec<u8>, bool) {
     match protocol {
         DmxProtocol::ArtNet => {
-            let ArtCommand::Output(output) = ArtCommand::from_buffer(&bytes[..length]).unwrap() else {
+            let ArtCommand::Output(output) = ArtCommand::from_buffer(bytes).unwrap() else {
                 panic!("expected ArtDMX");
             };
             (output.sequence, output.data.as_ref().to_vec(), false)
         }
         DmxProtocol::Sacn => {
-            let packet = Packet::parse(&bytes[..length]).unwrap();
+            let packet = Packet::parse(bytes).unwrap();
             assert_eq!(packet.cid, Cid::from_bytes([77; 16]));
             let Payload::Data(data) = packet.payload else {
                 panic!("unicast endpoint emitted non-data traffic");
@@ -126,4 +130,59 @@ fn native_receive_reports_source_loss_once_holds_last_look_and_recovers() {
     assert_eq!(recoveries, 1);
     assert!(transport.is_running());
     transport.stop();
+}
+
+#[test]
+fn superseded_native_shutdown_cannot_terminate_the_reconnected_sacn_source() {
+    let receiver = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
+    receiver.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
+    let config = DmxTransportConfig {
+        protocol: DmxProtocol::Sacn,
+        source_id: [77; 16],
+        bind_ip: Ipv4Addr::LOCALHOST.into(),
+        listen_port: sacn::proto::SACN_PORT,
+        receive_enabled: false,
+        universe: 1,
+        destination: Some(receiver.local_addr().unwrap()),
+    };
+    let mut continuity = OutputContinuity::default();
+    let first = continuity.claim(&config);
+    let mut old = native::WorkerEndpoint::open(&config, first).unwrap();
+    old.send(&DmxFrame::new(1, vec![45; 512]).unwrap()).unwrap();
+    let (mut sequence, levels, terminated) = data(&receiver, DmxProtocol::Sacn);
+    assert_eq!(levels, vec![45; 512]);
+    assert!(!terminated);
+    let second = continuity.claim(&config);
+    let mut replacement = native::WorkerEndpoint::open(&config, second).unwrap();
+    receiver.set_nonblocking(true).unwrap();
+    replacement.service().unwrap();
+    // Delayed cleanup starts only after the replacement has taken stream ownership.
+    let stopped = Instant::now();
+    old.shutdown(worker::StopReason::Cancelled);
+    assert!(stopped.elapsed() < Duration::from_millis(100));
+    for _ in 0..4 {
+        let limit = Instant::now() + Duration::from_secs(2);
+        let (next, levels, terminated) = loop {
+            let mut bytes = [0; 2048];
+            match receiver.recv_from(&mut bytes) {
+                Ok((length, _)) => break decode(&bytes[..length], DmxProtocol::Sacn),
+                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {}
+                Err(error) => panic!("loopback receive: {error}"),
+            }
+            assert!(Instant::now() < limit);
+            replacement.service().unwrap();
+            if let Some(deadline) = replacement.deadline() {
+                thread::sleep(deadline.min(limit).saturating_duration_since(Instant::now()));
+            }
+        };
+        assert_eq!(next, sequence.wrapping_add(1));
+        assert_eq!(levels, vec![45; 512]);
+        assert!(!terminated, "old cleanup must not remove the replacement source");
+        sequence = next;
+    }
+    replacement.shutdown(worker::StopReason::Cancelled);
+    receiver.set_nonblocking(false).unwrap();
+    for _ in 0..3 {
+        assert!(data(&receiver, DmxProtocol::Sacn).2);
+    }
 }

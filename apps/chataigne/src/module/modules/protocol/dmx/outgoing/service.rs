@@ -2,6 +2,62 @@ use super::*;
 use golden_core::events::EventKind;
 
 impl DmxModuleBase {
+    pub(in super::super) fn initial_output_needs_snapshot(&self) -> bool {
+        self.transport
+            .as_ref()
+            .is_some_and(DmxTransportHandle::needs_initial_look)
+            && self.outgoing.retry_at.is_none_or(|at| Instant::now() >= at)
+    }
+
+    pub(in super::super) fn service_initial_output(&mut self, ctx: &mut ProcessCtx) {
+        if !self.initial_output_needs_snapshot() {
+            return;
+        }
+        if self.outgoing.pending.iter().any(|pending| pending.source.is_live()) {
+            // Wait for current intent to admit or reject. Its native admission consumes
+            // initialization; receipts from a retired lifetime cannot consume this one.
+            return;
+        }
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            self.request_service();
+            return;
+        };
+        let value = snapshot
+            .node(self.output_frame.id())
+            .and_then(|node| node.param_value.as_ref());
+        let Some(ParamValue::Bytes(slots)) = value else {
+            self.transport.as_ref().unwrap().finish_initial_look();
+            self.set_transport_warning(ctx, "DMX initial output requires a byte array");
+            return;
+        };
+        if slots.is_empty() {
+            self.transport.as_ref().unwrap().finish_initial_look();
+            return;
+        }
+        if slots.len() > DMX_SLOT_COUNT {
+            self.transport.as_ref().unwrap().finish_initial_look();
+            self.set_transport_warning(ctx, "DMX initial output exceeds 512 slots");
+            return;
+        }
+        let slots = slots.clone();
+        let result = (|| {
+            let snapshot = snapshot.try_lease().map_err(|error| error.to_string())?;
+            let producer = ctx.node_waker().map_err(|error| error.to_string())?;
+            self.capture_output(ctx, Input::Property(slots), snapshot, producer, ctx.time)
+        })();
+        match result {
+            Ok(()) => self.transport.as_ref().unwrap().finish_initial_look(),
+            Err(error) => {
+                self.set_transport_warning(ctx, &error);
+                let delay = Duration::from_millis(250);
+                self.outgoing.retry_at = Some(Instant::now() + delay);
+                if let Some(wake) = &self.wake {
+                    wake.later(delay);
+                }
+            }
+        }
+    }
+
     pub(super) fn capture_output(
         &mut self,
         _ctx: &ProcessCtx,
@@ -291,6 +347,9 @@ impl DmxModuleBase {
 
     pub(in super::super) fn output_needs_snapshot(&self) -> bool {
         self.has_pending_output() && self.outgoing.retry_at.is_none_or(|at| Instant::now() >= at)
+    }
+    pub(in super::super) fn output_retry_at(&self) -> Option<Instant> {
+        self.outgoing.retry_at
     }
     pub(in super::super) fn has_pending_output(&self) -> bool {
         !self.outgoing.pending.is_empty()
