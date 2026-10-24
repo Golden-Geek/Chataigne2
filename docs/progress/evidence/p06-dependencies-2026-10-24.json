@@ -1,0 +1,253 @@
+{
+  "date": "2026-10-24",
+  "sourceBaseline": "788dd415",
+  "advisoryDatabase": {
+    "repository": "https://github.com/RustSec/advisory-db",
+    "revision": "21d909e4c8bd4e14c7aea58bf980c881a0053ab1",
+    "commitDate": "2026-10-24T10:30:13+02:00",
+    "cargoDenyVersion": "0.20.2"
+  },
+  "rust": {
+    "baselineAdvisories": [
+      "RUSTSEC-2026-0285",
+      "RUSTSEC-2026-0346",
+      "RUSTSEC-2026-0348",
+      "RUSTSEC-2026-0349",
+      "RUSTSEC-2026-0382",
+      "RUSTSEC-2026-0386",
+      "RUSTSEC-2026-0383",
+      "RUSTSEC-2026-0381"
+    ],
+    "updated": {
+      "rustls": [
+        "0.23.42",
+        "0.23.46"
+      ],
+      "rustls-webpki": [
+        "0.103.13",
+        "0.103.16"
+      ],
+      "tokio": [
+        "1.52.3",
+        "1.53.3"
+      ],
+      "webpki-roots": [
+        "1.0.8",
+        "1.0.10"
+      ],
+      "webpki-root-certs": [
+        "1.0.8",
+        "1.0.10"
+      ],
+      "aws-lc-rs": [
+        "1.17.1",
+        "1.18.2"
+      ],
+      "aws-lc-sys": [
+        "0.42.0",
+        "0.46.0"
+      ]
+    },
+    "defaultRustlsFeatures": [
+      "aws-lc-rs",
+      "aws_lc_rs",
+      "ring",
+      "std",
+      "tls12"
+    ],
+    "brotliEnabled": false,
+    "fullCargoDeny": {
+      "exitCode": 0,
+      "advisoryErrors": 0,
+      "bansErrors": 0,
+      "licenseErrors": 0,
+      "sourcesErrors": 0,
+      "duplicateWarnings": 59,
+      "licenseWarnings": 1
+    },
+    "newAdvisoryIgnores": [],
+    "unusedEngineDependencyRemoved": "rquickjs; generic scripting and Linux ARM bindgen remain owned by golden_script",
+    "reviewedExistingDuplicateParents": {
+      "cfg-expr/system-deps/target-lexicon": "GTK/WebKit system-deps 6 versus PipeWire system-deps 7",
+      "criterion/criterion-plot": "Existing engine benchmark 0.5 versus audio/processor benchmark 0.8; no major benchmark API upgrade",
+      "dbus": "audio_thread_priority 0.35.1 versus tao 0.35.3",
+      "mach2": "audio_thread_priority/serialport/io-kit-sys versus vendored CPAL 0.18.1"
+    },
+    "cpal": {
+      "source": "vendor/cpal-0.18.1",
+      "modified": false,
+      "review": "vendor/cpal-0.18.1/CHATAIGNE_PATCH.md",
+      "removalCondition": "Equivalent upstream exact ASIO device lookup plus independent Git-consumer qualification"
+    }
+  },
+  "npm": {
+    "baseline": {
+      "info": 0,
+      "low": 1,
+      "moderate": 4,
+      "high": 4,
+      "critical": 0,
+      "total": 9
+    },
+    "baselineAdvisories": [
+      {
+        "package": "@sveltejs/kit",
+        "url": "https://github.com/advisories/GHSA-29g2-3rmr-qm68"
+      },
+      {
+        "package": "@sveltejs/kit",
+        "url": "https://github.com/advisories/GHSA-pfhg-q3qv-9q6r"
+      },
+      {
+        "package": "@sveltejs/kit",
+        "url": "https://github.com/advisories/GHSA-27mw-82g8-phjj"
+      },
+      {
+        "package": "@vitest/mocker",
+        "url": "https://github.com/advisories/GHSA-82fw-gwwq-j7x9"
+      },
+      {
+        "package": "@vitest/mocker",
+        "url": "https://github.com/advisories/GHSA-qxg6-89mg-rqv8"
+      },
+      {
+        "package": "cookie",
+        "url": "https://github.com/advisories/GHSA-pxg6-pf52-xh8x"
+      },
+      {
+        "package": "devalue",
+        "url": "https://github.com/advisories/GHSA-9rgm-9g3h-6x36"
+      },
+      {
+        "package": "devalue",
+        "url": "https://github.com/advisories/GHSA-j22f-vq7h-c4qm"
+      },
+      {
+        "package": "devalue",
+        "url": "https://github.com/advisories/GHSA-hx4r-w6wj-j8fg"
+      },
+      {
+        "package": "devalue",
+        "url": "https://github.com/advisories/GHSA-mcm9-63f2-9j32"
+      },
+      {
+        "package": "devalue",
+        "url": "https://github.com/advisories/GHSA-wf3x-273g-mvxv"
+      },
+      {
+        "package": "devalue",
+        "url": "https://github.com/advisories/GHSA-x5rw-q4pp-hg5g"
+      },
+      {
+        "package": "devalue",
+        "url": "https://github.com/advisories/GHSA-4q55-j62x-fr9h"
+      },
+      {
+        "package": "devalue",
+        "url": "https://github.com/advisories/GHSA-r9w8-h9r3-54w4"
+      },
+      {
+        "package": "nanoid",
+        "url": "https://github.com/advisories/GHSA-2v37-7h3g-55p8"
+      },
+      {
+        "package": "postcss",
+        "url": "https://github.com/advisories/GHSA-fxqj-rqcc-2cmp"
+      },
+      {
+        "package": "source-map-js",
+        "url": "https://github.com/advisories/GHSA-68fv-2mgg-jv7q"
+      },
+      {
+        "package": "vite",
+        "url": "https://github.com/advisories/GHSA-698v-4r3x-3vcv"
+      },
+      {
+        "package": "vite",
+        "url": "https://github.com/advisories/GHSA-r825-w8mm-5pxw"
+      },
+      {
+        "package": "vite",
+        "url": "https://github.com/advisories/GHSA-587h-7wmj-h5pm"
+      },
+      {
+        "package": "vite",
+        "url": "https://github.com/advisories/GHSA-9jrq-w75r-8gcw"
+      },
+      {
+        "package": "vite",
+        "url": "https://github.com/advisories/GHSA-rq7h-c2jc-7f22"
+      }
+    ],
+    "fixed": {
+      "kit": "3.0.0",
+      "adapterStatic": "4.0.0",
+      "svelte": "5.57.1",
+      "vite": "8.1.6",
+      "vitest": "4.1.12",
+      "nodeTypes": "26.6.5"
+    },
+    "install": "npm ci --ignore-scripts passed; generated-contract freshness checked separately",
+    "audit": {
+      "exitCode": 0,
+      "totalVulnerabilities": 0
+    },
+    "justification": "Maintainer advisories GHSA-pfhg-q3qv-9q6r and GHSA-27mw-82g8-phjj require SvelteKit 3.0.0. Static adapter 4 and Svelte 5.57.1 satisfy its supported peers.",
+    "migrationGuide": "https://svelte.dev/docs/kit/migrating-to-sveltekit-3"
+  },
+  "limits": [
+    "Windows local validation; Unix AsyncFd and native platform qualification remain platform-specific.",
+    "Runtime and artifact results are recorded in implementation-status.md."
+  ],
+  "runtimeValidation": {
+    "completed": "2026-10-24",
+    "defaultBuild": {
+      "passed": true,
+      "seconds": 169,
+      "binarySha256": "4c47c2759e14ba407148b13c743989016f3749cbaf27724397c33d1358cc5a08"
+    },
+    "strictWorkspaceClippy": {
+      "passed": true,
+      "seconds": 48.85
+    },
+    "coreEngine": {
+      "passed": 606,
+      "ignored": 3,
+      "executionSeconds": 0.53,
+      "buildSeconds": 600
+    },
+    "appProtocolAndButtplug": {
+      "passed": 589,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 1156,
+      "executionSeconds": 39.72,
+      "buildSeconds": 293,
+      "testBinarySha256": "b9ed008f740f00a248643f826ac725252559eaceaaebb69f1637a25ec3375fee"
+    },
+    "serialDiscovery": {
+      "passed": 7,
+      "seconds": 3.01
+    },
+    "isolatedSerialRecovery": {
+      "repetitions": 20,
+      "passed": 20
+    },
+    "retainedFailure": {
+      "selected": 549,
+      "passed": 548,
+      "failed": 1,
+      "seconds": 34.67,
+      "test": "app::module_modules_protocol_stream_serial::tests::passive::partly_applied_catalog_feedback_reconciles_its_suffix_and_preserves_port_identity",
+      "repair": "Test-only isolated healthy discovery service; projection and identity assertions preserved."
+    },
+    "uiTests": {
+      "audio": 27,
+      "golden": 39,
+      "app": 93,
+      "graph": 13
+    },
+    "surfaceReport": "p06-transport-security-2026-10-24.json",
+    "nativeWebview": false
+  }
+}

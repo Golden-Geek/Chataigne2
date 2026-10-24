@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { browser, dev } from '$app/environment';
+	import { browser, dev } from '$app/env';
 	import {
 		MainWindow,
 		registerNodeInspector,
@@ -10,30 +10,30 @@
 		type UserPanelDefinitionMap
 	} from 'golden_ui';
 	import { appState } from 'golden_ui/store/workbench.svelte';
-	import { appIcons } from '$lib/assets/icons/node-icons.svelte';
-	import { resolveRuntimeEndpoints } from '$lib/runtimeEndpoints';
-	import ModuleCommandInspector from '$lib/inspectors/modules/ModuleCommandInspector.svelte';
-	import ModuleInspectorPanelHeader from '$lib/inspectors/modules/ModuleInspectorPanelHeader.svelte';
-	import ModuleNodeInspector from '$lib/inspectors/modules/ModuleNodeInspector.svelte';
-	import ModulePanel from '$lib/panels/modules/ModulePanel.svelte';
+	import { appIcons } from '#lib/assets/icons/node-icons.svelte.ts';
+	import { resolveRuntimeEndpoints } from '#lib/runtimeEndpoints.ts';
+	import ModuleCommandInspector from '#lib/inspectors/modules/ModuleCommandInspector.svelte';
+	import ModuleInspectorPanelHeader from '#lib/inspectors/modules/ModuleInspectorPanelHeader.svelte';
+	import ModuleNodeInspector from '#lib/inspectors/modules/ModuleNodeInspector.svelte';
+	import ModulePanel from '#lib/panels/modules/ModulePanel.svelte';
 	import {
 		moduleEditorPanelDefinitions,
 		registerDefaultModuleEditors
-	} from '$lib/panels/modules/module-editor-setup';
-	import AlchemistEditorPanel from '$lib/systems/alchemist/components/AlchemistEditorPanel.svelte';
-	import ConditionManagerInspector from '$lib/systems/alchemist/components/ConditionManagerInspector.svelte';
-	import FormulaLibraryPanel from '$lib/systems/alchemist/components/FormulaLibraryPanel.svelte';
-	import FormulaNodeInspector from '$lib/systems/alchemist/components/FormulaNodeInspector.svelte';
-	import InputSourceInspector from '$lib/systems/alchemist/components/InputSourceInspector.svelte';
-	import InputValueConditionInspector from '$lib/systems/alchemist/components/InputValueConditionInspector.svelte';
-	import ProcessorFormulaInspector from '$lib/systems/alchemist/components/ProcessorFormulaInspector.svelte';
-	import ProcessorFormulaInspectorPanelHeader from '$lib/systems/alchemist/components/ProcessorFormulaInspectorPanelHeader.svelte';
-	import StateMachinePanel from '$lib/systems/state_machine/components/StateMachinePanel.svelte';
-	import { registerSharedFormulaRemovalGuard } from '$lib/systems/alchemist/sharedFormulaRemoval';
-	import { registerProcessorLaneParameterPreviews } from '$lib/systems/alchemist/preview/processorLaneInspection.svelte';
-	import SoundCardDirectionParametersInspector from '$lib/modules/audio/sound-card/SoundCardDirectionParametersInspector.svelte';
-	import SoundCardConnectionInspector from '$lib/modules/audio/sound-card/SoundCardConnectionInspector.svelte';
-	import SoundCardRoutingInspector from '$lib/modules/audio/sound-card/SoundCardRoutingInspector.svelte';
+	} from '#lib/panels/modules/module-editor-setup.ts';
+	import AlchemistEditorPanel from '#lib/systems/alchemist/components/AlchemistEditorPanel.svelte';
+	import ConditionManagerInspector from '#lib/systems/alchemist/components/ConditionManagerInspector.svelte';
+	import FormulaLibraryPanel from '#lib/systems/alchemist/components/FormulaLibraryPanel.svelte';
+	import FormulaNodeInspector from '#lib/systems/alchemist/components/FormulaNodeInspector.svelte';
+	import InputSourceInspector from '#lib/systems/alchemist/components/InputSourceInspector.svelte';
+	import InputValueConditionInspector from '#lib/systems/alchemist/components/InputValueConditionInspector.svelte';
+	import ProcessorFormulaInspector from '#lib/systems/alchemist/components/ProcessorFormulaInspector.svelte';
+	import ProcessorFormulaInspectorPanelHeader from '#lib/systems/alchemist/components/ProcessorFormulaInspectorPanelHeader.svelte';
+	import StateMachinePanel from '#lib/systems/state_machine/components/StateMachinePanel.svelte';
+	import { registerSharedFormulaRemovalGuard } from '#lib/systems/alchemist/sharedFormulaRemoval.ts';
+	import { registerProcessorLaneParameterPreviews } from '#lib/systems/alchemist/preview/processorLaneInspection.svelte.ts';
+	import SoundCardDirectionParametersInspector from '#lib/modules/audio/sound-card/SoundCardDirectionParametersInspector.svelte';
+	import SoundCardConnectionInspector from '#lib/modules/audio/sound-card/SoundCardConnectionInspector.svelte';
+	import SoundCardRoutingInspector from '#lib/modules/audio/sound-card/SoundCardRoutingInspector.svelte';
 
 	registerSharedFormulaRemovalGuard();
 	registerProcessorLaneParameterPreviews();

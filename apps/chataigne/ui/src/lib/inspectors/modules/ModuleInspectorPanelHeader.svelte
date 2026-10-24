@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { showPanel, type NodeInspectorPanelHeaderComponentProps } from 'golden_ui';
-	import ModuleIndicators from '$lib/components/modules/ModuleIndicators.svelte';
+	import ModuleIndicators from '#lib/components/modules/ModuleIndicators.svelte';
 	import {
 		moduleEditorPanelRequest,
 		resolveModuleEditor
-	} from '$lib/panels/modules/module-editor-registry';
+	} from '#lib/panels/modules/module-editor-registry.ts';
 
 	let { node, defaultHeader }: NodeInspectorPanelHeaderComponentProps = $props();
 

@@ -1,6 +1,5 @@
-import { dev } from '$app/environment';
-import { env } from '$env/dynamic/private';
-import type { Handle } from '@sveltejs/kit';
+import { dev } from '$app/env';
+import type { Handle } from '@sveltejs/kit/hooks';
 import { developmentContentSecurityPolicy } from '../../../../packages/golden-ui/host/content-security-policy.mjs';
 
 export const handle: Handle = async ({ event, resolve }) => {
@@ -13,7 +12,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 				developmentContentSecurityPolicy(
 					policy,
 					event.url,
-					Number(env.VITE_GC_UI_BACKEND_PORT ?? 7010)
+					Number(import.meta.env.VITE_GC_UI_BACKEND_PORT ?? 7010)
 				)
 			);
 	}

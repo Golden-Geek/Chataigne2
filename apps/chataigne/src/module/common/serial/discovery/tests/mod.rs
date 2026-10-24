@@ -9,6 +9,14 @@ use std::{
     time::Instant,
 };
 
+impl SerialDiscoveryRegistration {
+    pub(crate) fn isolated_empty_for_test(notifier: WorkerNotifier) -> Self {
+        Service::new(|| Ok(Vec::new()))
+            .register(notifier)
+            .expect("isolated serial discovery registration should succeed")
+    }
+}
+
 #[test]
 fn blocked_enumeration_keeps_the_single_native_slot_without_joining_or_publishing_after_stop() {
     let pool = RetirementPool::new(NonZeroUsize::MIN);

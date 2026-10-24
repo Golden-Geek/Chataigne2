@@ -219,6 +219,11 @@ async function browserSurface(browser, name, frontend, backend) {
 		let policy;
 		for (let reload = 0; reload < 4; reload += 1) {
 			const response = reload ? await page.reload() : await page.goto(frontend);
+			assert.equal(
+				response.status(),
+				200,
+				`${name}: HTML response: ${(await response.text()).slice(0, 1500)}`
+			);
 			policy = response.headers()['content-security-policy'];
 			assert.ok(policy, `${name}: HTML CSP header missing`);
 			assert.ok(!policy.match(/script-src[^;]*(unsafe-inline|unsafe-eval)/));
@@ -325,6 +330,7 @@ async function unapprovedBrowser(browser, backend) {
 
 let browser;
 let host;
+let devServer;
 try {
 	const port = await availablePort();
 	const devPort = await availablePort();
@@ -352,7 +358,7 @@ try {
 		report.surfaces.push({ name: 'served LAN', status: 'unavailable: no private IPv4 interface' });
 	}
 	// Launch Vite directly, so cleanup owns one process and never needs a desktop or shell.
-	const vite = child(
+	devServer = child(
 		process.execPath,
 		[
 			join(root, 'node_modules/vite/bin/vite.js'),
@@ -370,10 +376,10 @@ try {
 	await waitFor(
 		async () => (await fetch(frontend, { signal: AbortSignal.timeout(5000) })).ok,
 		'Vite',
-		vite
+		devServer
 	);
 	await browserSurface(browser, 'configured development frontend', frontend, backend);
-	await stop(vite);
+	await stop(devServer);
 	await stop(host);
 	host = await startHost(port, frontend);
 	assert.equal((await api(backend, 'snapshot', stale, { scope: 'wholeGraph' })).status, 401);
@@ -383,6 +389,7 @@ try {
 } catch (error) {
 	report.passed = false;
 	report.error = error.stack;
+	if (devServer) report.developmentDiagnostics = devServer.diagnostics;
 	if (host?.exitCode !== null) report.hostDiagnostics = host?.diagnostics;
 	process.exitCode = 1;
 } finally {

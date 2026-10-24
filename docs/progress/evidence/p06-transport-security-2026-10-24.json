@@ -1,0 +1,58 @@
+{
+  "started": "2026-10-24T11:24:58.683Z",
+  "binarySha256": "4c47c2759e14ba407148b13c743989016f3749cbaf27724397c33d1358cc5a08",
+  "sandbox": "C:\\Users\\bkupe\\AppData\\Local\\Temp\\chataigne-security-7df4AG",
+  "surfaces": [
+    {
+      "name": "native HTTP/WS",
+      "admittedAndDenied": true
+    },
+    {
+      "name": "served loopback",
+      "frontend": "http://127.0.0.1:50942",
+      "backend": "http://127.0.0.1:50942",
+      "reloads": 3,
+      "reusedSession": true,
+      "snapshot": true,
+      "subscribed": true,
+      "blockedInjectedScripts": 2,
+      "runtimeErrors": []
+    },
+    {
+      "name": "unapproved browser origin",
+      "http": true,
+      "websocket": true
+    },
+    {
+      "name": "served local LAN interface",
+      "frontend": "http://192.168.1.161:50942",
+      "backend": "http://192.168.1.161:50942",
+      "reloads": 3,
+      "reusedSession": true,
+      "snapshot": true,
+      "subscribed": true,
+      "blockedInjectedScripts": 2,
+      "runtimeErrors": []
+    },
+    {
+      "name": "configured development frontend",
+      "frontend": "http://127.0.0.1:50943",
+      "backend": "http://127.0.0.1:50942",
+      "reloads": 3,
+      "reusedSession": true,
+      "snapshot": true,
+      "subscribed": true,
+      "blockedInjectedScripts": 2,
+      "runtimeErrors": []
+    },
+    {
+      "name": "host restart",
+      "staleTokenRejected": true,
+      "freshSessionWorks": true
+    }
+  ],
+  "nativeWebview": "Not launched; native desktop interaction remains P17 qualification.",
+  "browserVersion": "156.0.4314.42",
+  "passed": true,
+  "finished": "2026-10-24T11:25:18.004Z"
+}

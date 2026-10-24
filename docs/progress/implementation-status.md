@@ -5,10 +5,10 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-24 on `main`, based on delivered `cbd3e277`, matching
+Last reconciled: 2026-10-24 on `main`, based on delivered `788dd415`, matching
 `origin/main` at milestone start. **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
-Whole-plan scope coverage is approximately 28%; P01-P05 are locally complete.
+Whole-plan scope coverage is approximately 33%; P01-P06 are locally complete.
 Hardware/platform and product-scale
 qualification retain their later owners.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
@@ -22,11 +22,11 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 packages, not commit counts. Spatializer's admitted preparation, bounded publication, source/path
 fences, identity preservation and passive failure recovery are qualified under C12.
 
-**Whole plan: approximately 28% complete.** P01-P05 are complete against their local
-acceptance criteria; P06-P18 have not started. P00 baseline reconciliation is maintained separately.
-**5 of 18 implementation/qualification tasks are complete (28%).**
+**Whole plan: approximately 33% complete.** P01-P06 are complete against their local
+acceptance criteria; P07-P18 have not started. P00 baseline reconciliation is maintained separately.
+**6 of 18 implementation/qualification tasks are complete (33%).**
 
-Overall progress is the equal-weight average of P01-P18: `(5 * 100 + 13 * 0) / 18`,
+Overall progress is the equal-weight average of P01-P18: `(6 * 100 + 12 * 0) / 18`,
 rounded to a whole percent. This measures scope coverage, not elapsed time, remaining effort, or
 product readiness. Task sizes differ substantially. P00 housekeeping and preserved pre-plan
 features do not inflate this percentage. Later product, platform and device acceptance remains open.
@@ -119,13 +119,31 @@ These measure verified scope, not effort or a promised number of commits. **All 
 | Client bootstrap and recovery | Complete locally | Shared credentials, coalesced startup/reconnect, stale-token renewal, observation-only binding and selected LAN endpoint ownership verified. Rejected/uncertain mutations retain explicit outcomes. |
 | CSP and local surface qualification | Complete locally | Exact bundled HTML hashes and dev nonces work over loopback, the local LAN interface and a separate configured frontend; real HTTP/WS admission, reload reuse, CSP injection denial and host restart verified. Native permission scope is unchanged; native webview/platform interaction remains P17. |
 
+### P06 completion checkpoints
+
+P06 has four equally weighted checkpoints derived from its dependency-repair acceptance.
+**All four are locally complete (100%).**
+
+| Checkpoint | Status | Acceptance |
+| --- | --- | --- |
+| Current Rust advisories and narrow repair | Complete locally | Refreshed RustSec revision, seven necessary TLS/certificate/runtime package updates, reviewed lockfile and default feature reachability; no new ignores. |
+| Current npm advisories and supported framework repair | Complete locally | Targeted safe versions, required SvelteKit 3/static adapter migration, locked install and zero npm vulnerabilities; UI suites and type checks pass. |
+| Dependency ownership, licenses and provenance | Complete locally | Full cargo-deny passes; duplicate graph reviewed, unused direct engine runtime dependency removed, cargo-machete passes, vendored CPAL source and removal condition preserved. |
+| Runtime and artifact regression checks | Complete locally | 589 correctly selected app protocol/Buttplug cases, 606 engine cases, current audio/IO/transport suites, default bundled app, exact-binary browser/dev/LAN/native matrix and strict workspace Clippy pass. The isolated Serial recovery fixture also passes 20 repetitions and seven discovery cases. |
+
 ## Current handoff
 
 - **P05 is locally complete: four of four fixed checkpoints (100%).** Bundled/dev/LAN browser
   operation, native HTTP/WS, missing/stale/underprivileged denial, CSP and reload session reuse
   are verified. Native webview/focus/dialog qualification remains P17; it was not automated.
   Native peers retain the trusted-listener policy; capabilities do not establish peer identity.
-  Continue P06's authoritative dependency/advisory refresh after delivering this milestone.
+  Delivered as `788dd415`; P06's final artifact/runtime validation is now complete.
+- **P06 is locally complete: four of four fixed checkpoints (100%).** Current locked Rust/npm
+  advisories pass without new suppressions. The required SvelteKit 3 migration preserves bundled,
+  development and LAN operation. The correctly selected app suite passes **589 cases**; engine
+  **606 / three ignored**, Serial discovery **seven**, isolated recovery **20/20 repetitions**.
+  Default app and strict Clippy pass; the new-binary surface matrix passes. Commit/push this
+  milestone before implementing P07's lighting-worker streaming correctness.
 - Golden Transport passes **74 unit cases and one public headless-host integration case**, with
   one existing manual snapshot benchmark ignored.
   Golden Desktop passes **seven cases / one subprocess helper ignored**; xtask passes **one unit
@@ -174,7 +192,7 @@ External qualification is separate from implementation. A historical pass is not
 | P03 Bounded I/O/lifecycle | 100% | VERIFIED_LOCAL | PASSED C01-C12 | All twelve closure packages locally verified; Spatializer closes the bounded service/lifecycle audit. External qualification retains later owners. |
 | P04 Audio order/types | 100% | VERIFIED_LOCAL | PASSED all four checkpoints | Checked scalar decoding, ordered command/shutdown admission, production plan/gain sequence and generation barriers, dense targets and allocation/deallocation transition guards verified. Native/platform qualification retains P17/P18. |
 | P05 Transport trust | 100% | VERIFIED_LOCAL | PASSED all four checkpoints | Bundled/dev/LAN browser and native HTTP/WS operation, independent denial gates, exact CSP, reload reuse and restart fencing verified; native webview/platform interaction remains P17. |
-| P06 Dependencies | 0% | NOT_STARTED | FAILED baseline | Latest product CI reports eight RustSec IDs and npm audit failures; refresh advisories before repair. |
+| P06 Dependencies | 100% | VERIFIED_LOCAL | PASSED all four checkpoints | Refreshed advisory DB, narrow necessary updates, supported frontend migration, licensing/provenance and correctly selected network/audio/build/browser checks verified. Unix/native platform behavior retains P17. |
 | P07 DMX streaming           | 0%         | NOT_STARTED    | PENDING                 | Refresh/filter/service gaps; protocol loopback qualification needed                                                                             |
 | P08 Formula backend intents | 0%         | NOT_STARTED    | PENDING                 | UI polling/identity and mutation policy verified; corruption not reproduced                                                                     |
 | P09 Graph document          | 0%         | NOT_STARTED    | PENDING                 | Ordered-map mutation costs source-derived                                                                                                       |
@@ -8285,3 +8303,160 @@ retain P17/P16 owners. Owned headless app, Vite and headless browser processes w
 Actual root/Core formatting, diff hygiene and touched-source limits are checked before delivery.
 Commit/push this verified P05 milestone, then refresh authoritative dependency/advisory evidence
 for P06. Keep the full P00-P18 objective active; P03 remains closed at 12/12 packages.
+
+## P06 current dependency repair and required frontend migration
+
+2026-10-24 on `main`, after delivered P05 `788dd415`. The refreshed advisory database is
+`21d909e4c8bd4e14c7aea58bf980c881a0053ab1` (commit 2026-10-24 10:30:13 +02:00), checked with
+`cargo-deny 0.20.2`. The baseline failed eight RustSec advisories and npm reported nine affected
+packages (four high, four moderate, one low). The
+[dependency evidence](evidence/p06-dependencies-2026-10-24.json) records IDs, versions, feature
+reachability and provenance. This is new current evidence, not a claim that an exploit was shown.
+
+The Rust lock changes only seven package versions: Rustls **0.23.46**, WebPKI **0.103.16**,
+Tokio **1.53.3**, both WebPKI root packages **1.0.10**, and the AWS-LC pair **1.18.2 / 0.46.0**
+required by Rustls's new `aws-lc-rs = 1.18` constraint. Tokio stays below the unrelated 1.54 line.
+Twelve unrelated broad-range dependency edge rewrites from Cargo were restored; locked resolution
+and compilation accept the preserved graph. The existing WebPKI 0.26.11 wrapper now references
+the repaired 1.x roots. Default app Rustls features are AWS-LC, ring, std and TLS 1.2; Brotli stays
+disabled. The current Unix AsyncFd advisory is repaired in the lock; Windows execution does not
+qualify Unix I/O safety behavior.
+
+Maintainer advisories
+[GHSA-pfhg-q3qv-9q6r](https://github.com/sveltejs/kit/security/advisories/GHSA-pfhg-q3qv-9q6r) and
+[GHSA-27mw-82g8-phjj](https://github.com/sveltejs/kit/security/advisories/GHSA-27mw-82g8-phjj)
+list SvelteKit **3.0.0** as their repair. This directly related major update is necessary to restore
+the unsuppressed gate. Static adapter **4.0.0** and Svelte **5.57.1** satisfy its supported peers;
+Vite **8.1.6** and Vitest **4.1.12** repair their advisories. Other updated npm transitives belong
+to these packages or the named devalue, PostCSS, NanoID and source-map-js repairs. No blanket
+forced update or new advisory suppression is used.
+
+Following the [maintainer migration](https://svelte.dev/docs/kit/migrating-to-sveltekit-3), app
+adapter/CSP/prerender settings move to the existing Vite plugin and the obsolete config file is
+removed. Native `#lib/*` package imports replace the removed alias, environment/hooks imports use
+the supported modules, and TypeScript uses `$app/tsconfig` with Vite-owned emission. CSP source
+literals retain their types without making Golden UI depend on SvelteKit. An unused undeclared
+SvelteKit import in Golden's logger was exposed by the changed install layout and removed; the
+library does not gain a framework dependency. Audio UI declares Vite client ambient types for its
+asset/HMR imports rather than relying on an app's generated declarations. Explicit Node 26 types
+support the frontend build configuration.
+
+The duplicate gate now covers **66 reviewed crate names**. Seven missing families already had
+the same versions in `788dd415`: GTK versus PipeWire build helpers, platform audio/desktop
+DBus/Mach bindings and existing engine versus audio/processor Criterion benches. Their immediate
+parents are recorded in the evidence; no unrelated major benchmark API is upgraded. The engine's
+unused direct QuickJS dependency is removed. Golden Script still owns QuickJS and the Linux ARM
+bindgen/parallel features, confirmed by target-specific Cargo feature resolution. `cargo machete`
+passes. Vendored CPAL **0.18.1** and its exact-ASIO lookup patch, license, source path and documented
+upstream-removal/independent-consumer condition remain unchanged.
+
+Checks completed before final artifact validation:
+
+- Full `cargo deny --locked check` passes advisories, licenses, sources and bans with **zero
+  errors**. Existing duplicate warnings (59), one license-list warning and four advisory notes
+  remain visible. Existing quick-xml exceptions are unchanged; no new ignore is added.
+- `npm audit --json`: **zero vulnerabilities**. `npm ci --ignore-scripts`: passes; generated
+  contract freshness is checked by the normal root check separately.
+- UI suites: Audio UI **27**, Golden UI **39**, app UI **93**, Graph UI **13** passes.
+  Production UI build passes with the existing >500 kB chunk warning. App and Audio UI checks
+  report zero errors/warnings after the explicit ambient/configuration corrections. Root lint passes.
+- Updated `cargo test --locked -p golden_transport_server -p golden_io -p golden_audio --
+  --test-threads=1` passes (2m27s build), including **190 audio unit cases**, retained public audio
+  consumers and **74 transport unit cases / one manual benchmark ignored**, plus the public
+  headless-host integration case. No physical stream is opened by qualification.
+
+**P06 remains 75% while final engine/app/build/Clippy and exact new-binary browser qualification
+run.** A live IDE Cargo check temporarily held the shared target lock; it was allowed to finish,
+not terminated or bypassed with a second target directory. No owned job was restarted on timeout.
+Do not claim the final artifact gate before the remaining results are recorded. Keep P00-P18 active.
+
+The early frontend/runtime isolation run caught a SvelteKit 3 migration regression: a route marked
+`prerender = true` is treated as prerendered in development too, placing CSP in meta instead of
+the response header. The development hook consequently had no header to constrain. The
+[failure report](evidence/p06-frontend-transition-failure-2026-10-24.json) retains the unchanged
+header assertion and real 200 response. The root layout now prerenders only production pages;
+development retains framework-generated response nonces and the exact endpoint header. A repeat
+on the same previous Rust binary passes the new SvelteKit 3 development surface, three reloads,
+authenticated snapshots/subscriptions and both injection denials, with no unexpected CSP/runtime
+errors. That interim run isolates frontend repair; it does not substitute for final qualification
+of the rebuilt Rust/bundled artifact. The harness now records response status and Vite diagnostics
+on failure without printing credentials. Security assertions remain intact.
+
+Final core validation: `cargo test --locked -p golden_engine --lib` passed **606 cases / three
+manual measurements ignored**, 10m00s compilation and 0.53s execution, on the removed direct
+QuickJS edge and repaired lock. The chained next command mistakenly selected an app library
+target; Cargo reported that Chataigne2 has only binary targets, so no app test was executed by
+that command. The corrected binary-target protocol/Buttplug test, default build and strict Clippy
+chain is now running. Clean-install root `npm run check` also passed, including generated audio
+freshness and zero Svelte errors/warnings; `npm audit --json` remains at zero vulnerabilities.
+
+Continuation at **13:13 local**: command handle **22661** is confirmed live, with two current
+Chataigne2 compiler processes (PIDs 42556/42848, started 13:10:20). It owns the corrected protocol
+tests, then Buttplug tests, default app build and strict workspace/all-target Clippy, stopping on
+failure. Poll this handle before scheduling another Rust job; an observation timeout is not
+termination. The engine/check/generated-install handles are terminal. After the app chain passes,
+run the security surface harness against the **new** binary, retain its hash/report, finish actual
+root/Core fmt and diff hygiene, close the fourth P06 checkpoint and commit/push the milestone.
+Do not reuse the old `49eb15bd...` binary as final P06 artifact evidence. Current P06 work remains
+uncommitted; P05 is already delivered. No other plan task was reopened or substituted for P00-P18.
+
+Final app validation update: the filesystem-style filters selected **zero tests** despite the
+successful 6m03s/5m03s test builds. Those empty runs are not acceptance evidence. The actual
+inventory uses generated `app::module_modules_*` names. Direct execution of the built test
+artifact, SHA-256 `bfb198fb9d262389f9695cdd6398bab485abe8f8c90b2abd7da89ab645c8eee9`,
+selected **549 protocol cases: 548 passed / one failed** in 34.67s. The failure was Serial's
+`partly_applied_catalog_feedback_reconciles_its_suffix_and_preserves_port_identity`, at the
+final no-catalog-warning assertion (`tests/passive.rs:331`). It passed alone and in its six-case
+passive suite. The original fixture relied on the shared real discovery service even though
+it is testing projection recovery against a healthy catalog. This is an uncontrolled dependency;
+the original assertion did not print which live catalog warning remained.
+
+The fixture now owns a separate discovery registration with an empty successful detector, using
+the same production discovery service implementation. The helper lives only in `discovery/tests/`;
+production Serial behavior is unchanged. Applied-prefix rejection, warning clearance, connection
+state and exact port identity assertions remain intact. Only test files were edited while the
+production-only compiler was active. The attempted cancellation of the redundant empty-filter
+compiler found that it was already gone; **no process was stopped**.
+
+The default `cargo build --locked -p Chataigne2` passed in **2m49s** and strict workspace/all-target
+Clippy passed in **48.85s**, including the isolated fixture. The exact new default binary SHA-256 is
+`4c47c2759e14ba407148b13c743989016f3749cbaf27724397c33d1358cc5a08`. Its
+[final browser/native surface report](evidence/p06-transport-security-2026-10-24.json) is **PASSED**:
+bundled loopback/LAN, SvelteKit 3 development, native HTTP/WS, denied origins/credentials,
+reload/session reuse, injected-script denial and restart fencing. Each browser surface records
+zero unexpected CSP/runtime errors. This is current binary evidence, not the earlier isolation run.
+
+The correctly selected verification is now command handle **15921**:
+`cargo test --locked -p Chataigne2 --bin Chataigne2 -- module_modules_protocol_
+module_modules_controllers_buttplug --test-threads=1`. A pre-run test inventory confirms **589
+matching cases**. This one test-target build avoids another empty-filter or unrelated integration
+target build. Keep P06 at 75% until those executed results pass; then finish formatting/diff checks,
+close P06 and commit/push before implementing P07. Prior handle 22661 is terminal/successful.
+
+### P06 final closure
+
+The corrected single test-target command completed at 13:30 local: **589 passed / zero failed /
+zero ignored / 1156 filtered**, after 4m53s compilation and 39.72s execution. The final test binary
+SHA-256 is `b9ed008f740f00a248643f826ac725252559eaceaaebb69f1637a25ec3375fee`.
+The previously failing Serial assertion passed **20/20 further exact repetitions**, with each
+run checked to execute one case. The actual `app::module::common::serial::discovery::` namespace
+also passed **seven cases** in 3.01s. An attempted generated-style common-serial filter selected
+zero cases and receives no validation credit. No assertion or production Serial behavior was
+relaxed. These executions supplement the earlier retained 548/549 failure; they do not erase it.
+
+The current default binary still hashes to `4c47c2759e14ba407148b13c743989016f3749cbaf27724397c33d1358cc5a08`,
+matching the final browser/native report. The final full cargo-deny recheck again reports zero
+errors across advisories/licenses/sources/bans, with the same explicit warnings/notes. All owned
+verification handles are terminal. Actual root/Core formatting, touched-source limits (largest
+867 lines), JSON validity and diff hygiene pass. No desktop input/native webview or physical
+stream qualification was performed; those later owners remain explicit.
+
+**P06 closes locally at 100%; whole-plan coverage is ~33%, six of eighteen tasks complete.**
+P03 stays closed at 12/12 packages. Deliver this milestone on `main`, then continue P07's native
+lighting worker. Preliminary read-only inspection confirms its current send-only refresh gap,
+one-packet receive turns, missing Art-Net universe filtering and discarded sACN sync traffic.
+The established `sacn 0.11.1` source still terminates by multicast after unicast sends. Before
+coding, review the maintained pure protocol-core alternative `x39-sacn 0.2.1` (MIT/Apache-2.0,
+MSRV 1.91, registry source commit `5259dd464c77e05ccaa3fd3695ba2ea2de551daa`), which exposes
+fixed-capacity storage and caller-supplied time. No P07 source or dependency change has started.
+Do not rebuild a protocol that an adequate established crate already supplies. Keep P00-P18 active.

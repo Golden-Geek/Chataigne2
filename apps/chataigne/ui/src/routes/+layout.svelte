@@ -1,6 +1,6 @@
 <script lang="ts">
-	import favicon from '$lib/assets/favicon.svg';
-	import { browser, dev } from '$app/environment';
+	import favicon from '#lib/assets/favicon.svg';
+	import { browser, dev } from '$app/env';
 	import RuntimeProbeOverlay from 'golden_ui/components/debug/RuntimeProbeOverlay.svelte';
 	import { ensureRuntimeProbeInstalled } from 'golden_ui/debug/runtime-probe.svelte';
 

@@ -1,5 +1,5 @@
 use super::*;
-use crate::app::module::common::serial::{spawn_for_test, SerialConnectionConfig};
+use crate::app::module::common::serial::{spawn_for_test, SerialConnectionConfig, SerialDiscoveryRegistration};
 use golden_core::{events::EventKind, process_ctx::ProcessCtx};
 use golden_io::RetirementPool;
 use std::{
@@ -304,6 +304,11 @@ fn snapshot_free_callback_receipts_recover_and_undo_fences_old_delivery() {
 #[test]
 fn partly_applied_catalog_feedback_reconciles_its_suffix_and_preserves_port_identity() {
     let (mut engine, id) = create_serial_module();
+    let node = module_mut(&mut engine, id);
+    let notifier = node.wake.as_ref().unwrap().notifier.clone();
+    // Projection recovery must not depend on another test's retiring native discovery worker.
+    node.port_discovery = Some(SerialDiscoveryRegistration::isolated_empty_for_test(notifier));
+    node.request_service();
     wait(&mut engine, |engine| idle(engine, id));
     let snapshot = engine.process_tree_snapshot();
     let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);

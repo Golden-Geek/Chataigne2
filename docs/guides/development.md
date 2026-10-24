@@ -95,6 +95,13 @@ and failed builds never populate the cache. `GC_FORCE_NPM_CI=1` forces dependenc
 installation and bundle rebuilding. `GC_UI_ASSUME_BUILT=1` still consumes the
 separately built `ui/build` artifact; `GC_SKIP_UI_BUILD=1` still omits bundled UI.
 
+The frontend uses SvelteKit 3 with Svelte 5. Its adapter, CSP and prerender settings live in the
+`sveltekit(...)` plugin in `apps/chataigne/ui/vite.config.ts`; there is no separate SvelteKit
+configuration file. App imports use the package's native `#lib/*` subpath mapping with explicit
+file extensions. Type checking extends `$app/tsconfig`, while Vite owns JavaScript emission.
+The root layout prerenders production pages and leaves development pages dynamic so their CSP
+nonces and connection restrictions remain enforced through response headers.
+
 ## Test Placement
 
 Tests stay with their owning subsystem, but always inside a `tests/` directory:

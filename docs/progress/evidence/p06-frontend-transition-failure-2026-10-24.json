@@ -1,0 +1,44 @@
+{
+  "started": "2026-10-24T11:06:38.239Z",
+  "binarySha256": "49eb15bd7382f0e30af7bc48735c7df862a712238ea70f207a3bfcf8763d1024",
+  "sandbox": "C:\\Users\\bkupe\\AppData\\Local\\Temp\\chataigne-security-sTVngE",
+  "surfaces": [
+    {
+      "name": "native HTTP/WS",
+      "admittedAndDenied": true
+    },
+    {
+      "name": "served loopback",
+      "frontend": "http://127.0.0.1:55651",
+      "backend": "http://127.0.0.1:55651",
+      "reloads": 3,
+      "reusedSession": true,
+      "snapshot": true,
+      "subscribed": true,
+      "blockedInjectedScripts": 2,
+      "runtimeErrors": []
+    },
+    {
+      "name": "unapproved browser origin",
+      "http": true,
+      "websocket": true
+    },
+    {
+      "name": "served local LAN interface",
+      "frontend": "http://192.168.1.161:55651",
+      "backend": "http://192.168.1.161:55651",
+      "reloads": 3,
+      "reusedSession": true,
+      "snapshot": true,
+      "subscribed": true,
+      "blockedInjectedScripts": 2,
+      "runtimeErrors": []
+    }
+  ],
+  "nativeWebview": "Not launched; native desktop interaction remains P17 qualification.",
+  "browserVersion": "156.0.4314.42",
+  "passed": false,
+  "error": "AssertionError [ERR_ASSERTION]: configured development frontend: HTML CSP header missing\n    at browserSurface (file:///D:/Projects/Dev/Chataigne2/tools/qualification/transport-security.mjs:224:11)\n    at async file:///D:/Projects/Dev/Chataigne2/tools/qualification/transport-security.mjs:377:2",
+  "developmentDiagnostics": "1:06:41 PM [vite] (ssr) connected.\n\n  VITE v8.1.6  ready in 766 ms\n\n  âžœ  Local:   http://127.0.0.1:55652/\n200 GET /\n200 GET /\n200 GET /_app/env.js\n",
+  "finished": "2026-10-24T11:06:42.806Z"
+}

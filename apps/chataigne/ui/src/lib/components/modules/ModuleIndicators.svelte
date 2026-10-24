@@ -4,7 +4,7 @@
 	import { appState } from 'golden_ui/store/workbench.svelte';
 	import type { GraphState } from 'golden_ui/store/graph.svelte';
 	import type { NodeId, UiNodeDto } from 'golden_ui/types';
-	import { SOUND_CARD_OUTPUT_ACTIVITY_TOPIC } from '$lib/modules/audio/sound-card/generated';
+	import { SOUND_CARD_OUTPUT_ACTIVITY_TOPIC } from '#lib/modules/audio/sound-card/generated/index.ts';
 	import connectedIcon from '../../assets/icons/module/connected.svg';
 	import disconnectedIcon from '../../assets/icons/module/disconnected.svg';
 	import incomingIcon from '../../assets/icons/module/incoming.svg';

@@ -1,18 +1,25 @@
 // SvelteKit adds the hashes/nonces for the bootstrap it generates. The reusable HTTP host
 // also enforces an origin-specific header when these assets are served from an embedded bundle.
+/**
+ * Preserve literal source types without coupling this reusable policy to a framework's types.
+ * @template {string} T
+ * @param {T[]} values
+ */
+const sources = (...values) => values;
+
 export const uiContentSecurityPolicy = {
 	mode: /** @type {'auto'} */ ('auto'),
 	directives: {
-		'default-src': ['self'],
-		'script-src': ['self'],
-		'style-src': ['self', 'unsafe-inline'],
-		'img-src': ['self', 'data:', 'blob:'],
-		'font-src': ['self', 'data:'],
-		'connect-src': ['self', 'ws:', 'ipc:', 'http://ipc.localhost'],
-		'worker-src': ['self', 'blob:'],
-		'object-src': ['none'],
-		'base-uri': ['none'],
-		'form-action': ['none']
+		'default-src': sources('self'),
+		'script-src': sources('self'),
+		'style-src': sources('self', 'unsafe-inline'),
+		'img-src': sources('self', 'data:', 'blob:'),
+		'font-src': sources('self', 'data:'),
+		'connect-src': sources('self', 'ws:', 'ipc:', 'http://ipc.localhost'),
+		'worker-src': sources('self', 'blob:'),
+		'object-src': sources('none'),
+		'base-uri': sources('none'),
+		'form-action': sources('none')
 	}
 };
 

@@ -1,5 +1,5 @@
-import generatorsIconUrl from '$lib/assets/icons/module/generators.svg';
-import audioIconUrl from '$lib/assets/icons/module/audio.svg';
+import generatorsIconUrl from '#lib/assets/icons/module/generators.svg';
+import audioIconUrl from '#lib/assets/icons/module/audio.svg';
 import SoundCardEditorPanel from './SoundCardEditorPanel.svelte';
 import SpatializerEditorPanel from './SpatializerEditorPanel.svelte';
 import {

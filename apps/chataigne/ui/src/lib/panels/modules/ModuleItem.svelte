@@ -1,5 +1,5 @@
 <script lang="ts">
-	import ModuleIndicators from '$lib/components/modules/ModuleIndicators.svelte';
+	import ModuleIndicators from '#lib/components/modules/ModuleIndicators.svelte';
 	import type { UiNodeDto } from 'golden_ui/types';
 	import { appState } from 'golden_ui/store/app-state.svelte';
 

@@ -1,7 +1,7 @@
 import { render } from 'svelte/server';
 import type { PanelParams, PanelProps } from 'golden_ui';
 import { describe, expect, it, vi } from 'vitest';
-import SoundCardEditorPanel from '$lib/panels/modules/SoundCardEditorPanel.svelte';
+import SoundCardEditorPanel from '#lib/panels/modules/SoundCardEditorPanel.svelte';
 
 const props: PanelProps = {
 	panelId: 'sound-card-editor-test',

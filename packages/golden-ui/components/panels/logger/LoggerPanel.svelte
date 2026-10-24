@@ -18,7 +18,6 @@
 		normalizeSearchText,
 		type LoggerEntry
 	} from './log-projection';
-	import { text } from '@sveltejs/kit';
 	import { fade, slide } from 'svelte/transition';
 
 	let { panelId, panelType, title, params }: PanelProps = $props();

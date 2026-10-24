@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { NodeInspectorComponentProps } from 'golden_ui';
-	import ModuleIndicators from '$lib/components/modules/ModuleIndicators.svelte';
+	import ModuleIndicators from '#lib/components/modules/ModuleIndicators.svelte';
 
 	let { node, defaultHeader, defaultContent, defaultChildren }: NodeInspectorComponentProps =
 		$props();

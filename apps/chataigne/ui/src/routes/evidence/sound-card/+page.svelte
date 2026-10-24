@@ -1,5 +1,5 @@
 <script lang="ts">
-	import SoundCardRoutingEvidence from '$lib/modules/audio/sound-card/SoundCardRoutingEvidence.svelte';
+	import SoundCardRoutingEvidence from '#lib/modules/audio/sound-card/SoundCardRoutingEvidence.svelte';
 </script>
 
 <svelte:head>

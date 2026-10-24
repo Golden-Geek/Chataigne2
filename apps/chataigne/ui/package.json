@@ -4,6 +4,9 @@
 	"version": "0.0.1",
 	"license": "GPL-3.0-only",
 	"type": "module",
+	"imports": {
+		"#lib/*": "./src/lib/*"
+	},
 	"engines": {
 		"node": ">=26.5.0 <27",
 		"npm": ">=11.17.0 <12"
@@ -29,17 +32,18 @@
 		"format": "prettier --write ."
 	},
 	"devDependencies": {
-		"@sveltejs/adapter-static": "^3.0.10",
-		"@sveltejs/kit": "^2.63.0",
+		"@sveltejs/adapter-static": "4.0.0",
+		"@sveltejs/kit": "3.0.0",
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
+		"@types/node": "26.6.5",
 		"playwright-core": "^1.61.1",
 		"prettier": "^3.9.5",
 		"prettier-plugin-svelte": "^4.1.1",
-		"svelte": "^5.56.1",
+		"svelte": "5.57.1",
 		"svelte-check": "^4.6.0",
 		"typescript": "^6.0.3",
-		"vite": "^8.0.16",
-		"vitest": "4.1.10"
+		"vite": "8.1.6",
+		"vitest": "4.1.12"
 	},
 	"dependencies": {
 		"@codemirror/lang-css": "^6.3.1",

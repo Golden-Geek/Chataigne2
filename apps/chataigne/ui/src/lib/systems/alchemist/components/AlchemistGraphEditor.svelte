@@ -14,7 +14,7 @@
 	} from 'golden_graph_ui';
 	import type { NodeId, UiCreatableUserItem, UiNodeDto } from 'golden_ui';
 	import { openNodeContextMenu } from 'golden_ui/store/node-context-menu.svelte';
-	import lockIcon from '$lib/assets/icons/lock.svg';
+	import lockIcon from '#lib/assets/icons/lock.svg';
 	import { GraphDocumentAdapter } from '../../../graph/graphDocumentAdapter';
 	import { canConnectGraphConnection, toGraphEdges, toGraphNodes } from '../alchemistGraph';
 	import type { FormulaOutputPreviewChip } from '../preview/formulaOutputPreviewStore.svelte';
