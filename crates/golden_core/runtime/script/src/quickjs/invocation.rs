@@ -60,6 +60,9 @@ impl QuickJsRuntime {
 
         for op in drained {
             match op {
+                ScriptHostOp::InvokeAppOperation { request } => {
+                    host.invoke_app_operation(request).map_err(ScriptRuntimeError::Host)?;
+                }
                 ScriptHostOp::Log { level, message } => {
                     host.log(level, &message);
                 }

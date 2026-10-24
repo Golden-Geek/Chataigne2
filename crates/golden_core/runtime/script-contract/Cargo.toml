@@ -10,4 +10,5 @@ repository.workspace = true
 golden_model.workspace = true
 golden_parameters.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 ts-rs.workspace = true

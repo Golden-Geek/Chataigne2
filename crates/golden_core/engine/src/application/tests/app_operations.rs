@@ -6,6 +6,8 @@ use crate::{
 };
 use serde_json::{Value, json};
 
+mod script;
+
 #[crate::node("operation_ready_failure")]
 struct ReadyFailure {}
 
@@ -47,6 +49,13 @@ impl ProjectLifecycle for OperationNode {
         engine.apply_edits().map_err(|error| error.to_string())?;
         if operation == "reject" {
             return Err("domain rejected after insertion".into());
+        }
+        if operation == "deepResult" {
+            let mut result = Value::Null;
+            for _ in 0..128 {
+                result = Value::Array(vec![result]);
+            }
+            return Ok(result);
         }
         let id = engine
             .nodes

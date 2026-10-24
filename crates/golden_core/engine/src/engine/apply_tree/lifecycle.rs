@@ -329,11 +329,18 @@ impl<T: Node> Engine<T> {
     }
 
     pub(crate) fn absorb_history_callback_edits(&mut self, ctx: &mut ProcessCtx) -> Result<(), EngineEditError> {
+        self.prepare_script_app_operation_fences(ctx);
         // Restored node payloads already contain the authoritative authored state.
         // Subscriptions are runtime registrations; authored callback edits would
         // duplicate effects that history has itself replayed.
         for (edit_index, request) in ctx.edits.drain().into_iter().enumerate() {
             match request.edit {
+                crate::edit::Edit::RequestAppOperation { pending } => {
+                    // Deliver rejection after replay. Dropping this request's unapplied
+                    // completion token fences the queued application work as failed.
+                    self.pending_script_app_operations.push_back(pending);
+                    continue;
+                }
                 crate::edit::Edit::AddEventListener {
                     subscriber,
                     subscription,

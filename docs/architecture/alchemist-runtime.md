@@ -78,8 +78,17 @@ One pending selection resolves when all identities arrive through ordinary proje
 unrelated creates cannot satisfy it. Project-root changes and reused IDs reject it, and a later
 explicit selection cancels it. Selection intent revisions prevent a late operation reply from
 overriding a newer user selection. Clipboard requests also retain their Formula/view/project
-identity across asynchronous reads. Script integration and remaining end-to-end transport
-qualification stay under P08's final checkpoint.
+identity across asynchronous reads.
+
+Embedded scripts use Golden's [deferred app-operation contract](app-operations.md#embedded-scripts)
+with the same `chataigne.alchemist` namespace and generated copy/paste/connect DTOs. Tree handles'
+read-only `uuid` and `id()` provide the complete Formula/endpoint identity. The app-owned module
+template quick reference lives in `src/module/script_templates/snippets/formula_operations.js`;
+Golden carries no Formula request schema. Complete fragments include authored Script children,
+while requesting runtime state and outstanding requests are never copied or persisted.
+Owning acceptance includes actual authenticated HTTP/WebSocket requests against the default
+headless executable, concurrent pastes, exact embedded-script replies and stale-owner rejection
+after project replacement. Current evidence and its local scope live in the implementation ledger.
 
 ## Formula Catalog And Library
 

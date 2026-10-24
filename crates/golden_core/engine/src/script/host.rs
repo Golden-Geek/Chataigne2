@@ -116,6 +116,7 @@ impl ScriptTreeView for ProcessTreeSnapshot {
 
 pub(super) struct NodeScriptHostBridge<'a> {
     script_node: NodeId,
+    operation_owner: std::sync::Weak<()>,
     host_node: Option<NodeId>,
     started_elapsed: Duration,
     runtime_subscriptions: &'a mut Vec<crate::node::EventSubscription>,
@@ -126,6 +127,7 @@ pub(super) struct NodeScriptHostBridge<'a> {
 impl<'a> NodeScriptHostBridge<'a> {
     pub(super) fn new(
         script_node: NodeId,
+        operation_owner: std::sync::Weak<()>,
         host_node: Option<NodeId>,
         started_elapsed: Duration,
         runtime_subscriptions: &'a mut Vec<crate::node::EventSubscription>,
@@ -134,6 +136,7 @@ impl<'a> NodeScriptHostBridge<'a> {
     ) -> Self {
         Self {
             script_node,
+            operation_owner,
             host_node,
             started_elapsed,
             runtime_subscriptions,
@@ -144,6 +147,11 @@ impl<'a> NodeScriptHostBridge<'a> {
 }
 
 impl ScriptHostBridge for NodeScriptHostBridge<'_> {
+    fn invoke_app_operation(&mut self, request: crate::script::ScriptAppOperationRequest) -> Result<(), String> {
+        self.ctx
+            .enqueue_script_app_operation(self.script_node, self.operation_owner.clone(), request);
+        Ok(())
+    }
     fn owner_node(&self) -> Option<NodeId> {
         self.host_node
     }

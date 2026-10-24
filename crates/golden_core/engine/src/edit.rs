@@ -305,6 +305,11 @@ pub enum Edit {
         /// Custom event payload to emit.
         event: CustomEvent,
     },
+    /// Defer script-requested app work until its originating callback edits commit.
+    RequestAppOperation {
+        /// Admitted request, response lifetime and callback cancellation fence.
+        pending: crate::script::app_operations::PendingScriptAppOperation,
+    },
     /// Requests a full scheduler reevaluation on the next runtime resolve pass.
     ReevaluateGraph,
     /// Adds or updates a runtime event listener for a subscriber node.

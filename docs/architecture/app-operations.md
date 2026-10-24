@@ -40,6 +40,35 @@ Rust and generated into `packages/golden-ui/generated/rust_protocol`; the UI res
 inherits the generated fields and the transport codec preserves the app result verbatim.
 `SendNodeEvent` remains ephemeral inbox coordination and does not provide mutation completion.
 
-P08 uses this contract for Formula paste/connect. That app implementation and its UI/script
-callers remain separate checkpoints in the implementation ledger; the public boundary alone
-does not remove the existing Formula UI mutation policy.
+## Embedded scripts
+
+Golden's script runtime prepares bounded JSON and queues `gc.invokeAppOperation(requestId,
+namespace, operation, payload)`. A true return means admitted, not committed. The same app hook
+and atomic journal apply the request; scripts do not implement their own domain mutation policy.
+The requesting runtime receives `onAppOperationResult(reply)`. Its Rust-defined,
+generated `ScriptAppOperationReply` is either `status: "applied"` with the exact `value`, including
+null, or `status: "rejected"` with `message`; both include the caller's `request_id`.
+
+The deferred engine edit observes the entire originating callback's edit receipt. Application
+service waits for commit, rejects a failed receipt, and fences requests against script deletion,
+reload and project retirement. A completion targets that runtime directly through transient
+inbox delivery. It does not depend on subscriptions, UI projection, replay or a guessed identity.
+Result callbacks use ordinary runtime edit policy, without adding authored undo steps. History
+restoration rejects authored requests after replay rather than silently losing them.
+
+The input/response lifetime pool has 64 slots and a 512 MiB ceiling. Every request admits both
+input and response capacity before JSON parsing; each envelope is limited to 32 MiB, two million
+JSON values and 128 levels. Result admission leaves room for its callback envelope and occurs
+inside the atomic journal, so an oversized result rejects the mutation before commit. Payloads
+retain one background disposal owner. VM instruction, wall-time and memory budgets still apply;
+transport packet limits are independent of this local script boundary.
+
+The production runtime and public synchronous project intent facade service bounded turns.
+An exclusive engine driver running app-capable scripts calls
+`golden_core::application::service_script_app_operations` after draining callback edits. At most
+eight requests run per turn; requests created by completion callbacks wait for the next turn.
+Bare engine UI intents still cannot route app namespaces without a project lifecycle.
+
+Chataigne's Formula adapter and caller acceptance are described in
+[Alchemist runtime](alchemist-runtime.md#authored-fragment-operations). The current checkpoint
+status stays in the implementation ledger.

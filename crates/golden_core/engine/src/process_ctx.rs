@@ -115,6 +115,7 @@ impl ProcessTreeNodeSnapshot {
     pub fn script_property(&self, key: &str) -> Option<Cow<'_, ParamValue>> {
         match key {
             "name" => Some(Cow::Owned(ParamValue::Str(self.label.clone()))),
+            "uuid" => Some(Cow::Owned(ParamValue::Str(self.uuid.0.to_string()))),
             "enabled" => Some(Cow::Owned(ParamValue::Bool(self.enabled))),
             "type" => Some(Cow::Owned(ParamValue::Str(self.node_type.clone()))),
             "declId" => Some(Cow::Owned(ParamValue::Str(self.decl_id.clone()))),

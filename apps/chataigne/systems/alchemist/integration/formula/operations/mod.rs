@@ -169,7 +169,7 @@ fn admit_node(parent: &AppNode, node: &AppNode) -> Result<(), String> {
             | AppNode::UserContextFolder(_)
             | AppNode::UserContextMultiplex(_)
             | AppNode::UserContextMultiplexList(_)
-    );
+    ) || node.get_type() == "script";
     let kind = node.user_item_kind();
     let formula_owned = matches!(
         kind,

@@ -44,10 +44,29 @@ impl<T: Node> Engine<T> {
         &mut self,
         max_passes: usize,
     ) -> Result<(), crate::engine::EngineEditError> {
+        self.settle_edit_notifications_with_history(max_passes, true)
+    }
+
+    pub(crate) fn settle_runtime_edit_notifications(
+        &mut self,
+        max_passes: usize,
+    ) -> Result<(), crate::engine::EngineEditError> {
+        self.settle_edit_notifications_with_history(max_passes, false)
+    }
+
+    fn settle_edit_notifications_with_history(
+        &mut self,
+        max_passes: usize,
+        capture_history: bool,
+    ) -> Result<(), crate::engine::EngineEditError> {
         let pass_limit = max_passes.max(1);
         for _ in 0..pass_limit {
             if !self.edits.pending.is_empty() {
-                self.apply_edits()?;
+                if capture_history {
+                    self.apply_edits()?;
+                } else {
+                    self.apply_edits_without_history()?;
+                }
             }
 
             if !self.inbox.events.is_empty() {

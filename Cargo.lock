@@ -3003,6 +3003,7 @@ dependencies = [
  "golden_model",
  "golden_parameters",
  "serde",
+ "serde_json",
  "ts-rs",
 ]
 

@@ -15,7 +15,7 @@ use golden_protocol::{
     UiReplayRequest, UiScriptConfigRequest, UiScriptReloadRequest, UiScriptStateRequest, UiServerMessage,
     UiSessionCapabilities, UiSessionRequest, UiSessionResponse, UiSnapshot, UiSnapshotRequest,
 };
-use golden_script_contract::ScriptUiState;
+use golden_script_contract::{ScriptAppOperationReply, ScriptUiState};
 use ts_rs::{Config, TS};
 
 #[derive(Debug, Clone)]
@@ -173,6 +173,7 @@ pub fn generate_ui_protocol_bindings(out_dir: &Path) {
     export_binding::<UiReferenceTargetsDto>(&config, "UiReferenceTargetsDto");
     export_binding::<UiParamControlInfoDto>(&config, "UiParamControlInfoDto");
     export_binding::<ScriptUiState>(&config, "ScriptUiState");
+    export_binding::<ScriptAppOperationReply>(&config, "ScriptAppOperationReply");
     export_binding::<UiSnapshotRequest>(&config, "UiSnapshotRequest");
     export_binding::<UiSessionRequest>(&config, "UiSessionRequest");
     export_binding::<UiSessionResponse>(&config, "UiSessionResponse");

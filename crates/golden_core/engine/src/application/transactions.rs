@@ -207,6 +207,9 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
                             error,
                         );
                     }
+                    if let Err(error) = service_script_app_operations(&mut state.engine) {
+                        eprintln!("[golden] script app-operation callback delivery failed: {error}");
+                    }
                     let apply = apply_started.elapsed();
                     let event_collect_started = Instant::now();
                     let capture = read_model.collect_event_batch(&mut state.engine, before_event_time);

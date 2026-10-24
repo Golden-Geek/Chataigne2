@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 use serde::{Deserialize, Serialize};
@@ -11,16 +12,18 @@ use crate::parameter::ParamValue;
 use crate::process_ctx::{ProcessCtx, ProcessTreeNodeSnapshot};
 
 pub use golden_script::{
-    NoopScriptHostBridge, QuickJsRuntime, ScriptArguments, ScriptBudgets, ScriptCallPreparationError,
-    ScriptCallReservation, ScriptCancellationHandle, ScriptCustomEvent, ScriptEvent, ScriptEventReservation,
-    ScriptHostBridge, ScriptInputError, ScriptLogLevel, ScriptMethodCall, ScriptPropertyReservation,
-    ScriptPropertyWrite, ScriptRuntime, ScriptRuntimeError, ScriptTreeNodeView, ScriptTreeView, ScriptValue,
+    NoopScriptHostBridge, QuickJsRuntime, ScriptAppOperationRequest, ScriptArguments, ScriptBudgets,
+    ScriptCallPreparationError, ScriptCallReservation, ScriptCancellationHandle, ScriptCustomEvent, ScriptEvent,
+    ScriptEventReservation, ScriptHostBridge, ScriptInputError, ScriptLogLevel, ScriptMethodCall,
+    ScriptPropertyReservation, ScriptPropertyWrite, ScriptRuntime, ScriptRuntimeError, ScriptTreeNodeView,
+    ScriptTreeView, ScriptValue,
 };
 pub use golden_script_contract::{
     ScriptExportSpec, ScriptFnSignature, ScriptManifest, ScriptNodeSelector, ScriptParameterSpec,
     ScriptSubscriptionSpec, ScriptUiConfig, ScriptUiSource, ScriptUiState, ScriptValueType,
 };
 
+pub mod app_operations;
 mod host;
 mod template;
 
@@ -207,6 +210,7 @@ struct ScriptSourceStamp {
 
 struct ActiveRuntime {
     runtime: Box<dyn ScriptRuntime>,
+    operation_owner: Arc<()>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -402,6 +406,7 @@ impl ScriptNode {
         if let Some(mut active) = self.runtime.take() {
             let mut host = NodeScriptHostBridge::new(
                 script_node,
+                Arc::downgrade(&active.operation_owner),
                 host_node,
                 self.runtime_started_elapsed,
                 &mut self.runtime_subscriptions,
@@ -471,6 +476,7 @@ impl ScriptNode {
         self.runtime_started_elapsed = ctx.runtime_elapsed;
 
         let mut runtime = create_runtime(self.budgets)?;
+        let operation_owner = Arc::new(());
         let source_name = self.config.source.runtime_source_name();
         let script_node = self.id();
         let host_node = self.node_data.parent;
@@ -478,6 +484,7 @@ impl ScriptNode {
         let manifest = {
             let mut host = NodeScriptHostBridge::new(
                 script_node,
+                Arc::downgrade(&operation_owner),
                 host_node,
                 self.runtime_started_elapsed,
                 &mut self.runtime_subscriptions,
@@ -489,6 +496,7 @@ impl ScriptNode {
         {
             let mut host = NodeScriptHostBridge::new(
                 script_node,
+                Arc::downgrade(&operation_owner),
                 host_node,
                 self.runtime_started_elapsed,
                 &mut self.runtime_subscriptions,
@@ -503,7 +511,10 @@ impl ScriptNode {
         self.pending_manifest_apply = Some(declared_load_children);
         self.effective_update_rate_hz = manifest.update_rate_hz;
         self.manifest = Some(manifest);
-        self.runtime = Some(ActiveRuntime { runtime });
+        self.runtime = Some(ActiveRuntime {
+            runtime,
+            operation_owner,
+        });
         self.source_stamp = Some(source_stamp);
         self.reload_requested = false;
         ctx.reevaluate_graph();
@@ -762,6 +773,7 @@ impl Node for ScriptNode {
         if let Some(runtime) = self.runtime.as_mut() {
             let mut host = NodeScriptHostBridge::new(
                 script_node,
+                Arc::downgrade(&runtime.operation_owner),
                 host_node,
                 self.runtime_started_elapsed,
                 &mut self.runtime_subscriptions,
@@ -795,6 +807,7 @@ impl Node for ScriptNode {
             let script_event = ScriptEvent::from(event.as_ref());
             let mut host = NodeScriptHostBridge::new(
                 script_node,
+                Arc::downgrade(&runtime.operation_owner),
                 host_node,
                 self.runtime_started_elapsed,
                 &mut self.runtime_subscriptions,

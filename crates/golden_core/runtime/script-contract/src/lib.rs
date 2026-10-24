@@ -5,6 +5,26 @@ use golden_parameters::{ParamValue, ParameterConstraints, ParameterUiHints};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+/// Completion delivered to a script's `onAppOperationResult` callback.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[serde(tag = "status", rename_all = "camelCase")]
+pub enum ScriptAppOperationReply {
+    /// The same atomic app operation used by UI and headless callers committed.
+    Applied {
+        /// Caller-chosen correlation key.
+        request_id: String,
+        /// Exact app-owned result, including an explicit JSON null.
+        value: serde_json::Value,
+    },
+    /// Admission or atomic application failed; no successful result is implied.
+    Rejected {
+        /// Caller-chosen correlation key.
+        request_id: String,
+        /// Bounded failure detail.
+        message: String,
+    },
+}
+
 /// UI payload for script source configuration.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "camelCase")]

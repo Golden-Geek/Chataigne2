@@ -38,20 +38,29 @@ pub(crate) fn param_weight(value: &ParamValue) -> Result<usize, &'static str> {
 }
 
 pub(crate) fn json_weight(value: &Value) -> Result<usize, &'static str> {
+    json_weight_with_limits(value, MAX_INPUT_BYTES, MAX_VALUES + 1, 32)
+}
+
+pub(crate) fn json_weight_with_limits(
+    value: &Value,
+    maximum_bytes: usize,
+    maximum_values: usize,
+    maximum_depth: usize,
+) -> Result<usize, &'static str> {
     let mut pending = vec![(value, 0_usize)];
     let mut visited = 0;
     let mut weight = size_of::<Value>() + 64;
     while let Some((value, depth)) = pending.pop() {
         visited += 1;
-        if visited > MAX_VALUES + 1 || depth > 32 {
+        if visited > maximum_values || depth > maximum_depth {
             return Err("script event JSON exceeds its item/depth limit");
         }
         match value {
             Value::String(text) => weight = weight.saturating_add(text.capacity()),
             Value::Array(values) => {
                 weight = weight.saturating_add(values.capacity().saturating_mul(size_of::<Value>()));
-                if values.len().saturating_add(visited).saturating_add(pending.len()) > MAX_VALUES + 1
-                    || weight > MAX_INPUT_BYTES
+                if values.len().saturating_add(visited).saturating_add(pending.len()) > maximum_values
+                    || weight > maximum_bytes
                 {
                     return Err("script event JSON exceeds its item/storage limit");
                 }
@@ -59,8 +68,8 @@ pub(crate) fn json_weight(value: &Value) -> Result<usize, &'static str> {
             }
             Value::Object(values) => {
                 weight = weight.saturating_add(values.len().saturating_mul(256));
-                if values.len().saturating_add(visited).saturating_add(pending.len()) > MAX_VALUES + 1
-                    || weight > MAX_INPUT_BYTES
+                if values.len().saturating_add(visited).saturating_add(pending.len()) > maximum_values
+                    || weight > maximum_bytes
                 {
                     return Err("script event JSON exceeds its item/storage limit");
                 }
@@ -71,8 +80,8 @@ pub(crate) fn json_weight(value: &Value) -> Result<usize, &'static str> {
             }
             _ => {}
         }
-        if weight > MAX_INPUT_BYTES {
-            return Err("script event JSON exceeds 4 MiB retained storage");
+        if weight > maximum_bytes {
+            return Err("script JSON exceeds its retained storage limit");
         }
     }
     Ok(weight)

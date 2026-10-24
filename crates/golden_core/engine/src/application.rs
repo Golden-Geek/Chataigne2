@@ -13,9 +13,11 @@ mod app_operations;
 mod project_document;
 mod project_persistence;
 mod project_replacement;
+mod script_operations;
 mod transactions;
 
 pub use app_operations::apply_project_intent;
+pub use script_operations::service_script_app_operations;
 
 pub use crate::runtime_center::UiClientLease;
 pub use transactions::PendingUiTransactionBatch;
@@ -421,7 +423,8 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
                 let before = state.engine.ui_event_log().last().map(|event| event.time);
                 let outcome = state.run_tick(elapsed).and_then(|()| {
                     T::settle_pending_operations(&mut state.engine)
-                        .map_err(|message| EngineRuntimeError::AppOperation { message })
+                        .map_err(|message| EngineRuntimeError::AppOperation { message })?;
+                    service_script_app_operations(&mut state.engine).map_err(Into::into)
                 });
                 let engine = &mut state.engine;
                 let capture = read_model.collect_event_batch(engine, before);

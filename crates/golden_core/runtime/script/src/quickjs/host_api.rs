@@ -471,6 +471,7 @@ impl QuickJsRuntime {
             }));
             gc_table.set("__listeners_clear_raw", clear_listeners_fn)?;
 
+            self.install_app_operations(&gc_table)?;
             ctx.globals().set("gc", gc_table)?;
             ctx.eval::<(), _>(
                 r#"
@@ -478,6 +479,10 @@ globalThis.gc.emit = (topic, payload) => globalThis.gc.__emit_raw(
   topic,
   JSON.stringify(payload === undefined ? null : payload)
 );
+
+globalThis.gc.invokeAppOperation = (requestId, namespace, operation, payload) =>
+  globalThis.gc.__app_operation_raw(requestId, namespace, operation,
+    JSON.stringify(payload === undefined ? null : payload));
 
 const __gcParseTreeMethodResult = (raw) => {
   if (!raw || typeof raw !== "string") {

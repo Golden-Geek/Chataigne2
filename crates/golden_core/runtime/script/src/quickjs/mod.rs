@@ -24,6 +24,9 @@ const SCRIPT_MAX_HOST_MESSAGE_BYTES: usize = 64 * 1_024;
 const SCRIPT_MAX_HOST_JSON_BYTES: usize = 1_024 * 1_024;
 
 enum ScriptHostOp {
+    InvokeAppOperation {
+        request: ScriptAppOperationRequest,
+    },
     Log {
         level: ScriptLogLevel,
         message: golden_io::RetainedPayload<String>,
@@ -255,6 +258,7 @@ impl From<QuickJsError> for ScriptRuntimeError {
     }
 }
 
+mod app_operations;
 mod bounded_json;
 mod core;
 mod host_api;

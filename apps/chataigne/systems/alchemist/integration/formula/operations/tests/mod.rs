@@ -8,6 +8,8 @@ use serde::{Serialize, de::DeserializeOwned};
 mod callers;
 mod connection;
 mod contexts;
+mod script;
+mod transport;
 
 fn invoke<R: DeserializeOwned>(
     engine: &mut crate::app::AppEngine,

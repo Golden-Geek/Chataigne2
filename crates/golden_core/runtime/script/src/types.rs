@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 
 pub use golden_script_contract::{
-    ScriptExportSpec, ScriptFnSignature, ScriptManifest, ScriptNodeSelector, ScriptParameterSpec,
-    ScriptSubscriptionSpec, ScriptUiConfig, ScriptUiSource, ScriptUiState, ScriptValueType,
+    ScriptAppOperationReply, ScriptExportSpec, ScriptFnSignature, ScriptManifest, ScriptNodeSelector,
+    ScriptParameterSpec, ScriptSubscriptionSpec, ScriptUiConfig, ScriptUiSource, ScriptUiState, ScriptValueType,
 };
 
 /// Hard safety guardrails applied per script instance.
@@ -257,6 +257,11 @@ pub trait ScriptHostBridge {
     /// Queues one script-exposed method call on `node`.
     fn call_node_script_method(&mut self, _node: NodeId, _call: crate::ScriptMethodCall) -> Result<(), String> {
         Err("node script-method invocation is unavailable for this script host".to_string())
+    }
+
+    /// Queue an admitted app request. Hosts deliver `onAppOperationResult` after atomic application.
+    fn invoke_app_operation(&mut self, _request: crate::ScriptAppOperationRequest) -> Result<(), String> {
+        Err("app operations are unavailable for this script host".into())
     }
 
     /// Sets or updates one runtime listener configuration for this script.

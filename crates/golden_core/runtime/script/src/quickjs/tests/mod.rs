@@ -2,6 +2,7 @@ use serde_json::json;
 
 use super::QuickJsRuntime;
 use crate::ScriptEvent;
+mod app_operations;
 mod host_ingress;
 mod method_ingress;
 

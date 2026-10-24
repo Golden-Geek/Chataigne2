@@ -192,6 +192,7 @@ impl<T: Node> Engine<T> {
                 "SetNodeChildWarningDepth target={} max_depth={max_depth}",
                 self.describe_node(*node)
             ),
+            Edit::RequestAppOperation { .. } => "RequestAppOperation".into(),
             Edit::EmitCustomEvent { event } => format!(
                 "EmitCustomEvent topic='{}' origin={}",
                 event.topic,

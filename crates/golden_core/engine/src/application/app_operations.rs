@@ -5,7 +5,13 @@ use super::*;
 /// Headless/native callers receive the same authoritative result and rejection as
 /// the production application facade. The caller owns exclusive engine access.
 pub fn apply_project_intent<T: ProjectLifecycle>(engine: &mut Engine<T>, intent: UiEditIntent) -> UiAck {
-    apply_ui_intent_to_engine(engine, intent, None)
+    let acknowledgement = apply_ui_intent_to_engine(engine, intent, None);
+    if let Err(error) = service_script_app_operations(engine) {
+        // The original transaction already has its own committed/rejected outcome.
+        // A later script callback failure must not relabel that outcome as rolled back.
+        eprintln!("[golden] script app-operation callback delivery failed: {error}");
+    }
+    acknowledgement
 }
 
 pub(super) fn apply<T: ProjectLifecycle>(
@@ -26,21 +32,7 @@ pub(super) fn apply<T: ProjectLifecycle>(
             "app namespace and operation require 1..128 bytes".into(),
         );
     }
-    let label = format!("{namespace}: {operation}");
-    let outcome = engine.apply_implicit_ui_edit_session(&label, "__app-operation", client, |engine| {
-        let reject = |engine: &Engine<T>, message| crate::engine::EngineEditError::NodeMutationRejected {
-            edit_index: 0,
-            operation: "InvokeAppOperation",
-            node: engine.root,
-            node_type: "application".into(),
-            message,
-        };
-        let result = T::apply_app_operation(engine, &namespace, &operation, payload)
-            .map_err(|message| reject(engine, message))?;
-        engine.settle_edit_notifications(16)?;
-        T::settle_pending_operations(engine).map_err(|message| reject(engine, message))?;
-        Ok(result)
-    });
+    let outcome = apply_atomic(engine, &namespace, &operation, payload, client, Ok);
     match outcome {
         Ok(result) => {
             let mut ack = applied_ack_since(engine, before);
@@ -49,4 +41,29 @@ pub(super) fn apply<T: ProjectLifecycle>(
         }
         Err(error) => rejected_ack(engine, "app_operation_failed", error.to_string()),
     }
+}
+
+pub(super) fn apply_atomic<T: ProjectLifecycle, R>(
+    engine: &mut Engine<T>,
+    namespace: &str,
+    operation: &str,
+    payload: serde_json::Value,
+    client: Option<&str>,
+    admit_result: impl FnOnce(serde_json::Value) -> Result<R, String>,
+) -> Result<R, crate::engine::EngineEditError> {
+    let label = format!("{namespace}: {operation}");
+    engine.apply_implicit_ui_edit_session(&label, "__app-operation", client, |engine| {
+        let reject = |engine: &Engine<T>, message| crate::engine::EngineEditError::NodeMutationRejected {
+            edit_index: 0,
+            operation: "InvokeAppOperation",
+            node: engine.root,
+            node_type: "application".into(),
+            message,
+        };
+        let result =
+            T::apply_app_operation(engine, namespace, operation, payload).map_err(|message| reject(engine, message))?;
+        engine.settle_edit_notifications(16)?;
+        T::settle_pending_operations(engine).map_err(|message| reject(engine, message))?;
+        admit_result(result).map_err(|message| reject(engine, message))
+    })
 }

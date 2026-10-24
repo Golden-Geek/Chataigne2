@@ -5,10 +5,10 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-24 on `main`, based on delivered `f1fb0e95`, matching
-`origin/main` at milestone start. **C01-C12 are locally closed: 12/12 packages (100%).
+Last reconciled: 2026-10-24 on `main`. The final P08 milestone below is based on delivered
+`305c677c`, matching `origin/main` at milestone start. **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
-Whole-plan scope coverage is approximately 43%; P01-P07 are locally complete.
+Whole-plan scope coverage is approximately 44%; P01-P08 are locally complete.
 Hardware/platform and product-scale
 qualification retain their later owners.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
@@ -22,14 +22,14 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 packages, not commit counts. Spatializer's admitted preparation, bounded publication, source/path
 fences, identity preservation and passive failure recovery are qualified under C12.
 
-**Whole plan: approximately 43% complete.** P01-P07 are complete against their local
-acceptance criteria. P08 has three of four checkpoints complete locally (75%): public operation
-boundary, complete-record fragment paste, and backend connection policy. Shared caller migration
-and full acceptance remain open. P09-P18 have not started.
+**Whole plan: approximately 44% complete.** P01-P08 are complete against their local
+acceptance criteria. P08 has all four checkpoints complete: public operation boundary,
+complete-record fragment paste, backend connection policy, and shared caller acceptance.
+P09-P18 have not started. P09 is next, with three fixed checkpoints.
 P00 baseline reconciliation is maintained separately.
-**7 of 18 implementation/qualification tasks are fully complete.**
+**8 of 18 implementation/qualification tasks are fully complete.**
 
-Overall progress is the equal-weight average of P01-P18: `(7 * 100 + 75 + 10 * 0) / 18`,
+Overall progress is the equal-weight average of P01-P18: `(8 * 100 + 10 * 0) / 18`,
 rounded to a whole percent. This measures scope coverage, not elapsed time, remaining effort, or
 product readiness. Task sizes differ substantially. P00 housekeeping and preserved pre-plan
 features do not inflate this percentage. Later product, platform and device acceptance remains open.
@@ -152,27 +152,37 @@ closed locally (100%); none remain.**
 ### P08 completion checkpoints
 
 P08 has four fixed, equally weighted scope checkpoints. These measure verified requirements,
-not effort or commit counts. **Three of four are complete locally (75%); one remains.**
+not effort or commit counts. **All four are complete locally (100%); none remain.**
 
 | Checkpoint                             | Status           | Acceptance                                                                                                                                                                                                                                                                                                                     |
 | -------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Public operation and result boundary   | Complete locally | Domain-neutral operation/result envelope, atomic authored/history/lifecycle/app settlement, exact replies through public headless and workbench APIs, generated protocol 0.10.0 and null/absence distinction. Engine 614, protocol two, transport 74 plus headless integration, UI 56/93, type/build/strict/format gates pass. |
 | Atomic fragment paste                  | Complete locally | Complete dense capsules, shared detached restoration/remapping and labels, exact all-record results, invalid/duplicate identity rejection, external references, managed metadata and compressed archive preservation, concurrent creates, project replacement and undo/redo verified. Core 620 and app Alchemist 208 pass; later shared caller acceptance remains separate. |
 | Backend connection policy              | Complete locally | Typed connect checks owner/endpoints, graph compatibility and inferred types before edits; whole/component replacement, exact replies, idempotence and one-step undo/redo pass. Generic vector components and backend input growth work without UI repair. Editor sends intent; strict Clippy, generated types, UI 101, Svelte and default build pass. |
-| Shared callers and complete acceptance | Open             | Editor copy/paste/connect now use backend operations; old clipboard projection, label allocation, identity polling and repair writes are removed. Real workbench queue/projection cases preserve exact selection across independent creates, user changes and project replacement. Shared script execution and final actual transport qualification remain. |
+| Shared callers and complete acceptance | Complete locally | Editor and embedded QuickJS scripts use the same backend operations. Workbench cases qualify exact delayed selection and project fences. The actual default headless executable passes authenticated HTTP/WS, eight concurrent pastes, exact script replies, undo/redo, rejection and project replacement. Final owning gates pass: 627 Core, 211 app Alchemist, 28 scripting, 117 app UI and 61 Golden UI cases; Svelte, strict checks, codegen and default build. |
+
+### P09 completion checkpoints
+
+P09 has three fixed, equally weighted scope checkpoints derived from its acceptance criteria.
+**Zero of three are complete (0%).** Delivery batches do not add checkpoints.
+
+| Checkpoint | Status | Acceptance |
+| --- | --- | --- |
+| Stable storage and local presentation edits | Not started | Preserve authored iteration/persistence order while updating identity/presentation storage without ordered-map shifts; failed edits restore exact presentation and order. |
+| Proportional structural edits | Not started | Batch node/edge removal, incident adjacency and group membership; preserve rollback, history consumers and one coherent revision/delta publication. Work follows affected records rather than repeated full-document shifts/scans. |
+| Consumer and scale qualification | Not started | Verify stable order, rollback, undo/redo, groups, incident edges and multi-selection drag/delete. Retain operation counts or representative fixed-delta measurements at 1k/10k/50k/100k nodes, plus owning consumer/build checks. |
 
 ## Current handoff
 
-- **Active task: P08 Formula backend intents (75%, three of four checkpoints complete locally).**
-  Public operations, atomic complete-record paste and backend connection policy pass owning
-  acceptance. Real Mapping fixtures preserve external references, managed definitions and frozen
-  archives; eight concurrent pastes interleaved with independent creates return disjoint exact
-  identities. Connect owns compatibility, inferred types and replacement, including components.
-  The editor now uses backend copy/paste/connect operations and complete generated clipboard
-  capsules; identity polling, UI label allocation, reference remapping and restoration writes are
-  removed. Real workbench queue/projection cases qualify exact delayed selection, independent
-  creates, newer user selection and reused IDs. Next: script integration and final actual
-  transport/headless acceptance. P08 stays 75% until the full fourth checkpoint passes.
+- **Next task: P09 generic graph-document edits (0%, zero of three fixed checkpoints).**
+  Own the change in `crates/golden_graph`: separate stable authored order from hot storage,
+  update presentation in place, and make structural edits follow their affected records.
+  Preserve public consumers, rollback and coherent deltas; qualify fixed changes at
+  1k/10k/50k/100k nodes. Do not put Alchemist or Chataigne policy into Golden Graph.
+- **P08 is locally complete: four of four fixed checkpoints (100%).** UI, embedded scripts,
+  HTTP, WebSocket and headless callers share backend copy/paste/connect semantics and exact
+  identities. The final native case runs the actual default executable, with authenticated
+  sessions and isolated app-data/home/upload paths. See the final milestone evidence below.
   P03 remains closed with zero packages left.
 - **P07 is locally complete: six of six fixed checkpoints (100%).** All 98 DMX cases,
   script-template/API, default build, strict workspace Clippy, formatting and diff checks pass.
@@ -224,7 +234,7 @@ not effort or commit counts. **Three of four are complete locally (75%); one rem
 - Prior-commit CI/product qualification failures remain recorded: dependency advisories/audits
   retain P06, structural gates P12, timing/baseline work P16 and platform qualification P17.
   Cancelled macOS product work is not a pass.
-- Whole-plan scope coverage is **~38%**, with **6/18 tasks fully complete**. Continue P07;
+- Whole-plan scope coverage is **~44%**, with **8/18 tasks fully complete**. Continue P09;
   P03 has no remaining closure packages. Keep the full P00-P18 goal active.
 
 ## Task ledger
@@ -243,7 +253,7 @@ External qualification is separate from implementation. A historical pass is not
 | P05 Transport trust         | 100%       | VERIFIED_LOCAL | PASSED all four checkpoints    | Bundled/dev/LAN browser and native HTTP/WS operation, independent denial gates, exact CSP, reload reuse and restart fencing verified; native webview/platform interaction remains P17.                                                                                  |
 | P06 Dependencies            | 100%       | VERIFIED_LOCAL | PASSED all four checkpoints    | Refreshed advisory DB, narrow necessary updates, supported frontend migration, licensing/provenance and correctly selected network/audio/build/browser checks verified. Unix/native platform behavior retains P17.                                                      |
 | P07 DMX streaming           | 100%       | VERIFIED_LOCAL | PASSED six of six checkpoints  | 98 DMX cases, script API, default app, strict Clippy and formatting pass. Complete fake-time/native-loopback acceptance includes live priority, ordered metadata, termination/recovery and passive bounded actor service; P17/P18 retain platform/device qualification. |
-| P08 Formula backend intents | 75%        | IN_PROGRESS    | PASSED three of four checkpoints | Public operations, complete atomic fragment paste and backend connection policy pass owning gates. Editor clipboard migration and delayed exact selection now pass UI gates; script integration and actual transport qualification retain the fourth checkpoint. |
+| P08 Formula backend intents | 100%       | VERIFIED_LOCAL | PASSED four of four checkpoints | Shared UI/script/HTTP/WS/headless operations, complete atomic fragments, backend connection policy and exact identity replies pass. Final native acceptance uses the default executable and isolated authenticated sessions; later product/platform qualification retains its owners. |
 | P09 Graph document          | 0%         | NOT_STARTED    | PENDING                        | Ordered-map mutation costs source-derived                                                                                                                                                                                                                               |
 | P10 Canvas                  | 0%         | NOT_STARTED    | PENDING                        | Projection diagnostic and crossing-edge reproduction; mounted performance open                                                                                                                                                                                          |
 | P11 Workspace UX            | 0%         | NOT_STARTED    | PENDING                        | Collection/keyboard gaps source-reviewed; native usability open                                                                                                                                                                                                         |
@@ -9469,3 +9479,94 @@ provide shared script execution through a public Golden contract delegating to t
 operations, then qualify actual transport/headless requests and exact replies/rejection. Do not
 reintroduce UI mutation policy or a separate script paste implementation. Keep the full P00-P18
 goal active; P03 remains closed with zero packages left.
+
+### P08 deferred script operations and actual transport qualification in progress
+
+Previous goal turn: **progress**. Milestone `305c677c` was committed and pushed on `main`,
+and the checkout was clean on resume. The fourth checkpoint remains open; P08 is **75%**,
+overall scope coverage approximately **43%**. No P03 work is reopened.
+
+Embedded QuickJS callers now prepare bounded `gc.invokeAppOperation` requests and receive
+Rust-defined/generated `onAppOperationResult` replies. Deferred engine edits retain the complete
+originating callback's completion receipt and a weak runtime lifetime. Application service uses
+the same atomic app operation hook, checks response capacity before commit, and bounds each
+turn. Reload/deletion/retirement cannot apply stale requests. App-owned Formula snippets are
+wired into module templates; Golden remains domain-neutral. Complete-record admission now also
+preserves authored Script children.
+
+Initial evidence passes **28 scripting cases**, **625 Core cases / three ignored**, and
+**211 app Alchemist cases / five ignored**. These include real embedded-script copy/paste/connect,
+exact identities, undo/redo, invalid followup rejection and complete Script-child preservation.
+The five skipped app cases include the new actual transport case, deliberately requiring a
+fresh default executable; it receives no credit until explicitly run. Codegen adds one generated
+reply DTO (**120 shared files**) without changing the existing UI wire envelope or version.
+
+Final lifecycle review makes result-callback writes follow runtime history policy and explicitly
+rejects requests emitted during history restoration. The first final run passed strict Clippy
+but exposed a real nested-write settlement gap: one edit pass left the callback's `SetParam`
+queued. Runtime callbacks now use the existing fixed-point settlement with runtime history
+policy; the regression remains asserted. The replacement run, handle **13825**, passes strict
+workspace/all-target Clippy and **627 Core cases / three ignored** (630 listed; 7m14s compile).
+The app Alchemist suite also passes **211 cases / five ignored** (216 selected; 3m33s compile);
+the default build passes (**1m59s**). Fresh frontend evidence
+also passes **117 app UI cases**, **61 Golden UI cases**, and **zero Svelte errors/warnings**.
+Fresh generation matches all **120 shared protocol files** byte-for-byte.
+After the build, explicitly run the ignored
+`real_http_websocket_and_embedded_script_share_formula_operations` case against that executable.
+It uses only an owned loopback headless child with isolated app-data and typed HTTP/WebSocket
+requests; no desktop automation, device route, or user preference path is involved. No final
+checkpoint credit is assigned while these gates remain pending.
+
+The first explicit native run reached the listening host but stopped on its first project
+upload with **401 Unauthorized**: the fixture omitted P06's session bootstrap. No operation
+acceptance is credited from that run. The fixture now uses `UiSessionRequest`/`UiSessionResponse`,
+the returned HTTP bearer and WebSocket credential protocols, and the same authenticated client
+for concurrent calls. Credentials are marked sensitive and kept out of URLs/logs. App/test
+strict Clippy passes (**38.25s**); handle **30272** is rebuilding the owning test binary and
+will run the exact ignored case. Production Rust is unchanged by this fixture correction.
+The default executable SHA-256 is
+`8d181ffab30e42aacf9d31d2870c3d8a509d0715bbd0b6b9a339a689db68e51b`.
+
+The authenticated actual-transport run passes **one case** (**10.79s**), including HTTP/WS,
+eight concurrent creates, script callbacks and project replacement. Its final log review caught
+a fixture isolation gap: upload persistence uses `HOME`/`USERPROFILE`, independently of app-data.
+The two test-created Documents files were identified by creation time and removed. The child now
+isolates both home paths too, and `upload` decodes `UiProjectPathDto` and asserts the canonical
+saved path stays below its temporary evidence directory. Handle **34719** owns the final strict
+app/test check, 211-case Alchemist selection and exact ignored native case on that fixture.
+No production source changed in either fixture correction.
+
+### P08 local completion
+
+The final isolated fixture passes **211 app Alchemist cases / five ignored** (216 selected,
+3m06s compile, 3.45s execution), followed by the exact ignored native case: **one passed /
+zero failed**, **10.78s**. That explicit run qualifies the default executable above through
+authenticated HTTP copy/paste, undo/redo with exact IDs/UUIDs, WebSocket connect/rejection,
+eight concurrent pastes, actual embedded-script copy/paste callbacks, and stale-owner rejection
+after project replacement. The test asserts uploaded files remain inside its temporary home.
+Evidence: `C:\Users\bkupe\AppData\Local\Temp\chataigne-p08-31f4a656-d5e2-4582-aca2-bd277bc4d58b\headless.log`.
+The owned child exited through its guard; the two earlier Documents artifacts are absent.
+
+Executed gates for this milestone:
+
+- `cargo clippy --locked --workspace --all-targets -- -D warnings` passes; the final fixture-only
+  correction also passes `cargo clippy --locked -p Chataigne2 --bin Chataigne2 --tests -- -D warnings`
+  (**31.39s**). Production Rust did not change after the workspace pass.
+- `cargo test-fast --locked -p golden_engine --lib -- --test-threads=1 --quiet`: **627 passed /
+  three ignored**, including exact script results, callback settlement/history, rollback and lifetime fences.
+- `cargo test-fast --locked -p Chataigne2 --bin Chataigne2 -- systems_alchemist --test-threads=1 --quiet`:
+  **211 passed / five ignored**. The native ignored case is explicitly run separately from
+  `target/debug/deps/Chataigne2-3072455829985a80.exe` with its full test name, `--ignored --exact`.
+- The scripting boundary's **28 passing cases** remain applicable; no scripting source changed
+  after that run. New reply serialization preserves null, moves result storage and bounds failure text.
+- `npm test --workspace golden_ui`: **61 passed**; `npm test --workspace chataigne-ui`:
+  **117 passed**; `npm run check --workspace chataigne-ui`: **zero errors / zero warnings**.
+- Fresh shared Rust codegen produces **120 files**, all byte-identical to checked-in output;
+  the local script reply DTO does not change UI protocol **0.10.0**.
+- `cargo build --locked -p Chataigne2` passes (**1m59s**). Actual root/Core Cargo formatting,
+  focused app Rust formatting and final diff checks complete the delivery gate.
+
+**P08 is 100%, four of four checkpoints; P01-P08 are locally complete. Whole-plan coverage is
+approximately 44%, eight of eighteen tasks complete.** P09 is next, with three fixed checkpoints
+and no implementation credit yet. P03 still has zero packages left. Product-scale, platform and
+named-device qualification retain P16/P17/P18; keep the full P00-P18 goal active.

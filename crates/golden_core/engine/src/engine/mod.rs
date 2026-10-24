@@ -136,6 +136,8 @@ pub(crate) struct PendingAddedSubtreeUiBatch {
 
 /// Node engine storing graph state, pending edits, and emitted events.
 pub struct Engine<T: Node> {
+    pub(crate) pending_script_app_operations:
+        std::collections::VecDeque<crate::script::app_operations::PendingScriptAppOperation>,
     /// Close worker ingress before node fields can enter native destruction.
     node_wakes: wake::NodeWakeQueue,
     /// Backing node store indexed by stable node ids.
@@ -303,6 +305,7 @@ impl<T: Node> Engine<T> {
         last_update_elapsed_by_node.insert(root, Duration::ZERO);
 
         let mut engine = Self {
+            pending_script_app_operations: std::collections::VecDeque::new(),
             nodes,
             root,
             time: EngineTime {
@@ -552,6 +555,7 @@ impl<T: Node> Engine<T> {
     ///
     /// Node-bearing edits are validated to ensure node types match `T`.
     pub fn absorb_edits(&mut self, ctx: &mut ProcessCtx) -> Result<(), EngineEditError> {
+        self.prepare_script_app_operation_fences(ctx);
         if self.history_replay {
             return self.absorb_history_callback_edits(ctx);
         }

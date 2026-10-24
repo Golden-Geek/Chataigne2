@@ -519,6 +519,10 @@ impl<T: Node> Engine<T> {
                             let should_clear_redo = effect.is_some();
                             (Ok(effect.map(Into::into)), should_clear_redo)
                         }
+                        Edit::RequestAppOperation { pending } => {
+                            self.pending_script_app_operations.push_back(pending);
+                            (Ok(None), false)
+                        }
                         Edit::EmitCustomEvent { event } => {
                             if event.effective_retention() == CustomEventRetention::Transient {
                                 self.emit_inbox_event(EventKind::Custom(event));
@@ -723,6 +727,7 @@ fn edit_kind_name(edit: &Edit) -> &'static str {
         Edit::SetNodeWarning { .. } => "SetNodeWarning",
         Edit::ClearNodeWarning { .. } => "ClearNodeWarning",
         Edit::SetNodeChildWarningDepth { .. } => "SetNodeChildWarningDepth",
+        Edit::RequestAppOperation { .. } => "RequestAppOperation",
         Edit::EmitCustomEvent { .. } => "EmitCustomEvent",
         Edit::ReevaluateGraph => "ReevaluateGraph",
         Edit::AddEventListener { .. } => "AddEventListener",

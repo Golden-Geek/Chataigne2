@@ -8,11 +8,21 @@ const MAX_NODES: usize = 4097;
 const MAX_DEPTH: usize = 32;
 
 pub(super) fn parse(source: &str) -> Result<Value, serde_json::Error> {
+    parse_with_limits(source, MAX_NODES, MAX_DEPTH)
+}
+
+pub(super) fn parse_with_limits(
+    source: &str,
+    maximum_nodes: usize,
+    maximum_depth: usize,
+) -> Result<Value, serde_json::Error> {
     let mut nodes = 0;
     let mut deserializer = serde_json::Deserializer::from_str(source);
     let value = Seed {
         nodes: &mut nodes,
         depth: 0,
+        maximum_nodes,
+        maximum_depth,
     }
     .deserialize(&mut deserializer)?;
     deserializer.end()?;
@@ -22,13 +32,15 @@ pub(super) fn parse(source: &str) -> Result<Value, serde_json::Error> {
 struct Seed<'a> {
     nodes: &'a mut usize,
     depth: usize,
+    maximum_nodes: usize,
+    maximum_depth: usize,
 }
 
 impl<'de> DeserializeSeed<'de> for Seed<'_> {
     type Value = Value;
     fn deserialize<D: serde::Deserializer<'de>>(self, deserializer: D) -> Result<Value, D::Error> {
         *self.nodes += 1;
-        if *self.nodes > MAX_NODES || self.depth > MAX_DEPTH {
+        if *self.nodes > self.maximum_nodes || self.depth > self.maximum_depth {
             return Err(D::Error::custom("script method JSON exceeds its item/depth limit"));
         }
         deserializer.deserialize_any(self)
@@ -68,6 +80,8 @@ impl<'de> Visitor<'de> for Seed<'_> {
         while let Some(value) = sequence.next_element_seed(Seed {
             nodes: self.nodes,
             depth: self.depth + 1,
+            maximum_nodes: self.maximum_nodes,
+            maximum_depth: self.maximum_depth,
         })? {
             values.push(value);
         }
@@ -79,6 +93,8 @@ impl<'de> Visitor<'de> for Seed<'_> {
             let value = map.next_value_seed(Seed {
                 nodes: self.nodes,
                 depth: self.depth + 1,
+                maximum_nodes: self.maximum_nodes,
+                maximum_depth: self.maximum_depth,
             })?;
             values.insert(key, value);
         }

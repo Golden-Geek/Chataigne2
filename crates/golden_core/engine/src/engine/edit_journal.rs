@@ -22,7 +22,7 @@ pub(super) enum JournalMode {
 }
 
 impl<T: Node> Engine<T> {
-    pub(super) fn has_atomic_journal(&self) -> bool {
+    pub(crate) fn has_atomic_journal(&self) -> bool {
         self.edit_journal
             .as_ref()
             .is_some_and(|journal| journal.original_nodes.is_some())
