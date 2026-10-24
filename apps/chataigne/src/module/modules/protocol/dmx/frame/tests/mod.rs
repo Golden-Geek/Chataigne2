@@ -7,6 +7,9 @@ fn frame_validation_preserves_dmx_boundaries() {
     assert!(DmxFrame::new(SACN_MAX_UNIVERSE, vec![]).is_ok());
     assert!(DmxFrame::new(SACN_MAX_UNIVERSE + 1, vec![]).is_err());
     assert!(DmxFrame::new(1, vec![0; DMX_SLOT_COUNT + 1]).is_err());
+    assert!(DmxFrame::with_metadata(1, 0, 0, vec![0]).is_ok());
+    assert!(DmxFrame::with_metadata(1, 0, 200, vec![0]).is_ok());
+    assert!(DmxFrame::with_metadata(1, 0, 201, vec![0]).is_err());
 }
 
 #[test]

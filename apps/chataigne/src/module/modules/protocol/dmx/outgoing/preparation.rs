@@ -3,8 +3,8 @@ use golden_io::{BoundedWorker, RetirementPermit, RetirementPool, WorkerLimits, W
 use std::{
     num::NonZeroUsize,
     sync::{
-        atomic::{AtomicBool, Ordering},
         Mutex,
+        atomic::{AtomicBool, Ordering},
     },
 };
 

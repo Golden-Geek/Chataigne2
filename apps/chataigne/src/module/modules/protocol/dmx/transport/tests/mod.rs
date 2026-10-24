@@ -68,6 +68,8 @@ fn artnet_worker_receives_latest_frame_without_an_unbounded_queue() {
     let sender = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
     let send_frame = |value| {
         let packet = ArtCommand::Output(Output {
+            // Art-Net uses zero-based wire addresses; this receiver owns one-based universe 1.
+            port_address: 0.into(),
             data: vec![value].into(),
             ..Output::default()
         })

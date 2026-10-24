@@ -9,8 +9,18 @@ The [execution ledger](../progress/implementation-status.md) owns acceptance and
 
 `transport/native.rs` owns endpoint setup, sockets, packet conversion and sACN cleanup. Opening,
 send/receive calls, stream termination and library destructors execute on the native worker.
-`transport/worker.rs` services at most eight output commands and one input datagram per turn.
-The existing five-millisecond receive wait remains; streaming semantics and receive throughput are P07.
+`transport/worker.rs` services at most eight output commands, then at most 64 input datagrams or
+two milliseconds of receive work per turn. Exhausting a receive budget returns immediately to
+command/cancellation service; an empty socket uses the five-millisecond native idle wait.
+Discarded traffic is distinct from an empty socket and cannot add an idle wait per datagram.
+
+Native endpoints reuse one 64 KiB whole-UDP buffer, then check protocol size limits before
+decoding: 1,024 bytes for Art-Net and 1,144 for sACN. This avoids treating Windows UDP truncation
+errors as endpoint failures. The sixteen native slots therefore admit at most 1 MiB of this
+scratch storage, separately from library state and retained payload quotas. Art-Net filters its
+configured universe; non-DMX sACN START codes are ignored. Malformed/oversized datagrams are
+consumed without retiring the endpoint and produce at most one warning per worker lifetime.
+Actual socket errors still enter the existing explicit failure/reconnect path.
 
 Sixteen global worker slots include opening, active and retiring endpoints. Stop cancels out of
 band, retires the input source and returns without joining or admitting a stop command. A blocked
@@ -19,6 +29,8 @@ so the actor can schedule recovery while the old native lifetime remains reserve
 
 The output mailbox admits 64 frames / 1 MiB. Frame admission validates both length and capacity at
 512 slots, protocol universe range, priority and the transport's single configured universe.
+The valid sACN priority range is 0–200; zero is accepted consistently by frame validation,
+backend preparation and parameter metadata.
 This also bounds sACN registered-universe bookkeeping. Separate global input/output pools admit
 512 records / 8 MiB each, charging 16 KiB per record for frame, conversion and queued publication
 storage. Library packet buffers and fixed endpoint state have separate bounds; these are not RSS claims.
@@ -84,7 +96,7 @@ preparation/application; the native worker checks producer/session lifetime agai
 A retired source reports **not sent**, separately from an unconfirmed native failure. Neither is
 automatically replayed on reconnect.
 
-C05 qualification is tracked in the execution ledger. P07 separately owns periodic refresh, filtering, sequencing, source
+C05 qualification is tracked in the execution ledger. P07 separately owns periodic refresh, sequencing, source
 policy, synchronization and stream termination correctness. In particular, sacn 0.11 terminates via
 multicast even after unicast sends; loopback tests suppress multicast delivery through its public
 socket options while still exercising native destruction. They do not qualify termination semantics.

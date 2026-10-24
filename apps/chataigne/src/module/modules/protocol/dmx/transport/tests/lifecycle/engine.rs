@@ -1,8 +1,8 @@
 use super::*;
 use crate::app::{
+    AppEngine, DmxSendFrameCommand,
     module_command::{ModuleCommandDeliveryPolicy, ModuleCommandExecuteEvent},
     module_modules_protocol_dmx::tests::service::{base, fixture, receive, receiver, set, settle, turn},
-    AppEngine, DmxSendFrameCommand,
 };
 use golden_core::{
     edit::Edit,
@@ -69,7 +69,12 @@ fn continuous_full_frames_use_bounded_actor_turns_and_settle_without_polling() {
     assert!(published > 10, "continuous input must exercise publication");
     assert!(control.reads.load(Ordering::Acquire) > 10);
     samples.sort_unstable();
-    eprintln!("DMX controlled continuous input: 256 full engine turns, {published} wake turns, p95={}us max={}us, CPU={} logical processors", samples[243], samples[255], std::thread::available_parallelism().unwrap());
+    eprintln!(
+        "DMX controlled continuous input: 256 full engine turns, {published} wake turns, p95={}us max={}us, CPU={} logical processors",
+        samples[243],
+        samples[255],
+        std::thread::available_parallelism().unwrap()
+    );
     assert!(samples[255] < 100_000, "small controlled fixture exceeded 100 ms");
     control.continuous.store(false, Ordering::Release);
     settle(&mut engine, id);

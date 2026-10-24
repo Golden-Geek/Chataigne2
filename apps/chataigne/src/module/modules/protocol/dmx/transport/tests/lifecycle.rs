@@ -63,6 +63,8 @@ struct Control {
     fail: Arc<AtomicBool>,
     panic: Arc<AtomicBool>,
     continuous: Arc<AtomicBool>,
+    ignored: Arc<AtomicUsize>,
+    invalid: Arc<AtomicBool>,
     frames: Arc<Mutex<std::collections::VecDeque<DmxFrame>>>,
 }
 struct Fake {
@@ -83,17 +85,29 @@ impl worker::Endpoint for Fake {
         }
         Ok(())
     }
-    fn receive(&mut self) -> Result<Option<DmxFrame>, String> {
+    fn receive(&mut self) -> Result<ReceivePoll, String> {
         assert!(
             !self.control.panic.load(Ordering::Acquire),
             "injected DMX worker failure"
         );
         let sequence = self.control.reads.fetch_add(1, Ordering::AcqRel);
+        if self
+            .control
+            .ignored
+            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |count| count.checked_sub(1))
+            .is_ok()
+        {
+            return Ok(if self.control.invalid.load(Ordering::Acquire) {
+                ReceivePoll::Invalid("injected malformed DMX packet")
+            } else {
+                ReceivePoll::Ignored
+            });
+        }
         let frame = self.control.frames.lock().unwrap().pop_front();
         if frame.is_none() && self.control.continuous.load(Ordering::Acquire) {
-            Ok(Some(DmxFrame::new(1, vec![(sequence % 256) as u8; 512])?))
+            Ok(ReceivePoll::Frame(DmxFrame::new(1, vec![(sequence % 256) as u8; 512])?))
         } else {
-            Ok(frame)
+            Ok(frame.map_or(ReceivePoll::Empty, ReceivePoll::Frame))
         }
     }
     fn shutdown(&mut self) {
@@ -115,6 +129,65 @@ fn config() -> DmxTransportConfig {
 }
 fn slots() -> RetirementPool {
     RetirementPool::new(NonZeroUsize::MIN)
+}
+
+#[test]
+fn ignored_packet_bursts_drain_without_a_wait_per_packet_and_preserve_output() {
+    let lifetimes = slots();
+    let control = Control::default();
+    control.ignored.store(8192, Ordering::Release);
+    control
+        .frames
+        .lock()
+        .unwrap()
+        .push_back(DmxFrame::new(1, vec![42]).unwrap());
+    let started = Instant::now();
+    let mut handle = fake(control.clone(), &lifetimes, pool(8), pool(8));
+    let receipt = handle.send(DmxFrame::new(1, vec![19]).unwrap()).unwrap();
+    until(|| handle.has_frame() && receipt.status() == SendStatus::Sent);
+    assert!(
+        started.elapsed() < Duration::from_secs(2),
+        "discarded packets must not each incur a five-millisecond wait"
+    );
+    assert!(control.reads.load(Ordering::Acquire) >= 8193);
+    assert_eq!(handle.take_frame().unwrap().slots, [42]);
+    assert_eq!(control.sent.load(Ordering::Acquire), 1);
+    handle.stop();
+    assert!(lifetimes.wait_for_idle(Duration::from_secs(1)));
+}
+
+#[test]
+fn malformed_packet_flood_warns_once_without_losing_valid_input_or_output() {
+    let lifetimes = slots();
+    let control = Control::default();
+    control.invalid.store(true, Ordering::Release);
+    control.ignored.store(8192, Ordering::Release);
+    control
+        .frames
+        .lock()
+        .unwrap()
+        .push_back(DmxFrame::new(1, vec![42]).unwrap());
+    let mut handle = fake(control.clone(), &lifetimes, pool(8), pool(8));
+    let receipt = handle.send(DmxFrame::new(1, vec![19]).unwrap()).unwrap();
+    until(|| handle.has_frame() && receipt.status() == SendStatus::Sent);
+    let mut warnings = 0;
+    while let Some(status) = handle.take_status() {
+        match status {
+            DmxWorkerEvent::Warning(message) => {
+                assert_eq!(message, "injected malformed DMX packet");
+                warnings += 1;
+            }
+            DmxWorkerEvent::Ready => {}
+            other => panic!("unexpected DMX status: {other:?}"),
+        }
+    }
+    assert_eq!(warnings, 1);
+    assert!(control.reads.load(Ordering::Acquire) >= 8193);
+    assert_eq!(handle.take_frame().unwrap().slots, [42]);
+    assert_eq!(control.sent.load(Ordering::Acquire), 1);
+    assert!(handle.is_running());
+    handle.stop();
+    assert!(lifetimes.wait_for_idle(Duration::from_secs(1)));
 }
 fn pool(items: usize) -> PayloadPool {
     PayloadPool::new("dmx-test-payloads", items, 8 * 1024 * 1024).unwrap()
@@ -169,15 +242,17 @@ fn blocked_setup_is_asynchronous_holds_its_slot_and_cancellation_prevents_late_i
     assert!(handle.send(DmxFrame::new(1, vec![1]).unwrap()).is_err());
     handle.stop();
     for _ in 0..3 {
-        assert!(DmxTransportHandle::spawn_using(
-            config(),
-            WorkerNotifier::new(|| {}),
-            &lifetimes,
-            pool(8),
-            pool(8),
-            |_| -> Result<Fake, String> { panic!("slot released before setup returned") }
-        )
-        .is_err());
+        assert!(
+            DmxTransportHandle::spawn_using(
+                config(),
+                WorkerNotifier::new(|| {}),
+                &lifetimes,
+                pool(8),
+                pool(8),
+                |_| -> Result<Fake, String> { panic!("slot released before setup returned") }
+            )
+            .is_err()
+        );
     }
     release.send(()).unwrap();
     drop(handle);
@@ -221,9 +296,11 @@ fn blocked_send_fills_a_bounded_queue_and_stop_cancels_every_admitted_suffix() {
     drop(handle);
     assert!(lifetimes.wait_for_idle(Duration::from_secs(1)));
     assert_eq!(first.status(), SendStatus::Sent);
-    assert!(receipts
-        .iter()
-        .all(|receipt| receipt.status() == SendStatus::FailedUnconfirmed));
+    assert!(
+        receipts
+            .iter()
+            .all(|receipt| receipt.status() == SendStatus::FailedUnconfirmed)
+    );
     assert!(output.wait_for_idle(Duration::from_secs(1)));
 }
 
@@ -252,15 +329,17 @@ fn native_cleanup_retains_the_slot_and_stop_does_not_join() {
     cleaning.recv_timeout(Duration::from_secs(1)).unwrap();
     assert!(!handle.is_running());
     assert_eq!(lifetimes.metrics().active, 1);
-    assert!(DmxTransportHandle::spawn_using(
-        config(),
-        WorkerNotifier::new(|| {}),
-        &lifetimes,
-        pool(8),
-        pool(8),
-        |_| -> Result<Fake, String> { panic!("cleanup released its slot") }
-    )
-    .is_err());
+    assert!(
+        DmxTransportHandle::spawn_using(
+            config(),
+            WorkerNotifier::new(|| {}),
+            &lifetimes,
+            pool(8),
+            pool(8),
+            |_| -> Result<Fake, String> { panic!("cleanup released its slot") }
+        )
+        .is_err()
+    );
     release.send(()).unwrap();
     drop(handle);
     assert!(lifetimes.wait_for_idle(Duration::from_secs(1)));

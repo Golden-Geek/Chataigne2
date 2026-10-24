@@ -1,8 +1,8 @@
 use super::super::frame::DmxFrame;
 use golden_io::{RetainedPayload, WorkerNotifier};
 use std::sync::{
-    atomic::{AtomicU8, Ordering},
     Arc, OnceLock,
+    atomic::{AtomicU8, Ordering},
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

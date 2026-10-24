@@ -1,12 +1,12 @@
-use super::frame::{DmxFrame, DMX_SLOT_COUNT};
+use super::frame::{DMX_SLOT_COUNT, DmxFrame};
 use golden_io::{
     BoundedWorker, PayloadPool, RetainedPayload, RetirementPool, RevisionSource, WorkerLimits, WorkerNotifier,
 };
 use std::{
     num::NonZeroUsize,
     sync::{
-        atomic::{AtomicBool, AtomicU64, Ordering},
         Arc, Mutex, OnceLock,
+        atomic::{AtomicBool, AtomicU64, Ordering},
     },
 };
 mod native;
@@ -209,7 +209,6 @@ fn validate_config(config: &DmxTransportConfig) -> Result<(), String> {
 fn validate_frame(frame: &DmxFrame, protocol: DmxProtocol) -> Result<(), String> {
     if frame.universe == 0
         || frame.universe > protocol.maximum_universe()
-        || frame.priority == 0
         || frame.priority > 200
         || frame.slots.len() > DMX_SLOT_COUNT
         || frame.slots.capacity() > DMX_SLOT_COUNT

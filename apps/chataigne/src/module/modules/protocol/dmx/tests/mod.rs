@@ -4,10 +4,10 @@ use golden_core::{
 };
 
 use crate::app::{
-    module_modules_protocol_dmx::{
-        parse_destination, script_blackout, script_send_frame, script_set_channel, DmxCommandRequest, DmxProtocol,
-    },
     AppNode, ArtNetModule, ModuleManager, SacnModule,
+    module_modules_protocol_dmx::{
+        DmxCommandRequest, DmxProtocol, parse_destination, script_blackout, script_send_frame, script_set_channel,
+    },
 };
 pub(super) mod service;
 

@@ -1,8 +1,8 @@
 use super::super::tests::service::{base, fixture, receive, receiver, set, settle, turn};
 use super::*;
 use crate::app::{
-    module_command::{ModuleCommandDeliveryPolicy, ModuleCommandExecuteEvent, ModuleCommandParamOverride},
     AppEngine, DmxSendFrameCommand,
+    module_command::{ModuleCommandDeliveryPolicy, ModuleCommandExecuteEvent, ModuleCommandParamOverride},
 };
 use golden_core::{edit::Edit, events::CustomEvent, parameter::ParameterEventBehaviour, script::ScriptMethodCall};
 

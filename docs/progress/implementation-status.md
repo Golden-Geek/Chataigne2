@@ -5,10 +5,10 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-24 on `main`, based on delivered `788dd415`, matching
+Last reconciled: 2026-10-24 on `main`, based on delivered `0044eb3a`, matching
 `origin/main` at milestone start. **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
-Whole-plan scope coverage is approximately 33%; P01-P06 are locally complete.
+Whole-plan scope coverage is approximately 34%; P01-P06 are locally complete.
 Hardware/platform and product-scale
 qualification retain their later owners.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
@@ -22,11 +22,12 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 packages, not commit counts. Spatializer's admitted preparation, bounded publication, source/path
 fences, identity preservation and passive failure recovery are qualified under C12.
 
-**Whole plan: approximately 33% complete.** P01-P06 are complete against their local
-acceptance criteria; P07-P18 have not started. P00 baseline reconciliation is maintained separately.
-**6 of 18 implementation/qualification tasks are complete (33%).**
+**Whole plan: approximately 34% complete.** P01-P06 are complete against their local
+acceptance criteria; P07 has one of six checkpoints complete (approximately 17%); P08-P18 have
+not started. P00 baseline reconciliation is maintained separately.
+**6 of 18 implementation/qualification tasks are fully complete.**
 
-Overall progress is the equal-weight average of P01-P18: `(6 * 100 + 12 * 0) / 18`,
+Overall progress is the equal-weight average of P01-P18: `(6 * 100 + 100 / 6 + 11 * 0) / 18`,
 rounded to a whole percent. This measures scope coverage, not elapsed time, remaining effort, or
 product readiness. Task sizes differ substantially. P00 housekeeping and preserved pre-plan
 features do not inflate this percentage. Later product, platform and device acceptance remains open.
@@ -70,7 +71,7 @@ Keyboard, Mouse, Ultraleap, Signals, Metronomes, MIDI and MQTT. Their owning pat
 admission/service/lifetime and recovery evidence. Spatializer's Cartesian matrix preparation and
 publication are also bounded. Absence of a search pattern alone was never acceptance evidence.
 
-**Remaining P03 closure packages: zero open, twelve closed (C01-C12).** P04 is also locally complete; continue P05.
+**Remaining P03 closure packages: zero open, twelve closed (C01-C12).** P04-P06 are also locally complete; the active task is P07.
 General optimization and external qualification retain their explicit later plan owners.
 
 | ID  | Status              | Scope                            | Required closure                                                                                                                                                                                                                                                                                                                                                                                                                    |
@@ -131,8 +132,28 @@ P06 has four equally weighted checkpoints derived from its dependency-repair acc
 | Dependency ownership, licenses and provenance | Complete locally | Full cargo-deny passes; duplicate graph reviewed, unused direct engine runtime dependency removed, cargo-machete passes, vendored CPAL source and removal condition preserved. |
 | Runtime and artifact regression checks | Complete locally | 589 correctly selected app protocol/Buttplug cases, 606 engine cases, current audio/IO/transport suites, default bundled app, exact-binary browser/dev/LAN/native matrix and strict workspace Clippy pass. The isolated Serial recovery fixture also passes 20 repetitions and seven discovery cases. |
 
+### P07 completion checkpoints
+
+P07 uses six fixed acceptance workstreams, derived from the plan's explicit streaming requirements.
+These are scope checkpoints, not forecasts of effort or remaining commits. **One of six is
+closed locally (approximately 17%); five remain.**
+
+| Checkpoint | Status | Acceptance |
+| --- | --- | --- |
+| Bounded receive and wire admission | Complete locally | Packet-vs-empty distinction, fair burst service, universe/START-code/size filtering, malformed input isolation and valid priority bounds; 41 owning cases, default app and strict Clippy pass. |
+| Continuous output and identity | Open | Last-frame state, static-look refresh, pacing, sequence and stable source identity. |
+| Receive source policy and synchronization | Open | Source/priority/sequence handling, loss and synchronized frame release using established protocol state machines. |
+| Backend frame publication | Open | Typed per-universe batching avoids per-sample 512-channel JSON work; commands, scripts, callbacks and templates remain complete. |
+| Termination and recovery | Open | Correct shutdown/termination destinations and timing, overload, cancellation and reconnect without command replay or engine stalls. |
+| Complete local qualification | Open | Fake-time and loopback matrix for both protocols, preserved lifecycle/retention contracts, docs, build and strict gates. |
+
 ## Current handoff
 
+- **P07 is in progress: one of six fixed checkpoints complete locally (approximately 17%).**
+  Receive/wire admission passes 41 owning cases, the default app build and strict Clippy.
+  Five checkpoints remain: continuous output/identity, source/sync policy, backend publication,
+  termination/recovery and complete local qualification. Continue clocked protocol-state
+  integration after this receive milestone. P03 remains closed with zero packages left.
 - **P05 is locally complete: four of four fixed checkpoints (100%).** Bundled/dev/LAN browser
   operation, native HTTP/WS, missing/stale/underprivileged denial, CSP and reload session reuse
   are verified. Native webview/focus/dialog qualification remains P17; it was not automated.
@@ -142,8 +163,8 @@ P06 has four equally weighted checkpoints derived from its dependency-repair acc
   advisories pass without new suppressions. The required SvelteKit 3 migration preserves bundled,
   development and LAN operation. The correctly selected app suite passes **589 cases**; engine
   **606 / three ignored**, Serial discovery **seven**, isolated recovery **20/20 repetitions**.
-  Default app and strict Clippy pass; the new-binary surface matrix passes. Commit/push this
-  milestone before implementing P07's lighting-worker streaming correctness.
+  Default app and strict Clippy pass; the new-binary surface matrix passes. This milestone
+  was delivered as `0044eb3a`. P07's first receive-admission checkpoint is now locally verified.
 - Golden Transport passes **74 unit cases and one public headless-host integration case**, with
   one existing manual snapshot benchmark ignored.
   Golden Desktop passes **seven cases / one subprocess helper ignored**; xtask passes **one unit
@@ -175,8 +196,8 @@ P06 has four equally weighted checkpoints derived from its dependency-repair acc
 - Prior-commit CI/product qualification failures remain recorded: dependency advisories/audits
   retain P06, structural gates P12, timing/baseline work P16 and platform qualification P17.
   Cancelled macOS product work is not a pass.
-- Whole-plan scope coverage is **~26%**, with **4/18 tasks locally complete**. Commit/push this
-  verified milestone on `main`, then continue P05's final checkpoint. Keep the full P00-P18 goal active.
+- Whole-plan scope coverage is **~34%**, with **6/18 tasks fully complete**. Continue P07;
+  P03 has no remaining closure packages. Keep the full P00-P18 goal active.
 
 ## Task ledger
 
@@ -193,7 +214,7 @@ External qualification is separate from implementation. A historical pass is not
 | P04 Audio order/types | 100% | VERIFIED_LOCAL | PASSED all four checkpoints | Checked scalar decoding, ordered command/shutdown admission, production plan/gain sequence and generation barriers, dense targets and allocation/deallocation transition guards verified. Native/platform qualification retains P17/P18. |
 | P05 Transport trust | 100% | VERIFIED_LOCAL | PASSED all four checkpoints | Bundled/dev/LAN browser and native HTTP/WS operation, independent denial gates, exact CSP, reload reuse and restart fencing verified; native webview/platform interaction remains P17. |
 | P06 Dependencies | 100% | VERIFIED_LOCAL | PASSED all four checkpoints | Refreshed advisory DB, narrow necessary updates, supported frontend migration, licensing/provenance and correctly selected network/audio/build/browser checks verified. Unix/native platform behavior retains P17. |
-| P07 DMX streaming           | 0%         | NOT_STARTED    | PENDING                 | Refresh/filter/service gaps; protocol loopback qualification needed                                                                             |
+| P07 DMX streaming | ~17% | IN_PROGRESS | PASSED first of six checkpoints | 41 owning cases, default app and strict Clippy pass for receive/wire admission. Clocked output, source/sync policy, typed frame publication, termination/recovery and complete qualification remain open. |
 | P08 Formula backend intents | 0%         | NOT_STARTED    | PENDING                 | UI polling/identity and mutation policy verified; corruption not reproduced                                                                     |
 | P09 Graph document          | 0%         | NOT_STARTED    | PENDING                 | Ordered-map mutation costs source-derived                                                                                                       |
 | P10 Canvas                  | 0%         | NOT_STARTED    | PENDING                 | Projection diagnostic and crossing-edge reproduction; mounted performance open                                                                  |
@@ -8460,3 +8481,50 @@ coding, review the maintained pure protocol-core alternative `x39-sacn 0.2.1` (M
 MSRV 1.91, registry source commit `5259dd464c77e05ccaa3fd3695ba2ea2de551daa`), which exposes
 fixed-capacity storage and caller-supplied time. No P07 source or dependency change has started.
 Do not rebuild a protocol that an adequate established crate already supplies. Keep P00-P18 active.
+
+## P07 native receive admission and burst service
+
+Started 2026-10-24 after delivered `0044eb3a`, from a clean `main`. The previous goal turn made
+progress by delivering P05 and implementing P06; this continuation completed and pushed P06,
+then began the next dependency-ready P07 work. P03/P04/P05/P06 remain closed at their local scope.
+
+The DMX lighting worker now distinguishes empty sockets, ignored packets, invalid packets and
+frames. It drains up to 64 datagrams or two milliseconds per turn, returning to its eight-command
+and cancellation service without an idle wait when a receive budget is exhausted. No new engine
+poll is introduced. Whole UDP datagrams use a reusable native 64 KiB buffer before the established
+Art-Net/sACN codecs receive their bounded inputs. Malformed/oversized packets no longer retire a
+healthy endpoint; their warning is latched once per native lifetime. Real I/O failures retain
+explicit outcomes and the existing recovery strategy.
+
+Art-Net input filters the configured one-based universe. sACN input filters non-zero DMX START
+codes and accepts the protocol's valid zero priority. Frame/native bounds, backend preparation and
+parameter constraints now consistently accept 0–200. Existing command/script/callback/template
+entrypoints and retained source/publication fences are preserved. No new dependency is introduced
+by this admission step. Full source/sequence/priority arbitration, sync, periodic output and correct
+termination remain explicit later P07 work; the raw sACN receive adapter still lacks that state.
+
+New owning cases cover whole oversized datagrams, wrong universes, malformed traffic followed by
+valid traffic, START-code rejection, priority zero and an 8,192-packet ignored burst while output
+still completes. Packet tests are loopback-only; existing sACN multicast teardown remains contained
+by its test socket settings and is not claimed correct. The native scratch bound is 1 MiB across
+sixteen slots, separate from retained pools and third-party library storage, not a total-RSS claim.
+
+The initial strict workspace/all-target Clippy passed in **35.53s**. The first owning run
+(handle **88796**) compiled in 4m01s and executed **39 passes / one failure**: the older Art-Net
+latest-frame fixture configured universe 1 but inherited the codec's default port address 1,
+which represents universe 2. Correct universe filtering exposed that fixture error. The test now
+explicitly encodes port address 0; its latest-frame and pressure assertions remain unchanged.
+
+The corrected verification (handle **72784**) passed strict workspace/all-target Clippy in
+**34.88s**, then compiled in **3m48s** and executed **41 passes / zero failures / zero ignored**
+in **2.78s**, including malformed-flood warning bounds. Its queued default app build passed in
+**2m35s**; the handle is terminal. The first of six P07 checkpoints is locally complete
+(approximately **17%**); whole-plan coverage is approximately **34%**, with six fully complete
+tasks. Five P07 checkpoints remain open. Actual root/Core and explicit app module formatting,
+diff hygiene and touched-source limits pass. Explicit app formatting also normalizes nearby
+DMX modules reached through Rust module declarations; those additional changes are formatting
+only. The default app artifact SHA-256 before that formatting-only pass is
+`d7ccc533cc71ecb91e2ab838965bae1291b78775bfdae58f491703b3320208cf`.
+No physical device, native webview or external platform qualification is claimed. Deliver this
+verified receive milestone on `main`, then continue protocol-state integration. All six P07
+workstreams and the full P00-P18 objective remain intact.

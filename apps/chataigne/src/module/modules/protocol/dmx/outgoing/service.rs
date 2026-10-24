@@ -46,7 +46,7 @@ impl DmxModuleBase {
         let priority = int("priority")
             .and_then(|value| u8::try_from(value).ok())
             .ok_or("Invalid DMX priority")?;
-        if universe == 0 || universe > self.protocol.maximum_universe() || priority == 0 || priority > 200 {
+        if universe == 0 || universe > self.protocol.maximum_universe() || priority > 200 {
             return Err("DMX universe or priority is outside the protocol's range".into());
         }
         let scratch = match &input {

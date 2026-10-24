@@ -4,18 +4,20 @@ use golden_io::{WorkerContext, WorkerReceive};
 use std::time::{Duration, Instant};
 
 const TURN: usize = 8;
+const RECEIVE_TURN: usize = 64;
+const RECEIVE_BUDGET: Duration = Duration::from_millis(2);
 const RECEIVE_WAIT: Duration = Duration::from_millis(5);
 
 pub(super) trait Endpoint: Send + 'static {
     fn send(&mut self, frame: &DmxFrame, destination: Option<std::net::SocketAddr>) -> Result<(), String>;
-    fn receive(&mut self) -> Result<Option<DmxFrame>, String>;
+    fn receive(&mut self) -> Result<ReceivePoll, String>;
     fn shutdown(&mut self) {}
 }
 impl Endpoint for native::WorkerEndpoint {
     fn send(&mut self, frame: &DmxFrame, destination: Option<std::net::SocketAddr>) -> Result<(), String> {
         self.send(frame, destination)
     }
-    fn receive(&mut self) -> Result<Option<DmxFrame>, String> {
+    fn receive(&mut self) -> Result<ReceivePoll, String> {
         self.receive()
     }
     fn shutdown(&mut self) {
@@ -65,6 +67,7 @@ pub(super) fn run<E: Endpoint>(
     }
     let mut pending = None;
     let mut pressured = false;
+    let mut invalid_reported = false;
     while !ctx.cancellation().is_cancelled() {
         let mut commands = Vec::with_capacity(TURN);
         if let Some(command) = pending.take() {
@@ -93,36 +96,65 @@ pub(super) fn run<E: Endpoint>(
         if ctx.cancellation().is_cancelled() {
             return;
         }
+        let mut receive_may_have_more = false;
         if config.receive_enabled {
-            match session.0.receive() {
-                Ok(Some(frame)) => match prepare_input(frame, &config, source.clone(), &input) {
-                    Ok(frame) => {
-                        let mut latest = shared.latest.lock().unwrap_or_else(|poison| poison.into_inner());
-                        if latest.replace(frame).is_some() {
-                            shared.replaced.fetch_add(1, Ordering::Relaxed);
-                        }
-                        drop(latest);
-                        shared.wake.notify();
-                        pressured = false;
+            let receive_started = Instant::now();
+            for _ in 0..RECEIVE_TURN {
+                if ctx.cancellation().is_cancelled() {
+                    return;
+                }
+                match session.0.receive() {
+                    Ok(ReceivePoll::Empty) => {
+                        receive_may_have_more = false;
+                        break;
                     }
-                    Err(error) => {
-                        shared.replaced.fetch_add(1, Ordering::Relaxed);
-                        if !pressured {
-                            if !publish(&ctx, DmxWorkerEvent::Warning(diagnostic(error))) {
+                    Ok(ReceivePoll::Ignored) => {}
+                    Ok(ReceivePoll::Invalid(message)) => {
+                        // An untrusted sender cannot fill the status mailbox or force reconnects.
+                        if !invalid_reported {
+                            if !publish(&ctx, DmxWorkerEvent::Warning(message.into())) {
                                 return;
                             }
-                            pressured = true;
+                            invalid_reported = true;
                         }
                     }
-                },
-                Ok(None) => {}
-                Err(error) => {
-                    publish(&ctx, DmxWorkerEvent::Error(diagnostic(error)));
-                    return;
+                    Ok(ReceivePoll::Frame(frame)) => match prepare_input(frame, &config, source.clone(), &input) {
+                        Ok(frame) => {
+                            let mut latest = shared.latest.lock().unwrap_or_else(|poison| poison.into_inner());
+                            if latest.replace(frame).is_some() {
+                                shared.replaced.fetch_add(1, Ordering::Relaxed);
+                            }
+                            drop(latest);
+                            shared.wake.notify();
+                            pressured = false;
+                        }
+                        Err(error) => {
+                            shared.replaced.fetch_add(1, Ordering::Relaxed);
+                            if !pressured {
+                                if !publish(&ctx, DmxWorkerEvent::Warning(diagnostic(error))) {
+                                    return;
+                                }
+                                pressured = true;
+                            }
+                        }
+                    },
+                    Err(error) => {
+                        publish(&ctx, DmxWorkerEvent::Error(diagnostic(error)));
+                        return;
+                    }
+                }
+                receive_may_have_more = true;
+                if receive_started.elapsed() >= RECEIVE_BUDGET {
+                    break;
                 }
             }
         }
-        match ctx.receive_until(Instant::now() + RECEIVE_WAIT) {
+        let wait = if receive_may_have_more {
+            Duration::ZERO
+        } else {
+            RECEIVE_WAIT
+        };
+        match ctx.receive_until(Instant::now() + wait) {
             WorkerReceive::Command(command) => pending = Some(command),
             WorkerReceive::Deadline => {}
             WorkerReceive::Disconnected => break,

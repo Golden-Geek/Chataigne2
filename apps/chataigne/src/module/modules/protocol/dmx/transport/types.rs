@@ -1,4 +1,4 @@
-use super::super::frame::{DmxFrame, ARTNET_MAX_UNIVERSE, SACN_MAX_UNIVERSE};
+use super::super::frame::{ARTNET_MAX_UNIVERSE, DmxFrame, SACN_MAX_UNIVERSE};
 use crate::app::module::script_api::NativeCallbackPayload;
 #[cfg(test)]
 use golden_io::RetainedPayload;
@@ -42,6 +42,13 @@ pub(crate) struct DmxTransportConfig {
     pub receive_enabled: bool,
     pub universe: u16,
     pub destination: Option<SocketAddr>,
+}
+
+pub(super) enum ReceivePoll {
+    Empty,
+    Ignored,
+    Invalid(&'static str),
+    Frame(DmxFrame),
 }
 
 #[derive(Debug)]

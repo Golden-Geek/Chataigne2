@@ -20,8 +20,8 @@ use golden_core::{
 use golden_io::ReconnectBackoff;
 
 pub(crate) use crate::app::module_modules_protocol_dmx_commands::DMX_COMMAND_TYPES;
-pub(crate) use frame::{parse_slots_json, slots_json, DmxFrame, DMX_SLOT_COUNT};
-pub(crate) use outgoing::{dispatch as queue_dmx_command, DmxCommandRequest};
+pub(crate) use frame::{DMX_SLOT_COUNT, DmxFrame, parse_slots_json, slots_json};
+pub(crate) use outgoing::{DmxCommandRequest, dispatch as queue_dmx_command};
 pub(crate) use transport::{DmxProtocol, DmxTransportConfig, DmxTransportHandle, DmxWorkerEvent};
 use transport::{ReceivedFrame, SendReceipt, SendStatus};
 
@@ -57,7 +57,7 @@ const DMX_SCRIPT_METHODS: &[&str] = &["setChannel", "sendFrame", "blackout"];
             label = "Universe",
             description = "One-based DMX universe transported by this module."
         );
-        priority: i32 = 100 [1..200] (
+        priority: i32 = 100 [0..200] (
             label = "Priority",
             description = "sACN source priority. Art-Net keeps this value only as frame metadata."
         );

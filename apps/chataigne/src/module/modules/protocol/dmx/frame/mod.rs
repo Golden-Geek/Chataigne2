@@ -24,8 +24,8 @@ impl DmxFrame {
         if universe == 0 || universe > SACN_MAX_UNIVERSE {
             return Err(format!("DMX universe must be between 1 and {SACN_MAX_UNIVERSE}"));
         }
-        if priority == 0 || priority > 200 {
-            return Err("sACN priority must be between 1 and 200".to_string());
+        if priority > 200 {
+            return Err("sACN priority must be between 0 and 200".to_string());
         }
         if slots.len() > DMX_SLOT_COUNT {
             return Err(format!(
