@@ -5,10 +5,10 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-24 on `main`. The final P08 milestone below is based on delivered
-`305c677c`, matching `origin/main` at milestone start. **C01-C12 are locally closed: 12/12 packages (100%).
+Last reconciled: 2026-10-24 on `main`, based on delivered `4cb69d68`. P09's first storage
+checkpoint passes its delivery gates. **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
-Whole-plan scope coverage is approximately 44%; P01-P08 are locally complete.
+Whole-plan scope coverage is approximately 46%; P01-P08 are locally complete.
 Hardware/platform and product-scale
 qualification retain their later owners.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
@@ -22,14 +22,14 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 packages, not commit counts. Spatializer's admitted preparation, bounded publication, source/path
 fences, identity preservation and passive failure recovery are qualified under C12.
 
-**Whole plan: approximately 44% complete.** P01-P08 are complete against their local
+**Whole plan: approximately 46% complete.** P01-P08 are complete against their local
 acceptance criteria. P08 has all four checkpoints complete: public operation boundary,
 complete-record fragment paste, backend connection policy, and shared caller acceptance.
-P09-P18 have not started. P09 is next, with three fixed checkpoints.
+P09 has one of three fixed checkpoints complete locally (33%). P10-P18 have not started.
 P00 baseline reconciliation is maintained separately.
 **8 of 18 implementation/qualification tasks are fully complete.**
 
-Overall progress is the equal-weight average of P01-P18: `(8 * 100 + 10 * 0) / 18`,
+Overall progress is the equal-weight average of P01-P18: `(8 * 100 + 100 / 3 + 9 * 0) / 18`,
 rounded to a whole percent. This measures scope coverage, not elapsed time, remaining effort, or
 product readiness. Task sizes differ substantially. P00 housekeeping and preserved pre-plan
 features do not inflate this percentage. Later product, platform and device acceptance remains open.
@@ -164,20 +164,20 @@ not effort or commit counts. **All four are complete locally (100%); none remain
 ### P09 completion checkpoints
 
 P09 has three fixed, equally weighted scope checkpoints derived from its acceptance criteria.
-**Zero of three are complete (0%).** Delivery batches do not add checkpoints.
+**One of three is complete locally (33%); two remain.** Delivery batches do not add checkpoints.
 
 | Checkpoint | Status | Acceptance |
 | --- | --- | --- |
-| Stable storage and local presentation edits | Not started | Preserve authored iteration/persistence order while updating identity/presentation storage without ordered-map shifts; failed edits restore exact presentation and order. |
+| Stable storage and local presentation edits | Complete locally | Authored iteration/persistence order is separate from identity storage; layout edits avoid ordered-map shifts. Exact serialized rollback, append/reload and owning consumer suites pass, with strict workspace, no-default checking, default build and actual native transport acceptance. |
 | Proportional structural edits | Not started | Batch node/edge removal, incident adjacency and group membership; preserve rollback, history consumers and one coherent revision/delta publication. Work follows affected records rather than repeated full-document shifts/scans. |
 | Consumer and scale qualification | Not started | Verify stable order, rollback, undo/redo, groups, incident edges and multi-selection drag/delete. Retain operation counts or representative fixed-delta measurements at 1k/10k/50k/100k nodes, plus owning consumer/build checks. |
 
 ## Current handoff
 
-- **Next task: P09 generic graph-document edits (0%, zero of three fixed checkpoints).**
-  Own the change in `crates/golden_graph`: separate stable authored order from hot storage,
-  update presentation in place, and make structural edits follow their affected records.
-  Preserve public consumers, rollback and coherent deltas; qualify fixed changes at
+- **Active task: P09 generic graph-document edits (33%, one of three checkpoints complete).**
+  Stable authored order, identity storage and local presentation edits pass owning gates.
+  Next, remove repeated group-membership scans and verify structural batches/rollback/deltas
+  follow affected records. Then qualify consumer history and fixed changes at
   1k/10k/50k/100k nodes. Do not put Alchemist or Chataigne policy into Golden Graph.
 - **P08 is locally complete: four of four fixed checkpoints (100%).** UI, embedded scripts,
   HTTP, WebSocket and headless callers share backend copy/paste/connect semantics and exact
@@ -234,7 +234,7 @@ P09 has three fixed, equally weighted scope checkpoints derived from its accepta
 - Prior-commit CI/product qualification failures remain recorded: dependency advisories/audits
   retain P06, structural gates P12, timing/baseline work P16 and platform qualification P17.
   Cancelled macOS product work is not a pass.
-- Whole-plan scope coverage is **~44%**, with **8/18 tasks fully complete**. Continue P09;
+- Whole-plan scope coverage is **~46%**, with **8/18 tasks fully complete**. Continue P09;
   P03 has no remaining closure packages. Keep the full P00-P18 goal active.
 
 ## Task ledger
@@ -254,7 +254,7 @@ External qualification is separate from implementation. A historical pass is not
 | P06 Dependencies            | 100%       | VERIFIED_LOCAL | PASSED all four checkpoints    | Refreshed advisory DB, narrow necessary updates, supported frontend migration, licensing/provenance and correctly selected network/audio/build/browser checks verified. Unix/native platform behavior retains P17.                                                      |
 | P07 DMX streaming           | 100%       | VERIFIED_LOCAL | PASSED six of six checkpoints  | 98 DMX cases, script API, default app, strict Clippy and formatting pass. Complete fake-time/native-loopback acceptance includes live priority, ordered metadata, termination/recovery and passive bounded actor service; P17/P18 retain platform/device qualification. |
 | P08 Formula backend intents | 100%       | VERIFIED_LOCAL | PASSED four of four checkpoints | Shared UI/script/HTTP/WS/headless operations, complete atomic fragments, backend connection policy and exact identity replies pass. Final native acceptance uses the default executable and isolated authenticated sessions; later product/platform qualification retains its owners. |
-| P09 Graph document          | 0%         | NOT_STARTED    | PENDING                        | Ordered-map mutation costs source-derived                                                                                                                                                                                                                               |
+| P09 Graph document          | 33%        | IN_PROGRESS    | PASSED one of three checkpoints | Stable authored indexes, identity storage and local layout edits pass 14 graph, 181 Alchemist, nine state-model and 16 state-runtime cases. Strict workspace, no-default checking, default build and actual transport acceptance pass. Group scans and scale qualification remain. |
 | P10 Canvas                  | 0%         | NOT_STARTED    | PENDING                        | Projection diagnostic and crossing-edge reproduction; mounted performance open                                                                                                                                                                                          |
 | P11 Workspace UX            | 0%         | NOT_STARTED    | PENDING                        | Collection/keyboard gaps source-reviewed; native usability open                                                                                                                                                                                                         |
 | P12 Boundaries/gates        | 0%         | NOT_STARTED    | PENDING                        | App policy leak, omitted graph tests, oversized files, unsafe conversions; recurring incremental native-link artifact gap                                                                                                                                               |
@@ -9570,3 +9570,39 @@ Executed gates for this milestone:
 approximately 44%, eight of eighteen tasks complete.** P09 is next, with three fixed checkpoints
 and no implementation credit yet. P03 still has zero packages left. Product-scale, platform and
 named-device qualification retain P16/P17/P18; keep the full P00-P18 goal active.
+
+### P09 stable storage and presentation checkpoint
+
+Previous goal turn: **progress**. P08's final caller milestone was committed and pushed as
+`4cb69d68`; the checkout was clean when P09 resumed. This checkpoint belongs entirely to
+`golden_graph`, with no app policy added to Golden.
+
+Node/edge identity lookup now uses hash storage with a separate authored-order index. Local
+removal and rollback retain private ordinal positions instead of shifting surviving records.
+Persistence still emits the existing keyed ordered maps; equality ignores retired ordinal gaps
+and retains the authored identity/value sequence. Sparse node layout uses a deterministic
+key-ordered map, so replacement does not remove and append an entry. Layout keys do not define
+authored node order. No persisted meaning or JSON shape changes.
+
+Executed evidence: **14 graph cases** (six new), including exact serialized rollback of mixed
+removals/layout edits, append order and persistence reload. Graph no-default-feature checking
+and all-target Alchemist/state-machine checking pass. Strict locked workspace/all-target Clippy
+passes (**34.80s**). Consumer lib suites pass **181 Alchemist**, **nine state-model** and
+**16 state-runtime** cases (**27.31s** compile). The first test check caught two missing imports
+in the new fixture; both are corrected before the passing run.
+
+The default app build passes (**2m05s**). Its SHA-256 is
+`6c16036b609a9627574bf6a98134e7025c71359055ce94393822a040f23010e6`.
+The unchanged typed native transport harness then qualifies that new default executable:
+**one passed**, **11.09s**, covering shared Formula operations and exact script/HTTP/WS replies,
+concurrent pastes, history and project replacement. This does not claim a rebuilt app unit suite;
+the harness is a client of the new executable and its source/protocol are unchanged.
+Evidence: `C:\Users\bkupe\AppData\Local\Temp\chataigne-p08-4217daa7-6c47-4340-87b3-804594df0e8f\headless.log`.
+Actual root/Core Cargo formatting and diff checks complete the delivery gate. No owned
+validation process remains running.
+
+**P09 is 33%, one of three fixed checkpoints; two remain. Whole-plan coverage is approximately
+46%, with eight of eighteen tasks complete.** Repeated group scans and full consumer/scale
+qualification retain the other checkpoints; no performance ceiling or P09 completion is claimed
+from these correctness tests alone. Commit/push this verified milestone on `main`, then continue
+the structural checkpoint. Keep the full P00-P18 goal active; P03 still has zero packages left.

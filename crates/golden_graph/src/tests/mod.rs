@@ -6,6 +6,8 @@ use crate::{
 
 type TestDocument = GraphDocument<TestGraphData, TestNodeData, TestEdgeData>;
 
+mod storage;
+
 fn node(kind: TestNodeKind, label: &str) -> GraphNode<TestNodeData> {
     GraphNode::new(TestNodeData {
         kind,

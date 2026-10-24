@@ -45,3 +45,23 @@ Transactions mutate the live document behind a local undo journal. Removing a no
 incident edges from topology indexes instead of scanning every edge, and a commit advances revisions
 once regardless of operation count. The contract suite includes a 10,000-node localized removal
 case to guard against whole-document snapshot rebuilds at this boundary.
+
+Node and edge values live in identity hash maps. Separate ordered indexes retain their authored
+positions; removal and rollback change only the affected entries, without shifting survivors.
+Identity lookup is expected constant time and authored-order insertion/removal is logarithmic.
+Iteration follows the ordered index and looks up each value, trading an additional lookup per
+visited record for bounded local mutation. Full traversal and persistence remain whole-document
+operations; persistence materializes ordered maps once and preserves the existing keyed JSON shape.
+
+Authored positions are private runtime indexes, not persisted identities. Rollback retains each
+removed position, while equality compares the actual identity/value sequence rather than gaps in
+those positions. Loading a saved document may compact those gaps without changing authored order.
+
+Node layout is a sparse, key-ordered `BTreeMap`; replacing a position updates the existing entry.
+Layout map iteration is deterministic by node identity and does not define authored node order.
+The persisted layout remains a keyed object with the same values, so this storage change needs
+no persisted-data migration. Comments, groups and bookmarks retain their own authored order.
+
+P09's remaining structural checkpoint removes repeated group-membership scans. Its final
+qualification checkpoint covers consumer history and fixed-delta work at 1k/10k/50k/100k nodes;
+the earlier localized test alone does not establish those scale claims.

@@ -2,6 +2,8 @@ use std::collections::{BTreeSet, HashMap};
 
 use indexmap::IndexMap;
 
+use crate::ordered_records::{OrderedRecords, RecordOrder};
+
 use crate::{
     GraphEdgeId, GraphEditError, GraphId, GraphNodeId, GraphPortId, GraphPresentation, GraphRevision, NodePresentation,
 };
@@ -131,8 +133,8 @@ pub struct GraphDocument<G, N, E> {
     pub(crate) id: GraphId,
     pub(crate) revision: GraphRevision,
     pub(crate) data: G,
-    pub(crate) nodes: IndexMap<GraphNodeId, GraphNode<N>>,
-    pub(crate) edges: IndexMap<GraphEdgeId, GraphEdge<E>>,
+    pub(crate) nodes: OrderedRecords<GraphNodeId, GraphNode<N>>,
+    pub(crate) edges: OrderedRecords<GraphEdgeId, GraphEdge<E>>,
     pub(crate) presentation: GraphPresentation,
     topology: TopologyIndex,
 }
@@ -144,8 +146,8 @@ impl<G, N, E> GraphDocument<G, N, E> {
             id: GraphId::new(),
             revision: GraphRevision::default(),
             data,
-            nodes: IndexMap::new(),
-            edges: IndexMap::new(),
+            nodes: OrderedRecords::default(),
+            edges: OrderedRecords::default(),
             presentation: GraphPresentation::default(),
             topology: TopologyIndex::default(),
         }
@@ -163,8 +165,8 @@ impl<G, N, E> GraphDocument<G, N, E> {
             id,
             revision,
             data,
-            nodes: IndexMap::new(),
-            edges: IndexMap::new(),
+            nodes: OrderedRecords::default(),
+            edges: OrderedRecords::default(),
             presentation,
             topology: TopologyIndex::default(),
         };
@@ -255,73 +257,50 @@ impl<G, N, E> GraphDocument<G, N, E> {
         self.topology.connections.contains_key(&(from, to))
     }
 
-    pub(crate) fn insert_node_at(&mut self, index: Option<usize>, node: GraphNode<N>) -> Result<(), GraphEditError> {
+    pub(crate) fn insert_node_at(
+        &mut self,
+        order: Option<RecordOrder>,
+        node: GraphNode<N>,
+    ) -> Result<(), GraphEditError> {
         if self.nodes.contains_key(&node.id) {
             return Err(GraphEditError::DuplicateNode(node.id));
         }
         self.topology.add_node(node.id);
-        if let Some(index) = index {
-            self.nodes.shift_insert(index.min(self.nodes.len()), node.id, node);
-        } else {
-            self.nodes.insert(node.id, node);
-        }
+        self.nodes.insert(order, node.id, node);
         Ok(())
     }
 
-    pub(crate) fn insert_edge_at(&mut self, index: Option<usize>, edge: GraphEdge<E>) -> Result<(), GraphEditError> {
+    pub(crate) fn insert_edge_at(
+        &mut self,
+        order: Option<RecordOrder>,
+        edge: GraphEdge<E>,
+    ) -> Result<(), GraphEditError> {
         if self.edges.contains_key(&edge.id) {
             return Err(GraphEditError::DuplicateEdge(edge.id));
         }
         self.require_node(edge.from.node)?;
         self.require_node(edge.to.node)?;
         self.topology.add_edge(&edge);
-        if let Some(index) = index {
-            self.edges.shift_insert(index.min(self.edges.len()), edge.id, edge);
-        } else {
-            self.edges.insert(edge.id, edge);
-        }
+        self.edges.insert(order, edge.id, edge);
         Ok(())
     }
 
     pub(crate) fn remove_edge(&mut self, edge: GraphEdgeId) -> Result<RemovedEdge<E>, GraphEditError> {
-        let index = self
-            .edges
-            .get_index_of(&edge)
-            .ok_or(GraphEditError::MissingEdge(edge))?;
-        let removed = self.edges.shift_remove(&edge).expect("edge index was checked");
+        let (order, removed) = self.edges.remove(&edge).ok_or(GraphEditError::MissingEdge(edge))?;
         self.topology.remove_edge(&removed);
-        Ok(RemovedEdge { index, edge: removed })
+        Ok(RemovedEdge { order, edge: removed })
     }
 
     pub(crate) fn remove_node(&mut self, node: GraphNodeId) -> Result<RemovedNode<N, E>, GraphEditError> {
-        let node_index = self
-            .nodes
-            .get_index_of(&node)
-            .ok_or(GraphEditError::MissingNode(node))?;
-        let mut incident = self
-            .topology
-            .incident_edges(node)
-            .into_iter()
-            .map(|edge| (self.edges.get_index_of(&edge).expect("indexed edge must exist"), edge))
-            .collect::<Vec<_>>();
-        incident.sort_unstable_by_key(|entry| std::cmp::Reverse(entry.0));
-
+        self.require_node(node)?;
+        let incident = self.topology.incident_edges(node);
         let mut edges = Vec::with_capacity(incident.len());
-        for (_, edge) in incident {
+        for edge in incident {
             edges.push(self.remove_edge(edge)?);
         }
-        edges.sort_unstable_by_key(|edge| edge.index);
-
-        let node = self.nodes.shift_remove(&node).expect("node index was checked");
+        let (order, node) = self.nodes.remove(&node).expect("node was checked");
         self.topology.remove_node(node.id);
-        let presentation = self.presentation.nodes.get_index_of(&node.id).map(|index| {
-            let (_, value) = self
-                .presentation
-                .nodes
-                .shift_remove_index(index)
-                .expect("presentation index was checked");
-            (index, value)
-        });
+        let presentation = self.presentation.nodes.remove(&node.id);
         let group_memberships = self
             .presentation
             .groups
@@ -330,7 +309,7 @@ impl<G, N, E> GraphDocument<G, N, E> {
             .collect();
 
         Ok(RemovedNode {
-            node_index,
+            order,
             node,
             edges,
             presentation,
@@ -340,12 +319,10 @@ impl<G, N, E> GraphDocument<G, N, E> {
 
     pub(crate) fn restore_node(&mut self, removed: RemovedNode<N, E>) {
         let node_id = removed.node.id;
-        self.insert_node_at(Some(removed.node_index), removed.node)
+        self.insert_node_at(Some(removed.order), removed.node)
             .expect("rollback node must restore");
-        if let Some((index, presentation)) = removed.presentation {
-            self.presentation
-                .nodes
-                .shift_insert(index.min(self.presentation.nodes.len()), node_id, presentation);
+        if let Some(presentation) = removed.presentation {
+            self.presentation.nodes.insert(node_id, presentation);
         }
         for group_id in removed.group_memberships {
             self.presentation
@@ -356,13 +333,13 @@ impl<G, N, E> GraphDocument<G, N, E> {
                 .insert(node_id);
         }
         for edge in removed.edges {
-            self.insert_edge_at(Some(edge.index), edge.edge)
+            self.insert_edge_at(Some(edge.order), edge.edge)
                 .expect("rollback edge must restore");
         }
     }
 
     pub(crate) fn restore_edge(&mut self, removed: RemovedEdge<E>) {
-        self.insert_edge_at(Some(removed.index), removed.edge)
+        self.insert_edge_at(Some(removed.order), removed.edge)
             .expect("rollback edge must restore");
     }
 
@@ -372,10 +349,10 @@ impl<G, N, E> GraphDocument<G, N, E> {
         presentation: Option<NodePresentation>,
     ) -> Result<Option<NodePresentation>, GraphEditError> {
         self.require_node(node)?;
-        let old = self.presentation.nodes.shift_remove(&node);
-        if let Some(presentation) = presentation {
-            self.presentation.nodes.insert(node, presentation);
-        }
+        let old = match presentation {
+            Some(presentation) => self.presentation.nodes.insert(node, presentation),
+            None => self.presentation.nodes.remove(&node),
+        };
         Ok(old)
     }
 
@@ -388,14 +365,14 @@ impl<G, N, E> GraphDocument<G, N, E> {
 }
 
 pub(crate) struct RemovedEdge<E> {
-    pub index: usize,
+    pub order: RecordOrder,
     pub edge: GraphEdge<E>,
 }
 
 pub(crate) struct RemovedNode<N, E> {
-    pub node_index: usize,
+    pub order: RecordOrder,
     pub node: GraphNode<N>,
     pub edges: Vec<RemovedEdge<E>>,
-    pub presentation: Option<(usize, NodePresentation)>,
+    pub presentation: Option<NodePresentation>,
     pub group_memberships: Vec<crate::GraphGroupId>,
 }

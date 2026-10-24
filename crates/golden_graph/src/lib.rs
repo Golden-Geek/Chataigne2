@@ -8,6 +8,7 @@ mod document;
 mod domain;
 mod error;
 mod ids;
+mod ordered_records;
 mod persistence;
 mod presentation;
 mod revision;

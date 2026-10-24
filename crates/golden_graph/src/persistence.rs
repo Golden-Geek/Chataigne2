@@ -29,8 +29,8 @@ impl<G, N, E> GraphDocumentData<G, N, E> {
             id: document.id,
             revision: document.revision,
             data: document.data.clone(),
-            nodes: document.nodes.clone(),
-            edges: document.edges.clone(),
+            nodes: document.nodes().map(|node| (node.id, node.clone())).collect(),
+            edges: document.edges().map(|edge| (edge.id, edge.clone())).collect(),
             presentation: document.presentation.clone(),
         }
     }

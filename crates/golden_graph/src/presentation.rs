@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use indexmap::IndexMap;
 
@@ -58,7 +58,8 @@ pub struct ViewportBookmark {
 #[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct GraphPresentation {
-    pub nodes: IndexMap<GraphNodeId, NodePresentation>,
+    /// Keyed layout records; authored node order belongs to `GraphDocument::nodes`.
+    pub nodes: BTreeMap<GraphNodeId, NodePresentation>,
     pub comments: IndexMap<GraphCommentId, GraphComment>,
     pub groups: IndexMap<GraphGroupId, GraphGroup>,
     pub viewport_bookmarks: IndexMap<ViewportBookmarkId, ViewportBookmark>,
