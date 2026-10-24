@@ -2,8 +2,10 @@ import type { NodeId, UiNodeDto } from '../../types';
 import type { GraphStore } from '../graph.svelte';
 import { loadPersistedSelection, savePersistedSelection } from '../ui-persistence';
 import type { SelectionMode } from './types';
+import { createPendingNodeSelection, type NodeSelectionIdentity } from './pending-selection';
 
 export interface WorkbenchSelectionStore {
+	readonly revision: number;
 	readonly selectedNodeIds: NodeId[];
 	readonly selectedNodeId: NodeId | null;
 	getSelectedNodes(): UiNodeDto[];
@@ -11,6 +13,7 @@ export interface WorkbenchSelectionStore {
 	isNodeSelected(nodeId: NodeId): boolean;
 	selectNode(nodeId: NodeId | null, selectionMode?: SelectionMode): void;
 	selectNodes(nodeIds: NodeId[], selectionMode?: SelectionMode): void;
+	requestNodeSelection(nodes: readonly NodeSelectionIdentity[]): void;
 	clearSelection(): void;
 	restorePersistedSelection(): void;
 	reconcileSelection(): void;
@@ -19,8 +22,12 @@ export interface WorkbenchSelectionStore {
 
 export const createWorkbenchSelectionStore = (graph: GraphStore): WorkbenchSelectionStore => {
 	let selectedNodeIds = $state<NodeId[]>([]);
+	let revision = $state(0);
 	let persistedSelection = loadPersistedSelection();
 	let shouldRestorePersistedSelection = persistedSelection.length > 0;
+	const pendingSelection = createPendingNodeSelection();
+	const projectedRootUuid = (): string | undefined =>
+		graph.state.rootId === null ? undefined : graph.state.nodesById.get(graph.state.rootId)?.uuid;
 
 	const persistSelection = (): void => {
 		savePersistedSelection(selectedNodeIds);
@@ -47,10 +54,14 @@ export const createWorkbenchSelectionStore = (graph: GraphStore): WorkbenchSelec
 	const isNodeSelected = (nodeId: NodeId): boolean => selectedNodeIds.includes(nodeId);
 
 	const clearSelection = (): void => {
+		revision += 1;
+		pendingSelection.cancel();
 		setSelection([]);
 	};
 
 	const selectNodes = (nodeIds: NodeId[], selectionMode: SelectionMode = 'REPLACE'): void => {
+		revision += 1;
+		pendingSelection.cancel();
 		const validUniqueIds: NodeId[] = [];
 		for (const nodeId of nodeIds) {
 			if (!graph.state.nodesById.has(nodeId)) {
@@ -113,6 +124,11 @@ export const createWorkbenchSelectionStore = (graph: GraphStore): WorkbenchSelec
 	};
 
 	const reconcileSelection = (): void => {
+		const requested = pendingSelection.takeIfReady(graph.state.nodesById, projectedRootUuid());
+		if (requested !== undefined) {
+			setSelection(requested);
+			return;
+		}
 		const nextSelection = selectedNodeIds.filter((nodeId) => graph.state.nodesById.has(nodeId));
 		if (
 			nextSelection.length === selectedNodeIds.length &&
@@ -125,12 +141,17 @@ export const createWorkbenchSelectionStore = (graph: GraphStore): WorkbenchSelec
 	};
 
 	const reset = (): void => {
+		revision += 1;
+		pendingSelection.cancel();
 		selectedNodeIds = [];
 		persistedSelection = loadPersistedSelection();
 		shouldRestorePersistedSelection = persistedSelection.length > 0;
 	};
 
 	return {
+		get revision(): number {
+			return revision;
+		},
 		get selectedNodeIds(): NodeId[] {
 			return selectedNodeIds;
 		},
@@ -142,6 +163,13 @@ export const createWorkbenchSelectionStore = (graph: GraphStore): WorkbenchSelec
 		isNodeSelected,
 		selectNode,
 		selectNodes,
+		requestNodeSelection: (nodes) => {
+			const rootUuid = projectedRootUuid();
+			if (rootUuid === undefined) return;
+			revision += 1;
+			pendingSelection.request(nodes, rootUuid);
+			reconcileSelection();
+		},
 		clearSelection,
 		restorePersistedSelection,
 		reconcileSelection,

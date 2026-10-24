@@ -3,7 +3,8 @@ import {
 	FORMULA_OPERATION_NAMESPACE,
 	FORMULA_COPY_OPERATION,
 	FORMULA_PASTE_OPERATION,
-	FORMULA_CONNECT_OPERATION
+	FORMULA_CONNECT_OPERATION,
+	FORMULA_FRAGMENT_VERSION
 } from './generated/authoring/constants';
 import type { FormulaCopyRequest } from './generated/authoring/FormulaCopyRequest';
 import type { FormulaFragment } from './generated/authoring/FormulaFragment';
@@ -16,7 +17,7 @@ import type { FormulaOwnerDto } from './generated/authoring/FormulaOwnerDto';
 type OperationSession = Pick<WorkbenchSession, 'invokeAppOperation'>;
 type OperationValue = Awaited<ReturnType<OperationSession['invokeAppOperation']>>;
 
-const record = (value: OperationValue): value is { [key: string]: OperationValue } =>
+const record = (value: unknown): value is { [key: string]: OperationValue } =>
 	typeof value === 'object' && value !== null && !Array.isArray(value);
 
 const nodeId = (value: OperationValue): value is number =>
@@ -26,9 +27,9 @@ const ownerReply = (value: OperationValue): value is FormulaOwnerDto =>
 	record(value) && nodeId(value.node) && typeof value.uuid === 'string';
 
 /** Checks the reply envelope; authored document capsules remain opaque JSON. */
-const fragmentReply = (value: OperationValue): value is FormulaFragment =>
+export const isFormulaFragment = (value: unknown): value is FormulaFragment =>
 	record(value) &&
-	typeof value.version === 'number' &&
+	value.version === FORMULA_FRAGMENT_VERSION &&
 	typeof value.source_formula_uuid === 'string' &&
 	Array.isArray(value.items) &&
 	value.items.every(
@@ -66,7 +67,7 @@ export const copyFormulaFragment = async (
 		operation: FORMULA_COPY_OPERATION,
 		payload: request
 	});
-	if (!fragmentReply(result)) throw new Error('Formula copy returned an invalid result.');
+	if (!isFormulaFragment(result)) throw new Error('Formula copy returned an invalid result.');
 	return result;
 };
 

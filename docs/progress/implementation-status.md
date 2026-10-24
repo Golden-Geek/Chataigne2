@@ -5,7 +5,7 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-24 on `main`, based on delivered `cb882b15`, matching
+Last reconciled: 2026-10-24 on `main`, based on delivered `f1fb0e95`, matching
 `origin/main` at milestone start. **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
 Whole-plan scope coverage is approximately 43%; P01-P07 are locally complete.
@@ -159,7 +159,7 @@ not effort or commit counts. **Three of four are complete locally (75%); one rem
 | Public operation and result boundary   | Complete locally | Domain-neutral operation/result envelope, atomic authored/history/lifecycle/app settlement, exact replies through public headless and workbench APIs, generated protocol 0.10.0 and null/absence distinction. Engine 614, protocol two, transport 74 plus headless integration, UI 56/93, type/build/strict/format gates pass. |
 | Atomic fragment paste                  | Complete locally | Complete dense capsules, shared detached restoration/remapping and labels, exact all-record results, invalid/duplicate identity rejection, external references, managed metadata and compressed archive preservation, concurrent creates, project replacement and undo/redo verified. Core 620 and app Alchemist 208 pass; later shared caller acceptance remains separate. |
 | Backend connection policy              | Complete locally | Typed connect checks owner/endpoints, graph compatibility and inferred types before edits; whole/component replacement, exact replies, idempotence and one-step undo/redo pass. Generic vector components and backend input growth work without UI repair. Editor sends intent; strict Clippy, generated types, UI 101, Svelte and default build pass. |
-| Shared callers and complete acceptance | Open             | UI/script/transport/headless use the same operations; paste polling/inferred identities and UI repair writes are removed. Concurrent creates, slow projection, undo/redo and project replacement pass owning acceptance.                                                                                                       |
+| Shared callers and complete acceptance | Open             | Editor copy/paste/connect now use backend operations; old clipboard projection, label allocation, identity polling and repair writes are removed. Real workbench queue/projection cases preserve exact selection across independent creates, user changes and project replacement. Shared script execution and final actual transport qualification remain. |
 
 ## Current handoff
 
@@ -168,9 +168,11 @@ not effort or commit counts. **Three of four are complete locally (75%); one rem
   acceptance. Real Mapping fixtures preserve external references, managed definitions and frozen
   archives; eight concurrent pastes interleaved with independent creates return disjoint exact
   identities. Connect owns compatibility, inferred types and replacement, including components.
-  Next: migrate the editor's clipboard/paste path and script callers to these operations, remove
-  paste polling/identity inference/repair writes, and finish shared transport/headless/slow-projection
-  acceptance. Existing legacy clipboard policy is confined to this remaining checkpoint.
+  The editor now uses backend copy/paste/connect operations and complete generated clipboard
+  capsules; identity polling, UI label allocation, reference remapping and restoration writes are
+  removed. Real workbench queue/projection cases qualify exact delayed selection, independent
+  creates, newer user selection and reused IDs. Next: script integration and final actual
+  transport/headless acceptance. P08 stays 75% until the full fourth checkpoint passes.
   P03 remains closed with zero packages left.
 - **P07 is locally complete: six of six fixed checkpoints (100%).** All 98 DMX cases,
   script-template/API, default build, strict workspace Clippy, formatting and diff checks pass.
@@ -241,7 +243,7 @@ External qualification is separate from implementation. A historical pass is not
 | P05 Transport trust         | 100%       | VERIFIED_LOCAL | PASSED all four checkpoints    | Bundled/dev/LAN browser and native HTTP/WS operation, independent denial gates, exact CSP, reload reuse and restart fencing verified; native webview/platform interaction remains P17.                                                                                  |
 | P06 Dependencies            | 100%       | VERIFIED_LOCAL | PASSED all four checkpoints    | Refreshed advisory DB, narrow necessary updates, supported frontend migration, licensing/provenance and correctly selected network/audio/build/browser checks verified. Unix/native platform behavior retains P17.                                                      |
 | P07 DMX streaming           | 100%       | VERIFIED_LOCAL | PASSED six of six checkpoints  | 98 DMX cases, script API, default app, strict Clippy and formatting pass. Complete fake-time/native-loopback acceptance includes live priority, ordered metadata, termination/recovery and passive bounded actor service; P17/P18 retain platform/device qualification. |
-| P08 Formula backend intents | 75%        | IN_PROGRESS    | PASSED three of four checkpoints | Public operations, complete atomic fragment paste and backend connection policy pass owning gates. One checkpoint remains: shared caller/full acceptance, editor clipboard/paste migration, script integration and removal of paste polling/repair writes. |
+| P08 Formula backend intents | 75%        | IN_PROGRESS    | PASSED three of four checkpoints | Public operations, complete atomic fragment paste and backend connection policy pass owning gates. Editor clipboard migration and delayed exact selection now pass UI gates; script integration and actual transport qualification retain the fourth checkpoint. |
 | P09 Graph document          | 0%         | NOT_STARTED    | PENDING                        | Ordered-map mutation costs source-derived                                                                                                                                                                                                                               |
 | P10 Canvas                  | 0%         | NOT_STARTED    | PENDING                        | Projection diagnostic and crossing-edge reproduction; mounted performance open                                                                                                                                                                                          |
 | P11 Workspace UX            | 0%         | NOT_STARTED    | PENDING                        | Collection/keyboard gaps source-reviewed; native usability open                                                                                                                                                                                                         |
@@ -9431,3 +9433,39 @@ Commit/push the verified milestone on `main`. Then finish the fourth checkpoint:
 and paste migration, shared script calls, slow-projection/transport acceptance, and deletion of
 legacy UI identity polling, remapping, label allocation and repair writes. Preserve the full plan
 goal. **P03 remains 100%, twelve of twelve packages closed, zero remaining.**
+
+### P08 editor clipboard and delayed authoritative selection
+
+Previous goal turn: **progress**. Delivered milestone `f1fb0e95` closes backend connection policy
+and managed/compressed fragment context. This turn resumed from its clean `main` checkout;
+`origin/main` matched before delivery. P08 remains **75%**, overall approximately **43%**.
+
+The editor now captures complete fragments through backend copy and sends one backend paste
+operation for duplicate/paste. Clipboard text and JSON export serialize the generated
+`FormulaFragment` directly; the lossy projected-tree clipboard format and its compatibility parser
+are removed. Viewport placement is a presentation hint and never interprets document capsules.
+UI label allocation, “first unseen child” polling, reference remapping and post-create restoration
+writes are deleted. Built-in Formula copy also leaves unique labels to the existing backend
+creation boundary. Copy is asynchronous; cut preserves a later selection or view/project change.
+
+Golden UI's focused selection store accepts exact ID/UUID pairs. One pending request resolves
+from graph projection events after all identities appear. Independent creates cannot satisfy it;
+reused IDs, changed project roots and newer user selections cancel it. Explicit selection revisions
+also fence replies arriving after a newer user action, without treating ordinary projection as a
+new selection intent. No polling timer or projection timeout decides identity.
+
+Owning evidence: **117 app UI cases**, including the real workbench queue/subscription/project
+replacement facade with delayed/out-of-order projection, concurrent independent creates and user
+selection before acknowledgement or projection; **61 Golden UI cases**; Svelte **zero errors /
+zero warnings**. An initial fixture-only type check exposed a public export requiring its `.ts`
+extension and a missing required `current_path`; both are corrected and the final check passes.
+Strict locked workspace/all-target Clippy passes (**44.90s**) and the default bundled app builds
+(**2m26s**). Actual root and Core Cargo formatters and diff checks pass. Rust/domain/protocol
+sources are unchanged; their preceding owning evidence is retained without pretending to rerun it.
+
+Default app SHA-256: `99b353ff818b5f25b4cd09d4d970710386a446b9cd71a192432ed7bab0c91553`.
+Commit and push this verified UI milestone on `main`. The fourth checkpoint stays **open**:
+provide shared script execution through a public Golden contract delegating to these same app
+operations, then qualify actual transport/headless requests and exact replies/rejection. Do not
+reintroduce UI mutation policy or a separate script paste implementation. Keep the full P00-P18
+goal active; P03 remains closed with zero packages left.

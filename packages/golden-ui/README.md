@@ -23,6 +23,13 @@ package under `packages/golden-ui/`, separate from app-local SvelteKit source.
 - Keep transport wiring behind `transport/` interfaces. Session state should not know about a
   concrete websocket implementation.
 
+Authoritative operation replies can request selection with `session.requestNodeSelection`, using
+the committed node ID/UUID pairs. The focused selection store resolves one pending request from
+projection events, checks the project root and persistent identities, and cancels it when the user
+makes another selection. `session.selectionRevision` fences replies that arrive after a newer
+selection intent; rendering and graph projection do not advance that revision. Apps should use
+these contracts instead of polling for an unseen child or scanning labels to infer creation results.
+
 ## Start Here
 
 - Read [`docs/source_layout.md`](./docs/source_layout.md) for the UI filesystem and ownership rules.

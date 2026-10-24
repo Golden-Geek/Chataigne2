@@ -30,6 +30,7 @@ import {
 	setPerformanceProfilerEnabled
 } from './performance-profiler.svelte';
 import { createWorkbenchDescriptionStore } from './session/descriptions.svelte';
+import type { NodeSelectionIdentity } from './session/pending-selection';
 import { createWorkbenchCustomEventStore } from './session/custom-events.svelte';
 import { createWorkbenchFooterHoverStore } from './session/footer-hover.svelte';
 import { createWorkbenchHistoryStore } from './session/history.svelte';
@@ -134,6 +135,8 @@ export interface WorkbenchSession {
 	readonly engineLowFrequencyHz: number;
 	readonly selectedNodesIds: NodeId[];
 	readonly selectedNodeId: NodeId | null;
+	/** Monotonic explicit selection intent; graph projection alone does not advance it. */
+	readonly selectionRevision: number;
 	readonly status: WorkbenchConnectionStatus;
 	readonly toasts: WorkbenchToast[];
 	readonly historyBusy: boolean;
@@ -162,6 +165,8 @@ export interface WorkbenchSession {
 	clearFooterHover(token: symbol): void;
 	selectNode(nodeId: NodeId | null, selectionMode?: SelectionMode): void;
 	selectNodes(nodeIds: NodeId[], selectionMode?: SelectionMode): void;
+	/** Select exact committed identities once they are projected; later user selection cancels it. */
+	requestNodeSelection(nodes: readonly NodeSelectionIdentity[]): void;
 	clearSelection(): void;
 	appendUiLogRecord(
 		level: WorkbenchToastLevel,
@@ -931,6 +936,10 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 		clearFooterHover,
 		selectNode: (nodeId, selectionMode) => selection.selectNode(nodeId, selectionMode),
 		selectNodes: (nodeIds, selectionMode) => selection.selectNodes(nodeIds, selectionMode),
+		requestNodeSelection: (nodes) => selection.requestNodeSelection(nodes),
+		get selectionRevision(): number {
+			return selection.revision;
+		},
 		clearSelection: () => selection.clearSelection(),
 		appendUiLogRecord,
 		sendIntent,

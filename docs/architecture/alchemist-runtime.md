@@ -67,10 +67,19 @@ sockets retain their identities during local ANode reconciliation; the Formula o
 schema-dependent types. A schema-free fallback must not replace an already restored socket.
 
 The UI's `formulaOperations.ts` checks result envelopes against generated types and retains
-opaque document capsules. It owns no label allocation, remapping, graph repair or identity
-detection. The Formula editor's connect handler now sends this operation directly; compatibility,
-replacement and dynamic-input policy stay in the backend. Remaining editor paste and script
-caller migration are tracked by P08 in the implementation ledger.
+opaque document capsules. Copy, duplicate, paste and JSON export use the generated complete
+fragment directly; the old projected-tree clipboard format is removed. `alchemistClipboard.ts`
+owns text serialization, viewport placement hints and exact-result selection. It never interprets
+authored document capsules. The editor sends copy/paste/connect operations rather than allocating
+labels, remapping references, guessing new children or restoring parameters after creation.
+
+Golden UI's focused selection store accepts exact ID/UUID pairs through `requestNodeSelection`.
+One pending selection resolves when all identities arrive through ordinary projection events;
+unrelated creates cannot satisfy it. Project-root changes and reused IDs reject it, and a later
+explicit selection cancels it. Selection intent revisions prevent a late operation reply from
+overriding a newer user selection. Clipboard requests also retain their Formula/view/project
+identity across asynchronous reads. Script integration and remaining end-to-end transport
+qualification stay under P08's final checkpoint.
 
 ## Formula Catalog And Library
 
