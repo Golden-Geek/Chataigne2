@@ -36,9 +36,18 @@ mechanics, spatial visible-node queries, and incident-edge indexes. Its `GraphRe
 Alchemist-specific assets and domain presentation adapters are app-owned in the Chataigne UI. The
 generic canvas remains in the app-agnostic `golden_graph_ui` package.
 
-The app-owned `GraphDocumentAdapter` converts list-backed Alchemist and Spatializer projections into
-the reusable presentation document and advances revision planes conservatively when an input array
-changes. It has no command or effect authority.
+The reusable `GraphPresentationAdapter` converts immutable view arrays into UI-only topology,
+geometry, payload, activity and preview revisions plus sequential deltas and a recovery snapshot.
+These presentation revisions do not duplicate or replace the generated Rust wire revision DTO.
+Alchemist and Spatializer use this public Golden adapter; the app-owned statechart boundary maps
+state/transition vocabulary into it. Product DTO mapping and preview content stay app-owned.
+
+The canvas retains identity/spatial state and applies sparse transient overlays. Activity and
+preview updates preserve geometry and topology indexes. Pointer previews, box selection and
+connection snapping avoid whole-document node projection; Home and delta recovery remain explicit
+whole-document operations. Routing resumes from a full obstacle set after previews; scoped route
+invalidation and crossing-edge culling remain open. See [package ownership and tests](../../packages/golden-graph-ui/README.md)
+and [retained-state qualification scope](../progress/p10-retained-presentation.md).
 
 ## Mutation Cost
 

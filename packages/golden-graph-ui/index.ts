@@ -1,5 +1,7 @@
 export { default as GraphCanvas } from "./components/GraphCanvas.svelte";
 export { SpatialIndex, type SpatialBounds } from "./spatial-index";
+export { GraphPresentationAdapter } from "./presentation-document";
+export type { GraphPresentationWork } from "./retained-presentation";
 export type {
   GraphCamera,
   GraphChangeSet,
@@ -12,6 +14,8 @@ export type {
   GraphNodeMove,
   GraphNodePosition,
   GraphPresentationDocument,
+  GraphPresentationRevision,
+  GraphPresentationChanges,
   GraphRevision,
   GraphNodeResize,
   GraphNodeSize,

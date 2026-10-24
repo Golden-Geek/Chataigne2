@@ -132,28 +132,14 @@ export function createCanvasGestures(
       return;
     }
     const next = new Set(selectionGesture.initialSelectedNodeIds);
-    for (const node of geometry.effectiveNodes) {
-      const nodeLeft =
-        viewport.camera.x +
-        node.position.x * viewport.remPx * viewport.camera.zoom;
-      const nodeTop =
-        viewport.camera.y +
-        node.position.y * viewport.remPx * viewport.camera.zoom;
-      const nodeRight =
-        nodeLeft +
-        geometry.nodeWidth(node) * viewport.remPx * viewport.camera.zoom;
-      const nodeBottom =
-        nodeTop +
-        geometry.nodeHeight(node) * viewport.remPx * viewport.camera.zoom;
-      if (
-        nodeRight >= left &&
-        nodeLeft <= right &&
-        nodeBottom >= top &&
-        nodeTop <= bottom
-      ) {
-        next.add(node.id);
-      }
-    }
+    const scale = viewport.remPx * viewport.camera.zoom;
+    for (const node of geometry.queryNodes({
+      left: (left - viewport.camera.x) / scale,
+      top: (top - viewport.camera.y) / scale,
+      right: (right - viewport.camera.x) / scale,
+      bottom: (bottom - viewport.camera.y) / scale,
+    }))
+      next.add(node.id);
     publishSelection([...next], [...selectedEdgeIdSet]);
     selectionGesture = null;
   };
@@ -257,7 +243,7 @@ export function createCanvasGestures(
     }
     const nodePositions: Record<string, GraphNodePosition> = {};
     for (const dragId of dragIds) {
-      const dragNode = geometry.nodesById.get(dragId);
+      const dragNode = geometry.nodeById(dragId);
       if (dragNode) {
         nodePositions[dragId] = dragNode.position;
       }
@@ -322,7 +308,7 @@ export function createCanvasGestures(
     nodeId: string,
     socket: GraphSocket,
   ): void => {
-    const node = geometry.nodesById.get(nodeId);
+    const node = geometry.nodeById(nodeId);
     if (
       event.button !== 0 ||
       !node ||
@@ -348,7 +334,7 @@ export function createCanvasGestures(
   };
 
   const completeConnection = (nodeId: string, socket: GraphSocket): boolean => {
-    const node = geometry.nodesById.get(nodeId);
+    const node = geometry.nodeById(nodeId);
     if (
       !connectionDraft ||
       !node ||
@@ -391,7 +377,7 @@ export function createCanvasGestures(
   const finishConnectionAtPointer = (event: PointerEvent): void => {
     if (connectionDraft?.snapNodeId && connectionDraft?.snapSocketId) {
       const socket = findInputSocket(
-        geometry.nodesById.get(connectionDraft.snapNodeId),
+        geometry.nodeById(connectionDraft.snapNodeId),
         connectionDraft.snapSocketId,
       );
       if (socket) {
@@ -412,7 +398,7 @@ export function createCanvasGestures(
     if (!nodeId || !socketId) {
       return;
     }
-    const socket = findInputSocket(geometry.nodesById.get(nodeId), socketId);
+    const socket = findInputSocket(geometry.nodeById(nodeId), socketId);
     if (socket) {
       completeConnection(nodeId, socket);
     }
@@ -459,20 +445,18 @@ export function createCanvasGestures(
         (event.clientY - nodeDragGesture.startY) /
         viewport.camera.zoom /
         viewport.remPx;
-      const nextPositions: Record<string, GraphNodePosition> = {};
-      for (const [nodeId, position] of Object.entries(
-        nodeDragGesture.nodePositions,
-      )) {
-        nextPositions[nodeId] = {
-          x: position.x + deltaX,
-          y: position.y + deltaY,
-        };
-      }
-      editing.dragPositions = nextPositions;
+      editing.previewMoves(
+        Object.entries(nodeDragGesture.nodePositions).map(
+          ([nodeId, position]) => ({
+            nodeId,
+            position: { x: position.x + deltaX, y: position.y + deltaY },
+          }),
+        ),
+      );
       return;
     }
     if (nodeResizeGesture?.pointerId === event.pointerId) {
-      const node = geometry.nodesById.get(nodeResizeGesture.nodeId);
+      const node = geometry.nodeById(nodeResizeGesture.nodeId);
       if (!node) {
         return;
       }
@@ -484,19 +468,16 @@ export function createCanvasGestures(
         (event.clientY - nodeResizeGesture.startY) /
         viewport.camera.zoom /
         viewport.remPx;
-      editing.resizeSizes = {
-        ...editing.resizeSizes,
-        [node.id]: {
-          width: Math.max(
-            MIN_NODE_WIDTH_REM,
-            nodeResizeGesture.startSize.width + deltaX,
-          ),
-          height: Math.max(
-            geometry.minimumNodeHeight(node),
-            nodeResizeGesture.startSize.height + deltaY,
-          ),
-        },
-      };
+      editing.previewResize(node.id, {
+        width: Math.max(
+          MIN_NODE_WIDTH_REM,
+          nodeResizeGesture.startSize.width + deltaX,
+        ),
+        height: Math.max(
+          geometry.minimumNodeHeight(node),
+          nodeResizeGesture.startSize.height + deltaY,
+        ),
+      });
       return;
     }
     if (connectionDraft?.pointerId === event.pointerId) {
@@ -506,7 +487,12 @@ export function createCanvasGestures(
       let bestNodeId: string | undefined = undefined;
       let bestSocketId: string | undefined = undefined;
 
-      for (const node of geometry.effectiveNodes) {
+      for (const node of geometry.queryNodes({
+        left: world.x / viewport.remPx - 4,
+        top: world.y / viewport.remPx - 4,
+        right: world.x / viewport.remPx + 4,
+        bottom: world.y / viewport.remPx + 4,
+      })) {
         if (node.id === connectionDraft.from.nodeId) continue;
 
         for (const socket of geometry.displayNodeSockets(node, "input")) {

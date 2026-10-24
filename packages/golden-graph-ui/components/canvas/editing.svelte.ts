@@ -12,25 +12,26 @@ import type {
 } from "../../types";
 
 interface EditingScene {
-  readonly nodes: readonly GraphNode[];
+  sourceNode(id: string): GraphNode | undefined;
   readonly selectedIds: ReadonlySet<string>;
   updateSelection(nodeId: string, additive: boolean): void;
   startNodeDrag(event: PointerEvent, node: GraphNode): void;
 }
 export function createCanvasEditing(props: CanvasProps, scene: EditingScene) {
-  let dragPositions = $state<Record<string, GraphNodePosition>>({});
+  // Immutable records avoid creating reactive subscriptions for every absent node key.
+  let dragPositions = $state.raw<Record<string, GraphNodePosition>>({});
 
-  let optimisticPositions = $state<Record<string, GraphNodePosition>>({});
+  let optimisticPositions = $state.raw<Record<string, GraphNodePosition>>({});
 
-  let resizeSizes = $state<Record<string, GraphNodeSize>>({});
+  let resizeSizes = $state.raw<Record<string, GraphNodeSize>>({});
 
-  let optimisticSizes = $state<Record<string, GraphNodeSize | null>>({});
+  let optimisticSizes = $state.raw<Record<string, GraphNodeSize | null>>({});
 
-  let optimisticLabels = $state<Record<string, string>>({});
+  let optimisticLabels = $state.raw<Record<string, string>>({});
 
-  let optimisticCollapsed = $state<Record<string, boolean>>({});
+  let optimisticCollapsed = $state.raw<Record<string, boolean>>({});
 
-  let optimisticEnabled = $state<Record<string, boolean>>({});
+  let optimisticEnabled = $state.raw<Record<string, boolean>>({});
 
   let renamingNodeId: string | null = $state(null);
 
@@ -49,17 +50,17 @@ export function createCanvasEditing(props: CanvasProps, scene: EditingScene) {
 
   $effect(() => {
     let next = optimisticPositions;
-    for (const node of scene.nodes) {
-      const optimistic = next[node.id];
+    for (const [nodeId, optimistic] of Object.entries(optimisticPositions)) {
+      const node = scene.sourceNode(nodeId);
       if (
-        optimistic &&
-        Math.abs(node.position.x - optimistic.x) < 0.0001 &&
-        Math.abs(node.position.y - optimistic.y) < 0.0001
+        !node ||
+        (Math.abs(node.position.x - optimistic.x) < 0.0001 &&
+          Math.abs(node.position.y - optimistic.y) < 0.0001)
       ) {
         if (next === optimisticPositions) {
           next = { ...optimisticPositions };
         }
-        delete next[node.id];
+        delete next[nodeId];
       }
     }
     if (next !== optimisticPositions) {
@@ -69,20 +70,21 @@ export function createCanvasEditing(props: CanvasProps, scene: EditingScene) {
 
   $effect(() => {
     let next = optimisticSizes;
-    for (const node of scene.nodes) {
-      const optimistic = next[node.id];
+    for (const [nodeId, optimistic] of Object.entries(optimisticSizes)) {
+      const node = scene.sourceNode(nodeId);
       if (
-        optimistic !== undefined &&
-        ((optimistic === null && node.size === undefined) ||
-          (optimistic !== null &&
-            node.size !== undefined &&
-            Math.abs(node.size.width - optimistic.width) < 0.0001 &&
-            Math.abs(node.size.height - optimistic.height) < 0.0001))
+        !node ||
+        (optimistic !== undefined &&
+          ((optimistic === null && node.size === undefined) ||
+            (optimistic !== null &&
+              node.size !== undefined &&
+              Math.abs(node.size.width - optimistic.width) < 0.0001 &&
+              Math.abs(node.size.height - optimistic.height) < 0.0001)))
       ) {
         if (next === optimisticSizes) {
           next = { ...optimisticSizes };
         }
-        delete next[node.id];
+        delete next[nodeId];
       }
     }
     if (next !== optimisticSizes) {
@@ -92,11 +94,9 @@ export function createCanvasEditing(props: CanvasProps, scene: EditingScene) {
 
   $effect(() => {
     let next = optimisticLabels;
-    const labelsById = new Map(
-      scene.nodes.map((node) => [node.id, node.label]),
-    );
     for (const [nodeId, label] of Object.entries(optimisticLabels)) {
-      if (labelsById.get(nodeId) === label || !labelsById.has(nodeId)) {
+      const node = scene.sourceNode(nodeId);
+      if (!node || node.label === label) {
         if (next === optimisticLabels) {
           next = { ...optimisticLabels };
         }
@@ -110,14 +110,9 @@ export function createCanvasEditing(props: CanvasProps, scene: EditingScene) {
 
   $effect(() => {
     let next = optimisticCollapsed;
-    const collapsedById = new Map(
-      scene.nodes.map((node) => [node.id, node.collapsed === true]),
-    );
     for (const [nodeId, collapsed] of Object.entries(optimisticCollapsed)) {
-      if (
-        collapsedById.get(nodeId) === collapsed ||
-        !collapsedById.has(nodeId)
-      ) {
+      const node = scene.sourceNode(nodeId);
+      if (!node || (node.collapsed === true) === collapsed) {
         if (next === optimisticCollapsed) {
           next = { ...optimisticCollapsed };
         }
@@ -131,11 +126,9 @@ export function createCanvasEditing(props: CanvasProps, scene: EditingScene) {
 
   $effect(() => {
     let next = optimisticEnabled;
-    const enabledById = new Map(
-      scene.nodes.map((node) => [node.id, node.enabled !== false]),
-    );
     for (const [nodeId, enabled] of Object.entries(optimisticEnabled)) {
-      if (enabledById.get(nodeId) === enabled || !enabledById.has(nodeId)) {
+      const node = scene.sourceNode(nodeId);
+      if (!node || (node.enabled !== false) === enabled) {
         if (next === optimisticEnabled) {
           next = { ...optimisticEnabled };
         }
@@ -359,7 +352,7 @@ export function createCanvasEditing(props: CanvasProps, scene: EditingScene) {
     if (!nodeId) {
       return;
     }
-    const node = scene.nodes.find((candidate) => candidate.id === nodeId);
+    const node = scene.sourceNode(nodeId);
     const label = renameDraft.trim();
     renamingNodeId = null;
     renameInput = null;
@@ -393,7 +386,23 @@ export function createCanvasEditing(props: CanvasProps, scene: EditingScene) {
     }
   };
 
+  const previewMoves = (moves: readonly GraphNodeMove[]): void => {
+    dragPositions = Object.fromEntries(
+      moves.map((move) => [move.nodeId, move.position]),
+    );
+  };
+  const previewResize = (nodeId: string, size: GraphNodeSize): void => {
+    resizeSizes = { [nodeId]: size };
+  };
+  const clearPreviews = (): void => {
+    dragPositions = {};
+    resizeSizes = {};
+  };
+
   return {
+    previewMoves,
+    previewResize,
+    clearPreviews,
     get dragPositions() {
       return dragPositions;
     },

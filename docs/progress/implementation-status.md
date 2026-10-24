@@ -5,11 +5,11 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-25 on `main`, based on delivered `2cf7c50a`. P10's spatial primitive
-is delivered and focused canvas decomposition is verified. Retained projection integration
-remains; no P10 checkpoint is complete yet. **C01-C12 are locally closed: 12/12 packages (100%).
+Last reconciled: 2026-10-25 on `main`, based on delivered `23bef838`. P10's independent revisions
+and retained geometry are verified: **one of three fixed checkpoints (33%)**; two remain.
+**C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
-Whole-plan scope coverage is 50%; P01-P09 are locally complete.
+Whole-plan scope coverage is 52%; P01-P09 are locally complete.
 Hardware/platform and product-scale
 qualification retain their later owners.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
@@ -23,13 +23,14 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 packages, not commit counts. Spatializer's admitted preparation, bounded publication, source/path
 fences, identity preservation and passive failure recovery are qualified under C12.
 
-**Whole plan: 50% complete.** P01-P09 are complete against their local acceptance criteria.
+**Whole plan: 52% complete.** P01-P09 are complete against their local acceptance criteria.
 P09 has all three checkpoints complete: stable storage/layout, indexed structural edits, and
-consumer/scale qualification. P10 is in progress with three fixed checkpoints; P11-P18 have not started.
+consumer/scale qualification. P10 has one of three fixed checkpoints complete; two remain.
+P11-P18 have not started.
 P00 baseline reconciliation is maintained separately.
 **9 of 18 implementation/qualification tasks are fully complete.**
 
-Overall progress is the equal-weight average of P01-P18: `(9 * 100 + 9 * 0) / 18`,
+Overall progress is the equal-weight average of P01-P18: `(9 * 100 + 33 + 8 * 0) / 18`,
 rounded to a whole percent. This measures scope coverage, not elapsed time, remaining effort, or
 product readiness. Task sizes differ substantially. P00 housekeeping and preserved pre-plan
 features do not inflate this percentage. Later product, platform and device acceptance remains open.
@@ -176,21 +177,21 @@ P09 has three fixed, equally weighted scope checkpoints derived from its accepta
 ### P10 completion checkpoints
 
 P10 has three fixed, equally weighted checkpoints derived from its acceptance criteria.
-**Zero of three are complete (0%).** Delivery batches do not add checkpoints.
+**One of three is complete (33%); two remain.** Delivery batches do not add checkpoints.
 
 | Checkpoint | Status | Acceptance |
 | --- | --- | --- |
-| Independent revisions and retained geometry | In progress | Separate topology, geometry, payload, activity and preview invalidation. Retain identity/spatial indexes and use transient drag overlays so local edits avoid full-document projection rebuilds. Mutable spatial operations and focused canvas ownership are implemented; retained projection integration remains. |
-| Scoped routing and correct culling | Not started | Invalidate incident/obstacle routes, retain bounded routing caches/work and interactive previews, and cull crossing edges by their paths/bounds even when both endpoints are offscreen. Preserve loops and changing-obstacle correctness. |
-| Mounted correctness and performance qualification | Not started | Exercise mounted drag, pan/zoom, frame selection, activity, crossing wires, loops and changing obstacles. Retain action/frame measurements against documented normal/stress targets; node counts or two animation frames alone do not prove this checkpoint. |
+| Independent revisions and retained geometry | Complete locally | UI-only revision planes, sequential deltas/recovery, retained identity/spatial/order state and sparse previews are integrated. Owning/consumer suites and 155 actual mounted preview frames at 1k/10k/20k/50k/100k establish one-entry work with no per-preview full materialization. Activity/preview preserve geometry/topology; [scope and evidence](p10-retained-presentation.md) retain the one-visible-node limit. |
+| Scoped routing and correct culling | In progress | Bound caches/curve previews are implemented. Incident/obstacle-scoped invalidation and path/bounds culling of crossing edges remain; routing still rebuilds full obstacles after preview completion. Preserve loops and changing-obstacle correctness. |
+| Mounted correctness and performance qualification | In progress | Sparse preview/activity, snippet, socket and navigation correctness plus narrow action/frame samples pass. Full mounted drag, pan/zoom, frame selection, crossing wires, loops and changing obstacles still need normal/stress qualification; narrow retained-state samples do not close this checkpoint. |
 
 ## Current handoff
 
-- **Active task: P10 generic canvas interaction (0%, zero of three fixed checkpoints).**
+- **Active task: P10 generic canvas interaction (33%, one of three fixed checkpoints).**
   Own rendering, geometry, routing and interaction mechanics in `packages/golden-graph-ui`;
-  preserve app-owned presentation adapters and backend mutation semantics. Start with independent
-  revision planes and retained projection/spatial state, then scoped routes/culling and mounted
-  qualification. Keep DOM/SVG unless measurements justify replacing the renderer.
+  preserve app-owned presentation adapters and backend mutation semantics. Independent revision
+  planes and retained projection/spatial state are qualified. Continue scoped routes/culling,
+  then broader mounted qualification. Keep DOM/SVG unless measurements justify replacing it.
 - **P09 is locally complete: three of three checkpoints (100%).** Public-API current/baseline
   measurements retain 1,240 samples at 1k/10k/50k/100k nodes. Alchemist/statechart consumers,
   exact rollback, grouped native drag/delete history and default/no-Serde graph contracts pass.
@@ -272,7 +273,7 @@ External qualification is separate from implementation. A historical pass is not
 | P07 DMX streaming           | 100%       | VERIFIED_LOCAL | PASSED six of six checkpoints  | 98 DMX cases, script API, default app, strict Clippy and formatting pass. Complete fake-time/native-loopback acceptance includes live priority, ordered metadata, termination/recovery and passive bounded actor service; P17/P18 retain platform/device qualification. |
 | P08 Formula backend intents | 100%       | VERIFIED_LOCAL | PASSED four of four checkpoints | Shared UI/script/HTTP/WS/headless operations, complete atomic fragments, backend connection policy and exact identity replies pass. Final native acceptance uses the default executable and isolated authenticated sessions; later product/platform qualification retains its owners. |
 | P09 Graph document          | 100%       | VERIFIED_LOCAL | PASSED three of three checkpoints | Stable storage, indexed structural edits and exact rollback pass. Current/pre-P09 harness preserves 1,240 fixed-delta samples; public default/no-Serde contracts, Alchemist/statechart consumers, native selection drag/delete undo/redo, strict checks and default build qualify the final checkpoint. |
-| P10 Canvas                  | 0%         | IN_PROGRESS    | Retained projection integration next | Mutable spatial operations and focused canvas ownership pass owning UI/mounted checks. Retained projection integration, independent revisions, routing/culling and mounted performance qualification remain. |
+| P10 Canvas                  | 33%        | IN_PROGRESS    | Scoped routes/culling next | First of three checkpoints complete: independent revisions and retained geometry, with owning tests and 155 mounted preview samples. Scoped routing/culling and broader mounted qualification remain. |
 | P11 Workspace UX            | 0%         | NOT_STARTED    | PENDING                        | Collection/keyboard gaps source-reviewed; native usability open                                                                                                                                                                                                         |
 | P12 Boundaries/gates        | 0%         | NOT_STARTED    | PENDING                        | App policy leak, omitted graph tests, oversized files, unsafe conversions; recurring incremental native-link artifact gap                                                                                                                                               |
 | P13 Formula execution       | 0%         | NOT_STARTED    | PENDING                        | Historical profiles retained; production parallelism not mandated                                                                                                                                                                                                       |
@@ -9801,3 +9802,62 @@ the mounted interaction/performance checkpoint.
 **P10 remains 0%, zero of three fixed checkpoints; whole-plan coverage stays 50%, nine of eighteen
 tasks complete.** No new checkpoint or delivery-batch denominator was added. Keep the full
 P00-P18 goal active after committing/pushing this verified decomposition milestone.
+
+### P10 independent revisions and retained geometry
+
+Previous goal turn: **progress**. Focused canvas ownership was committed/pushed as `23bef838`;
+the checkout was clean on resume. This continuation integrates retained state into the actual
+canvas rather than adding another disconnected primitive.
+
+Golden now owns `GraphPresentationAdapter`: immutable UI snapshots, sequential deltas, recovery
+snapshots and independent topology/geometry/payload/activity/preview revisions. Generated Rust
+wire DTOs are unchanged. Equivalent allocations retain document identity. Input-array comparison
+is still linear when a producer replaces an array; only changed records reach the canvas.
+The app's generic adapter and duplicate generic tests are removed. Alchemist/Spatializer consume
+the public Golden adapter; statechart keeps its domain vocabulary boundary and delegates
+invalidation. Alchemist supplies the app-owned preview-map token. Spatializer receives only a
+mechanical import/constructor migration; its pre-existing large panel decomposition remains P12.
+
+The mounted canvas retains source/effective identity maps, spatial membership and authored query
+order. Sparse move/resize previews update affected entries. Activity/payload replace values while
+preserving cells; preview tokens preserve geometry and topology. Missed deltas recover linearly
+from the complete snapshot, and replacement sources reset retained state. Selection and socket
+snapping query spatial state; Frame Selection looks up selected identities. Pending edit
+acknowledgement scans pending records rather than rebuilding full-node maps. Home intentionally
+visits the complete document.
+
+The first mounted timings exposed hidden Svelte proxy work despite constant projection counters.
+A headless CPU profile identified absent-key subscriptions accumulated during initial projection.
+Immutable overlay/expansion records now use `$state.raw`, fixing the state owner. Final mounted
+samples retain **155 measured frames** (three warmups plus 31 measured per tier) at
+**1k/10k/20k/50k/100k nodes**, each with a chain of N-1 edges and **one actual mounted node/edge**.
+Every measured preview applies zero source records, one projected/measured/spatially updated
+record, and zero full-node materializations/resets. Actual DOM position/layout is checked.
+Activity and preview-only probes change only their respective revision planes and perform no
+geometry/spatial update. Resize and cancellation preserve the expected rendered/source geometry.
+
+Final preview DOM/layout flush p95 is **0.8 / 0.7 / 0.8 / 0.6 / 0.6ms** across those tiers;
+animation callback interval p95 is **4.3ms** throughout on the recorded local machine. This is
+one sparse visible scene, not dense-scene, native-input, compositor-paint or composed-workbench
+qualification. Activity has one sample per tier and retains the linear source-array classifier.
+See [scope/reproduction](p10-retained-presentation.md) and
+[all raw samples/source hashes](evidence/p10-retained-preview-2026-10-25.json).
+
+Owning gates pass **34 Graph UI**, **115 app UI**, **61 Golden UI** and **27 audio UI** cases
+(**237 total**), Svelte **zero errors / zero warnings**, and the expanded mounted test on headless
+Edge **156.0.4314.42**. It updates data and calls component methods without synthesizing input.
+Root/Core Cargo formatting and focused Prettier checks pass. The final bundled default build
+passes (**3m26s**, frontend rebuilt), SHA-256
+`80ec04deabd37a6249b729e32b3fe53462e35c0b067a0ed8541da493fa509baa`.
+Final diff/source-hash checks and remote reconciliation complete the delivery gates. No owned
+validation process remains running.
+
+Remaining P10 scope is fixed: incident/obstacle-scoped route invalidation and crossing-edge
+culling, followed by broader mounted action/frame qualification. Route caching is capped at
+1,024 entries and previews use cheap curves, but routing still rebuilds the full obstacle set
+after preview completion and globally invalidates its geometry cache. These remain the second
+checkpoint's work; the retained-state samples do not close the third checkpoint.
+
+**P10 is 33%, one of three fixed checkpoints complete; two remain. Whole-plan scope coverage is
+52%, with nine of eighteen tasks fully complete.** Commit/push this verified milestone on `main`,
+then continue the routing/culling checkpoint. Keep the full P00-P18 goal active; P03 remains closed.

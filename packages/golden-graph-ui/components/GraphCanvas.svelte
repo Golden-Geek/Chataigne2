@@ -155,6 +155,9 @@
 		get selectedIds() {
 			return gestures.selectedIds;
 		},
+		nodeById(id) {
+			return geometry.nodeById(id);
+		},
 		nodeWidth(node) {
 			return geometry.nodeWidth(node);
 		},
@@ -163,8 +166,8 @@
 		}
 	});
 	const editing: CanvasEditing = createCanvasEditing(canvasProps, {
-		get nodes() {
-			return geometry.nodes;
+		sourceNode(id) {
+			return geometry.sourceNode(id);
 		},
 		get selectedIds() {
 			return gestures.selectedIds;
@@ -209,6 +212,10 @@
 	export const focus = viewport.focus;
 	export const clientToWorld = viewport.clientToWorld;
 	export const viewportCenter = viewport.viewportCenter;
+	export const previewNodeMoves = editing.previewMoves;
+	export const previewNodeResize = editing.previewResize;
+	export const clearNodePreviews = editing.clearPreviews;
+	export const presentationWork = geometry.presentationWork;
 	let nodes = $derived(geometry.nodes);
 	let effectiveMaxZoom = $derived(viewport.effectiveMaxZoom);
 	let effectiveMinZoom = $derived(viewport.effectiveMinZoom);
@@ -222,7 +229,7 @@
 	let selectionGesture = $derived(gestures.selectionGesture);
 	let connectionDraft = $derived(gestures.connectionDraft);
 	let selectedEdgeIdSet = $derived(gestures.selectedEdgeIdSet);
-	let effectiveNodes = $derived(geometry.effectiveNodes);
+	let nodeCount = $derived(geometry.nodeCount);
 	let checkerSizePx = $derived(viewport.checkerSizePx);
 	let snappedCameraX = $derived(viewport.snappedCameraX);
 	let snappedCameraY = $derived(viewport.snappedCameraY);
@@ -262,7 +269,7 @@
 	class="graph-canvas"
 	data-socket-labels={socketLabels}
 	data-local-context-menu={onBackgroundContextMenu ? '' : undefined}
-	data-node-count={effectiveNodes.length}
+	data-node-count={nodeCount}
 	data-visible-node-count={visibleNodes.length}
 	role="application"
 	aria-label="Node graph"

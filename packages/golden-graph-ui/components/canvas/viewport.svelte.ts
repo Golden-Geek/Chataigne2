@@ -26,6 +26,7 @@ import {
 interface ViewportScene {
   readonly effectiveNodes: GraphNode[];
   readonly selectedIds: ReadonlySet<string>;
+  nodeById(id: string): GraphNode | undefined;
   nodeWidth(node: GraphNode): number;
   nodeHeight(node: GraphNode): number;
 }
@@ -233,13 +234,11 @@ export function createCanvasViewport(props: CanvasProps, scene: ViewportScene) {
     );
 
   const frameSelection = (): boolean => {
-    const selected = scene.effectiveNodes.filter((node) =>
-      scene.selectedIds.has(node.id),
-    );
-    if (selected.length > 0 || scene.effectiveNodes.length > 0) {
-      return frameNodes(selected.length > 0 ? selected : scene.effectiveNodes);
-    }
-    return frameBounds(props.worldBounds ?? null);
+    const selected = [...scene.selectedIds].flatMap((id) => {
+      const node = scene.nodeById(id);
+      return node ? [node] : [];
+    });
+    return selected.length > 0 ? frameNodes(selected) : home();
   };
 
   const home = (): boolean =>

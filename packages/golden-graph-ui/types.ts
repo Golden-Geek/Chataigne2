@@ -1,5 +1,3 @@
-import type { GraphRevision } from "./generated/GraphRevision";
-
 export type { GraphRevision } from "./generated/GraphRevision";
 export type { GraphChangeSet } from "./generated/GraphChangeSet";
 export type { GraphDelta } from "./generated/GraphDelta";
@@ -100,9 +98,29 @@ export interface GraphEdge {
   invalid?: boolean;
 }
 
-/** A domain-adapted graph view keyed by the Rust-owned graph revision planes. */
+/** Canvas-only invalidation; independent of the Rust-owned wire revision DTO. */
+export interface GraphPresentationRevision {
+  sequence: number;
+  topology: number;
+  geometry: number;
+  payload: number;
+  activity: number;
+  preview: number;
+}
+
+export interface GraphPresentationChanges {
+  fromSequence: number;
+  updatedNodes: readonly GraphNode[];
+  removedNodeIds: readonly string[];
+  geometryNodeIds: readonly string[];
+  nodeOrder: readonly string[] | null;
+}
+
+/** Immutable UI presentation with a sequential delta and complete recovery snapshot. */
 export interface GraphPresentationDocument {
-  revision: GraphRevision;
+  source: object;
+  revision: GraphPresentationRevision;
+  changes: GraphPresentationChanges;
   nodes: readonly GraphNode[];
   edges: readonly GraphEdge[];
 }

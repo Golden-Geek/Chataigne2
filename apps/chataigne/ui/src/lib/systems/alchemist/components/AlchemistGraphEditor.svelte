@@ -2,6 +2,7 @@
 	import { type Snippet } from 'svelte';
 	import {
 		GraphCanvas,
+		GraphPresentationAdapter,
 		type GraphCamera,
 		type GraphConnectionRequest,
 		type GraphNode,
@@ -15,7 +16,6 @@
 	import type { NodeId, UiCreatableUserItem, UiNodeDto } from 'golden_ui';
 	import { openNodeContextMenu } from 'golden_ui/store/node-context-menu.svelte';
 	import lockIcon from '#lib/assets/icons/lock.svg';
-	import { GraphDocumentAdapter } from '../../../graph/graphDocumentAdapter';
 	import { canConnectGraphConnection, toGraphEdges, toGraphNodes } from '../alchemistGraph';
 	import type { FormulaOutputPreviewChip } from '../preview/formulaOutputPreviewStore.svelte';
 	import ANodeSocketDefaultEditor from './ANodeSocketDefaultEditor.svelte';
@@ -84,8 +84,8 @@
 		)
 	);
 	let edges = $derived(toGraphEdges(formula, nodesById, activeSocketRefs));
-	const graphDocumentAdapter = new GraphDocumentAdapter();
-	let graphDocument = $derived(graphDocumentAdapter.update(nodes, edges));
+	const graphDocumentAdapter = new GraphPresentationAdapter();
+	let graphDocument = $derived(graphDocumentAdapter.update(nodes, edges, outputPreviews));
 	let graphCanvas: {
 		clientToWorld: (clientX: number, clientY: number) => GraphNodePosition;
 		frameSelection: () => boolean;

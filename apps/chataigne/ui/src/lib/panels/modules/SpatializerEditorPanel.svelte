@@ -4,12 +4,12 @@
 	import Slider from 'golden_ui/components/common/Slider.svelte';
 	import {
 		GraphCanvas,
+		GraphPresentationAdapter,
 		type GraphCamera,
 		type GraphNodePosition,
 		type GraphWorldBounds,
 		type GraphWorldContentContext
 	} from 'golden_graph_ui';
-	import { GraphDocumentAdapter } from '../../graph/graphDocumentAdapter';
 	import type {
 		NodeId,
 		PanelProps,
@@ -220,7 +220,7 @@
 		home: () => boolean;
 		focus: () => void;
 	} | null = $state(null);
-	const graphDocument = new GraphDocumentAdapter().update([], []);
+	const graphDocument = new GraphPresentationAdapter().update([], []);
 
 	let activeDrag = $state<DragGesture | null>(null);
 	let positionPreviews = $state<Record<string, Point2>>({});

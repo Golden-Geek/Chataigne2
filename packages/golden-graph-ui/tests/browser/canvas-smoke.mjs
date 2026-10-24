@@ -4,6 +4,7 @@ import { chromium } from "playwright-core";
 import { createServer } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { verifyCanvasPresentation } from "./canvas-presentation.mjs";
+import { verifyCanvasRetention } from "./canvas-retention.mjs";
 
 const fixtureRoot = fileURLToPath(new URL("./fixture/", import.meta.url));
 const repositoryRoot = fileURLToPath(new URL("../../../../", import.meta.url));
@@ -79,13 +80,15 @@ try {
   await expectVisible(1, []);
   await setNodes([]);
   await expectVisible(0, []);
+  const retention = await verifyCanvasRetention(page);
   await verifyCanvasPresentation(page);
   assert.deepEqual(errors, []);
   console.log(
     JSON.stringify({
-      test: "mounted canvas spatial queries, presentation and navigation",
+      test: "mounted canvas spatial queries, retained previews, presentation and navigation",
       passed: true,
       browser: await browser.version(),
+      retention,
     }),
   );
 } finally {
