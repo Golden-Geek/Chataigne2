@@ -9,16 +9,34 @@ const RECEIVE_BUDGET: Duration = Duration::from_millis(2);
 const RECEIVE_WAIT: Duration = Duration::from_millis(5);
 
 pub(super) trait Endpoint: Send + 'static {
-    fn send(&mut self, frame: &DmxFrame, destination: Option<std::net::SocketAddr>) -> Result<(), String>;
+    fn send(&mut self, frame: &DmxFrame) -> Result<(), String>;
     fn receive(&mut self) -> Result<ReceivePoll, String>;
+    fn command_at(&self) -> Option<Instant> {
+        None
+    }
+    fn deadline(&self) -> Option<Instant> {
+        None
+    }
+    fn service(&mut self) -> Result<(), String> {
+        Ok(())
+    }
     fn shutdown(&mut self) {}
 }
 impl Endpoint for native::WorkerEndpoint {
-    fn send(&mut self, frame: &DmxFrame, destination: Option<std::net::SocketAddr>) -> Result<(), String> {
-        self.send(frame, destination)
+    fn send(&mut self, frame: &DmxFrame) -> Result<(), String> {
+        self.send(frame)
     }
     fn receive(&mut self) -> Result<ReceivePoll, String> {
         self.receive()
+    }
+    fn command_at(&self) -> Option<Instant> {
+        Some(self.command_at())
+    }
+    fn deadline(&self) -> Option<Instant> {
+        self.deadline()
+    }
+    fn service(&mut self) -> Result<(), String> {
+        self.service()
     }
     fn shutdown(&mut self) {
         self.shutdown();
@@ -65,27 +83,29 @@ pub(super) fn run<E: Endpoint>(
     if !publish(&ctx, DmxWorkerEvent::Ready) {
         return;
     }
-    let mut pending = None;
+    let mut commands = std::collections::VecDeque::<Output>::with_capacity(TURN);
     let mut pressured = false;
     let mut invalid_reported = false;
     while !ctx.cancellation().is_cancelled() {
-        let mut commands = Vec::with_capacity(TURN);
-        if let Some(command) = pending.take() {
-            commands.push(command);
-        }
         let remaining = TURN - commands.len();
         if remaining != 0 {
-            ctx.drain_commands(&mut commands, NonZeroUsize::new(remaining).unwrap());
+            let mut admitted = Vec::with_capacity(remaining);
+            ctx.drain_commands(&mut admitted, NonZeroUsize::new(remaining).unwrap());
+            commands.extend(admitted);
         }
-        for command in commands {
+        while let Some(command) = commands.front() {
             if ctx.cancellation().is_cancelled() {
                 return;
             }
             if !command.is_live() {
-                command.reject();
+                commands.pop_front().unwrap().reject();
                 continue;
             }
-            let result = session.0.send(&command.frame, config.destination);
+            if session.0.command_at().is_some_and(|deadline| Instant::now() < deadline) {
+                break;
+            }
+            let command = commands.pop_front().unwrap();
+            let result = session.0.send(&command.frame);
             let error = result.as_ref().err().cloned();
             command.complete(result);
             if let Some(error) = error {
@@ -94,6 +114,10 @@ pub(super) fn run<E: Endpoint>(
             }
         }
         if ctx.cancellation().is_cancelled() {
+            return;
+        }
+        if let Err(error) = session.0.service() {
+            publish(&ctx, DmxWorkerEvent::Error(diagnostic(error)));
             return;
         }
         let mut receive_may_have_more = false;
@@ -151,11 +175,27 @@ pub(super) fn run<E: Endpoint>(
         }
         let wait = if receive_may_have_more {
             Duration::ZERO
+        } else if !config.receive_enabled {
+            Duration::from_secs(60)
         } else {
             RECEIVE_WAIT
         };
-        match ctx.receive_until(Instant::now() + wait) {
-            WorkerReceive::Command(command) => pending = Some(command),
+        let mut deadline = Instant::now() + wait;
+        if let Some(output_deadline) = session.0.deadline() {
+            deadline = deadline.min(output_deadline);
+        }
+        if !commands.is_empty() {
+            if let Some(command_at) = session.0.command_at() {
+                deadline = deadline.min(command_at);
+            }
+            // Keep this bounded FIFO prefix and its original receipt/source leases intact.
+            // Do not dequeue more work merely to wait for the protocol's send clock.
+            ctx.cancellation()
+                .wait(deadline.saturating_duration_since(Instant::now()));
+            continue;
+        }
+        match ctx.receive_until(deadline) {
+            WorkerReceive::Command(command) => commands.push_back(command),
             WorkerReceive::Deadline => {}
             WorkerReceive::Disconnected => break,
         }

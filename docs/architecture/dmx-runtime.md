@@ -2,7 +2,12 @@
 
 Chataigne owns Art-Net and sACN modules under `apps/chataigne/src/module/modules/protocol/dmx`.
 `golden_io` supplies bounded workers, lifetime admission, retained payloads and notifications.
-The existing `artnet_protocol` and `sacn` crates own wire encoding and protocol source behavior.
+`artnet_protocol` 0.4.4 owns Art-Net wire encoding. `x39-sacn` 0.2.1 (imported as `sacn`)
+owns the sACN codec and clocked source state machine. Its std-only protocol core is used without
+the Tokio adapter; no extra socket owner or runtime is introduced.
+Versioned assumptions are exercised against the actual imported core and decoded loopback wire
+packets. References: [x39-sacn 0.2.1](https://crates.io/crates/x39-sacn/0.2.1) and the
+[Art-Net 4 specification, revision 1.4dp](https://art-net.org.uk/downloads/art-net.pdf).
 The [execution ledger](../progress/implementation-status.md) owns acceptance and remaining work.
 
 ## Native lifetime
@@ -11,8 +16,9 @@ The [execution ledger](../progress/implementation-status.md) owns acceptance and
 send/receive calls, stream termination and library destructors execute on the native worker.
 `transport/worker.rs` services at most eight output commands, then at most 64 input datagrams or
 two milliseconds of receive work per turn. Exhausting a receive budget returns immediately to
-command/cancellation service; an empty socket uses the five-millisecond native idle wait.
+command/cancellation service; an empty receiving socket uses the five-millisecond native idle wait.
 Discarded traffic is distinct from an empty socket and cannot add an idle wait per datagram.
+Output-only workers wait for commands or the next stream deadline, without a recurring receive poll.
 
 Native endpoints reuse one 64 KiB whole-UDP buffer, then check protocol size limits before
 decoding: 1,024 bytes for Art-Net and 1,144 for sACN. This avoids treating Windows UDP truncation
@@ -31,9 +37,35 @@ The output mailbox admits 64 frames / 1 MiB. Frame admission validates both leng
 512 slots, protocol universe range, priority and the transport's single configured universe.
 The valid sACN priority range is 0–200; zero is accepted consistently by frame validation,
 backend preparation and parameter metadata.
-This also bounds sACN registered-universe bookkeeping. Separate global input/output pools admit
+The sACN source uses the crate's fixed-capacity storage policy: one transmit universe, its derived
+bounded pending/transmission collections, and no receiver or discovery-catalog storage. Separate global input/output pools admit
 512 records / 8 MiB each, charging 16 KiB per record for frame, conversion and queued publication
 storage. Library packet buffers and fixed endpoint state have separate bounds; these are not RSS claims.
+
+## Clocked output
+
+`transport/output.rs` owns one universe's last look, sequence and caller-supplied elapsed time.
+`transport/native.rs` supplies monotonic time and UDP submission. Art-Net uses non-zero sequence
+numbers with 255-to-1 wrap, a 23 ms minimum explicit-send interval, and a 900 ms static refresh.
+The sACN core owns its three-packet pre-suppression burst, 900 ms keepalive,
+sequence wrap, discovery and three-packet termination. A source CID comes from the app node's
+persistent UUID, so reopening the endpoint keeps its identity. An endpoint opens without a look;
+old admitted commands are never replayed automatically.
+The caller applies a conservative 23 ms floor to all universe data packets, including sACN's
+scheduled bursts and termination; the core's 22 ms quantum remains an earliest poll hint.
+Returned deadlines include this floor so a suppressed timer cannot spin on a past deadline.
+
+The worker retains at most eight ordered commands outside its bounded mailbox while waiting
+for the send clock. Each keeps the original payload/source lease and receipt; explicit identical
+frames and blackout are submitted separately. Input/cancellation service continues between due
+sends. Automatic refresh retains one already-submitted look independently of command receipts.
+Only actual local datagram submission completes a receipt as Sent.
+
+sACN unicast uses the configured destination for both ordinary data and stream termination;
+discovery packets are skipped for a unicast-only endpoint. Multicast output uses the crate's
+IPv4/IPv6 universe address helpers. Shutdown drains termination on the retiring native worker,
+with a 200 ms ceiling; it never waits on the engine. Submission failures retire through the
+existing explicit recovery path. Full failure/reconnect and destination qualification remains P07.
 
 ## Outcomes and received state
 
@@ -96,7 +128,8 @@ preparation/application; the native worker checks producer/session lifetime agai
 A retired source reports **not sent**, separately from an unconfirmed native failure. Neither is
 automatically replayed on reconnect.
 
-C05 qualification is tracked in the execution ledger. P07 separately owns periodic refresh, sequencing, source
-policy, synchronization and stream termination correctness. In particular, sacn 0.11 terminates via
-multicast even after unicast sends; loopback tests suppress multicast delivery through its public
-socket options while still exercising native destruction. They do not qualify termination semantics.
+C05 qualification is tracked in the execution ledger. P07's remaining work includes receive
+source/priority/sequence policy, synchronized input, typed backend frame publication and complete
+termination/recovery qualification. Raw sACN receive still discards synchronized and terminated
+packets; source arbitration has not yet been integrated. Clocked output evidence does not close
+those remaining contracts. The replaced sacn 0.11 multicast-only termination behavior is removed.

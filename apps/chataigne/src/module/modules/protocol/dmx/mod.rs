@@ -157,6 +157,7 @@ impl DmxModuleBase {
         let destination = parse_destination(self.destination.get_ref().as_str(), listen_port, self.protocol)?;
         Ok(DmxTransportConfig {
             protocol: self.protocol,
+            source_id: *self.node_data().meta.uuid.0.as_bytes(),
             bind_ip,
             listen_port,
             receive_enabled: self.receive_enabled.get(),

@@ -65,6 +65,9 @@ struct Control {
     continuous: Arc<AtomicBool>,
     ignored: Arc<AtomicUsize>,
     invalid: Arc<AtomicBool>,
+    paced: Arc<AtomicBool>,
+    command_at: Arc<Mutex<Option<Instant>>>,
+    sent_values: Arc<Mutex<Vec<u8>>>,
     frames: Arc<Mutex<std::collections::VecDeque<DmxFrame>>>,
 }
 struct Fake {
@@ -73,13 +76,17 @@ struct Fake {
     cleanup: Option<Gate>,
 }
 impl worker::Endpoint for Fake {
-    fn send(&mut self, _: &DmxFrame, _: Option<SocketAddr>) -> Result<(), String> {
+    fn send(&mut self, frame: &DmxFrame) -> Result<(), String> {
         assert!(!self.control.panic.load(Ordering::Acquire), "injected DMX send panic");
         if let Some((entered, gate)) = self.send_gate.take() {
             let _ = entered.send(());
             let _ = gate.recv();
         }
         self.control.sent.fetch_add(1, Ordering::AcqRel);
+        self.control.sent_values.lock().unwrap().push(frame.slots[0]);
+        if self.control.paced.load(Ordering::Acquire) {
+            *self.control.command_at.lock().unwrap() = Some(Instant::now() + Duration::from_millis(30));
+        }
         if self.control.fail.load(Ordering::Acquire) {
             return Err("injected DMX send failure".into());
         }
@@ -110,6 +117,9 @@ impl worker::Endpoint for Fake {
             Ok(frame.map_or(ReceivePoll::Empty, ReceivePoll::Frame))
         }
     }
+    fn command_at(&self) -> Option<Instant> {
+        *self.control.command_at.lock().unwrap()
+    }
     fn shutdown(&mut self) {
         if let Some((entered, gate)) = self.cleanup.take() {
             let _ = entered.send(());
@@ -120,6 +130,7 @@ impl worker::Endpoint for Fake {
 fn config() -> DmxTransportConfig {
     DmxTransportConfig {
         protocol: DmxProtocol::ArtNet,
+        source_id: [1; 16],
         bind_ip: IpAddr::V4(Ipv4Addr::LOCALHOST),
         listen_port: 1,
         receive_enabled: true,
@@ -129,6 +140,56 @@ fn config() -> DmxTransportConfig {
 }
 fn slots() -> RetirementPool {
     RetirementPool::new(NonZeroUsize::MIN)
+}
+
+#[test]
+fn paced_output_keeps_fifo_receipts_while_continuous_input_makes_progress() {
+    let lifetimes = slots();
+    let control = Control::default();
+    control.paced.store(true, Ordering::Release);
+    control.continuous.store(true, Ordering::Release);
+    let mut handle = fake(control.clone(), &lifetimes, pool(32), pool(32));
+    let started = Instant::now();
+    let receipts: Vec<_> = (0..10)
+        .map(|value| handle.send(DmxFrame::new(1, vec![value]).unwrap()).unwrap())
+        .collect();
+    until(|| receipts.iter().all(|receipt| receipt.status() == SendStatus::Sent));
+    assert!(started.elapsed() >= Duration::from_millis(270));
+    assert_eq!(*control.sent_values.lock().unwrap(), (0..10).collect::<Vec<_>>());
+    assert!(control.reads.load(Ordering::Acquire) > 10);
+    assert!(handle.has_frame());
+    handle.stop();
+    assert!(lifetimes.wait_for_idle(Duration::from_secs(1)));
+}
+
+#[test]
+fn a_clock_wait_does_not_acknowledge_or_lose_retained_commands_and_is_cancellable() {
+    let lifetimes = slots();
+    let control = Control::default();
+    *control.command_at.lock().unwrap() = Some(Instant::now() + Duration::from_secs(60));
+    control.continuous.store(true, Ordering::Release);
+    let output = pool(8);
+    let mut handle = fake(control.clone(), &lifetimes, output.clone(), pool(32));
+    let receipts: Vec<_> = (0..8)
+        .map(|value| handle.send(DmxFrame::new(1, vec![value]).unwrap()).unwrap())
+        .collect();
+    until(|| control.reads.load(Ordering::Acquire) >= 64);
+    assert!(receipts.iter().all(|receipt| receipt.status() == SendStatus::Pending));
+    assert_eq!(control.sent.load(Ordering::Acquire), 0);
+    assert!(
+        output.try_reserve(1).is_err(),
+        "clock waiting must keep original payload admission"
+    );
+    let stopped = Instant::now();
+    handle.stop();
+    assert!(lifetimes.wait_for_idle(Duration::from_secs(1)));
+    assert!(stopped.elapsed() < Duration::from_secs(1));
+    assert!(
+        receipts
+            .iter()
+            .all(|receipt| receipt.status() == SendStatus::FailedUnconfirmed)
+    );
+    assert!(output.wait_for_idle(Duration::from_secs(1)));
 }
 
 #[test]

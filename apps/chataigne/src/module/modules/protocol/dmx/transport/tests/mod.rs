@@ -8,6 +8,7 @@ use artnet_protocol::{ArtCommand, Output};
 
 use super::*;
 mod lifecycle;
+mod stream;
 fn until(mut ready: impl FnMut() -> bool) {
     let deadline = Instant::now() + Duration::from_secs(3);
     while !ready() {
@@ -29,6 +30,7 @@ fn artnet_worker_sends_a_protocol_encoded_frame() {
     let destination = receiver.local_addr().unwrap();
     let mut transport = spawn(DmxTransportConfig {
         protocol: DmxProtocol::ArtNet,
+        source_id: [1; 16],
         bind_ip: IpAddr::V4(Ipv4Addr::LOCALHOST),
         listen_port: 6454,
         receive_enabled: false,
@@ -46,7 +48,10 @@ fn artnet_worker_sends_a_protocol_encoded_frame() {
         panic!("expected ArtDMX output");
     };
     assert_eq!(u16::from(output.port_address), 1);
-    assert_eq!(output.sequence, 7);
+    assert_eq!(
+        output.sequence, 1,
+        "the stream owns sequence order, independently of command metadata"
+    );
     assert_eq!(&output.data.as_ref()[..3], &[1, 2, 3]);
     transport.stop();
 }
@@ -59,6 +64,7 @@ fn artnet_worker_receives_latest_frame_without_an_unbounded_queue() {
     drop(probe);
     let mut transport = spawn(DmxTransportConfig {
         protocol: DmxProtocol::ArtNet,
+        source_id: [1; 16],
         bind_ip: IpAddr::V4(Ipv4Addr::LOCALHOST),
         listen_port,
         receive_enabled: true,
@@ -120,6 +126,7 @@ fn sacn_worker_round_trips_a_unicast_frame() {
     drop(probe);
     let mut transport = spawn(DmxTransportConfig {
         protocol: DmxProtocol::Sacn,
+        source_id: [1; 16],
         bind_ip: IpAddr::V4(Ipv4Addr::LOCALHOST),
         listen_port,
         receive_enabled: true,
@@ -162,6 +169,7 @@ fn output_queue_reports_overload_instead_of_growing_without_bound() {
     let destination = receiver.local_addr().unwrap();
     let transport = spawn(DmxTransportConfig {
         protocol: DmxProtocol::ArtNet,
+        source_id: [1; 16],
         bind_ip: IpAddr::V4(Ipv4Addr::LOCALHOST),
         listen_port: 6454,
         receive_enabled: false,

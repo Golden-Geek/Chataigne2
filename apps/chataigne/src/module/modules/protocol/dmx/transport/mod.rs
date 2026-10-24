@@ -10,6 +10,7 @@ use std::{
     },
 };
 mod native;
+mod output;
 mod receipts;
 #[cfg(test)]
 mod tests;

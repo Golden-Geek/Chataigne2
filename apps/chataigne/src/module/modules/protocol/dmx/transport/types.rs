@@ -23,7 +23,7 @@ impl DmxProtocol {
     pub(crate) const fn default_port(self) -> u16 {
         match self {
             Self::ArtNet => 6454,
-            Self::Sacn => sacn::packet::ACN_SDT_MULTICAST_PORT,
+            Self::Sacn => sacn::proto::SACN_PORT,
         }
     }
     pub(crate) const fn maximum_universe(self) -> u16 {
@@ -37,6 +37,7 @@ impl DmxProtocol {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct DmxTransportConfig {
     pub protocol: DmxProtocol,
+    pub source_id: [u8; 16],
     pub bind_ip: IpAddr,
     pub listen_port: u16,
     pub receive_enabled: bool,
