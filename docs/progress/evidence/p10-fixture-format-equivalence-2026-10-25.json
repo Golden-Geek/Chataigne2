@@ -1,0 +1,14 @@
+{
+  "path": "packages/golden-graph-ui/tests/browser/fixture/qualification-scenes.ts",
+  "scope": "Only post-qualification source change: standard Prettier formatting. TypeScript parsed token trees excluding trivia are identical. Exact original bytes recovered from the diagnostic source map match the qualification source hash.",
+  "before": {
+    "sha256": "e3480fc0976ea8c88072cf06e76ad55b511e1d61a3af80e18bf1224d922af033",
+    "syntaxSha256": "807512c300c52b91e7aea196b556d8ae528ccf9abec21c9dcf7cc0a2c1366368",
+    "tokens": 332
+  },
+  "after": {
+    "sha256": "5753344c094363fdd865081e977ad4850b66ae299e1aa52b51ecdc883eec23c7",
+    "syntaxSha256": "807512c300c52b91e7aea196b556d8ae528ccf9abec21c9dcf7cc0a2c1366368",
+    "tokens": 332
+  }
+}

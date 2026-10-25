@@ -16,6 +16,19 @@ const edge = (from = "node", to = "other"): GraphEdge => ({
 });
 
 describe("presentation revision planes", () => {
+  it("retains equivalent wire identities while publishing a changed peer", () => {
+    const adapter = new GraphPresentationAdapter();
+    const nodes = [node(), node("other")];
+    const first = adapter.update(nodes, [edge(), { ...edge(), id: "peer" }]);
+    const changed = adapter.update(nodes, [
+      { ...edge() },
+      { ...edge(), id: "peer", active: true },
+    ]);
+    expect(changed.edges[0]).toBe(first.edges[0]);
+    expect(changed.edges[1]).not.toBe(first.edges[1]);
+    expect(changed.revision.activity).toBe(first.revision.activity + 1);
+    expect(changed.revision.geometry).toBe(first.revision.geometry);
+  });
   it("retains a document across equivalent allocations", () => {
     const adapter = new GraphPresentationAdapter();
     const nodes = [node()];

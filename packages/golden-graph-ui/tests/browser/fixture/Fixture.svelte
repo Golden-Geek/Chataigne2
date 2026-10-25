@@ -3,7 +3,15 @@
 	import { GraphPresentationAdapter } from '../../../presentation-document';
 	import type { ComponentProps } from 'svelte';
 	import { tick } from 'svelte';
-	import type { GraphEdge, GraphNode, GraphPresentationDocument } from '../../../types';
+	import type {
+		GraphEdge,
+		GraphNode,
+		GraphPresentationDocument,
+		GraphNodeMove,
+		GraphNodeResize
+	} from '../../../types';
+	import { createQualification } from './qualification';
+	import { qualifyDense } from './qualification-dense';
 
 	type SceneOptions = Pick<
 		ComponentProps<typeof GraphCanvas>,
@@ -29,7 +37,12 @@
 	export async function settleRouting() {
 		for (let frame = 0; frame < 1024; frame += 1) {
 			await tick();
-			if (routingWork().pendingRoutes === 0) return routingWork();
+			if (
+				routingWork().pendingRoutes === 0 &&
+				canvas!.mountingWork().nodes === 0 &&
+				canvas!.mountingWork().edges === 0
+			)
+				return routingWork();
 			await new Promise<number>(requestAnimationFrame);
 		}
 		throw new Error('Routing queue did not settle.');
@@ -37,6 +50,44 @@
 
 	const adapter = new GraphPresentationAdapter();
 	let graph = $state.raw<GraphPresentationDocument>(adapter.update([], []));
+	const acknowledgeMoves = async (moves: GraphNodeMove[]) => {
+		const positions = new Map(moves.map((move) => [move.nodeId, move.position]));
+		graph = adapter.update(
+			graph.nodes.map((node) =>
+				positions.has(node.id) ? { ...node, position: positions.get(node.id)! } : node
+			),
+			graph.edges
+		);
+	};
+	const acknowledgeResize = async (resize: GraphNodeResize) => {
+		graph = adapter.update(
+			graph.nodes.map((node) =>
+				node.id === resize.nodeId
+					? { ...node, size: resize.mode === 'custom' ? resize.size : undefined }
+					: node
+			),
+			graph.edges
+		);
+	};
+	const qualificationContext = {
+		canvas: () => {
+			if (!canvas) throw new Error('Canvas is not mounted.');
+			return canvas;
+		},
+		graph: () => graph,
+		publish: (nodes: readonly GraphNode[], edges: readonly GraphEdge[]) => {
+			graph = adapter.update(nodes, edges);
+		},
+		select: (selectedNodeIds: string[]) => {
+			options = { routeEdgesAroundNodes: true, selectedNodeIds };
+		},
+		size: setCanvasSize
+	};
+	const qualification = createQualification(qualificationContext);
+	export const setupQualification = qualification.setup;
+	export const runQualificationAction = qualification.run;
+	export const runDenseQualification = (varied: boolean, diagnostic = false) =>
+		qualifyDense(qualificationContext, varied, diagnostic ? { warmups: 0, samples: 1 } : undefined);
 
 	export function setNodes(nodes: GraphNode[]): void {
 		setScene(nodes, []);
@@ -168,7 +219,13 @@
 	class="fixture"
 	style:--fixture-width={`${canvasSize.width}rem`}
 	style:--fixture-height={`${canvasSize.height}rem`}>
-	<GraphCanvas bind:this={canvas} graphDocument={graph} autoHomeOnMount={false} {...options}>
+	<GraphCanvas
+		bind:this={canvas}
+		graphDocument={graph}
+		autoHomeOnMount={false}
+		onNodesMove={acknowledgeMoves}
+		onNodeResize={acknowledgeResize}
+		{...options}>
 		{#snippet nodeContent(node)}
 			<span data-fixture-node>{node.label}</span>
 		{/snippet}

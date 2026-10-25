@@ -436,6 +436,31 @@ export const routeEdgeAroundObstacles = (
     ].every(Number.isFinite)
   )
     return null;
+  if (
+    !routingSearchWithinBudget(
+      routeStart,
+      routeEnd,
+      remPx,
+      budget.remainingVisits,
+    )
+  )
+    return null;
+  if (
+    !lineIntersectsAnyObstacle(
+      routeStart.x,
+      routeStart.y,
+      routeEnd.x,
+      routeEnd.y,
+      obstacles,
+      budget,
+    )
+  ) {
+    return roundedWireGeometry(
+      simplifyRoute([start, routeStart, routeEnd, end]),
+      remPx * 1.5,
+      obstacles,
+    );
+  }
   const grid = ROUTING_GRID_REM * remPx;
   const gridStart = {
     x: routeStart.x,

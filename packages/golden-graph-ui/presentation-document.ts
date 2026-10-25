@@ -157,7 +157,9 @@ export class GraphPresentationAdapter {
       }
       if (removedNodeIds.length) mask |= GEOMETRY;
     }
+    let retainedEdges = this.#document.edges;
     if (edges !== this.#edges) {
+      const edgeViews: GraphEdge[] = [];
       for (
         let index = 0;
         index < Math.max(edges.length, this.#edges.length);
@@ -170,6 +172,10 @@ export class GraphPresentationAdapter {
             ? difference(previous, edge, EDGE_PLANES)
             : TOPOLOGY | PAYLOAD | ACTIVITY;
         mask |= changed;
+        if (edge)
+          edgeViews.push(
+            changed ? edge : (this.#document.edges[index] ?? edge),
+          );
         if (changed & TOPOLOGY) {
           mask |= GEOMETRY;
           for (const value of [previous, edge]) {
@@ -180,6 +186,7 @@ export class GraphPresentationAdapter {
           }
         }
       }
+      retainedEdges = edgeViews;
     }
     this.#nodes = nodes;
     this.#edges = edges;
@@ -205,7 +212,7 @@ export class GraphPresentationAdapter {
         nodeOrder,
       },
       nodes,
-      edges,
+      edges: retainedEdges,
     };
     return this.#document;
   }

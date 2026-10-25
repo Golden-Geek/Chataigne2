@@ -398,25 +398,34 @@ export function createCanvasEditing(props: CanvasProps, scene: EditingScene) {
     dragPositions = {};
     resizeSizes = {};
   };
+  const finishMovePreview = (): void => {
+    const moves = Object.entries(dragPositions).map(([nodeId, position]) => ({
+      nodeId,
+      position,
+    }));
+    if (moves.length > 0) commitNodeMoves(moves);
+    dragPositions = {};
+  };
+  const finishResizePreview = (nodeId: string): void => {
+    const size = resizeSizes[nodeId];
+    if (size) commitNodeResize({ nodeId, mode: "custom", size });
+    resizeSizes = {};
+  };
 
   return {
     previewMoves,
     previewResize,
     clearPreviews,
+    finishMovePreview,
+    finishResizePreview,
     get dragPositions() {
       return dragPositions;
-    },
-    set dragPositions(value: typeof dragPositions) {
-      dragPositions = value;
     },
     get optimisticPositions() {
       return optimisticPositions;
     },
     get resizeSizes() {
       return resizeSizes;
-    },
-    set resizeSizes(value: typeof resizeSizes) {
-      resizeSizes = value;
     },
     get optimisticSizes() {
       return optimisticSizes;

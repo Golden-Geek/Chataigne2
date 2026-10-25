@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "test": "vitest run tests",
-    "test:browser": "node tests/browser/canvas-smoke.mjs"
+    "test:browser": "node tests/browser/canvas-smoke.mjs",
+    "test:qualify": "node tests/browser/canvas-qualification.mjs"
   },
   "svelte": "./index.ts",
   "types": "./index.ts",

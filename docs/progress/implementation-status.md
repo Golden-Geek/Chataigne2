@@ -5,11 +5,11 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-25 on `main`, based on delivered `dc21c067`. P10's retained geometry and
-scoped routing/culling are verified: **two of three fixed checkpoints (67%)**; one remains.
+Last reconciled: 2026-10-25 on `main`, based on delivered `feec6072` plus the final P10
+qualification below. **P10 is locally complete: three of three fixed checkpoints (100%).**
 **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
-Whole-plan scope coverage is 54%; P01-P09 are locally complete.
+Whole-plan scope coverage is 56%; P01-P10 are locally complete.
 Hardware/platform and product-scale
 qualification retain their later owners.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
@@ -23,14 +23,14 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 packages, not commit counts. Spatializer's admitted preparation, bounded publication, source/path
 fences, identity preservation and passive failure recovery are qualified under C12.
 
-**Whole plan: 54% complete.** P01-P09 are complete against their local acceptance criteria.
+**Whole plan: 56% complete.** P01-P10 are complete against their local acceptance criteria.
 P09 has all three checkpoints complete: stable storage/layout, indexed structural edits, and
-consumer/scale qualification. P10 has two of three fixed checkpoints complete; one remains.
+consumer/scale qualification. P10 has all three fixed checkpoints complete; none remain.
 P11-P18 have not started.
 P00 baseline reconciliation is maintained separately.
-**9 of 18 implementation/qualification tasks are fully complete.**
+**10 of 18 implementation/qualification tasks are fully complete.**
 
-Overall progress is the equal-weight average of P01-P18: `(9 * 100 + 67 + 8 * 0) / 18`,
+Overall progress is the equal-weight average of P01-P18: `(10 * 100 + 8 * 0) / 18`,
 rounded to a whole percent. This measures scope coverage, not elapsed time, remaining effort, or
 product readiness. Task sizes differ substantially. P00 housekeeping and preserved pre-plan
 features do not inflate this percentage. Later product, platform and device acceptance remains open.
@@ -75,7 +75,7 @@ Keyboard, Mouse, Ultraleap, Signals, Metronomes, MIDI and MQTT. Their owning pat
 admission/service/lifetime and recovery evidence. Spatializer's Cartesian matrix preparation and
 publication are also bounded. Absence of a search pattern alone was never acceptance evidence.
 
-**Remaining P03 closure packages: zero open, twelve closed (C01-C12).** P04-P09 are also locally complete; the active task is P10.
+**Remaining P03 closure packages: zero open, twelve closed (C01-C12).** P04-P10 are also locally complete; the next task is P11.
 General optimization and external qualification retain their explicit later plan owners.
 
 | ID  | Status            | Scope                            | Required closure                                                                                                                                                                                                                                                                                                                                                                                                                      |
@@ -156,11 +156,11 @@ closed locally (100%); none remain.**
 P08 has four fixed, equally weighted scope checkpoints. These measure verified requirements,
 not effort or commit counts. **All four are complete locally (100%); none remain.**
 
-| Checkpoint                             | Status           | Acceptance                                                                                                                                                                                                                                                                                                                     |
-| -------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Public operation and result boundary   | Complete locally | Domain-neutral operation/result envelope, atomic authored/history/lifecycle/app settlement, exact replies through public headless and workbench APIs, generated protocol 0.10.0 and null/absence distinction. Engine 614, protocol two, transport 74 plus headless integration, UI 56/93, type/build/strict/format gates pass. |
-| Atomic fragment paste                  | Complete locally | Complete dense capsules, shared detached restoration/remapping and labels, exact all-record results, invalid/duplicate identity rejection, external references, managed metadata and compressed archive preservation, concurrent creates, project replacement and undo/redo verified. Core 620 and app Alchemist 208 pass; later shared caller acceptance remains separate. |
-| Backend connection policy              | Complete locally | Typed connect checks owner/endpoints, graph compatibility and inferred types before edits; whole/component replacement, exact replies, idempotence and one-step undo/redo pass. Generic vector components and backend input growth work without UI repair. Editor sends intent; strict Clippy, generated types, UI 101, Svelte and default build pass. |
+| Checkpoint                             | Status           | Acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| -------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Public operation and result boundary   | Complete locally | Domain-neutral operation/result envelope, atomic authored/history/lifecycle/app settlement, exact replies through public headless and workbench APIs, generated protocol 0.10.0 and null/absence distinction. Engine 614, protocol two, transport 74 plus headless integration, UI 56/93, type/build/strict/format gates pass.                                                                                                                                      |
+| Atomic fragment paste                  | Complete locally | Complete dense capsules, shared detached restoration/remapping and labels, exact all-record results, invalid/duplicate identity rejection, external references, managed metadata and compressed archive preservation, concurrent creates, project replacement and undo/redo verified. Core 620 and app Alchemist 208 pass; later shared caller acceptance remains separate.                                                                                         |
+| Backend connection policy              | Complete locally | Typed connect checks owner/endpoints, graph compatibility and inferred types before edits; whole/component replacement, exact replies, idempotence and one-step undo/redo pass. Generic vector components and backend input growth work without UI repair. Editor sends intent; strict Clippy, generated types, UI 101, Svelte and default build pass.                                                                                                              |
 | Shared callers and complete acceptance | Complete locally | Editor and embedded QuickJS scripts use the same backend operations. Workbench cases qualify exact delayed selection and project fences. The actual default headless executable passes authenticated HTTP/WS, eight concurrent pastes, exact script replies, undo/redo, rejection and project replacement. Final owning gates pass: 627 Core, 211 app Alchemist, 28 scripting, 117 app UI and 61 Golden UI cases; Svelte, strict checks, codegen and default build. |
 
 ### P09 completion checkpoints
@@ -168,31 +168,33 @@ not effort or commit counts. **All four are complete locally (100%); none remain
 P09 has three fixed, equally weighted scope checkpoints derived from its acceptance criteria.
 **All three are complete locally (100%); none remain.** Delivery batches do not add checkpoints.
 
-| Checkpoint | Status | Acceptance |
-| --- | --- | --- |
-| Stable storage and local presentation edits | Complete locally | Authored iteration/persistence order is separate from identity storage; layout edits avoid ordered-map shifts. Exact serialized rollback, append/reload and owning consumer suites pass, with strict workspace, no-default checking, default build and actual native transport acceptance. |
-| Proportional structural edits | Complete locally | Reverse membership and incident-edge indexes restrict selection edits to affected records. Shared-edge/group deltas, single revision publication, exact rollback and following edits pass. Reinserted identities preserve structural classification and advance topology; Rust/TS delta declarations are generated together. |
-| Consumer and scale qualification | Complete locally | Identical current/pre-P09 public-API harness retains 1,240 samples at 1k/10k/50k/100k nodes. Default/no-Serde integration, Alchemist/statechart selection consumers and actual native drag/delete undo/redo pass with exact identities, incident edges and geometry. Owning tests, strict checks, default build and native acceptance pass. |
+| Checkpoint                                  | Status           | Acceptance                                                                                                                                                                                                                                                                                                                                  |
+| ------------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Stable storage and local presentation edits | Complete locally | Authored iteration/persistence order is separate from identity storage; layout edits avoid ordered-map shifts. Exact serialized rollback, append/reload and owning consumer suites pass, with strict workspace, no-default checking, default build and actual native transport acceptance.                                                  |
+| Proportional structural edits               | Complete locally | Reverse membership and incident-edge indexes restrict selection edits to affected records. Shared-edge/group deltas, single revision publication, exact rollback and following edits pass. Reinserted identities preserve structural classification and advance topology; Rust/TS delta declarations are generated together.                |
+| Consumer and scale qualification            | Complete locally | Identical current/pre-P09 public-API harness retains 1,240 samples at 1k/10k/50k/100k nodes. Default/no-Serde integration, Alchemist/statechart selection consumers and actual native drag/delete undo/redo pass with exact identities, incident edges and geometry. Owning tests, strict checks, default build and native acceptance pass. |
 
 ### P10 completion checkpoints
 
 P10 has three fixed, equally weighted checkpoints derived from its acceptance criteria.
-**Two of three are complete (67%); one remains.** Delivery batches do not add checkpoints.
+**All three are complete locally (100%); none remain.** Delivery batches do not add checkpoints.
 
-| Checkpoint | Status | Acceptance |
-| --- | --- | --- |
-| Independent revisions and retained geometry | Complete locally | UI-only revision planes, sequential deltas/recovery, retained identity/spatial/order state and sparse previews are integrated. Owning/consumer suites and 155 actual mounted preview frames at 1k/10k/20k/50k/100k establish one-entry work with no per-preview full materialization. Activity/preview preserve geometry/topology; [scope and evidence](p10-retained-presentation.md) retain the one-visible-node limit. |
-| Scoped routing and correct culling | Complete locally | Retained world-unit obstacle/edge indexes, incident/search-region invalidation, bounded deferred jobs/cache admission and conservative path culling are integrated. Unit scaling and actual SVG crossing/obstacle/loop/overflow cases pass. Preview completion uses one local route job without full-node materialization; [scope and limits](p10-routing-qualification.md) keep dense-scene performance distinct. |
-| Mounted correctness and performance qualification | In progress | Sparse preview/activity, snippet, socket and navigation correctness plus narrow action/frame samples pass. Full mounted drag, pan/zoom, frame selection, crossing wires, loops and changing obstacles still need normal/stress qualification; narrow retained-state samples do not close this checkpoint. |
+| Checkpoint                                        | Status           | Acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ------------------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Independent revisions and retained geometry       | Complete locally | UI-only revision planes, sequential deltas/recovery, retained identity/spatial/order state and sparse previews are integrated. Owning/consumer suites and 155 actual mounted preview frames at 1k/10k/20k/50k/100k establish one-entry work with no per-preview full materialization. Activity/preview preserve geometry/topology; [scope and evidence](p10-retained-presentation.md) retain the one-visible-node limit.                                                                         |
+| Scoped routing and correct culling                | Complete locally | Retained world-unit obstacle/edge indexes, incident/search-region invalidation, bounded deferred jobs/cache admission and conservative path culling are integrated. Unit scaling and actual SVG crossing/obstacle/loop/overflow cases pass. Preview completion uses one local route job without full-node materialization; [scope and limits](p10-routing-qualification.md) keep dense-scene performance distinct.                                                                               |
+| Mounted correctness and performance qualification | Complete locally | Production canvas passes all 55 action/tier combinations at 1k/10k/20k/50k/100k and both 1,100-wire scenes: 1,767 measured samples plus 171 warmups. Actual DOM/SVG, source acknowledgement, camera anchors, loops, crossing/obstacles, deferred mounting/routing and fixed feedback/frame/completion gates pass. UI 255, Svelte 0/0, browser correctness and default build pass; [scope and evidence](p10-canvas-qualification.md) preserve native/full-app boundaries and historical failures. |
 
 ## Current handoff
 
-- **Active task: P10 generic canvas interaction (67%, two of three fixed checkpoints).**
-  Own rendering, geometry, routing and interaction mechanics in `packages/golden-graph-ui`;
-  preserve app-owned presentation adapters and backend mutation semantics. Independent revision
-  planes, retained geometry and scoped routes/culling are qualified. Continue the full mounted
-  action/frame matrix and profile dense routing settlement/rendering (the 1,100-wire case takes
-  8.05s to finish routing). Keep DOM/SVG unless measurements justify replacing it.
+- **Next task: P11 workspace UX (0%, not started).** Window manager/catalog lists and historical
+  logs, make free-layout dashboards viewport-aware, and complete shared keyboard interaction.
+  Follow the plan's owning boundaries; do not reopen completed P03-P10 scope.
+- **P10 is locally complete: three of three fixed checkpoints (100%).** Retained geometry,
+  scoped routes/culling and the full production mounted action/frame matrix pass. Stable wire
+  views, view work budgets, overview presentation, bounded DOM membership and isolated SVG paint
+  groups resolve the observed dense/Home stalls. See [qualification](p10-canvas-qualification.md)
+  for the 1,767 retained samples and fixed gates. Full-product/native qualification remains P16/P17.
 - **P09 is locally complete: three of three checkpoints (100%).** Public-API current/baseline
   measurements retain 1,240 samples at 1k/10k/50k/100k nodes. Alchemist/statechart consumers,
   exact rollback, grouped native drag/delete history and default/no-Serde graph contracts pass.
@@ -253,7 +255,7 @@ P10 has three fixed, equally weighted checkpoints derived from its acceptance cr
 - Prior-commit CI/product qualification failures remain recorded: dependency advisories/audits
   retain P06, structural gates P12, timing/baseline work P16 and platform qualification P17.
   Cancelled macOS product work is not a pass.
-- Whole-plan scope coverage is **54%**, with **9/18 tasks fully complete**. Continue P10;
+- Whole-plan scope coverage is **56%**, with **10/18 tasks fully complete**. Continue P11;
   P03 has no remaining closure packages. Keep the full P00-P18 goal active.
 
 ## Task ledger
@@ -262,27 +264,27 @@ Implementation states: `NOT_STARTED`, `IN_PROGRESS`, `IMPLEMENTED`, `VERIFIED_LO
 Check outcomes: `PENDING`, `PASSED`, `FAILED`, `UNAVAILABLE`, `SKIPPED_WITH_REASON`.
 External qualification is separate from implementation. A historical pass is not a current pass.
 
-| Task                        | Completion | Implementation | Local validation               | External qualification / evidence                                                                                                                                                                                                                                       |
-| --------------------------- | ---------- | -------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| P00 Baseline                | 100%       | VERIFIED_LOCAL | PASSED                         | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                                                                                                                                                              |
-| P01 Edit failures/history   | 100%       | VERIFIED_LOCAL | PASSED batches 1–8             | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                                                                                                                                                               |
-| P02 Schedule/actor failures | 100%       | VERIFIED_LOCAL | PASSED batches 1-3             | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                                                                                                                                                                |
-| P03 Bounded I/O/lifecycle   | 100%       | VERIFIED_LOCAL | PASSED C01-C12                 | All twelve closure packages locally verified; Spatializer closes the bounded service/lifecycle audit. External qualification retains later owners.                                                                                                                      |
-| P04 Audio order/types       | 100%       | VERIFIED_LOCAL | PASSED all four checkpoints    | Checked scalar decoding, ordered command/shutdown admission, production plan/gain sequence and generation barriers, dense targets and allocation/deallocation transition guards verified. Native/platform qualification retains P17/P18.                                |
-| P05 Transport trust         | 100%       | VERIFIED_LOCAL | PASSED all four checkpoints    | Bundled/dev/LAN browser and native HTTP/WS operation, independent denial gates, exact CSP, reload reuse and restart fencing verified; native webview/platform interaction remains P17.                                                                                  |
-| P06 Dependencies            | 100%       | VERIFIED_LOCAL | PASSED all four checkpoints    | Refreshed advisory DB, narrow necessary updates, supported frontend migration, licensing/provenance and correctly selected network/audio/build/browser checks verified. Unix/native platform behavior retains P17.                                                      |
-| P07 DMX streaming           | 100%       | VERIFIED_LOCAL | PASSED six of six checkpoints  | 98 DMX cases, script API, default app, strict Clippy and formatting pass. Complete fake-time/native-loopback acceptance includes live priority, ordered metadata, termination/recovery and passive bounded actor service; P17/P18 retain platform/device qualification. |
-| P08 Formula backend intents | 100%       | VERIFIED_LOCAL | PASSED four of four checkpoints | Shared UI/script/HTTP/WS/headless operations, complete atomic fragments, backend connection policy and exact identity replies pass. Final native acceptance uses the default executable and isolated authenticated sessions; later product/platform qualification retains its owners. |
-| P09 Graph document          | 100%       | VERIFIED_LOCAL | PASSED three of three checkpoints | Stable storage, indexed structural edits and exact rollback pass. Current/pre-P09 harness preserves 1,240 fixed-delta samples; public default/no-Serde contracts, Alchemist/statechart consumers, native selection drag/delete undo/redo, strict checks and default build qualify the final checkpoint. |
-| P10 Canvas                  | 67%        | IN_PROGRESS    | Full mounted action/frame qualification | Two of three checkpoints complete: retained revisions/geometry and scoped routing/culling, with owning tests and mounted SVG/overflow cases. Dense settlement and broader normal/stress qualification remain. |
-| P11 Workspace UX            | 0%         | NOT_STARTED    | PENDING                        | Collection/keyboard gaps source-reviewed; native usability open                                                                                                                                                                                                         |
-| P12 Boundaries/gates        | 0%         | NOT_STARTED    | PENDING                        | App policy leak, omitted graph tests, oversized files, unsafe conversions; recurring incremental native-link artifact gap                                                                                                                                               |
-| P13 Formula execution       | 0%         | NOT_STARTED    | PENDING                        | Historical profiles retained; production parallelism not mandated                                                                                                                                                                                                       |
-| P14 Production time         | 0%         | NOT_STARTED    | PENDING                        | Clock helper unwired, no target-frame play, starvation/latency policy gaps                                                                                                                                                                                              |
-| P15 Assets                  | 0%         | NOT_STARTED    | PENDING                        | Audio path/cache identity exists; project asset boundary unimplemented                                                                                                                                                                                                  |
-| P16 Product scale           | 0%         | NOT_STARTED    | PENDING                        | Unqualified historical benchmark baseline blocks CI comparison; snapshot/DTO scaling and full-product 20k/50k/mounted canvas gates remain open.                                                                                                                         |
-| P17 Platforms/artifacts     | 0%         | NOT_STARTED    | PENDING                        | Windows history retained; exact current app/native/platform checks required                                                                                                                                                                                             |
-| P18 Named devices           | 0%         | NOT_STARTED    | PENDING                        | Exact authorized ASIO4ALL/VB-Audio route must be verified first                                                                                                                                                                                                         |
+| Task                        | Completion | Implementation | Local validation                  | External qualification / evidence                                                                                                                                                                                                                                                                                                                            |
+| --------------------------- | ---------- | -------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| P00 Baseline                | 100%       | VERIFIED_LOCAL | PASSED                            | HEAD `2e1f392551ee6d4b9a5859bc3c62945e18811fe4`; clean after consolidation committed during reconciliation                                                                                                                                                                                                                                                   |
+| P01 Edit failures/history   | 100%       | VERIFIED_LOCAL | PASSED batches 1–8                | Applied-prefix/atomic/history rejection, callback/teardown preservation, and next edit/tick/save verified                                                                                                                                                                                                                                                    |
+| P02 Schedule/actor failures | 100%       | VERIFIED_LOCAL | PASSED batches 1-3                | Dependency order, generation fencing, typed errors, disconnect history, and later-save recovery verified                                                                                                                                                                                                                                                     |
+| P03 Bounded I/O/lifecycle   | 100%       | VERIFIED_LOCAL | PASSED C01-C12                    | All twelve closure packages locally verified; Spatializer closes the bounded service/lifecycle audit. External qualification retains later owners.                                                                                                                                                                                                           |
+| P04 Audio order/types       | 100%       | VERIFIED_LOCAL | PASSED all four checkpoints       | Checked scalar decoding, ordered command/shutdown admission, production plan/gain sequence and generation barriers, dense targets and allocation/deallocation transition guards verified. Native/platform qualification retains P17/P18.                                                                                                                     |
+| P05 Transport trust         | 100%       | VERIFIED_LOCAL | PASSED all four checkpoints       | Bundled/dev/LAN browser and native HTTP/WS operation, independent denial gates, exact CSP, reload reuse and restart fencing verified; native webview/platform interaction remains P17.                                                                                                                                                                       |
+| P06 Dependencies            | 100%       | VERIFIED_LOCAL | PASSED all four checkpoints       | Refreshed advisory DB, narrow necessary updates, supported frontend migration, licensing/provenance and correctly selected network/audio/build/browser checks verified. Unix/native platform behavior retains P17.                                                                                                                                           |
+| P07 DMX streaming           | 100%       | VERIFIED_LOCAL | PASSED six of six checkpoints     | 98 DMX cases, script API, default app, strict Clippy and formatting pass. Complete fake-time/native-loopback acceptance includes live priority, ordered metadata, termination/recovery and passive bounded actor service; P17/P18 retain platform/device qualification.                                                                                      |
+| P08 Formula backend intents | 100%       | VERIFIED_LOCAL | PASSED four of four checkpoints   | Shared UI/script/HTTP/WS/headless operations, complete atomic fragments, backend connection policy and exact identity replies pass. Final native acceptance uses the default executable and isolated authenticated sessions; later product/platform qualification retains its owners.                                                                        |
+| P09 Graph document          | 100%       | VERIFIED_LOCAL | PASSED three of three checkpoints | Stable storage, indexed structural edits and exact rollback pass. Current/pre-P09 harness preserves 1,240 fixed-delta samples; public default/no-Serde contracts, Alchemist/statechart consumers, native selection drag/delete undo/redo, strict checks and default build qualify the final checkpoint.                                                      |
+| P10 Canvas                  | 100%       | VERIFIED_LOCAL | PASSED three of three checkpoints | Independent revisions/geometry, scoped routes/culling and full production mounted action/frame qualification pass at baseline/normal/stress tiers. All 55 action/tier and two dense scenes pass fixed gates, with 1,767 measured samples, preserved failures, owning UI/browser checks and default build. Native/full-product qualification retains P16/P17. |
+| P11 Workspace UX            | 0%         | NOT_STARTED    | PENDING                           | Collection/keyboard gaps source-reviewed; native usability open                                                                                                                                                                                                                                                                                              |
+| P12 Boundaries/gates        | 0%         | NOT_STARTED    | PENDING                           | App policy leak, omitted graph tests, oversized files, unsafe conversions; recurring incremental native-link artifact gap                                                                                                                                                                                                                                    |
+| P13 Formula execution       | 0%         | NOT_STARTED    | PENDING                           | Historical profiles retained; production parallelism not mandated                                                                                                                                                                                                                                                                                            |
+| P14 Production time         | 0%         | NOT_STARTED    | PENDING                           | Clock helper unwired, no target-frame play, starvation/latency policy gaps                                                                                                                                                                                                                                                                                   |
+| P15 Assets                  | 0%         | NOT_STARTED    | PENDING                           | Audio path/cache identity exists; project asset boundary unimplemented                                                                                                                                                                                                                                                                                       |
+| P16 Product scale           | 0%         | NOT_STARTED    | PENDING                           | Unqualified historical benchmark baseline blocks CI comparison; snapshot/DTO scaling and full-product 20k/50k/mounted canvas gates remain open.                                                                                                                                                                                                              |
+| P17 Platforms/artifacts     | 0%         | NOT_STARTED    | PENDING                           | Windows history retained; exact current app/native/platform checks required                                                                                                                                                                                                                                                                                  |
+| P18 Named devices           | 0%         | NOT_STARTED    | PENDING                           | Exact authorized ASIO4ALL/VB-Audio route must be verified first                                                                                                                                                                                                                                                                                              |
 
 For each implementation batch append a compact row under “New implementation evidence” with
 task, source/tree, changed ownership, invariant, exact commands, environment/features, outcome,
@@ -9914,3 +9916,44 @@ Rust runtime and wire declarations are unchanged. No owned validation process re
 **P10 is 67%, two of three fixed checkpoints complete; one remains. Whole-plan scope coverage is
 54%, with nine of eighteen tasks fully complete.** Commit/push this verified milestone on `main`,
 then continue the mounted correctness/performance checkpoint. Keep the full P00-P18 goal active.
+
+### P10 full mounted canvas qualification
+
+Previous goal turn: **progress**. Resume baseline was delivered `feec6072` on `main` with the
+third and final P10 checkpoint open. P03 was already closed: **zero packages remaining**.
+
+The generic Graph UI now retains equivalent edge objects and stable per-wire presentation views,
+uses direct routing for clear segments, and bounds deferred routing by job, frame and total-view
+budgets. Exhaustion keeps visible curves with invalidation dependencies. Camera scaling uses a
+world transform. Distant/animated unselected nodes use overview presentation; selected/renaming
+nodes retain controls/snippets. Authored geometry and collapse state are unchanged.
+
+DOM membership reconciles at most 32 nodes and 64 wires per animation frame. Existing payloads
+update immediately; settlement includes both mounting and routing queues. Stable, world-positioned
+SVG paint groups of at most 32 authored edge indices isolate dense repaint work. Actual SVG/world
+coordinate checks cover group viewboxes. Idle drivers stop. No app-specific policy entered Golden.
+
+The production fixture passes **55 action/tier combinations** at **1k/10k/20k/50k/100k** and
+both **1,100-wire dense scenes**, with **1,767 measured samples plus 171 warmups**. The full
+fixed feedback, callback-pacing, maximum-stall and completion gates pass. Worst per-action feedback
+p95 is **12.9ms at 20k**, **19.9ms at 50k** and **39.5ms at 100k stress**. Corresponding worst
+callback p95 is **20.8 / 20.8 / 33.4ms**. Home retains up to **1,782 nodes and 1,750 edges**;
+its visible membership is unchanged from the failed baseline. Dense maximum completion is
+**109.5ms parallel / 427.9ms varied**, with callback p95 **8.4 / 16.7ms**.
+
+The [qualification report](p10-canvas-qualification.md), fixed contract and raw artifacts preserve
+all failure stages: slow delivered dense settlement, camera/Home stalls, varied routing timeout,
+and dense SVG paint stalls. Model/DOM/layout callbacks are qualified; compositor FPS, physical
+input, composed-product scale and native webview acceptance remain with P16/P17.
+
+Final gates pass **255 UI tests** (27 audio / 52 graph / 61 Golden / 115 app), Svelte **0/0**,
+actual mounted correctness, source formatting and whitespace checks, and the default locked app
+build (**3m44s**, frontend rebuilt). Executable SHA-256:
+`6a450ed355708bf80e3f063fa60301c3b95b16b3ef0b35e90ccdf7acfbfa7451`.
+Root and Golden Core Cargo formatting pass. All 47 other source hashes match the production
+run; the one post-run fixture formatting change has an identical parsed TypeScript token tree.
+Rust runtime and protocol declarations are unchanged. No owned validation process remains running.
+
+**P10 is locally complete: three of three fixed checkpoints (100%); zero remain. Whole-plan
+scope coverage is 56%, with ten of eighteen tasks fully complete.** Commit/push this verified
+milestone on `main`, then continue P11. Keep the full P00-P18 goal active.

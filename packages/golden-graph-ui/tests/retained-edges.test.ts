@@ -27,10 +27,10 @@ const emptyChanges = (): GraphNodePresentationChanges => ({
   optimisticEnabled: {},
 });
 const viewBounds = { left: -10, top: -30, right: 300, bottom: 30 };
-const fixture = () => {
+const fixture = (now?: () => number) => {
   let adapter = new GraphPresentationAdapter();
   const projection = new RetainedGraphPresentation(),
-    routes = new RetainedEdgePresentation();
+    routes = new RetainedEdgePresentation(now);
   const update = (
     nodes: GraphNode[],
     edges: GraphEdge[],
@@ -72,6 +72,51 @@ const fixture = () => {
 };
 
 describe("retained graph wire geometry", () => {
+  it("bounds total view work and replenishes it after an obstacle changes", () => {
+    const { update, routes, settle } = fixture(() => 0);
+    const nodes = [node("a", 0), node("b", 30), node("obstacle", 15)];
+    const edges = Array.from({ length: 1100 }, (_, index) =>
+      edge("a", "b", String(index)),
+    );
+    update(nodes, edges);
+    expect(settle()).toHaveLength(1100);
+    const first = routes.statistics;
+    expect(first.searchVisits).toBeLessThanOrEqual(32768);
+    expect(first.smoothingChecks).toBeLessThanOrEqual(65536);
+    expect(first.viewBudgetFallbacks).toBeGreaterThan(0);
+    expect(first.cachedRoutes).toBe(1024);
+    routes.visible(viewBounds, true, false);
+    routes.processPending();
+    expect(routes.statistics).toEqual(first);
+    update([nodes[0], nodes[1], node("obstacle", 15, 25)], edges);
+    expect(settle()).toHaveLength(1100);
+    const recovered = routes.statistics;
+    expect(recovered.directRoutes - first.directRoutes).toBe(1024);
+    expect(recovered.viewBudgetFallbacks).toBe(first.viewBudgetFallbacks);
+    expect(recovered.searchVisits).toBe(first.searchVisits);
+  });
+  it("preserves rendered peer identities across cooperative route slices", () => {
+    let time = 0;
+    const { update, routes } = fixture(() => (time += 5));
+    update(
+      [node("a", 0), node("b", 30)],
+      [edge("a", "b", "first"), edge("a", "b", "second")],
+    );
+    const fallback = routes.visible(viewBounds, true, false);
+    routes.processPending();
+    expect(routes.statistics.routeJobs).toBe(1);
+    expect(routes.statistics.pendingRoutes).toBe(1);
+    const first = routes.visible(viewBounds, true, false);
+    expect(first[0]).not.toBe(fallback[0]);
+    expect(first[1]).toBe(fallback[1]);
+    routes.processPending();
+    const second = routes.visible(viewBounds, true, false);
+    expect(second[0]).toBe(first[0]);
+    expect(second[1]).not.toBe(first[1]);
+    expect(routes.statistics.pendingRoutes).toBe(0);
+    expect(routes.statistics.searchVisits).toBe(0);
+    expect(routes.statistics.directRoutes).toBe(2);
+  });
   it("retains authored order with shared endpoints and loops across edge reordering", () => {
     const { update, routes } = fixture();
     const nodes = [node("a", 0), node("b", 8)],
@@ -229,7 +274,7 @@ describe("retained graph wire geometry", () => {
       const before = routes.statistics;
       routes.processPending();
       const after = routes.statistics;
-      expect(after.routeJobs - before.routeJobs).toBeLessThanOrEqual(4);
+      expect(after.routeJobs - before.routeJobs).toBeLessThanOrEqual(64);
       expect(after.searchVisits - before.searchVisits).toBeLessThanOrEqual(
         4096,
       );

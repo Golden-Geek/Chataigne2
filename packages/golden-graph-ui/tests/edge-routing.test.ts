@@ -15,6 +15,30 @@ const route = (obstacles: RoutingObstacle[]) =>
   );
 
 describe("generic graph edge routing", () => {
+  it("uses no search visits for a clear diagonal while respecting a thin obstacle", () => {
+    const solve = (obstacles: RoutingObstacle[]) => {
+      const budget = { remainingVisits: 2048, remainingChecks: 512 };
+      const path = routeEdgeAroundObstacles(
+        { x: 0, y: 0 },
+        { x: 12, y: 4 },
+        { x: 2, y: 0 },
+        { x: 10, y: 4 },
+        obstacles,
+        1,
+        budget,
+      );
+      return { path, budget };
+    };
+    const clear = solve([]);
+    expect(clear.path).toBeTruthy();
+    expect(clear.budget.remainingVisits).toBe(2048);
+    const obstructed = solve([
+      { left: 5.99, right: 6.01, top: 1.9, bottom: 2.1 },
+    ]);
+    expect(obstructed.path).toBeTruthy();
+    expect(obstructed.path?.path).not.toBe(clear.path?.path);
+    expect(obstructed.budget.remainingVisits).toBeLessThan(2048);
+  });
   it("keeps a clear edge straight", () => {
     expect(route([])?.path).toBe("M 0 0 L 12 0");
   });

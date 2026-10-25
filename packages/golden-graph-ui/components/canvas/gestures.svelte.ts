@@ -12,7 +12,6 @@ import {
 import type {
   GraphEdge,
   GraphNode,
-  GraphNodeMove,
   GraphNodePosition,
   GraphSocket,
 } from "../../types";
@@ -149,6 +148,7 @@ export function createCanvasGestures(
       return;
     }
     viewport.container?.focus();
+    viewport.stopAnimation();
     if (event.button === 0 && event.shiftKey) {
       const pointer = localPointerPosition(event);
       selectionGesture = {
@@ -211,6 +211,7 @@ export function createCanvasGestures(
     }
     event.stopPropagation();
     viewport.container?.focus();
+    viewport.stopAnimation();
     const target = event.target;
     if (
       event.altKey &&
@@ -264,6 +265,7 @@ export function createCanvasGestures(
     event.preventDefault();
     event.stopPropagation();
     viewport.container?.focus();
+    viewport.stopAnimation();
     const now = Date.now();
     const previousPointerDown = lastResizePointerDown;
     lastResizePointerDown = {
@@ -429,7 +431,7 @@ export function createCanvasGestures(
       if (!panGesture.moved && Math.hypot(deltaX, deltaY) >= 3) {
         panGesture = { ...panGesture, moved: true };
       }
-      viewport.applyCamera({
+      viewport.setCamera({
         ...viewport.camera,
         x: panGesture.cameraX + deltaX,
         y: panGesture.cameraY + deltaY,
@@ -561,28 +563,11 @@ export function createCanvasGestures(
       panGesture = null;
     }
     if (nodeDragGesture?.pointerId === event.pointerId) {
-      const moves = Object.entries(editing.dragPositions).map(
-        ([nodeId, position]): GraphNodeMove => ({
-          nodeId,
-          position,
-        }),
-      );
-      if (moves.length > 0) {
-        editing.commitNodeMoves(moves);
-      }
-      editing.dragPositions = {};
+      editing.finishMovePreview();
       nodeDragGesture = null;
     }
     if (nodeResizeGesture?.pointerId === event.pointerId) {
-      const size = editing.resizeSizes[nodeResizeGesture.nodeId];
-      if (size) {
-        editing.commitNodeResize({
-          nodeId: nodeResizeGesture.nodeId,
-          mode: "custom",
-          size,
-        });
-      }
-      editing.resizeSizes = {};
+      editing.finishResizePreview(nodeResizeGesture.nodeId);
       nodeResizeGesture = null;
     }
     if (connectionDraft?.pointerId === event.pointerId) {

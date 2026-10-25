@@ -6,6 +6,7 @@ import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { verifyCanvasPresentation } from "./canvas-presentation.mjs";
 import { verifyCanvasRetention } from "./canvas-retention.mjs";
 import { verifyCanvasRouting } from "./canvas-routing.mjs";
+import { verifyCanvasOverview } from "./canvas-overview.mjs";
 
 const fixtureRoot = fileURLToPath(new URL("./fixture/", import.meta.url));
 const repositoryRoot = fileURLToPath(new URL("../../../../", import.meta.url));
@@ -83,6 +84,7 @@ try {
   await expectVisible(0, []);
   const retention = await verifyCanvasRetention(page);
   const routing = await verifyCanvasRouting(page);
+  await verifyCanvasOverview(page);
   await verifyCanvasPresentation(page);
   assert.deepEqual(errors, []);
   console.log(

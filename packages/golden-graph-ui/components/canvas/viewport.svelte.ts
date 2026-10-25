@@ -81,6 +81,7 @@ export function createCanvasViewport(props: CanvasProps, scene: ViewportScene) {
   let scrollActivationTimer: ReturnType<typeof setTimeout> | null = null;
 
   let animationFrame: number | null = null;
+  let animating = $state(false);
 
   let checkerCellSizePx = $derived(
     Math.max(8, remPx * CHECKER_CELL_REM * camera.zoom),
@@ -155,6 +156,30 @@ export function createCanvasViewport(props: CanvasProps, scene: ViewportScene) {
       cancelAnimationFrame(animationFrame);
       animationFrame = null;
     }
+    animating = false;
+  };
+
+  const setCamera = (next: GraphCamera): void => {
+    cancelCameraAnimation();
+    applyCamera(next);
+  };
+  const panBy = (deltaX: number, deltaY: number): void => {
+    setCamera({
+      ...camera,
+      x: camera.x + finiteNumber(deltaX, 0),
+      y: camera.y + finiteNumber(deltaY, 0),
+    });
+  };
+  const zoomAt = (zoom: number, anchorX: number, anchorY: number): void => {
+    cancelCameraAnimation();
+    const center = visibleViewportCenter();
+    applyCamera(
+      cameraAtZoom(
+        finiteNumber(zoom, camera.zoom),
+        finiteNumber(anchorX, center.x),
+        finiteNumber(anchorY, center.y),
+      ),
+    );
   };
 
   $effect(() => {
@@ -175,6 +200,7 @@ export function createCanvasViewport(props: CanvasProps, scene: ViewportScene) {
 
   const animateCamera = (target: GraphCamera): void => {
     cancelCameraAnimation();
+    animating = true;
     const source = { ...camera };
     const startedAt = performance.now();
     const tick = (now: number): void => {
@@ -189,6 +215,7 @@ export function createCanvasViewport(props: CanvasProps, scene: ViewportScene) {
         animationFrame = requestAnimationFrame(tick);
       } else {
         animationFrame = null;
+        animating = false;
       }
     };
     animationFrame = requestAnimationFrame(tick);
@@ -196,8 +223,7 @@ export function createCanvasViewport(props: CanvasProps, scene: ViewportScene) {
 
   const setZoom = (zoom: number): void => {
     const center = visibleViewportCenter();
-    cancelCameraAnimation();
-    applyCamera(cameraAtZoom(zoom, center.x, center.y));
+    zoomAt(zoom, center.x, center.y);
   };
 
   const resetZoom = (): void => {
@@ -336,14 +362,7 @@ export function createCanvasViewport(props: CanvasProps, scene: ViewportScene) {
     }
     const pointerX = event.clientX - bounds.left;
     const pointerY = event.clientY - bounds.top;
-    cancelCameraAnimation();
-    applyCamera(
-      cameraAtZoom(
-        camera.zoom * Math.exp(-event.deltaY * 0.0014),
-        pointerX,
-        pointerY,
-      ),
-    );
+    zoomAt(camera.zoom * Math.exp(-event.deltaY * 0.0014), pointerX, pointerY);
   };
 
   onMount(() => {
@@ -384,6 +403,9 @@ export function createCanvasViewport(props: CanvasProps, scene: ViewportScene) {
     get camera() {
       return camera;
     },
+    get animating() {
+      return animating;
+    },
     get remPx() {
       return remPx;
     },
@@ -406,6 +428,13 @@ export function createCanvasViewport(props: CanvasProps, scene: ViewportScene) {
       return panStyle;
     },
     applyCamera,
+    setCamera,
+    panBy,
+    zoomAt,
+    stopAnimation: cancelCameraAnimation,
+    navigationState() {
+      return { camera: { ...camera }, animating };
+    },
     clientToWorldPx,
     resetZoom,
     handleZoomInput,

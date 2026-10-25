@@ -10,6 +10,10 @@
 	import { createCanvasEditing, type CanvasEditing } from './canvas/editing.svelte';
 	import { createCanvasGestures, type CanvasGestures } from './canvas/gestures.svelte';
 	import NodeView from './canvas/NodeView.svelte';
+	import NodeOverview from './canvas/NodeOverview.svelte';
+	import GraphWire from './canvas/GraphWire.svelte';
+	import { createCanvasMounting } from './canvas/mounting.svelte';
+	import { wireViewKey } from '../retained-edges';
 
 	let {
 		graphDocument,
@@ -206,6 +210,7 @@
 		}
 	});
 	const gestures: CanvasGestures = createCanvasGestures(canvasProps, viewport, geometry, editing);
+	const mounting = createCanvasMounting(geometry);
 
 	export const frameSelection = viewport.frameSelection;
 	export const home = viewport.home;
@@ -217,6 +222,13 @@
 	export const clearNodePreviews = editing.clearPreviews;
 	export const presentationWork = geometry.presentationWork;
 	export const routingWork = geometry.routingWork;
+	export const mountingWork = mounting.work;
+	export const setCamera = viewport.setCamera;
+	export const panBy = viewport.panBy;
+	export const zoomAt = viewport.zoomAt;
+	export const navigationState = viewport.navigationState;
+	export const commitNodeMovePreview = editing.finishMovePreview;
+	export const commitNodeResizePreview = editing.finishResizePreview;
 	let nodes = $derived(geometry.nodes);
 	let effectiveMaxZoom = $derived(viewport.effectiveMaxZoom);
 	let effectiveMinZoom = $derived(viewport.effectiveMinZoom);
@@ -236,13 +248,9 @@
 	let snappedCameraY = $derived(viewport.snappedCameraY);
 	let panStyle = $derived(viewport.panStyle);
 	let selectionBoxStyle = $derived(gestures.selectionBoxStyle);
-	let visibleNodes = $derived(geometry.visibleNodes);
-	let visibleEdges = $derived(geometry.visibleEdges);
-	const socketPoint = geometry.socketPoint;
-	const edgePath = geometry.edgePath;
-	const edgeUsesGradient = geometry.edgeUsesGradient;
-	const edgeGradientId = geometry.edgeGradientId;
-	const edgeStroke = geometry.edgeStroke;
+	let visibleNodes = $derived(mounting.nodes);
+	let edgeGroups = $derived(mounting.edgeGroups);
+	let overview = $derived(camera.zoom < 0.4 || viewport.animating);
 	const draftPath = geometry.draftPath;
 	const resetZoom = viewport.resetZoom;
 	const handleZoomInput = viewport.handleZoomInput;
@@ -275,10 +283,8 @@
 	role="application"
 	aria-label="Node graph"
 	tabindex="0"
-	style:--checker-size={`${checkerSizePx}px`}
-	style:--camera-x={`${snappedCameraX}px`}
-	style:--camera-y={`${snappedCameraY}px`}
-	style:--camera-zoom={`${camera.zoom}`}
+	style:background-size={`${checkerSizePx}px ${checkerSizePx}px`}
+	style:background-position={`${snappedCameraX}px ${snappedCameraY}px`}
 	onpointerdown={startPan}
 	onpointermove={handlePointerMove}
 	onpointerup={handlePointerEnd}
@@ -322,7 +328,7 @@
 	</div>
 
 	<div class="world-pan" style:transform={panStyle}>
-		<div class="world">
+		<div class="world" style:transform={`scale(${camera.zoom})`}>
 			{#if worldContent}
 				<div class="world-content">
 					{@render worldContent({
@@ -334,56 +340,41 @@
 				</div>
 			{/if}
 
-			<svg class="wires" aria-label="Graph connections">
-				{#each visibleEdges as { edge, index } (`${edge.id ?? index}:${edge.from.nodeId}:${edge.to.nodeId}`)}
-					{@const path = edgePath(index)}
-					{@const start = socketPoint(edge.from, 'output')}
-					{@const end = socketPoint(edge.to, 'input')}
-					{@const gradientId = edgeGradientId(edge, index)}
-					{@const usesGradient = edgeUsesGradient(edge)}
-					{#if path}
-						{#if start && end && usesGradient}
-							<defs>
-								<linearGradient
-									id={gradientId}
-									gradientUnits="userSpaceOnUse"
-									x1={start.x}
-									y1={start.y}
-									x2={end.x}
-									y2={end.y}>
-									<stop offset="0%" stop-color={edge.color} />
-									<stop offset="100%" stop-color={edge.targetColor} />
-								</linearGradient>
-							</defs>
-						{/if}
-						<path
-							d={path}
-							class="edge-hit"
-							role="button"
-							tabindex="0"
-							aria-label="Select connection"
-							aria-pressed={edge.id !== undefined && selectedEdgeIdSet.has(edge.id)}
-							vector-effect="non-scaling-stroke"
-							onpointerdown={(event) => selectEdge(event, edge)}
-							onkeydown={(event) => selectEdgeWithKeyboard(event, edge)} />
-						<path
-							d={path}
-							class="edge"
-							class:active={edge.active}
-							class:gradient={usesGradient}
-							class:invalid={edge.invalid}
-							class:selected={edge.id !== undefined && selectedEdgeIdSet.has(edge.id)}
-							style:--edge-color={edgeStroke(edge, gradientId)}
-							vector-effect="non-scaling-stroke" />
-					{/if}
-				{/each}
+			{#each edgeGroups as group (group.key)}
+				{@const width = Math.max(0.1, group.bounds.right - group.bounds.left)}
+				{@const height = Math.max(0.1, group.bounds.bottom - group.bounds.top)}
+				<svg
+					class="wires"
+					aria-label="Graph connections"
+					preserveAspectRatio="none"
+					style:left={`${group.bounds.left}rem`}
+					style:top={`${group.bounds.top}rem`}
+					style:inline-size={`${width}rem`}
+					style:block-size={`${height}rem`}
+					viewBox={`${group.bounds.left * remPx} ${group.bounds.top * remPx} ${width * remPx} ${height * remPx}`}>
+					{#each group.edges as view (wireViewKey(view))}
+						<GraphWire
+							{view}
+							{remPx}
+							simplified={overview}
+							selected={view.edge.id !== undefined && selectedEdgeIdSet.has(view.edge.id)}
+							onSelect={selectEdge}
+							onKeySelect={selectEdgeWithKeyboard} />
+					{/each}
+				</svg>
+			{/each}
+			<svg class="wires" aria-label="Connection preview">
 				{#if draftPath()}
 					<path class="draft" d={draftPath() ?? ''} vector-effect="non-scaling-stroke" />
 				{/if}
 			</svg>
 
 			{#each visibleNodes as node (node.id)}
-				<NodeView {node} {geometry} {editing} {gestures} {canvasProps} />
+				{#if overview && !gestures.selectedIds.has(node.id) && editing.renamingNodeId !== node.id}
+					<NodeOverview {node} {geometry} {editing} />
+				{:else}
+					<NodeView {node} {geometry} {editing} {gestures} {canvasProps} />
+				{/if}
 			{/each}
 		</div>
 	</div>
@@ -426,8 +417,6 @@
 			var(--ga-grid-even) 0 75%,
 			var(--ga-grid-odd) 0
 		);
-		background-position: var(--camera-x, 0) var(--camera-y, 0);
-		background-size: var(--checker-size) var(--checker-size);
 		user-select: none;
 		cursor: default;
 	}
@@ -453,12 +442,9 @@
 		transform-origin: 0 0;
 	}
 
-	.world-pan {
-		will-change: transform;
-	}
-
+	.world-pan,
 	.world {
-		zoom: var(--camera-zoom, 1);
+		will-change: transform;
 	}
 
 	.wires {
@@ -468,6 +454,7 @@
 		block-size: 0.1rem;
 		overflow: visible;
 		pointer-events: none;
+		will-change: transform;
 		/* z-index: 2; */
 	}
 
@@ -479,67 +466,8 @@
 		overflow: visible;
 	}
 
-	.wires path {
-		fill: none;
-	}
-
-	.wires path.edge {
-		stroke: color-mix(
-			in srgb,
-			var(--edge-color, var(--ga-socket)) 68%,
-			var(--gc-color-background, #11151b) 32%
-		);
-		stroke-width: 0.13rem;
-		opacity: 0.72;
-		filter: saturate(0.82);
-		pointer-events: none;
-		transition:
-			opacity 0.48s ease,
-			stroke 0.48s ease,
-			stroke-width 0.48s ease,
-			filter 0.48s ease;
-	}
-
-	.wires path.edge.gradient {
-		stroke: var(--edge-color, var(--ga-socket));
-	}
-
-	.wires path.edge.active {
-		stroke: color-mix(in srgb, var(--edge-color, var(--ga-active)) 88%, white 12%);
-		stroke-width: 0.15rem;
-		opacity: 0.86;
-		filter: saturate(1.02);
-		transition:
-			opacity 0.06s ease-out,
-			stroke 0.06s ease-out,
-			stroke-width 0.06s ease-out,
-			filter 0.06s ease-out;
-	}
-
-	.wires path.edge.gradient.active {
-		stroke: var(--edge-color, var(--ga-active));
-	}
-
-	.wires path.edge.selected {
-		stroke: var(--ga-selection);
-		stroke-width: 0.25rem;
-		opacity: 1;
-		filter: drop-shadow(0 0 0.24rem color-mix(in srgb, var(--ga-selection) 72%, transparent));
-	}
-
-	.wires path.edge.invalid {
-		stroke: var(--ga-error);
-		stroke-dasharray: 0.4rem 0.3rem;
-	}
-
-	.wires path.edge-hit {
-		stroke: transparent;
-		stroke-width: 0.85rem;
-		pointer-events: stroke;
-		cursor: pointer;
-	}
-
 	.wires path.draft {
+		fill: none;
 		stroke: var(--ga-selection);
 		stroke-dasharray: 0.45rem 0.25rem;
 	}

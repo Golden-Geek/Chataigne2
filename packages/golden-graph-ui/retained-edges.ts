@@ -29,8 +29,11 @@ import {
 
 const CACHE_LIMIT = 1024;
 const EDGE_CELL_SIZE = 64;
-const JOBS_PER_FRAME = 4;
+const JOBS_PER_FRAME = 64;
+const SLICE_MS = 4;
 const VISITS_PER_FRAME = MAX_ROUTING_VISITS * 2;
+const VISITS_PER_VIEW = 32768;
+const CHECKS_PER_VIEW = 65536;
 
 interface EdgeGeometry {
   index: number;
@@ -51,7 +54,12 @@ interface CachedRoute {
 export interface GraphVisibleEdge {
   index: number;
   edge: GraphEdge;
+  wire: GraphWireGeometry;
+  start: GraphNodePosition;
+  end: GraphNodePosition;
 }
+export const wireViewKey = (view: GraphVisibleEdge): string =>
+  `${view.edge.id ?? view.index}:${view.edge.from.nodeId}:${view.edge.to.nodeId}`;
 export interface GraphRoutingWork {
   obstacleUpdates: number;
   edgeGeometryUpdates: number;
@@ -64,6 +72,9 @@ export interface GraphRoutingWork {
   maxSliceJobs: number;
   maxSliceVisits: number;
   maxSliceSmoothingChecks: number;
+  directRoutes: number;
+  viewBudgetFallbacks: number;
+  maxSliceElapsedMs: number;
   cachedRoutes: number;
   pendingRoutes: number;
 }
@@ -105,6 +116,10 @@ export class RetainedEdgePresentation {
   readonly #pending = new Set<number>();
   #admitted = new Set<number>();
   #routing = false;
+  #rendered = new Map<number, GraphVisibleEdge>();
+  readonly #now: () => number;
+  #remainingVisits = VISITS_PER_VIEW;
+  #remainingChecks = CHECKS_PER_VIEW;
   readonly #work = {
     obstacleUpdates: 0,
     edgeGeometryUpdates: 0,
@@ -117,7 +132,14 @@ export class RetainedEdgePresentation {
     maxSliceJobs: 0,
     maxSliceVisits: 0,
     maxSliceSmoothingChecks: 0,
+    directRoutes: 0,
+    viewBudgetFallbacks: 0,
+    maxSliceElapsedMs: 0,
   };
+
+  constructor(now: () => number = () => performance.now()) {
+    this.#now = now;
+  }
 
   get statistics(): Readonly<GraphRoutingWork> {
     return {
@@ -136,6 +158,13 @@ export class RetainedEdgePresentation {
     socketPoint: SocketPoint,
   ): void {
     const replaced = document.source !== this.#source || delta.reset;
+    if (
+      replaced ||
+      delta.updated.length ||
+      delta.removed.length ||
+      document.revision.topology !== this.#topology
+    )
+      this.#resetBudget();
     if (replaced) {
       this.#nodes.clear();
       this.#geometry.clear();
@@ -143,6 +172,7 @@ export class RetainedEdgePresentation {
       this.#cache.clear();
       this.#pending.clear();
       this.#admitted.clear();
+      this.#rendered.clear();
       this.#obstacles = new SpatialIndex();
       this.#edgeBounds = new SpatialIndex(EDGE_CELL_SIZE);
       this.#dependencies = new SpatialIndex();
@@ -263,14 +293,21 @@ export class RetainedEdgePresentation {
     const candidates = this.#edgeBounds
       .query(bounds)
       .sort((a, b) => a.index - b.index);
-    this.#admitted = new Set(
+    const admitted = new Set(
       routing
         ? candidates.slice(0, CACHE_LIMIT).map((entry) => entry.index)
         : [],
     );
+    if (
+      admitted.size !== this.#admitted.size ||
+      [...admitted].some((index) => !this.#admitted.has(index))
+    )
+      this.#resetBudget();
+    this.#admitted = admitted;
     for (const index of this.#pending)
       if (preview || !this.#admitted.has(index)) this.#pending.delete(index);
     const result: GraphVisibleEdge[] = [];
+    const rendered = new Map<number, GraphVisibleEdge>();
     for (const candidate of candidates) {
       const cached = this.#admitted.has(candidate.index)
         ? this.#cache.get(candidate.index)
@@ -278,12 +315,28 @@ export class RetainedEdgePresentation {
       if (routing && !preview && this.#admitted.has(candidate.index) && !cached)
         this.#pending.add(candidate.index);
       const geometry = routing && cached ? cached.geometry : candidate.fallback;
-      if (boundsIntersect(geometry.bounds, bounds))
-        result.push({
-          index: candidate.index,
-          edge: this.#edges[candidate.index],
-        });
+      if (boundsIntersect(geometry.bounds, bounds)) {
+        const previous = this.#rendered.get(candidate.index);
+        const edge = this.#edges[candidate.index];
+        const view =
+          previous &&
+          previous.edge === edge &&
+          previous.wire === geometry &&
+          previous.start === candidate.start &&
+          previous.end === candidate.end
+            ? previous
+            : {
+                index: candidate.index,
+                edge,
+                wire: geometry,
+                start: candidate.start,
+                end: candidate.end,
+              };
+        rendered.set(candidate.index, view);
+        result.push(view);
+      }
     }
+    this.#rendered = rendered;
     return result;
   }
 
@@ -306,8 +359,15 @@ export class RetainedEdgePresentation {
     let remainingVisits = VISITS_PER_FRAME,
       jobs = 0;
     let smoothingChecks = 0;
+    const started = this.#now();
     for (const index of this.#pending) {
-      if (jobs >= JOBS_PER_FRAME || remainingVisits < MAX_ROUTING_VISITS) break;
+      if (
+        jobs >= JOBS_PER_FRAME ||
+        remainingVisits < MAX_ROUTING_VISITS ||
+        2048 - smoothingChecks < 512 ||
+        (jobs > 0 && this.#now() - started >= SLICE_MS)
+      )
+        break;
       this.#pending.delete(index);
       const entry = this.#geometry.get(index);
       if (!entry || !this.#admitted.has(index)) continue;
@@ -321,14 +381,19 @@ export class RetainedEdgePresentation {
         ? { values: [], complete: true }
         : this.#obstacles.queryLimited(entry.search, MAX_ROUTING_OBSTACLES * 4);
       const budget = {
-        remainingVisits: MAX_ROUTING_VISITS,
-        remainingChecks: 512,
+        remainingVisits: Math.min(MAX_ROUTING_VISITS, this.#remainingVisits),
+        remainingChecks: Math.min(512, this.#remainingChecks),
       };
+      const initialVisits = budget.remainingVisits,
+        initialChecks = budget.remainingChecks;
+      const exhausted = initialVisits === 0 || initialChecks === 0;
+      if (exhausted) this.#work.viewBudgetFallbacks += 1;
       const limited =
         !obstacles.complete || obstacles.values.length > MAX_ROUTING_OBSTACLES;
       if (limited) this.#work.obstacleBudgetFallbacks += 1;
       const geometry =
         (!limited &&
+          !exhausted &&
           !independentFallback &&
           routeEdgeAroundObstacles(
             entry.start,
@@ -340,13 +405,18 @@ export class RetainedEdgePresentation {
             budget,
           )) ||
         entry.fallback;
-      const visits = MAX_ROUTING_VISITS - budget.remainingVisits;
+      const visits = initialVisits - budget.remainingVisits;
+      const checks = initialChecks - budget.remainingChecks;
+      this.#remainingVisits -= visits;
+      this.#remainingChecks -= checks;
+      if (visits === 0 && geometry !== entry.fallback)
+        this.#work.directRoutes += 1;
       remainingVisits -= visits;
       jobs += 1;
       this.#work.routeJobs += 1;
       this.#work.searchVisits += visits;
-      this.#work.smoothingChecks += 512 - budget.remainingChecks;
-      smoothingChecks += 512 - budget.remainingChecks;
+      this.#work.smoothingChecks += checks;
+      smoothingChecks += checks;
       while (this.#cache.size >= CACHE_LIMIT) {
         const evict =
           [...this.#cache.keys()].find((key) => !this.#admitted.has(key)) ??
@@ -369,12 +439,20 @@ export class RetainedEdgePresentation {
         this.#work.maxSliceSmoothingChecks,
         smoothingChecks,
       );
+      this.#work.maxSliceElapsedMs = Math.max(
+        this.#work.maxSliceElapsedMs,
+        this.#now() - started,
+      );
     }
   }
 
   #invalidateObstacles(bounds: SpatialBounds): void {
     for (const index of this.#dependencies.query(bounds))
       this.#invalidate(index);
+  }
+  #resetBudget(): void {
+    this.#remainingVisits = VISITS_PER_VIEW;
+    this.#remainingChecks = CHECKS_PER_VIEW;
   }
   #invalidate(index: number): void {
     if (this.#cache.delete(index)) this.#work.invalidatedRoutes += 1;

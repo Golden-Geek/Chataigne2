@@ -131,9 +131,52 @@ export async function verifyCanvasRouting(page) {
   const overflow = await settle();
   const overflowWallMs = performance.now() - overflowStarted;
   assert.equal(await page.locator(".wires path.edge").count(), 1100);
+  const paintGroups = await page
+    .locator("svg.wires")
+    .evaluateAll((groups) =>
+      groups
+        .map((group) => group.querySelectorAll("path.edge").length)
+        .filter(Boolean),
+    );
+  assert.equal(
+    paintGroups.reduce((sum, count) => sum + count, 0),
+    1100,
+  );
+  assert(paintGroups.length > 1 && paintGroups.every((count) => count <= 32));
+  const aligned = await page
+    .locator(".wires path.edge")
+    .evaluateAll((paths) => {
+      const remPx = parseFloat(
+        getComputedStyle(document.documentElement).fontSize,
+      );
+      return [paths[0], paths[100], paths.at(-1)].map((path) => {
+        const point = path.getPointAtLength(0);
+        const screen = new DOMPoint(point.x, point.y).matrixTransform(
+          path.getScreenCTM(),
+        );
+        const world = window.goldenGraphFixture.coordinates(
+          screen.x,
+          screen.y,
+        ).world;
+        return {
+          world,
+          expected: { x: point.x / remPx, y: point.y / remPx },
+          svg: path.ownerSVGElement.getAttribute("viewBox"),
+          style: path.ownerSVGElement.getAttribute("style"),
+        };
+      });
+    });
+  assert(
+    aligned.every(
+      ({ world, expected }) =>
+        Math.abs(world.x - expected.x) < 0.1 &&
+        Math.abs(world.y - expected.y) < 0.1,
+    ),
+    `SVG batch viewBox changed the canvas world coordinates: ${JSON.stringify(aligned)}`,
+  );
   assert.equal(overflow.cachedRoutes, 1024);
   assert.equal(overflow.pendingRoutes, 0);
-  assert(overflow.maxSliceJobs <= 4);
+  assert(overflow.maxSliceJobs <= 64);
   assert(overflow.maxSliceVisits <= 4096);
   assert(overflow.maxSliceSmoothingChecks <= 2048);
   assert(
@@ -162,6 +205,7 @@ export async function verifyCanvasRouting(page) {
     loopExterior: true,
     overflow: {
       edges: 1100,
+      paintGroups: paintGroups.length,
       wallMs: overflowWallMs,
       work: overflow,
       idleStable: true,

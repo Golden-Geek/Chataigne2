@@ -1,0 +1,174 @@
+{
+  "scope": "Single production diagnostic before SVG paint isolation, with CPU profiler overhead; not qualification.",
+  "result": {
+    "scene": "varied",
+    "nodes": 28,
+    "edges": 1100,
+    "warmups": [],
+    "samples": [
+      {
+        "feedbackMs": 50.1,
+        "completeMs": 1501.8,
+        "intervalsMs": [
+          16.8,
+          45.8,
+          120.8,
+          20.8,
+          29.2,
+          33.3,
+          37.5,
+          50,
+          62.5,
+          62.5,
+          70.8,
+          79.2,
+          83.3,
+          87.5,
+          4.2,
+          91.7,
+          100,
+          108.3,
+          116.7,
+          129.1,
+          4.2,
+          120.8,
+          4.2,
+          4.1,
+          4.3,
+          4.1,
+          4.2,
+          4.2,
+          4.1,
+          4.2
+        ],
+        "mountedNodes": 28,
+        "mountedEdges": 1100,
+        "cachedRoutes": 1024,
+        "routing": {
+          "jobs": 1024,
+          "visits": 32716,
+          "checks": 872,
+          "viewBudgetFallbacks": 0
+        }
+      }
+    ],
+    "summary": {
+      "feedbackP95": 50.1,
+      "completionP95": 1501.8,
+      "completionMax": 1501.8,
+      "intervalP95": 120.8,
+      "intervalMax": 129.1
+    },
+    "limits": {
+      "feedbackP95": 200,
+      "completionMax": 2000,
+      "intervalP95": 33.4,
+      "intervalMax": 200
+    },
+    "passed": false
+  },
+  "profileDurationMs": 1533.206,
+  "sampleCount": 992,
+  "top": [
+    [
+      "(idle)",
+      787
+    ],
+    [
+      "(program)",
+      54
+    ],
+    [
+      "../../../../packages/golden-graph-ui/edge-routing.ts:294 ma",
+      19
+    ],
+    [
+      "../../../../packages/golden-graph-ui/tests/browser/fixture/qualification-dense.ts:47 Mo",
+      11
+    ],
+    [
+      "(garbage collector)",
+      11
+    ],
+    [
+      "before",
+      5
+    ],
+    [
+      "../../../../packages/golden-graph-ui/spatial-index.ts:108 query",
+      5
+    ],
+    [
+      "../../../../packages/golden-graph-ui/retained-mounts.ts:21 setTarget",
+      5
+    ],
+    [
+      "../../../../packages/golden-graph-ui/retained-mounts.ts:67 ",
+      5
+    ],
+    [
+      "../../../../packages/golden-graph-ui/edge-routing.ts:83 ca",
+      5
+    ],
+    [
+      "../../../../packages/golden-graph-ui/retained-edges.ts:287 visible",
+      4
+    ],
+    [
+      "../../../../packages/golden-graph-ui/retained-edges.ts:61 Ca",
+      4
+    ],
+    [
+      "../../../../packages/golden-graph-ui/edge-routing.ts:411 ha",
+      4
+    ],
+    [
+      "../../../../packages/golden-graph-ui/edge-routing.ts:68 ",
+      4
+    ],
+    [
+      "../../../../node_modules/svelte/src/internal/client/runtime.js:336 Yn",
+      3
+    ],
+    [
+      "../../../../packages/golden-graph-ui/edge-routing.ts:32 aa",
+      3
+    ],
+    [
+      "../../../../node_modules/svelte/src/internal/client/dom/blocks/each.js:266 ",
+      2
+    ],
+    [
+      "setAttribute",
+      2
+    ],
+    [
+      "../../../../packages/golden-graph-ui/components/GraphCanvas.svelte:359 o",
+      2
+    ],
+    [
+      "../../../../packages/golden-graph-ui/spatial-index.ts:38 Wi",
+      2
+    ],
+    [
+      "../../../../packages/golden-graph-ui/retained-mounts.ts:39 ",
+      2
+    ],
+    [
+      "../../../../packages/golden-graph-ui/spatial-index.ts:130 queryLimited",
+      2
+    ],
+    [
+      "../../../../node_modules/svelte/src/internal/client/reactivity/sources.js:149 z",
+      1
+    ],
+    [
+      "../../../../node_modules/svelte/src/internal/client/reactivity/batch.js:329 #_",
+      1
+    ],
+    [
+      "../../../../node_modules/svelte/src/internal/client/runtime.js:225 Jn",
+      1
+    ]
+  ]
+}

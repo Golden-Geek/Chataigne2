@@ -11,7 +11,6 @@ import {
 } from "./contracts";
 import type {
   GraphConnectionRequest,
-  GraphEdge,
   GraphNode,
   GraphNodeBypassConnection,
   GraphNodePosition,
@@ -566,25 +565,6 @@ export function createCanvasGeometry(
     return start && end ? localWirePath(start, end) : null;
   };
 
-  const edgePath = (index: number): string | null => {
-    visibleEdges;
-    return routes.path(index, viewport.remPx);
-  };
-
-  const edgeUsesGradient = (edge: GraphEdge): boolean =>
-    edge.color !== undefined &&
-    edge.targetColor !== undefined &&
-    edge.color !== edge.targetColor;
-
-  const edgeGradientId = (edge: GraphEdge, index: number): string =>
-    `edge-gradient-${(edge.id ?? `${edge.from.nodeId}-${edge.from.socketId}-${edge.to.nodeId}-${edge.to.socketId}-${index}`).replace(/[^a-zA-Z0-9_-]/g, "_")}`;
-
-  const edgeStroke = (
-    edge: GraphEdge,
-    gradientId: string,
-  ): string | undefined =>
-    edgeUsesGradient(edge) ? `url(#${gradientId})` : edge.color;
-
   const draftPath = (): string | null => {
     if (!interaction.connectionDraft) {
       return null;
@@ -664,10 +644,6 @@ export function createCanvasGeometry(
     },
     socketPoint,
     nodeBypassPath,
-    edgePath,
-    edgeUsesGradient,
-    edgeGradientId,
-    edgeStroke,
     draftPath,
   };
 }
