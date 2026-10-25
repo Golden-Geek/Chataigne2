@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
+	import ContextMenuRows from './context-menu/ContextMenuRows.svelte';
+	import { menuPresentationStyle, type MenuPosition } from './context-menu/presentation';
 	import { cubicOut } from 'svelte/easing';
 	import type { Snippet } from 'svelte';
 	import { scale } from 'svelte/transition';
@@ -54,22 +56,6 @@
 	type MenuOriginX = 'left' | 'right';
 	type MenuOriginY = 'top' | 'bottom';
 
-	interface MenuPosition {
-		left: number;
-		top: number;
-		originX: MenuOriginX;
-		originY: MenuOriginY;
-	}
-
-	interface MenuViewportMetrics {
-		availableWidth: number;
-		availableHeight: number;
-	}
-
-	const estimatedMenuRowHeightRem = 1.95;
-	const menuColumnGapRem = 0.25;
-	const preferredMenuColumnWidthRem = 22;
-
 	let {
 		open = $bindable(false),
 		items = [],
@@ -105,6 +91,7 @@
 
 	const menuNodes = new Map<number, HTMLDivElement>();
 	const itemNodes = new Map<string, HTMLButtonElement>();
+	let rowLists: Record<number, ReturnType<typeof ContextMenuRows>> = {};
 	let layoutRaf = 0;
 	let closeTimer = 0;
 	let lastAnchorPointer = $state<{ x: number; y: number; time: number } | null>(null);
@@ -129,6 +116,24 @@
 	};
 
 	let rootItems = $derived.by(() => normalizeContextMenuItems(items));
+	$effect(() => {
+		rootItems;
+		submenuPath = [];
+	});
+	export async function revealItem(depth: number, index: number, focus = false): Promise<boolean> {
+		if (!(await rowLists[depth]?.revealItem(index))) return false;
+		await tick();
+		const button = itemNodes.get(`${depth}:${index}`);
+		if (focus) button?.focus({ preventScroll: true });
+		return Boolean(button);
+	}
+	export function searchItems(depth: number, text: string): void {
+		rowLists[depth]?.searchItems(text);
+	}
+	export function openSubmenu(depth: number, index: number): void {
+		const item = menuLayers[depth]?.items[index];
+		if (item) handleItemPointerEnter(depth, index, item);
+	}
 
 	let menuLayers = $derived.by((): MenuLayer[] => {
 		const layers: MenuLayer[] = [];
@@ -218,57 +223,14 @@
 		originY: 'top'
 	});
 
-	const menuViewportMetrics = (): MenuViewportMetrics => {
-		const bounds = getMainViewportBounds();
-		const marginPx = remToPx(viewportPaddingRem);
-		return {
-			availableWidth: Math.max(1, bounds.width - marginPx * 2),
-			availableHeight: Math.max(1, bounds.height - marginPx * 2)
-		};
-	};
-
-	const rowCountForMenu = (itemCount: number, metrics: MenuViewportMetrics): number => {
-		const visibleItemCount = Math.max(1, itemCount);
-		const rowHeightPx = Math.max(1, remToPx(estimatedMenuRowHeightRem));
-		const rowsByHeight = Math.max(1, Math.floor(metrics.availableHeight / rowHeightPx));
-		const columnGapPx = remToPx(menuColumnGapRem);
-		const minColumnWidthPx = Math.max(1, Math.min(metrics.availableWidth, remToPx(minWidthRem)));
-		const columnsByWidth = Math.max(
-			1,
-			Math.floor((metrics.availableWidth + columnGapPx) / (minColumnWidthPx + columnGapPx))
-		);
-		const rowsNeededForAvailableWidth = Math.ceil(visibleItemCount / columnsByWidth);
-		const preferredRows = Math.min(visibleItemCount, rowsByHeight);
-		return clampNumber(Math.max(preferredRows, rowsNeededForAvailableWidth), 1, visibleItemCount);
-	};
-
 	const menuStyle = (layer: MenuLayer, position: MenuPosition): string => {
-		const metrics = menuViewportMetrics();
-		const rowCount = rowCountForMenu(layer.items.length, metrics);
-		const wrapsIntoColumns = rowCount < layer.items.length;
-		const defaultColumnWidthPx = Math.min(
-			metrics.availableWidth,
-			Math.max(remToPx(minWidthRem), remToPx(preferredMenuColumnWidthRem))
+		return menuPresentationStyle(
+			layer.items.length,
+			position,
+			minWidthRem,
+			maxWidthCss,
+			viewportPaddingRem
 		);
-		const columnWidthCss =
-			maxWidthCss.trim() === 'max-content'
-				? wrapsIntoColumns
-					? `${defaultColumnWidthPx}px`
-					: 'max-content'
-				: maxWidthCss;
-		return [
-			`left:${position.left}px`,
-			`top:${position.top}px`,
-			`--gc-context-min-width:${minWidthRem}rem`,
-			`--gc-context-max-width:${maxWidthCss}`,
-			`--gc-context-column-width:${columnWidthCss}`,
-			`--gc-context-available-width:${metrics.availableWidth}px`,
-			`--gc-context-available-height:${metrics.availableHeight}px`,
-			`--gc-context-row-count:${rowCount}`,
-			`--gc-context-column-gap:${menuColumnGapRem}rem`,
-			`--gc-context-origin-x:${position.originX}`,
-			`--gc-context-origin-y:${position.originY}`
-		].join(';');
 	};
 
 	const originForElementPlacement = (
@@ -498,7 +460,11 @@
 
 			const parentNode = itemNodes.get(`${parentDepth}:${parentIndex}`);
 			const menuNode = menuNodes.get(layer.depth);
-			if (!parentNode || !menuNode) {
+			if (!parentNode) {
+				clearSubmenusFromDepth(parentDepth);
+				break;
+			}
+			if (!menuNode) {
 				continue;
 			}
 
@@ -611,6 +577,7 @@
 			itemNodes.set(`${depth}:${index}`, node);
 			return () => {
 				itemNodes.delete(`${depth}:${index}`);
+				scheduleLayout();
 			};
 		};
 	};
@@ -726,6 +693,10 @@
 		}
 		void anchor;
 		void menuLayers;
+		void minWidthRem;
+		void maxWidthCss;
+		void viewportPaddingRem;
+		void submenuGapRem;
 		scheduleLayout();
 	});
 
@@ -785,45 +756,48 @@
 				{@attach captureMenuNode(layer.depth)}
 				oncontextmenu={handleMenuContextMenu}
 				transition:scale={{ duration: 130, start: 0.95, easing: cubicOut }}>
-				{#each layer.items as item, index (`menu-item-${layer.depth}-${item.id ?? item.label ?? 'item'}-${index}`)}
-					{@const submenuOpen = submenuPath[layer.depth] === index}
-					{@const hasChildren = hasSubmenu(item)}
-					{@const shortcutHint = itemShortcutHint(item)}
-					{#if item.separator}
-						<hr class="gc-context-separator" />
-					{:else}
-						<button
-							type="button"
-							role="menuitem"
-							class={`gc-context-item ${itemClassName} ${item.className ?? ''} ${item.disabled ? 'is-disabled' : ''} ${submenuOpen ? 'submenu-open' : ''}`}
-							style={`--gc-context-item-color:${item.color ?? 'inherit'};--gc-context-item-hover:${item.hoverColor ?? 'color-mix(in srgb, var(--gc-color-selection) 19%, transparent)'};`}
-							disabled={item.disabled}
-							{@attach captureItemNode(layer.depth, index)}
-							onpointerenter={() => {
-								handleItemPointerEnter(layer.depth, index, item);
-							}}
-							onclick={(event) => {
-								handleItemClick(event, layer.depth, index, item);
-							}}>
-							{#if itemContent}
-								{@render itemContent(item, layer.depth, submenuOpen)}
-							{:else}
-								<span class="gc-context-item-leading">
-									{#if item.icon}
-										<img class="gc-context-item-icon" src={item.icon} alt="" />
+				<ContextMenuRows bind:this={rowLists[layer.depth]} items={layer.items}>
+					{#snippet item(item, index)}
+						{@const submenuOpen = submenuPath[layer.depth] === index}
+						{@const hasChildren = hasSubmenu(item)}
+						{@const shortcutHint = itemShortcutHint(item)}
+						{#if item.separator}
+							<hr class="gc-context-separator" />
+						{:else}
+							<button
+								type="button"
+								role="menuitem"
+								data-menu-item-id={item.id}
+								class={`gc-context-item ${itemClassName} ${item.className ?? ''} ${item.disabled ? 'is-disabled' : ''} ${submenuOpen ? 'submenu-open' : ''}`}
+								style={`--gc-context-item-color:${item.color ?? 'inherit'};--gc-context-item-hover:${item.hoverColor ?? 'color-mix(in srgb, var(--gc-color-selection) 19%, transparent)'};`}
+								disabled={item.disabled}
+								{@attach captureItemNode(layer.depth, index)}
+								onpointerenter={() => {
+									handleItemPointerEnter(layer.depth, index, item);
+								}}
+								onclick={(event) => {
+									handleItemClick(event, layer.depth, index, item);
+								}}>
+								{#if itemContent}
+									{@render itemContent(item, layer.depth, submenuOpen)}
+								{:else}
+									<span class="gc-context-item-leading">
+										{#if item.icon}
+											<img class="gc-context-item-icon" src={item.icon} alt="" />
+										{/if}
+									</span>
+									<span class="gc-context-item-label">{item.label}</span>
+									{#if shortcutHint}
+										<span class="gc-context-item-hint">{shortcutHint}</span>
 									{/if}
-								</span>
-								<span class="gc-context-item-label">{item.label}</span>
-								{#if shortcutHint}
-									<span class="gc-context-item-hint">{shortcutHint}</span>
+									{#if hasChildren}
+										<span class="gc-context-item-chevron" aria-hidden="true">></span>
+									{/if}
 								{/if}
-								{#if hasChildren}
-									<span class="gc-context-item-chevron" aria-hidden="true">></span>
-								{/if}
-							{/if}
-						</button>
-					{/if}
-				{/each}
+							</button>
+						{/if}
+					{/snippet}
+				</ContextMenuRows>
 			</div>
 		{/each}
 	</div>

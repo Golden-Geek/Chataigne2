@@ -44,6 +44,12 @@ Manager/picker openness lives outside mounted rows, is fenced by document contex
 and follows accepted or rejected backend metadata intents. Outliner openness remains panel state.
 One focused row stays mounted outside the viewport; removing it transfers focus to its scroller.
 
+`components/common/context-menu/ContextMenuRows.svelte` applies the same mechanism to creation
+catalogs. Above 128 items, each menu layer uses a searchable, variable-height list; smaller menus
+retain compact columns. Stable item IDs preserve row identity across reordered inventories.
+The parent ContextMenu owns submenu/action policy and retires layers whose anchor disappears.
+Use `npm run test:browser --workspace golden_ui -- --catalog` for its production qualification.
+
 Run `npm run check:browser --workspace golden_ui` for the standalone fixture's types and
 `npm run test:browser --workspace golden_ui` for production browser qualification. See the
 [P11 contract](../../docs/progress/p11-workspace-qualification-contract.md) for scope and gates.

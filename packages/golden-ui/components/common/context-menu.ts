@@ -1,5 +1,8 @@
 import type { CommandId } from '../../store/commands.svelte';
 
+/** Above this size, menus use the searchable, bounded collection surface. */
+export const LARGE_MENU_THRESHOLD = 128;
+
 export type ContextMenuPlacement =
 	| 'bottom-start'
 	| 'bottom-end'

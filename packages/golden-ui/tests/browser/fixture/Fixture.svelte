@@ -13,6 +13,7 @@
 	import type { PanelApi, PanelParams } from '../../../dockview/panel-types';
 	import { createFixtureSession } from './session';
 	import RowSupplement from './RowSupplement.svelte';
+	import CatalogFixture from './CatalogFixture.svelte';
 	import { measureCollectionFlow } from './timing';
 	const fixture = createFixtureSession();
 	appState.session = fixture.session;
@@ -31,7 +32,21 @@
 			panelParams = { ...panelParams, ...next };
 		}
 	};
-	let mode = $state<'trees' | 'variable'>('trees');
+	let mode = $state<'trees' | 'variable' | 'catalog'>('trees');
+	let catalog = $state<ReturnType<typeof CatalogFixture>>();
+	export async function setupCatalog(size: number) {
+		closeNodePickerModal();
+		mode = 'catalog';
+		await tick();
+		await catalog!.setup(size);
+	}
+	export const catalogReveal = (index: number, focus = false, depth = 0) =>
+		catalog!.reveal(index, focus, depth);
+	export const catalogSearch = (text: string, depth = 0) => catalog!.search(text, depth);
+	export const catalogNested = () => catalog!.nested();
+	export const catalogReverse = () => catalog!.reverse();
+	export const catalogWidth = (width: string) => catalog!.setWidth(width);
+	export const measureCatalog = () => catalog!.measureFilter();
 	let manager = $state<ReturnType<typeof ManagerListPanel>>();
 	let picker = $state<ReturnType<typeof NodePickerModalHost>>();
 	let variable = $state<ReturnType<typeof VirtualRows<{ id: number; height: number }>>>();
@@ -165,6 +180,8 @@
 				title="Project"
 				params={panelParams} />
 		</section>
+	{:else if mode === 'catalog'}
+		<CatalogFixture bind:this={catalog} />
 	{:else}
 		<div class="variable-scroller" bind:this={variableScroller} tabindex="-1">
 			<VirtualRows

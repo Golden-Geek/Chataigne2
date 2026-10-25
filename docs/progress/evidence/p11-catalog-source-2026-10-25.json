@@ -1,0 +1,62 @@
+{
+  "baseCommit": "c289b9a881c747b6cd648e2414b6ebe71db5b088",
+  "scope": "Both final production runs use the same unchanged runtime/fixture source captured here. Assets come from the final collection regression build.",
+  "machine": {
+    "os": "10.0.26300",
+    "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+    "logicalProcessors": 24,
+    "node": "v26.5.0",
+    "svelte": "5.57.1",
+    "vite": "8.1.6",
+    "typescript": "6.0.3",
+    "browser": "156.0.4314.42"
+  },
+  "source": [
+    {
+      "path": "packages/golden-ui/components/common/context-menu/ContextMenuRows.svelte",
+      "sha256": "c5976600e090cb9be677293f23b494a106c5d12be113876918736788266f0aab"
+    },
+    {
+      "path": "packages/golden-ui/components/common/context-menu/presentation.ts",
+      "sha256": "9792b4ca7104a37c4478885e0b4aba83db3954904e5c44388878401f64754250"
+    },
+    {
+      "path": "packages/golden-ui/tests/browser/catalog.mjs",
+      "sha256": "4ea50a255117fbb65e5eadd554d8b29bd480421e0bed2170eca46363489cb3a5"
+    },
+    {
+      "path": "packages/golden-ui/tests/browser/fixture/CatalogFixture.svelte",
+      "sha256": "97d0ce05823f7070b53c37cfa454fb9d7472e567f0ffed918a6db98a85009bae"
+    },
+    {
+      "path": "packages/golden-ui/components/common/ContextMenu.svelte",
+      "sha256": "4733cfd91fd1ce7138a81d0f8fca13847c7261511006335f3f3a89e1db396077"
+    },
+    {
+      "path": "packages/golden-ui/components/common/context-menu.ts",
+      "sha256": "850dee0b9fb3eb96955439454e3b9bd24adfb39598e1f20a88bb0d268b5ddc5d"
+    },
+    {
+      "path": "packages/golden-ui/tests/browser/collections.mjs",
+      "sha256": "f405fd602e89148293f2a710ac801da7ef615f87648012a9bb6057355b5e8008"
+    },
+    {
+      "path": "packages/golden-ui/tests/browser/fixture/Fixture.svelte",
+      "sha256": "9fb4f7e6cd0e9efe61c2e2e2594c08ee94469bc6a8858a9748fefddcb1fd3578"
+    }
+  ],
+  "bundle": [
+    {
+      "path": "assets/index-Bf2KKdQp.css",
+      "sha256": "c5e83bf1575cc828acdec0e7fc452523bd0c2c2dfec6d160e59f672ec2c45d3e"
+    },
+    {
+      "path": "assets/index-PaYrWKw5.js",
+      "sha256": "d1a25562477f516d09961f0023c3d72cd9a1dc68ee6930878473f2cf0a48ba68"
+    },
+    {
+      "path": "index.html",
+      "sha256": "d6ce9f9ed5c9b88e62960860a817e52519243da2e3090b0d827df2d104d2485a"
+    }
+  ]
+}

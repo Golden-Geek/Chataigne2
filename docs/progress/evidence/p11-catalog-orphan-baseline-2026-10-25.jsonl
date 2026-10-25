@@ -1,0 +1,2 @@
+{"kind":"environment","browser":"156.0.4314.42","production":true,"report":"D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-collections-2026-10-25T10-59-43-774Z.jsonl"}
+{"kind":"failure","message":"Timed out after 30 seconds waiting for the orphaned submenu to detach; setup had retained its previous no-match query. Source retired missing submenu anchors and fixture setup now clears search."}

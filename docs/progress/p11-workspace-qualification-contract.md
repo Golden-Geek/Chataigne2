@@ -38,3 +38,19 @@ keyboard and broader composed-workflow acceptance stays open until its own requi
 Retain failures and raw samples. Do not relax limits or reduce density to obtain a pass. Source,
 bundle, tool and machine evidence must identify what was actually exercised. Later collection,
 dashboard and keyboard milestones add their explicit workloads before qualifying them.
+
+## Creation-catalog extension
+
+The shared ContextMenu is the creation-catalog surface used by NodeAddButton and node/graph
+context menus. Qualify 1k/10k baseline, 20k/50k normal and 100k stress descriptors produced by
+the actual `buildCreatableItemMenu` builder. A root and nested menu expose the same catalog;
+each open large layer mounts at most 42 rows in a 22rem-wide, at most 32rem-high viewport.
+Menus of at most 128 items retain compact column layout. Do not reduce those counts or replace
+the actual menu surface after failures.
+
+Confirm far-item identity/text, focused DOM retention across far reveal and reversal, filtering
+focus fallback, exact nested filtering, submenu retirement when its parent disappears, and
+compact-menu rendering. Search and reveal use component operations; no synthetic input.
+Catalog filtering has three warmups and 31 measured samples per tier with the same fixed
+feedback/stall/completion gates above. Complete collection-checkpoint acceptance also requires
+the preceding manager/picker/outliner evidence and current owning regression/build checks.
