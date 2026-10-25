@@ -1,0 +1,146 @@
+{
+  "baseCommit": "f14ddbd2c74b104a4861f0e0b96259c72627ec50",
+  "scope": "Final keyboard and collection runs use the same runtime and fixture sources captured here. Assets come from the final collection regression build. Timings exclude profiling and default app build.",
+  "machine": {
+    "os": "10.0.26300",
+    "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+    "logicalProcessors": 24,
+    "node": "v26.5.0",
+    "svelte": "5.57.1",
+    "vite": "8.1.6",
+    "typescript": "6.0.3",
+    "browser": "156.0.4314.42"
+  },
+  "source": [
+    {
+      "path": "apps/chataigne/ui/package.json",
+      "sha256": "e47e4e7a09cb288f7656702aeb34ef233c0a3d4ba560d37eddbbd939c9d746a5"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/alchemist/components/StateProcessorManager.svelte",
+      "sha256": "5af80cee107fc1176b2af9ff72f1a10839649fc20fa4a19d5113ebb3453ed9b5"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "1a515eb16812648c25cab5914c8ec2562aeeab8bf6f5a84921bd20d659e5ec28"
+    },
+    {
+      "path": "packages/golden-ui/components/common/NodePickerModalHost.svelte",
+      "sha256": "9192c3362936a4bb499b1b1db9cfdd37693beb16265296d1e2825eb7718f3d9d"
+    },
+    {
+      "path": "packages/golden-ui/components/common/virtual-rows/VirtualRows.svelte",
+      "sha256": "7e97cce5ddda286ec5938106fdedc2610d3713febe0e573b7a976d5ad32e7098"
+    },
+    {
+      "path": "packages/golden-ui/components/common/virtual-rows/height-index.ts",
+      "sha256": "281559cbf69c4327414667f1b897447078235a15944814fa0dc6e398010a0429"
+    },
+    {
+      "path": "packages/golden-ui/components/panels/manager/ManagerListPanel.svelte",
+      "sha256": "a9a4221da337858d66e6bc75d448f84449eb364acdc1e027e41302ba816de1a3"
+    },
+    {
+      "path": "packages/golden-ui/components/panels/outliner/OutlinerItem.svelte",
+      "sha256": "c6cdf4e9f5b713776177ca180778b67ee3012369739f668eca01d48758fb7374"
+    },
+    {
+      "path": "packages/golden-ui/components/panels/outliner/OutlinerPanel.svelte",
+      "sha256": "143e69216d636689a40ff4aa3744b66ff39553aacbe1532a451c3517ab5ae72b"
+    },
+    {
+      "path": "packages/golden-ui/components/panels/outliner/TreeRows.svelte",
+      "sha256": "2591b5ee62813acc353810233daba131d41e4ee31e0e653c4e9e528302ccd821"
+    },
+    {
+      "path": "packages/golden-ui/components/panels/outliner/navigation.ts",
+      "sha256": "8f13dcad9f30ecc6bed854cf4ef27f25bcf01d87a595790f9fbea08329c101c3"
+    },
+    {
+      "path": "packages/golden-ui/components/panels/outliner/node-selection.ts",
+      "sha256": "65453aaa6d93e4f8be5efad0a9cea9cc9b320ffc9a6161f514b5c3aa544963aa"
+    },
+    {
+      "path": "packages/golden-ui/components/panels/outliner/openness.svelte.ts",
+      "sha256": "1e1ad45d76ce3e009f7e527ecbf8fe8bf4c3a538e6e263b8d70243c08789eff5"
+    },
+    {
+      "path": "packages/golden-ui/components/panels/outliner/tests/projection-cache.test.ts",
+      "sha256": "36edabc880953a265a2089657cd782f759d607d90478f0c370da4acaa9ce256c"
+    },
+    {
+      "path": "packages/golden-ui/components/panels/outliner/tests/tree-navigation.test.ts",
+      "sha256": "55ea3f3ab8f5c26a2948310fad68fd6971d6d3a58bc52760007bceab07845548"
+    },
+    {
+      "path": "packages/golden-ui/components/panels/outliner/tests/visible-rows.test.ts",
+      "sha256": "99db0c7a36080799fa8322939504a75808253b5b2701d9f63825514e55255aae"
+    },
+    {
+      "path": "packages/golden-ui/components/panels/outliner/tree-navigation.ts",
+      "sha256": "00b020f9b0f0442ae9dfc42a5cdea66241a787d1796fad150cf18f11094b129a"
+    },
+    {
+      "path": "packages/golden-ui/components/panels/outliner/visible-rows.ts",
+      "sha256": "545215e4dca7b6766d98972b2999501ab1adf89701d17fc43f78367aea843833"
+    },
+    {
+      "path": "packages/golden-ui/index.ts",
+      "sha256": "5c49a7953e345defc9cb7ea88ca827d38e1a67d159bc6fd15ad3c1c55f1b3a74"
+    },
+    {
+      "path": "packages/golden-ui/package.json",
+      "sha256": "068fddd9de78f79562b6eb241cb605fa9984ec337105991c10a67d05aff7c3a5"
+    },
+    {
+      "path": "packages/golden-ui/store/graph-index.ts",
+      "sha256": "70b413486e35b2fedbc84e519b8af7cf4120a3008693173b4e35f17789d9b38f"
+    },
+    {
+      "path": "packages/golden-ui/store/graph.svelte.ts",
+      "sha256": "21b49a6bba0d1e3d48fa0ec52f1f32bd0e122417f49230b0a3288f36ef5c7fb2"
+    },
+    {
+      "path": "packages/golden-ui/store/session/selection.svelte.ts",
+      "sha256": "d0f6ab1c118469431bd6c505d2f31d9af84c17b6a1d271cc0b181033b7c75dd0"
+    },
+    {
+      "path": "packages/golden-ui/tests/browser/collections.mjs",
+      "sha256": "eae13473e3da43a1e4c8ced66ed4d19e68238e78c22fdfa2db9a8f8405b77c91"
+    },
+    {
+      "path": "packages/golden-ui/tests/browser/fixture/Fixture.svelte",
+      "sha256": "363023617355a3a5f9f2971943c45abf61633612cdb790b0a935926b673b5360"
+    },
+    {
+      "path": "packages/golden-ui/tests/browser/fixture/session.ts",
+      "sha256": "bb4ad8eac3d5bca976ced9e0b912f4dc03bd95adfcd1af92d875b1c47b1aabba"
+    },
+    {
+      "path": "packages/golden-ui/tests/browser/fixture/timing.ts",
+      "sha256": "f4ff972c0d70104a1f016c088c81692135976b2d15c2700458a6799b076ec558"
+    },
+    {
+      "path": "packages/golden-ui/tests/browser/tree-keyboard.mjs",
+      "sha256": "d7304542e5c690da94a3febef9fa65890668cf14aea48f1a0beb9c104b7d4b66"
+    }
+  ],
+  "assets": [
+    {
+      "path": "target/qualification/p11-collections/assets/index-BaoCyjXp.css",
+      "sha256": "ecd378f8d404e8948806c7dfe5c3d687ef886c9e3799023ed57d9bdb49ef8a24"
+    },
+    {
+      "path": "target/qualification/p11-collections/assets/index-CaT_xr1w.js",
+      "sha256": "b2ff4f13fac4bddf4c3a4fc9a45d9dace0c08055847175b4f5343a92c076ffee"
+    }
+  ],
+  "defaultBuild": {
+    "command": "CARGO_INCREMENTAL=0 cargo build --locked",
+    "result": "passed",
+    "durationSeconds": 156,
+    "frontend": "rebuilt from current inputs",
+    "artifact": "target/debug/Chataigne2.exe",
+    "sha256": "c0e5bdf18f52371ec548515a785595af04d89ae8d9f5883e0f3af6559dab11be"
+  }
+}

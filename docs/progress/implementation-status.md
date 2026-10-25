@@ -5,8 +5,8 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-26 on `main`, based on delivered `b8e272de` plus the P11 dashboard
-qualification milestone below. **P11 is in progress; three of six fixed checkpoints are closed (50%).**
+Last reconciled: 2026-10-26 on `main`, based on delivered `f14ddbd2` plus the shared tree
+keyboard milestone below. **P11 is in progress; three of six fixed checkpoints are closed (50%).**
 **P10 is locally complete: three of three fixed checkpoints (100%).**
 **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
@@ -199,7 +199,7 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
 | Manager/catalog windowing | Complete locally | Variable-height manager/picker/outliner and flat/nested catalog menus pass through 100k items with bounded mounting, identity and focus. [Tree evidence](p11-tree-windowing.md), [catalog closure](p11-catalog-windowing.md). |
 | Historical log windowing | Complete locally | Variable-height history, filters, follow, bounded native selection, focus and snapshot publication pass through 100k records. [Qualification](p11-log-windowing.md). |
 | Dashboard viewport awareness | Complete locally | All 599 correctness groups and 160 fixed timing combinations pass through 100k authored nodes, including geometry, bounded presentation, feedback, callback stalls and completion. Retention regression passes 13 checkpoints. [Timing qualification](p11-dashboard-timing.md), [composition](p11-dashboard-composition.md), [barriers](p11-dashboard-barriers.md). |
-| Tree focus and keyboard navigation | Not started | Qualify expansion/navigation and stable focus across virtualized changes in all owning trees. |
+| Tree focus and keyboard navigation | In progress | Shared manager/outliner/picker keyboard operations, retained projection and 30 fixed timing cases pass through 100k items. Processor manager now uses the shared manager. Actual app-wrapper integration and constrained-picker coverage remain before closure. [Delivery and evidence](p11-tree-keyboard.md). |
 | Graph keyboard operations | Not started | Provide and qualify keyboard movement and connection creation through shared operations. |
 | Complete composed workflows | Not started | Qualify discovery, selection and editing across all required composed panels and large batches. Native usability retains P17. |
 
@@ -211,8 +211,10 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
   sparse tiers and 160 timing combinations**, retaining 4,960 samples and 480 warmups. All fixed
   geometry, mounting, feedback, stall and completion gates pass without explicit collection.
   The 13-checkpoint retention regression also passes; test-owned stale references are released.
-  Owning UI suites pass **379** cases, browser/app Svelte checks and the locked default build pass.
-  Next complete tree focus/keyboard navigation, then graph keyboard operations and composed
+  Shared tree keyboard navigation now passes 30 timing cases and 30 correctness/lifecycle groups
+  through 100k items, with bounded focus retention and 15 passing collection regression cases.
+  Owning UI suites pass **391** cases; browser/app Svelte checks pass. Complete the two remaining
+  tree qualification requirements: actual app wrappers and constrained pickers, then graph keyboard operations and composed
   workflows. Preserve [composition](p11-dashboard-composition.md) and
   [applied-receipt barriers](p11-dashboard-barriers.md). Native usability retains P17 and product
   throughput P16. P03-P10 remain closed; P03 has zero packages left.
@@ -10706,3 +10708,56 @@ Both Cargo formatters, source/report formatting and whitespace checks pass. Inve
 (58.333...% before whole-percentage rounding).** Three P11 checkpoints remain: tree keyboard,
 graph keyboard and composed workflows. Commit/push this verified milestone on `main`, then
 continue tree focus/navigation. P03 remains complete with zero packages left. Keep the full goal active.
+
+### P11 shared tree keyboard delivery
+
+Previous goal turn: **no progress** (answered the user's P03 status question). Reconciled clean
+delivered `f14ddbd2` before implementing the next dependency-ready P11 requirement. P03 remains
+closed, with zero packages left. This turn changes the shared tree implementation and qualification.
+
+Golden UI now owns one TreeRows path for manager, outliner and picker: roving focus, accessible
+logical row positions, Up/Down/Home/End, branch expansion/collapse and Enter/Space activation.
+Navigation does not implicitly select. Existing session/picker activation policy is preserved;
+modifier fields are read directly, including DOM event prototype getters. Search Down enters the
+tree; embedded controls keep their own key handling. Focus survives far scrolling, while collapse,
+removal and empty filtering choose a visible fallback without stealing search focus. Generational,
+owner, UUID and newer-focus guards reject pending stale reveal/focus.
+
+Explicit collapse now wins over automatic ancestor visibility. New outliner selections open their
+ancestors once, and do not continually override subsequent collapse. The processor manager uses
+ManagerListPanel, removing its independent recursive rendering and drag/drop implementation.
+Explicit manager roots resolve their current graph record. App predicates and supplements remain
+app-owned; [architecture](../architecture/tree-navigation.md) records the public ownership boundary.
+
+The fixed [keyboard contract](p11-workspace-qualification-contract.md#tree-keyboard-extension)
+retains all five original collection tiers, dimensions and feedback/stall/completion ceilings.
+The final production browser run passes **30 timing combinations / 930 retained samples /
+90 warmups**, plus **15 navigation/activation and 15 lifecycle groups**. Each tree mounts at most
+42 rows. Normal 20k/50k maxima are feedback p95 **41.5ms**, completion p95 **47.5ms** and callback
+stall **45.8ms**; 100k stress maxima are **96.9ms / 104.1ms / 262.6ms**. No page errors occur.
+The existing collection regression also passes five tiers, variable-row focus retention/removal
+and **15 timing combinations / 465 samples / 45 warmups**. No input events are synthesized.
+
+Earlier 50k/100k failures remain in [raw evidence](evidence/p11-tree-keyboard-failures-2026-10-26.jsonl),
+including 225ms, 404.2ms and 408.4ms stalls. Profiling found repeated persistent-trie lookups of
+unchanged siblings. Panel-owned lookups now reconcile published map changes, and openness edits
+reproject changed branches while retaining unchanged rows. Backend acknowledgements with unchanged
+visibility retain the full row array. Structural/search/policy changes use full projection.
+Unit cases compare 96 mixed updates against full projection and verify stable row identity.
+The fixture also resets persisted outliner state per setup; density and limits were not reduced.
+
+Owning UI suites pass **391 cases** (27 audio / 52 graph / 187 Golden / 125 app). Browser/app Svelte
+checks report zero errors and warnings. The locked default app build passes in **2m36s**, including
+a fresh frontend; binary SHA-256 is
+`c0e5bdf18f52371ec548515a785595af04d89ae8d9f5883e0f3af6559dab11be`.
+Both Cargo formatters, source/report formatting and whitespace checks pass. Source inventory is
+**2,183 files / 27 oversized**; no touched source exceeds 1,000 lines. Rust/protocol are unchanged.
+[Delivery, reproduction and raw evidence](p11-tree-keyboard.md) and the
+[source/build record](evidence/p11-tree-keyboard-source-2026-10-26.json) identify this exact scope.
+
+**P11 remains 3/6 closed checkpoints (50%); whole-plan scope coverage remains 58% (58.333...% exact).**
+The tree checkpoint is in progress, with two explicit remaining requirements: actual app-wrapper
+integration qualification and constrained-picker cases (hidden/nonselectable rows, view changes,
+projection and confirmation). Then continue graph keyboard operations and composed workflows.
+These requirements do not add checkpoints. Commit/push this verified milestone on `main` and keep
+the full P00-P18 goal active. Native keyboard/focus usability retains P17; product throughput P16.

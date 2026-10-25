@@ -109,7 +109,7 @@ describe('outliner visible row projection', () => {
 		]);
 	});
 
-	it('honors persisted openness and reveals selected ancestors even when explicitly closed', () => {
+	it('reveals selected ancestors by default but honors an explicit collapse', () => {
 		const nodes = [node(0, [1]), node(1, [2], 'Folder', true), node(2)];
 		expect(project(nodes).map((row) => row.nodeId)).toEqual([0, 1]);
 		expect(project(nodes, { opennessByNodeId: { '1': true } }).map((row) => row.nodeId)).toEqual([
@@ -120,7 +120,7 @@ describe('outliner visible row projection', () => {
 				opennessByNodeId: { '1': false },
 				autoExpandAncestorNodeIds: new Set([1])
 			}).map((row) => row.nodeId)
-		).toEqual([0, 1, 2]);
+		).toEqual([0, 1]);
 	});
 
 	it('does not visit descendants of a closed branch without a search query', () => {

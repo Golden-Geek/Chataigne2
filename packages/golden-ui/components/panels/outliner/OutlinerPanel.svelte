@@ -10,14 +10,15 @@
 	import { tick, untrack } from 'svelte';
 	import OutlinerItem from './OutlinerItem.svelte';
 	import { collectOutlinerAncestorNodeIds } from './navigation';
-	import VirtualRows from '../../common/virtual-rows/VirtualRows.svelte';
+	import TreeRows from './TreeRows.svelte';
+	import type { NodeSelectionInput } from './node-selection';
 	import {
 		canDragOutlinerNode,
 		resolveOutlinerDropTarget,
 		type OutlinerDropTarget,
 		type OutlinerDropZone
 	} from './drag-drop';
-	import { collectVisibleOutlinerRows, type OutlinerRow } from './visible-rows';
+	import { createOutlinerProjection } from './visible-rows';
 
 	let { panelApi, panelId, panelType, title, params }: PanelProps = $props();
 	let panel = $state<PanelState>({
@@ -90,7 +91,7 @@
 		});
 	};
 
-	const setNodeExpanded = (nodeId: NodeId, expanded: boolean): void => {
+	export const setNodeExpanded = (nodeId: NodeId, expanded: boolean): void => {
 		const nodeKey = String(nodeId);
 		if (opennessByNodeId[nodeKey] === expanded) {
 			return;
@@ -122,23 +123,34 @@
 		collectOutlinerAncestorNodeIds(mainGraphState ?? null, selectedNodeId)
 	);
 	let query = $state('');
+	export const searchNodes = (text: string) => {
+		query = text;
+	};
 	let treeElement = $state<HTMLDivElement | null>(null);
-	let virtualRows = $state<ReturnType<typeof VirtualRows<OutlinerRow>>>();
+	let virtualRows = $state<ReturnType<typeof TreeRows>>();
+	export const navigateTree = (key: string, input?: Partial<NodeSelectionInput>) =>
+		virtualRows?.navigate(key, input);
+	export const enterTree = () => virtualRows?.enter();
+	export const focusTreeNode = (id: NodeId) => virtualRows?.focusNode(id);
 	let activeDragNodeId = $state<NodeId | null>(null);
 	let dropTarget = $state<OutlinerDropTarget | null>(null);
 	let moveInFlight = $state(false);
 
 	let rootNode = $derived(mainGraphState?.nodesById.get(mainGraphState?.rootId ?? 0) ?? null);
 	let normalizedQuery = $derived(query.trim().toLowerCase());
+	const projectRows = createOutlinerProjection();
 	let visibleRows = $derived.by(() => {
-		if (!mainGraphState) return [];
+		if (!mainGraphState) {
+			projectRows.clear();
+			return [];
+		}
 		const matchesQuery = normalizedQuery
 			? (candidate: UiNodeDto): boolean =>
 					`${candidate.meta.label} ${candidate.meta.short_name} ${candidate.node_type}`
 						.toLowerCase()
 						.includes(normalizedQuery)
 			: undefined;
-		return collectVisibleOutlinerRows({
+		return projectRows({
 			graph: mainGraphState,
 			opennessByNodeId,
 			autoExpandAncestorNodeIds,
@@ -278,6 +290,19 @@
 		return haystack.includes(normalizedQuery);
 	};
 
+	let revealedSelection: string | null = null;
+	$effect(() => {
+		const node = selectedNodeId === null ? null : mainGraphState?.nodesById.get(selectedNodeId);
+		const identity = node ? `${node.node_id}:${node.uuid}` : null;
+		if (identity === revealedSelection) return;
+		revealedSelection = identity;
+		if (node)
+			untrack(() => {
+				const next = { ...opennessByNodeId };
+				for (const ancestor of autoExpandAncestorNodeIds) next[String(ancestor)] = true;
+				persistOpennessByNodeId(next);
+			});
+	});
 	$effect(() => {
 		query;
 		if (!treeElement || selectedNodeId === null) {
@@ -293,18 +318,30 @@
 {#if rootNode}
 	<div class="outliner-panel">
 		<div class="outliner-header">
-			<input type="text" placeholder="Search..." class="outliner-search" bind:value={query} />
+			<input
+				type="text"
+				placeholder="Search..."
+				class="outliner-search"
+				bind:value={query}
+				onkeydown={(event) => {
+					if (event.key === 'ArrowDown') {
+						event.preventDefault();
+						void enterTree();
+					}
+				}} />
 		</div>
 		<div
 			class="outliner-content"
 			bind:this={treeElement}
-			role="region"
+			role="tree"
+			aria-multiselectable="true"
 			aria-label="Project tree"
 			tabindex="-1">
-			<VirtualRows
+			<TreeRows
 				bind:this={virtualRows}
 				rows={visibleRows}
-				keyOf={(row) => row.nodeId}
+				{selectedNodeId}
+				onExpand={setNodeExpanded}
 				scroller={treeElement}>
 				{#snippet item(row)}
 					<div class="outliner-virtual-row" style:padding-inline-start={`${row.indent * 0.7}rem`}>
@@ -328,7 +365,7 @@
 							onNodeDragEnd={handleNodeDragEnd} />
 					</div>
 				{/snippet}
-			</VirtualRows>
+			</TreeRows>
 		</div>
 	</div>
 {/if}

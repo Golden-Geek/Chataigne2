@@ -1,15 +1,18 @@
 import type { NodeId, UiNodeDto } from '../../../types';
+import { VersionedNodeMap } from '../../../store/graph-index';
 
 export interface OutlinerRow {
 	nodeId: NodeId;
 	parentId: NodeId | null;
 	level: number;
 	indent: number;
+	/** Present on projected rows; absent on traversal roots. */
+	expanded?: boolean;
 }
 
 export interface OutlinerRowGraph {
 	rootId: NodeId | null;
-	nodesById: ReadonlyMap<NodeId, UiNodeDto>;
+	nodesById: Pick<ReadonlyMap<NodeId, UiNodeDto>, 'get'>;
 }
 
 interface VisibleRowsOptions {
@@ -21,6 +24,166 @@ interface VisibleRowsOptions {
 	roots?: readonly OutlinerRow[];
 	canRenderChildren?: (node: UiNodeDto) => boolean;
 	rowVisible?: (node: UiNodeDto) => boolean;
+}
+
+/**
+ * Panel-owned lookup projection. Reopening a branch must not repeat persistent-trie lookups
+ * for every unchanged sibling. Published changes update only previously visited records.
+ * Mutable/non-versioned maps deliberately get no retained cache.
+ */
+export function createOutlinerProjection() {
+	let previous: VersionedNodeMap<UiNodeDto> | null = null;
+	let priorOptions: VisibleRowsOptions | null = null;
+	let priorRows: OutlinerRow[] = [];
+	let positions = new Map<NodeId, number>();
+	const cached = new Map<NodeId, UiNodeDto>();
+	const lookup = (source: OutlinerRowGraph['nodesById']): OutlinerRowGraph['nodesById'] => {
+		if (!(source instanceof VersionedNodeMap)) {
+			previous = null;
+			cached.clear();
+			return source;
+		}
+		if (previous !== source) {
+			if (previous)
+				source.forEachChange(previous, (id, value) => {
+					if (!value) cached.delete(id);
+					else if (cached.has(id)) cached.set(id, value);
+				});
+			previous = source;
+		}
+		return {
+			get: (id) => {
+				let node = cached.get(id);
+				if (!node) {
+					node = source.get(id);
+					if (node) cached.set(id, node);
+				}
+				return node;
+			}
+		};
+	};
+	const project = (options: VisibleRowsOptions) => {
+		const readOptions = {
+			...options,
+			graph: { rootId: options.graph.rootId, nodesById: lookup(options.graph.nodesById) }
+		};
+		const nextRows = priorOptions
+			? updateVisibleRows(priorOptions, options, readOptions, priorRows, positions)
+			: undefined;
+		const result = nextRows ?? collectVisibleOutlinerRows(readOptions);
+		if (result !== priorRows) positions = new Map(result.map((row, index) => [row.nodeId, index]));
+		priorOptions = options;
+		priorRows = result;
+		return result;
+	};
+	project.lookup = lookup;
+	project.clear = () => {
+		previous = null;
+		cached.clear();
+		priorOptions = null;
+		priorRows = [];
+		positions.clear();
+	};
+	return project;
+}
+
+const sameRow = (left: OutlinerRow, right: OutlinerRow) =>
+	left.nodeId === right.nodeId &&
+	left.parentId === right.parentId &&
+	left.level === right.level &&
+	left.indent === right.indent &&
+	left.expanded === right.expanded;
+
+/** Reproject changed openness paths; structural, search and policy changes use a full projection. */
+function updateVisibleRows(
+	before: VisibleRowsOptions,
+	next: VisibleRowsOptions,
+	read: VisibleRowsOptions,
+	rows: OutlinerRow[],
+	positions: ReadonlyMap<NodeId, number>
+): OutlinerRow[] | undefined {
+	const oldSource = before.graph.nodesById,
+		source = next.graph.nodesById;
+	if (
+		!(source instanceof VersionedNodeMap) ||
+		!(oldSource instanceof VersionedNodeMap) ||
+		before.matchesQuery ||
+		next.matchesQuery ||
+		before.graph.rootId !== next.graph.rootId ||
+		before.initiallyExpandedDepth !== next.initiallyExpandedDepth ||
+		before.canRenderChildren !== next.canRenderChildren ||
+		before.rowVisible !== next.rowVisible
+	)
+		return;
+	const oldRoots = before.roots,
+		roots = next.roots;
+	if (
+		Boolean(oldRoots) !== Boolean(roots) ||
+		oldRoots?.length !== roots?.length ||
+		oldRoots?.some((root, index) => !sameRow(root, roots![index]))
+	)
+		return;
+	const dirty = new Set<NodeId>();
+	let full = false;
+	if (source !== oldSource)
+		source.forEachChange(oldSource, (id, node, old) => {
+			if (full) return;
+			if (
+				!node ||
+				!old ||
+				node.uuid !== old.uuid ||
+				node.children !== old.children ||
+				(before.rowVisible && before.rowVisible(node) !== before.rowVisible(old)) ||
+				(before.canRenderChildren &&
+					before.canRenderChildren(node) !== before.canRenderChildren(old))
+			) {
+				full = true;
+				return;
+			}
+			if (node.meta.presentation?.collapsed !== old.meta.presentation?.collapsed) dirty.add(id);
+		});
+	if (full) return;
+	for (const key of new Set([
+		...Object.keys(before.opennessByNodeId),
+		...Object.keys(next.opennessByNodeId)
+	]))
+		if (before.opennessByNodeId[key] !== next.opennessByNodeId[key]) dirty.add(Number(key));
+	for (const id of before.autoExpandAncestorNodeIds)
+		if (!next.autoExpandAncestorNodeIds.has(id)) dirty.add(id);
+	for (const id of next.autoExpandAncestorNodeIds)
+		if (!before.autoExpandAncestorNodeIds.has(id)) dirty.add(id);
+	if (dirty.size > 64) return;
+	const changed = [...dirty]
+		.map((id) => positions.get(id))
+		.filter((index): index is number => index !== undefined)
+		.sort((a, b) => a - b);
+	if (!changed.length) return rows;
+	const edits: { start: number; end: number; replacement: OutlinerRow[] }[] = [];
+	let covered = -1;
+	for (const start of changed) {
+		if (start < covered) continue;
+		const root = rows[start];
+		let end = start + 1;
+		while (end < rows.length && rows[end].indent > root.indent) end++;
+		covered = end;
+		const replacement = collectVisibleOutlinerRows({ ...read, roots: [root] });
+		if (
+			replacement.length === end - start &&
+			replacement.every((row, index) => sameRow(row, rows[start + index]))
+		)
+			continue;
+		edits.push({ start, end, replacement });
+	}
+	if (!edits.length) return rows;
+	const result: OutlinerRow[] = [];
+	let cursor = 0;
+	for (const edit of edits) {
+		while (cursor < edit.start) result.push(rows[cursor++]);
+		for (const row of edit.replacement) result.push(row);
+		cursor = edit.end;
+	}
+	while (cursor < rows.length) result.push(rows[cursor++]);
+	return result;
 }
 
 const matchingSubtrees = (
@@ -85,13 +248,17 @@ export const collectVisibleOutlinerRows = ({
 		const node = filtered?.nodes.get(row.nodeId) ?? graph.nodesById.get(row.nodeId);
 		if (!node) continue;
 		const showRow = rowVisible(node);
-		if (showRow) rows.push(row);
 		const explicit = opennessByNodeId[String(row.nodeId)];
 		const expanded =
-			autoExpandAncestorNodeIds.has(row.nodeId) ||
-			(typeof explicit === 'boolean'
+			typeof explicit === 'boolean'
 				? explicit
-				: node.meta.presentation?.collapsed !== true && row.level < initiallyExpandedDepth);
+				: autoExpandAncestorNodeIds.has(row.nodeId) ||
+					(node.meta.presentation?.collapsed !== true && row.level < initiallyExpandedDepth);
+		if (showRow)
+			rows.push({
+				...row,
+				expanded: node.children.length > 0 && canRenderChildren(node) ? expanded : undefined
+			});
 		if ((showRow && !expanded) || !canRenderChildren(node)) continue;
 		for (let index = node.children.length - 1; index >= 0; index -= 1) {
 			pending.push({

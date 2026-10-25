@@ -22,6 +22,7 @@ and superseded plans are [archived](../archive/2026-10-18/README.md).
   project-generation fencing.
 - [UI protocol](ui-protocol.md): Rust DTO source of truth and generated TypeScript.
 - [Dashboard UI](dashboard-ui.md): recursive rendering, layout/camera/interaction ownership and authored anchor semantics.
+- [Tree UI](tree-navigation.md): shared virtualized projections, keyboard navigation, focus and activation ownership.
 
 ## Chataigne systems
 

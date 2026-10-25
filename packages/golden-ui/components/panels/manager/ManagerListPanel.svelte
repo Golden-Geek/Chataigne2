@@ -8,8 +8,9 @@
 		type OutlinerDropTarget,
 		type OutlinerDropZone
 	} from '../outliner/drag-drop';
-	import VirtualRows from '../../common/virtual-rows/VirtualRows.svelte';
-	import { collectVisibleOutlinerRows, type OutlinerRow } from '../outliner/visible-rows';
+	import TreeRows from '../outliner/TreeRows.svelte';
+	import type { NodeActivation, NodeSelectionInput } from '../outliner/node-selection';
+	import { createOutlinerProjection } from '../outliner/visible-rows';
 	import { createNodeOpenness } from '../outliner/openness.svelte';
 	import type { GraphState } from '../../../store/graph.svelte';
 	import { sendMoveNodeIntent } from '../../../store/ui-intents';
@@ -66,7 +67,7 @@
 		allowDragDrop?: boolean;
 		nodeDraggable?: ((candidate: UiNodeDto) => boolean) | null;
 		onCreateItem?: (parent: UiNodeDto, item: UiCreatableUserItem) => void | Promise<void>;
-		onSelectNode?: (node: UiNodeDto, event: MouseEvent) => void;
+		onSelectNode?: NodeActivation;
 		onNodeDragStartData?: (node: UiNodeDto, event: DragEvent) => void;
 		showSessionSelection?: boolean;
 		query?: string;
@@ -76,7 +77,11 @@
 	let graphState = $derived(session?.graph.state ?? null);
 	let selectedNodeId = $derived(session?.selectedNodeId ?? null);
 	let treeElement = $state<HTMLDivElement | null>(null);
-	let virtualRows = $state<ReturnType<typeof VirtualRows<OutlinerRow>>>();
+	let virtualRows = $state<ReturnType<typeof TreeRows>>();
+	export const navigateTree = (key: string, input?: Partial<NodeSelectionInput>) =>
+		virtualRows?.navigate(key, input);
+	export const enterTree = () => virtualRows?.enter();
+	export const focusTreeNode = (id: NodeId) => virtualRows?.focusNode(id);
 	let opennessScope = $derived({ session, generation: session?.snapshotGeneration });
 	const openness = createNodeOpenness(
 		() => graphState,
@@ -123,16 +128,22 @@
 		return null;
 	};
 
-	let managerNode = $derived(explicitManagerNode ?? findManagerRoot(graphState));
+	let managerNode = $derived(
+		explicitManagerNode === null
+			? findManagerRoot(graphState)
+			: (graphState?.nodesById.get(explicitManagerNode.node_id) ?? null)
+	);
 	let addTargetNode = $derived(explicitAddTargetNode ?? managerNode);
 	let focusedNodeId = $derived(findVisibleTreeNodeId(graphState, selectedNodeId));
+	const projectRows = createOutlinerProjection();
 	let itemNodes = $derived.by((): UiNodeDto[] => {
 		if (!graphState || !managerNode) {
 			return [];
 		}
 
+		const lookup = projectRows.lookup(graphState.nodesById);
 		return managerNode.children
-			.map((childNodeId: NodeId) => graphState.nodesById.get(childNodeId) ?? null)
+			.map((childNodeId: NodeId) => lookup.get(childNodeId) ?? null)
 			.filter(isTreeNode);
 	});
 	let isRootDropActive = $derived(
@@ -152,25 +163,27 @@
 			nodeSearchText(candidate).toLowerCase().includes(normalizedQuery)
 		);
 	};
-	let rows = $derived.by(() =>
-		graphState
-			? collectVisibleOutlinerRows({
-					graph: graphState,
-					roots: itemNodes.map((node) => ({
-						nodeId: node.node_id,
-						parentId: managerNode?.node_id ?? null,
-						level: 0,
-						indent: 0
-					})),
-					opennessByNodeId: openness.overrides,
-					autoExpandAncestorNodeIds: new Set(),
-					initiallyExpandedDepth,
-					canRenderChildren: canRenderNodeChildren,
-					rowVisible: (candidate) => isTreeNode(candidate),
-					matchesQuery: query.trim() || extraNodeFilter ? nodeFilter : undefined
-				})
-			: []
-	);
+	let rows = $derived.by(() => {
+		if (!graphState || !managerNode) {
+			projectRows.clear();
+			return [];
+		}
+		return projectRows({
+			graph: graphState,
+			roots: itemNodes.map((node) => ({
+				nodeId: node.node_id,
+				parentId: managerNode?.node_id ?? null,
+				level: 0,
+				indent: 0
+			})),
+			opennessByNodeId: openness.overrides,
+			autoExpandAncestorNodeIds: new Set(),
+			initiallyExpandedDepth,
+			canRenderChildren: canRenderNodeChildren,
+			rowVisible: isTreeNode,
+			matchesQuery: query.trim() || extraNodeFilter ? nodeFilter : undefined
+		});
+	});
 
 	const isManagerRowTarget = (target: EventTarget | null): boolean => {
 		return target instanceof Element && target.closest('.outliner-item-content') !== null;
@@ -387,7 +400,13 @@
 			type="search"
 			placeholder={searchPlaceholder}
 			class="manager-list-search"
-			bind:value={query} />
+			bind:value={query}
+			onkeydown={(event) => {
+				if (event.key === 'ArrowDown') {
+					event.preventDefault();
+					void enterTree();
+				}
+			}} />
 		{#if addTargetNode}
 			<div class="manager-list-add-button" title={addButtonTitle}>
 				<NodeAddButton
@@ -401,7 +420,8 @@
 	<div
 		class="manager-list-content"
 		class:root-drop-active={isRootDropActive}
-		role="region"
+		role="tree"
+		aria-multiselectable="true"
 		aria-label="Manager items"
 		tabindex="-1"
 		data-node-id={managerNode?.node_id ?? undefined}
@@ -426,10 +446,13 @@
 			<div class="manager-list-empty">No matching items.</div>
 		{/if}
 		{#if managerNode}
-			<VirtualRows
+			<TreeRows
 				bind:this={virtualRows}
 				{rows}
-				keyOf={(row) => row.nodeId}
+				selectedNodeId={focusedNodeId}
+				identity={managerNode.uuid}
+				onExpand={openness.setExpanded}
+				onActivate={onSelectNode}
 				variableHeights={true}
 				scroller={treeElement}>
 				{#snippet item(row)}
@@ -459,7 +482,7 @@
 							onNodeDragEnd={handleNodeDragEnd} />
 					</div>
 				{/snippet}
-			</VirtualRows>
+			</TreeRows>
 		{/if}
 	</div>
 </div>

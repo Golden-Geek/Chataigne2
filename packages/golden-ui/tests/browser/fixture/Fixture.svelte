@@ -70,6 +70,7 @@
 	export const catalogWidth = (width: string) => catalog!.setWidth(width);
 	export const measureCatalog = () => catalog!.measureFilter();
 	let manager = $state<ReturnType<typeof ManagerListPanel>>();
+	let outliner = $state<ReturnType<typeof OutlinerPanel>>();
 	let picker = $state<ReturnType<typeof NodePickerModalHost>>();
 	let variable = $state<ReturnType<typeof VirtualRows<{ id: number; height: number }>>>();
 	let variableScroller = $state<HTMLDivElement | null>(null);
@@ -86,6 +87,7 @@
 		appState.session = fixture.session;
 		mode = 'trees';
 		query = '';
+		panelParams = {};
 		count = size;
 		closeNodePickerModal();
 		const value = fixture.load(size);
@@ -105,13 +107,129 @@
 		manager!.setNodeExpanded(id, expanded);
 		await frames();
 	}
-	export async function openPicker(selected: number) {
+	export async function openPicker(selected: number, projection = false) {
 		void openNodePickerModal({
 			rootNode: fixture.session.graph.state.nodesById.get(1) ?? null,
 			selectedNodeId: selected,
-			clearable: false
+			clearable: false,
+			projectionOptions: projection ? () => [] : undefined
 		});
 		await frames();
+	}
+	type TreePanel = 'manager' | 'outliner' | 'picker';
+	const treePanel = (panel: TreePanel) =>
+		panel === 'manager' ? manager! : panel === 'outliner' ? outliner! : picker!;
+	export async function treeFocus(panel: TreePanel, id: number) {
+		const result = await treePanel(panel).focusTreeNode(id);
+		await frames();
+		return result;
+	}
+	export async function treeNavigate(panel: TreePanel, key: string) {
+		await treePanel(panel).navigateTree(key);
+		await frames();
+	}
+	export const treeSelection = () => [...fixture.session.selectedNodesIds];
+	export async function treeModifiers(panel: TreePanel) {
+		fixture.session.selectNode(2, 'REPLACE');
+		await treePanel(panel).focusTreeNode(3);
+		// Browser events expose modifiers through prototype getters.
+		await treePanel(panel).navigateTree(
+			' ',
+			Object.create({
+				get ctrlKey() {
+					return true;
+				}
+			})
+		);
+		await frames();
+		const toggled = [...fixture.session.selectedNodesIds];
+		await treePanel(panel).navigateTree(' ', { altKey: true });
+		await frames();
+		return { toggled, removed: [...fixture.session.selectedNodesIds] };
+	}
+	export async function treeSearch(panel: TreePanel, text: string) {
+		if (panel === 'manager') query = text;
+		else if (panel === 'outliner') outliner!.searchNodes(text);
+		else picker!.searchNodes(text);
+		await frames();
+	}
+	export async function treeCollapse(panel: TreePanel, id: number) {
+		treePanel(panel).setNodeExpanded(id, false);
+		await frames();
+	}
+	export async function treeDelete(id: number) {
+		fixture.session.graph.applyEvent({
+			time: { tick: 9000, micro: 0, seq: 0 },
+			kind: { kind: 'nodeDeleted', node: id }
+		});
+		await frames();
+	}
+	export async function treeRace(panel: TreePanel, action: 'newer' | 'search' | 'replace') {
+		const component = treePanel(panel);
+		const pending = component.focusTreeNode(count + 1);
+		let newer: Promise<boolean | undefined> | undefined;
+		if (action === 'newer') newer = component.focusTreeNode(3);
+		else if (action === 'search') {
+			const selector =
+				panel === 'manager'
+					? '.manager-list-search'
+					: panel === 'outliner'
+						? '.outliner-search'
+						: '.picker-search';
+			document.querySelector<HTMLInputElement>(selector)!.focus();
+		} else fixture.load(count);
+		const results = [await pending, newer ? await newer : undefined];
+		await frames();
+		return results;
+	}
+	export async function treeEnter(panel: TreePanel) {
+		await treePanel(panel).enterTree();
+		await frames();
+	}
+	export async function treeReject(panel: TreePanel) {
+		fixture.rejectNext();
+		await treeNavigate(panel, 'ArrowRight');
+	}
+	export async function treeMeasure(panel: TreePanel, action: 'focus' | 'expand') {
+		const component = treePanel(panel);
+		await component.focusTreeNode(2);
+		await frames();
+		const root =
+			panel === 'manager'
+				? '.manager-list-content'
+				: panel === 'outliner'
+					? '.outliner-content'
+					: '.picker-tree';
+		if (action === 'expand') {
+			await component.navigateTree('ArrowRight');
+			await frames();
+		}
+		return measureCollectionFlow(
+			`tree-${panel}-${action}`,
+			count,
+			(index) => {
+				void component.navigateTree(
+					action === 'focus' ? (index % 2 ? 'Home' : 'End') : index % 2 ? 'ArrowRight' : 'ArrowLeft'
+				);
+			},
+			(index) => {
+				const target =
+					action === 'focus'
+						? index % 2
+							? panel === 'manager'
+								? 2
+								: panel === 'outliner'
+									? 0
+									: 1
+							: count + 1
+						: 2;
+				const row = document.querySelector<HTMLElement>(`${root} [data-tree-node-id="${target}"]`);
+				if (!row || row !== document.activeElement || !visible(root, target)) return false;
+				return (
+					action !== 'expand' || row.getAttribute('aria-expanded') === String(Boolean(index % 2))
+				);
+			}
+		);
 	}
 	export async function pickerSearch(text: string) {
 		picker!.searchNodes(text);
@@ -197,6 +315,7 @@
 		</section>
 		<section data-panel="outliner">
 			<OutlinerPanel
+				bind:this={outliner}
 				{panelApi}
 				panelId="fixture"
 				panelType="outliner"

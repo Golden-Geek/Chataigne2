@@ -2,8 +2,9 @@
 	import { onDestroy, tick } from 'svelte';
 	import { appState } from '../../store/workbench.svelte';
 	import OutlinerItem from '../panels/outliner/OutlinerItem.svelte';
-	import VirtualRows from './virtual-rows/VirtualRows.svelte';
-	import { collectVisibleOutlinerRows, type OutlinerRow } from '../panels/outliner/visible-rows';
+	import TreeRows from '../panels/outliner/TreeRows.svelte';
+	import type { NodeSelectionInput } from '../panels/outliner/node-selection';
+	import { createOutlinerProjection } from '../panels/outliner/visible-rows';
 	import { createNodeOpenness } from '../panels/outliner/openness.svelte';
 	import {
 		closeNodePickerModal,
@@ -27,7 +28,11 @@
 	let panelElement = $state<HTMLDivElement | null>(null);
 	let searchInputElement = $state<HTMLInputElement | null>(null);
 	let treeElement = $state<HTMLDivElement | null>(null);
-	let virtualRows = $state<ReturnType<typeof VirtualRows<OutlinerRow>>>();
+	let virtualRows = $state<ReturnType<typeof TreeRows>>();
+	export const navigateTree = (key: string, input?: Partial<NodeSelectionInput>) =>
+		virtualRows?.navigate(key, input);
+	export const enterTree = () => virtualRows?.enter();
+	export const focusTreeNode = (id: number) => virtualRows?.focusNode(id);
 	let topPx = $state(0);
 	let leftPx = $state(0);
 	let modalHeightPx = $state(0);
@@ -42,12 +47,14 @@
 		() => graphState,
 		() => opennessScope
 	);
+	export const setNodeExpanded = openness.setExpanded;
 	let selectedNodeId = $state<number | null>(null);
 	let autoExpandAncestorNodeIds = $derived.by(() =>
 		collectOutlinerAncestorNodeIds(graphState, selectedNodeId)
 	);
 	let selectedProjection = $state<UiParamValueProjection | undefined>(undefined);
 	let activeViewId = $state<string | null>(null);
+	let treeIdentity = $derived({ request, activeViewId });
 	let pickerViews = $derived(options?.views ?? []);
 	let activeView = $derived.by((): NodePickerModalView | null => {
 		const firstView = pickerViews[0] ?? null;
@@ -322,16 +329,20 @@
 				(options?.nodeSearchText?.(candidate) ?? '').toLowerCase().includes(normalizedQuery))
 		);
 	};
+	const projectRows = createOutlinerProjection();
 	let rows = $derived.by(() => {
 		const graph = graphState,
 			config = options,
 			view = activeView;
-		if (!graph || !config?.rootNode) return [];
+		if (!graph || !config?.rootNode) {
+			projectRows.clear();
+			return [];
+		}
 		const search = query.trim().toLowerCase(),
 			searchText = config.nodeSearchText;
 		const visible = config.nodeVisibilityFilter,
 			viewVisible = view?.nodeVisibilityFilter;
-		return collectVisibleOutlinerRows({
+		return projectRows({
 			graph,
 			roots: [{ nodeId: config.rootNode.node_id, parentId: null, level: 0, indent: 0 }],
 			opennessByNodeId: openness.overrides,
@@ -388,6 +399,12 @@
 				class="picker-search"
 				placeholder={options.searchPlaceholder}
 				bind:this={searchInputElement}
+				onkeydown={(event) => {
+					if (event.key === 'ArrowDown') {
+						event.preventDefault();
+						void enterTree();
+					}
+				}}
 				bind:value={query} />
 			<div class="picker-view-bar" aria-label="Picker views">
 				{#if showViewBar}
@@ -407,14 +424,22 @@
 			<div
 				class="picker-tree"
 				bind:this={treeElement}
-				role="region"
+				role="tree"
 				aria-label="Available nodes"
 				tabindex="-1">
 				{#if options.rootNode}
-					<VirtualRows
+					<TreeRows
 						bind:this={virtualRows}
 						{rows}
-						keyOf={(row) => row.nodeId}
+						{selectedNodeId}
+						identity={treeIdentity}
+						onExpand={openness.setExpanded}
+						selectable={selectableByConstraints}
+						onActivate={(candidate) => {
+							selectedNodeId = candidate.node_id;
+							alignProjectionForNode(candidate);
+							if (!options.projectionOptions) resolvePick(candidate);
+						}}
 						variableHeights={true}
 						scroller={treeElement}>
 						{#snippet item(row)}
@@ -449,7 +474,7 @@
 									}} />
 							</div>
 						{/snippet}
-					</VirtualRows>
+					</TreeRows>
 				{:else}
 					<div class="picker-empty">No root available</div>
 				{/if}

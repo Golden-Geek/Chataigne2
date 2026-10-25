@@ -7,6 +7,7 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { chromium } from 'playwright-core';
 import { qualifyCatalog } from './catalog.mjs';
 import { qualifyLogs } from './logs.mjs';
+import { qualifyTreeKeyboard } from './tree-keyboard.mjs';
 
 const root = fileURLToPath(new URL('./fixture/', import.meta.url));
 const repository = fileURLToPath(new URL('../../../../', import.meta.url));
@@ -61,7 +62,22 @@ try {
 				mounted: Number(tree.dataset.mountedRowCount)
 			}))
 		);
-	if (process.argv.includes('--logs')) {
+	if (process.argv.includes('--tree-profile')) {
+		await page.evaluate(() => window.collectionFixture.setup(50000));
+		const cdp = await page.context().newCDPSession(page);
+		await cdp.send('Profiler.enable');
+		await cdp.send('Profiler.start');
+		const timing = await page.evaluate(() =>
+			window.collectionFixture.treeMeasure('manager', 'expand')
+		);
+		const { profile } = await cdp.send('Profiler.stop');
+		writeFileSync(resolve(generated, 'p11-tree-keyboard.cpuprofile'), JSON.stringify(profile));
+		await cdp.detach();
+		emit({ kind: 'tree-profile', ...timing });
+	} else if (process.argv.includes('--tree-keyboard')) {
+		await qualifyTreeKeyboard(page, emit);
+		assert.deepEqual(errors, []);
+	} else if (process.argv.includes('--logs')) {
 		await qualifyLogs(page, emit);
 		assert.deepEqual(errors, []);
 	} else if (process.argv.includes('--catalog')) {

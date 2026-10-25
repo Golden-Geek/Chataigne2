@@ -39,6 +39,22 @@ Retain failures and raw samples. Do not relax limits or reduce density to obtain
 bundle, tool and machine evidence must identify what was actually exercised. Later collection,
 dashboard and keyboard milestones add their explicit workloads before qualifying them.
 
+## Tree keyboard extension
+
+Before keyboard timing, fix the existing five collection tiers and unchanged manager/outliner/picker
+scene. Qualify shared production TreeRows operations: Up/Down, Home/End, Right expansion/child,
+Left collapse/visible parent, Enter/Space activation and modifier selection. Navigation changes
+focus independently of selection. Include hidden/filtered ancestors, rejected expansion, far focus,
+collapse/removal fallback, identity replacement and newer navigation superseding pending focus.
+Each list retains at most 42 mounted rows in this scene, including the roving and focused row.
+
+Measure far Home/End navigation and branch expansion/collapse in each of the three consumers:
+30 action/consumer/tier combinations, three warmups and 31 retained samples each. Keep the existing
+200ms feedback/stall and 2,000ms completion normal limits; 100k stress uses 400ms/4,000ms.
+Inspect actual DOM focus, row text, geometry and selection. Call the production navigation operation
+directly; do not synthesize input. App wrapper integration and constrained picker/lifecycle cases
+must also pass before the tree checkpoint closes. Physical keyboard usability remains P17.
+
 ## Creation-catalog extension
 
 The shared ContextMenu is the creation-catalog surface used by NodeAddButton and node/graph

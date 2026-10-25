@@ -12,6 +12,7 @@
 	import type { OutlinerDropTarget } from './drag-drop';
 	import { resolveOutlinerRowSupplement } from './outliner-row-registry';
 	import { sendPatchMetaIntent } from '../../../store/ui-intents';
+	import { nodeSelectionMode, type NodeActivation } from './node-selection';
 
 	const focusOnMount = (el: HTMLInputElement): void => {
 		el.focus();
@@ -75,7 +76,7 @@
 		dropTarget?: OutlinerDropTarget | null;
 		onNodeOpennessChange?: ((nodeId: NodeId, expanded: boolean) => void) | null;
 		showSessionSelection?: boolean | null;
-		onSelectNode?: ((next: UiNodeDto, event: MouseEvent) => void) | null;
+		onSelectNode?: NodeActivation | null;
 		onNodeDragStart?: ((node: UiNodeDto, event: DragEvent) => void) | null;
 		onNodeDragOver?: ((node: UiNodeDto, event: DragEvent) => void) | null;
 		onNodeDrop?: ((node: UiNodeDto, event: DragEvent) => void | Promise<void>) | null;
@@ -143,16 +144,7 @@
 				return;
 			}
 		}
-		session?.selectNode(
-			next.node_id,
-			event.ctrlKey || event.metaKey
-				? 'TOGGLE'
-				: event.shiftKey
-					? 'ADD'
-					: event.altKey
-						? 'REMOVE'
-						: 'REPLACE'
-		);
+		session?.selectNode(next.node_id, nodeSelectionMode(event));
 	};
 
 	const defaultExpandedForNode = (candidate: UiNodeDto | null): boolean => {
@@ -235,7 +227,7 @@
 	});
 
 	$effect(() => {
-		if (node === null) {
+		if (projectedVisible || node === null) {
 			return;
 		}
 		const shouldAutoExpand = autoExpandAncestorNodeIds.has(node.node_id);
@@ -446,6 +438,7 @@
 				{:else}
 					<button
 						class="outliner-item-label"
+						tabindex={projectedVisible ? -1 : 0}
 						class:draggable={rowDraggable}
 						class:non-selectable={!rowSelectable}
 						draggable={rowDraggable}
