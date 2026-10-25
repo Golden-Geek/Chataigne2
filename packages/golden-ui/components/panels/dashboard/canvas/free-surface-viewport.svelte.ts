@@ -16,22 +16,14 @@ export interface FreeSurfaceOverview {
 }
 
 interface FreeSurfaceViewportContext {
+	readonly budget: number;
+	retained(): ReadonlySet<NodeId>;
 	readonly graph: GraphState | null;
 	readonly node: UiNodeDto;
 	readonly enabled: boolean;
 	readonly element: HTMLElement | null;
 	readonly view: DashboardViewContext | null;
 }
-
-const directWidgetShell = (layout: HTMLElement, target: Node | null): HTMLElement | null => {
-	const element = target instanceof Element ? target : target?.parentElement;
-	let shell = element?.closest<HTMLElement>('.dashboard-widget-shell') ?? null;
-	while (shell && layout.contains(shell)) {
-		if (shell.parentElement?.parentElement?.parentElement === layout) return shell;
-		shell = shell.parentElement?.closest<HTMLElement>('.dashboard-widget-shell') ?? null;
-	}
-	return null;
-};
 
 export function createFreeSurfaceViewport(context: FreeSurfaceViewportContext) {
 	const geometry = new FreeSurfaceGeometry();
@@ -41,10 +33,6 @@ export function createFreeSurfaceViewport(context: FreeSurfaceViewportContext) {
 	let overview = $state.raw<FreeSurfaceOverview | null>(null);
 	let queuedRefresh = false;
 	let destroyed = false;
-	let pendingFocus: HTMLElement | null = null;
-	const pointerTargets = new Map<number, { target: Node; id: NodeId; uuid: string }>();
-	// The DOM can disappear before this effect observes the corresponding graph removal.
-	let rememberedFocus: { id: NodeId; uuid: string; element: HTMLElement } | null = null;
 	const refresh = () => {
 		// Focus events also fire during keyed DOM moves, when reactive writes are forbidden.
 		if (queuedRefresh || destroyed) return;
@@ -56,40 +44,13 @@ export function createFreeSurfaceViewport(context: FreeSurfaceViewportContext) {
 	};
 	onDestroy(() => {
 		destroyed = true;
-		pointerTargets.clear();
 	});
 
 	$effect(() => {
 		const element = context.element;
 		const view = context.view;
 		if (!context.enabled || !element || !view) return;
-		const identity = context.node.uuid;
 		const unregister = view.register(context.node.node_id, { element, geometry });
-		const retainPointer = (event: PointerEvent) => {
-			if (!(event.target instanceof Node)) return;
-			const shell = directWidgetShell(element, event.target);
-			const id = shell ? Number(shell.dataset.nodeId) : undefined;
-			const owner = id === undefined ? undefined : geometry.getNode(id);
-			if (owner)
-				pointerTargets.set(event.pointerId, {
-					target: event.target,
-					id: owner.node_id,
-					uuid: owner.uuid
-				});
-			refresh();
-		};
-		const releasePointer = (event: PointerEvent) => {
-			pointerTargets.delete(event.pointerId);
-			refresh();
-		};
-		const releasePointers = () => {
-			pointerTargets.clear();
-			refresh();
-		};
-		window.addEventListener('pointerdown', retainPointer, true);
-		window.addEventListener('pointerup', releasePointer, true);
-		window.addEventListener('pointercancel', releasePointer, true);
-		window.addEventListener('blur', releasePointers);
 		const observer = new ResizeObserver(refresh);
 		observer.observe(element);
 		const fontObserver = new MutationObserver(refresh);
@@ -105,16 +66,10 @@ export function createFreeSurfaceViewport(context: FreeSurfaceViewportContext) {
 			ancestor = ancestor.parentElement
 		)
 			fontObserver.observe(ancestor, { attributes: true, attributeFilter: ['class', 'style'] });
-		const events = ['resize', 'scroll', 'focusin', 'focusout', 'selectionchange'] as const;
+		const events = ['resize', 'scroll'] as const;
 		for (const event of events) window.addEventListener(event, refresh, true);
 		return () => {
 			unregister();
-			if (!context.enabled || context.element !== element || context.node.uuid !== identity)
-				pointerTargets.clear();
-			window.removeEventListener('pointerdown', retainPointer, true);
-			window.removeEventListener('pointerup', releasePointer, true);
-			window.removeEventListener('pointercancel', releasePointer, true);
-			window.removeEventListener('blur', releasePointers);
 			observer.disconnect();
 			fontObserver.disconnect();
 			for (const event of events) window.removeEventListener(event, refresh, true);
@@ -132,8 +87,6 @@ export function createFreeSurfaceViewport(context: FreeSurfaceViewportContext) {
 			mounted = [];
 			overview = null;
 			geometry.clear();
-			pendingFocus = null;
-			rememberedFocus = null;
 			return;
 		}
 		const bounds = element.getBoundingClientRect();
@@ -191,7 +144,7 @@ export function createFreeSurfaceViewport(context: FreeSurfaceViewportContext) {
 		};
 		const presentation =
 			right > left && bottom > top
-				? geometry.presentation(queryRect)
+				? geometry.presentation(queryRect, context.budget)
 				: { overview: false, ids: [], groups: [] };
 		const active = document.activeElement;
 		const retiringOverview =
@@ -216,76 +169,8 @@ export function createFreeSurfaceViewport(context: FreeSurfaceViewportContext) {
 			}
 		}
 		for (const id of view.retainedFor(node.node_id)) if (geometry.getNode(id)) ids.add(id);
-		const selector = ':scope > .dashboard-slot > .dashboard-slot-fill > .dashboard-widget-shell';
-		const ownShell = (target: Node | null) => directWidgetShell(element, target);
-		const retain = (shell: HTMLElement | null) => {
-			if (!shell) return;
-			const id = Number(shell.dataset.nodeId);
-			if (geometry.getNode(id)) ids.add(id);
-		};
-		const focusedElement =
-			document.activeElement instanceof HTMLElement && ownShell(document.activeElement)
-				? document.activeElement
-				: pendingFocus;
-		const focusedShell = ownShell(focusedElement);
-		retain(focusedShell);
-		for (const pointer of pointerTargets.values()) {
-			if (geometry.getNode(pointer.id)?.uuid === pointer.uuid) retain(ownShell(pointer.target));
-		}
-		if (focusedElement && focusedShell && rememberedFocus?.element !== focusedElement) {
-			const id = Number(focusedShell.dataset.nodeId);
-			const item = geometry.getNode(id);
-			if (item) rememberedFocus = { id, uuid: item.uuid, element: focusedElement };
-		}
-		if (
-			!focusedElement &&
-			rememberedFocus &&
-			(rememberedFocus.element.isConnected ||
-				geometry.getNode(rememberedFocus.id)?.uuid === rememberedFocus.uuid)
-		)
-			rememberedFocus = null;
-		const retiredFocus =
-			rememberedFocus && geometry.getNode(rememberedFocus.id)?.uuid !== rememberedFocus.uuid
-				? rememberedFocus
-				: null;
-		for (const shell of element.querySelectorAll<HTMLElement>(selector + '.free-layout-active'))
-			retain(shell);
-		const selection = window.getSelection();
-		if (selection && !selection.isCollapsed) {
-			const nextSelection = new Set<NodeId>();
-			for (const endpoint of [selection.anchorNode, selection.focusNode]) {
-				const shell = ownShell(endpoint);
-				if (shell) nextSelection.add(Number(shell.dataset.nodeId));
-			}
-			for (const shell of element.querySelectorAll<HTMLElement>(selector)) {
-				if (nextSelection.size >= 64) break;
-				if (selection.containsNode(shell, true)) nextSelection.add(Number(shell.dataset.nodeId));
-			}
-			for (const id of nextSelection) if (geometry.getNode(id)) ids.add(id);
-		}
-		// Query order is authored paint order. Retained offscreen rows keep that same order.
+		for (const id of context.retained()) if (geometry.getNode(id)) ids.add(id);
 		mounted = geometry.orderedNodes(ids);
-		if (retiredFocus) {
-			pendingFocus = null;
-			rememberedFocus = null;
-			void tick().then(() => {
-				if (
-					!destroyed &&
-					element.isConnected &&
-					(document.activeElement === document.body ||
-						document.activeElement === retiredFocus.element)
-				)
-					view.viewport?.focus({ preventScroll: true });
-			});
-		} else if (focusedElement) {
-			pendingFocus = focusedElement;
-			void tick().then(() => {
-				if (pendingFocus !== focusedElement) return;
-				pendingFocus = null;
-				if (!destroyed && focusedElement.isConnected && document.activeElement === document.body)
-					focusedElement.focus({ preventScroll: true });
-			});
-		}
 	});
 
 	return {

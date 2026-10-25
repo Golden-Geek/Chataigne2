@@ -183,16 +183,23 @@ export class FreeSurfaceGeometry {
 			.sort((a, b) => this.#order.get(a)! - this.#order.get(b)!);
 	}
 
-	presentation(rect: FreeLayoutRect): FreeSurfacePresentation {
+	presentation(
+		rect: FreeLayoutRect,
+		detailLimit = freeSurfaceDetailLimit
+	): FreeSurfacePresentation {
 		const result = this.#spatial.queryLimited(spatialBounds(rect), freeSurfaceCandidateLimit);
 		const ids = result.values.filter((id) => rectsIntersect(rect, this.#entries.get(id)!.rect));
-		if (result.complete && ids.length <= freeSurfaceDetailLimit)
+		if (result.complete && ids.length <= Math.max(0, Math.min(freeSurfaceDetailLimit, detailLimit)))
 			return {
 				overview: false,
 				ids: ids.sort((a, b) => this.#order.get(a)! - this.#order.get(b)!),
 				groups: []
 			};
-		return { overview: true, ids: [], groups: this.#groups.query(rect, freeSurfaceGroupLimit) };
+		return {
+			overview: true,
+			ids: [],
+			groups: this.#groups.query(rect, Math.max(1, Math.min(freeSurfaceGroupLimit, detailLimit)))
+		};
 	}
 
 	/** Explicit activation resolves actual paint order; overview bounds never decide identity. */

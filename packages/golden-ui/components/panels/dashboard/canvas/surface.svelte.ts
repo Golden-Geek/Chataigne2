@@ -51,6 +51,7 @@ import {
 	type DashboardPlacement
 } from '../dashboard-model';
 interface DashboardSurfaceContext {
+	readonly budget: number;
 	readonly graph: GraphState | null;
 	readonly node: UiNodeDto;
 	readonly editMode: boolean;
@@ -140,6 +141,7 @@ export function createDashboardSurface(context: DashboardSurfaceContext) {
 	$effect(() => {
 		if (!isLayoutSurface) return;
 		return context.view?.registerPresentation(liveNode.node_id, {
+			chooseChild: (id) => chooseDashboardChild(id),
 			activateTab: (id) => activateDashboardTab(id),
 			toggleAccordion: (id) => toggleAccordionNode(id)
 		});
@@ -791,7 +793,17 @@ export function createDashboardSurface(context: DashboardSurfaceContext) {
 		activeTabNodeId = nodeId;
 		return true;
 	};
+	const chooseDashboardChild = (id: NodeId): boolean => {
+		if (!childWidgets.some((child) => child.node_id === id)) return false;
+		context.view?.select(id);
+		if (layoutKind === 'tabs') activateDashboardTab(id);
+		if (layoutKind === 'accordion' && !openAccordionNodeIds.includes(id)) toggleAccordionNode(id);
+		return true;
+	};
 	return {
+		get budget() {
+			return context.budget;
+		},
 		get graph() {
 			return graph;
 		},
@@ -847,6 +859,7 @@ export function createDashboardSurface(context: DashboardSurfaceContext) {
 		shouldRenderSurfaceDropPreviewBeforeChild,
 		shouldRenderSurfaceDropPreviewAtEnd,
 		toggleAccordionNode,
-		activateDashboardTab
+		activateDashboardTab,
+		chooseDashboardChild
 	};
 }

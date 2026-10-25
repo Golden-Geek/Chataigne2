@@ -19,6 +19,8 @@ and widget templates. Its `canvas/` modules own distinct presentation lifetimes:
 | `geometry.ts`, `dom.ts`, `contracts.ts` | Pure coordinate calculations, DOM measurements and shared presentation types. |
 | `free-surface-geometry.ts` | Retained authored bounds and spatial queries, independently of mounted widgets. |
 | `free-surface-groups.ts`, `FreeSurfaceOverview.svelte` | Retained bounding hierarchy and explicit dense-view presentation. |
+| `presentation-budget.ts`, `SurfaceChildBrowser.svelte` | Hierarchical detail allowances and searchable child previews. |
+| `surface-retention.svelte.ts` | Shared focus, native pointer/range and active-gesture retention across layout types. |
 | `free-surface-viewport.svelte.ts`, `view-context.svelte.ts` | Clipped membership, focus/range/interaction retention, page-scoped view state and logical framing. |
 
 Controllers receive live state through getter contexts. Methods that need a mutually dependent
@@ -53,8 +55,9 @@ Surface remounting resolves saved child UUIDs against the current graph. Removed
 page changes retire their cached state. Public view operations delegate to the same surface
 controllers as tab/accordion buttons; they do not edit the backend graph.
 
-The viewport owner intersects clipping ancestors, retains a focused control, layout gestures and
-native pointer targets, and bounds native text-range retention to 64 widgets. Pointer targets use
+The viewport owner intersects clipping ancestors. Shared surface retention preserves a focused
+control, layout gestures and native pointer targets, and bounds native text-range retention to
+64 direct widgets per surface. Pointer targets use
 authored identity and are released on up/cancel/blur or owner retirement. Keyed moves restore focus after
 DOM reconciliation; removal uses the remembered authored identity to return focus to the page.
 Observers and event-driven refresh are disposed with their surface. Disabling a free view clears
@@ -76,9 +79,24 @@ a later sibling's controls. These budgets apply per free surface; nested/flow co
 needs its owning qualification. Coordinates remain CSS-pixel measurements of authored geometry;
 the overview caption uses relative units adjusted for camera scale.
 
+A page now shares 512 ordinary detail slots through its hierarchy. Every rendered child costs
+one slot; remaining slots divide deterministically among rendered containers. Free surfaces use
+that allowance for both detailed membership and overview groups. Oversized flow/tab/accordion
+collections show a labeled selected-child preview with a searchable child browser. The browser
+uses ContextMenu's explicit `windowed` option, including short collections, and prepares menu
+items only while open. It retains complete authored identity/order without mounting every header
+or control. Choosing a child uses the surface controller's view operation; it never repairs or
+rewrites backend state. Keyed slots retain active controls across budget changes.
+
+Selection, focus, ranges, gestures and Frame preparation can retain additional shells. These are
+reported separately from ordinary detail. The current hierarchy evidence does not close arbitrary
+depth, all flow/tab framing combinations, native gestures or operation latency qualification.
+
 [Sparse viewport qualification](../progress/p11-dashboard-sparse.md) covers sparse views,
 container state retention and batched ancestry framing. [Dense-view evidence](../progress/p11-dashboard-dense.md)
 covers overlapping and minimum-zoom fixtures. P11 still owns the complete hierarchical/gesture
 matrix and workflow timing before the dashboard checkpoint closes.
+The [hierarchy report](../progress/p11-dashboard-hierarchy.md) records shared-budget pressure,
+child discovery, focus transitions and depth-eight free framing.
 See the [fixed contract](../progress/p11-workspace-qualification-contract.md) and the historical
 [decomposition comparison](../progress/p11-dashboard-decomposition.md).

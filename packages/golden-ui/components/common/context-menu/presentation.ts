@@ -13,7 +13,8 @@ export function menuPresentationStyle(
 	position: MenuPosition,
 	minWidthRem: number,
 	maxWidthCss: string,
-	viewportPaddingRem: number
+	viewportPaddingRem: number,
+	windowed = false
 ): string {
 	const bounds = getMainViewportBounds();
 	const margin = remToPx(viewportPaddingRem);
@@ -27,7 +28,7 @@ export function menuPresentationStyle(
 	const count = Math.max(1, itemCount);
 	// Large menus have one windowed child, rather than one CSS grid track per logical row.
 	const rowCount =
-		itemCount > LARGE_MENU_THRESHOLD
+		windowed || itemCount > LARGE_MENU_THRESHOLD
 			? 1
 			: clampNumber(
 					Math.max(
@@ -37,7 +38,7 @@ export function menuPresentationStyle(
 					1,
 					count
 				);
-	const wraps = itemCount <= LARGE_MENU_THRESHOLD && rowCount < itemCount;
+	const wraps = !windowed && itemCount <= LARGE_MENU_THRESHOLD && rowCount < itemCount;
 	const columnWidth =
 		maxWidthCss.trim() === 'max-content'
 			? wraps

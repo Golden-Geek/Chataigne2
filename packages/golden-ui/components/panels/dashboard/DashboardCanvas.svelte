@@ -32,6 +32,10 @@
 	import { formatCssValue } from '../../../css-value';
 	import ContextMenu from '../../common/ContextMenu.svelte';
 	import Slider from '../../common/Slider.svelte';
+	import {
+		dashboardPageDetailBudget,
+		normalizePresentationBudget
+	} from './canvas/presentation-budget';
 
 	import { getDashboardWidgetOrderingState } from './dashboard-actions';
 
@@ -49,12 +53,14 @@
 		editMode = false,
 		pageNavigationEnabled = true,
 		persistedPageView = null,
+		presentationBudget = dashboardPageDetailBudget,
 		onPersistedPageViewChange = null
 	} = $props<{
 		node: UiNodeDto;
 		editMode?: boolean;
 		pageNavigationEnabled?: boolean;
 		persistedPageView?: DashboardPersistedPageView | null;
+		presentationBudget?: number;
 		onPersistedPageViewChange?: DashboardPersistedPageViewChangeHandler | null;
 	}>();
 
@@ -114,6 +120,9 @@
 	});
 	let parentLayoutKind = $derived(getDashboardLayoutKind(graph, parentNode, 'free'));
 	const surfaceState = createDashboardSurface({
+		get budget() {
+			return Math.max(0, normalizePresentationBudget(presentationBudget) - (isPage ? 0 : 1));
+		},
 		view: dashboardView,
 		get graph() {
 			return graph;
@@ -395,6 +404,13 @@
 		dashboardView?.toggleAccordion(surface, child) ?? false;
 	export const activateWidgetAt = (surface: number, clientX: number, clientY: number) =>
 		dashboardView?.activateAt(surface, clientX, clientY) ?? null;
+	export const browseSurface = (surface: number) => dashboardView?.browse(surface) ?? false;
+	export const chooseSurfaceChild = (surface: number, child: number) =>
+		dashboardView?.chooseChild(surface, child) ?? false;
+	export const searchSurfaceChildren = (surface: number, query: string) =>
+		dashboardView?.searchChildren(surface, query);
+	export const revealSurfaceChild = async (surface: number, child: number) =>
+		(await dashboardView?.revealChild(surface, child)) ?? false;
 
 	const clearFreeLayoutInteractionChrome = (): void => {
 		setFreeLayoutHoverSurface(null);

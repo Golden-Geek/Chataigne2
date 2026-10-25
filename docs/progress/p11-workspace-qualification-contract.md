@@ -129,3 +129,24 @@ content, source identity and geometry; a mounted-count attribute alone is insuff
 The budget applies per free surface. Qualification of simultaneous nested surfaces, flow layouts,
 physical gestures and the fixed action/timing matrix remains required before dashboard closure;
 this extension alone cannot establish a global dashboard DOM bound or latency acceptance.
+
+## Dashboard hierarchy extension
+
+Ordinary widget detail shares a page budget of 512 shells. Each rendered child consumes one;
+remaining slots are divided deterministically among rendered container children. Free surfaces
+use their inherited allowance when deciding detail versus overview. Overview groups also share
+that allowance, with one conservative group when no detail slots remain. The pressure fixture
+permits at most 1,024 ordinary shells plus overview rectangles in total. Other layouts preserve their
+normal presentation while it fits; oversized child collections expose a searchable, windowed
+child browser and bounded selected previews. Approximate previews must be explicitly labeled.
+Selection, focus, native ranges, active gestures and the existing batched Frame preparation keep
+their explicit retention paths; record their additional shells separately from ordinary detail.
+
+Before closure exercise simultaneous free containers, mixed free/flow/tab/accordion branches,
+deep ancestry, focus/range retention across budget changes, offscreen Frame and presentation
+round trips. Use the same 1k/10k/20k/50k/100k authored-node tiers. Include a 32-container grid,
+each with at least six children, and a binary free hierarchy of depth eight. Dense child lists
+must keep all logical identities discoverable while mounting at most 42 browser rows per open
+menu. Preserve the prior sparse/dense correctness gates and 0.5 CSS-pixel geometry tolerance.
+Measure ordinary and retained/transient peaks; do not equate a per-surface bound with this page
+budget. Native input remains P17; action/timing acceptance still requires the fixed sample matrix.

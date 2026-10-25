@@ -5,8 +5,8 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-25 on `main`, based on delivered `bbcc63f4` plus the P11 dense dashboard
-presentation milestone below. **P11 is in progress; two of six fixed checkpoints are closed (33% rounded).**
+Last reconciled: 2026-10-25 on `main`, based on delivered `de17657d` plus the P11 dashboard
+hierarchy milestone below. **P11 is in progress; two of six fixed checkpoints are closed (33% rounded).**
 **P10 is locally complete: three of three fixed checkpoints (100%).**
 **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
@@ -198,7 +198,7 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
 | ---------- | ------ | -------------------------------- |
 | Manager/catalog windowing | Complete locally | Variable-height manager/picker/outliner and flat/nested catalog menus pass through 100k items with bounded mounting, identity and focus. [Tree evidence](p11-tree-windowing.md), [catalog closure](p11-catalog-windowing.md). |
 | Historical log windowing | Complete locally | Variable-height history, filters, follow, bounded native selection, focus and snapshot publication pass through 100k records. [Qualification](p11-log-windowing.md). |
-| Dashboard viewport awareness | In progress | Sparse and bounded dense views, exact activation, direct/nested framing, retained tab/accordion state, focus/ranges and CSS units pass through 100k authored nodes. Full hierarchical/gesture coverage and timing remain. [Dense evidence](p11-dashboard-dense.md). |
+| Dashboard viewport awareness | In progress | Sparse/dense and shared hierarchy budgets, child discovery, exact activation, free framing, view state and focus pass through 100k authored nodes. Inactive/bulk flow framing, remaining range/edit lifecycle cases and timing remain. [Hierarchy evidence](p11-dashboard-hierarchy.md). |
 | Tree focus and keyboard navigation | Not started | Qualify expansion/navigation and stable focus across virtualized changes in all owning trees. |
 | Graph keyboard operations | Not started | Provide and qualify keyboard movement and connection creation through shared operations. |
 | Complete composed workflows | Not started | Qualify discovery, selection and editing across all required composed panels and large batches. Native usability retains P17. |
@@ -209,8 +209,10 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
   outliner, catalogs and historical logs are verified through 100k entries. Continue dashboard
   viewport awareness, then tree/graph keyboard operations and composed qualification.
   Sparse and dense dashboard presentation are verified through 100k authored nodes. Continue
-  the complete hierarchical/gesture matrix and action/timing qualification. Dense budgets are
-  per free surface; composed nested/flow bounds and exact dense-picking latency still need evidence.
+  inactive-tab/bulk framing in oversized non-free previews, native ranges and browser-header focus across budget changes,
+  remaining edit/drop lifecycle cases and the fixed action/timing matrix. Shared hierarchy budgets
+  now pass 32 simultaneous containers and depth-eight free framing; exact dense-picking latency
+  still needs evidence. Physical gestures retain P17.
   Preserve app-agnostic ownership and the plan's owning boundaries;
   do not reopen completed P03-P10 scope.
 - **P10 is locally complete: three of three fixed checkpoints (100%).** Retained geometry,
@@ -10217,3 +10219,37 @@ qualification. Commit/push this verified milestone on `main`, then qualify simul
 flow composition and the complete hierarchical/gesture and fixed action/timing matrix. Measure
 exact dense picking explicitly. Four P11 checkpoints remain open; P03 has zero packages left.
 Keep the full P00-P18 goal active.
+
+### P11 shared dashboard hierarchy budgets
+
+Previous goal turn: **progress**, delivering `de17657d` on `main`. This turn resumed its next
+open dashboard scope from a clean checkout. Page detail now shares 512 ordinary slots through
+recursive containers. Dense free groups also share the inherited allowance. Oversized non-free
+collections expose labeled selected-child previews through a searchable windowed browser.
+One shared retention owner preserves focus, pointer/range cohorts and active gestures across
+layouts. Keyed tab bodies retain valid child identity during unmounting. Public view operations
+choose children consistently through the surface controller. See the
+[hierarchy report](p11-dashboard-hierarchy.md), [full evidence](evidence/p11-dashboard-hierarchy-2026-10-25.json)
+and [five failed probes](evidence/p11-dashboard-hierarchy-failures-2026-10-25.json).
+
+The full production browser run passes **51 correctness groups and five sparse tiers**, with
+68 frozen fingerprints including shared menus/rows. Both hierarchy families retain 32 simultaneous
+containers through 100,007 authored nodes. Larger free scenes mount 32 shells / 480 groups;
+mixed scenes mount 42 shells / 90 groups. Child discovery, exact far search, bounded rows and
+menu focus pass. Every layout retains its exact input while budget drops to zero and returns.
+A 100k-authored-node binary free hierarchy of depth eight frames through unmounted ancestry,
+peaks at 256 shells, and centers within 0.000245 / 0.000138 CSS pixels.
+
+Root UI **296**, browser/app checks **0 errors / 0 warnings**, owned Prettier/whitespace and both
+Cargo formatters pass. The locked default build rebuilds the frontend and passes in **2m18s**
+after the queued-focus lifetime guard;
+executable SHA-256 `5215b8a05958259afb188b6a6a1b24626e84d092b8cbb2aec73ce59a898d15f6`.
+Inventory is 2,117 source files / 27 oversized; DashboardCanvas is 945 lines. No touched source
+exceeds the size limit and no new exception is introduced.
+
+**P11 remains 2/6 checkpoints (33% rounded); whole-plan scope coverage remains 57% (57.41% exact).**
+Do not infer general flow/tab framing, range/edit lifecycle or timing acceptance from these
+qualified cases. Commit/push this verified milestone to `main`, then qualify inactive-tab and
+bulk framing inside oversized previews, ranges/header focus across budget changes, remaining edit/drop
+lifetimes and the fixed action/timing matrix. Native physical gestures retain P17. Four fixed
+P11 checkpoints remain open; P03 has zero packages left. Keep the full P00-P18 goal active.

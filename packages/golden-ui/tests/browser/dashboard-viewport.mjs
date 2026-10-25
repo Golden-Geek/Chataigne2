@@ -9,12 +9,14 @@ import { build, preview } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { chromium } from 'playwright-core';
 import { denseChecks } from './dashboard-dense.mjs';
+import { hierarchyChecks } from './dashboard-hierarchy.mjs';
 
 const repository = fileURLToPath(new URL('../../../../', import.meta.url));
 const root = fileURLToPath(new URL('./fixture/', import.meta.url));
 const generated = resolve(repository, 'target/qualification');
 const baseline = '654a5f15';
 const denseOnly = process.argv.includes('--dense-only');
+const hierarchyOnly = process.argv.includes('--hierarchy-only');
 const canvasPrefix = 'packages/golden-ui/components/panels/dashboard/';
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const filesBelow = (directory) =>
@@ -29,11 +31,15 @@ const sources = [
 	),
 	resolve(repository, 'packages/golden-ui/store/graph-index.ts'),
 	resolve(repository, 'packages/golden-ui/css-value.ts'),
+	resolve(repository, 'packages/golden-ui/components/common/ContextMenu.svelte'),
+	...filesBelow(resolve(repository, 'packages/golden-ui/components/common/context-menu')),
+	...filesBelow(resolve(repository, 'packages/golden-ui/components/common/virtual-rows')),
 	resolve(repository, 'packages/golden-ui/tests/css-value-units.test.ts'),
 	resolve(repository, 'packages/golden-graph-ui/spatial-index.ts'),
 	resolve(repository, 'packages/golden-ui/package.json'),
 	resolve(repository, 'package-lock.json'),
 	fileURLToPath(new URL('./dashboard-dense.mjs', import.meta.url)),
+	fileURLToPath(new URL('./dashboard-hierarchy.mjs', import.meta.url)),
 	fileURLToPath(import.meta.url)
 ];
 const fingerprints = () =>
@@ -49,7 +55,7 @@ const report = resolve(
 	`p11-dashboard-viewport-${new Date().toISOString().replaceAll(/[:.]/g, '-')}.json`
 );
 const result = {
-	scope: denseOnly ? 'dense-only' : 'sparse-and-dense',
+	scope: hierarchyOnly ? 'hierarchy-only' : denseOnly ? 'dense-only' : 'sparse-and-dense',
 	baseline,
 	browser: '',
 	machine: {
@@ -396,39 +402,6 @@ async function viewportChecks(page, references) {
 	);
 	await page.evaluate(() => window.dashboardFixture.localFont(16));
 	record('inherited-em-font-and-logical-boundary');
-	for (const layout of ['tabs', 'accordion']) {
-		const setup = await page.evaluate(() =>
-			window.dashboardFixture.setup('free', true, 6, 'grid', true)
-		);
-		await page.evaluate(
-			(layout) =>
-				window.dashboardFixture.update(-2, 'layout_kind', { kind: 'enum', value: layout }),
-			layout
-		);
-		assert.equal(
-			await page.evaluate(
-				(layout) =>
-					layout === 'tabs' ? window.dashboardFixture.tab(2) : window.dashboardFixture.accordion(2),
-				layout
-			),
-			true
-		);
-		assert.equal(
-			await page.locator(`.dashboard-widget-shell[data-node-id="${setup.ids[2]}"]`).count(),
-			1
-		);
-		await page.evaluate(() =>
-			window.dashboardFixture.view({ panX: -10000, panY: -10000, zoom: 1 })
-		);
-		assert.equal(await page.locator(`[data-node-id="${setup.containerId}"]`).count(), 0);
-		await page.evaluate(() => window.dashboardFixture.view({ panX: 0, panY: 0, zoom: 1 }));
-		assert.equal(
-			await page.locator(`.dashboard-widget-shell[data-node-id="${setup.ids[2]}"]`).count(),
-			1,
-			`${layout} must retain its open child across unmount/remount`
-		);
-		record(`container-${layout}-state-retention`);
-	}
 	const hierarchy = await page.evaluate(() =>
 		window.dashboardFixture.setup('free', true, 6, 'grid', true)
 	);
@@ -518,28 +491,32 @@ try {
 			: { channel: process.platform === 'win32' ? 'msedge' : undefined })
 	});
 	result.browser = await browser.version();
-	const references = denseOnly
-		? null
-		: await scene('baseline', async (page) => {
-				const scenes = new Map();
-				for (const editing of [false, true]) {
-					await page.evaluate(
-						(editing) => window.dashboardFixture.setup('free', editing, 1000, 'grid'),
-						editing
+	const references =
+		denseOnly || hierarchyOnly
+			? null
+			: await scene('baseline', async (page) => {
+					const scenes = new Map();
+					for (const editing of [false, true]) {
+						await page.evaluate(
+							(editing) => window.dashboardFixture.setup('free', editing, 1000, 'grid'),
+							editing
+						);
+						const widgets = await paintedWidgets(page);
+						assert.equal(widgets.length, 1000);
+						scenes.set(editing, widgets);
+					}
+					await page.evaluate(() =>
+						window.dashboardFixture.setup('free', true, 1000, 'grid', true)
 					);
-					const widgets = await paintedWidgets(page);
-					assert.equal(widgets.length, 1000);
-					scenes.set(editing, widgets);
-				}
-				await page.evaluate(() => window.dashboardFixture.setup('free', true, 1000, 'grid', true));
-				const nested = await paintedWidgets(page);
-				assert.equal(nested.length, 1001);
-				scenes.set('nested', nested);
-				return scenes;
-			});
+					const nested = await paintedWidgets(page);
+					assert.equal(nested.length, 1001);
+					scenes.set('nested', nested);
+					return scenes;
+				});
 	await scene('current', async (page) => {
 		if (references) await viewportChecks(page, references);
-		await denseChecks(page, record);
+		if (!hierarchyOnly) await denseChecks(page, record);
+		if (!denseOnly) await hierarchyChecks(page, record);
 		assert.deepEqual(result.errors, []);
 	});
 	assert.deepEqual(fingerprints(), result.source, 'Qualified sources changed');

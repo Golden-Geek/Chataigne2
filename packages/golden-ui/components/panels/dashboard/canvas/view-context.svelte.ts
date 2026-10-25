@@ -15,10 +15,17 @@ export interface SurfacePresentation {
 	readonly openAccordionUuids: readonly string[];
 }
 export interface SurfacePresentationActions {
+	chooseChild(id: NodeId): boolean;
 	activateTab(id: NodeId): boolean;
 	toggleAccordion(id: NodeId): boolean;
 }
 export interface DashboardViewContext {
+	select(id: NodeId): void;
+	registerBrowser(id: NodeId, browser: SurfaceBrowserActions): () => void;
+	browse(id: NodeId): boolean;
+	chooseChild(surface: NodeId, child: NodeId): boolean;
+	searchChildren(surface: NodeId, query: string): void;
+	revealChild(surface: NodeId, child: NodeId): Promise<boolean>;
 	readonly viewport: HTMLElement | null;
 	readonly camera: unknown;
 	readonly ready: boolean;
@@ -46,10 +53,18 @@ interface DashboardViewSource {
 	select(id: NodeId): void;
 }
 
+export interface SurfaceBrowserActions {
+	openMenu(): void;
+	chooseChild(id: NodeId): boolean;
+	search(query: string): void;
+	reveal(id: NodeId): Promise<boolean>;
+}
+
 export function createDashboardViewContext(context: DashboardViewSource): DashboardViewContext {
 	const surfaces = new Map<NodeId, FreeSurfaceView>();
 	const presentations = new Map<string, SurfacePresentation>();
 	const actions = new Map<NodeId, SurfacePresentationActions>();
+	const browsers = new Map<NodeId, SurfaceBrowserActions>();
 	let retained = $state.raw<ReadonlyMap<NodeId, readonly NodeId[]>>(new Map());
 	let pageUuid: string | null = null;
 	let previousGraph: GraphState | null = null;
@@ -76,6 +91,7 @@ export function createDashboardViewContext(context: DashboardViewSource): Dashbo
 		surfaces.clear();
 		presentations.clear();
 		actions.clear();
+		browsers.clear();
 		previousGraph = null;
 	});
 	const clientRect = (id: NodeId): FreeLayoutRect | null => {
@@ -179,6 +195,25 @@ export function createDashboardViewContext(context: DashboardViewSource): Dashbo
 		}
 	};
 	return {
+		select: (id) => context.select(id),
+		registerBrowser(id, browser) {
+			browsers.set(id, browser);
+			return () => {
+				if (browsers.get(id) === browser) browsers.delete(id);
+			};
+		},
+		browse(id) {
+			const browser = browsers.get(id);
+			if (!browser) return false;
+			browser.openMenu();
+			return true;
+		},
+		chooseChild: (surface, child) =>
+			browsers.get(surface)?.chooseChild(child) ??
+			actions.get(surface)?.chooseChild(child) ??
+			false,
+		searchChildren: (surface, query) => browsers.get(surface)?.search(query),
+		revealChild: async (surface, child) => (await browsers.get(surface)?.reveal(child)) ?? false,
 		get viewport() {
 			return context.viewport;
 		},

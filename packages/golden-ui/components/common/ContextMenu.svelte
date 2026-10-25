@@ -27,6 +27,7 @@
 	}
 
 	interface ContextMenuProps {
+		windowed?: boolean;
 		open?: boolean;
 		items?: readonly ContextMenuItem[];
 		anchor?: ContextMenuAnchor | null;
@@ -57,6 +58,7 @@
 	type MenuOriginY = 'top' | 'bottom';
 
 	let {
+		windowed = false,
 		open = $bindable(false),
 		items = [],
 		anchor = null,
@@ -229,7 +231,8 @@
 			position,
 			minWidthRem,
 			maxWidthCss,
-			viewportPaddingRem
+			viewportPaddingRem,
+			windowed
 		);
 	};
 
@@ -756,7 +759,7 @@
 				{@attach captureMenuNode(layer.depth)}
 				oncontextmenu={handleMenuContextMenu}
 				transition:scale={{ duration: 130, start: 0.95, easing: cubicOut }}>
-				<ContextMenuRows bind:this={rowLists[layer.depth]} items={layer.items}>
+				<ContextMenuRows bind:this={rowLists[layer.depth]} items={layer.items} {windowed}>
 					{#snippet item(item, index)}
 						{@const submenuOpen = submenuPath[layer.depth] === index}
 						{@const hasChildren = hasSubmenu(item)}

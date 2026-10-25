@@ -11,6 +11,7 @@
 	import { createFixtureSession } from './session';
 	import { dashboardData } from './dashboard-data';
 	import { dashboardForest } from './dashboard-forest';
+	import { dashboardHierarchy } from './dashboard-hierarchy';
 	import DashboardRegistryContent from './DashboardRegistryContent.svelte';
 	import type { DashboardPersistedPageView } from '../../../components/panels/dashboard/canvas/contracts';
 	import type { ParamValue } from '../../../types';
@@ -33,6 +34,7 @@
 	let persisted = $state.raw<DashboardPersistedPageView | null>(null);
 	let lastPersisted: DashboardPersistedPageView | null = null;
 	let epoch = $state(0);
+	let presentationBudget = $state(512);
 	let canvas = $state<ReturnType<typeof DashboardCanvas>>();
 	let sequence = 0;
 	const settle = async () => {
@@ -51,6 +53,7 @@
 		data = null;
 		await tick();
 		editMode = editing;
+		presentationBudget = 512;
 		persisted = null;
 		data = dashboardData(layout, sparseCount, pattern, nested);
 		fixture.loadNodes(data.nodes);
@@ -63,6 +66,48 @@
 	export async function setupTier(authoredNodes: number) {
 		const widgets = Math.max(1, Math.ceil((authoredNodes - 11) / 11));
 		return { ...(await setup('free', true, widgets, 'grid')), widgets };
+	}
+	export async function setupHierarchy(target: number, kind: 'free' | 'mixed' | 'deep') {
+		data = null;
+		await tick();
+		editMode = true;
+		persisted = null;
+		presentationBudget = 512;
+		const hierarchy = dashboardHierarchy(target, kind);
+		data = hierarchy;
+		fixture.loadNodes(hierarchy.nodes);
+		fixture.session.selectNodes([], 'REPLACE');
+		epoch++;
+		await settle();
+		await settle();
+		return {
+			ids: hierarchy.ids,
+			containers: hierarchy.containers,
+			authoredNodes: hierarchy.nodes.length
+		};
+	}
+	export async function budget(value: number) {
+		presentationBudget = value;
+		await settle();
+	}
+	export async function chooseChild(surface: number, child: number) {
+		const result = canvas!.chooseSurfaceChild(surface, child);
+		await settle();
+		return result;
+	}
+	export async function browse(surface: number) {
+		const result = canvas!.browseSurface(surface);
+		await settle();
+		return result;
+	}
+	export async function searchChildren(surface: number, query: string) {
+		canvas!.searchSurfaceChildren(surface, query);
+		await settle();
+	}
+	export async function revealChild(surface: number, child: number) {
+		const result = await canvas!.revealSurfaceChild(surface, child);
+		await settle();
+		return result;
 	}
 	export async function setupForest(count: number) {
 		data = null;
@@ -214,9 +259,10 @@
 		await settle();
 	}
 	export async function remove(index: number) {
+		const parent = fixture.session.graph.state.parentById.get(data!.ids[index])!;
 		fixture.session.graph.applyEvent({
 			time: { tick: ++sequence, micro: 0, seq: 0 },
-			kind: { kind: 'childRemoved', parent: data!.page.node_id, child: data!.ids[index] }
+			kind: { kind: 'childRemoved', parent, child: data!.ids[index] }
 		});
 		await settle();
 	}
@@ -246,6 +292,7 @@
 				bind:this={canvas}
 				node={data.page}
 				{editMode}
+				{presentationBudget}
 				persistedPageView={persisted}
 				onPersistedPageViewChange={(_nodeId, value) => {
 					lastPersisted = value;

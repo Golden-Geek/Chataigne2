@@ -8,9 +8,11 @@
 		key: string | number;
 	}
 	let {
+		windowed = false,
 		items,
 		item: renderItem
 	}: {
+		windowed?: boolean;
 		items: readonly ContextMenuItem[];
 		item: Snippet<[ContextMenuItem, number]>;
 	} = $props();
@@ -19,7 +21,7 @@
 	let query = $state('');
 	let scroller = $state<HTMLDivElement | null>(null);
 	let virtualRows = $state<ReturnType<typeof VirtualRows<MenuRow>>>();
-	const large = $derived(items.length > LARGE_MENU_THRESHOLD);
+	const large = $derived(windowed || items.length > LARGE_MENU_THRESHOLD);
 	const rows = $derived.by(() => {
 		const occurrences = new Map<string, number>();
 		return items.map((item, index): MenuRow => {

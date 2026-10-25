@@ -3,10 +3,13 @@
 	import { dashboardViewContextKey, type DashboardViewContext } from './view-context.svelte';
 	import { createFreeSurfaceViewport } from './free-surface-viewport.svelte';
 	import FreeSurfaceOverview from './FreeSurfaceOverview.svelte';
+	import SurfaceChildBrowser from './SurfaceChildBrowser.svelte';
+	import { createSurfaceRetention } from './surface-retention.svelte';
+	import { childPresentationBudgets, dashboardSelectedDetailLimit } from './presentation-budget';
 	import type { createDashboardSurface } from './surface.svelte';
 	import type { createDashboardMarquee } from './marquee.svelte';
-	import type { SurfaceDropPreview } from './contracts';
-	import type { UiNodeDto } from '../../../../types';
+	import type { SurfaceDropPreview, NonFreeSurfaceFlowRenderItem } from './contracts';
+	import type { NodeId, UiNodeDto } from '../../../../types';
 	import DashboardCanvasSelf from '../DashboardCanvas.svelte';
 	import { withStoppedPropagation } from './dom';
 	let {
@@ -33,7 +36,9 @@
 	let surfaceDropPreview = $derived(surface.surfaceDropPreview);
 	let pendingSurfaceDrop = $derived(surface.pendingSurfaceDrop);
 	let displayedSurfaceDropPreview = $derived(surface.displayedSurfaceDropPreview);
-	let nonFreeSurfaceFlowRenderItems = $derived(surface.nonFreeSurfaceFlowRenderItems);
+	let nonFreeSurfaceFlowRenderItems: NonFreeSurfaceFlowRenderItem[] = $derived(
+		surface.nonFreeSurfaceFlowRenderItems
+	);
 	const slotStyle = (...args: Parameters<typeof surface.slotStyle>) => surface.slotStyle(...args);
 	const inlineSurfaceDropPreviewStyle = (
 		...args: Parameters<typeof surface.inlineSurfaceDropPreviewStyle>
@@ -54,8 +59,88 @@
 	let marqueeSelection = $derived(marquee.marqueeSelection);
 	let marqueeStyle = $derived(marquee.marqueeStyle);
 	const view = getContext<DashboardViewContext | undefined>(dashboardViewContextKey) ?? null;
+	let marker = $state<HTMLSpanElement | null>(null);
+	let browser = $state<ReturnType<typeof SurfaceChildBrowser>>();
+	let chosen = $state<NodeId | null>(null);
+	let ownerIdentity: string | null = null;
+	$effect(() => {
+		if (surface.node.uuid !== ownerIdentity) {
+			ownerIdentity = surface.node.uuid;
+			chosen = null;
+		}
+	});
+	const retention = createSurfaceRetention({
+		get element() {
+			return marker?.parentElement ?? null;
+		},
+		get identity() {
+			return surface.node.uuid;
+		},
+		get viewport() {
+			return view?.viewport ?? null;
+		},
+		getNode(id) {
+			const graph = surface.graph;
+			return graph?.parentById.get(id) === surface.node.node_id
+				? graph.nodesById.get(id)
+				: undefined;
+		}
+	});
+	$effect(() => {
+		void surface.graph;
+		retention.read();
+	});
+	$effect(() => {
+		if (browser) return view?.registerBrowser(surface.node.node_id, browser);
+	});
+	const collection = $derived(
+		layoutKind !== 'free' &&
+			(childWidgets.length > surface.budget ||
+				((layoutKind === 'tabs' || layoutKind === 'accordion') && childWidgets.length > 128))
+	);
+	const retained = $derived.by(() => {
+		const ids = new Set(retention.read());
+		for (const id of view?.retainedFor(surface.node.node_id) ?? []) ids.add(id);
+		return ids;
+	});
+	const kept = $derived.by(() => {
+		const ids = new Set(retained);
+		for (const id of view?.selected.slice(-dashboardSelectedDetailLimit) ?? []) ids.add(id);
+		if (chosen !== null) ids.add(chosen);
+		if (collection && layoutKind === 'accordion' && surface.budget > 0)
+			for (const id of openAccordionNodeIds.slice(
+				-Math.min(dashboardSelectedDetailLimit, surface.budget)
+			))
+				ids.add(id);
+		return ids;
+	});
+	const accordionChildren = $derived(
+		collection ? childWidgets.filter((child) => kept.has(child.node_id)) : childWidgets
+	);
+	const flowItems = $derived(
+		collection
+			? nonFreeSurfaceFlowRenderItems.filter(
+					(item) => item.kind === 'preview' || kept.has(item.child.node_id)
+				)
+			: nonFreeSurfaceFlowRenderItems
+	);
+	const activeTab = $derived(
+		childWidgets.find((child) => child.node_id === activeTabNodeId) ?? null
+	);
+	const shownTab = $derived(
+		activeTab && (surface.budget > 0 || kept.has(activeTab.node_id)) ? activeTab : null
+	);
+	const chooseChild = (id: NodeId) => {
+		if (!surface.chooseDashboardChild(id)) return false;
+		chosen = view ? null : id;
+		return true;
+	};
 	let freeLayoutElement = $state<HTMLElement | null>(null);
 	const freeViewport = createFreeSurfaceViewport({
+		get budget() {
+			return surface.budget;
+		},
+		retained: () => retained,
 		get graph() {
 			return surface.graph;
 		},
@@ -71,6 +156,19 @@
 		view
 	});
 	let mountedFreeWidgets = $derived(freeViewport.mounted);
+	const mountedChildren = $derived(
+		layoutKind === 'free'
+			? mountedFreeWidgets
+			: layoutKind === 'tabs'
+				? shownTab
+					? [shownTab]
+					: []
+				: layoutKind === 'accordion'
+					? accordionChildren.filter((child) => openAccordionNodeIds.includes(child.node_id))
+					: flowItems.flatMap((item) => (item.kind === 'child' ? [item.child] : []))
+	);
+	const childBudgets = $derived(childPresentationBudgets(mountedChildren, surface.budget));
+	const childBudget = (child: UiNodeDto) => childBudgets.get(child.node_id) ?? 1;
 	const surfaceDropKindLabel = (preview: SurfaceDropPreview): string => {
 		if (preview.targetKind === 'node') {
 			return 'Node Widget';
@@ -89,6 +187,15 @@
 		}
 	};
 </script>
+
+<span hidden bind:this={marker} aria-hidden="true" data-dashboard-budget={surface.budget}></span>
+{#if collection}
+	<SurfaceChildBrowser
+		bind:this={browser}
+		children={childWidgets}
+		surfaceId={surface.node.node_id}
+		choose={chooseChild} />
+{/if}
 
 {#snippet dashboardSurfaceDropPreviewContent(preview: SurfaceDropPreview)}
 	<div class="dashboard-drop-preview-meta">
@@ -146,7 +253,7 @@
 {/snippet}
 {#if layoutKind === 'tabs'}
 	<div class="dashboard-tab-strip" class:compact>
-		{#each childWidgets as child (child.node_id)}
+		{#each collection ? [] : childWidgets as child (child.node_id)}
 			{#if shouldRenderSurfaceDropPreviewBeforeChild(child)}
 				<button
 					type="button"
@@ -178,21 +285,22 @@
 	<div class="dashboard-tab-body" class:compact>
 		{#if displayedSurfaceDropPreview}
 			{@render dashboardSurfaceDropPreviewSlot('', 'dashboard-drop-preview-panel')}
-		{:else if activeTabNodeId !== null}
-			{@const activeChild =
-				childWidgets.find((candidate) => candidate.node_id === activeTabNodeId) ?? null}
-			{#if activeChild}
+		{:else}
+			{#each shownTab ? [shownTab] : [] as activeChild (activeChild.node_id)}
 				<div class="dashboard-slot">
 					<div class="dashboard-slot-fill">
-						<DashboardCanvasSelf node={activeChild} {editMode} />
+						<DashboardCanvasSelf
+							node={activeChild}
+							{editMode}
+							presentationBudget={childBudget(activeChild)} />
 					</div>
 				</div>
-			{/if}
+			{/each}
 		{/if}
 	</div>
 {:else if layoutKind === 'accordion'}
 	<div class="dashboard-accordion" class:compact>
-		{#each childWidgets as child (child.node_id)}
+		{#each accordionChildren as child (child.node_id)}
 			{#if shouldRenderSurfaceDropPreviewBeforeChild(child)}
 				<section class="dashboard-accordion-item dashboard-drop-preview-accordion">
 					<button
@@ -218,7 +326,10 @@
 				{#if openAccordionNodeIds.includes(child.node_id)}
 					<div class="dashboard-slot accordion-slot">
 						<div class="dashboard-slot-fill">
-							<DashboardCanvasSelf node={child} {editMode} />
+							<DashboardCanvasSelf
+								node={child}
+								{editMode}
+								presentationBudget={childBudget(child)} />
 						</div>
 					</div>
 				{/if}
@@ -261,7 +372,7 @@
 				class:dashboard-hidden-drag-source={isHiddenSourceSurfaceChild(child)}
 				style={slotStyle(child)}>
 				<div class="dashboard-slot-fill">
-					<DashboardCanvasSelf node={child} {editMode} />
+					<DashboardCanvasSelf node={child} {editMode} presentationBudget={childBudget(child)} />
 				</div>
 			</div>
 		{/each}
@@ -273,8 +384,8 @@
 		{/if}
 	</div>
 {:else}
-	<div class="dashboard-layout">
-		{#each nonFreeSurfaceFlowRenderItems as item (item.key)}
+	<div class="dashboard-layout" data-dashboard-collection-preview={collection ? '' : undefined}>
+		{#each flowItems as item (item.key)}
 			<div
 				class="dashboard-slot"
 				class:dashboard-drop-preview={item.kind === 'preview'}
@@ -292,7 +403,10 @@
 							{@render dashboardSurfaceDropPreviewContent(item.preview)}
 						</div>
 					{:else}
-						<DashboardCanvasSelf node={item.child} {editMode} />
+						<DashboardCanvasSelf
+							node={item.child}
+							{editMode}
+							presentationBudget={childBudget(item.child)} />
 					{/if}
 				</div>
 			</div>
