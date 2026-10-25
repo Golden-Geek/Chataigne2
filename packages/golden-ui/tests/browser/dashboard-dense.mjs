@@ -151,48 +151,50 @@ export async function denseChecks(page, record) {
 			assert.equal(await page.evaluate(() => window.dashboardFixture.activate(1)), setup.ids[1]);
 			await page.evaluate(() => window.dashboardFixture.select(4));
 			await page.evaluate(() => window.dashboardFixture.focus(4));
-			await page.evaluate(() => {
-				window.denseFocusedControl = document.activeElement;
-			});
-			await page.evaluate(() => window.dashboardFixture.selectAllWidgets());
-			const bulk = await state(page);
-			assert.equal(
-				bulk.selected.length,
-				count - 1,
-				'Bulk logical selection must include all remaining widgets'
-			);
-			assert(bulk.mounted.length <= (count > 192 ? 17 : count));
-			await page.evaluate(() =>
-				window.dashboardFixture.update(4, 'position', { kind: 'vec2', value: [6000, 2] })
-			);
-			await page.evaluate(() => window.dashboardFixture.reveal(4));
-			const detailed = await state(page);
-			assert.equal(detailed.presentation, 'detail');
-			assert.deepEqual(detailed.mounted, [setup.ids[4]]);
-			assert(await page.evaluate(() => document.activeElement === window.denseFocusedControl));
-			await page.evaluate(() => window.dashboardFixture.view({ panX: 0, panY: 0, zoom: 1 }));
-			assert(
-				(await state(page)).mounted.includes(setup.ids[4]),
-				'Focused control must survive reversal'
-			);
-			await page.evaluate(() => window.dashboardFixture.remove(4));
-			assert(
-				await page.evaluate(
-					() => document.activeElement === document.querySelector('.dashboard-page-viewport')
-				)
-			);
-			record(`dense-overlap-${authored}-${editing ? 'edit' : 'run'}`, {
-				authoredNodes: setup.authoredNodes,
-				widgets: count,
-				initialMounted: initial.mounted.length,
-				groups: initial.groups.length,
-				bulkMounted: bulk.mounted.length,
-				picked,
-				control,
-				transitionScope: editing
-					? 'Distant editing staging'
-					: 'Focus retained beyond the run-mode page clip'
-			});
+			const focused = await page.evaluateHandle(() => document.activeElement);
+			try {
+				await page.evaluate(() => window.dashboardFixture.selectAllWidgets());
+				const bulk = await state(page);
+				assert.equal(
+					bulk.selected.length,
+					count - 1,
+					'Bulk logical selection must include all remaining widgets'
+				);
+				assert(bulk.mounted.length <= (count > 192 ? 17 : count));
+				await page.evaluate(() =>
+					window.dashboardFixture.update(4, 'position', { kind: 'vec2', value: [6000, 2] })
+				);
+				await page.evaluate(() => window.dashboardFixture.reveal(4));
+				const detailed = await state(page);
+				assert.equal(detailed.presentation, 'detail');
+				assert.deepEqual(detailed.mounted, [setup.ids[4]]);
+				assert(await focused.evaluate((element) => element === document.activeElement));
+				await page.evaluate(() => window.dashboardFixture.view({ panX: 0, panY: 0, zoom: 1 }));
+				assert(
+					(await state(page)).mounted.includes(setup.ids[4]),
+					'Focused control must survive reversal'
+				);
+				await page.evaluate(() => window.dashboardFixture.remove(4));
+				assert(
+					await page.evaluate(
+						() => document.activeElement === document.querySelector('.dashboard-page-viewport')
+					)
+				);
+				record(`dense-overlap-${authored}-${editing ? 'edit' : 'run'}`, {
+					authoredNodes: setup.authoredNodes,
+					widgets: count,
+					initialMounted: initial.mounted.length,
+					groups: initial.groups.length,
+					bulkMounted: bulk.mounted.length,
+					picked,
+					control,
+					transitionScope: editing
+						? 'Distant editing staging'
+						: 'Focus retained beyond the run-mode page clip'
+				});
+			} finally {
+				await focused.dispose();
+			}
 
 			const gridSetup = await page.evaluate(
 				({ count, editing }) => window.dashboardFixture.setup('free', editing, count, 'grid'),

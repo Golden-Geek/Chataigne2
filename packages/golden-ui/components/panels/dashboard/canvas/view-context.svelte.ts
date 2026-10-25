@@ -7,6 +7,7 @@ import type { FreeSurfaceGeometry } from './free-surface-geometry';
 import { framePreparation } from './frame-preparation';
 import { framePresentationBounds } from './frame-bounds';
 import { SurfaceItemOrder } from './surface-item-order';
+import { SurfaceMeasurements } from './surface-measurements';
 
 export const dashboardViewContextKey = Symbol('dashboard-view');
 
@@ -31,6 +32,7 @@ export interface SurfacePresentationActions {
 }
 export interface DashboardViewContext {
 	readonly itemOrder: SurfaceItemOrder;
+	readonly measurements: SurfaceMeasurements;
 	readonly previews: ParameterPreviews | null;
 	registerLayout(id: NodeId, edit: (command: WidgetLayoutEdit) => Promise<boolean>): () => void;
 	editLayout(id: NodeId, command: WidgetLayoutEdit): Promise<boolean>;
@@ -55,12 +57,16 @@ export interface DashboardViewContext {
 	register(id: NodeId, view: FreeSurfaceView): () => void;
 	query(id: NodeId, rect: FreeLayoutRect): NodeId[] | null;
 	retainedFor(id: NodeId): readonly NodeId[];
-	frameRects(ids: readonly NodeId[]): Promise<FreeLayoutRect[] | null>;
+	frameRects(ids: readonly NodeId[]): Promise<DashboardFrameMeasurement | null>;
 	readPresentation(uuid: string): SurfacePresentation | undefined;
 	writePresentation(uuid: string, state: SurfacePresentation): void;
 	registerPresentation(id: NodeId, actions: SurfacePresentationActions): () => void;
 	activateTab(surface: NodeId, child: NodeId): boolean;
 	toggleAccordion(surface: NodeId, child: NodeId): boolean;
+}
+export interface DashboardFrameMeasurement {
+	readonly rects: FreeLayoutRect[];
+	readonly refine: (() => Promise<FreeLayoutRect[] | null>) | null;
 }
 interface DashboardViewSource {
 	readonly previews: ParameterPreviews | null;
@@ -84,6 +90,7 @@ export interface SurfaceBrowserActions {
 
 export function createDashboardViewContext(context: DashboardViewSource): DashboardViewContext {
 	const itemOrder = new SurfaceItemOrder();
+	const measurements = new SurfaceMeasurements();
 	const surfaces = new Map<NodeId, FreeSurfaceView>();
 	const presentations = new Map<string, SurfacePresentation>();
 	const scrolls = new Map<string, SurfaceScroll>();
@@ -99,6 +106,7 @@ export function createDashboardViewContext(context: DashboardViewSource): Dashbo
 	$effect(() => {
 		const graph = context.graph;
 		if (context.page.uuid !== pageUuid || !graph) {
+			measurements.clear();
 			pageUuid = context.page.uuid;
 			presentations.clear();
 			itemOrder.clear();
@@ -119,6 +127,7 @@ export function createDashboardViewContext(context: DashboardViewSource): Dashbo
 		destroyed = true;
 		frameGeneration++;
 		surfaces.clear();
+		measurements.clear();
 		itemOrder.clear();
 		presentations.clear();
 		scrolls.clear();
@@ -147,11 +156,11 @@ export function createDashboardViewContext(context: DashboardViewSource): Dashbo
 		}
 		return null;
 	};
-	const frameRects = async (ids: readonly NodeId[]): Promise<FreeLayoutRect[] | null> => {
+	const frameRects = async (ids: readonly NodeId[]): Promise<DashboardFrameMeasurement | null> => {
 		const generation = ++frameGeneration;
 		const identity = context.page.uuid;
 		const intended = new Map(ids.map((id) => [id, context.graph?.nodesById.get(id)?.uuid]));
-		const result: FreeLayoutRect[] = [];
+		const result = new Map<NodeId, FreeLayoutRect>();
 		const pending: NodeId[] = [];
 		const preparation = framePreparation(context.graph, context.page.node_id, ids);
 		const prepared = new WeakSet<SurfacePresentationActions>();
@@ -174,7 +183,7 @@ export function createDashboardViewContext(context: DashboardViewSource): Dashbo
 			const scaleX = bounds.width / size.width,
 				scaleY = bounds.height / size.height;
 			if (!(scaleX > 0 && scaleY > 0)) return false;
-			result.push({
+			result.set(id, {
 				left: (rect.left - bounds.left) / scaleX,
 				top: (rect.top - bounds.top) / scaleY,
 				width: rect.width / scaleX,
@@ -194,7 +203,8 @@ export function createDashboardViewContext(context: DashboardViewSource): Dashbo
 			await tick();
 			if (canceled() || !preparation.isCurrent(context.graph, ids)) return null;
 			const initial = domIndex();
-			for (const id of ids) if (!measure(id, initial)) pending.push(id);
+			// Non-free targets need their owning surfaces revealed even when a clipped shell exists.
+			for (const id of ids) if (!clientRect(id) || !measure(id, initial)) pending.push(id);
 			// Temporary ancestry is bounded per batch and is released before camera animation.
 			for (let offset = 0; offset < pending.length; offset += 32) {
 				if (canceled()) return null;
@@ -226,13 +236,30 @@ export function createDashboardViewContext(context: DashboardViewSource): Dashbo
 				const dom = domIndex();
 				for (const id of batch) measure(id, dom);
 			}
-			return preparation.isCurrent(context.graph, ids) ? result : null;
+			if (!preparation.isCurrent(context.graph, ids)) return null;
+			return {
+				rects: [...result.values()],
+				refine:
+					pending.length === 0
+						? null
+						: async () => {
+								// Camera budgets and local reveal settle before the final center is captured.
+								await tick();
+								await new Promise(requestAnimationFrame);
+								await tick();
+								if (canceled() || !preparation.isCurrent(context.graph, ids)) return null;
+								const dom = domIndex();
+								for (const id of ids) measure(id, dom);
+								return [...result.values()];
+							}
+			};
 		} finally {
 			if (!destroyed && generation === frameGeneration) retained = new Map();
 		}
 	};
 	return {
 		itemOrder,
+		measurements,
 		get previews() {
 			return context.previews;
 		},

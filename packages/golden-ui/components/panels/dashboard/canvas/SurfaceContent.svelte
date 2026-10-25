@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { getContext, onDestroy, tick } from 'svelte';
 	import { createSurfaceScroll } from './surface-scroll.svelte';
+	import { revealInSurface } from './frame-bounds';
 	import { dashboardViewContextKey, type DashboardViewContext } from './view-context.svelte';
 	import { createFreeSurfaceViewport } from './free-surface-viewport.svelte';
 	import FreeSurfaceOverview from './FreeSurfaceOverview.svelte';
@@ -61,6 +62,7 @@
 	let marqueeStyle = $derived(marquee.marqueeStyle);
 	const view = getContext<DashboardViewContext | undefined>(dashboardViewContextKey) ?? null;
 	let marker = $state<HTMLSpanElement | null>(null);
+	let tabStrip = $state<HTMLDivElement | null>(null);
 	let browser = $state<ReturnType<typeof SurfaceChildBrowser>>();
 	let chosen = $state<NodeId | null>(null);
 	const scrolling = createSurfaceScroll({
@@ -129,14 +131,24 @@
 			if (graph?.parentById.get(selected[index]) === surface.node.node_id) return selected[index];
 		return undefined;
 	});
+	let revealGeneration = 0;
 	$effect(() => {
 		const element = marker?.parentElement;
 		const requested = frameTargets;
+		// Camera budgets can replace collection previews with complete layout content.
+		void revealCohort;
+		void collection;
+		void activeTabNodeId;
+		const generation = ++revealGeneration;
 		if (!element || layoutKind === 'free') return;
 		const preferred = selectedChild ?? [...requested].at(-1);
 		if (preferred === undefined) return;
 		void tick().then(() => {
-			if (destroyed || marker?.parentElement !== element || frameTargets !== requested) return;
+			if (destroyed || generation !== revealGeneration || marker?.parentElement !== element) return;
+			const header = tabStrip?.querySelector<HTMLElement>(
+				`[data-dashboard-child-id="${preferred}"]`
+			);
+			if (header && tabStrip) revealInSurface(tabStrip, header);
 			const target = element.querySelector<HTMLElement>(
 				`.dashboard-widget-shell[data-node-id="${preferred}"]`
 			);
@@ -216,7 +228,32 @@
 					? accordionChildren.filter((child) => openAccordionNodeIds.includes(child.node_id))
 					: flowItems.flatMap((item) => (item.kind === 'child' ? [item.child] : []))
 	);
+	const revealCohort = $derived(mountedChildren.map((child) => child.node_id).join(','));
 	const childBudgets = $derived(childPresentationBudgets(mountedChildren, surface.budget));
+	const detailCounts = $derived.by(() => {
+		const ordinary = new Set(
+			layoutKind === 'free'
+				? freeViewport.ordinary
+				: layoutKind === 'tabs'
+					? shownTab && surface.budget > 0
+						? [shownTab.node_id]
+						: []
+					: collection
+						? []
+						: mountedChildren.map((child) => child.node_id)
+		);
+		const selected = new Set(view?.selected.slice(-dashboardSelectedDetailLimit) ?? []);
+		const counts = { ordinary: 0, frame: 0, interaction: 0, selected: 0, other: 0 };
+		for (const child of mountedChildren) {
+			const id = child.node_id;
+			if (ordinary.has(id)) counts.ordinary++;
+			else if (frameTargets.has(id)) counts.frame++;
+			else if (retained.has(id)) counts.interaction++;
+			else if (selected.has(id)) counts.selected++;
+			else counts.other++;
+		}
+		return counts;
+	});
 	const childBudget = (child: UiNodeDto) => childBudgets.get(child.node_id) ?? 1;
 	const surfaceDropKindLabel = (preview: SurfaceDropPreview): string => {
 		if (preview.targetKind === 'node') {
@@ -237,7 +274,16 @@
 	};
 </script>
 
-<span hidden bind:this={marker} aria-hidden="true" data-dashboard-budget={surface.budget}></span>
+<span
+	hidden
+	bind:this={marker}
+	aria-hidden="true"
+	data-dashboard-budget={surface.budget}
+	data-dashboard-detail-ordinary={detailCounts.ordinary}
+	data-dashboard-detail-frame={detailCounts.frame}
+	data-dashboard-detail-interaction={detailCounts.interaction}
+	data-dashboard-detail-selected={detailCounts.selected}
+	data-dashboard-detail-other={detailCounts.other}></span>
 {#if collection}
 	<SurfaceChildBrowser
 		bind:this={browser}
@@ -301,7 +347,7 @@
 	{/if}
 {/snippet}
 {#if layoutKind === 'tabs'}
-	<div class="dashboard-tab-strip" class:compact>
+	<div class="dashboard-tab-strip" class:compact bind:this={tabStrip}>
 		{#each collection ? childWidgets.filter( (child) => retained.has(child.node_id) ) : childWidgets as child (child.node_id)}
 			{#if shouldRenderSurfaceDropPreviewBeforeChild(child)}
 				<button

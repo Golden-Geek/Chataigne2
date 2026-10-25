@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { captureWidgetMove } from '../move-fence';
-import { changeParam, forkGraph, graphFixture, node, param } from './fixtures';
+import {
+	changeParam,
+	forkGraph,
+	graphFixture,
+	node,
+	param,
+	indexStructuralFixture
+} from './fixtures';
 
 describe('dashboard move lifetime', () => {
 	it('rejects absent sources, wrong parents and non-surface targets', () => {
@@ -34,6 +41,7 @@ describe('dashboard move lifetime', () => {
 		graph.nodesById.set(99, layout);
 		graph.paramsById.set(99, layout.data.param);
 		graph.nodesById.set(1, { ...graph.nodesById.get(1)!, children: [99, 10, 14] });
+		indexStructuralFixture(graph);
 		const fence = captureWidgetMove(graph, 10, 1, 1)!;
 		expect(fence.isCurrent(changeParam(graph, 11, { kind: 'vec2', value: [99, 101] }))).toBe(true);
 		expect(fence.isCurrent(changeParam(graph, 99, { kind: 'enum', value: 'grid' }))).toBe(false);

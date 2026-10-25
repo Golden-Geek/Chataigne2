@@ -1,0 +1,21 @@
+{
+	"observedAtUtc": "2026-10-25T22:20:18Z",
+	"scope": "Diagnostic working-set observation during the third cumulative dashboard timing run",
+	"owner": "Only descendants of the agent-owned dashboard-viewport.mjs Node process were selected",
+	"measurement": "Win32_Process.WorkingSetSize divided by 1048576, rounded to one decimal",
+	"processes": [
+		{ "name": "node.exe", "pid": 34552, "parentPid": 7664, "workingSetMiB": 321.9 },
+		{ "name": "msedge.exe", "pid": 8548, "parentPid": 34552, "workingSetMiB": 185.5 },
+		{ "name": "msedge.exe", "pid": 37572, "parentPid": 8548, "workingSetMiB": 14.4 },
+		{ "name": "msedge.exe", "pid": 20584, "parentPid": 8548, "workingSetMiB": 435.8 },
+		{ "name": "msedge.exe", "pid": 36204, "parentPid": 8548, "workingSetMiB": 43.3 },
+		{ "name": "msedge.exe", "pid": 4524, "parentPid": 8548, "workingSetMiB": 21.2 },
+		{ "name": "msedge.exe", "pid": 42360, "parentPid": 8548, "workingSetMiB": 35.6 },
+		{ "name": "msedge.exe", "pid": 17340, "parentPid": 8548, "workingSetMiB": 3327.4 }
+	],
+	"limitations": [
+		"A process working set is not live JavaScript heap usage.",
+		"This observation does not establish a leak, GC attribution or the cause of a callback stall.",
+		"Inspect live/retained heap and callback traces before changing qualification setup or limits."
+	]
+}

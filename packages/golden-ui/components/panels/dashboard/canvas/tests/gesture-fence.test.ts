@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { captureLayoutGesture } from '../gesture-fence';
-import { graphFixture, forkGraph, changeParam, node, param } from './fixtures';
+import {
+	graphFixture,
+	forkGraph,
+	changeParam,
+	node,
+	param,
+	indexStructuralFixture
+} from './fixtures';
 import { sample } from './gesture-fixtures';
 
 describe('dashboard gesture source paths', () => {
@@ -64,6 +71,7 @@ describe('dashboard gesture source paths', () => {
 		graph.nodesById.set(99, layout);
 		graph.parentById.set(99, 1);
 		graph.nodesById.set(1, { ...graph.nodesById.get(1)!, children: [99, 10] });
+		indexStructuralFixture(graph);
 		const fence = captureLayoutGesture(graph, targets())!;
 		expect(fence.isCurrent(changeParam(graph, 99, { kind: 'enum', value: 'grid' }))).toBe(false);
 		const another = captureLayoutGesture(graph, targets())!,

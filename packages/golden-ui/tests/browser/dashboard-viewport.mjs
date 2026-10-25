@@ -19,12 +19,28 @@ import { orderedChecks } from './dashboard-ordered.mjs';
 import { orderedMoveChecks } from './dashboard-ordered-move.mjs';
 import { compositionChecks } from './dashboard-composition.mjs';
 import { barrierChecks } from './dashboard-barriers.mjs';
+import { timingChecks, captureHeap, verifyRetention } from './dashboard-performance.mjs';
 
 const repository = fileURLToPath(new URL('../../../../', import.meta.url));
 const root = fileURLToPath(new URL('./fixture/', import.meta.url));
 const generated = resolve(repository, 'target/qualification');
 const baseline = '654a5f15';
 const denseOnly = process.argv.includes('--dense-only');
+const retentionProbe = process.argv.includes('--retention-probe');
+const heapFresh = process.argv.includes('--heap-fresh');
+const heapProbe = retentionProbe || heapFresh || process.argv.includes('--heap-probe');
+const timingProbe = heapProbe || process.argv.includes('--timing-probe');
+const timingOnly = timingProbe || process.argv.includes('--timing-only');
+const timingRequested = timingOnly || process.argv.includes('--timing');
+const timingFilter = {
+	tier: process.argv.find((arg) => arg.startsWith('--tier='))
+		? Number(process.argv.find((arg) => arg.startsWith('--tier='))?.slice(7))
+		: undefined,
+	cpu: process.argv.includes('--cpu-profile'),
+	heap: heapProbe,
+	profile: process.argv.find((arg) => arg.startsWith('--profile='))?.slice(10),
+	action: process.argv.find((arg) => arg.startsWith('--action='))?.slice(9)
+};
 const hierarchyOnly = process.argv.includes('--hierarchy-only');
 const lifecycleOnly = process.argv.includes('--lifecycle-only');
 const editOnly = process.argv.includes('--edit-only');
@@ -40,19 +56,22 @@ const oldSavePath = 'packages/golden-ui/store/project-files.svelte.ts';
 const oldSave = barrierBaseline
 	? execFileSync('git', ['show', `85c34e6f:${oldSavePath}`], { cwd: repository, encoding: 'utf8' })
 	: null;
-const fullRun = !(
-	denseOnly ||
-	hierarchyOnly ||
-	lifecycleOnly ||
-	editOnly ||
-	creationOnly ||
-	gesturesOnly ||
-	confirmedOnly ||
-	orderedOnly ||
-	orderedMoveOnly ||
-	compositionOnly ||
-	barriersOnly
-);
+const fullRun =
+	(heapProbe && !heapFresh) ||
+	!(
+		timingOnly ||
+		denseOnly ||
+		hierarchyOnly ||
+		lifecycleOnly ||
+		editOnly ||
+		creationOnly ||
+		gesturesOnly ||
+		confirmedOnly ||
+		orderedOnly ||
+		orderedMoveOnly ||
+		compositionOnly ||
+		barriersOnly
+	);
 const canvasPrefix = 'packages/golden-ui/components/panels/dashboard/';
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const filesBelow = (directory) =>
@@ -66,6 +85,8 @@ const sources = [
 		/[\\/](dashboard[^\\/]*|Dashboard[^\\/]*|session\.ts)$/.test(path)
 	),
 	resolve(repository, 'packages/golden-ui/store/graph-index.ts'),
+	resolve(repository, 'packages/golden-ui/store/graph-structural-children.ts'),
+	resolve(repository, 'packages/golden-ui/store/graph-event-projection.ts'),
 	resolve(repository, 'packages/golden-ui/css-value.ts'),
 	resolve(repository, 'packages/golden-ui/components/common/ContextMenu.svelte'),
 	...filesBelow(resolve(repository, 'packages/golden-ui/components/common/context-menu')),
@@ -86,6 +107,7 @@ const sources = [
 	fileURLToPath(new URL('./dashboard-composition.mjs', import.meta.url)),
 	fileURLToPath(new URL('./dashboard-composition-lifetimes.mjs', import.meta.url)),
 	fileURLToPath(new URL('./dashboard-barriers.mjs', import.meta.url)),
+	fileURLToPath(new URL('./dashboard-performance.mjs', import.meta.url)),
 	resolve(repository, 'packages/golden-ui/store/ui-intents.ts'),
 	resolve(repository, 'packages/golden-ui/types.ts'),
 	resolve(repository, 'packages/golden-ui/generated/rust_protocol/UiEditIntent.ts'),
@@ -109,12 +131,16 @@ const sources = [
 	resolve(repository, 'packages/golden-ui/store/session/edit-session.ts'),
 	resolve(repository, 'packages/golden-ui/store/session/tests/edit-session.test.ts'),
 	resolve(repository, 'packages/golden-ui/store/session/intent-pipeline.ts'),
+	resolve(repository, 'packages/golden-ui/store/session/selection.svelte.ts'),
 	resolve(repository, 'packages/golden-ui/store/session/history.svelte.ts'),
 	resolve(repository, 'packages/golden-ui/store/project-files.svelte.ts'),
 	resolve(repository, 'packages/golden-ui/store/session/project-graph-transition.svelte.ts'),
 	resolve(repository, 'packages/golden-ui/store/session/tests/edit-barrier.test.ts'),
 	resolve(repository, 'packages/golden-ui/store/session/tests/intent-barrier.test.ts'),
 	resolve(repository, 'apps/chataigne/ui/src/lib/tests/workbenchProjectTransition.test.ts'),
+	resolve(repository, 'apps/chataigne/ui/src/lib/tests/workbenchSelection.test.ts'),
+	resolve(repository, 'apps/chataigne/ui/src/lib/tests/workbenchStructuralChildren.test.ts'),
+	resolve(repository, 'apps/chataigne/ui/src/lib/tests/fixtures/workbench-graph.ts'),
 	fileURLToPath(import.meta.url)
 ];
 const fingerprints = () =>
@@ -130,31 +156,43 @@ const report = resolve(
 	`p11-dashboard-viewport-${new Date().toISOString().replaceAll(/[:.]/g, '-')}.json`
 );
 const result = {
-	scope: barrierBaseline
-		? 'barriers-save-baseline'
-		: barriersOnly
-			? 'barriers-only'
-			: compositionOnly
-				? 'composition-only'
-				: orderedMoveOnly
-					? 'ordered-move-only'
-					: orderedOnly
-						? 'ordered-only'
-						: confirmedOnly
-							? 'confirmed-only'
-							: gesturesOnly
-								? 'gestures-only'
-								: creationOnly
-									? 'creation-only'
-									: editOnly
-										? 'edit-only'
-										: lifecycleOnly
-											? 'lifecycle-only'
-											: hierarchyOnly
-												? 'hierarchy-only'
-												: denseOnly
-													? 'dense-only'
-													: 'dashboard-correctness',
+	scope: heapProbe
+		? retentionProbe
+			? 'retention-probe'
+			: heapFresh
+				? 'heap-fresh-probe'
+				: 'heap-probe'
+		: timingRequested
+			? timingProbe
+				? 'timing-probe'
+				: timingOnly
+					? 'timing-only'
+					: 'timing-and-correctness'
+			: barrierBaseline
+				? 'barriers-save-baseline'
+				: barriersOnly
+					? 'barriers-only'
+					: compositionOnly
+						? 'composition-only'
+						: orderedMoveOnly
+							? 'ordered-move-only'
+							: orderedOnly
+								? 'ordered-only'
+								: confirmedOnly
+									? 'confirmed-only'
+									: gesturesOnly
+										? 'gestures-only'
+										: creationOnly
+											? 'creation-only'
+											: editOnly
+												? 'edit-only'
+												: lifecycleOnly
+													? 'lifecycle-only'
+													: hierarchyOnly
+														? 'hierarchy-only'
+														: denseOnly
+															? 'dense-only'
+															: 'dashboard-correctness',
 	baseline,
 	browser: '',
 	machine: {
@@ -171,6 +209,9 @@ const result = {
 		: {}),
 	cases: [],
 	tiers: [],
+	timings: [],
+	timingSetups: [],
+	timingFilter,
 	errors: [],
 	assets: {},
 	passed: false
@@ -423,32 +464,37 @@ async function viewportChecks(page, references) {
 	await page.evaluate(() => window.dashboardFixture.setup('free', false, 1000, 'grid'));
 	const ids = await page.evaluate(() => window.dashboardFixture.focus(4));
 	const focused = await page.locator(`[data-node-id="${ids}"] input`).elementHandle();
-	await page.evaluate(() => window.dashboardFixture.reorder());
-	assert.equal(await focused.evaluate((element) => element === document.activeElement), true);
-	await page.evaluate(() => window.dashboardFixture.view({ panX: 0, panY: 0, zoom: 4 }));
-	await page.evaluate(() => window.dashboardFixture.reveal(0));
-	assert.equal(await focused.evaluate((element) => element === document.activeElement), true);
-	assert.equal(await page.locator(`[data-node-id="${ids}"]`).count(), 1);
-	await page.evaluate(() => window.dashboardFixture.rootFont(20));
-	assert.equal(await focused.evaluate((element) => element === document.activeElement), true);
-	await page.evaluate(() => window.dashboardFixture.rootFont(16));
-	assert((await page.locator('.dashboard-widget-shell').count()) <= 97);
-	record('focused-control-retention-and-root-font');
-	const beforeRetirement = await focused.evaluate((element) => ({
-		focused: element === document.activeElement,
-		connected: element.isConnected
-	}));
-	await page.evaluate(() => window.dashboardFixture.remove(4));
-	assert.equal(await page.locator(`[data-node-id="${ids}"]`).count(), 0);
-	const retiredFocus = await page.evaluate(() => ({
-		tag: document.activeElement?.tagName,
-		classes: document.activeElement?.className
-	}));
-	assert(
-		retiredFocus.classes?.includes('dashboard-page-viewport'),
-		JSON.stringify({ beforeRetirement, retiredFocus, errors: result.errors })
-	);
-	record('retired-focus-fallback');
+	assert(focused);
+	try {
+		await page.evaluate(() => window.dashboardFixture.reorder());
+		assert.equal(await focused.evaluate((element) => element === document.activeElement), true);
+		await page.evaluate(() => window.dashboardFixture.view({ panX: 0, panY: 0, zoom: 4 }));
+		await page.evaluate(() => window.dashboardFixture.reveal(0));
+		assert.equal(await focused.evaluate((element) => element === document.activeElement), true);
+		assert.equal(await page.locator(`[data-node-id="${ids}"]`).count(), 1);
+		await page.evaluate(() => window.dashboardFixture.rootFont(20));
+		assert.equal(await focused.evaluate((element) => element === document.activeElement), true);
+		await page.evaluate(() => window.dashboardFixture.rootFont(16));
+		assert((await page.locator('.dashboard-widget-shell').count()) <= 97);
+		record('focused-control-retention-and-root-font');
+		const beforeRetirement = await focused.evaluate((element) => ({
+			focused: element === document.activeElement,
+			connected: element.isConnected
+		}));
+		await page.evaluate(() => window.dashboardFixture.remove(4));
+		assert.equal(await page.locator(`[data-node-id="${ids}"]`).count(), 0);
+		const retiredFocus = await page.evaluate(() => ({
+			tag: document.activeElement?.tagName,
+			classes: document.activeElement?.className
+		}));
+		assert(
+			retiredFocus.classes?.includes('dashboard-page-viewport'),
+			JSON.stringify({ beforeRetirement, retiredFocus, errors: result.errors })
+		);
+		record('retired-focus-fallback');
+	} finally {
+		await focused.dispose();
+	}
 	await page.evaluate(() => window.dashboardFixture.setup('free', true, 1000, 'grid'));
 	const native = await page
 		.locator('.generic-text-display-value')
@@ -624,24 +670,64 @@ try {
 				return scenes;
 			});
 	await scene('current', async (page) => {
+		const retention = async (stage) => {
+			if (!retentionProbe) return;
+			const beforeSetup = await captureHeap(page, false);
+			const setup = await page.evaluate(() => window.dashboardFixture.setupTiming(1000, 'sparse'));
+			const observation = {
+				stage,
+				setup,
+				beforeSetup,
+				...(await captureHeap(page, true)),
+				diagnosticOnly: true
+			};
+			assert(
+				observation.after.view.widgets <= 96,
+				'Resident diagnostic fixture exceeded sparse mounting'
+			);
+			(result.retentionDiagnostics ??= []).push(observation);
+			console.log(JSON.stringify({ kind: 'retention-diagnostic', ...observation }));
+		};
+		await retention('initial');
 		if (references) await viewportChecks(page, references);
+		await retention('viewport');
 		if (fullRun || denseOnly) await denseChecks(page, record);
+		await retention('dense');
 		if (fullRun || hierarchyOnly) await hierarchyChecks(page, record);
+		await retention('hierarchy');
 		if (fullRun || lifecycleOnly) await lifecycleChecks(page, record);
+		await retention('lifecycle');
 		if (fullRun || editOnly) await editLifecycleChecks(page, record);
+		await retention('edit');
 		if (fullRun || creationOnly) await creationChecks(page, record);
+		await retention('creation');
 		if (fullRun || gesturesOnly) await gestureChecks(page, record);
+		await retention('gestures');
 		if (fullRun || confirmedOnly) await confirmedChecks(page, record);
+		await retention('confirmed');
 		if (fullRun || orderedOnly) await orderedChecks(page, record);
+		await retention('ordered');
 		if (fullRun || orderedOnly || orderedMoveOnly) await orderedMoveChecks(page, record);
+		await retention('ordered-move');
 		if (fullRun || compositionOnly) await compositionChecks(page, record);
+		await retention('composition');
 		if (fullRun || barriersOnly) await barrierChecks(page, record);
+		await retention('barriers');
+		if (retentionProbe) result.retentionGate = verifyRetention(result.retentionDiagnostics);
+		if (timingRequested && !retentionProbe)
+			await timingChecks(page, result, timingProbe, timingFilter);
 		assert.deepEqual(result.errors, []);
 	});
 	assert.deepEqual(fingerprints(), result.source, 'Qualified sources changed');
 	result.passed = true;
 	console.log(
-		JSON.stringify({ passed: true, cases: result.cases.length, tiers: result.tiers.length, report })
+		JSON.stringify({
+			passed: true,
+			cases: result.cases.length,
+			tiers: result.tiers.length,
+			timings: result.timings.length,
+			report
+		})
 	);
 } catch (error) {
 	result.failure = String(error);

@@ -16,6 +16,7 @@
 	import DashboardRegistryContent from './DashboardRegistryContent.svelte';
 	import { createDashboardEditIO } from './dashboard-edit-io';
 	import { createDashboardBarrierIO } from './dashboard-barrier-io';
+	import { createDashboardTiming } from './dashboard-timing';
 	import type { WidgetLayoutEdit } from '../../../components/panels/dashboard/canvas/contracts';
 	import { createDashboardInteractionChrome } from '../../../components/panels/dashboard/canvas/interaction-chrome.svelte';
 	import {
@@ -54,6 +55,40 @@
 	let sequence = 0;
 	const editIO = createDashboardEditIO(fixture, () => ({ tick: ++sequence, micro: 0, seq: 0 }));
 	const barrierIO = createDashboardBarrierIO(fixture);
+	const timing = createDashboardTiming({
+		canvas: () => canvas!,
+		data: () => data!,
+		session: fixture.session,
+		setView: (value) => {
+			persisted = value;
+		},
+		resetEdits: () => editIO.configure()
+	});
+	export async function setupTiming(target: number, profile: string) {
+		const started = performance.now();
+		await rootFont(16);
+		await localFont(16);
+		const setupResult =
+			profile === 'mixed' || profile === 'deep'
+				? await setupHierarchy(target, profile)
+				: await setup(
+						'free',
+						!profile.endsWith('run'),
+						Math.max(1, Math.ceil((target - 11) / 11)),
+						profile.startsWith('dense') ? 'dense' : 'grid'
+					);
+		timing.configure(target, profile, 'containers' in setupResult ? setupResult.containers : []);
+		return {
+			targetAuthoredNodes: target,
+			authoredNodes: setupResult.authoredNodes,
+			widgets: setupResult.ids.length,
+			profile,
+			containers: 'containers' in setupResult ? setupResult.containers.length : 0,
+			setupMs: performance.now() - started,
+			actions: timing.actions()
+		};
+	}
+	export const measureTiming = (action: string) => timing.run(action);
 	export function configureBarriers(options: Parameters<typeof barrierIO.configure>[0] = {}) {
 		barrierIO.configure(options);
 	}
@@ -315,34 +350,55 @@
 	}
 	let moveSource = $state<number | null>(null);
 	let moveCancellations: (() => void)[] = [];
-	const moveChrome = createDashboardInteractionChrome({
-		get node() {
-			return fixture.session.graph.state.nodesById.get(moveSource!)!;
-		},
-		get parent() {
-			const graph = fixture.session.graph.state;
-			return graph.nodesById.get(graph.parentById.get(moveSource!)!) ?? null;
-		},
-		content: {
-			widgetKind: 'text',
-			genericDisplayValue: '',
-			textConfig: '',
-			placeholderConfig: '',
-			multiline: false
-		}
-	});
+	const createMoveChrome = () =>
+		createDashboardInteractionChrome({
+			get node() {
+				return fixture.session.graph.state.nodesById.get(moveSource!)!;
+			},
+			get parent() {
+				const graph = fixture.session.graph.state;
+				return graph.nodesById.get(graph.parentById.get(moveSource!)!) ?? null;
+			},
+			content: {
+				widgetKind: 'text',
+				genericDisplayValue: '',
+				textConfig: '',
+				placeholderConfig: '',
+				multiline: false
+			}
+		});
+	let moveChrome: ReturnType<typeof createMoveChrome> | null = null;
+	let disposeMoveChrome: (() => void) | null = null;
+	const resetMoveChrome = () => {
+		moveChrome?.setFreeLayoutAncestorShells(null);
+		moveChrome?.setFreeLayoutHoverSurface(null);
+		moveChrome?.clearSurfaceInsertionIndicator();
+		moveChrome?.publishWidgetMoveSurfacePreview(null);
+		moveChrome?.publishWidgetMoveCommit(null);
+		disposeMoveChrome?.();
+		disposeMoveChrome = null;
+		moveChrome = null;
+		moveSource = null;
+		moveCancellations = [];
+	};
+	onDestroy(resetMoveChrome);
 	export async function movePreview(
 		index: number | null,
 		targetIndex: number | null = 0,
 		commit = false
 	) {
 		if (index === null) {
-			moveChrome.setFreeLayoutAncestorShells(null);
-			moveChrome.publishWidgetMoveSurfacePreview(null);
-			moveChrome.publishWidgetMoveCommit(null);
+			moveChrome?.setFreeLayoutAncestorShells(null);
+			moveChrome?.publishWidgetMoveSurfacePreview(null);
+			moveChrome?.publishWidgetMoveCommit(null);
 		} else {
 			moveSource = data!.ids[index];
-			moveChrome.setFreeLayoutAncestorShells(
+			if (!moveChrome)
+				disposeMoveChrome = $effect.root(() => {
+					moveChrome = createMoveChrome();
+				});
+			const chrome = moveChrome!;
+			chrome.setFreeLayoutAncestorShells(
 				document.querySelector<HTMLElement>(`.dashboard-widget-shell[data-node-id="${moveSource}"]`)
 			);
 			const graph = fixture.session.graph.state;
@@ -352,12 +408,12 @@
 				placement: getDashboardPlacement(graph, graph.nodesById.get(moveSource)!)
 			};
 			if (commit) {
-				const cancel = moveChrome.publishWidgetMoveCommit(
+				const cancel = chrome.publishWidgetMoveCommit(
 					target,
 					graph.parentById.get(moveSource) ?? null
 				);
 				if (cancel) moveCancellations.push(cancel);
-			} else moveChrome.publishWidgetMoveSurfacePreview(target);
+			} else chrome.publishWidgetMoveSurfacePreview(target);
 		}
 		await settle();
 	}
@@ -396,7 +452,7 @@
 		pattern: 'band' | 'grid' | 'dense' = 'band',
 		nested = false
 	) {
-		moveCancellations = [];
+		resetMoveChrome();
 		data = null;
 		await tick();
 		editMode = editing;
@@ -415,6 +471,7 @@
 		parentLayout: DashboardLayoutKind,
 		destinationLayout: DashboardLayoutKind = 'free'
 	) {
+		resetMoveChrome();
 		data = null;
 		await tick();
 		editMode = true;
@@ -445,6 +502,7 @@
 		return { ...(await setup('free', true, widgets, 'grid')), widgets };
 	}
 	export async function setupHierarchy(target: number, kind: 'free' | 'mixed' | 'deep') {
+		resetMoveChrome();
 		data = null;
 		await tick();
 		editMode = true;
@@ -522,6 +580,7 @@
 		return result;
 	}
 	export async function setupForest(count: number) {
+		resetMoveChrome();
 		data = null;
 		await tick();
 		editMode = true;

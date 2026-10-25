@@ -202,12 +202,25 @@
 	box-sizing: border-box;
 }
 
+.gc-dashboard-canvas.dashboard-surface.grid,
+.gc-dashboard-canvas .dashboard-surface.grid {
+	/* Uniform track floors preserve omitted cells and prevent collapsed controls in large grids. */
+	--dashboard-grid-track-min: 2em;
+	overflow: auto;
+}
+
 .gc-dashboard-canvas.dashboard-surface.grid > .dashboard-layout,
 .gc-dashboard-canvas .dashboard-surface.grid > .dashboard-layout {
 	display: grid;
 	grid-auto-flow: var(--dashboard-grid-flow);
-	grid-template-columns: repeat(var(--dashboard-grid-columns), minmax(0, 1fr));
-	grid-template-rows: repeat(var(--dashboard-grid-rows), minmax(0, 1fr));
+	grid-template-columns: repeat(
+		var(--dashboard-grid-columns),
+		minmax(var(--dashboard-grid-track-min), 1fr)
+	);
+	grid-template-rows: repeat(
+		var(--dashboard-grid-rows),
+		minmax(var(--dashboard-grid-track-min), 1fr)
+	);
 	gap: var(--dashboard-gap-y) var(--dashboard-gap-x);
 	inline-size: 100%;
 	block-size: 100%;
@@ -257,12 +270,24 @@
 	justify-content: flex-start;
 }
 
+.gc-dashboard-canvas.dashboard-surface.tabs,
+.gc-dashboard-canvas .dashboard-surface.tabs {
+	display: flex;
+	flex-direction: column;
+}
+
 .gc-dashboard-canvas.dashboard-tab-strip,
 .gc-dashboard-canvas .dashboard-tab-strip {
 	display: flex;
+	box-sizing: border-box;
+	flex: 0 0 2.75rem;
+	block-size: 2.75rem;
+	min-inline-size: 0;
 	gap: 0.45rem;
 	padding: 0.3rem 0.3rem 0.7rem;
-	flex-wrap: wrap;
+	flex-wrap: nowrap;
+	overflow-x: auto;
+	overflow-y: hidden;
 }
 
 .gc-dashboard-canvas.dashboard-tab-strip.compact,
@@ -285,6 +310,8 @@
 .gc-dashboard-canvas.dashboard-tab-strip button,
 .gc-dashboard-canvas .dashboard-tab-strip button {
 	cursor: pointer;
+	flex: 0 0 auto;
+	white-space: nowrap;
 }
 
 .gc-dashboard-canvas.dashboard-tab-strip button.selected,
@@ -305,9 +332,10 @@
 	gap: 0.75rem;
 }
 
-.gc-dashboard-canvas.dashboard-tab-body.compact,
-.gc-dashboard-canvas .dashboard-tab-body.compact {
-	block-size: 100%;
+.gc-dashboard-canvas.dashboard-tab-body,
+.gc-dashboard-canvas .dashboard-tab-body {
+	flex: 1 1 0;
+	min-block-size: 0;
 }
 
 .gc-dashboard-canvas.dashboard-accordion-item,

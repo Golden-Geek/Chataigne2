@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { captureSurface, captureSurfaceDrop } from '../surface-fence';
-import { changeParam, forkGraph, graphFixture, param } from './fixtures';
+import { changeParam, forkGraph, graphFixture, param, indexStructuralFixture } from './fixtures';
 
 describe('dashboard drop presentation identity', () => {
 	it('requires a current source and a real layout surface', () => {
@@ -31,6 +31,7 @@ describe('dashboard drop presentation identity', () => {
 			layout = param(99, 'layout_kind', { kind: 'enum', value: 'free' });
 		graph.nodesById.set(99, layout);
 		graph.nodesById.set(1, { ...graph.nodesById.get(1)!, children: [99, 10] });
+		indexStructuralFixture(graph);
 		const fence = captureSurfaceDrop(graph, 1, graph.nodesById.get(10)!)!;
 		expect(fence.isCurrent(changeParam(graph, 11, { kind: 'vec2', value: [42, 42] }))).toBe(true);
 		expect(fence.isCurrent(changeParam(graph, 99, { kind: 'enum', value: 'tabs' }))).toBe(false);

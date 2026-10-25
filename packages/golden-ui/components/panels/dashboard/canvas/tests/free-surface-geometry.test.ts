@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { FreeSurfaceGeometry, type FreeSurfaceMetrics } from '../free-surface-geometry';
-import { changeParam, forkGraph, graphFixture, node, param } from './fixtures';
+import {
+	changeParam,
+	forkGraph,
+	graphFixture,
+	node,
+	param,
+	indexStructuralFixture
+} from './fixtures';
 import { createEditOperations } from '../../../../../store/session/edit-operations';
 
 const metrics: FreeSurfaceMetrics = {
@@ -64,6 +71,7 @@ describe('retained free dashboard geometry', () => {
 		graph.nodesById.set(10, { ...graph.nodesById.get(10)!, children: [11, 12, 13, 14] });
 		graph.nodesById.set(14, param(14, 'anchor', { kind: 'enum', value: anchor }));
 		graph.parentById.set(14, 10);
+		indexStructuralFixture(graph);
 		const geometry = new FreeSurfaceGeometry();
 		geometry.sync(graph, graph.nodesById.get(1)!, metrics);
 		expect(geometry.get(10)).toEqual({ left, top, width: 192, height: 64 });
@@ -113,6 +121,7 @@ describe('retained free dashboard geometry', () => {
 		after.parentById.set(30, 10);
 		after.nodesById.set(31, param(31, 'anchor', { kind: 'enum', value: 'bottom-right' }));
 		after.parentById.set(31, 30);
+		indexStructuralFixture(after);
 		geometry.sync(after, after.nodesById.get(1)!, metrics);
 		expect(geometry.size).toBe(1);
 		expect(geometry.get(14)).toBeUndefined();

@@ -115,7 +115,11 @@ export const getDirectParamNode = (
 		return null;
 	}
 
-	const stack = getDirectChildren(graph, node).filter((child) => child.user_role !== 'itemRoot');
+	const structuralChildren = (owner: UiNodeDto) =>
+		(graph.structuralChildrenById.get(owner.node_id) ?? [])
+			.map((id) => graph.nodesById.get(id))
+			.filter((child): child is UiNodeDto => child !== undefined);
+	const stack = structuralChildren(node);
 	let basenameMatch: UiNodeDto | null = null;
 	while (stack.length > 0) {
 		const child = stack.shift();
@@ -130,11 +134,7 @@ export const getDirectParamNode = (
 				basenameMatch = child;
 			}
 		}
-		for (const structuralChild of getDirectChildren(graph, child)) {
-			if (structuralChild.user_role !== 'itemRoot') {
-				stack.unshift(structuralChild);
-			}
-		}
+		for (const structuralChild of structuralChildren(child)) stack.unshift(structuralChild);
 	}
 
 	return basenameMatch;

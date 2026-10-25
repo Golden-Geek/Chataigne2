@@ -55,20 +55,38 @@ carry them from the DOM boundary. No authored values are rewritten to accommodat
 The model updates changed owners using `VersionedNodeMap.forEachChange`, which skips shared
 trie branches. It consumes the public `golden_graph_ui/spatial-index` primitive. Camera changes
 query retained geometry; layout/font/viewport unit changes reindex affected surface bounds.
+The shared UI graph projection also indexes direct structural children separately from owned
+`itemRoot` subtrees. Local parameter lookup visits declared folders/parameters without scanning
+every sibling widget. Scalar publication retains that index; staged structural publication budgets
+child classification before publication, and append operations reuse the existing structural prefix.
+Empty lists do not occupy index entries; missing entries mean no structural children.
 Marquee selection and framing can reach unmounted direct free children. Framing temporarily
 materializes missing ancestry in batches of 32 unresolved selections, captures page-local bounds,
 then releases those ancestors before camera animation. Non-free layouts retain their DOM geometry
 path. New navigation supersedes pending framing. A page owns the shared view context, including
 non-navigable viewers.
+Mounted non-free targets still prepare and reveal their owning path before Frame measures them.
+Collection/detail transitions repeat local reveal after DOM reconciliation, so a camera budget
+change cannot strand selected content behind an old scroll position.
+After animation, Frame remeasures prepared targets under the same identity/path fences and centers
+the settled visible union without changing zoom. A newer navigation or retired source cancels that
+final measurement; temporary ancestry stays released during animation.
 
 Tab and accordion presentation state lives at that page boundary, keyed by authored UUIDs.
 Surface remounting resolves saved child UUIDs against the current graph. Removed identities and
 page changes retire their cached state. Public view operations delegate to the same surface
 controllers as tab/accordion buttons; they do not edit the backend graph.
+Tab headers occupy one horizontally scrollable row with a stable relative height. The body fills
+the remaining container height, keeping both small and windowed collections usable without wrapped
+headers displacing the selected control below the container clip.
 
 The viewport owner intersects clipping ancestors. Shared surface retention preserves a focused
 control, layout gestures and native pointer targets, and bounds native text-range retention to
-64 direct widgets per surface. Pointer targets use
+64 direct widgets per surface. Nested viewport owners share page-scoped DOM measurements within
+one synchronous presentation batch. Bounds, client dimensions, font size and overflow are snapshots;
+the cache clears at the next microtask, page replacement and disposal. It never survives between
+animation frames or replaces resize/scroll/font invalidation.
+Pointer targets use
 authored identity and are released on up/cancel/blur or owner retirement. Keyed moves restore focus after
 DOM reconciliation; removal uses the remembered authored identity to return focus to the page.
 Observers and event-driven refresh are disposed with their surface. Disabling a free view clears
@@ -116,6 +134,14 @@ inactive panes, native ranges, header focus and local scroll restoration.
 and bounded spacers. It rounds each authored slot using the existing CSS serializer before
 aggregation; the browser resolves mixed units and auto bases. Retained grid items keep their
 original cells. Presentation budgets therefore do not repack the selected controls.
+
+Grid surfaces scroll on both axes. Uniform `2em` track floors prevent gap-heavy grids from
+collapsing controls to zero height, including rows without mounted children. The floor is a relative
+presentation minimum; it changes no authored size or layout policy. Child discovery and Frame use
+the same local-scroll reveal path. Camera `navigationState` reports animation settlement, and
+surface detail counters distinguish ordinary shells from additional frame, interaction, selection
+and fallback cohorts without double-counting. These are presentation diagnostics rather than
+authored graph state.
 
 `frame-preparation.ts` captures selected paths and source identities, validates structure across
 asynchronous preparation, and exposes at most 32 pending targets per batch. Surface controllers

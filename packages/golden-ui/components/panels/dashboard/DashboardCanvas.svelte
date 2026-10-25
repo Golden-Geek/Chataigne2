@@ -425,6 +425,7 @@
 	}
 	export const activateSurfaceTab = (surface: number, child: number) =>
 		dashboardView?.activateTab(surface, child) ?? false;
+	export const navigationState = () => camera.navigationState;
 	export const toggleSurfaceAccordion = (surface: number, child: number) =>
 		dashboardView?.toggleAccordion(surface, child) ?? false;
 	export const activateWidgetAt = (surface: number, clientX: number, clientY: number) =>

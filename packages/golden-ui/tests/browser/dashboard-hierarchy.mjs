@@ -143,20 +143,22 @@ export async function hierarchyChecks(page, record) {
 			})
 		);
 		await page.evaluate((index) => window.dashboardFixture.focus(index), index);
-		await page.evaluate(() => {
-			window.hierarchyFocusedControl = document.activeElement;
-		});
-		await page.evaluate(() => window.dashboardFixture.budget(0));
-		assert(await page.evaluate(() => document.activeElement === window.hierarchyFocusedControl));
-		assert((await page.locator('.dashboard-widget-shell').count()) <= 2);
-		await page.evaluate(() => window.dashboardFixture.budget(512));
-		assert(await page.evaluate(() => document.activeElement === window.hierarchyFocusedControl));
-		await page.evaluate((index) => window.dashboardFixture.remove(index), index);
-		assert(
-			await page.evaluate(
-				() => document.activeElement === document.querySelector('.dashboard-page-viewport')
-			)
-		);
+		const focused = await page.evaluateHandle(() => document.activeElement);
+		try {
+			await page.evaluate(() => window.dashboardFixture.budget(0));
+			assert(await focused.evaluate((element) => element === document.activeElement));
+			assert((await page.locator('.dashboard-widget-shell').count()) <= 2);
+			await page.evaluate(() => window.dashboardFixture.budget(512));
+			assert(await focused.evaluate((element) => element === document.activeElement));
+			await page.evaluate((index) => window.dashboardFixture.remove(index), index);
+			assert(
+				await page.evaluate(
+					() => document.activeElement === document.querySelector('.dashboard-page-viewport')
+				)
+			);
+		} finally {
+			await focused.dispose();
+		}
 		record(`hierarchy-focus-budget-${container.layout}`, { id, index });
 	}
 	const deep = await page.evaluate(() => window.dashboardFixture.setupHierarchy(100_000, 'deep'));

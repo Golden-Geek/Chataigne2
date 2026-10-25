@@ -7,9 +7,9 @@ extraction notes and September counts are [archived](../archive/2026-10-18/progr
 
 ## Scan and policy
 
-Refreshed 2026-10-25 against delivered `85c34e6f` plus session barrier ownership
-on `main`. Scanned **2168 source files**; **27 exceed 1,000 lines**. The dashboard
-canvas is 977 lines; its controllers, geometry, viewport, tests and stylesheet files remain
+Refreshed 2026-10-26 against delivered `b8e272de` plus dashboard timing qualification
+on `main`. Scanned **2177 source files**; **27 exceed 1,000 lines**. The dashboard
+canvas is 978 lines; its controllers, geometry, viewport, tests and stylesheet files remain
 below the limit. No new source-size exception is introduced. Remaining decomposition and
 exceptions belong to P12; this inventory does not qualify that task.
 The surface controller is now 788 lines after extracting move and creation presentation ownership.
@@ -20,6 +20,10 @@ backend layout operations live in the 220-line `ui_sync/dashboard_layout.rs` mod
 remain 326 lines. Retained surface item order is a focused 56-line module, with adjacent tests.
 Active coordinate-frame validation is a focused 67-line module. Free transforms remain 557 lines;
 the composition fixture and browser matrix stay under the limit in separate owning test files.
+The timing fixture, observation loop and browser driver have separate owners. Structural-child
+index preparation is a focused 78-line shared graph projection module with separate consumer tests.
+Page measurement snapshots are a focused 39-line module with adjacent tests. Camera and view-context
+ownership remain under the limit at 674 and 362 lines respectively.
 
 The node enum macro remains the centralized built-in/consumer-variant dispatch registry:
 each public Node hook must reach both sets of variants there. P12 still owns extracting its

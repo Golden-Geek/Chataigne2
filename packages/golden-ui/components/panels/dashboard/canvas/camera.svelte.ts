@@ -1,4 +1,5 @@
 import { onDestroy } from 'svelte';
+import type { DashboardFrameMeasurement } from './view-context.svelte';
 import type { GraphState } from '../../../../store/graph.svelte';
 import {
 	type DashboardPersistedPageView,
@@ -23,7 +24,7 @@ interface DashboardCameraContext {
 	readonly frame: HTMLDivElement | null;
 	readonly focused: boolean;
 	readonly selectedNodeIds: readonly NodeId[];
-	frameRects(ids: readonly NodeId[]): Promise<FreeLayoutRect[] | null>;
+	frameRects(ids: readonly NodeId[]): Promise<DashboardFrameMeasurement | null>;
 }
 export function createDashboardCamera(context: DashboardCameraContext) {
 	let graph = $derived(context.graph);
@@ -54,6 +55,9 @@ export function createDashboardCamera(context: DashboardCameraContext) {
 	});
 
 	let pageViewAnimationFrame = $state<number | null>(null);
+	let animationCompletion: Promise<boolean> = Promise.resolve(true);
+	let resolveAnimation: ((completed: boolean) => void) | null = null;
+	let pendingFrame: number | null = null;
 
 	let pageViewAnimationTarget = $state<DashboardPersistedPageView | null>(null);
 	let navigationGeneration = 0;
@@ -108,6 +112,9 @@ export function createDashboardCamera(context: DashboardCameraContext) {
 
 	const cancelPageViewAnimation = (): void => {
 		navigationGeneration++;
+		pendingFrame = null;
+		resolveAnimation?.(false);
+		resolveAnimation = null;
 		if (pageViewAnimationFrame !== null && typeof window !== 'undefined') {
 			window.cancelAnimationFrame(pageViewAnimationFrame);
 		}
@@ -120,10 +127,14 @@ export function createDashboardCamera(context: DashboardCameraContext) {
 		const currentPageView = currentPersistedPageView();
 		cancelPageViewAnimation();
 		if (samePersistedPageView(currentPageView, targetPageView) || typeof window === 'undefined') {
+			animationCompletion = Promise.resolve(true);
 			setPageViewInstantly(targetPageView);
 			return;
 		}
 		const animationDurationMs = 220;
+		animationCompletion = new Promise((resolve) => {
+			resolveAnimation = resolve;
+		});
 		const startedAtMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
 		const interpolate = (start: number, end: number, progress: number): number =>
 			start + (end - start) * progress;
@@ -141,6 +152,8 @@ export function createDashboardCamera(context: DashboardCameraContext) {
 				pageViewAnimationFrame = null;
 				pageViewAnimationTarget = null;
 				setPageViewInstantly(targetPageView);
+				resolveAnimation?.(true);
+				resolveAnimation = null;
 				return;
 			}
 			pageViewAnimationFrame = window.requestAnimationFrame(step);
@@ -185,7 +198,7 @@ export function createDashboardCamera(context: DashboardCameraContext) {
 
 	const frameWidgetRects = (
 		widgetRects: FreeLayoutRect[],
-		options: { animate?: boolean; fillRatio?: number } = {}
+		options: { animate?: boolean; fillRatio?: number; preserveZoom?: boolean } = {}
 	): boolean => {
 		const geometry = getPageFrameGeometry();
 		if (!geometry) {
@@ -221,7 +234,9 @@ export function createDashboardCamera(context: DashboardCameraContext) {
 			(availableWidth * fillRatio) / localWidth,
 			(availableHeight * fillRatio) / localHeight
 		);
-		const nextZoom = clampPageZoom(targetScale / Math.max(pageFitScale, 1e-6));
+		const nextZoom = options.preserveZoom
+			? pageView.zoom
+			: clampPageZoom(targetScale / Math.max(pageFitScale, 1e-6));
 		const nextScale = Math.max(pageFitScale * nextZoom, 1e-6);
 		const localCenterX = (localLeft + localRight) * 0.5;
 		const localCenterY = (localTop + localBottom) * 0.5;
@@ -523,12 +538,24 @@ export function createDashboardCamera(context: DashboardCameraContext) {
 		}
 		cancelPageViewAnimation();
 		const generation = navigationGeneration;
-		const selectedWidgetRects = await context.frameRects([...selectedNodeIds]);
-		if (!selectedWidgetRects || generation !== navigationGeneration) return true;
-		return frameWidgetRects(selectedWidgetRects, {
+		const measurement = await context.frameRects([...selectedNodeIds]);
+		if (!measurement || generation !== navigationGeneration) return true;
+		const handled = frameWidgetRects(measurement.rects, {
 			animate: true,
 			fillRatio: 0.78
 		});
+		if (!handled || !measurement.refine) return handled;
+		const framingGeneration = navigationGeneration;
+		pendingFrame = framingGeneration;
+		try {
+			if (!(await animationCompletion) || framingGeneration !== navigationGeneration) return true;
+			const settled = await measurement.refine();
+			if (settled && framingGeneration === navigationGeneration)
+				frameWidgetRects(settled, { animate: false, preserveZoom: true });
+			return true;
+		} finally {
+			if (pendingFrame === framingGeneration) pendingFrame = null;
+		}
 	};
 
 	const handlePageViewportPointerDown = (event: PointerEvent): void => {
@@ -604,6 +631,13 @@ export function createDashboardCamera(context: DashboardCameraContext) {
 		if (pageViewportResizeFrame !== null) cancelAnimationFrame(pageViewportResizeFrame);
 	});
 	return {
+		get navigationState() {
+			return {
+				view: currentPersistedPageView(),
+				animating: pageViewAnimationFrame !== null || pendingFrame !== null,
+				ready: pageViewportSize.width > 1 && pageViewportSize.height > 1
+			};
+		},
 		get logicalSize() {
 			return { width: pageLogicalWidthPx, height: pageLogicalHeightPx };
 		},

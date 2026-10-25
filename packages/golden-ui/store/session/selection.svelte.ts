@@ -22,6 +22,7 @@ export interface WorkbenchSelectionStore {
 
 export const createWorkbenchSelectionStore = (graph: GraphStore): WorkbenchSelectionStore => {
 	let selectedNodeIds = $state<NodeId[]>([]);
+	const selectedIds = $derived(new Set(selectedNodeIds));
 	let revision = $state(0);
 	let persistedSelection = loadPersistedSelection();
 	let shouldRestorePersistedSelection = persistedSelection.length > 0;
@@ -51,7 +52,7 @@ export const createWorkbenchSelectionStore = (graph: GraphStore): WorkbenchSelec
 		return graph.state.nodesById.get(firstId) ?? null;
 	};
 
-	const isNodeSelected = (nodeId: NodeId): boolean => selectedNodeIds.includes(nodeId);
+	const isNodeSelected = (nodeId: NodeId): boolean => selectedIds.has(nodeId);
 
 	const clearSelection = (): void => {
 		revision += 1;
@@ -63,14 +64,16 @@ export const createWorkbenchSelectionStore = (graph: GraphStore): WorkbenchSelec
 		revision += 1;
 		pendingSelection.cancel();
 		const validUniqueIds: NodeId[] = [];
+		const valid = new Set<NodeId>();
 		for (const nodeId of nodeIds) {
 			if (!graph.state.nodesById.has(nodeId)) {
 				continue;
 			}
-			if (validUniqueIds.includes(nodeId)) {
+			if (valid.has(nodeId)) {
 				continue;
 			}
 			validUniqueIds.push(nodeId);
+			valid.add(nodeId);
 		}
 
 		if (selectionMode === 'REPLACE') {
@@ -79,7 +82,7 @@ export const createWorkbenchSelectionStore = (graph: GraphStore): WorkbenchSelec
 		}
 
 		if (selectionMode === 'REMOVE') {
-			setSelection(selectedNodeIds.filter((id) => !validUniqueIds.includes(id)));
+			setSelection(selectedNodeIds.filter((id) => !valid.has(id)));
 			return;
 		}
 
@@ -96,13 +99,11 @@ export const createWorkbenchSelectionStore = (graph: GraphStore): WorkbenchSelec
 			return;
 		}
 
-		const merged = [...selectedNodeIds];
+		const merged = new Set(selectedNodeIds);
 		for (const nodeId of validUniqueIds) {
-			if (!merged.includes(nodeId)) {
-				merged.push(nodeId);
-			}
+			merged.add(nodeId);
 		}
-		setSelection(merged);
+		setSelection([...merged]);
 	};
 
 	const selectNode = (nodeId: NodeId | null, selectionMode: SelectionMode = 'REPLACE'): void => {

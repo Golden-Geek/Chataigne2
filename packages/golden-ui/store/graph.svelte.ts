@@ -14,11 +14,17 @@ import {
 	type GraphEventProjectionWork
 } from './graph-event-projection';
 import { VersionedNodeMap } from './graph-index';
+import {
+	createStructuralChildrenWork,
+	updateStructuralChildren
+} from './graph-structural-children';
 
 export interface GraphState {
 	rootId: NodeId | null;
 	nodesById: VersionedNodeMap<UiNodeDto>;
 	childrenById: VersionedNodeMap<NodeId[]>;
+	/** Only nonempty declaration-child lists; absent entries have no structural children. */
+	structuralChildrenById: VersionedNodeMap<NodeId[]>;
 	parentById: VersionedNodeMap<NodeId>;
 	paramsById: VersionedNodeMap<UiParamDto>;
 	lastEventTime?: EventTime;
@@ -38,6 +44,7 @@ const createEmptyState = (): GraphState => ({
 	rootId: null,
 	nodesById: new VersionedNodeMap(),
 	childrenById: new VersionedNodeMap(),
+	structuralChildrenById: new VersionedNodeMap(),
 	parentById: new VersionedNodeMap(),
 	paramsById: new VersionedNodeMap(),
 	lastEventTime: undefined,
@@ -81,21 +88,29 @@ const stateFromSnapshot = (snapshot: UiSnapshot): GraphState => {
 		}
 	}
 
-	return {
+	const state: GraphState = {
 		rootId: detectRoot(nodesById, childrenById),
 		nodesById,
 		childrenById,
+		structuralChildrenById: new VersionedNodeMap(),
 		parentById,
 		paramsById,
 		lastEventTime: snapshot.at,
 		requiresResync: false
 	};
+	const structural = createStructuralChildrenWork(state);
+	for (const id of childrenById.keys()) structural.invalidate(id);
+	while (!structural.advance()) {
+		/* Snapshot construction owns the initial edge pass. */
+	}
+	return state;
 };
 
 const forkGraphState = (state: GraphState): GraphState => ({
 	...state,
 	nodesById: state.nodesById.fork(),
 	childrenById: state.childrenById.fork(),
+	structuralChildrenById: state.structuralChildrenById.fork(),
 	parentById: state.parentById.fork(),
 	paramsById: state.paramsById.fork()
 });
@@ -615,6 +630,7 @@ export const createGraphStore = (onPublished?: (state: GraphState) => void): Gra
 			if (result.requiresRootRecompute) {
 				refreshRootIfInvalid(nextState);
 			}
+			updateStructuralChildren(state, nextState);
 			publish(nextState);
 		},
 		applyBatch(batch: UiEventBatch): boolean {
@@ -628,15 +644,23 @@ export const createGraphStore = (onPublished?: (state: GraphState) => void): Gra
 			let stateChanged = false;
 			let workingState = state;
 			let workingStateIsMutable = false;
+			let unindexedBase: GraphState | undefined;
 			for (const event of batch.events) {
+				if (unindexedBase && preparedEvents.has(event)) {
+					updateStructuralChildren(unindexedBase, workingState);
+					unindexedBase = undefined;
+					workingStateIsMutable = false;
+				}
 				const prepared = takePreparedEvent(event, workingState);
 				if (prepared) {
 					workingState = prepared;
-					workingStateIsMutable = true;
+					workingStateIsMutable = false;
+					unindexedBase = undefined;
 					stateChanged = true;
 					continue;
 				}
 				if (!workingStateIsMutable) {
+					unindexedBase = workingState;
 					workingState = forkGraphState(workingState);
 					workingStateIsMutable = true;
 				}
@@ -653,6 +677,7 @@ export const createGraphStore = (onPublished?: (state: GraphState) => void): Gra
 			if (requiresRootRecompute) {
 				refreshRootIfInvalid(workingState);
 			}
+			if (unindexedBase) updateStructuralChildren(unindexedBase, workingState);
 			publish(workingState);
 			return true;
 		},

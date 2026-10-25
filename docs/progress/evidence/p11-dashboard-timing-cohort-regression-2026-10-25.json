@@ -1,0 +1,3129 @@
+{
+	"scope": "timing-and-correctness",
+	"baseline": "654a5f15",
+	"browser": "156.0.4314.42",
+	"machine": {
+		"platform": "win32",
+		"release": "10.0.26300",
+		"cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+		"logicalCpus": 24,
+		"memoryBytes": 33752997888,
+		"node": "v26.5.0"
+	},
+	"source": {
+		"packages/golden-ui/components/panels/dashboard/canvas/binding-drop.svelte.ts": "e339d4d4c6986f9b237f6e307d54bfadc2ef34ef4d8a165cde00a34c86fa6f78",
+		"packages/golden-ui/components/panels/dashboard/canvas/camera.svelte.ts": "3ba1c88dc91a83c0ec0c4ac56acc7fe27d7d247f73dba0622c791ab412f64b12",
+		"packages/golden-ui/components/panels/dashboard/canvas/constrained-resize.svelte.ts": "a864aaa82af2f35dfb0b4fcdd3603c8c69a75b1c88d275cc94642e0583a591d8",
+		"packages/golden-ui/components/panels/dashboard/canvas/context-menu.svelte.ts": "c927e623b623d45cd5cd29eca890d7f6012ef82588c870f104b50aee6fee5bd7",
+		"packages/golden-ui/components/panels/dashboard/canvas/contracts.ts": "2a14468b634ddcbf5540db2eae217843a0dd7aa7e7de26cbc3d909b34a9a1cbb",
+		"packages/golden-ui/components/panels/dashboard/canvas/dom.ts": "dfd23994882e79cdafd9e8c0e77949a9a947f2020be9fd04044a95126a435a7e",
+		"packages/golden-ui/components/panels/dashboard/canvas/flow-layout.ts": "2085a37e264d6ccb94da8450b9d535aaf91dd15048553f5f39c660d088d59b1c",
+		"packages/golden-ui/components/panels/dashboard/canvas/frame-bounds.ts": "91b368a6cfd24c71b966807365dda08d78d9a170438e6462e6696c9c23d88905",
+		"packages/golden-ui/components/panels/dashboard/canvas/frame-preparation.ts": "2a7d30baef5c6eeebf942b07da289d37e3b7c43db10e83d394193301c137005e",
+		"packages/golden-ui/components/panels/dashboard/canvas/free-layout-committer.ts": "1283ac28e4525e8738eacc0c09a463290f538490f21378b4f3cf43294ba5aafc",
+		"packages/golden-ui/components/panels/dashboard/canvas/free-layout.svelte.ts": "38ed990a93ce4c5201fff84229955af93f1e4c1f077c77d53f588349d19a526c",
+		"packages/golden-ui/components/panels/dashboard/canvas/free-surface-geometry.ts": "fa764db220e8a042ca80218fa6471e6525d49ef512a5ee68fc69a959104e148e",
+		"packages/golden-ui/components/panels/dashboard/canvas/free-surface-groups.ts": "60327f480cb7f2495c7e73d649ad4c4845024e202e4d96196a3722f165922b8e",
+		"packages/golden-ui/components/panels/dashboard/canvas/free-surface-viewport.svelte.ts": "40e5f77b9d3c885c7d2c88ab1378a9f988e784e936fee9dba6aeaa50eb406297",
+		"packages/golden-ui/components/panels/dashboard/canvas/FreeSurfaceOverview.svelte": "a9710c5c435477b9af57b198c1542a6603df9e15343ae4e1be24f09d9fdc8e6d",
+		"packages/golden-ui/components/panels/dashboard/canvas/geometry.ts": "13b6746318cbd7dd15826d0aef1513db3c1756d3143455a5299159601fe58551",
+		"packages/golden-ui/components/panels/dashboard/canvas/gesture-fence.ts": "c45747d1a15c07b84ef32ea6cab9d6caa4d59f742694c10b793f3759cf225dee",
+		"packages/golden-ui/components/panels/dashboard/canvas/interaction-chrome.svelte.ts": "15dba6160a5a08e20f70d3fbc130cb6d684ce4919166d1f5fc8ca64d917f1c5e",
+		"packages/golden-ui/components/panels/dashboard/canvas/interaction-geometry.svelte.ts": "4cf859ae3aed793ae8692b07edceb72b60062b9ed4a713162129a926b323d87e",
+		"packages/golden-ui/components/panels/dashboard/canvas/layout-frame.ts": "bddeb471f75f450dec1d86d0e4d4ea93f7aa796f5facd9284b78432dc506c895",
+		"packages/golden-ui/components/panels/dashboard/canvas/marquee.svelte.ts": "af7caade8363ec14d39e1c32ff6339f72633bec2aeabfe72fb6cc340460b665a",
+		"packages/golden-ui/components/panels/dashboard/canvas/move-fence.ts": "82164577a14e63b0e435f3825b4aefbbcea87b8f599c36a726d6f5f05e2081f9",
+		"packages/golden-ui/components/panels/dashboard/canvas/ordered-layout-context.ts": "d5b382b3cac0b507f3b3d110df2330fa70d925fe50d3930a658983023629df38",
+		"packages/golden-ui/components/panels/dashboard/canvas/ordered-layout.svelte.ts": "16a641075bddcccdc36c0009e0dd6c3550b9aa10b328d4de3bf5a2c2fba742d5",
+		"packages/golden-ui/components/panels/dashboard/canvas/ordered-move.svelte.ts": "a3d58330679fe4337aadcb9967ddb8ba149c6ba6521717f9c8efab608045c7f4",
+		"packages/golden-ui/components/panels/dashboard/canvas/page-view.ts": "190011aa3367269977700c4713cdff05d2f4ef759452fe77e3fa54d9c3ccd465",
+		"packages/golden-ui/components/panels/dashboard/canvas/presentation-budget.ts": "7ce1adc5ea5af7182e491a84c84e5abf85a473c594a488bf2d699f44902996b3",
+		"packages/golden-ui/components/panels/dashboard/canvas/styles/content-preview.css": "619ccc41a8e8c8d6dfffea3dc75bd157060f1dae7ae495239a64b091ba690791",
+		"packages/golden-ui/components/panels/dashboard/canvas/styles/surface-layout.css": "f26946e0c7b4a0ca3660bf0283f579fd71d2d0991a6859196f580b7580a09c05",
+		"packages/golden-ui/components/panels/dashboard/canvas/styles/widget-frame.css": "3f5d5cffcbfae5d0237dc19aa94c45b1c147d94aee6dbc2c829e6fefd73dc7f8",
+		"packages/golden-ui/components/panels/dashboard/canvas/surface-drop.svelte.ts": "4abeaaa6b1fad32c58075729063f289ba4fbbe83c81f0b8648d92cb1f9daddb4",
+		"packages/golden-ui/components/panels/dashboard/canvas/surface-fence.ts": "3d892cd05d20d8bd9af39dfbcafe706dd7655b3b005317d419a0186fece3922c",
+		"packages/golden-ui/components/panels/dashboard/canvas/surface-item-order.ts": "d77e81673655ee3b6bb15a1cb9180978ea859cf052bc9bcaf5068f48309428e8",
+		"packages/golden-ui/components/panels/dashboard/canvas/surface-move.svelte.ts": "374cd264ed5c8ada3cdaa651ca8ff7856d754aaaa264a066dfb67bb464597586",
+		"packages/golden-ui/components/panels/dashboard/canvas/surface-retention.svelte.ts": "1e726e6690d3a878bf0a224c1a74ceff5cafa3d86d7f0a709eebbc18f81d6c99",
+		"packages/golden-ui/components/panels/dashboard/canvas/surface-scroll.svelte.ts": "b6eddb4230ca5a1bf523cdcc1794fac20d2c229984e07ba3e5507983f498cb8a",
+		"packages/golden-ui/components/panels/dashboard/canvas/surface.svelte.ts": "4f57329ff81589c65948f5fea5dc92821a699788601dbaa5fab8489672e7652b",
+		"packages/golden-ui/components/panels/dashboard/canvas/SurfaceChildBrowser.svelte": "3a9c3c58f938e7995c20def260343e2e9b5631630af5bb4595176310b32c8419",
+		"packages/golden-ui/components/panels/dashboard/canvas/SurfaceContent.svelte": "20c550115d981342e515fa1eb6fc916fec292e0dcb86a5efef9d6d77dae4b639",
+		"packages/golden-ui/components/panels/dashboard/canvas/tests/fixtures.ts": "74f5a0e68872f9aaf7811e8799bef33844ff05cb0d58ccf40c3d1087d3643f3f",
+		"packages/golden-ui/components/panels/dashboard/canvas/tests/flow-layout.test.ts": "775797451f6877f9590af7127021a811a57cd526aae2ab1ffac15c50b3417783",
+		"packages/golden-ui/components/panels/dashboard/canvas/tests/frame-bounds.test.ts": "be1ad498c4a0237c85bf33fffc8eabe3dca2f94f60bb484a9470d459d38030bd",
+		"packages/golden-ui/components/panels/dashboard/canvas/tests/frame-preparation.test.ts": "c8ee1d8c47da67f30d91429283d066e1968ef7a47c18ba1eeb965ff456cc634e",
+		"packages/golden-ui/components/panels/dashboard/canvas/tests/free-layout-committer.test.ts": "ad9560245f21a29b28dd310aea65ac1153337d7f0c559b37a2343083cc349940",
+		"packages/golden-ui/components/panels/dashboard/canvas/tests/free-surface-geometry.test.ts": "c0a3df112a2608a40f45529c0da311fcf0c5754f09579793b2725f59cf8a1635",
+		"packages/golden-ui/components/panels/dashboard/canvas/tests/free-surface-groups.test.ts": "46476a726807f80aac8950953798f7169f1afe022ef7118e3c25288dbb3dd021",
+		"packages/golden-ui/components/panels/dashboard/canvas/tests/free-surface-presentation.test.ts": "de066a646a18a6c035c7d58b9a43d9688e38fd564b3bfd0c251cd58b7f6c9bff",
+		"packages/golden-ui/components/panels/dashboard/canvas/tests/gesture-fence.test.ts": "e50f6591c93c14600c3e813f0ee33558f0674c7e93a2cc906f15a5376f287c4d",
+		"packages/golden-ui/components/panels/dashboard/canvas/tests/gesture-fixtures.ts": "470fd29d1d6ca196933ad65ca45d0b493bb9de2e9bb071168c5e4e61d421567e",
+		"packages/golden-ui/components/panels/dashboard/canvas/tests/move-fence.test.ts": "e9e95ea669f9648444df7c02fc5f3ccbc81fbc8af7ddd73f572c21b7a4dba037",
+		"packages/golden-ui/components/panels/dashboard/canvas/tests/presentation-budget.test.ts": "e2220148fd17e5de3bad481dfdb433d6a3e9bf07391d2feae7ffb409e7b39151",
+		"packages/golden-ui/components/panels/dashboard/canvas/tests/resize-snap.test.ts": "db4139c96bf12d445fb06148d67368f9b3057d775c2f94a83970734ff4b1df0c",
+		"packages/golden-ui/components/panels/dashboard/canvas/tests/surface-fence.test.ts": "c0e58c61092264d521163dd62527f5cfa8380b7aff29060a5d2704f153051f60",
+		"packages/golden-ui/components/panels/dashboard/canvas/tests/surface-item-order.test.ts": "316692249b8ad04594c78ea2bdb9bc2a7477974ed873bae51e1628787817dc70",
+		"packages/golden-ui/components/panels/dashboard/canvas/view-context.svelte.ts": "77a59fda1e3264b5a5bcf2e3c23064f2c2003dc42714373f353e27409fa4bc09",
+		"packages/golden-ui/components/panels/dashboard/canvas/widget-content.svelte.ts": "97b744b7d701ffa7fb8d01dbab4d03524108ecc53eac4af7dc96cbddfbf1f554",
+		"packages/golden-ui/components/panels/dashboard/dashboard-actions.ts": "b37a883aa6a1464add61e1c154ba6caa3df702b8004e63971510cf9237d124b5",
+		"packages/golden-ui/components/panels/dashboard/dashboard-drag.ts": "9e2ae85e765b38a53f65138582521e299ae2f26ae2d47f79eade5a296f942a43",
+		"packages/golden-ui/components/panels/dashboard/dashboard-model.ts": "d2711ccbba7fd29a3e02d94e236301a59471f2ccf133709a51fc79a7aa4ea0a2",
+		"packages/golden-ui/components/panels/dashboard/dashboard-node-widget-options.ts": "6955d5da8c29656e7dd6466ef7b6f32f4336412e0650cb2d23803975febb89b8",
+		"packages/golden-ui/components/panels/dashboard/dashboard-node-widget-registry.ts": "4785c142172d939a2f6bf76d31665610f0a5e523e99bb3b878c4d05162d5bf65",
+		"packages/golden-ui/components/panels/dashboard/dashboard-route.ts": "e93fea51ffd68aac521494b7486ecd0a57553c6eea44f608081c844282309944",
+		"packages/golden-ui/components/panels/dashboard/DashboardCanvas.svelte": "4180ceb9fa779fed5b6f463c02b5b4b890473fca9e46a13c531f163370784d0f",
+		"packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetInspectorContent.svelte": "e357664cd4dbba8b17ee6ee61184e7e4415c9e86d8d2325575eab3d631bf2ef6",
+		"packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetNumberRotaryContent.svelte": "245da72f871f93b7e8d82b7b6e4f9d5d09ba8da310638c7bf1181fd2cb7b440d",
+		"packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetNumberSliderContent.svelte": "0119c271e9c64a98dd72630325649e3f1f3c390787f5511475e66c010876b771",
+		"packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetParameterEditorContent.svelte": "4848d3533614627fd6302d772f46ad2706e796e3c8df39a69828c6dfab7ca4ef",
+		"packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetVec2PadContent.svelte": "ea70f0059bfd3af60746219234f8d80976469e681b88047575bee59e98f82ee8",
+		"packages/golden-ui/components/panels/dashboard/DashboardPanel.svelte": "dba2b304d23643a9bc92b137a1dfe07f38760123fe867a4a66f7bb2025d0fdc5",
+		"packages/golden-ui/components/panels/dashboard/DashboardViewer.svelte": "6cb0e0b37763964b5b09df01819c613ef073e94c1f6b13006824db3cea29370a",
+		"packages/golden-ui/components/panels/dashboard/tests/dashboard-actions.test.ts": "33ba0344f964c6d646aaa169743e4dedb02128cc5cbeb6c60421066c86bdc133",
+		"packages/golden-ui/tests/browser/fixture/dashboard-barrier-io.ts": "8e72f8cc1c92527fc1e90f01087c3a9689d806805fe392de8cc3986b57fea5fe",
+		"packages/golden-ui/tests/browser/fixture/dashboard-composition.ts": "b2dd0597d70ba0ddc0d1d8bf0a0e81d605c52f5e62a6624cebef894dad97e50e",
+		"packages/golden-ui/tests/browser/fixture/dashboard-data.ts": "c1b00d3dca4e777f85c7fe3faf6f2f43a5c23db7a34674c0cea07639fd8f59c1",
+		"packages/golden-ui/tests/browser/fixture/dashboard-edit-io.ts": "a18ac8f26c9d3eb1944c4c078beaad54478e61b6055564160b8f3761d38e17f6",
+		"packages/golden-ui/tests/browser/fixture/dashboard-forest.ts": "6c7797f7b33d2f63ca0a8cd8c703cbee9a17b4f81786cc81a72af5abd6c5bc4a",
+		"packages/golden-ui/tests/browser/fixture/dashboard-hierarchy.ts": "debae08a29ea574cce234e8f6b29e6cfa770dc0b211447eec90301e4c497b16f",
+		"packages/golden-ui/tests/browser/fixture/dashboard-measure.ts": "e2fc35ba8ae749b7ce79aed0855117b03620b9a1f0520c932004026a3f6f1362",
+		"packages/golden-ui/tests/browser/fixture/dashboard-timing.ts": "b941a4c313f5bb114c4aa34a7e97eb2985bd91f1b0537c392c2f9cada4dd2818",
+		"packages/golden-ui/tests/browser/fixture/dashboard.html": "70bc3752b3e8beca950e542617e7cd3491f8871a1ca954b435d9522099ad34fd",
+		"packages/golden-ui/tests/browser/fixture/dashboard.ts": "4f8c93e78ef6e02957955e215bdfc0e9577385256fb8fcbc943e149ad06a3ef1",
+		"packages/golden-ui/tests/browser/fixture/DashboardFixture.svelte": "850c100dac26803ae912c3cf41e3fed0b32d7f8d37541c52bf59632be3bd2d55",
+		"packages/golden-ui/tests/browser/fixture/DashboardRegistryContent.svelte": "f783c801c15be591724b2f7522d3cba33fe2f34cfda424b86c82655ab5caf076",
+		"packages/golden-ui/tests/browser/fixture/session.ts": "bb4ad8eac3d5bca976ced9e0b912f4dc03bd95adfcd1af92d875b1c47b1aabba",
+		"packages/golden-ui/store/graph-index.ts": "70b413486e35b2fedbc84e519b8af7cf4120a3008693173b4e35f17789d9b38f",
+		"packages/golden-ui/store/graph-structural-children.ts": "fb608e716267ccc3578db316b1e6b4d2ef9ac5f7c7864d037a5c454cdf365cb8",
+		"packages/golden-ui/store/graph-event-projection.ts": "14d81657a701efd4891d435516086e3d7c3e59fa3155774ba5e9e36f505935b5",
+		"packages/golden-ui/css-value.ts": "5268e49361e4e93a97e255222b80ad8c63c331c5348cef21200e3a087b2f54c4",
+		"packages/golden-ui/components/common/ContextMenu.svelte": "1a154bc73401e801d8dbacfe80e5181b9b7f43f5f16d1fe41388b971ae4971c2",
+		"packages/golden-ui/components/common/context-menu/ContextMenuRows.svelte": "3fced1e35258434f3ef33ef5a7a6b127a4bf8d895459deea500745cbd475d300",
+		"packages/golden-ui/components/common/context-menu/presentation.ts": "2c4cc366adcc6f2caef334df9871137967a7228908d072b9615680fb9f464c76",
+		"packages/golden-ui/components/common/virtual-rows/height-index.ts": "281559cbf69c4327414667f1b897447078235a15944814fa0dc6e398010a0429",
+		"packages/golden-ui/components/common/virtual-rows/tests/height-index.test.ts": "ac1d9af3e20db0f29482dba8d3ecc21efe30d5283b26a1926f82da89bc179d00",
+		"packages/golden-ui/components/common/virtual-rows/VirtualRows.svelte": "7e97cce5ddda286ec5938106fdedc2610d3713febe0e573b7a976d5ad32e7098",
+		"packages/golden-ui/tests/css-value-units.test.ts": "ca0f33dff72c4dd1c0819d2813c28d40c2cb2743547f7425c99275c2ce23f0b4",
+		"packages/golden-graph-ui/spatial-index.ts": "31ad23a5f30693cde74853adc8d21322df85c06096268ace52b063539749c8c4",
+		"packages/golden-ui/package.json": "068fddd9de78f79562b6eb241cb605fa9984ec337105991c10a67d05aff7c3a5",
+		"package-lock.json": "1a515eb16812648c25cab5914c8ec2562aeeab8bf6f5a84921bd20d659e5ec28",
+		"packages/golden-ui/tests/browser/dashboard-dense.mjs": "f94ac1588a2f463b9ed4b696a42800b2fc7905400ebe8b1ab2ac2f784fc62aae",
+		"packages/golden-ui/tests/browser/dashboard-hierarchy.mjs": "3daefeceb19a0b554106dc153a79f162921a528e0d35b887f4d7db5dcade6caf",
+		"packages/golden-ui/tests/browser/dashboard-lifecycle.mjs": "88cae6f5bd5418a2de86f2b027478ca3ed32b7fd3ca90867e75925ae71093a46",
+		"packages/golden-ui/tests/browser/dashboard-edit-lifecycle.mjs": "d3bf908a5180b48bb751aaae38929450e462bcc9a777c93745e3de3007e0fd4f",
+		"packages/golden-ui/tests/browser/dashboard-creation.mjs": "8be766cc901255ede137ec27e16dccc37f725e6764037f39c2af9ffc3f1cbfee",
+		"packages/golden-ui/tests/browser/dashboard-gestures.mjs": "46d44d7f4284da2779a3f948e16fbdeec19f4c7841d029ae69b4a0a63a99062c",
+		"packages/golden-ui/tests/browser/dashboard-confirmed.mjs": "f066ee1580946b7918b44a78c4f380cb3d07268cb0a34ab313d9a4ea95ad1c3d",
+		"packages/golden-ui/tests/browser/dashboard-ordered.mjs": "c03729717c88ddc592ad7bfcb10e6f638202668445628b24ab6195c5bb4fc175",
+		"packages/golden-ui/tests/browser/dashboard-ordered-move.mjs": "bcd131e12b8aecbe226a93d7795fc21444a430b16c1369915fd51f0b11b43af7",
+		"packages/golden-ui/tests/browser/dashboard-composition.mjs": "9d7e8a8aab801ef8f9e8a3a82447b9750b57ffc49b1db6b7c6e1f6bcffcd6f71",
+		"packages/golden-ui/tests/browser/dashboard-composition-lifetimes.mjs": "71901add9d0c290d63a6bfc04de943ceb3850a2d140d6a274d8088b4094484ef",
+		"packages/golden-ui/tests/browser/dashboard-barriers.mjs": "8aacd0b85be6ad67e615eef00795982972f62ac84ccac4c654999765e2208968",
+		"packages/golden-ui/tests/browser/dashboard-performance.mjs": "2b81b5cf885d11969aa1a88ddaf4c4dc297bb20d0763f92af71eab124fd300bd",
+		"packages/golden-ui/store/ui-intents.ts": "7a792277f2167655821664499aeb55ea74d03bcf364933c1a9806a140e1ebcee",
+		"packages/golden-ui/types.ts": "6dd916630d94171101f5f1102f98198f30c14812d624e83e6b4a6a24fad3dfb1",
+		"packages/golden-ui/generated/rust_protocol/UiEditIntent.ts": "c81a19309e74030853215b5fef2b2539b1b29118e92b9e7e282815b096963edf",
+		"packages/golden-ui/generated/rust_protocol/protocol-version.ts": "1e2b45691cfe25cb4e4b66960c96dc2f9e2299dc0197b9b87ceb9cb09026ccfe",
+		"crates/golden_core/services/protocol/src/types/intent.rs": "862c0c828f7a6f50aadc5ccc78e3702b53a657605f5ca1801ccd0ce7f09de5ea",
+		"crates/golden_core/services/protocol/src/types/message.rs": "5b14b68699281fa8abd46987aa0bd46a618c475dc780072ca7bd201ce86b530a",
+		"crates/golden_core/services/protocol/tests/public_protocol.rs": "ccda5bb889df0dc3abb782875035ab446412e63607e9a3ed6ec59fea10ded255",
+		"crates/golden_core/engine/src/ui_sync.rs": "40ed7eca9418e672ce8983cf7ae2687adda12f6e5e1bf3171bb0d4ae635d7bca",
+		"crates/golden_core/engine/src/ui_sync/dashboard_layout.rs": "5f41eb93efee92494e6f02d034687f1adb2096cb5bb90a094c24a9ba20cd4ff1",
+		"crates/golden_core/engine/src/ui_sync/tests/dashboard_layout.rs": "8a8eae28e7ab4a5831d24ec3390982b61c4dd6881b74fbf5b834e8f6cdea1fd5",
+		"crates/golden_core/hosts/transport/src/ui_server/mod.rs": "8265fc19d5f683795ce0d395a4012099fbb86a60aea81eac2a9a786babf8edab",
+		"crates/golden_core/support/codegen/src/lib.rs": "87567d688ef97f47dc13ac7f4d5882c7a68759b52aa417d92b0eae36471ec548",
+		"packages/golden-ui/store/workbench.svelte.ts": "eaa8161e724c6620ccf48df384e527be62834e9525cc7c81957cad5e9d609fc4",
+		"packages/golden-ui/store/graph.svelte.ts": "ce0552ec990834abc44167741bca977e965daa8c495cc0c0ba154872660fe8db",
+		"packages/golden-ui/store/session/action-activity.svelte.ts": "ab3b84800234d72a05717bebaf54572f9c60b3bdc026ce4b5170243696f59484",
+		"packages/golden-ui/store/session/edit-operations.ts": "852e155f810c353b44222a551d4c6ba162807ec3d40ce0e923479c425d209fe0",
+		"packages/golden-ui/store/session/edit-operations.svelte.ts": "b9adb5c00631bca9927921a9b0b415acfc8ba2d5da1865af2806cc54f87a3387",
+		"packages/golden-ui/store/session/event-time.ts": "9b57941e58f39b3bb3d3dc535e7f3785f2d8fd4d32e961200df9270ef421415b",
+		"packages/golden-ui/store/session/intent-sender.ts": "abd5f4b52265729cec162cdf2765c249fa03c73f6d9b9940b0c6c7af6c73a3f0",
+		"packages/golden-ui/store/session/tests/edit-operations.test.ts": "15647c27c998e26c07f37cb227c5c1633ad9c17ea688b036f4b3e6910c4d4a97",
+		"packages/golden-ui/store/session/edit-session.ts": "22c5d25d3d69e70778bc26a89b9aae904d75b6dd28815496f36bdca17c35c243",
+		"packages/golden-ui/store/session/tests/edit-session.test.ts": "be5b42549f4491628971b2b3bc045f950b6ed38bc87d046ce369c1e38ba8d418",
+		"packages/golden-ui/store/session/intent-pipeline.ts": "5634d9ce7ff4a5edcb2fcca9fd37323f4cbb8a0cc20b8216580b08231b54053d",
+		"packages/golden-ui/store/session/selection.svelte.ts": "d0f6ab1c118469431bd6c505d2f31d9af84c17b6a1d271cc0b181033b7c75dd0",
+		"packages/golden-ui/store/session/history.svelte.ts": "811a45c7aa7a4b5b0903dff7f9a6ecbbed08c72e7f12913d98bace15fab683b3",
+		"packages/golden-ui/store/project-files.svelte.ts": "b8c85974b065f4085a2f89745eb247386788dd188e6534bdd6db9eb5c28e5e77",
+		"packages/golden-ui/store/session/project-graph-transition.svelte.ts": "a3a4a217f88460a62955204c3cdaa5b5c8e11230cb4a8bccbda67bfd1148310e",
+		"packages/golden-ui/store/session/tests/edit-barrier.test.ts": "943aafaab4f615a6e74728f8b2259887103d6cc1871508f2e9b58d953d56923a",
+		"packages/golden-ui/store/session/tests/intent-barrier.test.ts": "34a089bdf1d23d0bfdba76894ceb7205efd70d822222bd52005f0405f71b4af8",
+		"apps/chataigne/ui/src/lib/tests/workbenchProjectTransition.test.ts": "fbc3f99f8216499a00b45859ac2937d800a7077e40dac4755fa70a5440ebfb6c",
+		"apps/chataigne/ui/src/lib/tests/workbenchSelection.test.ts": "d5ee22ad3d65e6a2d2f7526fd14120635c43a997396fa6329dcb950aee607b86",
+		"apps/chataigne/ui/src/lib/tests/workbenchStructuralChildren.test.ts": "8cd0c1618ed33df0ec2f81c86d64d96ffb82d1159a771fd60d94b23436f77d0d",
+		"apps/chataigne/ui/src/lib/tests/fixtures/workbench-graph.ts": "f8e4ebbf8351723d10e01f00b0a12cbd88d08f299668d109d952d8234cba8ea1",
+		"packages/golden-ui/tests/browser/dashboard-viewport.mjs": "6833be33bf3f84220f37afb523883428a0f7f83979c24fd12b22fad25d17b663"
+	},
+	"cases": [
+		{
+			"label": "visible-preservation-run",
+			"mounted": 48,
+			"painted": 40,
+			"paintedIds": [
+				"11",
+				"22",
+				"33",
+				"44",
+				"55",
+				"451",
+				"462",
+				"473",
+				"484",
+				"495",
+				"891",
+				"902",
+				"913",
+				"924",
+				"935",
+				"1331",
+				"1342",
+				"1353",
+				"1364",
+				"1375",
+				"1771",
+				"1782",
+				"1793",
+				"1804",
+				"1815",
+				"2211",
+				"2222",
+				"2233",
+				"2244",
+				"2255",
+				"2651",
+				"2662",
+				"2673",
+				"2684",
+				"2695",
+				"3091",
+				"3102",
+				"3113",
+				"3124",
+				"3135"
+			],
+			"mountedIds": [
+				"11",
+				"22",
+				"33",
+				"44",
+				"55",
+				"66",
+				"451",
+				"462",
+				"473",
+				"484",
+				"495",
+				"506",
+				"891",
+				"902",
+				"913",
+				"924",
+				"935",
+				"946",
+				"1331",
+				"1342",
+				"1353",
+				"1364",
+				"1375",
+				"1386",
+				"1771",
+				"1782",
+				"1793",
+				"1804",
+				"1815",
+				"1826",
+				"2211",
+				"2222",
+				"2233",
+				"2244",
+				"2255",
+				"2266",
+				"2651",
+				"2662",
+				"2673",
+				"2684",
+				"2695",
+				"2706",
+				"3091",
+				"3102",
+				"3113",
+				"3124",
+				"3135",
+				"3146"
+			],
+			"passed": true
+		},
+		{
+			"label": "visible-preservation-edit",
+			"mounted": 54,
+			"painted": 48,
+			"paintedIds": [
+				"11",
+				"22",
+				"33",
+				"44",
+				"55",
+				"66",
+				"451",
+				"462",
+				"473",
+				"484",
+				"495",
+				"506",
+				"891",
+				"902",
+				"913",
+				"924",
+				"935",
+				"946",
+				"1331",
+				"1342",
+				"1353",
+				"1364",
+				"1375",
+				"1386",
+				"1771",
+				"1782",
+				"1793",
+				"1804",
+				"1815",
+				"1826",
+				"2211",
+				"2222",
+				"2233",
+				"2244",
+				"2255",
+				"2266",
+				"2651",
+				"2662",
+				"2673",
+				"2684",
+				"2695",
+				"2706",
+				"3091",
+				"3102",
+				"3113",
+				"3124",
+				"3135",
+				"3146"
+			],
+			"mountedIds": [
+				"11",
+				"22",
+				"33",
+				"44",
+				"55",
+				"66",
+				"451",
+				"462",
+				"473",
+				"484",
+				"495",
+				"506",
+				"891",
+				"902",
+				"913",
+				"924",
+				"935",
+				"946",
+				"1331",
+				"1342",
+				"1353",
+				"1364",
+				"1375",
+				"1386",
+				"1771",
+				"1782",
+				"1793",
+				"1804",
+				"1815",
+				"1826",
+				"2211",
+				"2222",
+				"2233",
+				"2244",
+				"2255",
+				"2266",
+				"2651",
+				"2662",
+				"2673",
+				"2684",
+				"2695",
+				"2706",
+				"3091",
+				"3102",
+				"3113",
+				"3124",
+				"3135",
+				"3146",
+				"3531",
+				"3542",
+				"3553",
+				"3564",
+				"3575",
+				"3586"
+			],
+			"passed": true
+		},
+		{
+			"label": "nested-free-surface-clipping",
+			"mounted": 25,
+			"passed": true
+		},
+		{
+			"label": "six-layout-edit-run-mounted-smoke",
+			"passed": true
+		},
+		{
+			"label": "focused-control-retention-and-root-font",
+			"passed": true
+		},
+		{
+			"label": "retired-focus-fallback",
+			"passed": true
+		},
+		{
+			"label": "native-range-retention-and-release",
+			"passed": true
+		},
+		{
+			"label": "live-position-leaves-and-enters-viewport",
+			"passed": true
+		},
+		{
+			"label": "inherited-em-font-and-logical-boundary",
+			"passed": true
+		},
+		{
+			"label": "frame-beneath-unmounted-container",
+			"dx": 0.0009765625,
+			"dy": 0.0009765625,
+			"passed": true
+		},
+		{
+			"label": "batched-frame-across-100-offscreen-containers",
+			"peakMounted": 32,
+			"dx": 0.014628906250436557,
+			"dy": 0.0016601562499545253,
+			"passed": true
+		},
+		{
+			"label": "pending-frame-yields-to-new-navigation",
+			"passed": true
+		},
+		{
+			"label": "dense-overlap-1000-run",
+			"authoredNodes": 1001,
+			"widgets": 90,
+			"initialMounted": 90,
+			"groups": 0,
+			"bulkMounted": 89,
+			"picked": 990,
+			"control": {
+				"label": "   Widget 89 ",
+				"width": 241.91998291015625,
+				"height": 100.80000305175781,
+				"fit": 0,
+				"box": [32, 39.02000045776367, 241.91998291015625, 100.80000305175781],
+				"front": "<input type=\"text\" placeholder=\"\">",
+				"reachable": true
+			},
+			"transitionScope": "Focus retained beyond the run-mode page clip",
+			"passed": true
+		},
+		{
+			"label": "dense-grid-minimum-zoom-1000-run",
+			"widgets": 90,
+			"presentation": "detail",
+			"mounted": 18,
+			"groups": 0,
+			"coverage": {
+				"visible": 15,
+				"missing": [],
+				"maximumError": 0.00004150390624602096,
+				"maximumGroupError": 0
+			},
+			"scope": "Viewport slice at 0.25; run mode retains the authored page clip",
+			"passed": true
+		},
+		{
+			"label": "dense-overlap-1000-edit",
+			"authoredNodes": 1001,
+			"widgets": 90,
+			"initialMounted": 90,
+			"groups": 0,
+			"bulkMounted": 89,
+			"picked": 990,
+			"control": {
+				"label": "   Widget 89 ",
+				"width": 229.4964599609375,
+				"height": 95.62354278564453,
+				"fit": 0,
+				"box": [70.823486328125, 66.39058685302734, 229.4964599609375, 95.62354278564453],
+				"front": "<div class=\"dashboard-widget-content generic-body\"><div class=\"dashboard-live-content inert-mode\" inert=\"\"><!----><div class=\"generic-input-shell with-inside-label\"><span class=\"generic-inline-label\">Widget 89</span><!----> <input type=\"tex",
+				"reachable": true
+			},
+			"transitionScope": "Distant editing staging",
+			"passed": true
+		},
+		{
+			"label": "dense-grid-minimum-zoom-1000-edit",
+			"widgets": 90,
+			"presentation": "detail",
+			"mounted": 38,
+			"groups": 0,
+			"coverage": {
+				"visible": 38,
+				"missing": [],
+				"maximumError": 0.00009765625000568434,
+				"maximumGroupError": 0
+			},
+			"scope": "Viewport slice at 0.25; run mode retains the authored page clip",
+			"passed": true
+		},
+		{
+			"label": "dense-overlap-10000-run",
+			"authoredNodes": 10010,
+			"widgets": 909,
+			"initialMounted": 0,
+			"groups": 256,
+			"bulkMounted": 17,
+			"picked": 9999,
+			"control": {
+				"label": "  Widget 908   0.42",
+				"width": 241.91998291015625,
+				"height": 100.80000305175781,
+				"fit": 0,
+				"box": [32, 39.02000045776367, 241.91998291015625, 100.80000305175781],
+				"front": "<div class=\"generic-slider-wrap\"><div class=\"generic-slider-bar\"><!----><div role=\"slider\" tabindex=\"-1\" class=\"slider svelte-1omiy18\" aria-valuenow=\"0.42\" style=\"--bg-color: var(--gc-color-slider-bg); --fg-color: var(--gc-color-slider-fg);",
+				"reachable": true
+			},
+			"transitionScope": "Focus retained beyond the run-mode page clip",
+			"passed": true
+		},
+		{
+			"label": "dense-grid-minimum-zoom-10000-run",
+			"widgets": 909,
+			"presentation": "detail",
+			"mounted": 48,
+			"groups": 0,
+			"coverage": {
+				"visible": 40,
+				"missing": [],
+				"maximumError": 0.00007324218750071054,
+				"maximumGroupError": 0
+			},
+			"scope": "Viewport slice at 0.25; run mode retains the authored page clip",
+			"passed": true
+		},
+		{
+			"label": "dense-overlap-10000-edit",
+			"authoredNodes": 10010,
+			"widgets": 909,
+			"initialMounted": 0,
+			"groups": 256,
+			"bulkMounted": 17,
+			"picked": 9999,
+			"control": {
+				"label": "  Widget 908   0.42",
+				"width": 229.4964599609375,
+				"height": 95.62354278564453,
+				"fit": 0,
+				"box": [70.823486328125, 66.39058685302734, 229.4964599609375, 95.62354278564453],
+				"front": "<div class=\"dashboard-widget-content generic-body\"><div class=\"dashboard-live-content inert-mode\" inert=\"\"><div class=\"generic-slider-wrap\"><div class=\"generic-slider-bar\"><!----><div role=\"slider\" tabindex=\"-1\" class=\"slider svelte-1omiy18",
+				"reachable": true
+			},
+			"transitionScope": "Distant editing staging",
+			"passed": true
+		},
+		{
+			"label": "dense-grid-minimum-zoom-10000-edit",
+			"widgets": 909,
+			"presentation": "overview",
+			"mounted": 0,
+			"groups": 229,
+			"coverage": {
+				"visible": 280,
+				"missing": [],
+				"maximumError": 0,
+				"maximumGroupError": 0.0010117647058637779
+			},
+			"scope": "Viewport slice at 0.25; run mode retains the authored page clip",
+			"passed": true
+		},
+		{
+			"label": "dense-overlap-20000-run",
+			"authoredNodes": 20009,
+			"widgets": 1818,
+			"initialMounted": 0,
+			"groups": 256,
+			"bulkMounted": 17,
+			"picked": 19998,
+			"control": {
+				"label": "  Widget 1817  ",
+				"width": 241.91998291015625,
+				"height": 100.80000305175781,
+				"fit": 0,
+				"box": [32, 39.02000045776367, 241.91998291015625, 100.80000305175781],
+				"front": "<input type=\"text\" placeholder=\"\">",
+				"reachable": true
+			},
+			"transitionScope": "Focus retained beyond the run-mode page clip",
+			"passed": true
+		},
+		{
+			"label": "dense-grid-minimum-zoom-20000-run",
+			"widgets": 1818,
+			"presentation": "detail",
+			"mounted": 48,
+			"groups": 0,
+			"coverage": {
+				"visible": 40,
+				"missing": [],
+				"maximumError": 0.00007324218750071054,
+				"maximumGroupError": 0
+			},
+			"scope": "Viewport slice at 0.25; run mode retains the authored page clip",
+			"passed": true
+		},
+		{
+			"label": "dense-overlap-20000-edit",
+			"authoredNodes": 20009,
+			"widgets": 1818,
+			"initialMounted": 0,
+			"groups": 256,
+			"bulkMounted": 17,
+			"picked": 19998,
+			"control": {
+				"label": "  Widget 1817  ",
+				"width": 229.4964599609375,
+				"height": 95.62354278564453,
+				"fit": 0,
+				"box": [70.823486328125, 66.39058685302734, 229.4964599609375, 95.62354278564453],
+				"front": "<div class=\"dashboard-widget-content generic-body\"><div class=\"dashboard-live-content inert-mode\" inert=\"\"><!----><div class=\"generic-input-shell\"><!----> <input type=\"text\" placeholder=\"\" disabled=\"\"></div><!----></div></div>",
+				"reachable": true
+			},
+			"transitionScope": "Distant editing staging",
+			"passed": true
+		},
+		{
+			"label": "dense-grid-minimum-zoom-20000-edit",
+			"widgets": 1818,
+			"presentation": "overview",
+			"mounted": 0,
+			"groups": 224,
+			"coverage": {
+				"visible": 280,
+				"missing": [],
+				"maximumError": 0,
+				"maximumGroupError": 0.0010117647058637779
+			},
+			"scope": "Viewport slice at 0.25; run mode retains the authored page clip",
+			"passed": true
+		},
+		{
+			"label": "dense-overlap-50000-run",
+			"authoredNodes": 50006,
+			"widgets": 4545,
+			"initialMounted": 0,
+			"groups": 256,
+			"bulkMounted": 17,
+			"picked": 49995,
+			"control": {
+				"label": "    Widget 4544\n\t\t\t\t\n\t\t\t\t 0.42",
+				"width": 241.91998291015625,
+				"height": 100.80000305175781,
+				"fit": 0,
+				"box": [32, 39.02000045776367, 241.91998291015625, 100.80000305175781],
+				"front": "<div role=\"slider\" tabindex=\"-1\" class=\"slider svelte-1omiy18\" aria-valuenow=\"0.42\" style=\"--bg-color: var(--gc-color-slider-bg); --fg-color: var(--gc-color-slider-fg);\"><div class=\"slider-foreground  svelte-1omiy18\" style=\"--value: 0.42; -",
+				"reachable": true
+			},
+			"transitionScope": "Focus retained beyond the run-mode page clip",
+			"passed": true
+		},
+		{
+			"label": "dense-grid-minimum-zoom-50000-run",
+			"widgets": 4545,
+			"presentation": "detail",
+			"mounted": 48,
+			"groups": 0,
+			"coverage": {
+				"visible": 40,
+				"missing": [],
+				"maximumError": 0.00007324218750071054,
+				"maximumGroupError": 0
+			},
+			"scope": "Viewport slice at 0.25; run mode retains the authored page clip",
+			"passed": true
+		},
+		{
+			"label": "dense-overlap-50000-edit",
+			"authoredNodes": 50006,
+			"widgets": 4545,
+			"initialMounted": 0,
+			"groups": 256,
+			"bulkMounted": 17,
+			"picked": 49995,
+			"control": {
+				"label": "    Widget 4544\n\t\t\t\t\n\t\t\t\t 0.42",
+				"width": 229.4964599609375,
+				"height": 95.62354278564453,
+				"fit": 0,
+				"box": [70.823486328125, 66.39058685302734, 229.4964599609375, 95.62354278564453],
+				"front": "<div class=\"dashboard-widget-content generic-body\"><div class=\"dashboard-live-content inert-mode\" inert=\"\"><div class=\"generic-slider-wrap\"><div class=\"generic-slider-bar\"><!----><div role=\"slider\" tabindex=\"-1\" class=\"slider svelte-1omiy18",
+				"reachable": true
+			},
+			"transitionScope": "Distant editing staging",
+			"passed": true
+		},
+		{
+			"label": "dense-grid-minimum-zoom-50000-edit",
+			"widgets": 4545,
+			"presentation": "overview",
+			"mounted": 0,
+			"groups": 214,
+			"coverage": {
+				"visible": 280,
+				"missing": [],
+				"maximumError": 0,
+				"maximumGroupError": 0.0010117647058637779
+			},
+			"scope": "Viewport slice at 0.25; run mode retains the authored page clip",
+			"passed": true
+		},
+		{
+			"label": "dense-overlap-100000-run",
+			"authoredNodes": 100001,
+			"widgets": 9090,
+			"initialMounted": 0,
+			"groups": 256,
+			"bulkMounted": 17,
+			"picked": 99990,
+			"control": {
+				"label": "   Widget 9089 ",
+				"width": 241.91998291015625,
+				"height": 100.80000305175781,
+				"fit": 0,
+				"box": [32, 39.02000045776367, 241.91998291015625, 100.80000305175781],
+				"front": "<input type=\"text\" placeholder=\"\">",
+				"reachable": true
+			},
+			"transitionScope": "Focus retained beyond the run-mode page clip",
+			"passed": true
+		},
+		{
+			"label": "dense-grid-minimum-zoom-100000-run",
+			"widgets": 9090,
+			"presentation": "detail",
+			"mounted": 48,
+			"groups": 0,
+			"coverage": {
+				"visible": 40,
+				"missing": [],
+				"maximumError": 0.00007324218750071054,
+				"maximumGroupError": 0
+			},
+			"scope": "Viewport slice at 0.25; run mode retains the authored page clip",
+			"passed": true
+		},
+		{
+			"label": "dense-overlap-100000-edit",
+			"authoredNodes": 100001,
+			"widgets": 9090,
+			"initialMounted": 0,
+			"groups": 256,
+			"bulkMounted": 17,
+			"picked": 99990,
+			"control": {
+				"label": "   Widget 9089 ",
+				"width": 229.4964599609375,
+				"height": 95.62354278564453,
+				"fit": 0,
+				"box": [70.823486328125, 66.39058685302734, 229.4964599609375, 95.62354278564453],
+				"front": "<div class=\"dashboard-widget-content generic-body\"><div class=\"dashboard-live-content inert-mode\" inert=\"\"><!----><div class=\"generic-input-shell with-inside-label\"><span class=\"generic-inline-label\">Widget 9089</span><!----> <input type=\"t",
+				"reachable": true
+			},
+			"transitionScope": "Distant editing staging",
+			"passed": true
+		},
+		{
+			"label": "dense-grid-minimum-zoom-100000-edit",
+			"widgets": 9090,
+			"presentation": "overview",
+			"mounted": 0,
+			"groups": 215,
+			"coverage": {
+				"visible": 280,
+				"missing": [],
+				"maximumError": 0,
+				"maximumGroupError": 0.0010117647058637779
+			},
+			"scope": "Viewport slice at 0.25; run mode retains the authored page clip",
+			"passed": true
+		},
+		{
+			"label": "container-tabs-state-retention",
+			"passed": true
+		},
+		{
+			"label": "container-accordion-state-retention",
+			"passed": true
+		},
+		{
+			"label": "hierarchy-free-1000",
+			"targetAuthoredNodes": 1000,
+			"authoredNodes": 2283,
+			"authoredWidgets": 224,
+			"leafWidgets": 192,
+			"mountedWidgets": 224,
+			"groups": 0,
+			"mountedContainers": 32,
+			"browsers": 0,
+			"passed": true
+		},
+		{
+			"label": "hierarchy-mixed-1000",
+			"targetAuthoredNodes": 1000,
+			"authoredNodes": 2283,
+			"authoredWidgets": 224,
+			"leafWidgets": 192,
+			"mountedWidgets": 174,
+			"groups": 0,
+			"mountedContainers": 32,
+			"browsers": 0,
+			"passed": true
+		},
+		{
+			"label": "hierarchy-free-10000",
+			"targetAuthoredNodes": 10000,
+			"authoredNodes": 10005,
+			"authoredWidgets": 926,
+			"leafWidgets": 894,
+			"mountedWidgets": 32,
+			"groups": 480,
+			"mountedContainers": 32,
+			"browsers": 0,
+			"passed": true
+		},
+		{
+			"label": "hierarchy-mixed-10000",
+			"targetAuthoredNodes": 10000,
+			"authoredNodes": 10005,
+			"authoredWidgets": 926,
+			"leafWidgets": 894,
+			"mountedWidgets": 42,
+			"groups": 90,
+			"mountedContainers": 32,
+			"browsers": 26,
+			"passed": true
+		},
+		{
+			"label": "hierarchy-free-20000",
+			"targetAuthoredNodes": 20000,
+			"authoredNodes": 20004,
+			"authoredWidgets": 1835,
+			"leafWidgets": 1803,
+			"mountedWidgets": 32,
+			"groups": 480,
+			"mountedContainers": 32,
+			"browsers": 0,
+			"passed": true
+		},
+		{
+			"label": "hierarchy-mixed-20000",
+			"targetAuthoredNodes": 20000,
+			"authoredNodes": 20004,
+			"authoredWidgets": 1835,
+			"leafWidgets": 1803,
+			"mountedWidgets": 42,
+			"groups": 90,
+			"mountedContainers": 32,
+			"browsers": 26,
+			"passed": true
+		},
+		{
+			"label": "hierarchy-free-50000",
+			"targetAuthoredNodes": 50000,
+			"authoredNodes": 50001,
+			"authoredWidgets": 4562,
+			"leafWidgets": 4530,
+			"mountedWidgets": 32,
+			"groups": 480,
+			"mountedContainers": 32,
+			"browsers": 0,
+			"passed": true
+		},
+		{
+			"label": "hierarchy-mixed-50000",
+			"targetAuthoredNodes": 50000,
+			"authoredNodes": 50001,
+			"authoredWidgets": 4562,
+			"leafWidgets": 4530,
+			"mountedWidgets": 42,
+			"groups": 90,
+			"mountedContainers": 32,
+			"browsers": 26,
+			"passed": true
+		},
+		{
+			"label": "hierarchy-free-100000",
+			"targetAuthoredNodes": 100000,
+			"authoredNodes": 100007,
+			"authoredWidgets": 9108,
+			"leafWidgets": 9076,
+			"mountedWidgets": 32,
+			"groups": 480,
+			"mountedContainers": 32,
+			"browsers": 0,
+			"passed": true
+		},
+		{
+			"label": "hierarchy-mixed-100000",
+			"targetAuthoredNodes": 100000,
+			"authoredNodes": 100007,
+			"authoredWidgets": 9108,
+			"leafWidgets": 9076,
+			"mountedWidgets": 42,
+			"groups": 90,
+			"mountedContainers": 32,
+			"browsers": 26,
+			"passed": true
+		},
+		{
+			"label": "hierarchy-focus-budget-free",
+			"id": 720,
+			"index": 64,
+			"passed": true
+		},
+		{
+			"label": "hierarchy-focus-budget-horizontal",
+			"id": 731,
+			"index": 65,
+			"passed": true
+		},
+		{
+			"label": "hierarchy-focus-budget-vertical",
+			"id": 390,
+			"index": 34,
+			"passed": true
+		},
+		{
+			"label": "hierarchy-focus-budget-grid",
+			"id": 401,
+			"index": 35,
+			"passed": true
+		},
+		{
+			"label": "hierarchy-focus-budget-tabs",
+			"id": 60,
+			"index": 4,
+			"passed": true
+		},
+		{
+			"label": "hierarchy-focus-budget-accordion",
+			"id": 71,
+			"index": 5,
+			"passed": true
+		},
+		{
+			"label": "hierarchy-depth-eight-frame",
+			"authoredNodes": 100000,
+			"containers": 255,
+			"widgets": 8974,
+			"initialMounted": 255,
+			"finalMounted": 256,
+			"peakMounted": 256,
+			"center": {
+				"dx": 0.000244140625,
+				"dy": 0.0001373291015625
+			},
+			"passed": true
+		},
+		{
+			"label": "browser-header-focus-after-budget-restoration",
+			"passed": true
+		},
+		{
+			"label": "frame-reveals-inactive-oversized-tab",
+			"passed": true
+		},
+		{
+			"label": "frame-materializes-bulk-flow-selection",
+			"targets": 48,
+			"seen": 48,
+			"passed": true
+		},
+		{
+			"label": "bounded-flow-preserves-horizontal-geometry",
+			"before": [799.9529418945312, 66.39058685302734, 229.49652099609375, 764.98828125],
+			"after": [799.9529418945312, 66.39058685302734, 229.49652099609375, 764.98828125],
+			"passed": true
+		},
+		{
+			"label": "bounded-flow-preserves-vertical-geometry",
+			"before": [73.21407318115234, 735.7553100585938, 956.2354125976562, 95.62353515625],
+			"after": [73.21407318115234, 735.7553100585938, 956.2354125976562, 95.62353515625],
+			"passed": true
+		},
+		{
+			"label": "bounded-flow-preserves-grid-geometry",
+			"before": [73.21407318115234, 793.1294555664062, 305.99530029296875, 38.2493896484375],
+			"after": [73.21407318115234, 793.1294555664062, 305.99530029296875, 38.2493896484375],
+			"passed": true
+		},
+		{
+			"label": "bounded-flow-mixed-units-and-auto-size",
+			"before": [1016.1143798828125, 66.39058685302734, 7.1717529296875, 764.98828125],
+			"after": [1016.3011474609375, 66.39058685302734, 7.1717529296875, 764.98828125],
+			"passed": true
+		},
+		{
+			"label": "bounded-native-range-horizontal",
+			"characters": 151,
+			"releasedMounted": 3,
+			"passed": true
+		},
+		{
+			"label": "bounded-native-range-vertical",
+			"characters": 151,
+			"releasedMounted": 3,
+			"passed": true
+		},
+		{
+			"label": "bounded-native-range-grid",
+			"characters": 151,
+			"releasedMounted": 3,
+			"passed": true
+		},
+		{
+			"label": "bounded-native-range-accordion",
+			"characters": 189,
+			"releasedMounted": 3,
+			"passed": true
+		},
+		{
+			"label": "bounded-native-range-tabs",
+			"characters": 179,
+			"releasedMounted": 2,
+			"passed": true
+		},
+		{
+			"label": "local-scroll-state-round-trip",
+			"before": {
+				"left": 123984,
+				"top": 0,
+				"headerVisible": true
+			},
+			"after": {
+				"left": 123984,
+				"top": 0,
+				"headerVisible": true
+			},
+			"passed": true
+		},
+		{
+			"label": "bulk-frame-100-horizontal",
+			"targets": 100,
+			"peak": 49,
+			"center": {
+				"visible": true,
+				"surface": {
+					"scrollX": true,
+					"scrollY": false,
+					"dx": 0.000030517578125,
+					"dy": 0.000030517578125,
+					"scrollTop": 0,
+					"scrollHeight": 640,
+					"clientHeight": 640,
+					"clientWidth": 800
+				},
+				"dx": 0.000030517578125,
+				"dy": 0.000030517578125
+			},
+			"selection": {
+				"dx": 0.000030517578125,
+				"dy": 0.000030517578125
+			},
+			"paneError": 0,
+			"passed": true
+		},
+		{
+			"label": "bulk-frame-100-vertical",
+			"targets": 100,
+			"peak": 49,
+			"center": {
+				"visible": true,
+				"surface": {
+					"scrollX": false,
+					"scrollY": true,
+					"dx": 0.000030517578125,
+					"dy": 0.000030517578125,
+					"scrollTop": 9224,
+					"scrollHeight": 57584,
+					"clientHeight": 640,
+					"clientWidth": 800
+				},
+				"dx": 0.000030517578125,
+				"dy": 0.000030517578125
+			},
+			"selection": {
+				"dx": 0.000030517578125,
+				"dy": 0.000030517578125
+			},
+			"paneError": 0,
+			"passed": true
+		},
+		{
+			"label": "bulk-frame-100-accordion",
+			"targets": 100,
+			"peak": 49,
+			"center": {
+				"visible": true,
+				"surface": {
+					"scrollX": false,
+					"scrollY": true,
+					"dx": 0.98675537109375,
+					"dy": 0.000030517578125,
+					"scrollTop": 1256,
+					"scrollHeight": 1896,
+					"clientHeight": 640,
+					"clientWidth": 800
+				},
+				"dx": 0.000030517578125,
+				"dy": 357.2930908203125
+			},
+			"selection": {
+				"dx": 0.000030517578125,
+				"dy": 0.000030517578125
+			},
+			"paneError": 0,
+			"passed": true
+		},
+		{
+			"label": "bulk-frame-100-tabs",
+			"targets": 100,
+			"peak": 34,
+			"center": {
+				"visible": true,
+				"surface": {
+					"scrollX": false,
+					"scrollY": false,
+					"dx": 0.000030517578125,
+					"dy": 29.252655029296875,
+					"scrollTop": 0,
+					"scrollHeight": 640,
+					"clientHeight": 640,
+					"clientWidth": 800
+				},
+				"dx": 0.000030517578125,
+				"dy": 0.00006103515625
+			},
+			"selection": {
+				"dx": 0.000030517578125,
+				"dy": 0.00006103515625
+			},
+			"paneError": 0,
+			"passed": true
+		},
+		{
+			"label": "frame-cancels-after-source-reorder",
+			"handled": true,
+			"before": "translate(0px, 0px) scale(1.19529)",
+			"after": "translate(0px, 0px) scale(1.19529)",
+			"passed": true
+		},
+		{
+			"label": "move-preview-budget-and-cancel-free",
+			"passed": true
+		},
+		{
+			"label": "move-preview-source-removal-free",
+			"passed": true
+		},
+		{
+			"label": "move-preview-layout-change-free",
+			"passed": true
+		},
+		{
+			"label": "move-preview-mode-change-free",
+			"passed": true
+		},
+		{
+			"label": "move-preview-identity-replacement-free",
+			"passed": true
+		},
+		{
+			"label": "move-preview-reparenting-free",
+			"passed": true
+		},
+		{
+			"label": "move-commit-acknowledgement-free",
+			"passed": true
+		},
+		{
+			"label": "move-commit-rejection-free",
+			"passed": true
+		},
+		{
+			"label": "move-commit-stale-rejection-free",
+			"passed": true
+		},
+		{
+			"label": "move-preview-budget-and-cancel-horizontal",
+			"passed": true
+		},
+		{
+			"label": "move-preview-source-removal-horizontal",
+			"passed": true
+		},
+		{
+			"label": "move-preview-layout-change-horizontal",
+			"passed": true
+		},
+		{
+			"label": "move-preview-mode-change-horizontal",
+			"passed": true
+		},
+		{
+			"label": "move-preview-identity-replacement-horizontal",
+			"passed": true
+		},
+		{
+			"label": "move-preview-reparenting-horizontal",
+			"passed": true
+		},
+		{
+			"label": "move-commit-acknowledgement-horizontal",
+			"passed": true
+		},
+		{
+			"label": "move-commit-rejection-horizontal",
+			"passed": true
+		},
+		{
+			"label": "move-commit-stale-rejection-horizontal",
+			"passed": true
+		},
+		{
+			"label": "move-commit-expiry",
+			"passed": true
+		},
+		{
+			"label": "move-preview-budget-and-cancel-vertical",
+			"passed": true
+		},
+		{
+			"label": "move-preview-source-removal-vertical",
+			"passed": true
+		},
+		{
+			"label": "move-preview-layout-change-vertical",
+			"passed": true
+		},
+		{
+			"label": "move-preview-mode-change-vertical",
+			"passed": true
+		},
+		{
+			"label": "move-preview-identity-replacement-vertical",
+			"passed": true
+		},
+		{
+			"label": "move-preview-reparenting-vertical",
+			"passed": true
+		},
+		{
+			"label": "move-commit-acknowledgement-vertical",
+			"passed": true
+		},
+		{
+			"label": "move-commit-rejection-vertical",
+			"passed": true
+		},
+		{
+			"label": "move-commit-stale-rejection-vertical",
+			"passed": true
+		},
+		{
+			"label": "move-preview-budget-and-cancel-grid",
+			"passed": true
+		},
+		{
+			"label": "move-preview-source-removal-grid",
+			"passed": true
+		},
+		{
+			"label": "move-preview-layout-change-grid",
+			"passed": true
+		},
+		{
+			"label": "move-preview-mode-change-grid",
+			"passed": true
+		},
+		{
+			"label": "move-preview-identity-replacement-grid",
+			"passed": true
+		},
+		{
+			"label": "move-preview-reparenting-grid",
+			"passed": true
+		},
+		{
+			"label": "move-commit-acknowledgement-grid",
+			"passed": true
+		},
+		{
+			"label": "move-commit-rejection-grid",
+			"passed": true
+		},
+		{
+			"label": "move-commit-stale-rejection-grid",
+			"passed": true
+		},
+		{
+			"label": "move-preview-budget-and-cancel-tabs",
+			"passed": true
+		},
+		{
+			"label": "move-preview-source-removal-tabs",
+			"passed": true
+		},
+		{
+			"label": "move-preview-layout-change-tabs",
+			"passed": true
+		},
+		{
+			"label": "move-preview-mode-change-tabs",
+			"passed": true
+		},
+		{
+			"label": "move-preview-identity-replacement-tabs",
+			"passed": true
+		},
+		{
+			"label": "move-preview-reparenting-tabs",
+			"passed": true
+		},
+		{
+			"label": "move-commit-acknowledgement-tabs",
+			"passed": true
+		},
+		{
+			"label": "move-commit-rejection-tabs",
+			"passed": true
+		},
+		{
+			"label": "move-commit-stale-rejection-tabs",
+			"passed": true
+		},
+		{
+			"label": "move-preview-budget-and-cancel-accordion",
+			"passed": true
+		},
+		{
+			"label": "move-preview-source-removal-accordion",
+			"passed": true
+		},
+		{
+			"label": "move-preview-layout-change-accordion",
+			"passed": true
+		},
+		{
+			"label": "move-preview-mode-change-accordion",
+			"passed": true
+		},
+		{
+			"label": "move-preview-identity-replacement-accordion",
+			"passed": true
+		},
+		{
+			"label": "move-preview-reparenting-accordion",
+			"passed": true
+		},
+		{
+			"label": "move-commit-acknowledgement-accordion",
+			"passed": true
+		},
+		{
+			"label": "move-commit-rejection-accordion",
+			"passed": true
+		},
+		{
+			"label": "move-commit-stale-rejection-accordion",
+			"passed": true
+		},
+		{
+			"label": "creation-overlapping-rejections-free",
+			"passed": true
+		},
+		{
+			"label": "creation-source-removal-free",
+			"passed": true
+		},
+		{
+			"label": "creation-identity-replacement-free",
+			"passed": true
+		},
+		{
+			"label": "creation-layout-change-free",
+			"passed": true
+		},
+		{
+			"label": "creation-mode-retirement-free",
+			"passed": true
+		},
+		{
+			"label": "creation-order-change-free",
+			"passed": true
+		},
+		{
+			"label": "creation-acknowledgement-free",
+			"passed": true
+		},
+		{
+			"label": "creation-budget-round-trip-free",
+			"passed": true
+		},
+		{
+			"label": "creation-destination-round-trip-free",
+			"passed": true
+		},
+		{
+			"label": "creation-overlapping-rejections-horizontal",
+			"passed": true
+		},
+		{
+			"label": "creation-source-removal-horizontal",
+			"passed": true
+		},
+		{
+			"label": "creation-identity-replacement-horizontal",
+			"passed": true
+		},
+		{
+			"label": "creation-layout-change-horizontal",
+			"passed": true
+		},
+		{
+			"label": "creation-mode-retirement-horizontal",
+			"passed": true
+		},
+		{
+			"label": "creation-order-change-horizontal",
+			"passed": true
+		},
+		{
+			"label": "creation-acknowledgement-horizontal",
+			"passed": true
+		},
+		{
+			"label": "creation-budget-round-trip-horizontal",
+			"passed": true
+		},
+		{
+			"label": "creation-destination-round-trip-horizontal",
+			"passed": true
+		},
+		{
+			"label": "creation-pending-expiry",
+			"passed": true
+		},
+		{
+			"label": "creation-overlapping-rejections-vertical",
+			"passed": true
+		},
+		{
+			"label": "creation-source-removal-vertical",
+			"passed": true
+		},
+		{
+			"label": "creation-identity-replacement-vertical",
+			"passed": true
+		},
+		{
+			"label": "creation-layout-change-vertical",
+			"passed": true
+		},
+		{
+			"label": "creation-mode-retirement-vertical",
+			"passed": true
+		},
+		{
+			"label": "creation-order-change-vertical",
+			"passed": true
+		},
+		{
+			"label": "creation-acknowledgement-vertical",
+			"passed": true
+		},
+		{
+			"label": "creation-budget-round-trip-vertical",
+			"passed": true
+		},
+		{
+			"label": "creation-destination-round-trip-vertical",
+			"passed": true
+		},
+		{
+			"label": "creation-overlapping-rejections-grid",
+			"passed": true
+		},
+		{
+			"label": "creation-source-removal-grid",
+			"passed": true
+		},
+		{
+			"label": "creation-identity-replacement-grid",
+			"passed": true
+		},
+		{
+			"label": "creation-layout-change-grid",
+			"passed": true
+		},
+		{
+			"label": "creation-mode-retirement-grid",
+			"passed": true
+		},
+		{
+			"label": "creation-order-change-grid",
+			"passed": true
+		},
+		{
+			"label": "creation-acknowledgement-grid",
+			"passed": true
+		},
+		{
+			"label": "creation-budget-round-trip-grid",
+			"passed": true
+		},
+		{
+			"label": "creation-destination-round-trip-grid",
+			"passed": true
+		},
+		{
+			"label": "creation-overlapping-rejections-tabs",
+			"passed": true
+		},
+		{
+			"label": "creation-source-removal-tabs",
+			"passed": true
+		},
+		{
+			"label": "creation-identity-replacement-tabs",
+			"passed": true
+		},
+		{
+			"label": "creation-layout-change-tabs",
+			"passed": true
+		},
+		{
+			"label": "creation-mode-retirement-tabs",
+			"passed": true
+		},
+		{
+			"label": "creation-order-change-tabs",
+			"passed": true
+		},
+		{
+			"label": "creation-acknowledgement-tabs",
+			"passed": true
+		},
+		{
+			"label": "creation-budget-round-trip-tabs",
+			"passed": true
+		},
+		{
+			"label": "creation-destination-round-trip-tabs",
+			"passed": true
+		},
+		{
+			"label": "creation-overlapping-rejections-accordion",
+			"passed": true
+		},
+		{
+			"label": "creation-source-removal-accordion",
+			"passed": true
+		},
+		{
+			"label": "creation-identity-replacement-accordion",
+			"passed": true
+		},
+		{
+			"label": "creation-layout-change-accordion",
+			"passed": true
+		},
+		{
+			"label": "creation-mode-retirement-accordion",
+			"passed": true
+		},
+		{
+			"label": "creation-order-change-accordion",
+			"passed": true
+		},
+		{
+			"label": "creation-acknowledgement-accordion",
+			"passed": true
+		},
+		{
+			"label": "creation-budget-round-trip-accordion",
+			"passed": true
+		},
+		{
+			"label": "creation-destination-round-trip-accordion",
+			"passed": true
+		},
+		{
+			"label": "free-move-commits-visible-geometry",
+			"passed": true
+		},
+		{
+			"label": "free-move-late-begin-closes-on-mode-exit",
+			"passed": true
+		},
+		{
+			"label": "free-move-retires-mode",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "free-move-retires-layout",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "free-move-retires-removed",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "free-move-retires-reparented",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "free-move-retires-replaced",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "free-move-cancels-unsent-sample",
+			"passed": true
+		},
+		{
+			"label": "free-move-coalesces-before-final-flush",
+			"passed": true
+		},
+		{
+			"label": "free-move-retains-group-selection",
+			"passed": true
+		},
+		{
+			"label": "free-resize-commits-visible-geometry",
+			"passed": true
+		},
+		{
+			"label": "free-resize-late-begin-closes-on-mode-exit",
+			"passed": true
+		},
+		{
+			"label": "free-resize-retires-mode",
+			"admitted": 2,
+			"passed": true
+		},
+		{
+			"label": "free-resize-retires-layout",
+			"admitted": 2,
+			"passed": true
+		},
+		{
+			"label": "free-resize-retires-removed",
+			"admitted": 2,
+			"passed": true
+		},
+		{
+			"label": "free-resize-retires-reparented",
+			"admitted": 2,
+			"passed": true
+		},
+		{
+			"label": "free-resize-retires-replaced",
+			"admitted": 2,
+			"passed": true
+		},
+		{
+			"label": "free-resize-cancels-unsent-sample",
+			"passed": true
+		},
+		{
+			"label": "free-resize-coalesces-before-final-flush",
+			"passed": true
+		},
+		{
+			"label": "free-resize-retains-group-selection",
+			"passed": true
+		},
+		{
+			"label": "confirmed-move-retains-final-presentation",
+			"error": 0,
+			"passed": true
+		},
+		{
+			"label": "confirmed-move-survives-view-disposal",
+			"admitted": 1,
+			"restoredError": 0,
+			"passed": true
+		},
+		{
+			"label": "confirmed-resize-retains-final-presentation",
+			"error": 0,
+			"passed": true
+		},
+		{
+			"label": "confirmed-resize-survives-view-disposal",
+			"admitted": 2,
+			"restoredError": 0,
+			"passed": true
+		},
+		{
+			"label": "confirmed-move-serializes-independent-widget-history",
+			"admitted": 1,
+			"ordered": ["beginEdit", "setParam", "endEdit", "beginEdit", "setParam"],
+			"passed": true
+		},
+		{
+			"label": "confirmed-move-frames-projected-geometry",
+			"dx": 0.006011962890625,
+			"dy": 0.00592041015625,
+			"passed": true
+		},
+		{
+			"label": "confirmed-move-retains-through-late-events",
+			"finalError": 0,
+			"restoredError": 0,
+			"catchupError": 0,
+			"passed": true
+		},
+		{
+			"label": "confirmed-move-survives-mode-exit",
+			"prefix": 1,
+			"passed": true
+		},
+		{
+			"label": "confirmed-move-cancels-retired-source",
+			"prefix": 1,
+			"passed": true
+		},
+		{
+			"label": "nested-layout-folder-move-commits-visible-geometry",
+			"passed": true
+		},
+		{
+			"label": "confirmed-resize-serializes-independent-widget-history",
+			"admitted": 2,
+			"ordered": [
+				"beginEdit",
+				"setParam",
+				"setParam",
+				"endEdit",
+				"beginEdit",
+				"setParam",
+				"setParam"
+			],
+			"passed": true
+		},
+		{
+			"label": "confirmed-resize-frames-projected-geometry",
+			"dx": 0.003082275390625,
+			"dy": 0.00299072265625,
+			"passed": true
+		},
+		{
+			"label": "confirmed-resize-retains-through-late-events",
+			"finalError": 0,
+			"restoredError": 0,
+			"catchupError": 0,
+			"passed": true
+		},
+		{
+			"label": "confirmed-resize-survives-mode-exit",
+			"prefix": 2,
+			"passed": true
+		},
+		{
+			"label": "confirmed-resize-cancels-retired-source",
+			"prefix": 2,
+			"passed": true
+		},
+		{
+			"label": "nested-layout-folder-resize-commits-visible-geometry",
+			"passed": true
+		},
+		{
+			"label": "ordered-horizontal-resize-follows-pointer-size",
+			"delta": 23.99925994873047,
+			"passed": true
+		},
+		{
+			"label": "ordered-horizontal-cancel-drops-unsent-size",
+			"passed": true
+		},
+		{
+			"label": "ordered-horizontal-coalesces-final-samples",
+			"passed": true
+		},
+		{
+			"label": "ordered-horizontal-closes-late-begin-on-mode-exit",
+			"passed": true
+		},
+		{
+			"label": "ordered-horizontal-retires-mode",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "ordered-horizontal-retires-layout",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "ordered-horizontal-retires-removed",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "ordered-horizontal-retires-reparented",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "ordered-horizontal-retires-replaced",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "ordered-horizontal-confirmed-size-survives-disposal",
+			"finishError": 0,
+			"remountError": 0,
+			"passed": true
+		},
+		{
+			"label": "ordered-horizontal-size-and-enablement-wait-for-events",
+			"pendingError": 0,
+			"appliedError": 0,
+			"passed": true
+		},
+		{
+			"label": "ordered-horizontal-rejection-withdraws-size-draft",
+			"passed": true
+		},
+		{
+			"label": "ordered-horizontal-serializes-widget-history",
+			"kinds": [
+				"beginEdit",
+				"resizeDashboardWidget",
+				"endEdit",
+				"beginEdit",
+				"resizeDashboardWidget"
+			],
+			"passed": true
+		},
+		{
+			"label": "ordered-horizontal-leading-resize-preserves-rem",
+			"delta": 23.99267578125,
+			"passed": true
+		},
+		{
+			"label": "ordered-horizontal-leading-resize-preserves-em",
+			"delta": 23.992645263671875,
+			"passed": true
+		},
+		{
+			"label": "ordered-horizontal-leading-resize-preserves-percent",
+			"delta": 23.992645263671875,
+			"passed": true
+		},
+		{
+			"label": "ordered-horizontal-leading-resize-preserves-vw",
+			"delta": 23.992645263671875,
+			"passed": true
+		},
+		{
+			"label": "ordered-horizontal-leading-resize-preserves-vh",
+			"delta": 23.992645263671875,
+			"passed": true
+		},
+		{
+			"label": "ordered-vertical-resize-follows-pointer-size",
+			"delta": 23.99925994873047,
+			"passed": true
+		},
+		{
+			"label": "ordered-vertical-cancel-drops-unsent-size",
+			"passed": true
+		},
+		{
+			"label": "ordered-vertical-coalesces-final-samples",
+			"passed": true
+		},
+		{
+			"label": "ordered-vertical-closes-late-begin-on-mode-exit",
+			"passed": true
+		},
+		{
+			"label": "ordered-vertical-retires-mode",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "ordered-vertical-retires-layout",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "ordered-vertical-retires-removed",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "ordered-vertical-retires-reparented",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "ordered-vertical-retires-replaced",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "ordered-vertical-confirmed-size-survives-disposal",
+			"finishError": 0,
+			"remountError": 0,
+			"passed": true
+		},
+		{
+			"label": "ordered-vertical-size-and-enablement-wait-for-events",
+			"pendingError": 0,
+			"appliedError": 0,
+			"passed": true
+		},
+		{
+			"label": "ordered-vertical-rejection-withdraws-size-draft",
+			"passed": true
+		},
+		{
+			"label": "ordered-vertical-serializes-widget-history",
+			"kinds": [
+				"beginEdit",
+				"resizeDashboardWidget",
+				"endEdit",
+				"beginEdit",
+				"resizeDashboardWidget"
+			],
+			"passed": true
+		},
+		{
+			"label": "ordered-vertical-leading-resize-preserves-rem",
+			"delta": 23.99267578125,
+			"passed": true
+		},
+		{
+			"label": "ordered-vertical-leading-resize-preserves-em",
+			"delta": 23.992645263671875,
+			"passed": true
+		},
+		{
+			"label": "ordered-vertical-leading-resize-preserves-percent",
+			"delta": 23.99261474609375,
+			"passed": true
+		},
+		{
+			"label": "ordered-vertical-leading-resize-preserves-vw",
+			"delta": 23.992645263671875,
+			"passed": true
+		},
+		{
+			"label": "ordered-vertical-leading-resize-preserves-vh",
+			"delta": 23.992645263671875,
+			"passed": true
+		},
+		{
+			"label": "ordered-horizontal-move-commits-to-free-surface",
+			"destination": {
+				"point": {
+					"x": 1481.176513671875,
+					"y": 1056
+				},
+				"parent": 1
+			},
+			"passed": true
+		},
+		{
+			"label": "ordered-horizontal-cancel-never-commits",
+			"passed": true
+		},
+		{
+			"label": "ordered-horizontal-readonly-refuses-move",
+			"passed": true
+		},
+		{
+			"label": "ordered-horizontal-move-retires-mode",
+			"passed": true
+		},
+		{
+			"label": "ordered-horizontal-move-retires-layout",
+			"passed": true
+		},
+		{
+			"label": "ordered-horizontal-move-retires-removed",
+			"passed": true
+		},
+		{
+			"label": "ordered-horizontal-move-retires-reparented",
+			"passed": true
+		},
+		{
+			"label": "ordered-horizontal-move-retires-replaced",
+			"passed": true
+		},
+		{
+			"label": "ordered-horizontal-move-retires-destination-layout",
+			"passed": true
+		},
+		{
+			"label": "ordered-horizontal-move-retires-destination-order",
+			"passed": true
+		},
+		{
+			"label": "ordered-horizontal-confirmed-move-survives-mode-and-disposal",
+			"passed": true
+		},
+		{
+			"label": "ordered-horizontal-move-rejection-clears-owned-preview",
+			"passed": true
+		},
+		{
+			"label": "ordered-horizontal-old-rejection-keeps-successor-preview",
+			"passed": true
+		},
+		{
+			"label": "ordered-horizontal-queued-move-waits-for-resize-history",
+			"passed": true
+		},
+		{
+			"label": "ordered-horizontal-queued-move-retires-on-replacement",
+			"passed": true
+		},
+		{
+			"label": "ordered-vertical-move-commits-to-free-surface",
+			"destination": {
+				"point": {
+					"x": 1481.176513671875,
+					"y": 1056
+				},
+				"parent": 1
+			},
+			"passed": true
+		},
+		{
+			"label": "ordered-vertical-cancel-never-commits",
+			"passed": true
+		},
+		{
+			"label": "ordered-vertical-readonly-refuses-move",
+			"passed": true
+		},
+		{
+			"label": "ordered-vertical-move-retires-mode",
+			"passed": true
+		},
+		{
+			"label": "ordered-vertical-move-retires-layout",
+			"passed": true
+		},
+		{
+			"label": "ordered-vertical-move-retires-removed",
+			"passed": true
+		},
+		{
+			"label": "ordered-vertical-move-retires-reparented",
+			"passed": true
+		},
+		{
+			"label": "ordered-vertical-move-retires-replaced",
+			"passed": true
+		},
+		{
+			"label": "ordered-vertical-move-retires-destination-layout",
+			"passed": true
+		},
+		{
+			"label": "ordered-vertical-move-retires-destination-order",
+			"passed": true
+		},
+		{
+			"label": "ordered-vertical-confirmed-move-survives-mode-and-disposal",
+			"passed": true
+		},
+		{
+			"label": "ordered-vertical-move-rejection-clears-owned-preview",
+			"passed": true
+		},
+		{
+			"label": "ordered-vertical-old-rejection-keeps-successor-preview",
+			"passed": true
+		},
+		{
+			"label": "ordered-vertical-queued-move-waits-for-resize-history",
+			"passed": true
+		},
+		{
+			"label": "ordered-vertical-queued-move-retires-on-replacement",
+			"passed": true
+		},
+		{
+			"label": "ordered-grid-move-commits-to-free-surface",
+			"destination": {
+				"point": {
+					"x": 1481.176513671875,
+					"y": 1056
+				},
+				"parent": 1
+			},
+			"passed": true
+		},
+		{
+			"label": "ordered-grid-cancel-never-commits",
+			"passed": true
+		},
+		{
+			"label": "ordered-grid-readonly-refuses-move",
+			"passed": true
+		},
+		{
+			"label": "ordered-grid-move-retires-mode",
+			"passed": true
+		},
+		{
+			"label": "ordered-grid-move-retires-layout",
+			"passed": true
+		},
+		{
+			"label": "ordered-grid-move-retires-removed",
+			"passed": true
+		},
+		{
+			"label": "ordered-grid-move-retires-reparented",
+			"passed": true
+		},
+		{
+			"label": "ordered-grid-move-retires-replaced",
+			"passed": true
+		},
+		{
+			"label": "ordered-grid-move-retires-destination-layout",
+			"passed": true
+		},
+		{
+			"label": "ordered-grid-move-retires-destination-order",
+			"passed": true
+		},
+		{
+			"label": "ordered-grid-confirmed-move-survives-mode-and-disposal",
+			"passed": true
+		},
+		{
+			"label": "ordered-grid-move-rejection-clears-owned-preview",
+			"passed": true
+		},
+		{
+			"label": "ordered-grid-old-rejection-keeps-successor-preview",
+			"passed": true
+		},
+		{
+			"label": "ordered-tabs-move-commits-to-free-surface",
+			"destination": {
+				"point": {
+					"x": 1481.176513671875,
+					"y": 1056
+				},
+				"parent": 1
+			},
+			"passed": true
+		},
+		{
+			"label": "ordered-tabs-cancel-never-commits",
+			"passed": true
+		},
+		{
+			"label": "ordered-tabs-readonly-refuses-move",
+			"passed": true
+		},
+		{
+			"label": "ordered-tabs-move-retires-mode",
+			"passed": true
+		},
+		{
+			"label": "ordered-tabs-move-retires-layout",
+			"passed": true
+		},
+		{
+			"label": "ordered-tabs-move-retires-removed",
+			"passed": true
+		},
+		{
+			"label": "ordered-tabs-move-retires-reparented",
+			"passed": true
+		},
+		{
+			"label": "ordered-tabs-move-retires-replaced",
+			"passed": true
+		},
+		{
+			"label": "ordered-tabs-move-retires-destination-layout",
+			"passed": true
+		},
+		{
+			"label": "ordered-tabs-move-retires-destination-order",
+			"passed": true
+		},
+		{
+			"label": "ordered-tabs-confirmed-move-survives-mode-and-disposal",
+			"passed": true
+		},
+		{
+			"label": "ordered-tabs-move-rejection-clears-owned-preview",
+			"passed": true
+		},
+		{
+			"label": "ordered-tabs-old-rejection-keeps-successor-preview",
+			"passed": true
+		},
+		{
+			"label": "ordered-accordion-move-commits-to-free-surface",
+			"destination": {
+				"point": {
+					"x": 1481.176513671875,
+					"y": 1056
+				},
+				"parent": 1
+			},
+			"passed": true
+		},
+		{
+			"label": "ordered-accordion-cancel-never-commits",
+			"passed": true
+		},
+		{
+			"label": "ordered-accordion-readonly-refuses-move",
+			"passed": true
+		},
+		{
+			"label": "ordered-accordion-move-retires-mode",
+			"passed": true
+		},
+		{
+			"label": "ordered-accordion-move-retires-layout",
+			"passed": true
+		},
+		{
+			"label": "ordered-accordion-move-retires-removed",
+			"passed": true
+		},
+		{
+			"label": "ordered-accordion-move-retires-reparented",
+			"passed": true
+		},
+		{
+			"label": "ordered-accordion-move-retires-replaced",
+			"passed": true
+		},
+		{
+			"label": "ordered-accordion-move-retires-destination-layout",
+			"passed": true
+		},
+		{
+			"label": "ordered-accordion-move-retires-destination-order",
+			"passed": true
+		},
+		{
+			"label": "ordered-accordion-confirmed-move-survives-mode-and-disposal",
+			"passed": true
+		},
+		{
+			"label": "ordered-accordion-move-rejection-clears-owned-preview",
+			"passed": true
+		},
+		{
+			"label": "ordered-accordion-old-rejection-keeps-successor-preview",
+			"passed": true
+		},
+		{
+			"label": "ordered-tabs-inserts-before-real-windowed-child",
+			"targetIndex": 79,
+			"passed": true
+		},
+		{
+			"label": "container-move-under-free-parent",
+			"authoredNodes": 6655,
+			"passed": true
+		},
+		{
+			"label": "container-resize-under-free-parent",
+			"passed": true
+		},
+		{
+			"label": "container-move-under-horizontal-parent",
+			"authoredNodes": 6655,
+			"passed": true
+		},
+		{
+			"label": "container-resize-under-horizontal-parent",
+			"passed": true
+		},
+		{
+			"label": "container-move-under-vertical-parent",
+			"authoredNodes": 6655,
+			"passed": true
+		},
+		{
+			"label": "container-resize-under-vertical-parent",
+			"passed": true
+		},
+		{
+			"label": "container-move-under-grid-parent",
+			"authoredNodes": 6655,
+			"passed": true
+		},
+		{
+			"label": "container-refuses-resize-under-grid",
+			"passed": true
+		},
+		{
+			"label": "container-move-under-tabs-parent",
+			"authoredNodes": 6655,
+			"passed": true
+		},
+		{
+			"label": "container-refuses-resize-under-tabs",
+			"passed": true
+		},
+		{
+			"label": "container-move-under-accordion-parent",
+			"authoredNodes": 6655,
+			"passed": true
+		},
+		{
+			"label": "container-refuses-resize-under-accordion",
+			"passed": true
+		},
+		{
+			"label": "node-move-under-free-parent",
+			"authoredNodes": 6655,
+			"passed": true
+		},
+		{
+			"label": "node-resize-under-free-parent",
+			"passed": true
+		},
+		{
+			"label": "node-move-under-horizontal-parent",
+			"authoredNodes": 6655,
+			"passed": true
+		},
+		{
+			"label": "node-resize-under-horizontal-parent",
+			"passed": true
+		},
+		{
+			"label": "node-move-under-vertical-parent",
+			"authoredNodes": 6655,
+			"passed": true
+		},
+		{
+			"label": "node-resize-under-vertical-parent",
+			"passed": true
+		},
+		{
+			"label": "node-move-under-grid-parent",
+			"authoredNodes": 6655,
+			"passed": true
+		},
+		{
+			"label": "node-refuses-resize-under-grid",
+			"passed": true
+		},
+		{
+			"label": "node-move-under-tabs-parent",
+			"authoredNodes": 6655,
+			"passed": true
+		},
+		{
+			"label": "node-refuses-resize-under-tabs",
+			"passed": true
+		},
+		{
+			"label": "node-move-under-accordion-parent",
+			"authoredNodes": 6655,
+			"passed": true
+		},
+		{
+			"label": "node-refuses-resize-under-accordion",
+			"passed": true
+		},
+		{
+			"label": "generic-moves-into-free-destination",
+			"targetIndex": null,
+			"passed": true
+		},
+		{
+			"label": "generic-moves-into-horizontal-destination",
+			"targetIndex": 1,
+			"passed": true
+		},
+		{
+			"label": "generic-moves-into-vertical-destination",
+			"targetIndex": 1,
+			"passed": true
+		},
+		{
+			"label": "generic-moves-into-grid-destination",
+			"targetIndex": 1,
+			"passed": true
+		},
+		{
+			"label": "generic-moves-into-tabs-destination",
+			"targetIndex": 1,
+			"passed": true
+		},
+		{
+			"label": "generic-moves-into-accordion-destination",
+			"targetIndex": 1,
+			"passed": true
+		},
+		{
+			"label": "node-moves-into-free-destination",
+			"targetIndex": null,
+			"passed": true
+		},
+		{
+			"label": "node-moves-into-horizontal-destination",
+			"targetIndex": 1,
+			"passed": true
+		},
+		{
+			"label": "node-moves-into-vertical-destination",
+			"targetIndex": 1,
+			"passed": true
+		},
+		{
+			"label": "node-moves-into-grid-destination",
+			"targetIndex": 1,
+			"passed": true
+		},
+		{
+			"label": "node-moves-into-tabs-destination",
+			"targetIndex": 1,
+			"passed": true
+		},
+		{
+			"label": "node-moves-into-accordion-destination",
+			"targetIndex": 1,
+			"passed": true
+		},
+		{
+			"label": "container-moves-into-free-destination",
+			"targetIndex": null,
+			"passed": true
+		},
+		{
+			"label": "container-moves-into-horizontal-destination",
+			"targetIndex": 1,
+			"passed": true
+		},
+		{
+			"label": "container-moves-into-vertical-destination",
+			"targetIndex": 1,
+			"passed": true
+		},
+		{
+			"label": "container-moves-into-grid-destination",
+			"targetIndex": 1,
+			"passed": true
+		},
+		{
+			"label": "container-moves-into-tabs-destination",
+			"targetIndex": 1,
+			"passed": true
+		},
+		{
+			"label": "container-moves-into-accordion-destination",
+			"targetIndex": 1,
+			"passed": true
+		},
+		{
+			"label": "generic-free-move-retires-root-font-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "generic-free-move-retires-local-font-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "generic-free-move-retires-parent-size-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "generic-free-move-retires-zoom-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "generic-free-move-retires-pan-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "generic-free-move-retires-viewport-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "generic-free-move-confirmed-tail-survives-disposal",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "generic-free-move-rejection-withdraws-draft",
+			"error": 0,
+			"passed": true
+		},
+		{
+			"label": "generic-free-resize-retires-root-font-tail",
+			"admitted": 2,
+			"passed": true
+		},
+		{
+			"label": "generic-free-resize-retires-local-font-tail",
+			"admitted": 2,
+			"passed": true
+		},
+		{
+			"label": "generic-free-resize-retires-parent-size-tail",
+			"admitted": 2,
+			"passed": true
+		},
+		{
+			"label": "generic-free-resize-retires-zoom-tail",
+			"admitted": 2,
+			"passed": true
+		},
+		{
+			"label": "generic-free-resize-retires-pan-tail",
+			"admitted": 2,
+			"passed": true
+		},
+		{
+			"label": "generic-free-resize-retires-viewport-tail",
+			"admitted": 2,
+			"passed": true
+		},
+		{
+			"label": "generic-free-resize-confirmed-tail-survives-disposal",
+			"admitted": 2,
+			"passed": true
+		},
+		{
+			"label": "generic-free-resize-rejection-withdraws-draft",
+			"error": 0,
+			"passed": true
+		},
+		{
+			"label": "generic-horizontal-resize-retires-root-font-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "generic-horizontal-resize-retires-local-font-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "generic-horizontal-resize-retires-parent-size-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "generic-horizontal-resize-retires-zoom-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "generic-horizontal-resize-retires-pan-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "generic-horizontal-resize-retires-viewport-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "generic-horizontal-resize-retires-scroll-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "generic-horizontal-resize-confirmed-tail-survives-disposal",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "generic-horizontal-resize-rejection-withdraws-draft",
+			"error": 0,
+			"passed": true
+		},
+		{
+			"label": "generic-vertical-resize-retires-root-font-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "generic-vertical-resize-retires-local-font-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "generic-vertical-resize-retires-parent-size-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "generic-vertical-resize-retires-zoom-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "generic-vertical-resize-retires-pan-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "generic-vertical-resize-retires-viewport-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "generic-vertical-resize-retires-scroll-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "generic-vertical-resize-confirmed-tail-survives-disposal",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "generic-vertical-resize-rejection-withdraws-draft",
+			"error": 0,
+			"passed": true
+		},
+		{
+			"label": "node-free-move-retires-root-font-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "node-free-move-retires-local-font-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "node-free-move-retires-parent-size-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "node-free-move-retires-zoom-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "node-free-move-retires-pan-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "node-free-move-retires-viewport-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "node-free-move-confirmed-tail-survives-disposal",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "node-free-move-rejection-withdraws-draft",
+			"error": 0,
+			"passed": true
+		},
+		{
+			"label": "node-free-resize-retires-root-font-tail",
+			"admitted": 2,
+			"passed": true
+		},
+		{
+			"label": "node-free-resize-retires-local-font-tail",
+			"admitted": 2,
+			"passed": true
+		},
+		{
+			"label": "node-free-resize-retires-parent-size-tail",
+			"admitted": 2,
+			"passed": true
+		},
+		{
+			"label": "node-free-resize-retires-zoom-tail",
+			"admitted": 2,
+			"passed": true
+		},
+		{
+			"label": "node-free-resize-retires-pan-tail",
+			"admitted": 2,
+			"passed": true
+		},
+		{
+			"label": "node-free-resize-retires-viewport-tail",
+			"admitted": 2,
+			"passed": true
+		},
+		{
+			"label": "node-free-resize-confirmed-tail-survives-disposal",
+			"admitted": 2,
+			"passed": true
+		},
+		{
+			"label": "node-free-resize-rejection-withdraws-draft",
+			"error": 0,
+			"passed": true
+		},
+		{
+			"label": "node-horizontal-resize-retires-root-font-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "node-horizontal-resize-retires-local-font-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "node-horizontal-resize-retires-parent-size-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "node-horizontal-resize-retires-zoom-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "node-horizontal-resize-retires-pan-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "node-horizontal-resize-retires-viewport-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "node-horizontal-resize-retires-scroll-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "node-horizontal-resize-confirmed-tail-survives-disposal",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "node-horizontal-resize-rejection-withdraws-draft",
+			"error": 0,
+			"passed": true
+		},
+		{
+			"label": "node-vertical-resize-retires-root-font-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "node-vertical-resize-retires-local-font-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "node-vertical-resize-retires-parent-size-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "node-vertical-resize-retires-zoom-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "node-vertical-resize-retires-pan-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "node-vertical-resize-retires-viewport-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "node-vertical-resize-retires-scroll-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "node-vertical-resize-confirmed-tail-survives-disposal",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "node-vertical-resize-rejection-withdraws-draft",
+			"error": 0,
+			"passed": true
+		},
+		{
+			"label": "container-free-move-retires-root-font-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "container-free-move-retires-local-font-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "container-free-move-retires-parent-size-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "container-free-move-retires-zoom-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "container-free-move-retires-pan-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "container-free-move-retires-viewport-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "container-free-move-confirmed-tail-survives-disposal",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "container-free-move-rejection-withdraws-draft",
+			"error": 0,
+			"passed": true
+		},
+		{
+			"label": "container-free-resize-retires-root-font-tail",
+			"admitted": 2,
+			"passed": true
+		},
+		{
+			"label": "container-free-resize-retires-local-font-tail",
+			"admitted": 2,
+			"passed": true
+		},
+		{
+			"label": "container-free-resize-retires-parent-size-tail",
+			"admitted": 2,
+			"passed": true
+		},
+		{
+			"label": "container-free-resize-retires-zoom-tail",
+			"admitted": 2,
+			"passed": true
+		},
+		{
+			"label": "container-free-resize-retires-pan-tail",
+			"admitted": 2,
+			"passed": true
+		},
+		{
+			"label": "container-free-resize-retires-viewport-tail",
+			"admitted": 2,
+			"passed": true
+		},
+		{
+			"label": "container-free-resize-confirmed-tail-survives-disposal",
+			"admitted": 2,
+			"passed": true
+		},
+		{
+			"label": "container-free-resize-rejection-withdraws-draft",
+			"error": 0,
+			"passed": true
+		},
+		{
+			"label": "container-horizontal-resize-retires-root-font-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "container-horizontal-resize-retires-local-font-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "container-horizontal-resize-retires-parent-size-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "container-horizontal-resize-retires-zoom-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "container-horizontal-resize-retires-pan-tail",
+			"admitted": 1,
+			"passed": true
+		},
+		{
+			"label": "container-horizontal-resize-retires-viewport-tail",
+			"admitted": 1,
+			"passed": true
+		}
+	],
+	"tiers": [
+		{
+			"targetAuthoredNodes": 1000,
+			"authoredNodes": 1001,
+			"widgets": 90,
+			"readyMs": 19.747599999998783,
+			"initialMounted": 18,
+			"framed": {
+				"dx": 0.00048828125,
+				"dy": 0,
+				"boxes": [
+					{
+						"classes": "gc-dashboard-canvas dashboard-widget-shell dashboard-generic-widget selected editable-free",
+						"width": 917.9853515625,
+						"height": 382.494140625,
+						"top": 380.7529296875,
+						"blockSize": "80px",
+						"boxSizing": "border-box"
+					},
+					{
+						"classes": "dashboard-slot-fill",
+						"width": 917.9853515625,
+						"height": 382.494140625,
+						"top": 380.7529296875,
+						"blockSize": "80px",
+						"boxSizing": "content-box"
+					},
+					{
+						"classes": "dashboard-slot",
+						"width": 917.9853515625,
+						"height": 382.494140625,
+						"top": 380.7529296875,
+						"blockSize": "80px",
+						"boxSizing": "content-box"
+					}
+				]
+			},
+			"passed": true
+		},
+		{
+			"targetAuthoredNodes": 10000,
+			"authoredNodes": 10010,
+			"widgets": 909,
+			"readyMs": 107.8729000000003,
+			"initialMounted": 54,
+			"framed": {
+				"dx": 0.0009765625,
+				"dy": 0.0009765625,
+				"boxes": [
+					{
+						"classes": "gc-dashboard-canvas dashboard-widget-shell dashboard-generic-widget selected editable-free",
+						"width": 917.986328125,
+						"height": 382.494140625,
+						"top": 380.75390625,
+						"blockSize": "80px",
+						"boxSizing": "border-box"
+					},
+					{
+						"classes": "dashboard-slot-fill",
+						"width": 917.986328125,
+						"height": 382.494140625,
+						"top": 380.75390625,
+						"blockSize": "80px",
+						"boxSizing": "content-box"
+					},
+					{
+						"classes": "dashboard-slot",
+						"width": 917.986328125,
+						"height": 382.494140625,
+						"top": 380.75390625,
+						"blockSize": "80px",
+						"boxSizing": "content-box"
+					}
+				]
+			},
+			"passed": true
+		},
+		{
+			"targetAuthoredNodes": 20000,
+			"authoredNodes": 20009,
+			"widgets": 1818,
+			"readyMs": 215.5007999999998,
+			"initialMounted": 54,
+			"framed": {
+				"dx": 0.001953125,
+				"dy": 0.0009765625,
+				"boxes": [
+					{
+						"classes": "gc-dashboard-canvas dashboard-widget-shell dashboard-generic-widget selected editable-free",
+						"width": 917.984375,
+						"height": 382.494140625,
+						"top": 380.75390625,
+						"blockSize": "80px",
+						"boxSizing": "border-box"
+					},
+					{
+						"classes": "dashboard-slot-fill",
+						"width": 917.984375,
+						"height": 382.494140625,
+						"top": 380.75390625,
+						"blockSize": "80px",
+						"boxSizing": "content-box"
+					},
+					{
+						"classes": "dashboard-slot",
+						"width": 917.984375,
+						"height": 382.494140625,
+						"top": 380.75390625,
+						"blockSize": "80px",
+						"boxSizing": "content-box"
+					}
+				]
+			},
+			"passed": true
+		},
+		{
+			"targetAuthoredNodes": 50000,
+			"authoredNodes": 50006,
+			"widgets": 4545,
+			"readyMs": 605.3093000000008,
+			"initialMounted": 54,
+			"framed": {
+				"dx": 0.0009765625,
+				"dy": 0.001953125,
+				"boxes": [
+					{
+						"classes": "gc-dashboard-canvas dashboard-widget-shell dashboard-generic-widget selected editable-free",
+						"width": 917.986328125,
+						"height": 382.49609375,
+						"top": 380.75390625,
+						"blockSize": "80px",
+						"boxSizing": "border-box"
+					},
+					{
+						"classes": "dashboard-slot-fill",
+						"width": 917.986328125,
+						"height": 382.49609375,
+						"top": 380.75390625,
+						"blockSize": "80px",
+						"boxSizing": "content-box"
+					},
+					{
+						"classes": "dashboard-slot",
+						"width": 917.986328125,
+						"height": 382.49609375,
+						"top": 380.75390625,
+						"blockSize": "80px",
+						"boxSizing": "content-box"
+					}
+				]
+			},
+			"passed": true
+		},
+		{
+			"targetAuthoredNodes": 100000,
+			"authoredNodes": 100001,
+			"widgets": 9090,
+			"readyMs": 1498.3429000000015,
+			"initialMounted": 54,
+			"framed": {
+				"dx": 0.00048828125,
+				"dy": 0.00390625,
+				"boxes": [
+					{
+						"classes": "gc-dashboard-canvas dashboard-widget-shell dashboard-generic-widget selected editable-free",
+						"width": 917.9853515625,
+						"height": 382.4921875,
+						"top": 380.7578125,
+						"blockSize": "80px",
+						"boxSizing": "border-box"
+					},
+					{
+						"classes": "dashboard-slot-fill",
+						"width": 917.9853515625,
+						"height": 382.4921875,
+						"top": 380.7578125,
+						"blockSize": "80px",
+						"boxSizing": "content-box"
+					},
+					{
+						"classes": "dashboard-slot",
+						"width": 917.9853515625,
+						"height": 382.4921875,
+						"top": 380.7578125,
+						"blockSize": "80px",
+						"boxSizing": "content-box"
+					}
+				]
+			},
+			"passed": true
+		}
+	],
+	"timings": [],
+	"timingSetups": [],
+	"timingFilter": {
+		"cpu": false
+	},
+	"errors": [],
+	"assets": {
+		"baseline": {
+			"assets/dashboard-BPMu3tWL.css": "7013230d8ce84e986cd5b52abd5985cbbf0c2736066f9ce28d0aff3f6d6c93f6",
+			"assets/dashboard-D5dmcH0G.js": "9774b8d8f0c292de078bce71068efd84daf77007ea9e15f199aa672467a731ae",
+			"dashboard.html": "a9e055dce6b36e2d2fde0e40a16b1cf8c46671c54e4f6902d630c3d7bc78295f"
+		},
+		"current": {
+			"assets/dashboard-BPRGYjVp.js": "f25e5c00d3e0a058f9ed3dba565d99461114e9ea761d9129dd55fb700dd2863d",
+			"assets/dashboard-Cfwe97tL.css": "582adce69fb6530755a51fd878cce1dd6343de75c4a0365881fefafed0ac1e8b",
+			"dashboard.html": "5fd27edcbc1ead6d7193878965fd39028fd9b6a1b05a906c9ab1ec5688a28c24"
+		}
+	},
+	"passed": false,
+	"failure": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n\n  assert(await update(origin, delta))\n"
+}

@@ -1,4 +1,5 @@
 import { VersionedNodeMap } from '../../../../../store/graph-index';
+import { createStructuralChildrenWork } from '../../../../../store/graph-structural-children';
 import type { GraphState } from '../../../../../store/graph.svelte';
 import type { ParamValue, UiNodeDto, UiParamDto } from '../../../../../types';
 
@@ -69,6 +70,7 @@ export function graphFixture(count: number): GraphState {
 		rootId: 0,
 		nodesById: new VersionedNodeMap<UiNodeDto>(),
 		childrenById: new VersionedNodeMap<number[]>(),
+		structuralChildrenById: new VersionedNodeMap<number[]>(),
 		parentById: new VersionedNodeMap<number>(),
 		paramsById: new VersionedNodeMap<UiParamDto>(),
 		requiresResync: false
@@ -79,6 +81,17 @@ export function graphFixture(count: number): GraphState {
 		for (const child of item.children) graph.parentById.set(child, item.node_id);
 		if (item.data.kind === 'parameter') graph.paramsById.set(item.node_id, item.data.param);
 	}
+	return indexStructuralFixture(graph);
+}
+
+/** Tests that directly author nodes must publish the corresponding lookup projection too. */
+export function indexStructuralFixture(graph: GraphState): GraphState {
+	const work = createStructuralChildrenWork(graph);
+	for (const [id, item] of graph.nodesById) {
+		graph.childrenById.set(id, item.children);
+		work.invalidate(id);
+	}
+	while (!work.advance()) {}
 	return graph;
 }
 
@@ -86,6 +99,7 @@ export const forkGraph = (graph: GraphState): GraphState => ({
 	...graph,
 	nodesById: graph.nodesById.fork(),
 	childrenById: graph.childrenById.fork(),
+	structuralChildrenById: graph.structuralChildrenById.fork(),
 	parentById: graph.parentById.fork(),
 	paramsById: graph.paramsById.fork()
 });

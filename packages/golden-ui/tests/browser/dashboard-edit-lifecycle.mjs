@@ -28,25 +28,29 @@ export async function editLifecycleChecks(page, record) {
 			.locator(`.dashboard-widget-shell[data-node-id="${initial.ids[0]}"]`)
 			.elementHandle();
 		assert(source);
-		await preview();
-		assert.equal(await previews().count(), 1, layout);
-		assert((await previews().innerText()).includes('Widget 0'));
-		assert(
-			await source.evaluate((node) => node.isConnected),
-			`${layout}: keep active control instance`
-		);
-		await page.evaluate(() => window.dashboardFixture.budget(0));
-		assert.equal(await previews().count(), 1, layout);
-		await page.evaluate(() => window.dashboardFixture.budget(512));
-		assert.equal(await previews().count(), 1, layout);
-		assert(
-			await source.evaluate((node) => node.isConnected),
-			`${layout}: keep source through budget changes`
-		);
-		await page.evaluate(() => window.dashboardFixture.movePreview(null));
-		assert.equal(await previews().count(), 0, `${layout} cancellation`);
-		assert.equal(await page.locator('.dashboard-hidden-drag-source').count(), 0);
-		record(`move-preview-budget-and-cancel-${layout}`);
+		try {
+			await preview();
+			assert.equal(await previews().count(), 1, layout);
+			assert((await previews().innerText()).includes('Widget 0'));
+			assert(
+				await source.evaluate((node) => node.isConnected),
+				`${layout}: keep active control instance`
+			);
+			await page.evaluate(() => window.dashboardFixture.budget(0));
+			assert.equal(await previews().count(), 1, layout);
+			await page.evaluate(() => window.dashboardFixture.budget(512));
+			assert.equal(await previews().count(), 1, layout);
+			assert(
+				await source.evaluate((node) => node.isConnected),
+				`${layout}: keep source through budget changes`
+			);
+			await page.evaluate(() => window.dashboardFixture.movePreview(null));
+			assert.equal(await previews().count(), 0, `${layout} cancellation`);
+			assert.equal(await page.locator('.dashboard-hidden-drag-source').count(), 0);
+			record(`move-preview-budget-and-cancel-${layout}`);
+		} finally {
+			await source.dispose();
+		}
 
 		await setup();
 		await preview();

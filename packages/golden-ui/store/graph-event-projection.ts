@@ -1,6 +1,7 @@
 import type { UiEventDto, UiNodeDto, UiStagedEventWork } from '../types';
 import { insertChildrenIntoOrder } from './graph-child-order';
 import type { GraphState } from './graph.svelte';
+import { createStructuralChildrenWork } from './graph-structural-children';
 
 export interface GraphEventProjectionResult {
 	workUsed: number;
@@ -168,12 +169,14 @@ export const createIncrementalGraphEventProjection = (
 		rootId: baseState.rootId,
 		nodesById: baseState.nodesById.fork(),
 		childrenById: baseState.childrenById.fork(),
+		structuralChildrenById: baseState.structuralChildrenById.fork(),
 		parentById: baseState.parentById.fork(),
 		paramsById: baseState.paramsById.fork(),
 		lastEventTime: options.event.time,
 		requiresResync: baseState.requiresResync
 	};
 	const ops = options.event.kind.ops;
+	const structural = createStructuralChildrenWork(nextState);
 	let done = false;
 	let opIndex = 0;
 	let nodeIndex = 0;
@@ -187,12 +190,15 @@ export const createIncrementalGraphEventProjection = (
 	const advanceOneOpStep = (): boolean => {
 		const op = ops[opIndex];
 		if (!op) {
-			done = true;
-			return false;
+			done = structural.advance();
+			return !done;
 		}
 		if (op.kind === 'subtreeRemoved') {
 			const removedId = op.removed_ids[removedIdIndex];
 			if (removedId !== undefined) {
+				structural.invalidate(removedId);
+				const parent = nextState.parentById.get(removedId);
+				if (parent !== undefined) structural.invalidate(parent);
 				nextState.childrenById.delete(removedId);
 				nextState.parentById.delete(removedId);
 				nextState.nodesById.delete(removedId);
@@ -204,6 +210,7 @@ export const createIncrementalGraphEventProjection = (
 				return true;
 			}
 			if (!parentTask && op.parent_after) {
+				structural.invalidate(op.parent_after.parent);
 				parentTask = createParentTask(nextState, op.parent_after.parent, op.parent_after.children);
 				return true;
 			}
@@ -228,6 +235,9 @@ export const createIncrementalGraphEventProjection = (
 				return true;
 			}
 			if (nodeIndex === 0) {
+				structural.invalidate(op.snapshot.node_id);
+				const parent = nextState.parentById.get(op.snapshot.node_id);
+				if (parent !== undefined) structural.invalidate(parent);
 				nodeTask = createNodeTask(nextState, op.snapshot);
 				return true;
 			}
@@ -256,6 +266,7 @@ export const createIncrementalGraphEventProjection = (
 			}
 			const patch = parentPatches[parentPatchIndex];
 			if (patch) {
+				structural.invalidate(patch.parent);
 				parentTask = createParentTask(nextState, patch.parent, patch.children);
 				return true;
 			}
@@ -271,6 +282,7 @@ export const createIncrementalGraphEventProjection = (
 		}
 		if (op.kind === 'childrenReordered') {
 			if (!parentTask) {
+				structural.invalidate(op.parent);
 				parentTask = createParentTask(nextState, op.parent, op.children);
 				return true;
 			}
@@ -291,6 +303,8 @@ export const createIncrementalGraphEventProjection = (
 			if (!children || !parent) {
 				nextState.requiresResync = true;
 			} else {
+				if (op.index === op.expected_before_count) structural.append(op.parent, op.children);
+				else structural.invalidate(op.parent);
 				nextState.childrenById.set(op.parent, children);
 				nextState.nodesById.set(op.parent, { ...parent, children });
 				for (const child of op.children) {
@@ -345,6 +359,9 @@ export const createIncrementalGraphEventProjection = (
 		if (nodeIndex < op.nodes.length) {
 			const node = op.nodes[nodeIndex];
 			if (node) {
+				structural.invalidate(node.node_id);
+				const parent = nextState.parentById.get(node.node_id);
+				if (parent !== undefined) structural.invalidate(parent);
 				nodeTask = createNodeTask(nextState, node);
 				return true;
 			}
@@ -357,6 +374,7 @@ export const createIncrementalGraphEventProjection = (
 			return true;
 		}
 		if (!parentTask) {
+			structural.invalidate(op.parent);
 			parentTask = createParentTask(nextState, op.parent, op.parent_children_after);
 			return true;
 		}

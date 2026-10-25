@@ -4,7 +4,6 @@ import type { ParameterPreviews } from '../../../../store/session/edit-operation
 import type { NodeId, UiNodeDto } from '../../../../types';
 import type { DashboardViewContext } from './view-context.svelte';
 import { FreeSurfaceGeometry } from './free-surface-geometry';
-import { getRootRemPixels, getElementEmPixels } from './dom';
 import { rectsIntersect } from './geometry';
 import type { FreeLayoutRect } from './contracts';
 import type { FreeSurfaceGroup } from './free-surface-groups';
@@ -32,6 +31,7 @@ export function createFreeSurfaceViewport(context: FreeSurfaceViewportContext) {
 	let epoch = $state(0);
 	let sequence = 0;
 	let mounted = $state.raw<UiNodeDto[]>([]);
+	let ordinary = $state.raw<readonly NodeId[]>([]);
 	let overview = $state.raw<FreeSurfaceOverview | null>(null);
 	let queuedRefresh = false;
 	let destroyed = false;
@@ -87,25 +87,27 @@ export function createFreeSurfaceViewport(context: FreeSurfaceViewportContext) {
 		const node = context.node;
 		if (!context.enabled || !element || !view?.viewport || !graph || !view.ready) {
 			mounted = [];
+			ordinary = [];
 			overview = null;
 			geometry.clear();
 			return;
 		}
-		const bounds = element.getBoundingClientRect();
-		const width = element.clientWidth;
-		const height = element.clientHeight;
+		const metrics = view.measurements.read(element);
+		const { bounds, width, height } = metrics;
 		if (!(bounds.width > 0 && bounds.height > 0 && width > 0 && height > 0)) {
 			mounted = [];
+			ordinary = [];
 			overview = null;
 			return;
 		}
-		const rem = getRootRemPixels();
+		const rootFont = view.measurements.read(document.documentElement).fontSize;
+		const rem = Number.isFinite(rootFont) && rootFont > 0 ? rootFont : 16;
 		geometry.sync(
 			graph,
 			node,
 			{
 				rootRemPx: rem,
-				emPx: getElementEmPixels(element, rem),
+				emPx: Number.isFinite(metrics.fontSize) && metrics.fontSize > 0 ? metrics.fontSize : rem,
 				surfaceWidthPx: width,
 				surfaceHeightPx: height,
 				viewportWidthPx: window.innerWidth,
@@ -115,7 +117,7 @@ export function createFreeSurfaceViewport(context: FreeSurfaceViewportContext) {
 		);
 		const scaleX = bounds.width / width;
 		const scaleY = bounds.height / height;
-		const viewport = view.viewport.getBoundingClientRect();
+		const viewport = view.measurements.read(view.viewport).bounds;
 		let left = viewport.left,
 			top = viewport.top,
 			right = viewport.right,
@@ -125,8 +127,8 @@ export function createFreeSurfaceViewport(context: FreeSurfaceViewportContext) {
 			ancestor && ancestor !== view.viewport;
 			ancestor = ancestor.parentElement
 		) {
-			const style = getComputedStyle(ancestor);
-			const rect = ancestor.getBoundingClientRect();
+			const style = view.measurements.read(ancestor);
+			const rect = style.bounds;
 			if (style.overflowX !== 'visible') {
 				left = Math.max(left, rect.left);
 				right = Math.min(right, rect.right);
@@ -168,6 +170,7 @@ export function createFreeSurfaceViewport(context: FreeSurfaceViewportContext) {
 					view.viewport?.focus({ preventScroll: true });
 			});
 		const ids = new Set(presentation.ids);
+		ordinary = presentation.ids;
 		if (presentation.overview) {
 			// Logical bulk selection remains intact; only its latest small cohort needs controls.
 			for (const id of view.selected.slice(-16)) {
@@ -184,6 +187,9 @@ export function createFreeSurfaceViewport(context: FreeSurfaceViewportContext) {
 
 	return {
 		geometry,
+		get ordinary() {
+			return ordinary;
+		},
 		get mounted() {
 			return mounted;
 		},
