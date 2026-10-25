@@ -110,6 +110,10 @@ export function createFixtureSession() {
 					'FixtureFolder'
 				)
 			);
+		loadNodes(nodes);
+		return { rows: count, authoredNodes: nodes.length };
+	};
+	const loadNodes = (nodes: UiNodeDto[]) => {
 		generation += 1;
 		for (const node of nodes) node.uuid = `fixture-${generation}-${node.node_id}`;
 		snapshot = {
@@ -130,11 +134,11 @@ export function createFixtureSession() {
 			project_file: { display_name: 'Fixture', extension: 'fixture', current_path: null }
 		};
 		session.graph.loadSnapshot(snapshot);
-		return { rows: count, authoredNodes: nodes.length };
 	};
 	return {
 		session,
 		load,
+		loadNodes,
 		loadLogger: async (records: UiLogRecord[], maxEntries = records.length) => {
 			snapshot = { ...snapshot, logger: { max_entries: maxEntries, records } };
 			if (!(await session.refreshSnapshot()))

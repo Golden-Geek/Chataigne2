@@ -21,6 +21,7 @@ and superseded plans are [archived](../archive/2026-10-18/README.md).
 - [Persistence transactions](persistence.md): save ordering, destination identity, recovery, and
   project-generation fencing.
 - [UI protocol](ui-protocol.md): Rust DTO source of truth and generated TypeScript.
+- [Dashboard UI](dashboard-ui.md): recursive rendering, layout/camera/interaction ownership and authored anchor semantics.
 
 ## Chataigne systems
 

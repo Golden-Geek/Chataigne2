@@ -1,4 +1,18 @@
 import type { NodeId, UiNodeDto } from '../../../types';
+import type { GraphState } from '../../../store/graph.svelte';
+
+export const resolveDashboardDragNode = (
+	graph: GraphState | null,
+	payload: DashboardDragPayload | null
+): UiNodeDto | null => (payload ? (graph?.nodesById.get(payload.nodeId) ?? null) : null);
+
+export const resolveDashboardDragParameterNode = (
+	graph: GraphState | null,
+	payload: DashboardDragPayload | null
+): UiNodeDto | null => {
+	const candidate = resolveDashboardDragNode(graph, payload);
+	return candidate?.data.kind === 'parameter' ? candidate : null;
+};
 
 export const DASHBOARD_DRAG_MIME = 'application/x-golden-dashboard-drag';
 

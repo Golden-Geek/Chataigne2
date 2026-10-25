@@ -1,0 +1,416 @@
+.gc-dashboard-context-menu {
+	min-inline-size: 12rem;
+}
+
+.gc-dashboard-context-menu .gc-context-item {
+	font-size: 0.78rem;
+}
+
+.gc-dashboard-canvas.dashboard-surface,
+.gc-dashboard-canvas .dashboard-surface {
+	position: relative;
+	inline-size: 100%;
+	block-size: auto;
+	border-radius: 0.5rem;
+	background: rgb(from var(--gc-color-background) r g b / 0.45);
+	border: dashed 0.06rem rgb(from var(--gc-color-panel-outline) r g b / 0.55);
+}
+
+.gc-dashboard-canvas.dashboard-surface.snap-grid-visible::before,
+.gc-dashboard-canvas .dashboard-surface.snap-grid-visible::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	background-image:
+		linear-gradient(
+			to right,
+			rgb(from var(--gc-color-panel-outline) r g b / 0.16) 0.06rem,
+			transparent 0.06rem
+		),
+		linear-gradient(
+			to bottom,
+			rgb(from var(--gc-color-panel-outline) r g b / 0.16) 0.06rem,
+			transparent 0.06rem
+		);
+	background-size: var(--dashboard-snap-grid-step) var(--dashboard-snap-grid-step);
+	background-position: 0 0;
+	z-index: 0;
+}
+
+.gc-dashboard-canvas.dashboard-container-surface,
+.gc-dashboard-canvas .dashboard-container-surface {
+	box-sizing: border-box;
+	block-size: 100%;
+}
+
+.gc-dashboard-canvas.dashboard-page-viewport,
+.gc-dashboard-canvas .dashboard-page-viewport {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	inline-size: 100%;
+	block-size: 100%;
+	min-inline-size: 0;
+	min-block-size: 0;
+	overflow: hidden;
+}
+
+.gc-dashboard-canvas.dashboard-page-viewport:focus,
+.gc-dashboard-canvas .dashboard-page-viewport:focus,
+.gc-dashboard-canvas.dashboard-page-viewport:focus-visible,
+.gc-dashboard-canvas .dashboard-page-viewport:focus-visible {
+	outline: none;
+}
+
+.gc-dashboard-canvas.dashboard-page-scene,
+.gc-dashboard-canvas .dashboard-page-scene {
+	position: relative;
+	display: grid;
+	place-items: center;
+	inline-size: 100%;
+	block-size: 100%;
+	min-inline-size: 0;
+	min-block-size: 0;
+	overflow: hidden;
+	box-sizing: border-box;
+}
+
+.gc-dashboard-canvas.dashboard-page-scene-hitbox,
+.gc-dashboard-canvas .dashboard-page-scene-hitbox {
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+}
+
+.gc-dashboard-canvas.dashboard-page-frame,
+.gc-dashboard-canvas .dashboard-page-frame {
+	position: relative;
+	grid-area: 1 / 1;
+	flex: 0 0 auto;
+	min-inline-size: 0;
+	min-block-size: 0;
+	overflow: visible;
+	z-index: 1;
+	transform-origin: center center;
+	transition: box-shadow 120ms ease;
+}
+
+.gc-dashboard-canvas.dashboard-page,
+.gc-dashboard-canvas .dashboard-page {
+	box-sizing: border-box;
+	block-size: 100%;
+	min-block-size: 100%;
+	padding: 0;
+	overflow: hidden;
+}
+
+.gc-dashboard-canvas.dashboard-page.edit-bleed-visible,
+.gc-dashboard-canvas .dashboard-page.edit-bleed-visible,
+.gc-dashboard-canvas.dashboard-page.edit-bleed-visible > .dashboard-layout,
+.gc-dashboard-canvas .dashboard-page.edit-bleed-visible > .dashboard-layout {
+	overflow: visible;
+}
+
+.gc-dashboard-canvas.dashboard-page-visibility-overlay,
+.gc-dashboard-canvas .dashboard-page-visibility-overlay {
+	grid-area: 1 / 1;
+	position: relative;
+	pointer-events: none;
+	border-radius: 0.9rem;
+	box-shadow:
+		0 0 0 100vmax rgb(from var(--gc-color-background) r g b / 0.2),
+		0 0.8rem 2rem rgb(from var(--gc-color-background) r g b / 0.1);
+	border: solid 0.06rem rgb(from var(--gc-color-selection) r g b / 0.2);
+	transform-origin: center center;
+}
+
+.gc-dashboard-canvas.dashboard-page.surface-target-active,
+.gc-dashboard-canvas .dashboard-page.surface-target-active,
+.gc-dashboard-canvas.dashboard-container-surface.surface-target-active,
+.gc-dashboard-canvas .dashboard-container-surface.surface-target-active,
+.gc-dashboard-canvas.dashboard-surface.dashboard-flow-drop-target,
+.gc-dashboard-canvas .dashboard-surface.dashboard-flow-drop-target,
+.gc-dashboard-canvas.dashboard-surface.dashboard-reparent-target,
+.gc-dashboard-canvas .dashboard-surface.dashboard-reparent-target {
+	border-color: rgb(from var(--gc-color-focus) r g b / 0.86);
+	box-shadow: 0 0 0 0.08rem rgb(from var(--gc-color-focus) r g b / 0.28);
+}
+
+.gc-dashboard-canvas.dashboard-surface.dashboard-flow-drop-target::before,
+.gc-dashboard-canvas .dashboard-surface.dashboard-flow-drop-target::before {
+	content: '';
+	position: absolute;
+	inset-inline-start: var(--dashboard-flow-drop-indicator-left);
+	inset-block-start: var(--dashboard-flow-drop-indicator-top);
+	inline-size: var(--dashboard-flow-drop-indicator-width);
+	block-size: var(--dashboard-flow-drop-indicator-height);
+	border-radius: 999rem;
+	background: rgb(from var(--gc-color-focus) r g b / 0.92);
+	box-shadow: 0 0 0.55rem rgb(from var(--gc-color-focus) r g b / 0.28);
+	pointer-events: none;
+	z-index: 4;
+}
+
+.gc-dashboard-canvas.dashboard-surface.surface-target-active::after,
+.gc-dashboard-canvas .dashboard-surface.surface-target-active::after,
+.gc-dashboard-canvas.dashboard-surface.dashboard-reparent-target::after,
+.gc-dashboard-canvas .dashboard-surface.dashboard-reparent-target::after {
+	content: attr(data-dashboard-drop-message);
+	position: absolute;
+	inset-block-start: 0.55rem;
+	inset-inline-end: 0.55rem;
+	z-index: 4;
+	padding: 0.18rem 0.5rem;
+	border-radius: 999rem;
+	background: rgb(from var(--gc-color-focus) r g b / 0.86);
+	color: white;
+	font-size: 0.6rem;
+	font-weight: 700;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	pointer-events: none;
+}
+
+.gc-dashboard-canvas.dashboard-surface.free > .dashboard-layout,
+.gc-dashboard-canvas .dashboard-surface.free > .dashboard-layout {
+	position: relative;
+	inline-size: 100%;
+	block-size: 100%;
+	min-block-size: inherit;
+	z-index: 1;
+}
+
+.gc-dashboard-canvas.dashboard-surface.free > .dashboard-layout > .dashboard-slot,
+.gc-dashboard-canvas .dashboard-surface.free > .dashboard-layout > .dashboard-slot {
+	position: absolute;
+	min-inline-size: 0;
+	min-block-size: 0;
+}
+
+.gc-dashboard-canvas.dashboard-surface.grid > .dashboard-layout,
+.gc-dashboard-canvas .dashboard-surface.grid > .dashboard-layout {
+	display: grid;
+	grid-auto-flow: var(--dashboard-grid-flow);
+	grid-template-columns: repeat(var(--dashboard-grid-columns), minmax(0, 1fr));
+	grid-template-rows: repeat(var(--dashboard-grid-rows), minmax(0, 1fr));
+	gap: var(--dashboard-gap-y) var(--dashboard-gap-x);
+	inline-size: 100%;
+	block-size: 100%;
+	min-inline-size: 0;
+	min-block-size: 100%;
+}
+
+.gc-dashboard-canvas.dashboard-surface.horizontal > .dashboard-layout,
+.gc-dashboard-canvas .dashboard-surface.horizontal > .dashboard-layout,
+.gc-dashboard-canvas.dashboard-surface.vertical > .dashboard-layout,
+.gc-dashboard-canvas .dashboard-surface.vertical > .dashboard-layout {
+	display: flex;
+	flex: 1 1 auto;
+	gap: var(--dashboard-gap-y) var(--dashboard-gap-x);
+	inline-size: 100%;
+	block-size: 100%;
+	min-inline-size: 0;
+	min-block-size: 0;
+}
+
+.gc-dashboard-canvas.dashboard-surface.horizontal,
+.gc-dashboard-canvas .dashboard-surface.horizontal {
+	overflow-x: auto;
+	overflow-y: hidden;
+}
+
+.gc-dashboard-canvas.dashboard-surface.vertical,
+.gc-dashboard-canvas .dashboard-surface.vertical {
+	overflow-x: hidden;
+	overflow-y: auto;
+}
+
+.gc-dashboard-canvas.dashboard-surface.horizontal > .dashboard-layout,
+.gc-dashboard-canvas .dashboard-surface.horizontal > .dashboard-layout {
+	flex-direction: row;
+	flex-wrap: nowrap;
+	align-items: stretch;
+	align-content: flex-start;
+}
+
+.gc-dashboard-canvas.dashboard-surface.vertical > .dashboard-layout,
+.gc-dashboard-canvas .dashboard-surface.vertical > .dashboard-layout {
+	flex-direction: column;
+	align-items: stretch;
+	justify-content: flex-start;
+}
+
+.gc-dashboard-canvas.dashboard-tab-strip,
+.gc-dashboard-canvas .dashboard-tab-strip {
+	display: flex;
+	gap: 0.45rem;
+	padding: 0.3rem 0.3rem 0.7rem;
+	flex-wrap: wrap;
+}
+
+.gc-dashboard-canvas.dashboard-tab-strip.compact,
+.gc-dashboard-canvas .dashboard-tab-strip.compact {
+	padding: 0 0 0.65rem;
+}
+
+.gc-dashboard-canvas.dashboard-tab-strip button,
+.gc-dashboard-canvas .dashboard-tab-strip button,
+.gc-dashboard-canvas.dashboard-accordion-item > button,
+.gc-dashboard-canvas .dashboard-accordion-item > button {
+	border-radius: 999rem;
+	padding: 0.35rem 0.75rem;
+	background: rgb(from var(--gc-color-background) r g b / 0.45);
+	border: solid 0.06rem rgb(from var(--gc-color-panel-outline) r g b / 0.55);
+	color: var(--gc-color-text);
+	font-size: 0.74rem;
+}
+
+.gc-dashboard-canvas.dashboard-tab-strip button,
+.gc-dashboard-canvas .dashboard-tab-strip button {
+	cursor: pointer;
+}
+
+.gc-dashboard-canvas.dashboard-tab-strip button.selected,
+.gc-dashboard-canvas .dashboard-tab-strip button.selected,
+.gc-dashboard-canvas.dashboard-accordion-item > button.selected,
+.gc-dashboard-canvas .dashboard-accordion-item > button.selected {
+	background: rgb(from var(--gc-color-selection) r g b / 0.24);
+	border-color: rgb(from var(--gc-color-selection) r g b / 0.7);
+	color: white;
+}
+
+.gc-dashboard-canvas.dashboard-tab-body,
+.gc-dashboard-canvas .dashboard-tab-body,
+.gc-dashboard-canvas.dashboard-accordion,
+.gc-dashboard-canvas .dashboard-accordion {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+}
+
+.gc-dashboard-canvas.dashboard-tab-body.compact,
+.gc-dashboard-canvas .dashboard-tab-body.compact {
+	block-size: 100%;
+}
+
+.gc-dashboard-canvas.dashboard-accordion-item,
+.gc-dashboard-canvas .dashboard-accordion-item {
+	display: flex;
+	flex-direction: column;
+	gap: 0.45rem;
+}
+
+.gc-dashboard-canvas.dashboard-slot,
+.gc-dashboard-canvas .dashboard-slot {
+	display: flex;
+	min-inline-size: 0;
+	min-block-size: 0;
+}
+
+.gc-dashboard-canvas.dashboard-hidden-drag-source,
+.gc-dashboard-canvas .dashboard-hidden-drag-source {
+	display: none !important;
+}
+
+.gc-dashboard-canvas.dashboard-slot-fill,
+.gc-dashboard-canvas .dashboard-slot-fill {
+	display: flex;
+	flex: 1 1 auto;
+	inline-size: 100%;
+	block-size: 100%;
+	min-inline-size: 0;
+	min-block-size: 0;
+}
+
+.gc-dashboard-canvas.dashboard-slot.accordion-slot,
+.gc-dashboard-canvas .dashboard-slot.accordion-slot {
+	padding-inline-start: 0.1rem;
+}
+
+.gc-dashboard-canvas.dashboard-surface-hit-zones,
+.gc-dashboard-canvas .dashboard-surface-hit-zones {
+	position: absolute;
+	inset: 0;
+	z-index: 2;
+	pointer-events: none;
+}
+
+.gc-dashboard-canvas.dashboard-surface-hit-zone,
+.gc-dashboard-canvas .dashboard-surface-hit-zone {
+	position: absolute;
+	pointer-events: auto;
+	background: transparent;
+}
+
+.gc-dashboard-canvas.dashboard-surface-hit-zone.top,
+.gc-dashboard-canvas .dashboard-surface-hit-zone.top,
+.gc-dashboard-canvas.dashboard-surface-hit-zone.bottom,
+.gc-dashboard-canvas .dashboard-surface-hit-zone.bottom {
+	inset-inline: 0;
+	block-size: 0.75rem;
+}
+
+.gc-dashboard-canvas.dashboard-surface-hit-zone.top,
+.gc-dashboard-canvas .dashboard-surface-hit-zone.top {
+	inset-block-start: 0;
+}
+
+.gc-dashboard-canvas.dashboard-surface-hit-zone.bottom,
+.gc-dashboard-canvas .dashboard-surface-hit-zone.bottom {
+	inset-block-end: 0;
+}
+
+.gc-dashboard-canvas.dashboard-surface-hit-zone.left,
+.gc-dashboard-canvas .dashboard-surface-hit-zone.left,
+.gc-dashboard-canvas.dashboard-surface-hit-zone.right,
+.gc-dashboard-canvas .dashboard-surface-hit-zone.right {
+	inset-block: 0.75rem;
+	inline-size: 0.75rem;
+}
+
+.gc-dashboard-canvas.dashboard-surface-hit-zone.left,
+.gc-dashboard-canvas .dashboard-surface-hit-zone.left {
+	inset-inline-start: 0;
+}
+
+.gc-dashboard-canvas.dashboard-surface-hit-zone.right,
+.gc-dashboard-canvas .dashboard-surface-hit-zone.right {
+	inset-inline-end: 0;
+}
+
+.gc-dashboard-canvas.dashboard-surface.horizontal > .dashboard-layout > .dashboard-slot,
+.gc-dashboard-canvas .dashboard-surface.horizontal > .dashboard-layout > .dashboard-slot,
+.gc-dashboard-canvas.dashboard-tab-body .dashboard-slot,
+.gc-dashboard-canvas .dashboard-tab-body .dashboard-slot,
+.gc-dashboard-canvas.dashboard-tab-body.compact .dashboard-slot,
+.gc-dashboard-canvas .dashboard-tab-body.compact .dashboard-slot {
+	block-size: 100%;
+}
+
+.gc-dashboard-canvas.dashboard-surface.horizontal > .dashboard-layout > .dashboard-slot,
+.gc-dashboard-canvas .dashboard-surface.horizontal > .dashboard-layout > .dashboard-slot {
+	flex: 0 0 auto;
+	align-self: stretch;
+	block-size: 100%;
+}
+
+.gc-dashboard-canvas.dashboard-surface.vertical > .dashboard-layout > .dashboard-slot,
+.gc-dashboard-canvas .dashboard-surface.vertical > .dashboard-layout > .dashboard-slot,
+.gc-dashboard-canvas.dashboard-surface.grid > .dashboard-layout > .dashboard-slot,
+.gc-dashboard-canvas .dashboard-surface.grid > .dashboard-layout > .dashboard-slot,
+.gc-dashboard-canvas.dashboard-accordion .dashboard-slot,
+.gc-dashboard-canvas .dashboard-accordion .dashboard-slot {
+	inline-size: 100%;
+}
+
+.gc-dashboard-canvas.dashboard-surface.grid > .dashboard-layout > .dashboard-slot,
+.gc-dashboard-canvas .dashboard-surface.grid > .dashboard-layout > .dashboard-slot {
+	block-size: 100%;
+}
+
+.gc-dashboard-canvas.dashboard-surface.vertical > .dashboard-layout > .dashboard-slot,
+.gc-dashboard-canvas .dashboard-surface.vertical > .dashboard-layout > .dashboard-slot {
+	flex: 0 0 auto;
+	inline-size: 100%;
+}

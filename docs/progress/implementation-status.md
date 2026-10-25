@@ -5,8 +5,8 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-25 on `main`, based on delivered `1d5298ef` plus the P11 historical-log
-milestone below. **P11 is in progress; two of six fixed checkpoints are closed (33% rounded).**
+Last reconciled: 2026-10-25 on `main`, based on delivered `c1816a5c` plus the P11 dashboard
+decomposition milestone below. **P11 is in progress; two of six fixed checkpoints are closed (33% rounded).**
 **P10 is locally complete: three of three fixed checkpoints (100%).**
 **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
@@ -198,7 +198,7 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
 | ---------- | ------ | -------------------------------- |
 | Manager/catalog windowing | Complete locally | Variable-height manager/picker/outliner and flat/nested catalog menus pass through 100k items with bounded mounting, identity and focus. [Tree evidence](p11-tree-windowing.md), [catalog closure](p11-catalog-windowing.md). |
 | Historical log windowing | Complete locally | Variable-height history, filters, follow, bounded native selection, focus and snapshot publication pass through 100k records. [Qualification](p11-log-windowing.md). |
-| Dashboard viewport awareness | Not started | Bound mounted free-layout widgets with correct bounds, interaction and selection. |
+| Dashboard viewport awareness | In progress | Canvas responsibilities split and baseline rendering qualified. Bounded mounting, logical offscreen bounds and interaction/selection qualification remain. |
 | Tree focus and keyboard navigation | Not started | Qualify expansion/navigation and stable focus across virtualized changes in all owning trees. |
 | Graph keyboard operations | Not started | Provide and qualify keyboard movement and connection creation through shared operations. |
 | Complete composed workflows | Not started | Qualify discovery, selection and editing across all required composed panels and large batches. Native usability retains P17. |
@@ -208,8 +208,8 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
 - **Active task: P11 workspace UX (33% rounded, 2/6 fixed checkpoints closed).** Manager/picker/
   outliner, catalogs and historical logs are verified through 100k entries. Continue dashboard
   viewport awareness, then tree/graph keyboard operations and composed qualification.
-  Split the oversized dashboard responsibilities cohesively before editing them; preserve
-  app-agnostic ownership. Follow the plan's owning boundaries;
+  The dashboard decomposition is qualified; implement bounded mounting with logical bounds,
+  offscreen framing/selection and interaction/focus retention next. Preserve app-agnostic ownership and the plan's owning boundaries;
   do not reopen completed P03-P10 scope.
 - **P10 is locally complete: three of three fixed checkpoints (100%).** Retained geometry,
   scoped routes/culling and the full production mounted action/frame matrix pass. Stable wire
@@ -10101,3 +10101,40 @@ coverage is **57%** (exactly 57.41%), with ten of eighteen tasks fully complete.
 verified milestone on `main`, then continue dashboard viewport awareness, with cohesive source
 splits before changing its oversized orchestrator. P03 remains closed with zero packages left.
 Keep the full P00-P18 goal active.
+
+### P11 dashboard responsibilities and authored anchors
+
+Based on delivered `c1816a5c`, the dashboard canvas is split into focused reusable presentation
+owners under `canvas/`: camera/persisted view, surface layout/rendering, free/ordered transforms,
+interaction geometry/chrome, marquee, widget content, binding and context menus. The root falls
+from **6,423 to 870 lines**; every extracted source stays below 1,000 lines. Namespaced shared
+CSS preserves recursive styles without extra DOM wrappers. The source-size inventory is refreshed
+to 2,098 sources / 27 above the limit; this does not qualify the remaining P12 scope.
+
+The renderer's anchor-change position rewrite is removed. Rendering uses authored anchor/offset
+values directly, consistently with backend state, instead of sending a domain repair intent only
+for mounted widgets. Stored schema/values are unchanged. This ownership correction is necessary
+before widgets can unmount offscreen. The new edit-mode regression verifies unchanged offsets
+and no implicit intent when an anchor changes.
+
+The [qualification report](p11-dashboard-decomposition.md), [retained browser/source evidence](evidence/p11-dashboard-decomposition-2026-10-25.json)
+and [ownership map](../architecture/dashboard-ui.md) record the precise boundary. Production
+baseline/current scenes pass **106/106 exact DOM/style/geometry comparisons**: six layouts in
+edit/run modes, generic and registered widgets, nesting, selection, persisted camera, Frame/Home,
+relative sizing, backend reorder, responsive viewports and all nine anchors. The sparse 1,000-widget
+fixture still mounts all 1,000 shells (18,677 descendants), proving preserved pre-culling membership,
+not bounded rendering. A PostCSS audit preserves all 155 rules / 568 ordered declaration values
+after formatting-whitespace normalization. All 39 qualified source fingerprints stay frozen.
+
+Gates pass **261 root UI tests**, app and browser-fixture checks (zero errors/warnings), owned
+Prettier, source-size/whitespace checks, zero extracted-controller unused-symbol findings and
+root/Golden Core Cargo formatting. `CARGO_INCREMENTAL=0 cargo build --locked -p Chataigne2`
+rebuilds the UI and passes in **2m08s**; the final recheck reuses unchanged frontend inputs and
+passes in **1m59s**, executable SHA-256
+`7b6fda8bfc315815e35b98b875fd5fa8fac33bebd32385f796da0fc16878b93b`.
+
+**P11 stays 2/6 complete (33% rounded); whole-plan scope coverage stays 57% (57.41% exact).**
+No checkpoint is closed by this prerequisite. Commit/push this verified milestone on `main`,
+then implement bounded free-layout membership, logical offscreen geometry for frame/marquee,
+interaction/focus retention and the fixed normal/stress qualification. Four P11 checkpoints
+remain; P03 remains complete with zero packages left. Keep the full P00-P18 goal active.

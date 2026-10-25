@@ -1,0 +1,450 @@
+.gc-dashboard-canvas.dashboard-widget-shell,
+.gc-dashboard-canvas .dashboard-widget-shell {
+	position: relative;
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	inline-size: 100%;
+	block-size: 100%;
+	align-self: stretch;
+	min-inline-size: 0;
+	min-block-size: 0;
+	border-radius: 0.5rem;
+	background: rgb(from var(--gc-color-background) r g b / 0);
+	border: dashed 0.06rem rgb(from var(--gc-color-panel-outline) r g b / 0.28);
+	box-shadow: none;
+	overflow: hidden;
+	transition:
+		border-color 120ms ease,
+		border-style 120ms ease,
+		box-shadow 120ms ease,
+		background 120ms ease;
+}
+
+.gc-dashboard-canvas.dashboard-widget-shell.editable-free,
+.gc-dashboard-canvas .dashboard-widget-shell.editable-free {
+	cursor: grab;
+}
+
+.gc-dashboard-canvas.dashboard-widget-shell.editable-free.free-layout-active,
+.gc-dashboard-canvas .dashboard-widget-shell.editable-free.free-layout-active {
+	cursor: grabbing;
+}
+
+.gc-dashboard-canvas.dashboard-widget-shell:not(.run-mode):hover,
+.gc-dashboard-canvas .dashboard-widget-shell:not(.run-mode):hover {
+	border-style: solid;
+	border-color: rgb(from var(--gc-color-panel-outline) r g b / 0.82);
+	background: rgb(from var(--gc-color-background) r g b / 0.08);
+}
+
+.gc-dashboard-canvas.dashboard-widget-shell.selected,
+.gc-dashboard-canvas .dashboard-widget-shell.selected {
+	border-style: solid;
+	border-color: rgb(from var(--gc-color-selection) r g b / 0.8);
+	box-shadow:
+		0 0 0 0.08rem rgb(from var(--gc-color-selection) r g b / 0.35),
+		0 0.45rem 1rem rgb(from var(--gc-color-selection) r g b / 0.14);
+}
+
+.gc-dashboard-canvas.dashboard-widget-shell.selected.editable-free,
+.gc-dashboard-canvas .dashboard-widget-shell.selected.editable-free {
+	overflow: visible;
+}
+
+.gc-dashboard-canvas.dashboard-widget-shell.dashboard-descendant-free-layout-active,
+.gc-dashboard-canvas .dashboard-widget-shell.dashboard-descendant-free-layout-active {
+	overflow: visible;
+}
+
+.gc-dashboard-canvas.dashboard-widget-shell.binding-active,
+.gc-dashboard-canvas .dashboard-widget-shell.binding-active {
+	border-style: solid;
+	border-color: rgb(from var(--gc-color-focus) r g b / 0.84);
+	box-shadow: 0 0 0 0.08rem rgb(from var(--gc-color-focus) r g b / 0.28);
+}
+
+.gc-dashboard-canvas.dashboard-widget-shell.free-layout-active,
+.gc-dashboard-canvas .dashboard-widget-shell.free-layout-active {
+	box-shadow:
+		0 0 0 0.08rem rgb(from var(--gc-color-focus) r g b / 0.34),
+		0 0 0.9rem rgb(from var(--gc-color-background) r g b / 0.2);
+}
+
+.gc-dashboard-canvas.dashboard-widget-shell.run-mode,
+.gc-dashboard-canvas .dashboard-widget-shell.run-mode {
+	border-color: transparent;
+	border-style: solid;
+	box-shadow: none;
+	background: transparent;
+}
+
+.gc-dashboard-canvas.dashboard-widget-frame,
+.gc-dashboard-canvas .dashboard-widget-frame {
+	position: relative;
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	inline-size: 100%;
+	block-size: 100%;
+	min-inline-size: 0;
+	min-block-size: 0;
+}
+
+.gc-dashboard-canvas.dashboard-widget-frame.label-left,
+.gc-dashboard-canvas .dashboard-widget-frame.label-left,
+.gc-dashboard-canvas.dashboard-widget-frame.label-right,
+.gc-dashboard-canvas .dashboard-widget-frame.label-right {
+	flex-direction: row;
+}
+
+.gc-dashboard-canvas.dashboard-widget-frame.label-bottom,
+.gc-dashboard-canvas .dashboard-widget-frame.label-bottom {
+	flex-direction: column;
+}
+
+.gc-dashboard-canvas.dashboard-widget-frame.label-right > .dashboard-widget-label,
+.gc-dashboard-canvas .dashboard-widget-frame.label-right > .dashboard-widget-label,
+.gc-dashboard-canvas.dashboard-widget-frame.label-bottom > .dashboard-widget-label,
+.gc-dashboard-canvas .dashboard-widget-frame.label-bottom > .dashboard-widget-label {
+	order: 1;
+}
+
+.gc-dashboard-canvas.dashboard-widget-body,
+.gc-dashboard-canvas .dashboard-widget-body {
+	position: relative;
+	display: flex;
+	flex: 1 1 auto;
+	min-inline-size: 0;
+	min-block-size: 0;
+}
+
+.gc-dashboard-canvas.dashboard-widget-label,
+.gc-dashboard-canvas .dashboard-widget-label {
+	position: relative;
+	z-index: 1;
+	display: flex;
+	flex: 0 0 auto;
+	align-items: center;
+	min-inline-size: 0;
+	padding: 0.45rem 0.7rem;
+	font-size: 0.72rem;
+	font-weight: 600;
+	line-height: 1.2;
+	color: #eef4ff;
+	background: linear-gradient(
+		180deg,
+		rgb(from var(--gc-color-panel-outline) r g b / 0.12),
+		rgb(from var(--gc-color-background) r g b / 0.2)
+	);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.gc-dashboard-canvas.dashboard-widget-frame.label-top > .dashboard-widget-label,
+.gc-dashboard-canvas .dashboard-widget-frame.label-top > .dashboard-widget-label {
+	border-block-end: solid 0.06rem rgb(from var(--gc-color-panel-outline) r g b / 0.24);
+}
+
+.gc-dashboard-canvas.dashboard-widget-frame.label-bottom > .dashboard-widget-label,
+.gc-dashboard-canvas .dashboard-widget-frame.label-bottom > .dashboard-widget-label {
+	border-block-start: solid 0.06rem rgb(from var(--gc-color-panel-outline) r g b / 0.24);
+}
+
+.gc-dashboard-canvas.dashboard-widget-frame.label-left > .dashboard-widget-label,
+.gc-dashboard-canvas .dashboard-widget-frame.label-left > .dashboard-widget-label,
+.gc-dashboard-canvas.dashboard-widget-frame.label-right > .dashboard-widget-label,
+.gc-dashboard-canvas .dashboard-widget-frame.label-right > .dashboard-widget-label {
+	inline-size: auto;
+	block-size: 100%;
+	min-inline-size: 2rem;
+	padding: 0.65rem 0.45rem;
+	justify-content: center;
+	text-align: center;
+	writing-mode: vertical-rl;
+	text-orientation: mixed;
+	white-space: normal;
+}
+
+.gc-dashboard-canvas.dashboard-widget-frame.label-left > .dashboard-widget-label,
+.gc-dashboard-canvas .dashboard-widget-frame.label-left > .dashboard-widget-label {
+	border-inline-end: solid 0.06rem rgb(from var(--gc-color-panel-outline) r g b / 0.24);
+	transform: rotate(180deg);
+}
+
+.gc-dashboard-canvas.dashboard-widget-frame.label-right > .dashboard-widget-label,
+.gc-dashboard-canvas .dashboard-widget-frame.label-right > .dashboard-widget-label {
+	border-inline-start: solid 0.06rem rgb(from var(--gc-color-panel-outline) r g b / 0.24);
+}
+
+.gc-dashboard-canvas.dashboard-resize-zone,
+.gc-dashboard-canvas .dashboard-resize-zone {
+	position: absolute;
+	background: transparent;
+	z-index: 3;
+}
+
+.gc-dashboard-canvas.dashboard-resize-zone.north,
+.gc-dashboard-canvas .dashboard-resize-zone.north,
+.gc-dashboard-canvas.dashboard-resize-zone.south,
+.gc-dashboard-canvas .dashboard-resize-zone.south {
+	inset-inline: 0.75rem;
+	block-size: 0.5rem;
+}
+
+.gc-dashboard-canvas.dashboard-resize-zone.east,
+.gc-dashboard-canvas .dashboard-resize-zone.east,
+.gc-dashboard-canvas.dashboard-resize-zone.west,
+.gc-dashboard-canvas .dashboard-resize-zone.west {
+	inset-block: 0.75rem;
+	inline-size: 0.5rem;
+}
+
+.gc-dashboard-canvas.dashboard-resize-zone.north,
+.gc-dashboard-canvas .dashboard-resize-zone.north {
+	inset-block-start: 0;
+	cursor: ns-resize;
+}
+
+.gc-dashboard-canvas.dashboard-resize-zone.south,
+.gc-dashboard-canvas .dashboard-resize-zone.south {
+	inset-block-end: 0;
+	cursor: ns-resize;
+}
+
+.gc-dashboard-canvas.dashboard-resize-zone.east,
+.gc-dashboard-canvas .dashboard-resize-zone.east {
+	inset-inline-end: 0;
+	cursor: ew-resize;
+}
+
+.gc-dashboard-canvas.dashboard-resize-zone.west,
+.gc-dashboard-canvas .dashboard-resize-zone.west {
+	inset-inline-start: 0;
+	cursor: ew-resize;
+}
+
+.gc-dashboard-canvas.dashboard-resize-zone.north-west,
+.gc-dashboard-canvas .dashboard-resize-zone.north-west,
+.gc-dashboard-canvas.dashboard-resize-zone.north-east,
+.gc-dashboard-canvas .dashboard-resize-zone.north-east,
+.gc-dashboard-canvas.dashboard-resize-zone.south-east,
+.gc-dashboard-canvas .dashboard-resize-zone.south-east,
+.gc-dashboard-canvas.dashboard-resize-zone.south-west,
+.gc-dashboard-canvas .dashboard-resize-zone.south-west {
+	inline-size: 0.9rem;
+	block-size: 0.9rem;
+}
+
+.gc-dashboard-canvas.dashboard-resize-zone.north-west,
+.gc-dashboard-canvas .dashboard-resize-zone.north-west {
+	inset-inline-start: 0;
+	inset-block-start: 0;
+	cursor: nwse-resize;
+}
+
+.gc-dashboard-canvas.dashboard-resize-zone.north-east,
+.gc-dashboard-canvas .dashboard-resize-zone.north-east {
+	inset-inline-end: 0;
+	inset-block-start: 0;
+	cursor: nesw-resize;
+}
+
+.gc-dashboard-canvas.dashboard-resize-zone.south-east,
+.gc-dashboard-canvas .dashboard-resize-zone.south-east {
+	inset-inline-end: 0;
+	inset-block-end: 0;
+	cursor: nwse-resize;
+}
+
+.gc-dashboard-canvas.dashboard-resize-zone.south-west,
+.gc-dashboard-canvas .dashboard-resize-zone.south-west {
+	inset-inline-start: 0;
+	inset-block-end: 0;
+	cursor: nesw-resize;
+}
+
+.gc-dashboard-canvas.dashboard-drop-indicator,
+.gc-dashboard-canvas .dashboard-drop-indicator,
+.gc-dashboard-canvas.dashboard-drop-preview-kind,
+.gc-dashboard-canvas .dashboard-drop-preview-kind {
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	font-size: 0.62rem;
+	opacity: 0.7;
+}
+
+.gc-dashboard-canvas.dashboard-widget-content,
+.gc-dashboard-canvas .dashboard-widget-content {
+	display: flex;
+	flex: 1 1 auto;
+	padding: 0;
+	min-inline-size: 0;
+	min-block-size: 0;
+	overflow: hidden;
+}
+
+.gc-dashboard-canvas.dashboard-widget-content.inspector-body,
+.gc-dashboard-canvas .dashboard-widget-content.inspector-body {
+	display: flex;
+	flex: 1 1 auto;
+	position: relative;
+	overflow: auto;
+}
+
+.gc-dashboard-canvas.dashboard-widget-shell:not(.run-mode) .dashboard-widget-content::after,
+.gc-dashboard-canvas .dashboard-widget-shell:not(.run-mode) .dashboard-widget-content::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	z-index: 2;
+	background: rgb(from var(--gc-color-background) r g b / 0.12);
+	opacity: 0;
+	transition:
+		opacity 120ms ease,
+		background 120ms ease;
+}
+
+.gc-dashboard-canvas.dashboard-widget-shell:not(.run-mode):hover .dashboard-widget-content::after,
+.gc-dashboard-canvas .dashboard-widget-shell:not(.run-mode):hover .dashboard-widget-content::after,
+.gc-dashboard-canvas.dashboard-widget-shell.selected .dashboard-widget-content::after,
+.gc-dashboard-canvas .dashboard-widget-shell.selected .dashboard-widget-content::after,
+.gc-dashboard-canvas.dashboard-widget-shell.binding-active .dashboard-widget-content::after,
+.gc-dashboard-canvas .dashboard-widget-shell.binding-active .dashboard-widget-content::after {
+	background: rgb(from var(--gc-color-background) r g b / 0.16);
+	opacity: 1;
+}
+
+.gc-dashboard-canvas.dashboard-widget-shell.run-mode .dashboard-widget-content::after,
+.gc-dashboard-canvas .dashboard-widget-shell.run-mode .dashboard-widget-content::after {
+	display: none;
+}
+
+.gc-dashboard-canvas.dashboard-live-content,
+.gc-dashboard-canvas .dashboard-live-content {
+	position: relative;
+	z-index: 1;
+	display: flex;
+	flex: 1 1 auto;
+	inline-size: 100%;
+	block-size: 100%;
+	min-inline-size: 0;
+	min-block-size: 0;
+	overflow: auto;
+}
+
+.gc-dashboard-canvas.dashboard-live-content.inert-mode,
+.gc-dashboard-canvas .dashboard-live-content.inert-mode {
+	pointer-events: none;
+	user-select: none;
+}
+
+.gc-dashboard-canvas.dashboard-container-surface,
+.gc-dashboard-canvas .dashboard-container-surface {
+	padding: 0;
+	border: none;
+	background: transparent;
+	box-shadow: none;
+}
+
+.gc-dashboard-canvas.dashboard-container-surface.with-inline-label,
+.gc-dashboard-canvas .dashboard-container-surface.with-inline-label {
+	padding-block-start: 2rem;
+}
+
+.gc-dashboard-canvas.dashboard-container-inline-label,
+.gc-dashboard-canvas .dashboard-container-inline-label {
+	position: absolute;
+	inset-inline-start: 0.6rem;
+	inset-block-start: 0.55rem;
+	z-index: 4;
+	max-inline-size: calc(100% - 1.2rem);
+	padding: 0.26rem 0.5rem;
+	border-radius: 999rem;
+	background: rgb(from var(--gc-color-background) r g b / 0.82);
+	box-shadow: 0 0.2rem 0.6rem rgb(from var(--gc-color-background) r g b / 0.16);
+	font-size: 0.66rem;
+	font-weight: 600;
+	line-height: 1.1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	pointer-events: none;
+}
+
+.gc-dashboard-canvas.dashboard-anchor-guides,
+.gc-dashboard-canvas .dashboard-anchor-guides {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	z-index: 5;
+	overflow: visible;
+}
+
+.gc-dashboard-canvas.dashboard-anchor-guide,
+.gc-dashboard-canvas .dashboard-anchor-guide {
+	position: absolute;
+	pointer-events: none;
+	background: rgb(from var(--gc-color-selection) r g b / 0.42);
+	box-shadow: 0 0 0.3rem rgb(from var(--gc-color-selection) r g b / 0.15);
+}
+
+.gc-dashboard-canvas.dashboard-anchor-guide.horizontal,
+.gc-dashboard-canvas .dashboard-anchor-guide.horizontal {
+	block-size: 0.08rem;
+}
+
+.gc-dashboard-canvas.dashboard-anchor-guide.vertical,
+.gc-dashboard-canvas .dashboard-anchor-guide.vertical {
+	inline-size: 0.08rem;
+}
+
+.gc-dashboard-canvas.dashboard-anchor-guide::after,
+.gc-dashboard-canvas .dashboard-anchor-guide::after {
+	content: '';
+	position: absolute;
+	inline-size: 0.34rem;
+	block-size: 0.34rem;
+	background: rgb(from var(--gc-color-selection) r g b / 0.58);
+	clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+}
+
+.gc-dashboard-canvas.dashboard-anchor-guide.horizontal.left::after,
+.gc-dashboard-canvas .dashboard-anchor-guide.horizontal.left::after {
+	inset-inline-start: -0.18rem;
+	inset-block-start: calc(50% - 0.17rem);
+	transform: rotate(-90deg);
+}
+
+.gc-dashboard-canvas.dashboard-anchor-guide.horizontal.right::after,
+.gc-dashboard-canvas .dashboard-anchor-guide.horizontal.right::after {
+	inset-inline-end: -0.18rem;
+	inset-block-start: calc(50% - 0.17rem);
+	transform: rotate(90deg);
+}
+
+.gc-dashboard-canvas.dashboard-anchor-guide.vertical.up::after,
+.gc-dashboard-canvas .dashboard-anchor-guide.vertical.up::after {
+	inset-inline-start: calc(50% - 0.17rem);
+	inset-block-start: -0.18rem;
+	transform: rotate(0deg);
+}
+
+.gc-dashboard-canvas.dashboard-anchor-guide.vertical.down::after,
+.gc-dashboard-canvas .dashboard-anchor-guide.vertical.down::after {
+	inset-inline-start: calc(50% - 0.17rem);
+	inset-block-end: -0.18rem;
+	transform: rotate(180deg);
+}
+
+.gc-dashboard-canvas.dashboard-marquee-selection,
+.gc-dashboard-canvas .dashboard-marquee-selection {
+	position: absolute;
+	pointer-events: none;
+	z-index: 1000;
+	border: solid 0.08rem rgb(from var(--gc-color-selection) r g b / 0.92);
+	background: rgb(from var(--gc-color-selection) r g b / 0.16);
+	box-shadow: inset 0 0 0 0.04rem rgb(from var(--gc-color-selection) r g b / 0.24);
+	border-radius: 0.2rem;
+}

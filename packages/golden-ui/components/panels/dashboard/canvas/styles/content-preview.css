@@ -1,0 +1,471 @@
+.gc-dashboard-canvas.dashboard-empty-inline,
+.gc-dashboard-canvas .dashboard-empty-inline,
+.gc-dashboard-canvas.dashboard-drop-indicator,
+.gc-dashboard-canvas .dashboard-drop-indicator {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	text-align: center;
+	color: var(--gc-color-text);
+}
+
+.gc-dashboard-canvas.dashboard-empty-inline,
+.gc-dashboard-canvas .dashboard-empty-inline {
+	margin: 0;
+	font-size: 0.76rem;
+	line-height: 1.45;
+	opacity: 0.78;
+}
+
+.gc-dashboard-canvas.dashboard-empty-inline,
+.gc-dashboard-canvas .dashboard-empty-inline {
+	min-block-size: 4.25rem;
+	border-radius: 0.75rem;
+	border: dashed 0.06rem rgb(from var(--gc-color-panel-outline) r g b / 0.45);
+	background: rgb(from var(--gc-color-background) r g b / 0.22);
+	padding: 0.55rem;
+}
+
+.gc-dashboard-canvas.dashboard-surface-empty,
+.gc-dashboard-canvas .dashboard-surface-empty {
+	position: absolute;
+	inset: 0;
+	inline-size: 100%;
+	block-size: 100%;
+	min-block-size: 0;
+	box-sizing: border-box;
+	pointer-events: none;
+	z-index: 1;
+}
+
+.gc-dashboard-canvas.dashboard-drop-indicator,
+.gc-dashboard-canvas .dashboard-drop-indicator {
+	position: absolute;
+	inset: 0.7rem;
+	border-radius: 0.8rem;
+	border: dashed 0.08rem rgb(from var(--gc-color-focus) r g b / 0.9);
+	background: rgb(from var(--gc-color-focus) r g b / 0.16);
+	color: white;
+	pointer-events: none;
+}
+
+.gc-dashboard-canvas.dashboard-drop-preview,
+.gc-dashboard-canvas .dashboard-drop-preview {
+	pointer-events: none;
+	z-index: 2;
+}
+
+.gc-dashboard-canvas.dashboard-drop-preview-flow,
+.gc-dashboard-canvas .dashboard-drop-preview-flow,
+.gc-dashboard-canvas.dashboard-drop-preview-panel,
+.gc-dashboard-canvas .dashboard-drop-preview-panel {
+	min-inline-size: 0;
+	min-block-size: 4.75rem;
+}
+
+.gc-dashboard-canvas.dashboard-drop-preview-flow,
+.gc-dashboard-canvas .dashboard-drop-preview-flow {
+	align-self: stretch;
+}
+
+.gc-dashboard-canvas.dashboard-drop-preview-panel,
+.gc-dashboard-canvas .dashboard-drop-preview-panel {
+	flex: 1 1 auto;
+	inline-size: 100%;
+}
+
+.gc-dashboard-canvas.dashboard-drop-preview-tab,
+.gc-dashboard-canvas .dashboard-drop-preview-tab {
+	pointer-events: none;
+	border-style: dashed;
+}
+
+.gc-dashboard-canvas.dashboard-drop-preview.is-committing,
+.gc-dashboard-canvas .dashboard-drop-preview.is-committing {
+	opacity: 0.82;
+}
+
+.gc-dashboard-canvas.dashboard-drop-preview-fill,
+.gc-dashboard-canvas .dashboard-drop-preview-fill {
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+	gap: 0.55rem;
+	inline-size: 100%;
+	block-size: 100%;
+	padding: 0.75rem 0.85rem;
+	box-sizing: border-box;
+	border-radius: 0.8rem;
+	border: dashed 0.08rem rgb(from var(--gc-color-focus) r g b / 0.92);
+	background:
+		linear-gradient(
+			180deg,
+			rgb(from var(--gc-color-focus) r g b / 0.18),
+			rgb(from var(--gc-color-selection) r g b / 0.1)
+		),
+		rgb(from var(--gc-color-background) r g b / 0.62);
+	box-shadow: 0 0.4rem 1rem rgb(from var(--gc-color-background) r g b / 0.2);
+	color: white;
+	overflow: hidden;
+}
+
+.gc-dashboard-canvas.dashboard-drop-preview-meta,
+.gc-dashboard-canvas .dashboard-drop-preview-meta {
+	display: flex;
+	flex-direction: column;
+	gap: 0.2rem;
+}
+
+.gc-dashboard-canvas.dashboard-drop-preview-fill strong,
+.gc-dashboard-canvas .dashboard-drop-preview-fill strong {
+	font-size: 0.78rem;
+	font-weight: 600;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.gc-dashboard-canvas.dashboard-drop-preview-kind,
+.gc-dashboard-canvas .dashboard-drop-preview-kind {
+	opacity: 0.72;
+}
+
+.gc-dashboard-canvas.dashboard-drop-preview-shell,
+.gc-dashboard-canvas .dashboard-drop-preview-shell {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	justify-content: center;
+	gap: 0.45rem;
+	min-block-size: 0;
+}
+
+.gc-dashboard-canvas.dashboard-drop-preview-node-toolbar,
+.gc-dashboard-canvas .dashboard-drop-preview-node-toolbar,
+.gc-dashboard-canvas.dashboard-drop-preview-node-lines,
+.gc-dashboard-canvas .dashboard-drop-preview-node-lines {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+}
+
+.gc-dashboard-canvas.dashboard-drop-preview-node-toolbar span,
+.gc-dashboard-canvas .dashboard-drop-preview-node-toolbar span,
+.gc-dashboard-canvas.dashboard-drop-preview-node-lines span,
+.gc-dashboard-canvas .dashboard-drop-preview-node-lines span,
+.gc-dashboard-canvas.dashboard-drop-preview-slider-track,
+.gc-dashboard-canvas .dashboard-drop-preview-slider-track,
+.gc-dashboard-canvas.dashboard-drop-preview-input,
+.gc-dashboard-canvas .dashboard-drop-preview-input,
+.gc-dashboard-canvas.dashboard-drop-preview-text,
+.gc-dashboard-canvas .dashboard-drop-preview-text,
+.gc-dashboard-canvas.dashboard-drop-preview-button,
+.gc-dashboard-canvas .dashboard-drop-preview-button,
+.gc-dashboard-canvas.dashboard-drop-preview-checkbox,
+.gc-dashboard-canvas .dashboard-drop-preview-checkbox {
+	border-radius: 0.55rem;
+}
+
+.gc-dashboard-canvas.dashboard-drop-preview-node-toolbar span,
+.gc-dashboard-canvas .dashboard-drop-preview-node-toolbar span,
+.gc-dashboard-canvas.dashboard-drop-preview-node-lines span,
+.gc-dashboard-canvas .dashboard-drop-preview-node-lines span,
+.gc-dashboard-canvas.dashboard-drop-preview-slider-track,
+.gc-dashboard-canvas .dashboard-drop-preview-slider-track,
+.gc-dashboard-canvas.dashboard-drop-preview-checkbox-box,
+.gc-dashboard-canvas .dashboard-drop-preview-checkbox-box {
+	background: rgb(from var(--gc-color-text) r g b / 0.18);
+}
+
+.gc-dashboard-canvas.dashboard-drop-preview-node-toolbar span,
+.gc-dashboard-canvas .dashboard-drop-preview-node-toolbar span {
+	block-size: 0.45rem;
+}
+
+.gc-dashboard-canvas.dashboard-drop-preview-node-lines span,
+.gc-dashboard-canvas .dashboard-drop-preview-node-lines span {
+	block-size: 0.5rem;
+}
+
+.gc-dashboard-canvas.dashboard-drop-preview-node-lines span.wide,
+.gc-dashboard-canvas .dashboard-drop-preview-node-lines span.wide {
+	inline-size: 100%;
+}
+
+.gc-dashboard-canvas.dashboard-drop-preview-node-lines span.short,
+.gc-dashboard-canvas .dashboard-drop-preview-node-lines span.short {
+	inline-size: 58%;
+}
+
+.gc-dashboard-canvas.dashboard-drop-preview-button,
+.gc-dashboard-canvas .dashboard-drop-preview-button,
+.gc-dashboard-canvas.dashboard-drop-preview-text,
+.gc-dashboard-canvas .dashboard-drop-preview-text,
+.gc-dashboard-canvas.dashboard-drop-preview-input,
+.gc-dashboard-canvas .dashboard-drop-preview-input,
+.gc-dashboard-canvas.dashboard-drop-preview-checkbox,
+.gc-dashboard-canvas .dashboard-drop-preview-checkbox,
+.gc-dashboard-canvas.dashboard-drop-preview-slider,
+.gc-dashboard-canvas .dashboard-drop-preview-slider {
+	display: flex;
+	align-items: center;
+	min-block-size: 0;
+}
+
+.gc-dashboard-canvas.dashboard-drop-preview-button,
+.gc-dashboard-canvas .dashboard-drop-preview-button,
+.gc-dashboard-canvas.dashboard-drop-preview-text,
+.gc-dashboard-canvas .dashboard-drop-preview-text,
+.gc-dashboard-canvas.dashboard-drop-preview-input,
+.gc-dashboard-canvas .dashboard-drop-preview-input {
+	padding: 0.65rem 0.8rem;
+	background: rgb(from var(--gc-color-background) r g b / 0.38);
+	border: solid 0.06rem rgb(from var(--gc-color-text) r g b / 0.18);
+}
+
+.gc-dashboard-canvas.dashboard-drop-preview-button,
+.gc-dashboard-canvas .dashboard-drop-preview-button {
+	justify-content: center;
+	font-weight: 600;
+}
+
+.gc-dashboard-canvas.dashboard-drop-preview-text,
+.gc-dashboard-canvas .dashboard-drop-preview-text {
+	align-items: flex-start;
+	line-height: 1.4;
+}
+
+.gc-dashboard-canvas.dashboard-drop-preview-input,
+.gc-dashboard-canvas .dashboard-drop-preview-input {
+	color: rgb(from var(--gc-color-text) r g b / 0.72);
+}
+
+.gc-dashboard-canvas.dashboard-drop-preview-input.multiline,
+.gc-dashboard-canvas .dashboard-drop-preview-input.multiline {
+	align-items: flex-start;
+	min-block-size: 4.4rem;
+}
+
+.gc-dashboard-canvas.dashboard-drop-preview-slider,
+.gc-dashboard-canvas .dashboard-drop-preview-slider {
+	flex-direction: column;
+	align-items: stretch;
+	gap: 0.45rem;
+}
+
+.gc-dashboard-canvas.dashboard-drop-preview-slider-label,
+.gc-dashboard-canvas .dashboard-drop-preview-slider-label {
+	font-size: 0.72rem;
+	opacity: 0.78;
+}
+
+.gc-dashboard-canvas.dashboard-drop-preview-slider-track,
+.gc-dashboard-canvas .dashboard-drop-preview-slider-track {
+	display: block;
+	block-size: 0.5rem;
+	overflow: hidden;
+}
+
+.gc-dashboard-canvas.dashboard-drop-preview-slider-track > span,
+.gc-dashboard-canvas .dashboard-drop-preview-slider-track > span {
+	display: block;
+	block-size: 100%;
+	inline-size: 48%;
+	border-radius: inherit;
+	background: rgb(from var(--gc-color-selection) r g b / 0.78);
+}
+
+.gc-dashboard-canvas.dashboard-drop-preview-checkbox,
+.gc-dashboard-canvas .dashboard-drop-preview-checkbox {
+	gap: 0.55rem;
+	padding: 0.65rem 0.1rem;
+}
+
+.gc-dashboard-canvas.dashboard-drop-preview-checkbox-box,
+.gc-dashboard-canvas .dashboard-drop-preview-checkbox-box {
+	inline-size: 1rem;
+	block-size: 1rem;
+	border-radius: 0.3rem;
+	flex: 0 0 auto;
+}
+
+.gc-dashboard-canvas.generic-body,
+.gc-dashboard-canvas .generic-body {
+	display: flex;
+	flex: 1 1 auto;
+	align-items: stretch;
+	justify-content: stretch;
+	padding: 0;
+	min-block-size: 0;
+}
+
+.gc-dashboard-canvas.generic-button,
+.gc-dashboard-canvas .generic-button,
+.gc-dashboard-canvas.generic-text-display,
+.gc-dashboard-canvas .generic-text-display,
+.gc-dashboard-canvas.generic-slider-wrap,
+.gc-dashboard-canvas .generic-slider-wrap,
+.gc-dashboard-canvas.generic-checkbox,
+.gc-dashboard-canvas .generic-checkbox,
+.gc-dashboard-canvas.generic-input-shell,
+.gc-dashboard-canvas .generic-input-shell {
+	inline-size: 100%;
+	block-size: 100%;
+}
+
+.gc-dashboard-canvas.generic-button,
+.gc-dashboard-canvas .generic-button {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 0.7rem;
+	padding: 0.55rem 0.8rem;
+	background:
+		linear-gradient(
+			135deg,
+			rgb(from var(--gc-color-selection) r g b / 0.32),
+			rgb(from var(--gc-color-binding) r g b / 0.18)
+		),
+		rgb(from var(--gc-color-background) r g b / 0.7);
+	border: solid 0.06rem rgb(from var(--gc-color-selection) r g b / 0.6);
+	color: #f2f5ff;
+	font-size: 0.76rem;
+	font-weight: 600;
+}
+
+.gc-dashboard-canvas.generic-text-display,
+.gc-dashboard-canvas .generic-text-display,
+.gc-dashboard-canvas.generic-slider-wrap,
+.gc-dashboard-canvas .generic-slider-wrap,
+.gc-dashboard-canvas.generic-checkbox,
+.gc-dashboard-canvas .generic-checkbox,
+.gc-dashboard-canvas.generic-input-shell,
+.gc-dashboard-canvas .generic-input-shell {
+	border-radius: 0.7rem;
+	background: rgb(from var(--gc-color-background) r g b / 0.48);
+	border: solid 0.06rem rgb(from var(--gc-color-panel-outline) r g b / 0.48);
+	padding: 0.5rem 0.65rem;
+	box-sizing: border-box;
+}
+
+.gc-dashboard-canvas.generic-button.with-inside-label,
+.gc-dashboard-canvas .generic-button.with-inside-label,
+.gc-dashboard-canvas.generic-text-display.with-inside-label,
+.gc-dashboard-canvas .generic-text-display.with-inside-label,
+.gc-dashboard-canvas.generic-checkbox.with-inside-label,
+.gc-dashboard-canvas .generic-checkbox.with-inside-label,
+.gc-dashboard-canvas.generic-input-shell.with-inside-label,
+.gc-dashboard-canvas .generic-input-shell.with-inside-label {
+	padding-block-start: 1.85rem;
+}
+
+.gc-dashboard-canvas.generic-inline-label,
+.gc-dashboard-canvas .generic-inline-label {
+	position: absolute;
+	inset-inline-start: 0.65rem;
+	inset-block-start: 0.55rem;
+	z-index: 1;
+	max-inline-size: calc(100% - 1.3rem);
+	padding: 0.26rem 0.5rem;
+	border-radius: 999rem;
+	background: rgb(from var(--gc-color-background) r g b / 0.82);
+	box-shadow: 0 0.2rem 0.6rem rgb(from var(--gc-color-background) r g b / 0.16);
+	font-size: 0.66rem;
+	font-weight: 600;
+	line-height: 1.1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	pointer-events: none;
+}
+
+.gc-dashboard-canvas.generic-button-text,
+.gc-dashboard-canvas .generic-button-text,
+.gc-dashboard-canvas.generic-text-display-value,
+.gc-dashboard-canvas .generic-text-display-value,
+.gc-dashboard-canvas.generic-checkbox-text,
+.gc-dashboard-canvas .generic-checkbox-text {
+	min-inline-size: 0;
+}
+
+.gc-dashboard-canvas.generic-slider-wrap,
+.gc-dashboard-canvas .generic-slider-wrap {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.gc-dashboard-canvas.generic-slider-bar,
+.gc-dashboard-canvas .generic-slider-bar {
+	display: flex;
+	flex: 1 1 auto;
+	min-block-size: 1.6rem;
+}
+
+.gc-dashboard-canvas.generic-slider-bar .slider-label,
+.gc-dashboard-canvas .generic-slider-bar .slider-label {
+	padding-inline: 0.7rem;
+	font-size: 0.72rem;
+}
+
+.gc-dashboard-canvas.generic-text-display,
+.gc-dashboard-canvas .generic-text-display {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	text-align: center;
+}
+
+.gc-dashboard-canvas.generic-readout,
+.gc-dashboard-canvas .generic-readout {
+	font-size: 0.72rem;
+	opacity: 0.76;
+}
+
+.gc-dashboard-canvas.generic-checkbox,
+.gc-dashboard-canvas .generic-checkbox {
+	position: relative;
+	display: flex;
+	flex: 1 1 auto;
+	gap: 0.6rem;
+	align-items: center;
+}
+
+.gc-dashboard-canvas.generic-checkbox input,
+.gc-dashboard-canvas .generic-checkbox input {
+	flex: 0 0 auto;
+}
+
+.gc-dashboard-canvas.generic-input-shell,
+.gc-dashboard-canvas .generic-input-shell {
+	position: relative;
+	display: flex;
+	flex: 1 1 auto;
+	min-inline-size: 0;
+	min-block-size: 0;
+}
+
+.gc-dashboard-canvas.generic-input-shell > input[type='text'],
+.gc-dashboard-canvas .generic-input-shell > input[type='text'],
+.gc-dashboard-canvas.generic-input-shell > textarea,
+.gc-dashboard-canvas .generic-input-shell > textarea {
+	inline-size: 100%;
+	block-size: 100%;
+	min-inline-size: 0;
+	min-block-size: 0;
+	border: none;
+	background: transparent;
+	padding: 0;
+	outline: none;
+	font: inherit;
+	color: inherit;
+}
+
+.gc-dashboard-canvas.generic-input-shell > textarea,
+.gc-dashboard-canvas .generic-input-shell > textarea {
+	resize: none;
+	min-block-size: 0;
+}
