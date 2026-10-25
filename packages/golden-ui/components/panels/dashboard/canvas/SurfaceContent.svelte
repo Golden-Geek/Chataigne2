@@ -2,6 +2,7 @@
 	import { getContext } from 'svelte';
 	import { dashboardViewContextKey, type DashboardViewContext } from './view-context.svelte';
 	import { createFreeSurfaceViewport } from './free-surface-viewport.svelte';
+	import FreeSurfaceOverview from './FreeSurfaceOverview.svelte';
 	import type { createDashboardSurface } from './surface.svelte';
 	import type { createDashboardMarquee } from './marquee.svelte';
 	import type { SurfaceDropPreview } from './contracts';
@@ -241,7 +242,13 @@
 		class="dashboard-layout"
 		bind:this={freeLayoutElement}
 		data-dashboard-free-total={childWidgets.length}
-		data-dashboard-free-mounted={mountedFreeWidgets.length}>
+		data-dashboard-free-mounted={mountedFreeWidgets.length}
+		data-dashboard-free-presentation={freeViewport.overview ? 'overview' : 'detail'}>
+		{#if freeViewport.overview}
+			<FreeSurfaceOverview
+				overview={freeViewport.overview}
+				activate={(x, y) => view?.activateAt(surface.node.node_id, x, y)} />
+		{/if}
 		{#each mountedFreeWidgets as child (child.node_id)}
 			{#if shouldRenderSurfaceDropPreviewBeforeChild(child)}
 				{@render dashboardSurfaceDropPreviewSlot(

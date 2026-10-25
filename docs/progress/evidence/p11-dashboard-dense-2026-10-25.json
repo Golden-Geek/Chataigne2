@@ -1,0 +1,980 @@
+{
+  "baseline": "bbcc63f4",
+  "rawReport": "target/qualification/p11-dashboard-viewport-2026-10-25T14-59-27-907Z.json",
+  "rawReportSha256": "140318261f463cec3e2a50ac307666c4f25133e051c27ec53835eba7a3dbd08d",
+  "validation": {
+    "uiTests": {
+      "audio": 27,
+      "graph": 52,
+      "goldenUi": 98,
+      "app": 115,
+      "total": 292
+    },
+    "browserFixtureCheck": {
+      "errors": 0,
+      "warnings": 0
+    },
+    "appCheck": {
+      "errors": 0,
+      "warnings": 0
+    },
+    "prettier": "passed",
+    "whitespace": "passed",
+    "rootCargoFmt": "passed",
+    "coreCargoFmt": "passed",
+    "build": {
+      "command": "CARGO_INCREMENTAL=0 cargo build --locked -p Chataigne2",
+      "exitCode": 0,
+      "seconds": 146,
+      "binarySha256": "1743501915cc5656b0a1f5478a0f7242c871701615c5db360599cdb2fea31230"
+    },
+    "sourceInventory": {
+      "files": 2111,
+      "oversized": 27,
+      "dashboardCanvasLines": 929
+    }
+  },
+  "qualification": {
+    "scope": "sparse-and-dense",
+    "baseline": "654a5f15",
+    "browser": "156.0.4314.42",
+    "machine": {
+      "platform": "win32",
+      "release": "10.0.26300",
+      "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+      "logicalCpus": 24,
+      "memoryBytes": 33752997888,
+      "node": "v26.5.0"
+    },
+    "source": {
+      "packages/golden-ui/components/panels/dashboard/canvas/binding-drop.svelte.ts": "e339d4d4c6986f9b237f6e307d54bfadc2ef34ef4d8a165cde00a34c86fa6f78",
+      "packages/golden-ui/components/panels/dashboard/canvas/camera.svelte.ts": "93e4c62ff55b7351bf0623101c832b6946948b94fe9c31cd3794b305b34dc07a",
+      "packages/golden-ui/components/panels/dashboard/canvas/context-menu.svelte.ts": "c927e623b623d45cd5cd29eca890d7f6012ef82588c870f104b50aee6fee5bd7",
+      "packages/golden-ui/components/panels/dashboard/canvas/contracts.ts": "5eeacf09fc9a735bb542d22fb0dd36c30dee3e5f0d67ec245af97e5d968b84af",
+      "packages/golden-ui/components/panels/dashboard/canvas/dom.ts": "dfd23994882e79cdafd9e8c0e77949a9a947f2020be9fd04044a95126a435a7e",
+      "packages/golden-ui/components/panels/dashboard/canvas/free-layout.svelte.ts": "c7f417fc995e672dc03fb3b0515e582b9a48f9ff642dd99c78113dc89416fd60",
+      "packages/golden-ui/components/panels/dashboard/canvas/free-surface-geometry.ts": "0745fe3ae62f6555cb3ab0db0604efd790886c6cba5c0c52590fc11751279fb4",
+      "packages/golden-ui/components/panels/dashboard/canvas/free-surface-groups.ts": "60327f480cb7f2495c7e73d649ad4c4845024e202e4d96196a3722f165922b8e",
+      "packages/golden-ui/components/panels/dashboard/canvas/free-surface-viewport.svelte.ts": "56e2cd9e4951d1d3b519ac375d1391a1dbf24513563c053ffed055248582ee52",
+      "packages/golden-ui/components/panels/dashboard/canvas/FreeSurfaceOverview.svelte": "a9710c5c435477b9af57b198c1542a6603df9e15343ae4e1be24f09d9fdc8e6d",
+      "packages/golden-ui/components/panels/dashboard/canvas/geometry.ts": "6e65dff4c6bae0c879d152e33cc129dc6a92fa5192af82ca19ac3081f3f0a65f",
+      "packages/golden-ui/components/panels/dashboard/canvas/interaction-chrome.svelte.ts": "9208ca64408fb7326e698200758926e0bcaf1530278990cdcaa8efb70d7d34d4",
+      "packages/golden-ui/components/panels/dashboard/canvas/interaction-geometry.svelte.ts": "e5f1b13a739ec7e7a48a201faf2296c933ff566fe2b751d2670c1aa0f5cc59d2",
+      "packages/golden-ui/components/panels/dashboard/canvas/marquee.svelte.ts": "af7caade8363ec14d39e1c32ff6339f72633bec2aeabfe72fb6cc340460b665a",
+      "packages/golden-ui/components/panels/dashboard/canvas/ordered-layout.svelte.ts": "e3674a00c0246448afb2a4d3eee577ca35155ab9c3721fbc97fd470d2bf46ae2",
+      "packages/golden-ui/components/panels/dashboard/canvas/page-view.ts": "190011aa3367269977700c4713cdff05d2f4ef759452fe77e3fa54d9c3ccd465",
+      "packages/golden-ui/components/panels/dashboard/canvas/styles/content-preview.css": "619ccc41a8e8c8d6dfffea3dc75bd157060f1dae7ae495239a64b091ba690791",
+      "packages/golden-ui/components/panels/dashboard/canvas/styles/surface-layout.css": "5add64edbc4e497c55211ebab51afaefbf741e893b0f9e954585e8dad50e5744",
+      "packages/golden-ui/components/panels/dashboard/canvas/styles/widget-frame.css": "711faee568b70043232b7c46ac07f07511bd244654a82f415b55af67e48ad77a",
+      "packages/golden-ui/components/panels/dashboard/canvas/surface.svelte.ts": "e9e2f249f760da85e262fc54b4ef4dca23b5917b4778fc71d81bd5ec6de75471",
+      "packages/golden-ui/components/panels/dashboard/canvas/SurfaceContent.svelte": "d6f8abf3945d8fe7c079edda0d57016ba7399de3aafc48323088442113602bf9",
+      "packages/golden-ui/components/panels/dashboard/canvas/tests/fixtures.ts": "626f1373e2433f81736cd071bb22e67782266f2baf4dd4a7e32a29a4859e3303",
+      "packages/golden-ui/components/panels/dashboard/canvas/tests/free-surface-geometry.test.ts": "effc25bf2ecd34e2aadd118e5e21084b582574afbe4760dcd0d449f7e224f95d",
+      "packages/golden-ui/components/panels/dashboard/canvas/tests/free-surface-groups.test.ts": "46476a726807f80aac8950953798f7169f1afe022ef7118e3c25288dbb3dd021",
+      "packages/golden-ui/components/panels/dashboard/canvas/tests/free-surface-presentation.test.ts": "de066a646a18a6c035c7d58b9a43d9688e38fd564b3bfd0c251cd58b7f6c9bff",
+      "packages/golden-ui/components/panels/dashboard/canvas/view-context.svelte.ts": "83ab6660ae4a9fb5cf7931040fb4c755c7f992200894a6e8b8460b93b25bb981",
+      "packages/golden-ui/components/panels/dashboard/canvas/widget-content.svelte.ts": "97b744b7d701ffa7fb8d01dbab4d03524108ecc53eac4af7dc96cbddfbf1f554",
+      "packages/golden-ui/components/panels/dashboard/dashboard-actions.ts": "c22a51e5a4dc4c8c9be9c732a17d51a62dc3315ea78adc2c2e60d7e838bd7c0d",
+      "packages/golden-ui/components/panels/dashboard/dashboard-drag.ts": "9e2ae85e765b38a53f65138582521e299ae2f26ae2d47f79eade5a296f942a43",
+      "packages/golden-ui/components/panels/dashboard/dashboard-model.ts": "d7c0f3a3a9b89658ca767b14d5bf0a9f425979a76e61be9973e4a3bf959eb6be",
+      "packages/golden-ui/components/panels/dashboard/dashboard-node-widget-options.ts": "6955d5da8c29656e7dd6466ef7b6f32f4336412e0650cb2d23803975febb89b8",
+      "packages/golden-ui/components/panels/dashboard/dashboard-node-widget-registry.ts": "4785c142172d939a2f6bf76d31665610f0a5e523e99bb3b878c4d05162d5bf65",
+      "packages/golden-ui/components/panels/dashboard/dashboard-route.ts": "e93fea51ffd68aac521494b7486ecd0a57553c6eea44f608081c844282309944",
+      "packages/golden-ui/components/panels/dashboard/DashboardCanvas.svelte": "8f2fd9e49d01aa9eadceea798c6d9988d7314c601fdad11a03e4ca6206d9cbef",
+      "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetInspectorContent.svelte": "e357664cd4dbba8b17ee6ee61184e7e4415c9e86d8d2325575eab3d631bf2ef6",
+      "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetNumberRotaryContent.svelte": "245da72f871f93b7e8d82b7b6e4f9d5d09ba8da310638c7bf1181fd2cb7b440d",
+      "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetNumberSliderContent.svelte": "0119c271e9c64a98dd72630325649e3f1f3c390787f5511475e66c010876b771",
+      "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetParameterEditorContent.svelte": "4848d3533614627fd6302d772f46ad2706e796e3c8df39a69828c6dfab7ca4ef",
+      "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetVec2PadContent.svelte": "ea70f0059bfd3af60746219234f8d80976469e681b88047575bee59e98f82ee8",
+      "packages/golden-ui/components/panels/dashboard/DashboardPanel.svelte": "dba2b304d23643a9bc92b137a1dfe07f38760123fe867a4a66f7bb2025d0fdc5",
+      "packages/golden-ui/components/panels/dashboard/DashboardViewer.svelte": "6cb0e0b37763964b5b09df01819c613ef073e94c1f6b13006824db3cea29370a",
+      "packages/golden-ui/tests/browser/fixture/dashboard-data.ts": "991c5f5d02fa03b94513cab3038841d8bfac2447e69af1a3f31af752baf69a8d",
+      "packages/golden-ui/tests/browser/fixture/dashboard-forest.ts": "6c7797f7b33d2f63ca0a8cd8c703cbee9a17b4f81786cc81a72af5abd6c5bc4a",
+      "packages/golden-ui/tests/browser/fixture/dashboard.html": "70bc3752b3e8beca950e542617e7cd3491f8871a1ca954b435d9522099ad34fd",
+      "packages/golden-ui/tests/browser/fixture/dashboard.ts": "4f8c93e78ef6e02957955e215bdfc0e9577385256fb8fcbc943e149ad06a3ef1",
+      "packages/golden-ui/tests/browser/fixture/DashboardFixture.svelte": "2acf79af4e21e9ee20ae8af8cf38eb6bd3048d18745149e9ac1ef5582b02610f",
+      "packages/golden-ui/tests/browser/fixture/DashboardRegistryContent.svelte": "f783c801c15be591724b2f7522d3cba33fe2f34cfda424b86c82655ab5caf076",
+      "packages/golden-ui/tests/browser/fixture/session.ts": "f0c7640a1558105f8d11cd8060bb1393e7d8827c6fbd95bee883aa672bc3cf67",
+      "packages/golden-ui/store/graph-index.ts": "70b413486e35b2fedbc84e519b8af7cf4120a3008693173b4e35f17789d9b38f",
+      "packages/golden-ui/css-value.ts": "5268e49361e4e93a97e255222b80ad8c63c331c5348cef21200e3a087b2f54c4",
+      "packages/golden-ui/tests/css-value-units.test.ts": "ca0f33dff72c4dd1c0819d2813c28d40c2cb2743547f7425c99275c2ce23f0b4",
+      "packages/golden-graph-ui/spatial-index.ts": "31ad23a5f30693cde74853adc8d21322df85c06096268ace52b063539749c8c4",
+      "packages/golden-ui/package.json": "068fddd9de78f79562b6eb241cb605fa9984ec337105991c10a67d05aff7c3a5",
+      "package-lock.json": "1a515eb16812648c25cab5914c8ec2562aeeab8bf6f5a84921bd20d659e5ec28",
+      "packages/golden-ui/tests/browser/dashboard-dense.mjs": "f94ac1588a2f463b9ed4b696a42800b2fc7905400ebe8b1ab2ac2f784fc62aae",
+      "packages/golden-ui/tests/browser/dashboard-viewport.mjs": "7875e9ba1190ae896835977477d234bebdd1230b358bdedad05043045e8ffe5d"
+    },
+    "cases": [
+      {
+        "label": "visible-preservation-run",
+        "mounted": 48,
+        "painted": 40,
+        "paintedIds": [
+          "11",
+          "22",
+          "33",
+          "44",
+          "55",
+          "451",
+          "462",
+          "473",
+          "484",
+          "495",
+          "891",
+          "902",
+          "913",
+          "924",
+          "935",
+          "1331",
+          "1342",
+          "1353",
+          "1364",
+          "1375",
+          "1771",
+          "1782",
+          "1793",
+          "1804",
+          "1815",
+          "2211",
+          "2222",
+          "2233",
+          "2244",
+          "2255",
+          "2651",
+          "2662",
+          "2673",
+          "2684",
+          "2695",
+          "3091",
+          "3102",
+          "3113",
+          "3124",
+          "3135"
+        ],
+        "mountedIds": [
+          "11",
+          "22",
+          "33",
+          "44",
+          "55",
+          "66",
+          "451",
+          "462",
+          "473",
+          "484",
+          "495",
+          "506",
+          "891",
+          "902",
+          "913",
+          "924",
+          "935",
+          "946",
+          "1331",
+          "1342",
+          "1353",
+          "1364",
+          "1375",
+          "1386",
+          "1771",
+          "1782",
+          "1793",
+          "1804",
+          "1815",
+          "1826",
+          "2211",
+          "2222",
+          "2233",
+          "2244",
+          "2255",
+          "2266",
+          "2651",
+          "2662",
+          "2673",
+          "2684",
+          "2695",
+          "2706",
+          "3091",
+          "3102",
+          "3113",
+          "3124",
+          "3135",
+          "3146"
+        ],
+        "passed": true
+      },
+      {
+        "label": "visible-preservation-edit",
+        "mounted": 54,
+        "painted": 48,
+        "paintedIds": [
+          "11",
+          "22",
+          "33",
+          "44",
+          "55",
+          "66",
+          "451",
+          "462",
+          "473",
+          "484",
+          "495",
+          "506",
+          "891",
+          "902",
+          "913",
+          "924",
+          "935",
+          "946",
+          "1331",
+          "1342",
+          "1353",
+          "1364",
+          "1375",
+          "1386",
+          "1771",
+          "1782",
+          "1793",
+          "1804",
+          "1815",
+          "1826",
+          "2211",
+          "2222",
+          "2233",
+          "2244",
+          "2255",
+          "2266",
+          "2651",
+          "2662",
+          "2673",
+          "2684",
+          "2695",
+          "2706",
+          "3091",
+          "3102",
+          "3113",
+          "3124",
+          "3135",
+          "3146"
+        ],
+        "mountedIds": [
+          "11",
+          "22",
+          "33",
+          "44",
+          "55",
+          "66",
+          "451",
+          "462",
+          "473",
+          "484",
+          "495",
+          "506",
+          "891",
+          "902",
+          "913",
+          "924",
+          "935",
+          "946",
+          "1331",
+          "1342",
+          "1353",
+          "1364",
+          "1375",
+          "1386",
+          "1771",
+          "1782",
+          "1793",
+          "1804",
+          "1815",
+          "1826",
+          "2211",
+          "2222",
+          "2233",
+          "2244",
+          "2255",
+          "2266",
+          "2651",
+          "2662",
+          "2673",
+          "2684",
+          "2695",
+          "2706",
+          "3091",
+          "3102",
+          "3113",
+          "3124",
+          "3135",
+          "3146",
+          "3531",
+          "3542",
+          "3553",
+          "3564",
+          "3575",
+          "3586"
+        ],
+        "passed": true
+      },
+      {
+        "label": "nested-free-surface-clipping",
+        "mounted": 25,
+        "passed": true
+      },
+      {
+        "label": "six-layout-edit-run-mounted-smoke",
+        "passed": true
+      },
+      {
+        "label": "focused-control-retention-and-root-font",
+        "passed": true
+      },
+      {
+        "label": "retired-focus-fallback",
+        "passed": true
+      },
+      {
+        "label": "native-range-retention-and-release",
+        "passed": true
+      },
+      {
+        "label": "live-position-leaves-and-enters-viewport",
+        "passed": true
+      },
+      {
+        "label": "inherited-em-font-and-logical-boundary",
+        "passed": true
+      },
+      {
+        "label": "container-tabs-state-retention",
+        "passed": true
+      },
+      {
+        "label": "container-accordion-state-retention",
+        "passed": true
+      },
+      {
+        "label": "frame-beneath-unmounted-container",
+        "dx": 0.0009765625,
+        "dy": 0.0009765625,
+        "passed": true
+      },
+      {
+        "label": "batched-frame-across-100-offscreen-containers",
+        "peakMounted": 32,
+        "dx": 0.014628906250436557,
+        "dy": 0.0016601562499545253,
+        "passed": true
+      },
+      {
+        "label": "pending-frame-yields-to-new-navigation",
+        "passed": true
+      },
+      {
+        "label": "dense-overlap-1000-run",
+        "authoredNodes": 1001,
+        "widgets": 90,
+        "initialMounted": 90,
+        "groups": 0,
+        "bulkMounted": 89,
+        "picked": 990,
+        "control": {
+          "label": "   Widget 89 ",
+          "width": 241.91998291015625,
+          "height": 100.80000305175781,
+          "fit": 0,
+          "box": [
+            32,
+            39.02000045776367,
+            241.91998291015625,
+            100.80000305175781
+          ],
+          "front": "<input type=\"text\" placeholder=\"\">",
+          "reachable": true
+        },
+        "transitionScope": "Focus retained beyond the run-mode page clip",
+        "passed": true
+      },
+      {
+        "label": "dense-grid-minimum-zoom-1000-run",
+        "widgets": 90,
+        "presentation": "detail",
+        "mounted": 18,
+        "groups": 0,
+        "coverage": {
+          "visible": 15,
+          "missing": [],
+          "maximumError": 0.00004150390624602096,
+          "maximumGroupError": 0
+        },
+        "scope": "Viewport slice at 0.25; run mode retains the authored page clip",
+        "passed": true
+      },
+      {
+        "label": "dense-overlap-1000-edit",
+        "authoredNodes": 1001,
+        "widgets": 90,
+        "initialMounted": 90,
+        "groups": 0,
+        "bulkMounted": 89,
+        "picked": 990,
+        "control": {
+          "label": "   Widget 89 ",
+          "width": 229.4964599609375,
+          "height": 95.62354278564453,
+          "fit": 0,
+          "box": [
+            70.823486328125,
+            66.39058685302734,
+            229.4964599609375,
+            95.62354278564453
+          ],
+          "front": "<div class=\"dashboard-widget-content generic-body\"><div class=\"dashboard-live-content inert-mode\" inert=\"\"><!----><div class=\"generic-input-shell with-inside-label\"><span class=\"generic-inline-label\">Widget 89</span><!----> <input type=\"tex",
+          "reachable": true
+        },
+        "transitionScope": "Distant editing staging",
+        "passed": true
+      },
+      {
+        "label": "dense-grid-minimum-zoom-1000-edit",
+        "widgets": 90,
+        "presentation": "detail",
+        "mounted": 38,
+        "groups": 0,
+        "coverage": {
+          "visible": 38,
+          "missing": [],
+          "maximumError": 0.00009765625000568434,
+          "maximumGroupError": 0
+        },
+        "scope": "Viewport slice at 0.25; run mode retains the authored page clip",
+        "passed": true
+      },
+      {
+        "label": "dense-overlap-10000-run",
+        "authoredNodes": 10010,
+        "widgets": 909,
+        "initialMounted": 0,
+        "groups": 256,
+        "bulkMounted": 17,
+        "picked": 9999,
+        "control": {
+          "label": "  Widget 908   0.42",
+          "width": 241.91998291015625,
+          "height": 100.80000305175781,
+          "fit": 0,
+          "box": [
+            32,
+            39.02000045776367,
+            241.91998291015625,
+            100.80000305175781
+          ],
+          "front": "<div class=\"generic-slider-wrap\"><div class=\"generic-slider-bar\"><!----><div role=\"slider\" tabindex=\"-1\" class=\"slider svelte-1omiy18\" aria-valuenow=\"0.42\" style=\"--bg-color: var(--gc-color-slider-bg); --fg-color: var(--gc-color-slider-fg);",
+          "reachable": true
+        },
+        "transitionScope": "Focus retained beyond the run-mode page clip",
+        "passed": true
+      },
+      {
+        "label": "dense-grid-minimum-zoom-10000-run",
+        "widgets": 909,
+        "presentation": "detail",
+        "mounted": 48,
+        "groups": 0,
+        "coverage": {
+          "visible": 40,
+          "missing": [],
+          "maximumError": 0.00007324218750071054,
+          "maximumGroupError": 0
+        },
+        "scope": "Viewport slice at 0.25; run mode retains the authored page clip",
+        "passed": true
+      },
+      {
+        "label": "dense-overlap-10000-edit",
+        "authoredNodes": 10010,
+        "widgets": 909,
+        "initialMounted": 0,
+        "groups": 256,
+        "bulkMounted": 17,
+        "picked": 9999,
+        "control": {
+          "label": "  Widget 908   0.42",
+          "width": 229.4964599609375,
+          "height": 95.62354278564453,
+          "fit": 0,
+          "box": [
+            70.823486328125,
+            66.39058685302734,
+            229.4964599609375,
+            95.62354278564453
+          ],
+          "front": "<div class=\"dashboard-widget-content generic-body\"><div class=\"dashboard-live-content inert-mode\" inert=\"\"><div class=\"generic-slider-wrap\"><div class=\"generic-slider-bar\"><!----><div role=\"slider\" tabindex=\"-1\" class=\"slider svelte-1omiy18",
+          "reachable": true
+        },
+        "transitionScope": "Distant editing staging",
+        "passed": true
+      },
+      {
+        "label": "dense-grid-minimum-zoom-10000-edit",
+        "widgets": 909,
+        "presentation": "overview",
+        "mounted": 0,
+        "groups": 229,
+        "coverage": {
+          "visible": 280,
+          "missing": [],
+          "maximumError": 0,
+          "maximumGroupError": 0.0010117647058637779
+        },
+        "scope": "Viewport slice at 0.25; run mode retains the authored page clip",
+        "passed": true
+      },
+      {
+        "label": "dense-overlap-20000-run",
+        "authoredNodes": 20009,
+        "widgets": 1818,
+        "initialMounted": 0,
+        "groups": 256,
+        "bulkMounted": 17,
+        "picked": 19998,
+        "control": {
+          "label": "  Widget 1817  ",
+          "width": 241.91998291015625,
+          "height": 100.80000305175781,
+          "fit": 0,
+          "box": [
+            32,
+            39.02000045776367,
+            241.91998291015625,
+            100.80000305175781
+          ],
+          "front": "<input type=\"text\" placeholder=\"\">",
+          "reachable": true
+        },
+        "transitionScope": "Focus retained beyond the run-mode page clip",
+        "passed": true
+      },
+      {
+        "label": "dense-grid-minimum-zoom-20000-run",
+        "widgets": 1818,
+        "presentation": "detail",
+        "mounted": 48,
+        "groups": 0,
+        "coverage": {
+          "visible": 40,
+          "missing": [],
+          "maximumError": 0.00007324218750071054,
+          "maximumGroupError": 0
+        },
+        "scope": "Viewport slice at 0.25; run mode retains the authored page clip",
+        "passed": true
+      },
+      {
+        "label": "dense-overlap-20000-edit",
+        "authoredNodes": 20009,
+        "widgets": 1818,
+        "initialMounted": 0,
+        "groups": 256,
+        "bulkMounted": 17,
+        "picked": 19998,
+        "control": {
+          "label": "  Widget 1817  ",
+          "width": 229.4964599609375,
+          "height": 95.62354278564453,
+          "fit": 0,
+          "box": [
+            70.823486328125,
+            66.39058685302734,
+            229.4964599609375,
+            95.62354278564453
+          ],
+          "front": "<div class=\"dashboard-widget-content generic-body\"><div class=\"dashboard-live-content inert-mode\" inert=\"\"><!----><div class=\"generic-input-shell\"><!----> <input type=\"text\" placeholder=\"\" disabled=\"\"></div><!----></div></div>",
+          "reachable": true
+        },
+        "transitionScope": "Distant editing staging",
+        "passed": true
+      },
+      {
+        "label": "dense-grid-minimum-zoom-20000-edit",
+        "widgets": 1818,
+        "presentation": "overview",
+        "mounted": 0,
+        "groups": 224,
+        "coverage": {
+          "visible": 280,
+          "missing": [],
+          "maximumError": 0,
+          "maximumGroupError": 0.0010117647058637779
+        },
+        "scope": "Viewport slice at 0.25; run mode retains the authored page clip",
+        "passed": true
+      },
+      {
+        "label": "dense-overlap-50000-run",
+        "authoredNodes": 50006,
+        "widgets": 4545,
+        "initialMounted": 0,
+        "groups": 256,
+        "bulkMounted": 17,
+        "picked": 49995,
+        "control": {
+          "label": "    Widget 4544\n\t\t\t\t\n\t\t\t\t 0.42",
+          "width": 241.91998291015625,
+          "height": 100.80000305175781,
+          "fit": 0,
+          "box": [
+            32,
+            39.02000045776367,
+            241.91998291015625,
+            100.80000305175781
+          ],
+          "front": "<div role=\"slider\" tabindex=\"-1\" class=\"slider svelte-1omiy18\" aria-valuenow=\"0.42\" style=\"--bg-color: var(--gc-color-slider-bg); --fg-color: var(--gc-color-slider-fg);\"><div class=\"slider-foreground  svelte-1omiy18\" style=\"--value: 0.42; -",
+          "reachable": true
+        },
+        "transitionScope": "Focus retained beyond the run-mode page clip",
+        "passed": true
+      },
+      {
+        "label": "dense-grid-minimum-zoom-50000-run",
+        "widgets": 4545,
+        "presentation": "detail",
+        "mounted": 48,
+        "groups": 0,
+        "coverage": {
+          "visible": 40,
+          "missing": [],
+          "maximumError": 0.00007324218750071054,
+          "maximumGroupError": 0
+        },
+        "scope": "Viewport slice at 0.25; run mode retains the authored page clip",
+        "passed": true
+      },
+      {
+        "label": "dense-overlap-50000-edit",
+        "authoredNodes": 50006,
+        "widgets": 4545,
+        "initialMounted": 0,
+        "groups": 256,
+        "bulkMounted": 17,
+        "picked": 49995,
+        "control": {
+          "label": "    Widget 4544\n\t\t\t\t\n\t\t\t\t 0.42",
+          "width": 229.4964599609375,
+          "height": 95.62354278564453,
+          "fit": 0,
+          "box": [
+            70.823486328125,
+            66.39058685302734,
+            229.4964599609375,
+            95.62354278564453
+          ],
+          "front": "<div class=\"dashboard-widget-content generic-body\"><div class=\"dashboard-live-content inert-mode\" inert=\"\"><div class=\"generic-slider-wrap\"><div class=\"generic-slider-bar\"><!----><div role=\"slider\" tabindex=\"-1\" class=\"slider svelte-1omiy18",
+          "reachable": true
+        },
+        "transitionScope": "Distant editing staging",
+        "passed": true
+      },
+      {
+        "label": "dense-grid-minimum-zoom-50000-edit",
+        "widgets": 4545,
+        "presentation": "overview",
+        "mounted": 0,
+        "groups": 214,
+        "coverage": {
+          "visible": 280,
+          "missing": [],
+          "maximumError": 0,
+          "maximumGroupError": 0.0010117647058637779
+        },
+        "scope": "Viewport slice at 0.25; run mode retains the authored page clip",
+        "passed": true
+      },
+      {
+        "label": "dense-overlap-100000-run",
+        "authoredNodes": 100001,
+        "widgets": 9090,
+        "initialMounted": 0,
+        "groups": 256,
+        "bulkMounted": 17,
+        "picked": 99990,
+        "control": {
+          "label": "   Widget 9089 ",
+          "width": 241.91998291015625,
+          "height": 100.80000305175781,
+          "fit": 0,
+          "box": [
+            32,
+            39.02000045776367,
+            241.91998291015625,
+            100.80000305175781
+          ],
+          "front": "<input type=\"text\" placeholder=\"\">",
+          "reachable": true
+        },
+        "transitionScope": "Focus retained beyond the run-mode page clip",
+        "passed": true
+      },
+      {
+        "label": "dense-grid-minimum-zoom-100000-run",
+        "widgets": 9090,
+        "presentation": "detail",
+        "mounted": 48,
+        "groups": 0,
+        "coverage": {
+          "visible": 40,
+          "missing": [],
+          "maximumError": 0.00007324218750071054,
+          "maximumGroupError": 0
+        },
+        "scope": "Viewport slice at 0.25; run mode retains the authored page clip",
+        "passed": true
+      },
+      {
+        "label": "dense-overlap-100000-edit",
+        "authoredNodes": 100001,
+        "widgets": 9090,
+        "initialMounted": 0,
+        "groups": 256,
+        "bulkMounted": 17,
+        "picked": 99990,
+        "control": {
+          "label": "   Widget 9089 ",
+          "width": 229.4964599609375,
+          "height": 95.62354278564453,
+          "fit": 0,
+          "box": [
+            70.823486328125,
+            66.39058685302734,
+            229.4964599609375,
+            95.62354278564453
+          ],
+          "front": "<div class=\"dashboard-widget-content generic-body\"><div class=\"dashboard-live-content inert-mode\" inert=\"\"><!----><div class=\"generic-input-shell with-inside-label\"><span class=\"generic-inline-label\">Widget 9089</span><!----> <input type=\"t",
+          "reachable": true
+        },
+        "transitionScope": "Distant editing staging",
+        "passed": true
+      },
+      {
+        "label": "dense-grid-minimum-zoom-100000-edit",
+        "widgets": 9090,
+        "presentation": "overview",
+        "mounted": 0,
+        "groups": 215,
+        "coverage": {
+          "visible": 280,
+          "missing": [],
+          "maximumError": 0,
+          "maximumGroupError": 0.0010117647058637779
+        },
+        "scope": "Viewport slice at 0.25; run mode retains the authored page clip",
+        "passed": true
+      }
+    ],
+    "tiers": [
+      {
+        "targetAuthoredNodes": 1000,
+        "authoredNodes": 1001,
+        "widgets": 90,
+        "readyMs": 15.67450000000008,
+        "initialMounted": 18,
+        "framed": {
+          "dx": 0.00048828125,
+          "dy": 0,
+          "boxes": [
+            {
+              "classes": "gc-dashboard-canvas dashboard-widget-shell dashboard-generic-widget selected editable-free",
+              "width": 917.9853515625,
+              "height": 382.494140625,
+              "top": 380.7529296875,
+              "blockSize": "80px",
+              "boxSizing": "border-box"
+            },
+            {
+              "classes": "dashboard-slot-fill",
+              "width": 917.9853515625,
+              "height": 382.494140625,
+              "top": 380.7529296875,
+              "blockSize": "80px",
+              "boxSizing": "content-box"
+            },
+            {
+              "classes": "dashboard-slot",
+              "width": 917.9853515625,
+              "height": 382.494140625,
+              "top": 380.7529296875,
+              "blockSize": "80px",
+              "boxSizing": "content-box"
+            }
+          ]
+        },
+        "passed": true
+      },
+      {
+        "targetAuthoredNodes": 10000,
+        "authoredNodes": 10010,
+        "widgets": 909,
+        "readyMs": 91.3864999999987,
+        "initialMounted": 54,
+        "framed": {
+          "dx": 0.0009765625,
+          "dy": 0.0009765625,
+          "boxes": [
+            {
+              "classes": "gc-dashboard-canvas dashboard-widget-shell dashboard-generic-widget selected editable-free",
+              "width": 917.986328125,
+              "height": 382.494140625,
+              "top": 380.75390625,
+              "blockSize": "80px",
+              "boxSizing": "border-box"
+            },
+            {
+              "classes": "dashboard-slot-fill",
+              "width": 917.986328125,
+              "height": 382.494140625,
+              "top": 380.75390625,
+              "blockSize": "80px",
+              "boxSizing": "content-box"
+            },
+            {
+              "classes": "dashboard-slot",
+              "width": 917.986328125,
+              "height": 382.494140625,
+              "top": 380.75390625,
+              "blockSize": "80px",
+              "boxSizing": "content-box"
+            }
+          ]
+        },
+        "passed": true
+      },
+      {
+        "targetAuthoredNodes": 20000,
+        "authoredNodes": 20009,
+        "widgets": 1818,
+        "readyMs": 162.80729999999858,
+        "initialMounted": 54,
+        "framed": {
+          "dx": 0.001953125,
+          "dy": 0.0009765625,
+          "boxes": [
+            {
+              "classes": "gc-dashboard-canvas dashboard-widget-shell dashboard-generic-widget selected editable-free",
+              "width": 917.984375,
+              "height": 382.494140625,
+              "top": 380.75390625,
+              "blockSize": "80px",
+              "boxSizing": "border-box"
+            },
+            {
+              "classes": "dashboard-slot-fill",
+              "width": 917.984375,
+              "height": 382.494140625,
+              "top": 380.75390625,
+              "blockSize": "80px",
+              "boxSizing": "content-box"
+            },
+            {
+              "classes": "dashboard-slot",
+              "width": 917.984375,
+              "height": 382.494140625,
+              "top": 380.75390625,
+              "blockSize": "80px",
+              "boxSizing": "content-box"
+            }
+          ]
+        },
+        "passed": true
+      },
+      {
+        "targetAuthoredNodes": 50000,
+        "authoredNodes": 50006,
+        "widgets": 4545,
+        "readyMs": 710.1449000000011,
+        "initialMounted": 54,
+        "framed": {
+          "dx": 0.0009765625,
+          "dy": 0.001953125,
+          "boxes": [
+            {
+              "classes": "gc-dashboard-canvas dashboard-widget-shell dashboard-generic-widget selected editable-free",
+              "width": 917.986328125,
+              "height": 382.49609375,
+              "top": 380.75390625,
+              "blockSize": "80px",
+              "boxSizing": "border-box"
+            },
+            {
+              "classes": "dashboard-slot-fill",
+              "width": 917.986328125,
+              "height": 382.49609375,
+              "top": 380.75390625,
+              "blockSize": "80px",
+              "boxSizing": "content-box"
+            },
+            {
+              "classes": "dashboard-slot",
+              "width": 917.986328125,
+              "height": 382.49609375,
+              "top": 380.75390625,
+              "blockSize": "80px",
+              "boxSizing": "content-box"
+            }
+          ]
+        },
+        "passed": true
+      },
+      {
+        "targetAuthoredNodes": 100000,
+        "authoredNodes": 100001,
+        "widgets": 9090,
+        "readyMs": 1250.9039999999986,
+        "initialMounted": 54,
+        "framed": {
+          "dx": 0.00048828125,
+          "dy": 0.00390625,
+          "boxes": [
+            {
+              "classes": "gc-dashboard-canvas dashboard-widget-shell dashboard-generic-widget selected editable-free",
+              "width": 917.9853515625,
+              "height": 382.4921875,
+              "top": 380.7578125,
+              "blockSize": "80px",
+              "boxSizing": "border-box"
+            },
+            {
+              "classes": "dashboard-slot-fill",
+              "width": 917.9853515625,
+              "height": 382.4921875,
+              "top": 380.7578125,
+              "blockSize": "80px",
+              "boxSizing": "content-box"
+            },
+            {
+              "classes": "dashboard-slot",
+              "width": 917.9853515625,
+              "height": 382.4921875,
+              "top": 380.7578125,
+              "blockSize": "80px",
+              "boxSizing": "content-box"
+            }
+          ]
+        },
+        "passed": true
+      }
+    ],
+    "errors": [],
+    "assets": {
+      "baseline": {
+        "assets/dashboard-B-a5Npco.js": "18eac5d5784308cda41b7da1749f16a9be7d4257c56ca303032c4c94fc706e78",
+        "assets/dashboard-BPMu3tWL.css": "7013230d8ce84e986cd5b52abd5985cbbf0c2736066f9ce28d0aff3f6d6c93f6",
+        "dashboard.html": "b40432afc21d4e1727b6ef5cdc4443b2de8f91ab87ada794acf819e72b16bd4d"
+      },
+      "current": {
+        "assets/dashboard-BLKS6Deg.css": "a53499dc523b8aafde694047e7ae44a41bdcd4be4d49b321433d3abbd1b60989",
+        "assets/dashboard-Ds9e-Vdc.js": "c99803de0112a9116598b9179ae57af7103fc49892fdc7c35e65b80eeabf633c",
+        "dashboard.html": "96b6b009619b31fbad3107534ebfa4287b09c8ce4f2fa7fb6421f0fc26208b26"
+      }
+    },
+    "passed": true
+  }
+}

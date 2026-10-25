@@ -82,6 +82,9 @@
 		fixture.session.selectNodes(data!.ids, 'REPLACE');
 		await settle();
 	}
+	export function selected() {
+		return fixture.session.selectedNodesIds;
+	}
 	export async function cancelFrameWithView() {
 		document.querySelector<HTMLElement>('.dashboard-page-viewport')!.focus();
 		await settle();
@@ -120,6 +123,24 @@
 		const selected = canvas!.selectWidgetsInRect(rect, mode);
 		await settle();
 		return selected;
+	}
+	export async function activate(index: number) {
+		const graph = fixture.session.graph.state;
+		const widget = graph.nodesById.get(data!.ids[index])!;
+		const position = getDirectParamNode(graph, widget, 'position')!;
+		if (position.data.kind !== 'parameter' || position.data.param.value.kind !== 'vec2')
+			throw new Error('Expected authored widget position');
+		const layout = document.querySelector<HTMLElement>('[data-dashboard-free-total]')!;
+		const bounds = layout.getBoundingClientRect();
+		const [x, y] = position.data.param.value.value;
+		const rem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+		const id = canvas!.activateWidgetAt(
+			data!.page.node_id,
+			bounds.left + ((x + 6 * rem) * bounds.width) / layout.clientWidth,
+			bounds.top + ((y + 2.5 * rem) * bounds.height) / layout.clientHeight
+		);
+		await settle();
+		return id;
 	}
 	export async function focus(index: number) {
 		const shell = document.querySelector<HTMLElement>(

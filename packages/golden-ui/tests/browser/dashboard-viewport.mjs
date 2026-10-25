@@ -8,11 +8,13 @@ import { fileURLToPath } from 'node:url';
 import { build, preview } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { chromium } from 'playwright-core';
+import { denseChecks } from './dashboard-dense.mjs';
 
 const repository = fileURLToPath(new URL('../../../../', import.meta.url));
 const root = fileURLToPath(new URL('./fixture/', import.meta.url));
 const generated = resolve(repository, 'target/qualification');
 const baseline = '654a5f15';
+const denseOnly = process.argv.includes('--dense-only');
 const canvasPrefix = 'packages/golden-ui/components/panels/dashboard/';
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const filesBelow = (directory) =>
@@ -31,6 +33,7 @@ const sources = [
 	resolve(repository, 'packages/golden-graph-ui/spatial-index.ts'),
 	resolve(repository, 'packages/golden-ui/package.json'),
 	resolve(repository, 'package-lock.json'),
+	fileURLToPath(new URL('./dashboard-dense.mjs', import.meta.url)),
 	fileURLToPath(import.meta.url)
 ];
 const fingerprints = () =>
@@ -46,6 +49,7 @@ const report = resolve(
 	`p11-dashboard-viewport-${new Date().toISOString().replaceAll(/[:.]/g, '-')}.json`
 );
 const result = {
+	scope: denseOnly ? 'dense-only' : 'sparse-and-dense',
 	baseline,
 	browser: '',
 	machine: {
@@ -514,24 +518,30 @@ try {
 			: { channel: process.platform === 'win32' ? 'msedge' : undefined })
 	});
 	result.browser = await browser.version();
-	const references = await scene('baseline', async (page) => {
-		const scenes = new Map();
-		for (const editing of [false, true]) {
-			await page.evaluate(
-				(editing) => window.dashboardFixture.setup('free', editing, 1000, 'grid'),
-				editing
-			);
-			const widgets = await paintedWidgets(page);
-			assert.equal(widgets.length, 1000);
-			scenes.set(editing, widgets);
-		}
-		await page.evaluate(() => window.dashboardFixture.setup('free', true, 1000, 'grid', true));
-		const nested = await paintedWidgets(page);
-		assert.equal(nested.length, 1001);
-		scenes.set('nested', nested);
-		return scenes;
+	const references = denseOnly
+		? null
+		: await scene('baseline', async (page) => {
+				const scenes = new Map();
+				for (const editing of [false, true]) {
+					await page.evaluate(
+						(editing) => window.dashboardFixture.setup('free', editing, 1000, 'grid'),
+						editing
+					);
+					const widgets = await paintedWidgets(page);
+					assert.equal(widgets.length, 1000);
+					scenes.set(editing, widgets);
+				}
+				await page.evaluate(() => window.dashboardFixture.setup('free', true, 1000, 'grid', true));
+				const nested = await paintedWidgets(page);
+				assert.equal(nested.length, 1001);
+				scenes.set('nested', nested);
+				return scenes;
+			});
+	await scene('current', async (page) => {
+		if (references) await viewportChecks(page, references);
+		await denseChecks(page, record);
+		assert.deepEqual(result.errors, []);
 	});
-	await scene('current', (page) => viewportChecks(page, references));
 	assert.deepEqual(fingerprints(), result.source, 'Qualified sources changed');
 	result.passed = true;
 	console.log(

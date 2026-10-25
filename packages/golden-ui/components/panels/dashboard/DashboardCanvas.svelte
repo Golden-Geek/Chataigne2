@@ -85,6 +85,12 @@
 				},
 				get ready() {
 					return camera.viewportReady;
+				},
+				get selected() {
+					return session?.selectedNodesIds ?? [];
+				},
+				select(id) {
+					session?.selectNodes([id], 'REPLACE');
 				}
 			})
 		: inheritedView;
@@ -387,6 +393,8 @@
 		dashboardView?.activateTab(surface, child) ?? false;
 	export const toggleSurfaceAccordion = (surface: number, child: number) =>
 		dashboardView?.toggleAccordion(surface, child) ?? false;
+	export const activateWidgetAt = (surface: number, clientX: number, clientY: number) =>
+		dashboardView?.activateAt(surface, clientX, clientY) ?? null;
 
 	const clearFreeLayoutInteractionChrome = (): void => {
 		setFreeLayoutHoverSurface(null);

@@ -22,6 +22,8 @@ export interface DashboardViewContext {
 	readonly viewport: HTMLElement | null;
 	readonly camera: unknown;
 	readonly ready: boolean;
+	readonly selected: readonly NodeId[];
+	activateAt(surface: NodeId, clientX: number, clientY: number): NodeId | null;
 	register(id: NodeId, view: FreeSurfaceView): () => void;
 	query(id: NodeId, rect: FreeLayoutRect): NodeId[] | null;
 	retainedFor(id: NodeId): readonly NodeId[];
@@ -40,6 +42,8 @@ interface DashboardViewSource {
 	readonly graph: GraphState | null;
 	readonly camera: unknown;
 	readonly ready: boolean;
+	readonly selected: readonly NodeId[];
+	select(id: NodeId): void;
 }
 
 export function createDashboardViewContext(context: DashboardViewSource): DashboardViewContext {
@@ -183,6 +187,21 @@ export function createDashboardViewContext(context: DashboardViewSource): Dashbo
 		},
 		get ready() {
 			return context.ready;
+		},
+		get selected() {
+			return context.selected;
+		},
+		activateAt(id, clientX, clientY) {
+			const view = surfaces.get(id);
+			if (!view) return null;
+			const bounds = view.element.getBoundingClientRect();
+			if (!(bounds.width > 0 && bounds.height > 0)) return null;
+			const target = view.geometry.hitTest(
+				((clientX - bounds.left) / bounds.width) * view.element.clientWidth,
+				((clientY - bounds.top) / bounds.height) * view.element.clientHeight
+			);
+			if (target !== null) context.select(target);
+			return target;
 		},
 		register(id, view) {
 			surfaces.set(id, view);

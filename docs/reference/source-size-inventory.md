@@ -7,9 +7,9 @@ extraction notes and September counts are [archived](../archive/2026-10-18/progr
 
 ## Scan and policy
 
-Refreshed 2026-10-25 against delivered `654a5f15` plus sparse dashboard viewport rendering
-on `main`. Scanned **2106 source files**; **27 exceed 1,000 lines**. The dashboard
-canvas is 921 lines; its controllers, geometry, viewport, tests and stylesheet files remain
+Refreshed 2026-10-25 against delivered `bbcc63f4` plus dense dashboard presentation
+on `main`. Scanned **2111 source files**; **27 exceed 1,000 lines**. The dashboard
+canvas is 929 lines; its controllers, geometry, viewport, tests and stylesheet files remain
 below the limit. No new source-size exception is introduced. Remaining decomposition and
 exceptions belong to P12; this inventory does not qualify that task.
 

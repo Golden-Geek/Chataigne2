@@ -105,3 +105,27 @@ budgets, then retain three warmups and 31 measured samples per action/tier for d
 selection, edits, navigation and framing. Preserve the existing feedback/stall/completion ceilings:
 200ms / 200ms / 2,000ms normal and 400ms / 400ms / 4,000ms stress. Measure animation pacing
 separately. Keep failures and source/asset/machine records. Native gestures/usability retain P17.
+
+## Dashboard dense-view extension
+
+Use the same authored-node tiers and panel as the sparse cases. Exercise both fully overlapping
+12rem x 5rem widgets and the existing 40-column grid at minimum supported zoom (0.25).
+Test edit and run modes. The existing minimum zoom and run-mode page clip mean this grid view
+contains a viewport slice, not every authored widget; report that distinction explicitly.
+Ordinary detailed presentation admits at most 192 intersecting
+widgets after at most 2,048 spatial candidate visits. A query that cannot prove completeness
+within that work budget switches to an explicitly labeled overview; it must never present a
+truncated candidate sample as the complete dashboard.
+
+The overview represents all potentially visible geometry through at most 256 retained bounding
+groups. Group bounds and counts describe their authored members, not an exact visible count.
+Keep up to 16 of the latest selected direct children as actual controls, plus existing focus,
+pointer, native-range and transient framing retention. Bulk logical selection remains complete.
+Selecting an overview position must resolve the exact foremost authored widget there, independent
+of group approximation and candidate visit limits. Reordering, live geometry changes, removal,
+zooming back to detail and page replacement must preserve that contract. Verify real control
+content, source identity and geometry; a mounted-count attribute alone is insufficient.
+
+The budget applies per free surface. Qualification of simultaneous nested surfaces, flow layouts,
+physical gestures and the fixed action/timing matrix remains required before dashboard closure;
+this extension alone cannot establish a global dashboard DOM bound or latency acceptance.

@@ -18,6 +18,7 @@ and widget templates. Its `canvas/` modules own distinct presentation lifetimes:
 | `context-menu.svelte.ts` | Capability-dependent menu presentation and explicit edit intents. |
 | `geometry.ts`, `dom.ts`, `contracts.ts` | Pure coordinate calculations, DOM measurements and shared presentation types. |
 | `free-surface-geometry.ts` | Retained authored bounds and spatial queries, independently of mounted widgets. |
+| `free-surface-groups.ts`, `FreeSurfaceOverview.svelte` | Retained bounding hierarchy and explicit dense-view presentation. |
 | `free-surface-viewport.svelte.ts`, `view-context.svelte.ts` | Clipped membership, focus/range/interaction retention, page-scoped view state and logical framing. |
 
 Controllers receive live state through getter contexts. Methods that need a mutually dependent
@@ -59,8 +60,25 @@ DOM reconciliation; removal uses the remembered authored identity to return focu
 Observers and event-driven refresh are disposed with their surface. Disabling a free view clears
 its retained graph/index references.
 
-[Sparse viewport qualification](../progress/p11-dashboard-sparse.md) proves the current bounded
-sparse views, container state retention and batched ancestry framing. P11 still owns dense/
-zoomed-out presentation, the complete hierarchical/gesture matrix and workflow timing before the dashboard checkpoint closes.
+Detailed free views admit at most 192 ordinary widgets after at most 2,048 candidate visits.
+If a query cannot prove completeness within that budget, the surface switches to an explicitly
+labeled overview instead of showing a truncated sample of controls. A spatially balanced retained
+hierarchy produces at most 256 conservative bounding groups without enumerating their members
+on camera movement. Membership changes rebuild that hierarchy; individual geometry changes
+repair its ancestor bounds. Group counts describe authored members, including offscreen ones.
+
+The overview keeps up to 16 of the latest selected direct children as actual controls, alongside
+the existing focus, pointer, range and framing retention. Bulk logical selection is unchanged.
+Activation resolves the exact foremost authored widget at that point through retained geometry;
+approximate groups never decide control identity. The page returns focus when a focused overview
+retires. Widget shells isolate their own stacking context, so an earlier label cannot paint above
+a later sibling's controls. These budgets apply per free surface; nested/flow composition still
+needs its owning qualification. Coordinates remain CSS-pixel measurements of authored geometry;
+the overview caption uses relative units adjusted for camera scale.
+
+[Sparse viewport qualification](../progress/p11-dashboard-sparse.md) covers sparse views,
+container state retention and batched ancestry framing. [Dense-view evidence](../progress/p11-dashboard-dense.md)
+covers overlapping and minimum-zoom fixtures. P11 still owns the complete hierarchical/gesture
+matrix and workflow timing before the dashboard checkpoint closes.
 See the [fixed contract](../progress/p11-workspace-qualification-contract.md) and the historical
 [decomposition comparison](../progress/p11-dashboard-decomposition.md).

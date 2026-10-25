@@ -5,8 +5,8 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-25 on `main`, based on delivered `654a5f15` plus the P11 sparse dashboard
-viewport milestone below. **P11 is in progress; two of six fixed checkpoints are closed (33% rounded).**
+Last reconciled: 2026-10-25 on `main`, based on delivered `bbcc63f4` plus the P11 dense dashboard
+presentation milestone below. **P11 is in progress; two of six fixed checkpoints are closed (33% rounded).**
 **P10 is locally complete: three of three fixed checkpoints (100%).**
 **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
@@ -198,7 +198,7 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
 | ---------- | ------ | -------------------------------- |
 | Manager/catalog windowing | Complete locally | Variable-height manager/picker/outliner and flat/nested catalog menus pass through 100k items with bounded mounting, identity and focus. [Tree evidence](p11-tree-windowing.md), [catalog closure](p11-catalog-windowing.md). |
 | Historical log windowing | Complete locally | Variable-height history, filters, follow, bounded native selection, focus and snapshot publication pass through 100k records. [Qualification](p11-log-windowing.md). |
-| Dashboard viewport awareness | In progress | Sparse views, direct/nested framing, retained tab/accordion state, focus/ranges and CSS units pass through 100k authored nodes. Dense presentation, full hierarchical/gesture coverage and timing remain. |
+| Dashboard viewport awareness | In progress | Sparse and bounded dense views, exact activation, direct/nested framing, retained tab/accordion state, focus/ranges and CSS units pass through 100k authored nodes. Full hierarchical/gesture coverage and timing remain. [Dense evidence](p11-dashboard-dense.md). |
 | Tree focus and keyboard navigation | Not started | Qualify expansion/navigation and stable focus across virtualized changes in all owning trees. |
 | Graph keyboard operations | Not started | Provide and qualify keyboard movement and connection creation through shared operations. |
 | Complete composed workflows | Not started | Qualify discovery, selection and editing across all required composed panels and large batches. Native usability retains P17. |
@@ -208,8 +208,9 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
 - **Active task: P11 workspace UX (33% rounded, 2/6 fixed checkpoints closed).** Manager/picker/
   outliner, catalogs and historical logs are verified through 100k entries. Continue dashboard
   viewport awareness, then tree/graph keyboard operations and composed qualification.
-  Sparse dashboard culling is verified through 100k authored nodes. Continue dense/zoomed-out
-  presentation, the complete hierarchical/gesture matrix and action/timing qualification.
+  Sparse and dense dashboard presentation are verified through 100k authored nodes. Continue
+  the complete hierarchical/gesture matrix and action/timing qualification. Dense budgets are
+  per free surface; composed nested/flow bounds and exact dense-picking latency still need evidence.
   Preserve app-agnostic ownership and the plan's owning boundaries;
   do not reopen completed P03-P10 scope.
 - **P10 is locally complete: three of three fixed checkpoints (100%).** Retained geometry,
@@ -10185,3 +10186,34 @@ on `main`, then implement bounded dense/zoomed-out presentation and complete the
 hierarchical/gesture and action/timing qualification. The four
 fixed P11 checkpoints remain open; P03 stays complete with zero packages left. Keep the full
 P00-P18 goal active.
+
+### P11 bounded dense dashboard presentation
+
+Previous goal turn: **no progress**; it only answered the user's P03 status question. This turn
+reconciled delivered `bbcc63f4` on clean `main` and implemented the next open dashboard scope.
+
+Free surfaces now prove complete detailed membership within 2,048 candidate visits and 192
+ordinary widgets, or show an explicit overview with at most 256 retained bounding groups.
+The overview retains up to 16 selected controls alongside focus/pointer/range/framing cohorts;
+bulk selection remains logical. Exact foremost activation ignores approximate group bounds.
+Widget-local stacking fixes labels from earlier siblings escaping above later controls. Focus
+returns to the page when its active overview or control retires. See the
+[owning report](p11-dashboard-dense.md), [full evidence](evidence/p11-dashboard-dense-2026-10-25.json)
+and [retained failures](evidence/p11-dashboard-dense-failures-2026-10-25.json).
+
+The full production browser run passes **34 correctness groups and five sparse tiers** with
+56 frozen source fingerprints. Dense overlap covers 90/909/1,818/4,545/9,090 widgets at
+1,001/10,010/20,009/50,006/100,001 authored nodes, in edit and run modes. Larger overlap views
+use 256 groups and 17 controls under bulk selection plus focused retention. The minimum-zoom
+grid verifies actual visible coverage and focus return; run clipping remains authoritative.
+Root UI **292**, browser/app checks **0 errors / 0 warnings**, owned formatting, whitespace and
+both Cargo formatters pass. The locked default build rebuilds the frontend and passes in **2m26s**;
+executable SHA-256 `1743501915cc5656b0a1f5478a0f7242c871701615c5db360599cdb2fea31230`.
+Source inventory is 2,111 files / 27 oversized; DashboardCanvas is 929 lines, with no new exception.
+
+**P11 remains 2/6 checkpoints (33% rounded); whole-plan scope coverage remains 57% (57.41% exact).**
+This is per-free-surface dense correctness, not global hierarchy, physical input or latency
+qualification. Commit/push this verified milestone on `main`, then qualify simultaneous nested/
+flow composition and the complete hierarchical/gesture and fixed action/timing matrix. Measure
+exact dense picking explicitly. Four P11 checkpoints remain open; P03 has zero packages left.
+Keep the full P00-P18 goal active.

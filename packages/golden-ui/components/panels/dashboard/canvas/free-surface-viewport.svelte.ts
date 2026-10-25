@@ -4,6 +4,16 @@ import type { NodeId, UiNodeDto } from '../../../../types';
 import type { DashboardViewContext } from './view-context.svelte';
 import { FreeSurfaceGeometry } from './free-surface-geometry';
 import { getRootRemPixels, getElementEmPixels } from './dom';
+import { rectsIntersect } from './geometry';
+import type { FreeLayoutRect } from './contracts';
+import type { FreeSurfaceGroup } from './free-surface-groups';
+
+export interface FreeSurfaceOverview {
+	readonly rect: FreeLayoutRect;
+	readonly groups: readonly FreeSurfaceGroup[];
+	readonly total: number;
+	readonly scale: number;
+}
 
 interface FreeSurfaceViewportContext {
 	readonly graph: GraphState | null;
@@ -28,6 +38,7 @@ export function createFreeSurfaceViewport(context: FreeSurfaceViewportContext) {
 	let epoch = $state(0);
 	let sequence = 0;
 	let mounted = $state.raw<UiNodeDto[]>([]);
+	let overview = $state.raw<FreeSurfaceOverview | null>(null);
 	let queuedRefresh = false;
 	let destroyed = false;
 	let pendingFocus: HTMLElement | null = null;
@@ -119,6 +130,7 @@ export function createFreeSurfaceViewport(context: FreeSurfaceViewportContext) {
 		const node = context.node;
 		if (!context.enabled || !element || !view?.viewport || !graph || !view.ready) {
 			mounted = [];
+			overview = null;
 			geometry.clear();
 			pendingFocus = null;
 			rememberedFocus = null;
@@ -129,6 +141,7 @@ export function createFreeSurfaceViewport(context: FreeSurfaceViewportContext) {
 		const height = element.clientHeight;
 		if (!(bounds.width > 0 && bounds.height > 0 && width > 0 && height > 0)) {
 			mounted = [];
+			overview = null;
 			return;
 		}
 		const rem = getRootRemPixels();
@@ -164,16 +177,44 @@ export function createFreeSurfaceViewport(context: FreeSurfaceViewportContext) {
 			}
 		}
 		const overscan = 2 * rem;
-		const visible =
+		const visibleRect: FreeLayoutRect = {
+			left: (left - bounds.left) / scaleX,
+			top: (top - bounds.top) / scaleY,
+			width: Math.max(0, right - left) / scaleX,
+			height: Math.max(0, bottom - top) / scaleY
+		};
+		const queryRect = {
+			left: visibleRect.left - overscan,
+			top: visibleRect.top - overscan,
+			width: visibleRect.width + 2 * overscan,
+			height: visibleRect.height + 2 * overscan
+		};
+		const presentation =
 			right > left && bottom > top
-				? geometry.query({
-						left: (left - bounds.left) / scaleX - overscan,
-						top: (top - bounds.top) / scaleY - overscan,
-						width: (right - left) / scaleX + 2 * overscan,
-						height: (bottom - top) / scaleY + 2 * overscan
-					})
-				: [];
-		const ids = new Set(visible);
+				? geometry.presentation(queryRect)
+				: { overview: false, ids: [], groups: [] };
+		const active = document.activeElement;
+		const retiringOverview =
+			!presentation.overview &&
+			active instanceof HTMLElement &&
+			active.classList.contains('dashboard-free-overview') &&
+			active.parentElement === element;
+		overview = presentation.overview
+			? { rect: visibleRect, groups: presentation.groups, total: geometry.size, scale: scaleY }
+			: null;
+		if (retiringOverview)
+			void tick().then(() => {
+				if (!destroyed && element.isConnected && document.activeElement === document.body)
+					view.viewport?.focus({ preventScroll: true });
+			});
+		const ids = new Set(presentation.ids);
+		if (presentation.overview) {
+			// Logical bulk selection remains intact; only its latest small cohort needs controls.
+			for (const id of view.selected.slice(-16)) {
+				const rect = geometry.get(id);
+				if (rect && rectsIntersect(queryRect, rect)) ids.add(id);
+			}
+		}
 		for (const id of view.retainedFor(node.node_id)) if (geometry.getNode(id)) ids.add(id);
 		const selector = ':scope > .dashboard-slot > .dashboard-slot-fill > .dashboard-widget-shell';
 		const ownShell = (target: Node | null) => directWidgetShell(element, target);
@@ -251,6 +292,9 @@ export function createFreeSurfaceViewport(context: FreeSurfaceViewportContext) {
 		geometry,
 		get mounted() {
 			return mounted;
+		},
+		get overview() {
+			return overview;
 		}
 	};
 }
