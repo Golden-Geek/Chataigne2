@@ -53,6 +53,23 @@ function fixture(limit = 64) {
 	};
 }
 describe('session-owned UI edit operations', () => {
+	it('layers explicit presentation enablement and withdraws it with its owner', async () => {
+		const f = fixture(),
+			a = f.open(),
+			b = f.open();
+		a.scope!.publish([{ ...edit(1, 8), enabled: true }]);
+		b.scope!.publish([{ ...edit(1, 9), enabled: false }]);
+		expect(f.service.enabled(1, 'node-1')).toBe(false);
+		expect(f.service.enabled(1, 'replacement')).toBeUndefined();
+		const cancelled = b.scope!.cancel();
+		b.done.resolve();
+		await cancelled;
+		expect(f.service.enabled(1, 'node-1')).toBe(true);
+		const first = a.scope!.cancel();
+		a.done.resolve();
+		await first;
+		expect(f.service.enabled(1, 'node-1')).toBeUndefined();
+	});
 	it('retains confirmed work and drafts when its view detaches', async () => {
 		const f = fixture(),
 			s = f.open();

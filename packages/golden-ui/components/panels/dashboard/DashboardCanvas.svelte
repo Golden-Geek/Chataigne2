@@ -18,7 +18,7 @@
 		DashboardPersistedPageViewChangeHandler,
 		FreeLayoutResizeZone,
 		SurfaceDropPreview,
-		FreeLayoutEdit,
+		WidgetLayoutEdit,
 		FreeLayoutRect
 	} from './canvas/contracts';
 	import { freeLayoutResizeZones } from './canvas/geometry';
@@ -269,6 +269,9 @@
 	const setFreeLayoutAncestorShells = interactionChrome.setFreeLayoutAncestorShells;
 	const publishWidgetMoveSurfacePreview = interactionChrome.publishWidgetMoveSurfacePreview;
 	const interactionGeometry = createDashboardInteractionGeometry({
+		get view() {
+			return dashboardView;
+		},
 		get graph() {
 			return graph;
 		},
@@ -343,11 +346,16 @@
 	const resetFreeDropTarget = freeLayoutState.resetFreeDropTarget;
 	$effect(() => {
 		if (isPage) return;
-		return dashboardView?.registerFreeLayout(liveNode.node_id, (command) =>
-			freeLayoutState.edit(command, resolveTransformNodes)
+		return dashboardView?.registerLayout(liveNode.node_id, (command) =>
+			parentLayoutKind === 'free'
+				? freeLayoutState.edit(command, resolveTransformNodes)
+				: orderedLayoutState.edit(command)
 		);
 	});
 	const orderedLayoutState = createDashboardOrderedLayout({
+		get widgetElement() {
+			return widgetShellElement;
+		},
 		get session() {
 			return session;
 		},
@@ -422,8 +430,8 @@
 	export const activateWidgetAt = (surface: number, clientX: number, clientY: number) =>
 		dashboardView?.activateAt(surface, clientX, clientY) ?? null;
 	export const browseSurface = (surface: number) => dashboardView?.browse(surface) ?? false;
-	export const editFreeWidgetLayout = async (id: NodeId, command: FreeLayoutEdit) =>
-		(await dashboardView?.editFreeLayout(id, command)) ?? false;
+	export const editWidgetLayout = async (id: NodeId, command: WidgetLayoutEdit) =>
+		(await dashboardView?.editLayout(id, command)) ?? false;
 	export const createWidgetOnSurface = async (
 		surface: NodeId,
 		target: NodeId,

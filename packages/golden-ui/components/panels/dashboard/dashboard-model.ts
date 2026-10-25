@@ -252,8 +252,14 @@ export const getDashboardPlacement = (
 			})
 		},
 		sizeEnabled: {
-			width: widthNode?.meta.enabled ?? false,
-			height: heightNode?.meta.enabled ?? false
+			width:
+				(widthNode && previews?.enabled(widthNode.node_id, widthNode.uuid)) ??
+				widthNode?.meta.enabled ??
+				false,
+			height:
+				(heightNode && previews?.enabled(heightNode.node_id, heightNode.uuid)) ??
+				heightNode?.meta.enabled ??
+				false
 		}
 	};
 };

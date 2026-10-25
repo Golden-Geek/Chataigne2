@@ -1,6 +1,7 @@
 .gc-dashboard-canvas.dashboard-widget-shell,
 .gc-dashboard-canvas .dashboard-widget-shell {
 	position: relative;
+	box-sizing: border-box;
 	/* Labels and control chrome belong to this widget's authored paint order. */
 	isolation: isolate;
 	display: flex;

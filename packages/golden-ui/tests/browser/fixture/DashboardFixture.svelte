@@ -14,7 +14,7 @@
 	import { dashboardHierarchy } from './dashboard-hierarchy';
 	import DashboardRegistryContent from './DashboardRegistryContent.svelte';
 	import { createDashboardEditIO } from './dashboard-edit-io';
-	import type { FreeLayoutEdit } from '../../../components/panels/dashboard/canvas/contracts';
+	import type { WidgetLayoutEdit } from '../../../components/panels/dashboard/canvas/contracts';
 	import { createDashboardInteractionChrome } from '../../../components/panels/dashboard/canvas/interaction-chrome.svelte';
 	import {
 		getDashboardPlacement,
@@ -60,22 +60,22 @@
 		editIO.releaseEvents();
 		await settle();
 	}
-	export async function layoutEdit(index: number, command: FreeLayoutEdit) {
-		const handled = await canvas!.editFreeWidgetLayout(data!.ids[index], command);
+	export async function layoutEdit(index: number, command: WidgetLayoutEdit) {
+		const handled = await canvas!.editWidgetLayout(data!.ids[index], command);
 		await settle();
 		return handled;
 	}
-	export async function layoutEdits(index: number, commands: FreeLayoutEdit[]) {
+	export async function layoutEdits(index: number, commands: WidgetLayoutEdit[]) {
 		const handled: boolean[] = [];
 		for (const command of commands)
-			handled.push(await canvas!.editFreeWidgetLayout(data!.ids[index], command));
+			handled.push(await canvas!.editWidgetLayout(data!.ids[index], command));
 		await settle();
 		return handled;
 	}
 	const layoutFinishes: Promise<boolean>[] = [];
 	export async function requestLayoutFinish(index: number) {
 		const id = layoutFinishes.length;
-		layoutFinishes.push(canvas!.editFreeWidgetLayout(data!.ids[index], { kind: 'finish' }));
+		layoutFinishes.push(canvas!.editWidgetLayout(data!.ids[index], { kind: 'finish' }));
 		await settle();
 		return id;
 	}

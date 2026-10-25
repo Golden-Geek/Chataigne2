@@ -1,16 +1,22 @@
 import { VersionedNodeMap } from '../graph-index';
-import type { NodeId, ParamValue, UiEditIntent, UiAck, EventTime } from '../../types';
+import type { NodeId, ParamValue, UiAck, EventTime } from '../../types';
 import { compareEventTime } from './event-time';
 
-type ParameterEdit = Extract<UiEditIntent, { kind: 'setParam' }>;
+interface ParameterDraft {
+	readonly node: NodeId;
+	readonly value: ParamValue;
+	readonly enabled?: boolean;
+}
 export interface ParameterPreview {
 	readonly uuid: string;
 	readonly value: ParamValue;
+	readonly enabled?: boolean;
 	readonly current: () => boolean;
 }
 export interface ParameterPreviews {
 	readonly values: VersionedNodeMap<ParameterPreview>;
 	get(id: NodeId, uuid: string): ParamValue | undefined;
+	enabled(id: NodeId, uuid: string): boolean | undefined;
 }
 interface EditWork {
 	readonly accepted?: boolean;
@@ -21,7 +27,7 @@ export interface EditOperationContext {
 	applied(acknowledgements: readonly UiAck[]): void;
 	readonly ready: Promise<void>;
 	readonly current: boolean;
-	publish(edits: readonly ParameterEdit[]): void;
+	publish(edits: readonly ParameterDraft[]): void;
 }
 export interface EditOperation<Work extends EditWork> extends EditOperationContext {
 	readonly work: Work;
@@ -45,6 +51,15 @@ export function createEditOperations(context: {
 	let values = new VersionedNodeMap<ParameterPreview>();
 	const records = new Set<{ cancel(): Promise<void>; observe(): void }>();
 	const layers = new Map<NodeId, Map<number, ParameterPreview>>();
+	const latest = (id: NodeId, uuid: string) => {
+		context.track();
+		const entry = values.get(id);
+		if (entry?.uuid === uuid && entry.current()) return entry;
+		let result: ParameterPreview | undefined;
+		for (const candidate of layers.get(id)?.values() ?? [])
+			if (candidate.uuid === uuid && candidate.current()) result = candidate;
+		return result;
+	};
 	const refresh = (ids: Iterable<NodeId>) => {
 		const next = values.fork();
 		for (const id of ids) {
@@ -157,7 +172,7 @@ export function createEditOperations(context: {
 					if (!uuid) continue;
 					let entries = layers.get(edit.node);
 					if (!entries) layers.set(edit.node, (entries = new Map()));
-					entries.set(id, { uuid, value: edit.value, current });
+					entries.set(id, { uuid, value: edit.value, enabled: edit.enabled, current });
 					projected.add(edit.node);
 					dirty.add(edit.node);
 				}
@@ -213,13 +228,10 @@ export function createEditOperations(context: {
 			return values;
 		},
 		get(id: NodeId, uuid: string): ParamValue | undefined {
-			context.track();
-			const entry = values.get(id);
-			if (entry?.uuid === uuid && entry.current()) return entry.value;
-			let latest: ParameterPreview | undefined;
-			for (const candidate of layers.get(id)?.values() ?? [])
-				if (candidate.uuid === uuid && candidate.current()) latest = candidate;
-			return latest?.value;
+			return latest(id, uuid)?.value;
+		},
+		enabled(id: NodeId, uuid: string): boolean | undefined {
+			return latest(id, uuid)?.enabled;
 		},
 		reset() {
 			generation++;

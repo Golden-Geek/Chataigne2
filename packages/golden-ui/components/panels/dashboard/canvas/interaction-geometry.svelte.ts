@@ -1,3 +1,6 @@
+import { onDestroy } from 'svelte';
+import { SurfaceItemOrder } from './surface-item-order';
+import type { DashboardViewContext } from './view-context.svelte';
 import type { GraphState } from '../../../../store/graph.svelte';
 import type { WorkbenchSession } from '../../../../store/workbench.svelte';
 import type { DashboardPlacement } from '../dashboard-model';
@@ -47,6 +50,7 @@ import {
 	type DashboardLayoutKind
 } from '../dashboard-model';
 interface DashboardInteractionGeometryContext {
+	readonly view: DashboardViewContext | null | undefined;
 	readonly graph: GraphState | null;
 	readonly node: UiNodeDto;
 	readonly parent: UiNodeDto | null;
@@ -58,6 +62,8 @@ interface DashboardInteractionGeometryContext {
 	readonly orderedInteraction: WidgetMoveInteraction | null;
 }
 export function createDashboardInteractionGeometry(context: DashboardInteractionGeometryContext) {
+	const fallbackOrder = new SurfaceItemOrder();
+	onDestroy(() => fallbackOrder.clear());
 	let graph = $derived(context.graph);
 	let liveNode = $derived(context.node);
 	let parentNode = $derived(context.parent);
@@ -78,70 +84,32 @@ export function createDashboardInteractionGeometry(context: DashboardInteraction
 		targetLayoutKind: DashboardLayoutKind,
 		ignoredNodeIds: ReadonlySet<NodeId>
 	): SurfaceOrderAnchor[] => {
-		if (!graph) {
-			return [];
+		if (!graph) return [];
+		const order = context.view?.itemOrder ?? fallbackOrder;
+		order.sync(graph, surfaceNode);
+		const track = resolveSurfaceContentElement(surfaceElement, targetLayoutKind);
+		const elements =
+			targetLayoutKind === 'tabs' || targetLayoutKind === 'accordion'
+				? Array.from(track.children).filter(
+						(element): element is HTMLElement => element instanceof HTMLElement
+					)
+				: Array.from(
+						surfaceElement.querySelectorAll<HTMLElement>(
+							`.dashboard-widget-shell[data-dashboard-surface-id="${surfaceNode.node_id}"]`
+						)
+					);
+		const result: SurfaceOrderAnchor[] = [];
+		for (const element of elements) {
+			const id = Number(element.dataset.dashboardChildId ?? element.dataset.nodeId);
+			const index = order.index(id, ignoredNodeIds);
+			if (index === undefined) continue;
+			const anchor =
+				targetLayoutKind === 'accordion'
+					? (element.querySelector<HTMLElement>('button') ?? element)
+					: element;
+			result.push({ nodeId: id, index, rect: anchor.getBoundingClientRect() });
 		}
-		const orderedChildren = getDirectItemChildren(graph, surfaceNode).filter(
-			(child) => !ignoredNodeIds.has(child.node_id)
-		);
-		if (orderedChildren.length === 0) {
-			return [];
-		}
-
-		if (targetLayoutKind === 'tabs') {
-			const buttons = Array.from(
-				surfaceElement.querySelectorAll<HTMLElement>(
-					'.dashboard-tab-strip > button:not(.dashboard-drop-preview-tab)'
-				)
-			);
-			return orderedChildren
-				.map((child, index) => {
-					const button = buttons[index];
-					return button
-						? {
-								nodeId: child.node_id,
-								rect: button.getBoundingClientRect()
-							}
-						: null;
-				})
-				.filter((anchor): anchor is SurfaceOrderAnchor => anchor !== null);
-		}
-
-		if (targetLayoutKind === 'accordion') {
-			const sections = Array.from(
-				surfaceElement.querySelectorAll<HTMLElement>(
-					'.dashboard-accordion > .dashboard-accordion-item'
-				)
-			);
-			return orderedChildren
-				.map((child, index) => {
-					const section = sections[index];
-					if (!section) {
-						return null;
-					}
-					const button = section.querySelector<HTMLElement>('button');
-					const anchorElement = button ?? section;
-					return {
-						nodeId: child.node_id,
-						rect: anchorElement.getBoundingClientRect()
-					};
-				})
-				.filter((anchor): anchor is SurfaceOrderAnchor => anchor !== null);
-		}
-
-		return orderedChildren
-			.map((child) => {
-				const shell = surfaceElement.querySelector<HTMLElement>(
-					`.dashboard-widget-shell[data-node-id="${String(child.node_id)}"][data-dashboard-surface-id="${String(surfaceNode.node_id)}"]`
-				);
-				return shell
-					? {
-							nodeId: child.node_id,
-							rect: shell.getBoundingClientRect()
-						}
-					: null;
-			})
-			.filter((anchor): anchor is SurfaceOrderAnchor => anchor !== null);
+		return result.sort((a, b) => a.index - b.index);
 	};
 
 	const resolveSurfaceInsertionTarget = (
@@ -155,9 +123,11 @@ export function createDashboardInteractionGeometry(context: DashboardInteraction
 		if (!graph) {
 			return null;
 		}
+		const order = context.view?.itemOrder ?? fallbackOrder;
+		order.sync(graph, surfaceNode);
 		if (targetLayoutKind === 'free') {
 			return {
-				targetIndex: getDirectItemChildren(graph, surfaceNode).length,
+				targetIndex: order.size,
 				indicator: null
 			};
 		}
@@ -175,6 +145,7 @@ export function createDashboardInteractionGeometry(context: DashboardInteraction
 		);
 
 		if (anchors.length === 0) {
+			if (order.count(ignoredNodeIds) > 0) return null;
 			if (targetLayoutKind === 'horizontal' || targetLayoutKind === 'tabs') {
 				return {
 					targetIndex: 0,
@@ -202,7 +173,7 @@ export function createDashboardInteractionGeometry(context: DashboardInteraction
 				const anchor = anchors[index];
 				if (clientX < anchor.rect.left + anchor.rect.width * 0.5) {
 					return {
-						targetIndex: index,
+						targetIndex: anchor.index,
 						indicator: buildVerticalInsertionIndicator(
 							surfaceRect,
 							trackRect,
@@ -215,7 +186,7 @@ export function createDashboardInteractionGeometry(context: DashboardInteraction
 			}
 			const last = anchors[anchors.length - 1];
 			return {
-				targetIndex: anchors.length,
+				targetIndex: last.index + 1,
 				indicator: buildVerticalInsertionIndicator(
 					surfaceRect,
 					trackRect,
@@ -231,7 +202,7 @@ export function createDashboardInteractionGeometry(context: DashboardInteraction
 				const anchor = anchors[index];
 				if (clientY < anchor.rect.top + anchor.rect.height * 0.5) {
 					return {
-						targetIndex: index,
+						targetIndex: anchor.index,
 						indicator: buildHorizontalInsertionIndicator(
 							surfaceRect,
 							trackRect,
@@ -244,7 +215,7 @@ export function createDashboardInteractionGeometry(context: DashboardInteraction
 			}
 			const last = anchors[anchors.length - 1];
 			return {
-				targetIndex: anchors.length,
+				targetIndex: last.index + 1,
 				indicator: buildHorizontalInsertionIndicator(
 					surfaceRect,
 					trackRect,
@@ -264,7 +235,7 @@ export function createDashboardInteractionGeometry(context: DashboardInteraction
 					(clientX <= anchor.rect.right && clientY < anchor.rect.top + anchor.rect.height * 0.5)
 				) {
 					return {
-						targetIndex: index,
+						targetIndex: anchor.index,
 						indicator: buildHorizontalInsertionIndicator(
 							surfaceRect,
 							trackRect,
@@ -277,7 +248,7 @@ export function createDashboardInteractionGeometry(context: DashboardInteraction
 			}
 			const last = anchors[anchors.length - 1];
 			return {
-				targetIndex: anchors.length,
+				targetIndex: last.index + 1,
 				indicator: buildHorizontalInsertionIndicator(
 					surfaceRect,
 					trackRect,
@@ -295,7 +266,7 @@ export function createDashboardInteractionGeometry(context: DashboardInteraction
 				(clientY <= anchor.rect.bottom && clientX < anchor.rect.left + anchor.rect.width * 0.5)
 			) {
 				return {
-					targetIndex: index,
+					targetIndex: anchor.index,
 					indicator: buildVerticalInsertionIndicator(
 						surfaceRect,
 						trackRect,
@@ -308,7 +279,7 @@ export function createDashboardInteractionGeometry(context: DashboardInteraction
 		}
 		const last = anchors[anchors.length - 1];
 		return {
-			targetIndex: anchors.length,
+			targetIndex: last.index + 1,
 			indicator: buildVerticalInsertionIndicator(
 				surfaceRect,
 				trackRect,
@@ -472,6 +443,7 @@ export function createDashboardInteractionGeometry(context: DashboardInteraction
 						new Set<NodeId>([liveNode.node_id])
 					);
 
+		if (targetLayoutKind !== 'free' && !insertionTarget) return null;
 		return {
 			surfaceNodeId: resolvedSurface.surfaceNodeId,
 			element: resolvedSurface.element,
@@ -526,6 +498,7 @@ export function createDashboardInteractionGeometry(context: DashboardInteraction
 			new Set<NodeId>([liveNode.node_id])
 		);
 
+		if (targetLayoutKind !== 'free' && !insertionTarget) return null;
 		return {
 			surfaceNodeId: resolvedSurface.surfaceNodeId,
 			element: resolvedSurface.element,

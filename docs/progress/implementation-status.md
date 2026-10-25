@@ -5,8 +5,8 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-25 on `main`, based on delivered `6b862b86` plus the P11 atomic dashboard
-layout-intent milestone below. **P11 is in progress; two of six fixed checkpoints are closed (33% rounded).**
+Last reconciled: 2026-10-25 on `main`, based on delivered `500775e8` plus the P11 ordered-widget
+lifetime milestone below. **P11 is in progress; two of six fixed checkpoints are closed (33% rounded).**
 **P10 is locally complete: three of three fixed checkpoints (100%).**
 **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
@@ -198,7 +198,7 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
 | ---------- | ------ | -------------------------------- |
 | Manager/catalog windowing | Complete locally | Variable-height manager/picker/outliner and flat/nested catalog menus pass through 100k items with bounded mounting, identity and focus. [Tree evidence](p11-tree-windowing.md), [catalog closure](p11-catalog-windowing.md). |
 | Historical log windowing | Complete locally | Variable-height history, filters, follow, bounded native selection, focus and snapshot publication pass through 100k records. [Qualification](p11-log-windowing.md). |
-| Dashboard viewport awareness | In progress | Sparse/dense and shared hierarchy budgets pass through 100k authored nodes. Framing, ranges/focus, geometry, scroll, move/creation presentation and confirmed free edits pass. Atomic backend move/resize and declared-folder gesture fences are verified. Ordered/constrained component lifetimes, pending size presentation, container/units, project/save/composed barriers and timing remain. [Layout-intent evidence](p11-dashboard-layout-intents.md). |
+| Dashboard viewport awareness | In progress | Sparse/dense and shared hierarchy budgets pass through 100k authored nodes. Free and generic ordered-widget lifetimes, pending size/enablement presentation, authored insertion indices and five CSS units pass. Active container/node-widget transforms, mixed destinations, project/save/composed barriers and timing remain. [Ordered lifetime evidence](p11-dashboard-ordered-lifetimes.md). |
 | Tree focus and keyboard navigation | Not started | Qualify expansion/navigation and stable focus across virtualized changes in all owning trees. |
 | Graph keyboard operations | Not started | Provide and qualify keyboard movement and connection creation through shared operations. |
 | Complete composed workflows | Not started | Qualify discovery, selection and editing across all required composed panels and large batches. Native usability retains P17. |
@@ -209,14 +209,15 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
   outliner, catalogs and historical logs are verified through 100k entries. Continue dashboard
   viewport awareness, then tree/graph keyboard operations and composed qualification.
   Sparse and dense dashboard presentation are verified through 100k authored nodes. Continue
-  explicit ordered move/constrained resize operations and component-level interruption/receipt
-  qualification. The backend enable/placement boundary now uses atomic protocol 0.11.0 intents;
-  declared-folder fences are verified. Continue pending size presentation, active container/
-  varied-unit geometry and composed host/project/save/undo lifetimes before the fixed action/timing
-  matrix. Fourteen confirmed-edit groups now pass across disposal, independent widget admission
+  active container/node-widget transforms and nested mixed-destination geometry, then composed
+  host/project/save/undo barriers over confirmed tails before the fixed action/timing matrix.
+  Generic ordered widgets pass 106 new cases: 36 resize and 70 move, including pending size/
+  enablement, retirement, history, disposal, five units and distant-header authored insertion.
+  The backend boundary remains atomic protocol 0.11.0. Fourteen prior confirmed-edit groups pass
+  across disposal, independent widget admission
   and late graph publication, alongside the prior twenty interruption groups. Session ownership
   retains confirmed work and parameter drafts; spatial queries and Frame consume those drafts.
-  Root UI 349 and the full browser 215 correctness groups/five tiers pass. Pending creation
+  Root UI 353 and the full browser 321 correctness groups/five tiers pass. Pending creation
   passes 55 cases across six layouts, including overlapping outcomes, mode/source/destination
   retirement, acknowledged controls, retained budgets and offscreen disposal.
   Move presentation now passes 55 cases across six layouts, including source/path/layout/identity
@@ -10515,3 +10516,54 @@ Continue pending size presentation, active containers/varied units and composed 
 barriers, then the fixed three-warmup / 31-sample action matrix including exact dense picking.
 Four fixed P11 checkpoints remain open. P03 has zero packages left. Native usability retains P17
 and product-scale throughput P16. Keep the full P00-P18 goal active.
+
+### P11 ordered-widget operation lifetimes and authored anchor identity
+
+Previous goal turn: **progress**, delivering `500775e8` on `main`. Resumed the clean checkout and
+completed shared presentation commands for generic free/ordered widgets. Ordered move and resize
+now have separate owners behind a 46-line facade. Native adapters keep pointer identity locally;
+cancel and window blur use cancellation, while confirmed work stays session-owned. Active source/
+destination/host/path/transition fences retire invalid work. Managed admission waits for preceding
+history closure; an older rejection cannot clear a successor preview. Pending resize drafts carry
+explicit presentation enablement without changing authored metadata.
+
+Probes exposed a **246.324 CSS-pixel increase for a 24-pixel resize** from an automatic size,
+**7.171 pixels of vertical border error**, and mounted-position insertion that incorrectly made a
+far-tab move a no-op. Resize now starts from rendered bounds for auto sizing, keeps the authored
+unit and uses consistent border-box shells. A page-shared authored item-order index maps bounded
+DOM anchors to the real sequence. Moving tab 0 before retained tab 80 now sends index **79**.
+Value-only publications do not rescan sibling lists. See the
+[ordered lifetime report](p11-dashboard-ordered-lifetimes.md),
+[full evidence](evidence/p11-dashboard-ordered-lifetimes-2026-10-25.json) and
+[five failed probes](evidence/p11-dashboard-ordered-failures-2026-10-25.json).
+
+The final browser run passes **321 correctness groups and five sparse tiers** through 100k authored
+nodes, with **124 current source fingerprints** and no page errors. The 106 added groups cover
+36 horizontal/vertical resize cases and 70 moves: five ordered source layouts, cancellation,
+retirement, delayed begin/receipts/events, owned history, confirmed disposal/remounting, pending
+size/enablement, rejection isolation, queued admission and rem/em/percent/vw/vh. The main workloads
+keep 600 widgets. The distinct retained-header case uses 100 tabs, native DOM focus, then budget
+eight. The original probe's nonexistent 600-tab header and the fixture's absent capability catalog
+were corrected; all failed observations and application failures remain recorded. No synthetic
+keyboard/mouse/drag input, native usability or dashboard action-latency distribution is claimed.
+
+Root UI passes **353** (audio 27 / graph 52 / Golden UI 159 / app 115). Four added unit cases cover
+layered enablement and retained item order, including 10k items, structural/role invalidation and
+bounded graph reads across repeated queries. TypeScript diagnostics for both new/extended unit
+sources and dependencies pass. Browser/app Svelte checks report **zero errors/warnings**. Source/
+report Prettier, whitespace and both Cargo formatters pass. Rust/protocol sources are unchanged
+from the preceding milestone. Inventory is **2,159 source files / 27 oversized**; DashboardCanvas
+is 977 lines, the facade 46 and interaction geometry 605. All touched runtime/tests remain below
+1,000 lines without a new exception.
+
+**P11 remains 2/6 checkpoints (33% rounded); whole-plan scope coverage remains 57% (57.41% exact).**
+The final locked default build rebuilt the frontend and passed in **2m12s**; the preceding
+pre-blur build passed in 2m15s. Executable SHA-256:
+`b718e7540cb3fced0e6f5876976f648fe69c4dc4a956ccde3d475c835a7361e4`.
+Commit/push this verified milestone on `main`. Continue active
+container/node-widget transforms, mixed destination insertion, and geometry where layout/font/
+viewport changes during work. Then qualify composed host/project/reparent/save/undo barriers over
+confirmed tails and the fixed three-warmup / 31-sample action matrix including exact dense picking.
+The generic source-lifetime matrix mostly targets the free page; arbitrary cross-destination
+insertion is still open. Four fixed P11 checkpoints remain open; P03 has zero packages left.
+Physical gestures/focus loss retain P17; product throughput retains P16. Keep the full P00-P18 goal active.

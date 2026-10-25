@@ -13,6 +13,21 @@ export function dashboardData(
 	const add = (type: string, label: string, item = true) => {
 		const node = fixtureNode(nextId++, label, [], type);
 		if (item) node.user_role = 'itemRoot';
+		if (type === 'dashboard_page' || type === 'dashboard_widget_container') {
+			node.accepted_user_item_kinds = ['dashboard_widget'];
+			node.creatable_user_items = [
+				'dashboard_generic_widget',
+				'dashboard_node_widget',
+				'dashboard_widget_container'
+			].map((node_type) => ({
+				node_type,
+				item_kind: 'dashboard_widget',
+				label: node_type,
+				menu_path: [],
+				initial_params: [],
+				select_when_created: true
+			}));
+		}
 		nodes.push(node);
 		return node;
 	};

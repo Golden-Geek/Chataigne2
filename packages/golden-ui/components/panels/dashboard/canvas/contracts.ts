@@ -153,7 +153,7 @@ export type FreeLayoutInteraction = {
 };
 
 export type LayoutPoint = { x: number; y: number };
-export type FreeLayoutEdit =
+export type WidgetLayoutEdit =
 	| { kind: 'move'; origin: LayoutPoint }
 	| { kind: 'resize'; origin: LayoutPoint; edges: FreeLayoutResizeEdges }
 	| { kind: 'update'; point: LayoutPoint }
@@ -182,13 +182,11 @@ export type WidgetMoveDropTarget = {
 };
 
 export type WidgetMoveInteraction = {
-	pointerId: number;
 	sourceSurfaceNodeId: NodeId;
 	startClient: [number, number];
 };
 
 export type ConstrainedResizeInteraction = {
-	pointerId: number;
 	axis: 'x' | 'y';
 	sign: -1 | 1;
 	startClient: [number, number];
@@ -202,7 +200,6 @@ export type ConstrainedResizeInteraction = {
 	surfaceScaleY: number;
 	viewportWidthPx: number;
 	viewportHeightPx: number;
-	lastSent: CssValueData | null;
 };
 
 export type SurfaceMetrics = {
@@ -254,5 +251,6 @@ export type SurfacePressState = {
 
 export type SurfaceOrderAnchor = {
 	nodeId: NodeId;
+	index: number;
 	rect: DOMRect;
 };

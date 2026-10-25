@@ -7,7 +7,10 @@ import { captureSurface } from './surface-fence';
 /** Capture only edited targets/parameters and their unique ancestry; inspect later map deltas. */
 export function captureLayoutGesture(
 	graph: GraphState | null,
-	targets: readonly FreeLayoutTarget[]
+	targets: readonly Pick<
+		FreeLayoutTarget,
+		'nodeId' | 'positionParamNodeId' | 'widthParamNodeId' | 'heightParamNodeId'
+	>[]
 ) {
 	if (!graph || !targets.length) return null;
 	const nodes = new Map<

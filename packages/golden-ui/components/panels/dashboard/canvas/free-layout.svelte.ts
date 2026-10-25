@@ -15,7 +15,7 @@ import type { createDashboardInteractionGeometry } from './interaction-geometry.
 import {
 	type AnchorGuide,
 	type LayoutPoint,
-	type FreeLayoutEdit,
+	type WidgetLayoutEdit,
 	type FreeLayoutInteractionMode,
 	type FreeLayoutResizeEdges,
 	type FreeLayoutPreviewSet,
@@ -340,7 +340,7 @@ export function createDashboardFreeLayout(context: DashboardFreeLayoutContext) {
 		await finalizeFreeLayoutInteraction(preview, mode);
 		return true;
 	};
-	const edit = async (command: FreeLayoutEdit, targets: () => UiNodeDto[]): Promise<boolean> => {
+	const edit = async (command: WidgetLayoutEdit, targets: () => UiNodeDto[]): Promise<boolean> => {
 		switch (command.kind) {
 			case 'move':
 				return startLayoutOperation('move', command.origin, null, targets());
@@ -369,6 +369,10 @@ export function createDashboardFreeLayout(context: DashboardFreeLayoutContext) {
 		window.addEventListener('pointermove', handlePointerMove);
 		window.addEventListener('pointerup', finishInteraction);
 		window.addEventListener('pointercancel', finishInteraction);
+		const cancel = () => {
+			void finishLayout(true);
+		};
+		window.addEventListener('blur', cancel);
 		const previousCursor = document.body.style.cursor;
 		const previousUserSelect = document.body.style.userSelect;
 		document.body.style.cursor =
@@ -392,6 +396,7 @@ export function createDashboardFreeLayout(context: DashboardFreeLayoutContext) {
 			window.removeEventListener('pointermove', handlePointerMove);
 			window.removeEventListener('pointerup', finishInteraction);
 			window.removeEventListener('pointercancel', finishInteraction);
+			window.removeEventListener('blur', cancel);
 			document.body.style.cursor = previousCursor;
 			document.body.style.userSelect = previousUserSelect;
 		};

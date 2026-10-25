@@ -20,7 +20,9 @@ and widget templates. Its `canvas/` modules own distinct presentation lifetimes:
 | `surface.svelte.ts`, `SurfaceContent.svelte`                     | Child layout, tabs/accordion view state, native drop adapters, registered view operations and recursive rendering. |
 | `surface-drop.svelte.ts`, `surface-move.svelte.ts`               | Active drop/move and pending creation/commit presentation lifetimes.                                               |
 | `camera.svelte.ts`, `page-view.ts`                               | Viewport measurements, pan/zoom, persisted camera state and Home/frame commands.                                   |
-| `free-layout.svelte.ts`, `ordered-layout.svelte.ts`              | Move/resize/reorder gestures, previews, coalesced edits and interaction cleanup.                                   |
+| `free-layout.svelte.ts`, `ordered-layout.svelte.ts`              | Free gestures and thin ordered-operation composition through shared presentation commands.                         |
+| `ordered-move.svelte.ts`, `constrained-resize.svelte.ts`         | Independent move/resize lifetimes, captured admission, native adapters and cancellation.                           |
+| `surface-item-order.ts`                                          | Page-shared authored item indices for bounded mounted-anchor queries.                                              |
 | `interaction-geometry.svelte.ts`, `interaction-chrome.svelte.ts` | Transform targets, hit testing, insertion/ancestor decoration and move-preview publication.                        |
 | `marquee.svelte.ts`                                              | Surface presses and marquee selection.                                                                             |
 | `widget-content.svelte.ts`, `binding-drop.svelte.ts`             | Live target rendering, generic controls and binding intents.                                                       |
@@ -178,8 +180,28 @@ receipts with existing action lifecycle reporting through the session pipeline.
 
 The [free-operation report](../progress/p11-dashboard-free-gestures.md) covers active interruption;
 the [confirmed-edit report](../progress/p11-dashboard-confirmed-edits.md) covers view disposal,
-independent widget history and late graph publication. Ordered/constrained resize, container/unit
-geometry, project/save barriers and composed lifetimes still need their owning qualification.
+independent widget history and late graph publication. Generic ordered lifetimes are now qualified
+below; active containers, mixed destinations, project/save barriers and composed lifetimes remain.
 These checks do not establish staged/unknown-outcome semantics or complete dashboard acceptance.
 See the [fixed contract](../progress/p11-workspace-qualification-contract.md) and the historical
 [decomposition comparison](../progress/p11-dashboard-decomposition.md).
+
+`WidgetLayoutEdit` is the presentation-command entrypoint for all layout controllers. The page's
+view registry dispatches to the appropriate free or ordered owner. Native adapters keep pointer
+identity separately and route cancellation/focus loss to the same cancel operation. Confirmed
+ordered moves wait for session admission, then send one atomic backend intent through the captured
+host. Resize reuses the coalesced queue and owned history group. Disposal cancels unconfirmed work;
+confirmed work completes independently of the component. These owners subscribe to graph changes
+only while an operation is active.
+
+Resize drafts explicitly include presentation enablement, alongside UUID-checked values. They do
+not change authored metadata. Placement and slot readers retain them until the applied event
+boundary; rejection/cancellation removes both parts. Auto sizing starts from measured rendered
+bounds, preserves the authored CSS unit, and uses border-box widget shells across layouts.
+
+Insertion queries enumerate mounted controls/headers and resolve their authored indices through
+the page's retained `SurfaceItemOrder`. They do not zip sparse headers to logical children or scan
+all siblings for every pointer update. Structural/order/role changes refresh the index; value-only
+publications use immutable map deltas. An ordered surface with hidden items and no anchor cannot
+invent an insertion position. See [ordered lifetime evidence](../progress/p11-dashboard-ordered-lifetimes.md)
+for the exercised scope and remaining container/composed/timing qualification.
