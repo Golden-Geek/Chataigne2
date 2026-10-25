@@ -160,6 +160,15 @@ the same edit session. Baseline lookup is indexed by node identity rather than r
 `gesture-fence.ts` captures targets, parameter identities and unique ancestry. Later validation
 uses persistent node/parent map deltas; layout and insertion dependencies retire stale operations.
 
+`layout-frame.ts` owns the measured parent coordinate frame for active free transforms and
+constrained resize. Input, confirmation and unsent-write admission check its bounds, fonts,
+scroll and viewport dimensions. A changed frame retires unsent samples while admitted work closes
+its history. Window resize has an event listener; there is no recurring measurement poll. Once
+confirmed, work releases its DOM frame and uses its captured authored sample through view disposal.
+Resize snapping applies only to edited edges, preserving opposite edges and unedited axes even
+when their authored positions are off grid. Placement DTOs copy scalar dimensions and enablement
+before leaving the presentation layer, so reactive draft objects cannot cross the transport boundary.
+
 `store/session/edit-session.ts` serializes one owner's begin/end acknowledgements, including an
 end requested while begin is pending. Host identity and history epoch guard closure. The public
 `createUiEditSession` adapter sends to the captured host. It continues to leave foreign active
@@ -180,8 +189,10 @@ receipts with existing action lifecycle reporting through the session pipeline.
 
 The [free-operation report](../progress/p11-dashboard-free-gestures.md) covers active interruption;
 the [confirmed-edit report](../progress/p11-dashboard-confirmed-edits.md) covers view disposal,
-independent widget history and late graph publication. Generic ordered lifetimes are now qualified
-below; active containers, mixed destinations, project/save barriers and composed lifetimes remain.
+independent widget history and late graph publication. Generic ordered lifetimes are qualified
+below. The [composition matrix](../progress/p11-dashboard-composition.md) extends these checks to
+containers, registered node widgets, mixed destinations and active coordinate-frame changes.
+Project/save barriers, composed lifetimes and action timing remain open.
 These checks do not establish staged/unknown-outcome semantics or complete dashboard acceptance.
 See the [fixed contract](../progress/p11-workspace-qualification-contract.md) and the historical
 [decomposition comparison](../progress/p11-dashboard-decomposition.md).
@@ -204,4 +215,5 @@ the page's retained `SurfaceItemOrder`. They do not zip sparse headers to logica
 all siblings for every pointer update. Structural/order/role changes refresh the index; value-only
 publications use immutable map deltas. An ordered surface with hidden items and no anchor cannot
 invent an insertion position. See [ordered lifetime evidence](../progress/p11-dashboard-ordered-lifetimes.md)
-for the exercised scope and remaining container/composed/timing qualification.
+for the generic scope, plus the composition matrix for container and registered-widget coverage.
+Composed barriers and timing qualification remain required before dashboard acceptance closes.

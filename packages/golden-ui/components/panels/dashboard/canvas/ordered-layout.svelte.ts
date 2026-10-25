@@ -33,7 +33,7 @@ export function createDashboardOrderedLayout(context: DashboardOrderedLayoutCont
 					return move.start(command.origin, context.widgetElement);
 				case 'resize':
 					void move.finish(true);
-					return resize.start(command.origin, command.edges, context.widgetElement);
+					return resize.start(command.origin, command.edges);
 				case 'update':
 					return move.interaction ? move.update(command.point) : resize.update(command.point);
 				case 'finish':

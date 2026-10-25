@@ -411,10 +411,25 @@ export const buildFreeLayoutResizePreview = (
 		nextHeightPx = Math.max(groupMinHeightPx, nextHeightPx + deltaYPx);
 	}
 	if (snapPx > 0) {
-		nextLeftPx = snapToGridPx(nextLeftPx, snapPx);
-		nextTopPx = snapToGridPx(nextTopPx, snapPx);
-		nextWidthPx = Math.max(groupMinWidthPx, snapToGridPx(nextWidthPx, snapPx));
-		nextHeightPx = Math.max(groupMinHeightPx, snapToGridPx(nextHeightPx, snapPx));
+		// Snap the edited edge and retain the opposite authored edge, including off-grid origins.
+		if (resizeEdges.left) {
+			const right = nextLeftPx + nextWidthPx;
+			nextLeftPx = Math.min(snapToGridPx(nextLeftPx, snapPx), right - groupMinWidthPx);
+			nextWidthPx = right - nextLeftPx;
+		} else if (resizeEdges.right)
+			nextWidthPx = Math.max(
+				groupMinWidthPx,
+				snapToGridPx(nextLeftPx + nextWidthPx, snapPx) - nextLeftPx
+			);
+		if (resizeEdges.top) {
+			const bottom = nextTopPx + nextHeightPx;
+			nextTopPx = Math.min(snapToGridPx(nextTopPx, snapPx), bottom - groupMinHeightPx);
+			nextHeightPx = bottom - nextTopPx;
+		} else if (resizeEdges.bottom)
+			nextHeightPx = Math.max(
+				groupMinHeightPx,
+				snapToGridPx(nextTopPx + nextHeightPx, snapPx) - nextTopPx
+			);
 	}
 	const scaleX = startRect.width > 1e-6 ? nextWidthPx / startRect.width : 1;
 	const scaleY = startRect.height > 1e-6 ? nextHeightPx / startRect.height : 1;

@@ -1,6 +1,9 @@
 import type { UiEditIntent, EventTime, ParamValue } from '../../../types';
 import type { createFixtureSession } from './session';
-import { getDirectParamNode } from '../../../components/panels/dashboard/dashboard-model';
+import {
+	getDirectParamNode,
+	getDashboardLayoutKind
+} from '../../../components/panels/dashboard/dashboard-model';
 
 /** Controlled receipts/publications from the real pipeline, separate from backend policy tests. */
 export function createDashboardEditIO(
@@ -83,7 +86,7 @@ export function createDashboardEditIO(
 					value(field.node_id, { kind: 'css_value', ...next });
 				}
 			}
-			if (!rejected && intent.kind === 'moveDashboardWidget')
+			if (!rejected && intent.kind === 'moveDashboardWidget') {
 				enqueue((at) => {
 					const graph = fixture.session.graph.state;
 					const parent = graph.nodesById.get(intent.parent)!;
@@ -116,6 +119,44 @@ export function createDashboardEditIO(
 									}
 					});
 				});
+				// Controlled authoritative publications; backend policy is qualified by the Rust suite.
+				const placement = intent.placement;
+				if (placement) {
+					const graph = fixture.session.graph.state,
+						owner = graph.nodesById.get(intent.widget)!;
+					const layout = getDashboardLayoutKind(graph, graph.nodesById.get(intent.parent)!);
+					const edits: [string, ParamValue, boolean | undefined][] = [];
+					if (layout === 'free' || layout === 'horizontal')
+						edits.push([
+							'width',
+							{ kind: 'css_value', ...placement.width },
+							layout === 'free' || placement.size_enabled?.width === true
+						]);
+					if (layout === 'free' || layout === 'vertical')
+						edits.push([
+							'height',
+							{ kind: 'css_value', ...placement.height },
+							layout === 'free' || placement.size_enabled?.height === true
+						]);
+					if (layout === 'free')
+						edits.push(
+							['position', { kind: 'vec2', value: placement.position }, undefined],
+							['anchor', { kind: 'enum', value: placement.anchor }, undefined]
+						);
+					for (const [key, next, enabled] of edits) {
+						const field = getDirectParamNode(graph, owner, key);
+						if (!field) continue;
+						if (enabled !== undefined)
+							enqueue((at) =>
+								fixture.session.graph.applyEvent({
+									time: at,
+									kind: { kind: 'metaChanged', node: field.node_id, patch: { enabled } }
+								})
+							);
+						value(field.node_id, next);
+					}
+				}
+			}
 			const reply = () => ({
 				...fixture.editAcknowledgement(
 					intent.kind === 'beginEdit' ? true : intent.kind === 'endEdit' ? false : undefined

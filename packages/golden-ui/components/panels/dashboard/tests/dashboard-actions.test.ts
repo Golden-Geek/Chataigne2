@@ -42,6 +42,31 @@ describe('dashboard layout intent boundary', () => {
 			undefined
 		);
 	});
+	it('owns placement values after the presentation draft changes', async () => {
+		const graph = graphFixture(2);
+		const placement = {
+			anchor: 'center' as const,
+			position: { x: 25, y: 50 },
+			size: {
+				width: { value: 40, unit: 'percent' as const },
+				height: { value: 7, unit: 'em' as const }
+			},
+			sizeEnabled: { width: true, height: false }
+		};
+		await moveDashboardWidgetToSurface(() => graph, 10, 1, placement, 0);
+		placement.position.x = 99;
+		placement.size.width.value = 99;
+		placement.size.height.value = 99;
+		placement.sizeEnabled.width = false;
+		placement.sizeEnabled.height = true;
+		expect(vi.mocked(sendMoveDashboardWidgetIntent).mock.calls[0][3]).toEqual({
+			anchor: 'center',
+			position: [25, 50],
+			width: { value: 40, unit: 'percent' },
+			height: { value: 7, unit: 'em' },
+			size_enabled: { width: true, height: false }
+		});
+	});
 	it('leaves target index clamping and ordering to the authoritative backend', async () => {
 		const graph = graphFixture(2);
 		expect(await moveDashboardWidgetToIndex(() => graph, 10, 999)).toBe(true);

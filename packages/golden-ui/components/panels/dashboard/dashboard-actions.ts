@@ -45,9 +45,11 @@ const toUiDashboardWidgetPlacement = (
 ): UiDashboardWidgetPlacement => ({
 	anchor: placement.anchor,
 	position: [placement.position.x, placement.position.y],
-	width: placement.size.width,
-	height: placement.size.height,
+	width: { value: placement.size.width.value, unit: placement.size.width.unit },
+	height: { value: placement.size.height.value, unit: placement.size.height.unit },
 	size_enabled: placement.sizeEnabled
+		? { width: placement.sizeEnabled.width, height: placement.sizeEnabled.height }
+		: undefined
 });
 
 interface DashboardWidgetPlacementOptions {

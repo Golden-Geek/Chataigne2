@@ -17,6 +17,7 @@ import { gestureChecks } from './dashboard-gestures.mjs';
 import { confirmedChecks } from './dashboard-confirmed.mjs';
 import { orderedChecks } from './dashboard-ordered.mjs';
 import { orderedMoveChecks } from './dashboard-ordered-move.mjs';
+import { compositionChecks } from './dashboard-composition.mjs';
 
 const repository = fileURLToPath(new URL('../../../../', import.meta.url));
 const root = fileURLToPath(new URL('./fixture/', import.meta.url));
@@ -31,6 +32,7 @@ const gesturesOnly = process.argv.includes('--gestures-only');
 const confirmedOnly = process.argv.includes('--confirmed-only');
 const orderedOnly = process.argv.includes('--ordered-only');
 const orderedMoveOnly = process.argv.includes('--ordered-move-only');
+const compositionOnly = process.argv.includes('--composition-only');
 const fullRun = !(
 	denseOnly ||
 	hierarchyOnly ||
@@ -40,7 +42,8 @@ const fullRun = !(
 	gesturesOnly ||
 	confirmedOnly ||
 	orderedOnly ||
-	orderedMoveOnly
+	orderedMoveOnly ||
+	compositionOnly
 );
 const canvasPrefix = 'packages/golden-ui/components/panels/dashboard/';
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
@@ -72,6 +75,8 @@ const sources = [
 	fileURLToPath(new URL('./dashboard-confirmed.mjs', import.meta.url)),
 	fileURLToPath(new URL('./dashboard-ordered.mjs', import.meta.url)),
 	fileURLToPath(new URL('./dashboard-ordered-move.mjs', import.meta.url)),
+	fileURLToPath(new URL('./dashboard-composition.mjs', import.meta.url)),
+	fileURLToPath(new URL('./dashboard-composition-lifetimes.mjs', import.meta.url)),
 	resolve(repository, 'packages/golden-ui/store/ui-intents.ts'),
 	resolve(repository, 'packages/golden-ui/types.ts'),
 	resolve(repository, 'packages/golden-ui/generated/rust_protocol/UiEditIntent.ts'),
@@ -111,25 +116,27 @@ const report = resolve(
 	`p11-dashboard-viewport-${new Date().toISOString().replaceAll(/[:.]/g, '-')}.json`
 );
 const result = {
-	scope: orderedMoveOnly
-		? 'ordered-move-only'
-		: orderedOnly
-			? 'ordered-only'
-			: confirmedOnly
-				? 'confirmed-only'
-				: gesturesOnly
-					? 'gestures-only'
-					: creationOnly
-						? 'creation-only'
-						: editOnly
-							? 'edit-only'
-							: lifecycleOnly
-								? 'lifecycle-only'
-								: hierarchyOnly
-									? 'hierarchy-only'
-									: denseOnly
-										? 'dense-only'
-										: 'dashboard-correctness',
+	scope: compositionOnly
+		? 'composition-only'
+		: orderedMoveOnly
+			? 'ordered-move-only'
+			: orderedOnly
+				? 'ordered-only'
+				: confirmedOnly
+					? 'confirmed-only'
+					: gesturesOnly
+						? 'gestures-only'
+						: creationOnly
+							? 'creation-only'
+							: editOnly
+								? 'edit-only'
+								: lifecycleOnly
+									? 'lifecycle-only'
+									: hierarchyOnly
+										? 'hierarchy-only'
+										: denseOnly
+											? 'dense-only'
+											: 'dashboard-correctness',
 	baseline,
 	browser: '',
 	machine: {
@@ -595,6 +602,7 @@ try {
 		if (fullRun || confirmedOnly) await confirmedChecks(page, record);
 		if (fullRun || orderedOnly) await orderedChecks(page, record);
 		if (fullRun || orderedOnly || orderedMoveOnly) await orderedMoveChecks(page, record);
+		if (fullRun || compositionOnly) await compositionChecks(page, record);
 		assert.deepEqual(result.errors, []);
 	});
 	assert.deepEqual(fingerprints(), result.source, 'Qualified sources changed');

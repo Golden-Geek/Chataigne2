@@ -1,6 +1,7 @@
 import { onDestroy } from 'svelte';
 import { createFreeLayoutCommitter } from './free-layout-committer';
 import { captureLayoutGesture } from './gesture-fence';
+import { captureLayoutFrame, type LayoutFrame } from './layout-frame';
 import type { GraphState } from '../../../../store/graph.svelte';
 import type { SelectionMode, WorkbenchSession } from '../../../../store/workbench.svelte';
 import type { EditOperation } from '../../../../store/session/edit-operations';
@@ -86,6 +87,8 @@ export function createDashboardFreeLayout(context: DashboardFreeLayoutContext) {
 	let freeLayoutDropTarget = $state<FreeLayoutDropTarget | null>(null);
 
 	type Gesture = {
+		frame: LayoutFrame;
+		confirmFrame(): void;
 		primary: number;
 		host: WorkbenchSession;
 		scope: EditOperation<ReturnType<typeof createFreeLayoutCommitter>>;
@@ -96,6 +99,9 @@ export function createDashboardFreeLayout(context: DashboardFreeLayoutContext) {
 	let destroyed = false;
 	let nativePointerId: number | null = null;
 	const closeGesture = (operation: Gesture, cancel: boolean, after?: () => Promise<void>) => {
+		if (!cancel && !operation.frame.check()) cancel = true;
+		if (cancel) operation.frame.dispose();
+		else operation.confirmFrame();
 		const done = cancel ? operation.scope.cancel() : operation.scope.confirm(after);
 		const remove = () => {
 			gestures.delete(operation);
@@ -112,7 +118,11 @@ export function createDashboardFreeLayout(context: DashboardFreeLayoutContext) {
 		freeLayoutPreview = null;
 		return operation ? closeGesture(operation, true) : Promise.resolve();
 	};
-	const startCommitter = (initial: FreeLayoutPreviewSet, label: string): boolean => {
+	const startCommitter = (
+		initial: FreeLayoutPreviewSet,
+		label: string,
+		frame: LayoutFrame
+	): boolean => {
 		const host = context.session;
 		if (!host) return false;
 		const fence = captureLayoutGesture(
@@ -121,11 +131,13 @@ export function createDashboardFreeLayout(context: DashboardFreeLayoutContext) {
 		);
 		if (!fence) return false;
 		const revision = host.graphTransitionRevision;
+		let confirmed = false;
 		const scope = host.editOperations.open({
 			current: () =>
 				appState.session === host &&
 				host.graphTransitionRevision === revision &&
 				!host.graph.state.requiresResync &&
+				(confirmed || frame.current) &&
 				fence.isCurrent(host.graph.state),
 			build: (ownership) => {
 				const session = createUiEditSession(
@@ -135,10 +147,10 @@ export function createDashboardFreeLayout(context: DashboardFreeLayoutContext) {
 					ownership.applied
 				);
 				return createFreeLayoutCommitter(initial, {
-					current: () => ownership.current,
+					current: () => ownership.current && (confirmed || frame.check()),
 					begin: async () => {
 						await ownership.ready;
-						if (ownership.current) await session.begin();
+						if (ownership.current && (confirmed || frame.check())) await session.begin();
 					},
 					end: () => session.end(),
 					send: async (edits) => (await sendUiIntentBatch(edits, host, ownership.applied)).success,
@@ -151,7 +163,16 @@ export function createDashboardFreeLayout(context: DashboardFreeLayoutContext) {
 			}
 		});
 		if (!scope) return false;
-		gesture = { primary: initial.primaryNodeId, host, scope };
+		gesture = {
+			primary: initial.primaryNodeId,
+			host,
+			scope,
+			frame,
+			confirmFrame: () => {
+				confirmed = true;
+				frame.dispose();
+			}
+		};
 		gestures.add(gesture);
 		operationCount = gestures.size;
 		return true;
@@ -209,19 +230,18 @@ export function createDashboardFreeLayout(context: DashboardFreeLayoutContext) {
 		clearFreeLayoutInteractionChrome();
 		if (!isSelected) selectWidgetNode('REPLACE');
 		setFreeLayoutAncestorShells(widgetShellElement);
-		const rootRemPx = getRootRemPixels();
-		const surfaceMetrics = getClosestSurfaceMetrics(widgetShellElement.parentElement, rootRemPx);
-		const metrics = {
-			rootRemPx,
-			emPx: surfaceMetrics.emPx,
-			surfaceWidthPx: surfaceMetrics.width,
-			surfaceHeightPx: surfaceMetrics.height,
-			viewportWidthPx: getViewportWidthPx(),
-			viewportHeightPx: getViewportHeightPx()
-		};
+		const frame = captureLayoutFrame(widgetShellElement.parentElement, () => {
+			if (gesture?.frame === frame) {
+				void cancelActiveGesture();
+				clearFreeLayoutInteractionChrome();
+			}
+		});
+		if (!frame) return false;
+		const metrics = frame.metrics;
 		const targets = buildFreeLayoutTargets(transformNodes, metrics),
 			selectionRect = buildSelectionRect(targets);
 		if (!targets.length || !selectionRect) {
+			frame.dispose();
 			clearFreeLayoutInteractionChrome();
 			return false;
 		}
@@ -229,9 +249,11 @@ export function createDashboardFreeLayout(context: DashboardFreeLayoutContext) {
 		if (
 			!startCommitter(
 				initial,
-				mode === 'move' ? 'Move dashboard widget' : 'Resize dashboard widget'
+				mode === 'move' ? 'Move dashboard widget' : 'Resize dashboard widget',
+				frame
 			)
 		) {
+			frame.dispose();
 			clearFreeLayoutInteractionChrome();
 			return false;
 		}
@@ -244,8 +266,8 @@ export function createDashboardFreeLayout(context: DashboardFreeLayoutContext) {
 			targets,
 			startClient: [origin.x, origin.y],
 			...metrics,
-			surfaceScaleX: surfaceMetrics.scaleX,
-			surfaceScaleY: surfaceMetrics.scaleY
+			surfaceScaleX: metrics.surfaceScaleX,
+			surfaceScaleY: metrics.surfaceScaleY
 		};
 		freeLayoutPreview = initial;
 		return true;
@@ -269,7 +291,7 @@ export function createDashboardFreeLayout(context: DashboardFreeLayoutContext) {
 	};
 	const updateLayout = (point: LayoutPoint): boolean => {
 		if (!freeLayoutInteraction || !gesture) return false;
-		if (!editMode || !gesture.scope.current) {
+		if (!editMode || !gesture.scope.current || !gesture.frame.check()) {
 			cancelActiveGesture();
 			clearFreeLayoutInteractionChrome();
 			return false;
@@ -326,7 +348,7 @@ export function createDashboardFreeLayout(context: DashboardFreeLayoutContext) {
 	};
 	const finishLayout = async (cancel: boolean): Promise<boolean> => {
 		if (!freeLayoutInteraction || !gesture) return false;
-		if (cancel || !editMode || !gesture.scope.current) {
+		if (cancel || !editMode || !gesture.scope.current || !gesture.frame.check()) {
 			const closing = cancelActiveGesture();
 			clearFreeLayoutInteractionChrome();
 			await closing;

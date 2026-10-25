@@ -12,6 +12,7 @@
 	import { dashboardData } from './dashboard-data';
 	import { dashboardForest } from './dashboard-forest';
 	import { dashboardHierarchy } from './dashboard-hierarchy';
+	import { dashboardComposition } from './dashboard-composition';
 	import DashboardRegistryContent from './DashboardRegistryContent.svelte';
 	import { createDashboardEditIO } from './dashboard-edit-io';
 	import type { WidgetLayoutEdit } from '../../../components/panels/dashboard/canvas/contracts';
@@ -44,6 +45,11 @@
 	let epoch = $state(0);
 	let presentationBudget = $state(512);
 	let canvas = $state<ReturnType<typeof DashboardCanvas>>();
+	let canvasMounted = $state(true);
+	export async function mountCanvas(value: boolean) {
+		canvasMounted = value;
+		await settle();
+	}
 	let sequence = 0;
 	const editIO = createDashboardEditIO(fixture, () => ({ tick: ++sequence, micro: 0, seq: 0 }));
 	export function configureEdits(options: Parameters<typeof editIO.configure>[0] = {}) {
@@ -61,21 +67,33 @@
 		await settle();
 	}
 	export async function layoutEdit(index: number, command: WidgetLayoutEdit) {
-		const handled = await canvas!.editWidgetLayout(data!.ids[index], command);
+		const handled = await canvas!.editWidgetLayout(
+			index === -2 ? data!.containerId! : data!.ids[index],
+			command
+		);
 		await settle();
 		return handled;
 	}
 	export async function layoutEdits(index: number, commands: WidgetLayoutEdit[]) {
 		const handled: boolean[] = [];
 		for (const command of commands)
-			handled.push(await canvas!.editWidgetLayout(data!.ids[index], command));
+			handled.push(
+				await canvas!.editWidgetLayout(
+					index === -2 ? data!.containerId! : data!.ids[index],
+					command
+				)
+			);
 		await settle();
 		return handled;
 	}
 	const layoutFinishes: Promise<boolean>[] = [];
 	export async function requestLayoutFinish(index: number) {
 		const id = layoutFinishes.length;
-		layoutFinishes.push(canvas!.editWidgetLayout(data!.ids[index], { kind: 'finish' }));
+		layoutFinishes.push(
+			canvas!.editWidgetLayout(index === -2 ? data!.containerId! : data!.ids[index], {
+				kind: 'finish'
+			})
+		);
 		await settle();
 		return id;
 	}
@@ -84,7 +102,7 @@
 	}
 	export function paramValue(index: number, key: string) {
 		const graph = fixture.session.graph.state,
-			owner = graph.nodesById.get(data!.ids[index])!;
+			owner = graph.nodesById.get(index === -2 ? data!.containerId! : data!.ids[index])!;
 		const field = getDirectParamNode(graph, owner, key);
 		if (field?.data.kind !== 'parameter') throw new Error('Missing fixture field');
 		return field.data.param.value;
@@ -320,6 +338,36 @@
 		await settle();
 		await settle();
 		return { ids: data.ids, authoredNodes: data.nodes.length, containerId: data.containerId };
+	}
+	export async function setupComposition(
+		family: Parameters<typeof dashboardComposition>[0],
+		parentLayout: DashboardLayoutKind,
+		destinationLayout: DashboardLayoutKind = 'free'
+	) {
+		data = null;
+		await tick();
+		editMode = true;
+		persisted = null;
+		presentationBudget = 512;
+		const scene = dashboardComposition(family, parentLayout, destinationLayout);
+		data = scene;
+		fixture.loadNodes(scene.nodes);
+		fixture.session.selectNodes([], 'REPLACE');
+		epoch++;
+		await settle();
+		await settle();
+		await canvas!.chooseSurfaceChild(scene.parent, scene.source);
+		await settle();
+		return {
+			ids: scene.ids,
+			source: scene.source,
+			sourceIndex: scene.sourceIndex,
+			parent: scene.parent,
+			destination: scene.destination,
+			anchors: scene.anchors,
+			pageId: scene.page.node_id,
+			authoredNodes: scene.nodes.length
+		};
 	}
 	export async function setupTier(authoredNodes: number) {
 		const widgets = Math.max(1, Math.ceil((authoredNodes - 11) / 11));
@@ -613,7 +661,7 @@
 </script>
 
 <main>
-	{#if data}
+	{#if data && canvasMounted}
 		{#key epoch}
 			<DashboardCanvas
 				bind:this={canvas}

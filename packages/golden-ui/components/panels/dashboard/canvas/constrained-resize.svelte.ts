@@ -7,6 +7,7 @@ import type { CssValueData } from '../../../../css-value';
 import { getDirectParamNode } from '../dashboard-model';
 import { createFreeLayoutCommitter } from './free-layout-committer';
 import { captureLayoutGesture } from './gesture-fence';
+import { captureLayoutFrame, type LayoutFrame } from './layout-frame';
 import type { DashboardOrderedLayoutContext } from './ordered-layout-context';
 import type {
 	ConstrainedResizeInteraction,
@@ -20,12 +21,6 @@ import {
 	createCssUnitContext,
 	sameCssValue
 } from './geometry';
-import {
-	getRootRemPixels,
-	getViewportWidthPx,
-	getViewportHeightPx,
-	getClosestSurfaceMetrics
-} from './dom';
 
 export function createConstrainedResize(context: DashboardOrderedLayoutContext) {
 	let interaction = $state<ConstrainedResizeInteraction | null>(null);
@@ -35,8 +30,14 @@ export function createConstrainedResize(context: DashboardOrderedLayoutContext) 
 	let sample: FreeLayoutPreviewSet | null = null;
 	let nativePointer: number | null = null;
 	let lastSize: CssValueData | null = null;
+	let activeFrame: LayoutFrame | null = null;
+	let releaseFrame: ((confirmed: boolean) => void) | null = null;
 	const finish = async (cancel: boolean): Promise<boolean> => {
 		const pending = operation;
+		if (!cancel && (!pending?.current || !activeFrame?.check())) cancel = true;
+		releaseFrame?.(!cancel);
+		releaseFrame = null;
+		activeFrame = null;
 		operation = null;
 		sample = null;
 		interaction = null;
@@ -51,11 +52,7 @@ export function createConstrainedResize(context: DashboardOrderedLayoutContext) 
 		void context.graph;
 		if (!context.editMode || !operation.current) void finish(true);
 	});
-	const start = (
-		origin: LayoutPoint,
-		edges: FreeLayoutResizeEdges,
-		element: EventTarget | null
-	): boolean => {
+	const start = (origin: LayoutPoint, edges: FreeLayoutResizeEdges): boolean => {
 		if (
 			!context.editMode ||
 			!context.widgetElement?.isConnected ||
@@ -72,8 +69,12 @@ export function createConstrainedResize(context: DashboardOrderedLayoutContext) 
 		if (!host || field?.data.kind !== 'parameter' || field.data.param.read_only) return false;
 		void finish(true);
 		context.clearChrome();
-		const rootRemPx = getRootRemPixels();
-		const metrics = getClosestSurfaceMetrics(element, rootRemPx);
+		const frame = captureLayoutFrame(context.widgetElement.parentElement, () => {
+			if (activeFrame === frame) void finish(true);
+		});
+		if (!frame) return false;
+		const metrics = frame.metrics,
+			rootRemPx = metrics.rootRemPx;
 		const placement = context.placement;
 		const startPreview = { position: placement.position, size: placement.size };
 		const target = {
@@ -93,14 +94,19 @@ export function createConstrainedResize(context: DashboardOrderedLayoutContext) 
 			previews: [{ target, preview: startPreview }]
 		};
 		const fence = captureLayoutGesture(context.graph, [target]);
-		if (!fence) return false;
+		if (!fence) {
+			frame.dispose();
+			return false;
+		}
 		const revision = host.graphTransitionRevision,
 			widget = context.node.node_id;
+		let confirmed = false;
 		const opened = host.editOperations.open({
 			current: () =>
 				appState.session === host &&
 				host.graphTransitionRevision === revision &&
 				!host.graph.state.requiresResync &&
+				(confirmed || frame.current) &&
 				fence.isCurrent(host.graph.state),
 			build: (scope) => {
 				const session = createUiEditSession(
@@ -110,10 +116,10 @@ export function createConstrainedResize(context: DashboardOrderedLayoutContext) 
 					scope.applied
 				);
 				return createFreeLayoutCommitter(initial, {
-					current: () => scope.current,
+					current: () => scope.current && (confirmed || frame.check()),
 					begin: async () => {
 						await scope.ready;
-						if (scope.current) await session.begin();
+						if (scope.current && (confirmed || frame.check())) await session.begin();
 					},
 					end: () => session.end(),
 					publish: (edits) => scope.publish(edits.map((edit) => ({ ...edit, enabled: true }))),
@@ -138,16 +144,24 @@ export function createConstrainedResize(context: DashboardOrderedLayoutContext) 
 				});
 			}
 		});
-		if (!opened) return false;
+		if (!opened) {
+			frame.dispose();
+			return false;
+		}
+		activeFrame = frame;
+		releaseFrame = (value) => {
+			confirmed = value;
+			frame.dispose();
+		};
 		operation = opened;
 		sample = initial;
 		const sizeContext = {
 			rootRemPx,
 			emPx: metrics.emPx,
-			surfaceWidthPx: metrics.width,
-			surfaceHeightPx: metrics.height,
-			viewportWidthPx: getViewportWidthPx(),
-			viewportHeightPx: getViewportHeightPx()
+			surfaceWidthPx: metrics.surfaceWidthPx,
+			surfaceHeightPx: metrics.surfaceHeightPx,
+			viewportWidthPx: metrics.viewportWidthPx,
+			viewportHeightPx: metrics.viewportHeightPx
 		};
 		const startSize = axis === 'x' ? placement.size.width : placement.size.height;
 		const rendered = context.widgetElement.getBoundingClientRect();
@@ -155,8 +169,8 @@ export function createConstrainedResize(context: DashboardOrderedLayoutContext) 
 		const initialPixels = explicit
 			? cssValueToPx(startSize, axis, createCssUnitContext(sizeContext, axis))
 			: axis === 'x'
-				? rendered.width / Math.max(metrics.scaleX, 1e-6)
-				: rendered.height / Math.max(metrics.scaleY, 1e-6);
+				? rendered.width / Math.max(metrics.surfaceScaleX, 1e-6)
+				: rendered.height / Math.max(metrics.surfaceScaleY, 1e-6);
 		interaction = {
 			...sizeContext,
 			axis,
@@ -164,14 +178,14 @@ export function createConstrainedResize(context: DashboardOrderedLayoutContext) 
 			startClient: [origin.x, origin.y],
 			startSize,
 			startSizePx: initialPixels,
-			surfaceScaleX: metrics.scaleX,
-			surfaceScaleY: metrics.scaleY
+			surfaceScaleX: metrics.surfaceScaleX,
+			surfaceScaleY: metrics.surfaceScaleY
 		};
 		return true;
 	};
 	const update = (point: LayoutPoint): boolean => {
 		if (!operation || !interaction || !sample) return false;
-		if (!context.editMode || !operation.current) {
+		if (!context.editMode || !operation.current || !activeFrame?.check()) {
 			void finish(true);
 			return false;
 		}
@@ -250,7 +264,7 @@ export function createConstrainedResize(context: DashboardOrderedLayoutContext) 
 		update,
 		finish,
 		begin(event: PointerEvent, edges: FreeLayoutResizeEdges) {
-			if (start({ x: event.clientX, y: event.clientY }, edges, event.currentTarget)) {
+			if (start({ x: event.clientX, y: event.clientY }, edges)) {
 				nativePointer = event.pointerId;
 				event.preventDefault();
 				event.stopPropagation();
