@@ -80,8 +80,6 @@ const normalizeOptions = (options: NodePickerModalOptions): NodePickerModalOptio
 		defaultSearchQuery: '',
 		initiallyExpandedDepth: 5,
 		clearable: true,
-		nodeFilter: (_candidate: UiNodeDto) => true,
-		nodeVisibilityFilter: (_candidate: UiNodeDto) => true,
 		nodeSearchText: (candidate: UiNodeDto) =>
 			`${candidate.meta.label} ${candidate.meta.short_name} ${candidate.node_type}`,
 		views: [],

@@ -2,6 +2,9 @@
 	import { onDestroy, tick } from 'svelte';
 	import { appState } from '../../store/workbench.svelte';
 	import OutlinerItem from '../panels/outliner/OutlinerItem.svelte';
+	import VirtualRows from './virtual-rows/VirtualRows.svelte';
+	import { collectVisibleOutlinerRows, type OutlinerRow } from '../panels/outliner/visible-rows';
+	import { createNodeOpenness } from '../panels/outliner/openness.svelte';
 	import {
 		closeNodePickerModal,
 		type NodePickerModalView,
@@ -15,10 +18,7 @@
 		getMainViewportBounds,
 		type ViewportRect
 	} from './floating-panel';
-	import {
-		collectOutlinerAncestorNodeIds,
-		scrollOutlinerNodeIntoView
-	} from '../panels/outliner/navigation';
+	import { collectOutlinerAncestorNodeIds } from '../panels/outliner/navigation';
 
 	let request = $derived(nodePickerModalState.request);
 	let options = $derived(request?.options ?? null);
@@ -27,11 +27,21 @@
 	let panelElement = $state<HTMLDivElement | null>(null);
 	let searchInputElement = $state<HTMLInputElement | null>(null);
 	let treeElement = $state<HTMLDivElement | null>(null);
+	let virtualRows = $state<ReturnType<typeof VirtualRows<OutlinerRow>>>();
 	let topPx = $state(0);
 	let leftPx = $state(0);
 	let modalHeightPx = $state(0);
 	let panelResizeObserver = $state<ResizeObserver | null>(null);
 	let graphState = $derived(appState.session?.graph.state ?? null);
+	let opennessScope = $derived({
+		request,
+		session: appState.session,
+		generation: appState.session?.snapshotGeneration
+	});
+	const openness = createNodeOpenness(
+		() => graphState,
+		() => opennessScope
+	);
 	let selectedNodeId = $state<number | null>(null);
 	let autoExpandAncestorNodeIds = $derived.by(() =>
 		collectOutlinerAncestorNodeIds(graphState, selectedNodeId)
@@ -86,7 +96,19 @@
 	};
 
 	const scrollToSelectedNode = (): void => {
-		scrollOutlinerNodeIntoView(treeElement, selectedNodeId);
+		if (selectedNodeId !== null) virtualRows?.reveal(selectedNodeId);
+	};
+	$effect(() => {
+		query;
+		activeViewId;
+		const target = selectedNodeId;
+		if (isOpen && target !== null)
+			void tick().then(() => {
+				if (target === selectedNodeId) scrollToSelectedNode();
+			});
+	});
+	export const searchNodes = (text: string): void => {
+		query = text;
 	};
 
 	const nodeById = (nodeId: number | null): UiNodeDto | null => {
@@ -206,9 +228,6 @@
 				recomputePosition();
 				scrollToSelectedNode();
 			});
-			window.setTimeout(() => {
-				scrollToSelectedNode();
-			}, 120);
 		});
 	});
 
@@ -295,61 +314,39 @@
 		return activeView?.nodeRowVisibilityFilter?.(candidate) ?? true;
 	};
 
-	const searchMatchByNodeId = $derived.by(() => {
-		const directMatches = new Map<number, boolean>();
-		const subtreeMatches = new Map<number, boolean>();
-		if (!options?.rootNode || !graphState) {
-			return subtreeMatches;
-		}
-
-		const normalizedQuery = query.trim().toLowerCase();
-		const visitOrder: number[] = [];
-		const pending: number[] = [options.rootNode.node_id];
-		while (pending.length > 0) {
-			const nodeId = pending.pop();
-			if (nodeId === undefined) {
-				continue;
-			}
-			const node = graphState.nodesById.get(nodeId);
-			if (!node) {
-				continue;
-			}
-			visitOrder.push(nodeId);
-			let isMatch = visibleByConstraints(node);
-			if (isMatch && normalizedQuery.length > 0) {
-				const text = options.nodeSearchText?.(node) ?? '';
-				isMatch = text.toLowerCase().includes(normalizedQuery);
-			}
-			directMatches.set(nodeId, isMatch);
-			for (const childId of node.children) {
-				pending.push(childId);
-			}
-		}
-
-		for (let index = visitOrder.length - 1; index >= 0; index -= 1) {
-			const nodeId = visitOrder[index];
-			const node = graphState.nodesById.get(nodeId);
-			if (!node) {
-				continue;
-			}
-			let isVisible = directMatches.get(nodeId) ?? false;
-			if (!isVisible) {
-				for (const childId of node.children) {
-					if (subtreeMatches.get(childId) ?? false) {
-						isVisible = true;
-						break;
-					}
-				}
-			}
-			subtreeMatches.set(nodeId, isVisible);
-		}
-
-		return subtreeMatches;
-	});
-
 	const passesFilter = (candidate: UiNodeDto): boolean => {
-		return searchMatchByNodeId.get(candidate.node_id) ?? false;
+		const normalizedQuery = query.trim().toLowerCase();
+		return (
+			visibleByConstraints(candidate) &&
+			(!normalizedQuery ||
+				(options?.nodeSearchText?.(candidate) ?? '').toLowerCase().includes(normalizedQuery))
+		);
 	};
+	let rows = $derived.by(() => {
+		const graph = graphState,
+			config = options,
+			view = activeView;
+		if (!graph || !config?.rootNode) return [];
+		const search = query.trim().toLowerCase(),
+			searchText = config.nodeSearchText;
+		const visible = config.nodeVisibilityFilter,
+			viewVisible = view?.nodeVisibilityFilter;
+		return collectVisibleOutlinerRows({
+			graph,
+			roots: [{ nodeId: config.rootNode.node_id, parentId: null, level: 0, indent: 0 }],
+			opennessByNodeId: openness.overrides,
+			autoExpandAncestorNodeIds,
+			initiallyExpandedDepth: config.initiallyExpandedDepth ?? 5,
+			matchesQuery:
+				search || visible || viewVisible
+					? (node) =>
+							(visible?.(node) ?? true) &&
+							(viewVisible?.(node) ?? true) &&
+							(!search || (searchText?.(node) ?? '').toLowerCase().includes(search))
+					: undefined,
+			rowVisible: view?.nodeRowVisibilityFilter
+		});
+	});
 </script>
 
 {#if options}
@@ -407,30 +404,52 @@
 					{/each}
 				{/if}
 			</div>
-			<div class="picker-tree" bind:this={treeElement}>
+			<div
+				class="picker-tree"
+				bind:this={treeElement}
+				role="region"
+				aria-label="Available nodes"
+				tabindex="-1">
 				{#if options.rootNode}
-					<OutlinerItem
-						node={options.rootNode}
-						mode="tree"
-						initiallyExpandedDepth={options.initiallyExpandedDepth}
-						transitionDurationMs={90}
-						focusedNodeId={selectedNodeId}
-						{autoExpandAncestorNodeIds}
-						nodeFilter={passesFilter}
-						nodeRowVisible={rowVisibleByConstraints}
-						nodeSelectable={selectableByConstraints}
-						onSelectNode={(candidate, event) => {
-							if (event.detail >= 2) {
-								resolvePick(candidate);
-								return;
-							}
-							if (!options.projectionOptions) {
-								resolvePick(candidate);
-								return;
-							}
-							selectedNodeId = candidate.node_id;
-							alignProjectionForNode(candidate);
-						}} />
+					<VirtualRows
+						bind:this={virtualRows}
+						{rows}
+						keyOf={(row) => row.nodeId}
+						variableHeights={true}
+						scroller={treeElement}>
+						{#snippet item(row)}
+							<div class="picker-virtual-row" style:padding-inline-start={`${row.indent * 0.7}rem`}>
+								<OutlinerItem
+									nodeId={row.nodeId}
+									siblingParentId={row.parentId}
+									level={row.level}
+									renderNodeChildren={false}
+									projectedVisible={true}
+									opennessByNodeId={openness.overrides}
+									onNodeOpennessChange={openness.setExpanded}
+									mode="tree"
+									initiallyExpandedDepth={options.initiallyExpandedDepth}
+									transitionDurationMs={90}
+									focusedNodeId={selectedNodeId}
+									{autoExpandAncestorNodeIds}
+									nodeFilter={passesFilter}
+									nodeRowVisible={rowVisibleByConstraints}
+									nodeSelectable={selectableByConstraints}
+									onSelectNode={(candidate, event) => {
+										if (event.detail >= 2) {
+											resolvePick(candidate);
+											return;
+										}
+										if (!options.projectionOptions) {
+											resolvePick(candidate);
+											return;
+										}
+										selectedNodeId = candidate.node_id;
+										alignProjectionForNode(candidate);
+									}} />
+							</div>
+						{/snippet}
+					</VirtualRows>
 				{:else}
 					<div class="picker-empty">No root available</div>
 				{/if}
@@ -470,6 +489,10 @@
 {/if}
 
 <style>
+	.picker-virtual-row {
+		inline-size: 100%;
+		box-sizing: border-box;
+	}
 	.node-picker-backdrop {
 		position: fixed;
 		inset: 0;

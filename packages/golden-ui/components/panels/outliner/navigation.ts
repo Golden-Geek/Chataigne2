@@ -19,22 +19,3 @@ export const collectOutlinerAncestorNodeIds = (
 	}
 	return ancestorNodeIds;
 };
-
-export const scrollOutlinerNodeIntoView = (
-	container: ParentNode | null | undefined,
-	nodeId: NodeId | null
-): boolean => {
-	if (!container || nodeId === null) {
-		return false;
-	}
-
-	const target = container.querySelector<HTMLElement>(
-		`.outliner-item-content[data-node-id="${nodeId}"]`
-	);
-	if (!target) {
-		return false;
-	}
-
-	target.scrollIntoView({ block: 'center', inline: 'nearest' });
-	return true;
-};

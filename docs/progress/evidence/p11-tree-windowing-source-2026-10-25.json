@@ -1,0 +1,114 @@
+{
+  "baseCommit": "bbfaa70ecad10dd57e9aae1919b20392a0b92530",
+  "scope": "Current source exactly reproduces the measured production bundle when built from its owning workspace; all changed/new owned source and the lockfile are hashed.",
+  "machine": {
+    "os": "10.0.26300",
+    "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+    "logicalProcessors": 24,
+    "node": "v26.5.0",
+    "svelte": "5.57.1",
+    "vite": "8.1.6",
+    "typescript": "6.0.3"
+  },
+  "source": [
+    {
+      "path": "packages/golden-ui/components/common/virtual-rows/VirtualRows.svelte",
+      "sha256": "05163a65b5668600ac625932804ed9aad3cd50c0fed8e08388a5ce3d00735a39"
+    },
+    {
+      "path": "packages/golden-ui/components/common/virtual-rows/height-index.ts",
+      "sha256": "281559cbf69c4327414667f1b897447078235a15944814fa0dc6e398010a0429"
+    },
+    {
+      "path": "packages/golden-ui/components/common/virtual-rows/tests/height-index.test.ts",
+      "sha256": "ac1d9af3e20db0f29482dba8d3ecc21efe30d5283b26a1926f82da89bc179d00"
+    },
+    {
+      "path": "packages/golden-ui/components/panels/outliner/openness.svelte.ts",
+      "sha256": "1e1ad45d76ce3e009f7e527ecbf8fe8bf4c3a538e6e263b8d70243c08789eff5"
+    },
+    {
+      "path": "packages/golden-ui/tests/browser/collections.mjs",
+      "sha256": "b97b6e61c4c09a4201d9af7c62dc5684ba5309ba9706b5204a60fe14890bb82d"
+    },
+    {
+      "path": "packages/golden-ui/tests/browser/fixture/Fixture.svelte",
+      "sha256": "4e529f148499150ec748d798fadadfd45bad3d0b07b8744d2c742a43dd05d125"
+    },
+    {
+      "path": "packages/golden-ui/tests/browser/fixture/RowSupplement.svelte",
+      "sha256": "8cb914c519884586548ec06c044ddc45c2a370727741e98960cdf0a983204797"
+    },
+    {
+      "path": "packages/golden-ui/tests/browser/fixture/index.html",
+      "sha256": "4d1e168d0e6fd1a7843c20006ac5fba341b0d0895459822ba718aab3e04d7f34"
+    },
+    {
+      "path": "packages/golden-ui/tests/browser/fixture/main.ts",
+      "sha256": "38f66d0165fc5856dabce46eae2c89e5a312f307016898cae5ad874eab379a17"
+    },
+    {
+      "path": "packages/golden-ui/tests/browser/fixture/session.ts",
+      "sha256": "a3bac73250c8b6ffdd0c2dea64f3ec15f92fff15a3cd868372ac204fabd448e1"
+    },
+    {
+      "path": "packages/golden-ui/tests/browser/fixture/timing.ts",
+      "sha256": "f4ff972c0d70104a1f016c088c81692135976b2d15c2700458a6799b076ec558"
+    },
+    {
+      "path": "packages/golden-ui/tests/browser/tsconfig.json",
+      "sha256": "baf79019bdd66de14dba3683af5f2390359422c645e66f0b29a90e38aaec59c9"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "cbb5f98fae87daf214980a192a03bab71ea31c6261ef049946bd49af429ce32a"
+    },
+    {
+      "path": "packages/golden-ui/components/common/NodePickerModalHost.svelte",
+      "sha256": "4b8b1dd9b73a31fb9ea3f6a68ecc7ec49bcebc5b743bb1f962127bbde16bbcf8"
+    },
+    {
+      "path": "packages/golden-ui/components/panels/manager/ManagerListPanel.svelte",
+      "sha256": "a54f64603daa93baa0250f96637608fc7cc7f7ce4232858d4424c09839ddcd44"
+    },
+    {
+      "path": "packages/golden-ui/components/panels/outliner/OutlinerPanel.svelte",
+      "sha256": "1d8542c54c762289693efac96ec8b2a023901a51d6b1c0fae0b02a98a01bc690"
+    },
+    {
+      "path": "packages/golden-ui/components/panels/outliner/navigation.ts",
+      "sha256": "8f13dcad9f30ecc6bed854cf4ef27f25bcf01d87a595790f9fbea08329c101c3"
+    },
+    {
+      "path": "packages/golden-ui/components/panels/outliner/tests/visible-rows.test.ts",
+      "sha256": "a93445a17d17b1969ae418cd3967641b28d823f99daa807bed2f4a4729989100"
+    },
+    {
+      "path": "packages/golden-ui/components/panels/outliner/visible-rows.ts",
+      "sha256": "5b888f52c35b6960c92aa0838954c7228f5df91d2d4f01d76d4dfc0210f98f0f"
+    },
+    {
+      "path": "packages/golden-ui/package.json",
+      "sha256": "244c6140f63e0da69ebfa82f6f7f78d231b4fbfcc7782e37ccd1942d111acdb1"
+    },
+    {
+      "path": "packages/golden-ui/store/node-picker-modal.svelte.ts",
+      "sha256": "25b439c329c511c7f4b1e3259a3079ac5eeeab89354ba09d610dd29e2ec3425d"
+    }
+  ],
+  "bundle": [
+    {
+      "path": "assets/index-CxwkP1iT.js",
+      "sha256": "7e459576a40e91c9ee43a5256263c65c6b939f80524e5df22349a122d1e62d3d"
+    },
+    {
+      "path": "assets/index-LdBfsPbg.css",
+      "sha256": "44cec0ec323e23226d26f26ca2159c9bd906c08305ca6c019dd997299b82d4d3"
+    },
+    {
+      "path": "index.html",
+      "sha256": "408b09278d20a36be276e51ca55217f0a68c61222a75c5bb24cffc13570eb202"
+    }
+  ],
+  "reproducedExactly": true
+}

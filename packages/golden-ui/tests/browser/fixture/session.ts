@@ -1,0 +1,136 @@
+import { createWorkbenchSession } from '../../../store/workbench.svelte';
+import { UI_PROTOCOL_VERSION } from '../../../generated/rust_protocol/protocol-version';
+import { wholeGraphScope, type UiClient, type UiNodeDto, type UiSnapshot } from '../../../types';
+
+export function fixtureNode(
+	id: number,
+	label: string,
+	children: number[] = [],
+	type = 'FixtureItem'
+): UiNodeDto {
+	return {
+		node_id: id,
+		uuid: `fixture-${id}`,
+		decl_id: '',
+		node_type: type,
+		meta: {
+			label,
+			short_name: String(id),
+			enabled: true,
+			can_be_disabled: false,
+			tags: [],
+			user_permissions: {
+				can_edit_name: true,
+				can_remove_and_duplicate: true,
+				can_edit_constraints: false,
+				can_edit_tags: true,
+				can_edit_color: true
+			}
+		},
+		data: { kind: 'node', node_type: type },
+		user_role: 'regular',
+		user_item_kind: '',
+		accepted_user_item_kinds: [],
+		creatable_user_items: [],
+		children
+	};
+}
+
+export function createFixtureSession() {
+	let snapshot: UiSnapshot;
+	let rejectNext = false;
+	let sequence = 0;
+	let generation = 0;
+	const unused = (): never => {
+		throw new Error('Unexpected fixture transport call.');
+	};
+	const client: UiClient = {
+		snapshot: async () => snapshot,
+		subscribe: unused,
+		sendIntents: unused,
+		replay: unused,
+		referenceTargets: unused,
+		paramControlInfo: unused,
+		scriptState: unused,
+		setScriptConfig: unused,
+		reloadScript: unused,
+		projectNew: unused,
+		projectSave: unused,
+		projectLoad: unused,
+		projectUploadLoad: unused,
+		sendIntent: async (intent) => {
+			if (rejectNext) {
+				rejectNext = false;
+				return { success: false, status: 'rejected', error_message: 'Fixture rejection' };
+			}
+			if (intent.kind !== 'patchMeta') throw new Error(`Unexpected fixture intent ${intent.kind}.`);
+			session.graph.applyEvent({
+				time: { tick: ++sequence, micro: 0, seq: 0 },
+				kind: { kind: 'metaChanged', node: intent.node, patch: intent.patch }
+			});
+			return { success: true, status: 'applied' };
+		}
+	};
+	const session = createWorkbenchSession({
+		transportFactory: () => client,
+		enableGlobalShortcuts: false
+	});
+	const load = (count: number) => {
+		const nodes = [
+			fixtureNode(0, 'Project', [1], 'FixtureRoot'),
+			fixtureNode(
+				1,
+				'Manager',
+				Array.from({ length: count }, (_, row) => row + 2),
+				'FixtureManager'
+			),
+			...Array.from({ length: count }, (_, row) =>
+				fixtureNode(row + 2, `Item ${String(row).padStart(6, '0')}`)
+			)
+		];
+		nodes[2] = {
+			...nodes[2],
+			node_type: 'FixtureFolder',
+			data: { kind: 'node', node_type: 'FixtureFolder' },
+			children: [count + 2],
+			meta: { ...nodes[2].meta, presentation: { collapsed: true } }
+		};
+		for (let depth = 0; depth < 8; depth += 1)
+			nodes.push(
+				fixtureNode(
+					count + 2 + depth,
+					`Nested ${depth}`,
+					depth < 7 ? [count + 3 + depth] : [],
+					'FixtureFolder'
+				)
+			);
+		generation += 1;
+		for (const node of nodes) node.uuid = `fixture-${generation}-${node.node_id}`;
+		snapshot = {
+			protocol_version: UI_PROTOCOL_VERSION,
+			scope: wholeGraphScope,
+			at: { tick: 0, micro: 0, seq: 0 },
+			nodes,
+			schema: { node_types: [], declared_descriptions: [], enums: [] },
+			history: {
+				can_undo: false,
+				can_redo: false,
+				undo_len: 0,
+				redo_len: 0,
+				active_edit_session: false,
+				current_history_state_id: 0
+			},
+			logger: { max_entries: 128, records: [] },
+			project_file: { display_name: 'Fixture', extension: 'fixture', current_path: null }
+		};
+		session.graph.loadSnapshot(snapshot);
+		return { rows: count, authoredNodes: nodes.length };
+	};
+	return {
+		session,
+		load,
+		rejectNext: () => {
+			rejectNext = true;
+		}
+	};
+}

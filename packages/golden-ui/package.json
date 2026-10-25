@@ -5,7 +5,9 @@
 	"license": "GPL-3.0-only",
 	"type": "module",
 	"scripts": {
-		"test": "vitest run"
+		"test": "vitest run",
+		"check:browser": "svelte-check --tsconfig tests/browser/tsconfig.json",
+		"test:browser": "node tests/browser/collections.mjs"
 	},
 	"svelte": "./index.ts",
 	"types": "./index.ts",
@@ -41,6 +43,11 @@
 		"dockview-core": "^7.0.2"
 	},
 	"devDependencies": {
+		"@sveltejs/vite-plugin-svelte": "7.2.0",
+		"playwright-core": "1.61.1",
+		"svelte": "5.57.1",
+		"svelte-check": "4.6.0",
+		"vite": "8.1.6",
 		"vitest": "4.1.12"
 	}
 }

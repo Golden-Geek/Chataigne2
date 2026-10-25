@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { UiNodeDto } from '../../../../types';
-import { collectVisibleOutlinerRows, outlinerWindow } from '../visible-rows';
+import { collectVisibleOutlinerRows } from '../visible-rows';
 
 const node = (
 	nodeId: number,
@@ -37,6 +37,60 @@ const project = (
 	});
 
 describe('outliner visible row projection', () => {
+	it('reads each graph record once while filtering and reuses it for row projection', () => {
+		const nodes = [
+			node(
+				0,
+				Array.from({ length: 1000 }, (_, index) => index + 1)
+			),
+			...Array.from({ length: 1000 }, (_, index) => node(index + 1))
+		];
+		const indexed = graph(...nodes),
+			get = indexed.nodesById.get.bind(indexed.nodesById);
+		let reads = 0;
+		indexed.nodesById.get = (id) => {
+			reads++;
+			return get(id);
+		};
+		const rows = collectVisibleOutlinerRows({
+			graph: indexed,
+			opennessByNodeId: {},
+			autoExpandAncestorNodeIds: new Set(),
+			initiallyExpandedDepth: 5,
+			matchesQuery: (candidate) => candidate.node_id === 1000
+		});
+		expect(rows.map((row) => row.nodeId)).toEqual([0, 1000]);
+		expect(reads).toBe(1001);
+	});
+	it('projects manager roots without entering domain-hidden child trees', () => {
+		const nodes = [node(0, [1, 2]), node(1, [3]), node(2, [4]), node(3), node(4, [], 'Target')];
+		const rows = collectVisibleOutlinerRows({
+			graph: graph(...nodes),
+			roots: [
+				{ nodeId: 1, parentId: 0, level: 0, indent: 0 },
+				{ nodeId: 2, parentId: 0, level: 0, indent: 0 }
+			],
+			opennessByNodeId: {},
+			autoExpandAncestorNodeIds: new Set(),
+			initiallyExpandedDepth: 5,
+			canRenderChildren: (candidate) => candidate.node_id !== 2,
+			matchesQuery: (candidate) => candidate.meta.label === 'Target'
+		});
+		expect(rows).toEqual([]);
+	});
+	it('hoists hidden picker rows without adding indentation or requiring expansion', () => {
+		const rows = collectVisibleOutlinerRows({
+			graph: graph(node(0, [1], 'Hidden', true), node(1, [2]), node(2)),
+			opennessByNodeId: {},
+			autoExpandAncestorNodeIds: new Set(),
+			initiallyExpandedDepth: 5,
+			rowVisible: (candidate) => candidate.node_id !== 0
+		});
+		expect(rows.map(({ nodeId, level, indent }) => [nodeId, level, indent])).toEqual([
+			[1, 1, 0],
+			[2, 2, 1]
+		]);
+	});
 	it('preserves tree order, depth, and sibling parent IDs without mounting descendants', () => {
 		const rows = project([
 			node(0, [1, 4]),
@@ -102,11 +156,5 @@ describe('outliner visible row projection', () => {
 		);
 		const opennessByNodeId = Object.fromEntries(nodes.map((entry) => [entry.node_id, true]));
 		expect(project(nodes, { opennessByNodeId })).toHaveLength(10_001);
-	});
-
-	it('clamps the window and renders a bounded overscan around the viewport', () => {
-		expect(outlinerWindow(0, 0, 100, 20)).toEqual({ start: 0, end: 0 });
-		expect(outlinerWindow(1000, 200, 100, 20)).toEqual({ start: 2, end: 23 });
-		expect(outlinerWindow(1000, 50_000, 100, 20)).toEqual({ start: 999, end: 1000 });
 	});
 });

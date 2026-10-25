@@ -9,14 +9,15 @@
 	import { sendMoveNodeIntent } from '../../../store/ui-intents';
 	import { tick, untrack } from 'svelte';
 	import OutlinerItem from './OutlinerItem.svelte';
-	import { collectOutlinerAncestorNodeIds, scrollOutlinerNodeIntoView } from './navigation';
+	import { collectOutlinerAncestorNodeIds } from './navigation';
+	import VirtualRows from '../../common/virtual-rows/VirtualRows.svelte';
 	import {
 		canDragOutlinerNode,
 		resolveOutlinerDropTarget,
 		type OutlinerDropTarget,
 		type OutlinerDropZone
 	} from './drag-drop';
-	import { collectVisibleOutlinerRows, outlinerWindow } from './visible-rows';
+	import { collectVisibleOutlinerRows, type OutlinerRow } from './visible-rows';
 
 	let { panelApi, panelId, panelType, title, params }: PanelProps = $props();
 	let panel = $state<PanelState>({
@@ -122,11 +123,7 @@
 	);
 	let query = $state('');
 	let treeElement = $state<HTMLDivElement | null>(null);
-	let rowMetricElement = $state<HTMLDivElement | null>(null);
-	// The rem-sized row is measured in CSS pixels to align scroll geometry with spacer heights.
-	let viewportHeight = $state(0);
-	let rowHeight = $state(28);
-	let scrollTop = $state(0);
+	let virtualRows = $state<ReturnType<typeof VirtualRows<OutlinerRow>>>();
 	let activeDragNodeId = $state<NodeId | null>(null);
 	let dropTarget = $state<OutlinerDropTarget | null>(null);
 	let moveInFlight = $state(false);
@@ -148,27 +145,6 @@
 			initiallyExpandedDepth: 3,
 			matchesQuery
 		});
-	});
-	let visibleWindow = $derived(
-		outlinerWindow(visibleRows.length, scrollTop, viewportHeight, rowHeight)
-	);
-	let renderedRows = $derived(visibleRows.slice(visibleWindow.start, visibleWindow.end));
-
-	$effect(() => {
-		if (!treeElement || !rowMetricElement) return;
-		const scroller = treeElement;
-		const metric = rowMetricElement;
-		const measure = (): void => {
-			viewportHeight = scroller.clientHeight;
-			rowHeight = metric.getBoundingClientRect().height || rowHeight;
-			scrollTop = scroller.scrollTop;
-		};
-		measure();
-		if (typeof ResizeObserver === 'undefined') return;
-		const observer = new ResizeObserver(measure);
-		observer.observe(scroller);
-		observer.observe(metric);
-		return () => observer.disconnect();
 	});
 
 	const canDragNode = (candidate: UiNodeDto): boolean =>
@@ -307,50 +283,10 @@
 		if (!treeElement || selectedNodeId === null) {
 			return;
 		}
-		const rows = untrack(() => visibleRows);
-		const selectedIndex = rows.findIndex((row) => row.nodeId === selectedNodeId);
-		if (selectedIndex >= 0) {
-			const scroller = treeElement;
-			const measuredRowHeight = untrack(() => rowHeight);
-			const rowTop = selectedIndex * measuredRowHeight;
-			if (
-				rowTop < scroller.scrollTop ||
-				rowTop + measuredRowHeight > scroller.scrollTop + scroller.clientHeight
-			) {
-				scroller.scrollTop = Math.max(0, rowTop - scroller.clientHeight / 2);
-				scrollTop = scroller.scrollTop;
-			}
-		}
-
-		let cancelled = false;
-		let frameId: number | null = null;
-		let attempts = 0;
-		const maxAttempts = 8;
-
-		const revealSelectedNode = (): void => {
-			if (cancelled) {
-				return;
-			}
-			if (scrollOutlinerNodeIntoView(treeElement, selectedNodeId)) {
-				return;
-			}
-			if (attempts >= maxAttempts || typeof requestAnimationFrame === 'undefined') {
-				return;
-			}
-			attempts += 1;
-			frameId = requestAnimationFrame(revealSelectedNode);
-		};
-
+		const target = selectedNodeId;
 		void tick().then(() => {
-			revealSelectedNode();
+			if (target === selectedNodeId) virtualRows?.reveal(target);
 		});
-
-		return () => {
-			cancelled = true;
-			if (frameId !== null && typeof cancelAnimationFrame !== 'undefined') {
-				cancelAnimationFrame(frameId);
-			}
-		};
 	});
 </script>
 
@@ -362,14 +298,16 @@
 		<div
 			class="outliner-content"
 			bind:this={treeElement}
-			onscroll={() => {
-				if (treeElement) scrollTop = treeElement.scrollTop;
-			}}>
-			<div class="outliner-tree" data-outliner-row-count={visibleRows.length}>
-				<div class="outliner-row-metric" bind:this={rowMetricElement} aria-hidden="true"></div>
-				<div style:height={`${visibleWindow.start * rowHeight}px`} aria-hidden="true"></div>
-				{#each renderedRows as row (row.nodeId)}
-					<div class="outliner-virtual-row" style:padding-left={`${row.level * 0.7}rem`}>
+			role="region"
+			aria-label="Project tree"
+			tabindex="-1">
+			<VirtualRows
+				bind:this={virtualRows}
+				rows={visibleRows}
+				keyOf={(row) => row.nodeId}
+				scroller={treeElement}>
+				{#snippet item(row)}
+					<div class="outliner-virtual-row" style:padding-inline-start={`${row.indent * 0.7}rem`}>
 						<OutlinerItem
 							nodeId={row.nodeId}
 							siblingParentId={row.parentId}
@@ -389,12 +327,8 @@
 							onNodeDrop={handleNodeDrop}
 							onNodeDragEnd={handleNodeDragEnd} />
 					</div>
-				{/each}
-				<div
-					style:height={`${(visibleRows.length - visibleWindow.end) * rowHeight}px`}
-					aria-hidden="true">
-				</div>
-			</div>
+				{/snippet}
+			</VirtualRows>
 		</div>
 	</div>
 {/if}
@@ -421,22 +355,8 @@
 		padding: 0.5rem;
 	}
 
-	.outliner-tree {
-		--outliner-row-height: 1.8rem;
-		position: relative;
-	}
-
-	.outliner-row-metric {
-		position: absolute;
-		height: var(--outliner-row-height);
-		pointer-events: none;
-	}
-
 	.outliner-virtual-row {
 		box-sizing: border-box;
-		display: flex;
-		align-items: center;
-		height: var(--outliner-row-height);
-		overflow: hidden;
+		inline-size: 100%;
 	}
 </style>

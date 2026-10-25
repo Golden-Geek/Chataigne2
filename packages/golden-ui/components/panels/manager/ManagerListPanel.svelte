@@ -8,7 +8,9 @@
 		type OutlinerDropTarget,
 		type OutlinerDropZone
 	} from '../outliner/drag-drop';
-	import { scrollOutlinerNodeIntoView } from '../outliner/navigation';
+	import VirtualRows from '../../common/virtual-rows/VirtualRows.svelte';
+	import { collectVisibleOutlinerRows, type OutlinerRow } from '../outliner/visible-rows';
+	import { createNodeOpenness } from '../outliner/openness.svelte';
 	import type { GraphState } from '../../../store/graph.svelte';
 	import { sendMoveNodeIntent } from '../../../store/ui-intents';
 	import { appState } from '../../../store/workbench.svelte';
@@ -42,7 +44,8 @@
 		onCreateItem = undefined,
 		onSelectNode = undefined,
 		onNodeDragStartData = undefined,
-		showSessionSelection = true
+		showSessionSelection = true,
+		query = $bindable('')
 	} = $props<{
 		managerNodeType?: string | null;
 		managerNode?: UiNodeDto | null;
@@ -66,13 +69,20 @@
 		onSelectNode?: (node: UiNodeDto, event: MouseEvent) => void;
 		onNodeDragStartData?: (node: UiNodeDto, event: DragEvent) => void;
 		showSessionSelection?: boolean;
+		query?: string;
 	}>();
 
 	let session = $derived(appState.session);
 	let graphState = $derived(session?.graph.state ?? null);
 	let selectedNodeId = $derived(session?.selectedNodeId ?? null);
-	let query = $state('');
 	let treeElement = $state<HTMLDivElement | null>(null);
+	let virtualRows = $state<ReturnType<typeof VirtualRows<OutlinerRow>>>();
+	let opennessScope = $derived({ session, generation: session?.snapshotGeneration });
+	const openness = createNodeOpenness(
+		() => graphState,
+		() => opennessScope
+	);
+	export const setNodeExpanded = openness.setExpanded;
 	let activeDragNodeId = $state<NodeId | null>(null);
 	let dropTarget = $state<OutlinerDropTarget | null>(null);
 	let moveInFlight = $state(false);
@@ -125,7 +135,6 @@
 			.map((childNodeId: NodeId) => graphState.nodesById.get(childNodeId) ?? null)
 			.filter(isTreeNode);
 	});
-	let itemNodeIds = $derived(itemNodes.map((itemNode) => itemNode.node_id));
 	let isRootDropActive = $derived(
 		managerNode !== null && dropTarget?.hoverNodeId === managerNode.node_id
 	);
@@ -143,6 +152,25 @@
 			nodeSearchText(candidate).toLowerCase().includes(normalizedQuery)
 		);
 	};
+	let rows = $derived.by(() =>
+		graphState
+			? collectVisibleOutlinerRows({
+					graph: graphState,
+					roots: itemNodes.map((node) => ({
+						nodeId: node.node_id,
+						parentId: managerNode?.node_id ?? null,
+						level: 0,
+						indent: 0
+					})),
+					opennessByNodeId: openness.overrides,
+					autoExpandAncestorNodeIds: new Set(),
+					initiallyExpandedDepth,
+					canRenderChildren: canRenderNodeChildren,
+					rowVisible: (candidate) => isTreeNode(candidate),
+					matchesQuery: query.trim() || extraNodeFilter ? nodeFilter : undefined
+				})
+			: []
+	);
 
 	const isManagerRowTarget = (target: EventTarget | null): boolean => {
 		return target instanceof Element && target.closest('.outliner-item-content') !== null;
@@ -336,35 +364,10 @@
 			return;
 		}
 
-		let cancelled = false;
-		let frameId: number | null = null;
-		let attempts = 0;
-		const maxAttempts = 8;
-
-		const revealFocusedNode = (): void => {
-			if (cancelled) {
-				return;
-			}
-			if (scrollOutlinerNodeIntoView(treeElement, focusedNodeId)) {
-				return;
-			}
-			if (attempts >= maxAttempts || typeof requestAnimationFrame === 'undefined') {
-				return;
-			}
-			attempts += 1;
-			frameId = requestAnimationFrame(revealFocusedNode);
-		};
-
+		const target = focusedNodeId;
 		void tick().then(() => {
-			revealFocusedNode();
+			if (target === focusedNodeId) virtualRows?.reveal(target);
 		});
-
-		return () => {
-			cancelled = true;
-			if (frameId !== null && typeof cancelAnimationFrame !== 'undefined') {
-				cancelAnimationFrame(frameId);
-			}
-		};
 	});
 
 	$effect(() => {
@@ -398,7 +401,9 @@
 	<div
 		class="manager-list-content"
 		class:root-drop-active={isRootDropActive}
-		role="presentation"
+		role="region"
+		aria-label="Manager items"
+		tabindex="-1"
 		data-node-id={managerNode?.node_id ?? undefined}
 		bind:this={treeElement}
 		onpointerdown={handleBackgroundPointerDown}
@@ -417,29 +422,44 @@
 					{emptyMessage}
 				{/if}
 			</div>
-		{:else}
-			<div class="manager-list-tree">
-				{#each itemNodes as itemNode (itemNode.node_id)}
-					<OutlinerItem
-						node={itemNode}
-						siblingNodeIds={itemNodeIds}
-						mode="tree"
-						{focusedNodeId}
-						{nodeFilter}
-						{canRenderNodeChildren}
-						rowSupplementComponent={RowSupplementComponent}
-						nodeDraggable={canDragNode}
-						{activeDragNodeId}
-						{dropTarget}
-						{initiallyExpandedDepth}
-						{showSessionSelection}
-						{onSelectNode}
-						onNodeDragStart={handleNodeDragStart}
-						onNodeDragOver={handleNodeDragOver}
-						onNodeDrop={handleNodeDrop}
-						onNodeDragEnd={handleNodeDragEnd} />
-				{/each}
-			</div>
+		{:else if rows.length === 0}
+			<div class="manager-list-empty">No matching items.</div>
+		{/if}
+		{#if managerNode}
+			<VirtualRows
+				bind:this={virtualRows}
+				{rows}
+				keyOf={(row) => row.nodeId}
+				variableHeights={true}
+				scroller={treeElement}>
+				{#snippet item(row)}
+					<div class="manager-virtual-row" style:padding-inline-start={`${row.indent * 0.7}rem`}>
+						<OutlinerItem
+							nodeId={row.nodeId}
+							siblingParentId={row.parentId}
+							level={row.level}
+							renderNodeChildren={false}
+							projectedVisible={true}
+							opennessByNodeId={openness.overrides}
+							onNodeOpennessChange={openness.setExpanded}
+							mode="tree"
+							{focusedNodeId}
+							{nodeFilter}
+							{canRenderNodeChildren}
+							rowSupplementComponent={RowSupplementComponent}
+							nodeDraggable={canDragNode}
+							{activeDragNodeId}
+							{dropTarget}
+							{initiallyExpandedDepth}
+							{showSessionSelection}
+							{onSelectNode}
+							onNodeDragStart={handleNodeDragStart}
+							onNodeDragOver={handleNodeDragOver}
+							onNodeDrop={handleNodeDrop}
+							onNodeDragEnd={handleNodeDragEnd} />
+					</div>
+				{/snippet}
+			</VirtualRows>
 		{/if}
 	</div>
 </div>
@@ -472,6 +492,7 @@
 
 	.manager-list-content {
 		flex: 1;
+		min-block-size: 0;
 		overflow: auto;
 		scrollbar-gutter: stable;
 		padding: 0.5rem;
@@ -487,10 +508,9 @@
 		outline-color: rgb(from var(--gc-color-selection) r g b / 0.45);
 	}
 
-	.manager-list-tree {
-		display: flex;
-		flex-direction: column;
-		gap: 0.1rem;
+	.manager-virtual-row {
+		inline-size: 100%;
+		box-sizing: border-box;
 	}
 
 	.manager-list-empty {
