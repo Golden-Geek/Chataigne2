@@ -119,5 +119,16 @@ as direct children alongside widget shells. Native ranges retain at most 64 dist
 `surface-scroll.svelte.ts` saves the last observed local scroll position in the page's UUID-keyed
 view cache, restores it across unmounting and removes listeners on disposal. Retired identities
 and page changes clear cached state. The child-browser anchor remains reachable while scrolling.
+
+`surface-move.svelte.ts` owns active move previews and pending commit presentation.
+`move-fence.ts` captures source/parent/target identity, layout and order; structural changes,
+replacement, reparenting and leaving edit mode retire stale presentation. Widget chrome publishes
+opaque operation identities so unrelated component cleanup cannot cancel a move. Commit
+publication returns a cancellation function bound to that operation, preventing a late rejection
+from cancelling a newer move by the same source. The backend still decides transaction outcomes.
+Tab previews keep keyed active controls mounted but hidden/inert; accordion previews retain their
+insertion anchor. Shared retention includes marked gesture ancestors and refreshes before a
+budget/layout DOM change. The [move-lifetime report](../progress/p11-dashboard-move-lifetimes.md)
+records the exercised operations and remaining creation/resize/native coverage.
 See the [fixed contract](../progress/p11-workspace-qualification-contract.md) and the historical
 [decomposition comparison](../progress/p11-dashboard-decomposition.md).

@@ -170,9 +170,8 @@ export function createDashboardOrderedLayout(context: DashboardOrderedLayoutCont
 				dropTarget !== null &&
 				dropTarget.surfaceNodeId === sourceSurfaceNodeId &&
 				dropTarget.targetIndex === (widgetOrderingState?.currentIndex ?? null);
-			if (dropTarget && !isNoOpMove) {
-				publishWidgetMoveCommit(dropTarget, sourceSurfaceNodeId);
-			}
+			const cancelCommit =
+				dropTarget && !isNoOpMove ? publishWidgetMoveCommit(dropTarget, sourceSurfaceNodeId) : null;
 			widgetMoveInteraction = null;
 			clearFreeLayoutInteractionChrome();
 			if (!dropTarget || isNoOpMove) {
@@ -190,7 +189,7 @@ export function createDashboardOrderedLayout(context: DashboardOrderedLayoutCont
 					dropTarget.targetIndex ?? undefined
 				);
 				if (!moved) {
-					publishWidgetMoveCommit(null);
+					cancelCommit?.();
 				}
 			})();
 		};

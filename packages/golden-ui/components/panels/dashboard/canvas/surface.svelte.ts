@@ -1,24 +1,20 @@
 import { onDestroy, untrack } from 'svelte';
 import { FlowLengths, flowSegments } from './flow-layout';
+import { createSurfaceMove } from './surface-move.svelte';
 import type { DashboardViewContext } from './view-context.svelte';
 import type { GraphState } from '../../../../store/graph.svelte';
 import type { createDashboardInteractionChrome } from './interaction-chrome.svelte';
 import type { createDashboardInteractionGeometry } from './interaction-geometry.svelte';
 import { resolveDashboardDragNode, resolveDashboardDragParameterNode } from '../dashboard-drag';
-import { widgetMovePreviewEventName, widgetMoveCommitEventName } from './contracts';
 import {
 	type SurfaceDropPreview,
 	type PendingSurfaceDrop,
-	type PendingWidgetMoveCommit,
-	type NonFreeSurfaceFlowRenderItem,
-	type WidgetMovePreviewEventDetail,
-	type WidgetMoveCommitEventDetail
+	type NonFreeSurfaceFlowRenderItem
 } from './contracts';
 import {
 	minFreeWidgetWidthRem,
 	minFreeWidgetHeightRem,
 	sameNodeIdList,
-	moveNodeIdInList,
 	anchorXFromAnchor,
 	anchorYFromAnchor,
 	anchorBaseExpression,
@@ -154,24 +150,28 @@ export function createDashboardSurface(context: DashboardSurfaceContext) {
 
 	let surfaceDropPreview = $state<SurfaceDropPreview | null>(null);
 
-	let widgetMoveSurfacePreview = $state<SurfaceDropPreview | null>(null);
-
-	let widgetMoveHiddenChildNodeId = $state<NodeId | null>(null);
-
 	let pendingSurfaceDrop = $state<PendingSurfaceDrop | null>(null);
-
-	let pendingWidgetMoveCommit = $state<PendingWidgetMoveCommit | null>(null);
-
-	let effectiveHiddenChildNodeId = $derived(
-		widgetMoveHiddenChildNodeId ?? pendingWidgetMoveCommit?.hiddenChildNodeId ?? null
-	);
+	const move = createSurfaceMove({
+		get graph() {
+			return graph;
+		},
+		get node() {
+			return liveNode;
+		},
+		get enabled() {
+			return editMode && isLayoutSurface;
+		},
+		get layout() {
+			return layoutKind;
+		},
+		get children() {
+			return childWidgets;
+		}
+	});
+	let effectiveHiddenChildNodeId = $derived(move.hidden);
 
 	let displayedSurfaceDropPreview = $derived(
-		surfaceDropPreview ??
-			widgetMoveSurfacePreview ??
-			pendingSurfaceDrop?.preview ??
-			pendingWidgetMoveCommit?.preview ??
-			null
+		surfaceDropPreview ?? move.preview ?? pendingSurfaceDrop?.preview ?? null
 	);
 
 	let rendersInlineSurfaceDropPreview = $derived.by(() => {
@@ -418,89 +418,6 @@ export function createDashboardSurface(context: DashboardSurfaceContext) {
 		};
 	});
 
-	$effect(() => {
-		if (typeof window === 'undefined' || !isLayoutSurface) {
-			widgetMoveSurfacePreview = null;
-			widgetMoveHiddenChildNodeId = null;
-			pendingWidgetMoveCommit = null;
-			return;
-		}
-		const currentLayoutKind = layoutKind;
-
-		const handleWidgetMovePreview = (event: Event): void => {
-			const detail = (event as CustomEvent<WidgetMovePreviewEventDetail>).detail;
-			if (!detail) {
-				widgetMoveSurfacePreview = null;
-				widgetMoveHiddenChildNodeId = null;
-				return;
-			}
-			widgetMoveSurfacePreview = detail.surfaceNodeId === liveNode.node_id ? detail.preview : null;
-			widgetMoveHiddenChildNodeId =
-				currentLayoutKind !== 'free' && detail.sourceSurfaceNodeId === liveNode.node_id
-					? detail.sourceWidgetNodeId
-					: null;
-		};
-
-		window.addEventListener(widgetMovePreviewEventName, handleWidgetMovePreview);
-		return () => {
-			window.removeEventListener(widgetMovePreviewEventName, handleWidgetMovePreview);
-		};
-	});
-
-	$effect(() => {
-		if (typeof window === 'undefined' || !isLayoutSurface) {
-			pendingWidgetMoveCommit = null;
-			return;
-		}
-		const currentLayoutKind = layoutKind;
-
-		const handleWidgetMoveCommit = (event: Event): void => {
-			const detail = (event as CustomEvent<WidgetMoveCommitEventDetail>).detail;
-			if (!detail) {
-				pendingWidgetMoveCommit = null;
-				return;
-			}
-			const preview = detail.targetSurfaceNodeId === liveNode.node_id ? detail.preview : null;
-			const hiddenChildNodeId =
-				currentLayoutKind !== 'free' && detail.sourceSurfaceNodeId === liveNode.node_id
-					? detail.sourceWidgetNodeId
-					: null;
-			if (!preview && hiddenChildNodeId === null) {
-				pendingWidgetMoveCommit = null;
-				return;
-			}
-			if (detail.sourceWidgetNodeId === null) {
-				pendingWidgetMoveCommit = null;
-				return;
-			}
-			const currentChildIds = childWidgets.map((child) => child.node_id);
-			const expectedChildIds =
-				detail.targetSurfaceNodeId === liveNode.node_id
-					? moveNodeIdInList(
-							currentChildIds,
-							detail.sourceWidgetNodeId,
-							detail.preview?.targetIndex ?? null
-						)
-					: detail.sourceSurfaceNodeId === liveNode.node_id
-						? currentChildIds.filter((childNodeId) => childNodeId !== detail.sourceWidgetNodeId)
-						: null;
-			if (expectedChildIds === null) {
-				pendingWidgetMoveCommit = null;
-				return;
-			}
-			pendingWidgetMoveCommit = {
-				preview,
-				hiddenChildNodeId,
-				expectedChildIds
-			};
-		};
-
-		window.addEventListener(widgetMoveCommitEventName, handleWidgetMoveCommit);
-		return () => {
-			window.removeEventListener(widgetMoveCommitEventName, handleWidgetMoveCommit);
-		};
-	});
-
 	let surfaceSnapGrid = $derived(getDashboardSnapGrid(graph, liveNode));
 
 	let snapGridVisible = $derived(editMode && surfaceSnapGrid.enabled && layoutKind === 'free');
@@ -522,33 +439,11 @@ export function createDashboardSurface(context: DashboardSurfaceContext) {
 	});
 
 	$effect(() => {
-		if (!pendingWidgetMoveCommit) {
-			return;
-		}
-		const currentChildIds = childWidgets.map((child) => child.node_id);
-		if (sameNodeIdList(currentChildIds, pendingWidgetMoveCommit.expectedChildIds)) {
-			pendingWidgetMoveCommit = null;
-		}
-	});
-
-	$effect(() => {
 		if (!pendingSurfaceDrop || typeof window === 'undefined') {
 			return;
 		}
 		const timeout = window.setTimeout(() => {
 			pendingSurfaceDrop = null;
-		}, 2000);
-		return () => {
-			window.clearTimeout(timeout);
-		};
-	});
-
-	$effect(() => {
-		if (!pendingWidgetMoveCommit || typeof window === 'undefined') {
-			return;
-		}
-		const timeout = window.setTimeout(() => {
-			pendingWidgetMoveCommit = null;
 		}, 2000);
 		return () => {
 			window.clearTimeout(timeout);

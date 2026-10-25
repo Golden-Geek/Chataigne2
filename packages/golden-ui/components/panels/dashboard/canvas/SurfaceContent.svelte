@@ -99,12 +99,6 @@
 				: undefined;
 		}
 	});
-	$effect.pre(() => {
-		void surface.graph;
-		void surface.budget;
-		void layoutKind;
-		retention.read();
-	});
 	$effect(() => {
 		if (browser) return view?.registerBrowser(surface.node.node_id, browser);
 	});
@@ -114,8 +108,14 @@
 				((layoutKind === 'tabs' || layoutKind === 'accordion') && childWidgets.length > 128))
 	);
 	const retained = $derived.by(() => {
+		void surface.budget;
+		void layoutKind;
 		const ids = new Set(retention.read());
 		return ids;
+	});
+	$effect.pre(() => {
+		void surface.graph;
+		void retained;
 	});
 	const frameTargets = $derived(new Set(view?.retainedFor(surface.node.node_id) ?? []));
 	let destroyed = false;
@@ -145,6 +145,9 @@
 	});
 	const kept = $derived.by(() => {
 		const ids = new Set(retained);
+		if (layoutKind === 'accordion' && displayedSurfaceDropPreview)
+			for (const child of childWidgets)
+				if (shouldRenderSurfaceDropPreviewBeforeChild(child)) ids.add(child.node_id);
 		for (const id of frameTargets) ids.add(id);
 		for (const id of view?.selected.slice(-dashboardSelectedDetailLimit) ?? []) ids.add(id);
 		if (chosen !== null) ids.add(chosen);
@@ -329,22 +332,24 @@
 	<div class="dashboard-tab-body" class:compact style:position="relative">
 		{#if displayedSurfaceDropPreview}
 			{@render dashboardSurfaceDropPreviewSlot('', 'dashboard-drop-preview-panel')}
-		{:else}
-			{#each shownTabs as activeChild (activeChild.node_id)}
-				<div
-					class="dashboard-slot"
-					class:dashboard-frame-measurement={activeChild !== shownTab}
-					inert={activeChild !== shownTab}
-					aria-hidden={activeChild !== shownTab ? true : undefined}>
-					<div class="dashboard-slot-fill">
-						<DashboardCanvasSelf
-							node={activeChild}
-							{editMode}
-							presentationBudget={childBudget(activeChild)} />
-					</div>
-				</div>
-			{/each}
 		{/if}
+		{#each shownTabs as activeChild (activeChild.node_id)}
+			<div
+				class="dashboard-slot"
+				class:dashboard-frame-measurement={activeChild !== shownTab ||
+					displayedSurfaceDropPreview !== null}
+				inert={activeChild !== shownTab || displayedSurfaceDropPreview !== null}
+				aria-hidden={activeChild !== shownTab || displayedSurfaceDropPreview !== null
+					? true
+					: undefined}>
+				<div class="dashboard-slot-fill">
+					<DashboardCanvasSelf
+						node={activeChild}
+						{editMode}
+						presentationBudget={childBudget(activeChild)} />
+				</div>
+			</div>
+		{/each}
 	</div>
 {:else if layoutKind === 'accordion'}
 	<div class="dashboard-accordion" class:compact>

@@ -57,6 +57,9 @@ export type NonFreeSurfaceFlowRenderItem =
 	  };
 
 export type WidgetMovePreviewEventDetail = {
+	/** Opaque publisher identity; unrelated widget cleanup cannot cancel this operation. */
+	operation: object;
+	sourceWidgetUuid: string | null;
 	surfaceNodeId: NodeId | null;
 	preview: SurfaceDropPreview | null;
 	sourceSurfaceNodeId: NodeId | null;
@@ -64,6 +67,8 @@ export type WidgetMovePreviewEventDetail = {
 };
 
 export type WidgetMoveCommitEventDetail = {
+	operation: object;
+	sourceWidgetUuid: string | null;
 	targetSurfaceNodeId: NodeId | null;
 	preview: SurfaceDropPreview | null;
 	sourceSurfaceNodeId: NodeId | null;

@@ -34,6 +34,8 @@ export function createDashboardInteractionChrome(context: DashboardInteractionCh
 	let surfaceInsertionIndicatorElement: HTMLElement | null = null;
 
 	let freeLayoutAncestorShells: HTMLElement[] = [];
+	let previewOwner: { id: NodeId; uuid: string } | null = null;
+	let commitOwner: { id: NodeId; uuid: string } | null = null;
 
 	const clearSurfaceInsertionIndicator = (): void => {
 		if (!surfaceInsertionIndicatorElement) {
@@ -122,47 +124,72 @@ export function createDashboardInteractionChrome(context: DashboardInteractionCh
 		if (typeof window === 'undefined') {
 			return;
 		}
+		if (dropTarget) previewOwner = { id: liveNode.node_id, uuid: liveNode.uuid };
+		const owner = previewOwner;
+		if (!owner) return;
 		const detail: WidgetMovePreviewEventDetail = dropTarget
 			? {
+					operation: owner,
+					sourceWidgetUuid: owner.uuid,
 					surfaceNodeId: dropTarget.surfaceNodeId,
 					preview: buildCurrentWidgetMovePreview(dropTarget),
 					sourceSurfaceNodeId: parentNode?.node_id ?? null,
 					sourceWidgetNodeId: liveNode.node_id
 				}
 			: {
+					operation: owner,
+					sourceWidgetUuid: owner.uuid,
 					surfaceNodeId: null,
 					preview: null,
 					sourceSurfaceNodeId: null,
-					sourceWidgetNodeId: null
+					sourceWidgetNodeId: owner.id
 				};
+		if (!dropTarget) previewOwner = null;
 		window.dispatchEvent(
 			new CustomEvent<WidgetMovePreviewEventDetail>(widgetMovePreviewEventName, { detail })
 		);
 	};
 
+	// Async rejection cancels this publication, even if the source starts another move meanwhile.
 	const publishWidgetMoveCommit = (
 		dropTarget: Pick<WidgetMoveDropTarget, 'surfaceNodeId' | 'placement' | 'targetIndex'> | null,
 		sourceSurfaceNodeId: NodeId | null = null
-	): void => {
+	): (() => void) | null => {
 		if (typeof window === 'undefined') {
-			return;
+			return null;
 		}
+		if (dropTarget) commitOwner = { id: liveNode.node_id, uuid: liveNode.uuid };
+		const owner = commitOwner;
+		if (!owner) return null;
 		const detail: WidgetMoveCommitEventDetail = dropTarget
 			? {
+					operation: owner,
+					sourceWidgetUuid: owner.uuid,
 					targetSurfaceNodeId: dropTarget.surfaceNodeId,
 					preview: buildCurrentWidgetMovePreview(dropTarget),
 					sourceSurfaceNodeId,
 					sourceWidgetNodeId: liveNode.node_id
 				}
 			: {
+					operation: owner,
+					sourceWidgetUuid: owner.uuid,
 					targetSurfaceNodeId: null,
 					preview: null,
 					sourceSurfaceNodeId: null,
-					sourceWidgetNodeId: null
+					sourceWidgetNodeId: owner.id
 				};
+		if (!dropTarget) commitOwner = null;
 		window.dispatchEvent(
 			new CustomEvent<WidgetMoveCommitEventDetail>(widgetMoveCommitEventName, { detail })
 		);
+		return () => {
+			if (commitOwner === owner) commitOwner = null;
+			window.dispatchEvent(
+				new CustomEvent<WidgetMoveCommitEventDetail>(widgetMoveCommitEventName, {
+					detail: { ...detail, targetSurfaceNodeId: null, preview: null }
+				})
+			);
+		};
 	};
 
 	return {

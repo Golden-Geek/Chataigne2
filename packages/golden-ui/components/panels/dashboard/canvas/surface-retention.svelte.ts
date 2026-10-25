@@ -133,7 +133,12 @@ export function createSurfaceRetention(context: SurfaceRetentionContext) {
 					'.dashboard-widget-shell, [data-dashboard-child-id]'
 				)
 			].filter((item) => ownShell(item) === item);
-			for (const item of shells) if (item.classList.contains('free-layout-active')) retain(item);
+			for (const item of shells)
+				if (
+					item.classList.contains('free-layout-active') ||
+					item.classList.contains('dashboard-descendant-free-layout-active')
+				)
+					retain(item);
 			const selection = window.getSelection();
 			if (selection && !selection.isCollapsed) {
 				const selected = new Set<NodeId>();

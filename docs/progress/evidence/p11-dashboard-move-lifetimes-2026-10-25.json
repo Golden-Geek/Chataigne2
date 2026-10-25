@@ -1,0 +1,1590 @@
+{
+  "scope": "dashboard-correctness",
+  "baseline": "654a5f15",
+  "browser": "156.0.4314.42",
+  "machine": {
+    "platform": "win32",
+    "release": "10.0.26300",
+    "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+    "logicalCpus": 24,
+    "memoryBytes": 33752997888,
+    "node": "v26.5.0"
+  },
+  "source": {
+    "packages/golden-ui/components/panels/dashboard/canvas/binding-drop.svelte.ts": "e339d4d4c6986f9b237f6e307d54bfadc2ef34ef4d8a165cde00a34c86fa6f78",
+    "packages/golden-ui/components/panels/dashboard/canvas/camera.svelte.ts": "93e4c62ff55b7351bf0623101c832b6946948b94fe9c31cd3794b305b34dc07a",
+    "packages/golden-ui/components/panels/dashboard/canvas/context-menu.svelte.ts": "c927e623b623d45cd5cd29eca890d7f6012ef82588c870f104b50aee6fee5bd7",
+    "packages/golden-ui/components/panels/dashboard/canvas/contracts.ts": "3a8e627e80e2f3e86e77358dfb3e2bb8386b787631c51db3d8db01ceebb4ae54",
+    "packages/golden-ui/components/panels/dashboard/canvas/dom.ts": "dfd23994882e79cdafd9e8c0e77949a9a947f2020be9fd04044a95126a435a7e",
+    "packages/golden-ui/components/panels/dashboard/canvas/flow-layout.ts": "2085a37e264d6ccb94da8450b9d535aaf91dd15048553f5f39c660d088d59b1c",
+    "packages/golden-ui/components/panels/dashboard/canvas/frame-bounds.ts": "91b368a6cfd24c71b966807365dda08d78d9a170438e6462e6696c9c23d88905",
+    "packages/golden-ui/components/panels/dashboard/canvas/frame-preparation.ts": "2a7d30baef5c6eeebf942b07da289d37e3b7c43db10e83d394193301c137005e",
+    "packages/golden-ui/components/panels/dashboard/canvas/free-layout.svelte.ts": "c7f417fc995e672dc03fb3b0515e582b9a48f9ff642dd99c78113dc89416fd60",
+    "packages/golden-ui/components/panels/dashboard/canvas/free-surface-geometry.ts": "b1de79712aadcb382e0e7fac314932326987d76723aba4961b1e88732abf89b6",
+    "packages/golden-ui/components/panels/dashboard/canvas/free-surface-groups.ts": "60327f480cb7f2495c7e73d649ad4c4845024e202e4d96196a3722f165922b8e",
+    "packages/golden-ui/components/panels/dashboard/canvas/free-surface-viewport.svelte.ts": "2f1d9e585f2028fe91e1e254a3de8a1ea032ea57f74bfb7316f33c08cfede178",
+    "packages/golden-ui/components/panels/dashboard/canvas/FreeSurfaceOverview.svelte": "a9710c5c435477b9af57b198c1542a6603df9e15343ae4e1be24f09d9fdc8e6d",
+    "packages/golden-ui/components/panels/dashboard/canvas/geometry.ts": "6e65dff4c6bae0c879d152e33cc129dc6a92fa5192af82ca19ac3081f3f0a65f",
+    "packages/golden-ui/components/panels/dashboard/canvas/interaction-chrome.svelte.ts": "15dba6160a5a08e20f70d3fbc130cb6d684ce4919166d1f5fc8ca64d917f1c5e",
+    "packages/golden-ui/components/panels/dashboard/canvas/interaction-geometry.svelte.ts": "e5f1b13a739ec7e7a48a201faf2296c933ff566fe2b751d2670c1aa0f5cc59d2",
+    "packages/golden-ui/components/panels/dashboard/canvas/marquee.svelte.ts": "af7caade8363ec14d39e1c32ff6339f72633bec2aeabfe72fb6cc340460b665a",
+    "packages/golden-ui/components/panels/dashboard/canvas/move-fence.ts": "75b1e114ef3ec39734adc94d14985d5bee771540600d7abeb05240d8db9ccf62",
+    "packages/golden-ui/components/panels/dashboard/canvas/ordered-layout.svelte.ts": "eafa7539a594697665ea5ccc825f16cca26f1017b8a97870b6dba523dda9e957",
+    "packages/golden-ui/components/panels/dashboard/canvas/page-view.ts": "190011aa3367269977700c4713cdff05d2f4ef759452fe77e3fa54d9c3ccd465",
+    "packages/golden-ui/components/panels/dashboard/canvas/presentation-budget.ts": "7ce1adc5ea5af7182e491a84c84e5abf85a473c594a488bf2d699f44902996b3",
+    "packages/golden-ui/components/panels/dashboard/canvas/styles/content-preview.css": "619ccc41a8e8c8d6dfffea3dc75bd157060f1dae7ae495239a64b091ba690791",
+    "packages/golden-ui/components/panels/dashboard/canvas/styles/surface-layout.css": "2d1d11c9cb98ed348ca2a6745e893f55f64eeac923f3513fca79f13ce0cc0253",
+    "packages/golden-ui/components/panels/dashboard/canvas/styles/widget-frame.css": "711faee568b70043232b7c46ac07f07511bd244654a82f415b55af67e48ad77a",
+    "packages/golden-ui/components/panels/dashboard/canvas/surface-move.svelte.ts": "374cd264ed5c8ada3cdaa651ca8ff7856d754aaaa264a066dfb67bb464597586",
+    "packages/golden-ui/components/panels/dashboard/canvas/surface-retention.svelte.ts": "1e726e6690d3a878bf0a224c1a74ceff5cafa3d86d7f0a709eebbc18f81d6c99",
+    "packages/golden-ui/components/panels/dashboard/canvas/surface-scroll.svelte.ts": "b6eddb4230ca5a1bf523cdcc1794fac20d2c229984e07ba3e5507983f498cb8a",
+    "packages/golden-ui/components/panels/dashboard/canvas/surface.svelte.ts": "ff9901f2afbd3b25d2cb8dd4c16c477005b513ae540124107151c5dc04e4b47f",
+    "packages/golden-ui/components/panels/dashboard/canvas/SurfaceChildBrowser.svelte": "3a9c3c58f938e7995c20def260343e2e9b5631630af5bb4595176310b32c8419",
+    "packages/golden-ui/components/panels/dashboard/canvas/SurfaceContent.svelte": "9f157e60f1cb9e7169f20f0252bd6c8794debe18cf86d9c0d3106e0f8ec0a201",
+    "packages/golden-ui/components/panels/dashboard/canvas/tests/fixtures.ts": "626f1373e2433f81736cd071bb22e67782266f2baf4dd4a7e32a29a4859e3303",
+    "packages/golden-ui/components/panels/dashboard/canvas/tests/flow-layout.test.ts": "775797451f6877f9590af7127021a811a57cd526aae2ab1ffac15c50b3417783",
+    "packages/golden-ui/components/panels/dashboard/canvas/tests/frame-bounds.test.ts": "be1ad498c4a0237c85bf33fffc8eabe3dca2f94f60bb484a9470d459d38030bd",
+    "packages/golden-ui/components/panels/dashboard/canvas/tests/frame-preparation.test.ts": "c8ee1d8c47da67f30d91429283d066e1968ef7a47c18ba1eeb965ff456cc634e",
+    "packages/golden-ui/components/panels/dashboard/canvas/tests/free-surface-geometry.test.ts": "effc25bf2ecd34e2aadd118e5e21084b582574afbe4760dcd0d449f7e224f95d",
+    "packages/golden-ui/components/panels/dashboard/canvas/tests/free-surface-groups.test.ts": "46476a726807f80aac8950953798f7169f1afe022ef7118e3c25288dbb3dd021",
+    "packages/golden-ui/components/panels/dashboard/canvas/tests/free-surface-presentation.test.ts": "de066a646a18a6c035c7d58b9a43d9688e38fd564b3bfd0c251cd58b7f6c9bff",
+    "packages/golden-ui/components/panels/dashboard/canvas/tests/move-fence.test.ts": "0645236cfaf86edb620efc09d8303b271710ca07c7fed96068209cff751aac83",
+    "packages/golden-ui/components/panels/dashboard/canvas/tests/presentation-budget.test.ts": "e2220148fd17e5de3bad481dfdb433d6a3e9bf07391d2feae7ffb409e7b39151",
+    "packages/golden-ui/components/panels/dashboard/canvas/view-context.svelte.ts": "2a1f4db6aff155ae07bed7f00a2e2abd5e4280a0f229022c0f87218712a793bb",
+    "packages/golden-ui/components/panels/dashboard/canvas/widget-content.svelte.ts": "97b744b7d701ffa7fb8d01dbab4d03524108ecc53eac4af7dc96cbddfbf1f554",
+    "packages/golden-ui/components/panels/dashboard/dashboard-actions.ts": "c22a51e5a4dc4c8c9be9c732a17d51a62dc3315ea78adc2c2e60d7e838bd7c0d",
+    "packages/golden-ui/components/panels/dashboard/dashboard-drag.ts": "9e2ae85e765b38a53f65138582521e299ae2f26ae2d47f79eade5a296f942a43",
+    "packages/golden-ui/components/panels/dashboard/dashboard-model.ts": "d7c0f3a3a9b89658ca767b14d5bf0a9f425979a76e61be9973e4a3bf959eb6be",
+    "packages/golden-ui/components/panels/dashboard/dashboard-node-widget-options.ts": "6955d5da8c29656e7dd6466ef7b6f32f4336412e0650cb2d23803975febb89b8",
+    "packages/golden-ui/components/panels/dashboard/dashboard-node-widget-registry.ts": "4785c142172d939a2f6bf76d31665610f0a5e523e99bb3b878c4d05162d5bf65",
+    "packages/golden-ui/components/panels/dashboard/dashboard-route.ts": "e93fea51ffd68aac521494b7486ecd0a57553c6eea44f608081c844282309944",
+    "packages/golden-ui/components/panels/dashboard/DashboardCanvas.svelte": "0ccbb08eb44b2053def0800a41015607886161baa56ff484d71dee1f0248dc8a",
+    "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetInspectorContent.svelte": "e357664cd4dbba8b17ee6ee61184e7e4415c9e86d8d2325575eab3d631bf2ef6",
+    "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetNumberRotaryContent.svelte": "245da72f871f93b7e8d82b7b6e4f9d5d09ba8da310638c7bf1181fd2cb7b440d",
+    "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetNumberSliderContent.svelte": "0119c271e9c64a98dd72630325649e3f1f3c390787f5511475e66c010876b771",
+    "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetParameterEditorContent.svelte": "4848d3533614627fd6302d772f46ad2706e796e3c8df39a69828c6dfab7ca4ef",
+    "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetVec2PadContent.svelte": "ea70f0059bfd3af60746219234f8d80976469e681b88047575bee59e98f82ee8",
+    "packages/golden-ui/components/panels/dashboard/DashboardPanel.svelte": "dba2b304d23643a9bc92b137a1dfe07f38760123fe867a4a66f7bb2025d0fdc5",
+    "packages/golden-ui/components/panels/dashboard/DashboardViewer.svelte": "6cb0e0b37763964b5b09df01819c613ef073e94c1f6b13006824db3cea29370a",
+    "packages/golden-ui/tests/browser/fixture/dashboard-data.ts": "991c5f5d02fa03b94513cab3038841d8bfac2447e69af1a3f31af752baf69a8d",
+    "packages/golden-ui/tests/browser/fixture/dashboard-forest.ts": "6c7797f7b33d2f63ca0a8cd8c703cbee9a17b4f81786cc81a72af5abd6c5bc4a",
+    "packages/golden-ui/tests/browser/fixture/dashboard-hierarchy.ts": "debae08a29ea574cce234e8f6b29e6cfa770dc0b211447eec90301e4c497b16f",
+    "packages/golden-ui/tests/browser/fixture/dashboard.html": "70bc3752b3e8beca950e542617e7cd3491f8871a1ca954b435d9522099ad34fd",
+    "packages/golden-ui/tests/browser/fixture/dashboard.ts": "4f8c93e78ef6e02957955e215bdfc0e9577385256fb8fcbc943e149ad06a3ef1",
+    "packages/golden-ui/tests/browser/fixture/DashboardFixture.svelte": "a81eaae3a52b7a34788949f05e2f9f4c2994737c382c0885e9700390669afdd3",
+    "packages/golden-ui/tests/browser/fixture/DashboardRegistryContent.svelte": "f783c801c15be591724b2f7522d3cba33fe2f34cfda424b86c82655ab5caf076",
+    "packages/golden-ui/tests/browser/fixture/session.ts": "f0c7640a1558105f8d11cd8060bb1393e7d8827c6fbd95bee883aa672bc3cf67",
+    "packages/golden-ui/store/graph-index.ts": "70b413486e35b2fedbc84e519b8af7cf4120a3008693173b4e35f17789d9b38f",
+    "packages/golden-ui/css-value.ts": "5268e49361e4e93a97e255222b80ad8c63c331c5348cef21200e3a087b2f54c4",
+    "packages/golden-ui/components/common/ContextMenu.svelte": "1a154bc73401e801d8dbacfe80e5181b9b7f43f5f16d1fe41388b971ae4971c2",
+    "packages/golden-ui/components/common/context-menu/ContextMenuRows.svelte": "3fced1e35258434f3ef33ef5a7a6b127a4bf8d895459deea500745cbd475d300",
+    "packages/golden-ui/components/common/context-menu/presentation.ts": "2c4cc366adcc6f2caef334df9871137967a7228908d072b9615680fb9f464c76",
+    "packages/golden-ui/components/common/virtual-rows/height-index.ts": "281559cbf69c4327414667f1b897447078235a15944814fa0dc6e398010a0429",
+    "packages/golden-ui/components/common/virtual-rows/tests/height-index.test.ts": "ac1d9af3e20db0f29482dba8d3ecc21efe30d5283b26a1926f82da89bc179d00",
+    "packages/golden-ui/components/common/virtual-rows/VirtualRows.svelte": "7e97cce5ddda286ec5938106fdedc2610d3713febe0e573b7a976d5ad32e7098",
+    "packages/golden-ui/tests/css-value-units.test.ts": "ca0f33dff72c4dd1c0819d2813c28d40c2cb2743547f7425c99275c2ce23f0b4",
+    "packages/golden-graph-ui/spatial-index.ts": "31ad23a5f30693cde74853adc8d21322df85c06096268ace52b063539749c8c4",
+    "packages/golden-ui/package.json": "068fddd9de78f79562b6eb241cb605fa9984ec337105991c10a67d05aff7c3a5",
+    "package-lock.json": "1a515eb16812648c25cab5914c8ec2562aeeab8bf6f5a84921bd20d659e5ec28",
+    "packages/golden-ui/tests/browser/dashboard-dense.mjs": "f94ac1588a2f463b9ed4b696a42800b2fc7905400ebe8b1ab2ac2f784fc62aae",
+    "packages/golden-ui/tests/browser/dashboard-hierarchy.mjs": "3daefeceb19a0b554106dc153a79f162921a528e0d35b887f4d7db5dcade6caf",
+    "packages/golden-ui/tests/browser/dashboard-lifecycle.mjs": "88cae6f5bd5418a2de86f2b027478ca3ed32b7fd3ca90867e75925ae71093a46",
+    "packages/golden-ui/tests/browser/dashboard-edit-lifecycle.mjs": "d3bf908a5180b48bb751aaae38929450e462bcc9a777c93745e3de3007e0fd4f",
+    "packages/golden-ui/tests/browser/dashboard-viewport.mjs": "92fab1d54cd3fb68bc7d0ca50e8dbde6acb46c534d91ae5226581ff47cd423df"
+  },
+  "cases": [
+    {
+      "label": "visible-preservation-run",
+      "mounted": 48,
+      "painted": 40,
+      "paintedIds": [
+        "11",
+        "22",
+        "33",
+        "44",
+        "55",
+        "451",
+        "462",
+        "473",
+        "484",
+        "495",
+        "891",
+        "902",
+        "913",
+        "924",
+        "935",
+        "1331",
+        "1342",
+        "1353",
+        "1364",
+        "1375",
+        "1771",
+        "1782",
+        "1793",
+        "1804",
+        "1815",
+        "2211",
+        "2222",
+        "2233",
+        "2244",
+        "2255",
+        "2651",
+        "2662",
+        "2673",
+        "2684",
+        "2695",
+        "3091",
+        "3102",
+        "3113",
+        "3124",
+        "3135"
+      ],
+      "mountedIds": [
+        "11",
+        "22",
+        "33",
+        "44",
+        "55",
+        "66",
+        "451",
+        "462",
+        "473",
+        "484",
+        "495",
+        "506",
+        "891",
+        "902",
+        "913",
+        "924",
+        "935",
+        "946",
+        "1331",
+        "1342",
+        "1353",
+        "1364",
+        "1375",
+        "1386",
+        "1771",
+        "1782",
+        "1793",
+        "1804",
+        "1815",
+        "1826",
+        "2211",
+        "2222",
+        "2233",
+        "2244",
+        "2255",
+        "2266",
+        "2651",
+        "2662",
+        "2673",
+        "2684",
+        "2695",
+        "2706",
+        "3091",
+        "3102",
+        "3113",
+        "3124",
+        "3135",
+        "3146"
+      ],
+      "passed": true
+    },
+    {
+      "label": "visible-preservation-edit",
+      "mounted": 54,
+      "painted": 48,
+      "paintedIds": [
+        "11",
+        "22",
+        "33",
+        "44",
+        "55",
+        "66",
+        "451",
+        "462",
+        "473",
+        "484",
+        "495",
+        "506",
+        "891",
+        "902",
+        "913",
+        "924",
+        "935",
+        "946",
+        "1331",
+        "1342",
+        "1353",
+        "1364",
+        "1375",
+        "1386",
+        "1771",
+        "1782",
+        "1793",
+        "1804",
+        "1815",
+        "1826",
+        "2211",
+        "2222",
+        "2233",
+        "2244",
+        "2255",
+        "2266",
+        "2651",
+        "2662",
+        "2673",
+        "2684",
+        "2695",
+        "2706",
+        "3091",
+        "3102",
+        "3113",
+        "3124",
+        "3135",
+        "3146"
+      ],
+      "mountedIds": [
+        "11",
+        "22",
+        "33",
+        "44",
+        "55",
+        "66",
+        "451",
+        "462",
+        "473",
+        "484",
+        "495",
+        "506",
+        "891",
+        "902",
+        "913",
+        "924",
+        "935",
+        "946",
+        "1331",
+        "1342",
+        "1353",
+        "1364",
+        "1375",
+        "1386",
+        "1771",
+        "1782",
+        "1793",
+        "1804",
+        "1815",
+        "1826",
+        "2211",
+        "2222",
+        "2233",
+        "2244",
+        "2255",
+        "2266",
+        "2651",
+        "2662",
+        "2673",
+        "2684",
+        "2695",
+        "2706",
+        "3091",
+        "3102",
+        "3113",
+        "3124",
+        "3135",
+        "3146",
+        "3531",
+        "3542",
+        "3553",
+        "3564",
+        "3575",
+        "3586"
+      ],
+      "passed": true
+    },
+    {
+      "label": "nested-free-surface-clipping",
+      "mounted": 25,
+      "passed": true
+    },
+    {
+      "label": "six-layout-edit-run-mounted-smoke",
+      "passed": true
+    },
+    {
+      "label": "focused-control-retention-and-root-font",
+      "passed": true
+    },
+    {
+      "label": "retired-focus-fallback",
+      "passed": true
+    },
+    {
+      "label": "native-range-retention-and-release",
+      "passed": true
+    },
+    {
+      "label": "live-position-leaves-and-enters-viewport",
+      "passed": true
+    },
+    {
+      "label": "inherited-em-font-and-logical-boundary",
+      "passed": true
+    },
+    {
+      "label": "frame-beneath-unmounted-container",
+      "dx": 0.0009765625,
+      "dy": 0.0009765625,
+      "passed": true
+    },
+    {
+      "label": "batched-frame-across-100-offscreen-containers",
+      "peakMounted": 32,
+      "dx": 0.014628906250436557,
+      "dy": 0.0016601562499545253,
+      "passed": true
+    },
+    {
+      "label": "pending-frame-yields-to-new-navigation",
+      "passed": true
+    },
+    {
+      "label": "dense-overlap-1000-run",
+      "authoredNodes": 1001,
+      "widgets": 90,
+      "initialMounted": 90,
+      "groups": 0,
+      "bulkMounted": 89,
+      "picked": 990,
+      "control": {
+        "label": "   Widget 89 ",
+        "width": 241.91998291015625,
+        "height": 100.80000305175781,
+        "fit": 0,
+        "box": [
+          32,
+          39.02000045776367,
+          241.91998291015625,
+          100.80000305175781
+        ],
+        "front": "<input type=\"text\" placeholder=\"\">",
+        "reachable": true
+      },
+      "transitionScope": "Focus retained beyond the run-mode page clip",
+      "passed": true
+    },
+    {
+      "label": "dense-grid-minimum-zoom-1000-run",
+      "widgets": 90,
+      "presentation": "detail",
+      "mounted": 18,
+      "groups": 0,
+      "coverage": {
+        "visible": 15,
+        "missing": [],
+        "maximumError": 0.00004150390624602096,
+        "maximumGroupError": 0
+      },
+      "scope": "Viewport slice at 0.25; run mode retains the authored page clip",
+      "passed": true
+    },
+    {
+      "label": "dense-overlap-1000-edit",
+      "authoredNodes": 1001,
+      "widgets": 90,
+      "initialMounted": 90,
+      "groups": 0,
+      "bulkMounted": 89,
+      "picked": 990,
+      "control": {
+        "label": "   Widget 89 ",
+        "width": 229.4964599609375,
+        "height": 95.62354278564453,
+        "fit": 0,
+        "box": [
+          70.823486328125,
+          66.39058685302734,
+          229.4964599609375,
+          95.62354278564453
+        ],
+        "front": "<div class=\"dashboard-widget-content generic-body\"><div class=\"dashboard-live-content inert-mode\" inert=\"\"><!----><div class=\"generic-input-shell with-inside-label\"><span class=\"generic-inline-label\">Widget 89</span><!----> <input type=\"tex",
+        "reachable": true
+      },
+      "transitionScope": "Distant editing staging",
+      "passed": true
+    },
+    {
+      "label": "dense-grid-minimum-zoom-1000-edit",
+      "widgets": 90,
+      "presentation": "detail",
+      "mounted": 38,
+      "groups": 0,
+      "coverage": {
+        "visible": 38,
+        "missing": [],
+        "maximumError": 0.00009765625000568434,
+        "maximumGroupError": 0
+      },
+      "scope": "Viewport slice at 0.25; run mode retains the authored page clip",
+      "passed": true
+    },
+    {
+      "label": "dense-overlap-10000-run",
+      "authoredNodes": 10010,
+      "widgets": 909,
+      "initialMounted": 0,
+      "groups": 256,
+      "bulkMounted": 17,
+      "picked": 9999,
+      "control": {
+        "label": "  Widget 908   0.42",
+        "width": 241.91998291015625,
+        "height": 100.80000305175781,
+        "fit": 0,
+        "box": [
+          32,
+          39.02000045776367,
+          241.91998291015625,
+          100.80000305175781
+        ],
+        "front": "<div class=\"generic-slider-wrap\"><div class=\"generic-slider-bar\"><!----><div role=\"slider\" tabindex=\"-1\" class=\"slider svelte-1omiy18\" aria-valuenow=\"0.42\" style=\"--bg-color: var(--gc-color-slider-bg); --fg-color: var(--gc-color-slider-fg);",
+        "reachable": true
+      },
+      "transitionScope": "Focus retained beyond the run-mode page clip",
+      "passed": true
+    },
+    {
+      "label": "dense-grid-minimum-zoom-10000-run",
+      "widgets": 909,
+      "presentation": "detail",
+      "mounted": 48,
+      "groups": 0,
+      "coverage": {
+        "visible": 40,
+        "missing": [],
+        "maximumError": 0.00007324218750071054,
+        "maximumGroupError": 0
+      },
+      "scope": "Viewport slice at 0.25; run mode retains the authored page clip",
+      "passed": true
+    },
+    {
+      "label": "dense-overlap-10000-edit",
+      "authoredNodes": 10010,
+      "widgets": 909,
+      "initialMounted": 0,
+      "groups": 256,
+      "bulkMounted": 17,
+      "picked": 9999,
+      "control": {
+        "label": "  Widget 908   0.42",
+        "width": 229.4964599609375,
+        "height": 95.62354278564453,
+        "fit": 0,
+        "box": [
+          70.823486328125,
+          66.39058685302734,
+          229.4964599609375,
+          95.62354278564453
+        ],
+        "front": "<div class=\"dashboard-widget-content generic-body\"><div class=\"dashboard-live-content inert-mode\" inert=\"\"><div class=\"generic-slider-wrap\"><div class=\"generic-slider-bar\"><!----><div role=\"slider\" tabindex=\"-1\" class=\"slider svelte-1omiy18",
+        "reachable": true
+      },
+      "transitionScope": "Distant editing staging",
+      "passed": true
+    },
+    {
+      "label": "dense-grid-minimum-zoom-10000-edit",
+      "widgets": 909,
+      "presentation": "overview",
+      "mounted": 0,
+      "groups": 229,
+      "coverage": {
+        "visible": 280,
+        "missing": [],
+        "maximumError": 0,
+        "maximumGroupError": 0.0010117647058637779
+      },
+      "scope": "Viewport slice at 0.25; run mode retains the authored page clip",
+      "passed": true
+    },
+    {
+      "label": "dense-overlap-20000-run",
+      "authoredNodes": 20009,
+      "widgets": 1818,
+      "initialMounted": 0,
+      "groups": 256,
+      "bulkMounted": 17,
+      "picked": 19998,
+      "control": {
+        "label": "  Widget 1817  ",
+        "width": 241.91998291015625,
+        "height": 100.80000305175781,
+        "fit": 0,
+        "box": [
+          32,
+          39.02000045776367,
+          241.91998291015625,
+          100.80000305175781
+        ],
+        "front": "<input type=\"text\" placeholder=\"\">",
+        "reachable": true
+      },
+      "transitionScope": "Focus retained beyond the run-mode page clip",
+      "passed": true
+    },
+    {
+      "label": "dense-grid-minimum-zoom-20000-run",
+      "widgets": 1818,
+      "presentation": "detail",
+      "mounted": 48,
+      "groups": 0,
+      "coverage": {
+        "visible": 40,
+        "missing": [],
+        "maximumError": 0.00007324218750071054,
+        "maximumGroupError": 0
+      },
+      "scope": "Viewport slice at 0.25; run mode retains the authored page clip",
+      "passed": true
+    },
+    {
+      "label": "dense-overlap-20000-edit",
+      "authoredNodes": 20009,
+      "widgets": 1818,
+      "initialMounted": 0,
+      "groups": 256,
+      "bulkMounted": 17,
+      "picked": 19998,
+      "control": {
+        "label": "  Widget 1817  ",
+        "width": 229.4964599609375,
+        "height": 95.62354278564453,
+        "fit": 0,
+        "box": [
+          70.823486328125,
+          66.39058685302734,
+          229.4964599609375,
+          95.62354278564453
+        ],
+        "front": "<div class=\"dashboard-widget-content generic-body\"><div class=\"dashboard-live-content inert-mode\" inert=\"\"><!----><div class=\"generic-input-shell\"><!----> <input type=\"text\" placeholder=\"\" disabled=\"\"></div><!----></div></div>",
+        "reachable": true
+      },
+      "transitionScope": "Distant editing staging",
+      "passed": true
+    },
+    {
+      "label": "dense-grid-minimum-zoom-20000-edit",
+      "widgets": 1818,
+      "presentation": "overview",
+      "mounted": 0,
+      "groups": 224,
+      "coverage": {
+        "visible": 280,
+        "missing": [],
+        "maximumError": 0,
+        "maximumGroupError": 0.0010117647058637779
+      },
+      "scope": "Viewport slice at 0.25; run mode retains the authored page clip",
+      "passed": true
+    },
+    {
+      "label": "dense-overlap-50000-run",
+      "authoredNodes": 50006,
+      "widgets": 4545,
+      "initialMounted": 0,
+      "groups": 256,
+      "bulkMounted": 17,
+      "picked": 49995,
+      "control": {
+        "label": "    Widget 4544\n\t\t\t\t\n\t\t\t\t 0.42",
+        "width": 241.91998291015625,
+        "height": 100.80000305175781,
+        "fit": 0,
+        "box": [
+          32,
+          39.02000045776367,
+          241.91998291015625,
+          100.80000305175781
+        ],
+        "front": "<div role=\"slider\" tabindex=\"-1\" class=\"slider svelte-1omiy18\" aria-valuenow=\"0.42\" style=\"--bg-color: var(--gc-color-slider-bg); --fg-color: var(--gc-color-slider-fg);\"><div class=\"slider-foreground  svelte-1omiy18\" style=\"--value: 0.42; -",
+        "reachable": true
+      },
+      "transitionScope": "Focus retained beyond the run-mode page clip",
+      "passed": true
+    },
+    {
+      "label": "dense-grid-minimum-zoom-50000-run",
+      "widgets": 4545,
+      "presentation": "detail",
+      "mounted": 48,
+      "groups": 0,
+      "coverage": {
+        "visible": 40,
+        "missing": [],
+        "maximumError": 0.00007324218750071054,
+        "maximumGroupError": 0
+      },
+      "scope": "Viewport slice at 0.25; run mode retains the authored page clip",
+      "passed": true
+    },
+    {
+      "label": "dense-overlap-50000-edit",
+      "authoredNodes": 50006,
+      "widgets": 4545,
+      "initialMounted": 0,
+      "groups": 256,
+      "bulkMounted": 17,
+      "picked": 49995,
+      "control": {
+        "label": "    Widget 4544\n\t\t\t\t\n\t\t\t\t 0.42",
+        "width": 229.4964599609375,
+        "height": 95.62354278564453,
+        "fit": 0,
+        "box": [
+          70.823486328125,
+          66.39058685302734,
+          229.4964599609375,
+          95.62354278564453
+        ],
+        "front": "<div class=\"dashboard-widget-content generic-body\"><div class=\"dashboard-live-content inert-mode\" inert=\"\"><div class=\"generic-slider-wrap\"><div class=\"generic-slider-bar\"><!----><div role=\"slider\" tabindex=\"-1\" class=\"slider svelte-1omiy18",
+        "reachable": true
+      },
+      "transitionScope": "Distant editing staging",
+      "passed": true
+    },
+    {
+      "label": "dense-grid-minimum-zoom-50000-edit",
+      "widgets": 4545,
+      "presentation": "overview",
+      "mounted": 0,
+      "groups": 214,
+      "coverage": {
+        "visible": 280,
+        "missing": [],
+        "maximumError": 0,
+        "maximumGroupError": 0.0010117647058637779
+      },
+      "scope": "Viewport slice at 0.25; run mode retains the authored page clip",
+      "passed": true
+    },
+    {
+      "label": "dense-overlap-100000-run",
+      "authoredNodes": 100001,
+      "widgets": 9090,
+      "initialMounted": 0,
+      "groups": 256,
+      "bulkMounted": 17,
+      "picked": 99990,
+      "control": {
+        "label": "   Widget 9089 ",
+        "width": 241.91998291015625,
+        "height": 100.80000305175781,
+        "fit": 0,
+        "box": [
+          32,
+          39.02000045776367,
+          241.91998291015625,
+          100.80000305175781
+        ],
+        "front": "<input type=\"text\" placeholder=\"\">",
+        "reachable": true
+      },
+      "transitionScope": "Focus retained beyond the run-mode page clip",
+      "passed": true
+    },
+    {
+      "label": "dense-grid-minimum-zoom-100000-run",
+      "widgets": 9090,
+      "presentation": "detail",
+      "mounted": 48,
+      "groups": 0,
+      "coverage": {
+        "visible": 40,
+        "missing": [],
+        "maximumError": 0.00007324218750071054,
+        "maximumGroupError": 0
+      },
+      "scope": "Viewport slice at 0.25; run mode retains the authored page clip",
+      "passed": true
+    },
+    {
+      "label": "dense-overlap-100000-edit",
+      "authoredNodes": 100001,
+      "widgets": 9090,
+      "initialMounted": 0,
+      "groups": 256,
+      "bulkMounted": 17,
+      "picked": 99990,
+      "control": {
+        "label": "   Widget 9089 ",
+        "width": 229.4964599609375,
+        "height": 95.62354278564453,
+        "fit": 0,
+        "box": [
+          70.823486328125,
+          66.39058685302734,
+          229.4964599609375,
+          95.62354278564453
+        ],
+        "front": "<div class=\"dashboard-widget-content generic-body\"><div class=\"dashboard-live-content inert-mode\" inert=\"\"><!----><div class=\"generic-input-shell with-inside-label\"><span class=\"generic-inline-label\">Widget 9089</span><!----> <input type=\"t",
+        "reachable": true
+      },
+      "transitionScope": "Distant editing staging",
+      "passed": true
+    },
+    {
+      "label": "dense-grid-minimum-zoom-100000-edit",
+      "widgets": 9090,
+      "presentation": "overview",
+      "mounted": 0,
+      "groups": 215,
+      "coverage": {
+        "visible": 280,
+        "missing": [],
+        "maximumError": 0,
+        "maximumGroupError": 0.0010117647058637779
+      },
+      "scope": "Viewport slice at 0.25; run mode retains the authored page clip",
+      "passed": true
+    },
+    {
+      "label": "container-tabs-state-retention",
+      "passed": true
+    },
+    {
+      "label": "container-accordion-state-retention",
+      "passed": true
+    },
+    {
+      "label": "hierarchy-free-1000",
+      "targetAuthoredNodes": 1000,
+      "authoredNodes": 2283,
+      "authoredWidgets": 224,
+      "leafWidgets": 192,
+      "mountedWidgets": 224,
+      "groups": 0,
+      "mountedContainers": 32,
+      "browsers": 0,
+      "passed": true
+    },
+    {
+      "label": "hierarchy-mixed-1000",
+      "targetAuthoredNodes": 1000,
+      "authoredNodes": 2283,
+      "authoredWidgets": 224,
+      "leafWidgets": 192,
+      "mountedWidgets": 174,
+      "groups": 0,
+      "mountedContainers": 32,
+      "browsers": 0,
+      "passed": true
+    },
+    {
+      "label": "hierarchy-free-10000",
+      "targetAuthoredNodes": 10000,
+      "authoredNodes": 10005,
+      "authoredWidgets": 926,
+      "leafWidgets": 894,
+      "mountedWidgets": 32,
+      "groups": 480,
+      "mountedContainers": 32,
+      "browsers": 0,
+      "passed": true
+    },
+    {
+      "label": "hierarchy-mixed-10000",
+      "targetAuthoredNodes": 10000,
+      "authoredNodes": 10005,
+      "authoredWidgets": 926,
+      "leafWidgets": 894,
+      "mountedWidgets": 42,
+      "groups": 90,
+      "mountedContainers": 32,
+      "browsers": 26,
+      "passed": true
+    },
+    {
+      "label": "hierarchy-free-20000",
+      "targetAuthoredNodes": 20000,
+      "authoredNodes": 20004,
+      "authoredWidgets": 1835,
+      "leafWidgets": 1803,
+      "mountedWidgets": 32,
+      "groups": 480,
+      "mountedContainers": 32,
+      "browsers": 0,
+      "passed": true
+    },
+    {
+      "label": "hierarchy-mixed-20000",
+      "targetAuthoredNodes": 20000,
+      "authoredNodes": 20004,
+      "authoredWidgets": 1835,
+      "leafWidgets": 1803,
+      "mountedWidgets": 42,
+      "groups": 90,
+      "mountedContainers": 32,
+      "browsers": 26,
+      "passed": true
+    },
+    {
+      "label": "hierarchy-free-50000",
+      "targetAuthoredNodes": 50000,
+      "authoredNodes": 50001,
+      "authoredWidgets": 4562,
+      "leafWidgets": 4530,
+      "mountedWidgets": 32,
+      "groups": 480,
+      "mountedContainers": 32,
+      "browsers": 0,
+      "passed": true
+    },
+    {
+      "label": "hierarchy-mixed-50000",
+      "targetAuthoredNodes": 50000,
+      "authoredNodes": 50001,
+      "authoredWidgets": 4562,
+      "leafWidgets": 4530,
+      "mountedWidgets": 42,
+      "groups": 90,
+      "mountedContainers": 32,
+      "browsers": 26,
+      "passed": true
+    },
+    {
+      "label": "hierarchy-free-100000",
+      "targetAuthoredNodes": 100000,
+      "authoredNodes": 100007,
+      "authoredWidgets": 9108,
+      "leafWidgets": 9076,
+      "mountedWidgets": 32,
+      "groups": 480,
+      "mountedContainers": 32,
+      "browsers": 0,
+      "passed": true
+    },
+    {
+      "label": "hierarchy-mixed-100000",
+      "targetAuthoredNodes": 100000,
+      "authoredNodes": 100007,
+      "authoredWidgets": 9108,
+      "leafWidgets": 9076,
+      "mountedWidgets": 42,
+      "groups": 90,
+      "mountedContainers": 32,
+      "browsers": 26,
+      "passed": true
+    },
+    {
+      "label": "hierarchy-focus-budget-free",
+      "id": 720,
+      "index": 64,
+      "passed": true
+    },
+    {
+      "label": "hierarchy-focus-budget-horizontal",
+      "id": 731,
+      "index": 65,
+      "passed": true
+    },
+    {
+      "label": "hierarchy-focus-budget-vertical",
+      "id": 390,
+      "index": 34,
+      "passed": true
+    },
+    {
+      "label": "hierarchy-focus-budget-grid",
+      "id": 401,
+      "index": 35,
+      "passed": true
+    },
+    {
+      "label": "hierarchy-focus-budget-tabs",
+      "id": 60,
+      "index": 4,
+      "passed": true
+    },
+    {
+      "label": "hierarchy-focus-budget-accordion",
+      "id": 71,
+      "index": 5,
+      "passed": true
+    },
+    {
+      "label": "hierarchy-depth-eight-frame",
+      "authoredNodes": 100000,
+      "containers": 255,
+      "widgets": 8974,
+      "initialMounted": 255,
+      "finalMounted": 256,
+      "peakMounted": 256,
+      "center": {
+        "dx": 0.000244140625,
+        "dy": 0.0001373291015625
+      },
+      "passed": true
+    },
+    {
+      "label": "browser-header-focus-after-budget-restoration",
+      "passed": true
+    },
+    {
+      "label": "frame-reveals-inactive-oversized-tab",
+      "passed": true
+    },
+    {
+      "label": "frame-materializes-bulk-flow-selection",
+      "targets": 48,
+      "seen": 48,
+      "passed": true
+    },
+    {
+      "label": "bounded-flow-preserves-horizontal-geometry",
+      "before": [
+        799.9529418945312,
+        66.39058685302734,
+        229.49652099609375,
+        772.1600341796875
+      ],
+      "after": [
+        799.9529418945312,
+        66.39058685302734,
+        229.49652099609375,
+        772.1600341796875
+      ],
+      "passed": true
+    },
+    {
+      "label": "bounded-flow-preserves-vertical-geometry",
+      "before": [
+        73.21407318115234,
+        728.5835571289062,
+        956.2354125976562,
+        102.7952880859375
+      ],
+      "after": [
+        73.21407318115234,
+        728.5835571289062,
+        956.2354125976562,
+        102.7952880859375
+      ],
+      "passed": true
+    },
+    {
+      "label": "bounded-flow-preserves-grid-geometry",
+      "before": [
+        73.21407318115234,
+        794.4927978515625,
+        305.99530029296875,
+        44.05780029296875
+      ],
+      "after": [
+        73.21407318115234,
+        794.4927978515625,
+        305.99530029296875,
+        44.03912353515625
+      ],
+      "passed": true
+    },
+    {
+      "label": "bounded-flow-mixed-units-and-auto-size",
+      "before": [
+        1016.1143798828125,
+        66.39058685302734,
+        7.1717529296875,
+        772.1600341796875
+      ],
+      "after": [
+        1016.3011474609375,
+        66.39058685302734,
+        7.1717529296875,
+        772.1600341796875
+      ],
+      "passed": true
+    },
+    {
+      "label": "bounded-native-range-horizontal",
+      "characters": 151,
+      "releasedMounted": 3,
+      "passed": true
+    },
+    {
+      "label": "bounded-native-range-vertical",
+      "characters": 151,
+      "releasedMounted": 3,
+      "passed": true
+    },
+    {
+      "label": "bounded-native-range-grid",
+      "characters": 151,
+      "releasedMounted": 3,
+      "passed": true
+    },
+    {
+      "label": "bounded-native-range-accordion",
+      "characters": 189,
+      "releasedMounted": 3,
+      "passed": true
+    },
+    {
+      "label": "bounded-native-range-tabs",
+      "characters": 179,
+      "releasedMounted": 2,
+      "passed": true
+    },
+    {
+      "label": "local-scroll-state-round-trip",
+      "before": {
+        "left": 123984,
+        "top": 0,
+        "headerVisible": true
+      },
+      "after": {
+        "left": 123984,
+        "top": 0,
+        "headerVisible": true
+      },
+      "passed": true
+    },
+    {
+      "label": "bulk-frame-100-horizontal",
+      "targets": 100,
+      "peak": 49,
+      "center": {
+        "visible": true,
+        "surface": {
+          "scrollX": true,
+          "scrollY": false,
+          "dx": 0.000030517578125,
+          "dy": 0.000030517578125,
+          "scrollTop": 0,
+          "scrollHeight": 646,
+          "clientHeight": 640,
+          "clientWidth": 800
+        },
+        "dx": 0.000030517578125,
+        "dy": 0.000030517578125
+      },
+      "selection": {
+        "dx": 0.000030517578125,
+        "dy": 0.000030517578125
+      },
+      "paneError": 0,
+      "passed": true
+    },
+    {
+      "label": "bulk-frame-100-vertical",
+      "targets": 100,
+      "peak": 49,
+      "center": {
+        "visible": true,
+        "surface": {
+          "scrollX": false,
+          "scrollY": true,
+          "dx": 0.000030517578125,
+          "dy": 0.000030517578125,
+          "scrollTop": 9227,
+          "scrollHeight": 57584,
+          "clientHeight": 640,
+          "clientWidth": 800
+        },
+        "dx": 0.000030517578125,
+        "dy": 0
+      },
+      "selection": {
+        "dx": 0.000030517578125,
+        "dy": 0.000030517578125
+      },
+      "paneError": 0,
+      "passed": true
+    },
+    {
+      "label": "bulk-frame-100-accordion",
+      "targets": 100,
+      "peak": 49,
+      "center": {
+        "visible": true,
+        "surface": {
+          "scrollX": false,
+          "scrollY": true,
+          "dx": 0.98675537109375,
+          "dy": 0.000030517578125,
+          "scrollTop": 1256,
+          "scrollHeight": 1896,
+          "clientHeight": 640,
+          "clientWidth": 800
+        },
+        "dx": 0.000030517578125,
+        "dy": 357.2930908203125
+      },
+      "selection": {
+        "dx": 0.000030517578125,
+        "dy": 0.000030517578125
+      },
+      "paneError": 0,
+      "passed": true
+    },
+    {
+      "label": "bulk-frame-100-tabs",
+      "targets": 100,
+      "peak": 34,
+      "center": {
+        "visible": true,
+        "surface": {
+          "scrollX": false,
+          "scrollY": false,
+          "dx": 0.000030517578125,
+          "dy": 6.539276123046875,
+          "scrollTop": 0,
+          "scrollHeight": 656,
+          "clientHeight": 640,
+          "clientWidth": 800
+        },
+        "dx": 0.000030517578125,
+        "dy": 0.00000762939453125
+      },
+      "selection": {
+        "dx": 0.000030517578125,
+        "dy": 0.00000762939453125
+      },
+      "paneError": 0,
+      "passed": true
+    },
+    {
+      "label": "frame-cancels-after-source-reorder",
+      "handled": true,
+      "before": "translate(0px, 0px) scale(1.19529)",
+      "after": "translate(0px, 0px) scale(1.19529)",
+      "passed": true
+    },
+    {
+      "label": "move-preview-budget-and-cancel-free",
+      "passed": true
+    },
+    {
+      "label": "move-preview-source-removal-free",
+      "passed": true
+    },
+    {
+      "label": "move-preview-layout-change-free",
+      "passed": true
+    },
+    {
+      "label": "move-preview-mode-change-free",
+      "passed": true
+    },
+    {
+      "label": "move-preview-identity-replacement-free",
+      "passed": true
+    },
+    {
+      "label": "move-preview-reparenting-free",
+      "passed": true
+    },
+    {
+      "label": "move-commit-acknowledgement-free",
+      "passed": true
+    },
+    {
+      "label": "move-commit-rejection-free",
+      "passed": true
+    },
+    {
+      "label": "move-commit-stale-rejection-free",
+      "passed": true
+    },
+    {
+      "label": "move-preview-budget-and-cancel-horizontal",
+      "passed": true
+    },
+    {
+      "label": "move-preview-source-removal-horizontal",
+      "passed": true
+    },
+    {
+      "label": "move-preview-layout-change-horizontal",
+      "passed": true
+    },
+    {
+      "label": "move-preview-mode-change-horizontal",
+      "passed": true
+    },
+    {
+      "label": "move-preview-identity-replacement-horizontal",
+      "passed": true
+    },
+    {
+      "label": "move-preview-reparenting-horizontal",
+      "passed": true
+    },
+    {
+      "label": "move-commit-acknowledgement-horizontal",
+      "passed": true
+    },
+    {
+      "label": "move-commit-rejection-horizontal",
+      "passed": true
+    },
+    {
+      "label": "move-commit-stale-rejection-horizontal",
+      "passed": true
+    },
+    {
+      "label": "move-commit-expiry",
+      "passed": true
+    },
+    {
+      "label": "move-preview-budget-and-cancel-vertical",
+      "passed": true
+    },
+    {
+      "label": "move-preview-source-removal-vertical",
+      "passed": true
+    },
+    {
+      "label": "move-preview-layout-change-vertical",
+      "passed": true
+    },
+    {
+      "label": "move-preview-mode-change-vertical",
+      "passed": true
+    },
+    {
+      "label": "move-preview-identity-replacement-vertical",
+      "passed": true
+    },
+    {
+      "label": "move-preview-reparenting-vertical",
+      "passed": true
+    },
+    {
+      "label": "move-commit-acknowledgement-vertical",
+      "passed": true
+    },
+    {
+      "label": "move-commit-rejection-vertical",
+      "passed": true
+    },
+    {
+      "label": "move-commit-stale-rejection-vertical",
+      "passed": true
+    },
+    {
+      "label": "move-preview-budget-and-cancel-grid",
+      "passed": true
+    },
+    {
+      "label": "move-preview-source-removal-grid",
+      "passed": true
+    },
+    {
+      "label": "move-preview-layout-change-grid",
+      "passed": true
+    },
+    {
+      "label": "move-preview-mode-change-grid",
+      "passed": true
+    },
+    {
+      "label": "move-preview-identity-replacement-grid",
+      "passed": true
+    },
+    {
+      "label": "move-preview-reparenting-grid",
+      "passed": true
+    },
+    {
+      "label": "move-commit-acknowledgement-grid",
+      "passed": true
+    },
+    {
+      "label": "move-commit-rejection-grid",
+      "passed": true
+    },
+    {
+      "label": "move-commit-stale-rejection-grid",
+      "passed": true
+    },
+    {
+      "label": "move-preview-budget-and-cancel-tabs",
+      "passed": true
+    },
+    {
+      "label": "move-preview-source-removal-tabs",
+      "passed": true
+    },
+    {
+      "label": "move-preview-layout-change-tabs",
+      "passed": true
+    },
+    {
+      "label": "move-preview-mode-change-tabs",
+      "passed": true
+    },
+    {
+      "label": "move-preview-identity-replacement-tabs",
+      "passed": true
+    },
+    {
+      "label": "move-preview-reparenting-tabs",
+      "passed": true
+    },
+    {
+      "label": "move-commit-acknowledgement-tabs",
+      "passed": true
+    },
+    {
+      "label": "move-commit-rejection-tabs",
+      "passed": true
+    },
+    {
+      "label": "move-commit-stale-rejection-tabs",
+      "passed": true
+    },
+    {
+      "label": "move-preview-budget-and-cancel-accordion",
+      "passed": true
+    },
+    {
+      "label": "move-preview-source-removal-accordion",
+      "passed": true
+    },
+    {
+      "label": "move-preview-layout-change-accordion",
+      "passed": true
+    },
+    {
+      "label": "move-preview-mode-change-accordion",
+      "passed": true
+    },
+    {
+      "label": "move-preview-identity-replacement-accordion",
+      "passed": true
+    },
+    {
+      "label": "move-preview-reparenting-accordion",
+      "passed": true
+    },
+    {
+      "label": "move-commit-acknowledgement-accordion",
+      "passed": true
+    },
+    {
+      "label": "move-commit-rejection-accordion",
+      "passed": true
+    },
+    {
+      "label": "move-commit-stale-rejection-accordion",
+      "passed": true
+    }
+  ],
+  "tiers": [
+    {
+      "targetAuthoredNodes": 1000,
+      "authoredNodes": 1001,
+      "widgets": 90,
+      "readyMs": 18.223299999999654,
+      "initialMounted": 18,
+      "framed": {
+        "dx": 0.00048828125,
+        "dy": 0,
+        "boxes": [
+          {
+            "classes": "gc-dashboard-canvas dashboard-widget-shell dashboard-generic-widget selected editable-free",
+            "width": 917.9853515625,
+            "height": 382.494140625,
+            "top": 380.7529296875,
+            "blockSize": "80px",
+            "boxSizing": "border-box"
+          },
+          {
+            "classes": "dashboard-slot-fill",
+            "width": 917.9853515625,
+            "height": 382.494140625,
+            "top": 380.7529296875,
+            "blockSize": "80px",
+            "boxSizing": "content-box"
+          },
+          {
+            "classes": "dashboard-slot",
+            "width": 917.9853515625,
+            "height": 382.494140625,
+            "top": 380.7529296875,
+            "blockSize": "80px",
+            "boxSizing": "content-box"
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "targetAuthoredNodes": 10000,
+      "authoredNodes": 10010,
+      "widgets": 909,
+      "readyMs": 87.0632999999998,
+      "initialMounted": 54,
+      "framed": {
+        "dx": 0.0009765625,
+        "dy": 0.0009765625,
+        "boxes": [
+          {
+            "classes": "gc-dashboard-canvas dashboard-widget-shell dashboard-generic-widget selected editable-free",
+            "width": 917.986328125,
+            "height": 382.494140625,
+            "top": 380.75390625,
+            "blockSize": "80px",
+            "boxSizing": "border-box"
+          },
+          {
+            "classes": "dashboard-slot-fill",
+            "width": 917.986328125,
+            "height": 382.494140625,
+            "top": 380.75390625,
+            "blockSize": "80px",
+            "boxSizing": "content-box"
+          },
+          {
+            "classes": "dashboard-slot",
+            "width": 917.986328125,
+            "height": 382.494140625,
+            "top": 380.75390625,
+            "blockSize": "80px",
+            "boxSizing": "content-box"
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "targetAuthoredNodes": 20000,
+      "authoredNodes": 20009,
+      "widgets": 1818,
+      "readyMs": 164.8068000000003,
+      "initialMounted": 54,
+      "framed": {
+        "dx": 0.001953125,
+        "dy": 0.0009765625,
+        "boxes": [
+          {
+            "classes": "gc-dashboard-canvas dashboard-widget-shell dashboard-generic-widget selected editable-free",
+            "width": 917.984375,
+            "height": 382.494140625,
+            "top": 380.75390625,
+            "blockSize": "80px",
+            "boxSizing": "border-box"
+          },
+          {
+            "classes": "dashboard-slot-fill",
+            "width": 917.984375,
+            "height": 382.494140625,
+            "top": 380.75390625,
+            "blockSize": "80px",
+            "boxSizing": "content-box"
+          },
+          {
+            "classes": "dashboard-slot",
+            "width": 917.984375,
+            "height": 382.494140625,
+            "top": 380.75390625,
+            "blockSize": "80px",
+            "boxSizing": "content-box"
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "targetAuthoredNodes": 50000,
+      "authoredNodes": 50006,
+      "widgets": 4545,
+      "readyMs": 696.9184999999998,
+      "initialMounted": 54,
+      "framed": {
+        "dx": 0.0009765625,
+        "dy": 0.001953125,
+        "boxes": [
+          {
+            "classes": "gc-dashboard-canvas dashboard-widget-shell dashboard-generic-widget selected editable-free",
+            "width": 917.986328125,
+            "height": 382.49609375,
+            "top": 380.75390625,
+            "blockSize": "80px",
+            "boxSizing": "border-box"
+          },
+          {
+            "classes": "dashboard-slot-fill",
+            "width": 917.986328125,
+            "height": 382.49609375,
+            "top": 380.75390625,
+            "blockSize": "80px",
+            "boxSizing": "content-box"
+          },
+          {
+            "classes": "dashboard-slot",
+            "width": 917.986328125,
+            "height": 382.49609375,
+            "top": 380.75390625,
+            "blockSize": "80px",
+            "boxSizing": "content-box"
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "targetAuthoredNodes": 100000,
+      "authoredNodes": 100001,
+      "widgets": 9090,
+      "readyMs": 1339.232,
+      "initialMounted": 54,
+      "framed": {
+        "dx": 0.00048828125,
+        "dy": 0.00390625,
+        "boxes": [
+          {
+            "classes": "gc-dashboard-canvas dashboard-widget-shell dashboard-generic-widget selected editable-free",
+            "width": 917.9853515625,
+            "height": 382.4921875,
+            "top": 380.7578125,
+            "blockSize": "80px",
+            "boxSizing": "border-box"
+          },
+          {
+            "classes": "dashboard-slot-fill",
+            "width": 917.9853515625,
+            "height": 382.4921875,
+            "top": 380.7578125,
+            "blockSize": "80px",
+            "boxSizing": "content-box"
+          },
+          {
+            "classes": "dashboard-slot",
+            "width": 917.9853515625,
+            "height": 382.4921875,
+            "top": 380.7578125,
+            "blockSize": "80px",
+            "boxSizing": "content-box"
+          }
+        ]
+      },
+      "passed": true
+    }
+  ],
+  "errors": [],
+  "assets": {
+    "baseline": {
+      "assets/dashboard-BPMu3tWL.css": "7013230d8ce84e986cd5b52abd5985cbbf0c2736066f9ce28d0aff3f6d6c93f6",
+      "assets/dashboard-CyFYo2jL.js": "8825700ae8028688e10a7bb16e3fb95267a3280c1581ee9d13c59b1bf5f1dc6f",
+      "dashboard.html": "a5af6aa58c1b751f88bbf6622e79a8d588cdce960eb39e0b9b85191b991e4d86"
+    },
+    "current": {
+      "assets/dashboard-BTUQnzpI.css": "02c160e4e3f4e14381a43417fe947dd505b8b298e6d59fbbcc67e612435cdc7c",
+      "assets/dashboard-jwlvaAlw.js": "22d76dd35857bf8d9b55ce1c3ef5892a72d9a73f24e5ec1b29c0047af0aecc6d",
+      "dashboard.html": "4e01e644bd721fdc44a223564e7de41341ed921821ee28b2a4b4e995a8ba83e6"
+    }
+  },
+  "passed": true
+}

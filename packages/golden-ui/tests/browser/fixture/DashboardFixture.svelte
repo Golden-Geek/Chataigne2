@@ -13,6 +13,8 @@
 	import { dashboardForest } from './dashboard-forest';
 	import { dashboardHierarchy } from './dashboard-hierarchy';
 	import DashboardRegistryContent from './DashboardRegistryContent.svelte';
+	import { createDashboardInteractionChrome } from '../../../components/panels/dashboard/canvas/interaction-chrome.svelte';
+	import { getDashboardPlacement } from '../../../components/panels/dashboard/dashboard-model';
 	import type { DashboardPersistedPageView } from '../../../components/panels/dashboard/canvas/contracts';
 	import type { ParamValue } from '../../../types';
 	import { getDirectParamNode } from '../../../components/panels/dashboard/dashboard-model';
@@ -37,6 +39,76 @@
 	let presentationBudget = $state(512);
 	let canvas = $state<ReturnType<typeof DashboardCanvas>>();
 	let sequence = 0;
+	let moveSource = $state<number | null>(null);
+	let moveCancellations: (() => void)[] = [];
+	const moveChrome = createDashboardInteractionChrome({
+		get node() {
+			return fixture.session.graph.state.nodesById.get(moveSource!)!;
+		},
+		get parent() {
+			const graph = fixture.session.graph.state;
+			return graph.nodesById.get(graph.parentById.get(moveSource!)!) ?? null;
+		},
+		content: {
+			widgetKind: 'text',
+			genericDisplayValue: '',
+			textConfig: '',
+			placeholderConfig: '',
+			multiline: false
+		}
+	});
+	export async function movePreview(
+		index: number | null,
+		targetIndex: number | null = 0,
+		commit = false
+	) {
+		if (index === null) {
+			moveChrome.setFreeLayoutAncestorShells(null);
+			moveChrome.publishWidgetMoveSurfacePreview(null);
+			moveChrome.publishWidgetMoveCommit(null);
+		} else {
+			moveSource = data!.ids[index];
+			moveChrome.setFreeLayoutAncestorShells(
+				document.querySelector<HTMLElement>(`.dashboard-widget-shell[data-node-id="${moveSource}"]`)
+			);
+			const graph = fixture.session.graph.state;
+			const target = {
+				surfaceNodeId: data!.containerId!,
+				targetIndex,
+				placement: getDashboardPlacement(graph, graph.nodesById.get(moveSource)!)
+			};
+			if (commit) {
+				const cancel = moveChrome.publishWidgetMoveCommit(
+					target,
+					graph.parentById.get(moveSource) ?? null
+				);
+				if (cancel) moveCancellations.push(cancel);
+			} else moveChrome.publishWidgetMoveSurfacePreview(target);
+		}
+		await settle();
+	}
+	export async function cancelMoveCommit(index: number) {
+		moveCancellations[index]();
+		await settle();
+	}
+	export async function reparent(index: number) {
+		const graph = fixture.session.graph.state,
+			child = data!.ids[index];
+		const old_parent = graph.parentById.get(child)!,
+			new_parent = data!.page.node_id;
+		fixture.session.graph.applyEvent({
+			time: { tick: ++sequence, micro: 0, seq: 0 },
+			kind: {
+				kind: 'childMoved',
+				child,
+				old_parent,
+				new_parent,
+				old_parent_children: graph.nodesById.get(old_parent)!.children.filter((id) => id !== child),
+				new_parent_children: [...graph.nodesById.get(new_parent)!.children, child]
+			}
+		});
+		await settle();
+	}
 	const settle = async () => {
 		await tick();
 		await new Promise(requestAnimationFrame);
@@ -50,6 +122,7 @@
 		pattern: 'band' | 'grid' | 'dense' = 'band',
 		nested = false
 	) {
+		moveCancellations = [];
 		data = null;
 		await tick();
 		editMode = editing;
@@ -89,6 +162,41 @@
 	export async function budget(value: number) {
 		presentationBudget = value;
 		await settle();
+	}
+	export async function editing(value: boolean) {
+		editMode = value;
+		await settle();
+	}
+	export async function refreshIdentities() {
+		fixture.loadNodes(structuredClone([...fixture.session.graph.state.nodesById.values()]));
+		await settle();
+	}
+	export async function acknowledgeMove(index: number, targetIndex: number) {
+		const graph = fixture.session.graph.state;
+		const id = data!.ids[index],
+			parent = graph.parentById.get(id)!;
+		const owner = graph.nodesById.get(parent)!;
+		const widgets = owner.children.filter(
+			(child) => graph.nodesById.get(child)?.user_role === 'itemRoot' && child !== id
+		);
+		widgets.splice(targetIndex, 0, id);
+		fixture.session.graph.applyEvent({
+			time: { tick: ++sequence, micro: 0, seq: 0 },
+			kind: {
+				kind: 'childReordered',
+				parent,
+				child: id,
+				parent_children: [
+					...owner.children.filter((child) => graph.nodesById.get(child)?.user_role !== 'itemRoot'),
+					...widgets
+				]
+			}
+		});
+		await settle();
+		return fixture.session.graph.state.nodesById
+			.get(parent)!
+			.children.filter((child) => graph.nodesById.get(child)?.user_role === 'itemRoot')
+			.slice(0, 5);
 	}
 	export async function chooseChild(surface: number, child: number) {
 		const result = canvas!.chooseSurfaceChild(surface, child);
