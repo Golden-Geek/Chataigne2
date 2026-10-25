@@ -3,6 +3,8 @@ import type { NodeId, UiNodeDto } from '../../../../types';
 import type { GraphState } from '../../../../store/graph.svelte';
 import type { FreeLayoutRect } from './contracts';
 import type { FreeSurfaceGeometry } from './free-surface-geometry';
+import { framePreparation } from './frame-preparation';
+import { framePresentationBounds } from './frame-bounds';
 
 export const dashboardViewContextKey = Symbol('dashboard-view');
 
@@ -14,12 +16,19 @@ export interface SurfacePresentation {
 	readonly activeTabUuid: string | null;
 	readonly openAccordionUuids: readonly string[];
 }
+export interface SurfaceScroll {
+	readonly left: number;
+	readonly top: number;
+}
 export interface SurfacePresentationActions {
+	prepareForFrame(ids: readonly NodeId[]): void;
 	chooseChild(id: NodeId): boolean;
 	activateTab(id: NodeId): boolean;
 	toggleAccordion(id: NodeId): boolean;
 }
 export interface DashboardViewContext {
+	readScroll(uuid: string): SurfaceScroll | undefined;
+	writeScroll(uuid: string, position: SurfaceScroll): void;
 	select(id: NodeId): void;
 	registerBrowser(id: NodeId, browser: SurfaceBrowserActions): () => void;
 	browse(id: NodeId): boolean;
@@ -63,6 +72,7 @@ export interface SurfaceBrowserActions {
 export function createDashboardViewContext(context: DashboardViewSource): DashboardViewContext {
 	const surfaces = new Map<NodeId, FreeSurfaceView>();
 	const presentations = new Map<string, SurfacePresentation>();
+	const scrolls = new Map<string, SurfaceScroll>();
 	const actions = new Map<NodeId, SurfacePresentationActions>();
 	const browsers = new Map<NodeId, SurfaceBrowserActions>();
 	let retained = $state.raw<ReadonlyMap<NodeId, readonly NodeId[]>>(new Map());
@@ -76,11 +86,15 @@ export function createDashboardViewContext(context: DashboardViewSource): Dashbo
 		if (context.page.uuid !== pageUuid || !graph) {
 			pageUuid = context.page.uuid;
 			presentations.clear();
+			scrolls.clear();
 			retained = new Map();
 			frameGeneration++;
 		} else if (previousGraph) {
 			graph.nodesById.forEachChange(previousGraph.nodesById, (_id, node, before) => {
-				if (before && node?.uuid !== before.uuid) presentations.delete(before.uuid);
+				if (before && node?.uuid !== before.uuid) {
+					presentations.delete(before.uuid);
+					scrolls.delete(before.uuid);
+				}
 			});
 		}
 		previousGraph = graph;
@@ -90,11 +104,12 @@ export function createDashboardViewContext(context: DashboardViewSource): Dashbo
 		frameGeneration++;
 		surfaces.clear();
 		presentations.clear();
+		scrolls.clear();
 		actions.clear();
 		browsers.clear();
 		previousGraph = null;
 	});
-	const clientRect = (id: NodeId): FreeLayoutRect | null => {
+	const clientRect = (id: NodeId): { rect: FreeLayoutRect; anchor: HTMLElement } | null => {
 		for (const view of surfaces.values()) {
 			const rect = view.geometry.get(id);
 			if (!rect || view.geometry.getNode(id)?.uuid !== context.graph?.nodesById.get(id)?.uuid)
@@ -103,10 +118,13 @@ export function createDashboardViewContext(context: DashboardViewSource): Dashbo
 			const scaleX = bounds.width / Math.max(view.element.clientWidth, 1);
 			const scaleY = bounds.height / Math.max(view.element.clientHeight, 1);
 			return {
-				left: bounds.left + rect.left * scaleX,
-				top: bounds.top + rect.top * scaleY,
-				width: rect.width * scaleX,
-				height: rect.height * scaleY
+				anchor: view.element,
+				rect: {
+					left: bounds.left + rect.left * scaleX,
+					top: bounds.top + rect.top * scaleY,
+					width: rect.width * scaleX,
+					height: rect.height * scaleY
+				}
 			};
 		}
 		return null;
@@ -117,14 +135,22 @@ export function createDashboardViewContext(context: DashboardViewSource): Dashbo
 		const intended = new Map(ids.map((id) => [id, context.graph?.nodesById.get(id)?.uuid]));
 		const result: FreeLayoutRect[] = [];
 		const pending: NodeId[] = [];
+		const preparation = framePreparation(context.graph, context.page.node_id, ids);
+		const prepared = new WeakSet<SurfacePresentationActions>();
 		const canceled = () =>
 			destroyed || generation !== frameGeneration || context.page.uuid !== identity;
 		const measure = (id: NodeId, dom: ReadonlyMap<NodeId, HTMLElement>): boolean => {
 			if (!intended.get(id) || context.graph?.nodesById.get(id)?.uuid !== intended.get(id))
 				return true;
-			const rect = clientRect(id) ?? dom.get(id)?.getBoundingClientRect();
+			const logical = clientRect(id),
+				element = dom.get(id);
 			const frame = context.frame;
-			if (!rect || !frame) return false;
+			if ((!logical && !element) || !frame) return false;
+			const rect = framePresentationBounds(
+				logical?.rect ?? element!.getBoundingClientRect(),
+				logical?.anchor ?? element!,
+				frame
+			);
 			const bounds = frame.getBoundingClientRect(),
 				size = context.frameSize;
 			const scaleX = bounds.width / size.width,
@@ -148,53 +174,50 @@ export function createDashboardViewContext(context: DashboardViewSource): Dashbo
 		};
 		try {
 			await tick();
-			if (canceled()) return null;
+			if (canceled() || !preparation.isCurrent(context.graph, ids)) return null;
 			const initial = domIndex();
 			for (const id of ids) if (!measure(id, initial)) pending.push(id);
 			// Temporary ancestry is bounded per batch and is released before camera animation.
 			for (let offset = 0; offset < pending.length; offset += 32) {
 				if (canceled()) return null;
 				const batch = pending.slice(offset, offset + 32);
+				if (!preparation.isCurrent(context.graph, batch)) return null;
 				const pins = new Map<NodeId, Set<NodeId>>();
 				for (const id of batch) {
-					const graph = context.graph;
-					const path: NodeId[] = [];
-					const seen = new Set<NodeId>();
-					let ancestor = graph?.parentById.get(id);
-					while (
-						ancestor !== undefined &&
-						ancestor !== context.page.node_id &&
-						!seen.has(ancestor)
-					) {
-						seen.add(ancestor);
-						path.push(ancestor);
-						ancestor = graph?.parentById.get(ancestor);
-					}
-					if (ancestor !== context.page.node_id || !graph) continue;
-					for (const member of path) {
-						if (graph.nodesById.get(member)?.node_type !== 'dashboard_widget_container') continue;
-						const parent = graph.parentById.get(member);
-						if (parent === undefined) continue;
+					for (const { parent, child } of preparation.paths.get(id) ?? []) {
 						let set = pins.get(parent);
 						if (!set) pins.set(parent, (set = new Set()));
-						set.add(member);
+						set.add(child);
 					}
 				}
 				if (!pins.size) continue;
 				retained = new Map([...pins].map(([id, children]) => [id, [...children]]));
 				await tick();
+				if (canceled()) return null;
+				for (const parent of pins.keys()) {
+					const presentation = actions.get(parent);
+					if (presentation && !prepared.has(presentation)) {
+						presentation.prepareForFrame(preparation.currentChildren(context.graph, parent));
+						prepared.add(presentation);
+					}
+				}
+				await tick();
 				await new Promise(requestAnimationFrame);
 				await tick();
-				if (canceled()) return null;
+				if (canceled() || !preparation.isCurrent(context.graph, batch)) return null;
 				const dom = domIndex();
 				for (const id of batch) measure(id, dom);
 			}
-			return result;
+			return preparation.isCurrent(context.graph, ids) ? result : null;
 		} finally {
 			if (!destroyed && generation === frameGeneration) retained = new Map();
 		}
 	};
 	return {
+		readScroll: (uuid) => scrolls.get(uuid),
+		writeScroll(uuid, position) {
+			if (!destroyed && pageUuid === context.page.uuid) scrolls.set(uuid, position);
+		},
 		select: (id) => context.select(id),
 		registerBrowser(id, browser) {
 			browsers.set(id, browser);

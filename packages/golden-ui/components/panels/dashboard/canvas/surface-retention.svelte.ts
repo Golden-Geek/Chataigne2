@@ -20,6 +20,16 @@ export function directWidgetShell(surface: HTMLElement, target: Node | null): HT
 	return null;
 }
 
+const directItem = (surface: HTMLElement, target: Node | null): HTMLElement | null => {
+	const shell = directWidgetShell(surface, target);
+	if (shell) return shell;
+	const element = target instanceof Element ? target : target?.parentElement;
+	const header = element?.closest<HTMLElement>('[data-dashboard-child-id]') ?? null;
+	return header?.closest('.dashboard-surface') === surface ? header : null;
+};
+const itemId = (element: HTMLElement): NodeId =>
+	Number(element.dataset.nodeId ?? element.dataset.dashboardChildId);
+
 /** One retention policy for free, flow, tab and accordion presentation changes. */
 export function createSurfaceRetention(context: SurfaceRetentionContext) {
 	let epoch = $state(0);
@@ -47,8 +57,8 @@ export function createSurfaceRetention(context: SurfaceRetentionContext) {
 		if (!element) return;
 		const down = (event: PointerEvent) => {
 			if (!(event.target instanceof Node)) return;
-			const shell = directWidgetShell(element, event.target);
-			const owner = shell ? context.getNode(Number(shell.dataset.nodeId)) : undefined;
+			const shell = directItem(element, event.target);
+			const owner = shell ? context.getNode(itemId(shell)) : undefined;
 			if (owner)
 				pointers.set(event.pointerId, {
 					target: event.target,
@@ -91,10 +101,10 @@ export function createSurfaceRetention(context: SurfaceRetentionContext) {
 			const element = context.element;
 			const ids = new Set<NodeId>();
 			if (!element) return ids;
-			const ownShell = (target: Node | null) => directWidgetShell(element, target);
+			const ownShell = (target: Node | null) => directItem(element, target);
 			const retain = (shell: HTMLElement | null) => {
 				if (!shell) return;
-				const id = Number(shell.dataset.nodeId);
+				const id = itemId(shell);
 				if (context.getNode(id)) ids.add(id);
 			};
 			const active = document.activeElement;
@@ -104,7 +114,7 @@ export function createSurfaceRetention(context: SurfaceRetentionContext) {
 			for (const pointer of pointers.values())
 				if (context.getNode(pointer.id)?.uuid === pointer.uuid) retain(ownShell(pointer.target));
 			if (focused && shell && rememberedFocus?.element !== focused) {
-				const item = context.getNode(Number(shell.dataset.nodeId));
+				const item = context.getNode(itemId(shell));
 				if (item) rememberedFocus = { id: item.node_id, uuid: item.uuid, element: focused };
 			}
 			if (
@@ -118,20 +128,22 @@ export function createSurfaceRetention(context: SurfaceRetentionContext) {
 				rememberedFocus && context.getNode(rememberedFocus.id)?.uuid !== rememberedFocus.uuid
 					? rememberedFocus
 					: null;
-			const shells = [...element.querySelectorAll<HTMLElement>('.dashboard-widget-shell')].filter(
-				(item) => ownShell(item) === item
-			);
+			const shells = [
+				...element.querySelectorAll<HTMLElement>(
+					'.dashboard-widget-shell, [data-dashboard-child-id]'
+				)
+			].filter((item) => ownShell(item) === item);
 			for (const item of shells) if (item.classList.contains('free-layout-active')) retain(item);
 			const selection = window.getSelection();
 			if (selection && !selection.isCollapsed) {
 				const selected = new Set<NodeId>();
 				for (const endpoint of [selection.anchorNode, selection.focusNode]) {
 					const item = ownShell(endpoint);
-					if (item) selected.add(Number(item.dataset.nodeId));
+					if (item) selected.add(itemId(item));
 				}
 				for (const item of shells) {
 					if (selected.size >= 64) break;
-					if (selection.containsNode(item, true)) selected.add(Number(item.dataset.nodeId));
+					if (selection.containsNode(item, true)) selected.add(itemId(item));
 				}
 				for (const id of selected) if (context.getNode(id)) ids.add(id);
 			}

@@ -1,4 +1,5 @@
 import { onDestroy, untrack } from 'svelte';
+import { FlowLengths, flowSegments } from './flow-layout';
 import type { DashboardViewContext } from './view-context.svelte';
 import type { GraphState } from '../../../../store/graph.svelte';
 import type { createDashboardInteractionChrome } from './interaction-chrome.svelte';
@@ -141,6 +142,7 @@ export function createDashboardSurface(context: DashboardSurfaceContext) {
 	$effect(() => {
 		if (!isLayoutSurface) return;
 		return context.view?.registerPresentation(liveNode.node_id, {
+			prepareForFrame: (ids) => prepareForFrame(ids),
 			chooseChild: (id) => chooseDashboardChild(id),
 			activateTab: (id) => activateDashboardTab(id),
 			toggleAccordion: (id) => toggleAccordionNode(id)
@@ -778,6 +780,54 @@ export function createDashboardSurface(context: DashboardSurfaceContext) {
 			displayedSurfaceDropPreview.targetIndex >= renderedChildWidgets.length
 		);
 	};
+	const flowLengths = $derived.by(() => {
+		if (layoutKind !== 'horizontal' && layoutKind !== 'vertical') return null;
+		return new FlowLengths(
+			nonFreeSurfaceFlowRenderItems
+				.filter((item) => item.kind === 'preview' || !isHiddenSourceSurfaceChild(item.child))
+				.map((item) => {
+					const placement =
+						item.kind === 'preview'
+							? item.preview.placement
+							: getDashboardPlacement(graph, item.child);
+					return {
+						key: item.key,
+						size: placementHasExplicitSize(layoutKind, placement)
+							? layoutKind === 'horizontal'
+								? placement.size.width
+								: placement.size.height
+							: null
+					};
+				})
+		);
+	});
+	const flowOrder = $derived(
+		new Map(
+			nonFreeSurfaceFlowRenderItems
+				.filter((item) => item.kind === 'preview' || !isHiddenSourceSurfaceChild(item.child))
+				.map((item, index) => [item.key, index])
+		)
+	);
+	const boundedFlowSegments = (items: readonly NonFreeSurfaceFlowRenderItem[], bounded: boolean) =>
+		flowSegments(items, bounded ? flowLengths : null, (start, end) => {
+			const horizontal = layoutKind === 'horizontal';
+			const size = flowLengths!.expression(
+				start,
+				end,
+				stackAutoBasis ?? '0px',
+				horizontal ? gap.x : gap.y
+			);
+			return `flex: 0 0 ${size}; ${horizontal ? 'inline-size' : 'block-size'}: ${size}; ${horizontal ? 'block-size' : 'inline-size'}: 100%;`;
+		});
+	const boundedGridStyle = (item: NonFreeSurfaceFlowRenderItem): string => {
+		if (layoutKind !== 'grid') return '';
+		const index = flowOrder.get(item.key);
+		if (index === undefined) return '';
+		const { columns, rows, direction } = resolvedGridDimensions;
+		const column = direction === 'row' ? index % columns : Math.floor(index / rows);
+		const row = direction === 'row' ? Math.floor(index / columns) : index % rows;
+		return `grid-column: ${column + 1}; grid-row: ${row + 1};`;
+	};
 
 	const toggleAccordionNode = (nodeId: NodeId): boolean => {
 		if (!childWidgets.some((child) => child.node_id === nodeId)) return false;
@@ -800,10 +850,25 @@ export function createDashboardSurface(context: DashboardSurfaceContext) {
 		if (layoutKind === 'accordion' && !openAccordionNodeIds.includes(id)) toggleAccordionNode(id);
 		return true;
 	};
+	const prepareForFrame = (ids: readonly NodeId[]): void => {
+		const requested = new Set(ids);
+		const members = childWidgets
+			.filter((child) => requested.has(child.node_id))
+			.map((child) => child.node_id);
+		if (layoutKind === 'tabs' && (activeTabNodeId === null || !requested.has(activeTabNodeId)))
+			activeTabNodeId = members[0] ?? activeTabNodeId;
+		if (layoutKind === 'accordion') {
+			const open = new Set(openAccordionNodeIds);
+			const added = members.filter((id) => !open.has(id));
+			if (added.length) openAccordionNodeIds = [...openAccordionNodeIds, ...added];
+		}
+	};
 	return {
 		get budget() {
 			return context.budget;
 		},
+		boundedFlowSegments,
+		boundedGridStyle,
 		get graph() {
 			return graph;
 		},

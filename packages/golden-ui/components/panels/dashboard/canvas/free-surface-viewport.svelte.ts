@@ -168,7 +168,9 @@ export function createFreeSurfaceViewport(context: FreeSurfaceViewportContext) {
 				if (rect && rectsIntersect(queryRect, rect)) ids.add(id);
 			}
 		}
-		for (const id of view.retainedFor(node.node_id)) if (geometry.getNode(id)) ids.add(id);
+		// Direct free children already have logical bounds; only missing containers need mounting.
+		for (const id of view.retainedFor(node.node_id))
+			if (geometry.getNode(id)?.node_type === 'dashboard_widget_container') ids.add(id);
 		for (const id of context.retained()) if (geometry.getNode(id)) ids.add(id);
 		mounted = geometry.orderedNodes(ids);
 	});

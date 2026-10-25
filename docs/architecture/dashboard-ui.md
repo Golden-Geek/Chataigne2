@@ -98,5 +98,26 @@ covers overlapping and minimum-zoom fixtures. P11 still owns the complete hierar
 matrix and workflow timing before the dashboard checkpoint closes.
 The [hierarchy report](../progress/p11-dashboard-hierarchy.md) records shared-budget pressure,
 child discovery, focus transitions and depth-eight free framing.
+The [framing report](../progress/p11-dashboard-framing.md) covers bounded flow geometry,
+inactive panes, native ranges, header focus and local scroll restoration.
+
+`flow-layout.ts` preserves omitted horizontal/vertical extents through CSS-unit prefix sums
+and bounded spacers. It rounds each authored slot using the existing CSS serializer before
+aggregation; the browser resolves mixed units and auto bases. Retained grid items keep their
+original cells. Presentation budgets therefore do not repack the selected controls.
+
+`frame-preparation.ts` captures selected paths and source identities, validates structure across
+asynchronous preparation, and exposes at most 32 pending targets per batch. Surface controllers
+activate a selected tab or open selected accordion members as view state. Inactive measurement
+panes share the active pane's geometry and remain hidden/inert. Free leaves use retained logical
+bounds rather than mounting controls. `frame-bounds.ts` projects those bounds through inner
+clips; local scroll owners reveal controls before camera framing. Bulk scroll content is
+represented by its containing viewport on the clipped axis.
+
+`surface-retention.svelte.ts` observes focus before DOM updates and treats tab/accordion headers
+as direct children alongside widget shells. Native ranges retain at most 64 distinct children.
+`surface-scroll.svelte.ts` saves the last observed local scroll position in the page's UUID-keyed
+view cache, restores it across unmounting and removes listeners on disposal. Retired identities
+and page changes clear cached state. The child-browser anchor remains reachable while scrolling.
 See the [fixed contract](../progress/p11-workspace-qualification-contract.md) and the historical
 [decomposition comparison](../progress/p11-dashboard-decomposition.md).

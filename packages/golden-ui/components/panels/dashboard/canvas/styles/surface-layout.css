@@ -235,7 +235,9 @@
 }
 
 .gc-dashboard-canvas.dashboard-surface.vertical,
-.gc-dashboard-canvas .dashboard-surface.vertical {
+.gc-dashboard-canvas .dashboard-surface.vertical,
+.gc-dashboard-canvas.dashboard-surface.accordion,
+.gc-dashboard-canvas .dashboard-surface.accordion {
 	overflow-x: hidden;
 	overflow-y: auto;
 }

@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { getContext } from 'svelte';
+	import { getContext, onDestroy, tick } from 'svelte';
+	import { createSurfaceScroll } from './surface-scroll.svelte';
 	import { dashboardViewContextKey, type DashboardViewContext } from './view-context.svelte';
 	import { createFreeSurfaceViewport } from './free-surface-viewport.svelte';
 	import FreeSurfaceOverview from './FreeSurfaceOverview.svelte';
@@ -62,6 +63,18 @@
 	let marker = $state<HTMLSpanElement | null>(null);
 	let browser = $state<ReturnType<typeof SurfaceChildBrowser>>();
 	let chosen = $state<NodeId | null>(null);
+	const scrolling = createSurfaceScroll({
+		get element() {
+			return marker?.parentElement ?? null;
+		},
+		get node() {
+			return surface.node;
+		},
+		get graph() {
+			return surface.graph;
+		},
+		view
+	});
 	let ownerIdentity: string | null = null;
 	$effect(() => {
 		if (surface.node.uuid !== ownerIdentity) {
@@ -86,8 +99,10 @@
 				: undefined;
 		}
 	});
-	$effect(() => {
+	$effect.pre(() => {
 		void surface.graph;
+		void surface.budget;
+		void layoutKind;
 		retention.read();
 	});
 	$effect(() => {
@@ -100,11 +115,37 @@
 	);
 	const retained = $derived.by(() => {
 		const ids = new Set(retention.read());
-		for (const id of view?.retainedFor(surface.node.node_id) ?? []) ids.add(id);
 		return ids;
+	});
+	const frameTargets = $derived(new Set(view?.retainedFor(surface.node.node_id) ?? []));
+	let destroyed = false;
+	onDestroy(() => {
+		destroyed = true;
+	});
+	const selectedChild = $derived.by(() => {
+		const selected = view?.selected ?? [],
+			graph = surface.graph;
+		for (let index = selected.length - 1; index >= 0; index--)
+			if (graph?.parentById.get(selected[index]) === surface.node.node_id) return selected[index];
+		return undefined;
+	});
+	$effect(() => {
+		const element = marker?.parentElement;
+		const requested = frameTargets;
+		if (!element || layoutKind === 'free') return;
+		const preferred = selectedChild ?? [...requested].at(-1);
+		if (preferred === undefined) return;
+		void tick().then(() => {
+			if (destroyed || marker?.parentElement !== element || frameTargets !== requested) return;
+			const target = element.querySelector<HTMLElement>(
+				`.dashboard-widget-shell[data-node-id="${preferred}"]`
+			);
+			if (target) scrolling.reveal(target);
+		});
 	});
 	const kept = $derived.by(() => {
 		const ids = new Set(retained);
+		for (const id of frameTargets) ids.add(id);
 		for (const id of view?.selected.slice(-dashboardSelectedDetailLimit) ?? []) ids.add(id);
 		if (chosen !== null) ids.add(chosen);
 		if (collection && layoutKind === 'accordion' && surface.budget > 0)
@@ -124,11 +165,15 @@
 				)
 			: nonFreeSurfaceFlowRenderItems
 	);
+	const renderedFlow = $derived(surface.boundedFlowSegments(flowItems, collection));
 	const activeTab = $derived(
 		childWidgets.find((child) => child.node_id === activeTabNodeId) ?? null
 	);
 	const shownTab = $derived(
 		activeTab && (surface.budget > 0 || kept.has(activeTab.node_id)) ? activeTab : null
+	);
+	const shownTabs = $derived(
+		childWidgets.filter((child) => child === shownTab || frameTargets.has(child.node_id))
 	);
 	const chooseChild = (id: NodeId) => {
 		if (!surface.chooseDashboardChild(id)) return false;
@@ -160,9 +205,7 @@
 		layoutKind === 'free'
 			? mountedFreeWidgets
 			: layoutKind === 'tabs'
-				? shownTab
-					? [shownTab]
-					: []
+				? shownTabs
 				: layoutKind === 'accordion'
 					? accordionChildren.filter((child) => openAccordionNodeIds.includes(child.node_id))
 					: flowItems.flatMap((item) => (item.kind === 'child' ? [item.child] : []))
@@ -253,7 +296,7 @@
 {/snippet}
 {#if layoutKind === 'tabs'}
 	<div class="dashboard-tab-strip" class:compact>
-		{#each collection ? [] : childWidgets as child (child.node_id)}
+		{#each collection ? childWidgets.filter( (child) => retained.has(child.node_id) ) : childWidgets as child (child.node_id)}
 			{#if shouldRenderSurfaceDropPreviewBeforeChild(child)}
 				<button
 					type="button"
@@ -265,6 +308,7 @@
 			{/if}
 			<button
 				type="button"
+				data-dashboard-child-id={child.node_id}
 				class:dashboard-hidden-drag-source={isHiddenSourceSurfaceChild(child)}
 				class:selected={!displayedSurfaceDropPreview && activeTabNodeId === child.node_id}
 				onpointerdown={withStoppedPropagation}
@@ -282,12 +326,16 @@
 			</button>
 		{/if}
 	</div>
-	<div class="dashboard-tab-body" class:compact>
+	<div class="dashboard-tab-body" class:compact style:position="relative">
 		{#if displayedSurfaceDropPreview}
 			{@render dashboardSurfaceDropPreviewSlot('', 'dashboard-drop-preview-panel')}
 		{:else}
-			{#each shownTab ? [shownTab] : [] as activeChild (activeChild.node_id)}
-				<div class="dashboard-slot">
+			{#each shownTabs as activeChild (activeChild.node_id)}
+				<div
+					class="dashboard-slot"
+					class:dashboard-frame-measurement={activeChild !== shownTab}
+					inert={activeChild !== shownTab}
+					aria-hidden={activeChild !== shownTab ? true : undefined}>
 					<div class="dashboard-slot-fill">
 						<DashboardCanvasSelf
 							node={activeChild}
@@ -315,6 +363,7 @@
 			{/if}
 			<section
 				class="dashboard-accordion-item"
+				data-dashboard-child-id={child.node_id}
 				class:dashboard-hidden-drag-source={isHiddenSourceSurfaceChild(child)}>
 				<button
 					type="button"
@@ -323,8 +372,10 @@
 					onclick={() => {
 						toggleAccordionNode(child.node_id);
 					}}>{child.meta.label}</button>
-				{#if openAccordionNodeIds.includes(child.node_id)}
-					<div class="dashboard-slot accordion-slot">
+				{#if openAccordionNodeIds.includes(child.node_id) || frameTargets.has(child.node_id)}
+					<div
+						class="dashboard-slot accordion-slot"
+						class:dashboard-frame-measurement={!openAccordionNodeIds.includes(child.node_id)}>
 						<div class="dashboard-slot-fill">
 							<DashboardCanvasSelf
 								node={child}
@@ -385,31 +436,36 @@
 	</div>
 {:else}
 	<div class="dashboard-layout" data-dashboard-collection-preview={collection ? '' : undefined}>
-		{#each flowItems as item (item.key)}
-			<div
-				class="dashboard-slot"
-				class:dashboard-drop-preview={item.kind === 'preview'}
-				class:dashboard-drop-preview-flow={item.kind === 'preview'}
-				class:is-committing={item.kind === 'preview' &&
-					pendingSurfaceDrop !== null &&
-					surfaceDropPreview === null}
-				class:dashboard-hidden-drag-source={item.kind === 'child' &&
-					isHiddenSourceSurfaceChild(item.child)}
-				style={item.kind === 'preview' ? inlineSurfaceDropPreviewStyle() : slotStyle(item.child)}
-				aria-hidden={item.kind === 'preview'}>
-				<div class="dashboard-slot-fill">
-					{#if item.kind === 'preview'}
-						<div class="dashboard-drop-preview-fill">
-							{@render dashboardSurfaceDropPreviewContent(item.preview)}
-						</div>
-					{:else}
-						<DashboardCanvasSelf
-							node={item.child}
-							{editMode}
-							presentationBudget={childBudget(item.child)} />
-					{/if}
+		{#each renderedFlow as segment (segment.key)}
+			{#if segment.kind === 'spacer'}
+				<div class="dashboard-flow-spacer" style={segment.style} aria-hidden="true"></div>
+			{:else}
+				{@const item = segment.item}
+				<div
+					class="dashboard-slot"
+					class:dashboard-drop-preview={item.kind === 'preview'}
+					class:dashboard-drop-preview-flow={item.kind === 'preview'}
+					class:is-committing={item.kind === 'preview' &&
+						pendingSurfaceDrop !== null &&
+						surfaceDropPreview === null}
+					class:dashboard-hidden-drag-source={item.kind === 'child' &&
+						isHiddenSourceSurfaceChild(item.child)}
+					style={`${item.kind === 'preview' ? inlineSurfaceDropPreviewStyle() : slotStyle(item.child)} ${collection ? surface.boundedGridStyle(item) : ''}`}
+					aria-hidden={item.kind === 'preview'}>
+					<div class="dashboard-slot-fill">
+						{#if item.kind === 'preview'}
+							<div class="dashboard-drop-preview-fill">
+								{@render dashboardSurfaceDropPreviewContent(item.preview)}
+							</div>
+						{:else}
+							<DashboardCanvasSelf
+								node={item.child}
+								{editMode}
+								presentationBudget={childBudget(item.child)} />
+						{/if}
+					</div>
 				</div>
-			</div>
+			{/if}
 		{/each}
 	</div>
 {/if}
@@ -427,3 +483,12 @@
 {#if renderMarqueeInSurface && marqueeSelection}
 	<div class="dashboard-marquee-selection" style={marqueeStyle} aria-hidden="true"></div>
 {/if}
+
+<style>
+	.dashboard-frame-measurement {
+		position: absolute;
+		inset: 0;
+		visibility: hidden;
+		pointer-events: none;
+	}
+</style>

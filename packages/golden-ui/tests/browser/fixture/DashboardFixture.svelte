@@ -219,6 +219,13 @@
 		fixture.session.selectNode(data!.ids[index], 'REPLACE');
 		await settle();
 	}
+	export async function selectMany(indices: number[]) {
+		fixture.session.selectNodes(
+			indices.map((index) => data!.ids[index]),
+			'REPLACE'
+		);
+		await settle();
+	}
 	export async function view(value: DashboardPersistedPageView) {
 		persisted = value;
 		await settle();
@@ -245,8 +252,19 @@
 		});
 		await settle();
 	}
-	export async function reorder() {
-		const page = fixture.session.graph.state.nodesById.get(data!.page.node_id)!;
+	export async function enabled(index: number, key: string, value: boolean) {
+		const graph = fixture.session.graph.state,
+			owner = graph.nodesById.get(data!.ids[index])!;
+		const field = getDirectParamNode(graph, owner, key);
+		if (!field) throw new Error(`Missing fixture parameter ${key}`);
+		fixture.session.graph.applyEvent({
+			time: { tick: ++sequence, micro: 0, seq: 0 },
+			kind: { kind: 'metaChanged', node: field.node_id, patch: { enabled: value } }
+		});
+		await settle();
+	}
+	export async function reorder(parent = data!.page.node_id) {
+		const page = fixture.session.graph.state.nodesById.get(parent)!;
 		fixture.session.graph.applyEvent({
 			time: { tick: ++sequence, micro: 0, seq: 0 },
 			kind: {
@@ -282,6 +300,18 @@
 		while (performance.now() < deadline) await new Promise(requestAnimationFrame);
 		await settle();
 		return { handled, persisted: lastPersisted };
+	}
+	export async function frameWithReorder() {
+		document.querySelector<HTMLElement>('.dashboard-page-viewport')!.focus();
+		await settle();
+		const element = document.querySelector<HTMLElement>('.dashboard-page-frame')!,
+			before = element.style.transform;
+		const pending = executeCommand('view.frame', { source: 'api' });
+		await tick();
+		await reorder(data!.containerId!);
+		const handled = await pending;
+		await settle();
+		return { handled, before, after: element.style.transform };
 	}
 </script>
 

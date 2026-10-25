@@ -10,6 +10,7 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { chromium } from 'playwright-core';
 import { denseChecks } from './dashboard-dense.mjs';
 import { hierarchyChecks } from './dashboard-hierarchy.mjs';
+import { lifecycleChecks } from './dashboard-lifecycle.mjs';
 
 const repository = fileURLToPath(new URL('../../../../', import.meta.url));
 const root = fileURLToPath(new URL('./fixture/', import.meta.url));
@@ -17,6 +18,7 @@ const generated = resolve(repository, 'target/qualification');
 const baseline = '654a5f15';
 const denseOnly = process.argv.includes('--dense-only');
 const hierarchyOnly = process.argv.includes('--hierarchy-only');
+const lifecycleOnly = process.argv.includes('--lifecycle-only');
 const canvasPrefix = 'packages/golden-ui/components/panels/dashboard/';
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const filesBelow = (directory) =>
@@ -40,6 +42,7 @@ const sources = [
 	resolve(repository, 'package-lock.json'),
 	fileURLToPath(new URL('./dashboard-dense.mjs', import.meta.url)),
 	fileURLToPath(new URL('./dashboard-hierarchy.mjs', import.meta.url)),
+	fileURLToPath(new URL('./dashboard-lifecycle.mjs', import.meta.url)),
 	fileURLToPath(import.meta.url)
 ];
 const fingerprints = () =>
@@ -55,7 +58,13 @@ const report = resolve(
 	`p11-dashboard-viewport-${new Date().toISOString().replaceAll(/[:.]/g, '-')}.json`
 );
 const result = {
-	scope: hierarchyOnly ? 'hierarchy-only' : denseOnly ? 'dense-only' : 'sparse-and-dense',
+	scope: lifecycleOnly
+		? 'lifecycle-only'
+		: hierarchyOnly
+			? 'hierarchy-only'
+			: denseOnly
+				? 'dense-only'
+				: 'dashboard-correctness',
 	baseline,
 	browser: '',
 	machine: {
@@ -492,7 +501,7 @@ try {
 	});
 	result.browser = await browser.version();
 	const references =
-		denseOnly || hierarchyOnly
+		denseOnly || hierarchyOnly || lifecycleOnly
 			? null
 			: await scene('baseline', async (page) => {
 					const scenes = new Map();
@@ -515,8 +524,9 @@ try {
 				});
 	await scene('current', async (page) => {
 		if (references) await viewportChecks(page, references);
-		if (!hierarchyOnly) await denseChecks(page, record);
-		if (!denseOnly) await hierarchyChecks(page, record);
+		if (!hierarchyOnly && !lifecycleOnly) await denseChecks(page, record);
+		if (!denseOnly && !lifecycleOnly) await hierarchyChecks(page, record);
+		if (lifecycleOnly || (!denseOnly && !hierarchyOnly)) await lifecycleChecks(page, record);
 		assert.deepEqual(result.errors, []);
 	});
 	assert.deepEqual(fingerprints(), result.source, 'Qualified sources changed');

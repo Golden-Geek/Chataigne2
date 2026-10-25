@@ -68,14 +68,16 @@
 	}
 </script>
 
-<button
-	bind:this={anchor}
-	type="button"
-	class="dashboard-child-browser"
-	data-dashboard-child-browser={surfaceId}
-	title="Preview of selected children. Browse all widgets in this container."
-	onpointerdown={(event) => event.stopPropagation()}
-	onclick={openMenu}>Preview · {children.length.toLocaleString()} widgets · Browse</button>
+<div class="dashboard-child-browser-anchor">
+	<button
+		bind:this={anchor}
+		type="button"
+		class="dashboard-child-browser"
+		data-dashboard-child-browser={surfaceId}
+		title="Preview of selected children. Browse all widgets in this container."
+		onpointerdown={(event) => event.stopPropagation()}
+		onclick={openMenu}>Preview · {children.length.toLocaleString()} widgets · Browse</button>
+</div>
 <ContextMenu
 	bind:this={menu}
 	bind:open
@@ -87,7 +89,17 @@
 	onClose={restoreFocus} />
 
 <style>
+	.dashboard-child-browser-anchor {
+		position: sticky;
+		inset-block-start: 0;
+		inset-inline-start: 0;
+		block-size: 0;
+		inline-size: 100%;
+		z-index: 4;
+		pointer-events: none;
+	}
 	.dashboard-child-browser {
+		pointer-events: auto;
 		position: absolute;
 		inset-block-start: 0;
 		inset-inline-end: 0;
