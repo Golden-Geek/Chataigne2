@@ -7,6 +7,7 @@ export interface CssValueData {
 
 export interface CssUnitConversionContext {
 	rootRemPx: number;
+	emPx: number;
 	axisBasePx: number;
 	viewportWidthPx: number;
 	viewportHeightPx: number;
@@ -94,8 +95,9 @@ export const cssPixelsPerUnit = (
 		case 'px':
 			return 1;
 		case 'rem':
-		case 'em':
 			return Math.max(context.rootRemPx, 1e-6);
+		case 'em':
+			return Math.max(context.emPx, 1e-6);
 		case 'percent':
 			return Math.max(context.axisBasePx / 100, 1e-6);
 		case 'vw':

@@ -5,7 +5,8 @@ import {
 	type UiClient,
 	type UiNodeDto,
 	type UiSnapshot,
-	type UiLogRecord
+	type UiLogRecord,
+	type ParamValue
 } from '../../../types';
 
 export function fixtureNode(
@@ -115,7 +116,20 @@ export function createFixtureSession() {
 	};
 	const loadNodes = (nodes: UiNodeDto[]) => {
 		generation += 1;
-		for (const node of nodes) node.uuid = `fixture-${generation}-${node.node_id}`;
+		const references: Extract<ParamValue, { kind: 'reference' }>[] = [];
+		for (const node of nodes) {
+			node.uuid = `fixture-${generation}-${node.node_id}`;
+			if (node.data.kind !== 'parameter') continue;
+			for (const value of [node.data.param.value, node.data.param.default_value])
+				if (value.kind === 'reference') references.push(value);
+		}
+		if (references.length) {
+			const uuids = new Map(nodes.map((node) => [node.node_id, node.uuid]));
+			for (const reference of references) {
+				const uuid = reference.cached_id === undefined ? undefined : uuids.get(reference.cached_id);
+				if (uuid) reference.uuid = uuid;
+			}
+		}
 		snapshot = {
 			protocol_version: UI_PROTOCOL_VERSION,
 			scope: wholeGraphScope,

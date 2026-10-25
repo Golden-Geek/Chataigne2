@@ -17,6 +17,8 @@ and widget templates. Its `canvas/` modules own distinct presentation lifetimes:
 | `widget-content.svelte.ts`, `binding-drop.svelte.ts` | Live target rendering, generic controls and binding intents. |
 | `context-menu.svelte.ts` | Capability-dependent menu presentation and explicit edit intents. |
 | `geometry.ts`, `dom.ts`, `contracts.ts` | Pure coordinate calculations, DOM measurements and shared presentation types. |
+| `free-surface-geometry.ts` | Retained authored bounds and spatial queries, independently of mounted widgets. |
+| `free-surface-viewport.svelte.ts`, `view-context.svelte.ts` | Clipped membership, focus/range/interaction retention, page-scoped view state and logical framing. |
 
 Controllers receive live state through getter contexts. Methods that need a mutually dependent
 controller defer access until use; constructors must not eagerly read a later controller.
@@ -31,7 +33,34 @@ Rendering uses the authored anchor and position directly. Changing an anchor doe
 mounted widget to rewrite its position. Viewport-dependent presentation must not repair domain
 state or make authored meaning depend on whether a widget is mounted.
 
-The decomposition preserves the pre-culling mounted layout. P11 still owns viewport-aware free
-surfaces, logical offscreen geometry for framing/selection and interaction/focus retention; these
-are not established by the split. See the [P11 contract](../progress/p11-workspace-qualification-contract.md)
-and [comparison evidence](../progress/p11-dashboard-decomposition.md).
+Free slots and their widget shells share border-box bounds. The retained model uses the same
+size/anchor/minimum contract, measured surface dimensions, local `em` size and root `rem` size.
+The shared CSS conversion API requires both font measurements; gesture and creation contexts
+carry them from the DOM boundary. No authored values are rewritten to accommodate mounting.
+
+The model updates changed owners using `VersionedNodeMap.forEachChange`, which skips shared
+trie branches. It consumes the public `golden_graph_ui/spatial-index` primitive. Camera changes
+query retained geometry; layout/font/viewport unit changes reindex affected surface bounds.
+Marquee selection and framing can reach unmounted direct free children. Framing temporarily
+materializes missing ancestry in batches of 32 unresolved selections, captures page-local bounds,
+then releases those ancestors before camera animation. Non-free layouts retain their DOM geometry
+path. New navigation supersedes pending framing. A page owns the shared view context, including
+non-navigable viewers.
+
+Tab and accordion presentation state lives at that page boundary, keyed by authored UUIDs.
+Surface remounting resolves saved child UUIDs against the current graph. Removed identities and
+page changes retire their cached state. Public view operations delegate to the same surface
+controllers as tab/accordion buttons; they do not edit the backend graph.
+
+The viewport owner intersects clipping ancestors, retains a focused control, layout gestures and
+native pointer targets, and bounds native text-range retention to 64 widgets. Pointer targets use
+authored identity and are released on up/cancel/blur or owner retirement. Keyed moves restore focus after
+DOM reconciliation; removal uses the remembered authored identity to return focus to the page.
+Observers and event-driven refresh are disposed with their surface. Disabling a free view clears
+its retained graph/index references.
+
+[Sparse viewport qualification](../progress/p11-dashboard-sparse.md) proves the current bounded
+sparse views, container state retention and batched ancestry framing. P11 still owns dense/
+zoomed-out presentation, the complete hierarchical/gesture matrix and workflow timing before the dashboard checkpoint closes.
+See the [fixed contract](../progress/p11-workspace-qualification-contract.md) and the historical
+[decomposition comparison](../progress/p11-dashboard-decomposition.md).

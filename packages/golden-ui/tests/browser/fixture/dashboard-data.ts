@@ -2,7 +2,12 @@ import type { ParamValue, UiNodeDto } from '../../../types';
 import type { DashboardLayoutKind } from '../../../components/panels/dashboard/dashboard-model';
 import { fixtureNode } from './session';
 
-export function dashboardData(layout: DashboardLayoutKind, sparseCount = 0) {
+export function dashboardData(
+	layout: DashboardLayoutKind,
+	sparseCount = 0,
+	pattern: 'band' | 'grid' | 'dense' = 'band',
+	nested = false
+) {
 	const nodes: UiNodeDto[] = [];
 	let nextId = 1;
 	const add = (type: string, label: string, item = true) => {
@@ -60,21 +65,42 @@ export function dashboardData(layout: DashboardLayoutKind, sparseCount = 0) {
 	const checkbox = param(root, 'Enabled', { kind: 'bool', value: true });
 	const text = param(root, 'Message', { kind: 'str', value: 'Editable value' });
 	const ids: number[] = [];
+	const widgetParent = nested ? add('dashboard_widget_container', 'Free container') : page;
+	if (nested) {
+		page.children.push(widgetParent.node_id);
+		place(widgetParent, 2, 2, 50, 40);
+		enumParam(widgetParent, 'layout_kind', 'free');
+	}
 	for (let index = 0; index < (sparseCount || 6); index++) {
 		const kinds = ['text', 'button', 'slider', 'checkbox', 'textInput', 'textInput'];
+		const kind = kinds[index % kinds.length];
 		const widget = add('dashboard_generic_widget', `Widget ${index}`);
 		ids.push(widget.node_id);
-		page.children.push(widget.node_id);
+		widgetParent.children.push(widget.node_id);
 		place(
 			widget,
-			sparseCount ? index * 20 : (index % 3) * 16 + 2,
-			sparseCount ? 2 : Math.floor(index / 3) * 10 + 2
+			sparseCount
+				? pattern === 'grid'
+					? (index % 40) * 240
+					: pattern === 'dense'
+						? 0
+						: index * 20
+				: (index % 3) * 16 + 2,
+			sparseCount
+				? pattern === 'grid'
+					? Math.floor(index / 40) * 112
+					: 2
+				: Math.floor(index / 3) * 10 + 2
 		);
 		enumParam(widget, 'anchor', 'top-left');
-		enumParam(widget, 'widget_kind', kinds[index % kinds.length]);
+		enumParam(widget, 'widget_kind', kind);
 		enumParam(widget, 'label_placement', ['left', 'right', 'top', 'bottom', 'inside'][index % 5]);
 		param(widget, 'text', { kind: 'str', value: `Content ${index}` });
-		param(widget, 'target_param', reference(index === 3 ? checkbox : index >= 4 ? text : target));
+		param(
+			widget,
+			'target_param',
+			reference(kind === 'checkbox' ? checkbox : kind === 'textInput' ? text : target)
+		);
 		param(widget, 'value_range', { kind: 'vec2', value: [0, 1] });
 		param(widget, 'multiline', { kind: 'bool', value: index === 5 });
 	}
@@ -97,5 +123,5 @@ export function dashboardData(layout: DashboardLayoutKind, sparseCount = 0) {
 		enumParam(registered, 'label_placement', 'inside');
 		param(registered, 'target_node', reference(target));
 	}
-	return { nodes, page, ids };
+	return { nodes, page, ids, containerId: nested ? widgetParent.node_id : null };
 }

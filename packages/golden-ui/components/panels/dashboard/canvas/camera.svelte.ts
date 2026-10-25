@@ -5,6 +5,7 @@ import {
 	type DashboardPersistedPageViewChangeHandler,
 	type DashboardPageViewState
 } from './contracts';
+import type { FreeLayoutRect } from './contracts';
 import { minFreeWidgetWidthRem } from './geometry';
 import { getRootRemPixels, canScrollAxis } from './dom';
 import { clampPageZoom, sanitizePersistedPageView, samePersistedPageView } from './page-view';
@@ -22,6 +23,7 @@ interface DashboardCameraContext {
 	readonly frame: HTMLDivElement | null;
 	readonly focused: boolean;
 	readonly selectedNodeIds: readonly NodeId[];
+	frameRects(ids: readonly NodeId[]): Promise<FreeLayoutRect[] | null>;
 }
 export function createDashboardCamera(context: DashboardCameraContext) {
 	let graph = $derived(context.graph);
@@ -54,6 +56,7 @@ export function createDashboardCamera(context: DashboardCameraContext) {
 	let pageViewAnimationFrame = $state<number | null>(null);
 
 	let pageViewAnimationTarget = $state<DashboardPersistedPageView | null>(null);
+	let navigationGeneration = 0;
 
 	let previousPageFitScale = $state<number | null>(null);
 
@@ -104,6 +107,7 @@ export function createDashboardCamera(context: DashboardCameraContext) {
 	};
 
 	const cancelPageViewAnimation = (): void => {
+		navigationGeneration++;
 		if (pageViewAnimationFrame !== null && typeof window !== 'undefined') {
 			window.cancelAnimationFrame(pageViewAnimationFrame);
 		}
@@ -179,33 +183,37 @@ export function createDashboardCamera(context: DashboardCameraContext) {
 		);
 	};
 
-	const frameWidgetElements = (
-		widgetElements: HTMLElement[],
+	const frameWidgetRects = (
+		widgetRects: FreeLayoutRect[],
 		options: { animate?: boolean; fillRatio?: number } = {}
 	): boolean => {
 		const geometry = getPageFrameGeometry();
 		if (!geometry) {
 			return false;
 		}
-		if (widgetElements.length === 0) {
+		if (widgetRects.length === 0) {
 			homePageView(options);
 			return true;
 		}
 		const fillRatio = Math.min(Math.max(options.fillRatio ?? 0.84, 0.1), 0.98);
-		const { viewportRect, frameCenterX, frameCenterY, baseCenterX, baseCenterY, currentScale } =
-			geometry;
+		const { viewportRect, baseCenterX, baseCenterY } = geometry;
 		const availableWidth = Math.max(1, viewportRect.width - 2 * pageEditBleedPx);
 		const availableHeight = Math.max(1, viewportRect.height - 2 * pageEditBleedPx);
 		let localLeft = Number.POSITIVE_INFINITY;
 		let localRight = Number.NEGATIVE_INFINITY;
 		let localTop = Number.POSITIVE_INFINITY;
 		let localBottom = Number.NEGATIVE_INFINITY;
-		for (const widgetElement of widgetElements) {
-			const widgetRect = widgetElement.getBoundingClientRect();
-			localLeft = Math.min(localLeft, (widgetRect.left - frameCenterX) / currentScale);
-			localRight = Math.max(localRight, (widgetRect.right - frameCenterX) / currentScale);
-			localTop = Math.min(localTop, (widgetRect.top - frameCenterY) / currentScale);
-			localBottom = Math.max(localBottom, (widgetRect.bottom - frameCenterY) / currentScale);
+		for (const widgetRect of widgetRects) {
+			localLeft = Math.min(localLeft, widgetRect.left - pageLogicalWidthPx / 2);
+			localRight = Math.max(
+				localRight,
+				widgetRect.left + widgetRect.width - pageLogicalWidthPx / 2
+			);
+			localTop = Math.min(localTop, widgetRect.top - pageLogicalHeightPx / 2);
+			localBottom = Math.max(
+				localBottom,
+				widgetRect.top + widgetRect.height - pageLogicalHeightPx / 2
+			);
 		}
 		const localWidth = Math.max(1, localRight - localLeft);
 		const localHeight = Math.max(1, localBottom - localTop);
@@ -508,17 +516,16 @@ export function createDashboardCamera(context: DashboardCameraContext) {
 		};
 	};
 
-	const frameSelectedWidgets = (): boolean => {
+	const frameSelectedWidgets = async (): Promise<boolean> => {
 		const viewportElement = pageViewportElement;
 		if (!viewportElement) {
 			return false;
 		}
-		const selectedWidgetElements = selectedNodeIds
-			.map((nodeId) =>
-				viewportElement.querySelector<HTMLElement>(`[data-node-id="${String(nodeId)}"]`)
-			)
-			.filter((element): element is HTMLElement => element !== null);
-		return frameWidgetElements(selectedWidgetElements, {
+		cancelPageViewAnimation();
+		const generation = navigationGeneration;
+		const selectedWidgetRects = await context.frameRects([...selectedNodeIds]);
+		if (!selectedWidgetRects || generation !== navigationGeneration) return true;
+		return frameWidgetRects(selectedWidgetRects, {
 			animate: true,
 			fillRatio: 0.78
 		});
@@ -597,6 +604,24 @@ export function createDashboardCamera(context: DashboardCameraContext) {
 		if (pageViewportResizeFrame !== null) cancelAnimationFrame(pageViewportResizeFrame);
 	});
 	return {
+		get logicalSize() {
+			return { width: pageLogicalWidthPx, height: pageLogicalHeightPx };
+		},
+		get viewSignal() {
+			return [
+				editMode,
+				selectedNodeIds,
+				pageView.panX,
+				pageView.panY,
+				pageView.zoom,
+				pageFitScale,
+				pageViewportWidthPx,
+				pageViewportHeightPx
+			];
+		},
+		get viewportReady() {
+			return pageViewportSize.width > 1 && pageViewportSize.height > 1;
+		},
 		get pageSize() {
 			return pageSize;
 		},

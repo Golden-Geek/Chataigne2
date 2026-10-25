@@ -240,6 +240,34 @@ export class VersionedNodeMap<Value> implements Map<NodeId, Value> {
 		return this.#copiedNodeCount;
 	}
 
+	/** Visit changed keys only, skipping shared trie branches between published versions. */
+	forEachChange(
+		previous: VersionedNodeMap<Value>,
+		visit: (key: NodeId, value: Value | undefined, previousValue: Value | undefined) => void
+	): void {
+		const walk = (
+			before: TrieBranch<Value> | TrieLeaf<Value> | undefined,
+			after: TrieBranch<Value> | TrieLeaf<Value> | undefined
+		): void => {
+			if (before === after) return;
+			if ((before && isLeaf(before)) || (after && isLeaf(after))) {
+				if ((before && !isLeaf(before)) || (after && !isLeaf(after)))
+					throw new Error('graph index trie versions have incompatible shapes');
+				const keys = new Set([...(before?.entries.keys() ?? []), ...(after?.entries.keys() ?? [])]);
+				for (const key of keys) {
+					const oldValue = before?.entries.get(key);
+					const value = after?.entries.get(key);
+					if (before?.entries.has(key) !== after?.entries.has(key) || !Object.is(oldValue, value))
+						visit(key, value, oldValue);
+				}
+				return;
+			}
+			const keys = new Set([...(before?.children.keys() ?? []), ...(after?.children.keys() ?? [])]);
+			for (const key of keys) walk(before?.children.get(key), after?.children.get(key));
+		};
+		walk(previous.#root, this.#root);
+	}
+
 	#ownedBranch(branch: TrieBranch<Value>): TrieBranch<Value> {
 		if (branch.owner === this.#owner) {
 			return branch;

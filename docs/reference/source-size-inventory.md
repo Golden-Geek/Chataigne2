@@ -7,11 +7,12 @@ extraction notes and September counts are [archived](../archive/2026-10-18/progr
 
 ## Scan and policy
 
-Refreshed 2026-10-25 against delivered `c1816a5c` plus the dashboard canvas decomposition
-on `main`. Scanned **2098 source files**; **27 exceed 1,000 lines**. The dashboard
-canvas is now 870 lines; its controllers, surface renderer and styles are each below the limit.
-No new source-size exception is introduced. Remaining decomposition and exceptions belong
-to P12; this inventory does not qualify that task.
+Refreshed 2026-10-25 against delivered `654a5f15` plus sparse dashboard viewport rendering
+on `main`. Scanned **2106 source files**; **27 exceed 1,000 lines**. The dashboard
+canvas is 921 lines; its controllers, geometry, viewport, tests and stylesheet files remain
+below the limit. No new source-size exception is introduced. Remaining decomposition and
+exceptions belong to P12; this inventory does not qualify that task.
+
 The node enum macro remains the centralized built-in/consumer-variant dispatch registry:
 each public Node hook must reach both sets of variants there. P12 still owns extracting its
 mechanical forwarding. Codec generation now lives in the focused `support/macros/src/node_data.rs`

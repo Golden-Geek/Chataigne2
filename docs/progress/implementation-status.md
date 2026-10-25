@@ -5,8 +5,8 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-25 on `main`, based on delivered `c1816a5c` plus the P11 dashboard
-decomposition milestone below. **P11 is in progress; two of six fixed checkpoints are closed (33% rounded).**
+Last reconciled: 2026-10-25 on `main`, based on delivered `654a5f15` plus the P11 sparse dashboard
+viewport milestone below. **P11 is in progress; two of six fixed checkpoints are closed (33% rounded).**
 **P10 is locally complete: three of three fixed checkpoints (100%).**
 **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
@@ -198,7 +198,7 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
 | ---------- | ------ | -------------------------------- |
 | Manager/catalog windowing | Complete locally | Variable-height manager/picker/outliner and flat/nested catalog menus pass through 100k items with bounded mounting, identity and focus. [Tree evidence](p11-tree-windowing.md), [catalog closure](p11-catalog-windowing.md). |
 | Historical log windowing | Complete locally | Variable-height history, filters, follow, bounded native selection, focus and snapshot publication pass through 100k records. [Qualification](p11-log-windowing.md). |
-| Dashboard viewport awareness | In progress | Canvas responsibilities split and baseline rendering qualified. Bounded mounting, logical offscreen bounds and interaction/selection qualification remain. |
+| Dashboard viewport awareness | In progress | Sparse views, direct/nested framing, retained tab/accordion state, focus/ranges and CSS units pass through 100k authored nodes. Dense presentation, full hierarchical/gesture coverage and timing remain. |
 | Tree focus and keyboard navigation | Not started | Qualify expansion/navigation and stable focus across virtualized changes in all owning trees. |
 | Graph keyboard operations | Not started | Provide and qualify keyboard movement and connection creation through shared operations. |
 | Complete composed workflows | Not started | Qualify discovery, selection and editing across all required composed panels and large batches. Native usability retains P17. |
@@ -208,8 +208,9 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
 - **Active task: P11 workspace UX (33% rounded, 2/6 fixed checkpoints closed).** Manager/picker/
   outliner, catalogs and historical logs are verified through 100k entries. Continue dashboard
   viewport awareness, then tree/graph keyboard operations and composed qualification.
-  The dashboard decomposition is qualified; implement bounded mounting with logical bounds,
-  offscreen framing/selection and interaction/focus retention next. Preserve app-agnostic ownership and the plan's owning boundaries;
+  Sparse dashboard culling is verified through 100k authored nodes. Continue dense/zoomed-out
+  presentation, the complete hierarchical/gesture matrix and action/timing qualification.
+  Preserve app-agnostic ownership and the plan's owning boundaries;
   do not reopen completed P03-P10 scope.
 - **P10 is locally complete: three of three fixed checkpoints (100%).** Retained geometry,
   scoped routes/culling and the full production mounted action/frame matrix pass. Stable wire
@@ -10138,3 +10139,49 @@ No checkpoint is closed by this prerequisite. Commit/push this verified mileston
 then implement bounded free-layout membership, logical offscreen geometry for frame/marquee,
 interaction/focus retention and the fixed normal/stress qualification. Four P11 checkpoints
 remain; P03 remains complete with zero packages left. Keep the full P00-P18 goal active.
+
+### P11 sparse dashboard culling and logical selection
+
+Based on delivered `654a5f15`, free dashboard surfaces use retained authored geometry and the
+public Golden Graph UI spatial index to mount their clipped, overscanned views. Shared graph
+trie changes update affected owners without scanning every authored widget for camera movement.
+Metrics changes reindex unit-dependent bounds. Direct free-child framing and rectangle selection
+work without DOM membership; additive selection uses a set. Focus, active shells and a bounded
+native text-selection cohort are retained. Keyed moves restore focus after reconciliation;
+retired authored identity returns focus to the page. Disabling free views releases retained data.
+
+Free shells now fit their authored slots with border-box sizing. Shared CSS conversion requires
+distinct local `em` and root `rem` measurements, carried by rendering, creation and gesture
+contexts. Preview completion measures its own surface. View observers react to font/clipping
+changes and coalesce refresh outside Svelte rendering. No backend policy, authored values,
+persisted formats or wire declarations changed. The root stays 921 lines and all touched
+runtime/test sources are below 1,000 lines.
+
+The [qualification](p11-dashboard-sparse.md), [final report](evidence/p11-dashboard-sparse-2026-10-25.json),
+[retained failed probes](evidence/p11-dashboard-sparse-failures-2026-10-25.json) and
+[ownership](../architecture/dashboard-ui.md) record exact boundaries. Production browser scenes
+pass 14 correctness groups and five tiers through **100,001 authored nodes / 9,090 widgets**.
+Initial sparse mounting is **18 shells at 1k / 54 at every larger tier**. The delivered reference
+mounts 1,000 widgets; current run/edit views mount 48/54, preserving every painted widget's own
+text and authored slot geometry. A 1,000-child clipped container mounts 25 shells including its
+parent. Frame centers an unmounted selection within 0.5 CSS pixels. Tab/accordion state survives
+unmount/remount; nested-child framing materializes missing ancestry in batches of 32 unresolved
+selections. A 100-container Frame peaks at 32 shells and centers the union within 0.015 CSS pixels;
+new navigation supersedes pending Frame output. Removed authored identities prune view state.
+Native range retention/release, focus across reorder/navigation/font changes, retirement fallback,
+live geometry changes, local `em` boundaries and all six layout smoke cases pass. All 51 captured
+source fingerprints remain unchanged. Single setup observations are not latency qualification.
+
+Twenty-four new owning unit cases cover persistent-map changes, retained geometry and CSS units.
+The full UI suite passes **285 cases** (audio 27 / graph 52 / Golden UI 91 / app 115). App and
+browser-fixture checks report zero errors/warnings; Prettier, whitespace, source sizes and root/
+Golden Core Cargo formatting pass. The locked default build rebuilds the frontend and passes in
+**3m21s**, executable SHA-256
+`77e405333ce7b8af8633f0d68f55abb56993823ec816163d97a38381c0931ea0`.
+
+**P11 remains 2/6 complete (33% rounded); whole-plan scope coverage remains 57% (57.41% exact).**
+This sparse delivery does not close the dashboard checkpoint. Commit/push the verified milestone
+on `main`, then implement bounded dense/zoomed-out presentation and complete the full
+hierarchical/gesture and action/timing qualification. The four
+fixed P11 checkpoints remain open; P03 stays complete with zero packages left. Keep the full
+P00-P18 goal active.

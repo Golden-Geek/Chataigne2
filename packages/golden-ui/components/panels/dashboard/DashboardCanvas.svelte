@@ -16,11 +16,17 @@
 	import type {
 		DashboardPersistedPageView,
 		DashboardPersistedPageViewChangeHandler,
-		FreeLayoutResizeZone
+		FreeLayoutResizeZone,
+		FreeLayoutRect
 	} from './canvas/contracts';
 	import { freeLayoutResizeZones } from './canvas/geometry';
 	import { selectionModeFromEvent, focusClosestPageViewport } from './canvas/dom';
-	import { onDestroy } from 'svelte';
+	import { onDestroy, getContext, setContext, untrack } from 'svelte';
+	import {
+		createDashboardViewContext,
+		dashboardViewContextKey,
+		type DashboardViewContext
+	} from './canvas/view-context.svelte';
 	import { appState, type SelectionMode } from '../../../store/workbench.svelte';
 	import type { UiNodeDto } from '../../../types';
 	import { formatCssValue } from '../../../css-value';
@@ -53,6 +59,36 @@
 	}>();
 
 	let session = $derived(appState.session);
+	const inheritedView =
+		getContext<DashboardViewContext | undefined>(dashboardViewContextKey) ?? null;
+	// Recursive instances retain their page/widget role while the authored node changes.
+	const ownsView = untrack(() => node.node_type === 'dashboard_page');
+	const dashboardView = ownsView
+		? createDashboardViewContext({
+				get viewport() {
+					return pageViewportElement;
+				},
+				get frame() {
+					return pageFrameElement;
+				},
+				get frameSize() {
+					return camera.logicalSize;
+				},
+				get graph() {
+					return graph;
+				},
+				get page() {
+					return liveNode;
+				},
+				get camera() {
+					return camera.viewSignal;
+				},
+				get ready() {
+					return camera.viewportReady;
+				}
+			})
+		: inheritedView;
+	if (ownsView && dashboardView) setContext(dashboardViewContextKey, dashboardView);
 	let graph = $derived(session?.graph.state ?? null);
 	let liveNode = $derived(getLiveNode(graph, node));
 	let isSelected = $derived(session?.isNodeSelected(liveNode.node_id) ?? false);
@@ -72,6 +108,7 @@
 	});
 	let parentLayoutKind = $derived(getDashboardLayoutKind(graph, parentNode, 'free'));
 	const surfaceState = createDashboardSurface({
+		view: dashboardView,
 		get graph() {
 			return graph;
 		},
@@ -186,7 +223,8 @@
 		},
 		get selectedNodeIds() {
 			return session?.selectedNodesIds ?? [];
-		}
+		},
+		frameRects: (ids) => dashboardView?.frameRects(ids) ?? Promise.resolve(null)
 	});
 	let pageSize = $derived(camera.pageSize);
 	let pageSceneStyle = $derived(camera.pageSceneStyle);
@@ -330,12 +368,25 @@
 		},
 		get transforming() {
 			return freeLayoutInteraction !== null;
-		}
+		},
+		queryRect: (surfaceId, rect) => dashboardView?.query(surfaceId, rect) ?? null
 	});
 	let marqueeSelection = $derived(marqueeState.marqueeSelection);
 	let marqueeStyle = $derived(marqueeState.marqueeStyle);
 	const handleSurfacePointerDown = marqueeState.handleSurfacePointerDown;
 	const handlePageScenePointerDown = marqueeState.handlePageScenePointerDown;
+	export function selectWidgetsInRect(rect: FreeLayoutRect, mode: SelectionMode = 'REPLACE') {
+		const root = pageFrameElement ?? widgetShellElement;
+		const element = root?.querySelector<HTMLElement>(
+			`[data-dashboard-surface-node-id="${liveNode.node_id}"]`
+		);
+		if (element) marqueeState.selectInRect(element, rect, mode);
+		return session?.selectedNodesIds ?? [];
+	}
+	export const activateSurfaceTab = (surface: number, child: number) =>
+		dashboardView?.activateTab(surface, child) ?? false;
+	export const toggleSurfaceAccordion = (surface: number, child: number) =>
+		dashboardView?.toggleAccordion(surface, child) ?? false;
 
 	const clearFreeLayoutInteractionChrome = (): void => {
 		setFreeLayoutHoverSurface(null);

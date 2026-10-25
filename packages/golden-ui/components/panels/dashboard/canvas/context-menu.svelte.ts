@@ -156,6 +156,7 @@ export function createDashboardContextMenu(context: DashboardContextMenuContext)
 		const metrics = getElementSurfaceMetrics(layoutElement, rootRemPx);
 		const context = {
 			rootRemPx,
+			emPx: metrics.emPx,
 			surfaceWidthPx: metrics.width,
 			surfaceHeightPx: metrics.height,
 			viewportWidthPx: getViewportWidthPx(),

@@ -19,16 +19,34 @@ export const getViewportWidthPx = (): number =>
 export const getViewportHeightPx = (): number =>
 	typeof window === 'undefined' ? 720 : Math.max(window.innerHeight, 1);
 
+export const getElementEmPixels = (element: Element | null, rootRemPx: number): number => {
+	if (typeof window === 'undefined' || !element) return rootRemPx;
+	const value = Number.parseFloat(getComputedStyle(element).fontSize);
+	return Number.isFinite(value) && value > 0 ? value : rootRemPx;
+};
+
 export const getClosestSurfaceMetrics = (
 	target: EventTarget | null,
 	rootRemPx: number
 ): SurfaceMetrics => {
 	if (!(target instanceof Element)) {
-		return { width: getViewportWidthPx(), height: 20 * rootRemPx, scaleX: 1, scaleY: 1 };
+		return {
+			width: getViewportWidthPx(),
+			height: 20 * rootRemPx,
+			emPx: rootRemPx,
+			scaleX: 1,
+			scaleY: 1
+		};
 	}
 	const surface = target.closest('.dashboard-surface');
 	if (!surface) {
-		return { width: getViewportWidthPx(), height: 20 * rootRemPx, scaleX: 1, scaleY: 1 };
+		return {
+			width: getViewportWidthPx(),
+			height: 20 * rootRemPx,
+			emPx: rootRemPx,
+			scaleX: 1,
+			scaleY: 1
+		};
 	}
 	const rect = surface.getBoundingClientRect();
 	const layoutWidth =
@@ -38,6 +56,7 @@ export const getClosestSurfaceMetrics = (
 	return {
 		width: Math.max(layoutWidth, rootRemPx),
 		height: Math.max(layoutHeight, rootRemPx),
+		emPx: getElementEmPixels(surface, rootRemPx),
 		scaleX: Math.max(rect.width, 1) / layoutWidth,
 		scaleY: Math.max(rect.height, 1) / layoutHeight
 	};
@@ -53,6 +72,7 @@ export const getElementSurfaceMetrics = (
 	return {
 		width: Math.max(layoutWidth, rootRemPx),
 		height: Math.max(layoutHeight, rootRemPx),
+		emPx: getElementEmPixels(element, rootRemPx),
 		scaleX: Math.max(rect.width, 1) / layoutWidth,
 		scaleY: Math.max(rect.height, 1) / layoutHeight
 	};

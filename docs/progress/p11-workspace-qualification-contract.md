@@ -72,3 +72,36 @@ Measure filtering and a four-record append batch with three warmups and 31 sampl
 using the existing fixed feedback/stall/completion ceilings. Confirm actual visible row content,
 source identity and geometry after settlement. Input remains component/store operations and DOM
 selection/focus APIs in the private browser; no synthesized keyboard/mouse events.
+
+## Dashboard sparse editing extension
+
+The first viewport milestone qualifies sparse free-layout membership and logical direct-child
+geometry. It does not close the full dashboard checkpoint. Use a 1680 x 1200 private browser,
+90vw x 90vh panel, 1200 x 850 authored page, 12rem x 5rem widgets in a 40-column grid with
+240 x 112 authored coordinate spacing. Editing permits staging beyond the page; running retains
+the authored page clip. Counts include parameters and structural nodes, independently of widget
+counts: target 1k/10k baseline, 20k/50k normal and 100k stress authored nodes.
+
+Ordinary sparse views mount at most 96 widget shells in this scene. Focus may retain one
+additional widget; native text ranges may retain at most 64 widgets independently of the total
+authored selection. Verify actual text, authored slot bounds, border-box shell bounds, source
+identity, distant framing and rectangle selection, keyed reorder, focus retirement, native range
+retention/release, local/root font changes and live position updates. Frame centering and visible
+slot preservation have a 0.5 CSS-pixel tolerance. Compare against the delivered `654a5f15` renderer,
+including a 1,000-child clipped free container and all six layout modes in edit/run smoke checks.
+
+Also verify tab/accordion state across an offscreen round trip, framing a child beneath an
+unmounted container, bounded ancestry preparation across 100 offscreen containers and a newer
+navigation request superseding pending Frame work. Preparation batches at most 32 unresolved
+selections; record actual peak shells and selected-union centering within the same tolerance.
+
+Setup-ready values are individual construction observations, including graph projection and
+layout settlement. They are not ordinary-action latency distributions. Current sparse correctness
+does not establish dense-view bounds, the full hierarchical/gesture matrix, latency or dashboard
+checkpoint completion. Native pointer retention wiring does not qualify physical gestures.
+
+Before closing the checkpoint, fix the dense/hierarchical workloads and mounting/presentation
+budgets, then retain three warmups and 31 measured samples per action/tier for discovery,
+selection, edits, navigation and framing. Preserve the existing feedback/stall/completion ceilings:
+200ms / 200ms / 2,000ms normal and 400ms / 400ms / 4,000ms stress. Measure animation pacing
+separately. Keep failures and source/asset/machine records. Native gestures/usability retain P17.

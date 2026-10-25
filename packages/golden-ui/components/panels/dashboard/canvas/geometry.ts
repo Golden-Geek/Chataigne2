@@ -60,11 +60,17 @@ export const rectsIntersect = (
 export const createCssUnitContext = (
 	interaction: Pick<
 		FreeLayoutInteraction,
-		'rootRemPx' | 'surfaceWidthPx' | 'surfaceHeightPx' | 'viewportWidthPx' | 'viewportHeightPx'
+		| 'rootRemPx'
+		| 'emPx'
+		| 'surfaceWidthPx'
+		| 'surfaceHeightPx'
+		| 'viewportWidthPx'
+		| 'viewportHeightPx'
 	>,
 	axis: 'x' | 'y'
 ): CssUnitConversionContext => ({
 	rootRemPx: interaction.rootRemPx,
+	emPx: interaction.emPx,
 	axisBasePx: axis === 'x' ? interaction.surfaceWidthPx : interaction.surfaceHeightPx,
 	viewportWidthPx: interaction.viewportWidthPx,
 	viewportHeightPx: interaction.viewportHeightPx
@@ -237,7 +243,12 @@ export const freeLayoutRectFromPlacement = (
 	},
 	interaction: Pick<
 		FreeLayoutInteraction,
-		'surfaceWidthPx' | 'surfaceHeightPx' | 'rootRemPx' | 'viewportWidthPx' | 'viewportHeightPx'
+		| 'surfaceWidthPx'
+		| 'surfaceHeightPx'
+		| 'rootRemPx'
+		| 'emPx'
+		| 'viewportWidthPx'
+		| 'viewportHeightPx'
 	>
 ): FreeLayoutRect => {
 	const xContext = createCssUnitContext(interaction, 'x');
@@ -263,7 +274,12 @@ export const freeLayoutPreviewFromRect = (
 	anchor: DashboardAnchor,
 	interaction: Pick<
 		FreeLayoutInteraction,
-		'surfaceWidthPx' | 'surfaceHeightPx' | 'rootRemPx' | 'viewportWidthPx' | 'viewportHeightPx'
+		| 'surfaceWidthPx'
+		| 'surfaceHeightPx'
+		| 'rootRemPx'
+		| 'emPx'
+		| 'viewportWidthPx'
+		| 'viewportHeightPx'
 	>,
 	positionTemplate: { x: number; y: number },
 	sizeTemplate: { width: CssValueData; height: CssValueData }

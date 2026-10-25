@@ -35,6 +35,7 @@ type GraphGetter = () => GraphState | null;
 
 export interface DashboardWidgetSizingContext {
 	rootRemPx: number;
+	emPx: number;
 	surfaceWidthPx: number;
 	surfaceHeightPx: number;
 	viewportWidthPx: number;
@@ -95,6 +96,7 @@ const createCssContext = (
 	axis: 'x' | 'y'
 ): CssUnitConversionContext => ({
 	rootRemPx: context.rootRemPx,
+	emPx: context.emPx,
 	axisBasePx: axis === 'x' ? context.surfaceWidthPx : context.surfaceHeightPx,
 	viewportWidthPx: context.viewportWidthPx,
 	viewportHeightPx: context.viewportHeightPx
@@ -152,6 +154,7 @@ const createPlacement = (
 
 const getDefaultSizingContext = (): DashboardWidgetSizingContext => ({
 	rootRemPx: 16,
+	emPx: 16,
 	surfaceWidthPx: 1280,
 	surfaceHeightPx: 720,
 	viewportWidthPx: 1280,

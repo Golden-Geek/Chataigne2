@@ -1,6 +1,10 @@
 import type { WorkbenchSession } from '../../../../store/workbench.svelte';
 import { marqueeDragThresholdPx } from './dom';
-import { type MarqueeSelectionState, type SurfacePressState } from './contracts';
+import {
+	type MarqueeSelectionState,
+	type SurfacePressState,
+	type FreeLayoutRect
+} from './contracts';
 import { normalizeClientRect, rectsIntersect } from './geometry';
 import {
 	selectionModeFromEvent,
@@ -16,7 +20,9 @@ interface DashboardMarqueeContext {
 	readonly children: readonly UiNodeDto[];
 	readonly viewport: HTMLDivElement | null;
 	readonly transforming: boolean;
+	queryRect(surfaceId: NodeId, rect: FreeLayoutRect): NodeId[] | null;
 }
+type SelectionRegion = Omit<MarqueeSelectionState, 'pointerId'>;
 export function createDashboardMarquee(context: DashboardMarqueeContext) {
 	let liveNode = $derived(context.node);
 	let session = $derived(context.session);
@@ -30,12 +36,14 @@ export function createDashboardMarquee(context: DashboardMarqueeContext) {
 
 	let surfacePress = $state<SurfacePressState | null>(null);
 
-	const collectMarqueeNodeIds = (selection: MarqueeSelectionState): NodeId[] => {
+	const collectMarqueeNodeIds = (selection: SelectionRegion): NodeId[] => {
+		const selectionRect = normalizeClientRect(selection.startClient, selection.currentClient);
+		const logical = context.queryRect(selection.surfaceNodeId, selectionRect);
+		if (logical !== null) return logical;
 		const childNodeIdByString = new Map(
 			childWidgets.map((child) => [String(child.node_id), child.node_id])
 		);
 		const selector = `.dashboard-widget-shell[data-dashboard-surface-id="${String(selection.surfaceNodeId)}"]`;
-		const selectionRect = normalizeClientRect(selection.startClient, selection.currentClient);
 		const nodeIds: NodeId[] = [];
 		for (const element of selection.surfaceElement.querySelectorAll<HTMLElement>(selector)) {
 			const nodeId = childNodeIdByString.get(element.dataset.nodeId ?? '');
@@ -54,16 +62,11 @@ export function createDashboardMarquee(context: DashboardMarqueeContext) {
 		return nodeIds;
 	};
 
-	const applyMarqueeSelection = (selection: MarqueeSelectionState): void => {
+	const applyMarqueeSelection = (selection: SelectionRegion): void => {
 		const intersectingNodeIds = collectMarqueeNodeIds(selection);
 		let nextSelection = intersectingNodeIds;
 		if (selection.selectionMode === 'ADD') {
-			nextSelection = [...selection.baseSelection];
-			for (const nodeId of intersectingNodeIds) {
-				if (!nextSelection.includes(nodeId)) {
-					nextSelection.push(nodeId);
-				}
-			}
+			nextSelection = [...new Set([...selection.baseSelection, ...intersectingNodeIds])];
 		} else if (selection.selectionMode === 'TOGGLE') {
 			const toggled = new Set(selection.baseSelection);
 			for (const nodeId of intersectingNodeIds) {
@@ -254,6 +257,16 @@ export function createDashboardMarquee(context: DashboardMarqueeContext) {
 	});
 
 	return {
+		selectInRect: (element: HTMLElement, rect: FreeLayoutRect, selectionMode: SelectionMode) => {
+			applyMarqueeSelection({
+				surfaceElement: element,
+				surfaceNodeId: liveNode.node_id,
+				startClient: [rect.left, rect.top],
+				currentClient: [rect.left + rect.width, rect.top + rect.height],
+				baseSelection: [...(session?.selectedNodesIds ?? [])],
+				selectionMode
+			});
+		},
 		get marqueeSelection() {
 			return marqueeSelection;
 		},

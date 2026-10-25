@@ -1,0 +1,1164 @@
+{
+  "scope": "Retained dashboard correctness probes during implementation; not latency samples",
+  "reports": [
+    {
+      "artifact": "p11-dashboard-viewport-2026-10-25T13-00-34-315Z.json",
+      "baseline": "654a5f15",
+      "browser": "156.0.4314.42",
+      "machine": {
+        "platform": "win32",
+        "release": "10.0.26300",
+        "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+        "logicalCpus": 24,
+        "memoryBytes": 33752997888,
+        "node": "v26.5.0"
+      },
+      "source": {
+        "packages/golden-ui/components/panels/dashboard/canvas/binding-drop.svelte.ts": "e339d4d4c6986f9b237f6e307d54bfadc2ef34ef4d8a165cde00a34c86fa6f78",
+        "packages/golden-ui/components/panels/dashboard/canvas/camera.svelte.ts": "f166a71240a6440eaedf01102578acabf472a92a21bdf40a766ecfaa56a795b5",
+        "packages/golden-ui/components/panels/dashboard/canvas/context-menu.svelte.ts": "5cb25f2e4313680066e372b64b4f1a3ab85681c42c937e446cf5bf9f38362e10",
+        "packages/golden-ui/components/panels/dashboard/canvas/contracts.ts": "7138259c5c9b6f1a7ff31fd883bf9c261bc5fd66be5d89fb2663199e4366803d",
+        "packages/golden-ui/components/panels/dashboard/canvas/dom.ts": "90a3a0bc2e933a6f11a5d47856d3671c9730d341d5679448a6d69ec2d79f1bae",
+        "packages/golden-ui/components/panels/dashboard/canvas/free-layout.svelte.ts": "8642cc5448df0e9368527f94a62ffcfd76dc96c1e0102e7f352b0d4a333535e7",
+        "packages/golden-ui/components/panels/dashboard/canvas/free-surface-geometry.ts": "5b3d6167444bd6429bda3f25ef9d9b49aa9a4cbf5f22292a45759655272aeb18",
+        "packages/golden-ui/components/panels/dashboard/canvas/free-surface-viewport.svelte.ts": "736dba18fffcb8cce3cc0afddb805d1b316d4a3304ab2cf379e797dfc9a961e4",
+        "packages/golden-ui/components/panels/dashboard/canvas/geometry.ts": "ed513741ed3b70d37eb17783e545689490f3e1b76179df25a0d2a1e248553794",
+        "packages/golden-ui/components/panels/dashboard/canvas/interaction-chrome.svelte.ts": "9208ca64408fb7326e698200758926e0bcaf1530278990cdcaa8efb70d7d34d4",
+        "packages/golden-ui/components/panels/dashboard/canvas/interaction-geometry.svelte.ts": "fb57c4553f65f3fbd56212c1d7d355d9a2df9f2e763f339ad49849c958ce0deb",
+        "packages/golden-ui/components/panels/dashboard/canvas/marquee.svelte.ts": "af7caade8363ec14d39e1c32ff6339f72633bec2aeabfe72fb6cc340460b665a",
+        "packages/golden-ui/components/panels/dashboard/canvas/ordered-layout.svelte.ts": "c62e82adbcea832c5bf9535df675ecc440469d215bbab3dc94a60933c559623c",
+        "packages/golden-ui/components/panels/dashboard/canvas/page-view.ts": "190011aa3367269977700c4713cdff05d2f4ef759452fe77e3fa54d9c3ccd465",
+        "packages/golden-ui/components/panels/dashboard/canvas/styles/content-preview.css": "619ccc41a8e8c8d6dfffea3dc75bd157060f1dae7ae495239a64b091ba690791",
+        "packages/golden-ui/components/panels/dashboard/canvas/styles/surface-layout.css": "78623d5685f22522174a58934d98117bbe317a3b1565dfa6b70b1a459bb5725b",
+        "packages/golden-ui/components/panels/dashboard/canvas/styles/widget-frame.css": "8d24718f9148048c34228250546cd3354f43a345f65cde946ec21c49c0f52585",
+        "packages/golden-ui/components/panels/dashboard/canvas/surface.svelte.ts": "88091cc69947c9404e86b1e43ff84ddfb2b42f9b7c32a5be9e0c21879ec0dfd0",
+        "packages/golden-ui/components/panels/dashboard/canvas/SurfaceContent.svelte": "a06ad5d3fa8414ca8afd48558e18497c79ca5c16237c1c0a7dd818b4e3f2274f",
+        "packages/golden-ui/components/panels/dashboard/canvas/tests/fixtures.ts": "626f1373e2433f81736cd071bb22e67782266f2baf4dd4a7e32a29a4859e3303",
+        "packages/golden-ui/components/panels/dashboard/canvas/tests/free-surface-geometry.test.ts": "789fb167436c538166bf2f9ea08a5ed3c889ba056f32d294fb8f75cf74204056",
+        "packages/golden-ui/components/panels/dashboard/canvas/view-context.ts": "68f9fe33461b20382deccbca7687cb8c0eb985e4ac6faa96b9b324035eea1f8c",
+        "packages/golden-ui/components/panels/dashboard/canvas/widget-content.svelte.ts": "97b744b7d701ffa7fb8d01dbab4d03524108ecc53eac4af7dc96cbddfbf1f554",
+        "packages/golden-ui/components/panels/dashboard/dashboard-actions.ts": "b17596e91ad8cd9b401b6424a01643fd9bbddf9069e4a1cbb598f8052aee8549",
+        "packages/golden-ui/components/panels/dashboard/dashboard-drag.ts": "9e2ae85e765b38a53f65138582521e299ae2f26ae2d47f79eade5a296f942a43",
+        "packages/golden-ui/components/panels/dashboard/dashboard-model.ts": "d7c0f3a3a9b89658ca767b14d5bf0a9f425979a76e61be9973e4a3bf959eb6be",
+        "packages/golden-ui/components/panels/dashboard/dashboard-node-widget-options.ts": "6955d5da8c29656e7dd6466ef7b6f32f4336412e0650cb2d23803975febb89b8",
+        "packages/golden-ui/components/panels/dashboard/dashboard-node-widget-registry.ts": "4785c142172d939a2f6bf76d31665610f0a5e523e99bb3b878c4d05162d5bf65",
+        "packages/golden-ui/components/panels/dashboard/dashboard-route.ts": "e93fea51ffd68aac521494b7486ecd0a57553c6eea44f608081c844282309944",
+        "packages/golden-ui/components/panels/dashboard/DashboardCanvas.svelte": "8aeb3d60da79c8ae6552fc0df9af6f6df9279c7bb3d9730b045477254a710342",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetInspectorContent.svelte": "e357664cd4dbba8b17ee6ee61184e7e4415c9e86d8d2325575eab3d631bf2ef6",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetNumberRotaryContent.svelte": "245da72f871f93b7e8d82b7b6e4f9d5d09ba8da310638c7bf1181fd2cb7b440d",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetNumberSliderContent.svelte": "0119c271e9c64a98dd72630325649e3f1f3c390787f5511475e66c010876b771",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetParameterEditorContent.svelte": "4848d3533614627fd6302d772f46ad2706e796e3c8df39a69828c6dfab7ca4ef",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetVec2PadContent.svelte": "ea70f0059bfd3af60746219234f8d80976469e681b88047575bee59e98f82ee8",
+        "packages/golden-ui/components/panels/dashboard/DashboardPanel.svelte": "dba2b304d23643a9bc92b137a1dfe07f38760123fe867a4a66f7bb2025d0fdc5",
+        "packages/golden-ui/components/panels/dashboard/DashboardViewer.svelte": "6cb0e0b37763964b5b09df01819c613ef073e94c1f6b13006824db3cea29370a",
+        "packages/golden-ui/tests/browser/fixture/dashboard-data.ts": "1bd134bb41df387967860572d61f97f3dd7ce2bfc0ec0621749c72d4c01a49de",
+        "packages/golden-ui/tests/browser/fixture/dashboard.html": "70bc3752b3e8beca950e542617e7cd3491f8871a1ca954b435d9522099ad34fd",
+        "packages/golden-ui/tests/browser/fixture/dashboard.ts": "4f8c93e78ef6e02957955e215bdfc0e9577385256fb8fcbc943e149ad06a3ef1",
+        "packages/golden-ui/tests/browser/fixture/DashboardFixture.svelte": "c187fce79822aa18df0da7d1d4a40b127108751273f96fcc060d55f6fd8cf9e7",
+        "packages/golden-ui/tests/browser/fixture/DashboardRegistryContent.svelte": "f783c801c15be591724b2f7522d3cba33fe2f34cfda424b86c82655ab5caf076",
+        "packages/golden-ui/tests/browser/fixture/session.ts": "2cf8ce14205c8f4994ff4500e68bc503e1cf1d61c4bc0ebd2d4c2103a224a2a1",
+        "packages/golden-ui/store/graph-index.ts": "70b413486e35b2fedbc84e519b8af7cf4120a3008693173b4e35f17789d9b38f",
+        "packages/golden-ui/tests/browser/dashboard-viewport.mjs": "b79b604f49735e238fa0a7fa29c97ae13528291c8f50519a8796189ee0ccfec2"
+      },
+      "cases": [
+        {
+          "label": "visible-preservation-run",
+          "mounted": 48,
+          "painted": 40,
+          "passed": true
+        },
+        {
+          "label": "visible-preservation-edit",
+          "mounted": 54,
+          "painted": 48,
+          "passed": true
+        }
+      ],
+      "tiers": [],
+      "errors": [],
+      "assets": {
+        "baseline": {
+          "assets/dashboard-Bmm674IO.js": "b8564f9b2bb80b1f7e8c80252a6619d5dae45b2be970252695d8b804502cfe87",
+          "assets/dashboard-Bvz7ZBDT.css": "8d33a40ab122ccb4d92d0320e1a2ed9825c6df5efe8bcaf06085227d81a403c8",
+          "dashboard.html": "67d4a8a202e683cf8a482cdcc8f75083cfa6f3e41665e21d0e59bee785cef57e"
+        },
+        "current": {
+          "assets/dashboard-Bvz7ZBDT.css": "8d33a40ab122ccb4d92d0320e1a2ed9825c6df5efe8bcaf06085227d81a403c8",
+          "assets/dashboard-CwVFeR1v.js": "87059f989294c279c0bc6d56c3862de42775313d10db651092fe91eed1a8338b",
+          "dashboard.html": "e8bd3c9441b65d7a00910883200aabadfeaac22c721d5a72efa26a5720356356"
+        }
+      },
+      "passed": false,
+      "failure": "AssertionError [ERR_ASSERTION]: Frame must reach an unmounted selection\n\n0 !== 1\n"
+    },
+    {
+      "artifact": "p11-dashboard-viewport-2026-10-25T13-01-43-132Z.json",
+      "baseline": "654a5f15",
+      "browser": "156.0.4314.42",
+      "machine": {
+        "platform": "win32",
+        "release": "10.0.26300",
+        "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+        "logicalCpus": 24,
+        "memoryBytes": 33752997888,
+        "node": "v26.5.0"
+      },
+      "source": {
+        "packages/golden-ui/components/panels/dashboard/canvas/binding-drop.svelte.ts": "e339d4d4c6986f9b237f6e307d54bfadc2ef34ef4d8a165cde00a34c86fa6f78",
+        "packages/golden-ui/components/panels/dashboard/canvas/camera.svelte.ts": "f166a71240a6440eaedf01102578acabf472a92a21bdf40a766ecfaa56a795b5",
+        "packages/golden-ui/components/panels/dashboard/canvas/context-menu.svelte.ts": "5cb25f2e4313680066e372b64b4f1a3ab85681c42c937e446cf5bf9f38362e10",
+        "packages/golden-ui/components/panels/dashboard/canvas/contracts.ts": "7138259c5c9b6f1a7ff31fd883bf9c261bc5fd66be5d89fb2663199e4366803d",
+        "packages/golden-ui/components/panels/dashboard/canvas/dom.ts": "90a3a0bc2e933a6f11a5d47856d3671c9730d341d5679448a6d69ec2d79f1bae",
+        "packages/golden-ui/components/panels/dashboard/canvas/free-layout.svelte.ts": "8642cc5448df0e9368527f94a62ffcfd76dc96c1e0102e7f352b0d4a333535e7",
+        "packages/golden-ui/components/panels/dashboard/canvas/free-surface-geometry.ts": "5b3d6167444bd6429bda3f25ef9d9b49aa9a4cbf5f22292a45759655272aeb18",
+        "packages/golden-ui/components/panels/dashboard/canvas/free-surface-viewport.svelte.ts": "736dba18fffcb8cce3cc0afddb805d1b316d4a3304ab2cf379e797dfc9a961e4",
+        "packages/golden-ui/components/panels/dashboard/canvas/geometry.ts": "ed513741ed3b70d37eb17783e545689490f3e1b76179df25a0d2a1e248553794",
+        "packages/golden-ui/components/panels/dashboard/canvas/interaction-chrome.svelte.ts": "9208ca64408fb7326e698200758926e0bcaf1530278990cdcaa8efb70d7d34d4",
+        "packages/golden-ui/components/panels/dashboard/canvas/interaction-geometry.svelte.ts": "fb57c4553f65f3fbd56212c1d7d355d9a2df9f2e763f339ad49849c958ce0deb",
+        "packages/golden-ui/components/panels/dashboard/canvas/marquee.svelte.ts": "af7caade8363ec14d39e1c32ff6339f72633bec2aeabfe72fb6cc340460b665a",
+        "packages/golden-ui/components/panels/dashboard/canvas/ordered-layout.svelte.ts": "c62e82adbcea832c5bf9535df675ecc440469d215bbab3dc94a60933c559623c",
+        "packages/golden-ui/components/panels/dashboard/canvas/page-view.ts": "190011aa3367269977700c4713cdff05d2f4ef759452fe77e3fa54d9c3ccd465",
+        "packages/golden-ui/components/panels/dashboard/canvas/styles/content-preview.css": "619ccc41a8e8c8d6dfffea3dc75bd157060f1dae7ae495239a64b091ba690791",
+        "packages/golden-ui/components/panels/dashboard/canvas/styles/surface-layout.css": "78623d5685f22522174a58934d98117bbe317a3b1565dfa6b70b1a459bb5725b",
+        "packages/golden-ui/components/panels/dashboard/canvas/styles/widget-frame.css": "8d24718f9148048c34228250546cd3354f43a345f65cde946ec21c49c0f52585",
+        "packages/golden-ui/components/panels/dashboard/canvas/surface.svelte.ts": "88091cc69947c9404e86b1e43ff84ddfb2b42f9b7c32a5be9e0c21879ec0dfd0",
+        "packages/golden-ui/components/panels/dashboard/canvas/SurfaceContent.svelte": "a06ad5d3fa8414ca8afd48558e18497c79ca5c16237c1c0a7dd818b4e3f2274f",
+        "packages/golden-ui/components/panels/dashboard/canvas/tests/fixtures.ts": "626f1373e2433f81736cd071bb22e67782266f2baf4dd4a7e32a29a4859e3303",
+        "packages/golden-ui/components/panels/dashboard/canvas/tests/free-surface-geometry.test.ts": "789fb167436c538166bf2f9ea08a5ed3c889ba056f32d294fb8f75cf74204056",
+        "packages/golden-ui/components/panels/dashboard/canvas/view-context.ts": "68f9fe33461b20382deccbca7687cb8c0eb985e4ac6faa96b9b324035eea1f8c",
+        "packages/golden-ui/components/panels/dashboard/canvas/widget-content.svelte.ts": "97b744b7d701ffa7fb8d01dbab4d03524108ecc53eac4af7dc96cbddfbf1f554",
+        "packages/golden-ui/components/panels/dashboard/dashboard-actions.ts": "b17596e91ad8cd9b401b6424a01643fd9bbddf9069e4a1cbb598f8052aee8549",
+        "packages/golden-ui/components/panels/dashboard/dashboard-drag.ts": "9e2ae85e765b38a53f65138582521e299ae2f26ae2d47f79eade5a296f942a43",
+        "packages/golden-ui/components/panels/dashboard/dashboard-model.ts": "d7c0f3a3a9b89658ca767b14d5bf0a9f425979a76e61be9973e4a3bf959eb6be",
+        "packages/golden-ui/components/panels/dashboard/dashboard-node-widget-options.ts": "6955d5da8c29656e7dd6466ef7b6f32f4336412e0650cb2d23803975febb89b8",
+        "packages/golden-ui/components/panels/dashboard/dashboard-node-widget-registry.ts": "4785c142172d939a2f6bf76d31665610f0a5e523e99bb3b878c4d05162d5bf65",
+        "packages/golden-ui/components/panels/dashboard/dashboard-route.ts": "e93fea51ffd68aac521494b7486ecd0a57553c6eea44f608081c844282309944",
+        "packages/golden-ui/components/panels/dashboard/DashboardCanvas.svelte": "8aeb3d60da79c8ae6552fc0df9af6f6df9279c7bb3d9730b045477254a710342",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetInspectorContent.svelte": "e357664cd4dbba8b17ee6ee61184e7e4415c9e86d8d2325575eab3d631bf2ef6",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetNumberRotaryContent.svelte": "245da72f871f93b7e8d82b7b6e4f9d5d09ba8da310638c7bf1181fd2cb7b440d",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetNumberSliderContent.svelte": "0119c271e9c64a98dd72630325649e3f1f3c390787f5511475e66c010876b771",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetParameterEditorContent.svelte": "4848d3533614627fd6302d772f46ad2706e796e3c8df39a69828c6dfab7ca4ef",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetVec2PadContent.svelte": "ea70f0059bfd3af60746219234f8d80976469e681b88047575bee59e98f82ee8",
+        "packages/golden-ui/components/panels/dashboard/DashboardPanel.svelte": "dba2b304d23643a9bc92b137a1dfe07f38760123fe867a4a66f7bb2025d0fdc5",
+        "packages/golden-ui/components/panels/dashboard/DashboardViewer.svelte": "6cb0e0b37763964b5b09df01819c613ef073e94c1f6b13006824db3cea29370a",
+        "packages/golden-ui/tests/browser/fixture/dashboard-data.ts": "1bd134bb41df387967860572d61f97f3dd7ce2bfc0ec0621749c72d4c01a49de",
+        "packages/golden-ui/tests/browser/fixture/dashboard.html": "70bc3752b3e8beca950e542617e7cd3491f8871a1ca954b435d9522099ad34fd",
+        "packages/golden-ui/tests/browser/fixture/dashboard.ts": "4f8c93e78ef6e02957955e215bdfc0e9577385256fb8fcbc943e149ad06a3ef1",
+        "packages/golden-ui/tests/browser/fixture/DashboardFixture.svelte": "b0cfc826d417a522930ca8bed0f10af68904fa0c5385928d9c20fd709609db60",
+        "packages/golden-ui/tests/browser/fixture/DashboardRegistryContent.svelte": "f783c801c15be591724b2f7522d3cba33fe2f34cfda424b86c82655ab5caf076",
+        "packages/golden-ui/tests/browser/fixture/session.ts": "2cf8ce14205c8f4994ff4500e68bc503e1cf1d61c4bc0ebd2d4c2103a224a2a1",
+        "packages/golden-ui/store/graph-index.ts": "70b413486e35b2fedbc84e519b8af7cf4120a3008693173b4e35f17789d9b38f",
+        "packages/golden-ui/tests/browser/dashboard-viewport.mjs": "85f4ba50965d53a467e1de8e9c411aa8ae9c383d650d9eeb83968ba9f5bdd237"
+      },
+      "cases": [
+        {
+          "label": "visible-preservation-run",
+          "mounted": 48,
+          "painted": 40,
+          "passed": true
+        },
+        {
+          "label": "visible-preservation-edit",
+          "mounted": 54,
+          "painted": 48,
+          "passed": true
+        },
+        {
+          "label": "focused-control-retention-and-root-font",
+          "passed": true
+        }
+      ],
+      "tiers": [
+        {
+          "targetAuthoredNodes": 1000,
+          "authoredNodes": 1001,
+          "widgets": 90,
+          "readyMs": 16.753200000000106,
+          "initialMounted": 18,
+          "framed": {
+            "dx": 0.00048828125,
+            "dy": 14.34356689453125
+          },
+          "passed": true
+        },
+        {
+          "targetAuthoredNodes": 10000,
+          "authoredNodes": 10010,
+          "widgets": 909,
+          "readyMs": 90.97180000000026,
+          "initialMounted": 54,
+          "framed": {
+            "dx": 0.0009765625,
+            "dy": 14.34423828125
+          },
+          "passed": true
+        }
+      ],
+      "errors": [
+        {
+          "version": "current",
+          "message": "https://svelte.dev/e/state_unsafe_mutation"
+        },
+        {
+          "version": "current",
+          "message": "https://svelte.dev/e/state_unsafe_mutation"
+        }
+      ],
+      "assets": {
+        "baseline": {
+          "assets/dashboard-Bvz7ZBDT.css": "8d33a40ab122ccb4d92d0320e1a2ed9825c6df5efe8bcaf06085227d81a403c8",
+          "assets/dashboard-Dd_rdj_t.js": "75bae5398b40c7aafa3efea9d4654c5b319e31c85e8056ceeb1a5f6c0d2803d3",
+          "dashboard.html": "f042e5841273355d21d2ffa8652c3a7c618a8c62a71555a13b7bb639f01d09f8"
+        },
+        "current": {
+          "assets/dashboard-Bvz7ZBDT.css": "8d33a40ab122ccb4d92d0320e1a2ed9825c6df5efe8bcaf06085227d81a403c8",
+          "assets/dashboard-DxzGqRZc.js": "d066aac400c6896bf50e9610485e8b166a617b3c1665a451887a09553c610e10",
+          "dashboard.html": "2a8450321ebe9b430dbf68c04011d496d6f37cb9d9bfb3560adc2b018745d3f4"
+        }
+      },
+      "passed": false,
+      "failure": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n+ [\n+   {\n+     message: 'https://svelte.dev/e/state_unsafe_mutation',\n+     version: 'current'\n+   },\n+   {\n+     message: 'https://svelte.dev/e/state_unsafe_mutation',\n+     version: 'current'\n+   }\n+ ]\n- []\n"
+    },
+    {
+      "artifact": "p11-dashboard-viewport-2026-10-25T13-08-07-001Z.json",
+      "baseline": "654a5f15",
+      "browser": "156.0.4314.42",
+      "machine": {
+        "platform": "win32",
+        "release": "10.0.26300",
+        "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+        "logicalCpus": 24,
+        "memoryBytes": 33752997888,
+        "node": "v26.5.0"
+      },
+      "source": {
+        "packages/golden-ui/components/panels/dashboard/canvas/binding-drop.svelte.ts": "e339d4d4c6986f9b237f6e307d54bfadc2ef34ef4d8a165cde00a34c86fa6f78",
+        "packages/golden-ui/components/panels/dashboard/canvas/camera.svelte.ts": "f166a71240a6440eaedf01102578acabf472a92a21bdf40a766ecfaa56a795b5",
+        "packages/golden-ui/components/panels/dashboard/canvas/context-menu.svelte.ts": "5cb25f2e4313680066e372b64b4f1a3ab85681c42c937e446cf5bf9f38362e10",
+        "packages/golden-ui/components/panels/dashboard/canvas/contracts.ts": "7138259c5c9b6f1a7ff31fd883bf9c261bc5fd66be5d89fb2663199e4366803d",
+        "packages/golden-ui/components/panels/dashboard/canvas/dom.ts": "90a3a0bc2e933a6f11a5d47856d3671c9730d341d5679448a6d69ec2d79f1bae",
+        "packages/golden-ui/components/panels/dashboard/canvas/free-layout.svelte.ts": "8642cc5448df0e9368527f94a62ffcfd76dc96c1e0102e7f352b0d4a333535e7",
+        "packages/golden-ui/components/panels/dashboard/canvas/free-surface-geometry.ts": "5b3d6167444bd6429bda3f25ef9d9b49aa9a4cbf5f22292a45759655272aeb18",
+        "packages/golden-ui/components/panels/dashboard/canvas/free-surface-viewport.svelte.ts": "76b09e7645188bed7ee73c4494eedb81fc2d562302e9708ded29275c700d8f81",
+        "packages/golden-ui/components/panels/dashboard/canvas/geometry.ts": "ed513741ed3b70d37eb17783e545689490f3e1b76179df25a0d2a1e248553794",
+        "packages/golden-ui/components/panels/dashboard/canvas/interaction-chrome.svelte.ts": "9208ca64408fb7326e698200758926e0bcaf1530278990cdcaa8efb70d7d34d4",
+        "packages/golden-ui/components/panels/dashboard/canvas/interaction-geometry.svelte.ts": "fb57c4553f65f3fbd56212c1d7d355d9a2df9f2e763f339ad49849c958ce0deb",
+        "packages/golden-ui/components/panels/dashboard/canvas/marquee.svelte.ts": "af7caade8363ec14d39e1c32ff6339f72633bec2aeabfe72fb6cc340460b665a",
+        "packages/golden-ui/components/panels/dashboard/canvas/ordered-layout.svelte.ts": "c62e82adbcea832c5bf9535df675ecc440469d215bbab3dc94a60933c559623c",
+        "packages/golden-ui/components/panels/dashboard/canvas/page-view.ts": "190011aa3367269977700c4713cdff05d2f4ef759452fe77e3fa54d9c3ccd465",
+        "packages/golden-ui/components/panels/dashboard/canvas/styles/content-preview.css": "619ccc41a8e8c8d6dfffea3dc75bd157060f1dae7ae495239a64b091ba690791",
+        "packages/golden-ui/components/panels/dashboard/canvas/styles/surface-layout.css": "5add64edbc4e497c55211ebab51afaefbf741e893b0f9e954585e8dad50e5744",
+        "packages/golden-ui/components/panels/dashboard/canvas/styles/widget-frame.css": "8d24718f9148048c34228250546cd3354f43a345f65cde946ec21c49c0f52585",
+        "packages/golden-ui/components/panels/dashboard/canvas/surface.svelte.ts": "88091cc69947c9404e86b1e43ff84ddfb2b42f9b7c32a5be9e0c21879ec0dfd0",
+        "packages/golden-ui/components/panels/dashboard/canvas/SurfaceContent.svelte": "a06ad5d3fa8414ca8afd48558e18497c79ca5c16237c1c0a7dd818b4e3f2274f",
+        "packages/golden-ui/components/panels/dashboard/canvas/tests/fixtures.ts": "626f1373e2433f81736cd071bb22e67782266f2baf4dd4a7e32a29a4859e3303",
+        "packages/golden-ui/components/panels/dashboard/canvas/tests/free-surface-geometry.test.ts": "789fb167436c538166bf2f9ea08a5ed3c889ba056f32d294fb8f75cf74204056",
+        "packages/golden-ui/components/panels/dashboard/canvas/view-context.ts": "68f9fe33461b20382deccbca7687cb8c0eb985e4ac6faa96b9b324035eea1f8c",
+        "packages/golden-ui/components/panels/dashboard/canvas/widget-content.svelte.ts": "97b744b7d701ffa7fb8d01dbab4d03524108ecc53eac4af7dc96cbddfbf1f554",
+        "packages/golden-ui/components/panels/dashboard/dashboard-actions.ts": "b17596e91ad8cd9b401b6424a01643fd9bbddf9069e4a1cbb598f8052aee8549",
+        "packages/golden-ui/components/panels/dashboard/dashboard-drag.ts": "9e2ae85e765b38a53f65138582521e299ae2f26ae2d47f79eade5a296f942a43",
+        "packages/golden-ui/components/panels/dashboard/dashboard-model.ts": "d7c0f3a3a9b89658ca767b14d5bf0a9f425979a76e61be9973e4a3bf959eb6be",
+        "packages/golden-ui/components/panels/dashboard/dashboard-node-widget-options.ts": "6955d5da8c29656e7dd6466ef7b6f32f4336412e0650cb2d23803975febb89b8",
+        "packages/golden-ui/components/panels/dashboard/dashboard-node-widget-registry.ts": "4785c142172d939a2f6bf76d31665610f0a5e523e99bb3b878c4d05162d5bf65",
+        "packages/golden-ui/components/panels/dashboard/dashboard-route.ts": "e93fea51ffd68aac521494b7486ecd0a57553c6eea44f608081c844282309944",
+        "packages/golden-ui/components/panels/dashboard/DashboardCanvas.svelte": "8aeb3d60da79c8ae6552fc0df9af6f6df9279c7bb3d9730b045477254a710342",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetInspectorContent.svelte": "e357664cd4dbba8b17ee6ee61184e7e4415c9e86d8d2325575eab3d631bf2ef6",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetNumberRotaryContent.svelte": "245da72f871f93b7e8d82b7b6e4f9d5d09ba8da310638c7bf1181fd2cb7b440d",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetNumberSliderContent.svelte": "0119c271e9c64a98dd72630325649e3f1f3c390787f5511475e66c010876b771",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetParameterEditorContent.svelte": "4848d3533614627fd6302d772f46ad2706e796e3c8df39a69828c6dfab7ca4ef",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetVec2PadContent.svelte": "ea70f0059bfd3af60746219234f8d80976469e681b88047575bee59e98f82ee8",
+        "packages/golden-ui/components/panels/dashboard/DashboardPanel.svelte": "dba2b304d23643a9bc92b137a1dfe07f38760123fe867a4a66f7bb2025d0fdc5",
+        "packages/golden-ui/components/panels/dashboard/DashboardViewer.svelte": "6cb0e0b37763964b5b09df01819c613ef073e94c1f6b13006824db3cea29370a",
+        "packages/golden-ui/tests/browser/fixture/dashboard-data.ts": "1bd134bb41df387967860572d61f97f3dd7ce2bfc0ec0621749c72d4c01a49de",
+        "packages/golden-ui/tests/browser/fixture/dashboard.html": "70bc3752b3e8beca950e542617e7cd3491f8871a1ca954b435d9522099ad34fd",
+        "packages/golden-ui/tests/browser/fixture/dashboard.ts": "4f8c93e78ef6e02957955e215bdfc0e9577385256fb8fcbc943e149ad06a3ef1",
+        "packages/golden-ui/tests/browser/fixture/DashboardFixture.svelte": "09d6a91c23e0502fe8164b4d8f3adef6296da49af6f7a45de8e9b8c2aa3a9cfe",
+        "packages/golden-ui/tests/browser/fixture/DashboardRegistryContent.svelte": "f783c801c15be591724b2f7522d3cba33fe2f34cfda424b86c82655ab5caf076",
+        "packages/golden-ui/tests/browser/fixture/session.ts": "2cf8ce14205c8f4994ff4500e68bc503e1cf1d61c4bc0ebd2d4c2103a224a2a1",
+        "packages/golden-ui/store/graph-index.ts": "70b413486e35b2fedbc84e519b8af7cf4120a3008693173b4e35f17789d9b38f",
+        "packages/golden-ui/tests/browser/dashboard-viewport.mjs": "9732966734f5b2afe4239531881766c855e00ea2893ad0988ea24d01f3de0131"
+      },
+      "cases": [
+        {
+          "label": "visible-preservation-run",
+          "mounted": 48,
+          "painted": 40,
+          "passed": true
+        },
+        {
+          "label": "visible-preservation-edit",
+          "mounted": 54,
+          "painted": 48,
+          "passed": true
+        }
+      ],
+      "tiers": [
+        {
+          "targetAuthoredNodes": 1000,
+          "authoredNodes": 1001,
+          "widgets": 90,
+          "readyMs": 18.114199999999983,
+          "initialMounted": 18,
+          "framed": {
+            "dx": 0.00048828125,
+            "dy": 0,
+            "boxes": [
+              {
+                "classes": "gc-dashboard-canvas dashboard-widget-shell dashboard-generic-widget selected editable-free",
+                "width": 917.9853515625,
+                "height": 382.494140625,
+                "top": 380.7529296875,
+                "blockSize": "80px",
+                "boxSizing": "border-box"
+              },
+              {
+                "classes": "dashboard-slot-fill",
+                "width": 917.9853515625,
+                "height": 382.494140625,
+                "top": 380.7529296875,
+                "blockSize": "80px",
+                "boxSizing": "content-box"
+              },
+              {
+                "classes": "dashboard-slot",
+                "width": 917.9853515625,
+                "height": 382.494140625,
+                "top": 380.7529296875,
+                "blockSize": "80px",
+                "boxSizing": "content-box"
+              }
+            ]
+          },
+          "passed": true
+        },
+        {
+          "targetAuthoredNodes": 10000,
+          "authoredNodes": 10010,
+          "widgets": 909,
+          "readyMs": 87.29179999999997,
+          "initialMounted": 54,
+          "framed": {
+            "dx": 0.0009765625,
+            "dy": 0.0009765625,
+            "boxes": [
+              {
+                "classes": "gc-dashboard-canvas dashboard-widget-shell dashboard-generic-widget selected editable-free",
+                "width": 917.986328125,
+                "height": 382.494140625,
+                "top": 380.75390625,
+                "blockSize": "80px",
+                "boxSizing": "border-box"
+              },
+              {
+                "classes": "dashboard-slot-fill",
+                "width": 917.986328125,
+                "height": 382.494140625,
+                "top": 380.75390625,
+                "blockSize": "80px",
+                "boxSizing": "content-box"
+              },
+              {
+                "classes": "dashboard-slot",
+                "width": 917.986328125,
+                "height": 382.494140625,
+                "top": 380.75390625,
+                "blockSize": "80px",
+                "boxSizing": "content-box"
+              }
+            ]
+          },
+          "passed": true
+        }
+      ],
+      "errors": [],
+      "assets": {
+        "baseline": {
+          "assets/dashboard-Bvz7ZBDT.css": "8d33a40ab122ccb4d92d0320e1a2ed9825c6df5efe8bcaf06085227d81a403c8",
+          "assets/dashboard-jp4jck1f.js": "9de10b80fd7ca3b55accb305a4cca5f3f761b695b646b66fc4dd283d2d6aa93d",
+          "dashboard.html": "97b29baa179a830cef227e5949a3e3ed537b97714f143b27cfd28dad28069d0c"
+        },
+        "current": {
+          "assets/dashboard-0WpGHeOZ.css": "2b567691dcf87dcf2d53e8dce45838cb882f5ab6dc570ff0a336c66b5aec8bc3",
+          "assets/dashboard-CM-VpTKE.js": "2e41ac05f4f62377f003d3e3af3cbd533d3643a0d867b58fab9b6ca93d1ba9cd",
+          "dashboard.html": "0bc5ef956b886581b3ada27361483c06b7ccd343381aad047c726c17ec0f786f"
+        }
+      },
+      "passed": false,
+      "failure": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\nfalse !== true\n"
+    },
+    {
+      "artifact": "p11-dashboard-viewport-2026-10-25T13-09-08-240Z.json",
+      "baseline": "654a5f15",
+      "browser": "156.0.4314.42",
+      "machine": {
+        "platform": "win32",
+        "release": "10.0.26300",
+        "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+        "logicalCpus": 24,
+        "memoryBytes": 33752997888,
+        "node": "v26.5.0"
+      },
+      "source": {
+        "packages/golden-ui/components/panels/dashboard/canvas/binding-drop.svelte.ts": "e339d4d4c6986f9b237f6e307d54bfadc2ef34ef4d8a165cde00a34c86fa6f78",
+        "packages/golden-ui/components/panels/dashboard/canvas/camera.svelte.ts": "f166a71240a6440eaedf01102578acabf472a92a21bdf40a766ecfaa56a795b5",
+        "packages/golden-ui/components/panels/dashboard/canvas/context-menu.svelte.ts": "5cb25f2e4313680066e372b64b4f1a3ab85681c42c937e446cf5bf9f38362e10",
+        "packages/golden-ui/components/panels/dashboard/canvas/contracts.ts": "7138259c5c9b6f1a7ff31fd883bf9c261bc5fd66be5d89fb2663199e4366803d",
+        "packages/golden-ui/components/panels/dashboard/canvas/dom.ts": "90a3a0bc2e933a6f11a5d47856d3671c9730d341d5679448a6d69ec2d79f1bae",
+        "packages/golden-ui/components/panels/dashboard/canvas/free-layout.svelte.ts": "8642cc5448df0e9368527f94a62ffcfd76dc96c1e0102e7f352b0d4a333535e7",
+        "packages/golden-ui/components/panels/dashboard/canvas/free-surface-geometry.ts": "5b3d6167444bd6429bda3f25ef9d9b49aa9a4cbf5f22292a45759655272aeb18",
+        "packages/golden-ui/components/panels/dashboard/canvas/free-surface-viewport.svelte.ts": "a1e5714c8848bd653871f743310f78d9632f813acde7d49b60529ba2b67c3d7e",
+        "packages/golden-ui/components/panels/dashboard/canvas/geometry.ts": "ed513741ed3b70d37eb17783e545689490f3e1b76179df25a0d2a1e248553794",
+        "packages/golden-ui/components/panels/dashboard/canvas/interaction-chrome.svelte.ts": "9208ca64408fb7326e698200758926e0bcaf1530278990cdcaa8efb70d7d34d4",
+        "packages/golden-ui/components/panels/dashboard/canvas/interaction-geometry.svelte.ts": "fb57c4553f65f3fbd56212c1d7d355d9a2df9f2e763f339ad49849c958ce0deb",
+        "packages/golden-ui/components/panels/dashboard/canvas/marquee.svelte.ts": "af7caade8363ec14d39e1c32ff6339f72633bec2aeabfe72fb6cc340460b665a",
+        "packages/golden-ui/components/panels/dashboard/canvas/ordered-layout.svelte.ts": "c62e82adbcea832c5bf9535df675ecc440469d215bbab3dc94a60933c559623c",
+        "packages/golden-ui/components/panels/dashboard/canvas/page-view.ts": "190011aa3367269977700c4713cdff05d2f4ef759452fe77e3fa54d9c3ccd465",
+        "packages/golden-ui/components/panels/dashboard/canvas/styles/content-preview.css": "619ccc41a8e8c8d6dfffea3dc75bd157060f1dae7ae495239a64b091ba690791",
+        "packages/golden-ui/components/panels/dashboard/canvas/styles/surface-layout.css": "5add64edbc4e497c55211ebab51afaefbf741e893b0f9e954585e8dad50e5744",
+        "packages/golden-ui/components/panels/dashboard/canvas/styles/widget-frame.css": "8d24718f9148048c34228250546cd3354f43a345f65cde946ec21c49c0f52585",
+        "packages/golden-ui/components/panels/dashboard/canvas/surface.svelte.ts": "88091cc69947c9404e86b1e43ff84ddfb2b42f9b7c32a5be9e0c21879ec0dfd0",
+        "packages/golden-ui/components/panels/dashboard/canvas/SurfaceContent.svelte": "a06ad5d3fa8414ca8afd48558e18497c79ca5c16237c1c0a7dd818b4e3f2274f",
+        "packages/golden-ui/components/panels/dashboard/canvas/tests/fixtures.ts": "626f1373e2433f81736cd071bb22e67782266f2baf4dd4a7e32a29a4859e3303",
+        "packages/golden-ui/components/panels/dashboard/canvas/tests/free-surface-geometry.test.ts": "789fb167436c538166bf2f9ea08a5ed3c889ba056f32d294fb8f75cf74204056",
+        "packages/golden-ui/components/panels/dashboard/canvas/view-context.ts": "68f9fe33461b20382deccbca7687cb8c0eb985e4ac6faa96b9b324035eea1f8c",
+        "packages/golden-ui/components/panels/dashboard/canvas/widget-content.svelte.ts": "97b744b7d701ffa7fb8d01dbab4d03524108ecc53eac4af7dc96cbddfbf1f554",
+        "packages/golden-ui/components/panels/dashboard/dashboard-actions.ts": "b17596e91ad8cd9b401b6424a01643fd9bbddf9069e4a1cbb598f8052aee8549",
+        "packages/golden-ui/components/panels/dashboard/dashboard-drag.ts": "9e2ae85e765b38a53f65138582521e299ae2f26ae2d47f79eade5a296f942a43",
+        "packages/golden-ui/components/panels/dashboard/dashboard-model.ts": "d7c0f3a3a9b89658ca767b14d5bf0a9f425979a76e61be9973e4a3bf959eb6be",
+        "packages/golden-ui/components/panels/dashboard/dashboard-node-widget-options.ts": "6955d5da8c29656e7dd6466ef7b6f32f4336412e0650cb2d23803975febb89b8",
+        "packages/golden-ui/components/panels/dashboard/dashboard-node-widget-registry.ts": "4785c142172d939a2f6bf76d31665610f0a5e523e99bb3b878c4d05162d5bf65",
+        "packages/golden-ui/components/panels/dashboard/dashboard-route.ts": "e93fea51ffd68aac521494b7486ecd0a57553c6eea44f608081c844282309944",
+        "packages/golden-ui/components/panels/dashboard/DashboardCanvas.svelte": "8aeb3d60da79c8ae6552fc0df9af6f6df9279c7bb3d9730b045477254a710342",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetInspectorContent.svelte": "e357664cd4dbba8b17ee6ee61184e7e4415c9e86d8d2325575eab3d631bf2ef6",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetNumberRotaryContent.svelte": "245da72f871f93b7e8d82b7b6e4f9d5d09ba8da310638c7bf1181fd2cb7b440d",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetNumberSliderContent.svelte": "0119c271e9c64a98dd72630325649e3f1f3c390787f5511475e66c010876b771",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetParameterEditorContent.svelte": "4848d3533614627fd6302d772f46ad2706e796e3c8df39a69828c6dfab7ca4ef",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetVec2PadContent.svelte": "ea70f0059bfd3af60746219234f8d80976469e681b88047575bee59e98f82ee8",
+        "packages/golden-ui/components/panels/dashboard/DashboardPanel.svelte": "dba2b304d23643a9bc92b137a1dfe07f38760123fe867a4a66f7bb2025d0fdc5",
+        "packages/golden-ui/components/panels/dashboard/DashboardViewer.svelte": "6cb0e0b37763964b5b09df01819c613ef073e94c1f6b13006824db3cea29370a",
+        "packages/golden-ui/tests/browser/fixture/dashboard-data.ts": "1bd134bb41df387967860572d61f97f3dd7ce2bfc0ec0621749c72d4c01a49de",
+        "packages/golden-ui/tests/browser/fixture/dashboard.html": "70bc3752b3e8beca950e542617e7cd3491f8871a1ca954b435d9522099ad34fd",
+        "packages/golden-ui/tests/browser/fixture/dashboard.ts": "4f8c93e78ef6e02957955e215bdfc0e9577385256fb8fcbc943e149ad06a3ef1",
+        "packages/golden-ui/tests/browser/fixture/DashboardFixture.svelte": "09d6a91c23e0502fe8164b4d8f3adef6296da49af6f7a45de8e9b8c2aa3a9cfe",
+        "packages/golden-ui/tests/browser/fixture/DashboardRegistryContent.svelte": "f783c801c15be591724b2f7522d3cba33fe2f34cfda424b86c82655ab5caf076",
+        "packages/golden-ui/tests/browser/fixture/session.ts": "2cf8ce14205c8f4994ff4500e68bc503e1cf1d61c4bc0ebd2d4c2103a224a2a1",
+        "packages/golden-ui/store/graph-index.ts": "70b413486e35b2fedbc84e519b8af7cf4120a3008693173b4e35f17789d9b38f",
+        "packages/golden-ui/tests/browser/dashboard-viewport.mjs": "9732966734f5b2afe4239531881766c855e00ea2893ad0988ea24d01f3de0131"
+      },
+      "cases": [
+        {
+          "label": "visible-preservation-run",
+          "mounted": 48,
+          "painted": 40,
+          "passed": true
+        },
+        {
+          "label": "visible-preservation-edit",
+          "mounted": 54,
+          "painted": 48,
+          "passed": true
+        },
+        {
+          "label": "focused-control-retention-and-root-font",
+          "passed": true
+        }
+      ],
+      "tiers": [
+        {
+          "targetAuthoredNodes": 1000,
+          "authoredNodes": 1001,
+          "widgets": 90,
+          "readyMs": 24.153000000000247,
+          "initialMounted": 18,
+          "framed": {
+            "dx": 0.00048828125,
+            "dy": 0,
+            "boxes": [
+              {
+                "classes": "gc-dashboard-canvas dashboard-widget-shell dashboard-generic-widget selected editable-free",
+                "width": 917.9853515625,
+                "height": 382.494140625,
+                "top": 380.7529296875,
+                "blockSize": "80px",
+                "boxSizing": "border-box"
+              },
+              {
+                "classes": "dashboard-slot-fill",
+                "width": 917.9853515625,
+                "height": 382.494140625,
+                "top": 380.7529296875,
+                "blockSize": "80px",
+                "boxSizing": "content-box"
+              },
+              {
+                "classes": "dashboard-slot",
+                "width": 917.9853515625,
+                "height": 382.494140625,
+                "top": 380.7529296875,
+                "blockSize": "80px",
+                "boxSizing": "content-box"
+              }
+            ]
+          },
+          "passed": true
+        },
+        {
+          "targetAuthoredNodes": 10000,
+          "authoredNodes": 10010,
+          "widgets": 909,
+          "readyMs": 117.89559999999983,
+          "initialMounted": 54,
+          "framed": {
+            "dx": 0.0009765625,
+            "dy": 0.0009765625,
+            "boxes": [
+              {
+                "classes": "gc-dashboard-canvas dashboard-widget-shell dashboard-generic-widget selected editable-free",
+                "width": 917.986328125,
+                "height": 382.494140625,
+                "top": 380.75390625,
+                "blockSize": "80px",
+                "boxSizing": "border-box"
+              },
+              {
+                "classes": "dashboard-slot-fill",
+                "width": 917.986328125,
+                "height": 382.494140625,
+                "top": 380.75390625,
+                "blockSize": "80px",
+                "boxSizing": "content-box"
+              },
+              {
+                "classes": "dashboard-slot",
+                "width": 917.986328125,
+                "height": 382.494140625,
+                "top": 380.75390625,
+                "blockSize": "80px",
+                "boxSizing": "content-box"
+              }
+            ]
+          },
+          "passed": true
+        }
+      ],
+      "errors": [],
+      "assets": {
+        "baseline": {
+          "assets/dashboard-Bvz7ZBDT.css": "8d33a40ab122ccb4d92d0320e1a2ed9825c6df5efe8bcaf06085227d81a403c8",
+          "assets/dashboard-jp4jck1f.js": "9de10b80fd7ca3b55accb305a4cca5f3f761b695b646b66fc4dd283d2d6aa93d",
+          "dashboard.html": "97b29baa179a830cef227e5949a3e3ed537b97714f143b27cfd28dad28069d0c"
+        },
+        "current": {
+          "assets/dashboard-0WpGHeOZ.css": "2b567691dcf87dcf2d53e8dce45838cb882f5ab6dc570ff0a336c66b5aec8bc3",
+          "assets/dashboard-BfSKmbbg.js": "3aff0e172b96bbe22cbde2f516da811bb3de25f28eca063836c223528d79d3d1",
+          "dashboard.html": "32ff651bb3c74d9d48de88218985fedfc4e0da15341c25025fe5474f731909f6"
+        }
+      },
+      "passed": false,
+      "failure": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\nfalse !== true\n"
+    },
+    {
+      "artifact": "p11-dashboard-viewport-2026-10-25T13-10-36-082Z.json",
+      "baseline": "654a5f15",
+      "browser": "156.0.4314.42",
+      "machine": {
+        "platform": "win32",
+        "release": "10.0.26300",
+        "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+        "logicalCpus": 24,
+        "memoryBytes": 33752997888,
+        "node": "v26.5.0"
+      },
+      "source": {
+        "packages/golden-ui/components/panels/dashboard/canvas/binding-drop.svelte.ts": "e339d4d4c6986f9b237f6e307d54bfadc2ef34ef4d8a165cde00a34c86fa6f78",
+        "packages/golden-ui/components/panels/dashboard/canvas/camera.svelte.ts": "f166a71240a6440eaedf01102578acabf472a92a21bdf40a766ecfaa56a795b5",
+        "packages/golden-ui/components/panels/dashboard/canvas/context-menu.svelte.ts": "5cb25f2e4313680066e372b64b4f1a3ab85681c42c937e446cf5bf9f38362e10",
+        "packages/golden-ui/components/panels/dashboard/canvas/contracts.ts": "7138259c5c9b6f1a7ff31fd883bf9c261bc5fd66be5d89fb2663199e4366803d",
+        "packages/golden-ui/components/panels/dashboard/canvas/dom.ts": "90a3a0bc2e933a6f11a5d47856d3671c9730d341d5679448a6d69ec2d79f1bae",
+        "packages/golden-ui/components/panels/dashboard/canvas/free-layout.svelte.ts": "8642cc5448df0e9368527f94a62ffcfd76dc96c1e0102e7f352b0d4a333535e7",
+        "packages/golden-ui/components/panels/dashboard/canvas/free-surface-geometry.ts": "216df0b7c0d6a35a034534f15b3e2779fbe9abb91730d0b11fc47a0a4bbeacd5",
+        "packages/golden-ui/components/panels/dashboard/canvas/free-surface-viewport.svelte.ts": "9d0dd7937a275ba48cd6a937476c3d1ea2c152fce945e499cedcede832cbe121",
+        "packages/golden-ui/components/panels/dashboard/canvas/geometry.ts": "ed513741ed3b70d37eb17783e545689490f3e1b76179df25a0d2a1e248553794",
+        "packages/golden-ui/components/panels/dashboard/canvas/interaction-chrome.svelte.ts": "9208ca64408fb7326e698200758926e0bcaf1530278990cdcaa8efb70d7d34d4",
+        "packages/golden-ui/components/panels/dashboard/canvas/interaction-geometry.svelte.ts": "fb57c4553f65f3fbd56212c1d7d355d9a2df9f2e763f339ad49849c958ce0deb",
+        "packages/golden-ui/components/panels/dashboard/canvas/marquee.svelte.ts": "af7caade8363ec14d39e1c32ff6339f72633bec2aeabfe72fb6cc340460b665a",
+        "packages/golden-ui/components/panels/dashboard/canvas/ordered-layout.svelte.ts": "c62e82adbcea832c5bf9535df675ecc440469d215bbab3dc94a60933c559623c",
+        "packages/golden-ui/components/panels/dashboard/canvas/page-view.ts": "190011aa3367269977700c4713cdff05d2f4ef759452fe77e3fa54d9c3ccd465",
+        "packages/golden-ui/components/panels/dashboard/canvas/styles/content-preview.css": "619ccc41a8e8c8d6dfffea3dc75bd157060f1dae7ae495239a64b091ba690791",
+        "packages/golden-ui/components/panels/dashboard/canvas/styles/surface-layout.css": "5add64edbc4e497c55211ebab51afaefbf741e893b0f9e954585e8dad50e5744",
+        "packages/golden-ui/components/panels/dashboard/canvas/styles/widget-frame.css": "8d24718f9148048c34228250546cd3354f43a345f65cde946ec21c49c0f52585",
+        "packages/golden-ui/components/panels/dashboard/canvas/surface.svelte.ts": "88091cc69947c9404e86b1e43ff84ddfb2b42f9b7c32a5be9e0c21879ec0dfd0",
+        "packages/golden-ui/components/panels/dashboard/canvas/SurfaceContent.svelte": "a06ad5d3fa8414ca8afd48558e18497c79ca5c16237c1c0a7dd818b4e3f2274f",
+        "packages/golden-ui/components/panels/dashboard/canvas/tests/fixtures.ts": "626f1373e2433f81736cd071bb22e67782266f2baf4dd4a7e32a29a4859e3303",
+        "packages/golden-ui/components/panels/dashboard/canvas/tests/free-surface-geometry.test.ts": "789fb167436c538166bf2f9ea08a5ed3c889ba056f32d294fb8f75cf74204056",
+        "packages/golden-ui/components/panels/dashboard/canvas/view-context.ts": "68f9fe33461b20382deccbca7687cb8c0eb985e4ac6faa96b9b324035eea1f8c",
+        "packages/golden-ui/components/panels/dashboard/canvas/widget-content.svelte.ts": "97b744b7d701ffa7fb8d01dbab4d03524108ecc53eac4af7dc96cbddfbf1f554",
+        "packages/golden-ui/components/panels/dashboard/dashboard-actions.ts": "b17596e91ad8cd9b401b6424a01643fd9bbddf9069e4a1cbb598f8052aee8549",
+        "packages/golden-ui/components/panels/dashboard/dashboard-drag.ts": "9e2ae85e765b38a53f65138582521e299ae2f26ae2d47f79eade5a296f942a43",
+        "packages/golden-ui/components/panels/dashboard/dashboard-model.ts": "d7c0f3a3a9b89658ca767b14d5bf0a9f425979a76e61be9973e4a3bf959eb6be",
+        "packages/golden-ui/components/panels/dashboard/dashboard-node-widget-options.ts": "6955d5da8c29656e7dd6466ef7b6f32f4336412e0650cb2d23803975febb89b8",
+        "packages/golden-ui/components/panels/dashboard/dashboard-node-widget-registry.ts": "4785c142172d939a2f6bf76d31665610f0a5e523e99bb3b878c4d05162d5bf65",
+        "packages/golden-ui/components/panels/dashboard/dashboard-route.ts": "e93fea51ffd68aac521494b7486ecd0a57553c6eea44f608081c844282309944",
+        "packages/golden-ui/components/panels/dashboard/DashboardCanvas.svelte": "8aeb3d60da79c8ae6552fc0df9af6f6df9279c7bb3d9730b045477254a710342",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetInspectorContent.svelte": "e357664cd4dbba8b17ee6ee61184e7e4415c9e86d8d2325575eab3d631bf2ef6",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetNumberRotaryContent.svelte": "245da72f871f93b7e8d82b7b6e4f9d5d09ba8da310638c7bf1181fd2cb7b440d",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetNumberSliderContent.svelte": "0119c271e9c64a98dd72630325649e3f1f3c390787f5511475e66c010876b771",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetParameterEditorContent.svelte": "4848d3533614627fd6302d772f46ad2706e796e3c8df39a69828c6dfab7ca4ef",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetVec2PadContent.svelte": "ea70f0059bfd3af60746219234f8d80976469e681b88047575bee59e98f82ee8",
+        "packages/golden-ui/components/panels/dashboard/DashboardPanel.svelte": "dba2b304d23643a9bc92b137a1dfe07f38760123fe867a4a66f7bb2025d0fdc5",
+        "packages/golden-ui/components/panels/dashboard/DashboardViewer.svelte": "6cb0e0b37763964b5b09df01819c613ef073e94c1f6b13006824db3cea29370a",
+        "packages/golden-ui/tests/browser/fixture/dashboard-data.ts": "1bd134bb41df387967860572d61f97f3dd7ce2bfc0ec0621749c72d4c01a49de",
+        "packages/golden-ui/tests/browser/fixture/dashboard.html": "70bc3752b3e8beca950e542617e7cd3491f8871a1ca954b435d9522099ad34fd",
+        "packages/golden-ui/tests/browser/fixture/dashboard.ts": "4f8c93e78ef6e02957955e215bdfc0e9577385256fb8fcbc943e149ad06a3ef1",
+        "packages/golden-ui/tests/browser/fixture/DashboardFixture.svelte": "09d6a91c23e0502fe8164b4d8f3adef6296da49af6f7a45de8e9b8c2aa3a9cfe",
+        "packages/golden-ui/tests/browser/fixture/DashboardRegistryContent.svelte": "f783c801c15be591724b2f7522d3cba33fe2f34cfda424b86c82655ab5caf076",
+        "packages/golden-ui/tests/browser/fixture/session.ts": "2cf8ce14205c8f4994ff4500e68bc503e1cf1d61c4bc0ebd2d4c2103a224a2a1",
+        "packages/golden-ui/store/graph-index.ts": "70b413486e35b2fedbc84e519b8af7cf4120a3008693173b4e35f17789d9b38f",
+        "packages/golden-ui/tests/browser/dashboard-viewport.mjs": "9732966734f5b2afe4239531881766c855e00ea2893ad0988ea24d01f3de0131"
+      },
+      "cases": [
+        {
+          "label": "visible-preservation-run",
+          "mounted": 48,
+          "painted": 40,
+          "passed": true
+        },
+        {
+          "label": "visible-preservation-edit",
+          "mounted": 54,
+          "painted": 48,
+          "passed": true
+        },
+        {
+          "label": "focused-control-retention-and-root-font",
+          "passed": true
+        }
+      ],
+      "tiers": [
+        {
+          "targetAuthoredNodes": 1000,
+          "authoredNodes": 1001,
+          "widgets": 90,
+          "readyMs": 22.997600000000602,
+          "initialMounted": 18,
+          "framed": {
+            "dx": 0.00048828125,
+            "dy": 0,
+            "boxes": [
+              {
+                "classes": "gc-dashboard-canvas dashboard-widget-shell dashboard-generic-widget selected editable-free",
+                "width": 917.9853515625,
+                "height": 382.494140625,
+                "top": 380.7529296875,
+                "blockSize": "80px",
+                "boxSizing": "border-box"
+              },
+              {
+                "classes": "dashboard-slot-fill",
+                "width": 917.9853515625,
+                "height": 382.494140625,
+                "top": 380.7529296875,
+                "blockSize": "80px",
+                "boxSizing": "content-box"
+              },
+              {
+                "classes": "dashboard-slot",
+                "width": 917.9853515625,
+                "height": 382.494140625,
+                "top": 380.7529296875,
+                "blockSize": "80px",
+                "boxSizing": "content-box"
+              }
+            ]
+          },
+          "passed": true
+        },
+        {
+          "targetAuthoredNodes": 10000,
+          "authoredNodes": 10010,
+          "widgets": 909,
+          "readyMs": 113.72589999999946,
+          "initialMounted": 54,
+          "framed": {
+            "dx": 0.0009765625,
+            "dy": 0.0009765625,
+            "boxes": [
+              {
+                "classes": "gc-dashboard-canvas dashboard-widget-shell dashboard-generic-widget selected editable-free",
+                "width": 917.986328125,
+                "height": 382.494140625,
+                "top": 380.75390625,
+                "blockSize": "80px",
+                "boxSizing": "border-box"
+              },
+              {
+                "classes": "dashboard-slot-fill",
+                "width": 917.986328125,
+                "height": 382.494140625,
+                "top": 380.75390625,
+                "blockSize": "80px",
+                "boxSizing": "content-box"
+              },
+              {
+                "classes": "dashboard-slot",
+                "width": 917.986328125,
+                "height": 382.494140625,
+                "top": 380.75390625,
+                "blockSize": "80px",
+                "boxSizing": "content-box"
+              }
+            ]
+          },
+          "passed": true
+        }
+      ],
+      "errors": [],
+      "assets": {
+        "baseline": {
+          "assets/dashboard-Bvz7ZBDT.css": "8d33a40ab122ccb4d92d0320e1a2ed9825c6df5efe8bcaf06085227d81a403c8",
+          "assets/dashboard-jp4jck1f.js": "9de10b80fd7ca3b55accb305a4cca5f3f761b695b646b66fc4dd283d2d6aa93d",
+          "dashboard.html": "97b29baa179a830cef227e5949a3e3ed537b97714f143b27cfd28dad28069d0c"
+        },
+        "current": {
+          "assets/dashboard-0WpGHeOZ.css": "2b567691dcf87dcf2d53e8dce45838cb882f5ab6dc570ff0a336c66b5aec8bc3",
+          "assets/dashboard-d-dk55eY.js": "93d2fe5cf521f4f4ebae1a586b5d54051d642dc5b1051eb5fc20bc0ff5ac621b",
+          "dashboard.html": "2546c0177e0174aa38627102d38336ea893080eaea0fc27f522c143c522e34a4"
+        }
+      },
+      "passed": false,
+      "failure": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\nfalse !== true\n"
+    },
+    {
+      "artifact": "p11-dashboard-viewport-2026-10-25T13-11-50-407Z.json",
+      "baseline": "654a5f15",
+      "browser": "156.0.4314.42",
+      "machine": {
+        "platform": "win32",
+        "release": "10.0.26300",
+        "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+        "logicalCpus": 24,
+        "memoryBytes": 33752997888,
+        "node": "v26.5.0"
+      },
+      "source": {
+        "packages/golden-ui/components/panels/dashboard/canvas/binding-drop.svelte.ts": "e339d4d4c6986f9b237f6e307d54bfadc2ef34ef4d8a165cde00a34c86fa6f78",
+        "packages/golden-ui/components/panels/dashboard/canvas/camera.svelte.ts": "f166a71240a6440eaedf01102578acabf472a92a21bdf40a766ecfaa56a795b5",
+        "packages/golden-ui/components/panels/dashboard/canvas/context-menu.svelte.ts": "5cb25f2e4313680066e372b64b4f1a3ab85681c42c937e446cf5bf9f38362e10",
+        "packages/golden-ui/components/panels/dashboard/canvas/contracts.ts": "7138259c5c9b6f1a7ff31fd883bf9c261bc5fd66be5d89fb2663199e4366803d",
+        "packages/golden-ui/components/panels/dashboard/canvas/dom.ts": "90a3a0bc2e933a6f11a5d47856d3671c9730d341d5679448a6d69ec2d79f1bae",
+        "packages/golden-ui/components/panels/dashboard/canvas/free-layout.svelte.ts": "8642cc5448df0e9368527f94a62ffcfd76dc96c1e0102e7f352b0d4a333535e7",
+        "packages/golden-ui/components/panels/dashboard/canvas/free-surface-geometry.ts": "216df0b7c0d6a35a034534f15b3e2779fbe9abb91730d0b11fc47a0a4bbeacd5",
+        "packages/golden-ui/components/panels/dashboard/canvas/free-surface-viewport.svelte.ts": "7d4a0bb123dae329a1c7194d0bff3b0b76c30d3c85dc4b94967090bf30284bdd",
+        "packages/golden-ui/components/panels/dashboard/canvas/geometry.ts": "ed513741ed3b70d37eb17783e545689490f3e1b76179df25a0d2a1e248553794",
+        "packages/golden-ui/components/panels/dashboard/canvas/interaction-chrome.svelte.ts": "9208ca64408fb7326e698200758926e0bcaf1530278990cdcaa8efb70d7d34d4",
+        "packages/golden-ui/components/panels/dashboard/canvas/interaction-geometry.svelte.ts": "fb57c4553f65f3fbd56212c1d7d355d9a2df9f2e763f339ad49849c958ce0deb",
+        "packages/golden-ui/components/panels/dashboard/canvas/marquee.svelte.ts": "af7caade8363ec14d39e1c32ff6339f72633bec2aeabfe72fb6cc340460b665a",
+        "packages/golden-ui/components/panels/dashboard/canvas/ordered-layout.svelte.ts": "c62e82adbcea832c5bf9535df675ecc440469d215bbab3dc94a60933c559623c",
+        "packages/golden-ui/components/panels/dashboard/canvas/page-view.ts": "190011aa3367269977700c4713cdff05d2f4ef759452fe77e3fa54d9c3ccd465",
+        "packages/golden-ui/components/panels/dashboard/canvas/styles/content-preview.css": "619ccc41a8e8c8d6dfffea3dc75bd157060f1dae7ae495239a64b091ba690791",
+        "packages/golden-ui/components/panels/dashboard/canvas/styles/surface-layout.css": "5add64edbc4e497c55211ebab51afaefbf741e893b0f9e954585e8dad50e5744",
+        "packages/golden-ui/components/panels/dashboard/canvas/styles/widget-frame.css": "8d24718f9148048c34228250546cd3354f43a345f65cde946ec21c49c0f52585",
+        "packages/golden-ui/components/panels/dashboard/canvas/surface.svelte.ts": "88091cc69947c9404e86b1e43ff84ddfb2b42f9b7c32a5be9e0c21879ec0dfd0",
+        "packages/golden-ui/components/panels/dashboard/canvas/SurfaceContent.svelte": "a06ad5d3fa8414ca8afd48558e18497c79ca5c16237c1c0a7dd818b4e3f2274f",
+        "packages/golden-ui/components/panels/dashboard/canvas/tests/fixtures.ts": "626f1373e2433f81736cd071bb22e67782266f2baf4dd4a7e32a29a4859e3303",
+        "packages/golden-ui/components/panels/dashboard/canvas/tests/free-surface-geometry.test.ts": "789fb167436c538166bf2f9ea08a5ed3c889ba056f32d294fb8f75cf74204056",
+        "packages/golden-ui/components/panels/dashboard/canvas/view-context.ts": "68f9fe33461b20382deccbca7687cb8c0eb985e4ac6faa96b9b324035eea1f8c",
+        "packages/golden-ui/components/panels/dashboard/canvas/widget-content.svelte.ts": "97b744b7d701ffa7fb8d01dbab4d03524108ecc53eac4af7dc96cbddfbf1f554",
+        "packages/golden-ui/components/panels/dashboard/dashboard-actions.ts": "b17596e91ad8cd9b401b6424a01643fd9bbddf9069e4a1cbb598f8052aee8549",
+        "packages/golden-ui/components/panels/dashboard/dashboard-drag.ts": "9e2ae85e765b38a53f65138582521e299ae2f26ae2d47f79eade5a296f942a43",
+        "packages/golden-ui/components/panels/dashboard/dashboard-model.ts": "d7c0f3a3a9b89658ca767b14d5bf0a9f425979a76e61be9973e4a3bf959eb6be",
+        "packages/golden-ui/components/panels/dashboard/dashboard-node-widget-options.ts": "6955d5da8c29656e7dd6466ef7b6f32f4336412e0650cb2d23803975febb89b8",
+        "packages/golden-ui/components/panels/dashboard/dashboard-node-widget-registry.ts": "4785c142172d939a2f6bf76d31665610f0a5e523e99bb3b878c4d05162d5bf65",
+        "packages/golden-ui/components/panels/dashboard/dashboard-route.ts": "e93fea51ffd68aac521494b7486ecd0a57553c6eea44f608081c844282309944",
+        "packages/golden-ui/components/panels/dashboard/DashboardCanvas.svelte": "8aeb3d60da79c8ae6552fc0df9af6f6df9279c7bb3d9730b045477254a710342",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetInspectorContent.svelte": "e357664cd4dbba8b17ee6ee61184e7e4415c9e86d8d2325575eab3d631bf2ef6",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetNumberRotaryContent.svelte": "245da72f871f93b7e8d82b7b6e4f9d5d09ba8da310638c7bf1181fd2cb7b440d",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetNumberSliderContent.svelte": "0119c271e9c64a98dd72630325649e3f1f3c390787f5511475e66c010876b771",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetParameterEditorContent.svelte": "4848d3533614627fd6302d772f46ad2706e796e3c8df39a69828c6dfab7ca4ef",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetVec2PadContent.svelte": "ea70f0059bfd3af60746219234f8d80976469e681b88047575bee59e98f82ee8",
+        "packages/golden-ui/components/panels/dashboard/DashboardPanel.svelte": "dba2b304d23643a9bc92b137a1dfe07f38760123fe867a4a66f7bb2025d0fdc5",
+        "packages/golden-ui/components/panels/dashboard/DashboardViewer.svelte": "6cb0e0b37763964b5b09df01819c613ef073e94c1f6b13006824db3cea29370a",
+        "packages/golden-ui/tests/browser/fixture/dashboard-data.ts": "1bd134bb41df387967860572d61f97f3dd7ce2bfc0ec0621749c72d4c01a49de",
+        "packages/golden-ui/tests/browser/fixture/dashboard.html": "70bc3752b3e8beca950e542617e7cd3491f8871a1ca954b435d9522099ad34fd",
+        "packages/golden-ui/tests/browser/fixture/dashboard.ts": "4f8c93e78ef6e02957955e215bdfc0e9577385256fb8fcbc943e149ad06a3ef1",
+        "packages/golden-ui/tests/browser/fixture/DashboardFixture.svelte": "09d6a91c23e0502fe8164b4d8f3adef6296da49af6f7a45de8e9b8c2aa3a9cfe",
+        "packages/golden-ui/tests/browser/fixture/DashboardRegistryContent.svelte": "f783c801c15be591724b2f7522d3cba33fe2f34cfda424b86c82655ab5caf076",
+        "packages/golden-ui/tests/browser/fixture/session.ts": "2cf8ce14205c8f4994ff4500e68bc503e1cf1d61c4bc0ebd2d4c2103a224a2a1",
+        "packages/golden-ui/store/graph-index.ts": "70b413486e35b2fedbc84e519b8af7cf4120a3008693173b4e35f17789d9b38f",
+        "packages/golden-ui/tests/browser/dashboard-viewport.mjs": "9732966734f5b2afe4239531881766c855e00ea2893ad0988ea24d01f3de0131"
+      },
+      "cases": [
+        {
+          "label": "visible-preservation-run",
+          "mounted": 48,
+          "painted": 40,
+          "passed": true
+        },
+        {
+          "label": "visible-preservation-edit",
+          "mounted": 54,
+          "painted": 48,
+          "passed": true
+        },
+        {
+          "label": "focused-control-retention-and-root-font",
+          "passed": true
+        }
+      ],
+      "tiers": [
+        {
+          "targetAuthoredNodes": 1000,
+          "authoredNodes": 1001,
+          "widgets": 90,
+          "readyMs": 25.15520000000015,
+          "initialMounted": 18,
+          "framed": {
+            "dx": 0.00048828125,
+            "dy": 0,
+            "boxes": [
+              {
+                "classes": "gc-dashboard-canvas dashboard-widget-shell dashboard-generic-widget selected editable-free",
+                "width": 917.9853515625,
+                "height": 382.494140625,
+                "top": 380.7529296875,
+                "blockSize": "80px",
+                "boxSizing": "border-box"
+              },
+              {
+                "classes": "dashboard-slot-fill",
+                "width": 917.9853515625,
+                "height": 382.494140625,
+                "top": 380.7529296875,
+                "blockSize": "80px",
+                "boxSizing": "content-box"
+              },
+              {
+                "classes": "dashboard-slot",
+                "width": 917.9853515625,
+                "height": 382.494140625,
+                "top": 380.7529296875,
+                "blockSize": "80px",
+                "boxSizing": "content-box"
+              }
+            ]
+          },
+          "passed": true
+        },
+        {
+          "targetAuthoredNodes": 10000,
+          "authoredNodes": 10010,
+          "widgets": 909,
+          "readyMs": 99.78560000000016,
+          "initialMounted": 54,
+          "framed": {
+            "dx": 0.0009765625,
+            "dy": 0.0009765625,
+            "boxes": [
+              {
+                "classes": "gc-dashboard-canvas dashboard-widget-shell dashboard-generic-widget selected editable-free",
+                "width": 917.986328125,
+                "height": 382.494140625,
+                "top": 380.75390625,
+                "blockSize": "80px",
+                "boxSizing": "border-box"
+              },
+              {
+                "classes": "dashboard-slot-fill",
+                "width": 917.986328125,
+                "height": 382.494140625,
+                "top": 380.75390625,
+                "blockSize": "80px",
+                "boxSizing": "content-box"
+              },
+              {
+                "classes": "dashboard-slot",
+                "width": 917.986328125,
+                "height": 382.494140625,
+                "top": 380.75390625,
+                "blockSize": "80px",
+                "boxSizing": "content-box"
+              }
+            ]
+          },
+          "passed": true
+        }
+      ],
+      "errors": [],
+      "assets": {
+        "baseline": {
+          "assets/dashboard-Bvz7ZBDT.css": "8d33a40ab122ccb4d92d0320e1a2ed9825c6df5efe8bcaf06085227d81a403c8",
+          "assets/dashboard-jp4jck1f.js": "9de10b80fd7ca3b55accb305a4cca5f3f761b695b646b66fc4dd283d2d6aa93d",
+          "dashboard.html": "97b29baa179a830cef227e5949a3e3ed537b97714f143b27cfd28dad28069d0c"
+        },
+        "current": {
+          "assets/dashboard-0WpGHeOZ.css": "2b567691dcf87dcf2d53e8dce45838cb882f5ab6dc570ff0a336c66b5aec8bc3",
+          "assets/dashboard-DJvU37cS.js": "a743a05694e1837e2d765958b25b1bdcdd4febe7239bd8f8a70d12ae87ed82a0",
+          "dashboard.html": "9aa22449176a640a66eb3a79e0f62dcbdfc2dd2ca4f7ff2972640e89ea9a2914"
+        }
+      },
+      "passed": false,
+      "failure": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\nfalse !== true\n"
+    },
+    {
+      "artifact": "p11-dashboard-viewport-2026-10-25T13-12-16-242Z.json",
+      "baseline": "654a5f15",
+      "browser": "156.0.4314.42",
+      "machine": {
+        "platform": "win32",
+        "release": "10.0.26300",
+        "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+        "logicalCpus": 24,
+        "memoryBytes": 33752997888,
+        "node": "v26.5.0"
+      },
+      "source": {
+        "packages/golden-ui/components/panels/dashboard/canvas/binding-drop.svelte.ts": "e339d4d4c6986f9b237f6e307d54bfadc2ef34ef4d8a165cde00a34c86fa6f78",
+        "packages/golden-ui/components/panels/dashboard/canvas/camera.svelte.ts": "f166a71240a6440eaedf01102578acabf472a92a21bdf40a766ecfaa56a795b5",
+        "packages/golden-ui/components/panels/dashboard/canvas/context-menu.svelte.ts": "5cb25f2e4313680066e372b64b4f1a3ab85681c42c937e446cf5bf9f38362e10",
+        "packages/golden-ui/components/panels/dashboard/canvas/contracts.ts": "7138259c5c9b6f1a7ff31fd883bf9c261bc5fd66be5d89fb2663199e4366803d",
+        "packages/golden-ui/components/panels/dashboard/canvas/dom.ts": "90a3a0bc2e933a6f11a5d47856d3671c9730d341d5679448a6d69ec2d79f1bae",
+        "packages/golden-ui/components/panels/dashboard/canvas/free-layout.svelte.ts": "8642cc5448df0e9368527f94a62ffcfd76dc96c1e0102e7f352b0d4a333535e7",
+        "packages/golden-ui/components/panels/dashboard/canvas/free-surface-geometry.ts": "216df0b7c0d6a35a034534f15b3e2779fbe9abb91730d0b11fc47a0a4bbeacd5",
+        "packages/golden-ui/components/panels/dashboard/canvas/free-surface-viewport.svelte.ts": "7d4a0bb123dae329a1c7194d0bff3b0b76c30d3c85dc4b94967090bf30284bdd",
+        "packages/golden-ui/components/panels/dashboard/canvas/geometry.ts": "ed513741ed3b70d37eb17783e545689490f3e1b76179df25a0d2a1e248553794",
+        "packages/golden-ui/components/panels/dashboard/canvas/interaction-chrome.svelte.ts": "9208ca64408fb7326e698200758926e0bcaf1530278990cdcaa8efb70d7d34d4",
+        "packages/golden-ui/components/panels/dashboard/canvas/interaction-geometry.svelte.ts": "fb57c4553f65f3fbd56212c1d7d355d9a2df9f2e763f339ad49849c958ce0deb",
+        "packages/golden-ui/components/panels/dashboard/canvas/marquee.svelte.ts": "af7caade8363ec14d39e1c32ff6339f72633bec2aeabfe72fb6cc340460b665a",
+        "packages/golden-ui/components/panels/dashboard/canvas/ordered-layout.svelte.ts": "c62e82adbcea832c5bf9535df675ecc440469d215bbab3dc94a60933c559623c",
+        "packages/golden-ui/components/panels/dashboard/canvas/page-view.ts": "190011aa3367269977700c4713cdff05d2f4ef759452fe77e3fa54d9c3ccd465",
+        "packages/golden-ui/components/panels/dashboard/canvas/styles/content-preview.css": "619ccc41a8e8c8d6dfffea3dc75bd157060f1dae7ae495239a64b091ba690791",
+        "packages/golden-ui/components/panels/dashboard/canvas/styles/surface-layout.css": "5add64edbc4e497c55211ebab51afaefbf741e893b0f9e954585e8dad50e5744",
+        "packages/golden-ui/components/panels/dashboard/canvas/styles/widget-frame.css": "8d24718f9148048c34228250546cd3354f43a345f65cde946ec21c49c0f52585",
+        "packages/golden-ui/components/panels/dashboard/canvas/surface.svelte.ts": "88091cc69947c9404e86b1e43ff84ddfb2b42f9b7c32a5be9e0c21879ec0dfd0",
+        "packages/golden-ui/components/panels/dashboard/canvas/SurfaceContent.svelte": "a06ad5d3fa8414ca8afd48558e18497c79ca5c16237c1c0a7dd818b4e3f2274f",
+        "packages/golden-ui/components/panels/dashboard/canvas/tests/fixtures.ts": "626f1373e2433f81736cd071bb22e67782266f2baf4dd4a7e32a29a4859e3303",
+        "packages/golden-ui/components/panels/dashboard/canvas/tests/free-surface-geometry.test.ts": "789fb167436c538166bf2f9ea08a5ed3c889ba056f32d294fb8f75cf74204056",
+        "packages/golden-ui/components/panels/dashboard/canvas/view-context.ts": "68f9fe33461b20382deccbca7687cb8c0eb985e4ac6faa96b9b324035eea1f8c",
+        "packages/golden-ui/components/panels/dashboard/canvas/widget-content.svelte.ts": "97b744b7d701ffa7fb8d01dbab4d03524108ecc53eac4af7dc96cbddfbf1f554",
+        "packages/golden-ui/components/panels/dashboard/dashboard-actions.ts": "b17596e91ad8cd9b401b6424a01643fd9bbddf9069e4a1cbb598f8052aee8549",
+        "packages/golden-ui/components/panels/dashboard/dashboard-drag.ts": "9e2ae85e765b38a53f65138582521e299ae2f26ae2d47f79eade5a296f942a43",
+        "packages/golden-ui/components/panels/dashboard/dashboard-model.ts": "d7c0f3a3a9b89658ca767b14d5bf0a9f425979a76e61be9973e4a3bf959eb6be",
+        "packages/golden-ui/components/panels/dashboard/dashboard-node-widget-options.ts": "6955d5da8c29656e7dd6466ef7b6f32f4336412e0650cb2d23803975febb89b8",
+        "packages/golden-ui/components/panels/dashboard/dashboard-node-widget-registry.ts": "4785c142172d939a2f6bf76d31665610f0a5e523e99bb3b878c4d05162d5bf65",
+        "packages/golden-ui/components/panels/dashboard/dashboard-route.ts": "e93fea51ffd68aac521494b7486ecd0a57553c6eea44f608081c844282309944",
+        "packages/golden-ui/components/panels/dashboard/DashboardCanvas.svelte": "8aeb3d60da79c8ae6552fc0df9af6f6df9279c7bb3d9730b045477254a710342",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetInspectorContent.svelte": "e357664cd4dbba8b17ee6ee61184e7e4415c9e86d8d2325575eab3d631bf2ef6",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetNumberRotaryContent.svelte": "245da72f871f93b7e8d82b7b6e4f9d5d09ba8da310638c7bf1181fd2cb7b440d",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetNumberSliderContent.svelte": "0119c271e9c64a98dd72630325649e3f1f3c390787f5511475e66c010876b771",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetParameterEditorContent.svelte": "4848d3533614627fd6302d772f46ad2706e796e3c8df39a69828c6dfab7ca4ef",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetVec2PadContent.svelte": "ea70f0059bfd3af60746219234f8d80976469e681b88047575bee59e98f82ee8",
+        "packages/golden-ui/components/panels/dashboard/DashboardPanel.svelte": "dba2b304d23643a9bc92b137a1dfe07f38760123fe867a4a66f7bb2025d0fdc5",
+        "packages/golden-ui/components/panels/dashboard/DashboardViewer.svelte": "6cb0e0b37763964b5b09df01819c613ef073e94c1f6b13006824db3cea29370a",
+        "packages/golden-ui/tests/browser/fixture/dashboard-data.ts": "1bd134bb41df387967860572d61f97f3dd7ce2bfc0ec0621749c72d4c01a49de",
+        "packages/golden-ui/tests/browser/fixture/dashboard.html": "70bc3752b3e8beca950e542617e7cd3491f8871a1ca954b435d9522099ad34fd",
+        "packages/golden-ui/tests/browser/fixture/dashboard.ts": "4f8c93e78ef6e02957955e215bdfc0e9577385256fb8fcbc943e149ad06a3ef1",
+        "packages/golden-ui/tests/browser/fixture/DashboardFixture.svelte": "09d6a91c23e0502fe8164b4d8f3adef6296da49af6f7a45de8e9b8c2aa3a9cfe",
+        "packages/golden-ui/tests/browser/fixture/DashboardRegistryContent.svelte": "f783c801c15be591724b2f7522d3cba33fe2f34cfda424b86c82655ab5caf076",
+        "packages/golden-ui/tests/browser/fixture/session.ts": "2cf8ce14205c8f4994ff4500e68bc503e1cf1d61c4bc0ebd2d4c2103a224a2a1",
+        "packages/golden-ui/store/graph-index.ts": "70b413486e35b2fedbc84e519b8af7cf4120a3008693173b4e35f17789d9b38f",
+        "packages/golden-ui/tests/browser/dashboard-viewport.mjs": "645f755998e1d66376a8aaccd97c626679b06f6d076fa0a5d9323bb44ef0fa90"
+      },
+      "cases": [
+        {
+          "label": "visible-preservation-run",
+          "mounted": 48,
+          "painted": 40,
+          "passed": true
+        },
+        {
+          "label": "visible-preservation-edit",
+          "mounted": 54,
+          "painted": 48,
+          "passed": true
+        },
+        {
+          "label": "focused-control-retention-and-root-font",
+          "passed": true
+        }
+      ],
+      "tiers": [
+        {
+          "targetAuthoredNodes": 1000,
+          "authoredNodes": 1001,
+          "widgets": 90,
+          "readyMs": 20.11710000000039,
+          "initialMounted": 18,
+          "framed": {
+            "dx": 0.00048828125,
+            "dy": 0,
+            "boxes": [
+              {
+                "classes": "gc-dashboard-canvas dashboard-widget-shell dashboard-generic-widget selected editable-free",
+                "width": 917.9853515625,
+                "height": 382.494140625,
+                "top": 380.7529296875,
+                "blockSize": "80px",
+                "boxSizing": "border-box"
+              },
+              {
+                "classes": "dashboard-slot-fill",
+                "width": 917.9853515625,
+                "height": 382.494140625,
+                "top": 380.7529296875,
+                "blockSize": "80px",
+                "boxSizing": "content-box"
+              },
+              {
+                "classes": "dashboard-slot",
+                "width": 917.9853515625,
+                "height": 382.494140625,
+                "top": 380.7529296875,
+                "blockSize": "80px",
+                "boxSizing": "content-box"
+              }
+            ]
+          },
+          "passed": true
+        },
+        {
+          "targetAuthoredNodes": 10000,
+          "authoredNodes": 10010,
+          "widgets": 909,
+          "readyMs": 120.91960000000017,
+          "initialMounted": 54,
+          "framed": {
+            "dx": 0.0009765625,
+            "dy": 0.0009765625,
+            "boxes": [
+              {
+                "classes": "gc-dashboard-canvas dashboard-widget-shell dashboard-generic-widget selected editable-free",
+                "width": 917.986328125,
+                "height": 382.494140625,
+                "top": 380.75390625,
+                "blockSize": "80px",
+                "boxSizing": "border-box"
+              },
+              {
+                "classes": "dashboard-slot-fill",
+                "width": 917.986328125,
+                "height": 382.494140625,
+                "top": 380.75390625,
+                "blockSize": "80px",
+                "boxSizing": "content-box"
+              },
+              {
+                "classes": "dashboard-slot",
+                "width": 917.986328125,
+                "height": 382.494140625,
+                "top": 380.75390625,
+                "blockSize": "80px",
+                "boxSizing": "content-box"
+              }
+            ]
+          },
+          "passed": true
+        }
+      ],
+      "errors": [],
+      "assets": {
+        "baseline": {
+          "assets/dashboard-Bvz7ZBDT.css": "8d33a40ab122ccb4d92d0320e1a2ed9825c6df5efe8bcaf06085227d81a403c8",
+          "assets/dashboard-jp4jck1f.js": "9de10b80fd7ca3b55accb305a4cca5f3f761b695b646b66fc4dd283d2d6aa93d",
+          "dashboard.html": "97b29baa179a830cef227e5949a3e3ed537b97714f143b27cfd28dad28069d0c"
+        },
+        "current": {
+          "assets/dashboard-0WpGHeOZ.css": "2b567691dcf87dcf2d53e8dce45838cb882f5ab6dc570ff0a336c66b5aec8bc3",
+          "assets/dashboard-DJvU37cS.js": "a743a05694e1837e2d765958b25b1bdcdd4febe7239bd8f8a70d12ae87ed82a0",
+          "dashboard.html": "9aa22449176a640a66eb3a79e0f62dcbdfc2dd2ca4f7ff2972640e89ea9a2914"
+        }
+      },
+      "passed": false,
+      "failure": "AssertionError [ERR_ASSERTION]: {\"beforeRetirement\":{\"focused\":true,\"connected\":true},\"retiredFocus\":{\"tag\":\"BODY\",\"classes\":\"\"},\"errors\":[]}"
+    },
+    {
+      "artifact": "p11-dashboard-viewport-2026-10-25T13-17-57-411Z.json",
+      "baseline": "654a5f15",
+      "browser": "156.0.4314.42",
+      "machine": {
+        "platform": "win32",
+        "release": "10.0.26300",
+        "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+        "logicalCpus": 24,
+        "memoryBytes": 33752997888,
+        "node": "v26.5.0"
+      },
+      "source": {
+        "packages/golden-ui/components/panels/dashboard/canvas/binding-drop.svelte.ts": "e339d4d4c6986f9b237f6e307d54bfadc2ef34ef4d8a165cde00a34c86fa6f78",
+        "packages/golden-ui/components/panels/dashboard/canvas/camera.svelte.ts": "62187a9b3a6764a748245b00792f14b944c10ab5da65c1b7bd616fa5eb441710",
+        "packages/golden-ui/components/panels/dashboard/canvas/context-menu.svelte.ts": "5cb25f2e4313680066e372b64b4f1a3ab85681c42c937e446cf5bf9f38362e10",
+        "packages/golden-ui/components/panels/dashboard/canvas/contracts.ts": "7138259c5c9b6f1a7ff31fd883bf9c261bc5fd66be5d89fb2663199e4366803d",
+        "packages/golden-ui/components/panels/dashboard/canvas/dom.ts": "90a3a0bc2e933a6f11a5d47856d3671c9730d341d5679448a6d69ec2d79f1bae",
+        "packages/golden-ui/components/panels/dashboard/canvas/free-layout.svelte.ts": "8642cc5448df0e9368527f94a62ffcfd76dc96c1e0102e7f352b0d4a333535e7",
+        "packages/golden-ui/components/panels/dashboard/canvas/free-surface-geometry.ts": "a72c1de18aed18176f97324829cb5bbcaf089fe3fff8f0df644af62605f79cc9",
+        "packages/golden-ui/components/panels/dashboard/canvas/free-surface-viewport.svelte.ts": "617d680a025773112b46fe1e08567f1b265b4a6398417b78e5a2daef68302c35",
+        "packages/golden-ui/components/panels/dashboard/canvas/geometry.ts": "ed513741ed3b70d37eb17783e545689490f3e1b76179df25a0d2a1e248553794",
+        "packages/golden-ui/components/panels/dashboard/canvas/interaction-chrome.svelte.ts": "9208ca64408fb7326e698200758926e0bcaf1530278990cdcaa8efb70d7d34d4",
+        "packages/golden-ui/components/panels/dashboard/canvas/interaction-geometry.svelte.ts": "fb57c4553f65f3fbd56212c1d7d355d9a2df9f2e763f339ad49849c958ce0deb",
+        "packages/golden-ui/components/panels/dashboard/canvas/marquee.svelte.ts": "af7caade8363ec14d39e1c32ff6339f72633bec2aeabfe72fb6cc340460b665a",
+        "packages/golden-ui/components/panels/dashboard/canvas/ordered-layout.svelte.ts": "c62e82adbcea832c5bf9535df675ecc440469d215bbab3dc94a60933c559623c",
+        "packages/golden-ui/components/panels/dashboard/canvas/page-view.ts": "190011aa3367269977700c4713cdff05d2f4ef759452fe77e3fa54d9c3ccd465",
+        "packages/golden-ui/components/panels/dashboard/canvas/styles/content-preview.css": "619ccc41a8e8c8d6dfffea3dc75bd157060f1dae7ae495239a64b091ba690791",
+        "packages/golden-ui/components/panels/dashboard/canvas/styles/surface-layout.css": "5add64edbc4e497c55211ebab51afaefbf741e893b0f9e954585e8dad50e5744",
+        "packages/golden-ui/components/panels/dashboard/canvas/styles/widget-frame.css": "8d24718f9148048c34228250546cd3354f43a345f65cde946ec21c49c0f52585",
+        "packages/golden-ui/components/panels/dashboard/canvas/surface.svelte.ts": "88091cc69947c9404e86b1e43ff84ddfb2b42f9b7c32a5be9e0c21879ec0dfd0",
+        "packages/golden-ui/components/panels/dashboard/canvas/SurfaceContent.svelte": "a06ad5d3fa8414ca8afd48558e18497c79ca5c16237c1c0a7dd818b4e3f2274f",
+        "packages/golden-ui/components/panels/dashboard/canvas/tests/fixtures.ts": "626f1373e2433f81736cd071bb22e67782266f2baf4dd4a7e32a29a4859e3303",
+        "packages/golden-ui/components/panels/dashboard/canvas/tests/free-surface-geometry.test.ts": "4fd41785b9b72aef3de5f8dafc3bed74f97d4a9a0f3d727fd32d8fedfc49adba",
+        "packages/golden-ui/components/panels/dashboard/canvas/view-context.ts": "68f9fe33461b20382deccbca7687cb8c0eb985e4ac6faa96b9b324035eea1f8c",
+        "packages/golden-ui/components/panels/dashboard/canvas/widget-content.svelte.ts": "97b744b7d701ffa7fb8d01dbab4d03524108ecc53eac4af7dc96cbddfbf1f554",
+        "packages/golden-ui/components/panels/dashboard/dashboard-actions.ts": "b17596e91ad8cd9b401b6424a01643fd9bbddf9069e4a1cbb598f8052aee8549",
+        "packages/golden-ui/components/panels/dashboard/dashboard-drag.ts": "9e2ae85e765b38a53f65138582521e299ae2f26ae2d47f79eade5a296f942a43",
+        "packages/golden-ui/components/panels/dashboard/dashboard-model.ts": "d7c0f3a3a9b89658ca767b14d5bf0a9f425979a76e61be9973e4a3bf959eb6be",
+        "packages/golden-ui/components/panels/dashboard/dashboard-node-widget-options.ts": "6955d5da8c29656e7dd6466ef7b6f32f4336412e0650cb2d23803975febb89b8",
+        "packages/golden-ui/components/panels/dashboard/dashboard-node-widget-registry.ts": "4785c142172d939a2f6bf76d31665610f0a5e523e99bb3b878c4d05162d5bf65",
+        "packages/golden-ui/components/panels/dashboard/dashboard-route.ts": "e93fea51ffd68aac521494b7486ecd0a57553c6eea44f608081c844282309944",
+        "packages/golden-ui/components/panels/dashboard/DashboardCanvas.svelte": "8aeb3d60da79c8ae6552fc0df9af6f6df9279c7bb3d9730b045477254a710342",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetInspectorContent.svelte": "e357664cd4dbba8b17ee6ee61184e7e4415c9e86d8d2325575eab3d631bf2ef6",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetNumberRotaryContent.svelte": "245da72f871f93b7e8d82b7b6e4f9d5d09ba8da310638c7bf1181fd2cb7b440d",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetNumberSliderContent.svelte": "0119c271e9c64a98dd72630325649e3f1f3c390787f5511475e66c010876b771",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetParameterEditorContent.svelte": "4848d3533614627fd6302d772f46ad2706e796e3c8df39a69828c6dfab7ca4ef",
+        "packages/golden-ui/components/panels/dashboard/DashboardNodeWidgetVec2PadContent.svelte": "ea70f0059bfd3af60746219234f8d80976469e681b88047575bee59e98f82ee8",
+        "packages/golden-ui/components/panels/dashboard/DashboardPanel.svelte": "dba2b304d23643a9bc92b137a1dfe07f38760123fe867a4a66f7bb2025d0fdc5",
+        "packages/golden-ui/components/panels/dashboard/DashboardViewer.svelte": "6cb0e0b37763964b5b09df01819c613ef073e94c1f6b13006824db3cea29370a",
+        "packages/golden-ui/tests/browser/fixture/dashboard-data.ts": "991c5f5d02fa03b94513cab3038841d8bfac2447e69af1a3f31af752baf69a8d",
+        "packages/golden-ui/tests/browser/fixture/dashboard.html": "70bc3752b3e8beca950e542617e7cd3491f8871a1ca954b435d9522099ad34fd",
+        "packages/golden-ui/tests/browser/fixture/dashboard.ts": "4f8c93e78ef6e02957955e215bdfc0e9577385256fb8fcbc943e149ad06a3ef1",
+        "packages/golden-ui/tests/browser/fixture/DashboardFixture.svelte": "a844ac90e28db8019ad124e5c55294e53cd8fb748cb94078d9c9516558895b39",
+        "packages/golden-ui/tests/browser/fixture/DashboardRegistryContent.svelte": "f783c801c15be591724b2f7522d3cba33fe2f34cfda424b86c82655ab5caf076",
+        "packages/golden-ui/tests/browser/fixture/session.ts": "2cf8ce14205c8f4994ff4500e68bc503e1cf1d61c4bc0ebd2d4c2103a224a2a1",
+        "packages/golden-ui/store/graph-index.ts": "70b413486e35b2fedbc84e519b8af7cf4120a3008693173b4e35f17789d9b38f",
+        "packages/golden-ui/tests/browser/dashboard-viewport.mjs": "b17b7b68d61ac6395115deee67d0597b4ea44617154777af49c1e05debe36593"
+      },
+      "cases": [
+        {
+          "label": "visible-preservation-run",
+          "mounted": 48,
+          "painted": 40,
+          "passed": true
+        },
+        {
+          "label": "visible-preservation-edit",
+          "mounted": 54,
+          "painted": 48,
+          "passed": true
+        }
+      ],
+      "tiers": [],
+      "errors": [],
+      "assets": {
+        "baseline": {
+          "assets/dashboard-Bvz7ZBDT.css": "8d33a40ab122ccb4d92d0320e1a2ed9825c6df5efe8bcaf06085227d81a403c8",
+          "assets/dashboard-TQ9xsJSi.js": "583f3a383040ad949dab226db4b4064b08a7da399532788733940be3e17be889",
+          "dashboard.html": "9d17ca2ece6ced516d9899416a3c00f6493f4723605df3b4ca4c430d96ea6364"
+        },
+        "current": {
+          "assets/dashboard-0WpGHeOZ.css": "2b567691dcf87dcf2d53e8dce45838cb882f5ab6dc570ff0a336c66b5aec8bc3",
+          "assets/dashboard-X_dWkU1c.js": "ca6422b0569572da21c519dd312a1337d8ae03561add4f9ba8b7441f3d478b50",
+          "dashboard.html": "713fe20581dd21721c87fc10006aba66991279f5f7c17b767ae87db5aa646c43"
+        }
+      },
+      "passed": false,
+      "failure": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'Widget 0 0.42 Widget 1 Content 1 Widget 2 0.42 Widget 3 Content 3 Widget 40 Widget 41 Widget 42 0.42 Widget 43 Content 43 Widget 80 0.42 Widget 81 Content 81 Widget 82 Widget 83 Widget 120 0.42 Widget 121 Content 121 Widget 122 0.42 Widget 123 Content 123 Widget 160 Widget 161 Widget 162 0.42 Widget 163 Content 163 Widget 200 0.42 Widget 201 Content 201 Widget 202 Widget 203'\n- 'Widget 0 0.42 Widget 1 Content 1 Widget 2 0.42 Widget 3 Content 3 Widget 4 Widget 5 Widget 6 0.42 Widget 7 Content 7 Widget 8 0.42 Widget 9 Content 9 Widget 10 Widget 11 Widget 12 0.42 Widget 13 Content 13 Widget 14 0.42 Widget 15 Content 15 Widget 16 Widget 17 Widget 18 0.42 Widget 19 Content 19 Widget 20 0.42 Widget 21 Content 21 Widget 22 Widget 23 Widget 24 0.42 Widget 25 Content 25 Widget 26 0.42 Widget 27 Content 27 Widget 28 Widget 29 Widget 30 0.42 Widget 31 Content 31 Widget 32 0.42 Widget 33 Content 33 Widget 34 Widget 35 Widget 36 0.42 Widget 37 Content 37 Widget 38 0.42 Widget 39 Content 39 Widget 40 Widget 41 Widget 42 0.42 Widget 43 Content 43 Widget 44 0.42 Widget 45 Content 45 Widget 46 Widget 47 Widget 48 0.42 Widget 49 Content 49 Widget 50 0.42 Widget 51 Content 51 Widget 52 Widget 53 Widget 54 0.42 Widget 55 Content 55 Widget 56 0.42 Widget 57 Content 57 Widget 58 Widget 59 Widget 60 0.42 Widget 61 Content 61 Widget 62 0.42 Widget 63 Content 63 Widget 64 Widget 65 Widget 66 0.42 Widget 67 Content 67 Widget 68 0.42 Widget 69 Content 69 Widget 70 Widget 71 Widget 72 0.42 Widget 73 Content 73 Widget 74 0.42 Widget 75 Content 75 Widget 76 Widget 77 Widget 78 0.42 Widget 79 Content 79 Widget 80 0.42 Widget 81 Content 81 Widget 82 Widget 83 Widget 84 0.42 Widget 85 Content 85 Widget 86 0.42 Widget 87 Content 87 Widget 88 Widget 89 Widget 90 0.42 Widget 91 Content 91 Widget 92 0.42 Widget 93 Content 93 Widget 94 Widget 95 Widget 96 0.42 Widget 97 Content 97 Widget 98 0.42 Widget 99 Content 99 Widget 100 Widget 101 Widget 102 0.42 Widget 103 Content 103 Widget 104 0.42 Widget 105 Content 105 Widget 106 Widget 107 Widget 108 0.42 Widget 109 Content 109 Widget 110 0.42 Widget 111 Content 111 Widget 112 Widget 113 Widget 114 0.42 Widget 115 Content 115 Widget 116 0.42 Widget 117 Content 117 Widget 118 Widget 119 Widget 120 0.42 Widget 121 Content 121 Widget 122 0.42 Widget 123 Content 123 Widget 124 Widget 125 Widget 126 0.42 Widget 127 Content 127 Widget 128 0.42 Widget 129 Content 129 Widget 130 Widget 131 Widget 132 0.42 Widget 133 Content 133 Widget 134 0.42 Widget 135 Content 135 Widget 136 Widget 137 Widget 138 0.42 Widget 139 Content 139 Widget 140 0.42 Widget 141 Content 141 Widget 142 Widget 143 Widget 144 0.42 Widget 145 Content 145 Widget 146 0.42 Widget 147 Content 147 Widget 148 Widget 149 Widget 150 0.42 Widget 151 Content 151 Widget 152 0.42 Widget 153 Content 153 Widget 154 Widget 155 Widget 156 0.42 Widget 157 Content 157 Widget 158 0.42 Widget 159 Content 159 Widget 160 Widget 161 Widget 162 0.42 Widget 163 Content 163 Widget 164 0.42 Widget 165 Content 165 Widget 166 Widget 167 Widget 168 0.42 Widget 169 Content 169 Widget 170 0.42 Widget 171 Content 171 Widget 172 Widget 173 Widget 174 0.42 Widget 175 Content 175 Widget 176 0.42 Widget 177 Content 177 Widget 178 Widget 179 Widget 180 0.42 Widget 181 Content 181 Widget 182 0.42 Widget 183 Content 183 Widget 184 Widget 185 Widget 186 0.42 Widget 187 Content 187 Widget 188 0.42 Widget 189 Content 189 Widget 190 Widget 191 Widget 192 0.42 Widget 193 Content 193 Widget 194 0.42 Widget 195 Content 195 Widget 196 Widget 197 Widget 198 0.42 Widget 199 Content 199 Widget 200 0.42 Widget 201 Content 201 Widget 202 Widget 203 Widget 204 0.42 Widget 205 Content 205 Widget 206 0.42 Widget 207 Content 207 Widget 208 Widget 209 Widget 210 0.42 Widget 211 Content 211 Widget 212 0.42 Widget 213 Content 213 Widget 214 Widget 215 Widget 216 0.42 Widget 217 Content 217 Widget 218 0.42 Widget 219 Content 219 Widget 220 Widget 221 Widget 222 0.42 Widget 223 Content 223 Widget 224 0.42 Widget 225 Content 225 Widget 226 Widget 227 Widget 228 0.42 Widget 229 Content 229 Widget 230 0.42 Widget 231 Content 231 Widget 232 Widget 233 Widget 234 0.42 Widget 235 Content 235 Widget 236 0.42 Widget 237 Content 237 Widget 238 Widget 239 Widget 240 0.42 Widget 241 Content 241 Widget 242 0.42 Widget 243 Content 243 Widget 244 Widget 245 Widget 246 0.42 Widget 247 Content 247 Widget 248 0.42 Widget 249 Content 249 Widget 250 Widget 251 Widget 252 0.42 Widget 253 Content 253 Widget 254 0.42 Widget 255 Content 255 Widget 256 Widget 257 Widget 258 0.42 Widget 259 Content 259 Widget 260 0.42 Widget 261 Content 261 Widget 262 Widget 263 Widget 264 0.42 Widget 265 Content 265 Widget 266 0.42 Widget 267 Content 267 Widget 268 Widget 269 Widget 270 0.42 Widget 271 Content 271 Widget 272 0.42 Widget 273 Content 273 Widget 274 Widget 275 Widget 276 0.42 Widget 277 Content 277 Widget 278 0.42 Widget 279 Content 279 Widget 280 Widget 281 Widget 282 0.42 Widget 283 Content 283 Widget 284 0.42 Widget 285 Content 285 Widget 286 Widget 287 Widget 288 0.42 Widget 289 Content 289 Widget 290 0.42 Widget 291 Content 291 Widget 292 Widget 293 Widget 294 0.42 Widget 295 Content 295 Widget 296 0.42 Widget 297 Content 297 Widget 298 Widget 299 Widget 300 0.42 Widget 301 Content 301 Widget 302 0.42 Widget 303 Content 303 Widget 304 Widget 305 Widget 306 0.42 Widget 307 Content 307 Widget 308 0.42 Widget 309 Content 309 Widget 310 Widget 311 Widget 312 0.42 Widget 313 Content 313 Widget 314 0.42 Widget 315 Content 315 Widget 316 Widget 317 Widget 318 0.42 Widget 319 Content 319 Widget 320 0.42 Widget 321 Content 321 Widget 322 Widget 323 Widget 324 0.42 Widget 325 Content 325 Widget 326 0.42 Widget 327 Content 327 Widget 328 Widget 329 Widget 330 0.42 Widget 331 Content 331 Widget 332 0.42 Widget 333 Content 333 Widget 334 Widget 335 Widget 336 0.42 Widget 337 Content 337 Widget 338 0.42 Widget 339 Content 339 Widget 340 Widget 341 Widget 342 0.42 Widget 343 Content 343 Widget 344 0.42 Widget 345 Content 345 Widget 346 Widget 347 Widget 348 0.42 Widget 349 Content 349 Widget 350 0.42 Widget 351 Content 351 Widget 352 Widget 353 Widget 354 0.42 Widget 355 Content 355 Widget 356 0.42 Widget 357 Content 357 Widget 358 Widget 359 Widget 360 0.42 Widget 361 Content 361 Widget 362 0.42 Widget 363 Content 363 Widget 364 Widget 365 Widget 366 0.42 Widget 367 Content 367 Widget 368 0.42 Widget 369 Content 369 Widget 370 Widget 371 Widget 372 0.42 Widget 373 Content 373 Widget 374 0.42 Widget 375 Content 375 Widget 376 Widget 377 Widget 378 0.42 Widget 379 Content 379 Widget 380 0.42 Widget 381 Content 381 Widget 382 Widget 383 Widget 384 0.42 Widget 385 Content 385 Widget 386 0.42 Widget 387 Content 387 Widget 388 Widget 389 Widget 390 0.42 Widget 391 Content 391 Widget 392 0.42 Widget 393 Content 393 Widget 394 Widget 395 Widget 396 0.42 Widget 397 Content 397 Widget 398 0.42 Widget 399 Content 399 Widget 400 Widget 401 Widget 402 0.42 Widget 403 Content 403 Widget 404 0.42 Widget 405 Content 405 Widget 406 Widget 407 Widget 408 0.42 Widget 409 Content 409 Widget 410 0.42 Widget 411 Content 411 Widget 412 Widget 413 Widget 414 0.42 Widget 415 Content 415 Widget 416 0.42 Widget 417 Content 417 Widget 418 Widget 419 Widget 420 0.42 Widget 421 Content 421 Widget 422 0.42 Widget 423 Content 423 Widget 424 Widget 425 Widget 426 0.42 Widget 427 Content 427 Widget 428 0.42 Widget 429 Content 429 Widget 430 Widget 431 Widget 432 0.42 Widget 433 Content 433 Widget 434 0.42 Widget 435 Content 435 Widget 436 Widget 437 Widget 438 0.42 Widget 439 Content 439 Widget 440 0.42 Widget 441 Content 441 Widget 442 Widget 443 Widget 444 0.42 Widget 445 Content 445 Widget 446 0.42 Widget 447 Content 447 Widget 448 Widget 449 Widget 450 0.42 Widget 451 Content 451 Widget 452 0.42 Widget 453 Content 453 Widget 454 Widget 455 Widget 456 0.42 Widget 457 Content 457 Widget 458 0.42 Widget 459 Content 459 Widget 460 Widget 461 Widget 462 0.42 Widget 463 Content 463 Widget 464 0.42 Widget 465 Content 465 Widget 466 Widget 467 Widget 468 0.42 Widget 469 Content 469 Widget 470 0.42 Widget 471 Content 471 Widget 472 Widget 473 Widget 474 0.42 Widget 475 Content 475 Widget 476 0.42 Widget 477 Content 477 Widget 478 Widget 479 Widget 480 0.42 Widget 481 Content 481 Widget 482 0.42 Widget 483 Content 483 Widget 484 Widget 485 Widget 486 0.42 Widget 487 Content 487 Widget 488 0.42 Widget 489 Content 489 Widget 490 Widget 491 Widget 492 0.42 Widget 493 Content 493 Widget 494 0.42 Widget 495 Content 495 Widget 496 Widget 497 Widget 498 0.42 Widget 499 Content 499 Widget 500 0.42 Widget 501 Content 501 Widget 502 Widget 503 Widget 504 0.42 Widget 505 Content 505 Widget 506 0.42 Widget 507 Content 507 Widget 508 Widget 509 Widget 510 0.42 Widget 511 Content 511 Widget 512 0.42 Widget 513 Content 513 Widget 514 Widget 515 Widget 516 0.42 Widget 517 Content 517 Widget 518 0.42 Widget 519 Content 519 Widget 520 Widget 521 Widget 522 0.42 Widget 523 Content 523 Widget 524 0.42 Widget 525 Content 525 Widget 526 Widget 527 Widget 528 0.42 Widget 529 Content 529 Widget 530 0.42 Widget 531 Content 531 Widget 532 Widget 533 Widget 534 0.42 Widget 535 Content 535 Widget 536 0.42 Widget 537 Content 537 Widget 538 Widget 539 Widget 540 0.42 Widget 541 Content 541 Widget 542 0.42 Widget 543 Content 543 Widget 544 Widget 545 Widget 546 0.42 Widget 547 Content 547 Widget 548 0.42 Widget 549 Content 549 Widget 550 Widget 551 Widget 552 0.42 Widget 553 Content 553 Widget 554 0.42 Widget 555 Content 555 Widget 556 Widget 557 Widget 558 0.42 Widget 559 Content 559 Widget 560 0.42 Widget 561 Content 561 Widget 562 Widget 563 Widget 564 0.42 Widget 565 Content 565 Widget 566 0.42 Widget 567 Content 567 Widget 568 Widget 569 Widget 570 0.42 Widget 571 Content 571 Widget 572 0.42 Widget 573 Content 573 Widget 574 Widget 575 Widget 576 0.42 Widget 577 Content 577 Widget 578 0.42 Widget 579 Content 579 Widget 580 Widget 581 Widget 582 0.42 Widget 583 Content 583 Widget 584 0.42 Widget 585 Content 585 Widget 586 Widget 587 Widget 588 0.42 Widget 589 Content 589 Widget 590 0.42 Widget 591 Content 591 Widget 592 Widget 593 Widget 594 0.42 Widget 595 Content 595 Widget 596 0.42 Widget 597 Content 597 Widget 598 Widget 599 Widget 600 0.42 Widget 601 Content 601 Widget 602 0.42 Widget 603 Content 603 Widget 604 Widget 605 Widget 606 0.42 Widget 607 Content 607 Widget 60'... 6529 more characters\n"
+    }
+  ]
+}

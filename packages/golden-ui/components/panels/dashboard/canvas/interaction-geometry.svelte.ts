@@ -377,6 +377,7 @@ export function createDashboardInteractionGeometry(context: DashboardInteraction
 		const rect = layoutElement.getBoundingClientRect();
 		const surfaceContext = {
 			rootRemPx,
+			emPx: metrics.emPx,
 			surfaceWidthPx: metrics.width,
 			surfaceHeightPx: metrics.height,
 			viewportWidthPx: getViewportWidthPx(),
@@ -564,7 +565,12 @@ export function createDashboardInteractionGeometry(context: DashboardInteraction
 		nodes: UiNodeDto[],
 		interaction: Pick<
 			FreeLayoutInteraction,
-			'rootRemPx' | 'surfaceWidthPx' | 'surfaceHeightPx' | 'viewportWidthPx' | 'viewportHeightPx'
+			| 'rootRemPx'
+			| 'emPx'
+			| 'surfaceWidthPx'
+			| 'surfaceHeightPx'
+			| 'viewportWidthPx'
+			| 'viewportHeightPx'
 		>
 	): FreeLayoutTarget[] => {
 		if (!graph) {

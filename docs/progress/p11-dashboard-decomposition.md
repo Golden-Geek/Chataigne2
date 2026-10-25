@@ -51,7 +51,9 @@ fixture intentionally preserves the full pre-culling DOM. It does not qualify na
 large-project latency, offscreen selection or the remainder of P11. Native usability retains P17.
 The driver asserts its 39 captured source fingerprints remain unchanged throughout the final run.
 
-Reproduce from the repository root:
+The exact decomposition runner and source are retained at commit `654a5f15`.
+Reproduce from a checkout of that commit; the current dashboard command runs the subsequent
+viewport qualification:
 
 ```powershell
 npm run test:browser:dashboard --workspace golden_ui

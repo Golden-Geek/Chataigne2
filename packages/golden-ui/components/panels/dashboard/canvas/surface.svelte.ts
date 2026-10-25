@@ -1,3 +1,5 @@
+import { onDestroy, untrack } from 'svelte';
+import type { DashboardViewContext } from './view-context.svelte';
 import type { GraphState } from '../../../../store/graph.svelte';
 import type { createDashboardInteractionChrome } from './interaction-chrome.svelte';
 import type { createDashboardInteractionGeometry } from './interaction-geometry.svelte';
@@ -52,6 +54,7 @@ interface DashboardSurfaceContext {
 	readonly graph: GraphState | null;
 	readonly node: UiNodeDto;
 	readonly editMode: boolean;
+	readonly view: DashboardViewContext | null;
 	readonly chrome: ReturnType<typeof createDashboardInteractionChrome>;
 	readonly geometry: ReturnType<typeof createDashboardInteractionGeometry>;
 }
@@ -94,6 +97,54 @@ export function createDashboardSurface(context: DashboardSurfaceContext) {
 	let activeTabNodeId = $state<NodeId | null>(null);
 
 	let openAccordionNodeIds = $state<NodeId[]>([]);
+	let restoredUuid: string | null = null;
+	let restoredChildren: readonly NodeId[] | null = null;
+	$effect(() => {
+		const owner = liveNode;
+		if (!isLayoutSurface || (restoredUuid === owner.uuid && restoredChildren === owner.children))
+			return;
+		restoredUuid = owner.uuid;
+		restoredChildren = owner.children;
+		untrack(() => {
+			const state = context.view?.readPresentation(owner.uuid);
+			if (!state) {
+				activeTabNodeId = null;
+				openAccordionNodeIds = [];
+				return;
+			}
+			const identities = new Map(childWidgets.map((child) => [child.uuid, child.node_id]));
+			activeTabNodeId = state.activeTabUuid ? (identities.get(state.activeTabUuid) ?? null) : null;
+			openAccordionNodeIds = state.openAccordionUuids.flatMap((uuid) => {
+				const id = identities.get(uuid);
+				return id === undefined ? [] : [id];
+			});
+		});
+	});
+	const savePresentation = () => {
+		if (!isLayoutSurface || (layoutKind !== 'tabs' && layoutKind !== 'accordion')) return;
+		const owner = liveNode;
+		const active = activeTabNodeId;
+		const open = openAccordionNodeIds;
+		untrack(() => {
+			if (graph?.nodesById.get(owner.node_id)?.uuid !== owner.uuid) return;
+			context.view?.writePresentation(owner.uuid, {
+				activeTabUuid: active === null ? null : (graph?.nodesById.get(active)?.uuid ?? null),
+				openAccordionUuids: open.flatMap((id) => {
+					const uuid = graph?.nodesById.get(id)?.uuid;
+					return uuid ? [uuid] : [];
+				})
+			});
+		});
+	};
+	$effect(savePresentation);
+	$effect(() => {
+		if (!isLayoutSurface) return;
+		return context.view?.registerPresentation(liveNode.node_id, {
+			activateTab: (id) => activateDashboardTab(id),
+			toggleAccordion: (id) => toggleAccordionNode(id)
+		});
+	});
+	onDestroy(() => untrack(savePresentation));
 
 	let surfaceDragDepth = $state(0);
 
@@ -201,6 +252,7 @@ export function createDashboardSurface(context: DashboardSurfaceContext) {
 		const metrics = getElementSurfaceMetrics(metricsElement, rootRemPx);
 		const context = {
 			rootRemPx,
+			emPx: metrics.emPx,
 			surfaceWidthPx: metrics.width,
 			surfaceHeightPx: metrics.height,
 			viewportWidthPx: getViewportWidthPx(),
@@ -725,17 +777,27 @@ export function createDashboardSurface(context: DashboardSurfaceContext) {
 		);
 	};
 
-	const toggleAccordionNode = (nodeId: NodeId): void => {
+	const toggleAccordionNode = (nodeId: NodeId): boolean => {
+		if (!childWidgets.some((child) => child.node_id === nodeId)) return false;
 		if (openAccordionNodeIds.includes(nodeId)) {
 			openAccordionNodeIds = openAccordionNodeIds.filter((candidate) => candidate !== nodeId);
-			return;
+			return true;
 		}
 		openAccordionNodeIds = [...openAccordionNodeIds, nodeId];
+		return true;
 	};
 	const activateDashboardTab = (nodeId: NodeId) => {
-		if (childWidgets.some((child) => child.node_id === nodeId)) activeTabNodeId = nodeId;
+		if (!childWidgets.some((child) => child.node_id === nodeId)) return false;
+		activeTabNodeId = nodeId;
+		return true;
 	};
 	return {
+		get graph() {
+			return graph;
+		},
+		get node() {
+			return liveNode;
+		},
 		get layoutKind() {
 			return layoutKind;
 		},

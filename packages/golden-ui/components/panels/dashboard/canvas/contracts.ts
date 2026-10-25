@@ -145,6 +145,7 @@ export type FreeLayoutInteraction = {
 	targets: FreeLayoutTarget[];
 	startClient: [number, number];
 	rootRemPx: number;
+	emPx: number;
 	surfaceWidthPx: number;
 	surfaceHeightPx: number;
 	surfaceScaleX: number;
@@ -190,6 +191,7 @@ export type ConstrainedResizeInteraction = {
 	startSize: CssValueData;
 	startSizePx: number;
 	rootRemPx: number;
+	emPx: number;
 	surfaceWidthPx: number;
 	surfaceHeightPx: number;
 	surfaceScaleX: number;
@@ -200,6 +202,7 @@ export type ConstrainedResizeInteraction = {
 };
 
 export type SurfaceMetrics = {
+	emPx: number;
 	width: number;
 	height: number;
 	scaleX: number;

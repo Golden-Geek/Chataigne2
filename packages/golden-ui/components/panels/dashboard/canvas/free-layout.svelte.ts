@@ -244,6 +244,7 @@ export function createDashboardFreeLayout(context: DashboardFreeLayoutContext) {
 		const surfaceMetrics = getClosestSurfaceMetrics(event.currentTarget, rootRemPx);
 		const interactionMetrics = {
 			rootRemPx,
+			emPx: surfaceMetrics.emPx,
 			surfaceWidthPx: surfaceMetrics.width,
 			surfaceHeightPx: surfaceMetrics.height,
 			viewportWidthPx: getViewportWidthPx(),
@@ -268,6 +269,7 @@ export function createDashboardFreeLayout(context: DashboardFreeLayoutContext) {
 			targets,
 			startClient: [event.clientX, event.clientY],
 			rootRemPx,
+			emPx: surfaceMetrics.emPx,
 			surfaceWidthPx: surfaceMetrics.width,
 			surfaceHeightPx: surfaceMetrics.height,
 			surfaceScaleX: surfaceMetrics.scaleX,
@@ -297,6 +299,7 @@ export function createDashboardFreeLayout(context: DashboardFreeLayoutContext) {
 		const surfaceMetrics = getClosestSurfaceMetrics(event.currentTarget, rootRemPx);
 		const interactionMetrics = {
 			rootRemPx,
+			emPx: surfaceMetrics.emPx,
 			surfaceWidthPx: surfaceMetrics.width,
 			surfaceHeightPx: surfaceMetrics.height,
 			viewportWidthPx: getViewportWidthPx(),
@@ -321,6 +324,7 @@ export function createDashboardFreeLayout(context: DashboardFreeLayoutContext) {
 			targets,
 			startClient: [event.clientX, event.clientY],
 			rootRemPx,
+			emPx: surfaceMetrics.emPx,
 			surfaceWidthPx: surfaceMetrics.width,
 			surfaceHeightPx: surfaceMetrics.height,
 			surfaceScaleX: surfaceMetrics.scaleX,
@@ -444,19 +448,23 @@ export function createDashboardFreeLayout(context: DashboardFreeLayoutContext) {
 		resolveFreeLayoutPreview(freeLayoutPreview, liveNode.node_id)
 	);
 
+	const currentSurfaceContext = () => {
+		const rootRemPx = getRootRemPixels();
+		const metrics = getClosestSurfaceMetrics(widgetShellElement, rootRemPx);
+		return {
+			rootRemPx,
+			emPx: metrics.emPx,
+			surfaceWidthPx: metrics.width,
+			surfaceHeightPx: metrics.height,
+			viewportWidthPx: getViewportWidthPx(),
+			viewportHeightPx: getViewportHeightPx()
+		};
+	};
 	let widgetShellStyle = $derived.by(() => {
 		if (!editMode || !supportsFreePlacement || !currentNodeFreeLayoutPreview) {
 			return '';
 		}
-		const context = freeLayoutInteraction ?? {
-			rootRemPx: getRootRemPixels(),
-			surfaceWidthPx: getViewportWidthPx(),
-			surfaceHeightPx: getViewportHeightPx(),
-			surfaceScaleX: 1,
-			surfaceScaleY: 1,
-			viewportWidthPx: getViewportWidthPx(),
-			viewportHeightPx: getViewportHeightPx()
-		};
+		const context = freeLayoutInteraction ?? currentSurfaceContext();
 		const currentRect = freeLayoutRectFromPlacement(
 			{ position: placement.position, size: placement.size, anchor: placement.anchor },
 			context

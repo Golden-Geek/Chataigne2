@@ -188,6 +188,20 @@
 	min-block-size: 0;
 }
 
+.gc-dashboard-canvas.dashboard-surface.free
+	> .dashboard-layout
+	> .dashboard-slot
+	> .dashboard-slot-fill
+	> .dashboard-widget-shell,
+.gc-dashboard-canvas
+	.dashboard-surface.free
+	> .dashboard-layout
+	> .dashboard-slot
+	> .dashboard-slot-fill
+	> .dashboard-widget-shell {
+	box-sizing: border-box;
+}
+
 .gc-dashboard-canvas.dashboard-surface.grid > .dashboard-layout,
 .gc-dashboard-canvas .dashboard-surface.grid > .dashboard-layout {
 	display: grid;

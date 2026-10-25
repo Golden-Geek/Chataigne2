@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { getContext } from 'svelte';
+	import { dashboardViewContextKey, type DashboardViewContext } from './view-context.svelte';
+	import { createFreeSurfaceViewport } from './free-surface-viewport.svelte';
 	import type { createDashboardSurface } from './surface.svelte';
 	import type { createDashboardMarquee } from './marquee.svelte';
 	import type { SurfaceDropPreview } from './contracts';
@@ -49,6 +52,24 @@
 		surface.activateDashboardTab(...args);
 	let marqueeSelection = $derived(marquee.marqueeSelection);
 	let marqueeStyle = $derived(marquee.marqueeStyle);
+	const view = getContext<DashboardViewContext | undefined>(dashboardViewContextKey) ?? null;
+	let freeLayoutElement = $state<HTMLElement | null>(null);
+	const freeViewport = createFreeSurfaceViewport({
+		get graph() {
+			return surface.graph;
+		},
+		get node() {
+			return surface.node;
+		},
+		get enabled() {
+			return layoutKind === 'free';
+		},
+		get element() {
+			return freeLayoutElement;
+		},
+		view
+	});
+	let mountedFreeWidgets = $derived(freeViewport.mounted);
 	const surfaceDropKindLabel = (preview: SurfaceDropPreview): string => {
 		if (preview.targetKind === 'node') {
 			return 'Node Widget';
@@ -216,8 +237,12 @@
 		{/if}
 	</div>
 {:else if layoutKind === 'free'}
-	<div class="dashboard-layout">
-		{#each childWidgets as child (child.node_id)}
+	<div
+		class="dashboard-layout"
+		bind:this={freeLayoutElement}
+		data-dashboard-free-total={childWidgets.length}
+		data-dashboard-free-mounted={mountedFreeWidgets.length}>
+		{#each mountedFreeWidgets as child (child.node_id)}
 			{#if shouldRenderSurfaceDropPreviewBeforeChild(child)}
 				{@render dashboardSurfaceDropPreviewSlot(
 					inlineSurfaceDropPreviewStyle(),

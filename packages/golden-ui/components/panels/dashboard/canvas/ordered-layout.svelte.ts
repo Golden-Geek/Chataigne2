@@ -102,6 +102,7 @@ export function createDashboardOrderedLayout(context: DashboardOrderedLayoutCont
 		const surfaceMetrics = getClosestSurfaceMetrics(event.currentTarget, rootRemPx);
 		const sizeContext = {
 			rootRemPx,
+			emPx: surfaceMetrics.emPx,
 			surfaceWidthPx: surfaceMetrics.width,
 			surfaceHeightPx: surfaceMetrics.height,
 			viewportWidthPx: getViewportWidthPx(),
@@ -123,6 +124,7 @@ export function createDashboardOrderedLayout(context: DashboardOrderedLayoutCont
 			startSize,
 			startSizePx,
 			rootRemPx,
+			emPx: surfaceMetrics.emPx,
 			surfaceWidthPx: surfaceMetrics.width,
 			surfaceHeightPx: surfaceMetrics.height,
 			surfaceScaleX: surfaceMetrics.scaleX,
