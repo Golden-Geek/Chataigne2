@@ -1,7 +1,7 @@
 import { onDestroy, tick } from 'svelte';
 import type { NodeId, UiNodeDto } from '../../../../types';
 import type { GraphState } from '../../../../store/graph.svelte';
-import type { FreeLayoutRect } from './contracts';
+import type { FreeLayoutRect, SurfaceDropPreview } from './contracts';
 import type { FreeSurfaceGeometry } from './free-surface-geometry';
 import { framePreparation } from './frame-preparation';
 import { framePresentationBounds } from './frame-bounds';
@@ -21,12 +21,18 @@ export interface SurfaceScroll {
 	readonly top: number;
 }
 export interface SurfacePresentationActions {
+	createNodeWidget(target: NodeId, preview: SurfaceDropPreview | null): Promise<boolean>;
 	prepareForFrame(ids: readonly NodeId[]): void;
 	chooseChild(id: NodeId): boolean;
 	activateTab(id: NodeId): boolean;
 	toggleAccordion(id: NodeId): boolean;
 }
 export interface DashboardViewContext {
+	createNodeWidget(
+		surface: NodeId,
+		target: NodeId,
+		preview: SurfaceDropPreview | null
+	): Promise<boolean>;
 	readScroll(uuid: string): SurfaceScroll | undefined;
 	writeScroll(uuid: string, position: SurfaceScroll): void;
 	select(id: NodeId): void;
@@ -214,6 +220,8 @@ export function createDashboardViewContext(context: DashboardViewSource): Dashbo
 		}
 	};
 	return {
+		createNodeWidget: async (surface, target, preview) =>
+			(await actions.get(surface)?.createNodeWidget(target, preview)) ?? false,
 		readScroll: (uuid) => scrolls.get(uuid),
 		writeScroll(uuid, position) {
 			if (!destroyed && pageUuid === context.page.uuid) scrolls.set(uuid, position);

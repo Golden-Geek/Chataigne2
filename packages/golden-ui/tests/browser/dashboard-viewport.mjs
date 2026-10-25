@@ -12,6 +12,7 @@ import { denseChecks } from './dashboard-dense.mjs';
 import { hierarchyChecks } from './dashboard-hierarchy.mjs';
 import { lifecycleChecks } from './dashboard-lifecycle.mjs';
 import { editLifecycleChecks } from './dashboard-edit-lifecycle.mjs';
+import { creationChecks } from './dashboard-creation.mjs';
 
 const repository = fileURLToPath(new URL('../../../../', import.meta.url));
 const root = fileURLToPath(new URL('./fixture/', import.meta.url));
@@ -21,6 +22,8 @@ const denseOnly = process.argv.includes('--dense-only');
 const hierarchyOnly = process.argv.includes('--hierarchy-only');
 const lifecycleOnly = process.argv.includes('--lifecycle-only');
 const editOnly = process.argv.includes('--edit-only');
+const creationOnly = process.argv.includes('--creation-only');
+const fullRun = !(denseOnly || hierarchyOnly || lifecycleOnly || editOnly || creationOnly);
 const canvasPrefix = 'packages/golden-ui/components/panels/dashboard/';
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const filesBelow = (directory) =>
@@ -46,6 +49,7 @@ const sources = [
 	fileURLToPath(new URL('./dashboard-hierarchy.mjs', import.meta.url)),
 	fileURLToPath(new URL('./dashboard-lifecycle.mjs', import.meta.url)),
 	fileURLToPath(new URL('./dashboard-edit-lifecycle.mjs', import.meta.url)),
+	fileURLToPath(new URL('./dashboard-creation.mjs', import.meta.url)),
 	fileURLToPath(import.meta.url)
 ];
 const fingerprints = () =>
@@ -61,15 +65,17 @@ const report = resolve(
 	`p11-dashboard-viewport-${new Date().toISOString().replaceAll(/[:.]/g, '-')}.json`
 );
 const result = {
-	scope: editOnly
-		? 'edit-only'
-		: lifecycleOnly
-			? 'lifecycle-only'
-			: hierarchyOnly
-				? 'hierarchy-only'
-				: denseOnly
-					? 'dense-only'
-					: 'dashboard-correctness',
+	scope: creationOnly
+		? 'creation-only'
+		: editOnly
+			? 'edit-only'
+			: lifecycleOnly
+				? 'lifecycle-only'
+				: hierarchyOnly
+					? 'hierarchy-only'
+					: denseOnly
+						? 'dense-only'
+						: 'dashboard-correctness',
 	baseline,
 	browser: '',
 	machine: {
@@ -505,36 +511,32 @@ try {
 			: { channel: process.platform === 'win32' ? 'msedge' : undefined })
 	});
 	result.browser = await browser.version();
-	const references =
-		denseOnly || hierarchyOnly || lifecycleOnly || editOnly
-			? null
-			: await scene('baseline', async (page) => {
-					const scenes = new Map();
-					for (const editing of [false, true]) {
-						await page.evaluate(
-							(editing) => window.dashboardFixture.setup('free', editing, 1000, 'grid'),
-							editing
-						);
-						const widgets = await paintedWidgets(page);
-						assert.equal(widgets.length, 1000);
-						scenes.set(editing, widgets);
-					}
-					await page.evaluate(() =>
-						window.dashboardFixture.setup('free', true, 1000, 'grid', true)
+	const references = !fullRun
+		? null
+		: await scene('baseline', async (page) => {
+				const scenes = new Map();
+				for (const editing of [false, true]) {
+					await page.evaluate(
+						(editing) => window.dashboardFixture.setup('free', editing, 1000, 'grid'),
+						editing
 					);
-					const nested = await paintedWidgets(page);
-					assert.equal(nested.length, 1001);
-					scenes.set('nested', nested);
-					return scenes;
-				});
+					const widgets = await paintedWidgets(page);
+					assert.equal(widgets.length, 1000);
+					scenes.set(editing, widgets);
+				}
+				await page.evaluate(() => window.dashboardFixture.setup('free', true, 1000, 'grid', true));
+				const nested = await paintedWidgets(page);
+				assert.equal(nested.length, 1001);
+				scenes.set('nested', nested);
+				return scenes;
+			});
 	await scene('current', async (page) => {
 		if (references) await viewportChecks(page, references);
-		if (!hierarchyOnly && !lifecycleOnly && !editOnly) await denseChecks(page, record);
-		if (!denseOnly && !lifecycleOnly && !editOnly) await hierarchyChecks(page, record);
-		if (lifecycleOnly || (!denseOnly && !hierarchyOnly && !editOnly))
-			await lifecycleChecks(page, record);
-		if (editOnly || (!denseOnly && !hierarchyOnly && !lifecycleOnly))
-			await editLifecycleChecks(page, record);
+		if (fullRun || denseOnly) await denseChecks(page, record);
+		if (fullRun || hierarchyOnly) await hierarchyChecks(page, record);
+		if (fullRun || lifecycleOnly) await lifecycleChecks(page, record);
+		if (fullRun || editOnly) await editLifecycleChecks(page, record);
+		if (fullRun || creationOnly) await creationChecks(page, record);
 		assert.deepEqual(result.errors, []);
 	});
 	assert.deepEqual(fingerprints(), result.source, 'Qualified sources changed');

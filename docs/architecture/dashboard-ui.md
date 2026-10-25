@@ -9,7 +9,8 @@ and widget templates. Its `canvas/` modules own distinct presentation lifetimes:
 
 | Owner | Responsibility |
 | --- | --- |
-| `surface.svelte.ts`, `SurfaceContent.svelte` | Child layout, tabs/accordion view state, incoming drop previews and recursive rendering. |
+| `surface.svelte.ts`, `SurfaceContent.svelte` | Child layout, tabs/accordion view state, native drop adapters, registered view operations and recursive rendering. |
+| `surface-drop.svelte.ts`, `surface-move.svelte.ts` | Active drop/move and pending creation/commit presentation lifetimes. |
 | `camera.svelte.ts`, `page-view.ts` | Viewport measurements, pan/zoom, persisted camera state and Home/frame commands. |
 | `free-layout.svelte.ts`, `ordered-layout.svelte.ts` | Move/resize/reorder gestures, previews, coalesced edits and interaction cleanup. |
 | `interaction-geometry.svelte.ts`, `interaction-chrome.svelte.ts` | Transform targets, hit testing, insertion/ancestor decoration and move-preview publication. |
@@ -130,5 +131,15 @@ Tab previews keep keyed active controls mounted but hidden/inert; accordion prev
 insertion anchor. Shared retention includes marked gesture ancestors and refreshes before a
 budget/layout DOM change. The [move-lifetime report](../progress/p11-dashboard-move-lifetimes.md)
 records the exercised operations and remaining creation/resize/native coverage.
+
+`surface-drop.svelte.ts` owns native drag depth/preview and pending creation independently of
+asynchronous backend requests. Native drop handling and the public surface creation operation
+use that same owner. `surface-fence.ts` supplies shared destination identity/layout/order checks
+for both drop and move presentation. Drops also validate the referenced source UUID. Mode,
+identity, layout or structure changes retire stale previews; disposal clears presentation and
+timers. An older rejection cannot clear a newer pending creation. Accepted backend work keeps
+its authoritative outcome even if its former view has disappeared. The
+[creation report](../progress/p11-dashboard-creation.md) distinguishes these presentation checks
+from native gesture and transaction qualification.
 See the [fixed contract](../progress/p11-workspace-qualification-contract.md) and the historical
 [decomposition comparison](../progress/p11-dashboard-decomposition.md).

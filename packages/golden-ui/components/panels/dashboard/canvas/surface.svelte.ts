@@ -1,16 +1,13 @@
 import { onDestroy, untrack } from 'svelte';
 import { FlowLengths, flowSegments } from './flow-layout';
 import { createSurfaceMove } from './surface-move.svelte';
+import { createSurfaceDrop } from './surface-drop.svelte';
 import type { DashboardViewContext } from './view-context.svelte';
 import type { GraphState } from '../../../../store/graph.svelte';
 import type { createDashboardInteractionChrome } from './interaction-chrome.svelte';
 import type { createDashboardInteractionGeometry } from './interaction-geometry.svelte';
 import { resolveDashboardDragNode, resolveDashboardDragParameterNode } from '../dashboard-drag';
-import {
-	type SurfaceDropPreview,
-	type PendingSurfaceDrop,
-	type NonFreeSurfaceFlowRenderItem
-} from './contracts';
+import { type SurfaceDropPreview, type NonFreeSurfaceFlowRenderItem } from './contracts';
 import {
 	minFreeWidgetWidthRem,
 	minFreeWidgetHeightRem,
@@ -138,6 +135,7 @@ export function createDashboardSurface(context: DashboardSurfaceContext) {
 	$effect(() => {
 		if (!isLayoutSurface) return;
 		return context.view?.registerPresentation(liveNode.node_id, {
+			createNodeWidget: (target, preview) => createNodeWidget(target, preview),
 			prepareForFrame: (ids) => prepareForFrame(ids),
 			chooseChild: (id) => chooseDashboardChild(id),
 			activateTab: (id) => activateDashboardTab(id),
@@ -146,11 +144,27 @@ export function createDashboardSurface(context: DashboardSurfaceContext) {
 	});
 	onDestroy(() => untrack(savePresentation));
 
-	let surfaceDragDepth = $state(0);
-
-	let surfaceDropPreview = $state<SurfaceDropPreview | null>(null);
-
-	let pendingSurfaceDrop = $state<PendingSurfaceDrop | null>(null);
+	const drop = createSurfaceDrop({
+		get graph() {
+			return graph;
+		},
+		get node() {
+			return liveNode;
+		},
+		get enabled() {
+			return editMode && isLayoutSurface;
+		},
+		clearIndicator: clearSurfaceInsertionIndicator,
+		create: (source, preview) =>
+			createDashboardNodeWidget(getGraph, liveNode.node_id, source, {
+				placement: preview?.placement,
+				targetIndex: preview?.targetIndex ?? undefined
+			})
+	});
+	const createNodeWidget = (target: NodeId, preview: SurfaceDropPreview | null) => {
+		const source = graph?.nodesById.get(target);
+		return source ? drop.create(source, preview) : Promise.resolve(false);
+	};
 	const move = createSurfaceMove({
 		get graph() {
 			return graph;
@@ -171,18 +185,14 @@ export function createDashboardSurface(context: DashboardSurfaceContext) {
 	let effectiveHiddenChildNodeId = $derived(move.hidden);
 
 	let displayedSurfaceDropPreview = $derived(
-		surfaceDropPreview ?? move.preview ?? pendingSurfaceDrop?.preview ?? null
+		drop.preview ?? move.preview ?? drop.pending?.preview ?? null
 	);
 
 	let rendersInlineSurfaceDropPreview = $derived.by(() => {
 		return displayedSurfaceDropPreview !== null;
 	});
 
-	const clearSurfaceDropState = (): void => {
-		surfaceDragDepth = 0;
-		surfaceDropPreview = null;
-		clearSurfaceInsertionIndicator();
-	};
+	const clearSurfaceDropState = drop.clear;
 
 	$effect(() => {
 		if (layoutKind !== 'tabs') {
@@ -309,9 +319,8 @@ export function createDashboardSurface(context: DashboardSurfaceContext) {
 			return;
 		}
 		event.preventDefault();
-		surfaceDragDepth += 1;
 		const preview = buildSurfaceDropPreview(event, payload);
-		surfaceDropPreview = preview;
+		drop.enter(resolveDraggedNode(payload)!, preview);
 		if (event.currentTarget instanceof HTMLElement && layoutKind !== 'free') {
 			const insertionTarget = resolveSurfaceInsertionTarget(
 				liveNode,
@@ -340,7 +349,7 @@ export function createDashboardSurface(context: DashboardSurfaceContext) {
 			event.dataTransfer.dropEffect = 'copy';
 		}
 		const preview = buildSurfaceDropPreview(event, payload);
-		surfaceDropPreview = preview;
+		drop.over(resolveDraggedNode(payload)!, preview);
 		if (event.currentTarget instanceof HTMLElement && layoutKind !== 'free') {
 			const insertionTarget = resolveSurfaceInsertionTarget(
 				liveNode,
@@ -359,12 +368,7 @@ export function createDashboardSurface(context: DashboardSurfaceContext) {
 			clearSurfaceDropState();
 			return;
 		}
-		const nextDepth = Math.max(0, surfaceDragDepth - 1);
-		surfaceDragDepth = nextDepth;
-		if (nextDepth === 0) {
-			surfaceDropPreview = null;
-			clearSurfaceInsertionIndicator();
-		}
+		drop.leave();
 	};
 
 	const handleSurfaceDrop = async (event: DragEvent): Promise<void> => {
@@ -373,7 +377,7 @@ export function createDashboardSurface(context: DashboardSurfaceContext) {
 			clearSurfaceDropState();
 			return;
 		}
-		const dropPreview = surfaceDropPreview ?? buildSurfaceDropPreview(event, payload);
+		const dropPreview = drop.preview ?? buildSurfaceDropPreview(event, payload);
 		clearSurfaceDropState();
 		if (!canCreateFromDrop(payload)) {
 			return;
@@ -384,20 +388,7 @@ export function createDashboardSurface(context: DashboardSurfaceContext) {
 		if (!targetNode) {
 			return;
 		}
-		pendingSurfaceDrop = dropPreview
-			? {
-					preview: dropPreview,
-					knownChildIds: childWidgets.map((child) => child.node_id),
-					knownDirectChildIds: [...liveNode.children]
-				}
-			: null;
-		const created = await createDashboardNodeWidget(getGraph, liveNode.node_id, targetNode, {
-			placement: dropPreview?.placement,
-			targetIndex: dropPreview?.targetIndex ?? undefined
-		});
-		if (!created) {
-			pendingSurfaceDrop = null;
-		}
+		await createNodeWidget(targetNode.node_id, dropPreview);
 	};
 
 	$effect(() => {
@@ -421,34 +412,6 @@ export function createDashboardSurface(context: DashboardSurfaceContext) {
 	let surfaceSnapGrid = $derived(getDashboardSnapGrid(graph, liveNode));
 
 	let snapGridVisible = $derived(editMode && surfaceSnapGrid.enabled && layoutKind === 'free');
-
-	$effect(() => {
-		if (!pendingSurfaceDrop) {
-			return;
-		}
-		const knownChildIds = new Set(pendingSurfaceDrop.knownChildIds);
-		const knownDirectChildIds = new Set(pendingSurfaceDrop.knownDirectChildIds);
-		if (
-			liveNode.children.length !== pendingSurfaceDrop.knownDirectChildIds.length ||
-			childWidgets.length !== pendingSurfaceDrop.knownChildIds.length ||
-			liveNode.children.some((childId) => !knownDirectChildIds.has(childId)) ||
-			childWidgets.some((child) => !knownChildIds.has(child.node_id))
-		) {
-			pendingSurfaceDrop = null;
-		}
-	});
-
-	$effect(() => {
-		if (!pendingSurfaceDrop || typeof window === 'undefined') {
-			return;
-		}
-		const timeout = window.setTimeout(() => {
-			pendingSurfaceDrop = null;
-		}, 2000);
-		return () => {
-			window.clearTimeout(timeout);
-		};
-	});
 
 	const surfaceStyle = $derived.by((): string => {
 		const snapStepPx = surfaceSnapGrid.enabled ? surfaceSnapGrid.step * getRootRemPixels() : 0;
@@ -786,13 +749,13 @@ export function createDashboardSurface(context: DashboardSurfaceContext) {
 			return openAccordionNodeIds;
 		},
 		get surfaceDragDepth() {
-			return surfaceDragDepth;
+			return drop.depth;
 		},
 		get surfaceDropPreview() {
-			return surfaceDropPreview;
+			return drop.preview;
 		},
 		get pendingSurfaceDrop() {
-			return pendingSurfaceDrop;
+			return drop.pending;
 		},
 		get displayedSurfaceDropPreview() {
 			return displayedSurfaceDropPreview;

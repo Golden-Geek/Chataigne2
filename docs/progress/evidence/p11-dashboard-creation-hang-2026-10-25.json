@@ -1,0 +1,32 @@
+{
+  "kind": "fixture-deadlock",
+  "observedAt": "2026-10-25T17:17:18.284Z",
+  "base": "5fd843cbf27f81c1541c013f7b2324f0c8c0f225",
+  "command": "node tests/browser/dashboard-viewport.mjs --creation-only",
+  "processId": 18948,
+  "diagnosis": "startCreation awaited a second receipt while holding the first acknowledgement; the production intent pipeline serializes dispatch. This is fixture deadlock, not application latency evidence.",
+  "source": {
+    "packages/golden-ui/components/panels/dashboard/canvas/surface-drop.svelte.ts": "4abeaaa6b1fad32c58075729063f289ba4fbbe83c81f0b8648d92cb1f9daddb4",
+    "packages/golden-ui/components/panels/dashboard/canvas/surface-fence.ts": "3d892cd05d20d8bd9af39dfbcafe706dd7655b3b005317d419a0186fece3922c",
+    "packages/golden-ui/components/panels/dashboard/canvas/tests/surface-fence.test.ts": "eff1a3d8ba99eaae7d6dead6b37d69a5c3c138f11aa03b2d478e709a26d080ce",
+    "packages/golden-ui/tests/browser/dashboard-creation.mjs": "8be766cc901255ede137ec27e16dccc37f725e6764037f39c2af9ffc3f1cbfee",
+    "packages/golden-ui/components/panels/dashboard/DashboardCanvas.svelte": "aa998cab281523591d65d72c146018cbc89d653999c90ac9272127a342dd4698",
+    "packages/golden-ui/components/panels/dashboard/canvas/contracts.ts": "c74efd73a4c20fa1d65acbf44038f53008c478a4e3ac17cb3bbe621aabb6279a",
+    "packages/golden-ui/components/panels/dashboard/canvas/move-fence.ts": "82164577a14e63b0e435f3825b4aefbbcea87b8f599c36a726d6f5f05e2081f9",
+    "packages/golden-ui/components/panels/dashboard/canvas/surface.svelte.ts": "a2cbfb79f1ebc19c06c44be3cacdb572b0b1087ddf07671b48fa00667f8cf746",
+    "packages/golden-ui/components/panels/dashboard/canvas/view-context.svelte.ts": "d15dc4c029b0023e8a84f62fc95764e220f35f3033e4caf2a524c8b93e730455",
+    "packages/golden-ui/tests/browser/dashboard-viewport.mjs": "defdbc66e7d7e7f519135f93bfe516f18c67be91f331153d228dff0ef76eb553",
+    "packages/golden-ui/tests/browser/fixture/DashboardFixture.svelte": "6bba0b97a9b7c477f4fdbd335d2d9408046514dfd854a0eb56911f38552cefc8",
+    "packages/golden-ui/tests/browser/fixture/session.ts": "98545d7ec9846ee2a4c68ee8c76917a4425aeefdf96dda4386e04cd12f36f22c"
+  },
+  "assets": [
+    {
+      "name": "dashboard-BTUQnzpI.css",
+      "sha256": "02c160e4e3f4e14381a43417fe947dd505b8b298e6d59fbbcc67e612435cdc7c"
+    },
+    {
+      "name": "dashboard-CqAXVSUW.js",
+      "sha256": "2d8791e081edc8896000f0f0e7cce515e9088390ad9a81767c8d70b0b69a031f"
+    }
+  ]
+}

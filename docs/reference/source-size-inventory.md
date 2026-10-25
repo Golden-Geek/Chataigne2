@@ -7,12 +7,12 @@ extraction notes and September counts are [archived](../archive/2026-10-18/progr
 
 ## Scan and policy
 
-Refreshed 2026-10-25 against delivered `def86577` plus dashboard move-presentation lifetimes
-on `main`. Scanned **2129 source files**; **27 exceed 1,000 lines**. The dashboard
-canvas is 945 lines; its controllers, geometry, viewport, tests and stylesheet files remain
+Refreshed 2026-10-25 against delivered `5fd843cb` plus dashboard creation-presentation lifetimes
+on `main`. Scanned **2133 source files**; **27 exceed 1,000 lines**. The dashboard
+canvas is 951 lines; its controllers, geometry, viewport, tests and stylesheet files remain
 below the limit. No new source-size exception is introduced. Remaining decomposition and
 exceptions belong to P12; this inventory does not qualify that task.
-The surface controller is now 825 lines after extracting move-preview/commit ownership.
+The surface controller is now 788 lines after extracting move and creation presentation ownership.
 
 The node enum macro remains the centralized built-in/consumer-variant dispatch registry:
 each public Node hook must reach both sets of variants there. P12 still owns extracting its

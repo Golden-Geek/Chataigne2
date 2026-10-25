@@ -17,6 +17,7 @@
 		DashboardPersistedPageView,
 		DashboardPersistedPageViewChangeHandler,
 		FreeLayoutResizeZone,
+		SurfaceDropPreview,
 		FreeLayoutRect
 	} from './canvas/contracts';
 	import { freeLayoutResizeZones } from './canvas/geometry';
@@ -28,7 +29,7 @@
 		type DashboardViewContext
 	} from './canvas/view-context.svelte';
 	import { appState, type SelectionMode } from '../../../store/workbench.svelte';
-	import type { UiNodeDto } from '../../../types';
+	import type { NodeId, UiNodeDto } from '../../../types';
 	import { formatCssValue } from '../../../css-value';
 	import ContextMenu from '../../common/ContextMenu.svelte';
 	import Slider from '../../common/Slider.svelte';
@@ -405,6 +406,11 @@
 	export const activateWidgetAt = (surface: number, clientX: number, clientY: number) =>
 		dashboardView?.activateAt(surface, clientX, clientY) ?? null;
 	export const browseSurface = (surface: number) => dashboardView?.browse(surface) ?? false;
+	export const createWidgetOnSurface = async (
+		surface: NodeId,
+		target: NodeId,
+		preview: SurfaceDropPreview | null
+	) => (await dashboardView?.createNodeWidget(surface, target, preview)) ?? false;
 	export const chooseSurfaceChild = (surface: number, child: number) =>
 		dashboardView?.chooseChild(surface, child) ?? false;
 	export const searchSurfaceChildren = (surface: number, query: string) =>

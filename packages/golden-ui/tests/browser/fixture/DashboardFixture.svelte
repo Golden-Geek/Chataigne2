@@ -14,7 +14,11 @@
 	import { dashboardHierarchy } from './dashboard-hierarchy';
 	import DashboardRegistryContent from './DashboardRegistryContent.svelte';
 	import { createDashboardInteractionChrome } from '../../../components/panels/dashboard/canvas/interaction-chrome.svelte';
-	import { getDashboardPlacement } from '../../../components/panels/dashboard/dashboard-model';
+	import {
+		getDashboardPlacement,
+		getDashboardLayoutKind
+	} from '../../../components/panels/dashboard/dashboard-model';
+	import type { UiClient } from '../../../types';
 	import type { DashboardPersistedPageView } from '../../../components/panels/dashboard/canvas/contracts';
 	import type { ParamValue } from '../../../types';
 	import { getDirectParamNode } from '../../../components/panels/dashboard/dashboard-model';
@@ -39,6 +43,115 @@
 	let presentationBudget = $state(512);
 	let canvas = $state<ReturnType<typeof DashboardCanvas>>();
 	let sequence = 0;
+	type IntentReply = Awaited<ReturnType<UiClient['sendIntent']>>;
+	const creations: {
+		parent: number;
+		target: number;
+		resolve: ((reply: IntentReply) => void) | null;
+		done: Promise<boolean> | null;
+		settled: boolean;
+	}[] = [];
+	const waitingCreations: number[] = [];
+	fixture.handleIntent((intent) => {
+		if (intent.kind !== 'createDashboardNodeWidget') return null;
+		return new Promise<IntentReply>((resolve) => {
+			const request = waitingCreations.shift();
+			if (request === undefined)
+				throw new Error('Creation dispatched without a recorded operation');
+			creations[request].resolve = resolve;
+		});
+	});
+	export async function startCreation(index: number) {
+		const graph = fixture.session.graph.state,
+			source = graph.nodesById.get(data!.ids[index])!;
+		const parent = data!.containerId!,
+			owner = graph.nodesById.get(parent)!;
+		const number = creations.length;
+		const operation = {
+			parent,
+			target: source.node_id,
+			resolve: null,
+			done: null,
+			settled: false
+		} as (typeof creations)[number];
+		creations.push(operation);
+		waitingCreations.push(number);
+		const done = canvas!.createWidgetOnSurface(parent, source.node_id, {
+			label: `Create ${index}`,
+			targetKind: 'node',
+			placement: getDashboardPlacement(graph, source),
+			targetIndex: getDashboardLayoutKind(graph, owner) === 'free' ? null : 3,
+			genericWidgetKind: null,
+			previewText: null,
+			previewPlaceholder: null,
+			multiline: false
+		});
+		operation.done = done;
+		const finished = () => {
+			operation.settled = true;
+			const waiting = waitingCreations.indexOf(number);
+			if (waiting >= 0) waitingCreations.splice(waiting, 1);
+		};
+		void done.then(finished, finished);
+		await settle();
+		return { request: operation.settled && !operation.resolve ? null : number };
+	}
+	export async function resolveCreation(request: number, success: boolean) {
+		const pending = creations[request],
+			id = 9000000 + request * 20;
+		if (!pending.resolve) throw new Error(`Creation ${request} has not reached transport`);
+		if (success) {
+			const template = dashboardData('free');
+			const widget = template.nodes.find((node) => node.node_type === 'dashboard_node_widget')!;
+			const source = fixture.session.graph.state.nodesById.get(pending.target)!;
+			const subtree = structuredClone([
+				widget,
+				...widget.children.map((child) => template.nodes.find((node) => node.node_id === child)!)
+			]);
+			const ids = new Map(subtree.map((node, index) => [node.node_id, id + index]));
+			for (const node of subtree) {
+				node.node_id = ids.get(node.node_id)!;
+				node.uuid = `created-${node.node_id}`;
+				node.children = node.children.map((child) => ids.get(child)!);
+				if (node.data.kind === 'parameter') {
+					if (node.data.param.value.kind === 'reference') {
+						node.data.param.value = {
+							...node.data.param.value,
+							uuid: source.uuid,
+							cached_id: source.node_id
+						};
+						node.data.param.default_value = node.data.param.value;
+					}
+					if (node.decl_id === 'position') node.data.param.value = { kind: 'vec2', value: [0, 0] };
+				} else node.meta.label = `Created ${request}`;
+				fixture.session.graph.applyEvent({
+					time: { tick: ++sequence, micro: 0, seq: 0 },
+					kind: { kind: 'nodeCreated', node: node.node_id, snapshot: node }
+				});
+			}
+			fixture.session.graph.applyEvent({
+				time: { tick: ++sequence, micro: 0, seq: 0 },
+				kind: {
+					kind: 'childAdded',
+					parent: pending.parent,
+					child: id,
+					decl_id: '',
+					parent_children: [
+						...fixture.session.graph.state.nodesById.get(pending.parent)!.children,
+						id
+					]
+				}
+			});
+		}
+		pending.resolve(
+			success
+				? { success: true, status: 'applied' }
+				: { success: false, status: 'rejected', error_message: 'Fixture creation rejection' }
+		);
+		const result = await pending.done;
+		await settle();
+		return { result, id };
+	}
 	let moveSource = $state<number | null>(null);
 	let moveCancellations: (() => void)[] = [];
 	const moveChrome = createDashboardInteractionChrome({
@@ -325,6 +438,10 @@
 	}
 	export async function select(index: number) {
 		fixture.session.selectNode(data!.ids[index], 'REPLACE');
+		await settle();
+	}
+	export async function selectSurface() {
+		fixture.session.selectNode(data!.containerId!, 'REPLACE');
 		await settle();
 	}
 	export async function selectMany(indices: number[]) {

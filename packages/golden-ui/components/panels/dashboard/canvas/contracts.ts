@@ -32,12 +32,6 @@ export type SurfaceDropPreview = {
 	multiline: boolean;
 };
 
-export type PendingSurfaceDrop = {
-	preview: SurfaceDropPreview;
-	knownChildIds: NodeId[];
-	knownDirectChildIds: NodeId[];
-};
-
 export type PendingWidgetMoveCommit = {
 	preview: SurfaceDropPreview | null;
 	hiddenChildNodeId: NodeId | null;

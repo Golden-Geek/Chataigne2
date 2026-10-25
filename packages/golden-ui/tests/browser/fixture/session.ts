@@ -48,6 +48,9 @@ export function createFixtureSession() {
 	let rejectNext = false;
 	let sequence = 0;
 	let generation = 0;
+	let intentHandler:
+		| ((intent: Parameters<UiClient['sendIntent']>[0]) => ReturnType<UiClient['sendIntent']> | null)
+		| null = null;
 	const unused = (): never => {
 		throw new Error('Unexpected fixture transport call.');
 	};
@@ -66,6 +69,8 @@ export function createFixtureSession() {
 		projectLoad: unused,
 		projectUploadLoad: unused,
 		sendIntent: async (intent) => {
+			const handled = intentHandler?.(intent);
+			if (handled) return handled;
 			if (rejectNext) {
 				rejectNext = false;
 				return { success: false, status: 'rejected', error_message: 'Fixture rejection' };
@@ -150,6 +155,9 @@ export function createFixtureSession() {
 		session.graph.loadSnapshot(snapshot);
 	};
 	return {
+		handleIntent(handler: typeof intentHandler) {
+			intentHandler = handler;
+		},
 		session,
 		load,
 		loadNodes,
