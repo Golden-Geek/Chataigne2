@@ -69,10 +69,11 @@ export async function confirmedChecks(page, record) {
 		const selector = (index = 0) => `.dashboard-widget-shell[data-node-id="${scene.ids[index]}"]`;
 		const state = () => page.evaluate(() => window.dashboardFixture.editState());
 		const writes = (value) => value.records.filter((r) => r.kind === 'setParam').length;
-		const setup = async (options) => {
+		const setup = async (options, nestedFields = false) => {
 			scene = await page.evaluate(() =>
 				window.dashboardFixture.setup('free', true, 600, 'dense', true)
 			);
+			if (nestedFields) await page.evaluate(() => window.dashboardFixture.nestLayoutFields(0));
 			await page.evaluate(
 				({ containerId, ids }) => window.dashboardFixture.chooseChild(containerId, ids[0]),
 				scene
@@ -218,5 +219,18 @@ export async function confirmedChecks(page, record) {
 				{ prefix }
 			);
 		}
+		await setup({}, true);
+		const before = await page.locator(selector()).boundingBox();
+		origin = await start();
+		await update(origin, 24);
+		assert(await page.evaluate(() => window.dashboardFixture.layoutEdit(0, { kind: 'finish' })));
+		const after = await page.locator(selector()).boundingBox();
+		assert(before && after);
+		assert(
+			mode === 'move' ? after.x - before.x > 10 : after.width - before.width > 10,
+			JSON.stringify({ mode, before, after })
+		);
+		assert.equal((await state()).active, false);
+		record(`nested-layout-folder-${mode}-commits-visible-geometry`);
 	}
 }

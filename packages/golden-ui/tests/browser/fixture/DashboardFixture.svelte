@@ -8,7 +8,7 @@
 	import type { DashboardLayoutKind } from '../../../components/panels/dashboard/dashboard-model';
 	import { appState } from '../../../store/app-state.svelte';
 	import { executeCommand } from '../../../store/commands.svelte';
-	import { createFixtureSession } from './session';
+	import { createFixtureSession, fixtureNode } from './session';
 	import { dashboardData } from './dashboard-data';
 	import { dashboardForest } from './dashboard-forest';
 	import { dashboardHierarchy } from './dashboard-hierarchy';
@@ -88,6 +88,30 @@
 		const field = getDirectParamNode(graph, owner, key);
 		if (field?.data.kind !== 'parameter') throw new Error('Missing fixture field');
 		return field.data.param.value;
+	}
+	export async function nestLayoutFields(index: number) {
+		const nodes = structuredClone([...fixture.session.graph.state.nodesById.values()]);
+		const widget = nodes.find((node) => node.node_id === data!.ids[index])!;
+		const fields = nodes.filter(
+			(node) =>
+				widget.children.includes(node.node_id) &&
+				['position', 'anchor', 'width', 'height'].includes(node.decl_id)
+		);
+		let id = 0;
+		for (const node of nodes) id = Math.max(id, node.node_id + 1);
+		const folder = fixtureNode(
+			id,
+			'Layout',
+			fields.map((node) => node.node_id),
+			'folder'
+		);
+		folder.decl_id = 'layout';
+		const moved = new Set(folder.children);
+		widget.children = [...widget.children.filter((id) => !moved.has(id)), id];
+		for (const field of fields) field.decl_id = `layout/${field.decl_id}`;
+		fixture.loadNodes([...nodes, folder]);
+		epoch++;
+		await settle();
 	}
 	type IntentReply = Awaited<ReturnType<UiClient['sendIntent']>>;
 	const creations: {

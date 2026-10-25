@@ -188,7 +188,8 @@ export function createDashboardFreeLayout(context: DashboardFreeLayoutContext) {
 					operation.primary,
 					dropTarget.surfaceNodeId,
 					dropTarget.placement,
-					dropTarget.targetIndex ?? undefined
+					dropTarget.targetIndex ?? undefined,
+					operation.host
 				);
 			});
 		} else {

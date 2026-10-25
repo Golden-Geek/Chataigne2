@@ -15,6 +15,17 @@ fn public_protocol_serializes_without_an_engine_runtime() {
 }
 
 #[test]
+fn dashboard_layout_requests_round_trip_without_an_engine_runtime() {
+    for wire in [
+        serde_json::json!({"kind":"moveDashboardWidget","widget":7,"parent":2,"target_index":0}),
+        serde_json::json!({"kind":"resizeDashboardWidget","widget":7,"width":{"value":25.0,"unit":"percent"}}),
+    ] {
+        let intent: UiEditIntent = serde_json::from_value(wire.clone()).unwrap();
+        assert_eq!(serde_json::to_value(intent).unwrap(), wire);
+    }
+}
+
+#[test]
 fn app_operation_requests_and_exact_results_round_trip_without_an_engine_runtime() {
     let request = UiEditIntent::InvokeAppOperation {
         namespace: "fixture".into(),

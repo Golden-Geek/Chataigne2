@@ -17,6 +17,7 @@ import { requestRemoveNodesById } from './node-removal';
 import { appState } from './workbench.svelte';
 import { createEditSession, type UiEditSession } from './session/edit-session';
 import type { AppliedIntentObserver } from './session/intent-sender';
+import type { WorkbenchSession } from './workbench.svelte';
 export type { UiEditSession } from './session/edit-session';
 
 let intentSequence = 0;
@@ -277,6 +278,37 @@ export const sendCreateUserItemByTypeIntent = async (
 		selectWhenCreated: options?.select_when_created ?? true
 	};
 };
+
+export const sendMoveDashboardWidgetIntent = async (
+	widget: NodeId,
+	parent: NodeId,
+	target_index?: number,
+	placement?: UiDashboardWidgetPlacement,
+	session: WorkbenchSession | null = appState.session
+): Promise<boolean> =>
+	session
+		? sendUiIntentToSession(session, {
+				kind: 'moveDashboardWidget',
+				widget,
+				parent,
+				target_index,
+				placement
+			})
+		: false;
+
+export const sendResizeDashboardWidgetIntent = async (
+	widget: NodeId,
+	dimensions: Pick<Extract<UiEditIntent, { kind: 'resizeDashboardWidget' }>, 'width' | 'height'>,
+	session: WorkbenchSession | null = appState.session,
+	applied?: AppliedIntentObserver
+): Promise<boolean> =>
+	session
+		? sendUiIntentToSession(
+				session,
+				{ kind: 'resizeDashboardWidget', widget, ...dimensions },
+				{ applied }
+			)
+		: false;
 
 export const sendCreateDashboardContainerWidgetIntent = async (
 	parent: NodeId,

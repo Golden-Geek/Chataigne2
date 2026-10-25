@@ -710,7 +710,10 @@ export type UiEditIntent =
 	  }
 	| { kind: 'removeUserContextEntry'; owner: NodeId; symbol: string }
 	| { kind: 'sendNodeEvent'; node: NodeId; topic: string; payload: unknown }
-	| Extract<RustUiEditIntent, { kind: 'invokeAppOperation' }>
+	| Extract<
+			RustUiEditIntent,
+			{ kind: 'invokeAppOperation' | 'moveDashboardWidget' | 'resizeDashboardWidget' }
+	  >
 	| { kind: 'reevaluateGraph' }
 	| { kind: 'clearLogs' }
 	| { kind: 'setLogMaxEntries'; max_entries: number }

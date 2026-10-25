@@ -60,6 +60,30 @@ pub enum UiEditIntent {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         new_prev_sibling: Option<NodeId>,
     },
+    /// Moves and places a dashboard widget in one authored transaction.
+    MoveDashboardWidget {
+        /// Existing dashboard widget.
+        widget: NodeId,
+        /// Dashboard page or container receiving the widget.
+        parent: NodeId,
+        /// Final index among user items, excluding structural children. Omission appends on reparent.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        target_index: Option<usize>,
+        /// Optional viewport-derived placement; layout policy remains backend-owned.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        placement: Option<UiDashboardWidgetPlacement>,
+    },
+    /// Sets explicit dimensions and enables their sizing controls atomically.
+    ResizeDashboardWidget {
+        /// Existing dashboard widget.
+        widget: NodeId,
+        /// Requested width; valid in free or horizontal layouts.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        width: Option<CssValue>,
+        /// Requested height; valid in free or vertical layouts.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        height: Option<CssValue>,
+    },
     /// Remove a node.
     RemoveNode {
         /// Target node id.

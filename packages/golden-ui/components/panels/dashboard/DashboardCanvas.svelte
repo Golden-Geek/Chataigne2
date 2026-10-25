@@ -348,6 +348,9 @@
 		);
 	});
 	const orderedLayoutState = createDashboardOrderedLayout({
+		get session() {
+			return session;
+		},
 		get graph() {
 			return graph;
 		},

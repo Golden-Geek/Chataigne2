@@ -232,6 +232,8 @@ fn ui_intent_kind(intent: &UiEditIntent) -> &'static str {
         UiEditIntent::SetParamControlState { .. } => "set_param_control_state",
         UiEditIntent::SetParamConstraints { .. } => "set_param_constraints",
         UiEditIntent::MoveNode { .. } => "move",
+        UiEditIntent::MoveDashboardWidget { .. } => "move_dashboard_widget",
+        UiEditIntent::ResizeDashboardWidget { .. } => "resize_dashboard_widget",
         UiEditIntent::RemoveNode { .. } => "remove",
         UiEditIntent::RemoveNodes { .. } => "remove_nodes",
         UiEditIntent::CreateUserItem { .. } => "create_user_item",

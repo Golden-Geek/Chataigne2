@@ -34,7 +34,16 @@ export function captureLayoutGesture(
 			target.widthParamNodeId,
 			target.heightParamNodeId
 		])
-			if (id !== null && (!capture(id) || graph.parentById.get(id) !== target.nodeId)) return null;
+			if (id !== null) {
+				const path = new Set<NodeId>();
+				let field: NodeId | undefined = id;
+				while (field !== target.nodeId) {
+					if (field === undefined || path.has(field) || !capture(field)) return null;
+					if (graph.nodesById.get(field)?.user_role === 'itemRoot') return null;
+					path.add(field);
+					field = graph.parentById.get(field);
+				}
+			}
 		const path = new Set<NodeId>();
 		let id: NodeId | undefined = target.nodeId;
 		while (id !== undefined) {

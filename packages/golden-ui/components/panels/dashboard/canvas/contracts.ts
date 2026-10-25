@@ -192,8 +192,6 @@ export type ConstrainedResizeInteraction = {
 	axis: 'x' | 'y';
 	sign: -1 | 1;
 	startClient: [number, number];
-	paramNodeId: NodeId;
-	paramBehaviour: ParamEventBehaviour;
 	startSize: CssValueData;
 	startSizePx: number;
 	rootRemPx: number;

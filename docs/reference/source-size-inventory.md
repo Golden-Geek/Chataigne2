@@ -7,14 +7,17 @@ extraction notes and September counts are [archived](../archive/2026-10-18/progr
 
 ## Scan and policy
 
-Refreshed 2026-10-25 against delivered `635714ad` plus session-owned confirmed dashboard edits
-on `main`. Scanned **2148 source files**; **27 exceed 1,000 lines**. The dashboard
-canvas is 966 lines; its controllers, geometry, viewport, tests and stylesheet files remain
+Refreshed 2026-10-25 against delivered `6b862b86` plus atomic dashboard layout intents
+on `main`. Scanned **2152 source files**; **27 exceed 1,000 lines**. The dashboard
+canvas is 969 lines; its controllers, geometry, viewport, tests and stylesheet files remain
 below the limit. No new source-size exception is introduced. Remaining decomposition and
 exceptions belong to P12; this inventory does not qualify that task.
 The surface controller is now 788 lines after extracting move and creation presentation ownership.
-The free-layout controller is 529 lines. Confirmed-work admission and parameter drafts live in
+The free-layout controller is 530 lines. Confirmed-work admission and parameter drafts live in
 the 233-line session service; the workbench facade is 955 lines after extracting intent sending.
+Dashboard actions are 679 lines after removing UI-owned move/placement/sizing sequences. Atomic
+backend layout operations live in the 220-line `ui_sync/dashboard_layout.rs` module. The ordered
+controller is 416 lines after adding scoped resize commits; its backend tests are 326 lines.
 
 The node enum macro remains the centralized built-in/consumer-variant dispatch registry:
 each public Node hook must reach both sets of variants there. P12 still owns extracting its

@@ -1,4 +1,8 @@
 import { onDestroy } from 'svelte';
+import { createFreeLayoutCommitter } from './free-layout-committer';
+import { captureLayoutGesture } from './gesture-fence';
+import type { EditOperation } from '../../../../store/session/edit-operations';
+import { appState, type WorkbenchSession } from '../../../../store/workbench.svelte';
 import { marqueeDragThresholdPx } from './dom';
 import type { GraphState } from '../../../../store/graph.svelte';
 import type { DashboardPlacement, DashboardLayoutKind } from '../dashboard-model';
@@ -11,6 +15,7 @@ import {
 	type WidgetMoveInteraction,
 	type ConstrainedResizeInteraction
 } from './contracts';
+import type { FreeLayoutPreviewSet } from './contracts';
 import {
 	minFreeWidgetWidthRem,
 	minFreeWidgetHeightRem,
@@ -23,12 +28,13 @@ import {
 	getViewportHeightPx,
 	getClosestSurfaceMetrics
 } from './dom';
-import { sendPatchMetaIntent, sendSetParamIntent } from '../../../../store/ui-intents';
+import { createUiEditSession, sendResizeDashboardWidgetIntent } from '../../../../store/ui-intents';
 import { type UiNodeDto } from '../../../../types';
 import { cssValueToPx, pxToCssValue } from '../../../../css-value';
 import { moveDashboardWidgetToSurface } from '../dashboard-actions';
 import { getDirectParamNode } from '../dashboard-model';
 interface DashboardOrderedLayoutContext {
+	readonly session: WorkbenchSession | null;
 	readonly graph: GraphState | null;
 	readonly node: UiNodeDto;
 	readonly parent: UiNodeDto | null;
@@ -63,6 +69,22 @@ export function createDashboardOrderedLayout(context: DashboardOrderedLayoutCont
 	let widgetMoveDropTarget = $state<WidgetMoveDropTarget | null>(null);
 
 	let constrainedResizeInteraction = $state<ConstrainedResizeInteraction | null>(null);
+	let resizeOperation = $state.raw<EditOperation<
+		ReturnType<typeof createFreeLayoutCommitter>
+	> | null>(null);
+	let resizeSample: FreeLayoutPreviewSet | null = null;
+	const closeResize = (cancel: boolean) => {
+		const operation = resizeOperation;
+		resizeOperation = null;
+		resizeSample = null;
+		constrainedResizeInteraction = null;
+		if (operation) void (cancel ? operation.cancel() : operation.confirm());
+	};
+	$effect(() => {
+		if (!resizeOperation) return;
+		void context.graph;
+		if (!context.editMode || !resizeOperation.current) closeResize(true);
+	});
 
 	const beginWidgetMoveInteraction = (event: PointerEvent): void => {
 		if (!editMode || !supportsOrdering) {
@@ -90,13 +112,13 @@ export function createDashboardOrderedLayout(context: DashboardOrderedLayoutCont
 		const isLeadingEdge = axis === 'x' ? resizeEdges.left : resizeEdges.top;
 		const declId = axis === 'x' ? 'width' : 'height';
 		const paramNode = getDirectParamNode(graph, liveNode, declId);
-		if (paramNode?.data.kind !== 'parameter') {
+		const host = context.session;
+		if (paramNode?.data.kind !== 'parameter' || !host) {
 			return;
 		}
 
 		event.preventDefault();
 		event.stopPropagation();
-		void sendPatchMetaIntent(paramNode.node_id, { enabled: true });
 
 		const rootRemPx = getRootRemPixels();
 		const surfaceMetrics = getClosestSurfaceMetrics(event.currentTarget, rootRemPx);
@@ -113,14 +135,78 @@ export function createDashboardOrderedLayout(context: DashboardOrderedLayoutCont
 			(axis === 'x' ? minFreeWidgetWidthRem : minFreeWidgetHeightRem) * rootRemPx,
 			cssValueToPx(startSize, axis, createCssUnitContext(sizeContext, axis))
 		);
+		closeResize(true);
+		const startPreview = { position: placement.position, size: placement.size };
+		const target = {
+			nodeId: liveNode.node_id,
+			anchor: placement.anchor,
+			positionParamNodeId: null,
+			positionParamBehaviour: null,
+			widthParamNodeId: axis === 'x' ? paramNode.node_id : null,
+			widthParamBehaviour: axis === 'x' ? paramNode.data.param.event_behaviour : null,
+			heightParamNodeId: axis === 'y' ? paramNode.node_id : null,
+			heightParamBehaviour: axis === 'y' ? paramNode.data.param.event_behaviour : null,
+			startPreview,
+			startRect: { left: 0, top: 0, width: 0, height: 0 }
+		};
+		const initial: FreeLayoutPreviewSet = {
+			primaryNodeId: liveNode.node_id,
+			previews: [{ target, preview: startPreview }]
+		};
+		const fence = captureLayoutGesture(context.graph, [target]);
+		if (!fence) return;
+		const revision = host.graphTransitionRevision;
+		const widget = liveNode.node_id;
+		const operation = host.editOperations.open({
+			current: () =>
+				appState.session === host &&
+				host.graphTransitionRevision === revision &&
+				!host.graph.state.requiresResync &&
+				fence.isCurrent(host.graph.state),
+			build: (scope) => {
+				const session = createUiEditSession(
+					'Resize dashboard widget',
+					'dashboard-resize',
+					host,
+					scope.applied
+				);
+				return createFreeLayoutCommitter(initial, {
+					current: () => scope.current,
+					begin: async () => {
+						await scope.ready;
+						if (scope.current) await session.begin();
+					},
+					end: () => session.end(),
+					send: async (edits) => {
+						const value = edits[0]?.value;
+						return (
+							value?.kind === 'css_value' &&
+							(await sendResizeDashboardWidgetIntent(
+								widget,
+								axis === 'x'
+									? { width: { value: value.value, unit: value.unit } }
+									: { height: { value: value.value, unit: value.unit } },
+								host,
+								scope.applied
+							))
+						);
+					},
+					frame: (callback) => {
+						const id = requestAnimationFrame(callback);
+						return () => cancelAnimationFrame(id);
+					}
+				});
+			}
+		});
+		if (!operation) return;
+		resizeOperation = operation;
+		resizeSample = initial;
 
 		constrainedResizeInteraction = {
 			pointerId: event.pointerId,
 			axis,
 			sign: isLeadingEdge ? -1 : 1,
 			startClient: [event.clientX, event.clientY],
-			paramNodeId: paramNode.node_id,
-			paramBehaviour: paramNode.data.param.event_behaviour,
 			startSize,
 			startSizePx,
 			rootRemPx,
@@ -255,11 +341,21 @@ export function createDashboardOrderedLayout(context: DashboardOrderedLayoutCont
 				...constrainedResizeInteraction,
 				lastSent: nextSize
 			};
-			void sendSetParamIntent(
-				constrainedResizeInteraction.paramNodeId,
-				{ kind: 'css_value', value: nextSize.value, unit: nextSize.unit },
-				constrainedResizeInteraction.paramBehaviour
-			);
+			if (resizeOperation && resizeSample) {
+				const current = resizeSample.previews[0];
+				resizeOperation.work.schedule({
+					...resizeSample,
+					previews: [
+						{
+							target: current.target,
+							preview: {
+								...current.preview,
+								size: { ...current.preview.size, [axis === 'x' ? 'width' : 'height']: nextSize }
+							}
+						}
+					]
+				});
+			}
 		};
 
 		const finishResize = (event: PointerEvent): void => {
@@ -269,7 +365,7 @@ export function createDashboardOrderedLayout(context: DashboardOrderedLayoutCont
 			) {
 				return;
 			}
-			constrainedResizeInteraction = null;
+			closeResize(event.type === 'pointercancel');
 		};
 
 		window.addEventListener('pointermove', handlePointerMove);
@@ -301,7 +397,7 @@ export function createDashboardOrderedLayout(context: DashboardOrderedLayoutCont
 	};
 	onDestroy(() => {
 		widgetMoveInteraction = null;
-		constrainedResizeInteraction = null;
+		closeResize(true);
 	});
 	return {
 		get widgetMoveInteraction() {

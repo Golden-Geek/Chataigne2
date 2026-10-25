@@ -91,7 +91,7 @@ impl<T: Node> Engine<T> {
         }
     }
 
-    fn ui_dashboard_rejection(
+    pub(super) fn ui_dashboard_rejection(
         &self,
         operation: &'static str,
         node: NodeId,

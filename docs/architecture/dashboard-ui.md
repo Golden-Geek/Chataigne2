@@ -4,6 +4,14 @@ Golden UI renders app-agnostic dashboard pages and widgets. The backend owns aut
 nodes, parameters, bindings and edit transactions. App UI registers product renderers through
 `dashboard-node-widget-registry.ts`; Golden UI does not import app types or policy.
 
+Dashboard moves and explicit resizes use generated `moveDashboardWidget` and
+`resizeDashboardWidget` intents. `golden_engine/src/ui_sync/dashboard_layout.rs` owns destination
+layout policy, authoritative item-index resolution, supported dimensions and sizing enablement.
+Move plus placement, or size plus enablement, settles as one undoable transaction. Invalid
+placement, identity, read-only fields and hierarchy changes reject without partial authored edits.
+Layout field lookup follows local declared children; it does not build a whole-tree snapshot.
+The UI supplies viewport-derived geometry and sends one intent through the captured session.
+
 Start at `packages/golden-ui/components/panels/dashboard/DashboardCanvas.svelte` for composition
 and widget templates. Its `canvas/` modules own distinct presentation lifetimes:
 

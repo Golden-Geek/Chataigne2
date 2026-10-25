@@ -5,6 +5,28 @@ import { sample } from './gesture-fixtures';
 
 describe('dashboard gesture source paths', () => {
 	const targets = () => sample().previews.map(({ target }) => target);
+	it('captures declared layout folders and retires an intermediate folder replacement', () => {
+		const graph = graphFixture(1);
+		graph.nodesById.set(10, { ...graph.nodesById.get(10)!, children: [90] });
+		graph.nodesById.set(90, node(90, 'folder', [11, 12, 13]));
+		graph.parentById.set(90, 10);
+		for (const id of [11, 12, 13]) graph.parentById.set(id, 90);
+		const fence = captureLayoutGesture(graph, targets());
+		expect(fence).not.toBeNull();
+		expect(
+			fence!.isCurrent(changeParam(graph, 12, { kind: 'css_value', value: 14, unit: 'rem' }))
+		).toBe(true);
+		const next = forkGraph(graph);
+		next.nodesById.set(90, { ...next.nodesById.get(90)!, uuid: 'replacement' });
+		expect(fence!.isCurrent(next)).toBe(false);
+	});
+	it('rejects parameter paths that cross another widget or fail to reach the owner', () => {
+		const graph = graphFixture(2);
+		graph.parentById.set(11, 14);
+		expect(captureLayoutGesture(graph, targets())).toBeNull();
+		graph.parentById.delete(11);
+		expect(captureLayoutGesture(graph, targets())).toBeNull();
+	});
 	it('accepts value publication and unrelated graph changes without losing a live gesture', () => {
 		const graph = graphFixture(2),
 			fence = captureLayoutGesture(graph, targets())!;

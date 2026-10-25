@@ -21,8 +21,12 @@ pub use golden_protocol::*;
 
 mod conversion;
 mod creation;
+mod dashboard_layout;
 mod removal;
 mod snapshot;
+
+#[cfg(test)]
+mod tests;
 
 pub(crate) const UI_USER_CONTEXT_SCOPE_TOPIC: &str = "__user_context.scope_changed";
 pub(crate) const UI_USER_CONTEXT_ENTRY_TOPIC: &str = "__user_context.entry_changed";
@@ -159,6 +163,20 @@ impl<T: Node> Engine<T> {
                     new_parent,
                     new_prev_sibling,
                 }]);
+                self.finish_ui_apply_now(before_event_time, result)
+            }
+            UiEditIntent::MoveDashboardWidget { widget, parent, target_index, placement } => {
+                let result = self.apply_implicit_ui_edit_session(
+                    "Move dashboard widget", "__ui-move-dashboard-widget", ui_client_instance_id,
+                    |engine| engine.ui_apply_move_dashboard_widget(widget, parent, target_index, placement),
+                );
+                self.finish_ui_apply_now(before_event_time, result)
+            }
+            UiEditIntent::ResizeDashboardWidget { widget, width, height } => {
+                let result = self.apply_implicit_ui_edit_session(
+                    "Resize dashboard widget", "__ui-resize-dashboard-widget", ui_client_instance_id,
+                    |engine| engine.ui_apply_resize_dashboard_widget(widget, width, height),
+                );
                 self.finish_ui_apply_now(before_event_time, result)
             }
             UiEditIntent::RemoveNode { node } => {

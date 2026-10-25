@@ -5,8 +5,8 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-25 on `main`, based on delivered `635714ad` plus the P11 session-owned
-confirmed-edit milestone below. **P11 is in progress; two of six fixed checkpoints are closed (33% rounded).**
+Last reconciled: 2026-10-25 on `main`, based on delivered `6b862b86` plus the P11 atomic dashboard
+layout-intent milestone below. **P11 is in progress; two of six fixed checkpoints are closed (33% rounded).**
 **P10 is locally complete: three of three fixed checkpoints (100%).**
 **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
@@ -198,7 +198,7 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
 | ---------- | ------ | -------------------------------- |
 | Manager/catalog windowing | Complete locally | Variable-height manager/picker/outliner and flat/nested catalog menus pass through 100k items with bounded mounting, identity and focus. [Tree evidence](p11-tree-windowing.md), [catalog closure](p11-catalog-windowing.md). |
 | Historical log windowing | Complete locally | Variable-height history, filters, follow, bounded native selection, focus and snapshot publication pass through 100k records. [Qualification](p11-log-windowing.md). |
-| Dashboard viewport awareness | In progress | Sparse/dense and shared hierarchy budgets pass through 100k authored nodes. Framing, ranges/focus, geometry, scroll, move/creation presentation, free-operation interruption and confirmed edits across disposal/late graph publication pass. Independent widget history admission passes. Ordered/constrained resize, container/units, project/save/composed barriers and timing remain. [Confirmed-edit evidence](p11-dashboard-confirmed-edits.md). |
+| Dashboard viewport awareness | In progress | Sparse/dense and shared hierarchy budgets pass through 100k authored nodes. Framing, ranges/focus, geometry, scroll, move/creation presentation and confirmed free edits pass. Atomic backend move/resize and declared-folder gesture fences are verified. Ordered/constrained component lifetimes, pending size presentation, container/units, project/save/composed barriers and timing remain. [Layout-intent evidence](p11-dashboard-layout-intents.md). |
 | Tree focus and keyboard navigation | Not started | Qualify expansion/navigation and stable focus across virtualized changes in all owning trees. |
 | Graph keyboard operations | Not started | Provide and qualify keyboard movement and connection creation through shared operations. |
 | Complete composed workflows | Not started | Qualify discovery, selection and editing across all required composed panels and large batches. Native usability retains P17. |
@@ -209,12 +209,14 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
   outliner, catalogs and historical logs are verified through 100k entries. Continue dashboard
   viewport awareness, then tree/graph keyboard operations and composed qualification.
   Sparse and dense dashboard presentation are verified through 100k authored nodes. Continue
-  ordered move/constrained resize and its backend enable/placement boundary, then active container/
+  explicit ordered move/constrained resize operations and component-level interruption/receipt
+  qualification. The backend enable/placement boundary now uses atomic protocol 0.11.0 intents;
+  declared-folder fences are verified. Continue pending size presentation, active container/
   varied-unit geometry and composed host/project/save/undo lifetimes before the fixed action/timing
   matrix. Fourteen confirmed-edit groups now pass across disposal, independent widget admission
   and late graph publication, alongside the prior twenty interruption groups. Session ownership
   retains confirmed work and parameter drafts; spatial queries and Frame consume those drafts.
-  Root UI 344 and the full browser 213 correctness groups/five tiers pass. Pending creation
+  Root UI 349 and the full browser 215 correctness groups/five tiers pass. Pending creation
   passes 55 cases across six layouts, including overlapping outcomes, mode/source/destination
   retirement, acknowledged controls, retained budgets and offscreen disposal.
   Move presentation now passes 55 cases across six layouts, including source/path/layout/identity
@@ -10459,3 +10461,57 @@ semantics remain unqualified. Then execute the fixed three-warmup / 31-sample ac
 including exact dense picking, before closing dashboard viewport awareness. Four fixed P11
 checkpoints remain open. Native usability retains P17 and full-product throughput P16.
 Keep the full P00-P18 goal active.
+
+### P11 atomic dashboard layout intent boundary
+
+Previous goal turn: **progress**, delivering `6b862b86` on `main`. Resumed its clean checkout and
+advanced ordered/constrained authoring at the backend boundary. Protocol **0.11.0** adds generated
+move/resize intents. A move resolves authoritative user-item order and applies destination layout
+placement atomically. A resize validates supported axes and changes size/enablement together.
+The UI no longer sequences internal parameter/meta repairs, and confirmed free reparenting passes
+its captured host. About 230 lines of UI placement machinery were removed. Layout lookup stays
+local to declared folders; moving settles destination dependencies before resolving newly
+materialized fields inside the same transaction. Rejection rolls back both move and placement.
+
+The constrained pointer adapter reuses frame/latest-sample commits and session admission with
+captured host/path/transition fences and an owned history group. Cancel drops unsent samples;
+confirmed work is session-owned after disposal. Full component-level interruption qualification
+and pending size presentation remain open. Gesture fences now capture structural parameter paths
+through layout folders instead of requiring direct widget children, and reject foreign ownership.
+See the [layout-intent report](p11-dashboard-layout-intents.md),
+[full browser evidence](evidence/p11-dashboard-layout-intents-2026-10-25.json) and
+[initial failed probes](evidence/p11-dashboard-layout-intent-probes-2026-10-25.json).
+
+All **seven new engine cases** pass, including 18 source/destination layout combinations,
+read-only/two-axis rejection, supported dimensions, index clamping, invalid destinations/cycles,
+caller-owned grouping and one-step undo/redo. The first two probe failures assumed unavailable
+dimension nodes still existed. Their assertions were corrected, and source review added lifecycle
+settlement plus the full transition matrix. The live broader build was terminated by its verified
+process tree for this source correction; its partial output is not acceptance evidence.
+
+The full engine suite passes **634 unit cases / three existing ignored**, **eight public integration
+cases** and **seven doctests**. Protocol passes **three public cases**; transport **74 unit / one
+existing ignored plus one public headless-host case**; codegen **11 unit plus three public cases**.
+Strict all-target Clippy passes for these four packages. Generated protocol/version files reproduce
+byte-for-byte. Root UI passes **349** (27 / 52 / 155 / 115); browser/app Svelte checks report
+**zero errors/warnings**. Both new/extended UI unit sources and dependencies pass TypeScript
+diagnostics. Source/report Prettier, whitespace and both Cargo formatters pass.
+
+The final browser run passes **215 correctness groups and five sparse tiers** through 100k authored
+nodes, with **117 current source fingerprints** and no page errors. Two mounted move/resize cases
+now use declared layout folders; all prior 213 groups pass. No native input is synthesized. This
+does not exercise the constrained pointer handlers or establish ordered gesture/timing acceptance.
+Inventory is **2,152 source files / 27 oversized**. DashboardCanvas is 969 lines, dashboard actions
+679, the ordered controller 416, backend layout operations 220 and their tests 326. Every touched
+runtime/test source remains below 1,000 lines, with no new exception.
+
+**P11 remains 2/6 fixed checkpoints (33% rounded); whole-plan scope coverage remains 57% (57.41% exact).**
+The locked default app build rebuilt the frontend and passed in **2m21s**; executable SHA-256:
+`fc77fb0ae2965831300eca003e6a3747e0129924124c293fa34e478d11cdc141`.
+Commit/push this verified milestone on `main`. Next expose/qualify actual
+ordered move and constrained resize start/update/finish/cancel operations, with delayed receipts,
+mode/layout/identity/path changes, release versus cancellation, history closure and view disposal.
+Continue pending size presentation, active containers/varied units and composed project/save/undo
+barriers, then the fixed three-warmup / 31-sample action matrix including exact dense picking.
+Four fixed P11 checkpoints remain open. P03 has zero packages left. Native usability retains P17
+and product-scale throughput P16. Keep the full P00-P18 goal active.

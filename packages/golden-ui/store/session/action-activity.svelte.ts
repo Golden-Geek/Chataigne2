@@ -68,6 +68,7 @@ export const userActionLabelForIntent = (intent: UiEditIntent): string | null =>
 		case 'beginEdit':
 		case 'endEdit':
 		case 'setParam':
+		case 'resizeDashboardWidget':
 		case 'sendNodeEvent':
 			return null;
 		case 'setTextParamSmart':
@@ -80,6 +81,8 @@ export const userActionLabelForIntent = (intent: UiEditIntent): string | null =>
 			return 'Updating constraints';
 		case 'moveNode':
 			return 'Moving node';
+		case 'moveDashboardWidget':
+			return 'Moving dashboard widget';
 		case 'removeNode':
 			return 'Removing node';
 		case 'removeNodes':

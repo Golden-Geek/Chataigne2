@@ -1,35 +1,26 @@
 import type { GraphState } from '../../../store/graph.svelte';
-import type {
-	NodeId,
-	ParamValue,
-	UiDashboardWidgetPlacement,
-	UiNodeDto,
-	UiParamDto
-} from '../../../types';
+import type { NodeId, UiDashboardWidgetPlacement, UiNodeDto, UiParamDto } from '../../../types';
 import {
-	createUiEditSession,
 	sendBindDashboardGenericWidgetTargetIntent,
 	sendBindDashboardNodeWidgetTargetIntent,
 	sendCreateDashboardContainerWidgetIntent,
 	sendCreateDashboardGenericWidgetIntent,
 	sendCreateDashboardNodeWidgetIntent,
 	sendDuplicateNodeIntent,
-	sendMoveNodeIntent,
-	sendPatchMetaIntent,
-	sendSetParamIntent,
+	sendMoveDashboardWidgetIntent,
 	sendWrapDashboardWidgetInContainerIntent
 } from '../../../store/ui-intents';
 import { cssValueToPx, type CssUnitConversionContext, type CssValueData } from '../../../css-value';
 
 import {
 	formatParamValue,
-	getDashboardLayoutKind,
 	getDashboardPlacement,
 	getDirectItemChildren,
-	getDirectParamNode,
 	type DashboardAnchor,
 	type DashboardLayoutKind
 } from './dashboard-model';
+
+import type { WorkbenchSession } from '../../../store/workbench.svelte';
 
 type GraphGetter = () => GraphState | null;
 
@@ -321,75 +312,6 @@ const waitFor = async <T>(resolveValue: () => T | null, timeoutMs = 800): Promis
 	return null;
 };
 
-const waitForDirectParam = async (
-	getGraph: GraphGetter,
-	parentId: NodeId,
-	declId: string
-): Promise<{ node: UiNodeDto; param: UiParamDto } | null> => {
-	return waitFor(() => {
-		const graph = getGraph();
-		const parent = graph?.nodesById.get(parentId);
-		const paramNode = getDirectParamNode(graph, parent ?? null, declId);
-		if (!paramNode || paramNode.data.kind !== 'parameter') {
-			return null;
-		}
-		return { node: paramNode, param: paramNode.data.param };
-	});
-};
-
-const setWidgetParamValue = async (
-	getGraph: GraphGetter,
-	widgetNodeId: NodeId,
-	declId: string,
-	value: ParamValue
-): Promise<boolean> => {
-	const target = await waitForDirectParam(getGraph, widgetNodeId, declId);
-	if (!target) {
-		return false;
-	}
-	return sendSetParamIntent(target.node.node_id, value, target.param.event_behaviour);
-};
-
-const setWidgetParamEnabled = async (
-	getGraph: GraphGetter,
-	widgetNodeId: NodeId,
-	declId: string,
-	enabled: boolean
-): Promise<boolean> => {
-	const target = await waitForDirectParam(getGraph, widgetNodeId, declId);
-	if (!target) {
-		return false;
-	}
-	return sendPatchMetaIntent(target.node.node_id, { enabled });
-};
-
-const applyDashboardWidgetSizingMode = async (
-	getGraph: GraphGetter,
-	widgetNodeId: NodeId,
-	parentId: NodeId,
-	sizeEnabled?: { width: boolean; height: boolean }
-): Promise<void> => {
-	const graph = getGraph();
-	const parentNode = graph?.nodesById.get(parentId) ?? null;
-	if (!parentNode) {
-		return;
-	}
-
-	const parentLayoutKind = getDashboardLayoutKind(graph, parentNode, 'free');
-	if (parentLayoutKind === 'free') {
-		await setWidgetParamEnabled(getGraph, widgetNodeId, 'width', true);
-		await setWidgetParamEnabled(getGraph, widgetNodeId, 'height', true);
-		return;
-	}
-	if (parentLayoutKind === 'horizontal') {
-		await setWidgetParamEnabled(getGraph, widgetNodeId, 'width', sizeEnabled?.width ?? false);
-		return;
-	}
-	if (parentLayoutKind === 'vertical') {
-		await setWidgetParamEnabled(getGraph, widgetNodeId, 'height', sizeEnabled?.height ?? false);
-	}
-};
-
 export const bindDashboardNodeWidgetTarget = async (
 	_getGraph: GraphGetter,
 	widgetNodeId: NodeId,
@@ -547,21 +469,6 @@ export const createDashboardContainerWidget = async (
 	return container?.node_id ?? null;
 };
 
-const resolveLastDashboardItemChildId = (
-	graph: GraphState | null,
-	parentId: NodeId,
-	excludedNodeId?: NodeId
-): NodeId | undefined => {
-	const children = getDirectItemChildren(graph, graph?.nodesById.get(parentId) ?? null);
-	for (let index = children.length - 1; index >= 0; index -= 1) {
-		const child = children[index];
-		if (child && child.node_id !== excludedNodeId) {
-			return child.node_id;
-		}
-	}
-	return undefined;
-};
-
 const getParentOrderingLists = (
 	graph: GraphState | null,
 	parentId: NodeId,
@@ -611,107 +518,22 @@ const resolvePrevSiblingForParentItemIndex = (
 	return ordering.itemSiblings[nextIndex - 1]?.node_id;
 };
 
-const applyDashboardWidgetPlacement = async (
-	getGraph: GraphGetter,
-	widgetNodeId: NodeId,
-	parentId: NodeId,
-	placement: DashboardWidgetCreationPlacement
-): Promise<boolean> => {
-	const graph = getGraph();
-	const parentNode = graph?.nodesById.get(parentId) ?? null;
-	if (!parentNode) {
-		return false;
-	}
-
-	const parentLayoutKind = getDashboardLayoutKind(graph, parentNode, 'free');
-	let success = true;
-
-	if (parentLayoutKind === 'free' || parentLayoutKind === 'horizontal') {
-		success =
-			(await setWidgetParamValue(getGraph, widgetNodeId, 'width', {
-				kind: 'css_value',
-				value: placement.size.width.value,
-				unit: placement.size.width.unit
-			})) && success;
-	}
-
-	if (parentLayoutKind === 'free' || parentLayoutKind === 'vertical') {
-		success =
-			(await setWidgetParamValue(getGraph, widgetNodeId, 'height', {
-				kind: 'css_value',
-				value: placement.size.height.value,
-				unit: placement.size.height.unit
-			})) && success;
-	}
-
-	if (parentLayoutKind === 'free') {
-		success =
-			(await setWidgetParamValue(getGraph, widgetNodeId, 'anchor', {
-				kind: 'enum',
-				value: placement.anchor
-			})) && success;
-		success =
-			(await setWidgetParamValue(getGraph, widgetNodeId, 'position', {
-				kind: 'vec2',
-				value: [placement.position.x, placement.position.y]
-			})) && success;
-	}
-
-	await applyDashboardWidgetSizingMode(getGraph, widgetNodeId, parentId, placement.sizeEnabled);
-
-	return success;
-};
-
 export const moveDashboardWidgetToSurface = async (
 	getGraph: GraphGetter,
 	widgetNodeId: NodeId,
 	newParentId: NodeId,
 	placement?: DashboardWidgetCreationPlacement,
-	targetIndex?: number
+	targetIndex?: number,
+	host?: WorkbenchSession
 ): Promise<boolean> => {
-	const graph = getGraph();
-	const widget = graph?.nodesById.get(widgetNodeId);
-	const newParent = graph?.nodesById.get(newParentId);
-	if (!widget || !newParent) {
-		return false;
-	}
-
-	const editSession = createUiEditSession('Move dashboard widget', 'dashboard-move');
-	await editSession.begin();
-	try {
-		const sourceParentId = graph?.parentById.get(widgetNodeId);
-		const currentOrderingState = getDashboardWidgetOrderingState(graph, widgetNodeId);
-		const normalizedTargetIndex =
-			typeof targetIndex === 'number' ? Math.max(0, Math.round(targetIndex)) : undefined;
-		const needsMove =
-			sourceParentId !== newParentId ||
-			(normalizedTargetIndex !== undefined &&
-				normalizedTargetIndex !== currentOrderingState?.currentIndex);
-
-		if (needsMove) {
-			const moved = await sendMoveNodeIntent(
-				widgetNodeId,
-				newParentId,
-				normalizedTargetIndex === undefined
-					? resolveLastDashboardItemChildId(getGraph(), newParentId, widgetNodeId)
-					: resolvePrevSiblingForParentItemIndex(
-							getGraph(),
-							newParentId,
-							normalizedTargetIndex,
-							widgetNodeId
-						)
-			);
-			if (!moved) {
-				return false;
-			}
-		}
-		if (!placement) {
-			return needsMove;
-		}
-		return applyDashboardWidgetPlacement(getGraph, widgetNodeId, newParentId, placement);
-	} finally {
-		await editSession.end();
-	}
+	if (!getGraph()?.nodesById.has(widgetNodeId)) return false;
+	return sendMoveDashboardWidgetIntent(
+		widgetNodeId,
+		newParentId,
+		targetIndex,
+		placement ? toUiDashboardWidgetPlacement(placement) : undefined,
+		host
+	);
 };
 
 interface DashboardWidgetOrderingContext {
@@ -752,32 +574,6 @@ const getDashboardWidgetOrderingContext = (
 	};
 };
 
-const resolvePrevSiblingForItemIndex = (
-	context: DashboardWidgetOrderingContext,
-	widgetNodeId: NodeId,
-	targetIndex: number
-): NodeId | undefined => {
-	const siblingsWithoutNode = context.orderedSiblings.filter(
-		(child) => child.node_id !== widgetNodeId
-	);
-	const itemSiblingsWithoutNode = context.itemSiblings.filter(
-		(child) => child.node_id !== widgetNodeId
-	);
-
-	if (targetIndex === 0) {
-		const firstItemId = itemSiblingsWithoutNode[0]?.node_id;
-		if (firstItemId !== undefined) {
-			const firstItemIndex = siblingsWithoutNode.findIndex(
-				(child) => child.node_id === firstItemId
-			);
-			return firstItemIndex > 0 ? siblingsWithoutNode[firstItemIndex - 1]?.node_id : undefined;
-		}
-		return siblingsWithoutNode.at(-1)?.node_id;
-	}
-
-	return itemSiblingsWithoutNode[targetIndex - 1]?.node_id;
-};
-
 export const getDashboardWidgetOrderingState = (
 	graph: GraphState | null,
 	widgetNodeId: NodeId
@@ -797,21 +593,10 @@ export const moveDashboardWidgetToIndex = async (
 	widgetNodeId: NodeId,
 	targetIndex: number
 ): Promise<boolean> => {
-	const context = getDashboardWidgetOrderingContext(getGraph(), widgetNodeId);
-	if (!context) {
-		return false;
-	}
-
-	const nextIndex = Math.max(0, Math.min(context.itemSiblings.length - 1, targetIndex));
-	if (nextIndex === context.currentIndex) {
-		return false;
-	}
-
-	return sendMoveNodeIntent(
-		widgetNodeId,
-		context.parentId,
-		resolvePrevSiblingForItemIndex(context, widgetNodeId, nextIndex)
-	);
+	const parent = getGraph()?.parentById.get(widgetNodeId);
+	return parent === undefined
+		? false
+		: sendMoveDashboardWidgetIntent(widgetNodeId, parent, targetIndex);
 };
 
 export const moveDashboardWidgetByDelta = async (
