@@ -9,7 +9,7 @@ type PendingLogMutation =
 
 export interface WorkbenchLoggerStore {
 	readonly toasts: WorkbenchToast[];
-	readonly logRecords: UiLogRecord[];
+	readonly logRecords: readonly UiLogRecord[];
 	readonly logMaxEntries: number;
 	readonly logUiUpdateHz: number;
 	dismissToast(toastId: number): void;
@@ -72,7 +72,9 @@ const asUiLogRecord = (payload: unknown): UiLogRecord | null => {
 
 export const createWorkbenchLoggerStore = (): WorkbenchLoggerStore => {
 	let toasts = $state<WorkbenchToast[]>([]);
-	let logRecords = $state<UiLogRecord[]>([]);
+	// Published records are immutable snapshots; deep proxies make each history copy proportional
+	// to every proxied property and are unnecessary for the store's replacement-only API.
+	let logRecords = $state.raw<UiLogRecord[]>([]);
 	let logMaxEntries = $state(0);
 	let logUiUpdateHz = $state(DEFAULT_LOG_UI_UPDATE_HZ);
 
@@ -182,9 +184,9 @@ export const createWorkbenchLoggerStore = (): WorkbenchLoggerStore => {
 		logRecords = logRecords.slice(overflow);
 	};
 
-	const findLogRecordIndexById = (recordId: number): number => {
-		for (let index = logRecords.length - 1; index >= 0; index -= 1) {
-			if (logRecords[index]?.id === recordId) {
+	const findLogRecordIndexById = (recordId: number, records = logRecords): number => {
+		for (let index = records.length - 1; index >= 0; index -= 1) {
+			if (records[index]?.id === recordId) {
 				return index;
 			}
 		}
@@ -204,37 +206,41 @@ export const createWorkbenchLoggerStore = (): WorkbenchLoggerStore => {
 	};
 
 	const flushPendingLogMutations = (): void => {
-		logFlushTimer = null;
+		clearPendingLogFlush();
 		if (pendingLogMutations.length === 0) {
 			return;
 		}
+		let nextRecords = logRecords;
+		const writableRecords = () => {
+			if (nextRecords === logRecords) nextRecords = [...nextRecords];
+			return nextRecords;
+		};
 
 		for (const mutation of pendingLogMutations) {
 			if (mutation.kind === 'clear') {
-				if (logRecords.length > 0) {
-					logRecords = [];
-				}
+				nextRecords = [];
 				uiGeneratedLogIds.clear();
 				continue;
 			}
 
 			if (mutation.kind === 'replaceRecord') {
-				const recordIndex = findLogRecordIndexById(mutation.record.id);
+				const recordIndex = findLogRecordIndexById(mutation.record.id, nextRecords);
 				if (recordIndex >= 0) {
-					logRecords[recordIndex] = mutation.record;
-					logRecords = [...logRecords];
+					writableRecords()[recordIndex] = mutation.record;
 				} else {
-					logRecords = [...logRecords, mutation.record];
+					writableRecords().push(mutation.record);
 				}
 				continue;
 			}
 
 			if (mutation.records.length > 0) {
-				logRecords.push(...mutation.records);
+				const target = writableRecords();
+				for (const record of mutation.records) target.push(record);
 			}
 		}
 
 		pendingLogMutations.length = 0;
+		logRecords = nextRecords;
 		trimLogRecords();
 	};
 
@@ -427,7 +433,7 @@ export const createWorkbenchLoggerStore = (): WorkbenchLoggerStore => {
 		get toasts(): WorkbenchToast[] {
 			return toasts;
 		},
-		get logRecords(): UiLogRecord[] {
+		get logRecords(): readonly UiLogRecord[] {
 			return logRecords;
 		},
 		get logMaxEntries(): number {

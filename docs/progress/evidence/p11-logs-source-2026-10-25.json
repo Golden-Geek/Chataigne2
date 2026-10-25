@@ -1,0 +1,74 @@
+{
+  "baseCommit": "1d5298ef9cdea84031f4bee679c0a24a1c1be57b",
+  "scope": "The final log, catalog and collection production runs use this same unchanged runtime/fixture source. Asset hashes come from the final collection regression build.",
+  "machine": {
+    "os": "10.0.26300",
+    "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+    "logicalProcessors": 24,
+    "node": "v26.5.0",
+    "svelte": "5.57.1",
+    "vite": "8.1.6",
+    "typescript": "6.0.3",
+    "browser": "156.0.4314.42"
+  },
+  "source": [
+    {
+      "path": "packages/golden-ui/components/panels/logger/text-selection.svelte.ts",
+      "sha256": "bf77f0dde60b978d3c8a33ccd4e641d1ed3c4146a759a63e8eca700bd143274f"
+    },
+    {
+      "path": "packages/golden-ui/tests/browser/fixture/LoggerFixture.svelte",
+      "sha256": "de36663db4478e871e35aed289f80ac9924b918dd4fd91fec38eaf7a3c910336"
+    },
+    {
+      "path": "packages/golden-ui/tests/browser/fixture/logger-store.ts",
+      "sha256": "2278dce5d083913970f4cf728c0db9a777d87bc17134ae55ce030b888a4208b0"
+    },
+    {
+      "path": "packages/golden-ui/tests/browser/logs.mjs",
+      "sha256": "13bbf181ccfbe0e25031aae3df45917e9ec5e1a110c2dd9cd44256e92c2ca13e"
+    },
+    {
+      "path": "packages/golden-ui/components/common/virtual-rows/VirtualRows.svelte",
+      "sha256": "7e97cce5ddda286ec5938106fdedc2610d3713febe0e573b7a976d5ad32e7098"
+    },
+    {
+      "path": "packages/golden-ui/components/panels/logger/LoggerPanel.svelte",
+      "sha256": "4697ed909c338cab4865bc27c948c7c34f98ecfe6fa86313a48d6a356cc29cf3"
+    },
+    {
+      "path": "packages/golden-ui/store/session/logger.svelte.ts",
+      "sha256": "a2fccbcae5aa15cfb12af5d9b81473ead7a641f88f34e142bfb2acc1c3fed31d"
+    },
+    {
+      "path": "packages/golden-ui/store/workbench.svelte.ts",
+      "sha256": "67c0d2e52dca8264ae41b9a473e1e43cdf2ac56cecd6def9c12e2f76776e04e3"
+    },
+    {
+      "path": "packages/golden-ui/tests/browser/collections.mjs",
+      "sha256": "0cf4fa79562460f8d39af90fa914ebd10d3bfe2f79de270c856914ec7ed91152"
+    },
+    {
+      "path": "packages/golden-ui/tests/browser/fixture/Fixture.svelte",
+      "sha256": "157c69e4fa363b92d2072d0701dd77fbbbcfe6cf2aaa176a5c8fbebca4556c0b"
+    },
+    {
+      "path": "packages/golden-ui/tests/browser/fixture/session.ts",
+      "sha256": "5c3bb3755e7e8a7ba52761110596b14f0bab680e0f423c5de176ead868229418"
+    }
+  ],
+  "bundle": [
+    {
+      "path": "assets/index-0xX6wdqE.js",
+      "sha256": "b39ca1874a273426ec9e55870bfbda9cfc797f7a83b97e55f1a77c21560552c5"
+    },
+    {
+      "path": "assets/index-BBpvVicT.css",
+      "sha256": "cb219b5e917757bce9a2ecc78fc6765c460ee4fb5e86d5986e803d52c0ca040c"
+    },
+    {
+      "path": "index.html",
+      "sha256": "522cd0188b74aaddd99d77e6b3a227c1c8d87d56f50b5576f4b8779db0989ef3"
+    }
+  ]
+}

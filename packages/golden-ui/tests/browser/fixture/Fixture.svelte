@@ -14,6 +14,8 @@
 	import { createFixtureSession } from './session';
 	import RowSupplement from './RowSupplement.svelte';
 	import CatalogFixture from './CatalogFixture.svelte';
+	import LoggerFixture from './LoggerFixture.svelte';
+	import { qualifyLoggerStore } from './logger-store';
 	import { measureCollectionFlow } from './timing';
 	const fixture = createFixtureSession();
 	appState.session = fixture.session;
@@ -32,7 +34,27 @@
 			panelParams = { ...panelParams, ...next };
 		}
 	};
-	let mode = $state<'trees' | 'variable' | 'catalog'>('trees');
+	let mode = $state<'trees' | 'variable' | 'catalog' | 'logger'>('trees');
+	let logger = $state<ReturnType<typeof LoggerFixture>>();
+	export async function setupLogger(size: number, unlimited = false, duplicates = false) {
+		closeNodePickerModal();
+		mode = 'logger';
+		await tick();
+		return logger!.setup(size, unlimited, duplicates);
+	}
+	export const logBrowse = (id: number) => logger!.browse(id);
+	export const logFocus = (id: number) => logger!.focus(id);
+	export const logSearch = (content: string, source = '', tag = '') =>
+		logger!.search(content, source, tag);
+	export const logAppend = () => logger!.append();
+	export const logLive = () => logger!.live();
+	export const logClear = () => logger!.clear();
+	export const logCopyText = () => logger!.copyText();
+	export const logCollapse = () => logger!.collapse();
+	export const logSuperCollapse = () => logger!.superCollapse();
+	export const measureLogs = () => logger!.measureFilter();
+	export const measureLogAppend = () => logger!.measureAppend();
+	export const logStorePublication = qualifyLoggerStore;
 	let catalog = $state<ReturnType<typeof CatalogFixture>>();
 	export async function setupCatalog(size: number) {
 		closeNodePickerModal();
@@ -61,6 +83,7 @@
 		await new Promise(requestAnimationFrame);
 	};
 	export async function setup(size: number) {
+		appState.session = fixture.session;
 		mode = 'trees';
 		query = '';
 		count = size;
@@ -182,6 +205,8 @@
 		</section>
 	{:else if mode === 'catalog'}
 		<CatalogFixture bind:this={catalog} />
+	{:else if mode === 'logger'}
+		<LoggerFixture bind:this={logger} {panelApi} />
 	{:else}
 		<div class="variable-scroller" bind:this={variableScroller} tabindex="-1">
 			<VirtualRows

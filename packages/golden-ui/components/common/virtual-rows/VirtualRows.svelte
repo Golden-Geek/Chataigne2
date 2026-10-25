@@ -7,6 +7,8 @@
 		scroller,
 		rowHeightRem = 1.8,
 		variableHeights = false,
+		retainedKeys = [],
+		followEnd = false,
 		item
 	}: {
 		rows: readonly T[];
@@ -14,6 +16,9 @@
 		scroller: HTMLElement | null;
 		rowHeightRem?: number;
 		variableHeights?: boolean;
+		/** Caller-owned, bounded DOM retention (for example an active text selection). */
+		retainedKeys?: readonly RowKey[];
+		followEnd?: boolean;
 		item: Snippet<[T, number]>;
 	} = $props();
 	const index = new RowHeightIndex();
@@ -31,13 +36,20 @@
 	let measurementObserver: ResizeObserver | null = null;
 
 	const anchor = () => {
+		if (followEnd) return { key: undefined, inset: 0, end: true };
 		const row =
 			(revealAnchor === undefined ? undefined : index.indexOf(revealAnchor)) ??
 			index.rowAt(scroller?.scrollTop ?? scrollTop);
 		return { key: index.keyAt(row), inset: (scroller?.scrollTop ?? scrollTop) - index.offset(row) };
 	};
 	const restore = (bookmark: ReturnType<typeof anchor>) => {
-		if (!scroller || bookmark.key === undefined) return;
+		if (!scroller) return;
+		if (bookmark.end) {
+			scroller.scrollTop = scroller.scrollHeight;
+			scrollTop = scroller.scrollTop;
+			return;
+		}
+		if (bookmark.key === undefined) return;
 		const row = index.indexOf(bookmark.key);
 		if (row !== undefined) scroller.scrollTop = Math.max(0, index.offset(row) + bookmark.inset);
 		scrollTop = scroller.scrollTop;
@@ -54,6 +66,7 @@
 			keys = targetRows.map(keyOf),
 			estimate = rowHeightPx,
 			element = scroller;
+		followEnd;
 		untrack(() => {
 			const bookmark = anchor();
 			if (focusedKey !== null && !keys.includes(focusedKey)) {
@@ -66,7 +79,7 @@
 				revision += 1;
 				// Restore after the new scroll extent reaches the DOM.
 				restoreAfterFlush(bookmark);
-			}
+			} else if (followEnd) restoreAfterFlush(bookmark);
 			publishedRows = targetRows;
 		});
 	});
@@ -77,13 +90,14 @@
 	});
 	let mountedRows = $derived.by(() => {
 		revision;
-		const indices = Array.from(
-			{ length: range.end - range.start },
-			(_, offset) => range.start + offset
+		const indices = new Set(
+			Array.from({ length: range.end - range.start }, (_, offset) => range.start + offset)
 		);
-		const pinned = focusedKey === null ? undefined : index.indexOf(focusedKey);
-		if (pinned !== undefined && (pinned < range.start || pinned >= range.end)) indices.push(pinned);
-		return indices
+		for (const key of focusedKey === null ? retainedKeys : [...retainedKeys, focusedKey]) {
+			const pinned = index.indexOf(key);
+			if (pinned !== undefined) indices.add(pinned);
+		}
+		return [...indices]
 			.sort((a, b) => a - b)
 			.map((row) => ({ row: publishedRows[row], position: row, top: index.offset(row) }));
 	});

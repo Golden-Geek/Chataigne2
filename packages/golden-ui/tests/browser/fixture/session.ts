@@ -1,6 +1,12 @@
 import { createWorkbenchSession } from '../../../store/workbench.svelte';
 import { UI_PROTOCOL_VERSION } from '../../../generated/rust_protocol/protocol-version';
-import { wholeGraphScope, type UiClient, type UiNodeDto, type UiSnapshot } from '../../../types';
+import {
+	wholeGraphScope,
+	type UiClient,
+	type UiNodeDto,
+	type UiSnapshot,
+	type UiLogRecord
+} from '../../../types';
 
 export function fixtureNode(
 	id: number,
@@ -129,6 +135,11 @@ export function createFixtureSession() {
 	return {
 		session,
 		load,
+		loadLogger: async (records: UiLogRecord[], maxEntries = records.length) => {
+			snapshot = { ...snapshot, logger: { max_entries: maxEntries, records } };
+			if (!(await session.refreshSnapshot()))
+				throw new Error('Logger fixture snapshot was rejected.');
+		},
 		rejectNext: () => {
 			rejectNext = true;
 		}

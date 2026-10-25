@@ -50,6 +50,14 @@ retain compact columns. Stable item IDs preserve row identity across reordered i
 The parent ContextMenu owns submenu/action policy and retires layers whose anchor disappears.
 Use `npm run test:browser --workspace golden_ui -- --catalog` for its production qualification.
 
+LoggerPanel projects retained history independently of mounted rows. `VirtualRows.followEnd`
+keeps the live tail anchored through variable-height measurements; callers can supply bounded
+`retainedKeys` for active DOM state. Logger native selection retains at most 64 record rows,
+while Copy logs reads filtered logical entries. The session logger publishes readonly raw
+history snapshots and applies queued replacements/appends to one detached buffer, avoiding
+deep proxy work and mutation of previously published arrays. Run the production log cases with
+`npm run test:browser --workspace golden_ui -- --logs`.
+
 Run `npm run check:browser --workspace golden_ui` for the standalone fixture's types and
 `npm run test:browser --workspace golden_ui` for production browser qualification. See the
 [P11 contract](../../docs/progress/p11-workspace-qualification-contract.md) for scope and gates.

@@ -123,7 +123,7 @@ export interface WorkbenchSession {
 	readonly graph: GraphStore;
 	readonly client: UiClient;
 	readonly loading: WorkbenchLoadingState;
-	readonly logRecords: UiLogRecord[];
+	readonly logRecords: readonly UiLogRecord[];
 	readonly logMaxEntries: number;
 	readonly logUiUpdateHz: number;
 	readonly engineHz: number | null;
@@ -854,7 +854,7 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 		get loading(): WorkbenchLoadingState {
 			return loading.state;
 		},
-		get logRecords(): UiLogRecord[] {
+		get logRecords(): readonly UiLogRecord[] {
 			return logger.logRecords;
 		},
 		get logMaxEntries(): number {

@@ -6,6 +6,7 @@ import { build, preview } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { chromium } from 'playwright-core';
 import { qualifyCatalog } from './catalog.mjs';
+import { qualifyLogs } from './logs.mjs';
 
 const root = fileURLToPath(new URL('./fixture/', import.meta.url));
 const repository = fileURLToPath(new URL('../../../../', import.meta.url));
@@ -60,7 +61,10 @@ try {
 				mounted: Number(tree.dataset.mountedRowCount)
 			}))
 		);
-	if (process.argv.includes('--catalog')) {
+	if (process.argv.includes('--logs')) {
+		await qualifyLogs(page, emit);
+		assert.deepEqual(errors, []);
+	} else if (process.argv.includes('--catalog')) {
 		await qualifyCatalog(page, emit);
 		assert.deepEqual(errors, []);
 	} else {

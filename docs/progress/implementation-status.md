@@ -5,12 +5,12 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-25 on `main`, based on delivered `c289b9a8` plus the P11 catalog
-milestone below. **P11 is in progress; one of six fixed checkpoints is closed (17% rounded).**
+Last reconciled: 2026-10-25 on `main`, based on delivered `1d5298ef` plus the P11 historical-log
+milestone below. **P11 is in progress; two of six fixed checkpoints are closed (33% rounded).**
 **P10 is locally complete: three of three fixed checkpoints (100%).**
 **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
-Whole-plan scope coverage is 56%; P01-P10 are locally complete.
+Whole-plan scope coverage is 57%; P01-P10 are locally complete.
 Hardware/platform and product-scale
 qualification retain their later owners.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
@@ -24,14 +24,14 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 packages, not commit counts. Spatializer's admitted preparation, bounded publication, source/path
 fences, identity preservation and passive failure recovery are qualified under C12.
 
-**Whole plan: 56% complete.** P01-P10 are complete against their local acceptance criteria.
+**Whole plan: 57% complete.** P01-P10 are complete against their local acceptance criteria.
 P09 has all three checkpoints complete: stable storage/layout, indexed structural edits, and
 consumer/scale qualification. P10 has all three fixed checkpoints complete; none remain.
-P11 is in progress at 1/6 closed checkpoints (17% rounded); P12-P18 have not started.
+P11 is in progress at 2/6 closed checkpoints (33% rounded); P12-P18 have not started.
 P00 baseline reconciliation is maintained separately.
 **10 of 18 implementation/qualification tasks are fully complete.**
 
-Overall progress is the equal-weight average of P01-P18: `(10 + 1/6) / 18 * 100 = 56.48%`,
+Overall progress is the equal-weight average of P01-P18: `(10 + 2/6) / 18 * 100 = 57.41%`,
 rounded to a whole percent. Use exact checkpoint fractions before rounding task displays.
 This measures scope coverage, not elapsed time, remaining effort, or
 product readiness. Task sizes differ substantially. P00 housekeeping and preserved pre-plan
@@ -189,15 +189,15 @@ P10 has three fixed, equally weighted checkpoints derived from its acceptance cr
 
 ### P11 completion checkpoints
 
-P11 has six fixed, equally weighted acceptance checkpoints. **One of six is closed (17% rounded).**
-Shared manager/picker/outliner windowing and creation-catalog menus pass through 100k items,
-closing the complete first checkpoint. These six
+P11 has six fixed, equally weighted acceptance checkpoints. **Two of six are closed (33% rounded).**
+Shared manager/picker/outliner, creation-catalog menus and historical logs pass through 100k items,
+closing the complete first two checkpoints. These six
 checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-workspace-qualification-contract.md).
 
 | Checkpoint | Status | Delivered / remaining acceptance |
 | ---------- | ------ | -------------------------------- |
 | Manager/catalog windowing | Complete locally | Variable-height manager/picker/outliner and flat/nested catalog menus pass through 100k items with bounded mounting, identity and focus. [Tree evidence](p11-tree-windowing.md), [catalog closure](p11-catalog-windowing.md). |
-| Historical log windowing | Not started | Bound filtered and historical rows while preserving follow, identity and text selection. |
+| Historical log windowing | Complete locally | Variable-height history, filters, follow, bounded native selection, focus and snapshot publication pass through 100k records. [Qualification](p11-log-windowing.md). |
 | Dashboard viewport awareness | Not started | Bound mounted free-layout widgets with correct bounds, interaction and selection. |
 | Tree focus and keyboard navigation | Not started | Qualify expansion/navigation and stable focus across virtualized changes in all owning trees. |
 | Graph keyboard operations | Not started | Provide and qualify keyboard movement and connection creation through shared operations. |
@@ -205,10 +205,11 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
 
 ## Current handoff
 
-- **Active task: P11 workspace UX (17% rounded, 1/6 fixed checkpoints closed).** Manager/picker/
-  outliner and creation-catalog windowing are verified through 100k items. Continue historical
-  log windowing with stable identity, text selection and follow behavior, then dashboards,
-  keyboard operations and composed qualification. Follow the plan's owning boundaries;
+- **Active task: P11 workspace UX (33% rounded, 2/6 fixed checkpoints closed).** Manager/picker/
+  outliner, catalogs and historical logs are verified through 100k entries. Continue dashboard
+  viewport awareness, then tree/graph keyboard operations and composed qualification.
+  Split the oversized dashboard responsibilities cohesively before editing them; preserve
+  app-agnostic ownership. Follow the plan's owning boundaries;
   do not reopen completed P03-P10 scope.
 - **P10 is locally complete: three of three fixed checkpoints (100%).** Retained geometry,
   scoped routes/culling and the full production mounted action/frame matrix pass. Stable wire
@@ -275,7 +276,7 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
 - Prior-commit CI/product qualification failures remain recorded: dependency advisories/audits
   retain P06, structural gates P12, timing/baseline work P16 and platform qualification P17.
   Cancelled macOS product work is not a pass.
-- Whole-plan scope coverage is **56%**, with **10/18 tasks fully complete**. Continue P11;
+- Whole-plan scope coverage is **57%**, with **10/18 tasks fully complete**. Continue P11;
   P03 has no remaining closure packages. Keep the full P00-P18 goal active.
 
 ## Task ledger
@@ -297,7 +298,7 @@ External qualification is separate from implementation. A historical pass is not
 | P08 Formula backend intents | 100%       | VERIFIED_LOCAL | PASSED four of four checkpoints   | Shared UI/script/HTTP/WS/headless operations, complete atomic fragments, backend connection policy and exact identity replies pass. Final native acceptance uses the default executable and isolated authenticated sessions; later product/platform qualification retains its owners.                                                                        |
 | P09 Graph document          | 100%       | VERIFIED_LOCAL | PASSED three of three checkpoints | Stable storage, indexed structural edits and exact rollback pass. Current/pre-P09 harness preserves 1,240 fixed-delta samples; public default/no-Serde contracts, Alchemist/statechart consumers, native selection drag/delete undo/redo, strict checks and default build qualify the final checkpoint.                                                      |
 | P10 Canvas                  | 100%       | VERIFIED_LOCAL | PASSED three of three checkpoints | Independent revisions/geometry, scoped routes/culling and full production mounted action/frame qualification pass at baseline/normal/stress tiers. All 55 action/tier and two dense scenes pass fixed gates, with 1,767 measured samples, preserved failures, owning UI/browser checks and default build. Native/full-product qualification retains P16/P17. |
-| P11 Workspace UX            | 17%        | IN_PROGRESS    | PASSED one of six checkpoints | Complete manager/picker/outliner and flat/nested catalog windowing pass through 100k items; logs, dashboard, tree/graph keyboard and composed qualification remain. Native usability open. |
+| P11 Workspace UX            | 33%        | IN_PROGRESS    | PASSED two of six checkpoints | Manager/picker/outliner, flat/nested catalogs and historical logs pass through 100k entries, including identity, bounded native selection, follow and immutable publication. Dashboard, tree/graph keyboard and composed qualification remain. Native usability open. |
 | P12 Boundaries/gates        | 0%         | NOT_STARTED    | PENDING                           | App policy leak, omitted graph tests, oversized files, unsafe conversions; recurring incremental native-link artifact gap                                                                                                                                                                                                                                    |
 | P13 Formula execution       | 0%         | NOT_STARTED    | PENDING                           | Historical profiles retained; production parallelism not mandated                                                                                                                                                                                                                                                                                            |
 | P14 Production time         | 0%         | NOT_STARTED    | PENDING                           | Clock helper unwired, no target-frame play, starvation/latency policy gaps                                                                                                                                                                                                                                                                                   |
@@ -10051,3 +10052,52 @@ checkpoint includes both manager/tree consumers and creation catalogs; no partia
 credit is used. Whole-plan scope coverage is **56%** (exactly 56.48%), with ten of eighteen
 tasks fully complete. Commit/push this verified milestone on `main`, then continue historical
 log windowing. P03 remains closed with zero packages left. Keep the full P00-P18 goal active.
+
+### P11 historical-log checkpoint closed
+
+Based on delivered `1d5298ef`, LoggerPanel uses shared variable-height windowing for live,
+paused and filtered history. All retained collapsed records remain reachable; unlimited sources
+no longer inherit a hidden 128-row UI fallback. Logical record focus, end anchoring through
+height measurements and bounded native text selection preserve identity while rows unmount.
+Native selection pins at most 64 record rows; Copy logs uses all filtered logical entries.
+Backend repeat counts, expanded-repeat budgets and global grouping keep their existing semantics.
+Inactive commented controls and their unused handlers/styles were removed.
+
+The session logger now publishes readonly raw histories and applies queued changes to one
+detached buffer. Backend append/replacement/clear and UI trimming/repeat replacement preserve
+prior snapshots; synchronous flush cancels its outstanding timer. This removes deep proxy costs
+without moving retention, ordering or domain logging policy into the renderer. No Rust runtime
+or protocol declarations changed. Every touched runtime/test source stays below 1,000 lines.
+
+The [qualification report](p11-log-windowing.md), [fixed contract](p11-workspace-qualification-contract.md),
+[final log samples](evidence/p11-logs-2026-10-25.jsonl) and
+[source/build record](evidence/p11-logs-source-2026-10-25.json) retain exact boundaries, source,
+machine/tools and production assets. Actual LoggerPanel/WorkbenchSession pass 1k/10k/20k/50k/100k
+long-message, filtering, history, focus, native selection, live/paused append, duplicate, unlimited,
+eviction and clear cases. Ordinary views stay within 42 rows; native-selection cases within 112.
+Five public-store publication invariants pass in the browser. The duplicate fixture's initial
+incorrect UI-merging expectation is retained and corrected to use backend repeat_count.
+
+All ten log timing cases pass fixed gates: **310 measurements / 30 warmups**. Filter feedback
+p95 is **8.6ms at 50k / 22.8ms at 100k**; a four-record UI append batch is **23.5 / 53.0ms**.
+The [preserved append failure](evidence/p11-logs-append-baseline-2026-10-25.jsonl) measured
+**534.1ms** at 50k before raw snapshot publication; limits and workload were unchanged. Setup
+ready observations are recorded separately, reaching 101.6ms at 100k. This is local mounted UI
+qualification, not physical-input, whole-product snapshot/throughput or native-usability acceptance.
+
+The same frozen source passes the complete [catalog](evidence/p11-logs-catalog-regression-2026-10-25.jsonl)
+and [manager/picker/outliner](evidence/p11-logs-collection-regression-2026-10-25.jsonl) regressions:
+another **620 measurements / 60 warmups**, plus variable rows. All final timing runs execute
+separately from other checks. All 11 captured source hashes remain unchanged after qualification.
+
+Final gates pass **261 root UI cases** (audio 27 / graph 52 / Golden UI 67 / app 115), app `check`
+and Golden UI `check:browser` **zero errors/warnings**, all three production browser suites,
+owned Prettier, whitespace/source-size checks and root/Golden Core Cargo formatting.
+`CARGO_INCREMENTAL=0 cargo build --locked -p Chataigne2` passes in **3m15s**, rebuilding the frontend.
+Executable SHA-256: `652448bb3e017be5d39f2d5bbd68c9ee0d49f6a2f2b96ee5e7461508e8dcff02`.
+
+**P11 is 2/6 complete (33% rounded), with four fixed checkpoints remaining.** Whole-plan scope
+coverage is **57%** (exactly 57.41%), with ten of eighteen tasks fully complete. Commit/push this
+verified milestone on `main`, then continue dashboard viewport awareness, with cohesive source
+splits before changing its oversized orchestrator. P03 remains closed with zero packages left.
+Keep the full P00-P18 goal active.

@@ -1,15 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import VirtualRows from '../../common/virtual-rows/VirtualRows.svelte';
+	import { createLogTextSelection } from './text-selection.svelte';
 	import type { NodeId } from '../../../types';
 	import type { PanelProps, PanelState } from '../../../dockview/panel-types';
 	import { appState } from '../../../store/workbench.svelte';
-	import {
-		DEFAULT_LOG_UI_UPDATE_HZ,
-		MAX_LOG_UI_UPDATE_HZ,
-		MIN_LOG_UI_UPDATE_HZ,
-		normalizeLogUiUpdateHz
-	} from '../../../store/logger-ui-config';
-	import { sendClearLogsIntent, sendSetLogMaxEntriesIntent } from '../../../store/ui-intents';
+	import { sendClearLogsIntent } from '../../../store/ui-intents';
 	import { copyTextToClipboard } from '../../../utils/clipboard';
 	import {
 		LoggerProjection,
@@ -43,14 +39,10 @@
 	};
 
 	const LIST_BOTTOM_EPSILON_PX = 6;
-	const LIVE_TAIL_RENDER_LIMIT = 200;
 
 	let session = $derived(appState.session);
 	let records = $derived(session?.logRecords ?? []);
 	let maxEntries = $derived(session?.logMaxEntries ?? 0);
-	let logUiUpdateHz = $derived(session?.logUiUpdateHz ?? DEFAULT_LOG_UI_UPDATE_HZ);
-	let desiredMaxEntries = $state(128);
-	let desiredLogUiUpdateHz = $state(DEFAULT_LOG_UI_UPDATE_HZ);
 
 	let sourceFilter = $state('');
 	let tagFilter = $state('');
@@ -68,18 +60,19 @@
 	);
 
 	let loggerList = $state<HTMLDivElement | null>(null);
-	let listEndMarker = $state<HTMLDivElement | null>(null);
+	let virtualRows = $state<ReturnType<typeof VirtualRows<LoggerEntry>>>();
 	let focusedRecordKey = $state<string | null>(null);
 	let followLatest = $state(true);
 	let viewportSyncRaf: number | null = null;
 	let suppressedScrollEvents = 0;
 	let userScrollIntentUntilMs = 0;
 
-	let rawEntryLimit = $derived(maxEntries > 0 ? maxEntries : Math.max(1, desiredMaxEntries));
-	let effectiveRenderLimit = $derived(
-		followLatest && focusedRecordKey === null && !isFiltered
-			? Math.min(rawEntryLimit, LIVE_TAIL_RENDER_LIMIT)
-			: rawEntryLimit
+	let rawEntryLimit = $derived(maxEntries > 0 ? maxEntries : Math.max(1, records.length));
+	const textSelection = createLogTextSelection(
+		() => loggerList,
+		() => {
+			followLatest = false;
+		}
 	);
 
 	const logProjection = new LoggerProjection();
@@ -118,7 +111,7 @@
 	let displayedEntriesResult = $derived.by(() =>
 		logProjection.display(
 			records,
-			effectiveRenderLimit,
+			rawEntryLimit,
 			collapseDuplicates,
 			collapseAllDuplicates,
 			(origin) => session?.graph.state.nodesById.get(origin)?.meta.label
@@ -126,17 +119,6 @@
 	);
 
 	let displayedEntries = $derived(displayedEntriesResult.entries);
-	let collapsedGroupCount = $derived(displayedEntriesResult.collapsedGroupCount);
-	let isWindowedView = $derived(
-		followLatest &&
-			focusedRecordKey === null &&
-			!isFiltered &&
-			(collapseDuplicates
-				? collapseAllDuplicates
-					? collapsedGroupCount > effectiveRenderLimit
-					: records.length > effectiveRenderLimit
-				: rawEntryLimit > effectiveRenderLimit)
-	);
 
 	let filteredEntries = $derived(
 		filterLoggerEntries(displayedEntries, {
@@ -145,8 +127,6 @@
 			content: normalizedContentFilter
 		})
 	);
-
-	let renderedEntries = $derived(filteredEntries);
 
 	const withSuppressedScroll = (operation: () => void): void => {
 		suppressedScrollEvents += 1;
@@ -203,46 +183,22 @@
 			return;
 		}
 		withSuppressedScroll(() => {
-			if (listEndMarker) {
-				listEndMarker.scrollIntoView({ block: 'end' });
-			}
 			if (loggerList) loggerList.scrollTop = loggerList?.scrollHeight ?? 0;
 		});
-		requestAnimationFrame(() => {
-			if (!loggerList || !followLatest || focusedRecordKey !== null || isListAtBottom()) {
-				return;
-			}
-			withSuppressedScroll(() => {
-				if (listEndMarker) {
-					listEndMarker.scrollIntoView({ block: 'end' });
-				}
-				if (loggerList) loggerList.scrollTop = loggerList?.scrollHeight ?? 0;
-			});
-		});
-	};
-
-	const findRecordElement = (entryKey: string): HTMLElement | null => {
-		if (!loggerList) {
-			return null;
-		}
-		return loggerList.querySelector<HTMLElement>(`[data-record-key="${entryKey}"]`);
 	};
 
 	const scrollFocusedRecordIntoView = (): void => {
 		if (!focusedRecordKey) {
 			return;
 		}
-		const focusedElement = findRecordElement(focusedRecordKey);
-		if (!focusedElement) {
-			return;
-		}
+		const key = focusedRecordKey;
 		withSuppressedScroll(() => {
-			focusedElement.scrollIntoView({ block: 'nearest' });
+			virtualRows?.reveal(key);
 		});
 	};
 
 	const syncViewport = (): void => {
-		if (!loggerList) {
+		if (!loggerList || hasLoggerSelection()) {
 			return;
 		}
 
@@ -277,17 +233,6 @@
 	};
 
 	$effect(() => {
-		if (maxEntries > 0) {
-			desiredMaxEntries = maxEntries;
-		}
-	});
-
-	$effect(() => {
-		const normalized = normalizeLogUiUpdateHz(logUiUpdateHz);
-		desiredLogUiUpdateHz = normalized;
-	});
-
-	$effect(() => {
 		displayedEntries;
 		filteredEntries;
 		focusedRecordKey;
@@ -305,7 +250,7 @@
 		scheduleViewportSync();
 	};
 
-	const focusRecord = (entryKey: string): void => {
+	export const focusRecord = (entryKey: string): void => {
 		focusedRecordKey = entryKey;
 		followLatest = false;
 		scheduleViewportSync();
@@ -323,13 +268,14 @@
 		void copyTextToClipboard(formatLogEntryForClipboard(entry));
 	};
 
+	export const displayedLogText = (): string =>
+		filteredEntries.map(formatLogEntryForClipboard).join('\n\n');
 	const copyDisplayedLogs = (): void => {
 		if (filteredEntries.length === 0) {
 			return;
 		}
 
-		const text = filteredEntries.map((entry) => formatLogEntryForClipboard(entry)).join('\n\n');
-		void copyTextToClipboard(text);
+		void copyTextToClipboard(displayedLogText());
 	};
 
 	const handleRecordKeydown = (event: KeyboardEvent, entryKey: string): void => {
@@ -340,7 +286,7 @@
 		focusRecord(entryKey);
 	};
 
-	const resyncToLatest = (): void => {
+	export const resyncToLatest = (): void => {
 		focusedRecordKey = null;
 		followLatest = true;
 		scheduleViewportSync();
@@ -352,44 +298,12 @@
 		contentFilter = '';
 	};
 
-	const toggleCollapse = (): void => {
+	export const toggleCollapse = (): void => {
 		collapseDuplicates = !collapseDuplicates;
 	};
 
-	const toggleSuperCollapse = (): void => {
+	export const toggleSuperCollapse = (): void => {
 		collapseAllDuplicates = !collapseAllDuplicates;
-	};
-
-	const applyMaxEntries = (): void => {
-		const normalized = Math.max(1, Math.round(Number(desiredMaxEntries)));
-		if (!Number.isFinite(normalized)) {
-			desiredMaxEntries = maxEntries > 0 ? maxEntries : 1;
-			return;
-		}
-		desiredMaxEntries = normalized;
-		void sendSetLogMaxEntriesIntent(normalized);
-	};
-
-	const handleMaxEntriesKeydown = (event: KeyboardEvent): void => {
-		if (event.key !== 'Enter') {
-			return;
-		}
-		event.preventDefault();
-		applyMaxEntries();
-	};
-
-	const applyLogUiUpdateHz = (): void => {
-		const normalized = normalizeLogUiUpdateHz(Number(desiredLogUiUpdateHz));
-		desiredLogUiUpdateHz = normalized;
-		session?.setLogUiUpdateHz(normalized);
-	};
-
-	const handleLogUiUpdateHzKeydown = (event: KeyboardEvent): void => {
-		if (event.key !== 'Enter') {
-			return;
-		}
-		event.preventDefault();
-		applyLogUiUpdateHz();
 	};
 
 	const clearLogs = (): void => {
@@ -397,6 +311,16 @@
 		followLatest = true;
 		void sendClearLogsIntent();
 	};
+	export function searchLogs(filters: { source?: string; tag?: string; content?: string }): void {
+		sourceFilter = filters.source ?? '';
+		tagFilter = filters.tag ?? '';
+		contentFilter = filters.content ?? '';
+	}
+	export function browseToRecord(key: string): boolean {
+		focusedRecordKey = null;
+		followLatest = false;
+		return virtualRows?.reveal(key, 'center') ?? false;
+	}
 
 	const handleListScroll = (): void => {
 		if (suppressedScrollEvents > 0) {
@@ -430,36 +354,6 @@
 
 <section class="logger-panel">
 	<header class="logger-toolbar">
-		<!-- <div class={`logger-stats${isFiltered ? ' is-filtered' : ''}`}>
-			<strong>{filteredEntries.length}</strong>
-			<span>/ {displayedEntries.length}</span>
-			{#if collapseDuplicates}
-				<span class="raw-count">({records.length})</span>
-			{/if}
-		</div> -->
-
-		<!-- <label class="max-input">
-			<span>max</span>
-			<input
-				type="number"
-				min="1"
-				step="1"
-				bind:value={desiredMaxEntries}
-				onchange={applyMaxEntries}
-				onkeydown={handleMaxEntriesKeydown} />
-		</label>
-		<label class="hz-input" title="Logger UI update rate limit">
-			<span>hz</span>
-			<input
-				type="number"
-				min={MIN_LOG_UI_UPDATE_HZ}
-				max={MAX_LOG_UI_UPDATE_HZ}
-				step="1"
-				bind:value={desiredLogUiUpdateHz}
-				onchange={applyLogUiUpdateHz}
-				onkeydown={handleLogUiUpdateHzKeydown} />
-		</label> -->
-
 		<input
 			class="filter-input source"
 			type="search"
@@ -478,8 +372,11 @@
 	</header>
 
 	<div
-		class={`logger-list${isFiltered ? ' is-filtered' : ''}${isWindowedView ? ' is-windowed' : ''}`}
+		class={`logger-list${isFiltered ? ' is-filtered' : ''}`}
 		bind:this={loggerList}
+		role="region"
+		aria-label="Log history"
+		tabindex="-1"
 		use:trackUserScrollIntent
 		onscroll={handleListScroll}>
 		{#if filteredEntries.length === 0}
@@ -492,8 +389,16 @@
 					No logs yet.
 				{/if}
 			</div>
-		{:else}
-			{#each renderedEntries as entry (entry.key)}
+		{/if}
+		<VirtualRows
+			bind:this={virtualRows}
+			rows={filteredEntries}
+			keyOf={(entry) => entry.key}
+			scroller={loggerList}
+			variableHeights={true}
+			followEnd={followLatest && focusedRecordKey === null}
+			retainedKeys={textSelection.keys}>
+			{#snippet item(entry)}
 				{@const record = entry.record}
 				<div
 					class={`record level-${record.level}${focusedRecordKey === entry.key ? ' is-focused' : ''}`}
@@ -508,8 +413,6 @@
 					}}
 					onmouseleave={() => (overRecordKey = null)}>
 					<time class="time">{entry.formattedTime}</time>
-					<!-- <span class="level">{record.level}</span> -->
-					<!-- <span class="tag">{record.tag}</span> -->
 
 					<p class="message">{record.message}</p>
 
@@ -553,9 +456,8 @@
 						{/if}
 					</div>
 				</div>
-			{/each}
-		{/if}
-		<div class="list-end-marker" bind:this={listEndMarker} aria-hidden="true"></div>
+			{/snippet}
+		</VirtualRows>
 	</div>
 	<footer class="logger-footer">
 		<button
@@ -580,11 +482,6 @@
 			disabled={followLatest && focusedRecordKey === null}>
 			Live
 		</button>
-		<!-- {#if isWindowedView}
-			<span class="windowed-indicator" title="Live mode renders only recent logs for performance">
-				tail {effectiveRenderLimit}
-			</span>
-		{/if} -->
 		<div class="spacer"></div>
 		<button
 			type="button"
@@ -657,25 +554,11 @@
 		border-color: color-mix(in srgb, #bf4d43 55%, transparent);
 	}
 
-	.windowed-indicator {
-		padding: 0 0.32rem;
-		border: 0.0625rem solid color-mix(in srgb, #cf9b37 45%, transparent);
-		border-radius: 0.25rem;
-		background: color-mix(in srgb, #cf9b37 22%, transparent);
-		font-size: 0.64rem;
-		line-height: 1.6;
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		white-space: nowrap;
-	}
-
 	.logger-list {
 		flex: 1;
 		min-block-size: 0;
 		overflow: auto;
 		padding: 0.18rem 0.35rem 0.4rem;
-		display: flex;
-		flex-direction: column;
 		font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, 'Liberation Mono', monospace;
 		font-variant-ligatures: none;
 		user-select: text;
@@ -687,18 +570,6 @@
 		background: color-mix(in srgb, var(--gc-color-focus-muted) 30%, transparent);
 	}
 
-	.logger-list.is-windowed {
-		outline: 0.0625rem dashed color-mix(in srgb, #cf9b37 40%, transparent);
-		outline-offset: -0.0625rem;
-	}
-
-	.list-end-marker {
-		inline-size: 100%;
-		block-size: 0.0625rem;
-		flex: 0 0 auto;
-		pointer-events: none;
-	}
-
 	.empty-state {
 		padding: 0.6rem 0.4rem;
 		opacity: 0.7;
@@ -706,6 +577,8 @@
 	}
 
 	.record {
+		inline-size: 100%;
+		box-sizing: border-box;
 		display: flex;
 		align-items: flex-start;
 		gap: 0.35rem;
@@ -714,8 +587,6 @@
 		border-bottom: 0.0625rem solid
 			color-mix(in srgb, var(--gc-color-panel-outline) 65%, transparent);
 		contain: layout style paint;
-		content-visibility: auto;
-		contain-intrinsic-size: 1.4rem;
 		user-select: text;
 		-webkit-user-select: text;
 	}

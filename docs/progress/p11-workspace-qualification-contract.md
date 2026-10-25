@@ -54,3 +54,21 @@ compact-menu rendering. Search and reveal use component operations; no synthetic
 Catalog filtering has three warmups and 31 measured samples per tier with the same fixed
 feedback/stall/completion gates above. Complete collection-checkpoint acceptance also requires
 the preceding manager/picker/outliner evidence and current owning regression/build checks.
+
+## Historical log extension
+
+Qualify actual LoggerPanel and WorkbenchSession with 1k/10k baseline, 20k/50k normal and 100k
+stress retained records in a 60rem x 32rem scene. Include long wrapped multiline messages,
+source/tag/content filters, historical reveal, follow-latest and paused append, focus identity,
+eviction/clear, consecutive/global duplicate modes and an unlimited-source snapshot.
+Full logical history remains available while only the viewport mounts. Ordinary mounting is
+bounded by 42 rows here; native text selection may retain up to 64 additional record rows,
+with a hard total of 112 in this fixture. Qualify multiline and adjacent-record native selection
+through distant scrolling and append. Copy logs uses all filtered logical entries independently
+of mounted rows; it is the bulk-history copy path. Native selection is a bounded DOM cohort,
+not a request to mount an arbitrarily large selected history.
+
+Measure filtering and a four-record append batch with three warmups and 31 samples per tier,
+using the existing fixed feedback/stall/completion ceilings. Confirm actual visible row content,
+source identity and geometry after settlement. Input remains component/store operations and DOM
+selection/focus APIs in the private browser; no synthesized keyboard/mouse events.
