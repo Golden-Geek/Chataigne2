@@ -185,6 +185,8 @@ export interface WorkbenchSession {
 	redo(): Promise<void>;
 	refreshSnapshot(): Promise<boolean>;
 	refreshSnapshotAfterCurrentSynchronization(): Promise<boolean>;
+	/** Drain confirmed edits and retire active gestures before save/history or other session work. */
+	runEditBarrier<T>(operation: () => Promise<T>): Promise<T>;
 	runProjectGraphTransition<T>(
 		operation: (control: ProjectGraphTransitionControl) => Promise<T>
 	): Promise<T>;
@@ -619,18 +621,28 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 	});
 
 	const { sendIntent, sendIntents } = createIntentSender(intentPipeline, userActions);
+	const runEditBarrier = <T>(operation: () => Promise<T>): Promise<T> => {
+		const generation = snapshotGeneration;
+		return editOperations.runBarrier(async () => {
+			await snapshots.waitForIdle();
+			await intentPipeline.flush();
+			if (generation !== snapshotGeneration)
+				throw new Error('Edit barrier cancelled because the session changed');
+			return operation();
+		});
+	};
 
 	const runProjectGraphTransition = <T>(
 		operation: (control: ProjectGraphTransitionControl) => Promise<T>
-	): Promise<T> => projectGraphTransitions.run(operation);
+	): Promise<T> => editOperations.runBarrier(() => projectGraphTransitions.run(operation));
 
-	const undo = (): Promise<void> => {
-		return history.undo(() => sendIntent({ kind: 'undo' }));
-	};
-
-	const redo = (): Promise<void> => {
-		return history.redo(() => sendIntent({ kind: 'redo' }));
-	};
+	const runHistoryAction = (kind: 'undo' | 'redo'): Promise<void> =>
+		runEditBarrier(() => history[kind](() => sendIntent({ kind }))).catch((error) => {
+			const message = error instanceof Error ? error.message : String(error);
+			appendUiLogRecord('error', UI_LOG_TAG_INTENT, `${kind} failed: ${message}`);
+		});
+	const undo = (): Promise<void> => runHistoryAction('undo');
+	const redo = (): Promise<void> => runHistoryAction('redo');
 
 	const revealNodeInInspector = (nodeId: NodeId): boolean => {
 		if (!graph.state.nodesById.has(nodeId)) {
@@ -949,6 +961,7 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 			return success;
 		},
 		runProjectGraphTransition,
+		runEditBarrier,
 		startLoadingOperation: (initial) => loading.startOperation(initial),
 		mount
 	};

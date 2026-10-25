@@ -48,14 +48,22 @@ export function createFixtureSession() {
 	let rejectNext = false;
 	let sequence = 0;
 	let generation = 0;
+	let snapshotFailures = 0;
 	let intentHandler:
 		| ((intent: Parameters<UiClient['sendIntent']>[0]) => ReturnType<UiClient['sendIntent']> | null)
 		| null = null;
+	let projectSaveHandler: UiClient['projectSave'] | null = null;
 	const unused = (): never => {
 		throw new Error('Unexpected fixture transport call.');
 	};
 	const client: UiClient = {
-		snapshot: async () => snapshot,
+		snapshot: async () => {
+			if (snapshotFailures > 0) {
+				snapshotFailures--;
+				throw new Error('Fixture snapshot rejection');
+			}
+			return snapshot;
+		},
 		subscribe: unused,
 		sendIntents: async (intents) => Promise.all(intents.map((intent) => client.sendIntent(intent))),
 		replay: unused,
@@ -65,7 +73,7 @@ export function createFixtureSession() {
 		setScriptConfig: unused,
 		reloadScript: unused,
 		projectNew: unused,
-		projectSave: unused,
+		projectSave: (...args) => (projectSaveHandler ? projectSaveHandler(...args) : unused()),
 		projectLoad: unused,
 		projectUploadLoad: unused,
 		sendIntent: async (intent) => {
@@ -155,7 +163,11 @@ export function createFixtureSession() {
 		session.graph.loadSnapshot(snapshot);
 	};
 	return {
-		editAcknowledgement(active?: boolean): Awaited<ReturnType<UiClient['sendIntent']>> {
+		editAcknowledgement(
+			active?: boolean,
+			history: Partial<UiSnapshot['history']> = {}
+		): Awaited<ReturnType<UiClient['sendIntent']>> {
+			snapshot = { ...snapshot, history: { ...snapshot.history, ...history } };
 			if (active !== undefined)
 				snapshot = { ...snapshot, history: { ...snapshot.history, active_edit_session: active } };
 			return { success: true, status: 'applied', history: snapshot.history };
@@ -163,7 +175,13 @@ export function createFixtureSession() {
 		handleIntent(handler: typeof intentHandler) {
 			intentHandler = handler;
 		},
+		handleProjectSave(handler: UiClient['projectSave'] | null) {
+			projectSaveHandler = handler;
+		},
 		session,
+		rejectSnapshot: () => {
+			snapshotFailures++;
+		},
 		load,
 		loadNodes,
 		loadLogger: async (records: UiLogRecord[], maxEntries = records.length) => {

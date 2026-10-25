@@ -31,6 +31,7 @@ export interface WorkbenchIntentPipeline {
 	sendIntents(intents: UiEditIntent[], progress?: WorkbenchIntentProgressObserver): Promise<void>;
 	suspendDispatch(): () => void;
 	blockDispatch(reason: Error): () => void;
+	flush(): Promise<void>;
 	runProjectGraphTransition<T>(operation: () => Promise<T>): Promise<T>;
 	rejectPending(reason: Error): void;
 }
@@ -371,12 +372,24 @@ export const createWorkbenchIntentPipeline = (
 			release();
 		}
 	};
+	const flush = async (): Promise<void> => {
+		const check = () => {
+			const blocked = activeDispatchBlockReason();
+			if (blocked) throw blocked;
+			if (dispatchSuspensions > 0)
+				throw new Error('Edit barrier cancelled because the runtime graph is synchronizing');
+		};
+		check();
+		await waitForIdle();
+		check();
+	};
 
 	return {
 		sendIntent,
 		sendIntents,
 		suspendDispatch,
 		blockDispatch,
+		flush,
 		runProjectGraphTransition,
 		rejectPending
 	};

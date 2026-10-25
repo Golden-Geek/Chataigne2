@@ -187,12 +187,22 @@ only affected widget owners. The small reactive adapter publishes after keyed DO
 the pure service owns no timers, DOM or transport implementation. Intent senders compose applied
 receipts with existing action lifecycle reporting through the session pipeline.
 
+Session `runEditBarrier` closes managed admission, cancels active samples and drains confirmed
+tails/history before save or other session work. It then flushes raw dispatch and checks snapshot
+identity. Project replacement drains managed work before acquiring its existing dispatch suspension.
+Concurrent barriers serialize; callbacks do not enter another barrier or open a managed gesture.
+Late presentation-only events do not delay completed backend work. Undo/redo check availability
+after drainage and report failures through the UI log. Save captures the submitted history identity,
+so edits arriving while the request is pending remain unsaved. See the
+[barrier contract and evidence](../progress/p11-dashboard-barriers.md) for recovery/host boundaries.
+
 The [free-operation report](../progress/p11-dashboard-free-gestures.md) covers active interruption;
 the [confirmed-edit report](../progress/p11-dashboard-confirmed-edits.md) covers view disposal,
 independent widget history and late graph publication. Generic ordered lifetimes are qualified
 below. The [composition matrix](../progress/p11-dashboard-composition.md) extends these checks to
 containers, registered node widgets, mixed destinations and active coordinate-frame changes.
-Project/save barriers, composed lifetimes and action timing remain open.
+Applied-receipt project/save/history/reparent and host-retirement ordering are qualified by the
+barrier matrix. Action timing and broader composed workflows remain open.
 These checks do not establish staged/unknown-outcome semantics or complete dashboard acceptance.
 See the [fixed contract](../progress/p11-workspace-qualification-contract.md) and the historical
 [decomposition comparison](../progress/p11-dashboard-decomposition.md).
@@ -216,4 +226,5 @@ all siblings for every pointer update. Structural/order/role changes refresh the
 publications use immutable map deltas. An ordered surface with hidden items and no anchor cannot
 invent an insertion position. See [ordered lifetime evidence](../progress/p11-dashboard-ordered-lifetimes.md)
 for the generic scope, plus the composition matrix for container and registered-widget coverage.
-Composed barriers and timing qualification remain required before dashboard acceptance closes.
+Timing qualification remains required before dashboard acceptance closes; the barrier matrix covers
+normal applied receipts, with staged/unknown outcomes explicitly outside that evidence.

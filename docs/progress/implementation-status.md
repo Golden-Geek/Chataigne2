@@ -5,8 +5,8 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-25 on `main`, based on delivered `322ef1ea` plus the P11 dashboard
-composition milestone below. **P11 is in progress; two of six fixed checkpoints are closed (33% rounded).**
+Last reconciled: 2026-10-25 on `main`, based on delivered `85c34e6f` plus the P11 session-barrier
+milestone below. **P11 is in progress; two of six fixed checkpoints are closed (33% rounded).**
 **P10 is locally complete: three of three fixed checkpoints (100%).**
 **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
@@ -198,7 +198,7 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
 | ---------- | ------ | -------------------------------- |
 | Manager/catalog windowing | Complete locally | Variable-height manager/picker/outliner and flat/nested catalog menus pass through 100k items with bounded mounting, identity and focus. [Tree evidence](p11-tree-windowing.md), [catalog closure](p11-catalog-windowing.md). |
 | Historical log windowing | Complete locally | Variable-height history, filters, follow, bounded native selection, focus and snapshot publication pass through 100k records. [Qualification](p11-log-windowing.md). |
-| Dashboard viewport awareness | In progress | Sparse/dense and shared hierarchy budgets pass through 100k authored nodes. Free/ordered generic, container and registered-widget transforms, six mixed destinations, frame retirement, confirmed disposal, pending size/enablement, authored insertion and five CSS units pass. Project/save/composed barriers and timing remain. [Composition evidence](p11-dashboard-composition.md). |
+| Dashboard viewport awareness | In progress | Sparse/dense and hierarchy budgets pass through 100k authored nodes. Free/ordered transforms, mixed destinations, frame retirement, confirmed disposal, insertion, units and applied-receipt project/save/history/reparent/recovery barriers pass. The fixed action/timing matrix remains. [Composition](p11-dashboard-composition.md), [barriers](p11-dashboard-barriers.md). |
 | Tree focus and keyboard navigation | Not started | Qualify expansion/navigation and stable focus across virtualized changes in all owning trees. |
 | Graph keyboard operations | Not started | Provide and qualify keyboard movement and connection creation through shared operations. |
 | Complete composed workflows | Not started | Qualify discovery, selection and editing across all required composed panels and large batches. Native usability retains P17. |
@@ -209,8 +209,9 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
   outliner, catalogs and historical logs are verified through 100k entries. Continue dashboard
   viewport awareness, then tree/graph keyboard operations and composed qualification.
   Sparse and dense dashboard presentation are verified through 100k authored nodes. Continue
-  composed host/project/save/undo barriers over confirmed tails, then the fixed action/timing
-  matrix. Container/node-widget transforms and mixed destinations now pass the finite 164-group
+  the fixed action/timing matrix, including exact dense picking. Applied-receipt project/save/
+  history/reparent/recovery and host-retirement ordering now pass the [114-group barrier matrix](p11-dashboard-barriers.md).
+  Container/node-widget transforms and mixed destinations pass the finite 164-group
   composition extension, including frame changes, confirmed disposal and rejection. See the
   [composition report](p11-dashboard-composition.md) and [fixed contract](p11-dashboard-composition-contract.md).
   Generic ordered widgets pass 106 new cases: 36 resize and 70 move, including pending size/
@@ -219,7 +220,7 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
   across disposal, independent widget admission
   and late graph publication, alongside the prior twenty interruption groups. Session ownership
   retains confirmed work and parameter drafts; spatial queries and Frame consume those drafts.
-  Root UI 359 and the full browser 485 correctness groups/five tiers pass. Pending creation
+  Root UI 369 and the full browser 599 correctness groups/five tiers pass. Pending creation
   passes 55 cases across six layouts, including overlapping outcomes, mode/source/destination
   retirement, acknowledged controls, retained budgets and offscreen disposal.
   Move presentation now passes 55 cases across six layouts, including source/path/layout/identity
@@ -10603,3 +10604,39 @@ ordering over confirmed tails before the fixed three-warmup / 31-sample action m
 exact dense picking. Queue drainage alone does not prove managed final samples have been submitted.
 Four P11 checkpoints remain open. P03 has zero packages left; native usability retains P17 and
 product throughput P16. Keep the full P00-P18 goal active.
+
+### P11 session barriers over managed dashboard edits
+
+Previous goal turn: **progress**, delivering `85c34e6f` on `main`. Reconciled the clean checkout.
+The owning session now closes managed admission, cancels active tails and drains confirmed samples/
+history before serialized callbacks. Raw dispatch stays available during drainage. Project replacement
+then acquires its existing dispatch suspension; save/history additionally flush raw requests and
+validate snapshot identity. Late presentation events do not hold completed backend work. Session
+retirement prevents waiting callback entry. Save retains the submitted history identity, preserving
+later unsaved edits. Undo/redo check availability after drainage and report failures through the UI log.
+
+The [114-group contract/report](p11-dashboard-barriers.md) covers three source families, four
+transform contexts, active/confirmed work, atomic moves, save, undo/redo, project/reparent ordering,
+two history owners, publication delay, rejection, recovery and host replacement. Scenes retain 600
+source widgets and three anchors. An old-save module probe fails the pending-prefix assertion;
+two history tests reproduced retirement rejection from fire-and-forget UI entrypoints. Their
+[regression evidence](evidence/p11-dashboard-barrier-regressions-2026-10-25.json) remains recorded.
+Old-connection cleanup is an explicit fixture step; backend undo/codec and native behavior retain
+independent evidence. Staged/unknown outcomes are outside this applied-receipt matrix.
+
+The [final browser run](evidence/p11-dashboard-barriers-2026-10-25.json) passes **599 correctness
+groups / five sparse tiers** through 100k authored nodes, with **136 source fingerprints** and no
+page errors. Root UI passes **369** (27 audio / 52 graph / 173 Golden / 117 app), including ten
+new barrier/error cases. TypeScript, browser/app Svelte, source/report formatting, whitespace and
+both Cargo formatters pass. Rust/protocol are unchanged. The final locked default app build rebuilt
+the frontend and passed in **2m13s**; executable SHA-256:
+`74040ccaf1ce633afb09e5d4110575a30282514e2ddd4638799439e96e99f47a`.
+Inventory is **2,168 source files / 27 oversized**; touched runtime/tests remain below 1,000 lines.
+The project-file module was normalized with the repository formatter in the same change.
+
+**P11 remains 2/6 fixed checkpoints (33% rounded); whole-plan coverage stays 57% (57.41% exact).**
+Commit/push this verified milestone on `main`. Next execute the fixed three-warmup / 31-sample
+dashboard action matrix at 1k/10k/20k/50k/100k authored nodes, including exact dense picking,
+edits, navigation and framing. Dashboard timing is the remaining local gate for this checkpoint;
+the tree keyboard, graph keyboard and composed-workflow checkpoints also remain open. P03 has
+zero packages left. Native usability retains P17 and product throughput P16. Keep the full goal active.

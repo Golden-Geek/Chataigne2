@@ -48,8 +48,10 @@ export function createEditOperations(context: {
 	let generation = 0,
 		sequence = 0;
 	let tail: Promise<void> = Promise.resolve();
+	let barrierTail: Promise<void> = Promise.resolve(),
+		barriers = 0;
 	let values = new VersionedNodeMap<ParameterPreview>();
-	const records = new Set<{ cancel(): Promise<void>; observe(): void }>();
+	const records = new Set<{ cancel(): Promise<void>; drain(): Promise<void>; observe(): void }>();
 	const layers = new Map<NodeId, Map<number, ParameterPreview>>();
 	const latest = (id: NodeId, uuid: string) => {
 		context.track();
@@ -75,7 +77,7 @@ export function createEditOperations(context: {
 		current(): boolean;
 		build(scope: EditOperationContext): Work;
 	}): EditOperation<Work> | null => {
-		if (records.size >= (context.limit ?? 64)) return null;
+		if (barriers > 0 || records.size >= (context.limit ?? 64)) return null;
 		const id = ++sequence,
 			epoch = generation,
 			ready = tail;
@@ -201,6 +203,7 @@ export function createEditOperations(context: {
 		};
 		const record = {
 			cancel: () => operation.cancel(),
+			drain: () => (confirmed ? operation.confirm() : operation.cancel()),
 			observe: () => {
 				if (!current()) void operation.cancel();
 				else if (completed && !waitingForProjection()) cleanup();
@@ -219,6 +222,39 @@ export function createEditOperations(context: {
 	};
 	return {
 		open,
+		runBarrier<T>(operation: () => Promise<T>): Promise<T> {
+			barriers++;
+			const epoch = generation,
+				previous = barrierTail;
+			// Retire active gestures immediately, but let confirmed tails use transport dispatch.
+			const drained = Promise.allSettled(
+				[...records].map((record) => {
+					try {
+						return record.drain();
+					} catch (error) {
+						return Promise.reject(error);
+					}
+				})
+			);
+			const done = (async () => {
+				try {
+					await previous;
+					const outcomes = await drained;
+					const failed = outcomes.find((result) => result.status === 'rejected');
+					if (failed?.status === 'rejected') throw failed.reason;
+					if (epoch !== generation)
+						throw new Error('Edit barrier cancelled because the session changed');
+					return await operation();
+				} finally {
+					barriers--;
+				}
+			})();
+			barrierTail = done.then(
+				() => {},
+				() => {}
+			);
+			return done;
+		},
 		get size() {
 			context.track();
 			return records.size;

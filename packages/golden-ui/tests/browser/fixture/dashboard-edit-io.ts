@@ -39,6 +39,8 @@ export function createDashboardEditIO(
 				![
 					'beginEdit',
 					'endEdit',
+					'undo',
+					'redo',
 					'setParam',
 					'resizeDashboardWidget',
 					'moveDashboardWidget'
@@ -46,7 +48,7 @@ export function createDashboardEditIO(
 			)
 				return null;
 			records.push(structuredClone(intent));
-			const write = intent.kind !== 'beginEdit' && intent.kind !== 'endEdit';
+			const write = !['beginEdit', 'endEdit', 'undo', 'redo'].includes(intent.kind);
 			const rejected = write && rejectWrites;
 			const times: EventTime[] = [];
 			const enqueue = (apply: (at: EventTime) => void) => {
@@ -159,7 +161,18 @@ export function createDashboardEditIO(
 			}
 			const reply = () => ({
 				...fixture.editAcknowledgement(
-					intent.kind === 'beginEdit' ? true : intent.kind === 'endEdit' ? false : undefined
+					intent.kind === 'beginEdit' ? true : intent.kind === 'endEdit' ? false : undefined,
+					intent.kind === 'endEdit' || (write && !fixture.session.hasActiveEditSession)
+						? {
+								can_undo: true,
+								can_redo: false,
+								current_history_state_id: fixture.session.currentHistoryStateId + 1
+							}
+						: intent.kind === 'undo'
+							? { can_undo: false, can_redo: true, current_history_state_id: 0 }
+							: intent.kind === 'redo'
+								? { can_undo: true, can_redo: false, current_history_state_id: 1 }
+								: {}
 				),
 				...(times.length ? { earliest_event_time: times[0], latest_event_time: times.at(-1) } : {}),
 				...(rejected

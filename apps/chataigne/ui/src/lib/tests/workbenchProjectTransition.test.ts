@@ -77,6 +77,25 @@ const nodeEvent = (nodeId: number): UiEditIntent => ({
 });
 
 describe('workbench project graph transitions', () => {
+	it.each(['undo', 'redo'] as const)(
+		'reports a retired %s barrier without rejecting fire-and-forget UI callers',
+		async (action) => {
+			const pending = deferred<void>();
+			const session = createWorkbenchSession({
+				enableGlobalShortcuts: false,
+				transportFactory: () => ({}) as UiClient
+			});
+			const operation = session.editOperations.open({
+				current: () => true,
+				build: () => ({ finish: () => pending.promise, cancel: () => pending.promise })
+			})!;
+			void operation.confirm();
+			const outcome = expect(session[action]()).resolves.toBeUndefined();
+			session.editOperations.reset();
+			pending.resolve();
+			await outcome;
+		}
+	);
 	it('drains active work and cancels every intent produced inside the barrier', async () => {
 		let snapshotGeneration = 1;
 		const firstDispatch = deferred<void>();

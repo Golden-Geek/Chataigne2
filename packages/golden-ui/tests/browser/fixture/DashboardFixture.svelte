@@ -15,6 +15,7 @@
 	import { dashboardComposition } from './dashboard-composition';
 	import DashboardRegistryContent from './DashboardRegistryContent.svelte';
 	import { createDashboardEditIO } from './dashboard-edit-io';
+	import { createDashboardBarrierIO } from './dashboard-barrier-io';
 	import type { WidgetLayoutEdit } from '../../../components/panels/dashboard/canvas/contracts';
 	import { createDashboardInteractionChrome } from '../../../components/panels/dashboard/canvas/interaction-chrome.svelte';
 	import {
@@ -52,6 +53,63 @@
 	}
 	let sequence = 0;
 	const editIO = createDashboardEditIO(fixture, () => ({ tick: ++sequence, micro: 0, seq: 0 }));
+	const barrierIO = createDashboardBarrierIO(fixture);
+	export function configureBarriers(options: Parameters<typeof barrierIO.configure>[0] = {}) {
+		barrierIO.configure(options);
+	}
+	export async function requestSessionBarrier(
+		kind: Parameters<typeof barrierIO.request>[0],
+		index = 0,
+		parent?: number
+	) {
+		const id = barrierIO.request(kind, () => reparent(index, parent));
+		await settle();
+		return id;
+	}
+	export function waitSessionBarrier(id: number) {
+		return barrierIO.wait(id);
+	}
+	export function barrierState() {
+		return barrierIO.read();
+	}
+	export async function releaseSave() {
+		barrierIO.release();
+		await settle();
+	}
+	export function rejectSnapshot() {
+		fixture.rejectSnapshot();
+	}
+	export async function recoverSnapshot() {
+		const result = await fixture.session.refreshSnapshot();
+		await settle();
+		return result;
+	}
+	let replacement: ReturnType<typeof createFixtureSession> | null = null;
+	const replacementIntents: string[] = [];
+	export async function replaceHost() {
+		replacement = createFixtureSession();
+		replacement.loadNodes(structuredClone([...fixture.session.graph.state.nodesById.values()]));
+		replacementIntents.length = 0;
+		replacement.handleIntent((intent) => {
+			replacementIntents.push(intent.kind);
+			return Promise.resolve(replacement!.editAcknowledgement());
+		});
+		fixture.session.editOperations.reset();
+		appState.session = replacement.session;
+		await settle();
+	}
+	export function replacementState() {
+		return { intents: [...replacementIntents], active: replacement!.session.hasActiveEditSession };
+	}
+	export async function restoreHost() {
+		// Simulate old connection-owned history cleanup, separately from new-host dispatch.
+		const begin = editIO.read().records.find((r) => r.kind === 'beginEdit');
+		if (fixture.session.hasActiveEditSession && begin?.kind === 'beginEdit')
+			await fixture.session.sendIntent({ kind: 'endEdit', client_edit_id: begin.client_edit_id });
+		appState.session = fixture.session;
+		replacement = null;
+		await settle();
+	}
 	export function configureEdits(options: Parameters<typeof editIO.configure>[0] = {}) {
 		editIO.configure(options);
 	}
@@ -106,6 +164,19 @@
 		const field = getDirectParamNode(graph, owner, key);
 		if (field?.data.kind !== 'parameter') throw new Error('Missing fixture field');
 		return field.data.param.value;
+	}
+	export async function sendParam(index: number, key: string, value: ParamValue) {
+		const graph = fixture.session.graph.state;
+		const owner = graph.nodesById.get(index === -2 ? data!.containerId! : data!.ids[index])!;
+		const field = getDirectParamNode(graph, owner, key);
+		if (field?.data.kind !== 'parameter') throw new Error('Missing fixture parameter');
+		await fixture.session.sendIntent({
+			kind: 'setParam',
+			node: field.node_id,
+			behaviour: field.data.param.event_behaviour,
+			value
+		});
+		await settle();
 	}
 	export async function nestLayoutFields(index: number) {
 		const nodes = structuredClone([...fixture.session.graph.state.nodesById.values()]);
@@ -294,11 +365,11 @@
 		moveCancellations[index]();
 		await settle();
 	}
-	export async function reparent(index: number) {
+	export async function reparent(index: number, parent = data!.page.node_id) {
 		const graph = fixture.session.graph.state,
-			child = data!.ids[index];
+			child = index === -2 ? data!.containerId! : data!.ids[index];
 		const old_parent = graph.parentById.get(child)!,
-			new_parent = data!.page.node_id;
+			new_parent = parent;
 		fixture.session.graph.applyEvent({
 			time: { tick: ++sequence, micro: 0, seq: 0 },
 			kind: {

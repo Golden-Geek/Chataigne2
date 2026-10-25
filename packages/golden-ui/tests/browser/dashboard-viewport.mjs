@@ -18,6 +18,7 @@ import { confirmedChecks } from './dashboard-confirmed.mjs';
 import { orderedChecks } from './dashboard-ordered.mjs';
 import { orderedMoveChecks } from './dashboard-ordered-move.mjs';
 import { compositionChecks } from './dashboard-composition.mjs';
+import { barrierChecks } from './dashboard-barriers.mjs';
 
 const repository = fileURLToPath(new URL('../../../../', import.meta.url));
 const root = fileURLToPath(new URL('./fixture/', import.meta.url));
@@ -33,6 +34,12 @@ const confirmedOnly = process.argv.includes('--confirmed-only');
 const orderedOnly = process.argv.includes('--ordered-only');
 const orderedMoveOnly = process.argv.includes('--ordered-move-only');
 const compositionOnly = process.argv.includes('--composition-only');
+const barrierBaseline = process.argv.includes('--barriers-baseline');
+const barriersOnly = process.argv.includes('--barriers-only') || barrierBaseline;
+const oldSavePath = 'packages/golden-ui/store/project-files.svelte.ts';
+const oldSave = barrierBaseline
+	? execFileSync('git', ['show', `85c34e6f:${oldSavePath}`], { cwd: repository, encoding: 'utf8' })
+	: null;
 const fullRun = !(
 	denseOnly ||
 	hierarchyOnly ||
@@ -43,7 +50,8 @@ const fullRun = !(
 	confirmedOnly ||
 	orderedOnly ||
 	orderedMoveOnly ||
-	compositionOnly
+	compositionOnly ||
+	barriersOnly
 );
 const canvasPrefix = 'packages/golden-ui/components/panels/dashboard/';
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
@@ -77,6 +85,7 @@ const sources = [
 	fileURLToPath(new URL('./dashboard-ordered-move.mjs', import.meta.url)),
 	fileURLToPath(new URL('./dashboard-composition.mjs', import.meta.url)),
 	fileURLToPath(new URL('./dashboard-composition-lifetimes.mjs', import.meta.url)),
+	fileURLToPath(new URL('./dashboard-barriers.mjs', import.meta.url)),
 	resolve(repository, 'packages/golden-ui/store/ui-intents.ts'),
 	resolve(repository, 'packages/golden-ui/types.ts'),
 	resolve(repository, 'packages/golden-ui/generated/rust_protocol/UiEditIntent.ts'),
@@ -101,6 +110,11 @@ const sources = [
 	resolve(repository, 'packages/golden-ui/store/session/tests/edit-session.test.ts'),
 	resolve(repository, 'packages/golden-ui/store/session/intent-pipeline.ts'),
 	resolve(repository, 'packages/golden-ui/store/session/history.svelte.ts'),
+	resolve(repository, 'packages/golden-ui/store/project-files.svelte.ts'),
+	resolve(repository, 'packages/golden-ui/store/session/project-graph-transition.svelte.ts'),
+	resolve(repository, 'packages/golden-ui/store/session/tests/edit-barrier.test.ts'),
+	resolve(repository, 'packages/golden-ui/store/session/tests/intent-barrier.test.ts'),
+	resolve(repository, 'apps/chataigne/ui/src/lib/tests/workbenchProjectTransition.test.ts'),
 	fileURLToPath(import.meta.url)
 ];
 const fingerprints = () =>
@@ -116,27 +130,31 @@ const report = resolve(
 	`p11-dashboard-viewport-${new Date().toISOString().replaceAll(/[:.]/g, '-')}.json`
 );
 const result = {
-	scope: compositionOnly
-		? 'composition-only'
-		: orderedMoveOnly
-			? 'ordered-move-only'
-			: orderedOnly
-				? 'ordered-only'
-				: confirmedOnly
-					? 'confirmed-only'
-					: gesturesOnly
-						? 'gestures-only'
-						: creationOnly
-							? 'creation-only'
-							: editOnly
-								? 'edit-only'
-								: lifecycleOnly
-									? 'lifecycle-only'
-									: hierarchyOnly
-										? 'hierarchy-only'
-										: denseOnly
-											? 'dense-only'
-											: 'dashboard-correctness',
+	scope: barrierBaseline
+		? 'barriers-save-baseline'
+		: barriersOnly
+			? 'barriers-only'
+			: compositionOnly
+				? 'composition-only'
+				: orderedMoveOnly
+					? 'ordered-move-only'
+					: orderedOnly
+						? 'ordered-only'
+						: confirmedOnly
+							? 'confirmed-only'
+							: gesturesOnly
+								? 'gestures-only'
+								: creationOnly
+									? 'creation-only'
+									: editOnly
+										? 'edit-only'
+										: lifecycleOnly
+											? 'lifecycle-only'
+											: hierarchyOnly
+												? 'hierarchy-only'
+												: denseOnly
+													? 'dense-only'
+													: 'dashboard-correctness',
 	baseline,
 	browser: '',
 	machine: {
@@ -148,6 +166,9 @@ const result = {
 		node: process.version
 	},
 	source: fingerprints(),
+	...(oldSave
+		? { overrides: { revision: '85c34e6f', source: { [oldSavePath]: hash(oldSave) } } }
+		: {}),
 	cases: [],
 	tiers: [],
 	errors: [],
@@ -166,6 +187,17 @@ async function scene(version, work) {
 		root,
 		logLevel: 'warn',
 		plugins: [
+			...(oldSave
+				? [
+						{
+							name: 'save-before-edit-barrier',
+							enforce: 'pre',
+							load(id) {
+								if (relative(repository, id).replaceAll('\\', '/') === oldSavePath) return oldSave;
+							}
+						}
+					]
+				: []),
 			...(version === 'baseline'
 				? [
 						{
@@ -603,6 +635,7 @@ try {
 		if (fullRun || orderedOnly) await orderedChecks(page, record);
 		if (fullRun || orderedOnly || orderedMoveOnly) await orderedMoveChecks(page, record);
 		if (fullRun || compositionOnly) await compositionChecks(page, record);
+		if (fullRun || barriersOnly) await barrierChecks(page, record);
 		assert.deepEqual(result.errors, []);
 	});
 	assert.deepEqual(fingerprints(), result.source, 'Qualified sources changed');
