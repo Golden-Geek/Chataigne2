@@ -1,5 +1,6 @@
 import type { EventTime, UiAck, UiControlLifecycle, UiEditIntent } from '../../types';
 import type { WorkbenchIntentProgressObserver } from './intent-pipeline';
+import { compareEventTime } from './event-time';
 
 export type WorkbenchUserActionPhase = 'queued' | UiControlLifecycle;
 
@@ -234,9 +235,6 @@ export const createWorkbenchUserActionActivity = (
 		}
 	};
 };
-
-const compareEventTime = (left: EventTime, right: EventTime): number =>
-	left.tick - right.tick || left.micro - right.micro || left.seq - right.seq;
 
 export const createWorkbenchUserActionCoordinator = (
 	options: WorkbenchUserActionCoordinatorOptions

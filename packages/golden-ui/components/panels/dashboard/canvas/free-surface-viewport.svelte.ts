@@ -1,5 +1,6 @@
 import { onDestroy, tick } from 'svelte';
 import type { GraphState } from '../../../../store/graph.svelte';
+import type { ParameterPreviews } from '../../../../store/session/edit-operations';
 import type { NodeId, UiNodeDto } from '../../../../types';
 import type { DashboardViewContext } from './view-context.svelte';
 import { FreeSurfaceGeometry } from './free-surface-geometry';
@@ -16,6 +17,7 @@ export interface FreeSurfaceOverview {
 }
 
 interface FreeSurfaceViewportContext {
+	readonly previews: ParameterPreviews | null;
 	readonly budget: number;
 	retained(): ReadonlySet<NodeId>;
 	readonly graph: GraphState | null;
@@ -98,14 +100,19 @@ export function createFreeSurfaceViewport(context: FreeSurfaceViewportContext) {
 			return;
 		}
 		const rem = getRootRemPixels();
-		geometry.sync(graph, node, {
-			rootRemPx: rem,
-			emPx: getElementEmPixels(element, rem),
-			surfaceWidthPx: width,
-			surfaceHeightPx: height,
-			viewportWidthPx: window.innerWidth,
-			viewportHeightPx: window.innerHeight
-		});
+		geometry.sync(
+			graph,
+			node,
+			{
+				rootRemPx: rem,
+				emPx: getElementEmPixels(element, rem),
+				surfaceWidthPx: width,
+				surfaceHeightPx: height,
+				viewportWidthPx: window.innerWidth,
+				viewportHeightPx: window.innerHeight
+			},
+			context.previews
+		);
 		const scaleX = bounds.width / width;
 		const scaleY = bounds.height / height;
 		const viewport = view.viewport.getBoundingClientRect();

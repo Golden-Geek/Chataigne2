@@ -460,7 +460,7 @@ export function createDashboardSurface(context: DashboardSurfaceContext) {
 	};
 
 	const childPlacements = $derived.by(() =>
-		renderedChildWidgets.map((child) => getDashboardPlacement(graph, child))
+		renderedChildWidgets.map((child) => getDashboardPlacement(graph, child, context.view?.previews))
 	);
 
 	const stackPlacements = $derived.by(() => {
@@ -553,7 +553,7 @@ export function createDashboardSurface(context: DashboardSurfaceContext) {
 	};
 
 	const slotStyle = (child: UiNodeDto): string =>
-		placementStyle(getDashboardPlacement(graph, child));
+		placementStyle(getDashboardPlacement(graph, child, context.view?.previews));
 
 	const inlineSurfaceDropPreviewStyle = (): string =>
 		displayedSurfaceDropPreview ? placementStyle(displayedSurfaceDropPreview.placement) : '';
@@ -647,7 +647,7 @@ export function createDashboardSurface(context: DashboardSurfaceContext) {
 					const placement =
 						item.kind === 'preview'
 							? item.preview.placement
-							: getDashboardPlacement(graph, item.child);
+							: getDashboardPlacement(graph, item.child, context.view?.previews);
 					return {
 						key: item.key,
 						size: placementHasExplicitSize(layoutKind, placement)

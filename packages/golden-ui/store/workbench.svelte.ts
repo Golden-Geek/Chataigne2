@@ -1,5 +1,8 @@
 import { tick } from 'svelte';
 import { createGraphStore, type GraphStore } from './graph.svelte';
+import { createSessionEditOperations } from './session/edit-operations.svelte';
+import type { UiEditOperations } from './session/edit-operations';
+import { createIntentSender, type AppliedIntentObserver } from './session/intent-sender';
 import {
 	createDefaultUiClient,
 	type UiTransportConnectionState,
@@ -47,8 +50,6 @@ import {
 } from './session/connection-state';
 import {
 	createWorkbenchUserActionCoordinator,
-	userActionLabelForIntent,
-	userActionLabelForIntents,
 	type WorkbenchUserActionPhase
 } from './session/action-activity.svelte';
 import {
@@ -120,6 +121,7 @@ export interface WorkbenchSessionOptions {
 }
 
 export interface WorkbenchSession {
+	readonly editOperations: UiEditOperations;
 	readonly graph: GraphStore;
 	readonly client: UiClient;
 	readonly loading: WorkbenchLoadingState;
@@ -174,8 +176,8 @@ export interface WorkbenchSession {
 		message: string,
 		origin?: NodeId
 	): void;
-	sendIntent(intent: UiEditIntent): Promise<void>;
-	sendIntents(intents: UiEditIntent[]): Promise<void>;
+	sendIntent(intent: UiEditIntent, applied?: AppliedIntentObserver): Promise<void>;
+	sendIntents(intents: UiEditIntent[], applied?: AppliedIntentObserver): Promise<void>;
 	invokeAppOperation(request: WorkbenchAppOperation): Promise<WorkbenchAppOperationValue>;
 	setLogUiUpdateHz(hz: number): void;
 	dismissToast(toastId: number): void;
@@ -202,7 +204,8 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 	const scope = options.scope ?? wholeGraphScope;
 	const retryMs = Math.max(100, options.bootstrapRetryMs ?? DEFAULT_RETRY_MS);
 	const enableGlobalShortcuts = options.enableGlobalShortcuts ?? true;
-	const graph = createGraphStore();
+	const graph = createGraphStore(() => editOperations.observe());
+	const editOperations = createSessionEditOperations(graph);
 	const shouldLogUiPerf = (() => {
 		if (typeof window === 'undefined') {
 			return false;
@@ -397,6 +400,7 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 	};
 
 	const applySnapshotToState = (snapshot: UiSnapshot): void => {
+		editOperations.reset();
 		userActions.resetEventBoundary(snapshot.at);
 		graph.loadSnapshot(snapshot);
 		snapshotGeneration += 1;
@@ -614,21 +618,7 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 		afterTransitionOperation: () => tick()
 	});
 
-	const sendIntent = (intent: UiEditIntent): Promise<void> => {
-		const label = userActionLabelForIntent(intent);
-		if (!label) {
-			return intentPipeline.sendIntent(intent);
-		}
-		return userActions.run(label, (progress) => intentPipeline.sendIntent(intent, progress));
-	};
-
-	const sendIntents = (intents: UiEditIntent[]): Promise<void> => {
-		const label = userActionLabelForIntents(intents);
-		if (!label) {
-			return intentPipeline.sendIntents(intents);
-		}
-		return userActions.run(label, (progress) => intentPipeline.sendIntents(intents, progress));
-	};
+	const { sendIntent, sendIntents } = createIntentSender(intentPipeline, userActions);
 
 	const runProjectGraphTransition = <T>(
 		operation: (control: ProjectGraphTransitionControl) => Promise<T>
@@ -813,6 +803,7 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 		void bootstrap();
 
 		mountedCleanup = (): void => {
+			editOperations.reset();
 			stopped = true;
 			clearRetry();
 			loading.clearHideTimer();
@@ -848,6 +839,7 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 		get graph(): GraphStore {
 			return graph;
 		},
+		editOperations,
 		get client(): UiClient {
 			return client;
 		},

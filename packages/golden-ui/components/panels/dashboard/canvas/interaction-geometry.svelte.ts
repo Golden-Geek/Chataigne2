@@ -578,7 +578,11 @@ export function createDashboardInteractionGeometry(context: DashboardInteraction
 		}
 		const targets: FreeLayoutTarget[] = [];
 		for (const targetNode of nodes) {
-			const targetPlacement = getDashboardPlacement(graph, targetNode);
+			const targetPlacement = getDashboardPlacement(
+				graph,
+				targetNode,
+				context.session?.editOperations
+			);
 			const positionParamNode = getDirectParamNode(graph, targetNode, 'position');
 			const widthParamNode = getDirectParamNode(graph, targetNode, 'width');
 			const heightParamNode = getDirectParamNode(graph, targetNode, 'height');

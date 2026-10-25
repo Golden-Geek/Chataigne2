@@ -70,11 +70,11 @@ controller is 512; all touched runtime/test files remain below 1,000 lines witho
 
 ## Remaining acceptance
 
-Continue confirmed final samples and optimistic geometry across view disposal/remounting,
-successive operations and independent cross-widget history admission. The current queue still
-follows its controller lifetime; the interruption cases do not prove durable confirmed-work
-handoff. Qualify ordered moves/constrained resize, active container and varied-unit geometry,
-and the remaining composed gesture lifetimes before declaring teardown complete.
+The subsequent [confirmed-edit milestone](p11-dashboard-confirmed-edits.md) delivers session-owned
+final work/drafts across view disposal and independently admitted widget history. This report's
+interruption checks alone did not establish that handoff. Continue ordered moves/constrained
+resize, active container and varied-unit geometry, project/save barriers and the remaining
+composed gesture lifetimes before declaring teardown complete.
 
 Then run the fixed three-warmup / 31-sample matrix for discovery, selection, edits, navigation,
 framing and exact dense picking at every authored-node tier. This correctness run establishes

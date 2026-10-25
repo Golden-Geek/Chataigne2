@@ -7,22 +7,22 @@ nodes, parameters, bindings and edit transactions. App UI registers product rend
 Start at `packages/golden-ui/components/panels/dashboard/DashboardCanvas.svelte` for composition
 and widget templates. Its `canvas/` modules own distinct presentation lifetimes:
 
-| Owner | Responsibility |
-| --- | --- |
-| `surface.svelte.ts`, `SurfaceContent.svelte` | Child layout, tabs/accordion view state, native drop adapters, registered view operations and recursive rendering. |
-| `surface-drop.svelte.ts`, `surface-move.svelte.ts` | Active drop/move and pending creation/commit presentation lifetimes. |
-| `camera.svelte.ts`, `page-view.ts` | Viewport measurements, pan/zoom, persisted camera state and Home/frame commands. |
-| `free-layout.svelte.ts`, `ordered-layout.svelte.ts` | Move/resize/reorder gestures, previews, coalesced edits and interaction cleanup. |
-| `interaction-geometry.svelte.ts`, `interaction-chrome.svelte.ts` | Transform targets, hit testing, insertion/ancestor decoration and move-preview publication. |
-| `marquee.svelte.ts` | Surface presses and marquee selection. |
-| `widget-content.svelte.ts`, `binding-drop.svelte.ts` | Live target rendering, generic controls and binding intents. |
-| `context-menu.svelte.ts` | Capability-dependent menu presentation and explicit edit intents. |
-| `geometry.ts`, `dom.ts`, `contracts.ts` | Pure coordinate calculations, DOM measurements and shared presentation types. |
-| `free-surface-geometry.ts` | Retained authored bounds and spatial queries, independently of mounted widgets. |
-| `free-surface-groups.ts`, `FreeSurfaceOverview.svelte` | Retained bounding hierarchy and explicit dense-view presentation. |
-| `presentation-budget.ts`, `SurfaceChildBrowser.svelte` | Hierarchical detail allowances and searchable child previews. |
-| `surface-retention.svelte.ts` | Shared focus, native pointer/range and active-gesture retention across layout types. |
-| `free-surface-viewport.svelte.ts`, `view-context.svelte.ts` | Clipped membership, focus/range/interaction retention, page-scoped view state and logical framing. |
+| Owner                                                            | Responsibility                                                                                                     |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `surface.svelte.ts`, `SurfaceContent.svelte`                     | Child layout, tabs/accordion view state, native drop adapters, registered view operations and recursive rendering. |
+| `surface-drop.svelte.ts`, `surface-move.svelte.ts`               | Active drop/move and pending creation/commit presentation lifetimes.                                               |
+| `camera.svelte.ts`, `page-view.ts`                               | Viewport measurements, pan/zoom, persisted camera state and Home/frame commands.                                   |
+| `free-layout.svelte.ts`, `ordered-layout.svelte.ts`              | Move/resize/reorder gestures, previews, coalesced edits and interaction cleanup.                                   |
+| `interaction-geometry.svelte.ts`, `interaction-chrome.svelte.ts` | Transform targets, hit testing, insertion/ancestor decoration and move-preview publication.                        |
+| `marquee.svelte.ts`                                              | Surface presses and marquee selection.                                                                             |
+| `widget-content.svelte.ts`, `binding-drop.svelte.ts`             | Live target rendering, generic controls and binding intents.                                                       |
+| `context-menu.svelte.ts`                                         | Capability-dependent menu presentation and explicit edit intents.                                                  |
+| `geometry.ts`, `dom.ts`, `contracts.ts`                          | Pure coordinate calculations, DOM measurements and shared presentation types.                                      |
+| `free-surface-geometry.ts`                                       | Retained presentation bounds and spatial queries, independently of mounted widgets.                                |
+| `free-surface-groups.ts`, `FreeSurfaceOverview.svelte`           | Retained bounding hierarchy and explicit dense-view presentation.                                                  |
+| `presentation-budget.ts`, `SurfaceChildBrowser.svelte`           | Hierarchical detail allowances and searchable child previews.                                                      |
+| `surface-retention.svelte.ts`                                    | Shared focus, native pointer/range and active-gesture retention across layout types.                               |
+| `free-surface-viewport.svelte.ts`, `view-context.svelte.ts`      | Clipped membership, focus/range/interaction retention, page-scoped view state and logical framing.                 |
 
 Controllers receive live state through getter contexts. Methods that need a mutually dependent
 controller defer access until use; constructors must not eagerly read a later controller.
@@ -153,9 +153,25 @@ uses persistent node/parent map deltas; layout and insertion dependencies retire
 `store/session/edit-session.ts` serializes one owner's begin/end acknowledgements, including an
 end requested while begin is pending. Host identity and history epoch guard closure. The public
 `createUiEditSession` adapter sends to the captured host. It continues to leave foreign active
-groups alone. The mounted free-operation checks do not close confirmed-work handoff across view
-lifetimes, independent cross-widget history admission or ordered-layout teardown. Those cases
-remain required before the dashboard checkpoint closes; see the
-[free-operation report](../progress/p11-dashboard-free-gestures.md).
+groups alone. `store/session/edit-operations.ts` owns free-operation admission across widgets,
+confirmed work after view disposal, and immutable parameter drafts. At most 64 operation records
+are retained. Unconfirmed disposal cancels; confirmed disposal preserves admitted/final work.
+Source identity/path, host, graph transition and resync fences still retire invalid work.
+History admission passes to the next operation after the preceding group closes. Successful drafts
+remain separately until graph publication reaches the applied acknowledgement's event boundary.
+Rejected final samples clear their drafts. Reset cancels all owners, including confirmed work.
+
+Drafts contain only fields edited by the operation, preserve parameter UUIDs, and never mutate
+the authored graph. Placement readers and retained spatial geometry consume that presentation
+layer, so remounted controls and Frame see the same pending geometry. Preview-map deltas reindex
+only affected widget owners. The small reactive adapter publishes after keyed DOM disposal;
+the pure service owns no timers, DOM or transport implementation. Intent senders compose applied
+receipts with existing action lifecycle reporting through the session pipeline.
+
+The [free-operation report](../progress/p11-dashboard-free-gestures.md) covers active interruption;
+the [confirmed-edit report](../progress/p11-dashboard-confirmed-edits.md) covers view disposal,
+independent widget history and late graph publication. Ordered/constrained resize, container/unit
+geometry, project/save barriers and composed lifetimes still need their owning qualification.
+These checks do not establish staged/unknown-outcome semantics or complete dashboard acceptance.
 See the [fixed contract](../progress/p11-workspace-qualification-contract.md) and the historical
 [decomposition comparison](../progress/p11-dashboard-decomposition.md).

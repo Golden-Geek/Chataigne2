@@ -1,4 +1,5 @@
 import type { GraphState } from '../../../store/graph.svelte';
+import type { ParameterPreviews } from '../../../store/session/edit-operations';
 import type {
 	NodeId,
 	ParamValue,
@@ -203,12 +204,17 @@ const asDashboardLabelPlacement = (
 
 export const getDashboardPlacement = (
 	graph: GraphState | null,
-	node: UiNodeDto | null
+	node: UiNodeDto | null,
+	previews?: ParameterPreviews | null
 ): DashboardPlacement => {
 	const anchorParam = getDirectParam(graph, node, 'anchor');
 	const labelPlacementNode = getDirectParamNode(graph, node, 'label_placement');
 	const widthNode = getDirectParamNode(graph, node, 'width');
 	const heightNode = getDirectParamNode(graph, node, 'height');
+	const value = (field: UiNodeDto | null | undefined) =>
+		field?.data.kind === 'parameter'
+			? (previews?.get(field.node_id, field.uuid) ?? field.data.param.value)
+			: undefined;
 	const anchor =
 		anchorParam?.value.kind === 'enum' &&
 		[
@@ -224,32 +230,26 @@ export const getDashboardPlacement = (
 		].includes(anchorParam.value.value)
 			? (anchorParam.value.value as DashboardAnchor)
 			: 'top-left';
-	const positionParam = getDirectParam(graph, node, 'position');
+	const positionValue = value(getDirectParamNode(graph, node, 'position'));
 	return {
 		labelPlacement:
 			labelPlacementNode?.meta.enabled && labelPlacementNode.data.kind === 'parameter'
 				? asDashboardLabelPlacement(labelPlacementNode.data.param.value, 'top')
 				: null,
 		position: {
-			x: positionParam?.value.kind === 'vec2' ? Number(positionParam.value.value[0] ?? 0) : 0,
-			y: positionParam?.value.kind === 'vec2' ? Number(positionParam.value.value[1] ?? 0) : 0
+			x: positionValue?.kind === 'vec2' ? Number(positionValue.value[0] ?? 0) : 0,
+			y: positionValue?.kind === 'vec2' ? Number(positionValue.value[1] ?? 0) : 0
 		},
 		anchor,
 		size: {
-			width: cssValueFromParamValue(
-				widthNode?.data.kind === 'parameter' ? widthNode.data.param.value : undefined,
-				{
-					value: 12,
-					unit: 'rem'
-				}
-			),
-			height: cssValueFromParamValue(
-				heightNode?.data.kind === 'parameter' ? heightNode.data.param.value : undefined,
-				{
-					value: 4,
-					unit: 'rem'
-				}
-			)
+			width: cssValueFromParamValue(value(widthNode), {
+				value: 12,
+				unit: 'rem'
+			}),
+			height: cssValueFromParamValue(value(heightNode), {
+				value: 4,
+				unit: 'rem'
+			})
 		},
 		sizeEnabled: {
 			width: widthNode?.meta.enabled ?? false,

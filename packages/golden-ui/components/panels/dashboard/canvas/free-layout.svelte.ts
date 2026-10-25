@@ -2,7 +2,9 @@ import { onDestroy } from 'svelte';
 import { createFreeLayoutCommitter } from './free-layout-committer';
 import { captureLayoutGesture } from './gesture-fence';
 import type { GraphState } from '../../../../store/graph.svelte';
-import type { SelectionMode } from '../../../../store/workbench.svelte';
+import type { SelectionMode, WorkbenchSession } from '../../../../store/workbench.svelte';
+import type { EditOperation } from '../../../../store/session/edit-operations';
+import { appState } from '../../../../store/workbench.svelte';
 import type {
 	DashboardPlacement,
 	DashboardLayoutKind,
@@ -42,6 +44,7 @@ import { createUiEditSession, sendUiIntentBatch } from '../../../../store/ui-int
 import { type UiNodeDto } from '../../../../types';
 import { moveDashboardWidgetToSurface } from '../dashboard-actions';
 interface DashboardFreeLayoutContext {
+	readonly session: WorkbenchSession | null;
 	readonly graph: GraphState | null;
 	readonly node: UiNodeDto;
 	readonly parent: UiNodeDto | null;
@@ -66,7 +69,6 @@ export function createDashboardFreeLayout(context: DashboardFreeLayoutContext) {
 	let parentLayoutKind = $derived(context.parentLayoutKind);
 	let parentSnapGrid = $derived(context.snapGrid);
 	let widgetShellElement = $derived(context.widgetElement);
-	const getGraph = () => context.graph;
 	const clearFreeLayoutInteractionChrome = () => context.clearChrome();
 	const selectWidgetNode = (mode?: SelectionMode) => context.selectWidgetNode(mode);
 	const {
@@ -85,18 +87,16 @@ export function createDashboardFreeLayout(context: DashboardFreeLayoutContext) {
 
 	type Gesture = {
 		primary: number;
-		fence: NonNullable<ReturnType<typeof captureLayoutGesture>>;
-		queue: ReturnType<typeof createFreeLayoutCommitter>;
+		host: WorkbenchSession;
+		scope: EditOperation<ReturnType<typeof createFreeLayoutCommitter>>;
 	};
 	const gestures = new Set<Gesture>();
 	let operationCount = $state(0);
 	let gesture: Gesture | null = null;
-	let closing: Promise<void> = Promise.resolve();
 	let destroyed = false;
 	let nativePointerId: number | null = null;
 	const closeGesture = (operation: Gesture, cancel: boolean, after?: () => Promise<void>) => {
-		const done = cancel ? operation.queue.cancel() : operation.queue.finish(after);
-		closing = done;
+		const done = cancel ? operation.scope.cancel() : operation.scope.confirm(after);
 		const remove = () => {
 			gestures.delete(operation);
 			if (!destroyed) operationCount = gestures.size;
@@ -110,44 +110,61 @@ export function createDashboardFreeLayout(context: DashboardFreeLayoutContext) {
 		gesture = null;
 		freeLayoutInteraction = null;
 		freeLayoutPreview = null;
-		if (operation) void closeGesture(operation, true);
+		return operation ? closeGesture(operation, true) : Promise.resolve();
 	};
 	const startCommitter = (initial: FreeLayoutPreviewSet, label: string): boolean => {
+		const host = context.session;
+		if (!host) return false;
 		const fence = captureLayoutGesture(
 			context.graph,
 			initial.previews.map(({ target }) => target)
 		);
 		if (!fence) return false;
-		const prior = closing;
-		const session = createUiEditSession(label, 'dashboard-free-layout');
-		const current = () => !destroyed && context.editMode && fence.isCurrent(context.graph);
-		const queue = createFreeLayoutCommitter(initial, {
-			current,
-			begin: async () => {
-				await prior;
-				if (current()) await session.begin();
-			},
-			end: () => session.end(),
-			send: async (edits) => (await sendUiIntentBatch(edits)).success,
-			frame: (callback) => {
-				const id = requestAnimationFrame(callback);
-				return () => cancelAnimationFrame(id);
+		const revision = host.graphTransitionRevision;
+		const scope = host.editOperations.open({
+			current: () =>
+				appState.session === host &&
+				host.graphTransitionRevision === revision &&
+				!host.graph.state.requiresResync &&
+				fence.isCurrent(host.graph.state),
+			build: (ownership) => {
+				const session = createUiEditSession(
+					label,
+					'dashboard-free-layout',
+					host,
+					ownership.applied
+				);
+				return createFreeLayoutCommitter(initial, {
+					current: () => ownership.current,
+					begin: async () => {
+						await ownership.ready;
+						if (ownership.current) await session.begin();
+					},
+					end: () => session.end(),
+					send: async (edits) => (await sendUiIntentBatch(edits, host, ownership.applied)).success,
+					publish: (edits) => ownership.publish(edits),
+					frame: (callback) => {
+						const id = requestAnimationFrame(callback);
+						return () => cancelAnimationFrame(id);
+					}
+				});
 			}
 		});
-		gesture = { primary: initial.primaryNodeId, fence, queue };
+		if (!scope) return false;
+		gesture = { primary: initial.primaryNodeId, host, scope };
 		gestures.add(gesture);
 		operationCount = gestures.size;
 		return true;
 	};
-	const cancelScheduledFreeLayoutCommit = () => gesture?.queue.discardPending();
+	const cancelScheduledFreeLayoutCommit = () => gesture?.scope.work.discardPending();
 	const scheduleFreeLayoutCommit = (preview: FreeLayoutPreviewSet) =>
-		gesture?.queue.schedule(preview);
+		gesture?.scope.work.schedule(preview);
 	$effect(() => {
 		if (operationCount === 0) return;
-		const source = context.graph,
-			enabled = context.editMode;
+		void context.graph;
+		const enabled = context.editMode;
 		for (const operation of gestures) {
-			if (enabled && operation.fence.isCurrent(source)) continue;
+			if (operation.scope.confirmed || (enabled && operation.scope.current)) continue;
 			if (gesture === operation) {
 				cancelActiveGesture();
 				clearFreeLayoutInteractionChrome();
@@ -164,10 +181,10 @@ export function createDashboardFreeLayout(context: DashboardFreeLayoutContext) {
 		clearFreeLayoutInteractionChrome();
 		if (!operation) return;
 		if (dropTarget && mode === 'move') {
-			operation.queue.discardPending();
+			operation.scope.work.discardPending();
 			await closeGesture(operation, false, async () => {
 				await moveDashboardWidgetToSurface(
-					getGraph,
+					() => operation.host.graph.state,
 					operation.primary,
 					dropTarget.surfaceNodeId,
 					dropTarget.placement,
@@ -175,7 +192,7 @@ export function createDashboardFreeLayout(context: DashboardFreeLayoutContext) {
 				);
 			});
 		} else {
-			if (preview) operation.queue.schedule(preview);
+			if (preview) operation.scope.work.schedule(preview);
 			await closeGesture(operation, false);
 		}
 	};
@@ -251,7 +268,7 @@ export function createDashboardFreeLayout(context: DashboardFreeLayoutContext) {
 	};
 	const updateLayout = (point: LayoutPoint): boolean => {
 		if (!freeLayoutInteraction || !gesture) return false;
-		if (!editMode || !gesture.fence.isCurrent(context.graph)) {
+		if (!editMode || !gesture.scope.current) {
 			cancelActiveGesture();
 			clearFreeLayoutInteractionChrome();
 			return false;
@@ -308,8 +325,8 @@ export function createDashboardFreeLayout(context: DashboardFreeLayoutContext) {
 	};
 	const finishLayout = async (cancel: boolean): Promise<boolean> => {
 		if (!freeLayoutInteraction || !gesture) return false;
-		if (cancel || !editMode || !gesture.fence.isCurrent(context.graph)) {
-			cancelActiveGesture();
+		if (cancel || !editMode || !gesture.scope.current) {
+			const closing = cancelActiveGesture();
 			clearFreeLayoutInteractionChrome();
 			await closing;
 			return true;
@@ -489,7 +506,7 @@ export function createDashboardFreeLayout(context: DashboardFreeLayoutContext) {
 	onDestroy(() => {
 		destroyed = true;
 		cancelActiveGesture();
-		for (const operation of gestures) void closeGesture(operation, true);
+		for (const operation of gestures) operation.scope.detach();
 	});
 	return {
 		get freeLayoutInteraction() {

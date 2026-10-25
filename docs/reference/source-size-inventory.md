@@ -7,13 +7,14 @@ extraction notes and September counts are [archived](../archive/2026-10-18/progr
 
 ## Scan and policy
 
-Refreshed 2026-10-25 against delivered `b5fea7a6` plus free-layout commit/session ownership
-on `main`. Scanned **2142 source files**; **27 exceed 1,000 lines**. The dashboard
-canvas is 960 lines; its controllers, geometry, viewport, tests and stylesheet files remain
+Refreshed 2026-10-25 against delivered `635714ad` plus session-owned confirmed dashboard edits
+on `main`. Scanned **2148 source files**; **27 exceed 1,000 lines**. The dashboard
+canvas is 966 lines; its controllers, geometry, viewport, tests and stylesheet files remain
 below the limit. No new source-size exception is introduced. Remaining decomposition and
 exceptions belong to P12; this inventory does not qualify that task.
 The surface controller is now 788 lines after extracting move and creation presentation ownership.
-The free-layout controller is 512 lines after extracting per-operation commits and path validation.
+The free-layout controller is 529 lines. Confirmed-work admission and parameter drafts live in
+the 233-line session service; the workbench facade is 955 lines after extracting intent sending.
 
 The node enum macro remains the centralized built-in/consumer-variant dispatch registry:
 each public Node hook must reach both sets of variants there. P12 still owns extracting its
@@ -33,32 +34,32 @@ and alternatives; a blanket exception does not close P12. Refresh counts after r
 
 ## Files above the limit
 
-| Lines | Source | Kind |
-| ---: | --- | --- |
-| 13,282 | `crates/golden_core/engine/src/engine/tests/engine.rs` | Test suite |
-| 6,101 | `apps/chataigne/systems/state_machine/integration/manager/mod.rs` | Implementation |
-| 5,818 | `packages/golden-ui/components/common/AnimationCurveNodeEditor.svelte` | Implementation |
-| 5,027 | `crates/golden_core/support/macros/src/lib.rs` | Implementation |
-| 2,561 | `apps/chataigne/ui/src/lib/panels/modules/SpatializerEditorPanel.svelte` | Implementation |
-| 2,402 | `apps/chataigne/systems/alchemist/integration/formula/tests/mod.rs` | Test suite |
-| 2,091 | `apps/chataigne/ui/src/lib/systems/alchemist/components/AlchemistEditorPanel.svelte` | Implementation |
-| 2,066 | `crates/golden_core/engine/src/engine/controls.rs` | Implementation |
-| 1,996 | `packages/golden-ui/components/common/AnimationCurveCanvas.svelte` | Implementation |
-| 1,992 | `crates/golden_core/engine/src/app/mod.rs` | Implementation |
-| 1,866 | `apps/chataigne/systems/state_machine/integration/manager/tests/mod.rs` | Test suite |
-| 1,846 | `crates/golden_core/engine/src/node/dashboard/tests/mod.rs` | Test suite |
-| 1,693 | `crates/golden_core/engine/src/node_macros.rs` | Implementation |
-| 1,638 | `apps/chataigne/systems/alchemist/integration/processor/catalog.rs` | Implementation |
-| 1,614 | `apps/chataigne/systems/alchemist/integration/processor/mod.rs` | Implementation |
-| 1,601 | `apps/chataigne/systems/alchemist/integration/processor/tests/processor.rs` | Test suite |
-| 1,480 | `packages/golden-ui/components/common/NodeContextMenu.svelte` | Implementation |
-| 1,474 | `apps/chataigne/systems/alchemist/src/tests/runtime.rs` | Test suite |
-| 1,433 | `apps/chataigne/systems/alchemist/integration/processor/tests/authoring.rs` | Test suite |
-| 1,359 | `apps/chataigne/ui/scripts/ui-browser-tools.mjs` | Implementation |
-| 1,331 | `crates/golden_core/engine/src/node/curve/model.rs` | Implementation |
-| 1,236 | `packages/golden-ui/components/panels/inspector/ParameterInspector.svelte` | Implementation |
-| 1,217 | `apps/chataigne/systems/alchemist/processor/src/tests/processor.rs` | Test suite |
-| 1,148 | `apps/chataigne/systems/alchemist/processor/src/tests/managed_formula.rs` | Test suite |
-| 1,108 | `apps/chataigne/systems/state_machine/integration/manager/tests/command_dispatch.rs` | Test suite |
-| 1,054 | `crates/golden_core/engine/src/node/curve/node.rs` | Implementation |
-| 1,054 | `apps/chataigne/systems/alchemist/integration/processor/tests/catalog.rs` | Test suite |
+|  Lines | Source                                                                               | Kind           |
+| -----: | ------------------------------------------------------------------------------------ | -------------- |
+| 13,282 | `crates/golden_core/engine/src/engine/tests/engine.rs`                               | Test suite     |
+|  6,101 | `apps/chataigne/systems/state_machine/integration/manager/mod.rs`                    | Implementation |
+|  5,818 | `packages/golden-ui/components/common/AnimationCurveNodeEditor.svelte`               | Implementation |
+|  5,027 | `crates/golden_core/support/macros/src/lib.rs`                                       | Implementation |
+|  2,561 | `apps/chataigne/ui/src/lib/panels/modules/SpatializerEditorPanel.svelte`             | Implementation |
+|  2,402 | `apps/chataigne/systems/alchemist/integration/formula/tests/mod.rs`                  | Test suite     |
+|  2,091 | `apps/chataigne/ui/src/lib/systems/alchemist/components/AlchemistEditorPanel.svelte` | Implementation |
+|  2,066 | `crates/golden_core/engine/src/engine/controls.rs`                                   | Implementation |
+|  1,996 | `packages/golden-ui/components/common/AnimationCurveCanvas.svelte`                   | Implementation |
+|  1,992 | `crates/golden_core/engine/src/app/mod.rs`                                           | Implementation |
+|  1,866 | `apps/chataigne/systems/state_machine/integration/manager/tests/mod.rs`              | Test suite     |
+|  1,846 | `crates/golden_core/engine/src/node/dashboard/tests/mod.rs`                          | Test suite     |
+|  1,693 | `crates/golden_core/engine/src/node_macros.rs`                                       | Implementation |
+|  1,638 | `apps/chataigne/systems/alchemist/integration/processor/catalog.rs`                  | Implementation |
+|  1,614 | `apps/chataigne/systems/alchemist/integration/processor/mod.rs`                      | Implementation |
+|  1,601 | `apps/chataigne/systems/alchemist/integration/processor/tests/processor.rs`          | Test suite     |
+|  1,480 | `packages/golden-ui/components/common/NodeContextMenu.svelte`                        | Implementation |
+|  1,474 | `apps/chataigne/systems/alchemist/src/tests/runtime.rs`                              | Test suite     |
+|  1,433 | `apps/chataigne/systems/alchemist/integration/processor/tests/authoring.rs`          | Test suite     |
+|  1,359 | `apps/chataigne/ui/scripts/ui-browser-tools.mjs`                                     | Implementation |
+|  1,331 | `crates/golden_core/engine/src/node/curve/model.rs`                                  | Implementation |
+|  1,236 | `packages/golden-ui/components/panels/inspector/ParameterInspector.svelte`           | Implementation |
+|  1,217 | `apps/chataigne/systems/alchemist/processor/src/tests/processor.rs`                  | Test suite     |
+|  1,148 | `apps/chataigne/systems/alchemist/processor/src/tests/managed_formula.rs`            | Test suite     |
+|  1,108 | `apps/chataigne/systems/state_machine/integration/manager/tests/command_dispatch.rs` | Test suite     |
+|  1,054 | `crates/golden_core/engine/src/node/curve/node.rs`                                   | Implementation |
+|  1,054 | `apps/chataigne/systems/alchemist/integration/processor/tests/catalog.rs`            | Test suite     |

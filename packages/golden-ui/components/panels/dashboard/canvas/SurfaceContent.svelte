@@ -185,6 +185,9 @@
 	};
 	let freeLayoutElement = $state<HTMLElement | null>(null);
 	const freeViewport = createFreeSurfaceViewport({
+		get previews() {
+			return view?.previews ?? null;
+		},
 		get budget() {
 			return surface.budget;
 		},

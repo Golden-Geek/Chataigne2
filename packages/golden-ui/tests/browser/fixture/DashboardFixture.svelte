@@ -56,6 +56,10 @@
 		editIO.release();
 		await settle();
 	}
+	export async function releaseEditEvents() {
+		editIO.releaseEvents();
+		await settle();
+	}
 	export async function layoutEdit(index: number, command: FreeLayoutEdit) {
 		const handled = await canvas!.editFreeWidgetLayout(data!.ids[index], command);
 		await settle();
@@ -67,6 +71,16 @@
 			handled.push(await canvas!.editFreeWidgetLayout(data!.ids[index], command));
 		await settle();
 		return handled;
+	}
+	const layoutFinishes: Promise<boolean>[] = [];
+	export async function requestLayoutFinish(index: number) {
+		const id = layoutFinishes.length;
+		layoutFinishes.push(canvas!.editFreeWidgetLayout(data!.ids[index], { kind: 'finish' }));
+		await settle();
+		return id;
+	}
+	export async function waitLayoutFinish(id: number) {
+		return layoutFinishes[id];
 	}
 	export function paramValue(index: number, key: string) {
 		const graph = fixture.session.graph.state,

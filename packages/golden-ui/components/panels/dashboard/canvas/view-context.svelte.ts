@@ -1,6 +1,7 @@
 import { onDestroy, tick } from 'svelte';
 import type { NodeId, UiNodeDto } from '../../../../types';
 import type { GraphState } from '../../../../store/graph.svelte';
+import type { ParameterPreviews } from '../../../../store/session/edit-operations';
 import type { FreeLayoutRect, SurfaceDropPreview, FreeLayoutEdit } from './contracts';
 import type { FreeSurfaceGeometry } from './free-surface-geometry';
 import { framePreparation } from './frame-preparation';
@@ -28,6 +29,7 @@ export interface SurfacePresentationActions {
 	toggleAccordion(id: NodeId): boolean;
 }
 export interface DashboardViewContext {
+	readonly previews: ParameterPreviews | null;
 	registerFreeLayout(id: NodeId, edit: (command: FreeLayoutEdit) => Promise<boolean>): () => void;
 	editFreeLayout(id: NodeId, command: FreeLayoutEdit): Promise<boolean>;
 	createNodeWidget(
@@ -59,6 +61,7 @@ export interface DashboardViewContext {
 	toggleAccordion(surface: NodeId, child: NodeId): boolean;
 }
 interface DashboardViewSource {
+	readonly previews: ParameterPreviews | null;
 	readonly viewport: HTMLElement | null;
 	readonly frame: HTMLElement | null;
 	readonly frameSize: { width: number; height: number };
@@ -224,6 +227,9 @@ export function createDashboardViewContext(context: DashboardViewSource): Dashbo
 		}
 	};
 	return {
+		get previews() {
+			return context.previews;
+		},
 		registerFreeLayout(id, edit) {
 			layoutEdits.set(id, edit);
 			return () => {

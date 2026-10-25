@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { FreeSurfaceGeometry, type FreeSurfaceMetrics } from '../free-surface-geometry';
 import { changeParam, forkGraph, graphFixture, node, param } from './fixtures';
+import { createEditOperations } from '../../../../../store/session/edit-operations';
 
 const metrics: FreeSurfaceMetrics = {
 	rootRemPx: 16,
@@ -12,6 +13,41 @@ const metrics: FreeSurfaceMetrics = {
 };
 
 describe('retained free dashboard geometry', () => {
+	it('indexes pending presentation without editing the graph and updates only its owner', async () => {
+		const graph = graphFixture(1000),
+			geometry = new FreeSurfaceGeometry();
+		const drafts = createEditOperations({
+			uuid: (id) => graph.nodesById.get(id)?.uuid,
+			eventTime: () => graph.lastEventTime,
+			changed: () => {},
+			track: () => {}
+		});
+		geometry.sync(graph, graph.nodesById.get(1)!, metrics, drafts);
+		const scope = drafts.open({
+			current: () => true,
+			build: () => ({ finish: async () => {}, cancel: async () => {} })
+		})!;
+		scope.publish([
+			{
+				kind: 'setParam',
+				node: 4007,
+				behaviour: 'Coalesce',
+				value: { kind: 'vec2', value: [-900, 40] }
+			}
+		]);
+		geometry.sync(graph, graph.nodesById.get(1)!, metrics, drafts);
+		expect(geometry.updatedEntries).toBe(1);
+		expect(geometry.get(4006)).toEqual({ left: -900, top: 40, width: 192, height: 64 });
+		expect(geometry.query({ left: -901, top: 39, width: 10, height: 10 })).toEqual([4006]);
+		expect(graph.paramsById.get(4007)?.value).toEqual({ kind: 'vec2', value: [999 * 256, 0] });
+		geometry.sync(graph, graph.nodesById.get(1)!, metrics, drafts);
+		expect(geometry.updatedEntries).toBe(0);
+		await scope.cancel();
+		geometry.sync(graph, graph.nodesById.get(1)!, metrics, drafts);
+		expect(geometry.updatedEntries).toBe(1);
+		expect(geometry.get(4006)?.left).toBe(999 * 256);
+		expect(geometry.query({ left: -901, top: 39, width: 10, height: 10 })).toEqual([]);
+	});
 	it.each([
 		['top-left', 100, -20],
 		['top-center', 604, -20],

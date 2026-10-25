@@ -1,5 +1,6 @@
 import { SpatialIndex, type SpatialBounds } from 'golden_graph_ui/spatial-index';
 import type { GraphState } from '../../../../store/graph.svelte';
+import type { ParameterPreviews } from '../../../../store/session/edit-operations';
 import type { NodeId, UiNodeDto } from '../../../../types';
 import { getDashboardPlacement, type DashboardPlacement } from '../dashboard-model';
 import {
@@ -45,7 +46,7 @@ export const spatialBounds = (rect: FreeLayoutRect): SpatialBounds => ({
 	bottom: rect.top + rect.height
 });
 
-/** Authored free-layout geometry survives widget unmounting and camera movement. */
+/** Presentation geometry survives unmounting; parameter drafts never change the authored graph. */
 export class FreeSurfaceGeometry {
 	readonly #entries = new Map<NodeId, Entry>();
 	readonly #owners = new Map<NodeId, NodeId>();
@@ -53,6 +54,7 @@ export class FreeSurfaceGeometry {
 	readonly #groups = new FreeSurfaceGroups();
 	#spatial = new SpatialIndex<NodeId>(256);
 	#graph: GraphState | null = null;
+	#previews: ParameterPreviews['values'] | null = null;
 	#children: readonly NodeId[] | null = null;
 	#metrics: FreeSurfaceMetrics | null = null;
 	#updated = 0;
@@ -76,12 +78,18 @@ export class FreeSurfaceGeometry {
 		this.#groups.clear();
 		this.#spatial = new SpatialIndex<NodeId>(256);
 		this.#graph = null;
+		this.#previews = null;
 		this.#children = null;
 		this.#metrics = null;
 		this.#updated = 0;
 	}
 
-	sync(graph: GraphState, surface: UiNodeDto, metrics: FreeSurfaceMetrics): void {
+	sync(
+		graph: GraphState,
+		surface: UiNodeDto,
+		metrics: FreeSurfaceMetrics,
+		previews?: ParameterPreviews | null
+	): void {
 		this.#updated = 0;
 		const dirty = new Set<NodeId>();
 		let membershipChanged = false;
@@ -130,6 +138,15 @@ export class FreeSurfaceGeometry {
 				}
 			});
 		}
+		const drafts = previews?.values ?? null;
+		if (drafts !== this.#previews) {
+			const mark = (id: NodeId) => {
+				const owner = this.#owners.get(id);
+				if (owner !== undefined) dirty.add(owner);
+			};
+			if (drafts && this.#previews) drafts.forEachChange(this.#previews, mark);
+			else for (const id of (drafts ?? this.#previews)?.keys() ?? []) mark(id);
+		}
 		const metricsChanged =
 			!this.#metrics ||
 			Object.keys(metrics).some(
@@ -160,7 +177,7 @@ export class FreeSurfaceGeometry {
 			const entry: Entry = {
 				node,
 				dependencies,
-				placement: getDashboardPlacement(graph, node),
+				placement: getDashboardPlacement(graph, node, previews),
 				rect: { left: 0, top: 0, width: 0, height: 0 }
 			};
 			this.#entries.set(id, entry);
@@ -174,6 +191,7 @@ export class FreeSurfaceGeometry {
 			this.#groups.rebuild([...this.#entries].map(([id, entry]) => [id, entry.rect] as const));
 		this.#metrics = { ...metrics };
 		this.#graph = graph;
+		this.#previews = drafts;
 	}
 
 	query(rect: FreeLayoutRect): NodeId[] {

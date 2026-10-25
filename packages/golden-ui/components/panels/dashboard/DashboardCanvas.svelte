@@ -73,6 +73,9 @@
 	const ownsView = untrack(() => node.node_type === 'dashboard_page');
 	const dashboardView = ownsView
 		? createDashboardViewContext({
+				get previews() {
+					return session?.editOperations ?? null;
+				},
 				get viewport() {
 					return pageViewportElement;
 				},
@@ -111,7 +114,7 @@
 	let isNodeWidget = $derived(liveNode.node_type === 'dashboard_node_widget');
 	let isGenericWidget = $derived(liveNode.node_type === 'dashboard_generic_widget');
 
-	let placement = $derived(getDashboardPlacement(graph, liveNode));
+	let placement = $derived(getDashboardPlacement(graph, liveNode, session?.editOperations));
 	let widgetLabelText = $derived(liveNode.meta.label.trim());
 	let parentNode = $derived.by(() => {
 		const parentId = graph?.parentById.get(liveNode.node_id);
@@ -296,6 +299,9 @@
 	});
 	const resolveTransformNodes = interactionGeometry.resolveTransformNodes;
 	const freeLayoutState = createDashboardFreeLayout({
+		get session() {
+			return session;
+		},
 		get graph() {
 			return graph;
 		},

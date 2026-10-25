@@ -52,6 +52,31 @@ function setup(overrides: Partial<Context> = {}) {
 	};
 }
 describe('dashboard gesture commit ownership', () => {
+	it('projects only edited fields and retains a return to the original value', async () => {
+		const publish = vi.fn<NonNullable<Context['publish']>>(),
+			s = setup({ publish });
+		s.queue.schedule(sample(4));
+		expect(publish.mock.calls[0][0].map((edit) => edit.node)).toEqual([11]);
+		await s.fire();
+		s.queue.schedule(sample());
+		expect(publish.mock.calls[1][0]).toEqual([
+			{ kind: 'setParam', node: 11, behaviour: 'Coalesce', value: { kind: 'vec2', value: [0, 0] } }
+		]);
+		await s.queue.finish();
+		expect(s.queue.accepted).toBe(true);
+		expect(s.send.mock.calls[1][0]).toEqual(publish.mock.calls[1][0]);
+	});
+	it('distinguishes a rejected final sample from an accepted no-op', async () => {
+		const rejected = setup({ send: async () => false });
+		rejected.queue.schedule(sample(2));
+		await rejected.queue.finish();
+		expect(rejected.queue.accepted).toBe(false);
+		const unchanged = setup();
+		unchanged.queue.schedule(sample());
+		await unchanged.queue.finish();
+		expect(unchanged.queue.accepted).toBe(true);
+		expect(unchanged.send).not.toHaveBeenCalled();
+	});
 	it('coalesces samples and owns the submitted values before their caller can mutate them', async () => {
 		const s = setup(),
 			last = sample(2, 13);

@@ -9,6 +9,7 @@ interface CommitContext {
 	end(): Promise<void>;
 	send(edits: Edit[]): Promise<boolean>;
 	frame(callback: () => void): () => void;
+	publish?(edits: Edit[]): void;
 }
 
 /** One gesture owns its coalesced samples, admitted prefix and acknowledgement baseline. */
@@ -20,21 +21,32 @@ export function createFreeLayoutCommitter(initial: FreeLayoutPreviewSet, context
 	let running: Promise<void> | null = null;
 	let closing: Promise<void> | null = null;
 	const ready = context.begin();
-	const last = new Map<NodeId, FreeLayoutPreview>(
+	const baseline = new Map<NodeId, FreeLayoutPreview>(
 		cloneFreeLayoutPreviewSet(initial).previews.map(({ target, preview }) => [
 			target.nodeId,
 			preview
 		])
 	);
+	const last = new Map(baseline),
+		touched = new Set<NodeId>();
+	let requested = cloneFreeLayoutPreviewSet(initial);
 	const valid = () => !cancelled && context.current();
-	const editsFor = (sample: FreeLayoutPreviewSet): Edit[] => {
+	const editsFor = (
+		sample: FreeLayoutPreviewSet,
+		comparison = last,
+		retained?: Set<NodeId>
+	): Edit[] => {
 		const edits: Edit[] = [];
+		const include = (id: NodeId, changed: boolean) => {
+			if (changed) retained?.add(id);
+			return changed || !!retained?.has(id);
+		};
 		for (const { target, preview } of sample.previews) {
-			const previous = last.get(target.nodeId) ?? target.startPreview;
+			const previous = comparison.get(target.nodeId) ?? target.startPreview;
 			if (
-				!samePosition(preview.position, previous.position) &&
 				target.positionParamNodeId !== null &&
-				target.positionParamBehaviour !== null
+				target.positionParamBehaviour !== null &&
+				include(target.positionParamNodeId, !samePosition(preview.position, previous.position))
 			)
 				edits.push({
 					kind: 'setParam',
@@ -49,7 +61,7 @@ export function createFreeLayoutCommitter(initial: FreeLayoutPreviewSet, context
 				if (
 					id !== null &&
 					behaviour !== null &&
-					!sameCssValue(preview.size[axis], previous.size[axis])
+					include(id, !sameCssValue(preview.size[axis], previous.size[axis]))
 				)
 					edits.push({
 						kind: 'setParam',
@@ -102,9 +114,14 @@ export function createFreeLayoutCommitter(initial: FreeLayoutPreviewSet, context
 		return closing;
 	};
 	return {
+		get accepted() {
+			return editsFor(requested).length === 0;
+		},
 		schedule(sample: FreeLayoutPreviewSet) {
 			if (!accepting || !valid()) return;
 			pending = cloneFreeLayoutPreviewSet(sample);
+			requested = pending;
+			context.publish?.(editsFor(pending, baseline, touched));
 			if (cancelFrame) return;
 			cancelFrame = context.frame(() => {
 				cancelFrame = null;

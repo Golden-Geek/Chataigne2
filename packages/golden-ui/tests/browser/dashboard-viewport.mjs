@@ -14,6 +14,7 @@ import { lifecycleChecks } from './dashboard-lifecycle.mjs';
 import { editLifecycleChecks } from './dashboard-edit-lifecycle.mjs';
 import { creationChecks } from './dashboard-creation.mjs';
 import { gestureChecks } from './dashboard-gestures.mjs';
+import { confirmedChecks } from './dashboard-confirmed.mjs';
 
 const repository = fileURLToPath(new URL('../../../../', import.meta.url));
 const root = fileURLToPath(new URL('./fixture/', import.meta.url));
@@ -25,13 +26,15 @@ const lifecycleOnly = process.argv.includes('--lifecycle-only');
 const editOnly = process.argv.includes('--edit-only');
 const creationOnly = process.argv.includes('--creation-only');
 const gesturesOnly = process.argv.includes('--gestures-only');
+const confirmedOnly = process.argv.includes('--confirmed-only');
 const fullRun = !(
 	denseOnly ||
 	hierarchyOnly ||
 	lifecycleOnly ||
 	editOnly ||
 	creationOnly ||
-	gesturesOnly
+	gesturesOnly ||
+	confirmedOnly
 );
 const canvasPrefix = 'packages/golden-ui/components/panels/dashboard/';
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
@@ -60,8 +63,16 @@ const sources = [
 	fileURLToPath(new URL('./dashboard-edit-lifecycle.mjs', import.meta.url)),
 	fileURLToPath(new URL('./dashboard-creation.mjs', import.meta.url)),
 	fileURLToPath(new URL('./dashboard-gestures.mjs', import.meta.url)),
+	fileURLToPath(new URL('./dashboard-confirmed.mjs', import.meta.url)),
 	resolve(repository, 'packages/golden-ui/store/ui-intents.ts'),
 	resolve(repository, 'packages/golden-ui/store/workbench.svelte.ts'),
+	resolve(repository, 'packages/golden-ui/store/graph.svelte.ts'),
+	resolve(repository, 'packages/golden-ui/store/session/action-activity.svelte.ts'),
+	resolve(repository, 'packages/golden-ui/store/session/edit-operations.ts'),
+	resolve(repository, 'packages/golden-ui/store/session/edit-operations.svelte.ts'),
+	resolve(repository, 'packages/golden-ui/store/session/event-time.ts'),
+	resolve(repository, 'packages/golden-ui/store/session/intent-sender.ts'),
+	resolve(repository, 'packages/golden-ui/store/session/tests/edit-operations.test.ts'),
 	resolve(repository, 'packages/golden-ui/store/session/edit-session.ts'),
 	resolve(repository, 'packages/golden-ui/store/session/tests/edit-session.test.ts'),
 	resolve(repository, 'packages/golden-ui/store/session/intent-pipeline.ts'),
@@ -81,19 +92,21 @@ const report = resolve(
 	`p11-dashboard-viewport-${new Date().toISOString().replaceAll(/[:.]/g, '-')}.json`
 );
 const result = {
-	scope: gesturesOnly
-		? 'gestures-only'
-		: creationOnly
-			? 'creation-only'
-			: editOnly
-				? 'edit-only'
-				: lifecycleOnly
-					? 'lifecycle-only'
-					: hierarchyOnly
-						? 'hierarchy-only'
-						: denseOnly
-							? 'dense-only'
-							: 'dashboard-correctness',
+	scope: confirmedOnly
+		? 'confirmed-only'
+		: gesturesOnly
+			? 'gestures-only'
+			: creationOnly
+				? 'creation-only'
+				: editOnly
+					? 'edit-only'
+					: lifecycleOnly
+						? 'lifecycle-only'
+						: hierarchyOnly
+							? 'hierarchy-only'
+							: denseOnly
+								? 'dense-only'
+								: 'dashboard-correctness',
 	baseline,
 	browser: '',
 	machine: {
@@ -556,6 +569,7 @@ try {
 		if (fullRun || editOnly) await editLifecycleChecks(page, record);
 		if (fullRun || creationOnly) await creationChecks(page, record);
 		if (fullRun || gesturesOnly) await gestureChecks(page, record);
+		if (fullRun || confirmedOnly) await confirmedChecks(page, record);
 		assert.deepEqual(result.errors, []);
 	});
 	assert.deepEqual(fingerprints(), result.source, 'Qualified sources changed');

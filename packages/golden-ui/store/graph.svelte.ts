@@ -562,8 +562,12 @@ const reduceEventInPlace = (
 	return { stateChanged, requiresRootRecompute };
 };
 
-export const createGraphStore = (): GraphStore => {
+export const createGraphStore = (onPublished?: (state: GraphState) => void): GraphStore => {
 	let state = $state<GraphState>(createEmptyState());
+	const publish = (next: GraphState) => {
+		state = next;
+		onPublished?.(next);
+	};
 	let projectionGeneration = 0;
 	const preparedEvents = new WeakMap<
 		UiEventDto,
@@ -595,12 +599,12 @@ export const createGraphStore = (): GraphStore => {
 		},
 		loadSnapshot(snapshot: UiSnapshot): void {
 			projectionGeneration += 1;
-			state = stateFromSnapshot(snapshot);
+			publish(stateFromSnapshot(snapshot));
 		},
 		applyEvent(event: UiEventDto): void {
 			const prepared = takePreparedEvent(event, state);
 			if (prepared) {
-				state = prepared;
+				publish(prepared);
 				return;
 			}
 			const nextState = forkGraphState(state);
@@ -611,12 +615,12 @@ export const createGraphStore = (): GraphStore => {
 			if (result.requiresRootRecompute) {
 				refreshRootIfInvalid(nextState);
 			}
-			state = nextState;
+			publish(nextState);
 		},
 		applyBatch(batch: UiEventBatch): boolean {
 			if (batch.events.length === 0) {
 				if (batch.to) {
-					state = { ...state, lastEventTime: batch.to };
+					publish({ ...state, lastEventTime: batch.to });
 				}
 				return batch.to !== undefined;
 			}
@@ -649,7 +653,7 @@ export const createGraphStore = (): GraphStore => {
 			if (requiresRootRecompute) {
 				refreshRootIfInvalid(workingState);
 			}
-			state = workingState;
+			publish(workingState);
 			return true;
 		},
 		createEventWork(event: UiEventDto): GraphEventProjectionWork | undefined {
@@ -670,7 +674,7 @@ export const createGraphStore = (): GraphStore => {
 		},
 		reset(): void {
 			projectionGeneration += 1;
-			state = createEmptyState();
+			publish(createEmptyState());
 		}
 	};
 };

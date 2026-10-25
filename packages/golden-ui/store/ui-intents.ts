@@ -16,6 +16,7 @@ import type {
 import { requestRemoveNodesById } from './node-removal';
 import { appState } from './workbench.svelte';
 import { createEditSession, type UiEditSession } from './session/edit-session';
+import type { AppliedIntentObserver } from './session/intent-sender';
 export type { UiEditSession } from './session/edit-session';
 
 let intentSequence = 0;
@@ -37,6 +38,7 @@ export interface CreateUserItemResult {
 }
 
 interface SendUiIntentOptions {
+	readonly applied?: AppliedIntentObserver;
 	readonly ignoreError?: (error: unknown) => boolean;
 }
 
@@ -51,7 +53,7 @@ const sendUiIntentToSession = async (
 	options?: SendUiIntentOptions
 ): Promise<boolean> => {
 	try {
-		await session.sendIntent(intent);
+		await session.sendIntent(intent, options?.applied);
 		return true;
 	} catch (error) {
 		if (!options?.ignoreError?.(error)) {
@@ -66,8 +68,11 @@ const sendUiIntent = (intent: UiEditIntent, options?: SendUiIntentOptions): Prom
 	return session ? sendUiIntentToSession(session, intent, options) : Promise.resolve(false);
 };
 
-export const sendUiIntentBatch = async (intents: UiEditIntent[]): Promise<UiIntentBatchResult> => {
-	const session = appState.session;
+export const sendUiIntentBatch = async (
+	intents: UiEditIntent[],
+	session = appState.session,
+	applied?: AppliedIntentObserver
+): Promise<UiIntentBatchResult> => {
 	if (!session) {
 		return { success: false, appliedCount: 0 };
 	}
@@ -76,7 +81,7 @@ export const sendUiIntentBatch = async (intents: UiEditIntent[]): Promise<UiInte
 	}
 
 	try {
-		await session.sendIntents(intents);
+		await session.sendIntents(intents, applied);
 		return {
 			success: true,
 			appliedCount: intents.length
@@ -413,16 +418,25 @@ export const sendReloadScript = async (node: NodeId): Promise<boolean> => {
 	}
 };
 
-export const createUiEditSession = (label?: string, prefix = 'ui-edit'): UiEditSession => {
+export const createUiEditSession = (
+	label?: string,
+	prefix = 'ui-edit',
+	host?: NonNullable<typeof appState.session>,
+	applied?: AppliedIntentObserver
+): UiEditSession => {
 	const clientEditId = nextIntentId(prefix);
 	return createEditSession({
-		host: () => appState.session,
+		host: () => (host ? (appState.session === host ? host : null) : appState.session),
 		begin: (session) =>
-			sendUiIntentToSession(session, {
-				kind: 'beginEdit',
-				client_edit_id: clientEditId,
-				label
-			}),
+			sendUiIntentToSession(
+				session,
+				{
+					kind: 'beginEdit',
+					client_edit_id: clientEditId,
+					label
+				},
+				{ applied }
+			),
 		end: (session) =>
 			sendUiIntentToSession(
 				session,
@@ -430,7 +444,7 @@ export const createUiEditSession = (label?: string, prefix = 'ui-edit'): UiEditS
 					kind: 'endEdit',
 					client_edit_id: clientEditId
 				},
-				{ ignoreError: (error) => isStaleEndEditSessionError(error, clientEditId) }
+				{ applied, ignoreError: (error) => isStaleEndEditSessionError(error, clientEditId) }
 			)
 	});
 };

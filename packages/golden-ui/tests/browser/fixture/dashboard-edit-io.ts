@@ -8,15 +8,26 @@ export function createDashboardEditIO(
 ) {
 	let holdBegin = false,
 		holdWrites = false,
-		rejectWrites = false;
+		rejectWrites = false,
+		holdEvents = false;
 	const records: UiEditIntent[] = [];
 	const pending: (() => void)[] = [];
+	const events: (() => void)[] = [];
 	return {
-		configure(options: { holdBegin?: boolean; holdWrites?: boolean; rejectWrites?: boolean } = {}) {
-			if (pending.length) throw new Error('Resolve edit receipts before resetting the fixture');
+		configure(
+			options: {
+				holdBegin?: boolean;
+				holdWrites?: boolean;
+				rejectWrites?: boolean;
+				holdEvents?: boolean;
+			} = {}
+		) {
+			if (pending.length || events.length)
+				throw new Error('Resolve edit receipts/events before resetting the fixture');
 			holdBegin = options.holdBegin ?? false;
 			holdWrites = options.holdWrites ?? false;
 			rejectWrites = options.rejectWrites ?? false;
+			holdEvents = options.holdEvents ?? false;
 			records.length = 0;
 		},
 		handle(intent: UiEditIntent) {
@@ -24,21 +35,26 @@ export function createDashboardEditIO(
 				return null;
 			records.push(structuredClone(intent));
 			const rejected = rejectWrites && intent.kind === 'setParam';
+			const eventTime = intent.kind === 'setParam' && !rejected ? time() : undefined;
 			if (intent.kind === 'setParam' && !rejected) {
-				const node = fixture.session.graph.state.nodesById.get(intent.node);
-				if (!node || node.data.kind !== 'parameter')
-					throw new Error('Edit reached a retired parameter');
-				fixture.session.graph.applyEvent({
-					time: time(),
-					kind: {
-						kind: 'paramChanged',
-						param: intent.node,
-						old_value: node.data.param.value,
-						new_value: intent.value
-					}
-				});
+				const apply = () => {
+					const node = fixture.session.graph.state.nodesById.get(intent.node);
+					if (!node || node.data.kind !== 'parameter')
+						throw new Error('Edit reached a retired parameter');
+					fixture.session.graph.applyEvent({
+						time: eventTime!,
+						kind: {
+							kind: 'paramChanged',
+							param: intent.node,
+							old_value: node.data.param.value,
+							new_value: intent.value
+						}
+					});
+				};
+				if (holdEvents) events.push(apply);
+				else apply();
 			}
-			const reply = () =>
+			const acknowledgement = () =>
 				rejected
 					? {
 							...fixture.editAcknowledgement(),
@@ -49,6 +65,10 @@ export function createDashboardEditIO(
 					: fixture.editAcknowledgement(
 							intent.kind === 'beginEdit' ? true : intent.kind === 'endEdit' ? false : undefined
 						);
+			const reply = () => ({
+				...acknowledgement(),
+				...(eventTime ? { earliest_event_time: eventTime, latest_event_time: eventTime } : {})
+			});
 			if ((intent.kind === 'beginEdit' && holdBegin) || (intent.kind === 'setParam' && holdWrites))
 				return new Promise<ReturnType<typeof reply>>((resolve) => {
 					pending.push(() => resolve(reply()));
@@ -58,10 +78,15 @@ export function createDashboardEditIO(
 		release() {
 			for (const resolve of pending.splice(0)) resolve();
 		},
+		releaseEvents() {
+			for (const apply of events.splice(0)) apply();
+		},
 		read() {
 			return {
 				records: structuredClone(records),
 				pending: pending.length,
+				events: events.length,
+				operations: fixture.session.editOperations.size,
 				active: fixture.session.hasActiveEditSession
 			};
 		}
