@@ -57,7 +57,7 @@ export function createFixtureSession() {
 	const client: UiClient = {
 		snapshot: async () => snapshot,
 		subscribe: unused,
-		sendIntents: unused,
+		sendIntents: async (intents) => Promise.all(intents.map((intent) => client.sendIntent(intent))),
 		replay: unused,
 		referenceTargets: unused,
 		paramControlInfo: unused,
@@ -155,6 +155,11 @@ export function createFixtureSession() {
 		session.graph.loadSnapshot(snapshot);
 	};
 	return {
+		editAcknowledgement(active?: boolean): Awaited<ReturnType<UiClient['sendIntent']>> {
+			if (active !== undefined)
+				snapshot = { ...snapshot, history: { ...snapshot.history, active_edit_session: active } };
+			return { success: true, status: 'applied', history: snapshot.history };
+		},
 		handleIntent(handler: typeof intentHandler) {
 			intentHandler = handler;
 		},

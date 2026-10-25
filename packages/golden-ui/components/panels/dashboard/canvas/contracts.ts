@@ -135,7 +135,6 @@ export type FreeLayoutDropTarget = {
 };
 
 export type FreeLayoutInteraction = {
-	pointerId: number;
 	mode: FreeLayoutInteractionMode;
 	resizeEdges: FreeLayoutResizeEdges | null;
 	primaryNodeId: NodeId;
@@ -152,6 +151,14 @@ export type FreeLayoutInteraction = {
 	viewportWidthPx: number;
 	viewportHeightPx: number;
 };
+
+export type LayoutPoint = { x: number; y: number };
+export type FreeLayoutEdit =
+	| { kind: 'move'; origin: LayoutPoint }
+	| { kind: 'resize'; origin: LayoutPoint; edges: FreeLayoutResizeEdges }
+	| { kind: 'update'; point: LayoutPoint }
+	| { kind: 'finish' }
+	| { kind: 'cancel' };
 
 export type SurfaceInsertionIndicator = {
 	left: number;

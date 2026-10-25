@@ -1,4 +1,6 @@
 import { onDestroy } from 'svelte';
+import { createFreeLayoutCommitter } from './free-layout-committer';
+import { captureLayoutGesture } from './gesture-fence';
 import type { GraphState } from '../../../../store/graph.svelte';
 import type { SelectionMode } from '../../../../store/workbench.svelte';
 import type {
@@ -10,6 +12,8 @@ import type { createDashboardInteractionChrome } from './interaction-chrome.svel
 import type { createDashboardInteractionGeometry } from './interaction-geometry.svelte';
 import {
 	type AnchorGuide,
+	type LayoutPoint,
+	type FreeLayoutEdit,
 	type FreeLayoutInteractionMode,
 	type FreeLayoutResizeEdges,
 	type FreeLayoutPreviewSet,
@@ -19,11 +23,8 @@ import {
 import {
 	minFreeWidgetWidthRem,
 	minFreeWidgetHeightRem,
-	cloneFreeLayoutPreviewSet,
 	resolveFreeLayoutPreview,
 	buildPreviewSetFromTargets,
-	sameCssValue,
-	samePosition,
 	anchorXFromAnchor,
 	anchorYFromAnchor,
 	freeLayoutRectFromPlacement,
@@ -37,9 +38,8 @@ import {
 	getViewportHeightPx,
 	getClosestSurfaceMetrics
 } from './dom';
-import { createUiEditSession, sendSetParamIntent } from '../../../../store/ui-intents';
-import { type NodeId, type ParamEventBehaviour, type UiNodeDto } from '../../../../types';
-import { type CssValueData } from '../../../../css-value';
+import { createUiEditSession, sendUiIntentBatch } from '../../../../store/ui-intents';
+import { type UiNodeDto } from '../../../../types';
 import { moveDashboardWidgetToSurface } from '../dashboard-actions';
 interface DashboardFreeLayoutContext {
 	readonly graph: GraphState | null;
@@ -83,221 +83,117 @@ export function createDashboardFreeLayout(context: DashboardFreeLayoutContext) {
 
 	let freeLayoutDropTarget = $state<FreeLayoutDropTarget | null>(null);
 
-	let freeLayoutCommitFrame: number | null = null;
-
-	let freeLayoutCommitInFlight = false;
-
-	let pendingFreeLayoutCommit: FreeLayoutPreviewSet | null = null;
-
-	let lastCommittedFreeLayoutPreview: FreeLayoutPreviewSet | null = null;
-
-	let freeLayoutEditSession: ReturnType<typeof createUiEditSession> | null = null;
-
-	const cancelScheduledFreeLayoutCommit = (): void => {
-		if (typeof window !== 'undefined' && freeLayoutCommitFrame !== null) {
-			window.cancelAnimationFrame(freeLayoutCommitFrame);
-		}
-		freeLayoutCommitFrame = null;
-		pendingFreeLayoutCommit = null;
+	type Gesture = {
+		primary: number;
+		fence: NonNullable<ReturnType<typeof captureLayoutGesture>>;
+		queue: ReturnType<typeof createFreeLayoutCommitter>;
 	};
-
-	const sendCssParamValue = async (
-		paramNodeId: NodeId | null,
-		behaviour: ParamEventBehaviour | null,
-		value: CssValueData
-	): Promise<void> => {
-		if (paramNodeId === null || behaviour === null) {
-			return;
-		}
-		await sendSetParamIntent(
-			paramNodeId,
-			{ kind: 'css_value', value: value.value, unit: value.unit },
-			behaviour
+	const gestures = new Set<Gesture>();
+	let operationCount = $state(0);
+	let gesture: Gesture | null = null;
+	let closing: Promise<void> = Promise.resolve();
+	let destroyed = false;
+	let nativePointerId: number | null = null;
+	const closeGesture = (operation: Gesture, cancel: boolean, after?: () => Promise<void>) => {
+		const done = cancel ? operation.queue.cancel() : operation.queue.finish(after);
+		closing = done;
+		const remove = () => {
+			gestures.delete(operation);
+			if (!destroyed) operationCount = gestures.size;
+		};
+		void done.then(remove, remove);
+		return done;
+	};
+	const cancelActiveGesture = () => {
+		nativePointerId = null;
+		const operation = gesture;
+		gesture = null;
+		freeLayoutInteraction = null;
+		freeLayoutPreview = null;
+		if (operation) void closeGesture(operation, true);
+	};
+	const startCommitter = (initial: FreeLayoutPreviewSet, label: string): boolean => {
+		const fence = captureLayoutGesture(
+			context.graph,
+			initial.previews.map(({ target }) => target)
 		);
-	};
-
-	const finishFreeLayoutEditSession = async (): Promise<void> => {
-		const sessionToEnd = freeLayoutEditSession;
-		freeLayoutEditSession = null;
-		await sessionToEnd?.end();
-	};
-
-	const sendFreeLayoutPreview = async (previewSet: FreeLayoutPreviewSet): Promise<void> => {
-		const operations: Promise<unknown>[] = [];
-		for (const entry of previewSet.previews) {
-			const compareTo =
-				lastCommittedFreeLayoutPreview?.previews.find(
-					(candidate) => candidate.target.nodeId === entry.target.nodeId
-				)?.preview ?? entry.target.startPreview;
-			if (!samePosition(entry.preview.position, compareTo.position)) {
-				if (
-					entry.target.positionParamNodeId !== null &&
-					entry.target.positionParamBehaviour !== null
-				) {
-					operations.push(
-						sendSetParamIntent(
-							entry.target.positionParamNodeId,
-							{
-								kind: 'vec2',
-								value: [entry.preview.position.x, entry.preview.position.y]
-							},
-							entry.target.positionParamBehaviour
-						)
-					);
-				}
+		if (!fence) return false;
+		const prior = closing;
+		const session = createUiEditSession(label, 'dashboard-free-layout');
+		const current = () => !destroyed && context.editMode && fence.isCurrent(context.graph);
+		const queue = createFreeLayoutCommitter(initial, {
+			current,
+			begin: async () => {
+				await prior;
+				if (current()) await session.begin();
+			},
+			end: () => session.end(),
+			send: async (edits) => (await sendUiIntentBatch(edits)).success,
+			frame: (callback) => {
+				const id = requestAnimationFrame(callback);
+				return () => cancelAnimationFrame(id);
 			}
-			if (!sameCssValue(entry.preview.size.width, compareTo.size.width)) {
-				operations.push(
-					sendCssParamValue(
-						entry.target.widthParamNodeId,
-						entry.target.widthParamBehaviour,
-						entry.preview.size.width
-					)
-				);
-			}
-			if (!sameCssValue(entry.preview.size.height, compareTo.size.height)) {
-				operations.push(
-					sendCssParamValue(
-						entry.target.heightParamNodeId,
-						entry.target.heightParamBehaviour,
-						entry.preview.size.height
-					)
-				);
-			}
-		}
-		if (operations.length === 0) {
-			lastCommittedFreeLayoutPreview = cloneFreeLayoutPreviewSet(previewSet);
-			return;
-		}
-		await Promise.all(operations);
-		lastCommittedFreeLayoutPreview = cloneFreeLayoutPreviewSet(previewSet);
-	};
-
-	const flushFreeLayoutCommitQueue = async (): Promise<void> => {
-		if (freeLayoutCommitInFlight) {
-			return;
-		}
-		freeLayoutCommitInFlight = true;
-		try {
-			while (pendingFreeLayoutCommit) {
-				const nextPreview = cloneFreeLayoutPreviewSet(pendingFreeLayoutCommit);
-				pendingFreeLayoutCommit = null;
-				await sendFreeLayoutPreview(nextPreview);
-			}
-		} finally {
-			freeLayoutCommitInFlight = false;
-		}
-	};
-
-	const scheduleFreeLayoutCommit = (preview: FreeLayoutPreviewSet): void => {
-		pendingFreeLayoutCommit = cloneFreeLayoutPreviewSet(preview);
-		if (typeof window === 'undefined') {
-			void flushFreeLayoutCommitQueue();
-			return;
-		}
-		if (freeLayoutCommitFrame !== null) {
-			return;
-		}
-		freeLayoutCommitFrame = window.requestAnimationFrame(() => {
-			freeLayoutCommitFrame = null;
-			void flushFreeLayoutCommitQueue();
 		});
+		gesture = { primary: initial.primaryNodeId, fence, queue };
+		gestures.add(gesture);
+		operationCount = gestures.size;
+		return true;
 	};
-
+	const cancelScheduledFreeLayoutCommit = () => gesture?.queue.discardPending();
+	const scheduleFreeLayoutCommit = (preview: FreeLayoutPreviewSet) =>
+		gesture?.queue.schedule(preview);
+	$effect(() => {
+		if (operationCount === 0) return;
+		const source = context.graph,
+			enabled = context.editMode;
+		for (const operation of gestures) {
+			if (enabled && operation.fence.isCurrent(source)) continue;
+			if (gesture === operation) {
+				cancelActiveGesture();
+				clearFreeLayoutInteractionChrome();
+			} else void closeGesture(operation, true);
+		}
+	});
 	const finalizeFreeLayoutInteraction = async (
 		preview: FreeLayoutPreviewSet | null,
 		mode: FreeLayoutInteractionMode | null
 	): Promise<void> => {
-		const dropTarget = freeLayoutDropTarget;
+		const operation = gesture,
+			dropTarget = freeLayoutDropTarget;
+		gesture = null;
 		clearFreeLayoutInteractionChrome();
+		if (!operation) return;
 		if (dropTarget && mode === 'move') {
-			cancelScheduledFreeLayoutCommit();
-			await moveDashboardWidgetToSurface(
-				getGraph,
-				liveNode.node_id,
-				dropTarget.surfaceNodeId,
-				dropTarget.placement,
-				dropTarget.targetIndex ?? undefined
-			);
-			await finishFreeLayoutEditSession();
-			return;
+			operation.queue.discardPending();
+			await closeGesture(operation, false, async () => {
+				await moveDashboardWidgetToSurface(
+					getGraph,
+					operation.primary,
+					dropTarget.surfaceNodeId,
+					dropTarget.placement,
+					dropTarget.targetIndex ?? undefined
+				);
+			});
+		} else {
+			if (preview) operation.queue.schedule(preview);
+			await closeGesture(operation, false);
 		}
-		if (preview) {
-			scheduleFreeLayoutCommit(preview);
-			await flushFreeLayoutCommitQueue();
-		}
-		await finishFreeLayoutEditSession();
 	};
 
-	const beginFreeLayoutMove = (event: PointerEvent, transformNodes: UiNodeDto[]): void => {
-		if (!editMode || !supportsFreePlacement) {
-			return;
-		}
-		event.preventDefault();
-		event.stopPropagation();
-		selectWidgetNode('REPLACE');
-		clearFreeLayoutInteractionChrome();
-		setFreeLayoutAncestorShells(event.currentTarget);
-		freeLayoutEditSession = createUiEditSession('Move dashboard widget', 'dashboard-free-layout');
-		void freeLayoutEditSession.begin();
-		const rootRemPx = getRootRemPixels();
-		const surfaceMetrics = getClosestSurfaceMetrics(event.currentTarget, rootRemPx);
-		const interactionMetrics = {
-			rootRemPx,
-			emPx: surfaceMetrics.emPx,
-			surfaceWidthPx: surfaceMetrics.width,
-			surfaceHeightPx: surfaceMetrics.height,
-			viewportWidthPx: getViewportWidthPx(),
-			viewportHeightPx: getViewportHeightPx()
-		};
-		const targets = buildFreeLayoutTargets(transformNodes, interactionMetrics);
-		const selectionRect = buildSelectionRect(targets);
-		if (targets.length === 0 || !selectionRect) {
-			clearFreeLayoutInteractionChrome();
-			void finishFreeLayoutEditSession();
-			return;
-		}
-		lastCommittedFreeLayoutPreview = buildPreviewSetFromTargets(liveNode.node_id, targets);
-		pendingFreeLayoutCommit = null;
-		freeLayoutInteraction = {
-			pointerId: event.pointerId,
-			mode: 'move',
-			resizeEdges: null,
-			primaryNodeId: liveNode.node_id,
-			sourceSurfaceNodeId: parentNode?.node_id ?? liveNode.node_id,
-			selectionRect,
-			targets,
-			startClient: [event.clientX, event.clientY],
-			rootRemPx,
-			emPx: surfaceMetrics.emPx,
-			surfaceWidthPx: surfaceMetrics.width,
-			surfaceHeightPx: surfaceMetrics.height,
-			surfaceScaleX: surfaceMetrics.scaleX,
-			surfaceScaleY: surfaceMetrics.scaleY,
-			viewportWidthPx: getViewportWidthPx(),
-			viewportHeightPx: getViewportHeightPx()
-		};
-		freeLayoutPreview = buildPreviewSetFromTargets(liveNode.node_id, targets);
-	};
-
-	const beginFreeLayoutResize = (
-		event: PointerEvent,
-		resizeEdges: FreeLayoutResizeEdges,
+	const startLayoutOperation = (
+		mode: FreeLayoutInteractionMode,
+		origin: LayoutPoint,
+		resizeEdges: FreeLayoutResizeEdges | null,
 		transformNodes: UiNodeDto[]
-	): void => {
-		if (!editMode || !supportsFreePlacement) {
-			return;
-		}
-		event.preventDefault();
-		event.stopPropagation();
-		selectWidgetNode('REPLACE');
+	): boolean => {
+		if (!editMode || !supportsFreePlacement || !widgetShellElement?.isConnected) return false;
+		cancelActiveGesture();
 		clearFreeLayoutInteractionChrome();
-		setFreeLayoutAncestorShells(event.currentTarget);
-		freeLayoutEditSession = createUiEditSession('Resize dashboard widget', 'dashboard-free-layout');
-		void freeLayoutEditSession.begin();
+		if (!isSelected) selectWidgetNode('REPLACE');
+		setFreeLayoutAncestorShells(widgetShellElement);
 		const rootRemPx = getRootRemPixels();
-		const surfaceMetrics = getClosestSurfaceMetrics(event.currentTarget, rootRemPx);
-		const interactionMetrics = {
+		const surfaceMetrics = getClosestSurfaceMetrics(widgetShellElement.parentElement, rootRemPx);
+		const metrics = {
 			rootRemPx,
 			emPx: surfaceMetrics.emPx,
 			surfaceWidthPx: surfaceMetrics.width,
@@ -305,115 +201,156 @@ export function createDashboardFreeLayout(context: DashboardFreeLayoutContext) {
 			viewportWidthPx: getViewportWidthPx(),
 			viewportHeightPx: getViewportHeightPx()
 		};
-		const targets = buildFreeLayoutTargets(transformNodes, interactionMetrics);
-		const selectionRect = buildSelectionRect(targets);
-		if (targets.length === 0 || !selectionRect) {
+		const targets = buildFreeLayoutTargets(transformNodes, metrics),
+			selectionRect = buildSelectionRect(targets);
+		if (!targets.length || !selectionRect) {
 			clearFreeLayoutInteractionChrome();
-			void finishFreeLayoutEditSession();
-			return;
+			return false;
 		}
-		lastCommittedFreeLayoutPreview = buildPreviewSetFromTargets(liveNode.node_id, targets);
-		pendingFreeLayoutCommit = null;
+		const initial = buildPreviewSetFromTargets(liveNode.node_id, targets);
+		if (
+			!startCommitter(
+				initial,
+				mode === 'move' ? 'Move dashboard widget' : 'Resize dashboard widget'
+			)
+		) {
+			clearFreeLayoutInteractionChrome();
+			return false;
+		}
 		freeLayoutInteraction = {
-			pointerId: event.pointerId,
-			mode: 'resize',
+			mode,
 			resizeEdges,
 			primaryNodeId: liveNode.node_id,
 			sourceSurfaceNodeId: parentNode?.node_id ?? liveNode.node_id,
 			selectionRect,
 			targets,
-			startClient: [event.clientX, event.clientY],
-			rootRemPx,
-			emPx: surfaceMetrics.emPx,
-			surfaceWidthPx: surfaceMetrics.width,
-			surfaceHeightPx: surfaceMetrics.height,
+			startClient: [origin.x, origin.y],
+			...metrics,
 			surfaceScaleX: surfaceMetrics.scaleX,
-			surfaceScaleY: surfaceMetrics.scaleY,
-			viewportWidthPx: getViewportWidthPx(),
-			viewportHeightPx: getViewportHeightPx()
+			surfaceScaleY: surfaceMetrics.scaleY
 		};
-		freeLayoutPreview = buildPreviewSetFromTargets(liveNode.node_id, targets);
+		freeLayoutPreview = initial;
+		return true;
 	};
-
-	$effect(() => {
-		if (!freeLayoutInteraction) {
+	const beginFreeLayoutMove = (event: PointerEvent, nodes: UiNodeDto[]): void => {
+		if (!startLayoutOperation('move', { x: event.clientX, y: event.clientY }, null, nodes)) return;
+		nativePointerId = event.pointerId;
+		event.preventDefault();
+		event.stopPropagation();
+	};
+	const beginFreeLayoutResize = (
+		event: PointerEvent,
+		edges: FreeLayoutResizeEdges,
+		nodes: UiNodeDto[]
+	): void => {
+		if (!startLayoutOperation('resize', { x: event.clientX, y: event.clientY }, edges, nodes))
 			return;
+		nativePointerId = event.pointerId;
+		event.preventDefault();
+		event.stopPropagation();
+	};
+	const updateLayout = (point: LayoutPoint): boolean => {
+		if (!freeLayoutInteraction || !gesture) return false;
+		if (!editMode || !gesture.fence.isCurrent(context.graph)) {
+			cancelActiveGesture();
+			clearFreeLayoutInteractionChrome();
+			return false;
 		}
-
-		const handlePointerMove = (event: PointerEvent): void => {
-			if (!freeLayoutInteraction || event.pointerId !== freeLayoutInteraction.pointerId) {
-				return;
-			}
-			event.preventDefault();
-			const deltaXPx =
-				(event.clientX - freeLayoutInteraction.startClient[0]) /
-				Math.max(freeLayoutInteraction.surfaceScaleX, 1e-6);
-			const deltaYPx =
-				(event.clientY - freeLayoutInteraction.startClient[1]) /
-				Math.max(freeLayoutInteraction.surfaceScaleY, 1e-6);
-			const minWidthPx = minFreeWidgetWidthRem * freeLayoutInteraction.rootRemPx;
-			const minHeightPx = minFreeWidgetHeightRem * freeLayoutInteraction.rootRemPx;
-			const snapPx = parentSnapGrid.enabled
-				? parentSnapGrid.step * freeLayoutInteraction.rootRemPx
-				: 0;
-			if (freeLayoutInteraction.mode === 'move') {
-				const nextPreview = buildFreeLayoutMovePreview(
-					freeLayoutInteraction,
-					deltaXPx,
-					deltaYPx,
-					snapPx
-				);
-				freeLayoutPreview = nextPreview;
-				const nextDropTarget = resolveFreeLayoutDropTargetAtPoint(
-					event.clientX,
-					event.clientY,
-					nextPreview
-				);
-				freeLayoutDropTarget = nextDropTarget;
-				setFreeLayoutHoverSurface(nextDropTarget?.element ?? null);
-				setSurfaceInsertionIndicator(
-					nextDropTarget?.element ?? null,
-					nextDropTarget?.indicator ?? null
-				);
-				publishWidgetMoveSurfacePreview(nextDropTarget);
-				if (nextDropTarget) {
-					cancelScheduledFreeLayoutCommit();
-					return;
-				}
-				scheduleFreeLayoutCommit(nextPreview);
-				return;
-			}
-			setFreeLayoutHoverSurface(null);
-			freeLayoutDropTarget = null;
-			clearSurfaceInsertionIndicator();
-			const nextPreview = buildFreeLayoutResizePreview(
+		const deltaXPx =
+			(point.x - freeLayoutInteraction.startClient[0]) /
+			Math.max(freeLayoutInteraction.surfaceScaleX, 1e-6);
+		const deltaYPx =
+			(point.y - freeLayoutInteraction.startClient[1]) /
+			Math.max(freeLayoutInteraction.surfaceScaleY, 1e-6);
+		const minWidthPx = minFreeWidgetWidthRem * freeLayoutInteraction.rootRemPx;
+		const minHeightPx = minFreeWidgetHeightRem * freeLayoutInteraction.rootRemPx;
+		const snapPx = parentSnapGrid.enabled
+			? parentSnapGrid.step * freeLayoutInteraction.rootRemPx
+			: 0;
+		if (freeLayoutInteraction.mode === 'move') {
+			const nextPreview = buildFreeLayoutMovePreview(
 				freeLayoutInteraction,
 				deltaXPx,
 				deltaYPx,
 				snapPx
 			);
-			if (!nextPreview) {
-				return;
-			}
 			freeLayoutPreview = nextPreview;
-			scheduleFreeLayoutCommit(nextPreview);
-		};
-
-		const finishInteraction = (event: PointerEvent): void => {
-			if (!freeLayoutInteraction || event.pointerId !== freeLayoutInteraction.pointerId) {
-				return;
+			const nextDropTarget = resolveFreeLayoutDropTargetAtPoint(point.x, point.y, nextPreview);
+			freeLayoutDropTarget = nextDropTarget;
+			setFreeLayoutHoverSurface(nextDropTarget?.element ?? null);
+			setSurfaceInsertionIndicator(
+				nextDropTarget?.element ?? null,
+				nextDropTarget?.indicator ?? null
+			);
+			publishWidgetMoveSurfacePreview(nextDropTarget);
+			if (nextDropTarget) {
+				cancelScheduledFreeLayoutCommit();
+				return true;
 			}
-			const preview = freeLayoutPreview;
-			const mode = freeLayoutInteraction.mode;
-			freeLayoutInteraction = null;
-			freeLayoutPreview = null;
-			void finalizeFreeLayoutInteraction(preview, mode);
+			scheduleFreeLayoutCommit(nextPreview);
+			return true;
+		}
+		setFreeLayoutHoverSurface(null);
+		freeLayoutDropTarget = null;
+		clearSurfaceInsertionIndicator();
+		const nextPreview = buildFreeLayoutResizePreview(
+			freeLayoutInteraction,
+			deltaXPx,
+			deltaYPx,
+			snapPx
+		);
+		if (!nextPreview) {
+			return true;
+		}
+		freeLayoutPreview = nextPreview;
+		scheduleFreeLayoutCommit(nextPreview);
+		return true;
+	};
+	const finishLayout = async (cancel: boolean): Promise<boolean> => {
+		if (!freeLayoutInteraction || !gesture) return false;
+		if (cancel || !editMode || !gesture.fence.isCurrent(context.graph)) {
+			cancelActiveGesture();
+			clearFreeLayoutInteractionChrome();
+			await closing;
+			return true;
+		}
+		const preview = freeLayoutPreview,
+			mode = freeLayoutInteraction.mode;
+		freeLayoutInteraction = null;
+		freeLayoutPreview = null;
+		nativePointerId = null;
+		await finalizeFreeLayoutInteraction(preview, mode);
+		return true;
+	};
+	const edit = async (command: FreeLayoutEdit, targets: () => UiNodeDto[]): Promise<boolean> => {
+		switch (command.kind) {
+			case 'move':
+				return startLayoutOperation('move', command.origin, null, targets());
+			case 'resize':
+				return startLayoutOperation('resize', command.origin, command.edges, targets());
+			case 'update':
+				return updateLayout(command.point);
+			case 'finish':
+				return finishLayout(false);
+			case 'cancel':
+				return finishLayout(true);
+		}
+	};
+	$effect(() => {
+		if (!freeLayoutInteraction) return;
+		const handlePointerMove = (event: PointerEvent) => {
+			if (
+				event.pointerId === nativePointerId &&
+				updateLayout({ x: event.clientX, y: event.clientY })
+			)
+				event.preventDefault();
 		};
-
+		const finishInteraction = (event: PointerEvent) => {
+			if (event.pointerId === nativePointerId) void finishLayout(event.type === 'pointercancel');
+		};
 		window.addEventListener('pointermove', handlePointerMove);
 		window.addEventListener('pointerup', finishInteraction);
 		window.addEventListener('pointercancel', finishInteraction);
-
 		const previousCursor = document.body.style.cursor;
 		const previousUserSelect = document.body.style.userSelect;
 		document.body.style.cursor =
@@ -550,8 +487,9 @@ export function createDashboardFreeLayout(context: DashboardFreeLayoutContext) {
 		freeLayoutDropTarget = null;
 	};
 	onDestroy(() => {
-		cancelScheduledFreeLayoutCommit();
-		void finishFreeLayoutEditSession();
+		destroyed = true;
+		cancelActiveGesture();
+		for (const operation of gestures) void closeGesture(operation, true);
 	});
 	return {
 		get freeLayoutInteraction() {
@@ -566,6 +504,7 @@ export function createDashboardFreeLayout(context: DashboardFreeLayoutContext) {
 		get anchorGuides() {
 			return anchorGuides;
 		},
+		edit,
 		beginFreeLayoutMove,
 		beginFreeLayoutResize,
 		resetFreeDropTarget

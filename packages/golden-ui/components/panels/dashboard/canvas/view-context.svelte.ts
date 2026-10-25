@@ -1,7 +1,7 @@
 import { onDestroy, tick } from 'svelte';
 import type { NodeId, UiNodeDto } from '../../../../types';
 import type { GraphState } from '../../../../store/graph.svelte';
-import type { FreeLayoutRect, SurfaceDropPreview } from './contracts';
+import type { FreeLayoutRect, SurfaceDropPreview, FreeLayoutEdit } from './contracts';
 import type { FreeSurfaceGeometry } from './free-surface-geometry';
 import { framePreparation } from './frame-preparation';
 import { framePresentationBounds } from './frame-bounds';
@@ -28,6 +28,8 @@ export interface SurfacePresentationActions {
 	toggleAccordion(id: NodeId): boolean;
 }
 export interface DashboardViewContext {
+	registerFreeLayout(id: NodeId, edit: (command: FreeLayoutEdit) => Promise<boolean>): () => void;
+	editFreeLayout(id: NodeId, command: FreeLayoutEdit): Promise<boolean>;
 	createNodeWidget(
 		surface: NodeId,
 		target: NodeId,
@@ -80,6 +82,7 @@ export function createDashboardViewContext(context: DashboardViewSource): Dashbo
 	const presentations = new Map<string, SurfacePresentation>();
 	const scrolls = new Map<string, SurfaceScroll>();
 	const actions = new Map<NodeId, SurfacePresentationActions>();
+	const layoutEdits = new Map<NodeId, (command: FreeLayoutEdit) => Promise<boolean>>();
 	const browsers = new Map<NodeId, SurfaceBrowserActions>();
 	let retained = $state.raw<ReadonlyMap<NodeId, readonly NodeId[]>>(new Map());
 	let pageUuid: string | null = null;
@@ -112,6 +115,7 @@ export function createDashboardViewContext(context: DashboardViewSource): Dashbo
 		presentations.clear();
 		scrolls.clear();
 		actions.clear();
+		layoutEdits.clear();
 		browsers.clear();
 		previousGraph = null;
 	});
@@ -220,6 +224,13 @@ export function createDashboardViewContext(context: DashboardViewSource): Dashbo
 		}
 	};
 	return {
+		registerFreeLayout(id, edit) {
+			layoutEdits.set(id, edit);
+			return () => {
+				if (layoutEdits.get(id) === edit) layoutEdits.delete(id);
+			};
+		},
+		editFreeLayout: async (id, command) => (await layoutEdits.get(id)?.(command)) ?? false,
 		createNodeWidget: async (surface, target, preview) =>
 			(await actions.get(surface)?.createNodeWidget(target, preview)) ?? false,
 		readScroll: (uuid) => scrolls.get(uuid),

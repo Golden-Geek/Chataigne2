@@ -18,6 +18,7 @@
 		DashboardPersistedPageViewChangeHandler,
 		FreeLayoutResizeZone,
 		SurfaceDropPreview,
+		FreeLayoutEdit,
 		FreeLayoutRect
 	} from './canvas/contracts';
 	import { freeLayoutResizeZones } from './canvas/geometry';
@@ -334,6 +335,12 @@
 	const beginFreeLayoutMove = freeLayoutState.beginFreeLayoutMove;
 	const beginFreeLayoutResize = freeLayoutState.beginFreeLayoutResize;
 	const resetFreeDropTarget = freeLayoutState.resetFreeDropTarget;
+	$effect(() => {
+		if (isPage) return;
+		return dashboardView?.registerFreeLayout(liveNode.node_id, (command) =>
+			freeLayoutState.edit(command, resolveTransformNodes)
+		);
+	});
 	const orderedLayoutState = createDashboardOrderedLayout({
 		get graph() {
 			return graph;
@@ -406,6 +413,8 @@
 	export const activateWidgetAt = (surface: number, clientX: number, clientY: number) =>
 		dashboardView?.activateAt(surface, clientX, clientY) ?? null;
 	export const browseSurface = (surface: number) => dashboardView?.browse(surface) ?? false;
+	export const editFreeWidgetLayout = async (id: NodeId, command: FreeLayoutEdit) =>
+		(await dashboardView?.editFreeLayout(id, command)) ?? false;
 	export const createWidgetOnSurface = async (
 		surface: NodeId,
 		target: NodeId,

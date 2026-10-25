@@ -5,8 +5,8 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-25 on `main`, based on delivered `5fd843cb` plus the P11 dashboard
-creation-lifetime milestone below. **P11 is in progress; two of six fixed checkpoints are closed (33% rounded).**
+Last reconciled: 2026-10-25 on `main`, based on delivered `b5fea7a6` plus the P11 free-layout
+edit-ownership milestone below. **P11 is in progress; two of six fixed checkpoints are closed (33% rounded).**
 **P10 is locally complete: three of three fixed checkpoints (100%).**
 **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
@@ -198,7 +198,7 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
 | ---------- | ------ | -------------------------------- |
 | Manager/catalog windowing | Complete locally | Variable-height manager/picker/outliner and flat/nested catalog menus pass through 100k items with bounded mounting, identity and focus. [Tree evidence](p11-tree-windowing.md), [catalog closure](p11-catalog-windowing.md). |
 | Historical log windowing | Complete locally | Variable-height history, filters, follow, bounded native selection, focus and snapshot publication pass through 100k records. [Qualification](p11-log-windowing.md). |
-| Dashboard viewport awareness | In progress | Sparse/dense and shared hierarchy budgets pass through 100k authored nodes. Framing, ranges/focus, geometry, scroll, six-layout move presentation and pending creation are verified. Active move/resize teardown and timing remain. [Creation evidence](p11-dashboard-creation.md). |
+| Dashboard viewport awareness | In progress | Sparse/dense and shared hierarchy budgets pass through 100k authored nodes. Framing, ranges/focus, geometry, scroll, move/creation presentation and free-operation interruption cases are verified. Confirmed/cross-widget work, ordered/composed teardown and timing remain. [Free-operation evidence](p11-dashboard-free-gestures.md). |
 | Tree focus and keyboard navigation | Not started | Qualify expansion/navigation and stable focus across virtualized changes in all owning trees. |
 | Graph keyboard operations | Not started | Provide and qualify keyboard movement and connection creation through shared operations. |
 | Complete composed workflows | Not started | Qualify discovery, selection and editing across all required composed panels and large batches. Native usability retains P17. |
@@ -209,7 +209,9 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
   outliner, catalogs and historical logs are verified through 100k entries. Continue dashboard
   viewport awareness, then tree/graph keyboard operations and composed qualification.
   Sparse and dense dashboard presentation are verified through 100k authored nodes. Continue
-  active move/resize teardown cases, then the fixed action/timing matrix. Pending creation now
+  confirmed free-operation work across view lifetimes, independent cross-widget history admission,
+  ordered/composed move/resize teardown and then the fixed action/timing matrix. Twenty mounted
+  free-operation interruption cases and 19 queue/session/path unit cases now pass. Pending creation
   passes 55 cases across six layouts, including overlapping outcomes, mode/source/destination
   retirement, acknowledged controls, retained budgets and offscreen disposal.
   Move presentation now passes 55 cases across six layouts, including source/path/layout/identity
@@ -10361,3 +10363,44 @@ teardown: mode/layout/identity/path changes, queued/in-flight commits and edit-s
 Follow with the fixed three-warmup / 31-sample action matrix, including exact dense picking.
 Four fixed P11 checkpoints remain open; P03 has zero packages left. Physical input/usability
 retains P17 and full-product throughput retains P16. Keep the full P00-P18 goal active.
+
+### P11 free-layout operation commit/session ownership
+
+Previous goal turn: **progress**, delivering `b5fea7a6` on `main`. This turn resumed its clean
+checkout and advanced active free move/resize. Each operation now owns a coalesced commit queue,
+indexed acknowledged baseline and source/path fence. Unsent tails stop on cancellation or
+mode/layout/identity/path retirement; admitted writes finish before their owned history closes.
+Native input adapts to explicit presentation commands. Existing group selection is preserved.
+Generic UI edit-session ownership now waits for a delayed begin before ending and checks both
+host identity and history epoch. See the [free-operation report](p11-dashboard-free-gestures.md),
+[full evidence](evidence/p11-dashboard-free-gestures-2026-10-25.json) and
+[two failed probes](evidence/p11-dashboard-free-gesture-failures-2026-10-25.json).
+
+The final production browser run passes **199 correctness groups and five sparse tiers**, with
+**97 current source fingerprints**. Twenty new mounted free move/resize groups use actual
+component operations, the real session pipeline and controlled begin/write receipts. They verify
+visible geometry, late begin/mode exit, retirement during an in-flight prefix, cancellation before
+a frame, final coalescing and two-widget selection. Snapshot replacement resets history and
+therefore expects no end request against the replacement epoch; other owned cases require exactly
+one begin/end. The five-second correctness limit and prior scale/geometry gates are unchanged.
+No native input, operation-latency distribution or complete teardown qualification is claimed.
+
+Root UI **332**, browser/app checks **0 errors / 0 warnings**, owned Prettier/whitespace and both
+Cargo formatters pass. Nineteen new unit cases cover session ordering (six), queues/backpressure
+(eight) and source paths (five). Targeted TypeScript diagnostics for four new unit sources are
+also clean, after fixing a duplicate fixture property and a mock argument type missed by Vitest's
+transpilation. The final locked default build passes in **2m02s** with the current UI bundle reused;
+the preceding idle-guard build rebuilt it in **2m06s**. Executable SHA-256:
+`1c48247d9a3e53db4be8b00e71839e09299fd9e6907189056cdc2f1b8e140de8`.
+Inventory is 2,142 source files / 27 oversized; DashboardCanvas is 960 lines and the free controller
+512. All touched runtime/test sources remain below 1,000 lines without a new exception.
+
+**P11 remains 2/6 checkpoints (33% rounded); whole-plan scope coverage remains 57% (57.41% exact).**
+Commit/push this verified milestone on `main`. Next reproduce and repair confirmed final work
+across disposal/remounting, optimistic geometry and independent cross-widget history admission;
+the current queue still follows its controller lifetime. Put durable work/admission ownership
+at the session boundary rather than extending view retention to conceal it. Then qualify ordered
+move/constrained resize (including its backend enable/placement boundary), active containers,
+varied units and composed lifetimes, followed by the fixed three-warmup / 31-sample action matrix
+including exact dense picking. Four fixed P11 checkpoints remain open; P03 has zero packages left.
+Physical input/usability retains P17 and product throughput P16. Keep the full P00-P18 goal active.

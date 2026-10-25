@@ -141,5 +141,21 @@ timers. An older rejection cannot clear a newer pending creation. Accepted backe
 its authoritative outcome even if its former view has disappeared. The
 [creation report](../progress/p11-dashboard-creation.md) distinguishes these presentation checks
 from native gesture and transaction qualification.
+
+Free layout now separates native pointer adaptation from explicit move/resize/update/finish
+operations. `free-layout-committer.ts` owns each gesture's latest unsent sample, admitted writes
+and acknowledged delta baseline. It batches typed parameter edits, waits for admitted work before
+closing history, and discards unsent work on cancellation. A final reparent action can run inside
+the same edit session. Baseline lookup is indexed by node identity rather than repeated scans.
+`gesture-fence.ts` captures targets, parameter identities and unique ancestry. Later validation
+uses persistent node/parent map deltas; layout and insertion dependencies retire stale operations.
+
+`store/session/edit-session.ts` serializes one owner's begin/end acknowledgements, including an
+end requested while begin is pending. Host identity and history epoch guard closure. The public
+`createUiEditSession` adapter sends to the captured host. It continues to leave foreign active
+groups alone. The mounted free-operation checks do not close confirmed-work handoff across view
+lifetimes, independent cross-widget history admission or ordered-layout teardown. Those cases
+remain required before the dashboard checkpoint closes; see the
+[free-operation report](../progress/p11-dashboard-free-gestures.md).
 See the [fixed contract](../progress/p11-workspace-qualification-contract.md) and the historical
 [decomposition comparison](../progress/p11-dashboard-decomposition.md).

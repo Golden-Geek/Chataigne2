@@ -15,6 +15,8 @@ import type {
 } from '../types';
 import { requestRemoveNodesById } from './node-removal';
 import { appState } from './workbench.svelte';
+import { createEditSession, type UiEditSession } from './session/edit-session';
+export type { UiEditSession } from './session/edit-session';
 
 let intentSequence = 0;
 
@@ -22,12 +24,6 @@ const nextIntentId = (prefix: string): string => {
 	intentSequence += 1;
 	return `${prefix}-${Date.now().toString(36)}-${intentSequence.toString(36)}`;
 };
-
-export interface UiEditSession {
-	readonly active: boolean;
-	begin(): Promise<void>;
-	end(): Promise<void>;
-}
 
 export interface UiIntentBatchResult {
 	readonly success: boolean;
@@ -49,15 +45,11 @@ const isStaleEndEditSessionError = (error: unknown, clientEditId: string): boole
 	return message.includes(clientEditId) && message.includes('no session is active');
 };
 
-const sendUiIntent = async (
+const sendUiIntentToSession = async (
+	session: NonNullable<typeof appState.session>,
 	intent: UiEditIntent,
 	options?: SendUiIntentOptions
 ): Promise<boolean> => {
-	const session = appState.session;
-	if (!session) {
-		return false;
-	}
-
 	try {
 		await session.sendIntent(intent);
 		return true;
@@ -67,6 +59,11 @@ const sendUiIntent = async (
 		}
 		return false;
 	}
+};
+
+const sendUiIntent = (intent: UiEditIntent, options?: SendUiIntentOptions): Promise<boolean> => {
+	const session = appState.session;
+	return session ? sendUiIntentToSession(session, intent, options) : Promise.resolve(false);
 };
 
 export const sendUiIntentBatch = async (intents: UiEditIntent[]): Promise<UiIntentBatchResult> => {
@@ -418,56 +415,22 @@ export const sendReloadScript = async (node: NodeId): Promise<boolean> => {
 
 export const createUiEditSession = (label?: string, prefix = 'ui-edit'): UiEditSession => {
 	const clientEditId = nextIntentId(prefix);
-	let active = false;
-	let activationEpoch: number | null = null;
-
-	return {
-		get active(): boolean {
-			return active;
-		},
-		async begin(): Promise<void> {
-			if (active) {
-				return;
-			}
-			const session = appState.session;
-			if (!session || session.hasActiveEditSession) {
-				return;
-			}
-			const ok = await sendUiIntent({
+	return createEditSession({
+		host: () => appState.session,
+		begin: (session) =>
+			sendUiIntentToSession(session, {
 				kind: 'beginEdit',
 				client_edit_id: clientEditId,
 				label
-			});
-			if (ok) {
-				active = true;
-				activationEpoch = session.editSessionEpoch;
-			}
-		},
-		async end(): Promise<void> {
-			if (!active) {
-				return;
-			}
-			const session = appState.session;
-			if (
-				!session?.hasActiveEditSession ||
-				activationEpoch === null ||
-				session.editSessionEpoch !== activationEpoch
-			) {
-				active = false;
-				activationEpoch = null;
-				return;
-			}
-			active = false;
-			activationEpoch = null;
-			await sendUiIntent(
+			}),
+		end: (session) =>
+			sendUiIntentToSession(
+				session,
 				{
 					kind: 'endEdit',
 					client_edit_id: clientEditId
 				},
-				{
-					ignoreError: (error) => isStaleEndEditSessionError(error, clientEditId)
-				}
-			);
-		}
-	};
+				{ ignoreError: (error) => isStaleEndEditSessionError(error, clientEditId) }
+			)
+	});
 };

@@ -13,6 +13,8 @@
 	import { dashboardForest } from './dashboard-forest';
 	import { dashboardHierarchy } from './dashboard-hierarchy';
 	import DashboardRegistryContent from './DashboardRegistryContent.svelte';
+	import { createDashboardEditIO } from './dashboard-edit-io';
+	import type { FreeLayoutEdit } from '../../../components/panels/dashboard/canvas/contracts';
 	import { createDashboardInteractionChrome } from '../../../components/panels/dashboard/canvas/interaction-chrome.svelte';
 	import {
 		getDashboardPlacement,
@@ -43,6 +45,36 @@
 	let presentationBudget = $state(512);
 	let canvas = $state<ReturnType<typeof DashboardCanvas>>();
 	let sequence = 0;
+	const editIO = createDashboardEditIO(fixture, () => ({ tick: ++sequence, micro: 0, seq: 0 }));
+	export function configureEdits(options: Parameters<typeof editIO.configure>[0] = {}) {
+		editIO.configure(options);
+	}
+	export function editState() {
+		return editIO.read();
+	}
+	export async function releaseEdits() {
+		editIO.release();
+		await settle();
+	}
+	export async function layoutEdit(index: number, command: FreeLayoutEdit) {
+		const handled = await canvas!.editFreeWidgetLayout(data!.ids[index], command);
+		await settle();
+		return handled;
+	}
+	export async function layoutEdits(index: number, commands: FreeLayoutEdit[]) {
+		const handled: boolean[] = [];
+		for (const command of commands)
+			handled.push(await canvas!.editFreeWidgetLayout(data!.ids[index], command));
+		await settle();
+		return handled;
+	}
+	export function paramValue(index: number, key: string) {
+		const graph = fixture.session.graph.state,
+			owner = graph.nodesById.get(data!.ids[index])!;
+		const field = getDirectParamNode(graph, owner, key);
+		if (field?.data.kind !== 'parameter') throw new Error('Missing fixture field');
+		return field.data.param.value;
+	}
 	type IntentReply = Awaited<ReturnType<UiClient['sendIntent']>>;
 	const creations: {
 		parent: number;
@@ -53,6 +85,8 @@
 	}[] = [];
 	const waitingCreations: number[] = [];
 	fixture.handleIntent((intent) => {
+		const edited = editIO.handle(intent);
+		if (edited) return edited;
 		if (intent.kind !== 'createDashboardNodeWidget') return null;
 		return new Promise<IntentReply>((resolve) => {
 			const request = waitingCreations.shift();
