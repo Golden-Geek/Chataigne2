@@ -1,0 +1,187 @@
+{
+	"version": "1.0",
+	"root": {
+		"uuid": "b84c73c4-bea4-4029-883c-77061510f768",
+		"type": "folder",
+		"meta": {
+			"decl_id": "root",
+			"short_name": "root",
+			"enabled": true,
+			"can_be_disabled": false,
+			"label": "Root",
+			"tags": [
+				"chataigne.condition_gate.semantics.v2",
+				"chataigne.output_bindings.authoring.v2",
+				"chataigne.mapping.concrete_outputs.v1"
+			]
+		},
+		"children": [
+			{
+				"uuid": "aeecff94-47c4-4450-975e-3b12c528dcf6",
+				"type": "state_machine_manager",
+				"meta": {
+					"user_permissions": {
+						"can_edit_name": true,
+						"can_edit_constraints": true,
+						"can_edit_tags": true,
+						"can_edit_color": true
+					}
+				},
+				"children": [
+					{
+						"uuid": "b113c8db-f01b-49fa-ba24-8ffb84ff1136",
+						"type": "state",
+						"user_role": "itemRoot",
+						"meta": {
+							"label": "First",
+							"presentation": {
+								"default_color": {
+									"r": 0.28,
+									"g": 0.56,
+									"b": 0.92,
+									"a": 1
+								},
+								"collapsed": true
+							}
+						},
+						"children": [
+							{
+								"uuid": "ee7c00b8-4c8e-401a-ac6c-f344b00793a4",
+								"type": "vec2",
+								"meta": {
+									"decl_id": "position"
+								},
+								"data": {
+									"value": {
+										"Vec2": [2.25, 3]
+									}
+								}
+							},
+							{
+								"uuid": "cda9e292-8ded-401a-9570-e8ed32451bbe",
+								"type": "state_processor_manager",
+								"meta": {
+									"decl_id": "processors",
+									"user_permissions": {
+										"can_edit_name": true,
+										"can_edit_constraints": true,
+										"can_edit_tags": true,
+										"can_edit_color": true
+									},
+									"presentation": {
+										"show_in_nested_inspector": false
+									}
+								}
+							},
+							{
+								"uuid": "e57c0668-8328-4e74-bc2d-487b17c0f117",
+								"type": "state_transition_manager",
+								"meta": {
+									"decl_id": "transitions",
+									"user_permissions": {
+										"can_edit_name": true,
+										"can_edit_constraints": true,
+										"can_edit_tags": true,
+										"can_edit_color": true
+									}
+								},
+								"children": [
+									{
+										"uuid": "83ac7208-4351-4ece-a188-f782f1629412",
+										"type": "state_transition",
+										"user_role": "itemRoot",
+										"children": [
+											{
+												"uuid": "181ed02b-3679-4d27-86cc-dcd3fa3ea13f",
+												"type": "reference",
+												"meta": {
+													"decl_id": "target",
+													"declared_description_key": null,
+													"declared_description": null
+												},
+												"data": {
+													"default_value": {
+														"Reference": {
+															"uuid": "7efed66c-5d99-4658-a773-a6101f2e644b"
+														}
+													},
+													"value": {
+														"Reference": {
+															"cached_name": "Second",
+															"relative_path_from_root": ["stateMachine", "state"],
+															"uuid": "7efed66c-5d99-4658-a773-a6101f2e644b"
+														}
+													}
+												}
+											}
+										]
+									}
+								]
+							}
+						]
+					},
+					{
+						"uuid": "7efed66c-5d99-4658-a773-a6101f2e644b",
+						"type": "state",
+						"user_role": "itemRoot",
+						"meta": {
+							"enabled": false,
+							"label": "Second",
+							"presentation": {
+								"default_color": {
+									"r": 0.28,
+									"g": 0.56,
+									"b": 0.92,
+									"a": 1
+								}
+							}
+						},
+						"children": [
+							{
+								"uuid": "dccbf38c-ff40-46b8-9eff-1b867a573f6d",
+								"type": "vec2",
+								"meta": {
+									"decl_id": "position"
+								},
+								"data": {
+									"value": {
+										"Vec2": [26.25, 3]
+									}
+								}
+							},
+							{
+								"uuid": "90aa5084-86a2-4250-9da2-1b1d2c8edef5",
+								"type": "state_processor_manager",
+								"meta": {
+									"decl_id": "processors",
+									"user_permissions": {
+										"can_edit_name": true,
+										"can_edit_constraints": true,
+										"can_edit_tags": true,
+										"can_edit_color": true
+									},
+									"presentation": {
+										"show_in_nested_inspector": false
+									}
+								}
+							},
+							{
+								"uuid": "b722f825-6c73-4740-9f02-436cfbff114f",
+								"type": "state_transition_manager",
+								"meta": {
+									"decl_id": "transitions",
+									"user_permissions": {
+										"can_edit_name": true,
+										"can_edit_constraints": true,
+										"can_edit_tags": true,
+										"can_edit_color": true
+									}
+								}
+							}
+						]
+					}
+				]
+			}
+		]
+	}
+}

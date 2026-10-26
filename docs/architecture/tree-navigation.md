@@ -10,6 +10,11 @@ the shared manager; the processor manager no longer maintains a separate recursi
 `VersionedNodeMap` changes. This avoids repeated persistent-trie traversal for unchanged siblings.
 It releases its cache when its owning graph/manager/picker disappears. Ordinary mutable maps
 are read directly rather than cached across calls.
+The underlying persistent node index creates hash branches only when keys share a prefix, with
+at most seven levels. Leaves compare the full node identity, including its generation and hash
+collisions. Forking retires the original ownership token so writes to either map copy shared paths.
+Changed-key traversal handles a leaf becoming a branch without reporting its unchanged entries.
+This preserves version isolation and proportional edits without a complete index copy or lookup cache.
 Openness edits reproject changed branches and retain unchanged row objects. Backend metadata
 acknowledgements that do not change visibility retain the complete row array. Structural edits,
 search and policy changes use a full projection. Child/visibility policies are pure node predicates;

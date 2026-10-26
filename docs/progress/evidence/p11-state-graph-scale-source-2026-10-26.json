@@ -1,0 +1,339 @@
+{
+  "baseCommit": "2f3b4dde8376302272f579a49b58419a5335b03a",
+  "branch": "main",
+  "machine": {
+    "os": "Windows 11 Home",
+    "release": "10.0.26300",
+    "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+    "logicalProcessors": 24,
+    "memoryGiB": 31.43492889404297,
+    "node": "v26.5.0",
+    "npm": "11.17.0",
+    "rustc": "1.97.0 (2d8144b78 2026-07-07)",
+    "cargo": "1.97.0 (c980f4866 2026-06-30)"
+  },
+  "source": [
+    {
+      "path": "Cargo.lock",
+      "sha256NormalizedLf": "96289a0898a351fcf1b4b729f30270fa9109906382bef9b4444436fb046c64a7",
+      "lines": 9185
+    },
+    {
+      "path": "Cargo.toml",
+      "sha256NormalizedLf": "750d94aca66dd7b05f983c8994e0635f4dfdfcc0938470e72eed3667d53e8c14",
+      "lines": 140
+    },
+    {
+      "path": "apps/chataigne/Cargo.toml",
+      "sha256NormalizedLf": "2b106ba324e7efe7023d2021d35bc79b6043947f338737184d717b9e9590d070",
+      "lines": 100
+    },
+    {
+      "path": "apps/chataigne/ui/package.json",
+      "sha256NormalizedLf": "b8f6f1c9a7301f834685f7ec58024e9c367a68d35a9e3b6c27ed63ca5d168879",
+      "lines": 63
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/state_machine/components/StateMachinePanel.svelte",
+      "sha256NormalizedLf": "19f65606a2fcdb81f20a2563d633efcdc6a20e8ee9ef56962efa933a9010a25c",
+      "lines": 763
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/tests/webSocketBatchScheduling.test.ts",
+      "sha256NormalizedLf": "0b518bd4905b087c16be698424da053dcb08821fdb3fd7c02065cc997b7590f8",
+      "lines": 932
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/app-graph-scale/fixtures/formula.json",
+      "sha256NormalizedLf": "d83b7878d4f280d5904e2d4b090ebd3b003a58ca97127497169718dc3c2b3d5f",
+      "lines": 1417
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/app-graph-scale/fixtures/spatializer.json",
+      "sha256NormalizedLf": "f43133f199d425853576615f0674617e1724153c36e6589e5a926e9fd0385b7c",
+      "lines": 339
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/app-graph-scale/fixtures/state.json",
+      "sha256NormalizedLf": "895a15186f76ceab0ef1aeb166e1fe77c8442ae99f313dfbafa74f843fb0d0e4",
+      "lines": 187
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/app-graph-scale/measurement.ts",
+      "sha256NormalizedLf": "e8365e4ed037b17940145a9e69875da67f440b6bcb146da37c3d6e5eab91fa02",
+      "lines": 263
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/app-graph-scale/projects.mjs",
+      "sha256NormalizedLf": "154cbea71c6337f12cae3aa35e47accfe65d1e5fe9d31e0aecf08fd316b51ec8",
+      "lines": 168
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/app-graph-scale/wire.mjs",
+      "sha256NormalizedLf": "5a4dfc613c0037c7025557cd185cc9ed23a2122808f5928473eb8549763c2704",
+      "lines": 36
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/native-workbench.mjs",
+      "sha256NormalizedLf": "b1ed8e8f4a3f9406540350aa0bfaff05b35e62ee6d202453febe518d313c8cfd",
+      "lines": 143
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/state-graph-fixture/StateGraph.svelte",
+      "sha256NormalizedLf": "86067baaae532fcd441002ab07174b587bd35c5a5bb2cbec4a83f23578be0699",
+      "lines": 177
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/state-graph-scale-native.mjs",
+      "sha256NormalizedLf": "ef74af84b13f2a631e60d4964f11bd9cd486109326c70fc7b83a6df7c304d6ca",
+      "lines": 159
+    },
+    {
+      "path": "package-lock.json",
+      "sha256NormalizedLf": "1a515eb16812648c25cab5914c8ec2562aeeab8bf6f5a84921bd20d659e5ec28",
+      "lines": 2378
+    },
+    {
+      "path": "packages/golden-graph-ui/components/GraphCanvas.svelte",
+      "sha256NormalizedLf": "6d7725f4f631509cc14a21b2e2754bbf139f6d0e5a5db7664af6c48efc1fcb3f",
+      "lines": 676
+    },
+    {
+      "path": "packages/golden-graph-ui/package.json",
+      "sha256NormalizedLf": "730a354b1ca5b7cefe80c8c8e5180c9e6a812b290e449b5b40ca8cd58ab34e6a",
+      "lines": 37
+    },
+    {
+      "path": "packages/golden-ui/package.json",
+      "sha256NormalizedLf": "00e1a86c582888e63d927f2bf59146c56061a9858090b54ce84f0836b0fb450e",
+      "lines": 58
+    },
+    {
+      "path": "packages/golden-ui/store/graph-index.ts",
+      "sha256NormalizedLf": "4033237053f600df14a5f6c7a44ac48f5fc68f1fa6790b5114dbde000a432bbb",
+      "lines": 305
+    },
+    {
+      "path": "packages/golden-ui/store/tests/graph-index-reads.test.ts",
+      "sha256NormalizedLf": "eb1f29b321e1b8bf2b0f17d0c71bdbc58869fde45829a165038daca7e81f12a8",
+      "lines": 94
+    }
+  ],
+  "build": {
+    "command": "cargo build --locked",
+    "cargoIncremental": "0",
+    "gcSkipUiBuild": "unset",
+    "frontend": "rebuilt (2m24s); reused on confirming build (2m11s)",
+    "exitCode": 0,
+    "wrapper": "First PowerShell stderr redirection returned 1 despite Cargo Finished; confirmation explicitly returned LASTEXITCODE 0",
+    "binarySha256": "4f2af35bfa0e16379ca997d455d6c9f8ccadcdd4c5de8eacd63cfc156fc2527f"
+  },
+  "checks": {
+    "uiTests": {
+      "audio": 27,
+      "graph": 58,
+      "golden": 199,
+      "app": 162,
+      "total": 446,
+      "exitCode": 0
+    },
+    "svelteApp": {
+      "errors": 0,
+      "warnings": 0
+    },
+    "svelteGraphFixtures": {
+      "errors": 0,
+      "warnings": 0
+    },
+    "cargoFmtRoot": 0,
+    "cargoFmtGoldenCore": 0,
+    "priorSuiteFailure": {
+      "case": "600-node transaction",
+      "allocationSpread": 702,
+      "oldAssertion": "spread <100",
+      "resolution": "retain atomic publication/identical frame counts; bound allocated nodes to (600+1)*8 at every tier"
+    },
+    "rustSource": "unchanged from base; no backend test/Clippy rerun claimed"
+  },
+  "allocationComparison": [
+    {
+      "keys": 1000,
+      "before": 6655,
+      "after": 1311,
+      "editCopiesBefore": 9,
+      "editCopiesAfter": 4
+    },
+    {
+      "keys": 10000,
+      "before": 59666,
+      "after": 12316,
+      "editCopiesBefore": 9,
+      "editCopiesAfter": 4
+    },
+    {
+      "keys": 50000,
+      "before": 275372,
+      "after": 66941,
+      "editCopiesBefore": 9,
+      "editCopiesAfter": 5
+    },
+    {
+      "keys": 100000,
+      "before": 527442,
+      "after": 132195,
+      "editCopiesBefore": 9,
+      "editCopiesAfter": 5
+    }
+  ],
+  "profile": {
+    "path": "target/qualification/p11-state-scale-7b186bea-54ad-456e-b99c-4f52122c9ff2/50000-connection.cpuprofile",
+    "sha256": "a06c815fc3c234c80d7574e6afb5af894e8a1addc39d60e4f96173cae4269a64",
+    "sampledMs": 77041.68699999907,
+    "idleMs": 52164.75099999956,
+    "activeMs": 24876.935999999514,
+    "mappedGetInclusiveMs": 18085.984,
+    "mapping": "Original source map inspected during diagnosis: graph-index.ts get line 71",
+    "retention": "Raw profile remains in target; later diagnostic runs retain maps beside profiles"
+  },
+  "remaining": {
+    "p11": "4/6 (67%)",
+    "wholePlan": "59%",
+    "graph": ["Formula actual-app scale", "Spatializer actual-app scale"],
+    "composed": true,
+    "bulkStateNormalization": "P13/P16",
+    "physicalNativeUsability": "P17"
+  },
+  "qualification": {
+    "binarySha256": "4f2af35bfa0e16379ca997d455d6c9f8ccadcdd4c5de8eacd63cfc156fc2527f",
+    "combinations": 20,
+    "retainedSamples": 620,
+    "warmups": 60,
+    "completeTiers": true,
+    "completeActions": true,
+    "diagnosticTracing": false,
+    "cpuProfiling": false,
+    "table": [
+      {
+        "tier": 1000,
+        "items": 124,
+        "feedback": 11,
+        "completion": 34.899999998509884,
+        "stall": 8.400000000000091,
+        "peakNodes": 3
+      },
+      {
+        "tier": 10000,
+        "items": 1249,
+        "feedback": 20.899999998509884,
+        "completion": 196,
+        "stall": 16.80000000000291,
+        "peakNodes": 8
+      },
+      {
+        "tier": 20000,
+        "items": 2499,
+        "feedback": 38.5,
+        "completion": 479.19999999925494,
+        "stall": 46,
+        "peakNodes": 8
+      },
+      {
+        "tier": 50000,
+        "items": 6249,
+        "feedback": 70,
+        "completion": 1304.0999999977648,
+        "stall": 141.79999999998836,
+        "peakNodes": 8
+      },
+      {
+        "tier": 100000,
+        "items": 12499,
+        "feedback": 164.30000000074506,
+        "completion": 2799.900000002235,
+        "stall": 304,
+        "peakNodes": 8
+      }
+    ],
+    "sourceSetups": [
+      {
+        "kind": "source-ready",
+        "label": "calibration-8",
+        "graphItems": 8,
+        "treeNodes": 72,
+        "activeStates": 1,
+        "serializedRecords": 48,
+        "setupMs": 64.53729999999996,
+        "sha256": "1e29c194215de1c4fae70fccd841fbc42b871f226e0a7e6b25c18e0a4965fd42"
+      },
+      {
+        "kind": "source-ready",
+        "label": "calibration-16",
+        "graphItems": 16,
+        "treeNodes": 136,
+        "activeStates": 1,
+        "serializedRecords": 96,
+        "setupMs": 104.3424,
+        "sha256": "c238d972bb4e98e02cb6e8029211ee90428ba1920e63127ca539c6cb245ae4ca"
+      },
+      {
+        "kind": "source-ready",
+        "label": "state-1000",
+        "graphItems": 124,
+        "treeNodes": 1000,
+        "activeStates": 1,
+        "serializedRecords": 744,
+        "setupMs": 117.67070000000012,
+        "sha256": "1e20a335fac3d723a776630c040d13b7dc6716ac07046c44074031d7a459d7ad"
+      },
+      {
+        "kind": "source-ready",
+        "label": "state-10000",
+        "graphItems": 1249,
+        "treeNodes": 10000,
+        "activeStates": 1,
+        "serializedRecords": 7494,
+        "setupMs": 883.0339000000004,
+        "sha256": "fd8c958c3fa0db97d543b661ad3dbfcea9f521f68e6ae28fe4e06e661af2084c"
+      },
+      {
+        "kind": "source-ready",
+        "label": "state-20000",
+        "graphItems": 2499,
+        "treeNodes": 20000,
+        "activeStates": 1,
+        "serializedRecords": 14994,
+        "setupMs": 1926.7983999999997,
+        "sha256": "6166c9b6a6a89bb9c444f8654eaa9798bce4ea00c05bfd9d86c7720c0bbda4e0"
+      },
+      {
+        "kind": "source-ready",
+        "label": "state-50000",
+        "graphItems": 6249,
+        "treeNodes": 50000,
+        "activeStates": 1,
+        "serializedRecords": 37494,
+        "setupMs": 5379.772199999992,
+        "sha256": "08a9ac378c20aa9c8b30ccbeecb3b265654d88a6881cc6e6a824672c307a3489"
+      },
+      {
+        "kind": "source-ready",
+        "label": "state-100000",
+        "graphItems": 12499,
+        "treeNodes": 100000,
+        "activeStates": 1,
+        "serializedRecords": 74994,
+        "setupMs": 12673.416499999992,
+        "sha256": "a48c95984678b37e1d2119254e43659ed676c74d9fecd00c421a40087d6767ff"
+      }
+    ],
+    "nativeRegressionGroups": {
+      "state": 4,
+      "formula": 5,
+      "spatializer": 13
+    },
+    "inventory": {
+      "sources": 2257,
+      "oversized": 25
+    }
+  }
+}

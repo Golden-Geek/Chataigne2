@@ -4,6 +4,7 @@
 	import type { PanelApi, PanelParams, PanelProps, UiNodeDto } from 'golden_ui';
 	import { wholeGraphScope } from 'golden_ui/types';
 	import StateMachinePanel from '../../../src/lib/systems/state_machine/components/StateMachinePanel.svelte';
+	import { createNativeGraphMeasurement } from '../app-graph-scale/measurement';
 	import {
 		STATE_GRAPH_INPUT,
 		STATE_GRAPH_OUTPUT
@@ -52,12 +53,48 @@
 		owner.children
 			.map((id) => session.graph.state.nodesById.get(id))
 			.find((node) => node?.decl_id === declaration);
+	const scaleMeasurement = createNativeGraphMeasurement({
+		reveal: (id, additive) => panel!.revealGraphNode(String(id), additive),
+		find: (query) => panel!.findGraphNodes(query),
+		move: (key) => move(key),
+		startConnection: (id) => startConnection(id),
+		completeConnection: (id) => completeConnection(id),
+		undo: () => history('undo'),
+		position(id) {
+			const owner = session.graph.state.nodesById.get(id);
+			const field = owner ? child(owner, 'position') : null;
+			if (field?.data.kind !== 'parameter' || field.data.param.value.kind !== 'vec2')
+				throw new Error('Missing exact State position');
+			return field.data.param.value.value;
+		},
+		targets(id) {
+			const owner = session.graph.state.nodesById.get(id);
+			const transitions = owner ? child(owner, 'transitions') : null;
+			return (transitions?.children ?? []).flatMap((id) => {
+				const node = session.graph.state.nodesById.get(id);
+				if (node?.node_type !== 'state_transition') return [];
+				const field = child(node, 'target');
+				const target =
+					field?.data.kind === 'parameter' && field.data.param.value.kind === 'reference'
+						? field.data.param.value.uuid
+						: null;
+				return [{ id, uuid: node.uuid, target }];
+			});
+		},
+		uuid: (id) => session.graph.state.nodesById.get(id)!.uuid,
+		work: () => panel?.graphInteractionState()?.work,
+		pending: () => session.editOperations.size + session.userActionPendingCount
+	});
+	export const scaleReady = scaleMeasurement.ready;
+	export const scaleTopology = scaleMeasurement.topology;
+	export const measureScale = scaleMeasurement.run;
 	export const status = () => ({
 		connection: session.status,
 		generation: session.snapshotGeneration,
 		endpoint: panel?.graphInteractionState()?.endpoint,
 		message: panel?.graphInteractionState()?.message,
-		pending: session.editOperations.size
+		pending: session.editOperations.size,
+		treeNodes: session.graph.state.nodesById.size
 	});
 	export const states = () =>
 		[...session.graph.state.nodesById.values()]
@@ -68,6 +105,7 @@
 					id: node.node_id,
 					uuid: node.uuid,
 					label: node.meta.label,
+					enabled: node.meta.enabled,
 					collapsed: node.meta.presentation?.collapsed === true,
 					position: position?.data.kind === 'parameter' ? position.data.param.value : null,
 					readOnly: position?.data.kind === 'parameter' && position.data.param.read_only
@@ -80,6 +118,10 @@
 			.map((node) => ({ id: node.node_id, uuid: node.uuid, target: child(node, 'target')?.data }));
 	export const reveal = (id: number, additive = false) =>
 		panel!.revealGraphNode(String(id), additive);
+	export const find = (query: string) => panel!.findGraphNodes(query);
+	export const load = (path: string) =>
+		session.runEditBarrier(() => session.client.projectLoad(path));
+	export const settle = idle;
 	export async function move(key: string, large = false) {
 		const accepted = panel!.moveGraphSelection(key, large);
 		await idle();

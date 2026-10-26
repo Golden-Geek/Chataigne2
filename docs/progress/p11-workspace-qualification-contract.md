@@ -89,6 +89,16 @@ on the same node must remain independent; endpoint keys must not alias when IDs 
 Retain failures, their repaired regressions and raw samples. No input synthesis is permitted;
 physical keyboard/webview usability remains P17.
 
+### Actual-app graph scale extension
+
+The [native app fixture contract](../../apps/chataigne/ui/tests/browser/app-graph-scale/README.md)
+fixes the real State panel's tree/item dimensions, chain density, four operation families, five
+tiers, mounted bounds, source/DOM/SVG checks, sample counts and unchanged timing gates before its
+first run. Prototype records come from the owning Rust/native cases and load through the actual
+backend. Partial consumer or tier runs do not close graph qualification. Formula and Spatializer
+must retain their own domain counts, admission limits and actual-app checks; composed workflows
+remain a separate checkpoint.
+
 ## Tree keyboard extension
 
 Before keyboard timing, fix the existing five collection tiers and unchanged manager/outliner/picker

@@ -12,6 +12,7 @@ interface TrieBranch<Value> {
 
 interface TrieLeaf<Value> {
 	owner: symbol;
+	hash: number;
 	entries: Map<NodeId, Value>;
 }
 
@@ -37,7 +38,8 @@ const isLeaf = <Value>(node: TrieBranch<Value> | TrieLeaf<Value>): node is TrieL
  *
  * A fork shares the complete trie. Mutations use a fork-local ownership token and clone only the
  * branches on touched hash paths, so work is proportional to changed keys rather than prior map
- * size. Published versions are never mutated again by the graph store.
+ * size. Hash branches exist only where keys share a prefix, rather than allocating seven levels
+ * per key. Full hash collisions share a leaf keyed by complete node identity.
  */
 export class VersionedNodeMap<Value> implements Map<NodeId, Value> {
 	readonly [Symbol.toStringTag] = 'Map';
@@ -65,35 +67,29 @@ export class VersionedNodeMap<Value> implements Map<NodeId, Value> {
 		const fork = new VersionedNodeMap<Value>();
 		fork.#root = this.#root;
 		fork.#size = this.#size;
+		// Both maps must copy shared paths, including when the original is edited after forking.
+		this.#owner = Symbol('graph-index-version');
 		return fork;
 	}
 
 	get(key: NodeId): Value | undefined {
+		return this.#leaf(key)?.entries.get(key);
+	}
+
+	#leaf(key: NodeId): TrieLeaf<Value> | undefined {
 		let branch = this.#root;
 		const hash = hashNodeId(key);
 		for (let level = 0; level < HASH_LEVELS; level += 1) {
 			const child = branch.children.get(trieSlot(hash, level));
-			if (!child || isLeaf(child)) {
-				return undefined;
-			}
+			if (!child) return undefined;
+			if (isLeaf(child)) return child.hash === hash ? child : undefined;
 			branch = child;
 		}
-		const leaf = branch.children.get(hash);
-		return leaf && isLeaf(leaf) ? leaf.entries.get(key) : undefined;
+		throw new Error('graph index trie exceeds hash depth');
 	}
 
 	has(key: NodeId): boolean {
-		let branch = this.#root;
-		const hash = hashNodeId(key);
-		for (let level = 0; level < HASH_LEVELS; level += 1) {
-			const child = branch.children.get(trieSlot(hash, level));
-			if (!child || isLeaf(child)) {
-				return false;
-			}
-			branch = child;
-		}
-		const leaf = branch.children.get(hash);
-		return Boolean(leaf && isLeaf(leaf) && leaf.entries.has(key));
+		return this.#leaf(key)?.entries.has(key) ?? false;
 	}
 
 	set(key: NodeId, value: Value): this {
@@ -103,38 +99,36 @@ export class VersionedNodeMap<Value> implements Map<NodeId, Value> {
 		const existed = this.has(key);
 		const hash = hashNodeId(key);
 		this.#root = this.#ownedBranch(this.#root);
-		let branch = this.#root;
-		for (let level = 0; level < HASH_LEVELS; level += 1) {
-			const slot = trieSlot(hash, level);
-			const child = branch.children.get(slot);
-			let next: TrieBranch<Value>;
-			if (!child) {
-				next = { owner: this.#owner, children: new Map() };
-				this.#copiedNodeCount += 1;
-			} else if (isLeaf(child)) {
-				throw new Error('graph index trie shape is invalid');
-			} else {
-				next = this.#ownedBranch(child);
-			}
-			branch.children.set(slot, next);
-			branch = next;
-		}
-		const existingLeaf = branch.children.get(hash);
-		let leaf: TrieLeaf<Value>;
-		if (!existingLeaf) {
-			leaf = { owner: this.#owner, entries: new Map() };
-			this.#copiedNodeCount += 1;
-		} else if (!isLeaf(existingLeaf)) {
-			throw new Error('graph index trie leaf shape is invalid');
-		} else {
-			leaf = this.#ownedLeaf(existingLeaf);
-		}
-		leaf.entries.set(key, value);
-		branch.children.set(hash, leaf);
+		this.#insert(this.#root, key, value, hash, 0);
 		if (!existed) {
 			this.#size += 1;
 		}
 		return this;
+	}
+
+	#insert(branch: TrieBranch<Value>, key: NodeId, value: Value, hash: number, level: number): void {
+		const slot = trieSlot(hash, level);
+		const child = branch.children.get(slot);
+		if (!child) {
+			branch.children.set(slot, { owner: this.#owner, hash, entries: new Map([[key, value]]) });
+			this.#copiedNodeCount += 1;
+			return;
+		}
+		if (isLeaf(child) && child.hash === hash) {
+			const leaf = this.#ownedLeaf(child);
+			leaf.entries.set(key, value);
+			branch.children.set(slot, leaf);
+			return;
+		}
+		if (level + 1 >= HASH_LEVELS) throw new Error('graph index trie exceeds hash depth');
+		let next: TrieBranch<Value>;
+		if (isLeaf(child)) {
+			// Keep a key in a leaf until another hash needs the same prefix.
+			next = { owner: this.#owner, children: new Map([[trieSlot(child.hash, level + 1), child]]) };
+			this.#copiedNodeCount += 1;
+		} else next = this.#ownedBranch(child);
+		branch.children.set(slot, next);
+		this.#insert(next, key, value, hash, level + 1);
 	}
 
 	getOrInsert(key: NodeId, defaultValue: Value): Value {
@@ -165,32 +159,28 @@ export class VersionedNodeMap<Value> implements Map<NodeId, Value> {
 		for (let level = 0; level < HASH_LEVELS; level += 1) {
 			const slot = trieSlot(hash, level);
 			const child = branch.children.get(slot);
-			if (!child || isLeaf(child)) {
+			if (!child) {
 				throw new Error('graph index trie path disappeared during delete');
+			}
+			if (isLeaf(child)) {
+				const leaf = this.#ownedLeaf(child);
+				leaf.entries.delete(key);
+				if (leaf.entries.size) branch.children.set(slot, leaf);
+				else branch.children.delete(slot);
+				break;
 			}
 			const next = this.#ownedBranch(child);
 			branch.children.set(slot, next);
 			path.push({ branch, slot });
 			branch = next;
 		}
-		const existingLeaf = branch.children.get(hash);
-		if (!existingLeaf || !isLeaf(existingLeaf)) {
-			throw new Error('graph index trie leaf disappeared during delete');
-		}
-		const leaf = this.#ownedLeaf(existingLeaf);
-		leaf.entries.delete(key);
-		if (leaf.entries.size > 0) {
-			branch.children.set(hash, leaf);
-		} else {
-			branch.children.delete(hash);
-			for (let index = path.length - 1; index >= 0; index -= 1) {
-				const entry = path[index];
-				if (!entry || branch.children.size > 0) {
-					break;
-				}
-				entry.branch.children.delete(entry.slot);
-				branch = entry.branch;
+		for (let index = path.length - 1; index >= 0; index -= 1) {
+			const entry = path[index];
+			if (!entry || branch.children.size > 0) {
+				break;
 			}
+			entry.branch.children.delete(entry.slot);
+			branch = entry.branch;
 		}
 		this.#size -= 1;
 		return true;
@@ -251,13 +241,21 @@ export class VersionedNodeMap<Value> implements Map<NodeId, Value> {
 		): void => {
 			if (before === after) return;
 			if ((before && isLeaf(before)) || (after && isLeaf(after))) {
-				if ((before && !isLeaf(before)) || (after && !isLeaf(after)))
-					throw new Error('graph index trie versions have incompatible shapes');
-				const keys = new Set([...(before?.entries.keys() ?? []), ...(after?.entries.keys() ?? [])]);
+				const oldEntries = before
+					? isLeaf(before)
+						? before.entries
+						: new Map(this.#walk(before))
+					: new Map<NodeId, Value>();
+				const entries = after
+					? isLeaf(after)
+						? after.entries
+						: new Map(this.#walk(after))
+					: new Map<NodeId, Value>();
+				const keys = new Set([...oldEntries.keys(), ...entries.keys()]);
 				for (const key of keys) {
-					const oldValue = before?.entries.get(key);
-					const value = after?.entries.get(key);
-					if (before?.entries.has(key) !== after?.entries.has(key) || !Object.is(oldValue, value))
+					const oldValue = oldEntries.get(key);
+					const value = entries.get(key);
+					if (oldEntries.has(key) !== entries.has(key) || !Object.is(oldValue, value))
 						visit(key, value, oldValue);
 				}
 				return;
@@ -286,6 +284,7 @@ export class VersionedNodeMap<Value> implements Map<NodeId, Value> {
 		this.#copiedNodeCount += 1;
 		return {
 			owner: this.#owner,
+			hash: leaf.hash,
 			entries: new Map(leaf.entries)
 		};
 	}

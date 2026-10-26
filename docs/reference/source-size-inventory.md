@@ -7,8 +7,10 @@ extraction notes and September counts are [archived](../archive/2026-10-18/progr
 
 ## Scan and policy
 
-Refreshed 2026-10-26 against delivered `47ade912` plus Spatializer authoring owners
-on `main`. Scanned **2252 source files**; **25 exceed 1,000 lines**. The Spatializer panel is
+Refreshed 2026-10-26 against delivered `2f3b4dde` plus State graph scale qualification
+on `main`. Scanned **2257 source files**; **25 exceed 1,000 lines**. The compact persistent
+index, adjacent read/isolation tests, native scale driver and focused fixture helpers stay below
+the limit. The Spatializer panel is
 936 lines, composing a graph reader (187), display geometry (607), pointer/keyboard interaction
 owner (422), bounded authoring controller (291), SVG world (534) and shared types/constants.
 The backend operation (257), canonical protocol crate, generated UI DTOs, owning tests and native

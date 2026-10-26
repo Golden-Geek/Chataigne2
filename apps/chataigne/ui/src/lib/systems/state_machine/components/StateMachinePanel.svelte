@@ -170,6 +170,10 @@
 		graphCanvas?.revealNode(id, additive) ?? Promise.resolve(false);
 	export const collapseGraphNode = (id: string) => graphCanvas?.toggleNodeCollapsed(id) ?? false;
 	export const graphInteractionState = () => graphCanvas?.keyboardState();
+	export function findGraphNodes(query: string) {
+		graphCanvas?.showNodeFinder();
+		graphCanvas?.searchNodes(query);
+	}
 
 	const publishProcessorOverviewDemand = (processorIds: string[]): void => {
 		const activeSession = session;

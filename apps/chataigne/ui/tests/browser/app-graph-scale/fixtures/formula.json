@@ -1,0 +1,1417 @@
+{
+	"version": "1.0",
+	"root": {
+		"uuid": "825d943d-26cd-49a1-96b6-408f6456bb3c",
+		"type": "folder",
+		"meta": {
+			"decl_id": "root",
+			"short_name": "root",
+			"enabled": true,
+			"can_be_disabled": false,
+			"label": "root",
+			"declared_description_key": null,
+			"declared_description": null,
+			"user_permissions": {}
+		},
+		"children": [
+			{
+				"uuid": "814f36d0-5a74-4fb5-a0d7-4bfa5104de30",
+				"type": "alchemist_formula",
+				"meta": {
+					"decl_id": "formula",
+					"short_name": "formula",
+					"enabled": true,
+					"can_be_disabled": false,
+					"label": "Formula",
+					"declared_description_key": null,
+					"declared_description": null,
+					"tags": [
+						"chataigne.condition_gate.semantics.v2",
+						"chataigne.output_bindings.authoring.v2"
+					],
+					"user_permissions": {
+						"can_edit_name": true,
+						"can_remove_and_duplicate": true,
+						"can_edit_constraints": true,
+						"can_edit_tags": true,
+						"can_edit_color": true
+					}
+				},
+				"children": [
+					{
+						"uuid": "854fd068-cbd6-4744-9a9e-be04a40c14ba",
+						"type": "bool",
+						"meta": {
+							"decl_id": "is_valid",
+							"short_name": "valid",
+							"enabled": true,
+							"can_be_disabled": false,
+							"label": "Valid",
+							"declared_description_key": null,
+							"declared_description": null,
+							"user_permissions": {},
+							"presentation": {
+								"show_in_inspector_content": false
+							}
+						},
+						"data": {
+							"read_only": true,
+							"value": {
+								"Bool": true
+							}
+						}
+					},
+					{
+						"uuid": "9466672c-be11-4ee7-bf4b-e31197bb1c42",
+						"type": "str",
+						"meta": {
+							"decl_id": "diagnostics_json",
+							"short_name": "diagnostics",
+							"enabled": true,
+							"can_be_disabled": false,
+							"label": "Diagnostics",
+							"declared_description_key": null,
+							"declared_description": null,
+							"user_permissions": {},
+							"presentation": {
+								"show_in_inspector_content": false
+							}
+						},
+						"data": {
+							"default_value": {
+								"Str": "[]"
+							},
+							"read_only": true,
+							"value": {
+								"Str": "[]"
+							}
+						}
+					},
+					{
+						"uuid": "4f6e4a2b-e932-4caa-be19-fca119ffed33",
+						"type": "str",
+						"meta": {
+							"decl_id": "managed_regions_json",
+							"short_name": "managedRegionsMetadata",
+							"enabled": true,
+							"can_be_disabled": false,
+							"label": "Managed Regions Metadata",
+							"declared_description_key": null,
+							"declared_description": null,
+							"user_permissions": {},
+							"presentation": {
+								"show_in_inspector_content": false
+							}
+						},
+						"data": {
+							"persist_read_only_value": true,
+							"read_only": true
+						}
+					},
+					{
+						"uuid": "53f9267e-4d97-4daf-a5df-6fcdccdcd548",
+						"type": "alchemist_properties",
+						"meta": {
+							"decl_id": "properties",
+							"short_name": "properties",
+							"enabled": true,
+							"can_be_disabled": false,
+							"label": "Properties",
+							"declared_description_key": null,
+							"declared_description": null,
+							"user_permissions": {
+								"can_edit_constraints": true,
+								"can_edit_tags": true,
+								"can_edit_color": true
+							}
+						}
+					},
+					{
+						"uuid": "d9de9eb8-c8f3-4cfa-901e-cda5bf40e9b2",
+						"type": "reference",
+						"meta": {
+							"decl_id": "formula_copy_source",
+							"short_name": "formulaCopySource",
+							"enabled": true,
+							"can_be_disabled": false,
+							"label": "Formula Copy Source",
+							"declared_description_key": null,
+							"declared_description": null,
+							"user_permissions": {},
+							"presentation": {
+								"show_in_inspector_content": false
+							}
+						}
+					},
+					{
+						"uuid": "23c92959-10eb-42a2-9459-68d610bbd886",
+						"type": "alchemist_anode",
+						"user_role": "itemRoot",
+						"meta": {
+							"decl_id": "anode",
+							"short_name": "anode",
+							"enabled": true,
+							"can_be_disabled": true,
+							"label": "First",
+							"declared_description_key": null,
+							"declared_description": null,
+							"tags": ["alchemist.anode.type:constant"],
+							"user_permissions": {
+								"can_edit_name": true,
+								"can_remove_and_duplicate": true,
+								"can_edit_constraints": true,
+								"can_edit_tags": true,
+								"can_edit_color": true
+							},
+							"presentation": {
+								"color": {
+									"r": 0.8428,
+									"g": 0.5723199999999999,
+									"b": 0.1372,
+									"a": 1
+								},
+								"default_color": {
+									"r": 0.8428,
+									"g": 0.5723199999999999,
+									"b": 0.1372,
+									"a": 1
+								}
+							}
+						},
+						"children": [
+							{
+								"uuid": "83427235-397e-414b-8079-7e4470aaa7fd",
+								"type": "vec2",
+								"meta": {
+									"decl_id": "position",
+									"short_name": "position",
+									"enabled": true,
+									"can_be_disabled": false,
+									"label": "Position",
+									"declared_description_key": null,
+									"declared_description": null,
+									"user_permissions": {},
+									"presentation": {
+										"show_in_inspector_content": false
+									}
+								},
+								"data": {
+									"value": {
+										"Vec2": [2, 3]
+									}
+								}
+							},
+							{
+								"uuid": "3509b006-9042-4bf6-9c82-31e34ff075e5",
+								"type": "vec2",
+								"meta": {
+									"decl_id": "size",
+									"short_name": "size",
+									"enabled": false,
+									"can_be_disabled": true,
+									"label": "Size",
+									"declared_description_key": null,
+									"declared_description": null,
+									"user_permissions": {},
+									"presentation": {
+										"show_in_inspector_content": false
+									}
+								},
+								"data": {
+									"default_value": {
+										"Vec2": [13, 8]
+									},
+									"value": {
+										"Vec2": [13, 8]
+									}
+								}
+							},
+							{
+								"uuid": "0c7e41f8-ff1b-452e-8c5f-b18f234caee5",
+								"type": "folder",
+								"meta": {
+									"decl_id": "config",
+									"short_name": "config",
+									"enabled": true,
+									"can_be_disabled": false,
+									"label": "Config",
+									"declared_description_key": null,
+									"declared_description": null,
+									"user_permissions": {}
+								},
+								"children": [
+									{
+										"uuid": "154ac940-5abd-4938-939b-3655a468e1f7",
+										"type": "enum",
+										"meta": {
+											"decl_id": "config/value__type",
+											"short_name": "valueType",
+											"enabled": true,
+											"can_be_disabled": false,
+											"label": "Value Type",
+											"declared_description_key": null,
+											"declared_description": null,
+											"user_permissions": {}
+										},
+										"data": {
+											"constraints": {
+												"enum_options": [
+													{
+														"label": "Unit",
+														"value": {
+															"Enum": "unit"
+														},
+														"variant_id": "unit"
+													},
+													{
+														"label": "Boolean",
+														"value": {
+															"Enum": "bool"
+														},
+														"variant_id": "bool"
+													},
+													{
+														"label": "Trigger",
+														"value": {
+															"Enum": "trigger"
+														},
+														"variant_id": "trigger"
+													},
+													{
+														"label": "Integer",
+														"value": {
+															"Enum": "int"
+														},
+														"variant_id": "int"
+													},
+													{
+														"label": "Float",
+														"value": {
+															"Enum": "float"
+														},
+														"variant_id": "float"
+													},
+													{
+														"label": "String",
+														"value": {
+															"Enum": "string"
+														},
+														"variant_id": "string"
+													},
+													{
+														"label": "Vector 2",
+														"value": {
+															"Enum": "vec2"
+														},
+														"variant_id": "vec2"
+													},
+													{
+														"label": "Vector 3",
+														"value": {
+															"Enum": "vec3"
+														},
+														"variant_id": "vec3"
+													},
+													{
+														"label": "Color",
+														"value": {
+															"Enum": "color"
+														},
+														"variant_id": "color"
+													},
+													{
+														"label": "Duration",
+														"value": {
+															"Enum": "duration"
+														},
+														"variant_id": "duration"
+													},
+													{
+														"label": "Value Array",
+														"value": {
+															"Enum": "value_array"
+														},
+														"variant_id": "value_array"
+													},
+													{
+														"label": "Module",
+														"value": {
+															"Enum": "chataigne.module"
+														},
+														"variant_id": "chataigne.module"
+													},
+													{
+														"label": "Module Endpoint",
+														"value": {
+															"Enum": "chataigne.module_endpoint"
+														},
+														"variant_id": "chataigne.module_endpoint"
+													},
+													{
+														"label": "Command Target",
+														"value": {
+															"Enum": "chataigne.command_target"
+														},
+														"variant_id": "chataigne.command_target"
+													},
+													{
+														"label": "Sequence",
+														"value": {
+															"Enum": "chataigne.sequence"
+														},
+														"variant_id": "chataigne.sequence"
+													},
+													{
+														"label": "State",
+														"value": {
+															"Enum": "chataigne.state"
+														},
+														"variant_id": "chataigne.state"
+													},
+													{
+														"label": "Processor",
+														"value": {
+															"Enum": "chataigne.processor"
+														},
+														"variant_id": "chataigne.processor"
+													},
+													{
+														"label": "Dashboard Target",
+														"value": {
+															"Enum": "chataigne.dashboard_target"
+														},
+														"variant_id": "chataigne.dashboard_target"
+													}
+												],
+												"policy": "Reject"
+											},
+											"default_value": {
+												"Enum": "float"
+											},
+											"value": {
+												"Enum": "float"
+											}
+										}
+									},
+									{
+										"uuid": "6d036609-db7c-43b6-8823-1adc23c9e2fc",
+										"type": "float",
+										"meta": {
+											"decl_id": "config/value",
+											"short_name": "value",
+											"enabled": true,
+											"can_be_disabled": false,
+											"label": "Value",
+											"declared_description_key": null,
+											"declared_description": null,
+											"user_permissions": {},
+											"presentation": {
+												"color": {
+													"r": 0.28,
+													"g": 0.74,
+													"b": 0.52,
+													"a": 1
+												}
+											}
+										}
+									},
+									{
+										"uuid": "046c567e-309c-4c02-8e1b-78d7780ed4f6",
+										"type": "bool",
+										"meta": {
+											"decl_id": "config/process_on_input_change_only",
+											"short_name": "processOnInputChangeOnly",
+											"enabled": true,
+											"can_be_disabled": false,
+											"label": "Process on input change only",
+											"declared_description_key": null,
+											"declared_description": null,
+											"user_permissions": {},
+											"presentation": {
+												"color": {
+													"r": 0.86,
+													"g": 0.44,
+													"b": 0.78,
+													"a": 1
+												}
+											}
+										},
+										"data": {
+											"default_value": {
+												"Bool": true
+											},
+											"value": {
+												"Bool": true
+											}
+										}
+									},
+									{
+										"uuid": "a8e266d2-1c28-4995-8cbe-b566a8f81710",
+										"type": "bool",
+										"meta": {
+											"decl_id": "config/send_on_output_change_only",
+											"short_name": "sendOnOutputChangeOnly",
+											"enabled": true,
+											"can_be_disabled": false,
+											"label": "Send on output change only",
+											"declared_description_key": null,
+											"declared_description": null,
+											"user_permissions": {},
+											"presentation": {
+												"color": {
+													"r": 0.86,
+													"g": 0.44,
+													"b": 0.78,
+													"a": 1
+												}
+											}
+										},
+										"data": {
+											"default_value": {
+												"Bool": true
+											},
+											"value": {
+												"Bool": true
+											}
+										}
+									},
+									{
+										"uuid": "5094ba6b-016a-4be9-a8a7-e7741bb8d5c6",
+										"type": "bool",
+										"meta": {
+											"decl_id": "config/log",
+											"short_name": "log",
+											"enabled": true,
+											"can_be_disabled": false,
+											"label": "Log",
+											"declared_description_key": null,
+											"declared_description": null,
+											"user_permissions": {},
+											"presentation": {
+												"color": {
+													"r": 0.86,
+													"g": 0.44,
+													"b": 0.78,
+													"a": 1
+												}
+											}
+										}
+									}
+								]
+							},
+							{
+								"uuid": "40248a2c-2fa5-46ba-9f73-79cf84d6deab",
+								"type": "folder",
+								"meta": {
+									"decl_id": "inputs",
+									"short_name": "inputs",
+									"enabled": true,
+									"can_be_disabled": false,
+									"label": "Inputs",
+									"declared_description_key": null,
+									"declared_description": null,
+									"user_permissions": {}
+								}
+							},
+							{
+								"uuid": "d52717ee-3b3e-4198-aa35-3d40ef35526c",
+								"type": "folder",
+								"meta": {
+									"decl_id": "outputs",
+									"short_name": "outputs",
+									"enabled": true,
+									"can_be_disabled": false,
+									"label": "Outputs",
+									"declared_description_key": null,
+									"declared_description": null,
+									"user_permissions": {}
+								},
+								"children": [
+									{
+										"uuid": "46a35efc-f697-48c1-bb85-ccec0aa0b5ac",
+										"type": "alchemist_output_socket",
+										"meta": {
+											"decl_id": "outputs/value",
+											"short_name": "output",
+											"enabled": true,
+											"can_be_disabled": false,
+											"label": "Value",
+											"declared_description_key": null,
+											"declared_description": null,
+											"user_permissions": {},
+											"presentation": {
+												"default_color": {
+													"r": 0.28,
+													"g": 0.74,
+													"b": 0.52,
+													"a": 1
+												}
+											}
+										},
+										"children": [
+											{
+												"uuid": "6437c784-a473-4426-b813-9144294ea958",
+												"type": "str",
+												"meta": {
+													"decl_id": "outputs/value/socket_id",
+													"short_name": "socketId",
+													"enabled": true,
+													"can_be_disabled": false,
+													"label": "Socket ID",
+													"declared_description_key": null,
+													"declared_description": null,
+													"user_permissions": {},
+													"presentation": {
+														"show_in_inspector_content": false
+													}
+												},
+												"data": {
+													"control_modes_enabled": false,
+													"default_value": {
+														"Str": "value"
+													},
+													"read_only": true,
+													"value": {
+														"Str": "value"
+													}
+												}
+											},
+											{
+												"uuid": "3c1be3a5-1137-41c2-af09-6ae924156299",
+												"type": "str",
+												"meta": {
+													"decl_id": "outputs/value/value_type",
+													"short_name": "valueType",
+													"enabled": true,
+													"can_be_disabled": false,
+													"label": "Value Type",
+													"declared_description_key": null,
+													"declared_description": null,
+													"user_permissions": {},
+													"presentation": {
+														"show_in_inspector_content": false
+													}
+												},
+												"data": {
+													"control_modes_enabled": false,
+													"default_value": {
+														"Str": "float"
+													},
+													"read_only": true,
+													"value": {
+														"Str": "float"
+													}
+												}
+											}
+										]
+									}
+								]
+							}
+						]
+					},
+					{
+						"uuid": "74305232-4490-4a72-a4bf-a309009bae82",
+						"type": "alchemist_anode",
+						"user_role": "itemRoot",
+						"meta": {
+							"decl_id": "anode",
+							"short_name": "anode",
+							"enabled": true,
+							"can_be_disabled": true,
+							"label": "Second",
+							"declared_description_key": null,
+							"declared_description": null,
+							"tags": ["alchemist.anode.type:math"],
+							"user_permissions": {
+								"can_edit_name": true,
+								"can_remove_and_duplicate": true,
+								"can_edit_constraints": true,
+								"can_edit_tags": true,
+								"can_edit_color": true
+							},
+							"presentation": {
+								"color": {
+									"r": 0.2476000000000001,
+									"g": 0.5183466666666666,
+									"b": 0.8724000000000001,
+									"a": 1
+								},
+								"default_color": {
+									"r": 0.2476000000000001,
+									"g": 0.5183466666666666,
+									"b": 0.8724000000000001,
+									"a": 1
+								}
+							}
+						},
+						"children": [
+							{
+								"uuid": "17c476e5-6d6a-4275-acbe-8f054aa702d2",
+								"type": "vec2",
+								"meta": {
+									"decl_id": "position",
+									"short_name": "position",
+									"enabled": true,
+									"can_be_disabled": false,
+									"label": "Position",
+									"declared_description_key": null,
+									"declared_description": null,
+									"user_permissions": {},
+									"presentation": {
+										"show_in_inspector_content": false
+									}
+								},
+								"data": {
+									"value": {
+										"Vec2": [26, 3]
+									}
+								}
+							},
+							{
+								"uuid": "a3722117-9c4b-4128-bd57-274cee72e39b",
+								"type": "vec2",
+								"meta": {
+									"decl_id": "size",
+									"short_name": "size",
+									"enabled": false,
+									"can_be_disabled": true,
+									"label": "Size",
+									"declared_description_key": null,
+									"declared_description": null,
+									"user_permissions": {},
+									"presentation": {
+										"show_in_inspector_content": false
+									}
+								},
+								"data": {
+									"default_value": {
+										"Vec2": [13, 8]
+									},
+									"value": {
+										"Vec2": [13, 8]
+									}
+								}
+							},
+							{
+								"uuid": "2881b0b3-1b8f-4e63-8aff-16266eb0d0fc",
+								"type": "folder",
+								"meta": {
+									"decl_id": "config",
+									"short_name": "config",
+									"enabled": true,
+									"can_be_disabled": false,
+									"label": "Config",
+									"declared_description_key": null,
+									"declared_description": null,
+									"user_permissions": {}
+								},
+								"children": [
+									{
+										"uuid": "f5ec5d97-0b1d-40f6-9795-d51829e5b1b0",
+										"type": "enum",
+										"meta": {
+											"decl_id": "config/application",
+											"short_name": "apply",
+											"enabled": true,
+											"can_be_disabled": false,
+											"label": "Apply",
+											"declared_description_key": null,
+											"declared_description": null,
+											"user_permissions": {},
+											"presentation": {
+												"color": {
+													"r": 0.92,
+													"g": 0.68,
+													"b": 0.26,
+													"a": 1
+												}
+											}
+										},
+										"data": {
+											"constraints": {
+												"enum_options": [
+													{
+														"label": "Apply to each",
+														"value": {
+															"Enum": "each"
+														},
+														"variant_id": "each"
+													},
+													{
+														"label": "Combine inputs",
+														"value": {
+															"Enum": "combine"
+														},
+														"variant_id": "combine"
+													}
+												],
+												"policy": "Reject"
+											},
+											"default_value": {
+												"Enum": "combine"
+											},
+											"value": {
+												"Enum": "combine"
+											}
+										}
+									},
+									{
+										"uuid": "016949bc-2a53-46a4-b0e8-b58a7b140869",
+										"type": "enum",
+										"meta": {
+											"decl_id": "config/operator",
+											"short_name": "operator",
+											"enabled": true,
+											"can_be_disabled": false,
+											"label": "Operator",
+											"declared_description_key": null,
+											"declared_description": null,
+											"user_permissions": {},
+											"presentation": {
+												"color": {
+													"r": 0.92,
+													"g": 0.68,
+													"b": 0.26,
+													"a": 1
+												}
+											}
+										},
+										"data": {
+											"constraints": {
+												"enum_options": [
+													{
+														"label": "Add",
+														"value": {
+															"Enum": "add"
+														},
+														"variant_id": "add"
+													},
+													{
+														"label": "Subtract",
+														"value": {
+															"Enum": "subtract"
+														},
+														"variant_id": "subtract"
+													},
+													{
+														"label": "Multiply",
+														"value": {
+															"Enum": "multiply"
+														},
+														"variant_id": "multiply"
+													},
+													{
+														"label": "Divide",
+														"value": {
+															"Enum": "divide"
+														},
+														"variant_id": "divide"
+													},
+													{
+														"label": "Modulo",
+														"value": {
+															"Enum": "modulo"
+														},
+														"variant_id": "modulo"
+													}
+												],
+												"policy": "Reject"
+											},
+											"default_value": {
+												"Enum": "add"
+											},
+											"value": {
+												"Enum": "add"
+											}
+										}
+									},
+									{
+										"uuid": "ed89cfb4-b862-4e94-9906-aaf9928b8796",
+										"type": "int",
+										"meta": {
+											"decl_id": "config/num_inputs",
+											"short_name": "numInputs",
+											"enabled": false,
+											"can_be_disabled": true,
+											"label": "Num Inputs",
+											"declared_description_key": null,
+											"declared_description": null,
+											"user_permissions": {},
+											"presentation": {
+												"color": {
+													"r": 0.35,
+													"g": 0.62,
+													"b": 0.95,
+													"a": 1
+												}
+											}
+										},
+										"data": {
+											"default_value": {
+												"Int": 2
+											},
+											"value": {
+												"Int": 2
+											}
+										}
+									},
+									{
+										"uuid": "94622b08-53f1-4cb1-a17d-c752bb0786cc",
+										"type": "enum",
+										"meta": {
+											"decl_id": "config/value_type",
+											"short_name": "valueType",
+											"enabled": false,
+											"can_be_disabled": true,
+											"label": "Value Type",
+											"declared_description_key": null,
+											"declared_description": null,
+											"user_permissions": {}
+										},
+										"data": {
+											"constraints": {
+												"enum_options": [
+													{
+														"label": "Integer",
+														"value": {
+															"Enum": "int"
+														},
+														"variant_id": "int"
+													},
+													{
+														"label": "Float",
+														"value": {
+															"Enum": "float"
+														},
+														"variant_id": "float"
+													},
+													{
+														"label": "Vector 2",
+														"value": {
+															"Enum": "vec2"
+														},
+														"variant_id": "vec2"
+													},
+													{
+														"label": "Vector 3",
+														"value": {
+															"Enum": "vec3"
+														},
+														"variant_id": "vec3"
+													},
+													{
+														"label": "Color",
+														"value": {
+															"Enum": "color"
+														},
+														"variant_id": "color"
+													}
+												],
+												"policy": "Reject"
+											},
+											"default_value": {
+												"Enum": "float"
+											},
+											"value": {
+												"Enum": "float"
+											}
+										}
+									},
+									{
+										"uuid": "3384cfad-2876-44cc-b490-6852f90ad685",
+										"type": "bool",
+										"meta": {
+											"decl_id": "config/process_on_input_change_only",
+											"short_name": "processOnInputChangeOnly",
+											"enabled": true,
+											"can_be_disabled": false,
+											"label": "Process on input change only",
+											"declared_description_key": null,
+											"declared_description": null,
+											"user_permissions": {},
+											"presentation": {
+												"color": {
+													"r": 0.86,
+													"g": 0.44,
+													"b": 0.78,
+													"a": 1
+												}
+											}
+										},
+										"data": {
+											"default_value": {
+												"Bool": true
+											},
+											"value": {
+												"Bool": true
+											}
+										}
+									},
+									{
+										"uuid": "f5871e60-f7f7-4bd1-a24d-ca497d22a21b",
+										"type": "bool",
+										"meta": {
+											"decl_id": "config/send_on_output_change_only",
+											"short_name": "sendOnOutputChangeOnly",
+											"enabled": true,
+											"can_be_disabled": false,
+											"label": "Send on output change only",
+											"declared_description_key": null,
+											"declared_description": null,
+											"user_permissions": {},
+											"presentation": {
+												"color": {
+													"r": 0.86,
+													"g": 0.44,
+													"b": 0.78,
+													"a": 1
+												}
+											}
+										},
+										"data": {
+											"default_value": {
+												"Bool": true
+											},
+											"value": {
+												"Bool": true
+											}
+										}
+									},
+									{
+										"uuid": "94b019bd-288c-4596-a037-c2b5bd45bcd7",
+										"type": "bool",
+										"meta": {
+											"decl_id": "config/log",
+											"short_name": "log",
+											"enabled": true,
+											"can_be_disabled": false,
+											"label": "Log",
+											"declared_description_key": null,
+											"declared_description": null,
+											"user_permissions": {},
+											"presentation": {
+												"color": {
+													"r": 0.86,
+													"g": 0.44,
+													"b": 0.78,
+													"a": 1
+												}
+											}
+										}
+									}
+								]
+							},
+							{
+								"uuid": "957b29c7-bbdd-4c14-a59c-ad3a7cd6e262",
+								"type": "folder",
+								"meta": {
+									"decl_id": "inputs",
+									"short_name": "inputs",
+									"enabled": true,
+									"can_be_disabled": false,
+									"label": "Inputs",
+									"declared_description_key": null,
+									"declared_description": null,
+									"user_permissions": {}
+								},
+								"children": [
+									{
+										"uuid": "3b69d33f-a753-44e1-b017-3b49d4cbe7d9",
+										"type": "alchemist_input_socket",
+										"meta": {
+											"decl_id": "inputs/value1",
+											"short_name": "input",
+											"enabled": true,
+											"can_be_disabled": false,
+											"label": "Value 1",
+											"declared_description_key": null,
+											"declared_description": null,
+											"user_permissions": {},
+											"presentation": {
+												"default_color": {
+													"r": 0.28,
+													"g": 0.74,
+													"b": 0.52,
+													"a": 1
+												}
+											}
+										},
+										"children": [
+											{
+												"uuid": "3ea328b7-a0dc-40e3-a2e6-a35bd0334e55",
+												"type": "str",
+												"meta": {
+													"decl_id": "inputs/value1/socket_id",
+													"short_name": "socketId",
+													"enabled": true,
+													"can_be_disabled": false,
+													"label": "Socket ID",
+													"declared_description_key": null,
+													"declared_description": null,
+													"user_permissions": {},
+													"presentation": {
+														"show_in_inspector_content": false
+													}
+												},
+												"data": {
+													"control_modes_enabled": false,
+													"default_value": {
+														"Str": "value1"
+													},
+													"read_only": true,
+													"value": {
+														"Str": "value1"
+													}
+												}
+											},
+											{
+												"uuid": "c36f24da-66c1-4fcc-a38e-446ae13f6ad0",
+												"type": "str",
+												"meta": {
+													"decl_id": "inputs/value1/value_type",
+													"short_name": "valueType",
+													"enabled": true,
+													"can_be_disabled": false,
+													"label": "Value Type",
+													"declared_description_key": null,
+													"declared_description": null,
+													"user_permissions": {},
+													"presentation": {
+														"show_in_inspector_content": false
+													}
+												},
+												"data": {
+													"control_modes_enabled": false,
+													"default_value": {
+														"Str": "float"
+													},
+													"read_only": true,
+													"value": {
+														"Str": "float"
+													}
+												}
+											},
+											{
+												"uuid": "abb5fc5a-bb6c-4dfb-9f78-578dea49de64",
+												"type": "float",
+												"meta": {
+													"decl_id": "inputs/value1/value",
+													"short_name": "value",
+													"enabled": true,
+													"can_be_disabled": false,
+													"label": "Value",
+													"declared_description_key": null,
+													"declared_description": null,
+													"user_permissions": {},
+													"presentation": {
+														"default_color": {
+															"r": 0.28,
+															"g": 0.74,
+															"b": 0.52,
+															"a": 1
+														}
+													}
+												}
+											}
+										]
+									},
+									{
+										"uuid": "7a21038a-9507-46b2-b0a4-dead1cd82210",
+										"type": "alchemist_input_socket",
+										"meta": {
+											"decl_id": "inputs/value2",
+											"short_name": "input",
+											"enabled": true,
+											"can_be_disabled": false,
+											"label": "Value 2",
+											"declared_description_key": null,
+											"declared_description": null,
+											"user_permissions": {},
+											"presentation": {
+												"default_color": {
+													"r": 0.28,
+													"g": 0.74,
+													"b": 0.52,
+													"a": 1
+												}
+											}
+										},
+										"children": [
+											{
+												"uuid": "2583a2b4-d03e-4fd0-87ee-1ccd16a6fea4",
+												"type": "str",
+												"meta": {
+													"decl_id": "inputs/value2/socket_id",
+													"short_name": "socketId",
+													"enabled": true,
+													"can_be_disabled": false,
+													"label": "Socket ID",
+													"declared_description_key": null,
+													"declared_description": null,
+													"user_permissions": {},
+													"presentation": {
+														"show_in_inspector_content": false
+													}
+												},
+												"data": {
+													"control_modes_enabled": false,
+													"default_value": {
+														"Str": "value2"
+													},
+													"read_only": true,
+													"value": {
+														"Str": "value2"
+													}
+												}
+											},
+											{
+												"uuid": "ee2453d5-b496-4fa9-a0c8-f3cc1efdab00",
+												"type": "str",
+												"meta": {
+													"decl_id": "inputs/value2/value_type",
+													"short_name": "valueType",
+													"enabled": true,
+													"can_be_disabled": false,
+													"label": "Value Type",
+													"declared_description_key": null,
+													"declared_description": null,
+													"user_permissions": {},
+													"presentation": {
+														"show_in_inspector_content": false
+													}
+												},
+												"data": {
+													"control_modes_enabled": false,
+													"default_value": {
+														"Str": "float"
+													},
+													"read_only": true,
+													"value": {
+														"Str": "float"
+													}
+												}
+											},
+											{
+												"uuid": "cf6b2496-92b0-4f9d-81c6-9925aa6c250e",
+												"type": "float",
+												"meta": {
+													"decl_id": "inputs/value2/value",
+													"short_name": "value",
+													"enabled": true,
+													"can_be_disabled": false,
+													"label": "Value",
+													"declared_description_key": null,
+													"declared_description": null,
+													"user_permissions": {},
+													"presentation": {
+														"default_color": {
+															"r": 0.28,
+															"g": 0.74,
+															"b": 0.52,
+															"a": 1
+														}
+													}
+												}
+											}
+										]
+									}
+								]
+							},
+							{
+								"uuid": "e0d6eae7-a5dc-4490-b26a-bf399661f045",
+								"type": "folder",
+								"meta": {
+									"decl_id": "outputs",
+									"short_name": "outputs",
+									"enabled": true,
+									"can_be_disabled": false,
+									"label": "Outputs",
+									"declared_description_key": null,
+									"declared_description": null,
+									"user_permissions": {}
+								},
+								"children": [
+									{
+										"uuid": "df35c54b-6fe7-4231-a145-ced35a97f247",
+										"type": "alchemist_output_socket",
+										"meta": {
+											"decl_id": "outputs/result",
+											"short_name": "output",
+											"enabled": true,
+											"can_be_disabled": false,
+											"label": "Result",
+											"declared_description_key": null,
+											"declared_description": null,
+											"user_permissions": {},
+											"presentation": {
+												"default_color": {
+													"r": 0.28,
+													"g": 0.74,
+													"b": 0.52,
+													"a": 1
+												}
+											}
+										},
+										"children": [
+											{
+												"uuid": "56d37ddb-0fad-4a56-9dc5-00bd627eda53",
+												"type": "str",
+												"meta": {
+													"decl_id": "outputs/result/socket_id",
+													"short_name": "socketId",
+													"enabled": true,
+													"can_be_disabled": false,
+													"label": "Socket ID",
+													"declared_description_key": null,
+													"declared_description": null,
+													"user_permissions": {},
+													"presentation": {
+														"show_in_inspector_content": false
+													}
+												},
+												"data": {
+													"control_modes_enabled": false,
+													"default_value": {
+														"Str": "result"
+													},
+													"read_only": true,
+													"value": {
+														"Str": "result"
+													}
+												}
+											},
+											{
+												"uuid": "dec5735e-92ac-4675-8ecb-9a68eda268b4",
+												"type": "str",
+												"meta": {
+													"decl_id": "outputs/result/value_type",
+													"short_name": "valueType",
+													"enabled": true,
+													"can_be_disabled": false,
+													"label": "Value Type",
+													"declared_description_key": null,
+													"declared_description": null,
+													"user_permissions": {},
+													"presentation": {
+														"show_in_inspector_content": false
+													}
+												},
+												"data": {
+													"control_modes_enabled": false,
+													"default_value": {
+														"Str": "float"
+													},
+													"read_only": true,
+													"value": {
+														"Str": "float"
+													}
+												}
+											}
+										]
+									}
+								]
+							}
+						]
+					},
+					{
+						"uuid": "75b628ff-2a61-4e63-9cfe-1da69b117317",
+						"type": "alchemist_connection",
+						"user_role": "itemRoot",
+						"meta": {
+							"decl_id": "connection",
+							"short_name": "connection",
+							"label": "Connection",
+							"user_permissions": {
+								"can_edit_name": true,
+								"can_remove_and_duplicate": true,
+								"can_edit_constraints": true,
+								"can_edit_tags": true,
+								"can_edit_color": true
+							}
+						},
+						"children": [
+							{
+								"uuid": "3ee30f0a-d221-4ad1-b9fc-291190c7b725",
+								"type": "reference",
+								"meta": {
+									"decl_id": "source_node",
+									"short_name": "sourceNode",
+									"label": "source_node"
+								},
+								"data": {
+									"default_value": {
+										"Reference": {
+											"uuid": "23c92959-10eb-42a2-9459-68d610bbd886"
+										}
+									},
+									"value": {
+										"Reference": {
+											"cached_name": "First",
+											"relative_path_from_root": ["formula", "anode"],
+											"uuid": "23c92959-10eb-42a2-9459-68d610bbd886"
+										}
+									}
+								}
+							},
+							{
+								"uuid": "d5a585b4-67db-4d7a-afee-2e5a718d7abd",
+								"type": "str",
+								"meta": {
+									"decl_id": "source_socket",
+									"label": "source_socket"
+								},
+								"data": {
+									"default_value": {
+										"Str": "value"
+									},
+									"value": {
+										"Str": "value"
+									}
+								}
+							},
+							{
+								"uuid": "37926019-7c9a-45b7-bdfe-9509352c0bf8",
+								"type": "reference",
+								"meta": {
+									"decl_id": "target_node",
+									"short_name": "targetNode",
+									"label": "target_node"
+								},
+								"data": {
+									"default_value": {
+										"Reference": {
+											"uuid": "74305232-4490-4a72-a4bf-a309009bae82"
+										}
+									},
+									"value": {
+										"Reference": {
+											"cached_name": "Second",
+											"relative_path_from_root": ["formula", "anode"],
+											"uuid": "74305232-4490-4a72-a4bf-a309009bae82"
+										}
+									}
+								}
+							},
+							{
+								"uuid": "0d215bdd-e8eb-4a8d-960a-f08675591cdc",
+								"type": "str",
+								"meta": {
+									"decl_id": "target_socket",
+									"label": "target_socket"
+								},
+								"data": {
+									"default_value": {
+										"Str": "value1"
+									},
+									"value": {
+										"Str": "value1"
+									}
+								}
+							}
+						]
+					}
+				]
+			}
+		]
+	}
+}

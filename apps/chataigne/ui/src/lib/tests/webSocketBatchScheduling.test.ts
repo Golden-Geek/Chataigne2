@@ -633,7 +633,9 @@ describe('websocket event burst scheduling', () => {
 		}
 
 		expect(new Set(frameCounts).size).toBe(1);
-		expect(Math.max(...mutationCopies) - Math.min(...mutationCopies)).toBeLessThan(100);
+		// Compact tries have different depths at each tier. Bound allocation by changed keys:
+		// seven hash levels plus a leaf for each inserted key and the changed parent.
+		for (const copies of mutationCopies) expect(copies).toBeLessThanOrEqual((600 + 1) * 8);
 	});
 
 	it('removes a fixed 600-node tail independently of a 1k, 10k, or 100k base graph', async () => {

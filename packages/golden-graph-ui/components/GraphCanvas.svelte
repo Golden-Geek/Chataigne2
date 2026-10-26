@@ -259,7 +259,12 @@
 	export const cancelKeyboardConnection = keyboard.cancel;
 	export const keyboardState = () => ({
 		endpoint: keyboard.endpoint,
-		message: connections.message || keyboard.message
+		message: connections.message || keyboard.message,
+		work: {
+			mounting: mounting.work(),
+			routing: geometry.routingWork(),
+			presentation: geometry.presentationWork()
+		}
 	});
 
 	export const frameSelection = viewport.frameSelection;

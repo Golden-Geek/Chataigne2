@@ -1,0 +1,15 @@
+{"kind":"environment","production":true,"browser":"156.0.4314.42","binaryHash":"4f2af35bfa0e16379ca997d455d6c9f8ccadcdd4c5de8eacd63cfc156fc2527f","assets":[{"name":"dmsans-italic-CT59GZwy.ttf","sha256":"5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"},{"name":"DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf","sha256":"dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"},{"name":"index-C2ipe3Xe.js","sha256":"f6921fcfae539005a1182c1abefd19a520d5360b7de97c621b9d9b10d5d8576d"},{"name":"index-CgCHUxYt.css","sha256":"7542f6fb8419f6819bc7757453befa707ca0f43b4f021c784726e8fe28c40142"}],"report":"D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-spatializer-native-5e1aecd0-8db6-4493-b703-fbdc040c9784\\browser.jsonl"}
+{"kind":"empty-document-custom-world","passed":true,"world":{"width":0.90325927734375,"height":0.90325927734375,"position":"absolute","overflow":"visible","viewport":{"width":1120,"height":525.421875}}}
+{"kind":"selection-inspector-debug","passed":true}
+{"kind":"authoritative-projection-and-home","passed":true}
+{"kind":"mode-and-matrix-layout-replacement","passed":true}
+{"kind":"three-dimensional-projection","passed":true}
+{"kind":"snapshot-and-remount","passed":true,"endpoints":[{"id":4294967483,"uuid":"ef1fdf33-f14b-49e8-99fd-01a31d4dbcda","label":"West","position":{"kind":"parameter","param":{"value":{"kind":"vec3","value":[-1,0,0]},"default_value":{"kind":"vec3","value":[-1,0,0]},"event_behaviour":"Coalesce","read_only":false,"constraints":{"enum_options":[],"policy":"ClampAdapt"},"ui_hints":{},"control":{"mode":"manual","spec":{"mode":"manual"}},"reference_allowed_targets":[],"reference_visible_nodes":[]}}},{"id":4294967482,"uuid":"90cdd66f-ab7a-4bb1-bd59-0f57772d8e04","label":"Probe","position":{"kind":"parameter","param":{"value":{"kind":"vec3","value":[0.5,7,0.25]},"default_value":{"kind":"vec3","value":[0.5,0.25,0]},"event_behaviour":"Coalesce","read_only":false,"constraints":{"enum_options":[],"policy":"ClampAdapt"},"ui_hints":{},"control":{"mode":"manual","spec":{"mode":"manual"}},"reference_allowed_targets":[],"reference_visible_nodes":[]}}},{"id":4294967489,"uuid":"09e6e9d7-f03f-4039-8b8c-8ec4f169af12","label":"East","position":{"kind":"parameter","param":{"value":{"kind":"vec3","value":[1,0,0]},"default_value":{"kind":"vec3","value":[1,0,0]},"event_behaviour":"Coalesce","read_only":false,"constraints":{"enum_options":[],"policy":"ClampAdapt"},"ui_hints":{},"control":{"mode":"manual","spec":{"mode":"manual"}},"reference_allowed_targets":[],"reference_visible_nodes":[]}}}]}
+{"kind":"stale-coordinate-space-rejection","passed":true}
+{"kind":"keyboard-gesture-and-history","passed":true}
+{"kind":"zero-radius-keyboard-control","passed":true}
+{"kind":"active-gesture-snapshot-and-unmount","passed":true}
+{"kind":"backend-target-creation","passed":true,"created":{"node":12884902079,"uuid":"4efb49ef-ec30-4ca9-8c3f-319f9bfbbd06"},"next":{"node":4294967497,"uuid":"64e6c1c1-1b03-4554-b29f-39fe555ab3ad"}}
+{"kind":"read-only-replacement-rejection-and-rollback","passed":true}
+{"kind":"saved-project-and-recovery","passed":true}
+{"kind":"result","passed":true,"errors":[]}

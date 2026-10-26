@@ -1,7 +1,15 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { appendFileSync, closeSync, mkdirSync, openSync, readFileSync, readdirSync } from 'node:fs';
+import {
+	appendFileSync,
+	closeSync,
+	mkdirSync,
+	openSync,
+	readFileSync,
+	readdirSync,
+	writeFileSync
+} from 'node:fs';
 import { createServer } from 'node:net';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -13,7 +21,7 @@ const repository = fileURLToPath(new URL('../../../../../', import.meta.url));
 const hash = (path) => createHash('sha256').update(readFileSync(path)).digest('hex');
 
 /** Owns isolated app data, loopback host, production fixture and browser; never opens the desktop. */
-export async function nativeWorkbench({ fixture, name, exercise }) {
+export async function nativeWorkbench({ fixture, name, exercise, observePage }) {
 	assert.match(name, /^[a-z][a-z0-9-]*$/);
 	const binary = resolve(repository, process.argv[2] ?? 'target/debug/Chataigne2.exe');
 	const evidence = resolve(repository, 'target/qualification', `${name}-${randomUUID()}`);
@@ -31,8 +39,14 @@ export async function nativeWorkbench({ fixture, name, exercise }) {
 		plugins: [svelte({ configFile: false })],
 		logLevel: 'warn',
 		resolve: { alias: { '#lib': fileURLToPath(new URL('../../src/lib', import.meta.url)) } },
-		build: { outDir, emptyOutDir: true }
+		build: { outDir, emptyOutDir: true, sourcemap: process.env.GC_GRAPH_SCALE_CPU_PROFILE === '1' }
 	});
+	if (process.env.GC_GRAPH_SCALE_CPU_PROFILE === '1') {
+		for (const name of readdirSync(resolve(outDir, 'assets'))) {
+			if (name.endsWith('.map'))
+				writeFileSync(resolve(evidence, name), readFileSync(resolve(outDir, 'assets', name)));
+		}
+	}
 	const server = await preview({
 		configFile: false,
 		root,
@@ -89,6 +103,7 @@ export async function nativeWorkbench({ fixture, name, exercise }) {
 		});
 		page = await browser.newPage({ viewport: { width: 1680, height: 1200 } });
 		page.on('pageerror', (error) => errors.push(error.message));
+		await observePage?.({ page });
 		emit({
 			kind: 'environment',
 			production: true,

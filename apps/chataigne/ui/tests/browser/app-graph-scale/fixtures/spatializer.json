@@ -1,0 +1,339 @@
+{
+	"version": "1.0",
+	"root": {
+		"uuid": "cf6bd956-0698-4abe-8668-4bdbb7666d44",
+		"type": "folder",
+		"meta": {
+			"decl_id": "root",
+			"short_name": "root",
+			"enabled": true,
+			"can_be_disabled": false,
+			"label": "Root",
+			"tags": [
+				"chataigne.condition_gate.semantics.v2",
+				"chataigne.output_bindings.authoring.v2",
+				"chataigne.mapping.concrete_outputs.v1"
+			]
+		},
+		"children": [
+			{
+				"uuid": "04f296fd-9a2d-4741-aa51-cd7480b804e1",
+				"type": "dashboard",
+				"meta": {
+					"user_permissions": {
+						"can_edit_name": true,
+						"can_remove_and_duplicate": true,
+						"can_edit_constraints": true,
+						"can_edit_tags": true,
+						"can_edit_color": true
+					}
+				}
+			},
+			{
+				"uuid": "a4d4172c-3b8e-4a1d-9ba8-e947583c905f",
+				"type": "alchemist_formula_library",
+				"meta": {
+					"user_permissions": {
+						"can_edit_name": true,
+						"can_edit_constraints": true,
+						"can_edit_tags": true,
+						"can_edit_color": true
+					}
+				},
+				"children": [
+					{
+						"uuid": "1dff7aeb-7d16-4292-b7f9-93945902a9ab",
+						"type": "str",
+						"meta": {
+							"decl_id": "shared_formula_dir",
+							"short_name": "sharedFormulasFolder",
+							"label": "Shared Formulas Folder"
+						},
+						"data": {
+							"control_modes_enabled": false,
+							"default_value": {
+								"Str": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-spatializer-native-3ba58c52-b705-42ab-ac38-9fd4cd886384\\Chataigne\\formulas"
+							},
+							"read_only": true,
+							"value": {
+								"Str": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-spatializer-native-3ba58c52-b705-42ab-ac38-9fd4cd886384\\Chataigne\\formulas"
+							}
+						}
+					}
+				]
+			},
+			{
+				"uuid": "7477f21a-4cbb-4d6f-9367-d64153abfcd2",
+				"type": "module_manager",
+				"meta": {
+					"user_permissions": {
+						"can_edit_constraints": true,
+						"can_edit_tags": true,
+						"can_edit_color": true
+					}
+				},
+				"children": [
+					{
+						"uuid": "a5302b9d-5d3f-4fad-9c3f-55e746c12bf8",
+						"type": "spatializer_module",
+						"user_role": "itemRoot",
+						"meta": {
+							"presentation": {
+								"show_child_warnings_max_depth": 4
+							}
+						},
+						"children": [
+							{
+								"uuid": "73fcf405-317b-419a-8548-b9815ae919be",
+								"type": "folder",
+								"meta": {
+									"decl_id": "parameters"
+								},
+								"children": [
+									{
+										"uuid": "1cbcde01-13c5-41e0-b377-ac8458a17a62",
+										"type": "spatializer_source_list",
+										"meta": {
+											"decl_id": "parameters/sources",
+											"can_be_disabled": false,
+											"user_permissions": {
+												"can_edit_constraints": true,
+												"can_edit_tags": true,
+												"can_edit_color": true
+											}
+										},
+										"children": [
+											{
+												"uuid": "14d4b64b-738a-46c1-9920-038932797283",
+												"type": "spatializer_source",
+												"user_role": "itemRoot",
+												"meta": {
+													"label": "Probe"
+												},
+												"children": [
+													{
+														"uuid": "44a04212-6efa-47e3-846c-0fe68c7248b6",
+														"type": "vec2",
+														"meta": {
+															"decl_id": "position_2d",
+															"short_name": "position_2d",
+															"label": "Position",
+															"user_permissions": {
+																"can_edit_name": true,
+																"can_remove_and_duplicate": true,
+																"can_edit_constraints": true,
+																"can_edit_tags": true,
+																"can_edit_color": true
+															}
+														}
+													}
+												]
+											}
+										]
+									},
+									{
+										"uuid": "7cf174b0-d77c-4a7f-8d38-f3efed890a54",
+										"type": "spatializer_target_list",
+										"meta": {
+											"decl_id": "parameters/targets",
+											"can_be_disabled": false,
+											"user_permissions": {
+												"can_edit_constraints": true,
+												"can_edit_tags": true,
+												"can_edit_color": true
+											}
+										},
+										"children": [
+											{
+												"uuid": "bd3c7fd3-e9e7-4296-abcb-efef4907c7d7",
+												"type": "spatializer_target",
+												"user_role": "itemRoot",
+												"meta": {
+													"label": "West"
+												},
+												"children": [
+													{
+														"uuid": "44e138c7-ca5d-460c-b6a6-a31d18d8e4cf",
+														"type": "vec2",
+														"meta": {
+															"decl_id": "position_2d",
+															"short_name": "position_2d",
+															"label": "Position",
+															"user_permissions": {
+																"can_edit_name": true,
+																"can_remove_and_duplicate": true,
+																"can_edit_constraints": true,
+																"can_edit_tags": true,
+																"can_edit_color": true
+															}
+														},
+														"data": {
+															"value": {
+																"Vec2": [-1, 0]
+															}
+														}
+													},
+													{
+														"uuid": "a843dbbb-772f-40c0-9464-ee3c8a5d1c24",
+														"type": "float",
+														"meta": {
+															"decl_id": "freeze_radius",
+															"short_name": "freeze_radius",
+															"label": "Freeze Radius",
+															"user_permissions": {
+																"can_edit_name": true,
+																"can_remove_and_duplicate": true,
+																"can_edit_constraints": true,
+																"can_edit_tags": true,
+																"can_edit_color": true
+															}
+														},
+														"data": {
+															"constraints": {
+																"policy": "ClampAdapt",
+																"range": {
+																	"kind": "uniform",
+																	"min": 0
+																}
+															}
+														}
+													}
+												]
+											},
+											{
+												"uuid": "8ec8f887-0801-4ebb-b7b9-57be41981f42",
+												"type": "spatializer_target",
+												"user_role": "itemRoot",
+												"meta": {
+													"label": "East"
+												},
+												"children": [
+													{
+														"uuid": "51a72932-fa47-4516-852c-16445ee2fe59",
+														"type": "vec2",
+														"meta": {
+															"decl_id": "position_2d",
+															"short_name": "position_2d",
+															"label": "Position",
+															"user_permissions": {
+																"can_edit_name": true,
+																"can_remove_and_duplicate": true,
+																"can_edit_constraints": true,
+																"can_edit_tags": true,
+																"can_edit_color": true
+															}
+														},
+														"data": {
+															"value": {
+																"Vec2": [1, 0]
+															}
+														}
+													},
+													{
+														"uuid": "2c762d02-e029-4698-9df9-c78d8f45687e",
+														"type": "float",
+														"meta": {
+															"decl_id": "freeze_radius",
+															"short_name": "freeze_radius",
+															"label": "Freeze Radius",
+															"user_permissions": {
+																"can_edit_name": true,
+																"can_remove_and_duplicate": true,
+																"can_edit_constraints": true,
+																"can_edit_tags": true,
+																"can_edit_color": true
+															}
+														},
+														"data": {
+															"constraints": {
+																"policy": "ClampAdapt",
+																"range": {
+																	"kind": "uniform",
+																	"min": 0
+																}
+															}
+														}
+													}
+												]
+											}
+										]
+									}
+								]
+							},
+							{
+								"uuid": "25d5e1ea-6521-48a3-86e7-037310d83634",
+								"type": "folder",
+								"meta": {
+									"decl_id": "values"
+								},
+								"children": [
+									{
+										"uuid": "67a4d73f-1aeb-2aa8-e345-71d6411f7283",
+										"type": "folder",
+										"meta": {
+											"decl_id": "spatializer_source_14d4b64b738a46c19920038932797283",
+											"short_name": "spatializer_source_14d4b64b738a46c19920038932797283",
+											"label": "Probe",
+											"user_permissions": {
+												"can_remove_and_duplicate": true,
+												"can_edit_constraints": true,
+												"can_edit_tags": true,
+												"can_edit_color": true
+											}
+										},
+										"children": [
+											{
+												"uuid": "8447320b-7a86-40a1-1dc0-82bab40706ed",
+												"type": "float",
+												"meta": {
+													"decl_id": "spatializer_target_bd3c7fd3e9e74296abcbefef4907c7d7",
+													"short_name": "spatializer_target_bd3c7fd3e9e74296abcbefef4907c7d7",
+													"label": "Target",
+													"user_permissions": {
+														"can_remove_and_duplicate": true,
+														"can_edit_constraints": true,
+														"can_edit_tags": true,
+														"can_edit_color": true
+													}
+												},
+												"data": {
+													"constraints": {
+														"policy": "ClampAdapt",
+														"range": {
+															"kind": "uniform",
+															"max": 1,
+															"min": 0
+														}
+													},
+													"default_value": {
+														"Float": 1
+													},
+													"read_only": true,
+													"value": {
+														"Float": 1
+													}
+												}
+											}
+										]
+									}
+								]
+							}
+						]
+					}
+				]
+			},
+			{
+				"uuid": "ee4b414c-2dbc-4aed-87a8-32d56ec1d083",
+				"type": "state_machine_manager",
+				"meta": {
+					"user_permissions": {
+						"can_edit_name": true,
+						"can_edit_constraints": true,
+						"can_edit_tags": true,
+						"can_edit_color": true
+					}
+				}
+			}
+		]
+	}
+}
