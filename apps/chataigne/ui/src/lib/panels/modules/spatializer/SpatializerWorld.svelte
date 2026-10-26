@@ -208,8 +208,9 @@
 			class:disabled={!endpoint.enabled}
 			class:selected={isSelected(endpoint)}
 			class="endpoint target"
+			data-endpoint-id={endpoint.node.node_id}
 			transform={`translate(${geometry.pointPx(endpoint.x, world)} ${geometry.pointPx(endpoint.y, world)})`}>
-			{#if spatializerMode === MODE_VORONOI && endpoint.freezeRadius !== null && endpoint.freezeRadius > 0}
+			{#if spatializerMode === MODE_VORONOI && endpoint.freezeRadius !== null}
 				<circle
 					class="freeze-radius-fill"
 					r={geometry.pointPx(endpoint.freezeRadius, world)}
@@ -223,14 +224,18 @@
 						role="button"
 						tabindex="0"
 						aria-label={`Resize ${endpoint.node.meta.label} freeze radius`}
-						r={geometry.pointPx(endpoint.freezeRadius, world)}
+						r={Math.max(
+							geometry.pointPx(endpoint.freezeRadius, world),
+							geometry.screenPx(0.3, world)
+						)}
 						stroke-width={geometry.screenPx(0.55, world)}
-						onkeydown={(event) => interaction.selectEndpointWithKeyboard(event, endpoint)}
+						onkeydown={(event) =>
+							interaction.selectEndpointWithKeyboard(event, endpoint, 'freezeRadius')}
 						onpointerdown={(event) =>
 							interaction.startEndpointDrag(event, endpoint, 'freezeRadius')} />
 				{/if}
 			{/if}
-			{#if endpoint.radius !== null && endpoint.radius > 0}
+			{#if endpoint.radius !== null}
 				<circle
 					class="radius-fill"
 					r={geometry.pointPx(endpoint.radius, world)}
@@ -243,9 +248,9 @@
 						role="button"
 						tabindex="0"
 						aria-label={`Resize ${endpoint.node.meta.label} radius`}
-						r={geometry.pointPx(endpoint.radius, world)}
+						r={Math.max(geometry.pointPx(endpoint.radius, world), geometry.screenPx(0.3, world))}
 						stroke-width={geometry.screenPx(0.55, world)}
-						onkeydown={(event) => interaction.selectEndpointWithKeyboard(event, endpoint)}
+						onkeydown={(event) => interaction.selectEndpointWithKeyboard(event, endpoint, 'radius')}
 						onpointerdown={(event) => interaction.startEndpointDrag(event, endpoint, 'radius')} />
 				{/if}
 			{/if}
@@ -270,6 +275,7 @@
 				role="button"
 				tabindex="0"
 				aria-label={`Move ${endpoint.node.meta.label}`}
+				aria-disabled={!endpoint.positionWritable}
 				r={geometry.screenPx(0.72, world)}
 				onkeydown={(event) => interaction.selectEndpointWithKeyboard(event, endpoint)}
 				onpointerdown={(event) => interaction.startEndpointDrag(event, endpoint, 'position')} />
@@ -281,8 +287,9 @@
 			class:disabled={!endpoint.enabled}
 			class:selected={isSelected(endpoint)}
 			class="endpoint source"
+			data-endpoint-id={endpoint.node.node_id}
 			transform={`translate(${geometry.pointPx(endpoint.x, world)} ${geometry.pointPx(endpoint.y, world)})`}>
-			{#if endpoint.radius !== null && endpoint.radius > 0}
+			{#if endpoint.radius !== null}
 				<circle
 					class="radius-fill"
 					r={geometry.pointPx(endpoint.radius, world)}
@@ -295,9 +302,9 @@
 						role="button"
 						tabindex="0"
 						aria-label={`Resize ${endpoint.node.meta.label} radius`}
-						r={geometry.pointPx(endpoint.radius, world)}
+						r={Math.max(geometry.pointPx(endpoint.radius, world), geometry.screenPx(0.3, world))}
 						stroke-width={geometry.screenPx(0.55, world)}
-						onkeydown={(event) => interaction.selectEndpointWithKeyboard(event, endpoint)}
+						onkeydown={(event) => interaction.selectEndpointWithKeyboard(event, endpoint, 'radius')}
 						onpointerdown={(event) => interaction.startEndpointDrag(event, endpoint, 'radius')} />
 				{/if}
 			{/if}
@@ -312,6 +319,7 @@
 				role="button"
 				tabindex="0"
 				aria-label={`Move ${endpoint.node.meta.label}`}
+				aria-disabled={!endpoint.positionWritable}
 				r={geometry.screenPx(0.72, world)}
 				onkeydown={(event) => interaction.selectEndpointWithKeyboard(event, endpoint)}
 				onpointerdown={(event) => interaction.startEndpointDrag(event, endpoint, 'position')} />
@@ -505,6 +513,10 @@
 		fill: none;
 		stroke: transparent;
 		cursor: ew-resize;
+	}
+	.radius-hit:focus-visible {
+		stroke: var(--gc-color-accent, currentColor);
+		outline: none;
 	}
 
 	.source-dot {

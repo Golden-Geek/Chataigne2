@@ -1,0 +1,342 @@
+{
+  "baseCommit": "47ade9126ef28a67f4b3966055a239f9686bec57",
+  "branch": "main",
+  "scope": "P11 Spatializer authoring, keyboard and gesture lifecycle; prepared-subtree persistence publication",
+  "machine": {
+    "os": "Windows 11 Home",
+    "release": "10.0.26300",
+    "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+    "logicalProcessors": 24,
+    "memoryGiB": 31.43492889404297,
+    "node": "v26.5.0",
+    "npm": "11.17.0",
+    "rustc": "1.97.0 (2d8144b78 2026-07-07)",
+    "cargo": "1.97.0 (c980f4866 2026-06-30)"
+  },
+  "source": [
+    {
+      "path": "Cargo.lock",
+      "sha256NormalizedLf": "96289a0898a351fcf1b4b729f30270fa9109906382bef9b4444436fb046c64a7",
+      "lines": 9185
+    },
+    {
+      "path": "Cargo.toml",
+      "sha256NormalizedLf": "750d94aca66dd7b05f983c8994e0635f4dfdfcc0938470e72eed3667d53e8c14",
+      "lines": 140
+    },
+    {
+      "path": "apps/chataigne/Cargo.toml",
+      "sha256NormalizedLf": "2b106ba324e7efe7023d2021d35bc79b6043947f338737184d717b9e9590d070",
+      "lines": 100
+    },
+    {
+      "path": "apps/chataigne/src/app/bootstrap.rs",
+      "sha256NormalizedLf": "9ed0cf449bb0d983693fadb2abc3ffd4ef492c7e49b1f97052fd042f99589b85",
+      "lines": 72
+    },
+    {
+      "path": "apps/chataigne/src/module/modules/generators/spatializer/authoring.rs",
+      "sha256NormalizedLf": "84108a567d1f422e7a69ad75533a0ca5cf9a97b4fa1521cd6b6b01ce9eaf4186",
+      "lines": 257
+    },
+    {
+      "path": "apps/chataigne/src/module/modules/generators/spatializer/authoring/tests/mod.rs",
+      "sha256NormalizedLf": "93116590dd1ba4b9fb322cd68e932c70336de9c68549bf403415bf777538183c",
+      "lines": 353
+    },
+    {
+      "path": "apps/chataigne/src/module/modules/generators/spatializer/mod.rs",
+      "sha256NormalizedLf": "3187b661d578ab5d901b3d7f52d6de55c52b5b7013d7d58e4e5d19faffbddc8f",
+      "lines": 511
+    },
+    {
+      "path": "apps/chataigne/src/module/modules/generators/spatializer/tests/mod.rs",
+      "sha256NormalizedLf": "abf5783509c413c60c14afb39b3c23e64d5612908522ff9bd15e4c2a1d2d01c7",
+      "lines": 868
+    },
+    {
+      "path": "apps/chataigne/src/module/modules/generators/spatializer/tests/runtime.rs",
+      "sha256NormalizedLf": "c280137c3d11f6e2459a7eaac26dd5a7430622cafc575bb517fd6abde4cbbf73",
+      "lines": 593
+    },
+    {
+      "path": "apps/chataigne/src/module/modules/generators/spatializer/worker.rs",
+      "sha256NormalizedLf": "28d6127d4947911290557849a35efb2e110e6827d04c59330efd78b5690e294c",
+      "lines": 295
+    },
+    {
+      "path": "apps/chataigne/systems/spatializer_protocol/Cargo.toml",
+      "sha256NormalizedLf": "09c2aad3893fa327ae9ef65b545e97a39f11e69b96ad7805e2b269060802a9a1",
+      "lines": 10
+    },
+    {
+      "path": "apps/chataigne/systems/spatializer_protocol/src/bin/generate_spatializer_protocol.rs",
+      "sha256NormalizedLf": "653c5a179d19f32e887ea0b6f6fa255ecf281896a2e9199258ac550653ca15d1",
+      "lines": 6
+    },
+    {
+      "path": "apps/chataigne/systems/spatializer_protocol/src/lib.rs",
+      "sha256NormalizedLf": "5f242259ff8e908ef89f76981f6d4ddbc8ee8b9ba5a90eeb10a05f420279469f",
+      "lines": 86
+    },
+    {
+      "path": "apps/chataigne/ui/package.json",
+      "sha256NormalizedLf": "b8f6f1c9a7301f834685f7ec58024e9c367a68d35a9e3b6c27ed63ca5d168879",
+      "lines": 63
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/panels/modules/SpatializerEditorPanel.svelte",
+      "sha256NormalizedLf": "db04515bf608b1050c632e1efd181c806c0dfa92e809b2e7e5b50d2ec255e7fc",
+      "lines": 936
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/panels/modules/spatializer/SpatializerWorld.svelte",
+      "sha256NormalizedLf": "69920a5bf858b599345fac6f5bf44cd3948591b41d419fbc7f07b3993c75c4b2",
+      "lines": 534
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/panels/modules/spatializer/authoring.ts",
+      "sha256NormalizedLf": "f47aba1d5d1dfebcd5f1f151ac138762191e5adbba188e5807751a91ec465644",
+      "lines": 291
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/panels/modules/spatializer/generated/NodeId.ts",
+      "sha256NormalizedLf": "3b47a9c31ab5e8da34572b18674d5a7aea8cc36b47212775f6af5995ef2883e7",
+      "lines": 6
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/panels/modules/spatializer/generated/NodeUuid.ts",
+      "sha256NormalizedLf": "94c3062bd5bb8431f1b82ad857442252ff902b6188403826aa358ab0dfe0f86d",
+      "lines": 6
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/panels/modules/spatializer/generated/SpatializerEdit.ts",
+      "sha256NormalizedLf": "d74efa24ce2abd241b20f229ab038e83291d5797a84b4fd636cd48f1536719ec",
+      "lines": 11
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/panels/modules/spatializer/generated/SpatializerEditRequest.ts",
+      "sha256NormalizedLf": "bfafa5618d6d0880331e6f39d5d5afa70b74fa7e094d916b106dae563ad194d7",
+      "lines": 10
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/panels/modules/spatializer/generated/SpatializerEditResult.ts",
+      "sha256NormalizedLf": "0c347f314affc2d578842b8243e5490cb6915c2e2b3640cabb8a1473ba625e4f",
+      "lines": 7
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/panels/modules/spatializer/generated/SpatializerIdentity.ts",
+      "sha256NormalizedLf": "6c25dabe0755fc22969b3a8b87dc0ec6984d8f5b3ea0885b726319652f067c47",
+      "lines": 5
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/panels/modules/spatializer/generated/SpatializerMove.ts",
+      "sha256NormalizedLf": "22fa08ccf1a8fdefeddd23a717e30fd34d980e99ad63c492eacb63fad73e7c0b",
+      "lines": 4
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/panels/modules/spatializer/generated/SpatializerRadius.ts",
+      "sha256NormalizedLf": "e128112acf6f3baa1c833f88b1cf9c7fa22041334ac1b88ee704ec9d7fb84d6c",
+      "lines": 3
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/panels/modules/spatializer/generated/SpatializerSpace.ts",
+      "sha256NormalizedLf": "9225a3ed9dc29d4d9cfcd4dc51b93b3eca06372fa5a5b36fd9d480980773da8e",
+      "lines": 3
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/panels/modules/spatializer/generated/constants.ts",
+      "sha256NormalizedLf": "8596cf517c51e7337fd2bf0d808cfe0319cab7b048ded84c8d8f607e59fcd44c",
+      "lines": 3
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/panels/modules/spatializer/interaction.svelte.ts",
+      "sha256NormalizedLf": "bc3f4efc016e90d427152ed136849df977bef9b23da97b845307295d115d42e3",
+      "lines": 422
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/panels/modules/spatializer/tests/authoring.test.ts",
+      "sha256NormalizedLf": "cb5c3482d08127bf24ebe988c3fe47e884ab8d032ae731c3e079f347424faff6",
+      "lines": 300
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/native-workbench.mjs",
+      "sha256NormalizedLf": "2ca05cff4e97c62d51c70406b89e4ce2b87b493cd2db59f2d740ee4e1d001baa",
+      "lines": 128
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/spatializer-fixture/Spatializer.svelte",
+      "sha256NormalizedLf": "c28b75f63932750179c97afb52fdea2bc3a401a9febdd8ada785d0b4e8fcb7e0",
+      "lines": 268
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/spatializer-native.mjs",
+      "sha256NormalizedLf": "a261ed6c5399f5f2f845be293b12613579a48c1c4341cf1b2e584df1ff9f9078",
+      "lines": 341
+    },
+    {
+      "path": "crates/golden_core/engine/src/application/project_document.rs",
+      "sha256NormalizedLf": "ea415937352dbb879f2b67bd3847c5c6831c8b304671fa691c6205566261dc37",
+      "lines": 171
+    },
+    {
+      "path": "crates/golden_core/engine/src/application/project_document/tests/mod.rs",
+      "sha256NormalizedLf": "039ca2ba5e4248927139848b50fd83f17ee4f700213e8d919fd587e21d4a3452",
+      "lines": 103
+    },
+    {
+      "path": "crates/golden_core/engine/src/engine/persistence/duplicate.rs",
+      "sha256NormalizedLf": "2146bab72125d41a46eb5fa9a23e1c1d2861b892230c4b7423a6d7e3861ca080",
+      "lines": 769
+    },
+    {
+      "path": "package-lock.json",
+      "sha256NormalizedLf": "1a515eb16812648c25cab5914c8ec2562aeeab8bf6f5a84921bd20d659e5ec28",
+      "lines": 2378
+    },
+    {
+      "path": "packages/golden-graph-ui/components/GraphCanvas.svelte",
+      "sha256NormalizedLf": "288519659de0a7f59cecb815f5d857355b5882db74bb08b03b816838be5a8526",
+      "lines": 671
+    },
+    {
+      "path": "packages/golden-graph-ui/components/canvas/contracts.ts",
+      "sha256NormalizedLf": "5d0d9928096c50e39780769e109bb40da61624806ba27b696bb4693b7702a162",
+      "lines": 171
+    },
+    {
+      "path": "packages/golden-ui/store/session/app-operations.ts",
+      "sha256NormalizedLf": "ca2595c0c3ca6b5c1be3d40c78f9e8d10414336d74d9e2f5290583c9ee42c56f",
+      "lines": 32
+    },
+    {
+      "path": "packages/golden-ui/store/session/tests/app-operations.test.ts",
+      "sha256NormalizedLf": "8d3469d41907cd693af420f3b8a45083dcf1bcc8a6928a205642a682e71feba5",
+      "lines": 111
+    },
+    {
+      "path": "packages/golden-ui/store/workbench.svelte.ts",
+      "sha256NormalizedLf": "e9f59af793c883b65d93aef61d2fc36cb07d9c44d11dcbbf2749febc1707b3f8",
+      "lines": 984
+    }
+  ],
+  "binary": {
+    "path": "target/debug/Chataigne2.exe",
+    "sha256": "a9706de975f79c55ad5cf151be84beccd7979cbf59e4aae29ed1f2567a907dd1"
+  },
+  "checks": [
+    {
+      "command": "target/debug/deps/golden_engine-dbcc2f28f68773b7.exe --test-threads=8",
+      "passed": 635,
+      "failed": 0,
+      "ignored": 3,
+      "note": "Full golden_engine library harness built by cargo test --locked -p golden_engine --lib catalog_creation_publishes_every_prepared_descendant_to_the_project_capture."
+    },
+    {
+      "command": "cargo test --locked -p Chataigne2 --bin Chataigne2 spatializer -- --nocapture",
+      "passed": 36,
+      "failed": 0,
+      "environment": {
+        "CARGO_INCREMENTAL": "0",
+        "GC_SKIP_UI_BUILD": "1"
+      }
+    },
+    {
+      "command": "npm test",
+      "passed": 441,
+      "failed": 0,
+      "workspaces": {
+        "golden_audio_ui": 27,
+        "golden_graph_ui": 58,
+        "golden_ui": 194,
+        "chataigne-ui": 162
+      }
+    },
+    {
+      "command": "npm run check --workspace chataigne-ui",
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "command": "npm run check:browser:graphs --workspace chataigne-ui",
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "command": "cargo clippy --locked -p Chataigne2 --all-targets -- -D warnings",
+      "exitCode": 0,
+      "durationSeconds": 52.4,
+      "environment": {
+        "CARGO_INCREMENTAL": "0",
+        "GC_SKIP_UI_BUILD": "1"
+      }
+    },
+    {
+      "command": "cargo build --locked",
+      "exitCode": 0,
+      "durationSeconds": 164,
+      "frontendRebuilt": true,
+      "environment": {
+        "CARGO_INCREMENTAL": "0",
+        "GC_SKIP_UI_BUILD": null
+      }
+    },
+    {
+      "command": "node apps/chataigne/ui/tests/browser/spatializer-native.mjs",
+      "passed": true,
+      "correctnessGroups": 13,
+      "report": "p11-spatializer-authoring-native-2026-10-26.jsonl"
+    },
+    {
+      "command": "Chataigne2 test harness state_graph_authoring_native_browser_adapter --ignored --nocapture",
+      "passed": true,
+      "correctnessGroups": 4,
+      "report": "p11-spatializer-authoring-state-regression-2026-10-26.jsonl"
+    },
+    {
+      "command": "Chataigne2 test harness formula_graph_native_browser_adapter --ignored --nocapture",
+      "passed": true,
+      "correctnessGroups": 5,
+      "report": "p11-spatializer-authoring-alchemist-regression-2026-10-26.jsonl",
+      "equalEventClocks": false
+    },
+    {
+      "command": "Public Spatializer Rust codegen CLI followed by repository Prettier in-memory comparison",
+      "freshGeneratedFiles": 10
+    },
+    {
+      "command": "Package-owned Prettier checks, both Cargo formatters and git whitespace checks",
+      "exitCode": 0
+    }
+  ],
+  "preservedFailures": {
+    "nativeReports": 7,
+    "file": "p11-spatializer-authoring-native-failures-2026-10-26.jsonl",
+    "regressions": [
+      "BeginEdit failure before a sample was initially unobserved",
+      "Same-project refresh omitted EndEdit; deterministic red test and native undo timeout",
+      "Production actor save reproduced incomplete prepared-descendant capture before repair"
+    ],
+    "fixtureCorrection": "Coordinate-space selector must select the span after adding the toolbar button."
+  },
+  "inventory": {
+    "sourceFiles": 2252,
+    "over1000Lines": 25,
+    "touchedOver1000Lines": 0
+  },
+  "limits": [
+    "Small native correctness scenes; no actual-app scale or composed-workflow closure",
+    "No synthesized input, desktop control or native-webview usability qualification",
+    "GC_SKIP_UI_BUILD was used for tests/Clippy only; native reports identify the final normal bundled executable"
+  ],
+  "remaining": {
+    "P03Packages": 0,
+    "P11ClosedCheckpoints": 4,
+    "P11Checkpoints": 6,
+    "wholePlanRoundedPercent": 59,
+    "next": [
+      "Actual-app graph scale qualification",
+      "Composed discovery/selection/editing workflows"
+    ]
+  }
+}

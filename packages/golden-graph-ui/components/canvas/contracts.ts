@@ -100,6 +100,8 @@ export const clamp = (
 ): number => Math.min(maximum, Math.max(minimum, value));
 
 export interface GraphCanvasProps {
+  /** Host-owned guidance for custom world controls. */
+  interactionHelp?: string;
   /** Replace this token when a host switches domain lifetimes while reusing its adapter. */
   interactionScope?: unknown;
   graphDocument: GraphPresentationDocument;

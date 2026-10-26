@@ -7,13 +7,15 @@ extraction notes and September counts are [archived](../archive/2026-10-18/progr
 
 ## Scan and policy
 
-Refreshed 2026-10-26 against delivered `1f4762ff` plus Spatializer presentation owners
-on `main`. Scanned **2245 source files**; **25 exceed 1,000 lines**. The Spatializer panel shrinks
-from 2,561 to 924 lines, composing a graph reader (187), display geometry (607), pointer interaction
-owner (438), SVG world (522) and shared types/constants. Its native fixture and host driver stay
-below the limit. Endpoint authoring and keyboard migration remain under P11. WebSocket read ownership
+Refreshed 2026-10-26 against delivered `47ade912` plus Spatializer authoring owners
+on `main`. Scanned **2252 source files**; **25 exceed 1,000 lines**. The Spatializer panel is
+936 lines, composing a graph reader (187), display geometry (607), pointer/keyboard interaction
+owner (422), bounded authoring controller (291), SVG world (534) and shared types/constants.
+The backend operation (257), canonical protocol crate, generated UI DTOs, owning tests and native
+fixtures stay below the limit. The prepared-subtree persistence repair adds focused capture tests.
+WebSocket read ownership
 and the shared fake socket have focused modules; the WS client is 962 lines, workbench facade
-981 and native read model 993. No new oversized source is introduced. The Alchemist panel shrinks
+984 and native read model 993. No new oversized source is introduced. The Alchemist panel shrinks
 from 2,091 to 993 lines, composing focused preview (266), clipboard (240), item creation (274),
 camera (44), graph request (70), mutation admission (98) and property-sidebar (295) owners.
 Its backend graph operation is 221 lines; owning tests and native fixtures stay below the limit.
@@ -31,7 +33,7 @@ below the limit. No new source-size exception is introduced. Remaining decomposi
 exceptions belong to P12; this inventory does not qualify that task.
 The surface controller is now 788 lines after extracting move and creation presentation ownership.
 Confirmed-work admission, barriers and parameter drafts live in the 281-line session service; the
-workbench facade is now 981 lines. The ordered facade is 46 lines, with separate move/resize controllers.
+workbench facade is now 984 lines. The ordered facade is 46 lines, with separate move/resize controllers.
 Dashboard actions are 681 lines after removing UI-owned move/placement/sizing sequences. Atomic
 backend layout operations live in the 220-line `ui_sync/dashboard_layout.rs` module; their tests
 remain 326 lines. Retained surface item order is a focused 56-line module, with adjacent tests.

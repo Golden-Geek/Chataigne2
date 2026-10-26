@@ -3,10 +3,10 @@ use golden_core::edit::NodeReadGuard;
 use golden_io::{PayloadPool, RetainedPayload, RetirementPool, RevisionGuard, WorkerNotifier};
 use std::{
     num::NonZeroUsize,
-    panic::{catch_unwind, AssertUnwindSafe},
+    panic::{AssertUnwindSafe, catch_unwind},
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc, Mutex, OnceLock,
+        atomic::{AtomicBool, Ordering},
     },
 };
 

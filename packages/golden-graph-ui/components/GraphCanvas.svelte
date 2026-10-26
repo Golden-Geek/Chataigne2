@@ -57,6 +57,7 @@
 		minZoom = DEFAULT_MIN_ZOOM,
 		maxZoom = DEFAULT_MAX_ZOOM,
 		autoHomeOnMount = true,
+		interactionHelp = 'Use Nodes to find and reveal any node. Select a node with Enter or Space. Arrow keys move selected nodes; Shift moves farther. Activate opposite sockets to connect. Escape cancels a connection.',
 		emptyLabel = 'No nodes in this graph.'
 	}: GraphCanvasProps = $props();
 
@@ -456,10 +457,7 @@
 	<div class="graph-keyboard-status" role="status" aria-live="polite">
 		{connections.message || keyboard.message}
 	</div>
-	<span id={keyboardHelpId} class="graph-keyboard-help"
-		>Use Nodes to find and reveal any node. Select a node with Enter or Space. Arrow keys move
-		selected nodes; Shift moves farther. Activate opposite sockets to connect. Escape cancels a
-		connection.</span>
+	<span id={keyboardHelpId} class="graph-keyboard-help">{interactionHelp}</span>
 </div>
 
 <style>

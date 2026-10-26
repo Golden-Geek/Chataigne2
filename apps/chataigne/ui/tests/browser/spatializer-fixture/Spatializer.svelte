@@ -5,16 +5,40 @@
 	import { executeCommand } from 'golden_ui/store/commands.svelte';
 	import { writePanelPersistedState } from 'golden_ui/dockview/panel-persistence';
 	import SpatializerEditorPanel from '../../../src/lib/panels/modules/SpatializerEditorPanel.svelte';
+	import { createDefaultUiClient } from 'golden_ui';
+	import {
+		SPATIALIZER_NAMESPACE,
+		SPATIALIZER_EDIT_OPERATION
+	} from '../../../src/lib/panels/modules/spatializer/generated/constants';
+	let holdResync = false,
+		heldResync = $state(false),
+		releaseResync: (() => void) | null = null;
 	const base = new URLSearchParams(location.search).get('backend');
 	if (!base) throw new Error('Missing owned backend URL');
 	const session = createWorkbenchSession({
 		httpBaseUrl: `${base}/api/ui`,
 		wsUrl: `${base.replace('http:', 'ws:')}/api/ui/ws`,
-		enableGlobalShortcuts: false
+		enableGlobalShortcuts: false,
+		transportFactory: (options = {}) =>
+			createDefaultUiClient({
+				...options,
+				async onResyncRequired(scope, plane, reason) {
+					if (holdResync) {
+						heldResync = true;
+						await new Promise<void>((resolve) => {
+							releaseResync = resolve;
+						});
+						heldResync = false;
+					}
+					if (!options.onResyncRequired) throw new Error('Missing fixture resync callback');
+					return options.onResyncRequired(scope, plane, reason);
+				}
+			})
 	});
 	appState.session = session;
 	onMount(() => session.mount());
 	let mounted = $state(true);
+	let panel = $state<ReturnType<typeof SpatializerEditorPanel>>();
 	let moduleId: number | null = null;
 	let params = $state.raw<PanelParams>({});
 	const panelApi: PanelApi = {
@@ -64,6 +88,8 @@
 		);
 	};
 	export const status = () => ({
+		heldResync,
+		pending: session.editOperations.size,
 		connection: session.status,
 		generation: session.snapshotGeneration,
 		nodes: nodes().length
@@ -153,6 +179,69 @@
 	}
 	export const refresh = () => session.refreshSnapshot();
 	export const home = () => executeCommand('view.home', { source: 'api' });
+	export const key = (
+		id: number,
+		key: string,
+		shift = false,
+		kind: 'position' | 'radius' | 'freezeRadius' = 'position'
+	) => panel!.editEndpointKey(id, key, shift, kind);
+	export const begin = (
+		id: number,
+		kind: 'position' | 'radius' | 'freezeRadius',
+		point: { x: number; y: number }
+	) => panel!.beginEndpointGesture(id, kind, point);
+	export const update = (point: { x: number; y: number }) => panel!.updateEndpointGesture(point);
+	export const finish = (cancelled = false) => panel!.finishEndpointGesture(cancelled);
+	export const move = (moves: { id: number; position: { x: number; y: number } }[]) =>
+		panel!.moveEndpoints(moves);
+	export const createAt = (point: { x: number; y: number }) => panel!.createTargetAtWorld(point);
+	export const createInView = () => panel!.createTargetInView();
+	export const fieldValue = (id: number, key: string) => {
+		const owner = session.graph.state.nodesById.get(id),
+			node = owner ? child(owner, key) : null;
+		return node?.data.kind === 'parameter' ? node.data.param.value : null;
+	};
+	export const settle = frames;
+	export const staleSpace = (id: number) => {
+		const module = moduleId !== null ? session.graph.state.nodesById.get(moduleId) : null;
+		const endpoint = session.graph.state.nodesById.get(id);
+		if (!module || !endpoint) throw new Error('Missing fixture identity');
+		return session.invokeAppOperation({
+			kind: 'invokeAppOperation',
+			namespace: SPATIALIZER_NAMESPACE,
+			operation: SPATIALIZER_EDIT_OPERATION,
+			payload: {
+				module: { node: module.node_id, uuid: module.uuid },
+				space: 'xy',
+				edit: {
+					kind: 'nudge',
+					endpoint: { node: endpoint.node_id, uuid: endpoint.uuid },
+					delta: [100, 0]
+				}
+			}
+		});
+	};
+	export const holdReplacement = () => {
+		holdResync = true;
+	};
+	export const resumeReplacement = () => {
+		holdResync = false;
+		releaseResync?.();
+		releaseResync = null;
+	};
+	export const save = (path: string) =>
+		session.runEditBarrier(() => session.client.projectSave(path));
+	export const load = (path: string) =>
+		session.runEditBarrier(() => session.client.projectLoad(path));
+	export const historyLength = async () =>
+		(await session.client.snapshot({ kind: 'wholeGraph' })).history.undo_len;
+	export const history = (kind: 'undo' | 'redo') =>
+		session.runEditBarrier(() => session.sendIntent({ kind }));
+	export const fieldWritable = (id: number) => {
+		const owner = session.graph.state.nodesById.get(id);
+		const node = owner ? (child(owner, 'position_2d') ?? child(owner, 'position_3d')) : null;
+		return node?.data.kind === 'parameter' && !node.data.param.read_only;
+	};
 	export async function remount() {
 		mounted = false;
 		await frames();
@@ -162,7 +251,7 @@
 </script>
 
 <div class="fixture">
-	{#if mounted}<SpatializerEditorPanel {...props} />{/if}
+	{#if mounted}<SpatializerEditorPanel bind:this={panel} {...props} />{/if}
 </div>
 
 <style>

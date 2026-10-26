@@ -82,8 +82,8 @@ Actual 20k/50k editor interaction, whole-product performance and platform gates 
 The app's `ui/src/lib/panels/modules/SpatializerEditorPanel.svelte` composes focused owners under
 its `spatializer/` directory. `projection.svelte.ts` reads the public Golden graph model;
 `geometry.svelte.ts` owns display polygons, bounds and debug overlays; `SpatializerWorld.svelte`
-owns SVG markup and its scoped styles. `interaction.svelte.ts` holds existing pointer previews
-and scheduling, with shared presentation types/constants beside those owners. One coordinate
+owns SVG markup and its scoped styles. `interaction.svelte.ts` owns pointer previews, keyboard
+input and frame scheduling, with shared presentation types/constants beside those owners. One coordinate
 conversion serves both creation and pointer display paths.
 
 Spatializer supplies an empty graph document and custom world content to the public Golden
@@ -91,8 +91,26 @@ GraphCanvas. Its endpoints are app-owned controls, not fabricated graph nodes or
 uses a small overflow-visible SVG coordinate basis; the actual canvas owns the viewport and camera.
 Computed matrix values remain read-only in the inspector.
 
-This decomposition preserves existing mutation behavior. Backend endpoint authoring, captured
-session/generation ownership, keyboard editing and actual-app scale remain P11 work; the current
-pointer writer still addresses private parameters. See
-[presentation qualification](../progress/p11-spatializer-presentation.md) for the native six-group
-fixture and the explicit remaining scope. Display geometry does not qualify runtime influence math.
+Endpoint mutations use the app-owned `chataigne.spatializer/edit` operation. Its canonical Rust
+DTOs live in `apps/chataigne/systems/spatializer_protocol`; the public generator supplies the UI
+types. The backend validates module and endpoint IDs/UUIDs, current XY/XZ space, direct ownership,
+manual writable fields and finite coordinates before applying an atomic operation. XZ movement
+preserves the latest authored height. Relative nudges and radius adjustments read current backend
+values. Creation builds one complete detached target subtree using current backend defaults and
+engine-owned unique naming.
+
+`spatializer/authoring.ts` captures the session, projection generation, module and coordinate space
+before shared bounded edit admission. Gestures retain one in-flight request and one latest unsent
+sample under one acknowledged history group. Snapshot replacement, unmount and project barriers
+retire pending input; an acknowledged group still receives its matching close after a projection
+refresh. The engine's unique group ID protects a replacement or another owner's group from a stale
+close. Backend failures release admission and remove previews; committed previews remain until
+their event boundary publishes. Arrow keys move focused endpoints or resize focused radius
+handles, including zero-radius handles. Add target uses the current viewport center as a display
+hint; domain defaults stay in the backend.
+
+The [presentation qualification](../progress/p11-spatializer-presentation.md) preserves the initial
+six native groups; [authoring qualification](../progress/p11-spatializer-authoring.md) records the
+expanded 13-group workflow and owning backend/UI regressions. Actual-app scale and composed
+workflows remain P11 work. Display geometry does
+not qualify runtime influence math.

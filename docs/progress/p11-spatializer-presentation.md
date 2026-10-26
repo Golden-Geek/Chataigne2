@@ -72,3 +72,6 @@ creation, pointer ownership and keyboard operations, and qualify read-only/rejec
 through the actual adapter. The current private parameter writer and global edit-session queue are
 not accepted as the final architecture. Actual-app scale and composed workflows remain in the two
 open P11 checkpoints. Native physical usability retains P17 and full-product throughput P16.
+
+The subsequent [authoring milestone](p11-spatializer-authoring.md) implements and qualifies that
+backend, bounded gesture and keyboard migration. Actual-app scale and composed workflows remain.

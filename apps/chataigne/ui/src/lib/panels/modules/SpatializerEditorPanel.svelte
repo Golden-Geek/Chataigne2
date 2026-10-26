@@ -25,8 +25,6 @@
 		TARGET_LIST_TYPE,
 		SOURCE_TYPE,
 		TARGET_TYPE,
-		POSITION_2D_DECL_ID,
-		POSITION_3D_DECL_ID,
 		VALUE_LAYOUT_DECL_ID,
 		VALUE_LAYOUT_TARGET_CENTRIC,
 		MODE_VORONOI,
@@ -47,21 +45,12 @@
 		type GraphNodePosition,
 		type GraphWorldContentContext
 	} from 'golden_graph_ui';
-	import type {
-		NodeId,
-		PanelProps,
-		PanelState,
-		ParamValue,
-		UiCreatableUserItem,
-		UiCreateUserItemInitialParam,
-		UiNodeDto
-	} from 'golden_ui';
+	import type { NodeId, PanelProps, PanelState, UiNodeDto } from 'golden_ui';
 	import {
 		readPanelPersistedState,
 		writePanelPersistedState
 	} from 'golden_ui/dockview/panel-persistence';
 	import { registerCommandHandler } from 'golden_ui/store/commands.svelte';
-	import { sendCreateUserItemByTypeIntent } from 'golden_ui/store/ui-intents';
 	import { appState } from 'golden_ui/store/workbench.svelte';
 
 	type EditorParams = {
@@ -95,6 +84,9 @@
 	let worldSvg: SVGSVGElement | null = $state(null);
 	let graphCanvas = $state<SpatializerCanvas | null>(null);
 	const interaction = createSpatializerInteraction(() => ({
+		session,
+		module: activeModule,
+		space: prefer3d ? 'xz' : 'xy',
 		rawEndpoints,
 		graphCanvas,
 		worldSvg,
@@ -352,47 +344,51 @@
 		};
 	};
 
-	const initialParam = (decl_id: string, value: ParamValue): UiCreateUserItemInitialParam => ({
-		decl_id,
-		value
-	});
-
-	const targetPositionValue = (position: Point2): ParamValue =>
-		prefer3d
-			? { kind: 'vec3', value: [position.x, 0, position.y] }
-			: { kind: 'vec2', value: [position.x, position.y] };
-
-	const targetCreationItem = (): UiCreatableUserItem | null =>
-		targetList?.creatable_user_items.find((item) => item.node_type === TARGET_TYPE) ?? null;
-
+	export const createTargetAtWorld = (position: GraphNodePosition) =>
+		interaction.createTarget(graphPositionToSpatialPosition(position));
 	const createTargetAt = async (event: MouseEvent, position: GraphNodePosition): Promise<void> => {
-		const item = targetCreationItem();
-		if (!targetList || !item) {
-			return;
-		}
 		event.preventDefault();
 		event.stopPropagation();
 		graphCanvas?.focus();
-		const spatialPosition = graphPositionToSpatialPosition(position);
-		const result = await sendCreateUserItemByTypeIntent(
-			targetList.node_id,
-			item.node_type,
-			item.label,
-			{
-				select_when_created: item.select_when_created,
-				initial_params: [
-					...(item.initial_params ?? []),
-					initialParam(
-						prefer3d ? POSITION_3D_DECL_ID : POSITION_2D_DECL_ID,
-						targetPositionValue(spatialPosition)
-					)
-				]
-			}
-		);
-		if (result.selectWhenCreated && result.createdNodeId !== null) {
-			session?.selectNode(result.createdNodeId, 'REPLACE');
+		try {
+			await createTargetAtWorld(position);
+		} catch {
+			/* The interaction owner publishes failure feedback. */
 		}
 	};
+	export const createTargetInView = () => {
+		const rect = panelRoot?.querySelector('.canvas-region')?.getBoundingClientRect();
+		if (!rect || !graphCanvas) return Promise.reject(new Error('Spatializer view is unavailable.'));
+		const x = rect.left + (rect.width + (inspectorVisible ? inspectorWidth : 0)) / 2;
+		return createTargetAtWorld(graphCanvas.clientToWorld(x, rect.top + rect.height / 2));
+	};
+	export const editEndpointKey = (
+		id: number,
+		key: string,
+		shift = false,
+		kind: 'position' | 'radius' | 'freezeRadius' = 'position'
+	) => {
+		const endpoint = rawEndpoints.find((endpoint) => endpoint.node.node_id === id);
+		return endpoint ? interaction.keyboard(endpoint, key, shift, kind) : Promise.resolve(false);
+	};
+	export const beginEndpointGesture = (
+		id: number,
+		kind: 'position' | 'radius' | 'freezeRadius',
+		point: Point2
+	) => {
+		const endpoint = endpoints.find((endpoint) => endpoint.node.node_id === id);
+		return endpoint ? interaction.begin(endpoint, kind, point) : false;
+	};
+	export const updateEndpointGesture = (point: Point2) => interaction.update(point);
+	export const moveEndpoints = (moves: { id: number; position: Point2 }[]) =>
+		interaction.move(
+			moves.map((move) => {
+				const endpoint = session?.graph.state.nodesById.get(move.id);
+				if (!endpoint) throw new Error('Spatializer endpoint is unavailable.');
+				return { endpoint, position: { ...move.position } };
+			})
+		);
+	export const finishEndpointGesture = (cancelled = false) => interaction.finish(cancelled);
 
 	const isSelected = (endpoint: SpatialEndpoint): boolean =>
 		session?.selectedNodeId === endpoint.node.node_id;
@@ -415,6 +411,7 @@
 			{ priority: 100 }
 		);
 		return () => {
+			interaction.dispose();
 			unregisterFrame();
 			unregisterHome();
 			flushCameraPersistence();
@@ -446,6 +443,11 @@
 				{/each}
 			</select>
 		</label>
+		<button
+			type="button"
+			class="toolbar-chip"
+			disabled={!activeModule}
+			onclick={() => void createTargetInView().catch(() => undefined)}>Add target</button>
 		<span class="toolbar-chip">{dimensionLabel}</span>
 		<span class="toolbar-chip">{modeLabel}</span>
 		<label class="debug-toggle">
@@ -454,12 +456,14 @@
 		</label>
 	</header>
 
+	<p role="status" aria-live="polite" class="edit-feedback">{interaction.message}</p>
 	{#if activeModule}
 		<div class="editor-body">
 			<div class="canvas-region">
 				<GraphCanvas
 					bind:this={graphCanvas}
 					{graphDocument}
+					interactionHelp="Use Enter or Space to select an endpoint. Arrow keys move it; Shift moves farther. Arrow keys on a radius handle resize it. Use Add target to create at the view center."
 					worldContent={spatializerWorld}
 					worldBounds={geometry.graphWorldBounds}
 					{initialCamera}
@@ -560,6 +564,14 @@
 </section>
 
 <style>
+	.edit-feedback {
+		margin: 0;
+		padding: 0.25rem 0.5rem;
+		font-size: 0.8rem;
+	}
+	.edit-feedback:empty {
+		display: none;
+	}
 	.spatializer-editor-panel {
 		display: flex;
 		flex-direction: column;

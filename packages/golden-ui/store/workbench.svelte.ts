@@ -178,7 +178,10 @@ export interface WorkbenchSession {
 	): void;
 	sendIntent(intent: UiEditIntent, applied?: AppliedIntentObserver): Promise<void>;
 	sendIntents(intents: UiEditIntent[], applied?: AppliedIntentObserver): Promise<void>;
-	invokeAppOperation(request: WorkbenchAppOperation): Promise<WorkbenchAppOperationValue>;
+	invokeAppOperation(
+		request: WorkbenchAppOperation,
+		applied?: AppliedIntentObserver
+	): Promise<WorkbenchAppOperationValue>;
 	setLogUiUpdateHz(hz: number): void;
 	dismissToast(toastId: number): void;
 	undo(): Promise<void>;
@@ -961,8 +964,8 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 		appendUiLogRecord,
 		sendIntent,
 		sendIntents,
-		invokeAppOperation: (request) =>
-			invokeWorkbenchAppOperation(request, intentPipeline, userActions),
+		invokeAppOperation: (request, applied) =>
+			invokeWorkbenchAppOperation(request, intentPipeline, userActions, applied),
 		setLogUiUpdateHz,
 		dismissToast,
 		undo,

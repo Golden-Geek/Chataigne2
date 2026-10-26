@@ -5,7 +5,7 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-26 on `main`, based on delivered `1f4762ff` plus Spatializer presentation
+Last reconciled: 2026-10-26 on `main`, based on delivered `47ade912` plus Spatializer authoring
 delivery below. **P11 is in progress; four of six fixed checkpoints are closed (67% rounded).**
 **P10 is locally complete: three of three fixed checkpoints (100%).**
 **C01-C12 are locally closed: 12/12 packages (100%).
@@ -201,7 +201,7 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
 | Historical log windowing | Complete locally | Variable-height history, filters, follow, bounded native selection, focus and snapshot publication pass through 100k records. [Qualification](p11-log-windowing.md). |
 | Dashboard viewport awareness | Complete locally | All 599 correctness groups and 160 fixed timing combinations pass through 100k authored nodes, including geometry, bounded presentation, feedback, callback stalls and completion. Retention regression passes 13 checkpoints. [Timing qualification](p11-dashboard-timing.md), [composition](p11-dashboard-composition.md), [barriers](p11-dashboard-barriers.md). |
 | Tree focus and keyboard navigation | Complete locally | All four app consumers, 55 constrained-picker groups and shared navigation/lifecycle cases pass through 100k items. All 70 tree timing combinations and 15 collection regression combinations pass fixed gates. [Closure and evidence](p11-tree-closure.md). |
-| Graph keyboard operations | In progress | Shared operations/discovery/sockets pass nine correctness groups and 50 timing combinations through 100k nodes. State Machine and Alchemist pass native atomic edits, rejection, undo/redo, save/reload and replacement. Generation cursors qualify the snapshot/subscription gap and equal-time origins. Spatializer presentation passes six native groups; its backend authoring/keyboard work and actual-app scale remain. [Shared operations](p11-graph-keyboard.md), [discovery](p11-graph-discovery.md), [sockets](p11-graph-sockets.md), [State adapter](p11-state-graph-authoring.md), [Alchemist adapter](p11-alchemist-graph-authoring.md), [replacement overlap](p11-project-cursors.md), [Spatializer presentation](p11-spatializer-presentation.md). |
+| Graph keyboard operations | In progress | Shared operations/discovery/sockets pass nine correctness groups and 50 timing combinations through 100k nodes. State Machine, Alchemist and Spatializer pass native backend edits, rejection, undo/redo, save/reload and replacement. Spatializer's 13 groups also qualify captured bounded gestures, keyboard/radius editing and backend creation; prepared-subtree capture is repaired. Generation cursors qualify the snapshot/subscription gap and equal-time origins. Actual-app scale remains. [Shared operations](p11-graph-keyboard.md), [discovery](p11-graph-discovery.md), [sockets](p11-graph-sockets.md), [State adapter](p11-state-graph-authoring.md), [Alchemist adapter](p11-alchemist-graph-authoring.md), [replacement overlap](p11-project-cursors.md), [Spatializer authoring](p11-spatializer-authoring.md). |
 | Complete composed workflows | Not started | Qualify discovery, selection and editing across all required composed panels and large batches. Native usability retains P17. |
 
 ## Current handoff
@@ -217,15 +217,17 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
   Shared graph operations now pass nine production correctness groups, including collapsed/compound
   body sockets and mutation feedback. Discovery passes 20 timing combinations / 620 samples, and
   movement/connections pass 30 / 930 through 100k nodes. The full canvas regression also passes
-  all 55 action/tier combinations and both dense scenes. Owning UI suites now pass **425** cases;
+  all 55 action/tier combinations and both dense scenes. Owning UI suites now pass **441** cases;
   app and both native graph fixture Svelte checks pass. State Machine and Alchemist panels pass
   actual backend receipts, atomic read-only rejection, undo/redo, save/reload and snapshot/unmount
   cancellation. The prior cursor milestone qualifies five Alchemist correctness groups and
   four State groups, including delayed-snapshot replacement recovery. The current executable
-  passes six Spatializer presentation groups across all four modes, matrix layout, XZ projection,
-  snapshot and remount. These are small correctness fixtures.
+  passes 13 Spatializer presentation/authoring groups across all four modes, matrix layout, XZ
+  projection, keyboard/radius editing, bounded gestures, creation/history, read-only replacement
+  rejection/rollback and save/reload recovery. Core 635 and Spatializer 36 cases pass; prepared
+  catalog descendants now enter immutable persistence captures. These are small correctness fixtures.
   [Generation cursors](p11-project-cursors.md) now fence replacement during unsubscribe/snapshot/
-  re-subscribe, deferred encoding, frames and event-origin state. Complete Spatializer and actual-app scale qualification
+  re-subscribe, deferred encoding, frames and event-origin state. Complete actual-app scale qualification
   before closing graph keyboard operations, then composed
   workflows. Preserve [composition](p11-dashboard-composition.md) and
   [applied-receipt barriers](p11-dashboard-barriers.md). Native usability retains P17 and product
@@ -317,7 +319,7 @@ External qualification is separate from implementation. A historical pass is not
 | P08 Formula backend intents | 100%       | VERIFIED_LOCAL | PASSED four of four checkpoints   | Shared UI/script/HTTP/WS/headless operations, complete atomic fragments, backend connection policy and exact identity replies pass. Final native acceptance uses the default executable and isolated authenticated sessions; later product/platform qualification retains its owners.                                                                        |
 | P09 Graph document          | 100%       | VERIFIED_LOCAL | PASSED three of three checkpoints | Stable storage, indexed structural edits and exact rollback pass. Current/pre-P09 harness preserves 1,240 fixed-delta samples; public default/no-Serde contracts, Alchemist/statechart consumers, native selection drag/delete undo/redo, strict checks and default build qualify the final checkpoint.                                                      |
 | P10 Canvas                  | 100%       | VERIFIED_LOCAL | PASSED three of three checkpoints | Independent revisions/geometry, scoped routes/culling and full production mounted action/frame qualification pass at baseline/normal/stress tiers. All 55 action/tier and two dense scenes pass fixed gates, with 1,767 measured samples, preserved failures, owning UI/browser checks and default build. Native/full-product qualification retains P16/P17. |
-| P11 Workspace UX            | 67%        | IN_PROGRESS    | PASSED four of six checkpoints | Collections, logs, dashboards and tree interaction pass fixed local gates through 100k items. Shared graph operations/sockets/discovery pass 50 timing combinations; State Machine and Alchemist native correctness pass. Snapshot/subscription overlap, Spatializer, actual-app scale and composed qualification remain. Native usability open. |
+| P11 Workspace UX            | 67%        | IN_PROGRESS    | PASSED four of six checkpoints | Collections, logs, dashboards and tree interaction pass fixed local gates through 100k items. Shared graph operations/sockets/discovery pass 50 timing combinations; State Machine, Alchemist and Spatializer native correctness and snapshot/subscription overlap pass. Actual-app scale and composed qualification remain. Native usability open. |
 | P12 Boundaries/gates        | 0%         | NOT_STARTED    | PENDING                           | App policy leak, omitted graph tests, oversized files, unsafe conversions; recurring incremental native-link artifact gap                                                                                                                                                                                                                                    |
 | P13 Formula execution       | 0%         | NOT_STARTED    | PENDING                           | Historical profiles retained; production parallelism not mandated                                                                                                                                                                                                                                                                                            |
 | P14 Production time         | 0%         | NOT_STARTED    | PENDING                           | Clock helper unwired, no target-frame play, starvation/latency policy gaps                                                                                                                                                                                                                                                                                   |
@@ -11142,3 +11144,45 @@ ownership and keyboard controls, and qualify rejection/read-only/source replacem
 in the fixture are test arrangement, not acceptance of private parameter writes in product UI.
 Then complete actual-app scale and composed workflows before closing the two remaining checkpoints.
 Commit/push this verified milestone on `main`; keep the full P00-P18 goal active. P03 has zero left.
+
+### P11 Spatializer backend authoring, bounded gestures and persistence capture
+
+2026-10-26; resumed from `47ade912` and the current authoring diff. Previous goal turn:
+**progress**. No blocker audit applies. P03 remains complete with zero packages left.
+
+The app-owned `chataigne_spatializer_protocol` crate supplies canonical Rust DTOs and a public
+TypeScript generator; all ten generated files match its formatted output. Backend operations own
+XY/XZ validation, exact module/endpoint identity and direct ownership, manual writable fields,
+atomic multi-endpoint moves, relative nudge/radius policy, latest-height preservation and complete
+detached target creation with unique naming. No Spatializer policy moves into Golden.
+
+The panel uses captured shared bounded admission, one in-flight/one latest-unsent gesture sample,
+one acknowledged history group and committed event-boundary previews. Keyboard arrows move
+endpoints or resize focused radius handles, including zero. Add target uses the visible center.
+Snapshot/unmount/barrier cancellation and backend errors release admission and retire previews.
+BeginEdit rejection before any sample and refresh-related history leakage were reproduced and
+fixed with deterministic red/green regressions.
+
+Native save exposed a separate root-only prepared-subtree publication gap. An app actor regression
+reproduced missing-node save without a browser. Common prepared-subtree finalization now publishes
+its already-collected inserted IDs to immutable authored captures. The Golden regression compares
+captured/live codecs through catalog creation and undo/redo and preserves an earlier capture.
+No whole-engine rescan or extra descendant observer fan-out was added.
+
+Checks pass: **635 Core cases / three existing manual measurements ignored; 36 Spatializer
+backend cases; 441 UI cases** (27 audio / 58 graph / 194 Golden / 162 app). App and graph-fixture
+Svelte checks report zero errors/warnings. Strict app/all-target Clippy, package-owned Prettier,
+both Cargo formatters and whitespace checks pass. The normal locked build passes in **2m44s**,
+rebuilding the frontend with the skip flag unset. Its binary SHA-256 is
+`a9706de975f79c55ad5cf151be84beccd7979cbf59e4aae29ed1f2567a907dd1`.
+That exact artifact passes **13 Spatializer**, **four State** and **five Alchemist** native groups.
+The [qualification and evidence](p11-spatializer-authoring.md) retain seven native failures,
+the corrected save checkpoints, regression scopes, source inputs and build/check fingerprints.
+No synthetic input or desktop control was used. Inventory is **2,252 sources / 25 oversized**;
+all touched runtime/test sources remain under 1,000 lines.
+
+**P11 remains 4/6 (67% rounded); whole-plan coverage remains 59% (59.259...% exact).**
+The next dependency-ready work is actual-app graph scale qualification, then composed discovery,
+selection and editing workflows. Shared scale and these small native scenes do not substitute
+for those checks. Native physical usability remains P17 and full-product throughput P16.
+Commit/push this verified milestone on `main` and keep the full P00-P18 goal active.

@@ -603,10 +603,12 @@ fn spatializer_supported_scale_uses_sparse_delaunay_topology() {
         directed_edge_count <= TARGET_COUNT * 6,
         "planar topology should stay linear at the supported target scale; got {directed_edge_count} directed edges"
     );
-    assert!(topology
-        .target_indices
-        .iter()
-        .all(|target_index| !topology.neighbours(*target_index).is_empty()));
+    assert!(
+        topology
+            .target_indices
+            .iter()
+            .all(|target_index| !topology.neighbours(*target_index).is_empty())
+    );
 
     let values = super::spatializer_values_by_target(&config);
     for source in sources {
@@ -660,7 +662,7 @@ fn test_endpoint(item_id: NodeId, label: &str, position: SpatialPoint, radius: f
     }
 }
 
-fn create_spatializer_module() -> (crate::app::AppEngine, NodeId) {
+pub(super) fn create_spatializer_module() -> (crate::app::AppEngine, NodeId) {
     let root: crate::app::AppNode = Folder::new("root").into();
     let mut engine = crate::app::AppEngine::new(root);
     engine.add_node(SpatializerModule::create().into(), None);
@@ -680,7 +682,7 @@ fn create_spatializer_module() -> (crate::app::AppEngine, NodeId) {
     (engine, module_id)
 }
 
-fn stabilize(engine: &mut crate::app::AppEngine) {
+pub(super) fn stabilize(engine: &mut crate::app::AppEngine) {
     engine.resolve().expect("schedule should resolve");
     for _ in 0..2000 {
         engine.apply_edits().expect("edits should apply");
@@ -757,7 +759,7 @@ fn rename_node(engine: &mut crate::app::AppEngine, node: NodeId, label: &str) {
     engine.apply_edits().expect("rename patch should apply");
 }
 
-fn find_path(engine: &crate::app::AppEngine, start: NodeId, path: &str) -> Option<NodeId> {
+pub(super) fn find_path(engine: &crate::app::AppEngine, start: NodeId, path: &str) -> Option<NodeId> {
     let mut current = start;
     for segment in path.split('/') {
         if segment.trim().is_empty() {

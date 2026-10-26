@@ -19,6 +19,23 @@ const reply = (value: NonNullable<UiAck['result']>['value']): UiAck => ({
 });
 
 describe('workbench app operation results', () => {
+	it('forwards the canonical applied receipt to a caller projection observer', async () => {
+		const acks = [reply({ created: 123 })];
+		let observed: readonly UiAck[] | undefined;
+		await invokeWorkbenchAppOperation(
+			request,
+			{
+				async sendIntent(_intent, progress) {
+					progress?.applied?.(acks);
+				}
+			},
+			activity,
+			(value) => {
+				observed = value;
+			}
+		);
+		expect(observed).toBe(acks);
+	});
 	it.each([null, { source: 99, created: 123, uuid: 'exact' }])(
 		'returns the backend value through ordinary activity without graph discovery (%j)',
 		async (value) => {

@@ -719,6 +719,10 @@ impl<T: Node> Engine<T> {
             inserted_node_ids.extend_from_slice(subtree.node_ids.as_slice());
         }
 
+        // Decoded descendants were installed without individual creation events. Publish
+        // their authored records too; notifying only the roots leaves save captures incomplete.
+        self.project_dirty_nodes.extend(inserted_node_ids.iter().copied());
+
         self.sync_missing_reference_warnings_for_nodes_silent(inserted_node_ids.as_slice());
         if inserted_node_ids
             .iter()

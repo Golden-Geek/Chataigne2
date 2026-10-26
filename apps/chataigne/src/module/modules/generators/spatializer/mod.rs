@@ -1,3 +1,4 @@
+mod authoring;
 mod builders;
 mod endpoints;
 mod helpers;
@@ -9,7 +10,7 @@ mod tests;
 mod worker;
 
 use builders::*;
-use delaunator::{triangulate, Point};
+use delaunator::{Point, triangulate};
 use endpoints::*;
 use golden_core::{
     edit::NodeTree,
@@ -22,7 +23,7 @@ use golden_core::{
 };
 use helpers::*;
 #[cfg(test)]
-use math::{spatializer_value, spatializer_values_by_target, VoronoiTopology};
+use math::{VoronoiTopology, spatializer_value, spatializer_values_by_target};
 use std::collections::{HashMap, HashSet};
 
 const SPATIALIZER_SOURCE_ITEM_KIND: &str = "spatializer_source";
@@ -192,6 +193,14 @@ pub struct SpatializerModule {
 }
 
 impl SpatializerModule {
+    pub(crate) fn apply_authoring_operation(
+        engine: &mut crate::app::AppEngine,
+        operation: &str,
+        payload: serde_json::Value,
+    ) -> Result<serde_json::Value, String> {
+        authoring::apply(engine, operation, payload)
+    }
+
     pub fn create() -> Self {
         Self::new(crate::app::ModuleBase::new(), service::Service::new())
     }
@@ -328,12 +337,14 @@ impl Node for SpatializerSourceList {
     }
 
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
-        vec![UserCreatableItem::new(
-            SpatializerSourceItem::NODE_TYPE,
-            SPATIALIZER_SOURCE_ITEM_KIND,
-            SPATIALIZER_SOURCE_ITEM_LABEL,
-        )
-        .with_select_when_created(false)]
+        vec![
+            UserCreatableItem::new(
+                SpatializerSourceItem::NODE_TYPE,
+                SPATIALIZER_SOURCE_ITEM_KIND,
+                SPATIALIZER_SOURCE_ITEM_LABEL,
+            )
+            .with_select_when_created(false),
+        ]
     }
 
     fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
@@ -365,12 +376,14 @@ impl Node for SpatializerTargetList {
     }
 
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
-        vec![UserCreatableItem::new(
-            SpatializerTargetItem::NODE_TYPE,
-            SPATIALIZER_TARGET_ITEM_KIND,
-            SPATIALIZER_TARGET_ITEM_LABEL,
-        )
-        .with_select_when_created(false)]
+        vec![
+            UserCreatableItem::new(
+                SpatializerTargetItem::NODE_TYPE,
+                SPATIALIZER_TARGET_ITEM_KIND,
+                SPATIALIZER_TARGET_ITEM_LABEL,
+            )
+            .with_select_when_created(false),
+        ]
     }
 
     fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {

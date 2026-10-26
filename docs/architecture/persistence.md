@@ -16,6 +16,11 @@ Multi-root duplicate actions prepare each detached subtree before mutation, then
 whole batch under one rollback checkpoint. Loaded-node attached/init/ready callbacks replay in
 creation-context groups, so a paste does not rebuild a full process-tree snapshot for each root.
 Each inserted root retains its insertion-time sibling anchors for a single undo transaction.
+
+Prepared-subtree finalization publishes every inserted node ID to the authored project capture,
+including descendants decoded before lifecycle replay. Root-only observer notifications do not
+replace that persistence publication. The existing collected IDs bound this work to the committed
+subtrees; it requires neither a whole-engine scan nor extra per-descendant observer events.
 History replay batches independent same-parent additions: undo shares one destroy lifecycle
 snapshot, while redo restores all roots before building one UI catalog snapshot and running one
 ready lifecycle batch. The post-restore catalog snapshot is also passed to ready callbacks, with

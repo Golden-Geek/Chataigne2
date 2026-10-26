@@ -11,6 +11,9 @@ use crate::app::{ProjectGeneration, ProjectGraphCapture, ProjectLifecycle, spars
 use crate::engine::{Engine, ProjectFile, ProjectPersistenceError};
 use crate::node::NodeId;
 
+#[cfg(test)]
+mod tests;
+
 pub(super) struct ProjectDocumentCapture {
     graph: ProjectGraphCapture,
     pub(super) project_generation: ProjectGeneration,
