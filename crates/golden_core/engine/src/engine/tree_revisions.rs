@@ -53,7 +53,7 @@ impl RevisionSnapshot {
     pub(crate) fn retained_heap_bytes(&self) -> usize {
         crate::process_ctx::memory::arc_map(&self.by_node)
     }
-    pub(crate) fn fold_subtrees(&mut self, nodes: &HashMap<NodeId, crate::process_ctx::ProcessTreeNodeSnapshot>) {
+    pub(crate) fn fold_subtrees(&mut self, nodes: &HashMap<NodeId, Box<crate::process_ctx::ProcessTreeNodeSnapshot>>) {
         let mut children: HashMap<_, usize> = nodes.keys().map(|id| (*id, 0)).collect();
         for node in nodes.values() {
             if let Some(count) = node.parent.and_then(|parent| children.get_mut(&parent)) {

@@ -269,7 +269,14 @@ pub(super) fn weights(snapshot: &ProcessTreeSnapshot) -> AllocationWeights {
         ids_by_child_key,
     } = indexes;
     AllocationWeights {
-        nodes: sum([arc_map(&snapshot.nodes), sum(snapshot.nodes.values().map(node))]),
+        nodes: sum([
+            arc_map(&snapshot.nodes),
+            // Index slack contains pointers. Every populated bucket additionally owns
+            // one complete record allocation, including conservative allocator overhead.
+            slots::<ProcessTreeNodeSnapshot>(snapshot.nodes.len()),
+            snapshot.nodes.len().saturating_mul(2 * size_of::<usize>()),
+            sum(snapshot.nodes.values().map(|record| node(record))),
+        ]),
         overlays: overlays(&snapshot.node_overrides),
         uuids: arc_map(&snapshot.node_ids_by_uuid),
         revisions: snapshot.revisions.retained_heap_bytes(),

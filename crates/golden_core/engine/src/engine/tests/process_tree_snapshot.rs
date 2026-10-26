@@ -2,6 +2,8 @@ use super::*;
 use std::time::{Duration, Instant};
 use uuid::Uuid;
 
+mod large_catalog;
+
 fn snapshot_node(id: NodeId, uuid: NodeUuid, value: Option<ParamValue>) -> ProcessTreeNodeSnapshot {
     ProcessTreeNodeSnapshot {
         id,
@@ -91,7 +93,7 @@ fn deep_subtree_revisions_fold_iteratively_and_do_not_rewrite_a_retained_view() 
         let mut node = snapshot_node(id, NodeUuid(Uuid::from_u128(u128::from(value))), None);
         node.parent = (value > 1).then_some(NodeId(value - 1));
         node.first_child = (value < 20_000).then_some(NodeId(value + 1));
-        nodes.insert(id, node);
+        nodes.insert(id, Box::new(node));
     }
     let before = ProcessTreeSnapshot::from_indexed_nodes(NodeId(1), nodes.clone(), HashMap::new(), clock.snapshot());
     let change = clock.next_change();

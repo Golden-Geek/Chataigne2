@@ -5,8 +5,8 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-27 on `main`, based on delivered `1e1ae0e8` plus archive-collision
-read repair below. **P11 is in progress; four of six fixed checkpoints are closed (67% rounded).**
+Last reconciled: 2026-10-27 on `main`, based on delivered `35b54f66` plus compact snapshot
+storage under verification. **P11 is in progress; four of six fixed checkpoints are closed (67% rounded).**
 **P10 is locally complete: three of three fixed checkpoints (100%).**
 **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
@@ -254,7 +254,16 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
   and the existing UUID index. All 90 processor regressions and strict app/Core all-target Clippy
   pass. The normal bundled executable passes all 34 native correctness groups. The full pressure
   attempt passes Voronoi 50k and 100k (19.7s / 40.9s publication), then times out at 4,096 targets.
-  Archive settlement no longer clones the graph; diagnose this newly reached endpoint-cap case.
+  A directed cap trace stops at 119,059 nodes / 26 rows / 106,496 cells: its 1,016,862,484-byte
+  snapshot lease is rejected by the existing shared 1 GiB budget. Golden's base snapshot index
+  now stores boxed records and charges each record allocation separately from sparse pointer
+  buckets. The 384-allocation / 1 GiB gate is unchanged. A 131,105-record wide-catalog regression
+  passes at 303,009,394 reserved bytes. All 636 Core tests pass (three existing ignored);
+  graph-fixture Svelte and strict workspace/all-target Clippy checks pass. The normal bundled
+  executable passes all 34 native correctness groups. The full pressure attempt passes Voronoi
+  50k, 100k and the 4,096-target case (143,641 records / 131,072 cells, checks complete in 60.3s).
+  The transposed case times out at 2,002 of 4,096 rows with no capacity warning. Batch small
+  prepared rows before guarded application; preserve construction, lifetime and source/path bounds.
   Complete all 16 pressure groups and 60 timing cases before graph checkpoint closure.
   Finish pressure/publication diagnosis
   before action timing; do not infer qualification from small-scene correctness.
@@ -11517,3 +11526,32 @@ explain the corrected coverage; see the [scan policy](../reference/source-size-i
 Deliver this verified archive-read repair on `main`; **P03 remains 12/12 (100%), P11 4/6 (67%),
 whole plan 59%**. Continue endpoint-cap diagnosis, complete Spatializer scale, then composed
 workflows. The P00-P18 implementation goal remains active.
+
+### P11 snapshot storage and cap evidence — 2026-10-27
+
+The cap diagnostic confirms a permanent lease rejection at **119,059 records / 26 rows /
+106,496 cells**, requesting 1,016,862,484 bytes from the canonical shared 1 GiB pool.
+Golden's base snapshot index now owns boxed records. Pointer buckets and complete populated
+record allocations, allocator overhead and owned metadata are charged separately. Sparse
+overrides, source-revision guards and background final disposal retain their existing ownership.
+The 384-allocation / 1 GiB admission gate and Spatializer's service bounds are unchanged.
+
+All **636 Core tests** pass (three existing ignored). The new 32-by-4,096 catalog test verifies
+**131,105 records at 303,009,394 reserved bytes**, successful leasing and exact lookup/value
+contracts. Strict workspace/all-target Clippy, graph-fixture Svelte, touched frontend Prettier,
+root/Core Cargo fmt and the normal bundled build pass. The exact executable passes **34 native
+groups**: 12 navigation, 13 Spatializer, four State and five Formula. The
+[storage evidence](evidence/p11-spatializer-snapshot-storage-2026-10-27.json) preserves fingerprints
+and the complete pressure attempt. No new app unit-suite or action timing run is claimed.
+
+The full uninstrumented pressure selection passes Voronoi **50k, 100k and 4,096 targets**.
+The target cap completes all checks in **60,281.5ms**, with all **143,641 records / 131,072 cells**
+and bounded geometry/focus/inspector content. The transposed case fails the unchanged 300s setup
+gate at **2,002 of 4,096 rows / 64,064 cells**, with no capacity warning. The next owning repair is
+bounded small-row forest batching before guarded application; preserve source/path and pending
+receipt recovery, the 32-child construction bound and existing lifetime admission. Then rerun
+all 16 pressure groups and the 60 fixed action cases before graph checkpoint closure.
+
+Inventory is **2,288 sources / 25 existing oversized files**; the focused capacity test is 59
+lines. Deliver the verified storage repair on `main`. **P03 remains 12/12 (100%), P11 4/6 (67%),
+whole plan 59%**. Composed workflows follow complete graph qualification. The full goal stays active.

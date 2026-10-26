@@ -49,7 +49,7 @@ impl std::error::Error for SnapshotLeaseError {
 // keep these Arcs alive, but can never become the final owner of already leased storage.
 #[derive(Debug)]
 pub(super) struct StorageLeases {
-    _nodes: RetainedPayload<HashMap<NodeId, ProcessTreeNodeSnapshot>>,
+    _nodes: RetainedPayload<HashMap<NodeId, Box<ProcessTreeNodeSnapshot>>>,
     _overlays: RetainedPayload<HashMap<NodeId, ProcessTreeNodeSnapshot>>,
     _uuids: RetainedPayload<HashMap<NodeUuid, NodeId>>,
     _children: RetainedPayload<ProcessTreeChildIndexes>,

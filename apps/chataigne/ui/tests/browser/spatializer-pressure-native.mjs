@@ -122,22 +122,38 @@ await nativeWorkbench({
 				elapsedMs: performance.now() - started,
 				publication: await call('scaleScene')
 			});
-			await page.waitForFunction(
-				({ before, mode, sources, targets, expected }) => {
-					const scene = window.spatializerFixture.scaleScene();
-					return (
-						scene.generation > before &&
-						scene.mode === mode &&
-						scene.sources === sources &&
-						scene.targets === targets &&
-						scene.cells === sources * targets &&
-						scene.treeNodes === expected &&
-						scene.pending === 0
-					);
-				},
-				{ before, mode, sources, targets, expected: tier ?? expected },
-				{ timeout: remaining(), polling: 500 }
-			);
+			const progress = diagnosticOnly
+				? setInterval(() => {
+						void call('scaleScene')
+							.then((publication) =>
+								emit({ kind: 'diagnostic-publication', ...scene, publication })
+							)
+							.catch(() => {});
+					}, 5000)
+				: null;
+			try {
+				await page.waitForFunction(
+					({ before, mode, sources, targets, expected }) => {
+						const scene = window.spatializerFixture.scaleScene();
+						return (
+							scene.generation > before &&
+							scene.mode === mode &&
+							scene.sources === sources &&
+							scene.targets === targets &&
+							scene.cells === sources * targets &&
+							scene.treeNodes === expected &&
+							scene.pending === 0
+						);
+					},
+					{ before, mode, sources, targets, expected: tier ?? expected },
+					{ timeout: remaining(), polling: 500 }
+				);
+			} catch (error) {
+				emit({ kind: 'publication-failure', ...scene, publication: await call('scaleScene') });
+				throw error;
+			} finally {
+				if (progress !== null) clearInterval(progress);
+			}
 			emit({ kind: 'matrix-published', ...scene, elapsedMs: performance.now() - started });
 			await call('debug', true);
 			await page.locator('.graph-canvas').evaluate((element) => element.focus());

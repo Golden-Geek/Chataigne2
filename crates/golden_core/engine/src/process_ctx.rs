@@ -191,7 +191,9 @@ pub struct ProcessTreeSnapshot {
     storage_leases: std::sync::OnceLock<lease::StorageLeases>,
     revisions: RevisionSnapshot,
     root: NodeId,
-    nodes: Arc<HashMap<NodeId, ProcessTreeNodeSnapshot>>,
+    // Keep large records out of sparse hash buckets; leases charge each owned box
+    // separately from the index's spare capacity.
+    nodes: Arc<HashMap<NodeId, Box<ProcessTreeNodeSnapshot>>>,
     node_overrides: Arc<HashMap<NodeId, ProcessTreeNodeSnapshot>>,
     node_ids_by_uuid: Arc<HashMap<NodeUuid, NodeId>>,
     child_indexes: Arc<ProcessTreeChildIndexes>,
@@ -219,6 +221,9 @@ impl ProcessTreeSnapshot {
         for (node_id, node) in &nodes {
             node_ids_by_uuid.entry(node.uuid).or_insert(*node_id);
         }
+        let mut boxed = HashMap::with_capacity(nodes.capacity());
+        boxed.extend(nodes.into_iter().map(|(id, node)| (id, Box::new(node))));
+        let nodes = boxed;
         let child_indexes = Self::build_child_indexes(&nodes);
         let mut snapshot = Self {
             weights: memory::AllocationWeights::default(),
@@ -236,7 +241,7 @@ impl ProcessTreeSnapshot {
 
     pub(crate) fn from_indexed_nodes(
         root: NodeId,
-        nodes: HashMap<NodeId, ProcessTreeNodeSnapshot>,
+        nodes: HashMap<NodeId, Box<ProcessTreeNodeSnapshot>>,
         node_ids_by_uuid: HashMap<NodeUuid, NodeId>,
         mut revisions: RevisionSnapshot,
     ) -> Self {
@@ -256,7 +261,7 @@ impl ProcessTreeSnapshot {
         snapshot
     }
 
-    fn build_child_indexes(nodes: &HashMap<NodeId, ProcessTreeNodeSnapshot>) -> Arc<ProcessTreeChildIndexes> {
+    fn build_child_indexes(nodes: &HashMap<NodeId, Box<ProcessTreeNodeSnapshot>>) -> Arc<ProcessTreeChildIndexes> {
         // Most folders are small; index only wide parents to avoid one map and
         // cloned selector strings per folder on every full-tree snapshot.
         const DECL_INDEX_THRESHOLD: usize = 16;
@@ -369,7 +374,9 @@ impl ProcessTreeSnapshot {
 
     /// Returns one node snapshot by id.
     pub fn node(&self, node: NodeId) -> Option<&ProcessTreeNodeSnapshot> {
-        self.node_overrides.get(&node).or_else(|| self.nodes.get(&node))
+        self.node_overrides
+            .get(&node)
+            .or_else(|| self.nodes.get(&node).map(Box::as_ref))
     }
 
     /// Returns a cloned snapshot with selected parameter values replaced.

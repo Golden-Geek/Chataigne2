@@ -1,0 +1,511 @@
+{
+  "scope": "Compact owned base snapshot records preserve canonical lease capacity at Spatializer endpoint caps",
+  "baseCommit": "35b54f66",
+  "recordedOn": "2026-10-27",
+  "binarySha256": "8420ab6bed7b92b2c7cc81f4a5b9104b0fe3b36f6d0f66cac464788ab0390b5d",
+  "files": [
+    {
+      "path": "crates/golden_core/engine/src/engine/mod.rs",
+      "sha256": "805aa6e81f6e6f99595e2d3f05a3632c3cb4ad5ec45a7348eb303e3aeb6fb06d",
+      "lines": 802
+    },
+    {
+      "path": "crates/golden_core/engine/src/engine/tree_revisions.rs",
+      "sha256": "bfd7729a2974b3f2868ea42c3dcf5b3f17dc6d594235b1ab92eaeb00436340dd",
+      "lines": 188
+    },
+    {
+      "path": "crates/golden_core/engine/src/process_ctx.rs",
+      "sha256": "e5d33c9e76395ffd1cb4c68068b01669503114020dda04c2825efe870c97a8b5",
+      "lines": 957
+    },
+    {
+      "path": "crates/golden_core/engine/src/process_ctx/memory.rs",
+      "sha256": "93956307bfe023de85e524f134544f0f7319cc9bd5f6268023b0416667665319",
+      "lines": 298
+    },
+    {
+      "path": "crates/golden_core/engine/src/process_ctx/lease.rs",
+      "sha256": "6ba2490498bc3f9c6f4833eea6cb9442aeb901f16fab8517a337509174743e34",
+      "lines": 103
+    },
+    {
+      "path": "crates/golden_core/engine/src/engine/tests/process_tree_snapshot.rs",
+      "sha256": "1432fb40bd63c968545bba59c5712dfe471c6657c3006e470cca62e25b75759b",
+      "lines": 526
+    },
+    {
+      "path": "crates/golden_core/engine/src/engine/tests/process_tree_snapshot/large_catalog.rs",
+      "sha256": "9e385f44ea688c549e36615ad4b92e4c7961c3a3e3e0e55ff59ad5073382f58c",
+      "lines": 59
+    },
+    {
+      "path": "crates/golden_core/engine/src/engine/tests/tree_revisions/structure.rs",
+      "sha256": "81f9dc49a606f71f8ac14536413719cc1a628c2fc003de2fee34921c805db3a7",
+      "lines": 186
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/spatializer-pressure-native.mjs",
+      "sha256": "76931b8be5d26c6868e6129d89e2955fcabe6f29816f0b5b0bc006237857af7c",
+      "lines": 261
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/spatializer-fixture/Spatializer.svelte",
+      "sha256": "9188ba6d88044c72fd9bcf9e27f52bf9359ba6e46d48264b3d05b6cb6ac1a507",
+      "lines": 328
+    }
+  ],
+  "checks": {
+    "core": {
+      "passed": 636,
+      "ignored": 3,
+      "newTests": 1,
+      "profile": "dev",
+      "log": "target/qualification/p11-spatializer-boxed-snapshot-core-tests.log"
+    },
+    "wideCatalog": {
+      "rows": 32,
+      "columns": 4096,
+      "records": 131105,
+      "reservedBytes": 303009394,
+      "leaseSucceeded": true,
+      "identityValueDeclarationAndChildrenVerified": true
+    },
+    "clippy": {
+      "passed": true,
+      "workspace": true,
+      "allTargets": true,
+      "denyWarnings": true,
+      "log": "target/qualification/p11-spatializer-boxed-snapshot-clippy.log"
+    },
+    "normalBuild": {
+      "passed": true,
+      "bundled": true,
+      "log": "target/qualification/p11-spatializer-boxed-snapshot-build.log"
+    },
+    "svelteFixture": {
+      "passed": true,
+      "errors": 0,
+      "warnings": 0,
+      "log": "target/qualification/p11-spatializer-cap-fixture-check.log"
+    },
+    "formatters": {
+      "rootCargo": true,
+      "goldenCoreCargo": true,
+      "touchedFrontendPrettier": true
+    }
+  },
+  "inventory": {
+    "sources": 2288,
+    "oversized": 25
+  },
+  "unchangedGates": {
+    "snapshotItems": 384,
+    "snapshotBytes": 1073741824,
+    "spatializerPairsPerTurn": 16,
+    "spatializerTreeChildrenPerTurn": 32,
+    "pressureScenes": 16,
+    "actionCases": 60,
+    "setupDeadlineMs": 300000
+  },
+  "completion": {
+    "p03": "12/12",
+    "p11": "4/6",
+    "wholePlanPercent": 59
+  },
+  "diagnostic": {
+    "artifact": "target/qualification/p11-spatializer-pressure-59cf0c4a-cf27-4d54-abf9-657ac77cc765/browser.jsonl",
+    "sha256": "89ce6e1e01d45c501a654c0e29d114e950c96a0f5dfb36254f3ebfe06d3031fa",
+    "binarySha256": "fd27ca6692e51e56ec929fe9a4a61e34747770a4092154d5810656c456dcee50",
+    "contract": {
+      "kind": "pressure-contract",
+      "scenes": 16,
+      "selectedCases": [
+        2
+      ],
+      "fullSelection": false,
+      "diagnosticOnly": true,
+      "engineTrace": true,
+      "actionTiming": false,
+      "limits": {
+        "endpointGlyphs": 128,
+        "overviewGroups": 256,
+        "regionPolygons": 256,
+        "finderRows": 32,
+        "relatedRows": 42
+      }
+    },
+    "firstCapacityFailure": {
+      "module": 4294967302,
+      "warnings": [
+        {
+          "id": "spatializer_service",
+          "message": "snapshot lease of 1016862484 bytes was rejected by the 384-allocation / 1 GiB reservation budget"
+        }
+      ],
+      "mode": "voronoi",
+      "treeNodes": 119059,
+      "radiusParameters": 0,
+      "freezeParameters": 4096,
+      "sources": 32,
+      "targets": 4096,
+      "valueFolders": 26,
+      "cells": 106496,
+      "pending": 0,
+      "generation": 2
+    },
+    "finalPublication": {
+      "module": 4294967302,
+      "warnings": [
+        {
+          "id": "spatializer_service",
+          "message": "snapshot lease of 1016862484 bytes was rejected by the 384-allocation / 1 GiB reservation budget"
+        }
+      ],
+      "mode": "voronoi",
+      "treeNodes": 119059,
+      "radiusParameters": 0,
+      "freezeParameters": 4096,
+      "sources": 32,
+      "targets": 4096,
+      "valueFolders": 26,
+      "cells": 106496,
+      "pending": 0,
+      "generation": 2
+    },
+    "failure": "TimeoutError: page.waitForFunction: Timeout 299052.9367ms exceeded."
+  },
+  "regressions": [
+    {
+      "name": "navigation",
+      "log": "target/qualification/p11-spatializer-boxed-snapshot-navigation.log",
+      "artifact": "target/qualification/p11-spatializer-navigation-0d681341-61cb-410d-b26a-65963b492238/browser.jsonl",
+      "sha256": "ff25eddbdc1ff7ac969e486654e787b082e71454c81e96a5052f04f866cda0d1",
+      "binarySha256": "8420ab6bed7b92b2c7cc81f4a5b9104b0fe3b36f6d0f66cac464788ab0390b5d",
+      "groups": [
+        "custom-world-catalog-paging",
+        "source-target-svg-reveal",
+        "keyboard-mutation-retains-svg-focus",
+        "custom-world-selection-framing",
+        "position-change-retains-discovery",
+        "coordinate-space-navigation-fence",
+        "item-retirement-and-undo",
+        "snapshot-navigation-fence",
+        "project-replacement-navigation-fence",
+        "unmount-navigation-retirement",
+        "mode-control-focus-restoration",
+        "wide-home-endpoint-coverage"
+      ],
+      "result": {
+        "kind": "result",
+        "passed": true,
+        "errors": []
+      }
+    },
+    {
+      "name": "native",
+      "log": "target/qualification/p11-spatializer-boxed-snapshot-native.log",
+      "artifact": "target/qualification/p11-spatializer-native-39ae16ae-c56b-407f-9a89-f4d95699bd35/browser.jsonl",
+      "sha256": "81c899fb9eb20a37563a89fa7fb7429218481b4ba295ce815b43017bc051c139",
+      "binarySha256": "8420ab6bed7b92b2c7cc81f4a5b9104b0fe3b36f6d0f66cac464788ab0390b5d",
+      "groups": [
+        "empty-document-custom-world",
+        "selection-inspector-debug",
+        "authoritative-projection-and-home",
+        "mode-and-matrix-layout-replacement",
+        "three-dimensional-projection",
+        "snapshot-and-remount",
+        "stale-coordinate-space-rejection",
+        "keyboard-gesture-and-history",
+        "zero-radius-keyboard-control",
+        "active-gesture-snapshot-and-unmount",
+        "backend-target-creation",
+        "read-only-replacement-rejection-and-rollback",
+        "saved-project-and-recovery"
+      ],
+      "result": {
+        "kind": "result",
+        "passed": true,
+        "errors": []
+      }
+    },
+    {
+      "name": "state",
+      "log": "target/qualification/p11-spatializer-boxed-snapshot-state.log",
+      "artifact": "target/qualification/p11-state-native-ea45c288-25c3-4e66-81c7-fd5d9c3fb7c4/browser.jsonl",
+      "sha256": "acb3016e9ae52651711056c31d437511d94f99ac4959effe7444b598beb2514f",
+      "binarySha256": "8420ab6bed7b92b2c7cc81f4a5b9104b0fe3b36f6d0f66cac464788ab0390b5d",
+      "groups": [
+        "movement-and-history",
+        "collapse-and-connection",
+        "save-reload-snapshot-unmount",
+        "atomic-readonly-rejection"
+      ],
+      "result": {
+        "kind": "result",
+        "passed": true,
+        "errors": []
+      }
+    },
+    {
+      "name": "formula",
+      "log": "target/qualification/p11-spatializer-boxed-snapshot-formula.log",
+      "artifact": "target/qualification/p11-alchemist-native-f9dcf773-205c-4697-8218-85369a6320a5/browser.jsonl",
+      "sha256": "18650730d1306bbd6ef0c8393d20d377b4ab30b2b49f62374fe556168995b95e",
+      "binarySha256": "8420ab6bed7b92b2c7cc81f4a5b9104b0fe3b36f6d0f66cac464788ab0390b5d",
+      "groups": [
+        "movement-and-history",
+        "collapse-and-connection",
+        "save-reload-snapshot-unmount",
+        "atomic-readonly-rejection",
+        "snapshot-subscribe-replacement-overlap"
+      ],
+      "result": {
+        "kind": "result",
+        "passed": true,
+        "errors": []
+      }
+    }
+  ],
+  "pressure": {
+    "log": "target/qualification/p11-spatializer-boxed-snapshot-pressure.log",
+    "artifact": "target/qualification/p11-spatializer-pressure-a0d722f6-134b-4d5f-8d30-4597dcdb60ff/browser.jsonl",
+    "sha256": "c44a91af765d04fc0a0970d9f5718535eb6a9209542244c64d93c5f68f9327fa",
+    "binarySha256": "8420ab6bed7b92b2c7cc81f4a5b9104b0fe3b36f6d0f66cac464788ab0390b5d",
+    "contract": {
+      "kind": "pressure-contract",
+      "scenes": 16,
+      "selectedCases": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "fullSelection": true,
+      "diagnosticOnly": false,
+      "engineTrace": false,
+      "actionTiming": false,
+      "limits": {
+        "endpointGlyphs": 128,
+        "overviewGroups": 256,
+        "regionPolygons": 256,
+        "finderRows": 32,
+        "relatedRows": 42
+      }
+    },
+    "publication": [
+      {
+        "kind": "matrix-published",
+        "mode": "voronoi",
+        "tier": 50000,
+        "sources": 32,
+        "targets": 1420,
+        "elapsedMs": 19640.9664
+      },
+      {
+        "kind": "matrix-published",
+        "mode": "voronoi",
+        "tier": 100000,
+        "sources": 32,
+        "targets": 2849,
+        "elapsedMs": 40737.0389
+      },
+      {
+        "kind": "matrix-published",
+        "mode": "voronoi",
+        "sources": 32,
+        "targets": 4096,
+        "tier": null,
+        "elapsedMs": 58702.83170000001
+      }
+    ],
+    "passedGroups": [
+      {
+        "kind": "spatializer-pressure",
+        "passed": true,
+        "diagnosticOnly": false,
+        "mode": "voronoi",
+        "tier": 50000,
+        "sources": 32,
+        "targets": 1420,
+        "treeNodes": 50000,
+        "cells": 45440,
+        "inputSha256": "c2f821933a3241075e1d0de907cbeba1ef68b9cf690b204c928e4d5d281a339f",
+        "home": {
+          "presentation": "overview",
+          "visible": 1452,
+          "glyphs": 0,
+          "groups": 24,
+          "groupedEndpoints": 1452,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 0,
+          "finderRows": 0,
+          "label": "Endpoint overview: 1452 visible of 1452. Zoom in or Find endpoints. Region overview: zoom in for complete cells. Influence overview: 32 sources, 1420 targets. Inspect computed values for exact weights."
+        },
+        "detail": {
+          "presentation": "detail",
+          "visible": 10,
+          "glyphs": 10,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 19,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 1420 targets. Inspect computed values for exact weights."
+        },
+        "inspector": {
+          "presentation": "detail",
+          "visible": 10,
+          "glyphs": 11,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 19,
+          "rows": 17,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 1420 targets. Inspect computed values for exact weights."
+        },
+        "setupAndChecksMs": 20591.6593
+      },
+      {
+        "kind": "spatializer-pressure",
+        "passed": true,
+        "diagnosticOnly": false,
+        "mode": "voronoi",
+        "tier": 100000,
+        "sources": 32,
+        "targets": 2849,
+        "treeNodes": 100000,
+        "cells": 91168,
+        "inputSha256": "723b9efd1cdfb825792b691ae28ca50aeaa355ee3ac3fca9559456360319ab00",
+        "home": {
+          "presentation": "overview",
+          "visible": 2881,
+          "glyphs": 1,
+          "groups": 24,
+          "groupedEndpoints": 2881,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Endpoint overview: 2881 visible of 2881. Zoom in or Find endpoints. Region overview: zoom in for complete cells. Influence overview: 32 sources, 2849 targets. Inspect computed values for exact weights."
+        },
+        "detail": {
+          "presentation": "detail",
+          "visible": 10,
+          "glyphs": 10,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 19,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 2849 targets. Inspect computed values for exact weights."
+        },
+        "inspector": {
+          "presentation": "detail",
+          "visible": 10,
+          "glyphs": 11,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 19,
+          "rows": 17,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 2849 targets. Inspect computed values for exact weights."
+        },
+        "setupAndChecksMs": 42039.1129
+      },
+      {
+        "kind": "spatializer-pressure",
+        "passed": true,
+        "diagnosticOnly": false,
+        "mode": "voronoi",
+        "sources": 32,
+        "targets": 4096,
+        "tier": null,
+        "treeNodes": 143641,
+        "cells": 131072,
+        "inputSha256": "832b00ceb26e2815a9345b69455ef87352e71674ac8449d8e3902db69fef4521",
+        "home": {
+          "presentation": "overview",
+          "visible": 4128,
+          "glyphs": 1,
+          "groups": 24,
+          "groupedEndpoints": 4128,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Endpoint overview: 4128 visible of 4128. Zoom in or Find endpoints. Region overview: zoom in for complete cells. Influence overview: 32 sources, 4096 targets. Inspect computed values for exact weights."
+        },
+        "detail": {
+          "presentation": "detail",
+          "visible": 8,
+          "glyphs": 8,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 15,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 4096 targets. Inspect computed values for exact weights."
+        },
+        "inspector": {
+          "presentation": "detail",
+          "visible": 8,
+          "glyphs": 9,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 15,
+          "rows": 17,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 4096 targets. Inspect computed values for exact weights."
+        },
+        "setupAndChecksMs": 60281.5052
+      }
+    ],
+    "publicationFailure": {
+      "kind": "publication-failure",
+      "mode": "voronoi",
+      "sources": 4096,
+      "targets": 32,
+      "tier": null,
+      "publication": {
+        "module": 4294967302,
+        "warnings": [],
+        "mode": "voronoi",
+        "treeNodes": 74539,
+        "radiusParameters": 0,
+        "freezeParameters": 32,
+        "sources": 4096,
+        "targets": 32,
+        "valueFolders": 2002,
+        "cells": 64064,
+        "pending": 0,
+        "generation": 5
+      }
+    },
+    "result": {
+      "passed": false,
+      "error": "TimeoutError: page.waitForFunction: Timeout 297992.005ms exceeded."
+    },
+    "fullQualificationPassed": false,
+    "actionTiming": false
+  }
+}

@@ -653,7 +653,7 @@ impl<T: Node> Engine<T> {
             node_ids_by_uuid.entry(node_data.meta.uuid).or_insert(node_id);
             nodes.insert(
                 node_id,
-                ProcessTreeNodeSnapshot {
+                Box::new(ProcessTreeNodeSnapshot {
                     id: node_id,
                     uuid: node_data.meta.uuid,
                     parent: node_data.parent,
@@ -676,7 +676,7 @@ impl<T: Node> Engine<T> {
                     dashboard_widget_target,
                     script_properties: descriptor.properties,
                     script_methods: descriptor.methods,
-                },
+                }),
             );
         }
         let cloned = trace.then(Instant::now);

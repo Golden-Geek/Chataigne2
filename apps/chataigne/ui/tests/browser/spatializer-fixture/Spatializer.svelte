@@ -114,6 +114,7 @@
 		const folders = values?.children.map((id) => session.graph.state.nodesById.get(id)) ?? [];
 		return {
 			module: module?.node_id ?? null,
+			warnings: module?.meta.presentation?.warnings ?? [],
 			mode:
 				mode?.data.kind === 'parameter' && mode.data.param.value.kind === 'enum'
 					? mode.data.param.value.value

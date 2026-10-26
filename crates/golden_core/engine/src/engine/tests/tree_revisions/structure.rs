@@ -143,7 +143,7 @@ fn structure_tokens_are_root_specific_even_with_the_same_folded_sequence() {
     clock.mark_structure(leaf, sequence);
     let snapshot = ProcessTreeSnapshot::from_indexed_nodes(
         root,
-        std::collections::HashMap::from([(root, first), (leaf, second)]),
+        std::collections::HashMap::from([(root, Box::new(first)), (leaf, Box::new(second))]),
         Default::default(),
         clock.snapshot(),
     );

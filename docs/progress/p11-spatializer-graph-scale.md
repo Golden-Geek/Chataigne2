@@ -209,3 +209,32 @@ single setup observations are not p95 action distributions. The next `(32 source
 scene fails the unchanged 300s cumulative setup gate. No full 16-group or action qualification is
 claimed. Continue with that endpoint-cap publication failure, then rerun all 16 groups and the
 60 fixed timing cases. P11 remains **4/6**, whole-plan scope **59%**.
+
+## Endpoint-cap snapshot capacity
+
+A directed cap reproduction now records actual intermediate dimensions and module warnings.
+It stops at **119,059 records / 26 value folders / 106,496 cells**. Leasing that view requests
+**1,016,862,484 bytes** and fails the canonical shared 1 GiB reservation budget. The retained
+failure confirms a capacity stop rather than silently treating the partial matrix as complete.
+
+Golden's base snapshot map now owns boxed records. Its sparse buckets hold small pointers;
+retained accounting separately charges every complete record, allocator overhead and owned
+metadata. Sparse overrides, other indexes, final background destruction and the 384-allocation /
+1 GiB pool keep their existing accounting and admission. The public read API and source-revision
+guards consume the same records. No Spatializer service bound or fixed pressure workload changes.
+
+All **636 Core tests** pass (three existing ignored), including a 32-by-4,096 wide-catalog
+regression: **131,105 records reserve 303,009,394 bytes** and lease successfully. Its UUID, value,
+declaration and child lookups pass. Strict workspace/all-target Clippy and graph-fixture Svelte
+checks pass. The normal bundled executable also passes all 34 native correctness groups.
+The [storage evidence](evidence/p11-spatializer-snapshot-storage-2026-10-27.json) preserves the
+diagnosed capacity stop, source/binary fingerprints, owning checks and full pressure attempt.
+
+The complete, uninstrumented selection passes Voronoi 50k and 100k, then the formerly blocked
+`(32 sources, 4,096 targets)` group: **143,641 records / 131,072 cells**, publication in
+**58,702.8ms** and all checks complete in **60,281.5ms**. The next transposed scene times out
+with **74,539 records / 2,002 value folders / 64,064 cells** and no capacity warning. The small-row
+path still submits each completed row separately, rebuilding its read view after each application.
+Batch bounded small-row forests before guarded application, preserving the existing 32-child
+construction bound, lifetime reservations and source/path fences. Full 16-group pressure and all
+60 timing cases remain open; **P11 stays 4/6 and whole-plan coverage 59%**.

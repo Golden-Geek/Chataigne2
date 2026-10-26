@@ -55,6 +55,14 @@ excuse blocked processing. Revised targets never retroactively pass old failed g
 location. Cached and public snapshot wrappers propagate that location to distinguish callers.
 Use this to attribute unexpected rebuilds; instrumented runs cannot qualify action latency.
 
+Process-tree snapshots own boxed base records behind a compact identity index. Spare hash-table
+buckets reserve pointer storage; each populated record also reserves its complete allocation,
+allocator overhead and owned metadata. Sparse overrides and child/UUID/revision indexes retain
+their existing charges.
+The canonical 384-allocation / 1 GiB lease pool and background final-disposal ownership are
+unchanged. This representation avoids multiplying a large inline record by sparse bucket slack;
+it does not discount retained storage or increase admission limits.
+
 Run the release scalar qualification from the repository root:
 
 ```text
