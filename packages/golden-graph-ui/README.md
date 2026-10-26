@@ -65,6 +65,10 @@ same source, such as a disappearing handle; this restores focus without clearing
 The host owns its catalog, geometry, identity validation and mutations; Golden owns camera and
 focus mechanics. Without a provider, ordinary graph-node navigation follows the document.
 
+Explicit positive zoom limits below 1% are supported for wide documents. The numerical safety
+floor is `0.000001`; default limits remain unchanged. The zoom slider accepts continuous values
+so a fractional minimum does not impose an offset integer-percentage step.
+
 `spatial-index.ts` owns retained grid membership and exact bounding-box queries. `update` moves
 only the requested entry, `setValue` replaces payload without moving geometry, and `remove`
 retires its cell membership. Updates preserve insertion/document order. Coordinates are copied

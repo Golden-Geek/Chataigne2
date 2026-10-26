@@ -122,6 +122,7 @@ await nativeWorkbench({
 			});
 			await call('settle');
 			const home = await mounted();
+			emit({ kind: 'home-view', ...scene, home, navigation: await call('navigation') });
 			assert.equal(home.presentation, 'overview');
 			assert.equal(home.groupedEndpoints, sources + targets);
 			const endpoints = await call('endpoints'),

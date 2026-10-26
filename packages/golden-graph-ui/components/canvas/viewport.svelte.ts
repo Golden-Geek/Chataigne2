@@ -31,14 +31,21 @@ interface ViewportScene {
   nodeHeight(node: GraphNode): number;
 }
 export function createCanvasViewport(props: CanvasProps, scene: ViewportScene) {
+  const minimumSupportedZoom = 0.000001;
   let effectiveMaxZoom = $derived(
-    Math.max(0.01, finiteNumber(props.maxZoom, DEFAULT_MAX_ZOOM)),
+    Math.max(
+      minimumSupportedZoom,
+      finiteNumber(props.maxZoom, DEFAULT_MAX_ZOOM),
+    ),
   );
 
   let effectiveMinZoom = $derived(
     Math.min(
       effectiveMaxZoom,
-      Math.max(0.01, finiteNumber(props.minZoom, DEFAULT_MIN_ZOOM)),
+      Math.max(
+        minimumSupportedZoom,
+        finiteNumber(props.minZoom, DEFAULT_MIN_ZOOM),
+      ),
     ),
   );
 

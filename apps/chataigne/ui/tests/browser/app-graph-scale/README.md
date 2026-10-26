@@ -61,9 +61,10 @@ and rejects endpoint/pair counts exceeding backend caps. Source and target grids
 publication roundtrips only. Its setup observations cannot qualify ordinary-action latency.
 
 `node apps/chataigne/ui/tests/browser/spatializer-navigation-native.mjs` exercises the actual
-custom-world catalog and SVG controls through public component methods. Its eleven correctness
+custom-world catalog and SVG controls through public component methods. Its twelve correctness
 groups include paged discovery, selection framing and focus retirement/restoration across mode,
-space, snapshot, project and component changes. It uses small scenes and does not qualify the
+space, snapshot, project and component changes. They also verify complete Home coverage
+across a 1,530-unit span with the real inspector inset. It uses small scenes and does not qualify the
 fixed scale matrix. The runner owns an isolated headless browser and synthesizes no input.
 
 ## Formula contract

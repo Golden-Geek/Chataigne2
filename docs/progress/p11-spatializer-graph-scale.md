@@ -141,3 +141,19 @@ UI tests, 25 owning Spatializer cases, clean app/fixture Svelte checks, formatti
 bundled executable. That exact artifact passes the prior 13 Spatializer / 11 navigation / four
 State / five Formula native correctness groups. The full pressure rerun remains in progress;
 small-scene correctness and constructor tests do not close those groups.
+
+The next attempt reached a complete 50k backend matrix in **259,569.1ms**, but accepted Home
+still showed only 350 of 1,452 endpoints. The app's 5% zoom floor clamps the fitted view above
+the required zoom for the fixed 1,530-unit endpoint span. The
+[retained failure](evidence/p11-spatializer-home-failure-2026-10-26.json) closes no pressure groups.
+The app zoom floor is being lowered to 0.1%; controls keep their screen-space hit sizes. The
+259.6s publication cost also needs investigation before stress-tier qualification. No density,
+mounting budget, setup deadline or action gate is relaxed.
+
+The [wide-Home repair](evidence/p11-spatializer-wide-home-2026-10-26.json) also removes Golden's
+implicit 1% floor for explicitly configured zoom limits. The twelfth native navigation group
+verifies every real control inside the viewport across the 1,530-unit span, including the inspector
+inset. The exact rebuilt executable passes 34 native groups and 459 UI tests; the shared canvas
+browser regression and Svelte checks pass. This focused 16-endpoint reproduction does not qualify
+large matrix pressure. After cancelling the redundant third attempt, the fourth complete pressure
+run is live. All 16 pressure groups and 60 timing cases remain pending.

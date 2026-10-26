@@ -116,6 +116,11 @@ The declaration reader indexes visited folders and invalidates only changed memb
 through Golden's published map deltas; ordinary value updates read current records through the
 retained index. Snapshot changes clear the cache.
 
+Spatializer allows zoom down to 0.1% so Home can fit wide endpoint maps; controls retain their
+screen-space hit sizes. Golden respects that explicit range rather than silently clamping it
+to 1%. The native wide-map regression checks every endpoint control against the actual canvas
+viewport, including the inspector inset. Scale and publication qualification remain separate.
+
 Endpoint mutations use the app-owned `chataigne.spatializer/edit` operation. Its canonical Rust
 DTOs live in `apps/chataigne/systems/spatializer_protocol`; the public generator supplies the UI
 types. The backend validates module and endpoint IDs/UUIDs, current XY/XZ space, direct ownership,

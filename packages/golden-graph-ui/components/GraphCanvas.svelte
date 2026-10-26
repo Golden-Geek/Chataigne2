@@ -386,7 +386,7 @@
 				type="range"
 				min={effectiveMinZoom * 100}
 				max={effectiveMaxZoom * 100}
-				step="1"
+				step="any"
 				value={camera.zoom * 100}
 				aria-label="Zoom"
 				title="Zoom"

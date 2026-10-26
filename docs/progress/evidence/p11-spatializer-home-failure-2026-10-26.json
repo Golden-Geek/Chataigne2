@@ -1,0 +1,86 @@
+{
+  "scope": "Spatializer 50k Home failure after complete backend publication",
+  "observedCommit": "c7ab17b1",
+  "qualified": false,
+  "pressureGroupsClosed": 0,
+  "remainingPressureGroups": 16,
+  "remainingTimingCases": 60,
+  "cause": "The app minimum zoom 0.05 clamps Home above the zoom needed for the 1530-spatial-unit endpoint span; accepted Home still shows only 350 of 1452 endpoints.",
+  "nextChange": "Lower the app zoom floor to 0.001; preserve screen-sized controls, fixture density, mount budgets and time gates. Investigate the 259.6s matrix publication separately.",
+  "artifact": "target/qualification/p11-spatializer-pressure-288e0d65-17c0-429c-a873-7c2925f3cec9/browser.jsonl",
+  "sha256": "c5d0eae526d7068e915737424186528752d383aa79a5e1ddfccf3d1fc0538782",
+  "rows": [
+    {
+      "kind": "environment",
+      "production": true,
+      "browser": "156.0.4314.42",
+      "binaryHash": "976fa6599b893e244ba06199974aa32b120900d354584386b1a322b8de6bf786",
+      "assets": [
+        {
+          "name": "dmsans-italic-CT59GZwy.ttf",
+          "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+        },
+        {
+          "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+          "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+        },
+        {
+          "name": "index-HpApHVKp.css",
+          "sha256": "8c7e778204be5ffe14da911069f82191985641daf451aeefa16b5cccbcc74c2d"
+        },
+        {
+          "name": "index-ScEdo_o-.js",
+          "sha256": "0f05be5392074e8b03df61034892fcdc45b9ae262d6c6bf87ba0ec766b34222e"
+        }
+      ],
+      "report": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-spatializer-pressure-288e0d65-17c0-429c-a873-7c2925f3cec9\\browser.jsonl"
+    },
+    {
+      "kind": "pressure-contract",
+      "scenes": 16,
+      "actionTiming": false,
+      "limits": {
+        "endpointGlyphs": 128,
+        "overviewGroups": 256,
+        "regionPolygons": 256,
+        "finderRows": 32,
+        "relatedRows": 42
+      }
+    },
+    {
+      "kind": "load-return",
+      "mode": "voronoi",
+      "tier": 50000,
+      "sources": 32,
+      "targets": 1420,
+      "elapsedMs": 456.03800000000047,
+      "publication": {
+        "module": null,
+        "mode": null,
+        "treeNodes": 170,
+        "radiusParameters": 0,
+        "freezeParameters": 0,
+        "sources": 0,
+        "targets": 0,
+        "valueFolders": 0,
+        "cells": 0,
+        "pending": 0,
+        "generation": 1
+      }
+    },
+    {
+      "kind": "matrix-published",
+      "mode": "voronoi",
+      "tier": 50000,
+      "sources": 32,
+      "targets": 1420,
+      "elapsedMs": 259569.0632
+    },
+    {
+      "kind": "failure",
+      "message": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n350 !== 1452\n",
+      "errors": [],
+      "body": "Module\nSpatializer\nAdd target\nXY\nVoronoi\nDebug\nFrame\nHome\nFind endpoints\n5%\nEndpoint overview: 350 visible of 1452. Zoom in or Find endpoints.\nRegion overview: zoom in for complete cells.\nInfluence overview: 32 sources, 1420 targets. Inspect computed values for exact weights.\nUse Enter or Space to select an endpoint. Arrow keys move it; Shift moves farther. Arrow keys on a radius handle resize it. Use Add target to create at the view center.\n‹\nPreview\n\nNo selection.\n\n›\nPreview"
+    }
+  ]
+}

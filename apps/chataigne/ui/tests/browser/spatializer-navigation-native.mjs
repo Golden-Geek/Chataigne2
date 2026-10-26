@@ -179,5 +179,52 @@ await nativeWorkbench({
 		);
 		assert.equal((await call('status')).generation, modeScene.generation);
 		emit({ kind: 'mode-control-focus-restoration', passed: true });
+
+		// Reproduce the cap-shaped map span without making matrix publication part of this regression.
+		await call('position', target.id, 1532, 93);
+		assert.equal(await call('reveal', target.id), true);
+		assert.equal(await call('home'), true);
+		await page.waitForFunction(() => !window.spatializerFixture.navigation().animating);
+		await call('settle');
+		const home = await page.evaluate(() => {
+			const canvas = document.querySelector('.graph-canvas').getBoundingClientRect();
+			const inspector = document.querySelector('.endpoint-inspector');
+			const inset = inspector.classList.contains('visible')
+				? Number.parseFloat(inspector.style.width)
+				: 0;
+			const controls = [...document.querySelectorAll('g.endpoint .endpoint-hit')];
+			return {
+				controls: controls.length,
+				canvas: {
+					left: canvas.left,
+					right: canvas.right,
+					top: canvas.top,
+					bottom: canvas.bottom,
+					inset
+				},
+				rects: controls.map((element) => {
+					const rect = element.getBoundingClientRect();
+					return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom };
+				}),
+				contained: controls.every((element) => {
+					const rect = element.getBoundingClientRect();
+					return (
+						rect.left >= canvas.left + inset &&
+						rect.right <= canvas.right &&
+						rect.top >= canvas.top &&
+						rect.bottom <= canvas.bottom
+					);
+				})
+			};
+		});
+		emit({ kind: 'wide-home-observation', ...home, navigation: await call('navigation') });
+		assert.equal(home.controls, 16);
+		assert.equal(home.contained, true);
+		emit({
+			kind: 'wide-home-endpoint-coverage',
+			passed: true,
+			...home,
+			zoom: (await call('navigation')).camera.zoom
+		});
 	}
 });

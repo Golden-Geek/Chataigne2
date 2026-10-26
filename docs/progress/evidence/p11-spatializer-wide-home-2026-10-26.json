@@ -1,0 +1,959 @@
+{
+  "scope": "Respect configured sub-percent zoom and fit wide Spatializer maps",
+  "baseCommit": "c7ab17b145a497b1b1a0b4c965ff18b01cc6d4d3",
+  "binarySha256": "da8f5be92c1cbd578c945368320df5590fa91d6899dc6885cd7a0c353a0ae261",
+  "files": [
+    {
+      "path": "apps/chataigne/ui/src/lib/panels/modules/spatializer/constants.ts",
+      "sha256": "c30eda27eda6990214412cf9297119dee316155122116f516215c77b66414d69"
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/spatializer-navigation-native.mjs",
+      "sha256": "73925c76bb5dc38c24ed9df8e110aabbc750c33af40c4909fa63358cd72306e4"
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/spatializer-pressure-native.mjs",
+      "sha256": "a4e5833fd16331cac33cc66dbfadb44cdac397d42d6e62e96e4c4ccf8d996771"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/GraphCanvas.svelte",
+      "sha256": "56c8a22f9b73d153a1954c4098f0f7a46ce4146b136592da6952ab79c588f643"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/canvas/viewport.svelte.ts",
+      "sha256": "0bde4ac36423891c13b8259231c769c83f8f50a7432b2c8720680d9898e0aab0"
+    }
+  ],
+  "uiTests": 459,
+  "nativeCorrectnessGroups": 34,
+  "sharedCanvasBrowser": {
+    "passed": true,
+    "browser": "156.0.4314.42",
+    "retentionTiers": [1000, 10000, 20000, 50000, 100000]
+  },
+  "regressions": [
+    {
+      "artifact": "target/qualification/p11-spatializer-navigation-d4eabb04-56bb-4781-b4e3-726ceaaf3d3e/browser.jsonl",
+      "sha256": "846230fad10bde168c8ba1b462b80115402893731e038b1c48c33886000897c9",
+      "rows": [
+        {
+          "kind": "environment",
+          "production": true,
+          "browser": "156.0.4314.42",
+          "binaryHash": "da8f5be92c1cbd578c945368320df5590fa91d6899dc6885cd7a0c353a0ae261",
+          "assets": [
+            {
+              "name": "dmsans-italic-CT59GZwy.ttf",
+              "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+            },
+            {
+              "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+              "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+            },
+            {
+              "name": "index-BS5o3lv7.js",
+              "sha256": "27a276c16a3fdae2341f17f4626c611032fc44e77278d175c5fe8972a7d2c15a"
+            },
+            {
+              "name": "index-HpApHVKp.css",
+              "sha256": "8c7e778204be5ffe14da911069f82191985641daf451aeefa16b5cccbcc74c2d"
+            }
+          ],
+          "report": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-spatializer-navigation-d4eabb04-56bb-4781-b4e3-726ceaaf3d3e\\browser.jsonl"
+        },
+        {
+          "kind": "custom-world-catalog-paging",
+          "passed": true,
+          "logicalItems": 96,
+          "mountedRows": 32
+        },
+        {
+          "kind": "source-target-svg-reveal",
+          "passed": true
+        },
+        {
+          "kind": "keyboard-mutation-retains-svg-focus",
+          "passed": true
+        },
+        {
+          "kind": "custom-world-selection-framing",
+          "passed": true
+        },
+        {
+          "kind": "position-change-retains-discovery",
+          "passed": true
+        },
+        {
+          "kind": "coordinate-space-navigation-fence",
+          "passed": true
+        },
+        {
+          "kind": "item-retirement-and-undo",
+          "passed": true
+        },
+        {
+          "kind": "snapshot-navigation-fence",
+          "passed": true
+        },
+        {
+          "kind": "project-replacement-navigation-fence",
+          "passed": true
+        },
+        {
+          "kind": "unmount-navigation-retirement",
+          "passed": true
+        },
+        {
+          "kind": "mode-control-focus-restoration",
+          "passed": true
+        },
+        {
+          "kind": "wide-home-endpoint-coverage",
+          "passed": true,
+          "controls": 16,
+          "canvas": {
+            "left": 0,
+            "right": 1120,
+            "top": 50.578125,
+            "bottom": 576,
+            "inset": 272
+          },
+          "rects": [
+            {
+              "left": 1060.0595703125,
+              "right": 1083.099609375,
+              "top": 325.5006103515625,
+              "bottom": 348.5406188964844
+            },
+            {
+              "left": 312.4572448730469,
+              "right": 335.49725341796875,
+              "top": 281.5240173339844,
+              "bottom": 304.56402587890625
+            },
+            {
+              "left": 315.3890380859375,
+              "right": 338.42901611328125,
+              "top": 281.5240173339844,
+              "bottom": 304.56402587890625
+            },
+            {
+              "left": 318.32080078125,
+              "right": 341.3608093261719,
+              "top": 281.5240173339844,
+              "bottom": 304.56402587890625
+            },
+            {
+              "left": 321.2525939941406,
+              "right": 344.2925720214844,
+              "top": 281.5240173339844,
+              "bottom": 304.56402587890625
+            },
+            {
+              "left": 324.1843566894531,
+              "right": 347.224365234375,
+              "top": 281.5240173339844,
+              "bottom": 304.56402587890625
+            },
+            {
+              "left": 327.1161193847656,
+              "right": 350.1561279296875,
+              "top": 281.5240173339844,
+              "bottom": 304.56402587890625
+            },
+            {
+              "left": 330.04791259765625,
+              "right": 353.087890625,
+              "top": 281.5240173339844,
+              "bottom": 304.56402587890625
+            },
+            {
+              "left": 312.4572448730469,
+              "right": 335.49725341796875,
+              "top": 278.59222412109375,
+              "bottom": 301.6322326660156
+            },
+            {
+              "left": 315.3890380859375,
+              "right": 338.42901611328125,
+              "top": 278.59222412109375,
+              "bottom": 301.6322326660156
+            },
+            {
+              "left": 318.32080078125,
+              "right": 341.3608093261719,
+              "top": 278.59222412109375,
+              "bottom": 301.6322326660156
+            },
+            {
+              "left": 321.2525939941406,
+              "right": 344.2925720214844,
+              "top": 278.59222412109375,
+              "bottom": 301.6322326660156
+            },
+            {
+              "left": 324.1843566894531,
+              "right": 347.224365234375,
+              "top": 278.59222412109375,
+              "bottom": 301.6322326660156
+            },
+            {
+              "left": 327.1161193847656,
+              "right": 350.1561279296875,
+              "top": 278.59222412109375,
+              "bottom": 301.6322326660156
+            },
+            {
+              "left": 330.04791259765625,
+              "right": 353.087890625,
+              "top": 278.59222412109375,
+              "bottom": 301.6322326660156
+            },
+            {
+              "left": 332.97967529296875,
+              "right": 356.0196838378906,
+              "top": 278.59222412109375,
+              "bottom": 301.6322326660156
+            }
+          ],
+          "contained": true,
+          "zoom": 0.007634827810266476
+        },
+        {
+          "kind": "result",
+          "passed": true,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "artifact": "target/qualification/p11-spatializer-native-c372b44b-17ec-4a70-ae1b-f93e7ea59aa8/browser.jsonl",
+      "sha256": "7ebbd5f4f798681421dea5efb7ae79268ac35820eacb4cc9398d1d1c3b7859a3",
+      "rows": [
+        {
+          "kind": "environment",
+          "production": true,
+          "browser": "156.0.4314.42",
+          "binaryHash": "da8f5be92c1cbd578c945368320df5590fa91d6899dc6885cd7a0c353a0ae261",
+          "assets": [
+            {
+              "name": "dmsans-italic-CT59GZwy.ttf",
+              "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+            },
+            {
+              "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+              "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+            },
+            {
+              "name": "index-BS5o3lv7.js",
+              "sha256": "27a276c16a3fdae2341f17f4626c611032fc44e77278d175c5fe8972a7d2c15a"
+            },
+            {
+              "name": "index-HpApHVKp.css",
+              "sha256": "8c7e778204be5ffe14da911069f82191985641daf451aeefa16b5cccbcc74c2d"
+            }
+          ],
+          "report": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-spatializer-native-c372b44b-17ec-4a70-ae1b-f93e7ea59aa8\\browser.jsonl"
+        },
+        {
+          "kind": "empty-document-custom-world",
+          "passed": true,
+          "world": {
+            "width": 0.9071044921875,
+            "height": 0.9071044921875,
+            "position": "absolute",
+            "overflow": "visible",
+            "viewport": {
+              "width": 1120,
+              "height": 525.421875
+            }
+          }
+        },
+        {
+          "kind": "selection-inspector-debug",
+          "passed": true
+        },
+        {
+          "kind": "authoritative-projection-and-home",
+          "passed": true
+        },
+        {
+          "kind": "mode-and-matrix-layout-replacement",
+          "passed": true
+        },
+        {
+          "kind": "three-dimensional-projection",
+          "passed": true
+        },
+        {
+          "kind": "snapshot-and-remount",
+          "passed": true,
+          "endpoints": [
+            {
+              "id": 4294967483,
+              "uuid": "73723caf-b8d1-4e8f-ae75-4401052b1944",
+              "label": "West",
+              "position": {
+                "kind": "parameter",
+                "param": {
+                  "value": {
+                    "kind": "vec3",
+                    "value": [-1, 0, 0]
+                  },
+                  "default_value": {
+                    "kind": "vec3",
+                    "value": [-1, 0, 0]
+                  },
+                  "event_behaviour": "Coalesce",
+                  "read_only": false,
+                  "constraints": {
+                    "enum_options": [],
+                    "policy": "ClampAdapt"
+                  },
+                  "ui_hints": {},
+                  "control": {
+                    "mode": "manual",
+                    "spec": {
+                      "mode": "manual"
+                    }
+                  },
+                  "reference_allowed_targets": [],
+                  "reference_visible_nodes": []
+                }
+              }
+            },
+            {
+              "id": 4294967482,
+              "uuid": "866b861a-2473-41f1-a5a3-cbe0149aab64",
+              "label": "Probe",
+              "position": {
+                "kind": "parameter",
+                "param": {
+                  "value": {
+                    "kind": "vec3",
+                    "value": [0.5, 7, 0.25]
+                  },
+                  "default_value": {
+                    "kind": "vec3",
+                    "value": [0.5, 0.25, 0]
+                  },
+                  "event_behaviour": "Coalesce",
+                  "read_only": false,
+                  "constraints": {
+                    "enum_options": [],
+                    "policy": "ClampAdapt"
+                  },
+                  "ui_hints": {},
+                  "control": {
+                    "mode": "manual",
+                    "spec": {
+                      "mode": "manual"
+                    }
+                  },
+                  "reference_allowed_targets": [],
+                  "reference_visible_nodes": []
+                }
+              }
+            },
+            {
+              "id": 4294967489,
+              "uuid": "ddf25b5a-2f07-4866-9fab-e0cce1e1b057",
+              "label": "East",
+              "position": {
+                "kind": "parameter",
+                "param": {
+                  "value": {
+                    "kind": "vec3",
+                    "value": [1, 0, 0]
+                  },
+                  "default_value": {
+                    "kind": "vec3",
+                    "value": [1, 0, 0]
+                  },
+                  "event_behaviour": "Coalesce",
+                  "read_only": false,
+                  "constraints": {
+                    "enum_options": [],
+                    "policy": "ClampAdapt"
+                  },
+                  "ui_hints": {},
+                  "control": {
+                    "mode": "manual",
+                    "spec": {
+                      "mode": "manual"
+                    }
+                  },
+                  "reference_allowed_targets": [],
+                  "reference_visible_nodes": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "kind": "stale-coordinate-space-rejection",
+          "passed": true
+        },
+        {
+          "kind": "keyboard-gesture-and-history",
+          "passed": true
+        },
+        {
+          "kind": "zero-radius-keyboard-control",
+          "passed": true
+        },
+        {
+          "kind": "active-gesture-snapshot-and-unmount",
+          "passed": true
+        },
+        {
+          "kind": "backend-target-creation",
+          "passed": true,
+          "created": {
+            "node": 12884902079,
+            "uuid": "98cf5168-d488-491e-b2eb-9065cf25b85a"
+          },
+          "next": {
+            "node": 4294967497,
+            "uuid": "fbffef85-7796-4c0c-b3e4-136668e5e296"
+          }
+        },
+        {
+          "kind": "read-only-replacement-rejection-and-rollback",
+          "passed": true
+        },
+        {
+          "kind": "saved-project-and-recovery",
+          "passed": true
+        },
+        {
+          "kind": "result",
+          "passed": true,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "artifact": "target/qualification/p11-state-native-5df80158-58fb-42b6-9f2b-71c500415917/browser.jsonl",
+      "sha256": "b41be37852ec5666845874c5173054faa7bb1fbe6ebe6789b4e4a2d5ec7d9b7f",
+      "rows": [
+        {
+          "kind": "environment",
+          "production": true,
+          "browser": "156.0.4314.42",
+          "binaryHash": "da8f5be92c1cbd578c945368320df5590fa91d6899dc6885cd7a0c353a0ae261",
+          "assets": [
+            {
+              "name": "dmsans-italic-CT59GZwy.ttf",
+              "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+            },
+            {
+              "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+              "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+            },
+            {
+              "name": "index-BOCNUsmX.css",
+              "sha256": "da08f9dca04e5acc6ea95f8000772564dd6aa802e97fd03f01017bf1c034213a"
+            },
+            {
+              "name": "index-BpKJRwWT.js",
+              "sha256": "8c306b872723a0e6527e1075f49dae2302115fa0bc5d33eff910de267f6b1b1f"
+            }
+          ],
+          "report": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-state-native-5df80158-58fb-42b6-9f2b-71c500415917\\browser.jsonl"
+        },
+        {
+          "kind": "movement-and-history",
+          "passed": true,
+          "states": [
+            {
+              "id": 4294967299,
+              "uuid": "ca0244c2-137d-4885-a30f-7726c20b0214",
+              "label": "First",
+              "enabled": true,
+              "collapsed": false,
+              "position": {
+                "kind": "vec2",
+                "value": [2.25, 3]
+              },
+              "readOnly": false
+            },
+            {
+              "id": 4294967305,
+              "uuid": "44878080-5b7b-4828-bc58-0cfe4c480c06",
+              "label": "Second",
+              "enabled": true,
+              "collapsed": false,
+              "position": {
+                "kind": "vec2",
+                "value": [26.25, 3]
+              },
+              "readOnly": false
+            }
+          ]
+        },
+        {
+          "kind": "collapse-and-connection",
+          "passed": true,
+          "transitions": [
+            {
+              "id": 4294967319,
+              "uuid": "ee03d3e7-df7d-4a00-aaa1-7fea9605a16c",
+              "target": {
+                "kind": "parameter",
+                "param": {
+                  "value": {
+                    "kind": "reference",
+                    "uuid": "44878080-5b7b-4828-bc58-0cfe4c480c06"
+                  },
+                  "default_value": {
+                    "kind": "reference",
+                    "uuid": "44878080-5b7b-4828-bc58-0cfe4c480c06"
+                  },
+                  "event_behaviour": "Coalesce",
+                  "read_only": false,
+                  "constraints": {
+                    "enum_options": [],
+                    "policy": "ClampAdapt"
+                  },
+                  "ui_hints": {},
+                  "control": {
+                    "mode": "manual",
+                    "spec": {
+                      "mode": "manual"
+                    }
+                  },
+                  "reference_allowed_targets": [],
+                  "reference_visible_nodes": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "kind": "save-reload-snapshot-unmount",
+          "passed": true
+        },
+        {
+          "kind": "atomic-readonly-rejection",
+          "passed": true
+        },
+        {
+          "kind": "result",
+          "passed": true,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "artifact": "target/qualification/p11-alchemist-native-7bd7e299-3315-447b-8696-64299a13b70c/browser.jsonl",
+      "sha256": "e305afe58db077a5649aa2f6b466c2df9e24fa8907020d6d153be22792b4e52b",
+      "rows": [
+        {
+          "kind": "environment",
+          "production": true,
+          "browser": "156.0.4314.42",
+          "binaryHash": "da8f5be92c1cbd578c945368320df5590fa91d6899dc6885cd7a0c353a0ae261",
+          "assets": [
+            {
+              "name": "dmsans-italic-CT59GZwy.ttf",
+              "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+            },
+            {
+              "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+              "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+            },
+            {
+              "name": "index-BcDHm3O_.css",
+              "sha256": "ac8f9e764ed59d598f1f85a970dc64508ca2030b743f344ac6e6e895c18cd541"
+            },
+            {
+              "name": "index-Y5XUDKhr.js",
+              "sha256": "9b90a8043c04ac50dee517b3fc2c83014b6c7de4b24f4320a7150780b9e5d468"
+            }
+          ],
+          "report": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-alchemist-native-7bd7e299-3315-447b-8696-64299a13b70c\\browser.jsonl"
+        },
+        {
+          "kind": "movement-and-history",
+          "passed": true,
+          "states": [
+            {
+              "id": 4294967304,
+              "uuid": "8296b3a0-8d08-417b-aa00-12631d64ce79",
+              "label": "First",
+              "type": "constant",
+              "enabled": true,
+              "collapsed": false,
+              "position": {
+                "kind": "vec2",
+                "value": [2.25, 3]
+              },
+              "readOnly": false
+            },
+            {
+              "id": 4294967318,
+              "uuid": "56b49b6f-6d7e-4fcb-abc0-e87e00cfe017",
+              "label": "Second",
+              "type": "math",
+              "enabled": true,
+              "collapsed": false,
+              "position": {
+                "kind": "vec2",
+                "value": [26.25, 3]
+              },
+              "readOnly": false
+            }
+          ]
+        },
+        {
+          "kind": "collapse-and-connection",
+          "passed": true,
+          "transitions": [
+            {
+              "id": 4294967350,
+              "uuid": "18a010da-b1f1-4a69-a1d6-ecee2c3fce7f",
+              "target": {
+                "kind": "parameter",
+                "param": {
+                  "value": {
+                    "kind": "reference",
+                    "uuid": "56b49b6f-6d7e-4fcb-abc0-e87e00cfe017"
+                  },
+                  "default_value": {
+                    "kind": "reference",
+                    "uuid": "56b49b6f-6d7e-4fcb-abc0-e87e00cfe017"
+                  },
+                  "event_behaviour": "Coalesce",
+                  "read_only": false,
+                  "constraints": {
+                    "enum_options": [],
+                    "policy": "ClampAdapt"
+                  },
+                  "ui_hints": {},
+                  "control": {
+                    "mode": "manual",
+                    "spec": {
+                      "mode": "manual"
+                    }
+                  },
+                  "reference_allowed_targets": [],
+                  "reference_visible_nodes": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "kind": "save-reload-snapshot-unmount",
+          "passed": true
+        },
+        {
+          "kind": "atomic-readonly-rejection",
+          "passed": true
+        },
+        {
+          "kind": "snapshot-subscribe-replacement-overlap",
+          "passed": true,
+          "captured": {
+            "project_generation": 5,
+            "at": {
+              "tick": 1,
+              "micro": 0,
+              "seq": 3
+            }
+          },
+          "resumed": {
+            "project_generation": 6,
+            "at": {
+              "tick": 1,
+              "micro": 0,
+              "seq": 4
+            }
+          },
+          "equalEventClocks": false,
+          "wire": [
+            {
+              "direction": "framereceived",
+              "kind": "resyncRequired",
+              "subscription": "sub-mvpshzo6-2",
+              "reason": "project_generation_changed"
+            },
+            {
+              "direction": "framesent",
+              "kind": "unsubscribe",
+              "subscription": "sub-mvpshzo6-2"
+            },
+            {
+              "direction": "framesent",
+              "kind": "subscribe",
+              "subscription": "sub-mvpshzo6-2",
+              "from": {
+                "at": {
+                  "tick": 1,
+                  "micro": 0,
+                  "seq": 3
+                },
+                "project_generation": 5
+              }
+            },
+            {
+              "direction": "framereceived",
+              "kind": "resyncRequired",
+              "subscription": "sub-mvpshzo6-2",
+              "reason": "project_generation_changed"
+            },
+            {
+              "direction": "framesent",
+              "kind": "unsubscribe",
+              "subscription": "sub-mvpshzo6-2"
+            },
+            {
+              "direction": "framesent",
+              "kind": "snapshot",
+              "id": "snapshot-mvpsi1lj-i"
+            },
+            {
+              "direction": "framereceived",
+              "kind": "snapshot",
+              "id": "snapshot-mvpsi1lj-i",
+              "at": {
+                "tick": 1,
+                "micro": 0,
+                "seq": 4
+              }
+            },
+            {
+              "direction": "framesent",
+              "kind": "subscribe",
+              "subscription": "sub-mvpshzo6-2",
+              "from": {
+                "at": {
+                  "tick": 1,
+                  "micro": 0,
+                  "seq": 4
+                },
+                "project_generation": 6
+              }
+            }
+          ]
+        },
+        {
+          "kind": "result",
+          "passed": true,
+          "errors": []
+        }
+      ]
+    }
+  ],
+  "logs": [
+    {
+      "path": "target/qualification/p11-spatializer-home-golden-ui-tests.log",
+      "sha256": "bc212e0bf127e271239dba9040e194dbf256bd77fb80ecba1ee936a1f7e3dea6",
+      "summary": [
+        "Tests  27 passed (27)",
+        "Tests  58 passed (58)",
+        "Tests  199 passed (199)",
+        "Tests  175 passed (175)"
+      ]
+    },
+    {
+      "path": "target/qualification/p11-spatializer-home-golden-ui-check.log",
+      "sha256": "2ae66e60b6f420c4b4fb76ab9a00ac3c32cc5374771f9f9880d971f3dc44e754",
+      "summary": [
+        "svelte-check found 0 errors and 0 warnings",
+        "svelte-check found 0 errors and 0 warnings"
+      ]
+    },
+    {
+      "path": "target/qualification/p11-spatializer-home-golden-build.log",
+      "sha256": "37e7112b9b3d5b5b77cbf7017d47ee998f86a5a390845dca4f4fe51a96a2e634",
+      "summary": [
+        "Finished `dev` profile [optimized + debuginfo] target(s) in 2m 23s"
+      ]
+    },
+    {
+      "path": "target/qualification/p11-spatializer-home-canvas-browser.log",
+      "sha256": "0669cdd61adf9300b536e99cc93c52ae989adff57633714a30b4cf973eed475d",
+      "summary": []
+    }
+  ],
+  "retainedFocusedFailure": {
+    "reason": "App minimum 0.001 was silently raised to 0.01 by the reusable canvas, clipping real controls from the fitted viewport.",
+    "artifact": "target/qualification/p11-spatializer-navigation-6cd77f33-0dc5-4731-a979-6982d4a38150/browser.jsonl",
+    "sha256": "8155bd3b4338362c9cc7ce36eea96fa8ba3b590c1bbdba0306ed0dfa49c559e4",
+    "rows": [
+      {
+        "kind": "environment",
+        "production": true,
+        "browser": "156.0.4314.42",
+        "binaryHash": "1c8402826f424b915406c60d8c5f4fb9fd2dcd11e5d5db2c3a6a70a8357f7116",
+        "assets": [
+          {
+            "name": "dmsans-italic-CT59GZwy.ttf",
+            "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+          },
+          {
+            "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+            "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+          },
+          {
+            "name": "index-Cr2gY2p4.js",
+            "sha256": "3c309e0971bc01c495bf9086888bb5b2307ed9dc74bafaec950bd4c1ceafb0c2"
+          },
+          {
+            "name": "index-HpApHVKp.css",
+            "sha256": "8c7e778204be5ffe14da911069f82191985641daf451aeefa16b5cccbcc74c2d"
+          }
+        ],
+        "report": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-spatializer-navigation-6cd77f33-0dc5-4731-a979-6982d4a38150\\browser.jsonl"
+      },
+      {
+        "kind": "custom-world-catalog-paging",
+        "passed": true,
+        "logicalItems": 96,
+        "mountedRows": 32
+      },
+      {
+        "kind": "source-target-svg-reveal",
+        "passed": true
+      },
+      {
+        "kind": "keyboard-mutation-retains-svg-focus",
+        "passed": true
+      },
+      {
+        "kind": "custom-world-selection-framing",
+        "passed": true
+      },
+      {
+        "kind": "position-change-retains-discovery",
+        "passed": true
+      },
+      {
+        "kind": "coordinate-space-navigation-fence",
+        "passed": true
+      },
+      {
+        "kind": "item-retirement-and-undo",
+        "passed": true
+      },
+      {
+        "kind": "snapshot-navigation-fence",
+        "passed": true
+      },
+      {
+        "kind": "project-replacement-navigation-fence",
+        "passed": true
+      },
+      {
+        "kind": "unmount-navigation-retirement",
+        "passed": true
+      },
+      {
+        "kind": "mode-control-focus-restoration",
+        "passed": true
+      },
+      {
+        "kind": "failure",
+        "message": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\nfalse !== true\n",
+        "errors": [],
+        "body": "Module\nSpatializer\nAdd target\nXY\nTarget Radius\nDebug\nFrame\nHome\nFind endpoints\n1%\nUse Enter or Space to select an endpoint. Arrow keys move it; Shift moves farther. Arrow keys on a radius handle resize it. Use Add target to create at the view center.\n‹\nPreview\nTarget 000007\nTarget\nSources\n8\nFind related value\nSource 000000\n0.000\nSource 000001\n0.000\nSource 000002\n0.000\nSource 000003\n0.000\nSource 000004\n0.000\nSource 000005\n0.000\nSource 000006\n0.000\nSource 000007\n0.000\n›\nPreview"
+      }
+    ]
+  },
+  "cancelledPressureAttempt": {
+    "reason": "Owned backend 12300 (child of runner 22112) deliberately stopped after the focused regression proved the same unsupported 1% floor. This is not a completed pressure gate.",
+    "artifact": "target/qualification/p11-spatializer-pressure-66c2ca98-ad48-4686-92da-7777f52363fc/browser.jsonl",
+    "sha256": "6a4e1eb43e1d2cec9f6b2d2a1a61361d297fc07352b8d0c88f1f44a7052f83b9",
+    "rows": [
+      {
+        "kind": "environment",
+        "production": true,
+        "browser": "156.0.4314.42",
+        "binaryHash": "1c8402826f424b915406c60d8c5f4fb9fd2dcd11e5d5db2c3a6a70a8357f7116",
+        "assets": [
+          {
+            "name": "dmsans-italic-CT59GZwy.ttf",
+            "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+          },
+          {
+            "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+            "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+          },
+          {
+            "name": "index-Cr2gY2p4.js",
+            "sha256": "3c309e0971bc01c495bf9086888bb5b2307ed9dc74bafaec950bd4c1ceafb0c2"
+          },
+          {
+            "name": "index-HpApHVKp.css",
+            "sha256": "8c7e778204be5ffe14da911069f82191985641daf451aeefa16b5cccbcc74c2d"
+          }
+        ],
+        "report": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-spatializer-pressure-66c2ca98-ad48-4686-92da-7777f52363fc\\browser.jsonl"
+      },
+      {
+        "kind": "pressure-contract",
+        "scenes": 16,
+        "actionTiming": false,
+        "limits": {
+          "endpointGlyphs": 128,
+          "overviewGroups": 256,
+          "regionPolygons": 256,
+          "finderRows": 32,
+          "relatedRows": 42
+        }
+      },
+      {
+        "kind": "load-return",
+        "mode": "voronoi",
+        "tier": 50000,
+        "sources": 32,
+        "targets": 1420,
+        "elapsedMs": 306.0897,
+        "publication": {
+          "module": null,
+          "mode": null,
+          "treeNodes": 170,
+          "radiusParameters": 0,
+          "freezeParameters": 0,
+          "sources": 0,
+          "targets": 0,
+          "valueFolders": 0,
+          "cells": 0,
+          "pending": 0,
+          "generation": 1
+        }
+      },
+      {
+        "kind": "failure",
+        "message": "TimeoutError: page.waitForFunction: Timeout 299691.6946ms exceeded.",
+        "errors": [],
+        "body": "Module\nSpatializer\nAdd target\nXY\nVoronoi\nDebug\nFrame\nHome\nFind endpoints\n1%\nEndpoint overview: 682 visible of 1452. Zoom in or Find endpoints.\nRegion overview: zoom in for complete cells.\nUse Enter or Space to select an endpoint. Arrow keys move it; Shift moves farther. Arrow keys on a radius handle resize it. Use Add target to create at the view center.\n‹\nPreview\n\nNo selection.\n\n›\nPreview"
+      }
+    ]
+  },
+  "fullPressureQualification": false,
+  "remainingPressureGroups": 16,
+  "remainingTimingCases": 60,
+  "p11ClosedCheckpoints": 4,
+  "p11TotalCheckpoints": 6,
+  "wholePlanPercent": 59,
+  "additionalChecks": [
+    {
+      "path": "target/qualification/p11-spatializer-wide-home-fixture-check.log",
+      "sha256": "03258fb41312bd1fbb0156187980c1d5e98ca7162b112dd3a0ff578d4233cc19",
+      "summary": ["svelte-check found 0 errors and 0 warnings"]
+    },
+    {
+      "path": "target/qualification/p11-spatializer-wide-home-format.log",
+      "sha256": "fbdd37869c73ce85afb11ffefa058e0181874c073fdfee7d7a4b5086b7ea3b1b",
+      "summary": ["All matched files use Prettier code style!"]
+    },
+    {
+      "path": "target/qualification/p11-spatializer-wide-home-viewport-format.log",
+      "sha256": "fbdd37869c73ce85afb11ffefa058e0181874c073fdfee7d7a4b5086b7ea3b1b",
+      "summary": ["All matched files use Prettier code style!"]
+    }
+  ]
+}

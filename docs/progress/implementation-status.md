@@ -5,8 +5,8 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-26 on `main`, based on delivered `b79ce895` plus bounded Spatializer
-presentation below. **P11 is in progress; four of six fixed checkpoints are closed (67% rounded).**
+Last reconciled: 2026-10-26 on `main`, based on delivered `c7ab17b1` plus wide-map Home repair
+below. **P11 is in progress; four of six fixed checkpoints are closed (67% rounded).**
 **P10 is locally complete: three of three fixed checkpoints (100%).**
 **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
@@ -243,8 +243,11 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
   framing without fabricated graph nodes. Eleven native navigation groups pass, including mode
   changes that remove a focused control. Custom SVG and related-value mounting are now bounded,
   with counted overviews, retained focus and indexed declaration reads. All 459 UI tests and
-  33 native correctness groups pass. The fixed 16-group pressure run is in progress; none of
-  those groups or the 60 timing cases has qualified yet. Finish pressure/publication diagnosis
+  34 native correctness groups pass, including wide-map Home. The fixed pressure run exposed a 5% app zoom floor that
+  prevents Home fitting the large map, after 259.6s matrix publication at 50k. The app and generic
+  canvas zoom repair now passes; the full pressure rerun is in progress. None of the 16 groups
+  or 60 timing cases has qualified yet.
+  Finish pressure/publication diagnosis
   before action timing; do not infer qualification from small-scene correctness.
   Complete Spatializer actual-app scale before closing graph keyboard operations, then composed
   workflows. Preserve [composition](p11-dashboard-composition.md) and
@@ -11394,3 +11397,39 @@ Continue the live pressure run and diagnose publication/setup failures without c
 300s setup deadline, density or scene selection. All **60 timing cases and 16 pressure groups**
 remain pending. Then qualify composed workspace workflows. Commit and push this verified
 presentation milestone on `main`; keep the whole implementation goal active.
+
+The subsequent pressure run is terminal: the complete 50k matrix published in **259,569.1ms**,
+then accepted Home showed 350 of 1,452 endpoints because `SPATIALIZER_MIN_ZOOM = 0.05` clamps
+the fit. [Failure evidence](evidence/p11-spatializer-home-failure-2026-10-26.json) preserves the
+exact executable, bundle and observations. The current app-only zoom repair lowers the floor to
+0.001 while retaining screen-sized controls; its normal build and next pressure run continue.
+Investigate publication cost as well. All 16 pressure groups and 60 timing cases remain pending.
+
+### P11 wide-map Home repair
+
+The focused native reproduction uncovered a second floor: Golden's canvas silently raised
+the app's explicit 0.001 minimum to 0.01. The shared boundary now respects positive sub-percent
+limits with a 0.000001 numerical guard; default limits are unchanged. Its slider accepts continuous
+values so a fractional minimum does not offset integer percentage steps. Spatializer requests
+0.001. Its screen-space controls keep their original hit sizes.
+
+The new twelfth navigation group stretches a small canonical scene over the same 1,530-unit map
+span and verifies all 16 actual control rectangles inside the real canvas, excluding the inspector
+inset. It fails at the generic 1% floor and passes after repair. This isolates Home without
+substituting the small scene for full matrix pressure. The third full pressure attempt's owned
+backend was deliberately stopped after that failure was proven; its timeout is retained as
+cancellation evidence, not a completed pressure gate. The fourth full 16-group attempt is live.
+
+The normal locked bundled build passes; executable SHA-256 is
+`da8f5be92c1cbd578c945368320df5590fa91d6899dc6885cd7a0c353a0ae261`.
+That exact artifact passes **12 navigation / 13 Spatializer / four State / five Formula native
+groups**. All **459 UI tests**, clean Svelte checks and the shared mounted-canvas browser regression
+pass. Root/Core Cargo fmt and source formatting pass. The
+[evidence](evidence/p11-spatializer-wide-home-2026-10-26.json) retains exact source/bundle/binary
+fingerprints, focused failure/repair and cancellation. Source inventory stays 2,226 / 25 existing
+oversized files; no backend Rust or protocol change.
+
+**P11 remains 4/6 (67% rounded); whole-plan coverage 59%.** Continue the live full pressure run,
+then investigate setup/publication cost without weakening its 300s deadline or changing density.
+All 16 pressure groups and 60 timing cases remain pending; composed workflows follow. Commit and
+push the verified zoom repair on `main`; keep the full implementation goal active.

@@ -24,7 +24,8 @@ export const DEBUG_WEIGHT_EPSILON = 0.000001;
 export const HIGHLIGHT_FADE_MS = 220;
 export const CAMERA_PERSIST_DELAY_MS = 150;
 export const SPATIALIZER_UNIT_REM = 4;
-export const SPATIALIZER_MIN_ZOOM = 0.05;
+// Home must fit wide endpoint maps; controls retain their screen-space hit sizes.
+export const SPATIALIZER_MIN_ZOOM = 0.001;
 export const DEFAULT_SPATIAL_BOUNDS: GraphWorldBounds = { left: -5, top: -5, right: 5, bottom: 5 };
 export const TARGET_ZONE_PADDING_UNITS = 1;
 export const ENDPOINT_BOUNDS_PADDING_UNITS = 1;
