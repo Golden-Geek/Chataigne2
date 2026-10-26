@@ -376,11 +376,14 @@ export function createSpatializerGeometry(getSource: () => Source) {
 		return `${rect} ${circles}`;
 	};
 
-	const voronoiCellsForBounds = (bounds: GraphWorldBounds): VoronoiCell[] => {
+	const voronoiCellsForBounds = (
+		bounds: GraphWorldBounds,
+		candidates: readonly SpatialEndpoint[] = enabledTargets
+	): VoronoiCell[] => {
 		if (spatializerMode !== MODE_VORONOI || enabledTargets.length === 0) {
 			return [];
 		}
-		return enabledTargets.flatMap((target) => {
+		return candidates.flatMap((target) => {
 			let polygon = rectanglePolygon(bounds);
 			for (const other of enabledTargets) {
 				if (other.key === target.key) {

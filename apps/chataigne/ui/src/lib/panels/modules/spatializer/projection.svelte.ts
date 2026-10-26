@@ -1,5 +1,6 @@
 import type { UiNodeDto, UiColorDto, WorkbenchSession } from 'golden_ui';
 import type { SpatialEndpoint, EndpointKind, PositionKind, ValueLayout } from './types';
+import { SpatializerChildIndex } from './child-index';
 import {
 	POSITION_2D_DECL_ID,
 	POSITION_3D_DECL_ID,
@@ -11,11 +12,6 @@ import {
 	VALUE_LAYOUT_TARGET_CENTRIC,
 	ENDPOINT_PALETTE
 } from './constants';
-
-const declLast = (declId: string): string => {
-	const slash = declId.lastIndexOf('/');
-	return slash >= 0 ? declId.slice(slash + 1) : declId;
-};
 
 const simpleUuid = (uuid: string): string => uuid.replaceAll('-', '').toLowerCase();
 
@@ -95,24 +91,20 @@ const endpointValueDeclId = (node: UiNodeDto, kind: EndpointKind): string =>
 
 export const relatedValueAmount = (node: UiNodeDto | null): number => clamp01(floatValue(node));
 export function createSpatializerProjection(
-	getGraph: () => WorkbenchSession['graph']['state'] | null
+	getGraph: () => WorkbenchSession['graph']['state'] | null,
+	getGeneration: () => unknown
 ) {
 	let graph = $derived(getGraph());
+	const childIndex = new SpatializerChildIndex();
+	let indexedNodes = $derived.by(() => {
+		const snapshot = graph;
+		childIndex.update(snapshot, getGeneration());
+		return snapshot?.nodesById;
+	});
 
 	const childByKey = (node: UiNodeDto | null, key: string): UiNodeDto | null => {
-		if (!graph || !node) {
-			return null;
-		}
-		for (const childId of node.children) {
-			const child = graph.nodesById.get(childId);
-			if (!child) {
-				continue;
-			}
-			if (child.decl_id === key || declLast(child.decl_id) === key || child.meta.label === key) {
-				return child;
-			}
-		}
-		return null;
+		indexedNodes;
+		return childIndex.child(node, key);
 	};
 
 	const childByType = (node: UiNodeDto | null, nodeType: string): UiNodeDto | null => {

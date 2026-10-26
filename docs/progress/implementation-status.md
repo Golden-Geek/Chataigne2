@@ -5,8 +5,8 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-26 on `main`, based on delivered `b487ad39` plus Spatializer custom-world
-navigation below. **P11 is in progress; four of six fixed checkpoints are closed (67% rounded).**
+Last reconciled: 2026-10-26 on `main`, based on delivered `b79ce895` plus bounded Spatializer
+presentation below. **P11 is in progress; four of six fixed checkpoints are closed (67% rounded).**
 **P10 is locally complete: three of three fixed checkpoints (100%).**
 **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
@@ -241,8 +241,11 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
   roundtrips pass, preserving endpoint UUIDs and positions; this does not close action qualification.
   Its app-owned endpoint catalog now drives the shared paged finder, real SVG focus and selection
   framing without fabricated graph nodes. Eleven native navigation groups pass, including mode
-  changes that remove a focused control. Bounded custom SVG/inspector views remain next; all
-  60 timing cases and 16 pressure groups are still pending.
+  changes that remove a focused control. Custom SVG and related-value mounting are now bounded,
+  with counted overviews, retained focus and indexed declaration reads. All 459 UI tests and
+  33 native correctness groups pass. The fixed 16-group pressure run is in progress; none of
+  those groups or the 60 timing cases has qualified yet. Finish pressure/publication diagnosis
+  before action timing; do not infer qualification from small-scene correctness.
   Complete Spatializer actual-app scale before closing graph keyboard operations, then composed
   workflows. Preserve [composition](p11-dashboard-composition.md) and
   [applied-receipt barriers](p11-dashboard-barriers.md). Native usability retains P17 and product
@@ -11349,3 +11352,45 @@ Next bound Spatializer custom SVG/related-value mounting, then run the fixed **6
 and 16 pressure groups**. Complete that qualification before closing graph keyboard operations;
 complete composed workspace workflows before closing P11. Commit and push this verified milestone
 on `main`; keep the whole implementation goal active.
+
+### P11 bounded Spatializer map and related-value inspector
+
+Reconciled delivered `b79ce895` on `main`. The app now plans endpoint membership against the actual
+camera and root font size. Dense views use count-preserving overview groups; complete detail and
+retained controls stay within 128 glyphs. Focused, selected and active-gesture endpoints retain
+their real SVG controls. A conservative Voronoi candidate bound includes offscreen sites that
+can own part of the viewport; clipping still uses every enabled target. Candidate overflow
+produces a labeled region overview. Detailed influence/debug overlays are bounded to scenes
+through 128 endpoints; larger scenes explicitly summarize them and preserve the complete weights
+in the read-only inspector. No backend weight or endpoint/matrix admission policy changes.
+
+The inspector composes shared virtual rows with filtering, reveal, complete row counts and focused
+row retention. Its declared viewport/row dimensions bound mounting to 42 rows. A retained folder
+index consumes published graph-map deltas, preserving current parameter reads while avoiding
+repeated declaration scans. Source replacement and changed membership/aliases invalidate the
+appropriate lookups. Ten new focused tests cover dense/coincident membership, radius intersection,
+focus retention, coordinate conversion, offscreen Voronoi candidates, 10k-child folder reads and
+source/declaration invalidation. The panel shrinks to 842 lines; six new authored files bring the
+source inventory to **2,226 files / 25 existing oversized files**.
+
+The normal locked bundled build passes. Its exact executable SHA-256 is
+`976fa6599b893e244ba06199974aa32b120900d354584386b1a322b8de6bf786`;
+it passes **13 Spatializer / 11 navigation / four State / five Formula native correctness groups**.
+All **459 UI tests** pass (27 audio / 58 graph / 199 Golden / 175 app); owning Spatializer tests
+pass 25 cases. App and graph-fixture Svelte checks report zero errors/warnings; Prettier and
+root/Core Cargo fmt pass. No new Rust suite or Clippy run is claimed for this UI-only change.
+The [evidence](evidence/p11-spatializer-bounded-view-2026-10-26.json) retains source, bundle and
+binary fingerprints, correctness records and the initial pressure failure.
+
+The first 50k pressure attempt reached the complete matrix, then exposed a harness precondition:
+Home was invoked without focus inside the panel and its rejected result was ignored. Its 253
+visible-endpoint overview conserved membership correctly, but did not represent the whole 1,452
+endpoints. The corrected runner focuses the real canvas, asserts command acceptance and records
+load/publication stages separately. The complete 16-group rerun is in progress; no pressure or
+action-timing acceptance credit is taken here.
+
+**P11 remains 4/6 (67% rounded); whole-plan coverage 59%. P03 has zero packages left.**
+Continue the live pressure run and diagnose publication/setup failures without changing its
+300s setup deadline, density or scene selection. All **60 timing cases and 16 pressure groups**
+remain pending. Then qualify composed workspace workflows. Commit and push this verified
+presentation milestone on `main`; keep the whole implementation goal active.

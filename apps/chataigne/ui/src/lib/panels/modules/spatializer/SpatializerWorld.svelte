@@ -5,6 +5,13 @@
 	import type { SpatializerGeometry } from './geometry.svelte';
 	import type { SpatializerInteraction } from './interaction.svelte';
 	import { MODE_VORONOI, HIGHLIGHT_FADE_MS } from './constants';
+	import {
+		endpointView,
+		spatialViewport,
+		voronoiCandidates,
+		ENDPOINT_GLYPH_LIMIT,
+		REGION_POLYGON_LIMIT
+	} from './view';
 
 	let {
 		world,
@@ -16,6 +23,7 @@
 		debugView,
 		selectedEndpoint,
 		isSelected,
+		retainedKeys,
 		svg = $bindable(null)
 	}: {
 		world: GraphWorldContentContext;
@@ -27,8 +35,46 @@
 		debugView: boolean;
 		selectedEndpoint: SpatialEndpoint | null;
 		isSelected(endpoint: SpatialEndpoint): boolean;
+		retainedKeys: readonly string[];
 		svg?: SVGSVGElement | null;
 	} = $props();
+	let endpoints = $derived([...targets, ...sources]);
+	let view = $derived(
+		endpointView(
+			endpoints,
+			spatialViewport(world),
+			[world.focusedItemId, ...retainedKeys].filter((key): key is string => !!key)
+		)
+	);
+	let visibleTargets = $derived(view.glyphs.filter((endpoint) => endpoint.kind === 'target'));
+	let visibleSources = $derived(view.glyphs.filter((endpoint) => endpoint.kind === 'source'));
+	let detailedOverlays = $derived(endpoints.length <= ENDPOINT_GLYPH_LIMIT);
+	let bounds = $derived(geometry.voronoiViewBounds(world));
+	let candidates = $derived(
+		view.overview
+			? null
+			: voronoiCandidates(
+					targets.filter((endpoint) => endpoint.enabled),
+					bounds,
+					REGION_POLYGON_LIMIT - (detailedOverlays && debugView ? sources.length : 0)
+				)
+	);
+	let cells = $derived(candidates ? geometry.voronoiCellsForBounds(bounds, candidates) : []);
+	let summaries = $derived([
+		...(view.overview
+			? [
+					`Endpoint overview: ${view.visibleCount} visible of ${endpoints.length}. Zoom in or Find endpoints.`
+				]
+			: []),
+		...(spatializerMode === MODE_VORONOI && candidates === null
+			? ['Region overview: zoom in for complete cells.']
+			: []),
+		...(!detailedOverlays && (debugView || selectedEndpoint?.kind === 'source')
+			? [
+					`Influence overview: ${sources.length} sources, ${targets.length} targets. Inspect computed values for exact weights.`
+				]
+			: [])
+	]);
 </script>
 
 <svg
@@ -36,10 +82,30 @@
 	class="spatializer-map"
 	role="application"
 	aria-label="Spatializer map"
+	data-presentation={view.overview ? 'overview' : 'detail'}
+	data-visible-endpoints={view.visibleCount}
 	onpointermove={interaction.handleWorldPointerMove}
 	onpointerup={interaction.finishWorldPointer}
 	onpointercancel={interaction.cancelWorldPointer}>
-	{#each geometry.voronoiCellsForBounds(geometry.voronoiViewBounds(world)) as cell (cell.key)}
+	{#each view.groups as group (group.key)}
+		<g
+			class="endpoint-overview"
+			role="img"
+			aria-label={`${group.sources} sources, ${group.targets} targets`}
+			data-source-count={group.sources}
+			data-target-count={group.targets}>
+			<rect
+				x={geometry.pointPx(group.left, world)}
+				y={geometry.pointPx(group.top, world)}
+				width={geometry.pointPx(group.right - group.left, world)}
+				height={geometry.pointPx(group.bottom - group.top, world)}
+				fill={group.sources ? '#81b8ee' : '#e7b67c'}
+				fill-opacity={0.12 + Math.min(0.5, Math.log2(1 + group.sources + group.targets) / 16)}
+				stroke="currentColor"
+				stroke-width={geometry.screenPx(0.025, world)} />
+		</g>
+	{/each}
+	{#each cells as cell (cell.key)}
 		<polygon
 			class="voronoi-cell"
 			class:highlighted={geometry.highlightedVoronoiCell(cell)}
@@ -49,7 +115,7 @@
 			stroke-width={geometry.screenPx(0.04, world)} />
 	{/each}
 
-	{#if geometry.selectedDeadzoneSource()}
+	{#if detailedOverlays && geometry.selectedDeadzoneSource()}
 		{@const deadzoneSource = geometry.selectedDeadzoneSource()}
 		{@const deadzoneBounds = geometry.voronoiViewBounds(world)}
 		{@const deadzoneHoles = deadzoneSource ? geometry.deadzoneHolesForSource(deadzoneSource) : []}
@@ -72,7 +138,7 @@
 		{/each}
 	{/if}
 
-	{#if geometry.selectedVoronoiDeadzoneSource()}
+	{#if detailedOverlays && geometry.selectedVoronoiDeadzoneSource()}
 		{@const voronoiDeadzoneSource = geometry.selectedVoronoiDeadzoneSource()}
 		{@const frozenTargets = voronoiDeadzoneSource
 			? geometry.frozenTargetsForSource(voronoiDeadzoneSource)
@@ -93,7 +159,7 @@
 		{/each}
 	{/if}
 
-	{#if debugView && selectedEndpoint}
+	{#if detailedOverlays && debugView && selectedEndpoint}
 		<g class="debug-layer" aria-hidden="true">
 			{#each geometry.debugVoronoiComputations as computation (computation.key)}
 				{#if computation.current && computation.cellPoints.length > 0}
@@ -203,7 +269,7 @@
 		</g>
 	{/if}
 
-	{#each targets as endpoint (endpoint.key)}
+	{#each visibleTargets as endpoint (endpoint.key)}
 		<g
 			class:disabled={!endpoint.enabled}
 			class:selected={isSelected(endpoint)}
@@ -284,7 +350,7 @@
 		</g>
 	{/each}
 
-	{#each sources as endpoint (endpoint.key)}
+	{#each visibleSources as endpoint (endpoint.key)}
 		<g
 			class:disabled={!endpoint.enabled}
 			class:selected={isSelected(endpoint)}
@@ -329,9 +395,27 @@
 				onpointerdown={(event) => interaction.startEndpointDrag(event, endpoint, 'position')} />
 		</g>
 	{/each}
+	{#each summaries as summary, index (summary)}
+		<text
+			class="map-summary"
+			text-anchor="end"
+			x={(world.viewportWidth - world.camera.x - world.remPx) / world.camera.zoom}
+			y={(world.remPx * (5 + index * 1.2) - world.camera.y) / world.camera.zoom}
+			font-size={geometry.screenPx(0.72, world)}
+			stroke-width={geometry.screenPx(0.22, world)}>{summary}</text>
+	{/each}
 </svg>
 
 <style>
+	.map-summary {
+		fill: var(--gc-color-text, #d8dfeb);
+		stroke: var(--gc-color-background, #11151b);
+		paint-order: stroke;
+		pointer-events: none;
+	}
+	.endpoint-overview {
+		pointer-events: none;
+	}
 	.spatializer-map {
 		position: absolute;
 		inset: 0 auto auto 0;

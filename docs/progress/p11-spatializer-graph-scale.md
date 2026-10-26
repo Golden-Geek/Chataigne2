@@ -109,6 +109,35 @@ check retained a failing run before the focus-restoration repair. This is naviga
 not large-scene mounting or action timing qualification; see the
 [navigation evidence](evidence/p11-spatializer-navigation-2026-10-26.json).
 
-Custom SVG and related-value presentation still need bounded views. Implement those at their
-owning UI layers, preserving existing backend intents and module admission/publication. All
-**60 timing cases and 16 pressure groups remain pending**; no checkpoint closure is claimed yet.
+The bounded custom SVG and related-value implementation is described below. Existing backend
+intents and module admission/publication are preserved. All **60 timing cases and 16 pressure
+groups remain pending**; no checkpoint closure is claimed yet.
+
+## Bounded presentation implementation
+
+The app now plans endpoint mounting against the actual camera and root font size. Dense views
+represent every visible endpoint in at most 256 counted groups; at most 128 real controls retain
+focus, selection and active gestures. A complete lightweight catalog remains available through
+the finder. A conservative distance bound includes offscreen Voronoi sites that can own visible
+space; exact clipping still uses every enabled target. Too many candidates produce a labeled
+region overview. Debug/influence geometry is detailed only through 128 total endpoints; larger
+scenes explicitly summarize it and retain complete backend weights in the inspector.
+
+The inspector uses shared virtual rows, stable row keys, filtering and explicit reveal. A read-only
+grid reports the complete collection size while mounting at most 42 rows. A retained declaration
+index removes repeated folder scans without caching stale parameter values. Ten focused tests
+cover dense/coincident membership, radius intersection, retained focus, viewport conversion,
+complete Voronoi candidates, large folder reads and declaration/source invalidation.
+
+The real-backend pressure runner loads the fixed four-mode scenes, verifies actual overview
+geometry and count conservation, Home/detail roundtrips, exact SVG focus and related-value
+identities/weights, and retains a focused row while navigating to another. Its first run exposed
+a harness precondition: the registered Home command requires focus inside the panel. The corrected
+runner focuses the actual canvas and asserts command acceptance before checking the whole map.
+Load and publication times are recorded separately. No action timing qualification is claimed.
+
+The [bounded-view evidence](evidence/p11-spatializer-bounded-view-2026-10-26.json) records 459 passing
+UI tests, 25 owning Spatializer cases, clean app/fixture Svelte checks, formatting and the normal
+bundled executable. That exact artifact passes the prior 13 Spatializer / 11 navigation / four
+State / five Formula native correctness groups. The full pressure rerun remains in progress;
+small-scene correctness and constructor tests do not close those groups.

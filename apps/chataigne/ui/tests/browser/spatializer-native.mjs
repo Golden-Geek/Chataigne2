@@ -90,7 +90,7 @@ await nativeWorkbench({
 		await call('configure', 'value_layout', 'targetCentric');
 		await saveCheckpoint('layout');
 		await page.waitForFunction(
-			() => document.querySelectorAll('.related-value-slider').length === 2
+			() => document.querySelectorAll('.related-value-control .slider').length === 2
 		);
 		assert.deepEqual(
 			(await page.locator('.related-value-label').allTextContents()).map((label) => label.trim()),

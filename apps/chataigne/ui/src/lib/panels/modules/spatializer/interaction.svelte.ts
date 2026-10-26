@@ -332,6 +332,9 @@ export function createSpatializerInteraction(getSource: () => Source) {
 			getSource().graphCanvas?.clientToWorld(event.clientX, event.clientY) ?? { x: 0, y: 0 }
 		);
 	return {
+		get activeEndpointKey() {
+			return activeDrag?.endpoint.key ?? null;
+		},
 		get positionPreviews() {
 			return positions;
 		},

@@ -233,6 +233,9 @@
 		panel?.endpointNavigation.reveal(id, additive);
 	export const navigation = () => panel?.endpointNavigation.viewport();
 	export const frame = () => panel?.endpointNavigation.frame();
+	export const revealRelated = (id: number) => panel?.revealRelatedValue(id);
+	export const readNode = (id: number) => session.graph.state.nodesById.get(id);
+	export const readParent = (id: number) => session.graph.state.parentById.get(id);
 	/** Backend arrangement for navigation lifetime checks; not a panel deletion API. */
 	export const remove = (id: number) => session.sendIntent({ kind: 'removeNode', node: id });
 	export const key = (

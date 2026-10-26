@@ -98,6 +98,24 @@ session, snapshot, module and XY/XZ changes retire focus and discovery. Geometry
 the catalog. A separate presentation revision restores focus when a mode change removes a radius
 handle. Backend endpoint policy remains in the existing app operations.
 
+`spatializer/view.ts` plans viewport membership in spatial units. Complete detail mounts at most
+128 endpoint controls, including focused, selected and active-gesture retention. Dense views use
+at most 256 counted overview groups; counts cover every visible endpoint, including coincident
+sites. The finder still covers the complete catalog. Zooming or revealing a distant endpoint
+restores its real control. A conservative distance bound admits all Voronoi sites that can own
+part of the view, including offscreen sites; clipping still uses every enabled target. If the
+candidate budget is exceeded, the view labels the region overview instead of drawing partial cells.
+
+Detailed influence/debug overlays are limited to scenes of at most 128 endpoints, bounding
+pair geometry and preserving the combined 256-polygon ceiling. Larger scenes explicitly summarize
+source/target counts and direct users to the complete computed-value inspector. These presentation
+limits do not change backend weights, endpoint caps or the matrix. `RelatedValues.svelte` composes
+Golden's virtual rows with a read-only grid, filtering, reveal and focused-row retention. Its
+3rem rows and 72rem maximum viewport keep mounting within 42 rows, including retained focus.
+The declaration reader indexes visited folders and invalidates only changed membership/aliases
+through Golden's published map deltas; ordinary value updates read current records through the
+retained index. Snapshot changes clear the cache.
+
 Endpoint mutations use the app-owned `chataigne.spatializer/edit` operation. Its canonical Rust
 DTOs live in `apps/chataigne/systems/spatializer_protocol`; the public generator supplies the UI
 types. The backend validates module and endpoint IDs/UUIDs, current XY/XZ space, direct ownership,

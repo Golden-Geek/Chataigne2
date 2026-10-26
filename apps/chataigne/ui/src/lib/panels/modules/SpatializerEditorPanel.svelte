@@ -10,8 +10,7 @@
 		createSpatializerProjection,
 		enumValue,
 		enumLabel,
-		valueLayoutFromEnum,
-		relatedValueAmount
+		valueLayoutFromEnum
 	} from './spatializer/projection.svelte';
 	import {
 		createSpatializerGeometry,
@@ -20,6 +19,7 @@
 	import { createSpatializerInteraction } from './spatializer/interaction.svelte';
 	import { createSpatializerNavigation } from './spatializer/navigation.svelte';
 	import SpatializerWorld from './spatializer/SpatializerWorld.svelte';
+	import RelatedValues from './spatializer/RelatedValues.svelte';
 	import {
 		SPATIALIZER_MODULE_TYPE,
 		SOURCE_LIST_TYPE,
@@ -38,7 +38,6 @@
 	} from './spatializer/constants';
 
 	import { onMount } from 'svelte';
-	import Slider from 'golden_ui/components/common/Slider.svelte';
 	import {
 		GraphCanvas,
 		GraphPresentationAdapter,
@@ -84,6 +83,7 @@
 	let panelRoot: HTMLElement | null = $state(null);
 	let worldSvg: SVGSVGElement | null = $state(null);
 	let graphCanvas = $state<SpatializerCanvas | null>(null);
+	let relatedView = $state<ReturnType<typeof RelatedValues>>();
 	const interaction = createSpatializerInteraction(() => ({
 		session,
 		module: activeModule,
@@ -146,7 +146,8 @@
 		Math.max(MIN_INSPECTOR_WIDTH, Math.min(MAX_INSPECTOR_WIDTH, value));
 
 	const { childByKey, childByType, childNodes, endpointFromNode } = createSpatializerProjection(
-		() => graph
+		() => graph,
+		() => session?.snapshotGeneration
 	);
 	let modules = $derived.by((): UiNodeDto[] => {
 		if (!graph) {
@@ -410,6 +411,10 @@
 			})
 		);
 	export const finishEndpointGesture = (cancelled = false) => interaction.finish(cancelled);
+	export const revealRelatedValue = (id: number) => {
+		const row = relatedValues.find((row) => row.endpoint.node.node_id === id);
+		return row ? relatedView?.reveal(row.key) : Promise.resolve(false);
+	};
 
 	let selectedEndpointIds = $derived(new Set(session?.selectedNodesIds ?? []));
 	const isSelected = (endpoint: SpatialEndpoint): boolean =>
@@ -448,6 +453,11 @@
 		{interaction}
 		{targets}
 		{sources}
+		retainedKeys={[
+			interaction.activeEndpointKey,
+			selectedEndpoint?.key,
+			...endpointNavigation.world.selectedIds
+		].filter((key): key is string => !!key)}
 		{spatializerMode}
 		{debugView}
 		{selectedEndpoint}
@@ -524,40 +534,11 @@
 							</div>
 						</div>
 
-						<section class="related-values" aria-label="Computed values">
-							<header>
-								<span>{relatedValuesLabel(selectedEndpoint)}</span>
-								<span>{relatedValues.length}</span>
-							</header>
-							<div class="related-value-list">
-								{#each relatedValues as item (item.key)}
-									<div class="related-value-row" class:disabled={!item.endpoint.enabled}>
-										<div class="related-value-label">
-											<span class="related-value-swatch" style:background={item.endpoint.color}
-											></span>
-											<span>{item.endpoint.node.meta.label}</span>
-										</div>
-										<div class="related-value-control">
-											{#if item.valueParam}
-												<div class="related-value-slider">
-													<Slider
-														value={relatedValueAmount(item.valueParam)}
-														min={0}
-														max={1}
-														step={0.001}
-														readOnly={true}
-														disabled={!item.endpoint.enabled}
-														fgColor={item.endpoint.color}
-														showValue={true} />
-												</div>
-											{:else}
-												<span class="related-value-missing">-</span>
-											{/if}
-										</div>
-									</div>
-								{/each}
-							</div>
-						</section>
+						<RelatedValues
+							bind:this={relatedView}
+							rows={relatedValues}
+							label={relatedValuesLabel(selectedEndpoint)}
+							owner={`${session?.snapshotGeneration}:${selectedEndpoint.node.uuid}`} />
 					{:else}
 						<p class="empty-selection">No selection.</p>
 					{/if}
@@ -840,104 +821,6 @@
 		block-size: 0.9rem;
 		border-radius: 50%;
 		box-shadow: 0 0 0 0.08rem color-mix(in srgb, var(--gc-color-text) 35%, transparent);
-	}
-
-	.related-values {
-		display: flex;
-		flex-direction: column;
-		gap: 0.45rem;
-		min-block-size: 0;
-	}
-
-	.related-values header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.6rem;
-		color: color-mix(in srgb, var(--gc-color-text) 64%, transparent);
-		font-size: 0.72rem;
-		font-weight: 650;
-	}
-
-	.related-value-list {
-		display: flex;
-		flex-direction: column;
-		gap: 0.42rem;
-		min-block-size: 0;
-		overflow: visible;
-	}
-
-	.related-value-row {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr);
-		gap: 0.18rem;
-		inline-size: 100%;
-		min-inline-size: 0;
-		padding: 0.18rem 0;
-		border: 0.06rem solid transparent;
-		border-radius: 0.25rem;
-		background: transparent;
-		color: var(--gc-color-text);
-		font-size: 0.68rem;
-	}
-
-	.related-value-row.disabled {
-		opacity: 0.48;
-	}
-
-	.related-value-label {
-		display: inline-grid;
-		grid-template-columns: auto minmax(0, 1fr);
-		align-items: center;
-		gap: 0.38rem;
-		inline-size: 100%;
-		min-inline-size: 0;
-		padding-inline: 0.08rem;
-		color: color-mix(in srgb, var(--gc-color-text) 82%, transparent);
-		font-weight: 550;
-	}
-
-	.related-value-label span:last-child {
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-	.related-value-swatch {
-		inline-size: 0.58rem;
-		block-size: 0.58rem;
-		border-radius: 50%;
-		box-shadow: 0 0 0 0.06rem color-mix(in srgb, var(--gc-color-text) 28%, transparent);
-	}
-
-	.related-value-control {
-		inline-size: 100%;
-		min-inline-size: 0;
-		overflow: hidden;
-	}
-
-	.related-value-slider {
-		inline-size: 100%;
-		min-inline-size: 0;
-		block-size: 1rem;
-	}
-
-	.related-value-slider :global(.slider) {
-		block-size: 100%;
-		border-radius: 0.32rem;
-	}
-
-	.related-value-slider :global(.slider-label) {
-		font-size: 0.62rem;
-		font-weight: 650;
-		color: var(--gc-color-text);
-	}
-
-	.related-value-missing {
-		display: block;
-		text-align: end;
-		font-variant-numeric: tabular-nums;
-		color: color-mix(in srgb, var(--gc-color-text) 52%, transparent);
 	}
 
 	.empty-selection,
