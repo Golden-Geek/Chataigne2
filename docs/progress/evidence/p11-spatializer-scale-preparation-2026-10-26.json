@@ -1,0 +1,681 @@
+{
+  "scope": "Spatializer workload contract and declaration/publication calibration",
+  "actionQualification": false,
+  "baseCommit": "d411f6681b1e712764373d226e10928fc10aecbc",
+  "binarySha256": "e1e3aaab79d8cf7f573609839ab710376e8d8862bf8470b4cde9eb4071a93981",
+  "calibrationRoundtrips": 20,
+  "calibrationFiles": [
+    "p11-spatializer-scale-calibration-voronoi-2026-10-26.json",
+    "p11-spatializer-scale-calibration-targetRadius-2026-10-26.json",
+    "p11-spatializer-scale-calibration-sourceRadius-2026-10-26.json",
+    "p11-spatializer-scale-calibration-overlap-2026-10-26.json"
+  ],
+  "observedLogicalCanvasNodes": 0,
+  "constructorOnly": {
+    "backendLoaded": false,
+    "endpointCapShapes": 8,
+    "uniquePositionsPerScene": 4128,
+    "invalidInputsRejected": 5
+  },
+  "files": [
+    {
+      "path": "apps/chataigne/ui/tests/browser/app-graph-scale/projects.mjs",
+      "sha256": "56f50551f825c4a69c2cfc8aba4080769a4c2c7763e4bbea2032169ca7c1c4d3"
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/app-graph-scale/spatializer-contract.mjs",
+      "sha256": "65802b94a3a8f203037d3ebd7a640609ffd1d089cc48f684234e352dbe8bfe86"
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/spatializer-scale-calibration.mjs",
+      "sha256": "6c8fc6cca51197b92598018c14e9359538d06a7e87add360ab3fe3a15b7bdf37"
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/spatializer-fixture/Spatializer.svelte",
+      "sha256": "435c921a94d49bb4584274b718bc9c4db174d3d773d29f7a70ecbfcbff844bf3"
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/app-graph-scale/fixtures/spatializer.json",
+      "sha256": "f43133f199d425853576615f0674617e1724153c36e6589e5a926e9fd0385b7c"
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/app-graph-scale/fixtures/spatializer-targetRadius.json",
+      "sha256": "54d12f6927a7f7c5e52a971ccae6237292da15ff84484462cc673849ae27767d"
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/app-graph-scale/fixtures/spatializer-sourceRadius.json",
+      "sha256": "b3922f3bdb7c4aa3066e13f1b2069c20f423cf116b6234fdadee42dc2d2f431f"
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/app-graph-scale/fixtures/spatializer-overlap.json",
+      "sha256": "0ea15c9b6058cdf5e01237c21f0b97fc7eec0d0908eddd88829e8ebfcddcf1ac"
+    }
+  ],
+  "regressions": [
+    {
+      "artifact": "target/qualification/p11-spatializer-native-3d349321-15a0-4b44-a4bf-861085bf1bac/browser.jsonl",
+      "sha256": "b7bc5c99bbfff4fc6c1c5d5710634e2fc2c0f946f58475088ac17781e0caf6c4",
+      "rows": [
+        {
+          "kind": "environment",
+          "production": true,
+          "browser": "156.0.4314.42",
+          "binaryHash": "e1e3aaab79d8cf7f573609839ab710376e8d8862bf8470b4cde9eb4071a93981",
+          "assets": [
+            {
+              "name": "dmsans-italic-CT59GZwy.ttf",
+              "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+            },
+            {
+              "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+              "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+            },
+            {
+              "name": "index-CgCHUxYt.css",
+              "sha256": "7542f6fb8419f6819bc7757453befa707ca0f43b4f021c784726e8fe28c40142"
+            },
+            {
+              "name": "index-N-up5_Gj.js",
+              "sha256": "5e0b31dfa30521fda879320229bc4518ee3885ed68d4e86aca51ea6eda24e887"
+            }
+          ],
+          "report": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-spatializer-native-3d349321-15a0-4b44-a4bf-861085bf1bac\\browser.jsonl"
+        },
+        {
+          "kind": "empty-document-custom-world",
+          "passed": true,
+          "world": {
+            "width": 0.9134521484375,
+            "height": 0.9134521484375,
+            "position": "absolute",
+            "overflow": "visible",
+            "viewport": {
+              "width": 1120,
+              "height": 525.421875
+            }
+          }
+        },
+        {
+          "kind": "selection-inspector-debug",
+          "passed": true
+        },
+        {
+          "kind": "authoritative-projection-and-home",
+          "passed": true
+        },
+        {
+          "kind": "mode-and-matrix-layout-replacement",
+          "passed": true
+        },
+        {
+          "kind": "three-dimensional-projection",
+          "passed": true
+        },
+        {
+          "kind": "snapshot-and-remount",
+          "passed": true,
+          "endpoints": [
+            {
+              "id": 4294967483,
+              "uuid": "88bed05e-b814-4f5e-aa43-5cf9109eedc3",
+              "label": "West",
+              "position": {
+                "kind": "parameter",
+                "param": {
+                  "value": {
+                    "kind": "vec3",
+                    "value": [
+                      -1,
+                      0,
+                      0
+                    ]
+                  },
+                  "default_value": {
+                    "kind": "vec3",
+                    "value": [
+                      -1,
+                      0,
+                      0
+                    ]
+                  },
+                  "event_behaviour": "Coalesce",
+                  "read_only": false,
+                  "constraints": {
+                    "enum_options": [],
+                    "policy": "ClampAdapt"
+                  },
+                  "ui_hints": {},
+                  "control": {
+                    "mode": "manual",
+                    "spec": {
+                      "mode": "manual"
+                    }
+                  },
+                  "reference_allowed_targets": [],
+                  "reference_visible_nodes": []
+                }
+              }
+            },
+            {
+              "id": 4294967482,
+              "uuid": "008fa806-914d-45b3-8719-e7d743c78df9",
+              "label": "Probe",
+              "position": {
+                "kind": "parameter",
+                "param": {
+                  "value": {
+                    "kind": "vec3",
+                    "value": [
+                      0.5,
+                      7,
+                      0.25
+                    ]
+                  },
+                  "default_value": {
+                    "kind": "vec3",
+                    "value": [
+                      0.5,
+                      0.25,
+                      0
+                    ]
+                  },
+                  "event_behaviour": "Coalesce",
+                  "read_only": false,
+                  "constraints": {
+                    "enum_options": [],
+                    "policy": "ClampAdapt"
+                  },
+                  "ui_hints": {},
+                  "control": {
+                    "mode": "manual",
+                    "spec": {
+                      "mode": "manual"
+                    }
+                  },
+                  "reference_allowed_targets": [],
+                  "reference_visible_nodes": []
+                }
+              }
+            },
+            {
+              "id": 4294967489,
+              "uuid": "bd88901b-6361-4a81-a84b-7904c3ce81c0",
+              "label": "East",
+              "position": {
+                "kind": "parameter",
+                "param": {
+                  "value": {
+                    "kind": "vec3",
+                    "value": [
+                      1,
+                      0,
+                      0
+                    ]
+                  },
+                  "default_value": {
+                    "kind": "vec3",
+                    "value": [
+                      1,
+                      0,
+                      0
+                    ]
+                  },
+                  "event_behaviour": "Coalesce",
+                  "read_only": false,
+                  "constraints": {
+                    "enum_options": [],
+                    "policy": "ClampAdapt"
+                  },
+                  "ui_hints": {},
+                  "control": {
+                    "mode": "manual",
+                    "spec": {
+                      "mode": "manual"
+                    }
+                  },
+                  "reference_allowed_targets": [],
+                  "reference_visible_nodes": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "kind": "stale-coordinate-space-rejection",
+          "passed": true
+        },
+        {
+          "kind": "keyboard-gesture-and-history",
+          "passed": true
+        },
+        {
+          "kind": "zero-radius-keyboard-control",
+          "passed": true
+        },
+        {
+          "kind": "active-gesture-snapshot-and-unmount",
+          "passed": true
+        },
+        {
+          "kind": "backend-target-creation",
+          "passed": true,
+          "created": {
+            "node": 12884902079,
+            "uuid": "c6b84df9-520d-45dc-8896-7b6da83bb4c9"
+          },
+          "next": {
+            "node": 4294967497,
+            "uuid": "93ea7b14-3535-4216-b26a-b3e2d4c2135d"
+          }
+        },
+        {
+          "kind": "read-only-replacement-rejection-and-rollback",
+          "passed": true
+        },
+        {
+          "kind": "saved-project-and-recovery",
+          "passed": true
+        },
+        {
+          "kind": "result",
+          "passed": true,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "artifact": "target/qualification/p11-state-scale-a03d4dad-1690-4d78-9e2c-172c8b137127/browser.jsonl",
+      "sha256": "6caf02277a78a76913ab9914ecff331e1ce06f643b87d76b2a58adbbce106854",
+      "rows": [
+        {
+          "kind": "environment",
+          "production": true,
+          "browser": "156.0.4314.42",
+          "binaryHash": "e1e3aaab79d8cf7f573609839ab710376e8d8862bf8470b4cde9eb4071a93981",
+          "assets": [
+            {
+              "name": "dmsans-italic-CT59GZwy.ttf",
+              "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+            },
+            {
+              "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+              "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+            },
+            {
+              "name": "index-BfPKatTl.js",
+              "sha256": "eb7736f642e7cd894e974bc6b9f7ccb49465e006502f651161508bca0f10b120"
+            },
+            {
+              "name": "index-BOCNUsmX.css",
+              "sha256": "da08f9dca04e5acc6ea95f8000772564dd6aa802e97fd03f01017bf1c034213a"
+            }
+          ],
+          "report": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-state-scale-a03d4dad-1690-4d78-9e2c-172c8b137127\\browser.jsonl"
+        },
+        {
+          "kind": "fixed-contract",
+          "consumer": "state",
+          "tiers": [
+            1000
+          ],
+          "completeTierSelection": false,
+          "actions": [
+            "discover",
+            "single-move",
+            "three-move",
+            "connection"
+          ],
+          "completeActionSelection": true,
+          "diagnosticTracing": false,
+          "engineTracing": false,
+          "cpuProfiling": false,
+          "warmups": 3,
+          "retained": 31,
+          "normal": {
+            "feedbackP95": 200,
+            "completionP95": 2000,
+            "maximumStall": 200
+          },
+          "stress": {
+            "feedbackP95": 400,
+            "completionP95": 4000,
+            "maximumStall": 400
+          },
+          "maxMountedNodes": 128,
+          "maxFinderRows": 32,
+          "setupDeadlineMs": 300000
+        },
+        {
+          "kind": "source-ready",
+          "label": "calibration-8",
+          "graphItems": 8,
+          "treeNodes": 72,
+          "enabledItems": 1,
+          "serializedRecords": 48,
+          "setupMs": 60.8436999999999,
+          "sha256": "69551c15283cb180d78aba36f9d7a2a620482a2c554a22ce2ab3501548e5f345"
+        },
+        {
+          "kind": "source-ready",
+          "label": "calibration-16",
+          "graphItems": 16,
+          "treeNodes": 136,
+          "enabledItems": 1,
+          "serializedRecords": 96,
+          "setupMs": 103.11400000000003,
+          "sha256": "c1e9d1d5325afdca99ec4c320c6f47c544f84cfc9a9a31c148f1dba34910bbd1"
+        },
+        {
+          "kind": "declaration-calibration",
+          "perItem": 8,
+          "fixed": 8
+        },
+        {
+          "kind": "source-ready",
+          "label": "state-1000",
+          "graphItems": 124,
+          "treeNodes": 1000,
+          "enabledItems": 1,
+          "serializedRecords": 744,
+          "setupMs": 93.97669999999971,
+          "sha256": "3be11f08f757157a9d0e2f6f8c49cb9514fd72edd46b0116371cc5ac187410c2"
+        },
+        {
+          "kind": "scene",
+          "tier": 1000,
+          "graphItems": 124,
+          "chainEdges": 123,
+          "unrelatedRecords": 0,
+          "dimensions": {
+            "width": 1120,
+            "height": 576
+          },
+          "tail": [
+            4294968267,
+            4294968275,
+            4294968283
+          ]
+        },
+        {
+          "kind": "timing",
+          "consumer": "state",
+          "tier": 1000,
+          "graphItems": 124,
+          "action": "discover",
+          "passed": true,
+          "p95Feedback": 10.899999998509884,
+          "p95Completion": 10.899999998509884,
+          "maximumStall": 4.299999997019768,
+          "retainedSamples": 31,
+          "warmups": 3
+        },
+        {
+          "kind": "timing",
+          "consumer": "state",
+          "tier": 1000,
+          "graphItems": 124,
+          "action": "single-move",
+          "passed": true,
+          "p95Feedback": 4.300000004470348,
+          "p95Completion": 25.200000002980232,
+          "maximumStall": 4.5,
+          "retainedSamples": 31,
+          "warmups": 3
+        },
+        {
+          "kind": "timing",
+          "consumer": "state",
+          "tier": 1000,
+          "graphItems": 124,
+          "action": "three-move",
+          "passed": true,
+          "p95Feedback": 4,
+          "p95Completion": 32.79999999701977,
+          "maximumStall": 4.5,
+          "retainedSamples": 31,
+          "warmups": 3
+        },
+        {
+          "kind": "timing",
+          "consumer": "state",
+          "tier": 1000,
+          "graphItems": 124,
+          "action": "connection",
+          "passed": true,
+          "p95Feedback": 4.299999997019768,
+          "p95Completion": 33.399999998509884,
+          "maximumStall": 4.300000000000182,
+          "retainedSamples": 31,
+          "warmups": 3
+        },
+        {
+          "kind": "result",
+          "passed": true,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "artifact": "target/qualification/p11-formula-scale-c38bc1ba-4462-4c17-b981-2a9185b7e420/browser.jsonl",
+      "sha256": "c9d6ae955473b1735ab894cb85b76e8fb977644617b6fbb69c9414096202b1fa",
+      "rows": [
+        {
+          "kind": "environment",
+          "production": true,
+          "browser": "156.0.4314.42",
+          "binaryHash": "e1e3aaab79d8cf7f573609839ab710376e8d8862bf8470b4cde9eb4071a93981",
+          "assets": [
+            {
+              "name": "dmsans-italic-CT59GZwy.ttf",
+              "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+            },
+            {
+              "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+              "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+            },
+            {
+              "name": "index-BcDHm3O_.css",
+              "sha256": "ac8f9e764ed59d598f1f85a970dc64508ca2030b743f344ac6e6e895c18cd541"
+            },
+            {
+              "name": "index-BpyHanT4.js",
+              "sha256": "25e93e6563e09a164aab445b1c7f1e2c5030218242fe35c7e9292c9b7adfceb7"
+            }
+          ],
+          "report": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-formula-scale-c38bc1ba-4462-4c17-b981-2a9185b7e420\\browser.jsonl"
+        },
+        {
+          "kind": "fixed-contract",
+          "consumer": "formula",
+          "tiers": [
+            1000
+          ],
+          "completeTierSelection": false,
+          "actions": [
+            "discover",
+            "single-move",
+            "three-move",
+            "connection"
+          ],
+          "completeActionSelection": true,
+          "diagnosticTracing": false,
+          "engineTracing": false,
+          "cpuProfiling": false,
+          "warmups": 3,
+          "retained": 31,
+          "normal": {
+            "feedbackP95": 200,
+            "completionP95": 2000,
+            "maximumStall": 200
+          },
+          "stress": {
+            "feedbackP95": 400,
+            "completionP95": 4000,
+            "maximumStall": 400
+          },
+          "maxMountedNodes": 128,
+          "maxFinderRows": 32,
+          "setupDeadlineMs": 300000
+        },
+        {
+          "kind": "source-ready",
+          "label": "calibration-8",
+          "graphItems": 8,
+          "treeNodes": 232,
+          "enabledItems": 8,
+          "serializedRecords": 224,
+          "setupMs": 305.0389,
+          "sha256": "fdf6f9ec1a224f20e87325600889a0096ce7c022268e5519719a31c5c73a9059"
+        },
+        {
+          "kind": "source-ready",
+          "label": "calibration-16",
+          "graphItems": 16,
+          "treeNodes": 464,
+          "enabledItems": 16,
+          "serializedRecords": 456,
+          "setupMs": 81.09700000000021,
+          "sha256": "262f4eb41968833c15237abb01b23f03f4e93074340ab53814821963b73fa913"
+        },
+        {
+          "kind": "declaration-calibration",
+          "perItem": 29,
+          "fixed": 0
+        },
+        {
+          "kind": "source-ready",
+          "label": "formula-1000",
+          "graphItems": 34,
+          "treeNodes": 1000,
+          "enabledItems": 34,
+          "serializedRecords": 992,
+          "setupMs": 107.0295000000001,
+          "sha256": "eb0d221a42f3dbe97c6f4887790f205bf0d72b68acde39e8b0aeed186b594833"
+        },
+        {
+          "kind": "scene",
+          "tier": 1000,
+          "graphItems": 34,
+          "chainEdges": 33,
+          "anodeTypes": {
+            "constant": 1,
+            "math": 33
+          },
+          "unrelatedRecords": 14,
+          "dimensions": {
+            "width": 1120,
+            "height": 576
+          },
+          "tail": [
+            4294968038,
+            4294968062,
+            4294968086
+          ]
+        },
+        {
+          "kind": "timing",
+          "consumer": "formula",
+          "tier": 1000,
+          "graphItems": 34,
+          "action": "discover",
+          "passed": true,
+          "p95Feedback": 11.600000001490116,
+          "p95Completion": 11.600000001490116,
+          "maximumStall": 4.2999999999999545,
+          "retainedSamples": 31,
+          "warmups": 3
+        },
+        {
+          "kind": "timing",
+          "consumer": "formula",
+          "tier": 1000,
+          "graphItems": 34,
+          "action": "single-move",
+          "passed": true,
+          "p95Feedback": 4.4000000059604645,
+          "p95Completion": 29.100000001490116,
+          "maximumStall": 4.300000000000182,
+          "retainedSamples": 31,
+          "warmups": 3
+        },
+        {
+          "kind": "timing",
+          "consumer": "formula",
+          "tier": 1000,
+          "graphItems": 34,
+          "action": "three-move",
+          "passed": true,
+          "p95Feedback": 3.2999999970197678,
+          "p95Completion": 28.200000002980232,
+          "maximumStall": 4.400000000000091,
+          "retainedSamples": 31,
+          "warmups": 3
+        },
+        {
+          "kind": "timing",
+          "consumer": "formula",
+          "tier": 1000,
+          "graphItems": 34,
+          "action": "connection",
+          "passed": true,
+          "p95Feedback": 4.200000002980232,
+          "p95Completion": 46,
+          "maximumStall": 4.600000000000364,
+          "retainedSamples": 31,
+          "warmups": 3
+        },
+        {
+          "kind": "result",
+          "passed": true,
+          "errors": []
+        }
+      ]
+    }
+  ],
+  "logs": [
+    {
+      "name": "p11-spatializer-scale-fixture-check.log",
+      "sha256": "03258fb41312bd1fbb0156187980c1d5e98ca7162b112dd3a0ff578d4233cc19",
+      "summary": [
+        "svelte-check found 0 errors and 0 warnings"
+      ]
+    },
+    {
+      "name": "p11-spatializer-scale-preparation-build.log",
+      "sha256": "9bd45520cbea09fc606703b7dd0dc4ad423d3a69ac0a0462270b7c707e3ad863",
+      "summary": [
+        "    Finished `dev` profile [optimized + debuginfo] target(s) in 0.59s"
+      ]
+    }
+  ],
+  "remainingTimingCases": 60,
+  "remainingCorrectnessPressureGroups": 16,
+  "canonicalExportProvenance": [
+    {
+      "mode": "targetRadius",
+      "export": "target/qualification/p11-spatializer-calibration-b89669d6-f30a-46d6-ad0b-4ca5a2bdf019/targetRadius-canonical.noisette",
+      "sha256": "3f409216e98e29cb7e8d5677fab60467f48dd0aa3da829a90e48461e73d9bf4c",
+      "sources": 1,
+      "targets": 2,
+      "values": 0
+    },
+    {
+      "mode": "sourceRadius",
+      "export": "target/qualification/p11-spatializer-calibration-b89669d6-f30a-46d6-ad0b-4ca5a2bdf019/sourceRadius-canonical.noisette",
+      "sha256": "39705059e2cad2214161d031660be003a46946413d88b2589062c49f7c1b4c15",
+      "sources": 1,
+      "targets": 2,
+      "values": 0
+    },
+    {
+      "mode": "overlap",
+      "export": "target/qualification/p11-spatializer-calibration-b89669d6-f30a-46d6-ad0b-4ca5a2bdf019/overlap-canonical.noisette",
+      "sha256": "2ab8a5afc47824f1c933a95d8b10bb8d9dd0d6b37f64020e9b546ea9463dfa1e",
+      "sources": 1,
+      "targets": 2,
+      "values": 0
+    }
+  ],
+  "prototypeReduction": "Keep one source and two targets, clear generated values, remove saved UI state; preserve backend-exported parameter records.",
+  "latestCalibrationArtifact": "target/qualification/p11-spatializer-calibration-662fc097-d573-4881-af35-6e61ee683f32/browser.jsonl"
+}

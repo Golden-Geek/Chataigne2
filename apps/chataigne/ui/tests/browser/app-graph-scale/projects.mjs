@@ -3,8 +3,10 @@ import { randomUUID, createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 /** Canonical persisted fixtures exported by the owning Rust/native cases, expanded before load. */
-export const prototype = (consumer) =>
-	JSON.parse(readFileSync(new URL(`./fixtures/${consumer}.json`, import.meta.url), 'utf8'));
+export const prototype = (consumer, mode = 'voronoi') => {
+	const name = consumer === 'spatializer' && mode !== 'voronoi' ? `${consumer}-${mode}` : consumer;
+	return JSON.parse(readFileSync(new URL(`./fixtures/${name}.json`, import.meta.url), 'utf8'));
+};
 export const fingerprint = (project) =>
 	createHash('sha256').update(JSON.stringify(project)).digest('hex');
 export function records(root) {
@@ -55,9 +57,12 @@ function presentation(node, index, name, spacing = 24) {
 		label: `${name} ${String(index).padStart(6, '0')}`,
 		presentation: { ...node.meta?.presentation, collapsed: false }
 	};
-	const position = child(node, name === 'Target' ? 'position_2d' : 'position');
-	assert.ok(Array.isArray(position.data?.value?.Vec2), 'Expected canonical Vec2 persistence');
-	position.data.value.Vec2 = [2 + (index % 256) * spacing, 3 + Math.floor(index / 256) * spacing];
+	const position = child(node, ['Target', 'Source'].includes(name) ? 'position_2d' : 'position');
+	assert.equal(position.type, 'vec2', 'Expected canonical Vec2 position declaration');
+	position.data = {
+		...position.data,
+		value: { Vec2: [2 + (index % 256) * spacing, 3 + Math.floor(index / 256) * spacing] }
+	};
 }
 function state(project, count) {
 	const owner = find(project.root, 'state_machine_manager');
@@ -124,8 +129,23 @@ function formula(project, count) {
 	];
 	return { owner: owner.uuid, items: nodes.map((node) => node.uuid), edges: edges.length };
 }
-function spatializer(project, count) {
+function spatializer(project, count, { sources: sourceCount = 32 } = {}) {
 	const owner = find(project.root, 'spatializer_module');
+	assert.ok(count <= 4096, 'Spatializer fixture exceeds the backend target limit');
+	assert.ok(
+		Number.isSafeInteger(sourceCount) && sourceCount > 0 && sourceCount <= 4096,
+		'Spatializer fixture exceeds the backend source limit'
+	);
+	assert.ok(sourceCount * count <= 1048576, 'Spatializer fixture exceeds the backend pair limit');
+	const sourceList = find(owner, 'spatializer_source_list');
+	const sourceTemplate = find(sourceList, 'spatializer_source');
+	const sources = Array.from({ length: sourceCount }, (_, index) => {
+		const node = clone(sourceTemplate);
+		presentation(node, index, 'Source', 6);
+		child(node, 'position_2d').data.value.Vec2[1] = -3 - Math.floor(index / 256) * 6;
+		return node;
+	});
+	sourceList.children = sources;
 	const targets = find(owner, 'spatializer_target_list');
 	const template = find(targets, 'spatializer_target');
 	const nodes = Array.from({ length: count }, () => clone(template));
@@ -136,15 +156,21 @@ function spatializer(project, count) {
 	return {
 		owner: owner.uuid,
 		items: nodes.map((node) => node.uuid),
-		sources: 1,
+		sourceItems: sources.map((node) => node.uuid),
+		sources: sources.length,
 		targets: count,
-		pairs: count
+		pairs: sources.length * count
 	};
 }
-export function expand(consumer, count) {
+export function expand(consumer, count, options = {}) {
 	assert.ok(Number.isSafeInteger(count) && count >= 8);
-	const project = prototype(consumer);
-	const metadata = { consumer, ...{ state, formula, spatializer }[consumer](project, count) };
+	const { mode = 'voronoi' } = options;
+	const project = prototype(consumer, mode);
+	const metadata = {
+		consumer,
+		...{ state, formula, spatializer }[consumer](project, count, options)
+	};
+	if (consumer === 'spatializer') metadata.mode = mode;
 	delete project.ui_state;
 	const ids = records(project.root).map((node) => node.uuid);
 	assert.equal(new Set(ids).size, ids.length, 'Expanded authored UUIDs must be unique');

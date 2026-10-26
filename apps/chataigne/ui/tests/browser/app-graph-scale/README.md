@@ -1,9 +1,11 @@
 # Actual-app graph scale fixtures
 
-The State, Formula and Spatializer project prototypes are canonical project documents exported
+The State, Formula and original Voronoi Spatializer prototypes are canonical project documents exported
 by the owning Rust/native cases at `2f3b4dde`. The first two include their actual adapter-created
 connection/transition from the same native roundtrip. Spatializer uses the initial authored
 Voronoi scene. These JSON files are persisted test data, not alternate protocol declarations.
+The additional radius-mode Spatializer prototypes were exported by the actual backend at
+`d411f668`; their provenance and reduction are retained in the Spatializer preparation evidence.
 `projects.mjs` clones owned UUIDs and rewrites references in those existing records; the actual
 app's project loader reconstructs declarations, validates and runs lifecycle. No UI protocol
 snapshot or graph adapter result is fabricated.
@@ -45,6 +47,18 @@ and `GC_GRAPH_SCALE_CPU_PROFILE=1` enable passive diagnostics; instrumented runs
 qualification, even if they happen to pass. All selections and diagnostic flags appear in the report.
 State scale alone cannot close graph keyboard qualification: Formula, Spatializer and composed
 workflows retain their required owners and evidence.
+
+## Spatializer contract
+
+The [fixed Spatializer qualification](../../../../../../docs/progress/p11-spatializer-graph-scale.md)
+uses 32 sources and the greatest target count fitting each backend-record tier, including generated
+matrix cells. It fixes 60 timing cases and 16 correctness pressure groups across all four modes.
+Three radius-mode prototypes are real backend exports, reduced to one source, two targets and
+an empty generated values folder; the Voronoi prototype remains the original canonical fixture.
+`expand('spatializer', count, { mode, sources })` supports primary and transposed pressure scenes
+and rejects endpoint/pair counts exceeding backend caps. Source and target grids are distinct.
+`node apps/chataigne/ui/tests/browser/spatializer-scale-calibration.mjs` performs declaration and
+publication roundtrips only. Its setup observations cannot qualify ordinary-action latency.
 
 ## Formula contract
 

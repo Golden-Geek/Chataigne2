@@ -7,8 +7,9 @@ extraction notes and September counts are [archived](../archive/2026-10-18/progr
 
 ## Scan and policy
 
-Refreshed 2026-10-26 against delivered `2487d809` plus Formula graph scale work in progress
-on `main`. Scanned **2267 source files**; **25 exceed 1,000 lines**. The Formula input-count
+Refreshed 2026-10-26 against delivered `d411f668` plus Spatializer scale workload preparation
+on `main`. Scanned **2269 source files**; **25 exceed 1,000 lines**. The calibration driver,
+fixed workload contract and fixture helpers stay below the limit. The Formula input-count
 index, compilation-resolution test and shared native scale helpers stay below the limit.
 The compiler is 998 lines; further compiler additions require a cohesive split. The compact persistent
 index, adjacent read/isolation tests, native scale driver and focused fixture helpers stay below

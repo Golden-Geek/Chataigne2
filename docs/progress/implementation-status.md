@@ -5,8 +5,8 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-26 on `main`, based on delivered `2487d809` plus Formula scale
-delivery below. **P11 is in progress; four of six fixed checkpoints are closed (67% rounded).**
+Last reconciled: 2026-10-26 on `main`, based on delivered `d411f668` plus Spatializer workload
+preparation below. **P11 is in progress; four of six fixed checkpoints are closed (67% rounded).**
 **P10 is locally complete: three of three fixed checkpoints (100%).**
 **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
@@ -236,6 +236,10 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
   All 183 Alchemist library tests, 77 Formula/operation tests and 635 engine tests pass in the dev
   profile; three existing app and three engine cases remain ignored. Strict all-target Clippy,
   the normal bundled build, all 22 native correctness groups and the shared-runner State 1k smoke pass.
+  Spatializer's [fixed scale workload](p11-spatializer-graph-scale.md) now has 60 timing cases and
+  16 correctness pressure groups across four modes. All 20 canonical declaration/publication
+  roundtrips pass, preserving endpoint UUIDs and positions; this does not close action qualification.
+  Its empty logical canvas document and custom SVG/inspector views need the owning UI work next.
   Complete Spatializer actual-app scale before closing graph keyboard operations, then composed
   workflows. Preserve [composition](p11-dashboard-composition.md) and
   [applied-receipt barriers](p11-dashboard-barriers.md). Native usability retains P17 and product
@@ -11272,3 +11276,32 @@ State scale qualification. Source inventory is **2,267 files / 25 existing overs
 Spatializer actual-app scale remains before graph keyboard closure, then complete composed
 discovery/selection/editing workflows. Native input/usability remains P17 and product throughput
 P16. Commit and push this verified milestone on `main`; keep the complete implementation goal active.
+
+### P11 Spatializer fixed workload and canonical mode calibration
+
+Reconciled with delivered `d411f668` on `main`. The
+[Spatializer contract](p11-spatializer-graph-scale.md) fixes **60 timing cases / 1,860 retained
+samples / 180 warmups**, plus **16 correctness pressure groups**, before action measurement.
+It separates authored endpoints, generated folders/cells and backend-record tiers. Primary scenes
+have 32 sources; transposed and endpoint-cap scenes cover both list orientations. All four modes
+retain explicit glyph, overview, region, finder and related-row bounds and the unchanged timing gates.
+
+Three radius-mode prototypes are actual backend exports with excess endpoints/generated values
+removed. The constructor preserves typed persisted records and rejects unsupported endpoint/pair
+counts. All **20 canonical backend roundtrips** preserve UUIDs, positions, mode fields and complete
+matrix publication. The independent source/target calibration model is
+`185 + s*S + t*T + S*T`; source/target coefficients are 3/3 for Voronoi and Target Radius, 4/2 for
+Source Radius and 4/3 for Overlap. Only the sub-target remainder may be unrelated padding.
+
+The current production panel still supplies zero logical nodes to the shared canvas, alongside
+its real custom endpoint SVG. Discovery/focus and bounded custom world/inspector presentation
+therefore remain owning UI implementation work. No action timing or pressure group is closed.
+The [evidence](evidence/p11-spatializer-scale-preparation-2026-10-26.json) records calibration,
+canonical export provenance and fingerprints. Thirteen Spatializer native groups, both 1k
+State/Formula four-action smoke tiers, strict graph-fixture Svelte checks, Prettier, root/Core
+formatting and the normal locked bundled build pass. No new full Rust suite or Clippy run is
+claimed for this fixture-only milestone. Source inventory is **2,269 files / 25 existing oversized**.
+
+**P11 remains 4/6 (67% rounded); whole-plan coverage 59%. P03 has zero packages left.**
+Complete Spatializer action/pressure qualification, then composed workspace workflows. Commit
+and push the verified preparation on `main`; keep the whole implementation goal active.

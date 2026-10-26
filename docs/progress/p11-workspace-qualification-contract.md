@@ -6,6 +6,11 @@ the same five backend-tree tiers, dimensions, four action families, 3/31 samples
 ceilings as State. Its dense acyclic Constant/Math chain and free-second-input connection case
 are fixed before measurement. Runtime evaluation throughput retains P13/P16.
 
+Spatializer's [fixed extension](p11-spatializer-graph-scale.md) separates authored endpoint counts
+from generated matrix cells. Its four modes have 60 timing cases and 16 correctness pressure
+groups, with explicit endpoint, overview, region, finder and related-row mounting bounds.
+Declaration/publication calibration alone does not qualify actions or close the graph checkpoint.
+
 P11 has six fixed acceptance checkpoints derived from the active plan: manager/catalog windowing,
 historical log windowing, dashboard viewport awareness, tree focus/keyboard navigation, graph
 keyboard operations, and complete composed workflow qualification. Delivery commits do not add

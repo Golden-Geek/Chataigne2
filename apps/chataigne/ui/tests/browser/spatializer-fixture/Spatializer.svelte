@@ -103,6 +103,41 @@
 				label: node.meta.label,
 				position: (child(node, 'position_2d') ?? child(node, 'position_3d'))?.data
 			}));
+	/** Read actual publication dimensions without fabricating a UI graph snapshot. */
+	export const scaleScene = () => {
+		const records = nodes();
+		const module = records.find((node) => node.node_type === 'spatializer_module');
+		const values = module ? child(module, 'values') : null;
+		const parameters = module ? child(module, 'parameters') : null;
+		const mode = parameters ? child(parameters, 'mode') : null;
+		const folders = values?.children.map((id) => session.graph.state.nodesById.get(id)) ?? [];
+		return {
+			module: module?.node_id ?? null,
+			mode:
+				mode?.data.kind === 'parameter' && mode.data.param.value.kind === 'enum'
+					? mode.data.param.value.value
+					: null,
+			treeNodes: records.length,
+			radiusParameters: records.filter((node) => node.decl_id.split('/').at(-1) === 'radius')
+				.length,
+			freezeParameters: records.filter((node) => node.decl_id.split('/').at(-1) === 'freeze_radius')
+				.length,
+			sources: records.filter((node) => node.node_type === 'spatializer_source').length,
+			targets: records.filter((node) => node.node_type === 'spatializer_target').length,
+			valueFolders: folders.length,
+			cells: folders.reduce(
+				(count, folder) =>
+					count +
+					(folder?.children.filter((id) => {
+						const node = session.graph.state.nodesById.get(id);
+						return node?.data.kind === 'parameter' && node.data.param.value.kind === 'float';
+					}).length ?? 0),
+				0
+			),
+			pending: session.editOperations.size,
+			generation: session.snapshotGeneration
+		};
+	};
 	/** Test arrangement uses generic authored edits; it does not qualify the panel's mutation API. */
 	async function setValue(id: number, declaration: string, value: ParamValue) {
 		const endpoint = session.graph.state.nodesById.get(id);
@@ -124,8 +159,12 @@
 		setValue(id, 'position_2d', { kind: 'vec2', value: [x, y] });
 	export const position3d = (id: number, x: number, height: number, y: number) =>
 		setValue(id, 'position_3d', { kind: 'vec3', value: [x, height, y] });
-	export async function configure(key: 'mode' | 'dimensions' | 'value_layout', value: string) {
-		const module = moduleId !== null ? session.graph.state.nodesById.get(moduleId) : null;
+	export async function configure(
+		key: 'mode' | 'dimensions' | 'value_layout',
+		value: string,
+		owner = moduleId
+	) {
+		const module = owner !== null ? session.graph.state.nodesById.get(owner) : null;
 		const parameters = module ? child(module, 'parameters') : null;
 		if (!parameters) throw new Error('Missing Spatializer configuration');
 		await setValue(parameters.node_id, key, { kind: 'enum', value });
