@@ -49,6 +49,14 @@ consumed by engine adapters, transport hosts, code generation, and the Svelte cl
 - Project replacement materializes its complete projection before cutover. The internal projection
   header carries the same monotonic project generation as the actor-owned engine; installation
   clears old replay retention and publishes the replacement resync event at that one boundary.
+- The client subscription coordinator retains a coalesced invalidation received while a snapshot
+  is in flight. It fetches a fresh snapshot before resubscribing, using that snapshot's event
+  boundary even when the project clock resets. Disconnect/disposal retire pending invalidations;
+  an older snapshot cannot consume a later replacement notice.
+- The host retains the project generation of every active subscription. A generation change
+  pauses its deltas and requests one resync even if the new engine has exactly the same event
+  clock. Re-subscription starts delivery in the current project lifetime; event time alone cannot
+  identify a project replacement.
 - One WebSocket replay pass delivers its non-empty data planes in one atomic delta envelope.
   The client stages the whole envelope before rendering and drains large event bursts in bounded
   animation-frame slices, preserving global event-time order and keeping input responsive. Detached

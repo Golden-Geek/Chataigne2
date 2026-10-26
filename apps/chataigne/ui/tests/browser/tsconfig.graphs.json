@@ -1,4 +1,9 @@
 {
 	"extends": "./tsconfig.json",
-	"include": ["state-graph-fixture/**/*.ts", "state-graph-fixture/**/*.svelte"]
+	"include": [
+		"state-graph-fixture/**/*.ts",
+		"state-graph-fixture/**/*.svelte",
+		"alchemist-graph-fixture/**/*.ts",
+		"alchemist-graph-fixture/**/*.svelte"
+	]
 }

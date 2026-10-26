@@ -7,8 +7,12 @@ extraction notes and September counts are [archived](../archive/2026-10-18/progr
 
 ## Scan and policy
 
-Refreshed 2026-10-26 against delivered `cd8b4dad` plus State graph authoring
-on `main`. Scanned **2215 source files**; **27 exceed 1,000 lines**. The State Machine panel
+Refreshed 2026-10-26 against delivered `d6696752` plus Alchemist graph authoring
+on `main`. Scanned **2231 source files**; **26 exceed 1,000 lines**. The Alchemist panel shrinks
+from 2,091 to 993 lines, composing focused preview (266), clipboard (240), item creation (274),
+camera (44), graph request (70), mutation admission (98) and property-sidebar (295) owners.
+Its backend graph operation is 221 lines; owning tests and native fixtures stay below the limit.
+The State Machine panel
 shrinks from 976 to 759 lines; its edit controller is 165 lines and backend operation 203.
 Their tests and native browser fixtures stay below the limit. NodeView remains 973 lines;
 the direction-specific socket index, feedback owner and focused qualification fixtures stay under
@@ -16,7 +20,7 @@ the limit. Graph interaction controllers,
 connection dispatch, keyboard helpers and their owning tests remain below the limit. TreeRows (235 lines),
 the retained tree projection (273), navigation model (71), browser matrix and adjacent tests
 remain below the limit. Picker host/selection/focus responsibilities and app qualification fixtures
-stay below the limit. The existing AlchemistEditorPanel is qualified without editing it. The dashboard
+stay below the limit. The dashboard
 canvas is 978 lines; its controllers, geometry, viewport, tests and stylesheet files remain
 below the limit. No new source-size exception is introduced. Remaining decomposition and
 exceptions belong to P12; this inventory does not qualify that task.
@@ -59,7 +63,6 @@ and alternatives; a blanket exception does not close P12. Refresh counts after r
 |  5,027 | `crates/golden_core/support/macros/src/lib.rs`                                       | Implementation |
 |  2,561 | `apps/chataigne/ui/src/lib/panels/modules/SpatializerEditorPanel.svelte`             | Implementation |
 |  2,402 | `apps/chataigne/systems/alchemist/integration/formula/tests/mod.rs`                  | Test suite     |
-|  2,091 | `apps/chataigne/ui/src/lib/systems/alchemist/components/AlchemistEditorPanel.svelte` | Implementation |
 |  2,066 | `crates/golden_core/engine/src/engine/controls.rs`                                   | Implementation |
 |  1,996 | `packages/golden-ui/components/common/AnimationCurveCanvas.svelte`                   | Implementation |
 |  1,992 | `crates/golden_core/engine/src/app/mod.rs`                                           | Implementation |

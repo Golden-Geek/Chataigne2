@@ -1,0 +1,299 @@
+{
+  "baseCommit": "d66967529e884a271c99e9381f0efb291b241c8c",
+  "scope": "Alchemist backend graph edits, captured bounded admission, cohesive editor decomposition, coalesced client resync and active-subscription project-generation detection. P11 remains 4/6, whole plan 59%.",
+  "machine": {
+    "os": "10.0.26300",
+    "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+    "logicalProcessors": 24,
+    "node": "v26.5.0",
+    "browser": "156.0.4314.42"
+  },
+  "startingCheckout": "clean main; origin/main reconciled",
+  "source": [
+    {
+      "path": "apps/chataigne/systems/alchemist/integration/formula/operations/layout.rs",
+      "sha256": "9ccfc16c1ebd3a0d3792f28513855d005a7e70f0314b7c3ad7f049e022e7ec85"
+    },
+    {
+      "path": "apps/chataigne/systems/alchemist/integration/formula/operations/mod.rs",
+      "sha256": "9202acfad181410b598a88f963e88d3d61b429652354a008152189a61189d99b"
+    },
+    {
+      "path": "apps/chataigne/systems/alchemist/integration/formula/operations/tests/layout.rs",
+      "sha256": "26c92dea6e77cd645c130b2f6c10dad5089845e444ed9d33cd81ac3f6c137760"
+    },
+    {
+      "path": "apps/chataigne/systems/alchemist/integration/formula/operations/tests/layout/native.rs",
+      "sha256": "f8a2761797ef6042e4cf8f57c921cbbe01fb76843230f9794174462948dc5e5c"
+    },
+    {
+      "path": "apps/chataigne/systems/alchemist/integration/formula/operations/tests/mod.rs",
+      "sha256": "97e6947ab6af0c9041731aa9ae38004d012e153f6125154da4e32c7c6c4f621c"
+    },
+    {
+      "path": "apps/chataigne/systems/alchemist/src/authoring.rs",
+      "sha256": "c97a4ae34fa0f4fdc57013ef4076dcd7f2e8226e8e982cba50546df30f58b998"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/alchemist/components/AlchemistEditorPanel.svelte",
+      "sha256": "ffaaa7043841e8aa9e78d736be4f265bffe42c6542fd6cc70ec48c322fe4df09"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/alchemist/components/AlchemistGraphEditor.svelte",
+      "sha256": "05c56fd86925e24058bf9d722efb81e5636086a33917fda753acc06ec83dc68d"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/alchemist/components/FormulaPropertiesPanel.svelte",
+      "sha256": "dfc6d3b956e980d62c1edfd07025ba73c8f54a8f42f081c5dec78b3c2cfef771"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/alchemist/editor/formulaCameras.svelte.ts",
+      "sha256": "fd555c230dcb443d99a0b74ff9dc81213dd0c5be689424c4fe758649bbecd6d1"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/alchemist/editor/formulaEditorClipboard.svelte.ts",
+      "sha256": "88c520e7c9c15be2cd68f3a04eadda016e34620bd2a8a23fc7a8ee3b9abf30a1"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/alchemist/editor/formulaEditorPreview.svelte.ts",
+      "sha256": "f0e2ca62bb129705196248c40f0de1180504a972d820618578fbc0d49a0ac28c"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/alchemist/editor/formulaGraphEdits.ts",
+      "sha256": "4f3bc162fd3b758007b0f9d0b16402a2db39164b330e0b4c5e9c7df6129f1c09"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/alchemist/editor/formulaItems.svelte.ts",
+      "sha256": "3157305fa86b2d67de1e3a8ac62430e66ef419f4399878d855988c54f601dc6e"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/alchemist/editor/formulaMutations.ts",
+      "sha256": "95bbfe25e407c72d4a668c9e2337411f5e88c8c07c92eab4f63b1c5cbe4d1882"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/alchemist/editor/tests/formulaGraphEdits.test.ts",
+      "sha256": "aeb7c675313d13ebd4cf2b51ab78230b13aaf51dad6d794d2aa2b665a081d132"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/alchemist/formulaOperations.ts",
+      "sha256": "4865861b47a90f1e28c8591592cddb7c413a6863945abf9091e3708b06dd5067"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/alchemist/generated/authoring/FormulaGraphEdit.ts",
+      "sha256": "a4b6c1a0122d7331d717a3a6ff1ce2aecab1ff63e39b525ec1cba9834934e11e"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/alchemist/generated/authoring/FormulaGraphEditRequest.ts",
+      "sha256": "2b68f52dec8fc49574112c8684ef1477bfa00c164ff7f06756f743f6da596853"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/alchemist/generated/authoring/FormulaGraphEditResult.ts",
+      "sha256": "6d307c1abedfc6b00dac8a5f78d52ed673b67849e60f505b74e71af8c2226cc7"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/alchemist/generated/authoring/FormulaGraphMove.ts",
+      "sha256": "7b702efa90e373c63bf731138717685ebc9b11a71e1349b6a9bcaa43fb2e26b7"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/alchemist/generated/authoring/constants.ts",
+      "sha256": "dcdeb4fd57fa99a7cbc2bf1b5657407c91ea58a5ce15d1eafea745769f90a2d1"
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/alchemist-graph-fixture/AlchemistGraph.svelte",
+      "sha256": "355fa64ff063f8cd2226cefcafc1a2c4eab20867c0db37f624dfdeda32d80bb6"
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/alchemist-graph-fixture/index.html",
+      "sha256": "200b49bb1c8f6459b149debf170652f9c9e526dfb4c638e6c58ebc052dad1e28"
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/alchemist-graph-fixture/main.ts",
+      "sha256": "b6d1bb650b48e4aadd54c958b5601f4be69bfdd2ba64a1d30a5e915c1f6eb531"
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/alchemist-graph-native.mjs",
+      "sha256": "d1fc7fbcd2cf42315949e4415ee46e1f179fe775ccaa645ab29f3073db9c338a"
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/tsconfig.graphs.json",
+      "sha256": "4e944a3a4a170b6a5a7afd1764b289ea811f2e169b0e14ca585ff10ba5e8eeae"
+    },
+    {
+      "path": "crates/golden_core/hosts/transport/src/ui_server/delivery.rs",
+      "sha256": "4972441dcd0ff7f55fb79f440da2d874d6b5eeb1a0ba3c3d5f2cbbae19f70611"
+    },
+    {
+      "path": "crates/golden_core/hosts/transport/src/ui_server/hub.rs",
+      "sha256": "5bfa4d22f9fe018ff48fb7d4f41911aeafadeae36a72f5d13a4c78a0d3f1d146"
+    },
+    {
+      "path": "crates/golden_core/hosts/transport/src/ui_server/mod.rs",
+      "sha256": "7bcb542486fc351fe012b4a95d1237fcfe3c2ab1f1e8107e23e096839f5f3696"
+    },
+    {
+      "path": "crates/golden_core/hosts/transport/src/ui_server/tests/mod.rs",
+      "sha256": "0af50fc291a88cb6d54e109dbfd9a3a1e643765530cdcde648aaf3084d159121"
+    },
+    {
+      "path": "crates/golden_core/hosts/transport/src/ui_server/tests/outbound_recovery.rs",
+      "sha256": "93dad4a0b2f64ea428de985d89fabaa9ec91ab5e6b899351d6d0ca4b5124d246"
+    },
+    {
+      "path": "crates/golden_core/hosts/transport/src/ui_server/tests/project_generation.rs",
+      "sha256": "0bb09daf1e1d9e6a2479f523d5cc732ea23fecd18700cded9317e82b68ecaae1"
+    },
+    {
+      "path": "packages/golden-ui/transport/subscription-resync.ts",
+      "sha256": "ae45fcb5251706a781e3e99a17d306e86d038a47a44cca7263e23fb9d5340966"
+    },
+    {
+      "path": "packages/golden-ui/transport/tests/subscription-resync.test.ts",
+      "sha256": "2b345dfb64f7e85de11a540bbc17351b6ce99775198de48af6560a7690d65653"
+    }
+  ],
+  "binary": {
+    "path": "target/debug/Chataigne2.exe",
+    "sha256": "de7d8ab90f19780f6bb4f4c50e90f6ee91348342b26871eda2bb8d870477bd81",
+    "defaultFeatures": true,
+    "buildSeconds": 144,
+    "env": {
+      "CARGO_INCREMENTAL": "0"
+    }
+  },
+  "fixtureAssets": [
+    {
+      "name": "dmsans-italic-CT59GZwy.ttf",
+      "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+    },
+    {
+      "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+      "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+    },
+    {
+      "name": "index-A-E7VsSh.js",
+      "sha256": "343339ca14f4cba55e9691d89e8e532e79162c32d4638006310a9d8fa1a1084b"
+    },
+    {
+      "name": "index-BcDHm3O_.css",
+      "sha256": "ac8f9e764ed59d598f1f85a970dc64508ca2030b743f344ac6e6e895c18cd541"
+    }
+  ],
+  "fixtureScope": {
+    "anodes": 2,
+    "authoredNodesBeforeConnection": 45,
+    "authoredNodesAfterConnection": 50
+  },
+  "testHarness": {
+    "path": "target/debug/deps/Chataigne2-ced3d8e859f387bc.exe",
+    "sha256": "98d8cab761f021fa9eeddaaab418e2309d42b1af75f1e3c7e435a2c3d09eb2ab",
+    "note": "Built for unchanged app graph/fixture code before the host-only generation repair; native children use the exact final default executable above."
+  },
+  "checks": [
+    {
+      "command": "cargo test --locked -p Chataigne2 systems_alchemist_formula::operations -- --skip native --nocapture",
+      "passed": 24,
+      "ignored": 2,
+      "failed": 0
+    },
+    {
+      "command": "cargo test --locked -p golden_transport_server --lib",
+      "passed": 75,
+      "ignored": 1,
+      "failed": 0
+    },
+    {
+      "command": "npm test",
+      "passed": 421,
+      "workspaces": {
+        "golden_audio_ui": 27,
+        "golden_graph_ui": 58,
+        "golden_ui": 193,
+        "chataigne-ui": 143
+      }
+    },
+    {
+      "command": "npm run check --workspace chataigne-ui",
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "command": "npm run check:browser:graphs --workspace chataigne-ui",
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "command": "Rust Alchemist authoring exporter to target/qualification/p11-alchemist-codegen; compare five changed contracts after repository Prettier",
+      "files": 5,
+      "match": true
+    },
+    {
+      "command": "cargo clippy --locked -p Chataigne2 --all-targets -- -D warnings",
+      "exitCode": 0,
+      "durationSeconds": 49.72
+    },
+    {
+      "command": "cargo build --locked",
+      "exitCode": 0,
+      "durationSeconds": 144
+    },
+    {
+      "command": "direct app test harness formula_graph_native_browser_adapter --ignored --nocapture",
+      "repetitions": 3,
+      "correctnessGroups": 12,
+      "passed": 3,
+      "failed": 0,
+      "reports": [
+        "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-alchemist-native-019b5b73-d4c7-4fb0-96f5-554befbc35f3\\browser.jsonl",
+        "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-alchemist-native-0ee8bc57-c44a-40a0-a451-3aff2251b85c\\browser.jsonl",
+        "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-alchemist-native-a8c4ab06-c281-4142-81ae-c083baa4e21f\\browser.jsonl"
+      ]
+    },
+    {
+      "command": "direct app test harness state_graph_authoring_native_browser_adapter --ignored --nocapture",
+      "passed": 1,
+      "correctnessGroups": 4,
+      "failed": 0,
+      "report": "docs/progress/evidence/p11-alchemist-graph-state-regression-2026-10-26.jsonl"
+    },
+    {
+      "command": "cargo fmt --all; cargo fmt --manifest-path crates/golden_core/Cargo.toml --all; explicit rustfmt of app layout module and tests",
+      "exitCode": 0
+    },
+    {
+      "command": "Repository UI Prettier --check; git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "redBeforeFix": [
+    {
+      "command": "npm run test --workspace golden_ui -- --run transport/tests/subscription-resync.test.ts",
+      "workingTree": "New regression against unchanged coordinator implementation from base commit",
+      "passed": 1,
+      "failed": 1,
+      "assertion": "Expected two snapshot requests after coalesced invalidations; received one."
+    },
+    {
+      "command": "cargo test --locked -p golden_transport_server project_generation_resyncs_an_idle_subscription --lib -- --nocapture",
+      "workingTree": "New generation field/fixture before delivery compared the generation",
+      "passed": 0,
+      "failed": 1,
+      "assertion": "Equal event time after real ProductionRuntime replacement did not emit project_generation_changed resync."
+    }
+  ],
+  "preservedNativeFailures": "docs/progress/evidence/p11-alchemist-graph-native-failure-2026-10-26.jsonl",
+  "diagnosticPassBeforeHostRepair": {
+    "path": "target/qualification/p11-alchemist-native-421416bd-7cbc-4ab5-b8be-e5b005301ab4/browser.jsonl",
+    "note": "Independent backend snapshot in success path masked client stall. Removed before final repetitions; not counted as final qualification."
+  },
+  "inventory": {
+    "sources": 2231,
+    "oversized": 26,
+    "panelLines": 993
+  },
+  "remaining": [
+    "Unsubscribe/snapshot/re-subscribe replacement overlap, including generation fencing for subscription cursor and event-origin state.",
+    "Spatializer actual custom-world/empty-document integration.",
+    "Actual-app scale and composed workflows; native physical usability remains P17.",
+    "Existing item/property creation policy is unchanged."
+  ]
+}

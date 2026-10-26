@@ -3,11 +3,12 @@ use golden_core::{
     application::apply_project_intent,
     ui_sync::{UiAck, UiCreateUserItemInitialParam, UiEditIntent},
 };
-use serde::{Serialize, de::DeserializeOwned};
+use serde::{de::DeserializeOwned, Serialize};
 
 mod callers;
 mod connection;
 mod contexts;
+mod layout;
 mod script;
 mod transport;
 
@@ -280,12 +281,10 @@ fn external_property_reference_survives_fragment_import_without_remapping_the_ta
         },
     )
     .unwrap();
-    assert!(
-        !result
-            .identities
-            .iter()
-            .any(|identity| identity.source_uuid == property_uuid)
-    );
+    assert!(!result
+        .identities
+        .iter()
+        .any(|identity| identity.source_uuid == property_uuid));
     let snapshot = engine.process_tree_snapshot();
     let config = snapshot
         .find_child_by_decl_id(result.selected_nodes[0], "config")
@@ -304,18 +303,16 @@ fn stale_owner_and_read_only_formula_reject_before_import() {
     let before = engine.nodes.len();
     let mut stale = formula.clone();
     stale.uuid = NodeUuid(uuid::Uuid::new_v4());
-    assert!(
-        invoke::<FormulaPasteResult>(
-            &mut engine,
-            "pasteFragment",
-            FormulaPasteRequest {
-                formula: stale,
-                fragment: fragment.clone(),
-                offset: None
-            }
-        )
-        .is_err()
-    );
+    assert!(invoke::<FormulaPasteResult>(
+        &mut engine,
+        "pasteFragment",
+        FormulaPasteRequest {
+            formula: stale,
+            fragment: fragment.clone(),
+            offset: None
+        }
+    )
+    .is_err());
     engine
         .nodes
         .get_mut(formula.node)
@@ -324,18 +321,16 @@ fn stale_owner_and_read_only_formula_reject_before_import() {
         .meta
         .tags
         .push(FORMULA_EXTERNAL_READ_ONLY_TAG.into());
-    assert!(
-        invoke::<FormulaPasteResult>(
-            &mut engine,
-            "pasteFragment",
-            FormulaPasteRequest {
-                formula,
-                fragment,
-                offset: None
-            }
-        )
-        .is_err()
-    );
+    assert!(invoke::<FormulaPasteResult>(
+        &mut engine,
+        "pasteFragment",
+        FormulaPasteRequest {
+            formula,
+            fragment,
+            offset: None
+        }
+    )
+    .is_err());
     assert_eq!(engine.nodes.len(), before);
 }
 

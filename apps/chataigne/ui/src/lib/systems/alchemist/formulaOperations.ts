@@ -4,6 +4,7 @@ import {
 	FORMULA_COPY_OPERATION,
 	FORMULA_PASTE_OPERATION,
 	FORMULA_CONNECT_OPERATION,
+	FORMULA_GRAPH_EDIT_OPERATION,
 	FORMULA_FRAGMENT_VERSION
 } from './generated/authoring/constants';
 import type { FormulaCopyRequest } from './generated/authoring/FormulaCopyRequest';
@@ -13,6 +14,7 @@ import type { FormulaPasteResult } from './generated/authoring/FormulaPasteResul
 import type { FormulaConnectRequest } from './generated/authoring/FormulaConnectRequest';
 import type { FormulaConnectResult } from './generated/authoring/FormulaConnectResult';
 import type { FormulaOwnerDto } from './generated/authoring/FormulaOwnerDto';
+import type { FormulaGraphEditRequest } from './generated/authoring/FormulaGraphEditRequest';
 
 type OperationSession = Pick<WorkbenchSession, 'invokeAppOperation'>;
 type OperationValue = Awaited<ReturnType<OperationSession['invokeAppOperation']>>;
@@ -105,3 +107,33 @@ export const connectFormulaNodes = async (
 	}
 	return { connection: result.connection, replaced: result.replaced };
 };
+
+export async function editFormulaGraph(
+	session: OperationSession,
+	request: FormulaGraphEditRequest
+): Promise<void> {
+	const result = await session.invokeAppOperation({
+		kind: 'invokeAppOperation',
+		namespace: FORMULA_OPERATION_NAMESPACE,
+		operation: FORMULA_GRAPH_EDIT_OPERATION,
+		payload: request
+	});
+	const expected =
+		request.edit.kind === 'move'
+			? request.edit.moves.map((move) => move.anode)
+			: request.edit.kind === 'delete'
+				? request.edit.nodes
+				: [request.edit.anode];
+	if (
+		!record(result) ||
+		!Array.isArray(result.nodes) ||
+		result.nodes.length !== expected.length ||
+		result.nodes.some(
+			(node, index) =>
+				!ownerReply(node) ||
+				node.node !== expected[index].node ||
+				node.uuid !== expected[index].uuid
+		)
+	)
+		throw new Error('Formula graph edit returned invalid committed identities.');
+}

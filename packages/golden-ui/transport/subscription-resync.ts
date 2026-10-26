@@ -40,11 +40,10 @@ export interface SubscriptionResyncCoordinator<TState extends SubscriptionResync
 	dispose(state: TState): void;
 }
 
-export const createSubscriptionResyncCoordinator = <
-	TState extends SubscriptionResyncState
->(
+export const createSubscriptionResyncCoordinator = <TState extends SubscriptionResyncState>(
 	options: SubscriptionResyncCoordinatorOptions<TState>
 ): SubscriptionResyncCoordinator<TState> => {
+	const queued = new WeakSet<TState>();
 	const clearRetry = (state: TState): void => {
 		if (state.resyncRetryTimer !== null) {
 			clearTimeout(state.resyncRetryTimer);
@@ -52,16 +51,8 @@ export const createSubscriptionResyncCoordinator = <
 		}
 	};
 
-	const startAttempt = (
-		subscriptionId: string,
-		state: TState,
-		socketGeneration: number
-	): void => {
-		if (
-			state.closed ||
-			!state.resyncing ||
-			!options.isSocketGenerationOpen(socketGeneration)
-		) {
+	const startAttempt = (subscriptionId: string, state: TState, socketGeneration: number): void => {
+		if (state.closed || !state.resyncing || !options.isSocketGenerationOpen(socketGeneration)) {
 			return;
 		}
 		const requestSnapshot = options.requestSnapshot;
@@ -88,6 +79,10 @@ export const createSubscriptionResyncCoordinator = <
 				) {
 					return;
 				}
+				if (queued.delete(state)) {
+					startAttempt(subscriptionId, state, socketGeneration);
+					return;
+				}
 				state.stagedFrames.reset();
 				state.cursor = boundary;
 				state.resyncing = false;
@@ -102,6 +97,10 @@ export const createSubscriptionResyncCoordinator = <
 					state.resyncGeneration !== attemptGeneration ||
 					!options.isSocketGenerationOpen(socketGeneration)
 				) {
+					return;
+				}
+				if (queued.delete(state)) {
+					startAttempt(subscriptionId, state, socketGeneration);
 					return;
 				}
 				const message = error instanceof Error ? error.message : 'unknown snapshot error';
@@ -123,6 +122,8 @@ export const createSubscriptionResyncCoordinator = <
 		state.resyncPlane = plane;
 		state.resyncReason = reason;
 		if (state.resyncing) {
+			// A replacement can invalidate the snapshot already in flight. Coalesce, then fetch again.
+			queued.add(state);
 			return;
 		}
 
@@ -148,6 +149,7 @@ export const createSubscriptionResyncCoordinator = <
 			return true;
 		},
 		socketDisconnected: (state) => {
+			queued.delete(state);
 			state.stagedFrames.reset();
 			state.subscribedSocketGeneration = null;
 			clearRetry(state);
@@ -156,6 +158,7 @@ export const createSubscriptionResyncCoordinator = <
 			}
 		},
 		dispose: (state) => {
+			queued.delete(state);
 			state.resyncGeneration += 1;
 			clearRetry(state);
 		}

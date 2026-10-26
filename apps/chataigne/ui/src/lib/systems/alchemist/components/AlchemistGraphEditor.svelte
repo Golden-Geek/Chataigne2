@@ -59,7 +59,7 @@
 		onNodeRename?: (nodeId: string, label: string) => void | Promise<void>;
 		onNodeCollapsedChange?: (nodeId: string, collapsed: boolean) => void | Promise<void>;
 		onNodeEnabledChange?: (nodeId: string, enabled: boolean) => void | Promise<void>;
-		onConnect?: (connection: GraphConnectionRequest) => void;
+		onConnect?: (connection: GraphConnectionRequest) => void | Promise<void>;
 		onBackgroundContextMenu?: (event: MouseEvent, position: GraphNodePosition) => void;
 		onCreateRequest?: (request: GraphNodeCreationRequest) => void;
 		initialCamera?: GraphCamera;
@@ -93,13 +93,7 @@
 		generation: appState.session?.snapshotGeneration,
 		formulaUuid: formulaIdentity
 	});
-	let graphCanvas: {
-		clientToWorld: (clientX: number, clientY: number) => GraphNodePosition;
-		frameSelection: () => boolean;
-		home: () => boolean;
-		focus: () => void;
-		viewportCenter: () => GraphNodePosition;
-	} | null = $state(null);
+	let graphCanvas = $state<ReturnType<typeof GraphCanvas> | null>(null);
 
 	let pendingHome = $state(false);
 	let activeFormulaId = $state<NodeId | null>(null);
@@ -157,6 +151,14 @@
 	export const frameSelection = (): boolean => graphCanvas?.frameSelection() ?? false;
 	export const home = (): boolean => graphCanvas?.home() ?? false;
 	export const focus = (): void => graphCanvas?.focus();
+	export const moveGraphSelection = (key: string, large = false) =>
+		graphCanvas?.moveSelectionWithKeyboard(key, large) ?? false;
+	export const connectGraphSocket = (node: string, socket: string, direction: 'input' | 'output') =>
+		graphCanvas?.activateSocketWithKeyboard(node, socket, direction) ?? false;
+	export const revealGraphNode = (id: string, additive = false) =>
+		graphCanvas?.revealNode(id, additive) ?? Promise.resolve(false);
+	export const collapseGraphNode = (id: string) => graphCanvas?.toggleNodeCollapsed(id) ?? false;
+	export const graphInteractionState = () => graphCanvas?.keyboardState();
 	export const viewportCenter = (): GraphNodePosition =>
 		graphCanvas?.viewportCenter() ?? { x: 0, y: 0 };
 </script>

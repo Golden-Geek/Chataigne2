@@ -9,7 +9,9 @@ use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use futures_util::{SinkExt, StreamExt};
-use golden_engine::app::{ProjectLifecycle, apply_preferences_runtime_limits, prepare_engine_for_runtime};
+use golden_engine::app::{
+    ProjectGeneration, ProjectLifecycle, apply_preferences_runtime_limits, prepare_engine_for_runtime,
+};
 use golden_engine::application::{ApplicationError, AppliedUiTransaction, ProductionRuntime, UiClientLease};
 use golden_engine::engine::{Engine, EngineTime};
 use golden_engine::events::CustomEventRetention;
@@ -395,6 +397,7 @@ impl Drop for WsClientState {
 
 struct WsSubscriptionState {
     interest: UiInterest,
+    project_generation: ProjectGeneration,
     cursor: Option<EngineTime>,
     last_runtime_stats: Option<UiRuntimeStatsDto>,
     pending_value_events: PendingValueEvents,

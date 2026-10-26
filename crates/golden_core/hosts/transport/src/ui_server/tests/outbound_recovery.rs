@@ -7,6 +7,7 @@ fn full_subscription_queue_becomes_one_resync_without_losing_control_messages() 
         "workbench".to_string(),
         WsSubscriptionState {
             interest: UiInterest::workbench("view".to_string(), UiSubscriptionScope::WholeGraph),
+            project_generation: ProjectGeneration::INITIAL,
             cursor: None,
             last_runtime_stats: None,
             pending_value_events: PendingValueEvents::default(),

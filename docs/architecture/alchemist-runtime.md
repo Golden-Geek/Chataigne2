@@ -28,7 +28,7 @@ additions and removals, preserving the shared source's authored order.
 
 ## Authored fragment operations
 
-`src/authoring.rs` owns the Formula copy/paste/connect DTOs and TypeScript export. Generate the
+`src/authoring.rs` owns the Formula copy/paste/connect/graph-edit DTOs and TypeScript export. Generate the
 app UI contracts with `npm run codegen:alchemist-authoring --workspace chataigne-ui`.
 The command exports Rust DTOs and formats their generated files with the UI formatter.
 The app's `integration/formula/operations` adapter handles the `chataigne.alchemist`
@@ -89,6 +89,29 @@ while requesting runtime state and outstanding requests are never copied or pers
 Owning acceptance includes actual authenticated HTTP/WebSocket requests against the default
 headless executable, concurrent pastes, exact embedded-script replies and stale-owner rejection
 after project replacement. Current evidence and its local scope live in the implementation ledger.
+
+## Editor mutation ownership
+
+`chataigne.alchemist/editGraph` owns ANode movement, sizing, naming, collapse, enable and graph
+deletion. Requests carry the Formula and target NodeId/UUID pairs. The backend validates all
+targets before queuing changes; deleting ANodes gathers incident edges in one direct-sibling
+pass. Each operation uses the existing atomic app-operation transaction and one undo group.
+Read-only Formula policy and layout-field permissions are enforced for every caller.
+
+The app UI's `editor/formulaMutations.ts` captures the session, Formula identity and snapshot
+generation before shared bounded session admission. It returns operation failures, participates
+in save/history/project barriers and retires queued work on source replacement or unmount.
+`formulaGraphEdits.ts` captures complete graph requests before waiting and validates committed
+identities. Connection callbacks return the backend promise through AlchemistGraphEditor to the
+shared canvas; they cannot report success before the backend accepts the connection.
+
+The panel composes focused preview, clipboard, item-creation and camera owners. The property
+sidebar has its own component, relative width and measured viewport inset. Preview demand,
+lane selection, activity retention, clipboard identity fences and per-Formula cameras keep
+their existing behavior. Item creation still uses the existing public creation boundary;
+this change does not claim all creation/property policy has been migrated.
+See [editor qualification](../progress/p11-alchemist-graph-authoring.md) for native correctness,
+the resync regression, source/build evidence and remaining P11 acceptance.
 
 ## Formula Catalog And Library
 

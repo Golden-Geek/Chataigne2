@@ -5,7 +5,7 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-26 on `main`, based on delivered `cd8b4dad` plus State graph authoring
+Last reconciled: 2026-10-26 on `main`, based on delivered `d6696752` plus Alchemist graph authoring
 delivery below. **P11 is in progress; four of six fixed checkpoints are closed (67% rounded).**
 **P10 is locally complete: three of three fixed checkpoints (100%).**
 **C01-C12 are locally closed: 12/12 packages (100%).
@@ -201,7 +201,7 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
 | Historical log windowing | Complete locally | Variable-height history, filters, follow, bounded native selection, focus and snapshot publication pass through 100k records. [Qualification](p11-log-windowing.md). |
 | Dashboard viewport awareness | Complete locally | All 599 correctness groups and 160 fixed timing combinations pass through 100k authored nodes, including geometry, bounded presentation, feedback, callback stalls and completion. Retention regression passes 13 checkpoints. [Timing qualification](p11-dashboard-timing.md), [composition](p11-dashboard-composition.md), [barriers](p11-dashboard-barriers.md). |
 | Tree focus and keyboard navigation | Complete locally | All four app consumers, 55 constrained-picker groups and shared navigation/lifecycle cases pass through 100k items. All 70 tree timing combinations and 15 collection regression combinations pass fixed gates. [Closure and evidence](p11-tree-closure.md). |
-| Graph keyboard operations | In progress | Shared operations, logical discovery, overview focus, collapsed/compound body sockets and mutation feedback pass nine correctness groups and 50 timing combinations through 100k nodes. Actual State Machine panel passes native atomic edits, rejection, undo/redo and save/reload; Alchemist, Spatializer and actual-app scale qualification remain. [Shared operations](p11-graph-keyboard.md), [discovery](p11-graph-discovery.md), [sockets](p11-graph-sockets.md), [State adapter](p11-state-graph-authoring.md). |
+| Graph keyboard operations | In progress | Shared operations/discovery/sockets pass nine correctness groups and 50 timing combinations through 100k nodes. State Machine and Alchemist pass native atomic edits, rejection, undo/redo, save/reload and idle replacement. Snapshot/subscription overlap, Spatializer and actual-app scale qualification remain. [Shared operations](p11-graph-keyboard.md), [discovery](p11-graph-discovery.md), [sockets](p11-graph-sockets.md), [State adapter](p11-state-graph-authoring.md), [Alchemist adapter](p11-alchemist-graph-authoring.md). |
 | Complete composed workflows | Not started | Qualify discovery, selection and editing across all required composed panels and large batches. Native usability retains P17. |
 
 ## Current handoff
@@ -217,11 +217,14 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
   Shared graph operations now pass nine production correctness groups, including collapsed/compound
   body sockets and mutation feedback. Discovery passes 20 timing combinations / 620 samples, and
   movement/connections pass 30 / 930 through 100k nodes. The full canvas regression also passes
-  all 55 action/tier combinations and both dense scenes. Owning UI suites now pass **410** cases;
-  app and State fixture Svelte checks pass. The actual State Machine panel passes native backend
-  receipts, atomic read-only rejection, undo/redo, save/reload and snapshot/unmount cancellation
-  on a two-state correctness fixture. Complete Alchemist and Spatializer adapters plus actual-app
-  scale qualification before closing graph keyboard operations, then composed
+  all 55 action/tier combinations and both dense scenes. Owning UI suites now pass **421** cases;
+  app and both native graph fixture Svelte checks pass. State Machine and Alchemist panels pass
+  actual backend receipts, atomic read-only rejection, undo/redo, save/reload and snapshot/unmount
+  cancellation. Three Alchemist repetitions and one State regression pass on the exact default
+  executable after repairing idle equal-clock replacement. These are two-node correctness fixtures.
+  Next qualify replacement during unsubscribe/snapshot/re-subscribe, including project-generation
+  fencing for cursors and event-origin state. Complete Spatializer and actual-app scale qualification
+  before closing graph keyboard operations, then composed
   workflows. Preserve [composition](p11-dashboard-composition.md) and
   [applied-receipt barriers](p11-dashboard-barriers.md). Native usability retains P17 and product
   throughput P16. P03-P10 remain closed; P03 has zero packages left.
@@ -312,7 +315,7 @@ External qualification is separate from implementation. A historical pass is not
 | P08 Formula backend intents | 100%       | VERIFIED_LOCAL | PASSED four of four checkpoints   | Shared UI/script/HTTP/WS/headless operations, complete atomic fragments, backend connection policy and exact identity replies pass. Final native acceptance uses the default executable and isolated authenticated sessions; later product/platform qualification retains its owners.                                                                        |
 | P09 Graph document          | 100%       | VERIFIED_LOCAL | PASSED three of three checkpoints | Stable storage, indexed structural edits and exact rollback pass. Current/pre-P09 harness preserves 1,240 fixed-delta samples; public default/no-Serde contracts, Alchemist/statechart consumers, native selection drag/delete undo/redo, strict checks and default build qualify the final checkpoint.                                                      |
 | P10 Canvas                  | 100%       | VERIFIED_LOCAL | PASSED three of three checkpoints | Independent revisions/geometry, scoped routes/culling and full production mounted action/frame qualification pass at baseline/normal/stress tiers. All 55 action/tier and two dense scenes pass fixed gates, with 1,767 measured samples, preserved failures, owning UI/browser checks and default build. Native/full-product qualification retains P16/P17. |
-| P11 Workspace UX            | 67%        | IN_PROGRESS    | PASSED four of six checkpoints | Collections, logs, dashboards and tree interaction pass fixed local gates through 100k items. Shared graph operations/sockets/discovery pass 50 timing combinations; State Machine native correctness passes. Alchemist, Spatializer, actual-app scale and composed qualification remain. Native usability open. |
+| P11 Workspace UX            | 67%        | IN_PROGRESS    | PASSED four of six checkpoints | Collections, logs, dashboards and tree interaction pass fixed local gates through 100k items. Shared graph operations/sockets/discovery pass 50 timing combinations; State Machine and Alchemist native correctness pass. Snapshot/subscription overlap, Spatializer, actual-app scale and composed qualification remain. Native usability open. |
 | P12 Boundaries/gates        | 0%         | NOT_STARTED    | PENDING                           | App policy leak, omitted graph tests, oversized files, unsafe conversions; recurring incremental native-link artifact gap                                                                                                                                                                                                                                    |
 | P13 Formula execution       | 0%         | NOT_STARTED    | PENDING                           | Historical profiles retained; production parallelism not mandated                                                                                                                                                                                                                                                                                            |
 | P14 Production time         | 0%         | NOT_STARTED    | PENDING                           | Clock helper unwired, no target-frame play, starvation/latency policy gaps                                                                                                                                                                                                                                                                                   |
@@ -10999,3 +11002,55 @@ Spatializer still needs its actual empty-document/custom-world integration quali
 actual-app scale and composed workflows before closing the remaining two P11 checkpoints. State
 creation's prior placement path is outside this change. Native usability retains P17; full-product
 throughput retains P16. Commit/push this verified milestone on `main`; keep the full goal active.
+
+### P11 Alchemist graph authoring and project-generation resync
+
+Previous goal turn: **progress**, committed/pushed `d6696752`. Reconciled its clean `main`
+checkout and `origin/main` before continuing the existing graph checkpoint. P03 remains complete
+with zero closure packages left; the P11 denominator remains six checkpoints.
+
+Alchemist graph edits now use the generated `chataigne.alchemist/editGraph` contract for movement,
+sizing, naming, collapse, enable and deletion. Backend validation checks every Formula/target
+NodeId/UUID, membership, permission and value before edits are queued. Delete gathers incident
+edges in one direct-sibling pass. Existing app-operation transactions retain atomic failure and one
+undo group. Connections now return their backend promise through both app components to the canvas.
+
+Shared bounded session admission replaces the panel's private promise queue and edit-session
+polling. Requests capture their complete owner and coordinates before waiting; source/read-only
+replacement and unmount retire queued work. Confirmed work drains before save/history/project
+barriers. The panel composes separate preview, clipboard, item-creation, camera, graph request,
+admission and property-sidebar owners. It shrinks from 2,091 to **993 lines**. All touched source
+stays below 1,000 lines; inventory is **2,231 sources / 26 oversized**, one fewer oversized file.
+
+The first native run stalled after the backend loaded a read-only replacement. A diagnostic read
+made one rerun pass, so that read was removed from the success path and the failure was preserved.
+A deterministic client regression exposed dropped resync notices during an in-flight snapshot;
+the coordinator now coalesces them into one additional request. That repair alone did not fix the
+native stall. The wire trace then showed successive loads with exactly the same event time
+`{tick: 2, micro: 0, seq: 0}`. The host now retains each active subscription's project generation,
+requests resync on replacement independently of the clock, and pauses deltas until recovery.
+A real ProductionRuntime equal-clock regression fails before that repair and passes afterward.
+All three native failures and the fixed qualification are retained in
+[Alchemist qualification and evidence](p11-alchemist-graph-authoring.md).
+
+Checks pass: **24 Formula operation cases / two existing native cases ignored**, including five
+new graph cases; **75 standalone transport cases / one existing manual benchmark ignored**;
+**421 UI cases** (27 audio / 58 graph / 193 Golden / 143 app). App and both graph fixtures report
+zero Svelte errors/warnings. All five changed generated contracts match the Rust exporter. Strict
+app/all-target Clippy, both Cargo formatters, explicit graph-module formatting, package-owned UI
+formatting and whitespace checks pass. The final locked default build passes in **2m24s**;
+binary SHA-256 is `de7d8ab90f19780f6bb4f4c50e90f6ee91348342b26871eda2bb8d870477bd81`.
+
+That exact executable passes **three Alchemist repetitions / 12 correctness groups** plus a State
+Machine regression / four groups, with no success-path diagnostic snapshot or polling added.
+These cover actual atomic moves, undo/redo, collapse/connection identity, save/reload, same-identity
+snapshot/unmount cancellation and rejected moves with rendered rollback and failure feedback.
+
+**P11 remains 4/6 closed checkpoints (67% rounded); whole-plan scope coverage remains 59%
+(59.259...% exact).** Qualify replacement during the complete unsubscribe/snapshot/re-subscribe
+interval, including project-generation fencing for subscription cursors and event-origin state.
+The current wire subscribe cursor carries event time rather than a project-generation token;
+the active-subscription regression does not establish that broader race. Then complete Spatializer's
+actual integration, actual-app scale and composed workflows before closing the remaining two P11
+checkpoints. Small native fixtures and shared 100k-node presentation do not substitute for those
+checks. Commit/push this verified milestone on `main`; keep the full P00-P18 goal active.

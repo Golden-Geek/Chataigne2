@@ -171,6 +171,7 @@ pub(super) fn handle_ws_hub_command<T: ProjectLifecycle>(
                         subscription_id,
                         WsSubscriptionState {
                             interest,
+                            project_generation: context.read_model.current_project_generation(),
                             cursor: from,
                             last_runtime_stats: None,
                             pending_value_events: PendingValueEvents::default(),

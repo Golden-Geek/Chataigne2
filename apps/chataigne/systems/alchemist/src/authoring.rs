@@ -11,6 +11,7 @@ pub const FORMULA_OPERATION_NAMESPACE: &str = "chataigne.alchemist";
 pub const FORMULA_COPY_OPERATION: &str = "copyFragment";
 pub const FORMULA_PASTE_OPERATION: &str = "pasteFragment";
 pub const FORMULA_CONNECT_OPERATION: &str = "connect";
+pub const FORMULA_GRAPH_EDIT_OPERATION: &str = "editGraph";
 pub const FORMULA_FRAGMENT_VERSION: u32 = 1;
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
@@ -81,6 +82,50 @@ pub struct FormulaConnectResult {
     pub replaced: Vec<FormulaOwnerDto>,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct FormulaGraphMove {
+    pub anode: FormulaOwnerDto,
+    pub position: [f64; 2],
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum FormulaGraphEdit {
+    Delete {
+        nodes: Vec<FormulaOwnerDto>,
+    },
+    Move {
+        moves: Vec<FormulaGraphMove>,
+    },
+    Resize {
+        anode: FormulaOwnerDto,
+        size: Option<[f64; 2]>,
+    },
+    Rename {
+        anode: FormulaOwnerDto,
+        label: String,
+    },
+    Collapse {
+        anode: FormulaOwnerDto,
+        collapsed: bool,
+    },
+    Enable {
+        anode: FormulaOwnerDto,
+        enabled: bool,
+    },
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct FormulaGraphEditRequest {
+    pub formula: FormulaOwnerDto,
+    pub edit: FormulaGraphEdit,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct FormulaGraphEditResult {
+    pub nodes: Vec<FormulaOwnerDto>,
+}
+
 pub fn export_typescript(directory: impl AsRef<std::path::Path>) -> Result<(), Box<dyn std::error::Error>> {
     let directory = directory.as_ref();
     let config = Config::default().with_out_dir(directory).with_large_int("number");
@@ -89,6 +134,8 @@ pub fn export_typescript(directory: impl AsRef<std::path::Path>) -> Result<(), B
     FormulaPasteResult::export_all(&config)?;
     FormulaConnectRequest::export_all(&config)?;
     FormulaConnectResult::export_all(&config)?;
+    FormulaGraphEditRequest::export_all(&config)?;
+    FormulaGraphEditResult::export_all(&config)?;
     std::fs::write(
         directory.join("constants.ts"),
         format!(
@@ -97,6 +144,7 @@ pub fn export_typescript(directory: impl AsRef<std::path::Path>) -> Result<(), B
              export const FORMULA_COPY_OPERATION = {FORMULA_COPY_OPERATION:?};\n\
              export const FORMULA_PASTE_OPERATION = {FORMULA_PASTE_OPERATION:?};\n\
              export const FORMULA_CONNECT_OPERATION = {FORMULA_CONNECT_OPERATION:?};\n\
+             export const FORMULA_GRAPH_EDIT_OPERATION = {FORMULA_GRAPH_EDIT_OPERATION:?};\n\
              export const FORMULA_FRAGMENT_VERSION = {FORMULA_FRAGMENT_VERSION};\n"
         ),
     )?;

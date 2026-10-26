@@ -16,6 +16,7 @@ pub(super) fn dispatch_ws_batches(
     let mut events_count = 0;
     let mut subscriptions_count = 0;
     let collect_started = Instant::now();
+    let project_generation = read_model.current_project_generation();
     let server_time = read_model.current_revision();
     let first_retained = read_model.first_retained_event_time();
     let last_evicted = read_model.last_evicted_event_time();
@@ -23,6 +24,23 @@ pub(super) fn dispatch_ws_batches(
     for (client_id, client) in clients.iter_mut() {
         for (subscription_id, subscription) in client.subscriptions.iter_mut() {
             subscriptions_count += 1;
+            if subscription.project_generation != project_generation {
+                // EventTime can repeat after replacement. An active subscription belongs to a
+                // project lifetime, even when its cursor equals the replacement's clock exactly.
+                subscription.project_generation = project_generation;
+                subscription.cursor = Some(server_time);
+                subscription.clear_pending_value_events();
+                subscription.awaiting_resync = true;
+                pending.push((
+                    *client_id,
+                    WsServerMessage::ResyncRequired {
+                        subscription_id: subscription_id.clone(),
+                        plane: None,
+                        reason: "project_generation_changed".into(),
+                    },
+                ));
+                continue;
+            }
             if subscription.awaiting_resync {
                 continue;
             }

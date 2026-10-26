@@ -3,4 +3,5 @@ export const FORMULA_OPERATION_NAMESPACE = 'chataigne.alchemist';
 export const FORMULA_COPY_OPERATION = 'copyFragment';
 export const FORMULA_PASTE_OPERATION = 'pasteFragment';
 export const FORMULA_CONNECT_OPERATION = 'connect';
+export const FORMULA_GRAPH_EDIT_OPERATION = 'editGraph';
 export const FORMULA_FRAGMENT_VERSION = 1;

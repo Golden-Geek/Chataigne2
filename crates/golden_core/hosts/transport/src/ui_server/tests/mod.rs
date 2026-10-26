@@ -11,6 +11,7 @@ use super::*;
 
 mod control_failures;
 mod outbound_recovery;
+mod project_generation;
 mod request_access;
 mod session_admission;
 mod snapshot_encoding;
@@ -205,6 +206,7 @@ fn client_with_subscription_count(count: usize) -> WsClientState {
                 format!("subscription-{index}"),
                 WsSubscriptionState {
                     interest: UiInterest::workbench(format!("view-{index}"), UiSubscriptionScope::WholeGraph),
+                    project_generation: ProjectGeneration::INITIAL,
                     cursor: None,
                     last_runtime_stats: None,
                     pending_value_events: PendingValueEvents::default(),
