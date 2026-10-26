@@ -4,18 +4,21 @@
 	import type { CanvasGeometry } from './geometry.svelte';
 	import type { CanvasEditing } from './editing.svelte';
 	import type { CanvasGestures } from './gestures.svelte';
+	import type { CanvasKeyboard } from './keyboard.svelte';
 	let {
 		node,
 		canvasProps,
 		geometry,
 		editing,
-		gestures
+		gestures,
+		keyboard
 	}: {
 		node: GraphNode;
 		canvasProps: CanvasProps;
 		geometry: CanvasGeometry;
 		editing: CanvasEditing;
 		gestures: CanvasGestures;
+		keyboard: CanvasKeyboard;
 	} = $props();
 	let connectionDraft = $derived(gestures.connectionDraft);
 	let renamingNodeId = $derived(editing.renamingNodeId);
@@ -74,6 +77,7 @@
 	style:--node-accent={node.color ?? 'var(--ga-outline)'}
 	style:--node-header-height={`${nodeHeaderHeight(node)}rem`}
 	data-node-id={node.id}
+	onkeydown={(event) => keyboard.handleNodeKeydown(event, node.id)}
 	onpointerdown={(event) => selectNodeBody(event, node)}>
 	{#if node.enabled === false && node.bypassConnections && node.bypassConnections.length > 0}
 		<svg
@@ -102,6 +106,9 @@
 					data-node-id={node.id}
 					data-socket-id={socket.id}
 					title={collapsedSocketTitle(node, 'input')}
+					data-socket-direction="input"
+					aria-label={`${node.label}: ${socket.label} input`}
+					aria-pressed={keyboard.isEndpoint(node.id, socket.id, 'input')}
 					onpointerup={(event) => finishConnection(event, node.id, socket)}>
 					<span class="pin" style:--socket-color={socket.color ?? 'var(--ga-socket)'}></span>
 					<span>{collapsedSocketLabel(node, 'input')}</span>
@@ -121,6 +128,9 @@
 						data-node-id={node.id}
 						data-socket-id={socket.id}
 						title={socket.valueType ?? socket.label}
+						data-socket-direction="input"
+						aria-label={`${node.label}: ${socket.label} input`}
+						aria-pressed={keyboard.isEndpoint(node.id, socket.id, 'input')}
 						onpointerup={(event) => finishConnection(event, node.id, socket)}>
 						<span class="pin" style:--socket-color={socket.color ?? 'var(--ga-socket)'}></span>
 						<span>{socket.label}</span>
@@ -141,6 +151,9 @@
 						data-node-id={node.id}
 						data-socket-id={socket.id}
 						title={socket.valueType ?? socket.label}
+						data-socket-direction="input"
+						aria-label={`${node.label}: ${socket.label} input`}
+						aria-pressed={keyboard.isEndpoint(node.id, socket.id, 'input')}
 						onpointerup={(event) => finishConnection(event, node.id, socket)}>
 						<span class="pin" style:--socket-color={socket.color ?? 'var(--ga-socket)'}></span>
 					</button>
@@ -205,7 +218,7 @@
 						type="button"
 						class="node-title-label"
 						class:editable={canRenameNode(node)}
-						aria-disabled={!canRenameNode(node)}
+						aria-pressed={selectedIds.has(node.id)}
 						title={node.description?.trim() || node.subtitle || node.label}
 						ondblclick={(event) => beginNodeRename(event, node)}
 						onpointerdown={(event) => handleNodeTitlePointerDown(event, node)}
@@ -237,6 +250,11 @@
 					class:connected={collapsedSocketConnected(node, 'output')}
 					class="socket header-socket output collapsed-socket"
 					title={collapsedSocketTitle(node, 'output')}
+					data-socket-direction="output"
+					aria-label={`${node.label}: ${socket.label} output`}
+					aria-pressed={keyboard.isEndpoint(node.id, socket.id, 'output')}
+					data-socket-id={socket.id}
+					data-node-id={node.id}
 					onpointerdown={(event) => startConnection(event, node.id, socket)}>
 					<span>{collapsedSocketLabel(node, 'output')}</span>
 					<span class="pin" style:--socket-color={socket.color ?? 'var(--ga-socket)'}></span>
@@ -251,6 +269,11 @@
 						class:connected={connectedSockets.has(`${node.id}:${socket.id}`)}
 						class="socket header-socket output"
 						title={socket.valueType ?? socket.label}
+						data-socket-direction="output"
+						aria-label={`${node.label}: ${socket.label} output`}
+						aria-pressed={keyboard.isEndpoint(node.id, socket.id, 'output')}
+						data-socket-id={socket.id}
+						data-node-id={node.id}
 						onpointerdown={(event) => startConnection(event, node.id, socket)}>
 						<span>{socket.label}</span>
 						<span class="pin" style:--socket-color={socket.color ?? 'var(--ga-socket)'}></span>
@@ -280,6 +303,9 @@
 									data-node-id={node.id}
 									data-socket-id={socket.id}
 									title={socket.valueType ?? socket.label}
+									data-socket-direction="input"
+									aria-label={`${node.label}: ${socket.label} input`}
+									aria-pressed={keyboard.isEndpoint(node.id, socket.id, 'input')}
 									onpointerup={(event) => finishConnection(event, node.id, socket)}>
 									<span class="pin" style:--socket-color={socket.color ?? 'var(--ga-socket)'}
 									></span>
@@ -341,6 +367,11 @@
 									class:component={socket.parentId}
 									class="socket output"
 									title={socket.valueType ?? socket.label}
+									data-socket-direction="output"
+									aria-label={`${node.label}: ${socket.label} output`}
+									aria-pressed={keyboard.isEndpoint(node.id, socket.id, 'output')}
+									data-socket-id={socket.id}
+									data-node-id={node.id}
 									onpointerdown={(event) => startConnection(event, node.id, socket)}>
 									<span>{socket.label}</span>
 									<span class="pin" style:--socket-color={socket.color ?? 'var(--ga-socket)'}

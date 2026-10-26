@@ -1,0 +1,7 @@
+{"kind":"environment","production":true,"browser":"156.0.4314.42","report":"D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-graph-keyboard-2026-10-26T08-51-13-989Z.jsonl"}
+{"kind":"movement","passed":true}
+{"kind":"connections","passed":true}
+{"kind":"activity-and-topology","passed":true}
+{"kind":"lifecycle","passed":true}
+{"kind":"asynchronous-connections","passed":true}
+{"kind":"result","passed":true,"errors":[]}

@@ -1,0 +1,115 @@
+{
+  "baseCommit": "574be597a2aa5a1465de4f7c5928d5cd472fd24d",
+  "scope": "Initial shared graph keyboard operations; five production-browser correctness groups. Retained canvas smoke is separate development-browser regression evidence. No mounted large-graph keyboard timing or complete app-consumer qualification is claimed.",
+  "machine": {
+    "os": "10.0.26300",
+    "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+    "logicalProcessors": 24,
+    "node": "v26.5.0",
+    "browser": "156.0.4314.42"
+  },
+  "source": [
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/alchemist/components/AlchemistGraphEditor.svelte",
+      "sha256": "c0d61f6954fb0d49469836a4f1ce17e0bc0d4c6791d5aeebc3ad7e67babe5f57"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "1a515eb16812648c25cab5914c8ec2562aeeab8bf6f5a84921bd20d659e5ec28"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/GraphCanvas.svelte",
+      "sha256": "5eb325ad0723da9a604df2452320d9d088dd47fdc1a786a56330f61b12544170"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/canvas/NodeView.svelte",
+      "sha256": "bc3aac6e02892a591f514c2a7f2624726db9a1e52d1af53e080ee7edb332b4e5"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/canvas/connections.svelte.ts",
+      "sha256": "4dd59221e08e5188c6c308e4c89606ded5056736e09024ea8ab613d2c6d28f3a"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/canvas/contracts.ts",
+      "sha256": "238e6bbafe1983c20e1ba133c55394c659e030fd74b8c0f494806b9ba1f5d1d6"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/canvas/editing.svelte.ts",
+      "sha256": "e44d24f18233649935cc8c5c8c9a5fe67fcb3ab9e6baa9447571aaef90b5099f"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/canvas/geometry.svelte.ts",
+      "sha256": "4ac55f6d2459df8c46f820118f3b2a2a2e5e68687c0edc2e49a49b67b2e61dd8"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/canvas/gestures.svelte.ts",
+      "sha256": "6e6bfb69c294052415eaf8adec7e3b76f4f1c7fb080bc40ac3a8544a35fe39ef"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/canvas/keyboard.svelte.ts",
+      "sha256": "cec84487dbc014c76f9a414eab7ce3f13a4d788132314f7c5d080775156ea8cf"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/canvas/viewport.svelte.ts",
+      "sha256": "b24ba0a082ee228a3b407a357a6d4f833e142e34624741e52200dee8fc2ecac3"
+    },
+    {
+      "path": "packages/golden-graph-ui/keyboard.ts",
+      "sha256": "6ce9d0462b212869ff9bb6429e1d620933e5c64169e1b84c97191e87cad29c61"
+    },
+    {
+      "path": "packages/golden-graph-ui/package.json",
+      "sha256": "8d140da29b86b2c2460181b8cc762fe4874fb275ec14a05805f00d343c3d6861"
+    },
+    {
+      "path": "packages/golden-graph-ui/presentation-document.ts",
+      "sha256": "0049ece2ceabf2a06f4061b067806d7f92ae9b3ec3caa8bfc52a74c16b537fb3"
+    },
+    {
+      "path": "packages/golden-graph-ui/retained-presentation.ts",
+      "sha256": "59d951847a0454102897aae1ba5e404639fdb0dc498db72fc1ad6f71c8960542"
+    },
+    {
+      "path": "packages/golden-graph-ui/tests/browser/canvas-retention.mjs",
+      "sha256": "df9d2b23915310606bb85e1f58fc783e6a8d69645058b00c072bd88280cb7d62"
+    },
+    {
+      "path": "packages/golden-graph-ui/tests/browser/canvas-smoke.mjs",
+      "sha256": "d0eb96d7343a14a1b2aecfa0525cfb5e3964a9caf83ee8c852416bfd2f163427"
+    },
+    {
+      "path": "packages/golden-graph-ui/tests/browser/fixture/Fixture.svelte",
+      "sha256": "56792be2f0eae49d9c71c8532045529c86d22a11157f106e599f0fc5aa5fa03d"
+    },
+    {
+      "path": "packages/golden-graph-ui/tests/browser/graph-keyboard.mjs",
+      "sha256": "35d5efeaaca2d1a5505cf148542cfeb4e78ba9d6f255cbc825b089138413ceb4"
+    },
+    {
+      "path": "packages/golden-graph-ui/tests/keyboard.test.ts",
+      "sha256": "67c5da9c441a9a93054d93b03929acdb59ea9fe1bb5624d46437193ba1f46b16"
+    },
+    {
+      "path": "packages/golden-graph-ui/types.ts",
+      "sha256": "7d08c3b45f8e2ab642429df55ee4b34a57f2c3c5a9f800b3fc27bd06d6363a6b"
+    }
+  ],
+  "assets": [
+    {
+      "path": "target/qualification/p11-graph-keyboard/assets/index-CBgDfjZ1.js",
+      "sha256": "ece922dcb56f5dd0a0c92339ee4c1563c3e9437146c77de97698fc445eafc954"
+    },
+    {
+      "path": "target/qualification/p11-graph-keyboard/assets/index-CWJCH2qJ.css",
+      "sha256": "25b414943fc561bf84c798bcd3b24a4d7232cf57cc833870c4d1055b0deecda6"
+    }
+  ],
+  "defaultBuild": {
+    "command": "CARGO_INCREMENTAL=0 cargo build --locked",
+    "result": "passed",
+    "durationSeconds": 115,
+    "frontend": "rebuilt from current inputs",
+    "path": "target/debug/Chataigne2.exe",
+    "sha256": "be596ecd7971ea908fac8fc3338b3ca3772359f35dcffa2f52a6128eaeaf578d"
+  }
+}

@@ -18,12 +18,15 @@ import type {
 import type { CanvasViewport } from "./viewport.svelte";
 import type { CanvasGeometry } from "./geometry.svelte";
 import type { CanvasEditing } from "./editing.svelte";
+import type { CanvasConnectionRequests } from "./connections.svelte";
+import { untrack } from "svelte";
 
 export function createCanvasGestures(
   props: CanvasProps,
   viewport: CanvasViewport,
   geometry: CanvasGeometry,
   editing: CanvasEditing,
+  connections: CanvasConnectionRequests,
 ) {
   let panGesture = $state<PanGesture | null>(null);
 
@@ -34,6 +37,34 @@ export function createCanvasGestures(
   let selectionGesture = $state<SelectionGesture | null>(null);
 
   let connectionDraft = $state<ConnectionDraft | null>(null);
+  let sourceIdentity = $derived(props.graphDocument.source);
+  let interactionIdentity = $derived(props.interactionScope);
+  let interactionOwner = $derived({
+    scope: interactionIdentity,
+    source: sourceIdentity,
+  });
+  let appliedOwner: unknown;
+  $effect.pre(() => {
+    const owner = interactionOwner;
+    untrack(() => {
+      if (owner === appliedOwner) return;
+      appliedOwner = owner;
+      for (const gesture of [
+        panGesture,
+        nodeDragGesture,
+        nodeResizeGesture,
+        selectionGesture,
+        connectionDraft,
+      ])
+        if (gesture && viewport.container?.hasPointerCapture(gesture.pointerId))
+          viewport.container.releasePointerCapture(gesture.pointerId);
+      panGesture = null;
+      nodeDragGesture = null;
+      nodeResizeGesture = null;
+      selectionGesture = null;
+      connectionDraft = null;
+    });
+  });
 
   let lastResizePointerDown: {
     nodeId: string;
@@ -351,11 +382,19 @@ export function createCanvasGestures(
     if (!geometry.connectionAllowed(connection)) {
       return false;
     }
-    props.onConnect?.(connection);
+    if (!connections.request(connection)) return false;
     connectionDraft = null;
     return true;
   };
 
+  const cancelConnection = (): boolean => {
+    if (!connectionDraft) return false;
+    const id = connectionDraft.pointerId;
+    if (viewport.container?.hasPointerCapture(id))
+      viewport.container.releasePointerCapture(id);
+    connectionDraft = null;
+    return true;
+  };
   const finishConnection = (
     event: PointerEvent,
     nodeId: string,
@@ -649,7 +688,11 @@ export function createCanvasGestures(
     } else if (
       event.key === " " &&
       props.onCreateRequest &&
-      viewport.container
+      viewport.container &&
+      !(
+        target instanceof Element &&
+        target.closest('button, a, [role="button"]')
+      )
     ) {
       event.preventDefault();
       event.stopPropagation();
@@ -696,6 +739,7 @@ export function createCanvasGestures(
     startNodeResize,
     startConnection,
     finishConnection,
+    cancelConnection,
     handlePointerMove,
     handlePointerEnd,
     handleContextMenu,

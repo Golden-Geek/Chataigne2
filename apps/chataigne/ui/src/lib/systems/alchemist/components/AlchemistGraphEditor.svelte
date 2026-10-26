@@ -15,6 +15,7 @@
 	} from 'golden_graph_ui';
 	import type { NodeId, UiCreatableUserItem, UiNodeDto } from 'golden_ui';
 	import { openNodeContextMenu } from 'golden_ui/store/node-context-menu.svelte';
+	import { appState } from 'golden_ui/store/workbench.svelte';
 	import lockIcon from '#lib/assets/icons/lock.svg';
 	import { canConnectGraphConnection, toGraphEdges, toGraphNodes } from '../alchemistGraph';
 	import type { FormulaOutputPreviewChip } from '../preview/formulaOutputPreviewStore.svelte';
@@ -86,6 +87,12 @@
 	let edges = $derived(toGraphEdges(formula, nodesById, activeSocketRefs));
 	const graphDocumentAdapter = new GraphPresentationAdapter();
 	let graphDocument = $derived(graphDocumentAdapter.update(nodes, edges, outputPreviews));
+	let formulaIdentity = $derived(formula.uuid);
+	let interactionScope = $derived({
+		session: appState.session,
+		generation: appState.session?.snapshotGeneration,
+		formulaUuid: formulaIdentity
+	});
 	let graphCanvas: {
 		clientToWorld: (clientX: number, clientY: number) => GraphNodePosition;
 		frameSelection: () => boolean;
@@ -171,6 +178,7 @@
 	class:read-only={readOnly}
 	style:--read-only-lock-image={`url("${lockIcon}")`}>
 	<GraphCanvas
+		{interactionScope}
 		bind:this={graphCanvas}
 		{graphDocument}
 		{selectedNodeIds}

@@ -15,6 +15,7 @@ and superseded plans are [archived](../archive/2026-10-18/README.md).
 - [Golden Audio](golden-audio.md): reusable audio ownership, stable identities, render plans,
   callback safety, clocks, and device recovery.
 - [Golden Graph](graph-foundation.md): graph documents, transactions, revisions, and presentation.
+- [Graph keyboard interaction](graph-keyboard.md): shared selection/movement/connection operations and host lifetime fencing.
 - [Hosts](hosts.md): desktop, headless/browser, transport, and native-dialog ownership.
 - [UI transport request boundary](ui-transport-security.md): browser origins, Host authorities,
   HTTP parsing, CORS and trusted-network ownership.

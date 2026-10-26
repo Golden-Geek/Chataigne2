@@ -3,6 +3,7 @@ import {
   TITLE_DOUBLE_CLICK_DISTANCE_PX,
   type CanvasProps,
 } from "./contracts";
+import { untrack } from "svelte";
 import type {
   GraphNode,
   GraphNodeMove,
@@ -18,6 +19,14 @@ interface EditingScene {
   startNodeDrag(event: PointerEvent, node: GraphNode): void;
 }
 export function createCanvasEditing(props: CanvasProps, scene: EditingScene) {
+  const moveTokens = new Map<string, object>();
+  let sourceIdentity = $derived(props.graphDocument.source);
+  let interactionIdentity = $derived(props.interactionScope);
+  let editingScope = $derived({
+    owner: interactionIdentity,
+    source: sourceIdentity,
+  });
+  let appliedScope: unknown;
   // Immutable records avoid creating reactive subscriptions for every absent node key.
   let dragPositions = $state.raw<Record<string, GraphNodePosition>>({});
 
@@ -47,6 +56,22 @@ export function createCanvasEditing(props: CanvasProps, scene: EditingScene) {
     x: number;
     y: number;
   } | null = null;
+  $effect.pre(() => {
+    const scope = editingScope;
+    untrack(() => {
+      if (scope === appliedScope) return;
+      appliedScope = scope;
+      dragPositions = {};
+      optimisticPositions = {};
+      resizeSizes = {};
+      optimisticSizes = {};
+      optimisticLabels = {};
+      optimisticCollapsed = {};
+      optimisticEnabled = {};
+      renamingNodeId = null;
+      moveTokens.clear();
+    });
+  });
 
   $effect(() => {
     let next = optimisticPositions;
@@ -61,6 +86,7 @@ export function createCanvasEditing(props: CanvasProps, scene: EditingScene) {
           next = { ...optimisticPositions };
         }
         delete next[nodeId];
+        moveTokens.delete(nodeId);
       }
     }
     if (next !== optimisticPositions) {
@@ -155,13 +181,21 @@ export function createCanvasEditing(props: CanvasProps, scene: EditingScene) {
     });
   });
 
-  const clearOptimisticMoves = (moves: GraphNodeMove[]): void => {
+  const clearOptimisticMoves = (
+    moves: GraphNodeMove[],
+    token: object,
+  ): void => {
     const next = { ...optimisticPositions };
     let changed = false;
     for (const move of moves) {
       const pending = next[move.nodeId];
-      if (pending?.x === move.position.x && pending?.y === move.position.y) {
+      if (
+        moveTokens.get(move.nodeId) === token &&
+        pending?.x === move.position.x &&
+        pending?.y === move.position.y
+      ) {
         delete next[move.nodeId];
+        moveTokens.delete(move.nodeId);
         changed = true;
       }
     }
@@ -171,6 +205,10 @@ export function createCanvasEditing(props: CanvasProps, scene: EditingScene) {
   };
 
   const commitNodeMoves = (moves: GraphNodeMove[]): void => {
+    if (!props.onNodesMove && !props.onNodeMove) return;
+    const scope = editingScope,
+      token = {};
+    for (const move of moves) moveTokens.set(move.nodeId, token);
     optimisticPositions = {
       ...optimisticPositions,
       ...Object.fromEntries(moves.map((move) => [move.nodeId, move.position])),
@@ -181,9 +219,11 @@ export function createCanvasEditing(props: CanvasProps, scene: EditingScene) {
         : Promise.all(
             moves.map((move) => props.onNodeMove?.(move.nodeId, move.position)),
           );
-      void Promise.resolve(result).catch(() => clearOptimisticMoves(moves));
+      void Promise.resolve(result).catch(() => {
+        if (scope === editingScope) clearOptimisticMoves(moves, token);
+      });
     } catch {
-      clearOptimisticMoves(moves);
+      clearOptimisticMoves(moves, token);
     }
   };
 

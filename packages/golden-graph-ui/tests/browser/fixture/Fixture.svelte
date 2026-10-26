@@ -24,6 +24,26 @@
 	let canvas = $state<ReturnType<typeof GraphCanvas>>();
 	let options = $state.raw<SceneOptions>({});
 	let canvasSize = $state.raw({ width: 10, height: 10 });
+	let interactionScope = $state.raw<object>({});
+	let keyboardReadOnly = $state(false);
+	let keyboardPolicy = $state(true);
+	let moveMode: 'normal' | 'reject' | 'hold' = 'normal';
+	let heldMoves: ((reason?: unknown) => void)[] = [];
+	let connections: {
+		from: { nodeId: string; socketId: string };
+		to: { nodeId: string; socketId: string };
+	}[] = [];
+	let connectionMode: 'normal' | 'reject' | 'hold' = 'normal';
+	let heldConnections: ((reason?: unknown) => void)[] = [];
+	const captureConnection = (connection: (typeof connections)[number]): void | Promise<void> => {
+		if (connectionMode === 'reject')
+			return Promise.reject(new Error('Controlled connection rejection'));
+		if (connectionMode === 'hold')
+			return new Promise<void>((_resolve, reject) => {
+				heldConnections.push(reject);
+			});
+		connections = [...connections, connection];
+	};
 
 	export function setCanvasSize(width: number, height: number): void {
 		canvasSize = { width, height };
@@ -51,6 +71,11 @@
 	const adapter = new GraphPresentationAdapter();
 	let graph = $state.raw<GraphPresentationDocument>(adapter.update([], []));
 	const acknowledgeMoves = async (moves: GraphNodeMove[]) => {
+		if (moveMode === 'reject') throw new Error('Controlled move rejection');
+		if (moveMode === 'hold')
+			return new Promise<void>((_resolve, reject) => {
+				heldMoves.push(reject);
+			});
 		const positions = new Map(moves.map((move) => [move.nodeId, move.position]));
 		graph = adapter.update(
 			graph.nodes.map((node) =>
@@ -91,6 +116,131 @@
 
 	export function setNodes(nodes: GraphNode[]): void {
 		setScene(nodes, []);
+	}
+	const keyboardFrames = async () => {
+		await tick();
+		await new Promise(requestAnimationFrame);
+		await tick();
+		await new Promise(requestAnimationFrame);
+	};
+	export async function setupKeyboard() {
+		connectionMode = 'normal';
+		heldConnections = [];
+		moveMode = 'normal';
+		heldMoves = [];
+		connections = [];
+		keyboardReadOnly = false;
+		keyboardPolicy = true;
+		interactionScope = {};
+		setCanvasSize(70, 36);
+		setScene(
+			[
+				{
+					id: 'a',
+					label: 'Source',
+					inputs: [],
+					outputs: [{ id: 'out', label: 'Output' }],
+					position: { x: 1, y: 2 }
+				},
+				{
+					id: 'b',
+					label: 'Destination',
+					inputs: [{ id: 'in', label: 'Input' }],
+					outputs: [],
+					position: { x: 24, y: 2 }
+				},
+				{
+					id: 'c',
+					label: 'Blocked',
+					inputs: [{ id: 'no', label: 'Disabled', compatible: false }],
+					outputs: [],
+					position: { x: 42, y: 2 }
+				}
+			],
+			[],
+			{ selectedNodeIds: ['a', 'b'], initialCamera: { x: 0, y: 0, zoom: 1 } }
+		);
+		await keyboardFrames();
+	}
+	export async function keyboardMove(key: string, large = false) {
+		const accepted = canvas!.moveSelectionWithKeyboard(key, large);
+		await keyboardFrames();
+		return accepted;
+	}
+	export async function keyboardSocket(
+		node: string,
+		socket: string,
+		direction: 'input' | 'output'
+	) {
+		const accepted = canvas!.activateSocketWithKeyboard(node, socket, direction);
+		await keyboardFrames();
+		return accepted;
+	}
+	export async function keyboardSelect(node: string, additive = false) {
+		const accepted = canvas!.selectNodeWithKeyboard(node, additive);
+		await keyboardFrames();
+		return accepted;
+	}
+	export async function keyboardCancel() {
+		const accepted = canvas!.cancelKeyboardConnection();
+		await keyboardFrames();
+		return accepted;
+	}
+	export const keyboardInspect = () => ({
+		state: canvas!.keyboardState(),
+		selected: options.selectedNodeIds,
+		positions: graph.nodes.map((node) => ({ id: node.id, ...node.position })),
+		connections
+	});
+	export async function keyboardMode(mode: 'normal' | 'reject' | 'hold' | 'readonly' | 'blocked') {
+		if (mode === 'readonly') keyboardReadOnly = true;
+		else if (mode === 'blocked') keyboardPolicy = false;
+		else {
+			moveMode = mode;
+			keyboardReadOnly = false;
+			keyboardPolicy = true;
+		}
+		await keyboardFrames();
+	}
+	export async function rejectHeldMove(index: number) {
+		heldMoves[index]?.(new Error('Controlled stale rejection'));
+		await keyboardFrames();
+	}
+	export async function replaceKeyboardScope() {
+		interactionScope = {};
+		graph = adapter.update(
+			graph.nodes.map((node) => ({
+				...node,
+				position: { x: node.position.x + 10, y: node.position.y }
+			})),
+			graph.edges
+		);
+		await keyboardFrames();
+	}
+	export async function repeatMovePreview() {
+		canvas!.previewNodeMoves([{ nodeId: 'a', position: { x: 5, y: 2 } }]);
+		canvas!.commitNodeMovePreview(['a']);
+		await keyboardFrames();
+	}
+	export async function keyboardPublication(topology = false) {
+		graph = adapter.update(
+			graph.nodes.map((node) =>
+				node.id !== 'a'
+					? node
+					: topology
+						? { ...node, outputs: [...node.outputs, { id: 'extra', label: 'Extra' }] }
+						: { ...node, active: !node.active }
+			),
+			graph.edges
+		);
+		await keyboardFrames();
+	}
+	export const connectionFailureMode = (mode: typeof connectionMode) => {
+		connectionMode = mode;
+	};
+	export async function rejectHeldConnection(index: number) {
+		heldConnections[index]?.(new Error('Controlled connection failure'));
+		await keyboardFrames();
 	}
 
 	export function setScene(
@@ -221,9 +371,15 @@
 	style:--fixture-height={`${canvasSize.height}rem`}>
 	<GraphCanvas
 		bind:this={canvas}
+		{interactionScope}
 		graphDocument={graph}
 		autoHomeOnMount={false}
-		onNodesMove={acknowledgeMoves}
+		onNodesMove={keyboardReadOnly ? undefined : acknowledgeMoves}
+		onGraphSelectionChange={(selectedNodeIds, selectedEdgeIds) => {
+			options = { ...options, selectedNodeIds, selectedEdgeIds };
+		}}
+		onConnect={keyboardReadOnly ? undefined : captureConnection}
+		canConnect={() => keyboardPolicy}
 		onNodeResize={acknowledgeResize}
 		{...options}>
 		{#snippet nodeContent(node)}

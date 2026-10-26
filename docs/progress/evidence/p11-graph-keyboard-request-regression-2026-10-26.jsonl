@@ -1,0 +1,6 @@
+{"kind":"environment","production":true,"browser":"156.0.4314.42","report":"D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-graph-keyboard-2026-10-26T08-51-02-231Z.jsonl"}
+{"kind":"movement","passed":true}
+{"kind":"connections","passed":true}
+{"kind":"activity-and-topology","passed":true}
+{"kind":"lifecycle","passed":true}
+{"kind":"failure","message":"AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ ''\n- 'Connection request failed.'\n","errors":[]}

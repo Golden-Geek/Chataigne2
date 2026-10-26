@@ -100,6 +100,8 @@ export const clamp = (
 ): number => Math.min(maximum, Math.max(minimum, value));
 
 export interface GraphCanvasProps {
+  /** Replace this token when a host switches domain lifetimes while reusing its adapter. */
+  interactionScope?: unknown;
   graphDocument: GraphPresentationDocument;
   selectedNodeIds?: string[];
   selectedEdgeIds?: string[];
@@ -119,7 +121,7 @@ export interface GraphCanvasProps {
     nodeId: string,
     enabled: boolean,
   ) => void | Promise<void>;
-  onConnect?: (connection: GraphConnectionRequest) => void;
+  onConnect?: (connection: GraphConnectionRequest) => void | Promise<void>;
   canConnect?: (connection: GraphConnectionRequest) => boolean;
   nodeContent?: Snippet<[GraphNode]>;
   nodeHeaderContent?: Snippet<[GraphNode]>;

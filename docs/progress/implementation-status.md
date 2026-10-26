@@ -5,8 +5,8 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-26 on `main`, based on delivered `81adcc37` plus tree checkpoint
-closure below. **P11 is in progress; four of six fixed checkpoints are closed (67% rounded).**
+Last reconciled: 2026-10-26 on `main`, based on delivered `574be597` plus shared graph keyboard
+delivery below. **P11 is in progress; four of six fixed checkpoints are closed (67% rounded).**
 **P10 is locally complete: three of three fixed checkpoints (100%).**
 **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
@@ -201,7 +201,7 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
 | Historical log windowing | Complete locally | Variable-height history, filters, follow, bounded native selection, focus and snapshot publication pass through 100k records. [Qualification](p11-log-windowing.md). |
 | Dashboard viewport awareness | Complete locally | All 599 correctness groups and 160 fixed timing combinations pass through 100k authored nodes, including geometry, bounded presentation, feedback, callback stalls and completion. Retention regression passes 13 checkpoints. [Timing qualification](p11-dashboard-timing.md), [composition](p11-dashboard-composition.md), [barriers](p11-dashboard-barriers.md). |
 | Tree focus and keyboard navigation | Complete locally | All four app consumers, 55 constrained-picker groups and shared navigation/lifecycle cases pass through 100k items. All 70 tree timing combinations and 15 collection regression combinations pass fixed gates. [Closure and evidence](p11-tree-closure.md). |
-| Graph keyboard operations | Not started | Provide and qualify keyboard movement and connection creation through shared operations. |
+| Graph keyboard operations | In progress | Shared node selection/movement and two-endpoint connection operations are implemented through pointer-owned commits/dispatch. Basic production-browser rejection/lifecycle groups pass; full app, offscreen/overview/compound and fixed large-graph qualification remain. [Delivery](p11-graph-keyboard.md). |
 | Complete composed workflows | Not started | Qualify discovery, selection and editing across all required composed panels and large batches. Native usability retains P17. |
 
 ## Current handoff
@@ -214,8 +214,10 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
   The 13-checkpoint retention regression also passes; test-owned stale references are released.
   Tree closure passes all four app consumers, 55 constrained-picker groups, shared navigation/lifecycle
   checks and **85 timing combinations / 2,635 samples / 255 warmups** through 100k items.
-  Owning UI suites pass **396** cases; app/browser Svelte checks and the locked default build pass.
-  Next complete the two remaining checkpoints: graph keyboard operations and composed
+  Shared graph keyboard selection/movement/endpoint operations now pass their initial production
+  component rejection/lifecycle groups. Owning UI suites pass **400** cases; app Svelte check,
+  retained-canvas smoke and the locked default build pass. Complete offscreen/overview/compound,
+  app-consumer and fixed large-graph qualification before closing graph keyboard operations, then composed
   workflows. Preserve [composition](p11-dashboard-composition.md) and
   [applied-receipt barriers](p11-dashboard-barriers.md). Native usability retains P17 and product
   throughput P16. P03-P10 remain closed; P03 has zero packages left.
@@ -10810,3 +10812,55 @@ identify the final runs.
 Commit/push this verified milestone on `main`, then continue graph keyboard movement and connection
 creation through shared operations. P03 remains closed with zero packages left; native usability
 retains P17 and full-product throughput P16. Keep the full P00-P18 goal active.
+
+### P11 shared graph keyboard implementation
+
+Previous goal turn: **progress**, delivering tree closure as `574be597` to `main`. Reconciled that
+clean checkout, then implemented the next dependency-ready graph interaction path. This delivery
+does not close the graph checkpoint or add to the fixed P11 denominator.
+
+Golden Graph UI now owns node-title Enter/Space selection, arrow/Shift movement in world rem,
+two-endpoint socket activation in either order, cancellation and accessible request feedback.
+Movement visits selected IDs only and uses the existing pointer movement commit path. All seven
+socket-button variants carry endpoint identity/direction and pending state. Disabled sockets and
+the caller's current connection policy remain authoritative; UI does not choose graph-domain policy.
+Embedded controls keep their arrows and native activation; Space on a button does not open Add.
+
+Pointer and keyboard requests share one connection dispatcher with synchronous/asynchronous failure
+feedback and newer-request/owner fences. Per-commit move tokens prevent an older rejected move from
+clearing a newer optimistic move at equal coordinates. Interaction scope replacement retires gesture
+and optimistic state. Alchemist supplies session/snapshot/formula identity. Topology changes cancel
+pending keyboard endpoints; activity, preview and position publications preserve them.
+
+An initial retained-canvas regression observed one geometry measurement for an activity-only update
+where zero was required. Scope objects had depended directly on the newly published document object.
+Primitive source/scope/topology derivations repair the false reset. The existing development-browser
+smoke now passes all five 1k/10k/20k/50k/100k retained-preview tiers, routing/crossing/obstacle/loop
+cases and 1,100-wire overflow. These observations do not replace production keyboard timing evidence.
+A second failing component case caught topology updates retiring already-dispatched request feedback.
+Only uncommitted endpoint choices now cancel on topology changes; request ownership and eventual
+failure feedback remain with the dispatcher. The repeated production case passes after that repair.
+
+Four new unit cases cover endpoint ordering/replacement, finite multi-selection movement and exactly
+three node reads for three selected IDs in a 100k-node graph. The production component fixture passes
+five groups: movement/rejection, connection policy, activity/topology, owner/equal-coordinate move
+rejection, and asynchronous connection/newer-request fencing. It inspects actual positions, socket
+pressed state and callback output; zero page errors occur. No keyboard/mouse events are synthesized.
+[Delivery and reproduction](p11-graph-keyboard.md), [raw component results](evidence/p11-graph-keyboard-2026-10-26.jsonl),
+[retained-canvas regression](evidence/p11-graph-keyboard-canvas-smoke-2026-10-26.json),
+[observed failed assertion](evidence/p11-graph-keyboard-regression-2026-10-26.json),
+[failed request-feedback case](evidence/p11-graph-keyboard-request-regression-2026-10-26.jsonl) and
+[source/build fingerprints](evidence/p11-graph-keyboard-source-2026-10-26.json) preserve this scope.
+
+Owning UI suites pass **400 cases** (27 audio / 56 graph / 191 Golden / 126 app). App Svelte check
+reports zero errors/warnings. The locked default build passes in **1m55s** with a fresh frontend;
+binary SHA-256 is `be596ecd7971ea908fac8fc3338b3ca3772359f35dcffa2f52a6128eaeaf578d`.
+Both Cargo formatters, package-owned formatting and whitespace checks pass. Inventory is **2,196
+sources / 27 oversized**; all touched runtime/tests remain under 1,000 lines. Rust/protocol are unchanged.
+
+**P11 remains 4/6 complete (67% rounded); whole-plan scope coverage remains 59% (59.259...% exact).**
+Before graph closure, qualify logical offscreen discovery/focus, overview/collapsed/compound sockets,
+all actual app adapters (including read-only and source replacement), authoritative mutation/rejection/
+reload, and the fixed five-tier action/timing matrix. Then complete composed workflows. Commit/push
+this verified milestone on `main` and keep the full goal active. P03 has zero packages left; native
+input/usability retains P17 and product throughput P16.

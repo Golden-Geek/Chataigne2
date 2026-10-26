@@ -1,0 +1,11 @@
+{
+  "scope": "Observed development-browser retained-canvas assertion failure before the scope dependency repair; not a timing qualification.",
+  "baseCommit": "574be597",
+  "test": "packages/golden-graph-ui/tests/browser/canvas-retention.mjs:44",
+  "check": "activity publication must not measure node geometry",
+  "expected": { "measuredNodes": 0 },
+  "observed": { "measuredNodes": 1 },
+  "cause": "Scope objects depended directly on a newly published document object, causing false interaction reset on unchanged source identity.",
+  "repair": "Derive primitive source, scope and topology values before constructing lifetime objects.",
+  "finalResult": "Existing canvas smoke passes all five retained-preview tiers and routing checks; component browser cases additionally preserve pending endpoint selection across activity and position publications."
+}

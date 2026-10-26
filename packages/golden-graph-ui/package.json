@@ -7,6 +7,7 @@
   "scripts": {
     "test": "vitest run tests",
     "test:browser": "node tests/browser/canvas-smoke.mjs",
+    "test:keyboard": "node tests/browser/graph-keyboard.mjs",
     "test:qualify": "node tests/browser/canvas-qualification.mjs"
   },
   "svelte": "./index.ts",

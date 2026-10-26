@@ -13,10 +13,14 @@
 	import NodeOverview from './canvas/NodeOverview.svelte';
 	import GraphWire from './canvas/GraphWire.svelte';
 	import { createCanvasMounting } from './canvas/mounting.svelte';
+	import { createCanvasKeyboard } from './canvas/keyboard.svelte';
+	import { createCanvasConnectionRequests } from './canvas/connections.svelte';
 	import { wireViewKey } from '../retained-edges';
+	const keyboardHelpId = $props.id();
 
 	let {
 		graphDocument,
+		interactionScope = graphDocument.source,
 		selectedNodeIds = [],
 		selectedEdgeIds = [],
 		onGraphSelectionChange,
@@ -52,6 +56,9 @@
 	}: GraphCanvasProps = $props();
 
 	const canvasProps: CanvasProps = {
+		get interactionScope() {
+			return interactionScope;
+		},
 		get graphDocument() {
 			return graphDocument;
 		},
@@ -209,8 +216,24 @@
 			return gestures.connectionDraft;
 		}
 	});
-	const gestures: CanvasGestures = createCanvasGestures(canvasProps, viewport, geometry, editing);
+	const connections = createCanvasConnectionRequests(canvasProps);
+	const gestures: CanvasGestures = createCanvasGestures(
+		canvasProps,
+		viewport,
+		geometry,
+		editing,
+		connections
+	);
 	const mounting = createCanvasMounting(geometry);
+	const keyboard = createCanvasKeyboard(canvasProps, geometry, editing, gestures, connections);
+	export const moveSelectionWithKeyboard = keyboard.move;
+	export const selectNodeWithKeyboard = keyboard.selectNode;
+	export const activateSocketWithKeyboard = keyboard.activateSocket;
+	export const cancelKeyboardConnection = keyboard.cancel;
+	export const keyboardState = () => ({
+		endpoint: keyboard.endpoint,
+		message: connections.message || keyboard.message
+	});
 
 	export const frameSelection = viewport.frameSelection;
 	export const home = viewport.home;
@@ -263,7 +286,9 @@
 	const handleWheel = viewport.handleWheel;
 	const handleContextMenu = gestures.handleContextMenu;
 	const handleDoubleClick = gestures.handleDoubleClick;
-	const handleKeydown = gestures.handleKeydown;
+	const handleKeydown = (event: KeyboardEvent) => {
+		if (!keyboard.handleKeydown(event)) gestures.handleKeydown(event);
+	};
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
@@ -282,6 +307,7 @@
 	data-visible-node-count={visibleNodes.length}
 	role="application"
 	aria-label="Node graph"
+	aria-describedby={keyboardHelpId}
 	tabindex="0"
 	style:background-size={`${checkerSizePx}px ${checkerSizePx}px`}
 	style:background-position={`${snappedCameraX}px ${snappedCameraY}px`}
@@ -373,7 +399,7 @@
 				{#if overview && !gestures.selectedIds.has(node.id) && editing.renamingNodeId !== node.id}
 					<NodeOverview {node} {geometry} {editing} />
 				{:else}
-					<NodeView {node} {geometry} {editing} {gestures} {canvasProps} />
+					<NodeView {node} {geometry} {editing} {gestures} {canvasProps} {keyboard} />
 				{/if}
 			{/each}
 		</div>
@@ -386,9 +412,30 @@
 	{#if nodes.length === 0 && !worldContent}
 		<p class="empty">{emptyLabel}</p>
 	{/if}
+	<div class="graph-keyboard-status" role="status" aria-live="polite">
+		{connections.message || keyboard.message}
+	</div>
+	<span id={keyboardHelpId} class="graph-keyboard-help"
+		>Select a node with Enter or Space. Arrow keys move selected nodes; Shift moves farther.
+		Activate opposite sockets to connect. Escape cancels a connection.</span>
 </div>
 
 <style>
+	.graph-keyboard-help {
+		position: absolute;
+		inline-size: 1em;
+		block-size: 1em;
+		clip-path: inset(50%);
+		overflow: hidden;
+		white-space: nowrap;
+	}
+	.graph-keyboard-status {
+		position: absolute;
+		inset-inline-start: 0.5rem;
+		inset-block-end: 0.5rem;
+		pointer-events: none;
+		font-size: 0.75rem;
+	}
 	.graph-canvas {
 		--ga-bg: var(--gc-color-background, #11151b);
 		--ga-grid-odd: var(--gc-color-graph-grid-odd, var(--ga-bg));
