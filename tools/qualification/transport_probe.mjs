@@ -368,7 +368,7 @@ async function run(binary, fixture, minimumNodes, expectedRoots, outputDir) {
 					scope: 'wholeGraph',
 					planes: WORKBENCH_PLANES
 				},
-				from: initial[index].at
+				from: { project_generation: initial[index].project_generation, at: initial[index].at }
 			});
 		}
 		await waitForHealth(
@@ -476,7 +476,10 @@ async function run(binary, fixture, minimumNodes, expectedRoots, outputDir) {
 				scope: 'wholeGraph',
 				planes: WORKBENCH_PLANES
 			},
-			from: reconnectedSnapshot.at
+			from: {
+				project_generation: reconnectedSnapshot.project_generation,
+				at: reconnectedSnapshot.at
+			}
 		});
 		const finalHealth = await waitForHealth(
 			baseUrl,

@@ -164,21 +164,34 @@ pub(super) fn handle_ws_hub_command<T: ProjectLifecycle>(
                 context.readiness.update(clients);
                 return;
             }
+            let project_generation = context.read_model.current_project_generation();
+            let stale = from.is_some_and(|cursor| cursor.project_generation != project_generation.get());
             if let Some(client) = clients.get_mut(&client_id) {
                 let _replaced = client
                     .subscriptions
                     .insert(
-                        subscription_id,
+                        subscription_id.clone(),
                         WsSubscriptionState {
                             interest,
-                            project_generation: context.read_model.current_project_generation(),
-                            cursor: from,
+                            project_generation,
+                            cursor: from.map(|cursor| cursor.at),
                             last_runtime_stats: None,
                             pending_value_events: PendingValueEvents::default(),
-                            awaiting_resync: false,
+                            awaiting_resync: stale,
                         },
                     )
                     .is_some();
+            }
+            if stale {
+                send_to_client(
+                    clients,
+                    client_id,
+                    WsServerMessage::ResyncRequired {
+                        subscription_id,
+                        plane: None,
+                        reason: "project_generation_changed".into(),
+                    },
+                );
             }
         }
         WsHubCommand::Unsubscribe {
@@ -216,8 +229,16 @@ pub(super) fn handle_ws_hub_command<T: ProjectLifecycle>(
             scope,
             from,
         } => {
-            let batch = context.read_model.replay(from, scope);
-            send_to_client(clients, client_id, WsServerMessage::Replay { request_id, batch });
+            let replay = context.read_model.replay_from_cursor(from, scope);
+            send_to_client(
+                clients,
+                client_id,
+                WsServerMessage::Replay {
+                    request_id,
+                    project_generation: replay.project_generation,
+                    batch: replay.batch,
+                },
+            );
         }
         WsHubCommand::Intent {
             client_id,
@@ -242,6 +263,7 @@ pub(super) fn handle_ws_hub_command<T: ProjectLifecycle>(
                 origins.insert(
                     time,
                     WsEventOrigin {
+                        project_generation: result.project_generation,
                         client_id,
                         include_self_events,
                     },
@@ -281,11 +303,17 @@ pub(super) fn handle_ws_hub_command<T: ProjectLifecycle>(
                 context.preferences.as_ref(),
                 batch.preferences_changed,
             );
-            let mut produced_times = Vec::<EngineTime>::new();
+            let mut produced_times = Vec::<(ProjectGeneration, EngineTime)>::new();
             let mut acks = Vec::<UiAck>::with_capacity(batch.transactions.len());
             let mut timing_rows = Vec::<UiIntentTiming>::with_capacity(batch.transactions.len());
             for result in batch.transactions {
-                produced_times.extend(result.events.events.iter().map(|event| event.time));
+                produced_times.extend(
+                    result
+                        .events
+                        .events
+                        .iter()
+                        .map(|event| (result.project_generation, event.time)),
+                );
                 timing_rows.push(ui_intent_timing_from_application("batch", &result));
                 acks.push(result.acknowledgement);
             }
@@ -302,10 +330,11 @@ pub(super) fn handle_ws_hub_command<T: ProjectLifecycle>(
                 );
             }
 
-            for time in produced_times {
+            for (project_generation, time) in produced_times {
                 origins.insert(
                     time,
                     WsEventOrigin {
+                        project_generation,
                         client_id,
                         include_self_events,
                     },

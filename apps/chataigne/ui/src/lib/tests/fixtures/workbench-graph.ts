@@ -31,6 +31,7 @@ export const node = (nodeId: number): UiNodeDto =>
 
 export const snapshot = (nodeId: number, seq: number): UiSnapshot =>
 	({
+		project_generation: 1,
 		protocol_version: UI_PROTOCOL_VERSION,
 		scope: { kind: 'wholeGraph' },
 		at: { tick: 1, micro: 0, seq },

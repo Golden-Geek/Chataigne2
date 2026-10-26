@@ -1,5 +1,5 @@
 import type { UiDataPlane } from '../generated/rust_protocol/UiDataPlane';
-import type { EventTime, UiClient, UiSubscriptionScope } from '../types';
+import type { UiReplayCursor, UiClient, UiSubscriptionScope } from '../types';
 import { createWebSocketUiClient } from './ws';
 import type { UiTransportConnectionState } from './ws-contracts';
 import type { UiSessionProvider } from './session';
@@ -18,7 +18,7 @@ export interface UiTransportOptions {
 		scope: UiSubscriptionScope,
 		plane: UiDataPlane | undefined,
 		reason: string
-	) => EventTime | Promise<EventTime>;
+	) => UiReplayCursor | Promise<UiReplayCursor>;
 }
 
 export type UiTransportFactory = (options?: UiTransportOptions) => UiClient;

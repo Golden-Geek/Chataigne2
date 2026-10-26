@@ -249,7 +249,7 @@ pub(super) fn handle_connection<T: ProjectLifecycle>(
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid replay payload: {err}")))?;
             eprintln!("[ui-http] replay scope={:?} from={:?}", payload.scope, payload.from);
 
-            let batch = state.read_model.replay(payload.from, payload.scope);
+            let batch = state.read_model.replay_from_cursor(payload.from, payload.scope);
 
             write_json(stream, "200 OK", &batch)?;
         }

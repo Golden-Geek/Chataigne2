@@ -1,52 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { UI_PROTOCOL_VERSION } from '../../../../../../packages/golden-ui/generated/rust_protocol/protocol-version';
-import { graphIndexMutationCopies } from '../../../../../../packages/golden-ui/store/graph-index';
-import { createGraphStore } from '../../../../../../packages/golden-ui/store/graph.svelte';
-import { createWebSocketUiClient } from '../../../../../../packages/golden-ui/transport/ws';
-import { testSessionProvider } from '../../../../../../packages/golden-ui/transport/tests/fixtures/session';
-import type {
-	EventTime,
-	UiEventBatch,
-	UiNodeDto,
-	UiSnapshot
-} from '../../../../../../packages/golden-ui/types';
+import { UI_PROTOCOL_VERSION } from 'golden_ui/generated/rust_protocol/protocol-version.ts';
+import { graphIndexMutationCopies } from 'golden_ui/store/graph-index';
+import { createGraphStore } from 'golden_ui/store/graph.svelte';
+import { createWebSocketUiClient } from 'golden_ui/transport/ws';
+import { testSessionProvider } from 'golden_ui/testing/transport';
+import type { EventTime, UiEventBatch, UiNodeDto, UiSnapshot } from 'golden_ui/types';
 
-class FakeWebSocket {
-	static readonly CONNECTING = 0;
-	static readonly OPEN = 1;
-	static readonly CLOSING = 2;
-	static readonly CLOSED = 3;
-	static instances: FakeWebSocket[] = [];
-
-	readonly sent: string[] = [];
-	readyState = FakeWebSocket.CONNECTING;
-	onopen: (() => void) | null = null;
-	onmessage: ((event: { data: string }) => void) | null = null;
-	onerror: (() => void) | null = null;
-	onclose: (() => void) | null = null;
-
-	constructor(readonly url: string | URL) {
-		FakeWebSocket.instances.push(this);
-	}
-
-	send(data: string | ArrayBufferLike | Blob | ArrayBufferView): void {
-		this.sent.push(String(data));
-	}
-
-	close(): void {
-		this.readyState = FakeWebSocket.CLOSED;
-		this.onclose?.();
-	}
-
-	open(): void {
-		this.readyState = FakeWebSocket.OPEN;
-		this.onopen?.();
-	}
-
-	receive(message: unknown): void {
-		this.onmessage?.({ data: JSON.stringify(message) });
-	}
-}
+import { FakeWebSocket } from './fixtures/websocket';
 
 interface SentSubscribe {
 	kind: 'subscribe';
@@ -55,6 +15,7 @@ interface SentSubscribe {
 }
 
 const time = (tick: number): EventTime => ({ tick, micro: 0, seq: 0 });
+const cursor = (at: EventTime) => ({ project_generation: 1, at });
 
 const flushMicrotasks = async (): Promise<void> => {
 	await Promise.resolve();
@@ -146,6 +107,7 @@ const parameterNode = (id: number): UiNodeDto => ({
 });
 
 const graphSnapshot = (at: EventTime): UiSnapshot => ({
+	project_generation: 1,
 	protocol_version: UI_PROTOCOL_VERSION,
 	scope: { kind: 'wholeGraph' },
 	at,
@@ -312,6 +274,7 @@ const receivePlaneDelta = (
 	events: unknown[]
 ): void => {
 	socket.receive({
+		project_generation: 1,
 		kind: 'delta',
 		subscription_id: subscriptionId,
 		deltas: [{ plane, batch: { from, to, runtime: null, events } }]
@@ -326,6 +289,7 @@ const receiveDelta = (
 	to: EventTime
 ): void => {
 	socket.receive({
+		project_generation: 1,
 		kind: 'delta',
 		subscription_id: subscriptionId,
 		deltas: planeEventIds.map((ids, index) => ({
@@ -389,7 +353,7 @@ describe('websocket event burst scheduling', () => {
 			webSocketImpl: FakeWebSocket as unknown as typeof WebSocket
 		});
 		const initial = time(0);
-		const unsubscribe = client.subscribe({ kind: 'wholeGraph' }, initial, (batch) =>
+		const unsubscribe = client.subscribe({ kind: 'wholeGraph' }, cursor(initial), (batch) =>
 			applied.push(batch)
 		);
 		await flushMicrotasks();
@@ -469,7 +433,7 @@ describe('websocket event burst scheduling', () => {
 			webSocketImpl: FakeWebSocket as unknown as typeof WebSocket
 		});
 		const initial = time(0);
-		const unsubscribe = client.subscribe({ kind: 'wholeGraph' }, initial, (batch) =>
+		const unsubscribe = client.subscribe({ kind: 'wholeGraph' }, cursor(initial), (batch) =>
 			applied.push(batch)
 		);
 		await flushMicrotasks();
@@ -500,7 +464,7 @@ describe('websocket event burst scheduling', () => {
 		await flushMicrotasks();
 		const secondSubscription = sentSubscribe(secondSocket);
 		expect(secondSubscription.subscription_id).toBe(firstSubscription.subscription_id);
-		expect(secondSubscription.from).toEqual(time(512));
+		expect(secondSubscription.from).toEqual(cursor(time(512)));
 
 		receiveDelta(
 			secondSocket,
@@ -530,7 +494,7 @@ describe('websocket event burst scheduling', () => {
 		});
 		const unsubscribe = client.subscribe(
 			{ kind: 'wholeGraph' },
-			initial,
+			cursor(initial),
 			(batch) => graph.applyBatch(batch),
 			{ createEventWork: (event) => graph.createEventWork(event) }
 		);
@@ -567,7 +531,7 @@ describe('websocket event burst scheduling', () => {
 		secondSocket.open();
 		await flushMicrotasks();
 		const secondSubscription = sentSubscribe(secondSocket);
-		expect(secondSubscription.from).toEqual(initial);
+		expect(secondSubscription.from).toEqual(cursor(initial));
 
 		receivePlaneDelta(
 			secondSocket,
@@ -607,7 +571,7 @@ describe('websocket event burst scheduling', () => {
 		}
 		thirdSocket.open();
 		await flushMicrotasks();
-		expect(sentSubscribe(thirdSocket).from).toEqual(committed);
+		expect(sentSubscribe(thirdSocket).from).toEqual(cursor(committed));
 		unsubscribe();
 	});
 
@@ -628,7 +592,7 @@ describe('websocket event burst scheduling', () => {
 			});
 			const unsubscribe = client.subscribe(
 				{ kind: 'wholeGraph' },
-				initial,
+				cursor(initial),
 				(batch) => graph.applyBatch(batch),
 				{ createEventWork: (event) => graph.createEventWork(event) }
 			);
@@ -688,7 +652,7 @@ describe('websocket event burst scheduling', () => {
 			});
 			const unsubscribe = client.subscribe(
 				{ kind: 'wholeGraph' },
-				initial,
+				cursor(initial),
 				(batch) => graph.applyBatch(batch),
 				{ createEventWork: (event) => graph.createEventWork(event) }
 			);
@@ -741,7 +705,7 @@ describe('websocket event burst scheduling', () => {
 		});
 		const unsubscribe = client.subscribe(
 			{ kind: 'wholeGraph' },
-			initial,
+			cursor(initial),
 			(batch) => graph.applyBatch(batch),
 			{ createEventWork: (event) => graph.createEventWork(event) }
 		);
@@ -777,7 +741,7 @@ describe('websocket event burst scheduling', () => {
 		secondSocket.open();
 		await flushMicrotasks();
 		const secondSubscription = sentSubscribe(secondSocket);
-		expect(secondSubscription.from).toEqual(initial);
+		expect(secondSubscription.from).toEqual(cursor(initial));
 		receivePlaneDelta(
 			secondSocket,
 			secondSubscription.subscription_id,
@@ -812,7 +776,7 @@ describe('websocket event burst scheduling', () => {
 		});
 		const unsubscribe = client.subscribe(
 			{ kind: 'wholeGraph' },
-			initial,
+			cursor(initial),
 			(batch) => graph.applyBatch(batch),
 			{ createEventWork: (event) => graph.createEventWork(event) }
 		);
@@ -852,7 +816,7 @@ describe('websocket event burst scheduling', () => {
 			webSocketImpl: FakeWebSocket as unknown as typeof WebSocket
 		});
 		const initial = time(0);
-		const unsubscribe = client.subscribe({ kind: 'wholeGraph' }, initial, (batch) =>
+		const unsubscribe = client.subscribe({ kind: 'wholeGraph' }, cursor(initial), (batch) =>
 			applied.push(batch)
 		);
 		await flushMicrotasks();
@@ -905,7 +869,7 @@ describe('websocket event burst scheduling', () => {
 			sessionProvider: testSessionProvider,
 			webSocketImpl: FakeWebSocket as unknown as typeof WebSocket
 		});
-		const unsubscribe = client.subscribe({ kind: 'wholeGraph' }, time(0), (batch) =>
+		const unsubscribe = client.subscribe({ kind: 'wholeGraph' }, cursor(time(0)), (batch) =>
 			applied.push(batch)
 		);
 		await flushMicrotasks();
@@ -918,6 +882,7 @@ describe('websocket event burst scheduling', () => {
 		const subscription = sentSubscribe(socket);
 
 		socket.receive({
+			project_generation: 1,
 			kind: 'delta',
 			subscription_id: subscription.subscription_id,
 			deltas: [

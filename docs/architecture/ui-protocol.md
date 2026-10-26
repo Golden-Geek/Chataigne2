@@ -53,10 +53,21 @@ consumed by engine adapters, transport hosts, code generation, and the Svelte cl
   is in flight. It fetches a fresh snapshot before resubscribing, using that snapshot's event
   boundary even when the project clock resets. Disconnect/disposal retire pending invalidations;
   an older snapshot cannot consume a later replacement notice.
-- The host retains the project generation of every active subscription. A generation change
-  pauses its deltas and requests one resync even if the new engine has exactly the same event
-  clock. Re-subscription starts delivery in the current project lifetime; event time alone cannot
-  identify a project replacement.
+- Protocol 0.12 pairs every snapshot's event boundary with its monotonic `project_generation`.
+  Generated `UiReplayCursor` carries both fields for subscribe/replay requests; omitting the
+  cursor deliberately starts an unanchored subscription. An old snapshot cannot resume a newer
+  project, including replacement during the unsubscribe/snapshot/re-subscribe gap or equal clocks.
+  The host pauses stale subscriptions and requests resync instead of sending another lifetime's
+  events. Replay checks generation before and after filtering, returning only a resync marker if
+  replacement races that work; it does not hold the publication lock across filtering.
+- Delta envelopes and replay responses carry their generation; engine-local event batches keep
+  their existing time contract. The client drops retired-generation envelopes and requests a fresh
+  snapshot for a future generation before staging events. Latest-wins queues never combine two
+  generations. Self-echo suppression uses the generation captured inside the actor's transaction,
+  so delayed results cannot suppress equal-time events belonging to another project.
+- This intentionally breaks the ephemeral 0.11 wire shape. Rust DTOs, generated TypeScript and
+  consumers change together; project persistence formats are unaffected. Snapshot and replay read
+  promises reject malformed responses rather than losing their timeout and waiting indefinitely.
 - One WebSocket replay pass delivers its non-empty data planes in one atomic delta envelope.
   The client stages the whole envelope before rendering and drains large event bursts in bounded
   animation-frame slices, preserving global event-time order and keeping input responsive. Detached

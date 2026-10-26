@@ -1,11 +1,13 @@
+import { requestWsRead, completeWsRead } from './ws-reads';
 import { requestError } from './control-errors';
+import { projectGeneration } from './replay-cursor';
 import type {
-	EventTime,
+	UiReplayCursor,
+	UiTransportBatch,
 	UiAck,
 	UiClient,
 	UiControlLifecycle,
 	UiEditIntent,
-	UiEventBatch,
 	UiEventBatchHandler,
 	UiSnapshot,
 	UiSubscriptionBatchOptions,
@@ -284,7 +286,10 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 					kind: 'subscribe',
 					subscription_id: subscriptionId,
 					interest: state.interest,
-					from: state.cursor
+					from:
+						state.cursor && state.projectGeneration
+							? { at: state.cursor, project_generation: state.projectGeneration }
+							: undefined
 				},
 				generation
 			)
@@ -374,6 +379,13 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 				if (!state || state.closed || state.resyncing) {
 					return;
 				}
+				const generation = projectGeneration(message.project_generation);
+				if (state.projectGeneration !== undefined && generation < state.projectGeneration) return;
+				if (state.projectGeneration !== undefined && generation > state.projectGeneration) {
+					handleResyncRequired(message.subscription_id, undefined, 'project_generation_changed');
+					return;
+				}
+				state.projectGeneration = generation;
 				const convertStartedAt = nowMs();
 				const batches = message.deltas.map((delta) => ({
 					batch: fromRustEventBatch(delta.batch),
@@ -399,9 +411,8 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 				if (!pending) {
 					return;
 				}
-				clearTimeout(pending.timer);
 				pendingSnapshots.delete(message.request_id);
-				pending.resolve(fromRustSnapshot(message.snapshot));
+				completeWsRead(pending, () => fromRustSnapshot(message.snapshot));
 				return;
 			}
 			case 'replay': {
@@ -409,9 +420,11 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 				if (!pending) {
 					return;
 				}
-				clearTimeout(pending.timer);
 				pendingReplays.delete(message.request_id);
-				pending.resolve(fromRustEventBatch(message.batch));
+				completeWsRead(pending, () => ({
+					...fromRustEventBatch(message.batch),
+					project_generation: projectGeneration(message.project_generation)
+				}));
 				return;
 			}
 			case 'control': {
@@ -657,7 +670,7 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 	const subscribeWithInterest = (
 		interest: UiInterest,
 		scope: UiSubscriptionScope,
-		from: EventTime | undefined,
+		from: UiReplayCursor | undefined,
 		onBatch: UiEventBatchHandler,
 		batchOptions?: UiSubscriptionBatchOptions
 	): (() => void) => {
@@ -665,11 +678,16 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 		let state: SubscriptionState;
 		const stagedFrames = createStagedFrameBatchScheduler({
 			onBatch: (batch) => {
-				onBatch(batch, {
-					requestResync: (reason) => {
-						handleResyncRequired(subscriptionId, undefined, reason);
+				if (state.projectGeneration === undefined)
+					throw new Error('Staged transport batch has no project generation.');
+				onBatch(
+					{ ...batch, project_generation: state.projectGeneration },
+					{
+						requestResync: (reason) => {
+							handleResyncRequired(subscriptionId, undefined, reason);
+						}
 					}
-				});
+				);
 			},
 			onOrderingViolation: () => {
 				handleResyncRequired(subscriptionId, undefined, 'out_of_order_plane_delta');
@@ -688,7 +706,8 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 			interest,
 			scope,
 			onBatch,
-			cursor: from,
+			cursor: from ? { ...from.at } : undefined,
+			projectGeneration: from ? projectGeneration(from.project_generation) : undefined,
 			closed: false,
 			stagedFrames,
 			subscribedSocketGeneration: null,
@@ -738,29 +757,19 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 	const client: UiClient = {
 		async snapshot(scope: UiSubscriptionScope = wholeGraphScope) {
 			const requestId = nextId('snapshot');
-			return new Promise<UiSnapshot>(async (resolve, reject) => {
-				const timer = setTimeout(() => {
-					pendingSnapshots.delete(requestId);
-					reject(new Error(`snapshot timeout (${requestId})`));
-				}, SNAPSHOT_TIMEOUT_MS);
-				pendingSnapshots.set(requestId, { resolve, reject, timer });
-				try {
-					await sendWsMessage({
-						kind: 'snapshot',
-						request_id: requestId,
-						scope: toRustScope(scope)
-					});
-				} catch (error) {
-					clearTimeout(timer);
-					pendingSnapshots.delete(requestId);
-					reject(error as Error);
-				}
+			return requestWsRead<UiSnapshot>({
+				pending: pendingSnapshots,
+				id: requestId,
+				kind: 'snapshot',
+				timeout: SNAPSHOT_TIMEOUT_MS,
+				send: () =>
+					sendWsMessage({ kind: 'snapshot', request_id: requestId, scope: toRustScope(scope) })
 			});
 		},
 
 		subscribe(
 			scope: UiSubscriptionScope,
-			from: EventTime | undefined,
+			from: UiReplayCursor | undefined,
 			onBatch: UiEventBatchHandler,
 			batchOptions?: UiSubscriptionBatchOptions
 		): () => void {
@@ -781,7 +790,7 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 			viewId: string,
 			scope: UiSubscriptionScope,
 			planes: UiDataPlane[],
-			from: EventTime | undefined,
+			from: UiReplayCursor | undefined,
 			onBatch: UiEventBatchHandler,
 			batchOptions?: UiSubscriptionBatchOptions
 		): () => void {
@@ -880,26 +889,15 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 			});
 		},
 
-		async replay(scope: UiSubscriptionScope, from?: EventTime) {
+		async replay(scope: UiSubscriptionScope, from?: UiReplayCursor) {
 			const requestId = nextId('replay');
-			return new Promise<UiEventBatch>(async (resolve, reject) => {
-				const timer = setTimeout(() => {
-					pendingReplays.delete(requestId);
-					reject(new Error(`replay timeout (${requestId})`));
-				}, REPLAY_TIMEOUT_MS);
-				pendingReplays.set(requestId, { resolve, reject, timer });
-				try {
-					await sendWsMessage({
-						kind: 'replay',
-						request_id: requestId,
-						scope: toRustScope(scope),
-						from
-					});
-				} catch (error) {
-					clearTimeout(timer);
-					pendingReplays.delete(requestId);
-					reject(error as Error);
-				}
+			return requestWsRead<UiTransportBatch>({
+				pending: pendingReplays,
+				id: requestId,
+				kind: 'replay',
+				timeout: REPLAY_TIMEOUT_MS,
+				send: () =>
+					sendWsMessage({ kind: 'replay', request_id: requestId, scope: toRustScope(scope), from })
 			});
 		},
 

@@ -5,8 +5,8 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-26 on `main`, based on delivered `d6696752` plus Alchemist graph authoring
-delivery below. **P11 is in progress; four of six fixed checkpoints are closed (67% rounded).**
+Last reconciled: 2026-10-26 on `main`, based on delivered `39f3536c` plus project-generation
+cursor delivery below. **P11 is in progress; four of six fixed checkpoints are closed (67% rounded).**
 **P10 is locally complete: three of three fixed checkpoints (100%).**
 **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
@@ -201,7 +201,7 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
 | Historical log windowing | Complete locally | Variable-height history, filters, follow, bounded native selection, focus and snapshot publication pass through 100k records. [Qualification](p11-log-windowing.md). |
 | Dashboard viewport awareness | Complete locally | All 599 correctness groups and 160 fixed timing combinations pass through 100k authored nodes, including geometry, bounded presentation, feedback, callback stalls and completion. Retention regression passes 13 checkpoints. [Timing qualification](p11-dashboard-timing.md), [composition](p11-dashboard-composition.md), [barriers](p11-dashboard-barriers.md). |
 | Tree focus and keyboard navigation | Complete locally | All four app consumers, 55 constrained-picker groups and shared navigation/lifecycle cases pass through 100k items. All 70 tree timing combinations and 15 collection regression combinations pass fixed gates. [Closure and evidence](p11-tree-closure.md). |
-| Graph keyboard operations | In progress | Shared operations/discovery/sockets pass nine correctness groups and 50 timing combinations through 100k nodes. State Machine and Alchemist pass native atomic edits, rejection, undo/redo, save/reload and idle replacement. Snapshot/subscription overlap, Spatializer and actual-app scale qualification remain. [Shared operations](p11-graph-keyboard.md), [discovery](p11-graph-discovery.md), [sockets](p11-graph-sockets.md), [State adapter](p11-state-graph-authoring.md), [Alchemist adapter](p11-alchemist-graph-authoring.md). |
+| Graph keyboard operations | In progress | Shared operations/discovery/sockets pass nine correctness groups and 50 timing combinations through 100k nodes. State Machine and Alchemist pass native atomic edits, rejection, undo/redo, save/reload and replacement. Generation cursors also qualify the snapshot/subscription gap and equal-time origins. Spatializer and actual-app scale qualification remain. [Shared operations](p11-graph-keyboard.md), [discovery](p11-graph-discovery.md), [sockets](p11-graph-sockets.md), [State adapter](p11-state-graph-authoring.md), [Alchemist adapter](p11-alchemist-graph-authoring.md), [replacement overlap](p11-project-cursors.md). |
 | Complete composed workflows | Not started | Qualify discovery, selection and editing across all required composed panels and large batches. Native usability retains P17. |
 
 ## Current handoff
@@ -217,13 +217,13 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
   Shared graph operations now pass nine production correctness groups, including collapsed/compound
   body sockets and mutation feedback. Discovery passes 20 timing combinations / 620 samples, and
   movement/connections pass 30 / 930 through 100k nodes. The full canvas regression also passes
-  all 55 action/tier combinations and both dense scenes. Owning UI suites now pass **421** cases;
+  all 55 action/tier combinations and both dense scenes. Owning UI suites now pass **425** cases;
   app and both native graph fixture Svelte checks pass. State Machine and Alchemist panels pass
   actual backend receipts, atomic read-only rejection, undo/redo, save/reload and snapshot/unmount
-  cancellation. Three Alchemist repetitions and one State regression pass on the exact default
-  executable after repairing idle equal-clock replacement. These are two-node correctness fixtures.
-  Next qualify replacement during unsubscribe/snapshot/re-subscribe, including project-generation
-  fencing for cursors and event-origin state. Complete Spatializer and actual-app scale qualification
+  cancellation. The current default executable passes five Alchemist correctness groups and
+  four State groups, including delayed-snapshot replacement recovery. These are small correctness fixtures.
+  [Generation cursors](p11-project-cursors.md) now fence replacement during unsubscribe/snapshot/
+  re-subscribe, deferred encoding, frames and event-origin state. Complete Spatializer and actual-app scale qualification
   before closing graph keyboard operations, then composed
   workflows. Preserve [composition](p11-dashboard-composition.md) and
   [applied-receipt barriers](p11-dashboard-barriers.md). Native usability retains P17 and product
@@ -11049,8 +11049,55 @@ snapshot/unmount cancellation and rejected moves with rendered rollback and fail
 **P11 remains 4/6 closed checkpoints (67% rounded); whole-plan scope coverage remains 59%
 (59.259...% exact).** Qualify replacement during the complete unsubscribe/snapshot/re-subscribe
 interval, including project-generation fencing for subscription cursors and event-origin state.
-The current wire subscribe cursor carries event time rather than a project-generation token;
+At this milestone the wire subscribe cursor carries event time rather than a project-generation token;
 the active-subscription regression does not establish that broader race. Then complete Spatializer's
 actual integration, actual-app scale and composed workflows before closing the remaining two P11
 checkpoints. Small native fixtures and shared 100k-node presentation do not substitute for those
 checks. Commit/push this verified milestone on `main`; keep the full P00-P18 goal active.
+
+### P11 project-generation cursors and replacement overlap
+
+Previous goal turn: **progress**; native qualification and documentation changed the next action.
+Reconciled delivered `39f3536c` and the in-progress cursor change against `origin/main`;
+no unrelated checkout changes were present. The prior optimized engine-test process was confirmed
+live and allowed to finish, rather than restarted after an observation timeout.
+
+Protocol **0.12** pairs snapshot event time with project generation. Generated subscribe/replay
+cursors, delta envelopes and replay responses retain that lifetime. A stale snapshot can no longer
+resume a replacement project during the unsubscribe/snapshot/re-subscribe gap, even at equal clocks.
+Replay checks generation before and after filtering without holding publication across that work;
+a raced result becomes only a resync marker. Actor transaction results retain their captured
+generation, origin filtering cannot suppress another lifetime's equal-time events, and latest-wins
+queues do not merge generations. Clients retire old frames and resync before staging future ones.
+Malformed snapshot/replay reads reject promptly instead of losing their timeout and hanging.
+
+Six new host regressions cover stale subscription/replay, delayed encoding, origins, transaction
+results and queue isolation. The standalone transport suite passes **81 cases / one manual
+benchmark ignored**. The optimized engine suite passes **634 / three manual cases ignored**.
+All **425 UI cases** pass (27 audio / 58 graph / 193 Golden / 147 app); app and graph-fixture Svelte
+checks report zero errors/warnings. Seven changed/new generated bindings match the Rust exporter.
+All touched source stays below 1,000 lines; inventory is **2,235 / 26 oversized**. Read ownership
+and shared fake-socket extraction keep the WS client at 962 lines, workbench 981 and read model 993.
+
+The actual native Alchemist panel now holds a real old snapshot response across replacement,
+then proves stale resubscription, server rejection and recovery to the authoritative read-only
+project. Its five correctness groups pass, including a run with equal clocks. The first run
+recovered but failed an unsupported fixture assumption requiring native load clocks to be equal;
+that failure is preserved. Clock equality is reported by the native workflow and enforced by the
+deterministic backend regressions. See [qualification and evidence](p11-project-cursors.md).
+
+**P11 remains 4/6 fixed checkpoints (67% rounded); whole-plan coverage remains 59%
+(59.259...% exact).** Replacement overlap is qualified within the existing graph checkpoint.
+Complete Spatializer's actual custom-world integration, actual-app scale and composed workflows
+before closing the two remaining checkpoints. No checkpoint or package denominator was added;
+P03 remains closed with zero packages left. Keep the full P00-P18 goal active.
+
+Protocol-only (three cases), public headless host (one case), strict app/all-target Clippy,
+both Cargo formatters, package-owned formatting and whitespace checks pass. The final locked
+default build passes in **4m23s** with the rebuilt frontend; binary SHA-256 is
+`7f3295794714cd31b9ba61a4d7c9ad578353c5091739bedfd4babfee359c635a`.
+That exact executable passes the five-group Alchemist workflow, four-group State regression
+and both native Formula HTTP/WebSocket/script and exact-history cases. The
+[source/build/check record](evidence/p11-project-cursors-source-2026-10-26.json) and linked raw
+reports preserve the evidence and the earlier harness failure. Commit/push this verified
+milestone on `main`, then continue Spatializer within the existing graph checkpoint.

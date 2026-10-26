@@ -1,160 +1,156 @@
-import type { EventTime, UiSnapshot } from "../../types";
+import type { UiReplayCursor, UiSnapshot } from '../../types';
+import { snapshotCursor } from '../../transport/replay-cursor';
 
 export interface WorkbenchSnapshotControllerOptions {
-  requestSnapshot(): Promise<UiSnapshot>;
-  applySnapshot(snapshot: UiSnapshot): void;
-  logSnapshotTiming(
-    context: "refresh" | "resync",
-    snapshot: UiSnapshot,
-    applyStartedAt: number,
-  ): void;
-  appendTransportLog(level: "info" | "error", message: string): void;
-  suspendIntentDispatch(): () => void;
-  snapshotApplied(): void;
-  nowMs(): number;
+	requestSnapshot(): Promise<UiSnapshot>;
+	applySnapshot(snapshot: UiSnapshot): void;
+	logSnapshotTiming(
+		context: 'refresh' | 'resync',
+		snapshot: UiSnapshot,
+		applyStartedAt: number
+	): void;
+	appendTransportLog(level: 'info' | 'error', message: string): void;
+	suspendIntentDispatch(): () => void;
+	snapshotApplied(): void;
+	nowMs(): number;
 }
 
 export interface WorkbenchSnapshotController {
-  request(): Promise<UiSnapshot>;
-  refresh(): Promise<boolean>;
-  refreshAfterCurrent(): Promise<boolean>;
-  resync(successMessage?: string): Promise<EventTime | null>;
-  beginSynchronization(): () => void;
-  waitForIdle(): Promise<void>;
+	request(): Promise<UiSnapshot>;
+	refresh(): Promise<boolean>;
+	refreshAfterCurrent(): Promise<boolean>;
+	resync(successMessage?: string): Promise<UiReplayCursor | null>;
+	beginSynchronization(): () => void;
+	waitForIdle(): Promise<void>;
 }
 
 export const createWorkbenchSnapshotController = (
-  options: WorkbenchSnapshotControllerOptions,
+	options: WorkbenchSnapshotControllerOptions
 ): WorkbenchSnapshotController => {
-  let requestInFlight: Promise<UiSnapshot> | null = null;
-  let synchronizationsInFlight = 0;
-  let resyncInFlight: Promise<EventTime | null> | null = null;
-  let resyncQueued = false;
-  const idleWaiters: Array<() => void> = [];
+	let requestInFlight: Promise<UiSnapshot> | null = null;
+	let synchronizationsInFlight = 0;
+	let resyncInFlight: Promise<UiReplayCursor | null> | null = null;
+	let resyncQueued = false;
+	const idleWaiters: Array<() => void> = [];
 
-  const notifyIdle = (): void => {
-    if (synchronizationsInFlight > 0 || requestInFlight !== null) {
-      return;
-    }
-    for (const resolve of idleWaiters.splice(0)) {
-      resolve();
-    }
-  };
+	const notifyIdle = (): void => {
+		if (synchronizationsInFlight > 0 || requestInFlight !== null) {
+			return;
+		}
+		for (const resolve of idleWaiters.splice(0)) {
+			resolve();
+		}
+	};
 
-  const beginSynchronization = (): (() => void) => {
-    synchronizationsInFlight += 1;
-    let ended = false;
-    return () => {
-      if (ended) {
-        return;
-      }
-      ended = true;
-      synchronizationsInFlight = Math.max(0, synchronizationsInFlight - 1);
-      notifyIdle();
-    };
-  };
+	const beginSynchronization = (): (() => void) => {
+		synchronizationsInFlight += 1;
+		let ended = false;
+		return () => {
+			if (ended) {
+				return;
+			}
+			ended = true;
+			synchronizationsInFlight = Math.max(0, synchronizationsInFlight - 1);
+			notifyIdle();
+		};
+	};
 
-  const waitForIdle = (): Promise<void> => {
-    if (synchronizationsInFlight === 0 && requestInFlight === null) {
-      return Promise.resolve();
-    }
-    return new Promise<void>((resolve) => {
-      idleWaiters.push(resolve);
-    });
-  };
+	const waitForIdle = (): Promise<void> => {
+		if (synchronizationsInFlight === 0 && requestInFlight === null) {
+			return Promise.resolve();
+		}
+		return new Promise<void>((resolve) => {
+			idleWaiters.push(resolve);
+		});
+	};
 
-  const request = (): Promise<UiSnapshot> => {
-    if (requestInFlight) {
-      return requestInFlight;
-    }
-    const inFlight = options.requestSnapshot();
-    requestInFlight = inFlight.finally(() => {
-      requestInFlight = null;
-      notifyIdle();
-    });
-    return requestInFlight;
-  };
+	const request = (): Promise<UiSnapshot> => {
+		if (requestInFlight) {
+			return requestInFlight;
+		}
+		const inFlight = options.requestSnapshot();
+		requestInFlight = inFlight.finally(() => {
+			requestInFlight = null;
+			notifyIdle();
+		});
+		return requestInFlight;
+	};
 
-  const refresh = async (): Promise<boolean> => {
-    const endSynchronization = beginSynchronization();
-    try {
-      const snapshot = await request();
-      const applyStartedAt = options.nowMs();
-      options.applySnapshot(snapshot);
-      options.snapshotApplied();
-      options.logSnapshotTiming("refresh", snapshot, applyStartedAt);
-      return true;
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "unknown refresh error";
-      options.appendTransportLog(
-        "error",
-        `Snapshot refresh failed: ${message}`,
-      );
-      return false;
-    } finally {
-      endSynchronization();
-    }
-  };
+	const refresh = async (): Promise<boolean> => {
+		const endSynchronization = beginSynchronization();
+		try {
+			const snapshot = await request();
+			const applyStartedAt = options.nowMs();
+			options.applySnapshot(snapshot);
+			options.snapshotApplied();
+			options.logSnapshotTiming('refresh', snapshot, applyStartedAt);
+			return true;
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'unknown refresh error';
+			options.appendTransportLog('error', `Snapshot refresh failed: ${message}`);
+			return false;
+		} finally {
+			endSynchronization();
+		}
+	};
 
-  const refreshAfterCurrent = async (): Promise<boolean> => {
-    await waitForIdle();
-    return refresh();
-  };
+	const refreshAfterCurrent = async (): Promise<boolean> => {
+		await waitForIdle();
+		return refresh();
+	};
 
-  const resync = (successMessage?: string): Promise<EventTime | null> => {
-    if (resyncInFlight !== null) {
-      resyncQueued = true;
-      return resyncInFlight;
-    }
+	const resync = (successMessage?: string): Promise<UiReplayCursor | null> => {
+		if (resyncInFlight !== null) {
+			resyncQueued = true;
+			return resyncInFlight;
+		}
 
-    const run = async (): Promise<EventTime | null> => {
-      const endSynchronization = beginSynchronization();
-      const releaseIntentDispatch = options.suspendIntentDispatch();
-      let latestBoundary: EventTime | null = null;
-      try {
-        do {
-          resyncQueued = false;
-          try {
-            const snapshot = await request();
-            const applyStartedAt = options.nowMs();
-            options.applySnapshot(snapshot);
-            options.snapshotApplied();
-            latestBoundary = snapshot.at;
-            if (successMessage) {
-              options.appendTransportLog("info", successMessage);
-            }
-            options.logSnapshotTiming("resync", snapshot, applyStartedAt);
-          } catch (error) {
-            const message =
-              error instanceof Error ? error.message : "unknown resync error";
-            options.appendTransportLog("error", `Resync failed: ${message}`);
-            latestBoundary = null;
-          }
-        } while (resyncQueued);
-        return latestBoundary;
-      } finally {
-        releaseIntentDispatch();
-        endSynchronization();
-      }
-    };
+		const run = async (): Promise<UiReplayCursor | null> => {
+			const endSynchronization = beginSynchronization();
+			const releaseIntentDispatch = options.suspendIntentDispatch();
+			let latestBoundary: UiReplayCursor | null = null;
+			try {
+				do {
+					resyncQueued = false;
+					try {
+						const snapshot = await request();
+						const applyStartedAt = options.nowMs();
+						options.applySnapshot(snapshot);
+						options.snapshotApplied();
+						latestBoundary = snapshotCursor(snapshot);
+						if (successMessage) {
+							options.appendTransportLog('info', successMessage);
+						}
+						options.logSnapshotTiming('resync', snapshot, applyStartedAt);
+					} catch (error) {
+						const message = error instanceof Error ? error.message : 'unknown resync error';
+						options.appendTransportLog('error', `Resync failed: ${message}`);
+						latestBoundary = null;
+					}
+				} while (resyncQueued);
+				return latestBoundary;
+			} finally {
+				releaseIntentDispatch();
+				endSynchronization();
+			}
+		};
 
-    let tracked: Promise<EventTime | null>;
-    tracked = run().finally(() => {
-      if (resyncInFlight === tracked) {
-        resyncInFlight = null;
-      }
-    });
-    resyncInFlight = tracked;
-    return tracked;
-  };
+		let tracked: Promise<UiReplayCursor | null>;
+		tracked = run().finally(() => {
+			if (resyncInFlight === tracked) {
+				resyncInFlight = null;
+			}
+		});
+		resyncInFlight = tracked;
+		return tracked;
+	};
 
-  return {
-    request,
-    refresh,
-    refreshAfterCurrent,
-    resync,
-    beginSynchronization,
-    waitForIdle,
-  };
+	return {
+		request,
+		refresh,
+		refreshAfterCurrent,
+		resync,
+		beginSynchronization,
+		waitForIdle
+	};
 };

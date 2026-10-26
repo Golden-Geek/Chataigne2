@@ -1,3 +1,4 @@
+import { projectGeneration } from '../replay-cursor';
 import type {
 	UiAck,
 	UiCreatableUserItem,
@@ -444,6 +445,7 @@ export const fromRustSnapshot = (snapshot: RustUiSnapshot): UiSnapshot => {
 	const parsedSchemaEnums = parseRustSchemaEnums(snapshot.schema.enums);
 	return {
 		protocol_version: snapshot.protocol_version,
+		project_generation: projectGeneration(snapshot.project_generation),
 		scope: fromRustScope(snapshot.scope),
 		at: snapshot.at,
 		nodes: snapshot.nodes.map((node) => fromRustNode(node, parsedSchemaEnums.enumOptionsById)),

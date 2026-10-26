@@ -82,7 +82,28 @@ pub(super) fn dispatch_ws_batches(
                 }
             }
 
-            let batch = read_model.replay(subscription.cursor, subscription.interest.scope.clone());
+            let replay = read_model.replay_from_cursor(
+                subscription.cursor.map(|at| UiReplayCursor {
+                    project_generation: subscription.project_generation.get(),
+                    at,
+                }),
+                subscription.interest.scope.clone(),
+            );
+            if replay.project_generation != subscription.project_generation.get() {
+                subscription.project_generation = read_model.current_project_generation();
+                subscription.clear_pending_value_events();
+                subscription.awaiting_resync = true;
+                pending.push((
+                    *client_id,
+                    WsServerMessage::ResyncRequired {
+                        subscription_id: subscription_id.clone(),
+                        plane: None,
+                        reason: "project_generation_changed".into(),
+                    },
+                ));
+                continue;
+            }
+            let batch = replay.batch;
             let runtime_changed = batch.runtime != subscription.last_runtime_stats;
             subscription.last_runtime_stats = batch.runtime;
             if let Some(to) = batch.to {
@@ -94,9 +115,11 @@ pub(super) fn dispatch_ws_batches(
 
             let mut visible_events = Vec::with_capacity(batch.events.len());
             for event in batch.events {
-                let skip_for_sender = origins
-                    .get(&event.time)
-                    .is_some_and(|origin| origin.client_id == *client_id && !origin.include_self_events);
+                let skip_for_sender = origins.get(&event.time).is_some_and(|origin| {
+                    origin.project_generation == subscription.project_generation
+                        && origin.client_id == *client_id
+                        && !origin.include_self_events
+                });
                 if !skip_for_sender {
                     visible_events.push(event);
                 }
@@ -199,6 +222,7 @@ pub(super) fn dispatch_ws_batches(
                 pending.push((
                     *client_id,
                     WsServerMessage::Delta {
+                        project_generation: subscription.project_generation.get(),
                         subscription_id: subscription_id.clone(),
                         deltas,
                     },
@@ -225,6 +249,7 @@ pub(super) fn dispatch_ws_batches(
                 pending.push((
                     *client_id,
                     WsServerMessage::Delta {
+                        project_generation: subscription.project_generation.get(),
                         subscription_id: subscription_id.clone(),
                         deltas: vec![UiPlaneDelta {
                             plane: UiDataPlane::Value,
@@ -238,7 +263,7 @@ pub(super) fn dispatch_ws_batches(
     let collect_ms = collect_started.elapsed().as_millis();
 
     if let Some(first_retained) = first_retained {
-        origins.retain(|time, _| *time >= first_retained);
+        origins.retain(|time, origin| origin.project_generation == project_generation && *time >= first_retained);
     } else {
         origins.clear();
     }

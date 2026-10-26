@@ -276,6 +276,66 @@ try {
 		assert.equal(x, node.position.value[0]);
 	}
 	emit({ kind: 'atomic-readonly-rejection', passed: true });
+	const oldGeneration = (await call('status')).generation;
+	await upload(resolve(evidence, 'fixture.noisette'));
+	await page.waitForFunction(
+		(previous) =>
+			window.alchemistGraphFixture.status().generation > previous &&
+			!window.alchemistGraphFixture.states()[1].readOnly,
+		oldGeneration
+	);
+	await call('holdSnapshotResponse');
+	await page.waitForFunction(() => window.alchemistGraphFixture.status().heldSnapshot !== null);
+	const captured = (await call('status')).heldSnapshot;
+	const traceStart = wire.length;
+	await upload(resolve(evidence, 'readonly.noisette'));
+	const deadline = Date.now() + 10000;
+	while (
+		!wire
+			.slice(traceStart)
+			.some((row) => row.direction === 'framesent' && row.kind === 'unsubscribe')
+	) {
+		assert.ok(
+			Date.now() < deadline,
+			'Replacement did not retire the subscription while the snapshot response was held'
+		);
+		await new Promise((done) => setTimeout(done, 10));
+	}
+	assert.equal(await call('releaseSnapshotResponse'), true);
+	await page.waitForFunction(
+		(old) =>
+			window.alchemistGraphFixture.states()[1].readOnly &&
+			window.alchemistGraphFixture.status().latestSnapshot.project_generation > old,
+		captured.project_generation
+	);
+	const resumed = (await call('status')).latestSnapshot;
+	assert.ok(resumed.project_generation > captured.project_generation);
+	assert.ok(
+		wire
+			.slice(traceStart)
+			.some(
+				(row) =>
+					row.direction === 'framesent' &&
+					row.kind === 'subscribe' &&
+					row.from?.project_generation === captured.project_generation
+			),
+		'The held old snapshot did not exercise stale resubscription'
+	);
+	assert.ok(
+		wire
+			.slice(traceStart)
+			.filter((row) => row.kind === 'resyncRequired' && row.reason === 'project_generation_changed')
+			.length >= 2,
+		'Both active and stale-subscribe lifetimes must request resync'
+	);
+	emit({
+		kind: 'snapshot-subscribe-replacement-overlap',
+		passed: true,
+		captured,
+		resumed,
+		equalEventClocks: JSON.stringify(resumed.at) === JSON.stringify(captured.at),
+		wire: wire.slice(traceStart)
+	});
 	assert.deepEqual(errors, []);
 	emit({ kind: 'result', passed: true, errors });
 } catch (error) {

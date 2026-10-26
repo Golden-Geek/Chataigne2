@@ -360,6 +360,8 @@ pub struct UiSnapshot {
     pub scope: UiSubscriptionScope,
     /// Engine time when snapshot was produced.
     pub at: EngineTime,
+    /// Authoritative project lifetime captured at the same boundary as `at` and the nodes.
+    pub project_generation: u64,
     /// Nodes included in this snapshot.
     pub nodes: Vec<UiNodeDto>,
     /// Schema fragments required by editors.

@@ -751,6 +751,7 @@ fn custom_event_data_plane_uses_explicit_retention_not_topic_text() {
 
 fn observation_message(tick: u64) -> WsOutbound {
     WsOutbound::Message(WsServerMessage::Delta {
+        project_generation: ProjectGeneration::INITIAL.get(),
         subscription_id: "workbench".to_string(),
         deltas: vec![UiPlaneDelta {
             plane: UiDataPlane::Observation,
@@ -787,6 +788,7 @@ fn multi_plane_message(tick: u64) -> WsOutbound {
         events: Vec::new(),
     };
     WsOutbound::Message(WsServerMessage::Delta {
+        project_generation: ProjectGeneration::INITIAL.get(),
         subscription_id: "workbench".to_string(),
         deltas: vec![
             UiPlaneDelta {

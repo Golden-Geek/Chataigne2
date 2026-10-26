@@ -1,7 +1,13 @@
 use super::*;
 use golden_runtime::PendingControl;
 
-type ActorTransaction = (UiAck, UiEventBatch, bool, ApplicationTransactionTiming);
+type ActorTransaction = (
+    ProjectGeneration,
+    UiAck,
+    UiEventBatch,
+    bool,
+    ApplicationTransactionTiming,
+);
 
 /// An actor-admitted batch. No engine acknowledgement exists until completion.
 pub struct PendingUiTransactionBatch {
@@ -18,20 +24,23 @@ impl PendingUiTransactionBatch {
         let transactions = pending
             .into_iter()
             .enumerate()
-            .map(|(index, (acknowledgement, events, preferences_changed, mut timing))| {
-                if index == 0 {
-                    timing.lock_wait = lock_wait;
-                }
-                timing.total = timing
-                    .total
-                    .saturating_add(if index == 0 { lock_wait } else { Duration::ZERO });
-                AppliedUiTransaction {
-                    acknowledgement,
-                    events,
-                    preferences_changed,
-                    timing,
-                }
-            })
+            .map(
+                |(index, (project_generation, acknowledgement, events, preferences_changed, mut timing))| {
+                    if index == 0 {
+                        timing.lock_wait = lock_wait;
+                    }
+                    timing.total = timing
+                        .total
+                        .saturating_add(if index == 0 { lock_wait } else { Duration::ZERO });
+                    AppliedUiTransaction {
+                        project_generation,
+                        acknowledgement,
+                        events,
+                        preferences_changed,
+                        timing,
+                    }
+                },
+            )
             .collect::<Vec<_>>();
         let preferences_changed = transactions.iter().any(|transaction| transaction.preferences_changed);
 
@@ -114,6 +123,7 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
             .inner
             .control.handle()
             .submit(move |state| {
+                let project_generation = read_model.current_project_generation();
                 if state.release_closed_ui_session() || state.release_rebound_ui_session(client.as_ref()) {
                     let before = state.engine.ui_event_log().last().map(|event| event.time);
                     let capture = read_model.collect_event_batch(&mut state.engine, before);
@@ -136,6 +146,7 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
                                 capture,
                             );
                             (
+                                project_generation,
                                 rejected_ack(
                                     &state.engine,
                                     "project_runtime_paused",
@@ -171,6 +182,7 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
                             capture,
                         );
                         pending.push((
+                            project_generation,
                             skipped_after_failed_batch_ack(&state.engine),
                             events,
                             false,
@@ -243,6 +255,7 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
                     }
                     failed |= !acknowledgement.success;
                     pending.push((
+                        project_generation,
                         acknowledgement,
                         events,
                         preferences_changed,

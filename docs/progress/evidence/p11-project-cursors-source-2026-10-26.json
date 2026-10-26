@@ -1,0 +1,240 @@
+{
+  "baseCommit": "39f3536c255c72cb2ef383c3f7f1422d40b8b910",
+  "scope": "P11 project-generation cursors close unsubscribe/snapshot/re-subscribe replacement overlap, replay/frame/origin fencing and malformed read completion. P11 remains 4/6, whole plan 59%.",
+  "machine": {
+    "os": "10.0.26300.0",
+    "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+    "logicalProcessors": 24,
+    "node": "v26.5.0",
+    "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+    "browser": "156.0.4314.42"
+  },
+  "startingCheckout": "Reconciled in-progress cursor milestone on main against origin/main at baseCommit; no unrelated edits.",
+  "source": {
+    "apps/chataigne/systems/alchemist/integration/formula/operations/tests/layout/native.rs": "f8a2761797ef6042e4cf8f57c921cbbe01fb76843230f9794174462948dc5e5c",
+    "apps/chataigne/systems/state_machine/integration/state/authoring/tests/native.rs": "d0cb9fe680d25ffeea6775abbbb9e243fd53cad4311f4a91f6b1f8cf3ad4d395",
+    "apps/chataigne/ui/src/lib/systems/alchemist/tests/fixtures/clipboardSession.ts": "da47ec9f0e09e8ae6a38cbe838cf2f6cd1c9beff5bed284c1356a9a950331291",
+    "apps/chataigne/ui/src/lib/tests/fixtures/websocket.ts": "75cadbae4a3bd070a10d43cb04e5ea3491f9c3da2877c260e7b9d36668002cae",
+    "apps/chataigne/ui/src/lib/tests/fixtures/workbench-graph.ts": "08d6a52b1419283557f9026e2f9148590e664a2da3c7d18e204af6f956bc5e07",
+    "apps/chataigne/ui/src/lib/tests/graphStore.test.ts": "43b2799404117fe217a21f55f7f3f17fd601f4abc4774b89ff0b27c39ad68a4d",
+    "apps/chataigne/ui/src/lib/tests/webSocketBatchScheduling.test.ts": "c047d710bdca8af9a118db84a4f5664f7e5b989c76ce9315fc56e8193c055d6d",
+    "apps/chataigne/ui/src/lib/tests/webSocketProjectGeneration.test.ts": "193627e78315169ec246d336f2d1f32cd2e8b0b3f74d60d05e06c16f3f7d904e",
+    "apps/chataigne/ui/src/lib/tests/webSocketResyncBarrier.test.ts": "30aca876d7e5b157c895b2c4cc8f41cdd38ecf8e23c11631013953c7a5924595",
+    "apps/chataigne/ui/src/lib/tests/workbenchIntentActivity.test.ts": "9816dee797e0387f4c1327e47b58ddce33717c889d97c540b8c017014f79ea90",
+    "apps/chataigne/ui/tests/browser/alchemist-graph-fixture/AlchemistGraph.svelte": "8c4b0fc5a68c092d198606309350c9e5e6eb88654eabbfc20432efbde8b41562",
+    "apps/chataigne/ui/tests/browser/alchemist-graph-native.mjs": "cd8240112c1f169ba34633f1e2b059487bc9f8cddc59a5b9b795f8d4e0820a17",
+    "crates/golden_core/engine/src/application.rs": "ee5c7e2b1b1bd94af136fca5023d8717c92450b5b4ce28e2bc3a33a562aff76c",
+    "crates/golden_core/engine/src/application/transactions.rs": "64086f148f1bd5f459f236f112087e7ca40daf73f22212b722561a97964f9be6",
+    "crates/golden_core/engine/src/ui_read_model.rs": "750c7d64281d03d1f438e356cb84e00bfc1019cc9aeb97018b380e0086882b37",
+    "crates/golden_core/engine/src/ui_read_model/projection.rs": "8d1fbc3f59e31430c43d1af8a680e1519d6bc6c51c517a6bafdb528e78a4d806",
+    "crates/golden_core/engine/src/ui_sync/snapshot.rs": "05159a0af8ef04716435233d4fed274e6255aa1f81f6389914dc5b9ffd6fcb17",
+    "crates/golden_core/hosts/transport/src/ui_server/delivery.rs": "2da89d91c22d04d15dafe0cd1041a2f209e025693d0a0dd828316e8deea12f66",
+    "crates/golden_core/hosts/transport/src/ui_server/http.rs": "c6c93c5f601504193ea308b6dd5500003dbfe3760a15e05b56588d8d043d075d",
+    "crates/golden_core/hosts/transport/src/ui_server/hub.rs": "59ad01bd2d4a84795c59b5f34f8f4188728f180c93b66e86d2514e343073f4c8",
+    "crates/golden_core/hosts/transport/src/ui_server/mod.rs": "700a12b90f8fcdca6bc8c28d58591a0f1c9ca74ab3b92ed767a4382eaf6af8da",
+    "crates/golden_core/hosts/transport/src/ui_server/outbound_queue.rs": "44edb61240946f1cf59f7d7b8fa6e6358ef66f53bfd844464455a67eaae07cb7",
+    "crates/golden_core/hosts/transport/src/ui_server/tests/mod.rs": "bfc14837386dd312a6e2d49ad887c731a0e792676f619c23977cee930332fa26",
+    "crates/golden_core/hosts/transport/src/ui_server/tests/project_generation.rs": "69599ae755f1301c4199fed95cdfe61b4e919a250d22deeeef090a0d7fbf02b2",
+    "crates/golden_core/services/protocol/src/types/message.rs": "e2db3a003b9c8cd269a9709598256469ad94d7b9eb1907e6fb5784008cc3b038",
+    "crates/golden_core/services/protocol/src/types/snapshot.rs": "36f859ab453cbfe0d1ee998172e78e4c66f07df64efbd085b4d5eec0fded1391",
+    "crates/golden_core/support/codegen/src/lib.rs": "7943bed3d76ff00f7c10848591f57ad56b220fdd949919a937568b5c49fca4d5",
+    "packages/golden-ui/generated/rust_protocol/UiClientMessage.ts": "5ca1d75e8bb7f4fdf55b0c0d4825e00ecbb52bedf3b7c19b1bdd755b41efb546",
+    "packages/golden-ui/generated/rust_protocol/UiReplayCursor.ts": "5c80c6a278af43586dec87a3397d5a834807e5b89cab4bca66f66cc2e7172126",
+    "packages/golden-ui/generated/rust_protocol/UiReplayRequest.ts": "cb080fdd042da503da64da23d08f134d8ad41f54aa1cee53b26ff0c246c0cf9a",
+    "packages/golden-ui/generated/rust_protocol/UiReplayResponse.ts": "c93f464a628b79cb7ddb436a8f7bf721ff37451584bdce7b04eef37f7f7091c0",
+    "packages/golden-ui/generated/rust_protocol/UiServerMessage.ts": "15ed7aefb45d9fb70c11db818e6a0466d2a41871052314a34ffbd45217a07817",
+    "packages/golden-ui/generated/rust_protocol/UiSnapshot.ts": "244d1fbe2db05c4c8dcd444886c4d126c70fd7c2db01d03bdef109d66f1831b6",
+    "packages/golden-ui/generated/rust_protocol/protocol-version.ts": "485e5546c055f4eed4724b988504c789ed8b964dba81d28bb769c3cbbb32c904",
+    "packages/golden-ui/package.json": "00e1a86c582888e63d927f2bf59146c56061a9858090b54ce84f0836b0fb450e",
+    "packages/golden-ui/store/session/snapshots.ts": "a4f19c3a51e71c91ef03fd55cf3defde4a484f09d671ec00738feccf3202548b",
+    "packages/golden-ui/store/workbench.svelte.ts": "f6d1d08a35082d343faad663a933e505fc0fdf850386590947b3e75c41bdbaae",
+    "packages/golden-ui/tests/browser/fixture/session.ts": "05a63b07a289d46d19a5d512eacbb743a9aef8cfba5ef1734d873bbe4025b9bc",
+    "packages/golden-ui/transport/codecs/documents.ts": "654c9659976178e0925ec66b038d0fd93aff026437ba3c5821b76ef24ea0a969",
+    "packages/golden-ui/transport/index.ts": "6220a7f0d99f3b4386f946d4693b14bd4b7abe9d64bc0eb890b6e19c9407df05",
+    "packages/golden-ui/transport/replay-cursor.ts": "46ffef6dc6c8e7976dd680d2ad51faf150cf0e2fbf6605a96c0101ac0f5e7988",
+    "packages/golden-ui/transport/subscription-resync.ts": "7ab3071b7787052f948e69ecda84d6bc048edeb0d7326c752c083f0c745f6df8",
+    "packages/golden-ui/transport/tests/subscription-resync.test.ts": "68924a02965df6d9da519c4dd71e97cdc71039651b21a96be72c7c835ddcbdc4",
+    "packages/golden-ui/transport/ws-contracts.ts": "20dac1a1f85f5391353fdafa334aec7e4050d841047474efe776968c558ee33e",
+    "packages/golden-ui/transport/ws-reads.ts": "4e667129649670454386abe4ecd2f05b995f263ba9198dca507f9c1b15d5f3d3",
+    "packages/golden-ui/transport/ws.ts": "56c4e7517e5ac2e3d12b15997ad67f3561a90ed657cbbe792903fea5dd505a15",
+    "packages/golden-ui/types.ts": "cfec9f8b5835fae3dadfa6522b14f7b40e77693d3f4eb1069c2b5ff0f2c56187",
+    "tools/qualification/transport_probe.mjs": "e403f3a749624c3a0af2ea63492734066f3e8182ad07c4a7fa5584f2bac89b42"
+  },
+  "binary": {
+    "path": "target/debug/Chataigne2.exe",
+    "sha256": "7f3295794714cd31b9ba61a4d7c9ad578353c5091739bedfd4babfee359c635a",
+    "defaultFeatures": true,
+    "buildSeconds": 263,
+    "env": {
+      "CARGO_INCREMENTAL": "0"
+    }
+  },
+  "testHarness": {
+    "path": "target/debug/deps/Chataigne2-ced3d8e859f387bc.exe",
+    "sha256": "5de9193416e945c950cc91cacd1a589e53d43d49d41dd8a352ff9c4e7fe66299",
+    "note": "Rebuilt for protocol 0.12. Native children use the exact final default executable above. Last subsequent Rust edit strengthened only a host unit test."
+  },
+  "fixtureAssets": {
+    "alchemist": [
+      {
+        "name": "dmsans-italic-CT59GZwy.ttf",
+        "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+      },
+      {
+        "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+        "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+      },
+      {
+        "name": "index-BcDHm3O_.css",
+        "sha256": "ac8f9e764ed59d598f1f85a970dc64508ca2030b743f344ac6e6e895c18cd541"
+      },
+      {
+        "name": "index-CM9Q3J5j.js",
+        "sha256": "f746e26e38d052ff1694f205a926326aa4636aa6750bddcca340233b4e180b0b"
+      }
+    ],
+    "state": [
+      {
+        "name": "dmsans-italic-CT59GZwy.ttf",
+        "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+      },
+      {
+        "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+        "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+      },
+      {
+        "name": "index-BCbCKeYs.js",
+        "sha256": "bee2cbaa600af7f80490eedfa069f159644af86fdf87c6b568038dbded25e2c1"
+      },
+      {
+        "name": "index-BOCNUsmX.css",
+        "sha256": "da08f9dca04e5acc6ea95f8000772564dd6aa802e97fd03f01017bf1c034213a"
+      }
+    ]
+  },
+  "fixtureScope": {
+    "alchemistAnodes": 2,
+    "authoredNodesBeforeConnection": 45,
+    "authoredNodesAfterConnection": 50,
+    "note": "Small correctness fixture; actual-app scale remains open."
+  },
+  "checks": [
+    {
+      "command": "cargo test --locked -p golden_engine --lib",
+      "passed": 634,
+      "ignored": 3,
+      "failed": 0
+    },
+    {
+      "command": "cargo test --locked -p golden_protocol",
+      "passed": 3,
+      "failed": 0
+    },
+    {
+      "command": "cargo test --locked -p golden_transport_server --lib",
+      "passed": 81,
+      "ignored": 1,
+      "failed": 0,
+      "note": "Final rerun includes leaving the transaction receipt unread until after replacement."
+    },
+    {
+      "command": "cargo test --locked -p golden_transport_server --test public_headless_host",
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "command": "direct app test harness systems_alchemist_formula::operations --skip native --nocapture",
+      "passed": 24,
+      "ignored": 2,
+      "failed": 0
+    },
+    {
+      "command": "npm test",
+      "passed": 425,
+      "workspaces": {
+        "golden_audio_ui": 27,
+        "golden_graph_ui": 58,
+        "golden_ui": 193,
+        "chataigne-ui": 147
+      }
+    },
+    {
+      "command": "npm run check --workspace chataigne-ui",
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "command": "npm run check:browser:graphs --workspace chataigne-ui",
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "command": "golden_codegen ui-protocol target/qualification/p11-replay-codegen; compare seven changed raw ts-rs bindings",
+      "files": 7,
+      "match": true,
+      "note": "Only platform line endings normalized for comparison; generated declarations are not Prettier-formatted."
+    },
+    {
+      "command": "cargo clippy --locked -p Chataigne2 --all-targets -- -D warnings",
+      "exitCode": 0,
+      "durationSeconds": 111
+    },
+    {
+      "command": "cargo build --locked",
+      "exitCode": 0,
+      "durationSeconds": 263
+    },
+    {
+      "command": "direct app test harness formula_graph_native_browser_adapter --ignored --nocapture",
+      "passed": 1,
+      "correctnessGroups": 5,
+      "failed": 0,
+      "report": "docs/progress/evidence/p11-project-cursors-native-2026-10-26.jsonl"
+    },
+    {
+      "command": "direct app test harness state_graph_authoring_native_browser_adapter --ignored --nocapture",
+      "passed": 1,
+      "correctnessGroups": 4,
+      "failed": 0,
+      "report": "docs/progress/evidence/p11-project-cursors-state-regression-2026-10-26.jsonl"
+    },
+    {
+      "command": "direct app test harness systems_alchemist_formula::operations::tests::transport --ignored --nocapture",
+      "passed": 2,
+      "failed": 0,
+      "cases": [
+        "real_http_websocket_and_embedded_script_share_formula_operations",
+        "real_selection_drag_delete_undo_redo_preserves_geometry_edges_and_identities"
+      ]
+    },
+    {
+      "command": "cargo fmt --all; cargo fmt --manifest-path crates/golden_core/Cargo.toml --all",
+      "exitCode": 0
+    },
+    {
+      "command": "Repository UI Prettier --check; git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "preservedNativeFailure": {
+    "report": "docs/progress/evidence/p11-project-cursors-native-failure-2026-10-26.jsonl",
+    "note": "Recovery succeeded, but the harness incorrectly required equal native load clocks (tick 2 versus tick 1/seq 5). Final native gate requires stale subscribe rejection/recovery for any clock; deterministic host tests retain equal-time coverage."
+  },
+  "firstNativePass": {
+    "report": "docs/progress/evidence/p11-project-cursors-native-first-pass-2026-10-26.jsonl",
+    "equalEventClocks": true,
+    "note": "Earlier default executable; same production fixture asset hashes as final. Final native run independently passes with a reset clock."
+  },
+  "inventory": {
+    "sources": 2235,
+    "oversized": 26,
+    "readModelLines": 993,
+    "webSocketClientLines": 962,
+    "workbenchFacadeLines": 981
+  },
+  "remaining": [
+    "Spatializer actual custom-world/empty-document integration.",
+    "Actual-app scale and complete composed workflows under the existing two open P11 checkpoints.",
+    "Native physical usability remains P17; product throughput P16; full P00-P18 goal remains active."
+  ]
+}

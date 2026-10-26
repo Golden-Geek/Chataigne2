@@ -144,6 +144,7 @@ export function createFixtureSession() {
 			}
 		}
 		snapshot = {
+			project_generation: 1,
 			protocol_version: UI_PROTOCOL_VERSION,
 			scope: wholeGraphScope,
 			at: { tick: 0, micro: 0, seq: 0 },

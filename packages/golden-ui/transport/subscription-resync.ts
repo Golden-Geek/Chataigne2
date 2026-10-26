@@ -1,10 +1,12 @@
 import type { UiDataPlane } from '../generated/rust_protocol/UiDataPlane';
-import type { EventTime, UiSubscriptionScope } from '../types';
+import type { EventTime, UiReplayCursor, UiSubscriptionScope } from '../types';
 import type { StagedFrameBatchScheduler } from './staged-frame-batches';
+import { projectGeneration } from './replay-cursor';
 
 export interface SubscriptionResyncState {
 	scope: UiSubscriptionScope;
 	cursor?: EventTime;
+	projectGeneration?: number;
 	closed: boolean;
 	stagedFrames: StagedFrameBatchScheduler;
 	subscribedSocketGeneration: number | null;
@@ -23,7 +25,7 @@ interface SubscriptionResyncCoordinatorOptions<TState extends SubscriptionResync
 		scope: UiSubscriptionScope,
 		plane: UiDataPlane | undefined,
 		reason: string
-	) => EventTime | Promise<EventTime>;
+	) => UiReplayCursor | Promise<UiReplayCursor>;
 	sendSubscribe(subscriptionId: string, state: TState, generation: number): void;
 	sendUnsubscribe(subscriptionId: string, generation: number): void;
 }
@@ -84,7 +86,8 @@ export const createSubscriptionResyncCoordinator = <TState extends SubscriptionR
 					return;
 				}
 				state.stagedFrames.reset();
-				state.cursor = boundary;
+				state.cursor = { ...boundary.at };
+				state.projectGeneration = projectGeneration(boundary.project_generation);
 				state.resyncing = false;
 				state.resyncPlane = undefined;
 				state.resyncReason = '';

@@ -198,6 +198,7 @@ impl<T: Node> Engine<T> {
         declared_descriptions.sort_by(|left, right| left.key.cmp(&right.key));
 
         UiSnapshot {
+            project_generation: crate::app::ProjectGeneration::INITIAL.get(),
             protocol_version: UI_PROTOCOL_VERSION.to_string(),
             scope,
             at: self.time,

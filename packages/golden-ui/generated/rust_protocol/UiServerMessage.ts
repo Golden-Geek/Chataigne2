@@ -31,6 +31,10 @@ request_id: string,
  */
 snapshot: UiSnapshot, } | { "kind": "replay",
 /**
+ * Project lifetime shared by the replay events.
+ */
+project_generation: number,
+/**
  * Matching client request identifier.
  */
 request_id: string,
@@ -38,6 +42,10 @@ request_id: string,
  * Requested replay batch.
  */
 batch: UiEventBatch, } | { "kind": "delta",
+/**
+ * Project lifetime shared by all planes in this envelope.
+ */
+project_generation: number,
 /**
  * Matching client subscription identifier.
  */

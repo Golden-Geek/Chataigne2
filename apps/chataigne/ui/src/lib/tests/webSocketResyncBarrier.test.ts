@@ -1,53 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createWebSocketUiClient } from '../../../../../../packages/golden-ui/transport/ws';
-import { testSessionProvider } from '../../../../../../packages/golden-ui/transport/tests/fixtures/session';
-import type {
-	EventTime,
-	UiAck,
-	UiControlLifecycle,
-	UiEventBatch
-} from '../../../../../../packages/golden-ui/types';
+import { createWebSocketUiClient } from 'golden_ui/transport/ws';
+import { testSessionProvider } from 'golden_ui/testing/transport';
+import type { EventTime, UiAck, UiControlLifecycle, UiEventBatch } from 'golden_ui/types';
 
-class FakeWebSocket {
-	static readonly CONNECTING = 0;
-	static readonly OPEN = 1;
-	static readonly CLOSING = 2;
-	static readonly CLOSED = 3;
-	static instances: FakeWebSocket[] = [];
-
-	readonly sent: string[] = [];
-	readyState = FakeWebSocket.CONNECTING;
-	onopen: (() => void) | null = null;
-	onmessage: ((event: { data: string }) => void) | null = null;
-	onerror: (() => void) | null = null;
-	onclose: (() => void) | null = null;
-
-	constructor(readonly url: string | URL) {
-		FakeWebSocket.instances.push(this);
-	}
-
-	send(data: string | ArrayBufferLike | Blob | ArrayBufferView): void {
-		this.sent.push(String(data));
-	}
-
-	open(): void {
-		this.readyState = FakeWebSocket.OPEN;
-		this.onopen?.();
-	}
-
-	close(): void {
-		this.readyState = FakeWebSocket.CLOSED;
-		this.onclose?.();
-	}
-
-	emitStaleClose(): void {
-		this.onclose?.();
-	}
-
-	receive(message: unknown): void {
-		this.onmessage?.({ data: JSON.stringify(message) });
-	}
-}
+import { FakeWebSocket } from './fixtures/websocket';
 
 interface SentMessage {
 	kind: string;
@@ -57,6 +13,7 @@ interface SentMessage {
 }
 
 const time = (tick: number): EventTime => ({ tick, micro: 0, seq: 0 });
+const cursor = (at: EventTime) => ({ project_generation: 1, at });
 
 const deferred = <T>() => {
 	let resolve!: (value: T) => void;
@@ -95,6 +52,7 @@ const receiveDelta = (
 	ids: number[]
 ): void => {
 	socket.receive({
+		project_generation: 1,
 		kind: 'delta',
 		subscription_id: subscriptionId,
 		deltas: [
@@ -160,18 +118,18 @@ describe('websocket resync and socket-generation barriers', () => {
 	};
 
 	it('drops staged and in-flight deltas until the exact snapshot boundary is resumed', async () => {
-		const snapshots: Array<ReturnType<typeof deferred<EventTime>>> = [];
+		const snapshots: Array<ReturnType<typeof deferred<ReturnType<typeof cursor>>>> = [];
 		const applied: UiEventBatch[] = [];
 		const client = createWebSocketUiClient({
 			sessionProvider: testSessionProvider,
 			webSocketImpl: FakeWebSocket as unknown as typeof WebSocket,
 			onResyncRequired: () => {
-				const snapshot = deferred<EventTime>();
+				const snapshot = deferred<ReturnType<typeof cursor>>();
 				snapshots.push(snapshot);
 				return snapshot.promise;
 			}
 		});
-		const unsubscribe = client.subscribe({ kind: 'wholeGraph' }, time(0), (batch) =>
+		const unsubscribe = client.subscribe({ kind: 'wholeGraph' }, cursor(time(0)), (batch) =>
 			applied.push(batch)
 		);
 		await flushMicrotasks();
@@ -208,11 +166,11 @@ describe('websocket resync and socket-generation barriers', () => {
 		runAllFrames();
 		expect(applied.flatMap((batch) => batch.events)).toHaveLength(512);
 
-		snapshots[0].resolve(time(2_000));
+		snapshots[0].resolve(cursor(time(2_000)));
 		await flushMicrotasks();
 		const resumed = messages(socket, 'subscribe');
 		expect(resumed).toHaveLength(2);
-		expect(resumed[1].from).toEqual(time(2_000));
+		expect(resumed[1].from).toEqual(cursor(time(2_000)));
 
 		receiveDelta(socket, subscriptionId, time(2_000), [2_001]);
 		runAllFrames();
@@ -227,14 +185,14 @@ describe('websocket resync and socket-generation barriers', () => {
 	});
 
 	it('coalesces repeated resync requests into one snapshot and one resume subscription', async () => {
-		const snapshot = deferred<EventTime>();
+		const snapshot = deferred<ReturnType<typeof cursor>>();
 		const onResyncRequired = vi.fn(() => snapshot.promise);
 		const client = createWebSocketUiClient({
 			sessionProvider: testSessionProvider,
 			webSocketImpl: FakeWebSocket as unknown as typeof WebSocket,
 			onResyncRequired
 		});
-		const unsubscribe = client.subscribe({ kind: 'wholeGraph' }, time(0), () => undefined);
+		const unsubscribe = client.subscribe({ kind: 'wholeGraph' }, cursor(time(0)), () => undefined);
 		await flushMicrotasks();
 		const socket = FakeWebSocket.instances[0];
 		if (!socket) {
@@ -259,25 +217,25 @@ describe('websocket resync and socket-generation barriers', () => {
 		expect(onResyncRequired).toHaveBeenCalledTimes(1);
 		expect(messages(socket, 'unsubscribe')).toHaveLength(1);
 
-		snapshot.resolve(time(50));
+		snapshot.resolve(cursor(time(50)));
 		await flushMicrotasks();
 		expect(messages(socket, 'subscribe')).toHaveLength(2);
-		expect(messages(socket, 'subscribe')[1].from).toEqual(time(50));
+		expect(messages(socket, 'subscribe')[1].from).toEqual(cursor(time(50)));
 		unsubscribe();
 	});
 
 	it('invalidates an old resync completion and restarts the barrier after reconnect', async () => {
-		const snapshots: Array<ReturnType<typeof deferred<EventTime>>> = [];
+		const snapshots: Array<ReturnType<typeof deferred<ReturnType<typeof cursor>>>> = [];
 		const client = createWebSocketUiClient({
 			sessionProvider: testSessionProvider,
 			webSocketImpl: FakeWebSocket as unknown as typeof WebSocket,
 			onResyncRequired: () => {
-				const snapshot = deferred<EventTime>();
+				const snapshot = deferred<ReturnType<typeof cursor>>();
 				snapshots.push(snapshot);
 				return snapshot.promise;
 			}
 		});
-		const unsubscribe = client.subscribe({ kind: 'wholeGraph' }, time(0), () => undefined);
+		const unsubscribe = client.subscribe({ kind: 'wholeGraph' }, cursor(time(0)), () => undefined);
 		await flushMicrotasks();
 		const firstSocket = FakeWebSocket.instances[0];
 		if (!firstSocket) {
@@ -310,14 +268,14 @@ describe('websocket resync and socket-generation barriers', () => {
 		expect(snapshots).toHaveLength(2);
 		expect(messages(secondSocket, 'subscribe')).toHaveLength(0);
 
-		snapshots[0].resolve(time(40));
+		snapshots[0].resolve(cursor(time(40)));
 		await flushMicrotasks();
 		expect(messages(secondSocket, 'subscribe')).toHaveLength(0);
 
-		snapshots[1].resolve(time(60));
+		snapshots[1].resolve(cursor(time(60)));
 		await flushMicrotasks();
 		expect(messages(secondSocket, 'subscribe')).toHaveLength(1);
-		expect(messages(secondSocket, 'subscribe')[0].from).toEqual(time(60));
+		expect(messages(secondSocket, 'subscribe')[0].from).toEqual(cursor(time(60)));
 		unsubscribe();
 	});
 
@@ -327,7 +285,7 @@ describe('websocket resync and socket-generation barriers', () => {
 			sessionProvider: testSessionProvider,
 			webSocketImpl: FakeWebSocket as unknown as typeof WebSocket
 		});
-		const unsubscribe = client.subscribe({ kind: 'wholeGraph' }, time(0), () => undefined);
+		const unsubscribe = client.subscribe({ kind: 'wholeGraph' }, cursor(time(0)), () => undefined);
 		await flushMicrotasks();
 		const firstSocket = FakeWebSocket.instances[0];
 		if (!firstSocket) {
@@ -378,7 +336,7 @@ describe('websocket resync and socket-generation barriers', () => {
 			sessionProvider: testSessionProvider,
 			webSocketImpl: FakeWebSocket as unknown as typeof WebSocket
 		});
-		const unsubscribe = client.subscribe({ kind: 'wholeGraph' }, time(0), () => undefined);
+		const unsubscribe = client.subscribe({ kind: 'wholeGraph' }, cursor(time(0)), () => undefined);
 		await flushMicrotasks();
 		const firstSocket = FakeWebSocket.instances[0];
 		if (!firstSocket) {
@@ -404,14 +362,14 @@ describe('websocket resync and socket-generation barriers', () => {
 	});
 
 	it('requests a coordinated snapshot instead of dropping an overflowing reliable backlog', async () => {
-		const onResyncRequired = vi.fn(() => time(9_000));
+		const onResyncRequired = vi.fn(() => cursor(time(9_000)));
 		const applied: UiEventBatch[] = [];
 		const client = createWebSocketUiClient({
 			sessionProvider: testSessionProvider,
 			webSocketImpl: FakeWebSocket as unknown as typeof WebSocket,
 			onResyncRequired
 		});
-		const unsubscribe = client.subscribe({ kind: 'wholeGraph' }, time(0), (batch) =>
+		const unsubscribe = client.subscribe({ kind: 'wholeGraph' }, cursor(time(0)), (batch) =>
 			applied.push(batch)
 		);
 		await flushMicrotasks();
@@ -427,6 +385,7 @@ describe('websocket resync and socket-generation barriers', () => {
 		}
 
 		socket.receive({
+			project_generation: 1,
 			kind: 'delta',
 			subscription_id: subscriptionId,
 			deltas: [
@@ -460,19 +419,21 @@ describe('websocket resync and socket-generation barriers', () => {
 			'staged_backlog_overflow'
 		);
 		expect(messages(socket, 'subscribe')).toHaveLength(2);
-		expect(messages(socket, 'subscribe')[1].from).toEqual(time(9_000));
+		expect(messages(socket, 'subscribe')[1].from).toEqual(cursor(time(9_000)));
 		unsubscribe();
 	});
 
 	it('lets a batch consumer invalidate only its subscription before the cursor commits', async () => {
-		const onResyncRequired = vi.fn(() => time(100));
+		const onResyncRequired = vi.fn(() => cursor(time(100)));
 		const client = createWebSocketUiClient({
 			sessionProvider: testSessionProvider,
 			webSocketImpl: FakeWebSocket as unknown as typeof WebSocket,
 			onResyncRequired
 		});
-		const unsubscribe = client.subscribe({ kind: 'wholeGraph' }, time(0), (_batch, control) =>
-			control?.requestResync('graph_projection_invalidated')
+		const unsubscribe = client.subscribe(
+			{ kind: 'wholeGraph' },
+			cursor(time(0)),
+			(_batch, control) => control?.requestResync('graph_projection_invalidated')
 		);
 		await flushMicrotasks();
 		const socket = FakeWebSocket.instances[0];
@@ -497,7 +458,7 @@ describe('websocket resync and socket-generation barriers', () => {
 		);
 		expect(messages(socket, 'unsubscribe')).toHaveLength(1);
 		expect(messages(socket, 'subscribe')).toHaveLength(2);
-		expect(messages(socket, 'subscribe')[1].from).toEqual(time(100));
+		expect(messages(socket, 'subscribe')[1].from).toEqual(cursor(time(100)));
 		unsubscribe();
 	});
 });

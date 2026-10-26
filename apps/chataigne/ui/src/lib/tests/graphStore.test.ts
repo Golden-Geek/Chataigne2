@@ -56,6 +56,7 @@ const parameterNode = (): UiNodeDto => ({
 
 const snapshot = (): UiSnapshot =>
 	({
+		project_generation: 1,
 		protocol_version: UI_PROTOCOL_VERSION,
 		scope: { kind: 'wholeGraph' },
 		at: eventTime(0),

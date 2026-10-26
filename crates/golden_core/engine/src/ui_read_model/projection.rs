@@ -64,6 +64,7 @@ fn snapshot_header_from_projection(projection: &ProjectionCapture, scope: UiSubs
         protocol_version: UI_PROTOCOL_VERSION.to_string(),
         scope,
         at: projection.header.at,
+        project_generation: projection.header.project_generation.get(),
         nodes: Vec::new(),
         schema: projection.schema.as_ref().clone(),
         history: projection.header.history.clone(),

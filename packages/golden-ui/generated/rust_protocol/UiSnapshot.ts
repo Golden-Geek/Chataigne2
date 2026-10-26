@@ -25,6 +25,10 @@ scope: UiSubscriptionScope,
  */
 at: EngineTime,
 /**
+ * Authoritative project lifetime captured at the same boundary as `at` and the nodes.
+ */
+project_generation: number,
+/**
  * Nodes included in this snapshot.
  */
 nodes: Array<UiNodeDto>,

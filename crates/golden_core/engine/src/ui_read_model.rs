@@ -271,6 +271,40 @@ impl UiReadModel {
             .project_generation
     }
 
+    /// Returns a coherent replay boundary without materializing projection nodes.
+    pub fn current_cursor(&self) -> crate::ui_sync::UiReplayCursor {
+        let projection = self.projection.read().expect("ui read model poisoned");
+        crate::ui_sync::UiReplayCursor {
+            project_generation: projection.header.project_generation.get(),
+            at: projection.header.at,
+        }
+    }
+
+    /// Replays within one project lifetime without holding publication across scope filtering.
+    pub fn replay_from_cursor(
+        &self,
+        from: Option<crate::ui_sync::UiReplayCursor>,
+        scope: UiSubscriptionScope,
+    ) -> crate::ui_sync::UiReplayResponse {
+        let before = self.current_cursor();
+        let stale = |current: crate::ui_sync::UiReplayCursor| crate::ui_sync::UiReplayResponse {
+            project_generation: current.project_generation,
+            batch: make_resync_event_batch(from.map(|cursor| cursor.at), current.at, "project_generation_changed"),
+        };
+        if from.is_some_and(|cursor| cursor.project_generation != before.project_generation) {
+            return stale(before);
+        }
+        let batch = self.replay(from.map(|cursor| cursor.at), scope);
+        let after = self.current_cursor();
+        if before.project_generation != after.project_generation {
+            return stale(after);
+        }
+        crate::ui_sync::UiReplayResponse {
+            project_generation: before.project_generation,
+            batch,
+        }
+    }
+
     /// Returns current host-owned project metadata without materializing a snapshot.
     pub fn current_project_file(&self) -> UiProjectFileSpec {
         self.projection
@@ -311,7 +345,9 @@ impl UiReadModel {
         T: Node,
         P: Into<UiProjectFileSpec>,
     {
-        let snapshot = Arc::new(snapshot_from_engine(engine, project_file.into()));
+        let mut snapshot = snapshot_from_engine(engine, project_file.into());
+        snapshot.project_generation = project_generation.get();
+        let snapshot = Arc::new(snapshot);
         let at = snapshot.at;
         let latest_event_time = engine.ui_event_log().last().map(|event| event.time);
         let nodes = nodes_to_store(&snapshot.nodes);

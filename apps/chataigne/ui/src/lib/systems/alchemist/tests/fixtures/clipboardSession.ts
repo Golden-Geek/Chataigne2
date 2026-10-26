@@ -1,6 +1,6 @@
 import { createWorkbenchSession } from 'golden_ui/store/workbench.svelte';
 import { UI_PROTOCOL_VERSION } from 'golden_ui/generated/rust_protocol/protocol-version.ts';
-import type { UiAck, UiClient, UiEventBatch, UiNodeDto, UiSnapshot } from 'golden_ui';
+import type { UiAck, UiClient, UiTransportBatch, UiNodeDto, UiSnapshot } from 'golden_ui';
 
 export const clipboardNode = (node_id: number, uuid: string): UiNodeDto => ({
 	node_id,
@@ -39,10 +39,11 @@ export const clipboardSession = async () => {
 	const ack = new Promise<UiAck>((resolve) => {
 		respond = resolve;
 	});
-	let onBatch!: (batch: UiEventBatch) => void;
+	let onBatch!: (batch: UiTransportBatch) => void;
 	let seq = 0;
 	const children: number[] = [];
 	let snapshot: UiSnapshot = {
+		project_generation: 1,
 		protocol_version: UI_PROTOCOL_VERSION,
 		scope: { kind: 'wholeGraph' },
 		at: time(0),
@@ -61,7 +62,7 @@ export const clipboardSession = async () => {
 	};
 	const client = {
 		snapshot: async () => snapshot,
-		subscribe(_scope: unknown, _from: unknown, listener: (batch: UiEventBatch) => void) {
+		subscribe(_scope: unknown, _from: unknown, listener: (batch: UiTransportBatch) => void) {
 			onBatch = listener;
 			subscribed();
 			return () => {};
@@ -89,6 +90,7 @@ export const clipboardSession = async () => {
 			children.push(node.node_id);
 			const from = seq++;
 			onBatch({
+				project_generation: snapshot.project_generation,
 				from: time(from),
 				to: time(seq),
 				events: [

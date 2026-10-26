@@ -91,6 +91,8 @@ pub struct ApplicationTransactionTiming {
 /// Result of one UI transaction applied through the production facade.
 #[derive(Clone, Debug)]
 pub struct AppliedUiTransaction {
+    /// Project lifetime captured by the authoritative actor turn, independent of response timing.
+    pub project_generation: ProjectGeneration,
     /// Authoritative transaction acknowledgement.
     pub acknowledgement: UiAck,
     /// Immutable observation delta published in the same ordered control-actor turn as the mutation.

@@ -15,7 +15,7 @@ import type {
 	UiNodeDto,
 	UiClient,
 	UiEditIntent,
-	UiEventBatch,
+	UiTransportBatch,
 	UiRuntimeStats,
 	UiLogRecord,
 	UiAck,
@@ -256,6 +256,7 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 	let mountedCleanup: (() => void) | null = null;
 	let hasLoadedSnapshot = false;
 	let snapshotGeneration = $state(0);
+	let projectGeneration: number | null = null;
 	let connectionState: UiTransportConnectionState = 'connecting';
 	let engineHz = $state<number | null>(null);
 	let runtimeStats = $state<UiRuntimeStats | null>(null);
@@ -402,6 +403,7 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 	};
 
 	const applySnapshotToState = (snapshot: UiSnapshot): void => {
+		projectGeneration = snapshot.project_generation;
 		editOperations.reset();
 		userActions.resetEventBoundary(snapshot.at);
 		graph.loadSnapshot(snapshot);
@@ -457,10 +459,16 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 	});
 
 	const applyBatch = (
-		batch: UiEventBatch,
+		batch: UiTransportBatch,
 		subscriptionControl?: UiSubscriptionBatchControl
 	): void => {
 		const applyStartedAt = nowMs();
+		if (batch.project_generation !== projectGeneration) {
+			if (projectGeneration !== null && batch.project_generation < projectGeneration) return;
+			if (subscriptionControl) subscriptionControl.requestResync('project_generation_changed');
+			else void snapshots.resync();
+			return;
+		}
 		if (batch.runtime) {
 			engineHz = batch.runtime.engine_hz;
 			runtimeStats = batch.runtime;
@@ -769,13 +777,18 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 						'workbench',
 						scope,
 						['structure', 'value', 'trigger', 'observation', 'catalog', 'preview'],
-						snapshot.at,
+						{ at: snapshot.at, project_generation: snapshot.project_generation },
 						applyBatch,
 						{ createEventWork: (event) => graph.createEventWork(event) }
 					) ??
-					client.subscribe(scope, snapshot.at, applyBatch, {
-						createEventWork: (event) => graph.createEventWork(event)
-					});
+					client.subscribe(
+						scope,
+						{ at: snapshot.at, project_generation: snapshot.project_generation },
+						applyBatch,
+						{
+							createEventWork: (event) => graph.createEventWork(event)
+						}
+					);
 				subscribed = true;
 				clearRetry();
 				retryDelayMs = retryMs;

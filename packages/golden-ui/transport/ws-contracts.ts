@@ -1,8 +1,8 @@
 import type {
-	EventTime,
+	UiReplayCursor,
 	UiAck,
 	UiControlLifecycle,
-	UiEventBatch,
+	UiTransportBatch,
 	UiEventBatchHandler,
 	UiSnapshot,
 	UiSubscriptionScope
@@ -26,7 +26,7 @@ export interface WebSocketUiClientOptions {
 		scope: UiSubscriptionScope,
 		plane: UiDataPlane | undefined,
 		reason: string
-	) => EventTime | Promise<EventTime>;
+	) => UiReplayCursor | Promise<UiReplayCursor>;
 }
 
 export interface PendingIntent {
@@ -52,7 +52,7 @@ export interface PendingSnapshot {
 }
 
 export interface PendingReplay {
-	resolve: (batch: UiEventBatch) => void;
+	resolve: (batch: UiTransportBatch) => void;
 	reject: (error: Error) => void;
 	timer: ReturnType<typeof setTimeout>;
 }

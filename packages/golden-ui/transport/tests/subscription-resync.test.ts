@@ -3,10 +3,10 @@ import {
 	createSubscriptionResyncCoordinator,
 	type SubscriptionResyncState
 } from '../subscription-resync';
-import type { EventTime } from '../../types';
+import type { UiReplayCursor } from '../../types';
 const deferred = () => {
-	let resolve!: (time: EventTime) => void;
-	const promise = new Promise<EventTime>((done) => (resolve = done));
+	let resolve!: (time: UiReplayCursor) => void;
+	const promise = new Promise<UiReplayCursor>((done) => (resolve = done));
 	return { promise, resolve };
 };
 const drain = async () => {
@@ -46,15 +46,16 @@ describe('subscription replacement during snapshot resync', () => {
 		for (let index = 0; index < 64; index++)
 			f.coordinator.begin('graph', f.state, undefined, `new project ${index}`);
 		expect(f.request).toHaveBeenCalledTimes(1);
-		f.first.resolve({ tick: 10, micro: 0, seq: 0 });
+		f.first.resolve({ project_generation: 1, at: { tick: 10, micro: 0, seq: 0 } });
 		await drain();
 		expect(f.request).toHaveBeenCalledTimes(2);
 		expect(f.subscribe).not.toHaveBeenCalled();
 		expect(f.request.mock.calls[1][2]).toBe('new project 63');
-		f.second.resolve({ tick: 1, micro: 0, seq: 0 });
+		f.second.resolve({ project_generation: 2, at: { tick: 1, micro: 0, seq: 0 } });
 		await drain();
 		expect(f.subscribe).toHaveBeenCalledTimes(1);
 		expect(f.state.cursor).toEqual({ tick: 1, micro: 0, seq: 0 });
+		expect(f.state.projectGeneration).toBe(2);
 	});
 	it('retires a queued invalidation when the subscription is disposed', async () => {
 		const f = fixture();
@@ -62,7 +63,7 @@ describe('subscription replacement during snapshot resync', () => {
 		await drain();
 		f.coordinator.begin('graph', f.state, undefined, 'replacement');
 		f.coordinator.dispose(f.state);
-		f.first.resolve({ tick: 10, micro: 0, seq: 0 });
+		f.first.resolve({ project_generation: 1, at: { tick: 10, micro: 0, seq: 0 } });
 		await drain();
 		expect(f.request).toHaveBeenCalledTimes(1);
 		expect(f.subscribe).not.toHaveBeenCalled();

@@ -23,7 +23,7 @@ use golden_protocol::{
     UiPlaneDelta, UiProjectFileSpec, UiProjectLoadRecoveryDto as ProjectLoadRecoveryDto,
     UiProjectPathDto as ProjectPathDto, UiProjectPathRequest as ProjectPathRequest,
     UiProjectUploadRequest as ProjectUploadRequest, UiReferenceTargetsRequest as ReferenceTargetsRequest,
-    UiReplayRequest as ReplayRequest, UiRuntimeStatsDto, UiScriptConfigRequest as ScriptConfigRequest,
+    UiReplayCursor, UiReplayRequest as ReplayRequest, UiRuntimeStatsDto, UiScriptConfigRequest as ScriptConfigRequest,
     UiScriptReloadRequest as ScriptReloadRequest, UiScriptStateRequest as ScriptStateRequest,
     UiServerMessage as WsServerMessage, UiSnapshotRequest as SnapshotRequest, UiSubscriptionScope,
 };
@@ -419,6 +419,7 @@ impl WsSubscriptionState {
 }
 
 struct WsEventOrigin {
+    project_generation: ProjectGeneration,
     client_id: u64,
     include_self_events: bool,
 }
@@ -440,7 +441,7 @@ enum WsHubCommand {
         client_id: u64,
         subscription_id: String,
         interest: UiInterest,
-        from: Option<EngineTime>,
+        from: Option<UiReplayCursor>,
     },
     Unsubscribe {
         client_id: u64,
@@ -455,7 +456,7 @@ enum WsHubCommand {
         client_id: u64,
         request_id: String,
         scope: UiSubscriptionScope,
-        from: Option<EngineTime>,
+        from: Option<UiReplayCursor>,
     },
     Intent {
         client_id: u64,

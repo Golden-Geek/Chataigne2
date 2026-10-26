@@ -96,3 +96,7 @@ That exact executable passes **three Alchemist repetitions / 12 correctness grou
 groups. The standalone transport suite passes **75 cases / one existing manual benchmark ignored**,
 including the equal-clock replacement regression. Both Cargo formatters, explicit app graph-module
 formatting, UI formatting and whitespace checks pass. Earlier clock/resync failures remain preserved.
+
+Follow-up: [project-generation cursor qualification](p11-project-cursors.md) implements and exercises
+the previously open unsubscribe/snapshot/re-subscribe overlap, including stale snapshots and origins.
+The remaining Spatializer, actual-app scale and composed-workflow requirements keep their P11 owners.

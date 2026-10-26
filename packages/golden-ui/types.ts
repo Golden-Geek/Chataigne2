@@ -4,6 +4,9 @@ import type { UiEditIntent as RustUiEditIntent } from './generated/rust_protocol
 import type { UiAck as RustUiAck } from './generated/rust_protocol/UiAck';
 import type { UiDataPlane } from './generated/rust_protocol/UiDataPlane';
 import type { UiGraphOp as GeneratedUiGraphOp } from './generated/rust_protocol/UiGraphOp';
+import type { UiSnapshot as RustUiSnapshot } from './generated/rust_protocol/UiSnapshot';
+import type { UiReplayCursor } from './generated/rust_protocol/UiReplayCursor';
+export type { UiReplayCursor } from './generated/rust_protocol/UiReplayCursor';
 
 export type NodeId = number;
 
@@ -410,7 +413,7 @@ export interface UiProjectFileSpec {
 	current_path: string | null;
 }
 
-export interface UiSnapshot {
+export interface UiSnapshot extends Pick<RustUiSnapshot, 'project_generation'> {
 	protocol_version: string;
 	scope: UiSubscriptionScope;
 	at: EventTime;
@@ -764,15 +767,18 @@ export interface UiSubscriptionBatchControl {
 }
 
 export type UiEventBatchHandler = (
-	batch: UiEventBatch,
+	batch: UiTransportBatch,
 	control?: UiSubscriptionBatchControl
 ) => void;
+
+/** A normalized transport batch retains its canonical project lifetime; graph-local batches do not. */
+export type UiTransportBatch = UiEventBatch & Pick<UiReplayCursor, 'project_generation'>;
 
 export interface UiClient {
 	snapshot(scope?: UiSubscriptionScope): Promise<UiSnapshot>;
 	subscribe(
 		scope: UiSubscriptionScope,
-		from: EventTime | undefined,
+		from: UiReplayCursor | undefined,
 		onBatch: UiEventBatchHandler,
 		batchOptions?: UiSubscriptionBatchOptions
 	): () => void;
@@ -780,7 +786,7 @@ export interface UiClient {
 		viewId: string,
 		scope: UiSubscriptionScope,
 		planes: UiDataPlane[],
-		from: EventTime | undefined,
+		from: UiReplayCursor | undefined,
 		onBatch: UiEventBatchHandler,
 		batchOptions?: UiSubscriptionBatchOptions
 	): () => void;
@@ -792,7 +798,7 @@ export interface UiClient {
 		intents: UiEditIntent[],
 		onLifecycle?: (phase: UiControlLifecycle) => void
 	): Promise<UiAck[]>;
-	replay(scope: UiSubscriptionScope, from?: EventTime): Promise<UiEventBatch>;
+	replay(scope: UiSubscriptionScope, from?: UiReplayCursor): Promise<UiTransportBatch>;
 	referenceTargets(paramNodeId: NodeId): Promise<UiReferenceTargets>;
 	paramControlInfo(paramNodeId: NodeId): Promise<UiParamControlInfo>;
 	scriptState(nodeId: NodeId): Promise<UiScriptState>;

@@ -7,8 +7,10 @@ extraction notes and September counts are [archived](../archive/2026-10-18/progr
 
 ## Scan and policy
 
-Refreshed 2026-10-26 against delivered `d6696752` plus Alchemist graph authoring
-on `main`. Scanned **2231 source files**; **26 exceed 1,000 lines**. The Alchemist panel shrinks
+Refreshed 2026-10-26 against delivered `39f3536c` plus project-generation cursors
+on `main`. Scanned **2235 source files**; **26 exceed 1,000 lines**. WebSocket read ownership
+and the shared fake socket have focused modules; the WS client is 962 lines, workbench facade
+981 and native read model 993. No new oversized source is introduced. The Alchemist panel shrinks
 from 2,091 to 993 lines, composing focused preview (266), clipboard (240), item creation (274),
 camera (44), graph request (70), mutation admission (98) and property-sidebar (295) owners.
 Its backend graph operation is 221 lines; owning tests and native fixtures stay below the limit.
@@ -26,7 +28,7 @@ below the limit. No new source-size exception is introduced. Remaining decomposi
 exceptions belong to P12; this inventory does not qualify that task.
 The surface controller is now 788 lines after extracting move and creation presentation ownership.
 Confirmed-work admission, barriers and parameter drafts live in the 281-line session service; the
-workbench facade remains 968 lines. The ordered facade is 46 lines, with separate move/resize controllers.
+workbench facade is now 981 lines. The ordered facade is 46 lines, with separate move/resize controllers.
 Dashboard actions are 681 lines after removing UI-owned move/placement/sizing sequences. Atomic
 backend layout operations live in the 220-line `ui_sync/dashboard_layout.rs` module; their tests
 remain 326 lines. Retained surface item order is a focused 56-line module, with adjacent tests.

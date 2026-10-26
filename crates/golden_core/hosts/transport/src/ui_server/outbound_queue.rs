@@ -248,10 +248,11 @@ fn outbound_subscription_id(outbound: &WsOutbound) -> Option<&str> {
     }
 }
 
-fn latest_wins_key(outbound: &WsOutbound) -> Option<(String, UiDataPlane)> {
+fn latest_wins_key(outbound: &WsOutbound) -> Option<(String, u64, UiDataPlane)> {
     let WsOutbound::Message(UiServerMessage::Delta {
         subscription_id,
         deltas,
+        project_generation,
     }) = outbound
     else {
         return None;
@@ -262,7 +263,7 @@ fn latest_wins_key(outbound: &WsOutbound) -> Option<(String, UiDataPlane)> {
     delta
         .plane
         .is_latest_wins()
-        .then(|| (subscription_id.clone(), delta.plane))
+        .then(|| (subscription_id.clone(), *project_generation, delta.plane))
 }
 
 fn merge_latest(existing: &mut WsOutbound, replacement: WsOutbound) {

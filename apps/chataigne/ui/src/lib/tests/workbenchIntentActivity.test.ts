@@ -28,6 +28,7 @@ const successfulAck = (): UiAck => ({
 
 const initialSnapshot = (): UiSnapshot =>
 	({
+		project_generation: 1,
 		protocol_version: UI_PROTOCOL_VERSION,
 		scope: { kind: 'wholeGraph' },
 		at: { tick: 1, micro: 0, seq: 1 },

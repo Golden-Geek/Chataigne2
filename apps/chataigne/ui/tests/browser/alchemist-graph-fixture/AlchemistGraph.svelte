@@ -3,13 +3,40 @@
 	import { appState, createWorkbenchSession } from 'golden_ui/store/workbench.svelte';
 	import type { PanelApi, PanelParams, PanelProps, UiNodeDto } from 'golden_ui';
 	import { wholeGraphScope } from 'golden_ui/types';
+	import { createDefaultUiClient } from 'golden_ui';
+	import type { UiReplayCursor } from 'golden_ui/types';
 	import AlchemistEditorPanel from '../../../src/lib/systems/alchemist/components/AlchemistEditorPanel.svelte';
 	const base = new URLSearchParams(location.search).get('backend');
 	if (!base) throw new Error('Missing owned native backend URL');
+	let holdNextSnapshot = false;
+	let heldSnapshot = $state<UiReplayCursor | null>(null);
+	let releaseSnapshot: (() => void) | null = null;
+	let heldRefresh: Promise<boolean> | null = null;
+	let latestSnapshot = $state<UiReplayCursor | null>(null);
 	const session = createWorkbenchSession({
 		httpBaseUrl: `${base}/api/ui`,
 		wsUrl: `${base.replace('http:', 'ws:')}/api/ui/ws`,
-		enableGlobalShortcuts: false
+		enableGlobalShortcuts: false,
+		transportFactory: (options) => {
+			const client = createDefaultUiClient(options);
+			return {
+				...client,
+				async snapshot(scope) {
+					const result = await client.snapshot(scope);
+					const cursor = { project_generation: result.project_generation, at: { ...result.at } };
+					if (holdNextSnapshot) {
+						holdNextSnapshot = false;
+						heldSnapshot = cursor;
+						await new Promise<void>((resolve) => {
+							releaseSnapshot = resolve;
+						});
+						heldSnapshot = null;
+					}
+					latestSnapshot = cursor;
+					return result;
+				}
+			};
+		}
 	});
 	appState.session = session;
 	onMount(() => session.mount());
@@ -49,6 +76,8 @@
 			.map((id) => session.graph.state.nodesById.get(id))
 			.find((node) => node?.decl_id === declaration);
 	export const status = () => ({
+		heldSnapshot,
+		latestSnapshot,
 		connection: session.status,
 		generation: session.snapshotGeneration,
 		endpoint: panel?.graphInteractionState()?.endpoint,
@@ -107,6 +136,19 @@
 	export const save = (path: string) =>
 		session.runEditBarrier(() => session.client.projectSave(path));
 	export const refresh = () => session.refreshSnapshot();
+	export function holdSnapshotResponse() {
+		if (heldRefresh) throw new Error('A snapshot is already held');
+		holdNextSnapshot = true;
+		heldRefresh = session.refreshSnapshot();
+	}
+	export async function releaseSnapshotResponse() {
+		if (!releaseSnapshot || !heldRefresh) throw new Error('No held snapshot response');
+		releaseSnapshot();
+		releaseSnapshot = null;
+		const result = await heldRefresh;
+		heldRefresh = null;
+		return result;
+	}
 	export const backendLayout = async () =>
 		(await session.client.snapshot(wholeGraphScope)).nodes
 			.filter((node) => node.decl_id === 'position' && node.data.kind === 'parameter')

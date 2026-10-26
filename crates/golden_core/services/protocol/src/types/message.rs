@@ -1,7 +1,25 @@
 use super::*;
 
 /// Current UI protocol version.
-pub const UI_PROTOCOL_VERSION: &str = "0.11.0";
+pub const UI_PROTOCOL_VERSION: &str = "0.12.0";
+
+/// A replay boundary in one authoritative project lifetime; event clocks may repeat on replacement.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct UiReplayCursor {
+    /// Monotonic project generation captured with the snapshot or transaction.
+    pub project_generation: u64,
+    /// Event boundary within that project.
+    pub at: EngineTime,
+}
+
+/// Retained replay in one project lifetime; the contained event clock is project-local.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct UiReplayResponse {
+    /// Generation shared by all events in the batch.
+    pub project_generation: u64,
+    /// Scoped events or a transport-resync marker when the cursor was retired.
+    pub batch: UiEventBatch,
+}
 
 /// Stable control-plane failure category shared by HTTP and WebSocket clients.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -173,7 +191,7 @@ pub enum UiClientMessage {
         interest: UiInterest,
         /// Optional replay cursor.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        from: Option<EngineTime>,
+        from: Option<UiReplayCursor>,
     },
     /// Removes one view interest.
     Unsubscribe {
@@ -195,7 +213,7 @@ pub enum UiClientMessage {
         scope: UiSubscriptionScope,
         /// Optional replay cursor.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        from: Option<EngineTime>,
+        from: Option<UiReplayCursor>,
     },
     /// Submits one control intent.
     Intent {
@@ -241,6 +259,8 @@ pub enum UiServerMessage {
     },
     /// Returns a bounded scoped replay.
     Replay {
+        /// Project lifetime shared by the replay events.
+        project_generation: u64,
         /// Matching client request identifier.
         request_id: String,
         /// Requested replay batch.
@@ -248,6 +268,8 @@ pub enum UiServerMessage {
     },
     /// Delivers one atomic set of plane deltas from a server replay pass.
     Delta {
+        /// Project lifetime shared by all planes in this envelope.
+        project_generation: u64,
         /// Matching client subscription identifier.
         subscription_id: String,
         /// Plane-specific deltas staged together before the client may render.
@@ -313,7 +335,7 @@ pub struct UiReplayRequest {
     pub scope: UiSubscriptionScope,
     /// Optional replay cursor.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub from: Option<EngineTime>,
+    pub from: Option<UiReplayCursor>,
 }
 
 /// HTTP request payload for reference-target queries.
