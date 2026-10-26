@@ -8,6 +8,7 @@ import { chromium } from 'playwright-core';
 import { qualifyCatalog } from './catalog.mjs';
 import { qualifyLogs } from './logs.mjs';
 import { qualifyTreeKeyboard } from './tree-keyboard.mjs';
+import { qualifyConstrainedPicker } from './constrained-picker.mjs';
 
 const root = fileURLToPath(new URL('./fixture/', import.meta.url));
 const repository = fileURLToPath(new URL('../../../../', import.meta.url));
@@ -62,7 +63,11 @@ try {
 				mounted: Number(tree.dataset.mountedRowCount)
 			}))
 		);
-	if (process.argv.includes('--tree-profile')) {
+	if (process.argv.includes('--constrained-picker')) {
+		await qualifyConstrainedPicker(page, emit);
+		assert.deepEqual(errors, []);
+		emit({ kind: 'result', passed: true, errors });
+	} else if (process.argv.includes('--tree-profile')) {
 		await page.evaluate(() => window.collectionFixture.setup(50000));
 		const cdp = await page.context().newCDPSession(page);
 		await cdp.send('Profiler.enable');

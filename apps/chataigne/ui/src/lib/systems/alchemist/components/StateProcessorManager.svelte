@@ -3,6 +3,11 @@
 	import ProcessorItem from './ProcessorItem.svelte';
 
 	let { manager }: { manager: UiNodeDto } = $props();
+	let tree = $state<ReturnType<typeof ManagerListPanel>>();
+	export const focusTreeNode = (id: number) => tree?.focusTreeNode(id);
+	export const navigateTree = (key: string) => tree?.navigateTree(key);
+	export const setNodeExpanded = (id: number, expanded: boolean) =>
+		tree?.setNodeExpanded(id, expanded);
 	const isProcessorTreeNode = (node: UiNodeDto | null): node is UiNodeDto =>
 		Boolean(
 			node &&
@@ -12,6 +17,7 @@
 
 <div class="processor-manager">
 	<ManagerListPanel
+		bind:this={tree}
 		managerNode={manager}
 		isTreeNode={isProcessorTreeNode}
 		canRenderNodeChildren={(node) => node.node_type === 'state_processor_folder'}

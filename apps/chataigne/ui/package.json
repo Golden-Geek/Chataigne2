@@ -18,6 +18,8 @@
 		"build": "vite build",
 		"preview": "vite preview",
 		"test": "vitest run",
+		"test:browser:trees": "node tests/browser/trees.mjs",
+		"check:browser:trees": "svelte-check --tsconfig tests/browser/tsconfig.json",
 		"codegen:golden-graph-ui": "cargo run --manifest-path ../../../Cargo.toml -p golden_codegen_support --bin golden_codegen -- graph-ui ../../../packages/golden-graph-ui/generated",
 		"codegen:golden-ui-protocol": "cargo run --manifest-path ../../../Cargo.toml -p golden_codegen_support --bin golden_codegen -- ui-protocol ../../../packages/golden-ui/generated/rust_protocol",
 		"codegen:state-machine-protocol": "cargo run --manifest-path ../../../Cargo.toml -p chataigne_state_machine --bin generate_state_machine_protocol -- src/lib/systems/state_machine/generated && prettier --write src/lib/systems/state_machine/generated",

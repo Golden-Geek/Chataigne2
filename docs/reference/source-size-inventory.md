@@ -7,10 +7,11 @@ extraction notes and September counts are [archived](../archive/2026-10-18/progr
 
 ## Scan and policy
 
-Refreshed 2026-10-26 against delivered `f14ddbd2` plus shared tree keyboard delivery
-on `main`. Scanned **2183 source files**; **27 exceed 1,000 lines**. TreeRows (235 lines),
+Refreshed 2026-10-26 against delivered `81adcc37` plus tree checkpoint closure
+on `main`. Scanned **2191 source files**; **27 exceed 1,000 lines**. TreeRows (235 lines),
 the retained tree projection (273), navigation model (71), browser matrix and adjacent tests
-remain below the limit; the processor manager shrinks to its shared-manager wrapper. The dashboard
+remain below the limit. Picker host/selection/focus responsibilities and app qualification fixtures
+stay below the limit. The existing AlchemistEditorPanel is qualified without editing it. The dashboard
 canvas is 978 lines; its controllers, geometry, viewport, tests and stylesheet files remain
 below the limit. No new source-size exception is introduced. Remaining decomposition and
 exceptions belong to P12; this inventory does not qualify that task.

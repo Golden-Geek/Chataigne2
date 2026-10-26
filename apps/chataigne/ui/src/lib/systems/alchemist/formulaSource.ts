@@ -18,6 +18,7 @@ export type FormulaSourceGraph = {
 	rootId: NodeId | null;
 	nodesById: ReadonlyMap<NodeId, UiNodeDto>;
 	parentById: ReadonlyMap<NodeId, NodeId>;
+	structuralChildrenById: ReadonlyMap<NodeId, readonly NodeId[]>;
 };
 
 export type FormulaSourceDisplay = {
@@ -77,14 +78,14 @@ const stringParamValue = (node: UiNodeDto | null | undefined): string | null => 
 /** A direct child of `node` with the given decl_id, or null if absent. */
 const findChildByDeclId = (
 	node: UiNodeDto | null | undefined,
-	nodesById: ReadonlyMap<NodeId, UiNodeDto>,
+	graph: Pick<FormulaSourceGraph, 'nodesById' | 'structuralChildrenById'>,
 	declId: string
 ): UiNodeDto | null => {
 	if (!node) {
 		return null;
 	}
-	for (const childId of node.children) {
-		const child = nodesById.get(childId);
+	for (const childId of graph.structuralChildrenById.get(node.node_id) ?? []) {
+		const child = graph.nodesById.get(childId);
 		if (child?.decl_id === declId) {
 			return child;
 		}
@@ -106,17 +107,9 @@ const preferencesDataFolder = (graph: FormulaSourceGraph): string | null => {
 	const preferences =
 		root?.decl_id === PREFERENCES_DECL_ID
 			? root
-			: findChildByDeclId(root, graph.nodesById, PREFERENCES_DECL_ID);
-	const saveAndLoad = findChildByDeclId(
-		preferences,
-		graph.nodesById,
-		PREFERENCES_SAVE_AND_LOAD_DECL_ID
-	);
-	const dataFolder = findChildByDeclId(
-		saveAndLoad,
-		graph.nodesById,
-		PREFERENCES_DATA_FOLDER_DECL_ID
-	);
+			: findChildByDeclId(root, graph, PREFERENCES_DECL_ID);
+	const saveAndLoad = findChildByDeclId(preferences, graph, PREFERENCES_SAVE_AND_LOAD_DECL_ID);
+	const dataFolder = findChildByDeclId(saveAndLoad, graph, PREFERENCES_DATA_FOLDER_DECL_ID);
 	const path = stringParamValue(dataFolder);
 	return path && path.trim().length > 0 ? path : null;
 };
@@ -139,12 +132,12 @@ const formulaLibraryAncestor = (
 /** This formula's linked file path, or null if it isn't external-file-linked. */
 export const formulaExternalFilePath = (
 	node: UiNodeDto | null | undefined,
-	nodesById: ReadonlyMap<NodeId, UiNodeDto>
+	graph: FormulaSourceGraph
 ): string | null => {
 	if (!formulaIsExternalFile(node)) {
 		return null;
 	}
-	const pathParam = findChildByDeclId(node, nodesById, FORMULA_EXTERNAL_FILE_DECL_ID);
+	const pathParam = findChildByDeclId(node, graph, FORMULA_EXTERNAL_FILE_DECL_ID);
 	const path = stringParamValue(pathParam);
 	return path && path.trim().length > 0 ? path : null;
 };
@@ -163,7 +156,7 @@ export const sharedFormulaDir = (
 	}
 
 	const library = formulaLibraryAncestor(graph, formula);
-	const dirParam = findChildByDeclId(library, graph.nodesById, FORMULA_LIBRARY_SHARED_DIR_DECL_ID);
+	const dirParam = findChildByDeclId(library, graph, FORMULA_LIBRARY_SHARED_DIR_DECL_ID);
 	const dir = stringParamValue(dirParam);
 	return dir && dir.trim().length > 0 ? dir : null;
 };
@@ -187,7 +180,7 @@ export const formulaSourceKind = (
 	if (formulaIsBuiltIn(node)) {
 		return 'builtin';
 	}
-	const filePath = formulaExternalFilePath(node, graph.nodesById);
+	const filePath = formulaExternalFilePath(node, graph);
 	if (filePath) {
 		const sharedDir = sharedFormulaDir(graph, node);
 		if (

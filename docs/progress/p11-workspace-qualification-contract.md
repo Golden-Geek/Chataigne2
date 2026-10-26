@@ -55,6 +55,26 @@ Inspect actual DOM focus, row text, geometry and selection. Call the production 
 directly; do not synthesize input. App wrapper integration and constrained picker/lifecycle cases
 must also pass before the tree checkpoint closes. Physical keyboard usability remains P17.
 
+### App-consumer and constrained-picker closure
+
+Use the actual ModulePanel, FormulaLibraryPanel, StateProcessorManager and complete
+AlchemistEditorPanel property surface at the same five collection tiers in a 70rem x 36rem scene,
+with a 1680 x 1200 private browser. Include each app-owned supplement and a leaf-owned private
+subtree that must remain hidden. Each manager mounts at most 42 rows. Fix 40 timing combinations:
+far Home/End focus or selection/reveal, and branch expansion/collapse, for each app consumer/tier.
+Use three warmups, 31 retained samples and the unchanged collection timing limits. Property-host
+integration uses public session selection/reveal and backend metadata operations in the actual
+editor; shared TreeRows keyboard handling is qualified by the preceding matrix. No physical-key
+claim follows from these browser operations. Native usability remains P17.
+
+Constrained picker correctness covers all five tiers: nonselectable branches, hidden-row hoisting,
+view exclusion and empty views, outside-root candidates, stale selected UUIDs, required multiple
+projections, automatic single projections, optional projections, immediate picks, confirmation after
+live constraint changes, request replacement/cancellation, source replacement, focus cycling and
+focus restoration. All activation paths must use the same current constraints and projection
+validation. Keep the same picker/underlying panels and 42-row bounds. Retain raw failures and
+source/asset fingerprints; app-consumer or picker-only success cannot close the entire checkpoint.
+
 ## Creation-catalog extension
 
 The shared ContextMenu is the creation-catalog surface used by NodeAddButton and node/graph

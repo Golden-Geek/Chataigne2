@@ -7,7 +7,8 @@
 	import { appState } from '../../../store/app-state.svelte';
 	import {
 		openNodePickerModal,
-		closeNodePickerModal
+		closeNodePickerModal,
+		type NodePickerModalResult
 	} from '../../../store/node-picker-modal.svelte';
 	import type { UiNodeDto } from '../../../types';
 	import type { PanelApi, PanelParams } from '../../../dockview/panel-types';
@@ -72,6 +73,90 @@
 	let manager = $state<ReturnType<typeof ManagerListPanel>>();
 	let outliner = $state<ReturnType<typeof OutlinerPanel>>();
 	let picker = $state<ReturnType<typeof NodePickerModalHost>>();
+	let constrainedBlock = $state(false);
+	let constrainedResults: (NodePickerModalResult | null)[] = [];
+	export async function openConstrained(
+		selected = 3,
+		mode: 'multiple' | 'single' | 'optional' | 'instant' | 'invalid' = 'multiple'
+	) {
+		constrainedBlock = false;
+		const slot = constrainedResults.length;
+		constrainedResults.push(null);
+		void openNodePickerModal({
+			rootNode: fixture.session.graph.state.nodesById.get(1)!,
+			selectedNodeId: selected,
+			selectedProjection: mode === 'invalid' ? 'floatToVec2XX' : undefined,
+			nodeFilter: (node) =>
+				node.node_type === 'FixtureItem' &&
+				node.node_id !== 3 &&
+				(!constrainedBlock || node.node_id !== 4),
+			views: [
+				{ id: 'all', label: 'All', nodeRowVisibilityFilter: (node) => node.node_id !== 1 },
+				{
+					id: 'even',
+					label: 'Even',
+					nodeVisibilityFilter: (node) => node.node_id % 2 === 0,
+					nodeRowVisibilityFilter: (node) => node.node_id !== 1 && node.node_id !== 2
+				},
+				{ id: 'none', label: 'None', nodeVisibilityFilter: () => false }
+			],
+			projectionOptions:
+				mode === 'instant'
+					? undefined
+					: (node) => (mode === 'single' || node.node_id !== 4 ? ['vec2X'] : ['vec2X', 'vec2Y']),
+			projectionRequired: () => mode !== 'optional'
+		}).then((result) => {
+			constrainedResults[slot] = result;
+		});
+		await frames();
+		return slot;
+	}
+	export const pickerResults = () =>
+		constrainedResults.map((result) =>
+			result?.kind === 'pick'
+				? {
+						kind: result.kind,
+						id: result.node.node_id,
+						uuid: result.node.uuid,
+						projection: result.projection
+					}
+				: result
+		);
+	export async function constrainedCommand(command: string, value = 0) {
+		let accepted: boolean | undefined;
+		if (command === 'confirm') accepted = picker!.confirmPick();
+		else if (command === 'clear') accepted = picker!.clearSelection();
+		else if (command === 'activate') accepted = picker!.activateNode(value);
+		else if (command === 'double') accepted = picker!.activateNode(value, true);
+		else if (command === 'x') accepted = picker!.chooseProjection('vec2X');
+		else if (command === 'y') accepted = picker!.chooseProjection('vec2Y');
+		else if (command === 'auto') accepted = picker!.chooseProjection(undefined);
+		else if (command === 'all' || command === 'even' || command === 'none')
+			accepted = picker!.chooseView(command);
+		else if (command === 'next' || command === 'previous')
+			accepted = picker!.moveDialogFocus(command === 'previous');
+		else if (command === 'block') constrainedBlock = true;
+		else if (command === 'close') closeNodePickerModal();
+		else if (command === 'replace-node') {
+			const node = fixture.session.graph.state.nodesById.get(value)!;
+			fixture.session.graph.applyEvent({
+				time: { tick: 9500, micro: 0, seq: 0 },
+				kind: {
+					kind: 'nodeCreated',
+					node: value,
+					snapshot: { ...node, uuid: `${node.uuid}-replaced` }
+				}
+			});
+		} else if (command === 'replace-root') fixture.load(count);
+		else throw new Error(`Unknown constrained picker command ${command}`);
+		await frames();
+		return accepted;
+	}
+	export async function setupConstrained(size: number) {
+		await setup(size);
+		constrainedResults = [];
+		document.querySelector<HTMLInputElement>('.manager-list-search')!.focus();
+	}
 	let variable = $state<ReturnType<typeof VirtualRows<{ id: number; height: number }>>>();
 	let variableScroller = $state<HTMLDivElement | null>(null);
 	let variableRows = $state.raw<{ id: number; height: number }[]>([]);
@@ -180,6 +265,13 @@
 		} else fixture.load(count);
 		const results = [await pending, newer ? await newer : undefined];
 		await frames();
+		if (panel === 'picker' && action === 'replace') {
+			const deadline = performance.now() + 5000;
+			while (document.querySelector('.node-picker-modal')) {
+				if (performance.now() > deadline) throw new Error('Replaced picker did not retire.');
+				await new Promise(requestAnimationFrame);
+			}
+		}
 		return results;
 	}
 	export async function treeEnter(panel: TreePanel) {

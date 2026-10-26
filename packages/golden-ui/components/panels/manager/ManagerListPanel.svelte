@@ -491,6 +491,9 @@
 	.manager-list-panel {
 		display: flex;
 		flex-direction: column;
+		flex: 1 1 auto;
+		min-block-size: 0;
+		min-inline-size: 0;
 		height: 100%;
 	}
 

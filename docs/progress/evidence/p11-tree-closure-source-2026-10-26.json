@@ -1,0 +1,206 @@
+{
+  "baseCommit": "81adcc37afde4e5498f749302930daa3549daabd",
+  "scope": "Final app, picker, shared keyboard and collection runs use these runtime/fixture sources. Assets come from the final owned app/collection builds. Qualification excludes profiler, forced GC and default app build.",
+  "machine": {
+    "os": "10.0.26300",
+    "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+    "logicalProcessors": 24,
+    "node": "v26.5.0",
+    "svelte": "5.57.1",
+    "vite": "8.1.6",
+    "typescript": "6.0.3",
+    "browser": "156.0.4314.42"
+  },
+  "source": [
+    {
+      "path": "apps/chataigne/ui/package.json",
+      "sha256": "3ebb28e7731a5beaf7856cf66728168f155841eabfddfd2598b91e6b8f817ce8"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/components/modules/ModuleIndicators.svelte",
+      "sha256": "56eb40786dd8373ca594d1195c80969202595d481eaf606171c023383dd7c5d4"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/panels/modules/ModuleItem.svelte",
+      "sha256": "11eb73c3b4b238094f9bae8f197d17bd2e6c055c7547125e92ac86e7120efe07"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/panels/modules/ModulePanel.svelte",
+      "sha256": "e9687b99800c6ef2c273bd41fe97071c07b6ca4d7313b7c9ea832672c643cacf"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/alchemist/components/AlchemistEditorPanel.svelte",
+      "sha256": "fc2036effdba633f1c4885e1726ad86dd7c7a0951361d8100e54e19604fa08fa"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/alchemist/components/FormulaLibraryPanel.svelte",
+      "sha256": "6a2de829dde6f076ca8a62888f0c13f21d83879e618b5227184d7b6902151930"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/alchemist/components/FormulaLibraryRowSupplement.svelte",
+      "sha256": "676d2b226cab40628e5e229876a512aab1549a968aa7c90786e18510de09eee8"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/alchemist/components/ProcessorItem.svelte",
+      "sha256": "cf346e03a855a216c30cdabf0adb637f46f43df7fa1dbc6ba0fa5ac950890920"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/alchemist/components/StateProcessorManager.svelte",
+      "sha256": "e9f1dd90e773c2bb6815d84263d476ca068f5106aadd69cf104885f5bf824b3e"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/alchemist/formulaSource.ts",
+      "sha256": "26bc4b133a1c94d9bbea82bee1711ea037cb7a254eebd6d33f75a9758be6eca2"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/alchemist/tests/formulaSource.test.ts",
+      "sha256": "924bf75b10f01d0dcb61e525c23b59c74daf8cc171bc1466faaa5b5ec611f153"
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/fixture/AppTrees.svelte",
+      "sha256": "fdcb125a5c284400dd8ab347184975dc3a088a79b1a42ab3f952fcf8a3736710"
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/fixture/index.html",
+      "sha256": "aad133766a57a48ccdecd99c90b44ed6695242306d6f1b3beea65930fe84525a"
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/fixture/main.ts",
+      "sha256": "a1a8501d3f044b6b18e7764ea83587eeaa5e430579e836e0ddd786296f55aaaf"
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/fixture/tree-nodes.ts",
+      "sha256": "24d069a94353f245bb3e2b25cee71bc792c36d49e645a1b31863f98a00d96cbb"
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/trees.mjs",
+      "sha256": "8e65604636d680d1dd9ed489bcc236f18874a1c1c8db65c2bfe2a0a51e0f826a"
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/tsconfig.json",
+      "sha256": "debe835adba5a079331f9ce6da7a7eb1fcb283534c6b1312f8db932eb56ce763"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "1a515eb16812648c25cab5914c8ec2562aeeab8bf6f5a84921bd20d659e5ec28"
+    },
+    {
+      "path": "packages/golden-ui/components/common/NodePickerModalHost.svelte",
+      "sha256": "2f1bee4e34278ece2653d0dee5da26f8d19e005de16311d0ad097704ea727737"
+    },
+    {
+      "path": "packages/golden-ui/components/common/node-picker/focus.ts",
+      "sha256": "e49fde7070364aa2fa55c9eebe6807ff96777e576c9d5dedd9a0b22302c6087b"
+    },
+    {
+      "path": "packages/golden-ui/components/common/node-picker/selection.ts",
+      "sha256": "6e10859056f8a3989fce14dd802ca40a095143eb9d7d66cdbe8a509c5a7b17b1"
+    },
+    {
+      "path": "packages/golden-ui/components/common/node-picker/tests/selection.test.ts",
+      "sha256": "e7a1aa851d4fba62de2aed4d58b6c48261b29c22acb8e556b31b325dfaddf0c8"
+    },
+    {
+      "path": "packages/golden-ui/components/common/virtual-rows/VirtualRows.svelte",
+      "sha256": "7e97cce5ddda286ec5938106fdedc2610d3713febe0e573b7a976d5ad32e7098"
+    },
+    {
+      "path": "packages/golden-ui/components/common/virtual-rows/height-index.ts",
+      "sha256": "281559cbf69c4327414667f1b897447078235a15944814fa0dc6e398010a0429"
+    },
+    {
+      "path": "packages/golden-ui/components/panels/manager/ManagerListPanel.svelte",
+      "sha256": "fc3d9b4dbf81cf2c32e3fa0156e8a2122d83047dfdbe76acdfde8a13cb1b41ad"
+    },
+    {
+      "path": "packages/golden-ui/components/panels/outliner/TreeRows.svelte",
+      "sha256": "2591b5ee62813acc353810233daba131d41e4ee31e0e653c4e9e528302ccd821"
+    },
+    {
+      "path": "packages/golden-ui/components/panels/outliner/openness.svelte.ts",
+      "sha256": "1e1ad45d76ce3e009f7e527ecbf8fe8bf4c3a538e6e263b8d70243c08789eff5"
+    },
+    {
+      "path": "packages/golden-ui/components/panels/outliner/visible-rows.ts",
+      "sha256": "545215e4dca7b6766d98972b2999501ab1adf89701d17fc43f78367aea843833"
+    },
+    {
+      "path": "packages/golden-ui/package.json",
+      "sha256": "3f2201ef36373352f0194b7998e7835046fbf42f9ab05b2eb2584ffb8b49b01e"
+    },
+    {
+      "path": "packages/golden-ui/store/graph-index.ts",
+      "sha256": "70b413486e35b2fedbc84e519b8af7cf4120a3008693173b4e35f17789d9b38f"
+    },
+    {
+      "path": "packages/golden-ui/store/graph-structural-children.ts",
+      "sha256": "1a106621db81916b09d58d0f552e296b813501caa53bf740efc40a842b7d285c"
+    },
+    {
+      "path": "packages/golden-ui/store/graph.svelte.ts",
+      "sha256": "21b49a6bba0d1e3d48fa0ec52f1f32bd0e122417f49230b0a3288f36ef5c7fb2"
+    },
+    {
+      "path": "packages/golden-ui/tests/browser/collections.mjs",
+      "sha256": "e441702f1b33548b9a92ef77bdab676fa0175fc9c26036c0f5aef00927185e74"
+    },
+    {
+      "path": "packages/golden-ui/tests/browser/constrained-picker.mjs",
+      "sha256": "0d129650ae938fb6e01834b8feba2938e287d59aed90cf37f2f4748ee9b6fa78"
+    },
+    {
+      "path": "packages/golden-ui/tests/browser/fixture/Fixture.svelte",
+      "sha256": "587dee9b8c236eae153760194b0dc275aad58fba4d297e9bacfff14e295cafc8"
+    },
+    {
+      "path": "packages/golden-ui/tests/browser/fixture/session.ts",
+      "sha256": "bb4ad8eac3d5bca976ced9e0b912f4dc03bd95adfcd1af92d875b1c47b1aabba"
+    },
+    {
+      "path": "packages/golden-ui/tests/browser/fixture/timing.ts",
+      "sha256": "f4ff972c0d70104a1f016c088c81692135976b2d15c2700458a6799b076ec558"
+    },
+    {
+      "path": "packages/golden-ui/tests/browser/tree-keyboard.mjs",
+      "sha256": "d7304542e5c690da94a3febef9fa65890668cf14aea48f1a0beb9c104b7d4b66"
+    },
+    {
+      "path": "packages/golden-ui/types.ts",
+      "sha256": "6dd916630d94171101f5f1102f98198f30c14812d624e83e6b4a6a24fad3dfb1"
+    }
+  ],
+  "assets": [
+    {
+      "path": "target/qualification/p11-app-trees/assets/dmsans-italic-CT59GZwy.ttf",
+      "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+    },
+    {
+      "path": "target/qualification/p11-app-trees/assets/DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+      "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+    },
+    {
+      "path": "target/qualification/p11-app-trees/assets/index-CmYII8Zs.css",
+      "sha256": "1ebe6d49df8b3b12cd3c922850b9ee9c11109cf5f19239e9886e365cbe9353d4"
+    },
+    {
+      "path": "target/qualification/p11-app-trees/assets/index-CtSAxgCv.js",
+      "sha256": "2e4beea673a469ceb29044b8ecd7bd571d56f6f0499bb303db0de1b611f0cbf7"
+    },
+    {
+      "path": "target/qualification/p11-collections/assets/index-BbxAXF3R.js",
+      "sha256": "2613bca6b52e0d96d2eb75e3c688cd8c034e61d763493d3f244380cf209f403d"
+    },
+    {
+      "path": "target/qualification/p11-collections/assets/index-Cjgn7F7O.css",
+      "sha256": "77b3a329caa3c4a16cde67a656109ce2bcb18a6f9e1ed4ada61c60e7e8c7029a"
+    }
+  ],
+  "defaultBuild": {
+    "command": "CARGO_INCREMENTAL=0 cargo build --locked",
+    "result": "passed",
+    "durationSeconds": 161,
+    "frontend": "rebuilt from current inputs",
+    "path": "target/debug/Chataigne2.exe",
+    "sha256": "df6d6eec01356d8da99e39a1dd01ae89cf04c7031ebea5e6e5676bf6a5fecedd"
+  }
+}

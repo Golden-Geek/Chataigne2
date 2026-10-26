@@ -21,6 +21,8 @@
 		"./css-value": "./css-value.ts",
 		"./projection-labels": "./projection-labels.ts",
 		"./types": "./types.ts",
+		"./testing/session": "./tests/browser/fixture/session.ts",
+		"./testing/collections": "./tests/browser/fixture/timing.ts",
 		"./components/*": "./components/*",
 		"./debug/*": "./debug/*",
 		"./debug/runtime-probe.svelte": "./debug/runtime-probe.svelte.ts",

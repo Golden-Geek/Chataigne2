@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { onDestroy, tick } from 'svelte';
+	import { onDestroy, tick, untrack } from 'svelte';
+	import { pickerCandidateAllowed, pickerProjectionAllowed } from './node-picker/selection';
+	import { movePickerFocus } from './node-picker/focus';
 	import { appState } from '../../store/workbench.svelte';
 	import OutlinerItem from '../panels/outliner/OutlinerItem.svelte';
 	import TreeRows from '../panels/outliner/TreeRows.svelte';
@@ -38,6 +40,10 @@
 	let modalHeightPx = $state(0);
 	let panelResizeObserver = $state<ResizeObserver | null>(null);
 	let graphState = $derived(appState.session?.graph.state ?? null);
+	let openedRequest = $state.raw<typeof request>(null);
+	let ownerSession = $state.raw<typeof appState.session>(null);
+	let returnFocus: HTMLElement | null = null;
+	export const moveDialogFocus = (backwards = false) => movePickerFocus(panelElement, backwards);
 	let opennessScope = $derived({
 		request,
 		session: appState.session,
@@ -49,6 +55,7 @@
 	);
 	export const setNodeExpanded = openness.setExpanded;
 	let selectedNodeId = $state<number | null>(null);
+	let selectedUuid = $state<string | undefined>();
 	let autoExpandAncestorNodeIds = $derived.by(() =>
 		collectOutlinerAncestorNodeIds(graphState, selectedNodeId)
 	);
@@ -143,7 +150,10 @@
 		return options?.projectionLabel?.(projection) ?? projection;
 	};
 
-	let selectedNode = $derived.by(() => nodeById(selectedNodeId));
+	let selectedNode = $derived.by(() => {
+		const node = nodeById(selectedNodeId);
+		return node?.uuid === selectedUuid ? node : null;
+	});
 	let selectedProjectionOptions = $derived.by(() => projectionOptionsForNode(selectedNode));
 	let selectedProjectionRequired = $derived.by(() => projectionRequiredForNode(selectedNode));
 	let selectedProjectionChoiceCount = $derived.by(() => {
@@ -156,20 +166,23 @@
 		Boolean(options?.projectionOptions && selectedProjectionChoiceCount > 1)
 	);
 	let canConfirmPick = $derived.by(() => {
-		if (!selectedNode) {
+		if (
+			!selectedNode ||
+			!options ||
+			ownerSession !== appState.session ||
+			!pickerCandidateAllowed(graphState, options, activeView, selectedNode)
+		) {
 			return false;
 		}
-		if (!options?.projectionOptions) {
-			return true;
-		}
-		if (!selectedProjectionRequired) {
-			return true;
-		}
-		return selectedProjection !== undefined;
+		return pickerProjectionAllowed(options, selectedNode, selectedProjection);
 	});
 
 	const alignProjectionForNode = (candidate: UiNodeDto | null): void => {
-		if (!options?.projectionOptions || !candidate) {
+		if (
+			!options?.projectionOptions ||
+			!candidate ||
+			!pickerCandidateAllowed(graphState, options, activeView, candidate)
+		) {
 			selectedProjection = undefined;
 			return;
 		}
@@ -185,57 +198,120 @@
 		selectedProjection = undefined;
 	};
 
-	const autoProjectionForNode = (candidate: UiNodeDto): UiParamValueProjection | undefined => {
-		if (!options?.projectionOptions) {
-			return undefined;
-		}
-		if (!projectionRequiredForNode(candidate)) {
-			return undefined;
-		}
-		return projectionOptionsForNode(candidate)[0];
-	};
-
 	const resolvePick = (
 		candidate: UiNodeDto,
-		projection: UiParamValueProjection | undefined = autoProjectionForNode(candidate)
-	): void => {
+		projection: UiParamValueProjection | undefined = undefined
+	): boolean => {
+		if (
+			!options ||
+			ownerSession !== appState.session ||
+			openedRequest !== request ||
+			!pickerCandidateAllowed(graphState, options, activeView, candidate) ||
+			!pickerProjectionAllowed(options, candidate, projection)
+		)
+			return false;
 		resolveNodePickerModal({
 			kind: 'pick',
 			node: candidate,
 			projection
 		});
+		return true;
 	};
 
-	const confirmPick = (): void => {
+	export const confirmPick = (): boolean => {
 		if (!selectedNode || !canConfirmPick) {
-			return;
+			return false;
 		}
-		resolvePick(selectedNode, selectedProjection);
+		return resolvePick(selectedNode, selectedProjection);
+	};
+	export const chooseProjection = (projection: UiParamValueProjection | undefined): boolean => {
+		if (
+			!options ||
+			!selectedNode ||
+			!pickerCandidateAllowed(graphState, options, activeView, selectedNode) ||
+			!pickerProjectionAllowed(options, selectedNode, projection)
+		)
+			return false;
+		selectedProjection = projection;
+		return true;
+	};
+	export const clearSelection = (): boolean => {
+		if (!options?.clearable || ownerSession !== appState.session || openedRequest !== request)
+			return false;
+		resolveNodePickerModal({ kind: 'clear' });
+		return true;
+	};
+	export const chooseView = (id: string): boolean => {
+		if (!pickerViews.some((view) => view.id === id)) return false;
+		activeViewId = id;
+		return true;
+	};
+	export const activateNode = (id: number, confirm = false): boolean => {
+		const candidate = nodeById(id);
+		if (!candidate || !pickerCandidateAllowed(graphState, options, activeView, candidate))
+			return false;
+		if (selectedNodeId !== id || selectedUuid !== candidate.uuid) selectedProjection = undefined;
+		selectedNodeId = id;
+		selectedUuid = candidate.uuid;
+		alignProjectionForNode(candidate);
+		return !options?.projectionOptions ? resolvePick(candidate) : confirm ? confirmPick() : true;
 	};
 
 	$effect(() => {
 		if (!isOpen) {
+			untrack(() => {
+				if (
+					openedRequest &&
+					returnFocus?.isConnected &&
+					(panelElement?.contains(document.activeElement) ||
+						document.activeElement === document.body)
+				)
+					returnFocus.focus({ preventScroll: true });
+				returnFocus = null;
+				openedRequest = null;
+				ownerSession = null;
+			});
 			query = '';
 			selectedNodeId = null;
+			selectedUuid = undefined;
 			selectedProjection = undefined;
 			activeViewId = null;
 			return;
 		}
+		untrack(() => {
+			if (!openedRequest)
+				returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+			openedRequest = request;
+			ownerSession = appState.session;
+		});
 		query = options?.defaultSearchQuery ?? '';
 		selectedNodeId = options?.selectedNodeId ?? null;
+		selectedUuid = untrack(() => nodeById(selectedNodeId)?.uuid);
 		selectedProjection = options?.selectedProjection ?? undefined;
 		activeViewId = options?.views?.[0]?.id ?? null;
+		let cancelled = false;
 		void tick().then(() => {
+			if (cancelled) return;
 			searchInputElement?.focus();
 			searchInputElement?.select();
 			recomputePosition();
 			scrollToSelectedNode();
-			requestAnimationFrame(() => {
-				searchInputElement?.focus();
-				recomputePosition();
-				scrollToSelectedNode();
-			});
 		});
+		return () => {
+			cancelled = true;
+		};
+	});
+	$effect(() => {
+		const active = request,
+			source = appState.session,
+			graph = graphState,
+			root = options?.rootNode;
+		if (
+			active &&
+			openedRequest === active &&
+			(ownerSession !== source || (root && graph?.nodesById.get(root.node_id)?.uuid !== root.uuid))
+		)
+			closeNodePickerModal();
 	});
 
 	$effect(() => {
@@ -304,7 +380,7 @@
 		if (!options) {
 			return false;
 		}
-		return options.nodeFilter?.(candidate) ?? true;
+		return pickerCandidateAllowed(graphState, options, activeView, candidate);
 	};
 
 	const visibleByConstraints = (candidate: UiNodeDto): boolean => {
@@ -386,6 +462,13 @@
 			role="dialog"
 			aria-modal="true"
 			aria-label={options.title}
+			onkeydown={(event) => {
+				if (event.key === 'Tab' && !event.defaultPrevented) {
+					event.preventDefault();
+					event.stopPropagation();
+					moveDialogFocus(event.shiftKey);
+				}
+			}}
 			bind:this={panelElement}
 			tabindex="-1"
 			style={`top:${topPx}px;left:${leftPx}px;block-size:${modalHeightPx}px;max-block-size:${modalHeightPx}px;`}>
@@ -413,9 +496,7 @@
 							type="button"
 							class:active={activeView?.id === view.id}
 							aria-pressed={activeView?.id === view.id}
-							onclick={() => {
-								activeViewId = view.id;
-							}}>
+							onclick={() => chooseView(view.id)}>
 							{view.label}
 						</button>
 					{/each}
@@ -436,9 +517,7 @@
 						onExpand={openness.setExpanded}
 						selectable={selectableByConstraints}
 						onActivate={(candidate) => {
-							selectedNodeId = candidate.node_id;
-							alignProjectionForNode(candidate);
-							if (!options.projectionOptions) resolvePick(candidate);
+							activateNode(candidate.node_id);
 						}}
 						variableHeights={true}
 						scroller={treeElement}>
@@ -461,16 +540,7 @@
 									nodeRowVisible={rowVisibleByConstraints}
 									nodeSelectable={selectableByConstraints}
 									onSelectNode={(candidate, event) => {
-										if (event.detail >= 2) {
-											resolvePick(candidate);
-											return;
-										}
-										if (!options.projectionOptions) {
-											resolvePick(candidate);
-											return;
-										}
-										selectedNodeId = candidate.node_id;
-										alignProjectionForNode(candidate);
+										activateNode(candidate.node_id, event.detail >= 2);
 									}} />
 							</div>
 						{/snippet}
@@ -484,11 +554,16 @@
 					<span class="projection-label">Projection</span>
 					<select
 						class="projection-select"
-						disabled={!selectedNode}
+						disabled={!selectedNode ||
+							!pickerCandidateAllowed(graphState, options, activeView, selectedNode)}
 						value={selectedProjection ?? ''}
 						onchange={(event) => {
 							const value = (event.target as HTMLSelectElement).value;
-							selectedProjection = value.length > 0 ? (value as UiParamValueProjection) : undefined;
+							if (!value) chooseProjection(undefined);
+							else {
+								const projection = selectedProjectionOptions.find((option) => option === value);
+								if (projection !== undefined) chooseProjection(projection);
+							}
 						}}>
 						{#if !selectedProjectionRequired}
 							<option value="">Auto</option>
@@ -501,9 +576,7 @@
 			{/if}
 			<footer class="picker-actions">
 				{#if options.clearable}
-					<button type="button" onclick={() => resolveNodePickerModal({ kind: 'clear' })}>
-						Clear
-					</button>
+					<button type="button" onclick={clearSelection}> Clear </button>
 				{/if}
 				{#if options.projectionOptions}
 					<button type="button" disabled={!canConfirmPick} onclick={confirmPick}> Select </button>

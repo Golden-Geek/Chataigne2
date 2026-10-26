@@ -10,6 +10,11 @@
 	import FormulaLibraryRowSupplement from './FormulaLibraryRowSupplement.svelte';
 
 	let _props: PanelProps = $props();
+	let tree = $state<ReturnType<typeof ManagerListPanel>>();
+	export const focusTreeNode = (id: number) => tree?.focusTreeNode(id);
+	export const navigateTree = (key: string) => tree?.navigateTree(key);
+	export const setNodeExpanded = (id: number, expanded: boolean) =>
+		tree?.setNodeExpanded(id, expanded);
 
 	const FORMULA_LIBRARY_NODE_TYPE = 'alchemist_formula_library';
 	const FORMULA_NODE_TYPE = 'alchemist_formula';
@@ -39,7 +44,7 @@
 		new Set(SOURCE_FILTERS.map((filter) => filter.id))
 	);
 
-	const toggleSource = (id: FormulaSourceKind): void => {
+	export const toggleSource = (id: FormulaSourceKind): void => {
 		const next = new Set(activeSources);
 		if (next.has(id)) {
 			next.delete(id);
@@ -64,6 +69,7 @@
 <div class="formula-library-panel">
 	<div class="formula-library-list">
 		<ManagerListPanel
+			bind:this={tree}
 			managerNodeType={FORMULA_LIBRARY_NODE_TYPE}
 			searchPlaceholder="Search formulas..."
 			missingMessage="Formula Library not available."
@@ -72,7 +78,7 @@
 			addButtonTitle="Add formula"
 			isTreeNode={isFormulaTreeNode}
 			canRenderNodeChildren={canRenderFormulaChildren}
-			extraNodeFilter={matchesActiveSource}
+			extraNodeFilter={activeSources.size === SOURCE_FILTERS.length ? null : matchesActiveSource}
 			rowSupplementComponent={FormulaLibraryRowSupplement} />
 	</div>
 	<div class="formula-source-filter" role="group" aria-label="Filter by formula source">

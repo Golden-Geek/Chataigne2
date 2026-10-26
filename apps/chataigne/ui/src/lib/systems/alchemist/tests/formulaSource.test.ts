@@ -51,13 +51,47 @@ const nodeMap = (...nodes: UiNodeDto[]): ReadonlyMap<NodeId, UiNodeDto> =>
 
 const sourceGraph = (rootId: NodeId, ...nodes: UiNodeDto[]): FormulaSourceGraph => {
 	const parentById = new Map<NodeId, NodeId>();
+	const nodesById = nodeMap(...nodes);
+	const structuralChildrenById = new Map<NodeId, NodeId[]>();
 	for (const parent of nodes) {
 		for (const child of parent.children) parentById.set(child, parent.node_id);
+		const structural = parent.children.filter((id) => {
+			const child = nodesById.get(id);
+			return child && child.user_role !== 'itemRoot';
+		});
+		if (structural.length) structuralChildrenById.set(parent.node_id, structural);
 	}
-	return { rootId, nodesById: nodeMap(...nodes), parentById };
+	return { rootId, nodesById, parentById, structuralChildrenById };
 };
 
 describe('formula source classification', () => {
+	it('does not scan formula items when looking for absent declared settings', () => {
+		const items = Array.from({ length: 100000 }, (_, index) => ({
+			...testNode(index + 2),
+			user_role: 'itemRoot' as const
+		}));
+		const formula = items[0];
+		const library = testNode(1, {
+			nodeType: FORMULA_LIBRARY_NODE_TYPE,
+			children: items.map((node) => node.node_id)
+		});
+		const graph: FormulaSourceGraph = {
+			rootId: 0,
+			nodesById: new Map(
+				[testNode(0, { children: [1] }), library, ...items].map((node) => [node.node_id, node])
+			),
+			parentById: new Map([[1, 0], ...items.map((node) => [node.node_id, 1] as [number, number])]),
+			structuralChildrenById: new Map([[0, [1]]])
+		};
+		const get = graph.nodesById.get.bind(graph.nodesById);
+		let reads = 0;
+		graph.nodesById.get = (id) => {
+			reads++;
+			return get(id);
+		};
+		expect(sharedFormulaDir(graph, formula)).toBeNull();
+		expect(reads).toBeLessThan(12);
+	});
 	it('gives built-in metadata precedence and preserves its source presentation', () => {
 		const formula = testNode(1, {
 			tags: [
@@ -102,9 +136,7 @@ describe('formula source classification', () => {
 		const graph = sourceGraph(0, root, preferences, saveAndLoad, dataFolder, formula, externalFile);
 
 		expect(sharedFormulaDir(graph, formula)).toBe('C:\\Chataigne\\Data\\formulas');
-		expect(formulaExternalFilePath(formula, graph.nodesById)).toBe(
-			'c:\\chataigne\\data\\formulas\\Mix.json'
-		);
+		expect(formulaExternalFilePath(formula, graph)).toBe('c:\\chataigne\\data\\formulas\\Mix.json');
 		expect(formulaSourceKind(formula, graph)).toBe('shared');
 	});
 
@@ -157,7 +189,7 @@ describe('formula source classification', () => {
 		const formula = testNode(1);
 		const graph = sourceGraph(1, formula);
 
-		expect(formulaExternalFilePath(formula, graph.nodesById)).toBeNull();
+		expect(formulaExternalFilePath(formula, graph)).toBeNull();
 		expect(formulaSourceKind(formula, graph)).toBe('project');
 	});
 

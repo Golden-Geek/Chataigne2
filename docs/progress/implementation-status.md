@@ -5,12 +5,12 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-26 on `main`, based on delivered `f14ddbd2` plus the shared tree
-keyboard milestone below. **P11 is in progress; three of six fixed checkpoints are closed (50%).**
+Last reconciled: 2026-10-26 on `main`, based on delivered `81adcc37` plus tree checkpoint
+closure below. **P11 is in progress; four of six fixed checkpoints are closed (67% rounded).**
 **P10 is locally complete: three of three fixed checkpoints (100%).**
 **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
-Whole-plan scope coverage is 58%; P01-P10 are locally complete.
+Whole-plan scope coverage is 59%; P01-P10 are locally complete.
 Hardware/platform and product-scale
 qualification retain their later owners.
 Initial audit source baseline: `49d65b0fe71f66b73d338ebe026a572a53c7dcf6`,
@@ -24,14 +24,14 @@ plan. Its complete contents, including the uncommitted clarification, survive in
 packages, not commit counts. Spatializer's admitted preparation, bounded publication, source/path
 fences, identity preservation and passive failure recovery are qualified under C12.
 
-**Whole plan: 58% complete.** P01-P10 are complete against their local acceptance criteria.
+**Whole plan: 59% complete.** P01-P10 are complete against their local acceptance criteria.
 P09 has all three checkpoints complete: stable storage/layout, indexed structural edits, and
 consumer/scale qualification. P10 has all three fixed checkpoints complete; none remain.
-P11 is in progress at 3/6 closed checkpoints (50%); P12-P18 have not started.
+P11 is in progress at 4/6 closed checkpoints (67% rounded); P12-P18 have not started.
 P00 baseline reconciliation is maintained separately.
 **10 of 18 implementation/qualification tasks are fully complete.**
 
-Overall progress is the equal-weight average of P01-P18: `(10 + 3/6) / 18 * 100 = 58.333...%`,
+Overall progress is the equal-weight average of P01-P18: `(10 + 4/6) / 18 * 100 = 59.259...%`,
 rounded to a whole percent. Use exact checkpoint fractions before rounding task displays.
 This measures scope coverage, not elapsed time, remaining effort, or
 product readiness. Task sizes differ substantially. P00 housekeeping and preserved pre-plan
@@ -189,9 +189,10 @@ P10 has three fixed, equally weighted checkpoints derived from its acceptance cr
 
 ### P11 completion checkpoints
 
-P11 has six fixed, equally weighted acceptance checkpoints. **Three of six are closed (50%).**
+P11 has six fixed, equally weighted acceptance checkpoints. **Four of six are closed (67% rounded).**
 Shared manager/picker/outliner, creation-catalog menus and historical logs pass through 100k items,
-closing the first two checkpoints. Dashboard correctness and the fixed timing matrix close the third. These six
+closing the first two checkpoints. Dashboard qualification closes the third; shared/app tree and
+constrained-picker qualification closes the fourth. These six
 checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-workspace-qualification-contract.md).
 
 | Checkpoint | Status | Delivered / remaining acceptance |
@@ -199,22 +200,22 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
 | Manager/catalog windowing | Complete locally | Variable-height manager/picker/outliner and flat/nested catalog menus pass through 100k items with bounded mounting, identity and focus. [Tree evidence](p11-tree-windowing.md), [catalog closure](p11-catalog-windowing.md). |
 | Historical log windowing | Complete locally | Variable-height history, filters, follow, bounded native selection, focus and snapshot publication pass through 100k records. [Qualification](p11-log-windowing.md). |
 | Dashboard viewport awareness | Complete locally | All 599 correctness groups and 160 fixed timing combinations pass through 100k authored nodes, including geometry, bounded presentation, feedback, callback stalls and completion. Retention regression passes 13 checkpoints. [Timing qualification](p11-dashboard-timing.md), [composition](p11-dashboard-composition.md), [barriers](p11-dashboard-barriers.md). |
-| Tree focus and keyboard navigation | In progress | Shared manager/outliner/picker keyboard operations, retained projection and 30 fixed timing cases pass through 100k items. Processor manager now uses the shared manager. Actual app-wrapper integration and constrained-picker coverage remain before closure. [Delivery and evidence](p11-tree-keyboard.md). |
+| Tree focus and keyboard navigation | Complete locally | All four app consumers, 55 constrained-picker groups and shared navigation/lifecycle cases pass through 100k items. All 70 tree timing combinations and 15 collection regression combinations pass fixed gates. [Closure and evidence](p11-tree-closure.md). |
 | Graph keyboard operations | Not started | Provide and qualify keyboard movement and connection creation through shared operations. |
 | Complete composed workflows | Not started | Qualify discovery, selection and editing across all required composed panels and large batches. Native usability retains P17. |
 
 ## Current handoff
 
-- **Active task: P11 workspace UX (50%, 3/6 fixed checkpoints closed).** Manager/picker/outliner,
-  catalogs, historical logs and dashboard viewport awareness are complete locally. The
+- **Active task: P11 workspace UX (67% rounded, 4/6 fixed checkpoints closed).** Manager/picker/outliner,
+  catalogs, historical logs, dashboard viewport awareness and tree keyboard interaction are complete locally. The
   [dashboard qualification](p11-dashboard-timing.md) passes all **599 correctness groups / five
   sparse tiers and 160 timing combinations**, retaining 4,960 samples and 480 warmups. All fixed
   geometry, mounting, feedback, stall and completion gates pass without explicit collection.
   The 13-checkpoint retention regression also passes; test-owned stale references are released.
-  Shared tree keyboard navigation now passes 30 timing cases and 30 correctness/lifecycle groups
-  through 100k items, with bounded focus retention and 15 passing collection regression cases.
-  Owning UI suites pass **391** cases; browser/app Svelte checks pass. Complete the two remaining
-  tree qualification requirements: actual app wrappers and constrained pickers, then graph keyboard operations and composed
+  Tree closure passes all four app consumers, 55 constrained-picker groups, shared navigation/lifecycle
+  checks and **85 timing combinations / 2,635 samples / 255 warmups** through 100k items.
+  Owning UI suites pass **396** cases; app/browser Svelte checks and the locked default build pass.
+  Next complete the two remaining checkpoints: graph keyboard operations and composed
   workflows. Preserve [composition](p11-dashboard-composition.md) and
   [applied-receipt barriers](p11-dashboard-barriers.md). Native usability retains P17 and product
   throughput P16. P03-P10 remain closed; P03 has zero packages left.
@@ -305,7 +306,7 @@ External qualification is separate from implementation. A historical pass is not
 | P08 Formula backend intents | 100%       | VERIFIED_LOCAL | PASSED four of four checkpoints   | Shared UI/script/HTTP/WS/headless operations, complete atomic fragments, backend connection policy and exact identity replies pass. Final native acceptance uses the default executable and isolated authenticated sessions; later product/platform qualification retains its owners.                                                                        |
 | P09 Graph document          | 100%       | VERIFIED_LOCAL | PASSED three of three checkpoints | Stable storage, indexed structural edits and exact rollback pass. Current/pre-P09 harness preserves 1,240 fixed-delta samples; public default/no-Serde contracts, Alchemist/statechart consumers, native selection drag/delete undo/redo, strict checks and default build qualify the final checkpoint.                                                      |
 | P10 Canvas                  | 100%       | VERIFIED_LOCAL | PASSED three of three checkpoints | Independent revisions/geometry, scoped routes/culling and full production mounted action/frame qualification pass at baseline/normal/stress tiers. All 55 action/tier and two dense scenes pass fixed gates, with 1,767 measured samples, preserved failures, owning UI/browser checks and default build. Native/full-product qualification retains P16/P17. |
-| P11 Workspace UX            | 50%        | IN_PROGRESS    | PASSED three of six checkpoints | Manager/picker/outliner, catalogs, logs and dashboard viewport awareness pass their fixed local gates through 100k entries/authored nodes. Dashboard has 599 correctness groups and 160 timing combinations passing. Tree keyboard, graph keyboard and composed qualification remain. Native usability open. |
+| P11 Workspace UX            | 67%        | IN_PROGRESS    | PASSED four of six checkpoints | Manager/picker/outliner, catalogs, logs, dashboard viewport awareness and tree keyboard interaction pass fixed local gates through 100k entries/authored nodes. Tree closure includes all four app consumers, 55 constrained-picker groups and 85 passing timing combinations. Graph keyboard and composed qualification remain. Native usability open. |
 | P12 Boundaries/gates        | 0%         | NOT_STARTED    | PENDING                           | App policy leak, omitted graph tests, oversized files, unsafe conversions; recurring incremental native-link artifact gap                                                                                                                                                                                                                                    |
 | P13 Formula execution       | 0%         | NOT_STARTED    | PENDING                           | Historical profiles retained; production parallelism not mandated                                                                                                                                                                                                                                                                                            |
 | P14 Production time         | 0%         | NOT_STARTED    | PENDING                           | Clock helper unwired, no target-frame play, starvation/latency policy gaps                                                                                                                                                                                                                                                                                   |
@@ -10761,3 +10762,51 @@ integration qualification and constrained-picker cases (hidden/nonselectable row
 projection and confirmation). Then continue graph keyboard operations and composed workflows.
 These requirements do not add checkpoints. Commit/push this verified milestone on `main` and keep
 the full P00-P18 goal active. Native keyboard/focus usability retains P17; product throughput P16.
+
+### P11 tree checkpoint closed
+
+Previous goal turn: **progress**, delivering `81adcc37` to `main`. Reconciled that clean checkout
+before closing its two explicit remaining requirements: app-consumer integration and constrained
+pickers. No new checkpoint or batch denominator was added.
+
+Actual ModulePanel, FormulaLibraryPanel, StateProcessorManager and the complete AlchemistEditorPanel
+property surface now pass the fixed five-tier app matrix. App-owned supplements, folder/leaf policy,
+private-child exclusion, far focus/selection, expansion and Formula source filtering are exercised.
+The property editor uses public session selection/reveal and metadata expansion in the actual
+production host; shared TreeRows keyboard handling has its own matrix. Golden exposes supported
+test-helper entries, keeping app fixtures and policy outside reusable runtime packages.
+
+This integration found and repaired an unbounded property-manager flex layout: 1k items mounted all
+1k rows while the scroller grew to 28,813 CSS pixels. Shared manager flex/shrink ownership now bounds
+the actual viewport; the fixture mounts 26 property, 27 Formula and 28 module/processor rows.
+Formula source settings lookup now uses Golden's structural-child index instead of scanning user
+items. A regression verifies fewer than 12 record reads with 100k item roots. Early app fixtures
+also corrected regular/item-root classification to the backend contract without reducing density.
+
+Picker confirmation and every activation path revalidate root ancestry, source UUID, caller/view/row
+constraints and supported projections. A new candidate clears the previous projection; required
+multiple options need an explicit choice, while single-option/optional/immediate/clear behavior is
+preserved. Root/session replacement cancels old requests. Dialog focus cycling, return-to-origin and
+pending-autofocus fencing are checked through public component operations and DOM inspection.
+
+The [closure report](p11-tree-closure.md) and [fixed contract](p11-workspace-qualification-contract.md)
+record **20 app consumer/tier groups**, **55 constrained-picker groups**, shared keyboard/lifecycle,
+and collection/variable-row regressions. All **85 timing combinations / 2,635 retained samples /
+255 warmups** pass. Normal 20k/50k worst per-case feedback p95, completion p95 and callback interval
+are **34.1ms / 41.6ms / 33.4ms**; 100k stress maxima are **67.5ms / 75ms / 183.2ms**. Existing
+200ms/2,000ms normal and 400ms/4,000ms stress limits remain unchanged. No page errors, synthesized
+input, desktop control, profiler or forced GC enters qualification. Raw failed rows are retained.
+
+Root UI suites pass **396 cases** (27 audio / 52 graph / 191 Golden / 126 app). App and both browser
+Svelte checks report zero errors/warnings. The locked default app build passes in **2m41s** with a
+fresh frontend; SHA-256 is `df6d6eec01356d8da99e39a1dd01ae89cf04c7031ebea5e6e5676bf6a5fecedd`.
+Both Cargo formatters, source/report formatting and whitespace checks pass. Inventory is **2,191
+sources / 27 oversized**; no touched source exceeds 1,000 lines. Rust/protocol are unchanged.
+[Source, asset, machine and build fingerprints](evidence/p11-tree-closure-source-2026-10-26.json)
+identify the final runs.
+
+**P11 is now 4/6 fixed checkpoints complete (67% rounded); whole-plan scope coverage is 59%
+(59.259...% exact).** Two P11 checkpoints remain: graph keyboard operations and composed workflows.
+Commit/push this verified milestone on `main`, then continue graph keyboard movement and connection
+creation through shared operations. P03 remains closed with zero packages left; native usability
+retains P17 and full-product throughput P16. Keep the full P00-P18 goal active.

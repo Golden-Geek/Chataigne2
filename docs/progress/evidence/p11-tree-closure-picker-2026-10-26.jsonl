@@ -1,0 +1,7 @@
+{"kind":"environment","browser":"156.0.4314.42","production":true,"report":"D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-collections-2026-10-26T08-19-37-220Z.jsonl"}
+{"kind":"constrained-picker","size":1000,"passed":true,"groups":11}
+{"kind":"constrained-picker","size":10000,"passed":true,"groups":11}
+{"kind":"constrained-picker","size":20000,"passed":true,"groups":11}
+{"kind":"constrained-picker","size":50000,"passed":true,"groups":11}
+{"kind":"constrained-picker","size":100000,"passed":true,"groups":11}
+{"kind":"result","passed":true,"errors":[]}

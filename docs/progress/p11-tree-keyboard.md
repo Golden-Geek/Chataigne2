@@ -1,5 +1,8 @@
 # P11 shared tree keyboard delivery
 
+This records the first shared delivery in `81adcc37`. The later
+[tree checkpoint closure](p11-tree-closure.md) supplies app-consumer and constrained-picker evidence.
+
 Golden UI now owns keyboard navigation for ManagerListPanel, OutlinerPanel and NodePickerModalHost
 through one TreeRows component. Chataigne's processor manager also delegates to ManagerListPanel,
 removing its duplicate recursive rendering and drag/drop implementation. See the

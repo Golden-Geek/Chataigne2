@@ -33,6 +33,19 @@ nearest visible ancestor or neighboring row. Empty projections focus their tree 
 stealing focus from search. Pending reveal/focus is fenced by navigation generation, session,
 snapshot generation, owner identity and node UUID. New focus owners win over pending work.
 
-The [P11 keyboard evidence](../progress/p11-tree-keyboard.md) distinguishes shared browser
-qualification from remaining app-consumer and constrained-picker coverage. Native physical-input
-usability belongs to P17.
+ManagerListPanel participates in its host's flex layout with a zero minimum block size. Its
+scroller measures available space, including when the complete Alchemist editor composes it below
+an inspector. Logical tree height must not become the viewport height.
+
+The picker applies caller constraints to initial selection, activation and confirmation, including
+root ancestry and UUID validation. Required multiple projections need an explicit choice; a change
+of candidate resets the projection. A replaced owner/root cancels the request. Focus cycles within
+the bounded dialog controls and closing returns focus to its live origin when appropriate.
+
+App-owned Formula source classification reads Golden's public structural-child index rather than
+scanning the catalog for absent declaration fields. Qualification fixtures use public
+`golden_ui/testing/session` and `golden_ui/testing/collections` helpers; production apps do not import
+those test entries. Golden keeps no dependency on app-owned fixtures or Formula policy.
+
+The [P11 tree closure](../progress/p11-tree-closure.md) records shared, app-consumer and constrained
+picker qualification. Native physical-input usability belongs to P17.

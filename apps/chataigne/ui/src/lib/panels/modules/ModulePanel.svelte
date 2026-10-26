@@ -3,6 +3,11 @@
 	import ModuleItem from './ModuleItem.svelte';
 
 	let _props: PanelProps = $props();
+	let tree = $state<ReturnType<typeof ManagerListPanel>>();
+	export const focusTreeNode = (id: number) => tree?.focusTreeNode(id);
+	export const navigateTree = (key: string) => tree?.navigateTree(key);
+	export const setNodeExpanded = (id: number, expanded: boolean) =>
+		tree?.setNodeExpanded(id, expanded);
 
 	const MODULE_MANAGER_NODE_TYPE = 'module_manager';
 	const MODULE_USER_ITEM_KIND = 'module';
@@ -27,6 +32,7 @@
 </script>
 
 <ManagerListPanel
+	bind:this={tree}
 	managerNodeType={MODULE_MANAGER_NODE_TYPE}
 	searchPlaceholder="Search modules..."
 	missingMessage="No module manager found in the current graph."
