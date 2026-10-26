@@ -182,3 +182,30 @@ pass. The exact artifact passes **34 native correctness groups**. The
 [read-view evidence](evidence/p11-spatializer-read-view-2026-10-26.json) records the rerun: 50k
 publication improves to **126,167.5ms**, but 100k still fails the unchanged 300s setup deadline.
 Full pressure/action qualification remains open; caller attribution is the next diagnostic step.
+
+## Snapshot caller attribution and archive repair
+
+An opt-in caller trace on the same 50k Voronoi scene identifies **1,270 of 1,327** large process
+snapshot builds in Mapping's archive-collision settlement check. Snapshot construction accounts
+for **79.3s** in that diagnostic run; matrix publication takes 126.8s. The check clones the entire
+project even when no Mapping processors exist. This is an app adapter issue reached by unrelated
+Spatializer publication, rather than a reason to change Spatializer's fixed service limits.
+
+The repair reads canonical live compression controls, skips inactive archives and uses Golden's
+existing public UUID index for collision checks. Snapshot consumers and settlement share the same
+typed archive decoder. Archive remapping and pending-edit application keep their original ordering;
+the no-processor path still applies pending edits. Qualification must rerun the complete unchanged
+16-group selection on the normal bundled executable before taking pressure credit.
+
+All **90 processor regressions** pass, including two new canonical-control/pending-edit cases;
+four existing manual cases remain ignored. Core's 635 cases pass (three existing ignored),
+strict app/Core all-target Clippy passes, and the normal bundled executable passes all **34 native
+correctness groups**. The [archive-read evidence](evidence/p11-spatializer-archive-reads-2026-10-27.json)
+retains exact source/binary fingerprints, caller attribution and the full pressure attempt.
+
+That complete selection passes Voronoi 50k with **19,672.2ms** publication and 100k with
+**40,946.1ms** publication. The 50k observation improves from the preceding 126,167.5ms; these
+single setup observations are not p95 action distributions. The next `(32 sources, 4,096 targets)`
+scene fails the unchanged 300s cumulative setup gate. No full 16-group or action qualification is
+claimed. Continue with that endpoint-cap publication failure, then rerun all 16 groups and the
+60 fixed timing cases. P11 remains **4/6**, whole-plan scope **59%**.

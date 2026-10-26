@@ -7,9 +7,13 @@ extraction notes and September counts are [archived](../archive/2026-10-18/progr
 
 ## Scan and policy
 
-Refreshed 2026-10-26 against delivered `b79ce895` plus bounded Spatializer presentation
-on `main`. Scanned **2226 source files**; **25 exceed 1,000 lines**. This follows the exclusions
-below. The viewport planner, virtual inspector, declaration index, two focused test files and
+Refreshed 2026-10-27 against delivered `1e1ae0e8` plus live archive collision reads
+on `main`. Scanned **2287 source files**; **25 exceed 1,000 lines**. The previous milestone
+counter covered 2,226 Rust/TypeScript/JavaScript/Svelte files under apps, crates, packages and
+xtask; its directly comparable count is now 2,227. The complete scan also includes tools and
+Python/PowerShell/shell sources. This corrects the scan coverage without adding oversized files.
+The shared archive decoder is 66 lines; the processor root shrinks from 1,614 to 1,594.
+The viewport planner, virtual inspector, declaration index, two focused test files and
 native pressure driver add six authored files. The calibration driver,
 fixed workload contract and fixture helpers stay below the limit. The Formula input-count
 index, compilation-resolution test and shared native scale helpers stay below the limit.
@@ -57,8 +61,8 @@ each public Node hook must reach both sets of variants there. P12 still owns ext
 mechanical forwarding. Codec generation now lives in the focused `support/macros/src/node_data.rs`
 module rather than expanding the oversized macro entrypoint.
 
-Discover files with `rg --files apps crates packages tools` using normal ignore rules.
-Count UTF-8 text lines in `.rs`, `.ts`, `.svelte`, `.js`, `.mjs`, `.py`, `.ps1`, and `.sh`.
+Discover files with `rg --files apps crates packages tools xtask` using normal ignore rules.
+Count UTF-8 text lines in `.rs`, `.ts`, `.tsx`, `.svelte`, `.js`, `.mjs`, `.py`, `.ps1`, and `.sh`.
 Exclude any path component named `generated`, `gen`, `build`, `node_modules`, `target`,
 `.svelte-kit`, or `vendor`. Include tests. Generated outputs, lockfiles, and long-form docs
 are outside the source limit.
@@ -84,7 +88,7 @@ and alternatives; a blanket exception does not close P12. Refresh counts after r
 |  1,846 | `crates/golden_core/engine/src/node/dashboard/tests/mod.rs`                          | Test suite     |
 |  1,693 | `crates/golden_core/engine/src/node_macros.rs`                                       | Implementation |
 |  1,638 | `apps/chataigne/systems/alchemist/integration/processor/catalog.rs`                  | Implementation |
-|  1,614 | `apps/chataigne/systems/alchemist/integration/processor/mod.rs`                      | Implementation |
+|  1,594 | `apps/chataigne/systems/alchemist/integration/processor/mod.rs`                      | Implementation |
 |  1,601 | `apps/chataigne/systems/alchemist/integration/processor/tests/processor.rs`          | Test suite     |
 |  1,480 | `packages/golden-ui/components/common/NodeContextMenu.svelte`                        | Implementation |
 |  1,474 | `apps/chataigne/systems/alchemist/src/tests/runtime.rs`                              | Test suite     |

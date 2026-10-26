@@ -579,6 +579,7 @@ impl<T: Node> Engine<T> {
 
     /// Returns a cached snapshot for the current tick, building it on first call.
     /// Used by `apply_call_node_mutation` so N mutations share one build per tick.
+    #[track_caller]
     pub(crate) fn get_or_build_tick_snapshot(&mut self) -> Arc<ProcessTreeSnapshot> {
         if let Some(snapshot) = &self.tick_tree_snapshot {
             return Arc::clone(snapshot);
@@ -634,6 +635,7 @@ impl<T: Node> Engine<T> {
             .then(|| self.build_process_tree_snapshot());
     }
 
+    #[track_caller]
     pub(crate) fn build_process_tree_snapshot(&self) -> Arc<ProcessTreeSnapshot> {
         let trace = self.nodes.len() >= 10_000 && *runtime::PERF_TRACE_ENABLED;
         let started = trace.then(Instant::now);
@@ -695,11 +697,12 @@ impl<T: Node> Engine<T> {
         ));
         if let (Some(started), Some(cloned), Some(counted)) = (started, cloned, counted) {
             eprintln!(
-                "[engine] process_snapshot nodes={} clone_us={} count_us={} indexes_us={}",
+                "[engine] process_snapshot nodes={} clone_us={} count_us={} indexes_us={} caller={}",
                 self.nodes.len(),
                 cloned.duration_since(started).as_micros(),
                 counted.duration_since(cloned).as_micros(),
                 counted.elapsed().as_micros(),
+                std::panic::Location::caller(),
             );
         }
         snapshot
@@ -709,6 +712,7 @@ impl<T: Node> Engine<T> {
     ///
     /// This is the supported boundary for compilers and exporters that consume
     /// canonical Golden Core node subtrees without taking ownership of the engine.
+    #[track_caller]
     pub fn process_tree_snapshot(&self) -> Arc<ProcessTreeSnapshot> {
         self.build_process_tree_snapshot()
     }

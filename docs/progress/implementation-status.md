@@ -5,8 +5,8 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-26 on `main`, based on delivered `c7ab17b1` plus wide-map Home repair
-below. **P11 is in progress; four of six fixed checkpoints are closed (67% rounded).**
+Last reconciled: 2026-10-27 on `main`, based on delivered `1e1ae0e8` plus archive-collision
+read repair below. **P11 is in progress; four of six fixed checkpoints are closed (67% rounded).**
 **P10 is locally complete: three of three fixed checkpoints (100%).**
 **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
@@ -249,7 +249,12 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
   100k setup deadline. A directed trace attributes 168.3s to 2,562 snapshots of at least 10k nodes;
   quiet wake p95 is 103ms. The leased read-view repair passes 38 owning tests, strict all-target
   Clippy and 34 native groups; 50k publication improves to 126.2s but 100k still times out.
-  Opt-in snapshot caller diagnostics are being added to identify the remaining rebuilds.
+  Opt-in caller diagnostics attribute 1,270 of 1,327 large snapshots to Mapping archive repair,
+  including projects without Mapping processors. That adapter now reads canonical live controls
+  and the existing UUID index. All 90 processor regressions and strict app/Core all-target Clippy
+  pass. The normal bundled executable passes all 34 native correctness groups. The full pressure
+  attempt passes Voronoi 50k and 100k (19.7s / 40.9s publication), then times out at 4,096 targets.
+  Archive settlement no longer clones the graph; diagnose this newly reached endpoint-cap case.
   Complete all 16 pressure groups and 60 timing cases before graph checkpoint closure.
   Finish pressure/publication diagnosis
   before action timing; do not infer qualification from small-scene correctness.
@@ -11481,3 +11486,34 @@ pass. No protocol, persistence, dependency or app-shell change. Commit and push 
 partial performance repair on `main`; **P11 remains 4/6 (67%), whole plan 59%**. Continue the
 remaining publication diagnosis and full pressure matrix, then the 60 timing cases and composed
 workflows. The full implementation goal remains active.
+
+### P11 archive-collision read repair — 2026-10-27
+
+Opt-in Core snapshot caller attribution identifies Mapping archive collision settlement as
+the owner of **1,270 of 1,327** large snapshot builds during the 50k Spatializer diagnostic.
+Those builds cost 79.3s, even though the project has no Mapping processors. The app adapter now
+reads canonical live compression controls and Golden's public UUID index; a shared typed decoder
+serves live and snapshot consumers. Inactive archives are skipped, malformed active archives still
+error, duplicate frozen UUIDs are remapped coherently, and pending edits still apply without
+processors. No service/allocation limits, deadlines, protocol or app-shell code changes.
+
+All **90 owning processor tests** pass in the dev profile, including two new pre-callback and
+pending-edit cases; four existing manual cases remain ignored. Core **635 / three ignored**,
+strict app/Core all-target Clippy, the normal bundled build, both Cargo formatters and explicit
+owning Rustfmt pass. The exact executable passes **12 navigation / 13 Spatializer / four State /
+five Formula native groups**. The [evidence](evidence/p11-spatializer-archive-reads-2026-10-27.json)
+retains source/binary fingerprints, attribution and the complete uninstrumented pressure attempt.
+
+That full selection passes Voronoi **50k / 100k** with publication at **19,672.2ms / 40,946.1ms**.
+The preceding 50k read-view artifact took 126,167.5ms. These single setup observations are not
+action latency distributions. The next `(32 sources, 4,096 targets)` scene fails the unchanged
+300s cumulative setup gate. Full 16-group pressure and all 60 timing cases remain open. Diagnose
+that endpoint-cap boundary next; do not infer qualification from the two successful tiers.
+
+The new decoder is 66 lines, transition owner 404, processor root 1,594 (down 20), and compression
+test file 492. The reconciled complete inventory is **2,287 sources / 25 existing oversized**;
+the directly comparable prior scan is 2,227, with one added source. Tools and script languages
+explain the corrected coverage; see the [scan policy](../reference/source-size-inventory.md).
+Deliver this verified archive-read repair on `main`; **P03 remains 12/12 (100%), P11 4/6 (67%),
+whole plan 59%**. Continue endpoint-cap diagnosis, complete Spatializer scale, then composed
+workflows. The P00-P18 implementation goal remains active.

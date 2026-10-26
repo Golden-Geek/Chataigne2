@@ -29,6 +29,7 @@ use crate::app::systems_alchemist_managed_nodes::{
 use crate::app::{AppEngine, ConditionManager, FilterChainManager, InputsManager, OutputsManager};
 
 mod catalog;
+mod compression_source;
 mod conversion;
 mod factory;
 mod filter_validation;
@@ -41,6 +42,7 @@ mod source_schema;
 mod surface;
 mod transition;
 
+pub(crate) use compression_source::processor_frozen_source;
 pub(crate) use frozen::FrozenMappingSource;
 pub(crate) use managed_regions::managed_regions_from_snapshot;
 pub(crate) use output_migration::{MAPPING_CONCRETE_OUTPUTS_V1_TAG, migrate_mapping_output_adapters};
@@ -272,28 +274,6 @@ pub(crate) fn processor_compression_enabled(snapshot: &ProcessTreeSnapshot, proc
         .and_then(|node| snapshot.node(node))
         .and_then(|node| node.param_value.as_ref())
         .is_some_and(|value| matches!(value, ParamValue::Bool(true)))
-}
-
-pub(crate) fn processor_frozen_source(
-    snapshot: &ProcessTreeSnapshot,
-    processor_node: NodeId,
-) -> Result<Option<FrozenMappingSource>, String> {
-    if !processor_compression_enabled(snapshot, processor_node) {
-        return Ok(None);
-    }
-    let encoded = snapshot
-        .find_child_by_decl_id(processor_node, PROCESSOR_FROZEN_SOURCE_DECL_ID)
-        .and_then(|node| snapshot.node(node))
-        .and_then(|node| node.param_value.as_ref())
-        .and_then(|value| match value {
-            ParamValue::Str(value) => Some(value.as_str()),
-            _ => None,
-        })
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| "compressed Mapping has no frozen source".to_owned())?;
-    serde_json::from_str(encoded)
-        .map(Some)
-        .map_err(|error| format!("compressed Mapping source is invalid: {error}"))
 }
 
 fn processor_container_rules() -> UserContainerRules {

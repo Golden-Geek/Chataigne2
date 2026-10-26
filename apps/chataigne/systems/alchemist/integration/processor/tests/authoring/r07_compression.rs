@@ -11,6 +11,58 @@ use crate::app::systems_alchemist_processor::{
 };
 
 #[test]
+fn settlement_reads_canonical_compression_controls_before_callbacks() {
+    let (mut engine, _, processor) = mapping_engine();
+    let snapshot = engine.process_tree_snapshot();
+    let enabled = snapshot
+        .find_child_by_decl_id(processor, PROCESSOR_COMPRESSION_ENABLED_DECL_ID)
+        .unwrap();
+    let frozen = snapshot
+        .find_child_by_decl_id(processor, PROCESSOR_FROZEN_SOURCE_DECL_ID)
+        .unwrap();
+    drop(snapshot);
+
+    engine.edits.push(Edit::SetParam {
+        node: enabled,
+        value: ParamValue::Bool(true),
+        behaviour: ParameterEventBehaviour::Append,
+    });
+    engine.apply_edits().unwrap();
+    assert_eq!(
+        settle_pending_mapping_transitions(&mut engine).unwrap_err(),
+        "compressed Mapping has no frozen source"
+    );
+
+    engine.edits.push(Edit::SetParam {
+        node: enabled,
+        value: ParamValue::Bool(false),
+        behaviour: ParameterEventBehaviour::Append,
+    });
+    engine.edits.push(Edit::SetParam {
+        node: frozen,
+        value: ParamValue::Str("invalid archive".to_owned()),
+        behaviour: ParameterEventBehaviour::Append,
+    });
+    engine.apply_edits().unwrap();
+    settle_pending_mapping_transitions(&mut engine).expect("an inactive archive must not be decoded");
+}
+
+#[test]
+fn settlement_applies_pending_edits_without_processors() {
+    let mut engine = AppEngine::new(Folder::new("root").into());
+    let child = Folder::new("pending child");
+    let uuid = child.node_data().meta.uuid;
+    engine.add_node(child.into(), None);
+    assert!(engine.node_id_by_uuid(uuid).is_none());
+    settle_pending_mapping_transitions(&mut engine).unwrap();
+    let inserted = engine.node_id_by_uuid(uuid).expect("pending insertion must be applied");
+    assert_eq!(
+        engine.nodes.get(inserted).unwrap().node_data().meta.label,
+        "pending child"
+    );
+}
+
+#[test]
 fn compression_removes_real_workflow_nodes_and_expansion_restores_their_uuids() {
     let (mut engine, _, processor) = mapping_engine();
     let source_uuid = source_param(&mut engine, "Compression source", 0.42);

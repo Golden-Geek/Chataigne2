@@ -50,6 +50,11 @@ excuse blocked processing. Revised targets never retroactively pass old failed g
   When every node opts out, attached/init/ready stages do not clone the graph. User-item creation
   compares direct children without constructing whole-tree snapshots.
 
+`GOLDEN_PERF_TRACE=1` enables backend diagnostic logs. For snapshots of at least 10k nodes,
+`process_snapshot` records clone, child-count and index/folding time plus the requesting source
+location. Cached and public snapshot wrappers propagate that location to distinguish callers.
+Use this to attribute unexpected rebuilds; instrumented runs cannot qualify action latency.
+
 Run the release scalar qualification from the repository root:
 
 ```text

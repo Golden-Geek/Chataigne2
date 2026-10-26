@@ -93,6 +93,12 @@ a diagnostic. Read-only frozen data rejects public parameter/script mutation. Ex
 the entire restored identity forest and checks collisions before applying it. Duplicate/import
 remaps the entire frozen forest and its internal references coherently before either copy expands.
 
+Settlement checks canonical live compression controls and Golden's public UUID index. It does
+not build a whole-project process snapshot to repair archive identities. Uncompressed processors
+skip archive decoding; active malformed archives still report their existing errors. Pending
+engine edits are applied even when no processor requires repair. Snapshot consumers and live
+settlement share one typed archive decoder in the app-owned processor adapter.
+
 Compatible temporal memory and UUID-keyed accepted-send caches survive representation transitions;
 unchanged OnChange outputs do not replay. External sources and contexts remain live. Sparse reload,
 exact expansion, and undo/redo retain those contracts. Historical measurements and earlier

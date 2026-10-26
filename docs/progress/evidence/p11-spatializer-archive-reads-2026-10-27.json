@@ -1,0 +1,379 @@
+{
+  "scope": "Live Mapping archive-collision reads remove unrelated Spatializer publication snapshots",
+  "baseCommit": "1e1ae0e8",
+  "binarySha256": "fd27ca6692e51e56ec929fe9a4a61e34747770a4092154d5810656c456dcee50",
+  "files": [
+    {
+      "path": "apps/chataigne/systems/alchemist/integration/processor/compression_source.rs",
+      "sha256": "c05c498837a1060d69271b578462fd1eebe115fc3ae93ca9c6d6b1a3520d3e41",
+      "lines": 66
+    },
+    {
+      "path": "apps/chataigne/systems/alchemist/integration/processor/mod.rs",
+      "sha256": "d0cdd434906f11cdc33dcb400e98c7b8ce348f4d94724a7c112140033837feee",
+      "lines": 1594
+    },
+    {
+      "path": "apps/chataigne/systems/alchemist/integration/processor/transition.rs",
+      "sha256": "34e774ae2a966d2b1c5a381288cb34d88d2b05d7d85caaf92bb0da8531a5f8ec",
+      "lines": 404
+    },
+    {
+      "path": "apps/chataigne/systems/alchemist/integration/processor/tests/authoring/r07_compression.rs",
+      "sha256": "c7eb376556e9c3c68dc264db9a4b7f202be7fed2665a4b5c37e2fa56c20dc578",
+      "lines": 492
+    },
+    {
+      "path": "crates/golden_core/engine/src/engine/mod.rs",
+      "sha256": "a3384313b83805cf66c37645c6268cb86f406bd0c67f0aef79a817d10cbdfb95",
+      "lines": 802
+    }
+  ],
+  "diagnostic": {
+    "artifact": "target/qualification/p11-spatializer-pressure-e8849c05-a7c0-48cc-9213-5dd87ee7a3ac/browser.jsonl",
+    "sha256": "be84399ecbbf027ca0c7e2efb46468f3a25ce0978374815b2bb3bcd63dd82885",
+    "binarySha256": "deddab2bfcb1062af28875b2046722901699171b6544bd5a06f17f0bf222c5aa",
+    "contract": {
+      "kind": "pressure-contract",
+      "scenes": 16,
+      "selectedCases": [
+        0
+      ],
+      "fullSelection": false,
+      "diagnosticOnly": true,
+      "engineTrace": true,
+      "actionTiming": false,
+      "limits": {
+        "endpointGlyphs": 128,
+        "overviewGroups": 256,
+        "regionPolygons": 256,
+        "finderRows": 32,
+        "relatedRows": 42
+      }
+    },
+    "snapshots": 1327,
+    "snapshotSeconds": 79.336012,
+    "callerCounts": {
+      "D:\\Projects\\Dev\\Chataigne2\\apps\\chataigne\\systems\\alchemist\\integration\\processor\\transition.rs:213:27": 1270,
+      "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44": 29,
+      "crates\\golden_core\\engine\\src\\engine\\apply.rs:163:47": 28
+    },
+    "matrixPublicationMs": 126846.57299999999
+  },
+  "checks": {
+    "processor": {
+      "passed": 90,
+      "ignored": 4,
+      "newTests": 2,
+      "profile": "dev",
+      "log": "target/qualification/p11-spatializer-live-compression-tests.log"
+    },
+    "core": {
+      "passed": 635,
+      "ignored": 3,
+      "log": "target/qualification/p11-spatializer-snapshot-caller-engine-tests.log"
+    },
+    "clippy": {
+      "passed": true,
+      "packages": [
+        "golden_engine",
+        "Chataigne2"
+      ],
+      "allTargets": true,
+      "denyWarnings": true,
+      "log": "target/qualification/p11-spatializer-live-compression-clippy.log"
+    },
+    "normalBuild": {
+      "passed": true,
+      "bundled": true,
+      "log": "target/qualification/p11-spatializer-live-compression-build.log"
+    }
+  },
+  "regressions": [
+    {
+      "name": "navigation",
+      "log": "target/qualification/p11-spatializer-live-compression-navigation.log",
+      "artifact": "target/qualification/p11-spatializer-navigation-7d5785b4-aaed-45c7-a81d-df686532e3e3/browser.jsonl",
+      "sha256": "3ac5fd51d7edae55820cb8b706b83d5225912d6159e5a841bc2ba92e0cde0745",
+      "binaryHash": "fd27ca6692e51e56ec929fe9a4a61e34747770a4092154d5810656c456dcee50",
+      "groups": [
+        "custom-world-catalog-paging",
+        "source-target-svg-reveal",
+        "keyboard-mutation-retains-svg-focus",
+        "custom-world-selection-framing",
+        "position-change-retains-discovery",
+        "coordinate-space-navigation-fence",
+        "item-retirement-and-undo",
+        "snapshot-navigation-fence",
+        "project-replacement-navigation-fence",
+        "unmount-navigation-retirement",
+        "mode-control-focus-restoration",
+        "wide-home-endpoint-coverage"
+      ],
+      "result": {
+        "kind": "result",
+        "passed": true,
+        "errors": []
+      }
+    },
+    {
+      "name": "native",
+      "log": "target/qualification/p11-spatializer-live-compression-native.log",
+      "artifact": "target/qualification/p11-spatializer-native-9a502745-19e3-41d4-9668-d098d02f9366/browser.jsonl",
+      "sha256": "2eb3e1d48acd3713d6324439153568150bc7014251c4ea03f5fa373e12bd55a0",
+      "binaryHash": "fd27ca6692e51e56ec929fe9a4a61e34747770a4092154d5810656c456dcee50",
+      "groups": [
+        "empty-document-custom-world",
+        "selection-inspector-debug",
+        "authoritative-projection-and-home",
+        "mode-and-matrix-layout-replacement",
+        "three-dimensional-projection",
+        "snapshot-and-remount",
+        "stale-coordinate-space-rejection",
+        "keyboard-gesture-and-history",
+        "zero-radius-keyboard-control",
+        "active-gesture-snapshot-and-unmount",
+        "backend-target-creation",
+        "read-only-replacement-rejection-and-rollback",
+        "saved-project-and-recovery"
+      ],
+      "result": {
+        "kind": "result",
+        "passed": true,
+        "errors": []
+      }
+    },
+    {
+      "name": "state",
+      "log": "target/qualification/p11-spatializer-live-compression-state.log",
+      "artifact": "target/qualification/p11-state-native-91b213f3-d4c3-44b0-b70f-d08454475df8/browser.jsonl",
+      "sha256": "b516116f2be6597de5627206e4f9c7ee583a7ebb662bf110a5d4e6f81d92251d",
+      "binaryHash": "fd27ca6692e51e56ec929fe9a4a61e34747770a4092154d5810656c456dcee50",
+      "groups": [
+        "movement-and-history",
+        "collapse-and-connection",
+        "save-reload-snapshot-unmount",
+        "atomic-readonly-rejection"
+      ],
+      "result": {
+        "kind": "result",
+        "passed": true,
+        "errors": []
+      }
+    },
+    {
+      "name": "formula",
+      "log": "target/qualification/p11-spatializer-live-compression-formula.log",
+      "artifact": "target/qualification/p11-alchemist-native-f2c75574-c789-4548-9dbf-848226e100f8/browser.jsonl",
+      "sha256": "3bbf29a9106c286276a9b450c060a98a808aa1c96db296e23ed600297a22ecf9",
+      "binaryHash": "fd27ca6692e51e56ec929fe9a4a61e34747770a4092154d5810656c456dcee50",
+      "groups": [
+        "movement-and-history",
+        "collapse-and-connection",
+        "save-reload-snapshot-unmount",
+        "atomic-readonly-rejection",
+        "snapshot-subscribe-replacement-overlap"
+      ],
+      "result": {
+        "kind": "result",
+        "passed": true,
+        "errors": []
+      }
+    }
+  ],
+  "inventory": {
+    "sources": 2287,
+    "oversized": 25,
+    "comparablePreviousPolicy": 2227
+  },
+  "completion": {
+    "p03": "12/12",
+    "p11": "4/6",
+    "wholePlanPercent": 59
+  },
+  "pressure": {
+    "log": "target/qualification/p11-spatializer-live-compression-pressure.log",
+    "artifact": "target/qualification/p11-spatializer-pressure-8eedaf7e-a26e-42fe-8b8b-a73838b60d7e/browser.jsonl",
+    "sha256": "a036f647f3da91c7936a6a7d29ba4d354553234989149e44dc148c3cd014eda4",
+    "binarySha256": "fd27ca6692e51e56ec929fe9a4a61e34747770a4092154d5810656c456dcee50",
+    "contract": {
+      "kind": "pressure-contract",
+      "scenes": 16,
+      "selectedCases": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "fullSelection": true,
+      "diagnosticOnly": false,
+      "engineTrace": false,
+      "actionTiming": false,
+      "limits": {
+        "endpointGlyphs": 128,
+        "overviewGroups": 256,
+        "regionPolygons": 256,
+        "finderRows": 32,
+        "relatedRows": 42
+      }
+    },
+    "publication": [
+      {
+        "kind": "matrix-published",
+        "mode": "voronoi",
+        "tier": 50000,
+        "sources": 32,
+        "targets": 1420,
+        "elapsedMs": 19672.2048
+      },
+      {
+        "kind": "matrix-published",
+        "mode": "voronoi",
+        "tier": 100000,
+        "sources": 32,
+        "targets": 2849,
+        "elapsedMs": 40946.0938
+      }
+    ],
+    "passedGroups": [
+      {
+        "kind": "spatializer-pressure",
+        "passed": true,
+        "diagnosticOnly": false,
+        "mode": "voronoi",
+        "tier": 50000,
+        "sources": 32,
+        "targets": 1420,
+        "treeNodes": 50000,
+        "cells": 45440,
+        "inputSha256": "22ab03dd11c1c170a60db8f3e5b35f68a4810d63d83eacebcb540915af10f6f7",
+        "home": {
+          "presentation": "overview",
+          "visible": 1452,
+          "glyphs": 0,
+          "groups": 24,
+          "groupedEndpoints": 1452,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 0,
+          "finderRows": 0,
+          "label": "Endpoint overview: 1452 visible of 1452. Zoom in or Find endpoints. Region overview: zoom in for complete cells. Influence overview: 32 sources, 1420 targets. Inspect computed values for exact weights."
+        },
+        "detail": {
+          "presentation": "detail",
+          "visible": 10,
+          "glyphs": 10,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 19,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 1420 targets. Inspect computed values for exact weights."
+        },
+        "inspector": {
+          "presentation": "detail",
+          "visible": 10,
+          "glyphs": 11,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 19,
+          "rows": 17,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 1420 targets. Inspect computed values for exact weights."
+        },
+        "setupAndChecksMs": 20629.9647
+      },
+      {
+        "kind": "spatializer-pressure",
+        "passed": true,
+        "diagnosticOnly": false,
+        "mode": "voronoi",
+        "tier": 100000,
+        "sources": 32,
+        "targets": 2849,
+        "treeNodes": 100000,
+        "cells": 91168,
+        "inputSha256": "e43fd246e1138576fae824ec1a83b37ce60897c85bdf0e89435db6dcb4842b3a",
+        "home": {
+          "presentation": "overview",
+          "visible": 2881,
+          "glyphs": 1,
+          "groups": 24,
+          "groupedEndpoints": 2881,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Endpoint overview: 2881 visible of 2881. Zoom in or Find endpoints. Region overview: zoom in for complete cells. Influence overview: 32 sources, 2849 targets. Inspect computed values for exact weights."
+        },
+        "detail": {
+          "presentation": "detail",
+          "visible": 10,
+          "glyphs": 10,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 19,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 2849 targets. Inspect computed values for exact weights."
+        },
+        "inspector": {
+          "presentation": "detail",
+          "visible": 10,
+          "glyphs": 11,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 19,
+          "rows": 17,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 2849 targets. Inspect computed values for exact weights."
+        },
+        "setupAndChecksMs": 42239.39
+      }
+    ],
+    "lastLoad": {
+      "kind": "load-return",
+      "mode": "voronoi",
+      "sources": 32,
+      "targets": 4096,
+      "tier": null,
+      "elapsedMs": 1763.5572000000102,
+      "publication": {
+        "module": 4294967302,
+        "mode": "voronoi",
+        "treeNodes": 12537,
+        "radiusParameters": 0,
+        "freezeParameters": 4096,
+        "sources": 32,
+        "targets": 4096,
+        "valueFolders": 0,
+        "cells": 0,
+        "pending": 0,
+        "generation": 4
+      }
+    },
+    "result": {
+      "passed": false,
+      "error": "TimeoutError: page.waitForFunction: Timeout 298226.8976ms exceeded."
+    },
+    "fullQualificationPassed": false,
+    "actionTiming": false
+  },
+  "recordedOn": "2026-10-27"
+}
