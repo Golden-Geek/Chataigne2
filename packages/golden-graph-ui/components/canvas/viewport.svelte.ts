@@ -276,6 +276,23 @@ export function createCanvasViewport(props: CanvasProps, scene: ViewportScene) {
     container?.focus();
   };
 
+  const revealNode = (node: GraphNode): void => {
+    const center = visibleViewportCenter();
+    const zoom = clamp(
+      Math.max(camera.zoom, 0.5),
+      effectiveMinZoom,
+      effectiveMaxZoom,
+    );
+    setCamera({
+      zoom,
+      x:
+        center.x - (node.position.x + scene.nodeWidth(node) / 2) * remPx * zoom,
+      y:
+        center.y -
+        (node.position.y + scene.nodeHeight(node) / 2) * remPx * zoom,
+    });
+  };
+
   const clientToWorld = (
     clientX: number,
     clientY: number,
@@ -439,6 +456,7 @@ export function createCanvasViewport(props: CanvasProps, scene: ViewportScene) {
     resetZoom,
     handleZoomInput,
     frameSelection,
+    revealNode,
     home,
     clientToWorld,
     viewportCenter,

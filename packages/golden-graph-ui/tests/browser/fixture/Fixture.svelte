@@ -12,6 +12,7 @@
 	} from '../../../types';
 	import { createQualification } from './qualification';
 	import { qualifyDense } from './qualification-dense';
+	import { createNavigationQualification } from './navigation-qualification';
 
 	type SceneOptions = Pick<
 		ComponentProps<typeof GraphCanvas>,
@@ -22,6 +23,19 @@
 		| 'initialCamera'
 	>;
 	let canvas = $state<ReturnType<typeof GraphCanvas>>();
+	let canvasMounted = $state(true);
+	export async function replaceCanvasWhileSearching() {
+		const previous = canvas!;
+		await previous.showNodeFinder();
+		const pending = previous.searchNodes('retired unmatched search');
+		canvasMounted = false;
+		await tick();
+		await pending;
+		const staleReveal = await previous.revealNode('n0');
+		canvasMounted = true;
+		await tick();
+		return { staleReveal, finderOpen: canvas!.nodeFinderState().open };
+	}
 	let options = $state.raw<SceneOptions>({});
 	let canvasSize = $state.raw({ width: 10, height: 10 });
 	let interactionScope = $state.raw<object>({});
@@ -109,6 +123,13 @@
 		size: setCanvasSize
 	};
 	const qualification = createQualification(qualificationContext);
+	const discovery = createNavigationQualification(qualificationContext);
+	export const setupDiscovery = discovery.setup;
+	export const runDiscoveryAction = discovery.run;
+	export const discoveryCorrectness = discovery.correctness;
+	export const showNodeFinder = () => canvas!.showNodeFinder();
+	export const searchNodes = (query: string) => canvas!.searchNodes(query);
+	export const nodeFinderState = () => canvas!.nodeFinderState();
 	export const setupQualification = qualification.setup;
 	export const runQualificationAction = qualification.run;
 	export const runDenseQualification = (varied: boolean, diagnostic = false) =>
@@ -369,38 +390,40 @@
 	class="fixture"
 	style:--fixture-width={`${canvasSize.width}rem`}
 	style:--fixture-height={`${canvasSize.height}rem`}>
-	<GraphCanvas
-		bind:this={canvas}
-		{interactionScope}
-		graphDocument={graph}
-		autoHomeOnMount={false}
-		onNodesMove={keyboardReadOnly ? undefined : acknowledgeMoves}
-		onGraphSelectionChange={(selectedNodeIds, selectedEdgeIds) => {
-			options = { ...options, selectedNodeIds, selectedEdgeIds };
-		}}
-		onConnect={keyboardReadOnly ? undefined : captureConnection}
-		canConnect={() => keyboardPolicy}
-		onNodeResize={acknowledgeResize}
-		{...options}>
-		{#snippet nodeContent(node)}
-			<span data-fixture-node>{node.label}</span>
-		{/snippet}
-		{#snippet nodeHeaderContent(node)}
-			<span data-fixture-header>{node.label}</span>
-		{/snippet}
-		{#snippet inputSocketContent(node, socket)}
-			<span data-fixture-input>{node.id}:{socket.id}</span>
-		{/snippet}
-		{#snippet outputSocketContent(node, socket)}
-			<span data-fixture-output>{node.id}:{socket.id}</span>
-		{/snippet}
-		{#snippet worldContent(context)}
-			<span data-fixture-world>{context.remPx}</span>
-		{/snippet}
-		{#snippet toolbarEnd()}
-			<span data-fixture-toolbar>Fixture</span>
-		{/snippet}
-	</GraphCanvas>
+	{#if canvasMounted}
+		<GraphCanvas
+			bind:this={canvas}
+			{interactionScope}
+			graphDocument={graph}
+			autoHomeOnMount={false}
+			onNodesMove={keyboardReadOnly ? undefined : acknowledgeMoves}
+			onGraphSelectionChange={(selectedNodeIds, selectedEdgeIds) => {
+				options = { ...options, selectedNodeIds, selectedEdgeIds };
+			}}
+			onConnect={keyboardReadOnly ? undefined : captureConnection}
+			canConnect={() => keyboardPolicy}
+			onNodeResize={acknowledgeResize}
+			{...options}>
+			{#snippet nodeContent(node)}
+				<span data-fixture-node>{node.label}</span>
+			{/snippet}
+			{#snippet nodeHeaderContent(node)}
+				<span data-fixture-header>{node.label}</span>
+			{/snippet}
+			{#snippet inputSocketContent(node, socket)}
+				<span data-fixture-input>{node.id}:{socket.id}</span>
+			{/snippet}
+			{#snippet outputSocketContent(node, socket)}
+				<span data-fixture-output>{node.id}:{socket.id}</span>
+			{/snippet}
+			{#snippet worldContent(context)}
+				<span data-fixture-world>{context.remPx}</span>
+			{/snippet}
+			{#snippet toolbarEnd()}
+				<span data-fixture-toolbar>Fixture</span>
+			{/snippet}
+		</GraphCanvas>
+	{/if}
 </div>
 
 <style>

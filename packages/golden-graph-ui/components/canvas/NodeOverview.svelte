@@ -2,14 +2,17 @@
 	import type { GraphNode } from '../../types';
 	import type { CanvasGeometry } from './geometry.svelte';
 	import type { CanvasEditing } from './editing.svelte';
+	import type { CanvasKeyboard } from './keyboard.svelte';
 	let {
 		node,
 		geometry,
-		editing
+		editing,
+		keyboard
 	}: {
 		node: GraphNode;
 		geometry: CanvasGeometry;
 		editing: CanvasEditing;
+		keyboard: CanvasKeyboard;
 	} = $props();
 </script>
 
@@ -29,8 +32,13 @@
 	style:height={`${geometry.nodeHeight(node)}rem`}
 	style:--node-accent={node.color ?? 'var(--ga-outline)'}
 	onpointerdown={(event) => editing.handleNodeTitlePointerDown(event, node)}
+	onkeydown={(event) => keyboard.handleNodeKeydown(event, node.id)}
 	ondblclick={(event) => editing.beginNodeRename(event, node)}>
-	<strong class="node-title-label">{node.label}</strong>
+	<button
+		type="button"
+		class="node-title-label"
+		aria-pressed="false"
+		onclick={() => keyboard.selectNode(node.id)}>{node.label}</button>
 	{#if node.warning}<span class="warning" aria-label={node.warning}>!</span>{/if}
 	{#if node.inputs.length || node.headerInputs?.length}<span class="port input"></span>{/if}
 	{#if node.outputs.length}<span class="port output"></span>{/if}
@@ -54,6 +62,11 @@
 		text-align: center;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+		inline-size: 100%;
+		border: 0;
+		background: transparent;
+		color: inherit;
+		font: inherit;
 	}
 	.active {
 		border-color: var(--ga-active);

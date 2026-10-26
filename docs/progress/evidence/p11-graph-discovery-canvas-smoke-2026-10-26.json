@@ -1,0 +1,2442 @@
+{
+  "test": "mounted canvas retained previews, scoped routing, presentation and navigation",
+  "passed": true,
+  "browser": "156.0.4314.42",
+  "retention": [
+    {
+      "nodes": 1000,
+      "edges": 999,
+      "visibleNodes": 1,
+      "visibleEdges": 2,
+      "samples": [
+        {
+          "flushMs": 0.7000000001862645,
+          "frameIntervalMs": 4,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.8999999994412065,
+          "frameIntervalMs": 4.399999999999977,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 1,
+          "frameIntervalMs": 4,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7000000001862645,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7999999998137355,
+          "frameIntervalMs": 4.199999999999932,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.6000000005587935,
+          "frameIntervalMs": 4.100000000000023,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.599999999627471,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7000000001862645,
+          "frameIntervalMs": 4.199999999999932,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7000000001862645,
+          "frameIntervalMs": 4.100000000000023,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.599999999627471,
+          "frameIntervalMs": 4.300000000000068,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.599999999627471,
+          "frameIntervalMs": 4,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.900000000372529,
+          "frameIntervalMs": 4.199999999999932,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7000000001862645,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.5,
+          "frameIntervalMs": 4.199999999999932,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7999999998137355,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.6000000005587935,
+          "frameIntervalMs": 4.100000000000023,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.599999999627471,
+          "frameIntervalMs": 4.199999999999932,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.5,
+          "frameIntervalMs": 4.100000000000023,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7000000001862645,
+          "frameIntervalMs": 4.199999999999932,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.599999999627471,
+          "frameIntervalMs": 4.100000000000136,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7000000001862645,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.5,
+          "frameIntervalMs": 4.099999999999909,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.599999999627471,
+          "frameIntervalMs": 4.2999999999999545,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.5,
+          "frameIntervalMs": 4.100000000000136,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.5,
+          "frameIntervalMs": 4.199999999999818,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.599999999627471,
+          "frameIntervalMs": 4.100000000000136,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7000000001862645,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7000000001862645,
+          "frameIntervalMs": 4.199999999999818,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.599999999627471,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.8000000007450581,
+          "frameIntervalMs": 4.100000000000136,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.6000000005587935,
+          "frameIntervalMs": 4.199999999999818,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        }
+      ],
+      "probes": {
+        "activity": {
+          "flushMs": 0.7999999998137355,
+          "work": {
+            "sourceNodes": 1,
+            "projectedNodes": 1,
+            "measuredNodes": 0,
+            "spatialUpdates": 0,
+            "materializedNodes": 0,
+            "resets": 0
+          },
+          "before": {
+            "sequence": 5,
+            "topology": 4,
+            "geometry": 5,
+            "payload": 3,
+            "activity": 3,
+            "preview": 0
+          },
+          "after": {
+            "sequence": 6,
+            "topology": 4,
+            "geometry": 5,
+            "payload": 3,
+            "activity": 4,
+            "preview": 0
+          }
+        },
+        "preview": {
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 0,
+            "spatialUpdates": 0,
+            "materializedNodes": 0,
+            "resets": 0
+          },
+          "revision": {
+            "sequence": 7,
+            "topology": 4,
+            "geometry": 5,
+            "payload": 3,
+            "activity": 4,
+            "preview": 1
+          }
+        },
+        "resize": {
+          "sourceNodes": 0,
+          "projectedNodes": 1,
+          "measuredNodes": 1,
+          "spatialUpdates": 1,
+          "materializedNodes": 0,
+          "resets": 0
+        },
+        "finish": {
+          "before": {
+            "obstacleUpdates": 1042,
+            "edgeGeometryUpdates": 1034,
+            "invalidatedRoutes": 1,
+            "routeJobs": 4,
+            "searchVisits": 0,
+            "smoothingChecks": 4,
+            "obstacleBudgetFallbacks": 0,
+            "workSlices": 1,
+            "maxSliceJobs": 4,
+            "maxSliceVisits": 0,
+            "maxSliceSmoothingChecks": 4,
+            "directRoutes": 2,
+            "viewBudgetFallbacks": 0,
+            "maxSliceElapsedMs": 0.19999999925494194,
+            "cachedRoutes": 3,
+            "pendingRoutes": 0
+          },
+          "after": {
+            "obstacleUpdates": 1043,
+            "edgeGeometryUpdates": 1035,
+            "invalidatedRoutes": 1,
+            "routeJobs": 5,
+            "searchVisits": 0,
+            "smoothingChecks": 6,
+            "obstacleBudgetFallbacks": 0,
+            "workSlices": 2,
+            "maxSliceJobs": 4,
+            "maxSliceVisits": 0,
+            "maxSliceSmoothingChecks": 4,
+            "directRoutes": 3,
+            "viewBudgetFallbacks": 0,
+            "maxSliceElapsedMs": 0.19999999925494194,
+            "cachedRoutes": 4,
+            "pendingRoutes": 0
+          },
+          "projection": {
+            "sourceNodes": 1005,
+            "projectedNodes": 1042,
+            "measuredNodes": 1040,
+            "spatialUpdates": 1040,
+            "materializedNodes": 0,
+            "resets": 1
+          }
+        }
+      }
+    },
+    {
+      "nodes": 10000,
+      "edges": 9999,
+      "visibleNodes": 1,
+      "visibleEdges": 2,
+      "samples": [
+        {
+          "flushMs": 0.6999999992549419,
+          "frameIntervalMs": 4.199999999999818,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.6999999992549419,
+          "frameIntervalMs": 4.100000000000136,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7000000001862645,
+          "frameIntervalMs": 4.2999999999999545,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.6000000005587935,
+          "frameIntervalMs": 4.099999999999909,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 1.1000000005587935,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.6000000005587935,
+          "frameIntervalMs": 4.100000000000136,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.8999999994412065,
+          "frameIntervalMs": 4.099999999999909,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.599999999627471,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.5,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7999999998137355,
+          "frameIntervalMs": 4.199999999999818,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.6000000005587935,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.599999999627471,
+          "frameIntervalMs": 4.100000000000136,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.900000000372529,
+          "frameIntervalMs": 4.199999999999818,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.5,
+          "frameIntervalMs": 4.100000000000136,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.6000000005587935,
+          "frameIntervalMs": 4.2999999999999545,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7999999998137355,
+          "frameIntervalMs": 4.099999999999909,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.5,
+          "frameIntervalMs": 4.100000000000136,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.6000000005587935,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.599999999627471,
+          "frameIntervalMs": 4.199999999999818,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7999999998137355,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.5,
+          "frameIntervalMs": 4.100000000000136,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.599999999627471,
+          "frameIntervalMs": 4.199999999999818,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7000000001862645,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7000000001862645,
+          "frameIntervalMs": 4.100000000000136,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.5,
+          "frameIntervalMs": 4.199999999999818,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.5,
+          "frameIntervalMs": 4.100000000000136,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.6000000005587935,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.5,
+          "frameIntervalMs": 4.199999999999818,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7999999998137355,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.599999999627471,
+          "frameIntervalMs": 4.100000000000136,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.900000000372529,
+          "frameIntervalMs": 4.199999999999818,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        }
+      ],
+      "probes": {
+        "activity": {
+          "flushMs": 2.1000000005587935,
+          "work": {
+            "sourceNodes": 1,
+            "projectedNodes": 1,
+            "measuredNodes": 0,
+            "spatialUpdates": 0,
+            "materializedNodes": 0,
+            "resets": 0
+          },
+          "before": {
+            "sequence": 8,
+            "topology": 5,
+            "geometry": 6,
+            "payload": 4,
+            "activity": 5,
+            "preview": 2
+          },
+          "after": {
+            "sequence": 9,
+            "topology": 5,
+            "geometry": 6,
+            "payload": 4,
+            "activity": 6,
+            "preview": 2
+          }
+        },
+        "preview": {
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 0,
+            "spatialUpdates": 0,
+            "materializedNodes": 0,
+            "resets": 0
+          },
+          "revision": {
+            "sequence": 10,
+            "topology": 5,
+            "geometry": 6,
+            "payload": 4,
+            "activity": 6,
+            "preview": 3
+          }
+        },
+        "resize": {
+          "sourceNodes": 0,
+          "projectedNodes": 1,
+          "measuredNodes": 1,
+          "spatialUpdates": 1,
+          "materializedNodes": 0,
+          "resets": 0
+        },
+        "finish": {
+          "before": {
+            "obstacleUpdates": 10078,
+            "edgeGeometryUpdates": 10071,
+            "invalidatedRoutes": 2,
+            "routeJobs": 5,
+            "searchVisits": 0,
+            "smoothingChecks": 6,
+            "obstacleBudgetFallbacks": 0,
+            "workSlices": 2,
+            "maxSliceJobs": 4,
+            "maxSliceVisits": 0,
+            "maxSliceSmoothingChecks": 4,
+            "directRoutes": 3,
+            "viewBudgetFallbacks": 0,
+            "maxSliceElapsedMs": 0.19999999925494194,
+            "cachedRoutes": 3,
+            "pendingRoutes": 0
+          },
+          "after": {
+            "obstacleUpdates": 10079,
+            "edgeGeometryUpdates": 10072,
+            "invalidatedRoutes": 2,
+            "routeJobs": 6,
+            "searchVisits": 0,
+            "smoothingChecks": 8,
+            "obstacleBudgetFallbacks": 0,
+            "workSlices": 3,
+            "maxSliceJobs": 4,
+            "maxSliceVisits": 0,
+            "maxSliceSmoothingChecks": 4,
+            "directRoutes": 4,
+            "viewBudgetFallbacks": 0,
+            "maxSliceElapsedMs": 0.19999999925494194,
+            "cachedRoutes": 4,
+            "pendingRoutes": 0
+          },
+          "projection": {
+            "sourceNodes": 10007,
+            "projectedNodes": 10082,
+            "measuredNodes": 10077,
+            "spatialUpdates": 10077,
+            "materializedNodes": 0,
+            "resets": 1
+          }
+        }
+      }
+    },
+    {
+      "nodes": 20000,
+      "edges": 19999,
+      "visibleNodes": 1,
+      "visibleEdges": 2,
+      "samples": [
+        {
+          "flushMs": 0.900000000372529,
+          "frameIntervalMs": 4,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7000000001862645,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7000000001862645,
+          "frameIntervalMs": 4.199999999999818,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.900000000372529,
+          "frameIntervalMs": 4.100000000000136,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7000000001862645,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.5,
+          "frameIntervalMs": 4.199999999999818,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.599999999627471,
+          "frameIntervalMs": 4.100000000000136,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.6000000005587935,
+          "frameIntervalMs": 4.2999999999999545,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.6000000005587935,
+          "frameIntervalMs": 4.099999999999909,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.6000000005587935,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.599999999627471,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.6999999992549419,
+          "frameIntervalMs": 4.099999999999909,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.40000000037252903,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.599999999627471,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.6000000005587935,
+          "frameIntervalMs": 4.099999999999909,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.599999999627471,
+          "frameIntervalMs": 4.100000000000136,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7999999998137355,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7000000001862645,
+          "frameIntervalMs": 4.199999999999818,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.6000000005587935,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.5,
+          "frameIntervalMs": 4.100000000000136,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7000000001862645,
+          "frameIntervalMs": 4.199999999999818,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7000000001862645,
+          "frameIntervalMs": 4.100000000000136,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7000000001862645,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.5,
+          "frameIntervalMs": 4.199999999999818,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.599999999627471,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.5,
+          "frameIntervalMs": 4.100000000000136,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.5,
+          "frameIntervalMs": 4.099999999999909,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.599999999627471,
+          "frameIntervalMs": 4.2999999999999545,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7000000001862645,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.599999999627471,
+          "frameIntervalMs": 4.099999999999909,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.8000000007450581,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        }
+      ],
+      "probes": {
+        "activity": {
+          "flushMs": 3.599999999627471,
+          "work": {
+            "sourceNodes": 1,
+            "projectedNodes": 1,
+            "measuredNodes": 0,
+            "spatialUpdates": 0,
+            "materializedNodes": 0,
+            "resets": 0
+          },
+          "before": {
+            "sequence": 11,
+            "topology": 6,
+            "geometry": 7,
+            "payload": 5,
+            "activity": 7,
+            "preview": 4
+          },
+          "after": {
+            "sequence": 12,
+            "topology": 6,
+            "geometry": 7,
+            "payload": 5,
+            "activity": 8,
+            "preview": 4
+          }
+        },
+        "preview": {
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 0,
+            "spatialUpdates": 0,
+            "materializedNodes": 0,
+            "resets": 0
+          },
+          "revision": {
+            "sequence": 13,
+            "topology": 6,
+            "geometry": 7,
+            "payload": 5,
+            "activity": 8,
+            "preview": 5
+          }
+        },
+        "resize": {
+          "sourceNodes": 0,
+          "projectedNodes": 1,
+          "measuredNodes": 1,
+          "spatialUpdates": 1,
+          "materializedNodes": 0,
+          "resets": 0
+        },
+        "finish": {
+          "before": {
+            "obstacleUpdates": 20114,
+            "edgeGeometryUpdates": 20108,
+            "invalidatedRoutes": 3,
+            "routeJobs": 6,
+            "searchVisits": 0,
+            "smoothingChecks": 8,
+            "obstacleBudgetFallbacks": 0,
+            "workSlices": 3,
+            "maxSliceJobs": 4,
+            "maxSliceVisits": 0,
+            "maxSliceSmoothingChecks": 4,
+            "directRoutes": 4,
+            "viewBudgetFallbacks": 0,
+            "maxSliceElapsedMs": 0.19999999925494194,
+            "cachedRoutes": 3,
+            "pendingRoutes": 0
+          },
+          "after": {
+            "obstacleUpdates": 20115,
+            "edgeGeometryUpdates": 20109,
+            "invalidatedRoutes": 3,
+            "routeJobs": 7,
+            "searchVisits": 0,
+            "smoothingChecks": 10,
+            "obstacleBudgetFallbacks": 0,
+            "workSlices": 4,
+            "maxSliceJobs": 4,
+            "maxSliceVisits": 0,
+            "maxSliceSmoothingChecks": 4,
+            "directRoutes": 5,
+            "viewBudgetFallbacks": 0,
+            "maxSliceElapsedMs": 0.20000000018626451,
+            "cachedRoutes": 4,
+            "pendingRoutes": 0
+          },
+          "projection": {
+            "sourceNodes": 20009,
+            "projectedNodes": 20122,
+            "measuredNodes": 20114,
+            "spatialUpdates": 20114,
+            "materializedNodes": 0,
+            "resets": 1
+          }
+        }
+      }
+    },
+    {
+      "nodes": 50000,
+      "edges": 49999,
+      "visibleNodes": 1,
+      "visibleEdges": 2,
+      "samples": [
+        {
+          "flushMs": 0.7000000001862645,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7000000001862645,
+          "frameIntervalMs": 4,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7999999998137355,
+          "frameIntervalMs": 4.2999999999999545,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7000000001862645,
+          "frameIntervalMs": 4.100000000000136,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.900000000372529,
+          "frameIntervalMs": 4.099999999999909,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.599999999627471,
+          "frameIntervalMs": 8.5,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7000000001862645,
+          "frameIntervalMs": 4.099999999999909,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.599999999627471,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7000000001862645,
+          "frameIntervalMs": 4.100000000000136,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7000000001862645,
+          "frameIntervalMs": 4.099999999999909,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.5,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7000000001862645,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7000000001862645,
+          "frameIntervalMs": 4.199999999999818,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.6000000005587935,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.8000000007450581,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.599999999627471,
+          "frameIntervalMs": 4.099999999999909,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.5,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.6000000005587935,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.6000000005587935,
+          "frameIntervalMs": 4.099999999999909,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.8000000007450581,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.39999999944120646,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.5,
+          "frameIntervalMs": 4.099999999999909,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7999999998137355,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.40000000037252903,
+          "frameIntervalMs": 4.100000000000136,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.599999999627471,
+          "frameIntervalMs": 4.199999999999818,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.599999999627471,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7000000001862645,
+          "frameIntervalMs": 4.2000000000000455,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.6000000005587935,
+          "frameIntervalMs": 4,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.40000000037252903,
+          "frameIntervalMs": 4.2999999999999545,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.8999999994412065,
+          "frameIntervalMs": 4.100000000000136,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.5,
+          "frameIntervalMs": 4.199999999999818,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        }
+      ],
+      "probes": {
+        "activity": {
+          "flushMs": 7.7000000001862645,
+          "work": {
+            "sourceNodes": 1,
+            "projectedNodes": 1,
+            "measuredNodes": 0,
+            "spatialUpdates": 0,
+            "materializedNodes": 0,
+            "resets": 0
+          },
+          "before": {
+            "sequence": 14,
+            "topology": 7,
+            "geometry": 8,
+            "payload": 6,
+            "activity": 9,
+            "preview": 6
+          },
+          "after": {
+            "sequence": 15,
+            "topology": 7,
+            "geometry": 8,
+            "payload": 6,
+            "activity": 10,
+            "preview": 6
+          }
+        },
+        "preview": {
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 0,
+            "spatialUpdates": 0,
+            "materializedNodes": 0,
+            "resets": 0
+          },
+          "revision": {
+            "sequence": 16,
+            "topology": 7,
+            "geometry": 8,
+            "payload": 6,
+            "activity": 10,
+            "preview": 7
+          }
+        },
+        "resize": {
+          "sourceNodes": 0,
+          "projectedNodes": 1,
+          "measuredNodes": 1,
+          "spatialUpdates": 1,
+          "materializedNodes": 0,
+          "resets": 0
+        },
+        "finish": {
+          "before": {
+            "obstacleUpdates": 50150,
+            "edgeGeometryUpdates": 50145,
+            "invalidatedRoutes": 4,
+            "routeJobs": 7,
+            "searchVisits": 0,
+            "smoothingChecks": 10,
+            "obstacleBudgetFallbacks": 0,
+            "workSlices": 4,
+            "maxSliceJobs": 4,
+            "maxSliceVisits": 0,
+            "maxSliceSmoothingChecks": 4,
+            "directRoutes": 5,
+            "viewBudgetFallbacks": 0,
+            "maxSliceElapsedMs": 0.20000000018626451,
+            "cachedRoutes": 3,
+            "pendingRoutes": 0
+          },
+          "after": {
+            "obstacleUpdates": 50151,
+            "edgeGeometryUpdates": 50146,
+            "invalidatedRoutes": 4,
+            "routeJobs": 8,
+            "searchVisits": 0,
+            "smoothingChecks": 12,
+            "obstacleBudgetFallbacks": 0,
+            "workSlices": 5,
+            "maxSliceJobs": 4,
+            "maxSliceVisits": 0,
+            "maxSliceSmoothingChecks": 4,
+            "directRoutes": 6,
+            "viewBudgetFallbacks": 0,
+            "maxSliceElapsedMs": 0.20000000018626451,
+            "cachedRoutes": 4,
+            "pendingRoutes": 0
+          },
+          "projection": {
+            "sourceNodes": 50011,
+            "projectedNodes": 50162,
+            "measuredNodes": 50151,
+            "spatialUpdates": 50151,
+            "materializedNodes": 0,
+            "resets": 1
+          }
+        }
+      }
+    },
+    {
+      "nodes": 100000,
+      "edges": 99999,
+      "visibleNodes": 1,
+      "visibleEdges": 2,
+      "samples": [
+        {
+          "flushMs": 0.5,
+          "frameIntervalMs": 4.099999999999909,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.6999999992549419,
+          "frameIntervalMs": 4.300000000000182,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.5,
+          "frameIntervalMs": 4.199999999999818,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.599999999627471,
+          "frameIntervalMs": 4.099999999999909,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7999999998137355,
+          "frameIntervalMs": 4.200000000000273,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.5,
+          "frameIntervalMs": 4.099999999999909,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7000000001862645,
+          "frameIntervalMs": 4.199999999999818,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.40000000037252903,
+          "frameIntervalMs": 4.200000000000273,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.5,
+          "frameIntervalMs": 4.199999999999818,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.5,
+          "frameIntervalMs": 4.099999999999909,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7000000001862645,
+          "frameIntervalMs": 4.200000000000273,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.5,
+          "frameIntervalMs": 4.199999999999818,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.5,
+          "frameIntervalMs": 4.099999999999909,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.40000000037252903,
+          "frameIntervalMs": 4.200000000000273,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7000000001862645,
+          "frameIntervalMs": 4.099999999999909,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.599999999627471,
+          "frameIntervalMs": 4.199999999999818,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.599999999627471,
+          "frameIntervalMs": 4.200000000000273,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.6000000005587935,
+          "frameIntervalMs": 4.099999999999909,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7000000001862645,
+          "frameIntervalMs": 4.199999999999818,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 1,
+          "frameIntervalMs": 4.200000000000273,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.6000000005587935,
+          "frameIntervalMs": 4.099999999999909,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.5,
+          "frameIntervalMs": 4.199999999999818,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.5,
+          "frameIntervalMs": 4.099999999999909,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.6000000005587935,
+          "frameIntervalMs": 4.300000000000182,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.6000000005587935,
+          "frameIntervalMs": 4.099999999999909,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.39999999944120646,
+          "frameIntervalMs": 4.200000000000273,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.5,
+          "frameIntervalMs": 4.199999999999818,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.7000000001862645,
+          "frameIntervalMs": 4.099999999999909,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.5,
+          "frameIntervalMs": 4.099999999999909,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.6000000005587935,
+          "frameIntervalMs": 4.200000000000273,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        },
+        {
+          "flushMs": 0.599999999627471,
+          "frameIntervalMs": 4.199999999999818,
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 1,
+            "spatialUpdates": 1,
+            "materializedNodes": 0,
+            "resets": 0
+          }
+        }
+      ],
+      "probes": {
+        "activity": {
+          "flushMs": 23.799999999813735,
+          "work": {
+            "sourceNodes": 1,
+            "projectedNodes": 1,
+            "measuredNodes": 0,
+            "spatialUpdates": 0,
+            "materializedNodes": 0,
+            "resets": 0
+          },
+          "before": {
+            "sequence": 17,
+            "topology": 8,
+            "geometry": 9,
+            "payload": 7,
+            "activity": 11,
+            "preview": 8
+          },
+          "after": {
+            "sequence": 18,
+            "topology": 8,
+            "geometry": 9,
+            "payload": 7,
+            "activity": 12,
+            "preview": 8
+          }
+        },
+        "preview": {
+          "work": {
+            "sourceNodes": 0,
+            "projectedNodes": 1,
+            "measuredNodes": 0,
+            "spatialUpdates": 0,
+            "materializedNodes": 0,
+            "resets": 0
+          },
+          "revision": {
+            "sequence": 19,
+            "topology": 8,
+            "geometry": 9,
+            "payload": 7,
+            "activity": 12,
+            "preview": 9
+          }
+        },
+        "resize": {
+          "sourceNodes": 0,
+          "projectedNodes": 1,
+          "measuredNodes": 1,
+          "spatialUpdates": 1,
+          "materializedNodes": 0,
+          "resets": 0
+        },
+        "finish": {
+          "before": {
+            "obstacleUpdates": 100186,
+            "edgeGeometryUpdates": 100182,
+            "invalidatedRoutes": 5,
+            "routeJobs": 8,
+            "searchVisits": 0,
+            "smoothingChecks": 12,
+            "obstacleBudgetFallbacks": 0,
+            "workSlices": 5,
+            "maxSliceJobs": 4,
+            "maxSliceVisits": 0,
+            "maxSliceSmoothingChecks": 4,
+            "directRoutes": 6,
+            "viewBudgetFallbacks": 0,
+            "maxSliceElapsedMs": 0.20000000018626451,
+            "cachedRoutes": 3,
+            "pendingRoutes": 0
+          },
+          "after": {
+            "obstacleUpdates": 100187,
+            "edgeGeometryUpdates": 100183,
+            "invalidatedRoutes": 5,
+            "routeJobs": 9,
+            "searchVisits": 0,
+            "smoothingChecks": 14,
+            "obstacleBudgetFallbacks": 0,
+            "workSlices": 6,
+            "maxSliceJobs": 4,
+            "maxSliceVisits": 0,
+            "maxSliceSmoothingChecks": 4,
+            "directRoutes": 7,
+            "viewBudgetFallbacks": 0,
+            "maxSliceElapsedMs": 0.20000000018626451,
+            "cachedRoutes": 4,
+            "pendingRoutes": 0
+          },
+          "projection": {
+            "sourceNodes": 100013,
+            "projectedNodes": 100202,
+            "measuredNodes": 100188,
+            "spatialUpdates": 100188,
+            "materializedNodes": 0,
+            "resets": 1
+          }
+        }
+      }
+    }
+  ],
+  "routing": {
+    "crossingPaths": 2,
+    "obstacleInvalidations": 1,
+    "unrelatedPathPreserved": true,
+    "loopExterior": true,
+    "overflow": {
+      "edges": 1100,
+      "paintGroups": 35,
+      "wallMs": 194.26429999999982,
+      "work": {
+        "obstacleUpdates": 200202,
+        "edgeGeometryUpdates": 101286,
+        "invalidatedRoutes": 14,
+        "routeJobs": 1038,
+        "searchVisits": 714,
+        "smoothingChecks": 2084,
+        "obstacleBudgetFallbacks": 0,
+        "workSlices": 26,
+        "maxSliceJobs": 64,
+        "maxSliceVisits": 657,
+        "maxSliceSmoothingChecks": 128,
+        "directRoutes": 1034,
+        "viewBudgetFallbacks": 0,
+        "maxSliceElapsedMs": 2.6000000005587935,
+        "cachedRoutes": 1024,
+        "pendingRoutes": 0
+      },
+      "idleStable": true
+    }
+  }
+}

@@ -15,8 +15,12 @@
 	import { createCanvasMounting } from './canvas/mounting.svelte';
 	import { createCanvasKeyboard } from './canvas/keyboard.svelte';
 	import { createCanvasConnectionRequests } from './canvas/connections.svelte';
+	import { createCanvasNavigation } from './canvas/navigation.svelte';
+	import NodeNavigator from './canvas/NodeNavigator.svelte';
 	import { wireViewKey } from '../retained-edges';
 	const keyboardHelpId = $props.id();
+	const finderId = `${keyboardHelpId}-finder`;
+	let finderTrigger: HTMLButtonElement;
 
 	let {
 		graphDocument,
@@ -224,8 +228,22 @@
 		editing,
 		connections
 	);
-	const mounting = createCanvasMounting(geometry);
 	const keyboard = createCanvasKeyboard(canvasProps, geometry, editing, gestures, connections);
+	const navigation = createCanvasNavigation(canvasProps, geometry, viewport, keyboard);
+	const mounting = createCanvasMounting(geometry, () => navigation.pinnedId);
+	export const showNodeFinder = navigation.show;
+	export const searchNodes = navigation.search;
+	export const pageNodes = navigation.page;
+	export const revealNode = navigation.reveal;
+	export const nodeFinderState = () => ({
+		open: navigation.open,
+		busy: navigation.busy,
+		query: navigation.query,
+		rows: navigation.rows.map(({ id, label }) => ({ id, label })),
+		hasNext: navigation.hasNext,
+		hasPrevious: navigation.hasPrevious,
+		page: navigation.pageNumber
+	});
 	export const moveSelectionWithKeyboard = keyboard.move;
 	export const selectNodeWithKeyboard = keyboard.selectNode;
 	export const activateSocketWithKeyboard = keyboard.activateSocket;
@@ -274,6 +292,12 @@
 	let visibleNodes = $derived(mounting.nodes);
 	let edgeGroups = $derived(mounting.edgeGroups);
 	let overview = $derived(camera.zoom < 0.4 || viewport.animating);
+	$effect(() => {
+		overview;
+		selectedNodeIds;
+		navigation.pinnedId;
+		void navigation.restoreFocus();
+	});
 	const draftPath = geometry.draftPath;
 	const resetZoom = viewport.resetZoom;
 	const handleZoomInput = viewport.handleZoomInput;
@@ -317,6 +341,8 @@
 	onpointercancel={handlePointerEnd}
 	onpointerleave={resetScrollHoverTarget}
 	onkeydown={handleKeydown}
+	onfocusin={(event) => navigation.recordFocus(event.target)}
+	onfocusout={navigation.leaveFocus}
 	onwheel={handleWheel}
 	oncontextmenu={handleContextMenu}
 	ondblclick={handleDoubleClick}>
@@ -327,6 +353,12 @@
 		onpointerdown={(event) => event.stopPropagation()}>
 		<button type="button" title="Frame selection (F)" onclick={frameSelection}>Frame</button>
 		<button type="button" title="Home (H)" onclick={home}>Home</button>
+		<button
+			bind:this={finderTrigger}
+			type="button"
+			aria-expanded={navigation.open}
+			aria-controls={finderId}
+			onclick={() => (navigation.open ? navigation.close() : navigation.show())}>Nodes</button>
 		<div class="zoom-control">
 			<input
 				class="zoom-slider"
@@ -352,6 +384,7 @@
 			{@render toolbarEnd()}
 		{/if}
 	</div>
+	<NodeNavigator {navigation} panelId={finderId} returnFocus={() => finderTrigger?.focus()} />
 
 	<div class="world-pan" style:transform={panStyle}>
 		<div class="world" style:transform={`scale(${camera.zoom})`}>
@@ -397,7 +430,7 @@
 
 			{#each visibleNodes as node (node.id)}
 				{#if overview && !gestures.selectedIds.has(node.id) && editing.renamingNodeId !== node.id}
-					<NodeOverview {node} {geometry} {editing} />
+					<NodeOverview {node} {geometry} {editing} {keyboard} />
 				{:else}
 					<NodeView {node} {geometry} {editing} {gestures} {canvasProps} {keyboard} />
 				{/if}
@@ -416,8 +449,9 @@
 		{connections.message || keyboard.message}
 	</div>
 	<span id={keyboardHelpId} class="graph-keyboard-help"
-		>Select a node with Enter or Space. Arrow keys move selected nodes; Shift moves farther.
-		Activate opposite sockets to connect. Escape cancels a connection.</span>
+		>Use Nodes to find and reveal any node. Select a node with Enter or Space. Arrow keys move
+		selected nodes; Shift moves farther. Activate opposite sockets to connect. Escape cancels a
+		connection.</span>
 </div>
 
 <style>

@@ -1,0 +1,147 @@
+{
+  "baseCommit": "6544642bd7d9439bc306180d0d6b5448a48e425d",
+  "scope": "Five-tier logical graph discovery/overview focus qualification. Collapsed/compound endpoints, actual app adapters and movement/connection timing remain open.",
+  "machine": {
+    "os": "10.0.26300",
+    "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+    "logicalProcessors": 24,
+    "node": "v26.5.0",
+    "browser": "156.0.4314.42"
+  },
+  "source": [
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/alchemist/components/AlchemistGraphEditor.svelte",
+      "sha256": "c0d61f6954fb0d49469836a4f1ce17e0bc0d4c6791d5aeebc3ad7e67babe5f57"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "1a515eb16812648c25cab5914c8ec2562aeeab8bf6f5a84921bd20d659e5ec28"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/GraphCanvas.svelte",
+      "sha256": "54785deae02217ae715559a7a58a1fe2224723bd9a8ee04237786702ca982345"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/canvas/NodeNavigator.svelte",
+      "sha256": "5658adc14ad485135be7518cb9f6b42f9ce3a1f8084664c3a152c4b7bd356fff"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/canvas/NodeOverview.svelte",
+      "sha256": "aa6b0c6d66e3fba09bb29977e948fe651b1c0feebe4dd729c92ff49f5fff3494"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/canvas/NodeView.svelte",
+      "sha256": "bc3aac6e02892a591f514c2a7f2624726db9a1e52d1af53e080ee7edb332b4e5"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/canvas/connections.svelte.ts",
+      "sha256": "4dd59221e08e5188c6c308e4c89606ded5056736e09024ea8ab613d2c6d28f3a"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/canvas/contracts.ts",
+      "sha256": "238e6bbafe1983c20e1ba133c55394c659e030fd74b8c0f494806b9ba1f5d1d6"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/canvas/editing.svelte.ts",
+      "sha256": "e44d24f18233649935cc8c5c8c9a5fe67fcb3ab9e6baa9447571aaef90b5099f"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/canvas/geometry.svelte.ts",
+      "sha256": "4ac55f6d2459df8c46f820118f3b2a2a2e5e68687c0edc2e49a49b67b2e61dd8"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/canvas/gestures.svelte.ts",
+      "sha256": "6e6bfb69c294052415eaf8adec7e3b76f4f1c7fb080bc40ac3a8544a35fe39ef"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/canvas/keyboard.svelte.ts",
+      "sha256": "cec84487dbc014c76f9a414eab7ce3f13a4d788132314f7c5d080775156ea8cf"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/canvas/mounting.svelte.ts",
+      "sha256": "47390f8f7eea6e4b5ff7c91e4316a6373520f6c20e3a3efedee41dc4fbb7c467"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/canvas/navigation.svelte.ts",
+      "sha256": "c90bcf20f9f76dd5cd3402075bba81561ce0365468d5664a708cd3598053f95a"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/canvas/viewport.svelte.ts",
+      "sha256": "ae826b15036d38c16e46cdc5c8ac351c9c5577dcaaf442b2bbfe53fbe0f56b0a"
+    },
+    {
+      "path": "packages/golden-graph-ui/keyboard.ts",
+      "sha256": "6ce9d0462b212869ff9bb6429e1d620933e5c64169e1b84c97191e87cad29c61"
+    },
+    {
+      "path": "packages/golden-graph-ui/package.json",
+      "sha256": "a1926da7978bd10a2d21dcf78ac1083fdc75aea27ab94950485ee3312dda5c29"
+    },
+    {
+      "path": "packages/golden-graph-ui/presentation-document.ts",
+      "sha256": "0049ece2ceabf2a06f4061b067806d7f92ae9b3ec3caa8bfc52a74c16b537fb3"
+    },
+    {
+      "path": "packages/golden-graph-ui/retained-presentation.ts",
+      "sha256": "59d951847a0454102897aae1ba5e404639fdb0dc498db72fc1ad6f71c8960542"
+    },
+    {
+      "path": "packages/golden-graph-ui/tests/browser/canvas-retention.mjs",
+      "sha256": "df9d2b23915310606bb85e1f58fc783e6a8d69645058b00c072bd88280cb7d62"
+    },
+    {
+      "path": "packages/golden-graph-ui/tests/browser/canvas-smoke.mjs",
+      "sha256": "d0eb96d7343a14a1b2aecfa0525cfb5e3964a9caf83ee8c852416bfd2f163427"
+    },
+    {
+      "path": "packages/golden-graph-ui/tests/browser/fixture/Fixture.svelte",
+      "sha256": "ce1172377b84483e9098f40269bbc48a501ec3d959b0c6b490f622ce87242aeb"
+    },
+    {
+      "path": "packages/golden-graph-ui/tests/browser/fixture/navigation-qualification.ts",
+      "sha256": "142581e2f92d5bfab9fea6aac38eccdd4c3ae5b0665fc6d376a9c90ed5adc56a"
+    },
+    {
+      "path": "packages/golden-graph-ui/tests/browser/graph-discovery.mjs",
+      "sha256": "4a715cdc8888b0736e488a176b50980ff196578d6735c776e8766c9db6c44e0f"
+    },
+    {
+      "path": "packages/golden-graph-ui/tests/browser/graph-keyboard.mjs",
+      "sha256": "35d5efeaaca2d1a5505cf148542cfeb4e78ba9d6f255cbc825b089138413ceb4"
+    },
+    {
+      "path": "packages/golden-graph-ui/tests/keyboard.test.ts",
+      "sha256": "67c5da9c441a9a93054d93b03929acdb59ea9fe1bb5624d46437193ba1f46b16"
+    },
+    {
+      "path": "packages/golden-graph-ui/types.ts",
+      "sha256": "7d08c3b45f8e2ab642429df55ee4b34a57f2c3c5a9f800b3fc27bd06d6363a6b"
+    }
+  ],
+  "assets": [
+    {
+      "path": "target/qualification/p11-graph-discovery/assets/index-CTwBMTu4.css",
+      "sha256": "9950419835cfc6256ae5502958a7b3574ad8ff2d0594dfead68c070d7cccbf04"
+    },
+    {
+      "path": "target/qualification/p11-graph-discovery/assets/index-_eD5mhV9.js",
+      "sha256": "864573503f821828bcebedd8f21b5e048076f7abb7b06dde48eb7782b2972d53"
+    },
+    {
+      "path": "target/qualification/p11-graph-keyboard/assets/index-CTwBMTu4.css",
+      "sha256": "9950419835cfc6256ae5502958a7b3574ad8ff2d0594dfead68c070d7cccbf04"
+    },
+    {
+      "path": "target/qualification/p11-graph-keyboard/assets/index-_eD5mhV9.js",
+      "sha256": "864573503f821828bcebedd8f21b5e048076f7abb7b06dde48eb7782b2972d53"
+    }
+  ],
+  "defaultBuild": {
+    "command": "CARGO_INCREMENTAL=0 cargo build --locked",
+    "result": "passed",
+    "durationSeconds": 139,
+    "frontend": "rebuilt from current inputs",
+    "path": "target/debug/Chataigne2.exe",
+    "sha256": "81f118ca9c9f1645b64623ed8a3d8918bacb399ad843947a97b6d93ed9a64ff3"
+  }
+}

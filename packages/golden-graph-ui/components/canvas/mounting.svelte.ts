@@ -6,7 +6,10 @@ import { onDestroy, untrack } from "svelte";
 import { unionBounds } from "../../wire-geometry";
 import type { SpatialBounds } from "../../spatial-index";
 
-export function createCanvasMounting(geometry: CanvasGeometry) {
+export function createCanvasMounting(
+  geometry: CanvasGeometry,
+  focusedId: () => string | null = () => null,
+) {
   const nodes = new RetainedMounts<GraphNode>((node) => node.id);
   const edges = new RetainedMounts<GraphVisibleEdge>(wireViewKey);
   let view = $state.raw({ nodes: nodes.values, edges: edges.values });
@@ -49,7 +52,12 @@ export function createCanvasMounting(geometry: CanvasGeometry) {
     schedule();
   };
   $effect(() => {
-    const targetNodes = geometry.visibleNodes;
+    const visible = geometry.visibleNodes;
+    const id = focusedId();
+    const focused = id ? geometry.nodeById(id) : undefined;
+    const targetNodes = focused
+      ? [focused, ...visible.filter((node) => node.id !== focused.id)]
+      : visible;
     const targetEdges = geometry.visibleEdges;
     // One owner drives membership; route and source publications only replace its latest target.
     untrack(() => {

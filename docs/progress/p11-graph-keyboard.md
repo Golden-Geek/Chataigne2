@@ -41,7 +41,8 @@ The existing canvas smoke separately preserves its 1k/10k/20k/50k/100k retained 
 resize, routing, crossing/obstacle, loop and 1,100-wire overflow checks. Its development-browser
 observations do not replace P10's production timing evidence or the new P11 action matrix.
 
-Before graph checkpoint closure, complete logical offscreen discovery/focus, overview/collapsed/
+Logical offscreen discovery and overview focus are now qualified in the subsequent
+[graph discovery delivery](p11-graph-discovery.md). Before graph checkpoint closure, complete collapsed/
 compound endpoint cases, all actual app adapters (including read-only and source replacement),
 authoritative mutation/rejection/reload checks, and a fixed five-tier action/timing matrix.
 Then complete P11's composed-workflow checkpoint. These requirements do not add checkpoints.

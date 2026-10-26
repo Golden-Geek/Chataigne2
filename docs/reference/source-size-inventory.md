@@ -7,8 +7,8 @@ extraction notes and September counts are [archived](../archive/2026-10-18/progr
 
 ## Scan and policy
 
-Refreshed 2026-10-26 against delivered `574be597` plus shared graph keyboard delivery
-on `main`. Scanned **2196 source files**; **27 exceed 1,000 lines**. Graph interaction controllers,
+Refreshed 2026-10-26 against delivered `6544642b` plus graph discovery delivery
+on `main`. Scanned **2200 source files**; **27 exceed 1,000 lines**. Graph interaction controllers,
 connection dispatch, keyboard helpers and their owning tests remain below the limit. TreeRows (235 lines),
 the retained tree projection (273), navigation model (71), browser matrix and adjacent tests
 remain below the limit. Picker host/selection/focus responsibilities and app qualification fixtures

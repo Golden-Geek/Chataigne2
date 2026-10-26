@@ -39,6 +39,31 @@ Retain failures and raw samples. Do not relax limits or reduce density to obtain
 bundle, tool and machine evidence must identify what was actually exercised. Later collection,
 dashboard and keyboard milestones add their explicit workloads before qualifying them.
 
+## Graph discovery extension
+
+Fix the existing 1k/10k baseline, 20k/50k normal and 100k stress tiers before timing the
+graph finder. Use the production GraphCanvas in a 70rem x 36rem fixture, a 1680 x 1200
+private browser, 256-column grid with 24rem spacing and one chain edge per node after the
+first. Include input/output sockets on every node. The finder searches logical labels and
+IDs independently of canvas culling, mounts at most 32 results, and supports next/previous
+pages without truncating the logical graph. One focused canvas node may be pinned outside
+the viewport. In this fixed scene require at most 128 mounted canvas nodes, including that pin.
+
+Fix four action/tier combinations: far exact-label search, clearing search, next/previous
+page round trip, and far-node reveal from overview. Retain three warmups and 31 samples per
+combination (20 combinations). Inspect actual result text/IDs, search progress, focused title,
+selection, camera geometry and mounted bounds. Use the existing normal 200ms feedback/stall
+and 2,000ms completion gates; 100k stress uses 400ms/4,000ms. Keep raw failures. Source setup
+is separately recorded. No density or timing limit may be reduced after a failure.
+
+Correctness also covers changing queries before a scan finishes, deletion/renaming while
+open, source replacement, cancellation/unmount, focus retention during pan/overview changes,
+and selected/unselected overview activation. Call the exact public operations used by UI
+controls; inspect owned-browser DOM focus without synthesizing input. This extension qualifies
+logical discovery only. Graph closure still requires collapsed/compound sockets, actual app
+adapters, authoritative mutations/rejections/reload and movement/connection timing. Native
+keyboard usability remains P17.
+
 ## Tree keyboard extension
 
 Before keyboard timing, fix the existing five collection tiers and unchanged manager/outliner/picker

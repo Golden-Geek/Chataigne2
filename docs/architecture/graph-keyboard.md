@@ -12,6 +12,15 @@ Repeating an endpoint clears it, choosing another on the same side replaces it, 
 Disabled sockets and the caller's current connection policy remain authoritative. The canvas exposes
 the same operations as public component methods so hosts and browser fixtures need not synthesize input.
 
+The Nodes toolbar control opens logical label/ID discovery, independently of canvas culling.
+`navigation.svelte.ts` owns cancellable, time-sliced search and 32-result paging; `NodeNavigator`
+owns the search/paging controls. Pages cover the entire source without mounting a full node list.
+Reveal selects through the existing callback, centers the node and focuses its actual title.
+It raises overview zoom to at least 0.5 within the caller's zoom bounds. A focused canvas node
+is pinned outside the viewport until focus leaves it. Overview/full-node replacement transfers
+focus to the new title; deletion falls back to the canvas. Finder controls stay inside the canvas
+and retain their own scrolling and input events. Scope replacement retires pending discovery/reveal.
+
 `connections.svelte.ts` owns dispatch/failure feedback for both pointer and keyboard requests.
 Its request generation prevents older failures from replacing a newer request's feedback.
 Topology changes cancel an uncommitted endpoint choice; they do not retire an already dispatched
@@ -28,5 +37,6 @@ preserve it. Primitive identity fields are derived separately before constructin
 ordinary document publications cannot trigger a false reset.
 
 The [shared delivery evidence](../progress/p11-graph-keyboard.md) covers the initial component path.
-Complete app-consumer, offscreen/overview/compound-socket and fixed large-graph qualification remains
+Logical discovery and overview focus pass the [five-tier qualification](../progress/p11-graph-discovery.md).
+Complete app-consumer, collapsed/compound-socket and movement/connection timing qualification remains
 required before closing P11's graph checkpoint. Native input/usability remains P17.
