@@ -92,6 +92,7 @@
 		pending: session.editOperations.size,
 		connection: session.status,
 		generation: session.snapshotGeneration,
+		selected: session.selectedNodesIds,
 		nodes: nodes().length
 	});
 	export const endpoints = () =>
@@ -152,6 +153,14 @@
 			node: parameter.node_id,
 			value,
 			behaviour: parameter.data.param.event_behaviour
+		});
+		const expected = JSON.stringify(value);
+		await waitFor(() => {
+			const latestOwner = session.graph.state.nodesById.get(id);
+			const latest = latestOwner ? child(latestOwner, declaration) : null;
+			return (
+				latest?.data.kind === 'parameter' && JSON.stringify(latest.data.param.value) === expected
+			);
 		});
 		await frames();
 	}
@@ -218,6 +227,14 @@
 	}
 	export const refresh = () => session.refreshSnapshot();
 	export const home = () => executeCommand('view.home', { source: 'api' });
+	export const find = (query: string) => panel?.endpointNavigation.find(query);
+	export const page = (direction: 'next' | 'previous') => panel?.endpointNavigation.page(direction);
+	export const reveal = (id: number, additive = false) =>
+		panel?.endpointNavigation.reveal(id, additive);
+	export const navigation = () => panel?.endpointNavigation.viewport();
+	export const frame = () => panel?.endpointNavigation.frame();
+	/** Backend arrangement for navigation lifetime checks; not a panel deletion API. */
+	export const remove = (id: number) => session.sendIntent({ kind: 'removeNode', node: id });
 	export const key = (
 		id: number,
 		key: string,

@@ -60,6 +60,12 @@ and rejects endpoint/pair counts exceeding backend caps. Source and target grids
 `node apps/chataigne/ui/tests/browser/spatializer-scale-calibration.mjs` performs declaration and
 publication roundtrips only. Its setup observations cannot qualify ordinary-action latency.
 
+`node apps/chataigne/ui/tests/browser/spatializer-navigation-native.mjs` exercises the actual
+custom-world catalog and SVG controls through public component methods. Its eleven correctness
+groups include paged discovery, selection framing and focus retirement/restoration across mode,
+space, snapshot, project and component changes. It uses small scenes and does not qualify the
+fixed scale matrix. The runner owns an isolated headless browser and synthesizes no input.
+
 ## Formula contract
 
 Use the same tiers, dimensions, grid, warmups, retained samples, deadlines, mounting bounds and

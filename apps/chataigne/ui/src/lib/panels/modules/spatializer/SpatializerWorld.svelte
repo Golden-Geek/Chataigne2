@@ -209,6 +209,8 @@
 			class:selected={isSelected(endpoint)}
 			class="endpoint target"
 			data-endpoint-id={endpoint.node.node_id}
+			data-endpoint-key={endpoint.key}
+			data-endpoint-uuid={endpoint.node.uuid}
 			transform={`translate(${geometry.pointPx(endpoint.x, world)} ${geometry.pointPx(endpoint.y, world)})`}>
 			{#if spatializerMode === MODE_VORONOI && endpoint.freezeRadius !== null}
 				<circle
@@ -288,6 +290,8 @@
 			class:selected={isSelected(endpoint)}
 			class="endpoint source"
 			data-endpoint-id={endpoint.node.node_id}
+			data-endpoint-key={endpoint.key}
+			data-endpoint-uuid={endpoint.node.uuid}
 			transform={`translate(${geometry.pointPx(endpoint.x, world)} ${geometry.pointPx(endpoint.y, world)})`}>
 			{#if endpoint.radius !== null}
 				<circle

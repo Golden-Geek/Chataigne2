@@ -26,4 +26,6 @@ export type {
   GraphViewportInset,
   GraphWorldBounds,
   GraphWorldContentContext,
+  GraphNavigationItem,
+  GraphWorldNavigation,
 } from "./types";

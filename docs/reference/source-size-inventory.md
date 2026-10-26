@@ -7,15 +7,18 @@ extraction notes and September counts are [archived](../archive/2026-10-18/progr
 
 ## Scan and policy
 
-Refreshed 2026-10-26 against delivered `d411f668` plus Spatializer scale workload preparation
-on `main`. Scanned **2269 source files**; **25 exceed 1,000 lines**. The calibration driver,
+Refreshed 2026-10-26 against delivered `b487ad39` plus custom-world navigation
+on `main`. Scanned **2220 source files**; **25 exceed 1,000 lines**. This follows the exclusions
+below; the previous 2269 count included 51 generated Rust files. The navigation adapter and native
+driver add two authored files. The calibration driver,
 fixed workload contract and fixture helpers stay below the limit. The Formula input-count
 index, compilation-resolution test and shared native scale helpers stay below the limit.
 The compiler is 998 lines; further compiler additions require a cohesive split. The compact persistent
 index, adjacent read/isolation tests, native scale driver and focused fixture helpers stay below
 the limit. The Spatializer panel is
-936 lines, composing a graph reader (187), display geometry (607), pointer/keyboard interaction
-owner (422), bounded authoring controller (291), SVG world (534) and shared types/constants.
+959 lines, composing a graph reader (187), display geometry (607), pointer/keyboard interaction
+owner (422), bounded authoring controller (291), endpoint navigation (123), SVG world (538) and
+shared types/constants.
 The backend operation (257), canonical protocol crate, generated UI DTOs, owning tests and native
 fixtures stay below the limit. The prepared-subtree persistence repair adds focused capture tests.
 WebSocket read ownership

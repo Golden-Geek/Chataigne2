@@ -14,6 +14,7 @@ import type {
   GraphViewportInset,
   GraphWorldBounds,
   GraphWorldContentContext,
+  GraphWorldNavigation,
 } from "../../types";
 
 export interface PanGesture {
@@ -130,6 +131,7 @@ export interface GraphCanvasProps {
   inputSocketContent?: Snippet<[GraphNode, GraphSocket]>;
   outputSocketContent?: Snippet<[GraphNode, GraphSocket]>;
   worldContent?: Snippet<[GraphWorldContentContext]>;
+  worldNavigation?: GraphWorldNavigation;
   worldBounds?: GraphWorldBounds;
   toolbarEnd?: Snippet;
   onNodeContextMenu?: (event: MouseEvent, nodeId: string) => void;

@@ -50,6 +50,21 @@ serialization. `presentation-projection.ts` applies one node's overlays and maps
 `camera-geometry.ts` owns inset normalization, anchored zoom, graph bounds, and framing targets.
 Frame Selection looks up selected identities; Home scans nodes without array spreads.
 
+Custom point worlds can keep an empty `GraphDocument` and supply `worldNavigation` with their
+`worldContent`. The public `GraphWorldNavigation` contract supplies a complete lightweight ID/label
+catalog, selected IDs, bounds in canvas rem units, selection and real DOM focus targets. It reuses
+the 32-row finder, reveal and Frame Selection without inventing graph-node shells. Returned focus
+targets must belong to the supplied canvas; both HTML and SVG controls are supported.
+
+Keep the provider object and its `source` identity stable during ordinary edits. Change `source`
+when the logical document, session or coordinate space changes to retire discovery and focus.
+Publish a new immutable `items` array when IDs or labels change, retaining it across geometry-only
+updates. Change `presentationRevision` when focusable custom content can be replaced within the
+same source, such as a disappearing handle; this restores focus without clearing discovery.
+`worldContent` receives `focusedItemId` so bounded custom views can retain that item's real control.
+The host owns its catalog, geometry, identity validation and mutations; Golden owns camera and
+focus mechanics. Without a provider, ordinary graph-node navigation follows the document.
+
 `spatial-index.ts` owns retained grid membership and exact bounding-box queries. `update` moves
 only the requested entry, `setValue` replaces payload without moving geometry, and `remove`
 retires its cell membership. Updates preserve insertion/document order. Coordinates are copied

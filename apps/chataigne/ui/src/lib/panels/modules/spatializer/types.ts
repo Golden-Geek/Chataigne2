@@ -1,5 +1,5 @@
 import type { UiNodeDto } from 'golden_ui';
-import type { GraphNodePosition } from 'golden_graph_ui';
+import type { GraphCanvas } from 'golden_graph_ui';
 export type EndpointKind = 'source' | 'target';
 export type PositionKind = 'vec2' | 'vec3';
 export type ValueLayout = 'sourceCentric' | 'targetCentric';
@@ -82,9 +82,17 @@ export interface DeadzoneHole {
 	color: string;
 }
 
-export interface SpatializerCanvas {
-	clientToWorld(clientX: number, clientY: number): GraphNodePosition;
-	frameSelection(): boolean;
-	home(): boolean;
-	focus(): void;
-}
+export type SpatializerCanvas = Pick<
+	ReturnType<typeof GraphCanvas>,
+	| 'clientToWorld'
+	| 'frameSelection'
+	| 'home'
+	| 'focus'
+	| 'showNodeFinder'
+	| 'searchNodes'
+	| 'pageNodes'
+	| 'revealNode'
+	| 'nodeFinderState'
+	| 'navigationState'
+	| 'keyboardState'
+>;

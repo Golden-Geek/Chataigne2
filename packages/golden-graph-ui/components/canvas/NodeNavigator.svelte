@@ -4,11 +4,13 @@
 	let {
 		navigation,
 		panelId,
-		returnFocus
+		returnFocus,
+		findLabel
 	}: {
 		navigation: CanvasNavigation;
 		panelId: string;
 		returnFocus: () => void;
+		findLabel?: string;
 	} = $props();
 	let input = $state<HTMLInputElement>();
 	$effect(() => {
@@ -53,7 +55,7 @@
 	<section
 		id={panelId}
 		class="node-navigator"
-		aria-label="Find graph nodes"
+		aria-label={findLabel ?? 'Find graph nodes'}
 		onpointerdown={(event) => event.stopPropagation()}
 		onwheel={(event) => event.stopPropagation()}
 		oncontextmenu={(event) => event.stopPropagation()}
@@ -66,7 +68,7 @@
 			}
 		}}>
 		<label
-			>Find node
+			>{findLabel ?? 'Find node'}
 			<input
 				bind:this={input}
 				type="search"

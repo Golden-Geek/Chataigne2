@@ -18,6 +18,7 @@
 		graphPositionToSpatialPosition
 	} from './spatializer/geometry.svelte';
 	import { createSpatializerInteraction } from './spatializer/interaction.svelte';
+	import { createSpatializerNavigation } from './spatializer/navigation.svelte';
 	import SpatializerWorld from './spatializer/SpatializerWorld.svelte';
 	import {
 		SPATIALIZER_MODULE_TYPE,
@@ -195,6 +196,26 @@
 			freezeRadius: interaction.freezeRadiusPreviews[endpoint.key] ?? endpoint.freezeRadius
 		}))
 	);
+	export const endpointNavigation = createSpatializerNavigation({
+		get endpoints() {
+			return endpoints;
+		},
+		get session() {
+			return session;
+		},
+		get module() {
+			return activeModule;
+		},
+		get space() {
+			return prefer3d ? 'xz' : 'xy';
+		},
+		get mode() {
+			return spatializerMode;
+		},
+		get canvas() {
+			return graphCanvas;
+		}
+	});
 
 	let targets = $derived(endpoints.filter((endpoint) => endpoint.kind === 'target'));
 	let sources = $derived(endpoints.filter((endpoint) => endpoint.kind === 'source'));
@@ -390,8 +411,9 @@
 		);
 	export const finishEndpointGesture = (cancelled = false) => interaction.finish(cancelled);
 
+	let selectedEndpointIds = $derived(new Set(session?.selectedNodesIds ?? []));
 	const isSelected = (endpoint: SpatialEndpoint): boolean =>
-		session?.selectedNodeId === endpoint.node.node_id;
+		selectedEndpointIds.has(endpoint.node.node_id);
 
 	const endpointKindLabel = (endpoint: SpatialEndpoint): string =>
 		endpoint.kind === 'source' ? 'Source' : 'Target';
@@ -463,6 +485,7 @@
 				<GraphCanvas
 					bind:this={graphCanvas}
 					{graphDocument}
+					worldNavigation={endpointNavigation.world}
 					interactionHelp="Use Enter or Space to select an endpoint. Arrow keys move it; Shift moves farther. Arrow keys on a radius handle resize it. Use Add target to create at the view center."
 					worldContent={spatializerWorld}
 					worldBounds={geometry.graphWorldBounds}

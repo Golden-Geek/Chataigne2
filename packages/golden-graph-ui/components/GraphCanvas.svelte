@@ -42,6 +42,7 @@
 		inputSocketContent,
 		outputSocketContent,
 		worldContent,
+		worldNavigation,
 		worldBounds,
 		toolbarEnd,
 		onNodeContextMenu,
@@ -115,6 +116,9 @@
 		},
 		get worldContent() {
 			return worldContent;
+		},
+		get worldNavigation() {
+			return worldNavigation;
 		},
 		get worldBounds() {
 			return worldBounds;
@@ -310,6 +314,7 @@
 		overview;
 		selectedNodeIds;
 		navigation.pinnedId;
+		worldNavigation?.presentationRevision;
 		void navigation.restoreFocus();
 	});
 	const draftPath = geometry.draftPath;
@@ -342,6 +347,7 @@
 	data-socket-labels={socketLabels}
 	data-local-context-menu={onBackgroundContextMenu ? '' : undefined}
 	data-node-count={nodeCount}
+	data-navigable-item-count={navigation.itemCount}
 	data-visible-node-count={visibleNodes.length}
 	role="application"
 	aria-label="Node graph"
@@ -372,7 +378,8 @@
 			type="button"
 			aria-expanded={navigation.open}
 			aria-controls={finderId}
-			onclick={() => (navigation.open ? navigation.close() : navigation.show())}>Nodes</button>
+			onclick={() => (navigation.open ? navigation.close() : navigation.show())}
+			>{worldNavigation?.findLabel ?? 'Nodes'}</button>
 		<div class="zoom-control">
 			<input
 				class="zoom-slider"
@@ -398,7 +405,11 @@
 			{@render toolbarEnd()}
 		{/if}
 	</div>
-	<NodeNavigator {navigation} panelId={finderId} returnFocus={() => finderTrigger?.focus()} />
+	<NodeNavigator
+		{navigation}
+		panelId={finderId}
+		findLabel={worldNavigation?.findLabel}
+		returnFocus={() => finderTrigger?.focus()} />
 
 	<div class="world-pan" style:transform={panStyle}>
 		<div class="world" style:transform={`scale(${camera.zoom})`}>
@@ -408,7 +419,8 @@
 						camera,
 						remPx,
 						viewportWidth,
-						viewportHeight
+						viewportHeight,
+						focusedItemId: navigation.pinnedId
 					})}
 				</div>
 			{/if}

@@ -37,12 +37,12 @@ observations are not ordinary-action latency distributions.
 Current backend calibration is `185 + s*S + t*T + S*T` records. The source coefficient includes
 its generated values folder; `S*T` counts generated float cells.
 
-| Mode | s | t | Targets at 1k / 10k / 20k / 50k / 100k backend records |
-| --- | ---: | ---: | --- |
-| Voronoi | 3 | 3 | 20 / 277 / 563 / 1,420 / 2,849 |
-| Target radius | 3 | 3 | 20 / 277 / 563 / 1,420 / 2,849 |
-| Source radius | 4 | 2 | 20 / 284 / 579 / 1,461 / 2,931 |
-| Overlap | 4 | 3 | 19 / 276 / 562 / 1,419 / 2,848 |
+| Mode          |   s |   t | Targets at 1k / 10k / 20k / 50k / 100k backend records |
+| ------------- | --: | --: | ------------------------------------------------------ |
+| Voronoi       |   3 |   3 | 20 / 277 / 563 / 1,420 / 2,849                         |
+| Target radius |   3 |   3 | 20 / 277 / 563 / 1,420 / 2,849                         |
+| Source radius |   4 |   2 | 20 / 284 / 579 / 1,461 / 2,931                         |
+| Overlap       |   4 |   3 | 19 / 276 / 562 / 1,419 / 2,848                         |
 
 For each tier, use the greatest target count fitting its backend-record budget after calibration.
 Only the sub-target remainder may be unrelated Folder records. Verify the exact retained tree
@@ -100,9 +100,15 @@ strict graph-fixture Svelte checks, Prettier and normal bundled build pass. The 
 not repeat the prior complete State/Formula qualifications. Constructor-only checks also reject
 five invalid endpoint/pair inputs and preserve unique positions in all eight cap-shaped inputs;
 those cap scenes have not been loaded for UI qualification yet.
-The current custom map gives the shared canvas an empty logical document: calibration observes
-zero logical nodes alongside real endpoint glyphs. Endpoint discovery/focus therefore needs a
-public custom-canvas contract and an app-owned endpoint adapter. Custom SVG and related-value
-presentation also need bounded views. Implement those at their owning UI layers, preserving the
-existing backend intents and module admission/publication strategy. No action timing qualification
-or checkpoint closure is claimed yet.
+The custom map deliberately gives the shared canvas an empty graph document. The app now supplies
+its complete endpoint ID/label catalog through Golden's public `GraphWorldNavigation` contract,
+so the shared 32-row finder, reveal and selection framing work with actual SVG controls. Eleven
+small-scene native correctness groups cover discovery, focus, keyboard edits, selection framing,
+mode-control replacement, deletion/undo and session/project/space/unmount fences. The mode-control
+check retained a failing run before the focus-restoration repair. This is navigation correctness,
+not large-scene mounting or action timing qualification; see the
+[navigation evidence](evidence/p11-spatializer-navigation-2026-10-26.json).
+
+Custom SVG and related-value presentation still need bounded views. Implement those at their
+owning UI layers, preserving existing backend intents and module admission/publication. All
+**60 timing cases and 16 pressure groups remain pending**; no checkpoint closure is claimed yet.

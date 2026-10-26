@@ -1,5 +1,5 @@
 import { onDestroy, tick, untrack } from "svelte";
-import type { GraphNode } from "../../types";
+import type { GraphNavigationItem } from "../../types";
 import type { CanvasProps } from "./contracts";
 import type { CanvasGeometry } from "./geometry.svelte";
 import type { CanvasKeyboard } from "./keyboard.svelte";
@@ -16,7 +16,7 @@ export function createCanvasNavigation(
 ) {
   let open = $state(false);
   let query = $state("");
-  let rows = $state.raw<readonly GraphNode[]>([]);
+  let rows = $state.raw<readonly GraphNavigationItem[]>([]);
   let busy = $state(false);
   let nextOffset = $state<number | null>(null);
   let history = $state.raw<number[]>([0]);
@@ -24,19 +24,42 @@ export function createCanvasNavigation(
   let scanGeneration = 0;
   let focusGeneration = 0;
   let disposed = false;
-  let focusedElement: HTMLElement | null = null;
-  let source = $derived(props.graphDocument.source);
+  let focusedElement: HTMLElement | SVGElement | null = null;
+  let source = $derived(
+    props.worldNavigation
+      ? props.worldNavigation.source
+      : props.graphDocument.source,
+  );
+  let items = $derived(
+    props.worldNavigation?.items ?? props.graphDocument.nodes,
+  );
+  let customIndex = $derived(
+    new Map(props.worldNavigation?.items.map((item) => [item.id, item]) ?? []),
+  );
   let owner = $derived(props.interactionScope);
-  let identity = $derived({ source, owner });
+  let identity = $derived({ source, owner, world: props.worldNavigation });
   let payload = $derived(props.graphDocument.revision.payload);
   let topology = $derived(props.graphDocument.revision.topology);
   let applied: unknown;
 
+  const hasItem = (id: string) =>
+    props.worldNavigation ? customIndex.has(id) : !!geometry.nodeById(id);
+  const focusTarget = (id: string) => {
+    const canvas = viewport.container;
+    if (!canvas) return null;
+    const target = props.worldNavigation
+      ? props.worldNavigation.focusTarget(id, canvas)
+      : canvas.querySelector<HTMLButtonElement>(
+          `article[data-node-id="${CSS.escape(id)}"] .node-title-label`,
+        );
+    return target && canvas.contains(target) ? target : null;
+  };
+
   const scan = async (offset = 0) => {
     const generation = ++scanGeneration;
-    const nodes = props.graphDocument.nodes;
+    const nodes = items;
     const search = query.trim().toLocaleLowerCase();
-    const found: GraphNode[] = [];
+    const found: GraphNavigationItem[] = [];
     busy = true;
     nextOffset = null;
     let index = offset;
@@ -100,14 +123,23 @@ export function createCanvasNavigation(
   };
   const reveal = async (id: string, additive = false): Promise<boolean> => {
     if (disposed) return false;
-    const node = geometry.nodeById(id);
+    const custom = props.worldNavigation;
+    const nativeNode = custom ? null : geometry.nodeById(id);
+    const node = custom ? customIndex.get(id) : nativeNode;
     if (!node) return false;
+    const bounds = custom?.bounds(id);
+    if (custom && !bounds) return false;
     close();
     const generation = ++focusGeneration;
     const scope = identity;
     pinnedId = id;
-    keyboard.selectNode(id, additive);
-    viewport.revealNode(node);
+    if (custom && bounds) {
+      custom.select(id, additive);
+      viewport.revealBounds(bounds);
+    } else {
+      keyboard.selectNode(id, additive);
+      if (nativeNode) viewport.revealNode(nativeNode);
+    }
     const deadline = performance.now() + 2000;
     do {
       await tick();
@@ -115,12 +147,10 @@ export function createCanvasNavigation(
         disposed ||
         generation !== focusGeneration ||
         scope !== identity ||
-        !geometry.nodeById(id)
+        !hasItem(id)
       )
         return false;
-      const title = viewport.container?.querySelector<HTMLButtonElement>(
-        `article[data-node-id="${CSS.escape(id)}"] .node-title-label`,
-      );
+      const title = focusTarget(id);
       if (title) {
         title.focus({ preventScroll: true });
         return document.activeElement === title;
@@ -131,12 +161,18 @@ export function createCanvasNavigation(
     return false;
   };
   const recordFocus = (target: EventTarget | null) => {
-    const node =
-      target instanceof HTMLElement
-        ? target.closest<HTMLElement>("article[data-node-id]")
+    const element =
+      target instanceof HTMLElement || target instanceof SVGElement
+        ? target
         : null;
-    pinnedId = node?.dataset.nodeId ?? null;
-    focusedElement = node && target instanceof HTMLElement ? target : null;
+    const id = element
+      ? props.worldNavigation
+        ? props.worldNavigation.itemIdForElement(element)
+        : (element.closest<HTMLElement>("article[data-node-id]")?.dataset
+            .nodeId ?? null)
+      : null;
+    pinnedId = id && hasItem(id) ? id : null;
+    focusedElement = pinnedId ? element : null;
     focusGeneration++;
   };
   const leaveFocus = (event: FocusEvent) => {
@@ -160,16 +196,15 @@ export function createCanvasNavigation(
       document.activeElement !== document.body
     )
       return;
-    viewport.container
-      ?.querySelector<HTMLButtonElement>(
-        `article[data-node-id="${CSS.escape(id)}"] .node-title-label`,
-      )
-      ?.focus({ preventScroll: true });
+    focusTarget(id)?.focus({ preventScroll: true });
   };
   $effect.pre(() => {
     const scope = identity;
-    payload;
-    topology;
+    if (props.worldNavigation) items;
+    else {
+      payload;
+      topology;
+    }
     untrack(() => {
       if (scope !== applied) {
         const hadFocus = viewport.container?.contains(document.activeElement);
@@ -183,7 +218,7 @@ export function createCanvasNavigation(
         void scan();
       }
       applied = scope;
-      if (pinnedId && !geometry.nodeById(pinnedId)) {
+      if (pinnedId && !hasItem(pinnedId)) {
         pinnedId = null;
         viewport.focus();
       }
@@ -195,6 +230,9 @@ export function createCanvasNavigation(
     focusGeneration++;
   });
   return {
+    get itemCount() {
+      return items.length;
+    },
     get open() {
       return open;
     },

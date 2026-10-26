@@ -260,6 +260,23 @@ export function createCanvasViewport(props: CanvasProps, scene: ViewportScene) {
     );
 
   const frameSelection = (): boolean => {
+    const custom = props.worldNavigation;
+    if (custom) {
+      let bounds: GraphWorldBounds | null = null;
+      for (const id of custom.selectedIds) {
+        const next = custom.bounds(id);
+        if (!next) continue;
+        bounds = bounds
+          ? {
+              left: Math.min(bounds.left, next.left),
+              top: Math.min(bounds.top, next.top),
+              right: Math.max(bounds.right, next.right),
+              bottom: Math.max(bounds.bottom, next.bottom),
+            }
+          : next;
+      }
+      return bounds ? frameBounds(bounds) : home();
+    }
     const selected = [...scene.selectedIds].flatMap((id) => {
       const node = scene.nodeById(id);
       return node ? [node] : [];
@@ -276,7 +293,7 @@ export function createCanvasViewport(props: CanvasProps, scene: ViewportScene) {
     container?.focus();
   };
 
-  const revealNode = (node: GraphNode): void => {
+  const revealBounds = (bounds: GraphWorldBounds): void => {
     const center = visibleViewportCenter();
     const zoom = clamp(
       Math.max(camera.zoom, 0.5),
@@ -285,13 +302,18 @@ export function createCanvasViewport(props: CanvasProps, scene: ViewportScene) {
     );
     setCamera({
       zoom,
-      x:
-        center.x - (node.position.x + scene.nodeWidth(node) / 2) * remPx * zoom,
-      y:
-        center.y -
-        (node.position.y + scene.nodeHeight(node) / 2) * remPx * zoom,
+      x: center.x - ((bounds.left + bounds.right) / 2) * remPx * zoom,
+      y: center.y - ((bounds.top + bounds.bottom) / 2) * remPx * zoom,
     });
   };
+
+  const revealNode = (node: GraphNode): void =>
+    revealBounds({
+      left: node.position.x,
+      top: node.position.y,
+      right: node.position.x + scene.nodeWidth(node),
+      bottom: node.position.y + scene.nodeHeight(node),
+    });
 
   const clientToWorld = (
     clientX: number,
@@ -457,6 +479,7 @@ export function createCanvasViewport(props: CanvasProps, scene: ViewportScene) {
     handleZoomInput,
     frameSelection,
     revealNode,
+    revealBounds,
     home,
     clientToWorld,
     viewportCenter,

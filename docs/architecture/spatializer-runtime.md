@@ -56,17 +56,17 @@ outcomes. Invalid configuration waits for an authored change; idle modules do no
 Prepared results are released to the background disposer after publication settles,
 so idle modules do not permanently occupy preparation capacity.
 
-| Resource | Admission / service bound |
-| --- | --- |
-| Sources / targets | 4,096 each; at most 1,048,576 pairs, checked before allocation |
-| Endpoint label / direct children | 512 bytes / 16 children |
-| Root parameter children / enum token | 32 children / 64 bytes |
-| Prepared lifetimes | 64 entries / 128 MiB process-wide, including final disposal |
-| Prepared reservation | 64 KiB + 4,096 bytes per endpoint + 8 bytes per pair; includes geometry scratch |
-| Detached row lifetimes | 16 entries / 128 MiB process-wide; 16 KiB + 8 KiB per planned node |
-| Queued edit lifetimes | 64 entries / 64 MiB process-wide; 1 MiB per admitted batch |
-| Active workers | Four process-wide / one per module, including cancellation and cleanup |
-| Existing-cell service / detached construction | 16 pairs / 32 child nodes per turn |
+| Resource                                      | Admission / service bound                                                       |
+| --------------------------------------------- | ------------------------------------------------------------------------------- |
+| Sources / targets                             | 4,096 each; at most 1,048,576 pairs, checked before allocation                  |
+| Endpoint label / direct children              | 512 bytes / 16 children                                                         |
+| Root parameter children / enum token          | 32 children / 64 bytes                                                          |
+| Prepared lifetimes                            | 64 entries / 128 MiB process-wide, including final disposal                     |
+| Prepared reservation                          | 64 KiB + 4,096 bytes per endpoint + 8 bytes per pair; includes geometry scratch |
+| Detached row lifetimes                        | 16 entries / 128 MiB process-wide; 16 KiB + 8 KiB per planned node              |
+| Queued edit lifetimes                         | 64 entries / 64 MiB process-wide; 1 MiB per admitted batch                      |
+| Active workers                                | Four process-wide / one per module, including cancellation and cleanup          |
+| Existing-cell service / detached construction | 16 pairs / 32 child nodes per turn                                              |
 
 Snapshots use Golden's separate canonical 384-allocation / 1 GiB pool. All ceilings include
 consumer-held and disposing payloads. Capacity pressure retains current authored values and uses
@@ -90,6 +90,13 @@ Spatializer supplies an empty graph document and custom world content to the pub
 GraphCanvas. Its endpoints are app-owned controls, not fabricated graph nodes or ports. The world
 uses a small overflow-visible SVG coordinate basis; the actual canvas owns the viewport and camera.
 Computed matrix values remain read-only in the inspector.
+
+`spatializer/navigation.svelte.ts` adapts the complete endpoint catalog to Golden's public
+`GraphWorldNavigation` hook. The shared paged finder reveals real SVG controls and Frame Selection
+uses endpoint bounds, including radii. The app validates endpoint keys against current UUIDs;
+session, snapshot, module and XY/XZ changes retire focus and discovery. Geometry-only edits retain
+the catalog. A separate presentation revision restores focus when a mode change removes a radius
+handle. Backend endpoint policy remains in the existing app operations.
 
 Endpoint mutations use the app-owned `chataigne.spatializer/edit` operation. Its canonical Rust
 DTOs live in `apps/chataigne/systems/spatializer_protocol`; the public generator supplies the UI

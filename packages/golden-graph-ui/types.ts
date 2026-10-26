@@ -51,6 +51,28 @@ export interface GraphWorldContentContext {
   remPx: number;
   viewportWidth: number;
   viewportHeight: number;
+  focusedItemId: string | null;
+}
+
+export interface GraphNavigationItem {
+  id: string;
+  label: string;
+}
+
+/** Host-owned discovery and focus for a custom world without graph-node shells. */
+export interface GraphWorldNavigation {
+  readonly findLabel: string;
+  readonly source: unknown;
+  /** Changes when custom focusable content can be replaced within the same source. */
+  readonly presentationRevision: unknown;
+  readonly items: readonly GraphNavigationItem[];
+  readonly selectedIds: readonly string[];
+  /** Presentation bounds in canvas rem units. */
+  bounds(id: string): GraphWorldBounds | null;
+  select(id: string, additive: boolean): void;
+  /** Returns a focusable descendant of the supplied canvas. */
+  focusTarget(id: string, canvas: HTMLElement): HTMLElement | SVGElement | null;
+  itemIdForElement(element: Element): string | null;
 }
 
 export interface GraphNodeBypassConnection {
