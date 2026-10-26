@@ -75,4 +75,24 @@ admission is a representation ceiling, not qualification of a million-node inter
 The existing 512-source/1,024-target mathematical fixture remains part of owning validation.
 
 Local P03 qualification belongs in the [implementation ledger](../progress/implementation-status.md).
-20k/50k authored-node interaction, whole-product performance and platform gates remain P09/P16/P17.
+Actual 20k/50k editor interaction, whole-product performance and platform gates remain P11/P16/P17.
+
+## Editor ownership
+
+The app's `ui/src/lib/panels/modules/SpatializerEditorPanel.svelte` composes focused owners under
+its `spatializer/` directory. `projection.svelte.ts` reads the public Golden graph model;
+`geometry.svelte.ts` owns display polygons, bounds and debug overlays; `SpatializerWorld.svelte`
+owns SVG markup and its scoped styles. `interaction.svelte.ts` holds existing pointer previews
+and scheduling, with shared presentation types/constants beside those owners. One coordinate
+conversion serves both creation and pointer display paths.
+
+Spatializer supplies an empty graph document and custom world content to the public Golden
+GraphCanvas. Its endpoints are app-owned controls, not fabricated graph nodes or ports. The world
+uses a small overflow-visible SVG coordinate basis; the actual canvas owns the viewport and camera.
+Computed matrix values remain read-only in the inspector.
+
+This decomposition preserves existing mutation behavior. Backend endpoint authoring, captured
+session/generation ownership, keyboard editing and actual-app scale remain P11 work; the current
+pointer writer still addresses private parameters. See
+[presentation qualification](../progress/p11-spatializer-presentation.md) for the native six-group
+fixture and the explicit remaining scope. Display geometry does not qualify runtime influence math.

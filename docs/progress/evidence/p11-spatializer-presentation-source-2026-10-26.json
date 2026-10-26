@@ -1,0 +1,141 @@
+{
+  "baseCommit": "1f4762fff6c8bdfd4aca7255986f395018352f3a",
+  "scope": "P11 prerequisite Spatializer presentation decomposition and native preservation. Backend authoring, gesture lifetime/keyboard migration and actual-app scale remain open. P11 stays 4/6, whole plan 59%.",
+  "machine": {
+    "os": "10.0.26300.0",
+    "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+    "logicalProcessors": 24,
+    "node": "v26.5.0",
+    "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+    "browser": "156.0.4314.42"
+  },
+  "startingCheckout": "Clean main at baseCommit; no unrelated edits.",
+  "source": {
+    "apps/chataigne/ui/src/lib/panels/modules/SpatializerEditorPanel.svelte": "c14f79760e6edc744daa76ce98043e04d0c52990f0ca8826104a0f3a3f67efa8",
+    "apps/chataigne/ui/src/lib/panels/modules/spatializer/SpatializerWorld.svelte": "f49e41c26ba680e2fe53c1fab59f0b22cf0b6601815889f1308d47c0322e1c83",
+    "apps/chataigne/ui/src/lib/panels/modules/spatializer/constants.ts": "e16481c17d90cde5e4d769c0ac32fda896d35743ea9f499f223f7498e5b88910",
+    "apps/chataigne/ui/src/lib/panels/modules/spatializer/geometry.svelte.ts": "3254872e397ba74a8446fafadccf46bc2be3e072f133fd2d85f8d83c5c1e7080",
+    "apps/chataigne/ui/src/lib/panels/modules/spatializer/interaction.svelte.ts": "0fe944bec7d5cad1caa3ec37cc110355aa028032e52199cbbc5d8fe8a4b36edb",
+    "apps/chataigne/ui/src/lib/panels/modules/spatializer/projection.svelte.ts": "8aa5833bc3a638adcd0a4b7adadc3ded5aac9628445d894de293e1adc950fb73",
+    "apps/chataigne/ui/src/lib/panels/modules/spatializer/types.ts": "0c09afad89a3cd70ffcc459b49ea366b37acddd03a8b6a709dd17eb3ddedd20a",
+    "apps/chataigne/ui/tests/browser/native-workbench.mjs": "2ca05cff4e97c62d51c70406b89e4ce2b87b493cd2db59f2d740ee4e1d001baa",
+    "apps/chataigne/ui/tests/browser/spatializer-fixture/Spatializer.svelte": "c5f127ccb709deb727e75929829d3c5bcd30c89f5d66d943827b453991e857f1",
+    "apps/chataigne/ui/tests/browser/spatializer-fixture/index.html": "184a6270bdcfba23af185f953a15e2c8a63a81d6a7c9fa9f4bb5450a3a949016",
+    "apps/chataigne/ui/tests/browser/spatializer-fixture/main.ts": "cb217e93f8987dbfb9cca75f46e0b4fbb6ae79e2136a5533c445746ad5f4c711",
+    "apps/chataigne/ui/tests/browser/spatializer-native.mjs": "386a355b812a57c86ec25267219e036daf73af4e661234f5530a9302b5bdef65",
+    "apps/chataigne/ui/tests/browser/tsconfig.graphs.json": "e94cf8b10ca9cd1699ebfceac4e1a068ae729ede46df82c6219013ca7bfdf440"
+  },
+  "binary": {
+    "path": "target/debug/Chataigne2.exe",
+    "sha256": "88250516d87a1e29dcab743e1a51551fdaaec05838cf0ac76c15684d25a8faa7",
+    "defaultFeatures": true,
+    "buildSeconds": 241,
+    "env": {
+      "CARGO_INCREMENTAL": "0"
+    },
+    "note": "Frontend rebuilt. Rust runtime/protocol unchanged from baseCommit; UI test inputs are excluded from the product bundle's input scan."
+  },
+  "fixtureAssets": [
+    {
+      "name": "index-CvDrZCuB.js",
+      "sha256": "e699a0e03729e1ef3070496d857afa4b71dc16443a89c318a32da39506951947"
+    },
+    {
+      "name": "index-CwjcHa5T.css",
+      "sha256": "097ea68d3e7152e1fe469362b2636b42ca39b2d5350f82962b55b2b7e1c27783"
+    }
+  ],
+  "fixtureScope": {
+    "sources": 1,
+    "targets": 2,
+    "goldenGraphNodes": 0,
+    "dimensions": [
+      "2d",
+      "3d (XZ display)"
+    ],
+    "modes": [
+      "voronoi",
+      "targetRadius",
+      "sourceRadius",
+      "overlap"
+    ],
+    "note": "Uses two backend-created defaults plus one explicit target. Small correctness scene; generic fixture edits arrange data and do not qualify product mutation behavior or scale."
+  },
+  "extractionReview": {
+    "arrowFunctions": 97,
+    "unchanged": 97,
+    "changed": [],
+    "method": "Compare original top-level arrow initializers with current panel/owners using TypeScript's AST printer and token scanner, ignoring trivia.",
+    "note": "Review aid for moved expressions; not a proof of new ownership or complete gesture behavior."
+  },
+  "checks": [
+    {
+      "command": "npm test",
+      "passed": 425,
+      "failed": 0,
+      "workspaces": {
+        "golden_audio_ui": 27,
+        "golden_graph_ui": 58,
+        "golden_ui": 193,
+        "chataigne-ui": 147
+      }
+    },
+    {
+      "command": "npm run check --workspace chataigne-ui",
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "command": "npm run check:browser:graphs --workspace chataigne-ui",
+      "errors": 0,
+      "warnings": 0,
+      "note": "Includes new Spatializer fixture alongside State and Alchemist fixtures."
+    },
+    {
+      "command": "cargo fmt --all; cargo fmt --manifest-path crates/golden_core/Cargo.toml --all",
+      "exitCode": 0
+    },
+    {
+      "command": "cargo build --locked",
+      "exitCode": 0,
+      "durationSeconds": 241
+    },
+    {
+      "command": "node apps/chataigne/ui/tests/browser/spatializer-native.mjs",
+      "passed": true,
+      "correctnessGroups": 6,
+      "report": "docs/progress/evidence/p11-spatializer-presentation-native-2026-10-26.jsonl",
+      "binarySha256": "88250516d87a1e29dcab743e1a51551fdaaec05838cf0ac76c15684d25a8faa7"
+    },
+    {
+      "command": "Repository UI Prettier --check; git diff --cached --check",
+      "exitCode": 0
+    }
+  ],
+  "backendChecks": "Not rerun for unchanged Rust/protocol. Preceding milestone evidence remains at docs/progress/evidence/p11-project-cursors-source-2026-10-26.json.",
+  "preservedFailures": {
+    "report": "docs/progress/evidence/p11-spatializer-presentation-native-failures-2026-10-26.jsonl",
+    "cases": [
+      "Fixture accidentally added three endpoints to the two backend defaults; corrected to reuse defaults for fixed three-endpoint scene.",
+      "Viewport assertion measured the small overflow-visible SVG coordinate basis; final check measures real canvas and verifies overflow/style plus endpoint geometry.",
+      "Text assertion included swatch whitespace; final comparison trims rendered labels.",
+      "Configuration test lookup omitted the full DSL declaration prefix."
+    ]
+  },
+  "inventory": {
+    "sources": 2245,
+    "oversized": 25,
+    "panelBeforeLines": 2561,
+    "panelLines": 924,
+    "projectionLines": 187,
+    "geometryLines": 607,
+    "pointerInteractionLines": 438,
+    "worldLines": 522
+  },
+  "remaining": [
+    "Backend-owned endpoint and creation intents; preserve the non-displayed 3D coordinate at the backend.",
+    "Capture session/module/endpoint identities and snapshot generation before bounded admission; migrate pointer lifetime and keyboard editing.",
+    "Actual adapter rejection/read-only/source replacement, actual-app scale and complete composed workflows before closing the two open P11 checkpoints.",
+    "Native physical usability remains P17 and product throughput P16; full P00-P18 goal stays active."
+  ]
+}

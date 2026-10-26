@@ -7,8 +7,11 @@ extraction notes and September counts are [archived](../archive/2026-10-18/progr
 
 ## Scan and policy
 
-Refreshed 2026-10-26 against delivered `39f3536c` plus project-generation cursors
-on `main`. Scanned **2235 source files**; **26 exceed 1,000 lines**. WebSocket read ownership
+Refreshed 2026-10-26 against delivered `1f4762ff` plus Spatializer presentation owners
+on `main`. Scanned **2245 source files**; **25 exceed 1,000 lines**. The Spatializer panel shrinks
+from 2,561 to 924 lines, composing a graph reader (187), display geometry (607), pointer interaction
+owner (438), SVG world (522) and shared types/constants. Its native fixture and host driver stay
+below the limit. Endpoint authoring and keyboard migration remain under P11. WebSocket read ownership
 and the shared fake socket have focused modules; the WS client is 962 lines, workbench facade
 981 and native read model 993. No new oversized source is introduced. The Alchemist panel shrinks
 from 2,091 to 993 lines, composing focused preview (266), clipboard (240), item creation (274),
@@ -63,7 +66,6 @@ and alternatives; a blanket exception does not close P12. Refresh counts after r
 |  6,101 | `apps/chataigne/systems/state_machine/integration/manager/mod.rs`                    | Implementation |
 |  5,818 | `packages/golden-ui/components/common/AnimationCurveNodeEditor.svelte`               | Implementation |
 |  5,027 | `crates/golden_core/support/macros/src/lib.rs`                                       | Implementation |
-|  2,561 | `apps/chataigne/ui/src/lib/panels/modules/SpatializerEditorPanel.svelte`             | Implementation |
 |  2,402 | `apps/chataigne/systems/alchemist/integration/formula/tests/mod.rs`                  | Test suite     |
 |  2,066 | `crates/golden_core/engine/src/engine/controls.rs`                                   | Implementation |
 |  1,996 | `packages/golden-ui/components/common/AnimationCurveCanvas.svelte`                   | Implementation |

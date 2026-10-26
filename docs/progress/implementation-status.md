@@ -5,8 +5,8 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-26 on `main`, based on delivered `39f3536c` plus project-generation
-cursor delivery below. **P11 is in progress; four of six fixed checkpoints are closed (67% rounded).**
+Last reconciled: 2026-10-26 on `main`, based on delivered `1f4762ff` plus Spatializer presentation
+delivery below. **P11 is in progress; four of six fixed checkpoints are closed (67% rounded).**
 **P10 is locally complete: three of three fixed checkpoints (100%).**
 **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
@@ -201,7 +201,7 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
 | Historical log windowing | Complete locally | Variable-height history, filters, follow, bounded native selection, focus and snapshot publication pass through 100k records. [Qualification](p11-log-windowing.md). |
 | Dashboard viewport awareness | Complete locally | All 599 correctness groups and 160 fixed timing combinations pass through 100k authored nodes, including geometry, bounded presentation, feedback, callback stalls and completion. Retention regression passes 13 checkpoints. [Timing qualification](p11-dashboard-timing.md), [composition](p11-dashboard-composition.md), [barriers](p11-dashboard-barriers.md). |
 | Tree focus and keyboard navigation | Complete locally | All four app consumers, 55 constrained-picker groups and shared navigation/lifecycle cases pass through 100k items. All 70 tree timing combinations and 15 collection regression combinations pass fixed gates. [Closure and evidence](p11-tree-closure.md). |
-| Graph keyboard operations | In progress | Shared operations/discovery/sockets pass nine correctness groups and 50 timing combinations through 100k nodes. State Machine and Alchemist pass native atomic edits, rejection, undo/redo, save/reload and replacement. Generation cursors also qualify the snapshot/subscription gap and equal-time origins. Spatializer and actual-app scale qualification remain. [Shared operations](p11-graph-keyboard.md), [discovery](p11-graph-discovery.md), [sockets](p11-graph-sockets.md), [State adapter](p11-state-graph-authoring.md), [Alchemist adapter](p11-alchemist-graph-authoring.md), [replacement overlap](p11-project-cursors.md). |
+| Graph keyboard operations | In progress | Shared operations/discovery/sockets pass nine correctness groups and 50 timing combinations through 100k nodes. State Machine and Alchemist pass native atomic edits, rejection, undo/redo, save/reload and replacement. Generation cursors qualify the snapshot/subscription gap and equal-time origins. Spatializer presentation passes six native groups; its backend authoring/keyboard work and actual-app scale remain. [Shared operations](p11-graph-keyboard.md), [discovery](p11-graph-discovery.md), [sockets](p11-graph-sockets.md), [State adapter](p11-state-graph-authoring.md), [Alchemist adapter](p11-alchemist-graph-authoring.md), [replacement overlap](p11-project-cursors.md), [Spatializer presentation](p11-spatializer-presentation.md). |
 | Complete composed workflows | Not started | Qualify discovery, selection and editing across all required composed panels and large batches. Native usability retains P17. |
 
 ## Current handoff
@@ -220,8 +220,10 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
   all 55 action/tier combinations and both dense scenes. Owning UI suites now pass **425** cases;
   app and both native graph fixture Svelte checks pass. State Machine and Alchemist panels pass
   actual backend receipts, atomic read-only rejection, undo/redo, save/reload and snapshot/unmount
-  cancellation. The current default executable passes five Alchemist correctness groups and
-  four State groups, including delayed-snapshot replacement recovery. These are small correctness fixtures.
+  cancellation. The prior cursor milestone qualifies five Alchemist correctness groups and
+  four State groups, including delayed-snapshot replacement recovery. The current executable
+  passes six Spatializer presentation groups across all four modes, matrix layout, XZ projection,
+  snapshot and remount. These are small correctness fixtures.
   [Generation cursors](p11-project-cursors.md) now fence replacement during unsubscribe/snapshot/
   re-subscribe, deferred encoding, frames and event-origin state. Complete Spatializer and actual-app scale qualification
   before closing graph keyboard operations, then composed
@@ -11101,3 +11103,42 @@ and both native Formula HTTP/WebSocket/script and exact-history cases. The
 [source/build/check record](evidence/p11-project-cursors-source-2026-10-26.json) and linked raw
 reports preserve the evidence and the earlier harness failure. Commit/push this verified
 milestone on `main`, then continue Spatializer within the existing graph checkpoint.
+
+### P11 Spatializer presentation owners and native preservation
+
+Previous goal turn: **progress**, committed/pushed `1f4762ff`. Reconciled its clean `main`
+checkout before starting Spatializer inside the existing graph checkpoint. No denominator changes.
+
+The Spatializer panel now composes focused graph-reader, display-geometry, pointer-interaction
+and SVG-world owners. World markup retains its scoped stylesheet; one coordinate conversion serves
+creation and pointer paths. All 97 original top-level arrow-function initializers retain their normalized
+AST token bodies. The panel shrinks from **2,561 to 924 lines**. Geometry is 607 lines, pointer
+interaction 438, world markup/styles 522 and graph reader 187. Inventory is **2,245 sources /
+25 oversized**, one fewer oversized file. Every touched runtime/test source stays below 1,000.
+
+The new production native fixture mounts the actual SpatializerEditorPanel over authenticated
+HTTP/WebSocket with isolated app data. Six groups cover the empty Golden document/custom SVG world,
+selection/inspector/debug overlays, authoritative projection and Home framing, all four influence
+modes and target-centric matrix replacement, XZ projection with retained middle coordinate, and
+snapshot/remount. It reuses the backend's two default endpoints and creates one further target.
+No synthetic input is used. Four initial fixture failures are preserved and explained in
+[presentation qualification](p11-spatializer-presentation.md); they required fixture corrections,
+not relaxed product timing or density gates.
+
+All **425 UI cases** pass (27 audio / 58 graph / 193 Golden / 147 app). App and expanded graph-fixture
+Svelte checks have zero errors/warnings. Package-owned formatting, both Cargo formatters and
+whitespace checks pass. The default locked build passes in **4m01s** with a rebuilt frontend;
+binary SHA-256 is `88250516d87a1e29dcab743e1a51551fdaaec05838cf0ac76c15684d25a8faa7`.
+That exact binary passes all six native groups. Rust runtime/protocol are unchanged, so preceding
+backend check evidence remains dated at its owning milestone. The
+[source/build/check record](evidence/p11-spatializer-presentation-source-2026-10-26.json) fingerprints
+the app owners, fixture and production assets.
+
+**P11 remains 4/6 checkpoints (67% rounded); whole-plan coverage remains 59% (59.259...% exact).**
+This verifies presentation preservation through the prerequisite split, not endpoint authoring or
+scale. Next implement the app-owned endpoint/creation intent boundary, capture session/module/
+endpoint identities and snapshot generation before bounded UI admission, migrate pointer lifetime
+ownership and keyboard controls, and qualify rejection/read-only/source replacement. Generic edits
+in the fixture are test arrangement, not acceptance of private parameter writes in product UI.
+Then complete actual-app scale and composed workflows before closing the two remaining checkpoints.
+Commit/push this verified milestone on `main`; keep the full P00-P18 goal active. P03 has zero left.

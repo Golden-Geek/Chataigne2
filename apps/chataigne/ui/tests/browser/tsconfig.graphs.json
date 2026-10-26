@@ -1,6 +1,8 @@
 {
 	"extends": "./tsconfig.json",
 	"include": [
+		"spatializer-fixture/**/*.ts",
+		"spatializer-fixture/**/*.svelte",
 		"state-graph-fixture/**/*.ts",
 		"state-graph-fixture/**/*.svelte",
 		"alchemist-graph-fixture/**/*.ts",
