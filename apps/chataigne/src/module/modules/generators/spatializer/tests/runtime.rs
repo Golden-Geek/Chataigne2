@@ -107,6 +107,50 @@ fn count_and_byte_admission_preserves_supported_math_range() {
 }
 
 #[test]
+fn unchanged_service_turns_reuse_the_read_view_but_input_delivery_retires_it() {
+    let (mut engine, id) = create_spatializer_module();
+    let position = find_path(&engine, source(&engine, id), "position_2d").unwrap();
+    module(&mut engine, id).service.cancel();
+    module(&mut engine, id).service.request();
+    engine.run_tick(Duration::from_millis(2)).unwrap();
+    assert!(engine.tick_stats().snapshot_builds > 0);
+    assert!(!module(&mut engine, id).worker_wake_requires_tree_snapshot());
+
+    engine.run_tick(Duration::from_millis(2)).unwrap();
+    assert_eq!(engine.tick_stats().wake_callbacks_fired, 1);
+    assert_eq!(engine.tick_stats().snapshot_builds, 0);
+    assert!(!module(&mut engine, id).worker_wake_requires_tree_snapshot());
+
+    set_param(&mut engine, position, ParamValue::Vec2(0.5, 0.0));
+    engine.dispatch_inbox(ExecutionPhase::EngineTick).unwrap();
+    assert!(module(&mut engine, id).worker_wake_requires_tree_snapshot());
+    stabilize(&mut engine);
+    assert!(module(&mut engine, id).service.idle());
+    assert!(module(&mut engine, id).worker_wake_requires_tree_snapshot());
+}
+
+#[test]
+fn output_delivery_and_queued_publication_cannot_keep_a_stale_read_view() {
+    let (mut engine, id, source, cell) = target_radius_fixture();
+    module(&mut engine, id).service.cancel();
+    module(&mut engine, id).service.request();
+    engine.run_tick(Duration::from_millis(2)).unwrap();
+    assert!(!module(&mut engine, id).worker_wake_requires_tree_snapshot());
+
+    set_param(&mut engine, cell, ParamValue::Float(0.25));
+    engine.dispatch_inbox(ExecutionPhase::EngineTick).unwrap();
+    assert!(module(&mut engine, id).worker_wake_requires_tree_snapshot());
+
+    set_position_2d(&mut engine, source, 0.5, 0.0);
+    engine.dispatch_inbox(ExecutionPhase::EngineTick).unwrap();
+    let edits = pending_value(&mut engine, id, cell);
+    assert!(module(&mut engine, id).worker_wake_requires_tree_snapshot());
+    apply(&mut engine, edits);
+    stabilize(&mut engine);
+    assert!((float(&engine, cell) - 0.5).abs() < 1e-12);
+}
+
+#[test]
 fn connection_and_input_callbacks_remain_available_without_echoing_generated_values() {
     let (mut engine, id, source, cell) = target_radius_fixture();
     let connection = find_path(&engine, id, "connection/log_incoming").unwrap();

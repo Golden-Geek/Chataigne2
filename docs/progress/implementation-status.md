@@ -245,8 +245,12 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
   with counted overviews, retained focus and indexed declaration reads. All 459 UI tests and
   34 native correctness groups pass, including wide-map Home. The fixed pressure run exposed a 5% app zoom floor that
   prevents Home fitting the large map, after 259.6s matrix publication at 50k. The app and generic
-  canvas zoom repair now passes; the full pressure rerun is in progress. None of the 16 groups
-  or 60 timing cases has qualified yet.
+  canvas zoom repair now passes. The full pressure rerun passes Voronoi at 50k, then fails the
+  100k setup deadline. A directed trace attributes 168.3s to 2,562 snapshots of at least 10k nodes;
+  quiet wake p95 is 103ms. The leased read-view repair passes 38 owning tests, strict all-target
+  Clippy and 34 native groups; 50k publication improves to 126.2s but 100k still times out.
+  Opt-in snapshot caller diagnostics are being added to identify the remaining rebuilds.
+  Complete all 16 pressure groups and 60 timing cases before graph checkpoint closure.
   Finish pressure/publication diagnosis
   before action timing; do not infer qualification from small-scene correctness.
   Complete Spatializer actual-app scale before closing graph keyboard operations, then composed
@@ -11433,3 +11437,47 @@ oversized files; no backend Rust or protocol change.
 then investigate setup/publication cost without weakening its 300s deadline or changing density.
 All 16 pressure groups and 60 timing cases remain pending; composed workflows follow. Commit and
 push the verified zoom repair on `main`; keep the full implementation goal active.
+
+The fourth full pressure run is terminal: **one group passes (Voronoi 50k)**, then 100k fails
+the unchanged 300s setup deadline. At 50k, 24 groups represent all 1,452 endpoints; detail mounts
+10 glyphs / 19 polygons, and the inspector retains focus with 17 rows. Full pressure qualification
+remains open. A separately marked diagnostic 100k attempt confirms repeated whole-tree snapshots
+on turns with no pending edits or inbox events. The
+[baseline evidence](evidence/p11-spatializer-publication-baseline-2026-10-26.json) records both failures
+and aggregate trace observations. The current app-owned read-view repair retains one canonically
+leased snapshot across read-only turns and invalidates it on inbox delivery, requests, queued edits
+and cancellation. Every write still uses the original apply-time source/path guards. Owning tests
+are compiling; no verification or checkpoint credit is taken for this repair yet. Rebuild normally
+after owning checks, then rerun the original complete pressure selection. P11 remains 4/6 and the
+whole plan 59%; the original P00-P18 goal remains active.
+
+### P11 Spatializer read-view verification
+
+The app now retains one canonically leased view for read-only continuation turns. Incoming events,
+new input requests, queued edits, cancellation and idle/error paths retire it. Count admission still
+precedes leasing, and every queued write retains the existing current-state source/path guards.
+The original **16-pair / 32-child service bounds** and all memory/worker limits are unchanged.
+Two new tests prove zero snapshot builds on an unchanged engine wake, incoming input/output
+invalidation and refresh after queued publication.
+
+All **38 owning Spatializer cases** pass in the dev profile, including the prior source/path,
+applied-prefix/suffix, identity, pressure and recovery checks. Strict Chataigne2 all-target Clippy
+passes. The normal locked bundled build produces executable SHA-256
+`f9cac25d04a2da5b67821ca8436f984b9b211dbea4120453ebdf210a3cfa9954`;
+its **12 navigation / 13 Spatializer / four State / five Formula native groups** pass. The
+[read-view evidence](evidence/p11-spatializer-read-view-2026-10-26.json) retains fingerprints,
+owning checks and the complete pressure attempt.
+
+The unchanged full pressure attempt passes Voronoi 50k again. Publication improves from
+**232,919.0ms to 126,167.5ms**, about 46% in these single setup observations; they are not action
+latency distributions. The 100k scene still fails the fixed 300s setup deadline. No full pressure
+or action timing checkpoint is closed. The remaining rebuilds need caller attribution; an opt-in
+Core snapshot trace enhancement is being verified separately. All 16 groups must be rerun after
+the final repair, with no diagnostic selection or tracing.
+
+Source inventory remains **2,226 files / 25 existing oversized files**. The app module is 516
+lines, service 499 and runtime test file 637. Both Cargo formatters and explicit owning Rustfmt
+pass. No protocol, persistence, dependency or app-shell change. Commit and push this verified
+partial performance repair on `main`; **P11 remains 4/6 (67%), whole plan 59%**. Continue the
+remaining publication diagnosis and full pressure matrix, then the 60 timing cases and composed
+workflows. The full implementation goal remains active.

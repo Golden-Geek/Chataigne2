@@ -56,6 +56,14 @@ outcomes. Invalid configuration waits for an authored change; idle modules do no
 Prepared results are released to the background disposer after publication settles,
 so idle modules do not permanently occupy preparation capacity.
 
+Bounded normalization/publication scans retain one canonically leased read view across read-only
+turns. Inbox delivery, new input requests, cancellation and queued edits invalidate it, and the
+next wake requests a fresh engine snapshot. The original apply-time source/path fences still
+validate queued writes against current engine state, including changes whose callbacks have not
+run. Idle, disabled, rejected and failed service paths release the view through the canonical
+snapshot disposer. This removes repeated full-tree construction from unchanged continuation
+turns; cold snapshots after mutations keep their existing cost and qualification requirements.
+
 | Resource                                      | Admission / service bound                                                       |
 | --------------------------------------------- | ------------------------------------------------------------------------------- |
 | Sources / targets                             | 4,096 each; at most 1,048,576 pairs, checked before allocation                  |

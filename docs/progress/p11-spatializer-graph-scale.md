@@ -157,3 +157,28 @@ inset. The exact rebuilt executable passes 34 native groups and 459 UI tests; th
 browser regression and Svelte checks pass. This focused 16-endpoint reproduction does not qualify
 large matrix pressure. After cancelling the redundant third attempt, the fourth complete pressure
 run is live. All 16 pressure groups and 60 timing cases remain pending.
+
+## Publication baseline and read-view repair
+
+The full run on `c3edd1c8` passes the Voronoi 50k pressure group: all 1,452 endpoints are accounted
+for in 24 Home groups; detail mounts 10 glyphs and 19 polygons. The related-value check mounts
+17 rows while retaining focused identity and verifying the real backend weight. Matrix publication
+takes **232,919.0ms**, with all checks complete in 233,909.9ms. The next 100k group fails the fixed
+300s setup deadline. This closes neither the full 16-group pressure selection nor action timing.
+
+A directed, explicitly diagnostic 100k trace confirms repeated whole-tree work on unchanged service
+turns. It observes 2,562 process snapshots at or above 10k nodes, accounting for 168.3s of snapshot
+construction, and quiet wake turns with p95 103ms. These are instrumented observations, not action
+latency distributions. The [baseline evidence](evidence/p11-spatializer-publication-baseline-2026-10-26.json)
+retains the original full-run failure and directed trace. `GC_SPATIALIZER_PRESSURE_CASES` can select
+fixed scene indices for diagnosis; any explicit selection or `GOLDEN_PERF_TRACE` is marked
+diagnostic and cannot substitute for complete qualification.
+
+The current app-owned repair retains one canonically leased read view between read-only service
+turns. Inbox delivery, explicit requests, cancellation and queued edits invalidate it; the original
+source/path guards still validate every queued write at application. Service and allocation ceilings
+remain unchanged. All **38 owning cases**, strict all-target Clippy and the normal bundled build
+pass. The exact artifact passes **34 native correctness groups**. The
+[read-view evidence](evidence/p11-spatializer-read-view-2026-10-26.json) records the rerun: 50k
+publication improves to **126,167.5ms**, but 100k still fails the unchanged 300s setup deadline.
+Full pressure/action qualification remains open; caller attribution is the next diagnostic step.

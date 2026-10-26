@@ -1,0 +1,285 @@
+{
+  "scope": "Spatializer publication baseline and directed snapshot diagnostic",
+  "observedCommit": "c3edd1c8",
+  "fullPressureAttempt": {
+    "artifact": "target/qualification/p11-spatializer-pressure-4f7b3573-3bb8-4131-8fb8-7744b5c77b58/browser.jsonl",
+    "sha256": "886b59229b41def101ab2585215c20d95686ddde17fc3b346b349f1afe66fecf",
+    "rows": [
+      {
+        "kind": "environment",
+        "production": true,
+        "browser": "156.0.4314.42",
+        "binaryHash": "da8f5be92c1cbd578c945368320df5590fa91d6899dc6885cd7a0c353a0ae261",
+        "assets": [
+          {
+            "name": "dmsans-italic-CT59GZwy.ttf",
+            "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+          },
+          {
+            "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+            "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+          },
+          {
+            "name": "index-BS5o3lv7.js",
+            "sha256": "27a276c16a3fdae2341f17f4626c611032fc44e77278d175c5fe8972a7d2c15a"
+          },
+          {
+            "name": "index-HpApHVKp.css",
+            "sha256": "8c7e778204be5ffe14da911069f82191985641daf451aeefa16b5cccbcc74c2d"
+          }
+        ],
+        "report": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-spatializer-pressure-4f7b3573-3bb8-4131-8fb8-7744b5c77b58\\browser.jsonl"
+      },
+      {
+        "kind": "pressure-contract",
+        "scenes": 16,
+        "actionTiming": false,
+        "limits": {
+          "endpointGlyphs": 128,
+          "overviewGroups": 256,
+          "regionPolygons": 256,
+          "finderRows": 32,
+          "relatedRows": 42
+        }
+      },
+      {
+        "kind": "load-return",
+        "mode": "voronoi",
+        "tier": 50000,
+        "sources": 32,
+        "targets": 1420,
+        "elapsedMs": 506.60149999999976,
+        "publication": {
+          "module": null,
+          "mode": null,
+          "treeNodes": 170,
+          "radiusParameters": 0,
+          "freezeParameters": 0,
+          "sources": 0,
+          "targets": 0,
+          "valueFolders": 0,
+          "cells": 0,
+          "pending": 0,
+          "generation": 1
+        }
+      },
+      {
+        "kind": "matrix-published",
+        "mode": "voronoi",
+        "tier": 50000,
+        "sources": 32,
+        "targets": 1420,
+        "elapsedMs": 232918.9601
+      },
+      {
+        "kind": "home-view",
+        "mode": "voronoi",
+        "tier": 50000,
+        "sources": 32,
+        "targets": 1420,
+        "home": {
+          "presentation": "overview",
+          "visible": 1452,
+          "glyphs": 0,
+          "groups": 24,
+          "groupedEndpoints": 1452,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 0,
+          "finderRows": 0,
+          "label": "Endpoint overview: 1452 visible of 1452. Zoom in or Find endpoints. Region overview: zoom in for complete cells. Influence overview: 32 sources, 1420 targets. Inspect computed values for exact weights."
+        },
+        "navigation": {
+          "camera": {
+            "x": 322.93177387914227,
+            "y": 255.87013178200132,
+            "zoom": 0.007634827810266406
+          },
+          "animating": false
+        }
+      },
+      {
+        "kind": "spatializer-pressure",
+        "passed": true,
+        "mode": "voronoi",
+        "tier": 50000,
+        "sources": 32,
+        "targets": 1420,
+        "treeNodes": 50000,
+        "cells": 45440,
+        "inputSha256": "88fb59f0eb4310dcd0a31e8c0f2b0b09d5a6366cb6e16f99391e636c89a7a2e0",
+        "home": {
+          "presentation": "overview",
+          "visible": 1452,
+          "glyphs": 0,
+          "groups": 24,
+          "groupedEndpoints": 1452,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 0,
+          "finderRows": 0,
+          "label": "Endpoint overview: 1452 visible of 1452. Zoom in or Find endpoints. Region overview: zoom in for complete cells. Influence overview: 32 sources, 1420 targets. Inspect computed values for exact weights."
+        },
+        "detail": {
+          "presentation": "detail",
+          "visible": 10,
+          "glyphs": 10,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 19,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 1420 targets. Inspect computed values for exact weights."
+        },
+        "inspector": {
+          "presentation": "detail",
+          "visible": 10,
+          "glyphs": 11,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 19,
+          "rows": 17,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 1420 targets. Inspect computed values for exact weights."
+        },
+        "setupAndChecksMs": 233909.94869999998
+      },
+      {
+        "kind": "load-return",
+        "mode": "voronoi",
+        "tier": 100000,
+        "sources": 32,
+        "targets": 2849,
+        "elapsedMs": 1337.2179999999935,
+        "publication": {
+          "module": 4294967302,
+          "mode": "voronoi",
+          "treeNodes": 8800,
+          "radiusParameters": 0,
+          "freezeParameters": 2849,
+          "sources": 32,
+          "targets": 2849,
+          "valueFolders": 0,
+          "cells": 0,
+          "pending": 0,
+          "generation": 3
+        }
+      },
+      {
+        "kind": "failure",
+        "message": "TimeoutError: page.waitForFunction: Timeout 298657.1963ms exceeded.",
+        "errors": [],
+        "body": "Module\nSpatializer\nAdd target\nXY\nVoronoi\nDebug\nFrame\nHome\nFind endpoints\n50%\nInfluence overview: 32 sources, 2849 targets. Inspect computed values for exact weights.\nUse Enter or Space to select an endpoint. Arrow keys move it; Shift moves farther. Arrow keys on a radius handle resize it. Use Add target to create at the view center.\n‹\nPreview\nSource 000000\nSource\nTargets\n2849\nFind related value\nTarget 000000\n0.630\nTarget 000001\n0.292\nTarget 000002\n0.000\nTarget 000003\n0.000\nTarget 000004\n0.000\nTarget 000005\n0.000\nTarget 000006\n0.000\nTarget 000007\n0.000\nTarget 000008\n0.000\nTarget 000009\n0.000\nTarget 000010\n0.000\nTarget 000011\n0.000\nTarget 000012\n0.000\nTarget 000013\n0.000\nTarget 000014\n0.000\nTarget 000015\n0.000\n›\nPreview"
+      }
+    ]
+  },
+  "directedDiagnostic": {
+    "artifact": "target/qualification/p11-spatializer-pressure-78416636-3591-436a-b8ff-7a4de5f5d226/browser.jsonl",
+    "sha256": "69014620d1449e09b3683eb138b8826c7f624d4c39f1c52750f1dd1eef01e2cf",
+    "rows": [
+      {
+        "kind": "environment",
+        "production": true,
+        "browser": "156.0.4314.42",
+        "binaryHash": "da8f5be92c1cbd578c945368320df5590fa91d6899dc6885cd7a0c353a0ae261",
+        "assets": [
+          {
+            "name": "dmsans-italic-CT59GZwy.ttf",
+            "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+          },
+          {
+            "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+            "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+          },
+          {
+            "name": "index-BS5o3lv7.js",
+            "sha256": "27a276c16a3fdae2341f17f4626c611032fc44e77278d175c5fe8972a7d2c15a"
+          },
+          {
+            "name": "index-HpApHVKp.css",
+            "sha256": "8c7e778204be5ffe14da911069f82191985641daf451aeefa16b5cccbcc74c2d"
+          }
+        ],
+        "report": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-spatializer-pressure-78416636-3591-436a-b8ff-7a4de5f5d226\\browser.jsonl"
+      },
+      {
+        "kind": "pressure-contract",
+        "scenes": 16,
+        "selectedCases": [1],
+        "fullSelection": false,
+        "diagnosticOnly": true,
+        "engineTrace": true,
+        "actionTiming": false,
+        "limits": {
+          "endpointGlyphs": 128,
+          "overviewGroups": 256,
+          "regionPolygons": 256,
+          "finderRows": 32,
+          "relatedRows": 42
+        }
+      },
+      {
+        "kind": "load-return",
+        "mode": "voronoi",
+        "tier": 100000,
+        "sources": 32,
+        "targets": 2849,
+        "elapsedMs": 732.6240000000003,
+        "publication": {
+          "module": null,
+          "mode": null,
+          "treeNodes": 170,
+          "radiusParameters": 0,
+          "freezeParameters": 0,
+          "sources": 0,
+          "targets": 0,
+          "valueFolders": 0,
+          "cells": 0,
+          "pending": 0,
+          "generation": 1
+        }
+      },
+      {
+        "kind": "failure",
+        "message": "TimeoutError: page.waitForFunction: Timeout 299265.9452ms exceeded.",
+        "errors": [],
+        "body": "Module\nSpatializer\nAdd target\nXY\nVoronoi\nDebug\nFrame\nHome\nFind endpoints\n0%\nEndpoint overview: 1914 visible of 2881. Zoom in or Find endpoints.\nRegion overview: zoom in for complete cells.\nUse Enter or Space to select an endpoint. Arrow keys move it; Shift moves farther. Arrow keys on a radius handle resize it. Use Add target to create at the view center.\n‹\nPreview\n\nNo selection.\n\n›\nPreview"
+      }
+    ]
+  },
+  "qualificationClosed": false,
+  "passedPressureGroupsBeforeFailure": 1,
+  "requiredPressureGroups": 16,
+  "diagnosticTrace": {
+    "path": "target/qualification/p11-spatializer-pressure-78416636-3591-436a-b8ff-7a4de5f5d226/headless.log",
+    "sha256": "2b1cc50d01ee46e3b7af8849d1085d3d47ec5d2565a41b1fbc711cda808d12b8",
+    "processSnapshotsAtLeast10000Nodes": {
+      "count": 2562,
+      "minimum": 11650,
+      "p95": 48700,
+      "maximum": 51550,
+      "sum": 78206100
+    },
+    "snapshotBuildMicroseconds": {
+      "count": 2562,
+      "minimum": 14607,
+      "p95": 114812,
+      "maximum": 167889,
+      "sum": 168334571
+    },
+    "quietWakeMilliseconds": {
+      "count": 4253,
+      "minimum": 10,
+      "p95": 103,
+      "maximum": 181,
+      "sum": 124633
+    },
+    "samples": [
+      "[engine] tick total_ms=160 preamble_ms=0 resolve1_ms=0 wake_ms=160 apply_pending_edits_ms=0 inbox_precompute_ms=0 inbox_preprocess_ms=0 control_ms=0 scheduled_ms=0 stabilization_ms=0 logger_sync_ms=0 pending_edits=0 inbox_events=0",
+      "[engine] tick total_ms=157 preamble_ms=0 resolve1_ms=0 wake_ms=157 apply_pending_edits_ms=0 inbox_precompute_ms=0 inbox_preprocess_ms=0 control_ms=0 scheduled_ms=0 stabilization_ms=0 logger_sync_ms=0 pending_edits=0 inbox_events=0",
+      "[engine] tick total_ms=161 preamble_ms=0 resolve1_ms=0 wake_ms=161 apply_pending_edits_ms=0 inbox_precompute_ms=0 inbox_preprocess_ms=0 control_ms=0 scheduled_ms=0 stabilization_ms=0 logger_sync_ms=0 pending_edits=0 inbox_events=0"
+    ]
+  }
+}

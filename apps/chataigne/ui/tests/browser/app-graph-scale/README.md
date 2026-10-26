@@ -60,6 +60,11 @@ and rejects endpoint/pair counts exceeding backend caps. Source and target grids
 `node apps/chataigne/ui/tests/browser/spatializer-scale-calibration.mjs` performs declaration and
 publication roundtrips only. Its setup observations cannot qualify ordinary-action latency.
 
+`node apps/chataigne/ui/tests/browser/spatializer-pressure-native.mjs` runs the fixed 16-group
+four-mode pressure selection. `GC_SPATIALIZER_PRESSURE_CASES` accepts comma-separated indices
+0–15 for directed diagnosis; any explicit selection or enabled `GOLDEN_PERF_TRACE` is reported
+as diagnostic and cannot close full qualification. The same 300s setup deadline and scenes apply.
+
 `node apps/chataigne/ui/tests/browser/spatializer-navigation-native.mjs` exercises the actual
 custom-world catalog and SVG controls through public component methods. Its twelve correctness
 groups include paged discovery, selection framing and focus retirement/restoration across mode,

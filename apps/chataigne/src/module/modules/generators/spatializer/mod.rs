@@ -205,7 +205,8 @@ impl SpatializerModule {
         Self::new(crate::app::ModuleBase::new(), service::Service::new())
     }
 
-    fn request_service(&self) {
+    fn request_service(&mut self) {
+        self.service.invalidate_view();
         self.service.request();
     }
 
@@ -255,7 +256,7 @@ impl Node for SpatializerModule {
     }
 
     fn worker_wake_requires_tree_snapshot(&self) -> bool {
-        true
+        self.service.needs_tree_snapshot()
     }
     fn worker_wake_when_disabled(&self) -> bool {
         true
@@ -270,6 +271,10 @@ impl Node for SpatializerModule {
         events
             .iter()
             .any(|event| matches!(event.kind, EventKind::ParamChanged { .. }))
+    }
+    fn on_inbox(&mut self, ctx: &mut ProcessCtx) {
+        self.service.invalidate_view();
+        self.dispatch_inbox(ctx);
     }
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, old_value: ParamValue) {
         if let Some(snapshot) = ctx.tree_snapshot_arc() {

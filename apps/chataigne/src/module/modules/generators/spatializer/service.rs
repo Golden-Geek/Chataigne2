@@ -4,8 +4,18 @@ use golden_core::{
     edit::{Edit, EditCompletion, EditCompletionStatus, EditPreconditions, EditQueue, NodeReadGuard},
     process_ctx::SubtreeRevision,
 };
-use golden_io::{PayloadPool, RetirementPool, RevisionSource, WorkerNotifier};
-use std::{num::NonZeroUsize, sync::Mutex, time::Duration};
+use golden_io::{PayloadPool, RetainedPayload, RetirementPool, RevisionSource, WorkerNotifier};
+use std::{
+    num::NonZeroUsize,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
+
+struct ReadView {
+    snapshot: Arc<ProcessTreeSnapshot>,
+    // The canonical lease accounts for storage and owns final background destruction.
+    _lease: RetainedPayload<ProcessTreeSnapshot>,
+}
 
 struct Normalize {
     dimension: SpatializerDimension,
@@ -28,6 +38,7 @@ pub(super) struct Service {
     pending: Option<EditCompletion>,
     rejected: Option<SubtreeRevision>,
     settled: Option<SubtreeRevision>,
+    read_view: Option<ReadView>,
     defaults: bool,
     warning: Option<String>,
     pub(super) reconcile: bool,
@@ -49,6 +60,7 @@ impl Service {
             pending: None,
             rejected: None,
             settled: None,
+            read_view: None,
             defaults: true,
             warning: None,
             reconcile: true,
@@ -73,6 +85,12 @@ impl Service {
             wake.notifier.notify();
         }
     }
+    pub fn invalidate_view(&mut self) {
+        self.read_view = None;
+    }
+    pub fn needs_tree_snapshot(&self) -> bool {
+        self.read_view.is_none()
+    }
     #[cfg(test)]
     pub(super) fn idle(&self) -> bool {
         self.pending.is_none()
@@ -84,6 +102,7 @@ impl Service {
                     && !self.reconcile)
     }
     pub fn structure_changed(&mut self) {
+        self.invalidate_view();
         self.rejected = None;
         self.reconcile = true;
         self.request();
@@ -103,6 +122,7 @@ impl Service {
             .map_or(0, |publication| publication.detached_nodes())
     }
     pub fn cancel(&mut self) {
+        self.invalidate_view();
         self.generation = self.life.advance();
         self.normalize = None;
         self.job = None;
@@ -130,6 +150,7 @@ impl Service {
     }
     pub fn turn(&mut self, ctx: &mut ProcessCtx, module: NodeId, parameters: NodeId, values: NodeId) {
         if let Err(error) = self.inner(ctx, module, parameters, values) {
+            self.invalidate_view();
             self.warning(ctx, module, Some(error));
             if let Some(wake) = &self.wake {
                 wake.later(Duration::from_millis(250));
@@ -157,10 +178,14 @@ impl Service {
             }
             self.pending = None;
         }
-        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+        let Some(snapshot) = ctx
+            .tree_snapshot_arc()
+            .or_else(|| self.read_view.as_ref().map(|view| view.snapshot.clone()))
+        else {
             return Ok(());
         };
         if snapshot.node(module).is_none_or(|node| !node.enabled) {
+            self.invalidate_view();
             return Ok(());
         }
         let revision = snapshot
@@ -170,10 +195,12 @@ impl Service {
             self.cancel();
         }
         if self.rejected == Some(revision) {
+            self.invalidate_view();
             return Ok(());
         }
         self.rejected = None;
         if self.settled == Some(revision) && !self.reconcile {
+            self.invalidate_view();
             return Ok(());
         }
         self.settled = None;
@@ -206,6 +233,17 @@ impl Service {
             return Ok(());
         }
         let (dimension, mode, _) = controls?;
+        if self
+            .read_view
+            .as_ref()
+            .is_none_or(|view| !Arc::ptr_eq(&view.snapshot, &snapshot))
+        {
+            let lease = snapshot.try_lease().map_err(|error| error.to_string())?;
+            self.read_view = Some(ReadView {
+                snapshot: snapshot.clone(),
+                _lease: lease,
+            });
+        }
         if let Some(job) = &self.job {
             if job.running() {
                 return Ok(());
@@ -242,6 +280,7 @@ impl Service {
                     self.settled = Some(revision);
                     self.publication = None;
                     self.job_revision = None;
+                    self.invalidate_view();
                     self.warning(ctx, module, None);
                     return Ok(());
                 }
@@ -394,6 +433,7 @@ impl Service {
         )?);
         self.normalize = None;
         self.job_revision = Some(revision);
+        self.invalidate_view();
         Ok(())
     }
 
@@ -434,6 +474,8 @@ impl Service {
             }),
         });
         self.pending = Some(guarded.completion());
+        // The next planning turn must observe the applied prefix or a rejected suffix.
+        self.invalidate_view();
         guarded.retain_payload(admission.retain((), EDIT_BYTES).unwrap());
         ctx.edits.pending.extend(guarded.drain());
         Ok(())

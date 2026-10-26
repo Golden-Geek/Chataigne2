@@ -24,6 +24,21 @@ const scenes = contract.modes.flatMap((mode) => {
 	];
 });
 
+const requested = process.env.GC_SPATIALIZER_PRESSURE_CASES;
+const selection =
+	requested === undefined
+		? scenes.map((_, index) => index)
+		: requested.split(',').map((value) => {
+				assert.match(value.trim(), /^\d+$/);
+				return Number(value);
+			});
+assert.ok(selection.length && new Set(selection).size === selection.length);
+assert.ok(selection.every((index) => Number.isSafeInteger(index) && index < scenes.length));
+const trace = !['', '0', 'false', 'off'].includes(
+	(process.env.GOLDEN_PERF_TRACE ?? '').trim().toLowerCase()
+);
+const diagnosticOnly = requested !== undefined || trace;
+
 await nativeWorkbench({
 	fixture: new URL('./spatializer-fixture/', import.meta.url),
 	name: 'p11-spatializer-pressure',
@@ -36,7 +51,16 @@ await nativeWorkbench({
 				method,
 				args
 			});
-		emit({ kind: 'pressure-contract', scenes: 16, actionTiming: false, limits: contract.limits });
+		emit({
+			kind: 'pressure-contract',
+			scenes: scenes.length,
+			selectedCases: selection,
+			fullSelection: selection.length === scenes.length,
+			diagnosticOnly,
+			engineTrace: trace,
+			actionTiming: false,
+			limits: contract.limits
+		});
 		const mounted = async () => {
 			const result = await page.evaluate(() => {
 				const map = document.querySelector('.spatializer-map');
@@ -75,7 +99,8 @@ await nativeWorkbench({
 			}
 			return result;
 		};
-		for (const scene of scenes) {
+		for (const index of selection) {
+			const scene = scenes[index];
 			const { mode, sources, targets, tier } = scene;
 			const [s, t] = coefficients[mode];
 			const expected = 185 + s * sources + t * targets + sources * targets;
@@ -205,6 +230,7 @@ await nativeWorkbench({
 			emit({
 				kind: 'spatializer-pressure',
 				passed: true,
+				diagnosticOnly,
 				...scene,
 				treeNodes: tier ?? expected,
 				cells: sources * targets,
