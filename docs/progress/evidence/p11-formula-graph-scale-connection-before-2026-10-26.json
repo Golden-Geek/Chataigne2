@@ -1,0 +1,104 @@
+{
+  "diagnosticOnly": true,
+  "rows": [
+    {
+      "kind": "environment",
+      "production": true,
+      "browser": "156.0.4314.42",
+      "binaryHash": "b9134334293aa805dfe83e0bd3472a16dae18b1083513451c05081e40f9aa9d1",
+      "assets": [
+        {
+          "name": "dmsans-italic-CT59GZwy.ttf",
+          "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+        },
+        {
+          "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+          "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+        },
+        {
+          "name": "index-BcDHm3O_.css",
+          "sha256": "ac8f9e764ed59d598f1f85a970dc64508ca2030b743f344ac6e6e895c18cd541"
+        },
+        {
+          "name": "index-BpyHanT4.js",
+          "sha256": "25e93e6563e09a164aab445b1c7f1e2c5030218242fe35c7e9292c9b7adfceb7"
+        }
+      ],
+      "report": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-formula-connection-diagnostic-e4d4a202-5a14-4706-af9e-ea1c095c82b0\\browser.jsonl"
+    },
+    {
+      "kind": "diagnostic-contract",
+      "diagnosticOnly": true,
+      "retainedSamples": 1,
+      "tier": 50000,
+      "graphItems": 1724,
+      "sha256": "1b1320445e9154f754bbfc9b2b24846e341c4d019d9edb67980ce590cea4689e",
+      "engineTracing": true
+    },
+    {
+      "kind": "connect-observation",
+      "elapsedMs": 5800.051400000002,
+      "treeNodesAfter": 50009,
+      "topology": [
+        {
+          "from": "2ca0b892-6bb8-4756-bb1d-3f85a07148dc",
+          "id": 4295017280,
+          "uuid": "98e37f13-1007-4ef0-9e07-5bb542ada4da",
+          "source": "2ca0b892-6bb8-4756-bb1d-3f85a07148dc",
+          "target": "706b5886-a5e8-4893-a593-681a5b122f07",
+          "sourceSocket": "result",
+          "targetSocket": "value1"
+        },
+        {
+          "from": "2ca0b892-6bb8-4756-bb1d-3f85a07148dc",
+          "id": 4295017297,
+          "uuid": "77296a30-9a0e-46f2-adda-68518c5f4ee3",
+          "source": "2ca0b892-6bb8-4756-bb1d-3f85a07148dc",
+          "target": "706b5886-a5e8-4893-a593-681a5b122f07",
+          "sourceSocket": "result",
+          "targetSocket": "value2"
+        }
+      ]
+    },
+    {
+      "kind": "undo-observation",
+      "elapsedMs": 2053.4222999999984,
+      "treeNodesAfter": 50000
+    },
+    {
+      "kind": "result",
+      "passed": true,
+      "errors": []
+    }
+  ],
+  "logSha256": "356900336a8787acbb6c1de3f6082d889c4096b4ccacbfa8fe98bd8f7a1777fd",
+  "formulaPhases": [
+    "[formula] socket_sync children=10 auto_us=58 materialize_us=248 solve_us=44 sockets_us=36",
+    "[formula] socket_sync children=10 auto_us=1 materialize_us=91 solve_us=15 sockets_us=11",
+    "[formula] socket_sync children=10 auto_us=1 materialize_us=68 solve_us=17 sockets_us=14",
+    "[formula] socket_sync children=10 auto_us=0 materialize_us=52 solve_us=13 sockets_us=9",
+    "[formula] materialize children=3452 reused_anodes=0 anodes_us=37728 connections_us=4417 surface_us=6 transaction_us=3349 commit_us=80930",
+    "[formula] socket_sync children=3452 auto_us=1020774 materialize_us=126541 solve_us=44946 sockets_us=24445",
+    "[formula] materialize children=3452 reused_anodes=0 anodes_us=33390 connections_us=3847 surface_us=4 transaction_us=3133 commit_us=79518",
+    "[formula] materialize children=3453 reused_anodes=1724 anodes_us=2067 connections_us=2742 surface_us=5 transaction_us=3130 commit_us=79288",
+    "[formula] socket_sync children=3453 auto_us=1014941 materialize_us=87317 solve_us=44604 sockets_us=25068",
+    "[formula] bulk_inbox events=10 reconcile=true sync_us=1172433 validate_us=59693",
+    "[formula] materialize children=3453 reused_anodes=1723 anodes_us=2267 connections_us=2509 surface_us=5 transaction_us=3232 commit_us=79998",
+    "[formula] socket_sync children=3453 auto_us=1006287 materialize_us=88104 solve_us=44993 sockets_us=24097",
+    "[formula] materialize children=3453 reused_anodes=1723 anodes_us=2629 connections_us=2997 surface_us=5 transaction_us=3355 commit_us=82906",
+    "[formula] socket_sync children=3453 auto_us=1037601 materialize_us=92001 solve_us=46488 sockets_us=30010",
+    "[formula] bulk_inbox events=8 reconcile=true sync_us=1206765 validate_us=66799",
+    "[formula] materialize children=3452 reused_anodes=1723 anodes_us=3000 connections_us=3445 surface_us=6 transaction_us=3593 commit_us=81399",
+    "[formula] socket_sync children=3452 auto_us=994350 materialize_us=91543 solve_us=43989 sockets_us=23939",
+    "[formula] bulk_inbox events=3 reconcile=true sync_us=1154273 validate_us=59094"
+  ],
+  "dispatchPhases": [
+    "[engine] dispatch_profile total_ms=21 requirements_us=0 snapshot=false snapshot_us=0 absorb_us=9 snapshot_requesters= recipients=alchemist_formula:nodes=1,events=49987,us=3260 | alchemist_anode:nodes=1724,events=41366,us=1808 | alchemist_connection:nodes=1723,events=8615,us=1120 | int:nodes=1723,events=1723,us=15 | alchemist_input_socket:nodes=3446,events=13784,us=12 | vec2:nodes=3448,events=3448,us=7 | alchemist_properties:nodes=1,events=1,us=2 | bool:nodes=5173,events=5173,us=0",
+    "[engine] dispatch_profile total_ms=85 requirements_us=19 snapshot=true snapshot_us=85006 absorb_us=1 snapshot_requesters=alchemist_input_socket[Custom]:1 recipients=alchemist_formula:nodes=1,events=1,us=851 | float:nodes=1,events=1,us=29 | alchemist_anode:nodes=1,events=1,us=11 | alchemist_input_socket:nodes=1,events=1,us=8",
+    "[engine] dispatch_profile total_ms=95 requirements_us=6 snapshot=true snapshot_us=94064 absorb_us=2 snapshot_requesters=alchemist_input_socket[Custom]:1 recipients=alchemist_formula:nodes=1,events=1,us=1127 | float:nodes=1,events=1,us=23 | alchemist_anode:nodes=1,events=1,us=9 | alchemist_input_socket:nodes=1,events=1,us=5",
+    "[engine] dispatch_profile total_ms=1326 requirements_us=8 snapshot=true snapshot_us=93272 absorb_us=7 snapshot_requesters=alchemist_connection[NodeCreated+ChildAdded+NodeCreated+ChildAdded]:1 recipients=alchemist_formula:nodes=1,events=10,us=1233095 | alchemist_connection:nodes=1,events=10,us=27 | str:nodes=2,events=4,us=4 | reference:nodes=2,events=4,us=4",
+    "[engine] dispatch_profile total_ms=1313 requirements_us=9 snapshot=true snapshot_us=86645 absorb_us=12 snapshot_requesters=alchemist_anode[ParamChanged(int:config/num_inputs)]:1 recipients=alchemist_formula:nodes=1,events=1,us=1224499 | alchemist_anode:nodes=1,events=1,us=2429 | int:nodes=1,events=1,us=28",
+    "[engine] dispatch_profile total_ms=1385 requirements_us=6 snapshot=true snapshot_us=110718 absorb_us=4 snapshot_requesters=alchemist_input_socket[NodeCreated+ChildAdded+NodeCreated+ChildAdded]:1 recipients=alchemist_formula:nodes=1,events=8,us=1274856 | alchemist_anode:nodes=1,events=8,us=16 | alchemist_input_socket:nodes=1,events=8,us=12 | str:nodes=2,events=4,us=7 | float:nodes=1,events=2,us=0",
+    "[engine] dispatch_profile total_ms=1322 requirements_us=14 snapshot=true snapshot_us=102794 absorb_us=11 snapshot_requesters=alchemist_anode[ChildRemoved+ParamChanged(int:config/num_inputs)]:1 recipients=alchemist_formula:nodes=1,events=3,us=1216524 | alchemist_anode:nodes=1,events=2,us=2781 | int:nodes=1,events=1,us=14"
+  ]
+}

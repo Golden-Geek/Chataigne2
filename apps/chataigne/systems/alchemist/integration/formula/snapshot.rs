@@ -31,9 +31,7 @@ pub(super) fn sync_auto_type_variable_config_params(
             continue;
         }
         let decl_id = config_decl_id(field.id.as_str());
-        let Some(parameter_node_id) =
-            snapshot.find_child_by_decl_id(config_folder, &decl_id)
-        else {
+        let Some(parameter_node_id) = snapshot.find_child_by_decl_id(config_folder, &decl_id) else {
             continue;
         };
         let Some(parameter_node) = snapshot.node(parameter_node_id) else {
@@ -54,95 +52,7 @@ pub(super) fn sync_auto_type_variable_config_params(
     }
 }
 
-pub(super) fn sync_auto_input_count(
-    ctx: &mut ProcessCtx,
-    snapshot: &ProcessTreeSnapshot,
-    anode: NodeId,
-    config_folder: NodeId,
-    type_id: &str,
-) {
-    let socket_prefix = match type_id {
-        "math" => "value",
-        "concatenate" => "part",
-        _ => return,
-    };
-    let Some(count_param) =
-        snapshot.find_child_by_decl_id(config_folder, "config/num_inputs")
-    else {
-        return;
-    };
-    let Some(count_node) = snapshot.node(count_param) else {
-        return;
-    };
-    if count_node.enabled {
-        return;
-    }
-    let Some(anode_snapshot) = snapshot.node(anode) else {
-        return;
-    };
-    let Some(formula) = anode_snapshot.parent else {
-        return;
-    };
-    let target_uuid = anode_snapshot.uuid;
-    let mut connected_indices = HashSet::<i32>::new();
-    for child in snapshot.child_ids(formula) {
-        let Some(connection) = snapshot.node(child) else {
-            continue;
-        };
-        if connection.node_type != CONNECTION_NODE_TYPE {
-            continue;
-        }
-        if child_reference_uuid(snapshot, child, "target_node")
-            != Some(target_uuid)
-        {
-            continue;
-        }
-        let Some(socket) = child_string(snapshot, child, "target_socket")
-        else {
-            continue;
-        };
-        if let Some(index) = numbered_socket_index(&socket, socket_prefix) {
-            connected_indices.insert(index);
-        }
-    }
-    let current = match count_node.param_value.as_ref() {
-        Some(ParamValue::Int(value)) => *value,
-        _ => 2,
-    }
-    .clamp(2, 64);
-    let all_current_inputs_connected =
-        (1..=current).all(|index| connected_indices.contains(&index));
-    let highest_connected = connected_indices.iter().copied().max().unwrap_or(0);
-    let desired = if all_current_inputs_connected {
-        (current + 1).clamp(2, 64)
-    } else if highest_connected < current {
-        (highest_connected + 1).clamp(2, current)
-    } else {
-        current
-    };
-    if count_node.param_value.as_ref() == Some(&ParamValue::Int(desired)) {
-        return;
-    }
-    if ctx.edits.pending.iter().any(|request| {
-        matches!(
-            &request.edit,
-            Edit::SetParam { node, value, .. }
-                if *node == count_param && *value == ParamValue::Int(desired)
-        )
-    }) {
-        return;
-    }
-    ctx.edits.push(Edit::SetParam {
-        node: count_param,
-        value: ParamValue::Int(desired),
-        behaviour: ParameterEventBehaviour::Coalesce,
-    });
-}
-
-pub(crate) fn anode_from_snapshot(
-    snapshot: &ProcessTreeSnapshot,
-    anode: NodeId,
-) -> Result<ANodeInstance, String> {
+pub(crate) fn anode_from_snapshot(snapshot: &ProcessTreeSnapshot, anode: NodeId) -> Result<ANodeInstance, String> {
     let node = snapshot
         .node(anode)
         .ok_or_else(|| format!("ANode {anode:?} is missing"))?;
@@ -153,25 +63,19 @@ pub(crate) fn anode_from_snapshot(
     let declaration = registry
         .get(&ANodeTypeId::new(type_id.clone()))
         .ok_or_else(|| format!("ANode type `{type_id}` is not registered"))?;
-    let mut instance =
-        ANodeInstance::new(ANodeTypeId::new(type_id), node.label.clone());
+    let mut instance = ANodeInstance::new(ANodeTypeId::new(type_id), node.label.clone());
     instance.id = ANodeId::from_uuid(node.uuid.0);
     instance.enabled = node.enabled;
     let config_folder = snapshot
         .find_child_by_decl_id(anode, "config")
         .ok_or_else(|| "ANode Config folder is missing".to_string())?;
-    instance.config =
-        existing_or_default_config(snapshot, anode, declaration.as_ref())?;
+    instance.config = existing_or_default_config(snapshot, anode, declaration.as_ref())?;
     let value_types = value_types();
     let signature_ctx = SignatureCtx {
         value_types,
         properties: None,
     };
-    let signature = declaration.signature(
-        &signature_ctx,
-        &instance,
-        &instance.type_bindings,
-    );
+    let signature = declaration.signature(&signature_ctx, &instance, &instance.type_bindings);
     apply_forced_type_bindings_from_config(
         snapshot,
         config_folder,
@@ -180,28 +84,20 @@ pub(crate) fn anode_from_snapshot(
         value_types,
         &mut instance,
     );
-    instance.ui.position =
-        child_vec2(snapshot, anode, "position").unwrap_or([0.0, 0.0]);
-    instance.ui.size = enabled_child_vec2(snapshot, anode, "size")
-        .filter(|size| size[0] > 0.0 && size[1] > 0.0);
+    instance.ui.position = child_vec2(snapshot, anode, "position").unwrap_or([0.0, 0.0]);
+    instance.ui.size = enabled_child_vec2(snapshot, anode, "size").filter(|size| size[0] > 0.0 && size[1] > 0.0);
     instance.ui.collapsed = node.presentation.collapsed;
 
-    let signature = declaration.signature(
-        &signature_ctx,
-        &instance,
-        &instance.type_bindings,
-    );
+    let signature = declaration.signature(&signature_ctx, &instance, &instance.type_bindings);
     let signature_bindings = local_signature_bindings(&signature, &instance);
     if let Some(inputs_folder) = snapshot.find_child_by_decl_id(anode, "inputs") {
         for input in signature.inputs {
-            let Some(socket_node) = snapshot.find_child_by_decl_id(
-                inputs_folder,
-                &socket_decl_id("inputs", input.id.as_str()),
-            ) else {
+            let Some(socket_node) =
+                snapshot.find_child_by_decl_id(inputs_folder, &socket_decl_id("inputs", input.id.as_str()))
+            else {
                 continue;
             };
-            let value_type =
-                constraint_value_type(&input.constraint, &signature_bindings);
+            let value_type = constraint_value_type(&input.constraint, &signature_bindings);
             let value = child_param(
                 snapshot,
                 socket_node,
@@ -244,12 +140,7 @@ impl ANodeMaterializationCache {
         !self.invalidate_all && self.nodes.contains_key(&anode)
     }
 
-    pub(super) fn observe_events(
-        &mut self,
-        snapshot: &ProcessTreeSnapshot,
-        formula_node: NodeId,
-        events: &EventFrame,
-    ) {
+    pub(super) fn observe_events(&mut self, snapshot: &ProcessTreeSnapshot, formula_node: NodeId, events: &EventFrame) {
         if self.nodes.is_empty() || self.invalidate_all {
             return;
         }
@@ -264,17 +155,15 @@ impl ANodeMaterializationCache {
                     self.observe_live_node(snapshot, formula_node, *node)
                 }
                 EventKind::NodeDeleted { node } => {
-                    self.nodes.contains_key(node)
-                        || self.observe_live_node(snapshot, formula_node, *node)
+                    self.nodes.contains_key(node) || self.observe_live_node(snapshot, formula_node, *node)
                 }
-                EventKind::ChildAdded { parent, child, .. }
-                | EventKind::ChildReordered { parent, child } => {
+                EventKind::ChildAdded { parent, child, .. } | EventKind::ChildReordered { parent, child } => {
                     self.observe_live_node(snapshot, formula_node, *parent)
                         && self.observe_live_node(snapshot, formula_node, *child)
                 }
                 EventKind::ChildRemoved { parent, child } => {
-                    let parent_known = self.observe_live_node(snapshot, formula_node, *parent)
-                        || self.nodes.contains_key(parent);
+                    let parent_known =
+                        self.observe_live_node(snapshot, formula_node, *parent) || self.nodes.contains_key(parent);
                     if snapshot.node(*child).is_some() {
                         self.observe_live_node(snapshot, formula_node, *child);
                     }
@@ -305,12 +194,7 @@ impl ANodeMaterializationCache {
         }
     }
 
-    fn observe_live_node(
-        &mut self,
-        snapshot: &ProcessTreeSnapshot,
-        formula_node: NodeId,
-        node: NodeId,
-    ) -> bool {
+    fn observe_live_node(&mut self, snapshot: &ProcessTreeSnapshot, formula_node: NodeId, node: NodeId) -> bool {
         if snapshot.node(node).is_none() {
             return false;
         }
@@ -350,14 +234,10 @@ fn formula_from_snapshot_inner(
         .node(formula_node)
         .ok_or_else(|| format!("Formula {formula_node:?} is missing"))?;
     if formula_snapshot.node_type != AlchemistFormulaDefinition::NODE_TYPE {
-        return Err(format!(
-            "node `{}` is not an Alchemist Formula",
-            formula_snapshot.label
-        ));
+        return Err(format!("node `{}` is not an Alchemist Formula", formula_snapshot.label));
     }
 
-    let graph_id =
-        chataigne_alchemist::AlchemistGraphId::from_uuid(formula_snapshot.uuid.0);
+    let graph_id = chataigne_alchemist::AlchemistGraphId::from_uuid(formula_snapshot.uuid.0);
     let child_count = snapshot.child_ids_slice(formula_node).len();
     let trace = child_count >= 1000 && std::env::var_os("GOLDEN_PERF_TRACE").is_some();
     let phase_started = trace.then(std::time::Instant::now);
@@ -405,14 +285,10 @@ fn formula_from_snapshot_inner(
         }
         let source = child_reference_uuid(snapshot, child, "source_node")
             .and_then(|uuid| anodes_by_uuid.get(&uuid).copied())
-            .ok_or_else(|| {
-                format!("connection `{}` has no valid source ANode", child_snapshot.label)
-            })?;
+            .ok_or_else(|| format!("connection `{}` has no valid source ANode", child_snapshot.label))?;
         let target = child_reference_uuid(snapshot, child, "target_node")
             .and_then(|uuid| anodes_by_uuid.get(&uuid).copied())
-            .ok_or_else(|| {
-                format!("connection `{}` has no valid target ANode", child_snapshot.label)
-            })?;
+            .ok_or_else(|| format!("connection `{}` has no valid target ANode", child_snapshot.label))?;
         let source_socket = child_string(snapshot, child, "source_socket")
             .ok_or_else(|| "connection source socket is missing".to_string())?;
         let target_socket = child_string(snapshot, child, "target_socket")
@@ -427,11 +303,7 @@ fn formula_from_snapshot_inner(
     let phase_started = trace.then(std::time::Instant::now);
 
     let properties = formula_property_schema_from_snapshot(snapshot, formula_node);
-    let surface = formula_surface_from_snapshot(
-        snapshot,
-        formula_node,
-        &mut anodes,
-    )?;
+    let surface = formula_surface_from_snapshot(snapshot, formula_node, &mut anodes)?;
     let surface_us = phase_started.map(|started| started.elapsed().as_micros()).unwrap_or(0);
     let phase_started = trace.then(std::time::Instant::now);
     let domain = chataigne_alchemist::AlchemistGraphDomain::new(
@@ -440,25 +312,13 @@ fn formula_from_snapshot_inner(
         Some(properties.clone()),
     );
     let mut graph =
-        chataigne_alchemist::AlchemistGraphDomain::new_document_with_identity(
-            graph_id,
-            formula_snapshot.label.clone(),
-        );
-    let mut transaction =
-        chataigne_alchemist::AlchemistGraphTransaction::for_document(&graph);
+        chataigne_alchemist::AlchemistGraphDomain::new_document_with_identity(graph_id, formula_snapshot.label.clone());
+    let mut transaction = chataigne_alchemist::AlchemistGraphTransaction::for_document(&graph);
     for anode in anodes {
-        chataigne_alchemist::AlchemistGraphDomain::insert_node(
-            &mut transaction,
-            anode,
-        );
+        chataigne_alchemist::AlchemistGraphDomain::insert_node(&mut transaction, anode);
     }
     for (source, target) in connections {
-        chataigne_alchemist::AlchemistGraphDomain::connect(
-            &mut transaction,
-            &graph,
-            source,
-            target,
-        );
+        chataigne_alchemist::AlchemistGraphDomain::connect(&mut transaction, &graph, source, target);
     }
     let transaction_us = phase_started.map(|started| started.elapsed().as_micros()).unwrap_or(0);
     let phase_started = trace.then(std::time::Instant::now);
@@ -497,7 +357,7 @@ fn formula_from_snapshot_inner(
             ..FormulaContextContract::default()
         },
         migrations: Vec::new(),
-	})
+    })
 }
 
 pub(super) fn formula_property_schema_from_snapshot(
@@ -505,9 +365,7 @@ pub(super) fn formula_property_schema_from_snapshot(
     formula_node: NodeId,
 ) -> FormulaPropertySchema {
     let mut schema = FormulaPropertySchema::default();
-    if let Some(properties) =
-        snapshot.find_child_by_decl_id(formula_node, PROPERTIES_DECL_ID)
-    {
+    if let Some(properties) = snapshot.find_child_by_decl_id(formula_node, PROPERTIES_DECL_ID) {
         collect_property_declarations(snapshot, properties, &mut schema);
     }
     schema
@@ -524,14 +382,11 @@ pub(super) fn collect_property_declarations(
         };
         match node.node_type.as_str() {
             PROPERTY_NODE_TYPE => {
-                let property_type = child_string(snapshot, child, "property_type")
-                    .unwrap_or_else(|| "float".to_owned());
-                let value_type =
-                    ValueTypeId::new(property_value_type(&property_type));
+                let property_type =
+                    child_string(snapshot, child, "property_type").unwrap_or_else(|| "float".to_owned());
+                let value_type = ValueTypeId::new(property_value_type(&property_type));
                 let default_value = child_param(snapshot, child, "value")
-                    .and_then(|value| {
-                        param_to_runtime_value(value, &value_type).ok()
-                    })
+                    .and_then(|value| param_to_runtime_value(value, &value_type).ok())
                     .or_else(|| default_runtime_value(&value_type).ok())
                     .unwrap_or(RuntimeValue::Unit);
                 schema.insert(FormulaPropertyDecl {
@@ -551,17 +406,13 @@ pub(super) fn collect_property_declarations(
     }
 }
 
-pub(super) fn formula_anode_node_ids(
-    snapshot: &ProcessTreeSnapshot,
-    formula_node: NodeId,
-) -> HashMap<ANodeId, NodeId> {
+pub(super) fn formula_anode_node_ids(snapshot: &ProcessTreeSnapshot, formula_node: NodeId) -> HashMap<ANodeId, NodeId> {
     snapshot
         .child_ids(formula_node)
         .into_iter()
         .filter_map(|child| {
             let node = snapshot.node(child)?;
-            (node.node_type == ANODE_NODE_TYPE)
-                .then(|| (ANodeId::from_uuid(node.uuid.0), child))
+            (node.node_type == ANODE_NODE_TYPE).then(|| (ANodeId::from_uuid(node.uuid.0), child))
         })
         .collect()
 }
@@ -571,21 +422,12 @@ pub(super) fn diagnostic_origin_node_id(
     anode_node_ids: &HashMap<ANodeId, NodeId>,
 ) -> Option<NodeId> {
     match origin {
-        DiagnosticOrigin::Node(node)
-        | DiagnosticOrigin::Socket { node, .. } => {
-            anode_node_ids.get(node).copied()
-        }
-        DiagnosticOrigin::Graph
-        | DiagnosticOrigin::Registry
-        | DiagnosticOrigin::Runtime => None,
+        DiagnosticOrigin::Node(node) | DiagnosticOrigin::Socket { node, .. } => anode_node_ids.get(node).copied(),
+        DiagnosticOrigin::Graph | DiagnosticOrigin::Registry | DiagnosticOrigin::Runtime => None,
     }
 }
 
-pub(crate) fn node_has_warning(
-    snapshot: &ProcessTreeSnapshot,
-    node: NodeId,
-    warning_id: &str,
-) -> bool {
+pub(crate) fn node_has_warning(snapshot: &ProcessTreeSnapshot, node: NodeId, warning_id: &str) -> bool {
     snapshot.node(node).is_some_and(|node| {
         node.presentation
             .warnings
@@ -594,11 +436,7 @@ pub(crate) fn node_has_warning(
     })
 }
 
-pub(crate) fn node_warning_detail(
-    snapshot: &ProcessTreeSnapshot,
-    node: NodeId,
-    warning_id: &str,
-) -> Option<String> {
+pub(crate) fn node_warning_detail(snapshot: &ProcessTreeSnapshot, node: NodeId, warning_id: &str) -> Option<String> {
     snapshot.node(node).and_then(|node| {
         node.presentation
             .warnings
@@ -620,17 +458,11 @@ pub(crate) fn node_warning_matches(
             .warnings
             .iter()
             .find(|warning| warning.id == warning_id)
-            .is_some_and(|warning| {
-                warning.message == message
-                    && warning.detail.as_deref() == detail
-            })
+            .is_some_and(|warning| warning.message == message && warning.detail.as_deref() == detail)
     })
 }
 
-pub(super) fn diagnostic_text_field<'a>(
-    diagnostic: &'a serde_json::Value,
-    key: &str,
-) -> Option<&'a str> {
+pub(super) fn diagnostic_text_field<'a>(diagnostic: &'a serde_json::Value, key: &str) -> Option<&'a str> {
     diagnostic
         .get(key)
         .and_then(|value| value.as_str())

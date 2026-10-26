@@ -5,6 +5,7 @@ pub(crate) mod support;
 
 mod channel;
 mod compile;
+mod compile_resolution;
 mod domain;
 mod formula;
 mod library;

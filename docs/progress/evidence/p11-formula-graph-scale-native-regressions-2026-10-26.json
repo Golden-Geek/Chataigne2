@@ -1,0 +1,737 @@
+{
+  "nativeCorrectnessGroups": 22,
+  "stateScaleSmokeOnly": true,
+  "reports": [
+    {
+      "consumer": "formula",
+      "artifact": "target/qualification/p11-alchemist-native-e769c0d9-e47c-4430-8dd4-25b298d8c1c8/browser.jsonl",
+      "reportSha256": "c305ad7b83048aab1b15a511195b18e85092b25ad2e9cfe6939f39cccf7ee3c2",
+      "rows": [
+        {
+          "kind": "environment",
+          "production": true,
+          "browser": "156.0.4314.42",
+          "binaryHash": "e1e3aaab79d8cf7f573609839ab710376e8d8862bf8470b4cde9eb4071a93981",
+          "assets": [
+            {
+              "name": "dmsans-italic-CT59GZwy.ttf",
+              "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+            },
+            {
+              "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+              "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+            },
+            {
+              "name": "index-BcDHm3O_.css",
+              "sha256": "ac8f9e764ed59d598f1f85a970dc64508ca2030b743f344ac6e6e895c18cd541"
+            },
+            {
+              "name": "index-BpyHanT4.js",
+              "sha256": "25e93e6563e09a164aab445b1c7f1e2c5030218242fe35c7e9292c9b7adfceb7"
+            }
+          ],
+          "report": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-alchemist-native-e769c0d9-e47c-4430-8dd4-25b298d8c1c8\\browser.jsonl"
+        },
+        {
+          "kind": "movement-and-history",
+          "passed": true,
+          "states": [
+            {
+              "id": 4294967304,
+              "uuid": "e42ce7d5-98ca-4e30-a25e-ee3f509a9cc6",
+              "label": "First",
+              "type": "constant",
+              "enabled": true,
+              "collapsed": false,
+              "position": {
+                "kind": "vec2",
+                "value": [
+                  2.25,
+                  3
+                ]
+              },
+              "readOnly": false
+            },
+            {
+              "id": 4294967318,
+              "uuid": "4bfce780-f62f-41ca-9272-3fd36d238d7a",
+              "label": "Second",
+              "type": "math",
+              "enabled": true,
+              "collapsed": false,
+              "position": {
+                "kind": "vec2",
+                "value": [
+                  26.25,
+                  3
+                ]
+              },
+              "readOnly": false
+            }
+          ]
+        },
+        {
+          "kind": "collapse-and-connection",
+          "passed": true,
+          "transitions": [
+            {
+              "id": 4294967350,
+              "uuid": "38e35cc3-f716-406e-8eee-b3a51af2f3b7",
+              "target": {
+                "kind": "parameter",
+                "param": {
+                  "value": {
+                    "kind": "reference",
+                    "uuid": "4bfce780-f62f-41ca-9272-3fd36d238d7a"
+                  },
+                  "default_value": {
+                    "kind": "reference",
+                    "uuid": "4bfce780-f62f-41ca-9272-3fd36d238d7a"
+                  },
+                  "event_behaviour": "Coalesce",
+                  "read_only": false,
+                  "constraints": {
+                    "enum_options": [],
+                    "policy": "ClampAdapt"
+                  },
+                  "ui_hints": {},
+                  "control": {
+                    "mode": "manual",
+                    "spec": {
+                      "mode": "manual"
+                    }
+                  },
+                  "reference_allowed_targets": [],
+                  "reference_visible_nodes": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "kind": "save-reload-snapshot-unmount",
+          "passed": true
+        },
+        {
+          "kind": "atomic-readonly-rejection",
+          "passed": true
+        },
+        {
+          "kind": "snapshot-subscribe-replacement-overlap",
+          "passed": true,
+          "captured": {
+            "project_generation": 5,
+            "at": {
+              "tick": 1,
+              "micro": 0,
+              "seq": 3
+            }
+          },
+          "resumed": {
+            "project_generation": 6,
+            "at": {
+              "tick": 1,
+              "micro": 0,
+              "seq": 3
+            }
+          },
+          "equalEventClocks": true,
+          "wire": [
+            {
+              "direction": "framereceived",
+              "kind": "resyncRequired",
+              "subscription": "sub-mvpnmqus-2",
+              "reason": "project_generation_changed"
+            },
+            {
+              "direction": "framesent",
+              "kind": "unsubscribe",
+              "subscription": "sub-mvpnmqus-2"
+            },
+            {
+              "direction": "framesent",
+              "kind": "subscribe",
+              "subscription": "sub-mvpnmqus-2",
+              "from": {
+                "at": {
+                  "tick": 1,
+                  "micro": 0,
+                  "seq": 3
+                },
+                "project_generation": 5
+              }
+            },
+            {
+              "direction": "framereceived",
+              "kind": "resyncRequired",
+              "subscription": "sub-mvpnmqus-2",
+              "reason": "project_generation_changed"
+            },
+            {
+              "direction": "framesent",
+              "kind": "unsubscribe",
+              "subscription": "sub-mvpnmqus-2"
+            },
+            {
+              "direction": "framesent",
+              "kind": "snapshot",
+              "id": "snapshot-mvpnmsp1-i"
+            },
+            {
+              "direction": "framereceived",
+              "kind": "snapshot",
+              "id": "snapshot-mvpnmsp1-i",
+              "at": {
+                "tick": 1,
+                "micro": 0,
+                "seq": 3
+              }
+            },
+            {
+              "direction": "framesent",
+              "kind": "subscribe",
+              "subscription": "sub-mvpnmqus-2",
+              "from": {
+                "at": {
+                  "tick": 1,
+                  "micro": 0,
+                  "seq": 3
+                },
+                "project_generation": 6
+              }
+            }
+          ]
+        },
+        {
+          "kind": "result",
+          "passed": true,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "consumer": "state",
+      "artifact": "target/qualification/p11-state-native-fa302df4-bded-4658-a4f0-b26e2bcc3c6b/browser.jsonl",
+      "reportSha256": "4d676b9de4067be25114153188fce6be133cd1ef78ddb2a1b3be8a4f60c1fb22",
+      "rows": [
+        {
+          "kind": "environment",
+          "production": true,
+          "browser": "156.0.4314.42",
+          "binaryHash": "e1e3aaab79d8cf7f573609839ab710376e8d8862bf8470b4cde9eb4071a93981",
+          "assets": [
+            {
+              "name": "dmsans-italic-CT59GZwy.ttf",
+              "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+            },
+            {
+              "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+              "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+            },
+            {
+              "name": "index-BfPKatTl.js",
+              "sha256": "eb7736f642e7cd894e974bc6b9f7ccb49465e006502f651161508bca0f10b120"
+            },
+            {
+              "name": "index-BOCNUsmX.css",
+              "sha256": "da08f9dca04e5acc6ea95f8000772564dd6aa802e97fd03f01017bf1c034213a"
+            }
+          ],
+          "report": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-state-native-fa302df4-bded-4658-a4f0-b26e2bcc3c6b\\browser.jsonl"
+        },
+        {
+          "kind": "movement-and-history",
+          "passed": true,
+          "states": [
+            {
+              "id": 4294967299,
+              "uuid": "3df01457-0031-42af-8702-4f5578d514b5",
+              "label": "First",
+              "enabled": true,
+              "collapsed": false,
+              "position": {
+                "kind": "vec2",
+                "value": [
+                  2.25,
+                  3
+                ]
+              },
+              "readOnly": false
+            },
+            {
+              "id": 4294967305,
+              "uuid": "b6e43e28-ddb0-4b71-8956-d28819bb5e36",
+              "label": "Second",
+              "enabled": true,
+              "collapsed": false,
+              "position": {
+                "kind": "vec2",
+                "value": [
+                  26.25,
+                  3
+                ]
+              },
+              "readOnly": false
+            }
+          ]
+        },
+        {
+          "kind": "collapse-and-connection",
+          "passed": true,
+          "transitions": [
+            {
+              "id": 4294967319,
+              "uuid": "344d4c3f-cff2-404a-ab5a-03a6a02f1d2c",
+              "target": {
+                "kind": "parameter",
+                "param": {
+                  "value": {
+                    "kind": "reference",
+                    "uuid": "b6e43e28-ddb0-4b71-8956-d28819bb5e36"
+                  },
+                  "default_value": {
+                    "kind": "reference",
+                    "uuid": "b6e43e28-ddb0-4b71-8956-d28819bb5e36"
+                  },
+                  "event_behaviour": "Coalesce",
+                  "read_only": false,
+                  "constraints": {
+                    "enum_options": [],
+                    "policy": "ClampAdapt"
+                  },
+                  "ui_hints": {},
+                  "control": {
+                    "mode": "manual",
+                    "spec": {
+                      "mode": "manual"
+                    }
+                  },
+                  "reference_allowed_targets": [],
+                  "reference_visible_nodes": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "kind": "save-reload-snapshot-unmount",
+          "passed": true
+        },
+        {
+          "kind": "atomic-readonly-rejection",
+          "passed": true
+        },
+        {
+          "kind": "result",
+          "passed": true,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "consumer": "spatializer",
+      "artifact": "target/qualification/p11-spatializer-native-efcdddd6-d2cc-4904-b553-c9d374d84c47/browser.jsonl",
+      "reportSha256": "1986a7f4f69abe57d552dc2a905f141c8734721fd2d3ee7b56b96c2862f4ea2d",
+      "rows": [
+        {
+          "kind": "environment",
+          "production": true,
+          "browser": "156.0.4314.42",
+          "binaryHash": "e1e3aaab79d8cf7f573609839ab710376e8d8862bf8470b4cde9eb4071a93981",
+          "assets": [
+            {
+              "name": "dmsans-italic-CT59GZwy.ttf",
+              "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+            },
+            {
+              "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+              "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+            },
+            {
+              "name": "index-C2ipe3Xe.js",
+              "sha256": "f6921fcfae539005a1182c1abefd19a520d5360b7de97c621b9d9b10d5d8576d"
+            },
+            {
+              "name": "index-CgCHUxYt.css",
+              "sha256": "7542f6fb8419f6819bc7757453befa707ca0f43b4f021c784726e8fe28c40142"
+            }
+          ],
+          "report": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-spatializer-native-efcdddd6-d2cc-4904-b553-c9d374d84c47\\browser.jsonl"
+        },
+        {
+          "kind": "empty-document-custom-world",
+          "passed": true,
+          "world": {
+            "width": 0.9658203125,
+            "height": 0.965850830078125,
+            "position": "absolute",
+            "overflow": "visible",
+            "viewport": {
+              "width": 1120,
+              "height": 525.421875
+            }
+          }
+        },
+        {
+          "kind": "selection-inspector-debug",
+          "passed": true
+        },
+        {
+          "kind": "authoritative-projection-and-home",
+          "passed": true
+        },
+        {
+          "kind": "mode-and-matrix-layout-replacement",
+          "passed": true
+        },
+        {
+          "kind": "three-dimensional-projection",
+          "passed": true
+        },
+        {
+          "kind": "snapshot-and-remount",
+          "passed": true,
+          "endpoints": [
+            {
+              "id": 4294967483,
+              "uuid": "5297208d-8d25-4c56-be15-85ee712440ec",
+              "label": "West",
+              "position": {
+                "kind": "parameter",
+                "param": {
+                  "value": {
+                    "kind": "vec3",
+                    "value": [
+                      -1,
+                      0,
+                      0
+                    ]
+                  },
+                  "default_value": {
+                    "kind": "vec3",
+                    "value": [
+                      -1,
+                      0,
+                      0
+                    ]
+                  },
+                  "event_behaviour": "Coalesce",
+                  "read_only": false,
+                  "constraints": {
+                    "enum_options": [],
+                    "policy": "ClampAdapt"
+                  },
+                  "ui_hints": {},
+                  "control": {
+                    "mode": "manual",
+                    "spec": {
+                      "mode": "manual"
+                    }
+                  },
+                  "reference_allowed_targets": [],
+                  "reference_visible_nodes": []
+                }
+              }
+            },
+            {
+              "id": 4294967482,
+              "uuid": "daef65b1-cd03-48ce-ba6f-48a0f3b7ea67",
+              "label": "Probe",
+              "position": {
+                "kind": "parameter",
+                "param": {
+                  "value": {
+                    "kind": "vec3",
+                    "value": [
+                      0.5,
+                      7,
+                      0.25
+                    ]
+                  },
+                  "default_value": {
+                    "kind": "vec3",
+                    "value": [
+                      0.5,
+                      0.25,
+                      0
+                    ]
+                  },
+                  "event_behaviour": "Coalesce",
+                  "read_only": false,
+                  "constraints": {
+                    "enum_options": [],
+                    "policy": "ClampAdapt"
+                  },
+                  "ui_hints": {},
+                  "control": {
+                    "mode": "manual",
+                    "spec": {
+                      "mode": "manual"
+                    }
+                  },
+                  "reference_allowed_targets": [],
+                  "reference_visible_nodes": []
+                }
+              }
+            },
+            {
+              "id": 4294967489,
+              "uuid": "4ba4144d-d894-4dcd-9228-084d0e800435",
+              "label": "East",
+              "position": {
+                "kind": "parameter",
+                "param": {
+                  "value": {
+                    "kind": "vec3",
+                    "value": [
+                      1,
+                      0,
+                      0
+                    ]
+                  },
+                  "default_value": {
+                    "kind": "vec3",
+                    "value": [
+                      1,
+                      0,
+                      0
+                    ]
+                  },
+                  "event_behaviour": "Coalesce",
+                  "read_only": false,
+                  "constraints": {
+                    "enum_options": [],
+                    "policy": "ClampAdapt"
+                  },
+                  "ui_hints": {},
+                  "control": {
+                    "mode": "manual",
+                    "spec": {
+                      "mode": "manual"
+                    }
+                  },
+                  "reference_allowed_targets": [],
+                  "reference_visible_nodes": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "kind": "stale-coordinate-space-rejection",
+          "passed": true
+        },
+        {
+          "kind": "keyboard-gesture-and-history",
+          "passed": true
+        },
+        {
+          "kind": "zero-radius-keyboard-control",
+          "passed": true
+        },
+        {
+          "kind": "active-gesture-snapshot-and-unmount",
+          "passed": true
+        },
+        {
+          "kind": "backend-target-creation",
+          "passed": true,
+          "created": {
+            "node": 12884902079,
+            "uuid": "499d95de-b43b-4cf8-8e3f-7378cde48a5b"
+          },
+          "next": {
+            "node": 4294967497,
+            "uuid": "f4de3b1f-519c-4759-ac31-d2837d065f15"
+          }
+        },
+        {
+          "kind": "read-only-replacement-rejection-and-rollback",
+          "passed": true
+        },
+        {
+          "kind": "saved-project-and-recovery",
+          "passed": true
+        },
+        {
+          "kind": "result",
+          "passed": true,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "consumer": "stateSmoke",
+      "artifact": "target/qualification/p11-state-scale-73067e0b-158f-4f97-996a-5e2871aeb4ae/browser.jsonl",
+      "reportSha256": "bebbd92cca38267b3c4cc09040951170d1f1dba2102b3c6ca0f912deeb72c5ee",
+      "rows": [
+        {
+          "kind": "environment",
+          "production": true,
+          "browser": "156.0.4314.42",
+          "binaryHash": "e1e3aaab79d8cf7f573609839ab710376e8d8862bf8470b4cde9eb4071a93981",
+          "assets": [
+            {
+              "name": "dmsans-italic-CT59GZwy.ttf",
+              "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+            },
+            {
+              "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+              "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+            },
+            {
+              "name": "index-BfPKatTl.js",
+              "sha256": "eb7736f642e7cd894e974bc6b9f7ccb49465e006502f651161508bca0f10b120"
+            },
+            {
+              "name": "index-BOCNUsmX.css",
+              "sha256": "da08f9dca04e5acc6ea95f8000772564dd6aa802e97fd03f01017bf1c034213a"
+            }
+          ],
+          "report": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-state-scale-73067e0b-158f-4f97-996a-5e2871aeb4ae\\browser.jsonl"
+        },
+        {
+          "kind": "fixed-contract",
+          "consumer": "state",
+          "tiers": [
+            1000
+          ],
+          "completeTierSelection": false,
+          "actions": [
+            "discover",
+            "single-move",
+            "three-move",
+            "connection"
+          ],
+          "completeActionSelection": true,
+          "diagnosticTracing": false,
+          "engineTracing": false,
+          "cpuProfiling": false,
+          "warmups": 3,
+          "retained": 31,
+          "normal": {
+            "feedbackP95": 200,
+            "completionP95": 2000,
+            "maximumStall": 200
+          },
+          "stress": {
+            "feedbackP95": 400,
+            "completionP95": 4000,
+            "maximumStall": 400
+          },
+          "maxMountedNodes": 128,
+          "maxFinderRows": 32,
+          "setupDeadlineMs": 300000
+        },
+        {
+          "kind": "source-ready",
+          "label": "calibration-8",
+          "graphItems": 8,
+          "treeNodes": 72,
+          "enabledItems": 1,
+          "serializedRecords": 48,
+          "setupMs": 59.11940000000004,
+          "sha256": "4ed86e8340998ab66201a1d8693e27d06c618dd905952ffef66d4b78feb0656a"
+        },
+        {
+          "kind": "source-ready",
+          "label": "calibration-16",
+          "graphItems": 16,
+          "treeNodes": 136,
+          "enabledItems": 1,
+          "serializedRecords": 96,
+          "setupMs": 104.95509999999967,
+          "sha256": "aa8fa4bdc9b9692bd8602d69de9000706865256fcf4309ee443a8e63f39aaa34"
+        },
+        {
+          "kind": "declaration-calibration",
+          "perItem": 8,
+          "fixed": 8
+        },
+        {
+          "kind": "source-ready",
+          "label": "state-1000",
+          "graphItems": 124,
+          "treeNodes": 1000,
+          "enabledItems": 1,
+          "serializedRecords": 744,
+          "setupMs": 117.32349999999997,
+          "sha256": "5571653ffa6be53cfae8a30d57640d075b0b2f802198678b486bbb605d51b785"
+        },
+        {
+          "kind": "scene",
+          "tier": 1000,
+          "graphItems": 124,
+          "chainEdges": 123,
+          "unrelatedRecords": 0,
+          "dimensions": {
+            "width": 1120,
+            "height": 576
+          },
+          "tail": [
+            4294968267,
+            4294968275,
+            4294968283
+          ]
+        },
+        {
+          "kind": "timing",
+          "consumer": "state",
+          "tier": 1000,
+          "graphItems": 124,
+          "action": "discover",
+          "passed": true,
+          "p95Feedback": 10.899999998509884,
+          "p95Completion": 10.899999998509884,
+          "maximumStall": 4.300000000000182,
+          "retainedSampleCount": 31,
+          "warmupCount": 3
+        },
+        {
+          "kind": "timing",
+          "consumer": "state",
+          "tier": 1000,
+          "graphItems": 124,
+          "action": "single-move",
+          "passed": true,
+          "p95Feedback": 4.300000004470348,
+          "p95Completion": 25.200000002980232,
+          "maximumStall": 4.300000000000182,
+          "retainedSampleCount": 31,
+          "warmupCount": 3
+        },
+        {
+          "kind": "timing",
+          "consumer": "state",
+          "tier": 1000,
+          "graphItems": 124,
+          "action": "three-move",
+          "passed": true,
+          "p95Feedback": 4.199999995529652,
+          "p95Completion": 28.899999998509884,
+          "maximumStall": 4.300000000000182,
+          "retainedSampleCount": 31,
+          "warmupCount": 3
+        },
+        {
+          "kind": "timing",
+          "consumer": "state",
+          "tier": 1000,
+          "graphItems": 124,
+          "action": "connection",
+          "passed": true,
+          "p95Feedback": 4.200000002980232,
+          "p95Completion": 33.5,
+          "maximumStall": 4.5,
+          "retainedSampleCount": 31,
+          "warmupCount": 3
+        },
+        {
+          "kind": "result",
+          "passed": true,
+          "errors": []
+        }
+      ]
+    }
+  ]
+}

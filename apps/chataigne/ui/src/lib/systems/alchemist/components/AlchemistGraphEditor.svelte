@@ -13,11 +13,16 @@
 		type GraphSocket,
 		type GraphViewportInset
 	} from 'golden_graph_ui';
-	import type { NodeId, UiCreatableUserItem, UiNodeDto } from 'golden_ui';
+	import type { NodeId, UiNodeDto } from 'golden_ui';
 	import { openNodeContextMenu } from 'golden_ui/store/node-context-menu.svelte';
 	import { appState } from 'golden_ui/store/workbench.svelte';
 	import lockIcon from '#lib/assets/icons/lock.svg';
-	import { canConnectGraphConnection, toGraphEdges, toGraphNodes } from '../alchemistGraph';
+	import {
+		canConnectGraphConnection,
+		graphSocketsByRef,
+		toGraphEdges,
+		toGraphNodes
+	} from '../alchemistGraph';
 	import type { FormulaOutputPreviewChip } from '../preview/formulaOutputPreviewStore.svelte';
 	import ANodeSocketDefaultEditor from './ANodeSocketDefaultEditor.svelte';
 	import ANodeOutputValueChip from './ANodeOutputValueChip.svelte';
@@ -29,7 +34,6 @@
 		selectedEdgeIds = [],
 		activeSocketRefs = new Set<string>(),
 		outputPreviews = new Map<string, FormulaOutputPreviewChip>(),
-		catalogItems = [],
 		onGraphSelectionChange,
 		onNodesMove,
 		onNodeResize,
@@ -52,7 +56,6 @@
 		selectedEdgeIds?: string[];
 		activeSocketRefs?: ReadonlySet<string>;
 		outputPreviews?: ReadonlyMap<string, FormulaOutputPreviewChip>;
-		catalogItems?: UiCreatableUserItem[];
 		onGraphSelectionChange?: (nodeIds: string[], edgeIds: string[]) => void;
 		onNodesMove?: (moves: GraphNodeMove[]) => void | Promise<void>;
 		onNodeResize?: (resize: GraphNodeResize) => void | Promise<void>;
@@ -79,12 +82,12 @@
 		}
 		return result;
 	});
+	let baseNodes = $derived(toGraphNodes(formula, nodesById));
+	let socketsByRef = $derived(graphSocketsByRef(baseNodes));
 	let nodes = $derived(
-		toGraphNodes(formula, nodesById, catalogItems).map((node) =>
-			activeNodeIds.has(node.id) ? { ...node, active: true } : node
-		)
+		baseNodes.map((node) => (activeNodeIds.has(node.id) ? { ...node, active: true } : node))
 	);
-	let edges = $derived(toGraphEdges(formula, nodesById, activeSocketRefs));
+	let edges = $derived(toGraphEdges(formula, nodesById, socketsByRef, activeSocketRefs));
 	const graphDocumentAdapter = new GraphPresentationAdapter();
 	let graphDocument = $derived(graphDocumentAdapter.update(nodes, edges, outputPreviews));
 	let formulaIdentity = $derived(formula.uuid);
@@ -137,7 +140,7 @@
 			? null
 			: outputPreview(graphNode, socket);
 	const canConnect = (connection: GraphConnectionRequest): boolean =>
-		!readOnly && canConnectGraphConnection(nodes, connection);
+		!readOnly && canConnectGraphConnection(socketsByRef, connection);
 	const openGraphNodeContextMenu = (event: MouseEvent, nodeId: string): void => {
 		const parsedNodeId = Number(nodeId);
 		if (!Number.isSafeInteger(parsedNodeId)) {
@@ -159,6 +162,10 @@
 		graphCanvas?.revealNode(id, additive) ?? Promise.resolve(false);
 	export const collapseGraphNode = (id: string) => graphCanvas?.toggleNodeCollapsed(id) ?? false;
 	export const graphInteractionState = () => graphCanvas?.keyboardState();
+	export function findGraphNodes(query: string) {
+		graphCanvas?.showNodeFinder();
+		graphCanvas?.searchNodes(query);
+	}
 	export const viewportCenter = (): GraphNodePosition =>
 		graphCanvas?.viewportCenter() ?? { x: 0, y: 0 };
 </script>

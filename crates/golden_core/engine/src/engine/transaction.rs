@@ -97,9 +97,10 @@ impl<T: Node> Engine<T> {
         if self.edit_journal.is_some() {
             return None;
         }
+        let started = (self.nodes.len() >= 10_000 && *super::runtime::PERF_TRACE_ENABLED).then(std::time::Instant::now);
         let pending_edits = std::mem::take(&mut self.edits.pending);
         self.begin_edit_journal(JournalMode::Atomic);
-        Some(EditCheckpoint {
+        let checkpoint = EditCheckpoint {
             inbox: std::mem::take(&mut self.inbox),
             ui_event_log: self.ui_event_log.clone(),
             ui_event_log_start: self.ui_event_log_start,
@@ -120,7 +121,17 @@ impl<T: Node> Engine<T> {
                 .iter()
                 .filter_map(|(id, node)| node.engine_param_snapshot().map(|s| (id, s.value)))
                 .collect(),
-        })
+        };
+        if let Some(started) = started {
+            eprintln!(
+                "[engine] edit_checkpoint nodes={} events={} parameters={} elapsed_us={}",
+                self.nodes.len(),
+                checkpoint.ui_event_log.len(),
+                checkpoint.parameter_values.len(),
+                started.elapsed().as_micros()
+            );
+        }
+        Some(checkpoint)
     }
 
     pub(crate) fn commit_edit_checkpoint(&mut self, checkpoint: Option<EditCheckpoint>) {

@@ -1,13 +1,13 @@
 use chataigne_alchemist::{
-    compile_graph, ANodeInstance, ANodeTypeId, AlchemistGraphDomain, CompileCtx, SignatureCtx, SocketId, StableRef,
-    TriggerValue, ValueTypeId,
+    ANodeInstance, ANodeTypeId, AlchemistGraphDomain, CompileCtx, SignatureCtx, SocketId, StableRef, TriggerValue,
+    ValueTypeId, compile_graph,
 };
 use golden_core::{
     app::ProjectNode,
     color::Color,
     edit::{Edit, EditOrigin},
     node::{
-        DeclId, Folder, Node, NodeId, NodeMetaPatch, NodeReference, GRADIENT_NODE_TYPE,
+        DeclId, Folder, GRADIENT_NODE_TYPE, Node, NodeId, NodeMetaPatch, NodeReference,
         PARAMETER_ANIMATION_CURVE_NODE_TYPE,
     },
     parameter::{ParamValue, Parameter, ParameterEventBehaviour},
@@ -20,16 +20,19 @@ use golden_core::{
 use golden_values::Value as RuntimeValue;
 
 use super::{
-    anode_from_snapshot, formula_from_snapshot, param_to_runtime_value, runtime_value_to_param, AlchemistANode,
-    AlchemistConnection, AlchemistFormulaDefinition, AlchemistFormulaFolder, AlchemistPropertiesManager,
-    AlchemistProperty, AlchemistPropertyManager, FormulaLibrary, ANODE_CREATE_PREFIX, ANODE_ITEM_KIND,
-    ANODE_TYPE_TAG_PREFIX, FORMULA_EXTERNAL_FILE_CREATE_TYPE, FORMULA_EXTERNAL_FILE_DECL_ID, FORMULA_EXTERNAL_FILE_TAG,
-    FORMULA_FOLDER_ITEM_KIND, FORMULA_FOLDER_NODE_TYPE, FORMULA_ITEM_KIND, FORMULA_MANAGED_REGIONS_JSON_DECL_ID,
-    PROPERTIES_DECL_ID, PROPERTY_CREATE_PREFIX, PROPERTY_MANAGER_CREATE_PREFIX,
+    ANODE_CREATE_PREFIX, ANODE_ITEM_KIND, ANODE_TYPE_TAG_PREFIX, AlchemistANode, AlchemistConnection,
+    AlchemistFormulaDefinition, AlchemistFormulaFolder, AlchemistPropertiesManager, AlchemistProperty,
+    AlchemistPropertyManager, FORMULA_EXTERNAL_FILE_CREATE_TYPE, FORMULA_EXTERNAL_FILE_DECL_ID,
+    FORMULA_EXTERNAL_FILE_TAG, FORMULA_FOLDER_ITEM_KIND, FORMULA_FOLDER_NODE_TYPE, FORMULA_ITEM_KIND,
+    FORMULA_MANAGED_REGIONS_JSON_DECL_ID, FormulaLibrary, PROPERTIES_DECL_ID, PROPERTY_CREATE_PREFIX,
+    PROPERTY_MANAGER_CREATE_PREFIX, anode_from_snapshot, formula_from_snapshot, param_to_runtime_value,
+    runtime_value_to_param,
 };
 use crate::app::{AppEngine, AppNode};
 
+mod auto_inputs;
 mod binding_migration;
+mod config_mutations;
 mod gate_migration;
 mod inbox_batch;
 mod lifecycle_reuse;
@@ -102,9 +105,11 @@ fn formula_library_and_folders_accept_formulas_and_formula_folders() {
                 && item.item_kind == FORMULA_ITEM_KIND
                 && item.label == "External Formula"
         }));
-        assert!(items
-            .iter()
-            .any(|item| { item.node_type == FORMULA_FOLDER_NODE_TYPE && item.item_kind == FORMULA_FOLDER_ITEM_KIND }));
+        assert!(
+            items.iter().any(|item| {
+                item.node_type == FORMULA_FOLDER_NODE_TYPE && item.item_kind == FORMULA_FOLDER_ITEM_KIND
+            })
+        );
     }
 }
 
@@ -137,15 +142,17 @@ fn external_formula_creation_exposes_file_parameter_and_loads_formula_file() {
                 .is_some_and(|node| node.get_type() == AlchemistFormulaDefinition::NODE_TYPE)
         })
         .expect("External Formula should exist");
-    assert!(engine
-        .nodes
-        .get(formula)
-        .expect("External Formula should exist")
-        .node_data()
-        .meta
-        .tags
-        .iter()
-        .any(|tag| tag == FORMULA_EXTERNAL_FILE_TAG));
+    assert!(
+        engine
+            .nodes
+            .get(formula)
+            .expect("External Formula should exist")
+            .node_data()
+            .meta
+            .tags
+            .iter()
+            .any(|tag| tag == FORMULA_EXTERNAL_FILE_TAG)
+    );
 
     let file_param = find_child_by_decl(&engine, formula, FORMULA_EXTERNAL_FILE_DECL_ID)
         .expect("External Formula should expose a Formula File parameter");
@@ -228,9 +235,11 @@ fn formula_exposes_anode_catalog_as_real_user_items() {
         .collect::<Vec<_>>();
 
     assert_eq!(actual, expected);
-    assert!(items
-        .iter()
-        .any(|item| { item.node_type == AlchemistConnection::NODE_TYPE }));
+    assert!(
+        items
+            .iter()
+            .any(|item| { item.node_type == AlchemistConnection::NODE_TYPE })
+    );
 }
 
 #[test]
@@ -587,11 +596,13 @@ fn materialized_anode_preserves_enabled_state() {
     let materialized =
         formula_from_snapshot(&engine.process_tree_snapshot(), formula).expect("Formula should materialize");
 
-    assert!(materialized
-        .graph
-        .nodes()
-        .find(|node| node.data.type_id.as_str() == "constant")
-        .is_some_and(|node| !node.data.enabled));
+    assert!(
+        materialized
+            .graph
+            .nodes()
+            .find(|node| node.data.type_id.as_str() == "constant")
+            .is_some_and(|node| !node.data.enabled)
+    );
 }
 
 #[test]
@@ -642,14 +653,18 @@ fn formula_properties_use_one_catalog_and_bind_read_only_getters() {
         "color",
         "reference",
     ] {
-        assert!(parameter_items
-            .iter()
-            .any(|item| { item.node_type == format!("{PROPERTY_CREATE_PREFIX}{property_type}") }));
+        assert!(
+            parameter_items
+                .iter()
+                .any(|item| { item.node_type == format!("{PROPERTY_CREATE_PREFIX}{property_type}") })
+        );
     }
     for role in ["condition", "input", "output"] {
-        assert!(parameter_items
-            .iter()
-            .any(|item| { item.node_type == format!("{PROPERTY_MANAGER_CREATE_PREFIX}{role}") }));
+        assert!(
+            parameter_items
+                .iter()
+                .any(|item| { item.node_type == format!("{PROPERTY_MANAGER_CREATE_PREFIX}{role}") })
+        );
     }
 
     let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
@@ -828,11 +843,13 @@ fn formula_properties_use_one_catalog_and_bind_read_only_getters() {
     assert_eq!(item.label, "Intensity");
     assert!(item.path.is_empty());
     assert_eq!(item.bindings.len(), 1);
-    assert!(materialized
-        .surface
-        .sections
-        .iter()
-        .any(|section| section.label == "Conditions"));
+    assert!(
+        materialized
+            .surface
+            .sections
+            .iter()
+            .any(|section| section.label == "Conditions")
+    );
     let getter = materialized
         .graph
         .nodes()
@@ -1235,15 +1252,17 @@ fn anode_creation_materializes_visible_config_and_socket_nodes() {
         "ANode type is internal and must not be a child parameter"
     );
     assert_eq!(anode_type(&engine, anode).as_deref(), Some("constant"));
-    assert!(engine
-        .nodes
-        .get(anode)
-        .expect("Constant ANode should exist")
-        .node_data()
-        .meta
-        .presentation
-        .color
-        .is_some());
+    assert!(
+        engine
+            .nodes
+            .get(anode)
+            .expect("Constant ANode should exist")
+            .node_data()
+            .meta
+            .presentation
+            .color
+            .is_some()
+    );
     assert_eq!(parameter_value(&engine, anode, "position"), ParamValue::Vec2(2.0, 3.0));
     let config = find_child_by_decl(&engine, anode, "config").expect("Config folder should be visible");
     let outputs = find_child_by_decl(&engine, anode, "outputs").expect("Outputs folder should be visible");

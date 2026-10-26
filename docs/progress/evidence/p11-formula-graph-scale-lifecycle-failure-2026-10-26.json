@@ -1,0 +1,666 @@
+{
+  "qualification": false,
+  "reason": "50k connection completion exceeded the unchanged 2000ms limit",
+  "artifact": "target/qualification/p11-formula-scale-0b13516e-9abf-4168-9488-76e40d05d2a9/browser.jsonl",
+  "rows": [
+    {
+      "kind": "environment",
+      "production": true,
+      "browser": "156.0.4314.42",
+      "binaryHash": "6e6f8aee02038dc80254ed3fa0caf42a625829d62ba5a15f1e119a6a51f9c47e",
+      "assets": [
+        {
+          "name": "dmsans-italic-CT59GZwy.ttf",
+          "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+        },
+        {
+          "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+          "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+        },
+        {
+          "name": "index-BcDHm3O_.css",
+          "sha256": "ac8f9e764ed59d598f1f85a970dc64508ca2030b743f344ac6e6e895c18cd541"
+        },
+        {
+          "name": "index-BpyHanT4.js",
+          "sha256": "25e93e6563e09a164aab445b1c7f1e2c5030218242fe35c7e9292c9b7adfceb7"
+        }
+      ],
+      "report": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-formula-scale-0b13516e-9abf-4168-9488-76e40d05d2a9\\browser.jsonl"
+    },
+    {
+      "kind": "fixed-contract",
+      "consumer": "formula",
+      "tiers": [
+        1000,
+        10000,
+        20000,
+        50000,
+        100000
+      ],
+      "completeTierSelection": true,
+      "actions": [
+        "discover",
+        "single-move",
+        "three-move",
+        "connection"
+      ],
+      "completeActionSelection": true,
+      "diagnosticTracing": false,
+      "engineTracing": false,
+      "cpuProfiling": false,
+      "warmups": 3,
+      "retained": 31,
+      "normal": {
+        "feedbackP95": 200,
+        "completionP95": 2000,
+        "maximumStall": 200
+      },
+      "stress": {
+        "feedbackP95": 400,
+        "completionP95": 4000,
+        "maximumStall": 400
+      },
+      "maxMountedNodes": 128,
+      "maxFinderRows": 32,
+      "setupDeadlineMs": 300000
+    },
+    {
+      "kind": "source-ready",
+      "label": "calibration-8",
+      "graphItems": 8,
+      "treeNodes": 232,
+      "enabledItems": 8,
+      "serializedRecords": 224,
+      "setupMs": 303.06140000000005,
+      "sha256": "3231866f1cbc57c0d461b44de5f2e6fb9e7971ad0bdf77ebc0710a4434bc025b"
+    },
+    {
+      "kind": "source-ready",
+      "label": "calibration-16",
+      "graphItems": 16,
+      "treeNodes": 464,
+      "enabledItems": 16,
+      "serializedRecords": 456,
+      "setupMs": 80.91550000000007,
+      "sha256": "d8bcf062decbc00d9152be8e2f88d4e367b266eb5ca08b98ac3226b9357f8671"
+    },
+    {
+      "kind": "declaration-calibration",
+      "perItem": 29,
+      "fixed": 0
+    },
+    {
+      "kind": "source-ready",
+      "label": "formula-1000",
+      "graphItems": 34,
+      "treeNodes": 1000,
+      "enabledItems": 34,
+      "serializedRecords": 992,
+      "setupMs": 109.1279999999997,
+      "sha256": "0789a6839ad3a47f474e14c72fd913d97706e65124bdbb70c1d84b1a81a20a7d"
+    },
+    {
+      "kind": "scene",
+      "tier": 1000,
+      "graphItems": 34,
+      "chainEdges": 33,
+      "anodeTypes": {
+        "constant": 1,
+        "math": 33
+      },
+      "unrelatedRecords": 14,
+      "dimensions": {
+        "width": 1120,
+        "height": 576
+      },
+      "tail": [
+        4294968038,
+        4294968062,
+        4294968086
+      ]
+    },
+    {
+      "kind": "timing",
+      "consumer": "formula",
+      "tier": 1000,
+      "graphItems": 34,
+      "action": "discover",
+      "passed": true,
+      "p95Feedback": 12.899999998509884,
+      "p95Completion": 13,
+      "maximumStall": 4.500000001490207,
+      "retainedSampleCount": 31,
+      "warmupCount": 3
+    },
+    {
+      "kind": "timing",
+      "consumer": "formula",
+      "tier": 1000,
+      "graphItems": 34,
+      "action": "single-move",
+      "passed": true,
+      "p95Feedback": 4.600000001490116,
+      "p95Completion": 33.29999999701977,
+      "maximumStall": 4.300000000000182,
+      "retainedSampleCount": 31,
+      "warmupCount": 3
+    },
+    {
+      "kind": "timing",
+      "consumer": "formula",
+      "tier": 1000,
+      "graphItems": 34,
+      "action": "three-move",
+      "passed": true,
+      "p95Feedback": 3.1999999955296516,
+      "p95Completion": 33.19999999552965,
+      "maximumStall": 4.399999999999636,
+      "retainedSampleCount": 31,
+      "warmupCount": 3
+    },
+    {
+      "kind": "timing",
+      "consumer": "formula",
+      "tier": 1000,
+      "graphItems": 34,
+      "action": "connection",
+      "passed": true,
+      "p95Feedback": 4.300000004470348,
+      "p95Completion": 58.600000001490116,
+      "maximumStall": 4.599999999999454,
+      "retainedSampleCount": 31,
+      "warmupCount": 3
+    },
+    {
+      "kind": "source-ready",
+      "label": "formula-10000",
+      "graphItems": 344,
+      "treeNodes": 10000,
+      "enabledItems": 344,
+      "serializedRecords": 9992,
+      "setupMs": 1027.3173000000006,
+      "sha256": "2d5e451b81d13e0bf8fbbc36cd09341adac1e3e007d42086b81a14539092bbf5"
+    },
+    {
+      "kind": "scene",
+      "tier": 10000,
+      "graphItems": 344,
+      "chainEdges": 343,
+      "anodeTypes": {
+        "constant": 1,
+        "math": 343
+      },
+      "unrelatedRecords": 24,
+      "dimensions": {
+        "width": 1120,
+        "height": 576
+      },
+      "tail": [
+        4294975478,
+        4294975502,
+        4294975526
+      ]
+    },
+    {
+      "kind": "timing",
+      "consumer": "formula",
+      "tier": 10000,
+      "graphItems": 344,
+      "action": "discover",
+      "passed": true,
+      "p95Feedback": 17.700000002980232,
+      "p95Completion": 17.700000002980232,
+      "maximumStall": 4.300000000001091,
+      "retainedSampleCount": 31,
+      "warmupCount": 3
+    },
+    {
+      "kind": "timing",
+      "consumer": "formula",
+      "tier": 10000,
+      "graphItems": 344,
+      "action": "single-move",
+      "passed": true,
+      "p95Feedback": 4.5,
+      "p95Completion": 112.5,
+      "maximumStall": 12.600000000000364,
+      "retainedSampleCount": 31,
+      "warmupCount": 3
+    },
+    {
+      "kind": "timing",
+      "consumer": "formula",
+      "tier": 10000,
+      "graphItems": 344,
+      "action": "three-move",
+      "passed": true,
+      "p95Feedback": 5.200000002980232,
+      "p95Completion": 111.70000000298023,
+      "maximumStall": 16.700000000000728,
+      "retainedSampleCount": 31,
+      "warmupCount": 3
+    },
+    {
+      "kind": "timing",
+      "consumer": "formula",
+      "tier": 10000,
+      "graphItems": 344,
+      "action": "connection",
+      "passed": true,
+      "p95Feedback": 4.200000002980232,
+      "p95Completion": 433.5,
+      "maximumStall": 20.900000000001455,
+      "retainedSampleCount": 31,
+      "warmupCount": 3
+    },
+    {
+      "kind": "source-ready",
+      "label": "formula-20000",
+      "graphItems": 689,
+      "treeNodes": 20000,
+      "enabledItems": 689,
+      "serializedRecords": 19992,
+      "setupMs": 2335.8686000000016,
+      "sha256": "21d6890954aa5b46b5419b1895cef9965db71625aeddb5dccf20f33ebdf72a7f"
+    },
+    {
+      "kind": "scene",
+      "tier": 20000,
+      "graphItems": 689,
+      "chainEdges": 688,
+      "anodeTypes": {
+        "constant": 1,
+        "math": 688
+      },
+      "unrelatedRecords": 19,
+      "dimensions": {
+        "width": 1120,
+        "height": 576
+      },
+      "tail": [
+        4294983758,
+        4294983782,
+        4294983806
+      ]
+    },
+    {
+      "kind": "timing",
+      "consumer": "formula",
+      "tier": 20000,
+      "graphItems": 689,
+      "action": "discover",
+      "passed": true,
+      "p95Feedback": 16,
+      "p95Completion": 16.100000001490116,
+      "maximumStall": 4.30000000000291,
+      "retainedSampleCount": 31,
+      "warmupCount": 3
+    },
+    {
+      "kind": "timing",
+      "consumer": "formula",
+      "tier": 20000,
+      "graphItems": 689,
+      "action": "single-move",
+      "passed": true,
+      "p95Feedback": 4.699999995529652,
+      "p95Completion": 200,
+      "maximumStall": 29.200000000004366,
+      "retainedSampleCount": 31,
+      "warmupCount": 3
+    },
+    {
+      "kind": "timing",
+      "consumer": "formula",
+      "tier": 20000,
+      "graphItems": 689,
+      "action": "three-move",
+      "passed": true,
+      "p95Feedback": 4.5,
+      "p95Completion": 208.5,
+      "maximumStall": 29.299999999995634,
+      "retainedSampleCount": 31,
+      "warmupCount": 3
+    },
+    {
+      "kind": "timing",
+      "consumer": "formula",
+      "tier": 20000,
+      "graphItems": 689,
+      "action": "connection",
+      "passed": true,
+      "p95Feedback": 4.200000002980232,
+      "p95Completion": 921.0999999940395,
+      "maximumStall": 41.69999999999709,
+      "retainedSampleCount": 31,
+      "warmupCount": 3
+    },
+    {
+      "kind": "source-ready",
+      "label": "formula-50000",
+      "graphItems": 1724,
+      "treeNodes": 50000,
+      "enabledItems": 1724,
+      "serializedRecords": 49992,
+      "setupMs": 7327.81240000001,
+      "sha256": "3f0b5a90c64fe2f8f9abe5506a6e635368fb7ba085f692efc2167a8edb0e85f8"
+    },
+    {
+      "kind": "scene",
+      "tier": 50000,
+      "graphItems": 1724,
+      "chainEdges": 1723,
+      "anodeTypes": {
+        "constant": 1,
+        "math": 1723
+      },
+      "unrelatedRecords": 4,
+      "dimensions": {
+        "width": 1120,
+        "height": 576
+      },
+      "tail": [
+        4295008598,
+        4295008622,
+        4295008646
+      ]
+    },
+    {
+      "kind": "timing",
+      "consumer": "formula",
+      "tier": 50000,
+      "graphItems": 1724,
+      "action": "discover",
+      "passed": true,
+      "p95Feedback": 19.399999998509884,
+      "p95Completion": 19.5,
+      "maximumStall": 4.399999999994179,
+      "retainedSampleCount": 31,
+      "warmupCount": 3
+    },
+    {
+      "kind": "timing",
+      "consumer": "formula",
+      "tier": 50000,
+      "graphItems": 1724,
+      "action": "single-move",
+      "passed": true,
+      "p95Feedback": 4.600000001490116,
+      "p95Completion": 462.5,
+      "maximumStall": 104.10000000000582,
+      "retainedSampleCount": 31,
+      "warmupCount": 3
+    },
+    {
+      "kind": "timing",
+      "consumer": "formula",
+      "tier": 50000,
+      "graphItems": 1724,
+      "action": "three-move",
+      "passed": true,
+      "p95Feedback": 4.700000002980232,
+      "p95Completion": 441.6000000014901,
+      "maximumStall": 87.60000000000582,
+      "retainedSampleCount": 31,
+      "warmupCount": 3
+    },
+    {
+      "kind": "timing",
+      "consumer": "formula",
+      "tier": 50000,
+      "graphItems": 1724,
+      "action": "connection",
+      "passed": false,
+      "p95Feedback": 4.100000001490116,
+      "p95Completion": 2325.2999999970198,
+      "maximumStall": 112.5,
+      "samples": [
+        {
+          "warmup": true,
+          "feedback": 4.200000002980232,
+          "completion": 2125.60000000149,
+          "stall": 100.09999999997672,
+          "peakNodes": 13
+        },
+        {
+          "warmup": true,
+          "feedback": 4,
+          "completion": 2058.7000000029802,
+          "stall": 87.5,
+          "peakNodes": 13
+        },
+        {
+          "warmup": true,
+          "feedback": 3.7999999970197678,
+          "completion": 2225,
+          "stall": 79.20000000001164,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4,
+          "completion": 2087.9000000059605,
+          "stall": 112.5,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4,
+          "completion": 2325.2999999970198,
+          "stall": 104.20000000001164,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 3.899999998509884,
+          "completion": 2004.1000000014901,
+          "stall": 83.39999999999418,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.100000001490116,
+          "completion": 2162.39999999851,
+          "stall": 75,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.100000001490116,
+          "completion": 2271.2000000029802,
+          "stall": 91.69999999998254,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4,
+          "completion": 2233.39999999851,
+          "stall": 95.80000000001746,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4,
+          "completion": 2200,
+          "stall": 95.80000000001746,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4,
+          "completion": 2162.7000000029802,
+          "stall": 79.29999999998836,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 3.9000000059604645,
+          "completion": 2095.60000000149,
+          "stall": 91.70000000001164,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4,
+          "completion": 2233.39999999851,
+          "stall": 104.09999999997672,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 3.7000000029802322,
+          "completion": 2074.3000000044703,
+          "stall": 91.70000000001164,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 3.899999998509884,
+          "completion": 1987.6000000014901,
+          "stall": 74.89999999999418,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.100000001490116,
+          "completion": 2050.10000000149,
+          "stall": 70.89999999999418,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.100000001490116,
+          "completion": 2062.60000000149,
+          "stall": 112.5,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4,
+          "completion": 2008.7000000029802,
+          "stall": 75.10000000000582,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4,
+          "completion": 1987.3999999985099,
+          "stall": 79.20000000001164,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 2.399999998509884,
+          "completion": 2044.1000000014901,
+          "stall": 79.20000000001164,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4,
+          "completion": 2000.2999999970198,
+          "stall": 74.89999999999418,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.100000001490116,
+          "completion": 2041.6000000014901,
+          "stall": 75,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4,
+          "completion": 2254.2999999970198,
+          "stall": 91.5,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 3.899999998509884,
+          "completion": 2358,
+          "stall": 79.19999999998254,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 3.7999999970197678,
+          "completion": 1908.0999999940395,
+          "stall": 75,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 3.9000000059604645,
+          "completion": 1954,
+          "stall": 79.29999999998836,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4,
+          "completion": 2083.9000000059605,
+          "stall": 100,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 3.899999998509884,
+          "completion": 1975,
+          "stall": 87.5,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4,
+          "completion": 2204.2000000029802,
+          "stall": 95.89999999999418,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 3.7000000029802322,
+          "completion": 2241.2000000029802,
+          "stall": 95.89999999999418,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 3.899999998509884,
+          "completion": 2120.7000000029802,
+          "stall": 95.89999999999418,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 3.9000000059604645,
+          "completion": 2058.60000000149,
+          "stall": 83.29999999998836,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.199999995529652,
+          "completion": 2146,
+          "stall": 83.29999999998836,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.100000001490116,
+          "completion": 2162.60000000149,
+          "stall": 83.29999999998836,
+          "peakNodes": 13
+        }
+      ]
+    },
+    {
+      "kind": "failure",
+      "message": "AssertionError [ERR_ASSERTION]: 50000/connection: {\"feedback\":4.100000001490116,\"completion\":2325.2999999970198,\"stall\":112.5}\n\nfalse !== true\n",
+      "errors": [],
+      "body": "‹\nProperties\nDrag a property onto the graph to create a getter.\n›\nProperties\nFrame\nHome\nNodes\n50%\nAuto Wire\nFormula 001723\n−\nValue 1\nValue 2\n⟷\nResult\nFormula 001463\n−\nValue 1\nValue 2\n⟷\nResult\nFormula 001464\n−\nValue 1\nValue 2\n⟷\nResult\nFormula 001465\n−\nValue 1\nValue 2\n⟷\nResult\nFormula 001466\n−\nValue 1\nValue 2\n⟷\nResult\nFormula 001467\n−\nValue 1\nValue 2\n⟷\nResult\nFormula 001468\n−\nValue 1\nValue 2\n⟷\nResult\nFormula 001469\n−\nValue 1\nValue 2\n⟷\nResult\nFormula 001470\n−\nValue 1\nValue 2\n⟷\nResult\nFormula 001719\n−\nValue 1\nValue 2\n⟷\nResult\nFormula 001720\n−\nValue 1\nValue 2\n⟷\nResult\nFormula 001721\n−\nValue 1\nValue 2\n⟷\nResult\nFormula 001722\n−\nValue 1\nValue 2\n⟷\nResult\nConnection requested.\nUse Nodes to find and reveal any node. Select a node with Enter or Space. Arrow keys move selected nodes; Shift moves farther. Activate opposite sockets to connect. Escape cancels a connection.\nProject\n✓\nDefaults\nInstance\nLane"
+    }
+  ]
+}

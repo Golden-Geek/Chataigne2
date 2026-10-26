@@ -35,8 +35,8 @@
 		anodeDefaultColor,
 		directChild,
 		formulaANodes,
-		parameterChild,
-		toGraphEdges
+		formulaConnections,
+		parameterChild
 	} from '../alchemistGraph';
 	import { formulaPreviewSessionStore } from '../preview/formulaPreviewSessionStore.svelte';
 	import {
@@ -364,10 +364,7 @@
 	let connectionNodeIds = $derived(
 		new Set(
 			formula && graphState
-				? toGraphEdges(formula, graphState.nodesById).flatMap((edge) => {
-						const nodeId = Number(edge.id);
-						return Number.isSafeInteger(nodeId) ? [nodeId] : [];
-					})
+				? formulaConnections(formula, graphState.nodesById).map((node) => node.node_id)
 				: []
 		)
 	);
@@ -518,7 +515,6 @@
 			session,
 			formula,
 			readOnly: formulaReadOnly,
-			items: anodeItems,
 			anodeNodeIds,
 			center: () => graphEditor?.viewportCenter()
 		}),
@@ -580,6 +576,7 @@
 		graphEditor?.revealGraphNode(id, additive) ?? Promise.resolve(false);
 	export const collapseGraphNode = (id: string) => graphEditor?.collapseGraphNode(id) ?? false;
 	export const graphInteractionState = () => graphEditor?.graphInteractionState();
+	export const findGraphNodes = (query: string) => graphEditor?.findGraphNodes(query);
 
 	export const setPanelState = (next: PanelState): void => {
 		updatedPanelState = next;
@@ -697,7 +694,6 @@
 						{outputPreviews}
 						{activeSocketRefs}
 						readOnly={formulaReadOnly}
-						catalogItems={anodeItems}
 						onGraphSelectionChange={selectGraphItems}
 						onNodesMove={formulaReadOnly ? undefined : moveNodes}
 						onNodeResize={formulaReadOnly ? undefined : resizeNode}

@@ -1,0 +1,104 @@
+{
+  "path": "target/qualification/p11-formula-scale-cb5b1585-d166-4e4a-bde5-bc9a6577309c",
+  "sha256": "f296a9c430a7136df964e23b590fd45a403d54869ddec8ee76fae121287f52db",
+  "sampledMs": 20770.749000000065,
+  "idleMs": 13419.685000000094,
+  "activeMs": 7351.063999999971,
+  "application": [
+    {
+      "source": "../../../../apps/chataigne/ui/src/lib/systems/alchemist/alchemistGraph.ts:604",
+      "ms": 4343.068999999999
+    },
+    {
+      "source": "../../../../apps/chataigne/ui/src/lib/systems/alchemist/alchemistGraph.ts:346",
+      "ms": 3869.453000000007
+    },
+    {
+      "source": "../../../../apps/chataigne/ui/src/lib/systems/alchemist/alchemistGraph.ts:355",
+      "ms": 2931.5670000000005
+    },
+    {
+      "source": "../../../../apps/chataigne/ui/src/lib/systems/alchemist/alchemistGraph.ts:494",
+      "ms": 2803.066000000001
+    },
+    {
+      "source": "../../../../apps/chataigne/ui/src/lib/systems/alchemist/components/AlchemistGraphEditor.svelte:89",
+      "ms": 2282.2340000000036
+    },
+    {
+      "source": "../../../../apps/chataigne/ui/src/lib/systems/alchemist/components/AlchemistEditorPanel.svelte:364",
+      "ms": 2210.220999999996
+    },
+    {
+      "source": "../../../../apps/chataigne/ui/src/lib/systems/alchemist/components/AlchemistGraphEditor.svelte:87",
+      "ms": 2135.9260000000013
+    },
+    {
+      "source": "../../../../apps/chataigne/ui/src/lib/systems/alchemist/alchemistGraph.ts:311",
+      "ms": 1718.9629999999981
+    },
+    {
+      "source": "../../../../apps/chataigne/ui/src/lib/systems/alchemist/components/AlchemistGraphEditor.svelte:82",
+      "ms": 1584.6100000000026
+    },
+    {
+      "source": "../../../../apps/chataigne/ui/src/lib/systems/alchemist/alchemistGraph.ts:543",
+      "ms": 1576.7450000000024
+    },
+    {
+      "source": "../../../../apps/chataigne/ui/src/lib/systems/alchemist/alchemistGraph.ts:271",
+      "ms": 1461.302
+    },
+    {
+      "source": "../../../../apps/chataigne/ui/src/lib/systems/alchemist/alchemistGraph.ts:548",
+      "ms": 1442.959000000001
+    },
+    {
+      "source": "../../../../apps/chataigne/ui/src/lib/systems/alchemist/alchemistGraph.ts:620",
+      "ms": 979.1820000000006
+    },
+    {
+      "source": "../../../../apps/chataigne/ui/src/lib/systems/alchemist/alchemistGraph.ts:293",
+      "ms": 759.8730000000006
+    },
+    {
+      "source": "../../../../apps/chataigne/ui/src/lib/systems/alchemist/alchemistGraph.ts:284",
+      "ms": 755.8790000000009
+    },
+    {
+      "source": "../../../../apps/chataigne/ui/src/lib/systems/alchemist/alchemistGraph.ts:329",
+      "ms": 528.4880000000002
+    },
+    {
+      "source": "../../../../apps/chataigne/ui/src/lib/systems/alchemist/alchemistGraph.ts:515",
+      "ms": 466.3969999999998
+    },
+    {
+      "source": "../../../../apps/chataigne/ui/src/lib/systems/alchemist/alchemistGraph.ts:520",
+      "ms": 461.74199999999985
+    },
+    {
+      "source": "../../../../apps/chataigne/ui/src/lib/systems/alchemist/alchemistGraph.ts:526",
+      "ms": 251.91700000000014
+    },
+    {
+      "source": "../../../../apps/chataigne/ui/src/lib/systems/alchemist/alchemistGraph.ts:531",
+      "ms": 248.85800000000015
+    },
+    {
+      "source": "../../../../apps/chataigne/ui/src/lib/systems/alchemist/alchemistGraph.ts:302",
+      "ms": 220.83500000000006
+    },
+    {
+      "source": "../../../../apps/chataigne/ui/src/lib/systems/alchemist/alchemistGraph.ts:452",
+      "ms": 132.81900000000005
+    }
+  ],
+  "maps": [
+    {
+      "name": "index-oI2bEz_E.js.map",
+      "sha256": "9c6a8c699b650001984bbd48e0dcfb507b0470f3b264a8e774e08f4c6c784a76"
+    }
+  ],
+  "scope": "Instrumented partial frontend diagnostic, not timing qualification"
+}

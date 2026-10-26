@@ -1,0 +1,342 @@
+{
+  "qualification": true,
+  "consumer": "Formula editor through actual default headless app transport",
+  "baseCommit": "2487d8091deadcaf17b6832eae17f16adb018ce5",
+  "machine": {
+    "platform": "win32",
+    "release": "10.0.26300",
+    "arch": "x64",
+    "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+    "logicalProcessors": 24,
+    "totalPhysicalMemoryBytes": 33752997888
+  },
+  "binarySha256": "e1e3aaab79d8cf7f573609839ab710376e8d8862bf8470b4cde9eb4071a93981",
+  "normalBuild": "cargo build --locked, GC_SKIP_UI_BUILD unset",
+  "actionTierCases": 20,
+  "retainedSamples": 620,
+  "warmups": 60,
+  "tiers": [
+    {
+      "tier": 1000,
+      "file": "p11-formula-graph-scale-1000-2026-10-26.json",
+      "graphItems": 34,
+      "chainEdges": 33,
+      "timings": [
+        {
+          "action": "discover",
+          "p95Feedback": 11.600000001490116,
+          "p95Completion": 11.600000001490116,
+          "maximumStall": 4.300000000000182,
+          "passed": true
+        },
+        {
+          "action": "single-move",
+          "p95Feedback": 4.399999998509884,
+          "p95Completion": 25.100000001490116,
+          "maximumStall": 4.300000000000182,
+          "passed": true
+        },
+        {
+          "action": "three-move",
+          "p95Feedback": 3.1999999955296516,
+          "p95Completion": 28,
+          "maximumStall": 4.300000000000182,
+          "passed": true
+        },
+        {
+          "action": "connection",
+          "p95Feedback": 4.200000002980232,
+          "p95Completion": 46,
+          "maximumStall": 4.599999999999454,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "tier": 10000,
+      "file": "p11-formula-graph-scale-10000-2026-10-26.json",
+      "graphItems": 344,
+      "chainEdges": 343,
+      "timings": [
+        {
+          "action": "discover",
+          "p95Feedback": 16.100000001490116,
+          "p95Completion": 16.100000001490116,
+          "maximumStall": 4.299999999999272,
+          "passed": true
+        },
+        {
+          "action": "single-move",
+          "p95Feedback": 4.5,
+          "p95Completion": 91.80000000447035,
+          "maximumStall": 13,
+          "passed": true
+        },
+        {
+          "action": "three-move",
+          "p95Feedback": 4.799999997019768,
+          "p95Completion": 96.20000000298023,
+          "maximumStall": 12.699999999998909,
+          "passed": true
+        },
+        {
+          "action": "connection",
+          "p95Feedback": 4.200000002980232,
+          "p95Completion": 341.6000000014901,
+          "maximumStall": 16.700000000000728,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "tier": 20000,
+      "file": "p11-formula-graph-scale-20000-2026-10-26.json",
+      "graphItems": 689,
+      "chainEdges": 688,
+      "timings": [
+        {
+          "action": "discover",
+          "p95Feedback": 16.30000000447035,
+          "p95Completion": 16.30000000447035,
+          "maximumStall": 4.30000000000291,
+          "passed": true
+        },
+        {
+          "action": "single-move",
+          "p95Feedback": 4.5999999940395355,
+          "p95Completion": 180.69999999552965,
+          "maximumStall": 25.099999999998545,
+          "passed": true
+        },
+        {
+          "action": "three-move",
+          "p95Feedback": 4.700000002980232,
+          "p95Completion": 199.19999999552965,
+          "maximumStall": 25.10000000000582,
+          "passed": true
+        },
+        {
+          "action": "connection",
+          "p95Feedback": 4.200000002980232,
+          "p95Completion": 695.9000000059605,
+          "maximumStall": 29.19999999999709,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "tier": 50000,
+      "file": "p11-formula-graph-scale-50000-2026-10-26.json",
+      "graphItems": 1724,
+      "chainEdges": 1723,
+      "timings": [
+        {
+          "action": "discover",
+          "p95Feedback": 16.399999998509884,
+          "p95Completion": 16.399999998509884,
+          "maximumStall": 4.30000000000291,
+          "passed": true
+        },
+        {
+          "action": "single-move",
+          "p95Feedback": 4.5,
+          "p95Completion": 433.20000000298023,
+          "maximumStall": 75,
+          "passed": true
+        },
+        {
+          "action": "three-move",
+          "p95Feedback": 4.700000002980232,
+          "p95Completion": 404.5,
+          "maximumStall": 83.40000000000873,
+          "passed": true
+        },
+        {
+          "action": "connection",
+          "p95Feedback": 4.100000001490116,
+          "p95Completion": 1758.1999999955297,
+          "maximumStall": 104.40000000002328,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "tier": 100000,
+      "file": "p11-formula-graph-scale-100000-2026-10-26.json",
+      "graphItems": 3448,
+      "chainEdges": 3447,
+      "timings": [
+        {
+          "action": "discover",
+          "p95Feedback": 15.600000001490116,
+          "p95Completion": 15.600000001490116,
+          "maximumStall": 4.2999999999883585,
+          "passed": true
+        },
+        {
+          "action": "single-move",
+          "p95Feedback": 4.5,
+          "p95Completion": 925.1000000014901,
+          "maximumStall": 191.69999999998254,
+          "passed": true
+        },
+        {
+          "action": "three-move",
+          "p95Feedback": 4.5,
+          "p95Completion": 895.7000000029802,
+          "maximumStall": 187.5,
+          "passed": true
+        },
+        {
+          "action": "connection",
+          "p95Feedback": 4.100000001490116,
+          "p95Completion": 3541.5,
+          "maximumStall": 187.59999999997672,
+          "passed": true
+        }
+      ]
+    }
+  ],
+  "owningChecks": "p11-formula-graph-scale-count-settlement-2026-10-26.json",
+  "nativeRegressions": "p11-formula-graph-scale-native-regressions-2026-10-26.json",
+  "uiChecks": {
+    "tests": {
+      "audio": 27,
+      "graph": 58,
+      "golden": 199,
+      "app": 165,
+      "total": 449
+    },
+    "svelte": {
+      "errors": 0,
+      "warnings": 0
+    }
+  },
+  "changedSources": [
+    {
+      "path": "apps/chataigne/systems/alchemist/integration/formula/anode.rs",
+      "sha256": "c1587abdea958474cbd33bf3a3a72c81b10a7825569de1bb277a0ef01443810b"
+    },
+    {
+      "path": "apps/chataigne/systems/alchemist/integration/formula/auto_inputs.rs",
+      "sha256": "23dfed95b89361f69cc5faf08006a91a1fe9303c0e26241fc52fedd9f6a67fa7"
+    },
+    {
+      "path": "apps/chataigne/systems/alchemist/integration/formula/mod.rs",
+      "sha256": "e66a2d2d976f96bf48283cb807a88f0c1449d984b68fb645f5ada7e812c3d590"
+    },
+    {
+      "path": "apps/chataigne/systems/alchemist/integration/formula/properties.rs",
+      "sha256": "787c2572cf2e55e30ee900489156c1bfed165f270d0fc3c9fe7a4f4404f3cffc"
+    },
+    {
+      "path": "apps/chataigne/systems/alchemist/integration/formula/reconcile.rs",
+      "sha256": "886516b7ff6250d093d9ba01c77857fe1d68c89818eaa51ab145d291c079231f"
+    },
+    {
+      "path": "apps/chataigne/systems/alchemist/integration/formula/snapshot.rs",
+      "sha256": "38926eb6ea03d5a3ca650d713ec94b8046be0ad41bef8dd17e8fe36fa69d70f5"
+    },
+    {
+      "path": "apps/chataigne/systems/alchemist/integration/formula/tests/auto_inputs.rs",
+      "sha256": "59458c0f9918e8a4211cf6f18baa017bfbe28b1858e26a5342cfdceceadf06c6"
+    },
+    {
+      "path": "apps/chataigne/systems/alchemist/integration/formula/tests/config_mutations.rs",
+      "sha256": "032c1785f8eff8986f2e84743736214d2054055cff443fb501602b5ce89fa73f"
+    },
+    {
+      "path": "apps/chataigne/systems/alchemist/integration/formula/tests/lifecycle_reuse.rs",
+      "sha256": "5e32446bce3e09f7eb8db7ecbe83ef1d8c33c31f0cb35a87a703ddecc4b41678"
+    },
+    {
+      "path": "apps/chataigne/systems/alchemist/integration/formula/tests/mod.rs",
+      "sha256": "0500845fb0deda354d13d107bbaab53cf8687e462ec85907be575a9b28b05239"
+    },
+    {
+      "path": "apps/chataigne/systems/alchemist/src/compile.rs",
+      "sha256": "66db854757cd777ab314d0b5ae2652d4b2fba1340e946b91caf17212d2b6dfcc"
+    },
+    {
+      "path": "apps/chataigne/systems/alchemist/src/tests/compile_resolution.rs",
+      "sha256": "07d278b5b7d873d5f70bc090dace57836d06a9f438543d4a636faf9d0656f2da"
+    },
+    {
+      "path": "apps/chataigne/systems/alchemist/src/tests/mod.rs",
+      "sha256": "1bf33635fcf92d77f526e0e196d751a3d746904c41d0442675bb9a12cb642dbe"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/alchemist/alchemistGraph.ts",
+      "sha256": "2cadd70d023e88ab4f94abcb29eeb17a64bbf6ef31f7899d4baffd186ead2888"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/alchemist/components/AlchemistEditorPanel.svelte",
+      "sha256": "7ba84f65fd9ecd851aac55317d3df4de7bd7cb9f3f508679dd0d5c16bdc5ddcf"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/alchemist/components/AlchemistGraphEditor.svelte",
+      "sha256": "8ff2002f48ef56ea0a0c844086938916177887dfad980ccae44d4ef6a2449d98"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/alchemist/editor/formulaEditorClipboard.svelte.ts",
+      "sha256": "f159f33777abfccab2687d3443dc10d6da902f105dfcc5f3dfbf57d0df02e331"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/alchemist/tests/graphProjection.test.ts",
+      "sha256": "2f934f6b709cea5df0bc5b5ff163bbf93683b25173b973e182c5823f90a9b9af"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/tests/fixtures/workbench-graph.ts",
+      "sha256": "8e4d8060a7fde2d8256e186f0fc952aa7eb8d9a9bf43918125b1ac3bafa537f3"
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/alchemist-graph-fixture/AlchemistGraph.svelte",
+      "sha256": "8e06c11ad2bcda25e1feb8c82faa0006b4d84fa14d61f6a57497b5dac403ec28"
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/app-graph-scale/connection-diagnostic.mjs",
+      "sha256": "1efb306be47f0e124cd12b85b4e878894e5d066384c37f0bcebffdef084516d4"
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/app-graph-scale/formula-connections.ts",
+      "sha256": "e11ac36c98049ba987748ca6eaf5361c26c91428e397532dfb778aacfd81598e"
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/app-graph-scale/measurement.ts",
+      "sha256": "e618fc62c76c02b16020b3e2fe3c8b0fde1732a55d60a2ad4ad83c6e8cd29129"
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/app-graph-scale/native.mjs",
+      "sha256": "79762067093da11180b6dc64ec3fa02ee2c60bfeff5cb0345e87e0676b41cf2f"
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/app-graph-scale/projects.mjs",
+      "sha256": "154cbea71c6337f12cae3aa35e47accfe65d1e5fe9d31e0aecf08fd316b51ec8"
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/app-graph-scale/tests/formula-connections.test.ts",
+      "sha256": "be282f9f56e31b6144a4cc0b0207a119c8d9c420034145c86c30f393f13d2528"
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/formula-graph-scale-native.mjs",
+      "sha256": "8b8652e5c3a70a6d3e347a03b1f0a97c26c01fc35f4d2c5b3fbd3d928bcc78c7"
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/native-workbench.mjs",
+      "sha256": "b1ed8e8f4a3f9406540350aa0bfaff05b35e62ee6d202453febe518d313c8cfd"
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/state-graph-scale-native.mjs",
+      "sha256": "7164ce06c2deceaff16d1d68d3d7eb4c649f16e3389800d5b8e8e85551bf2c0f"
+    },
+    {
+      "path": "crates/golden_core/engine/src/engine/transaction.rs",
+      "sha256": "1152bdfdedeaba0e7eda9ef38abaa3ee66531f3cb375c54dc3fdef4fce68f0fb"
+    }
+  ],
+  "remaining": [
+    "Spatializer actual-app scale qualification",
+    "Composed workspace discovery, selection and editing",
+    "P12-P18"
+  ]
+}

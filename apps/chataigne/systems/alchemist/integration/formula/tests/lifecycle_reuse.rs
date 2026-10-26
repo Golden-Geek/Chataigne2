@@ -1,5 +1,5 @@
-use super::*;
 use super::super::{AlchemistInputSocket, AlchemistOutputSocket};
+use super::*;
 
 #[test]
 fn anode_lifecycle_snapshots_follow_the_reconciliation_stage() {
@@ -12,6 +12,11 @@ fn anode_lifecycle_snapshots_follow_the_reconciliation_stage() {
     let output = AlchemistOutputSocket::new();
     assert!(!input.lifecycle_requires_tree_snapshot());
     assert!(!output.lifecycle_requires_tree_snapshot());
+
+    let connection: AppNode = AlchemistConnection::new().into();
+    assert!(connection.attached_requires_tree_snapshot());
+    assert!(!connection.init_requires_tree_snapshot());
+    assert!(!connection.ready_requires_tree_snapshot());
 }
 
 #[test]

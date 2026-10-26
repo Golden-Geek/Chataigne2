@@ -1,5 +1,11 @@
 # P11 workspace qualification contract
 
+The actual-app Formula scale extension follows the fixed
+[fixture contract](../../apps/chataigne/ui/tests/browser/app-graph-scale/README.md#formula-contract):
+the same five backend-tree tiers, dimensions, four action families, 3/31 samples and timing/mounting
+ceilings as State. Its dense acyclic Constant/Math chain and free-second-input connection case
+are fixed before measurement. Runtime evaluation throughput retains P13/P16.
+
 P11 has six fixed acceptance checkpoints derived from the active plan: manager/catalog windowing,
 historical log windowing, dashboard viewport awareness, tree focus/keyboard navigation, graph
 keyboard operations, and complete composed workflow qualification. Delivery commits do not add

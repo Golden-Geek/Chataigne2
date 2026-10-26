@@ -1,4 +1,4 @@
-import type { NodeId, UiNodeDto, UiCreatableUserItem } from 'golden_ui';
+import type { NodeId, UiNodeDto } from 'golden_ui';
 import type { GraphNodePosition } from 'golden_graph_ui';
 import { copyTextToClipboard } from 'golden_ui/utils/clipboard';
 import type { FormulaFragment } from '../generated/authoring/FormulaFragment';
@@ -39,7 +39,6 @@ export function createFormulaEditorClipboard(
 		session: FormulaEditorSession | null;
 		formula: UiNodeDto | null;
 		readOnly: boolean;
-		items: UiCreatableUserItem[];
 		anodeNodeIds: ReadonlySet<NodeId>;
 		center(): GraphNodePosition | undefined;
 	},
@@ -49,7 +48,6 @@ export function createFormulaEditorClipboard(
 	let formula = $derived(source().formula);
 	let formulaReadOnly = $derived(source().readOnly);
 	let graphState = $derived(session?.graph.state ?? null);
-	let anodeItems = $derived(source().items);
 	let anodeNodeIds = $derived(source().anodeNodeIds);
 	let editorDisposed = false,
 		alchemistDuplicateInProgress = false;
@@ -149,7 +147,7 @@ export function createFormulaEditorClipboard(
 			return false;
 		const offset = findFormulaPasteOffset({
 			fragment,
-			occupied: toGraphNodes(formula, graphState.nodesById, anodeItems),
+			occupied: toGraphNodes(formula, graphState.nodesById),
 			viewportCenter: source().center() ?? null,
 			destinationUuid: target.owner.uuid
 		});

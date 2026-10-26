@@ -45,3 +45,26 @@ and `GC_GRAPH_SCALE_CPU_PROFILE=1` enable passive diagnostics; instrumented runs
 qualification, even if they happen to pass. All selections and diagnostic flags appear in the report.
 State scale alone cannot close graph keyboard qualification: Formula, Spatializer and composed
 workflows retain their required owners and evidence.
+
+## Formula contract
+
+Use the same tiers, dimensions, grid, warmups, retained samples, deadlines, mounting bounds and
+normal/stress timing limits as State. Calibrate declaration expansion with eight and sixteen
+ANodes, then fill each exact backend-tree tier with one Constant followed by Math ANodes and a
+directed chain. Only the sub-item remainder may be unrelated Folder records. Validate every source
+and target UUID and socket: the Constant's `value` and each Math's `result` feed the next Math's
+`value1`. Report ANode/connection counts separately from retained backend nodes.
+The 300s setup budget is cumulative across loading, projection and canvas readiness; the
+transport's existing 120s project-load timeout remains unchanged.
+
+Measure the same four actions. Connection creation adds the penultimate Math's `result` to the
+last Math's free `value2`, preserving an acyclic graph and the existing `value1` connection.
+Require the exact new backend identity, target socket and visible stroked SVG, then undo between
+samples. The fixture's read-only connection index reconciles changed backend records, rather than
+scanning the complete tree on every measurement frame. Production Alchemist remains responsible
+for its graph adapter and operations.
+
+Run `node apps/chataigne/ui/tests/browser/formula-graph-scale-native.mjs`. State and Formula share
+the orchestration and measurement owners; each app fixture supplies its real public operations
+and backend observations. Formula scale does not establish runtime evaluation throughput, Spatializer
+scale, composed workflow acceptance or physical-input usability.

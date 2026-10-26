@@ -43,6 +43,7 @@ use crate::app::{
 };
 
 mod anode;
+mod auto_inputs;
 mod binding_migration;
 mod construction;
 mod external_files;
@@ -57,6 +58,7 @@ pub(crate) use operations::apply_operation as apply_formula_operation;
 
 pub use anode::{AlchemistANode, AlchemistInputSocket, AlchemistOutputSocket};
 use anode::{input_socket_matches, input_socket_tree, output_socket_matches, output_socket_tree, value_type_parameter};
+use auto_inputs::{sync_auto_input_count, sync_auto_input_counts};
 pub(crate) use binding_migration::{OUTPUT_BINDINGS_V2_TAG, migrate_output_binding_documents};
 use construction::*;
 pub(crate) use construction::{
@@ -149,6 +151,15 @@ pub struct AlchemistConnection {}
 
 #[node("alchemist_connection", from_struct)]
 impl Node for AlchemistConnection {
+    // Attachment binds the declared endpoints; init only changes permissions and ready is empty.
+    fn init_requires_tree_snapshot(&self) -> bool {
+        false
+    }
+
+    fn ready_requires_tree_snapshot(&self) -> bool {
+        false
+    }
+
     fn user_item_kind(&self) -> &str {
         CONNECTION_ITEM_KIND
     }

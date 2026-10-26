@@ -1,0 +1,410 @@
+{
+  "phase": "repaired load diagnostic",
+  "environment": {
+    "GOLDEN_PERF_TRACE": "1",
+    "GC_GRAPH_SCALE_TIERS": "10000",
+    "GC_GRAPH_SCALE_ACTIONS": "discover"
+  },
+  "scope": "instrumented partial load/discovery diagnostic, not timing qualification; snapshot totals include the complete run",
+  "rows": [
+    {
+      "kind": "environment",
+      "production": true,
+      "browser": "156.0.4314.42",
+      "binaryHash": "d63d1a6a99c0fd27c5fe1af4d9fbe6e2e4fed1eb39a752dde59cf2fedae018fc",
+      "assets": [
+        {
+          "name": "dmsans-italic-CT59GZwy.ttf",
+          "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+        },
+        {
+          "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+          "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+        },
+        {
+          "name": "index-BcDHm3O_.css",
+          "sha256": "ac8f9e764ed59d598f1f85a970dc64508ca2030b743f344ac6e6e895c18cd541"
+        },
+        {
+          "name": "index-oI2bEz_E.js",
+          "sha256": "b48552cc7c9cb16767bdf6a0cc72dcaafa9e7dd18b5c3524d340df0f06ec41f7"
+        }
+      ],
+      "report": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-formula-scale-1a789794-4240-4164-ba2e-f1a949a3c7e9\\browser.jsonl"
+    },
+    {
+      "kind": "fixed-contract",
+      "consumer": "formula",
+      "tiers": [
+        10000
+      ],
+      "completeTierSelection": false,
+      "actions": [
+        "discover"
+      ],
+      "completeActionSelection": false,
+      "diagnosticTracing": false,
+      "engineTracing": true,
+      "cpuProfiling": false,
+      "warmups": 3,
+      "retained": 31,
+      "normal": {
+        "feedbackP95": 200,
+        "completionP95": 2000,
+        "maximumStall": 200
+      },
+      "stress": {
+        "feedbackP95": 400,
+        "completionP95": 4000,
+        "maximumStall": 400
+      },
+      "maxMountedNodes": 128,
+      "maxFinderRows": 32,
+      "setupDeadlineMs": 300000
+    },
+    {
+      "kind": "source-ready",
+      "label": "calibration-8",
+      "graphItems": 8,
+      "treeNodes": 232,
+      "enabledItems": 8,
+      "serializedRecords": 224,
+      "setupMs": 301.83709999999974,
+      "sha256": "ab4ebc0ef52d8e2e4455767671bab0494bc1d782f1b3030f512b4f0eaa5e44ac"
+    },
+    {
+      "kind": "source-ready",
+      "label": "calibration-16",
+      "graphItems": 16,
+      "treeNodes": 464,
+      "enabledItems": 16,
+      "serializedRecords": 456,
+      "setupMs": 77.88339999999971,
+      "sha256": "3ce9145a861c6f6ffb645d6e2617d92f0df5f69c9c15b36d8307e636b5ed1505"
+    },
+    {
+      "kind": "declaration-calibration",
+      "perItem": 29,
+      "fixed": 0
+    },
+    {
+      "kind": "source-ready",
+      "label": "formula-10000",
+      "graphItems": 344,
+      "treeNodes": 10000,
+      "enabledItems": 344,
+      "serializedRecords": 9992,
+      "setupMs": 875.1572000000001,
+      "sha256": "bc2f18cce1c5907e5e8ba3971545626a280c8c0090ec5a2abd86e730c8fa247f"
+    },
+    {
+      "kind": "scene",
+      "tier": 10000,
+      "graphItems": 344,
+      "chainEdges": 343,
+      "anodeTypes": {
+        "constant": 1,
+        "math": 343
+      },
+      "unrelatedRecords": 24,
+      "dimensions": {
+        "width": 1120,
+        "height": 576
+      },
+      "tail": [
+        4294975478,
+        4294975502,
+        4294975526
+      ]
+    },
+    {
+      "kind": "timing",
+      "consumer": "formula",
+      "tier": 10000,
+      "graphItems": 344,
+      "action": "discover",
+      "passed": true,
+      "p95Feedback": 16.100000001490116,
+      "p95Completion": 16.100000001490116,
+      "maximumStall": 4.300000000000182,
+      "samples": [
+        {
+          "warmup": true,
+          "feedback": 78.10000000149012,
+          "completion": 78.10000000149012,
+          "stall": 66.40000000000009,
+          "peakNodes": 13
+        },
+        {
+          "warmup": true,
+          "feedback": 16.100000001490116,
+          "completion": 16.200000002980232,
+          "stall": 4.100000002980323,
+          "peakNodes": 13
+        },
+        {
+          "warmup": true,
+          "feedback": 15.399999998509884,
+          "completion": 15.399999998509884,
+          "stall": 4.199999999999818,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 14.799999997019768,
+          "completion": 14.799999997019768,
+          "stall": 4.099999999999909,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15,
+          "completion": 15,
+          "stall": 4.299999999999727,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15,
+          "completion": 15,
+          "stall": 4.199999999999818,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15,
+          "completion": 15,
+          "stall": 4.199999999999818,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 14.5,
+          "completion": 14.5,
+          "stall": 4.099999999999909,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 14.799999997019768,
+          "completion": 14.799999997019768,
+          "stall": 4.199999999999818,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15,
+          "completion": 15,
+          "stall": 4.299999999999727,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 16.400000005960464,
+          "completion": 16.400000005960464,
+          "stall": 4,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 13.099999994039536,
+          "completion": 13.099999994039536,
+          "stall": 4.099999999999909,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 14,
+          "completion": 14,
+          "stall": 4.099999999999909,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 14,
+          "completion": 14,
+          "stall": 4.300000000000182,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 13.599999994039536,
+          "completion": 13.599999994039536,
+          "stall": 4.199999999999818,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 14.5,
+          "completion": 14.5,
+          "stall": 4.199999999999818,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 14.200000002980232,
+          "completion": 14.300000004470348,
+          "stall": 4.100000002980323,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 14,
+          "completion": 14,
+          "stall": 4.199999999999818,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 14.600000001490116,
+          "completion": 14.600000001490116,
+          "stall": 4.199999999999818,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 14.399999998509884,
+          "completion": 14.399999998509884,
+          "stall": 4.299999999999727,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15.299999997019768,
+          "completion": 15.299999997019768,
+          "stall": 4.099999999999909,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 12.799999997019768,
+          "completion": 12.799999997019768,
+          "stall": 4.199999999999818,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 14.299999997019768,
+          "completion": 14.299999997019768,
+          "stall": 4.199999999999818,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 14.800000004470348,
+          "completion": 14.800000004470348,
+          "stall": 4.100000002980323,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 14.600000001490116,
+          "completion": 14.600000001490116,
+          "stall": 4.099999999999909,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 16.100000001490116,
+          "completion": 16.100000001490116,
+          "stall": 4.099999999999909,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 10.699999995529652,
+          "completion": 10.699999995529652,
+          "stall": 4.199999999999818,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 13.800000004470348,
+          "completion": 13.800000004470348,
+          "stall": 4.10000000447053,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 13.899999998509884,
+          "completion": 13.899999998509884,
+          "stall": 4.200000000000273,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 13.700000002980232,
+          "completion": 13.700000002980232,
+          "stall": 4.099999999999909,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15.100000001490116,
+          "completion": 15.100000001490116,
+          "stall": 4.199999999999818,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15.399999998509884,
+          "completion": 15.399999998509884,
+          "stall": 4.199999999999818,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 14.600000001490116,
+          "completion": 14.600000001490116,
+          "stall": 4.099999999999909,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15,
+          "completion": 15,
+          "stall": 4.099999999999909,
+          "peakNodes": 13
+        }
+      ]
+    },
+    {
+      "kind": "result",
+      "passed": true,
+      "errors": []
+    }
+  ],
+  "trace": {
+    "logSha256": "e8c9197b8d668424ada73e7e3166b778761fe99c4fc5aa674d77a83af5a6706d",
+    "fullSizeSnapshots": 81,
+    "snapshotMs": 1237.94,
+    "formulaSocketSync": [
+      "[formula] socket_sync children=692 auto_us=19297 materialize_us=18894 solve_us=7014 sockets_us=3559"
+    ]
+  },
+  "checks": {
+    "backend": {
+      "profile": "cargo test-fast (dev opt-level=1)",
+      "GC_SKIP_UI_BUILD": "1",
+      "formulaTests": 51,
+      "operationsTests": 24,
+      "operationsIgnored": 3,
+      "result": "passed"
+    },
+    "clippy": {
+      "command": "cargo clippy --locked -p Chataigne2 --all-targets -- -D warnings",
+      "GC_SKIP_UI_BUILD": "1",
+      "result": "passed",
+      "seconds": 40.61
+    },
+    "defaultBuild": {
+      "command": "cargo build --locked",
+      "GC_SKIP_UI_BUILD": "unset",
+      "CARGO_INCREMENTAL": "0",
+      "result": "passed",
+      "elapsed": "2m28s",
+      "frontend": "reused unchanged production inputs",
+      "binarySha256": "d63d1a6a99c0fd27c5fe1af4d9fbe6e2e4fed1eb39a752dde59cf2fedae018fc"
+    }
+  }
+}

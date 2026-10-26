@@ -5,7 +5,7 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-26 on `main`, based on delivered `2f3b4dde` plus State graph scale
+Last reconciled: 2026-10-26 on `main`, based on delivered `2487d809` plus Formula scale
 delivery below. **P11 is in progress; four of six fixed checkpoints are closed (67% rounded).**
 **P10 is locally complete: three of three fixed checkpoints (100%).**
 **C01-C12 are locally closed: 12/12 packages (100%).
@@ -201,7 +201,7 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
 | Historical log windowing           | Complete locally | Variable-height history, filters, follow, bounded native selection, focus and snapshot publication pass through 100k records. [Qualification](p11-log-windowing.md).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | Dashboard viewport awareness       | Complete locally | All 599 correctness groups and 160 fixed timing combinations pass through 100k authored nodes, including geometry, bounded presentation, feedback, callback stalls and completion. Retention regression passes 13 checkpoints. [Timing qualification](p11-dashboard-timing.md), [composition](p11-dashboard-composition.md), [barriers](p11-dashboard-barriers.md).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | Tree focus and keyboard navigation | Complete locally | All four app consumers, 55 constrained-picker groups and shared navigation/lifecycle cases pass through 100k items. All 70 tree timing combinations and 15 collection regression combinations pass fixed gates. [Closure and evidence](p11-tree-closure.md).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| Graph keyboard operations          | In progress      | Shared operations/discovery/sockets pass nine correctness groups and 50 timing combinations through 100k nodes. State Machine, Alchemist and Spatializer pass native backend edits, rejection, undo/redo, save/reload and replacement. Spatializer's 13 groups also qualify captured bounded gestures, keyboard/radius editing and backend creation; prepared-subtree capture is repaired. Generation cursors qualify the snapshot/subscription gap and equal-time origins. State scale passes the fixed 20-case matrix through 100k backend nodes; Formula and Spatializer scale remain. [Shared operations](p11-graph-keyboard.md), [discovery](p11-graph-discovery.md), [sockets](p11-graph-sockets.md), [State adapter](p11-state-graph-authoring.md), [Alchemist adapter](p11-alchemist-graph-authoring.md), [replacement overlap](p11-project-cursors.md), [Spatializer authoring](p11-spatializer-authoring.md), [State scale](p11-state-graph-scale.md). |
+| Graph keyboard operations          | In progress      | Shared operations/discovery/sockets pass nine correctness groups and 50 timing combinations through 100k nodes. State Machine, Alchemist and Spatializer pass native backend edits, rejection, undo/redo, save/reload and replacement. Spatializer's 13 groups also qualify captured bounded gestures, keyboard/radius editing and backend creation; prepared-subtree capture is repaired. Generation cursors qualify the snapshot/subscription gap and equal-time origins. State and Formula each pass their fixed 20-case matrices through 100k backend nodes; Spatializer scale remains. [Shared operations](p11-graph-keyboard.md), [discovery](p11-graph-discovery.md), [sockets](p11-graph-sockets.md), [State adapter](p11-state-graph-authoring.md), [Alchemist adapter](p11-alchemist-graph-authoring.md), [replacement overlap](p11-project-cursors.md), [Spatializer authoring](p11-spatializer-authoring.md), [State scale](p11-state-graph-scale.md), [Formula scale](p11-formula-graph-scale.md). |
 | Complete composed workflows        | Not started      | Qualify discovery, selection and editing across all required composed panels and large batches. Native usability retains P17.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 
 ## Current handoff
@@ -217,7 +217,7 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
   Shared graph operations now pass nine production correctness groups, including collapsed/compound
   body sockets and mutation feedback. Discovery passes 20 timing combinations / 620 samples, and
   movement/connections pass 30 / 930 through 100k nodes. The full canvas regression also passes
-  all 55 action/tier combinations and both dense scenes. Owning UI suites now pass **446** cases;
+  all 55 action/tier combinations and both dense scenes. Owning UI suites now pass **449** cases;
   app and both native graph fixture Svelte checks pass. State Machine and Alchemist panels pass
   actual backend receipts, atomic read-only rejection, undo/redo, save/reload and snapshot/unmount
   cancellation. The prior cursor milestone qualifies five Alchemist correctness groups and
@@ -228,8 +228,15 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
   catalog descendants now enter immutable persistence captures. These are small correctness fixtures.
   [Generation cursors](p11-project-cursors.md) now fence replacement during unsubscribe/snapshot/
   re-subscribe, deferred encoding, frames and event-origin state. State scale passes its fixed
-  20-case matrix through 100k backend nodes; complete Formula and Spatializer actual-app scale
-  before closing graph keyboard operations, then composed
+  20-case matrix through 100k backend nodes. [Formula scale](p11-formula-graph-scale.md) also passes
+  all **20 cases / 620 retained samples / 60 warmups** through 100k backend nodes. Connection p95
+  is 1,758.2ms at 50k and 3,541.5ms at 100k; maximum callback stalls are 104.4ms and 191.7ms.
+  All fixed timing and mounting gates pass. The repaired boundaries remove unused loading/lifecycle
+  snapshots, duplicate UI socket projection, quadratic input counting and obsolete compilation work.
+  All 183 Alchemist library tests, 77 Formula/operation tests and 635 engine tests pass in the dev
+  profile; three existing app and three engine cases remain ignored. Strict all-target Clippy,
+  the normal bundled build, all 22 native correctness groups and the shared-runner State 1k smoke pass.
+  Complete Spatializer actual-app scale before closing graph keyboard operations, then composed
   workflows. Preserve [composition](p11-dashboard-composition.md) and
   [applied-receipt barriers](p11-dashboard-barriers.md). Native usability retains P17 and product
   throughput P16. P03-P10 remain closed; P03 has zero packages left.
@@ -11231,3 +11238,37 @@ Two fixed checkpoints remain. Finish **Formula and Spatializer actual-app scale*
 keyboard qualification, then qualify **complete composed discovery/selection/editing workflows**.
 Native usability retains P17 and full-product throughput P16. Commit/push this verified milestone
 on `main` and keep the full P00-P18 goal active.
+
+### P11 actual-app Formula scale and reconciliation ownership
+
+Reconciled `main` with delivered `2487d809`. The real Formula editor passes all **20 fixed
+action/tier cases / 620 retained samples / 60 warmups** at exactly 1k/10k/20k/50k/100k backend
+nodes. These contain 34/344/689/1,724/3,448 ANodes and a directed Constant/Math chain. Graph items,
+connections, backend records and evaluation throughput remain distinct dimensions.
+
+The unchanged normal gates pass with worst completion p95 **1,758.2ms** and maximum stall
+**104.4ms** at 50k. At 100k stress they are **3,541.5ms / 191.7ms**. Peak mounted graph nodes
+are 13. Exact source identities/sockets, parameters, DOM focus, visible geometry/SVG and drained
+work are checked. The [qualification](p11-formula-graph-scale.md) preserves all failures and
+diagnostics as well as the complete successful matrix and source/asset/binary fingerprints.
+
+The app adapter now uses snapshot-free mutations for target-local configuration/property work
+and declares connection init/ready as snapshot-free. Socket projection shares existing node
+models. Automatic input counting uses one incoming index rather than a connection scan per
+ANode. Alchemist compilation exposes its resolved types so socket reconciliation and validation
+share one result; queued automatic count changes settle before compiling an obsolete signature.
+The ordinary engine stabilization and authored-operation boundaries remain authoritative.
+
+Owning dev-profile checks pass **183 Alchemist library / 77 Formula and operation / 635 engine**
+tests, with three existing ignored app cases and three engine cases. Strict all-target Clippy
+passes for the three affected packages. UI suites pass **449 cases**; app/native-fixture Svelte
+checks have zero errors/warnings. The normal locked bundled build passes with skip unset.
+Executable SHA-256 `e1e3aaab79d8cf7f573609839ab710376e8d8862bf8470b4cde9eb4071a93981`
+passes the full Formula matrix, all **five Formula / four State / 13 Spatializer** native
+correctness groups, and the shared-runner **1k State smoke**. That smoke is not a new complete
+State scale qualification. Source inventory is **2,267 files / 25 existing oversized files**.
+
+**P11 remains 4/6 (67% rounded), whole-plan coverage 59%; P03 has zero packages left.**
+Spatializer actual-app scale remains before graph keyboard closure, then complete composed
+discovery/selection/editing workflows. Native input/usability remains P17 and product throughput
+P16. Commit and push this verified milestone on `main`; keep the complete implementation goal active.

@@ -1,0 +1,1112 @@
+{
+  "artifact": "target/qualification/p11-formula-scale-3180ee0d-88b0-4e08-9cc2-bd84cb3e5646",
+  "reportSha256": "b180175a50cfa157d27d49f933e847006a520c1462095e04f683a831eb4b4aac",
+  "environment": {
+    "kind": "environment",
+    "production": true,
+    "browser": "156.0.4314.42",
+    "binaryHash": "e1e3aaab79d8cf7f573609839ab710376e8d8862bf8470b4cde9eb4071a93981",
+    "assets": [
+      {
+        "name": "dmsans-italic-CT59GZwy.ttf",
+        "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+      },
+      {
+        "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+        "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+      },
+      {
+        "name": "index-BcDHm3O_.css",
+        "sha256": "ac8f9e764ed59d598f1f85a970dc64508ca2030b743f344ac6e6e895c18cd541"
+      },
+      {
+        "name": "index-BpyHanT4.js",
+        "sha256": "25e93e6563e09a164aab445b1c7f1e2c5030218242fe35c7e9292c9b7adfceb7"
+      }
+    ],
+    "report": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-formula-scale-3180ee0d-88b0-4e08-9cc2-bd84cb3e5646\\browser.jsonl"
+  },
+  "contract": {
+    "kind": "fixed-contract",
+    "consumer": "formula",
+    "tiers": [
+      1000,
+      10000,
+      20000,
+      50000,
+      100000
+    ],
+    "completeTierSelection": true,
+    "actions": [
+      "discover",
+      "single-move",
+      "three-move",
+      "connection"
+    ],
+    "completeActionSelection": true,
+    "diagnosticTracing": false,
+    "engineTracing": false,
+    "cpuProfiling": false,
+    "warmups": 3,
+    "retained": 31,
+    "normal": {
+      "feedbackP95": 200,
+      "completionP95": 2000,
+      "maximumStall": 200
+    },
+    "stress": {
+      "feedbackP95": 400,
+      "completionP95": 4000,
+      "maximumStall": 400
+    },
+    "maxMountedNodes": 128,
+    "maxFinderRows": 32,
+    "setupDeadlineMs": 300000
+  },
+  "calibration": {
+    "kind": "declaration-calibration",
+    "perItem": 29,
+    "fixed": 0
+  },
+  "source": {
+    "kind": "source-ready",
+    "label": "formula-50000",
+    "graphItems": 1724,
+    "treeNodes": 50000,
+    "enabledItems": 1724,
+    "serializedRecords": 49992,
+    "setupMs": 6492.11020000001,
+    "sha256": "7352d467330a4e69d2f604eae6b2f0dc6cd9d3629a6769cef8624f3886b100ea"
+  },
+  "scene": {
+    "kind": "scene",
+    "tier": 50000,
+    "graphItems": 1724,
+    "chainEdges": 1723,
+    "anodeTypes": {
+      "constant": 1,
+      "math": 1723
+    },
+    "unrelatedRecords": 4,
+    "dimensions": {
+      "width": 1120,
+      "height": 576
+    },
+    "tail": [
+      4295008598,
+      4295008622,
+      4295008646
+    ]
+  },
+  "timings": [
+    {
+      "kind": "timing",
+      "consumer": "formula",
+      "tier": 50000,
+      "graphItems": 1724,
+      "action": "discover",
+      "passed": true,
+      "p95Feedback": 16.399999998509884,
+      "p95Completion": 16.399999998509884,
+      "maximumStall": 4.30000000000291,
+      "samples": [
+        {
+          "warmup": true,
+          "feedback": 15.600000001490116,
+          "completion": 15.700000002980232,
+          "stall": 4.100000000005821,
+          "peakNodes": 13
+        },
+        {
+          "warmup": true,
+          "feedback": 15,
+          "completion": 15,
+          "stall": 4.100000000005821,
+          "peakNodes": 13
+        },
+        {
+          "warmup": true,
+          "feedback": 15,
+          "completion": 15,
+          "stall": 4.30000000000291,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 14.600000001490116,
+          "completion": 14.600000001490116,
+          "stall": 4.2000000000116415,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15,
+          "completion": 15,
+          "stall": 4.100000000005821,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15.200000002980232,
+          "completion": 15.200000002980232,
+          "stall": 4.2000000000116415,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 13.699999995529652,
+          "completion": 13.699999995529652,
+          "stall": 4.100000000005821,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15.399999998509884,
+          "completion": 15.399999998509884,
+          "stall": 4.2000000000116415,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15.300000004470348,
+          "completion": 15.300000004470348,
+          "stall": 4.2000000000116415,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15.200000002980232,
+          "completion": 15.200000002980232,
+          "stall": 4.2000000000116415,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15.100000001490116,
+          "completion": 15.100000001490116,
+          "stall": 4.2000000000116415,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15.100000001490116,
+          "completion": 15.100000001490116,
+          "stall": 4.2000000000116415,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15.600000001490116,
+          "completion": 15.600000001490116,
+          "stall": 4.2000000000116415,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15.300000004470348,
+          "completion": 15.300000004470348,
+          "stall": 4.2000000000116415,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 14.800000004470348,
+          "completion": 14.800000004470348,
+          "stall": 4.2000000000116415,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 12.5,
+          "completion": 12.5,
+          "stall": 4.100000000005821,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15.5,
+          "completion": 15.5,
+          "stall": 4.100000000005821,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15.400000005960464,
+          "completion": 15.400000005960464,
+          "stall": 4.2000000000116415,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15.5,
+          "completion": 15.5,
+          "stall": 4.100000000005821,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15.300000004470348,
+          "completion": 15.300000004470348,
+          "stall": 4.2000000000116415,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15.399999998509884,
+          "completion": 15.399999998509884,
+          "stall": 4.2000000000116415,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15.400000005960464,
+          "completion": 15.400000005960464,
+          "stall": 4.2000000000116415,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15.300000004470348,
+          "completion": 15.300000004470348,
+          "stall": 4.100000000005821,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 12.399999998509884,
+          "completion": 12.399999998509884,
+          "stall": 4.2000000000116415,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15.5,
+          "completion": 15.5,
+          "stall": 4.2000000000116415,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15.300000004470348,
+          "completion": 15.300000004470348,
+          "stall": 4.100000000005821,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15.300000004470348,
+          "completion": 15.300000004470348,
+          "stall": 4.100000000005821,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 16.100000001490116,
+          "completion": 16.100000001490116,
+          "stall": 4.100000000005821,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15.100000001490116,
+          "completion": 15.100000001490116,
+          "stall": 4.2000000000116415,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15.700000002980232,
+          "completion": 15.700000002980232,
+          "stall": 4.100000000005821,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15,
+          "completion": 15.100000001490116,
+          "stall": 4.2000000000116415,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 16.399999998509884,
+          "completion": 16.399999998509884,
+          "stall": 4.2000000000116415,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 17.399999998509884,
+          "completion": 17.399999998509884,
+          "stall": 4.19999999999709,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15,
+          "completion": 15.100000001490116,
+          "stall": 4.30000000000291,
+          "peakNodes": 13
+        }
+      ]
+    },
+    {
+      "kind": "timing",
+      "consumer": "formula",
+      "tier": 50000,
+      "graphItems": 1724,
+      "action": "single-move",
+      "passed": true,
+      "p95Feedback": 4.5,
+      "p95Completion": 433.20000000298023,
+      "maximumStall": 75,
+      "samples": [
+        {
+          "warmup": true,
+          "feedback": 7.5,
+          "completion": 373.1000000014901,
+          "stall": 70.90000000000873,
+          "peakNodes": 13
+        },
+        {
+          "warmup": true,
+          "feedback": 4.399999998509884,
+          "completion": 350.1000000014901,
+          "stall": 66.69999999999709,
+          "peakNodes": 13
+        },
+        {
+          "warmup": true,
+          "feedback": 4.399999998509884,
+          "completion": 395.8999999985099,
+          "stall": 70.79999999998836,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.399999998509884,
+          "completion": 371.1000000014901,
+          "stall": 62.60000000000582,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.399999998509884,
+          "completion": 370.79999999701977,
+          "stall": 66.69999999999709,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.299999997019768,
+          "completion": 400.19999999552965,
+          "stall": 70.90000000000873,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.100000001490116,
+          "completion": 370.6000000014901,
+          "stall": 66.5,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.300000004470348,
+          "completion": 387.5,
+          "stall": 66.59999999999127,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.299999997019768,
+          "completion": 383.19999999552965,
+          "stall": 62.5,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.299999997019768,
+          "completion": 366.79999999701977,
+          "stall": 66.80000000000291,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.300000004470348,
+          "completion": 408.3999999985099,
+          "stall": 75,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.399999998509884,
+          "completion": 433.20000000298023,
+          "stall": 70.89999999999418,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.5,
+          "completion": 433.30000000447035,
+          "stall": 75,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.200000002980232,
+          "completion": 420.79999999701977,
+          "stall": 62.5,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.399999998509884,
+          "completion": 366.6000000014901,
+          "stall": 71.10000000000582,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.399999998509884,
+          "completion": 391.69999999552965,
+          "stall": 66.69999999999709,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.299999997019768,
+          "completion": 408.29999999701977,
+          "stall": 66.59999999999127,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.399999998509884,
+          "completion": 375.1000000014901,
+          "stall": 66.80000000000291,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.399999998509884,
+          "completion": 391.59999999403954,
+          "stall": 58.30000000000291,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.399999998509884,
+          "completion": 370.8999999985099,
+          "stall": 70.90000000000873,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.399999998509884,
+          "completion": 387.5,
+          "stall": 66.69999999999709,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.299999997019768,
+          "completion": 379.19999999552965,
+          "stall": 66.79999999998836,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.399999998509884,
+          "completion": 374.8999999985099,
+          "stall": 66.69999999999709,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.399999998509884,
+          "completion": 408.3999999985099,
+          "stall": 66.59999999999127,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.5,
+          "completion": 366.79999999701977,
+          "stall": 62.5,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.199999995529652,
+          "completion": 362.3999999985099,
+          "stall": 70.80000000000291,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.399999998509884,
+          "completion": 371,
+          "stall": 66.69999999999709,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.299999997019768,
+          "completion": 395.79999999701977,
+          "stall": 66.69999999999709,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.5,
+          "completion": 366.79999999701977,
+          "stall": 70.79999999998836,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.299999997019768,
+          "completion": 383.19999999552965,
+          "stall": 70.80000000000291,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.299999997019768,
+          "completion": 387.6000000014901,
+          "stall": 66.59999999999127,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.300000004470348,
+          "completion": 354,
+          "stall": 66.59999999999127,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.399999998509884,
+          "completion": 404.20000000298023,
+          "stall": 70.80000000000291,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.399999998509884,
+          "completion": 404.1000000014901,
+          "stall": 70.79999999998836,
+          "peakNodes": 13
+        }
+      ]
+    },
+    {
+      "kind": "timing",
+      "consumer": "formula",
+      "tier": 50000,
+      "graphItems": 1724,
+      "action": "three-move",
+      "passed": true,
+      "p95Feedback": 4.700000002980232,
+      "p95Completion": 404.5,
+      "maximumStall": 83.40000000000873,
+      "samples": [
+        {
+          "warmup": true,
+          "feedback": 2.7999999970197678,
+          "completion": 384.79999999701977,
+          "stall": 66.69999999999709,
+          "peakNodes": 13
+        },
+        {
+          "warmup": true,
+          "feedback": 4.299999997019768,
+          "completion": 354.19999999552965,
+          "stall": 70.80000000000291,
+          "peakNodes": 13
+        },
+        {
+          "warmup": true,
+          "feedback": 4,
+          "completion": 362.20000000298023,
+          "stall": 70.80000000000291,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 2.2999999970197678,
+          "completion": 392.29999999701977,
+          "stall": 66.69999999999709,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.399999998509884,
+          "completion": 391.80000000447035,
+          "stall": 66.70000000001164,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.399999998509884,
+          "completion": 404.5,
+          "stall": 70.90000000000873,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.5,
+          "completion": 370.8999999985099,
+          "stall": 70.90000000000873,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.600000001490116,
+          "completion": 350.29999999701977,
+          "stall": 70.69999999999709,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4,
+          "completion": 358.1000000014901,
+          "stall": 70.80000000000291,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.399999998509884,
+          "completion": 366.59999999403954,
+          "stall": 75.19999999999709,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.5,
+          "completion": 429.29999999701977,
+          "stall": 75,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.700000002980232,
+          "completion": 375.30000000447035,
+          "stall": 70.90000000000873,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.600000001490116,
+          "completion": 387.6000000014901,
+          "stall": 70.79999999998836,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.5,
+          "completion": 387.69999999552965,
+          "stall": 66.5,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.399999998509884,
+          "completion": 358.3999999985099,
+          "stall": 70.69999999999709,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.699999995529652,
+          "completion": 358.6000000014901,
+          "stall": 74.80000000000291,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.700000002980232,
+          "completion": 358.5,
+          "stall": 70.80000000000291,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.5,
+          "completion": 350.20000000298023,
+          "stall": 66.5,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.399999998509884,
+          "completion": 400,
+          "stall": 70.89999999999418,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 3.9000000059604645,
+          "completion": 366.30000000447035,
+          "stall": 70.79999999998836,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.4000000059604645,
+          "completion": 379.30000000447035,
+          "stall": 70.79999999998836,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.699999995529652,
+          "completion": 379.3999999985099,
+          "stall": 66.69999999999709,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.0999999940395355,
+          "completion": 366.3999999985099,
+          "stall": 66.5,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.200000002980232,
+          "completion": 395.70000000298023,
+          "stall": 66.60000000000582,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.199999995529652,
+          "completion": 383.19999999552965,
+          "stall": 66.69999999999709,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 2.5,
+          "completion": 363,
+          "stall": 70.90000000000873,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.199999995529652,
+          "completion": 392.59999999403954,
+          "stall": 66.70000000001164,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 3,
+          "completion": 373.29999999701977,
+          "stall": 66.59999999999127,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 2.399999998509884,
+          "completion": 346.30000000447035,
+          "stall": 62.60000000000582,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.700000002980232,
+          "completion": 379.5,
+          "stall": 70.80000000000291,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 3.6999999955296516,
+          "completion": 403.69999999552965,
+          "stall": 66.80000000000291,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.100000001490116,
+          "completion": 374.80000000447035,
+          "stall": 66.60000000000582,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.5,
+          "completion": 395.8999999985099,
+          "stall": 83.40000000000873,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 3.899999998509884,
+          "completion": 403.29999999701977,
+          "stall": 75,
+          "peakNodes": 13
+        }
+      ]
+    },
+    {
+      "kind": "timing",
+      "consumer": "formula",
+      "tier": 50000,
+      "graphItems": 1724,
+      "action": "connection",
+      "passed": true,
+      "p95Feedback": 4.100000001490116,
+      "p95Completion": 1758.1999999955297,
+      "maximumStall": 104.40000000002328,
+      "samples": [
+        {
+          "warmup": true,
+          "feedback": 4,
+          "completion": 1679.0999999940395,
+          "stall": 70.89999999999418,
+          "peakNodes": 13
+        },
+        {
+          "warmup": true,
+          "feedback": 4,
+          "completion": 1566.6000000014901,
+          "stall": 75.10000000000582,
+          "peakNodes": 13
+        },
+        {
+          "warmup": true,
+          "feedback": 4.100000001490116,
+          "completion": 1616.6999999955297,
+          "stall": 70.90000000000873,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.100000001490116,
+          "completion": 1658.3999999985099,
+          "stall": 79.19999999999709,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4,
+          "completion": 1641.5999999940395,
+          "stall": 70.90000000000873,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4,
+          "completion": 1579.2000000029802,
+          "stall": 75,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4,
+          "completion": 1749.7999999970198,
+          "stall": 75.10000000000582,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4,
+          "completion": 1674.8999999985099,
+          "stall": 75,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4,
+          "completion": 1612.4000000059605,
+          "stall": 70.79999999998836,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4,
+          "completion": 1574.7000000029802,
+          "stall": 75.10000000000582,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4,
+          "completion": 1579.3000000044703,
+          "stall": 75,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.100000001490116,
+          "completion": 1595.9000000059605,
+          "stall": 74.89999999999418,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 3.899999998509884,
+          "completion": 1758.1999999955297,
+          "stall": 83.5,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.100000001490116,
+          "completion": 1608.4000000059605,
+          "stall": 70.90000000002328,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 3.899999998509884,
+          "completion": 1579.0999999940395,
+          "stall": 70.89999999999418,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 2.899999998509884,
+          "completion": 1615.6999999955297,
+          "stall": 74.89999999999418,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4,
+          "completion": 1575.0999999940395,
+          "stall": 70.89999999999418,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.0999999940395355,
+          "completion": 1575,
+          "stall": 70.79999999998836,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4,
+          "completion": 1637.5,
+          "stall": 75,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 3.899999998509884,
+          "completion": 1529,
+          "stall": 70.90000000002328,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.100000001490116,
+          "completion": 1621,
+          "stall": 70.89999999999418,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 3.899999998509884,
+          "completion": 1549.8999999985099,
+          "stall": 70.89999999999418,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4,
+          "completion": 1583.5,
+          "stall": 70.89999999999418,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.100000001490116,
+          "completion": 1666.6999999955297,
+          "stall": 104.40000000002328,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 3.899999998509884,
+          "completion": 1583.2999999970198,
+          "stall": 75,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4,
+          "completion": 1654.2999999970198,
+          "stall": 79.09999999997672,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4,
+          "completion": 1575,
+          "stall": 70.89999999999418,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4,
+          "completion": 1591.7000000029802,
+          "stall": 66.79999999998836,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4,
+          "completion": 1620.8999999985099,
+          "stall": 75,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.100000001490116,
+          "completion": 1616.7000000029802,
+          "stall": 70.69999999998254,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 3.899999998509884,
+          "completion": 1595.6999999955297,
+          "stall": 71,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4,
+          "completion": 1608.3999999985099,
+          "stall": 70.79999999998836,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.100000001490116,
+          "completion": 1570.8999999985099,
+          "stall": 74.89999999999418,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 4.199999995529652,
+          "completion": 1821.1999999955297,
+          "stall": 87.5,
+          "peakNodes": 13
+        }
+      ]
+    }
+  ],
+  "result": {
+    "kind": "result",
+    "passed": true,
+    "errors": []
+  }
+}

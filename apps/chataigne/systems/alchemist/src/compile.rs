@@ -11,8 +11,8 @@ use crate::{
     AEdge, ANodeId, ANodeInstance, ANodeRegistry, AlchemistFormula, AlchemistGraphDocument, AlchemistGraphDomain,
     AlchemistGraphId, AxisSet, CompiledNodeEvaluator, Diagnostic, DiagnosticOrigin, DiagnosticSeverity, ExecNodeId,
     ExecutionKind, ExposedSurface, FormulaId, FormulaPropertyId, FormulaPropertySchema, FormulaPropertySlotId,
-    FormulaRef, ResolvedANodeSignature, RuntimeValue, SocketId, StableRef, TypeSolveCtx, ValueComponent, ValueSlotId,
-    ValueTypeId, ValueTypeRegistry, component_value_type, typing::solve_semantic_types,
+    FormulaRef, ResolvedANodeSignature, ResolvedGraph, RuntimeValue, SocketId, StableRef, TypeSolveCtx, ValueComponent,
+    ValueSlotId, ValueTypeId, ValueTypeRegistry, component_value_type, typing::solve_semantic_types,
 };
 
 pub const FORMULA_INPUT_VALUE_TYPE: &str = "alchemist.formula_input";
@@ -208,6 +208,9 @@ impl CompiledAlchemistGraph {
 pub struct CompileResult {
     pub compiled: Option<Arc<CompiledAlchemistGraph>>,
     pub diagnostics: Vec<Diagnostic>,
+    /// The same resolution used by compilation, including repairable invalid graphs.
+    /// Authoring can project socket types without solving the document again.
+    pub resolved: ResolvedGraph,
 }
 
 impl CompileResult {
@@ -291,6 +294,7 @@ pub fn compile_graph(document: &AlchemistGraphDocument, ctx: &CompileCtx<'_>) ->
         Err(error) => {
             return CompileResult {
                 compiled: None,
+                resolved: ResolvedGraph::default(),
                 diagnostics: vec![Diagnostic::error(
                     "invalid_authoring_document",
                     error.to_string(),
@@ -331,6 +335,7 @@ fn compile_document_graph(
     if has_errors(&diagnostics) {
         return CompileResult {
             compiled: None,
+            resolved: solved.graph,
             diagnostics,
         };
     }
@@ -354,6 +359,7 @@ fn compile_document_graph(
             ));
             return CompileResult {
                 compiled: None,
+                resolved: solved.graph,
                 diagnostics,
             };
         }
@@ -453,6 +459,7 @@ fn compile_document_graph(
     if has_errors(&diagnostics) {
         return CompileResult {
             compiled: None,
+            resolved: solved.graph,
             diagnostics,
         };
     }
@@ -473,6 +480,7 @@ fn compile_document_graph(
     );
     let dependencies = runtime_dependencies(&exec_nodes, next_value_slot as usize);
     CompileResult {
+        resolved: solved.graph,
         compiled: Some(Arc::new(CompiledAlchemistGraph {
             exec_nodes,
             topo_order,

@@ -318,7 +318,7 @@ impl AlchemistPropertyManager {
 
         if let Some(role_param) = snapshot.find_child_by_decl_id(self.id(), "role") {
             let desired = ParamValue::Enum(role);
-            ctx.call_node_mutation(role_param, |node, _ctx| {
+            ctx.call_node_mutation_without_snapshot(role_param, |node, _ctx| {
                 let Some(parameter) = node.as_any_mut().downcast_mut::<Parameter>() else {
                     return Err("expected an Alchemist manager role parameter".into());
                 };
@@ -468,7 +468,7 @@ impl AlchemistProperty {
             // Type matches — only refresh the display color, preserve
             // user-edited constraints (range, enum options, etc.)
             let color = value.node_data().meta.presentation.default_color;
-            ctx.call_node_mutation(existing, move |node, _ctx| {
+            ctx.call_node_mutation_without_snapshot(existing, move |node, _ctx| {
                 node.node_data_mut().meta.presentation.default_color = color;
                 Ok(())
             });

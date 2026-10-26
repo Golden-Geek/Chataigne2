@@ -5,7 +5,7 @@ import type {
 	GraphNodeBypassConnection,
 	GraphSocket
 } from 'golden_graph_ui';
-import type { NodeId, ParamValue, UiColorDto, UiCreatableUserItem, UiNodeDto } from 'golden_ui';
+import type { NodeId, ParamValue, UiColorDto, UiNodeDto } from 'golden_ui';
 
 export const FORMULA_NODE_TYPE = 'alchemist_formula';
 export const ANODE_NODE_TYPE = 'alchemist_anode';
@@ -481,35 +481,13 @@ export const canConnectGraphSockets = (
 };
 
 export const canConnectGraphConnection = (
-	nodes: readonly GraphNode[],
+	socketsByRef: ReadonlyMap<string, GraphSocket>,
 	connection: GraphConnectionRequest
 ): boolean => {
-	const socketsByRef = graphSocketsByRef(nodes);
 	return canConnectGraphSockets(
 		socketsByRef.get(`${connection.from.nodeId}:${connection.from.socketId}`),
 		socketsByRef.get(`${connection.to.nodeId}:${connection.to.socketId}`)
 	);
-};
-
-const formulaSocketsByRef = (
-	anodes: readonly UiNodeDto[],
-	nodesById: ReadonlyMap<NodeId, UiNodeDto>
-): Map<string, GraphSocket> => {
-	const result = new Map<string, GraphSocket>();
-	for (const anode of anodes) {
-		const nodeId = String(anode.node_id);
-		collectSockets(
-			nodeId,
-			graphSockets(anode, nodesById, 'inputs', 'alchemist_input_socket'),
-			result
-		);
-		collectSockets(
-			nodeId,
-			graphSockets(anode, nodesById, 'outputs', 'alchemist_output_socket'),
-			result
-		);
-	}
-	return result;
 };
 
 export const formulaANodes = (
@@ -542,8 +520,7 @@ const nodeWarning = (node: UiNodeDto): string | undefined => {
 
 export const toGraphNodes = (
 	formula: UiNodeDto | null | undefined,
-	nodesById: ReadonlyMap<NodeId, UiNodeDto>,
-	_catalogItems: readonly UiCreatableUserItem[] = []
+	nodesById: ReadonlyMap<NodeId, UiNodeDto>
 ): GraphNode[] => {
 	return formulaANodes(formula, nodesById).map((anode) => {
 		const position = parameterValue(anode, nodesById, 'position');
@@ -604,12 +581,12 @@ const referencedNodeId = (
 export const toGraphEdges = (
 	formula: UiNodeDto | null | undefined,
 	nodesById: ReadonlyMap<NodeId, UiNodeDto>,
+	socketsByRef: ReadonlyMap<string, GraphSocket>,
 	activeSocketRefs: ReadonlySet<string> = new Set()
 ): GraphEdge[] => {
 	const connections = formulaConnections(formula, nodesById);
 	if (connections.length === 0) return [];
 	const anodes = formulaANodes(formula, nodesById);
-	const socketsByRef = formulaSocketsByRef(anodes, nodesById);
 	const activeNodeIds = new Set(
 		Array.from(activeSocketRefs).flatMap((ref) => {
 			const separator = ref.indexOf(':');

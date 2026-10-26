@@ -418,7 +418,7 @@ impl AlchemistANode {
             } else if parameter.read_only {
                 let presentation = parameter.node_data().meta.presentation.clone();
                 let persist_read_only_value = parameter.persist_read_only_value;
-                ctx.call_node_mutation(existing, move |node, _ctx| {
+                ctx.call_node_mutation_without_snapshot(existing, move |node, _ctx| {
                     let Some(existing) = node.as_any_mut().downcast_mut::<Parameter>() else {
                         return Err("expected an Alchemist config parameter".into());
                     };
@@ -437,7 +437,7 @@ impl AlchemistANode {
                 let read_only = parameter.read_only;
                 let persist_read_only_value = parameter.persist_read_only_value;
                 let control_modes_enabled = parameter.control_modes_enabled;
-                ctx.call_node_mutation(existing, move |node, _ctx| {
+                ctx.call_node_mutation_without_snapshot(existing, move |node, _ctx| {
                     let Some(existing) = node.as_any_mut().downcast_mut::<Parameter>() else {
                         return Err("expected an Alchemist config parameter".into());
                     };

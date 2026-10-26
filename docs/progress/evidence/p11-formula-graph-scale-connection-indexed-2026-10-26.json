@@ -1,0 +1,294 @@
+{
+  "diagnosticOnly": true,
+  "qualification": false,
+  "runs": [
+    {
+      "artifact": "target/qualification/p11-formula-connection-diagnostic-22a0dbc6-eb1a-4aab-bb4d-6b70a43a4a8c",
+      "rows": [
+        {
+          "kind": "environment",
+          "production": true,
+          "browser": "156.0.4314.42",
+          "binaryHash": "07fb086b2066c299a351bf8e057836cec15a3ae6d59a922213900f6386b97d44",
+          "assets": [
+            {
+              "name": "dmsans-italic-CT59GZwy.ttf",
+              "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+            },
+            {
+              "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+              "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+            },
+            {
+              "name": "index-BcDHm3O_.css",
+              "sha256": "ac8f9e764ed59d598f1f85a970dc64508ca2030b743f344ac6e6e895c18cd541"
+            },
+            {
+              "name": "index-BpyHanT4.js",
+              "sha256": "25e93e6563e09a164aab445b1c7f1e2c5030218242fe35c7e9292c9b7adfceb7"
+            }
+          ],
+          "report": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-formula-connection-diagnostic-22a0dbc6-eb1a-4aab-bb4d-6b70a43a4a8c\\browser.jsonl"
+        },
+        {
+          "kind": "diagnostic-contract",
+          "diagnosticOnly": true,
+          "retainedSamples": 1,
+          "tier": 50000,
+          "graphItems": 1724,
+          "sha256": "71c862844f8b20ac567f3600c8a61268f5a02519d035146977d3ce5a4c8793f1",
+          "engineTracing": true
+        },
+        {
+          "kind": "connect-observation",
+          "elapsedMs": 2496.4086000000007,
+          "treeNodesAfter": 50009,
+          "topology": [
+            {
+              "from": "4fc081dc-7182-475a-abf3-e80c18001e34",
+              "id": 4295017297,
+              "uuid": "ea569a90-89e4-4b80-8f9d-ee72380d86aa",
+              "source": "4fc081dc-7182-475a-abf3-e80c18001e34",
+              "target": "79b8f834-a19e-4e8f-9520-7c6f04e79776",
+              "sourceSocket": "result",
+              "targetSocket": "value2"
+            },
+            {
+              "from": "4fc081dc-7182-475a-abf3-e80c18001e34",
+              "id": 4295017280,
+              "uuid": "2f133e35-47d1-4fb3-ac2c-4be6ee01b12a",
+              "source": "4fc081dc-7182-475a-abf3-e80c18001e34",
+              "target": "79b8f834-a19e-4e8f-9520-7c6f04e79776",
+              "sourceSocket": "result",
+              "targetSocket": "value1"
+            }
+          ]
+        },
+        {
+          "kind": "undo-observation",
+          "elapsedMs": 947.0005999999994,
+          "treeNodesAfter": 50000
+        },
+        {
+          "kind": "result",
+          "passed": true,
+          "errors": []
+        }
+      ],
+      "wireSummary": null,
+      "phaseTrace": [
+        "[engine] lifecycle_snapshot stage=init-batch callback_nodes=49992 snapshot_nodes=49992 elapsed_ms=74",
+        "[engine] lifecycle_snapshot stage=ready-batch callback_nodes=49992 snapshot_nodes=50000 elapsed_ms=91",
+        "[formula] socket_sync children=3452 auto_us=6997 materialize_us=120900 solve_us=45256 sockets_us=23941",
+        "[engine] lifecycle_snapshot stage=attached-batch callback_nodes=5 snapshot_nodes=50005 elapsed_ms=102",
+        "[engine] lifecycle_snapshot stage=init-batch callback_nodes=5 snapshot_nodes=50005 elapsed_ms=89",
+        "[engine] lifecycle_snapshot stage=ready-batch callback_nodes=5 snapshot_nodes=50005 elapsed_ms=92",
+        "[formula] socket_sync children=3453 auto_us=9071 materialize_us=92611 solve_us=46371 sockets_us=26841",
+        "[formula] bulk_inbox events=10 reconcile=true sync_us=175402 validate_us=62687",
+        "[formula] socket_sync children=3453 auto_us=7747 materialize_us=93810 solve_us=47629 sockets_us=26209",
+        "[formula] socket_sync children=3453 auto_us=5694 materialize_us=87611 solve_us=44891 sockets_us=24891",
+        "[formula] bulk_inbox events=8 reconcile=true sync_us=163597 validate_us=57794",
+        "[engine] lifecycle_snapshot stage=destroy-batch callback_nodes=5 snapshot_nodes=50005 elapsed_ms=80",
+        "[formula] socket_sync children=3452 auto_us=4288 materialize_us=88672 solve_us=45432 sockets_us=26362",
+        "[formula] bulk_inbox events=3 reconcile=true sync_us=165303 validate_us=59788"
+      ],
+      "fullSizeSnapshots": 40,
+      "headlessLogSha256": "4e7b06d966b482850aa84f9bd63da760016cef7e773cbac49312eeb26c60fcdd"
+    },
+    {
+      "artifact": "target/qualification/p11-formula-connection-diagnostic-7b05242b-02a2-4d5b-b669-9034653d5866",
+      "rows": [
+        {
+          "kind": "environment",
+          "production": true,
+          "browser": "156.0.4314.42",
+          "binaryHash": "6e6f8aee02038dc80254ed3fa0caf42a625829d62ba5a15f1e119a6a51f9c47e",
+          "assets": [
+            {
+              "name": "dmsans-italic-CT59GZwy.ttf",
+              "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+            },
+            {
+              "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+              "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+            },
+            {
+              "name": "index-BcDHm3O_.css",
+              "sha256": "ac8f9e764ed59d598f1f85a970dc64508ca2030b743f344ac6e6e895c18cd541"
+            },
+            {
+              "name": "index-BpyHanT4.js",
+              "sha256": "25e93e6563e09a164aab445b1c7f1e2c5030218242fe35c7e9292c9b7adfceb7"
+            }
+          ],
+          "report": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-formula-connection-diagnostic-7b05242b-02a2-4d5b-b669-9034653d5866\\browser.jsonl"
+        },
+        {
+          "kind": "diagnostic-contract",
+          "diagnosticOnly": true,
+          "retainedSamples": 1,
+          "tier": 50000,
+          "graphItems": 1724,
+          "sha256": "bd0359f141e96659c5846db354ff7748a2a5ece6ad288be98045d334dd52091e",
+          "engineTracing": true
+        },
+        {
+          "kind": "connect-observation",
+          "elapsedMs": 2158.7167999999983,
+          "treeNodesAfter": 50009,
+          "topology": [
+            {
+              "from": "0af40221-7618-46ac-9fd2-114806c94a46",
+              "id": 4295017280,
+              "uuid": "2bfb2df5-502b-4f4b-81f0-84dc5e34d733",
+              "source": "0af40221-7618-46ac-9fd2-114806c94a46",
+              "target": "da053b36-0708-47d6-b3b4-a12afdbb2e93",
+              "sourceSocket": "result",
+              "targetSocket": "value1"
+            },
+            {
+              "from": "0af40221-7618-46ac-9fd2-114806c94a46",
+              "id": 4295017297,
+              "uuid": "dd0de3a1-f8ad-4bdd-b143-227be7ddb1c7",
+              "source": "0af40221-7618-46ac-9fd2-114806c94a46",
+              "target": "da053b36-0708-47d6-b3b4-a12afdbb2e93",
+              "sourceSocket": "result",
+              "targetSocket": "value2"
+            }
+          ]
+        },
+        {
+          "kind": "undo-observation",
+          "elapsedMs": 947.3371000000006,
+          "treeNodesAfter": 50000
+        },
+        {
+          "kind": "result",
+          "passed": true,
+          "errors": []
+        }
+      ],
+      "wireSummary": {
+        "retainedRows": 52,
+        "frames": [
+          {
+            "at": 15842.458,
+            "direction": "framereceived",
+            "kind": "delta",
+            "bytes": 549,
+            "fields": [
+              "kind",
+              "project_generation",
+              "subscription_id",
+              "deltas"
+            ],
+            "acks": []
+          },
+          {
+            "at": 16032.3771,
+            "direction": "framereceived",
+            "kind": "delta",
+            "bytes": 549,
+            "fields": [
+              "kind",
+              "project_generation",
+              "subscription_id",
+              "deltas"
+            ],
+            "acks": []
+          },
+          {
+            "at": 16104.1005,
+            "direction": "framesent",
+            "kind": "intent",
+            "bytes": 440,
+            "fields": [
+              "kind",
+              "request_id",
+              "intent",
+              "include_self_events"
+            ],
+            "acks": []
+          },
+          {
+            "at": 16104.6437,
+            "direction": "framereceived",
+            "kind": "control",
+            "bytes": 81,
+            "fields": [
+              "kind",
+              "update"
+            ],
+            "acks": []
+          },
+          {
+            "at": 16110.6598,
+            "direction": "framereceived",
+            "kind": "control",
+            "bytes": 81,
+            "fields": [
+              "kind",
+              "update"
+            ],
+            "acks": []
+          },
+          {
+            "at": 17849.1856,
+            "direction": "framereceived",
+            "kind": "control",
+            "bytes": 480,
+            "fields": [
+              "kind",
+              "update"
+            ],
+            "acks": []
+          },
+          {
+            "at": 17850.9405,
+            "direction": "framereceived",
+            "kind": "delta",
+            "bytes": 44216,
+            "fields": [
+              "kind",
+              "project_generation",
+              "subscription_id",
+              "deltas"
+            ],
+            "acks": []
+          },
+          {
+            "at": 18023.0446,
+            "direction": "framereceived",
+            "kind": "delta",
+            "bytes": 552,
+            "fields": [
+              "kind",
+              "project_generation",
+              "subscription_id",
+              "deltas"
+            ],
+            "acks": []
+          }
+        ]
+      },
+      "phaseTrace": [
+        "[formula] socket_sync children=3452 auto_us=9602 materialize_us=145126 solve_us=56458 sockets_us=34192",
+        "[engine] edit_checkpoint nodes=50000 events=1 parameters=36199 elapsed_us=15216",
+        "[engine] edit_checkpoint nodes=50000 events=2 parameters=36199 elapsed_us=14661",
+        "[engine] edit_checkpoint nodes=50000 events=2 parameters=36199 elapsed_us=15499",
+        "[engine] lifecycle_snapshot stage=attached-batch callback_nodes=5 snapshot_nodes=50005 elapsed_ms=87",
+        "[formula] socket_sync children=3453 auto_us=5743 materialize_us=88895 solve_us=43386 sockets_us=24245",
+        "[formula] bulk_inbox events=10 reconcile=true sync_us=162689 validate_us=59957",
+        "[formula] socket_sync children=3453 auto_us=6346 materialize_us=88680 solve_us=44855 sockets_us=24344",
+        "[formula] socket_sync children=3453 auto_us=6940 materialize_us=89072 solve_us=44998 sockets_us=24493",
+        "[formula] bulk_inbox events=8 reconcile=true sync_us=166010 validate_us=63093",
+        "[engine] edit_checkpoint nodes=50009 events=5 parameters=36206 elapsed_us=15225",
+        "[engine] lifecycle_snapshot stage=destroy-batch callback_nodes=5 snapshot_nodes=50005 elapsed_ms=86",
+        "[formula] socket_sync children=3452 auto_us=4361 materialize_us=89668 solve_us=45825 sockets_us=30172",
+        "[formula] bulk_inbox events=3 reconcile=true sync_us=170859 validate_us=61513"
+      ],
+      "fullSizeSnapshots": 41,
+      "headlessLogSha256": "65b4ca0c0de2197a5280b423e4f7e4dc6eb8fa43feeb5d44b32be72808a0d3f0"
+    }
+  ]
+}

@@ -22,6 +22,16 @@ value conversion, snapshot reconstruction, external-file workflow, reconciliatio
 Library watcher. These files adapt the typed Alchemist model to Golden node contracts; formula
 compilation and evaluation remain in the Alchemist crate.
 
+Compilation returns its resolved socket types alongside executable output and diagnostics.
+The Formula adapter uses that same result for socket reconciliation and warning publication;
+it must not solve the unchanged graph again just to present its types. Resolution survives
+execution-blocking diagnostics such as a cycle so the authoring UI can still support repairs.
+Automatic input counting builds one incoming-socket index per snapshot pass. Target-local
+configuration and property mutations use Golden's snapshot-free mutation contract.
+When automatic counts need edits, reconciliation waits for their parameter events before
+compiling or publishing diagnostics. The ordinary engine stabilization boundary settles those
+edits inside the same authored operation; intermediate signatures are not validated as final.
+
 The processor's `integration/processor/lifecycle.rs` owns its Golden lifecycle and hierarchy
 callbacks. Moves and reorders of Formula properties trigger the same surface reconciliation as
 additions and removals, preserving the shared source's authored order.

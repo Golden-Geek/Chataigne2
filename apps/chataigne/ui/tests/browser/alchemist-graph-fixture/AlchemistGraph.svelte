@@ -6,6 +6,9 @@
 	import { createDefaultUiClient } from 'golden_ui';
 	import type { UiReplayCursor } from 'golden_ui/types';
 	import AlchemistEditorPanel from '../../../src/lib/systems/alchemist/components/AlchemistEditorPanel.svelte';
+	import { createNativeGraphMeasurement } from '../app-graph-scale/measurement';
+	import { createNativeFormulaConnections } from '../app-graph-scale/formula-connections';
+	import { anodeType } from '../../../src/lib/systems/alchemist/alchemistGraph';
 	const base = new URLSearchParams(location.search).get('backend');
 	if (!base) throw new Error('Missing owned native backend URL');
 	let holdNextSnapshot = false;
@@ -75,6 +78,33 @@
 		owner.children
 			.map((id) => session.graph.state.nodesById.get(id))
 			.find((node) => node?.decl_id === declaration);
+	const connections = createNativeFormulaConnections();
+	const scaleMeasurement = createNativeGraphMeasurement({
+		reveal: (id, additive) => panel!.revealGraphNode(String(id), additive),
+		find: (query) => panel!.findGraphNodes(query),
+		move: (key) => move(key),
+		connectionPair: (ids) => ({ source: ids[1], destination: ids[2] }),
+		connectionTargetSocket: 'value2',
+		startConnection: (id) => startConnection(id, 'result'),
+		completeConnection: (id) => completeConnection(id, 'value2'),
+		undo: () => history('undo'),
+		position(id) {
+			const owner = session.graph.state.nodesById.get(id);
+			const field = owner ? child(owner, 'position') : null;
+			if (field?.data.kind !== 'parameter' || field.data.param.value.kind !== 'vec2')
+				throw new Error('Missing exact Formula position');
+			return field.data.param.value.value;
+		},
+		targets: (id) => connections(session.graph.state, session.graph.state.nodesById.get(id)!.uuid),
+		uuid: (id) => session.graph.state.nodesById.get(id)!.uuid,
+		work: () => panel?.graphInteractionState()?.work,
+		pending: () => session.editOperations.size + session.userActionPendingCount
+	});
+	export const scaleReady = scaleMeasurement.ready;
+	export const scaleTopology = scaleMeasurement.topology;
+	export const measureScale = scaleMeasurement.run;
+	export const load = (path: string) =>
+		session.runEditBarrier(() => session.client.projectLoad(path));
 	export const status = () => ({
 		heldSnapshot,
 		latestSnapshot,
@@ -82,7 +112,8 @@
 		generation: session.snapshotGeneration,
 		endpoint: panel?.graphInteractionState()?.endpoint,
 		message: panel?.graphInteractionState()?.message,
-		pending: session.editOperations.size
+		pending: session.editOperations.size,
+		treeNodes: session.graph.state.nodesById.size
 	});
 	export const states = () =>
 		[...session.graph.state.nodesById.values()]
@@ -93,6 +124,8 @@
 					id: node.node_id,
 					uuid: node.uuid,
 					label: node.meta.label,
+					type: anodeType(node),
+					enabled: node.meta.enabled,
 					collapsed: node.meta.presentation?.collapsed === true,
 					position: position?.data.kind === 'parameter' ? position.data.param.value : null,
 					readOnly: position?.data.kind === 'parameter' && position.data.param.read_only
@@ -119,13 +152,13 @@
 		await idle();
 		return accepted;
 	}
-	export async function startConnection(id: number) {
-		const accepted = panel!.connectGraphSocket(String(id), 'value', 'output');
+	export async function startConnection(id: number, socket = 'value') {
+		const accepted = panel!.connectGraphSocket(String(id), socket, 'output');
 		await frames();
 		return accepted;
 	}
-	export async function completeConnection(id: number) {
-		const accepted = panel!.connectGraphSocket(String(id), 'value1', 'input');
+	export async function completeConnection(id: number, socket = 'value1') {
+		const accepted = panel!.connectGraphSocket(String(id), socket, 'input');
 		await idle();
 		return accepted;
 	}

@@ -6,9 +6,11 @@ interface Context {
 	move(key: string): Promise<boolean>;
 	startConnection(id: number): Promise<boolean>;
 	completeConnection(id: number): Promise<boolean>;
+	connectionPair?(ids: number[]): { source: number; destination: number };
+	connectionTargetSocket?: string;
 	undo(): Promise<void>;
 	position(id: number): readonly number[];
-	targets(id: number): { id: number; uuid: string; target: string | null }[];
+	targets(id: number): { id: number; uuid: string; target: string | null; targetSocket?: string }[];
 	uuid(id: number): string;
 	work():
 		{ mounting: { nodes: number; edges: number }; routing: { pendingRoutes: number } } | undefined;
@@ -81,9 +83,11 @@ export function createNativeGraphMeasurement(context: Context) {
 		ready: (limit = 300000) => until(quiet, limit),
 		async run(action: string, ids: number[], anchor: number, label: string, stress: boolean) {
 			ensure(ids.length === 3, 'Native graph measurement requires three exact identities');
-			const target = ids[2],
-				source = ids[2],
-				destination = ids[1];
+			const target = ids[2];
+			const { source, destination } = context.connectionPair?.(ids) ?? {
+				source: ids[2],
+				destination: ids[1]
+			};
 			const samples: {
 				warmup: boolean;
 				feedback: number;
@@ -173,12 +177,16 @@ export function createNativeGraphMeasurement(context: Context) {
 							const edge = context
 								.targets(source)
 								.find(
-									(edge) => !oldEdges.has(edge.uuid) && edge.target === context.uuid(destination)
+									(edge) =>
+										!oldEdges.has(edge.uuid) &&
+										edge.target === context.uuid(destination) &&
+										(!context.connectionTargetSocket ||
+											edge.targetSocket === context.connectionTargetSocket)
 								);
 							const path = edge
 								? root().querySelector<SVGPathElement>(`path.edge[data-edge-id="${edge.id}"]`)
 								: null;
-							applied = visibleWire(path) && focused(source);
+							applied = visibleWire(path) && focused(target);
 						} else {
 							const expected = before[2][0] + direction * 0.25;
 							shown = Number.parseFloat(node(target)?.style.left ?? '') === expected;

@@ -1,0 +1,147 @@
+{
+  "diagnosticOnly": true,
+  "qualification": false,
+  "artifact": "target/qualification/p11-formula-connection-diagnostic-b7b216fa-8d8b-4e2b-9e1f-848550cc1c24",
+  "rows": [
+    {
+      "kind": "environment",
+      "production": true,
+      "browser": "156.0.4314.42",
+      "binaryHash": "e1e3aaab79d8cf7f573609839ab710376e8d8862bf8470b4cde9eb4071a93981",
+      "assets": [
+        {
+          "name": "dmsans-italic-CT59GZwy.ttf",
+          "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+        },
+        {
+          "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+          "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+        },
+        {
+          "name": "index-BcDHm3O_.css",
+          "sha256": "ac8f9e764ed59d598f1f85a970dc64508ca2030b743f344ac6e6e895c18cd541"
+        },
+        {
+          "name": "index-BpyHanT4.js",
+          "sha256": "25e93e6563e09a164aab445b1c7f1e2c5030218242fe35c7e9292c9b7adfceb7"
+        }
+      ],
+      "report": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-formula-connection-diagnostic-b7b216fa-8d8b-4e2b-9e1f-848550cc1c24\\browser.jsonl"
+    },
+    {
+      "kind": "diagnostic-contract",
+      "diagnosticOnly": true,
+      "retainedSamples": 1,
+      "tier": 50000,
+      "graphItems": 1724,
+      "sha256": "c5342a1f7dc42c671c06a71eacbeb137839d16dd4613c915214990a29a1f8a48",
+      "engineTracing": true
+    },
+    {
+      "kind": "connect-observation",
+      "elapsedMs": 1734.5955000000013,
+      "treeNodesAfter": 50009,
+      "topology": [
+        {
+          "from": "51c0660c-e033-4d93-aaba-45d09efb3cb8",
+          "id": 4295017297,
+          "uuid": "2bb24c5b-92ad-4c9d-86f9-c95515dd32b7",
+          "source": "51c0660c-e033-4d93-aaba-45d09efb3cb8",
+          "target": "be435fdf-7d45-4dbe-8069-d190b4524de0",
+          "sourceSocket": "result",
+          "targetSocket": "value2"
+        },
+        {
+          "from": "51c0660c-e033-4d93-aaba-45d09efb3cb8",
+          "id": 4295017280,
+          "uuid": "ccb9dd68-d71d-4b79-af54-a1676b143e15",
+          "source": "51c0660c-e033-4d93-aaba-45d09efb3cb8",
+          "target": "be435fdf-7d45-4dbe-8069-d190b4524de0",
+          "sourceSocket": "result",
+          "targetSocket": "value1"
+        }
+      ]
+    },
+    {
+      "kind": "undo-observation",
+      "elapsedMs": 885.1908999999996,
+      "treeNodesAfter": 50000
+    },
+    {
+      "kind": "result",
+      "passed": true,
+      "errors": []
+    }
+  ],
+  "phaseTrace": [
+    "[formula] materialize children=3452 reused_anodes=0 anodes_us=34697 connections_us=3552 surface_us=4 transaction_us=3208 commit_us=81314",
+    "[formula] socket_sync children=3452 auto_us=6820 materialize_us=122869 compile_us=56709 sockets_us=24344",
+    "[formula] materialize children=3452 reused_anodes=0 anodes_us=33106 connections_us=3821 surface_us=4 transaction_us=3069 commit_us=79687",
+    "[formula] socket_sync awaiting_input_counts children=3453 auto_us=6445",
+    "[formula] bulk_inbox events=10 reconcile=true sync_us=6472 validate_us=319",
+    "[formula] materialize children=3453 reused_anodes=1723 anodes_us=2078 connections_us=2189 surface_us=3 transaction_us=3150 commit_us=80155",
+    "[formula] socket_sync children=3453 auto_us=4110 materialize_us=87662 compile_us=56526 sockets_us=25525",
+    "[formula] materialize children=3453 reused_anodes=1723 anodes_us=1479 connections_us=2346 surface_us=5 transaction_us=3295 commit_us=79888",
+    "[formula] socket_sync children=3453 auto_us=4920 materialize_us=87111 compile_us=56075 sockets_us=24342",
+    "[formula] bulk_inbox events=8 reconcile=true sync_us=173441 validate_us=1346",
+    "[formula] materialize children=3452 reused_anodes=1723 anodes_us=2068 connections_us=2896 surface_us=3 transaction_us=3095 commit_us=79954",
+    "[formula] socket_sync children=3452 auto_us=4394 materialize_us=88103 compile_us=55376 sockets_us=25902",
+    "[formula] bulk_inbox events=3 reconcile=true sync_us=175463 validate_us=1901"
+  ],
+  "headlessLogSha256": "2e3f740382b3ab9f519e520fb5b051b6085364a31d70c4e2ed32f6ab2fc29710",
+  "gates": [
+    {
+      "scope": "Alchemist library",
+      "log": "p11-formula-scale-shared-resolution-tests.log",
+      "result": "183 passed",
+      "profile": "dev (opt-level 1)",
+      "summary": [
+        "    Finished `dev` profile [optimized + debuginfo] target(s) in 55.72s",
+        "test result: ok. 183 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+      ],
+      "logSha256": "180e7e17bb85fc087f2d5f2b4c72b50b84c9485b90ffba1fb9d0b61cff29bd76"
+    },
+    {
+      "scope": "Formula and operation integration",
+      "log": "p11-formula-scale-count-settlement-tests.log",
+      "result": "77 passed; three existing ignored",
+      "profile": "dev (opt-level 1)",
+      "summary": [
+        "    Finished `dev` profile [optimized + debuginfo] target(s) in 3m 14s",
+        "test result: ok. 77 passed; 0 failed; 3 ignored; 0 measured; 1773 filtered out; finished in 0.34s"
+      ],
+      "logSha256": "14c532330cb1eab70c81e1d9bf09f7c82a7e7790c237403f1da55ca5987f862c"
+    },
+    {
+      "scope": "Golden engine",
+      "log": "p11-formula-scale-core-tests.log",
+      "result": "635 passed; three existing ignored",
+      "profile": "dev (opt-level 1)",
+      "summary": [
+        "    Finished `dev` profile [optimized + debuginfo] target(s) in 8m 56s",
+        "test result: ok. 635 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 0.45s"
+      ],
+      "logSha256": "5549607f9422ed9f44117f692cc7cad35741e9e1bb93966454c295f6fe45acb4"
+    },
+    {
+      "scope": "Strict Clippy all targets: Chataigne2, chataigne_alchemist, golden_engine",
+      "log": "p11-formula-scale-count-settlement-clippy.log",
+      "result": "passed",
+      "profile": "dev (opt-level 1)",
+      "summary": [
+        "    Finished `dev` profile [optimized + debuginfo] target(s) in 47.67s"
+      ],
+      "logSha256": "06dbe10420f58eb08536579ef1d0323627cf330a175cc8beb73dd6aa367aa995"
+    },
+    {
+      "scope": "Normal bundled cargo build --locked",
+      "log": "p11-formula-scale-build-count-settlement.log",
+      "result": "passed",
+      "profile": "dev (opt-level 1)",
+      "summary": [
+        "    Finished `dev` profile [optimized + debuginfo] target(s) in 2m 10s"
+      ],
+      "logSha256": "e3eb013f2ca77291ad1113775b42a1621dbef24bd5a7f2483153dc27f631ecac"
+    }
+  ]
+}

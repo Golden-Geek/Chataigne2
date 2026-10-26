@@ -1,5 +1,5 @@
 import { UI_PROTOCOL_VERSION } from 'golden_ui/generated/rust_protocol/protocol-version.ts';
-import type { UiNodeDto, UiSnapshot } from 'golden_ui/types';
+import type { ParamValue, UiNodeDto, UiSnapshot } from 'golden_ui/types';
 
 export const node = (nodeId: number): UiNodeDto =>
 	({
@@ -28,6 +28,25 @@ export const node = (nodeId: number): UiNodeDto =>
 		creatable_user_items: [],
 		children: []
 	}) as UiNodeDto;
+
+export const parameterNode = (id: number, declaration: string, value: ParamValue): UiNodeDto => ({
+	...node(id),
+	decl_id: declaration,
+	data: {
+		kind: 'parameter',
+		param: {
+			value,
+			default_value: value,
+			event_behaviour: 'Coalesce',
+			read_only: false,
+			constraints: { enum_options: [], policy: 'ClampAdapt' },
+			ui_hints: {},
+			control: { mode: 'manual', spec: { mode: 'manual' } },
+			reference_allowed_targets: [],
+			reference_visible_nodes: []
+		}
+	}
+});
 
 export const snapshot = (nodeId: number, seq: number): UiSnapshot =>
 	({

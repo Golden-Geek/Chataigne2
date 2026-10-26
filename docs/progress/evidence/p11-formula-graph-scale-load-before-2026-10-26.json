@@ -1,0 +1,392 @@
+{
+  "phase": "baseline load diagnostic",
+  "environment": {
+    "GOLDEN_PERF_TRACE": "1",
+    "GC_GRAPH_SCALE_TIERS": "10000",
+    "GC_GRAPH_SCALE_ACTIONS": "discover"
+  },
+  "scope": "instrumented partial diagnostic, not timing qualification",
+  "rows": [
+    {
+      "kind": "environment",
+      "production": true,
+      "browser": "156.0.4314.42",
+      "binaryHash": "2a7f6a675a9d64228f493cceea2ed3e187b78a492ab49dfc2587d61154cae51f",
+      "assets": [
+        {
+          "name": "dmsans-italic-CT59GZwy.ttf",
+          "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+        },
+        {
+          "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+          "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+        },
+        {
+          "name": "index-BcDHm3O_.css",
+          "sha256": "ac8f9e764ed59d598f1f85a970dc64508ca2030b743f344ac6e6e895c18cd541"
+        },
+        {
+          "name": "index-oI2bEz_E.js",
+          "sha256": "b48552cc7c9cb16767bdf6a0cc72dcaafa9e7dd18b5c3524d340df0f06ec41f7"
+        }
+      ],
+      "report": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-formula-scale-5a7778de-8979-41ad-aebb-f74dd0eacecc\\browser.jsonl"
+    },
+    {
+      "kind": "fixed-contract",
+      "consumer": "formula",
+      "tiers": [
+        10000
+      ],
+      "completeTierSelection": false,
+      "actions": [
+        "discover"
+      ],
+      "completeActionSelection": false,
+      "diagnosticTracing": false,
+      "cpuProfiling": false,
+      "warmups": 3,
+      "retained": 31,
+      "normal": {
+        "feedbackP95": 200,
+        "completionP95": 2000,
+        "maximumStall": 200
+      },
+      "stress": {
+        "feedbackP95": 400,
+        "completionP95": 4000,
+        "maximumStall": 400
+      },
+      "maxMountedNodes": 128,
+      "maxFinderRows": 32,
+      "setupDeadlineMs": 300000
+    },
+    {
+      "kind": "source-ready",
+      "label": "calibration-8",
+      "graphItems": 8,
+      "treeNodes": 232,
+      "enabledItems": 8,
+      "serializedRecords": 224,
+      "setupMs": 312.82439999999997,
+      "sha256": "a2796968475bcece55697c911a11c43826cd468ecf028c2f205accaf6c2ec276"
+    },
+    {
+      "kind": "source-ready",
+      "label": "calibration-16",
+      "graphItems": 16,
+      "treeNodes": 464,
+      "enabledItems": 16,
+      "serializedRecords": 456,
+      "setupMs": 114.0007999999998,
+      "sha256": "dbf4dd25dd24a1063eb948c681537be4a1ab8bd7af67eb69994a6c6ce4d42a37"
+    },
+    {
+      "kind": "declaration-calibration",
+      "perItem": 29,
+      "fixed": 0
+    },
+    {
+      "kind": "source-ready",
+      "label": "formula-10000",
+      "graphItems": 344,
+      "treeNodes": 10000,
+      "enabledItems": 344,
+      "serializedRecords": 9992,
+      "setupMs": 54283.718,
+      "sha256": "83d650b67828784b9d625d053ce2195a1a90f0550141abd1beab021e089546f4"
+    },
+    {
+      "kind": "scene",
+      "tier": 10000,
+      "graphItems": 344,
+      "chainEdges": 343,
+      "anodeTypes": {
+        "constant": 1,
+        "math": 343
+      },
+      "unrelatedRecords": 24,
+      "dimensions": {
+        "width": 1120,
+        "height": 576
+      },
+      "tail": [
+        4294975478,
+        4294975502,
+        4294975526
+      ]
+    },
+    {
+      "kind": "timing",
+      "consumer": "formula",
+      "tier": 10000,
+      "graphItems": 344,
+      "action": "discover",
+      "passed": true,
+      "p95Feedback": 19,
+      "p95Completion": 19,
+      "maximumStall": 4.799999999995634,
+      "samples": [
+        {
+          "warmup": true,
+          "feedback": 105.29999999701977,
+          "completion": 105.29999999701977,
+          "stall": 91.19999999702122,
+          "peakNodes": 13
+        },
+        {
+          "warmup": true,
+          "feedback": 17.100000001490116,
+          "completion": 17.100000001490116,
+          "stall": 4.19999999999709,
+          "peakNodes": 13
+        },
+        {
+          "warmup": true,
+          "feedback": 17,
+          "completion": 17,
+          "stall": 4.200000000004366,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 17.099999994039536,
+          "completion": 17.19999999552965,
+          "stall": 4.299999999995634,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 16.799999997019768,
+          "completion": 16.899999998509884,
+          "stall": 4.19999999999709,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 16.899999998509884,
+          "completion": 16.899999998509884,
+          "stall": 4.200000000004366,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15.799999997019768,
+          "completion": 15.799999997019768,
+          "stall": 4.099999999998545,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 16.600000001490116,
+          "completion": 16.600000001490116,
+          "stall": 4.19999999999709,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 17.200000002980232,
+          "completion": 17.200000002980232,
+          "stall": 4.100000000005821,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 21.30000000447035,
+          "completion": 21.30000000447035,
+          "stall": 4.099999999998545,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 18.100000001490116,
+          "completion": 18.100000001490116,
+          "stall": 4.19999999999709,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 16.400000005960464,
+          "completion": 16.5,
+          "stall": 4.099999999998545,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 16.30000000447035,
+          "completion": 16.399999998509884,
+          "stall": 4.19999999999709,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 16.100000001490116,
+          "completion": 16.100000001490116,
+          "stall": 4.200000000004366,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 16,
+          "completion": 16,
+          "stall": 4.19999999999709,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15.5,
+          "completion": 15.5,
+          "stall": 4.19999999999709,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15.900000005960464,
+          "completion": 15.900000005960464,
+          "stall": 4.100000000005821,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 16.399999998509884,
+          "completion": 16.399999998509884,
+          "stall": 4.799999999995634,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 19,
+          "completion": 19,
+          "stall": 4.200000000004366,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 18.399999998509884,
+          "completion": 18.399999998509884,
+          "stall": 4.099999999998545,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 14.700000002980232,
+          "completion": 14.700000002980232,
+          "stall": 4.200000000004366,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 17.299999997019768,
+          "completion": 17.399999998509884,
+          "stall": 4.19999999999709,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 16.799999997019768,
+          "completion": 16.799999997019768,
+          "stall": 4.200000000004366,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15.900000005960464,
+          "completion": 15.900000005960464,
+          "stall": 4.19999999999709,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 17.30000000447035,
+          "completion": 17.30000000447035,
+          "stall": 4.200000000004366,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 16,
+          "completion": 16.100000001490116,
+          "stall": 4.19999999999709,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 16.899999998509884,
+          "completion": 16.899999998509884,
+          "stall": 4.200000000004366,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15.600000001490116,
+          "completion": 15.600000001490116,
+          "stall": 4.100000000005821,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15.899999998509884,
+          "completion": 15.899999998509884,
+          "stall": 4.099999999998545,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15.200000002980232,
+          "completion": 15.299999997019768,
+          "stall": 4.099999999998545,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15.700000002980232,
+          "completion": 15.700000002980232,
+          "stall": 4.099999999998545,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15.299999997019768,
+          "completion": 15.5,
+          "stall": 4.099999999998545,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15.400000005960464,
+          "completion": 15.400000005960464,
+          "stall": 4.19999999999709,
+          "peakNodes": 13
+        },
+        {
+          "warmup": false,
+          "feedback": 15.699999995529652,
+          "completion": 15.699999995529652,
+          "stall": 4.19999999999709,
+          "peakNodes": 13
+        }
+      ]
+    },
+    {
+      "kind": "result",
+      "passed": true,
+      "errors": []
+    }
+  ],
+  "trace": {
+    "logSha256": "175c7bf9e56d9a8fce62c9392429d38ee400e1dba0471b10fd0c4d35fd358c2d",
+    "fullSizeSnapshots": 2482,
+    "snapshotMs": 41150.612,
+    "formulaSocketSync": [
+      "[formula] socket_sync children=692 auto_us=19274 materialize_us=19047 solve_us=6912 sockets_us=3206"
+    ]
+  },
+  "redRegression": {
+    "command": "cargo test --locked -p Chataigne2 --bin Chataigne2 config_reconciliation_uses_target_local_mutations -- --nocapture",
+    "profile": "test (opt-level=3)",
+    "GC_SKIP_UI_BUILD": "1",
+    "result": "FAILED as expected: target-local config refresh cannot capture the whole graph",
+    "tests": 1,
+    "exitCode": 101
+  }
+}

@@ -7,8 +7,10 @@ extraction notes and September counts are [archived](../archive/2026-10-18/progr
 
 ## Scan and policy
 
-Refreshed 2026-10-26 against delivered `2f3b4dde` plus State graph scale qualification
-on `main`. Scanned **2257 source files**; **25 exceed 1,000 lines**. The compact persistent
+Refreshed 2026-10-26 against delivered `2487d809` plus Formula graph scale work in progress
+on `main`. Scanned **2267 source files**; **25 exceed 1,000 lines**. The Formula input-count
+index, compilation-resolution test and shared native scale helpers stay below the limit.
+The compiler is 998 lines; further compiler additions require a cohesive split. The compact persistent
 index, adjacent read/isolation tests, native scale driver and focused fixture helpers stay below
 the limit. The Spatializer panel is
 936 lines, composing a graph reader (187), display geometry (607), pointer/keyboard interaction
@@ -70,7 +72,7 @@ and alternatives; a blanket exception does not close P12. Refresh counts after r
 |  6,101 | `apps/chataigne/systems/state_machine/integration/manager/mod.rs`                    | Implementation |
 |  5,818 | `packages/golden-ui/components/common/AnimationCurveNodeEditor.svelte`               | Implementation |
 |  5,027 | `crates/golden_core/support/macros/src/lib.rs`                                       | Implementation |
-|  2,402 | `apps/chataigne/systems/alchemist/integration/formula/tests/mod.rs`                  | Test suite     |
+|  2,421 | `apps/chataigne/systems/alchemist/integration/formula/tests/mod.rs`                  | Test suite     |
 |  2,066 | `crates/golden_core/engine/src/engine/controls.rs`                                   | Implementation |
 |  1,996 | `packages/golden-ui/components/common/AnimationCurveCanvas.svelte`                   | Implementation |
 |  1,992 | `crates/golden_core/engine/src/app/mod.rs`                                           | Implementation |
