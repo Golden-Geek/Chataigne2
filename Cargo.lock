@@ -1138,6 +1138,7 @@ dependencies = [
  "chataigne_processor",
  "chataigne_state_machine_model",
  "golden_graph",
+ "golden_model",
  "golden_values",
  "indexmap 2.14.0",
  "serde",

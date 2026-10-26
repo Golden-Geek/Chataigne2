@@ -452,6 +452,7 @@ export type { StateUiNodeDto } from './StateUiNodeDto';\n";
     StatechartDeltaDto::export_all(&config)?;
     DiagnosticDto::export_all(&config)?;
     RuntimeDebugDeltaDto::export_all(&config)?;
+    crate::authoring::export_typescript(output_dir)?;
     std::fs::write(output_dir.join("index.ts"), INDEX)?;
     Ok(())
 }

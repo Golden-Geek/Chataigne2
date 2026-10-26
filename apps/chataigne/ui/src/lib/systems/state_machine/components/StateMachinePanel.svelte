@@ -6,9 +6,7 @@
 		type GraphConnectionRequest,
 		type GraphEdge,
 		type GraphNode,
-		type GraphNodeMove,
 		type GraphNodePosition,
-		type GraphNodeResize,
 		type GraphNodeSize
 	} from 'golden_graph_ui';
 	import {
@@ -35,11 +33,7 @@
 	} from 'golden_ui/dockview/panel-persistence';
 	import { registerCommandHandler } from 'golden_ui/store/commands.svelte';
 	import { openNodeContextMenu } from 'golden_ui/store/node-context-menu.svelte';
-	import {
-		createUiEditSession,
-		sendCreateUserItemByTypeIntent,
-		sendPatchMetaIntent
-	} from 'golden_ui/store/ui-intents';
+	import { sendCreateUserItemByTypeIntent } from 'golden_ui/store/ui-intents';
 	import { appState } from 'golden_ui/store/workbench.svelte';
 	import addIcon from 'golden_ui/style/icons/node/add.svg';
 	import GraphToolbarActions from '../../alchemist/components/GraphToolbarActions.svelte';
@@ -51,6 +45,8 @@
 		DEFAULT_STATE_WIDTH_REM,
 		nearestFreeStatePosition
 	} from './state-placement';
+
+	import { createStateGraphEdits } from '../stateGraphEdits';
 
 	const MANAGER_NODE_TYPE = 'state_machine_manager';
 	const STATE_NODE_TYPE = 'state';
@@ -118,18 +114,12 @@
 		}
 	);
 	let panelRoot: HTMLElement | null = $state(null);
-	let graphCanvas: {
-		frameSelection: () => boolean;
-		home: () => boolean;
-		focus: () => void;
-		viewportCenter: () => GraphNodePosition;
-	} | null = $state(null);
+	let graphCanvas = $state<ReturnType<typeof GraphCanvas> | null>(null);
 	let session = $derived(appState.session);
 	let contextMenuOpen = $state(false);
 	let contextMenuX = $state(0);
 	let contextMenuY = $state(0);
 	let contextMenuWorldPosition: GraphNodePosition | null = null;
-	let geometryPersistenceTail = Promise.resolve();
 	let pendingCamera: GraphCamera | null = null;
 	let cameraPersistenceTimer: ReturnType<typeof setTimeout> | null = null;
 	let processorVisibilitySettleTimer: ReturnType<typeof setTimeout> | null = null;
@@ -166,6 +156,20 @@
 				.find((node) => node?.node_type === MANAGER_NODE_TYPE) ?? null
 		);
 	});
+
+	const graphEdits = createStateGraphEdits(() => ({ session, manager }));
+	let managerId = $derived(manager?.node_id);
+	let managerUuid = $derived(manager?.uuid);
+	let snapshotGeneration = $derived(session?.snapshotGeneration);
+	let interactionScope = $derived({ session, managerId, managerUuid, snapshotGeneration });
+	export const moveGraphSelection = (key: string, large = false) =>
+		graphCanvas?.moveSelectionWithKeyboard(key, large) ?? false;
+	export const connectGraphSocket = (node: string, socket: string, direction: 'input' | 'output') =>
+		graphCanvas?.activateSocketWithKeyboard(node, socket, direction) ?? false;
+	export const revealGraphNode = (id: string, additive = false) =>
+		graphCanvas?.revealNode(id, additive) ?? Promise.resolve(false);
+	export const collapseGraphNode = (id: string) => graphCanvas?.toggleNodeCollapsed(id) ?? false;
+	export const graphInteractionState = () => graphCanvas?.keyboardState();
 
 	const publishProcessorOverviewDemand = (processorIds: string[]): void => {
 		const activeSession = session;
@@ -590,60 +594,6 @@
 		}
 	};
 
-	const renameState = async (nodeId: string, label: string): Promise<void> => {
-		if (!session) {
-			return;
-		}
-		const stateId = Number(nodeId);
-		const state = session.graph.state.nodesById.get(stateId);
-		if (!Number.isSafeInteger(stateId) || state?.node_type !== STATE_NODE_TYPE) {
-			return;
-		}
-		const success = await sendPatchMetaIntent(stateId, { label });
-		if (!success) {
-			throw new Error(`failed to rename ${state.meta.label}`);
-		}
-	};
-
-	const setStateCollapsed = async (nodeId: string, collapsed: boolean): Promise<void> => {
-		if (!session) {
-			return;
-		}
-		const stateId = Number(nodeId);
-		const state = session.graph.state.nodesById.get(stateId);
-		if (!Number.isSafeInteger(stateId) || state?.node_type !== STATE_NODE_TYPE) {
-			return;
-		}
-		const success = await sendPatchMetaIntent(stateId, {
-			presentation: {
-				...(state.meta.presentation ?? {}),
-				collapsed
-			}
-		});
-		if (!success) {
-			throw new Error(`failed to ${collapsed ? 'collapse' : 'expand'} ${state.meta.label}`);
-		}
-	};
-
-	const setStateEnabled = async (nodeId: string, enabled: boolean): Promise<void> => {
-		if (!session) {
-			return;
-		}
-		const stateId = Number(nodeId);
-		const state = session.graph.state.nodesById.get(stateId);
-		if (
-			!Number.isSafeInteger(stateId) ||
-			state?.node_type !== STATE_NODE_TYPE ||
-			!state.meta.can_be_disabled
-		) {
-			return;
-		}
-		const success = await sendPatchMetaIntent(stateId, { enabled });
-		if (!success) {
-			throw new Error(`failed to ${enabled ? 'enable' : 'disable'} ${state.meta.label}`);
-		}
-	};
-
 	let contextMenuItems = $derived.by((): ContextMenuItem[] => {
 		if (!manager || manager.creatable_user_items.length === 0) {
 			return [];
@@ -675,178 +625,9 @@
 		graphCanvas?.focus();
 	};
 
-	const connectStates = async (connection: GraphConnectionRequest): Promise<void> => {
-		if (
-			connection.from.socketId !== TRANSITION_OUTPUT_SOCKET_ID ||
-			connection.to.socketId !== TRANSITION_INPUT_SOCKET_ID ||
-			!session
-		) {
-			return;
-		}
-		const sourceState = session.graph.state.nodesById.get(Number(connection.from.nodeId));
-		const targetState = session.graph.state.nodesById.get(Number(connection.to.nodeId));
-		if (
-			!sourceState ||
-			sourceState.node_type !== STATE_NODE_TYPE ||
-			!targetState ||
-			targetState.node_type !== STATE_NODE_TYPE
-		) {
-			return;
-		}
-		const transitionManager = declaredChild(sourceState, TRANSITIONS_DECL_ID);
-		const transitionItem = transitionManager?.creatable_user_items.find(
-			(item) => item.node_type === TRANSITION_NODE_TYPE
-		);
-		if (!transitionManager || !transitionItem) {
-			return;
-		}
-		await sendCreateUserItemByTypeIntent(
-			transitionManager.node_id,
-			transitionItem.node_type,
-			transitionItem.label,
-			{
-				select_when_created: false,
-				initial_params: [
-					initialParam(TRANSITION_TARGET_DECL_ID, {
-						kind: 'reference',
-						uuid: targetState.uuid,
-						cached_id: targetState.node_id,
-						cached_name: targetState.meta.label,
-						relative_path_from_root: []
-					})
-				]
-			}
-		);
-	};
-
 	const processorManagerForGraphNode = (graphNode: GraphNode): UiNodeDto | null => {
 		const stateNode = session?.graph.state.nodesById.get(Number(graphNode.id));
 		return stateNode ? declaredChild(stateNode, PROCESSORS_DECL_ID) : null;
-	};
-
-	const persistNodePositionsNow = async (moves: GraphNodeMove[]): Promise<void> => {
-		if (!session || moves.length === 0) {
-			return;
-		}
-
-		const writableMoves = moves.flatMap((move) => {
-			const stateNode = session.graph.state.nodesById.get(Number(move.nodeId));
-			if (!stateNode || stateNode.node_type !== STATE_NODE_TYPE) {
-				return [];
-			}
-			const positionParameter = parameterChild(stateNode, POSITION_DECL_ID);
-			if (positionParameter?.data.kind !== 'parameter' || positionParameter.data.param.read_only) {
-				return [];
-			}
-			return [
-				{
-					move,
-					stateNode,
-					positionParameterId: positionParameter.node_id,
-					positionBehaviour: positionParameter.data.param.event_behaviour
-				}
-			];
-		});
-		if (writableMoves.length !== moves.length) {
-			throw new Error('one or more selected states cannot persist canvas positions');
-		}
-
-		const editSession = createUiEditSession(
-			writableMoves.length === 1
-				? `Move ${writableMoves[0].stateNode.meta.label}`
-				: `Move ${writableMoves.length} states`,
-			'state-position'
-		);
-		await editSession.begin();
-		if (!editSession.active) {
-			throw new Error('another edit session is already active');
-		}
-		try {
-			await Promise.all(
-				writableMoves.map(({ move, positionParameterId, positionBehaviour }) =>
-					session.sendIntent({
-						kind: 'setParam',
-						node: positionParameterId,
-						value: { kind: 'vec2', value: [move.position.x, move.position.y] },
-						behaviour: positionBehaviour
-					})
-				)
-			);
-		} finally {
-			await editSession.end();
-		}
-	};
-
-	const persistNodePositions = (moves: GraphNodeMove[]): Promise<void> => {
-		const operation = geometryPersistenceTail
-			.catch(() => undefined)
-			.then(() => persistNodePositionsNow(moves));
-		geometryPersistenceTail = operation.catch(() => undefined);
-		return operation;
-	};
-
-	const persistNodeResizeNow = async (resize: GraphNodeResize): Promise<void> => {
-		if (!session) {
-			return;
-		}
-		const stateNode = session.graph.state.nodesById.get(Number(resize.nodeId));
-		if (!stateNode || stateNode.node_type !== STATE_NODE_TYPE) {
-			throw new Error('resized node is not a State');
-		}
-		const sizeParameter = parameterChild(stateNode, SIZE_DECL_ID);
-		if (
-			sizeParameter?.data.kind !== 'parameter' ||
-			sizeParameter.data.param.read_only ||
-			!sizeParameter.meta.can_be_disabled
-		) {
-			throw new Error('State cannot persist canvas dimensions');
-		}
-
-		const editSession = createUiEditSession(
-			resize.mode === 'custom'
-				? `Resize ${stateNode.meta.label}`
-				: `Auto-size ${stateNode.meta.label}`,
-			'state-size'
-		);
-		await editSession.begin();
-		if (!editSession.active) {
-			throw new Error('another edit session is already active');
-		}
-		try {
-			const intents =
-				resize.mode === 'custom'
-					? [
-							session.sendIntent({
-								kind: 'setParam',
-								node: sizeParameter.node_id,
-								value: { kind: 'vec2', value: [resize.size.width, resize.size.height] },
-								behaviour: sizeParameter.data.param.event_behaviour
-							}),
-							session.sendIntent({
-								kind: 'patchMeta',
-								node: sizeParameter.node_id,
-								patch: { enabled: true }
-							})
-						]
-					: [
-							session.sendIntent({
-								kind: 'patchMeta',
-								node: sizeParameter.node_id,
-								patch: { enabled: false }
-							})
-						];
-			await Promise.all(intents);
-		} finally {
-			await editSession.end();
-		}
-	};
-
-	const persistNodeResize = (resize: GraphNodeResize): Promise<void> => {
-		const operation = geometryPersistenceTail
-			.catch(() => undefined)
-			.then(() => persistNodeResizeNow(resize));
-		geometryPersistenceTail = operation.catch(() => undefined);
-		return operation;
 	};
 
 	const flushCameraPersistence = (): void => {
@@ -896,6 +677,7 @@
 			{ priority: 100 }
 		);
 		return () => {
+			graphEdits.dispose();
 			clearInterval(processorOverviewHeartbeat);
 			if (processorVisibilitySettleTimer !== null) {
 				clearTimeout(processorVisibilitySettleTimer);
@@ -934,16 +716,17 @@
 	<GraphCanvas
 		bind:this={graphCanvas}
 		{graphDocument}
+		{interactionScope}
 		{selectedNodeIds}
 		{selectedEdgeIds}
 		onGraphSelectionChange={selectGraphItems}
-		onNodesMove={persistNodePositions}
-		onNodeResize={persistNodeResize}
-		onNodeRename={renameState}
-		onNodeCollapsedChange={setStateCollapsed}
+		onNodesMove={manager && session ? graphEdits.move : undefined}
+		onNodeResize={manager && session ? graphEdits.resize : undefined}
+		onNodeRename={manager && session ? graphEdits.rename : undefined}
+		onNodeCollapsedChange={manager && session ? graphEdits.collapse : undefined}
 		onVisibleNodeIdsChange={settleVisibleStateIds}
-		onNodeEnabledChange={setStateEnabled}
-		onConnect={connectStates}
+		onNodeEnabledChange={manager && session ? graphEdits.enable : undefined}
+		onConnect={manager && session ? graphEdits.connect : undefined}
 		nodeContent={stateNodeContent}
 		onNodeContextMenu={openGraphNodeContextMenu}
 		onBackgroundContextMenu={openContextMenu}

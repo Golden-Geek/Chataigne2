@@ -13,6 +13,7 @@ kernel-profiling = ["chataigne_processor/kernel-profiling"]
 chataigne_alchemist.workspace = true
 chataigne_processor.workspace = true
 chataigne_state_machine_model.workspace = true
+golden_model.workspace = true
 golden_values.workspace = true
 indexmap.workspace = true
 serde.workspace = true

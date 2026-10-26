@@ -1,6 +1,7 @@
 //! Chataigne state-machine behavior built on reusable Golden engines.
 
 mod arbitration;
+pub mod authoring;
 pub mod protocol;
 mod state_machine;
 

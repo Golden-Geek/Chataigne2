@@ -10,6 +10,9 @@ use golden_core::{
     process_ctx::ProcessCtx,
 };
 
+mod authoring;
+pub(crate) use authoring::apply_graph_operation;
+
 #[node("state", label = "State")]
 #[children(
     description: String = String::new() (

@@ -7,8 +7,10 @@ extraction notes and September counts are [archived](../archive/2026-10-18/progr
 
 ## Scan and policy
 
-Refreshed 2026-10-26 against delivered `e9c5a486` plus graph socket qualification
-on `main`. Scanned **2206 source files**; **27 exceed 1,000 lines**. NodeView remains 973 lines;
+Refreshed 2026-10-26 against delivered `cd8b4dad` plus State graph authoring
+on `main`. Scanned **2215 source files**; **27 exceed 1,000 lines**. The State Machine panel
+shrinks from 976 to 759 lines; its edit controller is 165 lines and backend operation 203.
+Their tests and native browser fixtures stay below the limit. NodeView remains 973 lines;
 the direction-specific socket index, feedback owner and focused qualification fixtures stay under
 the limit. Graph interaction controllers,
 connection dispatch, keyboard helpers and their owning tests remain below the limit. TreeRows (235 lines),

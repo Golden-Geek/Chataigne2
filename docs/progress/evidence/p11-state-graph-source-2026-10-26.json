@@ -1,0 +1,261 @@
+{
+  "baseCommit": "cd8b4dadb6c53636f9cf39d2c69946a23715cbc2",
+  "scope": "State Machine graph app operation and actual native panel correctness. P11 remains 4/6, whole plan 59%; actual-app scale, Alchemist, Spatializer and composed workflows remain open.",
+  "machine": {
+    "os": "10.0.26300",
+    "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+    "logicalProcessors": 24,
+    "node": "v26.5.0",
+    "browser": "156.0.4314.42"
+  },
+  "startingCheckout": "clean main, origin/main reconciled",
+  "source": [
+    {
+      "path": "Cargo.lock",
+      "sha256": "9cd8e2d83e6b8cd62b7ac4049217825226d654d75950bd7aa51147e710f37fcb"
+    },
+    {
+      "path": "apps/chataigne/src/app/bootstrap.rs",
+      "sha256": "eb2b856dcb66f85cd1614bb263f10ab7ba19a6a93e28fac07dec7f18f2edc4fb"
+    },
+    {
+      "path": "apps/chataigne/systems/state_machine/integration/state/authoring/mod.rs",
+      "sha256": "04b5058b8d953b516c4bc7df164026b85d3a1404ae789f2bd510fc6c4c47d683"
+    },
+    {
+      "path": "apps/chataigne/systems/state_machine/integration/state/authoring/tests/mod.rs",
+      "sha256": "41c2578a409147a74a8737a40bbce301dda1892aa07f762b804d10540bbcde1b"
+    },
+    {
+      "path": "apps/chataigne/systems/state_machine/integration/state/authoring/tests/native.rs",
+      "sha256": "d0cb9fe680d25ffeea6775abbbb9e243fd53cad4311f4a91f6b1f8cf3ad4d395"
+    },
+    {
+      "path": "apps/chataigne/systems/state_machine/integration/state/mod.rs",
+      "sha256": "3cd206aa11cdaff7399b5d11a0fbcf72ce95823d6de01f7cc675f4a93acfeb29"
+    },
+    {
+      "path": "apps/chataigne/systems/state_machine/runtime/Cargo.toml",
+      "sha256": "87c7f3fcfb7c17b1b25b9032ffb02523ad618701e82154b88e39ae7929eec868"
+    },
+    {
+      "path": "apps/chataigne/systems/state_machine/runtime/src/authoring.rs",
+      "sha256": "713b3937c4ad5f9b19a8fce12e9eff850aa969d47dbbc5b12a9d0dc6bef5ada0"
+    },
+    {
+      "path": "apps/chataigne/systems/state_machine/runtime/src/lib.rs",
+      "sha256": "11facd63e92d1b295b1381ccbcad33c45f64bf5b6929dd89ad61e0194c539740"
+    },
+    {
+      "path": "apps/chataigne/systems/state_machine/runtime/src/protocol.rs",
+      "sha256": "59ff50f3c3c89c4be9b73b23c2a6183599408cb24116a3c1dfb1781c3ba2efbf"
+    },
+    {
+      "path": "apps/chataigne/ui/package.json",
+      "sha256": "aea10e5f75e008f1213198fb99f73f9f6d5569aa4c085a4a2f6fea8023be2f95"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/state_machine/components/StateMachinePanel.svelte",
+      "sha256": "ea051fb4d9c7b5df1ee148e1b6b1e79afed4e14fe44ced2f8be55273bb1f8bd6"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/state_machine/document/statechart-document.ts",
+      "sha256": "f6bf592a3b7993e3ed1d22949e241d9ca0ea0c392eddac6012c30cf1a0c78554"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/state_machine/generated/NodeId.ts",
+      "sha256": "3b47a9c31ab5e8da34572b18674d5a7aea8cc36b47212775f6af5995ef2883e7"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/state_machine/generated/NodeUuid.ts",
+      "sha256": "94c3062bd5bb8431f1b82ad857442252ff902b6188403826aa358ab0dfe0f86d"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/state_machine/generated/StateGraphEdit.ts",
+      "sha256": "3228f89727ccbf01e0766f98a7bf5d5a732f0a3b518b47d9a58646a201d8a092"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/state_machine/generated/StateGraphEditRequest.ts",
+      "sha256": "b0c8c0fcfa26163eb91ec9371e4f93efcfd682df0eac49a78a18c1ddd23207ef"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/state_machine/generated/StateGraphEditResult.ts",
+      "sha256": "b04a614e9fcbd657dd054a06393e098160d2ec024f604ab64f0372a56aabdefc"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/state_machine/generated/StateGraphIdentity.ts",
+      "sha256": "eaebd08cb8da53d4ad6b1d9e9cc87844a96c305164693b62eb6599ccc94c4a2c"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/state_machine/generated/StateGraphMove.ts",
+      "sha256": "0d21a15270d65e814bae9ff5d079e65f0a1fd91e0fadc9ebdf97e2840d54294a"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/state_machine/generated/StateGraphSocket.ts",
+      "sha256": "6d8526de6b7b4630e2135cd1fd91e65c9f280e4c98181fdf217e7e0881c58525"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/state_machine/generated/state-graph-constants.ts",
+      "sha256": "60b4e815540d2e8fb04eb6adcbbe73378d9d1f8f7baa16f462269201ace1bc62"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/state_machine/stateGraphEdits.ts",
+      "sha256": "46333c6cf70f79d68bdc68a2449c49af68fd612ff604b751d36edbaba5021713"
+    },
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/state_machine/tests/stateGraphEdits.test.ts",
+      "sha256": "0db3225ede1b109ea58e1a7177b7eb41676c012f0ae4225b0b69f10d37c6789b"
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/state-graph-fixture/StateGraph.svelte",
+      "sha256": "532f50ced4c63a4da3b1716ba83e30e5325e73b5ef68fe91e04ae3c571304dc6"
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/state-graph-fixture/index.html",
+      "sha256": "200b49bb1c8f6459b149debf170652f9c9e526dfb4c638e6c58ebc052dad1e28"
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/state-graph-fixture/main.ts",
+      "sha256": "d9f78d69a292aaa6578c593d74d9fbcec8dfcd2f59f80195d8d8d95e0fe5d623"
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/state-graph-native.mjs",
+      "sha256": "58f64e0b0897beb0b0eebaca0a6f5c3ebdf2616c1bc795a63443396fb9fe5717"
+    },
+    {
+      "path": "apps/chataigne/ui/tests/browser/tsconfig.graphs.json",
+      "sha256": "ea304507a24f58d12e9920005a1f57e37809769d584ac8a2ecaab464ab981eaf"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/GraphCanvas.svelte",
+      "sha256": "c3b923c90a570bdf7254ae0663472b6d212eb3604d53d1f9cc51d62e405d323f"
+    },
+    {
+      "path": "packages/golden-ui/store/workbench.svelte.ts",
+      "sha256": "ff6430ee2eb9fda6c01aabd0b464ef34abb9051e7cee75f3728890b8d4c68432"
+    }
+  ],
+  "binary": {
+    "path": "target/debug/Chataigne2.exe",
+    "sha256": "cae67db900c35f5525eea7a7f6616d72edf1efefaee2208bd7da28e2deb07ffa",
+    "defaultFeatures": true
+  },
+  "fixtureAssets": [
+    {
+      "name": "dmsans-italic-CT59GZwy.ttf",
+      "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+    },
+    {
+      "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+      "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+    },
+    {
+      "name": "index-BOCNUsmX.css",
+      "sha256": "da08f9dca04e5acc6ea95f8000772564dd6aa802e97fd03f01017bf1c034213a"
+    },
+    {
+      "name": "index-D9kENt8C.js",
+      "sha256": "84cf04f7e0a990c43e6972bba44c44964de66461c1bac035085b3d8cab709e72"
+    }
+  ],
+  "projectFixtures": [
+    {
+      "path": "target/qualification/p11-state-native-c3b58709-28d6-4ba0-b802-824e1e62df50/fixture.noisette",
+      "sha256": "9b04f159e4688dab2b54d9d508ad9f1e4709a6a104f6cb1a53e3facff9b47acb"
+    },
+    {
+      "path": "target/qualification/p11-state-native-c3b58709-28d6-4ba0-b802-824e1e62df50/readonly.noisette",
+      "sha256": "02b7df01117ee02ed1c3e55cd9baff5f34341e8abf465ffeb34c793bf97be901"
+    }
+  ],
+  "checks": [
+    {
+      "command": "cargo test --locked -p chataigne_state_machine --lib",
+      "passed": 16,
+      "failed": 0
+    },
+    {
+      "command": "target/debug/deps/Chataigne2-ced3d8e859f387bc.exe state_graph_authoring --skip native_browser_adapter --nocapture",
+      "passed": 6,
+      "failed": 0,
+      "filtered": 1831
+    },
+    {
+      "command": "npm test",
+      "passed": 410,
+      "workspaces": {
+        "golden_audio_ui": 27,
+        "golden_graph_ui": 58,
+        "golden_ui": 191,
+        "chataigne-ui": 134
+      }
+    },
+    {
+      "command": "npm run check --workspace chataigne-ui",
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "command": "npm run check:browser:graphs --workspace chataigne-ui",
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "command": "cargo clippy --locked -p Chataigne2 --all-targets -- -D warnings",
+      "exitCode": 0
+    },
+    {
+      "command": "cargo build --locked",
+      "exitCode": 0,
+      "durationSeconds": 148,
+      "features": "default",
+      "env": {
+        "CARGO_INCREMENTAL": "0"
+      }
+    },
+    {
+      "command": "target/debug/deps/Chataigne2-ced3d8e859f387bc.exe state_graph_authoring_native_browser_adapter --ignored --nocapture",
+      "passed": 1,
+      "groups": 4,
+      "failed": 0,
+      "durationSeconds": 5.19
+    },
+    {
+      "command": "Rust State Machine protocol exporter to target/qualification/state-graph-codegen; compare nine new contracts after repository Prettier formatting",
+      "files": 9,
+      "match": true
+    },
+    {
+      "command": "cargo fmt --all; cargo fmt --manifest-path crates/golden_core/Cargo.toml --all; rustfmt --edition 2021 apps/chataigne/systems/state_machine/integration/state/authoring/mod.rs",
+      "exitCode": 0
+    },
+    {
+      "command": "repository Prettier --check on changed UI/config/fixture inputs; git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "inventory": {
+    "sources": 2215,
+    "oversized": 27
+  },
+  "priorHarnessFailures": [
+    {
+      "path": "target/qualification/p11-state-native-02aac30a-19ba-4ff3-8e61-550d84f6e214",
+      "reason": "Windows Node entrypoint EISDIR on canonical verbatim path; driver never ran."
+    },
+    {
+      "path": "target/qualification/p11-state-native-4f0397a0-ec82-498a-aa81-f68f02e22500/browser.jsonl",
+      "reason": "Readiness timeout before diagnostic output was added."
+    },
+    {
+      "path": "docs/progress/evidence/p11-state-graph-native-failure-2026-10-26.jsonl",
+      "reason": "Detailed readiness timeout identified HTTP 404 from missing /api/ui base."
+    }
+  ],
+  "nativeReport": "docs/progress/evidence/p11-state-graph-native-2026-10-26.jsonl",
+  "limits": [
+    "Two-State correctness fixture; no actual-app scale or physical input qualification.",
+    "Alchemist and Spatializer are unchanged.",
+    "State creation placement path is unchanged."
+  ]
+}

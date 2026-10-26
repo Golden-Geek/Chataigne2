@@ -5,8 +5,10 @@ import {
 	type GraphPresentationDocument
 } from 'golden_graph_ui';
 
-export const STATECHART_INCOMING_PORT_ID = 'transition-input';
-export const STATECHART_OUTGOING_PORT_ID = 'transition-output';
+export {
+	STATE_GRAPH_INPUT as STATECHART_INCOMING_PORT_ID,
+	STATE_GRAPH_OUTPUT as STATECHART_OUTGOING_PORT_ID
+} from '../generated/state-graph-constants';
 
 export interface StatechartPresentationSnapshot {
 	readonly states: readonly GraphNode[];

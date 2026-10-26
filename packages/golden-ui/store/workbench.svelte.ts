@@ -255,7 +255,7 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 
 	let mountedCleanup: (() => void) | null = null;
 	let hasLoadedSnapshot = false;
-	let snapshotGeneration = 0;
+	let snapshotGeneration = $state(0);
 	let connectionState: UiTransportConnectionState = 'connecting';
 	let engineHz = $state<number | null>(null);
 	let runtimeStats = $state<UiRuntimeStats | null>(null);

@@ -22,6 +22,29 @@ Chataigne has one state-machine system and one formula-processing system. Both a
 There are deliberately no generic Golden condition or statechart packages. These concepts encode
 Chataigne behavior and remain with the product.
 
+## State graph authoring
+
+State graph edits use the app-owned `chataigne.stateGraph/edit` operation. Its Rust DTOs and
+socket constants live in `systems/state_machine/runtime/src/authoring.rs`; the state-machine
+protocol exporter generates the UI contracts. Golden owns transport, transactions and the
+reusable graph canvas, while `integration/state/authoring/` owns State membership, permissions,
+layout parameters and complete transition construction.
+
+Every request carries the manager and target NodeId/UUID pairs. The backend validates all move
+targets before queuing edits, so a later stale or read-only target cannot publish an earlier
+move. A connection inserts a detached transition subtree with its target reference already set.
+Each operation commits as one existing app-operation transaction and one undo group.
+
+The UI's focused `stateGraphEdits.ts` controller captures the session, snapshot generation,
+manager identity and target identities before waiting for shared session admission. It returns
+the committed result or rejection to the canvas. Confirmed operations drain before save/history/
+project barriers; queued work retires on source replacement or unmount. The session's snapshot
+generation is reactive so even a full snapshot with unchanged node identities cancels pending
+graph endpoints. The panel no longer constructs transition children or writes layout parameters.
+
+See [State graph qualification](../progress/p11-state-graph-authoring.md) for the actual native
+panel's persistence/rejection checks and the remaining scale and other-consumer acceptance.
+
 ## Runtime path
 
 The editable condition tree is authoring state. Alchemist lowers it into a flat compiled program

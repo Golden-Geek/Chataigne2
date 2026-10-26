@@ -44,6 +44,8 @@ impl golden_core::app::ProjectLifecycle for AppNode {
     ) -> Result<serde_json::Value, String> {
         if namespace == chataigne_alchemist::authoring::FORMULA_OPERATION_NAMESPACE {
             super::systems_alchemist_formula::apply_formula_operation(engine, operation, payload)
+        } else if namespace == chataigne_state_machine::authoring::STATE_GRAPH_NAMESPACE {
+            super::systems_state_machine_state::apply_graph_operation(engine, operation, payload)
         } else {
             Err(format!("unsupported app operation '{namespace}.{operation}'"))
         }
