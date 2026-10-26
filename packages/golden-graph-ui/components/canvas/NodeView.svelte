@@ -38,7 +38,6 @@
 	let collapsedSocketConnected = $derived(geometry.collapsedSocketConnected);
 	let collapsedSocketDraftTarget = $derived(geometry.collapsedSocketDraftTarget);
 	let nodeHeight = $derived(geometry.nodeHeight);
-	let connectedSockets = $derived(geometry.connectedSockets);
 	let nodeBypassPath = $derived(geometry.nodeBypassPath);
 	let selectNodeBody = $derived(gestures.selectNodeBody);
 	let startNodeResize = $derived(gestures.startNodeResize);
@@ -121,7 +120,7 @@
 						type="button"
 						disabled={socketDisabled(node, socket, 'input')}
 						class:incompatible={socketDisabled(node, socket, 'input')}
-						class:connected={connectedSockets.has(`${node.id}:${socket.id}`)}
+						class:connected={hasSocketConnection(node, socket.id, 'input')}
 						class:draft-target={connectionDraft?.snapNodeId === node.id &&
 							connectionDraft?.snapSocketId === socket.id}
 						class="socket header-socket input"
@@ -144,7 +143,7 @@
 						type="button"
 						disabled={socketDisabled(node, socket, 'input')}
 						class:incompatible={socketDisabled(node, socket, 'input')}
-						class:connected={connectedSockets.has(`${node.id}:${socket.id}`)}
+						class:connected={hasSocketConnection(node, socket.id, 'input')}
 						class:draft-target={connectionDraft?.snapNodeId === node.id &&
 							connectionDraft?.snapSocketId === socket.id}
 						class="socket header-socket input"
@@ -233,6 +232,15 @@
 				{/if}
 			</div>
 		{/if}
+		{#if canvasProps.onNodeCollapsedChange}
+			<button
+				type="button"
+				class="node-collapse"
+				aria-expanded={node.collapsed !== true}
+				aria-label={`${node.collapsed ? 'Expand' : 'Collapse'} ${node.label}`}
+				onpointerdown={(event) => event.stopPropagation()}
+				onclick={() => keyboard.toggleNodeCollapsed(node.id)}>{node.collapsed ? '+' : '−'}</button>
+		{/if}
 		{#if node.warning}
 			<span class="node-warning" title={node.warning} aria-label={node.warning}>!</span>
 		{/if}
@@ -247,6 +255,7 @@
 				<button
 					type="button"
 					class:incompatible={socket.compatible === false}
+					disabled={socketDisabled(node, socket, 'output')}
 					class:connected={collapsedSocketConnected(node, 'output')}
 					class="socket header-socket output collapsed-socket"
 					title={collapsedSocketTitle(node, 'output')}
@@ -266,7 +275,8 @@
 					<button
 						type="button"
 						class:incompatible={socket.compatible === false}
-						class:connected={connectedSockets.has(`${node.id}:${socket.id}`)}
+						disabled={socketDisabled(node, socket, 'output')}
+						class:connected={hasSocketConnection(node, socket.id, 'output')}
 						class="socket header-socket output"
 						title={socket.valueType ?? socket.label}
 						data-socket-direction="output"
@@ -295,7 +305,7 @@
 									type="button"
 									disabled={socketDisabled(node, socket, 'input')}
 									class:incompatible={socketDisabled(node, socket, 'input')}
-									class:connected={hasSocketConnection(node, socket.id)}
+									class:connected={hasSocketConnection(node, socket.id, 'input')}
 									class:draft-target={connectionDraft?.snapNodeId === node.id &&
 										connectionDraft?.snapSocketId === socket.id}
 									class:component={socket.parentId}
@@ -315,9 +325,11 @@
 									<button
 										type="button"
 										class="socket-expander"
+										aria-expanded={socketExpanded(node, socket, 'input')}
+										disabled={geometry.socketHasConnectedChild(node, socket, 'input')}
 										aria-label={`${socketExpanded(node, socket, 'input') ? 'Collapse' : 'Expand'} ${socket.label}`}
 										title={`${socketExpanded(node, socket, 'input') ? 'Collapse' : 'Expand'} ${socket.label}`}
-										onclick={(event) => toggleSocketExpanded(event, node, socket, 'input')}>
+										onclick={() => toggleSocketExpanded(node.id, socket.id, 'input')}>
 										{socketExpanded(node, socket, 'input') ? 'v' : '>'}
 									</button>
 								{:else}
@@ -342,9 +354,11 @@
 									<button
 										type="button"
 										class="socket-expander"
+										aria-expanded={socketExpanded(node, socket, 'output')}
+										disabled={geometry.socketHasConnectedChild(node, socket, 'output')}
 										aria-label={`${socketExpanded(node, socket, 'output') ? 'Collapse' : 'Expand'} ${socket.label}`}
 										title={`${socketExpanded(node, socket, 'output') ? 'Collapse' : 'Expand'} ${socket.label}`}
-										onclick={(event) => toggleSocketExpanded(event, node, socket, 'output')}>
+										onclick={() => toggleSocketExpanded(node.id, socket.id, 'output')}>
 										{socketExpanded(node, socket, 'output') ? 'v' : '<'}
 									</button>
 								{:else}
@@ -363,7 +377,7 @@
 									type="button"
 									disabled={socketDisabled(node, socket, 'output')}
 									class:incompatible={socketDisabled(node, socket, 'output')}
-									class:connected={hasSocketConnection(node, socket.id)}
+									class:connected={hasSocketConnection(node, socket.id, 'output')}
 									class:component={socket.parentId}
 									class="socket output"
 									title={socket.valueType ?? socket.label}
@@ -401,6 +415,15 @@
 </article>
 
 <style>
+	.node-collapse {
+		flex: 0 0 auto;
+		align-self: center;
+		border: 0;
+		background: transparent;
+		color: inherit;
+		cursor: pointer;
+		font: inherit;
+	}
 	.node {
 		position: absolute;
 		box-sizing: border-box;

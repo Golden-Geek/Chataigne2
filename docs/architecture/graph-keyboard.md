@@ -21,12 +21,27 @@ is pinned outside the viewport until focus leaves it. Overview/full-node replace
 focus to the new title; deletion falls back to the canvas. Finder controls stay inside the canvas
 and retain their own scrolling and input events. Scope replacement retires pending discovery/reveal.
 
-`connections.svelte.ts` owns dispatch/failure feedback for both pointer and keyboard requests.
-Its request generation prevents older failures from replacing a newer request's feedback.
+Collapsed nodes expose a native Expand/Collapse control when the host provides its persistence
+callback. Compound body sockets expose native expansion buttons with expanded/disabled state;
+nested children remain reachable and a connected descendant keeps its ancestors expanded.
+Keyboard activation accepts currently exposed sockets, including the collapsed first socket.
+Hiding or disabling a pending endpoint cancels it. Missing callbacks cause no optimistic mutation;
+ports without a connection callback are disabled.
+
+`socket-connections.ts` indexes occupancy separately by direction, allowing input and output IDs to
+match on one node without affecting each other. Its length-prefixed keys preserve arbitrary IDs.
+`geometry.svelte.ts` owns sparse socket expansion and geometry invalidation. Expansion updates
+touch one map entry; owner/source replacement clears it and invalidates only affected node layouts.
+
+`connections.svelte.ts` owns connection policy checks and dispatch for both pointer and keyboard.
+`feedback.svelte.ts` owns shared request/failure feedback for connection, movement and collapse.
+Its action generation prevents older failures from replacing a newer action's feedback, while
+older rejected edits still roll back their own optimism when their owner remains current.
 Topology changes cancel an uncommitted endpoint choice; they do not retire an already dispatched
 request's eventual failure feedback. Request lifetime belongs to the dispatcher, not endpoint selection.
-`editing.svelte.ts` uses per-commit tokens so an older move rejection cannot clear a newer optimistic
-move at the same coordinates. A caller reports failed asynchronous mutations by rejecting its promise.
+`editing.svelte.ts` uses per-commit tokens so an older move or collapse rejection cannot clear a
+newer optimistic edit at the same value. A caller reports failed asynchronous mutations by rejecting
+its promise. Automatic endpoint cancellation preserves already-dispatched mutation failure feedback.
 
 The public `interactionScope` token fences domain lifetimes when a host reuses a presentation adapter.
 Its default is the graph presentation source. Hosts must replace the token when switching domains
@@ -38,5 +53,6 @@ ordinary document publications cannot trigger a false reset.
 
 The [shared delivery evidence](../progress/p11-graph-keyboard.md) covers the initial component path.
 Logical discovery and overview focus pass the [five-tier qualification](../progress/p11-graph-discovery.md).
-Complete app-consumer, collapsed/compound-socket and movement/connection timing qualification remains
-required before closing P11's graph checkpoint. Native input/usability remains P17.
+Collapsed/compound body sockets, rejection lifetimes and five-tier movement/connection timings pass
+the [socket qualification](../progress/p11-graph-sockets.md). Complete app-consumer, authoritative
+receipt/rejection/reload qualification remains before graph closure. Native input/usability remains P17.

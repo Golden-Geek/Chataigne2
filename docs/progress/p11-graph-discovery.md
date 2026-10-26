@@ -51,7 +51,8 @@ npm test
 npm run check --workspace chataigne-ui
 ```
 
-Before graph closure, qualify collapsed/compound endpoints, all actual app adapters (Alchemist,
+Collapsed/compound body endpoints and shared movement/connection timing are subsequently
+[qualified](p11-graph-sockets.md). Before graph closure, qualify all actual app adapters (Alchemist,
 state machine and Spatializer), read-only/source replacement and authoritative mutation/rejection/
-reload, plus movement/connection timing. Complete composed workflows remains the other open P11
+reload. Complete composed workflows remains the other open P11
 checkpoint. Native usability belongs to P17 and full-product throughput to P16.

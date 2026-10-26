@@ -1,0 +1,9 @@
+{"kind":"environment","production":true,"browser":"156.0.4314.42","report":"D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-graph-keyboard-2026-10-26T09-34-05-592Z.jsonl"}
+{"kind":"movement","passed":true}
+{"kind":"connections","passed":true}
+{"kind":"activity-and-topology","passed":true}
+{"kind":"lifecycle","passed":true}
+{"kind":"asynchronous-connections","passed":true}
+{"kind":"body-header-and-nested-sockets","passed":true}
+{"kind":"header-collapsed-and-readonly","passed":true}
+{"kind":"failure","message":"AssertionError [ERR_ASSERTION]: An input connection expanded output sockets with the same IDs\n\n1 !== 0\n","errors":[]}

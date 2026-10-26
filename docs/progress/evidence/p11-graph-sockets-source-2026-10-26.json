@@ -1,0 +1,187 @@
+{
+  "baseCommit": "e9c5a486719ca05bc497df6586d203b9f267d37e",
+  "scope": "Shared graph socket controls, direction-specific occupancy and mutation feedback. Final mutation/discovery/canvas matrices pass; actual app adapters and backend receipt/reload remain open.",
+  "machine": {
+    "os": "10.0.26300",
+    "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+    "logicalProcessors": 24,
+    "node": "v26.5.0",
+    "browser": "156.0.4314.42"
+  },
+  "source": [
+    {
+      "path": "apps/chataigne/ui/src/lib/systems/alchemist/components/AlchemistGraphEditor.svelte",
+      "sha256": "c0d61f6954fb0d49469836a4f1ce17e0bc0d4c6791d5aeebc3ad7e67babe5f57"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "1a515eb16812648c25cab5914c8ec2562aeeab8bf6f5a84921bd20d659e5ec28"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/GraphCanvas.svelte",
+      "sha256": "c3b923c90a570bdf7254ae0663472b6d212eb3604d53d1f9cc51d62e405d323f"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/canvas/NodeNavigator.svelte",
+      "sha256": "5658adc14ad485135be7518cb9f6b42f9ce3a1f8084664c3a152c4b7bd356fff"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/canvas/NodeOverview.svelte",
+      "sha256": "aa6b0c6d66e3fba09bb29977e948fe651b1c0feebe4dd729c92ff49f5fff3494"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/canvas/NodeView.svelte",
+      "sha256": "890170b69494dc1beb175f95fda4b5547c872cd6767647b0653de7ad4ca621be"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/canvas/connections.svelte.ts",
+      "sha256": "cd2177f6400d54b7e4cf8b522e598b08f22d2b5026aa561ad4c1c003dbfdb0f5"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/canvas/contracts.ts",
+      "sha256": "238e6bbafe1983c20e1ba133c55394c659e030fd74b8c0f494806b9ba1f5d1d6"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/canvas/editing.svelte.ts",
+      "sha256": "8643e3d8e581625bebba02b61edb060d65571195de5e0426214f15cb25d59b1b"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/canvas/feedback.svelte.ts",
+      "sha256": "589612a4a0a3a56019bd6744586980751bc79570d9f52df681d879a912fb6f0d"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/canvas/geometry.svelte.ts",
+      "sha256": "520a8f5ab75f8b6f5ddda53931172c78fa4606ce5852df9dce1c9bd0887882bd"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/canvas/gestures.svelte.ts",
+      "sha256": "6e6bfb69c294052415eaf8adec7e3b76f4f1c7fb080bc40ac3a8544a35fe39ef"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/canvas/keyboard.svelte.ts",
+      "sha256": "f5ff390cedb1fad92c34b6a06eece491ce656d22e96561b47a37cdf6ff0b8765"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/canvas/mounting.svelte.ts",
+      "sha256": "47390f8f7eea6e4b5ff7c91e4316a6373520f6c20e3a3efedee41dc4fbb7c467"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/canvas/navigation.svelte.ts",
+      "sha256": "c90bcf20f9f76dd5cd3402075bba81561ce0365468d5664a708cd3598053f95a"
+    },
+    {
+      "path": "packages/golden-graph-ui/components/canvas/viewport.svelte.ts",
+      "sha256": "ae826b15036d38c16e46cdc5c8ac351c9c5577dcaaf442b2bbfe53fbe0f56b0a"
+    },
+    {
+      "path": "packages/golden-graph-ui/keyboard.ts",
+      "sha256": "6ce9d0462b212869ff9bb6429e1d620933e5c64169e1b84c97191e87cad29c61"
+    },
+    {
+      "path": "packages/golden-graph-ui/package.json",
+      "sha256": "730a354b1ca5b7cefe80c8c8e5180c9e6a812b290e449b5b40ca8cd58ab34e6a"
+    },
+    {
+      "path": "packages/golden-graph-ui/presentation-document.ts",
+      "sha256": "0049ece2ceabf2a06f4061b067806d7f92ae9b3ec3caa8bfc52a74c16b537fb3"
+    },
+    {
+      "path": "packages/golden-graph-ui/retained-presentation.ts",
+      "sha256": "59d951847a0454102897aae1ba5e404639fdb0dc498db72fc1ad6f71c8960542"
+    },
+    {
+      "path": "packages/golden-graph-ui/socket-connections.ts",
+      "sha256": "a94a904ad380ef6a287bd5182f76ef80e9862d23bd31c27d74e6669cf84850a7"
+    },
+    {
+      "path": "packages/golden-graph-ui/tests/browser/canvas-retention.mjs",
+      "sha256": "df9d2b23915310606bb85e1f58fc783e6a8d69645058b00c072bd88280cb7d62"
+    },
+    {
+      "path": "packages/golden-graph-ui/tests/browser/canvas-smoke.mjs",
+      "sha256": "d0eb96d7343a14a1b2aecfa0525cfb5e3964a9caf83ee8c852416bfd2f163427"
+    },
+    {
+      "path": "packages/golden-graph-ui/tests/browser/fixture/Fixture.svelte",
+      "sha256": "8433076884e9ba3cb77b52afa71be668ca9f14161e970b2f0a9add0a786e3655"
+    },
+    {
+      "path": "packages/golden-graph-ui/tests/browser/fixture/keyboard-qualification.ts",
+      "sha256": "713abe0c59198cc9a9fa89a4063afd929b9b659d255ad5f9014442d8b09466f0"
+    },
+    {
+      "path": "packages/golden-graph-ui/tests/browser/fixture/navigation-qualification.ts",
+      "sha256": "142581e2f92d5bfab9fea6aac38eccdd4c3ae5b0665fc6d376a9c90ed5adc56a"
+    },
+    {
+      "path": "packages/golden-graph-ui/tests/browser/graph-discovery.mjs",
+      "sha256": "4a715cdc8888b0736e488a176b50980ff196578d6735c776e8766c9db6c44e0f"
+    },
+    {
+      "path": "packages/golden-graph-ui/tests/browser/graph-keyboard-qualification.mjs",
+      "sha256": "f7b54b3cfa7f2e2571a1f1495fed73ec78056ed8d2e5c9105fdb2c6a31fdf932"
+    },
+    {
+      "path": "packages/golden-graph-ui/tests/browser/graph-keyboard.mjs",
+      "sha256": "7e357aced3a3fbdde55f30f719f5f55820c1c448535233df84140e128573b2b9"
+    },
+    {
+      "path": "packages/golden-graph-ui/tests/browser/keyboard-sockets.mjs",
+      "sha256": "34ce0b2d024c0332274b9def91c5897f52723d92401007abeee5f44164858424"
+    },
+    {
+      "path": "packages/golden-graph-ui/tests/keyboard.test.ts",
+      "sha256": "67c5da9c441a9a93054d93b03929acdb59ea9fe1bb5624d46437193ba1f46b16"
+    },
+    {
+      "path": "packages/golden-graph-ui/tests/socket-connections.test.ts",
+      "sha256": "5f6ca752487ce46f5ac9d37842d709940706d353ee8ba7c33452385ad4ffdb71"
+    },
+    {
+      "path": "packages/golden-graph-ui/types.ts",
+      "sha256": "7d08c3b45f8e2ab642429df55ee4b34a57f2c3c5a9f800b3fc27bd06d6363a6b"
+    }
+  ],
+  "assets": [
+    {
+      "path": "target/qualification/p11-graph-keyboard/assets/index-BfiGGGqE.js",
+      "sha256": "86b2a0ab41e2c1929abc55475fb304813db4d5371ca5e831600a7774821436e1"
+    },
+    {
+      "path": "target/qualification/p11-graph-keyboard/assets/index-_aNVlPT4.css",
+      "sha256": "b9acb40446315183afe4127355a76ed6406b85082301fcfdff7c0f8a6d1b5017"
+    },
+    {
+      "path": "target/qualification/p11-graph-keyboard-qualification/assets/index-BfiGGGqE.js",
+      "sha256": "86b2a0ab41e2c1929abc55475fb304813db4d5371ca5e831600a7774821436e1"
+    },
+    {
+      "path": "target/qualification/p11-graph-keyboard-qualification/assets/index-_aNVlPT4.css",
+      "sha256": "b9acb40446315183afe4127355a76ed6406b85082301fcfdff7c0f8a6d1b5017"
+    },
+    {
+      "path": "target/qualification/p11-graph-discovery/assets/index-BfiGGGqE.js",
+      "sha256": "86b2a0ab41e2c1929abc55475fb304813db4d5371ca5e831600a7774821436e1"
+    },
+    {
+      "path": "target/qualification/p11-graph-discovery/assets/index-_aNVlPT4.css",
+      "sha256": "b9acb40446315183afe4127355a76ed6406b85082301fcfdff7c0f8a6d1b5017"
+    },
+    {
+      "path": "target/qualification/p10-canvas/assets/index-BfiGGGqE.js",
+      "sha256": "86b2a0ab41e2c1929abc55475fb304813db4d5371ca5e831600a7774821436e1"
+    },
+    {
+      "path": "target/qualification/p10-canvas/assets/index-_aNVlPT4.css",
+      "sha256": "b9acb40446315183afe4127355a76ed6406b85082301fcfdff7c0f8a6d1b5017"
+    }
+  ],
+  "defaultBuild": {
+    "command": "CARGO_INCREMENTAL=0 cargo build --locked",
+    "result": "passed",
+    "durationSeconds": 137,
+    "frontend": "rebuilt from current inputs",
+    "path": "target/debug/Chataigne2.exe",
+    "sha256": "1ee891b653c9e6ec9f4ad14501f901e5369a60f97639e71f52f28ac082fc66e9"
+  }
+}

@@ -42,9 +42,10 @@ resize, routing, crossing/obstacle, loop and 1,100-wire overflow checks. Its dev
 observations do not replace P10's production timing evidence or the new P11 action matrix.
 
 Logical offscreen discovery and overview focus are now qualified in the subsequent
-[graph discovery delivery](p11-graph-discovery.md). Before graph checkpoint closure, complete collapsed/
-compound endpoint cases, all actual app adapters (including read-only and source replacement),
-authoritative mutation/rejection/reload checks, and a fixed five-tier action/timing matrix.
+[graph discovery delivery](p11-graph-discovery.md). The subsequent [socket qualification](p11-graph-sockets.md)
+covers collapsed/compound body endpoints, shared feedback and the fixed five-tier movement/connection
+matrix. Before graph checkpoint closure, complete all actual app adapters (including read-only and
+source replacement) and authoritative mutation/rejection/reload checks.
 Then complete P11's composed-workflow checkpoint. These requirements do not add checkpoints.
 P11 remains **4/6 (67% rounded)** and whole-plan scope coverage remains **59%**.
 

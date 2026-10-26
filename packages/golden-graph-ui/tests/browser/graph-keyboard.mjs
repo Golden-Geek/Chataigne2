@@ -5,6 +5,7 @@ import { appendFileSync, writeFileSync } from "node:fs";
 import { build, preview } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { chromium } from "playwright-core";
+import { qualifyKeyboardSockets } from "./keyboard-sockets.mjs";
 
 const root = fileURLToPath(new URL("./fixture/", import.meta.url));
 const generated = fileURLToPath(
@@ -231,6 +232,7 @@ try {
   assert.equal((await inspect()).state.message, "Connection request failed.");
   assert.deepEqual(errors, []);
   emit({ kind: "asynchronous-connections", passed: true });
+  await qualifyKeyboardSockets(page, emit);
   emit({ kind: "result", passed: true, errors });
 } catch (error) {
   emit({ kind: "failure", message: String(error), errors });

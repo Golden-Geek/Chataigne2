@@ -4,6 +4,7 @@ import {
   type CanvasProps,
 } from "./contracts";
 import { untrack } from "svelte";
+import type { CanvasMutationFeedback } from "./feedback.svelte";
 import type {
   GraphNode,
   GraphNodeMove,
@@ -18,8 +19,13 @@ interface EditingScene {
   updateSelection(nodeId: string, additive: boolean): void;
   startNodeDrag(event: PointerEvent, node: GraphNode): void;
 }
-export function createCanvasEditing(props: CanvasProps, scene: EditingScene) {
+export function createCanvasEditing(
+  props: CanvasProps,
+  scene: EditingScene,
+  feedback: CanvasMutationFeedback,
+) {
   const moveTokens = new Map<string, object>();
+  const collapseTokens = new Map<string, object>();
   let sourceIdentity = $derived(props.graphDocument.source);
   let interactionIdentity = $derived(props.interactionScope);
   let editingScope = $derived({
@@ -60,6 +66,7 @@ export function createCanvasEditing(props: CanvasProps, scene: EditingScene) {
     const scope = editingScope;
     untrack(() => {
       if (scope === appliedScope) return;
+      collapseTokens.clear();
       appliedScope = scope;
       dragPositions = {};
       optimisticPositions = {};
@@ -143,6 +150,7 @@ export function createCanvasEditing(props: CanvasProps, scene: EditingScene) {
           next = { ...optimisticCollapsed };
         }
         delete next[nodeId];
+        collapseTokens.delete(nodeId);
       }
     }
     if (next !== optimisticCollapsed) {
@@ -213,18 +221,21 @@ export function createCanvasEditing(props: CanvasProps, scene: EditingScene) {
       ...optimisticPositions,
       ...Object.fromEntries(moves.map((move) => [move.nodeId, move.position])),
     };
-    try {
-      const result = props.onNodesMove
-        ? props.onNodesMove(moves)
-        : Promise.all(
-            moves.map((move) => props.onNodeMove?.(move.nodeId, move.position)),
-          );
-      void Promise.resolve(result).catch(() => {
+    feedback.dispatch(
+      `Move requested for ${moves.length} selected ${moves.length === 1 ? "node" : "nodes"}.`,
+      "Move request failed.",
+      () =>
+        props.onNodesMove
+          ? props.onNodesMove(moves)
+          : Promise.all(
+              moves.map((move) =>
+                props.onNodeMove?.(move.nodeId, move.position),
+              ),
+            ),
+      () => {
         if (scope === editingScope) clearOptimisticMoves(moves, token);
-      });
-    } catch {
-      clearOptimisticMoves(moves, token);
-    }
+      },
+    );
   };
 
   const clearOptimisticResize = (resize: GraphNodeResize): void => {
@@ -294,16 +305,25 @@ export function createCanvasEditing(props: CanvasProps, scene: EditingScene) {
     optimisticEnabled = next;
   };
 
-  const toggleNodeCollapsed = (node: GraphNode): void => {
+  const toggleNodeCollapsed = (node: GraphNode): boolean => {
+    if (!props.onNodeCollapsedChange) return false;
     const collapsed = node.collapsed !== true;
+    const token = {};
+    const scope = editingScope;
+    collapseTokens.set(node.id, token);
     optimisticCollapsed = { ...optimisticCollapsed, [node.id]: collapsed };
-    try {
-      void Promise.resolve(
-        props.onNodeCollapsedChange?.(node.id, collapsed),
-      ).catch(() => clearOptimisticCollapse(node.id, collapsed));
-    } catch {
+    const reject = () => {
+      if (scope !== editingScope || collapseTokens.get(node.id) !== token)
+        return;
+      collapseTokens.delete(node.id);
       clearOptimisticCollapse(node.id, collapsed);
-    }
+    };
+    return feedback.dispatch(
+      "Node view change requested.",
+      "Node view change failed.",
+      () => props.onNodeCollapsedChange!(node.id, collapsed),
+      reject,
+    );
   };
 
   const canToggleNodeEnabled = (node: GraphNode): boolean =>

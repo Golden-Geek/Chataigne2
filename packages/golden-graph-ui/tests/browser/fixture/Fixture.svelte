@@ -13,6 +13,7 @@
 	import { createQualification } from './qualification';
 	import { qualifyDense } from './qualification-dense';
 	import { createNavigationQualification } from './navigation-qualification';
+	import { createKeyboardQualification } from './keyboard-qualification';
 
 	type SceneOptions = Pick<
 		ComponentProps<typeof GraphCanvas>,
@@ -48,6 +49,9 @@
 		to: { nodeId: string; socketId: string };
 	}[] = [];
 	let connectionMode: 'normal' | 'reject' | 'hold' = 'normal';
+	let acknowledgedConnections = false;
+	let collapseMode: 'normal' | 'reject' | 'hold' = 'normal';
+	let heldCollapses: ((reason?: unknown) => void)[] = [];
 	let heldConnections: ((reason?: unknown) => void)[] = [];
 	const captureConnection = (connection: (typeof connections)[number]): void | Promise<void> => {
 		if (connectionMode === 'reject')
@@ -57,6 +61,14 @@
 				heldConnections.push(reject);
 			});
 		connections = [...connections, connection];
+		if (acknowledgedConnections)
+			graph = adapter.update(graph.nodes, [
+				...graph.edges.filter(
+					(edge) =>
+						edge.to.nodeId !== connection.to.nodeId || edge.to.socketId !== connection.to.socketId
+				),
+				{ ...connection, id: 'acknowledged-keyboard-connection' }
+			]);
 	};
 
 	export function setCanvasSize(width: number, height: number): void {
@@ -84,6 +96,15 @@
 
 	const adapter = new GraphPresentationAdapter();
 	let graph = $state.raw<GraphPresentationDocument>(adapter.update([], []));
+	const acknowledgeCollapse = async (nodeId: string, collapsed: boolean) => {
+		if (collapseMode === 'reject') throw new Error('Controlled collapse rejection');
+		if (collapseMode === 'hold')
+			return new Promise<void>((_resolve, reject) => heldCollapses.push(reject));
+		graph = adapter.update(
+			graph.nodes.map((node) => (node.id === nodeId ? { ...node, collapsed } : node)),
+			graph.edges
+		);
+	};
 	const acknowledgeMoves = async (moves: GraphNodeMove[]) => {
 		if (moveMode === 'reject') throw new Error('Controlled move rejection');
 		if (moveMode === 'hold')
@@ -123,6 +144,19 @@
 		size: setCanvasSize
 	};
 	const qualification = createQualification(qualificationContext);
+	const keyboardQualification = createKeyboardQualification({
+		...qualificationContext,
+		configure() {
+			interactionScope = {};
+			acknowledgedConnections = true;
+			moveMode = collapseMode = connectionMode = 'normal';
+			keyboardReadOnly = false;
+			keyboardPolicy = true;
+			connections = [];
+		}
+	});
+	export const setupKeyboardQualification = keyboardQualification.setup;
+	export const runKeyboardQualification = keyboardQualification.run;
 	const discovery = createNavigationQualification(qualificationContext);
 	export const setupDiscovery = discovery.setup;
 	export const runDiscoveryAction = discovery.run;
@@ -145,6 +179,9 @@
 		await new Promise(requestAnimationFrame);
 	};
 	export async function setupKeyboard() {
+		acknowledgedConnections = false;
+		collapseMode = 'normal';
+		heldCollapses = [];
 		connectionMode = 'normal';
 		heldConnections = [];
 		moveMode = 'normal';
@@ -206,6 +243,80 @@
 		const accepted = canvas!.cancelKeyboardConnection();
 		await keyboardFrames();
 		return accepted;
+	}
+	export async function keyboardCollapse(nodeId: string) {
+		const accepted = canvas!.toggleNodeCollapsed(nodeId);
+		await keyboardFrames();
+		return accepted;
+	}
+	export async function keyboardExpand(
+		nodeId: string,
+		socketId: string,
+		direction: 'input' | 'output'
+	) {
+		const accepted = canvas!.toggleSocketExpanded(nodeId, socketId, direction);
+		await keyboardFrames();
+		return accepted;
+	}
+	export const setCollapseMode = (mode: typeof collapseMode) => {
+		collapseMode = mode;
+	};
+	export async function rejectHeldCollapse(index: number) {
+		heldCollapses[index]?.(new Error('Controlled stale collapse rejection'));
+		await keyboardFrames();
+	}
+	export async function setupSockets(mode: 'body' | 'header' | 'collapsed') {
+		await setupKeyboard();
+		const vector = (direction: 'input' | 'output') => ({
+			id: 'vector',
+			label: `${direction} vector`,
+			children: [
+				{
+					id: 'x',
+					label: `${direction} X`,
+					parentId: 'vector',
+					children: [{ id: 'leaf', label: `${direction} leaf`, parentId: 'x' }]
+				},
+				{ id: 'y', label: `${direction} Y`, parentId: 'vector' }
+			]
+		});
+		graph = adapter.update(
+			graph.nodes.map((node) => ({
+				...node,
+				collapsed: mode === 'collapsed',
+				socketPlacement: mode === 'header' ? 'header' : 'body',
+				inputs: node.id === 'b' ? [{ id: 'in', label: 'Input' }, vector('input')] : node.inputs,
+				headerInputs:
+					node.id === 'b' && mode === 'body' ? [{ id: 'header', label: 'Header' }] : undefined,
+				outputs:
+					node.id === 'a'
+						? [
+								{ id: 'out', label: 'Output' },
+								vector('output'),
+								{ id: 'disabled', label: 'Disabled output', compatible: false }
+							]
+						: node.id === 'b'
+							? [vector('output')]
+							: node.outputs
+			})),
+			[]
+		);
+		await keyboardFrames();
+	}
+	export async function setSocketConnection(socketId: string | null) {
+		graph = adapter.update(
+			graph.nodes,
+			socketId
+				? [
+						{
+							id: 'controlled-input',
+							from: { nodeId: 'a', socketId: 'out' },
+							to: { nodeId: 'b', socketId }
+						}
+					]
+				: []
+		);
+		await keyboardFrames();
 	}
 	export const keyboardInspect = () => ({
 		state: canvas!.keyboardState(),
@@ -401,6 +512,7 @@
 				options = { ...options, selectedNodeIds, selectedEdgeIds };
 			}}
 			onConnect={keyboardReadOnly ? undefined : captureConnection}
+			onNodeCollapsedChange={keyboardReadOnly ? undefined : acknowledgeCollapse}
 			canConnect={() => keyboardPolicy}
 			onNodeResize={acknowledgeResize}
 			{...options}>

@@ -64,6 +64,31 @@ logical discovery only. Graph closure still requires collapsed/compound sockets,
 adapters, authoritative mutations/rejections/reload and movement/connection timing. Native
 keyboard usability remains P17.
 
+## Graph mutation and socket extension
+
+Fix the same five graph tiers (1k/10k baseline, 20k/50k normal, 100k stress), 70rem x 36rem
+canvas and 1680 x 1200 private browser before timing. Retain the 256-column, 24rem-spaced grid
+and chain edges. The last three nodes expose ordinary, nested compound and collapsed sockets;
+the last node is the destination, so unrelated source records remain present during editing.
+Use actual GraphCanvas public operations and acknowledgement callbacks which publish updated
+node positions, collapsed state and directed edges through GraphPresentationAdapter. This is
+shared presentation/callback evidence; actual app/backend receipt and reload remain separate gates.
+
+Fix six action/tier combinations: single movement, three-node movement, output-first connection,
+input-first connection, compound expansion plus leaf connection, and collapsed-node expansion plus
+connection. Use three warmups and 31 retained samples each (30 combinations / 930 samples).
+Verify actual source positions/edges, directed endpoint identities, focused controls, pressed state,
+mounting and visible request/failure feedback. Keep the existing normal 200ms feedback/stall and
+2,000ms completion ceilings; 100k stress uses 400ms/4,000ms. Do not reduce workload or relax gates.
+
+Socket correctness includes all seven button variants, disabled output/input ports, hidden endpoints,
+nested expansion, occupied ancestor/descendant exclusion and forced-open connected branches, input-
+first/output-first order, cancellation when a socket is hidden, no-callback/read-only guards,
+collapse/move rejection and equal-value stale rejection across owner replacement. Input/output IDs
+on the same node must remain independent; endpoint keys must not alias when IDs contain separators.
+Retain failures, their repaired regressions and raw samples. No input synthesis is permitted;
+physical keyboard/webview usability remains P17.
+
 ## Tree keyboard extension
 
 Before keyboard timing, fix the existing five collection tiers and unchanged manager/outliner/picker

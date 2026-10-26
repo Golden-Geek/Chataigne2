@@ -19,13 +19,14 @@ import type {
   GraphSocketDirection,
   GraphSocketRef,
 } from "../../types";
-import { untrack } from "svelte";
+import { onDestroy, untrack } from "svelte";
 import { RetainedGraphPresentation } from "../../retained-presentation";
 import type { SpatialBounds } from "../../spatial-index";
 import { viewportWorldBounds } from "../../presentation-projection";
 import { RetainedEdgePresentation } from "../../retained-edges";
 import type { GraphNodePresentationChanges } from "../../presentation-projection";
 import type { CanvasViewport } from "./viewport.svelte";
+import { GraphSocketConnections } from "../../socket-connections";
 
 interface GeometryInteraction extends Readonly<GraphNodePresentationChanges> {
   readonly connectionDraft: ConnectionDraft | null;
@@ -35,20 +36,42 @@ export function createCanvasGeometry(
   viewport: CanvasViewport,
   interaction: GeometryInteraction,
 ) {
+  let disposed = false;
+  onDestroy(() => {
+    disposed = true;
+  });
   let nodes = $derived(props.graphDocument.nodes);
 
   let edges = $derived(props.graphDocument.edges);
 
-  let expandedSockets = $state.raw<Record<string, boolean>>({});
+  const expandedSockets = new Map<string, boolean>();
+  let expansionRevision = $state(0);
+  const expandedNodeIds = new Set<string>();
   const layoutDirtyIds = new Set<string>();
+  let sourceIdentity = $derived(props.graphDocument.source);
+  let ownerIdentity = $derived(props.interactionScope);
+  let expansionScope = $derived({
+    source: sourceIdentity,
+    owner: ownerIdentity,
+  });
+  let appliedExpansionScope: unknown;
+  $effect.pre(() => {
+    const scope = expansionScope;
+    untrack(() => {
+      if (scope === appliedExpansionScope) return;
+      appliedExpansionScope = scope;
+      for (const id of expandedNodeIds) layoutDirtyIds.add(id);
+      expandedNodeIds.clear();
+      expandedSockets.clear();
+      expansionRevision++;
+    });
+  });
   const projection = new RetainedGraphPresentation();
   const routes = new RetainedEdgePresentation();
   let routeRevision = $state(0);
   let cachedTopologySource: object | null = null;
   let cachedTopologyRevision = -1;
-  let cachedTopology = {
-    connectedSockets: new Set<string>(),
-  };
+  let cachedTopology = new GraphSocketConnections([]);
   let topologyView = $derived.by(() => {
     const document = props.graphDocument;
     if (
@@ -57,14 +80,7 @@ export function createCanvasGeometry(
     ) {
       cachedTopologySource = document.source;
       cachedTopologyRevision = document.revision.topology;
-      cachedTopology = {
-        connectedSockets: new Set(
-          document.edges.flatMap((edge) => [
-            `${edge.from.nodeId}:${edge.from.socketId}`,
-            `${edge.to.nodeId}:${edge.to.socketId}`,
-          ]),
-        ),
-      };
+      cachedTopology = new GraphSocketConnections(document.edges);
     }
     return cachedTopology;
   });
@@ -79,7 +95,7 @@ export function createCanvasGeometry(
       optimisticCollapsed: interaction.optimisticCollapsed,
       optimisticEnabled: interaction.optimisticEnabled,
     };
-    expandedSockets;
+    expansionRevision;
     topologyView;
     return untrack(() => {
       const delta = projection.synchronize(
@@ -192,34 +208,42 @@ export function createCanvasGeometry(
     direction: GraphSocketDirection,
   ): GraphSocket[] => flattenSockets(rootNodeSockets(node, direction));
 
-  const socketRefKey = (nodeId: string, socketId: string): string =>
-    `${nodeId}:${socketId}`;
-
   const socketExpansionKey = (
     node: GraphNode,
     socket: GraphSocket,
     direction: GraphSocketDirection,
-  ): string => `${node.id}:${direction}:${socket.id}`;
+  ): string => JSON.stringify([node.id, direction, socket.id]);
 
-  const hasSocketConnection = (node: GraphNode, socketId: string): boolean =>
-    connectedSockets.has(socketRefKey(node.id, socketId));
+  const hasSocketConnection = (
+    node: GraphNode,
+    socketId: string,
+    direction: GraphSocketDirection,
+  ): boolean => socketConnections.has(node.id, socketId, direction);
 
   const socketHasConnectedChild = (
     node: GraphNode,
     socket: GraphSocket,
+    direction: GraphSocketDirection,
   ): boolean =>
-    (socket.children ?? []).some((child) =>
-      hasSocketConnection(node, child.id),
+    (socket.children ?? []).some(
+      (child) =>
+        hasSocketConnection(node, child.id, direction) ||
+        socketHasConnectedChild(node, child, direction),
     );
 
   const socketExpanded = (
     node: GraphNode,
     socket: GraphSocket,
     direction: GraphSocketDirection,
-  ): boolean =>
-    (socket.children?.length ?? 0) > 0 &&
-    (socketHasConnectedChild(node, socket) ||
-      expandedSockets[socketExpansionKey(node, socket, direction)] === true);
+  ): boolean => {
+    expansionRevision;
+    return (
+      (socket.children?.length ?? 0) > 0 &&
+      (socketHasConnectedChild(node, socket, direction) ||
+        expandedSockets.get(socketExpansionKey(node, socket, direction)) ===
+          true)
+    );
+  };
 
   const displaySockets = (
     node: GraphNode,
@@ -228,7 +252,7 @@ export function createCanvasGeometry(
   ): GraphSocket[] =>
     sockets.flatMap((socket) =>
       socketExpanded(node, socket, direction)
-        ? [socket, ...(socket.children ?? [])]
+        ? [socket, ...displaySockets(node, direction, socket.children ?? [])]
         : [socket],
     );
 
@@ -251,11 +275,22 @@ export function createCanvasGeometry(
     socket: GraphSocket,
     direction: GraphSocketDirection,
   ): boolean => {
-    if (socket.compatible === false) return true;
+    if (!props.onConnect || socket.compatible === false) return true;
     if (direction === "output") return false;
-    if (socket.parentId && hasSocketConnection(node, socket.parentId))
-      return true;
-    if (!socket.parentId && socketHasConnectedChild(node, socket)) return true;
+    let parentId = socket.parentId;
+    const ancestors = new Set<string>();
+    while (parentId) {
+      if (
+        ancestors.has(parentId) ||
+        hasSocketConnection(node, parentId, direction)
+      )
+        return true;
+      ancestors.add(parentId);
+      parentId = allNodeSockets(node, direction).find(
+        (value) => value.id === parentId,
+      )?.parentId;
+    }
+    if (socketHasConnectedChild(node, socket, direction)) return true;
     if (interaction.connectionDraft) {
       return !connectionAllowed({
         from: interaction.connectionDraft.from,
@@ -272,8 +307,8 @@ export function createCanvasGeometry(
     Boolean(props.inputSocketContent) &&
     Boolean(socket.defaultParamId) &&
     !socket.parentId &&
-    !hasSocketConnection(node, socket.id) &&
-    !socketHasConnectedChild(node, socket);
+    !hasSocketConnection(node, socket.id, "input") &&
+    !socketHasConnectedChild(node, socket, "input");
 
   const socketDefaultSlotWidth = (socket: GraphSocket): number => {
     if (!socket.defaultParamId) return 0;
@@ -301,19 +336,27 @@ export function createCanvasGeometry(
     );
 
   const toggleSocketExpanded = (
-    event: MouseEvent,
-    node: GraphNode,
-    socket: GraphSocket,
+    nodeId: string,
+    socketId: string,
     direction: GraphSocketDirection,
-  ): void => {
-    event.preventDefault();
-    event.stopPropagation();
+  ): boolean => {
+    if (disposed) return false;
+    const node = nodeById(nodeId);
+    const socket =
+      node &&
+      allNodeSockets(node, direction).find((value) => value.id === socketId);
+    if (
+      !node ||
+      !socket?.children?.length ||
+      socketHasConnectedChild(node, socket, direction)
+    )
+      return false;
     const key = socketExpansionKey(node, socket, direction);
     layoutDirtyIds.add(node.id);
-    expandedSockets = {
-      ...expandedSockets,
-      [key]: !socketExpanded(node, socket, direction),
-    };
+    expandedNodeIds.add(node.id);
+    expandedSockets.set(key, !socketExpanded(node, socket, direction));
+    expansionRevision++;
+    return true;
   };
 
   const firstCollapsedSocket = (
@@ -339,6 +382,19 @@ export function createCanvasGeometry(
     return direction === "input" ? "In" : "Out";
   };
 
+  const activatableSockets = (
+    node: GraphNode,
+    direction: GraphSocketDirection,
+  ): GraphSocket[] => {
+    if (node.collapsed) {
+      const first = firstCollapsedSocket(node, direction);
+      return first ? [first] : [];
+    }
+    if (node.socketPlacement === "header")
+      return direction === "input" ? node.inputs : node.outputs;
+    return displayNodeSockets(node, direction);
+  };
+
   const collapsedSocketTitle = (
     node: GraphNode,
     direction: GraphSocketDirection,
@@ -355,7 +411,7 @@ export function createCanvasGeometry(
     direction: GraphSocketDirection,
   ): boolean =>
     allNodeSockets(node, direction).some((socket) =>
-      connectedSockets.has(`${node.id}:${socket.id}`),
+      hasSocketConnection(node, socket.id, direction),
     );
 
   const collapsedSocketDraftTarget = (
@@ -432,7 +488,7 @@ export function createCanvasGeometry(
     props.onVisibleNodeIdsChange?.(nodeIds);
   });
 
-  let connectedSockets = $derived(topologyView.connectedSockets);
+  let socketConnections = $derived(topologyView);
   let routingPreview = $derived(
     Object.keys(interaction.dragPositions).length > 0 ||
       Object.keys(interaction.resizeSizes).length > 0,
@@ -617,8 +673,10 @@ export function createCanvasGeometry(
     nodeWidth,
     nodeHeaderHeight,
     allNodeSockets,
+    activatableSockets,
     hasSocketConnection,
     socketExpanded,
+    socketHasConnectedChild,
     displaySockets,
     displayNodeSockets,
     connectionAllowed,
@@ -638,9 +696,6 @@ export function createCanvasGeometry(
     },
     get visibleEdges() {
       return visibleEdges;
-    },
-    get connectedSockets() {
-      return connectedSockets;
     },
     socketPoint,
     nodeBypassPath,

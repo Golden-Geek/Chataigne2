@@ -30,11 +30,11 @@ export function createCanvasKeyboard(
   });
   let applied: unknown;
   let disposed = false;
-  const cancel = () => {
+  const cancel = (clearFeedback = true) => {
     const active = endpoint !== null;
     endpoint = null;
     if (active) {
-      connections.clearMessage();
+      if (clearFeedback) connections.clearMessage();
       message = "Connection cancelled.";
     }
     return active;
@@ -43,15 +43,16 @@ export function createCanvasKeyboard(
     const next = scope,
       connect = props.onConnect,
       pointer = gestures.connectionDraft;
+    const available =
+      !endpoint || socket(endpoint, endpoint.direction) !== null;
     untrack(() => {
       if (next !== applied) {
         const active = endpoint !== null;
         endpoint = null;
-        if (active) connections.clearMessage();
         message = active
           ? "Connection cancelled because the graph changed."
           : "";
-      } else if (!connect || pointer) cancel();
+      } else if (!connect || pointer || !available) cancel(false);
       applied = next;
     });
   });
@@ -63,7 +64,7 @@ export function createCanvasKeyboard(
     const value =
       node &&
       geometry
-        .allNodeSockets(node, direction)
+        .activatableSockets(node, direction)
         .find((value) => value.id === reference.socketId);
     return node && value && !geometry.socketDisabled(node, value, direction)
       ? { node, value }
@@ -112,8 +113,8 @@ export function createCanvasKeyboard(
       large,
     );
     if (!moves.length) return false;
-    editing.commitNodeMoves(moves);
     connections.clearMessage();
+    editing.commitNodeMoves(moves);
     message = `Move requested for ${moves.length} selected ${moves.length === 1 ? "node" : "nodes"}.`;
     return true;
   };
@@ -122,6 +123,11 @@ export function createCanvasKeyboard(
       return false;
     gestures.updateSelection(id, additive);
     return true;
+  };
+  const toggleNodeCollapsed = (id: string): boolean => {
+    if (disposed || !props.onNodeCollapsedChange) return false;
+    const node = geometry.nodeById(id);
+    return node ? editing.toggleNodeCollapsed(node) : false;
   };
   const handleNodeKeydown = (event: KeyboardEvent, id: string) => {
     if (event.defaultPrevented || (event.key !== "Enter" && event.key !== " "))
@@ -194,6 +200,7 @@ export function createCanvasKeyboard(
     },
     move,
     selectNode,
+    toggleNodeCollapsed,
     activateSocket,
     cancel,
     isEndpoint,

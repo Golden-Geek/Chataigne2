@@ -8,6 +8,7 @@
     "test": "vitest run tests",
     "test:browser": "node tests/browser/canvas-smoke.mjs",
     "test:keyboard": "node tests/browser/graph-keyboard.mjs",
+    "test:keyboard:qualify": "node tests/browser/graph-keyboard-qualification.mjs",
     "test:discovery": "node tests/browser/graph-discovery.mjs",
     "test:qualify": "node tests/browser/canvas-qualification.mjs"
   },

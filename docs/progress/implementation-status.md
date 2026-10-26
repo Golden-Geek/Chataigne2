@@ -5,7 +5,7 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-26 on `main`, based on delivered `6544642b` plus logical graph discovery
+Last reconciled: 2026-10-26 on `main`, based on delivered `e9c5a486` plus graph socket qualification
 delivery below. **P11 is in progress; four of six fixed checkpoints are closed (67% rounded).**
 **P10 is locally complete: three of three fixed checkpoints (100%).**
 **C01-C12 are locally closed: 12/12 packages (100%).
@@ -201,7 +201,7 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
 | Historical log windowing | Complete locally | Variable-height history, filters, follow, bounded native selection, focus and snapshot publication pass through 100k records. [Qualification](p11-log-windowing.md). |
 | Dashboard viewport awareness | Complete locally | All 599 correctness groups and 160 fixed timing combinations pass through 100k authored nodes, including geometry, bounded presentation, feedback, callback stalls and completion. Retention regression passes 13 checkpoints. [Timing qualification](p11-dashboard-timing.md), [composition](p11-dashboard-composition.md), [barriers](p11-dashboard-barriers.md). |
 | Tree focus and keyboard navigation | Complete locally | All four app consumers, 55 constrained-picker groups and shared navigation/lifecycle cases pass through 100k items. All 70 tree timing combinations and 15 collection regression combinations pass fixed gates. [Closure and evidence](p11-tree-closure.md). |
-| Graph keyboard operations | In progress | Shared selection/movement/connection operations, logical discovery and overview focus are delivered. Discovery passes 20 timing combinations / 620 samples through 100k nodes. Collapsed/compound endpoints, actual app adapters and movement/connection timing remain. [Shared operations](p11-graph-keyboard.md), [discovery](p11-graph-discovery.md). |
+| Graph keyboard operations | In progress | Shared operations, logical discovery, overview focus, collapsed/compound body sockets and mutation feedback pass nine correctness groups and 50 timing combinations through 100k nodes. Actual app adapters and authoritative receipt/rejection/reload remain. [Shared operations](p11-graph-keyboard.md), [discovery](p11-graph-discovery.md), [sockets](p11-graph-sockets.md). |
 | Complete composed workflows | Not started | Qualify discovery, selection and editing across all required composed panels and large batches. Native usability retains P17. |
 
 ## Current handoff
@@ -214,12 +214,12 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
   The 13-checkpoint retention regression also passes; test-owned stale references are released.
   Tree closure passes all four app consumers, 55 constrained-picker groups, shared navigation/lifecycle
   checks and **85 timing combinations / 2,635 samples / 255 warmups** through 100k items.
-  Shared graph keyboard selection/movement/endpoint operations now pass their initial production
-  component rejection/lifecycle groups. Owning UI suites pass **400** cases; app Svelte check,
-  retained-canvas smoke and the locked default build pass. Logical discovery/overview focus now pass
-  all 20 fixed timing combinations / 620 samples through 100k nodes. Complete collapsed/compound endpoints,
-  app adapters (Alchemist, state machine, Spatializer), authoritative mutation/rejection/reload and
-  movement/connection timing before closing graph keyboard operations, then composed
+  Shared graph operations now pass nine production correctness groups, including collapsed/compound
+  body sockets and mutation feedback. Discovery passes 20 timing combinations / 620 samples, and
+  movement/connections pass 30 / 930 through 100k nodes. The full canvas regression also passes
+  all 55 action/tier combinations and both dense scenes. Owning UI suites pass **402** cases;
+  app Svelte check and retained-canvas smoke pass. Complete app adapters (Alchemist, state machine,
+  Spatializer) and authoritative receipt/rejection/reload before closing graph keyboard operations, then composed
   workflows. Preserve [composition](p11-dashboard-composition.md) and
   [applied-receipt barriers](p11-dashboard-barriers.md). Native usability retains P17 and product
   throughput P16. P03-P10 remain closed; P03 has zero packages left.
@@ -310,7 +310,7 @@ External qualification is separate from implementation. A historical pass is not
 | P08 Formula backend intents | 100%       | VERIFIED_LOCAL | PASSED four of four checkpoints   | Shared UI/script/HTTP/WS/headless operations, complete atomic fragments, backend connection policy and exact identity replies pass. Final native acceptance uses the default executable and isolated authenticated sessions; later product/platform qualification retains its owners.                                                                        |
 | P09 Graph document          | 100%       | VERIFIED_LOCAL | PASSED three of three checkpoints | Stable storage, indexed structural edits and exact rollback pass. Current/pre-P09 harness preserves 1,240 fixed-delta samples; public default/no-Serde contracts, Alchemist/statechart consumers, native selection drag/delete undo/redo, strict checks and default build qualify the final checkpoint.                                                      |
 | P10 Canvas                  | 100%       | VERIFIED_LOCAL | PASSED three of three checkpoints | Independent revisions/geometry, scoped routes/culling and full production mounted action/frame qualification pass at baseline/normal/stress tiers. All 55 action/tier and two dense scenes pass fixed gates, with 1,767 measured samples, preserved failures, owning UI/browser checks and default build. Native/full-product qualification retains P16/P17. |
-| P11 Workspace UX            | 67%        | IN_PROGRESS    | PASSED four of six checkpoints | Manager/picker/outliner, catalogs, logs, dashboard viewport awareness and tree keyboard interaction pass fixed local gates through 100k entries/authored nodes. Tree closure includes all four app consumers, 55 constrained-picker groups and 85 passing timing combinations. Graph keyboard and composed qualification remain. Native usability open. |
+| P11 Workspace UX            | 67%        | IN_PROGRESS    | PASSED four of six checkpoints | Collections, logs, dashboards and tree interaction pass fixed local gates through 100k items. Shared graph operations/sockets/discovery pass 50 timing combinations; actual graph app adapters and composed qualification remain. Native usability open. |
 | P12 Boundaries/gates        | 0%         | NOT_STARTED    | PENDING                           | App policy leak, omitted graph tests, oversized files, unsafe conversions; recurring incremental native-link artifact gap                                                                                                                                                                                                                                    |
 | P13 Formula execution       | 0%         | NOT_STARTED    | PENDING                           | Historical profiles retained; production parallelism not mandated                                                                                                                                                                                                                                                                                            |
 | P14 Production time         | 0%         | NOT_STARTED    | PENDING                           | Clock helper unwired, no target-frame play, starvation/latency policy gaps                                                                                                                                                                                                                                                                                   |
@@ -10903,3 +10903,53 @@ The final locked default build passes in **2m19s** with a freshly rebuilt fronte
 The [source/build record](evidence/p11-graph-discovery-source-2026-10-26.json) fingerprints 27 source
 inputs and four production fixture assets. Commit/push this verified milestone on `main`, then
 continue the remaining graph requirements above.
+
+### P11 shared graph socket and mutation qualification
+
+Previous goal turn: **progress**, committed/pushed `e9c5a486`. Reconciled its clean checkout before
+continuing the same fixed graph checkpoint; no additional checkpoint or batch denominator was added.
+
+Collapsed nodes now expose native expand/collapse controls when their host provides the persistence
+callback. Nested compound body sockets expose expansion state, keep connected descendants reachable
+and reject hidden endpoints. Missing callbacks cause no optimistic collapse or movement and disable
+connection ports. Source replacement retires sparse expansion state; hiding/disabling an endpoint
+cancels it without suppressing an already-dispatched mutation's eventual failure feedback.
+
+A shared feedback owner now handles connection, movement and collapse requests. Older failures
+retire their own current-owner optimism without replacing newer feedback; per-commit move/collapse
+tokens distinguish equal-value edits. A production regression found direction aliasing: an input
+leaf connection expanded outputs sharing the same IDs. A typed immutable occupancy index now
+separates directions and uses collision-safe length-prefixed keys. Two unit cases and the preserved
+failing/passing browser results qualify the repair. Expansion updates use a sparse map/revision,
+avoiding whole-history object copies for each toggle.
+
+All **nine production correctness groups** pass. The fixed mutation matrix passes **30 combinations /
+930 samples / 90 warmups** through 100k nodes: worst feedback p95 **81.3ms**, completion p95
+**85.6ms**, callback stall **157.6ms**. Discovery also passes **20 / 620 / 60**. The final full canvas
+regression passes **55 action/tier combinations plus both dense scenes / 1,767 samples / 171 warmups**,
+under the original frame/feedback/completion gates. See [socket qualification and raw evidence](p11-graph-sockets.md).
+These are shared presentation/callback results, not proof that every actual app host handles backend
+receipts, rejection and reload correctly.
+
+Owning UI suites pass **402 cases** (27 audio / 58 graph / 191 Golden / 126 app). App Svelte check
+has zero errors/warnings; retained-canvas smoke, both Cargo formatters, package-owned formatting
+and whitespace checks pass. Inventory is **2,206 sources / 27 oversized**; NodeView is 973 lines
+and no touched source exceeds 1,000. The locked default build passes in **2m17s** with a rebuilt
+frontend; binary SHA-256 is `1ee891b653c9e6ec9f4ad14501f901e5369a60f97639e71f52f28ac082fc66e9`.
+The [source/build record](evidence/p11-graph-sockets-source-2026-10-26.json) fingerprints 33 source
+inputs and eight production fixture assets. Rust/protocol are unchanged.
+
+**P11 remains 4/6 closed checkpoints (67% rounded); whole-plan coverage remains 59% (59.259...% exact).**
+Shared socket cases and large-graph timing are delivered. Graph closure now requires the actual app
+adapters and authoritative receipt/rejection/reload:
+
+- Alchemist: `connectNodes` discards its queued mutation promise; queued movement reads reactive owner
+  state when it executes. Correct return/error and captured-owner contracts, splitting the oversized
+  panel cohesively before editing it.
+- State machine: wire the graph interaction lifetime and capture queued persistence ownership before
+  it waits. Qualify source replacement and rejected/stale mutations through the actual adapter.
+- Spatializer: its GraphCanvas uses an empty document with app-owned world content. Qualify that
+  integration and its read-only graph boundary without inventing graph ports.
+
+Then qualify complete composed workflows, the other open P11 checkpoint. Commit/push this verified
+milestone on `main`; keep the full P00-P18 goal active. P03 remains closed with zero packages left.

@@ -15,6 +15,7 @@
 	import { createCanvasMounting } from './canvas/mounting.svelte';
 	import { createCanvasKeyboard } from './canvas/keyboard.svelte';
 	import { createCanvasConnectionRequests } from './canvas/connections.svelte';
+	import { createCanvasMutationFeedback } from './canvas/feedback.svelte';
 	import { createCanvasNavigation } from './canvas/navigation.svelte';
 	import NodeNavigator from './canvas/NodeNavigator.svelte';
 	import { wireViewKey } from '../retained-edges';
@@ -180,20 +181,25 @@
 			return geometry.nodeHeight(node);
 		}
 	});
-	const editing: CanvasEditing = createCanvasEditing(canvasProps, {
-		sourceNode(id) {
-			return geometry.sourceNode(id);
+	const feedback = createCanvasMutationFeedback(canvasProps);
+	const editing: CanvasEditing = createCanvasEditing(
+		canvasProps,
+		{
+			sourceNode(id) {
+				return geometry.sourceNode(id);
+			},
+			get selectedIds() {
+				return gestures.selectedIds;
+			},
+			updateSelection(nodeId, additive) {
+				gestures.updateSelection(nodeId, additive);
+			},
+			startNodeDrag(event, node) {
+				gestures.startNodeDrag(event, node);
+			}
 		},
-		get selectedIds() {
-			return gestures.selectedIds;
-		},
-		updateSelection(nodeId, additive) {
-			gestures.updateSelection(nodeId, additive);
-		},
-		startNodeDrag(event, node) {
-			gestures.startNodeDrag(event, node);
-		}
-	});
+		feedback
+	);
 	const geometry: CanvasGeometry = createCanvasGeometry(canvasProps, viewport, {
 		get dragPositions() {
 			return editing.dragPositions;
@@ -220,7 +226,7 @@
 			return gestures.connectionDraft;
 		}
 	});
-	const connections = createCanvasConnectionRequests(canvasProps);
+	const connections = createCanvasConnectionRequests(canvasProps, feedback);
 	const gestures: CanvasGestures = createCanvasGestures(
 		canvasProps,
 		viewport,
@@ -247,6 +253,8 @@
 	export const moveSelectionWithKeyboard = keyboard.move;
 	export const selectNodeWithKeyboard = keyboard.selectNode;
 	export const activateSocketWithKeyboard = keyboard.activateSocket;
+	export const toggleNodeCollapsed = keyboard.toggleNodeCollapsed;
+	export const toggleSocketExpanded = geometry.toggleSocketExpanded;
 	export const cancelKeyboardConnection = keyboard.cancel;
 	export const keyboardState = () => ({
 		endpoint: keyboard.endpoint,
