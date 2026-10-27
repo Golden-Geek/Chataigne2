@@ -9,22 +9,27 @@ The app's existing script template and module callbacks remain at that same app 
 ## Preparation and publication
 
 The module is passive. Input callbacks request service; they do not calculate the Cartesian matrix
-or traverse generated outputs. One endpoint is normalized per service turn. Endpoint declarations
-and primitive values are read through borrowed snapshot fields, including malformed parameter kinds.
+or traverse generated outputs. The preparation worker identifies noncanonical endpoints; at most
+one listed endpoint is repaired per service turn. Canonical endpoints consume no scan wakes.
+Endpoint declarations and primitive values use borrowed snapshot fields, including malformed kinds.
 
 Count admission precedes copying labels, leasing snapshots, allocating values and starting workers.
 A worker captures one immutable, canonically leased snapshot, then computes a source-major dense
-matrix. Voronoi retains its sparse Delaunay topology and existing influence equations. Temporary
+matrix. `output_plan.rs` also inspects that leased view for changed cells, missing rows and obsolete
+declarations. Only rows requiring work enter publication. Voronoi retains its sparse Delaunay
+topology and existing influence equations. Temporary
 weights scale by endpoints, rather than by the complete Cartesian product. Superseded continuous
 configurations may coalesce; they are not ordered triggers or commands.
 
-Publication retains its prepared result and cursor across turns. Existing rows service 16 pairs
-per turn. Missing rows are assembled as detached `NodeTree` subtrees, at most 32 child parameters
+Publication retains its prepared result and cursor across turns. Existing rows service at most 16
+changed pairs per turn, sharing batches across rows within the unchanged 32-read-guard ceiling.
+Missing rows are assembled as detached `NodeTree` subtrees, at most 32 child parameters
 per turn, and submitted as one structural insertion after preparation finishes. A receipt gates
 the next step. Rejection restarts reconciliation against the actual graph; an applied prefix is
-never replayed as if it had rolled back. Cleanup scans 16 entries and removes at most one outer
-row per turn. Known whole-row insertion/removal may involve up to 4,097 nodes; that is an explicit
-lifecycle bound, not a claim of interactive latency at that size.
+never replayed as if it had rolled back. Cleanup applies the worker's obsolete-declaration list,
+with at most 16 inner entries or one outer row per turn. Known whole-row insertion/removal may
+involve up to 4,097 nodes; that is an explicit lifecycle bound, not a claim of interactive latency
+at that size.
 
 Rows with at most 32 cells retain up to 16 completed detached trees in a bounded forest before
 one guarded application. Construction still creates at most 32 child parameters per service
@@ -51,8 +56,11 @@ so an idle owner can observe a generated row leaving its subtree.
 The source Parameters subtree revision is checked before using a result and at its edit-queue
 position through `NodeReadGuard::capture_subtree`. This includes descendant writes whose callbacks
 have not run. Node-local guards additionally protect the module, destination row and output nodes;
-a native generation guard invalidates cancellation and teardown. The subtree fence shares the
-engine's snapshot cache. A cold fence can rebuild the ordinary full-tree snapshot; this contract
+a native generation guard invalidates cancellation and teardown. The Values subtree revision
+must still match the worker's inspection before a sparse plan is accepted. Structure/meta
+reconciliation and failed receipts recapture a new worker plan against the applied graph;
+they never replay a sparse plan that deliberately omitted unchanged entries. The subtree fence
+shares the engine's snapshot cache. A cold fence can rebuild the ordinary full-tree snapshot; this contract
 does not claim that whole-product snapshot construction is constant time. P09/P16 retain graph
 scale and snapshot-cost qualification.
 
@@ -64,7 +72,7 @@ outcomes. Invalid configuration waits for an authored change; idle modules do no
 Prepared results are released to the background disposer after publication settles,
 so idle modules do not permanently occupy preparation capacity.
 
-Bounded normalization/publication scans retain one canonically leased read view across read-only
+Bounded normalization/publication continuations retain one canonically leased read view across read-only
 turns. Inbox delivery, new input requests, cancellation and queued edits invalidate it, and the
 next wake requests a fresh engine snapshot. The original apply-time source/path fences still
 validate queued writes against current engine state, including changes whose callbacks have not
@@ -72,13 +80,20 @@ run. Idle, disabled, rejected and failed service paths release the view through 
 snapshot disposer. This removes repeated full-tree construction from unchanged continuation
 turns; cold snapshots after mutations keep their existing cost and qualification requirements.
 
+Prepared admission includes dense values and sparse pair-index capacity (24 bytes per admitted
+pair), endpoint/row/repair storage, and 16 bytes per snapshot record for obsolete output IDs.
+The latter is deliberately conservative: generated obsolete records can outnumber the new matrix
+after an orientation/count change. Count admission and lifetime reservation still precede worker
+allocation, and the shared 128 MiB ceiling remains unchanged. Plan storage and leased views keep
+their existing background destruction path.
+
 | Resource                                      | Admission / service bound                                                       |
 | --------------------------------------------- | ------------------------------------------------------------------------------- |
 | Sources / targets                             | 4,096 each; at most 1,048,576 pairs, checked before allocation                  |
 | Endpoint label / direct children              | 512 bytes / 16 children                                                         |
 | Root parameter children / enum token          | 32 children / 64 bytes                                                          |
 | Prepared lifetimes                            | 64 entries / 128 MiB process-wide, including final disposal                     |
-| Prepared reservation                          | 64 KiB + 4,096 bytes per endpoint + 8 bytes per pair; includes geometry scratch |
+| Prepared reservation                          | 64 KiB + 4,096 bytes per endpoint + 24 bytes per pair + 16 bytes per snapshot record |
 | Detached row lifetimes                        | 16 entries / 128 MiB process-wide; 16 KiB + 8 KiB per planned node              |
 | Queued edit lifetimes                         | 64 entries / 64 MiB process-wide; 1 MiB per admitted batch                      |
 | Active workers                                | Four process-wide / one per module, including cancellation and cleanup          |

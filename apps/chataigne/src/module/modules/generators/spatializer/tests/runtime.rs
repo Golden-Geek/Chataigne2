@@ -2,6 +2,7 @@ use super::super::{publication, worker};
 use super::*;
 
 mod row_batches;
+mod sparse;
 use golden_core::{
     edit::{EditCompletionStatus, EditQueue},
     engine::EngineEditError,
@@ -104,28 +105,35 @@ fn count_and_byte_admission_preserves_supported_math_range() {
     assert!(worker::admit(0, 0).unwrap() > 0);
     assert_eq!(
         worker::admit(512, 1024).unwrap(),
-        64 * 1024 + 1536 * 4096 + 512 * 1024 * 8
+        64 * 1024 + 1536 * 4096 + 512 * 1024 * 24
     );
 }
 
 #[test]
-fn unchanged_service_turns_reuse_the_read_view_but_input_delivery_retires_it() {
+fn canonical_inputs_start_the_worker_without_endpoint_scan_wakes() {
     let (mut engine, id) = create_spatializer_module();
     let position = find_path(&engine, source(&engine, id), "position_2d").unwrap();
+    let control = Arc::new(worker::TestControl::default());
+    module(&mut engine, id).service.control = Some(control.clone());
     module(&mut engine, id).service.cancel();
     module(&mut engine, id).service.request();
     engine.run_tick(Duration::from_millis(2)).unwrap();
     assert!(engine.tick_stats().snapshot_builds > 0);
-    assert!(!module(&mut engine, id).worker_wake_requires_tree_snapshot());
+    let deadline = Instant::now() + Duration::from_secs(2);
+    while !control.entered.load(Ordering::Acquire) {
+        assert!(Instant::now() < deadline);
+        std::thread::sleep(Duration::from_millis(1));
+    }
 
     engine.run_tick(Duration::from_millis(2)).unwrap();
-    assert_eq!(engine.tick_stats().wake_callbacks_fired, 1);
+    assert_eq!(engine.tick_stats().wake_callbacks_fired, 0);
     assert_eq!(engine.tick_stats().snapshot_builds, 0);
-    assert!(!module(&mut engine, id).worker_wake_requires_tree_snapshot());
 
     set_param(&mut engine, position, ParamValue::Vec2(0.5, 0.0));
     engine.dispatch_inbox(ExecutionPhase::EngineTick).unwrap();
     assert!(module(&mut engine, id).worker_wake_requires_tree_snapshot());
+    module(&mut engine, id).service.control = None;
+    control.released.store(true, Ordering::Release);
     stabilize(&mut engine);
     assert!(module(&mut engine, id).service.idle());
     assert!(module(&mut engine, id).worker_wake_requires_tree_snapshot());
@@ -137,7 +145,7 @@ fn output_delivery_and_queued_publication_cannot_keep_a_stale_read_view() {
     module(&mut engine, id).service.cancel();
     module(&mut engine, id).service.request();
     engine.run_tick(Duration::from_millis(2)).unwrap();
-    assert!(!module(&mut engine, id).worker_wake_requires_tree_snapshot());
+    assert!(module(&mut engine, id).worker_wake_requires_tree_snapshot());
 
     set_param(&mut engine, cell, ParamValue::Float(0.25));
     engine.dispatch_inbox(ExecutionPhase::EngineTick).unwrap();
@@ -255,6 +263,7 @@ fn process_capacity_includes_blocked_and_cancelled_preparations() {
                 parameters,
                 sources,
                 targets,
+                values: find_path(&engine, id, "values").unwrap(),
             },
             &owner,
             life.reader().guard_at(0),
@@ -270,7 +279,8 @@ fn process_capacity_includes_blocked_and_cancelled_preparations() {
         worker::Roots {
             parameters,
             sources,
-            targets
+            targets,
+            values: find_path(&engine, id, "values").unwrap(),
         },
         &extra,
         life.reader().guard_at(0),

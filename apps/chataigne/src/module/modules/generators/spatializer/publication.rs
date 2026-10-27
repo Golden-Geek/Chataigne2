@@ -56,13 +56,6 @@ impl Publication {
             batch: None,
         }
     }
-    pub fn reset(&mut self) {
-        self.outer = 0;
-        self.phase = Phase::Outer;
-        self.row = None;
-        self.row_filled = 0;
-        self.batch = None;
-    }
     pub fn done(&self) -> bool {
         matches!(self.phase, Phase::Done)
     }
@@ -84,25 +77,20 @@ impl Publication {
         }
     }
     fn parameter(&self, inner: usize) -> Parameter {
-        let outer = &self.prepared.outer()[self.outer];
+        let index = self.work().index;
+        let outer = &self.prepared.outer()[index];
         let point = &self.prepared.inner()[inner];
-        let value = self.prepared.value(self.outer, inner);
+        let value = self.prepared.value(index, inner);
         match self.prepared.config.value_layout {
             SpatializerValueLayout::SourceCentric => target_value_param(outer, point, value),
             SpatializerValueLayout::TargetCentric => source_value_param(outer, point, value),
         }
     }
-    fn outer_decls(&self) -> &HashSet<String> {
-        match self.prepared.config.value_layout {
-            SpatializerValueLayout::SourceCentric => &self.prepared.source_decls,
-            SpatializerValueLayout::TargetCentric => &self.prepared.target_decls,
-        }
+    fn plan(&self) -> &output_plan::Plan {
+        self.prepared.output.as_ref().unwrap()
     }
-    fn inner_decls(&self) -> &HashSet<String> {
-        match self.prepared.config.value_layout {
-            SpatializerValueLayout::SourceCentric => &self.prepared.target_decls,
-            SpatializerValueLayout::TargetCentric => &self.prepared.source_decls,
-        }
+    fn work(&self) -> &output_plan::Row {
+        &self.plan().rows[self.outer]
     }
 
     pub fn step(
@@ -111,6 +99,35 @@ impl Publication {
         values: NodeId,
         edits: &mut EditQueue,
         reads: &mut Vec<NodeReadGuard>,
+    ) -> Result<(), String> {
+        let mut remaining = PAIRS_PER_TURN;
+        while remaining > 0 && reads.len() < 26 && !self.done() {
+            // Detached row construction keeps its independent 32-child turn
+            // bound. Only sparse existing-row work shares a publication turn.
+            let detached = matches!(self.phase, Phase::Outer)
+                && self.outer < self.plan().rows.len()
+                && snapshot
+                    .find_child_by_decl_id(values, &self.prepared.outer()[self.work().index].value_decl_id)
+                    .is_none();
+            if detached && (!edits.pending.is_empty() || remaining != PAIRS_PER_TURN) {
+                break;
+            }
+            let had_batch = self.batch.is_some();
+            self.step_one(snapshot, values, edits, reads, &mut remaining)?;
+            if detached || had_batch || self.batch.is_some() {
+                break;
+            }
+        }
+        Ok(())
+    }
+
+    fn step_one(
+        &mut self,
+        snapshot: &ProcessTreeSnapshot,
+        values: NodeId,
+        edits: &mut EditQueue,
+        reads: &mut Vec<NodeReadGuard>,
+        remaining: &mut usize,
     ) -> Result<(), String> {
         if self
             .batch
@@ -124,7 +141,7 @@ impl Publication {
             self.row = None;
             self.row_filled = 0;
         }
-        if self.outer >= self.prepared.outer().len() && !matches!(self.phase, Phase::CleanupOuter(_) | Phase::Done) {
+        if self.outer >= self.plan().rows.len() && !matches!(self.phase, Phase::CleanupOuter(_) | Phase::Done) {
             self.phase = Phase::CleanupOuter(0);
         }
         if self.batch.is_some() && !matches!(self.phase, Phase::Outer) {
@@ -133,7 +150,7 @@ impl Publication {
         }
         match self.phase {
             Phase::Outer => {
-                let outer = &self.prepared.outer()[self.outer];
+                let outer = &self.prepared.outer()[self.work().index];
                 let uuid = match self.prepared.config.value_layout {
                     SpatializerValueLayout::SourceCentric => source_folder_uuid(outer.item_uuid),
                     SpatializerValueLayout::TargetCentric => target_folder_uuid(outer.item_uuid),
@@ -217,7 +234,7 @@ impl Publication {
                             .batch
                             .as_ref()
                             .is_some_and(|batch| batch.rows.len() == ROWS_PER_BATCH)
-                            || self.outer == self.prepared.outer().len()
+                            || self.outer == self.plan().rows.len()
                         {
                             self.flush_rows(values, edits, reads);
                         }
@@ -225,19 +242,21 @@ impl Publication {
                 }
             }
             Phase::Pairs(start) => {
-                let outer = &self.prepared.outer()[self.outer];
+                let outer = &self.prepared.outer()[self.work().index];
                 let Some(folder) = snapshot.find_child_by_decl_id(values, &outer.value_decl_id) else {
                     self.phase = Phase::Outer;
                     return Ok(());
                 };
                 reads.push(NodeReadGuard::capture(snapshot, folder).unwrap());
-                let end = (start + PAIRS_PER_TURN).min(self.prepared.inner().len());
-                for inner in start..end {
+                let count = (*remaining).min((28 - reads.len()) / 2);
+                let end = (start + count).min(self.work().pairs.len());
+                for cursor in start..end {
+                    let inner = self.work().pairs[cursor];
                     let point = &self.prepared.inner()[inner];
                     if let Some(id) = snapshot.find_child_by_decl_id(folder, &point.value_decl_id) {
                         let node = snapshot.node(id).ok_or("Spatializer output disappeared")?;
                         reads.push(NodeReadGuard::capture(snapshot, id).unwrap());
-                        let value = self.prepared.value(self.outer, inner);
+                        let value = self.prepared.value(self.work().index, inner);
                         if !matches!(node.param_value, Some(ParamValue::Float(_))) {
                             let mut replacement = self.parameter(inner);
                             replacement.node_data_mut().meta.uuid = node.uuid;
@@ -282,62 +301,49 @@ impl Publication {
                         });
                     }
                 }
-                self.phase = if end == self.prepared.inner().len() {
+                *remaining -= end - start;
+                self.phase = if end == self.work().pairs.len() {
                     Phase::CleanupInner(0)
                 } else {
                     Phase::Pairs(end)
                 };
             }
             Phase::CleanupInner(start) => {
-                let outer = &self.prepared.outer()[self.outer];
+                let outer = &self.prepared.outer()[self.work().index];
                 let Some(folder) = snapshot.find_child_by_decl_id(values, &outer.value_decl_id) else {
                     self.phase = Phase::Outer;
                     return Ok(());
                 };
                 reads.push(NodeReadGuard::capture(snapshot, folder).unwrap());
-                let children = snapshot.child_ids_slice(folder);
-                let mut removed = 0;
-                for id in children.iter().skip(start).take(PAIRS_PER_TURN) {
-                    let Some(node) = snapshot.node(*id) else { continue };
-                    if generated(&node.decl_id)
-                        && (!self.inner_decls().contains(&node.decl_id)
-                            || snapshot.find_child_by_decl_id(folder, &node.decl_id) != Some(*id))
-                    {
+                let end = (start + (*remaining).min(28 - reads.len())).min(self.work().removals.len());
+                for id in &self.work().removals[start..end] {
+                    if snapshot.node(*id).is_some_and(|node| node.parent == Some(folder)) {
                         reads.push(NodeReadGuard::capture(snapshot, *id).unwrap());
                         edits.push(Edit::RemoveNode { node: *id });
-                        removed += 1;
                     }
                 }
-                if start + PAIRS_PER_TURN >= children.len() {
+                *remaining -= end - start;
+                if end == self.work().removals.len() {
                     self.outer += 1;
                     self.phase = Phase::Outer;
                 } else {
-                    self.phase = Phase::CleanupInner(start + PAIRS_PER_TURN - removed);
+                    self.phase = Phase::CleanupInner(end);
                 }
             }
             Phase::CleanupOuter(start) => {
-                let children = snapshot.child_ids_slice(values);
-                let mut removed = 0;
                 // One whole-row removal per turn bounds lifecycle work by the
                 // admitted row size; never submit a Cartesian removal batch.
-                let mut visited = 0;
-                for id in children.iter().skip(start).take(PAIRS_PER_TURN) {
-                    visited += 1;
-                    let Some(node) = snapshot.node(*id) else { continue };
-                    if generated(&node.decl_id)
-                        && (!self.outer_decls().contains(&node.decl_id)
-                            || snapshot.find_child_by_decl_id(values, &node.decl_id) != Some(*id))
-                    {
+                if let Some(id) = self.plan().removals.get(start) {
+                    if snapshot.node(*id).is_some_and(|node| node.parent == Some(values)) {
                         reads.push(NodeReadGuard::capture(snapshot, *id).unwrap());
                         edits.push(Edit::RemoveNode { node: *id });
-                        removed = 1;
-                        break;
                     }
+                    *remaining = 0;
                 }
-                self.phase = if start + visited >= children.len() {
+                self.phase = if start + 1 >= self.plan().removals.len() {
                     Phase::Done
                 } else {
-                    Phase::CleanupOuter(start + visited - removed)
+                    Phase::CleanupOuter(start + 1)
                 };
             }
             Phase::Done => {}
@@ -354,10 +360,6 @@ fn publish_row(row: DetachedRow, values: NodeId, edits: &mut EditQueue) {
         prev_sibling: None,
     });
     edits.retain_payload(row);
-}
-
-fn generated(decl: &str) -> bool {
-    decl.starts_with(VALUE_SOURCE_DECL_PREFIX) || decl.starts_with(VALUE_TARGET_DECL_PREFIX)
 }
 
 /// Generated identities have one owner. Restore a moved node instead of

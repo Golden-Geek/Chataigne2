@@ -5,8 +5,8 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-27 on `main`, based on delivered `b2ca17d1` plus the timing-runner
-evidence below. **P11 is in progress; four of six fixed checkpoints are closed (67% rounded).**
+Last reconciled: 2026-10-27 on `main`, based on delivered `7f5f31f1` plus the verified sparse-publication
+repair below. **P11 is in progress; four of six fixed checkpoints are closed (67% rounded).**
 **P10 is locally complete: three of three fixed checkpoints (100%).**
 **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
@@ -250,9 +250,19 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
   passing cases; it is incomplete, not a terminal failure. A directed 10k creation run completes
   all 3 warmups / 31 retained samples but fails the unchanged completion gate: **8,931.6ms p95
   against 2,000ms**; feedback is 51.8ms and maximum callback stall 8.4ms.
-  **Next: move canonical-endpoint/output inspection off the engine turn and publish sparse
-  changes in bounded guarded batches, then rerun all 60 fixed timing cases / 1,860 retained
-  samples / 180 warmups.** See [timing evidence](evidence/p11-spatializer-timing-runner-2026-10-27.json).
+  The current repair moves canonical endpoint/output inspection to the existing worker and
+  publishes only changed cells in bounded guarded batches across rows. All **50 owning tests**,
+  strict workspace/all-target Clippy, the normal bundled build and **25 native Spatializer
+  regression groups** pass. The identical directed 10k creation case now passes at **307.9ms
+  completion p95**, with 53ms feedback / 8.6ms maximum callback stall, all 34 samples and restores.
+  All **16 pressure groups pass** again on the repaired executable. The complete default timing
+  attempt records **19 passing cases**, then fails Voronoi 50k single-target movement: feedback
+  p95 **281.5ms vs 200ms**. Completion is also 281.5ms (passes), maximum callback stall 20.8ms
+  (passes). All 34 samples complete; no full timing qualification or new checkpoint is claimed.
+  Full-run 10k creation completion p95 is 329.6ms and 20k is 982.8ms, both passing.
+  **Next: repair keyboard-operation feedback, then rerun all 60 unchanged timing cases / 1,860
+  retained samples / 180 warmups.** See [sparse-publication evidence](evidence/p11-spatializer-sparse-publication-2026-10-27.json).
+  Earlier [timing evidence](evidence/p11-spatializer-timing-runner-2026-10-27.json) preserves the failure.
   Complete Spatializer actual-app scale before closing graph keyboard operations, then composed
   workflows. Preserve [composition](p11-dashboard-composition.md) and
   [applied-receipt barriers](p11-dashboard-barriers.md). Native usability retains P17 and product
@@ -11600,3 +11610,38 @@ milestone, preserving the product timing failure explicitly. Next move canonical
 unchanged matrix inspection to the worker, then apply sparse changes in bounded guarded batches.
 Rerun the complete unchanged 60-case matrix before closure, then composed workflows.
 **P03 is 12/12 (100%), P11 remains 4/6 (67%), whole plan 59%.** Keep the full goal active.
+
+### P11 worker-owned sparse publication — 2026-10-27
+
+Reconciled delivered `7f5f31f1` on `main` with matching `origin/main`. Previous implementation
+work made **progress** through the timing runner and retained 10k creation failure; the intervening
+P03 status answer was **no progress**. No blocking condition applies.
+
+Moved canonical-endpoint inspection and unchanged matrix traversal to the existing snapshot-leased
+worker. Its retained result contains only endpoint repairs, active rows, changed pair indices and
+obsolete declarations. The engine repairs one listed endpoint per turn and applies sparse changes
+across rows within 16-pair / 32-read bounds. Missing-row forests and 32-child construction retain
+their existing guards/lifetimes. Values revisions fence plan acceptance; failed suffixes and
+structure/meta changes recapture the actual graph rather than replaying omitted work. Prepared
+admission now accounts sparse indices and obsolete IDs within the unchanged 128 MiB ceiling.
+
+- **50 owning tests pass**, including six new sparse/creation/stale-output/live-bound regressions.
+  The initial run passed 42/44; two old scan-wake assertions were updated for direct worker startup.
+- Strict workspace/all-target Clippy, normal bundled build, explicit app Rustfmt, root/Core Cargo
+  formatting and diff checks pass. All **12 navigation + 13 authoring native groups pass**.
+- The complete default **16 pressure groups pass** again across four modes, 50k/100k and both caps.
+- Directed 10k creation now passes at **307.9ms completion p95** (previously 8,931.6ms); feedback
+  is 53ms / maximum callback stall 8.6ms. All 3 warmups / 31 retained samples and restores complete.
+- The full unchanged timing attempt independently passes 10k creation at 329.6ms and 20k at
+  982.8ms. It records **19 passing cases**, then fails Voronoi **50k single-move feedback:
+  281.5ms p95 vs 200ms**. Completion 281.5ms and maximum callback stall 20.8ms pass. All 34 samples
+  complete. This is a retained product timing failure; no full timing/checkpoint closure is claimed.
+
+[Evidence](evidence/p11-spatializer-sparse-publication-2026-10-27.json) retains raw samples,
+all pressure outcomes, reference-machine details and source/binary/report fingerprints. Inventory
+is **2,293 sources / 25 existing oversized**; publication 400 lines, service 522, worker 312,
+output plan 91, runtime tests 645 and new sparse suite 235. Deliver the verified sparse-publication
+repair on `main`, preserving the remaining 50k feedback failure. Next inspect keyboard feedback:
+relative operations currently await receipts without the pointer gesture's pending preview.
+Preserve backend relative-edit policy and geometry/focus/rejection checks, then rerun all 60 fixed
+cases before composed workflows. **P03 stays 100%, P11 4/6 (67%), whole plan 59%.** Goal stays active.

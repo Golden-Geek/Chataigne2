@@ -8,7 +8,7 @@ a UI protocol snapshot. Output evaluation throughput retains P16; physical input
 usability retains P17.
 
 **All 20 calibration roundtrips and 16 correctness pressure groups pass. The 60-case timing
-runner is implemented; qualification is incomplete, with a measured 10k creation failure.** P11 remains
+runner is implemented; 10k creation is repaired, but 50k keyboard feedback fails its gate.** P11 remains
 4/6 checkpoints (67% rounded), with whole-plan coverage at 59%. This document and the
 [machine-readable contract](../../apps/chataigne/ui/tests/browser/app-graph-scale/spatializer-contract.mjs)
 fix scope before action timing. Delivery commits do not add acceptance cases.
@@ -303,3 +303,34 @@ for qualification. Next repair the app-owned preparation/publication boundary: c
 and unchanged matrix inspection currently consume repeated engine turns. Keep computation on
 the existing worker and apply sparse changes with bounded guards. Rerun the unchanged full matrix
 after that repair. **P11 remains 4/6 (67% rounded), whole plan 59%.**
+
+## Sparse publication and keyboard-feedback failure
+
+The worker now identifies noncanonical endpoints and sparse output changes from its leased
+immutable snapshot. Canonical endpoints require no normalization scan wakes; unchanged cells
+require no publication scan wakes. Existing-row edits share bounded batches across rows, with
+at most 16 changed pairs and 32 node read guards. Detached construction keeps its 32-child turn
+bound and existing small-row forests. Prepared accounting includes pair-index/removal storage
+within the original 128 MiB pool. Values revisions fence worker-plan acceptance; failed receipts
+and structure/meta reconciliation capture a new plan against the actual applied prefix.
+
+All **50 owning Spatializer tests** pass, including six new sparse-plan, creation, stale-output
+and live endpoint-bound regressions. Strict workspace/all-target Clippy, the normal bundled app
+build, app/root/Core formatting and all **25 Spatializer native regression groups** pass.
+The repaired executable also passes the complete unchanged **16-group pressure selection**.
+
+The directed 10k creation reproduction now passes at **307.9ms completion p95**, versus the
+retained 8,931.6ms failure. The default full timing attempt independently passes that case at
+329.6ms, and 20k creation at 982.8ms. All required samples and undo restores complete.
+
+That full timing attempt records **19 passing cases**, then fails case 20: Voronoi 50k
+single-target movement has **281.5ms first-feedback p95 against the 200ms gate**. Completion
+is 281.5ms and maximum callback stall is 20.8ms, both within their limits. No gate, scene density
+or sample count changed. This is a new measured remaining failure, not full timing qualification.
+The [sparse-publication evidence](evidence/p11-spatializer-sparse-publication-2026-10-27.json)
+retains every sample, source/binary/report fingerprint, all pressure outcomes and machine details.
+
+Next inspect the app-owned keyboard interaction feedback path: relative keyboard edits currently
+wait for the backend receipt without the pointer gesture's pending preview. Keep relative-edit
+policy in the backend, preserve actual rendered geometry/focus and failure retirement, and rerun
+the complete fixed timing matrix after repair. **P11 remains 4/6 (67%), whole plan 59%.**

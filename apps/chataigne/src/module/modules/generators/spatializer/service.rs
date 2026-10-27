@@ -24,6 +24,7 @@ struct Normalize {
     targets: NodeId,
     counts: (usize, usize),
     index: usize,
+    prepared: RetainedPayload<worker::Prepared>,
 }
 
 pub(super) struct Service {
@@ -176,9 +177,8 @@ impl Service {
             }
             if receipt.status() == EditCompletionStatus::Failed {
                 self.normalize = None;
-                if let Some(publication) = &mut self.publication {
-                    publication.reset();
-                }
+                self.publication = None;
+                self.job_revision = None;
                 self.settled = None;
                 self.reconcile = true;
             }
@@ -258,8 +258,27 @@ impl Service {
             self.job = None;
             match result {
                 Ok(prepared) => {
-                    self.publication = Some(publication::Publication::new(prepared));
-                    self.reconcile = false;
+                    if !prepared.repairs.is_empty() {
+                        self.normalize = Some(Normalize {
+                            dimension,
+                            mode,
+                            sources,
+                            targets,
+                            counts,
+                            index: 0,
+                            prepared,
+                        });
+                        self.job_revision = None;
+                    } else if prepared.output.as_ref().map(|plan| plan.revision) == snapshot.subtree_revision(values) {
+                        self.publication = Some(publication::Publication::new(prepared));
+                        self.reconcile = false;
+                    } else {
+                        // Output changed while the worker was inspecting it. Recapture
+                        // before applying a plan that deliberately omits unchanged cells.
+                        self.job_revision = None;
+                        self.request();
+                        return Ok(());
+                    }
                 }
                 Err(error) => {
                     self.job_revision = None;
@@ -280,8 +299,11 @@ impl Service {
             let publication = self.publication.as_mut().unwrap();
             if publication.done() {
                 if self.reconcile {
-                    publication.reset();
+                    self.publication = None;
+                    self.job_revision = None;
                     self.reconcile = false;
+                    self.request();
+                    return Ok(());
                 } else {
                     self.settled = Some(revision);
                     self.publication = None;
@@ -299,9 +321,8 @@ impl Service {
             publication.step(&snapshot, values, &mut edits, &mut reads)?;
             edits.retain_payload(publication.prepared.clone());
             if let Err(error) = self.submit(ctx, &snapshot, module, values, edits, reads, admission) {
-                if let Some(publication) = &mut self.publication {
-                    publication.reset();
-                }
+                self.publication = None;
+                self.job_revision = None;
                 return Err(error);
             }
             if self.pending.is_none() {
@@ -349,35 +370,28 @@ impl Service {
             self.submit(ctx, &snapshot, module, values, edits, reads, admission)?;
             return Ok(());
         }
-        if self.normalize.as_ref().is_none_or(|scan| {
+        if self.normalize.as_ref().is_some_and(|scan| {
             scan.dimension != dimension
                 || scan.mode != mode
                 || scan.sources != sources
                 || scan.targets != targets
                 || scan.counts != counts
         }) {
-            self.normalize = Some(Normalize {
-                dimension,
-                mode,
-                sources,
-                targets,
-                counts,
-                index: 0,
-            });
+            self.normalize = None;
         }
-        let scan = self.normalize.as_mut().unwrap();
-        if scan.index < counts.0 + counts.1 {
-            let source = scan.index < counts.0;
-            let (list, index) = if source {
-                (sources, scan.index)
-            } else {
-                (targets, scan.index - counts.0)
-            };
-            let id = snapshot.child_ids_slice(list)[index];
-            let item = snapshot.node(id).ok_or("Spatializer endpoint disappeared")?;
-            if item.label.len() > worker::MAX_LABEL_BYTES
-                || snapshot.child_ids_slice(id).len() > worker::MAX_ENDPOINT_CHILDREN
-            {
+        if let Some(scan) = self
+            .normalize
+            .as_mut()
+            .filter(|scan| scan.index < scan.prepared.repairs.len())
+        {
+            let (id, source) = scan.prepared.repairs[scan.index];
+            // Normalization itself changes the input revision. Recheck the
+            // bounded endpoint shape before each live repair, including edits
+            // authored after the worker captured this repair list.
+            if snapshot.node(id).is_some_and(|item| {
+                item.label.len() > worker::MAX_LABEL_BYTES
+                    || snapshot.child_ids_slice(id).len() > worker::MAX_ENDPOINT_CHILDREN
+            }) {
                 self.cancel();
                 self.rejected = Some(revision);
                 self.warning(
@@ -387,13 +401,15 @@ impl Service {
                 );
                 return Ok(());
             }
-            if item.node_type
-                == if source {
-                    SpatializerSourceItem::NODE_TYPE
-                } else {
-                    SpatializerTargetItem::NODE_TYPE
-                }
-            {
+            if snapshot.node(id).is_some_and(|item| {
+                item.parent == Some(if source { sources } else { targets })
+                    && item.node_type
+                        == if source {
+                            SpatializerSourceItem::NODE_TYPE
+                        } else {
+                            SpatializerTargetItem::NODE_TYPE
+                        }
+            }) {
                 let mut repair = ProcessCtx::new(ctx.phase, ctx.time);
                 sync_position_child(&mut repair, &snapshot, id, dimension);
                 sync_radius_child(
@@ -430,6 +446,7 @@ impl Service {
                 parameters,
                 sources,
                 targets,
+                values,
             },
             &self.owner,
             self.life.reader().guard_at(self.generation),

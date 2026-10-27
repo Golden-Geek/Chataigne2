@@ -3,10 +3,10 @@ use golden_core::edit::NodeReadGuard;
 use golden_io::{PayloadPool, RetainedPayload, RetirementPool, RevisionGuard, WorkerNotifier};
 use std::{
     num::NonZeroUsize,
-    panic::{AssertUnwindSafe, catch_unwind},
+    panic::{catch_unwind, AssertUnwindSafe},
     sync::{
-        Arc, Mutex, OnceLock,
         atomic::{AtomicBool, Ordering},
+        Arc, Mutex, OnceLock,
     },
 };
 
@@ -29,6 +29,8 @@ pub(super) struct Prepared {
     pub input_guard: NodeReadGuard,
     pub source_decls: HashSet<String>,
     pub target_decls: HashSet<String>,
+    pub repairs: Vec<(NodeId, bool)>,
+    pub output: Option<output_plan::Plan>,
 }
 
 impl Prepared {
@@ -73,6 +75,7 @@ pub(super) struct Roots {
     pub parameters: NodeId,
     pub sources: NodeId,
     pub targets: NodeId,
+    pub values: NodeId,
 }
 type ResultSlot = Arc<Mutex<Option<Result<RetainedPayload<Prepared>, Failure>>>>;
 pub(super) struct Job {
@@ -108,9 +111,9 @@ pub(super) fn admit(sources: usize, targets: usize) -> Result<usize, String> {
     if sources > MAX_ENDPOINTS || targets > MAX_ENDPOINTS || pairs > MAX_PAIRS {
         return Err("Spatializer supports up to 4096 sources, 4096 targets and 1048576 pairs".into());
     }
-    // Includes endpoint strings/sets/capacity rounding, dense values, Delaunay
-    // scratch and per-source temporary weights. Scratch never scales by pairs.
-    Ok(64 * 1024 + (sources + targets) * 4096 + pairs * size_of::<f64>())
+    // Includes endpoint strings/sets/repair and row plans, dense values, sparse
+    // pair-index capacity rounding, Delaunay scratch and temporary weights.
+    Ok(64 * 1024 + (sources + targets) * 4096 + pairs * 24)
 }
 
 pub(super) fn start(
@@ -125,11 +128,14 @@ pub(super) fn start(
         parameters,
         sources,
         targets,
+        values: values_root,
     } = roots;
     let weight = admit(
         snapshot.child_ids_slice(sources).len(),
         snapshot.child_ids_slice(targets).len(),
-    )?;
+    )?
+    .checked_add(snapshot.node_count().saturating_mul(16))
+    .ok_or("Spatializer publication plan size overflow")?;
     let reservation = pool()?
         .try_reserve(weight)
         .map_err(|_| "Spatializer preparation lifetime capacity is full")?;
@@ -164,17 +170,26 @@ pub(super) fn start(
                     if !generation.is_current() {
                         return Err(Failure::Retry("Spatializer preparation superseded"));
                     }
-                    let config = capture(&source, parameters, sources, targets)?;
-                    let values = math::dense_values(&config, || !generation.is_current())
-                        .ok_or(Failure::Retry("Spatializer preparation superseded"))?;
-                    let prepared = Prepared {
+                    let (config, repairs) = capture(&source, parameters, sources, targets)?;
+                    let values = if repairs.is_empty() {
+                        math::dense_values(&config, || !generation.is_current())
+                            .ok_or(Failure::Retry("Spatializer preparation superseded"))?
+                    } else {
+                        Vec::new()
+                    };
+                    let mut prepared = Prepared {
                         source_decls: config.sources.iter().map(|e| e.value_decl_id.clone()).collect(),
                         target_decls: config.targets.iter().map(|e| e.value_decl_id.clone()).collect(),
                         config,
                         values,
                         input_guard: NodeReadGuard::capture_subtree(&source, parameters)
                             .ok_or("Spatializer parameters disappeared")?,
+                        repairs,
+                        output: None,
                     };
+                    if prepared.repairs.is_empty() {
+                        prepared.output = Some(output_plan::capture(&source, values_root, &prepared, &generation)?);
+                    }
                     reservation
                         .retain(prepared, weight)
                         .map_err(|_| Failure::Retry("Spatializer prepared result exceeds its reservation"))
@@ -218,16 +233,22 @@ fn capture(
     parameters: NodeId,
     sources: NodeId,
     targets: NodeId,
-) -> Result<SpatializerConfig, Failure> {
+) -> Result<(SpatializerConfig, Vec<(NodeId, bool)>), Failure> {
     admit(
         snapshot.child_ids_slice(sources).len(),
         snapshot.child_ids_slice(targets).len(),
     )?;
     let (dimension, mode, value_layout) = controls(snapshot, parameters)?;
-    let capture_items = |parent, source| -> Result<Vec<SpatializerEndpointConfig>, Failure> {
+    let mut repairs = Vec::new();
+    let mut capture_items = |parent, source| -> Result<Vec<SpatializerEndpointConfig>, Failure> {
         let mut endpoints = Vec::with_capacity(snapshot.child_ids_slice(parent).len());
         for id in snapshot.child_ids_slice(parent) {
             let Some(node) = snapshot.node(*id) else { continue };
+            if node.label.len() > MAX_LABEL_BYTES || snapshot.child_ids_slice(*id).len() > MAX_ENDPOINT_CHILDREN {
+                return Err(
+                    "Spatializer endpoints support labels up to 512 bytes and at most 16 direct children".into(),
+                );
+            }
             if node.node_type
                 != if source {
                     SpatializerSourceItem::NODE_TYPE
@@ -237,13 +258,8 @@ fn capture(
             {
                 continue;
             }
-            if node.label.len() > MAX_LABEL_BYTES || snapshot.child_ids_slice(*id).len() > MAX_ENDPOINT_CHILDREN {
-                return Err(
-                    "Spatializer endpoints support labels up to 512 bytes and at most 16 direct children".into(),
-                );
-            }
             if !endpoint_ready(snapshot, *id, dimension, mode, source) {
-                return Err(Failure::Retry("Spatializer endpoint normalization required"));
+                repairs.push((*id, source));
             }
             let prefix = if source {
                 VALUE_SOURCE_DECL_PREFIX
@@ -254,13 +270,14 @@ fn capture(
         }
         Ok(endpoints)
     };
-    Ok(SpatializerConfig {
+    let config = SpatializerConfig {
         dimension,
         mode,
         value_layout,
         sources: capture_items(sources, true)?,
         targets: capture_items(targets, false)?,
-    })
+    };
+    Ok((config, repairs))
 }
 
 fn endpoint_ready(
