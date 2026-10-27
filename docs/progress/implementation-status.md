@@ -5,7 +5,7 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-27 on `main`, based on delivered `7f5f31f1` plus the verified sparse-publication
+Last reconciled: 2026-10-27 on `main`, based on delivered `ff5aac39` plus the verified keyboard-feedback
 repair below. **P11 is in progress; four of six fixed checkpoints are closed (67% rounded).**
 **P10 is locally complete: three of three fixed checkpoints (100%).**
 **C01-C12 are locally closed: 12/12 packages (100%).
@@ -260,8 +260,18 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
   p95 **281.5ms vs 200ms**. Completion is also 281.5ms (passes), maximum callback stall 20.8ms
   (passes). All 34 samples complete; no full timing qualification or new checkpoint is claimed.
   Full-run 10k creation completion p95 is 329.6ms and 20k is 982.8ms, both passing.
-  **Next: repair keyboard-operation feedback, then rerun all 60 unchanged timing cases / 1,860
-  retained samples / 180 warmups.** See [sparse-publication evidence](evidence/p11-spatializer-sparse-publication-2026-10-27.json).
+  Keyboard/radius/atomic-move display hints now retire on acknowledged publication, rejection,
+  endpoint retirement or owner changes. **460 UI tests**, app/fixture Svelte checks, the rebuilt
+  normal bundled app and **29 native Spatializer groups** pass, including four delayed-operation
+  probes. The full run now records **22 passing cases**. At 50k, single-move feedback is **5.8ms**,
+  atomic movement 4.8ms and radius editing 5.4ms; all completion/focus/geometry checks pass.
+  The next case, **50k creation**, fails feedback **344.1ms vs 200ms** and completion **2,647.8ms
+  vs 2,000ms**; maximum callback stall is 29.2ms. All 34 samples and restores complete.
+  **Next: reduce duplicate row guards in sparse publication and give creation truthful pending
+  feedback, then rerun all 60 unchanged cases and final current-artifact pressure checks.**
+  [Command-feedback evidence](evidence/p11-spatializer-command-feedback-2026-10-27.json) retains
+  all current samples; [sparse-publication evidence](evidence/p11-spatializer-sparse-publication-2026-10-27.json)
+  retains the preceding 16-group pressure qualification. No new checkpoint is closed.
   Earlier [timing evidence](evidence/p11-spatializer-timing-runner-2026-10-27.json) preserves the failure.
   Complete Spatializer actual-app scale before closing graph keyboard operations, then composed
   workflows. Preserve [composition](p11-dashboard-composition.md) and
@@ -11645,3 +11655,35 @@ repair on `main`, preserving the remaining 50k feedback failure. Next inspect ke
 relative operations currently await receipts without the pointer gesture's pending preview.
 Preserve backend relative-edit policy and geometry/focus/rejection checks, then rerun all 60 fixed
 cases before composed workflows. **P03 stays 100%, P11 4/6 (67%), whole plan 59%.** Goal stays active.
+
+### P11 keyboard command feedback and creation timing — 2026-10-27
+
+Previous goal turn made **progress**: delivered `ff5aac39`, repaired 10k creation and qualified all
+16 pressure groups. Reconciled its clean checkout on `main`. Keyboard nudges, radius adjustments
+and atomic moves now show temporary geometry hints while retaining backend intents as the only
+authored edits. Repeated-key hints accumulate; acknowledgement boundaries keep confirmed previews
+until publication. Failure, retired endpoints and owner/unmount changes withdraw them, and older
+receipts cannot remove newer hints. No backend/domain behavior moved into UI.
+
+- All **460 UI tests** pass: audio 27 / graph 58 / Golden UI 199 / app 176. The 16-case authoring
+  suite includes a new acknowledgement-boundary/invalid-result regression.
+- App and graph-fixture Svelte report zero errors/warnings. Prettier, root/Core Cargo formatting,
+  the normal bundled build with rebuilt UI, and diff checks pass. Rust runtime source is unchanged.
+- All **29 native Spatializer groups pass**: 13 authoring / 12 navigation / four new delayed-command
+  cases. Real committed DTOs stay unchanged while repeated-key/radius hints render; endpoint-deletion
+  rejection and unmounting withdraw hints and preserve backend state.
+- The full default timing attempt records **22 passing cases**. Voronoi 50k single-move feedback
+  improves from 281.5ms to **5.8ms**; atomic move is 4.8ms and radius 5.4ms. Completion still checks
+  committed values, rendered geometry, actual focus and drained session work.
+- Case 23, **50k creation**, completes its 3 warmups / 31 retained samples but fails **344.1ms feedback
+  / 2,647.8ms completion p95** against 200ms / 2,000ms; maximum callback stall 29.2ms passes. This is
+  retained failure evidence, not full timing qualification.
+
+[Evidence](evidence/p11-spatializer-command-feedback-2026-10-27.json) retains raw samples,
+source/binary/asset/report fingerprints and the diagnostic subset separately from the full attempt.
+Inventory: **2,294 sources / 25 existing oversized**; interaction 468 lines, authoring 302, authoring
+tests 320, fixture 371 and new native runner 102. Deliver this verified feedback milestone on `main`.
+Next remove repeated same-row guards within a planning turn to fit more new cells into the unchanged
+16-pair / 32-read limits, and report creation pending state truthfully. Rerun the unchanged full
+timing matrix, then current-artifact pressure and composed workflows. **P03 100%, P11 4/6 (67%),
+whole plan 59%.** Keep the full P00-P18 goal active.

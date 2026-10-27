@@ -170,6 +170,15 @@ their event boundary publishes. Arrow keys move focused endpoints or resize focu
 handles, including zero-radius handles. Add target uses the current viewport center as a display
 hint; domain defaults stay in the backend.
 
+Keyboard nudges/radius adjustments and atomic moves use temporary display hints just like pointer
+gestures. Repeated key hints accumulate while their backend operations remain queued. Relative
+intents still read current authored values on the backend; previews never write internal fields.
+The authoring owner reports the acknowledged event boundary separately from the canonical edit
+result. Successful previews remain until that publication reaches the graph, and rejection,
+endpoint retirement, snapshot/space changes or unmounting withdraw them. An older receipt cannot
+remove a newer hint for the same endpoint. Completion qualification still requires committed
+values, actual geometry/focus and drained session work.
+
 The [presentation qualification](../progress/p11-spatializer-presentation.md) preserves the initial
 six native groups; [authoring qualification](../progress/p11-spatializer-authoring.md) records the
 expanded 13-group workflow and owning backend/UI regressions. Actual-app scale and composed

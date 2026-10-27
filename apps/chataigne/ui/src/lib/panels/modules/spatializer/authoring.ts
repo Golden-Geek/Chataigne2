@@ -103,10 +103,14 @@ export function createSpatializerAuthoring(source: () => Source) {
 		return { endpoints: result.endpoints, created: result.created };
 	};
 	return {
-		async run(edit: SpatializerEdit): Promise<SpatializerEditResult> {
+		async run(
+			edit: SpatializerEdit,
+			published?: (boundary: EventTime | undefined) => void
+		): Promise<SpatializerEditResult> {
 			const owner = capture(),
 				request = structuredClone(edit);
 			let result: SpatializerEditResult | undefined;
+			let boundary: EventTime | undefined;
 			const operation = owner.session.editOperations.open({
 				current: () => current(owner),
 				build: (scope) => ({
@@ -114,7 +118,13 @@ export function createSpatializerAuthoring(source: () => Source) {
 					async finish() {
 						await scope.ready;
 						if (!scope.current) throw new Error('Spatializer request was retired.');
-						result = await dispatch(owner, request, scope.applied);
+						result = await dispatch(owner, request, (acks) => {
+							scope.applied(acks);
+							for (const ack of acks) {
+								const at = ack.latest_event_time ?? ack.earliest_event_time ?? undefined;
+								if (at && (!boundary || compareEventTime(at, boundary) > 0)) boundary = at;
+							}
+						});
 					},
 					async cancel() {}
 				})
@@ -125,6 +135,7 @@ export function createSpatializerAuthoring(source: () => Source) {
 			try {
 				await operation.confirm();
 				if (!result) throw new Error('Spatializer request was cancelled.');
+				published?.(boundary);
 				return result;
 			} finally {
 				cancellations.delete(cancel);

@@ -8,7 +8,7 @@ a UI protocol snapshot. Output evaluation throughput retains P16; physical input
 usability retains P17.
 
 **All 20 calibration roundtrips and 16 correctness pressure groups pass. The 60-case timing
-runner is implemented; 10k creation is repaired, but 50k keyboard feedback fails its gate.** P11 remains
+runner is implemented; 10k creation and keyboard feedback are repaired, but 50k creation fails.** P11 remains
 4/6 checkpoints (67% rounded), with whole-plan coverage at 59%. This document and the
 [machine-readable contract](../../apps/chataigne/ui/tests/browser/app-graph-scale/spatializer-contract.mjs)
 fix scope before action timing. Delivery commits do not add acceptance cases.
@@ -334,3 +334,27 @@ Next inspect the app-owned keyboard interaction feedback path: relative keyboard
 wait for the backend receipt without the pointer gesture's pending preview. Keep relative-edit
 policy in the backend, preserve actual rendered geometry/focus and failure retirement, and rerun
 the complete fixed timing matrix after repair. **P11 remains 4/6 (67%), whole plan 59%.**
+
+## Temporary command feedback and 50k creation
+
+Keyboard nudges/radius changes and atomic moves now use temporary geometry hints. Backend intents
+still own committed edits and relative-value resolution. Acknowledged publication boundaries keep
+confirmed hints until actual graph data arrives; rejection, retired endpoints and owner/unmount
+changes withdraw them. Earlier responses cannot remove newer hints for the same endpoint.
+
+All **460 owning UI tests**, app/fixture Svelte checks, Prettier, root/Core formatting and the rebuilt
+normal bundled executable pass. All **29 native Spatializer groups** pass, including four held-command
+checks for real DTO/preview separation, repeated input, radius feedback, unmounting and actual
+backend endpoint-deletion rejection. The [command-feedback evidence](evidence/p11-spatializer-command-feedback-2026-10-27.json)
+retains exact source/binary/asset/report fingerprints and every measured sample.
+
+The complete default timing attempt passes **22 cases**. At 50k, single-move feedback p95 is **5.8ms**
+(previously 281.5ms), atomic movement 4.8ms and radius editing 5.4ms. All required completion,
+geometry/focus and mounting checks pass. The following creation case fails: **344.1ms feedback
+and 2,647.8ms completion p95**, versus unchanged 200ms / 2,000ms gates; maximum callback stall is
+29.2ms. All 34 samples and undo restorations complete. The full matrix remains unqualified.
+
+Next remove repeated same-row guards within each sparse planning turn and provide truthful pending
+creation feedback through the existing status surface. Keep source/path guards, 16-pair and 32-read
+bounds, real new identities and all 32 cells for completion. Then rerun the complete timing matrix
+and pressure on the final artifact before closure. **P11 stays 4/6 (67%), whole plan 59%.**

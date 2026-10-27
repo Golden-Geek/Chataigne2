@@ -37,6 +37,45 @@
 			})
 	});
 	appState.session = session;
+	const invoke = session.invokeAppOperation.bind(session);
+	let holdOperation = false,
+		operationHeld = false,
+		releaseOperation: (() => void) | null = null;
+	let command: Promise<unknown> | null = null,
+		commandError: string | null = null;
+	session.invokeAppOperation = async (...args) => {
+		if (holdOperation) {
+			holdOperation = false;
+			operationHeld = true;
+			await new Promise<void>((resolve) => {
+				releaseOperation = resolve;
+			});
+			operationHeld = false;
+		}
+		return invoke(...args);
+	};
+	/** Pause an admitted app operation before dispatch, without changing its DTO or backend. */
+	export const holdCommand = () => {
+		holdOperation = true;
+		commandError = null;
+	};
+	export const commandState = () => ({ held: operationHeld, error: commandError });
+	export const releaseCommand = () => {
+		releaseOperation?.();
+		releaseOperation = null;
+	};
+	export const startKeys = (
+		id: number,
+		keys: string[],
+		kind: 'position' | 'radius' | 'freezeRadius' = 'position'
+	) => {
+		command = Promise.all(keys.map((key) => panel!.editEndpointKey(id, key, false, kind))).catch(
+			(error) => {
+				commandError = String(error);
+			}
+		);
+	};
+	export const finishCommand = () => command;
 	onMount(() => session.mount());
 	let mounted = $state(true);
 	let panel = $state<ReturnType<typeof SpatializerEditorPanel>>();

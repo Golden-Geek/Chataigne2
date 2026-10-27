@@ -85,6 +85,12 @@ space, snapshot, project and component changes. They also verify complete Home c
 across a 1,530-unit span with the real inspector inset. It uses small scenes and does not qualify the
 fixed scale matrix. The runner owns an isolated headless browser and synthesizes no input.
 
+`node apps/chataigne/ui/tests/browser/spatializer-feedback-native.mjs` holds admitted operations
+before real backend dispatch to verify temporary keyboard/radius feedback, repeated-key
+accumulation, unmount retirement and withdrawal after actual endpoint-deletion rejection.
+It inspects committed DTOs separately from actual SVG transforms. This four-group correctness
+probe does not establish action timing; the unchanged full scale runner does that separately.
+
 ## Formula contract
 
 Use the same tiers, dimensions, grid, warmups, retained samples, deadlines, mounting bounds and

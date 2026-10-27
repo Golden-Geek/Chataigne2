@@ -191,6 +191,26 @@ describe('Spatializer authoring admission', () => {
 		expect(f.send).not.toHaveBeenCalled();
 		expect(f.session.editOperations.size).toBe(0);
 	});
+	it('reports the last acknowledged publication only after validating the committed result', async () => {
+		const f = fixture(),
+			published = vi.fn();
+		const first = { tick: 1, micro: 2, seq: 3 },
+			last = { tick: 1, micro: 2, seq: 4 };
+		f.invoke.mockImplementationOnce(async (_, applied) => {
+			applied?.([
+				{ success: true, status: 'applied', latest_event_time: last },
+				{ success: true, status: 'applied', latest_event_time: first }
+			]);
+			expect(published).not.toHaveBeenCalled();
+			return f.reply(2);
+		});
+		await expect(f.edits.run(f.move(2), published)).resolves.toEqual(f.reply(2));
+		expect(published).toHaveBeenCalledExactlyOnceWith(last);
+		published.mockClear();
+		f.invoke.mockResolvedValueOnce({ endpoints: [], created: null });
+		await expect(f.edits.run(f.move(2), published)).rejects.toThrow('different endpoint');
+		expect(published).not.toHaveBeenCalled();
+	});
 	it.each(['generation', 'space', 'module', 'session'])(
 		'retires queued requests when the %s changes',
 		async (kind) => {

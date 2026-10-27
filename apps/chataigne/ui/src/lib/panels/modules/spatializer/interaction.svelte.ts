@@ -33,13 +33,15 @@ interface Drag {
 	latestPosition: Point2;
 	latestRadius: number;
 }
-type Preview = {
+type Hint = { endpoint: SpatialEndpoint } & (
+	{ kind: 'position'; value: Point2 } | { kind: RadiusDragKind; value: number }
+);
+type Preview = Hint & {
 	token: number;
-	endpoint: SpatialEndpoint;
 	current(): boolean;
 	finished: boolean;
 	boundary?: EventTime;
-} & ({ kind: 'position'; value: Point2 } | { kind: RadiusDragKind; value: number });
+};
 const arrow = (key: string, step: number): Point2 | null =>
 	key === 'ArrowRight'
 		? { x: step, y: 0 }
@@ -96,6 +98,34 @@ export function createSpatializerInteraction(getSource: () => Source) {
 		const next = new Map(previews);
 		for (const [key, value] of next) if (value.token === token) next.delete(key);
 		previews = next;
+	};
+	const committed = (token: number, boundary: EventTime | undefined) => {
+		const next = new Map(previews);
+		for (const [key, value] of next)
+			if (value.token === token) next.set(key, { ...value, finished: true, boundary });
+		previews = next;
+	};
+	const run = async (edit: SpatializerEdit, hints: Hint[], failure: string) => {
+		const { token, current } = startFeedback();
+		const session = getSource().session;
+		const next = new Map(previews);
+		for (const hint of hints) {
+			const { node_id, uuid } = hint.endpoint.node;
+			next.set(previewKey(hint.endpoint, hint.kind), {
+				...hint,
+				token,
+				current: () => current() && session?.graph.state.nodesById.get(node_id)?.uuid === uuid,
+				finished: false
+			});
+		}
+		previews = next;
+		try {
+			return await authoring.run(edit, (boundary) => committed(token, boundary));
+		} catch (error) {
+			remove(token);
+			if (feedbackToken === token && current()) message = failure;
+			throw error;
+		}
 	};
 	const updatePreview = (drag: Drag) => {
 		const shared = {
@@ -280,10 +310,7 @@ export function createSpatializerInteraction(getSource: () => Source) {
 		try {
 			flush(drag);
 			const boundary = await drag.ticket.finish();
-			const key = previewKey(drag.endpoint, drag.kind),
-				previous = previews.get(key);
-			if (previous?.token === drag.token)
-				previews = new Map(previews).set(key, { ...previous, finished: true, boundary });
+			committed(drag.token, boundary);
 		} catch (error) {
 			remove(drag.token);
 			if (drag.ticket.ownerCurrent && feedbackToken === drag.token)
@@ -309,23 +336,33 @@ export function createSpatializerInteraction(getSource: () => Source) {
 			return false;
 		}
 		getSource().selectEndpoint(endpoint);
-		const { token, current: feedbackCurrent } = startFeedback();
-		try {
-			await authoring.run(
-				kind === 'position'
-					? { kind: 'nudge', endpoint: identity(endpoint.node), delta: [delta.x, delta.y] }
-					: {
-							kind: 'adjustRadius',
-							endpoint: identity(endpoint.node),
-							field: kind,
-							delta: delta.x - delta.y
-						}
-			);
-			return true;
-		} catch (error) {
-			if (feedbackToken === token && feedbackCurrent()) message = 'Endpoint edit failed.';
-			throw error;
-		}
+		const previous = previews.get(previewKey(endpoint, kind));
+		const position = previous?.kind === 'position' ? previous.value : endpoint;
+		const radius =
+			previous && previous.kind !== 'position'
+				? previous.value
+				: kind === 'radius'
+					? (endpoint.radius ?? 0)
+					: (endpoint.freezeRadius ?? 0);
+		// A temporary display hint follows the user's delta; the relative backend
+		// intent still reads current authored state and owns the committed result.
+		const hint: Hint =
+			kind === 'position'
+				? { endpoint, kind, value: { x: position.x + delta.x, y: position.y + delta.y } }
+				: { endpoint, kind, value: clampPositive(radius + delta.x - delta.y) };
+		await run(
+			kind === 'position'
+				? { kind: 'nudge', endpoint: identity(endpoint.node), delta: [delta.x, delta.y] }
+				: {
+						kind: 'adjustRadius',
+						endpoint: identity(endpoint.node),
+						field: kind,
+						delta: delta.x - delta.y
+					},
+			[hint],
+			'Endpoint edit failed.'
+		);
+		return true;
 	};
 	const pointer = (event: PointerEvent): Point2 =>
 		graphPositionToSpatialPosition(
@@ -352,19 +389,25 @@ export function createSpatializerInteraction(getSource: () => Source) {
 		finish,
 		keyboard,
 		async move(moves: { endpoint: UiNodeDto; position: Point2 }[]) {
-			const { token, current: feedbackCurrent } = startFeedback();
-			try {
-				return await authoring.run({
+			const endpoints = new Map(
+				getSource().rawEndpoints.map((endpoint) => [endpoint.node.node_id, endpoint])
+			);
+			return run(
+				{
 					kind: 'move',
 					moves: moves.map(({ endpoint, position }) => ({
 						endpoint: identity(endpoint),
 						position: [position.x, position.y]
 					}))
-				});
-			} catch (error) {
-				if (feedbackToken === token && feedbackCurrent()) message = 'Endpoint edit failed.';
-				throw error;
-			}
+				},
+				moves.flatMap(({ endpoint, position }): Hint[] => {
+					const current = endpoints.get(endpoint.node_id);
+					return current?.node.uuid === endpoint.uuid && current.positionWritable
+						? [{ endpoint: current, kind: 'position', value: { ...position } }]
+						: [];
+				}),
+				'Endpoint edit failed.'
+			);
 		},
 		async createTarget(position: Point2) {
 			const { token, current: feedbackCurrent } = startFeedback();
