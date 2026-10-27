@@ -101,7 +101,7 @@ fn applied_edits_invalidate_prepared_snapshot() {
     assert!(engine.prepared_first_tick_snapshot.is_none());
 
     engine.run_tick(Duration::from_millis(8)).expect("tick should run");
-    assert!(engine.tick_stats().snapshot_builds >= 1);
+    assert!(engine.tick_stats().snapshot_builds + engine.tick_stats().snapshot_refreshes >= 1);
 }
 
 #[test]
@@ -110,7 +110,7 @@ fn pending_edits_prevent_first_tick_snapshot_reuse() {
     engine.add_node(SnapshotUpdateNode::new("later", NodeExecutionRule::periodic(125)), None);
 
     engine.run_tick(Duration::from_millis(8)).expect("tick should run");
-    assert!(engine.tick_stats().snapshot_builds >= 1);
+    assert!(engine.tick_stats().snapshot_builds + engine.tick_stats().snapshot_refreshes >= 1);
 }
 
 #[test]

@@ -5,6 +5,9 @@ use uuid::Uuid;
 use crate::node::{Node, NodeId};
 
 use super::node_store::NodeStore;
+use crate::process_ctx::snapshot_map::{SnapshotLayer, SnapshotMap, SnapshotValue};
+
+mod incremental;
 
 /// Identity of authored changes within one subtree, independent of callback delivery.
 /// Revisions are local to an engine lifetime and are never persisted or sent over the protocol.
@@ -22,7 +25,7 @@ pub struct SubtreeStructureRevision {
     revision: SubtreeRevision,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct NodeRevisions {
     authored: u64,
     structure: u64,
@@ -31,31 +34,52 @@ pub(crate) struct NodeRevisions {
 #[derive(Clone, Debug)]
 pub(crate) struct RevisionSnapshot {
     epoch: Uuid,
-    by_node: Arc<HashMap<NodeId, NodeRevisions>>,
+    sequence: u64,
+    by_node: SnapshotMap<NodeId, NodeRevisions>,
+}
+
+/// Unfolded engine counters, consumed by one immutable view capture.
+pub(crate) struct LocalRevisionSnapshot {
+    epoch: Uuid,
+    sequence: u64,
+    by_node: HashMap<NodeId, NodeRevisions>,
+}
+
+impl SnapshotValue for NodeRevisions {
+    fn heap_bytes(&self) -> usize {
+        0
+    }
 }
 
 impl Default for RevisionSnapshot {
     fn default() -> Self {
         Self {
             epoch: Uuid::new_v4(),
-            by_node: Arc::default(),
+            sequence: 0,
+            by_node: SnapshotMap::new(HashMap::new()),
         }
     }
 }
 
 type RevisionLease = Result<
-    golden_io::RetainedPayload<HashMap<NodeId, NodeRevisions>>,
-    golden_io::PayloadCapacityError<Arc<HashMap<NodeId, NodeRevisions>>>,
+    Vec<golden_io::RetainedPayload<SnapshotLayer<NodeId, NodeRevisions>>>,
+    golden_io::PayloadCapacityError<Arc<SnapshotLayer<NodeId, NodeRevisions>>>,
 >;
 
 impl RevisionSnapshot {
-    pub(crate) fn try_lease(&self, pool: &golden_io::PayloadPool, weight: usize) -> RevisionLease {
-        pool.try_retain_arc(self.by_node.clone(), weight)
+    pub(crate) fn try_lease(&self, pool: &golden_io::PayloadPool) -> RevisionLease {
+        self.by_node.try_lease(pool)
     }
     pub(crate) fn retained_heap_bytes(&self) -> usize {
-        crate::process_ctx::memory::arc_map(&self.by_node)
+        self.by_node.retained_bytes()
     }
-    pub(crate) fn fold_subtrees(&mut self, nodes: &HashMap<NodeId, Box<crate::process_ctx::ProcessTreeNodeSnapshot>>) {
+    pub(crate) fn lease_storage_bytes(&self) -> usize {
+        self.by_node.lease_storage_bytes()
+    }
+    pub(crate) fn from_local(
+        local: LocalRevisionSnapshot,
+        nodes: &crate::process_ctx::snapshot_map::SnapshotMap<NodeId, Box<crate::process_ctx::ProcessTreeNodeSnapshot>>,
+    ) -> Self {
         let mut children: HashMap<_, usize> = nodes.keys().map(|id| (*id, 0)).collect();
         for node in nodes.values() {
             if let Some(count) = node.parent.and_then(|parent| children.get_mut(&parent)) {
@@ -66,9 +90,7 @@ impl RevisionSnapshot {
             .iter()
             .filter_map(|(id, count)| (*count == 0).then_some(*id))
             .collect();
-        // This is a new view, owned solely by snapshot construction; no mutation of
-        // the engine's local-change index or any previously shared view occurs.
-        let revisions = Arc::get_mut(&mut self.by_node).expect("new revision view");
+        let mut revisions = local.by_node;
         let mut processed = 0;
         while let Some(id) = ready.pop() {
             processed += 1;
@@ -92,7 +114,12 @@ impl RevisionSnapshot {
         if processed != nodes.len() {
             // A malformed cycle cannot receive a reusable identity. Normal engine
             // topology is validated; externally constructed views fail conservatively.
-            *self = Self::default();
+            return Self::default();
+        }
+        Self {
+            epoch: local.epoch,
+            sequence: local.sequence,
+            by_node: SnapshotMap::new(revisions),
         }
     }
 
@@ -131,6 +158,10 @@ impl Default for TreeRevisions {
 }
 
 impl TreeRevisions {
+    pub(super) fn version(&self) -> (Uuid, u64) {
+        (self.epoch, self.sequence)
+    }
+
     pub(super) fn same_epoch(&self, captured: SubtreeRevision) -> bool {
         self.epoch == captured.epoch
     }
@@ -220,10 +251,11 @@ impl TreeRevisions {
         self.by_node.remove(&node);
     }
 
-    pub(super) fn snapshot(&self) -> RevisionSnapshot {
-        RevisionSnapshot {
+    pub(super) fn snapshot(&self) -> LocalRevisionSnapshot {
+        LocalRevisionSnapshot {
             epoch: self.epoch,
-            by_node: Arc::new(self.by_node.clone()),
+            sequence: self.sequence,
+            by_node: self.by_node.clone(),
         }
     }
 }

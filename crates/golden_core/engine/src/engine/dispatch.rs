@@ -275,14 +275,7 @@ impl<T: Node> Engine<T> {
             });
         let requirements_us = requirements_start.map(|start| start.elapsed().as_micros());
         let snapshot_start = trace.then(Instant::now);
-        let tree_snapshot = needs_tree_snapshot.then(|| {
-            self.tick_scratch.stats.snapshot_builds += 1;
-            self.tick_scratch.stats.snapshot_nodes_cloned += self.nodes.len();
-            let started = Instant::now();
-            let snapshot = self.build_process_tree_snapshot();
-            self.tick_scratch.stats.snapshot_build_ns += started.elapsed().as_nanos();
-            snapshot
-        });
+        let tree_snapshot = needs_tree_snapshot.then(|| self.canonical_process_snapshot());
         let snapshot_us = snapshot_start.map(|start| start.elapsed().as_micros());
 
         let mut absorb_us = 0;

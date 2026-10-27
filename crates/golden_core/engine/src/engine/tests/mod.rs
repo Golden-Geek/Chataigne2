@@ -10,6 +10,7 @@ mod edit_preconditions;
 mod enabled_history;
 mod engine;
 mod history_failures;
+mod incremental_process_snapshot;
 mod intent_atomicity;
 mod lifecycle;
 mod local_events;

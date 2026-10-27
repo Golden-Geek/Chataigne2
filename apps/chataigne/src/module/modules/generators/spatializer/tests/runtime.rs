@@ -14,6 +14,14 @@ use std::{
     time::{Duration, Instant},
 };
 
+struct ReleaseControlOnDrop(Arc<worker::TestControl>);
+
+impl Drop for ReleaseControlOnDrop {
+    fn drop(&mut self) {
+        self.0.released.store(true, Ordering::Release);
+    }
+}
+
 fn module(engine: &mut crate::app::AppEngine, id: NodeId) -> &mut SpatializerModule {
     match engine.nodes.get_mut(id).unwrap() {
         crate::app::AppNode::SpatializerModule(module) => module,
@@ -114,11 +122,13 @@ fn canonical_inputs_start_the_worker_without_endpoint_scan_wakes() {
     let (mut engine, id) = create_spatializer_module();
     let position = find_path(&engine, source(&engine, id), "position_2d").unwrap();
     let control = Arc::new(worker::TestControl::default());
+    let _release = ReleaseControlOnDrop(control.clone());
     module(&mut engine, id).service.control = Some(control.clone());
     module(&mut engine, id).service.cancel();
     module(&mut engine, id).service.request();
     engine.run_tick(Duration::from_millis(2)).unwrap();
-    assert!(engine.tick_stats().snapshot_builds > 0);
+    let stats = engine.tick_stats();
+    assert!(stats.snapshot_builds + stats.snapshot_refreshes > 0);
     let deadline = Instant::now() + Duration::from_secs(2);
     while !control.entered.load(Ordering::Acquire) {
         assert!(Instant::now() < deadline);
@@ -128,6 +138,7 @@ fn canonical_inputs_start_the_worker_without_endpoint_scan_wakes() {
     engine.run_tick(Duration::from_millis(2)).unwrap();
     assert_eq!(engine.tick_stats().wake_callbacks_fired, 0);
     assert_eq!(engine.tick_stats().snapshot_builds, 0);
+    assert_eq!(engine.tick_stats().snapshot_refreshes, 0);
 
     set_param(&mut engine, position, ParamValue::Vec2(0.5, 0.0));
     engine.dispatch_inbox(ExecutionPhase::EngineTick).unwrap();
@@ -350,6 +361,7 @@ fn settled_spatializer_has_no_scheduled_work_wakes_or_snapshots() {
         assert_eq!(stats.callbacks_fired, 0);
         assert_eq!(stats.wake_callbacks_fired, 0);
         assert_eq!(stats.snapshot_builds, 0);
+        assert_eq!(stats.snapshot_refreshes, 0);
     }
 }
 

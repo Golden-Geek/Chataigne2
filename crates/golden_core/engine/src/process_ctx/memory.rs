@@ -29,7 +29,7 @@ macro_rules! inline_only { ($($value:expr),+ $(,)?) => { $(inline_only($value);)
 
 // HashMap capacity describes usable entries rather than physical buckets. Charge ample
 // bucket/control slack. This is an allocation reservation, not allocator/RSS telemetry.
-fn map<K, V>(value: &HashMap<K, V>) -> usize {
+pub(super) fn map<K, V>(value: &HashMap<K, V>) -> usize {
     if value.capacity() == 0 {
         return 0;
     }
@@ -237,13 +237,28 @@ fn node(node: &ProcessTreeNodeSnapshot) -> usize {
     ])
 }
 
-fn aliases(maps: &HashMap<crate::node::NodeId, HashMap<Box<str>, crate::node::NodeId>>) -> usize {
-    sum([
-        map(maps),
-        sum(maps
-            .values()
-            .map(|entries| sum([map(entries), sum(entries.keys().map(|key| key.len()))]))),
-    ])
+impl super::snapshot_map::SnapshotValue for Box<ProcessTreeNodeSnapshot> {
+    fn heap_bytes(&self) -> usize {
+        sum([size_of::<ProcessTreeNodeSnapshot>(), 2 * size_of::<usize>(), node(self)])
+    }
+}
+
+impl super::snapshot_map::SnapshotValue for crate::node::NodeId {
+    fn heap_bytes(&self) -> usize {
+        0
+    }
+}
+
+impl super::snapshot_map::SnapshotValue for Box<[crate::node::NodeId]> {
+    fn heap_bytes(&self) -> usize {
+        sum([slots::<crate::node::NodeId>(self.len()), 2 * size_of::<usize>()])
+    }
+}
+
+impl super::snapshot_map::SnapshotValue for HashMap<Box<str>, crate::node::NodeId> {
+    fn heap_bytes(&self) -> usize {
+        sum([map(self), sum(self.keys().map(|key| key.len()))])
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -269,26 +284,14 @@ pub(super) fn weights(snapshot: &ProcessTreeSnapshot) -> AllocationWeights {
         ids_by_child_key,
     } = indexes;
     AllocationWeights {
-        nodes: sum([
-            arc_map(&snapshot.nodes),
-            // Index slack contains pointers. Every populated bucket additionally owns
-            // one complete record allocation, including conservative allocator overhead.
-            slots::<ProcessTreeNodeSnapshot>(snapshot.nodes.len()),
-            snapshot.nodes.len().saturating_mul(2 * size_of::<usize>()),
-            sum(snapshot.nodes.values().map(|record| node(record))),
-        ]),
+        nodes: snapshot.nodes.retained_bytes(),
         overlays: overlays(&snapshot.node_overrides),
-        uuids: arc_map(&snapshot.node_ids_by_uuid),
+        uuids: snapshot.node_ids_by_uuid.retained_bytes(),
         revisions: snapshot.revisions.retained_heap_bytes(),
         children: sum([
-            2 * size_of::<usize>(),
-            size_of::<ProcessTreeChildIndexes>(),
-            map(ids_by_parent),
-            sum(ids_by_parent
-                .values()
-                .map(|ids| slots::<crate::node::NodeId>(ids.len()))),
-            aliases(ids_by_decl_id),
-            aliases(ids_by_child_key),
+            ids_by_parent.retained_bytes(),
+            ids_by_decl_id.retained_bytes(),
+            ids_by_child_key.retained_bytes(),
         ]),
     }
 }

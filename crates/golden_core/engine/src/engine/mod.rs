@@ -51,6 +51,8 @@ mod listener_index;
 mod parameter_value_store;
 /// Project save/load support.
 mod persistence;
+/// Immutable canonical process captures and bounded incremental refresh.
+mod process_snapshot;
 /// UUID reference cache helpers.
 mod refs;
 /// Runtime resolve/scheduling and ticking orchestration.
@@ -247,6 +249,7 @@ pub struct Engine<T: Node> {
     /// One-use snapshot built after runtime activation so the first scheduled update does
     /// not clone the whole tree. Discarded if edits or inbox work precede that update.
     pub(crate) prepared_first_tick_snapshot: Option<Arc<ProcessTreeSnapshot>>,
+    process_snapshot_cache: process_snapshot::SnapshotCache,
     /// Caps concurrent off-thread releases of large immutable process snapshots.
     snapshot_retirements: RetirementPool,
     /// Cached map of parameter node → current value, used by `run_scheduled_updates` so
@@ -303,6 +306,7 @@ impl<T: Node> Engine<T> {
         }
         let mut last_update_elapsed_by_node = HashMap::new();
         last_update_elapsed_by_node.insert(root, Duration::ZERO);
+        let snapshot_retirements = RetirementPool::new(NonZeroUsize::new(2).expect("retirement capacity is nonzero"));
 
         let mut engine = Self {
             pending_script_app_operations: std::collections::VecDeque::new(),
@@ -362,7 +366,8 @@ impl<T: Node> Engine<T> {
             control_index_dirty: true,
             tick_tree_snapshot: None,
             prepared_first_tick_snapshot: None,
-            snapshot_retirements: RetirementPool::new(NonZeroUsize::new(2).expect("retirement capacity is nonzero")),
+            process_snapshot_cache: process_snapshot::SnapshotCache::new(snapshot_retirements.clone()),
+            snapshot_retirements,
             parameter_values_cache,
             tick_scratch: tick_scratch::TickScratch::default(),
             tick_accumulator: Duration::ZERO,
@@ -585,32 +590,20 @@ impl<T: Node> Engine<T> {
             return Arc::clone(snapshot);
         }
         self.tick_scratch.stats.snapshot_rebuilds += 1;
-        self.tick_scratch.stats.snapshot_builds += 1;
-        self.tick_scratch.stats.snapshot_nodes_cloned += self.nodes.len();
-        let started = Instant::now();
-        let snapshot = self.build_process_tree_snapshot();
-        self.tick_scratch.stats.snapshot_build_ns += started.elapsed().as_nanos();
+        let snapshot = self.canonical_process_snapshot();
         self.tick_tree_snapshot = Some(Arc::clone(&snapshot));
         snapshot
     }
 
     pub(crate) fn retire_process_tree_snapshot(&self, snapshot: Arc<ProcessTreeSnapshot>) {
-        const RETIRE_NODE_THRESHOLD: usize = 10_000;
-        if snapshot.node_count() < RETIRE_NODE_THRESHOLD || Arc::strong_count(&snapshot) != 1 {
-            return;
-        }
-        if let Err(error) = self
-            .snapshot_retirements
-            .try_retire("golden-process-snapshot-retire", snapshot, drop)
-        {
-            drop(error.into_value());
-        }
+        process_snapshot::retire(&self.snapshot_retirements, snapshot);
     }
 
     pub(crate) fn clear_tick_tree_snapshot(&mut self) {
         if let Some(snapshot) = self.tick_tree_snapshot.take() {
             self.retire_process_tree_snapshot(snapshot);
         }
+        self.evict_invalid_process_snapshot();
     }
 
     pub(crate) fn clear_prepared_first_tick_snapshot(&mut self) {
@@ -624,15 +617,16 @@ impl<T: Node> Engine<T> {
         // during activation, outside the first time-budgeted runtime tick.
         self.clear_tick_tree_snapshot();
         self.clear_prepared_first_tick_snapshot();
-        self.prepared_first_tick_snapshot = self
-            .nodes
-            .iter()
-            .any(|(node_id, node)| {
-                self.runtime_schedule.schedules_node(node_id)
-                    && node.needs_update()
-                    && node.update_requires_tree_snapshot()
-            })
-            .then(|| self.build_process_tree_snapshot());
+        let needs_snapshot = self.nodes.iter().any(|(node_id, node)| {
+            self.runtime_schedule.schedules_node(node_id) && node.needs_update() && node.update_requires_tree_snapshot()
+        });
+        if needs_snapshot {
+            // Preparation happens outside the timed tick. Seed the canonical view
+            // without attributing this work to a runtime tick's counters.
+            let stats = self.tick_scratch.stats;
+            self.prepared_first_tick_snapshot = Some(self.canonical_process_snapshot());
+            self.tick_scratch.stats = stats;
+        }
     }
 
     #[track_caller]
@@ -641,43 +635,10 @@ impl<T: Node> Engine<T> {
         let started = trace.then(Instant::now);
         let mut nodes = HashMap::with_capacity(self.nodes.len());
         let mut node_ids_by_uuid = HashMap::with_capacity(self.nodes.len());
-        for (node_id, node) in self.nodes.iter() {
-            let node_data = node.node_data();
-            let descriptor = node.engine_script_descriptor();
-            let parameter_state = node.engine_process_tree_parameter_state();
-            let (param_value, param_constraints, param_control) = match parameter_state {
-                Some(state) => (Some(state.value), Some(state.constraints), Some(state.control)),
-                None => (None, None, None),
-            };
-            let dashboard_widget_target = node.engine_dashboard_widget_target_descriptor();
-            node_ids_by_uuid.entry(node_data.meta.uuid).or_insert(node_id);
-            nodes.insert(
-                node_id,
-                Box::new(ProcessTreeNodeSnapshot {
-                    id: node_id,
-                    uuid: node_data.meta.uuid,
-                    parent: node_data.parent,
-                    first_child: node_data.first_child,
-                    next_sibling: node_data.next_sibling,
-                    node_type: node.get_type().to_string(),
-                    decl_id: node_data.meta.decl_id.0.clone(),
-                    short_name: node_data.meta.short_name.clone(),
-                    label: node_data.meta.label.clone(),
-                    tags: node_data.meta.tags.clone(),
-                    presentation: node_data.meta.presentation.clone(),
-                    // Attachment and metadata/replay edits maintain this cache; snapshot
-                    // construction must not walk the whole graph a second time.
-                    enabled: node_data.effective_enabled,
-                    can_be_disabled: node_data.meta.can_be_disabled,
-                    child_count: 0,
-                    param_value,
-                    param_constraints,
-                    param_control,
-                    dashboard_widget_target,
-                    script_properties: descriptor.properties,
-                    script_methods: descriptor.methods,
-                }),
-            );
+        for node_id in self.nodes.keys() {
+            let node = self.capture_process_node(node_id).expect("existing node");
+            node_ids_by_uuid.entry(node.uuid).or_insert(node_id);
+            nodes.insert(node_id, node);
         }
         let cloned = trace.then(Instant::now);
 

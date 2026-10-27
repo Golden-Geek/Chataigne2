@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use crate::edit::{Edit, EditOrigin, EditQueue, NodeTree};
-use crate::engine::tree_revisions::RevisionSnapshot;
+use crate::engine::tree_revisions::{LocalRevisionSnapshot, RevisionSnapshot};
 use crate::engine::{EngineTime, NodeWakeError, NodeWakeSource, NodeWaker};
 pub use crate::engine::{SubtreeRevision, SubtreeStructureRevision};
 use crate::events::{CustomEvent, EventFrame};
@@ -18,8 +18,14 @@ use crate::parameter::{
 };
 use serde::Serialize;
 
+mod child_indexes;
 mod lease;
 pub(crate) mod memory;
+mod refresh;
+pub(crate) mod snapshot_map;
+use snapshot_map::SnapshotMap;
+#[cfg(test)]
+mod tests;
 pub use lease::SnapshotLeaseError;
 
 /// Conservative retained allocation weight for constraints, including shared enum
@@ -177,11 +183,11 @@ impl fmt::Display for ProcessTreeNodeSnapshot {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct ProcessTreeChildIndexes {
-    ids_by_parent: HashMap<NodeId, Box<[NodeId]>>,
-    ids_by_decl_id: HashMap<NodeId, HashMap<Box<str>, NodeId>>,
-    ids_by_child_key: HashMap<NodeId, HashMap<Box<str>, NodeId>>,
+    ids_by_parent: SnapshotMap<NodeId, Box<[NodeId]>>,
+    ids_by_decl_id: SnapshotMap<NodeId, HashMap<Box<str>, NodeId>>,
+    ids_by_child_key: SnapshotMap<NodeId, HashMap<Box<str>, NodeId>>,
 }
 
 /// Shared read-only tree snapshot for one processing pass.
@@ -193,10 +199,10 @@ pub struct ProcessTreeSnapshot {
     root: NodeId,
     // Keep large records out of sparse hash buckets; leases charge each owned box
     // separately from the index's spare capacity.
-    nodes: Arc<HashMap<NodeId, Box<ProcessTreeNodeSnapshot>>>,
+    nodes: SnapshotMap<NodeId, Box<ProcessTreeNodeSnapshot>>,
     node_overrides: Arc<HashMap<NodeId, ProcessTreeNodeSnapshot>>,
-    node_ids_by_uuid: Arc<HashMap<NodeUuid, NodeId>>,
-    child_indexes: Arc<ProcessTreeChildIndexes>,
+    node_ids_by_uuid: SnapshotMap<NodeUuid, NodeId>,
+    child_indexes: ProcessTreeChildIndexes,
 }
 
 impl Clone for ProcessTreeSnapshot {
@@ -223,16 +229,16 @@ impl ProcessTreeSnapshot {
         }
         let mut boxed = HashMap::with_capacity(nodes.capacity());
         boxed.extend(nodes.into_iter().map(|(id, node)| (id, Box::new(node))));
-        let nodes = boxed;
+        let nodes = SnapshotMap::new(boxed);
         let child_indexes = Self::build_child_indexes(&nodes);
         let mut snapshot = Self {
             weights: memory::AllocationWeights::default(),
             storage_leases: std::sync::OnceLock::new(),
             revisions: RevisionSnapshot::default(),
             root,
-            nodes: Arc::new(nodes),
+            nodes,
             node_overrides: Arc::new(HashMap::new()),
-            node_ids_by_uuid: Arc::new(node_ids_by_uuid),
+            node_ids_by_uuid: SnapshotMap::new(node_ids_by_uuid),
             child_indexes,
         };
         snapshot.weights = memory::weights(&snapshot);
@@ -243,97 +249,23 @@ impl ProcessTreeSnapshot {
         root: NodeId,
         nodes: HashMap<NodeId, Box<ProcessTreeNodeSnapshot>>,
         node_ids_by_uuid: HashMap<NodeUuid, NodeId>,
-        mut revisions: RevisionSnapshot,
+        revisions: LocalRevisionSnapshot,
     ) -> Self {
+        let nodes = SnapshotMap::new(nodes);
         let child_indexes = Self::build_child_indexes(&nodes);
-        revisions.fold_subtrees(&nodes);
+        let revisions = RevisionSnapshot::from_local(revisions, &nodes);
         let mut snapshot = Self {
             weights: memory::AllocationWeights::default(),
             storage_leases: std::sync::OnceLock::new(),
             revisions,
             root,
-            nodes: Arc::new(nodes),
+            nodes,
             node_overrides: Arc::new(HashMap::new()),
-            node_ids_by_uuid: Arc::new(node_ids_by_uuid),
+            node_ids_by_uuid: SnapshotMap::new(node_ids_by_uuid),
             child_indexes,
         };
         snapshot.weights = memory::weights(&snapshot);
         snapshot
-    }
-
-    fn build_child_indexes(nodes: &HashMap<NodeId, Box<ProcessTreeNodeSnapshot>>) -> Arc<ProcessTreeChildIndexes> {
-        // Most folders are small; index only wide parents to avoid one map and
-        // cloned selector strings per folder on every full-tree snapshot.
-        const DECL_INDEX_THRESHOLD: usize = 16;
-        let parent_ids = nodes
-            .iter()
-            .filter_map(|(node_id, node)| node.first_child.map(|_| *node_id));
-        let mut child_ids_by_parent = HashMap::new();
-        let mut child_ids_by_decl_id = HashMap::new();
-        let mut child_ids_by_key = HashMap::new();
-
-        for parent in parent_ids {
-            let mut child_ids = Vec::new();
-            let mut child = nodes.get(&parent).and_then(|node| node.first_child);
-            // Most declared folders have only a few children; reserve a hash set for
-            // long sibling chains while still detecting malformed short cycles.
-            let mut short_chain = [NodeId(0); 8];
-            let mut short_len = 0;
-            let mut visited = None::<HashSet<NodeId>>;
-            while let Some(child_id) = child {
-                if let Some(visited) = visited.as_mut() {
-                    if !visited.insert(child_id) {
-                        break;
-                    }
-                } else if short_chain[..short_len].contains(&child_id) {
-                    break;
-                } else if short_len < short_chain.len() {
-                    short_chain[short_len] = child_id;
-                    short_len += 1;
-                } else {
-                    let mut long_chain = HashSet::with_capacity(short_chain.len() * 2);
-                    long_chain.extend(short_chain);
-                    long_chain.insert(child_id);
-                    visited = Some(long_chain);
-                }
-                child_ids.push(child_id);
-                child = nodes.get(&child_id).and_then(|node| node.next_sibling);
-            }
-
-            if child_ids.len() > DECL_INDEX_THRESHOLD {
-                let mut decl_ids = HashMap::with_capacity(child_ids.len());
-                let mut keys = HashMap::with_capacity(child_ids.len());
-                for child_id in &child_ids {
-                    let Some(child) = nodes.get(child_id) else {
-                        break;
-                    };
-                    // Match the ordered scan across all aliases: an earlier label also
-                    // wins over a later declaration id. Do not allocate duplicate aliases.
-                    for key in [&child.decl_id, &child.short_name, &child.label] {
-                        if !keys.contains_key(key.as_str()) {
-                            keys.insert(key.clone().into_boxed_str(), *child_id);
-                        }
-                    }
-                    decl_ids
-                        .entry(child.decl_id.clone().into_boxed_str())
-                        .or_insert(*child_id);
-                    if let Some(short_decl_id) = child.decl_id.rsplit('/').next()
-                        && short_decl_id != child.decl_id
-                    {
-                        decl_ids.entry(short_decl_id.into()).or_insert(*child_id);
-                    }
-                }
-                child_ids_by_decl_id.insert(parent, decl_ids);
-                child_ids_by_key.insert(parent, keys);
-            }
-            child_ids_by_parent.insert(parent, child_ids.into_boxed_slice());
-        }
-
-        Arc::new(ProcessTreeChildIndexes {
-            ids_by_parent: child_ids_by_parent,
-            ids_by_decl_id: child_ids_by_decl_id,
-            ids_by_child_key: child_ids_by_key,
-        })
     }
 
     /// Returns the snapshot root node id.
@@ -352,7 +284,17 @@ impl ProcessTreeSnapshot {
     pub fn retained_bytes(&self) -> usize {
         std::mem::size_of::<Self>()
             .saturating_add(2 * std::mem::size_of::<usize>())
+            .saturating_add(self.lease_storage_bytes())
             .saturating_add(self.weights.total())
+    }
+
+    fn lease_storage_bytes(&self) -> usize {
+        self.nodes.lease_storage_bytes()
+            + self.revisions.lease_storage_bytes()
+            + self.node_ids_by_uuid.lease_storage_bytes()
+            + self.child_indexes.ids_by_parent.lease_storage_bytes()
+            + self.child_indexes.ids_by_decl_id.lease_storage_bytes()
+            + self.child_indexes.ids_by_child_key.lease_storage_bytes()
     }
 
     /// Constant-time authored subtree identity for prepared read models. Includes descendant

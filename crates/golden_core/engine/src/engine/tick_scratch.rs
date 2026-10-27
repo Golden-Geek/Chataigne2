@@ -24,11 +24,13 @@ pub struct TickStats {
     pub snapshot_rebuilds: usize,
     /// Number of full process-tree snapshots constructed this tick.
     pub snapshot_builds: usize,
+    /// Number of immutable process views refreshed from changed records this tick.
+    pub snapshot_refreshes: usize,
     /// Number of process-tree snapshots built specifically for lifecycle callbacks.
     pub lifecycle_snapshot_builds: usize,
-    /// Time spent building full process-tree snapshots this tick.
+    /// Time spent building and refreshing process-tree snapshots this tick.
     pub snapshot_build_ns: u128,
-    /// Number of node records cloned into full process-tree snapshots this tick.
+    /// Number of captured or compacted node records across full builds and refreshes.
     pub snapshot_nodes_cloned: usize,
     /// Number of inbox events routed through listener/bubbling dispatch this tick.
     pub dispatch_events_routed: usize,

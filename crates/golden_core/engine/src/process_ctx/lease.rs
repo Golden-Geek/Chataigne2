@@ -1,4 +1,4 @@
-use super::{ProcessTreeChildIndexes, ProcessTreeNodeSnapshot};
+use super::ProcessTreeNodeSnapshot;
 use crate::node::{NodeId, NodeUuid};
 use std::{
     collections::HashMap,
@@ -8,6 +8,7 @@ use std::{
 use golden_io::{PayloadPool, RetainedPayload};
 
 use super::ProcessTreeSnapshot;
+use super::snapshot_map::SnapshotLayer;
 
 const SNAPSHOT_ITEMS: usize = 384;
 const SNAPSHOT_BYTES: usize = 1024 * 1024 * 1024;
@@ -47,13 +48,17 @@ impl std::error::Error for SnapshotLeaseError {
 
 // Guard the actual shared allocations as well as the outer view. A non-leased clone can
 // keep these Arcs alive, but can never become the final owner of already leased storage.
+type LayerLeases<K, V> = Vec<RetainedPayload<SnapshotLayer<K, V>>>;
+
 #[derive(Debug)]
 pub(super) struct StorageLeases {
-    _nodes: RetainedPayload<HashMap<NodeId, Box<ProcessTreeNodeSnapshot>>>,
+    _nodes: LayerLeases<NodeId, Box<ProcessTreeNodeSnapshot>>,
     _overlays: RetainedPayload<HashMap<NodeId, ProcessTreeNodeSnapshot>>,
-    _uuids: RetainedPayload<HashMap<NodeUuid, NodeId>>,
-    _children: RetainedPayload<ProcessTreeChildIndexes>,
-    _revisions: RetainedPayload<HashMap<NodeId, crate::engine::tree_revisions::NodeRevisions>>,
+    _uuids: LayerLeases<NodeUuid, NodeId>,
+    _child_orders: LayerLeases<NodeId, Box<[NodeId]>>,
+    _child_declarations: LayerLeases<NodeId, HashMap<Box<str>, NodeId>>,
+    _child_keys: LayerLeases<NodeId, HashMap<Box<str>, NodeId>>,
+    _revisions: LayerLeases<NodeId, crate::engine::tree_revisions::NodeRevisions>,
 }
 
 impl ProcessTreeSnapshot {
@@ -76,28 +81,29 @@ impl ProcessTreeSnapshot {
         };
         if self.storage_leases.get().is_none() {
             let leases = StorageLeases {
-                _nodes: pool
-                    .try_retain_arc(self.nodes.clone(), self.weights.nodes)
-                    .map_err(|_| reject())?,
+                _nodes: self.nodes.try_lease(pool).map_err(|_| reject())?,
                 _overlays: pool
                     .try_retain_arc(self.node_overrides.clone(), self.weights.overlays)
                     .map_err(|_| reject())?,
-                _uuids: pool
-                    .try_retain_arc(self.node_ids_by_uuid.clone(), self.weights.uuids)
+                _uuids: self.node_ids_by_uuid.try_lease(pool).map_err(|_| reject())?,
+                _child_orders: self.child_indexes.ids_by_parent.try_lease(pool).map_err(|_| reject())?,
+                _child_declarations: self
+                    .child_indexes
+                    .ids_by_decl_id
+                    .try_lease(pool)
                     .map_err(|_| reject())?,
-                _children: pool
-                    .try_retain_arc(self.child_indexes.clone(), self.weights.children)
+                _child_keys: self
+                    .child_indexes
+                    .ids_by_child_key
+                    .try_lease(pool)
                     .map_err(|_| reject())?,
-                _revisions: self
-                    .revisions
-                    .try_lease(pool, self.weights.revisions)
-                    .map_err(|_| reject())?,
+                _revisions: self.revisions.try_lease(pool).map_err(|_| reject())?,
             };
             let _ = self.storage_leases.set(leases);
         }
         // Component storage has its own deduplicated reservation; the view itself owns
         // only fixed-size links, cached weights, and retained handles.
-        let own = std::mem::size_of::<Self>() + 2 * std::mem::size_of::<usize>();
+        let own = std::mem::size_of::<Self>() + 2 * std::mem::size_of::<usize>() + self.lease_storage_bytes();
         pool.try_retain_arc(self.clone(), own).map_err(|_| reject())
     }
 }

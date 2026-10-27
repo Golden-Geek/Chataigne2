@@ -534,7 +534,19 @@ every parent. Declaration IDs and exact child aliases (declaration ID, short nam
 indexes only above 16 siblings. Smaller parents use a bounded ordered scan. Both paths preserve
 the first matching sibling across aliases, including an earlier label before a later declaration
 ID. Duplicate aliases share a key instead of allocating another string per node.
-Large tick-scoped process snapshots release through a two-slot retirement pool when uniquely owned;
+Golden retains one canonical process view across ticks. Mutable `NodeStore` access records a
+bounded set of candidate IDs; sparse captures replace those records and only affected parent
+order/selector indexes. Unchanged records, UUIDs and indexes share immutable storage with older
+views. Maps compact after eight delta layers or dense changes. Removals, store/root replacement,
+UUID rebinding and collisions use full capture. Synthetic parameter overlays remain separate.
+Each shared map layer has its own deduplicated canonical lease, including retained parent layers;
+the existing 384-allocation / 1 GiB budget is unchanged. Partial lease admission is released.
+Snapshot statistics count changed captures and compaction copies as well as full construction.
+The public `process_tree_snapshot` API still captures a fresh complete view.
+Reference-cache maintenance first checks whether an immutable node exposes references. Nodes
+without references need neither parameter snapshots nor mutable access that would dirty the journal.
+
+Large tick-scoped and canonical process snapshots release through a two-slot retirement pool when uniquely owned;
 small or shared snapshots use ordinary release. Saturation or worker-start failure falls back to
 synchronous release, and `process_snapshot_retirement_metrics` exposes occupancy and rejection.
 The pool starts no worker until a large snapshot is actually retired.
@@ -550,8 +562,13 @@ Disjoint subtree edits and custom traffic events preserve a prepared read model'
 Ancestor metadata is outside this subtree identity, so consumers must check inherited root enabled
 state separately. Direct mutation of attached authored state must use engine edit APIs.
 Mutation bookkeeping marks only changed nodes and explicit topology parents in constant time per
-target. Snapshot creation copies that index and folds descendants iteratively in linear time
-alongside its existing whole-tree projection; revision lookups are constant time and retain no engine.
+target. Initial capture folds descendants iteratively. Refresh scans compact local counters and
+propagates new stamps through a bounded union of ancestor paths, sharing untouched folded entries.
+Structural changes require fresh parent stamps and acyclic bounded paths; these stamps dominate
+previous descendant maxima, including a moved subtree's old parent. Raw topology edits, deep/dense
+work and namespace changes use the complete iterative fold. Folded counter layers share the same
+canonical reservation and disposer as records and selectors. Revision lookup is bounded by the
+map's layer limit and retains no engine.
 
 Applying a subtree read precondition does not construct that whole-tree projection. Golden folds
 local authored counters over the guarded live subtree and compares the exact captured stamp.

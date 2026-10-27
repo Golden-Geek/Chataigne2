@@ -1,0 +1,350 @@
+{
+  "date": "2026-10-27",
+  "base": "137c9203",
+  "candidate": "Uncommitted incremental snapshot maps plus immutable reference-owner prefilter; inline experiment reverted.",
+  "method": "Six sequential alternating process runs, B/C/C/B/B/C, same dev profile and unchanged multiplex fixtures/tests; no owned compiler active during the runs.",
+  "artifacts": {
+    "baseline": {
+      "path": "target/qualification/p11-runtime-baseline-137c9203.exe",
+      "sha256": "4c22984de1dfdb94f545c4dd66ab46036dfc5db3ee6d7e6a94670cb6444a067e"
+    },
+    "candidate": {
+      "path": "target/debug/deps/Chataigne2-500cca251a508bc8.exe",
+      "sha256": "fb9d4f5e51d3351f2a51db99102ee3629c855b88124c88dc391c131220c08d19"
+    }
+  },
+  "runs": [
+    {
+      "path": "target/qualification/p11-runtime-ab-1-baseline.log",
+      "sha256": "dc429f72d6c0c252a7a38188bff7969b76eb640fac8773d819bc7d0047820718",
+      "metrics": [
+        "multiplex runtime: avg=4615us negative_avg=4563us positive_avg=4666us p95=6257us p99=7658us min=1978us max=8283us \r\ndeadline_misses=0 published_avg=4630us published_p95=6308us published_p99=7671us published_deadline_misses=0 \r\npublished_events=2129 callbacks=240 callback_ticks=240 snapshot_builds=0 provider_rebuilds=0 budget_rejected_actions=0 \r\nbudget_rejected_intents=0 processor_input_us=308726 processor_eval_us=434771 processor_eval_calls=1920 \r\nprocessor_lanes=243840 processor_eval_tick_share_pct=39.3\r",
+        "multiplex production runtime: avg=5085us p95=6051us p99=6354us min=2039us max=6599us deadline_misses=0 \r\npublished_events=2356\r"
+      ],
+      "result": [
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1871 filtered out; finished in 2.59s"
+      ]
+    },
+    {
+      "path": "target/qualification/p11-runtime-ab-2-candidate.log",
+      "sha256": "6cbde257975c1fa1b8225b7117375ef2636a93de00141345cef21d9883c9ac7c",
+      "metrics": [
+        "multiplex runtime: avg=4263us negative_avg=4215us positive_avg=4311us p95=6135us p99=6722us min=1995us max=6909us \r\ndeadline_misses=0 published_avg=4276us published_p95=6149us published_p99=6736us published_deadline_misses=0 \r\npublished_events=1817 callbacks=240 callback_ticks=240 snapshot_builds=0 provider_rebuilds=0 budget_rejected_actions=0 \r\nbudget_rejected_intents=0 processor_input_us=318978 processor_eval_us=390015 processor_eval_calls=1920 \r\nprocessor_lanes=243840 processor_eval_tick_share_pct=38.1\r",
+        "multiplex production runtime: avg=4912us p95=6858us p99=7950us min=2078us max=8840us deadline_misses=0 \r\npublished_events=1936\r"
+      ],
+      "result": [
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1871 filtered out; finished in 2.46s"
+      ]
+    },
+    {
+      "path": "target/qualification/p11-runtime-ab-3-candidate.log",
+      "sha256": "790143369c4f49176ca0fe1238338b455376b725912615ce4fae6760cc34be95",
+      "metrics": [
+        "multiplex runtime: avg=4515us negative_avg=4483us positive_avg=4548us p95=6034us p99=6213us min=2035us max=6775us \r\ndeadline_misses=0 published_avg=4529us published_p95=6045us published_p99=6231us published_deadline_misses=0 \r\npublished_events=2088 callbacks=240 callback_ticks=240 snapshot_builds=0 provider_rebuilds=0 budget_rejected_actions=0 \r\nbudget_rejected_intents=0 processor_input_us=319221 processor_eval_us=419167 processor_eval_calls=1920 \r\nprocessor_lanes=243840 processor_eval_tick_share_pct=38.7\r",
+        "multiplex production runtime: avg=5018us p95=5909us p99=6229us min=2109us max=6316us deadline_misses=0 \r\npublished_events=2330\r"
+      ],
+      "result": [
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1871 filtered out; finished in 2.53s"
+      ]
+    },
+    {
+      "path": "target/qualification/p11-runtime-ab-4-baseline.log",
+      "sha256": "49f60abd98b92596335d9b3b3241919ec377482563750d77a141f7deaf2cef0a",
+      "metrics": [
+        "multiplex runtime: avg=4644us negative_avg=4642us positive_avg=4646us p95=6390us p99=7070us min=1955us max=7200us \r\ndeadline_misses=0 published_avg=4658us published_p95=6416us published_p99=7108us published_deadline_misses=0 \r\npublished_events=2107 callbacks=240 callback_ticks=240 snapshot_builds=0 provider_rebuilds=0 budget_rejected_actions=0 \r\nbudget_rejected_intents=0 processor_input_us=311199 processor_eval_us=436178 processor_eval_calls=1920 \r\nprocessor_lanes=243840 processor_eval_tick_share_pct=39.1\r",
+        "multiplex production runtime: avg=5040us p95=6011us p99=6277us min=2152us max=7339us deadline_misses=0 \r\npublished_events=2395\r"
+      ],
+      "result": [
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1871 filtered out; finished in 2.58s"
+      ]
+    },
+    {
+      "path": "target/qualification/p11-runtime-ab-5-baseline.log",
+      "sha256": "eddd0ca7dadd0999e1020d7c436891b801972311bb43e7b3c88179ed21ef96af",
+      "metrics": [
+        "multiplex runtime: avg=4235us negative_avg=4189us positive_avg=4280us p95=6063us p99=6611us min=2037us max=7160us \r\ndeadline_misses=0 published_avg=4249us published_p95=6073us published_p99=6623us published_deadline_misses=0 \r\npublished_events=1865 callbacks=240 callback_ticks=240 snapshot_builds=0 provider_rebuilds=0 budget_rejected_actions=0 \r\nbudget_rejected_intents=0 processor_input_us=308581 processor_eval_us=396493 processor_eval_calls=1920 \r\nprocessor_lanes=243840 processor_eval_tick_share_pct=39.0\r",
+        "multiplex production runtime: avg=5024us p95=5906us p99=6189us min=2093us max=6330us deadline_misses=0 \r\npublished_events=2459\r"
+      ],
+      "result": [
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1871 filtered out; finished in 2.48s"
+      ]
+    },
+    {
+      "path": "target/qualification/p11-runtime-ab-6-candidate.log",
+      "sha256": "a006d70ab5d857ccf1d09ed314fe21d379ad4b21a31846092dc75fb644456c81",
+      "metrics": [
+        "multiplex runtime: avg=4698us negative_avg=4702us positive_avg=4694us p95=5825us p99=6357us min=2128us max=6854us \r\ndeadline_misses=0 published_avg=4713us published_p95=5852us published_p99=6404us published_deadline_misses=0 \r\npublished_events=2219 callbacks=240 callback_ticks=240 snapshot_builds=0 provider_rebuilds=0 budget_rejected_actions=0 \r\nbudget_rejected_intents=0 processor_input_us=317167 processor_eval_us=428422 processor_eval_calls=1920 \r\nprocessor_lanes=243840 processor_eval_tick_share_pct=38.0\r",
+        "multiplex production runtime: avg=4751us p95=6294us p99=7303us min=2070us max=8021us deadline_misses=0 \r\npublished_events=2028\r"
+      ],
+      "result": [
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1871 filtered out; finished in 2.51s"
+      ]
+    }
+  ],
+  "fullRuns": [
+    {
+      "path": "target/qualification/p11-runtime-ab-full-baseline.log",
+      "sha256": "ca93e071cd055e2d93be5e3d601717f04dd8ca4f87ee250e49ef54f730684348",
+      "result": [
+        "test result: ok. 1859 passed; 0 failed; 14 ignored; 0 measured; 0 filtered out; finished in 139.40s"
+      ]
+    },
+    {
+      "path": "target/qualification/p11-runtime-ab-full-candidate.log",
+      "sha256": "d816b89ab5bae21edee4ebec024af12d64911481b37e15c2817abd6da106cfd7",
+      "result": [
+        "test result: FAILED. 1858 passed; 1 failed; 14 ignored; 0 measured; 0 filtered out; finished in 135.89s"
+      ]
+    }
+  ],
+  "priorFailures": [
+    {
+      "path": "target/qualification/p11-incremental-snapshot-reference-app.log",
+      "sha256": "6970946e443652163f7efefdd4b45c298a193759e5214076dac8125fe47fc2ca",
+      "result": [
+        "test result: FAILED. 1857 passed; 2 failed; 14 ignored; 0 measured; 0 filtered out; finished in 152.49s"
+      ]
+    },
+    {
+      "path": "target/qualification/p11-incremental-snapshot-reference-app-quiet.log",
+      "sha256": "f264345684ded78c0cd35a3629e624bbb1d9626675f616438159322034e0ade0",
+      "result": [
+        "test result: FAILED. 1858 passed; 1 failed; 14 ignored; 0 measured; 0 filtered out; finished in 155.43s"
+      ]
+    },
+    {
+      "path": "target/qualification/p11-incremental-snapshot-inline-app.log",
+      "sha256": "61152f55ab5e5ea12a92f80306aba6c195617f129af01079ce289e4a6540133a",
+      "result": [
+        "test result: FAILED. 1858 passed; 1 failed; 14 ignored; 0 measured; 0 filtered out; finished in 140.19s"
+      ]
+    }
+  ],
+  "joycon": {
+    "case": "original_session_source_is_rejected_after_disconnect_and_reconnect",
+    "failure": "Edit(EditPreconditionFailed { edit_index: 3 }) in the test tick helper unwrap at capture.rs:22",
+    "baselineRepetitions": [
+      {
+        "path": "target/qualification/p11-runtime-joycon-baseline-1.log",
+        "sha256": "71e6ddacf4f8ae95bdfb579dd20c2722657a266dc0b9a4045d5dbe8df2079956",
+        "result": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1872 filtered out; finished in 0.10s"
+        ]
+      },
+      {
+        "path": "target/qualification/p11-runtime-joycon-baseline-10.log",
+        "sha256": "f9a4887afd8d2a05d58fc1099f31f764fdfe6fa0b238242fd674dfa589f6570d",
+        "result": [
+          "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1872 filtered out; finished in 0.04s"
+        ]
+      },
+      {
+        "path": "target/qualification/p11-runtime-joycon-baseline-2.log",
+        "sha256": "71e6ddacf4f8ae95bdfb579dd20c2722657a266dc0b9a4045d5dbe8df2079956",
+        "result": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1872 filtered out; finished in 0.10s"
+        ]
+      },
+      {
+        "path": "target/qualification/p11-runtime-joycon-baseline-3.log",
+        "sha256": "71e6ddacf4f8ae95bdfb579dd20c2722657a266dc0b9a4045d5dbe8df2079956",
+        "result": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1872 filtered out; finished in 0.10s"
+        ]
+      },
+      {
+        "path": "target/qualification/p11-runtime-joycon-baseline-4.log",
+        "sha256": "71e6ddacf4f8ae95bdfb579dd20c2722657a266dc0b9a4045d5dbe8df2079956",
+        "result": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1872 filtered out; finished in 0.10s"
+        ]
+      },
+      {
+        "path": "target/qualification/p11-runtime-joycon-baseline-5.log",
+        "sha256": "71e6ddacf4f8ae95bdfb579dd20c2722657a266dc0b9a4045d5dbe8df2079956",
+        "result": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1872 filtered out; finished in 0.10s"
+        ]
+      },
+      {
+        "path": "target/qualification/p11-runtime-joycon-baseline-6.log",
+        "sha256": "71e6ddacf4f8ae95bdfb579dd20c2722657a266dc0b9a4045d5dbe8df2079956",
+        "result": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1872 filtered out; finished in 0.10s"
+        ]
+      },
+      {
+        "path": "target/qualification/p11-runtime-joycon-baseline-7.log",
+        "sha256": "71e6ddacf4f8ae95bdfb579dd20c2722657a266dc0b9a4045d5dbe8df2079956",
+        "result": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1872 filtered out; finished in 0.10s"
+        ]
+      },
+      {
+        "path": "target/qualification/p11-runtime-joycon-baseline-8.log",
+        "sha256": "71e6ddacf4f8ae95bdfb579dd20c2722657a266dc0b9a4045d5dbe8df2079956",
+        "result": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1872 filtered out; finished in 0.10s"
+        ]
+      },
+      {
+        "path": "target/qualification/p11-runtime-joycon-baseline-9.log",
+        "sha256": "71e6ddacf4f8ae95bdfb579dd20c2722657a266dc0b9a4045d5dbe8df2079956",
+        "result": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1872 filtered out; finished in 0.10s"
+        ]
+      }
+    ],
+    "candidateRepetitions": [
+      {
+        "path": "target/qualification/p11-runtime-joycon-candidate-1.log",
+        "sha256": "71e6ddacf4f8ae95bdfb579dd20c2722657a266dc0b9a4045d5dbe8df2079956",
+        "result": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1872 filtered out; finished in 0.10s"
+        ]
+      },
+      {
+        "path": "target/qualification/p11-runtime-joycon-candidate-10.log",
+        "sha256": "71e6ddacf4f8ae95bdfb579dd20c2722657a266dc0b9a4045d5dbe8df2079956",
+        "result": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1872 filtered out; finished in 0.10s"
+        ]
+      },
+      {
+        "path": "target/qualification/p11-runtime-joycon-candidate-11.log",
+        "sha256": "71e6ddacf4f8ae95bdfb579dd20c2722657a266dc0b9a4045d5dbe8df2079956",
+        "result": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1872 filtered out; finished in 0.10s"
+        ]
+      },
+      {
+        "path": "target/qualification/p11-runtime-joycon-candidate-12.log",
+        "sha256": "c3af4d14abe8e1740304a31b3f58608dd121fa752f89810111adc0335e8dd345",
+        "result": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1872 filtered out; finished in 0.11s"
+        ]
+      },
+      {
+        "path": "target/qualification/p11-runtime-joycon-candidate-13.log",
+        "sha256": "e513879766726cbdcbe3ec7761843b4b54fed293b700335793adf796f1769d90",
+        "result": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1872 filtered out; finished in 0.09s"
+        ]
+      },
+      {
+        "path": "target/qualification/p11-runtime-joycon-candidate-14.log",
+        "sha256": "71e6ddacf4f8ae95bdfb579dd20c2722657a266dc0b9a4045d5dbe8df2079956",
+        "result": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1872 filtered out; finished in 0.10s"
+        ]
+      },
+      {
+        "path": "target/qualification/p11-runtime-joycon-candidate-15.log",
+        "sha256": "71e6ddacf4f8ae95bdfb579dd20c2722657a266dc0b9a4045d5dbe8df2079956",
+        "result": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1872 filtered out; finished in 0.10s"
+        ]
+      },
+      {
+        "path": "target/qualification/p11-runtime-joycon-candidate-16.log",
+        "sha256": "71e6ddacf4f8ae95bdfb579dd20c2722657a266dc0b9a4045d5dbe8df2079956",
+        "result": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1872 filtered out; finished in 0.10s"
+        ]
+      },
+      {
+        "path": "target/qualification/p11-runtime-joycon-candidate-17.log",
+        "sha256": "71e6ddacf4f8ae95bdfb579dd20c2722657a266dc0b9a4045d5dbe8df2079956",
+        "result": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1872 filtered out; finished in 0.10s"
+        ]
+      },
+      {
+        "path": "target/qualification/p11-runtime-joycon-candidate-18.log",
+        "sha256": "71e6ddacf4f8ae95bdfb579dd20c2722657a266dc0b9a4045d5dbe8df2079956",
+        "result": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1872 filtered out; finished in 0.10s"
+        ]
+      },
+      {
+        "path": "target/qualification/p11-runtime-joycon-candidate-19.log",
+        "sha256": "c3af4d14abe8e1740304a31b3f58608dd121fa752f89810111adc0335e8dd345",
+        "result": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1872 filtered out; finished in 0.11s"
+        ]
+      },
+      {
+        "path": "target/qualification/p11-runtime-joycon-candidate-2.log",
+        "sha256": "71e6ddacf4f8ae95bdfb579dd20c2722657a266dc0b9a4045d5dbe8df2079956",
+        "result": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1872 filtered out; finished in 0.10s"
+        ]
+      },
+      {
+        "path": "target/qualification/p11-runtime-joycon-candidate-20.log",
+        "sha256": "71e6ddacf4f8ae95bdfb579dd20c2722657a266dc0b9a4045d5dbe8df2079956",
+        "result": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1872 filtered out; finished in 0.10s"
+        ]
+      },
+      {
+        "path": "target/qualification/p11-runtime-joycon-candidate-3.log",
+        "sha256": "71e6ddacf4f8ae95bdfb579dd20c2722657a266dc0b9a4045d5dbe8df2079956",
+        "result": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1872 filtered out; finished in 0.10s"
+        ]
+      },
+      {
+        "path": "target/qualification/p11-runtime-joycon-candidate-4.log",
+        "sha256": "71e6ddacf4f8ae95bdfb579dd20c2722657a266dc0b9a4045d5dbe8df2079956",
+        "result": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1872 filtered out; finished in 0.10s"
+        ]
+      },
+      {
+        "path": "target/qualification/p11-runtime-joycon-candidate-5.log",
+        "sha256": "c3af4d14abe8e1740304a31b3f58608dd121fa752f89810111adc0335e8dd345",
+        "result": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1872 filtered out; finished in 0.11s"
+        ]
+      },
+      {
+        "path": "target/qualification/p11-runtime-joycon-candidate-6.log",
+        "sha256": "71e6ddacf4f8ae95bdfb579dd20c2722657a266dc0b9a4045d5dbe8df2079956",
+        "result": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1872 filtered out; finished in 0.10s"
+        ]
+      },
+      {
+        "path": "target/qualification/p11-runtime-joycon-candidate-7.log",
+        "sha256": "71e6ddacf4f8ae95bdfb579dd20c2722657a266dc0b9a4045d5dbe8df2079956",
+        "result": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1872 filtered out; finished in 0.10s"
+        ]
+      },
+      {
+        "path": "target/qualification/p11-runtime-joycon-candidate-8.log",
+        "sha256": "c3af4d14abe8e1740304a31b3f58608dd121fa752f89810111adc0335e8dd345",
+        "result": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1872 filtered out; finished in 0.11s"
+        ]
+      },
+      {
+        "path": "target/qualification/p11-runtime-joycon-candidate-9.log",
+        "sha256": "71e6ddacf4f8ae95bdfb579dd20c2722657a266dc0b9a4045d5dbe8df2079956",
+        "result": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1872 filtered out; finished in 0.10s"
+        ]
+      }
+    ]
+  },
+  "findings": [
+    "All six alternating runs pass both unchanged timing gates. Candidate active averages 4263/4515/4698us; baseline 4615/4644/4235us. Candidate production averages 4912/5018/4751us; baseline 5085/5040/5024us.",
+    "No steady-runtime regression is demonstrated by this scoped comparison; it is not a claim of whole-product or platform timing qualification.",
+    "The delivered base passes its full suite (1859/14 ignored); the candidate full suite passes 1858 and fails one Joy-Con case.",
+    "The same Joy-Con failure reproduces on the unchanged delivered base during repetition (nine passes, then one failure); the candidate passes 20 isolated repetitions. The root cause is not established by this evidence.",
+    "Earlier full-run timing failures remain retained. Two inline attributes did not establish useful headroom and were removed.",
+    "Cargo reused the test output path; fingerprint equality was detected before any comparison. A preserved baseline copy and freshly rebuilt candidate have distinct hashes."
+  ],
+  "next": "Normal bundled candidate build, native graph preservation, single-operation snapshot attribution, then unchanged 3/31 100k Spatializer creation. Full timing/pressure qualification remains open."
+}

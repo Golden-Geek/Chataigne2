@@ -5,8 +5,8 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-27 on `main`, based on delivered `444b0834` plus verified subtree-fence
-and receipt-wait boundaries. 100k creation completion remains open. **P11 is in progress; four of six fixed checkpoints are closed (67% rounded).**
+Last reconciled: 2026-10-27 on `main`, saving incremental process snapshots and counter refresh
+as an in-progress checkpoint after `137c9203`. 100k creation completion remains open. **P11 is in progress; four of six fixed checkpoints are closed (67% rounded).**
 **P10 is locally complete: three of three fixed checkpoints (100%).**
 **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
@@ -212,9 +212,11 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
 - **Two P11 checkpoints remain:** graph keyboard qualification, then complete composed workflows.
   Shared graph operations and the State/Formula scale matrices pass. Spatializer still needs its
   complete **60-case timing matrix** and final-artifact pressure preservation before graph closure.
-- **Current blocker: 100k Spatializer creation completion.** The latest fixed 3/31 directed case
-  fails at **4,880.2ms p95** against 4,000ms; feedback 22.9ms and maximum callback stall 29.2ms pass.
-  All 34 samples and undo restores finish. The last full attempt, on `444b0834`, passed 28 cases;
+- **Current blocker: 100k Spatializer creation completion.** The incremental-snapshot candidate's
+  latest fixed 3/31 directed case improves to **4,674.7ms p95**, still failing 4,000ms; feedback
+  78.7ms and maximum callback stall 84.6ms pass. All 34 samples and undo restores finish. The first
+  incremental candidate was 5,925.4ms; before the reference-owner repair the preceding
+  directed result was 4,880.2ms on the subtree-fence repair. The last full attempt, on `444b0834`, passed 28 cases;
   its 50k creation case passed at 1,991.7ms, narrowly within 2,000ms. That artifact also passed
   all 16 pressure groups. Those results do not qualify the newer executable's full matrix.
 - **Verified boundary repair:** subtree preconditions fold only the guarded live subtrees, sharing
@@ -229,11 +231,61 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
   during creation. Subtree precondition builds occur in undo: the repair removes all seven there.
   Receipt-only skipping does not reduce creation's observed snapshot count. Instrumented single
   operations identify work; they are not qualification distributions.
-- **Next:** implement incremental canonical process-snapshot refresh in Golden's engine/read model.
-  Small publication batches should update changed records and affected indexes without copying
-  unrelated project records. Preserve identity, topology, revision fences, immutable old views and
-  canonical lease accounting. Then run all 60 unchanged timing cases and all 16 pressure groups on
-  the final artifact before closing graph keyboard operations; composed workflows follow.
+- **Saved implementation checkpoint, qualification open:** Golden now tracks bounded mutation candidates and refreshes
+  changed process records and affected parent indexes through shared immutable map layers. Full
+  capture handles dense changes, removals, UUID rebinding/collisions and store/root replacement.
+  Compaction and canonical leases retain the existing bounds. **648 Core tests pass** (three
+  existing ignored); strict workspace/all-target Clippy passes after simplifying lease types.
+  The **54-case Spatializer rerun**, final strict checks, normal bundled build and **1,859 app
+  unit tests** pass (14 existing ignored). The initial app assertion counted only full builds;
+  it now includes refreshes and releases its held test worker on unwinding. The first app-wide
+  invocation had one fixture-path failure from the repository-root working directory; the full
+  rerun from Cargo's app-package working directory passes. All **39 native graph groups** pass
+  on this candidate. Its failing timing is retained; this checkpoint does not close a verified milestone.
+- **Reference-owner repair:** creation attribution still shows **nine full snapshots and three
+  small refreshes**. Reference-cache maintenance takes mutable access to every node, including
+  nodes with no references, which makes the mutation journal dense. It now detects reference
+  owners before cloning parameter snapshots or obtaining mutable access. A new regression requires
+  non-reference cache reads to preserve the canonical view. All **649 Core tests pass** (three
+  existing ignored): `target/qualification/p11-incremental-snapshot-reference-core-final.log`.
+  Final strict Clippy and the normal bundled build pass. A six-run alternating comparison against
+  delivered `137c9203` passes both multiplex gates on both artifacts; earlier full-run timing
+  failures remain retained. The candidate full suite passes 1,858 tests and reports one Joy-Con
+  precondition failure; the same failure reproduces on the unchanged base (ninth repeat passes,
+  tenth fails). Candidate passes 20 isolated repetitions. The inline experiment was reverted.
+  All **39 native graph groups pass** on executable `fbaccfa5…d743`.
+  The superseded compile
+  was deliberately stopped before tests to include the complete reference-owner fast path.
+- **Attribution after the reference-owner repair:** creation uses **zero full builds and twelve
+  incremental refreshes**, with 2-46 captured records per refresh and one 99,965-record compaction.
+  Total snapshot work is 1,117.5ms in this single instrumented operation; undo retains full fallback.
+  Its 3,622.6ms creation is diagnostic only; the completed 3/31 distribution fails at 4,674.7ms.
+- **New counter-refresh candidate:** subtree counter refresh now scans compact local counters and
+  propagates fresh stamps through affected ancestors, sharing untouched folded entries and their
+  canonical leases. Fresh structural parent stamps and bounded acyclic paths qualify the fast path;
+  raw topology, deep/dense changes and namespaces retain full folding. All **651 Core tests pass**
+  (three existing ignored): `target/qualification/p11-incremental-revisions-core.log`.
+  Strict Clippy passes; the app suite passes 1,858 tests and misses the active multiplex average
+  at 5.064ms versus 5ms (p95/p99 and deadline-miss gates pass). The journal's mutable-access path
+  now performs one slot lookup instead of two. Final strict workspace/all-target Clippy passes:
+  `target/qualification/p11-single-lookup-clippy.log`. Its full app suite passes 1,857 tests and
+  fails two multiplex timing gates (active average 5.122ms; production p99 10.540ms with seven
+  deadline misses): `target/qualification/p11-single-lookup-app.log`. Subsequent isolated candidate
+  and baseline runs both pass the two gates (`p11-counter-runtime-ab-candidate.log` and
+  `p11-counter-runtime-ab-baseline.log` under `target/qualification/`); these do not erase the
+  full-suite failures. The new normal executable is not built yet.
+  Counter-only writes, deep fallback and raw moves lowering a subtree maximum have regressions.
+- **Next:** resolve counter-refresh app timing qualification, then complete the normal build and
+  native preservation; repeat attribution and unchanged 100k creation timing. All 60 timing
+  cases and all 16 pressure groups remain required before graph closure; composed workflows follow.
+- [Failed candidate evidence](evidence/p11-incremental-snapshot-candidate-2026-10-27.json) retains
+  the executable/source fingerprints, 1,859-test app pass, 39 native groups, complete directed
+  timing distribution, phase windows and runner assertion/working-directory recovery.
+- [Runtime comparison](evidence/p11-process-snapshot-runtime-comparison-2026-10-27.json) retains
+  distinct artifact hashes, the six alternating runs, full suites and baseline Joy-Con reproduction.
+- [Reference-owner candidate](evidence/p11-process-snapshot-reference-2026-10-27.json) retains
+  all raw 3/31 samples, phase windows, the diagnostic runner, source/artifact fingerprints and
+  39 native groups. Its executable does not contain the counter-refresh prototype.
 - [Snapshot-boundary evidence](evidence/p11-spatializer-snapshot-boundary-2026-10-27.json) retains
   raw timings, phase counts, source/binary/asset/report hashes and runner failure/recovery.
   Maintained contracts: [Spatializer scale](p11-spatializer-graph-scale.md),

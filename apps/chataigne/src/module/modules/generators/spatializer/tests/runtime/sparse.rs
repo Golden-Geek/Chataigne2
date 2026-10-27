@@ -259,9 +259,12 @@ fn prepared_generated_echoes_do_not_request_or_build_an_inbox_snapshot() {
     let frame = output_change(&engine, cell);
     assert!(!module(&mut engine, id).inbox_requires_tree_snapshot(&frame));
     apply(&mut engine, edits);
-    let before = engine.tick_stats().snapshot_builds;
+    let before = engine.tick_stats().snapshot_builds + engine.tick_stats().snapshot_refreshes;
     engine.dispatch_inbox(ExecutionPhase::EngineTick).unwrap();
-    assert_eq!(engine.tick_stats().snapshot_builds, before);
+    assert_eq!(
+        engine.tick_stats().snapshot_builds + engine.tick_stats().snapshot_refreshes,
+        before
+    );
     stabilize(&mut engine);
     assert_eq!(float(&engine, cell), 0.5);
 }
@@ -335,6 +338,7 @@ fn receipt_only_wakes_skip_snapshots_and_resume_fresh_after_success_or_failure()
             engine.run_tick(Duration::from_millis(2)).unwrap();
             assert!(engine.tick_stats().wake_callbacks_fired > 0);
             assert_eq!(engine.tick_stats().snapshot_builds, 0);
+            assert_eq!(engine.tick_stats().snapshot_refreshes, 0);
             assert_eq!(float(&engine, cell), 1.0, "held edits must stay unapplied");
         }
         if reject {

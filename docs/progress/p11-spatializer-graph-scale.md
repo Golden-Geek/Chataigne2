@@ -454,3 +454,53 @@ samples, exact source/binary/asset/report hashes, phase windows and plan/batch c
 incremental canonical process-snapshot refresh at the Golden engine/read-model boundary, preserving
 old views, identities, topology, revision fences and lease accounting. Rerun the unchanged complete
 timing and pressure contracts afterward. **P11 remains 4/6 (67%), whole plan 59%.**
+
+## Incremental capture candidate under qualification
+
+The first canonical snapshot candidate shares immutable map layers and refreshes changed records
+and affected parent indexes. Its 648 Core tests, 54 Spatializer cases, 1,859 app tests, strict
+workspace/all-target Clippy, normal bundled build and 39 native graph groups pass. However, unchanged
+3/31 Voronoi creation at 100k regresses to **5,925.4ms p95**; feedback 29.3ms and callback stall 37.6ms
+pass. All 34 samples and undo restores finish. This is a failed partial timing selection, not closure.
+
+Separate single-operation attribution still records nine full snapshots and three small refreshes
+during creation. Reference-cache maintenance obtains mutable access even for nodes with no
+references, marking the bounded mutation journal dense and forcing full capture. The checkout now
+checks immutable reference ownership before parameter snapshots and mutable access, with a new
+canonical-view preservation regression. Its complete Core build is pending; app/native checks,
+the normal executable and timing must be rebuilt and rerun after this repair.
+
+The [failed candidate evidence](evidence/p11-incremental-snapshot-candidate-2026-10-27.json) preserves
+raw samples, phase windows, source/executable/asset/report hashes and test-runner failures and
+recovery. No verified milestone has been published for this candidate. The fixed full 60-case
+matrix and 16 pressure groups remain open; **P11 stays 4/6 (67%), whole plan 59%.**
+
+## Reference-owner repair and remaining counter cost
+
+The reference-owner repair passes 649 Core tests, strict Clippy, the normal bundled build and
+all 39 native graph groups on `fbaccfa5…d743`. Six alternating multiplex runs against delivered
+`137c9203` pass both original timing gates on both artifacts. A full candidate suite passes
+1,858 tests and fails one Joy-Con capture case; the same precondition failure reproduces on the
+unchanged base during repetition. The [comparison evidence](evidence/p11-process-snapshot-runtime-comparison-2026-10-27.json)
+retains these observations and the earlier full-run timing misses. This does not establish global
+runtime or platform timing qualification. The inline experiment was reverted.
+
+Creation attribution now has **zero full builds and twelve refreshes**: 367 captured records and
+one 99,965-record compaction. Total snapshot work is 1,117.5ms; undo retains nine full builds and
+three refreshes. The instrumented single creation completes in 3,622.6ms, but the unchanged 3/31
+selection still fails at **4,674.7ms p95**. Feedback 78.7ms and maximum stall 84.6ms pass; all samples
+and restores finish. [Reference-owner evidence](evidence/p11-process-snapshot-reference-2026-10-27.json)
+contains raw samples, phase windows, the runner source and source/executable/report fingerprints.
+
+The checkout now prototypes incremental folded-counter refresh. It propagates fresh local stamps
+through affected ancestors under a work bound and validates structural parent stamps; raw, deep,
+dense or malformed changes retain the full iterative fold. Counter layers preserve immutable old
+views and canonical leases. All 651 Core tests pass (three existing ignored). After the single-slot
+mutable-access refinement, strict workspace/all-target Clippy passes. The full app suite passes
+1,857 tests and fails two multiplex timing gates: active average 5.122ms and production p99
+10.540ms with seven deadline misses. Subsequent isolated candidate and baseline runs both pass
+the two gates; the full-suite failures remain open. See `target/qualification/p11-single-lookup-app.log`,
+`p11-single-lookup-clippy.log` and `p11-counter-runtime-ab-{candidate,baseline}.log`.
+This implementation is saved as an in-progress checkpoint. A new normal executable, native
+preservation, attribution and timing remain. No candidate has been published as a verified
+milestone. **P11 remains 4/6 (67%), whole plan 59%.**

@@ -53,16 +53,18 @@ impl<T: Node> Engine<T> {
         let mut updated = 0usize;
 
         for node_id in node_ids.iter().copied() {
-            let normalized_reference = self
-                .nodes
-                .get(node_id)
-                .and_then(|node| node.engine_param_snapshot())
-                .and_then(|snapshot| match snapshot.value {
-                    ParamValue::Reference(reference) => {
-                        self.normalize_reference_value_for_param(node_id, reference).ok()
-                    }
-                    _ => None,
-                });
+            let Some(node) = self.nodes.get(node_id) else {
+                continue;
+            };
+            let mut has_references = false;
+            node.engine_visit_references(&mut |_| has_references = true);
+            if !has_references {
+                continue;
+            }
+            let normalized_reference = node.engine_param_snapshot().and_then(|snapshot| match snapshot.value {
+                ParamValue::Reference(reference) => self.normalize_reference_value_for_param(node_id, reference).ok(),
+                _ => None,
+            });
 
             if let Some(normalized_reference) = normalized_reference {
                 if let Some(node) = self.nodes.get_mut(node_id) {
@@ -92,6 +94,9 @@ impl<T: Node> Engine<T> {
                 });
             }
 
+            if resolutions.is_empty() {
+                continue;
+            }
             if let Some(node) = self.nodes.get_mut(node_id) {
                 node.engine_visit_references_mut(&mut |reference| {
                     let Some((resolved, cached_name)) = resolutions.pop_front() else {

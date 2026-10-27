@@ -81,7 +81,10 @@ next wake requests a fresh engine snapshot. The original apply-time source/path 
 validate queued writes against current engine state, including changes whose callbacks have not
 run. Idle, disabled, rejected and failed service paths release the view through the canonical
 snapshot disposer. This removes repeated full-tree construction from unchanged continuation
-turns; cold snapshots after mutations keep their existing cost and qualification requirements.
+turns. After sparse mutations, Golden's canonical read model refreshes changed records and affected
+parent indexes while sharing unchanged storage. Spatializer still requests a current view rather
+than retaining stale data across edits. Dense changes and removals use full capture; actual-app
+latency and pressure qualification remain required.
 
 Prepared admission includes dense values and sparse pair-index capacity (24 bytes per admitted
 pair), endpoint/row/repair storage, and 40 bytes per snapshot record for obsolete IDs and the
