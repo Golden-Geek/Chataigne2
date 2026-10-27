@@ -3,7 +3,10 @@ use crate::edit::Edit;
 use crate::events::{CustomEventRetention, Event, EventKind};
 use crate::node::{Node, NodeCreationContext};
 use crate::parameter::ParamValue;
-use std::{any::type_name, collections::BTreeMap};
+use std::{
+    any::type_name,
+    collections::{BTreeMap, HashMap},
+};
 
 use super::edit_journal::JournalMode;
 use super::history::HistoryStep;
@@ -156,11 +159,7 @@ impl<T: Node> Engine<T> {
                 let (outcome, should_clear_redo): (Result<Option<HistoryStep<T>>, EngineEditError>, bool) =
                     match request.edit {
                         Edit::CheckPreconditions { preconditions } => {
-                            let subtree_snapshot = preconditions
-                                .nodes
-                                .iter()
-                                .any(|guard| matches!(guard.revision, crate::edit::ReadRevision::Subtree(_)))
-                                .then(|| self.get_or_build_tick_snapshot());
+                            let mut subtree_revisions = HashMap::new();
                             let nodes_match = preconditions.nodes.iter().all(|guard| {
                                 self.nodes.get(guard.node).is_some_and(|node| {
                                     node.node_data().meta.uuid == guard.uuid
@@ -170,10 +169,12 @@ impl<T: Node> Engine<T> {
                                                 self.tree_revisions.unchanged_since(guard.node, revision)
                                             }
                                             crate::edit::ReadRevision::Subtree(revision) => {
-                                                subtree_snapshot
-                                                    .as_ref()
-                                                    .and_then(|snapshot| snapshot.subtree_revision(guard.node))
-                                                    == Some(revision)
+                                                self.tree_revisions.subtree_matches(
+                                                    &self.nodes,
+                                                    guard.node,
+                                                    revision,
+                                                    &mut subtree_revisions,
+                                                )
                                             }
                                             crate::edit::ReadRevision::Structure(revision) => {
                                                 self.tree_revisions.structure_unchanged_since(guard.node, revision)

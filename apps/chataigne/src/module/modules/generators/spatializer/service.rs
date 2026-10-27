@@ -128,7 +128,13 @@ impl Service {
         }
     }
     pub fn needs_tree_snapshot(&self) -> bool {
+        // A receipt-only wake cannot plan work. Its completion callback wakes us
+        // again after the applied prefix or rejected suffix has settled.
         self.read_view.is_none()
+            && self
+                .pending
+                .as_ref()
+                .is_none_or(|receipt| receipt.status() != EditCompletionStatus::Pending)
     }
     #[cfg(test)]
     pub(super) fn idle(&self) -> bool {
@@ -505,6 +511,24 @@ impl Service {
         }
         reads.push(NodeReadGuard::capture_identity(snapshot, module).ok_or("Spatializer module disappeared")?);
         reads.push(NodeReadGuard::capture_structure(snapshot, values).ok_or("Spatializer values disappeared")?);
+        if self.publication.is_some() && worker::trace_enabled() {
+            eprintln!(
+                "[spatializer] publication_turn nodes={} edits={} values={} trees={} reads={}",
+                snapshot.node_count(),
+                edits.pending.len(),
+                edits
+                    .pending
+                    .iter()
+                    .filter(|request| matches!(request.edit, Edit::SetParam { .. }))
+                    .count(),
+                edits
+                    .pending
+                    .iter()
+                    .filter(|request| matches!(request.edit, Edit::AddNodeTree { .. }))
+                    .count(),
+                reads.len(),
+            );
+        }
         let preconditions = EditPreconditions::new(reads, vec![self.life.reader().guard_at(self.generation)])
             .ok_or("Spatializer publication read capacity exceeded")?;
         let mut guarded = EditQueue::new();

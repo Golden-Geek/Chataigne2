@@ -321,3 +321,31 @@ fn an_adopted_inbox_view_keeps_apply_time_input_fences() {
     assert_eq!(default_cell(&engine, id), cell);
     assert_eq!(float(&engine, cell), 0.75);
 }
+
+#[test]
+fn receipt_only_wakes_skip_snapshots_and_resume_fresh_after_success_or_failure() {
+    for reject in [false, true] {
+        let (mut engine, id, source, cell) = target_radius_fixture();
+        set_position_2d(&mut engine, source, 0.5, 0.0);
+        engine.dispatch_inbox(ExecutionPhase::EngineTick).unwrap();
+        let edits = pending_value(&mut engine, id, cell);
+        assert!(!module(&mut engine, id).worker_wake_requires_tree_snapshot());
+        for _ in 0..3 {
+            module(&mut engine, id).service.request();
+            engine.run_tick(Duration::from_millis(2)).unwrap();
+            assert!(engine.tick_stats().wake_callbacks_fired > 0);
+            assert_eq!(engine.tick_stats().snapshot_builds, 0);
+            assert_eq!(float(&engine, cell), 1.0, "held edits must stay unapplied");
+        }
+        if reject {
+            set_position_2d(&mut engine, source, 0.25, 0.0);
+            assert!(apply_failure(&mut engine, edits));
+        } else {
+            apply(&mut engine, edits);
+        }
+        assert!(module(&mut engine, id).worker_wake_requires_tree_snapshot());
+        stabilize(&mut engine);
+        assert_eq!(float(&engine, cell), if reject { 0.75 } else { 0.5 });
+        assert_eq!(default_cell(&engine, id), cell);
+    }
+}

@@ -76,6 +76,31 @@ pub(super) fn capture(
         }
         plan.rows.push(row);
     }
+    if worker::trace_enabled() {
+        let mut new_rows = 0;
+        let mut missing = 0;
+        for row in &plan.rows {
+            if let Some(folder) = snapshot.find_child_by_decl_id(values, &prepared.outer()[row.index].value_decl_id) {
+                missing += row
+                    .pairs
+                    .iter()
+                    .filter(|&&inner| {
+                        snapshot
+                            .find_child_by_decl_id(folder, &prepared.inner()[inner].value_decl_id)
+                            .is_none()
+                    })
+                    .count();
+            } else {
+                new_rows += 1;
+            }
+        }
+        eprintln!(
+            "[spatializer] output_plan sources={} targets={} rows={} new_rows={new_rows} sparse_pairs={} missing_cells={missing} removals={}",
+            prepared.config.sources.len(), prepared.config.targets.len(), plan.rows.len(),
+            plan.rows.iter().map(|row| row.pairs.len()).sum::<usize>(),
+            plan.removals.len() + plan.rows.iter().map(|row| row.removals.len()).sum::<usize>(),
+        );
+    }
     Ok(plan)
 }
 

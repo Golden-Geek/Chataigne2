@@ -15,6 +15,11 @@ pub(super) const MAX_PAIRS: usize = 1024 * 1024;
 pub(super) const MAX_LABEL_BYTES: usize = 512;
 pub(super) const MAX_ENDPOINT_CHILDREN: usize = 16;
 
+pub(super) fn trace_enabled() -> bool {
+    static ENABLED: OnceLock<bool> = OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var_os("GOLDEN_PERF_TRACE").is_some_and(|value| value == "1"))
+}
+
 #[cfg(test)]
 #[derive(Default)]
 pub(super) struct TestControl {

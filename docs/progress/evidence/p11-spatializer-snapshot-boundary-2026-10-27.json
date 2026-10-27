@@ -1,0 +1,5798 @@
+{
+  "date": "2026-10-27",
+  "baseline": "444b0834",
+  "scope": "Exact scoped live subtree precondition validation; receipt-only snapshot avoidance; separated creation/undo diagnosis. 100k creation remains unqualified.",
+  "binarySha256": "fcdf8c8328b384ab83d29450ec262d62664385ef514c7f16709e8653a56b1fde",
+  "sources": [
+    {
+      "path": "apps/chataigne/src/module/modules/generators/spatializer/output_plan.rs",
+      "sha256": "ad3de7e67e5a5adcd3a1072623df1543b74ff82beaad4be893974fae93e19da9",
+      "lines": 125
+    },
+    {
+      "path": "apps/chataigne/src/module/modules/generators/spatializer/service.rs",
+      "sha256": "db89f0406db19741616f4e9e10eb0d61cc68e66d718942a5af5bb108db8181c1",
+      "lines": 576
+    },
+    {
+      "path": "apps/chataigne/src/module/modules/generators/spatializer/tests/runtime.rs",
+      "sha256": "19a28253259fac41023b07aafa38f864d37e58761ef1a33617af07b3cdfe9f74",
+      "lines": 647
+    },
+    {
+      "path": "apps/chataigne/src/module/modules/generators/spatializer/tests/runtime/sparse.rs",
+      "sha256": "b4f8f048076402720ea0562c7702b384685899197591a54120a282741d4821fb",
+      "lines": 352
+    },
+    {
+      "path": "apps/chataigne/src/module/modules/generators/spatializer/worker.rs",
+      "sha256": "7c56f992a0322a3d169e098b56eb60713aeb37ef2477dbec3fc64dfe5291b219",
+      "lines": 318
+    },
+    {
+      "path": "crates/golden_core/engine/src/engine/apply.rs",
+      "sha256": "869838f2b7585a1e9047eb36294e919156060e7bdeca392d4fb6843d0f80bf8a",
+      "lines": 738
+    },
+    {
+      "path": "crates/golden_core/engine/src/engine/tests/edit_preconditions.rs",
+      "sha256": "299cc71ef4308426878b356c9167c5abb874ff5c54aa6bc6d12c43e754c43a4f",
+      "lines": 383
+    },
+    {
+      "path": "crates/golden_core/engine/src/engine/tree_revisions.rs",
+      "sha256": "8f0cc55b2b6162967dbfebd5bd678df352501e792d9264d8f9bc8293c82aa3a8",
+      "lines": 239
+    },
+    {
+      "path": "crates/golden_core/engine/src/engine/tests/edit_preconditions/subtrees.rs",
+      "sha256": "ebc93d64e9de895f7ecdb78c4e622f9b4a531c137186712d1517edc7bc4d9e43",
+      "lines": 105
+    }
+  ],
+  "inventory": {
+    "sources": 2299,
+    "oversized": 25
+  },
+  "machine": {
+    "platform": "win32",
+    "release": "10.0.26300",
+    "architecture": "x64",
+    "logicalProcessors": 24,
+    "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+    "totalMemoryBytes": 33752997888,
+    "node": "v26.5.0"
+  },
+  "checks": {
+    "preconditions": {
+      "passed": 17,
+      "ignored": 0,
+      "log": {
+        "path": "target/qualification/p11-scoped-subtree-fences-owning.log",
+        "sha256": "1d769f54440ef6a1295274493f874bbb825124cb03b07a7b20f11cdb0ae2ead4"
+      }
+    },
+    "core": {
+      "passed": 640,
+      "ignored": 3,
+      "log": {
+        "path": "target/qualification/p11-scoped-subtree-fences-core.log",
+        "sha256": "dd702a98908d8462c43046ef4c36e4f0467cc5936f586d5b4c3b25ee44651886"
+      }
+    },
+    "spatializer": {
+      "passed": 54,
+      "ignored": 0,
+      "log": {
+        "path": "target/qualification/p11-snapshot-boundary-final-spatializer.log",
+        "sha256": "b02568462f7518e00b580db88dce1b1125b4bdd1f81c18227a6e0b0aaeff1525"
+      }
+    },
+    "clippy": {
+      "passed": true,
+      "workspace": true,
+      "allTargets": true,
+      "warningsDenied": true,
+      "log": {
+        "path": "target/qualification/p11-publication-plan-trace-clippy.log",
+        "sha256": "5ff1ada5922e67d9c87da8f6df81f6f0f04a2b9b2a6d856df28b8d24df2673f4"
+      }
+    },
+    "normalBuild": {
+      "passed": true,
+      "bundledUi": true,
+      "uiBundleReused": true,
+      "log": {
+        "path": "target/qualification/p11-publication-plan-trace-build.log",
+        "sha256": "c87351e1b04204bc5be7c39f1d9acc5d7ed6dd11704c80ac01908b19e62ac9e0"
+      }
+    },
+    "native": {
+      "passed": 39,
+      "spatializerAuthoring": 13,
+      "spatializerNavigation": 12,
+      "heldCommands": 5,
+      "state": 4,
+      "formula": 5
+    },
+    "formatting": {
+      "rootCargo": true,
+      "coreCargo": true,
+      "explicitAppRust": true,
+      "prettier": true,
+      "diffCheck": true,
+      "log": "target/qualification/p11-snapshot-boundary-format.log"
+    }
+  },
+  "unchangedUi": {
+    "sourceCommit": "444b0834",
+    "testsPassed": 469,
+    "note": "Dated reference; no UI runtime or fixture source changed in this milestone."
+  },
+  "status": {
+    "p03": "12/12 (100%); zero remaining",
+    "p11": "4/6 (67%)",
+    "wholePlan": "59%",
+    "timing": "100k directed creation fails completion at 4880.2ms p95 against 4000ms; 34 samples and restores complete. No new full matrix or pressure qualification."
+  },
+  "findings": {
+    "creation": {
+      "pairs": 127,
+      "valueUpdates": 95,
+      "newCells": 32,
+      "batches": 8,
+      "pairsPerTurn": 16,
+      "snapshotCountsBefore": {
+        "worker": 10,
+        "inbox": 1,
+        "preconditions": 0
+      },
+      "snapshotCountsAfterReceiptGate": {
+        "worker": 10,
+        "inbox": 1,
+        "preconditions": 0
+      }
+    },
+    "undo": {
+      "preconditionSnapshotsBefore": 7,
+      "preconditionSnapshotsAfter": 0
+    },
+    "receiptGate": "Three forced held-receipt wakes build no snapshots; success and rejection both resume fresh reads. No reduction in creation snapshot count was observed."
+  },
+  "helper": {
+    "path": "target/qualification/spatializer-creation-phases.mjs",
+    "sha256": "5b36db0916e22ae4fd8fb40c6e85655c9407ca5f633c807cc304a7d44eb858cd"
+  },
+  "runs": [
+    {
+      "name": "p11-scoped-subtree-fences-before-phases",
+      "exitCode": 0,
+      "log": {
+        "path": "target/qualification/p11-scoped-subtree-fences-before-phases.log",
+        "sha256": "a3e9a3e444c668acb62f5cd5ce85b0d3f03c06cb6fc36ef0862ce670b9b02385"
+      },
+      "environment": {
+        "kind": "environment",
+        "production": true,
+        "browser": "156.0.4314.42",
+        "binaryHash": "d372a9e0587a5529f908580ea8aafca115a53af3dd62e2c072231b8db4c5302e",
+        "assets": [
+          {
+            "name": "dmsans-italic-CT59GZwy.ttf",
+            "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+          },
+          {
+            "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+            "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+          },
+          {
+            "name": "index-CGcksE-O.js",
+            "sha256": "02a2840a0a6db6e3a45fc37fb1bdd8af2cde402031cf3992edfe63558d103c5a"
+          },
+          {
+            "name": "index-CGcksE-O.js.map",
+            "sha256": "9adea135541dbda9aefba9b6923b6d2a1d1e60f5d2ee77c5edcff792437489dc"
+          },
+          {
+            "name": "index-HpApHVKp.css",
+            "sha256": "8c7e778204be5ffe14da911069f82191985641daf451aeefa16b5cccbcc74c2d"
+          }
+        ],
+        "report": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-spatializer-creation-phases-6763425d-fc53-4d34-ada7-095caf7215b2\\browser.jsonl"
+      },
+      "report": {
+        "path": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-spatializer-creation-phases-6763425d-fc53-4d34-ada7-095caf7215b2\\browser.jsonl",
+        "sha256": "59943d2124b4419545bcd5d90e6ad06e01f24881779ca9a8f3fbfd5ce131dac9"
+      },
+      "records": [
+        {
+          "kind": "attribution-start",
+          "diagnosticOnly": true,
+          "before": {
+            "heldResync": false,
+            "pending": 0,
+            "connection": "connected",
+            "generation": 2,
+            "selected": [],
+            "nodes": 100000
+          }
+        },
+        {
+          "kind": "creation-phases",
+          "diagnosticOnly": true,
+          "phases": [
+            {
+              "caseId": "single-creation-attribution",
+              "action": "create",
+              "index": 0,
+              "phase": "prepare",
+              "backendBytes": 69469
+            },
+            {
+              "caseId": "single-creation-attribution",
+              "action": "create",
+              "index": 0,
+              "phase": "observe",
+              "backendBytes": 69469
+            },
+            {
+              "caseId": "single-creation-attribution",
+              "action": "create",
+              "index": 0,
+              "phase": "sample",
+              "sample": {
+                "warmup": false,
+                "feedback": 33.5,
+                "completion": 4602.29999999702,
+                "stall": 31.499999997020495,
+                "peakGlyphs": 11,
+                "peakRows": 16
+              },
+              "backendBytes": 79851
+            },
+            {
+              "caseId": "single-creation-attribution",
+              "action": "create",
+              "index": 0,
+              "phase": "restore",
+              "backendBytes": 79851
+            },
+            {
+              "caseId": "single-creation-attribution",
+              "action": "create",
+              "index": 0,
+              "phase": "restored",
+              "backendBytes": 90791
+            }
+          ],
+          "ranges": [
+            {
+              "name": "creation",
+              "start": 69469,
+              "end": 79851,
+              "snapshots": [
+                {
+                  "nodes": 100003,
+                  "totalUs": 231494,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\dispatch.rs:282:33"
+                },
+                {
+                  "nodes": 100003,
+                  "totalUs": 212468,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                },
+                {
+                  "nodes": 100003,
+                  "totalUs": 285343,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                },
+                {
+                  "nodes": 100007,
+                  "totalUs": 310727,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                },
+                {
+                  "nodes": 100010,
+                  "totalUs": 321147,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                },
+                {
+                  "nodes": 100016,
+                  "totalUs": 318222,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                },
+                {
+                  "nodes": 100019,
+                  "totalUs": 323780,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                },
+                {
+                  "nodes": 100023,
+                  "totalUs": 325082,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                },
+                {
+                  "nodes": 100027,
+                  "totalUs": 327362,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                },
+                {
+                  "nodes": 100030,
+                  "totalUs": 322909,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                },
+                {
+                  "nodes": 100035,
+                  "totalUs": 323400,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                }
+              ]
+            },
+            {
+              "name": "undo",
+              "start": 79851,
+              "end": 90791,
+              "snapshots": [
+                {
+                  "nodes": 100035,
+                  "totalUs": 290693,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                },
+                {
+                  "nodes": 100032,
+                  "totalUs": 243162,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\dispatch.rs:282:33"
+                },
+                {
+                  "nodes": 100032,
+                  "totalUs": 253431,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                },
+                {
+                  "nodes": 100028,
+                  "totalUs": 270630,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\dispatch.rs:282:33"
+                },
+                {
+                  "nodes": 100028,
+                  "totalUs": 277753,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\apply.rs:163:47"
+                },
+                {
+                  "nodes": 100025,
+                  "totalUs": 219745,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\dispatch.rs:282:33"
+                },
+                {
+                  "nodes": 100025,
+                  "totalUs": 239582,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\apply.rs:163:47"
+                },
+                {
+                  "nodes": 100019,
+                  "totalUs": 218331,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\dispatch.rs:282:33"
+                },
+                {
+                  "nodes": 100019,
+                  "totalUs": 282106,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\apply.rs:163:47"
+                },
+                {
+                  "nodes": 100016,
+                  "totalUs": 216263,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\dispatch.rs:282:33"
+                },
+                {
+                  "nodes": 100016,
+                  "totalUs": 285375,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\apply.rs:163:47"
+                },
+                {
+                  "nodes": 100012,
+                  "totalUs": 238738,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\dispatch.rs:282:33"
+                },
+                {
+                  "nodes": 100012,
+                  "totalUs": 331868,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\apply.rs:163:47"
+                },
+                {
+                  "nodes": 100008,
+                  "totalUs": 221799,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\dispatch.rs:282:33"
+                },
+                {
+                  "nodes": 100008,
+                  "totalUs": 250795,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\apply.rs:163:47"
+                },
+                {
+                  "nodes": 100005,
+                  "totalUs": 205666,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\dispatch.rs:282:33"
+                },
+                {
+                  "nodes": 100005,
+                  "totalUs": 224665,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\apply.rs:163:47"
+                },
+                {
+                  "nodes": 100000,
+                  "totalUs": 198751,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\dispatch.rs:282:33"
+                },
+                {
+                  "nodes": 100000,
+                  "totalUs": 272128,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "creation-attribution",
+          "diagnosticOnly": true,
+          "timing": {
+            "action": "create",
+            "passed": false,
+            "p95Feedback": 33.5,
+            "p95Completion": 4602.29999999702,
+            "maximumStall": 31.499999997020495,
+            "samples": [
+              {
+                "warmup": false,
+                "feedback": 33.5,
+                "completion": 4602.29999999702,
+                "stall": 31.499999997020495,
+                "peakGlyphs": 11,
+                "peakRows": 16
+              }
+            ]
+          },
+          "before": {
+            "heldResync": false,
+            "pending": 0,
+            "connection": "connected",
+            "generation": 2,
+            "selected": [],
+            "nodes": 100000
+          },
+          "after": {
+            "heldResync": false,
+            "pending": 0,
+            "connection": "connected",
+            "generation": 2,
+            "selected": [4294975923],
+            "nodes": 100000
+          },
+          "cpu": [
+            {
+              "id": 3,
+              "frame": {
+                "functionName": "(idle)",
+                "scriptId": "0",
+                "url": "",
+                "lineNumber": -1,
+                "columnNumber": -1
+              },
+              "selfUs": 7626071
+            },
+            {
+              "id": 326,
+              "frame": {
+                "functionName": "get",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 13996
+              },
+              "selfUs": 605806
+            },
+            {
+              "id": 2,
+              "frame": {
+                "functionName": "(program)",
+                "scriptId": "0",
+                "url": "",
+                "lineNumber": -1,
+                "columnNumber": -1
+              },
+              "selfUs": 417816
+            },
+            {
+              "id": 328,
+              "frame": {
+                "functionName": "#i",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 14036
+              },
+              "selfUs": 246977
+            },
+            {
+              "id": 327,
+              "frame": {
+                "functionName": "#i",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 14036
+              },
+              "selfUs": 195456
+            },
+            {
+              "id": 338,
+              "frame": {
+                "functionName": "#i",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 14036
+              },
+              "selfUs": 149839
+            },
+            {
+              "id": 249,
+              "frame": {
+                "functionName": "Pd",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 137695
+              },
+              "selfUs": 139394
+            },
+            {
+              "id": 354,
+              "frame": {
+                "functionName": "#i",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 14036
+              },
+              "selfUs": 109901
+            },
+            {
+              "id": 251,
+              "frame": {
+                "functionName": "c",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 138453
+              },
+              "selfUs": 94024
+            },
+            {
+              "id": 252,
+              "frame": {
+                "functionName": "kd",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 137207
+              },
+              "selfUs": 92649
+            },
+            {
+              "id": 323,
+              "frame": {
+                "functionName": "get",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 13996
+              },
+              "selfUs": 83950
+            },
+            {
+              "id": 325,
+              "frame": {
+                "functionName": "child",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 135999
+              },
+              "selfUs": 78638
+            },
+            {
+              "id": 49,
+              "frame": {
+                "functionName": "(garbage collector)",
+                "scriptId": "0",
+                "url": "",
+                "lineNumber": -1,
+                "columnNumber": -1
+              },
+              "selfUs": 71074
+            },
+            {
+              "id": 282,
+              "frame": {
+                "functionName": "get",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 13996
+              },
+              "selfUs": 65389
+            },
+            {
+              "id": 278,
+              "frame": {
+                "functionName": "#a",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 14494
+              },
+              "selfUs": 64521
+            },
+            {
+              "id": 45,
+              "frame": {
+                "functionName": "get",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 13996
+              },
+              "selfUs": 59802
+            },
+            {
+              "id": 322,
+              "frame": {
+                "functionName": "reconcile",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 157888
+              },
+              "selfUs": 57052
+            },
+            {
+              "id": 420,
+              "frame": {
+                "functionName": "#i",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 14036
+              },
+              "selfUs": 53879
+            },
+            {
+              "id": 280,
+              "frame": {
+                "functionName": "",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 61759
+              },
+              "selfUs": 48903
+            },
+            {
+              "id": 250,
+              "frame": {
+                "functionName": "s",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 138320
+              },
+              "selfUs": 48093
+            },
+            {
+              "id": 275,
+              "frame": {
+                "functionName": "ea",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 9440
+              },
+              "selfUs": 46833
+            },
+            {
+              "id": 48,
+              "frame": {
+                "functionName": "v",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 139991
+              },
+              "selfUs": 41624
+            },
+            {
+              "id": 363,
+              "frame": {
+                "functionName": "Cd",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 136765
+              },
+              "selfUs": 40175
+            },
+            {
+              "id": 309,
+              "frame": {
+                "functionName": "#a",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 14494
+              },
+              "selfUs": 33870
+            },
+            {
+              "id": 276,
+              "frame": {
+                "functionName": "set",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 14267
+              },
+              "selfUs": 27844
+            },
+            {
+              "id": 373,
+              "frame": {
+                "functionName": "get",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 13996
+              },
+              "selfUs": 24773
+            },
+            {
+              "id": 247,
+              "frame": {
+                "functionName": "",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+                "lineNumber": 3,
+                "columnNumber": 97896
+              },
+              "selfUs": 24111
+            },
+            {
+              "id": 248,
+              "frame": {
+                "functionName": "endpointFromNode",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 138580
+              },
+              "selfUs": 22437
+            },
+            {
+              "id": 46,
+              "frame": {
+                "functionName": "#i",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 135865
+              },
+              "selfUs": 18519
+            },
+            {
+              "id": 353,
+              "frame": {
+                "functionName": "has",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 14222
+              },
+              "selfUs": 18443
+            },
+            {
+              "id": 337,
+              "frame": {
+                "functionName": "now",
+                "scriptId": "0",
+                "url": "",
+                "lineNumber": -1,
+                "columnNumber": -1
+              },
+              "selfUs": 16900
+            },
+            {
+              "id": 324,
+              "frame": {
+                "functionName": "a",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 138161
+              },
+              "selfUs": 12367
+            },
+            {
+              "id": 352,
+              "frame": {
+                "functionName": "a",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 138161
+              },
+              "selfUs": 10883
+            },
+            {
+              "id": 258,
+              "frame": {
+                "functionName": "querySelectorAll",
+                "scriptId": "0",
+                "url": "",
+                "lineNumber": -1,
+                "columnNumber": -1
+              },
+              "selfUs": 10758
+            },
+            {
+              "id": 339,
+              "frame": {
+                "functionName": "Fd",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 137953
+              },
+              "selfUs": 9175
+            },
+            {
+              "id": 44,
+              "frame": {
+                "functionName": "child",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 135999
+              },
+              "selfUs": 8166
+            },
+            {
+              "id": 277,
+              "frame": {
+                "functionName": "#a",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 14494
+              },
+              "selfUs": 7708
+            },
+            {
+              "id": 206,
+              "frame": {
+                "functionName": "_",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 139897
+              },
+              "selfUs": 7666
+            },
+            {
+              "id": 253,
+              "frame": {
+                "functionName": "get",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 13996
+              },
+              "selfUs": 7665
+            },
+            {
+              "id": 344,
+              "frame": {
+                "functionName": "forEachChange",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 15982
+              },
+              "selfUs": 7645
+            }
+          ]
+        },
+        {
+          "kind": "result",
+          "passed": true,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "name": "p11-receipt-only-wakes-after-phases",
+      "exitCode": 0,
+      "log": {
+        "path": "target/qualification/p11-receipt-only-wakes-after-phases.log",
+        "sha256": "fbb8b3922e4ee71e1a99ece7fc7d9bffb58f735351a1d183017d6410717aee19"
+      },
+      "environment": {
+        "kind": "environment",
+        "production": true,
+        "browser": "156.0.4314.42",
+        "binaryHash": "1255105f636a32b5622a1eaa9c785b9b1fc6d7e41331c1348d11adb4acafd3b7",
+        "assets": [
+          {
+            "name": "dmsans-italic-CT59GZwy.ttf",
+            "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+          },
+          {
+            "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+            "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+          },
+          {
+            "name": "index-CGcksE-O.js",
+            "sha256": "02a2840a0a6db6e3a45fc37fb1bdd8af2cde402031cf3992edfe63558d103c5a"
+          },
+          {
+            "name": "index-CGcksE-O.js.map",
+            "sha256": "9adea135541dbda9aefba9b6923b6d2a1d1e60f5d2ee77c5edcff792437489dc"
+          },
+          {
+            "name": "index-HpApHVKp.css",
+            "sha256": "8c7e778204be5ffe14da911069f82191985641daf451aeefa16b5cccbcc74c2d"
+          }
+        ],
+        "report": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-spatializer-creation-phases-de4c5208-f9a2-4aa8-a826-e083968313c7\\browser.jsonl"
+      },
+      "report": {
+        "path": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-spatializer-creation-phases-de4c5208-f9a2-4aa8-a826-e083968313c7\\browser.jsonl",
+        "sha256": "d1d71d0732dfb7d260ef847100f1aa5adc50133e4bb88df46106aee591f9cbeb"
+      },
+      "records": [
+        {
+          "kind": "attribution-start",
+          "diagnosticOnly": true,
+          "before": {
+            "heldResync": false,
+            "pending": 0,
+            "connection": "connected",
+            "generation": 2,
+            "selected": [],
+            "nodes": 100000
+          }
+        },
+        {
+          "kind": "creation-phases",
+          "diagnosticOnly": true,
+          "phases": [
+            {
+              "caseId": "single-creation-attribution",
+              "action": "create",
+              "index": 0,
+              "phase": "prepare",
+              "backendBytes": 64543
+            },
+            {
+              "caseId": "single-creation-attribution",
+              "action": "create",
+              "index": 0,
+              "phase": "observe",
+              "backendBytes": 64543
+            },
+            {
+              "caseId": "single-creation-attribution",
+              "action": "create",
+              "index": 0,
+              "phase": "sample",
+              "sample": {
+                "warmup": false,
+                "feedback": 33.900000005960464,
+                "completion": 4138.800000011921,
+                "stall": 29.200000000000728,
+                "peakGlyphs": 11,
+                "peakRows": 16
+              },
+              "backendBytes": 74924
+            },
+            {
+              "caseId": "single-creation-attribution",
+              "action": "create",
+              "index": 0,
+              "phase": "restore",
+              "backendBytes": 74924
+            },
+            {
+              "caseId": "single-creation-attribution",
+              "action": "create",
+              "index": 0,
+              "phase": "restored",
+              "backendBytes": 84831
+            }
+          ],
+          "ranges": [
+            {
+              "name": "creation",
+              "start": 64543,
+              "end": 74924,
+              "snapshots": [
+                {
+                  "nodes": 100003,
+                  "totalUs": 211264,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\dispatch.rs:282:33"
+                },
+                {
+                  "nodes": 100003,
+                  "totalUs": 201926,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                },
+                {
+                  "nodes": 100003,
+                  "totalUs": 246300,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                },
+                {
+                  "nodes": 100007,
+                  "totalUs": 267837,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                },
+                {
+                  "nodes": 100010,
+                  "totalUs": 264862,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                },
+                {
+                  "nodes": 100016,
+                  "totalUs": 259555,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                },
+                {
+                  "nodes": 100019,
+                  "totalUs": 262842,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                },
+                {
+                  "nodes": 100023,
+                  "totalUs": 263192,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                },
+                {
+                  "nodes": 100027,
+                  "totalUs": 265954,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                },
+                {
+                  "nodes": 100030,
+                  "totalUs": 269625,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                },
+                {
+                  "nodes": 100035,
+                  "totalUs": 269979,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                }
+              ]
+            },
+            {
+              "name": "undo",
+              "start": 74924,
+              "end": 84831,
+              "snapshots": [
+                {
+                  "nodes": 100035,
+                  "totalUs": 262814,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                },
+                {
+                  "nodes": 100032,
+                  "totalUs": 226542,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\dispatch.rs:282:33"
+                },
+                {
+                  "nodes": 100032,
+                  "totalUs": 242573,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                },
+                {
+                  "nodes": 100028,
+                  "totalUs": 254357,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\dispatch.rs:282:33"
+                },
+                {
+                  "nodes": 100025,
+                  "totalUs": 217096,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\dispatch.rs:282:33"
+                },
+                {
+                  "nodes": 100019,
+                  "totalUs": 214022,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\dispatch.rs:282:33"
+                },
+                {
+                  "nodes": 100016,
+                  "totalUs": 200740,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\dispatch.rs:282:33"
+                },
+                {
+                  "nodes": 100012,
+                  "totalUs": 199086,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\dispatch.rs:282:33"
+                },
+                {
+                  "nodes": 100008,
+                  "totalUs": 206179,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\dispatch.rs:282:33"
+                },
+                {
+                  "nodes": 100005,
+                  "totalUs": 202351,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\dispatch.rs:282:33"
+                },
+                {
+                  "nodes": 100000,
+                  "totalUs": 257418,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\dispatch.rs:282:33"
+                },
+                {
+                  "nodes": 100000,
+                  "totalUs": 259611,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "creation-attribution",
+          "diagnosticOnly": true,
+          "timing": {
+            "action": "create",
+            "passed": false,
+            "p95Feedback": 33.900000005960464,
+            "p95Completion": 4138.800000011921,
+            "maximumStall": 29.200000000000728,
+            "samples": [
+              {
+                "warmup": false,
+                "feedback": 33.900000005960464,
+                "completion": 4138.800000011921,
+                "stall": 29.200000000000728,
+                "peakGlyphs": 11,
+                "peakRows": 16
+              }
+            ]
+          },
+          "before": {
+            "heldResync": false,
+            "pending": 0,
+            "connection": "connected",
+            "generation": 2,
+            "selected": [],
+            "nodes": 100000
+          },
+          "after": {
+            "heldResync": false,
+            "pending": 0,
+            "connection": "connected",
+            "generation": 2,
+            "selected": [4294975923],
+            "nodes": 100000
+          },
+          "cpu": [
+            {
+              "id": 3,
+              "frame": {
+                "functionName": "(idle)",
+                "scriptId": "0",
+                "url": "",
+                "lineNumber": -1,
+                "columnNumber": -1
+              },
+              "selfUs": 5605774
+            },
+            {
+              "id": 310,
+              "frame": {
+                "functionName": "get",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 13996
+              },
+              "selfUs": 563421
+            },
+            {
+              "id": 2,
+              "frame": {
+                "functionName": "(program)",
+                "scriptId": "0",
+                "url": "",
+                "lineNumber": -1,
+                "columnNumber": -1
+              },
+              "selfUs": 396140
+            },
+            {
+              "id": 316,
+              "frame": {
+                "functionName": "#i",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 14036
+              },
+              "selfUs": 212494
+            },
+            {
+              "id": 311,
+              "frame": {
+                "functionName": "#i",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 14036
+              },
+              "selfUs": 168863
+            },
+            {
+              "id": 304,
+              "frame": {
+                "functionName": "Pd",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 137695
+              },
+              "selfUs": 116532
+            },
+            {
+              "id": 54,
+              "frame": {
+                "functionName": "(garbage collector)",
+                "scriptId": "0",
+                "url": "",
+                "lineNumber": -1,
+                "columnNumber": -1
+              },
+              "selfUs": 115611
+            },
+            {
+              "id": 349,
+              "frame": {
+                "functionName": "#i",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 14036
+              },
+              "selfUs": 112804
+            },
+            {
+              "id": 353,
+              "frame": {
+                "functionName": "#i",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 14036
+              },
+              "selfUs": 106476
+            },
+            {
+              "id": 307,
+              "frame": {
+                "functionName": "get",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 13996
+              },
+              "selfUs": 89348
+            },
+            {
+              "id": 305,
+              "frame": {
+                "functionName": "kd",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 137207
+              },
+              "selfUs": 74123
+            },
+            {
+              "id": 245,
+              "frame": {
+                "functionName": "get",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 13996
+              },
+              "selfUs": 68135
+            },
+            {
+              "id": 302,
+              "frame": {
+                "functionName": "c",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 138453
+              },
+              "selfUs": 63422
+            },
+            {
+              "id": 50,
+              "frame": {
+                "functionName": "get",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 13996
+              },
+              "selfUs": 62346
+            },
+            {
+              "id": 239,
+              "frame": {
+                "functionName": "#a",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 14494
+              },
+              "selfUs": 62155
+            },
+            {
+              "id": 309,
+              "frame": {
+                "functionName": "child",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 135999
+              },
+              "selfUs": 58669
+            },
+            {
+              "id": 228,
+              "frame": {
+                "functionName": "s",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 138320
+              },
+              "selfUs": 50184
+            },
+            {
+              "id": 431,
+              "frame": {
+                "functionName": "#i",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 14036
+              },
+              "selfUs": 49479
+            },
+            {
+              "id": 315,
+              "frame": {
+                "functionName": "",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 61759
+              },
+              "selfUs": 45865
+            },
+            {
+              "id": 324,
+              "frame": {
+                "functionName": "Id",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 138011
+              },
+              "selfUs": 43286
+            },
+            {
+              "id": 321,
+              "frame": {
+                "functionName": "",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 157958
+              },
+              "selfUs": 43191
+            },
+            {
+              "id": 237,
+              "frame": {
+                "functionName": "set",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 14267
+              },
+              "selfUs": 39166
+            },
+            {
+              "id": 341,
+              "frame": {
+                "functionName": "now",
+                "scriptId": "0",
+                "url": "",
+                "lineNumber": -1,
+                "columnNumber": -1
+              },
+              "selfUs": 38265
+            },
+            {
+              "id": 240,
+              "frame": {
+                "functionName": "#a",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 14494
+              },
+              "selfUs": 31942
+            },
+            {
+              "id": 53,
+              "frame": {
+                "functionName": "v",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 139991
+              },
+              "selfUs": 30947
+            },
+            {
+              "id": 236,
+              "frame": {
+                "functionName": "ea",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 9440
+              },
+              "selfUs": 29726
+            },
+            {
+              "id": 308,
+              "frame": {
+                "functionName": "a",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 138161
+              },
+              "selfUs": 27779
+            },
+            {
+              "id": 301,
+              "frame": {
+                "functionName": "endpointFromNode",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 138580
+              },
+              "selfUs": 15691
+            },
+            {
+              "id": 432,
+              "frame": {
+                "functionName": "#i",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 135865
+              },
+              "selfUs": 15609
+            },
+            {
+              "id": 51,
+              "frame": {
+                "functionName": "#i",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 135865
+              },
+              "selfUs": 15564
+            },
+            {
+              "id": 408,
+              "frame": {
+                "functionName": "get",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 13996
+              },
+              "selfUs": 14104
+            },
+            {
+              "id": 367,
+              "frame": {
+                "functionName": "",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+                "lineNumber": 3,
+                "columnNumber": 97996
+              },
+              "selfUs": 14016
+            },
+            {
+              "id": 225,
+              "frame": {
+                "functionName": "",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+                "lineNumber": 3,
+                "columnNumber": 97896
+              },
+              "selfUs": 13990
+            },
+            {
+              "id": 320,
+              "frame": {
+                "functionName": "reconcile",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 157888
+              },
+              "selfUs": 13860
+            },
+            {
+              "id": 352,
+              "frame": {
+                "functionName": "has",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 14222
+              },
+              "selfUs": 13699
+            },
+            {
+              "id": 232,
+              "frame": {
+                "functionName": "querySelectorAll",
+                "scriptId": "0",
+                "url": "",
+                "lineNumber": -1,
+                "columnNumber": -1
+              },
+              "selfUs": 13580
+            },
+            {
+              "id": 201,
+              "frame": {
+                "functionName": "_",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 139897
+              },
+              "selfUs": 12421
+            },
+            {
+              "id": 333,
+              "frame": {
+                "functionName": "Fd",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 137953
+              },
+              "selfUs": 12234
+            },
+            {
+              "id": 242,
+              "frame": {
+                "functionName": "#s",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 16511
+              },
+              "selfUs": 10890
+            },
+            {
+              "id": 241,
+              "frame": {
+                "functionName": "#a",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 14494
+              },
+              "selfUs": 10851
+            }
+          ]
+        },
+        {
+          "kind": "result",
+          "passed": true,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "name": "p11-receipt-only-wakes-create-100k",
+      "exitCode": 1,
+      "log": {
+        "path": "target/qualification/p11-receipt-only-wakes-create-100k.log",
+        "sha256": "894b3f6bca86d6d03f11bd72bcdf6ccecfa52f6d96a461a015b099e20027da68"
+      },
+      "environment": {
+        "kind": "environment",
+        "production": true,
+        "browser": "156.0.4314.42",
+        "binaryHash": "1255105f636a32b5622a1eaa9c785b9b1fc6d7e41331c1348d11adb4acafd3b7",
+        "assets": [
+          {
+            "name": "dmsans-italic-CT59GZwy.ttf",
+            "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+          },
+          {
+            "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+            "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+          },
+          {
+            "name": "index-CGcksE-O.js",
+            "sha256": "60ec74c9dd8b5d57415733137e5eb0ff1a5ab159503d5ec9092f6054c42a719f"
+          },
+          {
+            "name": "index-HpApHVKp.css",
+            "sha256": "8c7e778204be5ffe14da911069f82191985641daf451aeefa16b5cccbcc74c2d"
+          }
+        ],
+        "report": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-spatializer-scale-82b34d2d-a1af-45ee-8705-0a819163723e\\browser.jsonl"
+      },
+      "report": {
+        "path": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-spatializer-scale-82b34d2d-a1af-45ee-8705-0a819163723e\\browser.jsonl",
+        "sha256": "8150cc86cc1534f971299fc5a831712a7333c7f914ecfc9a9686c14bde0cc2e2"
+      },
+      "records": [
+        {
+          "kind": "fixed-contract",
+          "modes": ["voronoi"],
+          "tiers": [100000],
+          "selectedActions": ["create"],
+          "diagnosticOnly": true,
+          "actionTierCases": 60,
+          "warmups": 3,
+          "retained": 31,
+          "normal": {
+            "feedbackP95": 200,
+            "completionP95": 2000,
+            "maximumStall": 200
+          },
+          "stress": {
+            "feedbackP95": 400,
+            "completionP95": 4000,
+            "maximumStall": 400
+          },
+          "limits": {
+            "endpointGlyphs": 128,
+            "overviewGroups": 256,
+            "regionPolygons": 256,
+            "finderRows": 32,
+            "relatedRows": 42
+          },
+          "setupDeadlineMs": 300000
+        },
+        {
+          "kind": "scene",
+          "mode": "voronoi",
+          "tier": 100000,
+          "sources": 32,
+          "targets": 2849,
+          "cells": 91168,
+          "values": 4294975926,
+          "inputSha256": "a80387a42f0ce122c4a2ad044d4f3337fef226108c5607bb3ccba6882b71ed8f",
+          "setupMs": 22920.1814,
+          "treeNodes": 100000
+        },
+        {
+          "kind": "timing",
+          "mode": "voronoi",
+          "tier": 100000,
+          "sources": 32,
+          "targets": 2849,
+          "action": "create",
+          "passed": false,
+          "p95Feedback": 22.900000005960464,
+          "p95Completion": 4880.199999988079,
+          "maximumStall": 29.20000000001164,
+          "samples": [
+            {
+              "warmup": true,
+              "feedback": 48.3999999910593,
+              "completion": 5792.699999988079,
+              "stall": 29.099999999998545,
+              "peakGlyphs": 11,
+              "peakRows": 16
+            },
+            {
+              "warmup": true,
+              "feedback": 23.299999997019768,
+              "completion": 4510.79999999702,
+              "stall": 33.299999999995634,
+              "peakGlyphs": 11,
+              "peakRows": 16
+            },
+            {
+              "warmup": true,
+              "feedback": 20.400000005960464,
+              "completion": 4023.5,
+              "stall": 20.900000000001455,
+              "peakGlyphs": 11,
+              "peakRows": 16
+            },
+            {
+              "warmup": false,
+              "feedback": 19.400000005960464,
+              "completion": 3999.6000000089407,
+              "stall": 24.89999999999418,
+              "peakGlyphs": 11,
+              "peakRows": 16
+            },
+            {
+              "warmup": false,
+              "feedback": 20.5,
+              "completion": 4439.5999999940395,
+              "stall": 25,
+              "peakGlyphs": 11,
+              "peakRows": 16
+            },
+            {
+              "warmup": false,
+              "feedback": 21.5,
+              "completion": 4336.9000000059605,
+              "stall": 25,
+              "peakGlyphs": 11,
+              "peakRows": 16
+            },
+            {
+              "warmup": false,
+              "feedback": 19.299999997019768,
+              "completion": 4358.70000000298,
+              "stall": 25,
+              "peakGlyphs": 11,
+              "peakRows": 16
+            },
+            {
+              "warmup": false,
+              "feedback": 20,
+              "completion": 4362.20000000298,
+              "stall": 20.89999999999418,
+              "peakGlyphs": 11,
+              "peakRows": 16
+            },
+            {
+              "warmup": false,
+              "feedback": 19.80000001192093,
+              "completion": 4328.70000000298,
+              "stall": 25,
+              "peakGlyphs": 11,
+              "peakRows": 16
+            },
+            {
+              "warmup": false,
+              "feedback": 20.099999994039536,
+              "completion": 4107.5,
+              "stall": 25,
+              "peakGlyphs": 11,
+              "peakRows": 16
+            },
+            {
+              "warmup": false,
+              "feedback": 20,
+              "completion": 4262.600000008941,
+              "stall": 25,
+              "peakGlyphs": 11,
+              "peakRows": 16
+            },
+            {
+              "warmup": false,
+              "feedback": 22.900000005960464,
+              "completion": 4616.9000000059605,
+              "stall": 25,
+              "peakGlyphs": 11,
+              "peakRows": 16
+            },
+            {
+              "warmup": false,
+              "feedback": 19.299999997019768,
+              "completion": 4471.399999991059,
+              "stall": 25.10000000000582,
+              "peakGlyphs": 11,
+              "peakRows": 16
+            },
+            {
+              "warmup": false,
+              "feedback": 20,
+              "completion": 4423.79999999702,
+              "stall": 25,
+              "peakGlyphs": 11,
+              "peakRows": 16
+            },
+            {
+              "warmup": false,
+              "feedback": 20.200000002980232,
+              "completion": 4325.399999991059,
+              "stall": 25.10000000000582,
+              "peakGlyphs": 11,
+              "peakRows": 16
+            },
+            {
+              "warmup": false,
+              "feedback": 20.200000002980232,
+              "completion": 4396.9000000059605,
+              "stall": 25,
+              "peakGlyphs": 11,
+              "peakRows": 16
+            },
+            {
+              "warmup": false,
+              "feedback": 20.5,
+              "completion": 4880.199999988079,
+              "stall": 25.10000000000582,
+              "peakGlyphs": 11,
+              "peakRows": 16
+            },
+            {
+              "warmup": false,
+              "feedback": 24.400000005960464,
+              "completion": 6502.5,
+              "stall": 29.20000000001164,
+              "peakGlyphs": 11,
+              "peakRows": 16
+            },
+            {
+              "warmup": false,
+              "feedback": 20.69999998807907,
+              "completion": 4374.899999991059,
+              "stall": 25,
+              "peakGlyphs": 11,
+              "peakRows": 16
+            },
+            {
+              "warmup": false,
+              "feedback": 20.5,
+              "completion": 4203.5,
+              "stall": 25.10000000000582,
+              "peakGlyphs": 11,
+              "peakRows": 16
+            },
+            {
+              "warmup": false,
+              "feedback": 21,
+              "completion": 4524.20000000298,
+              "stall": 25,
+              "peakGlyphs": 11,
+              "peakRows": 16
+            },
+            {
+              "warmup": false,
+              "feedback": 20.599999994039536,
+              "completion": 4371.79999999702,
+              "stall": 24.89999999999418,
+              "peakGlyphs": 11,
+              "peakRows": 16
+            },
+            {
+              "warmup": false,
+              "feedback": 20.200000002980232,
+              "completion": 4374.5999999940395,
+              "stall": 25,
+              "peakGlyphs": 11,
+              "peakRows": 16
+            },
+            {
+              "warmup": false,
+              "feedback": 20.899999991059303,
+              "completion": 4397.5999999940395,
+              "stall": 25,
+              "peakGlyphs": 11,
+              "peakRows": 16
+            },
+            {
+              "warmup": false,
+              "feedback": 19.5,
+              "completion": 4399.5999999940395,
+              "stall": 25,
+              "peakGlyphs": 11,
+              "peakRows": 16
+            },
+            {
+              "warmup": false,
+              "feedback": 19.200000002980232,
+              "completion": 4438.20000000298,
+              "stall": 20.89999999999418,
+              "peakGlyphs": 11,
+              "peakRows": 16
+            },
+            {
+              "warmup": false,
+              "feedback": 19.599999994039536,
+              "completion": 4425.199999988079,
+              "stall": 25.10000000000582,
+              "peakGlyphs": 11,
+              "peakRows": 16
+            },
+            {
+              "warmup": false,
+              "feedback": 20.200000002980232,
+              "completion": 4408.20000000298,
+              "stall": 25,
+              "peakGlyphs": 11,
+              "peakRows": 16
+            },
+            {
+              "warmup": false,
+              "feedback": 21.30000001192093,
+              "completion": 4417.600000008941,
+              "stall": 25,
+              "peakGlyphs": 11,
+              "peakRows": 16
+            },
+            {
+              "warmup": false,
+              "feedback": 19.5,
+              "completion": 4472.29999999702,
+              "stall": 25.100000000034925,
+              "peakGlyphs": 11,
+              "peakRows": 16
+            },
+            {
+              "warmup": false,
+              "feedback": 20,
+              "completion": 4542,
+              "stall": 20.899999999965075,
+              "peakGlyphs": 11,
+              "peakRows": 16
+            },
+            {
+              "warmup": false,
+              "feedback": 21.5,
+              "completion": 4395.5,
+              "stall": 24.900000000023283,
+              "peakGlyphs": 11,
+              "peakRows": 16
+            },
+            {
+              "warmup": false,
+              "feedback": 21,
+              "completion": 4316.0999999940395,
+              "stall": 25.099999999976717,
+              "peakGlyphs": 11,
+              "peakRows": 16
+            },
+            {
+              "warmup": false,
+              "feedback": 21.19999998807907,
+              "completion": 4285.899999991059,
+              "stall": 20.800000000046566,
+              "peakGlyphs": 11,
+              "peakRows": 16
+            }
+          ]
+        },
+        {
+          "kind": "failure",
+          "message": "AssertionError [ERR_ASSERTION]: voronoi/100000/create: {\"feedback\":22.900000005960464,\"completion\":4880.199999988079,\"stall\":29.20000000001164}\n\nfalse !== true\n",
+          "errors": [],
+          "body": "Module\nSpatializer\nAdd target\nXY\nVoronoi\nDebug\nFrame\nHome\nFind endpoints\n50%\nUse Enter or Space to select an endpoint. Arrow keys move it; Shift moves farther. Arrow keys on a radius handle resize it. Use Add target to create at the view center.\n‹\nPreview\nTarget 002848\nTarget\nSources\n32\nFind related value\nSource 000000\n0.000\nSource 000001\n0.000\nSource 000002\n0.000\nSource 000003\n0.000\nSource 000004\n0.000\nSource 000005\n0.000\nSource 000006\n0.000\nSource 000007\n0.000\nSource 000008\n0.000\nSource 000009\n0.000\nSource 000010\n0.000\nSource 000011\n0.000\nSource 000012\n0.000\nSource 000013\n0.000\nSource 000014\n0.000\nSource 000015\n0.000\n›\nPreview"
+        },
+        {
+          "feedback": 22.900000005960464,
+          "completion": 4880.199999988079,
+          "stall": 29.20000000001164
+        }
+      ]
+    },
+    {
+      "name": "p11-publication-plan-trace-phases",
+      "exitCode": 0,
+      "log": {
+        "path": "target/qualification/p11-publication-plan-trace-phases.log",
+        "sha256": "ba691a8835075c2c6dd3043ea5c2052fe85bb30940fc3ea11b0b9e4d7f6607d4"
+      },
+      "environment": {
+        "kind": "environment",
+        "production": true,
+        "browser": "156.0.4314.42",
+        "binaryHash": "fcdf8c8328b384ab83d29450ec262d62664385ef514c7f16709e8653a56b1fde",
+        "assets": [
+          {
+            "name": "dmsans-italic-CT59GZwy.ttf",
+            "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+          },
+          {
+            "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+            "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+          },
+          {
+            "name": "index-CGcksE-O.js",
+            "sha256": "02a2840a0a6db6e3a45fc37fb1bdd8af2cde402031cf3992edfe63558d103c5a"
+          },
+          {
+            "name": "index-CGcksE-O.js.map",
+            "sha256": "9adea135541dbda9aefba9b6923b6d2a1d1e60f5d2ee77c5edcff792437489dc"
+          },
+          {
+            "name": "index-HpApHVKp.css",
+            "sha256": "8c7e778204be5ffe14da911069f82191985641daf451aeefa16b5cccbcc74c2d"
+          }
+        ],
+        "report": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-spatializer-creation-phases-a014dd35-b2d3-4901-8eee-961a126a7a98\\browser.jsonl"
+      },
+      "report": {
+        "path": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-spatializer-creation-phases-a014dd35-b2d3-4901-8eee-961a126a7a98\\browser.jsonl",
+        "sha256": "69044ef942cdc8ce66d26610502322aeb13c03c2dad862084aa139f0c7eea191"
+      },
+      "records": [
+        {
+          "kind": "attribution-start",
+          "diagnosticOnly": true,
+          "before": {
+            "heldResync": false,
+            "pending": 0,
+            "connection": "connected",
+            "generation": 2,
+            "selected": [],
+            "nodes": 100000
+          }
+        },
+        {
+          "kind": "creation-phases",
+          "diagnosticOnly": true,
+          "phases": [
+            {
+              "caseId": "single-creation-attribution",
+              "action": "create",
+              "index": 0,
+              "phase": "prepare",
+              "backendBytes": 67278
+            },
+            {
+              "caseId": "single-creation-attribution",
+              "action": "create",
+              "index": 0,
+              "phase": "observe",
+              "backendBytes": 67278
+            },
+            {
+              "caseId": "single-creation-attribution",
+              "action": "create",
+              "index": 0,
+              "phase": "sample",
+              "sample": {
+                "warmup": false,
+                "feedback": 28.599999994039536,
+                "completion": 4113.29999999702,
+                "stall": 26.200000000000728,
+                "peakGlyphs": 11,
+                "peakRows": 16
+              },
+              "backendBytes": 78523
+            },
+            {
+              "caseId": "single-creation-attribution",
+              "action": "create",
+              "index": 0,
+              "phase": "restore",
+              "backendBytes": 78523
+            },
+            {
+              "caseId": "single-creation-attribution",
+              "action": "create",
+              "index": 0,
+              "phase": "restored",
+              "backendBytes": 89291
+            }
+          ],
+          "ranges": [
+            {
+              "name": "creation",
+              "start": 67278,
+              "end": 78523,
+              "snapshots": [
+                {
+                  "nodes": 100003,
+                  "totalUs": 223957,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\dispatch.rs:282:33"
+                },
+                {
+                  "nodes": 100003,
+                  "totalUs": 197529,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                },
+                {
+                  "nodes": 100003,
+                  "totalUs": 241118,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                },
+                {
+                  "nodes": 100007,
+                  "totalUs": 265995,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                },
+                {
+                  "nodes": 100010,
+                  "totalUs": 280172,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                },
+                {
+                  "nodes": 100016,
+                  "totalUs": 276904,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                },
+                {
+                  "nodes": 100019,
+                  "totalUs": 264249,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                },
+                {
+                  "nodes": 100023,
+                  "totalUs": 254028,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                },
+                {
+                  "nodes": 100027,
+                  "totalUs": 258277,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                },
+                {
+                  "nodes": 100030,
+                  "totalUs": 256109,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                },
+                {
+                  "nodes": 100035,
+                  "totalUs": 257113,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                }
+              ]
+            },
+            {
+              "name": "undo",
+              "start": 78523,
+              "end": 89291,
+              "snapshots": [
+                {
+                  "nodes": 100035,
+                  "totalUs": 242893,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                },
+                {
+                  "nodes": 100032,
+                  "totalUs": 227039,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\dispatch.rs:282:33"
+                },
+                {
+                  "nodes": 100032,
+                  "totalUs": 252897,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                },
+                {
+                  "nodes": 100028,
+                  "totalUs": 276481,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\dispatch.rs:282:33"
+                },
+                {
+                  "nodes": 100025,
+                  "totalUs": 285491,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\dispatch.rs:282:33"
+                },
+                {
+                  "nodes": 100019,
+                  "totalUs": 205488,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\dispatch.rs:282:33"
+                },
+                {
+                  "nodes": 100016,
+                  "totalUs": 213820,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\dispatch.rs:282:33"
+                },
+                {
+                  "nodes": 100012,
+                  "totalUs": 285607,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\dispatch.rs:282:33"
+                },
+                {
+                  "nodes": 100008,
+                  "totalUs": 200722,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\dispatch.rs:282:33"
+                },
+                {
+                  "nodes": 100005,
+                  "totalUs": 201919,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\dispatch.rs:282:33"
+                },
+                {
+                  "nodes": 100000,
+                  "totalUs": 201053,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\dispatch.rs:282:33"
+                },
+                {
+                  "nodes": 100000,
+                  "totalUs": 266885,
+                  "caller": "crates\\golden_core\\engine\\src\\engine\\runtime\\worker_wakes.rs:39:44"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "creation-attribution",
+          "diagnosticOnly": true,
+          "timing": {
+            "action": "create",
+            "passed": false,
+            "p95Feedback": 28.599999994039536,
+            "p95Completion": 4113.29999999702,
+            "maximumStall": 26.200000000000728,
+            "samples": [
+              {
+                "warmup": false,
+                "feedback": 28.599999994039536,
+                "completion": 4113.29999999702,
+                "stall": 26.200000000000728,
+                "peakGlyphs": 11,
+                "peakRows": 16
+              }
+            ]
+          },
+          "before": {
+            "heldResync": false,
+            "pending": 0,
+            "connection": "connected",
+            "generation": 2,
+            "selected": [],
+            "nodes": 100000
+          },
+          "after": {
+            "heldResync": false,
+            "pending": 0,
+            "connection": "connected",
+            "generation": 2,
+            "selected": [4294975923],
+            "nodes": 100000
+          },
+          "cpu": [
+            {
+              "id": 3,
+              "frame": {
+                "functionName": "(idle)",
+                "scriptId": "0",
+                "url": "",
+                "lineNumber": -1,
+                "columnNumber": -1
+              },
+              "selfUs": 5678669
+            },
+            {
+              "id": 325,
+              "frame": {
+                "functionName": "get",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 13996
+              },
+              "selfUs": 598519
+            },
+            {
+              "id": 2,
+              "frame": {
+                "functionName": "(program)",
+                "scriptId": "0",
+                "url": "",
+                "lineNumber": -1,
+                "columnNumber": -1
+              },
+              "selfUs": 331804
+            },
+            {
+              "id": 331,
+              "frame": {
+                "functionName": "#i",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 14036
+              },
+              "selfUs": 209616
+            },
+            {
+              "id": 327,
+              "frame": {
+                "functionName": "#i",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 14036
+              },
+              "selfUs": 138107
+            },
+            {
+              "id": 379,
+              "frame": {
+                "functionName": "#i",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 14036
+              },
+              "selfUs": 114971
+            },
+            {
+              "id": 321,
+              "frame": {
+                "functionName": "Pd",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 137695
+              },
+              "selfUs": 114107
+            },
+            {
+              "id": 377,
+              "frame": {
+                "functionName": "#i",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 14036
+              },
+              "selfUs": 88820
+            },
+            {
+              "id": 320,
+              "frame": {
+                "functionName": "kd",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 137207
+              },
+              "selfUs": 73211
+            },
+            {
+              "id": 318,
+              "frame": {
+                "functionName": "c",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 138453
+              },
+              "selfUs": 71036
+            },
+            {
+              "id": 322,
+              "frame": {
+                "functionName": "get",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 13996
+              },
+              "selfUs": 64276
+            },
+            {
+              "id": 53,
+              "frame": {
+                "functionName": "(garbage collector)",
+                "scriptId": "0",
+                "url": "",
+                "lineNumber": -1,
+                "columnNumber": -1
+              },
+              "selfUs": 63872
+            },
+            {
+              "id": 49,
+              "frame": {
+                "functionName": "get",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 13996
+              },
+              "selfUs": 63431
+            },
+            {
+              "id": 264,
+              "frame": {
+                "functionName": "",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 61759
+              },
+              "selfUs": 57117
+            },
+            {
+              "id": 324,
+              "frame": {
+                "functionName": "child",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 135999
+              },
+              "selfUs": 55607
+            },
+            {
+              "id": 375,
+              "frame": {
+                "functionName": "#a",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 14494
+              },
+              "selfUs": 54015
+            },
+            {
+              "id": 244,
+              "frame": {
+                "functionName": "s",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 138320
+              },
+              "selfUs": 52071
+            },
+            {
+              "id": 428,
+              "frame": {
+                "functionName": "#i",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 14036
+              },
+              "selfUs": 48638
+            },
+            {
+              "id": 368,
+              "frame": {
+                "functionName": "get",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 13996
+              },
+              "selfUs": 44110
+            },
+            {
+              "id": 328,
+              "frame": {
+                "functionName": "",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 157958
+              },
+              "selfUs": 43480
+            },
+            {
+              "id": 52,
+              "frame": {
+                "functionName": "v",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 139991
+              },
+              "selfUs": 38534
+            },
+            {
+              "id": 333,
+              "frame": {
+                "functionName": "Id",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 138011
+              },
+              "selfUs": 37249
+            },
+            {
+              "id": 241,
+              "frame": {
+                "functionName": "",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 3,
+                "columnNumber": 97896
+              },
+              "selfUs": 33840
+            },
+            {
+              "id": 381,
+              "frame": {
+                "functionName": "#a",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 14494
+              },
+              "selfUs": 26215
+            },
+            {
+              "id": 372,
+              "frame": {
+                "functionName": "ea",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 9440
+              },
+              "selfUs": 26053
+            },
+            {
+              "id": 380,
+              "frame": {
+                "functionName": "now",
+                "scriptId": "0",
+                "url": "",
+                "lineNumber": -1,
+                "columnNumber": -1
+              },
+              "selfUs": 22938
+            },
+            {
+              "id": 364,
+              "frame": {
+                "functionName": "get",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 13996
+              },
+              "selfUs": 20267
+            },
+            {
+              "id": 248,
+              "frame": {
+                "functionName": "reconcile",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 157888
+              },
+              "selfUs": 20216
+            },
+            {
+              "id": 259,
+              "frame": {
+                "functionName": "set",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 14267
+              },
+              "selfUs": 18968
+            },
+            {
+              "id": 373,
+              "frame": {
+                "functionName": "set",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 14267
+              },
+              "selfUs": 18649
+            },
+            {
+              "id": 50,
+              "frame": {
+                "functionName": "#i",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 135865
+              },
+              "selfUs": 18624
+            },
+            {
+              "id": 345,
+              "frame": {
+                "functionName": "a",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 138161
+              },
+              "selfUs": 17130
+            },
+            {
+              "id": 265,
+              "frame": {
+                "functionName": "get",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 13996
+              },
+              "selfUs": 15516
+            },
+            {
+              "id": 350,
+              "frame": {
+                "functionName": "#i",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 14036
+              },
+              "selfUs": 15361
+            },
+            {
+              "id": 323,
+              "frame": {
+                "functionName": "a",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 138161
+              },
+              "selfUs": 14039
+            },
+            {
+              "id": 214,
+              "frame": {
+                "functionName": "_",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 139897
+              },
+              "selfUs": 14009
+            },
+            {
+              "id": 409,
+              "frame": {
+                "functionName": "#s",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 16511
+              },
+              "selfUs": 13570
+            },
+            {
+              "id": 376,
+              "frame": {
+                "functionName": "has",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 14222
+              },
+              "selfUs": 12195
+            },
+            {
+              "id": 436,
+              "frame": {
+                "functionName": "#i",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 135865
+              },
+              "selfUs": 10782
+            },
+            {
+              "id": 261,
+              "frame": {
+                "functionName": "#a",
+                "scriptId": "4",
+                "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+                "lineNumber": 1,
+                "columnNumber": 14494
+              },
+              "selfUs": 9586
+            }
+          ]
+        },
+        {
+          "kind": "result",
+          "passed": true,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "name": "p11-snapshot-boundary-final-authoring",
+      "exitCode": 0,
+      "log": {
+        "path": "target/qualification/p11-snapshot-boundary-final-authoring.log",
+        "sha256": "e223fb77a7f85829fb40f801f7d2f667cacee5eeb2fc9348b2c3f384533f97e4"
+      },
+      "environment": {
+        "kind": "environment",
+        "production": true,
+        "browser": "156.0.4314.42",
+        "binaryHash": "fcdf8c8328b384ab83d29450ec262d62664385ef514c7f16709e8653a56b1fde",
+        "assets": [
+          {
+            "name": "dmsans-italic-CT59GZwy.ttf",
+            "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+          },
+          {
+            "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+            "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+          },
+          {
+            "name": "index-CGcksE-O.js",
+            "sha256": "60ec74c9dd8b5d57415733137e5eb0ff1a5ab159503d5ec9092f6054c42a719f"
+          },
+          {
+            "name": "index-HpApHVKp.css",
+            "sha256": "8c7e778204be5ffe14da911069f82191985641daf451aeefa16b5cccbcc74c2d"
+          }
+        ],
+        "report": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-spatializer-native-8e7b7926-3cb0-4d51-ac4a-40752e280c91\\browser.jsonl"
+      },
+      "report": {
+        "path": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-spatializer-native-8e7b7926-3cb0-4d51-ac4a-40752e280c91\\browser.jsonl",
+        "sha256": "1e2604e73b2c521411a664c8d881608c8278c2d7a8addb32fcf3624d496eb32e"
+      },
+      "records": [
+        {
+          "kind": "empty-document-custom-world",
+          "passed": true,
+          "world": {
+            "width": 0.913330078125,
+            "height": 0.913360595703125,
+            "position": "absolute",
+            "overflow": "visible",
+            "viewport": {
+              "width": 1120,
+              "height": 525.421875
+            }
+          }
+        },
+        {
+          "kind": "selection-inspector-debug",
+          "passed": true
+        },
+        {
+          "kind": "authoritative-projection-and-home",
+          "passed": true
+        },
+        {
+          "kind": "mode-and-matrix-layout-replacement",
+          "passed": true
+        },
+        {
+          "kind": "three-dimensional-projection",
+          "passed": true
+        },
+        {
+          "kind": "snapshot-and-remount",
+          "passed": true,
+          "endpoints": [
+            {
+              "id": 4294967483,
+              "uuid": "e5ec28c0-4170-4f14-b63a-da9985a9365f",
+              "label": "West",
+              "position": {
+                "kind": "parameter",
+                "param": {
+                  "value": {
+                    "kind": "vec3",
+                    "value": [-1, 0, 0]
+                  },
+                  "default_value": {
+                    "kind": "vec3",
+                    "value": [-1, 0, 0]
+                  },
+                  "event_behaviour": "Coalesce",
+                  "read_only": false,
+                  "constraints": {
+                    "enum_options": [],
+                    "policy": "ClampAdapt"
+                  },
+                  "ui_hints": {},
+                  "control": {
+                    "mode": "manual",
+                    "spec": {
+                      "mode": "manual"
+                    }
+                  },
+                  "reference_allowed_targets": [],
+                  "reference_visible_nodes": []
+                }
+              }
+            },
+            {
+              "id": 4294967482,
+              "uuid": "c3944042-9d0f-4395-8a3a-5ad5fc3a5bff",
+              "label": "Probe",
+              "position": {
+                "kind": "parameter",
+                "param": {
+                  "value": {
+                    "kind": "vec3",
+                    "value": [0.5, 7, 0.25]
+                  },
+                  "default_value": {
+                    "kind": "vec3",
+                    "value": [0.5, 0.25, 0]
+                  },
+                  "event_behaviour": "Coalesce",
+                  "read_only": false,
+                  "constraints": {
+                    "enum_options": [],
+                    "policy": "ClampAdapt"
+                  },
+                  "ui_hints": {},
+                  "control": {
+                    "mode": "manual",
+                    "spec": {
+                      "mode": "manual"
+                    }
+                  },
+                  "reference_allowed_targets": [],
+                  "reference_visible_nodes": []
+                }
+              }
+            },
+            {
+              "id": 4294967489,
+              "uuid": "decc5da4-a8cb-4237-b665-b0c20253f33f",
+              "label": "East",
+              "position": {
+                "kind": "parameter",
+                "param": {
+                  "value": {
+                    "kind": "vec3",
+                    "value": [1, 0, 0]
+                  },
+                  "default_value": {
+                    "kind": "vec3",
+                    "value": [1, 0, 0]
+                  },
+                  "event_behaviour": "Coalesce",
+                  "read_only": false,
+                  "constraints": {
+                    "enum_options": [],
+                    "policy": "ClampAdapt"
+                  },
+                  "ui_hints": {},
+                  "control": {
+                    "mode": "manual",
+                    "spec": {
+                      "mode": "manual"
+                    }
+                  },
+                  "reference_allowed_targets": [],
+                  "reference_visible_nodes": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "kind": "stale-coordinate-space-rejection",
+          "passed": true
+        },
+        {
+          "kind": "keyboard-gesture-and-history",
+          "passed": true
+        },
+        {
+          "kind": "zero-radius-keyboard-control",
+          "passed": true
+        },
+        {
+          "kind": "active-gesture-snapshot-and-unmount",
+          "passed": true
+        },
+        {
+          "kind": "backend-target-creation",
+          "passed": true,
+          "created": {
+            "node": 12884902079,
+            "uuid": "f6e1f63c-085b-4a1b-8573-ea69ffa6d143"
+          },
+          "next": {
+            "node": 4294967499,
+            "uuid": "430058db-ff99-4fa6-9ee0-b4727450ad1c"
+          }
+        },
+        {
+          "kind": "read-only-replacement-rejection-and-rollback",
+          "passed": true
+        },
+        {
+          "kind": "saved-project-and-recovery",
+          "passed": true
+        },
+        {
+          "kind": "result",
+          "passed": true,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "name": "p11-snapshot-boundary-final-navigation",
+      "exitCode": 0,
+      "log": {
+        "path": "target/qualification/p11-snapshot-boundary-final-navigation.log",
+        "sha256": "dfaedc8598f246ad1c9b34db107fb74dd34e436872790297cd8df0104dbdc628"
+      },
+      "environment": {
+        "kind": "environment",
+        "production": true,
+        "browser": "156.0.4314.42",
+        "binaryHash": "fcdf8c8328b384ab83d29450ec262d62664385ef514c7f16709e8653a56b1fde",
+        "assets": [
+          {
+            "name": "dmsans-italic-CT59GZwy.ttf",
+            "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+          },
+          {
+            "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+            "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+          },
+          {
+            "name": "index-CGcksE-O.js",
+            "sha256": "60ec74c9dd8b5d57415733137e5eb0ff1a5ab159503d5ec9092f6054c42a719f"
+          },
+          {
+            "name": "index-HpApHVKp.css",
+            "sha256": "8c7e778204be5ffe14da911069f82191985641daf451aeefa16b5cccbcc74c2d"
+          }
+        ],
+        "report": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-spatializer-navigation-a4263b0b-24ce-452f-a4dd-24b8a425d4bb\\browser.jsonl"
+      },
+      "report": {
+        "path": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-spatializer-navigation-a4263b0b-24ce-452f-a4dd-24b8a425d4bb\\browser.jsonl",
+        "sha256": "ae7b5cc4d76deda2ca385c448b4a35f3a96a8fe90cbc4bb8d82d3da4012531d2"
+      },
+      "records": [
+        {
+          "kind": "custom-world-catalog-paging",
+          "passed": true,
+          "logicalItems": 96,
+          "mountedRows": 32
+        },
+        {
+          "kind": "source-target-svg-reveal",
+          "passed": true
+        },
+        {
+          "kind": "keyboard-mutation-retains-svg-focus",
+          "passed": true
+        },
+        {
+          "kind": "custom-world-selection-framing",
+          "passed": true
+        },
+        {
+          "kind": "position-change-retains-discovery",
+          "passed": true
+        },
+        {
+          "kind": "coordinate-space-navigation-fence",
+          "passed": true
+        },
+        {
+          "kind": "item-retirement-and-undo",
+          "passed": true
+        },
+        {
+          "kind": "snapshot-navigation-fence",
+          "passed": true
+        },
+        {
+          "kind": "project-replacement-navigation-fence",
+          "passed": true
+        },
+        {
+          "kind": "unmount-navigation-retirement",
+          "passed": true
+        },
+        {
+          "kind": "mode-control-focus-restoration",
+          "passed": true
+        },
+        {
+          "kind": "wide-home-observation",
+          "controls": 16,
+          "canvas": {
+            "left": 0,
+            "right": 1120,
+            "top": 50.578125,
+            "bottom": 576,
+            "inset": 272
+          },
+          "rects": [
+            {
+              "left": 1060.0595703125,
+              "right": 1083.099609375,
+              "top": 325.5006103515625,
+              "bottom": 348.5406188964844
+            },
+            {
+              "left": 312.4572448730469,
+              "right": 335.49725341796875,
+              "top": 281.5240173339844,
+              "bottom": 304.56402587890625
+            },
+            {
+              "left": 315.3890380859375,
+              "right": 338.42901611328125,
+              "top": 281.5240173339844,
+              "bottom": 304.56402587890625
+            },
+            {
+              "left": 318.32080078125,
+              "right": 341.3608093261719,
+              "top": 281.5240173339844,
+              "bottom": 304.56402587890625
+            },
+            {
+              "left": 321.2525939941406,
+              "right": 344.2925720214844,
+              "top": 281.5240173339844,
+              "bottom": 304.56402587890625
+            },
+            {
+              "left": 324.1843566894531,
+              "right": 347.224365234375,
+              "top": 281.5240173339844,
+              "bottom": 304.56402587890625
+            },
+            {
+              "left": 327.1161193847656,
+              "right": 350.1561279296875,
+              "top": 281.5240173339844,
+              "bottom": 304.56402587890625
+            },
+            {
+              "left": 330.04791259765625,
+              "right": 353.087890625,
+              "top": 281.5240173339844,
+              "bottom": 304.56402587890625
+            },
+            {
+              "left": 312.4572448730469,
+              "right": 335.49725341796875,
+              "top": 278.59222412109375,
+              "bottom": 301.6322326660156
+            },
+            {
+              "left": 315.3890380859375,
+              "right": 338.42901611328125,
+              "top": 278.59222412109375,
+              "bottom": 301.6322326660156
+            },
+            {
+              "left": 318.32080078125,
+              "right": 341.3608093261719,
+              "top": 278.59222412109375,
+              "bottom": 301.6322326660156
+            },
+            {
+              "left": 321.2525939941406,
+              "right": 344.2925720214844,
+              "top": 278.59222412109375,
+              "bottom": 301.6322326660156
+            },
+            {
+              "left": 324.1843566894531,
+              "right": 347.224365234375,
+              "top": 278.59222412109375,
+              "bottom": 301.6322326660156
+            },
+            {
+              "left": 327.1161193847656,
+              "right": 350.1561279296875,
+              "top": 278.59222412109375,
+              "bottom": 301.6322326660156
+            },
+            {
+              "left": 330.04791259765625,
+              "right": 353.087890625,
+              "top": 278.59222412109375,
+              "bottom": 301.6322326660156
+            },
+            {
+              "left": 332.97967529296875,
+              "right": 356.0196838378906,
+              "top": 278.59222412109375,
+              "bottom": 301.6322326660156
+            }
+          ],
+          "contained": true,
+          "navigation": {
+            "camera": {
+              "x": 322.93177387912874,
+              "y": 241.2112623862904,
+              "zoom": 0.007634827810266476
+            },
+            "animating": false
+          }
+        },
+        {
+          "kind": "wide-home-endpoint-coverage",
+          "passed": true,
+          "controls": 16,
+          "canvas": {
+            "left": 0,
+            "right": 1120,
+            "top": 50.578125,
+            "bottom": 576,
+            "inset": 272
+          },
+          "rects": [
+            {
+              "left": 1060.0595703125,
+              "right": 1083.099609375,
+              "top": 325.5006103515625,
+              "bottom": 348.5406188964844
+            },
+            {
+              "left": 312.4572448730469,
+              "right": 335.49725341796875,
+              "top": 281.5240173339844,
+              "bottom": 304.56402587890625
+            },
+            {
+              "left": 315.3890380859375,
+              "right": 338.42901611328125,
+              "top": 281.5240173339844,
+              "bottom": 304.56402587890625
+            },
+            {
+              "left": 318.32080078125,
+              "right": 341.3608093261719,
+              "top": 281.5240173339844,
+              "bottom": 304.56402587890625
+            },
+            {
+              "left": 321.2525939941406,
+              "right": 344.2925720214844,
+              "top": 281.5240173339844,
+              "bottom": 304.56402587890625
+            },
+            {
+              "left": 324.1843566894531,
+              "right": 347.224365234375,
+              "top": 281.5240173339844,
+              "bottom": 304.56402587890625
+            },
+            {
+              "left": 327.1161193847656,
+              "right": 350.1561279296875,
+              "top": 281.5240173339844,
+              "bottom": 304.56402587890625
+            },
+            {
+              "left": 330.04791259765625,
+              "right": 353.087890625,
+              "top": 281.5240173339844,
+              "bottom": 304.56402587890625
+            },
+            {
+              "left": 312.4572448730469,
+              "right": 335.49725341796875,
+              "top": 278.59222412109375,
+              "bottom": 301.6322326660156
+            },
+            {
+              "left": 315.3890380859375,
+              "right": 338.42901611328125,
+              "top": 278.59222412109375,
+              "bottom": 301.6322326660156
+            },
+            {
+              "left": 318.32080078125,
+              "right": 341.3608093261719,
+              "top": 278.59222412109375,
+              "bottom": 301.6322326660156
+            },
+            {
+              "left": 321.2525939941406,
+              "right": 344.2925720214844,
+              "top": 278.59222412109375,
+              "bottom": 301.6322326660156
+            },
+            {
+              "left": 324.1843566894531,
+              "right": 347.224365234375,
+              "top": 278.59222412109375,
+              "bottom": 301.6322326660156
+            },
+            {
+              "left": 327.1161193847656,
+              "right": 350.1561279296875,
+              "top": 278.59222412109375,
+              "bottom": 301.6322326660156
+            },
+            {
+              "left": 330.04791259765625,
+              "right": 353.087890625,
+              "top": 278.59222412109375,
+              "bottom": 301.6322326660156
+            },
+            {
+              "left": 332.97967529296875,
+              "right": 356.0196838378906,
+              "top": 278.59222412109375,
+              "bottom": 301.6322326660156
+            }
+          ],
+          "contained": true,
+          "zoom": 0.007634827810266476
+        },
+        {
+          "kind": "result",
+          "passed": true,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "name": "p11-snapshot-boundary-final-feedback",
+      "exitCode": 0,
+      "log": {
+        "path": "target/qualification/p11-snapshot-boundary-final-feedback.log",
+        "sha256": "576981be248ad5a7102bfc47c14af394dd7df32e48ef2bf603a555cf4afece33"
+      },
+      "environment": {
+        "kind": "environment",
+        "production": true,
+        "browser": "156.0.4314.42",
+        "binaryHash": "fcdf8c8328b384ab83d29450ec262d62664385ef514c7f16709e8653a56b1fde",
+        "assets": [
+          {
+            "name": "dmsans-italic-CT59GZwy.ttf",
+            "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+          },
+          {
+            "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+            "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+          },
+          {
+            "name": "index-CGcksE-O.js",
+            "sha256": "60ec74c9dd8b5d57415733137e5eb0ff1a5ab159503d5ec9092f6054c42a719f"
+          },
+          {
+            "name": "index-HpApHVKp.css",
+            "sha256": "8c7e778204be5ffe14da911069f82191985641daf451aeefa16b5cccbcc74c2d"
+          }
+        ],
+        "report": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-spatializer-feedback-c730c95b-8e6c-42e5-9cd1-c40fcfa82092\\browser.jsonl"
+      },
+      "report": {
+        "path": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-spatializer-feedback-c730c95b-8e6c-42e5-9cd1-c40fcfa82092\\browser.jsonl",
+        "sha256": "45782f904a26566882a01ca787b77eaf0e8cd75efde8c676592f7753c4b6acc6"
+      },
+      "records": [
+        {
+          "kind": "held-repeated-keyboard-feedback",
+          "passed": true,
+          "before": {
+            "authored": {
+              "kind": "vec2",
+              "value": [0, 0]
+            },
+            "x": 32,
+            "y": 0,
+            "freeze": null,
+            "present": true,
+            "pending": 2,
+            "feedback": ""
+          },
+          "after": {
+            "authored": {
+              "kind": "vec2",
+              "value": [0.5, 0]
+            },
+            "x": 32,
+            "y": 0,
+            "freeze": null,
+            "present": true,
+            "pending": 0,
+            "feedback": ""
+          }
+        },
+        {
+          "kind": "held-radius-feedback",
+          "passed": true
+        },
+        {
+          "kind": "unmounted-command-retires-preview",
+          "passed": true
+        },
+        {
+          "kind": "rejected-command-withdraws-preview",
+          "passed": true
+        },
+        {
+          "kind": "creation-pending-without-fabricated-identity",
+          "passed": true,
+          "created": {
+            "node": 4294967493,
+            "uuid": "1f76c6e4-aa2a-4efb-ab4d-78f6dde1d606"
+          }
+        },
+        {
+          "kind": "result",
+          "passed": true,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "name": "p11-snapshot-boundary-final-state",
+      "exitCode": 0,
+      "log": {
+        "path": "target/qualification/p11-snapshot-boundary-final-state.log",
+        "sha256": "fb91dfe2db93e0f956f37b34b57857e139288d703dc154f62a12b6ff22f02935"
+      },
+      "environment": {
+        "kind": "environment",
+        "production": true,
+        "browser": "156.0.4314.42",
+        "binaryHash": "fcdf8c8328b384ab83d29450ec262d62664385ef514c7f16709e8653a56b1fde",
+        "assets": [
+          {
+            "name": "dmsans-italic-CT59GZwy.ttf",
+            "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+          },
+          {
+            "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+            "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+          },
+          {
+            "name": "index-BOCNUsmX.css",
+            "sha256": "da08f9dca04e5acc6ea95f8000772564dd6aa802e97fd03f01017bf1c034213a"
+          },
+          {
+            "name": "index-BpKJRwWT.js",
+            "sha256": "8c306b872723a0e6527e1075f49dae2302115fa0bc5d33eff910de267f6b1b1f"
+          }
+        ],
+        "report": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-state-native-34520314-4f4e-41ed-961a-2a1f7c2832a4\\browser.jsonl"
+      },
+      "report": {
+        "path": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-state-native-34520314-4f4e-41ed-961a-2a1f7c2832a4\\browser.jsonl",
+        "sha256": "176c3006933d57b8e05b1fcaf9ab2a1abdcd81f462d91878f6a2300112eba662"
+      },
+      "records": [
+        {
+          "kind": "movement-and-history",
+          "passed": true,
+          "states": [
+            {
+              "id": 4294967299,
+              "uuid": "133f6e57-9aee-46d8-8de8-f6d73a6d5d9c",
+              "label": "First",
+              "enabled": true,
+              "collapsed": false,
+              "position": {
+                "kind": "vec2",
+                "value": [2.25, 3]
+              },
+              "readOnly": false
+            },
+            {
+              "id": 4294967305,
+              "uuid": "7192e432-a767-43c2-b31b-40a624d60865",
+              "label": "Second",
+              "enabled": true,
+              "collapsed": false,
+              "position": {
+                "kind": "vec2",
+                "value": [26.25, 3]
+              },
+              "readOnly": false
+            }
+          ]
+        },
+        {
+          "kind": "collapse-and-connection",
+          "passed": true,
+          "transitions": [
+            {
+              "id": 4294967319,
+              "uuid": "7d0fcb2e-980c-423e-ba7b-64b11d329f14",
+              "target": {
+                "kind": "parameter",
+                "param": {
+                  "value": {
+                    "kind": "reference",
+                    "uuid": "7192e432-a767-43c2-b31b-40a624d60865"
+                  },
+                  "default_value": {
+                    "kind": "reference",
+                    "uuid": "7192e432-a767-43c2-b31b-40a624d60865"
+                  },
+                  "event_behaviour": "Coalesce",
+                  "read_only": false,
+                  "constraints": {
+                    "enum_options": [],
+                    "policy": "ClampAdapt"
+                  },
+                  "ui_hints": {},
+                  "control": {
+                    "mode": "manual",
+                    "spec": {
+                      "mode": "manual"
+                    }
+                  },
+                  "reference_allowed_targets": [],
+                  "reference_visible_nodes": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "kind": "save-reload-snapshot-unmount",
+          "passed": true
+        },
+        {
+          "kind": "atomic-readonly-rejection",
+          "passed": true
+        },
+        {
+          "kind": "result",
+          "passed": true,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "name": "p11-snapshot-boundary-final-alchemist",
+      "exitCode": 0,
+      "log": {
+        "path": "target/qualification/p11-snapshot-boundary-final-alchemist.log",
+        "sha256": "5db1425b79587ef58914f59fa0114bf2724647a8ccd3116e14b0c084f27222d5"
+      },
+      "environment": {
+        "kind": "environment",
+        "production": true,
+        "browser": "156.0.4314.42",
+        "binaryHash": "fcdf8c8328b384ab83d29450ec262d62664385ef514c7f16709e8653a56b1fde",
+        "assets": [
+          {
+            "name": "dmsans-italic-CT59GZwy.ttf",
+            "sha256": "5588da020ed9f3c335259664d35e5dc61a4943521ae6a2d79e403b0520c5dba3"
+          },
+          {
+            "name": "DMSans-VariableFont_opsz_wght-D_B5dL4R.ttf",
+            "sha256": "dd1563c3bb43e0a5163db0d0dfe3ef4b9cd698ed4166d23ba3031e6eff00e9f5"
+          },
+          {
+            "name": "index-BcDHm3O_.css",
+            "sha256": "ac8f9e764ed59d598f1f85a970dc64508ca2030b743f344ac6e6e895c18cd541"
+          },
+          {
+            "name": "index-Y5XUDKhr.js",
+            "sha256": "9b90a8043c04ac50dee517b3fc2c83014b6c7de4b24f4320a7150780b9e5d468"
+          }
+        ],
+        "report": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-alchemist-native-fec82bbe-c538-4322-a1b3-25ac8a3744fe\\browser.jsonl"
+      },
+      "report": {
+        "path": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-alchemist-native-fec82bbe-c538-4322-a1b3-25ac8a3744fe\\browser.jsonl",
+        "sha256": "4dfc4b67bd39aa695f74b1d7d77cb8958b579719ba3e0f9d6d1138ccf1ff973e"
+      },
+      "records": [
+        {
+          "kind": "movement-and-history",
+          "passed": true,
+          "states": [
+            {
+              "id": 4294967304,
+              "uuid": "a330c3c0-ab26-4361-be5d-c92dde74d23e",
+              "label": "First",
+              "type": "constant",
+              "enabled": true,
+              "collapsed": false,
+              "position": {
+                "kind": "vec2",
+                "value": [2.25, 3]
+              },
+              "readOnly": false
+            },
+            {
+              "id": 4294967318,
+              "uuid": "523258e2-a8d2-4957-b336-2e13ece75587",
+              "label": "Second",
+              "type": "math",
+              "enabled": true,
+              "collapsed": false,
+              "position": {
+                "kind": "vec2",
+                "value": [26.25, 3]
+              },
+              "readOnly": false
+            }
+          ]
+        },
+        {
+          "kind": "collapse-and-connection",
+          "passed": true,
+          "transitions": [
+            {
+              "id": 4294967350,
+              "uuid": "23be709d-45c6-48ab-bed3-6338e41dc3b7",
+              "target": {
+                "kind": "parameter",
+                "param": {
+                  "value": {
+                    "kind": "reference",
+                    "uuid": "523258e2-a8d2-4957-b336-2e13ece75587"
+                  },
+                  "default_value": {
+                    "kind": "reference",
+                    "uuid": "523258e2-a8d2-4957-b336-2e13ece75587"
+                  },
+                  "event_behaviour": "Coalesce",
+                  "read_only": false,
+                  "constraints": {
+                    "enum_options": [],
+                    "policy": "ClampAdapt"
+                  },
+                  "ui_hints": {},
+                  "control": {
+                    "mode": "manual",
+                    "spec": {
+                      "mode": "manual"
+                    }
+                  },
+                  "reference_allowed_targets": [],
+                  "reference_visible_nodes": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "kind": "save-reload-snapshot-unmount",
+          "passed": true
+        },
+        {
+          "kind": "atomic-readonly-rejection",
+          "passed": true
+        },
+        {
+          "kind": "snapshot-subscribe-replacement-overlap",
+          "passed": true,
+          "captured": {
+            "project_generation": 5,
+            "at": {
+              "tick": 1,
+              "micro": 0,
+              "seq": 3
+            }
+          },
+          "resumed": {
+            "project_generation": 6,
+            "at": {
+              "tick": 1,
+              "micro": 0,
+              "seq": 4
+            }
+          },
+          "equalEventClocks": false,
+          "wire": [
+            {
+              "direction": "framereceived",
+              "kind": "resyncRequired",
+              "subscription": "sub-mvqq4szt-2",
+              "reason": "project_generation_changed"
+            },
+            {
+              "direction": "framesent",
+              "kind": "unsubscribe",
+              "subscription": "sub-mvqq4szt-2"
+            },
+            {
+              "direction": "framesent",
+              "kind": "subscribe",
+              "subscription": "sub-mvqq4szt-2",
+              "from": {
+                "at": {
+                  "tick": 1,
+                  "micro": 0,
+                  "seq": 3
+                },
+                "project_generation": 5
+              }
+            },
+            {
+              "direction": "framereceived",
+              "kind": "resyncRequired",
+              "subscription": "sub-mvqq4szt-2",
+              "reason": "project_generation_changed"
+            },
+            {
+              "direction": "framesent",
+              "kind": "unsubscribe",
+              "subscription": "sub-mvqq4szt-2"
+            },
+            {
+              "direction": "framesent",
+              "kind": "snapshot",
+              "id": "snapshot-mvqq4uue-i"
+            },
+            {
+              "direction": "framereceived",
+              "kind": "snapshot",
+              "id": "snapshot-mvqq4uue-i",
+              "at": {
+                "tick": 1,
+                "micro": 0,
+                "seq": 4
+              }
+            },
+            {
+              "direction": "framesent",
+              "kind": "subscribe",
+              "subscription": "sub-mvqq4szt-2",
+              "from": {
+                "at": {
+                  "tick": 1,
+                  "micro": 0,
+                  "seq": 4
+                },
+                "project_generation": 6
+              }
+            }
+          ]
+        },
+        {
+          "kind": "result",
+          "passed": true,
+          "errors": []
+        }
+      ]
+    }
+  ],
+  "diagnostics": [
+    {
+      "run": "p11-scoped-subtree-fences-before-phases",
+      "profile": {
+        "path": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-spatializer-creation-phases-6763425d-fc53-4d34-ada7-095caf7215b2/single.cpuprofile",
+        "sha256": "d015c34909ad4b47ae312724b8a3acabf52a2c79d737fb7829a1317a10a162ff"
+      },
+      "sourceMap": {
+        "path": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-spatializer-creation-phases-6763425d-fc53-4d34-ada7-095caf7215b2/index-CGcksE-O.js.map",
+        "sha256": "9adea135541dbda9aefba9b6923b6d2a1d1e60f5d2ee77c5edcff792437489dc"
+      },
+      "mappedCpu": [
+        {
+          "id": 3,
+          "frame": {
+            "functionName": "(idle)",
+            "scriptId": "0",
+            "url": "",
+            "lineNumber": -1,
+            "columnNumber": -1
+          },
+          "selfUs": 7626071,
+          "original": null
+        },
+        {
+          "id": 326,
+          "frame": {
+            "functionName": "get",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 13996
+          },
+          "selfUs": 605806,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 75,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 2,
+          "frame": {
+            "functionName": "(program)",
+            "scriptId": "0",
+            "url": "",
+            "lineNumber": -1,
+            "columnNumber": -1
+          },
+          "selfUs": 417816,
+          "original": null
+        },
+        {
+          "id": 328,
+          "frame": {
+            "functionName": "#i",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 14036
+          },
+          "selfUs": 246977,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 79,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 327,
+          "frame": {
+            "functionName": "#i",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 14036
+          },
+          "selfUs": 195456,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 79,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 338,
+          "frame": {
+            "functionName": "#i",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 14036
+          },
+          "selfUs": 149839,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 79,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 249,
+          "frame": {
+            "functionName": "Pd",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 137695
+          },
+          "selfUs": 139394,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/projection.svelte.ts",
+            "line": 72,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 354,
+          "frame": {
+            "functionName": "#i",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 14036
+          },
+          "selfUs": 109901,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 79,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 251,
+          "frame": {
+            "functionName": "c",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 138453
+          },
+          "selfUs": 94024,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/projection.svelte.ts",
+            "line": 137,
+            "column": 7,
+            "name": null
+          }
+        },
+        {
+          "id": 252,
+          "frame": {
+            "functionName": "kd",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 137207
+          },
+          "selfUs": 92649,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/projection.svelte.ts",
+            "line": 45,
+            "column": 27,
+            "name": null
+          }
+        },
+        {
+          "id": 323,
+          "frame": {
+            "functionName": "get",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 13996
+          },
+          "selfUs": 83950,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 75,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 325,
+          "frame": {
+            "functionName": "child",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 135999
+          },
+          "selfUs": 78638,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/child-index.ts",
+            "line": 70,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 49,
+          "frame": {
+            "functionName": "(garbage collector)",
+            "scriptId": "0",
+            "url": "",
+            "lineNumber": -1,
+            "columnNumber": -1
+          },
+          "selfUs": 71074,
+          "original": null
+        },
+        {
+          "id": 282,
+          "frame": {
+            "functionName": "get",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 13996
+          },
+          "selfUs": 65389,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 75,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 278,
+          "frame": {
+            "functionName": "#a",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 14494
+          },
+          "selfUs": 64521,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 109,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 45,
+          "frame": {
+            "functionName": "get",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 13996
+          },
+          "selfUs": 59802,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 75,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 322,
+          "frame": {
+            "functionName": "reconcile",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 157888
+          },
+          "selfUs": 57052,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/endpoint-cache.ts",
+            "line": 9,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 420,
+          "frame": {
+            "functionName": "#i",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 14036
+          },
+          "selfUs": 53879,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 79,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 280,
+          "frame": {
+            "functionName": "",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 61759
+          },
+          "selfUs": 48903,
+          "original": {
+            "source": "../../../../packages/golden-ui/transport/staged-frame-batches.ts",
+            "line": 273,
+            "column": 10,
+            "name": null
+          }
+        },
+        {
+          "id": 250,
+          "frame": {
+            "functionName": "s",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 138320
+          },
+          "selfUs": 48093,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/projection.svelte.ts",
+            "line": 123,
+            "column": 21,
+            "name": null
+          }
+        },
+        {
+          "id": 275,
+          "frame": {
+            "functionName": "ea",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 9440
+          },
+          "selfUs": 46833,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-event-projection.ts",
+            "line": 121,
+            "column": 6,
+            "name": null
+          }
+        },
+        {
+          "id": 48,
+          "frame": {
+            "functionName": "v",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 139991
+          },
+          "selfUs": 41624,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/geometry.svelte.ts",
+            "line": 125,
+            "column": 7,
+            "name": null
+          }
+        },
+        {
+          "id": 363,
+          "frame": {
+            "functionName": "Cd",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 136765
+          },
+          "selfUs": 40175,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/projection.svelte.ts",
+            "line": 16,
+            "column": 20,
+            "name": null
+          }
+        },
+        {
+          "id": 309,
+          "frame": {
+            "functionName": "#a",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 14494
+          },
+          "selfUs": 33870,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 109,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 276,
+          "frame": {
+            "functionName": "set",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 14267
+          },
+          "selfUs": 27844,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 95,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 373,
+          "frame": {
+            "functionName": "get",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 13996
+          },
+          "selfUs": 24773,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 75,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 247,
+          "frame": {
+            "functionName": "",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+            "lineNumber": 3,
+            "columnNumber": 97896
+          },
+          "selfUs": 24111,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/SpatializerEditorPanel.svelte",
+            "line": 180,
+            "column": 17,
+            "name": null
+          }
+        },
+        {
+          "id": 248,
+          "frame": {
+            "functionName": "endpointFromNode",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 138580
+          },
+          "selfUs": 22437,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/projection.svelte.ts",
+            "line": 178,
+            "column": 47,
+            "name": null
+          }
+        },
+        {
+          "id": 46,
+          "frame": {
+            "functionName": "#i",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 135865
+          },
+          "selfUs": 18519,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/child-index.ts",
+            "line": 61,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 353,
+          "frame": {
+            "functionName": "has",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 14222
+          },
+          "selfUs": 18443,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 91,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 337,
+          "frame": {
+            "functionName": "now",
+            "scriptId": "0",
+            "url": "",
+            "lineNumber": -1,
+            "columnNumber": -1
+          },
+          "selfUs": 16900,
+          "original": null
+        },
+        {
+          "id": 324,
+          "frame": {
+            "functionName": "a",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 138161
+          },
+          "selfUs": 12367,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/projection.svelte.ts",
+            "line": 105,
+            "column": 7,
+            "name": null
+          }
+        },
+        {
+          "id": 352,
+          "frame": {
+            "functionName": "a",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 138161
+          },
+          "selfUs": 10883,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/projection.svelte.ts",
+            "line": 105,
+            "column": 7,
+            "name": null
+          }
+        },
+        {
+          "id": 258,
+          "frame": {
+            "functionName": "querySelectorAll",
+            "scriptId": "0",
+            "url": "",
+            "lineNumber": -1,
+            "columnNumber": -1
+          },
+          "selfUs": 10758,
+          "original": null
+        },
+        {
+          "id": 339,
+          "frame": {
+            "functionName": "Fd",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 137953
+          },
+          "selfUs": 9175,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/projection.svelte.ts",
+            "line": 86,
+            "column": 27,
+            "name": null
+          }
+        },
+        {
+          "id": 44,
+          "frame": {
+            "functionName": "child",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 135999
+          },
+          "selfUs": 8166,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/child-index.ts",
+            "line": 70,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 277,
+          "frame": {
+            "functionName": "#a",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 14494
+          },
+          "selfUs": 7708,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 109,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 206,
+          "frame": {
+            "functionName": "_",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 139897
+          },
+          "selfUs": 7666,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/geometry.svelte.ts",
+            "line": 116,
+            "column": 7,
+            "name": null
+          }
+        },
+        {
+          "id": 253,
+          "frame": {
+            "functionName": "get",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 13996
+          },
+          "selfUs": 7665,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 75,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 344,
+          "frame": {
+            "functionName": "forEachChange",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:56560/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 15982
+          },
+          "selfUs": 7645,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 234,
+            "column": 1,
+            "name": null
+          }
+        }
+      ],
+      "planWindows": [
+        {
+          "name": "creation",
+          "start": 69469,
+          "end": 79851,
+          "records": []
+        },
+        {
+          "name": "undo",
+          "start": 79851,
+          "end": 90791,
+          "records": []
+        }
+      ]
+    },
+    {
+      "run": "p11-receipt-only-wakes-after-phases",
+      "profile": {
+        "path": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-spatializer-creation-phases-de4c5208-f9a2-4aa8-a826-e083968313c7/single.cpuprofile",
+        "sha256": "cf6319c264f1d4ca38f90a801932b7fd616b73847b13b4d35bcf87be28d65412"
+      },
+      "sourceMap": {
+        "path": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-spatializer-creation-phases-de4c5208-f9a2-4aa8-a826-e083968313c7/index-CGcksE-O.js.map",
+        "sha256": "9adea135541dbda9aefba9b6923b6d2a1d1e60f5d2ee77c5edcff792437489dc"
+      },
+      "mappedCpu": [
+        {
+          "id": 3,
+          "frame": {
+            "functionName": "(idle)",
+            "scriptId": "0",
+            "url": "",
+            "lineNumber": -1,
+            "columnNumber": -1
+          },
+          "selfUs": 5605774,
+          "original": null
+        },
+        {
+          "id": 310,
+          "frame": {
+            "functionName": "get",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 13996
+          },
+          "selfUs": 563421,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 75,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 2,
+          "frame": {
+            "functionName": "(program)",
+            "scriptId": "0",
+            "url": "",
+            "lineNumber": -1,
+            "columnNumber": -1
+          },
+          "selfUs": 396140,
+          "original": null
+        },
+        {
+          "id": 316,
+          "frame": {
+            "functionName": "#i",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 14036
+          },
+          "selfUs": 212494,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 79,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 311,
+          "frame": {
+            "functionName": "#i",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 14036
+          },
+          "selfUs": 168863,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 79,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 304,
+          "frame": {
+            "functionName": "Pd",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 137695
+          },
+          "selfUs": 116532,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/projection.svelte.ts",
+            "line": 72,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 54,
+          "frame": {
+            "functionName": "(garbage collector)",
+            "scriptId": "0",
+            "url": "",
+            "lineNumber": -1,
+            "columnNumber": -1
+          },
+          "selfUs": 115611,
+          "original": null
+        },
+        {
+          "id": 349,
+          "frame": {
+            "functionName": "#i",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 14036
+          },
+          "selfUs": 112804,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 79,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 353,
+          "frame": {
+            "functionName": "#i",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 14036
+          },
+          "selfUs": 106476,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 79,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 307,
+          "frame": {
+            "functionName": "get",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 13996
+          },
+          "selfUs": 89348,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 75,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 305,
+          "frame": {
+            "functionName": "kd",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 137207
+          },
+          "selfUs": 74123,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/projection.svelte.ts",
+            "line": 45,
+            "column": 27,
+            "name": null
+          }
+        },
+        {
+          "id": 245,
+          "frame": {
+            "functionName": "get",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 13996
+          },
+          "selfUs": 68135,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 75,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 302,
+          "frame": {
+            "functionName": "c",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 138453
+          },
+          "selfUs": 63422,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/projection.svelte.ts",
+            "line": 137,
+            "column": 7,
+            "name": null
+          }
+        },
+        {
+          "id": 50,
+          "frame": {
+            "functionName": "get",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 13996
+          },
+          "selfUs": 62346,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 75,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 239,
+          "frame": {
+            "functionName": "#a",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 14494
+          },
+          "selfUs": 62155,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 109,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 309,
+          "frame": {
+            "functionName": "child",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 135999
+          },
+          "selfUs": 58669,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/child-index.ts",
+            "line": 70,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 228,
+          "frame": {
+            "functionName": "s",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 138320
+          },
+          "selfUs": 50184,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/projection.svelte.ts",
+            "line": 123,
+            "column": 21,
+            "name": null
+          }
+        },
+        {
+          "id": 431,
+          "frame": {
+            "functionName": "#i",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 14036
+          },
+          "selfUs": 49479,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 79,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 315,
+          "frame": {
+            "functionName": "",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 61759
+          },
+          "selfUs": 45865,
+          "original": {
+            "source": "../../../../packages/golden-ui/transport/staged-frame-batches.ts",
+            "line": 273,
+            "column": 10,
+            "name": null
+          }
+        },
+        {
+          "id": 324,
+          "frame": {
+            "functionName": "Id",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 138011
+          },
+          "selfUs": 43286,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/projection.svelte.ts",
+            "line": 89,
+            "column": 6,
+            "name": null
+          }
+        },
+        {
+          "id": 321,
+          "frame": {
+            "functionName": "",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 157958
+          },
+          "selfUs": 43191,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/endpoint-cache.ts",
+            "line": 15,
+            "column": 31,
+            "name": null
+          }
+        },
+        {
+          "id": 237,
+          "frame": {
+            "functionName": "set",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 14267
+          },
+          "selfUs": 39166,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 95,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 341,
+          "frame": {
+            "functionName": "now",
+            "scriptId": "0",
+            "url": "",
+            "lineNumber": -1,
+            "columnNumber": -1
+          },
+          "selfUs": 38265,
+          "original": null
+        },
+        {
+          "id": 240,
+          "frame": {
+            "functionName": "#a",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 14494
+          },
+          "selfUs": 31942,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 109,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 53,
+          "frame": {
+            "functionName": "v",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 139991
+          },
+          "selfUs": 30947,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/geometry.svelte.ts",
+            "line": 125,
+            "column": 7,
+            "name": null
+          }
+        },
+        {
+          "id": 236,
+          "frame": {
+            "functionName": "ea",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 9440
+          },
+          "selfUs": 29726,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-event-projection.ts",
+            "line": 121,
+            "column": 6,
+            "name": null
+          }
+        },
+        {
+          "id": 308,
+          "frame": {
+            "functionName": "a",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 138161
+          },
+          "selfUs": 27779,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/projection.svelte.ts",
+            "line": 105,
+            "column": 7,
+            "name": null
+          }
+        },
+        {
+          "id": 301,
+          "frame": {
+            "functionName": "endpointFromNode",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 138580
+          },
+          "selfUs": 15691,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/projection.svelte.ts",
+            "line": 178,
+            "column": 47,
+            "name": null
+          }
+        },
+        {
+          "id": 432,
+          "frame": {
+            "functionName": "#i",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 135865
+          },
+          "selfUs": 15609,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/child-index.ts",
+            "line": 61,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 51,
+          "frame": {
+            "functionName": "#i",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 135865
+          },
+          "selfUs": 15564,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/child-index.ts",
+            "line": 61,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 408,
+          "frame": {
+            "functionName": "get",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 13996
+          },
+          "selfUs": 14104,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 75,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 367,
+          "frame": {
+            "functionName": "",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+            "lineNumber": 3,
+            "columnNumber": 97996
+          },
+          "selfUs": 14016,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/SpatializerEditorPanel.svelte",
+            "line": 185,
+            "column": 12,
+            "name": null
+          }
+        },
+        {
+          "id": 225,
+          "frame": {
+            "functionName": "",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+            "lineNumber": 3,
+            "columnNumber": 97896
+          },
+          "selfUs": 13990,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/SpatializerEditorPanel.svelte",
+            "line": 180,
+            "column": 17,
+            "name": null
+          }
+        },
+        {
+          "id": 320,
+          "frame": {
+            "functionName": "reconcile",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 157888
+          },
+          "selfUs": 13860,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/endpoint-cache.ts",
+            "line": 9,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 352,
+          "frame": {
+            "functionName": "has",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 14222
+          },
+          "selfUs": 13699,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 91,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 232,
+          "frame": {
+            "functionName": "querySelectorAll",
+            "scriptId": "0",
+            "url": "",
+            "lineNumber": -1,
+            "columnNumber": -1
+          },
+          "selfUs": 13580,
+          "original": null
+        },
+        {
+          "id": 201,
+          "frame": {
+            "functionName": "_",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 139897
+          },
+          "selfUs": 12421,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/geometry.svelte.ts",
+            "line": 116,
+            "column": 7,
+            "name": null
+          }
+        },
+        {
+          "id": 333,
+          "frame": {
+            "functionName": "Fd",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 137953
+          },
+          "selfUs": 12234,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/projection.svelte.ts",
+            "line": 86,
+            "column": 27,
+            "name": null
+          }
+        },
+        {
+          "id": 242,
+          "frame": {
+            "functionName": "#s",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 16511
+          },
+          "selfUs": 10890,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 280,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 241,
+          "frame": {
+            "functionName": "#a",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:53496/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 14494
+          },
+          "selfUs": 10851,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 109,
+            "column": 1,
+            "name": null
+          }
+        }
+      ],
+      "planWindows": [
+        {
+          "name": "creation",
+          "start": 64543,
+          "end": 74924,
+          "records": []
+        },
+        {
+          "name": "undo",
+          "start": 74924,
+          "end": 84831,
+          "records": []
+        }
+      ]
+    },
+    {
+      "run": "p11-publication-plan-trace-phases",
+      "profile": {
+        "path": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-spatializer-creation-phases-a014dd35-b2d3-4901-8eee-961a126a7a98/single.cpuprofile",
+        "sha256": "78d460d2bb834706bdf082eef7a1b5d184d7a7202dceb5423956d56c57e23b15"
+      },
+      "sourceMap": {
+        "path": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification\\p11-spatializer-creation-phases-a014dd35-b2d3-4901-8eee-961a126a7a98/index-CGcksE-O.js.map",
+        "sha256": "9adea135541dbda9aefba9b6923b6d2a1d1e60f5d2ee77c5edcff792437489dc"
+      },
+      "mappedCpu": [
+        {
+          "id": 3,
+          "frame": {
+            "functionName": "(idle)",
+            "scriptId": "0",
+            "url": "",
+            "lineNumber": -1,
+            "columnNumber": -1
+          },
+          "selfUs": 5678669,
+          "original": null
+        },
+        {
+          "id": 325,
+          "frame": {
+            "functionName": "get",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 13996
+          },
+          "selfUs": 598519,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 75,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 2,
+          "frame": {
+            "functionName": "(program)",
+            "scriptId": "0",
+            "url": "",
+            "lineNumber": -1,
+            "columnNumber": -1
+          },
+          "selfUs": 331804,
+          "original": null
+        },
+        {
+          "id": 331,
+          "frame": {
+            "functionName": "#i",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 14036
+          },
+          "selfUs": 209616,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 79,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 327,
+          "frame": {
+            "functionName": "#i",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 14036
+          },
+          "selfUs": 138107,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 79,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 379,
+          "frame": {
+            "functionName": "#i",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 14036
+          },
+          "selfUs": 114971,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 79,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 321,
+          "frame": {
+            "functionName": "Pd",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 137695
+          },
+          "selfUs": 114107,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/projection.svelte.ts",
+            "line": 72,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 377,
+          "frame": {
+            "functionName": "#i",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 14036
+          },
+          "selfUs": 88820,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 79,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 320,
+          "frame": {
+            "functionName": "kd",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 137207
+          },
+          "selfUs": 73211,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/projection.svelte.ts",
+            "line": 45,
+            "column": 27,
+            "name": null
+          }
+        },
+        {
+          "id": 318,
+          "frame": {
+            "functionName": "c",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 138453
+          },
+          "selfUs": 71036,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/projection.svelte.ts",
+            "line": 137,
+            "column": 7,
+            "name": null
+          }
+        },
+        {
+          "id": 322,
+          "frame": {
+            "functionName": "get",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 13996
+          },
+          "selfUs": 64276,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 75,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 53,
+          "frame": {
+            "functionName": "(garbage collector)",
+            "scriptId": "0",
+            "url": "",
+            "lineNumber": -1,
+            "columnNumber": -1
+          },
+          "selfUs": 63872,
+          "original": null
+        },
+        {
+          "id": 49,
+          "frame": {
+            "functionName": "get",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 13996
+          },
+          "selfUs": 63431,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 75,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 264,
+          "frame": {
+            "functionName": "",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 61759
+          },
+          "selfUs": 57117,
+          "original": {
+            "source": "../../../../packages/golden-ui/transport/staged-frame-batches.ts",
+            "line": 273,
+            "column": 10,
+            "name": null
+          }
+        },
+        {
+          "id": 324,
+          "frame": {
+            "functionName": "child",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 135999
+          },
+          "selfUs": 55607,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/child-index.ts",
+            "line": 70,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 375,
+          "frame": {
+            "functionName": "#a",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 14494
+          },
+          "selfUs": 54015,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 109,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 244,
+          "frame": {
+            "functionName": "s",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 138320
+          },
+          "selfUs": 52071,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/projection.svelte.ts",
+            "line": 123,
+            "column": 21,
+            "name": null
+          }
+        },
+        {
+          "id": 428,
+          "frame": {
+            "functionName": "#i",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 14036
+          },
+          "selfUs": 48638,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 79,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 368,
+          "frame": {
+            "functionName": "get",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 13996
+          },
+          "selfUs": 44110,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 75,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 328,
+          "frame": {
+            "functionName": "",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 157958
+          },
+          "selfUs": 43480,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/endpoint-cache.ts",
+            "line": 15,
+            "column": 31,
+            "name": null
+          }
+        },
+        {
+          "id": 52,
+          "frame": {
+            "functionName": "v",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 139991
+          },
+          "selfUs": 38534,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/geometry.svelte.ts",
+            "line": 125,
+            "column": 7,
+            "name": null
+          }
+        },
+        {
+          "id": 333,
+          "frame": {
+            "functionName": "Id",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 138011
+          },
+          "selfUs": 37249,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/projection.svelte.ts",
+            "line": 89,
+            "column": 6,
+            "name": null
+          }
+        },
+        {
+          "id": 241,
+          "frame": {
+            "functionName": "",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 3,
+            "columnNumber": 97896
+          },
+          "selfUs": 33840,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/SpatializerEditorPanel.svelte",
+            "line": 180,
+            "column": 17,
+            "name": null
+          }
+        },
+        {
+          "id": 381,
+          "frame": {
+            "functionName": "#a",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 14494
+          },
+          "selfUs": 26215,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 109,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 372,
+          "frame": {
+            "functionName": "ea",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 9440
+          },
+          "selfUs": 26053,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-event-projection.ts",
+            "line": 121,
+            "column": 6,
+            "name": null
+          }
+        },
+        {
+          "id": 380,
+          "frame": {
+            "functionName": "now",
+            "scriptId": "0",
+            "url": "",
+            "lineNumber": -1,
+            "columnNumber": -1
+          },
+          "selfUs": 22938,
+          "original": null
+        },
+        {
+          "id": 364,
+          "frame": {
+            "functionName": "get",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 13996
+          },
+          "selfUs": 20267,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 75,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 248,
+          "frame": {
+            "functionName": "reconcile",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 157888
+          },
+          "selfUs": 20216,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/endpoint-cache.ts",
+            "line": 9,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 259,
+          "frame": {
+            "functionName": "set",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 14267
+          },
+          "selfUs": 18968,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 95,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 373,
+          "frame": {
+            "functionName": "set",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 14267
+          },
+          "selfUs": 18649,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 95,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 50,
+          "frame": {
+            "functionName": "#i",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 135865
+          },
+          "selfUs": 18624,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/child-index.ts",
+            "line": 61,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 345,
+          "frame": {
+            "functionName": "a",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 138161
+          },
+          "selfUs": 17130,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/projection.svelte.ts",
+            "line": 105,
+            "column": 7,
+            "name": null
+          }
+        },
+        {
+          "id": 265,
+          "frame": {
+            "functionName": "get",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 13996
+          },
+          "selfUs": 15516,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 75,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 350,
+          "frame": {
+            "functionName": "#i",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 14036
+          },
+          "selfUs": 15361,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 79,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 323,
+          "frame": {
+            "functionName": "a",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 138161
+          },
+          "selfUs": 14039,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/projection.svelte.ts",
+            "line": 105,
+            "column": 7,
+            "name": null
+          }
+        },
+        {
+          "id": 214,
+          "frame": {
+            "functionName": "_",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 139897
+          },
+          "selfUs": 14009,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/geometry.svelte.ts",
+            "line": 116,
+            "column": 7,
+            "name": null
+          }
+        },
+        {
+          "id": 409,
+          "frame": {
+            "functionName": "#s",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 16511
+          },
+          "selfUs": 13570,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 280,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 376,
+          "frame": {
+            "functionName": "has",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 14222
+          },
+          "selfUs": 12195,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 91,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 436,
+          "frame": {
+            "functionName": "#i",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 135865
+          },
+          "selfUs": 10782,
+          "original": {
+            "source": "../../../../apps/chataigne/ui/src/lib/panels/modules/spatializer/child-index.ts",
+            "line": 61,
+            "column": 1,
+            "name": null
+          }
+        },
+        {
+          "id": 261,
+          "frame": {
+            "functionName": "#a",
+            "scriptId": "4",
+            "url": "http://127.0.0.1:61034/assets/index-CGcksE-O.js",
+            "lineNumber": 1,
+            "columnNumber": 14494
+          },
+          "selfUs": 9586,
+          "original": {
+            "source": "../../../../packages/golden-ui/store/graph-index.ts",
+            "line": 109,
+            "column": 1,
+            "name": null
+          }
+        }
+      ],
+      "planWindows": [
+        {
+          "name": "creation",
+          "start": 67278,
+          "end": 78523,
+          "records": [
+            "[spatializer] output_plan sources=32 targets=2850 rows=32 new_rows=0 sparse_pairs=127 missing_cells=32 removals=0",
+            "[spatializer] publication_turn nodes=100003 edits=16 values=12 trees=4 reads=20",
+            "[spatializer] publication_turn nodes=100007 edits=16 values=13 trees=3 reads=20",
+            "[spatializer] publication_turn nodes=100010 edits=16 values=10 trees=6 reads=19",
+            "[spatializer] publication_turn nodes=100016 edits=16 values=13 trees=3 reads=21",
+            "[spatializer] publication_turn nodes=100019 edits=16 values=12 trees=4 reads=19",
+            "[spatializer] publication_turn nodes=100023 edits=16 values=12 trees=4 reads=21",
+            "[spatializer] publication_turn nodes=100027 edits=16 values=13 trees=3 reads=20",
+            "[spatializer] publication_turn nodes=100030 edits=15 values=10 trees=5 reads=18",
+            "[spatializer] output_plan sources=32 targets=2850 rows=0 new_rows=0 sparse_pairs=0 missing_cells=0 removals=0"
+          ]
+        },
+        {
+          "name": "undo",
+          "start": 78523,
+          "end": 89291,
+          "records": [
+            "[spatializer] output_plan sources=32 targets=2849 rows=32 new_rows=0 sparse_pairs=95 missing_cells=0 removals=32",
+            "[spatializer] publication_turn nodes=100032 edits=16 values=12 trees=0 reads=24",
+            "[spatializer] publication_turn nodes=100028 edits=16 values=13 trees=0 reads=23",
+            "[spatializer] publication_turn nodes=100025 edits=16 values=10 trees=0 reads=25",
+            "[spatializer] publication_turn nodes=100019 edits=16 values=13 trees=0 reads=23",
+            "[spatializer] publication_turn nodes=100016 edits=16 values=12 trees=0 reads=23",
+            "[spatializer] publication_turn nodes=100012 edits=16 values=12 trees=0 reads=24",
+            "[spatializer] publication_turn nodes=100008 edits=16 values=13 trees=0 reads=23",
+            "[spatializer] publication_turn nodes=100005 edits=15 values=10 trees=0 reads=23",
+            "[spatializer] output_plan sources=32 targets=2849 rows=0 new_rows=0 sparse_pairs=0 missing_cells=0 removals=0"
+          ]
+        }
+      ]
+    }
+  ],
+  "setupErrors": [
+    {
+      "name": "p11-receipt-only-wakes-state",
+      "path": "target/qualification/p11-receipt-only-wakes-state.log",
+      "sha256": "8870cca5ee3055d8c671de425a26a69ceca29f92888462ca4879b9ee6895da31",
+      "note": "Runner invoked without its required arguments; no product workflow ran."
+    },
+    {
+      "name": "p11-receipt-only-wakes-state-final",
+      "path": "target/qualification/p11-receipt-only-wakes-state-final.log",
+      "sha256": "f8e2e2837b25d5938777df538fc9d518c3f1eb4888c4cd7863afae59a0d0aa8a",
+      "note": "Missing Rust-staged fixtures; no product workflow ran. Node/libuv also asserted during error cleanup. Correct Rust adapter reruns pass."
+    }
+  ],
+  "initialAppFailure": {
+    "log": {
+      "path": "target/qualification/p11-receipt-only-wakes-spatializer.log",
+      "sha256": "852f07a5d67c4eb88d99cd57670d5fe080e94cdda99ce52febd3b8e08bf35c5b"
+    },
+    "passed": 53,
+    "failed": 1,
+    "note": "Old assertion requested a snapshot while receipt pending; changed to require a fresh view after receipt completion. The new held-receipt test already passed. Final all 54 pass."
+  },
+  "limitations": [
+    "The 3/31 timing result is an explicitly selected diagnostic case, not the complete 60-case matrix.",
+    "Final native executable contains opt-in diagnostic logging only beyond the executable used by the 3/31 case; no default runtime algorithm changed between those artifacts.",
+    "CPU and byte-offset phase observations are instrumented single operations, not latency distributions; log phase boundaries are observational windows.",
+    "No complete 16-group pressure rerun for this milestone; prior pass remains at 444b0834.",
+    "No new UI test/type gate claim: UI source is unchanged; preceding 469-test evidence stays dated.",
+    "Physical input/native-webview usability remains P17; output throughput remains P16."
+  ],
+  "next": "Incremental canonical process-snapshot refresh in Golden, preserving immutable old views, identities/topology, exact revision guards and canonical lease accounting. Then rerun all 60 cases and 16 pressure groups."
+}

@@ -553,6 +553,13 @@ Mutation bookkeeping marks only changed nodes and explicit topology parents in c
 target. Snapshot creation copies that index and folds descendants iteratively in linear time
 alongside its existing whole-tree projection; revision lookups are constant time and retain no engine.
 
+Applying a subtree read precondition does not construct that whole-tree projection. Golden folds
+local authored counters over the guarded live subtree and compares the exact captured stamp.
+Overlapping guards share a temporary fold within one fence; following requests always start a new
+fold, so an earlier applied edit cannot hide behind cached results. Work and temporary storage are
+bounded by the union of guarded subtrees, independently of disjoint project payloads. Traversal is
+iterative over validated engine topology; UUID, inherited enabled-state and namespace checks remain.
+
 `RecordingModuleIo` captures versioned inputs and authoritative outputs using an injected clock.
 Deterministic clocks keep protocol and hardware fixtures repeatable without putting polling or
 device work on the engine loop.

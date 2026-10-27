@@ -5,8 +5,8 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-27 on `main`, based on delivered `b6e31f80` plus verified 50k
-creation/publication repairs; 100k completion remains open. **P11 is in progress; four of six fixed checkpoints are closed (67% rounded).**
+Last reconciled: 2026-10-27 on `main`, based on delivered `444b0834` plus verified subtree-fence
+and receipt-wait boundaries. 100k creation completion remains open. **P11 is in progress; four of six fixed checkpoints are closed (67% rounded).**
 **P10 is locally complete: three of three fixed checkpoints (100%).**
 **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
@@ -207,37 +207,39 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
 ## Current handoff
 
 - **Active task: P11, 4/6 fixed checkpoints closed (67%). Whole plan: 59%; 10/18 tasks complete.**
-  P01-P10 are complete locally. **P03 has zero remaining packages: C01-C12 are closed (12/12).**
-  Batch counts describe delivery history and never change these denominators.
-- **Two P11 checkpoints remain.** Graph keyboard operations are in progress; complete composed
-  workflows have not started. Shared graph operations and the actual State/Formula scale matrices
-  pass. Spatializer's final-artifact **16 pressure groups pass**; it still needs its complete
-  **60-case timing matrix** before the graph checkpoint closes.
-- **Current measured blocker: 100k Spatializer target creation.** The full default timing attempt
-  passed 28 cases, then failed creation completion at **5,124ms p95** against the fixed 4,000ms stress gate.
-  Feedback passed at 27ms; maximum callback stall was 37.5ms. All samples and undo restores completed.
-  Current repairs remove duplicate row guards, generated-echo snapshots and unrelated module-picker
-  scans; endpoint identities and declaration indexes retain unchanged presentation inputs.
-  Creation uses truthful pending status, while completion still requires the real identity, glyph
-  and all 32 new cells. No gate, density or sample count changed.
-- **Latest verification:** 53 owning Spatializer Rust tests, strict workspace/all-target Clippy,
-  **469 UI tests**, app/graph-fixture Svelte checks, the normal bundled build and all **30 native
-  Spatializer groups** pass. In the full timing attempt, 50k creation now passes at **1,991.7ms
-  completion / 12.2ms feedback p95**, with 16.6ms maximum callback stall; its completion margin is
-  narrow. All **16 final-artifact pressure groups pass**. No new checkpoint is closed.
-  **Next: repair 100k creation and rerun all 60 timing cases.** A separate single-operation diagnostic
-  identifies repeated full-project snapshots, including subtree precondition validation; its
-  instrumented latency is not qualification evidence.
-- Maintained acceptance and raw failures: [Spatializer scale](p11-spatializer-graph-scale.md),
-  [State scale](p11-state-graph-scale.md), [Formula scale](p11-formula-graph-scale.md),
-  [shared graph operations](p11-graph-keyboard.md), [P11 contract](p11-workspace-qualification-contract.md).
-  [Creation-projection evidence](evidence/p11-spatializer-creation-projection-2026-10-27.json)
-  retains current pressure qualification, partial timing and earlier failures separately.
-- Preserve the closed dashboard, collection, log and tree checkpoints, including
-  [composition](p11-dashboard-composition.md), [applied-receipt barriers](p11-dashboard-barriers.md)
-  and [tree closure](p11-tree-closure.md). P10's mounted canvas qualification remains
-  [closed](p10-canvas-qualification.md). Output throughput retains P16; physical input/native-webview
-  usability and platform/device checks retain P17/P18.
+  P01-P10 remain complete locally. **P03 has zero packages left: C01-C12 are closed (12/12).**
+  Batch counts record delivery history and never change these denominators.
+- **Two P11 checkpoints remain:** graph keyboard qualification, then complete composed workflows.
+  Shared graph operations and the State/Formula scale matrices pass. Spatializer still needs its
+  complete **60-case timing matrix** and final-artifact pressure preservation before graph closure.
+- **Current blocker: 100k Spatializer creation completion.** The latest fixed 3/31 directed case
+  fails at **4,880.2ms p95** against 4,000ms; feedback 22.9ms and maximum callback stall 29.2ms pass.
+  All 34 samples and undo restores finish. The last full attempt, on `444b0834`, passed 28 cases;
+  its 50k creation case passed at 1,991.7ms, narrowly within 2,000ms. That artifact also passed
+  all 16 pressure groups. Those results do not qualify the newer executable's full matrix.
+- **Verified boundary repair:** subtree preconditions fold only the guarded live subtrees, sharing
+  overlap within one fence and discarding results before following edits. Exact stamps, UUIDs,
+  enabled state and engine namespaces remain enforced. Receipt-only Spatializer wakes request no
+  snapshot; success/rejection must settle before a fresh planning read. All **640 Core tests**
+  (three existing ignored), **54 Spatializer tests**, strict workspace/all-target Clippy, the normal
+  bundled build and **39 native graph groups** pass. UI source is unchanged; its preceding 469-test
+  result remains dated at `444b0834`.
+- **Measured cause:** creation changes **127 cells: 95 values and 32 additions**, requiring eight
+  existing 16-pair batches. Separate phase traces show ten worker snapshots and one inbox snapshot
+  during creation. Subtree precondition builds occur in undo: the repair removes all seven there.
+  Receipt-only skipping does not reduce creation's observed snapshot count. Instrumented single
+  operations identify work; they are not qualification distributions.
+- **Next:** implement incremental canonical process-snapshot refresh in Golden's engine/read model.
+  Small publication batches should update changed records and affected indexes without copying
+  unrelated project records. Preserve identity, topology, revision fences, immutable old views and
+  canonical lease accounting. Then run all 60 unchanged timing cases and all 16 pressure groups on
+  the final artifact before closing graph keyboard operations; composed workflows follow.
+- [Snapshot-boundary evidence](evidence/p11-spatializer-snapshot-boundary-2026-10-27.json) retains
+  raw timings, phase counts, source/binary/asset/report hashes and runner failure/recovery.
+  Maintained contracts: [Spatializer scale](p11-spatializer-graph-scale.md),
+  [P11 acceptance](p11-workspace-qualification-contract.md), [dashboard barriers](p11-dashboard-barriers.md)
+  and [tree closure](p11-tree-closure.md). Throughput remains P16; physical input/native-webview
+  usability and platform/device gates remain P17/P18.
 - Continue on `main`, commit and push each verified milestone, and keep the full P00-P18 goal active.
   Historical commands and dated results below preserve evidence; resume from this handoff and the
   task ledger, not an earlier batch entry.
@@ -11621,3 +11623,41 @@ do not qualify p95. Next investigate scoped live subtree validation without weak
 or apply-time rejection semantics. Inventory is **2,298 sources / 25 existing oversized**.
 The current handoff is shortened to active checkpoints and the measured blocker; historical evidence
 stays below it. **P03 remains 12/12 (100%), P11 4/6 (67%), whole plan 59%.** Keep the full goal active.
+
+### P11 scoped subtree fences and creation/undo attribution — 2026-10-27
+
+Reconciled delivered `444b0834` on `main`. Golden validates subtree read guards against live scoped
+revision folds without building a process snapshot. Overlapping guards share a fold only inside
+one fence; following requests recheck the applied prefix. Exact stamps, namespaces, UUIDs and
+enabled state remain enforced. Tests cover 10k disjoint records, 20k-deep overlap, foreign newer
+stamps and writes between queued fences. Spatializer skips receipt-only reads and resumes fresh
+after success or rejection; it never reuses a pre-edit view to plan against an incomplete prefix.
+
+- All **17 precondition / 640 Core tests** pass (three existing Core cases ignored). All **54
+  Spatializer tests**, strict workspace/all-target Clippy and the normal bundled build pass.
+  UI source is unchanged; its preceding 469-test result remains dated at `444b0834`.
+- The final normal executable passes all **39 native graph groups**: Spatializer 13 authoring /
+  12 navigation / five held-command groups, State four and Formula five. The two Rust adapters
+  stage their own canonical fixture/read-only projects. Earlier direct runner setup failures are
+  retained, including the missing-fixture cleanup assertion; no product workflow ran in those attempts.
+- The first receipt-gate unit run passed 53/54. Its older freshness assertion was changed from the
+  pending-receipt boundary to the completed boundary; the new forced-wake success/rejection test
+  already passed. The final 54-case suite and all native workflows pass on the final source/artifact.
+- The fixed directed **100k creation case still fails completion at 4,880.2ms p95 vs 4,000ms**.
+  Feedback is 22.9ms and maximum callback stall 29.2ms. All 3 warmups / 31 retained samples and
+  undo restores finish. This selected case is not the complete timing matrix.
+- Phase-separated traces place all seven precondition snapshot builds in undo; the live guard
+  repair removes them. Creation still builds ten worker snapshots plus one inbox snapshot, with
+  none attributable to preconditions. Receipt-only skipping does not reduce that observed count.
+- Opt-in worker/batch counters expose **127 changed cells: 95 values and 32 additions**, correctly
+  published in eight batches of at most 16 pairs. Repeated whole-project reads, followed by an
+  unchanged reconciliation plan, remain the creation cost. No bound, density or timing gate changes.
+
+[Evidence](evidence/p11-spatializer-snapshot-boundary-2026-10-27.json) retains raw timings,
+source/binary/asset/report hashes, phase windows, plan/batch counts and runner failure/recovery.
+Instrumented single operations are attribution, not qualification distributions. Inventory is
+**2,299 sources / 25 existing oversized**; new scoped-fence tests have 105 lines. Deliver this
+verified read-boundary milestone, then implement incremental canonical process-snapshot refresh in
+Golden's engine/read model. Preserve immutable old views, identity/topology, revision fences and
+canonical lease accounting. Rerun the complete unchanged 60-case timing and 16-group pressure
+selection before graph closure. **P03 100%, P11 4/6 (67%), whole plan 59%.** Goal stays active.

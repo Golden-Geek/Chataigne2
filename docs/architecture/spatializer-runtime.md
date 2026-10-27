@@ -117,6 +117,15 @@ provided inbox snapshot may be canonically leased for the next publication turn 
 callback queued no edits; apply-time source/path fences remain unchanged. The echo set is
 released with preparation rather than occupying the shared pool while idle.
 
+While a submitted edit receipt is pending, worker wakes request no tree snapshot and perform no
+planning. The queued completion callback also wakes on discarded suffixes. After either success
+or failure, the next planning turn requests a fresh view of the applied prefix; no pre-edit view
+is reused to plan against a partially applied batch.
+
+Opt-in `GOLDEN_PERF_TRACE=1` reports worker plan sizes and guarded publication batch counts.
+These diagnostics distinguish mathematical work from snapshot/planning overhead; instrumented
+observations do not qualify action timing gates.
+
 Local P03 qualification belongs in the [implementation ledger](../progress/implementation-status.md).
 Actual 20k/50k editor interaction, whole-product performance and platform gates remain P11/P16/P17.
 

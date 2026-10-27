@@ -2,7 +2,9 @@ use std::{collections::HashMap, sync::Arc};
 
 use uuid::Uuid;
 
-use crate::node::NodeId;
+use crate::node::{Node, NodeId};
+
+use super::node_store::NodeStore;
 
 /// Identity of authored changes within one subtree, independent of callback delivery.
 /// Revisions are local to an engine lifetime and are never persisted or sent over the protocol.
@@ -139,6 +141,54 @@ impl TreeRevisions {
     pub(super) fn unchanged_since(&self, node: NodeId, captured: SubtreeRevision) -> bool {
         self.same_epoch(captured)
             && self.by_node.get(&node).map_or(0, |revision| revision.authored) <= captured.sequence
+    }
+
+    /// Fold only live guarded subtrees, sharing overlap within one precondition fence.
+    /// The caller must discard the fold before any following edit can mutate the tree.
+    pub(super) fn subtree_matches<T: Node>(
+        &self,
+        nodes: &NodeStore<T>,
+        root: NodeId,
+        captured: SubtreeRevision,
+        folded: &mut HashMap<NodeId, u64>,
+    ) -> bool {
+        if !self.same_epoch(captured) {
+            return false;
+        }
+        let mut stack = vec![(root, false)];
+        while let Some((id, finish)) = stack.pop() {
+            if folded.contains_key(&id) {
+                continue;
+            }
+            let Some(node) = nodes.get(id) else {
+                return false;
+            };
+            let mut revision = self.by_node.get(&id).map_or(0, |revision| revision.authored);
+            if !finish {
+                stack.push((id, true));
+            }
+            // Live engine topology is validated. Unlike snapshot construction,
+            // this reads identities and revision counters without cloning payloads.
+            let mut child = node.node_data().first_child;
+            while let Some(child_id) = child {
+                let Some(child_node) = nodes.get(child_id) else {
+                    return false;
+                };
+                if finish {
+                    let Some(child_revision) = folded.get(&child_id) else {
+                        return false;
+                    };
+                    revision = revision.max(*child_revision);
+                } else {
+                    stack.push((child_id, false));
+                }
+                child = child_node.node_data().next_sibling;
+            }
+            if finish {
+                folded.insert(id, revision);
+            }
+        }
+        folded.get(&root) == Some(&captured.sequence)
     }
 
     pub(super) fn structure_unchanged_since(&self, node: NodeId, captured: SubtreeStructureRevision) -> bool {

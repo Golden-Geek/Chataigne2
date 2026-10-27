@@ -7,15 +7,17 @@ extraction notes and September counts are [archived](../archive/2026-10-18/progr
 
 ## Scan and policy
 
-Refreshed 2026-10-27 against delivered `b6e31f80` plus Spatializer creation/publication
-and retained projection repairs on `main`. Scanned **2298 source files**; **25 exceed 1,000 lines**.
+Refreshed 2026-10-27 against delivered `444b0834` plus scoped live subtree-fence validation
+on `main`. Scanned **2299 source files**; **25 exceed 1,000 lines**.
 The complete scan includes apps, crates, packages, tools and xtask, with
 Python/PowerShell/shell sources as well as Rust/TypeScript/JavaScript/Svelte.
 The shared archive decoder is 66 lines; the processor root shrinks from 1,614 to 1,594.
 The wide-catalog snapshot capacity regression adds one focused 59-line test source.
 The row-forest recovery/pressure cases have a focused test source; publication is 418
-lines and its service owner 552, with runtime preservation tests in separate files. Sparse publication
-tests are 324 lines; retained module/endpoint catalogs and their adjacent tests are each under 100 lines.
+lines and its service owner 576, with runtime preservation tests in separate files. Sparse publication
+tests are 352 lines; retained module/endpoint catalogs and their adjacent tests are each under 100 lines.
+Live subtree-fence validation stays in the focused engine revision owner; its wide/deep, exact-stamp
+and queued-prefix regressions live under `engine/tests/edit_preconditions/`.
 The viewport planner, virtual inspector, declaration index, two focused test files and
 native pressure driver add six authored files. The calibration driver,
 fixed workload contract and fixture helpers stay below the limit. The Formula input-count

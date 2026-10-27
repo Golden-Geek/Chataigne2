@@ -154,8 +154,9 @@ fn output_delivery_and_queued_publication_cannot_keep_a_stale_read_view() {
     set_position_2d(&mut engine, source, 0.5, 0.0);
     engine.dispatch_inbox(ExecutionPhase::EngineTick).unwrap();
     let edits = pending_value(&mut engine, id, cell);
-    assert!(module(&mut engine, id).worker_wake_requires_tree_snapshot());
+    assert!(!module(&mut engine, id).worker_wake_requires_tree_snapshot());
     apply(&mut engine, edits);
+    assert!(module(&mut engine, id).worker_wake_requires_tree_snapshot());
     stabilize(&mut engine);
     assert!((float(&engine, cell) - 0.5).abs() < 1e-12);
 }

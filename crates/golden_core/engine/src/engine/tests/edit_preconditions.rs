@@ -1,4 +1,6 @@
 use super::*;
+
+mod subtrees;
 use crate::{
     edit::{Edit, EditCompletionStatus, EditPreconditions, NodeReadGuard},
     events::EventKind,

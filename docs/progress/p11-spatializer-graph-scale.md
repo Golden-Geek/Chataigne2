@@ -421,3 +421,36 @@ at the Golden engine boundary while preserving exact revision semantics and appl
 The initial exploratory trace polled a fixture helper that scans the complete graph; its wall time
 includes observer overhead and is not production timing evidence. The separate fixed-sample CPU
 profile uses the actual measurement observer. Neither instrumented run qualifies latency gates.
+
+## Scoped fences and separated creation/undo attribution
+
+Golden now validates subtree preconditions by iteratively folding only guarded live subtrees.
+Overlapping guards share work within one fence; each following request starts a fresh fold.
+Exact stamp equality, namespaces, UUIDs and enabled state remain enforced. Wide/deep and queued-prefix
+regressions pass, including a 10k disjoint scene with no process-snapshot build. Spatializer also
+skips receipt-only worker reads and requires a fresh view after successful or rejected completion.
+
+All **640 Core tests** pass (three existing ignored), as do **54 Spatializer tests**, strict
+workspace/all-target Clippy, the normal bundled build and **39 native graph groups**: 30 Spatializer,
+four State and five Formula. UI source is unchanged; its 469-test result remains dated at the
+preceding milestone. The initial app run passed 53/54: its old freshness assertion was moved from
+the pending receipt to the completed-receipt boundary. Runner setup failures are retained separately.
+
+An unchanged directed 100k creation run completes all three warmups / 31 retained samples and undo
+restores, but still fails completion: **4,880.2ms p95 vs 4,000ms**. Feedback is 22.9ms and maximum
+callback stall 29.2ms. This is partial diagnostic selection, not full 60-case qualification. The newer
+artifact has not rerun all 16 pressure groups; their preceding complete pass remains at `444b0834`.
+
+The phase-aware single-operation trace uses existing production measurement events and backend log
+byte offsets. Before repair, creation builds **ten worker snapshots and one inbox snapshot**, with
+no precondition snapshot builds. Undo builds seven precondition snapshots; the repair removes all
+seven. Creation's snapshot count is unchanged by receipt-only skipping. A subsequent opt-in worker
+plan trace identifies **127 changed cells: 95 value updates and 32 additions**, published in eight
+16-pair-or-smaller batches. The bounds are working; each small batch still causes a whole-project
+read, followed by an unchanged reconciliation plan. These instrumented counts do not qualify timing.
+
+[Snapshot-boundary evidence](evidence/p11-spatializer-snapshot-boundary-2026-10-27.json) retains raw
+samples, exact source/binary/asset/report hashes, phase windows and plan/batch counts. Next implement
+incremental canonical process-snapshot refresh at the Golden engine/read-model boundary, preserving
+old views, identities, topology, revision fences and lease accounting. Rerun the unchanged complete
+timing and pressure contracts afterward. **P11 remains 4/6 (67%), whole plan 59%.**
