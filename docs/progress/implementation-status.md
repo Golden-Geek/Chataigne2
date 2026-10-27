@@ -5,8 +5,8 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-27 on `main`, based on delivered `35b54f66` plus compact snapshot
-storage under verification. **P11 is in progress; four of six fixed checkpoints are closed (67% rounded).**
+Last reconciled: 2026-10-27 on `main`, based on delivered `f1c01b41` plus verified small-row
+forest publication below. **P11 is in progress; four of six fixed checkpoints are closed (67% rounded).**
 **P10 is locally complete: three of three fixed checkpoints (100%).**
 **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
@@ -201,7 +201,7 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
 | Historical log windowing           | Complete locally | Variable-height history, filters, follow, bounded native selection, focus and snapshot publication pass through 100k records. [Qualification](p11-log-windowing.md).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | Dashboard viewport awareness       | Complete locally | All 599 correctness groups and 160 fixed timing combinations pass through 100k authored nodes, including geometry, bounded presentation, feedback, callback stalls and completion. Retention regression passes 13 checkpoints. [Timing qualification](p11-dashboard-timing.md), [composition](p11-dashboard-composition.md), [barriers](p11-dashboard-barriers.md).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | Tree focus and keyboard navigation | Complete locally | All four app consumers, 55 constrained-picker groups and shared navigation/lifecycle cases pass through 100k items. All 70 tree timing combinations and 15 collection regression combinations pass fixed gates. [Closure and evidence](p11-tree-closure.md).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| Graph keyboard operations          | In progress      | Shared operations/discovery/sockets pass nine correctness groups and 50 timing combinations through 100k nodes. State Machine, Alchemist and Spatializer pass native backend edits, rejection, undo/redo, save/reload and replacement. Spatializer's 13 groups also qualify captured bounded gestures, keyboard/radius editing and backend creation; prepared-subtree capture is repaired. Generation cursors qualify the snapshot/subscription gap and equal-time origins. State and Formula each pass their fixed 20-case matrices through 100k backend nodes; Spatializer scale remains. [Shared operations](p11-graph-keyboard.md), [discovery](p11-graph-discovery.md), [sockets](p11-graph-sockets.md), [State adapter](p11-state-graph-authoring.md), [Alchemist adapter](p11-alchemist-graph-authoring.md), [replacement overlap](p11-project-cursors.md), [Spatializer authoring](p11-spatializer-authoring.md), [State scale](p11-state-graph-scale.md), [Formula scale](p11-formula-graph-scale.md). |
+| Graph keyboard operations          | In progress      | Shared operations/discovery/sockets pass nine correctness groups and 50 timing combinations through 100k nodes. State Machine, Alchemist and Spatializer pass native backend edits, rejection, undo/redo, save/reload and replacement. Spatializer's 13 groups also qualify captured bounded gestures, keyboard/radius editing and backend creation; prepared-subtree capture is repaired. Generation cursors qualify the snapshot/subscription gap and equal-time origins. State and Formula each pass their fixed 20-case matrices through 100k backend nodes. Spatializer passes all 16 pressure groups; its 60 timing cases remain. [Shared operations](p11-graph-keyboard.md), [discovery](p11-graph-discovery.md), [sockets](p11-graph-sockets.md), [State adapter](p11-state-graph-authoring.md), [Alchemist adapter](p11-alchemist-graph-authoring.md), [replacement overlap](p11-project-cursors.md), [Spatializer authoring](p11-spatializer-authoring.md), [State scale](p11-state-graph-scale.md), [Formula scale](p11-formula-graph-scale.md), [Spatializer scale](p11-spatializer-graph-scale.md). |
 | Complete composed workflows        | Not started      | Qualify discovery, selection and editing across all required composed panels and large batches. Native usability retains P17.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 
 ## Current handoff
@@ -236,37 +236,16 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
   All 183 Alchemist library tests, 77 Formula/operation tests and 635 engine tests pass in the dev
   profile; three existing app and three engine cases remain ignored. Strict all-target Clippy,
   the normal bundled build, all 22 native correctness groups and the shared-runner State 1k smoke pass.
-  Spatializer's [fixed scale workload](p11-spatializer-graph-scale.md) now has 60 timing cases and
-  16 correctness pressure groups across four modes. All 20 canonical declaration/publication
-  roundtrips pass, preserving endpoint UUIDs and positions; this does not close action qualification.
-  Its app-owned endpoint catalog now drives the shared paged finder, real SVG focus and selection
-  framing without fabricated graph nodes. Eleven native navigation groups pass, including mode
-  changes that remove a focused control. Custom SVG and related-value mounting are now bounded,
-  with counted overviews, retained focus and indexed declaration reads. All 459 UI tests and
-  34 native correctness groups pass, including wide-map Home. The fixed pressure run exposed a 5% app zoom floor that
-  prevents Home fitting the large map, after 259.6s matrix publication at 50k. The app and generic
-  canvas zoom repair now passes. The full pressure rerun passes Voronoi at 50k, then fails the
-  100k setup deadline. A directed trace attributes 168.3s to 2,562 snapshots of at least 10k nodes;
-  quiet wake p95 is 103ms. The leased read-view repair passes 38 owning tests, strict all-target
-  Clippy and 34 native groups; 50k publication improves to 126.2s but 100k still times out.
-  Opt-in caller diagnostics attribute 1,270 of 1,327 large snapshots to Mapping archive repair,
-  including projects without Mapping processors. That adapter now reads canonical live controls
-  and the existing UUID index. All 90 processor regressions and strict app/Core all-target Clippy
-  pass. The normal bundled executable passes all 34 native correctness groups. The full pressure
-  attempt passes Voronoi 50k and 100k (19.7s / 40.9s publication), then times out at 4,096 targets.
-  A directed cap trace stops at 119,059 nodes / 26 rows / 106,496 cells: its 1,016,862,484-byte
-  snapshot lease is rejected by the existing shared 1 GiB budget. Golden's base snapshot index
-  now stores boxed records and charges each record allocation separately from sparse pointer
-  buckets. The 384-allocation / 1 GiB gate is unchanged. A 131,105-record wide-catalog regression
-  passes at 303,009,394 reserved bytes. All 636 Core tests pass (three existing ignored);
-  graph-fixture Svelte and strict workspace/all-target Clippy checks pass. The normal bundled
-  executable passes all 34 native correctness groups. The full pressure attempt passes Voronoi
-  50k, 100k and the 4,096-target case (143,641 records / 131,072 cells, checks complete in 60.3s).
-  The transposed case times out at 2,002 of 4,096 rows with no capacity warning. Batch small
-  prepared rows before guarded application; preserve construction, lifetime and source/path bounds.
-  Complete all 16 pressure groups and 60 timing cases before graph checkpoint closure.
-  Finish pressure/publication diagnosis
-  before action timing; do not infer qualification from small-scene correctness.
+  Spatializer's [fixed scale workload](p11-spatializer-graph-scale.md) now passes all **20 canonical
+  calibration roundtrips and all 16 correctness pressure groups** across four modes, 50k/100k
+  backend tiers and both endpoint-cap orientations. Counted overviews, bounded real SVG controls,
+  complete related-value collections and focus retention pass. The source-cap scenes contain
+  143,641–147,737 records / 131,072 cells and complete all checks in 163.9–171.8s. Small-row forests
+  amortize guarded application while retaining the original source/path, construction and lifetime
+  bounds. All **44 Spatializer tests**, strict workspace/all-target Clippy, the normal bundled build
+  and **34 native correctness groups** pass. Earlier Home, snapshot-copy, capacity and per-row
+  publication failures remain linked in the qualification page and historical entries below.
+  **Next: implement and run all 60 fixed timing cases / 1,860 retained samples / 180 warmups.**
   Complete Spatializer actual-app scale before closing graph keyboard operations, then composed
   workflows. Preserve [composition](p11-dashboard-composition.md) and
   [applied-receipt barriers](p11-dashboard-barriers.md). Native usability retains P17 and product
@@ -11555,3 +11534,34 @@ all 16 pressure groups and the 60 fixed action cases before graph checkpoint clo
 Inventory is **2,288 sources / 25 existing oversized files**; the focused capacity test is 59
 lines. Deliver the verified storage repair on `main`. **P03 remains 12/12 (100%), P11 4/6 (67%),
 whole plan 59%**. Composed workflows follow complete graph qualification. The full goal stays active.
+
+### P11 small-row forests and complete pressure qualification — 2026-10-27
+
+Spatializer now stages at most 16 completed small-row trees before one guarded application,
+retaining each tree's existing row-pool reservation. Construction stays at 32 child parameters
+per turn, with at most 528 nodes in a small-row application; wide rows keep their existing path.
+Changed Values topology revisits the first unsubmitted row. Shared row-pool pressure flushes an
+admitted prefix, avoiding a wait for extra slots while partial forests occupy the pool.
+Cancellation, queued source/path guards and failed-suffix reconciliation preserve ownership.
+
+All **44 Spatializer tests** pass, including six new forest/source/path/identity/prefix/pressure
+cases. Thirty-five new rows use three guarded application turns. The preserved wide-row case
+still services 16 pairs / constructs 32 children per turn. Strict workspace/all-target Clippy,
+the normal bundled build, both Cargo formatters and explicit app Rustfmt pass. The exact executable
+passes **34 native correctness groups**: 12 navigation, 13 Spatializer, four State and five Formula.
+The [forest evidence](evidence/p11-spatializer-row-forests-2026-10-27.json) records source/binary
+fingerprints, the correctly selected 44-case run and the complete default pressure selection.
+
+**All 16 fixed correctness pressure groups pass**, without diagnostic selection, engine tracing
+or CPU profiling. Every mode passes 50k, 100k and both endpoint caps, including exact records and
+cells, complete counted overview membership, bounded real SVG/inspector mounting and retained
+focus/identity. The 4,096-source scenes complete setup and checks in **163,941.0 / 164,623.8 /
+171,801.8 / 171,795.9ms** for Voronoi / Target Radius / Source Radius / Overlap respectively.
+They contain 143,641–147,737 records and 131,072 cells; the previous artifact timed out halfway
+through the Voronoi source cap. All original admission, service, mounting and setup gates remain.
+
+These are setup/correctness observations, not action timing distributions. **Next: implement and
+run all 60 fixed action cases / 1,860 retained samples / 180 warmups**, then complete composed
+workflows. Inventory is **2,289 sources / 25 existing oversized**; publication is 398 lines,
+service 505, runtime tests 635 and the six-case forest suite 200. Deliver this milestone on `main`.
+**P03 remains 12/12 (100%), P11 4/6 (67%), whole plan 59%.** The full P00-P18 goal stays active.

@@ -7,13 +7,15 @@ extraction notes and September counts are [archived](../archive/2026-10-18/progr
 
 ## Scan and policy
 
-Refreshed 2026-10-27 against delivered `35b54f66` plus compact snapshot storage
-on `main`. Scanned **2288 source files**; **25 exceed 1,000 lines**. The earlier narrow
+Refreshed 2026-10-27 against delivered `f1c01b41` plus small-row forest publication
+on `main`. Scanned **2289 source files**; **25 exceed 1,000 lines**. The earlier narrow
 counter covered 2,226 Rust/TypeScript/JavaScript/Svelte files under apps, crates, packages and
-xtask; its directly comparable count is now 2,228. The complete scan also includes tools and
+xtask; its directly comparable count is now 2,229. The complete scan also includes tools and
 Python/PowerShell/shell sources. This corrects the scan coverage without adding oversized files.
 The shared archive decoder is 66 lines; the processor root shrinks from 1,614 to 1,594.
 The wide-catalog snapshot capacity regression adds one focused 59-line test source.
+The six row-forest recovery/pressure cases add one 200-line test source; publication is 398
+lines and its service owner 505, with runtime preservation tests in a separate 635-line file.
 The viewport planner, virtual inspector, declaration index, two focused test files and
 native pressure driver add six authored files. The calibration driver,
 fixed workload contract and fixture helpers stay below the limit. The Formula input-count

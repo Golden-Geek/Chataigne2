@@ -1,5 +1,7 @@
 use super::super::{publication, worker};
 use super::*;
+
+mod row_batches;
 use golden_core::{
     edit::{EditCompletionStatus, EditQueue},
     engine::EngineEditError,
@@ -7,7 +9,7 @@ use golden_core::{
     process_ctx::ProcessCtx,
 };
 use std::{
-    sync::{Arc, atomic::Ordering},
+    sync::{atomic::Ordering, Arc},
     time::{Duration, Instant},
 };
 
@@ -263,21 +265,19 @@ fn process_capacity_includes_blocked_and_cancelled_preparations() {
         jobs.push((owner, job));
     }
     let extra = golden_io::RetirementPool::new(std::num::NonZeroUsize::MIN);
-    assert!(
-        worker::start(
-            &snapshot,
-            worker::Roots {
-                parameters,
-                sources,
-                targets
-            },
-            &extra,
-            life.reader().guard_at(0),
-            golden_io::WorkerNotifier::new(|| {}),
-            None
-        )
-        .is_err()
-    );
+    assert!(worker::start(
+        &snapshot,
+        worker::Roots {
+            parameters,
+            sources,
+            targets
+        },
+        &extra,
+        life.reader().guard_at(0),
+        golden_io::WorkerNotifier::new(|| {}),
+        None
+    )
+    .is_err());
     assert_eq!(worker::workers().metrics().active, 4);
     assert_eq!(extra.metrics().active, 0);
     life.advance();
@@ -475,13 +475,11 @@ fn oversized_labels_reject_without_changing_values_then_recover_after_authored_r
     let (mut engine, id, source, cell) = target_radius_fixture();
     rename_node(&mut engine, source, &"x".repeat(513));
     stabilize(&mut engine);
-    assert!(
-        module(&mut engine, id)
-            .service
-            .warning_text()
-            .unwrap()
-            .contains("512 bytes")
-    );
+    assert!(module(&mut engine, id)
+        .service
+        .warning_text()
+        .unwrap()
+        .contains("512 bytes"));
     assert_eq!(float(&engine, cell), 1.0);
     assert_eq!(default_cell(&engine, id), cell);
     rename_node(&mut engine, source, "Recovered");

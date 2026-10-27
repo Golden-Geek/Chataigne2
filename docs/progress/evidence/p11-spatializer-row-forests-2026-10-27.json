@@ -1,0 +1,1138 @@
+{
+  "scope": "Bounded small-row forests amortize Spatializer structural publication",
+  "baseCommit": "f1c01b41",
+  "recordedOn": "2026-10-27",
+  "binarySha256": "329ae0631ba96a1c6d2779003ea3d65c35ec57458759d3137fb4173c1cb5b84e",
+  "files": [
+    {
+      "path": "apps/chataigne/src/module/modules/generators/spatializer/publication.rs",
+      "sha256": "e332f6117df86672eb652e3946f9e189a43b4fbd9ac55f514f62dfc3b75343a4",
+      "lines": 398
+    },
+    {
+      "path": "apps/chataigne/src/module/modules/generators/spatializer/service.rs",
+      "sha256": "caf7aa8a510aa44ec6873006bbda8c02dae6a8fd68069f651865011953f07bbe",
+      "lines": 505
+    },
+    {
+      "path": "apps/chataigne/src/module/modules/generators/spatializer/tests/runtime.rs",
+      "sha256": "4afd3a528fc9d8d57e582cd3731655e5f973ea66afffd8c5215fda88d4be4247",
+      "lines": 635
+    },
+    {
+      "path": "apps/chataigne/src/module/modules/generators/spatializer/tests/runtime/row_batches.rs",
+      "sha256": "d623efc5663783630eb911d13f414ed0346d9c25a1bbbeccb12a54980872340e",
+      "lines": 200
+    }
+  ],
+  "checks": {
+    "owningTests": {
+      "passed": 44,
+      "failed": 0,
+      "ignored": 0,
+      "newTests": 6,
+      "profile": "dev",
+      "serial": true,
+      "command": "target/debug/deps/Chataigne2-500cca251a508bc8.exe spatializer:: --nocapture --test-threads=1",
+      "log": "target/qualification/p11-spatializer-row-batches-owning-tests.log",
+      "compileLog": "target/qualification/p11-spatializer-row-batches-tests.log",
+      "compileSelectionNote": "Initial Cargo filter selected zero tests; this is compilation evidence only. The correctly selected compiled test executable ran all 44 Spatializer tests."
+    },
+    "forestRegression": {
+      "newRows": 35,
+      "guardedApplicationTurns": 3
+    },
+    "clippy": {
+      "passed": true,
+      "workspace": true,
+      "allTargets": true,
+      "denyWarnings": true,
+      "log": "target/qualification/p11-spatializer-row-batches-clippy.log"
+    },
+    "normalBuild": {
+      "passed": true,
+      "bundled": true,
+      "log": "target/qualification/p11-spatializer-row-batches-build.log"
+    },
+    "formatting": {
+      "rootCargo": true,
+      "goldenCoreCargo": true,
+      "explicitAppRustfmt": true
+    }
+  },
+  "bounds": {
+    "pairsPerTurn": 16,
+    "constructedChildrenPerTurn": 32,
+    "smallRowCells": 32,
+    "rowsPerForest": 16,
+    "maximumSmallForestNodes": 528,
+    "rowItems": 16,
+    "rowBytes": 134217728,
+    "snapshotItems": 384,
+    "snapshotBytes": 1073741824,
+    "setupDeadlineMs": 300000
+  },
+  "inventory": {
+    "sources": 2289,
+    "oversized": 25
+  },
+  "completion": {
+    "p03": "12/12",
+    "p11": "4/6",
+    "wholePlanPercent": 59
+  },
+  "regressions": [
+    {
+      "name": "navigation",
+      "log": "target/qualification/p11-spatializer-row-batches-navigation.log",
+      "artifact": "target/qualification/p11-spatializer-navigation-512fa768-36a7-4293-ae33-aae06091bdff/browser.jsonl",
+      "sha256": "668f0a01e838d43e2573720920b4d23c4ea23a07cef8004ddac90f6369d08271",
+      "binarySha256": "329ae0631ba96a1c6d2779003ea3d65c35ec57458759d3137fb4173c1cb5b84e",
+      "groups": [
+        "custom-world-catalog-paging",
+        "source-target-svg-reveal",
+        "keyboard-mutation-retains-svg-focus",
+        "custom-world-selection-framing",
+        "position-change-retains-discovery",
+        "coordinate-space-navigation-fence",
+        "item-retirement-and-undo",
+        "snapshot-navigation-fence",
+        "project-replacement-navigation-fence",
+        "unmount-navigation-retirement",
+        "mode-control-focus-restoration",
+        "wide-home-endpoint-coverage"
+      ],
+      "result": {
+        "kind": "result",
+        "passed": true,
+        "errors": []
+      }
+    },
+    {
+      "name": "native",
+      "log": "target/qualification/p11-spatializer-row-batches-native.log",
+      "artifact": "target/qualification/p11-spatializer-native-e5df1293-b087-4e7a-9be5-3f6a3f04bf02/browser.jsonl",
+      "sha256": "52a309cfbe59bbaf41c5dd772fdb3131b5170063a5127e8ee2b761a4b5c2ee77",
+      "binarySha256": "329ae0631ba96a1c6d2779003ea3d65c35ec57458759d3137fb4173c1cb5b84e",
+      "groups": [
+        "empty-document-custom-world",
+        "selection-inspector-debug",
+        "authoritative-projection-and-home",
+        "mode-and-matrix-layout-replacement",
+        "three-dimensional-projection",
+        "snapshot-and-remount",
+        "stale-coordinate-space-rejection",
+        "keyboard-gesture-and-history",
+        "zero-radius-keyboard-control",
+        "active-gesture-snapshot-and-unmount",
+        "backend-target-creation",
+        "read-only-replacement-rejection-and-rollback",
+        "saved-project-and-recovery"
+      ],
+      "result": {
+        "kind": "result",
+        "passed": true,
+        "errors": []
+      }
+    },
+    {
+      "name": "state",
+      "log": "target/qualification/p11-spatializer-row-batches-state.log",
+      "artifact": "target/qualification/p11-state-native-4ba20b86-4361-4f2b-85e8-c6876dafc8cd/browser.jsonl",
+      "sha256": "6a0970434dfd76afb5cff4fcdfb50561188a17d0b450612c9937eec0b5c38b06",
+      "binarySha256": "329ae0631ba96a1c6d2779003ea3d65c35ec57458759d3137fb4173c1cb5b84e",
+      "groups": [
+        "movement-and-history",
+        "collapse-and-connection",
+        "save-reload-snapshot-unmount",
+        "atomic-readonly-rejection"
+      ],
+      "result": {
+        "kind": "result",
+        "passed": true,
+        "errors": []
+      }
+    },
+    {
+      "name": "formula",
+      "log": "target/qualification/p11-spatializer-row-batches-formula.log",
+      "artifact": "target/qualification/p11-alchemist-native-97ac1d8a-9677-44bd-8713-e91294f0da06/browser.jsonl",
+      "sha256": "76cb06bce89aab319caa259b3edc36c60830699117036b32863f22c336ac20af",
+      "binarySha256": "329ae0631ba96a1c6d2779003ea3d65c35ec57458759d3137fb4173c1cb5b84e",
+      "groups": [
+        "movement-and-history",
+        "collapse-and-connection",
+        "save-reload-snapshot-unmount",
+        "atomic-readonly-rejection",
+        "snapshot-subscribe-replacement-overlap"
+      ],
+      "result": {
+        "kind": "result",
+        "passed": true,
+        "errors": []
+      }
+    }
+  ],
+  "pressure": {
+    "log": "target/qualification/p11-spatializer-row-batches-pressure.log",
+    "artifact": "target/qualification/p11-spatializer-pressure-d2a6f067-b7b5-48b6-b856-f0c53c3192c6/browser.jsonl",
+    "sha256": "7a4ca664e900f567e86074791611a45e7012aee4bb57d4fe923b452f5007428b",
+    "binarySha256": "329ae0631ba96a1c6d2779003ea3d65c35ec57458759d3137fb4173c1cb5b84e",
+    "contract": {
+      "kind": "pressure-contract",
+      "scenes": 16,
+      "selectedCases": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "fullSelection": true,
+      "diagnosticOnly": false,
+      "engineTrace": false,
+      "actionTiming": false,
+      "limits": {
+        "endpointGlyphs": 128,
+        "overviewGroups": 256,
+        "regionPolygons": 256,
+        "finderRows": 32,
+        "relatedRows": 42
+      }
+    },
+    "publication": [
+      {
+        "kind": "matrix-published",
+        "mode": "voronoi",
+        "tier": 50000,
+        "sources": 32,
+        "targets": 1420,
+        "elapsedMs": 20218.5979
+      },
+      {
+        "kind": "matrix-published",
+        "mode": "voronoi",
+        "tier": 100000,
+        "sources": 32,
+        "targets": 2849,
+        "elapsedMs": 40965.783500000005
+      },
+      {
+        "kind": "matrix-published",
+        "mode": "voronoi",
+        "sources": 32,
+        "targets": 4096,
+        "tier": null,
+        "elapsedMs": 59078.13219999999
+      },
+      {
+        "kind": "matrix-published",
+        "mode": "voronoi",
+        "sources": 4096,
+        "targets": 32,
+        "tier": null,
+        "elapsedMs": 162441.0897
+      },
+      {
+        "kind": "matrix-published",
+        "mode": "targetRadius",
+        "tier": 50000,
+        "sources": 32,
+        "targets": 1420,
+        "elapsedMs": 20091.8885
+      },
+      {
+        "kind": "matrix-published",
+        "mode": "targetRadius",
+        "tier": 100000,
+        "sources": 32,
+        "targets": 2849,
+        "elapsedMs": 40698.05370000005
+      },
+      {
+        "kind": "matrix-published",
+        "mode": "targetRadius",
+        "sources": 32,
+        "targets": 4096,
+        "tier": null,
+        "elapsedMs": 59952.62640000001
+      },
+      {
+        "kind": "matrix-published",
+        "mode": "targetRadius",
+        "sources": 4096,
+        "targets": 32,
+        "tier": null,
+        "elapsedMs": 163140.4033
+      },
+      {
+        "kind": "matrix-published",
+        "mode": "sourceRadius",
+        "tier": 50000,
+        "sources": 32,
+        "targets": 1461,
+        "elapsedMs": 20535.46350000007
+      },
+      {
+        "kind": "matrix-published",
+        "mode": "sourceRadius",
+        "tier": 100000,
+        "sources": 32,
+        "targets": 2931,
+        "elapsedMs": 40942.37510000006
+      },
+      {
+        "kind": "matrix-published",
+        "mode": "sourceRadius",
+        "sources": 32,
+        "targets": 4096,
+        "tier": null,
+        "elapsedMs": 58332.43550000002
+      },
+      {
+        "kind": "matrix-published",
+        "mode": "sourceRadius",
+        "sources": 4096,
+        "targets": 32,
+        "tier": null,
+        "elapsedMs": 170332.1603000001
+      },
+      {
+        "kind": "matrix-published",
+        "mode": "overlap",
+        "tier": 50000,
+        "sources": 32,
+        "targets": 1419,
+        "elapsedMs": 20590.094999999972
+      },
+      {
+        "kind": "matrix-published",
+        "mode": "overlap",
+        "tier": 100000,
+        "sources": 32,
+        "targets": 2848,
+        "elapsedMs": 40844.107699999935
+      },
+      {
+        "kind": "matrix-published",
+        "mode": "overlap",
+        "sources": 32,
+        "targets": 4096,
+        "tier": null,
+        "elapsedMs": 59192.897
+      },
+      {
+        "kind": "matrix-published",
+        "mode": "overlap",
+        "sources": 4096,
+        "targets": 32,
+        "tier": null,
+        "elapsedMs": 170337.04210000008
+      }
+    ],
+    "groups": [
+      {
+        "kind": "spatializer-pressure",
+        "passed": true,
+        "diagnosticOnly": false,
+        "mode": "voronoi",
+        "tier": 50000,
+        "sources": 32,
+        "targets": 1420,
+        "treeNodes": 50000,
+        "cells": 45440,
+        "inputSha256": "92ef4c88f663531ab1eed3994e55c1f15a852cc27dcefd125049c9c5343cf933",
+        "home": {
+          "presentation": "overview",
+          "visible": 1452,
+          "glyphs": 0,
+          "groups": 24,
+          "groupedEndpoints": 1452,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 0,
+          "finderRows": 0,
+          "label": "Endpoint overview: 1452 visible of 1452. Zoom in or Find endpoints. Region overview: zoom in for complete cells. Influence overview: 32 sources, 1420 targets. Inspect computed values for exact weights."
+        },
+        "detail": {
+          "presentation": "detail",
+          "visible": 10,
+          "glyphs": 10,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 19,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 1420 targets. Inspect computed values for exact weights."
+        },
+        "inspector": {
+          "presentation": "detail",
+          "visible": 10,
+          "glyphs": 11,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 19,
+          "rows": 17,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 1420 targets. Inspect computed values for exact weights."
+        },
+        "setupAndChecksMs": 21215.4533
+      },
+      {
+        "kind": "spatializer-pressure",
+        "passed": true,
+        "diagnosticOnly": false,
+        "mode": "voronoi",
+        "tier": 100000,
+        "sources": 32,
+        "targets": 2849,
+        "treeNodes": 100000,
+        "cells": 91168,
+        "inputSha256": "f434d933148ab75d142c89818851cf74680bf290d20af34017479eaf1dd18913",
+        "home": {
+          "presentation": "overview",
+          "visible": 2881,
+          "glyphs": 1,
+          "groups": 24,
+          "groupedEndpoints": 2881,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Endpoint overview: 2881 visible of 2881. Zoom in or Find endpoints. Region overview: zoom in for complete cells. Influence overview: 32 sources, 2849 targets. Inspect computed values for exact weights."
+        },
+        "detail": {
+          "presentation": "detail",
+          "visible": 10,
+          "glyphs": 10,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 19,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 2849 targets. Inspect computed values for exact weights."
+        },
+        "inspector": {
+          "presentation": "detail",
+          "visible": 10,
+          "glyphs": 11,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 19,
+          "rows": 17,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 2849 targets. Inspect computed values for exact weights."
+        },
+        "setupAndChecksMs": 42245.29819999999
+      },
+      {
+        "kind": "spatializer-pressure",
+        "passed": true,
+        "diagnosticOnly": false,
+        "mode": "voronoi",
+        "sources": 32,
+        "targets": 4096,
+        "tier": null,
+        "treeNodes": 143641,
+        "cells": 131072,
+        "inputSha256": "a5dcef206813e2bb19f558ded1e355874e3e1559665aa96baa4ae8399ecd4b72",
+        "home": {
+          "presentation": "overview",
+          "visible": 4128,
+          "glyphs": 1,
+          "groups": 24,
+          "groupedEndpoints": 4128,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Endpoint overview: 4128 visible of 4128. Zoom in or Find endpoints. Region overview: zoom in for complete cells. Influence overview: 32 sources, 4096 targets. Inspect computed values for exact weights."
+        },
+        "detail": {
+          "presentation": "detail",
+          "visible": 8,
+          "glyphs": 8,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 15,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 4096 targets. Inspect computed values for exact weights."
+        },
+        "inspector": {
+          "presentation": "detail",
+          "visible": 8,
+          "glyphs": 9,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 15,
+          "rows": 17,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 4096 targets. Inspect computed values for exact weights."
+        },
+        "setupAndChecksMs": 60640.176999999996
+      },
+      {
+        "kind": "spatializer-pressure",
+        "passed": true,
+        "diagnosticOnly": false,
+        "mode": "voronoi",
+        "sources": 4096,
+        "targets": 32,
+        "tier": null,
+        "treeNodes": 143641,
+        "cells": 131072,
+        "inputSha256": "73c7d43605e4baf60a7e25559ce264c1197ec35487a150012e97171d85e37905",
+        "home": {
+          "presentation": "overview",
+          "visible": 4128,
+          "glyphs": 1,
+          "groups": 24,
+          "groupedEndpoints": 4128,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Endpoint overview: 4128 visible of 4128. Zoom in or Find endpoints. Region overview: zoom in for complete cells. Influence overview: 4096 sources, 32 targets. Inspect computed values for exact weights."
+        },
+        "detail": {
+          "presentation": "detail",
+          "visible": 8,
+          "glyphs": 8,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 1,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Influence overview: 4096 sources, 32 targets. Inspect computed values for exact weights."
+        },
+        "inspector": {
+          "presentation": "detail",
+          "visible": 8,
+          "glyphs": 9,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 1,
+          "rows": 17,
+          "finderRows": 0,
+          "label": "Influence overview: 4096 sources, 32 targets. Inspect computed values for exact weights."
+        },
+        "setupAndChecksMs": 163941.04569999996
+      },
+      {
+        "kind": "spatializer-pressure",
+        "passed": true,
+        "diagnosticOnly": false,
+        "mode": "targetRadius",
+        "tier": 50000,
+        "sources": 32,
+        "targets": 1420,
+        "treeNodes": 50000,
+        "cells": 45440,
+        "inputSha256": "adebd7ed6e17ce54456a7ba813856dbf35577baa2e0a8386f619b04571a159d3",
+        "home": {
+          "presentation": "overview",
+          "visible": 1452,
+          "glyphs": 0,
+          "groups": 24,
+          "groupedEndpoints": 1452,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 0,
+          "finderRows": 0,
+          "label": "Endpoint overview: 1452 visible of 1452. Zoom in or Find endpoints. Influence overview: 32 sources, 1420 targets. Inspect computed values for exact weights."
+        },
+        "detail": {
+          "presentation": "detail",
+          "visible": 10,
+          "glyphs": 10,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 1420 targets. Inspect computed values for exact weights."
+        },
+        "inspector": {
+          "presentation": "detail",
+          "visible": 10,
+          "glyphs": 11,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 17,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 1420 targets. Inspect computed values for exact weights."
+        },
+        "setupAndChecksMs": 20991.525300000038
+      },
+      {
+        "kind": "spatializer-pressure",
+        "passed": true,
+        "diagnosticOnly": false,
+        "mode": "targetRadius",
+        "tier": 100000,
+        "sources": 32,
+        "targets": 2849,
+        "treeNodes": 100000,
+        "cells": 91168,
+        "inputSha256": "b146a9c3d2097d6cce299ba69fc3e6529e96b4ff24e92a7494c94f26987d3a6c",
+        "home": {
+          "presentation": "overview",
+          "visible": 2881,
+          "glyphs": 1,
+          "groups": 24,
+          "groupedEndpoints": 2881,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Endpoint overview: 2881 visible of 2881. Zoom in or Find endpoints. Influence overview: 32 sources, 2849 targets. Inspect computed values for exact weights."
+        },
+        "detail": {
+          "presentation": "detail",
+          "visible": 10,
+          "glyphs": 10,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 2849 targets. Inspect computed values for exact weights."
+        },
+        "inspector": {
+          "presentation": "detail",
+          "visible": 10,
+          "glyphs": 11,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 17,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 2849 targets. Inspect computed values for exact weights."
+        },
+        "setupAndChecksMs": 41899.079400000046
+      },
+      {
+        "kind": "spatializer-pressure",
+        "passed": true,
+        "diagnosticOnly": false,
+        "mode": "targetRadius",
+        "sources": 32,
+        "targets": 4096,
+        "tier": null,
+        "treeNodes": 143641,
+        "cells": 131072,
+        "inputSha256": "28e607f1de55fc1b154b8db484ae337fc16d7ac5be36e50fc6cf77fdb8ae4745",
+        "home": {
+          "presentation": "overview",
+          "visible": 4128,
+          "glyphs": 1,
+          "groups": 24,
+          "groupedEndpoints": 4128,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Endpoint overview: 4128 visible of 4128. Zoom in or Find endpoints. Influence overview: 32 sources, 4096 targets. Inspect computed values for exact weights."
+        },
+        "detail": {
+          "presentation": "detail",
+          "visible": 8,
+          "glyphs": 8,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 4096 targets. Inspect computed values for exact weights."
+        },
+        "inspector": {
+          "presentation": "detail",
+          "visible": 8,
+          "glyphs": 9,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 17,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 4096 targets. Inspect computed values for exact weights."
+        },
+        "setupAndChecksMs": 61499.388200000045
+      },
+      {
+        "kind": "spatializer-pressure",
+        "passed": true,
+        "diagnosticOnly": false,
+        "mode": "targetRadius",
+        "sources": 4096,
+        "targets": 32,
+        "tier": null,
+        "treeNodes": 143641,
+        "cells": 131072,
+        "inputSha256": "0b330964c7d01fbe3892d874f3761752372443c1dded1d7736f27f0f857ff7f5",
+        "home": {
+          "presentation": "overview",
+          "visible": 4128,
+          "glyphs": 1,
+          "groups": 24,
+          "groupedEndpoints": 4128,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Endpoint overview: 4128 visible of 4128. Zoom in or Find endpoints. Influence overview: 4096 sources, 32 targets. Inspect computed values for exact weights."
+        },
+        "detail": {
+          "presentation": "detail",
+          "visible": 8,
+          "glyphs": 8,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Influence overview: 4096 sources, 32 targets. Inspect computed values for exact weights."
+        },
+        "inspector": {
+          "presentation": "detail",
+          "visible": 8,
+          "glyphs": 9,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 17,
+          "finderRows": 0,
+          "label": "Influence overview: 4096 sources, 32 targets. Inspect computed values for exact weights."
+        },
+        "setupAndChecksMs": 164623.7879
+      },
+      {
+        "kind": "spatializer-pressure",
+        "passed": true,
+        "diagnosticOnly": false,
+        "mode": "sourceRadius",
+        "tier": 50000,
+        "sources": 32,
+        "targets": 1461,
+        "treeNodes": 50000,
+        "cells": 46752,
+        "inputSha256": "c4496b578c9b6a1301c8e17ed1dbc50f9392868b8820e5fa53cef3a034143e9b",
+        "home": {
+          "presentation": "overview",
+          "visible": 1493,
+          "glyphs": 0,
+          "groups": 24,
+          "groupedEndpoints": 1493,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 0,
+          "finderRows": 0,
+          "label": "Endpoint overview: 1493 visible of 1493. Zoom in or Find endpoints. Influence overview: 32 sources, 1461 targets. Inspect computed values for exact weights."
+        },
+        "detail": {
+          "presentation": "detail",
+          "visible": 10,
+          "glyphs": 10,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 1461 targets. Inspect computed values for exact weights."
+        },
+        "inspector": {
+          "presentation": "detail",
+          "visible": 10,
+          "glyphs": 11,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 17,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 1461 targets. Inspect computed values for exact weights."
+        },
+        "setupAndChecksMs": 21399.966100000078
+      },
+      {
+        "kind": "spatializer-pressure",
+        "passed": true,
+        "diagnosticOnly": false,
+        "mode": "sourceRadius",
+        "tier": 100000,
+        "sources": 32,
+        "targets": 2931,
+        "treeNodes": 100000,
+        "cells": 93792,
+        "inputSha256": "d5aaf1a4365243849737e7d8bb4d3da99975a050d3e577a8d8e5ccfe76a1a40d",
+        "home": {
+          "presentation": "overview",
+          "visible": 2963,
+          "glyphs": 1,
+          "groups": 24,
+          "groupedEndpoints": 2963,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Endpoint overview: 2963 visible of 2963. Zoom in or Find endpoints. Influence overview: 32 sources, 2931 targets. Inspect computed values for exact weights."
+        },
+        "detail": {
+          "presentation": "detail",
+          "visible": 10,
+          "glyphs": 10,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 2931 targets. Inspect computed values for exact weights."
+        },
+        "inspector": {
+          "presentation": "detail",
+          "visible": 10,
+          "glyphs": 11,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 17,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 2931 targets. Inspect computed values for exact weights."
+        },
+        "setupAndChecksMs": 42187.042200000025
+      },
+      {
+        "kind": "spatializer-pressure",
+        "passed": true,
+        "diagnosticOnly": false,
+        "mode": "sourceRadius",
+        "sources": 32,
+        "targets": 4096,
+        "tier": null,
+        "treeNodes": 139577,
+        "cells": 131072,
+        "inputSha256": "3a137be49128c0b6342aea7304b582471a733e51d08dfdf618e3ea02905e13c8",
+        "home": {
+          "presentation": "overview",
+          "visible": 4128,
+          "glyphs": 1,
+          "groups": 24,
+          "groupedEndpoints": 4128,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Endpoint overview: 4128 visible of 4128. Zoom in or Find endpoints. Influence overview: 32 sources, 4096 targets. Inspect computed values for exact weights."
+        },
+        "detail": {
+          "presentation": "detail",
+          "visible": 8,
+          "glyphs": 8,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 4096 targets. Inspect computed values for exact weights."
+        },
+        "inspector": {
+          "presentation": "detail",
+          "visible": 8,
+          "glyphs": 9,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 17,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 4096 targets. Inspect computed values for exact weights."
+        },
+        "setupAndChecksMs": 59823.22360000003
+      },
+      {
+        "kind": "spatializer-pressure",
+        "passed": true,
+        "diagnosticOnly": false,
+        "mode": "sourceRadius",
+        "sources": 4096,
+        "targets": 32,
+        "tier": null,
+        "treeNodes": 147705,
+        "cells": 131072,
+        "inputSha256": "6f739b9ae049d5e1f2bb44d87a5f3b34051c0c61a981e029bdb39daf770289fb",
+        "home": {
+          "presentation": "overview",
+          "visible": 4128,
+          "glyphs": 1,
+          "groups": 24,
+          "groupedEndpoints": 4128,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Endpoint overview: 4128 visible of 4128. Zoom in or Find endpoints. Influence overview: 4096 sources, 32 targets. Inspect computed values for exact weights."
+        },
+        "detail": {
+          "presentation": "detail",
+          "visible": 8,
+          "glyphs": 8,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Influence overview: 4096 sources, 32 targets. Inspect computed values for exact weights."
+        },
+        "inspector": {
+          "presentation": "detail",
+          "visible": 8,
+          "glyphs": 9,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 17,
+          "finderRows": 0,
+          "label": "Influence overview: 4096 sources, 32 targets. Inspect computed values for exact weights."
+        },
+        "setupAndChecksMs": 171801.8474000001
+      },
+      {
+        "kind": "spatializer-pressure",
+        "passed": true,
+        "diagnosticOnly": false,
+        "mode": "overlap",
+        "tier": 50000,
+        "sources": 32,
+        "targets": 1419,
+        "treeNodes": 50000,
+        "cells": 45408,
+        "inputSha256": "d682f72f86636f0bfd740d10629f6a824caeb2566663d9688b0b9ddbd79d9fea",
+        "home": {
+          "presentation": "overview",
+          "visible": 1451,
+          "glyphs": 0,
+          "groups": 24,
+          "groupedEndpoints": 1451,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 0,
+          "finderRows": 0,
+          "label": "Endpoint overview: 1451 visible of 1451. Zoom in or Find endpoints. Influence overview: 32 sources, 1419 targets. Inspect computed values for exact weights."
+        },
+        "detail": {
+          "presentation": "detail",
+          "visible": 10,
+          "glyphs": 10,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 1419 targets. Inspect computed values for exact weights."
+        },
+        "inspector": {
+          "presentation": "detail",
+          "visible": 10,
+          "glyphs": 11,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 17,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 1419 targets. Inspect computed values for exact weights."
+        },
+        "setupAndChecksMs": 21465.273999999976
+      },
+      {
+        "kind": "spatializer-pressure",
+        "passed": true,
+        "diagnosticOnly": false,
+        "mode": "overlap",
+        "tier": 100000,
+        "sources": 32,
+        "targets": 2848,
+        "treeNodes": 100000,
+        "cells": 91136,
+        "inputSha256": "4f07324a219660ed8b347333da124af922d2019731e69bf94d772c34df0350e6",
+        "home": {
+          "presentation": "overview",
+          "visible": 2880,
+          "glyphs": 1,
+          "groups": 24,
+          "groupedEndpoints": 2880,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Endpoint overview: 2880 visible of 2880. Zoom in or Find endpoints. Influence overview: 32 sources, 2848 targets. Inspect computed values for exact weights."
+        },
+        "detail": {
+          "presentation": "detail",
+          "visible": 10,
+          "glyphs": 10,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 2848 targets. Inspect computed values for exact weights."
+        },
+        "inspector": {
+          "presentation": "detail",
+          "visible": 10,
+          "glyphs": 11,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 17,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 2848 targets. Inspect computed values for exact weights."
+        },
+        "setupAndChecksMs": 42118.16639999999
+      },
+      {
+        "kind": "spatializer-pressure",
+        "passed": true,
+        "diagnosticOnly": false,
+        "mode": "overlap",
+        "sources": 32,
+        "targets": 4096,
+        "tier": null,
+        "treeNodes": 143673,
+        "cells": 131072,
+        "inputSha256": "da4789911e1d0389adc741d5e89bb98b264959bc29c4b46f279f400a78e079fd",
+        "home": {
+          "presentation": "overview",
+          "visible": 4128,
+          "glyphs": 1,
+          "groups": 24,
+          "groupedEndpoints": 4128,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Endpoint overview: 4128 visible of 4128. Zoom in or Find endpoints. Influence overview: 32 sources, 4096 targets. Inspect computed values for exact weights."
+        },
+        "detail": {
+          "presentation": "detail",
+          "visible": 8,
+          "glyphs": 8,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 4096 targets. Inspect computed values for exact weights."
+        },
+        "inspector": {
+          "presentation": "detail",
+          "visible": 8,
+          "glyphs": 9,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 17,
+          "finderRows": 0,
+          "label": "Influence overview: 32 sources, 4096 targets. Inspect computed values for exact weights."
+        },
+        "setupAndChecksMs": 60674.5695000001
+      },
+      {
+        "kind": "spatializer-pressure",
+        "passed": true,
+        "diagnosticOnly": false,
+        "mode": "overlap",
+        "sources": 4096,
+        "targets": 32,
+        "tier": null,
+        "treeNodes": 147737,
+        "cells": 131072,
+        "inputSha256": "1dc49f5835762da28e46afa738e79f279a454ad753e590d11c8190ae680371fe",
+        "home": {
+          "presentation": "overview",
+          "visible": 4128,
+          "glyphs": 1,
+          "groups": 24,
+          "groupedEndpoints": 4128,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Endpoint overview: 4128 visible of 4128. Zoom in or Find endpoints. Influence overview: 4096 sources, 32 targets. Inspect computed values for exact weights."
+        },
+        "detail": {
+          "presentation": "detail",
+          "visible": 8,
+          "glyphs": 8,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 16,
+          "finderRows": 0,
+          "label": "Influence overview: 4096 sources, 32 targets. Inspect computed values for exact weights."
+        },
+        "inspector": {
+          "presentation": "detail",
+          "visible": 8,
+          "glyphs": 9,
+          "groups": 0,
+          "groupedEndpoints": 0,
+          "groupGeometry": true,
+          "polygons": 0,
+          "rows": 17,
+          "finderRows": 0,
+          "label": "Influence overview: 4096 sources, 32 targets. Inspect computed values for exact weights."
+        },
+        "setupAndChecksMs": 171795.88860000006
+      }
+    ],
+    "result": {
+      "kind": "result",
+      "passed": true,
+      "errors": []
+    },
+    "fullQualificationPassed": true,
+    "actionTiming": false
+  }
+}

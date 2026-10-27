@@ -26,6 +26,14 @@ never replayed as if it had rolled back. Cleanup scans 16 entries and removes at
 row per turn. Known whole-row insertion/removal may involve up to 4,097 nodes; that is an explicit
 lifecycle bound, not a claim of interactive latency at that size.
 
+Rows with at most 32 cells retain up to 16 completed detached trees in a bounded forest before
+one guarded application. Construction still creates at most 32 child parameters per service
+turn; a small-row application contains at most 528 nodes. Wide rows retain their single-tree
+application. Each staged tree keeps its existing row-pool reservation, including cancellation
+and final disposal. Shared row pressure flushes an admitted prefix so competing modules cannot
+deadlock while holding partial forests. A changed Values topology discards the unsubmitted
+forest and revisits its first row; queued forests retain the original topology and source fences.
+
 Matching declarations preserve existing node IDs and UUIDs. New nodes use the existing UUID
 formulas; switching orientation retains its distinct, deterministic identities. Position, mode and
 label updates do not recreate matching matrix cells. A cell keeps its previous value until a

@@ -121,6 +121,12 @@ impl Service {
             .as_ref()
             .map_or(0, |publication| publication.detached_nodes())
     }
+    #[cfg(test)]
+    pub(super) fn staged_rows(&self) -> usize {
+        self.publication
+            .as_ref()
+            .map_or(0, |publication| publication.staged_rows())
+    }
     pub fn cancel(&mut self) {
         self.invalidate_view();
         self.generation = self.life.advance();

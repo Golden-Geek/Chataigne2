@@ -1,12 +1,23 @@
 use super::*;
 use golden_core::edit::{Edit, EditQueue, NodeReadGuard};
 use golden_core::parameter::ParameterEventBehaviour;
+use golden_core::process_ctx::SubtreeStructureRevision;
 use golden_io::{PayloadPool, RetainedPayload};
 use std::sync::Mutex;
 use worker::Prepared;
 
 pub(super) const PAIRS_PER_TURN: usize = 16;
 pub(super) const TREE_NODES_PER_TURN: usize = 32;
+pub(super) const ROWS_PER_BATCH: usize = 16;
+
+type DetachedRow = RetainedPayload<Mutex<Option<NodeTree>>>;
+
+struct RowBatch {
+    start: usize,
+    revision: SubtreeStructureRevision,
+    guard: NodeReadGuard,
+    rows: Vec<DetachedRow>,
+}
 enum Phase {
     Outer,
     Pairs(usize),
@@ -18,15 +29,19 @@ pub(super) struct Publication {
     pub prepared: RetainedPayload<Prepared>,
     outer: usize,
     phase: Phase,
-    row: Option<RetainedPayload<Mutex<Option<NodeTree>>>>,
+    row: Option<DetachedRow>,
     row_filled: usize,
+    batch: Option<RowBatch>,
 }
 
-fn rows() -> Result<PayloadPool, String> {
+pub(super) fn rows() -> Result<PayloadPool, String> {
     static POOL: Mutex<Option<PayloadPool>> = Mutex::new(None);
     let mut pool = POOL.lock().unwrap_or_else(|e| e.into_inner());
     if pool.is_none() {
-        *pool = Some(PayloadPool::new("spatializer-row-disposer", 16, 128 * 1024 * 1024).map_err(|e| e.to_string())?);
+        *pool = Some(
+            PayloadPool::new("spatializer-row-disposer", ROWS_PER_BATCH, 128 * 1024 * 1024)
+                .map_err(|e| e.to_string())?,
+        );
     }
     Ok(pool.as_ref().unwrap().clone())
 }
@@ -38,6 +53,7 @@ impl Publication {
             phase: Phase::Outer,
             row: None,
             row_filled: 0,
+            batch: None,
         }
     }
     pub fn reset(&mut self) {
@@ -45,6 +61,7 @@ impl Publication {
         self.phase = Phase::Outer;
         self.row = None;
         self.row_filled = 0;
+        self.batch = None;
     }
     pub fn done(&self) -> bool {
         matches!(self.phase, Phase::Done)
@@ -52,6 +69,19 @@ impl Publication {
     #[cfg(test)]
     pub(super) fn detached_nodes(&self) -> usize {
         self.row_filled
+    }
+    #[cfg(test)]
+    pub(super) fn staged_rows(&self) -> usize {
+        self.batch.as_ref().map_or(0, |batch| batch.rows.len())
+    }
+
+    fn flush_rows(&mut self, values: NodeId, edits: &mut EditQueue, reads: &mut Vec<NodeReadGuard>) {
+        if let Some(batch) = self.batch.take() {
+            reads.push(batch.guard);
+            for row in batch.rows {
+                publish_row(row, values, edits);
+            }
+        }
     }
     fn parameter(&self, inner: usize) -> Parameter {
         let outer = &self.prepared.outer()[self.outer];
@@ -82,12 +112,39 @@ impl Publication {
         edits: &mut EditQueue,
         reads: &mut Vec<NodeReadGuard>,
     ) -> Result<(), String> {
+        if self
+            .batch
+            .as_ref()
+            .is_some_and(|batch| snapshot.subtree_structure_revision(values) != Some(batch.revision))
+        {
+            // None of this forest has been submitted. Revisit its first row against
+            // current topology rather than duplicate an externally restored folder.
+            self.outer = self.batch.take().unwrap().start;
+            self.phase = Phase::Outer;
+            self.row = None;
+            self.row_filled = 0;
+        }
         if self.outer >= self.prepared.outer().len() && !matches!(self.phase, Phase::CleanupOuter(_) | Phase::Done) {
             self.phase = Phase::CleanupOuter(0);
+        }
+        if self.batch.is_some() && !matches!(self.phase, Phase::Outer) {
+            self.flush_rows(values, edits, reads);
+            return Ok(());
         }
         match self.phase {
             Phase::Outer => {
                 let outer = &self.prepared.outer()[self.outer];
+                let uuid = match self.prepared.config.value_layout {
+                    SpatializerValueLayout::SourceCentric => source_folder_uuid(outer.item_uuid),
+                    SpatializerValueLayout::TargetCentric => target_folder_uuid(outer.item_uuid),
+                };
+                if self.batch.is_some()
+                    && (snapshot.find_child_by_decl_id(values, &outer.value_decl_id).is_some()
+                        || snapshot.node_id_by_uuid(uuid).is_some())
+                {
+                    self.flush_rows(values, edits, reads);
+                    return Ok(());
+                }
                 if let Some(id) = snapshot.find_child_by_decl_id(values, &outer.value_decl_id) {
                     // An externally restored folder supersedes a detached preparation.
                     self.row = None;
@@ -96,10 +153,6 @@ impl Publication {
                     reads.push(NodeReadGuard::capture(snapshot, id).ok_or("Spatializer row disappeared")?);
                     self.phase = Phase::Pairs(0);
                 } else {
-                    let uuid = match self.prepared.config.value_layout {
-                        SpatializerValueLayout::SourceCentric => source_folder_uuid(outer.item_uuid),
-                        SpatializerValueLayout::TargetCentric => target_folder_uuid(outer.item_uuid),
-                    };
                     if relocate(snapshot, uuid, &outer.value_decl_id, values, edits, reads)? {
                         self.row = None;
                         self.row_filled = 0;
@@ -107,9 +160,16 @@ impl Publication {
                     }
                     if self.row.is_none() {
                         let weight = 16384 + (self.prepared.inner().len() + 1) * 8192;
-                        let reservation = rows()?
-                            .try_reserve(weight)
-                            .map_err(|_| "Spatializer detached row capacity is full")?;
+                        let reservation = match rows()?.try_reserve(weight) {
+                            Ok(reservation) => reservation,
+                            Err(_) if self.batch.is_some() => {
+                                // Competing modules may fill the shared pool before this
+                                // batch is full. Publish its admitted prefix to make room.
+                                self.flush_rows(values, edits, reads);
+                                return Ok(());
+                            }
+                            Err(_) => return Err("Spatializer detached row capacity is full".into()),
+                        };
                         self.row = Some(
                             reservation
                                 .retain(
@@ -134,16 +194,33 @@ impl Publication {
                     }
                     self.row_filled = end;
                     if end == self.prepared.inner().len() {
-                        let tree = row.lock().unwrap_or_else(|e| e.into_inner()).take().unwrap();
-                        edits.push(Edit::AddNodeTree {
-                            tree,
-                            parent: values,
-                            prev_sibling: None,
-                        });
-                        edits.retain_payload(row.clone());
-                        self.row = None;
+                        let row = self.row.take().unwrap();
                         self.row_filled = 0;
+                        if end <= TREE_NODES_PER_TURN {
+                            if self.batch.is_none() {
+                                self.batch = Some(RowBatch {
+                                    start: self.outer,
+                                    revision: snapshot
+                                        .subtree_structure_revision(values)
+                                        .ok_or("Spatializer values disappeared")?,
+                                    guard: NodeReadGuard::capture_structure(snapshot, values)
+                                        .ok_or("Spatializer values disappeared")?,
+                                    rows: Vec::with_capacity(ROWS_PER_BATCH),
+                                });
+                            }
+                            self.batch.as_mut().unwrap().rows.push(row);
+                        } else {
+                            publish_row(row, values, edits);
+                        }
                         self.outer += 1;
+                        if self
+                            .batch
+                            .as_ref()
+                            .is_some_and(|batch| batch.rows.len() == ROWS_PER_BATCH)
+                            || self.outer == self.prepared.outer().len()
+                        {
+                            self.flush_rows(values, edits, reads);
+                        }
                     }
                 }
             }
@@ -267,6 +344,16 @@ impl Publication {
         }
         Ok(())
     }
+}
+
+fn publish_row(row: DetachedRow, values: NodeId, edits: &mut EditQueue) {
+    let tree = row.lock().unwrap_or_else(|e| e.into_inner()).take().unwrap();
+    edits.push(Edit::AddNodeTree {
+        tree,
+        parent: values,
+        prev_sibling: None,
+    });
+    edits.retain_payload(row);
 }
 
 fn generated(decl: &str) -> bool {

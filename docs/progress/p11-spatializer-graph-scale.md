@@ -7,7 +7,8 @@ transport. It must exercise production operations and rendered content, rather t
 a UI protocol snapshot. Output evaluation throughput retains P16; physical input/native webview
 usability retains P17.
 
-**The workload and calibration are fixed; action qualification is pending.** P11 remains
+**All 20 calibration roundtrips and 16 correctness pressure groups pass. All 60 fixed action
+timing cases remain pending.** P11 remains
 4/6 checkpoints (67% rounded), with whole-plan coverage at 59%. This document and the
 [machine-readable contract](../../apps/chataigne/ui/tests/browser/app-graph-scale/spatializer-contract.mjs)
 fix scope before action timing. Delivery commits do not add acceptance cases.
@@ -90,7 +91,7 @@ All **60 timing cases and 16 correctness pressure groups**, the prior 13 native 
 groups and owning checks are required before Spatializer scale closes. The app graph keyboard
 checkpoint can then close; composed workspace discovery/selection/editing remains separate.
 
-## Current evidence and next implementation boundary
+## Implementation and retained evidence
 
 Small canonical roundtrips establish declaration counts and preserve authored identities/positions.
 All **20 roundtrips** pass; the [preparation evidence](evidence/p11-spatializer-scale-preparation-2026-10-26.json)
@@ -99,7 +100,7 @@ The existing **13 Spatializer native groups**, both four-action **1k State/Formu
 strict graph-fixture Svelte checks, Prettier and normal bundled build pass. The smoke tiers do
 not repeat the prior complete State/Formula qualifications. Constructor-only checks also reject
 five invalid endpoint/pair inputs and preserve unique positions in all eight cap-shaped inputs;
-those cap scenes have not been loaded for UI qualification yet.
+those constructor-only observations preceded the complete pressure qualification below.
 The custom map deliberately gives the shared canvas an empty graph document. The app now supplies
 its complete endpoint ID/label catalog through Golden's public `GraphWorldNavigation` contract,
 so the shared 32-row finder, reveal and selection framing work with actual SVG controls. Eleven
@@ -110,8 +111,9 @@ not large-scene mounting or action timing qualification; see the
 [navigation evidence](evidence/p11-spatializer-navigation-2026-10-26.json).
 
 The bounded custom SVG and related-value implementation is described below. Existing backend
-intents and module admission/publication are preserved. All **60 timing cases and 16 pressure
-groups remain pending**; no checkpoint closure is claimed yet.
+intents and module admission/publication are preserved. The early milestones below did not close
+pressure or action qualification. The final forest-publication section records all 16 passing
+pressure groups; all 60 timing cases still remain before graph checkpoint closure.
 
 ## Bounded presentation implementation
 
@@ -139,15 +141,15 @@ Load and publication times are recorded separately. No action timing qualificati
 The [bounded-view evidence](evidence/p11-spatializer-bounded-view-2026-10-26.json) records 459 passing
 UI tests, 25 owning Spatializer cases, clean app/fixture Svelte checks, formatting and the normal
 bundled executable. That exact artifact passes the prior 13 Spatializer / 11 navigation / four
-State / five Formula native correctness groups. The full pressure rerun remains in progress;
-small-scene correctness and constructor tests do not close those groups.
+State / five Formula native correctness groups. At that milestone, the full pressure rerun was
+still open; small-scene correctness and constructor tests did not close those groups.
 
 The next attempt reached a complete 50k backend matrix in **259,569.1ms**, but accepted Home
 still showed only 350 of 1,452 endpoints. The app's 5% zoom floor clamps the fitted view above
 the required zoom for the fixed 1,530-unit endpoint span. The
 [retained failure](evidence/p11-spatializer-home-failure-2026-10-26.json) closes no pressure groups.
-The app zoom floor is being lowered to 0.1%; controls keep their screen-space hit sizes. The
-259.6s publication cost also needs investigation before stress-tier qualification. No density,
+The subsequent repair lowered the app zoom floor to 0.1%; controls retain their screen-space hit
+sizes. The 259.6s publication cost also required investigation before stress-tier qualification. No density,
 mounting budget, setup deadline or action gate is relaxed.
 
 The [wide-Home repair](evidence/p11-spatializer-wide-home-2026-10-26.json) also removes Golden's
@@ -156,7 +158,7 @@ verifies every real control inside the viewport across the 1,530-unit span, incl
 inset. The exact rebuilt executable passes 34 native groups and 459 UI tests; the shared canvas
 browser regression and Svelte checks pass. This focused 16-endpoint reproduction does not qualify
 large matrix pressure. After cancelling the redundant third attempt, the fourth complete pressure
-run is live. All 16 pressure groups and 60 timing cases remain pending.
+run then started. All 16 pressure groups and 60 timing cases were still pending at that milestone.
 
 ## Publication baseline and read-view repair
 
@@ -181,7 +183,7 @@ remain unchanged. All **38 owning cases**, strict all-target Clippy and the norm
 pass. The exact artifact passes **34 native correctness groups**. The
 [read-view evidence](evidence/p11-spatializer-read-view-2026-10-26.json) records the rerun: 50k
 publication improves to **126,167.5ms**, but 100k still fails the unchanged 300s setup deadline.
-Full pressure/action qualification remains open; caller attribution is the next diagnostic step.
+Pressure/action qualification remained open at that milestone; caller attribution followed below.
 
 ## Snapshot caller attribution and archive repair
 
@@ -207,8 +209,8 @@ That complete selection passes Voronoi 50k with **19,672.2ms** publication and 1
 **40,946.1ms** publication. The 50k observation improves from the preceding 126,167.5ms; these
 single setup observations are not p95 action distributions. The next `(32 sources, 4,096 targets)`
 scene fails the unchanged 300s cumulative setup gate. No full 16-group or action qualification is
-claimed. Continue with that endpoint-cap publication failure, then rerun all 16 groups and the
-60 fixed timing cases. P11 remains **4/6**, whole-plan scope **59%**.
+claimed at that milestone. The endpoint-cap publication failure and full pressure/action
+qualification stayed open; the following repairs address those boundaries.
 
 ## Endpoint-cap snapshot capacity
 
@@ -235,6 +237,37 @@ The complete, uninstrumented selection passes Voronoi 50k and 100k, then the for
 **58,702.8ms** and all checks complete in **60,281.5ms**. The next transposed scene times out
 with **74,539 records / 2,002 value folders / 64,064 cells** and no capacity warning. The small-row
 path still submits each completed row separately, rebuilding its read view after each application.
-Batch bounded small-row forests before guarded application, preserving the existing 32-child
-construction bound, lifetime reservations and source/path fences. Full 16-group pressure and all
-60 timing cases remain open; **P11 stays 4/6 and whole-plan coverage 59%**.
+That result established the need for bounded small-row forests before guarded application,
+preserving the existing 32-child construction bound, lifetime reservations and source/path fences.
+The storage-only milestone did not close full pressure or action qualification.
+
+## Small-row forest publication
+
+The app now retains up to 16 complete small-row trees before one guarded application. It still
+constructs at most 32 child parameters per turn, retains each tree's original row reservation,
+and applies the captured source and Values topology fences. Changed topology revisits the first
+unsubmitted row. Shared row-pool pressure flushes an admitted prefix so partial forests can make
+progress without additional slots. Existing wide rows keep their single-tree path.
+
+All **44 owning Spatializer tests** pass, including six new forest/identity/source/path/prefix/
+pressure cases. Thirty-five new small rows use three guarded application turns in the regression.
+Strict workspace/all-target Clippy, the normal bundled build and all **34 native correctness
+groups** pass. The complete pressure rerun now passes the formerly failing Voronoi source cap:
+all **143,641 records / 131,072 cells**, with checks complete in **163,941.0ms**.
+
+The [forest-publication evidence](evidence/p11-spatializer-row-forests-2026-10-27.json) records the
+complete default selection: **all 16 groups pass**, without diagnostic selection, tracing or CPU
+profiling. Every mode passes 50k, 100k and both endpoint-cap orientations, with exact backend
+records, complete matrix cells, counted overview membership, bounded SVG/inspector mounting and
+retained focus/identity. All original source/path and allocation/service gates remain in force.
+
+| Mode          | 4,096-source records | Matrix cells | Setup and checks |
+| ------------- | -------------------: | -----------: | ---------------: |
+| Voronoi       | 143,641              | 131,072      | 163,941.0ms      |
+| Target Radius | 143,641              | 131,072      | 164,623.8ms      |
+| Source Radius | 147,705              | 131,072      | 171,801.8ms      |
+| Overlap       | 147,737              | 131,072      | 171,795.9ms      |
+
+These are single setup/correctness observations, not action latency distributions. Implement and
+run all **60 timing cases / 1,860 retained samples / 180 warmups** next. Pressure is complete;
+graph checkpoint closure and composed workflows remain. **P11 stays 4/6, whole plan 59%.**
