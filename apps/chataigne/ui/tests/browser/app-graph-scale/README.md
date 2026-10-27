@@ -65,6 +65,19 @@ four-mode pressure selection. `GC_SPATIALIZER_PRESSURE_CASES` accepts comma-sepa
 0–15 for directed diagnosis; any explicit selection or enabled `GOLDEN_PERF_TRACE` is reported
 as diagnostic and cannot close full qualification. The same 300s setup deadline and scenes apply.
 
+`node apps/chataigne/ui/tests/browser/spatializer-scale-native.mjs` runs all 60 action/mode/tier
+cases with the fixed 3/31 samples and existing feedback/completion/stall gates. Optional
+`GC_SPATIALIZER_SCALE_MODES`, `GC_SPATIALIZER_SCALE_TIERS` and `GC_SPATIALIZER_SCALE_ACTIONS`
+select diagnostic subsets; any explicit selection or enabled tracing/profiling is marked
+diagnostic. No subset can close timing qualification. Each action observation has a 10s failure
+deadline. Creation undo restores the exact baseline record/row/cell counts within the existing
+300s setup ceiling outside the timed interval before another sample begins. The browser reads
+real committed identities, SVG transforms/radii, focused controls and related-value content;
+creation additionally requires every new matrix cell. No input is synthesized.
+Sample progress is emitted outside the measured interval. A host-side watchdog enforces each
+preparation/observation/restoration deadline with two seconds of reporting grace if browser
+callbacks stop; that grace never changes the measured timing gates or the 10s observation limit.
+
 `node apps/chataigne/ui/tests/browser/spatializer-navigation-native.mjs` exercises the actual
 custom-world catalog and SVG controls through public component methods. Its twelve correctness
 groups include paged discovery, selection framing and focus retirement/restoration across mode,

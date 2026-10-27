@@ -7,8 +7,8 @@ transport. It must exercise production operations and rendered content, rather t
 a UI protocol snapshot. Output evaluation throughput retains P16; physical input/native webview
 usability retains P17.
 
-**All 20 calibration roundtrips and 16 correctness pressure groups pass. All 60 fixed action
-timing cases remain pending.** P11 remains
+**All 20 calibration roundtrips and 16 correctness pressure groups pass. The 60-case timing
+runner is implemented; qualification is incomplete, with a measured 10k creation failure.** P11 remains
 4/6 checkpoints (67% rounded), with whole-plan coverage at 59%. This document and the
 [machine-readable contract](../../apps/chataigne/ui/tests/browser/app-graph-scale/spatializer-contract.mjs)
 fix scope before action timing. Delivery commits do not add acceptance cases.
@@ -271,3 +271,35 @@ retained focus/identity. All original source/path and allocation/service gates r
 These are single setup/correctness observations, not action latency distributions. Implement and
 run all **60 timing cases / 1,860 retained samples / 180 warmups** next. Pressure is complete;
 graph checkpoint closure and composed workflows remain. **P11 stays 4/6, whole plan 59%.**
+
+## Timing runner and retained creation failure
+
+The runner now measures public panel operations against committed backend identities/values,
+actual SVG transforms/radii, related-value content, retained focus and drained editor work.
+Creation requires all 32 new matrix cells and undoes the operation outside the timed interval,
+restoring exact baseline record/folder/cell counts before the next sample. Per-sample progress
+and a host watchdog expose stalled observations without changing any timing gate.
+
+All six Voronoi actions and the two actions in each radius mode pass at 1k in diagnostic subsets,
+each with 3 warmups and 31 retained samples. The final 12 navigation and 13 authoring native
+regression groups pass; graph-fixture Svelte checks report zero errors/warnings and Prettier passes.
+The normal executable is unchanged from the complete pressure qualification.
+
+A default full run was interrupted after ten passing cases: six Voronoi 1k and four Voronoi 10k.
+Its execution handle is missing and no matching driver/backend process remains. There is no
+terminal result, so this run is incomplete rather than a recorded timing failure.
+
+A directed Voronoi 10k creation run completed every sample and undo restoration. **Completion
+p95 is 8,931.6ms, exceeding the unchanged 2,000ms gate.** Feedback p95 is 51.8ms and maximum
+animation-callback stall is 8.4ms. Identity, all new declarations/cells and rendered focus checks
+pass. The [timing evidence](evidence/p11-spatializer-timing-runner-2026-10-27.json) retains raw
+samples, interrupted-run status, the corrected finder-selector harness failure, source/binary
+fingerprints and report hashes. Diagnostic subsets do not close full qualification.
+
+Run `node apps/chataigne/ui/tests/browser/spatializer-scale-native.mjs` for the complete matrix.
+For directed reproduction, set `GC_SPATIALIZER_SCALE_MODES=voronoi`,
+`GC_SPATIALIZER_SCALE_TIERS=10000`, and `GC_SPATIALIZER_SCALE_ACTIONS=create`; remove all three
+for qualification. Next repair the app-owned preparation/publication boundary: canonical endpoint
+and unchanged matrix inspection currently consume repeated engine turns. Keep computation on
+the existing worker and apply sparse changes with bounded guards. Rerun the unchanged full matrix
+after that repair. **P11 remains 4/6 (67% rounded), whole plan 59%.**

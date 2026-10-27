@@ -5,6 +5,7 @@
 	import { executeCommand } from 'golden_ui/store/commands.svelte';
 	import { writePanelPersistedState } from 'golden_ui/dockview/panel-persistence';
 	import SpatializerEditorPanel from '../../../src/lib/panels/modules/SpatializerEditorPanel.svelte';
+	import { createSpatializerMeasurement } from '../app-graph-scale/spatializer-measurement';
 	import { createDefaultUiClient } from 'golden_ui';
 	import {
 		SPATIALIZER_NAMESPACE,
@@ -39,6 +40,9 @@
 	onMount(() => session.mount());
 	let mounted = $state(true);
 	let panel = $state<ReturnType<typeof SpatializerEditorPanel>>();
+	const scaleMeasurement = createSpatializerMeasurement(session, () => panel);
+	export const scaleReady = scaleMeasurement.ready;
+	export const measureScale = scaleMeasurement.run;
 	let moduleId: number | null = null;
 	let params = $state.raw<PanelParams>({});
 	const panelApi: PanelApi = {

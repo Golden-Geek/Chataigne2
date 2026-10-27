@@ -5,8 +5,8 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-27 on `main`, based on delivered `f1c01b41` plus verified small-row
-forest publication below. **P11 is in progress; four of six fixed checkpoints are closed (67% rounded).**
+Last reconciled: 2026-10-27 on `main`, based on delivered `b2ca17d1` plus the timing-runner
+evidence below. **P11 is in progress; four of six fixed checkpoints are closed (67% rounded).**
 **P10 is locally complete: three of three fixed checkpoints (100%).**
 **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
@@ -245,7 +245,14 @@ checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-wo
   bounds. All **44 Spatializer tests**, strict workspace/all-target Clippy, the normal bundled build
   and **34 native correctness groups** pass. Earlier Home, snapshot-copy, capacity and per-row
   publication failures remain linked in the qualification page and historical entries below.
-  **Next: implement and run all 60 fixed timing cases / 1,860 retained samples / 180 warmups.**
+  The timing runner is implemented and all twelve 1k diagnostic action/mode cases pass, along
+  with 25 Spatializer navigation/authoring regressions. A full run was interrupted after ten
+  passing cases; it is incomplete, not a terminal failure. A directed 10k creation run completes
+  all 3 warmups / 31 retained samples but fails the unchanged completion gate: **8,931.6ms p95
+  against 2,000ms**; feedback is 51.8ms and maximum callback stall 8.4ms.
+  **Next: move canonical-endpoint/output inspection off the engine turn and publish sparse
+  changes in bounded guarded batches, then rerun all 60 fixed timing cases / 1,860 retained
+  samples / 180 warmups.** See [timing evidence](evidence/p11-spatializer-timing-runner-2026-10-27.json).
   Complete Spatializer actual-app scale before closing graph keyboard operations, then composed
   workflows. Preserve [composition](p11-dashboard-composition.md) and
   [applied-receipt barriers](p11-dashboard-barriers.md). Native usability retains P17 and product
@@ -11565,3 +11572,31 @@ run all 60 fixed action cases / 1,860 retained samples / 180 warmups**, then com
 workflows. Inventory is **2,289 sources / 25 existing oversized**; publication is 398 lines,
 service 505, runtime tests 635 and the six-case forest suite 200. Deliver this milestone on `main`.
 **P03 remains 12/12 (100%), P11 4/6 (67%), whole plan 59%.** The full P00-P18 goal stays active.
+
+### P11 Spatializer timing runner and measured creation failure — 2026-10-27
+
+Previous goal turn: **no progress** (answered the user's P03 status question). Reconciled
+`b2ca17d1` on `main` with matching `origin/main`; no qualification driver/backend remains live.
+Implemented the fixed 60-case actual-app timing runner and same-realm rendered-state observer.
+It exercises public panel methods, verifies exact committed identities/positions/radii and
+related-value content, bounds actual mounting, and requires all new cells for creation. Undo
+restores the exact baseline outside timing. Sample progress and host deadlines expose a stalled
+browser without relaxing gates. No desktop input is synthesized.
+
+- All **12 diagnostic 1k action/mode cases** pass, each with 3 warmups / 31 retained samples.
+- The default full run is **interrupted/incomplete after ten passing cases**, not a terminal
+  timing failure. Its old execution handle is missing and matching processes are absent.
+- Directed Voronoi **10k creation fails completion only: 8,931.6ms p95 vs 2,000ms**, with
+  feedback 51.8ms / maximum callback stall 8.4ms. All 34 samples and undo restores complete.
+- Final **12 navigation + 13 authoring regression groups pass**, graph-fixture Svelte reports
+  zero errors/warnings, and Prettier/root Cargo/Core Cargo formatting and diff checks pass.
+  Product Rust and the normal binary are unchanged; prior 44 Spatializer / 636 Core, strict
+  Clippy and all 16 pressure groups retain their existing evidence, without claiming reruns.
+
+[Retained timing evidence](evidence/p11-spatializer-timing-runner-2026-10-27.json) includes raw
+samples, source/binary/report hashes and the earlier corrected finder-selector harness failure.
+Inventory is **2,291 sources / 25 existing oversized**. Commit/push this verified harness
+milestone, preserving the product timing failure explicitly. Next move canonical endpoint and
+unchanged matrix inspection to the worker, then apply sparse changes in bounded guarded batches.
+Rerun the complete unchanged 60-case matrix before closure, then composed workflows.
+**P03 is 12/12 (100%), P11 remains 4/6 (67%), whole plan 59%.** Keep the full goal active.
