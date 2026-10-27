@@ -5,8 +5,8 @@ This is the only current execution ledger for the
 “implement the plan”, start there and resume from this ledger. Historical ledgers and their
 pause/branch/push instructions are [archived](../archive/2026-10-18/README.md).
 
-Last reconciled: 2026-10-27 on `main`, based on delivered `ff5aac39` plus the verified keyboard-feedback
-repair below. **P11 is in progress; four of six fixed checkpoints are closed (67% rounded).**
+Last reconciled: 2026-10-27 on `main`, based on delivered `b6e31f80` plus verified 50k
+creation/publication repairs; 100k completion remains open. **P11 is in progress; four of six fixed checkpoints are closed (67% rounded).**
 **P10 is locally complete: three of three fixed checkpoints (100%).**
 **C01-C12 are locally closed: 12/12 packages (100%).
 P03 is locally complete.** Spatializer closes C12; Node Control remains absent.
@@ -195,155 +195,52 @@ closing the first two checkpoints. Dashboard qualification closes the third; sha
 constrained-picker qualification closes the fourth. These six
 checkpoints stay fixed as delivery commits accumulate. See the [contract](p11-workspace-qualification-contract.md).
 
-| Checkpoint                         | Status           | Delivered / remaining acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| ---------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Manager/catalog windowing          | Complete locally | Variable-height manager/picker/outliner and flat/nested catalog menus pass through 100k items with bounded mounting, identity and focus. [Tree evidence](p11-tree-windowing.md), [catalog closure](p11-catalog-windowing.md).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| Historical log windowing           | Complete locally | Variable-height history, filters, follow, bounded native selection, focus and snapshot publication pass through 100k records. [Qualification](p11-log-windowing.md).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| Dashboard viewport awareness       | Complete locally | All 599 correctness groups and 160 fixed timing combinations pass through 100k authored nodes, including geometry, bounded presentation, feedback, callback stalls and completion. Retention regression passes 13 checkpoints. [Timing qualification](p11-dashboard-timing.md), [composition](p11-dashboard-composition.md), [barriers](p11-dashboard-barriers.md).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| Tree focus and keyboard navigation | Complete locally | All four app consumers, 55 constrained-picker groups and shared navigation/lifecycle cases pass through 100k items. All 70 tree timing combinations and 15 collection regression combinations pass fixed gates. [Closure and evidence](p11-tree-closure.md).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Checkpoint                         | Status           | Delivered / remaining acceptance                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ---------------------------------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Manager/catalog windowing          | Complete locally | Variable-height manager/picker/outliner and flat/nested catalog menus pass through 100k items with bounded mounting, identity and focus. [Tree evidence](p11-tree-windowing.md), [catalog closure](p11-catalog-windowing.md).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Historical log windowing           | Complete locally | Variable-height history, filters, follow, bounded native selection, focus and snapshot publication pass through 100k records. [Qualification](p11-log-windowing.md).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| Dashboard viewport awareness       | Complete locally | All 599 correctness groups and 160 fixed timing combinations pass through 100k authored nodes, including geometry, bounded presentation, feedback, callback stalls and completion. Retention regression passes 13 checkpoints. [Timing qualification](p11-dashboard-timing.md), [composition](p11-dashboard-composition.md), [barriers](p11-dashboard-barriers.md).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| Tree focus and keyboard navigation | Complete locally | All four app consumers, 55 constrained-picker groups and shared navigation/lifecycle cases pass through 100k items. All 70 tree timing combinations and 15 collection regression combinations pass fixed gates. [Closure and evidence](p11-tree-closure.md).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | Graph keyboard operations          | In progress      | Shared operations/discovery/sockets pass nine correctness groups and 50 timing combinations through 100k nodes. State Machine, Alchemist and Spatializer pass native backend edits, rejection, undo/redo, save/reload and replacement. Spatializer's 13 groups also qualify captured bounded gestures, keyboard/radius editing and backend creation; prepared-subtree capture is repaired. Generation cursors qualify the snapshot/subscription gap and equal-time origins. State and Formula each pass their fixed 20-case matrices through 100k backend nodes. Spatializer passes all 16 pressure groups; its 60 timing cases remain. [Shared operations](p11-graph-keyboard.md), [discovery](p11-graph-discovery.md), [sockets](p11-graph-sockets.md), [State adapter](p11-state-graph-authoring.md), [Alchemist adapter](p11-alchemist-graph-authoring.md), [replacement overlap](p11-project-cursors.md), [Spatializer authoring](p11-spatializer-authoring.md), [State scale](p11-state-graph-scale.md), [Formula scale](p11-formula-graph-scale.md), [Spatializer scale](p11-spatializer-graph-scale.md). |
-| Complete composed workflows        | Not started      | Qualify discovery, selection and editing across all required composed panels and large batches. Native usability retains P17.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Complete composed workflows        | Not started      | Qualify discovery, selection and editing across all required composed panels and large batches. Native usability retains P17.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 
 ## Current handoff
 
-- **Active task: P11 workspace UX (67% rounded, 4/6 fixed checkpoints closed).** Manager/picker/outliner,
-  catalogs, historical logs, dashboard viewport awareness and tree keyboard interaction are complete locally. The
-  [dashboard qualification](p11-dashboard-timing.md) passes all **599 correctness groups / five
-  sparse tiers and 160 timing combinations**, retaining 4,960 samples and 480 warmups. All fixed
-  geometry, mounting, feedback, stall and completion gates pass without explicit collection.
-  The 13-checkpoint retention regression also passes; test-owned stale references are released.
-  Tree closure passes all four app consumers, 55 constrained-picker groups, shared navigation/lifecycle
-  checks and **85 timing combinations / 2,635 samples / 255 warmups** through 100k items.
-  Shared graph operations now pass nine production correctness groups, including collapsed/compound
-  body sockets and mutation feedback. Discovery passes 20 timing combinations / 620 samples, and
-  movement/connections pass 30 / 930 through 100k nodes. The full canvas regression also passes
-  all 55 action/tier combinations and both dense scenes. Owning UI suites now pass **449** cases;
-  app and both native graph fixture Svelte checks pass. State Machine and Alchemist panels pass
-  actual backend receipts, atomic read-only rejection, undo/redo, save/reload and snapshot/unmount
-  cancellation. The prior cursor milestone qualifies five Alchemist correctness groups and
-  four State groups, including delayed-snapshot replacement recovery. The current executable
-  passes 13 Spatializer presentation/authoring groups across all four modes, matrix layout, XZ
-  projection, keyboard/radius editing, bounded gestures, creation/history, read-only replacement
-  rejection/rollback and save/reload recovery. Core 635 and Spatializer 36 cases pass; prepared
-  catalog descendants now enter immutable persistence captures. These are small correctness fixtures.
-  [Generation cursors](p11-project-cursors.md) now fence replacement during unsubscribe/snapshot/
-  re-subscribe, deferred encoding, frames and event-origin state. State scale passes its fixed
-  20-case matrix through 100k backend nodes. [Formula scale](p11-formula-graph-scale.md) also passes
-  all **20 cases / 620 retained samples / 60 warmups** through 100k backend nodes. Connection p95
-  is 1,758.2ms at 50k and 3,541.5ms at 100k; maximum callback stalls are 104.4ms and 191.7ms.
-  All fixed timing and mounting gates pass. The repaired boundaries remove unused loading/lifecycle
-  snapshots, duplicate UI socket projection, quadratic input counting and obsolete compilation work.
-  All 183 Alchemist library tests, 77 Formula/operation tests and 635 engine tests pass in the dev
-  profile; three existing app and three engine cases remain ignored. Strict all-target Clippy,
-  the normal bundled build, all 22 native correctness groups and the shared-runner State 1k smoke pass.
-  Spatializer's [fixed scale workload](p11-spatializer-graph-scale.md) now passes all **20 canonical
-  calibration roundtrips and all 16 correctness pressure groups** across four modes, 50k/100k
-  backend tiers and both endpoint-cap orientations. Counted overviews, bounded real SVG controls,
-  complete related-value collections and focus retention pass. The source-cap scenes contain
-  143,641–147,737 records / 131,072 cells and complete all checks in 163.9–171.8s. Small-row forests
-  amortize guarded application while retaining the original source/path, construction and lifetime
-  bounds. All **44 Spatializer tests**, strict workspace/all-target Clippy, the normal bundled build
-  and **34 native correctness groups** pass. Earlier Home, snapshot-copy, capacity and per-row
-  publication failures remain linked in the qualification page and historical entries below.
-  The timing runner is implemented and all twelve 1k diagnostic action/mode cases pass, along
-  with 25 Spatializer navigation/authoring regressions. A full run was interrupted after ten
-  passing cases; it is incomplete, not a terminal failure. A directed 10k creation run completes
-  all 3 warmups / 31 retained samples but fails the unchanged completion gate: **8,931.6ms p95
-  against 2,000ms**; feedback is 51.8ms and maximum callback stall 8.4ms.
-  The current repair moves canonical endpoint/output inspection to the existing worker and
-  publishes only changed cells in bounded guarded batches across rows. All **50 owning tests**,
-  strict workspace/all-target Clippy, the normal bundled build and **25 native Spatializer
-  regression groups** pass. The identical directed 10k creation case now passes at **307.9ms
-  completion p95**, with 53ms feedback / 8.6ms maximum callback stall, all 34 samples and restores.
-  All **16 pressure groups pass** again on the repaired executable. The complete default timing
-  attempt records **19 passing cases**, then fails Voronoi 50k single-target movement: feedback
-  p95 **281.5ms vs 200ms**. Completion is also 281.5ms (passes), maximum callback stall 20.8ms
-  (passes). All 34 samples complete; no full timing qualification or new checkpoint is claimed.
-  Full-run 10k creation completion p95 is 329.6ms and 20k is 982.8ms, both passing.
-  Keyboard/radius/atomic-move display hints now retire on acknowledged publication, rejection,
-  endpoint retirement or owner changes. **460 UI tests**, app/fixture Svelte checks, the rebuilt
-  normal bundled app and **29 native Spatializer groups** pass, including four delayed-operation
-  probes. The full run now records **22 passing cases**. At 50k, single-move feedback is **5.8ms**,
-  atomic movement 4.8ms and radius editing 5.4ms; all completion/focus/geometry checks pass.
-  The next case, **50k creation**, fails feedback **344.1ms vs 200ms** and completion **2,647.8ms
-  vs 2,000ms**; maximum callback stall is 29.2ms. All 34 samples and restores complete.
-  **Next: reduce duplicate row guards in sparse publication and give creation truthful pending
-  feedback, then rerun all 60 unchanged cases and final current-artifact pressure checks.**
-  [Command-feedback evidence](evidence/p11-spatializer-command-feedback-2026-10-27.json) retains
-  all current samples; [sparse-publication evidence](evidence/p11-spatializer-sparse-publication-2026-10-27.json)
-  retains the preceding 16-group pressure qualification. No new checkpoint is closed.
-  Earlier [timing evidence](evidence/p11-spatializer-timing-runner-2026-10-27.json) preserves the failure.
-  Complete Spatializer actual-app scale before closing graph keyboard operations, then composed
-  workflows. Preserve [composition](p11-dashboard-composition.md) and
-  [applied-receipt barriers](p11-dashboard-barriers.md). Native usability retains P17 and product
-  throughput P16. P03-P10 remain closed; P03 has zero packages left.
-- **P10 is locally complete: three of three fixed checkpoints (100%).** Retained geometry,
-  scoped routes/culling and the full production mounted action/frame matrix pass. Stable wire
-  views, view work budgets, overview presentation, bounded DOM membership and isolated SVG paint
-  groups resolve the observed dense/Home stalls. See [qualification](p10-canvas-qualification.md)
-  for the 1,767 retained samples and fixed gates. Full-product/native qualification remains P16/P17.
-- **P09 is locally complete: three of three checkpoints (100%).** Public-API current/baseline
-  measurements retain 1,240 samples at 1k/10k/50k/100k nodes. Alchemist/statechart consumers,
-  exact rollback, grouped native drag/delete history and default/no-Serde graph contracts pass.
-  See [qualification and reproduction](p09-graph-qualification.md); this is not mounted-canvas or
-  full-product performance qualification.
-- **P08 is locally complete: four of four fixed checkpoints (100%).** UI, embedded scripts,
-  HTTP, WebSocket and headless callers share backend copy/paste/connect semantics and exact
-  identities. The final native case runs the actual default executable, with authenticated
-  sessions and isolated app-data/home/upload paths. See the final milestone evidence below.
-  P03 remains closed with zero packages left.
-- **P07 is locally complete: six of six fixed checkpoints (100%).** All 98 DMX cases,
-  script-template/API, default build, strict workspace Clippy, formatting and diff checks pass.
-  Typed priority controls preserve property/script/command occurrence order, confirmed channels
-  and current recovery metadata. The complete fake-time/native loopback acceptance map is in
-  [DMX runtime architecture](../architecture/dmx-runtime.md#local-qualification-map). The controlled
-  256-turn actor fixture measures p95 182 us / maximum 297 us on 24 logical processors; this is
-  a small fixture, not product-scale qualification. Unchanged Core/UI evidence remains at the
-  preceding typed-publication milestone. Platform/device qualification keeps P17/P18 ownership.
-- **P05 is locally complete: four of four fixed checkpoints (100%).** Bundled/dev/LAN browser
-  operation, native HTTP/WS, missing/stale/underprivileged denial, CSP and reload session reuse
-  are verified. Native webview/focus/dialog qualification remains P17; it was not automated.
-  Native peers retain the trusted-listener policy; capabilities do not establish peer identity.
-  Delivered as `788dd415`; P06's final artifact/runtime validation is now complete.
-- **P06 is locally complete: four of four fixed checkpoints (100%).** Current locked Rust/npm
-  advisories pass without new suppressions. The required SvelteKit 3 migration preserves bundled,
-  development and LAN operation. The correctly selected app suite passes **589 cases**; engine
-  **606 / three ignored**, Serial discovery **seven**, isolated recovery **20/20 repetitions**.
-  Default app and strict Clippy pass; the new-binary surface matrix passes. This milestone
-  was delivered as `0044eb3a`. P07's first receive-admission checkpoint is now locally verified.
-- Golden Transport passes **74 unit cases and one public headless-host integration case**, with
-  one existing manual snapshot benchmark ignored.
-  Golden Desktop passes **seven cases / one subprocess helper ignored**; xtask passes **one unit
-  and six integration cases**. Golden UI passes **39 cases**, the app UI **93 cases**, and the
-  native Node loopback/restart check **one case**. Svelte reports zero errors/warnings; production
-  UI and default app builds and strict workspace/all-target Clippy pass. The latest complete
-  transport integration outcome is recorded in the milestone evidence below.
-- Prior request-admission milestone: Golden Desktop passed seven unit cases, with one subprocess
-  helper ignored in direct selection. Those executions predate this session-contract milestone.
-- **P04 is locally complete: four of four checkpoints (100%).** Validated scalar decoding,
-  ordered command admission, production plan/control barriers and realtime transitions are verified.
-  Its delivered milestone is `5a7db40a`.
-- Prior P04 Golden Audio evidence: **190 default-feature unit cases**, **21 public integration cases**, and
-  **136 no-default-feature unit cases**. These feature runs overlap; do not add them as unique tests.
-  Strict workspace/all-target Clippy passes. Primitive numeric serialization is unchanged.
-
-- **P03 is locally complete: C01-C12 closed, 12/12 packages (100%). No P03 packages remain.**
-  Node Control remains an empty placeholder outside scope.
-- Prior P03 default app artifact: **29 Spatializer + 400 controllers + 1075 disjoint broader cases =
-  1504 unique passes / six existing ignored / 1510 selected / 1745 listed**, with 235 outside.
-  P03 Core development-profile suite: **606 passed / three ignored / 609 listed**. These artifacts
-  predate the scalar-decoding milestone; this milestone's checks are listed above and below.
-- The first broad run failed two multiplex timing gates; isolated cases and the full-selection
-  comparison passed on the unchanged executable. Every sample is retained below. Thresholds and
-  fixtures were unchanged; stable 200 Hz behavior and incremental performance remain P16 work.
-- P03's default non-test production build, strict workspace/all-target Clippy, actual root/Core/app
-  formatting and final source checks pass. Fifteen tested Rust files remain unchanged and below
-  1000 lines. Prior optional Stream Deck feature evidence stays dated at its own milestone.
-- Prior-commit CI/product qualification failures remain recorded: dependency advisories/audits
-  retain P06, structural gates P12, timing/baseline work P16 and platform qualification P17.
-  Cancelled macOS product work is not a pass.
-- Whole-plan scope coverage is **59%**, with **10/18 tasks fully complete**. Continue P11;
-  P03 has no remaining closure packages. Keep the full P00-P18 goal active.
+- **Active task: P11, 4/6 fixed checkpoints closed (67%). Whole plan: 59%; 10/18 tasks complete.**
+  P01-P10 are complete locally. **P03 has zero remaining packages: C01-C12 are closed (12/12).**
+  Batch counts describe delivery history and never change these denominators.
+- **Two P11 checkpoints remain.** Graph keyboard operations are in progress; complete composed
+  workflows have not started. Shared graph operations and the actual State/Formula scale matrices
+  pass. Spatializer's final-artifact **16 pressure groups pass**; it still needs its complete
+  **60-case timing matrix** before the graph checkpoint closes.
+- **Current measured blocker: 100k Spatializer target creation.** The full default timing attempt
+  passed 28 cases, then failed creation completion at **5,124ms p95** against the fixed 4,000ms stress gate.
+  Feedback passed at 27ms; maximum callback stall was 37.5ms. All samples and undo restores completed.
+  Current repairs remove duplicate row guards, generated-echo snapshots and unrelated module-picker
+  scans; endpoint identities and declaration indexes retain unchanged presentation inputs.
+  Creation uses truthful pending status, while completion still requires the real identity, glyph
+  and all 32 new cells. No gate, density or sample count changed.
+- **Latest verification:** 53 owning Spatializer Rust tests, strict workspace/all-target Clippy,
+  **469 UI tests**, app/graph-fixture Svelte checks, the normal bundled build and all **30 native
+  Spatializer groups** pass. In the full timing attempt, 50k creation now passes at **1,991.7ms
+  completion / 12.2ms feedback p95**, with 16.6ms maximum callback stall; its completion margin is
+  narrow. All **16 final-artifact pressure groups pass**. No new checkpoint is closed.
+  **Next: repair 100k creation and rerun all 60 timing cases.** A separate single-operation diagnostic
+  identifies repeated full-project snapshots, including subtree precondition validation; its
+  instrumented latency is not qualification evidence.
+- Maintained acceptance and raw failures: [Spatializer scale](p11-spatializer-graph-scale.md),
+  [State scale](p11-state-graph-scale.md), [Formula scale](p11-formula-graph-scale.md),
+  [shared graph operations](p11-graph-keyboard.md), [P11 contract](p11-workspace-qualification-contract.md).
+  [Creation-projection evidence](evidence/p11-spatializer-creation-projection-2026-10-27.json)
+  retains current pressure qualification, partial timing and earlier failures separately.
+- Preserve the closed dashboard, collection, log and tree checkpoints, including
+  [composition](p11-dashboard-composition.md), [applied-receipt barriers](p11-dashboard-barriers.md)
+  and [tree closure](p11-tree-closure.md). P10's mounted canvas qualification remains
+  [closed](p10-canvas-qualification.md). Output throughput retains P16; physical input/native-webview
+  usability and platform/device checks retain P17/P18.
+- Continue on `main`, commit and push each verified milestone, and keep the full P00-P18 goal active.
+  Historical commands and dated results below preserve evidence; resume from this handoff and the
+  task ledger, not an earlier batch entry.
 
 ## Task ledger
 
@@ -11687,3 +11584,40 @@ Next remove repeated same-row guards within a planning turn to fit more new cell
 16-pair / 32-read limits, and report creation pending state truthfully. Rerun the unchanged full
 timing matrix, then current-artifact pressure and composed workflows. **P03 100%, P11 4/6 (67%),
 whole plan 59%.** Keep the full P00-P18 goal active.
+
+### P11 creation publication and retained projection — 2026-10-27
+
+Reconciled delivered `b6e31f80` on `main`. Same-row guards are shared within an immutable planning
+turn; the 32-cell new column uses two guarded batches. A worker-owned generated-output catalog
+avoids redundant inbox reads while active, with ownership invalidation and ordinary unknown-input
+handling. Canonically leased inbox views retain application-time source/path fences. Existing
+publication, construction and lifetime limits are unchanged; prepared accounting charges the catalog.
+
+The app now retains module selection through graph deltas and endpoint presentation through unchanged
+input DTOs. Declaration indexes extend unchanged membership prefixes/suffixes while preserving alias
+precedence. Creation displays truthful pending status without allocating a speculative identity;
+completion still checks the real endpoint, all declarations/cells, focus and drained editing.
+
+- **53 owning Rust tests**, strict workspace/all-target Clippy, **469 UI tests**, clean app/fixture
+  Svelte checks, the normal bundled build and **30 native Spatializer groups** pass.
+- The first native delayed-command run exposed receipt/publication ordering after undo. Waiting for
+  the exact restored endpoint and asserting reveal acceptance repairs the test; the failure remains.
+- Guard-only and echo-only creation diagnostics still failed. A profile identified repeated module-picker
+  full-tree iteration; its repair alone passed a directed case but failed the subsequent full attempt
+  at **2,219.7ms completion p95**. All raw samples remain retained.
+- The final full default attempt passes **28 cases**, including all Voronoi cases through 50k.
+  Creation at 50k now passes at **1,991.7ms completion / 12.2ms feedback p95**, maximum stall 16.6ms.
+  Its completion margin is narrow. At 100k creation, **5,124ms completion p95 fails the 4,000ms stress
+  gate**; 27ms feedback and 37.5ms maximum stall pass. All 34 samples and restores finish in both cases.
+- All **16 final-artifact pressure groups pass**, across four modes, 50k/100k backend tiers and both
+  endpoint-cap orientations. The 60-case timing matrix remains incomplete.
+
+[Evidence](evidence/p11-spatializer-creation-projection-2026-10-27.json) records exact source/binary/
+asset/report fingerprints, raw samples, native failure/recovery and separate diagnostic profiles.
+The early exploratory observer scanned the whole graph; its wall time is not production latency.
+The current single-operation trace uses the real measurement observer and shows repeated full-project
+snapshots during worker reads and subtree precondition checking; its totals include setup/undo and
+do not qualify p95. Next investigate scoped live subtree validation without weakening exact revision
+or apply-time rejection semantics. Inventory is **2,298 sources / 25 existing oversized**.
+The current handoff is shortened to active checkpoints and the measured blocker; historical evidence
+stays below it. **P03 remains 12/12 (100%), P11 4/6 (67%), whole plan 59%.** Keep the full goal active.

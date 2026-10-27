@@ -40,6 +40,7 @@ pub(super) struct Service {
     rejected: Option<SubtreeRevision>,
     settled: Option<SubtreeRevision>,
     read_view: Option<ReadView>,
+    output_echoes_valid: bool,
     defaults: bool,
     warning: Option<String>,
     pub(super) reconcile: bool,
@@ -62,6 +63,7 @@ impl Service {
             rejected: None,
             settled: None,
             read_view: None,
+            output_echoes_valid: false,
             defaults: true,
             warning: None,
             reconcile: true,
@@ -88,6 +90,42 @@ impl Service {
     }
     pub fn invalidate_view(&mut self) {
         self.read_view = None;
+    }
+    pub fn invalidate_output_echoes(&mut self) {
+        self.output_echoes_valid = false;
+    }
+    pub fn generated_output(&self, param: NodeId) -> bool {
+        self.output_echoes_valid
+            && self.publication.as_ref().is_some_and(|publication| {
+                publication
+                    .prepared
+                    .output
+                    .as_ref()
+                    .is_some_and(|plan| plan.known_outputs.contains(&param))
+            })
+    }
+    fn cache_view(&mut self, snapshot: Arc<ProcessTreeSnapshot>) -> Result<(), String> {
+        if self
+            .read_view
+            .as_ref()
+            .is_none_or(|view| !Arc::ptr_eq(&view.snapshot, &snapshot))
+        {
+            let lease = snapshot.try_lease().map_err(|error| error.to_string())?;
+            self.read_view = Some(ReadView {
+                snapshot,
+                _lease: lease,
+            });
+        }
+        Ok(())
+    }
+    pub fn observe_inbox(&mut self, ctx: &ProcessCtx) {
+        if self.publication.is_some() && ctx.edits.pending.is_empty() {
+            if let Some(snapshot) = ctx.tree_snapshot_arc() {
+                // Optional reuse only: capacity pressure falls back to the
+                // ordinary fresh read on the next wake, without changing edits.
+                let _ = self.cache_view(snapshot);
+            }
+        }
     }
     pub fn needs_tree_snapshot(&self) -> bool {
         self.read_view.is_none()
@@ -239,17 +277,7 @@ impl Service {
             return Ok(());
         }
         let (dimension, mode, _) = controls?;
-        if self
-            .read_view
-            .as_ref()
-            .is_none_or(|view| !Arc::ptr_eq(&view.snapshot, &snapshot))
-        {
-            let lease = snapshot.try_lease().map_err(|error| error.to_string())?;
-            self.read_view = Some(ReadView {
-                snapshot: snapshot.clone(),
-                _lease: lease,
-            });
-        }
+        self.cache_view(snapshot.clone())?;
         if let Some(job) = &self.job {
             if job.running() {
                 return Ok(());
@@ -271,6 +299,7 @@ impl Service {
                         self.job_revision = None;
                     } else if prepared.output.as_ref().map(|plan| plan.revision) == snapshot.subtree_revision(values) {
                         self.publication = Some(publication::Publication::new(prepared));
+                        self.output_echoes_valid = true;
                         self.reconcile = false;
                     } else {
                         // Output changed while the worker was inspecting it. Recapture

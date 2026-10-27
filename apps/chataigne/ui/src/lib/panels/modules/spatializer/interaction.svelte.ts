@@ -105,8 +105,9 @@ export function createSpatializerInteraction(getSource: () => Source) {
 			if (value.token === token) next.set(key, { ...value, finished: true, boundary });
 		previews = next;
 	};
-	const run = async (edit: SpatializerEdit, hints: Hint[], failure: string) => {
+	const run = async (edit: SpatializerEdit, hints: Hint[], failure: string, pending?: string) => {
 		const { token, current } = startFeedback();
+		if (pending) message = pending;
 		const session = getSource().session;
 		const next = new Map(previews);
 		for (const hint of hints) {
@@ -125,6 +126,8 @@ export function createSpatializerInteraction(getSource: () => Source) {
 			remove(token);
 			if (feedbackToken === token && current()) message = failure;
 			throw error;
+		} finally {
+			if (pending && feedbackToken === token && current() && message === pending) message = '';
 		}
 	};
 	const updatePreview = (drag: Drag) => {
@@ -410,13 +413,12 @@ export function createSpatializerInteraction(getSource: () => Source) {
 			);
 		},
 		async createTarget(position: Point2) {
-			const { token, current: feedbackCurrent } = startFeedback();
-			try {
-				return await authoring.run({ kind: 'createTarget', position: [position.x, position.y] });
-			} catch (error) {
-				if (feedbackToken === token && feedbackCurrent()) message = 'Target creation failed.';
-				throw error;
-			}
+			return run(
+				{ kind: 'createTarget', position: [position.x, position.y] },
+				[],
+				'Target creation failed.',
+				'Requesting target…'
+			);
 		},
 		startEndpointDrag(event: PointerEvent, endpoint: SpatialEndpoint, requested: Kind) {
 			if (event.button !== 0) return;

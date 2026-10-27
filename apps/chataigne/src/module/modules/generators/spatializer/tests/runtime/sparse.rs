@@ -50,6 +50,7 @@ fn canonical_matrix_has_no_endpoint_repairs_or_publication_work() {
     let plan = prepared.output.as_ref().unwrap();
     assert!(plan.rows.is_empty());
     assert!(plan.removals.is_empty());
+    assert_eq!(plan.known_outputs.len(), 32 * 129);
     assert_eq!(prepared.values.len(), 32 * 129);
 }
 
@@ -180,7 +181,8 @@ fn canonical_target_creation_plans_only_the_new_column() {
         std::thread::sleep(Duration::from_millis(1));
     }
     assert_eq!(inserted, 32);
-    assert!(batches <= 5, "new cells must share guarded batches: {batches}");
+    assert_eq!(batches, 2, "duplicate row fences must not fragment the 32-cell column");
+    eprintln!("32 new column cells use {batches} guarded application batches");
     assert_eq!(default_cell(&engine, id), original);
     for index in 0..32 {
         assert_eq!(child_count(&engine, nth_child(&engine, values, index).unwrap()), 130);
@@ -232,4 +234,90 @@ fn normalization_rechecks_live_endpoint_bounds_after_earlier_repairs() {
         .contains("16 direct children"));
     assert_eq!(default_cell(&engine, id), original);
     assert!(find_child_by_key(&engine, second, "radius").is_none());
+}
+
+fn output_change(engine: &crate::app::AppEngine, cell: NodeId) -> golden_core::events::EventFrame {
+    golden_core::events::EventFrame::from_shared(vec![Arc::new(golden_core::events::Event {
+        time: engine.time,
+        kind: golden_core::events::EventKind::ParamChanged {
+            param: cell,
+            old_value: ParamValue::Float(1.0),
+            new_value: ParamValue::Float(0.5),
+            source: None,
+        },
+    })])
+}
+
+#[test]
+fn prepared_generated_echoes_do_not_request_or_build_an_inbox_snapshot() {
+    let (mut engine, id, cell) = fixture(1, 40);
+    let source = source(&engine, id);
+    set_position_2d(&mut engine, source, 0.5, 0.0);
+    engine.dispatch_inbox(ExecutionPhase::EngineTick).unwrap();
+    let edits = pending_value(&mut engine, id, cell);
+    assert!(module(&mut engine, id).service.generated_output(cell));
+    let frame = output_change(&engine, cell);
+    assert!(!module(&mut engine, id).inbox_requires_tree_snapshot(&frame));
+    apply(&mut engine, edits);
+    let before = engine.tick_stats().snapshot_builds;
+    engine.dispatch_inbox(ExecutionPhase::EngineTick).unwrap();
+    assert_eq!(engine.tick_stats().snapshot_builds, before);
+    stabilize(&mut engine);
+    assert_eq!(float(&engine, cell), 0.5);
+}
+
+#[test]
+fn unknown_fields_and_changed_ownership_cannot_use_the_output_echo_catalog() {
+    use golden_core::events::{Event, EventKind};
+    let (mut engine, id, cell) = fixture(1, 40);
+    let source = source(&engine, id);
+    set_position_2d(&mut engine, source, 0.5, 0.0);
+    engine.dispatch_inbox(ExecutionPhase::EngineTick).unwrap();
+    let edits = pending_value(&mut engine, id, cell);
+    let connection = find_path(&engine, id, "connection/log_incoming").unwrap();
+    let input = output_change(&engine, connection);
+    assert!(module(&mut engine, id).inbox_requires_tree_snapshot(&input));
+    let mut moved = output_change(&engine, cell);
+    moved.push_shared(Arc::new(Event {
+        time: engine.time,
+        kind: EventKind::ChildMoved {
+            child: cell,
+            old_parent: engine.nodes.get(cell).unwrap().node_data().parent.unwrap(),
+            new_parent: engine.root,
+        },
+    }));
+    assert!(module(&mut engine, id).inbox_requires_tree_snapshot(&moved));
+    apply(&mut engine, edits);
+    engine.edits.push(Edit::MoveNode {
+        node: cell,
+        new_parent: engine.root,
+        new_prev_sibling: None,
+    });
+    engine.apply_edits().unwrap();
+    engine.dispatch_inbox(ExecutionPhase::EngineTick).unwrap();
+    assert!(!module(&mut engine, id).service.generated_output(cell));
+    stabilize(&mut engine);
+    assert_eq!(default_cell(&engine, id), cell);
+}
+
+#[test]
+fn an_adopted_inbox_view_keeps_apply_time_input_fences() {
+    let (mut engine, id, cell) = fixture(1, 40);
+    let source = source(&engine, id);
+    set_position_2d(&mut engine, source, 0.5, 0.0);
+    engine.dispatch_inbox(ExecutionPhase::EngineTick).unwrap();
+    let edits = pending_value(&mut engine, id, cell);
+    apply(&mut engine, edits);
+    let mut inbox = context(&engine);
+    inbox.events = output_change(&engine, cell);
+    module(&mut engine, id).on_inbox(&mut inbox);
+    assert!(!module(&mut engine, id).worker_wake_requires_tree_snapshot());
+    let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);
+    module(&mut engine, id).on_worker_wake(&mut ctx);
+    assert!(!ctx.edits.pending.is_empty());
+    set_position_2d(&mut engine, source, 0.25, 0.0);
+    assert!(apply_failure(&mut engine, ctx.edits));
+    stabilize(&mut engine);
+    assert_eq!(default_cell(&engine, id), cell);
+    assert_eq!(float(&engine, cell), 0.75);
 }

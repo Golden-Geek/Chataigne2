@@ -70,10 +70,10 @@ export function createSpatializerMeasurement(
 	};
 	const glyph = (id: number) =>
 		root().querySelector<SVGGElement>(`g.endpoint[data-endpoint-id="${id}"]`);
-	const visible = (element: Element | null) => {
+	const visible = (element: Element | null, within: Element = root()) => {
 		if (!element) return false;
 		const box = element.getBoundingClientRect(),
-			viewport = root().getBoundingClientRect();
+			viewport = within.getBoundingClientRect();
 		return (
 			box.width > 0 &&
 			box.height > 0 &&
@@ -191,6 +191,7 @@ export function createSpatializerMeasurement(
 								?.getAttribute('r')
 						: null;
 				const createPosition = [position(far)[0] + 1, position(far)[1] + 1];
+				const previousFeedback = document.querySelector('.edit-feedback')?.textContent;
 				const rowIds = new Set(rows(scene).map((n) => n.node_id));
 				let cursor = session.graph.state.nodesById;
 				const createdCells = new Map<number, number>();
@@ -319,8 +320,14 @@ export function createSpatializerMeasurement(
 								visible(glyph(radiusOwner));
 						} else if (action === 'create') {
 							const created = result?.created;
-							shown =
+							const rendered =
 								!!created && geometry(created.node, createPosition) && visible(glyph(created.node));
+							const status = document.querySelector('.edit-feedback');
+							shown =
+								rendered ||
+								(!!status?.textContent?.trim() &&
+									status.textContent !== previousFeedback &&
+									visible(status, status.closest('.spatializer-editor-panel') ?? root()));
 							if (created) {
 								const current = session.graph.state.nodesById;
 								current.forEachChange(cursor, (id, n) => {
@@ -336,7 +343,7 @@ export function createSpatializerMeasurement(
 								});
 								cursor = current;
 								applied =
-									shown &&
+									rendered &&
 									node(created.node)?.uuid === created.uuid &&
 									createdCells.size === scene.sources.length &&
 									focused(far) &&

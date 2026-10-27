@@ -8,7 +8,7 @@ a UI protocol snapshot. Output evaluation throughput retains P16; physical input
 usability retains P17.
 
 **All 20 calibration roundtrips and 16 correctness pressure groups pass. The 60-case timing
-runner is implemented; 10k creation and keyboard feedback are repaired, but 50k creation fails.** P11 remains
+runner is implemented; creation now passes through 50k, but 100k completion fails.** P11 remains
 4/6 checkpoints (67% rounded), with whole-plan coverage at 59%. This document and the
 [machine-readable contract](../../apps/chataigne/ui/tests/browser/app-graph-scale/spatializer-contract.mjs)
 fix scope before action timing. Delivery commits do not add acceptance cases.
@@ -71,6 +71,15 @@ rendered state, operation status, focus or geometry change. Completion requires 
 identity/value, actual SVG geometry or inspector content, retained selection/focus and drained
 editor work. Creation additionally waits for the new declarations and generated cells. Output
 weight evaluation rate is a separate P16 dimension.
+
+Creation now reports pending admission/dispatch through the editor's existing visible status
+surface. Its observer accepts that actual painted status as first feedback, as allowed above;
+the previous glyph-only observer matched the previous editor, which had no pending message.
+Status is checked within the real panel rectangle and must differ from the pre-action content.
+Completion independently still requires the created glyph, committed identity/declarations,
+all 32 generated cells, retained focus and drained editing. A status message cannot satisfy
+completion. Original glyph-only failures remain retained; numeric gates, density and samples
+are unchanged. This observation rationale is recorded before the repaired timing rerun.
 
 Keep at most 128 actual endpoint glyphs including retained focus/selection/gesture endpoints,
 256 overview groups, 256 region polygons, 32 finder rows and 42 related-value rows. Preserve all
@@ -263,10 +272,10 @@ retained focus/identity. All original source/path and allocation/service gates r
 
 | Mode          | 4,096-source records | Matrix cells | Setup and checks |
 | ------------- | -------------------: | -----------: | ---------------: |
-| Voronoi       | 143,641              | 131,072      | 163,941.0ms      |
-| Target Radius | 143,641              | 131,072      | 164,623.8ms      |
-| Source Radius | 147,705              | 131,072      | 171,801.8ms      |
-| Overlap       | 147,737              | 131,072      | 171,795.9ms      |
+| Voronoi       |              143,641 |      131,072 |      163,941.0ms |
+| Target Radius |              143,641 |      131,072 |      164,623.8ms |
+| Source Radius |              147,705 |      131,072 |      171,801.8ms |
+| Overlap       |              147,737 |      131,072 |      171,795.9ms |
 
 These are single setup/correctness observations, not action latency distributions. Implement and
 run all **60 timing cases / 1,860 retained samples / 180 warmups** next. Pressure is complete;
@@ -358,3 +367,57 @@ Next remove repeated same-row guards within each sparse planning turn and provid
 creation feedback through the existing status surface. Keep source/path guards, 16-pair and 32-read
 bounds, real new identities and all 32 cells for completion. Then rerun the complete timing matrix
 and pressure on the final artifact before closure. **P11 stays 4/6 (67%), whole plan 59%.**
+
+## Creation publication and retained UI projection
+
+Sparse publication now captures each row guard once per immutable planning turn. A new 32-cell
+column uses exactly two bounded application batches, retaining the existing pair/read/construction
+ceilings. Worker preparation also captures generated output identities. During active publication,
+known output echoes need no full-tree inbox snapshot; ownership changes invalidate this catalog,
+and unknown fields retain ordinary callback processing. An already supplied inbox snapshot may be
+canonically leased only when the callback queued no edits. Apply-time source/path fences remain.
+
+These changes and truthful pending creation status repair feedback but do not alone meet completion:
+the guard-only diagnostic records **3,120.4ms** completion p95 and echo-catalog diagnostic records
+**2,998.2ms**. Both retain all 34 samples and exceed the unchanged 2,000ms gate.
+
+A CPU profile around the actual fixed 3/31 creation measurement identifies repeated full-project
+module-picker iteration on matrix publications. The app now retains a module catalog from immutable
+map deltas. Its directed case passes at 1,938.2ms, but the subsequent complete matrix again stops
+after 22 passing cases: **50k creation completion is 2,219.7ms p95**, with 11.7ms feedback and 25.2ms
+maximum callback stall. The diagnostic pass was insufficient evidence of the full workload.
+
+The app subsequently retains endpoint presentation identities when their input DTOs and palette
+color are unchanged, preserving geometry/navigation on unrelated matrix publications. The endpoint
+cache diagnostic passes at **1,831.2ms completion / 12.1ms feedback p95**, with 12.6ms maximum stall.
+The declaration index also extends unchanged membership prefixes/suffixes without rebuilding all
+aliases, preserving first-child precedence and invalidating on unsupported changes or missing records.
+These focused diagnostics still do not close the complete timing matrix or final-artifact pressure.
+
+All **53 owning Rust tests**, strict workspace/all-target Clippy, **469 UI tests**, app/fixture Svelte
+checks and the normal bundled build pass. The final native preservation run first exposed an undo
+test ordering gap: its receipt can precede publication of the restored endpoint. The harness now
+waits for that specific identity and asserts reveal acceptance before checking its actual glyph.
+The original failed report is retained. All **30 native preservation groups** subsequently pass.
+
+The final full default timing attempt passes **28 cases**, including every Voronoi case through
+50k. Creation at 50k passes with **1,991.7ms completion / 12.2ms feedback p95** and 16.6ms maximum
+callback stall, narrowly within the completion gate. At 100k, discovery, both movements and radius
+editing pass; creation fails at **5,124ms completion p95**, versus the unchanged 4,000ms stress gate.
+Feedback is 27ms and maximum callback stall 37.5ms. Both creation cases finish all 34 samples and
+undo restorations. No full timing qualification or new P11 checkpoint is claimed.
+
+The complete unchanged **16-group pressure selection passes on this final artifact**, including
+all four modes, both backend tiers and both endpoint-cap orientations. The
+[creation-projection evidence](evidence/p11-spatializer-creation-projection-2026-10-27.json) retains
+source/binary/asset/report fingerprints, every timing sample, pressure outcomes and native failure/recovery.
+
+A separate single-operation 100k CPU/snapshot trace uses the same actual measurement observer.
+The browser spends substantial time idle while backend worker reads and subtree precondition
+validation build full-project snapshots. Its snapshot totals also include setup and undo, and its
+instrumented observation is not a p95 distribution. Next investigate scoped subtree-fence validation
+at the Golden engine boundary while preserving exact revision semantics and application-time rejection.
+
+The initial exploratory trace polled a fixture helper that scans the complete graph; its wall time
+includes observer overhead and is not production timing evidence. The separate fixed-sample CPU
+profile uses the actual measurement observer. Neither instrumented run qualifies latency gates.

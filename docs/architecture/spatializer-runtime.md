@@ -23,6 +23,9 @@ configurations may coalesce; they are not ordered triggers or commands.
 
 Publication retains its prepared result and cursor across turns. Existing rows service at most 16
 changed pairs per turn, sharing batches across rows within the unchanged 32-read-guard ceiling.
+Row phases reuse one authored guard while borrowing the same immutable planning snapshot; each
+subsequent turn captures fresh guards. This admits a new 32-cell column in two 16-pair batches
+without weakening source, destination or topology fences.
 Missing rows are assembled as detached `NodeTree` subtrees, at most 32 child parameters
 per turn, and submitted as one structural insertion after preparation finishes. A receipt gates
 the next step. Rejection restarts reconciliation against the actual graph; an applied prefix is
@@ -81,29 +84,38 @@ snapshot disposer. This removes repeated full-tree construction from unchanged c
 turns; cold snapshots after mutations keep their existing cost and qualification requirements.
 
 Prepared admission includes dense values and sparse pair-index capacity (24 bytes per admitted
-pair), endpoint/row/repair storage, and 16 bytes per snapshot record for obsolete output IDs.
+pair), endpoint/row/repair storage, and 40 bytes per snapshot record for obsolete IDs and the
+worker-captured generated-output echo set, including allocation/capacity rounding.
 The latter is deliberately conservative: generated obsolete records can outnumber the new matrix
 after an orientation/count change. Count admission and lifetime reservation still precede worker
 allocation, and the shared 128 MiB ceiling remains unchanged. Plan storage and leased views keep
 their existing background destruction path.
 
-| Resource                                      | Admission / service bound                                                       |
-| --------------------------------------------- | ------------------------------------------------------------------------------- |
-| Sources / targets                             | 4,096 each; at most 1,048,576 pairs, checked before allocation                  |
-| Endpoint label / direct children              | 512 bytes / 16 children                                                         |
-| Root parameter children / enum token          | 32 children / 64 bytes                                                          |
-| Prepared lifetimes                            | 64 entries / 128 MiB process-wide, including final disposal                     |
-| Prepared reservation                          | 64 KiB + 4,096 bytes per endpoint + 24 bytes per pair + 16 bytes per snapshot record |
-| Detached row lifetimes                        | 16 entries / 128 MiB process-wide; 16 KiB + 8 KiB per planned node              |
-| Queued edit lifetimes                         | 64 entries / 64 MiB process-wide; 1 MiB per admitted batch                      |
-| Active workers                                | Four process-wide / one per module, including cancellation and cleanup          |
-| Existing-cell service / detached construction | 16 pairs / 32 child nodes per turn                                              |
+| Resource                                      | Admission / service bound                                                            |
+| --------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Sources / targets                             | 4,096 each; at most 1,048,576 pairs, checked before allocation                       |
+| Endpoint label / direct children              | 512 bytes / 16 children                                                              |
+| Root parameter children / enum token          | 32 children / 64 bytes                                                               |
+| Prepared lifetimes                            | 64 entries / 128 MiB process-wide, including final disposal                          |
+| Prepared reservation                          | 64 KiB + 4,096 bytes per endpoint + 24 bytes per pair + 40 bytes per snapshot record |
+| Detached row lifetimes                        | 16 entries / 128 MiB process-wide; 16 KiB + 8 KiB per planned node                   |
+| Queued edit lifetimes                         | 64 entries / 64 MiB process-wide; 1 MiB per admitted batch                           |
+| Active workers                                | Four process-wide / one per module, including cancellation and cleanup               |
+| Existing-cell service / detached construction | 16 pairs / 32 child nodes per turn                                                   |
 
 Snapshots use Golden's separate canonical 384-allocation / 1 GiB pool. All ceilings include
 consumer-held and disposing payloads. Capacity pressure retains current authored values and uses
 a 250 ms delayed retry; it does not create an unbounded queue or start extra threads. Matrix
 admission is a representation ceiling, not qualification of a million-node interactive project.
 The existing 512-source/1,024-target mathematical fixture remains part of owning validation.
+
+While publication is active, its immutable output-ID set identifies generated value echoes
+without a full-tree inbox read. Unknown inputs still use the ordinary snapshot/callback path.
+Moves, removals, replacement and metadata/transaction events invalidate that classification
+before callback dispatch. New child insertions do not reclassify existing IDs. An already
+provided inbox snapshot may be canonically leased for the next publication turn only when the
+callback queued no edits; apply-time source/path fences remain unchanged. The echo set is
+released with preparation rather than occupying the shared pool while idle.
 
 Local P03 qualification belongs in the [implementation ledger](../progress/implementation-status.md).
 Actual 20k/50k editor interaction, whole-product performance and platform gates remain P11/P16/P17.
@@ -116,6 +128,16 @@ its `spatializer/` directory. `projection.svelte.ts` reads the public Golden gra
 owns SVG markup and its scoped styles. `interaction.svelte.ts` owns pointer previews, keyboard
 input and frame scheduling, with shared presentation types/constants beside those owners. One coordinate
 conversion serves both creation and pointer display paths.
+
+`module-catalog.ts` scans module identities once per snapshot generation, then consumes changed
+node records. Matrix publications retain the same module list; add/remove/rename/replacement
+updates return the current sorted identities. The picker no longer walks every generated cell
+on ordinary value or structure updates.
+
+`endpoint-cache.ts` retains endpoint presentation objects while their immutable node, position
+and radius records and ordered palette color are unchanged. Computed matrix publications therefore
+preserve geometry and navigation inputs; authored endpoint changes still publish current records.
+Snapshot generation changes retire the cache, and temporary interaction hints remain separate.
 
 Spatializer supplies an empty graph document and custom world content to the public Golden
 GraphCanvas. Its endpoints are app-owned controls, not fabricated graph nodes or ports. The world
@@ -145,7 +167,10 @@ Golden's virtual rows with a read-only grid, filtering, reveal and focused-row r
 3rem rows and 72rem maximum viewport keep mounting within 42 rows, including retained focus.
 The declaration reader indexes visited folders and invalidates only changed membership/aliases
 through Golden's published map deltas; ordinary value updates read current records through the
-retained index. Snapshot changes clear the cache.
+retained index. Appended or prepended children extend an existing index when all old membership
+stays in order and every new record is available. First-child alias precedence is preserved;
+middle insertion, missing records, removals and renames invalidate the index. Snapshot changes
+clear the cache.
 
 Spatializer allows zoom down to 0.1% so Home can fit wide endpoint maps; controls retain their
 screen-space hit sizes. Golden respects that explicit range rather than silently clamping it
@@ -178,6 +203,10 @@ result. Successful previews remain until that publication reaches the graph, and
 endpoint retirement, snapshot/space changes or unmounting withdraw them. An older receipt cannot
 remove a newer hint for the same endpoint. Completion qualification still requires committed
 values, actual geometry/focus and drained session work.
+Creation reports pending dispatch on the existing status surface while the backend allocates
+the real identity and declarations. It creates no speculative endpoint. Status is retired on
+success/owner changes and replaced with the existing error on rejection; it never stands in for
+the matrix publication completion checks.
 
 The [presentation qualification](../progress/p11-spatializer-presentation.md) preserves the initial
 six native groups; [authoring qualification](../progress/p11-spatializer-authoring.md) records the

@@ -74,6 +74,9 @@ deadline. Creation undo restores the exact baseline record/row/cell counts withi
 300s setup ceiling outside the timed interval before another sample begins. The browser reads
 real committed identities, SVG transforms/radii, focused controls and related-value content;
 creation additionally requires every new matrix cell. No input is synthesized.
+Creation's existing panel status now reports pending dispatch. The observer checks its actual
+visible rectangle/content for first feedback, consistent with the fixed status-or-geometry
+contract. Completion separately still requires the created glyph and every committed cell.
 Sample progress is emitted outside the measured interval. A host-side watchdog enforces each
 preparation/observation/restoration deadline with two seconds of reporting grace if browser
 callbacks stop; that grace never changes the measured timing gates or the 10s observation limit.
@@ -88,7 +91,8 @@ fixed scale matrix. The runner owns an isolated headless browser and synthesizes
 `node apps/chataigne/ui/tests/browser/spatializer-feedback-native.mjs` holds admitted operations
 before real backend dispatch to verify temporary keyboard/radius feedback, repeated-key
 accumulation, unmount retirement and withdrawal after actual endpoint-deletion rejection.
-It inspects committed DTOs separately from actual SVG transforms. This four-group correctness
+It also holds creation to verify truthful visible status without a fabricated endpoint/identity.
+It inspects committed DTOs separately from actual SVG transforms. This five-group correctness
 probe does not establish action timing; the unchanged full scale runner does that separately.
 
 ## Formula contract

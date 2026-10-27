@@ -7,15 +7,15 @@ extraction notes and September counts are [archived](../archive/2026-10-18/progr
 
 ## Scan and policy
 
-Refreshed 2026-10-27 against delivered `f1c01b41` plus small-row forest publication
-on `main`. Scanned **2289 source files**; **25 exceed 1,000 lines**. The earlier narrow
-counter covered 2,226 Rust/TypeScript/JavaScript/Svelte files under apps, crates, packages and
-xtask; its directly comparable count is now 2,229. The complete scan also includes tools and
-Python/PowerShell/shell sources. This corrects the scan coverage without adding oversized files.
+Refreshed 2026-10-27 against delivered `b6e31f80` plus Spatializer creation/publication
+and retained projection repairs on `main`. Scanned **2298 source files**; **25 exceed 1,000 lines**.
+The complete scan includes apps, crates, packages, tools and xtask, with
+Python/PowerShell/shell sources as well as Rust/TypeScript/JavaScript/Svelte.
 The shared archive decoder is 66 lines; the processor root shrinks from 1,614 to 1,594.
 The wide-catalog snapshot capacity regression adds one focused 59-line test source.
-The six row-forest recovery/pressure cases add one 200-line test source; publication is 398
-lines and its service owner 505, with runtime preservation tests in a separate 635-line file.
+The row-forest recovery/pressure cases have a focused test source; publication is 418
+lines and its service owner 552, with runtime preservation tests in separate files. Sparse publication
+tests are 324 lines; retained module/endpoint catalogs and their adjacent tests are each under 100 lines.
 The viewport planner, virtual inspector, declaration index, two focused test files and
 native pressure driver add six authored files. The calibration driver,
 fixed workload contract and fixture helpers stay below the limit. The Formula input-count
@@ -23,8 +23,8 @@ index, compilation-resolution test and shared native scale helpers stay below th
 The compiler is 998 lines; further compiler additions require a cohesive split. The compact persistent
 index, adjacent read/isolation tests, native scale driver and focused fixture helpers stay below
 the limit. The Spatializer panel is
-842 lines, composing a graph reader (179), declaration index (66), display geometry (610),
-pointer/keyboard interaction owner (425), bounded authoring controller (291), endpoint navigation
+841 lines, composing a graph reader (179), declaration index (94), display geometry (610),
+pointer/keyboard interaction owner (471), bounded authoring controller (302), endpoint navigation
 (123), viewport planner (123), virtual inspector (166), SVG world (622) and shared types/constants.
 The backend operation (257), canonical protocol crate, generated UI DTOs, owning tests and native
 fixtures stay below the limit. The prepared-subtree persistence repair adds focused capture tests.

@@ -95,8 +95,34 @@ await nativeWorkbench({
 		assert.match((await call('commandState')).error, /Spatializer endpoint identity changed/);
 		assert.equal((await state(fixture.east)).present, false);
 		await call('history', 'undo');
-		await call('reveal', fixture.east);
+		// The undo receipt precedes graph publication; reveal needs the restored identity.
+		await page.waitForFunction(
+			(id) => window.spatializerFixture.endpoints().some((endpoint) => endpoint.id === id),
+			fixture.east
+		);
+		assert.equal(await call('reveal', fixture.east), true);
 		assert.equal((await state(fixture.east)).x, 64);
 		emit({ kind: 'rejected-command-withdraws-preview', passed: true });
+
+		const beforeCreate = (await call('endpoints')).length;
+		await call('holdCommand');
+		await call('startCreate', { x: 4, y: 4 });
+		await held();
+		assert.equal(await page.locator('.edit-feedback').textContent(), 'Requesting target…');
+		assert.equal(await page.locator('.edit-feedback').isVisible(), true);
+		assert.equal((await call('endpoints')).length, beforeCreate);
+		assert.equal((await call('commandState')).created, null);
+		await call('releaseCommand');
+		await call('finishCommand');
+		await settled();
+		const created = (await call('commandState')).created;
+		assert.ok(created);
+		await page.waitForFunction(
+			(uuid) => window.spatializerFixture.endpoints().some((e) => e.uuid === uuid),
+			created.uuid
+		);
+		assert.equal((await call('endpoints')).length, beforeCreate + 1);
+		assert.equal(await page.locator('.edit-feedback').textContent(), '');
+		emit({ kind: 'creation-pending-without-fabricated-identity', passed: true, created });
 	}
 });

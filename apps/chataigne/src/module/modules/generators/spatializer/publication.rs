@@ -101,6 +101,7 @@ impl Publication {
         reads: &mut Vec<NodeReadGuard>,
     ) -> Result<(), String> {
         let mut remaining = PAIRS_PER_TURN;
+        let mut guarded_row = None;
         while remaining > 0 && reads.len() < 26 && !self.done() {
             // Detached row construction keeps its independent 32-child turn
             // bound. Only sparse existing-row work shares a publication turn.
@@ -113,7 +114,7 @@ impl Publication {
                 break;
             }
             let had_batch = self.batch.is_some();
-            self.step_one(snapshot, values, edits, reads, &mut remaining)?;
+            self.step_one(snapshot, values, edits, reads, &mut remaining, &mut guarded_row)?;
             if detached || had_batch || self.batch.is_some() {
                 break;
             }
@@ -128,6 +129,7 @@ impl Publication {
         edits: &mut EditQueue,
         reads: &mut Vec<NodeReadGuard>,
         remaining: &mut usize,
+        guarded_row: &mut Option<NodeId>,
     ) -> Result<(), String> {
         if self
             .batch
@@ -167,7 +169,7 @@ impl Publication {
                     self.row = None;
                     self.row_filled = 0;
                     patch_label(snapshot, edits, id, &outer.label);
-                    reads.push(NodeReadGuard::capture(snapshot, id).ok_or("Spatializer row disappeared")?);
+                    read_row(snapshot, id, reads, guarded_row)?;
                     self.phase = Phase::Pairs(0);
                 } else {
                     if relocate(snapshot, uuid, &outer.value_decl_id, values, edits, reads)? {
@@ -247,7 +249,7 @@ impl Publication {
                     self.phase = Phase::Outer;
                     return Ok(());
                 };
-                reads.push(NodeReadGuard::capture(snapshot, folder).unwrap());
+                read_row(snapshot, folder, reads, guarded_row)?;
                 let count = (*remaining).min((28 - reads.len()) / 2);
                 let end = (start + count).min(self.work().pairs.len());
                 for cursor in start..end {
@@ -314,7 +316,7 @@ impl Publication {
                     self.phase = Phase::Outer;
                     return Ok(());
                 };
-                reads.push(NodeReadGuard::capture(snapshot, folder).unwrap());
+                read_row(snapshot, folder, reads, guarded_row)?;
                 let end = (start + (*remaining).min(28 - reads.len())).min(self.work().removals.len());
                 for id in &self.work().removals[start..end] {
                     if snapshot.node(*id).is_some_and(|node| node.parent == Some(folder)) {
@@ -350,6 +352,21 @@ impl Publication {
         }
         Ok(())
     }
+}
+
+/// All phases in one planning turn borrow the same immutable snapshot. A row
+/// needs one authored fence, even when that turn visits pairs and cleanup too.
+fn read_row(
+    snapshot: &ProcessTreeSnapshot,
+    row: NodeId,
+    reads: &mut Vec<NodeReadGuard>,
+    guarded: &mut Option<NodeId>,
+) -> Result<(), String> {
+    if *guarded != Some(row) {
+        reads.push(NodeReadGuard::capture(snapshot, row).ok_or("Spatializer row disappeared")?);
+        *guarded = Some(row);
+    }
+    Ok(())
 }
 
 fn publish_row(row: DetachedRow, values: NodeId, edits: &mut EditQueue) {

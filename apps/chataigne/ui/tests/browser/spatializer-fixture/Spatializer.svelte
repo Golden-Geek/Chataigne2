@@ -6,6 +6,7 @@
 	import { writePanelPersistedState } from 'golden_ui/dockview/panel-persistence';
 	import SpatializerEditorPanel from '../../../src/lib/panels/modules/SpatializerEditorPanel.svelte';
 	import { createSpatializerMeasurement } from '../app-graph-scale/spatializer-measurement';
+	import type { SpatializerEditResult } from '../../../src/lib/panels/modules/spatializer/generated/SpatializerEditResult';
 	import { createDefaultUiClient } from 'golden_ui';
 	import {
 		SPATIALIZER_NAMESPACE,
@@ -43,6 +44,7 @@
 		releaseOperation: (() => void) | null = null;
 	let command: Promise<unknown> | null = null,
 		commandError: string | null = null;
+	let commandCreated: SpatializerEditResult['created'] = null;
 	session.invokeAppOperation = async (...args) => {
 		if (holdOperation) {
 			holdOperation = false;
@@ -58,8 +60,13 @@
 	export const holdCommand = () => {
 		holdOperation = true;
 		commandError = null;
+		commandCreated = null;
 	};
-	export const commandState = () => ({ held: operationHeld, error: commandError });
+	export const commandState = () => ({
+		held: operationHeld,
+		error: commandError,
+		created: commandCreated
+	});
 	export const releaseCommand = () => {
 		releaseOperation?.();
 		releaseOperation = null;
@@ -76,6 +83,16 @@
 		);
 	};
 	export const finishCommand = () => command;
+	export const startCreate = (point: { x: number; y: number }) => {
+		command = panel!
+			.createTargetAtWorld(point)
+			.then((result) => {
+				commandCreated = result.created;
+			})
+			.catch((error) => {
+				commandError = String(error);
+			});
+	};
 	onMount(() => session.mount());
 	let mounted = $state(true);
 	let panel = $state<ReturnType<typeof SpatializerEditorPanel>>();

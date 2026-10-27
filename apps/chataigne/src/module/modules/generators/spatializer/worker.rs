@@ -134,7 +134,7 @@ pub(super) fn start(
         snapshot.child_ids_slice(sources).len(),
         snapshot.child_ids_slice(targets).len(),
     )?
-    .checked_add(snapshot.node_count().saturating_mul(16))
+    .checked_add(snapshot.node_count().saturating_mul(40))
     .ok_or("Spatializer publication plan size overflow")?;
     let reservation = pool()?
         .try_reserve(weight)

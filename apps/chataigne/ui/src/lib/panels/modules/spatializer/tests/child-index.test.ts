@@ -23,6 +23,59 @@ function fixture(count = 4) {
 }
 
 describe('Spatializer retained declaration reads', () => {
+	it('extends appended and prepended aliases without rebuilding a large folder', () => {
+		const f = fixture(10000);
+		expect(f.index.child(f.owner, 'Value 1')?.node_id).toBe(1);
+		let nodes = f.nodesById.fork(),
+			parents = f.parentById.fork();
+		const appended = { ...fixtureNode(10001, 'Value 1'), decl_id: 'values/cell10001' };
+		nodes.set(10001, appended);
+		parents.set(10001, 0);
+		nodes.set(0, { ...f.owner, children: [...f.owner.children, 10001] });
+		f.index.update({ nodesById: nodes, parentById: parents }, 1);
+		expect(f.index.child(f.owner, 'cell10001')).toBe(appended);
+		expect(f.index.child(f.owner, 'Value 1')?.node_id).toBe(1);
+		const owner = nodes.get(0)!;
+		nodes = nodes.fork();
+		parents = parents.fork();
+		const prepended = { ...fixtureNode(10002, 'Value 1'), decl_id: 'values/cell10002' };
+		nodes.set(10002, prepended);
+		parents.set(10002, 0);
+		nodes.set(0, { ...owner, children: [10002, ...owner.children] });
+		f.index.update({ nodesById: nodes, parentById: parents }, 1);
+		expect(f.index.child(f.owner, 'Value 1')).toBe(prepended);
+		expect(f.index.builds).toBe(1);
+	});
+	it('rebuilds for a middle insertion and still uses current first-child aliases', () => {
+		const f = fixture();
+		f.index.child(f.owner, 'Value 1');
+		const nodes = f.nodesById.fork(),
+			parents = f.parentById.fork();
+		const inserted = { ...fixtureNode(5, 'Value 1'), decl_id: 'values/cell5' };
+		nodes.set(5, inserted);
+		parents.set(5, 0);
+		nodes.set(0, { ...f.owner, children: [1, 5, 2, 3, 4] });
+		f.index.update({ nodesById: nodes, parentById: parents }, 1);
+		expect(f.index.child(f.owner, 'cell5')).toBe(inserted);
+		expect(f.index.child(f.owner, 'Value 1')?.node_id).toBe(1);
+		expect(f.index.builds).toBe(2);
+	});
+	it('refreshes aliases when a child record arrives after its membership', () => {
+		const f = fixture();
+		f.index.child(f.owner, 'Value 1');
+		let nodes = f.nodesById.fork();
+		const parents = f.parentById.fork();
+		nodes.set(0, { ...f.owner, children: [...f.owner.children, 5] });
+		parents.set(5, 0);
+		f.index.update({ nodesById: nodes, parentById: parents }, 1);
+		expect(f.index.child(f.owner, 'cell5')).toBeNull();
+		nodes = nodes.fork();
+		const child = { ...fixtureNode(5, 'Value 1'), decl_id: 'values/cell5' };
+		nodes.set(5, child);
+		f.index.update({ nodesById: nodes, parentById: parents }, 1);
+		expect(f.index.child(f.owner, 'cell5')).toBe(child);
+		expect(f.index.child(f.owner, 'Value 1')?.node_id).toBe(1);
+	});
 	it('resolves a large folder once and reads current records after ordinary publications', () => {
 		const f = fixture(10000);
 		for (let id = 1; id <= 10000; id++)

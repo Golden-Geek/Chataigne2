@@ -13,6 +13,7 @@ pub(super) struct Plan {
     pub revision: SubtreeRevision,
     pub rows: Vec<Row>,
     pub removals: Vec<NodeId>,
+    pub known_outputs: HashSet<NodeId>,
 }
 
 /// Inspect the leased immutable view on the worker. The engine receives only
@@ -33,6 +34,13 @@ pub(super) fn capture(
             .ok_or("Spatializer values disappeared")?,
         rows: Vec::new(),
         removals: obsolete(snapshot, values, outer_decls),
+        known_outputs: snapshot
+            .child_ids_slice(values)
+            .iter()
+            .copied()
+            .filter(|id| snapshot.node(*id).is_some_and(|node| generated(&node.decl_id)))
+            .flat_map(|row| snapshot.child_ids_slice(row).iter().copied())
+            .collect(),
     };
     let range = unit_value_constraints().range;
     for (index, endpoint) in prepared.outer().iter().enumerate() {

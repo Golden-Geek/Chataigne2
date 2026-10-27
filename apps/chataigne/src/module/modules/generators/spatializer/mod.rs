@@ -153,6 +153,20 @@ struct FloatChildSpec {
     parameter: fn(f64) -> Parameter,
 }
 
+fn output_ownership_changed(events: &EventFrame) -> bool {
+    events.iter().any(|event| {
+        matches!(
+            event.kind,
+            EventKind::ChildMoved { .. }
+                | EventKind::ChildRemoved { .. }
+                | EventKind::ChildReplaced { .. }
+                | EventKind::NodeDeleted { .. }
+                | EventKind::MetaChanged { .. }
+                | EventKind::GraphTransaction { .. }
+        )
+    })
+}
+
 #[node("spatializer_module", label = "Spatializer")]
 #[children(
     folder(connection) {
@@ -269,15 +283,24 @@ impl Node for SpatializerModule {
         false
     }
     fn inbox_requires_tree_snapshot(&self, events: &EventFrame) -> bool {
-        events
-            .iter()
-            .any(|event| matches!(event.kind, EventKind::ParamChanged { .. }))
+        let ownership_changed = output_ownership_changed(events);
+        events.iter().any(|event| {
+            matches!(event.kind, EventKind::ParamChanged { param, .. }
+                if ownership_changed || !self.service.generated_output(param))
+        })
     }
     fn on_inbox(&mut self, ctx: &mut ProcessCtx) {
         self.service.invalidate_view();
+        if output_ownership_changed(&ctx.events) {
+            self.service.invalidate_output_echoes();
+        }
         self.dispatch_inbox(ctx);
+        self.service.observe_inbox(ctx);
     }
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, old_value: ParamValue) {
+        if self.service.generated_output(param) {
+            return;
+        }
         if let Some(snapshot) = ctx.tree_snapshot_arc() {
             if self.parameter_event(&snapshot, param) {
                 self.request_service();

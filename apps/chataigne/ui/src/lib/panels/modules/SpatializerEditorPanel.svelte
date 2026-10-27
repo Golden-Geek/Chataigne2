@@ -18,10 +18,11 @@
 	} from './spatializer/geometry.svelte';
 	import { createSpatializerInteraction } from './spatializer/interaction.svelte';
 	import { createSpatializerNavigation } from './spatializer/navigation.svelte';
+	import { SpatializerModuleCatalog } from './spatializer/module-catalog';
+	import { SpatializerEndpointCache } from './spatializer/endpoint-cache';
 	import SpatializerWorld from './spatializer/SpatializerWorld.svelte';
 	import RelatedValues from './spatializer/RelatedValues.svelte';
 	import {
-		SPATIALIZER_MODULE_TYPE,
 		SOURCE_LIST_TYPE,
 		TARGET_LIST_TYPE,
 		SOURCE_TYPE,
@@ -149,14 +150,10 @@
 		() => graph,
 		() => session?.snapshotGeneration
 	);
-	let modules = $derived.by((): UiNodeDto[] => {
-		if (!graph) {
-			return [];
-		}
-		return [...graph.nodesById.values()]
-			.filter((candidate) => candidate.node_type === SPATIALIZER_MODULE_TYPE)
-			.sort((left, right) => left.meta.label.localeCompare(right.meta.label));
-	});
+	const moduleCatalog = new SpatializerModuleCatalog();
+	let modules = $derived(
+		moduleCatalog.update(graph?.nodesById ?? null, session?.snapshotGeneration)
+	);
 
 	let activeModule = $derived.by((): UiNodeDto | null => {
 		if (modules.length === 0) {
@@ -179,6 +176,7 @@
 	);
 	let prefer3d = $derived(dimensionMode === '3d');
 
+	const endpointCache = new SpatializerEndpointCache();
 	let rawEndpoints = $derived.by((): SpatialEndpoint[] => {
 		const sources = childNodes(sourceList)
 			.filter((node) => node.node_type === SOURCE_TYPE)
@@ -186,7 +184,7 @@
 		const targets = childNodes(targetList)
 			.filter((node) => node.node_type === TARGET_TYPE)
 			.map((node, index) => endpointFromNode(node, 'target', index, prefer3d));
-		return [...targets, ...sources];
+		return endpointCache.reconcile([...targets, ...sources], session?.snapshotGeneration);
 	});
 
 	let endpoints = $derived(
