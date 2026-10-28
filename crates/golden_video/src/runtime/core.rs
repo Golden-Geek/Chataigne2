@@ -16,7 +16,8 @@ use super::identity::{CompletionToken, DeviceGeneration, GenerationId, PlanIdent
 /// Allocation and pending-use ceilings for one renderer.
 #[derive(Clone, Copy, Debug)]
 pub struct ResourceLimits {
-    /// Full prepared/live/retiring resource charge, including backend padding and pools.
+    /// Backend-declared resource charge across baseline/prepared/live/retiring pools.
+    /// Native physical residency and opaque driver overhead require separate qualification.
     pub max_bytes: u64,
     /// At most two submitted batches may await completion.
     pub max_in_flight: NonZeroUsize,
@@ -55,7 +56,7 @@ pub struct SubmissionInfo {
 pub struct ResourceSnapshot {
     /// Configured full-resource ceiling.
     pub byte_limit: u64,
-    /// Currently reserved bytes, including prepared candidates outside the live core.
+    /// Currently reserved bytes, including baseline resources and prepared candidates.
     pub bytes_used: u64,
     /// Highest reserved byte total in this runtime lifetime.
     pub peak_bytes: u64,
@@ -234,6 +235,8 @@ pub(crate) struct RenderCore<B: Backend> {
     completed: u64,
     device_lost: bool,
     rebuild: Option<(PlanIdentity, CompiledPlan)>,
+    // Last field: even failed initialization/unwinding drops the backend before its charge.
+    _base_lease: BudgetLease,
 }
 
 impl<B: Backend> RenderCore<B> {
@@ -244,11 +247,29 @@ impl<B: Backend> RenderCore<B> {
         if limits.max_retiring > 2 {
             return Err(CoreError::InvalidLimits("at most two retiring generations"));
         }
-        Ok(Self {
+        let bytes = backend.base_resource_bytes()?;
+        if bytes > limits.max_bytes {
+            return Err(CoreError::ResourceBudgetExceeded {
+                requested: bytes,
+                used: 0,
+                limit: limits.max_bytes,
+            });
+        }
+        let budget = Rc::new(RefCell::new(BudgetState {
+            used: bytes,
+            peak: bytes,
+            prepared: 0,
+        }));
+        let base_lease = BudgetLease {
+            state: budget.clone(),
+            bytes,
+            prepared: false,
+        };
+        let mut core = Self {
             backend,
             device,
             limits,
-            budget: Rc::default(),
+            budget,
             live: None,
             retiring: Vec::new(),
             in_flight: VecDeque::new(),
@@ -257,7 +278,10 @@ impl<B: Backend> RenderCore<B> {
             completed: 0,
             device_lost: false,
             rebuild: None,
-        })
+            _base_lease: base_lease,
+        };
+        core.backend.initialize().map_err(|error| core.backend_error(error))?;
+        Ok(core)
     }
 
     pub(crate) fn prepare(
@@ -373,17 +397,24 @@ impl<B: Backend> RenderCore<B> {
             serial,
         };
         let info = live.prepared.info;
-        self.backend
-            .submit(
-                live.prepared.resources.as_ref().unwrap(),
-                live.prepared.plan(),
-                token,
-                time,
-            )
-            .map_err(|error| self.backend_error(error))?;
+        let previous_use = live.last_use;
+        // Claim before entering the backend: if it unwinds after queuing commands, Drop must
+        // still drain this use. A pre-use rejection rolls the claim back below.
         self.submitted = serial;
         self.live.as_mut().unwrap().last_use = serial;
         self.in_flight.push_back(serial);
+        let live = self.live.as_ref().unwrap();
+        if let Err(error) = self.backend.submit(
+            live.prepared.resources.as_ref().unwrap(),
+            live.prepared.plan(),
+            token,
+            time,
+        ) {
+            self.in_flight.pop_back();
+            self.submitted = serial - 1;
+            self.live.as_mut().unwrap().last_use = previous_use;
+            return Err(self.backend_error(error));
+        }
         Ok(Some(SubmissionInfo {
             generation: info.generation,
             identity: info.identity,

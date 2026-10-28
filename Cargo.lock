@@ -60,6 +60,8 @@ version = "0.1.0"
 dependencies = [
  "golden_codegen_support",
  "golden_core",
+ "golden_time",
+ "golden_video",
  "serde_json",
  "tauri",
  "tauri-build",
@@ -3076,8 +3078,10 @@ version = "0.1.0"
 dependencies = [
  "golden_io",
  "golden_time",
+ "spout2-sys",
  "thiserror 2.0.18",
  "uuid",
+ "windows 0.61.3",
 ]
 
 [[package]]

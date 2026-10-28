@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "scope": "Finite native pipeline and shared-host integration; no sustained qualification",
+  "local_date": "2026-10-29",
+  "source_base_commit": "db9a1e06df12f7b0ae74202112363c5644b7e8b8",
+  "build_profile": "dev",
+  "selected_adapter": {
+    "index": 0,
+    "description": "Intel(R) Graphics",
+    "luid": "00000000:00016c2a",
+    "software": false
+  },
+  "artifacts_sha256": {
+    "target/debug/native_video_smoke.exe": "CA23F276DA70F2267ED0B795B0C71FAB71DE81987FDD36E52075BA4128DCAC47",
+    "target/debug/deps/golden_video-8595965ad3b42512.exe": "F7E5381FFF85A2C004B1EA98C7ED6B2F2CCBE85729496969EAFC440090CF044A"
+  },
+  "host_smoke": {
+    "command": "target/debug/native_video_smoke.exe --adapter 0",
+    "observed_finished_at_utc": "2026-10-28T23:14:20Z",
+    "exit_code": 0,
+    "execution": "Normal desktop access after sandbox preferences-directory access denied",
+    "listener": "127.0.0.1:50760",
+    "phases": [
+      {"name": "window-only", "outputs": 1, "cumulative_batches": 5, "cumulative_api_accepted": 5, "busy": 0, "unavailable": 0, "peak_reserved_descriptor_bytes": 3953712},
+      {"name": "spout-only", "outputs": 1, "cumulative_batches": 10, "cumulative_api_accepted": 10, "busy": 0, "unavailable": 0, "peak_reserved_descriptor_bytes": 5142576},
+      {"name": "shared-producer-after-client-resize", "outputs": 2, "cumulative_batches": 15, "cumulative_api_accepted": 20, "busy": 0, "unavailable": 0, "peak_reserved_descriptor_bytes": 5372976}
+    ],
+    "assertions_passed": [
+      "Window-only and Spout-only API acceptance before combined plan",
+      "Unordered DAG preparation and shared producer with all four blend modes",
+      "Fixed backing storage after ordinary client resize",
+      "Responsive UI and live HWND while outer task retains its lease",
+      "Runtime stopped, reserved bytes zero and native initialized false after retirement",
+      "HWND live through actual renderer retirement and destroyed after host return"
+    ]
+  },
+  "pixel_test": {
+    "command": "cargo test --locked -p golden_video --features d3d11 hardware_pipeline_matches_finite_color_alpha_filter_and_blend_oracles -- --ignored --nocapture --test-threads=1",
+    "exit_code": 0,
+    "component_tolerance_8bit_units": 2,
+    "readback": "Test-only, at most two pixels; no production frame readback",
+    "cases": [
+      {"name": "sRGB decode precedes interpolation", "rgba8": [128,128,128,255], "expected": [0.5,0.5,0.5,1.0]},
+      {"name": "Coverage premultiplication precedes interpolation", "rgba8": [0,128,0,128], "expected": [0.0,0.5,0.0,0.5]},
+      {"name": "Encoded premultiplied input", "rgba8": [27,7,67,128], "expected": [0.10744025875186575,0.0255378011214089,0.2622853290508007,0.5019607843137255]},
+      {"name": "Fractional-alpha Normal", "rgba8": [52,41,74,181], "expected": [0.2034786634379192,0.1604521384563688,0.2896147621269182,0.7116032328710149]},
+      {"name": "Fractional-alpha Add", "rgba8": [62,43,93,218], "expected": [0.24156863034940235,0.17019608348023657,0.3631372563979205,0.8533333423090916]},
+      {"name": "Fractional-alpha Multiply", "rgba8": [43,22,71,181], "expected": [0.17001153408037337,0.08620992097337629,0.27824682626573916,0.7116032328710149]},
+      {"name": "Fractional-alpha Screen", "rgba8": [58,42,89,181], "expected": [0.22926874520090257,0.16471511440431097,0.3508835073527534,0.7116032328710149]},
+      {"name": "Opaque sRGB output over black", "rgba8": [110,69,143,255], "expected": [0.432587295114217,0.26901521866799843,0.5606278160937596,1.0]},
+      {"name": "sRGB premultiplied output", "rgba8": [76,48,98,128], "expected": [0.29856146410420836,0.18914066624274428,0.3842135892625362,0.5019607843137255]}
+    ]
+  },
+  "continuing_limits": [
+    "API acceptance does not prove receiver delivery, displayed cadence or scanout",
+    "Spout SDK may wait up to 67 ms on access mutex and return true without copying after timeout",
+    "External inputs/Spout receivers are explicitly unsupported pending bounded source workers",
+    "Window backing extent is fixed; client resize uses DXGI stretch",
+    "Descriptor-storage reservations are not measured driver alignment, overhead or residency",
+    "Native device-loss/recreation and sustained Q01/Q02 budgets remain unqualified",
+    "Main MapGyver app remains the thin workbench; native consumer is the owned feature-gated smoke"
+  ],
+  "acceptance": {"m03_closed_gates": 3, "m03_total_gates": 9, "native_gate_3": "partial", "new_gates_closed": 0}
+}

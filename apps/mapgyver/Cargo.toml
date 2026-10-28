@@ -7,9 +7,12 @@ default-run = "MapGyver"
 
 [features]
 native-presentation-smoke = ["dep:windows"]
+native-video-smoke = ["dep:golden_video", "golden_video/d3d11", "dep:golden_time", "dep:windows"]
 
 [dependencies]
 golden_core = { path = "../../crates/golden_core" }
+golden_video = { path = "../../crates/golden_video", optional = true }
+golden_time = { workspace = true, optional = true }
 serde_json.workspace = true
 tauri = { version = "2", features = [] }
 
@@ -26,3 +29,10 @@ path = "tests/native_presentation/smoke.rs"
 test = false
 bench = false
 required-features = ["native-presentation-smoke"]
+
+[[bin]]
+name = "native_video_smoke"
+path = "tests/native_video/smoke.rs"
+test = false
+bench = false
+required-features = ["native-video-smoke"]

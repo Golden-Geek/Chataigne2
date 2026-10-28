@@ -172,9 +172,10 @@ impl<B: Backend> Runner<B> {
             let _ = self.core.wait_for_completion(Duration::from_millis(20));
         }
         let _ = self.core.clear_live();
-        let resources = self.core.snapshot();
+        let mut resources = self.core.snapshot();
         // Dispose renderer/backend objects before any final status/retirement observation.
         drop(self.core);
+        resources.bytes_used = 0;
         drop(self.preparation);
         while !self.preparation_lifetimes.wait_for_idle(Duration::from_millis(20)) {}
         while let Some(retirement) = self.project_retirements.pop_front() {

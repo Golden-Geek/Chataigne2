@@ -130,3 +130,72 @@ preview geometry and native qualification remain M03 work. The original
 cadence, memory-growth and retirement failures retain their unchanged Q01/Q02 budgets and
 [continuing owners](mapgyver-qualification-contract.md#acceptance-ownership-after-the-m01-scope-correction).
 No native capture, display/overlay change or rendered-pixel correctness pass was performed here.
+
+## Native D3D11 execution and owned host consumer — 2026-10-29
+
+The Windows-only, opt-in `golden_video/d3d11` feature now executes the real
+[`Backend` implementation](../../crates/golden_video/src/native/backend.rs) through the existing
+worker and resource core. MapGyver's feature-gated native smoke consumes public Golden APIs;
+the shared desktop host still owns window construction, WebView coordination and HWND lifetime.
+
+- Explicit adapter LUID selection creates the caller-owned D3D11 device without automatic
+  adapter/WARP fallback. Devices, contexts, views, SDK instances and textures remain worker-local.
+- The resource core admits the fixed backend baseline before native pool initialization.
+  That baseline reserves two window backbuffers per binding, one SDK shared texture per Spout
+  sender and the shader constant buffer. Plan admission additionally charges demanded targets,
+  compositing scratch and output conversion textures across prepared/live/retiring generations.
+  These owned-storage charges do not claim measured driver residency, alignment or object overhead.
+- The production shader executes clear/sample and ordered Normal, Add, Multiply and Screen
+  composition. sRGB decode and coverage premultiplication precede filtering; BGRA8/RGBA8 storage
+  and output transfer/alpha contracts remain explicit.
+- Output pools persist per device across plan generations, avoiding duplicate swapchains for
+  one HWND. Window presentation uses zero-time readiness and nonblocking Present. Spout senders
+  retain the exact caller device, validate texture layout and reject silent sender renaming.
+  Output failures remain bounded metadata rather than abandoning other consumers' queued work.
+- Preallocated event queries fence every queued batch. The submission guard establishes its
+  query on normal completion or unwind; resources retain their charge through actual last use.
+  The outer native-presentation task closes the runtime and waits for its retirement proof before
+  returning the HWND lease. A timeout alone never authorizes window destruction.
+
+Verified checks for this milestone:
+
+| Check | Result |
+| --- | --- |
+| Native-feature combined tests | IO: 58 unit tests; Time: 32 unit tests and 1 public-consumer test; Video: 65 unit tests and 2 public-consumer tests passed, with 1 hardware test initially ignored |
+| Explicit hardware pixel test | The ignored test was then run explicitly and passed 9 finite cases on Intel adapter LUID `00000000:00016c2a` |
+| Strict native-feature Clippy | All targets passed for IO, Time and Video |
+| Owned host consumer | `native_video_smoke --adapter 0` passed window-only, Spout-only and shared-producer phases after a client resize; HWND stayed live through renderer retirement and was destroyed before host return |
+
+The [finite hardware test](../../crates/golden_video/src/native/tests/pixels.rs) checks decode
+before interpolation, coverage before interpolation, encoded-premultiplied input, four blends
+with fractional alpha, opaque sRGB output and encoded-premultiplied output against numerical
+oracles with a `2/255` component tolerance. Readback is test-only. These nine cases are bounded
+pixel evidence, not the sustained scene/display matrix.
+
+The [owned smoke](../../apps/mapgyver/tests/native_video/smoke.rs) uses an isolated app identity,
+an explicit observed adapter and the same runtime controller/resource path. Separate single-output
+phases establish API acceptance for both consumers before the combined shared-producer phase.
+It also checks the UI remains responsive while the task retains its native window lease.
+The final rebuild/rerun also passes explicit stopped/zero-reservation/native-initialization-false
+assertions after retirement. Its [retained packet](evidence/mapgyver-m03-native-smoke-2026-10-29.json)
+records exact executable hashes, pixel values/references and cumulative phase observations.
+The normal suite passes 158 tests; its one initially ignored hardware test passes separately.
+Default-feature Video tests (62 unit + 2 public), default/native strict Clippy, strict smoke
+Clippy, both default app checks and required root/Core formatting also pass. No dependency
+versions were upgraded. The initial sandbox smoke attempt could not create its isolated
+preferences directory; the final owned run succeeded with normal desktop access.
+
+Spout's pinned SDK can wait up to **67 ms** for its texture-access mutex and still return true
+after a timeout without copying. The current shim cannot distinguish that skip from delivery.
+`accepted_outputs` therefore means API acceptance, not receiver delivery or scanout; this bounded
+SDK limitation remains visible in cadence/qualification work.
+
+External inputs, including Spout receivers, are explicitly rejected until bounded source workers
+are integrated. Window backing extents remain fixed: a client resize exercises **DXGI stretch**,
+not dynamic preview registration, physical backing-buffer resize or DPI qualification. Native
+device-loss/recreation has no hardware proof yet. Sustained native CPU/GPU/cadence/frame-age,
+admission/memory/handle/shutdown budgets and full recovery remain open.
+
+Gate 3 remains **partial** and M03 remains **3/9** accepted gates. No gate was awarded for this
+checkpoint; gates 4, 8 and 9 retain their unverified native scope. The original Q01/Q02 budgets
+and failures remain with their [continuing owners](mapgyver-qualification-contract.md#acceptance-ownership-after-the-m01-scope-correction).

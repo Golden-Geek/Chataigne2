@@ -22,7 +22,7 @@ pub enum SampleFilter {
 pub enum BlendMode {
     /// Normal alpha-over composition.
     Normal,
-    /// Additive color blending.
+    /// Porter-Duff Plus: add linear premultiplied RGBA and saturate each component to one.
     Add,
     /// Multiply color blending.
     Multiply,

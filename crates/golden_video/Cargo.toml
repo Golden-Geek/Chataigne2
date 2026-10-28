@@ -7,8 +7,24 @@ license.workspace = true
 repository.workspace = true
 description = "App-neutral video render plans and worker-owned resource foundations"
 
+[features]
+d3d11 = ["dep:windows", "dep:spout2-sys"]
+
 [dependencies]
 golden_io.workspace = true
 golden_time.workspace = true
 thiserror.workspace = true
 uuid.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+spout2-sys = { version = "=0.1.1", default-features = false, features = ["dx"], optional = true }
+windows = { version = "=0.61.3", optional = true, features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Direct3D",
+    "Win32_Graphics_Direct3D_Fxc",
+    "Win32_Graphics_Direct3D11",
+    "Win32_Graphics_Dxgi",
+    "Win32_Graphics_Dxgi_Common",
+    "Win32_System_Threading",
+    "Win32_UI_WindowsAndMessaging",
+] }

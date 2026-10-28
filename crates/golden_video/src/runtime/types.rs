@@ -15,7 +15,7 @@ use super::identity::{CompletionToken, GenerationId, PlanIdentity, ProjectEpoch}
 pub struct RuntimeConfig {
     /// Submitted graph limits, checked on the preparation worker.
     pub plan_limits: PlanLimits,
-    /// Whole prepared/live/in-flight/retiring generation resource ceiling.
+    /// Declared baseline/prepared/live/in-flight/retiring resource-charge ceiling.
     pub resource_limits: ResourceLimits,
     /// Independent frame cadence, not a source of show-time advancement.
     pub frame_rate: golden_time::RationalRate,

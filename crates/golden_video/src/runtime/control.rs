@@ -29,8 +29,20 @@ pub struct VideoRuntime {
     runtime: Uuid,
     next_request: u64,
     config: RuntimeConfig,
-    null: NullControl,
+    backend: BackendControl,
     retirement: RuntimeRetirement,
+}
+
+enum BackendControl {
+    Null(NullControl),
+    #[cfg(all(windows, feature = "d3d11"))]
+    D3d11(crate::native::D3d11Control),
+}
+
+enum BackendStart {
+    Null(NullConfig, NullControl),
+    #[cfg(all(windows, feature = "d3d11"))]
+    D3d11(crate::native::D3d11Config, crate::native::D3d11Control),
 }
 
 /// Explicit worker retirement observation for a host/shutdown worker, never an actor/UI callback.
@@ -79,6 +91,22 @@ impl VideoRuntime {
         null_config: NullConfig,
         clock: Arc<dyn Clock>,
     ) -> Result<Self, RuntimeStartError> {
+        Self::spawn(config, clock, BackendStart::Null(null_config, NullControl::new()))
+    }
+
+    /// Starts native execution on an explicitly selected hardware adapter. Native resources
+    /// are created on the render worker after baseline admission, never on the caller/UI.
+    #[cfg(all(windows, feature = "d3d11"))]
+    pub fn spawn_d3d11(config: RuntimeConfig, native: crate::native::D3d11Config) -> Result<Self, RuntimeStartError> {
+        native.validate(&config)?;
+        Self::spawn(
+            config,
+            Arc::new(SystemClock::new()),
+            BackendStart::D3d11(native, Default::default()),
+        )
+    }
+
+    fn spawn(config: RuntimeConfig, clock: Arc<dyn Clock>, backend: BackendStart) -> Result<Self, RuntimeStartError> {
         if config.max_input_bytes > config.max_retained_input_bytes {
             return Err(RuntimeStartError::InvalidConfig(
                 "per-plan input limit exceeds aggregate limit",
@@ -123,10 +151,13 @@ impl VideoRuntime {
             preparation: preparation_lifetimes.clone(),
             payloads: payloads.clone(),
         };
-        let null = NullControl::new();
         let run_shared = shared.clone();
         let run_config = config.clone();
-        let run_null = null.clone();
+        let control = match &backend {
+            BackendStart::Null(_, control) => BackendControl::Null(control.clone()),
+            #[cfg(all(windows, feature = "d3d11"))]
+            BackendStart::D3d11(_, control) => BackendControl::D3d11(control.clone()),
+        };
         let worker = BoundedWorker::<(), ()>::spawn(
             "golden-video-render",
             &lifetimes,
@@ -136,8 +167,8 @@ impl VideoRuntime {
                 event_items: 1,
                 event_weight: 1,
             },
-            move |context| {
-                super::worker::run(
+            move |context| match backend {
+                BackendStart::Null(null_config, run_null) => super::worker::run(
                     context,
                     run_shared,
                     run_config,
@@ -146,12 +177,27 @@ impl VideoRuntime {
                     preparation_lifetimes,
                     device,
                     authority,
-                )
+                ),
+                #[cfg(all(windows, feature = "d3d11"))]
+                BackendStart::D3d11(native_config, native_control) => super::worker::run_d3d11(
+                    context,
+                    run_shared,
+                    run_config,
+                    native_config,
+                    native_control,
+                    preparation_lifetimes,
+                    device,
+                    authority,
+                ),
             },
         )?;
         let wake = worker.wake_notifier();
         shared.set_waker(wake.clone());
-        null.set_waker(wake);
+        match &control {
+            BackendControl::Null(null) => null.set_waker(wake),
+            #[cfg(all(windows, feature = "d3d11"))]
+            BackendControl::D3d11(_) => {}
+        }
         Ok(Self {
             worker,
             shared,
@@ -161,7 +207,7 @@ impl VideoRuntime {
             runtime,
             next_request: 0,
             config,
-            null,
+            backend: control,
             retirement,
         })
     }
@@ -347,8 +393,21 @@ impl VideoRuntime {
         self.retirement.clone()
     }
     /// Qualification-only manual completion/failure control, carrying metadata only.
-    pub fn null_control(&self) -> NullControl {
-        self.null.clone()
+    pub fn null_control(&self) -> Option<NullControl> {
+        match &self.backend {
+            BackendControl::Null(control) => Some(control.clone()),
+            #[cfg(all(windows, feature = "d3d11"))]
+            BackendControl::D3d11(_) => None,
+        }
+    }
+
+    /// Native metadata reader, present only for a D3D11 runtime.
+    #[cfg(all(windows, feature = "d3d11"))]
+    pub fn d3d11_control(&self) -> Option<crate::native::D3d11Control> {
+        match &self.backend {
+            BackendControl::D3d11(control) => Some(control.clone()),
+            BackendControl::Null(_) => None,
+        }
     }
     /// Wakes an injected-clock service after the caller advances its fake source.
     pub fn wake(&self) {

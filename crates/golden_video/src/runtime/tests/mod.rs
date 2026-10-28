@@ -107,7 +107,7 @@ impl Harness {
     fn new(config: RuntimeConfig, null: NullConfig) -> Self {
         let clock = TestClock::at(0);
         let runtime = VideoRuntime::spawn_null_with_clock(config, null, clock.clone()).unwrap();
-        let null = runtime.null_control();
+        let null = runtime.null_control().expect("null runtime control");
         let retirement = runtime.retirement();
         let mut harness = Self {
             runtime: Some(runtime),

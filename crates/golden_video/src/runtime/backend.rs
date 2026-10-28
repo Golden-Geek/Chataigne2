@@ -25,13 +25,30 @@ pub enum BackendError {
     /// A qualification control was already attached to a different backend.
     #[error("null qualification control is already bound")]
     AlreadyBound,
+    /// The compiled plan needs a source or consumer not supported by this backend binding.
+    #[error("render plan has an unsupported or unbound native resource")]
+    #[cfg(all(windows, feature = "d3d11"))]
+    UnsupportedPlan,
 }
 
 /// Private worker-local backend boundary. Resources intentionally have no Send/Sync bound.
-pub(super) trait Backend {
+pub(crate) trait Backend {
     type Resources;
 
-    /// Full allocation charge, including any padding/pools retained by this generation.
+    /// Fixed charge for resources retained independently of prepared/live generations.
+    /// Construction must defer these allocations until `initialize`, after admission.
+    fn base_resource_bytes(&self) -> Result<u64, BackendError> {
+        Ok(0)
+    }
+
+    /// Allocates the admitted baseline without submitting untracked GPU work. On failure,
+    /// the backend is dropped while its reservation remains held, including partial resources.
+    fn initialize(&mut self) -> Result<(), BackendError> {
+        Ok(())
+    }
+
+    /// Declared resource charge including every pool retained by this generation. Backends
+    /// must distinguish descriptor storage from measured physical/driver memory claims.
     fn resource_bytes(&self, plan: &CompiledPlan) -> Result<u64, BackendError>;
 
     /// Allocates without submitting untracked GPU use. Failure retires partial allocations
@@ -40,6 +57,7 @@ pub(super) trait Backend {
 
     /// Success establishes the proposed completion token. Non-device-loss errors must occur
     /// before any GPU use; a backend may not abandon resources after a partial submission.
+    /// Unwinding must also establish completion (or confirmed loss) for the proposed token.
     fn submit(
         &mut self,
         resources: &Self::Resources,
@@ -54,5 +72,7 @@ pub(super) trait Backend {
     fn wait_for_completion(&mut self, timeout: Duration) -> Result<(), BackendError>;
 
     /// Called only after confirmed loss and disposal of the old generation's resources.
+    /// Replaces baseline resources within the original fixed charge, which remains reserved
+    /// throughout old-resource disposal, replacement and any failed reset attempt.
     fn reset(&mut self, device: DeviceGeneration) -> Result<(), BackendError>;
 }

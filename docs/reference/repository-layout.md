@@ -36,7 +36,7 @@ crates/
 │       └── macros/              proc macros
 ├── golden_graph/                app-agnostic graph documents and transactions
 ├── golden_time/                 shared coordinates, rational mapping and time/activation authority
-└── golden_video/                render-plan compiler and bounded worker/null runtime; native work continues in M03
+└── golden_video/                compiler, bounded worker/null runtime and optional Windows D3D11/output backend
 ```
 
 App metadata comes from the engine's pure `ProjectLifecycle` hooks; shared desktop listener and
@@ -112,12 +112,15 @@ These boundaries distinguish implemented foundations from planned product featur
 
 - `apps/mapgyver/systems/{media,screen,matrix}/`: app-owned models, operations and integration.
 - `apps/mapgyver/ui/`: future Screen, Surface Source, Composition and Matrix editors.
-- `crates/golden_video/`: compiler and worker/null runtime exist; native compositor, Spout and
-  presentation continue in M03, using the shared `crates/golden_time/` authority.
+- `crates/golden_video/`: compiler, worker/null runtime and optional D3D11 compositor with
+  fixed window/Spout outputs exist. Source workers and complete native integration/qualification
+  continue in M03, using the shared `crates/golden_time/` authority.
 - `packages/golden-video-ui/`: future reusable native-preview bindings; host integration stays shared.
 
 The optional typed native-presentation host lifecycle is implemented and exercised in M02.
-Production renderer integration and native qualification retain their M03/M05 owners. See the
+Complete renderer integration and native qualification retain their M03/M05 owners. The
+owned `native_video_smoke` executable under `apps/mapgyver/tests/native_video/` for the first
+real D3D11/runtime/host consumer. The main app still uses the thin workbench. See the
 [architecture](../architecture/mapgyver.md), [plan](../plan/MapGyver_Implementation_Plan.md) and
 [current acceptance](../progress/mapgyver-status.md).
 

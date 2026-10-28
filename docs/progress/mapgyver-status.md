@@ -2,17 +2,19 @@
 
 ## At a glance
 
-**Updated: 2026-10-28 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
+**Updated: 2026-10-29 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
 **Current topic:** M03's compiler, bounded worker/null runtime and shared time authority are
-verified (3/9). The [source evidence](mapgyver-m03-render-foundations.md) covers graph validation,
-completion-based resource ownership, admission bounds and scheduled activation. M02's
+verified (3/9). The initial [native compositor/output path](mapgyver-m03-render-foundations.md)
+now passes finite pixel checks and an owned shared-host smoke. Native gate 3 remains partial:
+bounded receiver workers and complete native integration are still open. M02's
 [shell and lifecycle evidence](mapgyver-m02-shell.md) remains accepted.
 The [approved M01 route decision](mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28)
 remains scoped functional acceptance; renderer, physical-output and full-app qualification
 retain their M03/M05/M09 owners.
 
-**Next:** integrate the D3D11/Spout production backend and shared native host with this runtime.
+**Next:** add bounded Spout source workers with descriptor admission, reconnect and independent
+GPU-use retirement; consume them through the existing native runtime.
 **Blocker:** none for the next M03 source batch. Known cadence, memory-growth, geometry and display/input failures
 remain open under M03/M05/M09; their budgets and evidence are unchanged.
 
@@ -128,7 +130,7 @@ functional gate, not a retrospective pass of the original eight-item matrix.
 | --- | --- | --- |
 | Immutable render/resource plan compiler | Done | [Compiler evidence](mapgyver-m03-render-foundations.md#immutable-render-plan-compiler--2026-10-28): explicit texture/color/alpha, deterministic whole-graph validation/demand compilation, bounded raw work/checked logical bytes, 29 tests including a 10k chain. No runtime/native admission pass is inferred. |
 | Bounded worker/null runtime and atomic install | Done | [Runtime evidence](mapgyver-m03-render-foundations.md): Golden IO workers/fences, one preparation/latest desired plan, bounded reliable outcomes and resource admission, frame-boundary install, at most two in-flight uses/two retiring generations, completion-based worker-local destruction. Null resources simulate allocation/use; native proof stays open. |
-| D3D11/Spout backend and host integration | Open | Opaque GPU resources, explicit adapter/caller-device ownership, compositing/conversion and real shared-host presentation consumer. |
+| D3D11/Spout backend and host integration | Open | [Initial native delivery](mapgyver-m03-render-foundations.md): explicit hardware LUID/caller-device ownership, four-mode composition/conversion, window/Spout outputs and real shared-host smoke pass. External receiver workers are explicitly unsupported pending bounded integration; the full gate remains open. |
 | Runtime observations and device recovery | Open | Source/output state, device removal/recreation, healthy-path independence, cancellation and bounded production recovery/retirement. |
 | App-owned media/channel backend contracts | Open | Stable IDs/references, backend size/default operations, Rust-generated contracts and actual history/reload/recreation coverage. |
 | Shared production-time authority | Done | [Golden Time](../../crates/golden_time/README.md) supplies checked coordinates/rational mappings and authority/discontinuity epochs consumed by the threaded video scheduler; fake-time activation/shared-output and stale-epoch tests pass. Shared P14 plan records this evidence; audio/DMX acceptance remains open. |
@@ -233,8 +235,9 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 The user approved the scope correction on 2026-10-28 and explicitly instructed continuation
 to M02. Its shell/isolation and typed host lifecycle deliveries now close all seven fixed
 items. M03's fixed compiler, worker/null-runtime and shared-time gates are now verified.
-Integrate the D3D11/Spout backend and shared native host next, using these ownership/scheduling
-contracts. App-owned channel, shared asset and preview contracts retain their public owners.
+The first D3D11 compositor/window/Spout output path and shared-host consumer are now exercised.
+Add bounded Spout source workers next, with admitted descriptors, reconnect and their own GPU
+completion before retirement. App-owned channel, shared asset and preview contracts retain their public owners.
 Deliver each coherent batch
 on `mapgyver` before starting the next. Preserve
 Chataigne's root default and unfinished P11 work. No new M01 captures, consumer-control cohorts,
@@ -380,6 +383,29 @@ Preserve Chataigne's unfinished engine/Spatializer P11 checkpoint (four of six f
 and its [separate ledger](implementation-status.md). Shared P12 boundary repairs belong to M02;
 P14/P15 time and asset contracts retain their shared Golden owners under M03. Root launch
 behavior is unchanged. No production host/backend/binding decision is final yet.
+
+## M03 native checkpoint — 2026-10-29
+
+- Entered this batch from published `db9a1e06`, independently verified equal to the remote
+  with a clean checkout. The optional Windows D3D11 backend now runs the real compiler/worker/
+  core path, four-mode composition/conversion, persistent fixed window and Spout outputs.
+- Baseline admission precedes output-pool allocation; generation charges include scratch and
+  converted output textures. Submission claims and preallocated query guards retain ownership
+  on unwind. New baseline admission/drop/reset and submission-unwind regressions pass.
+- [Native evidence](mapgyver-m03-render-foundations.md#native-d3d11-execution-and-owned-host-consumer--2026-10-29)
+  and its [exact-artifact packet](evidence/mapgyver-m03-native-smoke-2026-10-29.json) retain nine
+  finite pixel cases at `2/255` tolerance and the public shared-host smoke on Intel LUID
+  `00000000:00016c2a`. Separate output phases and the combined shared-producer plan pass after
+  client resize; stopped observations show zero reserved bytes and native resources retired
+  before HWND destruction. API acceptance is not proof of delivery/scanout.
+- Native-feature suites pass **158 tests**, with the one hardware test then run explicitly
+  and passed. Default Video tests pass **62 unit + 2 public**. Strict default/native and smoke
+  Clippy, both default app compile checks, root/Core formatters and whitespace checks pass.
+- Gate 3 remains **partial**, M03 remains **3/9 = 33%**, overall **3/10 = 30%**. Bounded Spout
+  receiver workers are next. Fixed DXGI stretch, descriptor-only native storage charges and
+  the SDK's possible 67-ms mutex wait/true-on-skip remain explicit limitations. No physical
+  output/DPI, native device-loss or sustained Q01/Q02 budget pass is inferred. Existing
+  failures and qualification ownership remain unchanged; the main app is still the workbench.
 
 ## M03 verification — 2026-10-28
 

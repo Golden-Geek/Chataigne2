@@ -50,8 +50,11 @@ and authority/discontinuity epochs. Apps own transport policy; specialized sched
 preparation, lateness and once-only effects. `golden_video::runtime` uses that authority with
 Golden IO workers for bounded preparation, frame-boundary installation and completion-based
 resource retirement. Its control/events contain CPU inputs or metadata, never backend objects.
-The current null backend verifies ownership and scheduling only; native host consumption and
-GPU qualification remain open. See [Golden Video](../../crates/golden_video/README.md) and
+The null backend verifies ownership and scheduling. The optional Windows D3D11 backend now
+executes composition and fixed window/Spout outputs through the same runtime, with an owned
+shared-host smoke consumer. Persistent pools reserve a baseline before allocation; completion
+records survive submission unwind. External sources, dynamic preview bindings, native recovery
+and full GPU qualification remain open. See [Golden Video](../../crates/golden_video/README.md) and
 [Golden Time](../../crates/golden_time/README.md) for the public boundaries.
 
 For queued native-derived edits, `golden_engine::edit::EditQueue::retain_payload` attaches an

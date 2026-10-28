@@ -4,7 +4,7 @@
 //! worker-local through matching device completion and retirement. Closing or observing a final
 //! event is not a native-window lifetime proof; use the dedicated retirement handle off UI/actor.
 
-mod backend;
+pub(crate) mod backend;
 mod cadence;
 mod control;
 mod core;

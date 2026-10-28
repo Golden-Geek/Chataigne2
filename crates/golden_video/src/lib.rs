@@ -12,6 +12,9 @@ pub mod plan;
 mod resource;
 pub mod runtime;
 
+#[cfg(all(windows, feature = "d3d11"))]
+pub mod native;
+
 pub use color::{ColorError, LinearColor, Opacity};
 pub use identity::{OutputId, PassId, TextureId};
 pub use resource::{AlphaMode, ColorEncoding, Extent2D, PixelFormat, TextureDescriptor, TextureError};

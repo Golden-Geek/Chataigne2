@@ -3,8 +3,8 @@
 MapGyver is a video mapping application alongside Chataigne, using the same Golden Core,
 workbench, parameter system, scripting, transport, and persistence foundations. Its first target
 is Windows x64 (`x86_64-pc-windows-msvc`). The M02 shell/shared-host seams are implemented, and
-M03 has introduced Golden Video's render-plan compiler, bounded worker/null runtime and shared
-Golden Time scheduling. Media, mapping, Matrix and
+M03 has introduced Golden Video's compiler, bounded worker runtime, shared Golden Time scheduling
+and an initial D3D11 compositor with window/Spout outputs. Media, mapping, Matrix and
 the specialized editors below remain planned. Execution belongs to the
 [MapGyver plan](../plan/MapGyver_Implementation_Plan.md) and its
 [status ledger](../progress/mapgyver-status.md).
@@ -21,7 +21,7 @@ editors. Golden owns reusable execution and presentation mechanisms.
 | `apps/mapgyver/systems/screen/` | Screen/surface definitions, crop/pin/calibration authoring, output policy, backend intents and integration nodes |
 | `apps/mapgyver/systems/matrix/` | Cells, layers, groups, columns, transitions, exported channels, app associations and demand policy |
 | `apps/mapgyver/ui/` | Svelte 5 Screen, Surface Source, Composition and Matrix editors; app registrations and focused editor stores |
-| `crates/golden_video/` | Render-plan compiler and bounded worker/null runtime; native GPU operations, Spout/presentation and qualification remain in M03 |
+| `crates/golden_video/` | Compiler, bounded worker/null runtime and optional Windows D3D11 compositor/window/Spout outputs; source workers, complete native integration and qualification continue in M03 |
 | `crates/golden_time/` | Typed monotonic/show/sample coordinates, rational mappings, authority epochs and activation observations; apps own transport policy |
 | `packages/golden-video-ui/` (proposed) | Reusable native preview registration, geometry and capability bindings; no mapping policy |
 | Existing Golden Core hosts and Golden UI | Shared desktop/headless startup, native window integration, workbench, inspectors, history, dialogs, generated transport and persistence |
@@ -42,8 +42,16 @@ retirement pools. One preparation and the latest desired plan feed frame-boundar
 reliable outcomes retain admission credits until drained. Worker-local backend resources remain
 charged across prepared/live/retiring generations until matching device completion. Control drop
 does not join; the host must observe actual retirement before destroying an owned native window.
-The null backend exercises this path with simulated allocation/completion, without GPU or pixel
-qualification. See the [runtime/time evidence](../progress/mapgyver-m03-render-foundations.md).
+The null backend exercises ownership with simulated allocation/completion. The optional Windows
+backend now executes demanded clear/sample/composite passes, all four blend modes and declared
+color/alpha conversion on D3D11. Native output pools belong to the device lifetime and reserve a
+visible baseline before allocation; generation charges include conversion and compositing scratch
+textures. These descriptor-storage charges do not measure opaque driver overhead or residency.
+Completion queries are preallocated, and unwind also marks the admitted use before resource drain.
+The [owned host consumer](../../apps/mapgyver/tests/native_video/smoke.rs) composes this public
+runtime with Golden's window lifecycle. External source workers and dynamic preview geometry
+remain open; the main app is still the thin workbench. See the
+[runtime/native evidence](../progress/mapgyver-m03-render-foundations.md).
 
 The filesystem sketch above names responsibility boundaries, not a requirement to create one
 crate per folder. Keep cohesive app systems in the app crate until an exercised public consumer

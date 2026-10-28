@@ -58,18 +58,67 @@ pub(super) fn run(
     device: DeviceGeneration,
     authority: TimeAuthority<Arc<dyn Clock>>,
 ) {
+    run_backend(
+        context,
+        shared,
+        config,
+        preparation_lifetimes,
+        device,
+        authority,
+        null_config.preparation_delay,
+        move || {
+            NullBackend::new(null_config, device, null)
+                .map_err(|error| RuntimeFailure::new(FailureCode::Backend, error))
+        },
+    );
+}
+
+#[cfg(all(windows, feature = "d3d11"))]
+#[allow(clippy::too_many_arguments)]
+pub(super) fn run_d3d11(
+    context: WorkerContext<(), ()>,
+    shared: Arc<Shared>,
+    config: RuntimeConfig,
+    native_config: crate::native::D3d11Config,
+    native_control: crate::native::D3d11Control,
+    preparation_lifetimes: RetirementPool,
+    device: DeviceGeneration,
+    authority: TimeAuthority<Arc<dyn Clock>>,
+) {
+    run_backend(
+        context,
+        shared,
+        config,
+        preparation_lifetimes,
+        device,
+        authority,
+        Duration::ZERO,
+        move || Ok(crate::native::D3d11Backend::new(native_config, native_control, device)),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+fn run_backend<B: Backend>(
+    context: WorkerContext<(), ()>,
+    shared: Arc<Shared>,
+    config: RuntimeConfig,
+    preparation_lifetimes: RetirementPool,
+    device: DeviceGeneration,
+    authority: TimeAuthority<Arc<dyn Clock>>,
+    preparation_delay: Duration,
+    create: impl FnOnce() -> Result<B, RuntimeFailure>,
+) {
     let run_shared = shared.clone();
     let prepare_pool = preparation_lifetimes.clone();
     let result = catch_unwind(AssertUnwindSafe(move || {
-        let backend = NullBackend::new(null_config, device, null)
-            .map_err(|error| RuntimeFailure::new(FailureCode::Backend, error))?;
+        let backend = create()?;
         let core = RenderCore::new(backend, device, config.resource_limits)
             .map_err(|error| RuntimeFailure::new(FailureCode::ResourcePressure, error))?;
         let preparation = preparation::start(
             &prepare_pool,
             context.wake_notifier(),
             config.plan_limits,
-            null_config.preparation_delay,
+            preparation_delay,
         )
         .map_err(|error| RuntimeFailure::new(FailureCode::Backend, error))?;
         let time = run_shared.snapshot().time;
