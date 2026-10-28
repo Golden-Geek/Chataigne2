@@ -4,7 +4,9 @@
 
 mod desktop;
 mod desktop_commands;
+mod desktop_window;
 mod host_config;
+mod native_presentation;
 #[cfg(test)]
 mod tests;
 mod window_state;
@@ -12,9 +14,11 @@ mod window_state;
 mod windows_process_job;
 
 pub use desktop::{
-    LaunchArgs, launch_engine_with_args, launch_engine_with_config, launch_engine_with_ui_assets,
-    launch_engine_with_ui_assets_and_dev_server, launch_with_args, launch_with_config, launch_with_ui_assets,
-    launch_with_ui_assets_and_dev_server, parse_launch_args, parse_launch_args_from_env, run_default,
-    run_default_with_config, run_default_with_ui_assets, run_default_with_ui_assets_and_dev_server,
+    LaunchArgs, launch_engine_with_args, launch_engine_with_config, launch_engine_with_native_presentation,
+    launch_engine_with_ui_assets, launch_engine_with_ui_assets_and_dev_server, launch_with_args, launch_with_config,
+    launch_with_ui_assets, launch_with_ui_assets_and_dev_server, parse_launch_args, parse_launch_args_from_env,
+    run_default, run_default_with_config, run_default_with_native_presentation, run_default_with_ui_assets,
+    run_default_with_ui_assets_and_dev_server,
 };
 pub use host_config::{DesktopHostConfig, FrontendDevServerConfig};
+pub use native_presentation::{NativePresentation, NativePresentationStop, NativePresentationTask};

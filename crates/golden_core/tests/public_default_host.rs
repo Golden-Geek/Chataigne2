@@ -1,5 +1,8 @@
 use golden_core::{
-    app::{DesktopHostConfig, LaunchArgs, ProjectLifecycle, launch_engine_with_args, launch_engine_with_config},
+    app::{
+        DesktopHostConfig, LaunchArgs, NativePresentation, ProjectLifecycle, launch_engine_with_args,
+        launch_engine_with_config, launch_engine_with_native_presentation,
+    },
     engine::Engine,
 };
 use tauri::Runtime;
@@ -30,6 +33,20 @@ where
     let mut config = DesktopHostConfig::default();
     config.ui_server.bind_addr = "127.0.0.1:7011".into();
     launch_engine_with_config(engine, args, context, config)
+}
+
+#[allow(dead_code)]
+fn launch_with_public_native_presentation<T, R>(
+    engine: Engine<T>,
+    args: LaunchArgs,
+    context: tauri::Context<R>,
+    presentation: NativePresentation<R>,
+) -> std::io::Result<()>
+where
+    T: ProjectLifecycle + 'static,
+    R: Runtime,
+{
+    launch_engine_with_native_presentation(engine, args, context, DesktopHostConfig::default(), presentation)
 }
 
 #[test]

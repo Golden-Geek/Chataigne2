@@ -1,6 +1,10 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
+use tauri::Manager;
+
+use crate::native_presentation::host::PresentationHost;
 use crate::window_state::{WindowStatePersistence, save_window_state};
 
 /// Writes `contents` to `file_name` inside a subdirectory of the OS
@@ -173,6 +177,12 @@ pub fn window_destroy<R: tauri::Runtime>(
     window_state: tauri::State<'_, WindowStatePersistence>,
 ) -> Result<(), String> {
     save_window_state(&window, &window_state);
+    if window.label() == "main" && window.try_state::<Arc<PresentationHost>>().is_some() {
+        // The frontend has confirmed save/discard. Exit now follows the host retirement
+        // gate instead of destroying an HWND still referenced by a presentation worker.
+        window.app_handle().exit(0);
+        return Ok(());
+    }
     window.destroy().map_err(|err| err.to_string())
 }
 

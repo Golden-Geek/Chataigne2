@@ -5,6 +5,9 @@ edition.workspace = true
 license.workspace = true
 default-run = "MapGyver"
 
+[features]
+native-presentation-smoke = ["dep:windows"]
+
 [dependencies]
 golden_core = { path = "../../crates/golden_core" }
 serde_json.workspace = true
@@ -13,3 +16,13 @@ tauri = { version = "2", features = [] }
 [build-dependencies]
 golden_codegen_support = { path = "../../crates/golden_core/support/codegen" }
 tauri-build = "2"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "=0.61.3", optional = true, features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
+
+[[bin]]
+name = "native_presentation_smoke"
+path = "tests/native_presentation/smoke.rs"
+test = false
+bench = false
+required-features = ["native-presentation-smoke"]

@@ -7,11 +7,11 @@ use std::sync::mpsc::{self, RecvTimeoutError};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use tauri::window::Color;
-use tauri::{Manager, Runtime, Url, WebviewUrl};
+use tauri::{Runtime, Url};
 
+use crate::desktop_window::run_tauri;
 use crate::host_config::{DesktopHostConfig, FrontendDevServerConfig, apply_listener_overrides};
-use crate::window_state::{WindowStatePersistence, restore_window_state, save_window_state};
+use crate::native_presentation::{NativePresentation, host::validate_platform};
 #[cfg(target_os = "windows")]
 use crate::windows_process_job::WindowsProcessJob;
 use golden_engine::app::{ProjectLifecycle, create_new_project_engine};
@@ -20,7 +20,6 @@ use golden_transport_server::{UiAsset, UiPreferencesConfig, UiServerConfig, run_
 
 const UI_STARTUP_TIMEOUT: Duration = Duration::from_secs(5);
 const UI_PROBE_INTERVAL: Duration = Duration::from_millis(50);
-const WINDOW_CLOSE_REQUESTED_SCRIPT: &str = "window.dispatchEvent(new CustomEvent('gc-window-close-requested'));";
 
 #[derive(Debug, Clone, Default)]
 /// Launch flags understood by the default desktop and headless runtime.
@@ -142,6 +141,30 @@ where
     }
 
     launch_with_config::<T, R>(args, tauri_context, config)
+}
+
+/// Launches the shared host with optional native rendering attached to its main window.
+///
+/// The current underlay route is Windows-only. Headless mode does not prepare or start the
+/// presentation. The host owns native window construction, UI-thread preparation, cancellation
+/// and worker retirement before window destruction.
+pub fn run_default_with_native_presentation<T, R>(
+    tauri_context: tauri::Context<R>,
+    config: DesktopHostConfig,
+    presentation: NativePresentation<R>,
+) -> std::io::Result<()>
+where
+    T: ProjectLifecycle + 'static,
+    R: Runtime,
+{
+    maybe_enable_output_console_from_env()?;
+    let args = parse_launch_args_from_env()?;
+    if args.show_help {
+        print_usage();
+        return Ok(());
+    }
+    let engine = create_new_project_engine::<T>().map_err(Error::other)?;
+    launch_engine_with_native_presentation(engine, args, tauri_context, config, presentation)
 }
 
 /// Parses launch flags from the current process environment.
@@ -312,6 +335,40 @@ where
     T: ProjectLifecycle + 'static,
     R: Runtime,
 {
+    launch_configured_engine(engine, args, tauri_context, host_config, None)
+}
+
+/// Launches a caller-provided engine with a host-owned native presentation lifecycle.
+///
+/// Preparation runs on the UI thread after the transparent editor window is constructed.
+/// The returned task runs on its dedicated worker. Exit waits asynchronously for task
+/// retirement, then joins after the event loop returns. Headless mode never prepares the task.
+pub fn launch_engine_with_native_presentation<T, R>(
+    engine: Engine<T>,
+    args: LaunchArgs,
+    tauri_context: tauri::Context<R>,
+    host_config: DesktopHostConfig,
+    presentation: NativePresentation<R>,
+) -> std::io::Result<()>
+where
+    T: ProjectLifecycle + 'static,
+    R: Runtime,
+{
+    launch_configured_engine(engine, args, tauri_context, host_config, Some(presentation))
+}
+
+fn launch_configured_engine<T, R>(
+    engine: Engine<T>,
+    args: LaunchArgs,
+    tauri_context: tauri::Context<R>,
+    host_config: DesktopHostConfig,
+    presentation: Option<NativePresentation<R>>,
+) -> std::io::Result<()>
+where
+    T: ProjectLifecycle + 'static,
+    R: Runtime,
+{
+    validate_platform(presentation.is_some(), args.headless)?;
     if !cfg!(target_os = "windows") && args.automation_shutdown_file.is_some() {
         return Err(Error::new(
             ErrorKind::InvalidInput,
@@ -415,6 +472,7 @@ where
         tauri_context,
         app_data_dir.join("window-state.json"),
         args.automation_shutdown_file,
+        presentation,
     );
     drop(dev_server_process);
     run_result
@@ -709,143 +767,4 @@ fn detect_or_default_frontend_url() -> String {
     }
 
     "http://localhost:5173".to_string()
-}
-
-fn run_tauri<R: Runtime>(
-    ui_base_url: &str,
-    application_display_name: String,
-    tauri_context: tauri::Context<R>,
-    window_state_path: PathBuf,
-    automation_shutdown_file: Option<PathBuf>,
-) -> std::io::Result<()> {
-    let external_url: Url = ui_base_url.parse().map_err(|err| {
-        Error::new(
-            ErrorKind::InvalidInput,
-            format!("invalid UI URL '{ui_base_url}': {err}"),
-        )
-    })?;
-
-    #[cfg(target_os = "linux")]
-    {
-        unsafe {
-            std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
-        }
-    }
-
-    let os = if cfg!(target_os = "windows") {
-        "windows"
-    } else if cfg!(target_os = "linux") {
-        "linux"
-    } else {
-        "macos"
-    };
-
-    // Runs at document-start, before <html> exists, so guard documentElement
-    // (otherwise `document.documentElement.dataset` throws on null at launch).
-    let init_script = format!(
-        "window.__PLATFORM__ = '{os}'; (function () {{ var apply = function () {{ document.documentElement.dataset.platform = '{os}'; }}; if (document.documentElement) {{ apply(); }} else {{ document.addEventListener('DOMContentLoaded', apply); }} }})();"
-    );
-
-    let dispatch_close_requested_to_frontend = |window: &tauri::Window<R>| -> bool {
-        let mut delivered = false;
-        for webview in window.webviews() {
-            match webview.eval(WINDOW_CLOSE_REQUESTED_SCRIPT) {
-                Ok(()) => {
-                    delivered = true;
-                }
-                Err(err) => {
-                    eprintln!(
-                        "warning: failed to dispatch close-request event to frontend for window '{}': {err}",
-                        window.label()
-                    );
-                }
-            }
-        }
-        delivered
-    };
-
-    let window_state = WindowStatePersistence::new(window_state_path);
-
-    tauri::Builder::<R>::new()
-        .manage(window_state.clone())
-        .on_window_event(move |window, event| {
-            if window.label() != "main" {
-                return;
-            }
-
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                if let Some(window_state) = window.try_state::<WindowStatePersistence>() {
-                    save_window_state(window, &window_state);
-                }
-
-                if dispatch_close_requested_to_frontend(window) {
-                    api.prevent_close();
-                }
-            }
-        })
-        .setup(move |app| {
-            let mut window_builder =
-                tauri::WebviewWindowBuilder::new(app, "main", WebviewUrl::External(external_url.clone()))
-                    .title(application_display_name)
-                    .decorations(false)
-                    .shadow(true)
-                    .accept_first_mouse(true)
-                    .inner_size(75.0 * 16.0, 50.0 * 16.0);
-
-            if cfg!(target_os = "windows") {
-                window_builder = window_builder
-                    .disable_drag_drop_handler()
-                    .background_color(Color(20, 20, 20, 255));
-            } else {
-                // window_builder = window_builder.transparent(true);
-            }
-
-            let window = window_builder
-                .build()
-                .map_err(|err| Error::other(format!("failed creating Tauri window: {err}")))?;
-
-            restore_window_state(&window, &window_state);
-
-            if let Some(path) = automation_shutdown_file {
-                let app_handle = app.handle().clone();
-                thread::spawn(move || {
-                    loop {
-                        match std::fs::metadata(&path) {
-                            Ok(_) => {
-                                eprintln!("automation shutdown requested by sentinel {}", path.display());
-                                app_handle.exit(0);
-                                break;
-                            }
-                            Err(err) if err.kind() == ErrorKind::NotFound => {
-                                thread::sleep(Duration::from_millis(100));
-                            }
-                            Err(err) => {
-                                eprintln!(
-                                    "warning: automation shutdown sentinel {} cannot be observed: {err}",
-                                    path.display()
-                                );
-                                break;
-                            }
-                        }
-                    }
-                });
-            }
-
-            Ok(())
-        })
-        .invoke_handler(tauri::generate_handler![
-            crate::desktop_commands::window_minimize,
-            crate::desktop_commands::window_toggle_maximize,
-            crate::desktop_commands::window_close,
-            crate::desktop_commands::window_destroy,
-            crate::desktop_commands::window_is_maximized,
-            crate::desktop_commands::start_drag,
-            crate::desktop_commands::open_file_dialog,
-            crate::desktop_commands::save_file_dialog,
-            crate::desktop_commands::write_app_data_file,
-            crate::desktop_commands::write_file_in_directory
-        ])
-        .append_invoke_initialization_script(&init_script)
-        .run(tauri_context)
-        .map_err(|err| Error::other(format!("tauri runtime failed: {err}")))
 }

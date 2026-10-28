@@ -13,7 +13,8 @@ surface underneath. Opaque workbench chrome and DOM handles remain above it. Wry
 [GPU example](https://github.com/tauri-apps/wry/blob/dev/examples/wgpu.rs) demonstrates native
 rendering behind a transparent child WebView. On Windows it disables child clipping and enables
 WebView transparency. The example is also present in the locally installed, locked Wry 0.55.1.
-The checkout locks Tauri 2.11.5 and tauri-runtime-wry 2.11.4. The upstream moving example is
+The checkout locks Tauri 2.11.5 and tauri-runtime-wry 2.11.4; the native host constrains Tauri
+updates to the validated 2.11 minor while using platform types. The upstream moving example is
 supporting evidence; the packaged probe must run against the repository's actual dependency lock.
 
 Microsoft documents that transparent web content and a transparent default background reveal
@@ -25,9 +26,13 @@ native ImGui windows/menus. It is not evidence for this WebView implementation.
 [Coollab build](https://github.com/Coollab-Art/Coollab/blob/main/CMakeLists.txt),
 [Coollab app interface](https://github.com/Coollab-Art/Coollab/blob/main/src/App.h).
 
-Golden's desktop host currently builds an opaque main WebView and owns its Tauri builder/setup.
-Add an optional public presentation extension there rather than creating another desktop bootstrap
-inside MapGyver. Tauri exposes public native window and platform-WebView access; its platform
+Golden's desktop host owns its Tauri builder/setup. Its optional
+[`NativePresentation<R>` extension](../../crates/golden_core/hosts/desktop/src/native_presentation/mod.rs)
+constructs a transparent main WebView with native underlay clipping, prepares on the UI thread
+and runs an owned worker task. Exit preserves the HWND until worker retirement; joining happens
+after the event loop returns. Default launches keep the ordinary opaque WebView, and headless
+launches never prepare presentation. Renderer/preview/output policy stays with M03/M05 instead
+of creating a second app-owned bootstrap. Tauri exposes public native window and platform-WebView access; its platform
 API documentation advises pinning at least the minor version when using underlying types.
 [Tauri window API](https://docs.rs/tauri/latest/x86_64-pc-windows-msvc/tauri/window/struct.Window.html),
 [Tauri platform access](https://github.com/tauri-apps/tauri/blob/dev/crates/tauri/src/webview/mod.rs).

@@ -30,10 +30,20 @@ existing codecs and graph format version. There is no unmarked-file migration or
 fallback. Four repository-owned Chataigne fixtures were stamped with their known identity;
 user project files were not rewritten.
 
-The MapGyver shell currently provides ordinary shared-host/workbench composition. Production GPU
-rendering belongs to M03; the optional typed native-presentation host lifecycle remains an open
-M02 item. Source contracts and passing checks do not establish the remaining concurrent desktop,
-dev-server or native runtime acceptance; see the [MapGyver ledger](../progress/mapgyver-status.md).
+`golden_host_desktop::NativePresentation<R>` is the optional Windows underlay extension. The
+presentation-aware launch APIs retain the ordinary `DesktopHostConfig` and default launch APIs.
+Golden constructs the transparent editor window, applies native clipping and calls preparation
+on its UI thread. Preparation returns an unstarted, `Send` `NativePresentationTask`; the host
+starts its worker and delivers idempotent cancellation when an explicit exit is requested.
+WebView COM access remains scoped to Tauri's UI-thread callbacks. Native renderer resources are
+created and retired inside the worker, and task completion certifies that its window use ended.
+
+The host defers exit while that worker retires and joins only after `run_return`. A task ending
+on its own leaves the editor and unsaved work intact. The workbench still owns save/discard/cancel;
+its confirmed `window_destroy` command routes through retirement. App capabilities omit direct
+Tauri destroy permission. Headless/default launches create no presentation lifecycle. The current
+extension covers the main editor underlay; renderer, preview geometry and output-window policy
+retain their M03/M05 owners. See the [MapGyver evidence](../progress/mapgyver-m02-shell.md).
 
 For queued native-derived edits, `golden_engine::edit::EditQueue::retain_payload` attaches an
 already-admitted Golden IO payload lease to the requests currently in the queue. Admission survives

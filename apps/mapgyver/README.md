@@ -36,3 +36,9 @@ MapGyver metadata before creating a workbench session or accessing app storage.
 The editable icon is `ui/static/favicon.svg`. Regenerate native icon exports with
 `npm exec -- tauri icon apps/mapgyver/ui/static/favicon.svg --output apps/mapgyver/icons`
 from the workspace root; the Windows app tracks and uses only `icon.png` and `icon.ico`.
+
+The shared host's optional native-presentation seam has an explicit Windows lifecycle smoke:
+`cargo run --locked -p MapGyver --features native-presentation-smoke --bin native_presentation_smoke`.
+Set `APPDATA` for that child process to an owned test directory, and unset `GC_UI_BIND` and
+`GC_UI_FRONTEND_URL`. It opens/closes only its own window and uses a separate application ID.
+Default tests do not launch it. This checks UI/worker/window lifetime, without GPU qualification.

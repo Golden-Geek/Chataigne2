@@ -38,7 +38,9 @@ crates/
 ```
 
 App metadata comes from the engine's pure `ProjectLifecycle` hooks; shared desktop listener and
-frontend defaults come from `DesktopHostConfig`. `services/protocol/` owns discovery and UI DTOs,
+frontend defaults come from `DesktopHostConfig`. The desktop host's `native_presentation/`
+owns the optional typed UI/worker/retirement boundary, while `desktop_window.rs` owns Tauri
+window construction and its event-loop adapter. `services/protocol/` owns discovery and UI DTOs,
 generated into `packages/golden-ui/generated/rust_protocol/`; the current protocol is `0.13.0`
 and the discovery route is `/.well-known/golden-ui`. `services/persistence/` owns the required
 application-ID envelope for full app projects, while generic graph, subtree and Preferences

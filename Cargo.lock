@@ -63,6 +63,7 @@ dependencies = [
  "serde_json",
  "tauri",
  "tauri-build",
+ "windows 0.61.3",
 ]
 
 [[package]]
@@ -2943,6 +2944,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tauri",
+ "windows 0.61.3",
 ]
 
 [[package]]

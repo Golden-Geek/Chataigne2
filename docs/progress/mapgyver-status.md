@@ -2,24 +2,24 @@
 
 ## At a glance
 
-**Updated: 2026-10-28 · Overall: `████░░░░░░░░░░░░░░░░` 20% · 2/10 phases complete**
+**Updated: 2026-10-28 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
-**Current topic:** M02 shell, app identity and isolation verified. MapGyver uses the shared
-Golden host/workbench and runs alongside Chataigne. See the [shell evidence](mapgyver-m02-shell.md).
+**Current topic:** M02 complete: shell/isolation and the optional native-presentation host
+lifecycle are verified. See the [shell and lifecycle evidence](mapgyver-m02-shell.md).
 The [approved M01 route decision](mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28)
 remains scoped functional acceptance; renderer, physical-output and full-app qualification
 retain their M03/M05/M09 owners.
 
-**Next:** implement the optional typed native-presentation host lifecycle extension, the one
-remaining M02 item, keeping native construction and COM-thread coordination in Golden's host.
-**Blocker:** none for M02. Known cadence, memory-growth, geometry and display/input failures
+**Next:** define M03's fixed acceptance breakdown, then implement the reusable Golden Video
+render/resource and channel foundations through the exercised host seam.
+**Blocker:** none for starting M03. Known cadence, memory-growth, geometry and display/input failures
 remain open under M03/M05/M09; their budgets and evidence are unchanged.
 
 | Phase | State | Progress | Done / total items |
 | --- | --- | --- | --- |
 | [M00 Baseline/workloads](mapgyver-m00-baseline.md) | Complete locally | `████████████████████` 100% | 1/1 |
 | [M01 Functional route decision](#m01-acceptance-items) | Complete locally | `████████████████████` 100% | 4/4 |
-| [M02 Multi-app seams/shell](#m02-acceptance-items) | In progress | `█████████████████░░░` 86% | 6/7 |
+| [M02 Multi-app seams/shell](#m02-acceptance-items) | Complete locally | `████████████████████` 100% | 7/7 |
 | [M03 Rendering/channels](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M04 Source media](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M05 Screens/Surfaces/editors](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
@@ -28,9 +28,9 @@ remain open under M03/M05/M09; their budgets and evidence are unchanged.
 | [M08 App lifetimes](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 
-Overall counts fully accepted milestones: `2 / 10 = 20%`; partial phases do not advance it.
+Overall counts fully accepted milestones: `3 / 10 = 30%`; partial phases do not advance it.
 Phase percentages count closed acceptance items, rounded to the nearest whole percent
-(`M01: 4 / 4 = 100%`, `M02: 6 / 7 = 86%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
+(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
 its whole plan acceptance as one item unless a fixed breakdown is recorded here before
 implementation continues. On 2026-10-28 the user explicitly approved changing M01 from eight
 full-qualification items to four functional-route items, allowing M02 to start. The original
@@ -116,14 +116,14 @@ functional gate, not a retrospective pass of the original eight-item matrix.
 | App branding and browser-state isolation | Done | [Backend metadata and browser namespaces](mapgyver-m02-shell.md#implementation-boundaries) separate layout, selection, recent path and credentials; app projects carry a validated identity. Stream Deck's editor belongs to Chataigne. |
 | Generic discovery and endpoint isolation | Done | [Rust-owned discovery DTOs](mapgyver-m02-shell.md#implementation-boundaries), generated protocol 0.13.0 and distinct backend/frontend ports; app identity is checked before UI admission and on fresh credentials. |
 | Explicit app selection in tools | Done | [Cargo/npm/xtask/watch/package commands](mapgyver-m02-shell.md#reproduction) select MapGyver explicitly; root defaults remain Chataigne. |
-| Typed optional native-presentation host lifecycle | Open | Public lifecycle extension keeps window construction and COM-thread coordination at the host boundary. |
+| Typed optional native-presentation host lifecycle | Done | [Public extension and native smoke](mapgyver-m02-shell.md#optional-native-presentation-lifecycle) keep window construction/UI preparation at Golden's host, task resources on its worker, HWND destruction after retirement, and joining after the event loop. Default/headless paths do not prepare presentation. |
 | Combined launch and boundary verification | Done | [Concurrent bundled/dev/headless runs](mapgyver-m02-shell.md#live-windows-verification--2026-10-28), own save/reopen and foreign-file rejection pass; engine/protocol packages and both full desktop apps compile and test through public boundaries. Native quality remains unqualified. |
 
 ## Detailed status
 
 Updated: 2026-10-28. Entry point: [MapGyver implementation plan](../plan/MapGyver_Implementation_Plan.md).
 
-**State: M00 and revised M01 complete locally; M02 implementation in progress.**
+**State: M00, revised M01 and M02 complete locally; M03 is next.**
 The user explicitly requested implementation over successive turns on 2026-10-27, then requested
 a MapGyver branch. `mapgyver` was created from `137c9203` with the existing dirty checkout intact,
 then externally fast-forwarded from `main` to the Chataigne P11 checkpoint `40acd67d` during M00.
@@ -197,7 +197,7 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | --- | --- | --- |
 | M00 Reconciliation/workloads | VERIFIED_LOCAL | [Checkout/public-boundary/hardware handoff](mapgyver-m00-baseline.md), [captured inventory](evidence/mapgyver-baseline-2026-10-27.json), and fixed [qualification workloads/budgets](mapgyver-qualification-contract.md) |
 | M01 Functional route decision | COMPLETE_LOCAL | [Approved decision](mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28): ordinary Tauri/Wry + D3D11 + pinned Spout sys binding permit the thin shell. Full qualification remains with M03/M05/M09. |
-| M02 Multi-app seams/shell | IN_PROGRESS | [Shell/isolation delivery](mapgyver-m02-shell.md) closes 6/7 fixed items. The optional typed native-presentation host lifecycle extension remains open. |
+| M02 Multi-app seams/shell | COMPLETE_LOCAL | [Shell/isolation and typed host lifecycle](mapgyver-m02-shell.md) close all seven fixed items. The real Windows smoke verifies STA/worker/window teardown; no GPU or physical-output qualification is inferred. |
 | M03 Rendering/channels | NOT_STARTED | D3D11 recommended; SDK binding, host presentation and runtime contracts require implementation |
 | M04 Source media | NOT_STARTED | Solid Color, Picture, concurrent Spout scope defined |
 | M05 Screens/Surfaces/editors | NOT_STARTED | Output/crop/pin/calibration contracts defined |
@@ -209,9 +209,10 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 ## Next action
 
 The user approved the scope correction on 2026-10-28 and explicitly instructed continuation
-to M02. Its shell/isolation delivery closes six of the seven fixed items. Next implement and
-verify the optional typed native-presentation host lifecycle extension at Golden's desktop
-boundary. Deliver each coherent batch on `mapgyver` before starting the next. Preserve
+to M02. Its shell/isolation and typed host lifecycle deliveries now close all seven fixed
+items. Next define M03's fixed acceptance breakdown before source work, then implement its
+Golden Video render/resource and app-owned channel foundations. Deliver each coherent batch
+on `mapgyver` before starting the next. Preserve
 Chataigne's root default and unfinished P11 work. No new M01 captures, consumer-control cohorts,
 overlay investigation or profiling are needed for this work. The user confirms overlay Off.
 
@@ -358,7 +359,36 @@ behavior is unchanged. No production host/backend/binding decision is final yet.
 
 ## M02 verification — 2026-10-28
 
-### Shell and app-isolation delivery
+### Native-presentation lifecycle delivery
+
+- Golden exposes `NativePresentation<R>`, an unstarted `NativePresentationTask`, its stop
+  token and two presentation-aware launch entrypoints through the public facade. Default
+  configuration stays non-generic/cloneable; default/headless launches start no presentation.
+  UI preparation, native clipping and window construction stay in the shared desktop host.
+- Explicit exit requests cancellation, keeps the UI pumping while the task retires, then
+  destroys the main window and waits for its `Destroyed` event before allowing exit. Joining
+  happens after `run_return`. Spontaneous task completion leaves unsaved work/editor open;
+  confirmed frontend destruction uses the same host gate. Direct Tauri destroy permission
+  is removed from both app capabilities.
+- `cargo test --locked --profile dev -p golden_host_desktop -p golden_core -p MapGyver`:
+  **24 host tests passed**, one subprocess helper ignored; **1 public facade** and **2 MapGyver**
+  tests passed. Coverage includes repeated exit, destroy acknowledgement/code preservation,
+  preparation failure, worker cancellation, success/error/panic and worker-side capture drops.
+- The feature-gated `native_presentation_smoke` binary passed on Windows through the public
+  host: real WebView COM access on the UI STA, underlay clipping, delivered cancellation,
+  responsive UI during retirement, live HWND at worker resource drop, and invalid HWND after
+  host return. It uses an isolated app identity, loopback port and owned backend data directory.
+  The agent needed native WebView profile access outside its filesystem sandbox.
+- Two smoke findings were corrected: an integration-test target lacked Tauri's binary manifest
+  and failed before main; the supported feature-gated binary receives it. The first native run
+  left its HWND live after `run_return`; the explicit destroy/ack gate fixes that observed failure.
+  The worker's independent completion was also corrected to preserve frontend save/cancel.
+- M02 closes **7/7 = 100%** with its denominator unchanged. Overall is **3/10 = 30%**.
+  Engine/protocol-only compilation, strict all-target Clippy, both default app builds and
+  required root/Core formatting pass. Existing GPU/cadence/resource/DPI failures and budgets
+  remain with M03/M05/M09; no renderer, full-process or physical-output quality pass is claimed.
+
+### Earlier shell and app-isolation delivery
 
 - [Implementation and live evidence](mapgyver-m02-shell.md) cover the app-owned shell, public
   configured host, generic discovery, app-scoped UI state and explicit developer commands.

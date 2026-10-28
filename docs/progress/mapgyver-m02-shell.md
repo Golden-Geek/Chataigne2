@@ -96,6 +96,51 @@ GUI smoke runs stopped through owned shutdown sentinels and exited zero. Owned V
 were released. Headless children were terminated/reaped by the test owner after readiness checks;
 that is not a graceful-shutdown qualification.
 
+## Optional native-presentation lifecycle
+
+The [public extension](../../crates/golden_core/hosts/desktop/src/native_presentation/mod.rs)
+and [host adapter](../../crates/golden_core/hosts/desktop/src/native_presentation/host.rs)
+belong to Golden. `run_default_with_native_presentation` and
+`launch_engine_with_native_presentation` accept the typed extension separately from the
+ordinary, cloneable `DesktopHostConfig`. Existing default entrypoints select no extension;
+headless mode never prepares or starts it. The current underlay route is Windows-only.
+
+The host constructs its transparent main window and clears native child clipping, then calls
+preparation on the UI thread. Preparation may inspect the platform WebView through Tauri's
+scoped UI API and return owned configuration in an unstarted `NativePresentationTask`.
+GPU/SDK resource construction, use and retirement belong inside that task's worker. Its stop
+token supports a lock-free observation and a cancellable wait; requests are bounded/idempotent.
+No recurring UI polling or renderer wait is introduced.
+
+Explicit exit signals cancellation while the event loop continues pumping. Task completion
+follows retirement of its captures/resources; the host then requests native destruction and
+waits for `Destroyed` before allowing exit. Joining happens after `run_return`. Worker errors/panics
+are retained and returned when the host finishes.
+Preparation errors leave by ordinary teardown instead of Tauri's setup-error panic path.
+Spontaneous task completion leaves the editor open, preserving unsaved work. The frontend's
+save/discard/cancel workflow remains before its confirmed host `window_destroy` command;
+direct Tauri destroy permission is removed from both app capabilities.
+
+The opt-in [Windows smoke](../../apps/mapgyver/tests/native_presentation/smoke.rs) is a public
+consumer using its own application identity, loopback port and owned window. Default Cargo
+tests never launch it. It exercises lifecycle/STA ownership without constructing GPU resources;
+renderer recovery, preview geometry, output windows and quantitative retirement budgets remain
+with M03/M05/M09.
+
+The supported feature-gated binary passed on Windows: real platform-WebView COM access ran on
+the UI STA, cancellation reached the worker, the UI remained responsive during delayed retirement,
+the resource dropped on its worker while the HWND was live, and `IsWindow` was false after host
+return. Run `cargo run --locked -p MapGyver --features native-presentation-smoke --bin native_presentation_smoke`
+with an owned child `APPDATA` root and frontend/bind overrides unset. WebView2 uses a separate
+bundle identifier/browser profile. Agent sandbox denial required native profile access for the
+run; it did not require machine/display/overlay changes.
+
+An initial integration-test executable failed before main because Tauri only adds its Windows
+manifest to binary targets. The opt-in binary uses that supported path. The first actual native
+run also exposed a still-live HWND after `run_return`; explicit destruction plus the native
+acknowledgement fixes it. These are lifecycle checks without GPU resources or process/memory
+retirement qualification.
+
 ## Validation and remaining scope
 
 The ledger records final commands/results. Coverage includes protocol/codegen, identity-aware
@@ -106,11 +151,10 @@ Final review added regression coverage for rejected uploads preserving existing 
 files and never resolving a new destination, including recovery requests. Pure host tests cover
 configured frontend selection with bundled assets, development mode and `--no-frontend`.
 
-The optional typed native-presentation host extension remains M02 work. GPU execution, media,
-screen/surface policy and editors retain their M03–M08 owners. Original cadence, resource, DPI and
+GPU execution, media, screen/surface policy and editors retain their M03–M08 owners. Original cadence, resource, DPI and
 physical-output failures retain their M03/M05/M09 acceptance and unchanged budgets.
 
 Known observations: Vite reports a large shared-workbench chunk; no splitting/performance claim
-is made here. Both GUI shutdowns logged WebView's `Chrome_WidgetWin_0` unregister error 1412
+is made here. Earlier shell GUI shutdowns logged WebView's `Chrome_WidgetWin_0` unregister error 1412
 despite exit zero. Full WebView/process/resource retirement remains unqualified. No overlay
 settings, display configuration, native GPU timing captures, tags or releases were changed.

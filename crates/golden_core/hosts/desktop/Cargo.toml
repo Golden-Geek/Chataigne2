@@ -13,4 +13,8 @@ golden_transport_server = { path = "../transport" }
 rfd = "0.15"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tauri = "2"
+# Native platform types are validated against this Tauri minor.
+tauri = "~2.11.5"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "=0.61.3", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
