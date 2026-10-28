@@ -3,9 +3,28 @@
 Golden Video's native harness owns GPU measurements; MapGyver owns authored reference scenes
 and end-to-end product qualification. The desktop host owns WebView/window/DPI observations.
 This contract fixes initial workloads and engineering budgets for M01-M09 before measurements.
-Partial M01 observations live in the [native report](mapgyver-m01-native-feasibility.md);
-no complete workload or native gate is qualified yet.
+Scoped functional evidence and the approved M01 route decision live in the
+[native report](mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28);
+no complete workload or original full native gate is qualified by that decision.
 [M00 inventory](mapgyver-m00-baseline.md) identifies the available test machine.
+
+## Acceptance ownership after the M01 scope correction
+
+On 2026-10-28 the user approved M01 as a functional host/backend/binding decision permitting
+the thin M02 shell. Its four items and evidence are defined in the [plan](../plan/MapGyver_Implementation_Plan.md#m01--decide-the-functional-native-rendering-route).
+The old eight-item M01 dashboard is replaced by four scoped functional items, not eight newly
+passed qualification items. All workload definitions, numerical budgets and reporting rules
+below are unchanged; historical failures and unavailable observations remain authoritative.
+
+| Required evidence | Acceptance owner |
+| --- | --- |
+| Reusable renderer Q01/Q02 CPU/GPU/cadence/frame-age, queue/admission, memory/handles, retirement and recovery | M03; endpoint/source supervision in M04 |
+| Physical output/preview/reference-card accuracy, DPI/input matrix, alignment/visible latency and editor/output independence | M05 |
+| Integrated Q01/Q02 release series, Q03 soak and full product Q05 across implemented features | M09; each feature owner verifies its own recovery before integration |
+
+M02 proceeds from the functional decision without treating these continuing requirements as
+passed. Targeted diagnostics remain evidence; explaining SDK/driver internals is not an extra
+acceptance item. Qualify one named adapter/route first; dual-vendor success is not mandatory.
 
 ## NVIDIA overlay prerequisite
 
@@ -31,8 +50,8 @@ sources with declared alpha/color conversion; record actual intermediate formats
 
 | ID | Fixed workload | Owner / required phase |
 | --- | --- | --- |
-| Q01 Native feasibility | Two fixture Spout senders at 1920×1080 and 1280×720, each 60 fps, on one named adapter. Composite both into one 1920×1080 native rectangle and one 1920×1080 Spout output. Two independently sized editor previews, initially 640×360 and 480×270 physical pixels, with DOM overlays | M01; native harness, independent producer/consumer processes |
-| Q02 4K feasibility | Q01 with first sender and both outputs at 3840×2160, second sender still 1280×720; keep two previews | M01; same adapter and explicit format/copy accounting |
+| Q01 Native feasibility | Two fixture Spout senders at 1920×1080 and 1280×720, each 60 fps, on one named adapter. Composite both into one 1920×1080 native rectangle and one 1920×1080 Spout output. Two independently sized editor previews, initially 640×360 and 480×270 physical pixels, with DOM overlays | M01 functional evidence; M03 renderer budgets, M05 presentation, M09 integrated series; independent producer/consumer processes |
+| Q02 4K feasibility | Q01 with first sender and both outputs at 3840×2160, second sender still 1280×720; keep two previews | Same owners as Q01; same adapter and explicit format/copy accounting |
 | Q03 Complete product | Solid Color, Picture and Shared Texture each have two channels. Composition has two authored channels. Matrix has two layers, one group and eight columns/16 cells, exporting two layer channels, one group and final channel: 12 channels total. Three Screens, one per target mode, two ordered Surfaces each; exercise each channel by routing operations. All four editors available | M09; first at 1920×1080, then first source/channel and every Screen at 3840×2160, others 1280×720 |
 | Q04 Authored scale | 10k, 50k and 100k authored media/channel/surface/Matrix entities, exact node counts also reported. Bound actual demand to 16 active channels and four 1080p outputs; remainder inactive. Single batched detached-tree creation | M03 deterministic admission fixtures, M09 actual-app measurements; inactive authored size is separate from GPU throughput |
 | Q05 Recovery/retirement | Q01/Q03: 100 source resize/restart cycles, 100 output remove/recreate cycles, 100 project replacements, 1000 superseding plan edits, 1000 Matrix launches including interrupted transitions. Two seconds between lifecycle cycles; launch/edit burst at 100 intents/sec | Owning milestone as feature arrives; M09 complete-app run |
@@ -115,7 +134,8 @@ passing route; one-time image decode/upload and GPU copies/conversions are measu
 Use `PASSED_NATIVE`, `FAILED_NATIVE`, `PASSED_DETERMINISTIC`, `SOURCE_ONLY` or `UNAVAILABLE`
 per criterion, each with the exact command/configuration and evidence artifact. Deterministic
 tests qualify policy and lifecycle, not desktop layering, Spout compatibility or mixed DPI.
-M01 cannot close until the [full native gate](../architecture/mapgyver-native-rendering.md#native-feasibility-gate)
-passes and a host/backend/binding choice is recorded. If ordinary hosting fails, resolve the
-explicit DirectComposition alternative before editor rollout. Outstanding native gates retain
-their milestone; they do not turn into source-backed passes.
+M01 closes on the approved functional route decision and its scoped native evidence. The
+[continuing native matrix](../architecture/mapgyver-native-rendering.md#native-feasibility-gate)
+remains acceptance work for M03/M05/M09 and the feature owners above. If ordinary hosting fails
+the implemented presentation requirements, resolve the explicit DirectComposition alternative
+before claiming editor quality. Outstanding native checks do not turn into source-backed passes.

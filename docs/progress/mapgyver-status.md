@@ -2,25 +2,23 @@
 
 ## At a glance
 
-**Updated: 2026-10-28 · Overall: `██░░░░░░░░░░░░░░░░░░` 10% · 1/10 phases complete**
+**Updated: 2026-10-28 · Overall: `████░░░░░░░░░░░░░░░░` 20% · 2/10 phases complete**
 
-**Current topic:** M01 scope review and a bounded owned-output fixture correction.
-The native route has functional evidence, but the original full gate has not passed. The
-placement correction passes compile/deterministic checks; native verification remains open.
-New profiling and native captures are stopped while the proposed dependency change below
-awaits the user's decision. The user confirms NVIDIA overlay is Off; no overlay investigation
-or setting change is needed for this review.
+**Current topic:** M02 public build boundary and thin app shell. The user approved the
+functional M01 gate and the reassignment of renderer, physical-output and complete-app
+qualification to their owning milestones. The [route decision](mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28)
+closes that revised gate; it does not pass the original full qualification matrix.
 
-**Next:** decide the explicit [scope correction](#next-action), then follow that decision.
-**Blocker:** the current plan requires the full native gate before M02. Cadence, resource
-growth, physical geometry and remaining display/input checks prevent that acceptance.
-The proposed functional-feasibility gate does not change the current 1/8 count or budgets.
+**Next:** extract reusable UI bundling into Golden's public build-support API, then create
+the MapGyver shell using the existing runtime and workbench.
+**Blocker:** none for M02. Known cadence, memory-growth, geometry and display/input failures
+remain open under M03/M05/M09; their budgets and evidence are unchanged.
 
 | Phase | State | Progress | Done / total items |
 | --- | --- | --- | --- |
 | [M00 Baseline/workloads](mapgyver-m00-baseline.md) | Complete locally | `████████████████████` 100% | 1/1 |
-| [M01 Native feasibility](#m01-acceptance-items) | In progress | `███░░░░░░░░░░░░░░░░░` 13% | 1/8 |
-| [M02 Multi-app seams/shell](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
+| [M01 Functional route decision](#m01-acceptance-items) | Complete locally | `████████████████████` 100% | 4/4 |
+| [M02 Multi-app seams/shell](#m02-acceptance-items) | In progress | `░░░░░░░░░░░░░░░░░░░` 0% | 0/7 |
 | [M03 Rendering/channels](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M04 Source media](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M05 Screens/Surfaces/editors](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
@@ -29,11 +27,15 @@ The proposed functional-feasibility gate does not change the current 1/8 count o
 | [M08 App lifetimes](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 
-Overall counts fully accepted milestones: `1 / 10 = 10%`; partial phases do not advance it.
+Overall counts fully accepted milestones: `2 / 10 = 20%`; partial phases do not advance it.
 Phase percentages count closed acceptance items, rounded to the nearest whole percent
-(`M01: 1 / 8 = 13%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
+(`M01: 4 / 4 = 100%`, `M02: 0 / 7 = 0%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
 its whole plan acceptance as one item unless a fixed breakdown is recorded here before
-implementation continues. M01 uses the eight existing [gate criteria](mapgyver-m01-native-feasibility.md#remaining-gate).
+implementation continues. On 2026-10-28 the user explicitly approved changing M01 from eight
+full-qualification items to four functional-route items, allowing M02 to start. The original
+eight-item matrix remains in the [native evidence](mapgyver-m01-native-feasibility.md#remaining-gate)
+with continuing owners in M03/M05/M09; its failures are not converted to passes. M02's seven
+fixed items below are defined before source implementation and cover its complete acceptance.
 These counts measure accepted scope, not effort or product readiness. Partial evidence earns
 no item closure; future breakdowns must preserve the complete acceptance scope and explain
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
@@ -95,24 +97,32 @@ allows both live queries to succeed without changing the older unavailable obser
 
 | Item | State | Accepted scope / remaining work |
 | --- | --- | --- |
-| D3D11/Spout ownership, two sources, resize/restart smoke | Done | Limited native smoke accepted; production supervision belongs to later delivery and full Q01/Q02 remains below. |
-| Ordinary underlay, DOM layering/clipping/input | Open | Primary/secondary native sequences recorded; complete configuration and latency coverage remains. |
-| Native rectangle output and composited Spout send | Open | A physical 4K/150% display is now connected on NVIDIA adapter 1. The paused Intel smoke spans monitors and yields 3834×2143, so explicit output placement/DPI sizing and physical-output accuracy remain. Historical fixed-card results retain their scopes. |
-| Mixed DPI, negative origins, drag/resize/docking/zoom | Open | 100%/125% observations recorded; 150%/200%, negative origins and measured alignment remain. |
-| Minimized/disconnected-editor independence | Open | Intel/NVIDIA busy/blank-document continuity and reconnect pass at recorded fingerprints; full displayed/minimized qualification remains. |
-| Color/alpha, copies, cadence/latency, queues and memory | Open | Fenced paused-consumer proof and cleanup pass, but its smoke fails geometry and raw CSV chronology; no long comparison is run. Historical stage timing and fixed-card results keep their fingerprints. Cadence, final/analysis loss, other routes/lifecycle cards, GPU critical path, scanout and resources remain. |
-| Device recreation, sustained retirement and shutdown | Open | Controlled native rebuilds recorded; native-harness lifecycle budgets, physical retirement, genuine removal/reset where testable and full-process shutdown remain. Full product/Matrix Q05 belongs to its owning milestones/M09. |
-| Production host/backend/binding decision | Open | D3D11/sys binding and ordinary underlay remain provisional pending the full gate. |
+| Ordinary underlay/DOM/native-input functional feasibility | Done | Native observations at 100%/125% establish the scoped route; full DPI/input/latency qualification stays with M05. |
+| D3D11/Spout two-source GPU composition and caller-device ownership | Done | Independent processes, finite pixel-accuracy checks and GPU-only frame transport establish functional feasibility. Renderer budgets stay with M03. |
+| Scoped editor/output independence, resize/restart and ownership cleanup | Done | Recorded interruption/reconnect/rebuild smoke establishes the functional mechanism. Sustained retirement/recovery budgets stay with M03 and owning features/M09. |
+| Host/backend/binding decision with explicit later-gate ownership | Done | Ordinary Tauri/Wry underlay, D3D11 and pinned `spout2-sys` 0.1.1 are selected for the thin shell; full qualification is explicitly not passed. |
 
-Evidence: [native feasibility report](mapgyver-m01-native-feasibility.md) and
-[fixed qualification contract](mapgyver-qualification-contract.md). A passed smoke item does
-not approve production architecture or close the seven broader items.
+Evidence and limitations: [functional route decision](mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28)
+and [fixed qualification contract](mapgyver-qualification-contract.md). This is the user-approved
+functional gate, not a retrospective pass of the original eight-item matrix.
+
+### M02 acceptance items
+
+| Item | State | Accepted scope / remaining work |
+| --- | --- | --- |
+| Public UI-bundling boundary | Open | Extract reusable bundling into Golden build support, adopt it from Chataigne and validate the existing consumer; leave app-native SDK/formula steps app-owned. |
+| MapGyver host/UI scaffold | Open | App manifests, identity, project format/data directory, resources/capabilities and empty project through the existing Golden host/workbench. No placeholder Media/Screen managers. |
+| App branding and browser-state isolation | Open | App-published metadata and separate layout, selection, project path and session persistence; remove exercised product policy from Golden. |
+| Generic discovery and endpoint isolation | Open | Domain-neutral service discovery, one-source protocol generation and distinct configured app ports. |
+| Explicit app selection in tools | Open | Cargo/npm/xtask/watch/package select an app; existing root defaults remain Chataigne. |
+| Typed optional native-presentation host lifecycle | Open | Public lifecycle extension keeps window construction and COM-thread coordination at the host boundary. |
+| Combined launch and boundary verification | Open | Both bundled/dev apps launch independently and concurrently without data cross-contamination; engine-only, headless, protocol-only and Chataigne full-host consumers stay valid. |
 
 ## Detailed status
 
 Updated: 2026-10-28. Entry point: [MapGyver implementation plan](../plan/MapGyver_Implementation_Plan.md).
 
-**State: M00 complete locally; M01 native feasibility in progress.**
+**State: M00 and revised M01 complete locally; M02 implementation in progress.**
 The user explicitly requested implementation over successive turns on 2026-10-27, then requested
 a MapGyver branch. `mapgyver` was created from `137c9203` with the existing dirty checkout intact,
 then externally fast-forwarded from `main` to the Chataigne P11 checkpoint `40acd67d` during M00.
@@ -185,8 +195,8 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | Milestone | State | Evidence / next acceptance |
 | --- | --- | --- |
 | M00 Reconciliation/workloads | VERIFIED_LOCAL | [Checkout/public-boundary/hardware handoff](mapgyver-m00-baseline.md), [captured inventory](evidence/mapgyver-baseline-2026-10-27.json), and fixed [qualification workloads/budgets](mapgyver-qualification-contract.md) |
-| M01 Native feasibility | IN_PROGRESS | [Native evidence](mapgyver-m01-native-feasibility.md): Intel authored-card 1080p/4K accuracy compares every pixel through independent processes and the existing source-worker bridge; local controls match. Intel/NVIDIA editor continuity retains earlier fingerprints. Procedural cards, NVIDIA accuracy, previews, GPU critical path, retirement/latency and other display/input configurations stay open |
-| M02 Multi-app seams/shell | NOT_STARTED | Existing lifecycle/workbench extension points identified; product leaks documented in plan |
+| M01 Functional route decision | COMPLETE_LOCAL | [Approved decision](mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28): ordinary Tauri/Wry + D3D11 + pinned Spout sys binding permit the thin shell. Full qualification remains with M03/M05/M09. |
+| M02 Multi-app seams/shell | IN_PROGRESS | Seven fixed acceptance items defined; begin with public UI bundling, then the sibling app scaffold. Existing lifecycle/workbench APIs are the owners. |
 | M03 Rendering/channels | NOT_STARTED | D3D11 recommended; SDK binding, host presentation and runtime contracts require implementation |
 | M04 Source media | NOT_STARTED | Solid Color, Picture, concurrent Spout scope defined |
 | M05 Screens/Surfaces/editors | NOT_STARTED | Output/crop/pin/calibration contracts defined |
@@ -197,16 +207,16 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-The user requested an explanation of M01's duration and instructed the agent to avoid further
-drift on 2026-10-28. New captures, consumer-control cohorts, overlay investigation, import-cache
-optimization, internal SDK/driver attribution and additional profiling are stopped. The scope
-review checkpoint changed no source and made no native run. The bounded source correction
-below is needed under either scope and does not adopt the proposal. The 4K display is already connected;
-its availability and the user-confirmed overlay-Off setting are not unanswered questions.
+The user approved the scope correction on 2026-10-28 and explicitly instructed continuation
+to M02. Implement its seven fixed acceptance items above, beginning with the public UI-bundling
+boundary, then the thin MapGyver app using Golden's existing host and workbench. Deliver each
+coherent batch on `mapgyver` before starting the next. Preserve Chataigne's root default and
+unfinished P11 work. No new M01 captures, consumer-control cohorts, overlay investigation or
+profiling are needed to start M02. The 4K display is connected and the user confirms overlay Off.
 
-**Proposed scope correction — awaiting user approval, not an accepted gate change:**
+**Approved scope correction — continuing acceptance ownership:**
 
-| Milestone | Proposed responsibility |
+| Milestone | Responsibility |
 | --- | --- |
 | M01 | Record functional feasibility and a host/backend/binding choice from the existing native evidence: ordinary Tauri/Wry underlay, D3D11, pinned Spout binding, two GPU sources, composition, editor independence and scoped ownership cleanup. Explicitly retain limitations and failed qualification results. |
 | M02 | Proceed with the thin app shell and public multi-app/host seams after that functional decision. This does not approve production editors or claim qualified rendering. |
@@ -214,17 +224,17 @@ its availability and the user-confirmed overlay-Off setting are not unanswered q
 | M05 | Own correct physical output placement, preview alignment, quantitative input/layout latency and the full display/DPI/input matrix before accepting those features. |
 | M09 and owning features | Run the complete applicable sustained/recovery qualification against the actual app; preserve the fixed Q01/Q02 budgets and historical failures. Full product/Matrix Q05 remains here and with the features that introduce its behavior. |
 
-This proposal changes the plan's explicit M01→M02 dependency, so it requires the user's
-decision before implementation resumes under it. The original gate remains open at **1/8**;
-it is not retroactively passed. If the user retains the original gate, the current result is
-**not passed**. Agree a bounded corrective batch and a pass/fail checkpoint before further
-native work; a failed checkpoint produces a decision, not another automatic diagnostic loop.
+The approved M01→M02 dependency is the functional route decision. The four-item M01 gate is
+closed in its recorded scope; the original eight-item full-qualification matrix was **not
+passed**. Its measured failures and unavailable checks retain their continuing owners. Future
+native work belongs to the feature being delivered, with a bounded corrective batch and a
+pass/fail checkpoint; a failed checkpoint produces a decision rather than a diagnostic loop.
 
 Internal root-cause attribution, mandatory dual-vendor success, exhaustive SDK-internal copy
 accounting, physical residency proof and optical scanout research are not additional gates to
 creating a thin shell. Unknown observations remain unknown. The fixed required measurements
-and budgets are not waived by this distinction. The full native gate still applies until the
-proposal is approved and its owning plan/architecture/contract documents are revised together.
+and budgets are not waived by this distinction. The plan, architecture, qualification contract
+and evidence decision are revised together with this ledger.
 
 Preserve Chataigne's unfinished P11 work and its separate ledger. No production source,
 protocol, display configuration or overlay setting was changed by this review.
@@ -246,13 +256,14 @@ display-setting changes, new timing probes or protocol changes.
 (57 library, 47 binary), including nine new deterministic display-selection regressions;
 seven hardware tests remain ignored. Strict desktop/all-target Clippy passes. Native
 placement/DPI behavior is **not yet verified**; no capture or native GPU test was run.
-The scope proposal remains pending, the original eight gates and budgets remain in force,
-and M01 remains **1/8**. This source fix does not establish a cadence, geometry or resource pass.
+At that source checkpoint the scope proposal was still pending and M01 was **1/8** under its
+original definition. The later approval above changes ownership, not those test results.
+This source fix does not establish a cadence, geometry or resource pass.
 
 ### Historical diagnostic backlog — superseded as an execution queue
 
-The following retains the previous checkpoint's rationale. It is not authorization to resume
-experiments while the scope decision above is pending.
+The following retains the previous checkpoint's rationale and then-current next steps. It is
+historical evidence, not the active execution queue; use the approved M02 action above.
 
 Continue **M01**, the [native feasibility gate](../architecture/mapgyver-native-rendering.md#native-feasibility-gate),
 on branch `mapgyver`, using the owned [native harness](../../tools/mapgyver/native-probe/README.md).
@@ -343,6 +354,17 @@ Preserve Chataigne's unfinished engine/Spatializer P11 checkpoint (four of six f
 and its [separate ledger](implementation-status.md). Shared P12 boundary repairs belong to M02;
 P14/P15 time and asset contracts retain their shared Golden owners under M03. Root launch
 behavior is unchanged. No production host/backend/binding decision is final yet.
+
+## M02 verification — 2026-10-28
+
+- The user approved proceeding from functional feasibility to the thin shell. The plan,
+  native architecture, qualification contract and route decision now assign renderer budgets
+  to M03, full output/DPI/input acceptance to M05, and complete-app qualification to M09 and
+  owning features. The original failures, budgets and evidence artifacts are preserved.
+- The four revised M01 items are supported by their scoped native evidence and recorded
+  technology choice. M01 is 4/4; seven complete-scope M02 items are fixed before implementation
+  and start at 0/7. Overall accepted milestones are 2/10. This is an approved denominator
+  change, not a claim that the original full gate passed or that the shell already exists.
 
 ## M01 verification — 2026-10-28
 

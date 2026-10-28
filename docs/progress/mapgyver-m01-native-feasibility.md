@@ -1,9 +1,45 @@
 # M01 native feasibility evidence
 
-The qualification harness owns experiments; Golden's future GPU/host mechanisms remain separate
-from MapGyver's product systems. M01 is **in progress**, not a presentation-architecture approval.
+The qualification harness owns experiments; Golden's GPU/host mechanisms remain separate
+from MapGyver's product systems. M01 records the approved functional route decision below;
+performance, full display/input coverage and product qualification remain with their owners.
 See the [ledger](mapgyver-status.md), [qualification contract](mapgyver-qualification-contract.md)
 and [harness commands/ownership](../../tools/mapgyver/native-probe/README.md).
+
+## Functional route decision — 2026-10-28
+
+The user approved separating the functional architecture decision from the broader native
+qualification matrix. **GO for the thin M02 shell:** use the ordinary locked Tauri/Wry host,
+D3D11 and pinned `spout2-sys =0.1.1`. Golden's host owns window/WebView/COM-thread lifecycle;
+the reusable renderer and Spout supervision belong to M03/M04, not a copied app bootstrap.
+The [binding audit](#published-binding-audit) records the SDK provenance, notices and caller-device
+ownership constraints. This selects a route to implement; it does not declare the original
+full native gate, sustained performance or physical presentation quality passed.
+
+M01 now has four fixed acceptance items, matching the [revised plan](../plan/MapGyver_Implementation_Plan.md#m01--decide-the-functional-native-rendering-route):
+
+| Functional acceptance item | Verified scope and evidence |
+| --- | --- |
+| Ordinary underlay, DOM layering/clipping and input feasibility | Native observations cover 31 inputs at 125% OS scale and 32 at 100%, including overlays, outside-region capture/release, hide/show, scroll, docking and zoom. [Primary evidence](evidence/mapgyver-m01-native-ui-2026-10-27.json), [secondary evidence](evidence/mapgyver-m01-secondary-native-ui-2026-10-28.json). This is settled visual/input feasibility, not measured pixel alignment or transition latency. |
+| Caller-owned D3D11/Spout two-source composition without recurring CPU-frame transport | The [SDK audit](evidence/mapgyver-m01-spout-sdk-audit-2026-10-27.json), [two-source resize/restart smoke](evidence/mapgyver-m01-spout-smoke-2026-10-27.json) and [independent composite consumer](evidence/mapgyver-m01-composite-consumer-2026-10-27.json) establish the exercised GPU-sharing/ownership route. Finite diagnostic readbacks are separate from recurring frame transport; no zero-copy or 60-fps pass is inferred. |
+| Scoped independence, source lifecycle and owned cleanup smoke | The [Intel interruption/reconnect analysis](evidence/mapgyver-m01-editor-isolation-final-intel-analysis-2026-10-28.json) verifies output and fresh consumer content through >60-second busy/blank-document intervals, reconnect, and drained tracked ownership. Source resize/restart is covered by the smoke above. These are scoped lifecycle checks, not full recovery, physical retirement or whole-app Q05. |
+| Recorded route decision and continuing owners | This decision selects ordinary Tauri/Wry + D3D11 + `spout2-sys =0.1.1`, preserves failures and assigns the continuing requirements below. It permits M02's thin shell and public host seam. |
+
+The acceptance denominator changes from the original eight broad qualification items to four
+functional decision items because the user approved this scope correction. No original failure
+became a pass, and unavailable configurations remain unavailable. The historical eight-item
+table is retained under [Remaining gate](#remaining-gate).
+
+| Continuing acceptance | Owner and preserved limits |
+| --- | --- |
+| Renderer budgets, bounded queues/resources, retirement, shutdown and device recovery | M03, with source/endpoint supervision in M04. Cadence/GPU stalls, consumer-age failures and resource-growth failures remain evidence for their captured inputs. |
+| Physical output/preview accuracy and complete DPI/input matrix | M05. Exact client sizing/placement, 150/200% OS DPI, negative origins, measured alignment/visible latency and physical output remain unqualified where not observed. The rejected 3834×2143 smoke and CSV chronology failure stay rejected. |
+| Actual-app sustained qualification and full product Q05 | M09 integrates the unchanged Q01/Q02 repeated series, Q03 soak and feature lifecycle checks; each owning milestone verifies its own recovery first. |
+
+No further M01 performance or consumer-isolation experiments are required before M02. The dated
+sections below retain their original measurements, fingerprints, progress counts and then-proposed
+next steps; current execution follows the revised plan and ledger. A later implementation that
+fails ordinary-host presentation requirements must still revisit DirectComposition at that boundary.
 
 ## Fenced consumer control and rejected smoke — 2026-10-28
 
@@ -1982,18 +2018,22 @@ physical scanout or unknown driver/desktop copies. Production/runtime/protocol c
 
 ## Remaining gate
 
-| Criterion | Current state / next evidence |
-| --- | --- |
-| D3D11/Spout caller-device ownership, two sources, resize/restart | PASSED_NATIVE for the limited smoke above; production supervision and full Q01/Q02 remain open |
-| Ordinary Tauri/Wry underlay, DOM layering/clipping/input | 31 observed native inputs on the 125% primary and 32 on the 100% secondary display, plus secondary activation restore; settled overlay/clipping/drag observations pass in that scope. Other configurations and quantitative latency remain open |
-| Native rectangle output and composited Spout send | Exact Q01/Q02 client/preview extents and narrow color/alpha/lifecycle checks pass on both GPUs; visual/native output, 4K scanout and full reference-card checks remain open |
-| Mixed DPI, negative origins, drag/resize/docking/zoom | 125%→100% monitor transition, primary/secondary sequences and WebView zoom checks observed; OS 150%/200%, negative origins and quantitative alignment remain open |
-| Minimized/disconnected-editor independence | Hidden-tab and separate minimized-editor intervals exceed 60 seconds with independent native output visual/submission progress; freshness, busy/disconnected cases and displayed cadence remain open |
-| Alpha/color cards, copies, frame age/cadence, queues and memory budgets | Historical NVIDIA/Intel cohorts and fixed-card results retain their exact fingerprints. Current Intel stage traces join every renderer interval and locate 143.0630 ms between post-composition/post-Spout markers in a 153.5667 ms frame. Sustained output accepts 7,125/7,200 attempts with 29 CSV drops; return-to-off short output drops 76/480 despite full acceptance. Cache bounds and zero alias/logical cleanup pass, with one sampled import per source. No SDK cause, cadence repair or complete GPU critical path is established. Current qualifying series, displayed cadence/physical latency, final/analysis loss, physical residency, SDK-internal copies, lifecycle/preview cards and remaining configurations stay open |
-| Device recreation, sustained retirement and shutdown budgets | Repaired NVIDIA control retires 101 renderer/202 ingest scopes across 100 rebuilds with ten-second live settling and 0.531-second scoped teardown. Handles stay within ten; private growth 47.926 MiB fails the 32-MiB target. Earlier smaller-stack passes retain their exact fingerprints. Native-harness lifecycle/physical retirement, complete-process/WebView shutdown and genuine removal/reset where testable remain open; full product/Matrix Q05 stays with its owning milestones/M09 |
-| Production host/backend/binding decision | OPEN: D3D11 plus the sys binding is exercised provisionally; ordinary underlay must pass or trigger DirectComposition investigation |
+This is the original broad eight-item gate, retained with its pre-correction evidence states.
+It is not the revised M01 denominator. The owner column assigns the continuing requirements;
+the dated observations retain their exact scopes and do not become current-source passes.
 
-Continue the Q01/Q02 repeated series, sustained resource/latency measurements and
-remaining native visual/input configurations in this harness. Do not start M02/M03 production
-architecture around an unqualified presentation path. The M00 workload and budget contract is
-unchanged; short smoke runs and single warmed samples do not become complete Q01/Q02 qualification.
+| Original criterion | Preserved evidence state / remaining scope | Continuing owner |
+| --- | --- | --- |
+| D3D11/Spout caller-device ownership, two sources, resize/restart | PASSED_NATIVE for the limited smoke above; production supervision and full Q01/Q02 remain open | M03/M04 |
+| Ordinary Tauri/Wry underlay, DOM layering/clipping/input | 31 observed native inputs on the 125% primary and 32 on the 100% secondary display, plus secondary activation restore; settled overlay/clipping/drag observations pass in that scope. Other configurations and quantitative latency remain open | M05 |
+| Native rectangle output and composited Spout send | Exact Q01/Q02 client/preview extents and narrow color/alpha/lifecycle checks pass on both GPUs; visual/native output, 4K scanout and full reference-card checks remain open | M05; integrated M09 |
+| Mixed DPI, negative origins, drag/resize/docking/zoom | 125%→100% monitor transition, primary/secondary sequences and WebView zoom checks observed; OS 150%/200%, negative origins and quantitative alignment remain open | M05 |
+| Minimized/disconnected-editor independence | Hidden-tab and separate minimized-editor intervals exceed 60 seconds with independent native output visual/submission progress; freshness, busy/disconnected cases and displayed cadence remain open | M03 runtime; M05 presentation |
+| Alpha/color cards, copies, frame age/cadence, queues and memory budgets | Historical NVIDIA/Intel cohorts and fixed-card results retain their exact fingerprints. Current Intel stage traces join every renderer interval and locate 143.0630 ms between post-composition/post-Spout markers in a 153.5667 ms frame. Sustained output accepts 7,125/7,200 attempts with 29 CSV drops; return-to-off short output drops 76/480 despite full acceptance. Cache bounds and zero alias/logical cleanup pass, with one sampled import per source. No SDK cause, cadence repair or complete GPU critical path is established. Current qualifying series, displayed cadence/physical latency, final/analysis loss, physical residency, SDK-internal copies, lifecycle/preview cards and remaining configurations stay open | M03 renderer; M05 presentation; M09 integration |
+| Device recreation, sustained retirement and shutdown budgets | Repaired NVIDIA control retires 101 renderer/202 ingest scopes across 100 rebuilds with ten-second live settling and 0.531-second scoped teardown. Handles stay within ten; private growth 47.926 MiB fails the 32-MiB target. Earlier smaller-stack passes retain their exact fingerprints. Native-harness lifecycle/physical retirement, complete-process/WebView shutdown and genuine removal/reset where testable remain open; full product/Matrix Q05 stays with its owning milestones/M09 | M03 and feature owners; full product M09 |
+| Production host/backend/binding decision | Previously OPEN. The approved functional decision above now selects the route for M02; full renderer/presentation/product quality is not approved by it | M01 route recorded; M03/M05/M09 quality |
+
+The M00 workload and numerical budget contract is unchanged. Short smoke runs, single warmed
+samples and the functional route decision do not become complete Q01/Q02 qualification.
+M02 now proceeds on the recorded functional decision; the broader checks remain acceptance
+work at the named owners rather than an open-ended prerequisite to shell development.

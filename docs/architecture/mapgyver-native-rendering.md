@@ -1,7 +1,9 @@
 # MapGyver native rendering research
 
-Research date: 2026-10-27. These are source-backed feasibility findings and proposed gates,
-not evidence that MapGyver has rendered a native frame. See [ownership and product contracts](mapgyver.md)
+Research date: 2026-10-27; functional route decision updated 2026-10-28. The user approved
+ordinary Tauri/Wry + D3D11 + pinned `spout2-sys =0.1.1` for the thin M02 shell, based on
+[scoped native evidence](../progress/mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28).
+This is not a full performance/display qualification. See [ownership and product contracts](mapgyver.md)
 and the [implementation plan](../plan/MapGyver_Implementation_Plan.md).
 
 ## Transparent WebView over native rendering
@@ -70,9 +72,10 @@ with D3D11 for this Windows-only scope, not claims that another backend cannot w
 | [`spout-rs`](https://docs.rs/crate/spout-rs/latest), observed 0.2.0 | Documents D3D11 receive/shared-handle send and vendored option | Alternative; its documented wgpu staging-readback/upload example is not the required production path |
 | [Microsoft windows-rs](https://github.com/microsoft/windows-rs) | Official Rust Windows API bindings | Preferred D3D/DXGI/process API boundary; keep raw types private |
 
-Package availability is not a maintenance audit. Some deep wrapper source links were unavailable
-during research; neither wrapper is selected yet. Review the published source, upstream revision,
-license notices and target build before choosing. The upstream
+Package availability is not a maintenance audit. The subsequent
+[published-source/SDK audit](../progress/mapgyver-m01-native-feasibility.md#published-binding-audit)
+and native ownership checks support the selected pinned sys binding; production supervision
+and recovery still belong to M03/M04. The upstream
 [Spout SDK license](https://github.com/leadedge/Spout2/blob/master/LICENSE) is BSD-2-Clause.
 If no wrapper meets the gate, use a narrow owned binding to the upstream SDK, not a new protocol.
 
@@ -91,6 +94,22 @@ elevation and launcher/singleton handoffs need explicit outcomes rather than nam
 [job limits](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-jobobject_basic_limit_information).
 
 ## Native feasibility gate
+
+The user-approved 2026-10-28 scope correction separates the M01 functional route decision from
+the continuing native qualification matrix. M01 requires scoped native underlay/input evidence,
+two-source D3D11/Spout composition without recurring CPU-frame transport, interruption/resize/
+cleanup smoke, and a recorded host/backend/binding decision with later owners. These are the
+[four fixed M01 acceptance items](../plan/MapGyver_Implementation_Plan.md#m01--decide-the-functional-native-rendering-route).
+Their completion permits M02's shell and public host seam; it does not assert the original full
+gate passed. Ordinary Tauri/Wry, D3D11 and `spout2-sys =0.1.1` are the selected route.
+
+The full matrix below remains required at its implementation owners:
+
+| Continuing requirement | Owner |
+| --- | --- |
+| Renderer CPU/GPU/cadence/frame-age budgets, bounded queues/resources, retirement and device recovery | M03; source supervision in M04 |
+| Physical output/preview accuracy, DOM/input behavior, complete DPI/negative-origin matrix and measured alignment/latency | M05 |
+| Integrated sustained workloads, complete-app recovery/shutdown and full product Q05 | M09, after each feature owner verifies its own behavior |
 
 Use an ordinary build/probe process and observed native interaction. The user authorized desktop
 automation on 2026-10-27; use the computer-use skill for native input and screenshots, with manual
@@ -115,5 +134,7 @@ Overlay-on resource failures remain recorded; this condition does not replace th
   latency, queue depth, memory/handles and sustained 1080p/4K behavior. Fix workload-specific
   budgets before qualification; do not infer throughput from one visible frame.
 
-Failure of the ordinary-hosting gate changes the presentation implementation decision before
-editor rollout. It does not justify CPU-frame transport as the native preview solution.
+If ordinary hosting fails its implemented M05 presentation requirements, revisit the explicit
+DirectComposition alternative before claiming editor quality. It does not justify CPU-frame
+transport as the native preview solution. Missing/failed checks remain recorded at their owners;
+M01's route decision neither erases them nor requires further diagnostic experiments before M02.

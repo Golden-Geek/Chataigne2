@@ -62,8 +62,8 @@ architecture and remain backend policies that can change during implementation r
 | ID | Outcome | Dependencies |
 | --- | --- | --- |
 | M00 | Reconciled baseline and fixed qualification workloads | Explicit implementation request |
-| M01 | Native WebView underlay and Spout/D3D11 feasibility decision | M00 |
-| M02 | Clean multi-app workspace, host and UI seams; runnable MapGyver shell | M01 |
+| M01 | Functional native WebView underlay and Spout/D3D11 route decision | M00 |
+| M02 | Clean multi-app workspace, host and UI seams; runnable MapGyver shell | M01 functional route decision |
 | M03 | Golden Video execution and MapGyver media/channel contracts | M02 |
 | M04 | Solid Color, Picture and concurrent Spout media | M03 |
 | M05 | Screens, Surfaces, output targets and two mapping editors | M04 |
@@ -85,24 +85,45 @@ Planning estimates, source inspection and a passing synthetic render are distinc
 **Acceptance:** a current checkout/ledger handoff, exact available/unavailable native routes,
 documented workloads and budgets, and no implementation inferred from historical evidence.
 
-### M01 — Prove native rendering before committing editor architecture
+### M01 — Decide the functional native rendering route
 
 Build narrow native probes using locked Tauri/Wry and D3D11. Exercise transparent WebView regions,
 DOM overlays, two concurrent Spout inputs, native output and Spout send. Inspect existing Rust
-Spout bindings and upstream SDK ownership/build/license contracts. Use the full
+Spout bindings and upstream SDK ownership/build/license contracts. Use the scoped
 [native feasibility gate](../architecture/mapgyver-native-rendering.md#native-feasibility-gate).
 
 Do not copy the desktop bootstrap into MapGyver as a production solution. Keep the probe scoped,
 then remove or retain it as an owned qualification harness. If the ordinary underlay fails,
 resolve the explicit DirectComposition alternative before marking the milestone complete.
 
-**Acceptance:** reproducible native evidence for layering, clipping, mixed DPI, input overlays,
-independent outputs, no recurring CPU readback, resize/restart and cleanup; a recorded host/backend
-and Spout-binding choice. Unavailable hardware checks remain open, not source-backed passes.
+The user approved a scope correction on 2026-10-28: M01 decides whether the route works well
+enough to build the thin M02 shell; it does not complete product performance/display qualification.
+Its four fixed acceptance items are:
+
+1. Observed ordinary Tauri/Wry native-underlay layering, clipping and DOM input/overlay behavior
+   on the recorded available configurations, with their DPI/latency limits explicit.
+2. Caller-owned D3D11 devices and two differently sized Spout sources compose into native and
+   Spout outputs without recurring CPU-frame transport, with the binding/SDK ownership audited.
+3. Scoped source resize/restart, independent output during editor interruption/reconnect, and
+   owned resource/process cleanup smoke have native evidence; sustained recovery budgets remain separate.
+4. Record the host/backend/binding choice, its evidence and limitations, and the owners of every
+   continuing qualification requirement.
+
+The [recorded decision](../progress/mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28)
+selects ordinary Tauri/Wry, D3D11 and pinned `spout2-sys =0.1.1`. This changes the M01 acceptance
+denominator from eight broad qualification items to four functional decision items. The original
+full gate has not passed: renderer budgets/resources/recovery belong to M03, physical output,
+preview/DPI/input qualification to M05, and integrated sustained/full-product Q05 to M09 and
+the feature owners. The [qualification contract](../progress/mapgyver-qualification-contract.md)
+retains all workloads, budgets, failures and unavailable checks.
+
 NVIDIA runs follow the user-approved [overlay-off qualification prerequisite](../progress/mapgyver-qualification-contract.md#nvidia-overlay-prerequisite);
 retain the overlay-on failure and unchanged budgets.
 
 ### M02 — Establish the second app without product leaks
+
+M02 depends on the recorded M01 functional route decision, not completion of the continuing
+performance/display matrix. It delivers the shell and public seams; it grants no native quality pass.
 
 Create the MapGyver shell/UI manifests, identity, project file spec/data directory, resources,
 capabilities and empty project scaffold. Introduce functional Media/Screen managers with their
@@ -126,6 +147,17 @@ preferences, layouts, project formats and discovery do not cross-contaminate. En
 headless, protocol-only and Chataigne full-host consumers retain valid public boundaries.
 No private path imports, copied host, or app-specific branch appears in Golden packages.
 
+Track this unchanged scope as seven fixed acceptance items, defined before M02 implementation:
+
+1. Public UI-bundling API adopted by the existing Chataigne app.
+2. MapGyver host/UI scaffold with app identity, project specifications and resources.
+3. App branding and browser-state isolation.
+4. Generic discovery with generated protocol and endpoint isolation.
+5. App-selected Cargo/npm/xtask/watch/package commands, preserving the root Chataigne default.
+6. Optional typed native-presentation host lifecycle extension.
+7. Both bundled/dev apps start independently and concurrently, with headless/engine/protocol
+   boundary validation.
+
 ### M03 — Deliver render/resource and channel foundations
 
 Introduce Golden Video's exercised D3D11 backend, opaque resources, render DAG, frame scheduling,
@@ -144,6 +176,10 @@ unrelated Chataigne roadmap tasks and does not create competing clock/cache/file
 IDs across history/reload, bounded GPU/worker admission and retirement, source/output state
 observations, and clean device recreation in the strongest available native harness. No frame
 transport through JSON, engine-loop GPU polling, or final cleanup on the actor/UI thread.
+Measure the reusable renderer against the unchanged Q01/Q02 CPU/GPU, cadence, frame-age,
+queue/admission, memory/handle and shutdown budgets. M03 owns bounded resource retirement and
+device recovery; preserve unresolved harness failures and verify their production replacements.
+These measurements are M03 acceptance work, not deferred wholesale to M09.
 
 ### M04 — Deliver source media and Media Manager
 
@@ -173,6 +209,10 @@ quads/crops fail atomically; calibration works with no source and restores routi
 Surfaces preserve order/alpha; each target mode works; mixed DPI/negative origins/hotplug retain
 intended display identity. Multiple outputs continue when editor panels close or minimize.
 One drag is one undoable gesture. Commands/scripts/callbacks/snippets ship with these modules.
+M05 owns the retained native presentation matrix: exact physical client/output and preview
+geometry, alpha/color/reference patterns, 100/125/150/200% OS DPI, mixed-DPI/negative-origin
+placement, overlays/pointer capture, and measured alignment/input-to-visible latency. Verify
+physical output and editor independence on available routes; unavailable configurations stay open.
 
 ### M06 — Deliver Composition media and editor
 
@@ -229,6 +269,10 @@ channel/pixel throughput. Run Chataigne regression checks for every changed shar
 codegen/boundary/license checks; native smoke and sustained runs against recorded budgets;
 truthful unavailable routes; onboarding and app-specific run/package commands. A package can be
 reviewable without being published. Release/signing/publication requires its own instruction.
+Repeat the required sustained Q01/Q02 series and Q03 soak in the actual app, integrating the
+M03 renderer and M05 presentation evidence. Full product Q05 covers the source/output, project,
+plan and Matrix lifecycle counts as those features arrive; owning milestones verify their own
+recovery first. Neither the M01 decision nor a passing probe replaces these requirements.
 
 ## Verification and handoff rules
 
