@@ -4,16 +4,16 @@
 
 **Updated: 2026-10-28 · Overall: `██░░░░░░░░░░░░░░░░░░` 10% · 1/10 phases complete**
 
-**Current topic:** M01 native feasibility — fenced consumer control and rejected smoke.
-Paused-observer work/marker counters remain unchanged, but the first capture fails native
-4K geometry (3834×2143) and per-swapchain CSV QPC order. The long series was not started.
-A physical 4K/150% `DISPLAY5` is now available on NVIDIA adapter 1.
+**Current topic:** M01 scope review after the user requested an end to diagnostic drift.
+The native route has functional evidence, but the original full gate has not passed.
+New profiling and native captures are stopped while the proposed dependency change below
+awaits the user's decision. The user confirms NVIDIA overlay is Off; no overlay investigation
+or setting change is needed for this review.
 
-**Next:** fix explicit owned-output placement and per-monitor-DPI client sizing, then
-predeclare the selected display/adapter route and resolve CSV chronology before more controls.
-**Blocker:** frozen geometry and CSV ordering currently fail; cadence, GPU timing and age stay open.
-Historical output-policy A2 loss observation, physical alignment/latency and full GPU critical
-path remain open. M02 waits for M01.
+**Next:** decide the explicit [scope correction](#next-action), then follow that decision.
+**Blocker:** the current plan requires the full native gate before M02. Cadence, resource
+growth, physical geometry and remaining display/input checks prevent that acceptance.
+The proposed functional-feasibility gate does not change the current 1/8 count or budgets.
 
 | Phase | State | Progress | Done / total items |
 | --- | --- | --- | --- |
@@ -195,6 +195,42 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | M09 App/artifact qualification | NOT_STARTED | Requires implemented product and fixed native workloads |
 
 ## Next action
+
+The user requested an explanation of M01's duration and instructed the agent to avoid further
+drift on 2026-10-28. New captures, consumer-control cohorts, overlay investigation, import-cache
+optimization, internal SDK/driver attribution and additional profiling are stopped. No source
+change or native run was made during this scope review. The 4K display is already connected;
+its availability and the user-confirmed overlay-Off setting are not unanswered questions.
+
+**Proposed scope correction — awaiting user approval, not an accepted gate change:**
+
+| Milestone | Proposed responsibility |
+| --- | --- |
+| M01 | Record functional feasibility and a host/backend/binding choice from the existing native evidence: ordinary Tauri/Wry underlay, D3D11, pinned Spout binding, two GPU sources, composition, editor independence and scoped ownership cleanup. Explicitly retain limitations and failed qualification results. |
+| M02 | Proceed with the thin app shell and public multi-app/host seams after that functional decision. This does not approve production editors or claim qualified rendering. |
+| M03 | Own reusable renderer scheduling, measured GPU/CPU budgets, resource bounds and applicable recovery/retirement fixes before accepting those mechanisms. |
+| M05 | Own correct physical output placement, preview alignment, quantitative input/layout latency and the full display/DPI/input matrix before accepting those features. |
+| M09 and owning features | Run the complete applicable sustained/recovery qualification against the actual app; preserve the fixed Q01/Q02 budgets and historical failures. Full product/Matrix Q05 remains here and with the features that introduce its behavior. |
+
+This proposal changes the plan's explicit M01→M02 dependency, so it requires the user's
+decision before implementation resumes under it. The original gate remains open at **1/8**;
+it is not retroactively passed. If the user retains the original gate, the current result is
+**not passed**. Agree a bounded corrective batch and a pass/fail checkpoint before further
+native work; a failed checkpoint produces a decision, not another automatic diagnostic loop.
+
+Internal root-cause attribution, mandatory dual-vendor success, exhaustive SDK-internal copy
+accounting, physical residency proof and optical scanout research are not additional gates to
+creating a thin shell. Unknown observations remain unknown. The fixed required measurements
+and budgets are not waived by this distinction. The full native gate still applies until the
+proposal is approved and its owning plan/architecture/contract documents are revised together.
+
+Preserve Chataigne's unfinished P11 work and its separate ledger. No production source,
+protocol, display configuration or overlay setting was changed by this review.
+
+### Historical diagnostic backlog — superseded as an execution queue
+
+The following retains the previous checkpoint's rationale. It is not authorization to resume
+experiments while the scope decision above is pending.
 
 Continue **M01**, the [native feasibility gate](../architecture/mapgyver-native-rendering.md#native-feasibility-gate),
 on branch `mapgyver`, using the owned [native harness](../../tools/mapgyver/native-probe/README.md).
