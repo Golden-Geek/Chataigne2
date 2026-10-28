@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "finite_authored_card_process_bridge_intel_validation_not_full_m01",
+  "native": [
+    {
+      "passed": true,
+      "full_image_pixels_verified": 2073600,
+      "tolerance_per_component": 2,
+      "scope": "authored-image cross-process transfer and existing source-worker bridge; no timing, procedural-card or scanout claim",
+      "artifact": "mapgyver-m01-authored-card-processes-intel-q01-2026-10-28.json"
+    },
+    {
+      "passed": true,
+      "full_image_pixels_verified": 8294400,
+      "tolerance_per_component": 2,
+      "scope": "authored-image cross-process transfer and existing source-worker bridge; no timing, procedural-card or scanout claim",
+      "artifact": "mapgyver-m01-authored-card-processes-intel-q02-2026-10-28.json"
+    },
+    {
+      "passed": true,
+      "full_image_pixels_verified": 2073600,
+      "tolerance_per_component": 2,
+      "scope": "authored-image GPU transfer/sampling only; no timing, procedural-card, scanout or cross-process claim",
+      "artifact": "mapgyver-m01-authored-card-local-process-control-intel-q01-2026-10-28.json"
+    },
+    {
+      "passed": true,
+      "full_image_pixels_verified": 8294400,
+      "tolerance_per_component": 2,
+      "scope": "authored-image GPU transfer/sampling only; no timing, procedural-card, scanout or cross-process claim",
+      "artifact": "mapgyver-m01-authored-card-local-process-control-intel-q02-2026-10-28.json"
+    }
+  ],
+  "current_inputs_and_wrapper_hashes_verified": true,
+  "input_sha256": "a67469f610ad96617d0b28c5b20b84e4f83983656fa1d1ad35912c5344dac788",
+  "artifacts": {
+    "mapgyver-m01-authored-card-processes-intel-q01-2026-10-28.json": "d169e4e92b194c0c2fbdff40c38cc036cd641a501fbf90383651527805119c17",
+    "mapgyver-m01-authored-card-processes-intel-q02-2026-10-28.json": "620a03caf22c99a9f433efc13bc9c4d7b37eeeab25a39527b7fc1d1f0448eef1",
+    "mapgyver-m01-authored-card-local-process-control-intel-q01-2026-10-28.json": "4114835ea64debd2553730c0bef58e073e12dd8b2cc9557c3e48e9a28a483dff",
+    "mapgyver-m01-authored-card-local-process-control-intel-q02-2026-10-28.json": "203f053151c7261a839d6e4495f7b47b7f746658a1c4df2852986da64f877f42"
+  },
+  "process_route_pixels": 10368000,
+  "local_control_pixels": 10368000,
+  "deterministic_rust_tests_passed": 48,
+  "python_tests_passed": 35,
+  "strict_default_desktop_clippy_passed": true,
+  "generated_bindings_match": true,
+  "actual_root_core_formatters_run": true,
+  "checks": [
+    {
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--manifest-path",
+        "crates/golden_core/Cargo.toml",
+        "--",
+        "--check"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0
+    }
+  ],
+  "local_doc_links_checked": 294,
+  "rust_source_limits_checked": 72,
+  "tool_whitespace_files_checked": 107,
+  "owned_native_processes_remaining": 0,
+  "desktop_automation_used": false,
+  "overlay_changed": false,
+  "last_recorded_nvidia_overlay_state": "On verified restored at 2026-10-28 08:17:51 UTC; not reobserved this Intel-only turn",
+  "scope": "Intel authored-image full accuracy across independent processes and existing source-worker bridge. Procedural cards, NVIDIA accuracy, native previews/scanout, sustained timing/GPU critical path and physical retirement remain open."
+}

@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "m01_isolated_source_nvidia_overlay_conditions",
+  "authorization": "User approved temporary Off/test/restore and chose overlay-off qualification prerequisite",
+  "original": {
+    "state": "On",
+    "observed_utc": "2026-10-28 03:44:16 UTC",
+    "method": "NVIDIA app Settings Features screenshot: green NVIDIA overlay switch; adjacent Game filters grey untouched"
+  },
+  "before_tests": {
+    "state": "Off",
+    "observed_no_later_than_utc": "2026-10-28 03:44:49 UTC",
+    "method": "NVIDIA app Settings Features UI: grey overlay switch, accessibility announcement 'NVIDIA overlay Toggle switch Off', toolbar 'Enable and open overlay'",
+    "verified_before_probe_startup": true
+  },
+  "during_tests": {
+    "planned_desktop_snapshotting": false,
+    "display_settings_changed": false,
+    "computer_use_kernel_reset_before_measurement": true
+  },
+  "after_tests_before_restore": {
+    "state": "Off",
+    "observed_no_later_than_utc": "2026-10-28 04:24:54 UTC",
+    "method": "Native NVIDIA Features UI grey overlay switch and Enable and open overlay toolbar; all owned probes already terminal"
+  },
+  "restoration": {
+    "status": "verified_restored",
+    "required_original_state": "On",
+    "observed_state": "On",
+    "observed_no_later_than_utc": "2026-10-28 04:25:05 UTC",
+    "method": "Native green overlay switch, accessibility announcement NVIDIA overlay Toggle switch On, and Alt+Z - Open overlay toolbar",
+    "other_settings_changed": false
+  }
+}

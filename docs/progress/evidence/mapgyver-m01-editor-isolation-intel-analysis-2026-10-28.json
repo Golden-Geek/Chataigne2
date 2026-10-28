@@ -1,0 +1,167 @@
+{
+  "scope": "busy JS and blank-document output continuity/reconnect; not displayed cadence or a performance series",
+  "windows": [
+    {
+      "kind": "javascript_busy",
+      "observed_seconds": 61.0077393,
+      "native_output_calls": 3660,
+      "spout_calls": 3660,
+      "unique_observed_fixture_frames": [
+        2806,
+        2806
+      ],
+      "editor_poll_requests": 0
+    },
+    {
+      "kind": "blank_document",
+      "observed_seconds": 61.0150387,
+      "native_output_calls": 3647,
+      "spout_calls": 3648,
+      "unique_observed_fixture_frames": [
+        2822,
+        2822
+      ],
+      "editor_poll_requests": 0
+    }
+  ],
+  "raw_consumer_marker_accounting_verified": true,
+  "whole_session_invalid_markers": [
+    0,
+    5
+  ],
+  "whole_session_absent_markers": [
+    30,
+    0
+  ],
+  "fresh_document_restored": true,
+  "zero_tracked_after_fences": true,
+  "shutdown_seconds": 0.399476,
+  "pipeline_timing": {
+    "sampled_renderer_batches": 8110,
+    "matched_batches": 8110,
+    "complete_dependency_coverage": true,
+    "missing_renderer_spans": 0,
+    "missing_source_spans": [
+      0,
+      0
+    ],
+    "absent_source_references": [
+      29,
+      4
+    ],
+    "repeated_source_references": [
+      8,
+      0
+    ],
+    "warmup_source_references": [
+      0,
+      0
+    ],
+    "correlated_serial_gpu_span_sum": {
+      "samples": 8110,
+      "mean_ms": 3.0550537595047267,
+      "median_ms": 2.8910937500000005,
+      "p95_ms": 4.259739583333333,
+      "p99_ms": 4.92625,
+      "maximum_ms": 457.96807291666664
+    },
+    "cpu_enclosed_pipeline_upper_bound": {
+      "samples": 8110,
+      "mean_ms": 31.338166683107275,
+      "median_ms": 31.6252,
+      "p95_ms": 32.1229,
+      "p99_ms": 32.8293,
+      "maximum_ms": 248.4128
+    },
+    "upper_bound_sufficient_for_gpu_target": false,
+    "scope": "app ingest to renderer completion; CPU envelope includes polling, queueing and retained-frame age",
+    "interpretation": "GPU span sums exclude gaps and are not the pipeline critical path. An upper bound above target is inconclusive, not proof of GPU-budget failure."
+  },
+  "gpu_admission": [
+    {
+      "mechanism": "timeline_fence",
+      "maximum_in_flight": 2,
+      "peak_in_flight": 2,
+      "submitted": 8110,
+      "completed": 8110,
+      "pending": 0,
+      "reserved": false,
+      "warmup": {
+        "attempts": 0,
+        "admitted": 0,
+        "busy": 0
+      },
+      "sampled": {
+        "attempts": 8122,
+        "admitted": 8110,
+        "busy": 12
+      },
+      "pending_at_final_poll": 1
+    },
+    {
+      "mechanism": "timeline_fence",
+      "maximum_in_flight": 2,
+      "peak_in_flight": 2,
+      "submitted": 8102,
+      "completed": 8102,
+      "pending": 0,
+      "reserved": false,
+      "warmup": {
+        "attempts": 0,
+        "admitted": 0,
+        "busy": 0
+      },
+      "sampled": {
+        "attempts": 8110,
+        "admitted": 8102,
+        "busy": 8
+      },
+      "pending_at_final_poll": 1
+    },
+    {
+      "mechanism": "timeline_fence",
+      "maximum_in_flight": 2,
+      "peak_in_flight": 2,
+      "submitted": 8112,
+      "completed": 8112,
+      "pending": 0,
+      "reserved": false,
+      "warmup": {
+        "attempts": 0,
+        "admitted": 0,
+        "busy": 0
+      },
+      "sampled": {
+        "attempts": 8113,
+        "admitted": 8112,
+        "busy": 1
+      },
+      "pending_at_final_poll": 1
+    }
+  ],
+  "elapsed_seconds": 135.7991701,
+  "busy_elapsed_ms": 65000,
+  "reconnected": {
+    "qpc": 1709319882321,
+    "editor_requests": 18,
+    "layout_session": 3,
+    "layout_revision": 2,
+    "rendered_revision": 2,
+    "preview_regions": 2,
+    "preview_presents": 8109,
+    "output_presents": 8109,
+    "spout_sends": 8110
+  },
+  "inputs_unchanged": true,
+  "current_native_inputs_verified": true,
+  "stream_and_envelope_hashes_verified": true,
+  "artifacts_sha256": {
+    "mapgyver-m01-editor-isolation-intel-2026-10-28.json": "4be20d10455ba3782418d26e5ee1c1e23c39fd8056a17865e296e59fedb3ef20"
+  },
+  "tools_sha256": {
+    "tools/mapgyver/analyze-editor-isolation.py": "1cf66cce593bdb4553e6449c82eb044bbf6502d7981b5488eb30bc0c6b403b4a",
+    "tools/mapgyver/analyze-release.py": "32731ffe278e95af166e064f876ef7533c975cda43a42bb7962b7a573f3b2913",
+    "tools/mapgyver/analyze-pipeline.py": "6e9556307007fe2a82b8756f19e31830fa5c7d4963fedf97699c421bc5bc0a84",
+    "tools/mapgyver/collect-evidence.py": "2a5a1236015c661f3b1f5e1532caa282751c72e5093c3bfcacc0594ec8160806"
+  }
+}

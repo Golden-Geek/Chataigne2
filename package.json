@@ -10,6 +10,7 @@
   },
   "workspaces": [
     "apps/chataigne/ui",
+    "tools/mapgyver/native-probe/ui",
     "packages/*"
   ],
   "scripts": {

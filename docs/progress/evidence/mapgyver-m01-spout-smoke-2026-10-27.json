@@ -1,0 +1,314 @@
+{
+  "schema_version": 1,
+  "metadata": {
+    "head": "40acd67df94920b63469a77da0ee64e40368d60b",
+    "branch": "mapgyver",
+    "captured_at_utc": "2026-10-27T18:05:22.0391666Z",
+    "hashes": [
+      {
+        "path": "Cargo.toml",
+        "sha256": "bd01765f8ba0796d43f9e826a919f3dced1cfba02570c249c9717d9870d9bdd4"
+      },
+      {
+        "path": "Cargo.lock",
+        "sha256": "d411ac0706858f6f3179d9593eaa6f4065ade4497f016f78b19db9e16d6dd1c4"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/Cargo.toml",
+        "sha256": "16f648ce2e2fe008266136016f67cac520b15f0dd4ce414bbbe7327ea015bc91"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/src/d3d.rs",
+        "sha256": "09e1156503abed320b2fca0b9121ef09727fdcfb6563bc81866dc6baf464ca8b"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/src/fixture.rs",
+        "sha256": "fc19eae22de9245fc01c366fa6e34e37525eb27bc4513d95cbd6cfff998d060f"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/src/main.rs",
+        "sha256": "2f984f5e9c058918a699b505d81800035bbf6bdf523d9ec520300f228f23fc89"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/src/smoke.rs",
+        "sha256": "221f67ba7c4c1761b0e5564c6d1e90235569d9349e52105eb92b51d621ce304b"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/src/spout.rs",
+        "sha256": "87232eaf504cf029fab6a38d79b6b8d88ce1e116ed684edf556165c6100e9232"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/tests/native_smoke.rs",
+        "sha256": "6eb1df6b9afad51428f867412802c78c76f5584704a47d3a9d35803e90c28321"
+      },
+      {
+        "path": "tools/mapgyver/audit-spout-sdk.py",
+        "sha256": "42d797359fd1476265c90daf8b77f9f7dd79ec676dfeecfcf78a880ea0c529ee"
+      },
+      {
+        "path": "target/debug/mapgyver_native_probe.exe",
+        "sha256": "d332d76810cb4adc65d267abf79c6bfd17b5899a052efca1e3d4e4b54bf46c16"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "command": "cargo test --locked -p mapgyver_native_probe --test native_smoke -- --ignored --nocapture",
+      "outcome": "PASSED_NATIVE",
+      "detail": "1 integration test: both hardware adapters plus software-adapter rejection; 12.82s test runtime"
+    },
+    {
+      "command": "cargo clippy --locked -p mapgyver_native_probe --all-targets -- -D warnings",
+      "outcome": "PASSED"
+    },
+    {
+      "command": "cargo fmt --all -- --check",
+      "outcome": "PASSED"
+    },
+    {
+      "command": "cargo fmt --all --manifest-path crates/golden_core/Cargo.toml -- --check",
+      "outcome": "PASSED"
+    }
+  ],
+  "inventory": {
+    "command": "target/debug/mapgyver_native_probe.exe inventory",
+    "adapters": [
+      {
+        "index": 0,
+        "description": "Intel(R) Graphics",
+        "luid": "00000000:00016c2a",
+        "dedicated_video_bytes": 134217728,
+        "shared_system_bytes": 19239208796,
+        "software": false,
+        "local_memory": {
+          "budget_bytes": 18433902428,
+          "current_usage_bytes": 0
+        },
+        "nonlocal_memory": {
+          "budget_bytes": 0,
+          "current_usage_bytes": 0
+        },
+        "outputs": [
+          {
+            "device_name": "\\\\.\\DISPLAY1",
+            "attached": true,
+            "desktop_rect": [
+              0,
+              0,
+              2560,
+              1600
+            ],
+            "coordinate_context": "physical_pixels_per_monitor_aware_v2_thread"
+          },
+          {
+            "device_name": "\\\\.\\DISPLAY2",
+            "attached": true,
+            "desktop_rect": [
+              2560,
+              0,
+              4480,
+              1080
+            ],
+            "coordinate_context": "physical_pixels_per_monitor_aware_v2_thread"
+          }
+        ]
+      },
+      {
+        "index": 1,
+        "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "00000000:000170d3",
+        "dedicated_video_bytes": 16780361728,
+        "shared_system_bytes": 19239208796,
+        "software": false,
+        "local_memory": {
+          "budget_bytes": 15975055360,
+          "current_usage_bytes": 0
+        },
+        "nonlocal_memory": {
+          "budget_bytes": 18433902428,
+          "current_usage_bytes": 0
+        },
+        "outputs": []
+      },
+      {
+        "index": 2,
+        "description": "Microsoft Basic Render Driver",
+        "luid": "00000000:00017040",
+        "dedicated_video_bytes": 0,
+        "shared_system_bytes": 19239208796,
+        "software": true,
+        "local_memory": {
+          "budget_bytes": 18433902428,
+          "current_usage_bytes": 0
+        },
+        "nonlocal_memory": {
+          "budget_bytes": 0,
+          "current_usage_bytes": 0
+        },
+        "outputs": []
+      }
+    ]
+  },
+  "runs": [
+    {
+      "command": "target/debug/mapgyver_native_probe.exe smoke 0",
+      "outcome": "PASSED_NATIVE",
+      "report": {
+        "evidence_kind": "native_cross_process_gpu_lifecycle_smoke_not_q01_qualification",
+        "sdk_version": "2.007.017",
+        "feature_level": "11_0",
+        "adapter": {
+          "index": 0,
+          "description": "Intel(R) Graphics",
+          "luid": "00000000:00016c2a",
+          "dedicated_video_bytes": 134217728,
+          "shared_system_bytes": 19239208796,
+          "software": false,
+          "local_memory": {
+            "budget_bytes": 18433902428,
+            "current_usage_bytes": 0
+          },
+          "nonlocal_memory": {
+            "budget_bytes": 0,
+            "current_usage_bytes": 0
+          },
+          "outputs": [
+            {
+              "device_name": "\\\\.\\DISPLAY1",
+              "attached": true,
+              "desktop_rect": [
+                0,
+                0,
+                2560,
+                1600
+              ],
+              "coordinate_context": "physical_pixels_per_monitor_aware_v2_thread"
+            },
+            {
+              "device_name": "\\\\.\\DISPLAY2",
+              "attached": true,
+              "desktop_rect": [
+                2560,
+                0,
+                4480,
+                1080
+              ],
+              "coordinate_context": "physical_pixels_per_monitor_aware_v2_thread"
+            }
+          ]
+        },
+        "channel_observations": [
+          983,
+          1063
+        ],
+        "phase_markers_bgra": [
+          [
+            0,
+            0,
+            255,
+            255
+          ],
+          [
+            0,
+            255,
+            0,
+            255
+          ],
+          [
+            255,
+            0,
+            0,
+            255
+          ]
+        ],
+        "unaffected_channel_marker_bgra": [
+          0,
+          255,
+          255,
+          255
+        ],
+        "b_observations_during_a_recovery": 80,
+        "diagnostic_readbacks": 4,
+        "elapsed_ms": 6196.4663,
+        "unqualified": [
+          "WebView underlay/DOM/input/DPI",
+          "native and composited Spout output",
+          "Q01/Q02 cadence/memory budgets",
+          "device reset and sustained retirement"
+        ]
+      }
+    },
+    {
+      "command": "target/debug/mapgyver_native_probe.exe smoke 1",
+      "outcome": "PASSED_NATIVE",
+      "report": {
+        "evidence_kind": "native_cross_process_gpu_lifecycle_smoke_not_q01_qualification",
+        "sdk_version": "2.007.017",
+        "feature_level": "11_0",
+        "adapter": {
+          "index": 1,
+          "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+          "luid": "00000000:000170d3",
+          "dedicated_video_bytes": 16780361728,
+          "shared_system_bytes": 19239208796,
+          "software": false,
+          "local_memory": {
+            "budget_bytes": 15975055360,
+            "current_usage_bytes": 0
+          },
+          "nonlocal_memory": {
+            "budget_bytes": 18433902428,
+            "current_usage_bytes": 0
+          },
+          "outputs": []
+        },
+        "channel_observations": [
+          986,
+          1067
+        ],
+        "phase_markers_bgra": [
+          [
+            0,
+            0,
+            255,
+            255
+          ],
+          [
+            0,
+            255,
+            0,
+            255
+          ],
+          [
+            255,
+            0,
+            0,
+            255
+          ]
+        ],
+        "unaffected_channel_marker_bgra": [
+          0,
+          255,
+          255,
+          255
+        ],
+        "b_observations_during_a_recovery": 81,
+        "diagnostic_readbacks": 4,
+        "elapsed_ms": 6273.720799999999,
+        "unqualified": [
+          "WebView underlay/DOM/input/DPI",
+          "native and composited Spout output",
+          "Q01/Q02 cadence/memory budgets",
+          "device reset and sustained retirement"
+        ]
+      }
+    }
+  ],
+  "limitations": [
+    "Native lifecycle smoke only, not Q01/Q02 qualification",
+    "No WebView, native presentation, composition, cadence or resource-budget proof",
+    "MSVC and Windows SDK selected by cc auto-discovery were not captured for these preliminary runs",
+    "Adapter memory and output observations precede device/texture allocation and are not peak usage",
+    "Only four diagnostic readbacks per smoke; no recurring CPU-frame transport path"
+  ]
+}

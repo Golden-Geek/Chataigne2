@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "nvidia_and_cross_adapter_local_validation_not_full_m01_gate",
+  "analysis_sha256": "28f18e0174f7a9cf080594a23aa2e3f04d62104ba373a4b7900430f2bddd6030",
+  "all_sixteen_intel_nvidia_inputs_verified_current": true,
+  "all_saved_stream_envelope_and_tool_hashes_verified": true,
+  "twelve_release_samples_scoped_call_cpu_context_query_age_targets_verified": true,
+  "sampled_renderer_dependency_joins": 86395,
+  "raw_gpu_spans": 323619,
+  "local_doc_links_checked": 136,
+  "rust_source_limits_checked": 61,
+  "untracked_tool_whitespace_files_checked": 88,
+  "deterministic_rust_tests_passed": 37,
+  "python_tests_passed": 26,
+  "strict_default_desktop_clippy_passed": true,
+  "generated_bindings_match": true,
+  "actual_root_core_formatters_run": true,
+  "checks": [
+    {
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--manifest-path",
+        "crates/golden_core/Cargo.toml",
+        "--",
+        "--check"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0
+    }
+  ],
+  "release_executable_sha256": "a00cbacb3dce25c9b83a5fb0617ff04838ab2e96fccf585237e724ee46e87f8a",
+  "overlay_original_on_restored_observed_utc": "2026-10-28 06:51:44 UTC",
+  "complete_m01_qualification": false,
+  "branch": "mapgyver",
+  "owned_probe_processes_remaining": 0,
+  "runtime_source_changed_this_turn": false
+}

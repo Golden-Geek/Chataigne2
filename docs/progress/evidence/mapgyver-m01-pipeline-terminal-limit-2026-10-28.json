@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "incomplete_terminal_transport_not_native_qualification",
+  "command": "python tools/mapgyver/run-qualification.py 0 q02 --seconds 120 --warmup 30 --samples 3 --encoding gzip-base64 --nvidia-overlay on",
+  "lost_reports": [
+    {
+      "surviving_characters": 1048606,
+      "advertised_decoded_bytes": 3205171,
+      "advertised_sha256": "882d50ff7434e4e1d020cc9586f312ec7d71e462eb8d7902408fd908d45629ea",
+      "terminal_omission": "... 170157 bytes omitted ...",
+      "next_progress": [
+        "Starting q02 adapter 0, sample 2/3"
+      ]
+    },
+    {
+      "surviving_characters": 1048606,
+      "advertised_decoded_bytes": 3197081,
+      "advertised_sha256": "60dee22826860f07861bbfa7b2817204bdca67ae74bc2b78693cec82901a8a70",
+      "terminal_omission": "... 171869 bytes omitted ...",
+      "next_progress": [
+        "Starting q02 adapter 0, sample 3/3"
+      ]
+    }
+  ],
+  "runner_exit_code": 1,
+  "interrupted_sample": 3,
+  "reason": "Each of the first two single-line compressed envelopes exceeded the terminal's 1 MiB output ceiling. The middle bytes are unavailable; no report or passing distribution is reconstructed. After observing the active process tree, stopped only owned runner 22504, renderer 39908 and children 21560/5624/11460. No owned probe remained. These incomplete/cancelled samples do not count toward the replacement series.",
+  "next_transport": "collect-evidence.py captures runner stdout and emits indexed, paced chunks with whole-stream byte count/SHA after native measurement ends. Native inputs and workload are unchanged."
+}

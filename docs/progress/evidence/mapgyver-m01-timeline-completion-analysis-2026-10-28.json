@@ -1,0 +1,907 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "timeline_completion_repair_controls_not_full_m01_qualification",
+  "tool_sha256": {
+    "tools\\mapgyver\\analyze-release.py": "401a7188a283b4c86e60c98d905fae8dcce1e70d2f49c526cf6bf43dcf207ec7",
+    "tools\\mapgyver\\analyze-query-progress.py": "72d9c3845a9fce779a9f1ee81f707ef7a6575614f2d9ff741376b09f47275936"
+  },
+  "query_controls": {
+    "mapgyver-m01-query-progress-intel-2026-10-28.json": {
+      "scope": "headless progress isolation, not Q01/Q02 qualification",
+      "runs": [
+        {
+          "native_success": true,
+          "mode": "event",
+          "mechanism": "event_query",
+          "attempts": 480,
+          "admitted": 480,
+          "busy": 0,
+          "busy_bursts": [],
+          "tick_work": {
+            "samples": 480,
+            "mean_ms": 0.08492395833333323,
+            "median_ms": 0.0844,
+            "p95_ms": 0.1207,
+            "p99_ms": 0.1349,
+            "maximum_ms": 0.2477
+          },
+          "zero_after_fence": true,
+          "drain_clear_after_observation": true
+        },
+        {
+          "native_success": true,
+          "mode": "warmup",
+          "mechanism": "event_query",
+          "attempts": 480,
+          "admitted": 480,
+          "busy": 0,
+          "busy_bursts": [],
+          "tick_work": {
+            "samples": 480,
+            "mean_ms": 0.10345479166666667,
+            "median_ms": 0.10189999999999999,
+            "p95_ms": 0.149,
+            "p99_ms": 0.21330000000000002,
+            "maximum_ms": 0.5323
+          },
+          "zero_after_fence": true,
+          "drain_clear_after_observation": true
+        },
+        {
+          "native_success": true,
+          "mode": "timestamp",
+          "mechanism": "event_query",
+          "attempts": 480,
+          "admitted": 480,
+          "busy": 0,
+          "busy_bursts": [],
+          "tick_work": {
+            "samples": 480,
+            "mean_ms": 0.08545270833333325,
+            "median_ms": 0.0875,
+            "p95_ms": 0.1224,
+            "p99_ms": 0.1344,
+            "maximum_ms": 0.16970000000000002
+          },
+          "zero_after_fence": true,
+          "drain_clear_after_observation": true
+        },
+        {
+          "native_success": true,
+          "mode": "receiver_warmup",
+          "mechanism": "event_query",
+          "attempts": 480,
+          "admitted": 480,
+          "busy": 0,
+          "busy_bursts": [],
+          "tick_work": {
+            "samples": 480,
+            "mean_ms": 0.07551208333333334,
+            "median_ms": 0.0688,
+            "p95_ms": 0.1192,
+            "p99_ms": 0.1483,
+            "maximum_ms": 0.38039999999999996
+          },
+          "zero_after_fence": true,
+          "drain_clear_after_observation": true
+        },
+        {
+          "native_success": true,
+          "mode": "receiver_timestamp",
+          "mechanism": "event_query",
+          "attempts": 480,
+          "admitted": 480,
+          "busy": 0,
+          "busy_bursts": [],
+          "tick_work": {
+            "samples": 480,
+            "mean_ms": 0.09694125000000005,
+            "median_ms": 0.095,
+            "p95_ms": 0.1359,
+            "p99_ms": 0.1638,
+            "maximum_ms": 0.176
+          },
+          "zero_after_fence": true,
+          "drain_clear_after_observation": true
+        },
+        {
+          "native_success": true,
+          "mode": "clear_warmup",
+          "mechanism": "event_query",
+          "attempts": 480,
+          "admitted": 480,
+          "busy": 0,
+          "busy_bursts": [],
+          "tick_work": {
+            "samples": 480,
+            "mean_ms": 0.09572916666666667,
+            "median_ms": 0.09469999999999999,
+            "p95_ms": 0.1372,
+            "p99_ms": 0.1537,
+            "maximum_ms": 0.177
+          },
+          "zero_after_fence": true,
+          "drain_clear_after_observation": true
+        }
+      ]
+    },
+    "mapgyver-m01-query-progress-nvidia-2026-10-28.json": {
+      "scope": "headless progress isolation, not Q01/Q02 qualification",
+      "runs": [
+        {
+          "native_success": true,
+          "mode": "event",
+          "mechanism": "event_query",
+          "attempts": 480,
+          "admitted": 4,
+          "busy": 476,
+          "busy_bursts": [
+            {
+              "first_tick": 2,
+              "first_qpc": 1615805419258,
+              "ticks": 254,
+              "last_tick": 255,
+              "last_qpc": 1615847586159
+            },
+            {
+              "first_tick": 258,
+              "first_qpc": 1615848085905,
+              "ticks": 222,
+              "last_tick": 479,
+              "last_qpc": 1615884922797
+            }
+          ],
+          "tick_work": {
+            "samples": 480,
+            "mean_ms": 0.00334979166666666,
+            "median_ms": 0.0022,
+            "p95_ms": 0.0073,
+            "p99_ms": 0.035500000000000004,
+            "maximum_ms": 0.0828
+          },
+          "zero_after_fence": true,
+          "drain_clear_after_observation": true
+        },
+        {
+          "native_success": true,
+          "mode": "warmup",
+          "mechanism": "event_query",
+          "attempts": 480,
+          "admitted": 4,
+          "busy": 476,
+          "busy_bursts": [
+            {
+              "first_tick": 2,
+              "first_qpc": 1615887074550,
+              "ticks": 254,
+              "last_tick": 255,
+              "last_qpc": 1615929242296
+            },
+            {
+              "first_tick": 258,
+              "first_qpc": 1615929738851,
+              "ticks": 222,
+              "last_tick": 479,
+              "last_qpc": 1615966572886
+            }
+          ],
+          "tick_work": {
+            "samples": 480,
+            "mean_ms": 0.003923333333333328,
+            "median_ms": 0.0034000000000000002,
+            "p95_ms": 0.0056,
+            "p99_ms": 0.0275,
+            "maximum_ms": 0.0886
+          },
+          "zero_after_fence": true,
+          "drain_clear_after_observation": true
+        },
+        {
+          "native_success": true,
+          "mode": "timestamp",
+          "mechanism": "event_query",
+          "attempts": 480,
+          "admitted": 480,
+          "busy": 0,
+          "busy_bursts": [],
+          "tick_work": {
+            "samples": 480,
+            "mean_ms": 0.08084395833333335,
+            "median_ms": 0.0784,
+            "p95_ms": 0.1178,
+            "p99_ms": 0.15669999999999998,
+            "maximum_ms": 0.3178
+          },
+          "zero_after_fence": true,
+          "drain_clear_after_observation": true
+        },
+        {
+          "native_success": true,
+          "mode": "receiver_warmup",
+          "mechanism": "event_query",
+          "attempts": 480,
+          "admitted": 4,
+          "busy": 476,
+          "busy_bursts": [
+            {
+              "first_tick": 2,
+              "first_qpc": 1616051352309,
+              "ticks": 254,
+              "last_tick": 255,
+              "last_qpc": 1616093517496
+            },
+            {
+              "first_tick": 258,
+              "first_qpc": 1616094021248,
+              "ticks": 222,
+              "last_tick": 479,
+              "last_qpc": 1616130852810
+            }
+          ],
+          "tick_work": {
+            "samples": 480,
+            "mean_ms": 0.004673541666666666,
+            "median_ms": 0.0039,
+            "p95_ms": 0.0072,
+            "p99_ms": 0.0427,
+            "maximum_ms": 0.1311
+          },
+          "zero_after_fence": true,
+          "drain_clear_after_observation": true
+        },
+        {
+          "native_success": true,
+          "mode": "receiver_timestamp",
+          "mechanism": "event_query",
+          "attempts": 480,
+          "admitted": 480,
+          "busy": 0,
+          "busy_bursts": [],
+          "tick_work": {
+            "samples": 480,
+            "mean_ms": 0.08382354166666667,
+            "median_ms": 0.0828,
+            "p95_ms": 0.1252,
+            "p99_ms": 0.1419,
+            "maximum_ms": 0.1657
+          },
+          "zero_after_fence": true,
+          "drain_clear_after_observation": true
+        },
+        {
+          "native_success": true,
+          "mode": "clear_warmup",
+          "mechanism": "event_query",
+          "attempts": 480,
+          "admitted": 4,
+          "busy": 476,
+          "busy_bursts": [
+            {
+              "first_tick": 2,
+              "first_qpc": 1616215529335,
+              "ticks": 254,
+              "last_tick": 255,
+              "last_qpc": 1616257694346
+            },
+            {
+              "first_tick": 258,
+              "first_qpc": 1616258193273,
+              "ticks": 222,
+              "last_tick": 479,
+              "last_qpc": 1616295030407
+            }
+          ],
+          "tick_work": {
+            "samples": 480,
+            "mean_ms": 0.004795833333333323,
+            "median_ms": 0.0039,
+            "p95_ms": 0.0068000000000000005,
+            "p99_ms": 0.061,
+            "maximum_ms": 0.102
+          },
+          "zero_after_fence": true,
+          "drain_clear_after_observation": true
+        }
+      ]
+    },
+    "mapgyver-m01-query-progress-timeline-2026-10-28.json": {
+      "scope": "headless progress isolation, not Q01/Q02 qualification",
+      "runs": [
+        {
+          "native_success": true,
+          "mode": "fence",
+          "mechanism": "timeline_fence",
+          "attempts": 480,
+          "admitted": 480,
+          "busy": 0,
+          "busy_bursts": [],
+          "tick_work": {
+            "samples": 480,
+            "mean_ms": 0.03081854166666666,
+            "median_ms": 0.0315,
+            "p95_ms": 0.0493,
+            "p99_ms": 0.0703,
+            "maximum_ms": 0.11019999999999999
+          },
+          "zero_after_fence": true,
+          "drain_clear_after_observation": true
+        },
+        {
+          "native_success": true,
+          "mode": "fence_warmup",
+          "mechanism": "timeline_fence",
+          "attempts": 480,
+          "admitted": 480,
+          "busy": 0,
+          "busy_bursts": [],
+          "tick_work": {
+            "samples": 480,
+            "mean_ms": 0.042766875,
+            "median_ms": 0.0385,
+            "p95_ms": 0.0819,
+            "p99_ms": 0.1047,
+            "maximum_ms": 0.15760000000000002
+          },
+          "zero_after_fence": true,
+          "drain_clear_after_observation": true
+        }
+      ]
+    },
+    "mapgyver-m01-query-progress-final-nvidia-2026-10-28.json": {
+      "scope": "headless progress isolation, not Q01/Q02 qualification",
+      "runs": [
+        {
+          "native_success": true,
+          "mode": "warmup",
+          "mechanism": "event_query",
+          "attempts": 480,
+          "admitted": 4,
+          "busy": 476,
+          "busy_bursts": [
+            {
+              "first_tick": 2,
+              "first_qpc": 1627054950857,
+              "ticks": 254,
+              "last_tick": 255,
+              "last_qpc": 1627097116604
+            },
+            {
+              "first_tick": 258,
+              "first_qpc": 1627097619601,
+              "ticks": 222,
+              "last_tick": 479,
+              "last_qpc": 1627134452441
+            }
+          ],
+          "tick_work": {
+            "samples": 480,
+            "mean_ms": 0.0037277083333333233,
+            "median_ms": 0.0024,
+            "p95_ms": 0.0053,
+            "p99_ms": 0.0453,
+            "maximum_ms": 0.11560000000000001
+          },
+          "zero_after_fence": true,
+          "drain_clear_after_observation": true
+        },
+        {
+          "native_success": true,
+          "mode": "fence_warmup",
+          "mechanism": "timeline_fence",
+          "attempts": 480,
+          "admitted": 480,
+          "busy": 0,
+          "busy_bursts": [],
+          "tick_work": {
+            "samples": 480,
+            "mean_ms": 0.03746541666666671,
+            "median_ms": 0.0353,
+            "p95_ms": 0.0699,
+            "p99_ms": 0.09509999999999999,
+            "maximum_ms": 0.12990000000000002
+          },
+          "zero_after_fence": true,
+          "drain_clear_after_observation": true
+        },
+        {
+          "native_success": true,
+          "mode": "fence_no_drain",
+          "mechanism": "timeline_fence",
+          "attempts": 480,
+          "admitted": 480,
+          "busy": 0,
+          "busy_bursts": [],
+          "tick_work": {
+            "samples": 480,
+            "mean_ms": 0.03381833333333332,
+            "median_ms": 0.0336,
+            "p95_ms": 0.053,
+            "p99_ms": 0.08349999999999999,
+            "maximum_ms": 0.1846
+          },
+          "zero_after_fence": true,
+          "drain_clear_after_observation": false
+        }
+      ]
+    },
+    "mapgyver-m01-query-progress-final-intel-2026-10-28.json": {
+      "scope": "headless progress isolation, not Q01/Q02 qualification",
+      "runs": [
+        {
+          "native_success": true,
+          "mode": "fence_warmup",
+          "mechanism": "timeline_fence",
+          "attempts": 480,
+          "admitted": 480,
+          "busy": 0,
+          "busy_bursts": [],
+          "tick_work": {
+            "samples": 480,
+            "mean_ms": 0.06940020833333337,
+            "median_ms": 0.06470000000000001,
+            "p95_ms": 0.1025,
+            "p99_ms": 0.1241,
+            "maximum_ms": 0.2884
+          },
+          "zero_after_fence": true,
+          "drain_clear_after_observation": true
+        },
+        {
+          "native_success": true,
+          "mode": "fence_no_drain",
+          "mechanism": "timeline_fence",
+          "attempts": 480,
+          "admitted": 480,
+          "busy": 0,
+          "busy_bursts": [],
+          "tick_work": {
+            "samples": 480,
+            "mean_ms": 0.018541874999999992,
+            "median_ms": 0.018600000000000002,
+            "p95_ms": 0.0297,
+            "p99_ms": 0.044700000000000004,
+            "maximum_ms": 0.27
+          },
+          "zero_after_fence": true,
+          "drain_clear_after_observation": false
+        }
+      ]
+    }
+  },
+  "native_controls": {
+    "mapgyver-m01-timeline-admission-initial-nvidia-2026-10-28.json": {
+      "native_success": true,
+      "fixed_workload_geometry_met": true,
+      "cpu_submission": {
+        "samples": 480,
+        "mean_ms": 0.6449654166666672,
+        "median_ms": 0.6227,
+        "p95_ms": 0.8742,
+        "p99_ms": 0.9988,
+        "maximum_ms": 1.0689
+      },
+      "gpu_timeline": {
+        "samples": 480,
+        "mean_ms": 0.6150517333333335,
+        "median_ms": 0.344736,
+        "p95_ms": 1.8140800000000001,
+        "p99_ms": 3.777088,
+        "maximum_ms": 5.45744
+      },
+      "gpu_query_accounting_complete": true,
+      "source_context_gpu_checks": [
+        {
+          "gpu_query_accounting": {
+            "skipped_gpu_queries": 0,
+            "invalid_gpu_queries": 0,
+            "pending_gpu_queries": 0,
+            "truncated_samples": 0
+          },
+          "gpu_query_accounting_complete": true,
+          "recorded_gpu_percentiles_within_target": true,
+          "gpu_budget_met": true
+        },
+        {
+          "gpu_query_accounting": {
+            "skipped_gpu_queries": 0,
+            "invalid_gpu_queries": 0,
+            "pending_gpu_queries": 0,
+            "truncated_samples": 0
+          },
+          "gpu_query_accounting_complete": true,
+          "recorded_gpu_percentiles_within_target": true,
+          "gpu_budget_met": true
+        }
+      ],
+      "zero_tracked_after_fences": true,
+      "gpu_budget_met": false,
+      "gpu_timing_scope": "separate context timelines; full pipeline critical path unqualified",
+      "consumer_age_p95_target_met": true,
+      "worker_window_shutdown_seconds": 0.3873747,
+      "sample_seconds": 8,
+      "warmup_seconds": 30,
+      "admission": [
+        {
+          "mechanism": "timeline_fence",
+          "maximum_in_flight": 2,
+          "peak_in_flight": 1,
+          "submitted": 2271,
+          "completed": 2271,
+          "pending": 0,
+          "reserved": false,
+          "warmup": {
+            "attempts": 1791,
+            "admitted": 1791,
+            "busy": 0
+          },
+          "sampled": {
+            "attempts": 480,
+            "admitted": 480,
+            "busy": 0
+          },
+          "pending_at_final_poll": 1
+        },
+        {
+          "mechanism": "timeline_fence",
+          "maximum_in_flight": 2,
+          "peak_in_flight": 2,
+          "submitted": 2263,
+          "completed": 2263,
+          "pending": 0,
+          "reserved": false,
+          "warmup": {
+            "attempts": 1783,
+            "admitted": 1783,
+            "busy": 0
+          },
+          "sampled": {
+            "attempts": 480,
+            "admitted": 480,
+            "busy": 0
+          },
+          "pending_at_final_poll": 1
+        },
+        {
+          "mechanism": "timeline_fence",
+          "maximum_in_flight": 2,
+          "peak_in_flight": 1,
+          "submitted": 2268,
+          "completed": 2268,
+          "pending": 0,
+          "reserved": false,
+          "warmup": {
+            "attempts": 1788,
+            "admitted": 1788,
+            "busy": 0
+          },
+          "sampled": {
+            "attempts": 480,
+            "admitted": 480,
+            "busy": 0
+          },
+          "pending_at_final_poll": 1
+        }
+      ],
+      "accepted_calls": [
+        480,
+        480,
+        480
+      ],
+      "source_sample_coverage": [
+        480,
+        480
+      ],
+      "independent_raw_markers_verified": true
+    },
+    "mapgyver-m01-timeline-completion-nvidia-2026-10-28.json": {
+      "native_success": true,
+      "fixed_workload_geometry_met": true,
+      "cpu_submission": {
+        "samples": 480,
+        "mean_ms": 0.6440366666666664,
+        "median_ms": 0.6428999999999999,
+        "p95_ms": 0.7998000000000001,
+        "p99_ms": 0.8453999999999999,
+        "maximum_ms": 0.9541000000000001
+      },
+      "gpu_timeline": {
+        "samples": 480,
+        "mean_ms": 0.6399090666666665,
+        "median_ms": 0.44851199999999997,
+        "p95_ms": 1.542912,
+        "p99_ms": 3.8238719999999997,
+        "maximum_ms": 4.39392
+      },
+      "gpu_query_accounting_complete": true,
+      "source_context_gpu_checks": [
+        {
+          "gpu_query_accounting": {
+            "skipped_gpu_queries": 0,
+            "invalid_gpu_queries": 0,
+            "pending_gpu_queries": 0,
+            "truncated_samples": 0
+          },
+          "gpu_query_accounting_complete": true,
+          "recorded_gpu_percentiles_within_target": true,
+          "gpu_budget_met": true
+        },
+        {
+          "gpu_query_accounting": {
+            "skipped_gpu_queries": 0,
+            "invalid_gpu_queries": 0,
+            "pending_gpu_queries": 0,
+            "truncated_samples": 0
+          },
+          "gpu_query_accounting_complete": true,
+          "recorded_gpu_percentiles_within_target": true,
+          "gpu_budget_met": true
+        }
+      ],
+      "zero_tracked_after_fences": true,
+      "gpu_budget_met": false,
+      "gpu_timing_scope": "separate context timelines; full pipeline critical path unqualified",
+      "consumer_age_p95_target_met": true,
+      "worker_window_shutdown_seconds": 0.4066405,
+      "sample_seconds": 8,
+      "warmup_seconds": 30,
+      "admission": [
+        {
+          "mechanism": "timeline_fence",
+          "maximum_in_flight": 2,
+          "peak_in_flight": 2,
+          "submitted": 2268,
+          "completed": 2268,
+          "pending": 0,
+          "reserved": false,
+          "warmup": {
+            "attempts": 1788,
+            "admitted": 1788,
+            "busy": 0
+          },
+          "sampled": {
+            "attempts": 480,
+            "admitted": 480,
+            "busy": 0
+          },
+          "pending_at_final_poll": 1
+        },
+        {
+          "mechanism": "timeline_fence",
+          "maximum_in_flight": 2,
+          "peak_in_flight": 2,
+          "submitted": 2261,
+          "completed": 2261,
+          "pending": 0,
+          "reserved": false,
+          "warmup": {
+            "attempts": 1781,
+            "admitted": 1781,
+            "busy": 0
+          },
+          "sampled": {
+            "attempts": 480,
+            "admitted": 480,
+            "busy": 0
+          },
+          "pending_at_final_poll": 1
+        },
+        {
+          "mechanism": "timeline_fence",
+          "maximum_in_flight": 2,
+          "peak_in_flight": 1,
+          "submitted": 2266,
+          "completed": 2266,
+          "pending": 0,
+          "reserved": false,
+          "warmup": {
+            "attempts": 1786,
+            "admitted": 1786,
+            "busy": 0
+          },
+          "sampled": {
+            "attempts": 480,
+            "admitted": 480,
+            "busy": 0
+          },
+          "pending_at_final_poll": 1
+        }
+      ],
+      "accepted_calls": [
+        480,
+        480,
+        480
+      ],
+      "source_sample_coverage": [
+        480,
+        480
+      ],
+      "independent_raw_markers_verified": true
+    },
+    "mapgyver-m01-timeline-completion-intel-2026-10-28.json": {
+      "native_success": true,
+      "fixed_workload_geometry_met": true,
+      "cpu_submission": {
+        "samples": 480,
+        "mean_ms": 0.8386554166666664,
+        "median_ms": 0.7562,
+        "p95_ms": 1.2601,
+        "p99_ms": 1.4763,
+        "maximum_ms": 1.7339
+      },
+      "gpu_timeline": {
+        "samples": 480,
+        "mean_ms": 1.9970480685763878,
+        "median_ms": 2.0953125,
+        "p95_ms": 2.7631770833333333,
+        "p99_ms": 3.3298437499999998,
+        "maximum_ms": 4.040989583333333
+      },
+      "gpu_query_accounting_complete": true,
+      "source_context_gpu_checks": [
+        {
+          "gpu_query_accounting": {
+            "skipped_gpu_queries": 0,
+            "invalid_gpu_queries": 0,
+            "pending_gpu_queries": 0,
+            "truncated_samples": 0
+          },
+          "gpu_query_accounting_complete": true,
+          "recorded_gpu_percentiles_within_target": true,
+          "gpu_budget_met": true
+        },
+        {
+          "gpu_query_accounting": {
+            "skipped_gpu_queries": 0,
+            "invalid_gpu_queries": 0,
+            "pending_gpu_queries": 0,
+            "truncated_samples": 0
+          },
+          "gpu_query_accounting_complete": true,
+          "recorded_gpu_percentiles_within_target": true,
+          "gpu_budget_met": true
+        }
+      ],
+      "zero_tracked_after_fences": true,
+      "gpu_budget_met": false,
+      "gpu_timing_scope": "separate context timelines; full pipeline critical path unqualified",
+      "consumer_age_p95_target_met": true,
+      "worker_window_shutdown_seconds": 0.3398469,
+      "sample_seconds": 8,
+      "warmup_seconds": 2,
+      "admission": [
+        {
+          "mechanism": "timeline_fence",
+          "maximum_in_flight": 2,
+          "peak_in_flight": 1,
+          "submitted": 597,
+          "completed": 597,
+          "pending": 0,
+          "reserved": false,
+          "warmup": {
+            "attempts": 117,
+            "admitted": 117,
+            "busy": 0
+          },
+          "sampled": {
+            "attempts": 480,
+            "admitted": 480,
+            "busy": 0
+          },
+          "pending_at_final_poll": 1
+        },
+        {
+          "mechanism": "timeline_fence",
+          "maximum_in_flight": 2,
+          "peak_in_flight": 2,
+          "submitted": 589,
+          "completed": 589,
+          "pending": 0,
+          "reserved": false,
+          "warmup": {
+            "attempts": 112,
+            "admitted": 112,
+            "busy": 0
+          },
+          "sampled": {
+            "attempts": 477,
+            "admitted": 477,
+            "busy": 0
+          },
+          "pending_at_final_poll": 1
+        },
+        {
+          "mechanism": "timeline_fence",
+          "maximum_in_flight": 2,
+          "peak_in_flight": 1,
+          "submitted": 594,
+          "completed": 594,
+          "pending": 0,
+          "reserved": false,
+          "warmup": {
+            "attempts": 114,
+            "admitted": 114,
+            "busy": 0
+          },
+          "sampled": {
+            "attempts": 480,
+            "admitted": 480,
+            "busy": 0
+          },
+          "pending_at_final_poll": 1
+        }
+      ],
+      "accepted_calls": [
+        480,
+        480,
+        480
+      ],
+      "source_sample_coverage": [
+        477,
+        480
+      ],
+      "independent_raw_markers_verified": true
+    }
+  },
+  "recreation": {
+    "artifact": "mapgyver-m01-timeline-completion-nvidia-recreation-2026-10-28.json",
+    "renderer_generations": 101,
+    "source_workers": 202,
+    "independent_generation_markers": 100,
+    "raw_age_markers_verified": true,
+    "zero_all_tracked_after_fences": true,
+    "all_admission_bounds_and_operation_counts_verified": true,
+    "warmed_live_baseline_generation": 10,
+    "warmed_live_baseline": {
+      "process_id": 24868,
+      "private_bytes": 624447488,
+      "working_set_bytes": 271527936,
+      "handle_count": 1062
+    },
+    "live_private_peak_mib": 616.703125,
+    "maximum_positive_live_private_growth_mib": 21.18359375,
+    "live_private_growth_target_mib": 32,
+    "live_private_growth_target_met": true,
+    "steady_checkpoint_handles_min_max": [
+      1055,
+      1067
+    ],
+    "sparse_handles_including_partial_setup_min_max": [
+      699,
+      1065
+    ],
+    "handle_comparison_scope": "generation 10..100 pre-retirement steady checkpoints plus final ten-second live drain; sparse partial setup observations retained separately",
+    "steady_checkpoint_handle_target_met": true,
+    "final_live_settling_seconds": 10.0159534,
+    "worker_window_shutdown_seconds": 0.5151228,
+    "full_q05_or_physical_retirement_qualified": false,
+    "memory_root_cause_repaired": false
+  },
+  "final_runtime_inputs_equal_current_release": true,
+  "intermediate_inputs_remain_distinct": true,
+  "preserved_prior_private_growth_failure": {
+    "artifact": "mapgyver-m01-source-worker-stop-order-nvidia-analysis-2026-10-28.json",
+    "maximum_positive_live_private_growth_mib": 47.92578125,
+    "live_private_peak_mib": 609.41015625,
+    "unchanged_failure": true
+  },
+  "memory_comparison": "Current relative growth meets 32 MiB in one cohort, with a higher warmed baseline and absolute peak. This does not establish a memory fix or supersede the prior failure.",
+  "still_open": [
+    "Final-variant repeated 30+120-second Q01/Q02 series on both GPUs",
+    "Full asynchronous context-spanning GPU critical path",
+    "Displayed frame cadence, physical latency/pixel alignment and remaining display/input configurations",
+    "Full Q05 genuine device removal, physical resource retirement and whole-process shutdown"
+  ],
+  "artifacts_sha256": {
+    "mapgyver-m01-query-progress-intel-2026-10-28.json": "7be870827553d5a50cdf553b70ab225bba87d8077913cefbecd45831ba8fb6f4",
+    "mapgyver-m01-query-progress-nvidia-2026-10-28.json": "f0f3f0ed21030b34594b5b10d2c1f1aac17b89882fcf80960e622c3c349b26ca",
+    "mapgyver-m01-query-progress-timeline-2026-10-28.json": "b764426e0ef1669c639c00a89a78d49ed81410f18c5561c7de08b072a04cb746",
+    "mapgyver-m01-query-progress-final-nvidia-2026-10-28.json": "9f0963e432293088f903293e8119517dd7a4a6f31832faa49d1cdfb63ba1dde7",
+    "mapgyver-m01-query-progress-final-intel-2026-10-28.json": "882d8dec08b64f10be7a54368ca4f4035513a1acd7268c7f6b0b1f61495c337e",
+    "mapgyver-m01-timeline-admission-initial-nvidia-2026-10-28.json": "44ef18b521ecfd0ebccfcd87fd17c28a4dffa814057be3f1a004a7d098ffc027",
+    "mapgyver-m01-timeline-completion-nvidia-2026-10-28.json": "67a8d5111aad689d3d9301091c8a2706d00f571302ec6fbc7081bdf72411c2d8",
+    "mapgyver-m01-timeline-completion-intel-2026-10-28.json": "6b87662234398c3597b63ebd852eb282ca32f6e7106c3c64abd9410e1360ba1c",
+    "mapgyver-m01-timeline-completion-nvidia-recreation-2026-10-28.json": "8106d1d903c12c0eb80667a389fc81d7f9ae76df41e5d66572cddae96d818c7f",
+    "mapgyver-m01-query-progress-conditions-2026-10-28.json": "d6650d802c39cde0b4a1f36b2e95d1dd2361a1916ed2dafdad2facaa7d67724b",
+    "mapgyver-m01-source-worker-stop-order-nvidia-analysis-2026-10-28.json": "77297a2d89786d54225c064f192f205e5bb37f5776dcb9fad153915e7be47d59"
+  }
+}

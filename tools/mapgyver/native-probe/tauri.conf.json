@@ -1,0 +1,14 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "MapGyver Native Probe",
+  "version": "0.1.0",
+  "identifier": "com.goldengeek.mapgyver.native-probe",
+  "build": { "frontendDist": "ui/dist" },
+  "app": {
+    "windows": [],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost; img-src 'self' data:"
+    }
+  },
+  "bundle": { "active": false }
+}

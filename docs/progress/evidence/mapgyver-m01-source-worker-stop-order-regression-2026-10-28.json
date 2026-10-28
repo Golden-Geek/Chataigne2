@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "m01_source_shutdown_order_regression_not_gpu_retirement_qualification",
+  "failure_artifact": "mapgyver-m01-source-worker-nvidia-q01-release-2026-10-28.json",
+  "failure_sample": 3,
+  "observed_native_error": "source worker still has a bridge reader at shutdown",
+  "change": "Release current reader and clear publication before Release-store stop; worker Acquire-load may enter ownership checks immediately",
+  "command": "cargo test --locked -p mapgyver_native_probe --features desktop --bin mapgyver_native_probe shutdown_notification_waits -- --nocapture",
+  "old_order": {
+    "exit_code": 1,
+    "output": "   Compiling mapgyver_native_probe v0.1.0 (D:\\Projects\\Dev\\Chataigne2\\tools\\mapgyver\\native-probe)\n    Finished `test` profile [optimized + debuginfo] target(s) in 5.68s\n     Running unittests src\\main.rs (target\\debug\\deps\\mapgyver_native_probe-12f1cdde617f34bf.exe)\n\nrunning 1 test\n\nthread 'source_worker::tests::shutdown_notification_waits_for_publication_ownership_to_quiesce' (45424) panicked at tools\\mapgyver\\native-probe\\src\\source_worker\\tests\\mod.rs:32:5:\nassertion `left == right` failed\n  left: Ok(())\n right: Err(Timeout)\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\ntest source_worker::tests::shutdown_notification_waits_for_publication_ownership_to_quiesce ... FAILED\n\nfailures:\n\nfailures:\n    source_worker::tests::shutdown_notification_waits_for_publication_ownership_to_quiesce\n\ntest result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s\n\nerror: test failed, to rerun pass `-p mapgyver_native_probe --bin mapgyver_native_probe`\n"
+  },
+  "repaired_order": {
+    "exit_code": 0,
+    "output": "   Compiling mapgyver_native_probe v0.1.0 (D:\\Projects\\Dev\\Chataigne2\\tools\\mapgyver\\native-probe)\n    Finished `test` profile [optimized + debuginfo] target(s) in 5.77s\n     Running unittests src\\main.rs (target\\debug\\deps\\mapgyver_native_probe-12f1cdde617f34bf.exe)\n\nrunning 1 test\ntest source_worker::tests::shutdown_notification_waits_for_publication_ownership_to_quiesce ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.05s\n\n"
+  },
+  "scope": "The test holds publication ownership and observes that stop cannot become visible before it can be cleared; full native GPU teardown is verified separately."
+}

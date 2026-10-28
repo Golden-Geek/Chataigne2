@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "finite_authored_card_intel_validation_not_full_m01",
+  "native": [
+    {
+      "passed": true,
+      "full_image_pixels_verified": 2073600,
+      "tolerance_per_component": 2,
+      "scope": "authored-image GPU transfer/sampling only; no timing, procedural-card, scanout or cross-process claim"
+    },
+    {
+      "passed": true,
+      "full_image_pixels_verified": 8294400,
+      "tolerance_per_component": 2,
+      "scope": "authored-image GPU transfer/sampling only; no timing, procedural-card, scanout or cross-process claim"
+    }
+  ],
+  "current_inputs_and_wrapper_hashes_verified": true,
+  "artifacts": {
+    "mapgyver-m01-authored-card-intel-q01-2026-10-28.json": "a173ccf13b5e7c867f8482258b5338bbcb5751de659bf6727d4abf55a92a64c0",
+    "mapgyver-m01-authored-card-intel-q02-2026-10-28.json": "03c666d0e328a13f3fa192a3227a1b6bb353ac05cc92073b507174b34974a8ef"
+  },
+  "compared_pixels_total": 10368000,
+  "deterministic_rust_tests_passed": 46,
+  "python_tests_passed": 34,
+  "strict_default_desktop_clippy_passed": true,
+  "generated_bindings_match": true,
+  "actual_root_core_formatters_and_checks_passed": true,
+  "git_diff_whitespace_check_passed": true,
+  "local_doc_links_checked": 282,
+  "rust_source_limits_checked": 67,
+  "tool_whitespace_files_checked": 102,
+  "owned_native_processes_remaining": 0,
+  "desktop_automation_used": false,
+  "overlay_changed": false,
+  "last_recorded_nvidia_overlay_state": "On verified restored at 2026-10-28 08:17:51 UTC; not reobserved this Intel-only turn",
+  "review": "Independent review found and repaired malformed-image API exposure; native device/endpoint lifetimes and RowPitch coverage reviewed.",
+  "scope": "One-process, four-device, finite CPU-authored image transfer and Quad sampling; procedural cards, source-worker/cross-process route, NVIDIA, previews, scanout, performance and physical retirement remain unqualified."
+}

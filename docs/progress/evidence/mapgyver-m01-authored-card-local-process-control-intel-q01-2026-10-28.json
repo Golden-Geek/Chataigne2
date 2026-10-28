@@ -1,0 +1,399 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "finite_authored_color_alpha_gpu_transfer_not_timing_qualification",
+  "processes": false,
+  "started_utc": "2026-10-28T08:51:08.603270+00:00",
+  "command": [
+    "D:\\Projects\\Dev\\Chataigne2\\target\\release\\mapgyver_native_probe.exe",
+    "color-accuracy",
+    "0",
+    "q01"
+  ],
+  "profile": "release",
+  "declared_nvidia_overlay_state": "on",
+  "environment": {
+    "platform": "Windows-11-10.0.26300-SP0",
+    "machine": "AMD64",
+    "python": "3.14.6"
+  },
+  "timeout_seconds": 120,
+  "inputs": {
+    "executable_sha256": "a67469f610ad96617d0b28c5b20b84e4f83983656fa1d1ad35912c5344dac788",
+    "files": {
+      "Cargo.lock": "286b324f233cd15f2af643272e4f47759fc60ca3d13943204755ec94da10559f",
+      "Cargo.toml": "bd01765f8ba0796d43f9e826a919f3dced1cfba02570c249c9717d9870d9bdd4",
+      "package-lock.json": "46924d87a98b203fa1c66ece5e1fdd8705dc27210c183b481452998cd88be355",
+      "package.json": "15ea200aaaa832d472b173334a6f41d48bfa80d2791600157225eccb22d3ee28",
+      "tools/mapgyver/collect-baseline.ps1": "3cda72ba639594e312ea505e059de697367002c6ccb66bb1f75105a0a4955078",
+      "tools/mapgyver/native-probe/build.rs": "73fb236d28fee0b7d97bcca20a416a9ac938100dcd5164e66b6675753649ab4c",
+      "tools/mapgyver/native-probe/Cargo.toml": "66ba9f7eef570fdfd5efc1158621507cf62b929d5477dff27ab46052aac9b8f0",
+      "tools/mapgyver/native-probe/src/allocation/tests/mod.rs": "f2fc948e7b067ec61bec6ac34cfc32728f02494a3d9b485ea883443276308574",
+      "tools/mapgyver/native-probe/src/allocation.rs": "28c8ac3ef154716ffad312689b950eace694d3b83c26fffe5ff24c7930882fd4",
+      "tools/mapgyver/native-probe/src/bin/generate_probe_bindings.rs": "f39870bfc02fddf8ae37b0138484f2c6db1d4559341d980aa98a36b591b9915a",
+      "tools/mapgyver/native-probe/src/cadence/tests/mod.rs": "3b19d27cb1bf5b18423d8aa37f82d81a93dfc6857fc332747c67e4e3d2aa0b3d",
+      "tools/mapgyver/native-probe/src/cadence.rs": "e07c42631e7d6c63f8ff18b9fe4c4394aef14ac2f076fc5a530cf0fa0a3f55c4",
+      "tools/mapgyver/native-probe/src/card.rs": "37ea31310543d39e59dc942841c85c986e7551161ac13a5f03b9c362c1bc045a",
+      "tools/mapgyver/native-probe/src/child_resources.rs": "cc5dc2562f40de45809484d3593d9c23ebe2034c34d543c65ed810b786c438b0",
+      "tools/mapgyver/native-probe/src/clock.rs": "79cd123256b6cca2c77eba8db1785623d45c2cd5e7c4e4bfe162bb9633dbf8aa",
+      "tools/mapgyver/native-probe/src/color_accuracy/mod.rs": "2333ba64516ebfce747984d95ff3f2607dd489abf1796d91b75455004e7f3915",
+      "tools/mapgyver/native-probe/src/color_accuracy/processes/child.rs": "949127c61facf3e1979dd5cc7084e15a650f6ff3e51c485787e97cb5f2ea1427",
+      "tools/mapgyver/native-probe/src/color_accuracy/processes/client.rs": "bf2b5bbf6c245ec32da96f1e53707d80a55cf25dff64600ec14dd2cb009fb1a7",
+      "tools/mapgyver/native-probe/src/color_accuracy/processes.rs": "2e2cf4a077ac5ff2c6b50b6034f9c98b1a237315296853077d6cf8471f7f2a49",
+      "tools/mapgyver/native-probe/src/color_accuracy/protocol/tests/mod.rs": "31bf271e2e26c9a661f492ddd1b5e0fa95dddc37bdbd78b5c53b3e9e5b107bc9",
+      "tools/mapgyver/native-probe/src/color_accuracy/protocol.rs": "5ec5faa8f64d0aacf4aeb4e034e24db6d9fe86610c8ad33fba4ea098bf1dd647",
+      "tools/mapgyver/native-probe/src/color_accuracy/readback.rs": "4bdad01cd5020e16a2d352d335a1f378885a0fa55ec943a516bc79633344507b",
+      "tools/mapgyver/native-probe/src/color_reference/tests/mod.rs": "7261c129b1157a4b89024b0b292b195a226ab8383cf00cd2a90ced7a20b7b45d",
+      "tools/mapgyver/native-probe/src/color_reference.rs": "c9733d16ba3083e41528bb4fc758c0289ecebcbc4272e3e4ee3f812aaa8b85f8",
+      "tools/mapgyver/native-probe/src/completion.rs": "ad1472a4fe168bf3dae8bfc78b1893fd88927da13b0292aeb0bf0e0304a376a2",
+      "tools/mapgyver/native-probe/src/d3d.rs": "de6d6b2e834bb16224a82d591c92da2ac55370d31bbf559889a22ef881112051",
+      "tools/mapgyver/native-probe/src/desktop.rs": "a67d557b20b33217c967406e1d86d4c2b3f4260e582639b3d784886600eb2ddc",
+      "tools/mapgyver/native-probe/src/editor_isolation/tests/mod.rs": "8803f631a9434763b7c8ef9f843c330300289cef1a82a57f9e14085c6516ea6b",
+      "tools/mapgyver/native-probe/src/editor_isolation.rs": "4b32cd7127d06dba34f3ee4a153d822ad2db4622f91245f4c51c469bf0d9d165",
+      "tools/mapgyver/native-probe/src/fixture/client.rs": "33b456bfa9d9a4ee2d7a49fd8b8fa02cb2d4e543d3938895f1fd92f8ba29a2a4",
+      "tools/mapgyver/native-probe/src/fixture/protocol.rs": "b4756f30153327bb5bd61405d66ef1ddf68c3612b8f32c0d67c4fd30ad3958d0",
+      "tools/mapgyver/native-probe/src/fixture.rs": "18167cc23380dc61fa3b635d8ea33eabcd51792b7f22c5ec9b3ab98e1443a58b",
+      "tools/mapgyver/native-probe/src/frame_admission.rs": "e3316e1d9fad5c868c8bfe89f4d166848915100393b7676fd617f6d74691dcf1",
+      "tools/mapgyver/native-probe/src/frame_age/tests/mod.rs": "26ad9b364663ab21fb1ec5d06b6515d5920fc5208be9d731b1889072f2aee6d9",
+      "tools/mapgyver/native-probe/src/frame_age.rs": "4bbc244ff01cb33fe7689fe7b7a55897a92e07f77059fdacf9811bca843302aa",
+      "tools/mapgyver/native-probe/src/gpu_admission/tests/mod.rs": "80ae0c56653c41b69170d3515a0c9c67de9c42589e8c0868c591ff11fc6da762",
+      "tools/mapgyver/native-probe/src/gpu_admission.rs": "ca17d750c20344e5a8b0915f09c8cb1fd39ebe33297ba061a78aed2a8df400a7",
+      "tools/mapgyver/native-probe/src/gpu_progress.rs": "660db903bb89ea031086f3d10d77e673df37b76262af66173a9b9adee4e92106",
+      "tools/mapgyver/native-probe/src/lib.rs": "1601d51cf6d6dcb0d8f6b5a75b8a9f139657c4a94a7e46a50e6075619a8d35fc",
+      "tools/mapgyver/native-probe/src/main.rs": "051f55f05f65003821274965b344375f8b3428852834cff9a084dfa1182711d0",
+      "tools/mapgyver/native-probe/src/observer/client.rs": "cd466a25489c799e62ee4444e36c1fa25eaca2a40a4813417339c5659bd3579b",
+      "tools/mapgyver/native-probe/src/observer/frame_age.rs": "61eec1f2fbbd804f2d1609341551795b12d4a65ad99d6b9fb45145285c4687c8",
+      "tools/mapgyver/native-probe/src/observer/mod.rs": "7f53052b0a7c3a2ab2961f095ef4597f1efc1845a081d2c0fe5a2dbc71e62baf",
+      "tools/mapgyver/native-probe/src/observer/protocol.rs": "8f74e7e72958f532244d920676d2af072bfd31914ed2426a7e6dc309eaf3d601",
+      "tools/mapgyver/native-probe/src/observer/tests/mod.rs": "a2a39c51e54a890b3c7c6767e63481d2c0706ac41f152401e085347b64b4221d",
+      "tools/mapgyver/native-probe/src/operation_timing/tests/mod.rs": "0a79db53ccc9473e9d54efbe6734ba7f8c669af889179ce6be39d55f9236ffc5",
+      "tools/mapgyver/native-probe/src/operation_timing.rs": "2e9e0b2eb442a2c74618b48794cf0fa73e731cbe009f022f65f079d995545955",
+      "tools/mapgyver/native-probe/src/pipeline_timing/tests/mod.rs": "2dd772b208e93b20cb041411e6e1473cf0a26f54ff9c51aa6ead9f0a781a4e73",
+      "tools/mapgyver/native-probe/src/pipeline_timing.rs": "4e62d8ce49a6bba8ddab4f2d4e6f8008202b880cc9e570bf2d029c44b34ecbf9",
+      "tools/mapgyver/native-probe/src/presentation/tests/mod.rs": "ab757b85e26cf11f2106cb5fe09cc12dc2cb491eab85e45f9c2678861a7aa3fa",
+      "tools/mapgyver/native-probe/src/presentation.rs": "6d39acff1ce5f84371a632899acf0daa31d7c3f583e6ea1189097f0099d8e243",
+      "tools/mapgyver/native-probe/src/presenter/admission/tests/mod.rs": "a605ece7035cf5ae959eccef507b2690e12957056da125a9970c8c5bc1951b4d",
+      "tools/mapgyver/native-probe/src/presenter/admission.rs": "578c5952d5e3a79b9593fffb6f54cc1c7fc6f2c088f84fd52fde8f9c97947253",
+      "tools/mapgyver/native-probe/src/presenter.rs": "8ed5bbbbb11869e9ee697b6f7862e0a2d03ca81b99078a911cf5831f7355f0e1",
+      "tools/mapgyver/native-probe/src/process/reported.rs": "ed1c99582ebb90bf656c58f89a99e4472ba4a90396925477e9564cb91d2ce5f6",
+      "tools/mapgyver/native-probe/src/process.rs": "d3a2d80fb0ff629284d9c4f63240d3410935ee97d5732241c61265453c897099",
+      "tools/mapgyver/native-probe/src/quad.rs": "869cfcae90b58b2c498e04f9c3188649ceb1a3f599922905aa5d253a78cb5028",
+      "tools/mapgyver/native-probe/src/query_data.rs": "afce4dd916e4a9b7ea98ab729c566b4fa22583c067ea527f09bd95b94fc37bfe",
+      "tools/mapgyver/native-probe/src/render_worker/generation.rs": "e25d53f244f020e0179b2393a6284a29cad9ed4d8dd1eca5de731a0c81b8ca2d",
+      "tools/mapgyver/native-probe/src/render_worker.rs": "76a98cce14836eb9e1cb15203fe46ed7911afc6a51fc99511d36a54d5db1cbeb",
+      "tools/mapgyver/native-probe/src/resource_log/tests/mod.rs": "30536bf948a10da7bf0e15cf23d714ff8f00d213d526ef64f7f085c32161bebf",
+      "tools/mapgyver/native-probe/src/resource_log.rs": "2505a45136736792afdb417fef8087c4894c45a969054ce1e3305e67a03a1dbb",
+      "tools/mapgyver/native-probe/src/resources.rs": "9e40788a5ebe4b01bd6f29623b74d73f3227b0b979f0de121250b23915a4920a",
+      "tools/mapgyver/native-probe/src/retirement.rs": "2c774f73a9f1b568f712c538390e8cb5eff65a5b8014d23415814c0c70d99123",
+      "tools/mapgyver/native-probe/src/smoke.rs": "011499bed6cb7cc5c71e715eb008a108ab4fbb9b0ff232139bbd2a71bdcb628f",
+      "tools/mapgyver/native-probe/src/source_worker/surface/tests/mod.rs": "87f360884ac1aa60d5f467cc401233d81daa9c9810aee484ea7f560d798469fa",
+      "tools/mapgyver/native-probe/src/source_worker/surface.rs": "6ecd0ae7a655845d3ee1a01244594dc150a8e4315e577ec7dafef686c39106f7",
+      "tools/mapgyver/native-probe/src/source_worker/tests/mod.rs": "31652d2a685c724b7628ae691df2079176c8f458fb309da5801ad990fd74c8ce",
+      "tools/mapgyver/native-probe/src/source_worker/worker.rs": "8fa60831bd633e3f2d6ff3528539ee08567ee3cb958c20a02270bc1d6452194d",
+      "tools/mapgyver/native-probe/src/source_worker.rs": "b54519d82d56427c60fbf060ed9c20ae43accbacb8c7afb78af3f6029503646e",
+      "tools/mapgyver/native-probe/src/spout.rs": "5b8684b0b4a22202b5dfc74c68803a8a7b8b4ef4729eed560c4b96f0476d684d",
+      "tools/mapgyver/native-probe/src/statistics/tests/mod.rs": "e2bda3dbd0e8ecba435d06b10472b3434e6e4c8df753d13186121f206e8ba03f",
+      "tools/mapgyver/native-probe/src/statistics.rs": "404893f2a1a8194d54f53a6cdc833748821a45c0741cce797efb11b4192f576f",
+      "tools/mapgyver/native-probe/src/texture.rs": "68052e3bec3b8d72ce8278f3021b7afc86147bf0f03841a65589f869663e76db",
+      "tools/mapgyver/native-probe/src/timing.rs": "43316378765e7bb5f8993e97516395e9eada5f7e9cc9abd11d1590eefc4fd118",
+      "tools/mapgyver/native-probe/src/trace_capability.rs": "87db9ba6e644d4f8a436c3ed6cf4bdf6601b993816332e91238b8d8a11bace18",
+      "tools/mapgyver/native-probe/src/wire.rs": "7ed0d0b25811ea89a84568c8a8f6767f0f550c6452c60e1a1c5edbc613daa52a",
+      "tools/mapgyver/native-probe/src/workload/tests/mod.rs": "ea8f41f446d81e21f9e5db59a2640a43262db634e54c28ec580382aa7f81d4ef",
+      "tools/mapgyver/native-probe/src/workload.rs": "7ab641d7eadf89539444202c42c3300f0573f60709af926e37b35278d2ed510e",
+      "tools/mapgyver/native-probe/tauri.conf.json": "7e662b178abb64018037dd9da756e04de67d23f38dd409e686d90969afd66f1d",
+      "tools/mapgyver/native-probe/ui/dist/assets/index-C0Y-zcLa.js": "387711beef899c10a90944e4097f6c2fde89433937eb5201b4b12990c5b9d0f7",
+      "tools/mapgyver/native-probe/ui/dist/assets/index-NEuoE25f.css": "64d230ac153b556df0834833a285380f27d22b0bf33d04255d32c1f9a50e14cd",
+      "tools/mapgyver/native-probe/ui/dist/index.html": "c9e074b0a90e0001f4cc2a61c8f7f0fdc0dab352cae00d963129a4d7c3fc41b7",
+      "tools/mapgyver/native-probe/ui/index.html": "8537f14356e5a97019d00197ca3609b1093b90fc2297a3e9abeedaaa5b514078",
+      "tools/mapgyver/native-probe/ui/package.json": "64d7e12087f720f977e6b13b6c78adcdcf79a78335632a9a70e01a0d2799831c",
+      "tools/mapgyver/native-probe/ui/scripts/check-generated.mjs": "8626ddca2d34ea8d2a99ffbe778ca32b6afe121d9eb26a6263e9c5de18cc2731",
+      "tools/mapgyver/native-probe/ui/src/App.svelte": "4f27b3b4070d47c3a5c65fdbf8112251ffe1a886e5f1a62a01c7f95000b50188",
+      "tools/mapgyver/native-probe/ui/src/editor-isolation.ts": "8ed751155b920b431510b3f4c5aa41f66cf70130f1631733ddd8649876b766ed",
+      "tools/mapgyver/native-probe/ui/src/generated.ts": "781dd106ef1caa71b18b3d72eb714e4b69f44eb5a981acae35d2ca79b198ddac",
+      "tools/mapgyver/native-probe/ui/src/main.ts": "c76543fe1c49182b7ec4353a30135d00e3c439dfdf2577e2435272ff9f35930b",
+      "tools/mapgyver/native-probe/ui/src/native.ts": "30ef70406a96bbe19b74e52b83c3738a85d43644277c954e254ec45ee14976d9",
+      "tools/mapgyver/native-probe/ui/svelte.config.js": "f3c25c06187b11282d1293dd1aa038b34de915c464de9250b121241780c4d1ea",
+      "tools/mapgyver/native-probe/ui/tsconfig.json": "7bcf3e81653ce3c7b9a3b8d047bf56bae9714258ea79ef4ffb0f9a9009c8d40e",
+      "tools/mapgyver/native-probe/ui/vite.config.js": "11c7487f64e960a7a002408ea2a43225a53d15443e1776d79fb0ad98350a64bd",
+      "tools/mapgyver/run-qualification.py": "7e1ed5a62a111f904cb000df94ad470cfa7b49cb3e1890871aa024d00c3e2aa1",
+      "tools/mapgyver/run-color-accuracy.py": "bd09c00d10a844ad884f9b37dff106520e1fc263965bab932be5568791113ceb"
+    }
+  },
+  "adapters": [
+    {
+      "index": 0,
+      "description": "Intel(R) Graphics",
+      "luid": "00000000:00016c2a",
+      "dedicated_video_bytes": 134217728,
+      "shared_system_bytes": 19239208796,
+      "software": false,
+      "local_memory": {
+        "budget_bytes": 18433902428,
+        "current_usage_bytes": 0
+      },
+      "nonlocal_memory": {
+        "budget_bytes": 0,
+        "current_usage_bytes": 0
+      },
+      "outputs": [
+        {
+          "device_name": "\\\\.\\DISPLAY1",
+          "attached": true,
+          "desktop_rect": [
+            0,
+            0,
+            2560,
+            1600
+          ],
+          "coordinate_context": "physical_pixels_per_monitor_aware_v2_thread"
+        },
+        {
+          "device_name": "\\\\.\\DISPLAY2",
+          "attached": true,
+          "desktop_rect": [
+            2560,
+            0,
+            4480,
+            1080
+          ],
+          "coordinate_context": "physical_pixels_per_monitor_aware_v2_thread"
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+      "luid": "00000000:000170d3",
+      "dedicated_video_bytes": 16780361728,
+      "shared_system_bytes": 19239208796,
+      "software": false,
+      "local_memory": {
+        "budget_bytes": 15975055360,
+        "current_usage_bytes": 0
+      },
+      "nonlocal_memory": {
+        "budget_bytes": 18433902428,
+        "current_usage_bytes": 0
+      },
+      "outputs": []
+    },
+    {
+      "index": 2,
+      "description": "Microsoft Basic Render Driver",
+      "luid": "00000000:00017040",
+      "dedicated_video_bytes": 0,
+      "shared_system_bytes": 19239208796,
+      "software": true,
+      "local_memory": {
+        "budget_bytes": 18433902428,
+        "current_usage_bytes": 0
+      },
+      "nonlocal_memory": {
+        "budget_bytes": 0,
+        "current_usage_bytes": 0
+      },
+      "outputs": []
+    }
+  ],
+  "run": {
+    "exit_code": 0,
+    "stdout": "{\n  \"passed\": true,\n  \"evidence_kind\": \"finite_authored_color_alpha_gpu_transfer_not_timing_qualification\",\n  \"scope\": \"two one-time CPU-authored BGRA uploads; four independent D3D11 devices in one process; GPU Spout inputs, actual Quad composite, GPU Spout output, one full-image consumer readback\",\n  \"scenario\": \"q01\",\n  \"adapter_luid\": \"00000000:00016c2a\",\n  \"adapter_description\": \"Intel(R) Graphics\",\n  \"source_extents\": [\n    [\n      1920,\n      1080\n    ],\n    [\n      1280,\n      720\n    ]\n  ],\n  \"initial_pixel_upload_calls\": 2,\n  \"initial_pixel_upload_bytes\": 11980800,\n  \"full_image_readbacks\": 1,\n  \"comparison\": {\n    \"extent\": [\n      1920,\n      1080\n    ],\n    \"compared_pixels\": 2073600,\n    \"tolerance_per_component\": 2,\n    \"maximum_error_bgra\": [\n      1,\n      1,\n      1,\n      1\n    ],\n    \"differing_components_bgra\": [\n      0,\n      0,\n      0,\n      0\n    ],\n    \"mismatched_pixels\": 0,\n    \"first_differences\": []\n  },\n  \"senders_unregistered\": true,\n  \"devices\": [\n    {\n      \"role\": \"source_a\",\n      \"operations\": {\n        \"clears\": 0,\n        \"shader_draws\": 0,\n        \"uniform_upload_bytes\": 0,\n        \"diagnostic_readback_pixels\": 0,\n        \"sdk_send_calls\": 1,\n        \"sdk_receive_calls\": 0,\n        \"sdk_texture_queries\": 0,\n        \"sdk_texture_observations\": 0,\n        \"explicit_gpu_copy_calls\": 0,\n        \"explicit_gpu_copy_bytes\": 0\n      },\n      \"after_fence\": {\n        \"live_bytes_by_owner\": [\n          0,\n          0,\n          0,\n          0\n        ],\n        \"retiring_bytes_by_owner\": [\n          0,\n          0,\n          0,\n          0\n        ],\n        \"live_textures\": 0,\n        \"retiring_textures\": 0,\n        \"peak_live_plus_retiring_bytes\": 16588800,\n        \"peak_live_plus_retiring_textures\": 2\n      },\n      \"retirement_ms\": 0.0663\n    },\n    {\n      \"role\": \"source_b\",\n      \"operations\": {\n        \"clears\": 0,\n        \"shader_draws\": 0,\n        \"uniform_upload_bytes\": 0,\n        \"diagnostic_readback_pixels\": 0,\n        \"sdk_send_calls\": 1,\n        \"sdk_receive_calls\": 0,\n        \"sdk_texture_queries\": 0,\n        \"sdk_texture_observations\": 0,\n        \"explicit_gpu_copy_calls\": 0,\n        \"explicit_gpu_copy_bytes\": 0\n      },\n      \"after_fence\": {\n        \"live_bytes_by_owner\": [\n          0,\n          0,\n          0,\n          0\n        ],\n        \"retiring_bytes_by_owner\": [\n          0,\n          0,\n          0,\n          0\n        ],\n        \"live_textures\": 0,\n        \"retiring_textures\": 0,\n        \"peak_live_plus_retiring_bytes\": 7372800,\n        \"peak_live_plus_retiring_textures\": 2\n      },\n      \"retirement_ms\": 0.0781\n    },\n    {\n      \"role\": \"renderer\",\n      \"operations\": {\n        \"clears\": 1,\n        \"shader_draws\": 2,\n        \"uniform_upload_bytes\": 0,\n        \"diagnostic_readback_pixels\": 0,\n        \"sdk_send_calls\": 1,\n        \"sdk_receive_calls\": 2,\n        \"sdk_texture_queries\": 2,\n        \"sdk_texture_observations\": 2,\n        \"explicit_gpu_copy_calls\": 0,\n        \"explicit_gpu_copy_bytes\": 0\n      },\n      \"after_fence\": {\n        \"live_bytes_by_owner\": [\n          0,\n          0,\n          0,\n          0\n        ],\n        \"retiring_bytes_by_owner\": [\n          0,\n          0,\n          0,\n          0\n        ],\n        \"live_textures\": 0,\n        \"retiring_textures\": 0,\n        \"peak_live_plus_retiring_bytes\": 28569600,\n        \"peak_live_plus_retiring_textures\": 4\n      },\n      \"retirement_ms\": 0.0626\n    },\n    {\n      \"role\": \"consumer\",\n      \"operations\": {\n        \"clears\": 0,\n        \"shader_draws\": 0,\n        \"uniform_upload_bytes\": 0,\n        \"diagnostic_readback_pixels\": 2073600,\n        \"sdk_send_calls\": 0,\n        \"sdk_receive_calls\": 1,\n        \"sdk_texture_queries\": 1,\n        \"sdk_texture_observations\": 1,\n        \"explicit_gpu_copy_calls\": 1,\n        \"explicit_gpu_copy_bytes\": 8294400\n      },\n      \"after_fence\": {\n        \"live_bytes_by_owner\": [\n          0,\n          0,\n          0,\n          0\n        ],\n        \"retiring_bytes_by_owner\": [\n          0,\n          0,\n          0,\n          0\n        ],\n        \"live_textures\": 0,\n        \"retiring_textures\": 0,\n        \"peak_live_plus_retiring_bytes\": 16588800,\n        \"peak_live_plus_retiring_textures\": 2\n      },\n      \"retirement_ms\": 0.30889999999999995\n    }\n  ],\n  \"elapsed_seconds\": 0.4655069,\n  \"unqualified\": [\n    \"procedural card shader/frame-label generation\",\n    \"native preview/scanout/DPI alignment\",\n    \"sustained cadence/latency/GPU critical path\",\n    \"cross-process full-image accuracy and source-worker bridge\",\n    \"physical residency, driver-internal copies and full Q05 retirement\"\n  ]\n}\n",
+    "stderr": "",
+    "report": {
+      "passed": true,
+      "evidence_kind": "finite_authored_color_alpha_gpu_transfer_not_timing_qualification",
+      "scope": "two one-time CPU-authored BGRA uploads; four independent D3D11 devices in one process; GPU Spout inputs, actual Quad composite, GPU Spout output, one full-image consumer readback",
+      "scenario": "q01",
+      "adapter_luid": "00000000:00016c2a",
+      "adapter_description": "Intel(R) Graphics",
+      "source_extents": [
+        [
+          1920,
+          1080
+        ],
+        [
+          1280,
+          720
+        ]
+      ],
+      "initial_pixel_upload_calls": 2,
+      "initial_pixel_upload_bytes": 11980800,
+      "full_image_readbacks": 1,
+      "comparison": {
+        "extent": [
+          1920,
+          1080
+        ],
+        "compared_pixels": 2073600,
+        "tolerance_per_component": 2,
+        "maximum_error_bgra": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "differing_components_bgra": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "mismatched_pixels": 0,
+        "first_differences": []
+      },
+      "senders_unregistered": true,
+      "devices": [
+        {
+          "role": "source_a",
+          "operations": {
+            "clears": 0,
+            "shader_draws": 0,
+            "uniform_upload_bytes": 0,
+            "diagnostic_readback_pixels": 0,
+            "sdk_send_calls": 1,
+            "sdk_receive_calls": 0,
+            "sdk_texture_queries": 0,
+            "sdk_texture_observations": 0,
+            "explicit_gpu_copy_calls": 0,
+            "explicit_gpu_copy_bytes": 0
+          },
+          "after_fence": {
+            "live_bytes_by_owner": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "retiring_bytes_by_owner": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "live_textures": 0,
+            "retiring_textures": 0,
+            "peak_live_plus_retiring_bytes": 16588800,
+            "peak_live_plus_retiring_textures": 2
+          },
+          "retirement_ms": 0.0663
+        },
+        {
+          "role": "source_b",
+          "operations": {
+            "clears": 0,
+            "shader_draws": 0,
+            "uniform_upload_bytes": 0,
+            "diagnostic_readback_pixels": 0,
+            "sdk_send_calls": 1,
+            "sdk_receive_calls": 0,
+            "sdk_texture_queries": 0,
+            "sdk_texture_observations": 0,
+            "explicit_gpu_copy_calls": 0,
+            "explicit_gpu_copy_bytes": 0
+          },
+          "after_fence": {
+            "live_bytes_by_owner": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "retiring_bytes_by_owner": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "live_textures": 0,
+            "retiring_textures": 0,
+            "peak_live_plus_retiring_bytes": 7372800,
+            "peak_live_plus_retiring_textures": 2
+          },
+          "retirement_ms": 0.0781
+        },
+        {
+          "role": "renderer",
+          "operations": {
+            "clears": 1,
+            "shader_draws": 2,
+            "uniform_upload_bytes": 0,
+            "diagnostic_readback_pixels": 0,
+            "sdk_send_calls": 1,
+            "sdk_receive_calls": 2,
+            "sdk_texture_queries": 2,
+            "sdk_texture_observations": 2,
+            "explicit_gpu_copy_calls": 0,
+            "explicit_gpu_copy_bytes": 0
+          },
+          "after_fence": {
+            "live_bytes_by_owner": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "retiring_bytes_by_owner": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "live_textures": 0,
+            "retiring_textures": 0,
+            "peak_live_plus_retiring_bytes": 28569600,
+            "peak_live_plus_retiring_textures": 4
+          },
+          "retirement_ms": 0.0626
+        },
+        {
+          "role": "consumer",
+          "operations": {
+            "clears": 0,
+            "shader_draws": 0,
+            "uniform_upload_bytes": 0,
+            "diagnostic_readback_pixels": 2073600,
+            "sdk_send_calls": 0,
+            "sdk_receive_calls": 1,
+            "sdk_texture_queries": 1,
+            "sdk_texture_observations": 1,
+            "explicit_gpu_copy_calls": 1,
+            "explicit_gpu_copy_bytes": 8294400
+          },
+          "after_fence": {
+            "live_bytes_by_owner": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "retiring_bytes_by_owner": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "live_textures": 0,
+            "retiring_textures": 0,
+            "peak_live_plus_retiring_bytes": 16588800,
+            "peak_live_plus_retiring_textures": 2
+          },
+          "retirement_ms": 0.30889999999999995
+        }
+      ],
+      "elapsed_seconds": 0.4655069,
+      "unqualified": [
+        "procedural card shader/frame-label generation",
+        "native preview/scanout/DPI alignment",
+        "sustained cadence/latency/GPU critical path",
+        "cross-process full-image accuracy and source-worker bridge",
+        "physical residency, driver-internal copies and full Q05 retirement"
+      ]
+    }
+  },
+  "validation": {
+    "passed": true,
+    "full_image_pixels_verified": 2073600,
+    "tolerance_per_component": 2,
+    "scope": "authored-image GPU transfer/sampling only; no timing, procedural-card, scanout or cross-process claim"
+  },
+  "inputs_unchanged_after_run": true
+}

@@ -1,0 +1,245 @@
+{
+  "schema_version": 1,
+  "package": "spout2-sys 0.1.1",
+  "upstream_repository": "https://github.com/leadedge/Spout2",
+  "upstream_tag": "2.007.017",
+  "compared_upstream_revision": "f49e2f469f8cb25f559a6eaa61a3f5b8173fc100",
+  "packaged_file_count": 29,
+  "identical_count": 0,
+  "crlf_only_count": 29,
+  "different_count": 0,
+  "records": [
+    {
+      "path": "LICENSE",
+      "classification": "crlf_only",
+      "sha256": "17b575f5413ff794f656de3bef230db8af72ec14b0e87e9ae832f6f6695239c8",
+      "git_blob_sha1": "5a071dfe6e090fc819ea6c02edd0b8dc8e26b52a",
+      "lf_git_blob_sha1": "da8e0ef0d6f8f84cb480649e8f095b4008875562",
+      "upstream_git_blob_sha1": "da8e0ef0d6f8f84cb480649e8f095b4008875562"
+    },
+    {
+      "path": "SPOUTSDK/licence.txt",
+      "classification": "crlf_only",
+      "sha256": "2d9ec5349c3b608ad4b08916abf32b6247f9d59c20cb4779e9b26a2c29ba9b85",
+      "git_blob_sha1": "dcb056bd9f31caa5151632604aad023cad02e8b2",
+      "lf_git_blob_sha1": "e045739b7e3857a8ef1db3a2c219b143a6cbd751",
+      "upstream_git_blob_sha1": "e045739b7e3857a8ef1db3a2c219b143a6cbd751"
+    },
+    {
+      "path": "SPOUTSDK/SpoutDirectX/SpoutDX/SpoutDX.cpp",
+      "classification": "crlf_only",
+      "sha256": "8db8fe52474d6d081a1833324ef8646f0da1899e3864ec126928bfe299c21bc4",
+      "git_blob_sha1": "f2b63b52b4daafc073f936250c7ab74ab5f8a6c7",
+      "lf_git_blob_sha1": "29696c4c5c05bcb78a20f3ff0d131c474f563790",
+      "upstream_git_blob_sha1": "29696c4c5c05bcb78a20f3ff0d131c474f563790"
+    },
+    {
+      "path": "SPOUTSDK/SpoutDirectX/SpoutDX/SpoutDX.h",
+      "classification": "crlf_only",
+      "sha256": "b181be79f2cc3d1830a6c4cf38d8b63dda25fdc4f3558d606b2d1d23b3816446",
+      "git_blob_sha1": "edc595b82947ad59503cb1dcee17edd403ecd56f",
+      "lf_git_blob_sha1": "7b207b862c0e13c665e56ac20e89934a11a8a16c",
+      "upstream_git_blob_sha1": "7b207b862c0e13c665e56ac20e89934a11a8a16c"
+    },
+    {
+      "path": "SPOUTSDK/SpoutDirectX/SpoutDX/SpoutDX12/SpoutDX12.cpp",
+      "classification": "crlf_only",
+      "sha256": "f4003d2d4390fe5a575c1846950dc17ca5c68537a353f59abb03a7a3caad2e1b",
+      "git_blob_sha1": "227b5325e6bc986cdf07f9a5d461f62f54dce6d1",
+      "lf_git_blob_sha1": "170b0c8e63f5d8781092dc6f10399495dd53ff05",
+      "upstream_git_blob_sha1": "170b0c8e63f5d8781092dc6f10399495dd53ff05"
+    },
+    {
+      "path": "SPOUTSDK/SpoutDirectX/SpoutDX/SpoutDX12/SpoutDX12.h",
+      "classification": "crlf_only",
+      "sha256": "698c30c41c3a2ecb21b1dd55ef24f57cf9d1a2ce289f3900c6a4ca5b7c3191d2",
+      "git_blob_sha1": "23b92062eaf8f9ca97730f9d6a2bf45fbb96a36f",
+      "lf_git_blob_sha1": "c10273d705ed409e6d551cf039424345f40dd548",
+      "upstream_git_blob_sha1": "c10273d705ed409e6d551cf039424345f40dd548"
+    },
+    {
+      "path": "SPOUTSDK/SpoutGL/Spout.cpp",
+      "classification": "crlf_only",
+      "sha256": "a1fb6db0d1c50f5e049e960b010e7c08c7e0bd6783522c9bcf48df6559052be6",
+      "git_blob_sha1": "f2179c7b6cd226a6de32db8e91c279f6bca33a76",
+      "lf_git_blob_sha1": "4f6733a30017e82a071e7c8faba789cd4efdbf23",
+      "upstream_git_blob_sha1": "4f6733a30017e82a071e7c8faba789cd4efdbf23"
+    },
+    {
+      "path": "SPOUTSDK/SpoutGL/Spout.h",
+      "classification": "crlf_only",
+      "sha256": "d1de5fdb48869ab41eb2e7a066130229dec0f3de5c6b2f80102b1efb08a5c39a",
+      "git_blob_sha1": "e3dc52c2b4617f8db445875b9f60862d2f01cfcf",
+      "lf_git_blob_sha1": "a3a41ea03de1cabacd3ffb1eb3c0f5939978f696",
+      "upstream_git_blob_sha1": "a3a41ea03de1cabacd3ffb1eb3c0f5939978f696"
+    },
+    {
+      "path": "SPOUTSDK/SpoutGL/SpoutCommon.h",
+      "classification": "crlf_only",
+      "sha256": "9dbe0846831f9b396578b1b3288b684f7653c7f35718f429499097a9bf9bf063",
+      "git_blob_sha1": "7226f34b44eb18d1d9181e0a43c806b9ab0ae80c",
+      "lf_git_blob_sha1": "7f2752ffb2a0f5d7699e192f6c97121ee355dede",
+      "upstream_git_blob_sha1": "7f2752ffb2a0f5d7699e192f6c97121ee355dede"
+    },
+    {
+      "path": "SPOUTSDK/SpoutGL/SpoutCopy.cpp",
+      "classification": "crlf_only",
+      "sha256": "c7d559f4ed0527ef2d39b6828c0760f630d2592300c1c801cfe584c4200cf8e5",
+      "git_blob_sha1": "5324a8c70ea93653767cb46af3f1298a98ace8de",
+      "lf_git_blob_sha1": "ffa870166c4df5497dc40add9dc91f865d61a3e7",
+      "upstream_git_blob_sha1": "ffa870166c4df5497dc40add9dc91f865d61a3e7"
+    },
+    {
+      "path": "SPOUTSDK/SpoutGL/SpoutCopy.h",
+      "classification": "crlf_only",
+      "sha256": "0ca6e26cb5c3e280ca85854b36187dfc996437f11702410f4e028cbc7e4b6503",
+      "git_blob_sha1": "1fcee9595ffb95ed174b96e230e7eeba0c707cec",
+      "lf_git_blob_sha1": "40b0a6ef44877a6b2ff72fb049f06fa0b0013e22",
+      "upstream_git_blob_sha1": "40b0a6ef44877a6b2ff72fb049f06fa0b0013e22"
+    },
+    {
+      "path": "SPOUTSDK/SpoutGL/SpoutDirectX.cpp",
+      "classification": "crlf_only",
+      "sha256": "314a65b5070488731dadf6ab374753d445f3e7fa8392bcd872c4820f86abeb3d",
+      "git_blob_sha1": "7e8c8c6fe46c16f323103549611cd17f3f55e3f0",
+      "lf_git_blob_sha1": "d82eea25d58148db0612e368a10255401330b0b3",
+      "upstream_git_blob_sha1": "d82eea25d58148db0612e368a10255401330b0b3"
+    },
+    {
+      "path": "SPOUTSDK/SpoutGL/SpoutDirectX.h",
+      "classification": "crlf_only",
+      "sha256": "809f678d270b4a22ea1854a2a83daf4c534535f20a18b2eab8fa5038086bc397",
+      "git_blob_sha1": "73981184daa7825138bec27df6acbce6b2730bec",
+      "lf_git_blob_sha1": "b394f2c263bdf272d0011146e150bcef4eac0f6a",
+      "upstream_git_blob_sha1": "b394f2c263bdf272d0011146e150bcef4eac0f6a"
+    },
+    {
+      "path": "SPOUTSDK/SpoutGL/SpoutFrameCount.cpp",
+      "classification": "crlf_only",
+      "sha256": "4eba0851b2b6294379079689376c2f1e0c77490ec9b3ff2e76162e5323ace06d",
+      "git_blob_sha1": "8d3d4cf241f69b75b173ae9aa3131d6f6b541856",
+      "lf_git_blob_sha1": "4c4f2dd39fc879fd47f371ebdd7379f11b1af8ff",
+      "upstream_git_blob_sha1": "4c4f2dd39fc879fd47f371ebdd7379f11b1af8ff"
+    },
+    {
+      "path": "SPOUTSDK/SpoutGL/SpoutFrameCount.h",
+      "classification": "crlf_only",
+      "sha256": "5e09d1aa49005f3cfb8dd1ed5328b78d0223d08630c06eee66213cbcdaf3b4f9",
+      "git_blob_sha1": "1c3d4f7955e29e6eaa0c37d3d76744c41c154f64",
+      "lf_git_blob_sha1": "2db2cab2eacd0c0bc5882d0ee3f71b00fd2fe70e",
+      "upstream_git_blob_sha1": "2db2cab2eacd0c0bc5882d0ee3f71b00fd2fe70e"
+    },
+    {
+      "path": "SPOUTSDK/SpoutGL/SpoutGL.cpp",
+      "classification": "crlf_only",
+      "sha256": "01befc7914b171823ced4d1c7af4ce3dd7f02af7f8a34e5e6fa533452fff7cd3",
+      "git_blob_sha1": "d53acac1238a64e806f98744c6545929e31edf1a",
+      "lf_git_blob_sha1": "c44cc830b5d758ebe5e0f34536860d4a0f729445",
+      "upstream_git_blob_sha1": "c44cc830b5d758ebe5e0f34536860d4a0f729445"
+    },
+    {
+      "path": "SPOUTSDK/SpoutGL/SpoutGL.h",
+      "classification": "crlf_only",
+      "sha256": "f034328dd772cc265788637f9805c1fc404a1da98d5124a6cb6df68d819cfd2a",
+      "git_blob_sha1": "24213ab003b0e8ea9afb5ac7d4c185cd873d401e",
+      "lf_git_blob_sha1": "38803e30a0057d2ce445fea5b12da781cb811488",
+      "upstream_git_blob_sha1": "38803e30a0057d2ce445fea5b12da781cb811488"
+    },
+    {
+      "path": "SPOUTSDK/SpoutGL/SpoutGLextensions.cpp",
+      "classification": "crlf_only",
+      "sha256": "cc9d2c8e2e9998b52cf5a6128c96f0f4835cf441fe92ac462953d77ff7528a8c",
+      "git_blob_sha1": "d19abf454b95ca97d40a68015f12ab94553e4cea",
+      "lf_git_blob_sha1": "2d7b65d09708d4d8b146f082994db69a32f0f0b4",
+      "upstream_git_blob_sha1": "2d7b65d09708d4d8b146f082994db69a32f0f0b4"
+    },
+    {
+      "path": "SPOUTSDK/SpoutGL/SpoutGLextensions.h",
+      "classification": "crlf_only",
+      "sha256": "483e8bdfab238a38a48c7d0cefe92d73ce0b1ae457a85938e169253bea1ecf81",
+      "git_blob_sha1": "fe43e3d2cc920bc610b6c3aa0c60648efb4d0e46",
+      "lf_git_blob_sha1": "2d3df179c922cd93430dfb5806e8f80ca2cd1ea9",
+      "upstream_git_blob_sha1": "2d3df179c922cd93430dfb5806e8f80ca2cd1ea9"
+    },
+    {
+      "path": "SPOUTSDK/SpoutGL/SpoutReceiver.cpp",
+      "classification": "crlf_only",
+      "sha256": "ebd33af38c69b81ecab5a98fc284ae7833a6c97b3fe51bc1ea8431f53058c02e",
+      "git_blob_sha1": "ed977d4a2e794cc190ed627b6f35750222c31fa5",
+      "lf_git_blob_sha1": "9d79dc5b84c94e171344750760e6f001b98637b1",
+      "upstream_git_blob_sha1": "9d79dc5b84c94e171344750760e6f001b98637b1"
+    },
+    {
+      "path": "SPOUTSDK/SpoutGL/SpoutReceiver.h",
+      "classification": "crlf_only",
+      "sha256": "87311011fe3078abf3308b23e054c076b0a310f1f1eb1d66ffbbb1dc7d74d4bb",
+      "git_blob_sha1": "b9b20b851399790f9397e81f6a7eaef45bff6e8d",
+      "lf_git_blob_sha1": "70797df35a13eec2e4b14cdcfa61e349767e8100",
+      "upstream_git_blob_sha1": "70797df35a13eec2e4b14cdcfa61e349767e8100"
+    },
+    {
+      "path": "SPOUTSDK/SpoutGL/SpoutSender.cpp",
+      "classification": "crlf_only",
+      "sha256": "173f7eeba8f36d2711d51950caf42308842cd5e5dbf4cd63012616d211cd0d5c",
+      "git_blob_sha1": "86bb887f77d3ab34579610fd1c7be11c44bab390",
+      "lf_git_blob_sha1": "206e49925201546a875c80d56e3b8124405123bb",
+      "upstream_git_blob_sha1": "206e49925201546a875c80d56e3b8124405123bb"
+    },
+    {
+      "path": "SPOUTSDK/SpoutGL/SpoutSender.h",
+      "classification": "crlf_only",
+      "sha256": "34c561085fd0123dbae821ade704b9fa8cdc12032166a4b7c25820f6a5a9d159",
+      "git_blob_sha1": "4375804fc52b7571a5a36f20e6a60b4a84827d92",
+      "lf_git_blob_sha1": "363495a1cc1610b1f04920253e375c5252849ad0",
+      "upstream_git_blob_sha1": "363495a1cc1610b1f04920253e375c5252849ad0"
+    },
+    {
+      "path": "SPOUTSDK/SpoutGL/SpoutSenderNames.cpp",
+      "classification": "crlf_only",
+      "sha256": "97965a1512cdf527086838e89b741158cd3fe9ea215eb322f4cbc94d74f42d04",
+      "git_blob_sha1": "a5b76bbc511707aa9d7baf2c9e99d163565ded1a",
+      "lf_git_blob_sha1": "8635641d93c178c42f212bd851157a139acd07b4",
+      "upstream_git_blob_sha1": "8635641d93c178c42f212bd851157a139acd07b4"
+    },
+    {
+      "path": "SPOUTSDK/SpoutGL/SpoutSenderNames.h",
+      "classification": "crlf_only",
+      "sha256": "d9ce7069c9403378eac4cb4d3082ce2657504269cd92bb4b8bb3461be2ec4e83",
+      "git_blob_sha1": "f6fe946931da09f5f4ddec633a38b508fc0295af",
+      "lf_git_blob_sha1": "2060a4ed903509c78ef45180a7d30ab8233e3d3e",
+      "upstream_git_blob_sha1": "2060a4ed903509c78ef45180a7d30ab8233e3d3e"
+    },
+    {
+      "path": "SPOUTSDK/SpoutGL/SpoutSharedMemory.cpp",
+      "classification": "crlf_only",
+      "sha256": "db606f85b648daab438637520c6f2f99b92c26aaece3e9938629502dba544a17",
+      "git_blob_sha1": "7f59a9871ef01293477d150c9e6063fadc2ff06c",
+      "lf_git_blob_sha1": "a2c9804cca1c3ef5d982ad0e64a59b9f827328ce",
+      "upstream_git_blob_sha1": "a2c9804cca1c3ef5d982ad0e64a59b9f827328ce"
+    },
+    {
+      "path": "SPOUTSDK/SpoutGL/SpoutSharedMemory.h",
+      "classification": "crlf_only",
+      "sha256": "5567da567945d0feed074c73ffcf76c5917c10506f86d167fc765da5aa62271d",
+      "git_blob_sha1": "22b05efff8d0d68afda5f6a6b6205c4024b542c9",
+      "lf_git_blob_sha1": "3fa5160cc63b73e2e7cf21bd089e7ce69fb970c4",
+      "upstream_git_blob_sha1": "3fa5160cc63b73e2e7cf21bd089e7ce69fb970c4"
+    },
+    {
+      "path": "SPOUTSDK/SpoutGL/SpoutUtils.cpp",
+      "classification": "crlf_only",
+      "sha256": "05bd391bc8907cbb4ad2c7efc5c65cb5b826def4aa0a56e606740d982b52c1b1",
+      "git_blob_sha1": "1dc747eab1d36ad33606e24c8b29e6fca08f6b10",
+      "lf_git_blob_sha1": "751d8a36811e711aa9410b07fe78ff19b6c8bbe4",
+      "upstream_git_blob_sha1": "751d8a36811e711aa9410b07fe78ff19b6c8bbe4"
+    },
+    {
+      "path": "SPOUTSDK/SpoutGL/SpoutUtils.h",
+      "classification": "crlf_only",
+      "sha256": "22346227a4815855ada400b4980dd9a50a026dbf6d398fefbef4d34c0f4349eb",
+      "git_blob_sha1": "5f81494e0c8fc09072a51d258fdbde50250f9ff7",
+      "lf_git_blob_sha1": "d448c33dd255f56761415f5b3c8e531b49ab7728",
+      "upstream_git_blob_sha1": "d448c33dd255f56761415f5b3c8e531b49ab7728"
+    }
+  ]
+}

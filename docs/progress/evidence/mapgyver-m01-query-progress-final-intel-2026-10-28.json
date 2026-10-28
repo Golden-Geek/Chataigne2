@@ -1,0 +1,309 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "headless_query_progress_isolation_not_rendering_qualification",
+  "inputs": {
+    "executable_sha256": "d2983a5cb479d01b5b6b4bf8a0073f13d0fb56d378f46c54fc3bd1a2e00866d0",
+    "files": {
+      "Cargo.lock": "286b324f233cd15f2af643272e4f47759fc60ca3d13943204755ec94da10559f",
+      "Cargo.toml": "bd01765f8ba0796d43f9e826a919f3dced1cfba02570c249c9717d9870d9bdd4",
+      "package-lock.json": "46924d87a98b203fa1c66ece5e1fdd8705dc27210c183b481452998cd88be355",
+      "package.json": "15ea200aaaa832d472b173334a6f41d48bfa80d2791600157225eccb22d3ee28",
+      "tools/mapgyver/collect-baseline.ps1": "3cda72ba639594e312ea505e059de697367002c6ccb66bb1f75105a0a4955078",
+      "tools/mapgyver/native-probe/build.rs": "73fb236d28fee0b7d97bcca20a416a9ac938100dcd5164e66b6675753649ab4c",
+      "tools/mapgyver/native-probe/Cargo.toml": "66ba9f7eef570fdfd5efc1158621507cf62b929d5477dff27ab46052aac9b8f0",
+      "tools/mapgyver/native-probe/src/allocation/tests/mod.rs": "f2fc948e7b067ec61bec6ac34cfc32728f02494a3d9b485ea883443276308574",
+      "tools/mapgyver/native-probe/src/allocation.rs": "28c8ac3ef154716ffad312689b950eace694d3b83c26fffe5ff24c7930882fd4",
+      "tools/mapgyver/native-probe/src/bin/generate_probe_bindings.rs": "f39870bfc02fddf8ae37b0138484f2c6db1d4559341d980aa98a36b591b9915a",
+      "tools/mapgyver/native-probe/src/cadence/tests/mod.rs": "3b19d27cb1bf5b18423d8aa37f82d81a93dfc6857fc332747c67e4e3d2aa0b3d",
+      "tools/mapgyver/native-probe/src/cadence.rs": "e07c42631e7d6c63f8ff18b9fe4c4394aef14ac2f076fc5a530cf0fa0a3f55c4",
+      "tools/mapgyver/native-probe/src/card.rs": "37ea31310543d39e59dc942841c85c986e7551161ac13a5f03b9c362c1bc045a",
+      "tools/mapgyver/native-probe/src/child_resources.rs": "cc5dc2562f40de45809484d3593d9c23ebe2034c34d543c65ed810b786c438b0",
+      "tools/mapgyver/native-probe/src/clock.rs": "79cd123256b6cca2c77eba8db1785623d45c2cd5e7c4e4bfe162bb9633dbf8aa",
+      "tools/mapgyver/native-probe/src/completion.rs": "397caa36a727f7de792bb2936b8ea4fdef9aefd379a18ac2e42c7e5897c248af",
+      "tools/mapgyver/native-probe/src/d3d.rs": "de6d6b2e834bb16224a82d591c92da2ac55370d31bbf559889a22ef881112051",
+      "tools/mapgyver/native-probe/src/desktop.rs": "b2127767d9e4010275ca4a0311e1df87e9690dfa374d48beb904663e7304e646",
+      "tools/mapgyver/native-probe/src/fixture/client.rs": "33b456bfa9d9a4ee2d7a49fd8b8fa02cb2d4e543d3938895f1fd92f8ba29a2a4",
+      "tools/mapgyver/native-probe/src/fixture/protocol.rs": "b4756f30153327bb5bd61405d66ef1ddf68c3612b8f32c0d67c4fd30ad3958d0",
+      "tools/mapgyver/native-probe/src/fixture.rs": "18167cc23380dc61fa3b635d8ea33eabcd51792b7f22c5ec9b3ab98e1443a58b",
+      "tools/mapgyver/native-probe/src/frame_admission.rs": "d26012cda5e079fe4029519ee2e91b370019d9a36465a295aa7dcaa8189b8541",
+      "tools/mapgyver/native-probe/src/frame_age/tests/mod.rs": "26ad9b364663ab21fb1ec5d06b6515d5920fc5208be9d731b1889072f2aee6d9",
+      "tools/mapgyver/native-probe/src/frame_age.rs": "4bbc244ff01cb33fe7689fe7b7a55897a92e07f77059fdacf9811bca843302aa",
+      "tools/mapgyver/native-probe/src/gpu_admission/tests/mod.rs": "80ae0c56653c41b69170d3515a0c9c67de9c42589e8c0868c591ff11fc6da762",
+      "tools/mapgyver/native-probe/src/gpu_admission.rs": "ca17d750c20344e5a8b0915f09c8cb1fd39ebe33297ba061a78aed2a8df400a7",
+      "tools/mapgyver/native-probe/src/gpu_progress.rs": "660db903bb89ea031086f3d10d77e673df37b76262af66173a9b9adee4e92106",
+      "tools/mapgyver/native-probe/src/lib.rs": "b62459cf38ddbe3dc6a6048f812ce718fd2c66986cc3f7719fda1cac64aedc98",
+      "tools/mapgyver/native-probe/src/main.rs": "987a7988d0c0daaa8663e5f6485d5e877e2e1f8d84f2b8e181ccbf001809731d",
+      "tools/mapgyver/native-probe/src/observer/client.rs": "cd466a25489c799e62ee4444e36c1fa25eaca2a40a4813417339c5659bd3579b",
+      "tools/mapgyver/native-probe/src/observer/frame_age.rs": "61eec1f2fbbd804f2d1609341551795b12d4a65ad99d6b9fb45145285c4687c8",
+      "tools/mapgyver/native-probe/src/observer/mod.rs": "7f53052b0a7c3a2ab2961f095ef4597f1efc1845a081d2c0fe5a2dbc71e62baf",
+      "tools/mapgyver/native-probe/src/observer/protocol.rs": "8f74e7e72958f532244d920676d2af072bfd31914ed2426a7e6dc309eaf3d601",
+      "tools/mapgyver/native-probe/src/observer/tests/mod.rs": "a2a39c51e54a890b3c7c6767e63481d2c0706ac41f152401e085347b64b4221d",
+      "tools/mapgyver/native-probe/src/operation_timing/tests/mod.rs": "0a79db53ccc9473e9d54efbe6734ba7f8c669af889179ce6be39d55f9236ffc5",
+      "tools/mapgyver/native-probe/src/operation_timing.rs": "769b35f353cd366fbae2146c8a1a650b978eb449639de5207a474f06c8a49dbb",
+      "tools/mapgyver/native-probe/src/presentation/tests/mod.rs": "739a41a1b886aa0c5f1c08243aa20b73126b812df7c02745533f437329fb3ea4",
+      "tools/mapgyver/native-probe/src/presentation.rs": "d2063e13d0602b80f13ef4784bf5b44e35a1105a70367a4388292000811cd2ef",
+      "tools/mapgyver/native-probe/src/presenter/admission/tests/mod.rs": "a605ece7035cf5ae959eccef507b2690e12957056da125a9970c8c5bc1951b4d",
+      "tools/mapgyver/native-probe/src/presenter/admission.rs": "578c5952d5e3a79b9593fffb6f54cc1c7fc6f2c088f84fd52fde8f9c97947253",
+      "tools/mapgyver/native-probe/src/presenter.rs": "8ed5bbbbb11869e9ee697b6f7862e0a2d03ca81b99078a911cf5831f7355f0e1",
+      "tools/mapgyver/native-probe/src/process/reported.rs": "ed1c99582ebb90bf656c58f89a99e4472ba4a90396925477e9564cb91d2ce5f6",
+      "tools/mapgyver/native-probe/src/process.rs": "d3a2d80fb0ff629284d9c4f63240d3410935ee97d5732241c61265453c897099",
+      "tools/mapgyver/native-probe/src/quad.rs": "869cfcae90b58b2c498e04f9c3188649ceb1a3f599922905aa5d253a78cb5028",
+      "tools/mapgyver/native-probe/src/query_data.rs": "afce4dd916e4a9b7ea98ab729c566b4fa22583c067ea527f09bd95b94fc37bfe",
+      "tools/mapgyver/native-probe/src/render_worker/generation.rs": "76912c7c05c7884147377da450150c7e4a37503e4edabdf64cb896eb81a77e3f",
+      "tools/mapgyver/native-probe/src/render_worker.rs": "a14f61022c1f7d35c0c47d0e5e180f751972501158934e575a780af1f54bb375",
+      "tools/mapgyver/native-probe/src/resource_log/tests/mod.rs": "30536bf948a10da7bf0e15cf23d714ff8f00d213d526ef64f7f085c32161bebf",
+      "tools/mapgyver/native-probe/src/resource_log.rs": "2505a45136736792afdb417fef8087c4894c45a969054ce1e3305e67a03a1dbb",
+      "tools/mapgyver/native-probe/src/resources.rs": "9e40788a5ebe4b01bd6f29623b74d73f3227b0b979f0de121250b23915a4920a",
+      "tools/mapgyver/native-probe/src/retirement.rs": "2c774f73a9f1b568f712c538390e8cb5eff65a5b8014d23415814c0c70d99123",
+      "tools/mapgyver/native-probe/src/smoke.rs": "011499bed6cb7cc5c71e715eb008a108ab4fbb9b0ff232139bbd2a71bdcb628f",
+      "tools/mapgyver/native-probe/src/source_worker/surface/tests/mod.rs": "2053a40faadfef84dc5272dd69597783789d57e4f0f5a6c2439f2aa9bba9dd43",
+      "tools/mapgyver/native-probe/src/source_worker/surface.rs": "7ee98714efb85e6a8218c90259b76cf867f697874bc06c1aa4dd6604c4bb5ae9",
+      "tools/mapgyver/native-probe/src/source_worker/tests/mod.rs": "31652d2a685c724b7628ae691df2079176c8f458fb309da5801ad990fd74c8ce",
+      "tools/mapgyver/native-probe/src/source_worker/worker.rs": "257245f1ba63b5244e318d80bb9dc0fab44d94ead366b17d07a6b26c59476758",
+      "tools/mapgyver/native-probe/src/source_worker.rs": "fa77947c75598341f44c23e01736cdb785777fc6c0bcb9a94f3162d746a3e5f0",
+      "tools/mapgyver/native-probe/src/spout.rs": "5b8684b0b4a22202b5dfc74c68803a8a7b8b4ef4729eed560c4b96f0476d684d",
+      "tools/mapgyver/native-probe/src/statistics/tests/mod.rs": "e2bda3dbd0e8ecba435d06b10472b3434e6e4c8df753d13186121f206e8ba03f",
+      "tools/mapgyver/native-probe/src/statistics.rs": "404893f2a1a8194d54f53a6cdc833748821a45c0741cce797efb11b4192f576f",
+      "tools/mapgyver/native-probe/src/texture.rs": "68052e3bec3b8d72ce8278f3021b7afc86147bf0f03841a65589f869663e76db",
+      "tools/mapgyver/native-probe/src/timing.rs": "6b72fe063cd9e270a46dab64c8dcdc7cccbfaf1b019da5775250a093533d8f68",
+      "tools/mapgyver/native-probe/src/trace_capability.rs": "87db9ba6e644d4f8a436c3ed6cf4bdf6601b993816332e91238b8d8a11bace18",
+      "tools/mapgyver/native-probe/src/wire.rs": "7ed0d0b25811ea89a84568c8a8f6767f0f550c6452c60e1a1c5edbc613daa52a",
+      "tools/mapgyver/native-probe/src/workload/tests/mod.rs": "c1cfcc408c4aa44b85ceb0b821a692ebd07e247678a9d5b55f0b5edc1001c8e8",
+      "tools/mapgyver/native-probe/src/workload.rs": "bebcfee4239134dd7cd7a7ec69d2d1b06bdd9ce7d9b46582ea553ed66ea3a154",
+      "tools/mapgyver/native-probe/tauri.conf.json": "7e662b178abb64018037dd9da756e04de67d23f38dd409e686d90969afd66f1d",
+      "tools/mapgyver/native-probe/ui/dist/assets/index-L5J2Q3d3.js": "3c05c362766b0b5ac944d3e34be1ae9e52034ff64f25fed75de14f2cdb1fedce",
+      "tools/mapgyver/native-probe/ui/dist/assets/index-NEuoE25f.css": "64d230ac153b556df0834833a285380f27d22b0bf33d04255d32c1f9a50e14cd",
+      "tools/mapgyver/native-probe/ui/dist/index.html": "b73b37b178e5f830f5332d794e0071c2db774ddd7b391a5bcb65abbe3291c789",
+      "tools/mapgyver/native-probe/ui/index.html": "8537f14356e5a97019d00197ca3609b1093b90fc2297a3e9abeedaaa5b514078",
+      "tools/mapgyver/native-probe/ui/package.json": "64d7e12087f720f977e6b13b6c78adcdcf79a78335632a9a70e01a0d2799831c",
+      "tools/mapgyver/native-probe/ui/scripts/check-generated.mjs": "8626ddca2d34ea8d2a99ffbe778ca32b6afe121d9eb26a6263e9c5de18cc2731",
+      "tools/mapgyver/native-probe/ui/src/App.svelte": "7719f3e9b8b85e9d34eb8869bc562572963c1442b1f680d1e5cdc6c37cff54a0",
+      "tools/mapgyver/native-probe/ui/src/generated.ts": "e69c90bee49b918de2f0a0375eafe01ebfddb0e1c209ec3742ce64a41864ff4c",
+      "tools/mapgyver/native-probe/ui/src/main.ts": "c76543fe1c49182b7ec4353a30135d00e3c439dfdf2577e2435272ff9f35930b",
+      "tools/mapgyver/native-probe/ui/src/native.ts": "30ef70406a96bbe19b74e52b83c3738a85d43644277c954e254ec45ee14976d9",
+      "tools/mapgyver/native-probe/ui/svelte.config.js": "f3c25c06187b11282d1293dd1aa038b34de915c464de9250b121241780c4d1ea",
+      "tools/mapgyver/native-probe/ui/tsconfig.json": "7bcf3e81653ce3c7b9a3b8d047bf56bae9714258ea79ef4ffb0f9a9009c8d40e",
+      "tools/mapgyver/native-probe/ui/vite.config.js": "11c7487f64e960a7a002408ea2a43225a53d15443e1776d79fb0ad98350a64bd",
+      "tools/mapgyver/run-qualification.py": "0211b2c79b357ac7afaebaf4fc2e018dd329d57b1bb9326f88fef7acd9100262"
+    }
+  },
+  "inputs_unchanged_after_runs": true,
+  "operator_conditions": "Intel adapter 0, NVIDIA overlay restored On, no desktop capture during measurements",
+  "runs": [
+    {
+      "command": [
+        "D:\\Projects\\Dev\\Chataigne2\\target\\release\\mapgyver_native_probe.exe",
+        "gpu-progress",
+        "0",
+        "fence_warmup"
+      ],
+      "started_utc": "2026-10-28T05:18:21.749332+00:00",
+      "exit_code": 0,
+      "stderr": "",
+      "report": {
+        "evidence_kind": "headless_query_progress_isolation_not_fixed_workload_qualification",
+        "mode": "fence_warmup",
+        "adapter_luid": "00000000:00016c2a",
+        "seconds": 8,
+        "target_ticks": 480,
+        "elapsed_seconds": 8.0003053,
+        "qpc_frequency": 10000000,
+        "start_qpc": 1635091821780,
+        "busy_ticks": [],
+        "tick_work": {
+          "samples": 480,
+          "mean_ms": 0.06940020833333337,
+          "median_ms": 0.06470000000000001,
+          "p95_ms": 0.1025,
+          "p99_ms": 0.1241,
+          "maximum_ms": 0.2884
+        },
+        "timing": {
+          "cpu_submission_work": null,
+          "worker_start_intervals": null,
+          "gpu_execution": null,
+          "skipped_gpu_queries": 0,
+          "invalid_gpu_queries": 0,
+          "pending_gpu_queries": 0,
+          "truncated_samples": 0,
+          "gpu_outliers": {
+            "total": 0,
+            "omitted": 0,
+            "events": [],
+            "maximum": null,
+            "maximum_score": 0
+          }
+        },
+        "before_final_fence": {
+          "maximum_in_flight": 2,
+          "peak_in_flight": 1,
+          "submitted": 480,
+          "completed": 479,
+          "pending": 1,
+          "reserved": false,
+          "warmup": {
+            "attempts": 0,
+            "admitted": 0,
+            "busy": 0
+          },
+          "sampled": {
+            "attempts": 480,
+            "admitted": 480,
+            "busy": 0
+          }
+        },
+        "drain_clear_after_observation": true,
+        "after_final_fence": {
+          "mechanism": "timeline_fence",
+          "maximum_in_flight": 2,
+          "peak_in_flight": 1,
+          "submitted": 480,
+          "completed": 480,
+          "pending": 0,
+          "reserved": false,
+          "warmup": {
+            "attempts": 0,
+            "admitted": 0,
+            "busy": 0
+          },
+          "sampled": {
+            "attempts": 480,
+            "admitted": 480,
+            "busy": 0
+          },
+          "pending_at_final_poll": 1
+        },
+        "allocations_after_fence": {
+          "live_bytes_by_owner": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "retiring_bytes_by_owner": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "live_textures": 0,
+          "retiring_textures": 0,
+          "peak_live_plus_retiring_bytes": 1024,
+          "peak_live_plus_retiring_textures": 1
+        },
+        "operations_including_seed": {
+          "clears": 2,
+          "shader_draws": 0,
+          "uniform_upload_bytes": 0,
+          "diagnostic_readback_pixels": 0,
+          "sdk_send_calls": 0,
+          "sdk_receive_calls": 0,
+          "sdk_texture_queries": 0,
+          "sdk_texture_observations": 0,
+          "explicit_gpu_copy_calls": 0,
+          "explicit_gpu_copy_bytes": 0
+        }
+      }
+    },
+    {
+      "command": [
+        "D:\\Projects\\Dev\\Chataigne2\\target\\release\\mapgyver_native_probe.exe",
+        "gpu-progress",
+        "0",
+        "fence_no_drain"
+      ],
+      "started_utc": "2026-10-28T05:18:29.820261+00:00",
+      "exit_code": 0,
+      "stderr": "",
+      "report": {
+        "evidence_kind": "headless_query_progress_isolation_not_fixed_workload_qualification",
+        "mode": "fence_no_drain",
+        "adapter_luid": "00000000:00016c2a",
+        "seconds": 8,
+        "target_ticks": 480,
+        "elapsed_seconds": 8.0000861,
+        "qpc_frequency": 10000000,
+        "start_qpc": 1635172517294,
+        "busy_ticks": [],
+        "tick_work": {
+          "samples": 480,
+          "mean_ms": 0.018541874999999992,
+          "median_ms": 0.018600000000000002,
+          "p95_ms": 0.0297,
+          "p99_ms": 0.044700000000000004,
+          "maximum_ms": 0.27
+        },
+        "timing": null,
+        "before_final_fence": {
+          "maximum_in_flight": 2,
+          "peak_in_flight": 1,
+          "submitted": 480,
+          "completed": 479,
+          "pending": 1,
+          "reserved": false,
+          "warmup": {
+            "attempts": 0,
+            "admitted": 0,
+            "busy": 0
+          },
+          "sampled": {
+            "attempts": 480,
+            "admitted": 480,
+            "busy": 0
+          }
+        },
+        "drain_clear_after_observation": false,
+        "after_final_fence": {
+          "mechanism": "timeline_fence",
+          "maximum_in_flight": 2,
+          "peak_in_flight": 1,
+          "submitted": 480,
+          "completed": 480,
+          "pending": 0,
+          "reserved": false,
+          "warmup": {
+            "attempts": 0,
+            "admitted": 0,
+            "busy": 0
+          },
+          "sampled": {
+            "attempts": 480,
+            "admitted": 480,
+            "busy": 0
+          },
+          "pending_at_final_poll": 1
+        },
+        "allocations_after_fence": {
+          "live_bytes_by_owner": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "retiring_bytes_by_owner": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "live_textures": 0,
+          "retiring_textures": 0,
+          "peak_live_plus_retiring_bytes": 1024,
+          "peak_live_plus_retiring_textures": 1
+        },
+        "operations_including_seed": {
+          "clears": 1,
+          "shader_draws": 0,
+          "uniform_upload_bytes": 0,
+          "diagnostic_readback_pixels": 0,
+          "sdk_send_calls": 0,
+          "sdk_receive_calls": 0,
+          "sdk_texture_queries": 0,
+          "sdk_texture_observations": 0,
+          "explicit_gpu_copy_calls": 0,
+          "explicit_gpu_copy_bytes": 0
+        }
+      }
+    }
+  ]
+}

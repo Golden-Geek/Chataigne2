@@ -1,0 +1,1770 @@
+{
+  "schema": "mapgyver-m01-isolation-validation-v1",
+  "date": "2026-10-27",
+  "initial_suite": {
+    "command": "cargo test --locked -p mapgyver_native_probe --features desktop --all-targets -- --include-ignored --test-threads=1",
+    "exit_code": 1,
+    "deterministic_tests_passed": 9,
+    "independent_composite_test": "passed",
+    "fixed_workload_test": {
+      "result": "failed",
+      "adapter_luid": "00000000:00016c2a",
+      "scenario": "q01",
+      "observed_cpu_sample_count": 285,
+      "required_cpu_sample_count": [
+        350,
+        500
+      ],
+      "geometry_mismatches": 0,
+      "notes": "Full initial test output was displayed but is not retained in this file. Remaining native test binaries did not execute after failure."
+    }
+  },
+  "fixed_workload_retry": {
+    "command": "cargo test --locked -p mapgyver_native_probe --features desktop --test native_composite fixed_workloads_preserve_extents_alpha_and_exclude_warmup -- --include-ignored --test-threads=1",
+    "exit_code": 1,
+    "output": "    Finished `test` profile [optimized + debuginfo] target(s) in 15.12s\n     Running tests\\native_composite.rs (target\\debug\\deps\\native_composite-fe8ba1b33f2033e6.exe)\n\nrunning 1 test\ntest fixed_workloads_preserve_extents_alpha_and_exclude_warmup ... FAILED\n\nfailures:\n\n---- fixed_workloads_preserve_extents_alpha_and_exclude_warmup stdout ----\n\nthread 'fixed_workloads_preserve_extents_alpha_and_exclude_warmup' (38600) panicked at tools\\mapgyver\\native-probe\\tests\\native_composite.rs:38:13:\n{\"adapter_luid\":\"00000000:00016c2a\",\"compiler\":\"C:\\\\Program Files\\\\Microsoft Visual Studio\\\\18\\\\Community\\\\VC\\\\Tools\\\\MSVC\\\\14.51.36231\\\\bin\\\\HostX64\\\\x64\\\\cl.exe\",\"elapsed_seconds\":10.4146864,\"evidence_kind\":\"ordinary_tauri_d3d11_probe_not_visual_or_hardware_reset_qualification\",\"generations\":[{\"adapter_luid\":\"00000000:00016c2a\",\"after_release\":{\"handle_count\":407,\"private_bytes\":69328896,\"process_id\":40888,\"working_set_bytes\":90927104},\"consumer_checkpoint\":null,\"consumer_ready_ms\":null,\"elapsed_seconds\":10.3290603,\"fixed_geometry_observed\":true,\"generation\":0,\"native_output_extent\":[1920,1080],\"output_presents\":180,\"preview_presents\":72,\"recreated_after\":false,\"retirement_fence_ms\":1.2254,\"sampled_geometry_mismatches\":0,\"setup_ms\":171.9047,\"spout_sends\":411,\"timing\":{\"cpu_submission_work\":{\"maximum_ms\":120.9104,\"mean_ms\":13.871496363636362,\"median_ms\":0.7588999999999999,\"p95_ms\":69.8653,\"p99_ms\":99.3984,\"samples\":330},\"gpu_execution\":{\"maximum_ms\":135.5678125,\"mean_ms\":22.900027940538205,\"median_ms\":13.137447916666666,\"p95_ms\":88.73182291666666,\"p99_ms\":128.23442708333332,\"samples\":192},\"invalid_gpu_queries\":0,\"pending_gpu_queries\":2,\"skipped_gpu_queries\":136,\"truncated_samples\":0,\"worker_start_intervals\":{\"maximum_ms\":120.9137,\"mean_ms\":24.206066565349538,\"median_ms\":16.8297,\"p95_ms\":69.86739999999999,\"p99_ms\":99.4016,\"samples\":329}}}],\"maximum_session_seconds\":10,\"observer\":{\"adapter_luid\":\"00000000:00016c2a\",\"checkpoints\":[{\"elapsed_ms\":82.9196,\"extent\":[1920,1080],\"phase\":\"initial\",\"sampled_alpha\":[[191,191]],\"sampled_bgra\":[[[0,0,255,255],[0,255,255,255]]],\"sampled_generation_markers\":[]},{\"elapsed_ms\":192.0657,\"extent\":[1920,1080],\"phase\":\"resized\",\"sampled_alpha\":[[191,191],[191,191],[191,191]],\"sampled_bgra\":[[[0,0,255,255],[0,255,255,255]],[[0,0,255,255],[0,255,255,255]],[[0,255,0,255],[0,255,255,255]]],\"sampled_generation_markers\":[]},{\"elapsed_ms\":31.1114,\"extent\":[1920,1080],\"phase\":\"source_absent\",\"sampled_alpha\":[[191,191],[255,191]],\"sampled_bgra\":[[[0,255,0,255],[0,255,255,255]],[[13,13,13,255],[0,255,255,255]]],\"sampled_generation_markers\":[]},{\"elapsed_ms\":77.068,\"extent\":[1920,1080],\"phase\":\"recovered\",\"sampled_alpha\":[[255,191],[255,191],[191,191]],\"sampled_bgra\":[[[13,13,13,255],[0,255,255,255]],[[13,13,13,255],[0,255,255,255]],[[255,0,0,255],[0,255,255,255]]],\"sampled_generation_markers\":[]}],\"diagnostic_readbacks\":9,\"process_id\":15336,\"received_observations\":9,\"verified_generations\":0},\"render_process_id\":40888,\"resources\":{\"after_gpu_release\":{\"handle_count\":402,\"private_bytes\":67284992,\"process_id\":40888,\"working_set_bytes\":90509312},\"before_gpu\":{\"handle_count\":389,\"private_bytes\":12599296,\"process_id\":40888,\"working_set_bytes\":36220928},\"exclusions\":[\"WebView2 subprocess memory and handles\",\"source/observer GPU usage and per-texture residency\",\"COM release does not prove driver allocation retirement\"],\"samples\":[{\"elapsed_seconds\":0.1719237,\"in_sample_window\":false,\"observer\":{\"handle_count\":222,\"private_bytes\":26013696,\"process_id\":15336,\"working_set_bytes\":36036608},\"renderer\":{\"handle_count\":471,\"private_bytes\":56246272,\"process_id\":40888,\"working_set_bytes\":78573568},\"renderer_gpu_local_nonlocal\":[{\"budget_bytes\":18433902428,\"current_usage_bytes\":15503360},{\"budget_bytes\":0,\"current_usage_bytes\":0}],\"sources\":[{\"handle_count\":261,\"private_bytes\":48173056,\"process_id\":19044,\"working_set_bytes\":61095936},{\"handle_count\":261,\"private_bytes\":41099264,\"process_id\":19816,\"working_set_bytes\":53981184}]},{\"elapsed_seconds\":1.0069247,\"in_sample_window\":false,\"observer\":{\"handle_count\":230,\"private_bytes\":42311680,\"process_id\":15336,\"working_set_bytes\":53121024},\"renderer\":{\"handle_count\":487,\"private_bytes\":83886080,\"process_id\":40888,\"working_set_bytes\":106708992},\"renderer_gpu_local_nonlocal\":[{\"budget_bytes\":18433902428,\"current_usage_bytes\":81612800},{\"budget_bytes\":0,\"current_usage_bytes\":0}],\"sources\":[{\"handle_count\":261,\"private_bytes\":49631232,\"process_id\":19044,\"working_set_bytes\":62562304},{\"handle_count\":261,\"private_bytes\":44515328,\"process_id\":19816,\"working_set_bytes\":57348096}]},{\"elapsed_seconds\":2.0267087,\"in_sample_window\":true,\"observer\":{\"handle_count\":230,\"private_bytes\":42323968,\"process_id\":15336,\"working_set_bytes\":53141504},\"renderer\":{\"handle_count\":488,\"private_bytes\":86347776,\"process_id\":40888,\"working_set_bytes\":109146112},\"renderer_gpu_local_nonlocal\":[{\"budget_bytes\":18433902428,\"current_usage_bytes\":85995520},{\"budget_bytes\":0,\"current_usage_bytes\":0}],\"sources\":[{\"handle_count\":262,\"private_bytes\":52482048,\"process_id\":19044,\"working_set_bytes\":65409024},{\"handle_count\":261,\"private_bytes\":47017984,\"process_id\":19816,\"working_set_bytes\":59805696}]},{\"elapsed_seconds\":3.0159217,\"in_sample_window\":true,\"observer\":{\"handle_count\":230,\"private_bytes\":42336256,\"process_id\":15336,\"working_set_bytes\":53153792},\"renderer\":{\"handle_count\":486,\"private_bytes\":86454272,\"process_id\":40888,\"working_set_bytes\":109322240},\"renderer_gpu_local_nonlocal\":[{\"budget_bytes\":18433902428,\"current_usage_bytes\":68247552},{\"budget_bytes\":0,\"current_usage_bytes\":0}],\"sources\":[{\"handle_count\":255,\"private_bytes\":52482048,\"process_id\":19044,\"working_set_bytes\":65396736},{\"handle_count\":261,\"private_bytes\":47017984,\"process_id\":19816,\"working_set_bytes\":59809792}]},{\"elapsed_seconds\":4.05889,\"in_sample_window\":true,\"observer\":{\"handle_count\":230,\"private_bytes\":42336256,\"process_id\":15336,\"working_set_bytes\":53153792},\"renderer\":{\"handle_count\":488,\"private_bytes\":86454272,\"process_id\":40888,\"working_set_bytes\":109326336},\"renderer_gpu_local_nonlocal\":[{\"budget_bytes\":18433902428,\"current_usage_bytes\":86040576},{\"budget_bytes\":0,\"current_usage_bytes\":0}],\"sources\":[{\"handle_count\":263,\"private_bytes\":61423616,\"process_id\":19044,\"working_set_bytes\":74346496},{\"handle_count\":261,\"private_bytes\":47017984,\"process_id\":19816,\"working_set_bytes\":59809792}]},{\"elapsed_seconds\":5.0012369,\"in_sample_window\":true,\"observer\":{\"handle_count\":230,\"private_bytes\":42336256,\"process_id\":15336,\"working_set_bytes\":53153792},\"renderer\":{\"handle_count\":488,\"private_bytes\":86458368,\"process_id\":40888,\"working_set_bytes\":109330432},\"renderer_gpu_local_nonlocal\":[{\"budget_bytes\":18433902428,\"current_usage_bytes\":86040576},{\"budget_bytes\":0,\"current_usage_bytes\":0}],\"sources\":[{\"handle_count\":263,\"private_bytes\":63930368,\"process_id\":19044,\"working_set_bytes\":76800000},{\"handle_count\":261,\"private_bytes\":49467392,\"process_id\":19816,\"working_set_bytes\":62242816}]},{\"elapsed_seconds\":6.0027369,\"in_sample_window\":true,\"observer\":{\"handle_count\":230,\"private_bytes\":42336256,\"process_id\":15336,\"working_set_bytes\":53153792},\"renderer\":{\"handle_count\":488,\"private_bytes\":86458368,\"process_id\":40888,\"working_set_bytes\":109330432},\"renderer_gpu_local_nonlocal\":[{\"budget_bytes\":18433902428,\"current_usage_bytes\":86040576},{\"budget_bytes\":0,\"current_usage_bytes\":0}],\"sources\":[{\"handle_count\":263,\"private_bytes\":63930368,\"process_id\":19044,\"working_set_bytes\":76800000},{\"handle_count\":261,\"private_bytes\":49467392,\"process_id\":19816,\"working_set_bytes\":62246912}]},{\"elapsed_seconds\":7.0020984,\"in_sample_window\":true,\"observer\":{\"handle_count\":230,\"private_bytes\":42336256,\"process_id\":15336,\"working_set_bytes\":53153792},\"renderer\":{\"handle_count\":488,\"private_bytes\":86458368,\"process_id\":40888,\"working_set_bytes\":109330432},\"renderer_gpu_local_nonlocal\":[{\"budget_bytes\":18433902428,\"current_usage_bytes\":86040576},{\"budget_bytes\":0,\"current_usage_bytes\":0}],\"sources\":[{\"handle_count\":263,\"private_bytes\":63930368,\"process_id\":19044,\"working_set_bytes\":76800000},{\"handle_count\":261,\"private_bytes\":49467392,\"process_id\":19816,\"working_set_bytes\":62246912}]},{\"elapsed_seconds\":8.0010621,\"in_sample_window\":true,\"observer\":{\"handle_count\":230,\"private_bytes\":42336256,\"process_id\":15336,\"working_set_bytes\":53153792},\"renderer\":{\"handle_count\":488,\"private_bytes\":86458368,\"process_id\":40888,\"working_set_bytes\":109330432},\"renderer_gpu_local_nonlocal\":[{\"budget_bytes\":18433902428,\"current_usage_bytes\":86040576},{\"budget_bytes\":0,\"current_usage_bytes\":0}],\"sources\":[{\"handle_count\":263,\"private_bytes\":63930368,\"process_id\":19044,\"working_set_bytes\":76800000},{\"handle_count\":261,\"private_bytes\":49467392,\"process_id\":19816,\"working_set_bytes\":62255104}]},{\"elapsed_seconds\":9.0635946,\"in_sample_window\":true,\"observer\":{\"handle_count\":230,\"private_bytes\":42336256,\"process_id\":15336,\"working_set_bytes\":53153792},\"renderer\":{\"handle_count\":488,\"private_bytes\":86458368,\"process_id\":40888,\"working_set_bytes\":109330432},\"renderer_gpu_local_nonlocal\":[{\"budget_bytes\":18433902428,\"current_usage_bytes\":86040576},{\"budget_bytes\":0,\"current_usage_bytes\":0}],\"sources\":[{\"handle_count\":263,\"private_bytes\":63930368,\"process_id\":19044,\"working_set_bytes\":76804096},{\"handle_count\":261,\"private_bytes\":49467392,\"process_id\":19816,\"working_set_bytes\":62255104}]}]},\"status\":{\"browser_scale\":1.25,\"error\":null,\"layout_revision\":3,\"output_presents\":180,\"preview_extents\":[[640,360],[480,270]],\"preview_presents\":72,\"rects\":[{\"bounds\":{\"height\":360,\"left\":429,\"top\":222,\"width\":640},\"clip\":{\"height\":360,\"left\":429,\"top\":222,\"width\":640}},{\"bounds\":{\"height\":270,\"left\":673,\"top\":586,\"width\":480},\"clip\":{\"height\":270,\"left\":673,\"top\":586,\"width\":480}}],\"rendered_revision\":3,\"source_observations\":[384,411],\"spout_sends\":411,\"webview_scale\":1.25},\"unqualified\":[\"manual visual/input/clipping/DPI\",\"texture residency, displayed cadence and latency\",\"hardware device removal and sustained retirement\"],\"windows_sdk_include\":\"C:\\\\Program Files (x86)\\\\Windows Kits\\\\10\\\\include\\\\10.0.26100.0\\\\ucrt\",\"workload\":{\"exercise\":\"timed\",\"sample_seconds\":8,\"scenario\":\"q01\",\"warmup_seconds\":2}}\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n\nfailures:\n    fixed_workloads_preserve_extents_alpha_and_exclude_warmup\n\ntest result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 11.76s\n\nerror: test failed, to rerun pass `-p mapgyver_native_probe --test native_composite`\n",
+    "report": {
+      "adapter_luid": "00000000:00016c2a",
+      "compiler": "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\HostX64\\x64\\cl.exe",
+      "elapsed_seconds": 10.4146864,
+      "evidence_kind": "ordinary_tauri_d3d11_probe_not_visual_or_hardware_reset_qualification",
+      "generations": [
+        {
+          "adapter_luid": "00000000:00016c2a",
+          "after_release": {
+            "handle_count": 407,
+            "private_bytes": 69328896,
+            "process_id": 40888,
+            "working_set_bytes": 90927104
+          },
+          "consumer_checkpoint": null,
+          "consumer_ready_ms": null,
+          "elapsed_seconds": 10.3290603,
+          "fixed_geometry_observed": true,
+          "generation": 0,
+          "native_output_extent": [
+            1920,
+            1080
+          ],
+          "output_presents": 180,
+          "preview_presents": 72,
+          "recreated_after": false,
+          "retirement_fence_ms": 1.2254,
+          "sampled_geometry_mismatches": 0,
+          "setup_ms": 171.9047,
+          "spout_sends": 411,
+          "timing": {
+            "cpu_submission_work": {
+              "maximum_ms": 120.9104,
+              "mean_ms": 13.871496363636362,
+              "median_ms": 0.7588999999999999,
+              "p95_ms": 69.8653,
+              "p99_ms": 99.3984,
+              "samples": 330
+            },
+            "gpu_execution": {
+              "maximum_ms": 135.5678125,
+              "mean_ms": 22.900027940538205,
+              "median_ms": 13.137447916666666,
+              "p95_ms": 88.73182291666666,
+              "p99_ms": 128.23442708333332,
+              "samples": 192
+            },
+            "invalid_gpu_queries": 0,
+            "pending_gpu_queries": 2,
+            "skipped_gpu_queries": 136,
+            "truncated_samples": 0,
+            "worker_start_intervals": {
+              "maximum_ms": 120.9137,
+              "mean_ms": 24.206066565349538,
+              "median_ms": 16.8297,
+              "p95_ms": 69.86739999999999,
+              "p99_ms": 99.4016,
+              "samples": 329
+            }
+          }
+        }
+      ],
+      "maximum_session_seconds": 10,
+      "observer": {
+        "adapter_luid": "00000000:00016c2a",
+        "checkpoints": [
+          {
+            "elapsed_ms": 82.9196,
+            "extent": [
+              1920,
+              1080
+            ],
+            "phase": "initial",
+            "sampled_alpha": [
+              [
+                191,
+                191
+              ]
+            ],
+            "sampled_bgra": [
+              [
+                [
+                  0,
+                  0,
+                  255,
+                  255
+                ],
+                [
+                  0,
+                  255,
+                  255,
+                  255
+                ]
+              ]
+            ],
+            "sampled_generation_markers": []
+          },
+          {
+            "elapsed_ms": 192.0657,
+            "extent": [
+              1920,
+              1080
+            ],
+            "phase": "resized",
+            "sampled_alpha": [
+              [
+                191,
+                191
+              ],
+              [
+                191,
+                191
+              ],
+              [
+                191,
+                191
+              ]
+            ],
+            "sampled_bgra": [
+              [
+                [
+                  0,
+                  0,
+                  255,
+                  255
+                ],
+                [
+                  0,
+                  255,
+                  255,
+                  255
+                ]
+              ],
+              [
+                [
+                  0,
+                  0,
+                  255,
+                  255
+                ],
+                [
+                  0,
+                  255,
+                  255,
+                  255
+                ]
+              ],
+              [
+                [
+                  0,
+                  255,
+                  0,
+                  255
+                ],
+                [
+                  0,
+                  255,
+                  255,
+                  255
+                ]
+              ]
+            ],
+            "sampled_generation_markers": []
+          },
+          {
+            "elapsed_ms": 31.1114,
+            "extent": [
+              1920,
+              1080
+            ],
+            "phase": "source_absent",
+            "sampled_alpha": [
+              [
+                191,
+                191
+              ],
+              [
+                255,
+                191
+              ]
+            ],
+            "sampled_bgra": [
+              [
+                [
+                  0,
+                  255,
+                  0,
+                  255
+                ],
+                [
+                  0,
+                  255,
+                  255,
+                  255
+                ]
+              ],
+              [
+                [
+                  13,
+                  13,
+                  13,
+                  255
+                ],
+                [
+                  0,
+                  255,
+                  255,
+                  255
+                ]
+              ]
+            ],
+            "sampled_generation_markers": []
+          },
+          {
+            "elapsed_ms": 77.068,
+            "extent": [
+              1920,
+              1080
+            ],
+            "phase": "recovered",
+            "sampled_alpha": [
+              [
+                255,
+                191
+              ],
+              [
+                255,
+                191
+              ],
+              [
+                191,
+                191
+              ]
+            ],
+            "sampled_bgra": [
+              [
+                [
+                  13,
+                  13,
+                  13,
+                  255
+                ],
+                [
+                  0,
+                  255,
+                  255,
+                  255
+                ]
+              ],
+              [
+                [
+                  13,
+                  13,
+                  13,
+                  255
+                ],
+                [
+                  0,
+                  255,
+                  255,
+                  255
+                ]
+              ],
+              [
+                [
+                  255,
+                  0,
+                  0,
+                  255
+                ],
+                [
+                  0,
+                  255,
+                  255,
+                  255
+                ]
+              ]
+            ],
+            "sampled_generation_markers": []
+          }
+        ],
+        "diagnostic_readbacks": 9,
+        "process_id": 15336,
+        "received_observations": 9,
+        "verified_generations": 0
+      },
+      "render_process_id": 40888,
+      "resources": {
+        "after_gpu_release": {
+          "handle_count": 402,
+          "private_bytes": 67284992,
+          "process_id": 40888,
+          "working_set_bytes": 90509312
+        },
+        "before_gpu": {
+          "handle_count": 389,
+          "private_bytes": 12599296,
+          "process_id": 40888,
+          "working_set_bytes": 36220928
+        },
+        "exclusions": [
+          "WebView2 subprocess memory and handles",
+          "source/observer GPU usage and per-texture residency",
+          "COM release does not prove driver allocation retirement"
+        ],
+        "samples": [
+          {
+            "elapsed_seconds": 0.1719237,
+            "in_sample_window": false,
+            "observer": {
+              "handle_count": 222,
+              "private_bytes": 26013696,
+              "process_id": 15336,
+              "working_set_bytes": 36036608
+            },
+            "renderer": {
+              "handle_count": 471,
+              "private_bytes": 56246272,
+              "process_id": 40888,
+              "working_set_bytes": 78573568
+            },
+            "renderer_gpu_local_nonlocal": [
+              {
+                "budget_bytes": 18433902428,
+                "current_usage_bytes": 15503360
+              },
+              {
+                "budget_bytes": 0,
+                "current_usage_bytes": 0
+              }
+            ],
+            "sources": [
+              {
+                "handle_count": 261,
+                "private_bytes": 48173056,
+                "process_id": 19044,
+                "working_set_bytes": 61095936
+              },
+              {
+                "handle_count": 261,
+                "private_bytes": 41099264,
+                "process_id": 19816,
+                "working_set_bytes": 53981184
+              }
+            ]
+          },
+          {
+            "elapsed_seconds": 1.0069247,
+            "in_sample_window": false,
+            "observer": {
+              "handle_count": 230,
+              "private_bytes": 42311680,
+              "process_id": 15336,
+              "working_set_bytes": 53121024
+            },
+            "renderer": {
+              "handle_count": 487,
+              "private_bytes": 83886080,
+              "process_id": 40888,
+              "working_set_bytes": 106708992
+            },
+            "renderer_gpu_local_nonlocal": [
+              {
+                "budget_bytes": 18433902428,
+                "current_usage_bytes": 81612800
+              },
+              {
+                "budget_bytes": 0,
+                "current_usage_bytes": 0
+              }
+            ],
+            "sources": [
+              {
+                "handle_count": 261,
+                "private_bytes": 49631232,
+                "process_id": 19044,
+                "working_set_bytes": 62562304
+              },
+              {
+                "handle_count": 261,
+                "private_bytes": 44515328,
+                "process_id": 19816,
+                "working_set_bytes": 57348096
+              }
+            ]
+          },
+          {
+            "elapsed_seconds": 2.0267087,
+            "in_sample_window": true,
+            "observer": {
+              "handle_count": 230,
+              "private_bytes": 42323968,
+              "process_id": 15336,
+              "working_set_bytes": 53141504
+            },
+            "renderer": {
+              "handle_count": 488,
+              "private_bytes": 86347776,
+              "process_id": 40888,
+              "working_set_bytes": 109146112
+            },
+            "renderer_gpu_local_nonlocal": [
+              {
+                "budget_bytes": 18433902428,
+                "current_usage_bytes": 85995520
+              },
+              {
+                "budget_bytes": 0,
+                "current_usage_bytes": 0
+              }
+            ],
+            "sources": [
+              {
+                "handle_count": 262,
+                "private_bytes": 52482048,
+                "process_id": 19044,
+                "working_set_bytes": 65409024
+              },
+              {
+                "handle_count": 261,
+                "private_bytes": 47017984,
+                "process_id": 19816,
+                "working_set_bytes": 59805696
+              }
+            ]
+          },
+          {
+            "elapsed_seconds": 3.0159217,
+            "in_sample_window": true,
+            "observer": {
+              "handle_count": 230,
+              "private_bytes": 42336256,
+              "process_id": 15336,
+              "working_set_bytes": 53153792
+            },
+            "renderer": {
+              "handle_count": 486,
+              "private_bytes": 86454272,
+              "process_id": 40888,
+              "working_set_bytes": 109322240
+            },
+            "renderer_gpu_local_nonlocal": [
+              {
+                "budget_bytes": 18433902428,
+                "current_usage_bytes": 68247552
+              },
+              {
+                "budget_bytes": 0,
+                "current_usage_bytes": 0
+              }
+            ],
+            "sources": [
+              {
+                "handle_count": 255,
+                "private_bytes": 52482048,
+                "process_id": 19044,
+                "working_set_bytes": 65396736
+              },
+              {
+                "handle_count": 261,
+                "private_bytes": 47017984,
+                "process_id": 19816,
+                "working_set_bytes": 59809792
+              }
+            ]
+          },
+          {
+            "elapsed_seconds": 4.05889,
+            "in_sample_window": true,
+            "observer": {
+              "handle_count": 230,
+              "private_bytes": 42336256,
+              "process_id": 15336,
+              "working_set_bytes": 53153792
+            },
+            "renderer": {
+              "handle_count": 488,
+              "private_bytes": 86454272,
+              "process_id": 40888,
+              "working_set_bytes": 109326336
+            },
+            "renderer_gpu_local_nonlocal": [
+              {
+                "budget_bytes": 18433902428,
+                "current_usage_bytes": 86040576
+              },
+              {
+                "budget_bytes": 0,
+                "current_usage_bytes": 0
+              }
+            ],
+            "sources": [
+              {
+                "handle_count": 263,
+                "private_bytes": 61423616,
+                "process_id": 19044,
+                "working_set_bytes": 74346496
+              },
+              {
+                "handle_count": 261,
+                "private_bytes": 47017984,
+                "process_id": 19816,
+                "working_set_bytes": 59809792
+              }
+            ]
+          },
+          {
+            "elapsed_seconds": 5.0012369,
+            "in_sample_window": true,
+            "observer": {
+              "handle_count": 230,
+              "private_bytes": 42336256,
+              "process_id": 15336,
+              "working_set_bytes": 53153792
+            },
+            "renderer": {
+              "handle_count": 488,
+              "private_bytes": 86458368,
+              "process_id": 40888,
+              "working_set_bytes": 109330432
+            },
+            "renderer_gpu_local_nonlocal": [
+              {
+                "budget_bytes": 18433902428,
+                "current_usage_bytes": 86040576
+              },
+              {
+                "budget_bytes": 0,
+                "current_usage_bytes": 0
+              }
+            ],
+            "sources": [
+              {
+                "handle_count": 263,
+                "private_bytes": 63930368,
+                "process_id": 19044,
+                "working_set_bytes": 76800000
+              },
+              {
+                "handle_count": 261,
+                "private_bytes": 49467392,
+                "process_id": 19816,
+                "working_set_bytes": 62242816
+              }
+            ]
+          },
+          {
+            "elapsed_seconds": 6.0027369,
+            "in_sample_window": true,
+            "observer": {
+              "handle_count": 230,
+              "private_bytes": 42336256,
+              "process_id": 15336,
+              "working_set_bytes": 53153792
+            },
+            "renderer": {
+              "handle_count": 488,
+              "private_bytes": 86458368,
+              "process_id": 40888,
+              "working_set_bytes": 109330432
+            },
+            "renderer_gpu_local_nonlocal": [
+              {
+                "budget_bytes": 18433902428,
+                "current_usage_bytes": 86040576
+              },
+              {
+                "budget_bytes": 0,
+                "current_usage_bytes": 0
+              }
+            ],
+            "sources": [
+              {
+                "handle_count": 263,
+                "private_bytes": 63930368,
+                "process_id": 19044,
+                "working_set_bytes": 76800000
+              },
+              {
+                "handle_count": 261,
+                "private_bytes": 49467392,
+                "process_id": 19816,
+                "working_set_bytes": 62246912
+              }
+            ]
+          },
+          {
+            "elapsed_seconds": 7.0020984,
+            "in_sample_window": true,
+            "observer": {
+              "handle_count": 230,
+              "private_bytes": 42336256,
+              "process_id": 15336,
+              "working_set_bytes": 53153792
+            },
+            "renderer": {
+              "handle_count": 488,
+              "private_bytes": 86458368,
+              "process_id": 40888,
+              "working_set_bytes": 109330432
+            },
+            "renderer_gpu_local_nonlocal": [
+              {
+                "budget_bytes": 18433902428,
+                "current_usage_bytes": 86040576
+              },
+              {
+                "budget_bytes": 0,
+                "current_usage_bytes": 0
+              }
+            ],
+            "sources": [
+              {
+                "handle_count": 263,
+                "private_bytes": 63930368,
+                "process_id": 19044,
+                "working_set_bytes": 76800000
+              },
+              {
+                "handle_count": 261,
+                "private_bytes": 49467392,
+                "process_id": 19816,
+                "working_set_bytes": 62246912
+              }
+            ]
+          },
+          {
+            "elapsed_seconds": 8.0010621,
+            "in_sample_window": true,
+            "observer": {
+              "handle_count": 230,
+              "private_bytes": 42336256,
+              "process_id": 15336,
+              "working_set_bytes": 53153792
+            },
+            "renderer": {
+              "handle_count": 488,
+              "private_bytes": 86458368,
+              "process_id": 40888,
+              "working_set_bytes": 109330432
+            },
+            "renderer_gpu_local_nonlocal": [
+              {
+                "budget_bytes": 18433902428,
+                "current_usage_bytes": 86040576
+              },
+              {
+                "budget_bytes": 0,
+                "current_usage_bytes": 0
+              }
+            ],
+            "sources": [
+              {
+                "handle_count": 263,
+                "private_bytes": 63930368,
+                "process_id": 19044,
+                "working_set_bytes": 76800000
+              },
+              {
+                "handle_count": 261,
+                "private_bytes": 49467392,
+                "process_id": 19816,
+                "working_set_bytes": 62255104
+              }
+            ]
+          },
+          {
+            "elapsed_seconds": 9.0635946,
+            "in_sample_window": true,
+            "observer": {
+              "handle_count": 230,
+              "private_bytes": 42336256,
+              "process_id": 15336,
+              "working_set_bytes": 53153792
+            },
+            "renderer": {
+              "handle_count": 488,
+              "private_bytes": 86458368,
+              "process_id": 40888,
+              "working_set_bytes": 109330432
+            },
+            "renderer_gpu_local_nonlocal": [
+              {
+                "budget_bytes": 18433902428,
+                "current_usage_bytes": 86040576
+              },
+              {
+                "budget_bytes": 0,
+                "current_usage_bytes": 0
+              }
+            ],
+            "sources": [
+              {
+                "handle_count": 263,
+                "private_bytes": 63930368,
+                "process_id": 19044,
+                "working_set_bytes": 76804096
+              },
+              {
+                "handle_count": 261,
+                "private_bytes": 49467392,
+                "process_id": 19816,
+                "working_set_bytes": 62255104
+              }
+            ]
+          }
+        ]
+      },
+      "status": {
+        "browser_scale": 1.25,
+        "error": null,
+        "layout_revision": 3,
+        "output_presents": 180,
+        "preview_extents": [
+          [
+            640,
+            360
+          ],
+          [
+            480,
+            270
+          ]
+        ],
+        "preview_presents": 72,
+        "rects": [
+          {
+            "bounds": {
+              "height": 360,
+              "left": 429,
+              "top": 222,
+              "width": 640
+            },
+            "clip": {
+              "height": 360,
+              "left": 429,
+              "top": 222,
+              "width": 640
+            }
+          },
+          {
+            "bounds": {
+              "height": 270,
+              "left": 673,
+              "top": 586,
+              "width": 480
+            },
+            "clip": {
+              "height": 270,
+              "left": 673,
+              "top": 586,
+              "width": 480
+            }
+          }
+        ],
+        "rendered_revision": 3,
+        "source_observations": [
+          384,
+          411
+        ],
+        "spout_sends": 411,
+        "webview_scale": 1.25
+      },
+      "unqualified": [
+        "manual visual/input/clipping/DPI",
+        "texture residency, displayed cadence and latency",
+        "hardware device removal and sustained retirement"
+      ],
+      "windows_sdk_include": "C:\\Program Files (x86)\\Windows Kits\\10\\include\\10.0.26100.0\\ucrt",
+      "workload": {
+        "exercise": "timed",
+        "sample_seconds": 8,
+        "scenario": "q01",
+        "warmup_seconds": 2
+      }
+    }
+  },
+  "read_only_environment_followup": {
+    "battery_status": 2,
+    "battery_charge_percent": 100,
+    "free_physical_memory_kib": 11602972,
+    "total_visible_memory_kib": 32961912,
+    "gpu_engine_counter": {
+      "pid": 28052,
+      "process_name": "dwm",
+      "adapter_luid": "00000000:00016c2a",
+      "engine": "3d",
+      "utilization_percent": 84.17259489263529
+    },
+    "notes": "One 1-second counter observation during the later native recreation suite, not synchronized with either failed sample; does not establish the cause. NVIDIA App settings window was closed before retry; overlay setting unchanged."
+  },
+  "recreation_followup": {
+    "command": "cargo test --locked -p mapgyver_native_probe --features desktop --test native_recreation --test native_smoke -- --include-ignored --test-threads=1",
+    "exit_code": 1,
+    "failing_case": "q02/0",
+    "failure": "Resized: four observations retained the old red/yellow composite, expected green/yellow. Observer exited before completing validation.",
+    "remaining_test_binary": "native_smoke did not execute after recreation failure"
+  },
+  "standalone_smoke_followup": {
+    "chunk_id": "966374",
+    "wall_time_seconds": 0.0000062,
+    "exit_code": 1,
+    "original_token_count": 226,
+    "output": "    Finished `test` profile [optimized + debuginfo] target(s) in 15.15s\n     Running tests\\native_smoke.rs (target\\debug\\deps\\native_smoke-8362b48654dd5e03.exe)\n\nrunning 2 tests\ntest cross_process_lifecycle_on_each_hardware_adapter ... FAILED\ntest parent_pipe_loss_cancels_owned_fixtures ... ok\n\nfailures:\n\n---- cross_process_lifecycle_on_each_hardware_adapter stdout ----\n\nthread 'cross_process_lifecycle_on_each_hardware_adapter' (24600) panicked at tools\\mapgyver\\native-probe\\tests\\native_smoke.rs:96:9:\nadapter 0: native probe failed: channel B marker invalid: [0, 0, 0, 0]\n\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n\nfailures:\n    cross_process_lifecycle_on_each_hardware_adapter\n\ntest result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.21s\n\nerror: test failed, to rerun pass `-p mapgyver_native_probe --test native_smoke`\n"
+  },
+  "post_capture_session_reset": {
+    "schema_version": 2,
+    "evidence_kind": "fixed_workload_submission_and_resource_observations_not_full_M01_qualification",
+    "started_utc": "2026-10-27T21:40:25.698543+00:00",
+    "sample_index": 1,
+    "requested_series_samples": 1,
+    "command": [
+      "D:\\Projects\\Dev\\Chataigne2\\target\\debug\\mapgyver_native_probe.exe",
+      "qualify",
+      "0",
+      "q01",
+      "8",
+      "2"
+    ],
+    "profile": "debug",
+    "inputs": {
+      "executable_sha256": "5b1fe4345724cc51f0866e40ca98047e04bd141e00fac6a1b09cd2d4293f5d5c",
+      "files": {
+        "Cargo.lock": "286b324f233cd15f2af643272e4f47759fc60ca3d13943204755ec94da10559f",
+        "Cargo.toml": "bd01765f8ba0796d43f9e826a919f3dced1cfba02570c249c9717d9870d9bdd4",
+        "package-lock.json": "46924d87a98b203fa1c66ece5e1fdd8705dc27210c183b481452998cd88be355",
+        "package.json": "15ea200aaaa832d472b173334a6f41d48bfa80d2791600157225eccb22d3ee28",
+        "tools/mapgyver/collect-baseline.ps1": "3cda72ba639594e312ea505e059de697367002c6ccb66bb1f75105a0a4955078",
+        "tools/mapgyver/native-probe/build.rs": "73fb236d28fee0b7d97bcca20a416a9ac938100dcd5164e66b6675753649ab4c",
+        "tools/mapgyver/native-probe/Cargo.toml": "abe2dcce394eae1710fcfe3cfc8fad90594a222290fd42dde6856ebc6f9d650b",
+        "tools/mapgyver/native-probe/src/bin/generate_probe_bindings.rs": "f39870bfc02fddf8ae37b0138484f2c6db1d4559341d980aa98a36b591b9915a",
+        "tools/mapgyver/native-probe/src/card.rs": "d45eaa7435024feb4956f3fc46f9fbd36beaf00ae7f315adcbf17ea5e670254b",
+        "tools/mapgyver/native-probe/src/completion.rs": "238eac811a44c3b69e7224b7247b7ca4b3c5f2ded33c889b9fc0dfad851a040e",
+        "tools/mapgyver/native-probe/src/d3d.rs": "28fa1f966a7fdad6c0b37c2c0db44200e8409b5521c948d236bb842fc672f1b1",
+        "tools/mapgyver/native-probe/src/desktop.rs": "85522b6c32330696aa6f0486a7c70ac64ca88b24dcace6d014c5c619ca0142fd",
+        "tools/mapgyver/native-probe/src/fixture.rs": "c3c831680fcbd9798366ccd244989859a0dd85572e9b7617aaf1e35061735f22",
+        "tools/mapgyver/native-probe/src/lib.rs": "1ae0b4295c7923bf0011c48af9cca0b2ca3a7b97dcfcceedd77622306f1178cf",
+        "tools/mapgyver/native-probe/src/main.rs": "b6091b168a1510757779e70d883dc210b11800bc926e52247bc606da4f9137b2",
+        "tools/mapgyver/native-probe/src/observer/client.rs": "5771045e355a08b2e4967608872d97a99239a034687c845f40cc261f11d940bc",
+        "tools/mapgyver/native-probe/src/observer/mod.rs": "5abc0fadc2ab7ecd423b24ccb235e3009967dc28eec24be9977416b149bedc53",
+        "tools/mapgyver/native-probe/src/observer/protocol.rs": "7cc953c0484868db365b1a18e06af3ea5f498c35079cc733daf150dbf775ac59",
+        "tools/mapgyver/native-probe/src/observer/tests/mod.rs": "87a8e598b19f9b2aabb6fc1b17b2bcf9d7e777795baf1131996c19744f73401d",
+        "tools/mapgyver/native-probe/src/presentation/tests/mod.rs": "739a41a1b886aa0c5f1c08243aa20b73126b812df7c02745533f437329fb3ea4",
+        "tools/mapgyver/native-probe/src/presentation.rs": "c751e94b91dc8dd92c2f607fd6901cdf4f39906b92e093574242326a32ab6b64",
+        "tools/mapgyver/native-probe/src/presenter.rs": "62f1d8d7bf416b885dc599e3c51f470c31e829c6a0ee85d8224a3504655855da",
+        "tools/mapgyver/native-probe/src/process.rs": "e94929a2f93e04663534bd17387d8807525318b18536c0a3cd37339550c30a8f",
+        "tools/mapgyver/native-probe/src/quad.rs": "525a68b84a1c20c409a6e935dde41f4bfcf0e992f8bbc003f71880f24988178f",
+        "tools/mapgyver/native-probe/src/query_data.rs": "afce4dd916e4a9b7ea98ab729c566b4fa22583c067ea527f09bd95b94fc37bfe",
+        "tools/mapgyver/native-probe/src/render_worker/generation.rs": "4f65fd10de371a4957933696381ea958a10bc9f4650cc9baad837ca58765cfef",
+        "tools/mapgyver/native-probe/src/render_worker.rs": "8a01990f2e0d98179a7c338cb51f1199d0df6ccea8f879d86d975bb3341d2fce",
+        "tools/mapgyver/native-probe/src/resources.rs": "3b8de0238d301daff0379bdc32e7e6b9618961553152092694145b08848c9580",
+        "tools/mapgyver/native-probe/src/retirement.rs": "5d5929a5c7984e543680c21e0c9aece493b3b5342c76764389026329f795f54a",
+        "tools/mapgyver/native-probe/src/smoke.rs": "2c3bf7677a17ee809700606b10027f7ffde4b25934347e7a6063da0df3c16e9e",
+        "tools/mapgyver/native-probe/src/spout.rs": "87232eaf504cf029fab6a38d79b6b8d88ce1e116ed684edf556165c6100e9232",
+        "tools/mapgyver/native-probe/src/timing/tests/mod.rs": "e2bda3dbd0e8ecba435d06b10472b3434e6e4c8df753d13186121f206e8ba03f",
+        "tools/mapgyver/native-probe/src/timing.rs": "3d0526183eaa0175eccf85de554f8e9fba0d1031e17e5d2cae16cf1a09b53e29",
+        "tools/mapgyver/native-probe/src/workload/tests/mod.rs": "9b77e59f84fea762a2695a1eb47ac3250ab3d23d5feda2f9b78ac961d0325aa0",
+        "tools/mapgyver/native-probe/src/workload.rs": "b29ed28f413aacbf9282d5df4270221094f57db4d62e4339b441b280489f5497",
+        "tools/mapgyver/native-probe/tauri.conf.json": "7e662b178abb64018037dd9da756e04de67d23f38dd409e686d90969afd66f1d",
+        "tools/mapgyver/native-probe/ui/dist/assets/index-BmsNWfJI.js": "0c0f26ed568b505006b3f3c184c332bbcf23d4be16881cd1e75e3caafa24115e",
+        "tools/mapgyver/native-probe/ui/dist/assets/index-NEuoE25f.css": "64d230ac153b556df0834833a285380f27d22b0bf33d04255d32c1f9a50e14cd",
+        "tools/mapgyver/native-probe/ui/dist/index.html": "3012e7fba9e50bd7fd8e97ad22fc7a97cd67240e87235b7c6bc01ced6ca233c8",
+        "tools/mapgyver/native-probe/ui/index.html": "8537f14356e5a97019d00197ca3609b1093b90fc2297a3e9abeedaaa5b514078",
+        "tools/mapgyver/native-probe/ui/package.json": "64d7e12087f720f977e6b13b6c78adcdcf79a78335632a9a70e01a0d2799831c",
+        "tools/mapgyver/native-probe/ui/scripts/check-generated.mjs": "8626ddca2d34ea8d2a99ffbe778ca32b6afe121d9eb26a6263e9c5de18cc2731",
+        "tools/mapgyver/native-probe/ui/src/App.svelte": "652c6bdefb40fa37847398100916e307905893d0e053d046476c41119f6d0d5f",
+        "tools/mapgyver/native-probe/ui/src/generated.ts": "9d9e05023c7dfdd8275be70f59c2eacd173f0a71095e3c4b57d08ecd9a308830",
+        "tools/mapgyver/native-probe/ui/src/main.ts": "c76543fe1c49182b7ec4353a30135d00e3c439dfdf2577e2435272ff9f35930b",
+        "tools/mapgyver/native-probe/ui/src/native.ts": "30ef70406a96bbe19b74e52b83c3738a85d43644277c954e254ec45ee14976d9",
+        "tools/mapgyver/native-probe/ui/svelte.config.js": "f3c25c06187b11282d1293dd1aa038b34de915c464de9250b121241780c4d1ea",
+        "tools/mapgyver/native-probe/ui/tsconfig.json": "7bcf3e81653ce3c7b9a3b8d047bf56bae9714258ea79ef4ffb0f9a9009c8d40e",
+        "tools/mapgyver/native-probe/ui/vite.config.js": "11c7487f64e960a7a002408ea2a43225a53d15443e1776d79fb0ad98350a64bd",
+        "tools/mapgyver/run-qualification.py": "c55c6cf9eec55564fd4ac4abba2ad7adfdf8b772f488fa81ab02332cf9bfca6d"
+      }
+    },
+    "inputs_unchanged_after_run": true,
+    "environment": {
+      "schema_version": 1,
+      "captured_at_utc": "2026-10-27T21:40:17.7204720Z",
+      "evidence_kind": "read_only_inventory_not_native_qualification",
+      "checkout": {
+        "head": "40acd67df94920b63469a77da0ee64e40368d60b",
+        "branch": "mapgyver",
+        "status": [
+          " M .gitignore",
+          " M AGENTS.md",
+          " M ARCHITECTURE.md",
+          " M Cargo.lock",
+          " M Cargo.toml",
+          " M README.md",
+          " M docs/README.md",
+          " M docs/architecture/README.md",
+          " M docs/reference/repository-layout.md",
+          " M package-lock.json",
+          " M package.json",
+          "?? docs/architecture/mapgyver-native-rendering.md",
+          "?? docs/architecture/mapgyver.md",
+          "?? docs/plan/MapGyver_Implementation_Plan.md",
+          "?? docs/progress/evidence/mapgyver-baseline-2026-10-27.json",
+          "?? docs/progress/evidence/mapgyver-m01-composite-consumer-2026-10-27.json",
+          "?? docs/progress/evidence/mapgyver-m01-device-recreation-2026-10-27.json",
+          "?? docs/progress/evidence/mapgyver-m01-fixed-workloads-2026-10-27.json",
+          "?? docs/progress/evidence/mapgyver-m01-isolation-validation-2026-10-27.json",
+          "?? docs/progress/evidence/mapgyver-m01-native-ui-2026-10-27.json",
+          "?? docs/progress/evidence/mapgyver-m01-ownership-isolation-2026-10-27.json",
+          "?? docs/progress/evidence/mapgyver-m01-spout-sdk-audit-2026-10-27.json",
+          "?? docs/progress/evidence/mapgyver-m01-spout-smoke-2026-10-27.json",
+          "?? docs/progress/evidence/mapgyver-m01-underlay-plumbing-2026-10-27.json",
+          "?? docs/progress/mapgyver-m00-baseline.md",
+          "?? docs/progress/mapgyver-m01-native-feasibility.md",
+          "?? docs/progress/mapgyver-qualification-contract.md",
+          "?? docs/progress/mapgyver-status.md",
+          "?? tools/mapgyver/"
+        ],
+        "cargo_lock_sha256": "286b324f233cd15f2af643272e4f47759fc60ca3d13943204755ec94da10559f",
+        "npm_lock_sha256": "46924d87a98b203fa1c66ece5e1fdd8705dc27210c183b481452998cd88be355"
+      },
+      "operating_system": {
+        "status": "observed",
+        "items": [
+          {
+            "Caption": "Microsoft Windows 11 Famille",
+            "Version": "10.0.26300",
+            "BuildNumber": "26300",
+            "OSArchitecture": "64-bit"
+          },
+          {
+            "DisplayVersion": "26H2",
+            "CurrentBuild": "26300",
+            "UBR": 9711
+          }
+        ]
+      },
+      "cpu": {
+        "status": "observed",
+        "items": [
+          {
+            "Name": "Intel(R) Core(TM) Ultra 9 275HX",
+            "NumberOfCores": 24,
+            "NumberOfLogicalProcessors": 24
+          }
+        ]
+      },
+      "memory": {
+        "status": "observed",
+        "items": [
+          {
+            "TotalPhysicalMemory": 33752997888
+          }
+        ]
+      },
+      "power": {
+        "active_scheme": {
+          "status": "observed",
+          "items": [
+            "Power Scheme GUID: 3ce3a61f-21d2-4d5c-8d8a-edd03b1f14e7  (Perf)"
+          ]
+        },
+        "battery": {
+          "status": "observed",
+          "items": [
+            {
+              "BatteryStatus": 2,
+              "EstimatedChargeRemaining": 100
+            }
+          ]
+        }
+      },
+      "video_controllers": {
+        "status": "observed",
+        "items": [
+          {
+            "Name": "Intel(R) Graphics",
+            "DriverVersion": "32.0.101.8331",
+            "DriverDate": "2026-01-29",
+            "CurrentHorizontalResolution": 2560,
+            "CurrentVerticalResolution": 1600,
+            "CurrentRefreshRate": 240
+          },
+          {
+            "Name": "NVIDIA GeForce RTX 5080 Laptop GPU",
+            "DriverVersion": "32.0.15.9201",
+            "DriverDate": "2026-02-15",
+            "CurrentHorizontalResolution": 3840,
+            "CurrentVerticalResolution": 2160,
+            "CurrentRefreshRate": 60
+          }
+        ]
+      },
+      "monitors": {
+        "status": "observed",
+        "items": [
+          {
+            "Active": true,
+            "VideoOutputTechnology": 2147483648
+          },
+          {
+            "Active": true,
+            "VideoOutputTechnology": 10
+          }
+        ]
+      },
+      "webview2": {
+        "status": "observed",
+        "items": [
+          {
+            "name": "Microsoft Edge WebView2 Runtime",
+            "pv": "155.0.4283.62"
+          }
+        ]
+      },
+      "toolchain": {
+        "rustc": {
+          "status": "observed",
+          "items": [
+            "rustc 1.97.0 (2d8144b78 2026-07-07)\nbinary: rustc\ncommit-hash: 2d8144b7880597b6e6d3dfd63a9a9efae3f533d3\ncommit-date: 2026-07-07\nhost: x86_64-pc-windows-msvc\nrelease: 1.97.0\nLLVM version: 22.1.6"
+          ]
+        },
+        "cargo": {
+          "status": "observed",
+          "items": [
+            "cargo 1.97.0 (c980f4866 2026-06-30)"
+          ]
+        },
+        "rustup": {
+          "status": "observed",
+          "items": [
+            "1.97.0-x86_64-pc-windows-msvc (directory override for 'D:\\Projects\\Dev\\Chataigne2')"
+          ]
+        },
+        "node": {
+          "status": "observed",
+          "items": [
+            "v26.5.0"
+          ]
+        },
+        "npm": {
+          "status": "observed",
+          "items": [
+            "11.17.0"
+          ]
+        },
+        "cmake": {
+          "status": "observed",
+          "items": [
+            "cmake version 4.4.1\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake)."
+          ]
+        },
+        "visual_studio": {
+          "status": "observed",
+          "items": [
+            {
+              "displayName": "Visual Studio Build Tools 2026",
+              "installationVersion": "18.5.11723.231"
+            },
+            {
+              "displayName": "Visual Studio Community 2026",
+              "installationVersion": "18.10.12224.181"
+            }
+          ]
+        }
+      },
+      "locked_host_packages": [
+        {
+          "name": "raw-window-handle",
+          "version": "0.6.2"
+        },
+        {
+          "name": "tauri",
+          "version": "2.11.5"
+        },
+        {
+          "name": "tauri-runtime-wry",
+          "version": "2.11.4"
+        },
+        {
+          "name": "webview2-com",
+          "version": "0.38.2"
+        },
+        {
+          "name": "windows",
+          "version": "0.48.0"
+        },
+        {
+          "name": "windows",
+          "version": "0.61.3"
+        },
+        {
+          "name": "windows",
+          "version": "0.62.2"
+        },
+        {
+          "name": "windows-core",
+          "version": "0.61.2"
+        },
+        {
+          "name": "windows-core",
+          "version": "0.62.2"
+        },
+        {
+          "name": "wry",
+          "version": "0.55.1"
+        }
+      ],
+      "spout_related_processes": {
+        "status": "observed",
+        "items": []
+      },
+      "not_measured": [
+        "DXGI adapter LUID, dedicated/shared memory budget and D3D11 feature level",
+        "DisplayConfig identity, physical origins, per-monitor DPI and WebView rasterization scale",
+        "WebView underlay/DOM layering, pointer capture and layout alignment",
+        "Spout SDK enumeration, GPU sharing, resize/restart and adapter compatibility",
+        "Frame timing, readback/copy behavior, resource retirement and device recovery"
+      ]
+    },
+    "adapters": [
+      {
+        "index": 0,
+        "description": "Intel(R) Graphics",
+        "luid": "00000000:00016c2a",
+        "dedicated_video_bytes": 134217728,
+        "shared_system_bytes": 19239208796,
+        "software": false,
+        "local_memory": {
+          "budget_bytes": 18433902428,
+          "current_usage_bytes": 0
+        },
+        "nonlocal_memory": {
+          "budget_bytes": 0,
+          "current_usage_bytes": 0
+        },
+        "outputs": [
+          {
+            "device_name": "\\\\.\\DISPLAY1",
+            "attached": true,
+            "desktop_rect": [
+              0,
+              0,
+              2560,
+              1600
+            ],
+            "coordinate_context": "physical_pixels_per_monitor_aware_v2_thread"
+          },
+          {
+            "device_name": "\\\\.\\DISPLAY2",
+            "attached": true,
+            "desktop_rect": [
+              2560,
+              0,
+              4480,
+              1080
+            ],
+            "coordinate_context": "physical_pixels_per_monitor_aware_v2_thread"
+          }
+        ]
+      },
+      {
+        "index": 1,
+        "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "00000000:000170d3",
+        "dedicated_video_bytes": 16780361728,
+        "shared_system_bytes": 19239208796,
+        "software": false,
+        "local_memory": {
+          "budget_bytes": 15975055360,
+          "current_usage_bytes": 0
+        },
+        "nonlocal_memory": {
+          "budget_bytes": 18433902428,
+          "current_usage_bytes": 0
+        },
+        "outputs": []
+      },
+      {
+        "index": 2,
+        "description": "Microsoft Basic Render Driver",
+        "luid": "00000000:00017040",
+        "dedicated_video_bytes": 0,
+        "shared_system_bytes": 19239208796,
+        "software": true,
+        "local_memory": {
+          "budget_bytes": 18433902428,
+          "current_usage_bytes": 0
+        },
+        "nonlocal_memory": {
+          "budget_bytes": 0,
+          "current_usage_bytes": 0
+        },
+        "outputs": []
+      }
+    ],
+    "run": {
+      "exit_code": 0,
+      "stderr": "",
+      "report": {
+        "workload": {
+          "scenario": "q01",
+          "exercise": "timed",
+          "sample_seconds": 8,
+          "warmup_seconds": 2
+        },
+        "evidence_kind": "ordinary_tauri_d3d11_probe_not_visual_or_hardware_reset_qualification",
+        "render_process_id": 44100,
+        "adapter_luid": "00000000:00016c2a",
+        "compiler": "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\HostX64\\x64\\cl.exe",
+        "windows_sdk_include": "C:\\Program Files (x86)\\Windows Kits\\10\\include\\10.0.26100.0\\ucrt",
+        "elapsed_seconds": 10.2910447,
+        "maximum_session_seconds": 10,
+        "status": {
+          "preview_extents": [
+            [
+              640,
+              360
+            ],
+            [
+              480,
+              270
+            ]
+          ],
+          "layout_revision": 3,
+          "rendered_revision": 3,
+          "webview_scale": 1.25,
+          "browser_scale": 1.25,
+          "preview_presents": 588,
+          "output_presents": 590,
+          "spout_sends": 590,
+          "source_observations": [
+            563,
+            590
+          ],
+          "rects": [
+            {
+              "bounds": {
+                "left": 429,
+                "top": 222,
+                "width": 640,
+                "height": 360
+              },
+              "clip": {
+                "left": 429,
+                "top": 222,
+                "width": 640,
+                "height": 360
+              }
+            },
+            {
+              "bounds": {
+                "left": 673,
+                "top": 586,
+                "width": 480,
+                "height": 270
+              },
+              "clip": {
+                "left": 673,
+                "top": 586,
+                "width": 480,
+                "height": 270
+              }
+            }
+          ],
+          "error": null
+        },
+        "observer": {
+          "process_id": 48112,
+          "adapter_luid": "00000000:00016c2a",
+          "checkpoints": [
+            {
+              "phase": "initial",
+              "extent": [
+                1920,
+                1080
+              ],
+              "sampled_bgra": [
+                [
+                  [
+                    0,
+                    0,
+                    255,
+                    255
+                  ],
+                  [
+                    0,
+                    255,
+                    255,
+                    255
+                  ]
+                ]
+              ],
+              "sampled_alpha": [
+                [
+                  191,
+                  191
+                ]
+              ],
+              "sampled_generation_markers": [],
+              "elapsed_ms": 8.806700000000001
+            },
+            {
+              "phase": "resized",
+              "extent": [
+                1920,
+                1080
+              ],
+              "sampled_bgra": [
+                [
+                  [
+                    0,
+                    255,
+                    0,
+                    255
+                  ],
+                  [
+                    0,
+                    255,
+                    255,
+                    255
+                  ]
+                ]
+              ],
+              "sampled_alpha": [
+                [
+                  191,
+                  191
+                ]
+              ],
+              "sampled_generation_markers": [],
+              "elapsed_ms": 2.7747
+            },
+            {
+              "phase": "source_absent",
+              "extent": [
+                1920,
+                1080
+              ],
+              "sampled_bgra": [
+                [
+                  [
+                    13,
+                    13,
+                    13,
+                    255
+                  ],
+                  [
+                    0,
+                    255,
+                    255,
+                    255
+                  ]
+                ]
+              ],
+              "sampled_alpha": [
+                [
+                  255,
+                  191
+                ]
+              ],
+              "sampled_generation_markers": [],
+              "elapsed_ms": 1.6209
+            },
+            {
+              "phase": "recovered",
+              "extent": [
+                1920,
+                1080
+              ],
+              "sampled_bgra": [
+                [
+                  [
+                    13,
+                    13,
+                    13,
+                    255
+                  ],
+                  [
+                    0,
+                    255,
+                    255,
+                    255
+                  ]
+                ],
+                [
+                  [
+                    255,
+                    0,
+                    0,
+                    255
+                  ],
+                  [
+                    0,
+                    255,
+                    255,
+                    255
+                  ]
+                ]
+              ],
+              "sampled_alpha": [
+                [
+                  255,
+                  191
+                ],
+                [
+                  191,
+                  191
+                ]
+              ],
+              "sampled_generation_markers": [],
+              "elapsed_ms": 23.4385
+            }
+          ],
+          "received_observations": 5,
+          "diagnostic_readbacks": 5,
+          "verified_generations": 0
+        },
+        "generations": [
+          {
+            "generation": 0,
+            "adapter_luid": "00000000:00016c2a",
+            "elapsed_seconds": 10.2054174,
+            "setup_ms": 64.4705,
+            "consumer_ready_ms": null,
+            "native_output_extent": [
+              1920,
+              1080
+            ],
+            "fixed_geometry_observed": true,
+            "sampled_geometry_mismatches": 0,
+            "output_presents": 590,
+            "preview_presents": 588,
+            "spout_sends": 590,
+            "timing": {
+              "cpu_submission_work": {
+                "samples": 477,
+                "mean_ms": 0.6164075471698117,
+                "median_ms": 0.474,
+                "p95_ms": 0.6048,
+                "p99_ms": 0.7397,
+                "maximum_ms": 68.2216
+              },
+              "worker_start_intervals": {
+                "samples": 476,
+                "mean_ms": 16.775153361344532,
+                "median_ms": 16.6565,
+                "p95_ms": 17.0471,
+                "p99_ms": 17.1697,
+                "maximum_ms": 68.2228
+              },
+              "gpu_execution": {
+                "samples": 477,
+                "mean_ms": 1.6117374213836493,
+                "median_ms": 1.8333854166666668,
+                "p95_ms": 2.4247395833333334,
+                "p99_ms": 2.91546875,
+                "maximum_ms": 3.3700520833333334
+              },
+              "skipped_gpu_queries": 0,
+              "invalid_gpu_queries": 0,
+              "pending_gpu_queries": 0,
+              "truncated_samples": 0
+            },
+            "consumer_checkpoint": null,
+            "retirement_fence_ms": 1.3995,
+            "recreated_after": false,
+            "after_release": {
+              "process_id": 44100,
+              "private_bytes": 62930944,
+              "working_set_bytes": 83927040,
+              "handle_count": 347
+            }
+          }
+        ],
+        "resources": {
+          "before_gpu": {
+            "process_id": 44100,
+            "private_bytes": 11603968,
+            "working_set_bytes": 33288192,
+            "handle_count": 324
+          },
+          "after_gpu_release": {
+            "process_id": 44100,
+            "private_bytes": 62885888,
+            "working_set_bytes": 83931136,
+            "handle_count": 342
+          },
+          "exclusions": [
+            "WebView2 subprocess memory and handles",
+            "source/observer GPU usage and per-texture residency",
+            "COM release does not prove driver allocation retirement"
+          ],
+          "process_ids_renderer_sources_observer": [
+            44100,
+            15316,
+            20288,
+            48112
+          ],
+          "columns": [
+            "elapsed_seconds",
+            "in_sample_window",
+            "renderer.private_bytes",
+            "renderer.working_set_bytes",
+            "renderer.handle_count",
+            "source_a.private_bytes",
+            "source_a.working_set_bytes",
+            "source_a.handle_count",
+            "source_b.private_bytes",
+            "source_b.working_set_bytes",
+            "source_b.handle_count",
+            "observer.private_bytes",
+            "observer.working_set_bytes",
+            "observer.handle_count",
+            "renderer_gpu_local.current_usage_bytes",
+            "renderer_gpu_local.budget_bytes",
+            "renderer_gpu_nonlocal.current_usage_bytes",
+            "renderer_gpu_nonlocal.budget_bytes"
+          ],
+          "rows": [
+            [
+              0.0644816,
+              false,
+              55017472,
+              75505664,
+              411,
+              45924352,
+              58597376,
+              242,
+              40853504,
+              53633024,
+              242,
+              26529792,
+              36347904,
+              203,
+              15503360,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              1.0149163,
+              false,
+              72663040,
+              93818880,
+              427,
+              45924352,
+              58597376,
+              242,
+              40853504,
+              53633024,
+              242,
+              42532864,
+              53194752,
+              211,
+              79695872,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              2.0001755,
+              true,
+              76075008,
+              97177600,
+              428,
+              48525312,
+              61194240,
+              243,
+              40853504,
+              53633024,
+              242,
+              42532864,
+              53202944,
+              211,
+              84258816,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              3.0017522,
+              true,
+              76460032,
+              97587200,
+              425,
+              48517120,
+              61181952,
+              236,
+              40853504,
+              53633024,
+              242,
+              42541056,
+              53211136,
+              211,
+              62177280,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              4.001868,
+              true,
+              76460032,
+              97599488,
+              427,
+              57454592,
+              70144000,
+              244,
+              40890368,
+              53665792,
+              242,
+              42553344,
+              53219328,
+              211,
+              79937536,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              5.001808,
+              true,
+              76546048,
+              97669120,
+              427,
+              60125184,
+              72740864,
+              244,
+              43454464,
+              56233984,
+              242,
+              42639360,
+              53297152,
+              211,
+              79937536,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              6.0019457,
+              true,
+              76546048,
+              97669120,
+              427,
+              60125184,
+              72740864,
+              244,
+              43454464,
+              56233984,
+              242,
+              42639360,
+              53297152,
+              211,
+              79937536,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              7.0016949,
+              true,
+              76546048,
+              97677312,
+              427,
+              60125184,
+              72740864,
+              244,
+              43454464,
+              56233984,
+              242,
+              42639360,
+              53297152,
+              211,
+              79937536,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              8.0020235,
+              true,
+              76546048,
+              97677312,
+              427,
+              60125184,
+              72740864,
+              244,
+              43462656,
+              56242176,
+              242,
+              42639360,
+              53297152,
+              211,
+              79937536,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              9.0016334,
+              true,
+              76546048,
+              97677312,
+              427,
+              60125184,
+              72744960,
+              244,
+              43462656,
+              56242176,
+              242,
+              42639360,
+              53297152,
+              211,
+              79937536,
+              18433902428,
+              0,
+              0
+            ]
+          ]
+        },
+        "unqualified": [
+          "manual visual/input/clipping/DPI",
+          "texture residency, displayed cadence and latency",
+          "hardware device removal and sustained retirement"
+        ]
+      }
+    }
+  },
+  "interpretation": "No source changes between failing retries and this control. Resetting the computer-use JS session preceded a successful 477-sample Q01 run, but causality is not established. No NVIDIA overlay setting changed. Control is a short diagnostic, not the full repeated qualification series.",
+  "post_reset_suite": {
+    "command": "cargo test --locked -p mapgyver_native_probe --features desktop --all-targets -- --include-ignored --test-threads=1",
+    "exit_code": 0,
+    "deterministic_tests_passed": 9,
+    "native_tests_passed": 5,
+    "native_adapters": "Intel and NVIDIA hardware adapters; software rejection in lifecycle test",
+    "composite_test_seconds": 69.6,
+    "recreation_test_seconds": 47.88,
+    "smoke_test_seconds": 13.45,
+    "source_changes_since_retry": "none"
+  },
+  "other_checks": {
+    "default_strict_clippy": "passed",
+    "desktop_strict_clippy": "passed",
+    "python_evidence_tests_passed": 2,
+    "root_and_golden_core_fmt": "passed",
+    "isolation_evidence_integrity": "17 runs, 2600 cycle rows, 187 drain rows; every run exit 0, empty stderr, unchanged inputs"
+  }
+}

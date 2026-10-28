@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "native_overlay_conditions_for_split_submission_nvidia_qualification",
+  "authorization": "User approved temporary overlay Off, testing, restoration and overlay-Off qualification prerequisite.",
+  "verification_method": "NVIDIA App Settings > Features, screenshot and accessibility state through computer-use skill",
+  "original_on_observed_utc": "2026-10-28 06:30:13 UTC",
+  "off_before_native_startup_observed_utc": "2026-10-28 06:30:27 UTC",
+  "original_on_observation": "Green NVIDIA overlay switch and Alt+Z - Open overlay toolbar action.",
+  "off_before_observation": "Grey NVIDIA overlay switch, Enable and open overlay toolbar action and NVIDIA overlay Toggle switch Off announcement.",
+  "after_tests_observation": "Grey NVIDIA overlay switch and Enable and open overlay toolbar action after all owned native probes exited.",
+  "original_setting_restored": true,
+  "no_desktop_snapshots_during_measurements": true,
+  "no_other_settings_changed": true,
+  "off_after_tests_observed_utc": "2026-10-28 06:51:28 UTC",
+  "on_restored_observed_utc": "2026-10-28 06:51:44 UTC",
+  "restored_observation": "Green NVIDIA overlay switch, Alt+Z - Open overlay toolbar and NVIDIA overlay Toggle switch On announcement.",
+  "owned_probe_processes_before_restoration": 0
+}

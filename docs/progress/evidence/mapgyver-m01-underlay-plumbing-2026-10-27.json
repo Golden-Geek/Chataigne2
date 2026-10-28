@@ -1,0 +1,368 @@
+{
+  "schema_version": 1,
+  "scope": "M01 ordinary-host plumbing; full native feasibility remains open",
+  "metadata": {
+    "head": "40acd67df94920b63469a77da0ee64e40368d60b",
+    "branch": "mapgyver",
+    "captured_at_utc": "2026-10-27T18:42:03.5918288Z",
+    "executable_sha256": "1b26ef69363fa8ea10a04b13b95ecf4d86d8e82abcdb378d1837fd411981ab37",
+    "hashes": [
+      {
+        "path": "Cargo.toml",
+        "sha256": "bd01765f8ba0796d43f9e826a919f3dced1cfba02570c249c9717d9870d9bdd4"
+      },
+      {
+        "path": "Cargo.lock",
+        "sha256": "286b324f233cd15f2af643272e4f47759fc60ca3d13943204755ec94da10559f"
+      },
+      {
+        "path": "package.json",
+        "sha256": "15ea200aaaa832d472b173334a6f41d48bfa80d2791600157225eccb22d3ee28"
+      },
+      {
+        "path": "package-lock.json",
+        "sha256": "46924d87a98b203fa1c66ece5e1fdd8705dc27210c183b481452998cd88be355"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/build.rs",
+        "sha256": "73fb236d28fee0b7d97bcca20a416a9ac938100dcd5164e66b6675753649ab4c"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/Cargo.toml",
+        "sha256": "5e391ff7cd11f4ff24634a295537a5bd0ed2bab7385a46ab14eb159b84efbd94"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/tauri.conf.json",
+        "sha256": "7e662b178abb64018037dd9da756e04de67d23f38dd409e686d90969afd66f1d"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/src/d3d.rs",
+        "sha256": "09e1156503abed320b2fca0b9121ef09727fdcfb6563bc81866dc6baf464ca8b"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/src/desktop.rs",
+        "sha256": "b6dc40ccd6d361c27129fc8f1b2380cda1515988829483a9a29cb7bad6018a95"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/src/fixture.rs",
+        "sha256": "020b9c9be07c8fa96aaa6db0367ac073c086170df8bc0e358462aa0e20918cdb"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/src/lib.rs",
+        "sha256": "388a153d7499195c02614f4cba12c9fbc8a679d4865b0e31c03699c8a3c72e6b"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/src/main.rs",
+        "sha256": "99223216fc8af5b8e38a9ec5ffb30faffd8b052624842d452da964334bd105e9"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/src/presentation.rs",
+        "sha256": "e88846b0f970232aef4747318ed76499462fb1e375f8c321050aa84fe8797f5a"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/src/presenter.rs",
+        "sha256": "62f1d8d7bf416b885dc599e3c51f470c31e829c6a0ee85d8224a3504655855da"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/src/quad.rs",
+        "sha256": "525a68b84a1c20c409a6e935dde41f4bfcf0e992f8bbc003f71880f24988178f"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/src/render_worker.rs",
+        "sha256": "e00445831ad15043b16c6f742fe1b44fda2103e56b89a9fc0f2dd80b72cf1e6b"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/src/smoke.rs",
+        "sha256": "a3d93c047a08a34bd66b28365d1296a2bfb311f189016e1b9c1ce1bb4594c87b"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/src/spout.rs",
+        "sha256": "87232eaf504cf029fab6a38d79b6b8d88ce1e116ed684edf556165c6100e9232"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/src/bin/generate_probe_bindings.rs",
+        "sha256": "f39870bfc02fddf8ae37b0138484f2c6db1d4559341d980aa98a36b591b9915a"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/src/presentation/tests/mod.rs",
+        "sha256": "739a41a1b886aa0c5f1c08243aa20b73126b812df7c02745533f437329fb3ea4"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/tests/native_smoke.rs",
+        "sha256": "6eb1df6b9afad51428f867412802c78c76f5584704a47d3a9d35803e90c28321"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/ui/index.html",
+        "sha256": "8537f14356e5a97019d00197ca3609b1093b90fc2297a3e9abeedaaa5b514078"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/ui/package.json",
+        "sha256": "64d7e12087f720f977e6b13b6c78adcdcf79a78335632a9a70e01a0d2799831c"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/ui/svelte.config.js",
+        "sha256": "f3c25c06187b11282d1293dd1aa038b34de915c464de9250b121241780c4d1ea"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/ui/tsconfig.json",
+        "sha256": "7bcf3e81653ce3c7b9a3b8d047bf56bae9714258ea79ef4ffb0f9a9009c8d40e"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/ui/vite.config.js",
+        "sha256": "11c7487f64e960a7a002408ea2a43225a53d15443e1776d79fb0ad98350a64bd"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/ui/scripts/check-generated.mjs",
+        "sha256": "8626ddca2d34ea8d2a99ffbe778ca32b6afe121d9eb26a6263e9c5de18cc2731"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/ui/src/App.svelte",
+        "sha256": "6a35ac0bc9dfffdecea0c9a82525a9a867c06e2bfd3784ff03fd2afec897687d"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/ui/src/generated.ts",
+        "sha256": "671af56e6133aa5dc98aeb147a21508ce59fbe091914a3d91046ff4a40fa06f4"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/ui/src/main.ts",
+        "sha256": "c76543fe1c49182b7ec4353a30135d00e3c439dfdf2577e2435272ff9f35930b"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/ui/src/native.ts",
+        "sha256": "30ef70406a96bbe19b74e52b83c3738a85d43644277c954e254ec45ee14976d9"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/ui/dist/index.html",
+        "sha256": "2ad95db65b0ff65a1bcb00d0e3a6669df96f7dfcf2fc4e1a33a47f0d19e4b75d"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/ui/dist/assets/index-KFhGv7ao.css",
+        "sha256": "8de6d9cb62274920a308b3579a4857eacdef3f477404733074cc771878cb7d3c"
+      },
+      {
+        "path": "tools/mapgyver/native-probe/ui/dist/assets/index-Oc9lEiUY.js",
+        "sha256": "0cb4c09684b38cf5fe0050b63710895e989fd1eb32af8b69aff11b6d9f7d5953"
+      }
+    ],
+    "operating_system": {
+      "Caption": "Microsoft Windows 11 Famille",
+      "Version": "10.0.26300",
+      "BuildNumber": "26300",
+      "OSArchitecture": "64-bit"
+    },
+    "windows_build": {
+      "DisplayVersion": "26H2",
+      "CurrentBuild": "26300",
+      "UBR": 9711
+    },
+    "drivers": [
+      {
+        "Name": "Intel(R) Graphics",
+        "DriverVersion": "32.0.101.8331"
+      },
+      {
+        "Name": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "DriverVersion": "32.0.15.9201"
+      }
+    ],
+    "webview2_runtime_registration": [
+      {
+        "name": "Microsoft Edge WebView2 Runtime",
+        "pv": "155.0.4283.62"
+      }
+    ]
+  },
+  "build": {
+    "command": "cargo build --locked -p mapgyver_native_probe --features desktop",
+    "profile": "dev",
+    "tauri": "2.11.5",
+    "tauri_runtime_wry": "2.11.4",
+    "wry": "0.55.1",
+    "webview2_com": "0.38.2",
+    "native_window_api": "public Tauri WindowBuilder via unstable feature, confined to probe desktop feature"
+  },
+  "runs": [
+    {
+      "command": "target/debug/mapgyver_native_probe.exe underlay 0 8",
+      "exit_code": 0,
+      "stderr": "",
+      "report": {
+        "evidence_kind": "ordinary_tauri_d3d11_underlay_plumbing_not_visual_qualification",
+        "adapter_luid": "00000000:00016c2a",
+        "compiler": "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\HostX64\\x64\\cl.exe",
+        "windows_sdk_include": "C:\\Program Files (x86)\\Windows Kits\\10\\include\\10.0.26100.0\\ucrt",
+        "elapsed_seconds": 8.2152498,
+        "status": {
+          "layout_revision": 2,
+          "rendered_revision": 2,
+          "webview_scale": 1.25,
+          "browser_scale": 1.25,
+          "preview_presents": 473,
+          "output_presents": 474,
+          "spout_sends": 474,
+          "source_observations": [
+            439,
+            467
+          ],
+          "rects": [
+            {
+              "bounds": {
+                "left": 429,
+                "top": 222,
+                "width": 683,
+                "height": 300
+              },
+              "clip": {
+                "left": 429,
+                "top": 222,
+                "width": 683,
+                "height": 300
+              }
+            },
+            {
+              "bounds": {
+                "left": 673,
+                "top": 612,
+                "width": 537,
+                "height": 240
+              },
+              "clip": {
+                "left": 673,
+                "top": 612,
+                "width": 537,
+                "height": 240
+              }
+            }
+          ],
+          "error": null
+        },
+        "unqualified": [
+          "manual visual/input/clipping/DPI",
+          "Q01/Q02 timing/memory/latency",
+          "Spout output observed by an independent consumer",
+          "GPU device loss and sustained retirement"
+        ]
+      }
+    },
+    {
+      "command": "target/debug/mapgyver_native_probe.exe underlay 1 8",
+      "exit_code": 0,
+      "stderr": "",
+      "report": {
+        "evidence_kind": "ordinary_tauri_d3d11_underlay_plumbing_not_visual_qualification",
+        "adapter_luid": "00000000:000170d3",
+        "compiler": "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\HostX64\\x64\\cl.exe",
+        "windows_sdk_include": "C:\\Program Files (x86)\\Windows Kits\\10\\include\\10.0.26100.0\\ucrt",
+        "elapsed_seconds": 8.2612575,
+        "status": {
+          "layout_revision": 2,
+          "rendered_revision": 2,
+          "webview_scale": 1.25,
+          "browser_scale": 1.25,
+          "preview_presents": 473,
+          "output_presents": 474,
+          "spout_sends": 474,
+          "source_observations": [
+            436,
+            463
+          ],
+          "rects": [
+            {
+              "bounds": {
+                "left": 429,
+                "top": 222,
+                "width": 683,
+                "height": 300
+              },
+              "clip": {
+                "left": 429,
+                "top": 222,
+                "width": 683,
+                "height": 300
+              }
+            },
+            {
+              "bounds": {
+                "left": 673,
+                "top": 612,
+                "width": 537,
+                "height": 240
+              },
+              "clip": {
+                "left": 673,
+                "top": 612,
+                "width": 537,
+                "height": 240
+              }
+            }
+          ],
+          "error": null
+        },
+        "unqualified": [
+          "manual visual/input/clipping/DPI",
+          "Q01/Q02 timing/memory/latency",
+          "Spout output observed by an independent consumer",
+          "GPU device loss and sustained retirement"
+        ]
+      }
+    }
+  ],
+  "checks": [
+    {
+      "command": "cargo test --locked -p mapgyver_native_probe --lib",
+      "result": "PASSED_DETERMINISTIC",
+      "tests": 3
+    },
+    {
+      "command": "cargo test --locked -p mapgyver_native_probe --features desktop --test native_smoke -- --ignored --nocapture",
+      "result": "PASSED_NATIVE",
+      "tests": 1,
+      "test_runtime_seconds": 12.88,
+      "coverage": "both hardware adapters plus software rejection"
+    },
+    {
+      "command": "cargo clippy --locked -p mapgyver_native_probe --all-targets -- -D warnings",
+      "result": "PASSED"
+    },
+    {
+      "command": "cargo clippy --locked -p mapgyver_native_probe --features desktop --all-targets -- -D warnings",
+      "result": "PASSED"
+    },
+    {
+      "command": "npm run check --workspace mapgyver-native-probe-ui",
+      "result": "PASSED",
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "command": "npm run build --workspace mapgyver-native-probe-ui",
+      "result": "PASSED"
+    },
+    {
+      "command": "npm run check:generated --workspace mapgyver-native-probe-ui",
+      "result": "PASSED",
+      "concurrent_with": "final Intel underlay run",
+      "probe_executable_unchanged": true
+    }
+  ],
+  "resolved_attempts": [
+    {
+      "issue": "Original App::run exit ended process before report delivery and emitted Chromium class unregister warning 1412",
+      "resolution": "App::run_return and normal window destruction after worker cleanup; final runs exit 0, produce reports and have empty stderr"
+    },
+    {
+      "issue": "Original DTO command reused native executable and a concurrent native test caused Windows access-denied removal failure",
+      "resolution": "DTO library and separate generate_probe_bindings executable; concurrent drift check succeeds without changing native executable"
+    }
+  ],
+  "limits": [
+    "Present counts are API submissions, not proof of visible compositing or measured GPU/display cadence",
+    "Source observations may repeat a source frame when SDK frame counting is disabled",
+    "No automated keyboard/mouse input, desktop capture or other-app window manipulation",
+    "No manual input, clipping, DPI/zoom/mixed-monitor/negative-origin visual qualification",
+    "No independent Spout output consumer/content qualification",
+    "Eight-second nominal runs, not exact Q01/Q02 workloads, warmups, timing/memory distributions, sustained recovery or 4K qualification",
+    "Runtime registration is inventoried, not a query of the selected WebView2 environment version",
+    "Compiler/SDK paths come from cc compiler discovery; a fresh full qualification build must retain actual compile logs"
+  ]
+}

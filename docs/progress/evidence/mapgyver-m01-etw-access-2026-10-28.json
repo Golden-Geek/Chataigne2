@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "etw_empty_session_access_recheck_not_display_capture",
+  "date": "2026-10-28",
+  "context": "User relaunched VS Code as administrator; paired native recheck performed afterwards.",
+  "command": "target/release/mapgyver_native_probe.exe trace-capability",
+  "executable_sha256": "a67469f610ad96617d0b28c5b20b84e4f83983656fa1d1ad35912c5344dac788",
+  "trace_capability_source_sha256": "87db9ba6e644d4f8a436c3ed6cf4bdf6601b993816332e91238b8d8a11bace18",
+  "outside_sandbox": {
+    "account": "BENPORTABLE\\bkupe",
+    "integrity_sid": "S-1-16-12288",
+    "report": {
+      "session_name": "MapGyver-M01-Presentation-Preflight",
+      "start_status": 0,
+      "start_message": "The operation completed successfully. (0x00000000)",
+      "stop_status": 0,
+      "providers_enabled": 0,
+      "trace_file_written": false,
+      "display_capture_tested": false
+    }
+  },
+  "inside_sandbox": {
+    "account": "BENPORTABLE\\codexsandboxoffline",
+    "report": {
+      "session_name": "MapGyver-M01-Presentation-Preflight",
+      "start_status": 5,
+      "start_message": "Accès refusé. (0x80070005)",
+      "stop_status": null,
+      "providers_enabled": 0,
+      "trace_file_written": false,
+      "display_capture_tested": false
+    }
+  },
+  "development_account_membership": {
+    "group_sid": "S-1-5-32-559",
+    "query": "Get-LocalGroupMember -SID 'S-1-5-32-559'",
+    "direct_member": "BENPORTABLE\\bkupe",
+    "group_present_in_current_administrator_token": false,
+    "membership_changed_during_recheck": false,
+    "fresh_non_elevated_login_tested": false
+  },
+  "security_settings_changed": false,
+  "providers_or_display_events_verified": false,
+  "physical_latency_qualified": false,
+  "acceptance_items_closed": 0,
+  "next_action": "Use the working host execution path to verify required ETW providers/events. Sign out and back in before testing ordinary sessions from a fresh non-elevated development token; leave the separate sandbox account unchanged."
+}

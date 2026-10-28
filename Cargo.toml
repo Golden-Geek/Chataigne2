@@ -27,6 +27,7 @@ members = [
     "crates/golden_core/support/macros",
     "crates/golden_audio",
     "crates/golden_graph",
+    "tools/mapgyver/native-probe",
     "xtask",
 ]
 exclude = ["vendor/cpal-0.18.1"]

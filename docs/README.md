@@ -4,10 +4,14 @@ Choose a section based on what you are trying to do.
 
 ## Implement or resume
 
-- [Implementation plan](plan/Chataigne2_Codex_Implementation_Plan.md): the only active plan;
+- [Chataigne implementation plan](plan/Chataigne2_Codex_Implementation_Plan.md): the default plan;
   “implement the plan” refers to this file.
-- [Implementation status](progress/implementation-status.md): the only current task ledger and
-  next-action handoff.
+- [Chataigne implementation status](progress/implementation-status.md): its current task ledger
+  and next-action handoff.
+- [MapGyver implementation plan](plan/MapGyver_Implementation_Plan.md) and
+  [status](progress/mapgyver-status.md): separately selected sibling video mapping product;
+  M00 baseline complete locally; M01 native feasibility in progress. Production app work waits
+  for that gate.
 - [Historical evidence](archive/2026-10-18/README.md): superseded plans and source-pinned results;
   archived instructions are non-operative.
 
@@ -16,6 +20,7 @@ Choose a section based on what you are trying to do.
 - [Architecture index](architecture/README.md)
 - [Repository layout](reference/repository-layout.md)
 - [Golden Audio](architecture/golden-audio.md)
+- [MapGyver](architecture/mapgyver.md) and [native rendering research](architecture/mapgyver-native-rendering.md)
 - [Alchemist runtime](architecture/alchemist-runtime.md)
 - [Built-in Mapping](architecture/builtin-mapping.md): the completed corrected product contract
 - [State machine and Alchemist processing](architecture/statecharts-conditions-processors.md)

@@ -31,6 +31,8 @@ target
 /apps/chataigne/ui/.svelte-kit/
 /apps/chataigne/ui/artifacts/
 /apps/chataigne/ui/build/
+/tools/mapgyver/native-probe/ui/dist/
+/tools/mapgyver/native-probe/gen/
 
 # Reproducible language and test caches
 **/node_modules/

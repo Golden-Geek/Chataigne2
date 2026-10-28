@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "operator_observed_native_overlay_conditions_not_performance_evidence",
+  "authorization": "User approved temporary NVIDIA overlay Off, testing and restoration; overlay-Off qualification prerequisite accepted.",
+  "verification_method": "NVIDIA App Settings > Features, screenshot and accessibility state through the computer-use skill",
+  "original_on_observed_utc": "2026-10-28T04:45:37Z",
+  "off_before_native_startup_observed_utc": "2026-10-28T04:45:49Z",
+  "off_after_nvidia_tests_observed_utc": "2026-10-28T05:17:20Z",
+  "on_restored_observed_utc": "2026-10-28T05:17:26Z",
+  "off_observation": "Grey NVIDIA overlay switch and Enable and open overlay toolbar action.",
+  "restored_observation": "Green NVIDIA overlay switch, NVIDIA overlay Toggle switch On announcement and Alt+Z - Open overlay toolbar action.",
+  "no_desktop_snapshots_during_native_measurements": true,
+  "no_other_settings_changed": true,
+  "scope": "NVIDIA headless query-progress controls, intermediate/final timeline native controls and final 100-rebuild capture. Intel controls following restoration run with overlay On; NVIDIA overlay-Off prerequisite does not apply to their Intel devices."
+}

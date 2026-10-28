@@ -1,0 +1,2602 @@
+{
+  "schema": "mapgyver-m01-generation-termination-v1",
+  "date": "2026-10-27",
+  "scope": "Native early-close correctness and interactive control, not frame-time qualification. Windows selected from computer-use inventory and closed via Alt+F4; no display/overlay settings changed.",
+  "before": {
+    "schema_version": 2,
+    "evidence_kind": "fixed_workload_submission_and_resource_observations_not_full_M01_qualification",
+    "started_utc": "2026-10-27T21:47:05.380689+00:00",
+    "sample_index": 1,
+    "requested_series_samples": 1,
+    "command": [
+      "D:\\Projects\\Dev\\Chataigne2\\target\\debug\\mapgyver_native_probe.exe",
+      "qualify",
+      "0",
+      "q01",
+      "120",
+      "2"
+    ],
+    "profile": "debug",
+    "inputs": {
+      "executable_sha256": "e4588b4377e21f54bb9d645a005e39fe06414738bfe6ca49ea03868e3d4fcb6d",
+      "files": {
+        "Cargo.lock": "286b324f233cd15f2af643272e4f47759fc60ca3d13943204755ec94da10559f",
+        "Cargo.toml": "bd01765f8ba0796d43f9e826a919f3dced1cfba02570c249c9717d9870d9bdd4",
+        "package-lock.json": "46924d87a98b203fa1c66ece5e1fdd8705dc27210c183b481452998cd88be355",
+        "package.json": "15ea200aaaa832d472b173334a6f41d48bfa80d2791600157225eccb22d3ee28",
+        "tools/mapgyver/collect-baseline.ps1": "3cda72ba639594e312ea505e059de697367002c6ccb66bb1f75105a0a4955078",
+        "tools/mapgyver/native-probe/build.rs": "73fb236d28fee0b7d97bcca20a416a9ac938100dcd5164e66b6675753649ab4c",
+        "tools/mapgyver/native-probe/Cargo.toml": "abe2dcce394eae1710fcfe3cfc8fad90594a222290fd42dde6856ebc6f9d650b",
+        "tools/mapgyver/native-probe/src/bin/generate_probe_bindings.rs": "f39870bfc02fddf8ae37b0138484f2c6db1d4559341d980aa98a36b591b9915a",
+        "tools/mapgyver/native-probe/src/card.rs": "d45eaa7435024feb4956f3fc46f9fbd36beaf00ae7f315adcbf17ea5e670254b",
+        "tools/mapgyver/native-probe/src/completion.rs": "238eac811a44c3b69e7224b7247b7ca4b3c5f2ded33c889b9fc0dfad851a040e",
+        "tools/mapgyver/native-probe/src/d3d.rs": "28fa1f966a7fdad6c0b37c2c0db44200e8409b5521c948d236bb842fc672f1b1",
+        "tools/mapgyver/native-probe/src/desktop.rs": "85522b6c32330696aa6f0486a7c70ac64ca88b24dcace6d014c5c619ca0142fd",
+        "tools/mapgyver/native-probe/src/fixture.rs": "c3c831680fcbd9798366ccd244989859a0dd85572e9b7617aaf1e35061735f22",
+        "tools/mapgyver/native-probe/src/lib.rs": "1ae0b4295c7923bf0011c48af9cca0b2ca3a7b97dcfcceedd77622306f1178cf",
+        "tools/mapgyver/native-probe/src/main.rs": "b6091b168a1510757779e70d883dc210b11800bc926e52247bc606da4f9137b2",
+        "tools/mapgyver/native-probe/src/observer/client.rs": "5771045e355a08b2e4967608872d97a99239a034687c845f40cc261f11d940bc",
+        "tools/mapgyver/native-probe/src/observer/mod.rs": "5abc0fadc2ab7ecd423b24ccb235e3009967dc28eec24be9977416b149bedc53",
+        "tools/mapgyver/native-probe/src/observer/protocol.rs": "7cc953c0484868db365b1a18e06af3ea5f498c35079cc733daf150dbf775ac59",
+        "tools/mapgyver/native-probe/src/observer/tests/mod.rs": "87a8e598b19f9b2aabb6fc1b17b2bcf9d7e777795baf1131996c19744f73401d",
+        "tools/mapgyver/native-probe/src/presentation/tests/mod.rs": "739a41a1b886aa0c5f1c08243aa20b73126b812df7c02745533f437329fb3ea4",
+        "tools/mapgyver/native-probe/src/presentation.rs": "c751e94b91dc8dd92c2f607fd6901cdf4f39906b92e093574242326a32ab6b64",
+        "tools/mapgyver/native-probe/src/presenter.rs": "62f1d8d7bf416b885dc599e3c51f470c31e829c6a0ee85d8224a3504655855da",
+        "tools/mapgyver/native-probe/src/process.rs": "e94929a2f93e04663534bd17387d8807525318b18536c0a3cd37339550c30a8f",
+        "tools/mapgyver/native-probe/src/quad.rs": "525a68b84a1c20c409a6e935dde41f4bfcf0e992f8bbc003f71880f24988178f",
+        "tools/mapgyver/native-probe/src/query_data.rs": "afce4dd916e4a9b7ea98ab729c566b4fa22583c067ea527f09bd95b94fc37bfe",
+        "tools/mapgyver/native-probe/src/render_worker/generation.rs": "4f65fd10de371a4957933696381ea958a10bc9f4650cc9baad837ca58765cfef",
+        "tools/mapgyver/native-probe/src/render_worker.rs": "8a01990f2e0d98179a7c338cb51f1199d0df6ccea8f879d86d975bb3341d2fce",
+        "tools/mapgyver/native-probe/src/resources.rs": "3b8de0238d301daff0379bdc32e7e6b9618961553152092694145b08848c9580",
+        "tools/mapgyver/native-probe/src/retirement.rs": "5d5929a5c7984e543680c21e0c9aece493b3b5342c76764389026329f795f54a",
+        "tools/mapgyver/native-probe/src/smoke.rs": "2c3bf7677a17ee809700606b10027f7ffde4b25934347e7a6063da0df3c16e9e",
+        "tools/mapgyver/native-probe/src/spout.rs": "87232eaf504cf029fab6a38d79b6b8d88ce1e116ed684edf556165c6100e9232",
+        "tools/mapgyver/native-probe/src/timing/tests/mod.rs": "e2bda3dbd0e8ecba435d06b10472b3434e6e4c8df753d13186121f206e8ba03f",
+        "tools/mapgyver/native-probe/src/timing.rs": "3d0526183eaa0175eccf85de554f8e9fba0d1031e17e5d2cae16cf1a09b53e29",
+        "tools/mapgyver/native-probe/src/workload/tests/mod.rs": "9b77e59f84fea762a2695a1eb47ac3250ab3d23d5feda2f9b78ac961d0325aa0",
+        "tools/mapgyver/native-probe/src/workload.rs": "b29ed28f413aacbf9282d5df4270221094f57db4d62e4339b441b280489f5497",
+        "tools/mapgyver/native-probe/tauri.conf.json": "7e662b178abb64018037dd9da756e04de67d23f38dd409e686d90969afd66f1d",
+        "tools/mapgyver/native-probe/ui/dist/assets/index-BmsNWfJI.js": "0c0f26ed568b505006b3f3c184c332bbcf23d4be16881cd1e75e3caafa24115e",
+        "tools/mapgyver/native-probe/ui/dist/assets/index-NEuoE25f.css": "64d230ac153b556df0834833a285380f27d22b0bf33d04255d32c1f9a50e14cd",
+        "tools/mapgyver/native-probe/ui/dist/index.html": "3012e7fba9e50bd7fd8e97ad22fc7a97cd67240e87235b7c6bc01ced6ca233c8",
+        "tools/mapgyver/native-probe/ui/index.html": "8537f14356e5a97019d00197ca3609b1093b90fc2297a3e9abeedaaa5b514078",
+        "tools/mapgyver/native-probe/ui/package.json": "64d7e12087f720f977e6b13b6c78adcdcf79a78335632a9a70e01a0d2799831c",
+        "tools/mapgyver/native-probe/ui/scripts/check-generated.mjs": "8626ddca2d34ea8d2a99ffbe778ca32b6afe121d9eb26a6263e9c5de18cc2731",
+        "tools/mapgyver/native-probe/ui/src/App.svelte": "652c6bdefb40fa37847398100916e307905893d0e053d046476c41119f6d0d5f",
+        "tools/mapgyver/native-probe/ui/src/generated.ts": "9d9e05023c7dfdd8275be70f59c2eacd173f0a71095e3c4b57d08ecd9a308830",
+        "tools/mapgyver/native-probe/ui/src/main.ts": "c76543fe1c49182b7ec4353a30135d00e3c439dfdf2577e2435272ff9f35930b",
+        "tools/mapgyver/native-probe/ui/src/native.ts": "30ef70406a96bbe19b74e52b83c3738a85d43644277c954e254ec45ee14976d9",
+        "tools/mapgyver/native-probe/ui/svelte.config.js": "f3c25c06187b11282d1293dd1aa038b34de915c464de9250b121241780c4d1ea",
+        "tools/mapgyver/native-probe/ui/tsconfig.json": "7bcf3e81653ce3c7b9a3b8d047bf56bae9714258ea79ef4ffb0f9a9009c8d40e",
+        "tools/mapgyver/native-probe/ui/vite.config.js": "11c7487f64e960a7a002408ea2a43225a53d15443e1776d79fb0ad98350a64bd",
+        "tools/mapgyver/run-qualification.py": "c55c6cf9eec55564fd4ac4abba2ad7adfdf8b772f488fa81ab02332cf9bfca6d"
+      }
+    },
+    "inputs_unchanged_after_run": true,
+    "environment": {
+      "schema_version": 1,
+      "captured_at_utc": "2026-10-27T21:46:57.4576081Z",
+      "evidence_kind": "read_only_inventory_not_native_qualification",
+      "checkout": {
+        "head": "40acd67df94920b63469a77da0ee64e40368d60b",
+        "branch": "mapgyver",
+        "status": [
+          " M .gitignore",
+          " M AGENTS.md",
+          " M ARCHITECTURE.md",
+          " M Cargo.lock",
+          " M Cargo.toml",
+          " M README.md",
+          " M docs/README.md",
+          " M docs/architecture/README.md",
+          " M docs/reference/repository-layout.md",
+          " M package-lock.json",
+          " M package.json",
+          "?? docs/architecture/mapgyver-native-rendering.md",
+          "?? docs/architecture/mapgyver.md",
+          "?? docs/plan/MapGyver_Implementation_Plan.md",
+          "?? docs/progress/evidence/mapgyver-baseline-2026-10-27.json",
+          "?? docs/progress/evidence/mapgyver-m01-composite-consumer-2026-10-27.json",
+          "?? docs/progress/evidence/mapgyver-m01-device-recreation-2026-10-27.json",
+          "?? docs/progress/evidence/mapgyver-m01-fixed-workloads-2026-10-27.json",
+          "?? docs/progress/evidence/mapgyver-m01-isolation-validation-2026-10-27.json",
+          "?? docs/progress/evidence/mapgyver-m01-native-ui-2026-10-27.json",
+          "?? docs/progress/evidence/mapgyver-m01-ownership-isolation-2026-10-27.json",
+          "?? docs/progress/evidence/mapgyver-m01-spout-sdk-audit-2026-10-27.json",
+          "?? docs/progress/evidence/mapgyver-m01-spout-smoke-2026-10-27.json",
+          "?? docs/progress/evidence/mapgyver-m01-underlay-plumbing-2026-10-27.json",
+          "?? docs/progress/mapgyver-m00-baseline.md",
+          "?? docs/progress/mapgyver-m01-native-feasibility.md",
+          "?? docs/progress/mapgyver-qualification-contract.md",
+          "?? docs/progress/mapgyver-status.md",
+          "?? tools/mapgyver/"
+        ],
+        "cargo_lock_sha256": "286b324f233cd15f2af643272e4f47759fc60ca3d13943204755ec94da10559f",
+        "npm_lock_sha256": "46924d87a98b203fa1c66ece5e1fdd8705dc27210c183b481452998cd88be355"
+      },
+      "operating_system": {
+        "status": "observed",
+        "items": [
+          {
+            "Caption": "Microsoft Windows 11 Famille",
+            "Version": "10.0.26300",
+            "BuildNumber": "26300",
+            "OSArchitecture": "64-bit"
+          },
+          {
+            "DisplayVersion": "26H2",
+            "CurrentBuild": "26300",
+            "UBR": 9711
+          }
+        ]
+      },
+      "cpu": {
+        "status": "observed",
+        "items": [
+          {
+            "Name": "Intel(R) Core(TM) Ultra 9 275HX",
+            "NumberOfCores": 24,
+            "NumberOfLogicalProcessors": 24
+          }
+        ]
+      },
+      "memory": {
+        "status": "observed",
+        "items": [
+          {
+            "TotalPhysicalMemory": 33752997888
+          }
+        ]
+      },
+      "power": {
+        "active_scheme": {
+          "status": "observed",
+          "items": [
+            "Power Scheme GUID: 3ce3a61f-21d2-4d5c-8d8a-edd03b1f14e7  (Perf)"
+          ]
+        },
+        "battery": {
+          "status": "observed",
+          "items": [
+            {
+              "BatteryStatus": 2,
+              "EstimatedChargeRemaining": 100
+            }
+          ]
+        }
+      },
+      "video_controllers": {
+        "status": "observed",
+        "items": [
+          {
+            "Name": "Intel(R) Graphics",
+            "DriverVersion": "32.0.101.8331",
+            "DriverDate": "2026-01-29",
+            "CurrentHorizontalResolution": 2560,
+            "CurrentVerticalResolution": 1600,
+            "CurrentRefreshRate": 240
+          },
+          {
+            "Name": "NVIDIA GeForce RTX 5080 Laptop GPU",
+            "DriverVersion": "32.0.15.9201",
+            "DriverDate": "2026-02-15",
+            "CurrentHorizontalResolution": 3840,
+            "CurrentVerticalResolution": 2160,
+            "CurrentRefreshRate": 60
+          }
+        ]
+      },
+      "monitors": {
+        "status": "observed",
+        "items": [
+          {
+            "Active": true,
+            "VideoOutputTechnology": 2147483648
+          },
+          {
+            "Active": true,
+            "VideoOutputTechnology": 10
+          }
+        ]
+      },
+      "webview2": {
+        "status": "observed",
+        "items": [
+          {
+            "name": "Microsoft Edge WebView2 Runtime",
+            "pv": "155.0.4283.62"
+          }
+        ]
+      },
+      "toolchain": {
+        "rustc": {
+          "status": "observed",
+          "items": [
+            "rustc 1.97.0 (2d8144b78 2026-07-07)\nbinary: rustc\ncommit-hash: 2d8144b7880597b6e6d3dfd63a9a9efae3f533d3\ncommit-date: 2026-07-07\nhost: x86_64-pc-windows-msvc\nrelease: 1.97.0\nLLVM version: 22.1.6"
+          ]
+        },
+        "cargo": {
+          "status": "observed",
+          "items": [
+            "cargo 1.97.0 (c980f4866 2026-06-30)"
+          ]
+        },
+        "rustup": {
+          "status": "observed",
+          "items": [
+            "1.97.0-x86_64-pc-windows-msvc (directory override for 'D:\\Projects\\Dev\\Chataigne2')"
+          ]
+        },
+        "node": {
+          "status": "observed",
+          "items": [
+            "v26.5.0"
+          ]
+        },
+        "npm": {
+          "status": "observed",
+          "items": [
+            "11.17.0"
+          ]
+        },
+        "cmake": {
+          "status": "observed",
+          "items": [
+            "cmake version 4.4.1\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake)."
+          ]
+        },
+        "visual_studio": {
+          "status": "observed",
+          "items": [
+            {
+              "displayName": "Visual Studio Build Tools 2026",
+              "installationVersion": "18.5.11723.231"
+            },
+            {
+              "displayName": "Visual Studio Community 2026",
+              "installationVersion": "18.10.12224.181"
+            }
+          ]
+        }
+      },
+      "locked_host_packages": [
+        {
+          "name": "raw-window-handle",
+          "version": "0.6.2"
+        },
+        {
+          "name": "tauri",
+          "version": "2.11.5"
+        },
+        {
+          "name": "tauri-runtime-wry",
+          "version": "2.11.4"
+        },
+        {
+          "name": "webview2-com",
+          "version": "0.38.2"
+        },
+        {
+          "name": "windows",
+          "version": "0.48.0"
+        },
+        {
+          "name": "windows",
+          "version": "0.61.3"
+        },
+        {
+          "name": "windows",
+          "version": "0.62.2"
+        },
+        {
+          "name": "windows-core",
+          "version": "0.61.2"
+        },
+        {
+          "name": "windows-core",
+          "version": "0.62.2"
+        },
+        {
+          "name": "wry",
+          "version": "0.55.1"
+        }
+      ],
+      "spout_related_processes": {
+        "status": "observed",
+        "items": []
+      },
+      "not_measured": [
+        "DXGI adapter LUID, dedicated/shared memory budget and D3D11 feature level",
+        "DisplayConfig identity, physical origins, per-monitor DPI and WebView rasterization scale",
+        "WebView underlay/DOM layering, pointer capture and layout alignment",
+        "Spout SDK enumeration, GPU sharing, resize/restart and adapter compatibility",
+        "Frame timing, readback/copy behavior, resource retirement and device recovery"
+      ]
+    },
+    "adapters": [
+      {
+        "index": 0,
+        "description": "Intel(R) Graphics",
+        "luid": "00000000:00016c2a",
+        "dedicated_video_bytes": 134217728,
+        "shared_system_bytes": 19239208796,
+        "software": false,
+        "local_memory": {
+          "budget_bytes": 18433902428,
+          "current_usage_bytes": 0
+        },
+        "nonlocal_memory": {
+          "budget_bytes": 0,
+          "current_usage_bytes": 0
+        },
+        "outputs": [
+          {
+            "device_name": "\\\\.\\DISPLAY1",
+            "attached": true,
+            "desktop_rect": [
+              0,
+              0,
+              2560,
+              1600
+            ],
+            "coordinate_context": "physical_pixels_per_monitor_aware_v2_thread"
+          },
+          {
+            "device_name": "\\\\.\\DISPLAY2",
+            "attached": true,
+            "desktop_rect": [
+              2560,
+              0,
+              4480,
+              1080
+            ],
+            "coordinate_context": "physical_pixels_per_monitor_aware_v2_thread"
+          }
+        ]
+      },
+      {
+        "index": 1,
+        "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "00000000:000170d3",
+        "dedicated_video_bytes": 16780361728,
+        "shared_system_bytes": 19239208796,
+        "software": false,
+        "local_memory": {
+          "budget_bytes": 15975055360,
+          "current_usage_bytes": 0
+        },
+        "nonlocal_memory": {
+          "budget_bytes": 18433902428,
+          "current_usage_bytes": 0
+        },
+        "outputs": []
+      },
+      {
+        "index": 2,
+        "description": "Microsoft Basic Render Driver",
+        "luid": "00000000:00017040",
+        "dedicated_video_bytes": 0,
+        "shared_system_bytes": 19239208796,
+        "software": true,
+        "local_memory": {
+          "budget_bytes": 18433902428,
+          "current_usage_bytes": 0
+        },
+        "nonlocal_memory": {
+          "budget_bytes": 0,
+          "current_usage_bytes": 0
+        },
+        "outputs": []
+      }
+    ],
+    "run": {
+      "exit_code": 0,
+      "stderr": "",
+      "report": {
+        "workload": {
+          "scenario": "q01",
+          "exercise": "timed",
+          "sample_seconds": 120,
+          "warmup_seconds": 2
+        },
+        "evidence_kind": "ordinary_tauri_d3d11_probe_not_visual_or_hardware_reset_qualification",
+        "render_process_id": 9168,
+        "adapter_luid": "00000000:00016c2a",
+        "compiler": "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\HostX64\\x64\\cl.exe",
+        "windows_sdk_include": "C:\\Program Files (x86)\\Windows Kits\\10\\include\\10.0.26100.0\\ucrt",
+        "elapsed_seconds": 28.2731234,
+        "maximum_session_seconds": 122,
+        "status": {
+          "preview_extents": [
+            [
+              640,
+              360
+            ],
+            [
+              480,
+              270
+            ]
+          ],
+          "layout_revision": 3,
+          "rendered_revision": 3,
+          "webview_scale": 1.25,
+          "browser_scale": 1.25,
+          "preview_presents": 1333,
+          "output_presents": 1390,
+          "spout_sends": 1535,
+          "source_observations": [
+            1507,
+            1535
+          ],
+          "rects": [
+            {
+              "bounds": {
+                "left": 429,
+                "top": 222,
+                "width": 640,
+                "height": 360
+              },
+              "clip": {
+                "left": 429,
+                "top": 222,
+                "width": 640,
+                "height": 360
+              }
+            },
+            {
+              "bounds": {
+                "left": 673,
+                "top": 586,
+                "width": 480,
+                "height": 270
+              },
+              "clip": {
+                "left": 673,
+                "top": 586,
+                "width": 480,
+                "height": 270
+              }
+            }
+          ],
+          "error": null
+        },
+        "observer": {
+          "process_id": 21220,
+          "adapter_luid": "00000000:00016c2a",
+          "checkpoints": [
+            {
+              "phase": "initial",
+              "extent": [
+                1920,
+                1080
+              ],
+              "sampled_bgra": [
+                [
+                  [
+                    0,
+                    0,
+                    255,
+                    255
+                  ],
+                  [
+                    0,
+                    255,
+                    255,
+                    255
+                  ]
+                ]
+              ],
+              "sampled_alpha": [
+                [
+                  191,
+                  191
+                ]
+              ],
+              "sampled_generation_markers": [],
+              "elapsed_ms": 7.9106
+            },
+            {
+              "phase": "resized",
+              "extent": [
+                1920,
+                1080
+              ],
+              "sampled_bgra": [
+                [
+                  [
+                    0,
+                    255,
+                    0,
+                    255
+                  ],
+                  [
+                    0,
+                    255,
+                    255,
+                    255
+                  ]
+                ]
+              ],
+              "sampled_alpha": [
+                [
+                  191,
+                  191
+                ]
+              ],
+              "sampled_generation_markers": [],
+              "elapsed_ms": 3.4465
+            },
+            {
+              "phase": "source_absent",
+              "extent": [
+                1920,
+                1080
+              ],
+              "sampled_bgra": [
+                [
+                  [
+                    13,
+                    13,
+                    13,
+                    255
+                  ],
+                  [
+                    0,
+                    255,
+                    255,
+                    255
+                  ]
+                ]
+              ],
+              "sampled_alpha": [
+                [
+                  255,
+                  191
+                ]
+              ],
+              "sampled_generation_markers": [],
+              "elapsed_ms": 1.6057
+            },
+            {
+              "phase": "recovered",
+              "extent": [
+                1920,
+                1080
+              ],
+              "sampled_bgra": [
+                [
+                  [
+                    13,
+                    13,
+                    13,
+                    255
+                  ],
+                  [
+                    0,
+                    255,
+                    255,
+                    255
+                  ]
+                ],
+                [
+                  [
+                    255,
+                    0,
+                    0,
+                    255
+                  ],
+                  [
+                    0,
+                    255,
+                    255,
+                    255
+                  ]
+                ]
+              ],
+              "sampled_alpha": [
+                [
+                  255,
+                  191
+                ],
+                [
+                  191,
+                  191
+                ]
+              ],
+              "sampled_generation_markers": [],
+              "elapsed_ms": 23.3767
+            }
+          ],
+          "received_observations": 5,
+          "diagnostic_readbacks": 5,
+          "verified_generations": 0
+        },
+        "generations": [
+          {
+            "generation": 0,
+            "adapter_luid": "00000000:00016c2a",
+            "elapsed_seconds": 28.1840595,
+            "setup_ms": 64.8563,
+            "consumer_ready_ms": null,
+            "native_output_extent": [
+              1920,
+              1080
+            ],
+            "fixed_geometry_observed": true,
+            "sampled_geometry_mismatches": 0,
+            "output_presents": 1390,
+            "preview_presents": 1333,
+            "spout_sends": 1535,
+            "timing": {
+              "cpu_submission_work": {
+                "samples": 1422,
+                "mean_ms": 4.246144303797466,
+                "median_ms": 0.4775,
+                "p95_ms": 28.4388,
+                "p99_ms": 41.756099999999996,
+                "maximum_ms": 68.68549999999999
+              },
+              "worker_start_intervals": {
+                "samples": 1421,
+                "mean_ms": 18.087495918367335,
+                "median_ms": 16.709000000000003,
+                "p95_ms": 28.4403,
+                "p99_ms": 41.76,
+                "maximum_ms": 68.6872
+              },
+              "gpu_execution": {
+                "samples": 1309,
+                "mean_ms": 3.3755932884517432,
+                "median_ms": 1.1746874999999999,
+                "p95_ms": 21.749166666666667,
+                "p99_ms": 35.54994791666667,
+                "maximum_ms": 68.41333333333334
+              },
+              "skipped_gpu_queries": 113,
+              "invalid_gpu_queries": 0,
+              "pending_gpu_queries": 0,
+              "truncated_samples": 0
+            },
+            "consumer_checkpoint": null,
+            "retirement_fence_ms": 9.8928,
+            "recreated_after": false,
+            "after_release": {
+              "process_id": 9168,
+              "private_bytes": 66777088,
+              "working_set_bytes": 92508160,
+              "handle_count": 414
+            }
+          }
+        ],
+        "resources": {
+          "before_gpu": {
+            "process_id": 9168,
+            "private_bytes": 10158080,
+            "working_set_bytes": 31637504,
+            "handle_count": 293
+          },
+          "after_gpu_release": {
+            "process_id": 9168,
+            "private_bytes": 66912256,
+            "working_set_bytes": 92512256,
+            "handle_count": 409
+          },
+          "exclusions": [
+            "WebView2 subprocess memory and handles",
+            "source/observer GPU usage and per-texture residency",
+            "COM release does not prove driver allocation retirement"
+          ],
+          "process_ids_renderer_sources_observer": [
+            9168,
+            29272,
+            23332,
+            21220
+          ],
+          "columns": [
+            "elapsed_seconds",
+            "in_sample_window",
+            "renderer.private_bytes",
+            "renderer.working_set_bytes",
+            "renderer.handle_count",
+            "source_a.private_bytes",
+            "source_a.working_set_bytes",
+            "source_a.handle_count",
+            "source_b.private_bytes",
+            "source_b.working_set_bytes",
+            "source_b.handle_count",
+            "observer.private_bytes",
+            "observer.working_set_bytes",
+            "observer.handle_count",
+            "renderer_gpu_local.current_usage_bytes",
+            "renderer_gpu_local.budget_bytes",
+            "renderer_gpu_nonlocal.current_usage_bytes",
+            "renderer_gpu_nonlocal.budget_bytes"
+          ],
+          "rows": [
+            [
+              0.0648633,
+              false,
+              55189504,
+              75485184,
+              411,
+              45957120,
+              58683392,
+              242,
+              40689664,
+              53669888,
+              242,
+              26275840,
+              35643392,
+              203,
+              15503360,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              1.0150543,
+              false,
+              72376320,
+              93384704,
+              427,
+              45957120,
+              58691584,
+              241,
+              40689664,
+              53669888,
+              242,
+              42536960,
+              52707328,
+              211,
+              79679488,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              2.0000714,
+              true,
+              75558912,
+              96530432,
+              428,
+              48623616,
+              61353984,
+              243,
+              40689664,
+              53673984,
+              242,
+              42557440,
+              52727808,
+              211,
+              84226048,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              3.0024757,
+              true,
+              75935744,
+              96915456,
+              425,
+              48615424,
+              61341696,
+              236,
+              40689664,
+              53673984,
+              242,
+              42557440,
+              52727808,
+              211,
+              62144512,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              4.0022395,
+              true,
+              75935744,
+              96923648,
+              427,
+              57548800,
+              70279168,
+              244,
+              40689664,
+              53673984,
+              242,
+              42557440,
+              52727808,
+              211,
+              79904768,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              5.0021688,
+              true,
+              75935744,
+              96923648,
+              427,
+              60051456,
+              72732672,
+              244,
+              43139072,
+              56127488,
+              242,
+              42557440,
+              52727808,
+              211,
+              79904768,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              6.0022373,
+              true,
+              75939840,
+              96927744,
+              427,
+              60051456,
+              72732672,
+              244,
+              43139072,
+              56131584,
+              242,
+              42557440,
+              52727808,
+              211,
+              79904768,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              7.0011755,
+              true,
+              85897216,
+              111755264,
+              494,
+              68157440,
+              80646144,
+              244,
+              51359744,
+              64163840,
+              242,
+              42557440,
+              52727808,
+              211,
+              81608704,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              8.0074909,
+              true,
+              85897216,
+              111759360,
+              494,
+              69599232,
+              82104320,
+              244,
+              51359744,
+              64176128,
+              242,
+              42557440,
+              52727808,
+              211,
+              81608704,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              9.0003765,
+              true,
+              83607552,
+              109473792,
+              494,
+              69599232,
+              82104320,
+              244,
+              51359744,
+              64176128,
+              242,
+              42557440,
+              52727808,
+              211,
+              81608704,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              10.0079107,
+              true,
+              83607552,
+              109473792,
+              494,
+              69599232,
+              82104320,
+              244,
+              51359744,
+              64176128,
+              242,
+              42557440,
+              52727808,
+              211,
+              81608704,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              11.0243109,
+              true,
+              83607552,
+              109473792,
+              494,
+              69599232,
+              82104320,
+              244,
+              51359744,
+              64176128,
+              242,
+              42557440,
+              52727808,
+              211,
+              81608704,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              12.0061074,
+              true,
+              83607552,
+              109473792,
+              494,
+              71122944,
+              83537920,
+              243,
+              51396608,
+              64217088,
+              242,
+              42557440,
+              52727808,
+              211,
+              81608704,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              13.0139294,
+              true,
+              83607552,
+              109473792,
+              494,
+              71352320,
+              83808256,
+              244,
+              51396608,
+              64217088,
+              242,
+              42557440,
+              52727808,
+              211,
+              81575936,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              14.0137661,
+              true,
+              83607552,
+              109473792,
+              494,
+              71352320,
+              83808256,
+              244,
+              51396608,
+              64217088,
+              242,
+              42557440,
+              52727808,
+              211,
+              81575936,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              15.0136522,
+              true,
+              83607552,
+              109473792,
+              494,
+              71352320,
+              83808256,
+              244,
+              51396608,
+              64217088,
+              242,
+              42557440,
+              52727808,
+              211,
+              81575936,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              16.0139113,
+              true,
+              83607552,
+              109473792,
+              494,
+              71352320,
+              83808256,
+              244,
+              51396608,
+              64217088,
+              242,
+              42557440,
+              52727808,
+              211,
+              81575936,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              17.0138424,
+              true,
+              83615744,
+              109481984,
+              494,
+              71352320,
+              83808256,
+              244,
+              51396608,
+              64217088,
+              242,
+              42557440,
+              52727808,
+              211,
+              81575936,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              18.014047,
+              true,
+              83615744,
+              109481984,
+              494,
+              71352320,
+              83808256,
+              244,
+              51396608,
+              64217088,
+              242,
+              42557440,
+              52727808,
+              211,
+              81575936,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              19.0138955,
+              true,
+              83582976,
+              109449216,
+              494,
+              71319552,
+              83775488,
+              244,
+              51396608,
+              64217088,
+              242,
+              42557440,
+              52727808,
+              211,
+              81575936,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              20.0138475,
+              true,
+              83582976,
+              109449216,
+              494,
+              71319552,
+              83775488,
+              244,
+              51396608,
+              64217088,
+              242,
+              42557440,
+              52727808,
+              211,
+              81575936,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              21.0135797,
+              true,
+              83582976,
+              109449216,
+              494,
+              71319552,
+              83775488,
+              244,
+              51396608,
+              64217088,
+              242,
+              42557440,
+              52727808,
+              211,
+              81575936,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              22.0136819,
+              true,
+              83582976,
+              109453312,
+              494,
+              71319552,
+              83775488,
+              244,
+              51531776,
+              64303104,
+              242,
+              42557440,
+              52727808,
+              211,
+              81575936,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              23.0138161,
+              true,
+              83587072,
+              109457408,
+              494,
+              71319552,
+              83775488,
+              244,
+              51531776,
+              64303104,
+              242,
+              42557440,
+              52727808,
+              211,
+              81575936,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              24.0138125,
+              true,
+              83587072,
+              109457408,
+              494,
+              71319552,
+              83775488,
+              244,
+              51531776,
+              64303104,
+              242,
+              42557440,
+              52727808,
+              211,
+              81575936,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              25.0138889,
+              true,
+              83587072,
+              109457408,
+              494,
+              71319552,
+              83775488,
+              244,
+              51531776,
+              64303104,
+              242,
+              42557440,
+              52727808,
+              211,
+              81575936,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              26.0136975,
+              true,
+              83595264,
+              109465600,
+              494,
+              71319552,
+              83775488,
+              244,
+              51531776,
+              64303104,
+              242,
+              42557440,
+              52727808,
+              211,
+              81575936,
+              18433902428,
+              0,
+              0
+            ],
+            [
+              27.0135608,
+              true,
+              83595264,
+              109465600,
+              494,
+              71319552,
+              83775488,
+              244,
+              51531776,
+              64303104,
+              242,
+              42557440,
+              52727808,
+              211,
+              81575936,
+              18433902428,
+              0,
+              0
+            ]
+          ]
+        },
+        "unqualified": [
+          "manual visual/input/clipping/DPI",
+          "texture residency, displayed cadence and latency",
+          "hardware device removal and sustained retirement"
+        ]
+      }
+    }
+  },
+  "after": {
+    "schema_version": 2,
+    "evidence_kind": "fixed_workload_submission_and_resource_observations_not_full_M01_qualification",
+    "started_utc": "2026-10-27T21:50:10.032220+00:00",
+    "sample_index": 1,
+    "requested_series_samples": 1,
+    "command": [
+      "D:\\Projects\\Dev\\Chataigne2\\target\\debug\\mapgyver_native_probe.exe",
+      "qualify",
+      "0",
+      "q01",
+      "120",
+      "2"
+    ],
+    "profile": "debug",
+    "inputs": {
+      "executable_sha256": "033b498abf8fd3d17612e3655eaefb14406009bb4523e22aaa0214f3c850bfc9",
+      "files": {
+        "Cargo.lock": "286b324f233cd15f2af643272e4f47759fc60ca3d13943204755ec94da10559f",
+        "Cargo.toml": "bd01765f8ba0796d43f9e826a919f3dced1cfba02570c249c9717d9870d9bdd4",
+        "package-lock.json": "46924d87a98b203fa1c66ece5e1fdd8705dc27210c183b481452998cd88be355",
+        "package.json": "15ea200aaaa832d472b173334a6f41d48bfa80d2791600157225eccb22d3ee28",
+        "tools/mapgyver/collect-baseline.ps1": "3cda72ba639594e312ea505e059de697367002c6ccb66bb1f75105a0a4955078",
+        "tools/mapgyver/native-probe/build.rs": "73fb236d28fee0b7d97bcca20a416a9ac938100dcd5164e66b6675753649ab4c",
+        "tools/mapgyver/native-probe/Cargo.toml": "abe2dcce394eae1710fcfe3cfc8fad90594a222290fd42dde6856ebc6f9d650b",
+        "tools/mapgyver/native-probe/src/bin/generate_probe_bindings.rs": "f39870bfc02fddf8ae37b0138484f2c6db1d4559341d980aa98a36b591b9915a",
+        "tools/mapgyver/native-probe/src/card.rs": "d45eaa7435024feb4956f3fc46f9fbd36beaf00ae7f315adcbf17ea5e670254b",
+        "tools/mapgyver/native-probe/src/completion.rs": "238eac811a44c3b69e7224b7247b7ca4b3c5f2ded33c889b9fc0dfad851a040e",
+        "tools/mapgyver/native-probe/src/d3d.rs": "28fa1f966a7fdad6c0b37c2c0db44200e8409b5521c948d236bb842fc672f1b1",
+        "tools/mapgyver/native-probe/src/desktop.rs": "85522b6c32330696aa6f0486a7c70ac64ca88b24dcace6d014c5c619ca0142fd",
+        "tools/mapgyver/native-probe/src/fixture.rs": "c3c831680fcbd9798366ccd244989859a0dd85572e9b7617aaf1e35061735f22",
+        "tools/mapgyver/native-probe/src/lib.rs": "1ae0b4295c7923bf0011c48af9cca0b2ca3a7b97dcfcceedd77622306f1178cf",
+        "tools/mapgyver/native-probe/src/main.rs": "b6091b168a1510757779e70d883dc210b11800bc926e52247bc606da4f9137b2",
+        "tools/mapgyver/native-probe/src/observer/client.rs": "5771045e355a08b2e4967608872d97a99239a034687c845f40cc261f11d940bc",
+        "tools/mapgyver/native-probe/src/observer/mod.rs": "5abc0fadc2ab7ecd423b24ccb235e3009967dc28eec24be9977416b149bedc53",
+        "tools/mapgyver/native-probe/src/observer/protocol.rs": "7cc953c0484868db365b1a18e06af3ea5f498c35079cc733daf150dbf775ac59",
+        "tools/mapgyver/native-probe/src/observer/tests/mod.rs": "87a8e598b19f9b2aabb6fc1b17b2bcf9d7e777795baf1131996c19744f73401d",
+        "tools/mapgyver/native-probe/src/presentation/tests/mod.rs": "739a41a1b886aa0c5f1c08243aa20b73126b812df7c02745533f437329fb3ea4",
+        "tools/mapgyver/native-probe/src/presentation.rs": "c751e94b91dc8dd92c2f607fd6901cdf4f39906b92e093574242326a32ab6b64",
+        "tools/mapgyver/native-probe/src/presenter.rs": "62f1d8d7bf416b885dc599e3c51f470c31e829c6a0ee85d8224a3504655855da",
+        "tools/mapgyver/native-probe/src/process.rs": "e94929a2f93e04663534bd17387d8807525318b18536c0a3cd37339550c30a8f",
+        "tools/mapgyver/native-probe/src/quad.rs": "525a68b84a1c20c409a6e935dde41f4bfcf0e992f8bbc003f71880f24988178f",
+        "tools/mapgyver/native-probe/src/query_data.rs": "afce4dd916e4a9b7ea98ab729c566b4fa22583c067ea527f09bd95b94fc37bfe",
+        "tools/mapgyver/native-probe/src/render_worker/generation.rs": "b60a817295af27cdacd76cba345bed952a3485e6ebbcea8e86b39a392d7f95c4",
+        "tools/mapgyver/native-probe/src/render_worker.rs": "8a01990f2e0d98179a7c338cb51f1199d0df6ccea8f879d86d975bb3341d2fce",
+        "tools/mapgyver/native-probe/src/resources.rs": "3b8de0238d301daff0379bdc32e7e6b9618961553152092694145b08848c9580",
+        "tools/mapgyver/native-probe/src/retirement.rs": "5d5929a5c7984e543680c21e0c9aece493b3b5342c76764389026329f795f54a",
+        "tools/mapgyver/native-probe/src/smoke.rs": "2c3bf7677a17ee809700606b10027f7ffde4b25934347e7a6063da0df3c16e9e",
+        "tools/mapgyver/native-probe/src/spout.rs": "87232eaf504cf029fab6a38d79b6b8d88ce1e116ed684edf556165c6100e9232",
+        "tools/mapgyver/native-probe/src/timing/tests/mod.rs": "e2bda3dbd0e8ecba435d06b10472b3434e6e4c8df753d13186121f206e8ba03f",
+        "tools/mapgyver/native-probe/src/timing.rs": "3d0526183eaa0175eccf85de554f8e9fba0d1031e17e5d2cae16cf1a09b53e29",
+        "tools/mapgyver/native-probe/src/workload/tests/mod.rs": "6e9074126c0229e8e85171f432d1b98039072874aba797c5ede33bbc4d1daf7f",
+        "tools/mapgyver/native-probe/src/workload.rs": "cac8600cae339815a6fd7b487e88d4064b1a252fc1b6ffb202d2a31c3d11d0c4",
+        "tools/mapgyver/native-probe/tauri.conf.json": "7e662b178abb64018037dd9da756e04de67d23f38dd409e686d90969afd66f1d",
+        "tools/mapgyver/native-probe/ui/dist/assets/index-BmsNWfJI.js": "0c0f26ed568b505006b3f3c184c332bbcf23d4be16881cd1e75e3caafa24115e",
+        "tools/mapgyver/native-probe/ui/dist/assets/index-NEuoE25f.css": "64d230ac153b556df0834833a285380f27d22b0bf33d04255d32c1f9a50e14cd",
+        "tools/mapgyver/native-probe/ui/dist/index.html": "3012e7fba9e50bd7fd8e97ad22fc7a97cd67240e87235b7c6bc01ced6ca233c8",
+        "tools/mapgyver/native-probe/ui/index.html": "8537f14356e5a97019d00197ca3609b1093b90fc2297a3e9abeedaaa5b514078",
+        "tools/mapgyver/native-probe/ui/package.json": "64d7e12087f720f977e6b13b6c78adcdcf79a78335632a9a70e01a0d2799831c",
+        "tools/mapgyver/native-probe/ui/scripts/check-generated.mjs": "8626ddca2d34ea8d2a99ffbe778ca32b6afe121d9eb26a6263e9c5de18cc2731",
+        "tools/mapgyver/native-probe/ui/src/App.svelte": "652c6bdefb40fa37847398100916e307905893d0e053d046476c41119f6d0d5f",
+        "tools/mapgyver/native-probe/ui/src/generated.ts": "9d9e05023c7dfdd8275be70f59c2eacd173f0a71095e3c4b57d08ecd9a308830",
+        "tools/mapgyver/native-probe/ui/src/main.ts": "c76543fe1c49182b7ec4353a30135d00e3c439dfdf2577e2435272ff9f35930b",
+        "tools/mapgyver/native-probe/ui/src/native.ts": "30ef70406a96bbe19b74e52b83c3738a85d43644277c954e254ec45ee14976d9",
+        "tools/mapgyver/native-probe/ui/svelte.config.js": "f3c25c06187b11282d1293dd1aa038b34de915c464de9250b121241780c4d1ea",
+        "tools/mapgyver/native-probe/ui/tsconfig.json": "7bcf3e81653ce3c7b9a3b8d047bf56bae9714258ea79ef4ffb0f9a9009c8d40e",
+        "tools/mapgyver/native-probe/ui/vite.config.js": "11c7487f64e960a7a002408ea2a43225a53d15443e1776d79fb0ad98350a64bd",
+        "tools/mapgyver/run-qualification.py": "c55c6cf9eec55564fd4ac4abba2ad7adfdf8b772f488fa81ab02332cf9bfca6d"
+      }
+    },
+    "inputs_unchanged_after_run": true,
+    "environment": {
+      "schema_version": 1,
+      "captured_at_utc": "2026-10-27T21:50:02.1833892Z",
+      "evidence_kind": "read_only_inventory_not_native_qualification",
+      "checkout": {
+        "head": "40acd67df94920b63469a77da0ee64e40368d60b",
+        "branch": "mapgyver",
+        "status": [
+          " M .gitignore",
+          " M AGENTS.md",
+          " M ARCHITECTURE.md",
+          " M Cargo.lock",
+          " M Cargo.toml",
+          " M README.md",
+          " M docs/README.md",
+          " M docs/architecture/README.md",
+          " M docs/reference/repository-layout.md",
+          " M package-lock.json",
+          " M package.json",
+          "?? docs/architecture/mapgyver-native-rendering.md",
+          "?? docs/architecture/mapgyver.md",
+          "?? docs/plan/MapGyver_Implementation_Plan.md",
+          "?? docs/progress/evidence/mapgyver-baseline-2026-10-27.json",
+          "?? docs/progress/evidence/mapgyver-m01-composite-consumer-2026-10-27.json",
+          "?? docs/progress/evidence/mapgyver-m01-device-recreation-2026-10-27.json",
+          "?? docs/progress/evidence/mapgyver-m01-fixed-workloads-2026-10-27.json",
+          "?? docs/progress/evidence/mapgyver-m01-isolation-validation-2026-10-27.json",
+          "?? docs/progress/evidence/mapgyver-m01-native-ui-2026-10-27.json",
+          "?? docs/progress/evidence/mapgyver-m01-ownership-isolation-2026-10-27.json",
+          "?? docs/progress/evidence/mapgyver-m01-spout-sdk-audit-2026-10-27.json",
+          "?? docs/progress/evidence/mapgyver-m01-spout-smoke-2026-10-27.json",
+          "?? docs/progress/evidence/mapgyver-m01-underlay-plumbing-2026-10-27.json",
+          "?? docs/progress/mapgyver-m00-baseline.md",
+          "?? docs/progress/mapgyver-m01-native-feasibility.md",
+          "?? docs/progress/mapgyver-qualification-contract.md",
+          "?? docs/progress/mapgyver-status.md",
+          "?? tools/mapgyver/"
+        ],
+        "cargo_lock_sha256": "286b324f233cd15f2af643272e4f47759fc60ca3d13943204755ec94da10559f",
+        "npm_lock_sha256": "46924d87a98b203fa1c66ece5e1fdd8705dc27210c183b481452998cd88be355"
+      },
+      "operating_system": {
+        "status": "observed",
+        "items": [
+          {
+            "Caption": "Microsoft Windows 11 Famille",
+            "Version": "10.0.26300",
+            "BuildNumber": "26300",
+            "OSArchitecture": "64-bit"
+          },
+          {
+            "DisplayVersion": "26H2",
+            "CurrentBuild": "26300",
+            "UBR": 9711
+          }
+        ]
+      },
+      "cpu": {
+        "status": "observed",
+        "items": [
+          {
+            "Name": "Intel(R) Core(TM) Ultra 9 275HX",
+            "NumberOfCores": 24,
+            "NumberOfLogicalProcessors": 24
+          }
+        ]
+      },
+      "memory": {
+        "status": "observed",
+        "items": [
+          {
+            "TotalPhysicalMemory": 33752997888
+          }
+        ]
+      },
+      "power": {
+        "active_scheme": {
+          "status": "observed",
+          "items": [
+            "Power Scheme GUID: 3ce3a61f-21d2-4d5c-8d8a-edd03b1f14e7  (Perf)"
+          ]
+        },
+        "battery": {
+          "status": "observed",
+          "items": [
+            {
+              "BatteryStatus": 2,
+              "EstimatedChargeRemaining": 100
+            }
+          ]
+        }
+      },
+      "video_controllers": {
+        "status": "observed",
+        "items": [
+          {
+            "Name": "Intel(R) Graphics",
+            "DriverVersion": "32.0.101.8331",
+            "DriverDate": "2026-01-29",
+            "CurrentHorizontalResolution": 2560,
+            "CurrentVerticalResolution": 1600,
+            "CurrentRefreshRate": 240
+          },
+          {
+            "Name": "NVIDIA GeForce RTX 5080 Laptop GPU",
+            "DriverVersion": "32.0.15.9201",
+            "DriverDate": "2026-02-15",
+            "CurrentHorizontalResolution": 3840,
+            "CurrentVerticalResolution": 2160,
+            "CurrentRefreshRate": 60
+          }
+        ]
+      },
+      "monitors": {
+        "status": "observed",
+        "items": [
+          {
+            "Active": true,
+            "VideoOutputTechnology": 2147483648
+          },
+          {
+            "Active": true,
+            "VideoOutputTechnology": 10
+          }
+        ]
+      },
+      "webview2": {
+        "status": "observed",
+        "items": [
+          {
+            "name": "Microsoft Edge WebView2 Runtime",
+            "pv": "155.0.4283.62"
+          }
+        ]
+      },
+      "toolchain": {
+        "rustc": {
+          "status": "observed",
+          "items": [
+            "rustc 1.97.0 (2d8144b78 2026-07-07)\nbinary: rustc\ncommit-hash: 2d8144b7880597b6e6d3dfd63a9a9efae3f533d3\ncommit-date: 2026-07-07\nhost: x86_64-pc-windows-msvc\nrelease: 1.97.0\nLLVM version: 22.1.6"
+          ]
+        },
+        "cargo": {
+          "status": "observed",
+          "items": [
+            "cargo 1.97.0 (c980f4866 2026-06-30)"
+          ]
+        },
+        "rustup": {
+          "status": "observed",
+          "items": [
+            "1.97.0-x86_64-pc-windows-msvc (directory override for 'D:\\Projects\\Dev\\Chataigne2')"
+          ]
+        },
+        "node": {
+          "status": "observed",
+          "items": [
+            "v26.5.0"
+          ]
+        },
+        "npm": {
+          "status": "observed",
+          "items": [
+            "11.17.0"
+          ]
+        },
+        "cmake": {
+          "status": "observed",
+          "items": [
+            "cmake version 4.4.1\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake)."
+          ]
+        },
+        "visual_studio": {
+          "status": "observed",
+          "items": [
+            {
+              "displayName": "Visual Studio Build Tools 2026",
+              "installationVersion": "18.5.11723.231"
+            },
+            {
+              "displayName": "Visual Studio Community 2026",
+              "installationVersion": "18.10.12224.181"
+            }
+          ]
+        }
+      },
+      "locked_host_packages": [
+        {
+          "name": "raw-window-handle",
+          "version": "0.6.2"
+        },
+        {
+          "name": "tauri",
+          "version": "2.11.5"
+        },
+        {
+          "name": "tauri-runtime-wry",
+          "version": "2.11.4"
+        },
+        {
+          "name": "webview2-com",
+          "version": "0.38.2"
+        },
+        {
+          "name": "windows",
+          "version": "0.48.0"
+        },
+        {
+          "name": "windows",
+          "version": "0.61.3"
+        },
+        {
+          "name": "windows",
+          "version": "0.62.2"
+        },
+        {
+          "name": "windows-core",
+          "version": "0.61.2"
+        },
+        {
+          "name": "windows-core",
+          "version": "0.62.2"
+        },
+        {
+          "name": "wry",
+          "version": "0.55.1"
+        }
+      ],
+      "spout_related_processes": {
+        "status": "observed",
+        "items": []
+      },
+      "not_measured": [
+        "DXGI adapter LUID, dedicated/shared memory budget and D3D11 feature level",
+        "DisplayConfig identity, physical origins, per-monitor DPI and WebView rasterization scale",
+        "WebView underlay/DOM layering, pointer capture and layout alignment",
+        "Spout SDK enumeration, GPU sharing, resize/restart and adapter compatibility",
+        "Frame timing, readback/copy behavior, resource retirement and device recovery"
+      ]
+    },
+    "adapters": [
+      {
+        "index": 0,
+        "description": "Intel(R) Graphics",
+        "luid": "00000000:00016c2a",
+        "dedicated_video_bytes": 134217728,
+        "shared_system_bytes": 19239208796,
+        "software": false,
+        "local_memory": {
+          "budget_bytes": 18433902428,
+          "current_usage_bytes": 0
+        },
+        "nonlocal_memory": {
+          "budget_bytes": 0,
+          "current_usage_bytes": 0
+        },
+        "outputs": [
+          {
+            "device_name": "\\\\.\\DISPLAY1",
+            "attached": true,
+            "desktop_rect": [
+              0,
+              0,
+              2560,
+              1600
+            ],
+            "coordinate_context": "physical_pixels_per_monitor_aware_v2_thread"
+          },
+          {
+            "device_name": "\\\\.\\DISPLAY2",
+            "attached": true,
+            "desktop_rect": [
+              2560,
+              0,
+              4480,
+              1080
+            ],
+            "coordinate_context": "physical_pixels_per_monitor_aware_v2_thread"
+          }
+        ]
+      },
+      {
+        "index": 1,
+        "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "00000000:000170d3",
+        "dedicated_video_bytes": 16780361728,
+        "shared_system_bytes": 19239208796,
+        "software": false,
+        "local_memory": {
+          "budget_bytes": 15975055360,
+          "current_usage_bytes": 0
+        },
+        "nonlocal_memory": {
+          "budget_bytes": 18433902428,
+          "current_usage_bytes": 0
+        },
+        "outputs": []
+      },
+      {
+        "index": 2,
+        "description": "Microsoft Basic Render Driver",
+        "luid": "00000000:00017040",
+        "dedicated_video_bytes": 0,
+        "shared_system_bytes": 19239208796,
+        "software": true,
+        "local_memory": {
+          "budget_bytes": 18433902428,
+          "current_usage_bytes": 0
+        },
+        "nonlocal_memory": {
+          "budget_bytes": 0,
+          "current_usage_bytes": 0
+        },
+        "outputs": []
+      }
+    ],
+    "run": {
+      "exit_code": 1,
+      "stderr": "native probe failed: qualification cancelled by window close before completion\n",
+      "report": null,
+      "stdout": ""
+    }
+  },
+  "interactive_control": {
+    "command": [
+      "D:\\Projects\\Dev\\Chataigne2\\target\\debug\\mapgyver_native_probe.exe",
+      "underlay",
+      "0",
+      "120"
+    ],
+    "inputs": {
+      "executable_sha256": "033b498abf8fd3d17612e3655eaefb14406009bb4523e22aaa0214f3c850bfc9",
+      "files": {
+        "Cargo.lock": "286b324f233cd15f2af643272e4f47759fc60ca3d13943204755ec94da10559f",
+        "Cargo.toml": "bd01765f8ba0796d43f9e826a919f3dced1cfba02570c249c9717d9870d9bdd4",
+        "package-lock.json": "46924d87a98b203fa1c66ece5e1fdd8705dc27210c183b481452998cd88be355",
+        "package.json": "15ea200aaaa832d472b173334a6f41d48bfa80d2791600157225eccb22d3ee28",
+        "tools/mapgyver/collect-baseline.ps1": "3cda72ba639594e312ea505e059de697367002c6ccb66bb1f75105a0a4955078",
+        "tools/mapgyver/native-probe/build.rs": "73fb236d28fee0b7d97bcca20a416a9ac938100dcd5164e66b6675753649ab4c",
+        "tools/mapgyver/native-probe/Cargo.toml": "abe2dcce394eae1710fcfe3cfc8fad90594a222290fd42dde6856ebc6f9d650b",
+        "tools/mapgyver/native-probe/src/bin/generate_probe_bindings.rs": "f39870bfc02fddf8ae37b0138484f2c6db1d4559341d980aa98a36b591b9915a",
+        "tools/mapgyver/native-probe/src/card.rs": "d45eaa7435024feb4956f3fc46f9fbd36beaf00ae7f315adcbf17ea5e670254b",
+        "tools/mapgyver/native-probe/src/completion.rs": "238eac811a44c3b69e7224b7247b7ca4b3c5f2ded33c889b9fc0dfad851a040e",
+        "tools/mapgyver/native-probe/src/d3d.rs": "28fa1f966a7fdad6c0b37c2c0db44200e8409b5521c948d236bb842fc672f1b1",
+        "tools/mapgyver/native-probe/src/desktop.rs": "85522b6c32330696aa6f0486a7c70ac64ca88b24dcace6d014c5c619ca0142fd",
+        "tools/mapgyver/native-probe/src/fixture.rs": "c3c831680fcbd9798366ccd244989859a0dd85572e9b7617aaf1e35061735f22",
+        "tools/mapgyver/native-probe/src/lib.rs": "1ae0b4295c7923bf0011c48af9cca0b2ca3a7b97dcfcceedd77622306f1178cf",
+        "tools/mapgyver/native-probe/src/main.rs": "b6091b168a1510757779e70d883dc210b11800bc926e52247bc606da4f9137b2",
+        "tools/mapgyver/native-probe/src/observer/client.rs": "5771045e355a08b2e4967608872d97a99239a034687c845f40cc261f11d940bc",
+        "tools/mapgyver/native-probe/src/observer/mod.rs": "5abc0fadc2ab7ecd423b24ccb235e3009967dc28eec24be9977416b149bedc53",
+        "tools/mapgyver/native-probe/src/observer/protocol.rs": "7cc953c0484868db365b1a18e06af3ea5f498c35079cc733daf150dbf775ac59",
+        "tools/mapgyver/native-probe/src/observer/tests/mod.rs": "87a8e598b19f9b2aabb6fc1b17b2bcf9d7e777795baf1131996c19744f73401d",
+        "tools/mapgyver/native-probe/src/presentation/tests/mod.rs": "739a41a1b886aa0c5f1c08243aa20b73126b812df7c02745533f437329fb3ea4",
+        "tools/mapgyver/native-probe/src/presentation.rs": "c751e94b91dc8dd92c2f607fd6901cdf4f39906b92e093574242326a32ab6b64",
+        "tools/mapgyver/native-probe/src/presenter.rs": "62f1d8d7bf416b885dc599e3c51f470c31e829c6a0ee85d8224a3504655855da",
+        "tools/mapgyver/native-probe/src/process.rs": "e94929a2f93e04663534bd17387d8807525318b18536c0a3cd37339550c30a8f",
+        "tools/mapgyver/native-probe/src/quad.rs": "525a68b84a1c20c409a6e935dde41f4bfcf0e992f8bbc003f71880f24988178f",
+        "tools/mapgyver/native-probe/src/query_data.rs": "afce4dd916e4a9b7ea98ab729c566b4fa22583c067ea527f09bd95b94fc37bfe",
+        "tools/mapgyver/native-probe/src/render_worker/generation.rs": "b60a817295af27cdacd76cba345bed952a3485e6ebbcea8e86b39a392d7f95c4",
+        "tools/mapgyver/native-probe/src/render_worker.rs": "8a01990f2e0d98179a7c338cb51f1199d0df6ccea8f879d86d975bb3341d2fce",
+        "tools/mapgyver/native-probe/src/resources.rs": "3b8de0238d301daff0379bdc32e7e6b9618961553152092694145b08848c9580",
+        "tools/mapgyver/native-probe/src/retirement.rs": "5d5929a5c7984e543680c21e0c9aece493b3b5342c76764389026329f795f54a",
+        "tools/mapgyver/native-probe/src/smoke.rs": "2c3bf7677a17ee809700606b10027f7ffde4b25934347e7a6063da0df3c16e9e",
+        "tools/mapgyver/native-probe/src/spout.rs": "87232eaf504cf029fab6a38d79b6b8d88ce1e116ed684edf556165c6100e9232",
+        "tools/mapgyver/native-probe/src/timing/tests/mod.rs": "e2bda3dbd0e8ecba435d06b10472b3434e6e4c8df753d13186121f206e8ba03f",
+        "tools/mapgyver/native-probe/src/timing.rs": "3d0526183eaa0175eccf85de554f8e9fba0d1031e17e5d2cae16cf1a09b53e29",
+        "tools/mapgyver/native-probe/src/workload/tests/mod.rs": "6e9074126c0229e8e85171f432d1b98039072874aba797c5ede33bbc4d1daf7f",
+        "tools/mapgyver/native-probe/src/workload.rs": "cac8600cae339815a6fd7b487e88d4064b1a252fc1b6ffb202d2a31c3d11d0c4",
+        "tools/mapgyver/native-probe/tauri.conf.json": "7e662b178abb64018037dd9da756e04de67d23f38dd409e686d90969afd66f1d",
+        "tools/mapgyver/native-probe/ui/dist/assets/index-BmsNWfJI.js": "0c0f26ed568b505006b3f3c184c332bbcf23d4be16881cd1e75e3caafa24115e",
+        "tools/mapgyver/native-probe/ui/dist/assets/index-NEuoE25f.css": "64d230ac153b556df0834833a285380f27d22b0bf33d04255d32c1f9a50e14cd",
+        "tools/mapgyver/native-probe/ui/dist/index.html": "3012e7fba9e50bd7fd8e97ad22fc7a97cd67240e87235b7c6bc01ced6ca233c8",
+        "tools/mapgyver/native-probe/ui/index.html": "8537f14356e5a97019d00197ca3609b1093b90fc2297a3e9abeedaaa5b514078",
+        "tools/mapgyver/native-probe/ui/package.json": "64d7e12087f720f977e6b13b6c78adcdcf79a78335632a9a70e01a0d2799831c",
+        "tools/mapgyver/native-probe/ui/scripts/check-generated.mjs": "8626ddca2d34ea8d2a99ffbe778ca32b6afe121d9eb26a6263e9c5de18cc2731",
+        "tools/mapgyver/native-probe/ui/src/App.svelte": "652c6bdefb40fa37847398100916e307905893d0e053d046476c41119f6d0d5f",
+        "tools/mapgyver/native-probe/ui/src/generated.ts": "9d9e05023c7dfdd8275be70f59c2eacd173f0a71095e3c4b57d08ecd9a308830",
+        "tools/mapgyver/native-probe/ui/src/main.ts": "c76543fe1c49182b7ec4353a30135d00e3c439dfdf2577e2435272ff9f35930b",
+        "tools/mapgyver/native-probe/ui/src/native.ts": "30ef70406a96bbe19b74e52b83c3738a85d43644277c954e254ec45ee14976d9",
+        "tools/mapgyver/native-probe/ui/svelte.config.js": "f3c25c06187b11282d1293dd1aa038b34de915c464de9250b121241780c4d1ea",
+        "tools/mapgyver/native-probe/ui/tsconfig.json": "7bcf3e81653ce3c7b9a3b8d047bf56bae9714258ea79ef4ffb0f9a9009c8d40e",
+        "tools/mapgyver/native-probe/ui/vite.config.js": "11c7487f64e960a7a002408ea2a43225a53d15443e1776d79fb0ad98350a64bd",
+        "tools/mapgyver/run-qualification.py": "c55c6cf9eec55564fd4ac4abba2ad7adfdf8b772f488fa81ab02332cf9bfca6d"
+      }
+    },
+    "inputs_unchanged": true,
+    "exit_code": 0,
+    "stderr": "",
+    "report": {
+      "workload": {
+        "scenario": "diagnostic",
+        "exercise": "timed",
+        "sample_seconds": 120,
+        "warmup_seconds": 0
+      },
+      "evidence_kind": "ordinary_tauri_d3d11_probe_not_visual_or_hardware_reset_qualification",
+      "render_process_id": 40012,
+      "adapter_luid": "00000000:00016c2a",
+      "compiler": "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\HostX64\\x64\\cl.exe",
+      "windows_sdk_include": "C:\\Program Files (x86)\\Windows Kits\\10\\include\\10.0.26100.0\\ucrt",
+      "elapsed_seconds": 19.8703711,
+      "maximum_session_seconds": 120,
+      "status": {
+        "preview_extents": null,
+        "layout_revision": 2,
+        "rendered_revision": 2,
+        "webview_scale": 1.25,
+        "browser_scale": 1.25,
+        "preview_presents": 177,
+        "output_presents": 462,
+        "spout_sends": 905,
+        "source_observations": [
+          877,
+          905
+        ],
+        "rects": [
+          {
+            "bounds": {
+              "left": 429,
+              "top": 222,
+              "width": 683,
+              "height": 300
+            },
+            "clip": {
+              "left": 429,
+              "top": 222,
+              "width": 683,
+              "height": 300
+            }
+          },
+          {
+            "bounds": {
+              "left": 673,
+              "top": 586,
+              "width": 537,
+              "height": 240
+            },
+            "clip": {
+              "left": 673,
+              "top": 586,
+              "width": 537,
+              "height": 240
+            }
+          }
+        ],
+        "error": null
+      },
+      "observer": {
+        "process_id": 39216,
+        "adapter_luid": "00000000:00016c2a",
+        "checkpoints": [
+          {
+            "phase": "initial",
+            "extent": [
+              1920,
+              1080
+            ],
+            "sampled_bgra": [
+              [
+                [
+                  0,
+                  0,
+                  255,
+                  255
+                ],
+                [
+                  0,
+                  255,
+                  255,
+                  255
+                ]
+              ]
+            ],
+            "sampled_alpha": [],
+            "sampled_generation_markers": [],
+            "elapsed_ms": 8.0117
+          },
+          {
+            "phase": "resized",
+            "extent": [
+              1920,
+              1080
+            ],
+            "sampled_bgra": [
+              [
+                [
+                  0,
+                  0,
+                  255,
+                  255
+                ],
+                [
+                  0,
+                  255,
+                  255,
+                  255
+                ]
+              ],
+              [
+                [
+                  0,
+                  255,
+                  0,
+                  255
+                ],
+                [
+                  0,
+                  255,
+                  255,
+                  255
+                ]
+              ]
+            ],
+            "sampled_alpha": [],
+            "sampled_generation_markers": [],
+            "elapsed_ms": 140.5027
+          },
+          {
+            "phase": "source_absent",
+            "extent": [
+              1920,
+              1080
+            ],
+            "sampled_bgra": [
+              [
+                [
+                  0,
+                  255,
+                  0,
+                  255
+                ],
+                [
+                  0,
+                  255,
+                  255,
+                  255
+                ]
+              ],
+              [
+                [
+                  0,
+                  255,
+                  0,
+                  255
+                ],
+                [
+                  0,
+                  255,
+                  255,
+                  255
+                ]
+              ],
+              [
+                [
+                  13,
+                  13,
+                  13,
+                  255
+                ],
+                [
+                  0,
+                  255,
+                  255,
+                  255
+                ]
+              ]
+            ],
+            "sampled_alpha": [],
+            "sampled_generation_markers": [],
+            "elapsed_ms": 80.47619999999999
+          },
+          {
+            "phase": "recovered",
+            "extent": [
+              1920,
+              1080
+            ],
+            "sampled_bgra": [
+              [
+                [
+                  13,
+                  13,
+                  13,
+                  255
+                ],
+                [
+                  0,
+                  255,
+                  255,
+                  255
+                ]
+              ],
+              [
+                [
+                  13,
+                  13,
+                  13,
+                  255
+                ],
+                [
+                  0,
+                  255,
+                  255,
+                  255
+                ]
+              ],
+              [
+                [
+                  255,
+                  0,
+                  0,
+                  255
+                ],
+                [
+                  0,
+                  255,
+                  255,
+                  255
+                ]
+              ]
+            ],
+            "sampled_alpha": [],
+            "sampled_generation_markers": [],
+            "elapsed_ms": 62.059999999999995
+          }
+        ],
+        "received_observations": 9,
+        "diagnostic_readbacks": 9,
+        "verified_generations": 0
+      },
+      "generations": [
+        {
+          "generation": 0,
+          "end": "window_closed",
+          "adapter_luid": "00000000:00016c2a",
+          "elapsed_seconds": 19.7804713,
+          "setup_ms": 154.1148,
+          "consumer_ready_ms": null,
+          "native_output_extent": [
+            800,
+            450
+          ],
+          "fixed_geometry_observed": false,
+          "sampled_geometry_mismatches": 0,
+          "output_presents": 462,
+          "preview_presents": 177,
+          "spout_sends": 905,
+          "timing": {
+            "cpu_submission_work": {
+              "samples": 905,
+              "mean_ms": 10.272765524861882,
+              "median_ms": 0.6403,
+              "p95_ms": 46.462900000000005,
+              "p99_ms": 76.06110000000001,
+              "maximum_ms": 127.57560000000001
+            },
+            "worker_start_intervals": {
+              "samples": 904,
+              "mean_ms": 21.332343584070777,
+              "median_ms": 16.8049,
+              "p95_ms": 46.4642,
+              "p99_ms": 76.0629,
+              "maximum_ms": 127.5777
+            },
+            "gpu_execution": {
+              "samples": 538,
+              "mean_ms": 23.627912407063185,
+              "median_ms": 20.937291666666667,
+              "p95_ms": 67.81760416666667,
+              "p99_ms": 106.95348958333334,
+              "maximum_ms": 175.1952083333333
+            },
+            "skipped_gpu_queries": 366,
+            "invalid_gpu_queries": 0,
+            "pending_gpu_queries": 1,
+            "truncated_samples": 0
+          },
+          "consumer_checkpoint": null,
+          "retirement_fence_ms": 3.4108,
+          "recreated_after": false,
+          "after_release": {
+            "process_id": 40012,
+            "private_bytes": 68796416,
+            "working_set_bytes": 94593024,
+            "handle_count": 416
+          }
+        }
+      ],
+      "resources": {
+        "before_gpu": {
+          "process_id": 40012,
+          "private_bytes": 12525568,
+          "working_set_bytes": 36347904,
+          "handle_count": 367
+        },
+        "after_gpu_release": {
+          "process_id": 40012,
+          "private_bytes": 68927488,
+          "working_set_bytes": 94588928,
+          "handle_count": 411
+        },
+        "exclusions": [
+          "WebView2 subprocess memory and handles",
+          "source/observer GPU usage and per-texture residency",
+          "COM release does not prove driver allocation retirement"
+        ],
+        "process_ids_renderer_sources_observer": [
+          40012,
+          46192,
+          30980,
+          39216
+        ],
+        "columns": [
+          "elapsed_seconds",
+          "in_sample_window",
+          "renderer.private_bytes",
+          "renderer.working_set_bytes",
+          "renderer.handle_count",
+          "source_a.private_bytes",
+          "source_a.working_set_bytes",
+          "source_a.handle_count",
+          "source_b.private_bytes",
+          "source_b.working_set_bytes",
+          "source_b.handle_count",
+          "observer.private_bytes",
+          "observer.working_set_bytes",
+          "observer.handle_count",
+          "renderer_gpu_local.current_usage_bytes",
+          "renderer_gpu_local.budget_bytes",
+          "renderer_gpu_nonlocal.current_usage_bytes",
+          "renderer_gpu_nonlocal.budget_bytes"
+        ],
+        "rows": [
+          [
+            0.1541157,
+            true,
+            55894016,
+            78397440,
+            449,
+            41816064,
+            52985856,
+            218,
+            38363136,
+            49246208,
+            218,
+            26279936,
+            36323328,
+            203,
+            15503360,
+            18433902428,
+            0,
+            0
+          ],
+          [
+            1.0127247,
+            true,
+            83238912,
+            106233856,
+            465,
+            43036672,
+            54116352,
+            218,
+            38363136,
+            49254400,
+            218,
+            42545152,
+            53403648,
+            211,
+            67993600,
+            18433902428,
+            0,
+            0
+          ],
+          [
+            2.0045191,
+            true,
+            85581824,
+            108580864,
+            466,
+            46821376,
+            57905152,
+            219,
+            38662144,
+            49541120,
+            218,
+            42545152,
+            53415936,
+            211,
+            72343552,
+            18433902428,
+            0,
+            0
+          ],
+          [
+            3.0070869,
+            true,
+            85688320,
+            108675072,
+            464,
+            46817280,
+            57892864,
+            212,
+            38662144,
+            49541120,
+            218,
+            42545152,
+            53415936,
+            211,
+            54583296,
+            18433902428,
+            0,
+            0
+          ],
+          [
+            4.0005072,
+            true,
+            85688320,
+            108675072,
+            468,
+            55771136,
+            66834432,
+            220,
+            38662144,
+            49541120,
+            218,
+            42545152,
+            53420032,
+            211,
+            72376320,
+            18433902428,
+            0,
+            0
+          ],
+          [
+            5.0038421,
+            true,
+            85688320,
+            108675072,
+            466,
+            55771136,
+            66834432,
+            220,
+            38662144,
+            49541120,
+            218,
+            42545152,
+            53420032,
+            211,
+            72376320,
+            18433902428,
+            0,
+            0
+          ],
+          [
+            6.0080945,
+            true,
+            85688320,
+            108675072,
+            466,
+            55771136,
+            66834432,
+            220,
+            39256064,
+            50110464,
+            218,
+            42545152,
+            53420032,
+            211,
+            72343552,
+            18433902428,
+            0,
+            0
+          ],
+          [
+            7.0135119,
+            true,
+            85725184,
+            108707840,
+            466,
+            55771136,
+            66834432,
+            220,
+            39256064,
+            50110464,
+            218,
+            42545152,
+            53420032,
+            211,
+            72376320,
+            18433902428,
+            0,
+            0
+          ],
+          [
+            8.0118069,
+            true,
+            85725184,
+            108707840,
+            466,
+            55771136,
+            66834432,
+            220,
+            39256064,
+            50110464,
+            218,
+            42545152,
+            53420032,
+            211,
+            72376320,
+            18433902428,
+            0,
+            0
+          ],
+          [
+            9.022194,
+            true,
+            85725184,
+            108707840,
+            466,
+            55771136,
+            66834432,
+            220,
+            39256064,
+            50110464,
+            218,
+            42545152,
+            53420032,
+            211,
+            72376320,
+            18433902428,
+            0,
+            0
+          ],
+          [
+            10.0298886,
+            true,
+            85725184,
+            108834816,
+            467,
+            55771136,
+            66834432,
+            220,
+            39256064,
+            50110464,
+            218,
+            42545152,
+            53420032,
+            211,
+            72376320,
+            18433902428,
+            0,
+            0
+          ],
+          [
+            11.0252451,
+            true,
+            85725184,
+            108851200,
+            467,
+            55783424,
+            66842624,
+            220,
+            39256064,
+            50110464,
+            218,
+            42545152,
+            53420032,
+            211,
+            72376320,
+            18433902428,
+            0,
+            0
+          ],
+          [
+            12.0006163,
+            true,
+            85725184,
+            108851200,
+            467,
+            55783424,
+            66842624,
+            220,
+            39256064,
+            50110464,
+            218,
+            42545152,
+            53420032,
+            211,
+            72376320,
+            18433902428,
+            0,
+            0
+          ],
+          [
+            13.0040925,
+            true,
+            85725184,
+            108851200,
+            467,
+            55783424,
+            66842624,
+            220,
+            39256064,
+            50110464,
+            218,
+            42545152,
+            53420032,
+            211,
+            72376320,
+            18433902428,
+            0,
+            0
+          ],
+          [
+            14.0053054,
+            true,
+            85725184,
+            108851200,
+            467,
+            55783424,
+            66842624,
+            220,
+            39256064,
+            50110464,
+            218,
+            42545152,
+            53420032,
+            211,
+            72376320,
+            18433902428,
+            0,
+            0
+          ],
+          [
+            15.0073158,
+            true,
+            85725184,
+            108851200,
+            467,
+            55783424,
+            66842624,
+            220,
+            39256064,
+            50110464,
+            218,
+            42545152,
+            53420032,
+            211,
+            72376320,
+            18433902428,
+            0,
+            0
+          ],
+          [
+            16.0250969,
+            true,
+            85725184,
+            108851200,
+            467,
+            55783424,
+            66842624,
+            220,
+            39256064,
+            50110464,
+            218,
+            42545152,
+            53420032,
+            211,
+            72376320,
+            18433902428,
+            0,
+            0
+          ],
+          [
+            17.0038713,
+            true,
+            85725184,
+            108851200,
+            467,
+            55783424,
+            66842624,
+            220,
+            39256064,
+            50110464,
+            218,
+            42545152,
+            53420032,
+            211,
+            72376320,
+            18433902428,
+            0,
+            0
+          ],
+          [
+            18.0159671,
+            true,
+            85725184,
+            108851200,
+            467,
+            55783424,
+            66842624,
+            220,
+            39256064,
+            50110464,
+            218,
+            42545152,
+            53420032,
+            211,
+            72376320,
+            18433902428,
+            0,
+            0
+          ],
+          [
+            19.0299162,
+            true,
+            85860352,
+            108920832,
+            467,
+            55783424,
+            66842624,
+            220,
+            39256064,
+            50110464,
+            218,
+            42545152,
+            53420032,
+            211,
+            72376320,
+            18433902428,
+            0,
+            0
+          ]
+        ]
+      },
+      "unqualified": [
+        "manual visual/input/clipping/DPI",
+        "texture residency, displayed cadence and latency",
+        "hardware device removal and sustained retirement"
+      ]
+    }
+  },
+  "excluded_attempts": [
+    {
+      "stage": "before",
+      "action": "accessibility Close button",
+      "result": "coordinate input geometry is unavailable",
+      "interpretation": "No completed input counted; target refreshed before Alt+F4."
+    },
+    {
+      "stage": "first post-fix run",
+      "observed_executable_sha256": "033b498abf8fd3d17612e3655eaefb14406009bb4523e22aaa0214f3c850bfc9",
+      "result": "Composite Resized oracle failed before any close input: first red/yellow observation followed by three transparent/yellow observations, expected green/yellow with 191 alpha.",
+      "interpretation": "Startup screenshot was taken. Causality is not established; this attempt does not validate cancellation. Full runner record was truncated in tool output and is not reconstructed."
+    }
+  ],
+  "assertions": {
+    "before_returned_success_before_deadline": true,
+    "before_requested_seconds": 122,
+    "before_elapsed_seconds": 28.2731234,
+    "after_returns_nonzero_without_success_report": true,
+    "interactive_close_returns_success_with_reason": true
+  },
+  "validation": {
+    "full_native_suite": {
+      "command": "cargo test --locked -p mapgyver_native_probe --features desktop --all-targets -- --include-ignored --test-threads=1",
+      "exit_code": 0,
+      "deterministic_passed": 11,
+      "native_passed": 5,
+      "notes": "Completed before redundant recreated_after field removal; typed end reasons were asserted."
+    },
+    "post_cleanup_reconstruction": {
+      "command": "cargo test --locked -p mapgyver_native_probe --features desktop --test native_recreation -- --include-ignored --test-threads=1",
+      "exit_code": 0,
+      "passed": 1,
+      "duration_seconds": 47.94,
+      "notes": "Re-exercised both adapters and Q01/Q02 after the report field/caller cleanup."
+    },
+    "final_default_suite": {
+      "command": "cargo test --locked -p mapgyver_native_probe --features desktop --all-targets",
+      "exit_code": 0,
+      "deterministic_passed": 11,
+      "native_ignored": 5
+    },
+    "default_strict_clippy": "passed",
+    "desktop_strict_clippy": "passed",
+    "python_tests_passed": 2,
+    "root_core_fmt_and_whitespace": "passed",
+    "owned_native_processes_after_tests": 0,
+    "final_inputs": {
+      "executable_sha256": "ff06afc37a07720073d183d97fc1ade4a4f608bf234e0d80a916acfbb9970848",
+      "files": {
+        "Cargo.lock": "286b324f233cd15f2af643272e4f47759fc60ca3d13943204755ec94da10559f",
+        "Cargo.toml": "bd01765f8ba0796d43f9e826a919f3dced1cfba02570c249c9717d9870d9bdd4",
+        "package-lock.json": "46924d87a98b203fa1c66ece5e1fdd8705dc27210c183b481452998cd88be355",
+        "package.json": "15ea200aaaa832d472b173334a6f41d48bfa80d2791600157225eccb22d3ee28",
+        "tools/mapgyver/collect-baseline.ps1": "3cda72ba639594e312ea505e059de697367002c6ccb66bb1f75105a0a4955078",
+        "tools/mapgyver/native-probe/build.rs": "73fb236d28fee0b7d97bcca20a416a9ac938100dcd5164e66b6675753649ab4c",
+        "tools/mapgyver/native-probe/Cargo.toml": "abe2dcce394eae1710fcfe3cfc8fad90594a222290fd42dde6856ebc6f9d650b",
+        "tools/mapgyver/native-probe/src/bin/generate_probe_bindings.rs": "f39870bfc02fddf8ae37b0138484f2c6db1d4559341d980aa98a36b591b9915a",
+        "tools/mapgyver/native-probe/src/card.rs": "d45eaa7435024feb4956f3fc46f9fbd36beaf00ae7f315adcbf17ea5e670254b",
+        "tools/mapgyver/native-probe/src/completion.rs": "238eac811a44c3b69e7224b7247b7ca4b3c5f2ded33c889b9fc0dfad851a040e",
+        "tools/mapgyver/native-probe/src/d3d.rs": "28fa1f966a7fdad6c0b37c2c0db44200e8409b5521c948d236bb842fc672f1b1",
+        "tools/mapgyver/native-probe/src/desktop.rs": "85522b6c32330696aa6f0486a7c70ac64ca88b24dcace6d014c5c619ca0142fd",
+        "tools/mapgyver/native-probe/src/fixture.rs": "c3c831680fcbd9798366ccd244989859a0dd85572e9b7617aaf1e35061735f22",
+        "tools/mapgyver/native-probe/src/lib.rs": "1ae0b4295c7923bf0011c48af9cca0b2ca3a7b97dcfcceedd77622306f1178cf",
+        "tools/mapgyver/native-probe/src/main.rs": "b6091b168a1510757779e70d883dc210b11800bc926e52247bc606da4f9137b2",
+        "tools/mapgyver/native-probe/src/observer/client.rs": "5771045e355a08b2e4967608872d97a99239a034687c845f40cc261f11d940bc",
+        "tools/mapgyver/native-probe/src/observer/mod.rs": "5abc0fadc2ab7ecd423b24ccb235e3009967dc28eec24be9977416b149bedc53",
+        "tools/mapgyver/native-probe/src/observer/protocol.rs": "7cc953c0484868db365b1a18e06af3ea5f498c35079cc733daf150dbf775ac59",
+        "tools/mapgyver/native-probe/src/observer/tests/mod.rs": "87a8e598b19f9b2aabb6fc1b17b2bcf9d7e777795baf1131996c19744f73401d",
+        "tools/mapgyver/native-probe/src/presentation/tests/mod.rs": "739a41a1b886aa0c5f1c08243aa20b73126b812df7c02745533f437329fb3ea4",
+        "tools/mapgyver/native-probe/src/presentation.rs": "c751e94b91dc8dd92c2f607fd6901cdf4f39906b92e093574242326a32ab6b64",
+        "tools/mapgyver/native-probe/src/presenter.rs": "62f1d8d7bf416b885dc599e3c51f470c31e829c6a0ee85d8224a3504655855da",
+        "tools/mapgyver/native-probe/src/process.rs": "e94929a2f93e04663534bd17387d8807525318b18536c0a3cd37339550c30a8f",
+        "tools/mapgyver/native-probe/src/quad.rs": "525a68b84a1c20c409a6e935dde41f4bfcf0e992f8bbc003f71880f24988178f",
+        "tools/mapgyver/native-probe/src/query_data.rs": "afce4dd916e4a9b7ea98ab729c566b4fa22583c067ea527f09bd95b94fc37bfe",
+        "tools/mapgyver/native-probe/src/render_worker/generation.rs": "9aa717754ec05d8931e5ca55b7fc3c8245f1cc1204799ca1331238b504de78e9",
+        "tools/mapgyver/native-probe/src/render_worker.rs": "843c331c750b9dc7961f58965fbe0f3569342359e1ada06b000e996130d1dd90",
+        "tools/mapgyver/native-probe/src/resources.rs": "3b8de0238d301daff0379bdc32e7e6b9618961553152092694145b08848c9580",
+        "tools/mapgyver/native-probe/src/retirement.rs": "5d5929a5c7984e543680c21e0c9aece493b3b5342c76764389026329f795f54a",
+        "tools/mapgyver/native-probe/src/smoke.rs": "2c3bf7677a17ee809700606b10027f7ffde4b25934347e7a6063da0df3c16e9e",
+        "tools/mapgyver/native-probe/src/spout.rs": "87232eaf504cf029fab6a38d79b6b8d88ce1e116ed684edf556165c6100e9232",
+        "tools/mapgyver/native-probe/src/timing/tests/mod.rs": "e2bda3dbd0e8ecba435d06b10472b3434e6e4c8df753d13186121f206e8ba03f",
+        "tools/mapgyver/native-probe/src/timing.rs": "3d0526183eaa0175eccf85de554f8e9fba0d1031e17e5d2cae16cf1a09b53e29",
+        "tools/mapgyver/native-probe/src/workload/tests/mod.rs": "6e9074126c0229e8e85171f432d1b98039072874aba797c5ede33bbc4d1daf7f",
+        "tools/mapgyver/native-probe/src/workload.rs": "cac8600cae339815a6fd7b487e88d4064b1a252fc1b6ffb202d2a31c3d11d0c4",
+        "tools/mapgyver/native-probe/tauri.conf.json": "7e662b178abb64018037dd9da756e04de67d23f38dd409e686d90969afd66f1d",
+        "tools/mapgyver/native-probe/ui/dist/assets/index-BmsNWfJI.js": "0c0f26ed568b505006b3f3c184c332bbcf23d4be16881cd1e75e3caafa24115e",
+        "tools/mapgyver/native-probe/ui/dist/assets/index-NEuoE25f.css": "64d230ac153b556df0834833a285380f27d22b0bf33d04255d32c1f9a50e14cd",
+        "tools/mapgyver/native-probe/ui/dist/index.html": "3012e7fba9e50bd7fd8e97ad22fc7a97cd67240e87235b7c6bc01ced6ca233c8",
+        "tools/mapgyver/native-probe/ui/index.html": "8537f14356e5a97019d00197ca3609b1093b90fc2297a3e9abeedaaa5b514078",
+        "tools/mapgyver/native-probe/ui/package.json": "64d7e12087f720f977e6b13b6c78adcdcf79a78335632a9a70e01a0d2799831c",
+        "tools/mapgyver/native-probe/ui/scripts/check-generated.mjs": "8626ddca2d34ea8d2a99ffbe778ca32b6afe121d9eb26a6263e9c5de18cc2731",
+        "tools/mapgyver/native-probe/ui/src/App.svelte": "652c6bdefb40fa37847398100916e307905893d0e053d046476c41119f6d0d5f",
+        "tools/mapgyver/native-probe/ui/src/generated.ts": "9d9e05023c7dfdd8275be70f59c2eacd173f0a71095e3c4b57d08ecd9a308830",
+        "tools/mapgyver/native-probe/ui/src/main.ts": "c76543fe1c49182b7ec4353a30135d00e3c439dfdf2577e2435272ff9f35930b",
+        "tools/mapgyver/native-probe/ui/src/native.ts": "30ef70406a96bbe19b74e52b83c3738a85d43644277c954e254ec45ee14976d9",
+        "tools/mapgyver/native-probe/ui/svelte.config.js": "f3c25c06187b11282d1293dd1aa038b34de915c464de9250b121241780c4d1ea",
+        "tools/mapgyver/native-probe/ui/tsconfig.json": "7bcf3e81653ce3c7b9a3b8d047bf56bae9714258ea79ef4ffb0f9a9009c8d40e",
+        "tools/mapgyver/native-probe/ui/vite.config.js": "11c7487f64e960a7a002408ea2a43225a53d15443e1776d79fb0ad98350a64bd",
+        "tools/mapgyver/run-qualification.py": "c55c6cf9eec55564fd4ac4abba2ad7adfdf8b772f488fa81ab02332cf9bfca6d"
+      }
+    }
+  }
+}

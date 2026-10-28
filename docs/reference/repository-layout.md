@@ -82,14 +82,26 @@ for the exact convention.
 - `apps/chataigne/ui/src/lib/systems/state_machine/`: State Machine panel, local graph projection,
   and generated protocol bundle.
 
+## Planned MapGyver boundaries
+
+These paths describe the proposed design, not existing workspace members. See the
+[MapGyver architecture](../architecture/mapgyver.md) and [plan](../plan/MapGyver_Implementation_Plan.md).
+
+- `apps/mapgyver/src/app/`: thin Golden app shell and product registration.
+- `apps/mapgyver/systems/{media,screen,matrix}/`: app-owned models, backend operations and integration.
+- `apps/mapgyver/ui/`: Screen, Surface Source, Composition and Matrix editors.
+- `crates/golden_video/`: reusable GPU runtime, compositor primitives, Spout and presentation.
+- `packages/golden-video-ui/`: reusable native-preview bindings; host integration remains shared.
+
 ## Documentation and tooling
 
 - `docs/architecture/`: ownership and dependency design.
 - `docs/guides/`: contributor workflows.
 - `docs/operations/`: performance, release, troubleshooting, and hygiene runbooks.
 - `docs/reference/`: exact maps and policies.
-- `docs/plan/`: one active implementation plan, named in root `AGENTS.md`.
-- `docs/progress/`: one current implementation-status ledger.
+- `docs/plan/`: product implementation plans; root `AGENTS.md` selects Chataigne by default and
+  MapGyver only when explicitly requested.
+- `docs/progress/`: current product ledgers and qualification evidence.
 - `docs/archive/`: non-operative historical plans and qualification evidence.
 - `tools/`: bootstrap, checks, qualification, product gates, and release tooling.
 - `xtask/`: root watch orchestration.

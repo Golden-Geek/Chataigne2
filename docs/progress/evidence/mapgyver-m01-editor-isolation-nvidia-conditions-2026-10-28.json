@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "nvidia_editor_isolation_overlay_control",
+  "observations": [
+    {
+      "utc": "2026-10-28T07:50:04.439Z",
+      "overlay": "On",
+      "source": "NVIDIA settings screenshot: green switch at NVIDIA overlay",
+      "screenshot_id": "screenshot-0"
+    },
+    {
+      "utc": "2026-10-28T07:50:21.421Z",
+      "overlay": "Off",
+      "source": "NVIDIA settings screenshot gray switch; Enable and open overlay and NVIDIA overlay Toggle switch Off",
+      "screenshot_id": "screenshot-0"
+    },
+    {
+      "utc": "2026-10-28T08:17:33.045Z",
+      "overlay": "Off",
+      "source": "NVIDIA settings screenshot gray switch and NVIDIA overlay Toggle switch Off",
+      "screenshot_id": "screenshot-0"
+    },
+    {
+      "utc": "2026-10-28T08:17:51.226Z",
+      "overlay": "On",
+      "source": "NVIDIA settings screenshot green switch and NVIDIA overlay Toggle switch On",
+      "screenshot_id": "screenshot-0"
+    }
+  ],
+  "authorization": "User approved temporary overlay Off testing with restoration and accepted overlay-Off qualification prerequisite",
+  "measurement_scope": "RTX 5080 Laptop GPU adapter 1, q01 normal launch and editor isolation; no desktop capture while native probe runs",
+  "original_restored": true,
+  "screenshot_payloads_retained": false
+}

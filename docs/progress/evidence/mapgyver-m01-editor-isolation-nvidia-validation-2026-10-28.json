@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "cross_adapter_editor_isolation_validation_not_full_m01",
+  "final_stream_envelopes_inputs_and_analysis_hashes_verified": true,
+  "final_artifacts": [
+    "mapgyver-m01-editor-session-final-intel-control-2026-10-28.json",
+    "mapgyver-m01-editor-isolation-final-intel-2026-10-28.json",
+    "mapgyver-m01-editor-session-nvidia-control-2026-10-28.json",
+    "mapgyver-m01-editor-isolation-nvidia-2026-10-28.json"
+  ],
+  "analysis_sha256": "8b7da35406076af323cb52b20c7b66a0612549efce23a0b3535de9a02e0bcc8f",
+  "deterministic_rust_tests_passed": 40,
+  "python_tests_passed": 29,
+  "strict_default_desktop_clippy_passed": true,
+  "svelte_check_errors": 0,
+  "svelte_check_warnings": 0,
+  "ui_production_bundle_passed": true,
+  "generated_bindings_match": true,
+  "actual_root_core_formatters_run": true,
+  "local_doc_links_checked": 275,
+  "rust_source_limits_checked": 63,
+  "tool_whitespace_files_checked": 96,
+  "checks": [
+    {
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--manifest-path",
+        "crates/golden_core/Cargo.toml",
+        "--",
+        "--check"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0
+    }
+  ],
+  "owned_native_processes_remaining": 0,
+  "overlay_changed_this_turn": true,
+  "last_recorded_nvidia_overlay_state": "On, restored and observed at 2026-10-28 08:17:51 UTC",
+  "intermediate_captures_preserved": true,
+  "scope": "Both adapters' JS/document continuity and reconnect; not displayed cadence, full-card accuracy, GPU critical path, physical residency or full M01.",
+  "deterministic_test_scope": "Previous Intel validation on these identical runtime inputs; not rerun during the NVIDIA evidence-only turn."
+}

@@ -1,11 +1,18 @@
 # Chataigne2
 
-Chataigne2 is growing into one application for control, lighting creation, video/projection,
-and audio. The current implementation goal is foundation and readiness for that product.
+This workspace contains Chataigne2 and the shared Golden backend/UI foundations. A sibling
+Windows x64 video mapping app, **MapGyver**, is now planned alongside Chataigne. Its Media/Screen
+managers, Composition/Matrix systems and native texture editors are described in the
+[MapGyver architecture](docs/architecture/mapgyver.md) and
+[implementation plan](docs/plan/MapGyver_Implementation_Plan.md). MapGyver is not implemented yet.
 
-**To resume development, say “implement the plan”.** The single
+Chataigne2's current implementation goal remains foundation and product readiness for control,
+lighting, media and audio workflows.
+
+**To resume Chataigne development, say “implement the plan”.** Its
 [implementation plan](docs/plan/Chataigne2_Codex_Implementation_Plan.md) defines scope and order;
 [implementation status](docs/progress/implementation-status.md) records the current handoff.
+For MapGyver, explicitly select its named plan and [separate status](docs/progress/mapgyver-status.md).
 Superseded plans and dated qualification evidence live in the [archive](docs/archive/2026-10-18/README.md).
 
 Chataigne2 is the desktop shell and product composition layer for the Golden engine and UI stack.
@@ -80,6 +87,7 @@ JACK is loaded dynamically at runtime, so an absent JACK library/server does not
 ## Repository Map
 
 - `apps/chataigne/`: executable shell, product modules, Alchemist, state machine, resources, and UI.
+- `apps/mapgyver/` (planned): sibling video mapping shell, media/screen/Matrix systems and editors.
 - `crates/golden_core/`: reusable backend framework, grouped by responsibility.
 - `crates/golden_graph/`: reusable graph document and transaction system.
 - `packages/golden-ui/`: reusable application workbench and dock UI package.

@@ -3,8 +3,10 @@
 This section explains ownership and dependency direction. Start with the
 [top-level architecture](../../ARCHITECTURE.md), then open only the subsystem you are changing.
 
-For execution order use the single [implementation plan](../plan/Chataigne2_Codex_Implementation_Plan.md)
-and [current status](../progress/implementation-status.md). Historical implementation narratives
+For Chataigne execution order use its [implementation plan](../plan/Chataigne2_Codex_Implementation_Plan.md)
+and [current status](../progress/implementation-status.md). MapGyver has a separately selected
+[plan](../plan/MapGyver_Implementation_Plan.md) and [status](../progress/mapgyver-status.md).
+Historical implementation narratives
 and superseded plans are [archived](../archive/2026-10-18/README.md).
 
 ## Foundation
@@ -66,11 +68,20 @@ and superseded plans are [archived](../archive/2026-10-18/README.md).
 - [State machine and Alchemist processing](statecharts-conditions-processors.md): how Chataigne's
   state/transition runtime consumes Alchemist processors.
 
+## MapGyver design
+
+- [MapGyver architecture](mapgyver.md): planned sibling app, media/channels, composition, Matrix,
+  app lifecycle, screens/surfaces, editor and reusable GPU boundaries.
+- [Native rendering research](mapgyver-native-rendering.md): primary-source findings for
+  transparent WebView previews, D3D11/Spout and the first native feasibility gate.
+
 ## Placement rule
 
 Reusable node/runtime infrastructure belongs under `crates/golden_core/`. Generic graph document
 and canvas behavior belongs in `crates/golden_graph/` or `packages/golden-graph-ui/`.
 Chataigne product behavior belongs under `apps/chataigne/systems/`, with app-engine integration in
 each system's `integration/` folder and product UI under `apps/chataigne/ui/`.
+MapGyver product systems and specialized UI belong under `apps/mapgyver/`; its proposed reusable
+video runtime/preview mechanisms belong in Golden packages and the shared host.
 
 For exact paths, see [Repository Layout](../reference/repository-layout.md).

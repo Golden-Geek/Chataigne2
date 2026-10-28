@@ -1,0 +1,61 @@
+{
+  "final_fingerprints_verified": [
+    "mapgyver-m01-timeline-completion-nvidia-2026-10-28.json",
+    "mapgyver-m01-timeline-completion-intel-2026-10-28.json",
+    "mapgyver-m01-timeline-completion-nvidia-recreation-2026-10-28.json",
+    "mapgyver-m01-query-progress-final-nvidia-2026-10-28.json",
+    "mapgyver-m01-query-progress-final-intel-2026-10-28.json"
+  ],
+  "analysis_hashes_verified": true,
+  "documentation_local_links_verified": 122,
+  "rust_sources_under_1000_lines": 59,
+  "checks": [
+    {
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--manifest-path",
+        "crates/golden_core/Cargo.toml",
+        "--",
+        "--check"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0
+    }
+  ],
+  "current_release_executable_sha256": "d2983a5cb479d01b5b6b4bf8a0073f13d0fb56d378f46c54fc3bd1a2e00866d0",
+  "schema_version": 1,
+  "evidence_kind": "local_timeline_completion_validation_not_full_native_qualification",
+  "verified_utc": "2026-10-28T05:23:36Z",
+  "branch": "mapgyver",
+  "head": "40acd67df94920b63469a77da0ee64e40368d60b",
+  "validation": {
+    "deterministic_rust_tests_passed": 35,
+    "python_tests_passed": 16,
+    "intel_native_held_reader_test_passed": true,
+    "strict_default_and_desktop_all_target_clippy_passed": true,
+    "generated_rust_typescript_bindings_match": true,
+    "root_and_golden_core_actual_formatters_run": true,
+    "untracked_tool_source_whitespace_files_checked": 82,
+    "owned_probe_processes_remaining": 0,
+    "nvidia_overlay_verified_restored_on": true
+  }
+}

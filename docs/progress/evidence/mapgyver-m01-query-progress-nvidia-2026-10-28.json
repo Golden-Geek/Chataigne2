@@ -1,0 +1,8437 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "m01_nvidia_headless_query_progress_controls_not_q01_q02",
+  "inputs": {
+    "executable_sha256": "ddae005b0aa6a2e4c2e21c51f24921812fab3cbb27d8a7349ee6c2893f88b02c",
+    "files": {
+      "Cargo.lock": "286b324f233cd15f2af643272e4f47759fc60ca3d13943204755ec94da10559f",
+      "Cargo.toml": "bd01765f8ba0796d43f9e826a919f3dced1cfba02570c249c9717d9870d9bdd4",
+      "package-lock.json": "46924d87a98b203fa1c66ece5e1fdd8705dc27210c183b481452998cd88be355",
+      "package.json": "15ea200aaaa832d472b173334a6f41d48bfa80d2791600157225eccb22d3ee28",
+      "tools/mapgyver/collect-baseline.ps1": "3cda72ba639594e312ea505e059de697367002c6ccb66bb1f75105a0a4955078",
+      "tools/mapgyver/native-probe/build.rs": "73fb236d28fee0b7d97bcca20a416a9ac938100dcd5164e66b6675753649ab4c",
+      "tools/mapgyver/native-probe/Cargo.toml": "66ba9f7eef570fdfd5efc1158621507cf62b929d5477dff27ab46052aac9b8f0",
+      "tools/mapgyver/native-probe/src/allocation/tests/mod.rs": "f2fc948e7b067ec61bec6ac34cfc32728f02494a3d9b485ea883443276308574",
+      "tools/mapgyver/native-probe/src/allocation.rs": "28c8ac3ef154716ffad312689b950eace694d3b83c26fffe5ff24c7930882fd4",
+      "tools/mapgyver/native-probe/src/bin/generate_probe_bindings.rs": "f39870bfc02fddf8ae37b0138484f2c6db1d4559341d980aa98a36b591b9915a",
+      "tools/mapgyver/native-probe/src/cadence/tests/mod.rs": "3b19d27cb1bf5b18423d8aa37f82d81a93dfc6857fc332747c67e4e3d2aa0b3d",
+      "tools/mapgyver/native-probe/src/cadence.rs": "e07c42631e7d6c63f8ff18b9fe4c4394aef14ac2f076fc5a530cf0fa0a3f55c4",
+      "tools/mapgyver/native-probe/src/card.rs": "37ea31310543d39e59dc942841c85c986e7551161ac13a5f03b9c362c1bc045a",
+      "tools/mapgyver/native-probe/src/child_resources.rs": "cc5dc2562f40de45809484d3593d9c23ebe2034c34d543c65ed810b786c438b0",
+      "tools/mapgyver/native-probe/src/clock.rs": "79cd123256b6cca2c77eba8db1785623d45c2cd5e7c4e4bfe162bb9633dbf8aa",
+      "tools/mapgyver/native-probe/src/completion.rs": "238eac811a44c3b69e7224b7247b7ca4b3c5f2ded33c889b9fc0dfad851a040e",
+      "tools/mapgyver/native-probe/src/d3d.rs": "84483064dbd358eacd363d6856f6cc2d547f388b6ebc9aca19380862a195ec37",
+      "tools/mapgyver/native-probe/src/desktop.rs": "b2127767d9e4010275ca4a0311e1df87e9690dfa374d48beb904663e7304e646",
+      "tools/mapgyver/native-probe/src/fixture/client.rs": "33b456bfa9d9a4ee2d7a49fd8b8fa02cb2d4e543d3938895f1fd92f8ba29a2a4",
+      "tools/mapgyver/native-probe/src/fixture/protocol.rs": "b4756f30153327bb5bd61405d66ef1ddf68c3612b8f32c0d67c4fd30ad3958d0",
+      "tools/mapgyver/native-probe/src/fixture.rs": "18167cc23380dc61fa3b635d8ea33eabcd51792b7f22c5ec9b3ab98e1443a58b",
+      "tools/mapgyver/native-probe/src/frame_admission.rs": "a88a018baa5c2f74809cfb0a99ab1e15bc16e80fff888c50a1ae0e2d31799765",
+      "tools/mapgyver/native-probe/src/frame_age/tests/mod.rs": "26ad9b364663ab21fb1ec5d06b6515d5920fc5208be9d731b1889072f2aee6d9",
+      "tools/mapgyver/native-probe/src/frame_age.rs": "4bbc244ff01cb33fe7689fe7b7a55897a92e07f77059fdacf9811bca843302aa",
+      "tools/mapgyver/native-probe/src/gpu_admission/tests/mod.rs": "80ae0c56653c41b69170d3515a0c9c67de9c42589e8c0868c591ff11fc6da762",
+      "tools/mapgyver/native-probe/src/gpu_admission.rs": "ca17d750c20344e5a8b0915f09c8cb1fd39ebe33297ba061a78aed2a8df400a7",
+      "tools/mapgyver/native-probe/src/gpu_progress.rs": "ca933ae03e6f221a4544d1c8fefff3506f2e670ac8a6ffba0f642b177ede8ac5",
+      "tools/mapgyver/native-probe/src/lib.rs": "b62459cf38ddbe3dc6a6048f812ce718fd2c66986cc3f7719fda1cac64aedc98",
+      "tools/mapgyver/native-probe/src/main.rs": "1667afc3184b477c75ba06a279b466d44f6f52b156abfab375341be596a8c9fc",
+      "tools/mapgyver/native-probe/src/observer/client.rs": "cd466a25489c799e62ee4444e36c1fa25eaca2a40a4813417339c5659bd3579b",
+      "tools/mapgyver/native-probe/src/observer/frame_age.rs": "61eec1f2fbbd804f2d1609341551795b12d4a65ad99d6b9fb45145285c4687c8",
+      "tools/mapgyver/native-probe/src/observer/mod.rs": "7f53052b0a7c3a2ab2961f095ef4597f1efc1845a081d2c0fe5a2dbc71e62baf",
+      "tools/mapgyver/native-probe/src/observer/protocol.rs": "8f74e7e72958f532244d920676d2af072bfd31914ed2426a7e6dc309eaf3d601",
+      "tools/mapgyver/native-probe/src/observer/tests/mod.rs": "a2a39c51e54a890b3c7c6767e63481d2c0706ac41f152401e085347b64b4221d",
+      "tools/mapgyver/native-probe/src/operation_timing/tests/mod.rs": "0a79db53ccc9473e9d54efbe6734ba7f8c669af889179ce6be39d55f9236ffc5",
+      "tools/mapgyver/native-probe/src/operation_timing.rs": "769b35f353cd366fbae2146c8a1a650b978eb449639de5207a474f06c8a49dbb",
+      "tools/mapgyver/native-probe/src/presentation/tests/mod.rs": "739a41a1b886aa0c5f1c08243aa20b73126b812df7c02745533f437329fb3ea4",
+      "tools/mapgyver/native-probe/src/presentation.rs": "d2063e13d0602b80f13ef4784bf5b44e35a1105a70367a4388292000811cd2ef",
+      "tools/mapgyver/native-probe/src/presenter/admission/tests/mod.rs": "a605ece7035cf5ae959eccef507b2690e12957056da125a9970c8c5bc1951b4d",
+      "tools/mapgyver/native-probe/src/presenter/admission.rs": "578c5952d5e3a79b9593fffb6f54cc1c7fc6f2c088f84fd52fde8f9c97947253",
+      "tools/mapgyver/native-probe/src/presenter.rs": "8ed5bbbbb11869e9ee697b6f7862e0a2d03ca81b99078a911cf5831f7355f0e1",
+      "tools/mapgyver/native-probe/src/process/reported.rs": "ed1c99582ebb90bf656c58f89a99e4472ba4a90396925477e9564cb91d2ce5f6",
+      "tools/mapgyver/native-probe/src/process.rs": "d3a2d80fb0ff629284d9c4f63240d3410935ee97d5732241c61265453c897099",
+      "tools/mapgyver/native-probe/src/quad.rs": "869cfcae90b58b2c498e04f9c3188649ceb1a3f599922905aa5d253a78cb5028",
+      "tools/mapgyver/native-probe/src/query_data.rs": "afce4dd916e4a9b7ea98ab729c566b4fa22583c067ea527f09bd95b94fc37bfe",
+      "tools/mapgyver/native-probe/src/render_worker/generation.rs": "8f0dbc3fd740e18e8efc8b4d1ab9bd2ce97d48f0fb7fdf06661a8b68deeeffe3",
+      "tools/mapgyver/native-probe/src/render_worker.rs": "a14f61022c1f7d35c0c47d0e5e180f751972501158934e575a780af1f54bb375",
+      "tools/mapgyver/native-probe/src/resource_log/tests/mod.rs": "30536bf948a10da7bf0e15cf23d714ff8f00d213d526ef64f7f085c32161bebf",
+      "tools/mapgyver/native-probe/src/resource_log.rs": "2505a45136736792afdb417fef8087c4894c45a969054ce1e3305e67a03a1dbb",
+      "tools/mapgyver/native-probe/src/resources.rs": "9e40788a5ebe4b01bd6f29623b74d73f3227b0b979f0de121250b23915a4920a",
+      "tools/mapgyver/native-probe/src/retirement.rs": "fed0c8999fe4456e45ec454f379140fedb6c88c7f83e8b874adc489c54bb775c",
+      "tools/mapgyver/native-probe/src/smoke.rs": "011499bed6cb7cc5c71e715eb008a108ab4fbb9b0ff232139bbd2a71bdcb628f",
+      "tools/mapgyver/native-probe/src/source_worker/surface/tests/mod.rs": "2053a40faadfef84dc5272dd69597783789d57e4f0f5a6c2439f2aa9bba9dd43",
+      "tools/mapgyver/native-probe/src/source_worker/surface.rs": "7ee98714efb85e6a8218c90259b76cf867f697874bc06c1aa4dd6604c4bb5ae9",
+      "tools/mapgyver/native-probe/src/source_worker/tests/mod.rs": "31652d2a685c724b7628ae691df2079176c8f458fb309da5801ad990fd74c8ce",
+      "tools/mapgyver/native-probe/src/source_worker/worker.rs": "06075f518ba1d82d1518b709a21b2ab97b76379d6cd90ce9576565f9a2cabff2",
+      "tools/mapgyver/native-probe/src/source_worker.rs": "fa77947c75598341f44c23e01736cdb785777fc6c0bcb9a94f3162d746a3e5f0",
+      "tools/mapgyver/native-probe/src/spout.rs": "5b8684b0b4a22202b5dfc74c68803a8a7b8b4ef4729eed560c4b96f0476d684d",
+      "tools/mapgyver/native-probe/src/statistics/tests/mod.rs": "e2bda3dbd0e8ecba435d06b10472b3434e6e4c8df753d13186121f206e8ba03f",
+      "tools/mapgyver/native-probe/src/statistics.rs": "404893f2a1a8194d54f53a6cdc833748821a45c0741cce797efb11b4192f576f",
+      "tools/mapgyver/native-probe/src/texture.rs": "68052e3bec3b8d72ce8278f3021b7afc86147bf0f03841a65589f869663e76db",
+      "tools/mapgyver/native-probe/src/timing.rs": "6b72fe063cd9e270a46dab64c8dcdc7cccbfaf1b019da5775250a093533d8f68",
+      "tools/mapgyver/native-probe/src/trace_capability.rs": "87db9ba6e644d4f8a436c3ed6cf4bdf6601b993816332e91238b8d8a11bace18",
+      "tools/mapgyver/native-probe/src/wire.rs": "7ed0d0b25811ea89a84568c8a8f6767f0f550c6452c60e1a1c5edbc613daa52a",
+      "tools/mapgyver/native-probe/src/workload/tests/mod.rs": "c1cfcc408c4aa44b85ceb0b821a692ebd07e247678a9d5b55f0b5edc1001c8e8",
+      "tools/mapgyver/native-probe/src/workload.rs": "bebcfee4239134dd7cd7a7ec69d2d1b06bdd9ce7d9b46582ea553ed66ea3a154",
+      "tools/mapgyver/native-probe/tauri.conf.json": "7e662b178abb64018037dd9da756e04de67d23f38dd409e686d90969afd66f1d",
+      "tools/mapgyver/native-probe/ui/dist/assets/index-L5J2Q3d3.js": "3c05c362766b0b5ac944d3e34be1ae9e52034ff64f25fed75de14f2cdb1fedce",
+      "tools/mapgyver/native-probe/ui/dist/assets/index-NEuoE25f.css": "64d230ac153b556df0834833a285380f27d22b0bf33d04255d32c1f9a50e14cd",
+      "tools/mapgyver/native-probe/ui/dist/index.html": "b73b37b178e5f830f5332d794e0071c2db774ddd7b391a5bcb65abbe3291c789",
+      "tools/mapgyver/native-probe/ui/index.html": "8537f14356e5a97019d00197ca3609b1093b90fc2297a3e9abeedaaa5b514078",
+      "tools/mapgyver/native-probe/ui/package.json": "64d7e12087f720f977e6b13b6c78adcdcf79a78335632a9a70e01a0d2799831c",
+      "tools/mapgyver/native-probe/ui/scripts/check-generated.mjs": "8626ddca2d34ea8d2a99ffbe778ca32b6afe121d9eb26a6263e9c5de18cc2731",
+      "tools/mapgyver/native-probe/ui/src/App.svelte": "7719f3e9b8b85e9d34eb8869bc562572963c1442b1f680d1e5cdc6c37cff54a0",
+      "tools/mapgyver/native-probe/ui/src/generated.ts": "e69c90bee49b918de2f0a0375eafe01ebfddb0e1c209ec3742ce64a41864ff4c",
+      "tools/mapgyver/native-probe/ui/src/main.ts": "c76543fe1c49182b7ec4353a30135d00e3c439dfdf2577e2435272ff9f35930b",
+      "tools/mapgyver/native-probe/ui/src/native.ts": "30ef70406a96bbe19b74e52b83c3738a85d43644277c954e254ec45ee14976d9",
+      "tools/mapgyver/native-probe/ui/svelte.config.js": "f3c25c06187b11282d1293dd1aa038b34de915c464de9250b121241780c4d1ea",
+      "tools/mapgyver/native-probe/ui/tsconfig.json": "7bcf3e81653ce3c7b9a3b8d047bf56bae9714258ea79ef4ffb0f9a9009c8d40e",
+      "tools/mapgyver/native-probe/ui/vite.config.js": "11c7487f64e960a7a002408ea2a43225a53d15443e1776d79fb0ad98350a64bd",
+      "tools/mapgyver/run-qualification.py": "51dce046303b1a01622c5adf7ebda4f1e9b127309f31da2ea0eaec70653b13de"
+    }
+  },
+  "inputs_unchanged_after_runs": true,
+  "operator_conditions": {
+    "adapter": 1,
+    "declared_nvidia_overlay": "off",
+    "desktop_snapshotting_during_measurement": false,
+    "computer_use_kernel_reset_before_measurement": true,
+    "display_settings_changed": false
+  },
+  "runs": [
+    {
+      "command": [
+        "D:\\Projects\\Dev\\Chataigne2\\target\\release\\mapgyver_native_probe.exe",
+        "gpu-progress",
+        "1",
+        "event"
+      ],
+      "started_utc": "2026-10-28T04:46:12.941764+00:00",
+      "exit_code": 0,
+      "stderr": "",
+      "report": {
+        "evidence_kind": "headless_query_progress_isolation_not_fixed_workload_qualification",
+        "mode": "event",
+        "adapter_luid": "00000000:000170d3",
+        "seconds": 8,
+        "target_ticks": 480,
+        "elapsed_seconds": 8.0000632,
+        "qpc_frequency": 10000000,
+        "start_qpc": 1615805083913,
+        "busy_ticks": [
+          {
+            "frame": 2,
+            "qpc": 1615805419258
+          },
+          {
+            "frame": 3,
+            "qpc": 1615805589618
+          },
+          {
+            "frame": 4,
+            "qpc": 1615805750947
+          },
+          {
+            "frame": 5,
+            "qpc": 1615805921508
+          },
+          {
+            "frame": 6,
+            "qpc": 1615806085838
+          },
+          {
+            "frame": 7,
+            "qpc": 1615806252491
+          },
+          {
+            "frame": 8,
+            "qpc": 1615806417873
+          },
+          {
+            "frame": 9,
+            "qpc": 1615806587862
+          },
+          {
+            "frame": 10,
+            "qpc": 1615806755913
+          },
+          {
+            "frame": 11,
+            "qpc": 1615806918498
+          },
+          {
+            "frame": 12,
+            "qpc": 1615807084230
+          },
+          {
+            "frame": 13,
+            "qpc": 1615807255665
+          },
+          {
+            "frame": 14,
+            "qpc": 1615807421570
+          },
+          {
+            "frame": 15,
+            "qpc": 1615807588929
+          },
+          {
+            "frame": 16,
+            "qpc": 1615807751273
+          },
+          {
+            "frame": 17,
+            "qpc": 1615807922521
+          },
+          {
+            "frame": 18,
+            "qpc": 1615808088970
+          },
+          {
+            "frame": 19,
+            "qpc": 1615808254097
+          },
+          {
+            "frame": 20,
+            "qpc": 1615808419055
+          },
+          {
+            "frame": 21,
+            "qpc": 1615808586063
+          },
+          {
+            "frame": 22,
+            "qpc": 1615808751150
+          },
+          {
+            "frame": 23,
+            "qpc": 1615808918577
+          },
+          {
+            "frame": 24,
+            "qpc": 1615809084682
+          },
+          {
+            "frame": 25,
+            "qpc": 1615809254936
+          },
+          {
+            "frame": 26,
+            "qpc": 1615809421029
+          },
+          {
+            "frame": 27,
+            "qpc": 1615809589111
+          },
+          {
+            "frame": 28,
+            "qpc": 1615809753642
+          },
+          {
+            "frame": 29,
+            "qpc": 1615809919397
+          },
+          {
+            "frame": 30,
+            "qpc": 1615810084616
+          },
+          {
+            "frame": 31,
+            "qpc": 1615810251227
+          },
+          {
+            "frame": 32,
+            "qpc": 1615810419734
+          },
+          {
+            "frame": 33,
+            "qpc": 1615810587786
+          },
+          {
+            "frame": 34,
+            "qpc": 1615810753815
+          },
+          {
+            "frame": 35,
+            "qpc": 1615810919904
+          },
+          {
+            "frame": 36,
+            "qpc": 1615811087434
+          },
+          {
+            "frame": 37,
+            "qpc": 1615811254794
+          },
+          {
+            "frame": 38,
+            "qpc": 1615811419133
+          },
+          {
+            "frame": 39,
+            "qpc": 1615811589089
+          },
+          {
+            "frame": 40,
+            "qpc": 1615811754963
+          },
+          {
+            "frame": 41,
+            "qpc": 1615811919217
+          },
+          {
+            "frame": 42,
+            "qpc": 1615812085256
+          },
+          {
+            "frame": 43,
+            "qpc": 1615812252529
+          },
+          {
+            "frame": 44,
+            "qpc": 1615812418644
+          },
+          {
+            "frame": 45,
+            "qpc": 1615812586217
+          },
+          {
+            "frame": 46,
+            "qpc": 1615812754187
+          },
+          {
+            "frame": 47,
+            "qpc": 1615812921429
+          },
+          {
+            "frame": 48,
+            "qpc": 1615813085268
+          },
+          {
+            "frame": 49,
+            "qpc": 1615813255804
+          },
+          {
+            "frame": 50,
+            "qpc": 1615813422365
+          },
+          {
+            "frame": 51,
+            "qpc": 1615813584320
+          },
+          {
+            "frame": 52,
+            "qpc": 1615813754465
+          },
+          {
+            "frame": 53,
+            "qpc": 1615813918517
+          },
+          {
+            "frame": 54,
+            "qpc": 1615814086418
+          },
+          {
+            "frame": 55,
+            "qpc": 1615814253295
+          },
+          {
+            "frame": 56,
+            "qpc": 1615814422849
+          },
+          {
+            "frame": 57,
+            "qpc": 1615814586345
+          },
+          {
+            "frame": 58,
+            "qpc": 1615814754427
+          },
+          {
+            "frame": 59,
+            "qpc": 1615814919678
+          },
+          {
+            "frame": 60,
+            "qpc": 1615815085075
+          },
+          {
+            "frame": 61,
+            "qpc": 1615815255531
+          },
+          {
+            "frame": 62,
+            "qpc": 1615815421641
+          },
+          {
+            "frame": 63,
+            "qpc": 1615815587321
+          },
+          {
+            "frame": 64,
+            "qpc": 1615815752571
+          },
+          {
+            "frame": 65,
+            "qpc": 1615815918342
+          },
+          {
+            "frame": 66,
+            "qpc": 1615816089369
+          },
+          {
+            "frame": 67,
+            "qpc": 1615816255036
+          },
+          {
+            "frame": 68,
+            "qpc": 1615816420664
+          },
+          {
+            "frame": 69,
+            "qpc": 1615816586413
+          },
+          {
+            "frame": 70,
+            "qpc": 1615816751886
+          },
+          {
+            "frame": 71,
+            "qpc": 1615816918100
+          },
+          {
+            "frame": 72,
+            "qpc": 1615817089099
+          },
+          {
+            "frame": 73,
+            "qpc": 1615817254472
+          },
+          {
+            "frame": 74,
+            "qpc": 1615817420909
+          },
+          {
+            "frame": 75,
+            "qpc": 1615817586221
+          },
+          {
+            "frame": 76,
+            "qpc": 1615817754463
+          },
+          {
+            "frame": 77,
+            "qpc": 1615817919850
+          },
+          {
+            "frame": 78,
+            "qpc": 1615818086559
+          },
+          {
+            "frame": 79,
+            "qpc": 1615818254734
+          },
+          {
+            "frame": 80,
+            "qpc": 1615818419655
+          },
+          {
+            "frame": 81,
+            "qpc": 1615818588695
+          },
+          {
+            "frame": 82,
+            "qpc": 1615818755039
+          },
+          {
+            "frame": 83,
+            "qpc": 1615818921950
+          },
+          {
+            "frame": 84,
+            "qpc": 1615819088697
+          },
+          {
+            "frame": 85,
+            "qpc": 1615819251154
+          },
+          {
+            "frame": 86,
+            "qpc": 1615819420312
+          },
+          {
+            "frame": 87,
+            "qpc": 1615819584206
+          },
+          {
+            "frame": 88,
+            "qpc": 1615819754284
+          },
+          {
+            "frame": 89,
+            "qpc": 1615819918372
+          },
+          {
+            "frame": 90,
+            "qpc": 1615820088987
+          },
+          {
+            "frame": 91,
+            "qpc": 1615820252280
+          },
+          {
+            "frame": 92,
+            "qpc": 1615820419134
+          },
+          {
+            "frame": 93,
+            "qpc": 1615820588584
+          },
+          {
+            "frame": 94,
+            "qpc": 1615820753951
+          },
+          {
+            "frame": 95,
+            "qpc": 1615820921624
+          },
+          {
+            "frame": 96,
+            "qpc": 1615821086156
+          },
+          {
+            "frame": 97,
+            "qpc": 1615821254468
+          },
+          {
+            "frame": 98,
+            "qpc": 1615821420489
+          },
+          {
+            "frame": 99,
+            "qpc": 1615821589472
+          },
+          {
+            "frame": 100,
+            "qpc": 1615821754332
+          },
+          {
+            "frame": 101,
+            "qpc": 1615821920698
+          },
+          {
+            "frame": 102,
+            "qpc": 1615822088738
+          },
+          {
+            "frame": 103,
+            "qpc": 1615822255529
+          },
+          {
+            "frame": 104,
+            "qpc": 1615822420039
+          },
+          {
+            "frame": 105,
+            "qpc": 1615822584672
+          },
+          {
+            "frame": 106,
+            "qpc": 1615822755240
+          },
+          {
+            "frame": 107,
+            "qpc": 1615822918002
+          },
+          {
+            "frame": 108,
+            "qpc": 1615823087740
+          },
+          {
+            "frame": 109,
+            "qpc": 1615823255770
+          },
+          {
+            "frame": 110,
+            "qpc": 1615823418258
+          },
+          {
+            "frame": 111,
+            "qpc": 1615823585468
+          },
+          {
+            "frame": 112,
+            "qpc": 1615823751292
+          },
+          {
+            "frame": 113,
+            "qpc": 1615823918869
+          },
+          {
+            "frame": 114,
+            "qpc": 1615824087774
+          },
+          {
+            "frame": 115,
+            "qpc": 1615824253913
+          },
+          {
+            "frame": 116,
+            "qpc": 1615824420521
+          },
+          {
+            "frame": 117,
+            "qpc": 1615824586847
+          },
+          {
+            "frame": 118,
+            "qpc": 1615824753825
+          },
+          {
+            "frame": 119,
+            "qpc": 1615824920618
+          },
+          {
+            "frame": 120,
+            "qpc": 1615825084995
+          },
+          {
+            "frame": 121,
+            "qpc": 1615825252347
+          },
+          {
+            "frame": 122,
+            "qpc": 1615825420983
+          },
+          {
+            "frame": 123,
+            "qpc": 1615825586198
+          },
+          {
+            "frame": 124,
+            "qpc": 1615825751497
+          },
+          {
+            "frame": 125,
+            "qpc": 1615825922605
+          },
+          {
+            "frame": 126,
+            "qpc": 1615826084155
+          },
+          {
+            "frame": 127,
+            "qpc": 1615826254394
+          },
+          {
+            "frame": 128,
+            "qpc": 1615826419467
+          },
+          {
+            "frame": 129,
+            "qpc": 1615826585428
+          },
+          {
+            "frame": 130,
+            "qpc": 1615826755313
+          },
+          {
+            "frame": 131,
+            "qpc": 1615826919785
+          },
+          {
+            "frame": 132,
+            "qpc": 1615827085879
+          },
+          {
+            "frame": 133,
+            "qpc": 1615827251412
+          },
+          {
+            "frame": 134,
+            "qpc": 1615827422039
+          },
+          {
+            "frame": 135,
+            "qpc": 1615827589269
+          },
+          {
+            "frame": 136,
+            "qpc": 1615827754877
+          },
+          {
+            "frame": 137,
+            "qpc": 1615827921946
+          },
+          {
+            "frame": 138,
+            "qpc": 1615828087106
+          },
+          {
+            "frame": 139,
+            "qpc": 1615828251954
+          },
+          {
+            "frame": 140,
+            "qpc": 1615828420779
+          },
+          {
+            "frame": 141,
+            "qpc": 1615828584655
+          },
+          {
+            "frame": 142,
+            "qpc": 1615828751452
+          },
+          {
+            "frame": 143,
+            "qpc": 1615828919258
+          },
+          {
+            "frame": 144,
+            "qpc": 1615829084573
+          },
+          {
+            "frame": 145,
+            "qpc": 1615829254715
+          },
+          {
+            "frame": 146,
+            "qpc": 1615829419856
+          },
+          {
+            "frame": 147,
+            "qpc": 1615829586700
+          },
+          {
+            "frame": 148,
+            "qpc": 1615829752974
+          },
+          {
+            "frame": 149,
+            "qpc": 1615829918256
+          },
+          {
+            "frame": 150,
+            "qpc": 1615830087492
+          },
+          {
+            "frame": 151,
+            "qpc": 1615830251507
+          },
+          {
+            "frame": 152,
+            "qpc": 1615830418863
+          },
+          {
+            "frame": 153,
+            "qpc": 1615830585016
+          },
+          {
+            "frame": 154,
+            "qpc": 1615830754387
+          },
+          {
+            "frame": 155,
+            "qpc": 1615830918043
+          },
+          {
+            "frame": 156,
+            "qpc": 1615831088644
+          },
+          {
+            "frame": 157,
+            "qpc": 1615831255674
+          },
+          {
+            "frame": 158,
+            "qpc": 1615831421140
+          },
+          {
+            "frame": 159,
+            "qpc": 1615831589488
+          },
+          {
+            "frame": 160,
+            "qpc": 1615831755087
+          },
+          {
+            "frame": 161,
+            "qpc": 1615831921045
+          },
+          {
+            "frame": 162,
+            "qpc": 1615832087227
+          },
+          {
+            "frame": 163,
+            "qpc": 1615832251412
+          },
+          {
+            "frame": 164,
+            "qpc": 1615832420780
+          },
+          {
+            "frame": 165,
+            "qpc": 1615832585765
+          },
+          {
+            "frame": 166,
+            "qpc": 1615832754124
+          },
+          {
+            "frame": 167,
+            "qpc": 1615832919882
+          },
+          {
+            "frame": 168,
+            "qpc": 1615833085012
+          },
+          {
+            "frame": 169,
+            "qpc": 1615833250815
+          },
+          {
+            "frame": 170,
+            "qpc": 1615833421228
+          },
+          {
+            "frame": 171,
+            "qpc": 1615833589209
+          },
+          {
+            "frame": 172,
+            "qpc": 1615833754392
+          },
+          {
+            "frame": 173,
+            "qpc": 1615833920488
+          },
+          {
+            "frame": 174,
+            "qpc": 1615834086672
+          },
+          {
+            "frame": 175,
+            "qpc": 1615834251350
+          },
+          {
+            "frame": 176,
+            "qpc": 1615834420560
+          },
+          {
+            "frame": 177,
+            "qpc": 1615834589601
+          },
+          {
+            "frame": 178,
+            "qpc": 1615834758253
+          },
+          {
+            "frame": 179,
+            "qpc": 1615834919281
+          },
+          {
+            "frame": 180,
+            "qpc": 1615835087417
+          },
+          {
+            "frame": 181,
+            "qpc": 1615835254103
+          },
+          {
+            "frame": 182,
+            "qpc": 1615835417689
+          },
+          {
+            "frame": 183,
+            "qpc": 1615835587848
+          },
+          {
+            "frame": 184,
+            "qpc": 1615835753133
+          },
+          {
+            "frame": 185,
+            "qpc": 1615835918016
+          },
+          {
+            "frame": 186,
+            "qpc": 1615836088493
+          },
+          {
+            "frame": 187,
+            "qpc": 1615836253948
+          },
+          {
+            "frame": 188,
+            "qpc": 1615836422228
+          },
+          {
+            "frame": 189,
+            "qpc": 1615836588183
+          },
+          {
+            "frame": 190,
+            "qpc": 1615836754565
+          },
+          {
+            "frame": 191,
+            "qpc": 1615836922595
+          },
+          {
+            "frame": 192,
+            "qpc": 1615837090303
+          },
+          {
+            "frame": 193,
+            "qpc": 1615837254514
+          },
+          {
+            "frame": 194,
+            "qpc": 1615837419036
+          },
+          {
+            "frame": 195,
+            "qpc": 1615837587714
+          },
+          {
+            "frame": 196,
+            "qpc": 1615837756177
+          },
+          {
+            "frame": 197,
+            "qpc": 1615837919793
+          },
+          {
+            "frame": 198,
+            "qpc": 1615838086273
+          },
+          {
+            "frame": 199,
+            "qpc": 1615838251993
+          },
+          {
+            "frame": 200,
+            "qpc": 1615838418622
+          },
+          {
+            "frame": 201,
+            "qpc": 1615838585679
+          },
+          {
+            "frame": 202,
+            "qpc": 1615838753861
+          },
+          {
+            "frame": 203,
+            "qpc": 1615838918585
+          },
+          {
+            "frame": 204,
+            "qpc": 1615839089118
+          },
+          {
+            "frame": 205,
+            "qpc": 1615839251399
+          },
+          {
+            "frame": 206,
+            "qpc": 1615839417625
+          },
+          {
+            "frame": 207,
+            "qpc": 1615839584449
+          },
+          {
+            "frame": 208,
+            "qpc": 1615839755334
+          },
+          {
+            "frame": 209,
+            "qpc": 1615839919614
+          },
+          {
+            "frame": 210,
+            "qpc": 1615840085250
+          },
+          {
+            "frame": 211,
+            "qpc": 1615840255458
+          },
+          {
+            "frame": 212,
+            "qpc": 1615840422279
+          },
+          {
+            "frame": 213,
+            "qpc": 1615840587214
+          },
+          {
+            "frame": 214,
+            "qpc": 1615840755558
+          },
+          {
+            "frame": 215,
+            "qpc": 1615840920158
+          },
+          {
+            "frame": 216,
+            "qpc": 1615841088364
+          },
+          {
+            "frame": 217,
+            "qpc": 1615841254158
+          },
+          {
+            "frame": 218,
+            "qpc": 1615841422364
+          },
+          {
+            "frame": 219,
+            "qpc": 1615841586832
+          },
+          {
+            "frame": 220,
+            "qpc": 1615841755912
+          },
+          {
+            "frame": 221,
+            "qpc": 1615841919698
+          },
+          {
+            "frame": 222,
+            "qpc": 1615842089973
+          },
+          {
+            "frame": 223,
+            "qpc": 1615842254173
+          },
+          {
+            "frame": 224,
+            "qpc": 1615842419562
+          },
+          {
+            "frame": 225,
+            "qpc": 1615842585956
+          },
+          {
+            "frame": 226,
+            "qpc": 1615842750917
+          },
+          {
+            "frame": 227,
+            "qpc": 1615842921171
+          },
+          {
+            "frame": 228,
+            "qpc": 1615843086885
+          },
+          {
+            "frame": 229,
+            "qpc": 1615843257650
+          },
+          {
+            "frame": 230,
+            "qpc": 1615843418222
+          },
+          {
+            "frame": 231,
+            "qpc": 1615843585754
+          },
+          {
+            "frame": 232,
+            "qpc": 1615843752621
+          },
+          {
+            "frame": 233,
+            "qpc": 1615843919055
+          },
+          {
+            "frame": 234,
+            "qpc": 1615844087617
+          },
+          {
+            "frame": 235,
+            "qpc": 1615844252854
+          },
+          {
+            "frame": 236,
+            "qpc": 1615844420667
+          },
+          {
+            "frame": 237,
+            "qpc": 1615844587381
+          },
+          {
+            "frame": 238,
+            "qpc": 1615844755464
+          },
+          {
+            "frame": 239,
+            "qpc": 1615844922266
+          },
+          {
+            "frame": 240,
+            "qpc": 1615845088506
+          },
+          {
+            "frame": 241,
+            "qpc": 1615845252810
+          },
+          {
+            "frame": 242,
+            "qpc": 1615845421357
+          },
+          {
+            "frame": 243,
+            "qpc": 1615845588023
+          },
+          {
+            "frame": 244,
+            "qpc": 1615845755015
+          },
+          {
+            "frame": 245,
+            "qpc": 1615845918634
+          },
+          {
+            "frame": 246,
+            "qpc": 1615846087251
+          },
+          {
+            "frame": 247,
+            "qpc": 1615846253964
+          },
+          {
+            "frame": 248,
+            "qpc": 1615846419399
+          },
+          {
+            "frame": 249,
+            "qpc": 1615846589143
+          },
+          {
+            "frame": 250,
+            "qpc": 1615846755084
+          },
+          {
+            "frame": 251,
+            "qpc": 1615846917737
+          },
+          {
+            "frame": 252,
+            "qpc": 1615847086531
+          },
+          {
+            "frame": 253,
+            "qpc": 1615847252843
+          },
+          {
+            "frame": 254,
+            "qpc": 1615847420681
+          },
+          {
+            "frame": 255,
+            "qpc": 1615847586159
+          },
+          {
+            "frame": 258,
+            "qpc": 1615848085905
+          },
+          {
+            "frame": 259,
+            "qpc": 1615848252092
+          },
+          {
+            "frame": 260,
+            "qpc": 1615848419487
+          },
+          {
+            "frame": 261,
+            "qpc": 1615848587819
+          },
+          {
+            "frame": 262,
+            "qpc": 1615848753759
+          },
+          {
+            "frame": 263,
+            "qpc": 1615848919681
+          },
+          {
+            "frame": 264,
+            "qpc": 1615849089076
+          },
+          {
+            "frame": 265,
+            "qpc": 1615849255849
+          },
+          {
+            "frame": 266,
+            "qpc": 1615849418742
+          },
+          {
+            "frame": 267,
+            "qpc": 1615849587459
+          },
+          {
+            "frame": 268,
+            "qpc": 1615849753825
+          },
+          {
+            "frame": 269,
+            "qpc": 1615849920029
+          },
+          {
+            "frame": 270,
+            "qpc": 1615850090526
+          },
+          {
+            "frame": 271,
+            "qpc": 1615850258123
+          },
+          {
+            "frame": 272,
+            "qpc": 1615850418837
+          },
+          {
+            "frame": 273,
+            "qpc": 1615850588751
+          },
+          {
+            "frame": 274,
+            "qpc": 1615850755586
+          },
+          {
+            "frame": 275,
+            "qpc": 1615850920539
+          },
+          {
+            "frame": 276,
+            "qpc": 1615851087423
+          },
+          {
+            "frame": 277,
+            "qpc": 1615851251172
+          },
+          {
+            "frame": 278,
+            "qpc": 1615851418651
+          },
+          {
+            "frame": 279,
+            "qpc": 1615851588882
+          },
+          {
+            "frame": 280,
+            "qpc": 1615851753448
+          },
+          {
+            "frame": 281,
+            "qpc": 1615851920413
+          },
+          {
+            "frame": 282,
+            "qpc": 1615852088777
+          },
+          {
+            "frame": 283,
+            "qpc": 1615852251669
+          },
+          {
+            "frame": 284,
+            "qpc": 1615852421698
+          },
+          {
+            "frame": 285,
+            "qpc": 1615852588619
+          },
+          {
+            "frame": 286,
+            "qpc": 1615852751467
+          },
+          {
+            "frame": 287,
+            "qpc": 1615852919499
+          },
+          {
+            "frame": 288,
+            "qpc": 1615853089168
+          },
+          {
+            "frame": 289,
+            "qpc": 1615853256173
+          },
+          {
+            "frame": 290,
+            "qpc": 1615853418717
+          },
+          {
+            "frame": 291,
+            "qpc": 1615853586823
+          },
+          {
+            "frame": 292,
+            "qpc": 1615853753358
+          },
+          {
+            "frame": 293,
+            "qpc": 1615853920541
+          },
+          {
+            "frame": 294,
+            "qpc": 1615854089510
+          },
+          {
+            "frame": 295,
+            "qpc": 1615854253489
+          },
+          {
+            "frame": 296,
+            "qpc": 1615854419237
+          },
+          {
+            "frame": 297,
+            "qpc": 1615854586822
+          },
+          {
+            "frame": 298,
+            "qpc": 1615854751587
+          },
+          {
+            "frame": 299,
+            "qpc": 1615854918125
+          },
+          {
+            "frame": 300,
+            "qpc": 1615855084367
+          },
+          {
+            "frame": 301,
+            "qpc": 1615855252695
+          },
+          {
+            "frame": 302,
+            "qpc": 1615855420620
+          },
+          {
+            "frame": 303,
+            "qpc": 1615855586713
+          },
+          {
+            "frame": 304,
+            "qpc": 1615855755386
+          },
+          {
+            "frame": 305,
+            "qpc": 1615855919828
+          },
+          {
+            "frame": 306,
+            "qpc": 1615856088964
+          },
+          {
+            "frame": 307,
+            "qpc": 1615856256496
+          },
+          {
+            "frame": 308,
+            "qpc": 1615856420256
+          },
+          {
+            "frame": 309,
+            "qpc": 1615856584617
+          },
+          {
+            "frame": 310,
+            "qpc": 1615856755019
+          },
+          {
+            "frame": 311,
+            "qpc": 1615856918776
+          },
+          {
+            "frame": 312,
+            "qpc": 1615857089025
+          },
+          {
+            "frame": 313,
+            "qpc": 1615857253984
+          },
+          {
+            "frame": 314,
+            "qpc": 1615857420026
+          },
+          {
+            "frame": 315,
+            "qpc": 1615857588839
+          },
+          {
+            "frame": 316,
+            "qpc": 1615857755897
+          },
+          {
+            "frame": 317,
+            "qpc": 1615857918761
+          },
+          {
+            "frame": 318,
+            "qpc": 1615858089650
+          },
+          {
+            "frame": 319,
+            "qpc": 1615858254129
+          },
+          {
+            "frame": 320,
+            "qpc": 1615858418703
+          },
+          {
+            "frame": 321,
+            "qpc": 1615858587482
+          },
+          {
+            "frame": 322,
+            "qpc": 1615858755673
+          },
+          {
+            "frame": 323,
+            "qpc": 1615858919247
+          },
+          {
+            "frame": 324,
+            "qpc": 1615859086628
+          },
+          {
+            "frame": 325,
+            "qpc": 1615859252615
+          },
+          {
+            "frame": 326,
+            "qpc": 1615859420158
+          },
+          {
+            "frame": 327,
+            "qpc": 1615859586013
+          },
+          {
+            "frame": 328,
+            "qpc": 1615859753852
+          },
+          {
+            "frame": 329,
+            "qpc": 1615859920582
+          },
+          {
+            "frame": 330,
+            "qpc": 1615860087504
+          },
+          {
+            "frame": 331,
+            "qpc": 1615860252076
+          },
+          {
+            "frame": 332,
+            "qpc": 1615860419710
+          },
+          {
+            "frame": 333,
+            "qpc": 1615860588248
+          },
+          {
+            "frame": 334,
+            "qpc": 1615860754114
+          },
+          {
+            "frame": 335,
+            "qpc": 1615860918222
+          },
+          {
+            "frame": 336,
+            "qpc": 1615861091165
+          },
+          {
+            "frame": 337,
+            "qpc": 1615861253607
+          },
+          {
+            "frame": 338,
+            "qpc": 1615861422487
+          },
+          {
+            "frame": 339,
+            "qpc": 1615861589037
+          },
+          {
+            "frame": 340,
+            "qpc": 1615861754658
+          },
+          {
+            "frame": 341,
+            "qpc": 1615861921437
+          },
+          {
+            "frame": 342,
+            "qpc": 1615862086920
+          },
+          {
+            "frame": 343,
+            "qpc": 1615862254208
+          },
+          {
+            "frame": 344,
+            "qpc": 1615862423254
+          },
+          {
+            "frame": 345,
+            "qpc": 1615862587147
+          },
+          {
+            "frame": 346,
+            "qpc": 1615862752425
+          },
+          {
+            "frame": 347,
+            "qpc": 1615862918351
+          },
+          {
+            "frame": 348,
+            "qpc": 1615863087944
+          },
+          {
+            "frame": 349,
+            "qpc": 1615863254730
+          },
+          {
+            "frame": 350,
+            "qpc": 1615863420107
+          },
+          {
+            "frame": 351,
+            "qpc": 1615863586509
+          },
+          {
+            "frame": 352,
+            "qpc": 1615863754138
+          },
+          {
+            "frame": 353,
+            "qpc": 1615863918062
+          },
+          {
+            "frame": 354,
+            "qpc": 1615864087015
+          },
+          {
+            "frame": 355,
+            "qpc": 1615864252271
+          },
+          {
+            "frame": 356,
+            "qpc": 1615864420842
+          },
+          {
+            "frame": 357,
+            "qpc": 1615864590890
+          },
+          {
+            "frame": 358,
+            "qpc": 1615864754061
+          },
+          {
+            "frame": 359,
+            "qpc": 1615864922250
+          },
+          {
+            "frame": 360,
+            "qpc": 1615865088920
+          },
+          {
+            "frame": 361,
+            "qpc": 1615865253762
+          },
+          {
+            "frame": 362,
+            "qpc": 1615865421434
+          },
+          {
+            "frame": 363,
+            "qpc": 1615865588866
+          },
+          {
+            "frame": 364,
+            "qpc": 1615865753209
+          },
+          {
+            "frame": 365,
+            "qpc": 1615865918270
+          },
+          {
+            "frame": 366,
+            "qpc": 1615866087187
+          },
+          {
+            "frame": 367,
+            "qpc": 1615866252964
+          },
+          {
+            "frame": 368,
+            "qpc": 1615866420256
+          },
+          {
+            "frame": 369,
+            "qpc": 1615866587759
+          },
+          {
+            "frame": 370,
+            "qpc": 1615866755792
+          },
+          {
+            "frame": 371,
+            "qpc": 1615866921235
+          },
+          {
+            "frame": 372,
+            "qpc": 1615867088796
+          },
+          {
+            "frame": 373,
+            "qpc": 1615867255106
+          },
+          {
+            "frame": 374,
+            "qpc": 1615867418752
+          },
+          {
+            "frame": 375,
+            "qpc": 1615867588933
+          },
+          {
+            "frame": 376,
+            "qpc": 1615867753181
+          },
+          {
+            "frame": 377,
+            "qpc": 1615867919192
+          },
+          {
+            "frame": 378,
+            "qpc": 1615868089022
+          },
+          {
+            "frame": 379,
+            "qpc": 1615868254851
+          },
+          {
+            "frame": 380,
+            "qpc": 1615868420220
+          },
+          {
+            "frame": 381,
+            "qpc": 1615868585991
+          },
+          {
+            "frame": 382,
+            "qpc": 1615868752049
+          },
+          {
+            "frame": 383,
+            "qpc": 1615868920737
+          },
+          {
+            "frame": 384,
+            "qpc": 1615869086551
+          },
+          {
+            "frame": 385,
+            "qpc": 1615869253317
+          },
+          {
+            "frame": 386,
+            "qpc": 1615869418496
+          },
+          {
+            "frame": 387,
+            "qpc": 1615869585263
+          },
+          {
+            "frame": 388,
+            "qpc": 1615869751346
+          },
+          {
+            "frame": 389,
+            "qpc": 1615869918649
+          },
+          {
+            "frame": 390,
+            "qpc": 1615870084207
+          },
+          {
+            "frame": 391,
+            "qpc": 1615870253274
+          },
+          {
+            "frame": 392,
+            "qpc": 1615870418950
+          },
+          {
+            "frame": 393,
+            "qpc": 1615870585241
+          },
+          {
+            "frame": 394,
+            "qpc": 1615870755400
+          },
+          {
+            "frame": 395,
+            "qpc": 1615870919706
+          },
+          {
+            "frame": 396,
+            "qpc": 1615871085811
+          },
+          {
+            "frame": 397,
+            "qpc": 1615871254008
+          },
+          {
+            "frame": 398,
+            "qpc": 1615871421811
+          },
+          {
+            "frame": 399,
+            "qpc": 1615871586315
+          },
+          {
+            "frame": 400,
+            "qpc": 1615871752733
+          },
+          {
+            "frame": 401,
+            "qpc": 1615871918307
+          },
+          {
+            "frame": 402,
+            "qpc": 1615872088530
+          },
+          {
+            "frame": 403,
+            "qpc": 1615872254139
+          },
+          {
+            "frame": 404,
+            "qpc": 1615872419386
+          },
+          {
+            "frame": 405,
+            "qpc": 1615872585122
+          },
+          {
+            "frame": 406,
+            "qpc": 1615872755378
+          },
+          {
+            "frame": 407,
+            "qpc": 1615872920628
+          },
+          {
+            "frame": 408,
+            "qpc": 1615873085921
+          },
+          {
+            "frame": 409,
+            "qpc": 1615873251271
+          },
+          {
+            "frame": 410,
+            "qpc": 1615873421740
+          },
+          {
+            "frame": 411,
+            "qpc": 1615873587251
+          },
+          {
+            "frame": 412,
+            "qpc": 1615873752478
+          },
+          {
+            "frame": 413,
+            "qpc": 1615873918688
+          },
+          {
+            "frame": 414,
+            "qpc": 1615874088606
+          },
+          {
+            "frame": 415,
+            "qpc": 1615874251359
+          },
+          {
+            "frame": 416,
+            "qpc": 1615874420262
+          },
+          {
+            "frame": 417,
+            "qpc": 1615874588241
+          },
+          {
+            "frame": 418,
+            "qpc": 1615874757912
+          },
+          {
+            "frame": 419,
+            "qpc": 1615874920199
+          },
+          {
+            "frame": 420,
+            "qpc": 1615875087235
+          },
+          {
+            "frame": 421,
+            "qpc": 1615875255450
+          },
+          {
+            "frame": 422,
+            "qpc": 1615875420579
+          },
+          {
+            "frame": 423,
+            "qpc": 1615875589083
+          },
+          {
+            "frame": 424,
+            "qpc": 1615875752432
+          },
+          {
+            "frame": 425,
+            "qpc": 1615875917838
+          },
+          {
+            "frame": 426,
+            "qpc": 1615876088732
+          },
+          {
+            "frame": 427,
+            "qpc": 1615876255150
+          },
+          {
+            "frame": 428,
+            "qpc": 1615876418038
+          },
+          {
+            "frame": 429,
+            "qpc": 1615876588735
+          },
+          {
+            "frame": 430,
+            "qpc": 1615876753689
+          },
+          {
+            "frame": 431,
+            "qpc": 1615876920306
+          },
+          {
+            "frame": 432,
+            "qpc": 1615877087818
+          },
+          {
+            "frame": 433,
+            "qpc": 1615877254320
+          },
+          {
+            "frame": 434,
+            "qpc": 1615877421544
+          },
+          {
+            "frame": 435,
+            "qpc": 1615877588874
+          },
+          {
+            "frame": 436,
+            "qpc": 1615877755601
+          },
+          {
+            "frame": 437,
+            "qpc": 1615877919061
+          },
+          {
+            "frame": 438,
+            "qpc": 1615878087353
+          },
+          {
+            "frame": 439,
+            "qpc": 1615878257819
+          },
+          {
+            "frame": 440,
+            "qpc": 1615878421104
+          },
+          {
+            "frame": 441,
+            "qpc": 1615878588380
+          },
+          {
+            "frame": 442,
+            "qpc": 1615878756714
+          },
+          {
+            "frame": 443,
+            "qpc": 1615878918337
+          },
+          {
+            "frame": 444,
+            "qpc": 1615879085007
+          },
+          {
+            "frame": 445,
+            "qpc": 1615879251294
+          },
+          {
+            "frame": 446,
+            "qpc": 1615879419361
+          },
+          {
+            "frame": 447,
+            "qpc": 1615879588045
+          },
+          {
+            "frame": 448,
+            "qpc": 1615879752450
+          },
+          {
+            "frame": 449,
+            "qpc": 1615879921813
+          },
+          {
+            "frame": 450,
+            "qpc": 1615880088165
+          },
+          {
+            "frame": 451,
+            "qpc": 1615880254302
+          },
+          {
+            "frame": 452,
+            "qpc": 1615880420305
+          },
+          {
+            "frame": 453,
+            "qpc": 1615880586051
+          },
+          {
+            "frame": 454,
+            "qpc": 1615880751351
+          },
+          {
+            "frame": 455,
+            "qpc": 1615880922383
+          },
+          {
+            "frame": 456,
+            "qpc": 1615881086099
+          },
+          {
+            "frame": 457,
+            "qpc": 1615881251838
+          },
+          {
+            "frame": 458,
+            "qpc": 1615881418272
+          },
+          {
+            "frame": 459,
+            "qpc": 1615881584734
+          },
+          {
+            "frame": 460,
+            "qpc": 1615881751545
+          },
+          {
+            "frame": 461,
+            "qpc": 1615881925128
+          },
+          {
+            "frame": 462,
+            "qpc": 1615882086128
+          },
+          {
+            "frame": 463,
+            "qpc": 1615882252990
+          },
+          {
+            "frame": 464,
+            "qpc": 1615882418670
+          },
+          {
+            "frame": 465,
+            "qpc": 1615882586126
+          },
+          {
+            "frame": 466,
+            "qpc": 1615882752643
+          },
+          {
+            "frame": 467,
+            "qpc": 1615882920503
+          },
+          {
+            "frame": 468,
+            "qpc": 1615883086326
+          },
+          {
+            "frame": 469,
+            "qpc": 1615883251957
+          },
+          {
+            "frame": 470,
+            "qpc": 1615883418194
+          },
+          {
+            "frame": 471,
+            "qpc": 1615883589696
+          },
+          {
+            "frame": 472,
+            "qpc": 1615883754325
+          },
+          {
+            "frame": 473,
+            "qpc": 1615883920409
+          },
+          {
+            "frame": 474,
+            "qpc": 1615884085514
+          },
+          {
+            "frame": 475,
+            "qpc": 1615884253580
+          },
+          {
+            "frame": 476,
+            "qpc": 1615884420781
+          },
+          {
+            "frame": 477,
+            "qpc": 1615884584937
+          },
+          {
+            "frame": 478,
+            "qpc": 1615884751555
+          },
+          {
+            "frame": 479,
+            "qpc": 1615884922797
+          }
+        ],
+        "tick_work": {
+          "samples": 480,
+          "mean_ms": 0.00334979166666666,
+          "median_ms": 0.0022,
+          "p95_ms": 0.0073,
+          "p99_ms": 0.035500000000000004,
+          "maximum_ms": 0.0828
+        },
+        "timing": null,
+        "before_final_fence": {
+          "maximum_in_flight": 2,
+          "peak_in_flight": 2,
+          "submitted": 4,
+          "completed": 2,
+          "pending": 2,
+          "reserved": false,
+          "warmup": {
+            "attempts": 0,
+            "admitted": 0,
+            "busy": 0
+          },
+          "sampled": {
+            "attempts": 480,
+            "admitted": 4,
+            "busy": 476
+          }
+        },
+        "drain_clear_after_observation": true,
+        "after_final_fence": {
+          "maximum_in_flight": 2,
+          "peak_in_flight": 2,
+          "submitted": 4,
+          "completed": 4,
+          "pending": 0,
+          "reserved": false,
+          "warmup": {
+            "attempts": 0,
+            "admitted": 0,
+            "busy": 0
+          },
+          "sampled": {
+            "attempts": 480,
+            "admitted": 4,
+            "busy": 476
+          },
+          "pending_at_final_poll": 2
+        },
+        "allocations_after_fence": {
+          "live_bytes_by_owner": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "retiring_bytes_by_owner": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "live_textures": 0,
+          "retiring_textures": 0,
+          "peak_live_plus_retiring_bytes": 1024,
+          "peak_live_plus_retiring_textures": 1
+        },
+        "operations_including_seed": {
+          "clears": 2,
+          "shader_draws": 0,
+          "uniform_upload_bytes": 0,
+          "diagnostic_readback_pixels": 0,
+          "sdk_send_calls": 0,
+          "sdk_receive_calls": 0,
+          "sdk_texture_queries": 0,
+          "sdk_texture_observations": 0,
+          "explicit_gpu_copy_calls": 0,
+          "explicit_gpu_copy_bytes": 0
+        }
+      },
+      "failure_stdout": null
+    },
+    {
+      "command": [
+        "D:\\Projects\\Dev\\Chataigne2\\target\\release\\mapgyver_native_probe.exe",
+        "gpu-progress",
+        "1",
+        "warmup"
+      ],
+      "started_utc": "2026-10-28T04:46:21.133058+00:00",
+      "exit_code": 0,
+      "stderr": "",
+      "report": {
+        "evidence_kind": "headless_query_progress_isolation_not_fixed_workload_qualification",
+        "mode": "warmup",
+        "adapter_luid": "00000000:000170d3",
+        "seconds": 8,
+        "target_ticks": 480,
+        "elapsed_seconds": 8.0003925,
+        "qpc_frequency": 10000000,
+        "start_qpc": 1615886737940,
+        "busy_ticks": [
+          {
+            "frame": 2,
+            "qpc": 1615887074550
+          },
+          {
+            "frame": 3,
+            "qpc": 1615887243357
+          },
+          {
+            "frame": 4,
+            "qpc": 1615887409462
+          },
+          {
+            "frame": 5,
+            "qpc": 1615887574393
+          },
+          {
+            "frame": 6,
+            "qpc": 1615887740149
+          },
+          {
+            "frame": 7,
+            "qpc": 1615887907068
+          },
+          {
+            "frame": 8,
+            "qpc": 1615888073866
+          },
+          {
+            "frame": 9,
+            "qpc": 1615888241845
+          },
+          {
+            "frame": 10,
+            "qpc": 1615888405946
+          },
+          {
+            "frame": 11,
+            "qpc": 1615888572708
+          },
+          {
+            "frame": 12,
+            "qpc": 1615888741153
+          },
+          {
+            "frame": 13,
+            "qpc": 1615888906541
+          },
+          {
+            "frame": 14,
+            "qpc": 1615889074897
+          },
+          {
+            "frame": 15,
+            "qpc": 1615889241969
+          },
+          {
+            "frame": 16,
+            "qpc": 1615889408524
+          },
+          {
+            "frame": 17,
+            "qpc": 1615889574081
+          },
+          {
+            "frame": 18,
+            "qpc": 1615889738595
+          },
+          {
+            "frame": 19,
+            "qpc": 1615889910459
+          },
+          {
+            "frame": 20,
+            "qpc": 1615890072574
+          },
+          {
+            "frame": 21,
+            "qpc": 1615890238974
+          },
+          {
+            "frame": 22,
+            "qpc": 1615890404886
+          },
+          {
+            "frame": 23,
+            "qpc": 1615890571845
+          },
+          {
+            "frame": 24,
+            "qpc": 1615890740113
+          },
+          {
+            "frame": 25,
+            "qpc": 1615890909858
+          },
+          {
+            "frame": 26,
+            "qpc": 1615891076480
+          },
+          {
+            "frame": 27,
+            "qpc": 1615891239447
+          },
+          {
+            "frame": 28,
+            "qpc": 1615891406199
+          },
+          {
+            "frame": 29,
+            "qpc": 1615891573782
+          },
+          {
+            "frame": 30,
+            "qpc": 1615891738572
+          },
+          {
+            "frame": 31,
+            "qpc": 1615891905537
+          },
+          {
+            "frame": 32,
+            "qpc": 1615892076460
+          },
+          {
+            "frame": 33,
+            "qpc": 1615892243415
+          },
+          {
+            "frame": 34,
+            "qpc": 1615892412855
+          },
+          {
+            "frame": 35,
+            "qpc": 1615892573333
+          },
+          {
+            "frame": 36,
+            "qpc": 1615892739199
+          },
+          {
+            "frame": 37,
+            "qpc": 1615892907332
+          },
+          {
+            "frame": 38,
+            "qpc": 1615893073095
+          },
+          {
+            "frame": 39,
+            "qpc": 1615893243126
+          },
+          {
+            "frame": 40,
+            "qpc": 1615893406015
+          },
+          {
+            "frame": 41,
+            "qpc": 1615893576543
+          },
+          {
+            "frame": 42,
+            "qpc": 1615893741708
+          },
+          {
+            "frame": 43,
+            "qpc": 1615893909340
+          },
+          {
+            "frame": 44,
+            "qpc": 1615894075977
+          },
+          {
+            "frame": 45,
+            "qpc": 1615894238383
+          },
+          {
+            "frame": 46,
+            "qpc": 1615894405875
+          },
+          {
+            "frame": 47,
+            "qpc": 1615894571823
+          },
+          {
+            "frame": 48,
+            "qpc": 1615894740812
+          },
+          {
+            "frame": 49,
+            "qpc": 1615894909891
+          },
+          {
+            "frame": 50,
+            "qpc": 1615895072377
+          },
+          {
+            "frame": 51,
+            "qpc": 1615895242358
+          },
+          {
+            "frame": 52,
+            "qpc": 1615895408221
+          },
+          {
+            "frame": 53,
+            "qpc": 1615895574184
+          },
+          {
+            "frame": 54,
+            "qpc": 1615895739708
+          },
+          {
+            "frame": 55,
+            "qpc": 1615895906647
+          },
+          {
+            "frame": 56,
+            "qpc": 1615896073063
+          },
+          {
+            "frame": 57,
+            "qpc": 1615896239125
+          },
+          {
+            "frame": 58,
+            "qpc": 1615896409021
+          },
+          {
+            "frame": 59,
+            "qpc": 1615896576484
+          },
+          {
+            "frame": 60,
+            "qpc": 1615896743078
+          },
+          {
+            "frame": 61,
+            "qpc": 1615896909174
+          },
+          {
+            "frame": 62,
+            "qpc": 1615897074316
+          },
+          {
+            "frame": 63,
+            "qpc": 1615897240814
+          },
+          {
+            "frame": 64,
+            "qpc": 1615897406480
+          },
+          {
+            "frame": 65,
+            "qpc": 1615897573043
+          },
+          {
+            "frame": 66,
+            "qpc": 1615897738811
+          },
+          {
+            "frame": 67,
+            "qpc": 1615897908030
+          },
+          {
+            "frame": 68,
+            "qpc": 1615898073060
+          },
+          {
+            "frame": 69,
+            "qpc": 1615898241257
+          },
+          {
+            "frame": 70,
+            "qpc": 1615898407724
+          },
+          {
+            "frame": 71,
+            "qpc": 1615898573889
+          },
+          {
+            "frame": 72,
+            "qpc": 1615898738441
+          },
+          {
+            "frame": 73,
+            "qpc": 1615898905673
+          },
+          {
+            "frame": 74,
+            "qpc": 1615899071742
+          },
+          {
+            "frame": 75,
+            "qpc": 1615899240408
+          },
+          {
+            "frame": 76,
+            "qpc": 1615899406949
+          },
+          {
+            "frame": 77,
+            "qpc": 1615899576176
+          },
+          {
+            "frame": 78,
+            "qpc": 1615899740372
+          },
+          {
+            "frame": 79,
+            "qpc": 1615899909238
+          },
+          {
+            "frame": 80,
+            "qpc": 1615900075821
+          },
+          {
+            "frame": 81,
+            "qpc": 1615900245437
+          },
+          {
+            "frame": 82,
+            "qpc": 1615900405999
+          },
+          {
+            "frame": 83,
+            "qpc": 1615900575420
+          },
+          {
+            "frame": 84,
+            "qpc": 1615900742864
+          },
+          {
+            "frame": 85,
+            "qpc": 1615900906091
+          },
+          {
+            "frame": 86,
+            "qpc": 1615901073628
+          },
+          {
+            "frame": 87,
+            "qpc": 1615901242151
+          },
+          {
+            "frame": 88,
+            "qpc": 1615901406093
+          },
+          {
+            "frame": 89,
+            "qpc": 1615901572604
+          },
+          {
+            "frame": 90,
+            "qpc": 1615901741264
+          },
+          {
+            "frame": 91,
+            "qpc": 1615901907969
+          },
+          {
+            "frame": 92,
+            "qpc": 1615902075843
+          },
+          {
+            "frame": 93,
+            "qpc": 1615902240652
+          },
+          {
+            "frame": 94,
+            "qpc": 1615902405294
+          },
+          {
+            "frame": 95,
+            "qpc": 1615902573499
+          },
+          {
+            "frame": 96,
+            "qpc": 1615902741431
+          },
+          {
+            "frame": 97,
+            "qpc": 1615902906258
+          },
+          {
+            "frame": 98,
+            "qpc": 1615903072489
+          },
+          {
+            "frame": 99,
+            "qpc": 1615903241622
+          },
+          {
+            "frame": 100,
+            "qpc": 1615903408285
+          },
+          {
+            "frame": 101,
+            "qpc": 1615903575477
+          },
+          {
+            "frame": 102,
+            "qpc": 1615903739002
+          },
+          {
+            "frame": 103,
+            "qpc": 1615903906200
+          },
+          {
+            "frame": 104,
+            "qpc": 1615904076045
+          },
+          {
+            "frame": 105,
+            "qpc": 1615904238901
+          },
+          {
+            "frame": 106,
+            "qpc": 1615904407120
+          },
+          {
+            "frame": 107,
+            "qpc": 1615904573181
+          },
+          {
+            "frame": 108,
+            "qpc": 1615904740601
+          },
+          {
+            "frame": 109,
+            "qpc": 1615904906569
+          },
+          {
+            "frame": 110,
+            "qpc": 1615905075724
+          },
+          {
+            "frame": 111,
+            "qpc": 1615905243148
+          },
+          {
+            "frame": 112,
+            "qpc": 1615905406051
+          },
+          {
+            "frame": 113,
+            "qpc": 1615905572567
+          },
+          {
+            "frame": 114,
+            "qpc": 1615905740381
+          },
+          {
+            "frame": 115,
+            "qpc": 1615905908635
+          },
+          {
+            "frame": 116,
+            "qpc": 1615906072126
+          },
+          {
+            "frame": 117,
+            "qpc": 1615906238310
+          },
+          {
+            "frame": 118,
+            "qpc": 1615906408117
+          },
+          {
+            "frame": 119,
+            "qpc": 1615906574061
+          },
+          {
+            "frame": 120,
+            "qpc": 1615906741737
+          },
+          {
+            "frame": 121,
+            "qpc": 1615906905500
+          },
+          {
+            "frame": 122,
+            "qpc": 1615907074041
+          },
+          {
+            "frame": 123,
+            "qpc": 1615907240639
+          },
+          {
+            "frame": 124,
+            "qpc": 1615907406203
+          },
+          {
+            "frame": 125,
+            "qpc": 1615907573782
+          },
+          {
+            "frame": 126,
+            "qpc": 1615907741107
+          },
+          {
+            "frame": 127,
+            "qpc": 1615907907701
+          },
+          {
+            "frame": 128,
+            "qpc": 1615908074678
+          },
+          {
+            "frame": 129,
+            "qpc": 1615908240154
+          },
+          {
+            "frame": 130,
+            "qpc": 1615908409700
+          },
+          {
+            "frame": 131,
+            "qpc": 1615908576148
+          },
+          {
+            "frame": 132,
+            "qpc": 1615908740258
+          },
+          {
+            "frame": 133,
+            "qpc": 1615908908118
+          },
+          {
+            "frame": 134,
+            "qpc": 1615909074627
+          },
+          {
+            "frame": 135,
+            "qpc": 1615909242311
+          },
+          {
+            "frame": 136,
+            "qpc": 1615909408628
+          },
+          {
+            "frame": 137,
+            "qpc": 1615909574310
+          },
+          {
+            "frame": 138,
+            "qpc": 1615909741500
+          },
+          {
+            "frame": 139,
+            "qpc": 1615909906150
+          },
+          {
+            "frame": 140,
+            "qpc": 1615910073046
+          },
+          {
+            "frame": 141,
+            "qpc": 1615910238505
+          },
+          {
+            "frame": 142,
+            "qpc": 1615910408893
+          },
+          {
+            "frame": 143,
+            "qpc": 1615910576846
+          },
+          {
+            "frame": 144,
+            "qpc": 1615910740973
+          },
+          {
+            "frame": 145,
+            "qpc": 1615910908713
+          },
+          {
+            "frame": 146,
+            "qpc": 1615911074866
+          },
+          {
+            "frame": 147,
+            "qpc": 1615911243218
+          },
+          {
+            "frame": 148,
+            "qpc": 1615911409371
+          },
+          {
+            "frame": 149,
+            "qpc": 1615911575493
+          },
+          {
+            "frame": 150,
+            "qpc": 1615911739432
+          },
+          {
+            "frame": 151,
+            "qpc": 1615911905793
+          },
+          {
+            "frame": 152,
+            "qpc": 1615912075437
+          },
+          {
+            "frame": 153,
+            "qpc": 1615912241236
+          },
+          {
+            "frame": 154,
+            "qpc": 1615912406351
+          },
+          {
+            "frame": 155,
+            "qpc": 1615912572394
+          },
+          {
+            "frame": 156,
+            "qpc": 1615912740313
+          },
+          {
+            "frame": 157,
+            "qpc": 1615912906959
+          },
+          {
+            "frame": 158,
+            "qpc": 1615913074632
+          },
+          {
+            "frame": 159,
+            "qpc": 1615913239598
+          },
+          {
+            "frame": 160,
+            "qpc": 1615913405687
+          },
+          {
+            "frame": 161,
+            "qpc": 1615913575445
+          },
+          {
+            "frame": 162,
+            "qpc": 1615913742891
+          },
+          {
+            "frame": 163,
+            "qpc": 1615913909111
+          },
+          {
+            "frame": 164,
+            "qpc": 1615914072174
+          },
+          {
+            "frame": 165,
+            "qpc": 1615914242463
+          },
+          {
+            "frame": 166,
+            "qpc": 1615914404949
+          },
+          {
+            "frame": 167,
+            "qpc": 1615914571738
+          },
+          {
+            "frame": 168,
+            "qpc": 1615914741335
+          },
+          {
+            "frame": 169,
+            "qpc": 1615914906954
+          },
+          {
+            "frame": 170,
+            "qpc": 1615915074375
+          },
+          {
+            "frame": 171,
+            "qpc": 1615915239729
+          },
+          {
+            "frame": 172,
+            "qpc": 1615915408211
+          },
+          {
+            "frame": 173,
+            "qpc": 1615915573635
+          },
+          {
+            "frame": 174,
+            "qpc": 1615915738461
+          },
+          {
+            "frame": 175,
+            "qpc": 1615915906789
+          },
+          {
+            "frame": 176,
+            "qpc": 1615916074719
+          },
+          {
+            "frame": 177,
+            "qpc": 1615916243035
+          },
+          {
+            "frame": 178,
+            "qpc": 1615916405907
+          },
+          {
+            "frame": 179,
+            "qpc": 1615916574771
+          },
+          {
+            "frame": 180,
+            "qpc": 1615916739004
+          },
+          {
+            "frame": 181,
+            "qpc": 1615916905433
+          },
+          {
+            "frame": 182,
+            "qpc": 1615917072146
+          },
+          {
+            "frame": 183,
+            "qpc": 1615917238622
+          },
+          {
+            "frame": 184,
+            "qpc": 1615917405953
+          },
+          {
+            "frame": 185,
+            "qpc": 1615917574648
+          },
+          {
+            "frame": 186,
+            "qpc": 1615917742305
+          },
+          {
+            "frame": 187,
+            "qpc": 1615917908801
+          },
+          {
+            "frame": 188,
+            "qpc": 1615918076475
+          },
+          {
+            "frame": 189,
+            "qpc": 1615918238288
+          },
+          {
+            "frame": 190,
+            "qpc": 1615918408123
+          },
+          {
+            "frame": 191,
+            "qpc": 1615918574169
+          },
+          {
+            "frame": 192,
+            "qpc": 1615918739307
+          },
+          {
+            "frame": 193,
+            "qpc": 1615918905456
+          },
+          {
+            "frame": 194,
+            "qpc": 1615919073220
+          },
+          {
+            "frame": 195,
+            "qpc": 1615919239350
+          },
+          {
+            "frame": 196,
+            "qpc": 1615919407616
+          },
+          {
+            "frame": 197,
+            "qpc": 1615919574123
+          },
+          {
+            "frame": 198,
+            "qpc": 1615919739732
+          },
+          {
+            "frame": 199,
+            "qpc": 1615919906530
+          },
+          {
+            "frame": 200,
+            "qpc": 1615920074233
+          },
+          {
+            "frame": 201,
+            "qpc": 1615920241838
+          },
+          {
+            "frame": 202,
+            "qpc": 1615920406723
+          },
+          {
+            "frame": 203,
+            "qpc": 1615920574317
+          },
+          {
+            "frame": 204,
+            "qpc": 1615920738776
+          },
+          {
+            "frame": 205,
+            "qpc": 1615920909537
+          },
+          {
+            "frame": 206,
+            "qpc": 1615921072828
+          },
+          {
+            "frame": 207,
+            "qpc": 1615921241194
+          },
+          {
+            "frame": 208,
+            "qpc": 1615921407195
+          },
+          {
+            "frame": 209,
+            "qpc": 1615921573864
+          },
+          {
+            "frame": 210,
+            "qpc": 1615921740920
+          },
+          {
+            "frame": 211,
+            "qpc": 1615921907891
+          },
+          {
+            "frame": 212,
+            "qpc": 1615922075946
+          },
+          {
+            "frame": 213,
+            "qpc": 1615922241761
+          },
+          {
+            "frame": 214,
+            "qpc": 1615922409244
+          },
+          {
+            "frame": 215,
+            "qpc": 1615922575666
+          },
+          {
+            "frame": 216,
+            "qpc": 1615922740719
+          },
+          {
+            "frame": 217,
+            "qpc": 1615922907390
+          },
+          {
+            "frame": 218,
+            "qpc": 1615923075784
+          },
+          {
+            "frame": 219,
+            "qpc": 1615923242345
+          },
+          {
+            "frame": 220,
+            "qpc": 1615923407400
+          },
+          {
+            "frame": 221,
+            "qpc": 1615923573913
+          },
+          {
+            "frame": 222,
+            "qpc": 1615923738523
+          },
+          {
+            "frame": 223,
+            "qpc": 1615923909501
+          },
+          {
+            "frame": 224,
+            "qpc": 1615924072079
+          },
+          {
+            "frame": 225,
+            "qpc": 1615924242872
+          },
+          {
+            "frame": 226,
+            "qpc": 1615924409050
+          },
+          {
+            "frame": 227,
+            "qpc": 1615924575226
+          },
+          {
+            "frame": 228,
+            "qpc": 1615924742898
+          },
+          {
+            "frame": 229,
+            "qpc": 1615924909189
+          },
+          {
+            "frame": 230,
+            "qpc": 1615925074732
+          },
+          {
+            "frame": 231,
+            "qpc": 1615925242579
+          },
+          {
+            "frame": 232,
+            "qpc": 1615925408621
+          },
+          {
+            "frame": 233,
+            "qpc": 1615925574501
+          },
+          {
+            "frame": 234,
+            "qpc": 1615925742258
+          },
+          {
+            "frame": 235,
+            "qpc": 1615925907563
+          },
+          {
+            "frame": 236,
+            "qpc": 1615926072874
+          },
+          {
+            "frame": 237,
+            "qpc": 1615926242096
+          },
+          {
+            "frame": 238,
+            "qpc": 1615926411637
+          },
+          {
+            "frame": 239,
+            "qpc": 1615926572377
+          },
+          {
+            "frame": 240,
+            "qpc": 1615926739860
+          },
+          {
+            "frame": 241,
+            "qpc": 1615926909225
+          },
+          {
+            "frame": 242,
+            "qpc": 1615927071936
+          },
+          {
+            "frame": 243,
+            "qpc": 1615927242740
+          },
+          {
+            "frame": 244,
+            "qpc": 1615927406020
+          },
+          {
+            "frame": 245,
+            "qpc": 1615927574058
+          },
+          {
+            "frame": 246,
+            "qpc": 1615927743202
+          },
+          {
+            "frame": 247,
+            "qpc": 1615927905270
+          },
+          {
+            "frame": 248,
+            "qpc": 1615928071636
+          },
+          {
+            "frame": 249,
+            "qpc": 1615928240540
+          },
+          {
+            "frame": 250,
+            "qpc": 1615928406097
+          },
+          {
+            "frame": 251,
+            "qpc": 1615928575941
+          },
+          {
+            "frame": 252,
+            "qpc": 1615928741889
+          },
+          {
+            "frame": 253,
+            "qpc": 1615928909732
+          },
+          {
+            "frame": 254,
+            "qpc": 1615929074613
+          },
+          {
+            "frame": 255,
+            "qpc": 1615929242296
+          },
+          {
+            "frame": 258,
+            "qpc": 1615929738851
+          },
+          {
+            "frame": 259,
+            "qpc": 1615929904928
+          },
+          {
+            "frame": 260,
+            "qpc": 1615930073415
+          },
+          {
+            "frame": 261,
+            "qpc": 1615930239469
+          },
+          {
+            "frame": 262,
+            "qpc": 1615930408958
+          },
+          {
+            "frame": 263,
+            "qpc": 1615930574536
+          },
+          {
+            "frame": 264,
+            "qpc": 1615930738232
+          },
+          {
+            "frame": 265,
+            "qpc": 1615930905250
+          },
+          {
+            "frame": 266,
+            "qpc": 1615931071855
+          },
+          {
+            "frame": 267,
+            "qpc": 1615931240673
+          },
+          {
+            "frame": 268,
+            "qpc": 1615931407544
+          },
+          {
+            "frame": 269,
+            "qpc": 1615931571699
+          },
+          {
+            "frame": 270,
+            "qpc": 1615931742293
+          },
+          {
+            "frame": 271,
+            "qpc": 1615931907473
+          },
+          {
+            "frame": 272,
+            "qpc": 1615932071628
+          },
+          {
+            "frame": 273,
+            "qpc": 1615932239422
+          },
+          {
+            "frame": 274,
+            "qpc": 1615932407353
+          },
+          {
+            "frame": 275,
+            "qpc": 1615932575004
+          },
+          {
+            "frame": 276,
+            "qpc": 1615932738854
+          },
+          {
+            "frame": 277,
+            "qpc": 1615932904812
+          },
+          {
+            "frame": 278,
+            "qpc": 1615933073923
+          },
+          {
+            "frame": 279,
+            "qpc": 1615933238774
+          },
+          {
+            "frame": 280,
+            "qpc": 1615933404878
+          },
+          {
+            "frame": 281,
+            "qpc": 1615933574101
+          },
+          {
+            "frame": 282,
+            "qpc": 1615933739381
+          },
+          {
+            "frame": 283,
+            "qpc": 1615933908663
+          },
+          {
+            "frame": 284,
+            "qpc": 1615934071704
+          },
+          {
+            "frame": 285,
+            "qpc": 1615934240063
+          },
+          {
+            "frame": 286,
+            "qpc": 1615934406359
+          },
+          {
+            "frame": 287,
+            "qpc": 1615934574255
+          },
+          {
+            "frame": 288,
+            "qpc": 1615934740182
+          },
+          {
+            "frame": 289,
+            "qpc": 1615934906043
+          },
+          {
+            "frame": 290,
+            "qpc": 1615935074380
+          },
+          {
+            "frame": 291,
+            "qpc": 1615935239027
+          },
+          {
+            "frame": 292,
+            "qpc": 1615935408184
+          },
+          {
+            "frame": 293,
+            "qpc": 1615935575097
+          },
+          {
+            "frame": 294,
+            "qpc": 1615935741917
+          },
+          {
+            "frame": 295,
+            "qpc": 1615935905866
+          },
+          {
+            "frame": 296,
+            "qpc": 1615936072366
+          },
+          {
+            "frame": 297,
+            "qpc": 1615936238551
+          },
+          {
+            "frame": 298,
+            "qpc": 1615936409024
+          },
+          {
+            "frame": 299,
+            "qpc": 1615936576060
+          },
+          {
+            "frame": 300,
+            "qpc": 1615936740547
+          },
+          {
+            "frame": 301,
+            "qpc": 1615936905971
+          },
+          {
+            "frame": 302,
+            "qpc": 1615937075458
+          },
+          {
+            "frame": 303,
+            "qpc": 1615937239595
+          },
+          {
+            "frame": 304,
+            "qpc": 1615937406976
+          },
+          {
+            "frame": 305,
+            "qpc": 1615937575244
+          },
+          {
+            "frame": 306,
+            "qpc": 1615937738825
+          },
+          {
+            "frame": 307,
+            "qpc": 1615937908521
+          },
+          {
+            "frame": 308,
+            "qpc": 1615938072147
+          },
+          {
+            "frame": 309,
+            "qpc": 1615938238622
+          },
+          {
+            "frame": 310,
+            "qpc": 1615938405578
+          },
+          {
+            "frame": 311,
+            "qpc": 1615938574727
+          },
+          {
+            "frame": 312,
+            "qpc": 1615938742008
+          },
+          {
+            "frame": 313,
+            "qpc": 1615938905548
+          },
+          {
+            "frame": 314,
+            "qpc": 1615939072714
+          },
+          {
+            "frame": 315,
+            "qpc": 1615939241215
+          },
+          {
+            "frame": 316,
+            "qpc": 1615939405146
+          },
+          {
+            "frame": 317,
+            "qpc": 1615939575396
+          },
+          {
+            "frame": 318,
+            "qpc": 1615939738811
+          },
+          {
+            "frame": 319,
+            "qpc": 1615939907852
+          },
+          {
+            "frame": 320,
+            "qpc": 1615940073826
+          },
+          {
+            "frame": 321,
+            "qpc": 1615940239475
+          },
+          {
+            "frame": 322,
+            "qpc": 1615940406863
+          },
+          {
+            "frame": 323,
+            "qpc": 1615940573625
+          },
+          {
+            "frame": 324,
+            "qpc": 1615940740256
+          },
+          {
+            "frame": 325,
+            "qpc": 1615940906519
+          },
+          {
+            "frame": 326,
+            "qpc": 1615941071459
+          },
+          {
+            "frame": 327,
+            "qpc": 1615941240577
+          },
+          {
+            "frame": 328,
+            "qpc": 1615941406975
+          },
+          {
+            "frame": 329,
+            "qpc": 1615941575071
+          },
+          {
+            "frame": 330,
+            "qpc": 1615941742834
+          },
+          {
+            "frame": 331,
+            "qpc": 1615941909641
+          },
+          {
+            "frame": 332,
+            "qpc": 1615942076046
+          },
+          {
+            "frame": 333,
+            "qpc": 1615942242486
+          },
+          {
+            "frame": 334,
+            "qpc": 1615942407414
+          },
+          {
+            "frame": 335,
+            "qpc": 1615942573553
+          },
+          {
+            "frame": 336,
+            "qpc": 1615942741570
+          },
+          {
+            "frame": 337,
+            "qpc": 1615942905787
+          },
+          {
+            "frame": 338,
+            "qpc": 1615943076180
+          },
+          {
+            "frame": 339,
+            "qpc": 1615943240382
+          },
+          {
+            "frame": 340,
+            "qpc": 1615943410594
+          },
+          {
+            "frame": 341,
+            "qpc": 1615943575099
+          },
+          {
+            "frame": 342,
+            "qpc": 1615943738358
+          },
+          {
+            "frame": 343,
+            "qpc": 1615943909655
+          },
+          {
+            "frame": 344,
+            "qpc": 1615944072069
+          },
+          {
+            "frame": 345,
+            "qpc": 1615944239700
+          },
+          {
+            "frame": 346,
+            "qpc": 1615944405027
+          },
+          {
+            "frame": 347,
+            "qpc": 1615944573964
+          },
+          {
+            "frame": 348,
+            "qpc": 1615944739097
+          },
+          {
+            "frame": 349,
+            "qpc": 1615944909462
+          },
+          {
+            "frame": 350,
+            "qpc": 1615945076351
+          },
+          {
+            "frame": 351,
+            "qpc": 1615945241580
+          },
+          {
+            "frame": 352,
+            "qpc": 1615945408223
+          },
+          {
+            "frame": 353,
+            "qpc": 1615945573825
+          },
+          {
+            "frame": 354,
+            "qpc": 1615945740389
+          },
+          {
+            "frame": 355,
+            "qpc": 1615945905636
+          },
+          {
+            "frame": 356,
+            "qpc": 1615946073103
+          },
+          {
+            "frame": 357,
+            "qpc": 1615946241253
+          },
+          {
+            "frame": 358,
+            "qpc": 1615946408794
+          },
+          {
+            "frame": 359,
+            "qpc": 1615946573845
+          },
+          {
+            "frame": 360,
+            "qpc": 1615946740491
+          },
+          {
+            "frame": 361,
+            "qpc": 1615946905498
+          },
+          {
+            "frame": 362,
+            "qpc": 1615947075104
+          },
+          {
+            "frame": 363,
+            "qpc": 1615947240072
+          },
+          {
+            "frame": 364,
+            "qpc": 1615947409062
+          },
+          {
+            "frame": 365,
+            "qpc": 1615947571813
+          },
+          {
+            "frame": 366,
+            "qpc": 1615947741947
+          },
+          {
+            "frame": 367,
+            "qpc": 1615947906783
+          },
+          {
+            "frame": 368,
+            "qpc": 1615948073648
+          },
+          {
+            "frame": 369,
+            "qpc": 1615948239757
+          },
+          {
+            "frame": 370,
+            "qpc": 1615948409290
+          },
+          {
+            "frame": 371,
+            "qpc": 1615948574601
+          },
+          {
+            "frame": 372,
+            "qpc": 1615948741910
+          },
+          {
+            "frame": 373,
+            "qpc": 1615948905091
+          },
+          {
+            "frame": 374,
+            "qpc": 1615949073092
+          },
+          {
+            "frame": 375,
+            "qpc": 1615949241275
+          },
+          {
+            "frame": 376,
+            "qpc": 1615949407502
+          },
+          {
+            "frame": 377,
+            "qpc": 1615949572824
+          },
+          {
+            "frame": 378,
+            "qpc": 1615949738419
+          },
+          {
+            "frame": 379,
+            "qpc": 1615949906242
+          },
+          {
+            "frame": 380,
+            "qpc": 1615950074322
+          },
+          {
+            "frame": 381,
+            "qpc": 1615950241004
+          },
+          {
+            "frame": 382,
+            "qpc": 1615950407076
+          },
+          {
+            "frame": 383,
+            "qpc": 1615950572196
+          },
+          {
+            "frame": 384,
+            "qpc": 1615950738889
+          },
+          {
+            "frame": 385,
+            "qpc": 1615950907405
+          },
+          {
+            "frame": 386,
+            "qpc": 1615951076063
+          },
+          {
+            "frame": 387,
+            "qpc": 1615951241734
+          },
+          {
+            "frame": 388,
+            "qpc": 1615951408568
+          },
+          {
+            "frame": 389,
+            "qpc": 1615951571885
+          },
+          {
+            "frame": 390,
+            "qpc": 1615951738560
+          },
+          {
+            "frame": 391,
+            "qpc": 1615951907140
+          },
+          {
+            "frame": 392,
+            "qpc": 1615952076597
+          },
+          {
+            "frame": 393,
+            "qpc": 1615952239314
+          },
+          {
+            "frame": 394,
+            "qpc": 1615952405954
+          },
+          {
+            "frame": 395,
+            "qpc": 1615952572493
+          },
+          {
+            "frame": 396,
+            "qpc": 1615952742325
+          },
+          {
+            "frame": 397,
+            "qpc": 1615952910264
+          },
+          {
+            "frame": 398,
+            "qpc": 1615953074752
+          },
+          {
+            "frame": 399,
+            "qpc": 1615953238594
+          },
+          {
+            "frame": 400,
+            "qpc": 1615953407686
+          },
+          {
+            "frame": 401,
+            "qpc": 1615953574399
+          },
+          {
+            "frame": 402,
+            "qpc": 1615953738186
+          },
+          {
+            "frame": 403,
+            "qpc": 1615953905731
+          },
+          {
+            "frame": 404,
+            "qpc": 1615954072934
+          },
+          {
+            "frame": 405,
+            "qpc": 1615954239542
+          },
+          {
+            "frame": 406,
+            "qpc": 1615954408368
+          },
+          {
+            "frame": 407,
+            "qpc": 1615954574177
+          },
+          {
+            "frame": 408,
+            "qpc": 1615954739058
+          },
+          {
+            "frame": 409,
+            "qpc": 1615954906293
+          },
+          {
+            "frame": 410,
+            "qpc": 1615955072518
+          },
+          {
+            "frame": 411,
+            "qpc": 1615955238596
+          },
+          {
+            "frame": 412,
+            "qpc": 1615955409252
+          },
+          {
+            "frame": 413,
+            "qpc": 1615955572194
+          },
+          {
+            "frame": 414,
+            "qpc": 1615955738827
+          },
+          {
+            "frame": 415,
+            "qpc": 1615955905893
+          },
+          {
+            "frame": 416,
+            "qpc": 1615956075714
+          },
+          {
+            "frame": 417,
+            "qpc": 1615956240575
+          },
+          {
+            "frame": 418,
+            "qpc": 1615956408473
+          },
+          {
+            "frame": 419,
+            "qpc": 1615956574199
+          },
+          {
+            "frame": 420,
+            "qpc": 1615956741814
+          },
+          {
+            "frame": 421,
+            "qpc": 1615956907596
+          },
+          {
+            "frame": 422,
+            "qpc": 1615957073929
+          },
+          {
+            "frame": 423,
+            "qpc": 1615957238999
+          },
+          {
+            "frame": 424,
+            "qpc": 1615957406555
+          },
+          {
+            "frame": 425,
+            "qpc": 1615957574657
+          },
+          {
+            "frame": 426,
+            "qpc": 1615957741752
+          },
+          {
+            "frame": 427,
+            "qpc": 1615957909349
+          },
+          {
+            "frame": 428,
+            "qpc": 1615958073814
+          },
+          {
+            "frame": 429,
+            "qpc": 1615958239631
+          },
+          {
+            "frame": 430,
+            "qpc": 1615958406416
+          },
+          {
+            "frame": 431,
+            "qpc": 1615958572860
+          },
+          {
+            "frame": 432,
+            "qpc": 1615958739659
+          },
+          {
+            "frame": 433,
+            "qpc": 1615958905295
+          },
+          {
+            "frame": 434,
+            "qpc": 1615959071808
+          },
+          {
+            "frame": 435,
+            "qpc": 1615959239895
+          },
+          {
+            "frame": 436,
+            "qpc": 1615959408050
+          },
+          {
+            "frame": 437,
+            "qpc": 1615959572231
+          },
+          {
+            "frame": 438,
+            "qpc": 1615959739254
+          },
+          {
+            "frame": 439,
+            "qpc": 1615959905162
+          },
+          {
+            "frame": 440,
+            "qpc": 1615960075027
+          },
+          {
+            "frame": 441,
+            "qpc": 1615960238536
+          },
+          {
+            "frame": 442,
+            "qpc": 1615960409037
+          },
+          {
+            "frame": 443,
+            "qpc": 1615960571669
+          },
+          {
+            "frame": 444,
+            "qpc": 1615960738674
+          },
+          {
+            "frame": 445,
+            "qpc": 1615960908251
+          },
+          {
+            "frame": 446,
+            "qpc": 1615961072927
+          },
+          {
+            "frame": 447,
+            "qpc": 1615961239358
+          },
+          {
+            "frame": 448,
+            "qpc": 1615961408483
+          },
+          {
+            "frame": 449,
+            "qpc": 1615961572634
+          },
+          {
+            "frame": 450,
+            "qpc": 1615961740393
+          },
+          {
+            "frame": 451,
+            "qpc": 1615961905528
+          },
+          {
+            "frame": 452,
+            "qpc": 1615962073357
+          },
+          {
+            "frame": 453,
+            "qpc": 1615962239478
+          },
+          {
+            "frame": 454,
+            "qpc": 1615962407433
+          },
+          {
+            "frame": 455,
+            "qpc": 1615962575086
+          },
+          {
+            "frame": 456,
+            "qpc": 1615962741715
+          },
+          {
+            "frame": 457,
+            "qpc": 1615962906033
+          },
+          {
+            "frame": 458,
+            "qpc": 1615963071689
+          },
+          {
+            "frame": 459,
+            "qpc": 1615963238677
+          },
+          {
+            "frame": 460,
+            "qpc": 1615963405239
+          },
+          {
+            "frame": 461,
+            "qpc": 1615963574839
+          },
+          {
+            "frame": 462,
+            "qpc": 1615963739112
+          },
+          {
+            "frame": 463,
+            "qpc": 1615963909540
+          },
+          {
+            "frame": 464,
+            "qpc": 1615964072043
+          },
+          {
+            "frame": 465,
+            "qpc": 1615964240550
+          },
+          {
+            "frame": 466,
+            "qpc": 1615964407886
+          },
+          {
+            "frame": 467,
+            "qpc": 1615964575871
+          },
+          {
+            "frame": 468,
+            "qpc": 1615964742467
+          },
+          {
+            "frame": 469,
+            "qpc": 1615964908903
+          },
+          {
+            "frame": 470,
+            "qpc": 1615965075171
+          },
+          {
+            "frame": 471,
+            "qpc": 1615965239384
+          },
+          {
+            "frame": 472,
+            "qpc": 1615965406721
+          },
+          {
+            "frame": 473,
+            "qpc": 1615965573628
+          },
+          {
+            "frame": 474,
+            "qpc": 1615965739502
+          },
+          {
+            "frame": 475,
+            "qpc": 1615965909617
+          },
+          {
+            "frame": 476,
+            "qpc": 1615966071747
+          },
+          {
+            "frame": 477,
+            "qpc": 1615966241076
+          },
+          {
+            "frame": 478,
+            "qpc": 1615966407184
+          },
+          {
+            "frame": 479,
+            "qpc": 1615966572886
+          }
+        ],
+        "tick_work": {
+          "samples": 480,
+          "mean_ms": 0.003923333333333328,
+          "median_ms": 0.0034000000000000002,
+          "p95_ms": 0.0056,
+          "p99_ms": 0.0275,
+          "maximum_ms": 0.0886
+        },
+        "timing": {
+          "cpu_submission_work": null,
+          "worker_start_intervals": null,
+          "gpu_execution": null,
+          "skipped_gpu_queries": 0,
+          "invalid_gpu_queries": 0,
+          "pending_gpu_queries": 0,
+          "truncated_samples": 0,
+          "gpu_outliers": {
+            "total": 0,
+            "omitted": 0,
+            "events": [],
+            "maximum": null,
+            "maximum_score": 0
+          }
+        },
+        "before_final_fence": {
+          "maximum_in_flight": 2,
+          "peak_in_flight": 2,
+          "submitted": 4,
+          "completed": 2,
+          "pending": 2,
+          "reserved": false,
+          "warmup": {
+            "attempts": 0,
+            "admitted": 0,
+            "busy": 0
+          },
+          "sampled": {
+            "attempts": 480,
+            "admitted": 4,
+            "busy": 476
+          }
+        },
+        "drain_clear_after_observation": true,
+        "after_final_fence": {
+          "maximum_in_flight": 2,
+          "peak_in_flight": 2,
+          "submitted": 4,
+          "completed": 4,
+          "pending": 0,
+          "reserved": false,
+          "warmup": {
+            "attempts": 0,
+            "admitted": 0,
+            "busy": 0
+          },
+          "sampled": {
+            "attempts": 480,
+            "admitted": 4,
+            "busy": 476
+          },
+          "pending_at_final_poll": 2
+        },
+        "allocations_after_fence": {
+          "live_bytes_by_owner": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "retiring_bytes_by_owner": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "live_textures": 0,
+          "retiring_textures": 0,
+          "peak_live_plus_retiring_bytes": 1024,
+          "peak_live_plus_retiring_textures": 1
+        },
+        "operations_including_seed": {
+          "clears": 2,
+          "shader_draws": 0,
+          "uniform_upload_bytes": 0,
+          "diagnostic_readback_pixels": 0,
+          "sdk_send_calls": 0,
+          "sdk_receive_calls": 0,
+          "sdk_texture_queries": 0,
+          "sdk_texture_observations": 0,
+          "explicit_gpu_copy_calls": 0,
+          "explicit_gpu_copy_bytes": 0
+        }
+      },
+      "failure_stdout": null
+    },
+    {
+      "command": [
+        "D:\\Projects\\Dev\\Chataigne2\\target\\release\\mapgyver_native_probe.exe",
+        "gpu-progress",
+        "1",
+        "timestamp"
+      ],
+      "started_utc": "2026-10-28T04:46:29.398663+00:00",
+      "exit_code": 0,
+      "stderr": "",
+      "report": {
+        "evidence_kind": "headless_query_progress_isolation_not_fixed_workload_qualification",
+        "mode": "timestamp",
+        "adapter_luid": "00000000:000170d3",
+        "seconds": 8,
+        "target_ticks": 480,
+        "elapsed_seconds": 8.000302,
+        "qpc_frequency": 10000000,
+        "start_qpc": 1615969371351,
+        "busy_ticks": [],
+        "tick_work": {
+          "samples": 480,
+          "mean_ms": 0.08084395833333335,
+          "median_ms": 0.0784,
+          "p95_ms": 0.1178,
+          "p99_ms": 0.15669999999999998,
+          "maximum_ms": 0.3178
+        },
+        "timing": {
+          "cpu_submission_work": {
+            "samples": 480,
+            "mean_ms": 0.08062833333333336,
+            "median_ms": 0.0781,
+            "p95_ms": 0.1177,
+            "p99_ms": 0.1565,
+            "maximum_ms": 0.31770000000000004
+          },
+          "worker_start_intervals": {
+            "samples": 479,
+            "mean_ms": 16.667614196242162,
+            "median_ms": 16.6823,
+            "p95_ms": 17.0651,
+            "p99_ms": 17.153399999999998,
+            "maximum_ms": 17.267999999999997
+          },
+          "gpu_execution": {
+            "samples": 480,
+            "mean_ms": 0.000003933333333333329,
+            "median_ms": 0,
+            "p95_ms": 0.000032000000000000005,
+            "p99_ms": 0.000032000000000000005,
+            "maximum_ms": 0.000032000000000000005
+          },
+          "skipped_gpu_queries": 0,
+          "invalid_gpu_queries": 0,
+          "pending_gpu_queries": 0,
+          "truncated_samples": 0,
+          "gpu_outliers": {
+            "total": 0,
+            "omitted": 0,
+            "events": [],
+            "maximum": null,
+            "maximum_score": 0
+          }
+        },
+        "before_final_fence": {
+          "maximum_in_flight": 2,
+          "peak_in_flight": 1,
+          "submitted": 480,
+          "completed": 479,
+          "pending": 1,
+          "reserved": false,
+          "warmup": {
+            "attempts": 0,
+            "admitted": 0,
+            "busy": 0
+          },
+          "sampled": {
+            "attempts": 480,
+            "admitted": 480,
+            "busy": 0
+          }
+        },
+        "drain_clear_after_observation": true,
+        "after_final_fence": {
+          "maximum_in_flight": 2,
+          "peak_in_flight": 1,
+          "submitted": 480,
+          "completed": 480,
+          "pending": 0,
+          "reserved": false,
+          "warmup": {
+            "attempts": 0,
+            "admitted": 0,
+            "busy": 0
+          },
+          "sampled": {
+            "attempts": 480,
+            "admitted": 480,
+            "busy": 0
+          },
+          "pending_at_final_poll": 1
+        },
+        "allocations_after_fence": {
+          "live_bytes_by_owner": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "retiring_bytes_by_owner": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "live_textures": 0,
+          "retiring_textures": 0,
+          "peak_live_plus_retiring_bytes": 1024,
+          "peak_live_plus_retiring_textures": 1
+        },
+        "operations_including_seed": {
+          "clears": 2,
+          "shader_draws": 0,
+          "uniform_upload_bytes": 0,
+          "diagnostic_readback_pixels": 0,
+          "sdk_send_calls": 0,
+          "sdk_receive_calls": 0,
+          "sdk_texture_queries": 0,
+          "sdk_texture_observations": 0,
+          "explicit_gpu_copy_calls": 0,
+          "explicit_gpu_copy_bytes": 0
+        }
+      },
+      "failure_stdout": null
+    },
+    {
+      "command": [
+        "D:\\Projects\\Dev\\Chataigne2\\target\\release\\mapgyver_native_probe.exe",
+        "gpu-progress",
+        "1",
+        "receiver_warmup"
+      ],
+      "started_utc": "2026-10-28T04:46:37.560529+00:00",
+      "exit_code": 0,
+      "stderr": "",
+      "report": {
+        "evidence_kind": "headless_query_progress_isolation_not_fixed_workload_qualification",
+        "mode": "receiver_warmup",
+        "adapter_luid": "00000000:000170d3",
+        "seconds": 8,
+        "target_ticks": 480,
+        "elapsed_seconds": 8.0001113,
+        "qpc_frequency": 10000000,
+        "start_qpc": 1616051017118,
+        "busy_ticks": [
+          {
+            "frame": 2,
+            "qpc": 1616051352309
+          },
+          {
+            "frame": 3,
+            "qpc": 1616051518038
+          },
+          {
+            "frame": 4,
+            "qpc": 1616051688522
+          },
+          {
+            "frame": 5,
+            "qpc": 1616051852777
+          },
+          {
+            "frame": 6,
+            "qpc": 1616052021845
+          },
+          {
+            "frame": 7,
+            "qpc": 1616052185872
+          },
+          {
+            "frame": 8,
+            "qpc": 1616052353241
+          },
+          {
+            "frame": 9,
+            "qpc": 1616052520279
+          },
+          {
+            "frame": 10,
+            "qpc": 1616052689379
+          },
+          {
+            "frame": 11,
+            "qpc": 1616052851789
+          },
+          {
+            "frame": 12,
+            "qpc": 1616053020948
+          },
+          {
+            "frame": 13,
+            "qpc": 1616053188292
+          },
+          {
+            "frame": 14,
+            "qpc": 1616053352019
+          },
+          {
+            "frame": 15,
+            "qpc": 1616053518786
+          },
+          {
+            "frame": 16,
+            "qpc": 1616053686778
+          },
+          {
+            "frame": 17,
+            "qpc": 1616053855677
+          },
+          {
+            "frame": 18,
+            "qpc": 1616054017564
+          },
+          {
+            "frame": 19,
+            "qpc": 1616054188105
+          },
+          {
+            "frame": 20,
+            "qpc": 1616054351188
+          },
+          {
+            "frame": 21,
+            "qpc": 1616054521579
+          },
+          {
+            "frame": 22,
+            "qpc": 1616054687337
+          },
+          {
+            "frame": 23,
+            "qpc": 1616054853182
+          },
+          {
+            "frame": 24,
+            "qpc": 1616055021050
+          },
+          {
+            "frame": 25,
+            "qpc": 1616055184306
+          },
+          {
+            "frame": 26,
+            "qpc": 1616055350867
+          },
+          {
+            "frame": 27,
+            "qpc": 1616055522535
+          },
+          {
+            "frame": 28,
+            "qpc": 1616055687375
+          },
+          {
+            "frame": 29,
+            "qpc": 1616055852043
+          },
+          {
+            "frame": 30,
+            "qpc": 1616056019843
+          },
+          {
+            "frame": 31,
+            "qpc": 1616056188581
+          },
+          {
+            "frame": 32,
+            "qpc": 1616056351196
+          },
+          {
+            "frame": 33,
+            "qpc": 1616056521081
+          },
+          {
+            "frame": 34,
+            "qpc": 1616056688350
+          },
+          {
+            "frame": 35,
+            "qpc": 1616056853384
+          },
+          {
+            "frame": 36,
+            "qpc": 1616057021593
+          },
+          {
+            "frame": 37,
+            "qpc": 1616057189558
+          },
+          {
+            "frame": 38,
+            "qpc": 1616057353787
+          },
+          {
+            "frame": 39,
+            "qpc": 1616057521097
+          },
+          {
+            "frame": 40,
+            "qpc": 1616057685901
+          },
+          {
+            "frame": 41,
+            "qpc": 1616057852429
+          },
+          {
+            "frame": 42,
+            "qpc": 1616058019344
+          },
+          {
+            "frame": 43,
+            "qpc": 1616058189540
+          },
+          {
+            "frame": 44,
+            "qpc": 1616058350938
+          },
+          {
+            "frame": 45,
+            "qpc": 1616058521834
+          },
+          {
+            "frame": 46,
+            "qpc": 1616058688450
+          },
+          {
+            "frame": 47,
+            "qpc": 1616058855153
+          },
+          {
+            "frame": 48,
+            "qpc": 1616059017912
+          },
+          {
+            "frame": 49,
+            "qpc": 1616059189029
+          },
+          {
+            "frame": 50,
+            "qpc": 1616059354187
+          },
+          {
+            "frame": 51,
+            "qpc": 1616059520022
+          },
+          {
+            "frame": 52,
+            "qpc": 1616059688551
+          },
+          {
+            "frame": 53,
+            "qpc": 1616059855975
+          },
+          {
+            "frame": 54,
+            "qpc": 1616060018872
+          },
+          {
+            "frame": 55,
+            "qpc": 1616060189482
+          },
+          {
+            "frame": 56,
+            "qpc": 1616060352038
+          },
+          {
+            "frame": 57,
+            "qpc": 1616060519207
+          },
+          {
+            "frame": 58,
+            "qpc": 1616060686245
+          },
+          {
+            "frame": 59,
+            "qpc": 1616060851796
+          },
+          {
+            "frame": 60,
+            "qpc": 1616061020417
+          },
+          {
+            "frame": 61,
+            "qpc": 1616061187970
+          },
+          {
+            "frame": 62,
+            "qpc": 1616061354245
+          },
+          {
+            "frame": 63,
+            "qpc": 1616061518712
+          },
+          {
+            "frame": 64,
+            "qpc": 1616061684750
+          },
+          {
+            "frame": 65,
+            "qpc": 1616061851753
+          },
+          {
+            "frame": 66,
+            "qpc": 1616062019720
+          },
+          {
+            "frame": 67,
+            "qpc": 1616062186078
+          },
+          {
+            "frame": 68,
+            "qpc": 1616062353474
+          },
+          {
+            "frame": 69,
+            "qpc": 1616062520538
+          },
+          {
+            "frame": 70,
+            "qpc": 1616062684974
+          },
+          {
+            "frame": 71,
+            "qpc": 1616062852444
+          },
+          {
+            "frame": 72,
+            "qpc": 1616063018457
+          },
+          {
+            "frame": 73,
+            "qpc": 1616063187009
+          },
+          {
+            "frame": 74,
+            "qpc": 1616063352731
+          },
+          {
+            "frame": 75,
+            "qpc": 1616063522021
+          },
+          {
+            "frame": 76,
+            "qpc": 1616063687879
+          },
+          {
+            "frame": 77,
+            "qpc": 1616063852259
+          },
+          {
+            "frame": 78,
+            "qpc": 1616064019981
+          },
+          {
+            "frame": 79,
+            "qpc": 1616064184614
+          },
+          {
+            "frame": 80,
+            "qpc": 1616064355931
+          },
+          {
+            "frame": 81,
+            "qpc": 1616064521629
+          },
+          {
+            "frame": 82,
+            "qpc": 1616064684219
+          },
+          {
+            "frame": 83,
+            "qpc": 1616064850813
+          },
+          {
+            "frame": 84,
+            "qpc": 1616065021960
+          },
+          {
+            "frame": 85,
+            "qpc": 1616065188636
+          },
+          {
+            "frame": 86,
+            "qpc": 1616065352290
+          },
+          {
+            "frame": 87,
+            "qpc": 1616065521274
+          },
+          {
+            "frame": 88,
+            "qpc": 1616065686893
+          },
+          {
+            "frame": 89,
+            "qpc": 1616065852267
+          },
+          {
+            "frame": 90,
+            "qpc": 1616066021584
+          },
+          {
+            "frame": 91,
+            "qpc": 1616066185230
+          },
+          {
+            "frame": 92,
+            "qpc": 1616066352495
+          },
+          {
+            "frame": 93,
+            "qpc": 1616066522379
+          },
+          {
+            "frame": 94,
+            "qpc": 1616066687569
+          },
+          {
+            "frame": 95,
+            "qpc": 1616066851626
+          },
+          {
+            "frame": 96,
+            "qpc": 1616067018630
+          },
+          {
+            "frame": 97,
+            "qpc": 1616067189852
+          },
+          {
+            "frame": 98,
+            "qpc": 1616067355626
+          },
+          {
+            "frame": 99,
+            "qpc": 1616067520302
+          },
+          {
+            "frame": 100,
+            "qpc": 1616067690021
+          },
+          {
+            "frame": 101,
+            "qpc": 1616067855746
+          },
+          {
+            "frame": 102,
+            "qpc": 1616068018555
+          },
+          {
+            "frame": 103,
+            "qpc": 1616068185912
+          },
+          {
+            "frame": 104,
+            "qpc": 1616068354495
+          },
+          {
+            "frame": 105,
+            "qpc": 1616068522087
+          },
+          {
+            "frame": 106,
+            "qpc": 1616068685848
+          },
+          {
+            "frame": 107,
+            "qpc": 1616068852895
+          },
+          {
+            "frame": 108,
+            "qpc": 1616069020771
+          },
+          {
+            "frame": 109,
+            "qpc": 1616069187315
+          },
+          {
+            "frame": 110,
+            "qpc": 1616069353098
+          },
+          {
+            "frame": 111,
+            "qpc": 1616069522188
+          },
+          {
+            "frame": 112,
+            "qpc": 1616069687311
+          },
+          {
+            "frame": 113,
+            "qpc": 1616069853862
+          },
+          {
+            "frame": 114,
+            "qpc": 1616070019193
+          },
+          {
+            "frame": 115,
+            "qpc": 1616070188624
+          },
+          {
+            "frame": 116,
+            "qpc": 1616070351255
+          },
+          {
+            "frame": 117,
+            "qpc": 1616070518976
+          },
+          {
+            "frame": 118,
+            "qpc": 1616070684242
+          },
+          {
+            "frame": 119,
+            "qpc": 1616070851720
+          },
+          {
+            "frame": 120,
+            "qpc": 1616071019027
+          },
+          {
+            "frame": 121,
+            "qpc": 1616071187781
+          },
+          {
+            "frame": 122,
+            "qpc": 1616071353317
+          },
+          {
+            "frame": 123,
+            "qpc": 1616071518706
+          },
+          {
+            "frame": 124,
+            "qpc": 1616071688629
+          },
+          {
+            "frame": 125,
+            "qpc": 1616071853830
+          },
+          {
+            "frame": 126,
+            "qpc": 1616072021546
+          },
+          {
+            "frame": 127,
+            "qpc": 1616072186825
+          },
+          {
+            "frame": 128,
+            "qpc": 1616072351598
+          },
+          {
+            "frame": 129,
+            "qpc": 1616072521456
+          },
+          {
+            "frame": 130,
+            "qpc": 1616072688725
+          },
+          {
+            "frame": 131,
+            "qpc": 1616072853363
+          },
+          {
+            "frame": 132,
+            "qpc": 1616073018209
+          },
+          {
+            "frame": 133,
+            "qpc": 1616073186515
+          },
+          {
+            "frame": 134,
+            "qpc": 1616073352822
+          },
+          {
+            "frame": 135,
+            "qpc": 1616073521190
+          },
+          {
+            "frame": 136,
+            "qpc": 1616073686878
+          },
+          {
+            "frame": 137,
+            "qpc": 1616073853791
+          },
+          {
+            "frame": 138,
+            "qpc": 1616074020231
+          },
+          {
+            "frame": 139,
+            "qpc": 1616074184578
+          },
+          {
+            "frame": 140,
+            "qpc": 1616074354827
+          },
+          {
+            "frame": 141,
+            "qpc": 1616074520537
+          },
+          {
+            "frame": 142,
+            "qpc": 1616074686681
+          },
+          {
+            "frame": 143,
+            "qpc": 1616074851952
+          },
+          {
+            "frame": 144,
+            "qpc": 1616075020237
+          },
+          {
+            "frame": 145,
+            "qpc": 1616075190433
+          },
+          {
+            "frame": 146,
+            "qpc": 1616075353686
+          },
+          {
+            "frame": 147,
+            "qpc": 1616075521536
+          },
+          {
+            "frame": 148,
+            "qpc": 1616075690634
+          },
+          {
+            "frame": 149,
+            "qpc": 1616075854380
+          },
+          {
+            "frame": 150,
+            "qpc": 1616076018235
+          },
+          {
+            "frame": 151,
+            "qpc": 1616076187255
+          },
+          {
+            "frame": 152,
+            "qpc": 1616076355588
+          },
+          {
+            "frame": 153,
+            "qpc": 1616076518878
+          },
+          {
+            "frame": 154,
+            "qpc": 1616076690894
+          },
+          {
+            "frame": 155,
+            "qpc": 1616076853832
+          },
+          {
+            "frame": 156,
+            "qpc": 1616077019401
+          },
+          {
+            "frame": 157,
+            "qpc": 1616077191626
+          },
+          {
+            "frame": 158,
+            "qpc": 1616077352162
+          },
+          {
+            "frame": 159,
+            "qpc": 1616077521023
+          },
+          {
+            "frame": 160,
+            "qpc": 1616077688124
+          },
+          {
+            "frame": 161,
+            "qpc": 1616077853701
+          },
+          {
+            "frame": 162,
+            "qpc": 1616078022112
+          },
+          {
+            "frame": 163,
+            "qpc": 1616078185859
+          },
+          {
+            "frame": 164,
+            "qpc": 1616078354151
+          },
+          {
+            "frame": 165,
+            "qpc": 1616078518544
+          },
+          {
+            "frame": 166,
+            "qpc": 1616078689040
+          },
+          {
+            "frame": 167,
+            "qpc": 1616078853810
+          },
+          {
+            "frame": 168,
+            "qpc": 1616079018400
+          },
+          {
+            "frame": 169,
+            "qpc": 1616079186265
+          },
+          {
+            "frame": 170,
+            "qpc": 1616079354166
+          },
+          {
+            "frame": 171,
+            "qpc": 1616079517576
+          },
+          {
+            "frame": 172,
+            "qpc": 1616079688389
+          },
+          {
+            "frame": 173,
+            "qpc": 1616079852715
+          },
+          {
+            "frame": 174,
+            "qpc": 1616080020502
+          },
+          {
+            "frame": 175,
+            "qpc": 1616080189345
+          },
+          {
+            "frame": 176,
+            "qpc": 1616080354956
+          },
+          {
+            "frame": 177,
+            "qpc": 1616080518801
+          },
+          {
+            "frame": 178,
+            "qpc": 1616080686556
+          },
+          {
+            "frame": 179,
+            "qpc": 1616080851845
+          },
+          {
+            "frame": 180,
+            "qpc": 1616081018249
+          },
+          {
+            "frame": 181,
+            "qpc": 1616081187825
+          },
+          {
+            "frame": 182,
+            "qpc": 1616081353935
+          },
+          {
+            "frame": 183,
+            "qpc": 1616081520054
+          },
+          {
+            "frame": 184,
+            "qpc": 1616081687117
+          },
+          {
+            "frame": 185,
+            "qpc": 1616081852189
+          },
+          {
+            "frame": 186,
+            "qpc": 1616082021892
+          },
+          {
+            "frame": 187,
+            "qpc": 1616082186632
+          },
+          {
+            "frame": 188,
+            "qpc": 1616082353266
+          },
+          {
+            "frame": 189,
+            "qpc": 1616082521071
+          },
+          {
+            "frame": 190,
+            "qpc": 1616082689363
+          },
+          {
+            "frame": 191,
+            "qpc": 1616082854489
+          },
+          {
+            "frame": 192,
+            "qpc": 1616083020130
+          },
+          {
+            "frame": 193,
+            "qpc": 1616083186312
+          },
+          {
+            "frame": 194,
+            "qpc": 1616083351794
+          },
+          {
+            "frame": 195,
+            "qpc": 1616083520748
+          },
+          {
+            "frame": 196,
+            "qpc": 1616083686246
+          },
+          {
+            "frame": 197,
+            "qpc": 1616083853229
+          },
+          {
+            "frame": 198,
+            "qpc": 1616084019915
+          },
+          {
+            "frame": 199,
+            "qpc": 1616084184993
+          },
+          {
+            "frame": 200,
+            "qpc": 1616084351837
+          },
+          {
+            "frame": 201,
+            "qpc": 1616084517636
+          },
+          {
+            "frame": 202,
+            "qpc": 1616084684585
+          },
+          {
+            "frame": 203,
+            "qpc": 1616084853337
+          },
+          {
+            "frame": 204,
+            "qpc": 1616085020113
+          },
+          {
+            "frame": 205,
+            "qpc": 1616085188726
+          },
+          {
+            "frame": 206,
+            "qpc": 1616085351738
+          },
+          {
+            "frame": 207,
+            "qpc": 1616085520822
+          },
+          {
+            "frame": 208,
+            "qpc": 1616085686847
+          },
+          {
+            "frame": 209,
+            "qpc": 1616085852387
+          },
+          {
+            "frame": 210,
+            "qpc": 1616086019149
+          },
+          {
+            "frame": 211,
+            "qpc": 1616086188897
+          },
+          {
+            "frame": 212,
+            "qpc": 1616086350943
+          },
+          {
+            "frame": 213,
+            "qpc": 1616086521917
+          },
+          {
+            "frame": 214,
+            "qpc": 1616086685329
+          },
+          {
+            "frame": 215,
+            "qpc": 1616086851271
+          },
+          {
+            "frame": 216,
+            "qpc": 1616087020663
+          },
+          {
+            "frame": 217,
+            "qpc": 1616087188534
+          },
+          {
+            "frame": 218,
+            "qpc": 1616087351208
+          },
+          {
+            "frame": 219,
+            "qpc": 1616087519131
+          },
+          {
+            "frame": 220,
+            "qpc": 1616087687101
+          },
+          {
+            "frame": 221,
+            "qpc": 1616087854353
+          },
+          {
+            "frame": 222,
+            "qpc": 1616088018362
+          },
+          {
+            "frame": 223,
+            "qpc": 1616088186922
+          },
+          {
+            "frame": 224,
+            "qpc": 1616088353457
+          },
+          {
+            "frame": 225,
+            "qpc": 1616088522330
+          },
+          {
+            "frame": 226,
+            "qpc": 1616088685751
+          },
+          {
+            "frame": 227,
+            "qpc": 1616088853287
+          },
+          {
+            "frame": 228,
+            "qpc": 1616089019680
+          },
+          {
+            "frame": 229,
+            "qpc": 1616089189337
+          },
+          {
+            "frame": 230,
+            "qpc": 1616089354801
+          },
+          {
+            "frame": 231,
+            "qpc": 1616089520843
+          },
+          {
+            "frame": 232,
+            "qpc": 1616089687526
+          },
+          {
+            "frame": 233,
+            "qpc": 1616089851738
+          },
+          {
+            "frame": 234,
+            "qpc": 1616090020838
+          },
+          {
+            "frame": 235,
+            "qpc": 1616090188048
+          },
+          {
+            "frame": 236,
+            "qpc": 1616090351822
+          },
+          {
+            "frame": 237,
+            "qpc": 1616090518904
+          },
+          {
+            "frame": 238,
+            "qpc": 1616090689117
+          },
+          {
+            "frame": 239,
+            "qpc": 1616090855732
+          },
+          {
+            "frame": 240,
+            "qpc": 1616091020514
+          },
+          {
+            "frame": 241,
+            "qpc": 1616091185563
+          },
+          {
+            "frame": 242,
+            "qpc": 1616091353234
+          },
+          {
+            "frame": 243,
+            "qpc": 1616091518916
+          },
+          {
+            "frame": 244,
+            "qpc": 1616091689714
+          },
+          {
+            "frame": 245,
+            "qpc": 1616091855177
+          },
+          {
+            "frame": 246,
+            "qpc": 1616092020257
+          },
+          {
+            "frame": 247,
+            "qpc": 1616092185738
+          },
+          {
+            "frame": 248,
+            "qpc": 1616092351779
+          },
+          {
+            "frame": 249,
+            "qpc": 1616092522023
+          },
+          {
+            "frame": 250,
+            "qpc": 1616092689615
+          },
+          {
+            "frame": 251,
+            "qpc": 1616092851893
+          },
+          {
+            "frame": 252,
+            "qpc": 1616093020898
+          },
+          {
+            "frame": 253,
+            "qpc": 1616093187204
+          },
+          {
+            "frame": 254,
+            "qpc": 1616093353400
+          },
+          {
+            "frame": 255,
+            "qpc": 1616093517496
+          },
+          {
+            "frame": 258,
+            "qpc": 1616094021248
+          },
+          {
+            "frame": 259,
+            "qpc": 1616094187612
+          },
+          {
+            "frame": 260,
+            "qpc": 1616094354596
+          },
+          {
+            "frame": 261,
+            "qpc": 1616094519881
+          },
+          {
+            "frame": 262,
+            "qpc": 1616094686461
+          },
+          {
+            "frame": 263,
+            "qpc": 1616094851490
+          },
+          {
+            "frame": 264,
+            "qpc": 1616095018426
+          },
+          {
+            "frame": 265,
+            "qpc": 1616095187577
+          },
+          {
+            "frame": 266,
+            "qpc": 1616095355658
+          },
+          {
+            "frame": 267,
+            "qpc": 1616095518473
+          },
+          {
+            "frame": 268,
+            "qpc": 1616095684660
+          },
+          {
+            "frame": 269,
+            "qpc": 1616095851406
+          },
+          {
+            "frame": 270,
+            "qpc": 1616096018101
+          },
+          {
+            "frame": 271,
+            "qpc": 1616096187652
+          },
+          {
+            "frame": 272,
+            "qpc": 1616096355548
+          },
+          {
+            "frame": 273,
+            "qpc": 1616096519139
+          },
+          {
+            "frame": 274,
+            "qpc": 1616096688344
+          },
+          {
+            "frame": 275,
+            "qpc": 1616096852524
+          },
+          {
+            "frame": 276,
+            "qpc": 1616097021397
+          },
+          {
+            "frame": 277,
+            "qpc": 1616097186129
+          },
+          {
+            "frame": 278,
+            "qpc": 1616097354863
+          },
+          {
+            "frame": 279,
+            "qpc": 1616097522098
+          },
+          {
+            "frame": 280,
+            "qpc": 1616097689276
+          },
+          {
+            "frame": 281,
+            "qpc": 1616097852458
+          },
+          {
+            "frame": 282,
+            "qpc": 1616098018006
+          },
+          {
+            "frame": 283,
+            "qpc": 1616098184676
+          },
+          {
+            "frame": 284,
+            "qpc": 1616098353184
+          },
+          {
+            "frame": 285,
+            "qpc": 1616098520236
+          },
+          {
+            "frame": 286,
+            "qpc": 1616098685487
+          },
+          {
+            "frame": 287,
+            "qpc": 1616098851182
+          },
+          {
+            "frame": 288,
+            "qpc": 1616099019331
+          },
+          {
+            "frame": 289,
+            "qpc": 1616099190639
+          },
+          {
+            "frame": 290,
+            "qpc": 1616099351596
+          },
+          {
+            "frame": 291,
+            "qpc": 1616099522337
+          },
+          {
+            "frame": 292,
+            "qpc": 1616099688767
+          },
+          {
+            "frame": 293,
+            "qpc": 1616099851664
+          },
+          {
+            "frame": 294,
+            "qpc": 1616100018666
+          },
+          {
+            "frame": 295,
+            "qpc": 1616100189315
+          },
+          {
+            "frame": 296,
+            "qpc": 1616100351026
+          },
+          {
+            "frame": 297,
+            "qpc": 1616100518998
+          },
+          {
+            "frame": 298,
+            "qpc": 1616100685620
+          },
+          {
+            "frame": 299,
+            "qpc": 1616100854209
+          },
+          {
+            "frame": 300,
+            "qpc": 1616101021907
+          },
+          {
+            "frame": 301,
+            "qpc": 1616101188846
+          },
+          {
+            "frame": 302,
+            "qpc": 1616101350975
+          },
+          {
+            "frame": 303,
+            "qpc": 1616101518188
+          },
+          {
+            "frame": 304,
+            "qpc": 1616101684666
+          },
+          {
+            "frame": 305,
+            "qpc": 1616101852359
+          },
+          {
+            "frame": 306,
+            "qpc": 1616102021358
+          },
+          {
+            "frame": 307,
+            "qpc": 1616102188941
+          },
+          {
+            "frame": 308,
+            "qpc": 1616102354312
+          },
+          {
+            "frame": 309,
+            "qpc": 1616102521596
+          },
+          {
+            "frame": 310,
+            "qpc": 1616102684389
+          },
+          {
+            "frame": 311,
+            "qpc": 1616102853061
+          },
+          {
+            "frame": 312,
+            "qpc": 1616103020993
+          },
+          {
+            "frame": 313,
+            "qpc": 1616103188314
+          },
+          {
+            "frame": 314,
+            "qpc": 1616103352239
+          },
+          {
+            "frame": 315,
+            "qpc": 1616103521351
+          },
+          {
+            "frame": 316,
+            "qpc": 1616103687697
+          },
+          {
+            "frame": 317,
+            "qpc": 1616103855407
+          },
+          {
+            "frame": 318,
+            "qpc": 1616104018104
+          },
+          {
+            "frame": 319,
+            "qpc": 1616104184618
+          },
+          {
+            "frame": 320,
+            "qpc": 1616104355763
+          },
+          {
+            "frame": 321,
+            "qpc": 1616104521757
+          },
+          {
+            "frame": 322,
+            "qpc": 1616104689019
+          },
+          {
+            "frame": 323,
+            "qpc": 1616104853666
+          },
+          {
+            "frame": 324,
+            "qpc": 1616105018755
+          },
+          {
+            "frame": 325,
+            "qpc": 1616105185180
+          },
+          {
+            "frame": 326,
+            "qpc": 1616105352612
+          },
+          {
+            "frame": 327,
+            "qpc": 1616105521723
+          },
+          {
+            "frame": 328,
+            "qpc": 1616105686929
+          },
+          {
+            "frame": 329,
+            "qpc": 1616105854690
+          },
+          {
+            "frame": 330,
+            "qpc": 1616106019782
+          },
+          {
+            "frame": 331,
+            "qpc": 1616106188139
+          },
+          {
+            "frame": 332,
+            "qpc": 1616106353528
+          },
+          {
+            "frame": 333,
+            "qpc": 1616106519758
+          },
+          {
+            "frame": 334,
+            "qpc": 1616106685143
+          },
+          {
+            "frame": 335,
+            "qpc": 1616106853687
+          },
+          {
+            "frame": 336,
+            "qpc": 1616107018601
+          },
+          {
+            "frame": 337,
+            "qpc": 1616107185080
+          },
+          {
+            "frame": 338,
+            "qpc": 1616107354487
+          },
+          {
+            "frame": 339,
+            "qpc": 1616107522478
+          },
+          {
+            "frame": 340,
+            "qpc": 1616107684370
+          },
+          {
+            "frame": 341,
+            "qpc": 1616107852179
+          },
+          {
+            "frame": 342,
+            "qpc": 1616108019563
+          },
+          {
+            "frame": 343,
+            "qpc": 1616108190439
+          },
+          {
+            "frame": 344,
+            "qpc": 1616108350903
+          },
+          {
+            "frame": 345,
+            "qpc": 1616108519290
+          },
+          {
+            "frame": 346,
+            "qpc": 1616108688587
+          },
+          {
+            "frame": 347,
+            "qpc": 1616108855191
+          },
+          {
+            "frame": 348,
+            "qpc": 1616109018738
+          },
+          {
+            "frame": 349,
+            "qpc": 1616109189138
+          },
+          {
+            "frame": 350,
+            "qpc": 1616109354464
+          },
+          {
+            "frame": 351,
+            "qpc": 1616109521793
+          },
+          {
+            "frame": 352,
+            "qpc": 1616109685697
+          },
+          {
+            "frame": 353,
+            "qpc": 1616109853432
+          },
+          {
+            "frame": 354,
+            "qpc": 1616110020447
+          },
+          {
+            "frame": 355,
+            "qpc": 1616110185580
+          },
+          {
+            "frame": 356,
+            "qpc": 1616110353115
+          },
+          {
+            "frame": 357,
+            "qpc": 1616110517540
+          },
+          {
+            "frame": 358,
+            "qpc": 1616110686980
+          },
+          {
+            "frame": 359,
+            "qpc": 1616110853926
+          },
+          {
+            "frame": 360,
+            "qpc": 1616111020655
+          },
+          {
+            "frame": 361,
+            "qpc": 1616111189353
+          },
+          {
+            "frame": 362,
+            "qpc": 1616111354796
+          },
+          {
+            "frame": 363,
+            "qpc": 1616111520692
+          },
+          {
+            "frame": 364,
+            "qpc": 1616111684471
+          },
+          {
+            "frame": 365,
+            "qpc": 1616111855788
+          },
+          {
+            "frame": 366,
+            "qpc": 1616112017778
+          },
+          {
+            "frame": 367,
+            "qpc": 1616112184102
+          },
+          {
+            "frame": 368,
+            "qpc": 1616112353898
+          },
+          {
+            "frame": 369,
+            "qpc": 1616112519804
+          },
+          {
+            "frame": 370,
+            "qpc": 1616112684665
+          },
+          {
+            "frame": 371,
+            "qpc": 1616112854914
+          },
+          {
+            "frame": 372,
+            "qpc": 1616113021672
+          },
+          {
+            "frame": 373,
+            "qpc": 1616113187742
+          },
+          {
+            "frame": 374,
+            "qpc": 1616113350829
+          },
+          {
+            "frame": 375,
+            "qpc": 1616113519192
+          },
+          {
+            "frame": 376,
+            "qpc": 1616113686102
+          },
+          {
+            "frame": 377,
+            "qpc": 1616113852846
+          },
+          {
+            "frame": 378,
+            "qpc": 1616114018065
+          },
+          {
+            "frame": 379,
+            "qpc": 1616114184250
+          },
+          {
+            "frame": 380,
+            "qpc": 1616114350981
+          },
+          {
+            "frame": 381,
+            "qpc": 1616114518670
+          },
+          {
+            "frame": 382,
+            "qpc": 1616114687230
+          },
+          {
+            "frame": 383,
+            "qpc": 1616114851463
+          },
+          {
+            "frame": 384,
+            "qpc": 1616115019070
+          },
+          {
+            "frame": 385,
+            "qpc": 1616115187814
+          },
+          {
+            "frame": 386,
+            "qpc": 1616115352880
+          },
+          {
+            "frame": 387,
+            "qpc": 1616115521843
+          },
+          {
+            "frame": 388,
+            "qpc": 1616115688319
+          },
+          {
+            "frame": 389,
+            "qpc": 1616115852714
+          },
+          {
+            "frame": 390,
+            "qpc": 1616116017950
+          },
+          {
+            "frame": 391,
+            "qpc": 1616116189199
+          },
+          {
+            "frame": 392,
+            "qpc": 1616116355390
+          },
+          {
+            "frame": 393,
+            "qpc": 1616116518638
+          },
+          {
+            "frame": 394,
+            "qpc": 1616116688736
+          },
+          {
+            "frame": 395,
+            "qpc": 1616116854604
+          },
+          {
+            "frame": 396,
+            "qpc": 1616117019595
+          },
+          {
+            "frame": 397,
+            "qpc": 1616117189117
+          },
+          {
+            "frame": 398,
+            "qpc": 1616117353722
+          },
+          {
+            "frame": 399,
+            "qpc": 1616117517915
+          },
+          {
+            "frame": 400,
+            "qpc": 1616117686213
+          },
+          {
+            "frame": 401,
+            "qpc": 1616117855899
+          },
+          {
+            "frame": 402,
+            "qpc": 1616118020798
+          },
+          {
+            "frame": 403,
+            "qpc": 1616118187610
+          },
+          {
+            "frame": 404,
+            "qpc": 1616118353295
+          },
+          {
+            "frame": 405,
+            "qpc": 1616118522395
+          },
+          {
+            "frame": 406,
+            "qpc": 1616118688513
+          },
+          {
+            "frame": 407,
+            "qpc": 1616118854419
+          },
+          {
+            "frame": 408,
+            "qpc": 1616119021210
+          },
+          {
+            "frame": 409,
+            "qpc": 1616119184998
+          },
+          {
+            "frame": 410,
+            "qpc": 1616119353058
+          },
+          {
+            "frame": 411,
+            "qpc": 1616119520707
+          },
+          {
+            "frame": 412,
+            "qpc": 1616119689850
+          },
+          {
+            "frame": 413,
+            "qpc": 1616119855375
+          },
+          {
+            "frame": 414,
+            "qpc": 1616120018562
+          },
+          {
+            "frame": 415,
+            "qpc": 1616120188751
+          },
+          {
+            "frame": 416,
+            "qpc": 1616120352515
+          },
+          {
+            "frame": 417,
+            "qpc": 1616120518311
+          },
+          {
+            "frame": 418,
+            "qpc": 1616120687137
+          },
+          {
+            "frame": 419,
+            "qpc": 1616120854141
+          },
+          {
+            "frame": 420,
+            "qpc": 1616121020806
+          },
+          {
+            "frame": 421,
+            "qpc": 1616121185124
+          },
+          {
+            "frame": 422,
+            "qpc": 1616121355676
+          },
+          {
+            "frame": 423,
+            "qpc": 1616121518183
+          },
+          {
+            "frame": 424,
+            "qpc": 1616121689370
+          },
+          {
+            "frame": 425,
+            "qpc": 1616121852008
+          },
+          {
+            "frame": 426,
+            "qpc": 1616122021502
+          },
+          {
+            "frame": 427,
+            "qpc": 1616122189119
+          },
+          {
+            "frame": 428,
+            "qpc": 1616122354950
+          },
+          {
+            "frame": 429,
+            "qpc": 1616122520871
+          },
+          {
+            "frame": 430,
+            "qpc": 1616122684814
+          },
+          {
+            "frame": 431,
+            "qpc": 1616122855204
+          },
+          {
+            "frame": 432,
+            "qpc": 1616123020317
+          },
+          {
+            "frame": 433,
+            "qpc": 1616123185250
+          },
+          {
+            "frame": 434,
+            "qpc": 1616123355090
+          },
+          {
+            "frame": 435,
+            "qpc": 1616123520709
+          },
+          {
+            "frame": 436,
+            "qpc": 1616123684742
+          },
+          {
+            "frame": 437,
+            "qpc": 1616123853185
+          },
+          {
+            "frame": 438,
+            "qpc": 1616124021320
+          },
+          {
+            "frame": 439,
+            "qpc": 1616124187016
+          },
+          {
+            "frame": 440,
+            "qpc": 1616124352335
+          },
+          {
+            "frame": 441,
+            "qpc": 1616124519669
+          },
+          {
+            "frame": 442,
+            "qpc": 1616124687852
+          },
+          {
+            "frame": 443,
+            "qpc": 1616124854189
+          },
+          {
+            "frame": 444,
+            "qpc": 1616125021101
+          },
+          {
+            "frame": 445,
+            "qpc": 1616125189048
+          },
+          {
+            "frame": 446,
+            "qpc": 1616125355017
+          },
+          {
+            "frame": 447,
+            "qpc": 1616125519575
+          },
+          {
+            "frame": 448,
+            "qpc": 1616125686422
+          },
+          {
+            "frame": 449,
+            "qpc": 1616125851039
+          },
+          {
+            "frame": 450,
+            "qpc": 1616126018957
+          },
+          {
+            "frame": 451,
+            "qpc": 1616126189917
+          },
+          {
+            "frame": 452,
+            "qpc": 1616126352510
+          },
+          {
+            "frame": 453,
+            "qpc": 1616126519996
+          },
+          {
+            "frame": 454,
+            "qpc": 1616126686831
+          },
+          {
+            "frame": 455,
+            "qpc": 1616126852650
+          },
+          {
+            "frame": 456,
+            "qpc": 1616127022861
+          },
+          {
+            "frame": 457,
+            "qpc": 1616127188617
+          },
+          {
+            "frame": 458,
+            "qpc": 1616127354874
+          },
+          {
+            "frame": 459,
+            "qpc": 1616127520925
+          },
+          {
+            "frame": 460,
+            "qpc": 1616127685729
+          },
+          {
+            "frame": 461,
+            "qpc": 1616127852849
+          },
+          {
+            "frame": 462,
+            "qpc": 1616128020018
+          },
+          {
+            "frame": 463,
+            "qpc": 1616128187805
+          },
+          {
+            "frame": 464,
+            "qpc": 1616128352123
+          },
+          {
+            "frame": 465,
+            "qpc": 1616128520080
+          },
+          {
+            "frame": 466,
+            "qpc": 1616128688974
+          },
+          {
+            "frame": 467,
+            "qpc": 1616128850854
+          },
+          {
+            "frame": 468,
+            "qpc": 1616129019312
+          },
+          {
+            "frame": 469,
+            "qpc": 1616129187988
+          },
+          {
+            "frame": 470,
+            "qpc": 1616129355223
+          },
+          {
+            "frame": 471,
+            "qpc": 1616129527363
+          },
+          {
+            "frame": 472,
+            "qpc": 1616129684383
+          },
+          {
+            "frame": 473,
+            "qpc": 1616129852290
+          },
+          {
+            "frame": 474,
+            "qpc": 1616130021861
+          },
+          {
+            "frame": 475,
+            "qpc": 1616130186801
+          },
+          {
+            "frame": 476,
+            "qpc": 1616130352572
+          },
+          {
+            "frame": 477,
+            "qpc": 1616130519841
+          },
+          {
+            "frame": 478,
+            "qpc": 1616130685711
+          },
+          {
+            "frame": 479,
+            "qpc": 1616130852810
+          }
+        ],
+        "tick_work": {
+          "samples": 480,
+          "mean_ms": 0.004673541666666666,
+          "median_ms": 0.0039,
+          "p95_ms": 0.0072,
+          "p99_ms": 0.0427,
+          "maximum_ms": 0.1311
+        },
+        "timing": {
+          "cpu_submission_work": null,
+          "worker_start_intervals": null,
+          "gpu_execution": null,
+          "skipped_gpu_queries": 0,
+          "invalid_gpu_queries": 0,
+          "pending_gpu_queries": 0,
+          "truncated_samples": 0,
+          "gpu_outliers": {
+            "total": 0,
+            "omitted": 0,
+            "events": [],
+            "maximum": null,
+            "maximum_score": 0
+          }
+        },
+        "before_final_fence": {
+          "maximum_in_flight": 2,
+          "peak_in_flight": 2,
+          "submitted": 4,
+          "completed": 2,
+          "pending": 2,
+          "reserved": false,
+          "warmup": {
+            "attempts": 0,
+            "admitted": 0,
+            "busy": 0
+          },
+          "sampled": {
+            "attempts": 480,
+            "admitted": 4,
+            "busy": 476
+          }
+        },
+        "drain_clear_after_observation": true,
+        "after_final_fence": {
+          "maximum_in_flight": 2,
+          "peak_in_flight": 2,
+          "submitted": 4,
+          "completed": 4,
+          "pending": 0,
+          "reserved": false,
+          "warmup": {
+            "attempts": 0,
+            "admitted": 0,
+            "busy": 0
+          },
+          "sampled": {
+            "attempts": 480,
+            "admitted": 4,
+            "busy": 476
+          },
+          "pending_at_final_poll": 2
+        },
+        "allocations_after_fence": {
+          "live_bytes_by_owner": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "retiring_bytes_by_owner": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "live_textures": 0,
+          "retiring_textures": 0,
+          "peak_live_plus_retiring_bytes": 1024,
+          "peak_live_plus_retiring_textures": 1
+        },
+        "operations_including_seed": {
+          "clears": 2,
+          "shader_draws": 0,
+          "uniform_upload_bytes": 0,
+          "diagnostic_readback_pixels": 0,
+          "sdk_send_calls": 0,
+          "sdk_receive_calls": 4,
+          "sdk_texture_queries": 0,
+          "sdk_texture_observations": 0,
+          "explicit_gpu_copy_calls": 0,
+          "explicit_gpu_copy_bytes": 0
+        }
+      },
+      "failure_stdout": null
+    },
+    {
+      "command": [
+        "D:\\Projects\\Dev\\Chataigne2\\target\\release\\mapgyver_native_probe.exe",
+        "gpu-progress",
+        "1",
+        "receiver_timestamp"
+      ],
+      "started_utc": "2026-10-28T04:46:45.826748+00:00",
+      "exit_code": 0,
+      "stderr": "",
+      "report": {
+        "evidence_kind": "headless_query_progress_isolation_not_fixed_workload_qualification",
+        "mode": "receiver_timestamp",
+        "adapter_luid": "00000000:000170d3",
+        "seconds": 8,
+        "target_ticks": 480,
+        "elapsed_seconds": 8.0003533,
+        "qpc_frequency": 10000000,
+        "start_qpc": 1616133659071,
+        "busy_ticks": [],
+        "tick_work": {
+          "samples": 480,
+          "mean_ms": 0.08382354166666667,
+          "median_ms": 0.0828,
+          "p95_ms": 0.1252,
+          "p99_ms": 0.1419,
+          "maximum_ms": 0.1657
+        },
+        "timing": {
+          "cpu_submission_work": {
+            "samples": 480,
+            "mean_ms": 0.08366041666666665,
+            "median_ms": 0.08270000000000001,
+            "p95_ms": 0.1252,
+            "p99_ms": 0.1418,
+            "maximum_ms": 0.1656
+          },
+          "worker_start_intervals": {
+            "samples": 479,
+            "mean_ms": 16.666818789144045,
+            "median_ms": 16.6572,
+            "p95_ms": 17.0638,
+            "p99_ms": 17.168699999999998,
+            "maximum_ms": 17.311300000000003
+          },
+          "gpu_execution": {
+            "samples": 480,
+            "mean_ms": 0.0000027333333333333323,
+            "median_ms": 0,
+            "p95_ms": 0.000032000000000000005,
+            "p99_ms": 0.000032000000000000005,
+            "maximum_ms": 0.000032000000000000005
+          },
+          "skipped_gpu_queries": 0,
+          "invalid_gpu_queries": 0,
+          "pending_gpu_queries": 0,
+          "truncated_samples": 0,
+          "gpu_outliers": {
+            "total": 0,
+            "omitted": 0,
+            "events": [],
+            "maximum": null,
+            "maximum_score": 0
+          }
+        },
+        "before_final_fence": {
+          "maximum_in_flight": 2,
+          "peak_in_flight": 1,
+          "submitted": 480,
+          "completed": 479,
+          "pending": 1,
+          "reserved": false,
+          "warmup": {
+            "attempts": 0,
+            "admitted": 0,
+            "busy": 0
+          },
+          "sampled": {
+            "attempts": 480,
+            "admitted": 480,
+            "busy": 0
+          }
+        },
+        "drain_clear_after_observation": true,
+        "after_final_fence": {
+          "maximum_in_flight": 2,
+          "peak_in_flight": 1,
+          "submitted": 480,
+          "completed": 480,
+          "pending": 0,
+          "reserved": false,
+          "warmup": {
+            "attempts": 0,
+            "admitted": 0,
+            "busy": 0
+          },
+          "sampled": {
+            "attempts": 480,
+            "admitted": 480,
+            "busy": 0
+          },
+          "pending_at_final_poll": 1
+        },
+        "allocations_after_fence": {
+          "live_bytes_by_owner": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "retiring_bytes_by_owner": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "live_textures": 0,
+          "retiring_textures": 0,
+          "peak_live_plus_retiring_bytes": 1024,
+          "peak_live_plus_retiring_textures": 1
+        },
+        "operations_including_seed": {
+          "clears": 2,
+          "shader_draws": 0,
+          "uniform_upload_bytes": 0,
+          "diagnostic_readback_pixels": 0,
+          "sdk_send_calls": 0,
+          "sdk_receive_calls": 480,
+          "sdk_texture_queries": 0,
+          "sdk_texture_observations": 0,
+          "explicit_gpu_copy_calls": 0,
+          "explicit_gpu_copy_bytes": 0
+        }
+      },
+      "failure_stdout": null
+    },
+    {
+      "command": [
+        "D:\\Projects\\Dev\\Chataigne2\\target\\release\\mapgyver_native_probe.exe",
+        "gpu-progress",
+        "1",
+        "clear_warmup"
+      ],
+      "started_utc": "2026-10-28T04:46:53.989442+00:00",
+      "exit_code": 0,
+      "stderr": "",
+      "report": {
+        "evidence_kind": "headless_query_progress_isolation_not_fixed_workload_qualification",
+        "mode": "clear_warmup",
+        "adapter_luid": "00000000:000170d3",
+        "seconds": 8,
+        "target_ticks": 480,
+        "elapsed_seconds": 8.0002507,
+        "qpc_frequency": 10000000,
+        "start_qpc": 1616215192136,
+        "busy_ticks": [
+          {
+            "frame": 2,
+            "qpc": 1616215529335
+          },
+          {
+            "frame": 3,
+            "qpc": 1616215696978
+          },
+          {
+            "frame": 4,
+            "qpc": 1616215862142
+          },
+          {
+            "frame": 5,
+            "qpc": 1616216028084
+          },
+          {
+            "frame": 6,
+            "qpc": 1616216197613
+          },
+          {
+            "frame": 7,
+            "qpc": 1616216362237
+          },
+          {
+            "frame": 8,
+            "qpc": 1616216527501
+          },
+          {
+            "frame": 9,
+            "qpc": 1616216697369
+          },
+          {
+            "frame": 10,
+            "qpc": 1616216859855
+          },
+          {
+            "frame": 11,
+            "qpc": 1616217027957
+          },
+          {
+            "frame": 12,
+            "qpc": 1616217196546
+          },
+          {
+            "frame": 13,
+            "qpc": 1616217359145
+          },
+          {
+            "frame": 14,
+            "qpc": 1616217528379
+          },
+          {
+            "frame": 15,
+            "qpc": 1616217695026
+          },
+          {
+            "frame": 16,
+            "qpc": 1616217860998
+          },
+          {
+            "frame": 17,
+            "qpc": 1616218026957
+          },
+          {
+            "frame": 18,
+            "qpc": 1616218195070
+          },
+          {
+            "frame": 19,
+            "qpc": 1616218363834
+          },
+          {
+            "frame": 20,
+            "qpc": 1616218529986
+          },
+          {
+            "frame": 21,
+            "qpc": 1616218696075
+          },
+          {
+            "frame": 22,
+            "qpc": 1616218861143
+          },
+          {
+            "frame": 23,
+            "qpc": 1616219029443
+          },
+          {
+            "frame": 24,
+            "qpc": 1616219194664
+          },
+          {
+            "frame": 25,
+            "qpc": 1616219361015
+          },
+          {
+            "frame": 26,
+            "qpc": 1616219526750
+          },
+          {
+            "frame": 27,
+            "qpc": 1616219695187
+          },
+          {
+            "frame": 28,
+            "qpc": 1616219861765
+          },
+          {
+            "frame": 29,
+            "qpc": 1616220029178
+          },
+          {
+            "frame": 30,
+            "qpc": 1616220196033
+          },
+          {
+            "frame": 31,
+            "qpc": 1616220362146
+          },
+          {
+            "frame": 32,
+            "qpc": 1616220526130
+          },
+          {
+            "frame": 33,
+            "qpc": 1616220696907
+          },
+          {
+            "frame": 34,
+            "qpc": 1616220859463
+          },
+          {
+            "frame": 35,
+            "qpc": 1616221026137
+          },
+          {
+            "frame": 36,
+            "qpc": 1616221193885
+          },
+          {
+            "frame": 37,
+            "qpc": 1616221363223
+          },
+          {
+            "frame": 38,
+            "qpc": 1616221529292
+          },
+          {
+            "frame": 39,
+            "qpc": 1616221696614
+          },
+          {
+            "frame": 40,
+            "qpc": 1616221861510
+          },
+          {
+            "frame": 41,
+            "qpc": 1616222028675
+          },
+          {
+            "frame": 42,
+            "qpc": 1616222194493
+          },
+          {
+            "frame": 43,
+            "qpc": 1616222363971
+          },
+          {
+            "frame": 44,
+            "qpc": 1616222526107
+          },
+          {
+            "frame": 45,
+            "qpc": 1616222696039
+          },
+          {
+            "frame": 46,
+            "qpc": 1616222863916
+          },
+          {
+            "frame": 47,
+            "qpc": 1616223030312
+          },
+          {
+            "frame": 48,
+            "qpc": 1616223194153
+          },
+          {
+            "frame": 49,
+            "qpc": 1616223360766
+          },
+          {
+            "frame": 50,
+            "qpc": 1616223526211
+          },
+          {
+            "frame": 51,
+            "qpc": 1616223693698
+          },
+          {
+            "frame": 52,
+            "qpc": 1616223860428
+          },
+          {
+            "frame": 53,
+            "qpc": 1616224027360
+          },
+          {
+            "frame": 54,
+            "qpc": 1616224196513
+          },
+          {
+            "frame": 55,
+            "qpc": 1616224359309
+          },
+          {
+            "frame": 56,
+            "qpc": 1616224526252
+          },
+          {
+            "frame": 57,
+            "qpc": 1616224693450
+          },
+          {
+            "frame": 58,
+            "qpc": 1616224863400
+          },
+          {
+            "frame": 59,
+            "qpc": 1616225029720
+          },
+          {
+            "frame": 60,
+            "qpc": 1616225194792
+          },
+          {
+            "frame": 61,
+            "qpc": 1616225360804
+          },
+          {
+            "frame": 62,
+            "qpc": 1616225527328
+          },
+          {
+            "frame": 63,
+            "qpc": 1616225694235
+          },
+          {
+            "frame": 64,
+            "qpc": 1616225861829
+          },
+          {
+            "frame": 65,
+            "qpc": 1616226026810
+          },
+          {
+            "frame": 66,
+            "qpc": 1616226196168
+          },
+          {
+            "frame": 67,
+            "qpc": 1616226359477
+          },
+          {
+            "frame": 68,
+            "qpc": 1616226530424
+          },
+          {
+            "frame": 69,
+            "qpc": 1616226695555
+          },
+          {
+            "frame": 70,
+            "qpc": 1616226861883
+          },
+          {
+            "frame": 71,
+            "qpc": 1616227029687
+          },
+          {
+            "frame": 72,
+            "qpc": 1616227195684
+          },
+          {
+            "frame": 73,
+            "qpc": 1616227364114
+          },
+          {
+            "frame": 74,
+            "qpc": 1616227526983
+          },
+          {
+            "frame": 75,
+            "qpc": 1616227694365
+          },
+          {
+            "frame": 76,
+            "qpc": 1616227864142
+          },
+          {
+            "frame": 77,
+            "qpc": 1616228030340
+          },
+          {
+            "frame": 78,
+            "qpc": 1616228193834
+          },
+          {
+            "frame": 79,
+            "qpc": 1616228363110
+          },
+          {
+            "frame": 80,
+            "qpc": 1616228528928
+          },
+          {
+            "frame": 81,
+            "qpc": 1616228695892
+          },
+          {
+            "frame": 82,
+            "qpc": 1616228863280
+          },
+          {
+            "frame": 83,
+            "qpc": 1616229026784
+          },
+          {
+            "frame": 84,
+            "qpc": 1616229192942
+          },
+          {
+            "frame": 85,
+            "qpc": 1616229360331
+          },
+          {
+            "frame": 86,
+            "qpc": 1616229531094
+          },
+          {
+            "frame": 87,
+            "qpc": 1616229692972
+          },
+          {
+            "frame": 88,
+            "qpc": 1616229860979
+          },
+          {
+            "frame": 89,
+            "qpc": 1616230026618
+          },
+          {
+            "frame": 90,
+            "qpc": 1616230193253
+          },
+          {
+            "frame": 91,
+            "qpc": 1616230364297
+          },
+          {
+            "frame": 92,
+            "qpc": 1616230527885
+          },
+          {
+            "frame": 93,
+            "qpc": 1616230695271
+          },
+          {
+            "frame": 94,
+            "qpc": 1616230860478
+          },
+          {
+            "frame": 95,
+            "qpc": 1616231029852
+          },
+          {
+            "frame": 96,
+            "qpc": 1616231195132
+          },
+          {
+            "frame": 97,
+            "qpc": 1616231362184
+          },
+          {
+            "frame": 98,
+            "qpc": 1616231528107
+          },
+          {
+            "frame": 99,
+            "qpc": 1616231692808
+          },
+          {
+            "frame": 100,
+            "qpc": 1616231861290
+          },
+          {
+            "frame": 101,
+            "qpc": 1616232029797
+          },
+          {
+            "frame": 102,
+            "qpc": 1616232192604
+          },
+          {
+            "frame": 103,
+            "qpc": 1616232362932
+          },
+          {
+            "frame": 104,
+            "qpc": 1616232527499
+          },
+          {
+            "frame": 105,
+            "qpc": 1616232693280
+          },
+          {
+            "frame": 106,
+            "qpc": 1616232862201
+          },
+          {
+            "frame": 107,
+            "qpc": 1616233027819
+          },
+          {
+            "frame": 108,
+            "qpc": 1616233193873
+          },
+          {
+            "frame": 109,
+            "qpc": 1616233363479
+          },
+          {
+            "frame": 110,
+            "qpc": 1616233526923
+          },
+          {
+            "frame": 111,
+            "qpc": 1616233693723
+          },
+          {
+            "frame": 112,
+            "qpc": 1616233859595
+          },
+          {
+            "frame": 113,
+            "qpc": 1616234030720
+          },
+          {
+            "frame": 114,
+            "qpc": 1616234194644
+          },
+          {
+            "frame": 115,
+            "qpc": 1616234359337
+          },
+          {
+            "frame": 116,
+            "qpc": 1616234530497
+          },
+          {
+            "frame": 117,
+            "qpc": 1616234696765
+          },
+          {
+            "frame": 118,
+            "qpc": 1616234860947
+          },
+          {
+            "frame": 119,
+            "qpc": 1616235029699
+          },
+          {
+            "frame": 120,
+            "qpc": 1616235193176
+          },
+          {
+            "frame": 121,
+            "qpc": 1616235365494
+          },
+          {
+            "frame": 122,
+            "qpc": 1616235528600
+          },
+          {
+            "frame": 123,
+            "qpc": 1616235695041
+          },
+          {
+            "frame": 124,
+            "qpc": 1616235863237
+          },
+          {
+            "frame": 125,
+            "qpc": 1616236030613
+          },
+          {
+            "frame": 126,
+            "qpc": 1616236194876
+          },
+          {
+            "frame": 127,
+            "qpc": 1616236360679
+          },
+          {
+            "frame": 128,
+            "qpc": 1616236529165
+          },
+          {
+            "frame": 129,
+            "qpc": 1616236693553
+          },
+          {
+            "frame": 130,
+            "qpc": 1616236863681
+          },
+          {
+            "frame": 131,
+            "qpc": 1616237026770
+          },
+          {
+            "frame": 132,
+            "qpc": 1616237192981
+          },
+          {
+            "frame": 133,
+            "qpc": 1616237362101
+          },
+          {
+            "frame": 134,
+            "qpc": 1616237531084
+          },
+          {
+            "frame": 135,
+            "qpc": 1616237697191
+          },
+          {
+            "frame": 136,
+            "qpc": 1616237863889
+          },
+          {
+            "frame": 137,
+            "qpc": 1616238029163
+          },
+          {
+            "frame": 138,
+            "qpc": 1616238194947
+          },
+          {
+            "frame": 139,
+            "qpc": 1616238362021
+          },
+          {
+            "frame": 140,
+            "qpc": 1616238528730
+          },
+          {
+            "frame": 141,
+            "qpc": 1616238695068
+          },
+          {
+            "frame": 142,
+            "qpc": 1616238861163
+          },
+          {
+            "frame": 143,
+            "qpc": 1616239027645
+          },
+          {
+            "frame": 144,
+            "qpc": 1616239194894
+          },
+          {
+            "frame": 145,
+            "qpc": 1616239362218
+          },
+          {
+            "frame": 146,
+            "qpc": 1616239526937
+          },
+          {
+            "frame": 147,
+            "qpc": 1616239694099
+          },
+          {
+            "frame": 148,
+            "qpc": 1616239861274
+          },
+          {
+            "frame": 149,
+            "qpc": 1616240029295
+          },
+          {
+            "frame": 150,
+            "qpc": 1616240196014
+          },
+          {
+            "frame": 151,
+            "qpc": 1616240359051
+          },
+          {
+            "frame": 152,
+            "qpc": 1616240533493
+          },
+          {
+            "frame": 153,
+            "qpc": 1616240696948
+          },
+          {
+            "frame": 154,
+            "qpc": 1616240863746
+          },
+          {
+            "frame": 155,
+            "qpc": 1616241029779
+          },
+          {
+            "frame": 156,
+            "qpc": 1616241193207
+          },
+          {
+            "frame": 157,
+            "qpc": 1616241360716
+          },
+          {
+            "frame": 158,
+            "qpc": 1616241526161
+          },
+          {
+            "frame": 159,
+            "qpc": 1616241695064
+          },
+          {
+            "frame": 160,
+            "qpc": 1616241864198
+          },
+          {
+            "frame": 161,
+            "qpc": 1616242029754
+          },
+          {
+            "frame": 162,
+            "qpc": 1616242193970
+          },
+          {
+            "frame": 163,
+            "qpc": 1616242365580
+          },
+          {
+            "frame": 164,
+            "qpc": 1616242529817
+          },
+          {
+            "frame": 165,
+            "qpc": 1616242693845
+          },
+          {
+            "frame": 166,
+            "qpc": 1616242859845
+          },
+          {
+            "frame": 167,
+            "qpc": 1616243029136
+          },
+          {
+            "frame": 168,
+            "qpc": 1616243193606
+          },
+          {
+            "frame": 169,
+            "qpc": 1616243359074
+          },
+          {
+            "frame": 170,
+            "qpc": 1616243528371
+          },
+          {
+            "frame": 171,
+            "qpc": 1616243695830
+          },
+          {
+            "frame": 172,
+            "qpc": 1616243862804
+          },
+          {
+            "frame": 173,
+            "qpc": 1616244027471
+          },
+          {
+            "frame": 174,
+            "qpc": 1616244197225
+          },
+          {
+            "frame": 175,
+            "qpc": 1616244364116
+          },
+          {
+            "frame": 176,
+            "qpc": 1616244531362
+          },
+          {
+            "frame": 177,
+            "qpc": 1616244695597
+          },
+          {
+            "frame": 178,
+            "qpc": 1616244863350
+          },
+          {
+            "frame": 179,
+            "qpc": 1616245028469
+          },
+          {
+            "frame": 180,
+            "qpc": 1616245195699
+          },
+          {
+            "frame": 181,
+            "qpc": 1616245362298
+          },
+          {
+            "frame": 182,
+            "qpc": 1616245525982
+          },
+          {
+            "frame": 183,
+            "qpc": 1616245697499
+          },
+          {
+            "frame": 184,
+            "qpc": 1616245861090
+          },
+          {
+            "frame": 185,
+            "qpc": 1616246028449
+          },
+          {
+            "frame": 186,
+            "qpc": 1616246196058
+          },
+          {
+            "frame": 187,
+            "qpc": 1616246365816
+          },
+          {
+            "frame": 188,
+            "qpc": 1616246528177
+          },
+          {
+            "frame": 189,
+            "qpc": 1616246695167
+          },
+          {
+            "frame": 190,
+            "qpc": 1616246861858
+          },
+          {
+            "frame": 191,
+            "qpc": 1616247029316
+          },
+          {
+            "frame": 192,
+            "qpc": 1616247197462
+          },
+          {
+            "frame": 193,
+            "qpc": 1616247360124
+          },
+          {
+            "frame": 194,
+            "qpc": 1616247530231
+          },
+          {
+            "frame": 195,
+            "qpc": 1616247694251
+          },
+          {
+            "frame": 196,
+            "qpc": 1616247862628
+          },
+          {
+            "frame": 197,
+            "qpc": 1616248029267
+          },
+          {
+            "frame": 198,
+            "qpc": 1616248196489
+          },
+          {
+            "frame": 199,
+            "qpc": 1616248360829
+          },
+          {
+            "frame": 200,
+            "qpc": 1616248525865
+          },
+          {
+            "frame": 201,
+            "qpc": 1616248692594
+          },
+          {
+            "frame": 202,
+            "qpc": 1616248863783
+          },
+          {
+            "frame": 203,
+            "qpc": 1616249027604
+          },
+          {
+            "frame": 204,
+            "qpc": 1616249195267
+          },
+          {
+            "frame": 205,
+            "qpc": 1616249361751
+          },
+          {
+            "frame": 206,
+            "qpc": 1616249528863
+          },
+          {
+            "frame": 207,
+            "qpc": 1616249693565
+          },
+          {
+            "frame": 208,
+            "qpc": 1616249861585
+          },
+          {
+            "frame": 209,
+            "qpc": 1616250027957
+          },
+          {
+            "frame": 210,
+            "qpc": 1616250193789
+          },
+          {
+            "frame": 211,
+            "qpc": 1616250364061
+          },
+          {
+            "frame": 212,
+            "qpc": 1616250527294
+          },
+          {
+            "frame": 213,
+            "qpc": 1616250696236
+          },
+          {
+            "frame": 214,
+            "qpc": 1616250861528
+          },
+          {
+            "frame": 215,
+            "qpc": 1616251028260
+          },
+          {
+            "frame": 216,
+            "qpc": 1616251194694
+          },
+          {
+            "frame": 217,
+            "qpc": 1616251360520
+          },
+          {
+            "frame": 218,
+            "qpc": 1616251528825
+          },
+          {
+            "frame": 219,
+            "qpc": 1616251699669
+          },
+          {
+            "frame": 220,
+            "qpc": 1616251860060
+          },
+          {
+            "frame": 221,
+            "qpc": 1616252028290
+          },
+          {
+            "frame": 222,
+            "qpc": 1616252196725
+          },
+          {
+            "frame": 223,
+            "qpc": 1616252359161
+          },
+          {
+            "frame": 224,
+            "qpc": 1616252528030
+          },
+          {
+            "frame": 225,
+            "qpc": 1616252695331
+          },
+          {
+            "frame": 226,
+            "qpc": 1616252859396
+          },
+          {
+            "frame": 227,
+            "qpc": 1616253030192
+          },
+          {
+            "frame": 228,
+            "qpc": 1616253192810
+          },
+          {
+            "frame": 229,
+            "qpc": 1616253362248
+          },
+          {
+            "frame": 230,
+            "qpc": 1616253526313
+          },
+          {
+            "frame": 231,
+            "qpc": 1616253696905
+          },
+          {
+            "frame": 232,
+            "qpc": 1616253862411
+          },
+          {
+            "frame": 233,
+            "qpc": 1616254030064
+          },
+          {
+            "frame": 234,
+            "qpc": 1616254196577
+          },
+          {
+            "frame": 235,
+            "qpc": 1616254361530
+          },
+          {
+            "frame": 236,
+            "qpc": 1616254527069
+          },
+          {
+            "frame": 237,
+            "qpc": 1616254693043
+          },
+          {
+            "frame": 238,
+            "qpc": 1616254861029
+          },
+          {
+            "frame": 239,
+            "qpc": 1616255028425
+          },
+          {
+            "frame": 240,
+            "qpc": 1616255195020
+          },
+          {
+            "frame": 241,
+            "qpc": 1616255361647
+          },
+          {
+            "frame": 242,
+            "qpc": 1616255531705
+          },
+          {
+            "frame": 243,
+            "qpc": 1616255695585
+          },
+          {
+            "frame": 244,
+            "qpc": 1616255859301
+          },
+          {
+            "frame": 245,
+            "qpc": 1616256030003
+          },
+          {
+            "frame": 246,
+            "qpc": 1616256196865
+          },
+          {
+            "frame": 247,
+            "qpc": 1616256362464
+          },
+          {
+            "frame": 248,
+            "qpc": 1616256527813
+          },
+          {
+            "frame": 249,
+            "qpc": 1616256695489
+          },
+          {
+            "frame": 250,
+            "qpc": 1616256861953
+          },
+          {
+            "frame": 251,
+            "qpc": 1616257030033
+          },
+          {
+            "frame": 252,
+            "qpc": 1616257195710
+          },
+          {
+            "frame": 253,
+            "qpc": 1616257362105
+          },
+          {
+            "frame": 254,
+            "qpc": 1616257528183
+          },
+          {
+            "frame": 255,
+            "qpc": 1616257694346
+          },
+          {
+            "frame": 258,
+            "qpc": 1616258193273
+          },
+          {
+            "frame": 259,
+            "qpc": 1616258360685
+          },
+          {
+            "frame": 260,
+            "qpc": 1616258526395
+          },
+          {
+            "frame": 261,
+            "qpc": 1616258694922
+          },
+          {
+            "frame": 262,
+            "qpc": 1616258862682
+          },
+          {
+            "frame": 263,
+            "qpc": 1616259029442
+          },
+          {
+            "frame": 264,
+            "qpc": 1616259196641
+          },
+          {
+            "frame": 265,
+            "qpc": 1616259362951
+          },
+          {
+            "frame": 266,
+            "qpc": 1616259530766
+          },
+          {
+            "frame": 267,
+            "qpc": 1616259694336
+          },
+          {
+            "frame": 268,
+            "qpc": 1616259863365
+          },
+          {
+            "frame": 269,
+            "qpc": 1616260026176
+          },
+          {
+            "frame": 270,
+            "qpc": 1616260197098
+          },
+          {
+            "frame": 271,
+            "qpc": 1616260362804
+          },
+          {
+            "frame": 272,
+            "qpc": 1616260530381
+          },
+          {
+            "frame": 273,
+            "qpc": 1616260696367
+          },
+          {
+            "frame": 274,
+            "qpc": 1616260863098
+          },
+          {
+            "frame": 275,
+            "qpc": 1616261027438
+          },
+          {
+            "frame": 276,
+            "qpc": 1616261196029
+          },
+          {
+            "frame": 277,
+            "qpc": 1616261359110
+          },
+          {
+            "frame": 278,
+            "qpc": 1616261527552
+          },
+          {
+            "frame": 279,
+            "qpc": 1616261694865
+          },
+          {
+            "frame": 280,
+            "qpc": 1616261861394
+          },
+          {
+            "frame": 281,
+            "qpc": 1616262025968
+          },
+          {
+            "frame": 282,
+            "qpc": 1616262194732
+          },
+          {
+            "frame": 283,
+            "qpc": 1616262362807
+          },
+          {
+            "frame": 284,
+            "qpc": 1616262528688
+          },
+          {
+            "frame": 285,
+            "qpc": 1616262693588
+          },
+          {
+            "frame": 286,
+            "qpc": 1616262863470
+          },
+          {
+            "frame": 287,
+            "qpc": 1616263026413
+          },
+          {
+            "frame": 288,
+            "qpc": 1616263197250
+          },
+          {
+            "frame": 289,
+            "qpc": 1616263359581
+          },
+          {
+            "frame": 290,
+            "qpc": 1616263526822
+          },
+          {
+            "frame": 291,
+            "qpc": 1616263692768
+          },
+          {
+            "frame": 292,
+            "qpc": 1616263863563
+          },
+          {
+            "frame": 293,
+            "qpc": 1616264032562
+          },
+          {
+            "frame": 294,
+            "qpc": 1616264197135
+          },
+          {
+            "frame": 295,
+            "qpc": 1616264362504
+          },
+          {
+            "frame": 296,
+            "qpc": 1616264530028
+          },
+          {
+            "frame": 297,
+            "qpc": 1616264694209
+          },
+          {
+            "frame": 298,
+            "qpc": 1616264862973
+          },
+          {
+            "frame": 299,
+            "qpc": 1616265028212
+          },
+          {
+            "frame": 300,
+            "qpc": 1616265196670
+          },
+          {
+            "frame": 301,
+            "qpc": 1616265361137
+          },
+          {
+            "frame": 302,
+            "qpc": 1616265531440
+          },
+          {
+            "frame": 303,
+            "qpc": 1616265692545
+          },
+          {
+            "frame": 304,
+            "qpc": 1616265863879
+          },
+          {
+            "frame": 305,
+            "qpc": 1616266029986
+          },
+          {
+            "frame": 306,
+            "qpc": 1616266196977
+          },
+          {
+            "frame": 307,
+            "qpc": 1616266359232
+          },
+          {
+            "frame": 308,
+            "qpc": 1616266527429
+          },
+          {
+            "frame": 309,
+            "qpc": 1616266696272
+          },
+          {
+            "frame": 310,
+            "qpc": 1616266861430
+          },
+          {
+            "frame": 311,
+            "qpc": 1616267030311
+          },
+          {
+            "frame": 312,
+            "qpc": 1616267195653
+          },
+          {
+            "frame": 313,
+            "qpc": 1616267362392
+          },
+          {
+            "frame": 314,
+            "qpc": 1616267529804
+          },
+          {
+            "frame": 315,
+            "qpc": 1616267697076
+          },
+          {
+            "frame": 316,
+            "qpc": 1616267859344
+          },
+          {
+            "frame": 317,
+            "qpc": 1616268027356
+          },
+          {
+            "frame": 318,
+            "qpc": 1616268193755
+          },
+          {
+            "frame": 319,
+            "qpc": 1616268362101
+          },
+          {
+            "frame": 320,
+            "qpc": 1616268528999
+          },
+          {
+            "frame": 321,
+            "qpc": 1616268696026
+          },
+          {
+            "frame": 322,
+            "qpc": 1616268863646
+          },
+          {
+            "frame": 323,
+            "qpc": 1616269029068
+          },
+          {
+            "frame": 324,
+            "qpc": 1616269194806
+          },
+          {
+            "frame": 325,
+            "qpc": 1616269363038
+          },
+          {
+            "frame": 326,
+            "qpc": 1616269527141
+          },
+          {
+            "frame": 327,
+            "qpc": 1616269692655
+          },
+          {
+            "frame": 328,
+            "qpc": 1616269862744
+          },
+          {
+            "frame": 329,
+            "qpc": 1616270027037
+          },
+          {
+            "frame": 330,
+            "qpc": 1616270194871
+          },
+          {
+            "frame": 331,
+            "qpc": 1616270360532
+          },
+          {
+            "frame": 332,
+            "qpc": 1616270527736
+          },
+          {
+            "frame": 333,
+            "qpc": 1616270695422
+          },
+          {
+            "frame": 334,
+            "qpc": 1616270861450
+          },
+          {
+            "frame": 335,
+            "qpc": 1616271030854
+          },
+          {
+            "frame": 336,
+            "qpc": 1616271194119
+          },
+          {
+            "frame": 337,
+            "qpc": 1616271362068
+          },
+          {
+            "frame": 338,
+            "qpc": 1616271527811
+          },
+          {
+            "frame": 339,
+            "qpc": 1616271694919
+          },
+          {
+            "frame": 340,
+            "qpc": 1616271863913
+          },
+          {
+            "frame": 341,
+            "qpc": 1616272028012
+          },
+          {
+            "frame": 342,
+            "qpc": 1616272195419
+          },
+          {
+            "frame": 343,
+            "qpc": 1616272359245
+          },
+          {
+            "frame": 344,
+            "qpc": 1616272526986
+          },
+          {
+            "frame": 345,
+            "qpc": 1616272693534
+          },
+          {
+            "frame": 346,
+            "qpc": 1616272860984
+          },
+          {
+            "frame": 347,
+            "qpc": 1616273028216
+          },
+          {
+            "frame": 348,
+            "qpc": 1616273194920
+          },
+          {
+            "frame": 349,
+            "qpc": 1616273362953
+          },
+          {
+            "frame": 350,
+            "qpc": 1616273526997
+          },
+          {
+            "frame": 351,
+            "qpc": 1616273695482
+          },
+          {
+            "frame": 352,
+            "qpc": 1616273860517
+          },
+          {
+            "frame": 353,
+            "qpc": 1616274029075
+          },
+          {
+            "frame": 354,
+            "qpc": 1616274193073
+          },
+          {
+            "frame": 355,
+            "qpc": 1616274360831
+          },
+          {
+            "frame": 356,
+            "qpc": 1616274530197
+          },
+          {
+            "frame": 357,
+            "qpc": 1616274694935
+          },
+          {
+            "frame": 358,
+            "qpc": 1616274860995
+          },
+          {
+            "frame": 359,
+            "qpc": 1616275029623
+          },
+          {
+            "frame": 360,
+            "qpc": 1616275194832
+          },
+          {
+            "frame": 361,
+            "qpc": 1616275360817
+          },
+          {
+            "frame": 362,
+            "qpc": 1616275530500
+          },
+          {
+            "frame": 363,
+            "qpc": 1616275694566
+          },
+          {
+            "frame": 364,
+            "qpc": 1616275860935
+          },
+          {
+            "frame": 365,
+            "qpc": 1616276028875
+          },
+          {
+            "frame": 366,
+            "qpc": 1616276192833
+          },
+          {
+            "frame": 367,
+            "qpc": 1616276361147
+          },
+          {
+            "frame": 368,
+            "qpc": 1616276528741
+          },
+          {
+            "frame": 369,
+            "qpc": 1616276694355
+          },
+          {
+            "frame": 370,
+            "qpc": 1616276860231
+          },
+          {
+            "frame": 371,
+            "qpc": 1616277029232
+          },
+          {
+            "frame": 372,
+            "qpc": 1616277194575
+          },
+          {
+            "frame": 373,
+            "qpc": 1616277362617
+          },
+          {
+            "frame": 374,
+            "qpc": 1616277527770
+          },
+          {
+            "frame": 375,
+            "qpc": 1616277695846
+          },
+          {
+            "frame": 376,
+            "qpc": 1616277864202
+          },
+          {
+            "frame": 377,
+            "qpc": 1616278027680
+          },
+          {
+            "frame": 378,
+            "qpc": 1616278193731
+          },
+          {
+            "frame": 379,
+            "qpc": 1616278360125
+          },
+          {
+            "frame": 380,
+            "qpc": 1616278529220
+          },
+          {
+            "frame": 381,
+            "qpc": 1616278695657
+          },
+          {
+            "frame": 382,
+            "qpc": 1616278859294
+          },
+          {
+            "frame": 383,
+            "qpc": 1616279028744
+          },
+          {
+            "frame": 384,
+            "qpc": 1616279193256
+          },
+          {
+            "frame": 385,
+            "qpc": 1616279362446
+          },
+          {
+            "frame": 386,
+            "qpc": 1616279527951
+          },
+          {
+            "frame": 387,
+            "qpc": 1616279696183
+          },
+          {
+            "frame": 388,
+            "qpc": 1616279860149
+          },
+          {
+            "frame": 389,
+            "qpc": 1616280026312
+          },
+          {
+            "frame": 390,
+            "qpc": 1616280196955
+          },
+          {
+            "frame": 391,
+            "qpc": 1616280362892
+          },
+          {
+            "frame": 392,
+            "qpc": 1616280529194
+          },
+          {
+            "frame": 393,
+            "qpc": 1616280695875
+          },
+          {
+            "frame": 394,
+            "qpc": 1616280859522
+          },
+          {
+            "frame": 395,
+            "qpc": 1616281029976
+          },
+          {
+            "frame": 396,
+            "qpc": 1616281194831
+          },
+          {
+            "frame": 397,
+            "qpc": 1616281360925
+          },
+          {
+            "frame": 398,
+            "qpc": 1616281527469
+          },
+          {
+            "frame": 399,
+            "qpc": 1616281695367
+          },
+          {
+            "frame": 400,
+            "qpc": 1616281864012
+          },
+          {
+            "frame": 401,
+            "qpc": 1616282029174
+          },
+          {
+            "frame": 402,
+            "qpc": 1616282194219
+          },
+          {
+            "frame": 403,
+            "qpc": 1616282362293
+          },
+          {
+            "frame": 404,
+            "qpc": 1616282525839
+          },
+          {
+            "frame": 405,
+            "qpc": 1616282694957
+          },
+          {
+            "frame": 406,
+            "qpc": 1616282859297
+          },
+          {
+            "frame": 407,
+            "qpc": 1616283029342
+          },
+          {
+            "frame": 408,
+            "qpc": 1616283194262
+          },
+          {
+            "frame": 409,
+            "qpc": 1616283362593
+          },
+          {
+            "frame": 410,
+            "qpc": 1616283527733
+          },
+          {
+            "frame": 411,
+            "qpc": 1616283697110
+          },
+          {
+            "frame": 412,
+            "qpc": 1616283859747
+          },
+          {
+            "frame": 413,
+            "qpc": 1616284029454
+          },
+          {
+            "frame": 414,
+            "qpc": 1616284196196
+          },
+          {
+            "frame": 415,
+            "qpc": 1616284359448
+          },
+          {
+            "frame": 416,
+            "qpc": 1616284526696
+          },
+          {
+            "frame": 417,
+            "qpc": 1616284692947
+          },
+          {
+            "frame": 418,
+            "qpc": 1616284863358
+          },
+          {
+            "frame": 419,
+            "qpc": 1616285029494
+          },
+          {
+            "frame": 420,
+            "qpc": 1616285193956
+          },
+          {
+            "frame": 421,
+            "qpc": 1616285359866
+          },
+          {
+            "frame": 422,
+            "qpc": 1616285529686
+          },
+          {
+            "frame": 423,
+            "qpc": 1616285697199
+          },
+          {
+            "frame": 424,
+            "qpc": 1616285862326
+          },
+          {
+            "frame": 425,
+            "qpc": 1616286028868
+          },
+          {
+            "frame": 426,
+            "qpc": 1616286194241
+          },
+          {
+            "frame": 427,
+            "qpc": 1616286359814
+          },
+          {
+            "frame": 428,
+            "qpc": 1616286530864
+          },
+          {
+            "frame": 429,
+            "qpc": 1616286696291
+          },
+          {
+            "frame": 430,
+            "qpc": 1616286862530
+          },
+          {
+            "frame": 431,
+            "qpc": 1616287028748
+          },
+          {
+            "frame": 432,
+            "qpc": 1616287194288
+          },
+          {
+            "frame": 433,
+            "qpc": 1616287359963
+          },
+          {
+            "frame": 434,
+            "qpc": 1616287527105
+          },
+          {
+            "frame": 435,
+            "qpc": 1616287694671
+          },
+          {
+            "frame": 436,
+            "qpc": 1616287859767
+          },
+          {
+            "frame": 437,
+            "qpc": 1616288026007
+          },
+          {
+            "frame": 438,
+            "qpc": 1616288195006
+          },
+          {
+            "frame": 439,
+            "qpc": 1616288362787
+          },
+          {
+            "frame": 440,
+            "qpc": 1616288529262
+          },
+          {
+            "frame": 441,
+            "qpc": 1616288694327
+          },
+          {
+            "frame": 442,
+            "qpc": 1616288861099
+          },
+          {
+            "frame": 443,
+            "qpc": 1616289030960
+          },
+          {
+            "frame": 444,
+            "qpc": 1616289193562
+          },
+          {
+            "frame": 445,
+            "qpc": 1616289361017
+          },
+          {
+            "frame": 446,
+            "qpc": 1616289526498
+          },
+          {
+            "frame": 447,
+            "qpc": 1616289694403
+          },
+          {
+            "frame": 448,
+            "qpc": 1616289859741
+          },
+          {
+            "frame": 449,
+            "qpc": 1616290029376
+          },
+          {
+            "frame": 450,
+            "qpc": 1616290196831
+          },
+          {
+            "frame": 451,
+            "qpc": 1616290362824
+          },
+          {
+            "frame": 452,
+            "qpc": 1616290525748
+          },
+          {
+            "frame": 453,
+            "qpc": 1616290693663
+          },
+          {
+            "frame": 454,
+            "qpc": 1616290863706
+          },
+          {
+            "frame": 455,
+            "qpc": 1616291026975
+          },
+          {
+            "frame": 456,
+            "qpc": 1616291193579
+          },
+          {
+            "frame": 457,
+            "qpc": 1616291363464
+          },
+          {
+            "frame": 458,
+            "qpc": 1616291526255
+          },
+          {
+            "frame": 459,
+            "qpc": 1616291697199
+          },
+          {
+            "frame": 460,
+            "qpc": 1616291862215
+          },
+          {
+            "frame": 461,
+            "qpc": 1616292028064
+          },
+          {
+            "frame": 462,
+            "qpc": 1616292197268
+          },
+          {
+            "frame": 463,
+            "qpc": 1616292362579
+          },
+          {
+            "frame": 464,
+            "qpc": 1616292531737
+          },
+          {
+            "frame": 465,
+            "qpc": 1616292696333
+          },
+          {
+            "frame": 466,
+            "qpc": 1616292861518
+          },
+          {
+            "frame": 467,
+            "qpc": 1616293028221
+          },
+          {
+            "frame": 468,
+            "qpc": 1616293193575
+          },
+          {
+            "frame": 469,
+            "qpc": 1616293363051
+          },
+          {
+            "frame": 470,
+            "qpc": 1616293527650
+          },
+          {
+            "frame": 471,
+            "qpc": 1616293697050
+          },
+          {
+            "frame": 472,
+            "qpc": 1616293861902
+          },
+          {
+            "frame": 473,
+            "qpc": 1616294031038
+          },
+          {
+            "frame": 474,
+            "qpc": 1616294193702
+          },
+          {
+            "frame": 475,
+            "qpc": 1616294359195
+          },
+          {
+            "frame": 476,
+            "qpc": 1616294527851
+          },
+          {
+            "frame": 477,
+            "qpc": 1616294695884
+          },
+          {
+            "frame": 478,
+            "qpc": 1616294862638
+          },
+          {
+            "frame": 479,
+            "qpc": 1616295030407
+          }
+        ],
+        "tick_work": {
+          "samples": 480,
+          "mean_ms": 0.004795833333333323,
+          "median_ms": 0.0039,
+          "p95_ms": 0.0068000000000000005,
+          "p99_ms": 0.061,
+          "maximum_ms": 0.102
+        },
+        "timing": {
+          "cpu_submission_work": null,
+          "worker_start_intervals": null,
+          "gpu_execution": null,
+          "skipped_gpu_queries": 0,
+          "invalid_gpu_queries": 0,
+          "pending_gpu_queries": 0,
+          "truncated_samples": 0,
+          "gpu_outliers": {
+            "total": 0,
+            "omitted": 0,
+            "events": [],
+            "maximum": null,
+            "maximum_score": 0
+          }
+        },
+        "before_final_fence": {
+          "maximum_in_flight": 2,
+          "peak_in_flight": 2,
+          "submitted": 4,
+          "completed": 2,
+          "pending": 2,
+          "reserved": false,
+          "warmup": {
+            "attempts": 0,
+            "admitted": 0,
+            "busy": 0
+          },
+          "sampled": {
+            "attempts": 480,
+            "admitted": 4,
+            "busy": 476
+          }
+        },
+        "drain_clear_after_observation": true,
+        "after_final_fence": {
+          "maximum_in_flight": 2,
+          "peak_in_flight": 2,
+          "submitted": 4,
+          "completed": 4,
+          "pending": 0,
+          "reserved": false,
+          "warmup": {
+            "attempts": 0,
+            "admitted": 0,
+            "busy": 0
+          },
+          "sampled": {
+            "attempts": 480,
+            "admitted": 4,
+            "busy": 476
+          },
+          "pending_at_final_poll": 2
+        },
+        "allocations_after_fence": {
+          "live_bytes_by_owner": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "retiring_bytes_by_owner": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "live_textures": 0,
+          "retiring_textures": 0,
+          "peak_live_plus_retiring_bytes": 1024,
+          "peak_live_plus_retiring_textures": 1
+        },
+        "operations_including_seed": {
+          "clears": 6,
+          "shader_draws": 0,
+          "uniform_upload_bytes": 0,
+          "diagnostic_readback_pixels": 0,
+          "sdk_send_calls": 0,
+          "sdk_receive_calls": 0,
+          "sdk_texture_queries": 0,
+          "sdk_texture_observations": 0,
+          "explicit_gpu_copy_calls": 0,
+          "explicit_gpu_copy_bytes": 0
+        }
+      },
+      "failure_stdout": null
+    }
+  ]
+}

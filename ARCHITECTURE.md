@@ -1,13 +1,17 @@
 # Architecture
 
-Chataigne2 is split by ownership: reusable Golden foundations live under `crates/` and
-`packages/`; product behavior lives under `apps/chataigne/`.
+The workspace is split by ownership: reusable Golden foundations live under `crates/` and
+`packages/`; Chataigne product behavior lives under `apps/chataigne/`. The planned sibling
+video mapping app, MapGyver, owns its product behavior under `apps/mapgyver/` and consumes the
+same public Golden contracts. See [MapGyver architecture](docs/architecture/mapgyver.md).
 
-The product direction combines control, lighting, video/projection, and audio in one application.
-Current implementation and qualification limits are in the single
+Chataigne's current implementation and qualification limits are in its
 [implementation plan](docs/plan/Chataigne2_Codex_Implementation_Plan.md) and
 [status ledger](docs/progress/implementation-status.md); architecture references do not carry
 independent task lists.
+MapGyver has a separately selected [plan](docs/plan/MapGyver_Implementation_Plan.md) and
+[ledger](docs/progress/mapgyver-status.md). Its proposed runtime and editor paths are design,
+not implemented workspace members.
 
 ## Repository layers
 
@@ -93,6 +97,16 @@ boundaries.
 `packages/golden-graph-ui/` is its reusable canvas. Neither package knows about Alchemist,
 conditions, processors, or Chataigne state machines.
 
+### MapGyver and proposed Golden Video
+
+`apps/mapgyver/` will own Media/Screen managers, composition authoring, Matrix column/app policy,
+projection surfaces and four specialized editors. Proposed `crates/golden_video/` owns reusable
+GPU resources, render passes, Spout and output/recovery mechanics, following Golden Audio's
+independent runtime boundary. Proposed `packages/golden-video-ui/` owns native preview bindings;
+the shared Golden desktop host owns native window/WebView integration. None of these reusable
+boundaries imports MapGyver policy. See [native rendering research](docs/architecture/mapgyver-native-rendering.md)
+for the D3D11-first recommendation and transparent-WebView feasibility gate.
+
 ### Chataigne systems
 
 `apps/chataigne/systems/alchemist/` owns the whole Alchemist processing domain: formulas, ANodes,
@@ -130,7 +144,8 @@ provided by Golden Core.
 The intended media boundary keeps authored state, validation, history, and coordination in the
 control engine. Audio rendering, future video/GPU execution, and lighting output use specialized
 runtimes with shared time, resource identity, and generation contracts. App-owned show transport,
-fixture/cue policy, projection models, and creative workflows belong under Chataigne systems/UI.
+fixture/cue policy and Chataigne workflows belong under Chataigne systems/UI. MapGyver's media,
+projection and Matrix models/workflows belong under its own systems/UI.
 Generic processing facilities belong in reusable packages once exercised contracts justify them.
 Production show-time coordination and project asset preparation remain readiness work; this
 description does not claim a video compositor or projection editor already exists.

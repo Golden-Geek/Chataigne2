@@ -1,0 +1,1096 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "m01_intel_repeated_release_scoped_analysis_not_full_gate",
+  "analyzer": "tools/mapgyver/analyze-release.py",
+  "analysis_tool_sha256": "11cb3d5d381f167293f096cd31602ab0df307ed85d5f0d8fa15703189ab84d67",
+  "artifacts_sha256": {
+    "mapgyver-m01-intel-q01-release-series-2026-10-28.json": "01c61effd0ed8e5e7c48fcd573646baf13a5177299c5e24d0602249c27d4470f",
+    "mapgyver-m01-intel-q02-release-series-2026-10-28.json": "11ac918d24b704ce48b8a6f4a72a7e5326b6963858e5e44cafc1571533c6d684"
+  },
+  "series": {
+    "q01": {
+      "scope": "measured native submission/GPU/logical-resource/consumer-age subset; not full M01",
+      "contract": "docs/progress/mapgyver-qualification-contract.md",
+      "three_immutable_release_samples": true,
+      "samples": [
+        {
+          "sample_index": 1,
+          "scenario": "q01",
+          "native_success": true,
+          "native_stderr_empty": true,
+          "inputs_unchanged": true,
+          "fixed_geometry_observed": true,
+          "sampled_geometry_mismatches": 0,
+          "native_output_extent": [
+            1920,
+            1080
+          ],
+          "fixed_workload_geometry_met": true,
+          "sparse_one_frame_queue_limit_verified": true,
+          "renderer_upload_readback_zero": true,
+          "cpu_submission": {
+            "samples": 7200,
+            "mean_ms": 0.45330868055555323,
+            "median_ms": 0.4441,
+            "p95_ms": 0.5774,
+            "p99_ms": 0.6738,
+            "maximum_ms": 1.271
+          },
+          "gpu_timeline": {
+            "samples": 7200,
+            "mean_ms": 1.4131119502314815,
+            "median_ms": 1.38609375,
+            "p95_ms": 1.9849479166666666,
+            "p99_ms": 2.4301041666666667,
+            "maximum_ms": 3.52734375
+          },
+          "cpu_budget_met": true,
+          "gpu_query_accounting": {
+            "skipped_gpu_queries": 0,
+            "invalid_gpu_queries": 0,
+            "pending_gpu_queries": 0,
+            "truncated_samples": 0
+          },
+          "gpu_query_accounting_complete": true,
+          "recorded_gpu_percentiles_within_target": true,
+          "gpu_budget_met": true,
+          "calls_editor_output_spout": [
+            {
+              "attempts": 7200,
+              "accepted_calls": 7200,
+              "busy": 0,
+              "occluded": 0,
+              "no_target": 0,
+              "late_attempts": 0,
+              "accepted_call_intervals": {
+                "samples": 7199,
+                "mean_ms": 16.66662965689679,
+                "median_ms": 16.675800000000002,
+                "p95_ms": 17.0121,
+                "p99_ms": 17.162,
+                "maximum_ms": 17.4571
+              },
+              "deadline_lateness": {
+                "samples": 7200,
+                "mean_ms": 0,
+                "median_ms": 0,
+                "p95_ms": 0,
+                "p99_ms": 0,
+                "maximum_ms": 0
+              },
+              "target_calls_at_60_hz": 7200,
+              "accepted_call_shortfall": 0,
+              "accepted_call_shortfall_percent": 0,
+              "recorded_late_percent": 0
+            },
+            {
+              "attempts": 7200,
+              "accepted_calls": 7200,
+              "busy": 0,
+              "occluded": 0,
+              "no_target": 0,
+              "late_attempts": 0,
+              "accepted_call_intervals": {
+                "samples": 7199,
+                "mean_ms": 16.666629754132494,
+                "median_ms": 16.6752,
+                "p95_ms": 17.013299999999997,
+                "p99_ms": 17.1627,
+                "maximum_ms": 17.443299999999997
+              },
+              "deadline_lateness": {
+                "samples": 7200,
+                "mean_ms": 0,
+                "median_ms": 0,
+                "p95_ms": 0,
+                "p99_ms": 0,
+                "maximum_ms": 0
+              },
+              "target_calls_at_60_hz": 7200,
+              "accepted_call_shortfall": 0,
+              "accepted_call_shortfall_percent": 0,
+              "recorded_late_percent": 0
+            },
+            {
+              "attempts": 7200,
+              "accepted_calls": 7200,
+              "busy": 0,
+              "occluded": 0,
+              "no_target": 0,
+              "late_attempts": 0,
+              "accepted_call_intervals": {
+                "samples": 7199,
+                "mean_ms": 16.666631018196934,
+                "median_ms": 16.6742,
+                "p95_ms": 17.0106,
+                "p99_ms": 17.159299999999998,
+                "maximum_ms": 17.3907
+              },
+              "deadline_lateness": {
+                "samples": 7200,
+                "mean_ms": 0,
+                "median_ms": 0,
+                "p95_ms": 0,
+                "p99_ms": 0,
+                "maximum_ms": 0
+              },
+              "target_calls_at_60_hz": 7200,
+              "accepted_call_shortfall": 0,
+              "accepted_call_shortfall_percent": 0,
+              "recorded_late_percent": 0
+            }
+          ],
+          "renderer_logical_peak_bytes": 57682004,
+          "renderer_logical_ceiling_met": true,
+          "warmed_private_peak_by_process": {
+            "renderer": 76763136,
+            "source_a": 88506368,
+            "source_b": 72302592,
+            "observer": 46022656
+          },
+          "frame_age_channels": [
+            {
+              "valid": 7200,
+              "absent": 0,
+              "invalid": 0,
+              "repeated": 591,
+              "unique_frames": 6609,
+              "skipped_source_frame_ids": 591,
+              "frame_age": {
+                "samples": 7200,
+                "mean_ms": 24.878271902777875,
+                "median_ms": 25.8332,
+                "p95_ms": 28.3624,
+                "p99_ms": 28.8592,
+                "maximum_ms": 30.1119
+              }
+            },
+            {
+              "valid": 7200,
+              "absent": 0,
+              "invalid": 0,
+              "repeated": 591,
+              "unique_frames": 6609,
+              "skipped_source_frame_ids": 591,
+              "frame_age": {
+                "samples": 7200,
+                "mean_ms": 28.694837958333363,
+                "median_ms": 29.6571,
+                "p95_ms": 32.1873,
+                "p99_ms": 32.6641,
+                "maximum_ms": 33.717
+              }
+            }
+          ],
+          "consumer_age_p95_target_met": true,
+          "raw_marker_integrity_verified": true,
+          "zero_tracked_after_fences": true,
+          "worker_window_shutdown_seconds": 0.4217744,
+          "scoped_shutdown_target_met": true
+        },
+        {
+          "sample_index": 2,
+          "scenario": "q01",
+          "native_success": true,
+          "native_stderr_empty": true,
+          "inputs_unchanged": true,
+          "fixed_geometry_observed": true,
+          "sampled_geometry_mismatches": 0,
+          "native_output_extent": [
+            1920,
+            1080
+          ],
+          "fixed_workload_geometry_met": true,
+          "sparse_one_frame_queue_limit_verified": true,
+          "renderer_upload_readback_zero": true,
+          "cpu_submission": {
+            "samples": 7200,
+            "mean_ms": 0.4228700833333344,
+            "median_ms": 0.4075,
+            "p95_ms": 0.5680999999999999,
+            "p99_ms": 0.6968,
+            "maximum_ms": 2.2293
+          },
+          "gpu_timeline": {
+            "samples": 7200,
+            "mean_ms": 1.2163810402199038,
+            "median_ms": 1.1677604166666669,
+            "p95_ms": 1.4675,
+            "p99_ms": 2.579322916666667,
+            "maximum_ms": 3.13578125
+          },
+          "cpu_budget_met": true,
+          "gpu_query_accounting": {
+            "skipped_gpu_queries": 0,
+            "invalid_gpu_queries": 0,
+            "pending_gpu_queries": 0,
+            "truncated_samples": 0
+          },
+          "gpu_query_accounting_complete": true,
+          "recorded_gpu_percentiles_within_target": true,
+          "gpu_budget_met": true,
+          "calls_editor_output_spout": [
+            {
+              "attempts": 7200,
+              "accepted_calls": 7200,
+              "busy": 0,
+              "occluded": 0,
+              "no_target": 0,
+              "late_attempts": 0,
+              "accepted_call_intervals": {
+                "samples": 7199,
+                "mean_ms": 16.66670494513128,
+                "median_ms": 16.6786,
+                "p95_ms": 17.033199999999997,
+                "p99_ms": 17.1963,
+                "maximum_ms": 18.397199999999998
+              },
+              "deadline_lateness": {
+                "samples": 7200,
+                "mean_ms": 0,
+                "median_ms": 0,
+                "p95_ms": 0,
+                "p99_ms": 0,
+                "maximum_ms": 0
+              },
+              "target_calls_at_60_hz": 7200,
+              "accepted_call_shortfall": 0,
+              "accepted_call_shortfall_percent": 0,
+              "recorded_late_percent": 0
+            },
+            {
+              "attempts": 7200,
+              "accepted_calls": 7200,
+              "busy": 0,
+              "occluded": 0,
+              "no_target": 0,
+              "late_attempts": 0,
+              "accepted_call_intervals": {
+                "samples": 7199,
+                "mean_ms": 16.666707098208068,
+                "median_ms": 16.6798,
+                "p95_ms": 17.0329,
+                "p99_ms": 17.1954,
+                "maximum_ms": 18.389400000000002
+              },
+              "deadline_lateness": {
+                "samples": 7200,
+                "mean_ms": 0,
+                "median_ms": 0,
+                "p95_ms": 0,
+                "p99_ms": 0,
+                "maximum_ms": 0
+              },
+              "target_calls_at_60_hz": 7200,
+              "accepted_call_shortfall": 0,
+              "accepted_call_shortfall_percent": 0,
+              "recorded_late_percent": 0
+            },
+            {
+              "attempts": 7200,
+              "accepted_calls": 7200,
+              "busy": 0,
+              "occluded": 0,
+              "no_target": 0,
+              "late_attempts": 0,
+              "accepted_call_intervals": {
+                "samples": 7199,
+                "mean_ms": 16.666709098485924,
+                "median_ms": 16.6801,
+                "p95_ms": 17.035600000000002,
+                "p99_ms": 17.183500000000002,
+                "maximum_ms": 18.3795
+              },
+              "deadline_lateness": {
+                "samples": 7200,
+                "mean_ms": 0,
+                "median_ms": 0,
+                "p95_ms": 0,
+                "p99_ms": 0,
+                "maximum_ms": 0
+              },
+              "target_calls_at_60_hz": 7200,
+              "accepted_call_shortfall": 0,
+              "accepted_call_shortfall_percent": 0,
+              "recorded_late_percent": 0
+            }
+          ],
+          "renderer_logical_peak_bytes": 57682004,
+          "renderer_logical_ceiling_met": true,
+          "warmed_private_peak_by_process": {
+            "renderer": 77565952,
+            "source_a": 88719360,
+            "source_b": 72437760,
+            "observer": 45899776
+          },
+          "frame_age_channels": [
+            {
+              "valid": 7200,
+              "absent": 0,
+              "invalid": 0,
+              "repeated": 0,
+              "unique_frames": 7200,
+              "skipped_source_frame_ids": 0,
+              "frame_age": {
+                "samples": 7200,
+                "mean_ms": 11.448628000000074,
+                "median_ms": 11.5619,
+                "p95_ms": 12.6872,
+                "p99_ms": 13.3689,
+                "maximum_ms": 14.7219
+              }
+            },
+            {
+              "valid": 7200,
+              "absent": 0,
+              "invalid": 0,
+              "repeated": 0,
+              "unique_frames": 7200,
+              "skipped_source_frame_ids": 0,
+              "frame_age": {
+                "samples": 7200,
+                "mean_ms": 19.054982319444417,
+                "median_ms": 19.1645,
+                "p95_ms": 20.2932,
+                "p99_ms": 21.0563,
+                "maximum_ms": 22.6152
+              }
+            }
+          ],
+          "consumer_age_p95_target_met": true,
+          "raw_marker_integrity_verified": true,
+          "zero_tracked_after_fences": true,
+          "worker_window_shutdown_seconds": 0.4196527,
+          "scoped_shutdown_target_met": true
+        },
+        {
+          "sample_index": 3,
+          "scenario": "q01",
+          "native_success": true,
+          "native_stderr_empty": true,
+          "inputs_unchanged": true,
+          "fixed_geometry_observed": true,
+          "sampled_geometry_mismatches": 0,
+          "native_output_extent": [
+            1920,
+            1080
+          ],
+          "fixed_workload_geometry_met": true,
+          "sparse_one_frame_queue_limit_verified": true,
+          "renderer_upload_readback_zero": true,
+          "cpu_submission": {
+            "samples": 7200,
+            "mean_ms": 0.4526734444444455,
+            "median_ms": 0.4401,
+            "p95_ms": 0.5923999999999999,
+            "p99_ms": 0.7431,
+            "maximum_ms": 1.6608
+          },
+          "gpu_timeline": {
+            "samples": 7200,
+            "mean_ms": 1.723236234085652,
+            "median_ms": 1.2109895833333333,
+            "p95_ms": 2.7250520833333334,
+            "p99_ms": 2.9134374999999997,
+            "maximum_ms": 3.631197916666667
+          },
+          "cpu_budget_met": true,
+          "gpu_query_accounting": {
+            "skipped_gpu_queries": 0,
+            "invalid_gpu_queries": 0,
+            "pending_gpu_queries": 0,
+            "truncated_samples": 0
+          },
+          "gpu_query_accounting_complete": true,
+          "recorded_gpu_percentiles_within_target": true,
+          "gpu_budget_met": true,
+          "calls_editor_output_spout": [
+            {
+              "attempts": 7200,
+              "accepted_calls": 7200,
+              "busy": 0,
+              "occluded": 0,
+              "no_target": 0,
+              "late_attempts": 0,
+              "accepted_call_intervals": {
+                "samples": 7199,
+                "mean_ms": 16.666683678288678,
+                "median_ms": 16.6793,
+                "p95_ms": 17.012800000000002,
+                "p99_ms": 17.1526,
+                "maximum_ms": 17.6596
+              },
+              "deadline_lateness": {
+                "samples": 7200,
+                "mean_ms": 0,
+                "median_ms": 0,
+                "p95_ms": 0,
+                "p99_ms": 0,
+                "maximum_ms": 0
+              },
+              "target_calls_at_60_hz": 7200,
+              "accepted_call_shortfall": 0,
+              "accepted_call_shortfall_percent": 0,
+              "recorded_late_percent": 0
+            },
+            {
+              "attempts": 7200,
+              "accepted_calls": 7200,
+              "busy": 0,
+              "occluded": 0,
+              "no_target": 0,
+              "late_attempts": 0,
+              "accepted_call_intervals": {
+                "samples": 7199,
+                "mean_ms": 16.666683886650954,
+                "median_ms": 16.6795,
+                "p95_ms": 17.0124,
+                "p99_ms": 17.1509,
+                "maximum_ms": 17.6631
+              },
+              "deadline_lateness": {
+                "samples": 7200,
+                "mean_ms": 0,
+                "median_ms": 0,
+                "p95_ms": 0,
+                "p99_ms": 0,
+                "maximum_ms": 0
+              },
+              "target_calls_at_60_hz": 7200,
+              "accepted_call_shortfall": 0,
+              "accepted_call_shortfall_percent": 0,
+              "recorded_late_percent": 0
+            },
+            {
+              "attempts": 7200,
+              "accepted_calls": 7200,
+              "busy": 0,
+              "occluded": 0,
+              "no_target": 0,
+              "late_attempts": 0,
+              "accepted_call_intervals": {
+                "samples": 7199,
+                "mean_ms": 16.666684233921334,
+                "median_ms": 16.6792,
+                "p95_ms": 17.0095,
+                "p99_ms": 17.1418,
+                "maximum_ms": 17.6791
+              },
+              "deadline_lateness": {
+                "samples": 7200,
+                "mean_ms": 0,
+                "median_ms": 0,
+                "p95_ms": 0,
+                "p99_ms": 0,
+                "maximum_ms": 0
+              },
+              "target_calls_at_60_hz": 7200,
+              "accepted_call_shortfall": 0,
+              "accepted_call_shortfall_percent": 0,
+              "recorded_late_percent": 0
+            }
+          ],
+          "renderer_logical_peak_bytes": 57682004,
+          "renderer_logical_ceiling_met": true,
+          "warmed_private_peak_by_process": {
+            "renderer": 77434880,
+            "source_a": 88813568,
+            "source_b": 72454144,
+            "observer": 46047232
+          },
+          "frame_age_channels": [
+            {
+              "valid": 7200,
+              "absent": 0,
+              "invalid": 0,
+              "repeated": 0,
+              "unique_frames": 7200,
+              "skipped_source_frame_ids": 0,
+              "frame_age": {
+                "samples": 7200,
+                "mean_ms": 15.766918402777774,
+                "median_ms": 15.6679,
+                "p95_ms": 17.2022,
+                "p99_ms": 18.1701,
+                "maximum_ms": 19.5117
+              }
+            },
+            {
+              "valid": 7200,
+              "absent": 0,
+              "invalid": 0,
+              "repeated": 0,
+              "unique_frames": 7200,
+              "skipped_source_frame_ids": 0,
+              "frame_age": {
+                "samples": 7200,
+                "mean_ms": 19.947435722222156,
+                "median_ms": 19.8144,
+                "p95_ms": 21.3721,
+                "p99_ms": 22.3467,
+                "maximum_ms": 24.1181
+              }
+            }
+          ],
+          "consumer_age_p95_target_met": true,
+          "raw_marker_integrity_verified": true,
+          "zero_tracked_after_fences": true,
+          "worker_window_shutdown_seconds": 0.4190888,
+          "scoped_shutdown_target_met": true
+        }
+      ],
+      "still_unqualified": [
+        "displayed frame cadence/scanout, input/geometry-to-visible latency and physical-pixel alignment",
+        "SDK/driver-internal copy counts, physical residency and combined app/WebView/complete-process shutdown",
+        "full-card accuracy, all display/input configurations and full Q05 recovery/retirement"
+      ]
+    },
+    "q02": {
+      "scope": "measured native submission/GPU/logical-resource/consumer-age subset; not full M01",
+      "contract": "docs/progress/mapgyver-qualification-contract.md",
+      "three_immutable_release_samples": true,
+      "samples": [
+        {
+          "sample_index": 1,
+          "scenario": "q02",
+          "native_success": true,
+          "native_stderr_empty": true,
+          "inputs_unchanged": true,
+          "fixed_geometry_observed": true,
+          "sampled_geometry_mismatches": 0,
+          "native_output_extent": [
+            3840,
+            2160
+          ],
+          "fixed_workload_geometry_met": true,
+          "sparse_one_frame_queue_limit_verified": true,
+          "renderer_upload_readback_zero": true,
+          "cpu_submission": {
+            "samples": 7155,
+            "mean_ms": 0.5919687071977624,
+            "median_ms": 0.45580000000000004,
+            "p95_ms": 0.6039,
+            "p99_ms": 0.7836,
+            "maximum_ms": 149.75130000000001
+          },
+          "gpu_timeline": {
+            "samples": 7139,
+            "mean_ms": 4.768370621177109,
+            "median_ms": 4.5071875,
+            "p95_ms": 5.6433333333333335,
+            "p99_ms": 6.350833333333333,
+            "maximum_ms": 141.68916666666667
+          },
+          "cpu_budget_met": true,
+          "gpu_query_accounting": {
+            "skipped_gpu_queries": 16,
+            "invalid_gpu_queries": 0,
+            "pending_gpu_queries": 0,
+            "truncated_samples": 0
+          },
+          "gpu_query_accounting_complete": false,
+          "recorded_gpu_percentiles_within_target": true,
+          "gpu_budget_met": false,
+          "calls_editor_output_spout": [
+            {
+              "attempts": 7155,
+              "accepted_calls": 7131,
+              "busy": 24,
+              "occluded": 0,
+              "no_target": 0,
+              "late_attempts": 7,
+              "accepted_call_intervals": {
+                "samples": 7130,
+                "mean_ms": 16.82638897615717,
+                "median_ms": 16.6786,
+                "p95_ms": 17.0637,
+                "p99_ms": 17.2321,
+                "maximum_ms": 921.501
+              },
+              "deadline_lateness": {
+                "samples": 7155,
+                "mean_ms": 0.053567394269741435,
+                "median_ms": 0,
+                "p95_ms": 0,
+                "p99_ms": 0,
+                "maximum_ms": 122.475233
+              },
+              "target_calls_at_60_hz": 7200,
+              "accepted_call_shortfall": 69,
+              "accepted_call_shortfall_percent": 0.9583333333333333,
+              "recorded_late_percent": 0.0978336827393431
+            },
+            {
+              "attempts": 7155,
+              "accepted_calls": 7132,
+              "busy": 23,
+              "occluded": 0,
+              "no_target": 0,
+              "late_attempts": 7,
+              "accepted_call_intervals": {
+                "samples": 7131,
+                "mean_ms": 16.824028789791086,
+                "median_ms": 16.6789,
+                "p95_ms": 17.0629,
+                "p99_ms": 17.2327,
+                "maximum_ms": 917.6378
+              },
+              "deadline_lateness": {
+                "samples": 7155,
+                "mean_ms": 0.05352120279524807,
+                "median_ms": 0,
+                "p95_ms": 0,
+                "p99_ms": 0,
+                "maximum_ms": 122.473733
+              },
+              "target_calls_at_60_hz": 7200,
+              "accepted_call_shortfall": 68,
+              "accepted_call_shortfall_percent": 0.9444444444444444,
+              "recorded_late_percent": 0.0978336827393431
+            },
+            {
+              "attempts": 7155,
+              "accepted_calls": 7155,
+              "busy": 0,
+              "occluded": 0,
+              "no_target": 0,
+              "late_attempts": 7,
+              "accepted_call_intervals": {
+                "samples": 7154,
+                "mean_ms": 16.76993887335757,
+                "median_ms": 16.6785,
+                "p95_ms": 17.0617,
+                "p99_ms": 17.2242,
+                "maximum_ms": 193.8132
+              },
+              "deadline_lateness": {
+                "samples": 7155,
+                "mean_ms": 0.053517051851851856,
+                "median_ms": 0,
+                "p95_ms": 0,
+                "p99_ms": 0,
+                "maximum_ms": 122.469333
+              },
+              "target_calls_at_60_hz": 7200,
+              "accepted_call_shortfall": 45,
+              "accepted_call_shortfall_percent": 0.625,
+              "recorded_late_percent": 0.0978336827393431
+            }
+          ],
+          "renderer_logical_peak_bytes": 188318804,
+          "renderer_logical_ceiling_met": true,
+          "warmed_private_peak_by_process": {
+            "renderer": 141836288,
+            "source_a": 121901056,
+            "source_b": 74629120,
+            "observer": 72683520
+          },
+          "frame_age_channels": [
+            {
+              "valid": 7165,
+              "absent": 0,
+              "invalid": 0,
+              "repeated": 27,
+              "unique_frames": 7138,
+              "skipped_source_frame_ids": 62,
+              "frame_age": {
+                "samples": 7165,
+                "mean_ms": 23.92923620376829,
+                "median_ms": 21.8814,
+                "p95_ms": 23.1714,
+                "p99_ms": 24.3303,
+                "maximum_ms": 760.0695
+              }
+            },
+            {
+              "valid": 7165,
+              "absent": 0,
+              "invalid": 0,
+              "repeated": 25,
+              "unique_frames": 7140,
+              "skipped_source_frame_ids": 60,
+              "frame_age": {
+                "samples": 7165,
+                "mean_ms": 25.76843237962307,
+                "median_ms": 25.5802,
+                "p95_ms": 26.8423,
+                "p99_ms": 27.929,
+                "maximum_ms": 280.6844
+              }
+            }
+          ],
+          "consumer_age_p95_target_met": true,
+          "raw_marker_integrity_verified": true,
+          "zero_tracked_after_fences": true,
+          "worker_window_shutdown_seconds": 0.4413716,
+          "scoped_shutdown_target_met": true
+        },
+        {
+          "sample_index": 2,
+          "scenario": "q02",
+          "native_success": true,
+          "native_stderr_empty": true,
+          "inputs_unchanged": true,
+          "fixed_geometry_observed": true,
+          "sampled_geometry_mismatches": 0,
+          "native_output_extent": [
+            3840,
+            2160
+          ],
+          "fixed_workload_geometry_met": true,
+          "sparse_one_frame_queue_limit_verified": true,
+          "renderer_upload_readback_zero": true,
+          "cpu_submission": {
+            "samples": 7200,
+            "mean_ms": 0.46239836111111104,
+            "median_ms": 0.4496,
+            "p95_ms": 0.6111,
+            "p99_ms": 0.7621,
+            "maximum_ms": 2.9916
+          },
+          "gpu_timeline": {
+            "samples": 7200,
+            "mean_ms": 5.8888616102430555,
+            "median_ms": 6.441979166666667,
+            "p95_ms": 7.149375,
+            "p99_ms": 7.958697916666667,
+            "maximum_ms": 10.609947916666666
+          },
+          "cpu_budget_met": true,
+          "gpu_query_accounting": {
+            "skipped_gpu_queries": 0,
+            "invalid_gpu_queries": 0,
+            "pending_gpu_queries": 0,
+            "truncated_samples": 0
+          },
+          "gpu_query_accounting_complete": true,
+          "recorded_gpu_percentiles_within_target": true,
+          "gpu_budget_met": true,
+          "calls_editor_output_spout": [
+            {
+              "attempts": 7200,
+              "accepted_calls": 7200,
+              "busy": 0,
+              "occluded": 0,
+              "no_target": 0,
+              "late_attempts": 0,
+              "accepted_call_intervals": {
+                "samples": 7199,
+                "mean_ms": 16.666642769829142,
+                "median_ms": 16.660500000000003,
+                "p95_ms": 17.101200000000002,
+                "p99_ms": 17.2423,
+                "maximum_ms": 19.2501
+              },
+              "deadline_lateness": {
+                "samples": 7200,
+                "mean_ms": 0,
+                "median_ms": 0,
+                "p95_ms": 0,
+                "p99_ms": 0,
+                "maximum_ms": 0
+              },
+              "target_calls_at_60_hz": 7200,
+              "accepted_call_shortfall": 0,
+              "accepted_call_shortfall_percent": 0,
+              "recorded_late_percent": 0
+            },
+            {
+              "attempts": 7200,
+              "accepted_calls": 7200,
+              "busy": 0,
+              "occluded": 0,
+              "no_target": 0,
+              "late_attempts": 0,
+              "accepted_call_intervals": {
+                "samples": 7199,
+                "mean_ms": 16.666642408667858,
+                "median_ms": 16.660899999999998,
+                "p95_ms": 17.0991,
+                "p99_ms": 17.2346,
+                "maximum_ms": 19.2537
+              },
+              "deadline_lateness": {
+                "samples": 7200,
+                "mean_ms": 0,
+                "median_ms": 0,
+                "p95_ms": 0,
+                "p99_ms": 0,
+                "maximum_ms": 0
+              },
+              "target_calls_at_60_hz": 7200,
+              "accepted_call_shortfall": 0,
+              "accepted_call_shortfall_percent": 0,
+              "recorded_late_percent": 0
+            },
+            {
+              "attempts": 7200,
+              "accepted_calls": 7200,
+              "busy": 0,
+              "occluded": 0,
+              "no_target": 0,
+              "late_attempts": 0,
+              "accepted_call_intervals": {
+                "samples": 7199,
+                "mean_ms": 16.66664199194332,
+                "median_ms": 16.6604,
+                "p95_ms": 17.0997,
+                "p99_ms": 17.2252,
+                "maximum_ms": 19.2681
+              },
+              "deadline_lateness": {
+                "samples": 7200,
+                "mean_ms": 0,
+                "median_ms": 0,
+                "p95_ms": 0,
+                "p99_ms": 0,
+                "maximum_ms": 0
+              },
+              "target_calls_at_60_hz": 7200,
+              "accepted_call_shortfall": 0,
+              "accepted_call_shortfall_percent": 0,
+              "recorded_late_percent": 0
+            }
+          ],
+          "renderer_logical_peak_bytes": 188318804,
+          "renderer_logical_ceiling_met": true,
+          "warmed_private_peak_by_process": {
+            "renderer": 134119424,
+            "source_a": 110829568,
+            "source_b": 72151040,
+            "observer": 70553600
+          },
+          "frame_age_channels": [
+            {
+              "valid": 7200,
+              "absent": 0,
+              "invalid": 0,
+              "repeated": 0,
+              "unique_frames": 7200,
+              "skipped_source_frame_ids": 0,
+              "frame_age": {
+                "samples": 7200,
+                "mean_ms": 29.502361305555652,
+                "median_ms": 29.4304,
+                "p95_ms": 30.8845,
+                "p99_ms": 31.8469,
+                "maximum_ms": 36.6626
+              }
+            },
+            {
+              "valid": 7200,
+              "absent": 0,
+              "invalid": 0,
+              "repeated": 1487,
+              "unique_frames": 5713,
+              "skipped_source_frame_ids": 1488,
+              "frame_age": {
+                "samples": 7200,
+                "mean_ms": 23.40920265277776,
+                "median_ms": 16.8639,
+                "p95_ms": 33.1228,
+                "p99_ms": 33.6031,
+                "maximum_ms": 35.2527
+              }
+            }
+          ],
+          "consumer_age_p95_target_met": true,
+          "raw_marker_integrity_verified": true,
+          "zero_tracked_after_fences": true,
+          "worker_window_shutdown_seconds": 0.4305463,
+          "scoped_shutdown_target_met": true
+        },
+        {
+          "sample_index": 3,
+          "scenario": "q02",
+          "native_success": true,
+          "native_stderr_empty": true,
+          "inputs_unchanged": true,
+          "fixed_geometry_observed": true,
+          "sampled_geometry_mismatches": 0,
+          "native_output_extent": [
+            3840,
+            2160
+          ],
+          "fixed_workload_geometry_met": true,
+          "sparse_one_frame_queue_limit_verified": true,
+          "renderer_upload_readback_zero": true,
+          "cpu_submission": {
+            "samples": 7200,
+            "mean_ms": 0.46365866666666666,
+            "median_ms": 0.4556,
+            "p95_ms": 0.5955,
+            "p99_ms": 0.7249,
+            "maximum_ms": 1.5005000000000002
+          },
+          "gpu_timeline": {
+            "samples": 7200,
+            "mean_ms": 5.889156286168957,
+            "median_ms": 6.349270833333334,
+            "p95_ms": 7.306927083333334,
+            "p99_ms": 7.9089583333333335,
+            "maximum_ms": 11.245260416666666
+          },
+          "cpu_budget_met": true,
+          "gpu_query_accounting": {
+            "skipped_gpu_queries": 0,
+            "invalid_gpu_queries": 0,
+            "pending_gpu_queries": 0,
+            "truncated_samples": 0
+          },
+          "gpu_query_accounting_complete": true,
+          "recorded_gpu_percentiles_within_target": true,
+          "gpu_budget_met": true,
+          "calls_editor_output_spout": [
+            {
+              "attempts": 7200,
+              "accepted_calls": 7200,
+              "busy": 0,
+              "occluded": 0,
+              "no_target": 0,
+              "late_attempts": 0,
+              "accepted_call_intervals": {
+                "samples": 7199,
+                "mean_ms": 16.666609195721662,
+                "median_ms": 16.6668,
+                "p95_ms": 17.1052,
+                "p99_ms": 17.2474,
+                "maximum_ms": 17.8078
+              },
+              "deadline_lateness": {
+                "samples": 7200,
+                "mean_ms": 0,
+                "median_ms": 0,
+                "p95_ms": 0,
+                "p99_ms": 0,
+                "maximum_ms": 0
+              },
+              "target_calls_at_60_hz": 7200,
+              "accepted_call_shortfall": 0,
+              "accepted_call_shortfall_percent": 0,
+              "recorded_late_percent": 0
+            },
+            {
+              "attempts": 7200,
+              "accepted_calls": 7200,
+              "busy": 0,
+              "occluded": 0,
+              "no_target": 0,
+              "late_attempts": 0,
+              "accepted_call_intervals": {
+                "samples": 7199,
+                "mean_ms": 16.666609390193063,
+                "median_ms": 16.6668,
+                "p95_ms": 17.1035,
+                "p99_ms": 17.245900000000002,
+                "maximum_ms": 17.808600000000002
+              },
+              "deadline_lateness": {
+                "samples": 7200,
+                "mean_ms": 0,
+                "median_ms": 0,
+                "p95_ms": 0,
+                "p99_ms": 0,
+                "maximum_ms": 0
+              },
+              "target_calls_at_60_hz": 7200,
+              "accepted_call_shortfall": 0,
+              "accepted_call_shortfall_percent": 0,
+              "recorded_late_percent": 0
+            },
+            {
+              "attempts": 7200,
+              "accepted_calls": 7200,
+              "busy": 0,
+              "occluded": 0,
+              "no_target": 0,
+              "late_attempts": 0,
+              "accepted_call_intervals": {
+                "samples": 7199,
+                "mean_ms": 16.666610293096316,
+                "median_ms": 16.667499999999997,
+                "p95_ms": 17.098399999999998,
+                "p99_ms": 17.238300000000002,
+                "maximum_ms": 17.8126
+              },
+              "deadline_lateness": {
+                "samples": 7200,
+                "mean_ms": 0,
+                "median_ms": 0,
+                "p95_ms": 0,
+                "p99_ms": 0,
+                "maximum_ms": 0
+              },
+              "target_calls_at_60_hz": 7200,
+              "accepted_call_shortfall": 0,
+              "accepted_call_shortfall_percent": 0,
+              "recorded_late_percent": 0
+            }
+          ],
+          "renderer_logical_peak_bytes": 188318804,
+          "renderer_logical_ceiling_met": true,
+          "warmed_private_peak_by_process": {
+            "renderer": 134426624,
+            "source_a": 111296512,
+            "source_b": 72212480,
+            "observer": 70934528
+          },
+          "frame_age_channels": [
+            {
+              "valid": 7200,
+              "absent": 0,
+              "invalid": 0,
+              "repeated": 0,
+              "unique_frames": 7200,
+              "skipped_source_frame_ids": 0,
+              "frame_age": {
+                "samples": 7200,
+                "mean_ms": 28.91639856944433,
+                "median_ms": 28.9637,
+                "p95_ms": 30.1799,
+                "p99_ms": 31.1724,
+                "maximum_ms": 33.181
+              }
+            },
+            {
+              "valid": 7200,
+              "absent": 0,
+              "invalid": 0,
+              "repeated": 1436,
+              "unique_frames": 5764,
+              "skipped_source_frame_ids": 1435,
+              "frame_age": {
+                "samples": 7200,
+                "mean_ms": 26.534041027777732,
+                "median_ms": 31.5369,
+                "p95_ms": 33.338,
+                "p99_ms": 34.4216,
+                "maximum_ms": 35.7891
+              }
+            }
+          ],
+          "consumer_age_p95_target_met": true,
+          "raw_marker_integrity_verified": true,
+          "zero_tracked_after_fences": true,
+          "worker_window_shutdown_seconds": 0.4378558,
+          "scoped_shutdown_target_met": true
+        }
+      ],
+      "still_unqualified": [
+        "displayed frame cadence/scanout, input/geometry-to-visible latency and physical-pixel alignment",
+        "SDK/driver-internal copy counts, physical residency and combined app/WebView/complete-process shutdown",
+        "full-card accuracy, all display/input configurations and full Q05 recovery/retirement"
+      ]
+    }
+  },
+  "interpretation": {
+    "all_six_same_immutable_inputs": true,
+    "intel_q01_call_cadence_observations": "All three samples have 7200 accepted calls per path and zero recorded late/busy/occluded calls. This does not prove displayed cadence or distinct frames.",
+    "intel_q02_failure_preserved": "Sample 1 has 7155 attempts, 7131/7132/7155 accepted editor/native/Spout calls, 24/23 readiness misses and 7 recorded late calls per path. Accepted-call shortfall is 69/68/45 against 7200. Later good samples do not replace it.",
+    "outliers": "Q02 sample 1 CPU maximum 149.7513 ms, GPU maximum 141.68916666666667 ms; A/B consumer age maxima 760.0695/280.6844 ms. p95/p99 passing does not erase these maxima.",
+    "consumer_repeats": "Q01 sample 1 has 591 repeated IDs per channel. Q02 repeats are [27,25], [0,1487], [0,1436]. Observer sampling repetitions/skips are not displayed-frame counts.",
+    "next_action": "Add bounded timing/outlier correlation around SDK receive/send, renderer presentation and resource sampling to locate Q02 stalls before changing the pipeline or repeating final qualification.",
+    "native_gate_qualified": false,
+    "incomplete_gpu_timing": "Q02 sample 1 has 16 skipped GPU queries (7139 GPU samples vs 7155 CPU samples). Its recorded GPU percentiles are within target, but the full GPU-budget result is unqualified. Later samples retain their own complete accounting."
+  }
+}

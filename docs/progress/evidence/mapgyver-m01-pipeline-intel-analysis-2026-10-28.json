@@ -1,0 +1,1211 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "correlated_pipeline_intel_release_analysis_not_full_m01_gate",
+  "three_immutable_release_samples": true,
+  "stream_byte_count_and_sha256_verified": true,
+  "all_envelopes_length_sha256_verified": true,
+  "current_release_inputs_verified": true,
+  "samples": [
+    {
+      "native_success": true,
+      "native_stderr_empty": true,
+      "inputs_unchanged": true,
+      "cpu_submission": {
+        "samples": 7195,
+        "mean_ms": 0.7661945239749831,
+        "median_ms": 0.7022,
+        "p95_ms": 1.1988999999999999,
+        "p99_ms": 1.3221,
+        "maximum_ms": 3.7188999999999997
+      },
+      "gpu_timeline": {
+        "samples": 7195,
+        "mean_ms": 4.735784471276359,
+        "median_ms": 4.3565625,
+        "p95_ms": 8.10484375,
+        "p99_ms": 10.903958333333334,
+        "maximum_ms": 13.28734375
+      },
+      "cpu_budget_met": true,
+      "gpu_query_accounting_complete": true,
+      "calls_editor_output_spout": [
+        {
+          "attempts": 7200,
+          "accepted_calls": 7194,
+          "busy": 6,
+          "occluded": 0,
+          "no_target": 0,
+          "late_attempts": 0,
+          "accepted_call_intervals": {
+            "samples": 7193,
+            "mean_ms": 16.68064112331432,
+            "median_ms": 16.6688,
+            "p95_ms": 17.102,
+            "p99_ms": 17.313100000000002,
+            "maximum_ms": 116.8604
+          },
+          "deadline_lateness": {
+            "samples": 7200,
+            "mean_ms": 0,
+            "median_ms": 0,
+            "p95_ms": 0,
+            "p99_ms": 0,
+            "maximum_ms": 0
+          },
+          "target_calls_at_60_hz": 7200,
+          "accepted_call_shortfall": 6,
+          "accepted_call_shortfall_percent": 0.08333333333333334,
+          "recorded_late_percent": 0
+        },
+        {
+          "attempts": 7200,
+          "accepted_calls": 7194,
+          "busy": 6,
+          "occluded": 0,
+          "no_target": 0,
+          "late_attempts": 0,
+          "accepted_call_intervals": {
+            "samples": 7193,
+            "mean_ms": 16.68064077575423,
+            "median_ms": 16.6684,
+            "p95_ms": 17.0992,
+            "p99_ms": 17.301000000000002,
+            "maximum_ms": 116.8515
+          },
+          "deadline_lateness": {
+            "samples": 7200,
+            "mean_ms": 0,
+            "median_ms": 0,
+            "p95_ms": 0,
+            "p99_ms": 0,
+            "maximum_ms": 0
+          },
+          "target_calls_at_60_hz": 7200,
+          "accepted_call_shortfall": 6,
+          "accepted_call_shortfall_percent": 0.08333333333333334,
+          "recorded_late_percent": 0
+        },
+        {
+          "attempts": 7200,
+          "accepted_calls": 7195,
+          "busy": 5,
+          "occluded": 0,
+          "no_target": 0,
+          "late_attempts": 0,
+          "accepted_call_intervals": {
+            "samples": 7194,
+            "mean_ms": 16.678323964414826,
+            "median_ms": 16.6676,
+            "p95_ms": 17.0979,
+            "p99_ms": 17.288899999999998,
+            "maximum_ms": 99.0352
+          },
+          "deadline_lateness": {
+            "samples": 7200,
+            "mean_ms": 0,
+            "median_ms": 0,
+            "p95_ms": 0,
+            "p99_ms": 0,
+            "maximum_ms": 0
+          },
+          "target_calls_at_60_hz": 7200,
+          "accepted_call_shortfall": 5,
+          "accepted_call_shortfall_percent": 0.06944444444444445,
+          "recorded_late_percent": 0
+        }
+      ],
+      "consumer_age_p95_target_met": true,
+      "frame_age_channels": [
+        {
+          "valid": 7200,
+          "absent": 0,
+          "invalid": 0,
+          "repeated": 1057,
+          "unique_frames": 6143,
+          "skipped_source_frame_ids": 1056,
+          "frame_age": {
+            "samples": 7200,
+            "mean_ms": 34.179957013888824,
+            "median_ms": 30.3459,
+            "p95_ms": 48.1681,
+            "p99_ms": 54.0844,
+            "maximum_ms": 129.3836
+          }
+        },
+        {
+          "valid": 7200,
+          "absent": 0,
+          "invalid": 0,
+          "repeated": 352,
+          "unique_frames": 6848,
+          "skipped_source_frame_ids": 352,
+          "frame_age": {
+            "samples": 7200,
+            "mean_ms": 36.47579823611107,
+            "median_ms": 34.4408,
+            "p95_ms": 46.165,
+            "p99_ms": 53.0973,
+            "maximum_ms": 134.1206
+          }
+        }
+      ],
+      "zero_tracked_after_fences": true,
+      "pipeline_timing": {
+        "sampled_renderer_batches": 7195,
+        "matched_batches": 7195,
+        "complete_dependency_coverage": true,
+        "missing_renderer_spans": 0,
+        "missing_source_spans": [
+          0,
+          0
+        ],
+        "absent_source_references": [
+          0,
+          0
+        ],
+        "repeated_source_references": [
+          0,
+          0
+        ],
+        "warmup_source_references": [
+          1,
+          1
+        ],
+        "correlated_serial_gpu_span_sum": {
+          "samples": 7195,
+          "mean_ms": 9.171214312601343,
+          "median_ms": 8.443020833333334,
+          "p95_ms": 14.049010416666667,
+          "p99_ms": 16.9440625,
+          "maximum_ms": 201.6227604166667
+        },
+        "cpu_enclosed_pipeline_upper_bound": {
+          "samples": 7195,
+          "mean_ms": 27.846804739402366,
+          "median_ms": 28.1219,
+          "p95_ms": 28.4546,
+          "p99_ms": 28.5613,
+          "maximum_ms": 124.2115
+        },
+        "upper_bound_sufficient_for_gpu_target": false,
+        "scope": "app ingest to renderer completion; CPU envelope includes polling, queueing and retained-frame age",
+        "interpretation": "GPU span sums exclude gaps and are not the pipeline critical path. An upper bound above target is inconclusive, not proof of GPU-budget failure."
+      },
+      "worker_window_shutdown_seconds": 0.4656651,
+      "source_context_gpu_checks": [
+        {
+          "gpu_query_accounting": {
+            "skipped_gpu_queries": 0,
+            "invalid_gpu_queries": 0,
+            "pending_gpu_queries": 0,
+            "truncated_samples": 0
+          },
+          "gpu_query_accounting_complete": true,
+          "recorded_gpu_percentiles_within_target": true,
+          "gpu_budget_met": true
+        },
+        {
+          "gpu_query_accounting": {
+            "skipped_gpu_queries": 0,
+            "invalid_gpu_queries": 0,
+            "pending_gpu_queries": 0,
+            "truncated_samples": 0
+          },
+          "gpu_query_accounting_complete": true,
+          "recorded_gpu_percentiles_within_target": true,
+          "gpu_budget_met": true
+        }
+      ],
+      "admission": [
+        {
+          "mechanism": "timeline_fence",
+          "maximum_in_flight": 2,
+          "peak_in_flight": 2,
+          "submitted": 8992,
+          "completed": 8992,
+          "pending": 0,
+          "reserved": false,
+          "warmup": {
+            "attempts": 1797,
+            "admitted": 1797,
+            "busy": 0
+          },
+          "sampled": {
+            "attempts": 7200,
+            "admitted": 7195,
+            "busy": 5
+          },
+          "pending_at_final_poll": 1
+        },
+        {
+          "mechanism": "timeline_fence",
+          "maximum_in_flight": 2,
+          "peak_in_flight": 2,
+          "submitted": 8984,
+          "completed": 8984,
+          "pending": 0,
+          "reserved": false,
+          "warmup": {
+            "attempts": 1789,
+            "admitted": 1789,
+            "busy": 0
+          },
+          "sampled": {
+            "attempts": 7196,
+            "admitted": 7195,
+            "busy": 1
+          },
+          "pending_at_final_poll": 1
+        },
+        {
+          "mechanism": "timeline_fence",
+          "maximum_in_flight": 2,
+          "peak_in_flight": 2,
+          "submitted": 8988,
+          "completed": 8988,
+          "pending": 0,
+          "reserved": false,
+          "warmup": {
+            "attempts": 1793,
+            "admitted": 1793,
+            "busy": 0
+          },
+          "sampled": {
+            "attempts": 7196,
+            "admitted": 7195,
+            "busy": 1
+          },
+          "pending_at_final_poll": 1
+        }
+      ],
+      "raw_gpu_spans_by_context": [
+        8992,
+        8984,
+        8988
+      ],
+      "raw_gpu_trace_counters": [
+        {
+          "skipped": 0,
+          "invalid": 0,
+          "pending": 0,
+          "truncated": 0
+        },
+        {
+          "skipped": 0,
+          "invalid": 0,
+          "pending": 0,
+          "truncated": 0
+        },
+        {
+          "skipped": 0,
+          "invalid": 0,
+          "pending": 0,
+          "truncated": 0
+        }
+      ]
+    },
+    {
+      "native_success": true,
+      "native_stderr_empty": true,
+      "inputs_unchanged": true,
+      "cpu_submission": {
+        "samples": 7200,
+        "mean_ms": 0.8681139999999976,
+        "median_ms": 0.823,
+        "p95_ms": 1.2029,
+        "p99_ms": 1.3134,
+        "maximum_ms": 3.7172
+      },
+      "gpu_timeline": {
+        "samples": 7200,
+        "mean_ms": 7.797091189236115,
+        "median_ms": 7.783437500000001,
+        "p95_ms": 9.770624999999999,
+        "p99_ms": 10.829322916666667,
+        "maximum_ms": 16.27234375
+      },
+      "cpu_budget_met": true,
+      "gpu_query_accounting_complete": true,
+      "calls_editor_output_spout": [
+        {
+          "attempts": 7200,
+          "accepted_calls": 7200,
+          "busy": 0,
+          "occluded": 0,
+          "no_target": 0,
+          "late_attempts": 0,
+          "accepted_call_intervals": {
+            "samples": 7199,
+            "mean_ms": 16.666628059452677,
+            "median_ms": 16.6755,
+            "p95_ms": 17.1331,
+            "p99_ms": 17.3295,
+            "maximum_ms": 19.5652
+          },
+          "deadline_lateness": {
+            "samples": 7200,
+            "mean_ms": 0,
+            "median_ms": 0,
+            "p95_ms": 0,
+            "p99_ms": 0,
+            "maximum_ms": 0
+          },
+          "target_calls_at_60_hz": 7200,
+          "accepted_call_shortfall": 0,
+          "accepted_call_shortfall_percent": 0,
+          "recorded_late_percent": 0
+        },
+        {
+          "attempts": 7200,
+          "accepted_calls": 7200,
+          "busy": 0,
+          "occluded": 0,
+          "no_target": 0,
+          "late_attempts": 0,
+          "accepted_call_intervals": {
+            "samples": 7199,
+            "mean_ms": 16.666627726073045,
+            "median_ms": 16.674999999999997,
+            "p95_ms": 17.1353,
+            "p99_ms": 17.328300000000002,
+            "maximum_ms": 19.559
+          },
+          "deadline_lateness": {
+            "samples": 7200,
+            "mean_ms": 0,
+            "median_ms": 0,
+            "p95_ms": 0,
+            "p99_ms": 0,
+            "maximum_ms": 0
+          },
+          "target_calls_at_60_hz": 7200,
+          "accepted_call_shortfall": 0,
+          "accepted_call_shortfall_percent": 0,
+          "recorded_late_percent": 0
+        },
+        {
+          "attempts": 7200,
+          "accepted_calls": 7200,
+          "busy": 0,
+          "occluded": 0,
+          "no_target": 0,
+          "late_attempts": 0,
+          "accepted_call_intervals": {
+            "samples": 7199,
+            "mean_ms": 16.666626962078034,
+            "median_ms": 16.6754,
+            "p95_ms": 17.1356,
+            "p99_ms": 17.326500000000003,
+            "maximum_ms": 19.558200000000003
+          },
+          "deadline_lateness": {
+            "samples": 7200,
+            "mean_ms": 0,
+            "median_ms": 0,
+            "p95_ms": 0,
+            "p99_ms": 0,
+            "maximum_ms": 0
+          },
+          "target_calls_at_60_hz": 7200,
+          "accepted_call_shortfall": 0,
+          "accepted_call_shortfall_percent": 0,
+          "recorded_late_percent": 0
+        }
+      ],
+      "consumer_age_p95_target_met": true,
+      "frame_age_channels": [
+        {
+          "valid": 7200,
+          "absent": 0,
+          "invalid": 0,
+          "repeated": 1813,
+          "unique_frames": 5387,
+          "skipped_source_frame_ids": 1812,
+          "frame_age": {
+            "samples": 7200,
+            "mean_ms": 39.40976497222232,
+            "median_ms": 45.0625,
+            "p95_ms": 46.7446,
+            "p99_ms": 47.7014,
+            "maximum_ms": 49.2687
+          }
+        },
+        {
+          "valid": 7200,
+          "absent": 0,
+          "invalid": 0,
+          "repeated": 5,
+          "unique_frames": 7195,
+          "skipped_source_frame_ids": 5,
+          "frame_age": {
+            "samples": 7200,
+            "mean_ms": 32.8693068055556,
+            "median_ms": 33.0261,
+            "p95_ms": 33.829,
+            "p99_ms": 34.8738,
+            "maximum_ms": 50.5
+          }
+        }
+      ],
+      "zero_tracked_after_fences": true,
+      "pipeline_timing": {
+        "sampled_renderer_batches": 7200,
+        "matched_batches": 7200,
+        "complete_dependency_coverage": true,
+        "missing_renderer_spans": 0,
+        "missing_source_spans": [
+          0,
+          0
+        ],
+        "absent_source_references": [
+          0,
+          0
+        ],
+        "repeated_source_references": [
+          0,
+          0
+        ],
+        "warmup_source_references": [
+          1,
+          1
+        ],
+        "correlated_serial_gpu_span_sum": {
+          "samples": 7200,
+          "mean_ms": 12.260051468460649,
+          "median_ms": 12.398489583333333,
+          "p95_ms": 16.043958333333332,
+          "p99_ms": 18.4178125,
+          "maximum_ms": 26.374947916666667
+        },
+        "cpu_enclosed_pipeline_upper_bound": {
+          "samples": 7200,
+          "mean_ms": 30.873692305555554,
+          "median_ms": 30.8698,
+          "p95_ms": 31.2216,
+          "p99_ms": 31.3347,
+          "maximum_ms": 47.2039
+        },
+        "upper_bound_sufficient_for_gpu_target": false,
+        "scope": "app ingest to renderer completion; CPU envelope includes polling, queueing and retained-frame age",
+        "interpretation": "GPU span sums exclude gaps and are not the pipeline critical path. An upper bound above target is inconclusive, not proof of GPU-budget failure."
+      },
+      "worker_window_shutdown_seconds": 0.4624177,
+      "source_context_gpu_checks": [
+        {
+          "gpu_query_accounting": {
+            "skipped_gpu_queries": 0,
+            "invalid_gpu_queries": 0,
+            "pending_gpu_queries": 0,
+            "truncated_samples": 0
+          },
+          "gpu_query_accounting_complete": true,
+          "recorded_gpu_percentiles_within_target": true,
+          "gpu_budget_met": true
+        },
+        {
+          "gpu_query_accounting": {
+            "skipped_gpu_queries": 0,
+            "invalid_gpu_queries": 0,
+            "pending_gpu_queries": 0,
+            "truncated_samples": 0
+          },
+          "gpu_query_accounting_complete": true,
+          "recorded_gpu_percentiles_within_target": true,
+          "gpu_budget_met": true
+        }
+      ],
+      "admission": [
+        {
+          "mechanism": "timeline_fence",
+          "maximum_in_flight": 2,
+          "peak_in_flight": 2,
+          "submitted": 8997,
+          "completed": 8997,
+          "pending": 0,
+          "reserved": false,
+          "warmup": {
+            "attempts": 1797,
+            "admitted": 1797,
+            "busy": 0
+          },
+          "sampled": {
+            "attempts": 7200,
+            "admitted": 7200,
+            "busy": 0
+          },
+          "pending_at_final_poll": 1
+        },
+        {
+          "mechanism": "timeline_fence",
+          "maximum_in_flight": 2,
+          "peak_in_flight": 2,
+          "submitted": 8987,
+          "completed": 8987,
+          "pending": 0,
+          "reserved": false,
+          "warmup": {
+            "attempts": 1787,
+            "admitted": 1787,
+            "busy": 0
+          },
+          "sampled": {
+            "attempts": 7200,
+            "admitted": 7200,
+            "busy": 0
+          },
+          "pending_at_final_poll": 1
+        },
+        {
+          "mechanism": "timeline_fence",
+          "maximum_in_flight": 2,
+          "peak_in_flight": 1,
+          "submitted": 8995,
+          "completed": 8995,
+          "pending": 0,
+          "reserved": false,
+          "warmup": {
+            "attempts": 1795,
+            "admitted": 1795,
+            "busy": 0
+          },
+          "sampled": {
+            "attempts": 7200,
+            "admitted": 7200,
+            "busy": 0
+          },
+          "pending_at_final_poll": 1
+        }
+      ],
+      "raw_gpu_spans_by_context": [
+        8997,
+        8987,
+        8995
+      ],
+      "raw_gpu_trace_counters": [
+        {
+          "skipped": 0,
+          "invalid": 0,
+          "pending": 0,
+          "truncated": 0
+        },
+        {
+          "skipped": 0,
+          "invalid": 0,
+          "pending": 0,
+          "truncated": 0
+        },
+        {
+          "skipped": 0,
+          "invalid": 0,
+          "pending": 0,
+          "truncated": 0
+        }
+      ]
+    },
+    {
+      "native_success": true,
+      "native_stderr_empty": true,
+      "inputs_unchanged": true,
+      "cpu_submission": {
+        "samples": 7188,
+        "mean_ms": 0.9165265025041731,
+        "median_ms": 0.8423,
+        "p95_ms": 1.2423,
+        "p99_ms": 1.4057,
+        "maximum_ms": 209.1341
+      },
+      "gpu_timeline": {
+        "samples": 7188,
+        "mean_ms": 5.323334101395852,
+        "median_ms": 5.3029166666666665,
+        "p95_ms": 6.77265625,
+        "p99_ms": 8.356510416666667,
+        "maximum_ms": 17.79854166666667
+      },
+      "cpu_budget_met": true,
+      "gpu_query_accounting_complete": true,
+      "calls_editor_output_spout": [
+        {
+          "attempts": 7189,
+          "accepted_calls": 7186,
+          "busy": 3,
+          "occluded": 0,
+          "no_target": 0,
+          "late_attempts": 0,
+          "accepted_call_intervals": {
+            "samples": 7185,
+            "mean_ms": 16.700520389700692,
+            "median_ms": 16.6754,
+            "p95_ms": 17.1001,
+            "p99_ms": 17.2668,
+            "maximum_ms": 244.4381
+          },
+          "deadline_lateness": {
+            "samples": 7189,
+            "mean_ms": 0,
+            "median_ms": 0,
+            "p95_ms": 0,
+            "p99_ms": 0,
+            "maximum_ms": 0
+          },
+          "target_calls_at_60_hz": 7200,
+          "accepted_call_shortfall": 14,
+          "accepted_call_shortfall_percent": 0.19444444444444445,
+          "recorded_late_percent": 0
+        },
+        {
+          "attempts": 7189,
+          "accepted_calls": 7187,
+          "busy": 2,
+          "occluded": 0,
+          "no_target": 0,
+          "late_attempts": 0,
+          "accepted_call_intervals": {
+            "samples": 7186,
+            "mean_ms": 16.698195853047565,
+            "median_ms": 16.6755,
+            "p95_ms": 17.0974,
+            "p99_ms": 17.262900000000002,
+            "maximum_ms": 244.42929999999998
+          },
+          "deadline_lateness": {
+            "samples": 7189,
+            "mean_ms": 0,
+            "median_ms": 0,
+            "p95_ms": 0,
+            "p99_ms": 0,
+            "maximum_ms": 0
+          },
+          "target_calls_at_60_hz": 7200,
+          "accepted_call_shortfall": 13,
+          "accepted_call_shortfall_percent": 0.18055555555555555,
+          "recorded_late_percent": 0
+        },
+        {
+          "attempts": 7189,
+          "accepted_calls": 7188,
+          "busy": 1,
+          "occluded": 0,
+          "no_target": 0,
+          "late_attempts": 0,
+          "accepted_call_intervals": {
+            "samples": 7187,
+            "mean_ms": 16.695872491999452,
+            "median_ms": 16.6763,
+            "p95_ms": 17.0962,
+            "p99_ms": 17.2486,
+            "maximum_ms": 226.99730000000002
+          },
+          "deadline_lateness": {
+            "samples": 7189,
+            "mean_ms": 0,
+            "median_ms": 0,
+            "p95_ms": 0,
+            "p99_ms": 0,
+            "maximum_ms": 0
+          },
+          "target_calls_at_60_hz": 7200,
+          "accepted_call_shortfall": 12,
+          "accepted_call_shortfall_percent": 0.16666666666666669,
+          "recorded_late_percent": 0
+        }
+      ],
+      "consumer_age_p95_target_met": true,
+      "frame_age_channels": [
+        {
+          "valid": 7200,
+          "absent": 0,
+          "invalid": 0,
+          "repeated": 393,
+          "unique_frames": 6807,
+          "skipped_source_frame_ids": 394,
+          "frame_age": {
+            "samples": 7200,
+            "mean_ms": 16.539936375000035,
+            "median_ms": 12.7364,
+            "p95_ms": 28.5012,
+            "p99_ms": 29.3595,
+            "maximum_ms": 251.3787
+          }
+        },
+        {
+          "valid": 7200,
+          "absent": 0,
+          "invalid": 0,
+          "repeated": 414,
+          "unique_frames": 6786,
+          "skipped_source_frame_ids": 414,
+          "frame_age": {
+            "samples": 7200,
+            "mean_ms": 32.958252111111264,
+            "median_ms": 31.9452,
+            "p95_ms": 46.2367,
+            "p99_ms": 47.8291,
+            "maximum_ms": 254.3896
+          }
+        }
+      ],
+      "zero_tracked_after_fences": true,
+      "pipeline_timing": {
+        "sampled_renderer_batches": 7188,
+        "matched_batches": 7188,
+        "complete_dependency_coverage": true,
+        "missing_renderer_spans": 0,
+        "missing_source_spans": [
+          0,
+          0
+        ],
+        "absent_source_references": [
+          0,
+          0
+        ],
+        "repeated_source_references": [
+          0,
+          1
+        ],
+        "warmup_source_references": [
+          1,
+          1
+        ],
+        "correlated_serial_gpu_span_sum": {
+          "samples": 7188,
+          "mean_ms": 8.589922418440457,
+          "median_ms": 8.335104166666667,
+          "p95_ms": 11.768229166666668,
+          "p99_ms": 13.91234375,
+          "maximum_ms": 457.3904166666666
+        },
+        "cpu_enclosed_pipeline_upper_bound": {
+          "samples": 7188,
+          "mean_ms": 31.393517640511966,
+          "median_ms": 32.0504,
+          "p95_ms": 32.4384,
+          "p99_ms": 32.5569,
+          "maximum_ms": 254.9695
+        },
+        "upper_bound_sufficient_for_gpu_target": false,
+        "scope": "app ingest to renderer completion; CPU envelope includes polling, queueing and retained-frame age",
+        "interpretation": "GPU span sums exclude gaps and are not the pipeline critical path. An upper bound above target is inconclusive, not proof of GPU-budget failure."
+      },
+      "worker_window_shutdown_seconds": 0.4721636,
+      "source_context_gpu_checks": [
+        {
+          "gpu_query_accounting": {
+            "skipped_gpu_queries": 0,
+            "invalid_gpu_queries": 0,
+            "pending_gpu_queries": 0,
+            "truncated_samples": 0
+          },
+          "gpu_query_accounting_complete": true,
+          "recorded_gpu_percentiles_within_target": true,
+          "gpu_budget_met": true
+        },
+        {
+          "gpu_query_accounting": {
+            "skipped_gpu_queries": 0,
+            "invalid_gpu_queries": 0,
+            "pending_gpu_queries": 0,
+            "truncated_samples": 0
+          },
+          "gpu_query_accounting_complete": true,
+          "recorded_gpu_percentiles_within_target": true,
+          "gpu_budget_met": true
+        }
+      ],
+      "admission": [
+        {
+          "mechanism": "timeline_fence",
+          "maximum_in_flight": 2,
+          "peak_in_flight": 2,
+          "submitted": 8985,
+          "completed": 8985,
+          "pending": 0,
+          "reserved": false,
+          "warmup": {
+            "attempts": 1797,
+            "admitted": 1797,
+            "busy": 0
+          },
+          "sampled": {
+            "attempts": 7189,
+            "admitted": 7188,
+            "busy": 1
+          },
+          "pending_at_final_poll": 1
+        },
+        {
+          "mechanism": "timeline_fence",
+          "maximum_in_flight": 2,
+          "peak_in_flight": 2,
+          "submitted": 8977,
+          "completed": 8977,
+          "pending": 0,
+          "reserved": false,
+          "warmup": {
+            "attempts": 1789,
+            "admitted": 1789,
+            "busy": 0
+          },
+          "sampled": {
+            "attempts": 7200,
+            "admitted": 7188,
+            "busy": 12
+          },
+          "pending_at_final_poll": 1
+        },
+        {
+          "mechanism": "timeline_fence",
+          "maximum_in_flight": 2,
+          "peak_in_flight": 2,
+          "submitted": 8980,
+          "completed": 8980,
+          "pending": 0,
+          "reserved": false,
+          "warmup": {
+            "attempts": 1793,
+            "admitted": 1793,
+            "busy": 0
+          },
+          "sampled": {
+            "attempts": 7188,
+            "admitted": 7187,
+            "busy": 1
+          },
+          "pending_at_final_poll": 1
+        }
+      ],
+      "raw_gpu_spans_by_context": [
+        8985,
+        8977,
+        8980
+      ],
+      "raw_gpu_trace_counters": [
+        {
+          "skipped": 0,
+          "invalid": 0,
+          "pending": 0,
+          "truncated": 0
+        },
+        {
+          "skipped": 0,
+          "invalid": 0,
+          "pending": 0,
+          "truncated": 0
+        },
+        {
+          "skipped": 0,
+          "invalid": 0,
+          "pending": 0,
+          "truncated": 0
+        }
+      ]
+    }
+  ],
+  "inputs": {
+    "executable_sha256": "acd69e24911bd57333b6e060b58d0811c9432fcc2a307e949f2ec8054750f9bf",
+    "files": {
+      "Cargo.lock": "286b324f233cd15f2af643272e4f47759fc60ca3d13943204755ec94da10559f",
+      "Cargo.toml": "bd01765f8ba0796d43f9e826a919f3dced1cfba02570c249c9717d9870d9bdd4",
+      "package-lock.json": "46924d87a98b203fa1c66ece5e1fdd8705dc27210c183b481452998cd88be355",
+      "package.json": "15ea200aaaa832d472b173334a6f41d48bfa80d2791600157225eccb22d3ee28",
+      "tools/mapgyver/collect-baseline.ps1": "3cda72ba639594e312ea505e059de697367002c6ccb66bb1f75105a0a4955078",
+      "tools/mapgyver/native-probe/build.rs": "73fb236d28fee0b7d97bcca20a416a9ac938100dcd5164e66b6675753649ab4c",
+      "tools/mapgyver/native-probe/Cargo.toml": "66ba9f7eef570fdfd5efc1158621507cf62b929d5477dff27ab46052aac9b8f0",
+      "tools/mapgyver/native-probe/src/allocation/tests/mod.rs": "f2fc948e7b067ec61bec6ac34cfc32728f02494a3d9b485ea883443276308574",
+      "tools/mapgyver/native-probe/src/allocation.rs": "28c8ac3ef154716ffad312689b950eace694d3b83c26fffe5ff24c7930882fd4",
+      "tools/mapgyver/native-probe/src/bin/generate_probe_bindings.rs": "f39870bfc02fddf8ae37b0138484f2c6db1d4559341d980aa98a36b591b9915a",
+      "tools/mapgyver/native-probe/src/cadence/tests/mod.rs": "3b19d27cb1bf5b18423d8aa37f82d81a93dfc6857fc332747c67e4e3d2aa0b3d",
+      "tools/mapgyver/native-probe/src/cadence.rs": "e07c42631e7d6c63f8ff18b9fe4c4394aef14ac2f076fc5a530cf0fa0a3f55c4",
+      "tools/mapgyver/native-probe/src/card.rs": "37ea31310543d39e59dc942841c85c986e7551161ac13a5f03b9c362c1bc045a",
+      "tools/mapgyver/native-probe/src/child_resources.rs": "cc5dc2562f40de45809484d3593d9c23ebe2034c34d543c65ed810b786c438b0",
+      "tools/mapgyver/native-probe/src/clock.rs": "79cd123256b6cca2c77eba8db1785623d45c2cd5e7c4e4bfe162bb9633dbf8aa",
+      "tools/mapgyver/native-probe/src/completion.rs": "397caa36a727f7de792bb2936b8ea4fdef9aefd379a18ac2e42c7e5897c248af",
+      "tools/mapgyver/native-probe/src/d3d.rs": "de6d6b2e834bb16224a82d591c92da2ac55370d31bbf559889a22ef881112051",
+      "tools/mapgyver/native-probe/src/desktop.rs": "b2127767d9e4010275ca4a0311e1df87e9690dfa374d48beb904663e7304e646",
+      "tools/mapgyver/native-probe/src/fixture/client.rs": "33b456bfa9d9a4ee2d7a49fd8b8fa02cb2d4e543d3938895f1fd92f8ba29a2a4",
+      "tools/mapgyver/native-probe/src/fixture/protocol.rs": "b4756f30153327bb5bd61405d66ef1ddf68c3612b8f32c0d67c4fd30ad3958d0",
+      "tools/mapgyver/native-probe/src/fixture.rs": "18167cc23380dc61fa3b635d8ea33eabcd51792b7f22c5ec9b3ab98e1443a58b",
+      "tools/mapgyver/native-probe/src/frame_admission.rs": "d26012cda5e079fe4029519ee2e91b370019d9a36465a295aa7dcaa8189b8541",
+      "tools/mapgyver/native-probe/src/frame_age/tests/mod.rs": "26ad9b364663ab21fb1ec5d06b6515d5920fc5208be9d731b1889072f2aee6d9",
+      "tools/mapgyver/native-probe/src/frame_age.rs": "4bbc244ff01cb33fe7689fe7b7a55897a92e07f77059fdacf9811bca843302aa",
+      "tools/mapgyver/native-probe/src/gpu_admission/tests/mod.rs": "80ae0c56653c41b69170d3515a0c9c67de9c42589e8c0868c591ff11fc6da762",
+      "tools/mapgyver/native-probe/src/gpu_admission.rs": "ca17d750c20344e5a8b0915f09c8cb1fd39ebe33297ba061a78aed2a8df400a7",
+      "tools/mapgyver/native-probe/src/gpu_progress.rs": "660db903bb89ea031086f3d10d77e673df37b76262af66173a9b9adee4e92106",
+      "tools/mapgyver/native-probe/src/lib.rs": "987adffe74e69c51324418ce89c7311572afa23224efbc892c00d63934aeeb72",
+      "tools/mapgyver/native-probe/src/main.rs": "987a7988d0c0daaa8663e5f6485d5e877e2e1f8d84f2b8e181ccbf001809731d",
+      "tools/mapgyver/native-probe/src/observer/client.rs": "cd466a25489c799e62ee4444e36c1fa25eaca2a40a4813417339c5659bd3579b",
+      "tools/mapgyver/native-probe/src/observer/frame_age.rs": "61eec1f2fbbd804f2d1609341551795b12d4a65ad99d6b9fb45145285c4687c8",
+      "tools/mapgyver/native-probe/src/observer/mod.rs": "7f53052b0a7c3a2ab2961f095ef4597f1efc1845a081d2c0fe5a2dbc71e62baf",
+      "tools/mapgyver/native-probe/src/observer/protocol.rs": "8f74e7e72958f532244d920676d2af072bfd31914ed2426a7e6dc309eaf3d601",
+      "tools/mapgyver/native-probe/src/observer/tests/mod.rs": "a2a39c51e54a890b3c7c6767e63481d2c0706ac41f152401e085347b64b4221d",
+      "tools/mapgyver/native-probe/src/operation_timing/tests/mod.rs": "0a79db53ccc9473e9d54efbe6734ba7f8c669af889179ce6be39d55f9236ffc5",
+      "tools/mapgyver/native-probe/src/operation_timing.rs": "769b35f353cd366fbae2146c8a1a650b978eb449639de5207a474f06c8a49dbb",
+      "tools/mapgyver/native-probe/src/pipeline_timing/tests/mod.rs": "2dd772b208e93b20cb041411e6e1473cf0a26f54ff9c51aa6ead9f0a781a4e73",
+      "tools/mapgyver/native-probe/src/pipeline_timing.rs": "4e62d8ce49a6bba8ddab4f2d4e6f8008202b880cc9e570bf2d029c44b34ecbf9",
+      "tools/mapgyver/native-probe/src/presentation/tests/mod.rs": "739a41a1b886aa0c5f1c08243aa20b73126b812df7c02745533f437329fb3ea4",
+      "tools/mapgyver/native-probe/src/presentation.rs": "d2063e13d0602b80f13ef4784bf5b44e35a1105a70367a4388292000811cd2ef",
+      "tools/mapgyver/native-probe/src/presenter/admission/tests/mod.rs": "a605ece7035cf5ae959eccef507b2690e12957056da125a9970c8c5bc1951b4d",
+      "tools/mapgyver/native-probe/src/presenter/admission.rs": "578c5952d5e3a79b9593fffb6f54cc1c7fc6f2c088f84fd52fde8f9c97947253",
+      "tools/mapgyver/native-probe/src/presenter.rs": "8ed5bbbbb11869e9ee697b6f7862e0a2d03ca81b99078a911cf5831f7355f0e1",
+      "tools/mapgyver/native-probe/src/process/reported.rs": "ed1c99582ebb90bf656c58f89a99e4472ba4a90396925477e9564cb91d2ce5f6",
+      "tools/mapgyver/native-probe/src/process.rs": "d3a2d80fb0ff629284d9c4f63240d3410935ee97d5732241c61265453c897099",
+      "tools/mapgyver/native-probe/src/quad.rs": "869cfcae90b58b2c498e04f9c3188649ceb1a3f599922905aa5d253a78cb5028",
+      "tools/mapgyver/native-probe/src/query_data.rs": "afce4dd916e4a9b7ea98ab729c566b4fa22583c067ea527f09bd95b94fc37bfe",
+      "tools/mapgyver/native-probe/src/render_worker/generation.rs": "f23e88b2467bc790844ce20c362121d12bc0ea4e5acd82a407cb28c4465d226f",
+      "tools/mapgyver/native-probe/src/render_worker.rs": "a14f61022c1f7d35c0c47d0e5e180f751972501158934e575a780af1f54bb375",
+      "tools/mapgyver/native-probe/src/resource_log/tests/mod.rs": "30536bf948a10da7bf0e15cf23d714ff8f00d213d526ef64f7f085c32161bebf",
+      "tools/mapgyver/native-probe/src/resource_log.rs": "2505a45136736792afdb417fef8087c4894c45a969054ce1e3305e67a03a1dbb",
+      "tools/mapgyver/native-probe/src/resources.rs": "9e40788a5ebe4b01bd6f29623b74d73f3227b0b979f0de121250b23915a4920a",
+      "tools/mapgyver/native-probe/src/retirement.rs": "2c774f73a9f1b568f712c538390e8cb5eff65a5b8014d23415814c0c70d99123",
+      "tools/mapgyver/native-probe/src/smoke.rs": "011499bed6cb7cc5c71e715eb008a108ab4fbb9b0ff232139bbd2a71bdcb628f",
+      "tools/mapgyver/native-probe/src/source_worker/surface/tests/mod.rs": "87f360884ac1aa60d5f467cc401233d81daa9c9810aee484ea7f560d798469fa",
+      "tools/mapgyver/native-probe/src/source_worker/surface.rs": "6ecd0ae7a655845d3ee1a01244594dc150a8e4315e577ec7dafef686c39106f7",
+      "tools/mapgyver/native-probe/src/source_worker/tests/mod.rs": "31652d2a685c724b7628ae691df2079176c8f458fb309da5801ad990fd74c8ce",
+      "tools/mapgyver/native-probe/src/source_worker/worker.rs": "8fa60831bd633e3f2d6ff3528539ee08567ee3cb958c20a02270bc1d6452194d",
+      "tools/mapgyver/native-probe/src/source_worker.rs": "b54519d82d56427c60fbf060ed9c20ae43accbacb8c7afb78af3f6029503646e",
+      "tools/mapgyver/native-probe/src/spout.rs": "5b8684b0b4a22202b5dfc74c68803a8a7b8b4ef4729eed560c4b96f0476d684d",
+      "tools/mapgyver/native-probe/src/statistics/tests/mod.rs": "e2bda3dbd0e8ecba435d06b10472b3434e6e4c8df753d13186121f206e8ba03f",
+      "tools/mapgyver/native-probe/src/statistics.rs": "404893f2a1a8194d54f53a6cdc833748821a45c0741cce797efb11b4192f576f",
+      "tools/mapgyver/native-probe/src/texture.rs": "68052e3bec3b8d72ce8278f3021b7afc86147bf0f03841a65589f869663e76db",
+      "tools/mapgyver/native-probe/src/timing.rs": "43316378765e7bb5f8993e97516395e9eada5f7e9cc9abd11d1590eefc4fd118",
+      "tools/mapgyver/native-probe/src/trace_capability.rs": "87db9ba6e644d4f8a436c3ed6cf4bdf6601b993816332e91238b8d8a11bace18",
+      "tools/mapgyver/native-probe/src/wire.rs": "7ed0d0b25811ea89a84568c8a8f6767f0f550c6452c60e1a1c5edbc613daa52a",
+      "tools/mapgyver/native-probe/src/workload/tests/mod.rs": "c1cfcc408c4aa44b85ceb0b821a692ebd07e247678a9d5b55f0b5edc1001c8e8",
+      "tools/mapgyver/native-probe/src/workload.rs": "bebcfee4239134dd7cd7a7ec69d2d1b06bdd9ce7d9b46582ea553ed66ea3a154",
+      "tools/mapgyver/native-probe/tauri.conf.json": "7e662b178abb64018037dd9da756e04de67d23f38dd409e686d90969afd66f1d",
+      "tools/mapgyver/native-probe/ui/dist/assets/index-L5J2Q3d3.js": "3c05c362766b0b5ac944d3e34be1ae9e52034ff64f25fed75de14f2cdb1fedce",
+      "tools/mapgyver/native-probe/ui/dist/assets/index-NEuoE25f.css": "64d230ac153b556df0834833a285380f27d22b0bf33d04255d32c1f9a50e14cd",
+      "tools/mapgyver/native-probe/ui/dist/index.html": "b73b37b178e5f830f5332d794e0071c2db774ddd7b391a5bcb65abbe3291c789",
+      "tools/mapgyver/native-probe/ui/index.html": "8537f14356e5a97019d00197ca3609b1093b90fc2297a3e9abeedaaa5b514078",
+      "tools/mapgyver/native-probe/ui/package.json": "64d7e12087f720f977e6b13b6c78adcdcf79a78335632a9a70e01a0d2799831c",
+      "tools/mapgyver/native-probe/ui/scripts/check-generated.mjs": "8626ddca2d34ea8d2a99ffbe778ca32b6afe121d9eb26a6263e9c5de18cc2731",
+      "tools/mapgyver/native-probe/ui/src/App.svelte": "7719f3e9b8b85e9d34eb8869bc562572963c1442b1f680d1e5cdc6c37cff54a0",
+      "tools/mapgyver/native-probe/ui/src/generated.ts": "e69c90bee49b918de2f0a0375eafe01ebfddb0e1c209ec3742ce64a41864ff4c",
+      "tools/mapgyver/native-probe/ui/src/main.ts": "c76543fe1c49182b7ec4353a30135d00e3c439dfdf2577e2435272ff9f35930b",
+      "tools/mapgyver/native-probe/ui/src/native.ts": "30ef70406a96bbe19b74e52b83c3738a85d43644277c954e254ec45ee14976d9",
+      "tools/mapgyver/native-probe/ui/svelte.config.js": "f3c25c06187b11282d1293dd1aa038b34de915c464de9250b121241780c4d1ea",
+      "tools/mapgyver/native-probe/ui/tsconfig.json": "7bcf3e81653ce3c7b9a3b8d047bf56bae9714258ea79ef4ffb0f9a9009c8d40e",
+      "tools/mapgyver/native-probe/ui/vite.config.js": "11c7487f64e960a7a002408ea2a43225a53d15443e1776d79fb0ad98350a64bd",
+      "tools/mapgyver/run-qualification.py": "fe3f67e1015e5cb2ccbd506563fc3ec7d3daff016928c66c104e2b747b716ec8"
+    }
+  },
+  "tools_sha256": {
+    "tools\\mapgyver\\analyze-pipeline.py": "6e9556307007fe2a82b8756f19e31830fa5c7d4963fedf97699c421bc5bc0a84",
+    "tools\\mapgyver\\analyze-release.py": "007753e0fad9a7ca5880db0e65c62427f4e8f569de2c3cfafb92dec3b2636927",
+    "tools\\mapgyver\\collect-evidence.py": "2a5a1236015c661f3b1f5e1532caa282751c72e5093c3bfcacc0594ec8160806"
+  },
+  "artifacts_sha256": {
+    "mapgyver-m01-pipeline-intel-q02-release-2026-10-28.json": "0a3b401be7b12f6006dc52713c833e371c6d84b16e515baa3442734fb83beb66",
+    "mapgyver-m01-pipeline-intel-controls-2026-10-28.json": "e15039a3b81ebc3ccc8bca65e7cd7179899bc367897705f0dca8b94ed738ef37",
+    "mapgyver-m01-pipeline-stale-binary-2026-10-28.json": "8c990531d70a380907bc15b04646d772f873a59f2b8b32f901a1c6de6bf92dec",
+    "mapgyver-m01-pipeline-terminal-limit-2026-10-28.json": "66d607b4ef61a876e88a2bfbd5f6aa85cfa4ea212aa7117303749fd06136dfd1"
+  },
+  "sampled_operation_outliers": [
+    {
+      "sample_index": 1,
+      "sampled_operation_outliers": 5,
+      "omitted": 0,
+      "maximum": {
+        "stamp": {
+          "frame": 2448,
+          "qpc": 1649889838468
+        },
+        "scheduled_delay_ns": 441051,
+        "elapsed_ns": 1200,
+        "gpu_query_skipped": false,
+        "gpu_admission_busy": true,
+        "spans": [
+          null,
+          {
+            "offset_ns": 100,
+            "elapsed_ns": 300
+          },
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          {
+            "offset_ns": 400,
+            "elapsed_ns": 200
+          },
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ]
+      },
+      "source_receive_maximum_ms": [
+        68.3612,
+        2.0453
+      ],
+      "maximum_spans": {
+        "gpu_admission": {
+          "offset_ns": 100,
+          "elapsed_ns": 300
+        },
+        "observer_control": {
+          "offset_ns": 400,
+          "elapsed_ns": 200
+        }
+      }
+    },
+    {
+      "sample_index": 2,
+      "sampled_operation_outliers": 0,
+      "omitted": 0,
+      "maximum": null,
+      "source_receive_maximum_ms": [
+        67.99900000000001,
+        5.9409
+      ]
+    },
+    {
+      "sample_index": 3,
+      "sampled_operation_outliers": 2,
+      "omitted": 0,
+      "maximum": {
+        "stamp": {
+          "frame": 3341,
+          "qpc": 1653066792647
+        },
+        "scheduled_delay_ns": 486720,
+        "elapsed_ns": 209139200,
+        "gpu_query_skipped": false,
+        "gpu_admission_busy": false,
+        "spans": [
+          null,
+          {
+            "offset_ns": 300,
+            "elapsed_ns": 1400
+          },
+          {
+            "offset_ns": 1900,
+            "elapsed_ns": 4500
+          },
+          {
+            "offset_ns": 6600,
+            "elapsed_ns": 900
+          },
+          {
+            "offset_ns": 7600,
+            "elapsed_ns": 642500
+          },
+          {
+            "offset_ns": 650400,
+            "elapsed_ns": 296100
+          },
+          {
+            "offset_ns": 947100,
+            "elapsed_ns": 35800
+          },
+          {
+            "offset_ns": 983000,
+            "elapsed_ns": 349900
+          },
+          {
+            "offset_ns": 1333700,
+            "elapsed_ns": 700
+          },
+          {
+            "offset_ns": 1334400,
+            "elapsed_ns": 2000
+          },
+          null,
+          null,
+          {
+            "offset_ns": 1336700,
+            "elapsed_ns": 700
+          },
+          null,
+          null,
+          {
+            "offset_ns": 1337500,
+            "elapsed_ns": 300
+          },
+          {
+            "offset_ns": 1337900,
+            "elapsed_ns": 207798400
+          }
+        ]
+      },
+      "source_receive_maximum_ms": [
+        68.3865,
+        2.1978
+      ],
+      "maximum_spans": {
+        "gpu_admission": {
+          "offset_ns": 300,
+          "elapsed_ns": 1400
+        },
+        "query_begin": {
+          "offset_ns": 1900,
+          "elapsed_ns": 4500
+        },
+        "layout": {
+          "offset_ns": 6600,
+          "elapsed_ns": 900
+        },
+        "source_poll_a": {
+          "offset_ns": 7600,
+          "elapsed_ns": 642500
+        },
+        "source_poll_b": {
+          "offset_ns": 650400,
+          "elapsed_ns": 296100
+        },
+        "compose": {
+          "offset_ns": 947100,
+          "elapsed_ns": 35800
+        },
+        "send_spout": {
+          "offset_ns": 983000,
+          "elapsed_ns": 349900
+        },
+        "observer_control": {
+          "offset_ns": 1333700,
+          "elapsed_ns": 700
+        },
+        "output_target": {
+          "offset_ns": 1334400,
+          "elapsed_ns": 2000
+        },
+        "editor_target": {
+          "offset_ns": 1336700,
+          "elapsed_ns": 700
+        },
+        "status": {
+          "offset_ns": 1337500,
+          "elapsed_ns": 300
+        },
+        "query_end": {
+          "offset_ns": 1337900,
+          "elapsed_ns": 207798400
+        }
+      }
+    }
+  ],
+  "complete_m01_qualification": false,
+  "cadence_failure": {
+    "sample_index": 3,
+    "accepted_calls_editor_output_spout": [
+      7186,
+      7187,
+      7188
+    ],
+    "target_calls": 7200,
+    "shortfall_percent": [
+      0.19444444444444445,
+      0.18055555555555555,
+      0.16666666666666666
+    ],
+    "maximum_render_tick_ms": 209.1392,
+    "query_end_wall_ms": 207.7984,
+    "internal_signal_flush_or_driver_cause": "not established; QueryEnd includes timing end markers and timeline submit/flush"
+  }
+}

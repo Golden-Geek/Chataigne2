@@ -1,0 +1,233 @@
+{
+  "schema_version": 1,
+  "captured_at_utc": "2026-10-27T17:49:15.4534523Z",
+  "evidence_kind": "read_only_inventory_not_native_qualification",
+  "checkout": {
+    "head": "137c9203dc2afa21a5c55eb1b8fadb32fad473b0",
+    "branch": "main",
+    "status": [
+      " M AGENTS.md",
+      " M ARCHITECTURE.md",
+      " M README.md",
+      " M apps/chataigne/src/module/modules/generators/spatializer/tests/runtime.rs",
+      " M apps/chataigne/src/module/modules/generators/spatializer/tests/runtime/sparse.rs",
+      " M crates/golden_core/engine/src/engine/dispatch.rs",
+      " M crates/golden_core/engine/src/engine/mod.rs",
+      " M crates/golden_core/engine/src/engine/node_store.rs",
+      " M crates/golden_core/engine/src/engine/refs.rs",
+      " M crates/golden_core/engine/src/engine/tests/mod.rs",
+      " M crates/golden_core/engine/src/engine/tests/prepared_runtime_snapshot.rs",
+      " M crates/golden_core/engine/src/engine/tick_scratch.rs",
+      " M crates/golden_core/engine/src/engine/tree_revisions.rs",
+      " M crates/golden_core/engine/src/process_ctx.rs",
+      " M crates/golden_core/engine/src/process_ctx/lease.rs",
+      " M crates/golden_core/engine/src/process_ctx/memory.rs",
+      " M docs/README.md",
+      " M docs/architecture/README.md",
+      " M docs/architecture/application-contracts.md",
+      " M docs/architecture/spatializer-runtime.md",
+      " M docs/progress/implementation-status.md",
+      " M docs/progress/p11-spatializer-graph-scale.md",
+      " M docs/reference/repository-layout.md",
+      " M docs/reference/source-size-inventory.md",
+      "?? crates/golden_core/engine/src/engine/process_snapshot.rs",
+      "?? crates/golden_core/engine/src/engine/tests/incremental_process_snapshot.rs",
+      "?? crates/golden_core/engine/src/engine/tree_revisions/",
+      "?? crates/golden_core/engine/src/process_ctx/child_indexes.rs",
+      "?? crates/golden_core/engine/src/process_ctx/refresh.rs",
+      "?? crates/golden_core/engine/src/process_ctx/snapshot_map.rs",
+      "?? crates/golden_core/engine/src/process_ctx/tests/",
+      "?? docs/architecture/mapgyver-native-rendering.md",
+      "?? docs/architecture/mapgyver.md",
+      "?? docs/plan/MapGyver_Implementation_Plan.md",
+      "?? docs/progress/evidence/p11-incremental-snapshot-candidate-2026-10-27.json",
+      "?? docs/progress/evidence/p11-process-snapshot-reference-2026-10-27.json",
+      "?? docs/progress/evidence/p11-process-snapshot-runtime-comparison-2026-10-27.json",
+      "?? docs/progress/mapgyver-status.md",
+      "?? tools/mapgyver/"
+    ],
+    "cargo_lock_sha256": "96289a0898a351fcf1b4b729f30270fa9109906382bef9b4444436fb046c64a7",
+    "npm_lock_sha256": "1a515eb16812648c25cab5914c8ec2562aeeab8bf6f5a84921bd20d659e5ec28"
+  },
+  "operating_system": {
+    "status": "observed",
+    "items": [
+      {
+        "Caption": "Microsoft Windows 11 Famille",
+        "Version": "10.0.26300",
+        "BuildNumber": "26300",
+        "OSArchitecture": "64-bit"
+      },
+      {
+        "DisplayVersion": "26H2",
+        "CurrentBuild": "26300",
+        "UBR": 9711
+      }
+    ]
+  },
+  "cpu": {
+    "status": "observed",
+    "items": [
+      {
+        "Name": "Intel(R) Core(TM) Ultra 9 275HX",
+        "NumberOfCores": 24,
+        "NumberOfLogicalProcessors": 24
+      }
+    ]
+  },
+  "memory": {
+    "status": "observed",
+    "items": [
+      {
+        "TotalPhysicalMemory": 33752997888
+      }
+    ]
+  },
+  "video_controllers": {
+    "status": "observed",
+    "items": [
+      {
+        "Name": "Intel(R) Graphics",
+        "DriverVersion": "32.0.101.8331",
+        "DriverDate": "2026-01-29",
+        "CurrentHorizontalResolution": 2560,
+        "CurrentVerticalResolution": 1600,
+        "CurrentRefreshRate": 240
+      },
+      {
+        "Name": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "DriverVersion": "32.0.15.9201",
+        "DriverDate": "2026-02-15",
+        "CurrentHorizontalResolution": 3840,
+        "CurrentVerticalResolution": 2160,
+        "CurrentRefreshRate": 60
+      }
+    ]
+  },
+  "monitors": {
+    "status": "observed",
+    "items": [
+      {
+        "Active": true,
+        "VideoOutputTechnology": 2147483648
+      },
+      {
+        "Active": true,
+        "VideoOutputTechnology": 10
+      }
+    ]
+  },
+  "webview2": {
+    "status": "observed",
+    "items": [
+      {
+        "name": "Microsoft Edge WebView2 Runtime",
+        "pv": "155.0.4283.62"
+      }
+    ]
+  },
+  "toolchain": {
+    "rustc": {
+      "status": "observed",
+      "items": [
+        "rustc 1.97.0 (2d8144b78 2026-07-07)\nbinary: rustc\ncommit-hash: 2d8144b7880597b6e6d3dfd63a9a9efae3f533d3\ncommit-date: 2026-07-07\nhost: x86_64-pc-windows-msvc\nrelease: 1.97.0\nLLVM version: 22.1.6"
+      ]
+    },
+    "cargo": {
+      "status": "observed",
+      "items": [
+        "cargo 1.97.0 (c980f4866 2026-06-30)"
+      ]
+    },
+    "rustup": {
+      "status": "observed",
+      "items": [
+        "1.97.0-x86_64-pc-windows-msvc (directory override for 'D:\\Projects\\Dev\\Chataigne2')"
+      ]
+    },
+    "node": {
+      "status": "observed",
+      "items": [
+        "v26.5.0"
+      ]
+    },
+    "npm": {
+      "status": "observed",
+      "items": [
+        "11.17.0"
+      ]
+    },
+    "cmake": {
+      "status": "observed",
+      "items": [
+        "cmake version 4.4.1\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake)."
+      ]
+    },
+    "visual_studio": {
+      "status": "observed",
+      "items": [
+        {
+          "displayName": "Visual Studio Build Tools 2026",
+          "installationVersion": "18.5.11723.231"
+        },
+        {
+          "displayName": "Visual Studio Community 2026",
+          "installationVersion": "18.10.12224.181"
+        }
+      ]
+    }
+  },
+  "locked_host_packages": [
+    {
+      "name": "raw-window-handle",
+      "version": "0.6.2"
+    },
+    {
+      "name": "tauri",
+      "version": "2.11.5"
+    },
+    {
+      "name": "tauri-runtime-wry",
+      "version": "2.11.4"
+    },
+    {
+      "name": "webview2-com",
+      "version": "0.38.2"
+    },
+    {
+      "name": "windows",
+      "version": "0.48.0"
+    },
+    {
+      "name": "windows",
+      "version": "0.61.3"
+    },
+    {
+      "name": "windows",
+      "version": "0.62.2"
+    },
+    {
+      "name": "windows-core",
+      "version": "0.61.2"
+    },
+    {
+      "name": "windows-core",
+      "version": "0.62.2"
+    },
+    {
+      "name": "wry",
+      "version": "0.55.1"
+    }
+  ],
+  "spout_related_processes": {
+    "status": "observed",
+    "items": []
+  },
+  "not_measured": [
+    "DXGI adapter LUID, dedicated/shared memory budget and D3D11 feature level",
+    "DisplayConfig identity, physical origins, per-monitor DPI and WebView rasterization scale",
+    "WebView underlay/DOM layering, pointer capture and layout alignment",
+    "Spout SDK enumeration, GPU sharing, resize/restart and adapter compatibility",
+    "Frame timing, readback/copy behavior, resource retirement and device recovery"
+  ]
+}
