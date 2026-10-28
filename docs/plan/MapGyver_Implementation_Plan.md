@@ -181,6 +181,31 @@ queue/admission, memory/handle and shutdown budgets. M03 owns bounded resource r
 device recovery; preserve unresolved harness failures and verify their production replacements.
 These measurements are M03 acceptance work, not deferred wholesale to M09.
 
+Track this complete scope as nine fixed acceptance items, defined before M03 source work:
+
+1. App-neutral immutable render plans, explicit texture/color/alpha metadata and deterministic
+   DAG/demand/resource-budget compilation, including cycle/resize/rejection coverage.
+2. Worker-owned runtime and null/mock path: atomic frame-boundary install, project/revision/device
+   fences, bounded desired/prepared/in-flight/retiring work and completion-based resource ownership.
+3. Exercised D3D11/Spout backend with opaque resources, explicit caller-device/adapter ownership,
+   generic compositing/conversion and shared native-host presentation consumption.
+4. Source/output state observations and device-removal/recreation, independent healthy paths,
+   cancellation and bounded recovery/retirement through the production runtime.
+5. App-owned media/channel IDs, typed references, backend size/default operations and generated
+   contracts, with stable identity through history/reload and resource recreation.
+6. Shared production-time authority and activation/discontinuity contracts used by M03 scheduling;
+   reconcile shared P14 evidence without claiming unrelated audio/DMX acceptance.
+7. Shared persistent asset IDs/locators, worker preparation/cancellation, relocation/relink and
+   stale-generation/resource admission; reconcile shared P15 evidence at its reusable owner.
+8. Reusable preview registration/geometry and generated control contracts exercised by the native
+   consumer, leaving specialized editors and full physical/DPI/input qualification with M05.
+9. Production-renderer Q01/Q02 native CPU/GPU/cadence/frame-age/admission/memory/handle/shutdown
+   measurements and applicable recovery runs against the unchanged qualification contract.
+
+This replaces M03's provisional whole-phase item with an unchanged-scope breakdown; all nine
+start open. A compiler/mock/source checkpoint alone does not qualify native rendering or retire
+the recorded failures. Deliver each coherent implementation batch before starting the next batch.
+
 ### M04 — Deliver source media and Media Manager
 
 Implement multi-channel Solid Color, Picture and Shared Texture. Picture preparation probes and

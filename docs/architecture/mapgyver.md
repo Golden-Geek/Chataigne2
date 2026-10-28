@@ -2,8 +2,9 @@
 
 MapGyver is a video mapping application alongside Chataigne, using the same Golden Core,
 workbench, parameter system, scripting, transport, and persistence foundations. Its first target
-is Windows x64 (`x86_64-pc-windows-msvc`). This initial design is dated 2026-10-27;
-the application and proposed packages below are **not implemented**. Execution belongs to the
+is Windows x64 (`x86_64-pc-windows-msvc`). The M02 shell/shared-host seams are implemented, and
+M03 has introduced Golden Video's render-plan/resource compiler. Media, mapping, Matrix and
+the specialized editors below remain planned. Execution belongs to the
 [MapGyver plan](../plan/MapGyver_Implementation_Plan.md) and its
 [status ledger](../progress/mapgyver-status.md).
 
@@ -14,12 +15,12 @@ editors. Golden owns reusable execution and presentation mechanisms.
 
 | Boundary | Responsibility |
 | --- | --- |
-| `apps/mapgyver/src/app/` | Thin shell: lifecycle, app identity, node registration, default Media/Screen managers, Golden runtime startup |
+| `apps/mapgyver/src/app/` | Implemented thin shell: lifecycle, identity and Golden startup; functional default Media/Screen managers join with M04/M05 |
 | `apps/mapgyver/systems/media/` | Media/channel definitions, source references, composition authoring, backend intents, integration nodes, Rust-owned DTOs |
 | `apps/mapgyver/systems/screen/` | Screen/surface definitions, crop/pin/calibration authoring, output policy, backend intents and integration nodes |
 | `apps/mapgyver/systems/matrix/` | Cells, layers, groups, columns, transitions, exported channels, app associations and demand policy |
 | `apps/mapgyver/ui/` | Svelte 5 Screen, Surface Source, Composition and Matrix editors; app registrations and focused editor stores |
-| `crates/golden_video/` (proposed) | App-neutral texture resources, immutable render plans, GPU compositor operations, Spout adapters, presentation, timing and recovery |
+| `crates/golden_video/` | Render-plan/resource compiler present; remaining M03 work adds worker-owned resources, GPU operations, Spout/presentation, timing and recovery |
 | `packages/golden-video-ui/` (proposed) | Reusable native preview registration, geometry and capability bindings; no mapping policy |
 | Existing Golden Core hosts and Golden UI | Shared desktop/headless startup, native window integration, workbench, inspectors, history, dialogs, generated transport and persistence |
 
@@ -28,6 +29,13 @@ nor Golden UI imports MapGyver or Chataigne. MapGyver does not import Chataigne 
 Alchemist/state-machine systems. Golden Video follows the independent Golden Audio pattern:
 no Tauri, app-node, or mutable engine dependency; Windows/COM/Spout implementation details stay
 behind its public contracts. Use existing Golden identity/time/resource contracts where available.
+
+The [render-plan compiler](../../crates/golden_video/README.md) consumes typed texture operations,
+checks the full submitted dependency graph and compiles demanded passes without native resources.
+Sources declare storage/color/alpha; internal targets use linear premultiplied alpha. Its bounded
+logical footprint is not whole-runtime GPU admission: prepared/live/in-flight/retiring resources,
+bridge/presentation pools and retained leases must remain charged through their actual lifetime.
+Existing `golden_io` workers, cancellation and revision fences belong to the next runtime batch.
 
 The filesystem sketch above names responsibility boundaries, not a requirement to create one
 crate per folder. Keep cohesive app systems in the app crate until an exercised public consumer

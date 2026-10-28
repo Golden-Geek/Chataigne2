@@ -1,0 +1,11 @@
+[package]
+name = "golden_video"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "App-neutral video render plans and worker-owned resource foundations"
+
+[dependencies]
+thiserror.workspace = true

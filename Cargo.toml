@@ -28,6 +28,7 @@ members = [
     "crates/golden_core/support/macros",
     "crates/golden_audio",
     "crates/golden_graph",
+    "crates/golden_video",
     "tools/mapgyver/native-probe",
     "xtask",
 ]

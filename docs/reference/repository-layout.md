@@ -34,7 +34,8 @@ crates/
 │   └── support/
 │       ├── codegen/             supported build/codegen API
 │       └── macros/              proc macros
-└── golden_graph/                app-agnostic graph documents and transactions
+├── golden_graph/                app-agnostic graph documents and transactions
+└── golden_video/                app-neutral render-plan/resource compiler; runtime/native work continues in M03
 ```
 
 App metadata comes from the engine's pure `ProjectLifecycle` hooks; shared desktop listener and

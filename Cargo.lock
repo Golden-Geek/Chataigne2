@@ -3063,6 +3063,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "golden_video"
+version = "0.1.0"
+dependencies = [
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "gtk"
 version = "0.18.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
