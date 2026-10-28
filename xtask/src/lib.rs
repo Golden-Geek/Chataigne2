@@ -1,3 +1,4 @@
+mod app;
 mod cli;
 pub mod output;
 mod process;
@@ -7,6 +8,7 @@ mod watch;
 #[cfg(test)]
 mod tests;
 
+pub use app::AppTarget;
 pub use cli::{ParseOutcome, WatchConfig, usage};
 
 pub fn run<I, S>(args: I) -> Result<u8, String>

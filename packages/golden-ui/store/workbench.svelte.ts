@@ -1,12 +1,11 @@
 import { tick } from 'svelte';
 import { createGraphStore, type GraphStore } from './graph.svelte';
 import { createSessionEditOperations } from './session/edit-operations.svelte';
-import type { UiEditOperations } from './session/edit-operations';
-import { createIntentSender, type AppliedIntentObserver } from './session/intent-sender';
+import { createIntentSender } from './session/intent-sender';
+import type { WorkbenchSession, WorkbenchSessionOptions } from './workbench/session-types';
 import {
 	createDefaultUiClient,
 	type UiTransportConnectionState,
-	type UiTransportFactory,
 	type UiTransportOptions
 } from '../transport';
 import type {
@@ -20,28 +19,26 @@ import type {
 	UiLogRecord,
 	UiAck,
 	UiSubscriptionBatchControl,
-	UiSnapshot,
-	UiSubscriptionScope
+	UiSnapshot
 } from '../types';
 import { wholeGraphScope } from '../types';
 import { registerGlobalCommandShortcuts } from './commands.svelte';
 import { appState } from './app-state.svelte';
 import { resetProjectFileFormat, setProjectFileFormat } from './project-file-format.svelte';
-import { syncProjectFilePathFromSnapshot } from './project-files.svelte';
+import {
+	initializeProjectFileState,
+	syncProjectFilePathFromSnapshot
+} from './project-files.svelte';
+import { configureApplication } from './application.svelte';
 import {
 	recordPerformanceSample,
 	setPerformanceProfilerEnabled
 } from './performance-profiler.svelte';
 import { createWorkbenchDescriptionStore } from './session/descriptions.svelte';
-import type { NodeSelectionIdentity } from './session/pending-selection';
 import { createWorkbenchCustomEventStore } from './session/custom-events.svelte';
 import { createWorkbenchFooterHoverStore } from './session/footer-hover.svelte';
 import { createWorkbenchHistoryStore } from './session/history.svelte';
-import {
-	invokeWorkbenchAppOperation,
-	type WorkbenchAppOperation,
-	type WorkbenchAppOperationValue
-} from './session/app-operations';
+import { invokeWorkbenchAppOperation } from './session/app-operations';
 import { createWorkbenchLoggerStore } from './session/logger.svelte';
 import {
 	formatReconnectDelay,
@@ -59,9 +56,7 @@ import {
 } from './session/intent-pipeline';
 import {
 	createWorkbenchLoadingController,
-	type WorkbenchLoadingOperation,
-	type WorkbenchLoadingState,
-	type WorkbenchLoadingStateRequest
+	type WorkbenchLoadingState
 } from './session/loading.svelte';
 import {
 	createProjectGraphTransitionController,
@@ -81,8 +76,6 @@ import { createWorkbenchWarningStore } from './session/warnings.svelte';
 import { createWorkbenchCommandSuite } from './session/commands.svelte';
 import type {
 	FooterHoverInfo,
-	NodeWarningRecord,
-	SelectionMode,
 	WorkbenchToast,
 	WorkbenchToastLevel
 } from './session/types';
@@ -111,91 +104,7 @@ export type { WorkbenchConnectionStatus } from './session/connection-state';
 
 export { appState } from './app-state.svelte';
 
-export interface WorkbenchSessionOptions {
-	wsUrl?: string;
-	httpBaseUrl?: string;
-	scope?: UiSubscriptionScope;
-	bootstrapRetryMs?: number;
-	transportFactory?: UiTransportFactory;
-	enableGlobalShortcuts?: boolean;
-}
-
-export interface WorkbenchSession {
-	readonly editOperations: UiEditOperations;
-	readonly graph: GraphStore;
-	readonly client: UiClient;
-	readonly loading: WorkbenchLoadingState;
-	readonly logRecords: readonly UiLogRecord[];
-	readonly logMaxEntries: number;
-	readonly logUiUpdateHz: number;
-	readonly engineHz: number | null;
-	readonly runtimeStats: UiRuntimeStats | null;
-	/** Monotonic count of full snapshots applied by this session. */
-	readonly snapshotGeneration: number;
-	/** Monotonic signal emitted after a project graph transition barrier releases. */
-	readonly graphTransitionRevision: number;
-	readonly engineLowFrequencyHz: number;
-	readonly selectedNodesIds: NodeId[];
-	readonly selectedNodeId: NodeId | null;
-	/** Monotonic explicit selection intent; graph projection alone does not advance it. */
-	readonly selectionRevision: number;
-	readonly status: WorkbenchConnectionStatus;
-	readonly toasts: WorkbenchToast[];
-	readonly historyBusy: boolean;
-	readonly canUndo: boolean;
-	readonly canRedo: boolean;
-	readonly currentHistoryStateId: number;
-	readonly hasActiveEditSession: boolean;
-	readonly editSessionEpoch: number;
-	readonly userActionPendingCount: number;
-	readonly userActionOldestQueuedAtMs: number | null;
-	readonly userActionCurrentLabel: string | null;
-	readonly userActionCurrentPhase: WorkbenchUserActionPhase | null;
-	getNodeData(nodeId: NodeId): UiNodeDto | null;
-	getSelectedNodes(): UiNodeDto[];
-	getFirstSelectedNode(): UiNodeDto | null;
-	getNodeDescription(node: UiNodeDto | null | undefined): string | null;
-	getCustomEventSequence(topic: string, origin?: NodeId | null): number;
-	getCustomEventPayload<T = unknown>(topic: string, origin?: NodeId | null): T | null;
-	getFooterHoverInfo(): FooterHoverInfo | null;
-	getNodeVisibleWarnings(nodeId: NodeId): NodeWarningRecord[];
-	getActiveWarnings(): NodeWarningRecord[];
-	hasNodeWarnings(nodeId: NodeId): boolean;
-	isNodeEnabledInHierarchy(nodeId: NodeId): boolean;
-	isNodeSelected(nodeId: NodeId): boolean;
-	setFooterHover(token: symbol, nodeId: NodeId): void;
-	clearFooterHover(token: symbol): void;
-	selectNode(nodeId: NodeId | null, selectionMode?: SelectionMode): void;
-	selectNodes(nodeIds: NodeId[], selectionMode?: SelectionMode): void;
-	/** Select exact committed identities once they are projected; later user selection cancels it. */
-	requestNodeSelection(nodes: readonly NodeSelectionIdentity[]): void;
-	clearSelection(): void;
-	appendUiLogRecord(
-		level: WorkbenchToastLevel,
-		tag: string,
-		message: string,
-		origin?: NodeId
-	): void;
-	sendIntent(intent: UiEditIntent, applied?: AppliedIntentObserver): Promise<void>;
-	sendIntents(intents: UiEditIntent[], applied?: AppliedIntentObserver): Promise<void>;
-	invokeAppOperation(
-		request: WorkbenchAppOperation,
-		applied?: AppliedIntentObserver
-	): Promise<WorkbenchAppOperationValue>;
-	setLogUiUpdateHz(hz: number): void;
-	dismissToast(toastId: number): void;
-	undo(): Promise<void>;
-	redo(): Promise<void>;
-	refreshSnapshot(): Promise<boolean>;
-	refreshSnapshotAfterCurrentSynchronization(): Promise<boolean>;
-	/** Drain confirmed edits and retire active gestures before save/history or other session work. */
-	runEditBarrier<T>(operation: () => Promise<T>): Promise<T>;
-	runProjectGraphTransition<T>(
-		operation: (control: ProjectGraphTransitionControl) => Promise<T>
-	): Promise<T>;
-	startLoadingOperation(initial: WorkbenchLoadingStateRequest): WorkbenchLoadingOperation;
-	mount(): () => void;
-}
+export type { WorkbenchSession, WorkbenchSessionOptions } from './workbench/session-types';
 
 const DEFAULT_RETRY_MS = 1000;
 const MIN_INITIAL_LOADING_VISIBLE_MS = 650;
@@ -206,6 +115,11 @@ const UI_PERF_SLOW_SNAPSHOT_MS = 100;
 const defaultEventTime: EventTime = { tick: 0, micro: 0, seq: 0 };
 
 export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): WorkbenchSession => {
+	resetProjectFileFormat();
+	if (options.application) {
+		configureApplication(options.application);
+		initializeProjectFileState();
+	}
 	const scope = options.scope ?? wholeGraphScope;
 	const retryMs = Math.max(100, options.bootstrapRetryMs ?? DEFAULT_RETRY_MS);
 	const enableGlobalShortcuts = options.enableGlobalShortcuts ?? true;
@@ -363,6 +277,7 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 	};
 
 	const transportOptions: UiTransportOptions = {
+		applicationId: options.application?.id,
 		wsUrl: options.wsUrl,
 		httpBaseUrl: options.httpBaseUrl,
 		onConnectionStateChange: (state, detail) => {
@@ -780,13 +695,19 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 						'workbench',
 						scope,
 						['structure', 'value', 'trigger', 'observation', 'catalog', 'preview'],
-						{ at: snapshot.at, project_generation: snapshot.project_generation },
+						{
+							at: snapshot.at,
+							project_generation: snapshot.project_generation
+						},
 						applyBatch,
 						{ createEventWork: (event) => graph.createEventWork(event) }
 					) ??
 					client.subscribe(
 						scope,
-						{ at: snapshot.at, project_generation: snapshot.project_generation },
+						{
+							at: snapshot.at,
+							project_generation: snapshot.project_generation
+						},
 						applyBatch,
 						{
 							createEventWork: (event) => graph.createEventWork(event)

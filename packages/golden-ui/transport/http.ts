@@ -33,6 +33,7 @@ const DEFAULT_POST_TIMEOUT_MS = 15000;
 const PROJECT_LOAD_TIMEOUT_MS = 120000;
 
 interface HttpClientOptions {
+	applicationId?: string;
 	baseUrl?: string;
 	fetchImpl?: typeof fetch;
 	sessionProvider?: UiSessionProvider;
@@ -63,8 +64,14 @@ export const createHttpAuxiliaryClient = (
 ): UiHttpAuxiliaryClient => {
 	const fetchImpl = options.fetchImpl ?? fetch;
 	const baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, '');
-	const session = options.sessionProvider ?? createUiSessionProvider({ baseUrl, fetchImpl });
-	const clientInstanceId = getUiClientInstanceId();
+	const session =
+		options.sessionProvider ??
+		createUiSessionProvider({
+			baseUrl,
+			fetchImpl,
+			applicationId: options.applicationId
+		});
+	const clientInstanceId = getUiClientInstanceId(options.applicationId);
 
 	const postJson = async <TResponse>(
 		path: string,

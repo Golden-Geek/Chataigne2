@@ -107,10 +107,11 @@ pub mod app {
         to_sparse_project_json_pretty, to_sparse_subtree_json_pretty,
     };
     pub use golden_host_desktop::{
-        FrontendDevServerConfig, LaunchArgs, launch_engine_with_args, launch_engine_with_ui_assets,
-        launch_engine_with_ui_assets_and_dev_server, launch_with_args, launch_with_ui_assets,
-        launch_with_ui_assets_and_dev_server, parse_launch_args, parse_launch_args_from_env, run_default,
-        run_default_with_ui_assets, run_default_with_ui_assets_and_dev_server,
+        DesktopHostConfig, FrontendDevServerConfig, LaunchArgs, launch_engine_with_args, launch_engine_with_config,
+        launch_engine_with_ui_assets, launch_engine_with_ui_assets_and_dev_server, launch_with_args,
+        launch_with_config, launch_with_ui_assets, launch_with_ui_assets_and_dev_server, parse_launch_args,
+        parse_launch_args_from_env, run_default, run_default_with_config, run_default_with_ui_assets,
+        run_default_with_ui_assets_and_dev_server,
     };
     pub use golden_transport_server::{
         UiAsset, UiPreferencesConfig, UiServerConfig, run_ui_server, run_with_ui_server_config,

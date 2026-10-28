@@ -7,6 +7,7 @@
 	import { projectFileDisplayName, projectFileState } from '../../store/project-files.svelte';
 	import { requestWindowExit } from '../../store/window-exit.svelte';
 	import FileMenu from './FileMenu.svelte';
+	import type { UiApplicationInfoDto } from '../../generated/rust_protocol/UiApplicationInfoDto';
 
 	let isWindowMaximized = $state(false);
 	let hasTauriWindowApi = $state(false);
@@ -15,7 +16,8 @@
 
 	const DRAG_EXCLUDED_SELECTOR = 'button, input, textarea, select, a, [data-no-drag]';
 
-	const { session } = $props<{
+	const { session, application } = $props<{
+		application: UiApplicationInfoDto;
 		session?: WorkbenchSession | null;
 	}>();
 
@@ -139,6 +141,10 @@
 	});
 </script>
 
+<svelte:head>
+	<title>{projectTitle} — {application.display_name}</title>
+</svelte:head>
+
 <div
 	class="gc-header {hasTauriWindowApi ? 'tauri' : ''} {useManualHeaderDrag ? 'manual-drag' : ''}"
 	role="banner"
@@ -147,7 +153,7 @@
 		<FileMenu />
 		<div class="app-title">
 			<span class="project-title">{projectTitle}</span>
-			<span class="app-title-app">Chataigne 2.0.0</span>
+			<span class="app-title-app">{application.display_name} {application.version}</span>
 		</div>
 	</div>
 	<div

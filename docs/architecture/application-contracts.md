@@ -5,6 +5,36 @@ graph-editing, runtime-value, observation, module-I/O, persistence, and host-lif
 `ApplicationFacades` composes those concerns independently so applications and hosts do not depend
 on engine internals.
 
+`golden_engine::app::ProjectLifecycle` supplies pure product metadata: application ID, display
+name, release version, app-data directory and project-file specification. Chataigne and MapGyver
+declare their own identities. Listener and frontend-process policy belongs to the shared
+`golden_host_desktop::DesktopHostConfig`, whose `ui_server` and optional `dev_server` feed
+`run_default_with_config` and the configured launch APIs. Both apps use that runtime; the root
+workspace default remains Chataigne. MapGyver selects backend port 7011 and development UI port
+5174 without changing process environment variables.
+
+`golden_protocol` owns `UiApplicationInfoDto`, `UiDiscoveryDto` and UI protocol version `0.13.0`;
+`golden_codegen_support` generates their TypeScript declarations. The transport exposes
+`/.well-known/golden-ui` with service `golden-ui`, application metadata and the exact protocol
+version. `ApplicationRoot` validates that discovery against the expected product before mounting
+the workbench. Golden UI scopes browser storage and restoration to the application ID. Project
+file actions wait for authoritative snapshot `project_file` metadata, required by the wire
+contract, rather than inventing a default format.
+
+`golden_persistence::ApplicationProjectDocument` wraps full application projects with required
+`application_id` and a flattened generic `ProjectDocument`. Full app save/load APIs validate
+that identity; runtime save captures retain it through off-thread encoding. Missing or foreign
+IDs are rejected before node codec expansion, lifecycle callbacks or live-project replacement,
+including recovery requests. Generic graph documents, subtrees and Preferences retain their
+existing codecs and graph format version. There is no unmarked-file migration or compatibility
+fallback. Four repository-owned Chataigne fixtures were stamped with their known identity;
+user project files were not rewritten.
+
+The MapGyver shell currently provides ordinary shared-host/workbench composition. Production GPU
+rendering belongs to M03; the optional typed native-presentation host lifecycle remains an open
+M02 item. Source contracts and passing checks do not establish the remaining concurrent desktop,
+dev-server or native runtime acceptance; see the [MapGyver ledger](../progress/mapgyver-status.md).
+
 For queued native-derived edits, `golden_engine::edit::EditQueue::retain_payload` attaches an
 already-admitted Golden IO payload lease to the requests currently in the queue. Admission survives
 producer removal, ingress transfer, deferred/atomic application, coalescing and discarded suffixes.

@@ -156,7 +156,12 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
             .document
             .materialize::<T>(ui_state)
             .map_err(|error| error.to_string())?;
-        let json = golden_persistence::encode_project_document(&project).map_err(|error| error.to_string())?;
+        let document = golden_persistence::ApplicationProjectDocument {
+            application_id: capture.document.application_id.to_owned(),
+            project,
+        };
+        let json = golden_persistence::encode_application_project_document(&document, T::application_id())
+            .map_err(|error| error.to_string())?;
         let encoded_bytes = json.len();
         let serialize = serialize_started.elapsed();
         let target_path = ticket.info().target.to_string_lossy().into_owned();

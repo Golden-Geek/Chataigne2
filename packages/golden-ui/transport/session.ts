@@ -1,6 +1,7 @@
 import type { UiSessionRequest } from '../generated/rust_protocol/UiSessionRequest';
 import type { UiSessionResponse } from '../generated/rust_protocol/UiSessionResponse';
 import { UI_PROTOCOL_VERSION } from '../generated/rust_protocol/protocol-version.ts';
+import { discoverUiApplication } from '../host/runtime-endpoints';
 
 export interface UiSessionProvider {
 	credentials(refresh?: boolean): Promise<UiSessionResponse>;
@@ -8,14 +9,18 @@ export interface UiSessionProvider {
 }
 
 export const createUiSessionProvider = (options: {
+	applicationId?: string;
 	baseUrl: string;
 	fetchImpl?: typeof fetch;
 	storage?: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> | null;
 }): UiSessionProvider => {
 	const fetchImpl = options.fetchImpl ?? fetch;
 	const baseUrl = options.baseUrl.replace(/\/+$/, '');
-	const storageKey = `golden-ui-session:${baseUrl}`;
-	let storage = options.storage;
+	const storageKey =
+		options.applicationId === undefined
+			? null
+			: `golden-ui-session:${encodeURIComponent(options.applicationId)}:${baseUrl}`;
+	let storage = storageKey === null ? null : options.storage;
 	if (storage === undefined) {
 		try {
 			storage = typeof window === 'undefined' ? null : window.sessionStorage;
@@ -25,7 +30,7 @@ export const createUiSessionProvider = (options: {
 	}
 	let previousToken: string | null = null;
 	try {
-		const stored = storage?.getItem(storageKey);
+		const stored = storageKey === null ? null : storage?.getItem(storageKey);
 		if (stored && /^[A-Za-z0-9_-]{43}$/.test(stored)) previousToken = stored;
 	} catch {
 		/* Storage restrictions do not prevent in-memory sessions. */
@@ -42,7 +47,8 @@ export const createUiSessionProvider = (options: {
 			expiresAt = 0;
 			revision += 1;
 			try {
-				if (storage?.getItem(storageKey) === token) storage.removeItem(storageKey);
+				if (storageKey !== null && storage?.getItem(storageKey) === token)
+					storage.removeItem(storageKey);
 			} catch {
 				/* The host still rejects revoked credentials. */
 			}
@@ -56,6 +62,20 @@ export const createUiSessionProvider = (options: {
 			const controller = new AbortController();
 			const timer = setTimeout(() => controller.abort(), 15000);
 			try {
+				if (options.applicationId !== undefined) {
+					try {
+						await discoverUiApplication(baseUrl, {
+							expectedApplicationId: options.applicationId,
+							fetchImpl,
+							signal: controller.signal
+						});
+					} catch (error) {
+						// A cached admission cannot outlive a failed identity check on refresh.
+						cached = null;
+						expiresAt = 0;
+						throw error;
+					}
+				}
 				const request: UiSessionRequest = { capabilities: null };
 				const response = await fetchImpl(`${baseUrl}/session`, {
 					method: 'POST',
@@ -83,7 +103,7 @@ export const createUiSessionProvider = (options: {
 				cached = body;
 				previousToken = body.token;
 				try {
-					storage?.setItem(storageKey, body.token);
+					if (storageKey !== null) storage?.setItem(storageKey, body.token);
 				} catch {
 					/* Continue with the admitted in-memory credential. */
 				}
@@ -99,8 +119,8 @@ export const createUiSessionProvider = (options: {
 	return {
 		invalidate,
 		async credentials(refresh = false) {
-			if (!refresh && cached && Date.now() < expiresAt) return cached;
 			if (pending) return pending;
+			if (!refresh && cached && Date.now() < expiresAt) return cached;
 			const operation = bootstrap();
 			pending = operation;
 			try {

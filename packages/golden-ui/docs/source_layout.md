@@ -4,8 +4,7 @@
 
 ## Ownership Rules
 
-- `apps/chataigne/ui/src/routes/` is the app UI shell.
-- `apps/chataigne/ui/src/lib/assets/` is app-owned branding/assets.
+- `apps/chataigne/ui/` and `apps/mapgyver/ui/` own their routes, assets and product panel registration.
 - `packages/golden-ui/` owns reusable UI logic and package-local docs.
 
 ## Package Boundary Rules
@@ -20,7 +19,9 @@
 ## Folder Rules
 
 - `components/`: visual components only.
-- `components/app/`: workbench shell components only. No business logic beyond shell composition.
+- `components/app/`: workbench shell composition and the application discovery gate.
+  `ApplicationRoot` retries/cancels host discovery and exposes validated metadata/endpoints through
+  `useApplicationHost`; children cannot create a workspace before that identity exists.
 - `components/panels/<panel>/`: each dock panel owns its root component plus panel-local view
   helpers and presentation logic.
 - `components/common/`: reusable UI widgets shared by multiple panels.
@@ -32,7 +33,8 @@
   `footer-hover.svelte.ts`, `history.svelte.ts`, `logger.svelte.ts`, and
   `commands.svelte.ts`.
 - `transport/`: protocol transport clients and connection abstractions.
-- `host/`: browser-vs-desktop bridges and host capability checks.
+- `host/`: browser-vs-desktop bridges, runtime endpoint/discovery helpers and host context.
+  Product identity and project formats are published by the app backend, not chosen here.
 - `dockview/`: dock/panel framework integration.
 - `generated/`: generated Rust-owned protocol bindings only.
 - `style/`: shared styles, icons, and fonts.

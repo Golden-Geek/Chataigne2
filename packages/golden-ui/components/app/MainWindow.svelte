@@ -8,8 +8,10 @@
 	import { platform } from '../../store/platform.svelte';
 	import WorkbenchSessionRoot from './WorkbenchSessionRoot.svelte';
 	import WorkbenchOverlayHost from './WorkbenchOverlayHost.svelte';
+	import type { UiApplicationInfoDto } from '../../generated/rust_protocol/UiApplicationInfoDto';
 
 	const props = $props<{
+		application: UiApplicationInfoDto;
 		wsUrl?: string;
 		httpBaseUrl?: string;
 		bootstrapRetryMs?: number;
@@ -21,6 +23,7 @@
 </script>
 
 <WorkbenchSessionRoot
+	application={props.application}
 	wsUrl={props.wsUrl}
 	httpBaseUrl={props.httpBaseUrl}
 	bootstrapRetryMs={props.bootstrapRetryMs}>
@@ -29,7 +32,7 @@
 			class="gc-main os-{platform.name}"
 			data-graph-node-count={session.graph.state.nodesById.size}
 			data-graph-event-tick={session.graph.state.lastEventTime?.tick ?? 0}>
-			<AppHeader {session} />
+			<AppHeader {session} application={props.application} />
 			<MainComponent
 				userPanels={props.userPanels}
 				initialPanels={props.initialPanels}

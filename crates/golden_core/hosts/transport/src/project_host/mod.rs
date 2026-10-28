@@ -421,6 +421,24 @@ fn upload_project_and_load_with_options<T: ProjectLifecycle>(
     preferences: Option<&UiPreferencesConfig>,
     recover: bool,
 ) -> Result<ProjectLoadResult, ProjectLoadError> {
+    upload_project_and_load_in_directory(
+        runtime,
+        raw_file_name,
+        contents,
+        preferences,
+        recover,
+        browser_project_directory::<T>,
+    )
+}
+
+fn upload_project_and_load_in_directory<T: ProjectLifecycle>(
+    runtime: &ProductionRuntime<T>,
+    raw_file_name: &str,
+    contents: &str,
+    preferences: Option<&UiPreferencesConfig>,
+    recover: bool,
+    resolve_directory: impl FnOnce() -> Result<PathBuf, String>,
+) -> Result<ProjectLoadResult, ProjectLoadError> {
     if contents.trim().is_empty() {
         return Err(ProjectLoadError {
             control: None,
@@ -429,7 +447,14 @@ fn upload_project_and_load_with_options<T: ProjectLifecycle>(
         });
     }
 
-    let directory = browser_project_directory::<T>().map_err(|message| ProjectLoadError {
+    golden_persistence::decode_application_project_document::<golden_engine::engine::ProjectNodeMeta>(
+        contents,
+        T::application_id(),
+    )
+    .map_err(ProjectPersistenceError::from)
+    .map_err(ProjectLoadError::from_persistence)?;
+
+    let directory = resolve_directory().map_err(|message| ProjectLoadError {
         control: None,
         message,
         recovery: None,

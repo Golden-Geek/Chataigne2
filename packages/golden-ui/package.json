@@ -30,6 +30,7 @@
 		"./dockview/*": "./dockview/*.ts",
 		"./generated/*": "./generated/*",
 		"./host/*": "./host/*.ts",
+		"./host/content-security-policy": "./host/content-security-policy.mjs",
 		"./store/*": "./store/*.ts",
 		"./style/*": "./style/*",
 		"./transport/*": "./transport/*.ts",

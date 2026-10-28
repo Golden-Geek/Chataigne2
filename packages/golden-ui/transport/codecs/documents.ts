@@ -32,7 +32,7 @@ import {
 	toRustParamValue,
 	toRustConstraints
 } from './values';
-import { fromRustProjectFileSpec } from './projects';
+import { parseProjectFileSpec } from '../../project-file-spec';
 
 type RustUiEventDto = RustUiEventBatch['events'][number];
 type RustCreatableUserItem = NonNullable<RustUiNodeDto['creatable_user_items']>[number];
@@ -474,7 +474,7 @@ export const fromRustSnapshot = (snapshot: RustUiSnapshot): UiSnapshot => {
 				origin: record.origin ?? undefined
 			}))
 		},
-		project_file: fromRustProjectFileSpec(snapshot.project_file)
+		project_file: parseProjectFileSpec(snapshot.project_file)
 	};
 };
 

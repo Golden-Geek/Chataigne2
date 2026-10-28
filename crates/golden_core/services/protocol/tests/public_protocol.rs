@@ -1,4 +1,4 @@
-use golden_protocol::{UI_PROTOCOL_VERSION, UiClientMessage};
+use golden_protocol::{UI_PROTOCOL_VERSION, UiClientMessage, UiDiscoveryDto, UiSnapshot};
 use golden_protocol::{UiAck, UiAppOperationResult, UiEditIntent};
 
 #[test]
@@ -12,6 +12,57 @@ fn public_protocol_serializes_without_an_engine_runtime() {
 
     assert!(encoded.contains(UI_PROTOCOL_VERSION));
     assert!(encoded.contains("fixture-client"));
+}
+
+#[test]
+fn discovery_identity_round_trips_without_an_engine_or_host_runtime() {
+    let wire = serde_json::json!({
+        "version": 1,
+        "service": "golden-ui",
+        "health_path": "/api/ui/health",
+        "websocket_path": "/api/ui/ws",
+        "relative_endpoints": true,
+        "application": {
+            "id": "fixture-app",
+            "display_name": "Fixture Application",
+            "version": "2.3.4",
+            "data_directory_name": "FixtureData",
+        },
+        "protocol_version": UI_PROTOCOL_VERSION,
+    });
+    let discovery: UiDiscoveryDto = serde_json::from_value(wire.clone()).unwrap();
+    assert_eq!(serde_json::to_value(discovery).unwrap(), wire);
+
+    for required in ["application", "protocol_version"] {
+        let mut incomplete = wire.clone();
+        incomplete.as_object_mut().unwrap().remove(required);
+        assert!(serde_json::from_value::<UiDiscoveryDto>(incomplete).is_err());
+    }
+}
+
+#[test]
+fn snapshot_requires_authoritative_application_project_file_metadata() {
+    let mut wire = serde_json::json!({
+        "protocol_version": UI_PROTOCOL_VERSION,
+        "scope": "wholeGraph",
+        "at": {"tick": 0, "micro": 0, "seq": 0},
+        "project_generation": 1,
+        "nodes": [],
+        "schema": {},
+        "history": {
+            "can_undo": false, "can_redo": false, "undo_len": 0, "redo_len": 0,
+            "active_edit_session": false, "current_history_state_id": 0,
+        },
+        "logger": {"max_entries": 100},
+        "project_file": {"display_name": "Fixture Project", "extension": "fixture"},
+    });
+    let snapshot: UiSnapshot = serde_json::from_value(wire.clone()).unwrap();
+    assert_eq!(snapshot.project_file.display_name, "Fixture Project");
+    assert_eq!(snapshot.project_file.extension, "fixture");
+
+    wire.as_object_mut().unwrap().remove("project_file");
+    let error = serde_json::from_value::<UiSnapshot>(wire).unwrap_err();
+    assert!(error.to_string().contains("project_file"), "{error}");
 }
 
 #[test]

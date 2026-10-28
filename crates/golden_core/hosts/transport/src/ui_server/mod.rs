@@ -17,15 +17,16 @@ use golden_engine::engine::{Engine, EngineTime};
 use golden_engine::events::CustomEventRetention;
 use golden_engine::ui_read_model::UiReadModel;
 use golden_protocol::{
-    UI_PROTOCOL_VERSION, UiAck, UiClientMessage as WsClientMessage,
-    UiContextCandidatesRequest as ContextCandidatesRequest, UiControlPhase, UiControlUpdate, UiDataPlane, UiEditIntent,
-    UiEventBatch, UiEventDto, UiEventKind, UiInterest, UiParamControlInfoRequest as ParamControlInfoRequest,
-    UiPlaneDelta, UiProjectFileSpec, UiProjectLoadRecoveryDto as ProjectLoadRecoveryDto,
-    UiProjectPathDto as ProjectPathDto, UiProjectPathRequest as ProjectPathRequest,
-    UiProjectUploadRequest as ProjectUploadRequest, UiReferenceTargetsRequest as ReferenceTargetsRequest,
-    UiReplayCursor, UiReplayRequest as ReplayRequest, UiRuntimeStatsDto, UiScriptConfigRequest as ScriptConfigRequest,
-    UiScriptReloadRequest as ScriptReloadRequest, UiScriptStateRequest as ScriptStateRequest,
-    UiServerMessage as WsServerMessage, UiSnapshotRequest as SnapshotRequest, UiSubscriptionScope,
+    UI_PROTOCOL_VERSION, UiAck, UiApplicationInfoDto, UiClientMessage as WsClientMessage,
+    UiContextCandidatesRequest as ContextCandidatesRequest, UiControlPhase, UiControlUpdate, UiDataPlane,
+    UiDiscoveryDto, UiEditIntent, UiEventBatch, UiEventDto, UiEventKind, UiInterest,
+    UiParamControlInfoRequest as ParamControlInfoRequest, UiPlaneDelta, UiProjectFileSpec,
+    UiProjectLoadRecoveryDto as ProjectLoadRecoveryDto, UiProjectPathDto as ProjectPathDto,
+    UiProjectPathRequest as ProjectPathRequest, UiProjectUploadRequest as ProjectUploadRequest,
+    UiReferenceTargetsRequest as ReferenceTargetsRequest, UiReplayCursor, UiReplayRequest as ReplayRequest,
+    UiRuntimeStatsDto, UiScriptConfigRequest as ScriptConfigRequest, UiScriptReloadRequest as ScriptReloadRequest,
+    UiScriptStateRequest as ScriptStateRequest, UiServerMessage as WsServerMessage,
+    UiSnapshotRequest as SnapshotRequest, UiSubscriptionScope,
 };
 use serde::{Deserialize, Serialize};
 use tokio::runtime::{Builder, Runtime};
@@ -157,28 +158,20 @@ pub struct UiReadinessDto {
     pub read_model_revision: EngineTime,
 }
 
-/// Stable well-known document for discovering the built-in HTTP and WebSocket surfaces.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct UiDiscoveryDto {
-    /// Discovery document schema version.
-    pub version: u16,
-    /// Stable service identifier.
-    pub service: String,
-    /// Relative readiness endpoint.
-    pub health_path: String,
-    /// Relative WebSocket endpoint.
-    pub websocket_path: String,
-    /// Whether non-loopback clients may use the same host when the listener is open-LAN.
-    pub relative_endpoints: bool,
-}
-
-fn ui_discovery_document() -> UiDiscoveryDto {
+fn ui_discovery_document<T: ProjectLifecycle>() -> UiDiscoveryDto {
     UiDiscoveryDto {
         version: 1,
-        service: "chataigne".to_string(),
+        service: "golden-ui".to_string(),
         health_path: "/api/ui/health".to_string(),
         websocket_path: UI_WEBSOCKET_PATH.to_string(),
         relative_endpoints: true,
+        application: UiApplicationInfoDto {
+            id: T::application_id().to_string(),
+            display_name: T::application_display_name().to_string(),
+            version: T::application_version().to_string(),
+            data_directory_name: T::app_data_directory_name().to_string(),
+        },
+        protocol_version: UI_PROTOCOL_VERSION.to_string(),
     }
 }
 

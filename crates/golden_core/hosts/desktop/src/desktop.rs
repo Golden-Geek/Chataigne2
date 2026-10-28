@@ -10,6 +10,7 @@ use std::time::{Duration, Instant};
 use tauri::window::Color;
 use tauri::{Manager, Runtime, Url, WebviewUrl};
 
+use crate::host_config::{DesktopHostConfig, FrontendDevServerConfig, apply_listener_overrides};
 use crate::window_state::{WindowStatePersistence, restore_window_state, save_window_state};
 #[cfg(target_os = "windows")]
 use crate::windows_process_job::WindowsProcessJob;
@@ -43,17 +44,6 @@ pub struct LaunchArgs {
 #[derive(Debug, Clone)]
 struct UiEndpoint {
     connect_addr: String,
-}
-
-#[derive(Debug, Clone, Copy)]
-/// App-provided configuration for launching a frontend dev server.
-pub struct FrontendDevServerConfig {
-    /// Absolute working directory containing the frontend package.json.
-    pub working_dir: &'static str,
-    /// NPM script to execute for the frontend dev server.
-    pub npm_script: &'static str,
-    /// URL where the dev server should become reachable.
-    pub url: &'static str,
 }
 
 pub(super) struct DevFrontendProcess {
@@ -125,6 +115,24 @@ where
     T: ProjectLifecycle + 'static,
     R: Runtime,
 {
+    run_default_with_config::<T, R>(
+        tauri_context,
+        DesktopHostConfig {
+            ui_server: UiServerConfig {
+                frontend_assets: ui_assets,
+                ..Default::default()
+            },
+            dev_server,
+        },
+    )
+}
+
+/// Parses process arguments and launches the app with its shared host configuration.
+pub fn run_default_with_config<T, R>(tauri_context: tauri::Context<R>, config: DesktopHostConfig) -> std::io::Result<()>
+where
+    T: ProjectLifecycle + 'static,
+    R: Runtime,
+{
     maybe_enable_output_console_from_env()?;
 
     let args = parse_launch_args_from_env()?;
@@ -133,7 +141,7 @@ where
         return Ok(());
     }
 
-    launch_with_ui_assets_and_dev_server::<T, R>(args, tauri_context, ui_assets, dev_server)
+    launch_with_config::<T, R>(args, tauri_context, config)
 }
 
 /// Parses launch flags from the current process environment.
@@ -212,8 +220,31 @@ where
     T: ProjectLifecycle + 'static,
     R: Runtime,
 {
+    launch_with_config::<T, R>(
+        args,
+        tauri_context,
+        DesktopHostConfig {
+            ui_server: UiServerConfig {
+                frontend_assets: ui_assets,
+                ..Default::default()
+            },
+            dev_server,
+        },
+    )
+}
+
+/// Creates a new-project engine and launches it with app-provided shared host defaults.
+pub fn launch_with_config<T, R>(
+    args: LaunchArgs,
+    tauri_context: tauri::Context<R>,
+    config: DesktopHostConfig,
+) -> std::io::Result<()>
+where
+    T: ProjectLifecycle + 'static,
+    R: Runtime,
+{
     let engine = create_new_project_engine::<T>().map_err(Error::other)?;
-    launch_engine_with_ui_assets_and_dev_server(engine, args, tauri_context, ui_assets, dev_server)
+    launch_engine_with_config(engine, args, tauri_context, config)
 }
 
 /// Launches a caller-provided engine through the default desktop or headless host runtime.
@@ -256,6 +287,31 @@ where
     T: ProjectLifecycle + 'static,
     R: Runtime,
 {
+    launch_engine_with_config(
+        engine,
+        args,
+        tauri_context,
+        DesktopHostConfig {
+            ui_server: UiServerConfig {
+                frontend_assets: ui_assets,
+                ..Default::default()
+            },
+            dev_server,
+        },
+    )
+}
+
+/// Launches a caller-provided engine with app-provided shared host defaults.
+pub fn launch_engine_with_config<T, R>(
+    engine: Engine<T>,
+    args: LaunchArgs,
+    tauri_context: tauri::Context<R>,
+    host_config: DesktopHostConfig,
+) -> std::io::Result<()>
+where
+    T: ProjectLifecycle + 'static,
+    R: Runtime,
+{
     if !cfg!(target_os = "windows") && args.automation_shutdown_file.is_some() {
         return Err(Error::new(
             ErrorKind::InvalidInput,
@@ -277,28 +333,26 @@ where
         ));
     }
 
-    let mut config = UiServerConfig::default();
+    let DesktopHostConfig {
+        ui_server: mut config,
+        dev_server,
+    } = host_config;
     let app_data_dir = default_app_data_dir::<T>()?;
     config.preferences = Some(UiPreferencesConfig {
         file_path: app_data_dir.join(T::preferences_file_name()),
         default_data_folder: app_data_dir.to_string_lossy().to_string(),
     });
-    let frontend_assets = if args.no_frontend || args.dev { &[] } else { ui_assets };
-    if let Ok(bind_addr) = std::env::var("GC_UI_BIND")
-        && !bind_addr.trim().is_empty()
-    {
-        config.bind_addr = bind_addr;
-    }
-    if let Ok(authorities) = std::env::var("GC_UI_ALLOWED_HOSTS") {
-        config.allowed_hosts = authorities
-            .split(',')
-            .map(|authority| authority.trim().to_owned())
-            .collect();
-    }
-
-    if args.no_remote {
-        config.bind_addr = force_loopback_bind_addr(&config.bind_addr);
-    }
+    let frontend_assets = if args.no_frontend || args.dev {
+        &[]
+    } else {
+        config.frontend_assets
+    };
+    apply_listener_overrides(
+        &mut config,
+        std::env::var("GC_UI_BIND").ok().as_deref(),
+        std::env::var("GC_UI_ALLOWED_HOSTS").ok().as_deref(),
+        args.no_remote,
+    );
 
     let endpoint = resolve_ui_endpoint(&config.bind_addr);
     config.frontend_assets = frontend_assets;
@@ -309,12 +363,7 @@ where
     let frontend_url = configured_frontend_url
         .clone()
         .unwrap_or_else(|| default_frontend_url(&endpoint, frontend_assets, args.dev, dev_server));
-    if args.dev || configured_frontend_url.is_some() {
-        let frontend: Url = frontend_url
-            .parse()
-            .map_err(|error| Error::new(ErrorKind::InvalidInput, error))?;
-        config.allowed_origins.push(frontend.origin().ascii_serialization());
-    }
+    configure_frontend_origin(&mut config, &args, &frontend_url, configured_frontend_url.is_some())?;
 
     if args.headless {
         let dev_server_process = if args.dev && configured_frontend_url.is_none() {
@@ -467,7 +516,7 @@ fn ensure_console_attached() -> std::io::Result<()> {
     Err(alloc_error)
 }
 
-fn force_loopback_bind_addr(bind_addr: &str) -> String {
+pub(super) fn force_loopback_bind_addr(bind_addr: &str) -> String {
     if let Ok(socket_addr) = bind_addr.parse::<SocketAddr>() {
         let loopback_ip = match socket_addr.ip() {
             IpAddr::V4(_) => IpAddr::V4(Ipv4Addr::LOCALHOST),
@@ -541,18 +590,32 @@ fn default_frontend_url(
     use_dev_server: bool,
     dev_server: Option<FrontendDevServerConfig>,
 ) -> String {
-    if use_dev_server {
-        return dev_server
-            .map(|config| config.url.to_string())
-            .unwrap_or_else(detect_or_default_frontend_url);
-    }
-
-    if !ui_assets.is_empty() {
+    if !use_dev_server && !ui_assets.is_empty() {
         return format!("http://{}/", endpoint.connect_addr);
     }
 
-    detect_or_default_frontend_url()
+    dev_server
+        .map(|config| config.url.to_string())
+        .unwrap_or_else(detect_or_default_frontend_url)
 }
+
+fn configure_frontend_origin(
+    config: &mut UiServerConfig,
+    args: &LaunchArgs,
+    frontend_url: &str,
+    has_frontend_override: bool,
+) -> std::io::Result<()> {
+    if args.dev || args.no_frontend || has_frontend_override {
+        let frontend: Url = frontend_url
+            .parse()
+            .map_err(|error| Error::new(ErrorKind::InvalidInput, error))?;
+        config.allowed_origins.push(frontend.origin().ascii_serialization());
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests;
 
 fn spawn_frontend_dev_server(
     dev_server: Option<FrontendDevServerConfig>,

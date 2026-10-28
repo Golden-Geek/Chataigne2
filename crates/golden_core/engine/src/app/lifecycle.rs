@@ -21,9 +21,19 @@ pub trait ProjectNode: Node {
 
 /// App-controlled lifecycle hooks for engine recreation and new-project setup.
 pub trait ProjectLifecycle: ProjectNode + From<Folder> + From<DashboardNode> {
+    /// Stable application identifier used by discovery and client state isolation.
+    fn application_id() -> &'static str {
+        "golden"
+    }
+
     /// Human-readable application name used by generic desktop hosts.
     fn application_display_name() -> &'static str {
         Self::project_file_spec().display_name
+    }
+
+    /// Application release version advertised independently of the UI protocol version.
+    fn application_version() -> &'static str {
+        "0.0.0"
     }
 
     /// Creates the root node used for fresh engine instances.

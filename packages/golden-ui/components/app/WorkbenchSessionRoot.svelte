@@ -12,8 +12,10 @@
 	} from '../../store/workbench.svelte';
 	import { mountWindowExitHandling } from '../../store/window-exit.svelte';
 	import WorkbenchLoadingOverlay from './WorkbenchLoadingOverlay.svelte';
+	import type { UiApplicationInfoDto } from '../../generated/rust_protocol/UiApplicationInfoDto';
 
 	let {
+		application,
 		wsUrl,
 		httpBaseUrl,
 		scope,
@@ -22,6 +24,7 @@
 		enableGlobalShortcuts = true,
 		children
 	} = $props<{
+		application: UiApplicationInfoDto;
 		wsUrl?: string;
 		httpBaseUrl?: string;
 		scope?: WorkbenchSessionOptions['scope'];
@@ -35,6 +38,7 @@
 
 	const createSession = (): WorkbenchSession =>
 		createWorkbenchSession({
+			application,
 			wsUrl: wsUrl ?? 'ws://localhost:7010/api/ui/ws',
 			httpBaseUrl: httpBaseUrl ?? 'http://localhost:7010/api/ui',
 			scope,

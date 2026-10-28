@@ -5,11 +5,12 @@ use crate::engine::{Engine, PROJECT_FILE_VERSION, ProjectFile, ProjectNodeRecord
 use crate::node::{Node, NodeId, NodeMeta, NodeUuid, UserNodeRole};
 use crate::parameter::Parameter;
 
-use super::{
-    Folder, ProjectNode, diff_project_data_against_baseline, node_is_app_data_persisted,
-    project_meta_delta_from_runtime, project_meta_for_sparse_record, project_meta_from_runtime,
-    raw_project_data_from_runtime, sparse_baseline_child_identity_count, sparse_json_cache_key,
+use super::sparse::{
+    diff_project_data_against_baseline, project_meta_delta_from_runtime, project_meta_for_sparse_record,
+    project_meta_from_runtime, raw_project_data_from_runtime, sparse_baseline_child_identity_count,
+    sparse_json_cache_key,
 };
+use super::{Folder, ProjectNode, node_is_app_data_persisted};
 
 const PROJECT_CAPTURE_SHARD_COUNT: usize = 256;
 type ProjectNodeShard = Arc<HashMap<NodeId, Arc<CapturedProjectNode>>>;

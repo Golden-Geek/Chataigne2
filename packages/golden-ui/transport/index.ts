@@ -8,6 +8,7 @@ export { createUiSessionProvider, type UiSessionProvider } from './session';
 export type { UiTransportConnectionState } from './ws-contracts';
 
 export interface UiTransportOptions {
+	applicationId?: string;
 	wsUrl?: string;
 	httpBaseUrl?: string;
 	fetchImpl?: typeof fetch;

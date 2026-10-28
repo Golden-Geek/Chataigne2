@@ -214,7 +214,7 @@ fn frontend_command(workspace_root: &Path, config: &WatchConfig) -> Command {
     command
         .args(args)
         .env("VITE_GC_UI_BACKEND_PORT", config.backend_port.to_string())
-        .current_dir(workspace_root.join("apps/chataigne/ui"));
+        .current_dir(workspace_root.join(config.app.ui_directory()));
     command
 }
 
@@ -224,7 +224,7 @@ fn backend_command(workspace_root: &Path, config: &WatchConfig, frontend_url: &s
     let mut command = Command::new(&cargo);
     clear_parent_cargo_package_environment(&mut command);
     command
-        .args(["run", "--package", "Chataigne2", "--", "--dev"])
+        .args(["run", "--package", config.app.cargo_package(), "--", "--dev"])
         .current_dir(workspace_root)
         .env("GC_UI_BIND", backend_bind)
         .env("GC_UI_FRONTEND_URL", frontend_url);
@@ -233,7 +233,8 @@ fn backend_command(workspace_root: &Path, config: &WatchConfig, frontend_url: &s
     }
     command.args(&config.app_args);
     eprintln!(
-        "[watch][backend] command: cargo run --package Chataigne2 -- --dev{}{}",
+        "[watch][backend] command: cargo run --package {} -- --dev{}{}",
+        config.app.cargo_package(),
         if config.headless { " --headless" } else { "" },
         if config.app_args.is_empty() {
             String::new()

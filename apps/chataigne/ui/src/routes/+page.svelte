@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { browser, dev } from '$app/env';
 	import {
 		MainWindow,
+		useApplicationHost,
 		registerNodeInspector,
 		registerNodeInspectorMatcher,
 		registerOutlinerRowSupplement,
@@ -11,7 +11,6 @@
 	} from 'golden_ui';
 	import { appState } from 'golden_ui/store/workbench.svelte';
 	import { appIcons } from '#lib/assets/icons/node-icons.svelte.ts';
-	import { resolveRuntimeEndpoints } from '#lib/runtimeEndpoints.ts';
 	import ModuleCommandInspector from '#lib/inspectors/modules/ModuleCommandInspector.svelte';
 	import ModuleInspectorPanelHeader from '#lib/inspectors/modules/ModuleInspectorPanelHeader.svelte';
 	import ModuleNodeInspector from '#lib/inspectors/modules/ModuleNodeInspector.svelte';
@@ -190,19 +189,13 @@
 		}
 	];
 
-	const runtimeEndpoints = browser
-		? resolveRuntimeEndpoints(window.location, {
-				development: dev,
-				developmentBackendPort: dev
-					? Number(import.meta.env.VITE_GC_UI_BACKEND_PORT ?? 7010)
-					: undefined
-			})
-		: undefined;
+	const host = useApplicationHost();
 </script>
 
 <MainWindow
+	application={host.application}
 	{userPanels}
 	{initialPanels}
 	nodeIcons={appIcons}
-	httpBaseUrl={runtimeEndpoints?.httpBaseUrl}
-	wsUrl={runtimeEndpoints?.wsUrl} />
+	httpBaseUrl={host.endpoints.httpBaseUrl}
+	wsUrl={host.endpoints.wsUrl} />

@@ -1,5 +1,4 @@
 import type {
-	UiProjectFileSpec,
 	UiProjectFileLoadResult,
 	UiProjectLoadRecovery,
 	UiScriptConfig,
@@ -83,35 +82,6 @@ export const toRustJsonValue = (value: unknown): RustJsonValue | undefined => {
 };
 type RustScriptConfig = RustScriptConfigRequest['config'];
 type RustScriptSource = RustScriptConfig['source'];
-
-export const fromRustProjectFileSpec = (projectFile: unknown): UiProjectFileSpec => {
-	if (!isRecord(projectFile)) {
-		return {
-			display_name: 'Project',
-			extension: 'json',
-			current_path: null
-		};
-	}
-
-	const displayName =
-		typeof projectFile.display_name === 'string' && projectFile.display_name.trim().length > 0
-			? projectFile.display_name.trim()
-			: 'Project';
-	const extension =
-		typeof projectFile.extension === 'string' && projectFile.extension.trim().length > 0
-			? projectFile.extension.trim().replace(/^\.+/, '').toLowerCase()
-			: 'json';
-	const currentPath =
-		typeof projectFile.current_path === 'string' && projectFile.current_path.trim().length > 0
-			? projectFile.current_path.trim()
-			: null;
-
-	return {
-		display_name: displayName,
-		extension: extension.length > 0 ? extension : 'json',
-		current_path: currentPath
-	};
-};
 
 const fromRustScriptSource = (source: unknown): UiScriptSource => {
 	if (isRecord(source)) {

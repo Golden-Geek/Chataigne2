@@ -1,5 +1,7 @@
 import generatorsIconUrl from '#lib/assets/icons/module/generators.svg';
 import audioIconUrl from '#lib/assets/icons/module/audio.svg';
+import streamDeckIconUrl from '#lib/assets/icons/nodes/streamdeck_module.svg';
+import StreamDeckEditorPanel from './StreamDeckEditorPanel.svelte';
 import SoundCardEditorPanel from './SoundCardEditorPanel.svelte';
 import SpatializerEditorPanel from './SpatializerEditorPanel.svelte';
 import {
@@ -9,6 +11,16 @@ import {
 } from './module-editor-registry';
 
 const defaultModuleEditors: readonly ModuleEditorDescriptor[] = [
+	{
+		nodeType: 'streamdeck_module',
+		panelType: 'streamdeck-editor',
+		panelIdPrefix: 'streamdeck-editor',
+		panelComponent: StreamDeckEditorPanel,
+		description: 'Visual editor for Stream Deck modules.',
+		actionLabel: 'Stream Deck',
+		iconUrl: streamDeckIconUrl,
+		title: (node) => `Stream Deck: ${node.meta.label}`
+	},
 	{
 		nodeType: 'spatializer_module',
 		panelType: 'spatializerEditor',

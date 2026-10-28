@@ -1,5 +1,7 @@
 [CmdletBinding()]
 param(
+    [ValidateSet("chataigne", "mapgyver")]
+    [string] $App = "chataigne",
     [switch] $SetupOnly,
     [switch] $SkipUiInstall,
     [switch] $SkipWindowsBuildTools,
@@ -136,11 +138,14 @@ function Ensure-UiDependencies {
 }
 
 Ensure-WindowsBuildTools
-Ensure-AudioBuildTools
+if ($App -eq "chataigne") {
+    Ensure-AudioBuildTools
+}
 Activate-CanonicalToolchain
 Ensure-UiDependencies
 
 if (-not $SetupOnly) {
-    Write-Step "Run Chataigne2"
-    Invoke-External "cargo" (@("run") + $CargoArgs)
+    $cargoPackage = if ($App -eq "mapgyver") { "MapGyver" } else { "Chataigne2" }
+    Write-Step "Run $cargoPackage"
+    Invoke-External "cargo" (@("run", "--package", $cargoPackage) + $CargoArgs)
 }

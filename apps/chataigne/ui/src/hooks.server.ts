@@ -1,6 +1,6 @@
 import { dev } from '$app/env';
 import type { Handle } from '@sveltejs/kit/hooks';
-import { developmentContentSecurityPolicy } from '../../../../packages/golden-ui/host/content-security-policy.mjs';
+import { developmentContentSecurityPolicy } from 'golden_ui/host/content-security-policy';
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const response = await resolve(event);

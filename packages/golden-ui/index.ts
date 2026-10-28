@@ -36,6 +36,15 @@ export {
 export { createWebSocketUiClient } from './transport/ws';
 
 export { default as MainWindow } from './components/app/MainWindow.svelte';
+export { default as ApplicationRoot } from './components/app/ApplicationRoot.svelte';
+export { useApplicationHost, type ApplicationHost } from './host/application-context';
+export {
+	resolveRuntimeEndpoints,
+	discoverUiApplication,
+	type RuntimeLocation,
+	type RuntimeEndpointOptions,
+	type RuntimeEndpoints
+} from './host/runtime-endpoints';
 export { default as MainComponent } from './components/app/MainComponent.svelte';
 export { default as AppHeader } from './components/app/AppHeader.svelte';
 export { default as WorkbenchSessionRoot } from './components/app/WorkbenchSessionRoot.svelte';

@@ -10,6 +10,7 @@ use super::runtime_pacer::DeadlineSchedule;
 use super::*;
 
 mod control_failures;
+mod discovery;
 mod outbound_recovery;
 mod project_generation;
 mod request_access;
@@ -169,20 +170,6 @@ fn readiness_dto_has_a_stable_versioned_http_shape() {
 }
 
 #[test]
-fn discovery_document_uses_relative_open_lan_endpoints() {
-    assert_eq!(
-        serde_json::to_value(ui_discovery_document()).unwrap(),
-        json!({
-            "version": 1,
-            "service": "chataigne",
-            "health_path": "/api/ui/health",
-            "websocket_path": "/api/ui/ws",
-            "relative_endpoints": true,
-        })
-    );
-}
-
-#[test]
 fn bundled_frontend_fallback_does_not_shadow_backend_namespaces() {
     const ASSETS: [UiAsset; 1] = [UiAsset {
         path: "/index.html",
@@ -191,7 +178,7 @@ fn bundled_frontend_fallback_does_not_shadow_backend_namespaces() {
     }];
 
     assert!(resolve_frontend_asset(&ASSETS, "/api/ui/health").is_none());
-    assert!(resolve_frontend_asset(&ASSETS, "/.well-known/chataigne").is_none());
+    assert!(resolve_frontend_asset(&ASSETS, "/.well-known/golden-ui").is_none());
     assert_eq!(
         resolve_frontend_asset(&ASSETS, "/evidence/sound-card").map(|asset| asset.path),
         Some("/index.html")

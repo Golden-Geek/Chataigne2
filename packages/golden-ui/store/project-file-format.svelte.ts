@@ -1,24 +1,7 @@
 import type { UiProjectFileSpec } from '../types';
+import { parseProjectFileSpec } from '../project-file-spec';
 
-const DEFAULT_PROJECT_FILE_SPEC: UiProjectFileSpec = {
-	display_name: 'Project',
-	extension: 'json',
-	current_path: null
-};
-
-const normalizeExtension = (value: string | null | undefined): string => {
-	const normalized = value?.trim().replace(/^\.+/, '').toLowerCase() ?? '';
-	return normalized.length > 0 ? normalized : DEFAULT_PROJECT_FILE_SPEC.extension;
-};
-
-const normalizeDisplayName = (value: string | null | undefined): string => {
-	const normalized = value?.trim() ?? '';
-	if (normalized.length === 0) {
-		return DEFAULT_PROJECT_FILE_SPEC.display_name;
-	}
-
-	return normalized.replace(/\s+files?$/i, '').trim() || DEFAULT_PROJECT_FILE_SPEC.display_name;
-};
+type ProjectFileFormat = Pick<UiProjectFileSpec, 'display_name' | 'extension'>;
 
 const startsWithVowelSound = (value: string): boolean => /^[aeiou]/i.test(value.trim());
 
@@ -42,35 +25,48 @@ const splitProjectPath = (
 	};
 };
 
-export const projectFileFormatState = $state({
-	display_name: DEFAULT_PROJECT_FILE_SPEC.display_name,
-	extension: DEFAULT_PROJECT_FILE_SPEC.extension
-});
+export const projectFileFormatState = $state<{ spec: ProjectFileFormat | null }>({ spec: null });
 
-export const setProjectFileFormat = (next: UiProjectFileSpec | null | undefined): void => {
-	projectFileFormatState.display_name = normalizeDisplayName(next?.display_name);
-	projectFileFormatState.extension = normalizeExtension(next?.extension);
+export const setProjectFileFormat = (next: UiProjectFileSpec): void => {
+	try {
+		const spec = parseProjectFileSpec(next);
+		projectFileFormatState.spec = { display_name: spec.display_name, extension: spec.extension };
+	} catch (error) {
+		projectFileFormatState.spec = null;
+		throw error;
+	}
 };
 
 export const resetProjectFileFormat = (): void => {
-	setProjectFileFormat(DEFAULT_PROJECT_FILE_SPEC);
+	projectFileFormatState.spec = null;
 };
 
-export const projectFileDialogExtensions = (): string[] => [projectFileFormatState.extension];
+export const isProjectFileFormatReady = (): boolean => projectFileFormatState.spec !== null;
 
-export const projectFileExtensionLabel = (): string => `.${projectFileFormatState.extension}`;
+const requireProjectFileFormat = (): ProjectFileFormat => {
+	const format = projectFileFormatState.spec;
+	if (!format) throw new Error('Project file format is unavailable before the runtime snapshot');
+	return format;
+};
 
-export const projectFileFilterLabel = (): string => projectFileFormatState.display_name;
+export const projectFileDialogExtensions = (): string[] => [requireProjectFileFormat().extension];
+
+export const projectFileExtensionLabel = (): string =>
+	projectFileFormatState.spec === null ? '' : `.${projectFileFormatState.spec.extension}`;
+
+export const projectFileFilterLabel = (): string => requireProjectFileFormat().display_name;
 
 export const projectFileUploadAccept = (): string => projectFileExtensionLabel();
 
 export const projectFileDialogTitle = (action: 'open' | 'save'): string => {
-	const article = startsWithVowelSound(projectFileFormatState.display_name) ? 'an' : 'a';
+	const format = requireProjectFileFormat();
+	const article = startsWithVowelSound(format.display_name) ? 'an' : 'a';
 	const verb = action === 'open' ? 'Open' : 'Save';
-	return `${verb} ${article} ${projectFileFormatState.display_name}`;
+	return `${verb} ${article} ${format.display_name}`;
 };
 
 export const normalizeProjectFilePath = (value: string): string => {
+	const format = requireProjectFileFormat();
 	const trimmed = value.trim();
 	if (trimmed.length === 0) {
 		return trimmed;
@@ -84,9 +80,9 @@ export const normalizeProjectFilePath = (value: string): string => {
 	const lastDotIndex = fileName.lastIndexOf('.');
 	const baseName = lastDotIndex > 0 ? fileName.slice(0, lastDotIndex) : fileName;
 	const extension = lastDotIndex > 0 ? fileName.slice(lastDotIndex + 1).toLowerCase() : '';
-	if (extension === projectFileFormatState.extension) {
+	if (extension === format.extension.toLowerCase()) {
 		return trimmed;
 	}
 
-	return `${directory}${baseName}.${projectFileFormatState.extension}`;
+	return `${directory}${baseName}.${format.extension}`;
 };

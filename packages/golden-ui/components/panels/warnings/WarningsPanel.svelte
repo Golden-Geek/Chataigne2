@@ -4,6 +4,7 @@
 	import type { NodeWarningRecord } from '../../../store/workbench.svelte';
 	import type { NodeId } from '../../../types';
 	import { copyTextToClipboard } from '../../../utils/clipboard';
+	import { applicationState } from '../../../store/application.svelte';
 
 	let { panelId, panelType, title, params }: PanelProps = $props();
 
@@ -81,7 +82,7 @@
 
 	const formatWarningForClipboard = (warning: NodeWarningRecord): string => {
 		const lines = [
-			'Chataigne2 warning',
+			`${applicationState.info?.display_name ?? 'Application'} warning`,
 			`Source node: ${warning.sourceNodeLabel} (${warning.sourceNodeId})`,
 			`Target node: ${warning.targetNodeLabel} (${warning.targetNodeId})`,
 			`Warning id: ${warningIdLabel(warning.warningId)}`,

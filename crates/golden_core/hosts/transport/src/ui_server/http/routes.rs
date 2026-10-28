@@ -29,7 +29,7 @@ pub(super) enum HttpRoute {
 impl HttpRoute {
     pub(super) fn resolve(method: &str, path: &str) -> Self {
         match (method, path) {
-            ("GET", "/.well-known/chataigne") => Self::Discovery,
+            ("GET", "/.well-known/golden-ui") => Self::Discovery,
             ("GET", "/api/ui/health") => Self::Health,
             ("POST", "/api/ui/session") => Self::Bootstrap,
             ("POST", "/api/ui/session/revoke") => Self::Revoke,

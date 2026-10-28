@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolveRuntimeEndpoints } from '../runtimeEndpoints';
+import { resolveRuntimeEndpoints } from 'golden_ui/host/runtime-endpoints';
 
 describe('resolveRuntimeEndpoints', () => {
 	it('uses the complete browser-visible origin for a bundled host', () => {

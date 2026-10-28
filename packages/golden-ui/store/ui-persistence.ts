@@ -1,9 +1,10 @@
 import type { SerializedDockview } from 'dockview-core';
 import type { NodeId } from '../types';
+import { applicationStorageKey } from './application.svelte';
 
-const PERSISTED_LAYOUT_KEY = 'golden_ui.layout.v1';
-const PERSISTED_SELECTION_KEY = 'golden_ui.selection.v1';
-const PERSISTED_LAST_PROJECT_PATH_KEY = 'golden_ui.project-path.v1';
+const layoutKey = (): string | null => applicationStorageKey('layout.v1');
+const selectionKey = (): string | null => applicationStorageKey('selection.v1');
+const projectPathKey = (): string | null => applicationStorageKey('project-path.v1');
 const PERSISTENCE_VERSION = 1;
 
 interface PersistedEnvelope<T> {
@@ -18,8 +19,8 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const hasLocalStorage = (): boolean =>
 	typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
 
-const readStoredJson = (key: string): unknown | null => {
-	if (!hasLocalStorage()) {
+const readStoredJson = (key: string | null): unknown | null => {
+	if (key === null || !hasLocalStorage()) {
 		return null;
 	}
 
@@ -35,8 +36,8 @@ const readStoredJson = (key: string): unknown | null => {
 	}
 };
 
-const writeStoredJson = (key: string, payload: unknown): void => {
-	if (!hasLocalStorage()) {
+const writeStoredJson = (key: string | null, payload: unknown): void => {
+	if (key === null || !hasLocalStorage()) {
 		return;
 	}
 
@@ -52,8 +53,8 @@ const writeStoredJson = (key: string, payload: unknown): void => {
 	}
 };
 
-const removeStoredValue = (key: string): void => {
-	if (!hasLocalStorage()) {
+const removeStoredValue = (key: string | null): void => {
+	if (key === null || !hasLocalStorage()) {
 		return;
 	}
 
@@ -64,7 +65,7 @@ const removeStoredValue = (key: string): void => {
 	}
 };
 
-const readStoredPayload = (key: string): unknown | null => {
+const readStoredPayload = (key: string | null): unknown | null => {
 	const value = readStoredJson(key);
 	if (!isRecord(value)) {
 		return null;
@@ -111,36 +112,36 @@ const asStoredProjectPath = (value: unknown): string | null => {
 };
 
 export const loadPersistedDockLayout = (): SerializedDockview | null => {
-	const payload = readStoredPayload(PERSISTED_LAYOUT_KEY);
+	const payload = readStoredPayload(layoutKey());
 	return asSerializedDockview(payload);
 };
 
 export const savePersistedDockLayout = (layout: SerializedDockview): void => {
-	writeStoredJson(PERSISTED_LAYOUT_KEY, layout);
+	writeStoredJson(layoutKey(), layout);
 };
 
 export const loadPersistedSelection = (): NodeId[] => {
-	const payload = readStoredPayload(PERSISTED_SELECTION_KEY);
+	const payload = readStoredPayload(selectionKey());
 	return asNodeIdArray(payload);
 };
 
 export const savePersistedSelection = (nodeIds: NodeId[]): void => {
-	writeStoredJson(PERSISTED_SELECTION_KEY, nodeIds);
+	writeStoredJson(selectionKey(), nodeIds);
 };
 
 export const loadPersistedLastProjectPath = (): string | null => {
-	const payload = readStoredPayload(PERSISTED_LAST_PROJECT_PATH_KEY);
+	const payload = readStoredPayload(projectPathKey());
 	return asStoredProjectPath(payload);
 };
 
 export const savePersistedLastProjectPath = (path: string | null): void => {
 	const normalized = asStoredProjectPath(path);
 	if (normalized === null) {
-		removeStoredValue(PERSISTED_LAST_PROJECT_PATH_KEY);
+		removeStoredValue(projectPathKey());
 		return;
 	}
 
-	writeStoredJson(PERSISTED_LAST_PROJECT_PATH_KEY, normalized);
+	writeStoredJson(projectPathKey(), normalized);
 };
 
 export const clearPersistedUiState = (): void => {
@@ -149,9 +150,9 @@ export const clearPersistedUiState = (): void => {
 	}
 
 	try {
-		window.localStorage.removeItem(PERSISTED_LAYOUT_KEY);
-		window.localStorage.removeItem(PERSISTED_SELECTION_KEY);
-		window.localStorage.removeItem(PERSISTED_LAST_PROJECT_PATH_KEY);
+		for (const key of [layoutKey(), selectionKey(), projectPathKey()]) {
+			if (key !== null) window.localStorage.removeItem(key);
+		}
 	} catch (error) {
 		console.warn('[ui-persistence] Unable to clear persisted UI state.', error);
 	}

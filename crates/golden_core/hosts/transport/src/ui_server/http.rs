@@ -154,7 +154,7 @@ pub(super) fn handle_connection<T: ProjectLifecycle>(
 
     match route {
         HttpRoute::Discovery => {
-            write_json(stream, "200 OK", &ui_discovery_document())?;
+            write_json(stream, "200 OK", &ui_discovery_document::<T>())?;
         }
         HttpRoute::Health => {
             write_json(stream, "200 OK", &state.ws_hub.readiness.snapshot(&state.read_model))?;

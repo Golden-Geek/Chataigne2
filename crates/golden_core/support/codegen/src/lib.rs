@@ -10,11 +10,12 @@ use std::path::{Path, PathBuf};
 
 use golden_graph::{GraphChangeSet, GraphDelta, GraphRevision};
 use golden_protocol::{
-    UI_PROTOCOL_VERSION, UiAck, UiClientMessage, UiContextCandidatesRequest, UiEditIntent, UiErrorResponse,
-    UiEventBatch, UiParamControlInfoDto, UiParamControlInfoRequest, UiProjectLoadProblemDto, UiProjectLoadRecoveryDto,
-    UiProjectPathDto, UiProjectPathRequest, UiProjectUploadRequest, UiReferenceTargetsDto, UiReferenceTargetsRequest,
-    UiReplayRequest, UiReplayResponse, UiScriptConfigRequest, UiScriptReloadRequest, UiScriptStateRequest,
-    UiServerMessage, UiSessionCapabilities, UiSessionRequest, UiSessionResponse, UiSnapshot, UiSnapshotRequest,
+    UI_PROTOCOL_VERSION, UiAck, UiApplicationInfoDto, UiClientMessage, UiContextCandidatesRequest, UiDiscoveryDto,
+    UiEditIntent, UiErrorResponse, UiEventBatch, UiParamControlInfoDto, UiParamControlInfoRequest,
+    UiProjectLoadProblemDto, UiProjectLoadRecoveryDto, UiProjectPathDto, UiProjectPathRequest, UiProjectUploadRequest,
+    UiReferenceTargetsDto, UiReferenceTargetsRequest, UiReplayRequest, UiReplayResponse, UiScriptConfigRequest,
+    UiScriptReloadRequest, UiScriptStateRequest, UiServerMessage, UiSessionCapabilities, UiSessionRequest,
+    UiSessionResponse, UiSnapshot, UiSnapshotRequest,
 };
 use golden_script_contract::{ScriptAppOperationReply, ScriptUiState};
 use ts_rs::{Config, TS};
@@ -165,6 +166,8 @@ pub fn generate_ui_protocol_bindings(out_dir: &Path) {
     let config = Config::new().with_out_dir(out_dir).with_large_int("number");
 
     export_binding::<UiSnapshot>(&config, "UiSnapshot");
+    export_binding::<UiApplicationInfoDto>(&config, "UiApplicationInfoDto");
+    export_binding::<UiDiscoveryDto>(&config, "UiDiscoveryDto");
     export_binding::<UiReplayResponse>(&config, "UiReplayResponse");
     export_binding::<UiEventBatch>(&config, "UiEventBatch");
     export_binding::<UiClientMessage>(&config, "UiClientMessage");

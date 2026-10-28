@@ -1,6 +1,10 @@
 use super::*;
 use crate::app::{AppEngine, DmxSendFrameCommand};
-use golden_core::{app::ProjectNode, engine::ProjectNodeRecord};
+use golden_core::{
+    app::{ProjectLifecycle, ProjectNode},
+    engine::{ProjectNodeMeta, ProjectNodeRecord},
+    persistence::{decode_application_project_document, encode_application_project_document},
+};
 
 fn saved_legacy_project(sparse: bool) -> (String, Vec<golden_core::node::NodeUuid>) {
     let mut engine = AppEngine::new(Folder::new("root").into());
@@ -42,14 +46,19 @@ fn saved_legacy_project(sparse: bool) -> (String, Vec<golden_core::node::NodeUui
     for _ in 0..8 {
         engine.apply_edits().unwrap();
     }
-    let mut project = if sparse {
-        serde_json::from_str(&golden_core::app::to_sparse_project_json_pretty(&engine).unwrap()).unwrap()
-    } else {
-        engine.to_project_file_with(|node| node.project_encode_data()).unwrap()
-    };
     let mut identities = Vec::new();
-    legacy_frames(&mut project.root, &mut identities);
-    (serde_json::to_string(&project).unwrap(), identities)
+    let json = if sparse {
+        let source = golden_core::app::to_sparse_project_json_pretty(&engine).unwrap();
+        let mut document =
+            decode_application_project_document::<ProjectNodeMeta>(&source, AppNode::application_id()).unwrap();
+        legacy_frames(&mut document.project.root, &mut identities);
+        encode_application_project_document(&document, AppNode::application_id()).unwrap()
+    } else {
+        let mut project = engine.to_project_file_with(|node| node.project_encode_data()).unwrap();
+        legacy_frames(&mut project.root, &mut identities);
+        serde_json::to_string(&project).unwrap()
+    };
+    (json, identities)
 }
 
 fn legacy_frames(record: &mut ProjectNodeRecord, identities: &mut Vec<golden_core::node::NodeUuid>) {

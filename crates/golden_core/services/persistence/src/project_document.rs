@@ -79,6 +79,15 @@ pub struct ProjectNodeRecord<M = serde_json::Value> {
 /// Failure while validating or encoding the neutral project document.
 #[derive(Debug)]
 pub enum ProjectDocumentCodecError {
+    /// A full application project omitted its required application identity.
+    MissingApplicationId,
+    /// A full project belongs to another application's node codecs.
+    ApplicationMismatch {
+        /// Application identity found in the file.
+        found: String,
+        /// Application identity required by the caller.
+        expected: String,
+    },
     /// The document version is not supported by this codec.
     UnsupportedVersion {
         /// Version read from the document.
@@ -93,6 +102,10 @@ pub enum ProjectDocumentCodecError {
 impl fmt::Display for ProjectDocumentCodecError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::MissingApplicationId => formatter.write_str("application project is missing application_id"),
+            Self::ApplicationMismatch { found, expected } => {
+                write!(formatter, "project application {found:?} does not match {expected:?}")
+            }
             Self::UnsupportedVersion { found, expected } => {
                 write!(
                     formatter,
@@ -108,7 +121,7 @@ impl std::error::Error for ProjectDocumentCodecError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Json(error) => Some(error),
-            Self::UnsupportedVersion { .. } => None,
+            Self::UnsupportedVersion { .. } | Self::MissingApplicationId | Self::ApplicationMismatch { .. } => None,
         }
     }
 }

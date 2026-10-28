@@ -1,7 +1,7 @@
 use super::*;
 
 /// Current UI protocol version.
-pub const UI_PROTOCOL_VERSION: &str = "0.12.0";
+pub const UI_PROTOCOL_VERSION: &str = "0.13.0";
 
 /// A replay boundary in one authoritative project lifetime; event clocks may repeat on replacement.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]

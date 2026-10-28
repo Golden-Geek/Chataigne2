@@ -371,7 +371,6 @@ pub struct UiSnapshot {
     /// Current logger state.
     pub logger: UiLoggerState,
     /// App-provided project file metadata.
-    #[serde(default)]
     pub project_file: UiProjectFileSpec,
     /// Current user-context scopes.
     #[serde(default, skip_serializing_if = "is_default_user_contexts")]

@@ -14,6 +14,9 @@ use golden_engine::parameter::{ParamValue, ParameterEventBehaviour};
 use golden_engine::process_ctx::ProcessCtx;
 use golden_protocol::UiProjectFileSpec;
 
+mod project_identity;
+mod upload_identity;
+
 static PREVIOUS_ENGINE_DROPPED: AtomicBool = AtomicBool::new(false);
 static PREVIOUS_ENGINE_DESTROYED: AtomicBool = AtomicBool::new(false);
 static READY_CALLBACK_SAW_DROP: AtomicBool = AtomicBool::new(false);

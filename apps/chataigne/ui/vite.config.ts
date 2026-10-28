@@ -2,7 +2,7 @@ import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { env } from 'node:process';
 import { defineConfig } from 'vite';
-import { uiContentSecurityPolicy } from '../../../packages/golden-ui/host/content-security-policy.mjs';
+import { uiContentSecurityPolicy } from 'golden_ui/host/content-security-policy';
 
 const outputDir = env.GC_UI_OUT_DIR ?? 'build';
 

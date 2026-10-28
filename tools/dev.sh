@@ -5,13 +5,14 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${repo_root}"
 
 setup_only=0
+app=chataigne
 skip_ui_install=0
 skip_system_deps=0
 cargo_args=()
 
 usage() {
   cat <<'USAGE'
-Usage: bash tools/dev.sh [--setup-only] [--skip-system-deps] [--skip-ui-install] [cargo run args...]
+Usage: bash tools/dev.sh [--app chataigne|mapgyver] [--setup-only] [--skip-system-deps] [--skip-ui-install] [cargo run args...]
 
 Examples:
   bash tools/dev.sh
@@ -22,6 +23,18 @@ USAGE
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --app)
+      if [[ $# -lt 2 ]]; then
+        echo "--app requires chataigne or mapgyver" >&2
+        exit 2
+      fi
+      app="$2"
+      case "$app" in
+        chataigne|mapgyver) ;;
+        *) echo "Unknown app: $app" >&2; exit 2 ;;
+      esac
+      shift 2
+      ;;
     --setup-only)
       setup_only=1
       shift
@@ -246,8 +259,12 @@ ensure_ui_dependencies() {
 }
 
 run_app() {
-  step "Run Chataigne2"
-  cargo run "${cargo_args[@]}"
+  local cargo_package=Chataigne2
+  if [[ "$app" == mapgyver ]]; then
+    cargo_package=MapGyver
+  fi
+  step "Run $cargo_package"
+  cargo run --package "$cargo_package" "${cargo_args[@]}"
 }
 
 ensure_system_deps

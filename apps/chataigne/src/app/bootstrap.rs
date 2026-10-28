@@ -2,6 +2,14 @@ use super::{AppEngine, AppNode};
 use golden_core::node::Node;
 
 impl golden_core::app::ProjectLifecycle for AppNode {
+    fn application_id() -> &'static str {
+        "chataigne"
+    }
+
+    fn application_version() -> &'static str {
+        env!("CARGO_PKG_VERSION")
+    }
+
     fn create_project_root() -> Self {
         let mut root = golden_core::node::Folder::new("Root");
         root.node_data_mut()

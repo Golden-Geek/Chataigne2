@@ -19,6 +19,16 @@ const credential = (letter = 'a', lifetime = 3600000): UiSessionResponse => ({
 	websocket_protocols: ['golden-ui', `gc-session.${letter.repeat(43)}`]
 });
 
+const discovery = {
+	version: 1,
+	service: 'golden-ui',
+	health_path: '/api/ui/health',
+	websocket_path: '/api/ui/ws',
+	relative_endpoints: true,
+	protocol_version: UI_PROTOCOL_VERSION,
+	application: { id: 'test-app', display_name: 'Test', version: '1', data_directory_name: 'Test' }
+};
+
 afterEach(() => {
 	vi.useRealTimers();
 });
@@ -35,21 +45,30 @@ describe('host session credentials', () => {
 				entries.delete(key);
 			}
 		};
-		const fetchImpl = vi
+		const credentialFetch = vi
 			.fn<typeof fetch>()
 			.mockResolvedValueOnce(Response.json(credential()))
 			.mockResolvedValueOnce(Response.json(credential()))
 			.mockResolvedValueOnce(new Response(null, { status: 401 }))
 			.mockResolvedValueOnce(Response.json(credential('b')));
-		const options = { baseUrl: 'http://localhost:7010/api/ui', fetchImpl, storage };
+		const fetchImpl: typeof fetch = (input, init) =>
+			String(input).endsWith('/.well-known/golden-ui')
+				? Promise.resolve(Response.json(discovery))
+				: credentialFetch(input, init);
+		const options = {
+			applicationId: 'test-app',
+			baseUrl: 'http://localhost:7010/api/ui',
+			fetchImpl,
+			storage
+		};
 		await createUiSessionProvider(options).credentials();
 		await createUiSessionProvider(options).credentials();
-		expect(new Headers(fetchImpl.mock.calls[1][1]?.headers).get('authorization')).toBe(
+		expect(new Headers(credentialFetch.mock.calls[1][1]?.headers).get('authorization')).toBe(
 			`Bearer ${credential().token}`
 		);
 		const restarted = await createUiSessionProvider(options).credentials();
 		expect(restarted.token).toBe(credential('b').token);
-		expect(new Headers(fetchImpl.mock.calls[3][1]?.headers).has('authorization')).toBe(false);
+		expect(new Headers(credentialFetch.mock.calls[3][1]?.headers).has('authorization')).toBe(false);
 		expect([...entries.values()]).toEqual([credential('b').token]);
 	});
 
@@ -58,8 +77,10 @@ describe('host session credentials', () => {
 			throw new Error('storage denied');
 		};
 		const session = createUiSessionProvider({
-			baseUrl: '/api/ui',
-			fetchImpl: async () => Response.json(credential()),
+			applicationId: 'test-app',
+			baseUrl: 'http://localhost:7010/api/ui',
+			fetchImpl: async (input) =>
+				Response.json(String(input).endsWith('/.well-known/golden-ui') ? discovery : credential()),
 			storage: { getItem: denied, setItem: denied, removeItem: denied }
 		});
 		expect((await session.credentials()).token).toBe(credential().token);

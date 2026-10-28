@@ -21,15 +21,30 @@ describe('module editor registry', () => {
 	it('has no implicit registration side effect', () => {
 		expect(resolveModuleEditor('spatializer_module')).toBeNull();
 		expect(resolveModuleEditor('sound_card_module')).toBeNull();
+		expect(resolveModuleEditor('streamdeck_module')).toBeNull();
 	});
 
-	it('provides Spatializer and Sound Card panel definitions from one descriptor source', () => {
+	it('registers app-owned Spatializer, Sound Card and Stream Deck panel definitions', () => {
 		registerDefaultModuleEditors();
 		const definitions = moduleEditorPanelDefinitions();
 
-		expect(Object.keys(definitions).sort()).toEqual(['soundCardEditor', 'spatializerEditor']);
+		expect(Object.keys(definitions).sort()).toEqual([
+			'soundCardEditor',
+			'spatializerEditor',
+			'streamdeck-editor'
+		]);
 		expect(resolveModuleEditor('spatializer_module')?.actionLabel).toBe('Edit Spatializer');
 		expect(resolveModuleEditor('sound_card_module')?.actionLabel).toBe('Edit Sound Card');
+		const streamDeckNode = moduleNode('streamdeck_module', 74, 'Desk');
+		const streamDeck = resolveModuleEditor(streamDeckNode)!;
+		expect(streamDeck.panelType).toBe('streamdeck-editor');
+		expect(streamDeck.actionLabel).toBe('Stream Deck');
+		expect(moduleEditorPanelRequest(streamDeck, streamDeckNode)).toMatchObject({
+			panelId: 'streamdeck-editor-74',
+			panelType: 'streamdeck-editor',
+			title: 'Stream Deck: Desk',
+			params: { moduleNodeId: 74 }
+		});
 	});
 
 	it('builds stable per-module panel identities and titles', () => {
@@ -45,11 +60,12 @@ describe('module editor registry', () => {
 		});
 	});
 
-	it('unregisters one editor without changing the other', () => {
+	it('unregisters one editor without changing the others', () => {
 		registerDefaultModuleEditors();
 		unregisterModuleEditor('sound_card_module');
 
 		expect(resolveModuleEditor('sound_card_module')).toBeNull();
 		expect(resolveModuleEditor('spatializer_module')).not.toBeNull();
+		expect(resolveModuleEditor('streamdeck_module')).not.toBeNull();
 	});
 });

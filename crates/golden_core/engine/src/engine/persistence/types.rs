@@ -219,6 +219,15 @@ impl golden_persistence::ProjectMetadata for ProjectNodeMeta {
 /// Error returned by project save/load operations.
 #[derive(Debug)]
 pub enum ProjectPersistenceError {
+    /// A full application project omitted its required application identity.
+    MissingApplicationId,
+    /// The project belongs to another application.
+    ApplicationMismatch {
+        /// Application identity found in the project.
+        found: String,
+        /// Application identity required by this engine.
+        expected: String,
+    },
     /// I/O failure while reading/writing a project file.
     Io(std::io::Error),
     /// JSON parsing/serialization error.
@@ -343,6 +352,10 @@ impl ProjectLoadRecoveryStage {
 impl fmt::Display for ProjectPersistenceError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::MissingApplicationId => f.write_str("application project is missing application_id"),
+            Self::ApplicationMismatch { found, expected } => {
+                write!(f, "project application {found:?} does not match {expected:?}")
+            }
             Self::Io(err) => write!(f, "project I/O error: {err}"),
             Self::Json(err) => write!(f, "project JSON error: {err}"),
             Self::Engine(err) => write!(f, "engine rebuild error: {err}"),
@@ -374,6 +387,10 @@ impl From<serde_json::Error> for ProjectPersistenceError {
 impl From<golden_persistence::ProjectDocumentCodecError> for ProjectPersistenceError {
     fn from(value: golden_persistence::ProjectDocumentCodecError) -> Self {
         match value {
+            golden_persistence::ProjectDocumentCodecError::MissingApplicationId => Self::MissingApplicationId,
+            golden_persistence::ProjectDocumentCodecError::ApplicationMismatch { found, expected } => {
+                Self::ApplicationMismatch { found, expected }
+            }
             golden_persistence::ProjectDocumentCodecError::UnsupportedVersion { found, expected } => {
                 Self::UnsupportedVersion { found, expected }
             }

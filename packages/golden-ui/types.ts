@@ -7,6 +7,8 @@ import type { UiGraphOp as GeneratedUiGraphOp } from './generated/rust_protocol/
 import type { UiSnapshot as RustUiSnapshot } from './generated/rust_protocol/UiSnapshot';
 import type { UiReplayCursor } from './generated/rust_protocol/UiReplayCursor';
 export type { UiReplayCursor } from './generated/rust_protocol/UiReplayCursor';
+export type { UiApplicationInfoDto } from './generated/rust_protocol/UiApplicationInfoDto';
+export type { UiDiscoveryDto } from './generated/rust_protocol/UiDiscoveryDto';
 
 export type NodeId = number;
 
@@ -715,7 +717,9 @@ export type UiEditIntent =
 	| { kind: 'sendNodeEvent'; node: NodeId; topic: string; payload: unknown }
 	| Extract<
 			RustUiEditIntent,
-			{ kind: 'invokeAppOperation' | 'moveDashboardWidget' | 'resizeDashboardWidget' }
+			{
+				kind: 'invokeAppOperation' | 'moveDashboardWidget' | 'resizeDashboardWidget';
+			}
 	  >
 	| { kind: 'reevaluateGraph' }
 	| { kind: 'clearLogs' }

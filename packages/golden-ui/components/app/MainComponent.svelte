@@ -44,7 +44,6 @@
 	import LoggerPanel from '../panels/logger/LoggerPanel.svelte';
 	import WarningsPanel from '../panels/warnings/WarningsPanel.svelte';
 	import DashboardPanel from '../panels/dashboard/DashboardPanel.svelte';
-	import StreamDeckEditorPanel from '../panels/module-editors/StreamDeckEditorPanel.svelte';
 	import GroupPanelAddAction from './GroupPanelAddAction.svelte';
 
 	let { userPanels, initialPanels, nodeIcons } = $props<{
@@ -92,14 +91,6 @@
 			panelType: 'warnings',
 			title: 'Warnings',
 			component: WarningsPanel,
-			origin: 'golden'
-		},
-		'streamdeck-editor': {
-			panelType: 'streamdeck-editor',
-			title: 'Stream Deck',
-			description: 'Visual editor for Stream Deck modules.',
-			component: StreamDeckEditorPanel,
-			category: 'Module Editors',
 			origin: 'golden'
 		}
 	};

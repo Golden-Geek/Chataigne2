@@ -4,13 +4,14 @@
 
 **Updated: 2026-10-28 · Overall: `████░░░░░░░░░░░░░░░░` 20% · 2/10 phases complete**
 
-**Current topic:** M02 public UI-bundling boundary verified; thin app shell next. The user approved the
-functional M01 gate and the reassignment of renderer, physical-output and complete-app
-qualification to their owning milestones. The [route decision](mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28)
-closes that revised gate; it does not pass the original full qualification matrix.
+**Current topic:** M02 shell, app identity and isolation verified. MapGyver uses the shared
+Golden host/workbench and runs alongside Chataigne. See the [shell evidence](mapgyver-m02-shell.md).
+The [approved M01 route decision](mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28)
+remains scoped functional acceptance; renderer, physical-output and full-app qualification
+retain their M03/M05/M09 owners.
 
-**Next:** create the MapGyver shell using the existing runtime/workbench and the new public
-UI-bundling API, then complete branding, state isolation and the remaining multi-app seams.
+**Next:** implement the optional typed native-presentation host lifecycle extension, the one
+remaining M02 item, keeping native construction and COM-thread coordination in Golden's host.
 **Blocker:** none for M02. Known cadence, memory-growth, geometry and display/input failures
 remain open under M03/M05/M09; their budgets and evidence are unchanged.
 
@@ -18,7 +19,7 @@ remain open under M03/M05/M09; their budgets and evidence are unchanged.
 | --- | --- | --- | --- |
 | [M00 Baseline/workloads](mapgyver-m00-baseline.md) | Complete locally | `████████████████████` 100% | 1/1 |
 | [M01 Functional route decision](#m01-acceptance-items) | Complete locally | `████████████████████` 100% | 4/4 |
-| [M02 Multi-app seams/shell](#m02-acceptance-items) | In progress | `███░░░░░░░░░░░░░░░░░` 14% | 1/7 |
+| [M02 Multi-app seams/shell](#m02-acceptance-items) | In progress | `█████████████████░░░` 86% | 6/7 |
 | [M03 Rendering/channels](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M04 Source media](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M05 Screens/Surfaces/editors](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
@@ -29,7 +30,7 @@ remain open under M03/M05/M09; their budgets and evidence are unchanged.
 
 Overall counts fully accepted milestones: `2 / 10 = 20%`; partial phases do not advance it.
 Phase percentages count closed acceptance items, rounded to the nearest whole percent
-(`M01: 4 / 4 = 100%`, `M02: 1 / 7 = 14%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
+(`M01: 4 / 4 = 100%`, `M02: 6 / 7 = 86%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
 its whole plan acceptance as one item unless a fixed breakdown is recorded here before
 implementation continues. On 2026-10-28 the user explicitly approved changing M01 from eight
 full-qualification items to four functional-route items, allowing M02 to start. The original
@@ -111,12 +112,12 @@ functional gate, not a retrospective pass of the original eight-item matrix.
 | Item | State | Accepted scope / remaining work |
 | --- | --- | --- |
 | Public UI-bundling boundary | Done | [Public helper](../../crates/golden_core/support/codegen/src/ui_bundle/mod.rs) adopted by Chataigne; 19 support tests, strict Clippy and a real app build check with UI bundling enabled pass. SDK/formula/node/Tauri steps remain app-owned. |
-| MapGyver host/UI scaffold | Open | App manifests, identity, project format/data directory, resources/capabilities and empty project through the existing Golden host/workbench. No placeholder Media/Screen managers. |
-| App branding and browser-state isolation | Open | App-published metadata and separate layout, selection, project path and session persistence; remove exercised product policy from Golden. |
-| Generic discovery and endpoint isolation | Open | Domain-neutral service discovery, one-source protocol generation and distinct configured app ports. |
-| Explicit app selection in tools | Open | Cargo/npm/xtask/watch/package select an app; existing root defaults remain Chataigne. |
+| MapGyver host/UI scaffold | Done | [Thin shell](mapgyver-m02-shell.md#implementation-boundaries) uses Golden's public host/workbench, app identity, project format/data directory, resources and capabilities. Fresh projects have the standard Dashboard; no placeholder Media/Screen managers. |
+| App branding and browser-state isolation | Done | [Backend metadata and browser namespaces](mapgyver-m02-shell.md#implementation-boundaries) separate layout, selection, recent path and credentials; app projects carry a validated identity. Stream Deck's editor belongs to Chataigne. |
+| Generic discovery and endpoint isolation | Done | [Rust-owned discovery DTOs](mapgyver-m02-shell.md#implementation-boundaries), generated protocol 0.13.0 and distinct backend/frontend ports; app identity is checked before UI admission and on fresh credentials. |
+| Explicit app selection in tools | Done | [Cargo/npm/xtask/watch/package commands](mapgyver-m02-shell.md#reproduction) select MapGyver explicitly; root defaults remain Chataigne. |
 | Typed optional native-presentation host lifecycle | Open | Public lifecycle extension keeps window construction and COM-thread coordination at the host boundary. |
-| Combined launch and boundary verification | Open | Both bundled/dev apps launch independently and concurrently without data cross-contamination; engine-only, headless, protocol-only and Chataigne full-host consumers stay valid. |
+| Combined launch and boundary verification | Done | [Concurrent bundled/dev/headless runs](mapgyver-m02-shell.md#live-windows-verification--2026-10-28), own save/reopen and foreign-file rejection pass; engine/protocol packages and both full desktop apps compile and test through public boundaries. Native quality remains unqualified. |
 
 ## Detailed status
 
@@ -196,7 +197,7 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | --- | --- | --- |
 | M00 Reconciliation/workloads | VERIFIED_LOCAL | [Checkout/public-boundary/hardware handoff](mapgyver-m00-baseline.md), [captured inventory](evidence/mapgyver-baseline-2026-10-27.json), and fixed [qualification workloads/budgets](mapgyver-qualification-contract.md) |
 | M01 Functional route decision | COMPLETE_LOCAL | [Approved decision](mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28): ordinary Tauri/Wry + D3D11 + pinned Spout sys binding permit the thin shell. Full qualification remains with M03/M05/M09. |
-| M02 Multi-app seams/shell | IN_PROGRESS | Public UI bundling is complete (1/7). Next is the sibling app scaffold using the existing lifecycle/workbench APIs, then remaining multi-app seams and combined verification. |
+| M02 Multi-app seams/shell | IN_PROGRESS | [Shell/isolation delivery](mapgyver-m02-shell.md) closes 6/7 fixed items. The optional typed native-presentation host lifecycle extension remains open. |
 | M03 Rendering/channels | NOT_STARTED | D3D11 recommended; SDK binding, host presentation and runtime contracts require implementation |
 | M04 Source media | NOT_STARTED | Solid Color, Picture, concurrent Spout scope defined |
 | M05 Screens/Surfaces/editors | NOT_STARTED | Output/crop/pin/calibration contracts defined |
@@ -208,11 +209,11 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 ## Next action
 
 The user approved the scope correction on 2026-10-28 and explicitly instructed continuation
-to M02. Continue its seven fixed acceptance items above: the public UI-bundling boundary is
-verified; next create the thin MapGyver app using Golden's existing host and workbench. Deliver each
-coherent batch on `mapgyver` before starting the next. Preserve Chataigne's root default and
-unfinished P11 work. No new M01 captures, consumer-control cohorts, overlay investigation or
-profiling are needed to start M02. The 4K display is connected and the user confirms overlay Off.
+to M02. Its shell/isolation delivery closes six of the seven fixed items. Next implement and
+verify the optional typed native-presentation host lifecycle extension at Golden's desktop
+boundary. Deliver each coherent batch on `mapgyver` before starting the next. Preserve
+Chataigne's root default and unfinished P11 work. No new M01 captures, consumer-control cohorts,
+overlay investigation or profiling are needed for this work. The user confirms overlay Off.
 
 **Approved scope correction — continuing acceptance ownership:**
 
@@ -356,6 +357,40 @@ P14/P15 time and asset contracts retain their shared Golden owners under M03. Ro
 behavior is unchanged. No production host/backend/binding decision is final yet.
 
 ## M02 verification — 2026-10-28
+
+### Shell and app-isolation delivery
+
+- [Implementation and live evidence](mapgyver-m02-shell.md) cover the app-owned shell, public
+  configured host, generic discovery, app-scoped UI state and explicit developer commands.
+  Both apps' bundled and development windows subscribed concurrently on their own ports;
+  headless hosts independently reached ready read models. Own save/reopen succeeded; foreign
+  content returned HTTP 400 without changing live generation, file metadata or node count.
+- Full application projects now require `application_id`, checked before sparse expansion,
+  callbacks or replacement. Missing/foreign identity is a hard failure without backup recovery.
+  This deliberately breaks untagged app projects; no migration is supplied. Only four owned
+  Chataigne test/qualification fixtures were tagged. Generic graph/Preferences codecs remain
+  independent.
+- Final review caught and fixed upload validation occurring after a destination write, and
+  `--no-frontend` selecting/admitting another app's development origin. Rejected foreign or
+  untagged uploads now leave existing primary/backup files byte-for-byte unchanged and never
+  resolve a new destination, including recovery requests. The host keeps the configured app
+  URL and admits only its exact origin. `cargo test --locked --profile dev -p
+  golden_transport_server -p golden_host_desktop` passes: **86 transport**, **13 desktop** and
+  **1 public headless** test; two existing tests remain ignored.
+- The affected persistence, engine, desktop, transport, protocol, codegen and xtask test suites
+  pass. Engine regression after module extraction: **655 passed, 3 ignored**. MapGyver's two
+  project tests and Golden's public-host consumer test pass. UI suites: **Golden 213/213** and
+  **Chataigne 193/193**. Both Svelte checks report **zero errors and warnings**.
+- `cargo build --locked -p MapGyver -p Chataigne2` and strict all-target Clippy pass. Golden's project I/O and
+  sparse codecs now have focused modules under 1,000 lines, preserving public APIs. The
+  workbench's type-only session contracts are likewise separate. The npm lockfile only
+  registers/hoists the new workspace; dependency version/integrity sets are unchanged.
+- M02 closes **6/7 = 86%** with the original seven-item denominator unchanged. The optional
+  typed native-presentation host extension stays open. Overall remains **2/10 = 20%**.
+  Required root/Core formatting and whitespace checks pass. No native renderer, DPI, input,
+  resource-retirement or release qualification is inferred; see the report's limitations.
+
+### Earlier public-bundling checkpoint
 
 - Extracted `golden_codegen_support::ui_bundle` and converted Chataigne's build script to
   configure it. The public config identifies workspace/UI/source roots, npm workspace and

@@ -1233,6 +1233,8 @@ crate::define_node_enum!(
     }
 );
 
+impl crate::app::ProjectLifecycle for MacroTestNode {}
+
 crate::define_node_enum!(
     enum CoreBuiltinOnlyNode {}
 );
@@ -2680,8 +2682,10 @@ fn sparse_project_load_drops_duplicate_declared_child_overlays() {
     advanced_record.children.insert(1, duplicate_child);
 
     let sparse_json = crate::app::to_sparse_project_json_pretty(&engine).expect("sparse project should encode");
-    let mut sparse_project: ProjectFile = serde_json::from_str(&sparse_json).expect("sparse project should be JSON");
+    let mut sparse_project: golden_persistence::ApplicationProjectDocument<crate::engine::ProjectNodeMeta> =
+        serde_json::from_str(&sparse_json).expect("sparse project should be JSON");
     sparse_project
+        .project
         .root
         .children
         .first_mut()

@@ -1,7 +1,9 @@
 # Repository Layout
 
 The root `Cargo.toml`, `Cargo.lock`, `package.json`, and `package-lock.json` define one Rust
-and npm workspace.
+and npm workspace. `apps/chataigne/` and `apps/mapgyver/` are sibling product shells using the
+shared Golden runtime and workbench. Root Cargo defaults and unqualified app commands continue
+to select Chataigne; MapGyver has explicit run, watch, UI and package commands.
 
 ## Backend
 
@@ -34,6 +36,14 @@ crates/
 │       └── macros/              proc macros
 └── golden_graph/                app-agnostic graph documents and transactions
 ```
+
+App metadata comes from the engine's pure `ProjectLifecycle` hooks; shared desktop listener and
+frontend defaults come from `DesktopHostConfig`. `services/protocol/` owns discovery and UI DTOs,
+generated into `packages/golden-ui/generated/rust_protocol/`; the current protocol is `0.13.0`
+and the discovery route is `/.well-known/golden-ui`. `services/persistence/` owns the required
+application-ID envelope for full app projects, while generic graph, subtree and Preferences
+formats stay independent. See [Application Contracts](../architecture/application-contracts.md)
+for rejection, restoration and host ownership rules.
 
 ## Chataigne
 
@@ -82,16 +92,29 @@ for the exact convention.
 - `apps/chataigne/ui/src/lib/systems/state_machine/`: State Machine panel, local graph projection,
   and generated protocol bundle.
 
-## Planned MapGyver boundaries
+## MapGyver
 
-These paths describe the proposed design, not existing workspace members. See the
-[MapGyver architecture](../architecture/mapgyver.md) and [plan](../plan/MapGyver_Implementation_Plan.md).
+`apps/mapgyver/` is an existing Rust/npm workspace member. Its `src/app/` declares the product
+identity, `.mapgyver` project specification and shared-host defaults; new projects contain the
+standard Dashboard. Its `ui/` mounts the reusable workbench with MapGyver branding. App-owned
+Tauri configuration, icons, permissions and build script remain under that directory; UI bundling
+uses the public `golden_codegen_support::ui_bundle` boundary shared with Chataigne.
 
-- `apps/mapgyver/src/app/`: thin Golden app shell and product registration.
-- `apps/mapgyver/systems/{media,screen,matrix}/`: app-owned models, backend operations and integration.
-- `apps/mapgyver/ui/`: Screen, Surface Source, Composition and Matrix editors.
-- `crates/golden_video/`: reusable GPU runtime, compositor primitives, Spout and presentation.
-- `packages/golden-video-ui/`: reusable native-preview bindings; host integration remains shared.
+MapGyver defaults to backend `127.0.0.1:7011` and development UI `127.0.0.1:5174`, separate from
+Chataigne's 7010/5173. Golden UI validates app discovery before restoring app-scoped browser
+state, and obtains project-file labels/extensions from the required runtime snapshot metadata.
+
+The remaining paths describe planned responsibilities, not implemented product features:
+
+- `apps/mapgyver/systems/{media,screen,matrix}/`: app-owned models, operations and integration.
+- `apps/mapgyver/ui/`: future Screen, Surface Source, Composition and Matrix editors.
+- `crates/golden_video/`: future reusable GPU runtime, compositor, Spout and presentation (M03).
+- `packages/golden-video-ui/`: future reusable native-preview bindings; host integration stays shared.
+
+The optional typed native-presentation host lifecycle remains open in M02. This layout records
+ownership, not concurrent desktop/dev or native qualification. See the
+[architecture](../architecture/mapgyver.md), [plan](../plan/MapGyver_Implementation_Plan.md) and
+[current acceptance](../progress/mapgyver-status.md).
 
 ## Documentation and tooling
 

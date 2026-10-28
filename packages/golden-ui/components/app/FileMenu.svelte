@@ -3,12 +3,13 @@
 	import ContextMenu from '../common/ContextMenu.svelte';
 	import type { ContextMenuAnchor, ContextMenuItem } from '../common/context-menu';
 	import {
-		BROWSER_PROJECT_DIRECTORY_LABEL,
+		browserProjectDirectoryLabel,
 		projectFileState,
 		uploadProjectFileAndLoad
 	} from '../../store/project-files.svelte';
 	import { hasDesktopHost } from '../../host/desktop';
 	import {
+		isProjectFileFormatReady,
 		projectFileExtensionLabel,
 		projectFileUploadAccept
 	} from '../../store/project-file-format.svelte';
@@ -24,7 +25,7 @@
 	};
 
 	const openBrowserUploadPicker = (): void => {
-		if (projectFileState.busy) {
+		if (projectFileState.busy || !isProjectFileFormatReady()) {
 			return;
 		}
 		uploadInputElement?.click();
@@ -62,9 +63,13 @@
 		Boolean(projectFileState.currentPath ?? projectFileState.lastOpenedPath)
 	);
 	const canBrowserSave = $derived(Boolean(projectFileState.currentPath));
+	const formatReady = $derived(isProjectFileFormatReady());
+	const fileActionsBlocked = $derived(projectFileState.busy || !formatReady);
 	const browserUploadAccept = $derived(projectFileUploadAccept());
 	const browserUploadHint = $derived(
-		`Uploads ${projectFileExtensionLabel()} files to ${BROWSER_PROJECT_DIRECTORY_LABEL}`
+		formatReady
+			? `Uploads ${projectFileExtensionLabel()} files to ${browserProjectDirectoryLabel()}`
+			: 'Waiting for the runtime project file format'
 	);
 
 	let menuAnchor = $derived.by((): ContextMenuAnchor | null => {
@@ -82,22 +87,22 @@
 	let menuItems = $derived.by((): ContextMenuItem[] => {
 		if (hasDesktopDialogs) {
 			return [
-				commandMenuItem('file.new', projectFileState.busy),
-				commandMenuItem('file.open', projectFileState.busy),
-				commandMenuItem('file.reopenLast', projectFileState.busy || !canOpenLast),
+				commandMenuItem('file.new', fileActionsBlocked),
+				commandMenuItem('file.open', fileActionsBlocked),
+				commandMenuItem('file.reopenLast', fileActionsBlocked || !canOpenLast),
 				{ separator: true },
-				commandMenuItem('file.save', projectFileState.busy),
-				commandMenuItem('file.saveAs', projectFileState.busy),
+				commandMenuItem('file.save', fileActionsBlocked),
+				commandMenuItem('file.saveAs', fileActionsBlocked),
 				{ separator: true },
 				commandMenuItem('file.preferences', false)
 			];
 		}
 
 		return [
-			commandMenuItem('file.new', projectFileState.busy),
+			commandMenuItem('file.new', fileActionsBlocked),
 			{
 				label: 'Open',
-				disabled: projectFileState.busy,
+				disabled: fileActionsBlocked,
 				submenu: [
 					{
 						label: 'Open Remote',
@@ -106,7 +111,7 @@
 					},
 					{
 						label: 'Load From...',
-						disabled: projectFileState.busy,
+						disabled: fileActionsBlocked,
 						hint: browserUploadHint,
 						action: () => {
 							openBrowserUploadPicker();
@@ -114,9 +119,9 @@
 					}
 				]
 			},
-			commandMenuItem('file.reopenLast', projectFileState.busy || !canOpenLast, 'Open Last'),
+			commandMenuItem('file.reopenLast', fileActionsBlocked || !canOpenLast, 'Open Last'),
 			{ separator: true },
-			commandMenuItem('file.save', projectFileState.busy || !canBrowserSave),
+			commandMenuItem('file.save', fileActionsBlocked || !canBrowserSave),
 			{
 				label: 'Save As',
 				disabled: true,
@@ -135,6 +140,7 @@
 		class="gc-file-menu-trigger"
 		aria-label="Open File menu"
 		aria-expanded={menuOpen}
+		disabled={!formatReady}
 		onclick={() => {
 			menuOpen = !menuOpen;
 		}}>
@@ -145,6 +151,7 @@
 		bind:this={uploadInputElement}
 		class="gc-file-menu-upload"
 		type="file"
+		disabled={fileActionsBlocked}
 		accept={browserUploadAccept}
 		onchange={handleBrowserUploadChange} />
 

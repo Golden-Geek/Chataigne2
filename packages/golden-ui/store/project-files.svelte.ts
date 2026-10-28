@@ -13,11 +13,16 @@ import {
 	normalizeProjectFilePath,
 	projectFileDialogExtensions,
 	projectFileDialogTitle,
-	projectFileFilterLabel
+	projectFileFilterLabel,
+	isProjectFileFormatReady
 } from './project-file-format.svelte';
 import { recordPerformanceSample } from './performance-profiler.svelte';
+import { applicationState } from './application.svelte';
 
-export const BROWSER_PROJECT_DIRECTORY_LABEL = '~/Documents/Chataigne';
+export const browserProjectDirectoryLabel = (): string => {
+	const directory = applicationState.info?.data_directory_name;
+	return directory ? `~/Documents/${directory}` : '~/Documents';
+};
 export const UNTITLED_PROJECT_LABEL = 'Untitled';
 const PROJECT_FILE_LOG_TAG = 'project-file';
 
@@ -67,15 +72,26 @@ export const projectFileDisplayName = (path: string | null | undefined): string 
 export const hasPendingProjectChanges = (historyStateId: number | null | undefined): boolean =>
 	(historyStateId ?? 0) !== projectFileState.savedHistoryStateId;
 
-const persistedLastProjectPath = loadPersistedLastProjectPath();
-
 export const projectFileState = $state({
 	currentPath: null as string | null,
-	lastOpenedPath: normalizeProjectPath(persistedLastProjectPath),
+	lastOpenedPath: null as string | null,
 	busy: false,
 	savedHistoryStateId: 0,
 	lastRecovery: null as UiProjectLoadRecovery | null
 });
+
+let projectFileApplicationId: string | null = null;
+
+export const initializeProjectFileState = (): void => {
+	const identity = applicationState.info?.id;
+	if (identity === undefined || identity === projectFileApplicationId) return;
+	projectFileApplicationId = identity;
+	projectFileState.currentPath = null;
+	projectFileState.lastOpenedPath = normalizeProjectPath(loadPersistedLastProjectPath());
+	projectFileState.busy = false;
+	projectFileState.savedHistoryStateId = 0;
+	projectFileState.lastRecovery = null;
+};
 
 const setCurrentProjectPath = (path: string | null): void => {
 	projectFileState.currentPath = normalizeProjectPath(path);
@@ -313,6 +329,11 @@ const startProjectFileOperation = (operationName: string): ProjectFileOperationS
 	const session = appState.session;
 	if (!session) {
 		const message = `${operationName} is unavailable because the project session is not ready.`;
+		console.warn('[project-files]', message);
+		return { ok: false, message };
+	}
+	if (!isProjectFileFormatReady()) {
+		const message = `${operationName} is unavailable until the runtime project file format is ready.`;
 		console.warn('[project-files]', message);
 		return { ok: false, message };
 	}

@@ -16,6 +16,7 @@ mod tests;
 
 pub(super) struct ProjectDocumentCapture {
     graph: ProjectGraphCapture,
+    pub(super) application_id: &'static str,
     pub(super) project_generation: ProjectGeneration,
     pub(super) document_revision: u64,
     pub(super) node_count: usize,
@@ -32,6 +33,7 @@ impl ProjectDocumentCapture {
 
 struct ProjectDocumentState {
     graph: ProjectGraphCapture,
+    application_id: &'static str,
     project_generation: ProjectGeneration,
     document_revision: u64,
     pending_nodes: HashSet<NodeId>,
@@ -45,6 +47,7 @@ impl ProjectDocumentState {
     ) -> Result<Self, ProjectPersistenceError> {
         Ok(Self {
             graph: ProjectGraphCapture::from_engine(engine)?,
+            application_id: T::application_id(),
             project_generation,
             document_revision: engine.current_history_state_id(),
             pending_nodes: HashSet::new(),
@@ -100,6 +103,7 @@ impl ProjectDocumentState {
         }
         Ok(ProjectDocumentCapture {
             graph: self.graph.clone(),
+            application_id: self.application_id,
             project_generation: self.project_generation,
             document_revision: self.document_revision,
             node_count: self.graph.len(),

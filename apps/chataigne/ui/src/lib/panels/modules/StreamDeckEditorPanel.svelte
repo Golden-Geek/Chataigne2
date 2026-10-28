@@ -1,12 +1,11 @@
 <script lang="ts">
-	import type { PanelProps, PanelState } from '../../../dockview/panel-types';
-	import type { NodeId, ParamValue, UiNodeDto } from '../../../types';
-	import { appState } from '../../../store/workbench.svelte';
+	import type { PanelProps, PanelState, NodeId, ParamValue, UiNodeDto } from 'golden_ui';
+	import { appState } from 'golden_ui/store/workbench.svelte';
 	import {
 		sendCreateUserItemByTypeIntent,
 		sendRemoveNodeIntent,
 		sendSetParamIntent
-	} from '../../../store/ui-intents';
+	} from 'golden_ui/store/ui-intents';
 
 	type EditorParams = { moduleNodeId?: NodeId };
 

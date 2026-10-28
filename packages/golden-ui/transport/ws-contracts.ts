@@ -16,6 +16,7 @@ export type UiTransportConnectionState =
 	'connecting' | 'connected' | 'disconnected' | 'reconnecting';
 
 export interface WebSocketUiClientOptions {
+	applicationId?: string;
 	wsUrl?: string;
 	httpBaseUrl?: string;
 	fetchImpl?: typeof fetch;

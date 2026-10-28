@@ -15,6 +15,8 @@ use crate::engine::{Engine, ProjectLoadRecoveryStage};
 use crate::node::{Folder, Node};
 use crate::parameter::{ParamValue, ParameterEventBehaviour};
 
+mod project_identity;
+
 define_node_enum!(
     enum PreferencesTestNode {}
 );

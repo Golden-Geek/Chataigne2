@@ -1,8 +1,7 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
-const DEFAULT_FRONTEND_PORT: u16 = 5173;
-const DEFAULT_BACKEND_PORT: u16 = 7010;
+use crate::AppTarget;
 const DEFAULT_FRONTEND_TIMEOUT_SECS: u64 = 60;
 const DEFAULT_BACKEND_TIMEOUT_SECS: u64 = 300;
 const DEFAULT_ENGINE_TIMEOUT_SECS: u64 = 30;
@@ -10,6 +9,7 @@ const DEFAULT_POLL_MILLIS: u64 = 200;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WatchConfig {
+    pub app: AppTarget,
     pub frontend_port: u16,
     pub backend_port: u16,
     pub frontend_timeout: Duration,
@@ -30,8 +30,9 @@ pub enum ParseOutcome {
 impl Default for WatchConfig {
     fn default() -> Self {
         Self {
-            frontend_port: DEFAULT_FRONTEND_PORT,
-            backend_port: DEFAULT_BACKEND_PORT,
+            app: AppTarget::default(),
+            frontend_port: AppTarget::default().frontend_port(),
+            backend_port: AppTarget::default().backend_port(),
             frontend_timeout: Duration::from_secs(DEFAULT_FRONTEND_TIMEOUT_SECS),
             backend_timeout: Duration::from_secs(DEFAULT_BACKEND_TIMEOUT_SECS),
             engine_timeout: Duration::from_secs(DEFAULT_ENGINE_TIMEOUT_SECS),
@@ -62,14 +63,18 @@ impl WatchConfig {
         }
 
         let mut config = Self::default();
+        let (mut frontend_explicit, mut backend_explicit) = (false, false);
         while let Some(argument) = args.next() {
             match argument.as_str() {
                 "-h" | "--help" => return Ok(ParseOutcome::Help),
+                "--app" => config.app = take_value(&mut args, &argument)?.parse()?,
                 "--frontend-port" => {
                     config.frontend_port = parse_port(&argument, take_value(&mut args, &argument)?)?;
+                    frontend_explicit = true;
                 }
                 "--backend-port" => {
                     config.backend_port = parse_port(&argument, take_value(&mut args, &argument)?)?;
+                    backend_explicit = true;
                 }
                 "--frontend-timeout-secs" => {
                     config.frontend_timeout =
@@ -103,6 +108,12 @@ impl WatchConfig {
             }
         }
 
+        if !frontend_explicit {
+            config.frontend_port = config.app.frontend_port();
+        }
+        if !backend_explicit {
+            config.backend_port = config.app.backend_port();
+        }
         if config.frontend_port == config.backend_port {
             return Err("frontend and backend ports must be distinct".to_string());
         }
@@ -139,12 +150,13 @@ fn parse_positive(option: &str, value: String) -> Result<u64, String> {
 }
 
 pub fn usage() -> &'static str {
-    "Chataigne workspace tasks\n\n\
+    "Golden workspace tasks\n\n\
 Usage:\n\
   cargo xtask watch [OPTIONS] [-- APP_ARGS...]\n\n\
 Watch options:\n\
-  --frontend-port PORT           Vite port (default: 5173)\n\
-  --backend-port PORT            golden_core UI host port (default: 7010)\n\
+  --app chataigne|mapgyver        App to launch (default: chataigne)\n\
+  --frontend-port PORT           Vite port (default: 5173 / MapGyver 5174)\n\
+  --backend-port PORT            UI host port (default: 7010 / MapGyver 7011)\n\
   --frontend-timeout-secs SECS   Frontend startup deadline (default: 60)\n\
   --backend-timeout-secs SECS    Backend startup deadline, including compilation (default: 300)\n\
   --engine-timeout-secs SECS     Engine snapshot deadline (default: 30)\n\

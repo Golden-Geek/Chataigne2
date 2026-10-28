@@ -1,6 +1,4 @@
-const UI_CLIENT_INSTANCE_STORAGE_KEY = 'golden_ui.client_instance.v2';
-
-let cachedUiClientInstanceId: string | null = null;
+const cachedUiClientInstanceIds = new Map<string | undefined, string>();
 
 const hasSessionStorage = (): boolean =>
 	typeof window !== 'undefined' && typeof window.sessionStorage !== 'undefined';
@@ -18,30 +16,34 @@ const makeUiClientInstanceId = (): string => {
 	return makeFallbackClientInstanceId();
 };
 
-export const getUiClientInstanceId = (): string => {
-	if (cachedUiClientInstanceId !== null) {
-		return cachedUiClientInstanceId;
+export const getUiClientInstanceId = (applicationId?: string): string => {
+	const cached = cachedUiClientInstanceIds.get(applicationId);
+	if (cached !== undefined) {
+		return cached;
 	}
 
-	if (!hasSessionStorage()) {
-		cachedUiClientInstanceId = makeUiClientInstanceId();
-		return cachedUiClientInstanceId;
+	if (applicationId === undefined || !hasSessionStorage()) {
+		const created = makeUiClientInstanceId();
+		cachedUiClientInstanceIds.set(applicationId, created);
+		return created;
 	}
 
 	try {
-		const stored = window.sessionStorage.getItem(UI_CLIENT_INSTANCE_STORAGE_KEY)?.trim() ?? '';
+		const storageKey = `golden_ui.${encodeURIComponent(applicationId)}.client_instance.v2`;
+		const stored = window.sessionStorage.getItem(storageKey)?.trim() ?? '';
 		if (stored.length > 0) {
-			cachedUiClientInstanceId = stored;
-			return cachedUiClientInstanceId;
+			cachedUiClientInstanceIds.set(applicationId, stored);
+			return stored;
 		}
 
 		const created = makeUiClientInstanceId();
-		window.sessionStorage.setItem(UI_CLIENT_INSTANCE_STORAGE_KEY, created);
-		cachedUiClientInstanceId = created;
-		return cachedUiClientInstanceId;
+		window.sessionStorage.setItem(storageKey, created);
+		cachedUiClientInstanceIds.set(applicationId, created);
+		return created;
 	} catch (error) {
 		console.warn('[ui transport] Unable to access per-tab client instance id.', error);
-		cachedUiClientInstanceId = makeUiClientInstanceId();
-		return cachedUiClientInstanceId;
+		const created = makeUiClientInstanceId();
+		cachedUiClientInstanceIds.set(applicationId, created);
+		return created;
 	}
 };

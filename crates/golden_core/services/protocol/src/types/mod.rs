@@ -11,6 +11,7 @@ use golden_script_contract::ScriptUiConfig;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+mod discovery;
 mod edit;
 mod event;
 mod intent;
@@ -18,6 +19,7 @@ mod message;
 mod session;
 mod snapshot;
 
+pub use discovery::*;
 pub use edit::*;
 pub use event::*;
 pub use intent::*;

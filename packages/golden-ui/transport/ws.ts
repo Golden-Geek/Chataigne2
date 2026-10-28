@@ -92,15 +92,17 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 	);
 	const WebSocketImpl =
 		options.webSocketImpl ?? (typeof WebSocket !== 'undefined' ? WebSocket : null);
-	const clientInstanceId = getUiClientInstanceId();
+	const clientInstanceId = getUiClientInstanceId(options.applicationId);
 	const httpBaseUrl = options.httpBaseUrl ?? wsUrl.replace(/^ws/i, 'http').replace(/\/ws\/?$/, '');
 	const session =
 		options.sessionProvider ??
 		createUiSessionProvider({
+			applicationId: options.applicationId,
 			baseUrl: httpBaseUrl,
 			fetchImpl: options.fetchImpl
 		});
 	const httpClient = createHttpAuxiliaryClient({
+		applicationId: options.applicationId,
 		baseUrl: httpBaseUrl,
 		fetchImpl: options.fetchImpl,
 		sessionProvider: session
@@ -288,7 +290,10 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 					interest: state.interest,
 					from:
 						state.cursor && state.projectGeneration
-							? { at: state.cursor, project_generation: state.projectGeneration }
+							? {
+									at: state.cursor,
+									project_generation: state.projectGeneration
+								}
 							: undefined
 				},
 				generation
@@ -625,7 +630,7 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 	};
 
 	const ensureSocket = async (): Promise<WebSocket> => {
-		if (WebSocketImpl && socket?.readyState === WebSocketImpl.OPEN) return socket;
+		if (WebSocketImpl && socket && socket.readyState === WebSocketImpl.OPEN) return socket;
 		if (sessionOpening) return sessionOpening;
 		const operation = openSocket();
 		sessionOpening = operation;
@@ -763,7 +768,11 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 				kind: 'snapshot',
 				timeout: SNAPSHOT_TIMEOUT_MS,
 				send: () =>
-					sendWsMessage({ kind: 'snapshot', request_id: requestId, scope: toRustScope(scope) })
+					sendWsMessage({
+						kind: 'snapshot',
+						request_id: requestId,
+						scope: toRustScope(scope)
+					})
 			});
 		},
 
@@ -897,7 +906,12 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 				kind: 'replay',
 				timeout: REPLAY_TIMEOUT_MS,
 				send: () =>
-					sendWsMessage({ kind: 'replay', request_id: requestId, scope: toRustScope(scope), from })
+					sendWsMessage({
+						kind: 'replay',
+						request_id: requestId,
+						scope: toRustScope(scope),
+						from
+					})
 			});
 		},
 

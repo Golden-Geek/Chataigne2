@@ -1,6 +1,22 @@
 use super::{request::parse_head, *};
 
 #[test]
+fn discovery_has_one_generic_route_without_a_product_alias() {
+    assert!(matches!(
+        HttpRoute::resolve("GET", "/.well-known/golden-ui"),
+        HttpRoute::Discovery
+    ));
+    assert!(matches!(
+        HttpRoute::resolve("GET", "/.well-known/chataigne"),
+        HttpRoute::Unknown
+    ));
+    assert!(matches!(
+        HttpRoute::resolve("POST", "/.well-known/golden-ui"),
+        HttpRoute::Unknown
+    ));
+}
+
+#[test]
 fn parser_preserves_valid_request_targets_and_combines_list_headers() {
     let bytes = b"POST /api/ui/snapshot?view=whole HTTP/1.1\r\nHost: localhost:7010\r\nConnection: keep-alive\r\nConnection: Upgrade\r\nContent-Length: 2\r\n\r\n";
     let (request, offset, length) = parse_head(bytes).unwrap();

@@ -7,8 +7,25 @@ package under `packages/golden-ui/`, separate from app-local SvelteKit source.
 
 - `golden_ui` owns the reusable workbench shell, dock/panel framework, session stores, transport
   clients, host bridges, generated protocol bindings, and shared styling primitives.
-- `apps/chataigne/ui/src/routes/` is the thin app UI shell that composes the package.
-- `apps/chataigne/ui/src/lib/assets/` owns product-specific assets and icon overrides.
+- `apps/chataigne/ui/` and `apps/mapgyver/ui/` own their routes, product assets and custom panels.
+
+Each app wraps its routes in `ApplicationRoot`, declaring its expected application ID and
+development backend port. The root validates the host's generic discovery document, retries
+unavailable hosts and cancels pending work on unmount. It renders children only after app
+identity is known. `useApplicationHost()` supplies that metadata and the resolved endpoints to
+`MainWindow` and standalone dashboard sessions. Display/version/folder labels come from the
+host; project extension/label continue to come from the generated snapshot contract.
+File actions remain unavailable until that snapshot supplies a valid project-file specification.
+Neither the UI state nor its protocol decoder invents a document format before readiness.
+
+Browser layout, selection, recent project, tab credentials and client identity use app IDs in
+their storage keys; credentials also retain backend endpoint isolation. An anonymous low-level
+transport does not persist credentials. Project state is restored after identity configuration,
+never at module import. Stream Deck and other product editors are registered by Chataigne,
+outside the shared panel catalog.
+Fresh credentials, including WebSocket reconnects, revalidate the expected application through
+the same pure discovery helper before admission. An endpoint serving a different app cannot
+renew that app's UI session or open a snapshot connection under the earlier storage namespace.
 
 ## Package Rules
 

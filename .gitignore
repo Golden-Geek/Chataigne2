@@ -31,6 +31,12 @@ target
 /apps/chataigne/ui/.svelte-kit/
 /apps/chataigne/ui/artifacts/
 /apps/chataigne/ui/build/
+/apps/mapgyver/gen/
+/apps/mapgyver/ui/.svelte-kit/
+/apps/mapgyver/ui/build/
+/apps/mapgyver/icons/*
+!/apps/mapgyver/icons/icon.png
+!/apps/mapgyver/icons/icon.ico
 /tools/mapgyver/native-probe/ui/dist/
 /tools/mapgyver/native-probe/gen/
 
