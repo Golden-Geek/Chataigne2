@@ -40,6 +40,7 @@ pub struct GenerationReport {
     pub operation_timing: operation_timing::Report,
     pub gpu_admission: FinalReport,
     pub source_workers: Vec<source_worker::Report>,
+    pub renderer_source_imports: Vec<source_worker::ImportReport>,
     pub consumer_checkpoint: Option<Checkpoint>,
     pub retirement_fence_ms: f64,
     pub after_release: Option<ProcessSnapshot>,
@@ -74,13 +75,8 @@ pub fn run(session: &Session, state: &mut RunState, generation: u32) -> ProbeRes
     let sample = (state.start + Duration::from_secs(u64::from(spec.warmup_seconds())))
         ..(state.start + Duration::from_secs(u64::from(spec.total_seconds())));
     let mut inputs = [
-        Source::spawn(
-            session.adapter,
-            &session.adapter_luid,
-            &session.source_names[0],
-            sample.clone(),
-        )?,
-        Source::spawn(session.adapter, &session.adapter_luid, &session.source_names[1], sample)?,
+        Source::spawn(&gpu, &session.source_names[0], sample.clone())?,
+        Source::spawn(&gpu, &session.source_names[1], sample)?,
     ];
     let mut sender = Endpoint::sender(&gpu, &session.output_name)?;
     if sender.name() != session.output_name {
@@ -179,7 +175,7 @@ pub fn run(session: &Session, state: &mut RunState, generation: u32) -> ProbeRes
             } else {
                 Operation::PollSourceB
             };
-            let received = operations.measure(operation, || inputs[channel].poll(&gpu))?;
+            let received = operations.measure(operation, || inputs[channel].poll(collecting))?;
             if received {
                 observations[channel] = 1;
             }
@@ -197,7 +193,7 @@ pub fn run(session: &Session, state: &mut RunState, generation: u32) -> ProbeRes
                     quad.draw(
                         &gpu,
                         &composed,
-                        &frame.texture,
+                        frame.texture(),
                         PhysicalRect {
                             left: index as i32 * (width / 2) as i32,
                             top: 0,
@@ -284,7 +280,7 @@ pub fn run(session: &Session, state: &mut RunState, generation: u32) -> ProbeRes
                     gpu.clear(&target, [0.08, 0.08, 0.08, 1.0])?;
                     for (index, rect) in rects.iter().enumerate() {
                         if let Some(frame) = inputs[index].frame() {
-                            quad.draw_clipped(&gpu, &target, &frame.texture, rect.bounds, rect.clip)?;
+                            quad.draw_clipped(&gpu, &target, frame.texture(), rect.bounds, rect.clip)?;
                         }
                     }
                     Ok(())
@@ -373,10 +369,12 @@ pub fn run(session: &Session, state: &mut RunState, generation: u32) -> ProbeRes
     // Complete all reads on the render context before releasing bridge readers and joining
     // source workers. Their SDK/context destruction never runs on this render context.
     gpu.retire()?;
-    let source_workers = inputs
+    let finished = inputs
         .into_iter()
         .map(Source::finish)
         .collect::<ProbeResult<Vec<_>>>()?;
+    let (source_workers, renderer_source_imports) =
+        finished.into_iter().map(|f| (f.worker, f.renderer_imports)).unzip();
     if !recreate {
         for fixture in state.fixtures.take().ok_or("source fixtures retired early")? {
             state.sources.push(fixture.finish()?);
@@ -420,6 +418,7 @@ pub fn run(session: &Session, state: &mut RunState, generation: u32) -> ProbeRes
         operation_timing: operation_timing.finish(),
         gpu_admission,
         source_workers,
+        renderer_source_imports,
         consumer_checkpoint,
         retirement_fence_ms,
         after_release: None,

@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "predeclared_bounded_import_diagnostic_not_full_qualification",
+  "adapter_index": 0,
+  "scenario": "q02",
+  "presentation_policy": "latest",
+  "change": "Renderer-device-bound cache of at most three imported COM aliases keyed by weak Surface allocation identity; active Frame alone retains strong reader ownership and acquired key",
+  "unchanged": ["source pool capacity three", "zero-timeout keyed mutex", "60 Hz CPU pacing", "two GPU batches", "presenter buffers and latency limits", "output and editor SyncInterval zero", "fixed card inputs and geometry"],
+  "ordered_checks": [
+    "Deterministic Rust/Python tests and strict Clippy",
+    "Two finite Intel held-reader/reuse/resize/timeout pixel tests",
+    "Release Intel Q02 authored-card cross-process full-image accuracy",
+    "Intel Q02 30-second warmup plus 8-second diagnostic capture with 10-second collector tail",
+    "If accuracy, ownership and capture integrity pass, one Intel Q02 30-second warmup plus 120-second sustained diagnostic using the same frozen release/source/assets/helper fingerprints"
+  ],
+  "record": ["complete original native/query/CSV streams", "all and sampled import counters and stage distributions", "cached and live-alias peaks and zero cleanup", "outer source-poll timing", "native attempts/accepted/coalesced/readiness and CSV drops", "actual window context", "live loss counters and unavailable observations"],
+  "constraints": ["one native workload at a time", "no builds, desktop actions or background analysis during measurements", "no display or overlay changes", "retain every failure and do not rerun until passing", "all GPU integers preserved losslessly"],
+  "interpretation": "No uncached contemporaneous control is planned. Historical A/B/A retains its distinct fingerprints and drift; a favorable cached run cannot prove causal repair or close sustained qualification. Live zero counters do not prove final capture or analysis zero loss. COM alias counts do not prove physical VRAM retirement. M01 remains 1/8 unless a full existing acceptance item is verified."
+}

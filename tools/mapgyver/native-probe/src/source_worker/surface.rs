@@ -1,21 +1,17 @@
 //! Only the NT handle and immutable dimensions cross threads; COM stays device-local.
 
-use super::Shared;
 use crate::{ProbeResult, d3d::Gpu, texture::Texture};
 use mapgyver_native_probe::allocation::Owner;
-use std::os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle};
-use std::sync::{Arc, atomic::Ordering};
-use windows::Win32::{
-    Foundation::HANDLE,
-    Graphics::{
-        Direct3D11::*,
-        Dxgi::{Common::*, *},
-    },
+use std::os::windows::io::{FromRawHandle, OwnedHandle};
+use std::sync::Arc;
+use windows::Win32::Graphics::{
+    Direct3D11::*,
+    Dxgi::{Common::*, *},
 };
 use windows::core::{Interface, PCWSTR};
 
 pub struct Surface {
-    handle: OwnedHandle,
+    pub(super) handle: OwnedHandle,
     pub extent: [u32; 2],
 }
 
@@ -72,47 +68,6 @@ impl Slot {
         // No publication/reader retains this slot. A discarded publication may leave key 1;
         // a completed reader leaves key 0. Both probes are explicitly nonblocking.
         Ok(acquire(&self.mutex, 0)? || acquire(&self.mutex, 1)?)
-    }
-}
-
-pub struct Frame {
-    pub batch: u64,
-    pub texture: ID3D11Texture2D,
-    mutex: IDXGIKeyedMutex,
-    pub surface: Arc<Surface>,
-    shared: Arc<Shared>,
-}
-
-impl Frame {
-    pub(super) fn open(gpu: &Gpu, publication: Publication, shared: Arc<Shared>) -> ProbeResult<Option<Self>> {
-        let Publication { surface, batch } = publication;
-        // SAFETY: the retained NT handle belongs to this process and the same adapter.
-        let texture: ID3D11Texture2D = unsafe {
-            gpu.device
-                .cast::<ID3D11Device1>()?
-                .OpenSharedResource1(HANDLE(surface.handle.as_raw_handle()))?
-        };
-        let mutex = texture.cast::<IDXGIKeyedMutex>()?;
-        if !acquire(&mutex, 1)? {
-            return Ok(None);
-        }
-        Ok(Some(Self {
-            batch,
-            texture,
-            mutex,
-            surface,
-            shared,
-        }))
-    }
-}
-
-impl Drop for Frame {
-    fn drop(&mut self) {
-        // SAFETY: this reader acquired key 1. Releasing key 0 orders all queued reads before
-        // producer reuse; the Surface Arc stays retained until after the local COM objects.
-        if unsafe { self.mutex.ReleaseSync(0) }.is_err() {
-            self.shared.unlock_failures.fetch_add(1, Ordering::Relaxed);
-        }
     }
 }
 

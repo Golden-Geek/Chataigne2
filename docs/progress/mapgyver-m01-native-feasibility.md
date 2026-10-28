@@ -5,6 +5,66 @@ from MapGyver's product systems. M01 is **in progress**, not a presentation-arch
 See the [ledger](mapgyver-status.md), [qualification contract](mapgyver-qualification-contract.md)
 and [harness commands/ownership](../../tools/mapgyver/native-probe/README.md).
 
+## Bounded renderer imports and split handoff timing — 2026-10-28
+
+The [predeclared diagnostic](evidence/mapgyver-m01-import-cache-plan-2026-10-28.json) adds a
+renderer-device-bound cache to the disposable source bridge. Each source caches at most three
+imported texture/mutex aliases keyed by weak allocation identity. The cache owns no strong
+`Surface` reference or mutex key; an acquired frame alone owns reader release. The producer's
+strong-count reuse guard remains unchanged. Expired identities, absence and shutdown retire
+aliases; renderer reads still fence before normal source shutdown. Renderer import metrics
+remain separate from ingest-worker allocation ledgers. These are COM alias counts, not physical
+VRAM residency or a production Golden backend decision.
+
+Six pure cache tests, three timing-scope tests and the existing shutdown-order test pass.
+Two explicitly run Intel hardware tests verify three held readers prevent reuse, dropping a
+reader permits reuse without reopening, resize creates a new identity, and a timed-out acquire
+neither releases the producer's key nor discards the valid cached import. Both drain aliases
+and tracked allocations. Early-error teardown paths are not newly qualified by these checks.
+
+The release [cross-process authored-card check](evidence/mapgyver-m01-import-cache-accuracy-2026-10-28.json)
+compares all 8,294,400 output pixels at 4K with no out-of-tolerance components; maximum BGRA error
+is one per component at tolerance two. Both renderer import caches finish at zero. It is a
+finite accuracy check, not timing or scanout qualification.
+
+| Intel Q02 latest | Sample attempts | Output accepted | Editor accepted | GPU coalesced | Output/editor readiness gaps | Output/editor CSV dropped |
+| --- | --- | --- | --- | --- | --- | --- |
+| [30+8 seconds](evidence/mapgyver-m01-import-cache-short-2026-10-28.json) | 480 | 468 | 462 | 4 | 8 / 14 | 1 / 11 |
+| [30+120 seconds](evidence/mapgyver-m01-import-cache-sustained-2026-10-28.json) | 7,200 | 6,548 | 6,387 | 221 | 431 / 592 | 44 / 306 |
+
+Both captures use release SHA256
+`ee238ed0ed9e70c24e7f068e916336d1fb1d231f3b489d91be6f488b586bad72`, matching source/assets/helper
+fingerprints and window context. All 20,508 raw CSV rows, original native/query streams and
+derived role/policy observations are retained and independently recomputed. Sampled Present
+Busy HRESULTs, occlusion and late attempts are zero; GPU coalescing and per-presenter readiness
+remain disjoint submission outcomes. No source publication is absent in admitted sample frames.
+
+Both sampled windows perform zero resource opens, misses or acquire timeouts. A/B hits are
+475/476 for the short run and 6,900/6,969 for the sustained run; remaining polls retain the same
+current surface. Lifetime opens remain visible: 8/3 then 9/3 across startup/resize/absence.
+Peak cached and live imports are three per source, final counts zero, and all counter partitions
+and stage sample counts agree without truncation. The [analysis](evidence/mapgyver-m01-import-cache-analysis-2026-10-28.json)
+retains scoped stage distributions; unobserved sampled open/cast/insert stages are null.
+
+Sustained source-A poll p99/max are 0.4129/1.0984 ms; source-B is 0.2414/0.9963 ms. A's sampled
+key-acquire p99/max are 0.2877/0.9767 ms and reader-release 0.2120/0.6469 ms. Startup resource
+opening still reaches 30.383 ms. Wall spans include preemption and do not isolate driver work.
+The earlier long sampled poll stalls do not recur here, but there is no contemporaneous uncached
+control and historical A/B/A drift remains authoritative. This is not proof of a causal repair.
+
+Cadence remains unqualified: sustained renderer CPU p99/max are 1.3157/2.7739 ms, but its scoped
+GPU interval reaches p99/max 35.5297/117.1465 ms, with consumer source-age p95 64.5103/58.6732 ms.
+Output loses 652 native submissions and 44 accepted Presents are marked dropped by CSV.
+The output client is still 3840×2160 on a 1920×1080/60 Hz monitor; physical 4K scanout is unproven.
+
+The collector now records a bounded, configurable tail (default ten seconds, allowed 2–60).
+Both post-native live ETW queries succeed with three zero counters and no collector loss warning;
+final capture/analysis zero loss remains unverified. The older two-second-tail status-4201
+failure is preserved. Both owned sessions are absent after exit, no owned probe/collector
+remains, and the pre-existing service retains PID 5864. No desktop or overlay setting changed.
+M01 stays **1/8**. Next investigate GPU/admission/readiness stalls with controlled context
+correlation while preserving this bounded handoff and the remaining display/lifecycle gates.
+
 ## Output-only vblank control and baseline drift — 2026-10-28
 
 The [predeclared control](evidence/mapgyver-m01-output-policy-plan-2026-10-28.json) runs

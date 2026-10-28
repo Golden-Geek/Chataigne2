@@ -29,6 +29,8 @@ def parse_args(argv=None):
     parser.add_argument("--nvidia-overlay", choices=("on", "off", "unknown"), default="unknown")
     parser.add_argument("--sample-seconds", type=int, default=8)
     parser.add_argument("--warmup-seconds", type=int, default=30)
+    parser.add_argument("--collector-tail-seconds", type=int, default=10,
+                        help="additional collector duration beyond native warmup/sample total (2..60 seconds)")
     parser.add_argument("--presentation-policy", choices=("latest", "output-vblank"), default="latest")
     parser.add_argument("--output", type=Path, help="exclusively create a generated packet under the existing target directory")
     args = parser.parse_args(argv)
@@ -36,6 +38,8 @@ def parse_args(argv=None):
         parser.error("adapter must be nonnegative")
     if args.sample_seconds < 8 or args.warmup_seconds < 0 or args.sample_seconds + args.warmup_seconds > 3600:
         parser.error("sample must be at least 8 seconds, warmup nonnegative, total at most 3600")
+    if not 2 <= args.collector_tail_seconds <= 60:
+        parser.error("collector tail must be between 2 and 60 seconds")
     if args.output is not None:
         args.output = args.output.resolve()
         if not args.output.is_relative_to((ROOT / "target").resolve()) or not args.output.parent.is_dir() \
@@ -152,10 +156,11 @@ def collect(args, evidence):
     executable = ROOT / "target/release/mapgyver_native_probe.exe"
     session = "MapGyver-M01-Present-" + uuid.uuid4().hex
     total_seconds = args.sample_seconds + args.warmup_seconds
-    capture_seconds = total_seconds + 2
+    capture_seconds = total_seconds + args.collector_tail_seconds
     evidence.update(schema_version=2, evidence_kind="bounded_presentmon_roles_and_live_loss_query_not_full_timing_qualification",
                     started_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),
                     session_name=session, native_sample_seconds=args.sample_seconds, native_warmup_seconds=args.warmup_seconds,
+                    collector_tail_seconds=args.collector_tail_seconds,
                     presentmon_timed_seconds=capture_seconds, declared_nvidia_overlay_state=args.nvidia_overlay,
                     requested_presentation_policy=args.presentation_policy,
                     environment=dict(platform=platform.platform(), machine=platform.machine()),

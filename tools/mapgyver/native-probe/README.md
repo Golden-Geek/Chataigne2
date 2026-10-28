@@ -327,6 +327,24 @@ device and acquires key 1 with timeout zero, keeping its previous image if the n
 ready. Its retained frame releases key 0 after queued reads. Absent sources clear the publication;
 the worker continues looking up the same explicit sender name for recovery.
 
+`source_worker/imports` binds once to that renderer device and caches at most three imported
+texture/mutex aliases per source. Keys are weak `Surface` allocation identities, never raw
+handle values, dimensions or publication batches. Cached aliases own no reader reference or
+mutex key; only a successfully acquired `Frame` retains the strong identity and releases key 0.
+Expired identities are pruned before a new handoff, absence clears the cache, and shutdown
+releases the reader and cache before notifying the source worker. The existing producer
+strong-count guard remains unchanged. A miss can briefly retain four local aliases before
+eviction; this is separate from the three-entry cache and three producer slots.
+
+`generations[].renderer_source_imports` reports these renderer-owned aliases separately from
+`source_workers` and their allocation ledgers. It records all/sample counts and bounded wall-time
+distributions for device binding, metadata snapshot, pruning, lookup, resource opening, interface
+cast, insertion, key acquisition, reader release and cache clearing. Recording occurs after
+mailbox unlock. Startup/warmup/cleanup belong to `all`; `sampled` follows each renderer attempt.
+Unobserved stages have null distributions. Cleanup requires zero cached and live aliases.
+These COM counts do not measure physical GPU residency, and each wall interval can include
+preemption. Finite accuracy reports expose the same separate renderer-import field.
+
 Renderer metadata access uses `try_lock`; it never calls source SDK functions or waits for a
 source worker during frame submission. `source_poll_a/b` replace the older `receive_a/b`
 operation names. Native import/driver calls can still block internally; the architecture does
@@ -786,8 +804,10 @@ uses read-only `ControlTraceW(QUERY)` on that invocation's generated UUID name. 
 bounded QPC, the returned identity and separate `EventsLost`, `LogBuffersLost` and
 `RealTimeBuffersLost` counters. Failure or invalid identity keeps statistics unavailable.
 The helper requires a successful query after every recorded native Present interval and
-preserves raw collector output even if query startup fails. The two-second tail is an
-opportunity to query a live session; slow native teardown can leave the query unavailable.
+preserves raw collector output even if query startup fails. `--collector-tail-seconds` records
+an explicit tail, default ten seconds and bounded to 2–60. The earlier two-second tail was
+insufficient in one retained capture. A tail remains an opportunity to query a live session;
+slow startup/teardown can still leave the query unavailable.
 `live_etw_query_verified` and zero counters describe that one live snapshot. Final shutdown,
 later delivery and collector analysis loss remain unverified. See Microsoft's
 [query contract](https://learn.microsoft.com/en-us/windows/win32/api/evntrace/nf-evntrace-controltracew)

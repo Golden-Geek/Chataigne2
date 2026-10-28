@@ -4,14 +4,13 @@
 
 **Updated: 2026-10-28 · Overall: `██░░░░░░░░░░░░░░░░░░` 10% · 1/10 phases complete**
 
-**Current topic:** M01 native feasibility — output-only vblank control and source-poll stalls.
-Three 30+120-second Intel Q02 controls retain separate native submission/display outcomes.
-Vblank has zero CSV drops but 31 missing output submissions; the returning latest baseline
-drifts to 5,372 accepted output Presents and has an unavailable post-close loss query.
+**Current topic:** M01 native feasibility — bounded renderer imports and GPU/presenter stalls.
+Cached Intel Q02 handoffs perform zero sampled opens, stay within three aliases and drain cleanly.
+The two-minute run still accepts only 6,548/7,200 output attempts and has 44 CSV output drops.
 
-**Next:** isolate shared-texture handoff costs and bounded import ownership; budget collector
-startup/teardown/query time and continue the required sustained series and remaining gates.
-**Blocker:** cadence and source-poll stalls remain unresolved.
+**Next:** isolate GPU/admission/readiness stalls with controlled context correlation, then
+continue the required sustained series and remaining display/lifecycle gates.
+**Blocker:** cadence, GPU timing and consumer age remain unresolved.
 A2 loss observation, physical alignment/latency and full GPU critical path remain open. M02 waits for M01.
 
 | Phase | State | Progress | Done / total items |
@@ -79,6 +78,14 @@ independent remote query returned `b07c9753f923d8492945d9e8e7aa8a654f6426ea`, ma
 with zero ahead/behind commits and a clean checkout. This resolves the earlier automatic-review
 rejection and publication blocker; the M01 acceptance blockers above remain unchanged.
 
+The next coherent milestone bounds renderer imports by weak allocation identity and splits
+handoff timings. [Its native evidence](mapgyver-m01-native-feasibility.md#bounded-renderer-imports-and-split-handoff-timing--2026-10-28)
+and [strict analysis](evidence/mapgyver-m01-import-cache-analysis-2026-10-28.json) retain two new
+Intel captures and 4K cross-process accuracy. Sampling performs no resource opens; each cache
+peaks at three aliases and drains to zero. The sustained run still accepts 6,548/7,200 output
+attempts with 44 CSV drops, so it closes no additional gate. The longer explicit collector tail
+allows both live queries to succeed without changing the older unavailable observation.
+
 ### M01 acceptance items
 
 | Item | State | Accepted scope / remaining work |
@@ -88,7 +95,7 @@ rejection and publication blocker; the M01 acceptance blockers above remain unch
 | Native rectangle output and composited Spout send | Open | Intel/NVIDIA fixed procedural/Spout cards pass; native preview/output visual accuracy and 4K scanout remain. |
 | Mixed DPI, negative origins, drag/resize/docking/zoom | Open | 100%/125% observations recorded; 150%/200%, negative origins and measured alignment remain. |
 | Minimized/disconnected-editor independence | Open | Intel/NVIDIA busy/blank-document continuity and reconnect pass at recorded fingerprints; full displayed/minimized qualification remains. |
-| Color/alpha, copies, cadence/latency, queues and memory | Open | Fixed cards and exact native role correlation remain verified. Output-only vblank does not establish a cadence repair: 31/7,200 output submissions are missing, and returning latest drifts to 5,372 accepted Presents. A2 loss counters are unavailable. Cadence, final/analysis loss, other routes/lifecycle cards, GPU critical path, scanout and resources remain. |
+| Color/alpha, copies, cadence/latency, queues and memory | Open | Bounded cached imports pass 4K fixed-card accuracy and cleanup; sampled opens are zero. Cached sustained output still accepts 6,548/7,200 attempts with 44 CSV drops. Historical output-policy drift and unavailable A2 loss counters remain. Cadence, final/analysis loss, other routes/lifecycle cards, GPU critical path, scanout and resources remain. |
 | Device recreation, sustained retirement and shutdown | Open | Controlled rebuilds recorded; complete Q05, physical retirement, real removal/reset and full-process shutdown remain. |
 | Production host/backend/binding decision | Open | D3D11/sys binding and ordinary underlay remain provisional pending the full gate. |
 
@@ -196,12 +203,14 @@ M02 depends on this gate; do not build production editors/shell around an unqual
 - The predeclared output-only latest/vblank/latest control uses one new frozen release and
   matching window snapshots. B loses 31 native output submissions despite zero CSV drops;
   A2 latest drifts to 5,372/7,146 accepted attempts against 7,200 nominal slots. Do not adopt
-  vblank or treat this as a completed qualifying series. Split source-poll resource-open,
-  cast, keyed-mutex acquire and old-reader-release costs before assigning a cause; evaluate
-  bounded per-source/device imports without weakening surface reader ownership. The current
-  all/sampled admission schema makes GPU coalescing, readiness and Present failures explicit.
-  A2's query returns 4201 after session closure; budget startup/teardown/query overhead or
-  synchronize live capture explicitly instead of assuming two extra seconds always suffice.
+  vblank or treat this as a completed qualifying series. The subsequent weak-identity import
+  cache preserves reader ownership, passes full-image/native ownership checks and performs
+  zero sampled opens in 30+8/30+120-second Intel controls. Long sampled poll stalls do not recur,
+  but the sustained sample still loses 652 native output submissions (221 GPU coalesced plus
+  431 readiness gaps) and has 44 CSV output drops. Investigate GPU/context scheduling and
+  presenter readiness with a controlled experiment; do not assign historical stalls a cause
+  from this uncontrolled comparison. Explicit ten-second collector tails permit both live
+  queries to succeed; preserve A2's earlier status-4201 failure and unverified final loss.
 - Both adapters' JS-busy/blank-document continuity now has native evidence and fresh reconnect
   ownership. Intel finite authored-image accuracy now compares every pixel through independent
   processes and the real source-worker bridge at 1080p/4K. The fixed procedural-card shader also
@@ -258,6 +267,19 @@ P14/P15 time and asset contracts retain their shared Golden owners under M03. Ro
 behavior is unchanged. No production host/backend/binding decision is final yet.
 
 ## M01 verification — 2026-10-28
+
+- Bounded-import milestone: `cargo test --locked -p mapgyver_native_probe --features desktop`
+  passes 69 deterministic tests; seven hardware tests remain ignored by that command. The two
+  focused Intel bridge ownership/timeout/resize/pixel tests are explicitly run and pass.
+  Strict default and desktop/all-target Clippy, generated binding verification, release build
+  and required root/Core formatting pass. The Python suite passes 104 tests, including strict
+  import counter/stage validation and configurable collector-tail coverage. Release Q02
+  authored-card accuracy covers all 8,294,400 pixels; predeclared 30+8/30+120-second captures
+  preserve exact packets and all 20,508 raw CSV rows. Independent recomputation verifies native
+  streams, hashes, role/policy/loss observations, identical inputs/context, cache bounds and
+  zero logical/alias ownership after cleanup. Both owned trace sessions are absent and the
+  pre-existing service remains PID 5864. This verifies bounded import reuse, not a causal
+  performance repair or cadence qualification; M01 remains 1/8 and overall 1/10.
 
 - [Output-only policy analysis](evidence/mapgyver-m01-output-policy-analysis-2026-10-28.json)
   recomputes the [predeclared A/B/A](evidence/mapgyver-m01-output-policy-plan-2026-10-28.json)

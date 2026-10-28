@@ -274,6 +274,17 @@ class PresentMonCaptureTests(unittest.TestCase):
                 ])
                 self.assertEqual((args.sample_seconds, args.warmup_seconds), (sample, warmup))
 
+    def test_collector_tail_defaults_and_bounded_range_are_explicit(self):
+        self.assertEqual(CAPTURE["parse_args"](["0", "q02"]).collector_tail_seconds, 10)
+        for tail in (2, 10, 37, 60):
+            with self.subTest(tail=tail):
+                args = CAPTURE["parse_args"]([
+                    "0", "q01", "--sample-seconds", "3600", "--warmup-seconds", "0",
+                    "--collector-tail-seconds", str(tail),
+                ])
+                self.assertEqual(args.collector_tail_seconds, tail)
+                self.assertEqual((args.sample_seconds, args.warmup_seconds), (3600, 0))
+
     def test_invalid_duration_and_non_integer_arguments_are_rejected(self):
         for arguments in (
             ["--sample-seconds", "7"],
@@ -283,6 +294,13 @@ class PresentMonCaptureTests(unittest.TestCase):
             ["--sample-seconds", str(1 << 80)],
             ["--sample-seconds", "8.0"],
             ["--warmup-seconds", "1e2"],
+            ["--collector-tail-seconds", "-1"],
+            ["--collector-tail-seconds", "0"],
+            ["--collector-tail-seconds", "1"],
+            ["--collector-tail-seconds", "61"],
+            ["--collector-tail-seconds", str(1 << 80)],
+            ["--collector-tail-seconds", "10.0"],
+            ["--collector-tail-seconds", "1e1"],
         ):
             with self.subTest(arguments=arguments), contextlib.redirect_stderr(io.StringIO()):
                 with self.assertRaises(SystemExit) as stopped:
@@ -362,7 +380,9 @@ class PresentMonCaptureTests(unittest.TestCase):
 
     def test_query_launch_failure_still_retains_collector_csv_and_native_result(self):
         namespace = CAPTURE["collect"].__globals__
-        args = CAPTURE["parse_args"](["0", "q01", "--presentation-policy", "output-vblank"])
+        args = CAPTURE["parse_args"]([
+            "0", "q01", "--presentation-policy", "output-vblank", "--collector-tail-seconds", "37",
+        ])
         native = SimpleNamespace(pid=71)
         collector = SimpleNamespace(pid=72)
         raw_csv = "unchanged collector CSV,including dropped rows\r\n"
@@ -405,6 +425,10 @@ class PresentMonCaptureTests(unittest.TestCase):
         self.assertEqual(evidence["presentmon"]["stdout"], raw_csv)
         self.assertEqual(evidence["etw_query"], dict(failure="query unavailable"))
         self.assertEqual(evidence["native_command"][-1], "output-vblank")
+        self.assertEqual(evidence["collector_tail_seconds"], 37)
+        self.assertEqual(evidence["presentmon_timed_seconds"], 8 + 30 + 37)
+        timed_index = evidence["capture_command"].index("--timed")
+        self.assertEqual(evidence["capture_command"][timed_index + 1], str(8 + 30 + 37))
         validate_policy.assert_called_once_with(raw_csv, "output-vblank", native_fixture, dict(mapped=True))
         self.assertTrue(evidence["presentation_policy_verified"])
         self.assertFalse(evidence["route_verified"])

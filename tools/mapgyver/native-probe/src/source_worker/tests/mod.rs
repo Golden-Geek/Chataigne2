@@ -6,13 +6,18 @@ use std::time::{Duration, Instant};
 fn shutdown_notification_waits_for_publication_ownership_to_quiesce() {
     let shared = Arc::new(Shared::default());
     let publication = shared.latest.lock().unwrap();
-    let mut source = Source {
-        shared: shared.clone(),
-        join: None,
-        current: None,
-    };
+    let stopped_shared = shared.clone();
     let (started_tx, started_rx) = mpsc::channel();
     let stopper = std::thread::spawn(move || {
+        // The renderer cache is thread-local; move only the shared mailbox into this
+        // test thread and construct a source without renderer imports here.
+        let mut source = Source {
+            shared: stopped_shared,
+            join: None,
+            current: None,
+            imports: None,
+            import_report: None,
+        };
         started_tx.send(()).unwrap();
         source.stop();
     });

@@ -42,6 +42,7 @@ pub struct Report {
     senders_unregistered: bool,
     devices: Vec<DeviceReport>,
     source_workers: Vec<source_worker::Report>,
+    renderer_source_imports: Vec<source_worker::ImportReport>,
     elapsed_seconds: f64,
     unqualified: [&'static str; 4],
 }
@@ -56,7 +57,9 @@ pub fn run(adapter: u32, scenario: Scenario, fixture: Fixture) -> ProbeResult<Re
     let names = ["a", "b", "output"].map(|r| format!("MapGyver-color-processes-{}-{nonce}-{r}", std::process::id()));
     let scene = scene(adapter, scenario, fixture, &gpu, &names);
     let retirement = gpu.retire();
-    let (mut children, source_workers, senders_unregistered) = scene?;
+    let (mut children, finished, senders_unregistered) = scene?;
+    let (source_workers, renderer_source_imports): (Vec<_>, Vec<_>) =
+        finished.into_iter().map(|f| (f.worker, f.renderer_imports)).unzip();
     let consumer = children.pop().ok_or("consumer report absent")?;
     let comparison = consumer.comparison.ok_or("full-image comparison absent")?;
     let process_ids = [
@@ -116,6 +119,7 @@ pub fn run(adapter: u32, scenario: Scenario, fixture: Fixture) -> ProbeResult<Re
         senders_unregistered,
         devices,
         source_workers,
+        renderer_source_imports,
         elapsed_seconds: start.elapsed().as_secs_f64(),
         unqualified: [
             if fixture == Fixture::Authored {
@@ -136,19 +140,19 @@ fn scene(
     fixture: Fixture,
     gpu: &Gpu,
     names: &[String; 3],
-) -> ProbeResult<(Vec<ChildReport>, Vec<source_worker::Report>, bool)> {
+) -> ProbeResult<(Vec<ChildReport>, Vec<source_worker::Finished>, bool)> {
     let a = client::Child::spawn(adapter, scenario, fixture, Role::SourceA, &names[0], &gpu.adapter.luid)?;
     let b = client::Child::spawn(adapter, scenario, fixture, Role::SourceB, &names[1], &gpu.adapter.luid)?;
     let mut consumer = client::Child::spawn(adapter, scenario, fixture, Role::Consumer, &names[2], &gpu.adapter.luid)?;
     let until = Instant::now() + Duration::from_secs(20);
     let mut sources = [
-        Source::spawn(adapter, &gpu.adapter.luid, &names[0], Instant::now()..until)?,
-        Source::spawn(adapter, &gpu.adapter.luid, &names[1], Instant::now()..until)?,
+        Source::spawn(gpu, &names[0], Instant::now()..until)?,
+        Source::spawn(gpu, &names[1], Instant::now()..until)?,
     ];
     let deadline = Instant::now() + Duration::from_secs(5);
     while sources.iter().any(|s| s.frame().is_none()) {
         for source in &mut sources {
-            source.poll(gpu)?;
+            source.poll(true)?;
         }
         if Instant::now() >= deadline {
             return Err("accuracy bridge startup timed out".into());
@@ -168,7 +172,7 @@ fn scene(
         quad.draw(
             gpu,
             &target,
-            &frame.texture,
+            frame.texture(),
             PhysicalRect {
                 left: (channel as u32 * width / 2) as i32,
                 top: 0,
