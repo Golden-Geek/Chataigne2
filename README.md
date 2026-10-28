@@ -27,6 +27,9 @@ The repository is one self-contained Cargo/npm monorepo with these ownership bou
   than redeclaring them.
 - `golden_graph` and `golden_graph_ui` are the reusable graph document and canvas boundaries.
 - `golden_ui` is the reusable workbench boundary.
+- `golden_codegen_support::ui_bundle` owns frontend dependency preparation, input tracking,
+  cached npm-workspace builds and embedded assets. Apps select their workspace and source roots;
+  native SDK preparation, formula generation and Tauri configuration stay in the app build script.
 - Chataigne-owned Alchemist lives under `apps/chataigne/systems/alchemist` and includes formulas,
   conditions, processors, Inputs, Filters, and Outputs. Chataigne's state-machine model and runtime
   live beside it under `apps/chataigne/systems/state_machine`.

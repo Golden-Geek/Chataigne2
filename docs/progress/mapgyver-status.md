@@ -4,13 +4,13 @@
 
 **Updated: 2026-10-28 · Overall: `████░░░░░░░░░░░░░░░░` 20% · 2/10 phases complete**
 
-**Current topic:** M02 public build boundary and thin app shell. The user approved the
+**Current topic:** M02 public UI-bundling boundary verified; thin app shell next. The user approved the
 functional M01 gate and the reassignment of renderer, physical-output and complete-app
 qualification to their owning milestones. The [route decision](mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28)
 closes that revised gate; it does not pass the original full qualification matrix.
 
-**Next:** extract reusable UI bundling into Golden's public build-support API, then create
-the MapGyver shell using the existing runtime and workbench.
+**Next:** create the MapGyver shell using the existing runtime/workbench and the new public
+UI-bundling API, then complete branding, state isolation and the remaining multi-app seams.
 **Blocker:** none for M02. Known cadence, memory-growth, geometry and display/input failures
 remain open under M03/M05/M09; their budgets and evidence are unchanged.
 
@@ -18,7 +18,7 @@ remain open under M03/M05/M09; their budgets and evidence are unchanged.
 | --- | --- | --- | --- |
 | [M00 Baseline/workloads](mapgyver-m00-baseline.md) | Complete locally | `████████████████████` 100% | 1/1 |
 | [M01 Functional route decision](#m01-acceptance-items) | Complete locally | `████████████████████` 100% | 4/4 |
-| [M02 Multi-app seams/shell](#m02-acceptance-items) | In progress | `░░░░░░░░░░░░░░░░░░░` 0% | 0/7 |
+| [M02 Multi-app seams/shell](#m02-acceptance-items) | In progress | `███░░░░░░░░░░░░░░░░░` 14% | 1/7 |
 | [M03 Rendering/channels](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M04 Source media](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M05 Screens/Surfaces/editors](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
@@ -29,7 +29,7 @@ remain open under M03/M05/M09; their budgets and evidence are unchanged.
 
 Overall counts fully accepted milestones: `2 / 10 = 20%`; partial phases do not advance it.
 Phase percentages count closed acceptance items, rounded to the nearest whole percent
-(`M01: 4 / 4 = 100%`, `M02: 0 / 7 = 0%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
+(`M01: 4 / 4 = 100%`, `M02: 1 / 7 = 14%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
 its whole plan acceptance as one item unless a fixed breakdown is recorded here before
 implementation continues. On 2026-10-28 the user explicitly approved changing M01 from eight
 full-qualification items to four functional-route items, allowing M02 to start. The original
@@ -110,7 +110,7 @@ functional gate, not a retrospective pass of the original eight-item matrix.
 
 | Item | State | Accepted scope / remaining work |
 | --- | --- | --- |
-| Public UI-bundling boundary | Open | Extract reusable bundling into Golden build support, adopt it from Chataigne and validate the existing consumer; leave app-native SDK/formula steps app-owned. |
+| Public UI-bundling boundary | Done | [Public helper](../../crates/golden_core/support/codegen/src/ui_bundle/mod.rs) adopted by Chataigne; 19 support tests, strict Clippy and a real app build check with UI bundling enabled pass. SDK/formula/node/Tauri steps remain app-owned. |
 | MapGyver host/UI scaffold | Open | App manifests, identity, project format/data directory, resources/capabilities and empty project through the existing Golden host/workbench. No placeholder Media/Screen managers. |
 | App branding and browser-state isolation | Open | App-published metadata and separate layout, selection, project path and session persistence; remove exercised product policy from Golden. |
 | Generic discovery and endpoint isolation | Open | Domain-neutral service discovery, one-source protocol generation and distinct configured app ports. |
@@ -196,7 +196,7 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | --- | --- | --- |
 | M00 Reconciliation/workloads | VERIFIED_LOCAL | [Checkout/public-boundary/hardware handoff](mapgyver-m00-baseline.md), [captured inventory](evidence/mapgyver-baseline-2026-10-27.json), and fixed [qualification workloads/budgets](mapgyver-qualification-contract.md) |
 | M01 Functional route decision | COMPLETE_LOCAL | [Approved decision](mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28): ordinary Tauri/Wry + D3D11 + pinned Spout sys binding permit the thin shell. Full qualification remains with M03/M05/M09. |
-| M02 Multi-app seams/shell | IN_PROGRESS | Seven fixed acceptance items defined; begin with public UI bundling, then the sibling app scaffold. Existing lifecycle/workbench APIs are the owners. |
+| M02 Multi-app seams/shell | IN_PROGRESS | Public UI bundling is complete (1/7). Next is the sibling app scaffold using the existing lifecycle/workbench APIs, then remaining multi-app seams and combined verification. |
 | M03 Rendering/channels | NOT_STARTED | D3D11 recommended; SDK binding, host presentation and runtime contracts require implementation |
 | M04 Source media | NOT_STARTED | Solid Color, Picture, concurrent Spout scope defined |
 | M05 Screens/Surfaces/editors | NOT_STARTED | Output/crop/pin/calibration contracts defined |
@@ -208,8 +208,8 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 ## Next action
 
 The user approved the scope correction on 2026-10-28 and explicitly instructed continuation
-to M02. Implement its seven fixed acceptance items above, beginning with the public UI-bundling
-boundary, then the thin MapGyver app using Golden's existing host and workbench. Deliver each
+to M02. Continue its seven fixed acceptance items above: the public UI-bundling boundary is
+verified; next create the thin MapGyver app using Golden's existing host and workbench. Deliver each
 coherent batch on `mapgyver` before starting the next. Preserve Chataigne's root default and
 unfinished P11 work. No new M01 captures, consumer-control cohorts, overlay investigation or
 profiling are needed to start M02. The 4K display is connected and the user confirms overlay Off.
@@ -357,13 +357,29 @@ behavior is unchanged. No production host/backend/binding decision is final yet.
 
 ## M02 verification — 2026-10-28
 
+- Extracted `golden_codegen_support::ui_bundle` and converted Chataigne's build script to
+  configure it. The public config identifies workspace/UI/source roots, npm workspace and
+  dependency-cache namespace. Bundle identity includes caller directory, config, toolchain
+  and frontend environment; app-specific native SDKs, formulas, node generation and Tauri
+  preparation remain in the app. No production host, protocol or UI behavior changed.
+- `cargo test --locked -p golden_codegen_support --lib`: **19 passed**. Cases include
+  workspace/caller cache isolation, input additions/removals, output damage, skip/prebuilt
+  behavior and stable escaped asset paths. Strict all-target Clippy passes.
+- `cargo check --locked -p Chataigne2 --no-default-features` passes with `GC_SKIP_UI_BUILD`,
+  `GC_UI_ASSUME_BUILT` and `GC_FORCE_NPM_CI` unset for that process. Its build script reports
+  a real frontend rebuild; the generated Rust embeds **35 assets**, including root `index.html`,
+  with a valid content-cache stamp. This checks the existing desktop-host consumer's build,
+  not native launch, default audio-feature coverage or the future MapGyver app.
+- First M02 item closes: **1/7 = 14%**, with six items still open. Overall remains **2/10**.
+  Required root/Core formatting and diff checks pass; no native/GPU capture or display/overlay
+  action was performed. The next source batch is the MapGyver scaffold and app identity seams.
 - The user approved proceeding from functional feasibility to the thin shell. The plan,
   native architecture, qualification contract and route decision now assign renderer budgets
   to M03, full output/DPI/input acceptance to M05, and complete-app qualification to M09 and
   owning features. The original failures, budgets and evidence artifacts are preserved.
 - The four revised M01 items are supported by their scoped native evidence and recorded
   technology choice. M01 is 4/4; seven complete-scope M02 items are fixed before implementation
-  and start at 0/7. Overall accepted milestones are 2/10. This is an approved denominator
+  and started at 0/7 before the source work above. Overall accepted milestones are 2/10. This is an approved denominator
   change, not a claim that the original full gate passed or that the shell already exists.
 
 ## M01 verification — 2026-10-28
