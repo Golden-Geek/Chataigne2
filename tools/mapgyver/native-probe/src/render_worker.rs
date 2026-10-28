@@ -6,7 +6,10 @@ use crate::{
     resources::{ProcessSnapshot, ResourceReport},
 };
 use generation::GenerationReport;
-use mapgyver_native_probe::workload::{GenerationEnd, RunSpec};
+use mapgyver_native_probe::{
+    sample_window::Window,
+    workload::{ConsumerMode, GenerationEnd, RunSpec},
+};
 use serde::Serialize;
 use std::sync::{
     Arc, Mutex,
@@ -29,6 +32,7 @@ pub struct Shared {
 pub struct RenderReport {
     pub editor_isolation: Option<crate::editor_isolation::Report>,
     pub workload: RunSpec,
+    pub sample_window: Option<Window>,
     pub evidence_kind: &'static str,
     pub render_process_id: u32,
     pub adapter_luid: String,
@@ -94,7 +98,13 @@ pub fn run(
         output_name: format!("MapGyver-underlay-out-{suffix}"),
     };
     let resources = ResourceReport::new()?;
-    let observer = ObserverProcess::spawn(adapter, &session.output_name, &session.adapter_luid, spec.scenario)?;
+    let observer = ObserverProcess::spawn(
+        adapter,
+        &session.output_name,
+        &session.adapter_luid,
+        spec.scenario,
+        spec.consumer_mode(),
+    )?;
     let fixtures = [
         fixture::spawn_ready(
             adapter,
@@ -123,16 +133,18 @@ pub fn run(
         sources: Vec::with_capacity(2),
         resources,
     };
-    if spec.scenario.cards() {
-        state
-            .observer
-            .begin_frame_age(mapgyver_native_probe::frame_age::Config {
-                start_qpc: crate::clock::now()?,
-                frequency: crate::clock::frequency()?,
-                warmup_seconds: spec.warmup_seconds(),
-                maximum_seconds: spec.total_seconds(),
-            })?;
-    }
+    let sample_window = if spec.scenario.cards() {
+        let window = Window {
+            start_qpc: crate::clock::now()?,
+            frequency: crate::clock::frequency()?,
+            warmup_seconds: spec.warmup_seconds(),
+            maximum_seconds: spec.total_seconds(),
+        };
+        state.observer.begin_observation(window)?;
+        Some(window)
+    } else {
+        None
+    };
     let mut generations = Vec::new();
     for generation in 0..=spec.device_recreations() {
         let generation_start = Instant::now();
@@ -178,7 +190,12 @@ pub fn run(
     Ok(RenderReport {
         editor_isolation: None,
         workload: spec,
-        evidence_kind: "ordinary_tauri_d3d11_probe_not_visual_or_hardware_reset_qualification",
+        sample_window,
+        evidence_kind: if spec.consumer_mode() == ConsumerMode::Paused {
+            "consumer_paused_gpu_sharing_diagnostic_not_qualification"
+        } else {
+            "ordinary_tauri_d3d11_probe_not_visual_or_hardware_reset_qualification"
+        },
         render_process_id: std::process::id(),
         adapter_luid: session.adapter_luid,
         compiler: env!("PROBE_CXX"),

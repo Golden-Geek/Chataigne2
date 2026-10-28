@@ -159,6 +159,60 @@ class PresentMonPolicyTests(unittest.TestCase):
 
 
 class PresentMonCaptureTests(unittest.TestCase):
+    def test_consumer_controls_default_to_unspecified_and_accept_explicit_modes(self):
+        self.assertIsNone(CAPTURE["parse_args"](["0", "q02"]).consumer_mode)
+        for mode in ("active", "paused"):
+            args = CAPTURE["parse_args"](["0", "q02", "--gpu-stages", "--consumer-mode", mode])
+            self.assertEqual(args.consumer_mode, mode)
+        for mode in ("", "pause", "Active", "paused ", "1"):
+            with self.subTest(mode=mode), contextlib.redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit):
+                    CAPTURE["parse_args"](["0", "q02", "--gpu-stages", "--consumer-mode", mode])
+
+    def test_explicit_consumer_admission_fails_before_any_process_starts(self):
+        namespace = CAPTURE["main"].__globals__
+        for mode in ("active", "paused"):
+            for options in ([], ["--gpu-stages", "--warmup-seconds", "29"],
+                            ["--gpu-stages", "--warmup-seconds", "31"],
+                            ["--gpu-stages", "--presentation-policy", "output-vblank"]):
+                arguments = ["capture-presentmon.py", "0", "q02", "--consumer-mode", mode, *options]
+                with self.subTest(mode=mode, options=options), \
+                        mock.patch.object(namespace["sys"], "argv", arguments), \
+                        mock.patch.object(subprocess, "run") as run, \
+                        mock.patch.object(subprocess, "Popen") as launch, \
+                        contextlib.redirect_stderr(io.StringIO()):
+                    with self.assertRaises(SystemExit) as stopped:
+                        CAPTURE["main"]()
+                self.assertEqual(stopped.exception.code, 2)
+                run.assert_not_called()
+                launch.assert_not_called()
+
+    def test_standard_capture_requires_active_modes_and_the_run_owned_age_clock(self):
+        CAPTURE["validate_standard_consumer"](self._native_capture_report())
+        for owner in ("workload", "observer"):
+            for mode in ("paused", None, True):
+                broken = self._native_capture_report()
+                broken[owner]["consumer_mode"] = mode
+                with self.subTest(owner=owner, mode=mode), self.assertRaises(ValueError):
+                    CAPTURE["validate_standard_consumer"](broken)
+        for age in (None, {}, dict(config={"different": "clock"})):
+            broken = self._native_capture_report()
+            broken["observer"]["frame_age"] = age
+            with self.subTest(age=age), self.assertRaises(ValueError):
+                CAPTURE["validate_standard_consumer"](broken)
+        missing_window = self._native_capture_report()
+        del missing_window["sample_window"]
+        with self.assertRaises(KeyError):
+            CAPTURE["validate_standard_consumer"](missing_window)
+
+    def test_fingerprints_include_the_consumer_observation_validator(self):
+        namespace = CAPTURE["fingerprints"].__globals__
+        with mock.patch.dict(namespace, BASE=dict(fingerprints=lambda _exe: dict(files={})),
+                             digest=lambda path: "digest:" + path.name):
+            result = CAPTURE["fingerprints"](Path("native.exe"), Path("presentmon.exe"))
+        self.assertEqual(result["files"]["tools/mapgyver/consumer_observation.py"],
+                         "digest:consumer_observation.py")
+
     def test_gpu_stages_default_to_disabled_and_require_explicit_selection(self):
         self.assertIs(CAPTURE["parse_args"](["0", "q02"]).gpu_stages, False)
         self.assertIs(CAPTURE["parse_args"](["0", "q02", "--gpu-stages"]).gpu_stages, True)
@@ -415,12 +469,15 @@ class PresentMonCaptureTests(unittest.TestCase):
                 CAPTURE["validate_etw_query"](query_report(), SESSION, native)
 
     @staticmethod
-    def _native_capture_report(gpu_stages=False, policy="latest"):
-        return dict(render_process_id=71, workload=dict(presentation_policy=policy, gpu_stages=gpu_stages),
+    def _native_capture_report(gpu_stages=False, policy="latest", consumer_mode="active"):
+        return dict(render_process_id=71, sample_window={},
+                    workload=dict(presentation_policy=policy, gpu_stages=gpu_stages, consumer_mode=consumer_mode),
                     generations=[dict(timing=dict(gpu_stages={} if gpu_stages else None))],
-                    observer=dict(frame_age=dict(config={})))
+                    observer=dict(consumer_mode=consumer_mode,
+                                  frame_age=None if consumer_mode == "paused" else dict(config={})))
 
-    def _collect_query_launch_failure(self, arguments, native_fixture):
+    def _collect_query_launch_failure(self, arguments, native_fixture, *,
+                                     consumer_validator=None, analyze=None, correlate=None):
         namespace = CAPTURE["collect"].__globals__
         args = CAPTURE["parse_args"](arguments)
         native = SimpleNamespace(pid=71)
@@ -432,12 +489,20 @@ class PresentMonCaptureTests(unittest.TestCase):
             return dict(exit_code=0, stdout=native_stdout if process is native else raw_csv,
                         stderr="", timed_out=False, valid_utf8=True)
 
+        analyze = analyze if analyze is not None else mock.Mock(return_value=dict(parsed=True))
+        correlate = correlate if correlate is not None else mock.Mock(return_value=dict(mapped=True))
+        consumer_validator = consumer_validator if consumer_validator is not None else mock.Mock(
+            return_value=dict(clock=native_fixture.get("sample_window"), consumer_mode=args.consumer_mode,
+                              quiescence_verified=True, frame_age_available=args.consumer_mode != "paused"))
         # Isolate orchestration: CSV/native semantics have separate parser tests. This test
         # makes query startup fail after both pipe-draining futures have been submitted.
+        # The consumer helper is independently strict-tested against complete native reports.
         def parser(path):
             if Path(path).name == "presentmon_roles.py":
-                return dict(correlate=lambda *_args: dict(mapped=True))
-            return dict(analyze=lambda *_args: dict(parsed=True))
+                return dict(correlate=correlate)
+            if Path(path).name == "consumer_observation.py":
+                return dict(validate=consumer_validator)
+            return dict(analyze=analyze)
 
         help_text = " ".join((
             "--process_id", "--session_name", "--output_stdout", "--v1_metrics", "--qpc_time",
@@ -473,6 +538,9 @@ class PresentMonCaptureTests(unittest.TestCase):
         self.assertEqual(evidence["native_command"][1:], ["qualify", "0", "q01", "8", "30", "output-vblank"])
         self.assertEqual(launch.call_args_list[0].args[0], evidence["native_command"])
         self.assertIs(evidence["requested_gpu_stages"], False)
+        self.assertIs(evidence["consumer_control"], False)
+        self.assertEqual(evidence["requested_consumer_mode"], "active")
+        self.assertTrue(evidence["consumer_observation_verified"])
         self.assertEqual(evidence["collector_tail_seconds"], 37)
         self.assertEqual(evidence["presentmon_timed_seconds"], 8 + 30 + 37)
         timed_index = evidence["capture_command"].index("--timed")
@@ -497,6 +565,80 @@ class PresentMonCaptureTests(unittest.TestCase):
         self.assertEqual(evidence["etw_query"], dict(failure="query unavailable"))
         validate_policy.assert_called_once_with(
             evidence["presentmon"]["stdout"], "latest", native_fixture, dict(mapped=True))
+
+    def test_explicit_consumer_modes_select_commands_and_retain_observation_proof(self):
+        for mode, command in (("active", "qualify-staged"), ("paused", "qualify-consumer-paused")):
+            fixture = self._native_capture_report(True, consumer_mode=mode)
+            fixture["sample_window"] = dict(run_owned_clock=(1 << 63) + 1)
+            if mode == "active":
+                fixture["observer"]["frame_age"]["config"] = copy.deepcopy(fixture["sample_window"])
+            observation = dict(validated_mode=mode)
+            validate_consumer = mock.Mock(return_value=observation)
+            analyze = mock.Mock(return_value=dict(parsed=True))
+            correlate = mock.Mock(return_value=dict(mapped=True))
+            evidence, validate_policy, launch = self._collect_query_launch_failure([
+                "0", "q02", "--gpu-stages", "--consumer-mode", mode, "--sample-seconds", "120",
+            ], fixture, consumer_validator=validate_consumer, analyze=analyze, correlate=correlate)
+            with self.subTest(mode=mode):
+                self.assertEqual(evidence["native_command"][1:], [command, "0", "q02", "120", "30"])
+                self.assertEqual(launch.call_args_list[0].args[0], evidence["native_command"])
+                self.assertEqual(evidence["evidence_kind"], "consumer_activity_control_not_qualification")
+                self.assertIs(evidence["consumer_control"], True)
+                self.assertEqual(evidence["requested_consumer_mode"], mode)
+                self.assertTrue(evidence["consumer_observation_verified"])
+                self.assertEqual(evidence["consumer_observation"], observation)
+                validate_consumer.assert_called_once_with(fixture, mode)
+                raw_csv = evidence["presentmon"]["stdout"]
+                analyze.assert_called_once_with(raw_csv, 71, fixture["sample_window"])
+                correlate.assert_called_once_with(raw_csv, 71, fixture, fixture["sample_window"])
+                self.assertTrue(evidence["presentation_policy_verified"])
+                self.assertFalse(evidence["route_verified"])
+                self.assertFalse(evidence["live_etw_query_verified"])
+                self.assertEqual(evidence["etw_query"], dict(failure="query unavailable"))
+                self.assertEqual(evidence["native"]["stdout"], json.dumps(fixture))
+                validate_policy.assert_called_once()
+
+    def test_missing_run_clock_has_no_frame_age_fallback_and_preserves_all_streams(self):
+        fixture = self._native_capture_report()
+        del fixture["sample_window"]
+        analyze = mock.Mock()
+        correlate = mock.Mock()
+        evidence, validate_policy, _launch = self._collect_query_launch_failure(
+            ["0", "q01"], fixture, analyze=analyze, correlate=correlate)
+        self.assertEqual(evidence["validation_failure"], "'sample_window'")
+        self.assertFalse(evidence["consumer_observation_verified"])
+        self.assertFalse(evidence["role_correlation_verified"])
+        self.assertEqual(evidence["native"]["stdout"], json.dumps(fixture))
+        self.assertEqual(evidence["presentmon"]["stdout"], "unchanged collector CSV,including dropped rows\r\n")
+        analyze.assert_not_called()
+        correlate.assert_not_called()
+        validate_policy.assert_not_called()
+
+    def test_explicit_consumer_validation_failure_cannot_set_the_verified_flag(self):
+        fixture = self._native_capture_report(True, consumer_mode="paused")
+        failure = "observer consumer mode differs from the request"
+        validate_consumer = mock.Mock(side_effect=ValueError(failure))
+        analyze = mock.Mock()
+        evidence, validate_policy, _launch = self._collect_query_launch_failure([
+            "0", "q02", "--gpu-stages", "--consumer-mode", "paused",
+        ], fixture, consumer_validator=validate_consumer, analyze=analyze)
+        self.assertEqual(evidence["validation_failure"], failure)
+        self.assertFalse(evidence["consumer_observation_verified"])
+        self.assertNotIn("consumer_observation", evidence)
+        self.assertFalse(evidence["route_verified"])
+        validate_consumer.assert_called_once_with(fixture, "paused")
+        analyze.assert_not_called()
+        validate_policy.assert_not_called()
+
+    def test_standard_capture_does_not_require_the_controlled_thirty_second_warmup(self):
+        fixture = self._native_capture_report()
+        evidence, _validate_policy, _launch = self._collect_query_launch_failure([
+            "0", "q01", "--warmup-seconds", "0",
+        ], fixture)
+        self.assertEqual(evidence["native_command"][1:], ["qualify", "0", "q01", "8", "0", "latest"])
+        self.assertTrue(evidence["consumer_observation_verified"])
+        self.assertIs(evidence["consumer_control"], False)
+        self.assertNotIn("consumer_observation", evidence)
 
     def test_collection_rejects_mismatched_native_stage_selection_before_role_validation(self):
         for arguments, fixture in (

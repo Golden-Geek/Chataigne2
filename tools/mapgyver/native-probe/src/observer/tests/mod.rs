@@ -2,6 +2,8 @@ use super::protocol::{CompositePhase, Request, request_line};
 use crate::wire::{MAX_LINE_BYTES, read_message};
 use std::io::{BufReader, Cursor};
 
+mod observation;
+
 #[test]
 fn fragmented_control_lines_preserve_the_following_message() {
     let mut bytes = request_line(&Request::Sample {

@@ -72,6 +72,7 @@ fn main() {
 
 #[cfg(windows)]
 fn run() -> ProbeResult<()> {
+    use mapgyver_native_probe::workload::ConsumerMode;
     #[cfg(feature = "desktop")]
     use mapgyver_native_probe::workload::{RunSpec, Scenario};
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -147,7 +148,7 @@ fn run() -> ProbeResult<()> {
             RunSpec::recreation(args[2].parse()?, args[3].parse()?)?,
         )?),
         #[cfg(feature = "desktop")]
-        Some(command @ ("qualify" | "qualify-staged"))
+        Some(command @ ("qualify" | "qualify-staged" | "qualify-consumer-paused"))
             if args.len() == 5 || (command == "qualify" && args.len() == 6) =>
         {
             let scenario = args[2].parse()?;
@@ -155,7 +156,9 @@ fn run() -> ProbeResult<()> {
                 return Err(format!("{command} requires q01 or q02").into());
             }
             let spec = RunSpec::new(scenario, args[3].parse()?, args[4].parse()?)?;
-            let spec = if command == "qualify-staged" {
+            let spec = if command == "qualify-consumer-paused" {
+                spec.with_gpu_stages()?.with_paused_consumer()?
+            } else if command == "qualify-staged" {
                 spec.with_gpu_stages()?
             } else if let Some(policy) = args.get(5) {
                 spec.with_presentation_policy(policy.parse()?)?
@@ -166,7 +169,14 @@ fn run() -> ProbeResult<()> {
         }
         Some("inventory") if args.len() == 1 => print_json(&d3d::inventory()?),
         Some("smoke") if args.len() == 2 => print_json(&smoke::run(args[1].parse()?)?),
-        Some("observe") if args.len() == 4 => observer::run(args[1].parse()?, &args[2], args[3].parse()?),
+        Some("observe") if matches!(args.len(), 4 | 5) => {
+            let mode = args
+                .get(4)
+                .map(|mode| mode.parse())
+                .transpose()?
+                .unwrap_or(ConsumerMode::Active);
+            observer::run(args[1].parse()?, &args[2], args[3].parse()?, mode)
+        }
         Some("fixture") if args.len() == 6 => {
             fixture::run_for(args[1].parse()?, &args[2], &args[3], args[4].parse()?, args[5].parse()?)
         }
@@ -177,7 +187,7 @@ fn run() -> ProbeResult<()> {
             "  trace-status OWNED_PRESENTMON_SESSION (read-only live counters)\n",
             "  smoke ADAPTER\n",
             "  fixture ADAPTER NAME a|b FRAMES diagnostic|q01|q02\n",
-            "  observe ADAPTER SENDER diagnostic|q01|q02\n",
+            "  observe ADAPTER SENDER diagnostic|q01|q02 [active|paused]\n",
             "desktop feature:\n",
             "  color-accuracy ADAPTER q01|q02 (finite authored cards; diagnostic readback, no timing claim)\n",
             "  color-accuracy-processes ADAPTER q01|q02 (producer/consumer children and source-worker bridge)\n",
@@ -185,6 +195,7 @@ fn run() -> ProbeResult<()> {
             "  underlay ADAPTER SECONDS\n",
             "  qualify ADAPTER q01|q02 SAMPLE_SECONDS WARMUP_SECONDS [latest|output-vblank]\n",
             "  qualify-staged ADAPTER q01|q02 SAMPLE_SECONDS WARMUP_SECONDS\n",
+            "  qualify-consumer-paused ADAPTER q01|q02 SAMPLE_SECONDS WARMUP_SECONDS\n",
             "  recreate ADAPTER q01|q02 CYCLES\n",
             "  editor-isolation ADAPTER q01|q02 (busy, blank document, reconnect; 185s watchdog)\n",
             "  gpu-progress ADAPTER MODE (see native-probe README)\n",

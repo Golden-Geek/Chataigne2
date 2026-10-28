@@ -17,10 +17,13 @@ use crate::{
     child_resources::Recorder,
     wire::{read_message, respond},
 };
-use mapgyver_native_probe::workload::Scenario;
-use protocol::{Checkpoint, CompositePhase, ObserverReport, Request, Response};
+use mapgyver_native_probe::{
+    sample_window::Window,
+    workload::{ConsumerMode, Scenario},
+};
+use protocol::{Checkpoint, CompositePhase, ObservationReady, ObserverReport, Request, Response};
 
-pub fn run(adapter: u32, sender: &str, scenario: Scenario) -> ProbeResult<()> {
+pub fn run(adapter: u32, sender: &str, scenario: Scenario, consumer_mode: ConsumerMode) -> ProbeResult<()> {
     let gpu = Gpu::new(adapter)?;
     let mut receiver = Endpoint::receiver(&gpu, sender)?;
     let mut resources = Recorder::new(&gpu)?;
@@ -29,10 +32,15 @@ pub fn run(adapter: u32, sender: &str, scenario: Scenario) -> ProbeResult<()> {
     respond(&Response::Ready {
         process_id,
         adapter_luid: gpu.adapter.luid.clone(),
+        consumer_mode,
     })?;
     let mut report = ObserverReport {
         process_id,
         adapter_luid: gpu.adapter.luid.clone(),
+        consumer_mode,
+        observation_ready: None,
+        observation_ready_received_qpc: None,
+        observation_finish_qpc: None,
         checkpoints: Vec::with_capacity(4),
         received_observations: 0,
         diagnostic_readbacks: 0,
@@ -54,6 +62,7 @@ pub fn run(adapter: u32, sender: &str, scenario: Scenario) -> ProbeResult<()> {
             }
         })?;
     let mut age = None;
+    let mut window = None;
     loop {
         let request = match input.recv_timeout(Duration::from_millis(1)) {
             Ok(Ok(Some(request))) => Some(request),
@@ -64,22 +73,50 @@ pub fn run(adapter: u32, sender: &str, scenario: Scenario) -> ProbeResult<()> {
             Err(std::sync::mpsc::RecvTimeoutError::Timeout) => None,
         };
         match request {
-            Some(Request::BeginFrameAge { config }) => {
-                if age.is_some() || !report.checkpoints.is_empty() || !scenario.cards() {
-                    return Err("invalid frame-age start sequence".into());
+            Some(Request::BeginObservation { window: requested }) => {
+                protocol::validate_observation_window(requested, consumer_mode)?;
+                if window.is_some() || !report.checkpoints.is_empty() || !scenario.cards() {
+                    return Err("invalid observation start sequence".into());
                 }
-                age = Some(frame_age::Collector::new(&gpu, config)?);
+                age = Some(frame_age::Collector::new(&gpu, requested)?);
+                window = Some(requested);
             }
             Some(Request::Sample { phase }) => {
                 if CompositePhase::ALL.get(report.checkpoints.len()) != Some(&phase) {
                     return Err("out-of-order or duplicate observer checkpoint".into());
                 }
-                let result = sample(&gpu, &mut receiver, phase, &mut report, scenario, None)?;
+                if consumer_mode == ConsumerMode::Paused && report.observation_ready.is_some() {
+                    return Err("paused observer cannot read after its warmup fence".into());
+                }
+                let result = sample(&gpu, &mut receiver, phase, &mut report, scenario, None, window)?;
                 respond(&Response::Checkpoint { result: result.clone() })?;
                 report.checkpoints.push(result);
+                if report.checkpoints.len() == 4
+                    && let Some(window) = window.filter(|window| window.warmup_seconds == 30)
+                {
+                    gpu.wait_submitted()?;
+                    resources.tick_passive(&gpu)?;
+                    let completed_qpc = crate::clock::now()?;
+                    let (completion_markers, skipped_completion_markers) = resources.completion_counts();
+                    let ready = ObservationReady {
+                        window,
+                        consumer_mode,
+                        completed_qpc,
+                        operations_at_fence: gpu.allocations.operations(),
+                        completion_markers,
+                        skipped_completion_markers,
+                    };
+                    ready.validate(window, consumer_mode, completed_qpc)?;
+                    respond(&Response::ObservationReady { ready: ready.clone() })?;
+                    report.observation_ready = Some(ready);
+                }
             }
             Some(Request::VerifyGeneration { generation }) => {
-                if report.checkpoints.len() != 4 || generation != report.verified_generations + 1 || generation > 100 {
+                if consumer_mode == ConsumerMode::Paused
+                    || report.checkpoints.len() != 4
+                    || generation != report.verified_generations + 1
+                    || generation > 100
+                {
                     return Err("invalid recreation generation sequence".into());
                 }
                 let result = sample(
@@ -89,6 +126,7 @@ pub fn run(adapter: u32, sender: &str, scenario: Scenario) -> ProbeResult<()> {
                     &mut report,
                     scenario,
                     Some(generation),
+                    window,
                 )?;
                 report.verified_generations = generation;
                 respond(&Response::Generation { generation, result })?;
@@ -97,9 +135,16 @@ pub fn run(adapter: u32, sender: &str, scenario: Scenario) -> ProbeResult<()> {
                 if report.checkpoints.len() != 4 {
                     return Err("observer stopped before all content checkpoints".into());
                 }
+                if consumer_mode == ConsumerMode::Paused && report.observation_ready.is_none() {
+                    return Err("paused observer never completed its pre-sample warmup fence".into());
+                }
+                report.observation_finish_qpc = window.map(|_| crate::clock::now()).transpose()?;
+                protocol::validate_observation_finish(window, consumer_mode, report.observation_finish_qpc)?;
                 resources.record(&gpu, None)?;
                 let before_drop = gpu.allocations.snapshot();
-                if let Some(age) = age {
+                if consumer_mode == ConsumerMode::Active
+                    && let Some(age) = age.take()
+                {
                     let mut result = age.finish(&gpu)?;
                     let samples = std::mem::take(&mut result.samples);
                     for (index, chunk) in samples
@@ -113,8 +158,23 @@ pub fn run(adapter: u32, sender: &str, scenario: Scenario) -> ProbeResult<()> {
                     }
                     report.frame_age = Some(result);
                 }
+                // Paused retains the identical log allocation through measurement but never
+                // submits marker copies or creates a final readback pretending to be age data.
+                drop(age);
                 drop(receiver);
-                for message in mapgyver_native_probe::resource_log::messages(resources.finish(&gpu, before_drop)?) {
+                let resources = resources.finish(&gpu, before_drop)?;
+                if consumer_mode == ConsumerMode::Paused
+                    && !report.observation_ready.as_ref().is_some_and(|ready| {
+                        ready.resource_activity_unchanged(
+                            &resources.operations,
+                            resources.completion_markers,
+                            resources.skipped_completion_markers,
+                        )
+                    })
+                {
+                    return Err("paused observer performed work after its warmup fence".into());
+                }
+                for message in mapgyver_native_probe::resource_log::messages(resources) {
                     respond(&Response::Resources { message })?;
                 }
                 respond(&Response::Finished {
@@ -124,10 +184,19 @@ pub fn run(adapter: u32, sender: &str, scenario: Scenario) -> ProbeResult<()> {
             }
             None => {}
         }
-        if let Some(age) = &mut age {
+        if report.observation_ready.is_none() {
+            protocol::checkpoint_before_sample(window, crate::clock::now()?)?;
+        }
+        if consumer_mode == ConsumerMode::Active
+            && let Some(age) = &mut age
+        {
             age.tick(&gpu, &mut receiver, scenario.extent())?;
         }
-        resources.tick(&gpu)?;
+        if consumer_mode == ConsumerMode::Paused && report.observation_ready.is_some() {
+            resources.tick_passive(&gpu)?;
+        } else {
+            resources.tick(&gpu)?;
+        }
     }
 }
 
@@ -138,6 +207,7 @@ fn sample(
     report: &mut ObserverReport,
     scenario: Scenario,
     generation: Option<u32>,
+    window: Option<Window>,
 ) -> ProbeResult<Checkpoint> {
     let start = Instant::now();
     let deadline = start + Duration::from_secs(2);
@@ -150,7 +220,9 @@ fn sample(
         elapsed_ms: 0.0,
     };
     while Instant::now() < deadline {
+        protocol::checkpoint_before_sample(window, crate::clock::now()?)?;
         if let Some(frame) = receiver.receive()? {
+            protocol::checkpoint_before_sample(window, crate::clock::now()?)?;
             report.received_observations += 1;
             if [frame.width, frame.height] != result.extent {
                 return Err("composite output changed extent".into());
@@ -166,6 +238,7 @@ fn sample(
                 points.push([0, 0]);
             }
             let pixels = gpu.read_samples(&frame.texture, &points)?;
+            protocol::checkpoint_before_sample(window, crate::clock::now()?)?;
             let pair = [pixels[0], pixels[1]];
             report.diagnostic_readbacks += 1;
             result.sampled_bgra.push(pair);

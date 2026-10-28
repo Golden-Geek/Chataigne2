@@ -48,16 +48,8 @@ impl Recorder {
     }
 
     pub fn tick(&mut self, gpu: &Gpu) -> ProbeResult<()> {
-        while let Some(&(slot, serial)) = self.pending.front() {
-            if !crate::query_data::event(&gpu.context, &self.queries[slot])? {
-                break;
-            }
-            gpu.allocations.complete(serial);
-            self.pending.pop_front();
-        }
-        if self.start.elapsed() >= self.next {
-            self.record(gpu, None)?;
-            self.next = self.start.elapsed() + Duration::from_secs(1);
+        self.reap(gpu)?;
+        if self.record_due(gpu)? {
             if let Some(slot) = (0..4).find(|s| !self.pending.iter().any(|p| p.0 == *s)) {
                 // SAFETY: submit only a free event slot, after all previously issued GPU work.
                 unsafe {
@@ -71,6 +63,37 @@ impl Recorder {
             }
         }
         Ok(())
+    }
+
+    /// Observe CPU-visible resources without adding commands to a quiescent GPU context.
+    pub fn tick_passive(&mut self, gpu: &Gpu) -> ProbeResult<()> {
+        self.reap(gpu)?;
+        self.record_due(gpu)?;
+        Ok(())
+    }
+
+    pub fn completion_counts(&self) -> (u32, u32) {
+        (self.markers, self.skipped)
+    }
+
+    fn reap(&mut self, gpu: &Gpu) -> ProbeResult<()> {
+        while let Some(&(slot, serial)) = self.pending.front() {
+            if !crate::query_data::event(&gpu.context, &self.queries[slot])? {
+                break;
+            }
+            gpu.allocations.complete(serial);
+            self.pending.pop_front();
+        }
+        Ok(())
+    }
+
+    fn record_due(&mut self, gpu: &Gpu) -> ProbeResult<bool> {
+        if self.start.elapsed() >= self.next {
+            self.record(gpu, None)?;
+            self.next = self.start.elapsed() + Duration::from_secs(1);
+            return Ok(true);
+        }
+        Ok(false)
     }
 
     pub fn record(&mut self, gpu: &Gpu, source_phase: Option<u32>) -> ProbeResult<()> {

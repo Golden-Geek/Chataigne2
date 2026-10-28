@@ -4,14 +4,14 @@
 
 **Updated: 2026-10-28 · Overall: `██░░░░░░░░░░░░░░░░░░` 10% · 1/10 phases complete**
 
-**Current topic:** M01 native feasibility — same-context GPU stage boundaries.
-The staged two-minute Intel Q02 run locates 143.06 ms of a 153.57 ms interval between
-post-composition/post-Spout markers, with no Present in that batch's CPU bracket.
-Output still accepts 7,125/7,200 attempts with 29 CSV drops; M01 stays open.
+**Current topic:** M01 native feasibility — fenced consumer control and rejected smoke.
+Paused-observer work/marker counters remain unchanged, but the first capture fails native
+4K geometry (3834×2143) and per-swapchain CSV QPC order. The long series was not started.
+A physical 4K/150% `DISPLAY5` is now available on NVIDIA adapter 1.
 
-**Next:** isolate Spout send/consumer sharing and GPU scheduling in a controlled diagnostic,
-then continue the required sustained series and remaining display/lifecycle gates.
-**Blocker:** cadence, GPU timing and consumer age remain unresolved.
+**Next:** fix explicit owned-output placement and per-monitor-DPI client sizing, then
+predeclare the selected display/adapter route and resolve CSV chronology before more controls.
+**Blocker:** frozen geometry and CSV ordering currently fail; cadence, GPU timing and age stay open.
 Historical output-policy A2 loss observation, physical alignment/latency and full GPU critical
 path remain open. M02 waits for M01.
 
@@ -96,11 +96,11 @@ allows both live queries to succeed without changing the older unavailable obser
 | --- | --- | --- |
 | D3D11/Spout ownership, two sources, resize/restart smoke | Done | Limited native smoke accepted; production supervision belongs to later delivery and full Q01/Q02 remains below. |
 | Ordinary underlay, DOM layering/clipping/input | Open | Primary/secondary native sequences recorded; complete configuration and latency coverage remains. |
-| Native rectangle output and composited Spout send | Open | Intel/NVIDIA fixed procedural/Spout cards pass; native preview/output visual accuracy and 4K scanout remain. |
+| Native rectangle output and composited Spout send | Open | A physical 4K/150% display is now connected on NVIDIA adapter 1. The paused Intel smoke spans monitors and yields 3834×2143, so explicit output placement/DPI sizing and physical-output accuracy remain. Historical fixed-card results retain their scopes. |
 | Mixed DPI, negative origins, drag/resize/docking/zoom | Open | 100%/125% observations recorded; 150%/200%, negative origins and measured alignment remain. |
 | Minimized/disconnected-editor independence | Open | Intel/NVIDIA busy/blank-document continuity and reconnect pass at recorded fingerprints; full displayed/minimized qualification remains. |
-| Color/alpha, copies, cadence/latency, queues and memory | Open | Stage timing locates a 143.06 ms elapsed post-compose/post-Spout interval; current sustained output accepts 7,125/7,200 attempts with 29 CSV drops. Cache bounds/cleanup remain verified, with one sampled import per source. Historical failures and fixed-card evidence keep their fingerprints. Cadence, final/analysis loss, other routes/lifecycle cards, GPU critical path, scanout and resources remain. |
-| Device recreation, sustained retirement and shutdown | Open | Controlled rebuilds recorded; complete Q05, physical retirement, real removal/reset and full-process shutdown remain. |
+| Color/alpha, copies, cadence/latency, queues and memory | Open | Fenced paused-consumer proof and cleanup pass, but its smoke fails geometry and raw CSV chronology; no long comparison is run. Historical stage timing and fixed-card results keep their fingerprints. Cadence, final/analysis loss, other routes/lifecycle cards, GPU critical path, scanout and resources remain. |
+| Device recreation, sustained retirement and shutdown | Open | Controlled native rebuilds recorded; native-harness lifecycle budgets, physical retirement, genuine removal/reset where testable and full-process shutdown remain. Full product/Matrix Q05 belongs to its owning milestones/M09. |
 | Production host/backend/binding decision | Open | D3D11/sys binding and ordinary underlay remain provisional pending the full gate. |
 
 Evidence: [native feasibility report](mapgyver-m01-native-feasibility.md) and
@@ -200,6 +200,14 @@ Continue **M01**, the [native feasibility gate](../architecture/mapgyver-native-
 on branch `mapgyver`, using the owned [native harness](../../tools/mapgyver/native-probe/README.md).
 M02 depends on this gate; do not build production editors/shell around an unqualified underlay.
 
+- The user-confirmed 4K display is connected as `DISPLAY5` on NVIDIA adapter 1, LUID
+  `00000000:000170d3`, at `[4480,0,8320,2160]`, with 150% DPI observed in the rejected smoke.
+  The Intel paused smoke remains rejected: native output is 3834×2143 and seven warmup CSV
+  Present QPC transitions reverse within one swapchain. Fix owned-output placement and
+  per-monitor-DPI sizing before another capture; preserve raw order and do not discard the
+  failed smoke. Explicitly select and predeclare the new display/adapter route, and observe
+  NVIDIA overlay Off before NVIDIA startup. One named adapter is the M01 requirement;
+  mandatory dual-vendor success is not an additional gate.
 - Pre-lifecycle Intel/NVIDIA Q01/Q02 release cohorts cover both fixed workloads with identical
   native inputs within that cohort. Preserve the earlier cadence/QueryEnd and memory failures; the split stages
   make a recurrence attributable to a smaller wall interval but establish no internal cause.
@@ -279,6 +287,17 @@ P14/P15 time and asset contracts retain their shared Golden owners under M03. Ro
 behavior is unchanged. No production host/backend/binding decision is final yet.
 
 ## M01 verification — 2026-10-28
+
+- Consumer-control milestone: 95 deterministic Rust tests, strict default/desktop Clippy,
+  release build, generated bindings and required root/Core formatting pass; seven hardware
+  tests stay ignored by the standard suite. All 167 Python tests pass. The first 30+8-second
+  paused native run completes with fenced, unchanged work/resource-marker counters and zero
+  final ownership, but is **rejected** for 3834×2143 geometry and seven raw per-chain QPC
+  reversals. Complete original streams and an unordered-only diagnosis are retained. No
+  active/paused/active long series is run. The user-confirmed 4K display is detected on NVIDIA
+  adapter 1; future qualification must explicitly record that new route and observe overlay
+  Off before NVIDIA startup. One named adapter is required, not mandatory dual-vendor success;
+  full product Q05 stays with its owning milestones/M09. Counts remain M01 1/8 and overall 1/10.
 
 - GPU-stage milestone: 78 deterministic Rust tests and strict default/desktop Clippy pass;
   seven hardware tests remain ignored by the standard suite. All 123 Python tests pass,

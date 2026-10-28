@@ -5,6 +5,66 @@ from MapGyver's product systems. M01 is **in progress**, not a presentation-arch
 See the [ledger](mapgyver-status.md), [qualification contract](mapgyver-qualification-contract.md)
 and [harness commands/ownership](../../tools/mapgyver/native-probe/README.md).
 
+## Fenced consumer control and rejected smoke — 2026-10-28
+
+The [predeclared consumer control](evidence/mapgyver-m01-consumer-control-plan-2026-10-28.json)
+adds an immutable active/paused observer mode. The renderer keeps its sources, composition,
+Spout send, both presenters, pacing and admission policy. Both observer modes retain the
+device, SDK endpoint, four warmup checkpoints and GPU log allocation. The observer fences
+before sampling; its acknowledgement must reach the parent before the declared window.
+Paused mode suppresses receives, marker copies and resource GPU markers while retaining passive
+CPU resource snapshots. Its ten work counters and marker counts must remain unchanged, and
+cleanup must begin after sampling. Frame age is deliberately unavailable and cannot qualify.
+
+The run-owned `sample_window::Window` is now independent of frame-age data. Its one Rust
+declaration replaces the former frame-age-specific clock type; the private child protocol
+uses `BeginObservation`. Release schema 16 and capture schema 3 consume the run clock directly.
+Current parsers require this shape; historical captures keep their pinned source/analyzer epoch.
+
+The [first paused smoke](evidence/mapgyver-m01-consumer-control-smoke-failed-2026-10-28.json)
+retains the complete original packet: 975,796 bytes, SHA256
+`c4cbeb17cff6af9d100fa00790963e4d38762d643f0c22512ad6a1139d1f024a`.
+Native, collector and live-query processes exit zero, with empty stderr and unchanged input
+fingerprints. Release SHA256 is
+`7d244b07bd7172945d3ccef3fd9fef2713bfb18f4f4ebf439167dd619c2cc3f6`.
+The native pause proof passes: all four checkpoints finish before sampling, the work counters
+remain unchanged (including seven SDK receives, all before the fence), and resource GPU markers
+remain at three. Cleanup starts after the full 30+8-second window, with zero final logical
+allocations/import aliases. The log and receiver allocation remain live through measurement;
+their descriptor payloads do not establish physical residency.
+
+**The capture is rejected.** [Independent diagnosis](evidence/mapgyver-m01-consumer-control-smoke-diagnosis-2026-10-28.json)
+finds two separate failures:
+
+- The native output is **3834×2143**, not 3840×2160. Fixed geometry is never observed and all
+  **420 admitted sampled batches** report a mismatch. The output spans `[2560,0,6416,2199]`;
+  its reported monitor is now 4K `DISPLAY5`, beginning at x=4480, at DPI 144 (150%).
+- The raw 3,024-row CSV has **seven strictly backward Present QPC transitions** within a
+  swapchain, with no duplicate `(address,QPC)` keys. Six affect editor and one native output;
+  all occur in warmup. The parser keeps its failure and no order-dependent CSV metric is
+  recovered by sorting or discarding warmup. PresentMon 2.6.0's
+  [dequeue contract](https://github.com/GameTechDev/PresentMon/blob/v2.6.0/PresentData/PresentMonTraceConsumer.hpp#L335-L344)
+  specifies per-swapchain PresentStart order; its
+  [v1 CSV writer](https://github.com/GameTechDev/PresentMon/blob/v2.6.0/PresentMon/CsvOutput.cpp#L290-L345)
+  writes the raw start QPC. This anomaly remains unresolved.
+
+Unordered counts are retained separately: sampled native/CSV output acceptance is 244/244 and
+editor 286/286, against 480 attempts. Their raw Dropped flags count 20/29. GPU coalescing is
+60 attempts. Complete native stage coverage retains 2,149 total/420 sampled rows. Its largest
+native interval is 89.3848 ms, including 85.1390 ms in the editor bracket, but this changed,
+invalid scene is not a causal consumer comparison. Live ETW counters are three zeros; they
+do not repair chronology/geometry or establish final loss. The active/paused/active long
+series was **not started**, as required by the smoke-integrity precondition.
+
+The user confirmed a physical 4K display is available. [Current DXGI inventory](evidence/mapgyver-m01-4k-display-inventory-2026-10-28.json)
+shows `DISPLAY5` on NVIDIA adapter 1/LUID `00000000:000170d3`, at `[4480,0,8320,2160]`; Intel
+adapter 0 still owns `DISPLAY1/2`. The agent changed no display or overlay settings. Next bind
+the owned output to an explicit fitting monitor and correct its per-monitor-DPI client sizing,
+then declare a new series for the selected display/adapter route. Preserve this failed Intel
+smoke and the separate CSV-order failure. NVIDIA startup still requires a fresh overlay-Off
+observation. M01 qualifies one named adapter first, not both vendors; unavailable native checks
+stay open and full product Q05 remains assigned to its owning milestones/M09. M01 stays **1/8**.
+
 ## Same-context GPU stage boundaries — 2026-10-28
 
 The [predeclared off/on/off diagnostic](evidence/mapgyver-m01-gpu-stages-plan-2026-10-28.json)
@@ -1930,7 +1990,7 @@ physical scanout or unknown driver/desktop copies. Production/runtime/protocol c
 | Mixed DPI, negative origins, drag/resize/docking/zoom | 125%→100% monitor transition, primary/secondary sequences and WebView zoom checks observed; OS 150%/200%, negative origins and quantitative alignment remain open |
 | Minimized/disconnected-editor independence | Hidden-tab and separate minimized-editor intervals exceed 60 seconds with independent native output visual/submission progress; freshness, busy/disconnected cases and displayed cadence remain open |
 | Alpha/color cards, copies, frame age/cadence, queues and memory budgets | Historical NVIDIA/Intel cohorts and fixed-card results retain their exact fingerprints. Current Intel stage traces join every renderer interval and locate 143.0630 ms between post-composition/post-Spout markers in a 153.5667 ms frame. Sustained output accepts 7,125/7,200 attempts with 29 CSV drops; return-to-off short output drops 76/480 despite full acceptance. Cache bounds and zero alias/logical cleanup pass, with one sampled import per source. No SDK cause, cadence repair or complete GPU critical path is established. Current qualifying series, displayed cadence/physical latency, final/analysis loss, physical residency, SDK-internal copies, lifecycle/preview cards and remaining configurations stay open |
-| Device recreation, sustained retirement and shutdown budgets | Repaired NVIDIA control retires 101 renderer/202 ingest scopes across 100 rebuilds with ten-second live settling and 0.531-second scoped teardown. Handles stay within ten; private growth 47.926 MiB fails the 32-MiB target. Earlier smaller-stack passes retain their exact fingerprints. Full Q05, physical retirement, complete-process/WebView shutdown and genuine removal/reset remain open |
+| Device recreation, sustained retirement and shutdown budgets | Repaired NVIDIA control retires 101 renderer/202 ingest scopes across 100 rebuilds with ten-second live settling and 0.531-second scoped teardown. Handles stay within ten; private growth 47.926 MiB fails the 32-MiB target. Earlier smaller-stack passes retain their exact fingerprints. Native-harness lifecycle/physical retirement, complete-process/WebView shutdown and genuine removal/reset where testable remain open; full product/Matrix Q05 stays with its owning milestones/M09 |
 | Production host/backend/binding decision | OPEN: D3D11 plus the sys binding is exercised provisionally; ordinary underlay must pass or trigger DirectComposition investigation |
 
 Continue the Q01/Q02 repeated series, sustained resource/latency measurements and

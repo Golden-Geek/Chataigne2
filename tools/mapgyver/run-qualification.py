@@ -260,7 +260,7 @@ def main():
             }
         unchanged = before == fingerprints(executable)
         evidence = {
-            "schema_version": 15,
+            "schema_version": 16,
             "evidence_kind": (
                 "editor_busy_disconnected_reconnect_not_timing_qualification" if args.editor_isolation else
                 "interactive_underlay_observations_not_timing_qualification" if args.underlay else

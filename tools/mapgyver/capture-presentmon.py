@@ -34,6 +34,8 @@ def parse_args(argv=None):
     parser.add_argument("--presentation-policy", choices=("latest", "output-vblank"), default="latest")
     parser.add_argument("--gpu-stages", action="store_true",
                         help="record diagnostic GPU stage timestamps with the latest presentation policy")
+    parser.add_argument("--consumer-mode", choices=("active", "paused"), default=None,
+                        help="explicit consumer activity control; requires GPU stages and exactly 30 seconds warmup")
     parser.add_argument("--output", type=Path, help="exclusively create a generated packet under the existing target directory")
     args = parser.parse_args(argv)
     if args.adapter < 0:
@@ -44,6 +46,9 @@ def parse_args(argv=None):
         parser.error("collector tail must be between 2 and 60 seconds")
     if args.gpu_stages and args.presentation_policy != "latest":
         parser.error("GPU stage timing requires the latest presentation policy")
+    if args.consumer_mode is not None and (not args.gpu_stages or args.warmup_seconds != 30
+                                           or args.presentation_policy != "latest"):
+        parser.error("consumer controls require GPU stages, exactly 30 seconds warmup and latest presentation")
     if args.output is not None:
         args.output = args.output.resolve()
         if not args.output.is_relative_to((ROOT / "target").resolve()) or not args.output.parent.is_dir() \
@@ -58,7 +63,7 @@ def digest(path):
 
 def fingerprints(executable, presentmon):
     result = BASE["fingerprints"](executable)
-    for name in ("capture-presentmon.py", "presentmon_data.py", "presentmon_roles.py"):
+    for name in ("capture-presentmon.py", "presentmon_data.py", "presentmon_roles.py", "consumer_observation.py"):
         path = Path(__file__).resolve().with_name(name)
         result["files"][path.relative_to(ROOT).as_posix()] = digest(path)
     result["presentmon_sha256"] = digest(presentmon)
@@ -76,6 +81,16 @@ def validate_gpu_stages(native_report, requested):
     if not generations or any((generation["timing"]["gpu_stages"] is not None) != requested
                               for generation in generations):
         raise ValueError("native GPU stage report presence differs from the requested selection")
+
+
+def validate_standard_consumer(native_report):
+    window = native_report["sample_window"]
+    observer = native_report["observer"]
+    if native_report["workload"]["consumer_mode"] != "active" or observer["consumer_mode"] != "active":
+        raise ValueError("standard capture requires active workload and observer consumer modes")
+    age = observer["frame_age"]
+    if not isinstance(window, dict) or not isinstance(age, dict) or age.get("config") != window:
+        raise ValueError("active frame-age clock differs from the run-owned sample window")
 
 
 def communicate(process, seconds, presentmon=None, session=None):
@@ -170,13 +185,19 @@ def collect(args, evidence):
     session = "MapGyver-M01-Present-" + uuid.uuid4().hex
     total_seconds = args.sample_seconds + args.warmup_seconds
     capture_seconds = total_seconds + args.collector_tail_seconds
-    evidence.update(schema_version=2, evidence_kind="bounded_presentmon_roles_and_live_loss_query_not_full_timing_qualification",
+    consumer_control = args.consumer_mode is not None
+    requested_mode = args.consumer_mode if consumer_control else "active"
+    evidence_kind = ("consumer_activity_control_not_qualification" if consumer_control
+                     else "bounded_presentmon_roles_and_live_loss_query_not_full_timing_qualification")
+    evidence.update(schema_version=3, evidence_kind=evidence_kind,
                     started_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),
                     session_name=session, native_sample_seconds=args.sample_seconds, native_warmup_seconds=args.warmup_seconds,
                     collector_tail_seconds=args.collector_tail_seconds,
                     presentmon_timed_seconds=capture_seconds, declared_nvidia_overlay_state=args.nvidia_overlay,
                     requested_presentation_policy=args.presentation_policy,
                     requested_gpu_stages=args.gpu_stages,
+                    consumer_control=consumer_control, requested_consumer_mode=requested_mode,
+                    consumer_observation_verified=False,
                     environment=dict(platform=platform.platform(), machine=platform.machine()),
                     role_correlation_verified=False, live_etw_query_verified=False, presentation_policy_verified=False,
                     scope="PID-filtered PresentMon v1 events with separate exact native identity correlation; no optical latency, alignment or full GPU-path claim")
@@ -199,7 +220,9 @@ def collect(args, evidence):
     if "nvidia" in selected[0]["description"].lower() and args.nvidia_overlay != "off":
         raise ValueError("NVIDIA requires verified overlay Off before startup")
     evidence["adapter"] = selected[0]
-    native_command = [str(executable), "qualify-staged" if args.gpu_stages else "qualify",
+    command = ("qualify-consumer-paused" if args.consumer_mode == "paused"
+               else "qualify-staged" if args.gpu_stages else "qualify")
+    native_command = [str(executable), command,
                       str(args.adapter), args.scenario, str(args.sample_seconds), str(args.warmup_seconds)]
     if not args.gpu_stages:
         native_command.append(args.presentation_policy)
@@ -243,13 +266,20 @@ def collect(args, evidence):
         BASE["compact_resources"](report)
         evidence["native_report"] = report
         validate_gpu_stages(report, args.gpu_stages)
+        window = report["sample_window"]
+        if consumer_control:
+            consumer = runpy.run_path(str(Path(__file__).with_name("consumer_observation.py")))
+            evidence["consumer_observation"] = consumer["validate"](report, requested_mode)
+        else:
+            validate_standard_consumer(report)
+        evidence["consumer_observation_verified"] = True
         if capture_run["exit_code"] != 0 or capture_run["timed_out"] or not capture_run["valid_utf8"]:
             raise ValueError("PresentMon failed or timed out")
         data = runpy.run_path(str(Path(__file__).with_name("presentmon_data.py")))
-        evidence["analysis"] = data["analyze"](capture_run["stdout"], native.pid, report["observer"]["frame_age"]["config"])
+        evidence["analysis"] = data["analyze"](capture_run["stdout"], native.pid, window)
         roles = runpy.run_path(str(Path(__file__).with_name("presentmon_roles.py")))
         evidence["role_correlation"] = roles["correlate"](
-            capture_run["stdout"], native.pid, report, report["observer"]["frame_age"]["config"])
+            capture_run["stdout"], native.pid, report, window)
         evidence["role_correlation_verified"] = True
         evidence["presentation_policy_observation"] = validate_presentation_policy(
             capture_run["stdout"], args.presentation_policy, report, evidence["role_correlation"])

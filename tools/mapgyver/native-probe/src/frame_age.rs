@@ -1,6 +1,9 @@
 //! Fixture CPU-stamp to independent-consumer GPU-copy completion, never a scanout timestamp.
 
-use crate::statistics::{Distribution, MAX_SAMPLES, Series};
+use crate::{
+    sample_window::Window,
+    statistics::{Distribution, Series},
+};
 use serde::{Deserialize, Serialize};
 
 pub const WORDS_PER_CHANNEL: usize = 5;
@@ -8,42 +11,6 @@ pub const PIXELS_PER_SAMPLE: usize = WORDS_PER_CHANNEL * 2;
 pub const CHUNK_SAMPLES: usize = 12;
 const MAGIC: u32 = 0xa671_c300;
 const BACKGROUND: u32 = 0xff0d_0d0d;
-
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Config {
-    pub start_qpc: u64,
-    pub frequency: u64,
-    pub warmup_seconds: u32,
-    pub maximum_seconds: u32,
-}
-
-impl Config {
-    pub fn validate(self) -> Result<(), String> {
-        if self.start_qpc == 0
-            || self.frequency == 0
-            || self.maximum_seconds == 0
-            || self.maximum_seconds > 3600
-            || self.warmup_seconds >= self.maximum_seconds
-            || self
-                .frequency
-                .checked_mul(u64::from(self.maximum_seconds))
-                .and_then(|ticks| self.start_qpc.checked_add(ticks))
-                .is_none()
-        {
-            return Err("invalid frame-age clock/window configuration".into());
-        }
-        Ok(())
-    }
-
-    pub fn capacity(self) -> usize {
-        ((self.maximum_seconds - self.warmup_seconds) as usize * 60 + 1).min(MAX_SAMPLES)
-    }
-
-    pub fn collecting(self, qpc: u64) -> bool {
-        qpc >= self.start_qpc + self.frequency * u64::from(self.warmup_seconds)
-            && qpc < self.start_qpc + self.frequency * u64::from(self.maximum_seconds)
-    }
-}
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Sample {
@@ -65,7 +32,7 @@ pub struct Channel {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Report {
-    pub config: Config,
+    pub config: Window,
     pub captured_samples: usize,
     pub marker_copy_pixels: usize,
     pub final_log_copy_bytes: usize,
@@ -93,7 +60,7 @@ pub fn marker_words(frame: u32, channel: u32, qpc: u64) -> [u32; WORDS_PER_CHANN
 }
 
 /// Validate raw evidence instead of silently clamping future, corrupt or regressing markers.
-pub fn analyze(config: Config, samples: &[Sample]) -> Result<[Channel; 2], String> {
+pub fn analyze(config: Window, samples: &[Sample]) -> Result<[Channel; 2], String> {
     config.validate()?;
     if samples.len() > config.capacity() {
         return Err("frame-age sample capacity exceeded".into());

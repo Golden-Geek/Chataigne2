@@ -302,11 +302,22 @@ def verify_source_workers(generation):
 
 
 def analyze_sample(evidence):
-    require(evidence["schema_version"] in (7, 8, 9, 10, 11, 12, 13, 14, 15), "unsupported release evidence schema")
+    require(evidence["schema_version"] in (7, 8, 9, 10, 11, 12, 13, 14, 15, 16), "unsupported release evidence schema")
     run = evidence["run"]
     if run.get("exit_code") != 0 or run.get("report") is None:
         return {"sample_index": evidence["sample_index"], "native_success": False, "failure": run}
     report = run["report"]
+    require(report.get("workload", {}).get("consumer_mode") in (None, "active")
+            and report.get("evidence_kind") != "consumer_paused_gpu_sharing_diagnostic_not_qualification",
+            "consumer-paused diagnostics cannot qualify a release sample")
+    if evidence["schema_version"] >= 16:
+        require(report.get("workload", {}).get("consumer_mode") == "active"
+                and report.get("evidence_kind") != "consumer_paused_gpu_sharing_diagnostic_not_qualification",
+                "consumer-paused diagnostics cannot qualify a release sample")
+        age = report.get("observer", {}).get("frame_age")
+        require(isinstance(age, dict) and isinstance(report.get("sample_window"), dict)
+                and age.get("config") == report["sample_window"],
+                "release age data must match the run-owned sample window")
     if evidence["schema_version"] >= 15:
         require(report.get("status", {}).get("layout_session", 0) > 0,
                 "schema 15 document session missing; rebuild the native probe")

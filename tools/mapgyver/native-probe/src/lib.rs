@@ -9,5 +9,6 @@ pub mod operation_timing;
 pub mod pipeline_timing;
 pub mod presentation;
 pub mod resource_log;
+pub mod sample_window;
 pub mod statistics;
 pub mod workload;

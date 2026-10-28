@@ -311,6 +311,39 @@ GPU-busy coalescing observed. Earlier Q02 stalls remain retained; this cohort do
 internal cause or a fix. The [native evidence](../../../docs/progress/mapgyver-m01-native-feasibility.md)
 records measurements and remaining gates.
 
+## Run clock and consumer activity controls
+
+`sample_window::Window` owns the run clock shared by renderer reports, the observer and CSV
+analysis. `frame_age` owns observations within that window. Release packets use schema 16;
+PresentMon captures use schema 3 and require `sample_window` at the run boundary. Historical
+packets retain their pinned analyzer/source epoch; current parsers do not invent a clock from
+unavailable age data or accept the retired `begin_frame_age` child command.
+
+The immutable `ConsumerMode` is selected at child startup and verified in its readiness/final
+messages. The explicit capture option below requires staged timing, latest presentation and
+exactly thirty seconds of warmup:
+
+```powershell
+python tools/mapgyver/capture-presentmon.py 0 q02 --gpu-stages --consumer-mode paused --sample-seconds 8 --warmup-seconds 30
+```
+
+Both modes keep the observer device, SDK endpoint, four content checkpoints and GPU log
+allocation. Before sampling, the observer fences its GPU work and the parent acknowledges
+receipt before the run window begins. Paused mode submits no recurring receives, marker-log
+copies or resource GPU markers; its resource recorder takes passive CPU snapshots. Final
+work/marker counters must equal the fence snapshots, and cleanup must start after sampling.
+The age report is null. Release qualification rejects paused mode, including stale wrappers.
+
+`consumer_observation.py` checks this proof; `analyze-consumer-control.py` compares an initial
+paused smoke and active/paused/active controls. The removed workload includes SDK access,
+receiver copies/flushes, marker logging and resource markers together, so it cannot isolate
+mutex contention. SDK SendTexture success remains an accepted call rather than unconditional
+evidence of a copied/published frame.
+
+`diagnose-consumer-capture.py` preserves a rejected packet's flags and CSV order, reporting
+native facts and unordered row counts separately. It never sorts away chronology violations,
+deduplicates display events or produces order-dependent CSV intervals for that failure.
+
 ## Opt-in GPU stage boundaries
 
 `qualify-staged ADAPTER q01|q02 SAMPLE_SECONDS WARMUP_SECONDS` keeps the latest presentation

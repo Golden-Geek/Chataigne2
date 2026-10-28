@@ -55,6 +55,21 @@ def presenter_fixture():
 
 
 class ReleaseAnalysisTests(unittest.TestCase):
+    def test_paused_consumer_cannot_enter_release_qualification_even_with_success_exit(self):
+        for mode, kind in (("paused", "consumer_paused_gpu_sharing_diagnostic_not_qualification"),
+                           ("active", "consumer_paused_gpu_sharing_diagnostic_not_qualification"),
+                           (None, "ordinary_probe")):
+            evidence = dict(schema_version=16, run=dict(exit_code=0, report=dict(
+                workload=dict(consumer_mode=mode), evidence_kind=kind)))
+            with self.subTest(mode=mode, kind=kind), self.assertRaisesRegex(ValueError, "cannot qualify"):
+                ANALYZER["analyze_sample"](evidence)
+        for schema in (7, 15, 16):
+            for mode in ("paused", "suspended", False):
+                evidence = dict(schema_version=schema, run=dict(exit_code=0, report=dict(
+                    workload=dict(consumer_mode=mode), evidence_kind="ordinary_probe")))
+                with self.subTest(schema=schema, mode=mode), self.assertRaisesRegex(ValueError, "cannot qualify"):
+                    ANALYZER["analyze_sample"](evidence)
+
     def test_presenter_admission_keeps_sampled_busy_reasons_separate(self):
         generation = presenter_fixture()
         result = ANALYZER["verify_presenter_admission"](generation)

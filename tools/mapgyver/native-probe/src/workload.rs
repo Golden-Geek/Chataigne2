@@ -43,6 +43,7 @@ pub struct RunSpec {
     pub scenario: Scenario,
     presentation_policy: PresentationPolicy,
     gpu_stages: bool,
+    consumer_mode: ConsumerMode,
     #[serde(flatten)]
     exercise: Exercise,
 }
@@ -63,6 +64,35 @@ impl std::str::FromStr for PresentationPolicy {
             "latest" => Ok(Self::Latest),
             "output-vblank" => Ok(Self::OutputVblank),
             _ => Err("presentation policy must be latest or output-vblank".into()),
+        }
+    }
+}
+
+/// A diagnostic control for shared-output consumption during the sample window.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConsumerMode {
+    Active,
+    Paused,
+}
+
+impl ConsumerMode {
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Active => "active",
+            Self::Paused => "paused",
+        }
+    }
+}
+
+impl std::str::FromStr for ConsumerMode {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "active" => Ok(Self::Active),
+            "paused" => Ok(Self::Paused),
+            _ => Err("consumer mode must be active or paused".into()),
         }
     }
 }
@@ -96,6 +126,7 @@ impl RunSpec {
             scenario,
             presentation_policy: PresentationPolicy::Latest,
             gpu_stages: false,
+            consumer_mode: ConsumerMode::Active,
             exercise: Exercise::Timed {
                 sample_seconds,
                 warmup_seconds,
@@ -108,6 +139,9 @@ impl RunSpec {
     pub fn with_presentation_policy(mut self, policy: PresentationPolicy) -> Result<Self, String> {
         if !matches!(self.exercise, Exercise::Timed { .. }) || !self.scenario.cards() {
             return Err("presentation comparison requires timed q01/q02 qualification".into());
+        }
+        if self.consumer_mode == ConsumerMode::Paused && policy != PresentationPolicy::Latest {
+            return Err("paused-consumer control requires the latest presentation policy".into());
         }
         if self.gpu_stages && policy != PresentationPolicy::Latest {
             return Err("GPU stage timing requires the latest presentation policy".into());
@@ -130,6 +164,22 @@ impl RunSpec {
 
     pub fn gpu_stages(self) -> bool {
         self.gpu_stages
+    }
+
+    pub fn with_paused_consumer(mut self) -> Result<Self, String> {
+        if !matches!(self.exercise, Exercise::Timed { warmup_seconds: 30, .. })
+            || !self.scenario.cards()
+            || !self.gpu_stages
+            || self.presentation_policy != PresentationPolicy::Latest
+        {
+            return Err("paused-consumer control requires timed q01/q02, exactly 30 seconds warmup, GPU stages and latest presentation".into());
+        }
+        self.consumer_mode = ConsumerMode::Paused;
+        Ok(self)
+    }
+
+    pub fn consumer_mode(self) -> ConsumerMode {
+        self.consumer_mode
     }
 
     pub fn presentation_policy(self) -> PresentationPolicy {
@@ -179,6 +229,7 @@ impl RunSpec {
             scenario,
             presentation_policy: PresentationPolicy::Latest,
             gpu_stages: false,
+            consumer_mode: ConsumerMode::Active,
             exercise: Exercise::Recreate { cycles },
         })
     }
@@ -191,6 +242,7 @@ impl RunSpec {
             scenario,
             presentation_policy: PresentationPolicy::Latest,
             gpu_stages: false,
+            consumer_mode: ConsumerMode::Active,
             exercise: Exercise::EditorIsolation,
         })
     }

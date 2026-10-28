@@ -1,0 +1,151 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "post_smoke_display_inventory_not_qualification",
+  "qualification": false,
+  "observed_utc": "2026-10-28T16:29:44.912429+00:00",
+  "command": [
+    "target\\release\\mapgyver_native_probe.exe",
+    "inventory"
+  ],
+  "executable_sha256": "7d244b07bd7172945d3ccef3fd9fef2713bfb18f4f4ebf439167dd619c2cc3f6",
+  "inventory_exit_code": 0,
+  "inventory_stdout_sha256": "0c517da189c8a43ee54ed5f55904d67470def15c95da1470f66d170fd48d30f5",
+  "inventory_stderr": "",
+  "adapters": [
+    {
+      "index": 0,
+      "description": "Intel(R) Graphics",
+      "luid": "00000000:00016c2a",
+      "dedicated_video_bytes": 134217728,
+      "shared_system_bytes": 19239208796,
+      "software": false,
+      "local_memory": {
+        "budget_bytes": 18433902428,
+        "current_usage_bytes": 0
+      },
+      "nonlocal_memory": {
+        "budget_bytes": 0,
+        "current_usage_bytes": 0
+      },
+      "outputs": [
+        {
+          "device_name": "\\\\.\\DISPLAY1",
+          "attached": true,
+          "desktop_rect": [
+            0,
+            0,
+            2560,
+            1600
+          ],
+          "coordinate_context": "physical_pixels_per_monitor_aware_v2_thread"
+        },
+        {
+          "device_name": "\\\\.\\DISPLAY2",
+          "attached": true,
+          "desktop_rect": [
+            2560,
+            0,
+            4480,
+            1080
+          ],
+          "coordinate_context": "physical_pixels_per_monitor_aware_v2_thread"
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+      "luid": "00000000:000170d3",
+      "dedicated_video_bytes": 16780361728,
+      "shared_system_bytes": 19239208796,
+      "software": false,
+      "local_memory": {
+        "budget_bytes": 15975055360,
+        "current_usage_bytes": 0
+      },
+      "nonlocal_memory": {
+        "budget_bytes": 18433902428,
+        "current_usage_bytes": 0
+      },
+      "outputs": [
+        {
+          "device_name": "\\\\.\\DISPLAY5",
+          "attached": true,
+          "desktop_rect": [
+            4480,
+            0,
+            8320,
+            2160
+          ],
+          "coordinate_context": "physical_pixels_per_monitor_aware_v2_thread"
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "description": "Microsoft Basic Render Driver",
+      "luid": "00000000:00017040",
+      "dedicated_video_bytes": 0,
+      "shared_system_bytes": 19239208796,
+      "software": true,
+      "local_memory": {
+        "budget_bytes": 18433902428,
+        "current_usage_bytes": 0
+      },
+      "nonlocal_memory": {
+        "budget_bytes": 0,
+        "current_usage_bytes": 0
+      },
+      "outputs": []
+    }
+  ],
+  "failed_smoke": "mapgyver-m01-consumer-control-smoke-failed-2026-10-28.json",
+  "failed_smoke_output_window": {
+    "Ok": {
+      "before_qpc": 2024395128593,
+      "after_qpc": 2024395128647,
+      "window_rect_physical": [
+        2560,
+        0,
+        6416,
+        2199
+      ],
+      "client_origin_physical": [
+        2571,
+        45
+      ],
+      "client_extent_physical": [
+        3834,
+        2143
+      ],
+      "dpi": 144,
+      "monitor": {
+        "device_name": "\\\\.\\DISPLAY5",
+        "rect_physical": [
+          4480,
+          0,
+          8320,
+          2160
+        ],
+        "work_rect_physical": [
+          4480,
+          0,
+          8320,
+          2160
+        ],
+        "primary": false
+      },
+      "current_mode": {
+        "Ok": {
+          "width_pixels": 3840,
+          "height_pixels": 2160,
+          "nominal_refresh_hz": 60,
+          "refresh_scope": "Nominal integer Hz from DEVMODEW; not rational refresh, vblank or latch timing"
+        }
+      },
+      "coordinate_context": "physical_pixels_per_monitor_aware_v2_thread",
+      "scope": "One owned-window snapshot after final Present; not continuous monitor or display-timing evidence"
+    }
+  },
+  "scope": "DXGI inventory and failed-smoke window snapshot only. No physical-output, DPI gesture, cadence or selected-adapter qualification is established."
+}

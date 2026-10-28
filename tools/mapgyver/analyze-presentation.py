@@ -15,6 +15,7 @@ CAPTURE = runpy.run_path(str(TOOLS / "capture-presentmon.py"))
 DATA = runpy.run_path(str(TOOLS / "presentmon_data.py"))
 ROLES = runpy.run_path(str(TOOLS / "presentmon_roles.py"))
 RELEASE = runpy.run_path(str(TOOLS / "analyze-release.py"))
+CONSUMER = runpy.run_path(str(TOOLS / "consumer_observation.py"))
 SEQUENCE = ("latest", "output-vblank", "latest")
 
 
@@ -166,6 +167,8 @@ def loss_observations(evidence, native, csv_text):
 def analyze_capture(path):
     raw = path.read_bytes()
     evidence = BASE["decode_evidence"](json.loads(raw))
+    require(evidence.get("schema_version") == 3,
+            "capture schema 3 requires the run-owned sample window; historical captures need their pinned analyzer")
     for flag in ("role_correlation_verified", "presentation_policy_verified", "inputs_unchanged_after_run"):
         require(evidence.get(flag) is True, f"{path.name}: {flag} is unverified")
     for key in ("native", "presentmon", "etw_query"):
@@ -174,7 +177,19 @@ def analyze_capture(path):
     require(native["render_process_id"] == evidence["native_pid"], "native PID differs")
     BASE["compact_resources"](native)
     require(native == evidence["native_report"], "native stdout compaction differs")
-    config = native["observer"]["frame_age"]["config"]
+    config = native["sample_window"]
+    mode = native["workload"]["consumer_mode"]
+    require(mode == evidence["requested_consumer_mode"] and mode in ("active", "paused"),
+            "requested and native consumer modes differ")
+    age = native["observer"]["frame_age"]
+    if evidence["consumer_control"]:
+        consumer = CONSUMER["validate"](native, mode)
+        require(evidence["consumer_observation_verified"] is True
+                and consumer == evidence["consumer_observation"], "consumer observation differs")
+    else:
+        require(mode == native["observer"]["consumer_mode"] == "active"
+                and isinstance(age, dict) and age["config"] == config,
+                "ordinary capture requires active age data matching the run clock")
     csv_text = evidence["presentmon"]["stdout"]
     pid = evidence["native_pid"]
     require(DATA["analyze"](csv_text, pid, config) == evidence["analysis"], "unlabeled CSV analysis differs")
@@ -248,7 +263,8 @@ def analyze_capture(path):
                    renderer_operations=generation["operation_timing"],
                    source_worker_cpu_submission=[worker["timing"]["cpu_submission_work"] for worker in workers],
                    source_worker_gpu_context=[worker["timing"]["gpu_execution"] for worker in workers],
-                   independent_consumer_source_age=native["observer"]["frame_age"]["channels"],
+                   consumer_mode=mode, consumer_frame_age_available=age is not None,
+                   independent_consumer_source_age=age["channels"] if age is not None else None,
                    present_flags_counts=flags, present_mode_counts=modes,
                    live_etw_observation=live, collector_loss_warnings=loss,
                    collector_loss_observation_source=loss_source,

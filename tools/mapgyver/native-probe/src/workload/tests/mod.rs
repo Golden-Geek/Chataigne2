@@ -1,4 +1,88 @@
-use super::{GenerationEnd, PresentationPolicy, RunSpec, Scenario};
+use super::{ConsumerMode, GenerationEnd, PresentationPolicy, RunSpec, Scenario};
+
+#[test]
+fn consumer_modes_parse_only_explicit_choices_and_keep_typed_wire_values() {
+    for (name, mode) in [("active", ConsumerMode::Active), ("paused", ConsumerMode::Paused)] {
+        assert_eq!(name.parse::<ConsumerMode>().unwrap(), mode);
+        assert_eq!(mode.name(), name);
+        let encoded = serde_json::to_value(mode).unwrap();
+        assert_eq!(encoded, name);
+        assert_eq!(serde_json::from_value::<ConsumerMode>(encoded).unwrap(), mode);
+    }
+    for invalid in ["", "pause", "Active", "Paused", "0", "active ", " paused"] {
+        assert!(invalid.parse::<ConsumerMode>().is_err(), "{invalid:?}");
+    }
+}
+
+#[test]
+fn every_exercise_defaults_to_active_consumption() {
+    for spec in [
+        RunSpec::new(Scenario::Diagnostic, 8, 0).unwrap(),
+        RunSpec::new(Scenario::Q01, 8, 30).unwrap(),
+        RunSpec::new(Scenario::Q02, 120, 30).unwrap().with_gpu_stages().unwrap(),
+        RunSpec::recreation(Scenario::Q01, 1).unwrap(),
+        RunSpec::editor_isolation(Scenario::Q02).unwrap(),
+    ] {
+        assert_eq!(spec.consumer_mode(), ConsumerMode::Active);
+        assert_eq!(serde_json::to_value(spec).unwrap()["consumer_mode"], "active");
+    }
+}
+
+#[test]
+fn paused_consumption_requires_the_staged_fixed_scene_with_exact_warmup() {
+    for scenario in [Scenario::Q01, Scenario::Q02] {
+        let baseline = RunSpec::new(scenario, 8, 30).unwrap();
+        assert!(baseline.with_paused_consumer().is_err());
+        let paused = baseline.with_gpu_stages().unwrap().with_paused_consumer().unwrap();
+        assert_eq!(paused.consumer_mode(), ConsumerMode::Paused);
+        assert_eq!(serde_json::to_value(paused).unwrap()["consumer_mode"], "paused");
+        assert_eq!(paused.warmup_seconds(), 30);
+        assert_eq!(paused.total_seconds(), baseline.total_seconds());
+        assert!(paused.gpu_stages());
+        assert_eq!(paused.presentation_policy(), PresentationPolicy::Latest);
+        assert!(
+            paused
+                .with_presentation_policy(PresentationPolicy::OutputVblank)
+                .is_err()
+        );
+        assert_eq!(
+            paused
+                .with_presentation_policy(PresentationPolicy::Latest)
+                .unwrap()
+                .consumer_mode(),
+            ConsumerMode::Paused
+        );
+        assert_eq!(paused.with_gpu_stages().unwrap().consumer_mode(), ConsumerMode::Paused);
+        assert_eq!(
+            paused.with_paused_consumer().unwrap().consumer_mode(),
+            ConsumerMode::Paused
+        );
+        for warmup in [0, 29, 31] {
+            assert!(
+                RunSpec::new(scenario, 8, warmup)
+                    .unwrap()
+                    .with_gpu_stages()
+                    .unwrap()
+                    .with_paused_consumer()
+                    .is_err()
+            );
+        }
+        assert!(
+            baseline
+                .with_presentation_policy(PresentationPolicy::OutputVblank)
+                .unwrap()
+                .with_paused_consumer()
+                .is_err()
+        );
+    }
+    for spec in [
+        RunSpec::new(Scenario::Diagnostic, 8, 30).unwrap(),
+        RunSpec::recreation(Scenario::Q01, 1).unwrap(),
+        RunSpec::editor_isolation(Scenario::Q02).unwrap(),
+    ] {
+        assert!(spec.with_paused_consumer().is_err());
+    }
+}
 
 #[test]
 fn gpu_stage_queries_are_explicit_in_timed_fixed_scene_reports() {

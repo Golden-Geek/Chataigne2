@@ -127,6 +127,15 @@ pub fn run(session: &Session, state: &mut RunState, generation: u32) -> ProbeRes
             break GenerationEnd::EditorIsolationComplete;
         }
         let collecting = state.start.elapsed() >= Duration::from_secs(u64::from(spec.warmup_seconds()));
+        if collecting
+            && spec.consumer_mode() == mapgyver_native_probe::workload::ConsumerMode::Paused
+            && !state.observer.observation_ready()
+        {
+            state.observer.poll()?;
+            if !state.observer.observation_ready() {
+                return Err("paused consumer did not acknowledge quiescence before sampling".into());
+            }
+        }
         let deadline = next_frame + Duration::from_nanos(16_666_667);
         let stamp = Stamp {
             frame: frame_index,

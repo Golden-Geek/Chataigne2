@@ -93,10 +93,13 @@ pub fn assert_child_resources(report: &Value) {
 }
 
 pub fn assert_frame_age(report: &Value) {
-    use mapgyver_native_probe::frame_age::{self, Config, Sample};
+    use mapgyver_native_probe::{
+        frame_age::{self, Sample},
+        sample_window::Window,
+    };
     let age = &report["observer"]["frame_age"];
     let samples: Vec<Sample> = serde_json::from_value(age["samples"].clone()).unwrap();
-    let config: Config = serde_json::from_value(age["config"].clone()).unwrap();
+    let config: Window = serde_json::from_value(age["config"].clone()).unwrap();
     assert!(
         samples.len() >= 300,
         "independent age sampling must cover operating time"

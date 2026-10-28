@@ -1,7 +1,7 @@
 use super::*;
 
-fn config() -> Config {
-    Config {
+fn config() -> Window {
+    Window {
         start_qpc: 1000,
         frequency: 1000,
         warmup_seconds: 1,
@@ -51,16 +51,7 @@ fn repetitions_absence_corruption_and_future_or_regressing_frames_remain_visible
 }
 
 #[test]
-fn clock_admission_bounds_the_gpu_log_before_allocating_it() {
-    let mut c = config();
-    c.maximum_seconds = 3600;
-    c.warmup_seconds = 0;
-    assert_eq!(c.capacity(), MAX_SAMPLES);
-    c.frequency = u64::MAX;
-    assert!(c.validate().is_err());
-    c = config();
-    c.maximum_seconds = c.warmup_seconds;
-    assert!(c.validate().is_err());
+fn marker_clock_words_preserve_the_complete_cpu_stamp() {
     let high_stamp = 0xabcd_1234_5678_9012;
     let words = marker_words(216_000, 1, high_stamp);
     assert_eq!(u64::from(words[2]) | (u64::from(words[3]) << 32), high_stamp);

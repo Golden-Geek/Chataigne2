@@ -2,7 +2,8 @@
 
 use crate::{ProbeResult, clock, d3d::Gpu, spout::Endpoint, texture::Texture};
 use mapgyver_native_probe::allocation::{Owner, Work};
-use mapgyver_native_probe::frame_age::{self, Config, PIXELS_PER_SAMPLE, Report, Sample};
+use mapgyver_native_probe::frame_age::{self, PIXELS_PER_SAMPLE, Report, Sample};
+use mapgyver_native_probe::sample_window::Window;
 use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 use windows::Win32::Graphics::{Direct3D11::*, Dxgi::Common::*};
@@ -16,7 +17,7 @@ pub struct Capture {
 }
 
 pub struct Collector {
-    config: Config,
+    config: Window,
     log: Texture,
     queries: Vec<ID3D11Query>,
     pending: VecDeque<(usize, usize)>,
@@ -28,7 +29,7 @@ pub struct Collector {
 }
 
 impl Collector {
-    pub fn new(gpu: &Gpu, config: Config) -> ProbeResult<Self> {
+    pub fn new(gpu: &Gpu, config: Window) -> ProbeResult<Self> {
         config.validate()?;
         if config.frequency != clock::frequency()? {
             return Err("observer/renderer QPC frequency mismatch".into());

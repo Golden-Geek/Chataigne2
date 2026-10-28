@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "predeclared_consumer_activity_control_not_qualification",
+  "reason": "Prior staged frame2009 contains 143.0630208333 ms between post-composition/post-Spout markers, but the SDK-internal cause is unproven",
+  "adapter_index": 0,
+  "scenario": "q02",
+  "presentation_policy": "latest",
+  "gpu_stages": true,
+  "consumer_modes": {
+    "active": "Retain ordinary SDK receives, receiver copies/flushes and frame-age marker capture during sampling",
+    "paused": "Retain the observer process/device/SDK endpoint/GPU log allocations and warmup content checks, but suppress recurring receive/copy/log work and resource GPU markers; retain passive CPU resource snapshots and omit consumer age data"
+  },
+  "common_preconditions": ["all four ordered content checkpoints complete before sampling", "observer GPU completion fence and parent acknowledgement receipt strictly before sample begin", "run-owned sample window independent of frame-age availability", "one frozen release/source/assets/helper epoch", "identical scene/pacing/admission/presenter/output-send paths", "same actual window context"],
+  "ordered_captures": [
+    {"label": "smoke", "consumer_mode": "paused", "warmup_seconds": 30, "sample_seconds": 8},
+    {"label": "a1", "consumer_mode": "active", "warmup_seconds": 30, "sample_seconds": 120, "condition": "smoke has complete capture/stage/quiescence/ownership integrity"},
+    {"label": "b", "consumer_mode": "paused", "warmup_seconds": 30, "sample_seconds": 120},
+    {"label": "a2", "consumer_mode": "active", "warmup_seconds": 30, "sample_seconds": 120}
+  ],
+  "collector_tail_seconds": 10,
+  "proof": ["paused observer final ten work counters and resource GPU marker counts equal its pre-sample fence counters", "cleanup begins after the declared sample window", "paused frame_age is null and qualification rejects this mode", "active raw age markers/distributions retain ordinary verification", "complete raw stage/whole-frame identities, coverage and integer interval conservation", "exact original native/query/CSV streams and hashes", "separate nominal attempts, GPU coalescing, readiness gaps and accepted/CSV dropped Presents", "bounded imports and zero cleanup"],
+  "constraints": ["one native workload at a time without concurrent builds, automation or analysis", "no display/overlay/power changes", "retain every failed capture without replacement runs", "no GPU-clock subtraction across contexts or GPU-to-QPC conversion"],
+  "interpretation": "Pausing removes the combined SDK receiver copy/flush/access, marker-log workload and resource GPU markers. It does not isolate mutex contention, establish a causal repair or qualify paused source-to-output latency. SDK SendTexture success is an accepted call, not unconditional proof of a copied/published frame. Off/on return behavior and temporal drift stay visible; one paused sample is diagnostic, not the required qualification series. M01 keeps its full eight-item acceptance scope."
+}
