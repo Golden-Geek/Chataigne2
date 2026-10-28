@@ -16,8 +16,12 @@ mod completion;
 mod d3d;
 #[cfg(all(windows, feature = "desktop"))]
 mod desktop;
+#[cfg(windows)]
+mod dpi;
 #[cfg(all(windows, feature = "desktop"))]
 mod editor_isolation;
+#[cfg(windows)]
+mod etw_status;
 #[cfg(windows)]
 mod fixture;
 #[cfg(all(windows, feature = "desktop"))]
@@ -73,6 +77,7 @@ fn run() -> ProbeResult<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     match args.first().map(String::as_str) {
         Some("trace-capability") if args.len() == 1 => print_json(&trace_capability::probe()?),
+        Some("trace-status") if args.len() == 2 => print_json(&etw_status::query(&args[1])?),
         #[cfg(feature = "desktop")]
         Some("color-accuracy") if args.len() == 3 => {
             let report = color_accuracy::run(args[1].parse()?, args[2].parse()?)?;
@@ -162,6 +167,7 @@ fn run() -> ProbeResult<()> {
             "usage: mapgyver_native_probe COMMAND\n",
             "  inventory\n",
             "  trace-capability (empty owned ETW session; no providers or files)\n",
+            "  trace-status OWNED_PRESENTMON_SESSION (read-only live counters)\n",
             "  smoke ADAPTER\n",
             "  fixture ADAPTER NAME a|b FRAMES diagnostic|q01|q02\n",
             "  observe ADAPTER SENDER diagnostic|q01|q02\n",

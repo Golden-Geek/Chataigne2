@@ -1,0 +1,739 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "saved_intel_display_control_drop_diagnosis_not_cause_or_qualification",
+  "method": {
+    "input_integrity": "Verify compressed payload SHA/length, raw stream byte SHA/length, native JSON compaction and existing CSV/role analyses before deriving.",
+    "role_identity": "Use previously verified exact PID, queried DXGI alias and Present-QPC lifetime; no role ordering/count heuristic.",
+    "frame_join": "Sort native query-reap rows by exact submitted QPC, then bracket each Present QPC by consecutive renderer iteration-start QPCs; last iteration ends at recorded role Present interval end. Require exactly one sampled row per role in all 480 dependency iterations. This is a CPU-iteration bracket join, not an encoded ETW frame ID.",
+    "phase_groups": "Use exact nullness of source-A publication in dependency_trace: before first contiguous null run, null run, after last null. Fixture phase records use source-local elapsed time and are not silently converted to global QPC.",
+    "gpu_spans": "Subtract ticks only within each renderer disjoint span; preserve exact rational means. These spans exclude other contexts and are not full GPU critical path.",
+    "metric_semantics": "Percentiles use nearest rank. Present-to-display summaries exclude Dropped rows; reported zero on dropped rows is unavailable display timing, not zero latency. QPC integers never pass through floating point."
+  },
+  "runs": [
+    {
+      "scenario": "q01",
+      "artifact": "mapgyver-m01-presentmon-role-intel-q01-2026-10-28.json",
+      "artifact_sha256": "ad64bce12fbeb6a24cfd81e8f579f9c2fa2527f272c38065028530bb102e3fb8",
+      "decoded_packet_sha256": "2af247cdd6057be0531b21c21b74aa9491ca7a49fe38b24851386eac3992434f",
+      "raw_csv_sha256": "2e3d93e02ced9f7209776fde107e1c9ec350b6ecaf5460e1e07f13efe984a34d",
+      "native_executable_sha256": "d0cc1ce5b996eb67edf1d2cc5b971618e3412faa5e3d02c43101b60ec64b4a5c",
+      "native_report_and_stream_integrity_verified": true,
+      "prior_analyses_recomputed_exactly": true,
+      "sample_present_window_qpc": {
+        "begin": 1852235014339,
+        "end": 1852315014339,
+        "frequency": 10000000
+      },
+      "raw_rows": 1187,
+      "paired_sample_iterations": 480,
+      "per_role": {
+        "editor": {
+          "raw_rows": 593,
+          "present_modes": {
+            "Composed: Flip": 593
+          },
+          "sampled_presents": 480,
+          "sampled_dropped": 0,
+          "before_sample_presents": 113,
+          "before_sample_dropped": 0,
+          "sample_second_bins": [
+            {
+              "second": 0,
+              "presents": 60,
+              "dropped": 0
+            },
+            {
+              "second": 1,
+              "presents": 60,
+              "dropped": 0
+            },
+            {
+              "second": 2,
+              "presents": 60,
+              "dropped": 0
+            },
+            {
+              "second": 3,
+              "presents": 60,
+              "dropped": 0
+            },
+            {
+              "second": 4,
+              "presents": 60,
+              "dropped": 0
+            },
+            {
+              "second": 5,
+              "presents": 60,
+              "dropped": 0
+            },
+            {
+              "second": 6,
+              "presents": 60,
+              "dropped": 0
+            },
+            {
+              "second": 7,
+              "presents": 60,
+              "dropped": 0
+            }
+          ],
+          "first_dropped_qpc": null,
+          "last_dropped_qpc": null,
+          "consecutive_drop_run_lengths": {},
+          "present_interval_ms": {
+            "samples": 480,
+            "mean_ms": 16.66559270833333,
+            "mean_ms_exact": "15998969/960000",
+            "p50_ms": 16.6617,
+            "p95_ms": 17.0679,
+            "p99_ms": 17.2354,
+            "maximum_ms": 17.4969
+          },
+          "render_complete_delay_ms": {
+            "samples": 480,
+            "mean_ms": 1.2310285416666666,
+            "mean_ms_exact": "5908937/4800000",
+            "p50_ms": 1.2571,
+            "p95_ms": 1.4821,
+            "p99_ms": 1.598,
+            "maximum_ms": 1.6946
+          },
+          "dropped_render_complete_delay_ms": null,
+          "displayed_render_complete_delay_ms": {
+            "samples": 480,
+            "mean_ms": 1.2310285416666666,
+            "mean_ms_exact": "5908937/4800000",
+            "p50_ms": 1.2571,
+            "p95_ms": 1.4821,
+            "p99_ms": 1.598,
+            "maximum_ms": 1.6946
+          },
+          "shown_present_to_display_ms": {
+            "samples": 480,
+            "mean_ms": 17.684525833333332,
+            "mean_ms_exact": "21221431/1200000",
+            "p50_ms": 17.9032,
+            "p95_ms": 18.1814,
+            "p99_ms": 18.2669,
+            "maximum_ms": 18.3262
+          }
+        },
+        "native_output": {
+          "raw_rows": 594,
+          "present_modes": {
+            "Composed: Flip": 594
+          },
+          "sampled_presents": 480,
+          "sampled_dropped": 0,
+          "before_sample_presents": 114,
+          "before_sample_dropped": 0,
+          "sample_second_bins": [
+            {
+              "second": 0,
+              "presents": 60,
+              "dropped": 0
+            },
+            {
+              "second": 1,
+              "presents": 60,
+              "dropped": 0
+            },
+            {
+              "second": 2,
+              "presents": 60,
+              "dropped": 0
+            },
+            {
+              "second": 3,
+              "presents": 60,
+              "dropped": 0
+            },
+            {
+              "second": 4,
+              "presents": 60,
+              "dropped": 0
+            },
+            {
+              "second": 5,
+              "presents": 60,
+              "dropped": 0
+            },
+            {
+              "second": 6,
+              "presents": 60,
+              "dropped": 0
+            },
+            {
+              "second": 7,
+              "presents": 60,
+              "dropped": 0
+            }
+          ],
+          "first_dropped_qpc": null,
+          "last_dropped_qpc": null,
+          "consecutive_drop_run_lengths": {},
+          "present_interval_ms": {
+            "samples": 480,
+            "mean_ms": 16.665609791666668,
+            "mean_ms_exact": "79994927/4800000",
+            "p50_ms": 16.6614,
+            "p95_ms": 17.0684,
+            "p99_ms": 17.2363,
+            "maximum_ms": 17.503
+          },
+          "render_complete_delay_ms": {
+            "samples": 480,
+            "mean_ms": 1.0820735416666667,
+            "mean_ms_exact": "5193953/4800000",
+            "p50_ms": 1.088,
+            "p95_ms": 1.3191,
+            "p99_ms": 1.3888,
+            "maximum_ms": 1.523
+          },
+          "dropped_render_complete_delay_ms": null,
+          "displayed_render_complete_delay_ms": {
+            "samples": 480,
+            "mean_ms": 1.0820735416666667,
+            "mean_ms_exact": "5193953/4800000",
+            "p50_ms": 1.088,
+            "p95_ms": 1.3191,
+            "p99_ms": 1.3888,
+            "maximum_ms": 1.523
+          },
+          "shown_present_to_display_ms": {
+            "samples": 480,
+            "mean_ms": 17.677897291666667,
+            "mean_ms_exact": "84853907/4800000",
+            "p50_ms": 17.94,
+            "p95_ms": 18.2154,
+            "p99_ms": 18.2913,
+            "maximum_ms": 18.3521
+          }
+        }
+      },
+      "phase_groups": {
+        "before_source_a_absence": {
+          "iterations": 58,
+          "first_renderer_frame": 116,
+          "last_renderer_frame": 173,
+          "first_iteration_qpc": 1852235133958,
+          "last_iteration_qpc": 1852244629542,
+          "renderer_gpu_span_ms": {
+            "samples": 58,
+            "mean_ms": 1.1748688936781608,
+            "mean_ms_exact": "654167/556800",
+            "p50_ms": 1.1247395833333333,
+            "p95_ms": 2.00875,
+            "p99_ms": 2.2934895833333333,
+            "maximum_ms": 2.2934895833333333
+          },
+          "editor_dropped": 0,
+          "output_dropped": 0
+        },
+        "source_a_absent": {
+          "iterations": 26,
+          "first_renderer_frame": 174,
+          "last_renderer_frame": 199,
+          "first_iteration_qpc": 1852244799012,
+          "last_iteration_qpc": 1852248965530,
+          "renderer_gpu_span_ms": {
+            "samples": 26,
+            "mean_ms": 0.7758533653846154,
+            "mean_ms_exact": "64551/83200",
+            "p50_ms": 0.7138541666666667,
+            "p95_ms": 0.940625,
+            "p99_ms": 1.2854166666666667,
+            "maximum_ms": 1.2854166666666667
+          },
+          "editor_dropped": 0,
+          "output_dropped": 0
+        },
+        "after_source_a_publication_returns": {
+          "iterations": 396,
+          "first_renderer_frame": 200,
+          "last_renderer_frame": 595,
+          "first_iteration_qpc": 1852249132726,
+          "last_iteration_qpc": 1852314964050,
+          "renderer_gpu_span_ms": {
+            "samples": 396,
+            "mean_ms": 1.2720120475589225,
+            "mean_ms_exact": "4835681/3801600",
+            "p50_ms": 1.2427604166666666,
+            "p95_ms": 1.5102083333333334,
+            "p99_ms": 1.7000520833333332,
+            "maximum_ms": 1.93890625
+          },
+          "editor_dropped": 0,
+          "output_dropped": 0
+        }
+      },
+      "paired_drop_outcomes": [
+        {
+          "editor_dropped": false,
+          "output_dropped": false,
+          "iterations": 480
+        }
+      ],
+      "editor_minus_output_present_ms": {
+        "samples": 480,
+        "mean_ms": 0.03667145833333333,
+        "mean_ms_exact": "176023/4800000",
+        "p50_ms": 0.0323,
+        "p95_ms": 0.0549,
+        "p99_ms": 0.1046,
+        "maximum_ms": 0.3354
+      },
+      "editor_minus_output_render_ready_ms": {
+        "samples": 480,
+        "mean_ms": 0.18562645833333333,
+        "mean_ms_exact": "891007/4800000",
+        "p50_ms": 0.1908,
+        "p95_ms": 0.2289,
+        "p99_ms": 0.2856,
+        "maximum_ms": 0.3992
+      },
+      "native_cpu_submission": {
+        "samples": 480,
+        "mean_ms": 0.8500510416666666,
+        "median_ms": 0.7634,
+        "p95_ms": 1.2321,
+        "p99_ms": 1.3414,
+        "maximum_ms": 1.7667
+      },
+      "native_worker_start_intervals": {
+        "samples": 479,
+        "mean_ms": 16.665941753653442,
+        "median_ms": 16.6739,
+        "p95_ms": 17.0515,
+        "p99_ms": 17.176299999999998,
+        "maximum_ms": 17.2816
+      },
+      "native_renderer_gpu_span": {
+        "samples": 480,
+        "mean_ms": 1.2333986545138889,
+        "median_ms": 1.23390625,
+        "p95_ms": 1.5238020833333334,
+        "p99_ms": 1.7996354166666666,
+        "maximum_ms": 2.2934895833333333
+      },
+      "native_sample_gpu_admission": {
+        "attempts": 480,
+        "admitted": 480,
+        "busy": 0
+      },
+      "native_sample_operation_outliers": 0,
+      "native_output_extent": [
+        1920,
+        1080
+      ],
+      "sampled_geometry_mismatches": 0,
+      "source_a_local_phase_records": [
+        {
+          "source_local_elapsed_seconds": 0.0431543,
+          "phase": 0
+        },
+        {
+          "source_local_elapsed_seconds": 1.5273141,
+          "phase": 1
+        },
+        {
+          "source_local_elapsed_seconds": 3.0264419,
+          "phase": 2
+        },
+        {
+          "source_local_elapsed_seconds": 3.5353438,
+          "phase": 3
+        }
+      ]
+    },
+    {
+      "scenario": "q02",
+      "artifact": "mapgyver-m01-presentmon-role-intel-q02-2026-10-28.json",
+      "artifact_sha256": "6e2b64e3d43898e2a269515895f195387ecc5debc296bdc97499bb93cedd4024",
+      "decoded_packet_sha256": "404d1859dd3698c0df876cd52f304e840dcb8d6407a8da9624e9f2b179307028",
+      "raw_csv_sha256": "f61b3ee28b8e4ac4c1b42dab6d68238ce2c7cb9cf13aa14f50341ea897932ed0",
+      "native_executable_sha256": "d0cc1ce5b996eb67edf1d2cc5b971618e3412faa5e3d02c43101b60ec64b4a5c",
+      "native_report_and_stream_integrity_verified": true,
+      "prior_analyses_recomputed_exactly": true,
+      "sample_present_window_qpc": {
+        "begin": 1853879138147,
+        "end": 1853959138147,
+        "frequency": 10000000
+      },
+      "raw_rows": 1181,
+      "paired_sample_iterations": 480,
+      "per_role": {
+        "editor": {
+          "raw_rows": 590,
+          "present_modes": {
+            "Composed: Flip": 590
+          },
+          "sampled_presents": 480,
+          "sampled_dropped": 85,
+          "before_sample_presents": 110,
+          "before_sample_dropped": 15,
+          "sample_second_bins": [
+            {
+              "second": 0,
+              "presents": 60,
+              "dropped": 5
+            },
+            {
+              "second": 1,
+              "presents": 60,
+              "dropped": 4
+            },
+            {
+              "second": 2,
+              "presents": 60,
+              "dropped": 16
+            },
+            {
+              "second": 3,
+              "presents": 60,
+              "dropped": 15
+            },
+            {
+              "second": 4,
+              "presents": 60,
+              "dropped": 12
+            },
+            {
+              "second": 5,
+              "presents": 60,
+              "dropped": 10
+            },
+            {
+              "second": 6,
+              "presents": 60,
+              "dropped": 10
+            },
+            {
+              "second": 7,
+              "presents": 60,
+              "dropped": 13
+            }
+          ],
+          "first_dropped_qpc": 1853880346868,
+          "last_dropped_qpc": 1853958683542,
+          "consecutive_drop_run_lengths": {
+            "1": 85
+          },
+          "present_interval_ms": {
+            "samples": 480,
+            "mean_ms": 16.667456666666666,
+            "mean_ms_exact": "5000237/300000",
+            "p50_ms": 16.6631,
+            "p95_ms": 17.1019,
+            "p99_ms": 17.2685,
+            "maximum_ms": 17.4425
+          },
+          "render_complete_delay_ms": {
+            "samples": 480,
+            "mean_ms": 8.476884583333334,
+            "mean_ms_exact": "20344523/2400000",
+            "p50_ms": 9.1117,
+            "p95_ms": 11.3238,
+            "p99_ms": 12.6842,
+            "maximum_ms": 15.4285
+          },
+          "dropped_render_complete_delay_ms": {
+            "samples": 85,
+            "mean_ms": 9.763198823529411,
+            "mean_ms_exact": "8298719/850000",
+            "p50_ms": 10.2853,
+            "p95_ms": 11.1001,
+            "p99_ms": 11.6913,
+            "maximum_ms": 11.6913
+          },
+          "displayed_render_complete_delay_ms": {
+            "samples": 395,
+            "mean_ms": 8.200082784810126,
+            "mean_ms_exact": "32390327/3950000",
+            "p50_ms": 8.7102,
+            "p95_ms": 11.4941,
+            "p99_ms": 12.8368,
+            "maximum_ms": 15.4285
+          },
+          "shown_present_to_display_ms": {
+            "samples": 395,
+            "mean_ms": 23.38054987341772,
+            "mean_ms_exact": "23088293/987500",
+            "p50_ms": 29.983,
+            "p95_ms": 30.4805,
+            "p99_ms": 30.5766,
+            "maximum_ms": 30.6167
+          }
+        },
+        "native_output": {
+          "raw_rows": 591,
+          "present_modes": {
+            "Composed: Flip": 591
+          },
+          "sampled_presents": 480,
+          "sampled_dropped": 20,
+          "before_sample_presents": 111,
+          "before_sample_dropped": 2,
+          "sample_second_bins": [
+            {
+              "second": 0,
+              "presents": 60,
+              "dropped": 0
+            },
+            {
+              "second": 1,
+              "presents": 60,
+              "dropped": 1
+            },
+            {
+              "second": 2,
+              "presents": 60,
+              "dropped": 3
+            },
+            {
+              "second": 3,
+              "presents": 60,
+              "dropped": 2
+            },
+            {
+              "second": 4,
+              "presents": 60,
+              "dropped": 4
+            },
+            {
+              "second": 5,
+              "presents": 60,
+              "dropped": 3
+            },
+            {
+              "second": 6,
+              "presents": 60,
+              "dropped": 3
+            },
+            {
+              "second": 7,
+              "presents": 60,
+              "dropped": 4
+            }
+          ],
+          "first_dropped_qpc": 1853894682045,
+          "last_dropped_qpc": 1853957187502,
+          "consecutive_drop_run_lengths": {
+            "1": 20
+          },
+          "present_interval_ms": {
+            "samples": 480,
+            "mean_ms": 16.667461041666666,
+            "mean_ms_exact": "80003813/4800000",
+            "p50_ms": 16.6649,
+            "p95_ms": 17.1002,
+            "p99_ms": 17.2736,
+            "maximum_ms": 17.3958
+          },
+          "render_complete_delay_ms": {
+            "samples": 480,
+            "mean_ms": 5.746630208333333,
+            "mean_ms_exact": "1103353/192000",
+            "p50_ms": 5.5757,
+            "p95_ms": 10.537,
+            "p99_ms": 11.6058,
+            "maximum_ms": 13.3579
+          },
+          "dropped_render_complete_delay_ms": {
+            "samples": 20,
+            "mean_ms": 7.88341,
+            "mean_ms_exact": "788341/100000",
+            "p50_ms": 7.9352,
+            "p95_ms": 11.1866,
+            "p99_ms": 11.6324,
+            "maximum_ms": 11.6324
+          },
+          "displayed_render_complete_delay_ms": {
+            "samples": 460,
+            "mean_ms": 5.653726739130435,
+            "mean_ms_exact": "26007143/4600000",
+            "p50_ms": 5.5396,
+            "p95_ms": 10.2786,
+            "p99_ms": 11.3962,
+            "maximum_ms": 13.3579
+          },
+          "shown_present_to_display_ms": {
+            "samples": 460,
+            "mean_ms": 16.144060869565216,
+            "mean_ms_exact": "1856567/115000",
+            "p50_ms": 13.6589,
+            "p95_ms": 30.302,
+            "p99_ms": 30.4595,
+            "maximum_ms": 30.5783
+          }
+        }
+      },
+      "phase_groups": {
+        "before_source_a_absence": {
+          "iterations": 57,
+          "first_renderer_frame": 112,
+          "last_renderer_frame": 168,
+          "first_iteration_qpc": 1853879177087,
+          "last_iteration_qpc": 1853888511722,
+          "renderer_gpu_span_ms": {
+            "samples": 57,
+            "mean_ms": 3.7225109649122805,
+            "mean_ms_exact": "339493/91200",
+            "p50_ms": 3.57109375,
+            "p95_ms": 4.4666145833333335,
+            "p99_ms": 9.371510416666666,
+            "maximum_ms": 9.371510416666666
+          },
+          "editor_dropped": 5,
+          "output_dropped": 0
+        },
+        "source_a_absent": {
+          "iterations": 26,
+          "first_renderer_frame": 169,
+          "last_renderer_frame": 194,
+          "first_iteration_qpc": 1853888677500,
+          "last_iteration_qpc": 1853892844309,
+          "renderer_gpu_span_ms": {
+            "samples": 26,
+            "mean_ms": 2.9329807692307694,
+            "mean_ms_exact": "30503/10400",
+            "p50_ms": 2.49,
+            "p95_ms": 3.4909895833333335,
+            "p99_ms": 12.804739583333333,
+            "maximum_ms": 12.804739583333333
+          },
+          "editor_dropped": 0,
+          "output_dropped": 0
+        },
+        "after_source_a_publication_returns": {
+          "iterations": 397,
+          "first_renderer_frame": 195,
+          "last_renderer_frame": 591,
+          "first_iteration_qpc": 1853893009795,
+          "last_iteration_qpc": 1853959011047,
+          "renderer_gpu_span_ms": {
+            "samples": 397,
+            "mean_ms": 9.953320476490344,
+            "mean_ms_exact": "7586819/762240",
+            "p50_ms": 10.5325,
+            "p95_ms": 11.8278125,
+            "p99_ms": 12.870677083333334,
+            "maximum_ms": 15.501927083333333
+          },
+          "editor_dropped": 80,
+          "output_dropped": 20
+        }
+      },
+      "paired_drop_outcomes": [
+        {
+          "editor_dropped": false,
+          "output_dropped": false,
+          "iterations": 376
+        },
+        {
+          "editor_dropped": false,
+          "output_dropped": true,
+          "iterations": 19
+        },
+        {
+          "editor_dropped": true,
+          "output_dropped": false,
+          "iterations": 84
+        },
+        {
+          "editor_dropped": true,
+          "output_dropped": true,
+          "iterations": 1
+        }
+      ],
+      "editor_minus_output_present_ms": {
+        "samples": 480,
+        "mean_ms": 0.03799645833333333,
+        "mean_ms_exact": "182383/4800000",
+        "p50_ms": 0.0346,
+        "p95_ms": 0.0614,
+        "p99_ms": 0.0978,
+        "maximum_ms": 0.2495
+      },
+      "editor_minus_output_render_ready_ms": {
+        "samples": 480,
+        "mean_ms": 2.7682508333333335,
+        "mean_ms_exact": "3321901/1200000",
+        "p50_ms": 2.7044,
+        "p95_ms": 7.1905,
+        "p99_ms": 7.805,
+        "maximum_ms": 11.4705
+      },
+      "native_cpu_submission": {
+        "samples": 480,
+        "mean_ms": 0.9774110416666665,
+        "median_ms": 0.9336,
+        "p95_ms": 1.3616,
+        "p99_ms": 1.4285999999999999,
+        "maximum_ms": 1.5241
+      },
+      "native_worker_start_intervals": {
+        "samples": 479,
+        "mean_ms": 16.66674885177453,
+        "median_ms": 16.662300000000002,
+        "p95_ms": 17.0032,
+        "p99_ms": 17.1064,
+        "maximum_ms": 17.2153
+      },
+      "native_renderer_gpu_span": {
+        "samples": 480,
+        "mean_ms": 8.833143446180546,
+        "median_ms": 9.770885416666667,
+        "p95_ms": 11.759479166666667,
+        "p99_ms": 12.867552083333335,
+        "maximum_ms": 15.501927083333333
+      },
+      "native_sample_gpu_admission": {
+        "attempts": 480,
+        "admitted": 480,
+        "busy": 0
+      },
+      "native_sample_operation_outliers": 0,
+      "native_output_extent": [
+        3840,
+        2160
+      ],
+      "sampled_geometry_mismatches": 0,
+      "source_a_local_phase_records": [
+        {
+          "source_local_elapsed_seconds": 0.0539535,
+          "phase": 0
+        },
+        {
+          "source_local_elapsed_seconds": 1.5230002,
+          "phase": 1
+        },
+        {
+          "source_local_elapsed_seconds": 3.0206295,
+          "phase": 2
+        },
+        {
+          "source_local_elapsed_seconds": 3.5324045,
+          "phase": 3
+        }
+      ]
+    }
+  ],
+  "observations": [
+    "Q02 drops remain distributed across the eight-second sample and all are isolated single drops; this is not merely a warmup/sample-boundary count.",
+    "Q02 source-A absence has zero dropped rows in 26 iterations; after publication returns, 397 iterations contain 80 editor and 20 output drops and a 9.953-ms mean scoped renderer GPU span.",
+    "Fixture code restores source A from absence to full scenario extent in phase 3, while the earlier phase 1 uses half width/height. The null dependency grouping does not independently encode per-row source extents.",
+    "The full-source/GPU/compositor-deadline interaction is a targeted hypothesis, not a proven cause. Current CSV does not contain DWM latch deadlines or per-row physical monitor identity.",
+    "Q02 output is a 3840x2160 client on an available 1920x1080 secondary monitor; extending beyond the available display remains a scope limitation, not an inferred cause of drops."
+  ],
+  "next_diagnostic": "Retain failures, add owned-session loss observations, then collect a predeclared post-reconnect steady Q02 control with normal 30-second warmup and unchanged geometry/Present flags. Record actual monitor/refresh/DWM context before changing rendering policy.",
+  "limits": [
+    "No independent zero-loss proof.",
+    "No physical scanout, clipping cause or refresh-phase cause established.",
+    "No cross-context GPU critical path or producer/DWM utilization claim.",
+    "One capture per scenario is not a repeatability or sustained-series qualification."
+  ]
+,
+  "reproduction": {"language":"Python 3","working_directory":"repository root","execution":"Run code via Python stdin; reads existing artifacts only and emits the derived summary to stdout.","code":"import bisect\nimport collections\nimport csv\nfrom fractions import Fraction\nimport hashlib\nimport io\nimport json\nfrom pathlib import Path\nimport runpy\n\nBASE = runpy.run_path('tools/mapgyver/run-qualification.py')\nDATA = runpy.run_path('tools/mapgyver/presentmon_data.py')\nROLES = runpy.run_path('tools/mapgyver/presentmon_roles.py')\n\ndef distribution(values):\n    ordered = sorted(values)\n    if not ordered:\n        return None\n    def rank(percent):\n        return float(ordered[(percent * len(ordered) + 99) // 100 - 1])\n    average = sum(ordered) / len(ordered)\n    return dict(samples=len(ordered), mean_ms=float(average), mean_ms_exact=str(average),\n                p50_ms=rank(50), p95_ms=rank(95), p99_ms=rank(99),\n                maximum_ms=float(ordered[-1]))\n\nruns = []\nfor scenario in ('q01', 'q02'):\n    path = Path(f'docs/progress/evidence/mapgyver-m01-presentmon-role-intel-{scenario}-2026-10-28.json')\n    packet = json.loads(path.read_text(encoding='utf-8'))\n    evidence = BASE['decode_evidence'](packet)\n    assert evidence['route_verified'] and evidence['role_correlation_verified']\n    assert evidence['inputs_unchanged_after_run']\n    for relative in ('tools/mapgyver/presentmon_data.py', 'tools/mapgyver/presentmon_roles.py',\n                     'tools/mapgyver/native-probe/src/fixture.rs'):\n        assert evidence['inputs']['files'][relative] == hashlib.sha256(Path(relative).read_bytes()).hexdigest()\n    for stream in (evidence['native'], evidence['presentmon']):\n        assert stream['exit_code'] == 0 and not stream['timed_out'] and stream['valid_utf8']\n        for name in ('stdout', 'stderr'):\n            encoded = stream[name].encode('utf-8')\n            assert len(encoded) == stream[name + '_bytes']\n            assert hashlib.sha256(encoded).hexdigest() == stream[name + '_sha256']\n    native = json.loads(evidence['native']['stdout'])\n    BASE['compact_resources'](native)\n    assert native == evidence['native_report']\n    config = native['observer']['frame_age']['config']\n    begin, end, frequency = DATA['_window'](config)\n    source = evidence['presentmon']['stdout']\n    assert DATA['analyze'](source, evidence['native_pid'], config) == evidence['analysis']\n    assert ROLES['correlate'](source, evidence['native_pid'], native, config) == evidence['role_correlation']\n    assert len(native['generations']) == 1\n    generation = native['generations'][0]\n    trace = generation['timing']['gpu_trace']\n    assert trace['columns'] == ['frame', 'submitted_qpc', 'observed_completed_qpc',\n                                'start_ticks', 'end_ticks', 'frequency', 'collected']\n    frames = sorted((dict(zip(trace['columns'], row)) for row in trace['rows']), key=lambda frame: frame['submitted_qpc'])\n    assert all(a['submitted_qpc'] < b['submitted_qpc'] for a, b in zip(frames, frames[1:]))\n    assert len({frame['frame'] for frame in frames}) == len(frames)\n    starts = [frame['submitted_qpc'] for frame in frames]\n    by_frame = {frame['frame']: frame for frame in frames}\n    dependencies = {row[0]: row[1:] for row in generation['dependency_trace']['rows']}\n    assert len(dependencies) == 480\n    metadata = evidence['role_correlation']['roles']\n    address_roles = {int(address, 16): record['role'] for record in metadata\n                     for address in record['addresses'].values()}\n    role_end = {record['role']: record['end_qpc'] for record in metadata}\n    grouped = collections.defaultdict(list)\n    for original in csv.DictReader(io.StringIO(source)):\n        row = {key.lower(): value for key, value in original.items()}\n        qpc = int(row['qpctime'])\n        role = address_roles[int(row['swapchainaddress'], 16)]\n        index = bisect.bisect_right(starts, qpc) - 1\n        assert index >= 0\n        frame = frames[index]\n        upper = starts[index + 1] if index + 1 < len(starts) else role_end[role]\n        assert frame['submitted_qpc'] <= qpc < upper\n        row.update(qpc=qpc, frame=frame['frame'], dropped=int(row['dropped']),\n                   in_sample=begin <= qpc < end)\n        grouped[role].append(row)\n    per_role = {}\n    sampled = {}\n    for role in ('editor', 'native_output'):\n        rows = grouped[role]\n        sample = [row for row in rows if row['in_sample']]\n        assert len(sample) == 480\n        sampled[role] = {row['frame']: row for row in sample}\n        assert len(sampled[role]) == 480 and sampled[role].keys() == dependencies.keys()\n        dropped = [row for row in sample if row['dropped']]\n        single_runs = []\n        length = 0\n        for row in sample:\n            if row['dropped']:\n                length += 1\n            elif length:\n                single_runs.append(length)\n                length = 0\n        if length:\n            single_runs.append(length)\n        shown = [row for row in sample if not row['dropped']]\n        def metric(rows, name):\n            return distribution([Fraction(row[name]) for row in rows if row[name] not in ('', 'NA')])\n        per_role[role] = dict(\n            raw_rows=len(rows), present_modes=dict(collections.Counter(row['presentmode'] for row in rows)),\n            sampled_presents=len(sample), sampled_dropped=len(dropped),\n            before_sample_presents=sum(row['qpc'] < begin for row in rows),\n            before_sample_dropped=sum(row['qpc'] < begin and row['dropped'] for row in rows),\n            sample_second_bins=[dict(second=second,\n                presents=sum(begin + second * frequency <= row['qpc'] < begin + (second + 1) * frequency for row in sample),\n                dropped=sum(row['dropped'] for row in sample\n                            if begin + second * frequency <= row['qpc'] < begin + (second + 1) * frequency))\n                for second in range(8)],\n            first_dropped_qpc=None if not dropped else dropped[0]['qpc'],\n            last_dropped_qpc=None if not dropped else dropped[-1]['qpc'],\n            consecutive_drop_run_lengths={str(k): v for k, v in sorted(collections.Counter(single_runs).items())},\n            present_interval_ms=metric(sample, 'msbetweenpresents'),\n            render_complete_delay_ms=metric(sample, 'msuntilrendercomplete'),\n            dropped_render_complete_delay_ms=metric(dropped, 'msuntilrendercomplete'),\n            displayed_render_complete_delay_ms=metric(shown, 'msuntilrendercomplete'),\n            shown_present_to_display_ms=metric(shown, 'msuntildisplayed'))\n    absent = [frame for frame, dep in dependencies.items() if dep[0] is None]\n    assert absent and absent == list(range(min(absent), max(absent) + 1))\n    sets = dict(before_source_a_absence=[f for f in dependencies if f < min(absent)],\n                source_a_absent=absent,\n                after_source_a_publication_returns=[f for f in dependencies if f > max(absent)])\n    phase_groups = {}\n    for label, ids in sets.items():\n        values = [Fraction((by_frame[f]['end_ticks'] - by_frame[f]['start_ticks']) * 1000,\n                           by_frame[f]['frequency']) for f in ids]\n        phase_groups[label] = dict(\n            iterations=len(ids), first_renderer_frame=min(ids), last_renderer_frame=max(ids),\n            first_iteration_qpc=by_frame[min(ids)]['submitted_qpc'],\n            last_iteration_qpc=by_frame[max(ids)]['submitted_qpc'],\n            renderer_gpu_span_ms=distribution(values),\n            editor_dropped=sum(sampled['editor'][f]['dropped'] for f in ids),\n            output_dropped=sum(sampled['native_output'][f]['dropped'] for f in ids))\n    paired = collections.Counter((sampled['editor'][f]['dropped'], sampled['native_output'][f]['dropped'])\n                                 for f in dependencies)\n    present_delta = [Fraction((sampled['editor'][f]['qpc'] - sampled['native_output'][f]['qpc']) * 1000, frequency)\n                     for f in dependencies]\n    ready_delta = [delta + Fraction(sampled['editor'][f]['msuntilrendercomplete'])\n                   - Fraction(sampled['native_output'][f]['msuntilrendercomplete'])\n                   for delta, f in zip(present_delta, dependencies)]\n    source_a = next(source for source in native['sources'] if source['channel'] == 'a')\n    child_resources = source_a['resources']\n    phase_column = child_resources['sample_columns'].index('source_phase')\n    child_phases = [dict(source_local_elapsed_seconds=row[0], phase=row[phase_column])\n                    for row in child_resources['sample_rows'] if row[phase_column] is not None]\n    runs.append(dict(scenario=scenario, artifact=path.name,\n        artifact_sha256=hashlib.sha256(path.read_bytes()).hexdigest(),\n        decoded_packet_sha256=packet['sha256'], raw_csv_sha256=evidence['presentmon']['stdout_sha256'],\n        native_executable_sha256=evidence['inputs']['executable_sha256'],\n        native_report_and_stream_integrity_verified=True, prior_analyses_recomputed_exactly=True,\n        sample_present_window_qpc=dict(begin=begin, end=end, frequency=frequency),\n        raw_rows=sum(len(rows) for rows in grouped.values()), paired_sample_iterations=len(dependencies),\n        per_role=per_role, phase_groups=phase_groups,\n        paired_drop_outcomes=[dict(editor_dropped=bool(editor), output_dropped=bool(output), iterations=count)\n                              for (editor, output), count in sorted(paired.items())],\n        editor_minus_output_present_ms=distribution(present_delta),\n        editor_minus_output_render_ready_ms=distribution(ready_delta),\n        native_cpu_submission=generation['timing']['cpu_submission_work'],\n        native_worker_start_intervals=generation['timing']['worker_start_intervals'],\n        native_renderer_gpu_span=generation['timing']['gpu_execution'],\n        native_sample_gpu_admission=generation['gpu_admission']['sampled'],\n        native_sample_operation_outliers=generation['operation_timing']['sampled']['outliers']['total'],\n        native_output_extent=generation['native_output_extent'],\n        sampled_geometry_mismatches=generation['sampled_geometry_mismatches'],\n        source_a_local_phase_records=child_phases))\nprint(json.dumps(dict(schema_version=1,\n    evidence_kind='saved_intel_display_control_drop_diagnosis_not_cause_or_qualification',\n    method=dict(input_integrity='Verify compressed payload SHA/length, raw stream byte SHA/length, native JSON compaction and existing CSV/role analyses before deriving.',\n        role_identity='Use previously verified exact PID, queried DXGI alias and Present-QPC lifetime; no role ordering/count heuristic.',\n        frame_join='Sort native query-reap rows by exact submitted QPC, then bracket each Present QPC by consecutive renderer iteration-start QPCs; last iteration ends at recorded role Present interval end. Require exactly one sampled row per role in all 480 dependency iterations. This is a CPU-iteration bracket join, not an encoded ETW frame ID.',\n        phase_groups='Use exact nullness of source-A publication in dependency_trace: before first contiguous null run, null run, after last null. Fixture phase records use source-local elapsed time and are not silently converted to global QPC.',\n        gpu_spans='Subtract ticks only within each renderer disjoint span; preserve exact rational means. These spans exclude other contexts and are not full GPU critical path.',\n        metric_semantics='Percentiles use nearest rank. Present-to-display summaries exclude Dropped rows; reported zero on dropped rows is unavailable display timing, not zero latency. QPC integers never pass through floating point.'),\n    runs=runs,\n    observations=[\n        'Q02 drops remain distributed across the eight-second sample and all are isolated single drops; this is not merely a warmup/sample-boundary count.',\n        'Q02 source-A absence has zero dropped rows in 26 iterations; after publication returns, 397 iterations contain 80 editor and 20 output drops and a 9.953-ms mean scoped renderer GPU span.',\n        'Fixture code restores source A from absence to full scenario extent in phase 3, while the earlier phase 1 uses half width/height. The null dependency grouping does not independently encode per-row source extents.',\n        'The full-source/GPU/compositor-deadline interaction is a targeted hypothesis, not a proven cause. Current CSV does not contain DWM latch deadlines or per-row physical monitor identity.',\n        'Q02 output is a 3840x2160 client on an available 1920x1080 secondary monitor; extending beyond the available display remains a scope limitation, not an inferred cause of drops.'],\n    next_diagnostic='Retain failures, add owned-session loss observations, then collect a predeclared post-reconnect steady Q02 control with normal 30-second warmup and unchanged geometry/Present flags. Record actual monitor/refresh/DWM context before changing rendering policy.',\n    limits=['No independent zero-loss proof.', 'No physical scanout, clipping cause or refresh-phase cause established.',\n            'No cross-context GPU critical path or producer/DWM utilization claim.',\n            'One capture per scenario is not a repeatability or sustained-series qualification.']), indent=2))\n"}
+}

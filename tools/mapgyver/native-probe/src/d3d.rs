@@ -6,12 +6,10 @@ use windows::Win32::Graphics::Direct3D::{D3D_DRIVER_TYPE_UNKNOWN, D3D_FEATURE_LE
 use windows::Win32::Graphics::Direct3D11::*;
 use windows::Win32::Graphics::Dxgi::Common::{DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_SAMPLE_DESC};
 use windows::Win32::Graphics::Dxgi::*;
-use windows::Win32::UI::HiDpi::{
-    DPI_AWARENESS_CONTEXT, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2, SetThreadDpiAwarenessContext,
-};
 use windows::core::Interface;
 
 use crate::ProbeResult;
+use crate::dpi::PhysicalDpiScope;
 use crate::texture::Texture;
 use mapgyver_native_probe::allocation::{Ledger, Owner, Work};
 use mapgyver_native_probe::resource_log::MemoryInfo;
@@ -44,26 +42,6 @@ pub struct OutputInfo {
     coordinate_context: &'static str,
 }
 
-struct DpiScope(DPI_AWARENESS_CONTEXT);
-
-impl DpiScope {
-    fn enter() -> ProbeResult<Self> {
-        // SAFETY: changes only the calling probe thread; restores its original context on drop.
-        let previous = unsafe { SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) };
-        if previous.0.is_null() {
-            return Err(windows::core::Error::from_win32().into());
-        }
-        Ok(Self(previous))
-    }
-}
-
-impl Drop for DpiScope {
-    fn drop(&mut self) {
-        // SAFETY: context was returned by the matching entry call on this thread.
-        unsafe { SetThreadDpiAwarenessContext(self.0) };
-    }
-}
-
 fn factory() -> windows::core::Result<IDXGIFactory1> {
     // SAFETY: COM output is constructed and owned by windows-rs.
     unsafe { CreateDXGIFactory1() }
@@ -92,7 +70,7 @@ pub fn adapter_info(index: u32) -> ProbeResult<AdapterInfo> {
 }
 
 fn describe(index: u32, adapter: &IDXGIAdapter1, observe_memory: bool) -> ProbeResult<AdapterInfo> {
-    let _dpi_scope = DpiScope::enter()?;
+    let _dpi_scope = PhysicalDpiScope::enter()?;
     // SAFETY: adapter is a live COM interface; returned structures are copied.
     let desc = unsafe { adapter.GetDesc1()? };
     let mut outputs = Vec::new();

@@ -1,0 +1,650 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "warmed_intel_q02_roles_live_loss_and_timing_receipt_not_full_qualification",
+  "artifact": "mapgyver-m01-presentmon-warmed-intel-q02-2026-10-28.json",
+  "artifact_sha256": "09f71c5046b8ed3e2caa90ff0ffeeb378ef75aa7cb9970eb18f5e4b98c681fcd",
+  "decoded_packet_sha256": "401f1b36b8217e29d4d078d75dc9fd4cd17d4d203c588a833be16978e562825d",
+  "started_utc": "2026-10-28T12:05:10.193634+00:00",
+  "native_pid": 31436,
+  "native_executable_sha256": "619a67f5b9e5a22ed4bc9d87ca316e39e8725bcac58d6b4be05bcd40a6e6e59b",
+  "presentmon_sha256": "b2a706bc6ad475749e3b7e3409263aa1e6906d45bdcf993f6dbc0f660188f1af",
+  "current_input_fingerprints_match_at_creation": true,
+  "raw_streams": {
+    "native": {
+      "exit_code": 0,
+      "stdout_bytes": 2914895,
+      "stdout_sha256": "bf35ad47f7bfc66e017f2a59797618aa7ad070607b57be54354bf7a993cf88be",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exact_bytes_verified": true
+    },
+    "presentmon": {
+      "exit_code": 0,
+      "stdout_bytes": 1140483,
+      "stdout_sha256": "30797cf8f8dcf50f530148e1ed80286930512e1e7f38a30d563a8eb2f33a8efb",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exact_bytes_verified": true
+    },
+    "etw_query": {
+      "exit_code": 0,
+      "stdout_bytes": 865,
+      "stdout_sha256": "d18470cce8644aae277d6bb4990397776bc71529d5e9bb2c103f0d4291fdaae5",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exact_bytes_verified": true
+    }
+  },
+  "native_stdout_compaction_matches": true,
+  "original_and_role_analyses_recomputed_exactly": true,
+  "sample_present_window_qpc": {
+    "begin": 1879495723664,
+    "end": 1879575723664,
+    "frequency": 10000000
+  },
+  "raw_rows": 4537,
+  "native_sample_iterations": 480,
+  "source_a_absent_sample_iterations": 0,
+  "source_b_absent_sample_iterations": 0,
+  "all_csv_sync_interval_counts": {
+    "0": 4537
+  },
+  "all_csv_present_modes": {
+    "Composed: Flip": 4537
+  },
+  "all_csv_present_flags": {
+    "8": 4537
+  },
+  "roles": [
+    {
+      "role": "editor",
+      "raw_rows": 2264,
+      "sampled_presents": 475,
+      "sampled_dropped": 0,
+      "sample_second_bins": [
+        {
+          "second": 0,
+          "presents": 59,
+          "dropped": 0
+        },
+        {
+          "second": 1,
+          "presents": 59,
+          "dropped": 0
+        },
+        {
+          "second": 2,
+          "presents": 60,
+          "dropped": 0
+        },
+        {
+          "second": 3,
+          "presents": 59,
+          "dropped": 0
+        },
+        {
+          "second": 4,
+          "presents": 60,
+          "dropped": 0
+        },
+        {
+          "second": 5,
+          "presents": 59,
+          "dropped": 0
+        },
+        {
+          "second": 6,
+          "presents": 59,
+          "dropped": 0
+        },
+        {
+          "second": 7,
+          "presents": 60,
+          "dropped": 0
+        }
+      ],
+      "dropped_iteration_brackets": [],
+      "iteration_brackets_without_csv_present": [
+        1844,
+        1881,
+        1987,
+        2130,
+        2194
+      ],
+      "native_sample_cadence": {
+        "attempts": 480,
+        "accepted_calls": 475,
+        "busy": 5,
+        "occluded": 0,
+        "no_target": 0,
+        "late_attempts": 0,
+        "accepted_call_intervals": {
+          "samples": 474,
+          "mean_ms": 16.842587552742614,
+          "median_ms": 16.657700000000002,
+          "p95_ms": 17.126099999999997,
+          "p99_ms": 33.1015,
+          "maximum_ms": 33.4828
+        },
+        "deadline_lateness": {
+          "samples": 480,
+          "mean_ms": 0.0,
+          "median_ms": 0.0,
+          "p95_ms": 0.0,
+          "p99_ms": 0.0,
+          "maximum_ms": 0.0
+        }
+      },
+      "native_all_window_presenter_admission": {
+        "readiness_polls": 2275,
+        "ready_signals": 2265,
+        "not_ready": 10,
+        "reservation_retries": 0,
+        "accepted_presents": 2265,
+        "busy_presents": 0,
+        "occluded_presents": 0
+      },
+      "sampled_missing_records_match_native_busy_count": true,
+      "api_busy_present_results_all_windows": 0,
+      "software_present_window": {
+        "presents": 475,
+        "dropped": 0,
+        "non_dropped": 475,
+        "unavailable_display_timing": 0,
+        "usable_display_timestamps": 475,
+        "display_tails_after_window": 1
+      },
+      "software_display_window": {
+        "events": 475,
+        "arrivals_from_before_present_window": 1,
+        "missing_predecessor": 0,
+        "intervals_using_before_window_predecessor": 1,
+        "first_display_qpc_exact": "1879495750722",
+        "last_display_qpc_exact": "1879575541929",
+        "observed_display_intervals_ms": {
+          "samples": 475,
+          "mean_ms": 16.812669684210526,
+          "median_ms": 16.671,
+          "p95_ms": 26.4355,
+          "p99_ms": 30.6661,
+          "maximum_ms": 38.9566
+        },
+        "reported_display_change_intervals_ms": {
+          "samples": 475,
+          "mean_ms": 16.812669684210526,
+          "median_ms": 16.671,
+          "p95_ms": 26.4355,
+          "p99_ms": 30.6661,
+          "maximum_ms": 38.9566
+        }
+      },
+      "render_complete_delay_ms": {
+        "samples": 475,
+        "mean_ms": 9.129942736842105,
+        "mean_ms_exact": "10841807/1187500",
+        "p95_ms": 13.9674,
+        "p99_ms": 16.4459,
+        "maximum_ms": 17.8288
+      },
+      "shown_present_to_display_ms": {
+        "samples": 475,
+        "mean_ms": 23.601433684210527,
+        "mean_ms_exact": "11210681/475000",
+        "p95_ms": 28.4549,
+        "p99_ms": 28.5457,
+        "maximum_ms": 28.7288
+      },
+      "window_at_end": {
+        "before_qpc": 1879575725766,
+        "after_qpc": 1879575725967,
+        "window_rect_physical": [
+          192,
+          192,
+          1585,
+          1189
+        ],
+        "client_origin_physical": [
+          201,
+          230
+        ],
+        "client_extent_physical": [
+          1375,
+          950
+        ],
+        "dpi": 120,
+        "monitor": {
+          "device_name": "\\\\.\\DISPLAY1",
+          "rect_physical": [
+            0,
+            0,
+            2560,
+            1600
+          ],
+          "work_rect_physical": [
+            0,
+            0,
+            2560,
+            1540
+          ],
+          "primary": true
+        },
+        "current_mode": {
+          "Ok": {
+            "width_pixels": 2560,
+            "height_pixels": 1600,
+            "nominal_refresh_hz": 240,
+            "refresh_scope": "Nominal integer Hz from DEVMODEW; not rational refresh, vblank or latch timing"
+          }
+        },
+        "coordinate_context": "physical_pixels_per_monitor_aware_v2_thread",
+        "scope": "One owned-window snapshot after final Present; not continuous monitor or display-timing evidence"
+      }
+    },
+    {
+      "role": "native_output",
+      "raw_rows": 2273,
+      "sampled_presents": 480,
+      "sampled_dropped": 1,
+      "sample_second_bins": [
+        {
+          "second": 0,
+          "presents": 60,
+          "dropped": 0
+        },
+        {
+          "second": 1,
+          "presents": 60,
+          "dropped": 1
+        },
+        {
+          "second": 2,
+          "presents": 60,
+          "dropped": 0
+        },
+        {
+          "second": 3,
+          "presents": 60,
+          "dropped": 0
+        },
+        {
+          "second": 4,
+          "presents": 60,
+          "dropped": 0
+        },
+        {
+          "second": 5,
+          "presents": 60,
+          "dropped": 0
+        },
+        {
+          "second": 6,
+          "presents": 60,
+          "dropped": 0
+        },
+        {
+          "second": 7,
+          "presents": 60,
+          "dropped": 0
+        }
+      ],
+      "dropped_iteration_brackets": [
+        {
+          "frame": 1880,
+          "present_qpc": 1879509901019
+        }
+      ],
+      "iteration_brackets_without_csv_present": [],
+      "native_sample_cadence": {
+        "attempts": 480,
+        "accepted_calls": 480,
+        "busy": 0,
+        "occluded": 0,
+        "no_target": 0,
+        "late_attempts": 0,
+        "accepted_call_intervals": {
+          "samples": 479,
+          "mean_ms": 16.666812734864305,
+          "median_ms": 16.6518,
+          "p95_ms": 17.058799999999998,
+          "p99_ms": 17.342799999999997,
+          "maximum_ms": 17.4361
+        },
+        "deadline_lateness": {
+          "samples": 480,
+          "mean_ms": 0.0,
+          "median_ms": 0.0,
+          "p95_ms": 0.0,
+          "p99_ms": 0.0,
+          "maximum_ms": 0.0
+        }
+      },
+      "native_all_window_presenter_admission": {
+        "readiness_polls": 2275,
+        "ready_signals": 2274,
+        "not_ready": 1,
+        "reservation_retries": 0,
+        "accepted_presents": 2274,
+        "busy_presents": 0,
+        "occluded_presents": 0
+      },
+      "sampled_missing_records_match_native_busy_count": true,
+      "api_busy_present_results_all_windows": 0,
+      "software_present_window": {
+        "presents": 480,
+        "dropped": 1,
+        "non_dropped": 479,
+        "unavailable_display_timing": 0,
+        "usable_display_timestamps": 479,
+        "display_tails_after_window": 1
+      },
+      "software_display_window": {
+        "events": 479,
+        "arrivals_from_before_present_window": 1,
+        "missing_predecessor": 0,
+        "intervals_using_before_window_predecessor": 1,
+        "first_display_qpc_exact": "1879495750722",
+        "last_display_qpc_exact": "1879575541929",
+        "observed_display_intervals_ms": {
+          "samples": 479,
+          "mean_ms": 16.672271607515658,
+          "median_ms": 16.672,
+          "p95_ms": 26.4401,
+          "p99_ms": 30.6452,
+          "maximum_ms": 30.6661
+        },
+        "reported_display_change_intervals_ms": {
+          "samples": 479,
+          "mean_ms": 16.672271607515658,
+          "median_ms": 16.672,
+          "p95_ms": 26.4401,
+          "p99_ms": 30.6452,
+          "maximum_ms": 30.6661
+        }
+      },
+      "render_complete_delay_ms": {
+        "samples": 480,
+        "mean_ms": 7.718989791666667,
+        "mean_ms_exact": "37051151/4800000",
+        "p95_ms": 9.649,
+        "p99_ms": 14.4168,
+        "maximum_ms": 16.1026
+      },
+      "shown_present_to_display_ms": {
+        "samples": 479,
+        "mean_ms": 23.166118371607517,
+        "mean_ms_exact": "110965707/4790000",
+        "p95_ms": 28.5079,
+        "p99_ms": 28.6186,
+        "maximum_ms": 28.7752
+      },
+      "window_at_end": {
+        "before_qpc": 1879575725970,
+        "after_qpc": 1879575726003,
+        "window_rect_physical": [
+          2560,
+          0,
+          6416,
+          2199
+        ],
+        "client_origin_physical": [
+          2568,
+          31
+        ],
+        "client_extent_physical": [
+          3840,
+          2160
+        ],
+        "dpi": 96,
+        "monitor": {
+          "device_name": "\\\\.\\DISPLAY2",
+          "rect_physical": [
+            2560,
+            0,
+            4480,
+            1080
+          ],
+          "work_rect_physical": [
+            2560,
+            0,
+            4480,
+            1080
+          ],
+          "primary": false
+        },
+        "current_mode": {
+          "Ok": {
+            "width_pixels": 1920,
+            "height_pixels": 1080,
+            "nominal_refresh_hz": 60,
+            "refresh_scope": "Nominal integer Hz from DEVMODEW; not rational refresh, vblank or latch timing"
+          }
+        },
+        "coordinate_context": "physical_pixels_per_monitor_aware_v2_thread",
+        "scope": "One owned-window snapshot after final Present; not continuous monitor or display-timing evidence"
+      }
+    }
+  ],
+  "native_sample_gpu_admission": {
+    "attempts": 480,
+    "admitted": 480,
+    "busy": 0
+  },
+  "native_timing": {
+    "cpu_submission_work": {
+      "samples": 480,
+      "mean_ms": 1.205021875,
+      "median_ms": 1.1898,
+      "p95_ms": 1.5223,
+      "p99_ms": 1.8925999999999998,
+      "maximum_ms": 2.1213
+    },
+    "worker_start_intervals": {
+      "samples": 479,
+      "mean_ms": 16.666774739039663,
+      "median_ms": 16.6403,
+      "p95_ms": 17.0866,
+      "p99_ms": 17.171200000000002,
+      "maximum_ms": 17.5167
+    },
+    "gpu_execution": {
+      "samples": 480,
+      "mean_ms": 10.704178276909724,
+      "median_ms": 10.799322916666666,
+      "p95_ms": 14.964739583333332,
+      "p99_ms": 17.0190625,
+      "maximum_ms": 21.047916666666666
+    },
+    "skipped_gpu_queries": 0,
+    "invalid_gpu_queries": 0,
+    "pending_gpu_queries": 0,
+    "truncated_samples": 0
+  },
+  "native_renderer_gpu_outliers": {
+    "total": 7,
+    "omitted": 0,
+    "frame_stamps": [
+      {
+        "frame": 1879,
+        "qpc": 1879509724011
+      },
+      {
+        "frame": 1906,
+        "qpc": 1879514223098
+      },
+      {
+        "frame": 1946,
+        "qpc": 1879520892890
+      },
+      {
+        "frame": 1986,
+        "qpc": 1879527556623
+      },
+      {
+        "frame": 2129,
+        "qpc": 1879551390208
+      },
+      {
+        "frame": 2177,
+        "qpc": 1879559388233
+      },
+      {
+        "frame": 2193,
+        "qpc": 1879562057564
+      }
+    ]
+  },
+  "native_sample_operation_outliers": 0,
+  "source_contexts": [
+    {
+      "channel": "a",
+      "native_sample_gpu_admission": {
+        "attempts": 480,
+        "admitted": 480,
+        "busy": 0
+      },
+      "timing": {
+        "cpu_submission_work": {
+          "samples": 480,
+          "mean_ms": 0.4258035416666667,
+          "median_ms": 0.4198,
+          "p95_ms": 0.5299,
+          "p99_ms": 0.6177,
+          "maximum_ms": 0.7374999999999999
+        },
+        "worker_start_intervals": {
+          "samples": 479,
+          "mean_ms": 16.666523590814187,
+          "median_ms": 16.6338,
+          "p95_ms": 17.0942,
+          "p99_ms": 17.1614,
+          "maximum_ms": 17.335
+        },
+        "gpu_execution": {
+          "samples": 480,
+          "mean_ms": 4.124047092013892,
+          "median_ms": 4.06296875,
+          "p95_ms": 6.414947916666667,
+          "p99_ms": 16.741979166666667,
+          "maximum_ms": 20.76359375
+        },
+        "skipped_gpu_queries": 0,
+        "invalid_gpu_queries": 0,
+        "pending_gpu_queries": 0,
+        "truncated_samples": 0
+      },
+      "pool_busy": 0,
+      "peak_surfaces": 3
+    },
+    {
+      "channel": "b",
+      "native_sample_gpu_admission": {
+        "attempts": 480,
+        "admitted": 480,
+        "busy": 0
+      },
+      "timing": {
+        "cpu_submission_work": {
+          "samples": 480,
+          "mean_ms": 0.4311827083333332,
+          "median_ms": 0.4229,
+          "p95_ms": 0.5556,
+          "p99_ms": 0.6107,
+          "maximum_ms": 0.8466
+        },
+        "worker_start_intervals": {
+          "samples": 479,
+          "mean_ms": 16.66693611691023,
+          "median_ms": 16.638900000000003,
+          "p95_ms": 17.0759,
+          "p99_ms": 17.134300000000003,
+          "maximum_ms": 17.1678
+        },
+        "gpu_execution": {
+          "samples": 480,
+          "mean_ms": 1.0058391927083332,
+          "median_ms": 0.35546875,
+          "p95_ms": 5.76515625,
+          "p99_ms": 7.909270833333334,
+          "maximum_ms": 14.682135416666668
+        },
+        "skipped_gpu_queries": 0,
+        "invalid_gpu_queries": 0,
+        "pending_gpu_queries": 0,
+        "truncated_samples": 0
+      },
+      "pool_busy": 0,
+      "peak_surfaces": 3
+    }
+  ],
+  "live_query_report": {
+    "session_name": "MapGyver-M01-Present-5d062545e90c433bb3a8f83c5367bd9e",
+    "before_qpc": 1879580357311,
+    "after_qpc": 1879580357562,
+    "status": 0,
+    "status_message": "The operation completed successfully. (0x00000000)",
+    "response_validation_error": null,
+    "statistics": {
+      "returned_session_name": "MapGyver-M01-Present-5d062545e90c433bb3a8f83c5367bd9e",
+      "session_guid": "B857928D-D2C7-11F1-94F2-44F79F3CEBDA",
+      "events_lost": 0,
+      "log_buffers_lost": 0,
+      "realtime_buffers_lost": 0,
+      "buffer_size_kib": 64,
+      "minimum_buffers": 256,
+      "maximum_buffers": 1024,
+      "number_of_buffers": 256,
+      "free_buffers": 232,
+      "buffers_written": 2234,
+      "log_file_mode": 4194560
+    },
+    "scope": "Read-only live ETW session snapshot bounded by QPC; not final shutdown statistics or independent proof of zero loss for the entire capture"
+  },
+  "live_etw_observation": {
+    "before_qpc": 1879580357311,
+    "after_qpc": 1879580357562,
+    "native_present_interval_end_qpc": 1879575725968,
+    "queried_after_native_present_interval": true,
+    "counters": {
+      "events_lost": 0,
+      "log_buffers_lost": 0,
+      "realtime_buffers_lost": 0
+    },
+    "all_counters_zero": true,
+    "final_capture_zero_loss_verified": false,
+    "scope": "Successful independent live API query only; later event delivery/shutdown and PresentMon analysis loss remain unverified"
+  },
+  "loss_warning_observation": {
+    "no_loss_reported": true,
+    "zero_loss_independently_verified": false,
+    "scope": "collector warning observations only; absence does not prove zero ETW or analysis loss",
+    "loss_warnings": [],
+    "reported_event_loss_counts": [],
+    "reported_buffer_loss_counts": []
+  },
+  "live_query_start_after_final_recorded_present_end_ms": 463.1343,
+  "live_query_duration_ms_exact": "251/10000",
+  "renderer_tracked_allocations_after_fence_zero": true,
+  "method": {
+    "input_integrity": "Verify compressed packet SHA/length, native/CSV/query stream byte SHA/length, native compaction, role/window analysis and live-query validation. Require exact current capture inputs at creation/reproduction epoch.",
+    "iteration_join": "Sort query-reap rows by exact submitted QPC; bracket sampled CSV Present QPC by native iteration starts. Do not invent an ETW frame ID. Require unique observed iterations and count equality with native accepted calls.",
+    "missing_editor_rows": "Five sampled editor iterations lack CSV Presents, consistent with five native cadence Busy outcomes. All-window busy_presents is zero, so these are readiness admission gaps rather than DXGI busy HRESULTs. Summary counts do not directly timestamp each native readiness result.",
+    "timing": "Nearest-rank per-context summaries. GPU tick arithmetic stays inside each context; never sum contexts as a proven critical path. QPC integers do not pass through floating point.",
+    "windows": "Window/monitor/DPI/DEVMODE snapshots are taken after final Present. Integer nominal refresh is not rational refresh, DWM latch timing or continuous monitor evidence."
+  },
+  "interpretation": [
+    "The warmed sample has no sampled source-publication absence: dependency A/B null counts are both zero.",
+    "The editor has no sampled PresentMon dropped rows but only 475 accepted Presents from 480 attempts; five pre-Present readiness gaps remain. Output accepts 480 and has one PresentMon drop.",
+    "Both software display interval p99 values remain approximately 30.65 ms; lower drop counts do not qualify continuous 60 fps or fixed budgets.",
+    "The independent live ETW snapshot reports all three loss counters zero after native Present intervals. It is not final shutdown/analysis zero-loss proof.",
+    "Editor snapshot is DISPLAY1 nominal 240 Hz / DPI 120; output is DISPLAY2 nominal 60 Hz / DPI 96, with a 3840x2160 client exceeding the 1920x1080 monitor. No physical 4K scanout or clipping cause is established.",
+    "This uses a new diagnostic executable and different warmup from earlier captures. It does not establish a performance fix or attribute differences solely to warmup."
+  ],
+  "limits": [
+    "Single eight-second sample, not repeated 120-second qualification.",
+    "No final ETW or PresentMon analysis-loss proof.",
+    "No DWM latch-deadline, physical output independence, optical latency or full GPU critical path proof.",
+    "No cause or production rendering policy decision established."
+  ]
+,
+  "reproduction": {"language":"Python 3","working_directory":"repository root","execution":"Run via Python stdin in the recorded source/native-tool epoch; reads packet and current fingerprint inputs, emits summary only.","code":"import bisect\nfrom collections import Counter, defaultdict\nimport csv\nfrom fractions import Fraction\nimport hashlib\nimport io\nimport json\nfrom pathlib import Path\nimport runpy\n\nBASE = runpy.run_path('tools/mapgyver/run-qualification.py')\nDATA = runpy.run_path('tools/mapgyver/presentmon_data.py')\nROLES = runpy.run_path('tools/mapgyver/presentmon_roles.py')\nCAPTURE = runpy.run_path('tools/mapgyver/capture-presentmon.py')\npath = Path('docs/progress/evidence/mapgyver-m01-presentmon-warmed-intel-q02-2026-10-28.json')\npacket = json.loads(path.read_text(encoding='utf-8'))\nevidence = BASE['decode_evidence'](packet)\nassert hashlib.sha256(path.read_bytes()).hexdigest() == '09f71c5046b8ed3e2caa90ff0ffeeb378ef75aa7cb9970eb18f5e4b98c681fcd'\nassert evidence['route_verified'] and evidence['role_correlation_verified'] and evidence['live_etw_query_verified']\nassert evidence['inputs_unchanged_after_run']\nstream_checks = {}\nfor name in ('native', 'presentmon', 'etw_query'):\n    stream = evidence[name]\n    assert stream['exit_code'] == 0 and not stream['timed_out'] and stream['valid_utf8'] and not stream['stderr']\n    for output in ('stdout', 'stderr'):\n        encoded = stream[output].encode('utf-8')\n        assert len(encoded) == stream[output + '_bytes']\n        assert hashlib.sha256(encoded).hexdigest() == stream[output + '_sha256']\n    stream_checks[name] = dict(exit_code=stream['exit_code'], stdout_bytes=stream['stdout_bytes'],\n        stdout_sha256=stream['stdout_sha256'], stderr_bytes=stream['stderr_bytes'],\n        stderr_sha256=stream['stderr_sha256'], exact_bytes_verified=True)\nnative = json.loads(evidence['native']['stdout'])\nBASE['compact_resources'](native)\nassert native == evidence['native_report'] and native['render_process_id'] == evidence['native_pid']\nconfig = native['observer']['frame_age']['config']\nbegin, end, frequency = DATA['_window'](config)\nassert config['warmup_seconds'] == 30 and config['maximum_seconds'] == 38\ncsv_text = evidence['presentmon']['stdout']\nassert DATA['analyze'](csv_text, evidence['native_pid'], config) == evidence['analysis']\ncorrelation = ROLES['correlate'](csv_text, evidence['native_pid'], native, config)\nassert correlation == evidence['role_correlation']\nquery = json.loads(evidence['etw_query']['stdout'])\nassert query == evidence['etw_query_report']\nlive = CAPTURE['validate_etw_query'](query, evidence['session_name'], native)\nassert live == evidence['live_etw_observation'] and live['all_counters_zero']\nassert not live['final_capture_zero_loss_verified']\nassert DATA['loss_observation'](csv_text, evidence['presentmon']['stderr']) == evidence['loss_observation']\ncurrent = CAPTURE['fingerprints'](Path('target/release/mapgyver_native_probe.exe').resolve(), CAPTURE['PRESENTMON'])\nassert current == evidence['inputs']\nassert len(native['generations']) == 1\ngeneration = native['generations'][0]\ntrace = generation['timing']['gpu_trace']\nframes = sorted((dict(zip(trace['columns'], row)) for row in trace['rows']), key=lambda row: row['submitted_qpc'])\nassert all(a['submitted_qpc'] < b['submitted_qpc'] for a, b in zip(frames, frames[1:]))\nassert len({frame['frame'] for frame in frames}) == len(frames)\nstarts = [frame['submitted_qpc'] for frame in frames]\ndependencies = {row[0]: row[1:] for row in generation['dependency_trace']['rows']}\nassert len(dependencies) == len(generation['dependency_trace']['rows']) == 480\naddress_roles = {int(address, 16): record['role'] for record in correlation['roles'] for address in record['addresses'].values()}\ninterval_end = {record['role']: record['end_qpc'] for record in correlation['roles']}\nall_rows = []\nsampled = defaultdict(list)\nfor original in csv.DictReader(io.StringIO(csv_text)):\n    row = {key.lower(): value for key, value in original.items()}\n    qpc = int(row['qpctime'])\n    role = address_roles[int(row['swapchainaddress'], 16)]\n    row.update(qpc=qpc, role=role, dropped=int(row['dropped']))\n    all_rows.append(row)\n    if not begin <= qpc < end:\n        continue\n    index = bisect.bisect_right(starts, qpc) - 1\n    assert index >= 0\n    frame = frames[index]\n    upper = starts[index + 1] if index + 1 < len(starts) else interval_end[role]\n    assert frame['submitted_qpc'] <= qpc < upper and frame['frame'] in dependencies\n    row['frame'] = frame['frame']\n    sampled[role].append(row)\nassert len(all_rows) == correlation['raw_rows'] == 4537\nassert {row['syncinterval'] for row in all_rows} == {'0'}\nassert {row['presentmode'] for row in all_rows} == {'Composed: Flip'}\n\ndef distribution(values):\n    ordered = sorted(values)\n    if not ordered:\n        return None\n    def rank(percent):\n        return float(ordered[(percent * len(ordered) + 99) // 100 - 1])\n    average = sum(ordered) / len(ordered)\n    return dict(samples=len(ordered), mean_ms=float(average), mean_ms_exact=str(average),\n        p95_ms=rank(95), p99_ms=rank(99), maximum_ms=float(ordered[-1]))\n\nroles = []\nfor index, role in enumerate(('editor', 'native_output')):\n    rows = sampled[role]\n    frames_observed = {row['frame'] for row in rows}\n    assert len(frames_observed) == len(rows)\n    cadence = generation['submission_editor_output_spout'][index]\n    assert len(rows) == cadence['accepted_calls']\n    assert cadence['attempts'] == 480\n    missing = sorted(dependencies.keys() - frames_observed)\n    assert len(missing) == cadence['busy'] and cadence['occluded'] == cadence['no_target'] == 0\n    record = next(record for record in correlation['roles'] if record['role'] == role)\n    assert len(record['chains']) == 1\n    chain = record['chains'][0]\n    metadata = next(record for record in generation['swapchains'] if record['role'] == role)\n    context = metadata['window_at_end']['Ok']\n    shown = [row for row in rows if not row['dropped']]\n    dropped = [row for row in rows if row['dropped']]\n    all_for_role = [row for row in all_rows if row['role'] == role]\n    roles.append(dict(role=role, raw_rows=len(all_for_role), sampled_presents=len(rows),\n        sampled_dropped=sum(row['dropped'] for row in rows),\n        sample_second_bins=[dict(second=second,\n            presents=sum(begin + second * frequency <= row['qpc'] < begin + (second+1) * frequency for row in rows),\n            dropped=sum(row['dropped'] for row in rows if begin + second * frequency <= row['qpc'] < begin + (second+1) * frequency))\n            for second in range(8)],\n        dropped_iteration_brackets=[dict(frame=row['frame'], present_qpc=row['qpc']) for row in dropped],\n        iteration_brackets_without_csv_present=missing,\n        native_sample_cadence=cadence,\n        native_all_window_presenter_admission=generation['admission_editor_output'][index],\n        sampled_missing_records_match_native_busy_count=True,\n        api_busy_present_results_all_windows=generation['admission_editor_output'][index]['busy_presents'],\n        software_present_window=chain['present_window'], software_display_window=chain['display_window'],\n        render_complete_delay_ms=distribution([Fraction(row['msuntilrendercomplete']) for row in rows]),\n        shown_present_to_display_ms=distribution([Fraction(row['msuntildisplayed']) for row in shown]),\n        window_at_end=context))\nsource_contexts = []\nfor index, worker in enumerate(generation['source_workers']):\n    source_contexts.append(dict(channel='a' if index == 0 else 'b',\n        native_sample_gpu_admission=worker['gpu_admission']['sampled'],\n        timing={key: worker['timing'][key] for key in ('cpu_submission_work','worker_start_intervals','gpu_execution',\n            'skipped_gpu_queries','invalid_gpu_queries','pending_gpu_queries','truncated_samples')},\n        pool_busy=worker['pool_busy'], peak_surfaces=worker['peak_surfaces']))\ngpu_outliers = generation['timing']['gpu_outliers']\nsnapshot = generation['allocations_after_fence']\nassert snapshot['live_textures'] == snapshot['retiring_textures'] == 0\nassert not any(snapshot['live_bytes_by_owner'] + snapshot['retiring_bytes_by_owner'])\nsummary = dict(schema_version=1,\n    evidence_kind='warmed_intel_q02_roles_live_loss_and_timing_receipt_not_full_qualification',\n    artifact=path.name, artifact_sha256=hashlib.sha256(path.read_bytes()).hexdigest(),\n    decoded_packet_sha256=packet['sha256'], started_utc=evidence['started_utc'], native_pid=evidence['native_pid'],\n    native_executable_sha256=evidence['inputs']['executable_sha256'],\n    presentmon_sha256=evidence['inputs']['presentmon_sha256'],\n    current_input_fingerprints_match_at_creation=True, raw_streams=stream_checks,\n    native_stdout_compaction_matches=True, original_and_role_analyses_recomputed_exactly=True,\n    sample_present_window_qpc=dict(begin=begin,end=end,frequency=frequency),\n    raw_rows=len(all_rows), native_sample_iterations=len(dependencies),\n    source_a_absent_sample_iterations=sum(row[0] is None for row in dependencies.values()),\n    source_b_absent_sample_iterations=sum(row[1] is None for row in dependencies.values()),\n    all_csv_sync_interval_counts=dict(Counter(row['syncinterval'] for row in all_rows)),\n    all_csv_present_modes=dict(Counter(row['presentmode'] for row in all_rows)),\n    all_csv_present_flags=dict(Counter(row['presentflags'] for row in all_rows)),\n    roles=roles, native_sample_gpu_admission=generation['gpu_admission']['sampled'],\n    native_timing={key: generation['timing'][key] for key in ('cpu_submission_work','worker_start_intervals',\n        'gpu_execution','skipped_gpu_queries','invalid_gpu_queries','pending_gpu_queries','truncated_samples')},\n    native_renderer_gpu_outliers=dict(total=gpu_outliers['total'], omitted=gpu_outliers['omitted'],\n        frame_stamps=[dict(frame=event['stamp']['frame'],qpc=event['stamp']['qpc']) for event in gpu_outliers['events']]),\n    native_sample_operation_outliers=generation['operation_timing']['sampled']['outliers']['total'],\n    source_contexts=source_contexts, live_query_report=query, live_etw_observation=live,\n    loss_warning_observation=evidence['loss_observation'],\n    live_query_start_after_final_recorded_present_end_ms=float(Fraction((live['before_qpc']-live['native_present_interval_end_qpc'])*1000,frequency)),\n    live_query_duration_ms_exact=str(Fraction((live['after_qpc']-live['before_qpc'])*1000,frequency)),\n    renderer_tracked_allocations_after_fence_zero=True,\n    method=dict(input_integrity='Verify compressed packet SHA/length, native/CSV/query stream byte SHA/length, native compaction, role/window analysis and live-query validation. Require exact current capture inputs at creation/reproduction epoch.',\n        iteration_join='Sort query-reap rows by exact submitted QPC; bracket sampled CSV Present QPC by native iteration starts. Do not invent an ETW frame ID. Require unique observed iterations and count equality with native accepted calls.',\n        missing_editor_rows='Five sampled editor iterations lack CSV Presents, consistent with five native cadence Busy outcomes. All-window busy_presents is zero, so these are readiness admission gaps rather than DXGI busy HRESULTs. Summary counts do not directly timestamp each native readiness result.',\n        timing='Nearest-rank per-context summaries. GPU tick arithmetic stays inside each context; never sum contexts as a proven critical path. QPC integers do not pass through floating point.',\n        windows='Window/monitor/DPI/DEVMODE snapshots are taken after final Present. Integer nominal refresh is not rational refresh, DWM latch timing or continuous monitor evidence.'),\n    interpretation=[\n        'The warmed sample has no sampled source-publication absence: dependency A/B null counts are both zero.',\n        'The editor has no sampled PresentMon dropped rows but only 475 accepted Presents from 480 attempts; five pre-Present readiness gaps remain. Output accepts 480 and has one PresentMon drop.',\n        'Both software display interval p99 values remain approximately 30.65 ms; lower drop counts do not qualify continuous 60 fps or fixed budgets.',\n        'The independent live ETW snapshot reports all three loss counters zero after native Present intervals. It is not final shutdown/analysis zero-loss proof.',\n        'Editor snapshot is DISPLAY1 nominal 240 Hz / DPI 120; output is DISPLAY2 nominal 60 Hz / DPI 96, with a 3840x2160 client exceeding the 1920x1080 monitor. No physical 4K scanout or clipping cause is established.',\n        'This uses a new diagnostic executable and different warmup from earlier captures. It does not establish a performance fix or attribute differences solely to warmup.'],\n    limits=['Single eight-second sample, not repeated 120-second qualification.',\n        'No final ETW or PresentMon analysis-loss proof.',\n        'No DWM latch-deadline, physical output independence, optical latency or full GPU critical path proof.',\n        'No cause or production rendering policy decision established.'])\nprint(json.dumps(summary,indent=2))\n"}
+}

@@ -13,6 +13,7 @@ use mapgyver_native_probe::allocation::{Lease, Owner, bgra_bytes};
 use serde::Serialize;
 mod admission;
 mod trace;
+mod window_context;
 pub use admission::Report as AdmissionReport;
 use admission::{Admission, MAXIMUM_FRAME_LATENCY};
 pub use trace::{Report as TraceReport, Role};
@@ -186,7 +187,7 @@ impl Presenter {
     /// Call after the last Present, before dropping this presenter. The CLI report owns only
     /// ephemeral identity strings; ETW equality must still be verified against the raw trace.
     pub fn trace(&self) -> ProbeResult<TraceReport> {
-        self.trace.finish()
+        self.trace.finish(self.window)
     }
 
     pub fn present(&mut self) -> ProbeResult<Submission> {

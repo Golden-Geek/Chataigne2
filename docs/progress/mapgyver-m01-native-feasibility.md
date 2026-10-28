@@ -5,6 +5,69 @@ from MapGyver's product systems. M01 is **in progress**, not a presentation-arch
 See the [ledger](mapgyver-status.md), [qualification contract](mapgyver-qualification-contract.md)
 and [harness commands/ownership](../../tools/mapgyver/native-probe/README.md).
 
+## Warmed 4K control, live loss counters and actual window context — 2026-10-28
+
+[Diagnosis of the saved controls](evidence/mapgyver-m01-presentmon-role-drop-diagnosis-2026-10-28.json)
+finds the earlier two-second warmup puts source-A resize/absence/full-return inside the sample.
+Exact dependency records contain 26 absent iterations with no drops, followed by 397 iterations
+with 80 editor/20 output drops and mean scoped renderer GPU time 9.953 ms. Native query-reap rows
+are sorted by submitted QPC before bracketing CPU iterations; this join is not an encoded ETW
+frame identity. The association supports a steady-state control, not an internal-cause claim.
+
+The predeclared [warmed Intel Q02 capture](evidence/mapgyver-m01-presentmon-warmed-intel-q02-2026-10-28.json)
+uses 30 seconds warmup, eight seconds sample and 40 seconds collector duration. Present remains
+`SyncInterval=0`, `DO_NOT_WAIT`, with the existing geometry, one-frame latency setting and
+bounded GPU admission. Changes add CLI diagnostics and a post-measurement query; measured
+rendering policy is unchanged. Release SHA256 is
+`619a67f5b9e5a22ed4bc9d87ca316e39e8725bcac58d6b4be05bcd40a6e6e59b`.
+Its new source epoch preserves the earlier failed captures separately.
+
+| Eight-second warmed sample | Editor | Native output |
+| --- | --- | --- |
+| Native attempts / accepted | 480 / 475 | 480 / 480 |
+| Pre-Present readiness gaps | 5 | 0 |
+| ETW Presents / dropped | 475 / 0 | 480 / 1 |
+| In-window display events | 475 | 479 |
+| Display interval p99 / maximum | 30.6661 / 38.9566 ms | 30.6452 / 30.6661 ms |
+
+All 480 renderer iterations are admitted, with no missing source-A/B publications. Editor
+readiness gaps coalesce before Present; they are neither DXGI Busy HRESULTs nor displayed-drop
+records. The output's one drop per 480 Presents is 0.2083%, above the unchanged 0.1% cadence
+target. Scoped renderer GPU p99/max are 17.019/21.048 ms; CPU submission max is 2.121 ms.
+These observations keep cadence open. They do not qualify the full GPU critical path, establish
+a warmup repair or attribute the drops to rendering policy, monitor timing or a driver.
+
+After the native process exits, its new `trace-status` command issues only
+[`ControlTraceW(QUERY)`](https://learn.microsoft.com/en-us/windows/win32/api/evntrace/nf-evntrace-controltracew)
+for the helper's exact UUID session. The successful call is bounded by QPC
+`[1879580357311, 1879580357562]`, after recorded native Present end `1879575725968`.
+Returned identity matches, and `EventsLost`, `LogBuffersLost`, `RealTimeBuffersLost` are each
+zero. These [separate counters](https://learn.microsoft.com/en-us/windows/win32/api/evntrace/ns-evntrace-event_trace_properties)
+are a live snapshot; later event delivery, final shutdown counters and PresentMon analysis loss
+remain unverified. No loss warning is reported. A query of an absent owned-format session
+[returns status 4201 with unavailable statistics](evidence/mapgyver-m01-etw-absent-query-2026-10-28.json),
+preserving the earlier query build's exact identity rather than manufacturing zeros.
+
+Each presenter records a timed, read-only window snapshot after its final Present. Shared
+scoped thread-DPI handling keeps inventory and window/client rectangles in physical pixels.
+The editor is on `\\.\DISPLAY1`, 2560×1600 nominal 240 Hz, DPI 120 (125%), with a 1375×950 client.
+Output is on `\\.\DISPLAY2`, 1920×1080 nominal 60 Hz, DPI 96 (100%), with a 3840×2160 client
+at physical origin (2568, 31). Its client still extends beyond the secondary display.
+These are actual-window observations at one point, not a monitor history, rational refresh,
+DWM latch deadline, continuous clipping proof or physical 4K scanout qualification.
+The [read-only conditions](evidence/mapgyver-m01-warmed-display-conditions-2026-10-28.json)
+retain controller-level modes separately: NVIDIA's reported controller mode is not evidence
+of an attached output; DXGI lists none for that adapter.
+
+[Exact analysis](evidence/mapgyver-m01-presentmon-warmed-analysis-2026-10-28.json) retains all
+4,537 raw CSV rows, native/query stdout, identity/clock bounds and full source/tool fingerprints.
+Exclusive generated output keeps the 806,468-byte checksummed packet intact; promotion to
+repository evidence is byte-for-byte, with no JavaScript decoding of GPU timestamps.
+The owned UUID session is absent after exit, no owned probe/collector remains and the existing
+collector service retains PID 5864. No desktop setting changed. Fifty-five deterministic Rust
+and 67 Python tests pass; no complete M01 acceptance item closes. Continue steady-state GPU/
+compositor timing investigation and the required sustained series without dropping these failures.
+
 ## Exact native/ETW role correlation and 4K displayed drops — 2026-10-28
 
 The diagnostic report now records each presenter's typed role, queried `IDXGISwapChain`/`1`/`2`

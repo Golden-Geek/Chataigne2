@@ -20,7 +20,8 @@ authoritative supported query, and restore the user's original setting after tem
 Overlay-on captures remain diagnostic evidence of a known failing environment; preserve them.
 This precondition leaves every workload, timing/memory/cleanup budget and other hardware check
 unchanged. It does not repair NVIDIA internals or establish a full-scene/Q05 pass. The user's
-current overlay setting was restored to On; future qualifying runs must establish Off again.
+earlier control restored On. The latest recorded card-accuracy observations found an already-Off
+setting and left it unchanged; future NVIDIA runs must observe Off again before startup.
 
 ## Workloads
 

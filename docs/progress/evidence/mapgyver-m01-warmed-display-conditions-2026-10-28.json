@@ -1,0 +1,300 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "read_only_warmed_control_preparation_context_not_qualification",
+  "baseline_report": {
+    "schema_version":  1,
+    "captured_at_utc":  "2026-10-28T11:49:13.7333780Z",
+    "evidence_kind":  "read_only_inventory_not_native_qualification",
+    "checkout":  {
+                     "head":  "203970bf4096a1204898fd1871c4311595d36bfc",
+                     "branch":  "mapgyver",
+                     "status":  [
+                                    " M tools/mapgyver/capture-presentmon.py",
+                                    " M tools/mapgyver/native-probe/src/main.rs",
+                                    "?? docs/progress/evidence/mapgyver-m01-presentmon-role-drop-diagnosis-2026-10-28.json",
+                                    "?? tools/mapgyver/native-probe/src/etw_status.rs",
+                                    "?? tools/mapgyver/native-probe/src/etw_status/",
+                                    "?? tools/mapgyver/tests/test_presentmon_capture.py"
+                                ],
+                     "cargo_lock_sha256":  "286b324f233cd15f2af643272e4f47759fc60ca3d13943204755ec94da10559f",
+                     "npm_lock_sha256":  "46924d87a98b203fa1c66ece5e1fdd8705dc27210c183b481452998cd88be355"
+                 },
+    "operating_system":  {
+                             "status":  "observed",
+                             "items":  [
+                                           {
+                                               "Caption":  "Microsoft Windows 11 Famille",
+                                               "Version":  "10.0.26300",
+                                               "BuildNumber":  "26300",
+                                               "OSArchitecture":  "64-bit"
+                                           },
+                                           {
+                                               "DisplayVersion":  "26H2",
+                                               "CurrentBuild":  "26300",
+                                               "UBR":  9711
+                                           }
+                                       ]
+                         },
+    "cpu":  {
+                "status":  "observed",
+                "items":  [
+                              {
+                                  "Name":  "Intel(R) Core(TM) Ultra 9 275HX",
+                                  "NumberOfCores":  24,
+                                  "NumberOfLogicalProcessors":  24
+                              }
+                          ]
+            },
+    "memory":  {
+                   "status":  "observed",
+                   "items":  [
+                                 {
+                                     "TotalPhysicalMemory":  33752997888
+                                 }
+                             ]
+               },
+    "power":  {
+                  "active_scheme":  {
+                                        "status":  "observed",
+                                        "items":  [
+                                                      "Power Scheme GUID: 3ce3a61f-21d2-4d5c-8d8a-edd03b1f14e7  (Perf)"
+                                                  ]
+                                    },
+                  "battery":  {
+                                  "status":  "observed",
+                                  "items":  [
+                                                {
+                                                    "BatteryStatus":  2,
+                                                    "EstimatedChargeRemaining":  100
+                                                }
+                                            ]
+                              }
+              },
+    "video_controllers":  {
+                              "status":  "observed",
+                              "items":  [
+                                            {
+                                                "Name":  "Intel(R) Graphics",
+                                                "DriverVersion":  "32.0.101.8331",
+                                                "DriverDate":  "2026-01-29",
+                                                "CurrentHorizontalResolution":  2560,
+                                                "CurrentVerticalResolution":  1600,
+                                                "CurrentRefreshRate":  240
+                                            },
+                                            {
+                                                "Name":  "NVIDIA GeForce RTX 5080 Laptop GPU",
+                                                "DriverVersion":  "32.0.15.9201",
+                                                "DriverDate":  "2026-02-15",
+                                                "CurrentHorizontalResolution":  3840,
+                                                "CurrentVerticalResolution":  2160,
+                                                "CurrentRefreshRate":  60
+                                            }
+                                        ]
+                          },
+    "monitors":  {
+                     "status":  "observed",
+                     "items":  [
+                                   {
+                                       "Active":  true,
+                                       "VideoOutputTechnology":  2147483648
+                                   },
+                                   {
+                                       "Active":  true,
+                                       "VideoOutputTechnology":  10
+                                   }
+                               ]
+                 },
+    "webview2":  {
+                     "status":  "observed",
+                     "items":  [
+                                   {
+                                       "name":  "Microsoft Edge WebView2 Runtime",
+                                       "pv":  "155.0.4283.62"
+                                   }
+                               ]
+                 },
+    "toolchain":  {
+                      "rustc":  {
+                                    "status":  "observed",
+                                    "items":  [
+                                                  "rustc 1.97.0 (2d8144b78 2026-07-07)\nbinary: rustc\ncommit-hash: 2d8144b7880597b6e6d3dfd63a9a9efae3f533d3\ncommit-date: 2026-07-07\nhost: x86_64-pc-windows-msvc\nrelease: 1.97.0\nLLVM version: 22.1.6"
+                                              ]
+                                },
+                      "cargo":  {
+                                    "status":  "observed",
+                                    "items":  [
+                                                  "cargo 1.97.0 (c980f4866 2026-06-30)"
+                                              ]
+                                },
+                      "rustup":  {
+                                     "status":  "observed",
+                                     "items":  [
+                                                   "1.97.0-x86_64-pc-windows-msvc (directory override for \u0027D:\\Projects\\Dev\\Chataigne2\u0027)"
+                                               ]
+                                 },
+                      "node":  {
+                                   "status":  "observed",
+                                   "items":  [
+                                                 "v26.5.0"
+                                             ]
+                               },
+                      "npm":  {
+                                  "status":  "observed",
+                                  "items":  [
+                                                "11.17.0"
+                                            ]
+                              },
+                      "cmake":  {
+                                    "status":  "observed",
+                                    "items":  [
+                                                  "cmake version 4.4.1\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake)."
+                                              ]
+                                },
+                      "visual_studio":  {
+                                            "status":  "observed",
+                                            "items":  [
+                                                          {
+                                                              "displayName":  "Visual Studio Build Tools 2026",
+                                                              "installationVersion":  "18.5.11723.231"
+                                                          },
+                                                          {
+                                                              "displayName":  "Visual Studio Community 2026",
+                                                              "installationVersion":  "18.10.12224.181"
+                                                          }
+                                                      ]
+                                        }
+                  },
+    "locked_host_packages":  [
+                                 {
+                                     "name":  "raw-window-handle",
+                                     "version":  "0.6.2"
+                                 },
+                                 {
+                                     "name":  "tauri",
+                                     "version":  "2.11.5"
+                                 },
+                                 {
+                                     "name":  "tauri-runtime-wry",
+                                     "version":  "2.11.4"
+                                 },
+                                 {
+                                     "name":  "webview2-com",
+                                     "version":  "0.38.2"
+                                 },
+                                 {
+                                     "name":  "windows",
+                                     "version":  "0.48.0"
+                                 },
+                                 {
+                                     "name":  "windows",
+                                     "version":  "0.61.3"
+                                 },
+                                 {
+                                     "name":  "windows",
+                                     "version":  "0.62.2"
+                                 },
+                                 {
+                                     "name":  "windows-core",
+                                     "version":  "0.61.2"
+                                 },
+                                 {
+                                     "name":  "windows-core",
+                                     "version":  "0.62.2"
+                                 },
+                                 {
+                                     "name":  "wry",
+                                     "version":  "0.55.1"
+                                 }
+                             ],
+    "spout_related_processes":  {
+                                    "status":  "observed",
+                                    "items":  [
+
+                                              ]
+                                },
+    "not_measured":  [
+                         "DXGI adapter LUID, dedicated/shared memory budget and D3D11 feature level",
+                         "DisplayConfig identity, physical origins, per-monitor DPI and WebView rasterization scale",
+                         "WebView underlay/DOM layering, pointer capture and layout alignment",
+                         "Spout SDK enumeration, GPU sharing, resize/restart and adapter compatibility",
+                         "Frame timing, readback/copy behavior, resource retirement and device recovery"
+                     ]
+},
+  "dxgi_inventory_before_warmed_control": [
+  {
+    "index": 0,
+    "description": "Intel(R) Graphics",
+    "luid": "00000000:00016c2a",
+    "dedicated_video_bytes": 134217728,
+    "shared_system_bytes": 19239208796,
+    "software": false,
+    "local_memory": {
+      "budget_bytes": 18433902428,
+      "current_usage_bytes": 0
+    },
+    "nonlocal_memory": {
+      "budget_bytes": 0,
+      "current_usage_bytes": 0
+    },
+    "outputs": [
+      {
+        "device_name": "\\\\.\\DISPLAY1",
+        "attached": true,
+        "desktop_rect": [
+          0,
+          0,
+          2560,
+          1600
+        ],
+        "coordinate_context": "physical_pixels_per_monitor_aware_v2_thread"
+      },
+      {
+        "device_name": "\\\\.\\DISPLAY2",
+        "attached": true,
+        "desktop_rect": [
+          2560,
+          0,
+          4480,
+          1080
+        ],
+        "coordinate_context": "physical_pixels_per_monitor_aware_v2_thread"
+      }
+    ]
+  },
+  {
+    "index": 1,
+    "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "luid": "00000000:000170d3",
+    "dedicated_video_bytes": 16780361728,
+    "shared_system_bytes": 19239208796,
+    "software": false,
+    "local_memory": {
+      "budget_bytes": 15975055360,
+      "current_usage_bytes": 0
+    },
+    "nonlocal_memory": {
+      "budget_bytes": 18433902428,
+      "current_usage_bytes": 0
+    },
+    "outputs": []
+  },
+  {
+    "index": 2,
+    "description": "Microsoft Basic Render Driver",
+    "luid": "00000000:00017040",
+    "dedicated_video_bytes": 0,
+    "shared_system_bytes": 19239208796,
+    "software": true,
+    "local_memory": {
+      "budget_bytes": 18433902428,
+      "current_usage_bytes": 0
+    },
+    "nonlocal_memory": {
+      "budget_bytes": 0,
+      "current_usage_bytes": 0
+    },
+    "outputs": []
+  }
+],
+  "scope": "Baseline controller-level modes and separate native DXGI output enumeration before the warmed control. Controller fields are not per-output refresh or attachment evidence; exact owned-window context is retained in the capture itself."
+}

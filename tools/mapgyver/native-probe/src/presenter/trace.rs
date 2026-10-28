@@ -1,8 +1,10 @@
 //! Ephemeral CLI diagnostics for matching this probe's Present calls to ETW records.
 //! These addresses are identifiers only; no native interface or window is exported to the UI.
 
+use super::window_context;
 use crate::{ProbeResult, clock};
 use serde::Serialize;
+use windows::Win32::Foundation::HWND;
 use windows::Win32::Graphics::Dxgi::{IDXGISwapChain, IDXGISwapChain1, IDXGISwapChain2};
 use windows::core::Interface;
 
@@ -34,6 +36,7 @@ pub struct Report {
     pub begin_qpc: u64,
     pub end_qpc: u64,
     pub addresses: Addresses,
+    pub window_at_end: Result<window_context::Report, String>,
 }
 
 impl Identity {
@@ -53,12 +56,13 @@ impl Identity {
         })
     }
 
-    pub fn finish(&self) -> ProbeResult<Report> {
+    pub fn finish(&self, window: HWND) -> ProbeResult<Report> {
         Ok(Report {
             role: self.role,
             begin_qpc: self.begin_qpc,
             end_qpc: clock::now()?,
             addresses: self.addresses.clone(),
+            window_at_end: window_context::observe(window),
         })
     }
 }

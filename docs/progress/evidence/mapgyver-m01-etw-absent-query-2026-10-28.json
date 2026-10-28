@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "absent_owned_format_session_query_not_loss_qualification",
+  "executable_sha256_at_query": "ad2c6ee8cd8190d905ef6f72624bf9aa399937c61bbf3f930841514eb23bb70c",
+  "source_epoch": "ETW query build before window-context diagnostics; no rendering or session mutation",
+  "native_stdout": "{\n  \"session_name\": \"MapGyver-M01-Present-ffffffffffffffffffffffffffffffff\",\n  \"before_qpc\": 1869523070112,\n  \"after_qpc\": 1869523070341,\n  \"status\": 4201,\n  \"status_message\": \"The instance name passed was not recognized as valid by a WMI data provider. (0x80071069)\",\n  \"response_validation_error\": null,\n  \"statistics\": null,\n  \"scope\": \"Read-only live ETW session snapshot bounded by QPC; not final shutdown statistics or independent proof of zero loss for the entire capture\"\n}\n",
+  "report": {
+  "session_name": "MapGyver-M01-Present-ffffffffffffffffffffffffffffffff",
+  "before_qpc": 1869523070112,
+  "after_qpc": 1869523070341,
+  "status": 4201,
+  "status_message": "The instance name passed was not recognized as valid by a WMI data provider. (0x80071069)",
+  "response_validation_error": null,
+  "statistics": null,
+  "scope": "Read-only live ETW session snapshot bounded by QPC; not final shutdown statistics or independent proof of zero loss for the entire capture"
+}
+}

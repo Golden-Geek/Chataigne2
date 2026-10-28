@@ -748,8 +748,11 @@ and Tauri embeds those assets at compile time. Do not run those dependent operat
 
 ## PID-filtered PresentMon route control
 
-`capture-presentmon.py` owns a separate short capture around the existing eight-second sample
-and two-second warmup. It uses the pinned official portable executable under the ignored
+`capture-presentmon.py` owns a separate bounded capture. Defaults are an eight-second sample
+after the contract's 30-second warmup; `--sample-seconds` and `--warmup-seconds` record explicit
+overrides, with sample at least eight seconds and total at most one hour. Earlier two-second
+warmup controls remain historical, including their resize/absence/reconnect phases. The helper
+uses the pinned official portable executable under the ignored
 `target/qualification-tools/presentmon-2.6.0/` directory; it installs no service. Obtain it from
 the [official release](https://github.com/GameTechDev/PresentMon/releases/expanded_assets/v2.6.0)
 and verify SHA256 `b2a706bc6ad475749e3b7e3409263aa1e6906d45bdcf993f6dbc0f660188f1af` before use.
@@ -758,17 +761,37 @@ ignored dependency after cleaning `target`; it is not bundled with an app artifa
 
 ```powershell
 python tools/mapgyver/capture-presentmon.py 0 q01
+python tools/mapgyver/capture-presentmon.py 0 q02 --output target/presentmon-q02-run01.json
 ```
 
 Run through the verified administrator host path. The helper creates a fresh UUID session,
 filters output to the spawned renderer PID, requests legacy CSV with raw Present-start QPC,
 keeps dropped rows and disables input tracking. It drains native/CSV pipes concurrently and
-captures twelve seconds around the nominal ten-second native control. Raw rows outside the
+captures two extra seconds around the nominal native duration. Raw rows outside the
 exact native sample window remain available. Timeout cleanup is scoped
 only to that invocation's generated session name; existing services/default/foreign sessions
 are never selected. No elevation/group/security setting is changed. The installed FrameView
 fork exited silently on this command and remains preserved as failed evidence; it is not the
 default capture tool. An explicit `--presentmon PATH` allows a separately fingerprinted tool.
+
+For large captures, `--output` exclusively creates a generated packet under the existing
+`target` directory and prints a small byte-count/SHA256 receipt. Choose a fresh filename each
+time. Existing files, paths outside `target` and missing parents are rejected before startup;
+an exclusive open also prevents a later race from overwriting a file. The packet retains every
+raw stream and exact native integer. Verified packets are promoted to repository evidence
+separately; stdout remains available when no output path is requested.
+
+After the native process exits, while the collector drains its tail, `trace-status SESSION`
+uses read-only `ControlTraceW(QUERY)` on that invocation's generated UUID name. It returns
+bounded QPC, the returned identity and separate `EventsLost`, `LogBuffersLost` and
+`RealTimeBuffersLost` counters. Failure or invalid identity keeps statistics unavailable.
+The helper requires a successful query after every recorded native Present interval and
+preserves raw collector output even if query startup fails. The two-second tail is an
+opportunity to query a live session; slow native teardown can leave the query unavailable.
+`live_etw_query_verified` and zero counters describe that one live snapshot. Final shutdown,
+later delivery and collector analysis loss remain unverified. See Microsoft's
+[query contract](https://learn.microsoft.com/en-us/windows/win32/api/evntrace/nf-evntrace-controltracew)
+and [counter definitions](https://learn.microsoft.com/en-us/windows/win32/api/evntrace/ns-evntrace-event_trace_properties).
 
 `presentmon_data.py` validates the observed v1 schema and exact PID/QPC values. It separates
 Present-window drop counts from Display-window intervals, retaining pre-window predecessors
@@ -779,6 +802,10 @@ reports own the typed editor/output identities and half-open bounds; queried ali
 assumed equal. Missing/unknown/overlapping mappings fail explicitly; disjoint pointer reuse is
 allowed. A Display timestamp beyond the recorded Present interval remains observable because identity is
 matched using Present QPC. No identities enter UI DTOs or persisted product documents.
+Each native presenter also records `window_at_end`: physical window/client geometry, its
+actual monitor/device, DPI and separately fallible current mode. The shared scoped thread-DPI
+authority serves both adapter inventory and these observations. Nominal integer refresh from
+`DEVMODEW` is distinct from rational refresh, vblank/latch timing and a continuous monitor history.
 All raw CSV/native stdout and input/tool hashes are kept
 in checksummed compressed evidence. Absence of loss warnings means only **no loss reported**; explicit
 zero loss is not independently verified. Shared compositor timestamps are not independent

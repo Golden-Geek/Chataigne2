@@ -25,9 +25,19 @@ def parse_args(argv=None):
     parser.add_argument("scenario", choices=("q01", "q02"))
     parser.add_argument("--presentmon", type=Path, default=PRESENTMON)
     parser.add_argument("--nvidia-overlay", choices=("on", "off", "unknown"), default="unknown")
+    parser.add_argument("--sample-seconds", type=int, default=8)
+    parser.add_argument("--warmup-seconds", type=int, default=30)
+    parser.add_argument("--output", type=Path, help="exclusively create a generated packet under the existing target directory")
     args = parser.parse_args(argv)
     if args.adapter < 0:
         parser.error("adapter must be nonnegative")
+    if args.sample_seconds < 8 or args.warmup_seconds < 0 or args.sample_seconds + args.warmup_seconds > 3600:
+        parser.error("sample must be at least 8 seconds, warmup nonnegative, total at most 3600")
+    if args.output is not None:
+        args.output = args.output.resolve()
+        if not args.output.is_relative_to((ROOT / "target").resolve()) or not args.output.parent.is_dir() \
+                or args.output.exists():
+            parser.error("output must be a new file below the existing target directory")
     return args
 
 
@@ -83,15 +93,39 @@ def communicate(process, seconds, presentmon=None, session=None):
                 stderr_bytes=len(stderr), stderr_sha256=hashlib.sha256(stderr).hexdigest())
 
 
+def validate_etw_query(query, session, native_report):
+    if not isinstance(query, dict) or type(query.get("status")) is not int or query["status"] != 0 \
+            or query.get("response_validation_error") is not None:
+        raise ValueError("live ETW query failed or returned an invalid identity")
+    statistics = query.get("statistics")
+    if query.get("session_name") != session or not isinstance(statistics, dict) \
+            or statistics.get("returned_session_name") != session:
+        raise ValueError("live ETW session identity mismatch or unavailable statistics")
+    before, after = query.get("before_qpc"), query.get("after_qpc")
+    ends = [chain["end_qpc"] for generation in native_report["generations"] for chain in generation["swapchains"]]
+    if not ends or any(type(value) is not int or not 0 < value < 1 << 64 for value in [before, after, *ends]) \
+            or not max(ends) <= before <= after:
+        raise ValueError("live ETW query does not follow the recorded native Present intervals")
+    counters = {key: statistics.get(key) for key in ("events_lost", "log_buffers_lost", "realtime_buffers_lost")}
+    if any(type(value) is not int or not 0 <= value < 1 << 32 for value in counters.values()):
+        raise ValueError("live ETW loss counters are unavailable or malformed")
+    return dict(before_qpc=before, after_qpc=after, native_present_interval_end_qpc=max(ends),
+                queried_after_native_present_interval=True, counters=counters,
+                all_counters_zero=not any(counters.values()), final_capture_zero_loss_verified=False,
+                scope="Successful independent live API query only; later event delivery/shutdown and PresentMon analysis loss remain unverified")
+
+
 def collect(args, evidence):
     executable = ROOT / "target/release/mapgyver_native_probe.exe"
     session = "MapGyver-M01-Present-" + uuid.uuid4().hex
-    evidence.update(schema_version=1, evidence_kind="short_presentmon_role_correlation_control_not_full_timing_qualification",
+    total_seconds = args.sample_seconds + args.warmup_seconds
+    capture_seconds = total_seconds + 2
+    evidence.update(schema_version=2, evidence_kind="bounded_presentmon_roles_and_live_loss_query_not_full_timing_qualification",
                     started_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                    session_name=session, native_sample_seconds=8, native_warmup_seconds=2,
-                    presentmon_timed_seconds=12, declared_nvidia_overlay_state=args.nvidia_overlay,
+                    session_name=session, native_sample_seconds=args.sample_seconds, native_warmup_seconds=args.warmup_seconds,
+                    presentmon_timed_seconds=capture_seconds, declared_nvidia_overlay_state=args.nvidia_overlay,
                     environment=dict(platform=platform.platform(), machine=platform.machine()),
-                    role_correlation_verified=False,
+                    role_correlation_verified=False, live_etw_query_verified=False,
                     scope="PID-filtered PresentMon v1 events with separate exact native identity correlation; no optical latency, alignment or full GPU-path claim")
     before = fingerprints(executable, args.presentmon)
     evidence["inputs"] = before
@@ -112,24 +146,36 @@ def collect(args, evidence):
     if "nvidia" in selected[0]["description"].lower() and args.nvidia_overlay != "off":
         raise ValueError("NVIDIA requires verified overlay Off before startup")
     evidence["adapter"] = selected[0]
-    native_command = [str(executable), "qualify", str(args.adapter), args.scenario, "8", "2"]
+    native_command = [str(executable), "qualify", str(args.adapter), args.scenario,
+                      str(args.sample_seconds), str(args.warmup_seconds)]
     native = subprocess.Popen(native_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=ROOT)
     evidence["native_command"] = native_command
     evidence["native_pid"] = native.pid
     capture_command = [str(args.presentmon), "--process_id", str(native.pid), "--session_name", session,
                        "--output_stdout", "--v1_metrics", "--qpc_time", "--no_console_stats", "--no_track_input",
-                       "--timed", "12", "--terminate_after_timed"]
+                       "--timed", str(capture_seconds), "--terminate_after_timed"]
     evidence["capture_command"] = capture_command
     # Drain both streams concurrently; a full CSV pipe must never throttle the trace consumer.
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
-        native_result = pool.submit(communicate, native, 70)
+        native_result = pool.submit(communicate, native, total_seconds + 60)
+        capture_result = None
         try:
             capture = subprocess.Popen(capture_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=ROOT)
-            capture_result = pool.submit(communicate, capture, 30, args.presentmon, session)
-            evidence["presentmon"] = capture_result.result()
+            capture_result = pool.submit(communicate, capture, capture_seconds + 20, args.presentmon, session)
         except (OSError, subprocess.SubprocessError) as error:
             evidence["presentmon"] = dict(failure=str(error))
         evidence["native"] = native_result.result()
+        if capture_result is not None:
+            # Query after the native measurement/teardown, while the collector drains its tail.
+            # The CSV consumer continues concurrently; no observer process is added in-sample.
+            query_command = [str(executable), "trace-status", session]
+            evidence["etw_query_command"] = query_command
+            try:
+                query_process = subprocess.Popen(query_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=ROOT)
+                evidence["etw_query"] = communicate(query_process, 5)
+            except (OSError, subprocess.SubprocessError) as error:
+                evidence["etw_query"] = dict(failure=str(error))
+            evidence["presentmon"] = capture_result.result()
     evidence["inputs_unchanged_after_run"] = before == fingerprints(executable, args.presentmon)
     try:
         native_run = evidence["native"]
@@ -148,12 +194,21 @@ def collect(args, evidence):
         roles = runpy.run_path(str(Path(__file__).with_name("presentmon_roles.py")))
         evidence["role_correlation"] = roles["correlate"](
             capture_run["stdout"], native.pid, report, report["observer"]["frame_age"]["config"])
+        evidence["role_correlation_verified"] = True
+        query_run = evidence["etw_query"]
+        if query_run["exit_code"] != 0 or query_run["timed_out"] or query_run["stderr"] or not query_run["valid_utf8"]:
+            raise ValueError("live ETW query process failed or timed out")
+        query_report = json.loads(query_run["stdout"])
+        evidence["etw_query_report"] = query_report
+        evidence["live_etw_observation"] = validate_etw_query(query_report, session, report)
+        evidence["live_etw_query_verified"] = True
         evidence["loss_observation"] = data["loss_observation"](capture_run["stdout"], capture_run["stderr"])
         if not evidence["loss_observation"]["no_loss_reported"]:
             raise ValueError("PresentMon reported lost data")
+        if not evidence["live_etw_observation"]["all_counters_zero"]:
+            raise ValueError("independent live ETW query reported loss")
         if not evidence["inputs_unchanged_after_run"]:
             raise ValueError("capture inputs changed")
-        evidence["role_correlation_verified"] = True
         evidence["route_verified"] = True
     except (ValueError, KeyError, TypeError) as error:
         evidence["route_verified"] = False
@@ -169,7 +224,20 @@ def main():
     except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as error:
         evidence["route_verified"] = False
         evidence["preparation_or_collection_failure"] = str(error)
-    print(BASE["encode_evidence"](evidence, "gzip-base64"), flush=True)
+    packet = BASE["encode_evidence"](evidence, "gzip-base64")
+    if args.output is None:
+        print(packet, flush=True)
+    else:
+        # Generated capture output, never a source/evidence-file editor. Exclusive creation
+        # preserves prior runs; repository evidence is promoted separately after verification.
+        payload = (packet + "\n").encode("utf-8")
+        with args.output.open("xb") as output:
+            output.write(payload)
+        print(json.dumps(dict(output_file=str(args.output), bytes=len(payload),
+                              sha256=hashlib.sha256(payload).hexdigest(),
+                              route_verified=evidence["route_verified"],
+                              role_correlation_verified=evidence.get("role_correlation_verified", False),
+                              live_etw_query_verified=evidence.get("live_etw_query_verified", False))), flush=True)
     return 0 if evidence["route_verified"] else 1
 
 

@@ -1,3 +1,5 @@
 docs/product/manifests/** text eol=lf
+# Qualification artifacts retain exact recorded bytes for checksum/reproduction audits.
+docs/progress/evidence/mapgyver-*.json -text
 tools/bootstrap/toolchain.json text eol=lf
 *.sh text eol=lf
