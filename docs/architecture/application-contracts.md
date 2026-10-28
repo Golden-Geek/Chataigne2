@@ -45,6 +45,15 @@ Tauri destroy permission. Headless/default launches create no presentation lifec
 extension covers the main editor underlay; renderer, preview geometry and output-window policy
 retain their M03/M05 owners. See the [MapGyver evidence](../progress/mapgyver-m02-shell.md).
 
+`golden_time` owns typed time coordinates, checked rational conversion, immutable show mappings
+and authority/discontinuity epochs. Apps own transport policy; specialized schedulers own
+preparation, lateness and once-only effects. `golden_video::runtime` uses that authority with
+Golden IO workers for bounded preparation, frame-boundary installation and completion-based
+resource retirement. Its control/events contain CPU inputs or metadata, never backend objects.
+The current null backend verifies ownership and scheduling only; native host consumption and
+GPU qualification remain open. See [Golden Video](../../crates/golden_video/README.md) and
+[Golden Time](../../crates/golden_time/README.md) for the public boundaries.
+
 For queued native-derived edits, `golden_engine::edit::EditQueue::retain_payload` attaches an
 already-admitted Golden IO payload lease to the requests currently in the queue. Admission survives
 producer removal, ingress transfer, deferred/atomic application, coalescing and discarded suffixes.

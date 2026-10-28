@@ -10,6 +10,7 @@ mod color;
 mod identity;
 pub mod plan;
 mod resource;
+pub mod runtime;
 
 pub use color::{ColorError, LinearColor, Opacity};
 pub use identity::{OutputId, PassId, TextureId};

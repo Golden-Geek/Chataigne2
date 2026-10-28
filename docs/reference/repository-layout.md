@@ -35,7 +35,8 @@ crates/
 │       ├── codegen/             supported build/codegen API
 │       └── macros/              proc macros
 ├── golden_graph/                app-agnostic graph documents and transactions
-└── golden_video/                app-neutral render-plan/resource compiler; runtime/native work continues in M03
+├── golden_time/                 shared coordinates, rational mapping and time/activation authority
+└── golden_video/                render-plan compiler and bounded worker/null runtime; native work continues in M03
 ```
 
 App metadata comes from the engine's pure `ProjectLifecycle` hooks; shared desktop listener and
@@ -107,15 +108,16 @@ MapGyver defaults to backend `127.0.0.1:7011` and development UI `127.0.0.1:5174
 Chataigne's 7010/5173. Golden UI validates app discovery before restoring app-scoped browser
 state, and obtains project-file labels/extensions from the required runtime snapshot metadata.
 
-The remaining paths describe planned responsibilities, not implemented product features:
+These boundaries distinguish implemented foundations from planned product features:
 
 - `apps/mapgyver/systems/{media,screen,matrix}/`: app-owned models, operations and integration.
 - `apps/mapgyver/ui/`: future Screen, Surface Source, Composition and Matrix editors.
-- `crates/golden_video/`: future reusable GPU runtime, compositor, Spout and presentation (M03).
+- `crates/golden_video/`: compiler and worker/null runtime exist; native compositor, Spout and
+  presentation continue in M03, using the shared `crates/golden_time/` authority.
 - `packages/golden-video-ui/`: future reusable native-preview bindings; host integration stays shared.
 
-The optional typed native-presentation host lifecycle remains open in M02. This layout records
-ownership, not concurrent desktop/dev or native qualification. See the
+The optional typed native-presentation host lifecycle is implemented and exercised in M02.
+Production renderer integration and native qualification retain their M03/M05 owners. See the
 [architecture](../architecture/mapgyver.md), [plan](../plan/MapGyver_Implementation_Plan.md) and
 [current acceptance](../progress/mapgyver-status.md).
 

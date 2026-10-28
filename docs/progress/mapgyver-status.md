@@ -4,16 +4,15 @@
 
 **Updated: 2026-10-28 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
-**Current topic:** M03's reusable immutable render-plan/resource compiler is verified (1/9).
-The [first source evidence](mapgyver-m03-render-foundations.md) covers deterministic validation,
-demand pruning and checked logical texture bounds. M02's
+**Current topic:** M03's compiler, bounded worker/null runtime and shared time authority are
+verified (3/9). The [source evidence](mapgyver-m03-render-foundations.md) covers graph validation,
+completion-based resource ownership, admission bounds and scheduled activation. M02's
 [shell and lifecycle evidence](mapgyver-m02-shell.md) remains accepted.
 The [approved M01 route decision](mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28)
 remains scoped functional acceptance; renderer, physical-output and full-app qualification
 retain their M03/M05/M09 owners.
 
-**Next:** implement the shared production-time prerequisite and bounded worker/null runtime
-through existing Golden IO contracts, then extract the production native backend.
+**Next:** integrate the D3D11/Spout production backend and shared native host with this runtime.
 **Blocker:** none for the next M03 source batch. Known cadence, memory-growth, geometry and display/input failures
 remain open under M03/M05/M09; their budgets and evidence are unchanged.
 
@@ -22,7 +21,7 @@ remain open under M03/M05/M09; their budgets and evidence are unchanged.
 | [M00 Baseline/workloads](mapgyver-m00-baseline.md) | Complete locally | `████████████████████` 100% | 1/1 |
 | [M01 Functional route decision](#m01-acceptance-items) | Complete locally | `████████████████████` 100% | 4/4 |
 | [M02 Multi-app seams/shell](#m02-acceptance-items) | Complete locally | `████████████████████` 100% | 7/7 |
-| [M03 Rendering/channels](#m03-acceptance-items) | In progress | `██░░░░░░░░░░░░░░░░░░` 11% | 1/9 |
+| [M03 Rendering/channels](#m03-acceptance-items) | In progress | `███████░░░░░░░░░░░░░` 33% | 3/9 |
 | [M04 Source media](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M05 Screens/Surfaces/editors](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M06 Composition/editor](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
@@ -32,7 +31,7 @@ remain open under M03/M05/M09; their budgets and evidence are unchanged.
 
 Overall counts fully accepted milestones: `3 / 10 = 30%`; partial phases do not advance it.
 Phase percentages count closed acceptance items, rounded to the nearest whole percent
-(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 1 / 9 = 11%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
+(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 3 / 9 = 33%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
 its whole plan acceptance as one item unless a fixed breakdown is recorded here before
 implementation continues. On 2026-10-28 the user explicitly approved changing M01 from eight
 full-qualification items to four functional-route items, allowing M02 to start. The original
@@ -128,11 +127,11 @@ functional gate, not a retrospective pass of the original eight-item matrix.
 | Item | State | Accepted scope / remaining work |
 | --- | --- | --- |
 | Immutable render/resource plan compiler | Done | [Compiler evidence](mapgyver-m03-render-foundations.md#immutable-render-plan-compiler--2026-10-28): explicit texture/color/alpha, deterministic whole-graph validation/demand compilation, bounded raw work/checked logical bytes, 29 tests including a 10k chain. No runtime/native admission pass is inferred. |
-| Bounded worker/null runtime and atomic install | Open | Reuse Golden IO; frame-boundary install, project/revision/device fences, one preparation, latest desired plan, bounded in-flight work/two retiring generations, actual resources retained through completion. |
+| Bounded worker/null runtime and atomic install | Done | [Runtime evidence](mapgyver-m03-render-foundations.md): Golden IO workers/fences, one preparation/latest desired plan, bounded reliable outcomes and resource admission, frame-boundary install, at most two in-flight uses/two retiring generations, completion-based worker-local destruction. Null resources simulate allocation/use; native proof stays open. |
 | D3D11/Spout backend and host integration | Open | Opaque GPU resources, explicit adapter/caller-device ownership, compositing/conversion and real shared-host presentation consumer. |
 | Runtime observations and device recovery | Open | Source/output state, device removal/recreation, healthy-path independence, cancellation and bounded production recovery/retirement. |
 | App-owned media/channel backend contracts | Open | Stable IDs/references, backend size/default operations, Rust-generated contracts and actual history/reload/recreation coverage. |
-| Shared production-time authority | Open | Monotonic show/activation and discontinuity contracts used by real scheduling; update shared P14 partial evidence without passing audio/DMX scope. |
+| Shared production-time authority | Done | [Golden Time](../../crates/golden_time/README.md) supplies checked coordinates/rational mappings and authority/discontinuity epochs consumed by the threaded video scheduler; fake-time activation/shared-output and stale-epoch tests pass. Shared P14 plan records this evidence; audio/DMX acceptance remains open. |
 | Shared persistent asset/preparation boundary | Open | Stable asset IDs/locators, worker preparation/cancellation, relocation/relink, stale fencing and full live-resource admission; shared P15 evidence remains scoped. |
 | Native preview registration/geometry contracts | Open | Reusable bindings and Rust-generated control DTOs exercised by the native consumer; specialized editors/full DPI/input stay M05. |
 | Native renderer qualification | Open | Unchanged Q01/Q02 CPU/GPU/cadence/frame-age/admission/memory/handle/shutdown budgets and applicable recovery against the production replacement; historical failures preserved. |
@@ -221,7 +220,7 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | M00 Reconciliation/workloads | VERIFIED_LOCAL | [Checkout/public-boundary/hardware handoff](mapgyver-m00-baseline.md), [captured inventory](evidence/mapgyver-baseline-2026-10-27.json), and fixed [qualification workloads/budgets](mapgyver-qualification-contract.md) |
 | M01 Functional route decision | COMPLETE_LOCAL | [Approved decision](mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28): ordinary Tauri/Wry + D3D11 + pinned Spout sys binding permit the thin shell. Full qualification remains with M03/M05/M09. |
 | M02 Multi-app seams/shell | COMPLETE_LOCAL | [Shell/isolation and typed host lifecycle](mapgyver-m02-shell.md) close all seven fixed items. The real Windows smoke verifies STA/worker/window teardown; no GPU or physical-output qualification is inferred. |
-| M03 Rendering/channels | IN_PROGRESS | [Plan/resource compiler](mapgyver-m03-render-foundations.md) closes 1/9 fixed gates. Bounded runtime, native integration, app contracts, shared time/assets, preview and qualification remain open. |
+| M03 Rendering/channels | IN_PROGRESS | [Compiler, bounded runtime and shared time](mapgyver-m03-render-foundations.md) close 3/9 fixed gates. Native integration/recovery, app contracts, assets, preview and native qualification remain open. |
 | M04 Source media | NOT_STARTED | Solid Color, Picture, concurrent Spout scope defined |
 | M05 Screens/Surfaces/editors | NOT_STARTED | Output/crop/pin/calibration contracts defined |
 | M06 Composition/editor | NOT_STARTED | Instance/canvas/dependency contracts defined |
@@ -233,10 +232,10 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 The user approved the scope correction on 2026-10-28 and explicitly instructed continuation
 to M02. Its shell/isolation and typed host lifecycle deliveries now close all seven fixed
-items. M03's nine fixed acceptance gates are now defined before source work. Implement its
-Golden Video bounded worker/null runtime and its shared production-time prerequisite, then the
-native backend. The immutable plan/resource compiler is verified; app-owned channel, shared
-asset and preview contracts retain their public owners. Deliver each coherent batch
+items. M03's fixed compiler, worker/null-runtime and shared-time gates are now verified.
+Integrate the D3D11/Spout backend and shared native host next, using these ownership/scheduling
+contracts. App-owned channel, shared asset and preview contracts retain their public owners.
+Deliver each coherent batch
 on `mapgyver` before starting the next. Preserve
 Chataigne's root default and unfinished P11 work. No new M01 captures, consumer-control cohorts,
 overlay investigation or profiling are needed for this work. The user confirms overlay Off.
@@ -383,6 +382,32 @@ P14/P15 time and asset contracts retain their shared Golden owners under M03. Ro
 behavior is unchanged. No production host/backend/binding decision is final yet.
 
 ## M03 verification — 2026-10-28
+
+### Worker/null runtime and shared time
+
+- `golden_time` owns monotonic/show/sample coordinates, checked rational conversion, immutable
+  mappings and authority/discontinuity epochs. Golden Video consumes it for absolute frame
+  cadence and activation; multiple readers/outputs do not advance show effects independently.
+- Golden IO's payload-free wake/checkpoint wait supports renderer deadlines without mailbox
+  polling or lost service-to-wait notifications. One preparation worker feeds the latest desired
+  plan; reliable terminal outcomes retain bounded admission credits until drained.
+- Worker-local resources stay charged through preparation, live use and retirement. Atomic
+  install preserves the old scene on rejection, stale project/revision/device/time work is fenced,
+  and resource destruction waits for completion or confirmed device loss. Close/drop never joins
+  the actor/UI thread; a timeout does not certify native-window retirement.
+- `cargo test --locked -p golden_video -p golden_time -p golden_io`: **58 video unit + 2 public,
+  32 time unit + 1 public, and 58 IO unit tests passed**. Strict all-target Clippy passes for all
+  three crates. Both `MapGyver` and `Chataigne2` pass `cargo check --locked` with the additive IO
+  API. Root default selection remains Chataigne; no dependency versions are upgraded.
+  The final 151-test run includes clock/mapping publication, old-frame status and close-before-
+  activation regressions, with no ignored tests. Root and Golden Core formatting passes.
+- Gates 2 and 6 close, bringing M03 to **3/9 = 33%**; overall remains **3/10 = 30%**.
+  The [detailed evidence](mapgyver-m03-render-foundations.md) distinguishes simulated null
+  counters/device loss from native measurements. Six gates remain open, including native
+  backend/recovery/qualification, app channel contracts, assets and preview geometry. Shared
+  Chataigne P14 audio/DMX acceptance stays open; P15 assets are not implemented by this batch.
+
+### Immutable plan compiler checkpoint
 
 - Defined nine fixed complete-scope gates before source work, replacing the provisional
   whole-phase item. All started open; the scope/native budgets are unchanged.

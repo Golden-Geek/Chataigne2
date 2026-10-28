@@ -3032,6 +3032,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "golden_time"
+version = "0.1.0"
+dependencies = [
+ "thiserror 2.0.18",
+ "uuid",
+]
+
+[[package]]
 name = "golden_transport_server"
 version = "0.1.0"
 dependencies = [
@@ -3066,7 +3074,10 @@ dependencies = [
 name = "golden_video"
 version = "0.1.0"
 dependencies = [
+ "golden_io",
+ "golden_time",
  "thiserror 2.0.18",
+ "uuid",
 ]
 
 [[package]]

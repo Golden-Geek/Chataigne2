@@ -423,6 +423,12 @@ benefit is insufficient; the task does not mandate parallelism.
 
 ### P14 — Exercise a production time boundary
 
+Shared foundation delivered by MapGyver M03: [Golden Time](../../crates/golden_time/README.md)
+now supplies typed coordinates, rational mappings, authority/discontinuity epochs and activation
+observations, exercised by the [bounded video scheduler](../progress/mapgyver-m03-render-foundations.md).
+Reuse this public boundary. P14 remains open for the audio/DMX preparation, authority handoff,
+latency and synchronization acceptance below; the null video path does not pass that scope.
+
 Define typed monotonic time, engine sample position, show position, and discontinuity epoch with
 explicit conversions. App-owned transport supplies show play/pause/seek/loop/rate policy; reusable
 audio owns sample/render scheduling. Distinguish rendered from presented output and propagate

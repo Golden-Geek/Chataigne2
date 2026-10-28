@@ -1,0 +1,38 @@
+use super::*;
+use std::sync::mpsc;
+use uuid::Uuid;
+
+#[test]
+fn unbound_and_foreign_completion_controls_cannot_claim_a_device() {
+    let control = NullControl::new();
+    let device = DeviceGeneration::new(Uuid::new_v4(), 0);
+    let token = CompletionToken { device, serial: 1 };
+    assert!(!control.complete_through(token));
+    let _backend = NullBackend::new(NullConfig::default(), device, control.clone()).unwrap();
+    assert!(NullBackend::new(NullConfig::default(), device, control.clone()).is_err());
+    assert!(control.complete_through(token));
+    assert!(!control.complete_through(CompletionToken { serial: 0, ..token }));
+}
+
+#[test]
+fn explicit_device_loss_wakes_a_worker_only_completion_wait() {
+    let control = NullControl::new();
+    let worker_control = control.clone();
+    let device = DeviceGeneration::new(Uuid::new_v4(), 0);
+    let (started, ready) = mpsc::channel();
+    let worker = thread::spawn(move || {
+        let mut backend = NullBackend::new(NullConfig::default(), device, worker_control.clone()).unwrap();
+        {
+            let mut state = worker_control.0.state.lock().unwrap();
+            state.snapshot.last_submitted = Some(CompletionToken { device, serial: 1 });
+        }
+        started.send(()).unwrap();
+        assert_eq!(
+            backend.wait_for_completion(Duration::from_secs(60)),
+            Err(BackendError::DeviceLost)
+        );
+    });
+    ready.recv_timeout(Duration::from_secs(2)).unwrap();
+    control.lose_device();
+    worker.join().unwrap();
+}

@@ -1,4 +1,4 @@
-use crate::{BoundedWorker, RetirementPool, WorkerLimits, WorkerReceive};
+use crate::{BoundedWorker, RetirementPool, WorkerLimits, WorkerReceive, WorkerWake};
 use std::{
     num::NonZeroUsize,
     sync::mpsc,
@@ -103,5 +103,29 @@ fn cancellation_abandons_queued_commands_even_at_a_past_deadline() {
     worker.send_weighted(1, 1).unwrap();
     worker.cancel();
     resume.send(()).unwrap();
+    assert!(pool.wait_for_idle(Duration::from_secs(2)));
+}
+
+#[test]
+fn payload_free_notification_between_service_and_wait_is_not_lost() {
+    let pool = RetirementPool::new(NonZeroUsize::MIN);
+    let (ready_tx, ready_rx) = mpsc::channel();
+    let (resume_tx, resume_rx) = mpsc::channel();
+    let (done_tx, done_rx) = mpsc::channel();
+    let worker = BoundedWorker::<(), ()>::spawn("external-wake", &pool, limits(), move |context| {
+        let checkpoint = context.wake_checkpoint();
+        ready_tx.send(()).unwrap();
+        resume_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+        let wake = context.wait_until(checkpoint, Instant::now() + Duration::from_secs(2));
+        done_tx.send((wake, context.cancellation().is_cancelled())).unwrap();
+    })
+    .unwrap();
+    ready_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+    worker.wake_notifier().notify();
+    resume_tx.send(()).unwrap();
+    assert_eq!(
+        done_rx.recv_timeout(Duration::from_secs(3)).unwrap(),
+        (WorkerWake::Notified, false)
+    );
     assert!(pool.wait_for_idle(Duration::from_secs(2)));
 }

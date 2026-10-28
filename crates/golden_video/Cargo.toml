@@ -8,4 +8,7 @@ repository.workspace = true
 description = "App-neutral video render plans and worker-owned resource foundations"
 
 [dependencies]
+golden_io.workspace = true
+golden_time.workspace = true
 thiserror.workspace = true
+uuid.workspace = true

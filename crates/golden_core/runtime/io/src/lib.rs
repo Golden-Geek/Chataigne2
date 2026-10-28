@@ -14,7 +14,8 @@ mod worker;
 pub mod testkit;
 
 pub use bounded_worker::{
-    BoundedWorker, WorkerCancellation, WorkerContext, WorkerLimits, WorkerReceive, WorkerStartError,
+    BoundedWorker, WorkerCancellation, WorkerContext, WorkerLimits, WorkerReceive, WorkerStartError, WorkerWake,
+    WorkerWakeCheckpoint,
 };
 pub use deadline::DelayedNotifier;
 pub use notifier::WorkerNotifier;

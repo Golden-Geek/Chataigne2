@@ -3,7 +3,8 @@
 MapGyver is a video mapping application alongside Chataigne, using the same Golden Core,
 workbench, parameter system, scripting, transport, and persistence foundations. Its first target
 is Windows x64 (`x86_64-pc-windows-msvc`). The M02 shell/shared-host seams are implemented, and
-M03 has introduced Golden Video's render-plan/resource compiler. Media, mapping, Matrix and
+M03 has introduced Golden Video's render-plan compiler, bounded worker/null runtime and shared
+Golden Time scheduling. Media, mapping, Matrix and
 the specialized editors below remain planned. Execution belongs to the
 [MapGyver plan](../plan/MapGyver_Implementation_Plan.md) and its
 [status ledger](../progress/mapgyver-status.md).
@@ -20,7 +21,8 @@ editors. Golden owns reusable execution and presentation mechanisms.
 | `apps/mapgyver/systems/screen/` | Screen/surface definitions, crop/pin/calibration authoring, output policy, backend intents and integration nodes |
 | `apps/mapgyver/systems/matrix/` | Cells, layers, groups, columns, transitions, exported channels, app associations and demand policy |
 | `apps/mapgyver/ui/` | Svelte 5 Screen, Surface Source, Composition and Matrix editors; app registrations and focused editor stores |
-| `crates/golden_video/` | Render-plan/resource compiler present; remaining M03 work adds worker-owned resources, GPU operations, Spout/presentation, timing and recovery |
+| `crates/golden_video/` | Render-plan compiler and bounded worker/null runtime; native GPU operations, Spout/presentation and qualification remain in M03 |
+| `crates/golden_time/` | Typed monotonic/show/sample coordinates, rational mappings, authority epochs and activation observations; apps own transport policy |
 | `packages/golden-video-ui/` (proposed) | Reusable native preview registration, geometry and capability bindings; no mapping policy |
 | Existing Golden Core hosts and Golden UI | Shared desktop/headless startup, native window integration, workbench, inspectors, history, dialogs, generated transport and persistence |
 
@@ -35,7 +37,13 @@ checks the full submitted dependency graph and compiles demanded passes without 
 Sources declare storage/color/alpha; internal targets use linear premultiplied alpha. Its bounded
 logical footprint is not whole-runtime GPU admission: prepared/live/in-flight/retiring resources,
 bridge/presentation pools and retained leases must remain charged through their actual lifetime.
-Existing `golden_io` workers, cancellation and revision fences belong to the next runtime batch.
+The runtime reuses `golden_io` workers, cancellation, revision fences, retained CPU inputs and
+retirement pools. One preparation and the latest desired plan feed frame-boundary installation;
+reliable outcomes retain admission credits until drained. Worker-local backend resources remain
+charged across prepared/live/retiring generations until matching device completion. Control drop
+does not join; the host must observe actual retirement before destroying an owned native window.
+The null backend exercises this path with simulated allocation/completion, without GPU or pixel
+qualification. See the [runtime/time evidence](../progress/mapgyver-m03-render-foundations.md).
 
 The filesystem sketch above names responsibility boundaries, not a requirement to create one
 crate per folder. Keep cohesive app systems in the app crate until an exercised public consumer
@@ -135,9 +143,13 @@ retiring generations; rejected admission returns an explicit error without parti
 Use the reusable monotonic production-time boundary for transitions and scheduled activation.
 Monitor presentation rates and sender arrival do not define show time. A slow output must not
 stall all outputs or the control engine. Independent displays are not implicitly genlocked.
-The current Chataigne ledger still marks P14 time and P15 assets unimplemented: implementing
-MapGyver must exercise those shared boundaries once, rather than invent competing app-local
-clocks, file identities or cache protocols. The MapGyver plan names the required acceptance.
+`golden_time::TimeAuthority` supplies immutable show mappings and discontinuity epochs. The video
+worker schedules from absolute rational frame deadlines and samples this authority once per
+submission for all consumers; reader projections do not advance effects. Replacement authorities
+have distinct identities even at generation zero. This is shared P14 foundation evidence;
+Chataigne's audio/DMX integration and synchronization acceptance remain open. P15 asset identity,
+locators and preparation still need their shared boundary, rather than app-local file identities
+or cache protocols. The MapGyver plan names the required acceptance.
 
 ## Screens and surfaces
 

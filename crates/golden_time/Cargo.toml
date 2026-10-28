@@ -1,0 +1,12 @@
+[package]
+name = "golden_time"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Shared monotonic, show-position and activation contracts for Golden runtimes"
+
+[dependencies]
+thiserror.workspace = true
+uuid.workspace = true

@@ -28,6 +28,7 @@ members = [
     "crates/golden_core/support/macros",
     "crates/golden_audio",
     "crates/golden_graph",
+    "crates/golden_time",
     "crates/golden_video",
     "tools/mapgyver/native-probe",
     "xtask",
@@ -65,6 +66,7 @@ golden_persistence = { path = "crates/golden_core/services/persistence" }
 golden_runtime = { path = "crates/golden_core/runtime/control" }
 golden_script = { path = "crates/golden_core/runtime/script" }
 golden_script_contract = { path = "crates/golden_core/runtime/script-contract" }
+golden_time = { path = "crates/golden_time" }
 golden_values = { path = "crates/golden_core/foundation/values" }
 indexmap = { version = "2", features = ["serde"] }
 regex = "1"

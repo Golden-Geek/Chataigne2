@@ -99,6 +99,23 @@ pub enum WorkerReceive<C> {
     Disconnected,
 }
 
+/// Wake observation captured before inspecting domain-owned state or completion sources.
+pub struct WorkerWakeCheckpoint {
+    state: Arc<WakeState>,
+    version: u64,
+}
+
+/// Why a domain-owned worker service turn should run again.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum WorkerWake {
+    /// A command or external publication arrived after the checkpoint.
+    Notified,
+    /// The worker-owned deadline is due.
+    Deadline,
+    /// Cancellation or graceful command disconnection ended the lifetime.
+    Disconnected,
+}
+
 /// Nonblocking owner of a bounded worker. Dropping it explicitly cancels queued work.
 ///
 /// A lifetime slot is reserved before thread creation and held by that thread through resource
@@ -258,6 +275,15 @@ impl<C: Send + 'static, E: Send + 'static> BoundedWorker<C, E> {
     pub fn cancel(&self) {
         self.cancellation.cancel();
     }
+
+    /// Wakes the worker's command/deadline wait without consuming mailbox capacity.
+    ///
+    /// Domain-owned latest-state cells and completion sources publish their state first,
+    /// then notify. This signal carries no payload and does not cancel the worker.
+    pub fn wake_notifier(&self) -> WorkerNotifier {
+        let cancellation = self.cancellation.clone();
+        WorkerNotifier::new(move || cancellation.notify())
+    }
 }
 
 impl<C, E> Drop for BoundedWorker<C, E> {
@@ -295,6 +321,43 @@ impl<C, E> WorkerContext<C, E> {
 
     pub fn cancellation(&self) -> &WorkerCancellation {
         &self.cancellation
+    }
+
+    /// Produces a payload-free wake for external completion or latest-state publication.
+    pub fn wake_notifier(&self) -> WorkerNotifier {
+        let cancellation = self.cancellation.clone();
+        WorkerNotifier::new(move || cancellation.notify())
+    }
+
+    /// Captures wake state before draining external/domain-owned publication cells.
+    pub fn wake_checkpoint(&self) -> WorkerWakeCheckpoint {
+        WorkerWakeCheckpoint {
+            state: self.cancellation.0.clone(),
+            version: self.cancellation.snapshot().version,
+        }
+    }
+
+    /// Waits without consuming commands, preserving notifications that arrived during service.
+    ///
+    /// Capture the checkpoint before checking/draining domain state. A notifier alone does
+    /// not carry a command; unlike `receive_until`, this method returns for such a wake.
+    pub fn wait_until(&self, checkpoint: WorkerWakeCheckpoint, deadline: Instant) -> WorkerWake {
+        if !Arc::ptr_eq(&checkpoint.state, &self.cancellation.0) {
+            return WorkerWake::Notified;
+        }
+        loop {
+            let observed = self.cancellation.snapshot();
+            if observed.cancelled || self.commands.is_disconnected() {
+                return WorkerWake::Disconnected;
+            }
+            if observed.version != checkpoint.version || self.commands.has_pending() {
+                return WorkerWake::Notified;
+            }
+            if Instant::now() >= deadline {
+                return WorkerWake::Deadline;
+            }
+            self.cancellation.wait_for_change_until(observed, deadline);
+        }
     }
 
     /// Receives one ordered command, or stops after cancellation/disconnection.

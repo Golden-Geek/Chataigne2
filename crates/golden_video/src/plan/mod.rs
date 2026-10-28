@@ -2,6 +2,7 @@
 
 mod compile;
 mod error;
+mod weight;
 
 pub use error::{GraphLimit, PlanError};
 
