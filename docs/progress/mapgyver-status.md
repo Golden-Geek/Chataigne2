@@ -9,10 +9,9 @@ Three 30+120-second Intel Q02 controls retain separate native submission/display
 Vblank has zero CSV drops but 31 missing output submissions; the returning latest baseline
 drifts to 5,372 accepted output Presents and has an unavailable post-close loss query.
 
-**Next:** publish the prepared checkpoint after destination/payload confirmation, then isolate
-shared-texture handoff costs and bounded import ownership; budget collector startup/teardown/
-query time and continue the required sustained series and remaining gates. **Blocker:**
-automatic review rejected publication; cadence and source-poll stalls also remain unresolved.
+**Next:** isolate shared-texture handoff costs and bounded import ownership; budget collector
+startup/teardown/query time and continue the required sustained series and remaining gates.
+**Blocker:** cadence and source-poll stalls remain unresolved.
 A2 loss observation, physical alignment/latency and full GPU critical path remain open. M02 waits for M01.
 
 | Phase | State | Progress | Done / total items |
@@ -72,14 +71,13 @@ automatic-review rejection. That checkpoint was pushed and upstream/remote equal
 before this batch. The output-only policy control, sampled admission and complete retained
 three-run evidence follow that baseline and must be delivered before the next batch.
 
-The completed local milestone is `8138e397` (`Test MapGyver output presentation with sampled
-backpressure`). Automatic approval review rejected `git push origin mapgyver:mapgyver` because
-external publication of the exact destination/payload lacked explicit confirmation, citing the
-earlier rejected request. The proposed destination remains `git@github.com:Golden-Geek/Chataigne2.git`,
-branch `mapgyver`; payload is the reviewed code/tests/docs, three complete diagnostic packets
-(10,542,779 bytes total), their plan and derived analysis. The remote still points to `0e4a6deb`.
-Local work is retained and no publication is claimed. Confirm this payload/destination before
-retrying; this delivery blocker is separate from the unchanged M01 acceptance blockers.
+Milestone `8138e397` (`Test MapGyver output presentation with sampled backpressure`) and delivery
+note `b07c9753` are now published. The user explicitly approved these commits, including the
+reviewed code/tests/docs, three diagnostic packets (10,542,779 bytes total), plan and analysis,
+to `git@github.com:Golden-Geek/Chataigne2.git`, branch `mapgyver`. The push succeeded and an
+independent remote query returned `b07c9753f923d8492945d9e8e7aa8a654f6426ea`, matching local HEAD
+with zero ahead/behind commits and a clean checkout. This resolves the earlier automatic-review
+rejection and publication blocker; the M01 acceptance blockers above remain unchanged.
 
 ### M01 acceptance items
 
