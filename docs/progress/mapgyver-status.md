@@ -78,8 +78,10 @@ independent remote query returned `b07c9753f923d8492945d9e8e7aa8a654f6426ea`, ma
 with zero ahead/behind commits and a clean checkout. This resolves the earlier automatic-review
 rejection and publication blocker; the M01 acceptance blockers above remain unchanged.
 
-The next coherent milestone bounds renderer imports by weak allocation identity and splits
-handoff timings. [Its native evidence](mapgyver-m01-native-feasibility.md#bounded-renderer-imports-and-split-handoff-timing--2026-10-28)
+Milestone `4fd531d2` bounds renderer imports by weak allocation identity and splits handoff
+timings. It is published on `origin/mapgyver`; an independent remote query returned
+`4fd531d23de4f11c2e539cbd933051bc9f588602`, matching local HEAD with zero ahead/behind commits
+and a clean checkout before this delivery note. [Its native evidence](mapgyver-m01-native-feasibility.md#bounded-renderer-imports-and-split-handoff-timing--2026-10-28)
 and [strict analysis](evidence/mapgyver-m01-import-cache-analysis-2026-10-28.json) retain two new
 Intel captures and 4K cross-process accuracy. Sampling performs no resource opens; each cache
 peaks at three aliases and drains to zero. The sustained run still accepts 6,548/7,200 output
