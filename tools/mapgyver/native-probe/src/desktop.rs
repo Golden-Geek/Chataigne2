@@ -126,6 +126,18 @@ pub fn run(adapter: u32, spec: RunSpec) -> ProbeResult<RenderReport> {
                 .focused(false)
                 .background_color(tauri::window::Color(0, 0, 0, 0))
                 .build()?;
+            if spec.scenario.cards() {
+                // Fixed-scene comparisons must not inherit the OS's cascading placement.
+                // This is a physical-pixel qualification fixture, not editor layout policy.
+                let monitor = editor
+                    .primary_monitor()?
+                    .ok_or("fixed scene requires a primary monitor")?;
+                let origin = monitor.position();
+                editor.set_position(tauri::PhysicalPosition::new(
+                    origin.x.checked_add(192).ok_or("editor fixture x overflow")?,
+                    origin.y.checked_add(192).ok_or("editor fixture y overflow")?,
+                ))?;
+            }
             let output = WindowBuilder::new(app, "output")
                 .title("MapGyver M01 — native output")
                 .inner_size(640.0, 360.0)

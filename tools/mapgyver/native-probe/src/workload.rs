@@ -41,8 +41,29 @@ impl Scenario {
 #[derive(Clone, Copy, Debug, Serialize)]
 pub struct RunSpec {
     pub scenario: Scenario,
+    presentation_policy: PresentationPolicy,
     #[serde(flatten)]
     exercise: Exercise,
+}
+
+/// A qualification control for native output; editor presentation keeps the baseline interval.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PresentationPolicy {
+    Latest,
+    OutputVblank,
+}
+
+impl std::str::FromStr for PresentationPolicy {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "latest" => Ok(Self::Latest),
+            "output-vblank" => Ok(Self::OutputVblank),
+            _ => Err("presentation policy must be latest or output-vblank".into()),
+        }
+    }
 }
 
 /// Why rendering stopped, recorded before teardown can add time to an incomplete run.
@@ -72,12 +93,28 @@ impl RunSpec {
         }
         Ok(Self {
             scenario,
+            presentation_policy: PresentationPolicy::Latest,
             exercise: Exercise::Timed {
                 sample_seconds,
                 warmup_seconds,
             },
         })
     }
+
+    /// Keep lifecycle and editor-isolation exercises on the baseline while comparing one
+    /// presentation setting in an explicitly selected timed fixed scene.
+    pub fn with_presentation_policy(mut self, policy: PresentationPolicy) -> Result<Self, String> {
+        if !matches!(self.exercise, Exercise::Timed { .. }) || !self.scenario.cards() {
+            return Err("presentation comparison requires timed q01/q02 qualification".into());
+        }
+        self.presentation_policy = policy;
+        Ok(self)
+    }
+
+    pub fn presentation_policy(self) -> PresentationPolicy {
+        self.presentation_policy
+    }
+
     pub fn total_seconds(self) -> u32 {
         match self.exercise {
             Exercise::Timed {
@@ -119,6 +156,7 @@ impl RunSpec {
         }
         Ok(Self {
             scenario,
+            presentation_policy: PresentationPolicy::Latest,
             exercise: Exercise::Recreate { cycles },
         })
     }
@@ -129,6 +167,7 @@ impl RunSpec {
         }
         Ok(Self {
             scenario,
+            presentation_policy: PresentationPolicy::Latest,
             exercise: Exercise::EditorIsolation,
         })
     }

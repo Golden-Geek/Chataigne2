@@ -818,6 +818,40 @@ failure and investigate its cause before claiming cadence. See the
 [role evidence](../../../docs/progress/mapgyver-m01-native-feasibility.md#exact-nativeetw-role-correlation-and-4k-displayed-drops--2026-10-28)
 and [upstream CLI semantics](https://github.com/GameTechDev/PresentMon/blob/v2.6.0/README-ConsoleApplication.md).
 
+## Output-only presentation comparison
+
+The timed native command accepts `qualify ADAPTER q01|q02 SAMPLE WARMUP
+[latest|output-vblank]`. `latest` remains the default. `output-vblank` changes only native
+output's SyncInterval from zero to one; editor previews remain at zero. `DO_NOT_WAIT`,
+swapchain buffer/latency limits, GPU admission, resolution and CPU pacing stay the same.
+This is an owned M01 diagnostic control, retained only for qualification/backend decisions.
+It is not a production presentation-policy API.
+
+```powershell
+python tools/mapgyver/capture-presentmon.py 0 q02 --sample-seconds 120 --warmup-seconds 30 --presentation-policy output-vblank --output target/presentation-b-run01.json
+```
+
+The helper verifies the Rust-reported policy and every role/address/QPC-matched CSV
+SyncInterval, including warmup rows. Fixed card scenes place the owned editor at a physical
+192-pixel inset from the primary monitor origin to keep OS cascading placement out of the
+comparison. This deliberate physical-pixel fixture is separate from product UI layout.
+Actual window geometry/device/DPI/mode snapshots must still match across compared runs.
+
+Admission reports now have `all` and `sampled` counts. Readiness gaps, Present Busy HRESULTs,
+occlusion and accepted calls are distinct; renderer GPU coalescing remains in GPU admission.
+The current release analyzer validates that these sampled reasons account for native cadence
+without treating warmup reservations as sampled signals. Historical evidence retains its
+recorded schema and pinned analyzer version. Fewer CSV drops alone cannot establish cadence:
+failed Present calls may not emit CSV rows, and backpressure can reduce attempted/accepted work.
+Report nominal frame slots, actual attempts, each reason, display timing and latency separately.
+Do not sum overlapping late/display categories or pool A controls into a favorable average.
+
+The [predeclared A/B/A control](../../../docs/progress/evidence/mapgyver-m01-output-policy-plan-2026-10-28.json)
+uses latest/output-vblank/latest at 30+120 seconds on one frozen release epoch. One B sample
+does not become three qualifying samples. Microsoft's
+[Present contract](https://learn.microsoft.com/en-us/windows/win32/api/dxgi/nf-dxgi-idxgiswapchain-present)
+explains interval semantics; actual cadence and latency must be measured.
+
 ## Correlated source/renderer timing
 
 Schema 13 adds `dependency_trace` to every renderer generation and `gpu_trace` to each of its

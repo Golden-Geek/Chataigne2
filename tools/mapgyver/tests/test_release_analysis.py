@@ -30,7 +30,114 @@ def age_fixture():
     }
 
 
+def presenter_fixture():
+    def counts(polls, signals, not_ready, retries, accepted, busy, occluded):
+        return dict(readiness_polls=polls, ready_signals=signals, not_ready=not_ready,
+                    reservation_retries=retries, accepted_presents=accepted,
+                    busy_presents=busy, occluded_presents=occluded)
+
+    return {
+        "preview_presents": 8,
+        "output_presents": 10,
+        "gpu_admission": {"sampled": {"busy": 2}},
+        "admission_editor_output": [
+            {"all": counts(11, 9, 2, 4, 8, 3, 2),
+             "sampled": counts(6, 5, 1, 3, 5, 2, 1)},
+            {"all": counts(12, 10, 2, 1, 10, 1, 0),
+             "sampled": counts(9, 8, 1, 0, 8, 0, 0)},
+        ],
+        "submission_editor_output_spout": [
+            {"attempts": 11, "accepted_calls": 5, "busy": 5, "occluded": 1, "no_target": 0},
+            {"attempts": 11, "accepted_calls": 8, "busy": 3, "occluded": 0, "no_target": 0},
+            {"attempts": 11, "accepted_calls": 9, "busy": 2, "occluded": 0, "no_target": 0},
+        ],
+    }
+
+
 class ReleaseAnalysisTests(unittest.TestCase):
+    def test_presenter_admission_keeps_sampled_busy_reasons_separate(self):
+        generation = presenter_fixture()
+        result = ANALYZER["verify_presenter_admission"](generation)
+        self.assertEqual(result[0]["sampled"]["not_ready"], 1)
+        self.assertEqual(result[0]["sampled"]["busy_presents"], 2)
+        self.assertEqual(generation["submission_editor_output_spout"][0]["busy"], 2 + 1 + 2)
+        moved = copy.deepcopy(generation)
+        moved["admission_editor_output"][0]["sampled"]["busy_presents"] -= 1
+        with self.assertRaisesRegex(ValueError, "busy reason accounting"):
+            ANALYZER["verify_presenter_admission"](moved)
+        hidden = copy.deepcopy(generation)
+        hidden["submission_editor_output_spout"][0]["busy"] = 3
+        with self.assertRaisesRegex(ValueError, "busy reason accounting"):
+            ANALYZER["verify_presenter_admission"](hidden)
+
+    def test_warmup_reservation_can_be_accepted_without_a_sampled_signal(self):
+        generation = presenter_fixture()
+        for index, total_name in enumerate(("preview_presents", "output_presents")):
+            generation[total_name] = 1
+            generation["admission_editor_output"][index] = {
+                "all": dict(readiness_polls=1, ready_signals=1, not_ready=0, reservation_retries=1,
+                            accepted_presents=1, busy_presents=1, occluded_presents=0),
+                "sampled": dict(readiness_polls=0, ready_signals=0, not_ready=0, reservation_retries=1,
+                                accepted_presents=1, busy_presents=0, occluded_presents=0),
+            }
+            generation["submission_editor_output_spout"][index].update(
+                attempts=1, accepted_calls=1, busy=0, occluded=0)
+        generation["submission_editor_output_spout"][2].update(
+            attempts=1, accepted_calls=1, busy=0, occluded=0)
+        generation["gpu_admission"]["sampled"].update(attempts=1, admitted=1, busy=0)
+        result = ANALYZER["verify_presenter_admission"](generation)
+        self.assertEqual(result[0]["sampled"]["accepted_presents"], 1)
+        self.assertEqual(result[0]["sampled"]["ready_signals"], 0)
+
+    def test_presenter_counts_reject_negative_boolean_float_or_missing_fields(self):
+        generation = presenter_fixture()
+        names = tuple(generation["admission_editor_output"][0]["all"])
+        for scope in ("all", "sampled"):
+            for name in names:
+                for invalid in (-1, True, 0.0, "0", None):
+                    bad = copy.deepcopy(generation)
+                    bad["admission_editor_output"][0][scope][name] = invalid
+                    with self.subTest(scope=scope, name=name, invalid=invalid), self.assertRaises(ValueError):
+                        ANALYZER["verify_presenter_admission"](bad)
+                bad = copy.deepcopy(generation)
+                del bad["admission_editor_output"][0][scope][name]
+                with self.subTest(scope=scope, missing=name), self.assertRaises(ValueError):
+                    ANALYZER["verify_presenter_admission"](bad)
+        for invalid in (-1, True, 0.0, None):
+            bad = copy.deepcopy(generation)
+            bad["gpu_admission"]["sampled"]["busy"] = invalid
+            with self.subTest(gpu_busy=invalid), self.assertRaises(ValueError):
+                ANALYZER["verify_presenter_admission"](bad)
+
+    def test_presenter_window_partition_totals_and_cadence_corruption_are_rejected(self):
+        mutations = [
+            (lambda g: g["admission_editor_output"][0]["sampled"].update(reservation_retries=5),
+             "exceeds all-window"),
+            (lambda g: g["admission_editor_output"][0]["all"].update(readiness_polls=12),
+             "readiness accounting"),
+            (lambda g: g["admission_editor_output"][0]["sampled"].update(readiness_polls=7),
+             "readiness accounting"),
+            (lambda g: g.update(preview_presents=7), "all-window acceptance"),
+            (lambda g: (g.update(preview_presents=10),
+                        g["admission_editor_output"][0]["all"].update(accepted_presents=10)),
+             "all-window acceptance"),
+            (lambda g: g["submission_editor_output_spout"][0].update(accepted_calls=4),
+             "sampled presentation acceptance"),
+            (lambda g: g["submission_editor_output_spout"][0].update(occluded=0),
+             "occlusion accounting"),
+        ]
+        for mutate, message in mutations:
+            bad = presenter_fixture()
+            mutate(bad)
+            with self.subTest(message=message), self.assertRaisesRegex(ValueError, message):
+                ANALYZER["verify_presenter_admission"](bad)
+
+    def test_flat_historical_presenter_reports_require_their_pinned_analyzer(self):
+        legacy = presenter_fixture()
+        legacy["admission_editor_output"][0] = legacy["admission_editor_output"][0]["all"]
+        with self.assertRaisesRegex(ValueError, "requires all/sampled"):
+            ANALYZER["verify_presenter_admission"](legacy)
+
     def test_source_workers_cannot_hide_renderer_sdk_work_bridge_copies_or_retained_allocations(self):
         zero = {"live_bytes_by_owner": [0]*4, "retiring_bytes_by_owner": [0]*4,
                 "live_textures": 0, "retiring_textures": 0}

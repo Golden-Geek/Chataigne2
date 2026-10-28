@@ -10,6 +10,7 @@ use windows::core::Interface;
 use crate::cadence::Submission;
 use crate::{ProbeResult, d3d::Gpu};
 use mapgyver_native_probe::allocation::{Lease, Owner, bgra_bytes};
+use mapgyver_native_probe::workload::PresentationPolicy;
 use serde::Serialize;
 mod admission;
 mod trace;
@@ -33,6 +34,7 @@ pub struct Presenter {
     window: HWND,
     size: [u32; 2],
     buffers: Lease,
+    sync_interval: u32,
 }
 
 #[derive(Serialize)]
@@ -53,7 +55,7 @@ pub struct Statistics {
 
 impl Presenter {
     /// Host keeps both native HWNDs alive until this worker drops its presenters.
-    pub fn new(gpu: &Gpu, window: usize, role: Role) -> ProbeResult<Self> {
+    pub fn new(gpu: &Gpu, window: usize, role: Role, policy: PresentationPolicy) -> ProbeResult<Self> {
         let begin_qpc = crate::clock::now()?;
         let window = HWND(window as *mut _);
         // SAFETY: HWND belongs to this probe and remains valid through worker completion.
@@ -102,10 +104,11 @@ impl Presenter {
             window,
             size: [1, 1],
             buffers: gpu.allocations.allocate(Owner::Swapchain, bgra_bytes(1, 1, 2)?, 2)?,
+            sync_interval: sync_interval(role, policy),
         })
     }
 
-    pub fn target(&mut self, gpu: &Gpu) -> ProbeResult<Target> {
+    pub fn target(&mut self, gpu: &Gpu, collecting: bool) -> ProbeResult<Target> {
         let mut rect = RECT::default();
         // SAFETY: host retains the HWND; only query our window, never modify another app.
         unsafe { GetClientRect(self.window, &mut rect)? };
@@ -130,7 +133,7 @@ impl Presenter {
                 .allocate(Owner::Swapchain, bgra_bytes(size[0], size[1], 2)?, 2)?;
         }
         let handle = HANDLE(self.readiness.as_raw_handle());
-        if !self.admission.ready(|| -> ProbeResult<bool> {
+        if !self.admission.ready(collecting, || -> ProbeResult<bool> {
             // SAFETY: owned event handle, zero timeout. A busy editor never blocks the
             // shared render worker or the independent output/Spout paths.
             match unsafe { WaitForSingleObject(handle, 0) } {
@@ -190,19 +193,29 @@ impl Presenter {
         self.trace.finish(self.window)
     }
 
-    pub fn present(&mut self) -> ProbeResult<Submission> {
+    pub fn present(&mut self, collecting: bool) -> ProbeResult<Submission> {
         // SAFETY: nonblocking submission. A slow/occluded editor cannot wait on output cadence.
-        let result = unsafe { self.chain.Present(0, DXGI_PRESENT_DO_NOT_WAIT) };
+        let result = unsafe { self.chain.Present(self.sync_interval, DXGI_PRESENT_DO_NOT_WAIT) };
         if result == DXGI_ERROR_WAS_STILL_DRAWING {
-            self.admission.presented(Submission::Busy);
+            self.admission.presented(collecting, Submission::Busy);
             return Ok(Submission::Busy);
         }
         if result == DXGI_STATUS_OCCLUDED {
-            self.admission.presented(Submission::Occluded);
+            self.admission.presented(collecting, Submission::Occluded);
             return Ok(Submission::Occluded);
         }
         result.ok()?;
-        self.admission.presented(Submission::Accepted);
+        self.admission.presented(collecting, Submission::Accepted);
         Ok(Submission::Accepted)
     }
 }
+
+fn sync_interval(role: Role, policy: PresentationPolicy) -> u32 {
+    match (role, policy) {
+        (Role::NativeOutput, PresentationPolicy::OutputVblank) => 1,
+        _ => 0,
+    }
+}
+
+#[cfg(test)]
+mod tests;

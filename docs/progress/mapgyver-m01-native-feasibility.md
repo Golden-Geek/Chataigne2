@@ -5,6 +5,63 @@ from MapGyver's product systems. M01 is **in progress**, not a presentation-arch
 See the [ledger](mapgyver-status.md), [qualification contract](mapgyver-qualification-contract.md)
 and [harness commands/ownership](../../tools/mapgyver/native-probe/README.md).
 
+## Output-only vblank control and baseline drift — 2026-10-28
+
+The [predeclared control](evidence/mapgyver-m01-output-policy-plan-2026-10-28.json) runs
+latest/output-vblank/latest on Intel Q02, each with 30 seconds warmup and 120 seconds sample.
+Only native output's SyncInterval changes from zero to one; editor remains zero, with unchanged
+`DO_NOT_WAIT`, buffer/latency limits, GPU admission, resolution and CPU pacing. Fixed card scenes
+now give the owned editor deterministic physical placement. All three runs share release SHA256
+`675fee17bdc9d4fa45d66f6cca0ba41ea5f363382b922440248cb7f547ad8b5a`, source/assets/helper/tool
+fingerprints and actual window geometry/device/DPI/nominal-mode snapshots. Native Present
+intervals are chronological and disjoint, and session identities are distinct.
+
+| Output control | Nominal slots | Actual attempts | Accepted Presents | GPU coalesced | Readiness gaps | Present Busy HRESULTs | CSV dropped |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| [A1 latest](evidence/mapgyver-m01-output-policy-a1-2026-10-28.json) | 7,200 | 7,200 | 7,200 | 0 | 0 | 0 | 3 |
+| [B output-vblank](evidence/mapgyver-m01-output-policy-b-2026-10-28.json) | 7,200 | 7,200 | 7,169 | 6 | 25 | 0 | 0 |
+| [A2 latest](evidence/mapgyver-m01-output-policy-a2-2026-10-28.json) | 7,200 | 7,146 | 5,372 | 1,043 | 731 | 0 | 0 |
+
+The editor accepts 7,199/7,171/5,293 Presents, with readiness gaps 1/23/810 and CSV drops 2/6/0.
+All sampled Present Busy/occluded/no-target outcomes are zero. GPU coalescing is shared by both
+paths, while readiness gaps are per presenter. Late attempts remain separate because they can
+overlap other outcomes; A2 has 77 output and 78 editor late attempts. No source publication is
+missing in admitted sample frames. Do not equate zero CSV drops with complete delivery: B loses
+31 native output submissions, while A2 also has 54 fewer renderer iterations than nominal.
+
+`admission_editor_output` now contains explicit `all` and `sampled` counters, including warmup
+reservations carried into sampling. The current native integration assertions and release
+analyzer consume this shape; historical artifacts retain their pinned schema/analyzer epoch.
+Per-role CSV policy validation verifies every raw row, including warmup, against exact native
+identity/QPC lifetimes. The diagnostic policy stays outside UI DTOs and product persistence.
+
+[Strict analysis](evidence/mapgyver-m01-output-policy-analysis-2026-10-28.json) verifies all
+48,886 raw CSV rows and native/query streams retained in the captures. It records operation
+distributions/outliers, software display latency and bounded-resource observations. A1/B live
+counter queries succeed with three zero counters. A2's native/collector/query processes exit zero and its native/CSV facts verify, but
+the query returns status 4201 after its owned session ends. Counters remain unavailable, not
+zero. The derived raw-warning observation is labeled separately because the helper had not
+recorded it before that failed query. Analysis exits 1 for incomplete observations while
+retaining the complete factual run summaries. None of these live snapshots proves final loss.
+
+A2's performance drift prevents a clean beneficial-policy conclusion. Renderer CPU p99/max are
+20.3861/44.458 ms, with source-A poll p99/max 18.8341/43.8546 ms. Output Present max is 0.3877 ms
+and QueryEnd max 0.0275 ms. The poll boundary includes shared-resource open, interface cast,
+zero-timeout keyed-mutex acquire and old-reader release; current timing cannot identify which
+subcall or preemption caused the stall. Its 1,053 omitted operation outliers also prevent full
+per-frame attribution of the 54-slot deficit. Scoped renderer GPU p99 is 45.8881 ms; it is not
+a measurement of the full cross-context critical path.
+
+Latest remains the default. B is not adopted as a cadence repair, and one B sample is not
+three qualifying samples. Preserve the earlier failures and this drift; do not select a
+favorable baseline average. Next split the source-poll handoff costs, evaluate bounded imports
+at the surface/device ownership boundary, and budget collector startup/teardown/query time
+before more capture qualification. A strong cached `Arc<Surface>` would break the pool's
+reader-count reuse/shutdown invariant; any import cache must respect that boundary. No cache
+or speculative driver fix is implemented here. All three owned sessions are absent after
+exit, no owned probe/collector remains, and the pre-existing service retains PID 5864.
+M01 remains 1/8 and the production host/backend decision remains open.
+
 ## Warmed 4K control, live loss counters and actual window context — 2026-10-28
 
 [Diagnosis of the saved controls](evidence/mapgyver-m01-presentmon-role-drop-diagnosis-2026-10-28.json)

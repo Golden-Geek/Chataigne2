@@ -1,5 +1,6 @@
 import contextlib
 import copy
+import csv
 import hashlib
 import io
 import json
@@ -39,6 +40,124 @@ def query_report():
     )
 
 
+def policy_correlation():
+    return dict(roles=[
+        dict(role="editor", begin_qpc=END, end_qpc=END + 10, raw_rows=2,
+             addresses=dict(idxgi_swap_chain="0xaa", idxgi_swap_chain1="0xaa", idxgi_swap_chain2="0xaa")),
+        dict(role="native_output", begin_qpc=END, end_qpc=END + 10, raw_rows=2,
+             addresses=dict(idxgi_swap_chain="0xbb", idxgi_swap_chain1="0xbb", idxgi_swap_chain2="0xbb")),
+    ])
+
+
+def policy_rows(output_interval="0", editor_interval="0"):
+    return [["0X0000BB", str(END + 1), output_interval], ["0xAA", str(END + 1), editor_interval],
+            ["0xbb", str(END + 2), output_interval], ["0xaa", str(END + 2), editor_interval]]
+
+
+def policy_csv(rows, headers=("SwapChainAddress", "QPCTime", "SyncInterval")):
+    output = io.StringIO(newline="")
+    writer = csv.writer(output)
+    writer.writerow(headers)
+    writer.writerows(rows)
+    return output.getvalue()
+
+
+class PresentMonPolicyTests(unittest.TestCase):
+    def test_cli_policy_defaults_to_latest_and_accepts_only_explicit_choices(self):
+        self.assertEqual(CAPTURE["parse_args"](["0", "q02"]).presentation_policy, "latest")
+        for policy in ("latest", "output-vblank"):
+            args = CAPTURE["parse_args"](["0", "q02", "--presentation-policy", policy])
+            self.assertEqual(args.presentation_policy, policy)
+        for policy in ("", "vblank", "output_vblank", "OutputVblank", "1"):
+            with self.subTest(policy=policy), contextlib.redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit) as stopped:
+                    CAPTURE["parse_args"](["0", "q02", "--presentation-policy", policy])
+                self.assertEqual(stopped.exception.code, 2)
+
+    def test_exact_role_intervals_validate_both_policies_without_order_or_float_inference(self):
+        for requested, native_policy, output_interval in (
+            ("latest", "latest", "0"), ("output-vblank", "output_vblank", "1"),
+        ):
+            correlation = policy_correlation()
+            correlation["roles"].reverse()
+            native = dict(workload=dict(presentation_policy=native_policy))
+            source = policy_csv(policy_rows(output_interval), headers=("SWAPCHAINADDRESS", "qpctime", "syncinterval"))
+            with self.subTest(policy=requested):
+                result = CAPTURE["validate_presentation_policy"](source, requested, native, correlation)
+            self.assertEqual(result["native_policy"], native_policy)
+            self.assertEqual(result["requested_policy"], requested)
+            self.assertEqual(result["expected_sync_interval_by_role"],
+                             dict(editor=0, native_output=int(output_interval)))
+            self.assertEqual(result["rows_checked_by_role"], dict(editor=2, native_output=2))
+            self.assertIn("no cadence or latency pass", result["scope"])
+
+    def test_native_policy_mismatch_or_unknown_requested_policy_is_rejected(self):
+        source = policy_csv(policy_rows())
+        for requested, native_policy in (
+            ("latest", "output_vblank"), ("output-vblank", "latest"),
+            ("output_vblank", "output_vblank"), ("unknown", "latest"), ("latest", "unknown"),
+        ):
+            with self.subTest(requested=requested, native=native_policy), self.assertRaises(ValueError):
+                CAPTURE["validate_presentation_policy"](
+                    source, requested, dict(workload=dict(presentation_policy=native_policy)), policy_correlation())
+
+    def test_wrong_editor_or_output_sync_interval_cannot_validate_a_requested_policy(self):
+        for requested, native_policy, output_interval, editor_interval in (
+            ("latest", "latest", "1", "0"),
+            ("latest", "latest", "0", "1"),
+            ("output-vblank", "output_vblank", "0", "0"),
+            ("output-vblank", "output_vblank", "1", "1"),
+            ("output-vblank", "output_vblank", "01", "0"),
+            ("latest", "latest", "0.0", "0"),
+            ("latest", "latest", "0", ""),
+        ):
+            with self.subTest(policy=requested, output=output_interval, editor=editor_interval):
+                with self.assertRaises(ValueError):
+                    CAPTURE["validate_presentation_policy"](
+                        policy_csv(policy_rows(output_interval, editor_interval)), requested,
+                        dict(workload=dict(presentation_policy=native_policy)), policy_correlation())
+
+    def test_unknown_address_and_exact_large_qpc_lifetime_boundaries_are_enforced(self):
+        for address, qpc in (("0xcc", END + 1), ("0xaa", END - 1), ("0xaa", END + 10)):
+            rows = policy_rows()
+            rows[1][:2] = [address, str(qpc)]
+            with self.subTest(address=address, qpc=qpc), self.assertRaises(ValueError):
+                CAPTURE["validate_presentation_policy"](
+                    policy_csv(rows), "latest", dict(workload=dict(presentation_policy="latest")), policy_correlation())
+        rows = policy_rows()
+        rows[1][1] = str(END)
+        result = CAPTURE["validate_presentation_policy"](
+            policy_csv(rows), "latest", dict(workload=dict(presentation_policy="latest")), policy_correlation())
+        self.assertEqual(result["rows_checked_by_role"], dict(editor=2, native_output=2))
+
+    def test_ambiguous_role_identity_or_unknown_role_is_rejected(self):
+        ambiguous = policy_correlation()
+        ambiguous["roles"].append(copy.deepcopy(ambiguous["roles"][0]))
+        unknown = policy_correlation()
+        unknown["roles"][0]["role"] = "unlabeled"
+        for correlation in (ambiguous, unknown):
+            with self.subTest(correlation=correlation), self.assertRaises(ValueError):
+                CAPTURE["validate_presentation_policy"](
+                    policy_csv(policy_rows()), "latest", dict(workload=dict(presentation_policy="latest")), correlation)
+
+    def test_required_columns_and_full_both_role_row_coverage_are_enforced(self):
+        native = dict(workload=dict(presentation_policy="latest"))
+        for column in range(3):
+            headers = ["SwapChainAddress", "QPCTime", "SyncInterval"]
+            headers[column] = "OtherColumn"
+            with self.subTest(missing=column), self.assertRaises(ValueError):
+                CAPTURE["validate_presentation_policy"](
+                    policy_csv(policy_rows(), headers), "latest", native, policy_correlation())
+        missing = policy_correlation()
+        missing["roles"][0]["raw_rows"] = 3
+        for rows, correlation in (
+            ([], policy_correlation()), (policy_rows()[1::2], policy_correlation()),
+            (policy_rows() + [policy_rows()[0]], policy_correlation()), (policy_rows(), missing),
+        ):
+            with self.subTest(rows=rows, correlation=correlation), self.assertRaises(ValueError):
+                CAPTURE["validate_presentation_policy"](policy_csv(rows), "latest", native, correlation)
+
+
 class PresentMonCaptureTests(unittest.TestCase):
     def test_generated_output_path_requires_target_descendant_new_file_and_existing_parent(self):
         namespace = CAPTURE["parse_args"].__globals__
@@ -72,7 +191,7 @@ class PresentMonCaptureTests(unittest.TestCase):
         output = io.BytesIO()
         destination.open.return_value = contextlib.nullcontext(output)
         evidence = dict(route_verified=True, role_correlation_verified=True,
-                        live_etw_query_verified=True, native_ticks=END + 1)
+                        presentation_policy_verified=True, live_etw_query_verified=True, native_ticks=END + 1)
         stdout = io.StringIO()
         with mock.patch.dict(namespace, parse_args=lambda: SimpleNamespace(output=destination),
                              collect=lambda _args, target: target.update(copy.deepcopy(evidence))), \
@@ -84,7 +203,8 @@ class PresentMonCaptureTests(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         self.assertEqual(receipt, dict(output_file="target/capture.json", bytes=len(payload),
                                       sha256=hashlib.sha256(payload).hexdigest(), route_verified=True,
-                                      role_correlation_verified=True, live_etw_query_verified=True))
+                                      role_correlation_verified=True, presentation_policy_verified=True,
+                                      live_etw_query_verified=True))
         self.assertTrue(payload.endswith(b"\n"))
         self.assertEqual(CAPTURE["BASE"]["decode_evidence"](json.loads(payload)), evidence)
         self.assertNotIn("payload", receipt)
@@ -126,6 +246,7 @@ class PresentMonCaptureTests(unittest.TestCase):
         self.assertFalse(evidence["route_verified"])
         self.assertFalse(receipt["route_verified"])
         self.assertFalse(receipt["role_correlation_verified"])
+        self.assertFalse(receipt["presentation_policy_verified"])
         self.assertFalse(receipt["live_etw_query_verified"])
         self.assertEqual(receipt["bytes"], len(payload))
         self.assertEqual(receipt["sha256"], hashlib.sha256(payload).hexdigest())
@@ -241,11 +362,13 @@ class PresentMonCaptureTests(unittest.TestCase):
 
     def test_query_launch_failure_still_retains_collector_csv_and_native_result(self):
         namespace = CAPTURE["collect"].__globals__
-        args = CAPTURE["parse_args"](["0", "q01"])
+        args = CAPTURE["parse_args"](["0", "q01", "--presentation-policy", "output-vblank"])
         native = SimpleNamespace(pid=71)
         collector = SimpleNamespace(pid=72)
         raw_csv = "unchanged collector CSV,including dropped rows\r\n"
-        native_stdout = json.dumps(dict(render_process_id=71, observer=dict(frame_age=dict(config={}))))
+        native_fixture = dict(render_process_id=71, workload=dict(presentation_policy="output_vblank"),
+                              observer=dict(frame_age=dict(config={})))
+        native_stdout = json.dumps(native_fixture)
 
         def completed(process, *_args):
             return dict(exit_code=0, stdout=native_stdout if process is native else raw_csv,
@@ -266,9 +389,11 @@ class PresentMonCaptureTests(unittest.TestCase):
         preparations = [subprocess.CompletedProcess([], 0, help_text.encode(), b""),
                         subprocess.CompletedProcess([], 0, inventory.encode(), b"")]
         evidence = {}
+        validate_policy = mock.Mock(return_value=dict(validated=True))
         with mock.patch.dict(namespace, communicate=completed,
                              fingerprints=lambda *_args: dict(presentmon_sha256=CAPTURE["PRESENTMON_SHA256"]),
-                             BASE=dict(compact_resources=lambda _report: None)), \
+                             BASE=dict(compact_resources=lambda _report: None),
+                             validate_presentation_policy=validate_policy), \
                 mock.patch.object(namespace["platform"], "platform", return_value="test-platform"), \
                 mock.patch.object(namespace["platform"], "machine", return_value="test-machine"), \
                 mock.patch.object(namespace["runpy"], "run_path", side_effect=parser), \
@@ -279,6 +404,9 @@ class PresentMonCaptureTests(unittest.TestCase):
         self.assertEqual(evidence["native"]["stdout"], native_stdout)
         self.assertEqual(evidence["presentmon"]["stdout"], raw_csv)
         self.assertEqual(evidence["etw_query"], dict(failure="query unavailable"))
+        self.assertEqual(evidence["native_command"][-1], "output-vblank")
+        validate_policy.assert_called_once_with(raw_csv, "output-vblank", native_fixture, dict(mapped=True))
+        self.assertTrue(evidence["presentation_policy_verified"])
         self.assertFalse(evidence["route_verified"])
         self.assertFalse(evidence["live_etw_query_verified"])
         self.assertIn("validation_failure", evidence)

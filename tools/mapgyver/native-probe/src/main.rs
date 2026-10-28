@@ -147,15 +147,18 @@ fn run() -> ProbeResult<()> {
             RunSpec::recreation(args[2].parse()?, args[3].parse()?)?,
         )?),
         #[cfg(feature = "desktop")]
-        Some("qualify") if args.len() == 5 => {
+        Some("qualify") if matches!(args.len(), 5 | 6) => {
             let scenario = args[2].parse()?;
             if scenario == Scenario::Diagnostic {
                 return Err("qualify requires q01 or q02".into());
             }
-            print_json(&desktop::run(
-                args[1].parse()?,
-                RunSpec::new(scenario, args[3].parse()?, args[4].parse()?)?,
-            )?)
+            let spec = RunSpec::new(scenario, args[3].parse()?, args[4].parse()?)?;
+            let spec = if let Some(policy) = args.get(5) {
+                spec.with_presentation_policy(policy.parse()?)?
+            } else {
+                spec
+            };
+            print_json(&desktop::run(args[1].parse()?, spec)?)
         }
         Some("inventory") if args.len() == 1 => print_json(&d3d::inventory()?),
         Some("smoke") if args.len() == 2 => print_json(&smoke::run(args[1].parse()?)?),
@@ -176,7 +179,7 @@ fn run() -> ProbeResult<()> {
             "  color-accuracy-processes ADAPTER q01|q02 (producer/consumer children and source-worker bridge)\n",
             "  color-procedural-accuracy ADAPTER q01|q02 (actual procedural shader and full CPU reference)\n",
             "  underlay ADAPTER SECONDS\n",
-            "  qualify ADAPTER q01|q02 SAMPLE_SECONDS WARMUP_SECONDS\n",
+            "  qualify ADAPTER q01|q02 SAMPLE_SECONDS WARMUP_SECONDS [latest|output-vblank]\n",
             "  recreate ADAPTER q01|q02 CYCLES\n",
             "  editor-isolation ADAPTER q01|q02 (busy, blank document, reconnect; 185s watchdog)\n",
             "  gpu-progress ADAPTER MODE (see native-probe README)\n",

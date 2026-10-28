@@ -1,4 +1,59 @@
-use super::{GenerationEnd, RunSpec, Scenario};
+use super::{GenerationEnd, PresentationPolicy, RunSpec, Scenario};
+
+#[test]
+fn presentation_comparison_parses_only_explicit_cli_choices_and_records_policy() {
+    assert_eq!(
+        "latest".parse::<PresentationPolicy>().unwrap(),
+        PresentationPolicy::Latest
+    );
+    assert_eq!(
+        "output-vblank".parse::<PresentationPolicy>().unwrap(),
+        PresentationPolicy::OutputVblank
+    );
+    for invalid in ["", "vblank", "output_vblank", "OutputVblank", "1", "latest "] {
+        assert!(
+            invalid.parse::<PresentationPolicy>().is_err(),
+            "unexpected policy {invalid:?}"
+        );
+    }
+    let spec = RunSpec::new(Scenario::Q02, 120, 30)
+        .unwrap()
+        .with_presentation_policy(PresentationPolicy::OutputVblank)
+        .unwrap();
+    let report = serde_json::to_value(spec).unwrap();
+    assert_eq!(report["presentation_policy"], "output_vblank");
+    assert_eq!(report["scenario"], "q02");
+    assert_eq!(report["sample_seconds"], 120);
+    assert_eq!(report["warmup_seconds"], 30);
+    assert_eq!(spec.total_seconds(), 150);
+    assert_eq!(spec.scenario.extent(), [3840, 2160]);
+    assert!(spec.validate_generation_end(0, GenerationEnd::DeadlineReached).is_ok());
+    assert!(spec.validate_generation_end(0, GenerationEnd::WindowClosed).is_err());
+}
+
+#[test]
+fn lifecycle_and_editor_exercises_retain_the_baseline_and_cannot_select_comparison_policy() {
+    for spec in [
+        RunSpec::new(Scenario::Diagnostic, 8, 0).unwrap(),
+        RunSpec::recreation(Scenario::Q02, 2).unwrap(),
+        RunSpec::editor_isolation(Scenario::Q01).unwrap(),
+    ] {
+        assert_eq!(spec.presentation_policy(), PresentationPolicy::Latest);
+        assert_eq!(serde_json::to_value(spec).unwrap()["presentation_policy"], "latest");
+        assert!(spec.with_presentation_policy(PresentationPolicy::OutputVblank).is_err());
+    }
+    let baseline = RunSpec::new(Scenario::Q02, 120, 30).unwrap();
+    assert_eq!(baseline.presentation_policy(), PresentationPolicy::Latest);
+    assert_eq!(serde_json::to_value(baseline).unwrap()["presentation_policy"], "latest");
+    let comparison = baseline
+        .with_presentation_policy(PresentationPolicy::OutputVblank)
+        .unwrap();
+    let restored = comparison.with_presentation_policy(PresentationPolicy::Latest).unwrap();
+    assert_eq!(
+        serde_json::to_value(restored).unwrap(),
+        serde_json::to_value(baseline).unwrap()
+    );
+}
 
 #[test]
 fn editor_isolation_cannot_finish_by_timeout_close_or_missing_restore() {

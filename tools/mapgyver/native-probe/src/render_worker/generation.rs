@@ -69,8 +69,8 @@ pub fn run(session: &Session, state: &mut RunState, generation: u32) -> ProbeRes
         return Err("selected adapter changed during recreation".into());
     }
     let quad = Quad::new(&gpu)?;
-    let mut editor = Presenter::new(&gpu, session.editor, Role::Editor)?;
-    let mut output = Presenter::new(&gpu, session.output, Role::NativeOutput)?;
+    let mut editor = Presenter::new(&gpu, session.editor, Role::Editor, spec.presentation_policy())?;
+    let mut output = Presenter::new(&gpu, session.output, Role::NativeOutput, spec.presentation_policy())?;
     let sample = (state.start + Duration::from_secs(u64::from(spec.warmup_seconds())))
         ..(state.start + Duration::from_secs(u64::from(spec.total_seconds())));
     let mut inputs = [
@@ -242,7 +242,7 @@ pub fn run(session: &Session, state: &mut RunState, generation: u32) -> ProbeRes
         if generation > 0 && consumer_ready_ms.is_none() && state.observer.verified_generation() == generation {
             consumer_ready_ms = Some(generation_start.elapsed().as_secs_f64() * 1000.0);
         }
-        let output_presented = match operations.measure(Operation::OutputTarget, || output.target(&gpu))? {
+        let output_presented = match operations.measure(Operation::OutputTarget, || output.target(&gpu, collecting))? {
             Target::Busy => Submission::Busy,
             Target::Unavailable => Submission::NoTarget,
             Target::Ready(target) => {
@@ -261,7 +261,7 @@ pub fn run(session: &Session, state: &mut RunState, generation: u32) -> ProbeRes
                     )
                 })?;
                 drop(target);
-                operations.measure(Operation::OutputPresent, || output.present())?
+                operations.measure(Operation::OutputPresent, || output.present(collecting))?
             }
         };
         cadence[1].record(Instant::now(), deadline, collecting, output_presented);
@@ -276,7 +276,7 @@ pub fn run(session: &Session, state: &mut RunState, generation: u32) -> ProbeRes
         if collecting && spec.scenario.cards() && !fixed_geometry {
             sampled_geometry_mismatches += 1;
         }
-        let editor_presented = match operations.measure(Operation::EditorTarget, || editor.target(&gpu))? {
+        let editor_presented = match operations.measure(Operation::EditorTarget, || editor.target(&gpu, collecting))? {
             Target::Busy => Submission::Busy,
             Target::Unavailable => Submission::NoTarget,
             Target::Ready(target) => {
@@ -290,7 +290,7 @@ pub fn run(session: &Session, state: &mut RunState, generation: u32) -> ProbeRes
                     Ok(())
                 })?;
                 drop(target);
-                operations.measure(Operation::EditorPresent, || editor.present())?
+                operations.measure(Operation::EditorPresent, || editor.present(collecting))?
             }
         };
         cadence[0].record(Instant::now(), deadline, collecting, editor_presented);

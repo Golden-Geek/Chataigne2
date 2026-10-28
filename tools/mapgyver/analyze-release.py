@@ -134,6 +134,54 @@ def verify_gpu_admission(generation, resources):
     return admission
 
 
+def verify_presenter_admission(generation):
+    """Validate current all-window/sample counters without treating warmup signals as sampled."""
+    names = ("readiness_polls", "ready_signals", "not_ready", "reservation_retries",
+             "accepted_presents", "busy_presents", "occluded_presents")
+    admissions = generation.get("admission_editor_output")
+    cadence = generation.get("submission_editor_output_spout")
+    gpu = generation.get("gpu_admission")
+    require(isinstance(admissions, list) and len(admissions) == 2, "presentation admission pair missing")
+    require(isinstance(cadence, list) and len(cadence) == 3, "presentation cadence paths missing")
+    require(isinstance(gpu, dict) and isinstance(gpu.get("sampled"), dict),
+            "sampled GPU admission missing for presentation accounting")
+    gpu_busy = gpu["sampled"].get("busy")
+    require(type(gpu_busy) is int and gpu_busy >= 0, "sampled GPU busy count must be a nonnegative integer")
+    for index, total_name in enumerate(("preview_presents", "output_presents")):
+        report = admissions[index]
+        require(isinstance(report, dict) and set(report) == {"all", "sampled"},
+                "presentation admission requires all/sampled counts; rebuild the native probe")
+        for scope in ("all", "sampled"):
+            counts = report[scope]
+            require(isinstance(counts, dict) and set(counts) == set(names),
+                    "presentation admission count fields mismatch")
+            require(all(type(counts[name]) is int and counts[name] >= 0 for name in names),
+                    "presentation admission counts must be nonnegative integers")
+            require(counts["readiness_polls"] == counts["ready_signals"] + counts["not_ready"],
+                    "presentation readiness accounting mismatch")
+        all_counts, sampled = report["all"], report["sampled"]
+        require(all(all_counts[name] >= sampled[name] for name in names),
+                "sampled presentation count exceeds all-window count")
+        total = generation.get(total_name)
+        path = cadence[index]
+        require(type(total) is int and total >= 0, "presentation total must be a nonnegative integer")
+        require(isinstance(path, dict)
+                and all(type(path.get(key)) is int and path[key] >= 0
+                        for key in ("accepted_calls", "busy", "occluded")),
+                "sampled presentation outcomes must be nonnegative integers")
+        require(total == all_counts["accepted_presents"] <= all_counts["ready_signals"],
+                "presentation all-window acceptance accounting mismatch")
+        # A reserved warmup signal can be consumed by a sampled retry. Only all-window
+        # acceptances are bounded by acquired signals; sampled acceptances are not.
+        require(sampled["accepted_presents"] == path["accepted_calls"],
+                "sampled presentation acceptance accounting mismatch")
+        require(path["busy"] == gpu_busy + sampled["not_ready"] + sampled["busy_presents"],
+                "sampled presentation busy reason accounting mismatch")
+        require(sampled["occluded_presents"] == path["occluded"],
+                "sampled presentation occlusion accounting mismatch")
+    return admissions
+
+
 def verify_gpu_events(gpu, total, period, capacity):
     require(len(gpu["events"]) + gpu["omitted"] == gpu["total"], "GPU outlier count mismatch")
     require(len(gpu["events"]) <= capacity, "GPU outlier capacity exceeded")
@@ -317,13 +365,7 @@ def analyze_sample(evidence):
     require(cadence[2]["accepted_calls"] == (cpu["samples"] if cpu is not None else 0),
             "Spout accepted calls differ from measured submissions")
     expected_calls = report["workload"]["sample_seconds"] * 60
-    for admission, accepted in zip(generation["admission_editor_output"], (
-        generation["preview_presents"], generation["output_presents"],
-    ), strict=True):
-        require(admission["readiness_polls"] == admission["ready_signals"] + admission["not_ready"],
-                "presentation readiness accounting mismatch")
-        require(accepted == admission["accepted_presents"] <= admission["ready_signals"],
-                "presentation acceptance accounting mismatch")
+    presenter_admission = verify_presenter_admission(generation)
     expected_extent = [1920, 1080] if scenario == "q01" else [3840, 2160]
     result = {
         "sample_index": evidence["sample_index"], "scenario": scenario, "native_success": True,
@@ -344,6 +386,7 @@ def analyze_sample(evidence):
             "uniform_upload_bytes", "diagnostic_readback_pixels",
         )),
         "cpu_submission": cpu, "gpu_timeline": gpu,
+        "presentation_admission_editor_output": presenter_admission,
         "cpu_budget_met": cpu is not None and cpu["p95_ms"] <= 4 and cpu["p99_ms"] <= 8,
         **gpu_timing_checks(timing),
         "calls_editor_output_spout": [{

@@ -3,8 +3,10 @@
 import argparse
 import base64
 import concurrent.futures
+import csv
 import datetime
 import hashlib
+import io
 import json
 from pathlib import Path
 import platform
@@ -27,6 +29,7 @@ def parse_args(argv=None):
     parser.add_argument("--nvidia-overlay", choices=("on", "off", "unknown"), default="unknown")
     parser.add_argument("--sample-seconds", type=int, default=8)
     parser.add_argument("--warmup-seconds", type=int, default=30)
+    parser.add_argument("--presentation-policy", choices=("latest", "output-vblank"), default="latest")
     parser.add_argument("--output", type=Path, help="exclusively create a generated packet under the existing target directory")
     args = parser.parse_args(argv)
     if args.adapter < 0:
@@ -115,6 +118,36 @@ def validate_etw_query(query, session, native_report):
                 scope="Successful independent live API query only; later event delivery/shutdown and PresentMon analysis loss remain unverified")
 
 
+def validate_presentation_policy(csv_text, requested, native_report, correlation):
+    policies = {"latest": "latest", "output-vblank": "output_vblank"}
+    policy = native_report["workload"]["presentation_policy"]
+    if requested not in policies or policy != policies[requested]:
+        raise ValueError("requested and native presentation policies differ")
+    reader = csv.DictReader(io.StringIO(csv_text, newline=""))
+    columns = {name.casefold(): name for name in (reader.fieldnames or [])}
+    if not all(name in columns for name in ("swapchainaddress", "qpctime", "syncinterval")):
+        raise ValueError("presentation policy requires address/QPC/SyncInterval CSV columns")
+    checked = {"editor": 0, "native_output": 0}
+    expected = {"editor": 0, "native_output": int(policy == "output_vblank")}
+    for row in reader:
+        address = hex(int(row[columns["swapchainaddress"]], 16))
+        qpc = int(row[columns["qpctime"]])
+        matches = [record for record in correlation["roles"]
+                   if address in record["addresses"].values() and record["begin_qpc"] <= qpc < record["end_qpc"]]
+        if len(matches) != 1:
+            raise ValueError("presentation policy row lacks an exact native role match")
+        role = matches[0]["role"]
+        if role not in expected or row[columns["syncinterval"]] != str(expected[role]):
+            raise ValueError("CSV SyncInterval does not match the requested output-only policy")
+        checked[role] += 1
+    declared = {role: sum(record["raw_rows"] for record in correlation["roles"] if record["role"] == role)
+                for role in checked}
+    if not all(checked.values()) or checked != declared:
+        raise ValueError("presentation policy row coverage differs from native role correlation")
+    return dict(native_policy=policy, requested_policy=requested, expected_sync_interval_by_role=expected,
+                rows_checked_by_role=checked, scope="Exact CSV policy validation; no cadence or latency pass")
+
+
 def collect(args, evidence):
     executable = ROOT / "target/release/mapgyver_native_probe.exe"
     session = "MapGyver-M01-Present-" + uuid.uuid4().hex
@@ -124,8 +157,9 @@ def collect(args, evidence):
                     started_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),
                     session_name=session, native_sample_seconds=args.sample_seconds, native_warmup_seconds=args.warmup_seconds,
                     presentmon_timed_seconds=capture_seconds, declared_nvidia_overlay_state=args.nvidia_overlay,
+                    requested_presentation_policy=args.presentation_policy,
                     environment=dict(platform=platform.platform(), machine=platform.machine()),
-                    role_correlation_verified=False, live_etw_query_verified=False,
+                    role_correlation_verified=False, live_etw_query_verified=False, presentation_policy_verified=False,
                     scope="PID-filtered PresentMon v1 events with separate exact native identity correlation; no optical latency, alignment or full GPU-path claim")
     before = fingerprints(executable, args.presentmon)
     evidence["inputs"] = before
@@ -147,7 +181,7 @@ def collect(args, evidence):
         raise ValueError("NVIDIA requires verified overlay Off before startup")
     evidence["adapter"] = selected[0]
     native_command = [str(executable), "qualify", str(args.adapter), args.scenario,
-                      str(args.sample_seconds), str(args.warmup_seconds)]
+                      str(args.sample_seconds), str(args.warmup_seconds), args.presentation_policy]
     native = subprocess.Popen(native_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=ROOT)
     evidence["native_command"] = native_command
     evidence["native_pid"] = native.pid
@@ -195,6 +229,9 @@ def collect(args, evidence):
         evidence["role_correlation"] = roles["correlate"](
             capture_run["stdout"], native.pid, report, report["observer"]["frame_age"]["config"])
         evidence["role_correlation_verified"] = True
+        evidence["presentation_policy_observation"] = validate_presentation_policy(
+            capture_run["stdout"], args.presentation_policy, report, evidence["role_correlation"])
+        evidence["presentation_policy_verified"] = True
         query_run = evidence["etw_query"]
         if query_run["exit_code"] != 0 or query_run["timed_out"] or query_run["stderr"] or not query_run["valid_utf8"]:
             raise ValueError("live ETW query process failed or timed out")
@@ -237,6 +274,7 @@ def main():
                               sha256=hashlib.sha256(payload).hexdigest(),
                               route_verified=evidence["route_verified"],
                               role_correlation_verified=evidence.get("role_correlation_verified", False),
+                              presentation_policy_verified=evidence.get("presentation_policy_verified", False),
                               live_etw_query_verified=evidence.get("live_etw_query_verified", False))), flush=True)
     return 0 if evidence["route_verified"] else 1
 

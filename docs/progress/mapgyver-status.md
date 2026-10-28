@@ -4,15 +4,15 @@
 
 **Updated: 2026-10-28 · Overall: `██░░░░░░░░░░░░░░░░░░` 10% · 1/10 phases complete**
 
-**Current topic:** M01 native feasibility — warmed 4K cadence and independent live ETW counters.
-A 30-second-warmup/eight-second Intel control retains one output drop per 480 Presents and five
-editor readiness gaps. A successful post-measurement query records three zero live loss counters.
-Broader display, timing, lifecycle and retirement qualification remains open.
+**Current topic:** M01 native feasibility — output-only vblank control and source-poll stalls.
+Three 30+120-second Intel Q02 controls retain separate native submission/display outcomes.
+Vblank has zero CSV drops but 31 missing output submissions; the returning latest baseline
+drifts to 5,372 accepted output Presents and has an unavailable post-close loss query.
 
-**Next:** investigate steady 4K GPU/compositor deadlines and per-output pacing, then collect the
-required sustained displayed-frame series and complete preview/lifecycle/resource checks.
-**Blocker:** cadence still misses the fixed target; final capture/analysis loss, physical
-alignment/latency and full GPU critical path remain unverified. M02 waits for the complete M01 decision.
+**Next:** isolate shared-texture handoff costs and bounded import ownership; budget collector
+startup/teardown/query time, then continue the required sustained series and remaining gates.
+**Blocker:** cadence and source-poll stalls remain unresolved; loss observation is incomplete
+for A2, and physical alignment/latency/full GPU critical path remain open. M02 still waits for M01.
 
 | Phase | State | Progress | Done / total items |
 | --- | --- | --- | --- |
@@ -64,12 +64,12 @@ formatters and whitespace checks pass. Native sources remain unchanged from thei
 52-test checkpoint, so no new native build or hardware result is inferred. This checkpoint
 also leaves M01 at 1/8 and overall progress at 1/10.
 
-Publication through the native-role checkpoint is verified: the remote query returns
-`203970bf4096a1204898fd1871c4311595d36bfc` for `refs/heads/mapgyver` at
+Publication through the live-counter/warmed checkpoint is verified: the remote query returns
+`0e4a6deba1bbcffddb555e65750090bc05a42a44` for `refs/heads/mapgyver` at
 `git@github.com:Golden-Geek/Chataigne2.git`. This external publication clears the earlier
-automatic-review rejection. The role checkpoint was pushed and the upstream/remote equality
-verified before this batch. Live statistics, actual-window context and warmed-control evidence
-follow that published baseline and must be delivered before the next batch.
+automatic-review rejection. That checkpoint was pushed and upstream/remote equality verified
+before this batch. The output-only policy control, sampled admission and complete retained
+three-run evidence follow that baseline and must be delivered before the next batch.
 
 ### M01 acceptance items
 
@@ -80,7 +80,7 @@ follow that published baseline and must be delivered before the next batch.
 | Native rectangle output and composited Spout send | Open | Intel/NVIDIA fixed procedural/Spout cards pass; native preview/output visual accuracy and 4K scanout remain. |
 | Mixed DPI, negative origins, drag/resize/docking/zoom | Open | 100%/125% observations recorded; 150%/200%, negative origins and measured alignment remain. |
 | Minimized/disconnected-editor independence | Open | Intel/NVIDIA busy/blank-document continuity and reconnect pass at recorded fingerprints; full displayed/minimized qualification remains. |
-| Color/alpha, copies, cadence/latency, queues and memory | Open | Intel/NVIDIA fixed procedural/authored cards pass through independent processes and the bridge; Intel compositor records match native roles exactly. A warmed 4K control still has one output drop/480 Presents and five editor readiness gaps, with zero independently queried live ETW loss counters. Sustained cadence, final/analysis loss, other routes/lifecycle cards, GPU critical path, scanout and resources remain. |
+| Color/alpha, copies, cadence/latency, queues and memory | Open | Fixed cards and exact native role correlation remain verified. Output-only vblank does not establish a cadence repair: 31/7,200 output submissions are missing, and returning latest drifts to 5,372 accepted Presents. A2 loss counters are unavailable. Cadence, final/analysis loss, other routes/lifecycle cards, GPU critical path, scanout and resources remain. |
 | Device recreation, sustained retirement and shutdown | Open | Controlled rebuilds recorded; complete Q05, physical retirement, real removal/reset and full-process shutdown remain. |
 | Production host/backend/binding decision | Open | D3D11/sys binding and ordinary underlay remain provisional pending the full gate. |
 
@@ -98,7 +98,8 @@ a MapGyver branch. `mapgyver` was created from `137c9203` with the existing dirt
 then externally fast-forwarded from `main` to the Chataigne P11 checkpoint `40acd67d` during M00.
 The checkout was reconciled at external checkpoint `73548569` (`Checkpoint MapGyver baseline
 and partial native feasibility`). NVIDIA/PresentMon checkpoint `8e4615b5` and native-role
-checkpoint `203970bf` are published; this batch starts from the latter at `origin/mapgyver`.
+checkpoint `203970bf` and live-counter/warmed checkpoint `0e4a6deb` are published; this batch
+starts from the latter at `origin/mapgyver`.
 M00 delivers the baseline tooling and fixed qualification contract. M01 owns an isolated native
 Spout/D3D11 harness with locked Tauri/Svelte underlay/output windows, an independent consumer,
 source-worker GPU bridges, bounded admission/retirement and lossless timing/resource evidence.
@@ -184,6 +185,15 @@ M02 depends on this gate; do not build production editors/shell around an unqual
   native inputs within that cohort. Preserve the earlier cadence/QueryEnd and memory failures; the split stages
   make a recurrence attributable to a smaller wall interval but establish no internal cause.
   Do not repeat unchanged performance cohorts in place of missing evidence.
+- The predeclared output-only latest/vblank/latest control uses one new frozen release and
+  matching window snapshots. B loses 31 native output submissions despite zero CSV drops;
+  A2 latest drifts to 5,372/7,146 accepted attempts against 7,200 nominal slots. Do not adopt
+  vblank or treat this as a completed qualifying series. Split source-poll resource-open,
+  cast, keyed-mutex acquire and old-reader-release costs before assigning a cause; evaluate
+  bounded per-source/device imports without weakening surface reader ownership. The current
+  all/sampled admission schema makes GPU coalescing, readiness and Present failures explicit.
+  A2's query returns 4201 after session closure; budget startup/teardown/query overhead or
+  synchronize live capture explicitly instead of assuming two extra seconds always suffice.
 - Both adapters' JS-busy/blank-document continuity now has native evidence and fresh reconnect
   ownership. Intel finite authored-image accuracy now compares every pixel through independent
   processes and the real source-worker bridge at 1080p/4K. The fixed procedural-card shader also
@@ -241,6 +251,21 @@ behavior is unchanged. No production host/backend/binding decision is final yet.
 
 ## M01 verification — 2026-10-28
 
+- [Output-only policy analysis](evidence/mapgyver-m01-output-policy-analysis-2026-10-28.json)
+  recomputes the [predeclared A/B/A](evidence/mapgyver-m01-output-policy-plan-2026-10-28.json)
+  and all 48,886 raw rows. Frozen inputs, distinct sessions, chronological native intervals,
+  per-role policy and matching actual window contexts verify. Native facts remain separate
+  from capture completeness: A1/B live counters are zero; A2 status 4201 leaves them unavailable,
+  and the strict analyzer exits 1 with factual runs retained. B is not a repair and the late
+  baseline drift remains authoritative. Latest stays default, M01 remains 1/8 (13%) and overall
+  remains 1/10 (10%). All three packets are promoted byte-for-byte; owned sessions/processes
+  are gone and the existing collector service retains PID 5864.
+  Sixty deterministic Rust tests, strict default/desktop Clippy and 88 Python tests pass.
+  Generated UI bindings match; actual root/Core formatters, both format checks and whitespace
+  checks pass. The derived analysis recomputes exactly and deliberately exits 1 for incomplete
+  A2 observations. All 126 evidence JSON files parse and preserve Git input bytes, 231 local
+  links in the three updated docs resolve, and all 80 Rust sources remain below 1,000 lines.
+  Frozen source/assets/helper/tool/native fingerprints still match after final formatting.
 - [Warmed 4K analysis](evidence/mapgyver-m01-presentmon-warmed-analysis-2026-10-28.json) verifies
   the [complete capture packet](evidence/mapgyver-m01-presentmon-warmed-intel-q02-2026-10-28.json),
   kept byte-for-byte through exclusive generated output and promotion. All 4,537 raw rows retain

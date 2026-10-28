@@ -117,13 +117,18 @@ pub fn assert_frame_age(report: &Value) {
 
 pub fn assert_metrics(generation: &Value) {
     for (index, name) in ["preview_presents", "output_presents"].iter().enumerate() {
-        let admission = &generation["admission_editor_output"][index];
+        let admission = &generation["admission_editor_output"][index]["all"];
         assert_eq!(admission["accepted_presents"], generation[*name]);
         assert_eq!(
             admission["readiness_polls"].as_u64().unwrap(),
             admission["ready_signals"].as_u64().unwrap() + admission["not_ready"].as_u64().unwrap()
         );
         assert!(admission["accepted_presents"].as_u64().unwrap() <= admission["ready_signals"].as_u64().unwrap());
+        let sampled = &generation["admission_editor_output"][index]["sampled"];
+        assert_eq!(
+            sampled["accepted_presents"],
+            generation["submission_editor_output_spout"][index]["accepted_calls"]
+        );
     }
     let retired = &generation["allocations_after_fence"];
     assert_eq!(retired["live_textures"], 0);
