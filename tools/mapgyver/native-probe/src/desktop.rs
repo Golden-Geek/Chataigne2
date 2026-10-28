@@ -11,6 +11,8 @@ use crate::presentation::{EditorActivity, ProbeLayout, ProbeStatus};
 use crate::render_worker::{self, RenderReport, Shared};
 use mapgyver_native_probe::workload::RunSpec;
 
+mod output;
+
 #[tauri::command]
 fn update_layout(
     window: WebviewWindow,
@@ -84,6 +86,12 @@ fn set_zoom(window: WebviewWindow, factor: f64) -> Result<(), String> {
 }
 
 pub fn run(adapter: u32, spec: RunSpec) -> ProbeResult<RenderReport> {
+    // Reject an unavailable physical fixture before creating windows or GPU workers.
+    let output_target = spec
+        .scenario
+        .cards()
+        .then(|| output::Target::select(adapter, spec.scenario.extent()))
+        .transpose()?;
     let shared = Arc::new(Shared::default());
     shared
         .editor_test_enabled
@@ -141,19 +149,19 @@ pub fn run(adapter: u32, spec: RunSpec) -> ProbeResult<RenderReport> {
             let output = WindowBuilder::new(app, "output")
                 .title("MapGyver M01 — native output")
                 .inner_size(640.0, 360.0)
+                .decorations(output_target.is_none())
+                .shadow(output_target.is_none())
+                .resizable(output_target.is_none())
                 .focused(false)
                 .visible(false)
                 .build()?;
-            if spec.scenario.cards() {
-                let [width, height] = spec.scenario.extent();
-                if let Some(monitor) = output.available_monitors()?.get(1) {
-                    output.set_position(*monitor.position())?;
-                }
-                // Moving between monitors can rescale the client extent. Apply the physical
-                // workload size after selecting the owned output window's monitor.
-                output.set_size(tauri::PhysicalSize::new(width, height))?;
+            if let Some(target) = &output_target {
+                target.place(output.hwnd()?)?;
             }
             output.show()?;
+            if let Some(target) = &output_target {
+                target.verify(output.hwnd()?)?;
+            }
             let editor_hwnd = editor.hwnd()?;
             // SAFETY: change clipping only on this newly created owned probe HWND, following
             // locked Wry's GPU-underlay example. Never manipulate another app's windows.

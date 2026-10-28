@@ -4,8 +4,9 @@
 
 **Updated: 2026-10-28 · Overall: `██░░░░░░░░░░░░░░░░░░` 10% · 1/10 phases complete**
 
-**Current topic:** M01 scope review after the user requested an end to diagnostic drift.
-The native route has functional evidence, but the original full gate has not passed.
+**Current topic:** M01 scope review and a bounded owned-output fixture correction.
+The native route has functional evidence, but the original full gate has not passed. The
+placement correction passes compile/deterministic checks; native verification remains open.
 New profiling and native captures are stopped while the proposed dependency change below
 awaits the user's decision. The user confirms NVIDIA overlay is Off; no overlay investigation
 or setting change is needed for this review.
@@ -198,8 +199,9 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 The user requested an explanation of M01's duration and instructed the agent to avoid further
 drift on 2026-10-28. New captures, consumer-control cohorts, overlay investigation, import-cache
-optimization, internal SDK/driver attribution and additional profiling are stopped. No source
-change or native run was made during this scope review. The 4K display is already connected;
+optimization, internal SDK/driver attribution and additional profiling are stopped. The scope
+review checkpoint changed no source and made no native run. The bounded source correction
+below is needed under either scope and does not adopt the proposal. The 4K display is already connected;
 its availability and the user-confirmed overlay-Off setting are not unanswered questions.
 
 **Proposed scope correction — awaiting user approval, not an accepted gate change:**
@@ -226,6 +228,26 @@ proposal is approved and its owning plan/architecture/contract documents are rev
 
 Preserve Chataigne's unfinished P11 work and its separate ledger. No production source,
 protocol, display configuration or overlay setting was changed by this review.
+
+### Bounded owned-output fixture correction — 2026-10-28
+
+The harness no longer chooses `available_monitors()[1]`. It selects only attached displays
+belonging to the requested adapter, prefers a unique exact-size match and otherwise requires
+one fitting display. Missing/ambiguous fixtures fail before window/GPU startup. A selected
+4K adapter cannot silently use a different adapter's output or span smaller monitors.
+
+Fixed-card output is borderless, shadow-free and nonresizable. Two ordered synchronous
+owned-HWND setup calls first relocate into the target DPI context, then set the final physical
+extent. After show, exact client origin/extent, monitor identity and containment must match
+before the renderer, fixtures or consumer start. There are no placement retries, polling,
+display-setting changes, new timing probes or protocol changes.
+
+`cargo test --locked -p mapgyver_native_probe --features desktop` passes **104 tests**
+(57 library, 47 binary), including nine new deterministic display-selection regressions;
+seven hardware tests remain ignored. Strict desktop/all-target Clippy passes. Native
+placement/DPI behavior is **not yet verified**; no capture or native GPU test was run.
+The scope proposal remains pending, the original eight gates and budgets remain in force,
+and M01 remains **1/8**. This source fix does not establish a cadence, geometry or resource pass.
 
 ### Historical diagnostic backlog — superseded as an execution queue
 

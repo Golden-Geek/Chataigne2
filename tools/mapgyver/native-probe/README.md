@@ -189,9 +189,22 @@ receiver device injection, so this harness exercises the public sys API directly
 Q01 uses a 1920×1080 first source/composite/native output; Q02 uses 3840×2160. The second source
 stays 1280×720. Both request unclipped 640×360 and 480×270 previews. The worker reports actual
 output size and every sampled frame with mismatching geometry; a clamped/rescaled window does
-not become a smaller passing workload. The output window moves before applying its physical
-size, so a monitor DPI transition cannot silently rescale the requested extent. A 4K client
-rectangle can extend beyond the available monitor; its allocation does not qualify 4K scanout.
+not become a smaller passing workload.
+
+Fixed scenes require a fitting attached display owned by the explicitly selected adapter.
+Selection prefers one exact-size display, otherwise requires exactly one fitting display;
+missing or ambiguous candidates fail before windows/GPU workers start. There is no second-monitor
+index or cross-adapter fallback. The fixed output is borderless, shadow-free and nonresizable.
+On the creating UI thread, setup moves the hidden HWND to the selected physical origin, lets
+the synchronous DPI transition finish, then applies the final physical extent. After showing,
+it verifies the exact client origin/extent, monitor identity and containment before starting
+the renderer or source/consumer workers. A geometry mismatch aborts rather than starting an
+invalid timing sample. The interactive `underlay` window retains its ordinary decorations.
+
+This changes the fixture epoch: older oversized/spanning-window results keep their original
+limitations. Compilation and deterministic selection tests do not establish physical alignment,
+scanout, cadence or a passing native run. Recheck the actual inventory before selecting an
+adapter; the ignored multi-adapter hardware suites require fitting displays for their workloads.
 
 Fixture shaders generate checker/grid regions, seven-segment channel/frame IDs, lifecycle colors
 and four straight-alpha stripes. Only 32 bytes of uniform metadata are uploaded per source frame.
@@ -210,8 +223,9 @@ remain unmeasured. Descriptor payload ownership is not a physical-residency meas
 
 ```powershell
 cargo build --release --locked -p mapgyver_native_probe --features desktop
-python tools/mapgyver/run-qualification.py 0 q01
-python tools/mapgyver/run-qualification.py 0 q02
+$fixtureAdapter = 1 # Replace with the inventory adapter owning a fitting physical display.
+python tools/mapgyver/run-qualification.py $fixtureAdapter q01
+python tools/mapgyver/run-qualification.py $fixtureAdapter q02
 python -m unittest discover -s tools/mapgyver/tests -v
 ```
 

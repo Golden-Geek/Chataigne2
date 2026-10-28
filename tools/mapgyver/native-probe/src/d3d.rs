@@ -36,10 +36,10 @@ pub struct AdapterInfo {
 
 #[derive(Serialize)]
 pub struct OutputInfo {
-    device_name: String,
-    attached: bool,
-    desktop_rect: [i32; 4],
-    coordinate_context: &'static str,
+    pub(crate) device_name: String,
+    pub(crate) attached: bool,
+    pub(crate) desktop_rect: [i32; 4],
+    pub(crate) coordinate_context: &'static str,
 }
 
 fn factory() -> windows::core::Result<IDXGIFactory1> {
