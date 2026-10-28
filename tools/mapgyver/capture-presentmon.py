@@ -37,7 +37,7 @@ def digest(path):
 
 def fingerprints(executable, presentmon):
     result = BASE["fingerprints"](executable)
-    for name in ("capture-presentmon.py", "presentmon_data.py"):
+    for name in ("capture-presentmon.py", "presentmon_data.py", "presentmon_roles.py"):
         path = Path(__file__).resolve().with_name(name)
         result["files"][path.relative_to(ROOT).as_posix()] = digest(path)
     result["presentmon_sha256"] = digest(presentmon)
@@ -86,12 +86,13 @@ def communicate(process, seconds, presentmon=None, session=None):
 def collect(args, evidence):
     executable = ROOT / "target/release/mapgyver_native_probe.exe"
     session = "MapGyver-M01-Present-" + uuid.uuid4().hex
-    evidence.update(schema_version=1, evidence_kind="short_presentmon_capture_route_not_full_timing_qualification",
+    evidence.update(schema_version=1, evidence_kind="short_presentmon_role_correlation_control_not_full_timing_qualification",
                     started_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),
                     session_name=session, native_sample_seconds=8, native_warmup_seconds=2,
                     presentmon_timed_seconds=12, declared_nvidia_overlay_state=args.nvidia_overlay,
                     environment=dict(platform=platform.platform(), machine=platform.machine()),
-                    scope="PID-filtered PresentMon v1 events; swapchains remain unlabeled; no optical latency, alignment or full GPU-path claim")
+                    role_correlation_verified=False,
+                    scope="PID-filtered PresentMon v1 events with separate exact native identity correlation; no optical latency, alignment or full GPU-path claim")
     before = fingerprints(executable, args.presentmon)
     evidence["inputs"] = before
     if args.presentmon.resolve() == PRESENTMON.resolve() and before["presentmon_sha256"] != PRESENTMON_SHA256:
@@ -144,11 +145,15 @@ def collect(args, evidence):
             raise ValueError("PresentMon failed or timed out")
         data = runpy.run_path(str(Path(__file__).with_name("presentmon_data.py")))
         evidence["analysis"] = data["analyze"](capture_run["stdout"], native.pid, report["observer"]["frame_age"]["config"])
+        roles = runpy.run_path(str(Path(__file__).with_name("presentmon_roles.py")))
+        evidence["role_correlation"] = roles["correlate"](
+            capture_run["stdout"], native.pid, report, report["observer"]["frame_age"]["config"])
         evidence["loss_observation"] = data["loss_observation"](capture_run["stdout"], capture_run["stderr"])
         if not evidence["loss_observation"]["no_loss_reported"]:
             raise ValueError("PresentMon reported lost data")
         if not evidence["inputs_unchanged_after_run"]:
             raise ValueError("capture inputs changed")
+        evidence["role_correlation_verified"] = True
         evidence["route_verified"] = True
     except (ValueError, KeyError, TypeError) as error:
         evidence["route_verified"] = False

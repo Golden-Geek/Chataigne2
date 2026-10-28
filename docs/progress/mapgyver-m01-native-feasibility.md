@@ -5,6 +5,58 @@ from MapGyver's product systems. M01 is **in progress**, not a presentation-arch
 See the [ledger](mapgyver-status.md), [qualification contract](mapgyver-qualification-contract.md)
 and [harness commands/ownership](../../tools/mapgyver/native-probe/README.md).
 
+## Exact native/ETW role correlation and 4K displayed drops — 2026-10-28
+
+The diagnostic report now records each presenter's typed role, queried `IDXGISwapChain`/`1`/`2`
+addresses as hex strings, and QPC bounds enclosing its Present calls. Constructor wiring owns
+the role; no address order or frame-count heuristic assigns it. Temporary queried COM references
+retire during setup. Only CLI generation reports contain these ephemeral identities; the UI,
+generated DTOs, product protocol and persistence do not receive them. No per-frame native work,
+pixel readback or rendering policy changes were added.
+
+`presentmon_roles.py` matches every raw row by exact renderer PID, normalized interface address
+and half-open **Present-QPC** lifetime. It rejects missing/unknown/ambiguous identities and
+overlapping aliases, permits disjoint generation reuse, and keeps role/generation/address
+summaries separate. Display timestamps can extend past a presenter's interval; both actual
+captures retain one such event per role. Tests cover those tails, pointer reuse and integer QPC
+above 2^53. The original unlabeled analysis remains alongside the separate correlation result.
+
+The short Intel [1080p](evidence/mapgyver-m01-presentmon-role-intel-q01-2026-10-28.json) and
+[4K](evidence/mapgyver-m01-presentmon-role-intel-q02-2026-10-28.json) captures use the same native
+release SHA256 `d0cc1ce5b996eb67edf1d2cc5b971618e3412faa5e3d02c43101b60ec64b4a5c`
+and identical source/assets/helper/tool inputs. Both map all raw rows exactly; all three queried
+aliases happen to equal the actual ETW address for each object. That equality was measured,
+not assumed as a general COM guarantee. Earlier accuracy/trace captures retain their old binary.
+
+| Short Intel control | Raw rows editor / output | Sample Presents per role | Dropped editor / output | In-window display events editor / output | Display-interval p99 editor / output |
+| --- | --- | --- | --- | --- | --- |
+| Q01, 2 s warmup + 8 s sample | 593 / 594 | 480 | 0 / 0 | 480 / 480 | 20.8326 / 20.8374 ms |
+| Q02, 2 s warmup + 8 s sample | 590 / 591 | 480 | 85 / 20 | 394 / 459 | 49.9900 / 33.3405 ms |
+
+Q02 therefore observes drops of 85/480 (17.71%) for the editor and 20/480 (4.17%) for output,
+despite native sampled admission accepting 480 calls on each path with no busy/occluded/late
+calls. Maximum displayed intervals are 50.0200/33.3575 ms. Each role has one display arrival
+from before the sample and two tails beyond it; Present and Display denominators differ.
+These are retained cadence failures in this control, not a role-correlation failure or an
+explanation of the cause. Do not substitute accepted calls, repeat until passing or relax the
+fixed budgets. The larger-than-monitor 4K window still does not qualify physical 4K scanout.
+
+[Independent analysis](evidence/mapgyver-m01-presentmon-role-analysis-2026-10-28.json) recomputes
+all 2,368 rows, native stdout/compaction, hashes, summaries and exact windows. Each role has
+one fewer all-window CSV row than native accepted Presents. The pinned collector
+[seeds its first observed present](https://github.com/GameTechDev/PresentMon/blob/v2.6.0/PresentMon/OutputThread.cpp#L325-L329)
+without emitting that CSV row; the aggregate deficit is consistent with that behavior and does
+not independently prove zero loss or identify the omitted call. Both traces report no loss
+warnings; independent event/buffer loss verification remains open. Correlated software roles
+are not independent physical display cycles.
+
+Native and collector processes exit 0 with empty stderr, current inputs remain unchanged,
+both owned UUID sessions are absent after exit, and the pre-existing collector service stays
+at PID 5864. No desktop setting is changed. Fifty-two deterministic Rust tests, strict desktop
+Clippy and 54 Python tests pass. These short controls establish role mapping and expose a
+timing failure; they do not replace repeated 30+120-second samples, physical alignment/input
+latency, full GPU critical path, lifecycle/retirement or any complete M01 acceptance item.
+
 ## NVIDIA procedural/authored accuracy and exact evidence transport — 2026-10-28
 
 NVIDIA adapter 1, RTX 5080 Laptop GPU, LUID `00000000:000170d3`, now has the same fixed-card
@@ -1636,7 +1688,7 @@ physical scanout or unknown driver/desktop copies. Production/runtime/protocol c
 | Native rectangle output and composited Spout send | Exact Q01/Q02 client/preview extents and narrow color/alpha/lifecycle checks pass on both GPUs; visual/native output, 4K scanout and full reference-card checks remain open |
 | Mixed DPI, negative origins, drag/resize/docking/zoom | 125%→100% monitor transition, primary/secondary sequences and WebView zoom checks observed; OS 150%/200%, negative origins and quantitative alignment remain open |
 | Minimized/disconnected-editor independence | Hidden-tab and separate minimized-editor intervals exceed 60 seconds with independent native output visual/submission progress; freshness, busy/disconnected cases and displayed cadence remain open |
-| Alpha/color cards, copies, frame age/cadence, queues and memory budgets | Repaired NVIDIA Q01/Q02 each complete three 30+120-second release samples with full sampled call/context-timing coverage and scoped CPU/consumer-age targets met. Source-A warmup admission pressure persists. Earlier Intel stalls remain retained for their exact inputs. Fixed procedural/authored cards now pass on both adapters. A short official PresentMon capture retains two unlabeled chains and 1,192 compositor rows; shared timestamps do not prove independent physical cycles, and zero loss remains unverified. Full GPU critical path, current-variant Intel series, role-qualified sustained displayed cadence/physical latency, physical residency, SDK-internal copies, lifecycle/preview cards and remaining configurations stay open |
+| Alpha/color cards, copies, frame age/cadence, queues and memory budgets | Repaired NVIDIA Q01/Q02 each complete three 30+120-second release samples with full sampled call/context-timing coverage and scoped CPU/consumer-age targets met. Source-A warmup admission pressure persists. Earlier Intel stalls remain retained for their exact inputs. Fixed procedural/authored cards pass on both adapters. New short Intel Q01/Q02 traces match native roles exactly; Q02 retains 85 editor/20 output drops per 480 Presents despite full native acceptance. Their cause and independent zero loss remain unverified. Full GPU critical path, current-variant Intel series, sustained displayed cadence/physical latency, physical residency, SDK-internal copies, lifecycle/preview cards and remaining configurations stay open |
 | Device recreation, sustained retirement and shutdown budgets | Repaired NVIDIA control retires 101 renderer/202 ingest scopes across 100 rebuilds with ten-second live settling and 0.531-second scoped teardown. Handles stay within ten; private growth 47.926 MiB fails the 32-MiB target. Earlier smaller-stack passes retain their exact fingerprints. Full Q05, physical retirement, complete-process/WebView shutdown and genuine removal/reset remain open |
 | Production host/backend/binding decision | OPEN: D3D11 plus the sys binding is exercised provisionally; ordinary underlay must pass or trigger DirectComposition investigation |
 

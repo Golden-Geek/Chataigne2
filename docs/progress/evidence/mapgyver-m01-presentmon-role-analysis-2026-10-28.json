@@ -1,0 +1,382 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "intel_native_role_correlation_receipt_not_full_m01",
+  "native_executable_sha256": "d0cc1ce5b996eb67edf1d2cc5b971618e3412faa5e3d02c43101b60ec64b4a5c",
+  "presentmon_sha256": "b2a706bc6ad475749e3b7e3409263aa1e6906d45bdcf993f6dbc0f660188f1af",
+  "common_inputs_identical": true,
+  "runs": [
+    {
+      "artifact": "mapgyver-m01-presentmon-role-intel-q01-2026-10-28.json",
+      "artifact_sha256": "ad64bce12fbeb6a24cfd81e8f579f9c2fa2527f272c38065028530bb102e3fb8",
+      "decoded_packet_sha256": "2af247cdd6057be0531b21c21b74aa9491ca7a49fe38b24851386eac3992434f",
+      "started_utc": "2026-10-28T11:20:13.612622+00:00",
+      "scenario": "q01",
+      "native_pid": 18352,
+      "session_name": "MapGyver-M01-Present-b39cfd70d7934d6295611e2c997bb25a",
+      "raw_rows": 1187,
+      "analysis_recomputed_exactly": true,
+      "native_report_recomputed_exactly": true,
+      "raw_stream_hashes_and_lengths_verified": true,
+      "exact_inputs_current": true,
+      "sample_present_window_qpc": {
+        "begin": 1852235014339,
+        "end": 1852315014339,
+        "frequency": 10000000
+      },
+      "all_rows_correlated": true,
+      "all_native_records_observed": true,
+      "roles": [
+        {
+          "role": "editor",
+          "generation": 0,
+          "begin_qpc": 1852215613127,
+          "end_qpc": 1852315136210,
+          "addresses": {
+            "idxgi_swap_chain": "0x191cb284170",
+            "idxgi_swap_chain1": "0x191cb284170",
+            "idxgi_swap_chain2": "0x191cb284170"
+          },
+          "raw_rows": 593,
+          "native_all_window_accepted_presents": 594,
+          "native_accepted_minus_csv_rows": 1,
+          "native_sample_accepted_presents": 480,
+          "chains": [
+            {
+              "swapchain_address": "0x191cb284170",
+              "label": "editor",
+              "raw_row_count": 593,
+              "first_present_qpc": 1852215973112,
+              "last_present_qpc": 1852314968856,
+              "rows_before_present_window": 113,
+              "rows_after_present_window": 0,
+              "present_window": {
+                "presents": 480,
+                "dropped": 0,
+                "non_dropped": 480,
+                "unavailable_display_timing": 0,
+                "usable_display_timestamps": 480,
+                "display_tails_after_window": 1
+              },
+              "display_window": {
+                "events": 480,
+                "arrivals_from_before_present_window": 1,
+                "missing_predecessor": 0,
+                "intervals_using_before_window_predecessor": 1,
+                "first_display_qpc_exact": "1852235105178",
+                "last_display_qpc_exact": "1852314982943",
+                "observed_display_intervals_ms": {
+                  "samples": 480,
+                  "mean_ms": 16.684642291666666,
+                  "median_ms": 16.6667,
+                  "p95_ms": 16.7,
+                  "p99_ms": 20.8326,
+                  "maximum_ms": 25.2637
+                },
+                "reported_display_change_intervals_ms": {
+                  "samples": 480,
+                  "mean_ms": 16.684642291666666,
+                  "median_ms": 16.6667,
+                  "p95_ms": 16.7,
+                  "p99_ms": 20.8326,
+                  "maximum_ms": 25.2637
+                }
+              },
+              "non_increasing_display_pairs_all_rows": 0,
+              "dropped_with_positive_display_time_all_rows": 0,
+              "generation": 0,
+              "matched_interface_keys": [
+                "idxgi_swap_chain",
+                "idxgi_swap_chain1",
+                "idxgi_swap_chain2"
+              ]
+            }
+          ],
+          "display_events_after_recorded_present_end": 1
+        },
+        {
+          "role": "native_output",
+          "generation": 0,
+          "begin_qpc": 1852215638087,
+          "end_qpc": 1852315136218,
+          "addresses": {
+            "idxgi_swap_chain": "0x191cb2bcdd0",
+            "idxgi_swap_chain1": "0x191cb2bcdd0",
+            "idxgi_swap_chain2": "0x191cb2bcdd0"
+          },
+          "raw_rows": 594,
+          "native_all_window_accepted_presents": 595,
+          "native_accepted_minus_csv_rows": 1,
+          "native_sample_accepted_presents": 480,
+          "chains": [
+            {
+              "swapchain_address": "0x191cb2bcdd0",
+              "label": "native_output",
+              "raw_row_count": 594,
+              "first_present_qpc": 1852215970691,
+              "last_present_qpc": 1852314968516,
+              "rows_before_present_window": 114,
+              "rows_after_present_window": 0,
+              "present_window": {
+                "presents": 480,
+                "dropped": 0,
+                "non_dropped": 480,
+                "unavailable_display_timing": 0,
+                "usable_display_timestamps": 480,
+                "display_tails_after_window": 1
+              },
+              "display_window": {
+                "events": 480,
+                "arrivals_from_before_present_window": 1,
+                "missing_predecessor": 0,
+                "intervals_using_before_window_predecessor": 1,
+                "first_display_qpc_exact": "1852235105178",
+                "last_display_qpc_exact": "1852314982943",
+                "observed_display_intervals_ms": {
+                  "samples": 480,
+                  "mean_ms": 16.684642291666666,
+                  "median_ms": 16.6667,
+                  "p95_ms": 16.7004,
+                  "p99_ms": 20.8374,
+                  "maximum_ms": 25.2637
+                },
+                "reported_display_change_intervals_ms": {
+                  "samples": 480,
+                  "mean_ms": 16.684642291666666,
+                  "median_ms": 16.6667,
+                  "p95_ms": 16.7004,
+                  "p99_ms": 20.8374,
+                  "maximum_ms": 25.2637
+                }
+              },
+              "non_increasing_display_pairs_all_rows": 0,
+              "dropped_with_positive_display_time_all_rows": 0,
+              "generation": 0,
+              "matched_interface_keys": [
+                "idxgi_swap_chain",
+                "idxgi_swap_chain1",
+                "idxgi_swap_chain2"
+              ]
+            }
+          ],
+          "display_events_after_recorded_present_end": 1
+        }
+      ],
+      "loss": {
+        "no_loss_reported": true,
+        "zero_loss_independently_verified": false,
+        "scope": "collector warning observations only; absence does not prove zero ETW or analysis loss",
+        "loss_warnings": [],
+        "reported_event_loss_counts": [],
+        "reported_buffer_loss_counts": []
+      },
+      "own_session_query": {
+        "exit_code": 2150629378,
+        "stdout": "\r\nError:\r\nData Collector Set was not found.\r\n",
+        "stderr": "",
+        "absent": true
+      }
+    },
+    {
+      "artifact": "mapgyver-m01-presentmon-role-intel-q02-2026-10-28.json",
+      "artifact_sha256": "6e2b64e3d43898e2a269515895f195387ecc5debc296bdc97499bb93cedd4024",
+      "decoded_packet_sha256": "404d1859dd3698c0df876cd52f304e840dcb8d6407a8da9624e9f2b179307028",
+      "started_utc": "2026-10-28T11:22:58.093873+00:00",
+      "scenario": "q02",
+      "native_pid": 26064,
+      "session_name": "MapGyver-M01-Present-f37db30fc2a644c69ecb2b1c61dae2fa",
+      "raw_rows": 1181,
+      "analysis_recomputed_exactly": true,
+      "native_report_recomputed_exactly": true,
+      "raw_stream_hashes_and_lengths_verified": true,
+      "exact_inputs_current": true,
+      "sample_present_window_qpc": {
+        "begin": 1853879138147,
+        "end": 1853959138147,
+        "frequency": 10000000
+      },
+      "all_rows_correlated": true,
+      "all_native_records_observed": true,
+      "roles": [
+        {
+          "role": "editor",
+          "generation": 0,
+          "begin_qpc": 1853859580603,
+          "end_qpc": 1853959179486,
+          "addresses": {
+            "idxgi_swap_chain": "0x1666d7f61b0",
+            "idxgi_swap_chain1": "0x1666d7f61b0",
+            "idxgi_swap_chain2": "0x1666d7f61b0"
+          },
+          "raw_rows": 590,
+          "native_all_window_accepted_presents": 591,
+          "native_accepted_minus_csv_rows": 1,
+          "native_sample_accepted_presents": 480,
+          "chains": [
+            {
+              "swapchain_address": "0x1666d7f61b0",
+              "label": "editor",
+              "raw_row_count": 590,
+              "first_present_qpc": 1853860846532,
+              "last_present_qpc": 1853959017838,
+              "rows_before_present_window": 110,
+              "rows_after_present_window": 0,
+              "present_window": {
+                "presents": 480,
+                "dropped": 85,
+                "non_dropped": 395,
+                "unavailable_display_timing": 0,
+                "usable_display_timestamps": 395,
+                "display_tails_after_window": 2
+              },
+              "display_window": {
+                "events": 394,
+                "arrivals_from_before_present_window": 1,
+                "missing_predecessor": 0,
+                "intervals_using_before_window_predecessor": 1,
+                "first_display_qpc_exact": "1853879151487",
+                "last_display_qpc_exact": "1853958818276",
+                "observed_display_intervals_ms": {
+                  "samples": 394,
+                  "mean_ms": 20.262295939086293,
+                  "median_ms": 16.6681,
+                  "p95_ms": 33.3388,
+                  "p99_ms": 49.99,
+                  "maximum_ms": 50.02
+                },
+                "reported_display_change_intervals_ms": {
+                  "samples": 394,
+                  "mean_ms": 20.262295939086293,
+                  "median_ms": 16.6681,
+                  "p95_ms": 33.3388,
+                  "p99_ms": 49.99,
+                  "maximum_ms": 50.02
+                }
+              },
+              "non_increasing_display_pairs_all_rows": 0,
+              "dropped_with_positive_display_time_all_rows": 0,
+              "generation": 0,
+              "matched_interface_keys": [
+                "idxgi_swap_chain",
+                "idxgi_swap_chain1",
+                "idxgi_swap_chain2"
+              ]
+            }
+          ],
+          "display_events_after_recorded_present_end": 1
+        },
+        {
+          "role": "native_output",
+          "generation": 0,
+          "begin_qpc": 1853859605431,
+          "end_qpc": 1853959179489,
+          "addresses": {
+            "idxgi_swap_chain": "0x1666d82abf0",
+            "idxgi_swap_chain1": "0x1666d82abf0",
+            "idxgi_swap_chain2": "0x1666d82abf0"
+          },
+          "raw_rows": 591,
+          "native_all_window_accepted_presents": 592,
+          "native_accepted_minus_csv_rows": 1,
+          "native_sample_accepted_presents": 480,
+          "chains": [
+            {
+              "swapchain_address": "0x1666d82abf0",
+              "label": "native_output",
+              "raw_row_count": 591,
+              "first_present_qpc": 1853860676819,
+              "last_present_qpc": 1853959017521,
+              "rows_before_present_window": 111,
+              "rows_after_present_window": 0,
+              "present_window": {
+                "presents": 480,
+                "dropped": 20,
+                "non_dropped": 460,
+                "unavailable_display_timing": 0,
+                "usable_display_timestamps": 460,
+                "display_tails_after_window": 2
+              },
+              "display_window": {
+                "events": 459,
+                "arrivals_from_before_present_window": 1,
+                "missing_predecessor": 0,
+                "intervals_using_before_window_predecessor": 1,
+                "first_display_qpc_exact": "1853879151487",
+                "last_display_qpc_exact": "1853958818276",
+                "observed_display_intervals_ms": {
+                  "samples": 459,
+                  "mean_ms": 17.392907625272333,
+                  "median_ms": 16.6666,
+                  "p95_ms": 21.4302,
+                  "p99_ms": 33.3405,
+                  "maximum_ms": 33.3575
+                },
+                "reported_display_change_intervals_ms": {
+                  "samples": 459,
+                  "mean_ms": 17.392907625272333,
+                  "median_ms": 16.6666,
+                  "p95_ms": 21.4302,
+                  "p99_ms": 33.3405,
+                  "maximum_ms": 33.3575
+                }
+              },
+              "non_increasing_display_pairs_all_rows": 0,
+              "dropped_with_positive_display_time_all_rows": 0,
+              "generation": 0,
+              "matched_interface_keys": [
+                "idxgi_swap_chain",
+                "idxgi_swap_chain1",
+                "idxgi_swap_chain2"
+              ]
+            }
+          ],
+          "display_events_after_recorded_present_end": 1
+        }
+      ],
+      "loss": {
+        "no_loss_reported": true,
+        "zero_loss_independently_verified": false,
+        "scope": "collector warning observations only; absence does not prove zero ETW or analysis loss",
+        "loss_warnings": [],
+        "reported_event_loss_counts": [],
+        "reported_buffer_loss_counts": []
+      },
+      "own_session_query": {
+        "exit_code": 2150629378,
+        "stdout": "\r\nError:\r\nData Collector Set was not found.\r\n",
+        "stderr": "",
+        "absent": true
+      }
+    }
+  ],
+  "q02_displayed_drop_observation": {
+    "editor": 85,
+    "native_output": 20,
+    "denominator_per_role": 480,
+    "cause": "unproven",
+    "qualification_pass": false
+  },
+  "validation": {
+    "deterministic_rust_tests_passed": 52,
+    "hardware_tests_ignored": 6,
+    "strict_desktop_all_target_clippy_passed": true,
+    "python_tests_passed": 54,
+    "generated_probe_ui_bindings_match": true,
+    "actual_root_and_core_formatters_run": true,
+    "root_and_core_format_checks_passed": true,
+    "whitespace_check_passed": true,
+    "evidence_json_files_parsed": 116,
+    "local_links_in_three_updated_docs_checked": 213,
+    "rust_source_files_under_1000_lines": 75,
+    "capture_inputs_match_after_final_formatters": true,
+    "owned_probe_and_collector_processes_remaining": 0,
+    "existing_collector_service_pid": 5864,
+    "desktop_settings_changed": false,
+    "m01_accepted_items": "1/8",
+    "overall_accepted_phases": "1/10"
+  },
+  "first_present_initialization": {
+    "source": "https://github.com/GameTechDev/PresentMon/blob/v2.6.0/PresentMon/OutputThread.cpp#L325-L329",
+    "observation": "The collector seeds its first observed present per new swapchain without CSV emission. The one-row per-role deficit is consistent with initialization, not independent proof of zero loss."
+  },
+  "scope": "Exact PID/address/Present-QPC correlation for two short Intel controls. No physical output independence, sustained-series, zero-loss, optical latency, full GPU critical path or full M01 qualification. Native accepted-minus-CSV deltas remain explicit."
+}

@@ -524,10 +524,10 @@ a normal PowerShell/VS Code process. Non-elevated access remains unverified, and
 can still require elevation. Use host execution outside the restricted sandbox for the collector;
 development-account membership does not grant rights to the separate sandbox account.
 
-PresentMon was not found on PATH in the earlier inventory; WPR/xperf were present. Actual
-provider/event capture still needs verification through the working host path. Preserve the
-earlier denied-token observation as unavailable evidence, not a presentation failure or a
-display pass. See Microsoft's
+PresentMon was not found on PATH in the earlier inventory; WPR/xperf were present. The later
+[pinned portable route](#pid-filtered-presentmon-route-control) now verifies actual provider/event
+capture through the administrator host path. Preserve the earlier denied-token observation as
+unavailable evidence, not a presentation failure or a display pass. See Microsoft's
 [StartTrace permissions](https://learn.microsoft.com/en-us/windows/win32/api/evntrace/nf-evntrace-starttracew)
 and the [PresentMon console contract](https://github.com/GameTechDev/PresentMon/blob/main/README-ConsoleApplication.md).
 
@@ -772,13 +772,24 @@ default capture tool. An explicit `--presentmon PATH` allows a separately finger
 
 `presentmon_data.py` validates the observed v1 schema and exact PID/QPC values. It separates
 Present-window drop counts from Display-window intervals, retaining pre-window predecessors
-and missing/zero timing rather than inventing zero cost. Swapchains remain **unlabeled** until
-native role correlation is verified. All raw CSV/native stdout and input/tool hashes are kept
+and missing/zero timing rather than inventing zero cost. Its original analysis remains unlabeled.
+`presentmon_roles.py` separately requires exact renderer PID, queried DXGI interface address and
+Present-QPC lifetime matches for every CSV row and every declared presenter. Native generation
+reports own the typed editor/output identities and half-open bounds; queried aliases are not
+assumed equal. Missing/unknown/overlapping mappings fail explicitly; disjoint pointer reuse is
+allowed. A Display timestamp beyond the recorded Present interval remains observable because identity is
+matched using Present QPC. No identities enter UI DTOs or persisted product documents.
+All raw CSV/native stdout and input/tool hashes are kept
 in checksummed compressed evidence. Absence of loss warnings means only **no loss reported**; explicit
 zero loss is not independently verified. Shared compositor timestamps are not independent
 physical-output cycles and must not be pooled into a higher display rate. This short control
 establishes the software capture route, not full cadence, scanout, optical/input latency,
-alignment, GPU critical path or M01 acceptance. See [upstream CLI semantics](https://github.com/GameTechDev/PresentMon/blob/v2.6.0/README-ConsoleApplication.md).
+alignment, GPU critical path or M01 acceptance. `role_correlation_verified` describes only exact
+mapping; it does not grant a performance pass. The short Intel Q02 control retains 85 editor
+and 20 output drops per 480 Presents despite all native calls being accepted. Preserve this
+failure and investigate its cause before claiming cadence. See the
+[role evidence](../../../docs/progress/mapgyver-m01-native-feasibility.md#exact-nativeetw-role-correlation-and-4k-displayed-drops--2026-10-28)
+and [upstream CLI semantics](https://github.com/GameTechDev/PresentMon/blob/v2.6.0/README-ConsoleApplication.md).
 
 ## Correlated source/renderer timing
 

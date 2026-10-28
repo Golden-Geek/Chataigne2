@@ -6,7 +6,7 @@ use crate::{
     frame_admission::{FinalReport, FrameAdmission},
     observer::protocol::{Checkpoint, CompositePhase, generation_marker},
     presentation::PhysicalRect,
-    presenter::{AdmissionReport, Presenter, Target},
+    presenter::{AdmissionReport, Presenter, Role, Target, TraceReport},
     quad::Quad,
     resources::{ProcessSnapshot, ResourceSample, SceneCheckpoint, Stage},
     source_worker::{self, Source},
@@ -23,6 +23,7 @@ use std::time::{Duration, Instant};
 #[derive(Serialize)]
 pub struct GenerationReport {
     pub generation: u32,
+    pub swapchains: [TraceReport; 2],
     pub end: GenerationEnd,
     pub adapter_luid: String,
     pub elapsed_seconds: f64,
@@ -68,8 +69,8 @@ pub fn run(session: &Session, state: &mut RunState, generation: u32) -> ProbeRes
         return Err("selected adapter changed during recreation".into());
     }
     let quad = Quad::new(&gpu)?;
-    let mut editor = Presenter::new(&gpu, session.editor)?;
-    let mut output = Presenter::new(&gpu, session.output)?;
+    let mut editor = Presenter::new(&gpu, session.editor, Role::Editor)?;
+    let mut output = Presenter::new(&gpu, session.output, Role::NativeOutput)?;
     let sample = (state.start + Duration::from_secs(u64::from(spec.warmup_seconds())))
         ..(state.start + Duration::from_secs(u64::from(spec.total_seconds())));
     let mut inputs = [
@@ -362,6 +363,7 @@ pub fn run(session: &Session, state: &mut RunState, generation: u32) -> ProbeRes
     let status = shared.status.lock().map_err(|_| "probe status poisoned")?.clone();
     let consumer_checkpoint = state.observer.generation_result(generation);
     let admission_editor_output = [editor.admission(), output.admission()];
+    let swapchains = [editor.trace()?, output.trace()?];
     drop(sender);
     drop(editor);
     drop(output);
@@ -401,6 +403,7 @@ pub fn run(session: &Session, state: &mut RunState, generation: u32) -> ProbeRes
     }
     Ok(GenerationReport {
         generation,
+        swapchains,
         end,
         adapter_luid: gpu.adapter.luid.clone(),
         elapsed_seconds: generation_start.elapsed().as_secs_f64(),

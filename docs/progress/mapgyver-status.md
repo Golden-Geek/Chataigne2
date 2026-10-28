@@ -4,16 +4,15 @@
 
 **Updated: 2026-10-28 · Overall: `██░░░░░░░░░░░░░░░░░░` 10% · 1/10 phases complete**
 
-**Current topic:** M01 native feasibility — cross-adapter card accuracy and displayed-frame capture.
-Intel/NVIDIA fixed procedural/authored cards pass across processes and the real bridge at
-1080p/4K. A short official PresentMon capture now records two unlabeled compositor streams.
+**Current topic:** M01 native feasibility — exact native/ETW role correlation and observed 4K drops.
+Two short Intel captures identify editor/output records by PID, interface address and Present QPC.
+The 4K sample retains 85 editor and 20 output drops despite 480 accepted Presents per role.
 Broader display, timing, lifecycle and retirement qualification remains open.
 
-**Next:** publish the prepared source/evidence checkpoint, then correlate swapchains to native
-editor/output roles, retain loss evidence and collect
+**Next:** investigate the 4K displayed drops and collector loss observability, then collect the
 sustained displayed-frame series and complete preview/lifecycle/resource checks. **Blocker:**
-physical alignment/latency and role-qualified display evidence remain missing. The administrator
-ETW route works; M02 still waits for the complete M01 feasibility decision.
+the cause of those drops, physical alignment/latency and full displayed cadence remain unverified.
+The administrator ETW route and short role mapping work; M02 still waits for the complete M01 decision.
 
 | Phase | State | Progress | Done / total items |
 | --- | --- | --- | --- |
@@ -65,12 +64,12 @@ formatters and whitespace checks pass. Native sources remain unchanged from thei
 52-test checkpoint, so no new native build or hardware result is inferred. This checkpoint
 also leaves M01 at 1/8 and overall progress at 1/10.
 
-Delivery is pending: automatic approval review rejected `git push --set-upstream origin mapgyver`
-because publishing the repository to the external origin requires explicit confirmation of the
-destination and payload. The configured origin is `git@github.com:Golden-Geek/Chataigne2.git`;
-the remote branch check succeeded and found no existing `mapgyver` branch. Local commits are
-retained; confirm publication of these checkpoints to `origin/mapgyver` before retrying. This
-delivery blocker is separate from the unchanged M01 acceptance blockers above.
+Publication of the baseline and follow-up checkpoint is now verified: the remote query returns
+`8e4615b5025fb82418cd8939441c3b5bf8040a01` for `refs/heads/mapgyver` at
+`git@github.com:Golden-Geek/Chataigne2.git`. This external publication clears the earlier
+automatic-review rejection; this agent did not perform that push. The branch was fetched and
+its upstream established before starting the role-correlation batch. The new diagnostic
+checkpoint follows that published baseline and must be delivered before the next batch.
 
 ### M01 acceptance items
 
@@ -78,10 +77,10 @@ delivery blocker is separate from the unchanged M01 acceptance blockers above.
 | --- | --- | --- |
 | D3D11/Spout ownership, two sources, resize/restart smoke | Done | Limited native smoke accepted; production supervision belongs to later delivery and full Q01/Q02 remains below. |
 | Ordinary underlay, DOM layering/clipping/input | Open | Primary/secondary native sequences recorded; complete configuration and latency coverage remains. |
-| Native rectangle output and composited Spout send | Open | Intel fixed procedural/Spout cards pass; native preview/output visual accuracy and 4K scanout remain. |
+| Native rectangle output and composited Spout send | Open | Intel/NVIDIA fixed procedural/Spout cards pass; native preview/output visual accuracy and 4K scanout remain. |
 | Mixed DPI, negative origins, drag/resize/docking/zoom | Open | 100%/125% observations recorded; 150%/200%, negative origins and measured alignment remain. |
 | Minimized/disconnected-editor independence | Open | Intel/NVIDIA busy/blank-document continuity and reconnect pass at recorded fingerprints; full displayed/minimized qualification remains. |
-| Color/alpha, copies, cadence/latency, queues and memory | Open | Intel/NVIDIA fixed procedural/authored cards pass through independent processes and the bridge; short compositor capture works. Roles, sustained cadence, other routes/lifecycle cards, GPU critical path, scanout and resources remain. |
+| Color/alpha, copies, cadence/latency, queues and memory | Open | Intel/NVIDIA fixed procedural/authored cards pass through independent processes and the bridge; short Intel compositor records match native roles exactly. 4K editor/output drops remain observed; sustained cadence, other routes/lifecycle cards, GPU critical path, scanout and resources remain. |
 | Device recreation, sustained retirement and shutdown | Open | Controlled rebuilds recorded; complete Q05, physical retirement, real removal/reset and full-process shutdown remain. |
 | Production host/backend/binding decision | Open | D3D11/sys binding and ordinary underlay remain provisional pending the full gate. |
 
@@ -98,8 +97,8 @@ The user explicitly requested implementation over successive turns on 2026-10-27
 a MapGyver branch. `mapgyver` was created from `137c9203` with the existing dirty checkout intact,
 then externally fast-forwarded from `main` to the Chataigne P11 checkpoint `40acd67d` during M00.
 The checkout was reconciled at external checkpoint `73548569` (`Checkpoint MapGyver baseline
-and partial native feasibility`). The subsequent NVIDIA/PresentMon source/evidence checkpoint
-preserves that baseline; remote publication remains pending as recorded above.
+and partial native feasibility`). The subsequent NVIDIA/PresentMon checkpoint `8e4615b5`
+is now verified at `origin/mapgyver`; this diagnostic batch starts from that published baseline.
 M00 delivers the baseline tooling and fixed qualification contract. M01 owns an isolated native
 Spout/D3D11 harness with locked Tauri/Svelte underlay/output windows, an independent consumer,
 source-worker GPU bridges, bounded admission/retirement and lossless timing/resource evidence.
@@ -111,8 +110,12 @@ and the real source-worker bridge, with no exclusions and maximum component erro
 a fixed 2/255 tolerance. Producers upload only one 32-byte uniform each, with no CPU pixel
 uploads. Matching authored-image controls share the same native checkpoint and captured wrapper. This establishes
 fixed-card shader/transfer accuracy. NVIDIA now passes the same four cases on identical native
-inputs. A short PresentMon route control records real compositor events without assigning native
-roles or qualifying physical displays. Animated/lifecycle, previews and full performance remain open.
+inputs. Those captures retain their exact earlier binary. The new diagnostic release reports
+ephemeral presenter identities only in CLI generation reports; product DTOs/UI/persistence remain
+unchanged. Short Intel Q01/Q02 traces match every raw row to editor/output roles using exact
+PID, queried DXGI aliases and Present-QPC bounds. Q02 retains 85/20 drops out of 480 Presents
+per role despite native accepted-call counts of 480/480. Role mapping is verified; physical
+displays, animated/lifecycle, previews and full performance remain open.
 The earlier lifecycle build
 verifies Intel/NVIDIA output through >60-second busy and blank-document windows, then fresh
 preview reconnect. Those captures and startup-invalid markers retain their exact earlier inputs.
@@ -187,9 +190,11 @@ M02 depends on this gate; do not build production editors/shell around an unqual
 - Investigate private retention with controlled ownership/thread/report-data comparisons,
   preserving the warmed generation-10 baseline and every live peak. The later relative-growth
   pass has a higher absolute peak and cannot establish a memory repair. Full Q05 remains open.
-- ETW session creation now passes outside the sandbox under the administrator account
-  (`start_status: 0`, `stop_status: 0`); the sandbox account still returns access denied (5).
-  Use the working host execution path for the collector and verify actual provider/event access.
+- ETW provider/event capture and short native role correlation now work outside the sandbox
+  under the administrator account. Preserve the Q02 editor/output drops (85/20 of 480 Presents
+  each) and investigate their cause before claiming cadence. Keep native accepted calls distinct
+  from software display observations, and obtain independent collector-loss evidence. The
+  sandbox account still returns access denied (5). Use the working host execution path.
   The development account is already a Performance Log Users member; non-elevated access after
   a fresh Windows sign-in remains unverified. See [ETW access evidence](evidence/mapgyver-m01-etw-access-2026-10-28.json).
   Empty-session success, one-frame DXGI queue limits, accepted Present counts and consumer
@@ -229,6 +234,20 @@ behavior is unchanged. No production host/backend/binding decision is final yet.
 
 ## M01 verification — 2026-10-28
 
+- [Exact native-role analysis](evidence/mapgyver-m01-presentmon-role-analysis-2026-10-28.json)
+  verifies short Intel [Q01](evidence/mapgyver-m01-presentmon-role-intel-q01-2026-10-28.json)
+  and [Q02](evidence/mapgyver-m01-presentmon-role-intel-q02-2026-10-28.json) captures on one
+  new release fingerprint. All 2,368 raw CSV rows match queried native addresses and Present-QPC
+  lifetimes, with separate editor/output summaries; each retains a display tail beyond the
+  recorded Present interval. Q02 preserves 85 editor/20 output drops despite 480 accepted Presents per role.
+  No collector loss is reported; independent zero loss, physical outputs and sustained cadence
+  stay unverified. Both owned sessions are absent, native/collector exit 0 and no owned probe
+  remains. Independent review recomputes raw streams, reports and analyses exactly. Fifty-two
+  deterministic Rust tests, strict desktop Clippy and 54 Python tests pass. Generated UI bindings
+  match; actual root/Core formatters, their checks and whitespace checks pass. All 116 evidence
+  JSON files parse, 213 local links in the three updated docs resolve and all 75 Rust sources
+  stay below 1,000 lines. Final captured input fingerprints still match. M01 stays 1/8 (13%);
+  overall stays 1/10 (10%).
 - [NVIDIA/PresentMon handoff audit](evidence/mapgyver-m01-nvidia-presentmon-handoff-2026-10-28.json)
   verifies eight exact card captures, the first official trace/analysis, source epochs, packet
   integrity, bindings, guardrails and cleanup. All 44 Python tests pass. The unchanged native
@@ -247,8 +266,9 @@ behavior is unchanged. No production host/backend/binding decision is final yet.
   480 Presents/Display observations per chain, no reported drops or missing display timing.
   Shared compositor timestamps are identical and cannot be pooled as independent physical
   cycles. Recorded interval p99/max 20.8141/20.8759 ms remain; no timing budget passes by inference.
-  No loss is reported; independent zero-loss proof, roles, sustained series and physical latency
-  remain open. The owned session is absent after exit; the existing Intel service stays running.
+  No loss is reported; that historical capture has no native role metadata. Independent zero-loss
+  proof, sustained series and physical latency remain open. The owned session is absent after
+  exit; the existing Intel service stays running.
   The vendor silent failure and help-preflight failure remain preserved separately.
 - [ETW access recheck](evidence/mapgyver-m01-etw-access-2026-10-28.json): after the user's
   administrator VS Code relaunch, the release probe creates and stops its empty owned session
