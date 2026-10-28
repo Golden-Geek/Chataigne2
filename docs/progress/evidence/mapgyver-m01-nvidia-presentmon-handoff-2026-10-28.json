@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "nvidia_accuracy_and_first_presentmon_route_handoff_not_full_m01",
+  "eight_native_accuracy_captures_exact_and_verified": true,
+  "nvidia_initial_rounding_archive_verified": true,
+  "native_executable_sha256": "ad04cf11b7778a52a9fbcc3a224266af700326f9a601d7252154a17131eb1e72",
+  "transport_old_wrapper_sha256": "aeb0f212b0ea8941a746616b13487a42c3631f9ad882a62516c9cf2fb16d9d22",
+  "transport_current_wrapper_sha256": "4a575e66bcbf07a21a66affdfec710cc202810d16a9403255ae20d253cb3bd2c",
+  "nvidia_analysis_sha256": "36dde1c6e546132e41f3b7b9d1890891f1629e12d6607cf9bcfb22d1d9f714fd",
+  "presentmon_analysis_sha256": "cbe0722294d8aba57a2f2c878fb109ad721b82de3168a1d2c58b22c6e2ae0b3e",
+  "official_capture_route_verified": true,
+  "raw_presentmon_rows": 1192,
+  "swapchains_unlabeled": 2,
+  "shared_compositor_timestamps_not_independent_outputs": true,
+  "loss_observation": "No loss reported; independently verified zero remains false",
+  "python_tests_passed": 44,
+  "deterministic_rust_checks_reused": 52,
+  "rust_check_reuse": "Exact unchanged native sources/assets/executable from prior 52-test checkpoint; this turn changes Python/recording/docs only.",
+  "generated_bindings_match": true,
+  "actual_root_core_formatters_run": true,
+  "checks": [
+    {
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--manifest-path",
+        "crates/golden_core/Cargo.toml",
+        "--",
+        "--check"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0
+    }
+  ],
+  "local_doc_links_checked": 333,
+  "rust_source_limits_checked": 74,
+  "tool_whitespace_files_checked": 112,
+  "owned_probe_capture_processes_remaining": 0,
+  "existing_intel_service_pid_unchanged": 5864,
+  "original_nvidia_overlay_off_preserved": true,
+  "settings_changed": false,
+  "checkout_head": "73548569440f84f3ff010a3ac4c3edae5d619c4d",
+  "dashboard": {
+    "overall_complete_phases": 1,
+    "total_phases": 10,
+    "overall_percent": 10,
+    "m01_closed_items": 1,
+    "m01_total_items": 8,
+    "m01_percent": 13
+  },
+  "scope": "Fixed-card accuracy on both GPUs and a short official PID/compositor event route. Native roles/physical outputs, sustained display series, optical/input latency, alignment, full GPU critical path and retirement remain open."
+}

@@ -627,6 +627,12 @@ fail validation. Pacing changes collection transport only; no native sample is s
 
 ## Finite authored-card accuracy
 
+The accuracy wrapper emits checksummed gzip/base64 packets by default through the shared
+qualification codec. Keep packets opaque when passing through JavaScript: NVIDIA GPU timestamp
+integers can exceed its exact-number range. Decode with the Python runner helper for analysis.
+`--encoding json` is available for consumers that preserve unsigned integers; do not parse and
+reprint decoded reports through JavaScript's `number` type.
+
 ```powershell
 python tools/mapgyver/run-color-accuracy.py 0 q01 --nvidia-overlay on
 python tools/mapgyver/run-color-accuracy.py 0 q02 --nvidia-overlay on
@@ -668,7 +674,8 @@ The normal `source_worker` implementation owns both ingest devices, three-slot h
 retirement; no bridge implementation is copied into the diagnostic. Each producer uploads its
 immutable authored image once and republishes its GPU texture. Only the consumer performs the
 single full-image map and CPU comparison. Private child pipes carry bounded typed control and
-reports, never frame pixels or native handles. Distinct child identities, selected adapter,
+reports, never full-image payloads or native handles; failures contain at most sixteen diagnostic
+pixel differences. Distinct child identities, selected adapter,
 full-image coverage, per-publication GPU-copy costs, reader release and successful child exits
 are verified before success. A native pixel mismatch remains a failed report with its counts
 and first sixteen differences; it cannot disappear as an empty successful child result.
@@ -738,6 +745,40 @@ remain available. The finite busy loop exists only as this explicit qualificatio
 
 Build the UI bundle before desktop Rust builds/checks; Vite replaces `dist` while building,
 and Tauri embeds those assets at compile time. Do not run those dependent operations in parallel.
+
+## PID-filtered PresentMon route control
+
+`capture-presentmon.py` owns a separate short capture around the existing eight-second sample
+and two-second warmup. It uses the pinned official portable executable under the ignored
+`target/qualification-tools/presentmon-2.6.0/` directory; it installs no service. Obtain it from
+the [official release](https://github.com/GameTechDev/PresentMon/releases/expanded_assets/v2.6.0)
+and verify SHA256 `b2a706bc6ad475749e3b7e3409263aa1e6906d45bdcf993f6dbc0f660188f1af` before use.
+The tested asset also has a valid Intel Corporation Authenticode signature. Recreate this
+ignored dependency after cleaning `target`; it is not bundled with an app artifact.
+
+```powershell
+python tools/mapgyver/capture-presentmon.py 0 q01
+```
+
+Run through the verified administrator host path. The helper creates a fresh UUID session,
+filters output to the spawned renderer PID, requests legacy CSV with raw Present-start QPC,
+keeps dropped rows and disables input tracking. It drains native/CSV pipes concurrently and
+captures twelve seconds around the nominal ten-second native control. Raw rows outside the
+exact native sample window remain available. Timeout cleanup is scoped
+only to that invocation's generated session name; existing services/default/foreign sessions
+are never selected. No elevation/group/security setting is changed. The installed FrameView
+fork exited silently on this command and remains preserved as failed evidence; it is not the
+default capture tool. An explicit `--presentmon PATH` allows a separately fingerprinted tool.
+
+`presentmon_data.py` validates the observed v1 schema and exact PID/QPC values. It separates
+Present-window drop counts from Display-window intervals, retaining pre-window predecessors
+and missing/zero timing rather than inventing zero cost. Swapchains remain **unlabeled** until
+native role correlation is verified. All raw CSV/native stdout and input/tool hashes are kept
+in checksummed compressed evidence. Absence of loss warnings means only **no loss reported**; explicit
+zero loss is not independently verified. Shared compositor timestamps are not independent
+physical-output cycles and must not be pooled into a higher display rate. This short control
+establishes the software capture route, not full cadence, scanout, optical/input latency,
+alignment, GPU critical path or M01 acceptance. See [upstream CLI semantics](https://github.com/GameTechDev/PresentMon/blob/v2.6.0/README-ConsoleApplication.md).
 
 ## Correlated source/renderer timing
 

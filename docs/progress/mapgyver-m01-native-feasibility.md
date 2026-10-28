@@ -5,6 +5,83 @@ from MapGyver's product systems. M01 is **in progress**, not a presentation-arch
 See the [ledger](mapgyver-status.md), [qualification contract](mapgyver-qualification-contract.md)
 and [harness commands/ownership](../../tools/mapgyver/native-probe/README.md).
 
+## NVIDIA procedural/authored accuracy and exact evidence transport — 2026-10-28
+
+NVIDIA adapter 1, RTX 5080 Laptop GPU, LUID `00000000:000170d3`, now has the same fixed-card
+process/bridge checks as Intel. All cases compare every component of every output pixel with
+no exclusions, fixed tolerance 2/255 and maximum observed BGRA error 1/255.
+
+| NVIDIA case | Pixels compared | Outside tolerance | Producer CPU pixel uploads |
+| --- | --- | --- | --- |
+| [Procedural 1080p](evidence/mapgyver-m01-procedural-card-nvidia-q01-2026-10-28.json) | 2,073,600 | 0 | 0 |
+| [Procedural 4K](evidence/mapgyver-m01-procedural-card-nvidia-q02-2026-10-28.json) | 8,294,400 | 0 | 0 |
+| [Authored 1080p](evidence/mapgyver-m01-procedural-authored-control-nvidia-q01-2026-10-28.json) | 2,073,600 | 0 | 2 initial images |
+| [Authored 4K](evidence/mapgyver-m01-procedural-authored-control-nvidia-q02-2026-10-28.json) | 8,294,400 | 0 | 2 initial images |
+
+Procedural producers draw once with 32 uniform bytes each; only the independent consumer maps
+one full image. The real source-worker pools stay within three surfaces, GPU-copy totals match
+publications, renderer SDK receives/readbacks are zero, children exit/reap and all six logical
+texture ledgers drain. [Cross-adapter analysis](evidence/mapgyver-m01-card-accuracy-nvidia-analysis-2026-10-28.json)
+verifies all eight Intel/NVIDIA captures against identical native source/assets/executable
+`ad04cf11b7778a52a9fbcc3a224266af700326f9a601d7252154a17131eb1e72`.
+
+[Native settings observations](evidence/mapgyver-m01-card-accuracy-nvidia-conditions-2026-10-28.json)
+record an already-Off overlay at 09:19:55 UTC and Off at 09:22:32. It remains Off;
+no overlay setting was changed or restored to an older value. No desktop capture occurs during
+measurement. This supersedes the older On-restoration observation for current state.
+
+The audit caught rounded large NVIDIA GPU timestamp integers in the initial JavaScript-saved
+parsed reports. [Those initial copies remain preserved](evidence/mapgyver-m01-nvidia-card-initial-serialization-2026-10-28.json).
+The canonical captures above were restored from exact original runner stdout, with no native
+rerun or measurement change; parsed reports now equal their original native JSON exactly.
+The wrapper now defaults to checksummed gzip/base64 so large integers remain opaque to
+JavaScript. Its earlier bytes are pinned to commit `73548569`; analysis records the old/new
+wrapper hashes and verifies that this transport change is the only native-input-map difference.
+Tests preserve a GPU timestamp above 2^53 and its adjacent integer exactly.
+
+Both adapters now pass fixed procedural/authored-card accuracy through this process/bridge
+route. Animated/lifecycle cases, native previews/physical outputs, sustained timing/GPU critical
+path and physical retirement remain open. No complete M01 acceptance item closes.
+
+## First PresentMon provider/event route — 2026-10-28
+
+The [official portable 2.6.0 asset](https://github.com/GameTechDev/PresentMon/releases/expanded_assets/v2.6.0)
+matches published SHA256 `b2a706bc6ad475749e3b7e3409263aa1e6906d45bdcf993f6dbc0f660188f1af`
+and has a valid Intel Corporation Authenticode signature. It is an ignored workspace tool,
+not an installed service. The [capture](evidence/mapgyver-m01-presentmon-intel-official-route-2026-10-28.json)
+records renderer PID 46748, exact-PID filtering, a fresh owned UUID session, twelve seconds
+around a nominal 8+2-second Intel Q01 control, legacy CSV/QPC and disabled input tracking.
+Native and collector exit 0; both output pipes are drained concurrently and all raw rows remain.
+
+There are 1,192 CSV rows: 596 each for two **unlabeled** `DXGI Composed: Flip` swapchains.
+The exact eight-second Present window `[1801629597025, 1801709597025)` at 10,000,000 ticks/s
+has 480 Present records per chain, no reported drops and no unavailable display timing.
+Each Display window has 480 events/intervals, including its retained pre-window predecessor.
+Derived intervals exactly match `msBetweenDisplayChange`: p95 16.9752 ms, p99 20.8141 ms,
+maximum 20.8759 ms. These tails remain recorded; no budget is relaxed or qualification inferred.
+All 596 paired display timestamps are identical across the two chains. They are shared
+compositor observations, not 960 independent display cycles or identified physical outputs.
+
+No event/buffer loss is reported; zero loss is not independently verified. The unique session
+is absent after normal exit, and the pre-existing Intel collector service remains running.
+No default/foreign session or security/group setting is changed. Exact sample clipping,
+integer QPC, missing/zero timing, dropped rows and unlabeled chains have focused parser tests.
+This establishes the software provider/event capture route, not full displayed-cadence series,
+optical/input latency, alignment, native role attribution or the source-to-output GPU critical path.
+
+The [installed FrameView fork attempt](evidence/mapgyver-m01-presentmon-intel-initial-2026-10-28.json)
+remains a failed record: native control succeeds, but that collector exits 1 with empty streams.
+The host token is high integrity, native session creation/stop passes, and no failed owned
+session remains; the fork's failure cause is unproven. The earlier
+[help preflight failure](evidence/mapgyver-m01-presentmon-help-preparation-2026-10-28.json)
+also remains: valid help exits 1 on stderr; the helper now validates advertised flags instead
+of assuming help must exit 0. No probe/session was launched by that preparation failure.
+
+The first official capture's outer scope text still says "vendor" from the initial helper;
+its executable hash/path identify the official asset. The label/default were corrected for
+future use. [Exact historical helper bytes](evidence/mapgyver-m01-presentmon-first-route-helper-source-2026-10-28.json)
+pin the first capture's implementation. See [capture ownership/commands](../../tools/mapgyver/native-probe/README.md#pid-filtered-presentmon-route-control).
+
 ## ETW access after administrator relaunch — 2026-10-28
 
 The user relaunched VS Code as administrator and reported a successful preflight. A native
@@ -1559,7 +1636,7 @@ physical scanout or unknown driver/desktop copies. Production/runtime/protocol c
 | Native rectangle output and composited Spout send | Exact Q01/Q02 client/preview extents and narrow color/alpha/lifecycle checks pass on both GPUs; visual/native output, 4K scanout and full reference-card checks remain open |
 | Mixed DPI, negative origins, drag/resize/docking/zoom | 125%→100% monitor transition, primary/secondary sequences and WebView zoom checks observed; OS 150%/200%, negative origins and quantitative alignment remain open |
 | Minimized/disconnected-editor independence | Hidden-tab and separate minimized-editor intervals exceed 60 seconds with independent native output visual/submission progress; freshness, busy/disconnected cases and displayed cadence remain open |
-| Alpha/color cards, copies, frame age/cadence, queues and memory budgets | Repaired NVIDIA Q01/Q02 each complete three 30+120-second release samples with full sampled call/context-timing coverage and scoped CPU/consumer-age targets met. Source-A warmup admission pressure persists. Earlier Intel stalls remain retained for their exact inputs. Full GPU critical path, current-variant Intel series, displayed cadence/physical latency, physical residency, SDK-internal copies, full cards and remaining configurations stay open; ETW empty-session preflight now passes outside the sandbox with the administrator token, while actual provider/event capture remains unverified |
+| Alpha/color cards, copies, frame age/cadence, queues and memory budgets | Repaired NVIDIA Q01/Q02 each complete three 30+120-second release samples with full sampled call/context-timing coverage and scoped CPU/consumer-age targets met. Source-A warmup admission pressure persists. Earlier Intel stalls remain retained for their exact inputs. Fixed procedural/authored cards now pass on both adapters. A short official PresentMon capture retains two unlabeled chains and 1,192 compositor rows; shared timestamps do not prove independent physical cycles, and zero loss remains unverified. Full GPU critical path, current-variant Intel series, role-qualified sustained displayed cadence/physical latency, physical residency, SDK-internal copies, lifecycle/preview cards and remaining configurations stay open |
 | Device recreation, sustained retirement and shutdown budgets | Repaired NVIDIA control retires 101 renderer/202 ingest scopes across 100 rebuilds with ten-second live settling and 0.531-second scoped teardown. Handles stay within ten; private growth 47.926 MiB fails the 32-MiB target. Earlier smaller-stack passes retain their exact fingerprints. Full Q05, physical retirement, complete-process/WebView shutdown and genuine removal/reset remain open |
 | Production host/backend/binding decision | OPEN: D3D11 plus the sys binding is exercised provisionally; ordinary underlay must pass or trigger DirectComposition investigation |
 

@@ -55,6 +55,40 @@ def process_report(scenario="q01", procedural=False):
 
 
 class ColorAccuracyTests(unittest.TestCase):
+    def test_main_defaults_to_compressed_evidence_and_preserves_native_gpu_ticks(self):
+        ticks = 1793179248040840928
+        sample = report()
+        sample["devices"][0]["gpu_timing"] = {"start_ticks": ticks, "end_ticks": ticks + 1}
+        native_stdout = json.dumps(sample)
+        inventory = [dict(index=0, software=False, description="Intel Graphics", luid="intel")]
+        namespace = RUNNER["main"].__globals__
+        for encoding_args in ([], ["--encoding", "json"]):
+            args = RUNNER["parse_args"](["0", "q01", *encoding_args])
+            results = [subprocess.CompletedProcess([], 0, json.dumps(inventory).encode(), b""),
+                       subprocess.CompletedProcess([], 0, native_stdout.encode(), b"")]
+            output = io.StringIO()
+            with mock.patch.dict(namespace, parse_args=lambda: args,
+                                 fingerprints=lambda executable: {"unchanged": True}), \
+                    mock.patch.object(namespace["platform"], "platform", return_value="test-platform"), \
+                    mock.patch.object(namespace["platform"], "machine", return_value="test-machine"), \
+                    mock.patch.object(subprocess, "run", side_effect=results), \
+                    contextlib.redirect_stdout(output):
+                code = RUNNER["main"]()
+            self.assertEqual(code, 0)
+            packet = json.loads(output.getvalue())
+            if not encoding_args:
+                self.assertEqual(args.encoding, "gzip-base64")
+                self.assertEqual(packet["encoding"], "gzip-base64")
+                self.assertNotIn(str(ticks), output.getvalue())
+                evidence = RUNNER["BASE"]["decode_evidence"](packet)
+            else:
+                self.assertEqual(args.encoding, "json")
+                evidence = packet
+            self.assertEqual(evidence["run"]["stdout"], native_stdout)
+            timing = evidence["run"]["report"]["devices"][0]["gpu_timing"]
+            self.assertEqual(timing, {"start_ticks": ticks, "end_ticks": ticks + 1})
+            self.assertIs(type(timing["start_ticks"]), int)
+
     def test_process_route_requires_distinct_reaped_children_and_real_drained_bridge_work(self):
         sample = process_report()
         self.assertTrue(RUNNER["validate_report"](sample,"q01",processes=True)["passed"])

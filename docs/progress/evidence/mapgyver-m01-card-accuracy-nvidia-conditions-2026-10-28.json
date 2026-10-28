@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "nvidia_card_accuracy_overlay_observations",
+  "observations": [
+    {
+      "utc": "2026-10-28T09:19:55.567Z",
+      "overlay": "Off",
+      "source": "NVIDIA Settings screenshot: gray NVIDIA overlay switch; toolbar Enable and open overlay",
+      "screenshot_id": "screenshot-0"
+    },
+    {
+      "utc": "2026-10-28T09:22:32.837Z",
+      "overlay": "Off",
+      "source": "NVIDIA Settings screenshot: gray NVIDIA overlay switch; toolbar Enable and open overlay",
+      "screenshot_id": "screenshot-0"
+    }
+  ],
+  "original_overlay": "Off",
+  "final_overlay": "Off",
+  "overlay_setting_changed": false,
+  "original_state_preserved": true,
+  "screenshot_payloads_retained": false,
+  "scope": "Native settings observations bracket four finite NVIDIA accuracy runs; no desktop capture during measurement"
+}

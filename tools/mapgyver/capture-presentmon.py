@@ -1,0 +1,172 @@
+"""Bounded PID-filtered PresentMon route control; not full timing/scanout qualification."""
+
+import argparse
+import base64
+import concurrent.futures
+import datetime
+import hashlib
+import json
+from pathlib import Path
+import platform
+import runpy
+import subprocess
+import sys
+import uuid
+
+ROOT = Path(__file__).resolve().parents[2]
+BASE = runpy.run_path(str(Path(__file__).with_name("run-qualification.py")))
+PRESENTMON = ROOT / "target/qualification-tools/presentmon-2.6.0/PresentMon-2.6.0-x64.exe"
+PRESENTMON_SHA256 = "b2a706bc6ad475749e3b7e3409263aa1e6906d45bdcf993f6dbc0f660188f1af"
+
+
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("adapter", type=int)
+    parser.add_argument("scenario", choices=("q01", "q02"))
+    parser.add_argument("--presentmon", type=Path, default=PRESENTMON)
+    parser.add_argument("--nvidia-overlay", choices=("on", "off", "unknown"), default="unknown")
+    args = parser.parse_args(argv)
+    if args.adapter < 0:
+        parser.error("adapter must be nonnegative")
+    return args
+
+
+def digest(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def fingerprints(executable, presentmon):
+    result = BASE["fingerprints"](executable)
+    for name in ("capture-presentmon.py", "presentmon_data.py"):
+        path = Path(__file__).resolve().with_name(name)
+        result["files"][path.relative_to(ROOT).as_posix()] = digest(path)
+    result["presentmon_sha256"] = digest(presentmon)
+    return result
+
+
+def decode(data):
+    return data.decode("utf-8-sig", errors="replace")
+
+
+def communicate(process, seconds, presentmon=None, session=None):
+    cleanup = None
+    try:
+        stdout, stderr = process.communicate(timeout=seconds)
+        timed_out = False
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        if presentmon is not None:
+            # Only this invocation's freshly generated UUID is eligible for timeout cleanup.
+            # Never stop the default session, an installed service, or a user-supplied name.
+            cleanup_command = [str(presentmon), "--session_name", session, "--terminate_existing_session"]
+            try:
+                stopped = subprocess.run(cleanup_command, capture_output=True, timeout=5)
+                cleanup = dict(command=cleanup_command, exit_code=stopped.returncode,
+                               stdout=decode(stopped.stdout), stderr=decode(stopped.stderr))
+            except (OSError, subprocess.SubprocessError) as error:
+                cleanup = dict(command=cleanup_command, failure=str(error))
+        if process.poll() is None:
+            process.kill()
+        stdout, stderr = process.communicate(timeout=5)
+    valid_utf8 = True
+    try:
+        stdout.decode("utf-8-sig")
+        stderr.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        valid_utf8 = False
+    return dict(exit_code=process.returncode, stdout=decode(stdout), stderr=decode(stderr),
+                valid_utf8=valid_utf8,
+                original_bytes_base64=(None if valid_utf8 else dict(stdout=base64.b64encode(stdout).decode("ascii"),
+                                                                   stderr=base64.b64encode(stderr).decode("ascii"))),
+                timed_out=timed_out, timeout_cleanup=cleanup,
+                stdout_bytes=len(stdout), stdout_sha256=hashlib.sha256(stdout).hexdigest(),
+                stderr_bytes=len(stderr), stderr_sha256=hashlib.sha256(stderr).hexdigest())
+
+
+def collect(args, evidence):
+    executable = ROOT / "target/release/mapgyver_native_probe.exe"
+    session = "MapGyver-M01-Present-" + uuid.uuid4().hex
+    evidence.update(schema_version=1, evidence_kind="short_presentmon_capture_route_not_full_timing_qualification",
+                    started_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                    session_name=session, native_sample_seconds=8, native_warmup_seconds=2,
+                    presentmon_timed_seconds=12, declared_nvidia_overlay_state=args.nvidia_overlay,
+                    environment=dict(platform=platform.platform(), machine=platform.machine()),
+                    scope="PID-filtered PresentMon v1 events; swapchains remain unlabeled; no optical latency, alignment or full GPU-path claim")
+    before = fingerprints(executable, args.presentmon)
+    evidence["inputs"] = before
+    if args.presentmon.resolve() == PRESENTMON.resolve() and before["presentmon_sha256"] != PRESENTMON_SHA256:
+        raise ValueError("default portable PresentMon checksum differs from the pinned official release")
+    help_result = subprocess.run([str(args.presentmon), "--help"], capture_output=True, timeout=5)
+    evidence["presentmon_help"] = dict(exit_code=help_result.returncode, stdout=decode(help_result.stdout), stderr=decode(help_result.stderr))
+    help_text = decode(help_result.stdout) + decode(help_result.stderr)
+    required = ("--process_id", "--session_name", "--output_stdout", "--v1_metrics", "--qpc_time",
+                "--no_console_stats", "--no_track_input", "--timed", "--terminate_after_timed")
+    if help_result.returncode not in (0, 1) or not all(option in help_text for option in required):
+        raise ValueError("installed PresentMon does not advertise all required options")
+    inventory = subprocess.run([str(executable), "inventory"], capture_output=True, check=True, timeout=15)
+    adapters = json.loads(decode(inventory.stdout))
+    selected = [a for a in adapters if a["index"] == args.adapter and a["software"] is False]
+    if len(selected) != 1:
+        raise ValueError("selected hardware adapter missing")
+    if "nvidia" in selected[0]["description"].lower() and args.nvidia_overlay != "off":
+        raise ValueError("NVIDIA requires verified overlay Off before startup")
+    evidence["adapter"] = selected[0]
+    native_command = [str(executable), "qualify", str(args.adapter), args.scenario, "8", "2"]
+    native = subprocess.Popen(native_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=ROOT)
+    evidence["native_command"] = native_command
+    evidence["native_pid"] = native.pid
+    capture_command = [str(args.presentmon), "--process_id", str(native.pid), "--session_name", session,
+                       "--output_stdout", "--v1_metrics", "--qpc_time", "--no_console_stats", "--no_track_input",
+                       "--timed", "12", "--terminate_after_timed"]
+    evidence["capture_command"] = capture_command
+    # Drain both streams concurrently; a full CSV pipe must never throttle the trace consumer.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+        native_result = pool.submit(communicate, native, 70)
+        try:
+            capture = subprocess.Popen(capture_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=ROOT)
+            capture_result = pool.submit(communicate, capture, 30, args.presentmon, session)
+            evidence["presentmon"] = capture_result.result()
+        except (OSError, subprocess.SubprocessError) as error:
+            evidence["presentmon"] = dict(failure=str(error))
+        evidence["native"] = native_result.result()
+    evidence["inputs_unchanged_after_run"] = before == fingerprints(executable, args.presentmon)
+    try:
+        native_run = evidence["native"]
+        capture_run = evidence["presentmon"]
+        if native_run["exit_code"] != 0 or native_run["stderr"] or native_run["timed_out"]:
+            raise ValueError("native control failed or timed out")
+        report = json.loads(native_run["stdout"])
+        if report["render_process_id"] != native.pid:
+            raise ValueError("native report PID mismatch")
+        BASE["compact_resources"](report)
+        evidence["native_report"] = report
+        if capture_run["exit_code"] != 0 or capture_run["timed_out"] or not capture_run["valid_utf8"]:
+            raise ValueError("PresentMon failed or timed out")
+        data = runpy.run_path(str(Path(__file__).with_name("presentmon_data.py")))
+        evidence["analysis"] = data["analyze"](capture_run["stdout"], native.pid, report["observer"]["frame_age"]["config"])
+        evidence["loss_observation"] = data["loss_observation"](capture_run["stdout"], capture_run["stderr"])
+        if not evidence["loss_observation"]["no_loss_reported"]:
+            raise ValueError("PresentMon reported lost data")
+        if not evidence["inputs_unchanged_after_run"]:
+            raise ValueError("capture inputs changed")
+        evidence["route_verified"] = True
+    except (ValueError, KeyError, TypeError) as error:
+        evidence["route_verified"] = False
+        evidence["validation_failure"] = str(error)
+    return evidence
+
+
+def main():
+    args = parse_args()
+    evidence = {}
+    try:
+        collect(args, evidence)
+    except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as error:
+        evidence["route_verified"] = False
+        evidence["preparation_or_collection_failure"] = str(error)
+    print(BASE["encode_evidence"](evidence, "gzip-base64"), flush=True)
+    return 0 if evidence["route_verified"] else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

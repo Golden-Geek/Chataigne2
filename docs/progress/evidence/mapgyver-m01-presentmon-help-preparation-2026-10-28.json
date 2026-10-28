@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "presentmon_vendor_help_preparation_failure_not_native_measurement",
+  "capture_script_sha256": "e2fefd2afdb4acfe5b1f8932d586e7dc330d39cc2f1ede3493ba33447d48d512",
+  "presentmon_sha256": "e8625989d93a9b5353ae5627459ebc3fbfbb353d249411551eb10dde5a1b3b03",
+  "command": "python tools/mapgyver/capture-presentmon.py 0 q01 --nvidia-overlay off",
+  "exit_code": 1,
+  "stderr": "Traceback (most recent call last):\r\n  File \"D:\\Projects\\Dev\\Chataigne2\\tools\\mapgyver\\capture-presentmon.py\", line 160, in <module>\r\n    sys.exit(main())\r\n             ~~~~^^\r\n  File \"D:\\Projects\\Dev\\Chataigne2\\tools\\mapgyver\\capture-presentmon.py\", line 154, in main\r\n    evidence = collect(parse_args())\r\n  File \"D:\\Projects\\Dev\\Chataigne2\\tools\\mapgyver\\capture-presentmon.py\", line 99, in collect\r\n    raise ValueError(\"installed PresentMon help failed\")\r\nValueError: installed PresentMon help failed\r\n",
+  "observed_vendor_help_exit_code": 1,
+  "observed_vendor_help_stream": "stderr",
+  "native_probe_launched": false,
+  "etw_session_started": false,
+  "fix": "Validate the complete required help option set and accept the observed help exit status; preserve preparation failures in the output envelope."
+}

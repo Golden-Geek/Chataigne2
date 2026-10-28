@@ -30,6 +30,7 @@ def parse_args(argv=None):
     parser.add_argument("scenario", choices=("q01", "q02"))
     parser.add_argument("--profile", choices=("release", "debug"), default="release")
     parser.add_argument("--nvidia-overlay", choices=("on", "off", "unknown"), default="unknown")
+    parser.add_argument("--encoding", choices=("json", "gzip-base64"), default="gzip-base64")
     parser.add_argument("--processes", action="store_true", help="use independent producer/consumer children and the source-worker bridge")
     parser.add_argument("--procedural", action="store_true", help="check the actual procedural card shader; requires --processes")
     args = parser.parse_args(argv)
@@ -202,8 +203,9 @@ def collect(args):
 
 
 def main():
-    evidence, exit_code = collect(parse_args())
-    print(json.dumps(evidence, indent=2))
+    args = parse_args()
+    evidence, exit_code = collect(args)
+    print(BASE["encode_evidence"](evidence, args.encoding))
     return exit_code
 
 

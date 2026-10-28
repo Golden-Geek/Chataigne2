@@ -1,0 +1,1313 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "finite_procedural_card_cross_process_bridge_not_timing_qualification",
+  "processes": true,
+  "procedural": true,
+  "started_utc": "2026-10-28T09:20:57.078832+00:00",
+  "command": [
+    "D:\\Projects\\Dev\\Chataigne2\\target\\release\\mapgyver_native_probe.exe",
+    "color-procedural-accuracy",
+    "1",
+    "q02"
+  ],
+  "profile": "release",
+  "declared_nvidia_overlay_state": "off",
+  "environment": {
+    "platform": "Windows-11-10.0.26300-SP0",
+    "machine": "AMD64",
+    "python": "3.14.6"
+  },
+  "timeout_seconds": 120,
+  "inputs": {
+    "executable_sha256": "ad04cf11b7778a52a9fbcc3a224266af700326f9a601d7252154a17131eb1e72",
+    "files": {
+      "Cargo.lock": "286b324f233cd15f2af643272e4f47759fc60ca3d13943204755ec94da10559f",
+      "Cargo.toml": "bd01765f8ba0796d43f9e826a919f3dced1cfba02570c249c9717d9870d9bdd4",
+      "package-lock.json": "46924d87a98b203fa1c66ece5e1fdd8705dc27210c183b481452998cd88be355",
+      "package.json": "15ea200aaaa832d472b173334a6f41d48bfa80d2791600157225eccb22d3ee28",
+      "tools/mapgyver/collect-baseline.ps1": "3cda72ba639594e312ea505e059de697367002c6ccb66bb1f75105a0a4955078",
+      "tools/mapgyver/native-probe/build.rs": "73fb236d28fee0b7d97bcca20a416a9ac938100dcd5164e66b6675753649ab4c",
+      "tools/mapgyver/native-probe/Cargo.toml": "66ba9f7eef570fdfd5efc1158621507cf62b929d5477dff27ab46052aac9b8f0",
+      "tools/mapgyver/native-probe/src/allocation/tests/mod.rs": "f2fc948e7b067ec61bec6ac34cfc32728f02494a3d9b485ea883443276308574",
+      "tools/mapgyver/native-probe/src/allocation.rs": "28c8ac3ef154716ffad312689b950eace694d3b83c26fffe5ff24c7930882fd4",
+      "tools/mapgyver/native-probe/src/bin/generate_probe_bindings.rs": "f39870bfc02fddf8ae37b0138484f2c6db1d4559341d980aa98a36b591b9915a",
+      "tools/mapgyver/native-probe/src/cadence/tests/mod.rs": "3b19d27cb1bf5b18423d8aa37f82d81a93dfc6857fc332747c67e4e3d2aa0b3d",
+      "tools/mapgyver/native-probe/src/cadence.rs": "e07c42631e7d6c63f8ff18b9fe4c4394aef14ac2f076fc5a530cf0fa0a3f55c4",
+      "tools/mapgyver/native-probe/src/card.rs": "6ab0a5e80192c919fb6db5154688ad114bd220ac4fee578748d9bbe254a58ec2",
+      "tools/mapgyver/native-probe/src/child_resources.rs": "cc5dc2562f40de45809484d3593d9c23ebe2034c34d543c65ed810b786c438b0",
+      "tools/mapgyver/native-probe/src/clock.rs": "79cd123256b6cca2c77eba8db1785623d45c2cd5e7c4e4bfe162bb9633dbf8aa",
+      "tools/mapgyver/native-probe/src/color_accuracy/mod.rs": "2333ba64516ebfce747984d95ff3f2607dd489abf1796d91b75455004e7f3915",
+      "tools/mapgyver/native-probe/src/color_accuracy/processes/child.rs": "aa3d4900d322f10c5851b763f36d805b3f325b6b2380887417d2797b847eacbf",
+      "tools/mapgyver/native-probe/src/color_accuracy/processes/client.rs": "e288de583a01e3550c5c35f777b254078b8e778d4c110c35c7919f529fc69fd7",
+      "tools/mapgyver/native-probe/src/color_accuracy/processes.rs": "f0a279f153db02207c5b7b8299e41d1a566ad46c8ba434bfed587c74f52c6347",
+      "tools/mapgyver/native-probe/src/color_accuracy/protocol/tests/mod.rs": "e245d5f88135be2de79407077f6948e16f9a60d5171d371b4b3df2d7883057a0",
+      "tools/mapgyver/native-probe/src/color_accuracy/protocol.rs": "d6e0f5a3777f3a832a165968843dbd642d0d36f8828049602603ec36dbb3d29f",
+      "tools/mapgyver/native-probe/src/color_accuracy/readback.rs": "4bdad01cd5020e16a2d352d335a1f378885a0fa55ec943a516bc79633344507b",
+      "tools/mapgyver/native-probe/src/color_reference/procedural/tests/mod.rs": "f6c848afd047d7388c6fe5817e5bf285f5d85ab7265aab580981888df97a99b6",
+      "tools/mapgyver/native-probe/src/color_reference/procedural.rs": "e00894d5255d0eb3ca10d2f75d23a313e80d92d317204635260694181b88c857",
+      "tools/mapgyver/native-probe/src/color_reference/tests/mod.rs": "7261c129b1157a4b89024b0b292b195a226ab8383cf00cd2a90ced7a20b7b45d",
+      "tools/mapgyver/native-probe/src/color_reference.rs": "e977c9c1fbe9713eeba337049c4ef2a9e460a13a6d003a539a0c771352887841",
+      "tools/mapgyver/native-probe/src/completion.rs": "ad1472a4fe168bf3dae8bfc78b1893fd88927da13b0292aeb0bf0e0304a376a2",
+      "tools/mapgyver/native-probe/src/d3d.rs": "de6d6b2e834bb16224a82d591c92da2ac55370d31bbf559889a22ef881112051",
+      "tools/mapgyver/native-probe/src/desktop.rs": "a67d557b20b33217c967406e1d86d4c2b3f4260e582639b3d784886600eb2ddc",
+      "tools/mapgyver/native-probe/src/editor_isolation/tests/mod.rs": "8803f631a9434763b7c8ef9f843c330300289cef1a82a57f9e14085c6516ea6b",
+      "tools/mapgyver/native-probe/src/editor_isolation.rs": "4b32cd7127d06dba34f3ee4a153d822ad2db4622f91245f4c51c469bf0d9d165",
+      "tools/mapgyver/native-probe/src/fixture/client.rs": "33b456bfa9d9a4ee2d7a49fd8b8fa02cb2d4e543d3938895f1fd92f8ba29a2a4",
+      "tools/mapgyver/native-probe/src/fixture/protocol.rs": "b4756f30153327bb5bd61405d66ef1ddf68c3612b8f32c0d67c4fd30ad3958d0",
+      "tools/mapgyver/native-probe/src/fixture.rs": "18167cc23380dc61fa3b635d8ea33eabcd51792b7f22c5ec9b3ab98e1443a58b",
+      "tools/mapgyver/native-probe/src/frame_admission.rs": "e3316e1d9fad5c868c8bfe89f4d166848915100393b7676fd617f6d74691dcf1",
+      "tools/mapgyver/native-probe/src/frame_age/tests/mod.rs": "26ad9b364663ab21fb1ec5d06b6515d5920fc5208be9d731b1889072f2aee6d9",
+      "tools/mapgyver/native-probe/src/frame_age.rs": "4bbc244ff01cb33fe7689fe7b7a55897a92e07f77059fdacf9811bca843302aa",
+      "tools/mapgyver/native-probe/src/gpu_admission/tests/mod.rs": "80ae0c56653c41b69170d3515a0c9c67de9c42589e8c0868c591ff11fc6da762",
+      "tools/mapgyver/native-probe/src/gpu_admission.rs": "ca17d750c20344e5a8b0915f09c8cb1fd39ebe33297ba061a78aed2a8df400a7",
+      "tools/mapgyver/native-probe/src/gpu_progress.rs": "660db903bb89ea031086f3d10d77e673df37b76262af66173a9b9adee4e92106",
+      "tools/mapgyver/native-probe/src/lib.rs": "1601d51cf6d6dcb0d8f6b5a75b8a9f139657c4a94a7e46a50e6075619a8d35fc",
+      "tools/mapgyver/native-probe/src/main.rs": "3dc94eea575e70de3031abdff5734908f10649bc01de99e5eb46413aebdeadc0",
+      "tools/mapgyver/native-probe/src/observer/client.rs": "cd466a25489c799e62ee4444e36c1fa25eaca2a40a4813417339c5659bd3579b",
+      "tools/mapgyver/native-probe/src/observer/frame_age.rs": "61eec1f2fbbd804f2d1609341551795b12d4a65ad99d6b9fb45145285c4687c8",
+      "tools/mapgyver/native-probe/src/observer/mod.rs": "7f53052b0a7c3a2ab2961f095ef4597f1efc1845a081d2c0fe5a2dbc71e62baf",
+      "tools/mapgyver/native-probe/src/observer/protocol.rs": "8f74e7e72958f532244d920676d2af072bfd31914ed2426a7e6dc309eaf3d601",
+      "tools/mapgyver/native-probe/src/observer/tests/mod.rs": "a2a39c51e54a890b3c7c6767e63481d2c0706ac41f152401e085347b64b4221d",
+      "tools/mapgyver/native-probe/src/operation_timing/tests/mod.rs": "0a79db53ccc9473e9d54efbe6734ba7f8c669af889179ce6be39d55f9236ffc5",
+      "tools/mapgyver/native-probe/src/operation_timing.rs": "2e9e0b2eb442a2c74618b48794cf0fa73e731cbe009f022f65f079d995545955",
+      "tools/mapgyver/native-probe/src/pipeline_timing/tests/mod.rs": "2dd772b208e93b20cb041411e6e1473cf0a26f54ff9c51aa6ead9f0a781a4e73",
+      "tools/mapgyver/native-probe/src/pipeline_timing.rs": "4e62d8ce49a6bba8ddab4f2d4e6f8008202b880cc9e570bf2d029c44b34ecbf9",
+      "tools/mapgyver/native-probe/src/presentation/tests/mod.rs": "ab757b85e26cf11f2106cb5fe09cc12dc2cb491eab85e45f9c2678861a7aa3fa",
+      "tools/mapgyver/native-probe/src/presentation.rs": "6d39acff1ce5f84371a632899acf0daa31d7c3f583e6ea1189097f0099d8e243",
+      "tools/mapgyver/native-probe/src/presenter/admission/tests/mod.rs": "a605ece7035cf5ae959eccef507b2690e12957056da125a9970c8c5bc1951b4d",
+      "tools/mapgyver/native-probe/src/presenter/admission.rs": "578c5952d5e3a79b9593fffb6f54cc1c7fc6f2c088f84fd52fde8f9c97947253",
+      "tools/mapgyver/native-probe/src/presenter.rs": "8ed5bbbbb11869e9ee697b6f7862e0a2d03ca81b99078a911cf5831f7355f0e1",
+      "tools/mapgyver/native-probe/src/process/reported.rs": "ed1c99582ebb90bf656c58f89a99e4472ba4a90396925477e9564cb91d2ce5f6",
+      "tools/mapgyver/native-probe/src/process.rs": "d3a2d80fb0ff629284d9c4f63240d3410935ee97d5732241c61265453c897099",
+      "tools/mapgyver/native-probe/src/quad.rs": "869cfcae90b58b2c498e04f9c3188649ceb1a3f599922905aa5d253a78cb5028",
+      "tools/mapgyver/native-probe/src/query_data.rs": "afce4dd916e4a9b7ea98ab729c566b4fa22583c067ea527f09bd95b94fc37bfe",
+      "tools/mapgyver/native-probe/src/render_worker/generation.rs": "e25d53f244f020e0179b2393a6284a29cad9ed4d8dd1eca5de731a0c81b8ca2d",
+      "tools/mapgyver/native-probe/src/render_worker.rs": "76a98cce14836eb9e1cb15203fe46ed7911afc6a51fc99511d36a54d5db1cbeb",
+      "tools/mapgyver/native-probe/src/resource_log/tests/mod.rs": "30536bf948a10da7bf0e15cf23d714ff8f00d213d526ef64f7f085c32161bebf",
+      "tools/mapgyver/native-probe/src/resource_log.rs": "2505a45136736792afdb417fef8087c4894c45a969054ce1e3305e67a03a1dbb",
+      "tools/mapgyver/native-probe/src/resources.rs": "9e40788a5ebe4b01bd6f29623b74d73f3227b0b979f0de121250b23915a4920a",
+      "tools/mapgyver/native-probe/src/retirement.rs": "2c774f73a9f1b568f712c538390e8cb5eff65a5b8014d23415814c0c70d99123",
+      "tools/mapgyver/native-probe/src/smoke.rs": "011499bed6cb7cc5c71e715eb008a108ab4fbb9b0ff232139bbd2a71bdcb628f",
+      "tools/mapgyver/native-probe/src/source_worker/surface/tests/mod.rs": "87f360884ac1aa60d5f467cc401233d81daa9c9810aee484ea7f560d798469fa",
+      "tools/mapgyver/native-probe/src/source_worker/surface.rs": "6ecd0ae7a655845d3ee1a01244594dc150a8e4315e577ec7dafef686c39106f7",
+      "tools/mapgyver/native-probe/src/source_worker/tests/mod.rs": "31652d2a685c724b7628ae691df2079176c8f458fb309da5801ad990fd74c8ce",
+      "tools/mapgyver/native-probe/src/source_worker/worker.rs": "8fa60831bd633e3f2d6ff3528539ee08567ee3cb958c20a02270bc1d6452194d",
+      "tools/mapgyver/native-probe/src/source_worker.rs": "b54519d82d56427c60fbf060ed9c20ae43accbacb8c7afb78af3f6029503646e",
+      "tools/mapgyver/native-probe/src/spout.rs": "5b8684b0b4a22202b5dfc74c68803a8a7b8b4ef4729eed560c4b96f0476d684d",
+      "tools/mapgyver/native-probe/src/statistics/tests/mod.rs": "e2bda3dbd0e8ecba435d06b10472b3434e6e4c8df753d13186121f206e8ba03f",
+      "tools/mapgyver/native-probe/src/statistics.rs": "404893f2a1a8194d54f53a6cdc833748821a45c0741cce797efb11b4192f576f",
+      "tools/mapgyver/native-probe/src/texture.rs": "68052e3bec3b8d72ce8278f3021b7afc86147bf0f03841a65589f869663e76db",
+      "tools/mapgyver/native-probe/src/timing.rs": "43316378765e7bb5f8993e97516395e9eada5f7e9cc9abd11d1590eefc4fd118",
+      "tools/mapgyver/native-probe/src/trace_capability.rs": "87db9ba6e644d4f8a436c3ed6cf4bdf6601b993816332e91238b8d8a11bace18",
+      "tools/mapgyver/native-probe/src/wire.rs": "7ed0d0b25811ea89a84568c8a8f6767f0f550c6452c60e1a1c5edbc613daa52a",
+      "tools/mapgyver/native-probe/src/workload/tests/mod.rs": "ea8f41f446d81e21f9e5db59a2640a43262db634e54c28ec580382aa7f81d4ef",
+      "tools/mapgyver/native-probe/src/workload.rs": "7ab641d7eadf89539444202c42c3300f0573f60709af926e37b35278d2ed510e",
+      "tools/mapgyver/native-probe/tauri.conf.json": "7e662b178abb64018037dd9da756e04de67d23f38dd409e686d90969afd66f1d",
+      "tools/mapgyver/native-probe/ui/dist/assets/index-C0Y-zcLa.js": "387711beef899c10a90944e4097f6c2fde89433937eb5201b4b12990c5b9d0f7",
+      "tools/mapgyver/native-probe/ui/dist/assets/index-NEuoE25f.css": "64d230ac153b556df0834833a285380f27d22b0bf33d04255d32c1f9a50e14cd",
+      "tools/mapgyver/native-probe/ui/dist/index.html": "c9e074b0a90e0001f4cc2a61c8f7f0fdc0dab352cae00d963129a4d7c3fc41b7",
+      "tools/mapgyver/native-probe/ui/index.html": "8537f14356e5a97019d00197ca3609b1093b90fc2297a3e9abeedaaa5b514078",
+      "tools/mapgyver/native-probe/ui/package.json": "64d7e12087f720f977e6b13b6c78adcdcf79a78335632a9a70e01a0d2799831c",
+      "tools/mapgyver/native-probe/ui/scripts/check-generated.mjs": "8626ddca2d34ea8d2a99ffbe778ca32b6afe121d9eb26a6263e9c5de18cc2731",
+      "tools/mapgyver/native-probe/ui/src/App.svelte": "4f27b3b4070d47c3a5c65fdbf8112251ffe1a886e5f1a62a01c7f95000b50188",
+      "tools/mapgyver/native-probe/ui/src/editor-isolation.ts": "8ed751155b920b431510b3f4c5aa41f66cf70130f1631733ddd8649876b766ed",
+      "tools/mapgyver/native-probe/ui/src/generated.ts": "781dd106ef1caa71b18b3d72eb714e4b69f44eb5a981acae35d2ca79b198ddac",
+      "tools/mapgyver/native-probe/ui/src/main.ts": "c76543fe1c49182b7ec4353a30135d00e3c439dfdf2577e2435272ff9f35930b",
+      "tools/mapgyver/native-probe/ui/src/native.ts": "30ef70406a96bbe19b74e52b83c3738a85d43644277c954e254ec45ee14976d9",
+      "tools/mapgyver/native-probe/ui/svelte.config.js": "f3c25c06187b11282d1293dd1aa038b34de915c464de9250b121241780c4d1ea",
+      "tools/mapgyver/native-probe/ui/tsconfig.json": "7bcf3e81653ce3c7b9a3b8d047bf56bae9714258ea79ef4ffb0f9a9009c8d40e",
+      "tools/mapgyver/native-probe/ui/vite.config.js": "11c7487f64e960a7a002408ea2a43225a53d15443e1776d79fb0ad98350a64bd",
+      "tools/mapgyver/run-qualification.py": "7e1ed5a62a111f904cb000df94ad470cfa7b49cb3e1890871aa024d00c3e2aa1",
+      "tools/mapgyver/run-color-accuracy.py": "aeb0f212b0ea8941a746616b13487a42c3631f9ad882a62516c9cf2fb16d9d22"
+    }
+  },
+  "adapters": [
+    {
+      "index": 0,
+      "description": "Intel(R) Graphics",
+      "luid": "00000000:00016c2a",
+      "dedicated_video_bytes": 134217728,
+      "shared_system_bytes": 19239208796,
+      "software": false,
+      "local_memory": {
+        "budget_bytes": 18433902428,
+        "current_usage_bytes": 0
+      },
+      "nonlocal_memory": {
+        "budget_bytes": 0,
+        "current_usage_bytes": 0
+      },
+      "outputs": [
+        {
+          "device_name": "\\\\.\\DISPLAY1",
+          "attached": true,
+          "desktop_rect": [
+            0,
+            0,
+            2560,
+            1600
+          ],
+          "coordinate_context": "physical_pixels_per_monitor_aware_v2_thread"
+        },
+        {
+          "device_name": "\\\\.\\DISPLAY2",
+          "attached": true,
+          "desktop_rect": [
+            2560,
+            0,
+            4480,
+            1080
+          ],
+          "coordinate_context": "physical_pixels_per_monitor_aware_v2_thread"
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+      "luid": "00000000:000170d3",
+      "dedicated_video_bytes": 16780361728,
+      "shared_system_bytes": 19239208796,
+      "software": false,
+      "local_memory": {
+        "budget_bytes": 15975055360,
+        "current_usage_bytes": 0
+      },
+      "nonlocal_memory": {
+        "budget_bytes": 18433902428,
+        "current_usage_bytes": 0
+      },
+      "outputs": []
+    },
+    {
+      "index": 2,
+      "description": "Microsoft Basic Render Driver",
+      "luid": "00000000:00017040",
+      "dedicated_video_bytes": 0,
+      "shared_system_bytes": 19239208796,
+      "software": true,
+      "local_memory": {
+        "budget_bytes": 18433902428,
+        "current_usage_bytes": 0
+      },
+      "nonlocal_memory": {
+        "budget_bytes": 0,
+        "current_usage_bytes": 0
+      },
+      "outputs": []
+    }
+  ],
+  "run": {
+    "exit_code": 0,
+    "stdout": "{\n  \"passed\": true,\n  \"evidence_kind\": \"finite_procedural_card_cross_process_bridge_not_timing_qualification\",\n  \"scope\": \"two independent producer processes, selected fixed fixture, existing source-worker NT-handle/keyed-mutex bridge, actual Quad renderer, independent consumer CPU reference; one consumer image readback\",\n  \"scenario\": \"q02\",\n  \"fixture\": \"procedural\",\n  \"adapter_luid\": \"00000000:000170d3\",\n  \"adapter_description\": \"NVIDIA GeForce RTX 5080 Laptop GPU\",\n  \"process_ids\": [\n    21128,\n    45732,\n    35536,\n    3656\n  ],\n  \"children_reaped\": true,\n  \"source_extents\": [\n    [\n      3840,\n      2160\n    ],\n    [\n      1280,\n      720\n    ]\n  ],\n  \"initial_pixel_upload_calls\": 0,\n  \"initial_pixel_upload_bytes\": 0,\n  \"full_image_readbacks\": 1,\n  \"comparison\": {\n    \"extent\": [\n      3840,\n      2160\n    ],\n    \"compared_pixels\": 8294400,\n    \"tolerance_per_component\": 2,\n    \"maximum_error_bgra\": [\n      1,\n      1,\n      1,\n      1\n    ],\n    \"differing_components_bgra\": [\n      0,\n      0,\n      0,\n      0\n    ],\n    \"mismatched_pixels\": 0,\n    \"first_differences\": []\n  },\n  \"senders_unregistered\": true,\n  \"devices\": [\n    {\n      \"role\": \"source_a\",\n      \"operations\": {\n        \"clears\": 0,\n        \"shader_draws\": 1,\n        \"uniform_upload_bytes\": 32,\n        \"diagnostic_readback_pixels\": 0,\n        \"sdk_send_calls\": 60,\n        \"sdk_receive_calls\": 0,\n        \"sdk_texture_queries\": 0,\n        \"sdk_texture_observations\": 0,\n        \"explicit_gpu_copy_calls\": 0,\n        \"explicit_gpu_copy_bytes\": 0\n      },\n      \"after_fence\": {\n        \"live_bytes_by_owner\": [\n          0,\n          0,\n          0,\n          0\n        ],\n        \"retiring_bytes_by_owner\": [\n          0,\n          0,\n          0,\n          0\n        ],\n        \"live_textures\": 0,\n        \"retiring_textures\": 0,\n        \"peak_live_plus_retiring_bytes\": 66355200,\n        \"peak_live_plus_retiring_textures\": 2\n      },\n      \"retirement_ms\": 1.2389000000000001\n    },\n    {\n      \"role\": \"source_b\",\n      \"operations\": {\n        \"clears\": 0,\n        \"shader_draws\": 1,\n        \"uniform_upload_bytes\": 32,\n        \"diagnostic_readback_pixels\": 0,\n        \"sdk_send_calls\": 52,\n        \"sdk_receive_calls\": 0,\n        \"sdk_texture_queries\": 0,\n        \"sdk_texture_observations\": 0,\n        \"explicit_gpu_copy_calls\": 0,\n        \"explicit_gpu_copy_bytes\": 0\n      },\n      \"after_fence\": {\n        \"live_bytes_by_owner\": [\n          0,\n          0,\n          0,\n          0\n        ],\n        \"retiring_bytes_by_owner\": [\n          0,\n          0,\n          0,\n          0\n        ],\n        \"live_textures\": 0,\n        \"retiring_textures\": 0,\n        \"peak_live_plus_retiring_bytes\": 7372800,\n        \"peak_live_plus_retiring_textures\": 2\n      },\n      \"retirement_ms\": 1.415\n    },\n    {\n      \"role\": \"renderer\",\n      \"operations\": {\n        \"clears\": 1,\n        \"shader_draws\": 2,\n        \"uniform_upload_bytes\": 0,\n        \"diagnostic_readback_pixels\": 0,\n        \"sdk_send_calls\": 26,\n        \"sdk_receive_calls\": 0,\n        \"sdk_texture_queries\": 0,\n        \"sdk_texture_observations\": 0,\n        \"explicit_gpu_copy_calls\": 0,\n        \"explicit_gpu_copy_bytes\": 0\n      },\n      \"after_fence\": {\n        \"live_bytes_by_owner\": [\n          0,\n          0,\n          0,\n          0\n        ],\n        \"retiring_bytes_by_owner\": [\n          0,\n          0,\n          0,\n          0\n        ],\n        \"live_textures\": 0,\n        \"retiring_textures\": 0,\n        \"peak_live_plus_retiring_bytes\": 66355200,\n        \"peak_live_plus_retiring_textures\": 2\n      },\n      \"retirement_ms\": 1.8415000000000001\n    },\n    {\n      \"role\": \"consumer\",\n      \"operations\": {\n        \"clears\": 0,\n        \"shader_draws\": 0,\n        \"uniform_upload_bytes\": 0,\n        \"diagnostic_readback_pixels\": 8294400,\n        \"sdk_send_calls\": 0,\n        \"sdk_receive_calls\": 1,\n        \"sdk_texture_queries\": 1,\n        \"sdk_texture_observations\": 1,\n        \"explicit_gpu_copy_calls\": 1,\n        \"explicit_gpu_copy_bytes\": 33177600\n      },\n      \"after_fence\": {\n        \"live_bytes_by_owner\": [\n          0,\n          0,\n          0,\n          0\n        ],\n        \"retiring_bytes_by_owner\": [\n          0,\n          0,\n          0,\n          0\n        ],\n        \"live_textures\": 0,\n        \"retiring_textures\": 0,\n        \"peak_live_plus_retiring_bytes\": 66355200,\n        \"peak_live_plus_retiring_textures\": 2\n      },\n      \"retirement_ms\": 1.685\n    }\n  ],\n  \"source_workers\": [\n    {\n      \"adapter_luid\": \"00000000:000170d3\",\n      \"maximum_surfaces\": 3,\n      \"peak_surfaces\": 3,\n      \"receive_calls\": 30,\n      \"publications\": 30,\n      \"pool_busy\": 0,\n      \"replaced_publications\": 29,\n      \"truncated_receive_samples\": 0,\n      \"receive_wall_time_all_windows\": {\n        \"samples\": 30,\n        \"mean_ms\": 0.13098666666666667,\n        \"median_ms\": 0.11230000000000001,\n        \"p95_ms\": 0.1711,\n        \"p99_ms\": 0.5511,\n        \"maximum_ms\": 0.5511\n      },\n      \"gpu_admission\": {\n        \"mechanism\": \"timeline_fence\",\n        \"maximum_in_flight\": 2,\n        \"peak_in_flight\": 1,\n        \"submitted\": 30,\n        \"completed\": 30,\n        \"pending\": 0,\n        \"reserved\": false,\n        \"warmup\": {\n          \"attempts\": 0,\n          \"admitted\": 0,\n          \"busy\": 0\n        },\n        \"sampled\": {\n          \"attempts\": 30,\n          \"admitted\": 30,\n          \"busy\": 0\n        },\n        \"pending_at_final_poll\": 1\n      },\n      \"timing\": {\n        \"cpu_submission_work\": {\n          \"samples\": 30,\n          \"mean_ms\": 0.24936999999999998,\n          \"median_ms\": 0.2189,\n          \"p95_ms\": 0.3896,\n          \"p99_ms\": 0.8517,\n          \"maximum_ms\": 0.8517\n        },\n        \"worker_start_intervals\": {\n          \"samples\": 29,\n          \"mean_ms\": 16.67525517241379,\n          \"median_ms\": 16.6317,\n          \"p95_ms\": 17.144099999999998,\n          \"p99_ms\": 17.168200000000002,\n          \"maximum_ms\": 17.168200000000002\n        },\n        \"gpu_execution\": {\n          \"samples\": 30,\n          \"mean_ms\": 0.1095562666666667,\n          \"median_ms\": 0.08809600000000001,\n          \"p95_ms\": 0.221728,\n          \"p99_ms\": 0.591616,\n          \"maximum_ms\": 0.591616\n        },\n        \"skipped_gpu_queries\": 0,\n        \"invalid_gpu_queries\": 0,\n        \"pending_gpu_queries\": 0,\n        \"truncated_samples\": 0,\n        \"gpu_outliers\": {\n          \"total\": 0,\n          \"omitted\": 0,\n          \"events\": [],\n          \"maximum\": null,\n          \"maximum_score\": 0\n        },\n        \"gpu_trace\": {\n          \"spans\": [\n            {\n              \"frame\": 0,\n              \"submitted_qpc\": 1780650549483,\n              \"observed_completed_qpc\": 1780650721214,\n              \"start_ticks\": 1793179257253590304,\n              \"end_ticks\": 1793179257253812032,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 1,\n              \"submitted_qpc\": 1780650721165,\n              \"observed_completed_qpc\": 1780650884520,\n              \"start_ticks\": 1793179257270457760,\n              \"end_ticks\": 1793179257270545344,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 2,\n              \"submitted_qpc\": 1780650884484,\n              \"observed_completed_qpc\": 1780651050741,\n              \"start_ticks\": 1793179257286225408,\n              \"end_ticks\": 1793179257286817024,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 3,\n              \"submitted_qpc\": 1780651050717,\n              \"observed_completed_qpc\": 1780651220423,\n              \"start_ticks\": 1793179257302812224,\n              \"end_ticks\": 1793179257302897824,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 4,\n              \"submitted_qpc\": 1780651220363,\n              \"observed_completed_qpc\": 1780651387986,\n              \"start_ticks\": 1793179257319854464,\n              \"end_ticks\": 1793179257319939072,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 5,\n              \"submitted_qpc\": 1780651387939,\n              \"observed_completed_qpc\": 1780651554374,\n              \"start_ticks\": 1793179257342127136,\n              \"end_ticks\": 1793179257342215232,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 6,\n              \"submitted_qpc\": 1780651554342,\n              \"observed_completed_qpc\": 1780651718230,\n              \"start_ticks\": 1793179257353707328,\n              \"end_ticks\": 1793179257353793024,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 7,\n              \"submitted_qpc\": 1780651718210,\n              \"observed_completed_qpc\": 1780651884571,\n              \"start_ticks\": 1793179257370365696,\n              \"end_ticks\": 1793179257370452320,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 8,\n              \"submitted_qpc\": 1780651884514,\n              \"observed_completed_qpc\": 1780652050970,\n              \"start_ticks\": 1793179257386246368,\n              \"end_ticks\": 1793179257386339360,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 9,\n              \"submitted_qpc\": 1780652050917,\n              \"observed_completed_qpc\": 1780652216758,\n              \"start_ticks\": 1793179257402923712,\n              \"end_ticks\": 1793179257403013856,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 10,\n              \"submitted_qpc\": 1780652216724,\n              \"observed_completed_qpc\": 1780652383406,\n              \"start_ticks\": 1793179257419551520,\n              \"end_ticks\": 1793179257419640448,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 11,\n              \"submitted_qpc\": 1780652383340,\n              \"observed_completed_qpc\": 1780652554864,\n              \"start_ticks\": 1793179257436116288,\n              \"end_ticks\": 1793179257436202528,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 12,\n              \"submitted_qpc\": 1780652554780,\n              \"observed_completed_qpc\": 1780652721059,\n              \"start_ticks\": 1793179257453266048,\n              \"end_ticks\": 1793179257453350688,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 13,\n              \"submitted_qpc\": 1780652721006,\n              \"observed_completed_qpc\": 1780652886703,\n              \"start_ticks\": 1793179257469928800,\n              \"end_ticks\": 1793179257470012736,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 14,\n              \"submitted_qpc\": 1780652886672,\n              \"observed_completed_qpc\": 1780653054068,\n              \"start_ticks\": 1793179257486456320,\n              \"end_ticks\": 1793179257486545408,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 15,\n              \"submitted_qpc\": 1780653054000,\n              \"observed_completed_qpc\": 1780653219356,\n              \"start_ticks\": 1793179257503190144,\n              \"end_ticks\": 1793179257503286720,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 16,\n              \"submitted_qpc\": 1780653219307,\n              \"observed_completed_qpc\": 1780653385554,\n              \"start_ticks\": 1793179257519688896,\n              \"end_ticks\": 1793179257519778048,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 17,\n              \"submitted_qpc\": 1780653385506,\n              \"observed_completed_qpc\": 1780653551654,\n              \"start_ticks\": 1793179257536291040,\n              \"end_ticks\": 1793179257536374624,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 18,\n              \"submitted_qpc\": 1780653551610,\n              \"observed_completed_qpc\": 1780653717110,\n              \"start_ticks\": 1793179257556170592,\n              \"end_ticks\": 1793179257556257952,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 19,\n              \"submitted_qpc\": 1780653717089,\n              \"observed_completed_qpc\": 1780653884377,\n              \"start_ticks\": 1793179257569507136,\n              \"end_ticks\": 1793179257569591072,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 20,\n              \"submitted_qpc\": 1780653884346,\n              \"observed_completed_qpc\": 1780654051808,\n              \"start_ticks\": 1793179257586219488,\n              \"end_ticks\": 1793179257586303680,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 21,\n              \"submitted_qpc\": 1780654051765,\n              \"observed_completed_qpc\": 1780654221414,\n              \"start_ticks\": 1793179257602951904,\n              \"end_ticks\": 1793179257603036928,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 22,\n              \"submitted_qpc\": 1780654221358,\n              \"observed_completed_qpc\": 1780654387873,\n              \"start_ticks\": 1793179257620076768,\n              \"end_ticks\": 1793179257620165536,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 23,\n              \"submitted_qpc\": 1780654387836,\n              \"observed_completed_qpc\": 1780654554353,\n              \"start_ticks\": 1793179257636564256,\n              \"end_ticks\": 1793179257636654528,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 24,\n              \"submitted_qpc\": 1780654554308,\n              \"observed_completed_qpc\": 1780654720417,\n              \"start_ticks\": 1793179257656198528,\n              \"end_ticks\": 1793179257656290208,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 25,\n              \"submitted_qpc\": 1780654720362,\n              \"observed_completed_qpc\": 1780654886582,\n              \"start_ticks\": 1793179257670024512,\n              \"end_ticks\": 1793179257670114976,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 26,\n              \"submitted_qpc\": 1780654886499,\n              \"observed_completed_qpc\": 1780655052888,\n              \"start_ticks\": 1793179257686557504,\n              \"end_ticks\": 1793179257686648896,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 27,\n              \"submitted_qpc\": 1780655052817,\n              \"observed_completed_qpc\": 1780655219280,\n              \"start_ticks\": 1793179257703233088,\n              \"end_ticks\": 1793179257703327008,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 28,\n              \"submitted_qpc\": 1780655219210,\n              \"observed_completed_qpc\": 1780655385414,\n              \"start_ticks\": 1793179257719725376,\n              \"end_ticks\": 1793179257719810880,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 29,\n              \"submitted_qpc\": 1780655385308,\n              \"observed_completed_qpc\": 1780655552788,\n              \"start_ticks\": 1793179257736586496,\n              \"end_ticks\": 1793179257736683840,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            }\n          ],\n          \"skipped\": 0,\n          \"invalid\": 0,\n          \"pending\": 0,\n          \"truncated\": 0\n        }\n      },\n      \"resources\": {\n        \"before_resource_drop\": {\n          \"live_bytes_by_owner\": [\n            99532800,\n            0,\n            33177600,\n            0\n          ],\n          \"retiring_bytes_by_owner\": [\n            0,\n            0,\n            0,\n            0\n          ],\n          \"live_textures\": 4,\n          \"retiring_textures\": 0,\n          \"peak_live_plus_retiring_bytes\": 132710400,\n          \"peak_live_plus_retiring_textures\": 4\n        },\n        \"after_resource_drop\": {\n          \"live_bytes_by_owner\": [\n            0,\n            0,\n            0,\n            0\n          ],\n          \"retiring_bytes_by_owner\": [\n            0,\n            0,\n            0,\n            0\n          ],\n          \"live_textures\": 0,\n          \"retiring_textures\": 0,\n          \"peak_live_plus_retiring_bytes\": 132710400,\n          \"peak_live_plus_retiring_textures\": 4\n        },\n        \"after_fence\": {\n          \"live_bytes_by_owner\": [\n            0,\n            0,\n            0,\n            0\n          ],\n          \"retiring_bytes_by_owner\": [\n            0,\n            0,\n            0,\n            0\n          ],\n          \"live_textures\": 0,\n          \"retiring_textures\": 0,\n          \"peak_live_plus_retiring_bytes\": 132710400,\n          \"peak_live_plus_retiring_textures\": 4\n        },\n        \"operations\": {\n          \"clears\": 0,\n          \"shader_draws\": 0,\n          \"uniform_upload_bytes\": 0,\n          \"diagnostic_readback_pixels\": 0,\n          \"sdk_send_calls\": 0,\n          \"sdk_receive_calls\": 30,\n          \"sdk_texture_queries\": 30,\n          \"sdk_texture_observations\": 30,\n          \"explicit_gpu_copy_calls\": 30,\n          \"explicit_gpu_copy_bytes\": 995328000\n        },\n        \"completion_markers\": 0,\n        \"skipped_completion_markers\": 0,\n        \"sample_count\": 0\n      }\n    },\n    {\n      \"adapter_luid\": \"00000000:000170d3\",\n      \"maximum_surfaces\": 3,\n      \"peak_surfaces\": 3,\n      \"receive_calls\": 36,\n      \"publications\": 36,\n      \"pool_busy\": 0,\n      \"replaced_publications\": 35,\n      \"truncated_receive_samples\": 0,\n      \"receive_wall_time_all_windows\": {\n        \"samples\": 36,\n        \"mean_ms\": 0.17176666666666668,\n        \"median_ms\": 0.1257,\n        \"p95_ms\": 0.18589999999999998,\n        \"p99_ms\": 1.7247000000000001,\n        \"maximum_ms\": 1.7247000000000001\n      },\n      \"gpu_admission\": {\n        \"mechanism\": \"timeline_fence\",\n        \"maximum_in_flight\": 2,\n        \"peak_in_flight\": 1,\n        \"submitted\": 36,\n        \"completed\": 36,\n        \"pending\": 0,\n        \"reserved\": false,\n        \"warmup\": {\n          \"attempts\": 0,\n          \"admitted\": 0,\n          \"busy\": 0\n        },\n        \"sampled\": {\n          \"attempts\": 36,\n          \"admitted\": 36,\n          \"busy\": 0\n        },\n        \"pending_at_final_poll\": 1\n      },\n      \"timing\": {\n        \"cpu_submission_work\": {\n          \"samples\": 36,\n          \"mean_ms\": 0.31370000000000003,\n          \"median_ms\": 0.24640000000000004,\n          \"p95_ms\": 0.5182,\n          \"p99_ms\": 2.3787000000000003,\n          \"maximum_ms\": 2.3787000000000003\n        },\n        \"worker_start_intervals\": {\n          \"samples\": 35,\n          \"mean_ms\": 16.672554285714284,\n          \"median_ms\": 16.630499999999998,\n          \"p95_ms\": 17.1342,\n          \"p99_ms\": 17.1492,\n          \"maximum_ms\": 17.1492\n        },\n        \"gpu_execution\": {\n          \"samples\": 36,\n          \"mean_ms\": 0.045531555555555554,\n          \"median_ms\": 0.0312,\n          \"p95_ms\": 0.264704,\n          \"p99_ms\": 0.293024,\n          \"maximum_ms\": 0.293024\n        },\n        \"skipped_gpu_queries\": 0,\n        \"invalid_gpu_queries\": 0,\n        \"pending_gpu_queries\": 0,\n        \"truncated_samples\": 0,\n        \"gpu_outliers\": {\n          \"total\": 0,\n          \"omitted\": 0,\n          \"events\": [],\n          \"maximum\": null,\n          \"maximum_score\": 0\n        },\n        \"gpu_trace\": {\n          \"spans\": [\n            {\n              \"frame\": 0,\n              \"submitted_qpc\": 1780650372263,\n              \"observed_completed_qpc\": 1780650543904,\n              \"start_ticks\": 1793179257236812128,\n              \"end_ticks\": 1793179257237105152,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 1,\n              \"submitted_qpc\": 1780650543733,\n              \"observed_completed_qpc\": 1780650706204,\n              \"start_ticks\": 1793179257252258944,\n              \"end_ticks\": 1793179257252523648,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 2,\n              \"submitted_qpc\": 1780650706152,\n              \"observed_completed_qpc\": 1780650874447,\n              \"start_ticks\": 1793179257270349248,\n              \"end_ticks\": 1793179257270380640,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 3,\n              \"submitted_qpc\": 1780650874395,\n              \"observed_completed_qpc\": 1780651040761,\n              \"start_ticks\": 1793179257285367360,\n              \"end_ticks\": 1793179257285400576,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 4,\n              \"submitted_qpc\": 1780651040704,\n              \"observed_completed_qpc\": 1780651210190,\n              \"start_ticks\": 1793179257301970048,\n              \"end_ticks\": 1793179257302005280,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 5,\n              \"submitted_qpc\": 1780651210138,\n              \"observed_completed_qpc\": 1780651373102,\n              \"start_ticks\": 1793179257318856032,\n              \"end_ticks\": 1793179257318889856,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 6,\n              \"submitted_qpc\": 1780651372699,\n              \"observed_completed_qpc\": 1780651544077,\n              \"start_ticks\": 1793179257335192896,\n              \"end_ticks\": 1793179257335221376,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 7,\n              \"submitted_qpc\": 1780651544042,\n              \"observed_completed_qpc\": 1780651708107,\n              \"start_ticks\": 1793179257353606560,\n              \"end_ticks\": 1793179257353636160,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 8,\n              \"submitted_qpc\": 1780651708049,\n              \"observed_completed_qpc\": 1780651874453,\n              \"start_ticks\": 1793179257368655168,\n              \"end_ticks\": 1793179257368683648,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 9,\n              \"submitted_qpc\": 1780651874380,\n              \"observed_completed_qpc\": 1780652040882,\n              \"start_ticks\": 1793179257385440960,\n              \"end_ticks\": 1793179257385474208,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 10,\n              \"submitted_qpc\": 1780652040832,\n              \"observed_completed_qpc\": 1780652206904,\n              \"start_ticks\": 1793179257402037600,\n              \"end_ticks\": 1793179257402068832,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 11,\n              \"submitted_qpc\": 1780652206841,\n              \"observed_completed_qpc\": 1780652373087,\n              \"start_ticks\": 1793179257418501120,\n              \"end_ticks\": 1793179257418532160,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 12,\n              \"submitted_qpc\": 1780652373035,\n              \"observed_completed_qpc\": 1780652539655,\n              \"start_ticks\": 1793179257435048928,\n              \"end_ticks\": 1793179257435078752,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 13,\n              \"submitted_qpc\": 1780652539573,\n              \"observed_completed_qpc\": 1780652710615,\n              \"start_ticks\": 1793179257451889856,\n              \"end_ticks\": 1793179257451921856,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 14,\n              \"submitted_qpc\": 1780652710554,\n              \"observed_completed_qpc\": 1780652876876,\n              \"start_ticks\": 1793179257469027488,\n              \"end_ticks\": 1793179257469056352,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 15,\n              \"submitted_qpc\": 1780652876815,\n              \"observed_completed_qpc\": 1780653042857,\n              \"start_ticks\": 1793179257485521056,\n              \"end_ticks\": 1793179257485552544,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 16,\n              \"submitted_qpc\": 1780653042786,\n              \"observed_completed_qpc\": 1780653209321,\n              \"start_ticks\": 1793179257502243072,\n              \"end_ticks\": 1793179257502290528,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 17,\n              \"submitted_qpc\": 1780653209246,\n              \"observed_completed_qpc\": 1780653375487,\n              \"start_ticks\": 1793179257518779360,\n              \"end_ticks\": 1793179257518809120,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 18,\n              \"submitted_qpc\": 1780653375410,\n              \"observed_completed_qpc\": 1780653541536,\n              \"start_ticks\": 1793179257535451584,\n              \"end_ticks\": 1793179257535481152,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 19,\n              \"submitted_qpc\": 1780653541473,\n              \"observed_completed_qpc\": 1780653707071,\n              \"start_ticks\": 1793179257556066592,\n              \"end_ticks\": 1793179257556097952,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 20,\n              \"submitted_qpc\": 1780653707022,\n              \"observed_completed_qpc\": 1780653874545,\n              \"start_ticks\": 1793179257568606912,\n              \"end_ticks\": 1793179257568641824,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 21,\n              \"submitted_qpc\": 1780653874481,\n              \"observed_completed_qpc\": 1780654041835,\n              \"start_ticks\": 1793179257585407808,\n              \"end_ticks\": 1793179257585436448,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 22,\n              \"submitted_qpc\": 1780654041782,\n              \"observed_completed_qpc\": 1780654206394,\n              \"start_ticks\": 1793179257602084448,\n              \"end_ticks\": 1793179257602115104,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 23,\n              \"submitted_qpc\": 1780654206332,\n              \"observed_completed_qpc\": 1780654372702,\n              \"start_ticks\": 1793179257618426112,\n              \"end_ticks\": 1793179257618455744,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 24,\n              \"submitted_qpc\": 1780654372637,\n              \"observed_completed_qpc\": 1780654543978,\n              \"start_ticks\": 1793179257636348032,\n              \"end_ticks\": 1793179257636379232,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 25,\n              \"submitted_qpc\": 1780654543923,\n              \"observed_completed_qpc\": 1780654710645,\n              \"start_ticks\": 1793179257656088192,\n              \"end_ticks\": 1793179257656123616,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 26,\n              \"submitted_qpc\": 1780654710554,\n              \"observed_completed_qpc\": 1780654876529,\n              \"start_ticks\": 1793179257669031040,\n              \"end_ticks\": 1793179257669061600,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 27,\n              \"submitted_qpc\": 1780654876470,\n              \"observed_completed_qpc\": 1780655042693,\n              \"start_ticks\": 1793179257685560672,\n              \"end_ticks\": 1793179257685591424,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 28,\n              \"submitted_qpc\": 1780655042646,\n              \"observed_completed_qpc\": 1780655209068,\n              \"start_ticks\": 1793179257702209888,\n              \"end_ticks\": 1793179257702241792,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 29,\n              \"submitted_qpc\": 1780655208980,\n              \"observed_completed_qpc\": 1780655376278,\n              \"start_ticks\": 1793179257718824320,\n              \"end_ticks\": 1793179257718855488,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 30,\n              \"submitted_qpc\": 1780655376202,\n              \"observed_completed_qpc\": 1780655542592,\n              \"start_ticks\": 1793179257736473568,\n              \"end_ticks\": 1793179257736508768,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 31,\n              \"submitted_qpc\": 1780655542504,\n              \"observed_completed_qpc\": 1780655708225,\n              \"start_ticks\": 1793179257752148544,\n              \"end_ticks\": 1793179257752179200,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 32,\n              \"submitted_qpc\": 1780655708159,\n              \"observed_completed_qpc\": 1780655873825,\n              \"start_ticks\": 1793179257768621344,\n              \"end_ticks\": 1793179257768653248,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 33,\n              \"submitted_qpc\": 1780655873770,\n              \"observed_completed_qpc\": 1780656043276,\n              \"start_ticks\": 1793179257785468448,\n              \"end_ticks\": 1793179257785496384,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 34,\n              \"submitted_qpc\": 1780656043203,\n              \"observed_completed_qpc\": 1780656207691,\n              \"start_ticks\": 1793179257802257504,\n              \"end_ticks\": 1793179257802291424,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            },\n            {\n              \"frame\": 35,\n              \"submitted_qpc\": 1780656207636,\n              \"observed_completed_qpc\": 1780656373868,\n              \"start_ticks\": 1793179257818642496,\n              \"end_ticks\": 1793179257818673376,\n              \"frequency\": 1000000000,\n              \"collected\": true\n            }\n          ],\n          \"skipped\": 0,\n          \"invalid\": 0,\n          \"pending\": 0,\n          \"truncated\": 0\n        }\n      },\n      \"resources\": {\n        \"before_resource_drop\": {\n          \"live_bytes_by_owner\": [\n            11059200,\n            0,\n            3686400,\n            0\n          ],\n          \"retiring_bytes_by_owner\": [\n            0,\n            0,\n            0,\n            0\n          ],\n          \"live_textures\": 4,\n          \"retiring_textures\": 0,\n          \"peak_live_plus_retiring_bytes\": 14745600,\n          \"peak_live_plus_retiring_textures\": 4\n        },\n        \"after_resource_drop\": {\n          \"live_bytes_by_owner\": [\n            0,\n            0,\n            0,\n            0\n          ],\n          \"retiring_bytes_by_owner\": [\n            0,\n            0,\n            0,\n            0\n          ],\n          \"live_textures\": 0,\n          \"retiring_textures\": 0,\n          \"peak_live_plus_retiring_bytes\": 14745600,\n          \"peak_live_plus_retiring_textures\": 4\n        },\n        \"after_fence\": {\n          \"live_bytes_by_owner\": [\n            0,\n            0,\n            0,\n            0\n          ],\n          \"retiring_bytes_by_owner\": [\n            0,\n            0,\n            0,\n            0\n          ],\n          \"live_textures\": 0,\n          \"retiring_textures\": 0,\n          \"peak_live_plus_retiring_bytes\": 14745600,\n          \"peak_live_plus_retiring_textures\": 4\n        },\n        \"operations\": {\n          \"clears\": 0,\n          \"shader_draws\": 0,\n          \"uniform_upload_bytes\": 0,\n          \"diagnostic_readback_pixels\": 0,\n          \"sdk_send_calls\": 0,\n          \"sdk_receive_calls\": 36,\n          \"sdk_texture_queries\": 36,\n          \"sdk_texture_observations\": 36,\n          \"explicit_gpu_copy_calls\": 36,\n          \"explicit_gpu_copy_bytes\": 132710400\n        },\n        \"completion_markers\": 0,\n        \"skipped_completion_markers\": 0,\n        \"sample_count\": 0\n      }\n    }\n  ],\n  \"elapsed_seconds\": 1.4570097,\n  \"unqualified\": [\n    \"animated/lifecycle procedural-card accuracy beyond the fixed reference inputs\",\n    \"native preview/scanout/DPI alignment\",\n    \"sustained cadence/latency/GPU critical path\",\n    \"physical residency, driver-internal copies and full Q05 retirement\"\n  ]\n}\n",
+    "stderr": "",
+    "report": {
+      "passed": true,
+      "evidence_kind": "finite_procedural_card_cross_process_bridge_not_timing_qualification",
+      "scope": "two independent producer processes, selected fixed fixture, existing source-worker NT-handle/keyed-mutex bridge, actual Quad renderer, independent consumer CPU reference; one consumer image readback",
+      "scenario": "q02",
+      "fixture": "procedural",
+      "adapter_luid": "00000000:000170d3",
+      "adapter_description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+      "process_ids": [
+        21128,
+        45732,
+        35536,
+        3656
+      ],
+      "children_reaped": true,
+      "source_extents": [
+        [
+          3840,
+          2160
+        ],
+        [
+          1280,
+          720
+        ]
+      ],
+      "initial_pixel_upload_calls": 0,
+      "initial_pixel_upload_bytes": 0,
+      "full_image_readbacks": 1,
+      "comparison": {
+        "extent": [
+          3840,
+          2160
+        ],
+        "compared_pixels": 8294400,
+        "tolerance_per_component": 2,
+        "maximum_error_bgra": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "differing_components_bgra": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "mismatched_pixels": 0,
+        "first_differences": []
+      },
+      "senders_unregistered": true,
+      "devices": [
+        {
+          "role": "source_a",
+          "operations": {
+            "clears": 0,
+            "shader_draws": 1,
+            "uniform_upload_bytes": 32,
+            "diagnostic_readback_pixels": 0,
+            "sdk_send_calls": 60,
+            "sdk_receive_calls": 0,
+            "sdk_texture_queries": 0,
+            "sdk_texture_observations": 0,
+            "explicit_gpu_copy_calls": 0,
+            "explicit_gpu_copy_bytes": 0
+          },
+          "after_fence": {
+            "live_bytes_by_owner": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "retiring_bytes_by_owner": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "live_textures": 0,
+            "retiring_textures": 0,
+            "peak_live_plus_retiring_bytes": 66355200,
+            "peak_live_plus_retiring_textures": 2
+          },
+          "retirement_ms": 1.2389000000000001
+        },
+        {
+          "role": "source_b",
+          "operations": {
+            "clears": 0,
+            "shader_draws": 1,
+            "uniform_upload_bytes": 32,
+            "diagnostic_readback_pixels": 0,
+            "sdk_send_calls": 52,
+            "sdk_receive_calls": 0,
+            "sdk_texture_queries": 0,
+            "sdk_texture_observations": 0,
+            "explicit_gpu_copy_calls": 0,
+            "explicit_gpu_copy_bytes": 0
+          },
+          "after_fence": {
+            "live_bytes_by_owner": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "retiring_bytes_by_owner": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "live_textures": 0,
+            "retiring_textures": 0,
+            "peak_live_plus_retiring_bytes": 7372800,
+            "peak_live_plus_retiring_textures": 2
+          },
+          "retirement_ms": 1.415
+        },
+        {
+          "role": "renderer",
+          "operations": {
+            "clears": 1,
+            "shader_draws": 2,
+            "uniform_upload_bytes": 0,
+            "diagnostic_readback_pixels": 0,
+            "sdk_send_calls": 26,
+            "sdk_receive_calls": 0,
+            "sdk_texture_queries": 0,
+            "sdk_texture_observations": 0,
+            "explicit_gpu_copy_calls": 0,
+            "explicit_gpu_copy_bytes": 0
+          },
+          "after_fence": {
+            "live_bytes_by_owner": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "retiring_bytes_by_owner": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "live_textures": 0,
+            "retiring_textures": 0,
+            "peak_live_plus_retiring_bytes": 66355200,
+            "peak_live_plus_retiring_textures": 2
+          },
+          "retirement_ms": 1.8415000000000001
+        },
+        {
+          "role": "consumer",
+          "operations": {
+            "clears": 0,
+            "shader_draws": 0,
+            "uniform_upload_bytes": 0,
+            "diagnostic_readback_pixels": 8294400,
+            "sdk_send_calls": 0,
+            "sdk_receive_calls": 1,
+            "sdk_texture_queries": 1,
+            "sdk_texture_observations": 1,
+            "explicit_gpu_copy_calls": 1,
+            "explicit_gpu_copy_bytes": 33177600
+          },
+          "after_fence": {
+            "live_bytes_by_owner": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "retiring_bytes_by_owner": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "live_textures": 0,
+            "retiring_textures": 0,
+            "peak_live_plus_retiring_bytes": 66355200,
+            "peak_live_plus_retiring_textures": 2
+          },
+          "retirement_ms": 1.685
+        }
+      ],
+      "source_workers": [
+        {
+          "adapter_luid": "00000000:000170d3",
+          "maximum_surfaces": 3,
+          "peak_surfaces": 3,
+          "receive_calls": 30,
+          "publications": 30,
+          "pool_busy": 0,
+          "replaced_publications": 29,
+          "truncated_receive_samples": 0,
+          "receive_wall_time_all_windows": {
+            "samples": 30,
+            "mean_ms": 0.13098666666666667,
+            "median_ms": 0.11230000000000001,
+            "p95_ms": 0.1711,
+            "p99_ms": 0.5511,
+            "maximum_ms": 0.5511
+          },
+          "gpu_admission": {
+            "mechanism": "timeline_fence",
+            "maximum_in_flight": 2,
+            "peak_in_flight": 1,
+            "submitted": 30,
+            "completed": 30,
+            "pending": 0,
+            "reserved": false,
+            "warmup": {
+              "attempts": 0,
+              "admitted": 0,
+              "busy": 0
+            },
+            "sampled": {
+              "attempts": 30,
+              "admitted": 30,
+              "busy": 0
+            },
+            "pending_at_final_poll": 1
+          },
+          "timing": {
+            "cpu_submission_work": {
+              "samples": 30,
+              "mean_ms": 0.24936999999999998,
+              "median_ms": 0.2189,
+              "p95_ms": 0.3896,
+              "p99_ms": 0.8517,
+              "maximum_ms": 0.8517
+            },
+            "worker_start_intervals": {
+              "samples": 29,
+              "mean_ms": 16.67525517241379,
+              "median_ms": 16.6317,
+              "p95_ms": 17.144099999999998,
+              "p99_ms": 17.168200000000002,
+              "maximum_ms": 17.168200000000002
+            },
+            "gpu_execution": {
+              "samples": 30,
+              "mean_ms": 0.1095562666666667,
+              "median_ms": 0.08809600000000001,
+              "p95_ms": 0.221728,
+              "p99_ms": 0.591616,
+              "maximum_ms": 0.591616
+            },
+            "skipped_gpu_queries": 0,
+            "invalid_gpu_queries": 0,
+            "pending_gpu_queries": 0,
+            "truncated_samples": 0,
+            "gpu_outliers": {
+              "total": 0,
+              "omitted": 0,
+              "events": [],
+              "maximum": null,
+              "maximum_score": 0
+            },
+            "gpu_trace": {
+              "spans": [
+                {
+                  "frame": 0,
+                  "submitted_qpc": 1780650549483,
+                  "observed_completed_qpc": 1780650721214,
+                  "start_ticks": 1793179257253590304,
+                  "end_ticks": 1793179257253812032,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 1,
+                  "submitted_qpc": 1780650721165,
+                  "observed_completed_qpc": 1780650884520,
+                  "start_ticks": 1793179257270457760,
+                  "end_ticks": 1793179257270545344,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 2,
+                  "submitted_qpc": 1780650884484,
+                  "observed_completed_qpc": 1780651050741,
+                  "start_ticks": 1793179257286225408,
+                  "end_ticks": 1793179257286817024,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 3,
+                  "submitted_qpc": 1780651050717,
+                  "observed_completed_qpc": 1780651220423,
+                  "start_ticks": 1793179257302812224,
+                  "end_ticks": 1793179257302897824,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 4,
+                  "submitted_qpc": 1780651220363,
+                  "observed_completed_qpc": 1780651387986,
+                  "start_ticks": 1793179257319854464,
+                  "end_ticks": 1793179257319939072,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 5,
+                  "submitted_qpc": 1780651387939,
+                  "observed_completed_qpc": 1780651554374,
+                  "start_ticks": 1793179257342127136,
+                  "end_ticks": 1793179257342215232,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 6,
+                  "submitted_qpc": 1780651554342,
+                  "observed_completed_qpc": 1780651718230,
+                  "start_ticks": 1793179257353707328,
+                  "end_ticks": 1793179257353793024,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 7,
+                  "submitted_qpc": 1780651718210,
+                  "observed_completed_qpc": 1780651884571,
+                  "start_ticks": 1793179257370365696,
+                  "end_ticks": 1793179257370452320,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 8,
+                  "submitted_qpc": 1780651884514,
+                  "observed_completed_qpc": 1780652050970,
+                  "start_ticks": 1793179257386246368,
+                  "end_ticks": 1793179257386339360,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 9,
+                  "submitted_qpc": 1780652050917,
+                  "observed_completed_qpc": 1780652216758,
+                  "start_ticks": 1793179257402923712,
+                  "end_ticks": 1793179257403013856,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 10,
+                  "submitted_qpc": 1780652216724,
+                  "observed_completed_qpc": 1780652383406,
+                  "start_ticks": 1793179257419551520,
+                  "end_ticks": 1793179257419640448,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 11,
+                  "submitted_qpc": 1780652383340,
+                  "observed_completed_qpc": 1780652554864,
+                  "start_ticks": 1793179257436116288,
+                  "end_ticks": 1793179257436202528,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 12,
+                  "submitted_qpc": 1780652554780,
+                  "observed_completed_qpc": 1780652721059,
+                  "start_ticks": 1793179257453266048,
+                  "end_ticks": 1793179257453350688,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 13,
+                  "submitted_qpc": 1780652721006,
+                  "observed_completed_qpc": 1780652886703,
+                  "start_ticks": 1793179257469928800,
+                  "end_ticks": 1793179257470012736,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 14,
+                  "submitted_qpc": 1780652886672,
+                  "observed_completed_qpc": 1780653054068,
+                  "start_ticks": 1793179257486456320,
+                  "end_ticks": 1793179257486545408,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 15,
+                  "submitted_qpc": 1780653054000,
+                  "observed_completed_qpc": 1780653219356,
+                  "start_ticks": 1793179257503190144,
+                  "end_ticks": 1793179257503286720,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 16,
+                  "submitted_qpc": 1780653219307,
+                  "observed_completed_qpc": 1780653385554,
+                  "start_ticks": 1793179257519688896,
+                  "end_ticks": 1793179257519778048,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 17,
+                  "submitted_qpc": 1780653385506,
+                  "observed_completed_qpc": 1780653551654,
+                  "start_ticks": 1793179257536291040,
+                  "end_ticks": 1793179257536374624,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 18,
+                  "submitted_qpc": 1780653551610,
+                  "observed_completed_qpc": 1780653717110,
+                  "start_ticks": 1793179257556170592,
+                  "end_ticks": 1793179257556257952,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 19,
+                  "submitted_qpc": 1780653717089,
+                  "observed_completed_qpc": 1780653884377,
+                  "start_ticks": 1793179257569507136,
+                  "end_ticks": 1793179257569591072,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 20,
+                  "submitted_qpc": 1780653884346,
+                  "observed_completed_qpc": 1780654051808,
+                  "start_ticks": 1793179257586219488,
+                  "end_ticks": 1793179257586303680,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 21,
+                  "submitted_qpc": 1780654051765,
+                  "observed_completed_qpc": 1780654221414,
+                  "start_ticks": 1793179257602951904,
+                  "end_ticks": 1793179257603036928,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 22,
+                  "submitted_qpc": 1780654221358,
+                  "observed_completed_qpc": 1780654387873,
+                  "start_ticks": 1793179257620076768,
+                  "end_ticks": 1793179257620165536,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 23,
+                  "submitted_qpc": 1780654387836,
+                  "observed_completed_qpc": 1780654554353,
+                  "start_ticks": 1793179257636564256,
+                  "end_ticks": 1793179257636654528,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 24,
+                  "submitted_qpc": 1780654554308,
+                  "observed_completed_qpc": 1780654720417,
+                  "start_ticks": 1793179257656198528,
+                  "end_ticks": 1793179257656290208,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 25,
+                  "submitted_qpc": 1780654720362,
+                  "observed_completed_qpc": 1780654886582,
+                  "start_ticks": 1793179257670024512,
+                  "end_ticks": 1793179257670114976,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 26,
+                  "submitted_qpc": 1780654886499,
+                  "observed_completed_qpc": 1780655052888,
+                  "start_ticks": 1793179257686557504,
+                  "end_ticks": 1793179257686648896,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 27,
+                  "submitted_qpc": 1780655052817,
+                  "observed_completed_qpc": 1780655219280,
+                  "start_ticks": 1793179257703233088,
+                  "end_ticks": 1793179257703327008,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 28,
+                  "submitted_qpc": 1780655219210,
+                  "observed_completed_qpc": 1780655385414,
+                  "start_ticks": 1793179257719725376,
+                  "end_ticks": 1793179257719810880,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 29,
+                  "submitted_qpc": 1780655385308,
+                  "observed_completed_qpc": 1780655552788,
+                  "start_ticks": 1793179257736586496,
+                  "end_ticks": 1793179257736683840,
+                  "frequency": 1000000000,
+                  "collected": true
+                }
+              ],
+              "skipped": 0,
+              "invalid": 0,
+              "pending": 0,
+              "truncated": 0
+            }
+          },
+          "resources": {
+            "before_resource_drop": {
+              "live_bytes_by_owner": [
+                99532800,
+                0,
+                33177600,
+                0
+              ],
+              "retiring_bytes_by_owner": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "live_textures": 4,
+              "retiring_textures": 0,
+              "peak_live_plus_retiring_bytes": 132710400,
+              "peak_live_plus_retiring_textures": 4
+            },
+            "after_resource_drop": {
+              "live_bytes_by_owner": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "retiring_bytes_by_owner": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "live_textures": 0,
+              "retiring_textures": 0,
+              "peak_live_plus_retiring_bytes": 132710400,
+              "peak_live_plus_retiring_textures": 4
+            },
+            "after_fence": {
+              "live_bytes_by_owner": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "retiring_bytes_by_owner": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "live_textures": 0,
+              "retiring_textures": 0,
+              "peak_live_plus_retiring_bytes": 132710400,
+              "peak_live_plus_retiring_textures": 4
+            },
+            "operations": {
+              "clears": 0,
+              "shader_draws": 0,
+              "uniform_upload_bytes": 0,
+              "diagnostic_readback_pixels": 0,
+              "sdk_send_calls": 0,
+              "sdk_receive_calls": 30,
+              "sdk_texture_queries": 30,
+              "sdk_texture_observations": 30,
+              "explicit_gpu_copy_calls": 30,
+              "explicit_gpu_copy_bytes": 995328000
+            },
+            "completion_markers": 0,
+            "skipped_completion_markers": 0,
+            "sample_count": 0
+          }
+        },
+        {
+          "adapter_luid": "00000000:000170d3",
+          "maximum_surfaces": 3,
+          "peak_surfaces": 3,
+          "receive_calls": 36,
+          "publications": 36,
+          "pool_busy": 0,
+          "replaced_publications": 35,
+          "truncated_receive_samples": 0,
+          "receive_wall_time_all_windows": {
+            "samples": 36,
+            "mean_ms": 0.17176666666666668,
+            "median_ms": 0.1257,
+            "p95_ms": 0.18589999999999998,
+            "p99_ms": 1.7247000000000001,
+            "maximum_ms": 1.7247000000000001
+          },
+          "gpu_admission": {
+            "mechanism": "timeline_fence",
+            "maximum_in_flight": 2,
+            "peak_in_flight": 1,
+            "submitted": 36,
+            "completed": 36,
+            "pending": 0,
+            "reserved": false,
+            "warmup": {
+              "attempts": 0,
+              "admitted": 0,
+              "busy": 0
+            },
+            "sampled": {
+              "attempts": 36,
+              "admitted": 36,
+              "busy": 0
+            },
+            "pending_at_final_poll": 1
+          },
+          "timing": {
+            "cpu_submission_work": {
+              "samples": 36,
+              "mean_ms": 0.31370000000000003,
+              "median_ms": 0.24640000000000004,
+              "p95_ms": 0.5182,
+              "p99_ms": 2.3787000000000003,
+              "maximum_ms": 2.3787000000000003
+            },
+            "worker_start_intervals": {
+              "samples": 35,
+              "mean_ms": 16.672554285714284,
+              "median_ms": 16.630499999999998,
+              "p95_ms": 17.1342,
+              "p99_ms": 17.1492,
+              "maximum_ms": 17.1492
+            },
+            "gpu_execution": {
+              "samples": 36,
+              "mean_ms": 0.045531555555555554,
+              "median_ms": 0.0312,
+              "p95_ms": 0.264704,
+              "p99_ms": 0.293024,
+              "maximum_ms": 0.293024
+            },
+            "skipped_gpu_queries": 0,
+            "invalid_gpu_queries": 0,
+            "pending_gpu_queries": 0,
+            "truncated_samples": 0,
+            "gpu_outliers": {
+              "total": 0,
+              "omitted": 0,
+              "events": [],
+              "maximum": null,
+              "maximum_score": 0
+            },
+            "gpu_trace": {
+              "spans": [
+                {
+                  "frame": 0,
+                  "submitted_qpc": 1780650372263,
+                  "observed_completed_qpc": 1780650543904,
+                  "start_ticks": 1793179257236812128,
+                  "end_ticks": 1793179257237105152,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 1,
+                  "submitted_qpc": 1780650543733,
+                  "observed_completed_qpc": 1780650706204,
+                  "start_ticks": 1793179257252258944,
+                  "end_ticks": 1793179257252523648,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 2,
+                  "submitted_qpc": 1780650706152,
+                  "observed_completed_qpc": 1780650874447,
+                  "start_ticks": 1793179257270349248,
+                  "end_ticks": 1793179257270380640,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 3,
+                  "submitted_qpc": 1780650874395,
+                  "observed_completed_qpc": 1780651040761,
+                  "start_ticks": 1793179257285367360,
+                  "end_ticks": 1793179257285400576,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 4,
+                  "submitted_qpc": 1780651040704,
+                  "observed_completed_qpc": 1780651210190,
+                  "start_ticks": 1793179257301970048,
+                  "end_ticks": 1793179257302005280,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 5,
+                  "submitted_qpc": 1780651210138,
+                  "observed_completed_qpc": 1780651373102,
+                  "start_ticks": 1793179257318856032,
+                  "end_ticks": 1793179257318889856,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 6,
+                  "submitted_qpc": 1780651372699,
+                  "observed_completed_qpc": 1780651544077,
+                  "start_ticks": 1793179257335192896,
+                  "end_ticks": 1793179257335221376,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 7,
+                  "submitted_qpc": 1780651544042,
+                  "observed_completed_qpc": 1780651708107,
+                  "start_ticks": 1793179257353606560,
+                  "end_ticks": 1793179257353636160,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 8,
+                  "submitted_qpc": 1780651708049,
+                  "observed_completed_qpc": 1780651874453,
+                  "start_ticks": 1793179257368655168,
+                  "end_ticks": 1793179257368683648,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 9,
+                  "submitted_qpc": 1780651874380,
+                  "observed_completed_qpc": 1780652040882,
+                  "start_ticks": 1793179257385440960,
+                  "end_ticks": 1793179257385474208,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 10,
+                  "submitted_qpc": 1780652040832,
+                  "observed_completed_qpc": 1780652206904,
+                  "start_ticks": 1793179257402037600,
+                  "end_ticks": 1793179257402068832,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 11,
+                  "submitted_qpc": 1780652206841,
+                  "observed_completed_qpc": 1780652373087,
+                  "start_ticks": 1793179257418501120,
+                  "end_ticks": 1793179257418532160,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 12,
+                  "submitted_qpc": 1780652373035,
+                  "observed_completed_qpc": 1780652539655,
+                  "start_ticks": 1793179257435048928,
+                  "end_ticks": 1793179257435078752,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 13,
+                  "submitted_qpc": 1780652539573,
+                  "observed_completed_qpc": 1780652710615,
+                  "start_ticks": 1793179257451889856,
+                  "end_ticks": 1793179257451921856,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 14,
+                  "submitted_qpc": 1780652710554,
+                  "observed_completed_qpc": 1780652876876,
+                  "start_ticks": 1793179257469027488,
+                  "end_ticks": 1793179257469056352,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 15,
+                  "submitted_qpc": 1780652876815,
+                  "observed_completed_qpc": 1780653042857,
+                  "start_ticks": 1793179257485521056,
+                  "end_ticks": 1793179257485552544,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 16,
+                  "submitted_qpc": 1780653042786,
+                  "observed_completed_qpc": 1780653209321,
+                  "start_ticks": 1793179257502243072,
+                  "end_ticks": 1793179257502290528,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 17,
+                  "submitted_qpc": 1780653209246,
+                  "observed_completed_qpc": 1780653375487,
+                  "start_ticks": 1793179257518779360,
+                  "end_ticks": 1793179257518809120,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 18,
+                  "submitted_qpc": 1780653375410,
+                  "observed_completed_qpc": 1780653541536,
+                  "start_ticks": 1793179257535451584,
+                  "end_ticks": 1793179257535481152,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 19,
+                  "submitted_qpc": 1780653541473,
+                  "observed_completed_qpc": 1780653707071,
+                  "start_ticks": 1793179257556066592,
+                  "end_ticks": 1793179257556097952,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 20,
+                  "submitted_qpc": 1780653707022,
+                  "observed_completed_qpc": 1780653874545,
+                  "start_ticks": 1793179257568606912,
+                  "end_ticks": 1793179257568641824,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 21,
+                  "submitted_qpc": 1780653874481,
+                  "observed_completed_qpc": 1780654041835,
+                  "start_ticks": 1793179257585407808,
+                  "end_ticks": 1793179257585436448,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 22,
+                  "submitted_qpc": 1780654041782,
+                  "observed_completed_qpc": 1780654206394,
+                  "start_ticks": 1793179257602084448,
+                  "end_ticks": 1793179257602115104,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 23,
+                  "submitted_qpc": 1780654206332,
+                  "observed_completed_qpc": 1780654372702,
+                  "start_ticks": 1793179257618426112,
+                  "end_ticks": 1793179257618455744,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 24,
+                  "submitted_qpc": 1780654372637,
+                  "observed_completed_qpc": 1780654543978,
+                  "start_ticks": 1793179257636348032,
+                  "end_ticks": 1793179257636379232,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 25,
+                  "submitted_qpc": 1780654543923,
+                  "observed_completed_qpc": 1780654710645,
+                  "start_ticks": 1793179257656088192,
+                  "end_ticks": 1793179257656123616,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 26,
+                  "submitted_qpc": 1780654710554,
+                  "observed_completed_qpc": 1780654876529,
+                  "start_ticks": 1793179257669031040,
+                  "end_ticks": 1793179257669061600,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 27,
+                  "submitted_qpc": 1780654876470,
+                  "observed_completed_qpc": 1780655042693,
+                  "start_ticks": 1793179257685560672,
+                  "end_ticks": 1793179257685591424,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 28,
+                  "submitted_qpc": 1780655042646,
+                  "observed_completed_qpc": 1780655209068,
+                  "start_ticks": 1793179257702209888,
+                  "end_ticks": 1793179257702241792,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 29,
+                  "submitted_qpc": 1780655208980,
+                  "observed_completed_qpc": 1780655376278,
+                  "start_ticks": 1793179257718824320,
+                  "end_ticks": 1793179257718855488,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 30,
+                  "submitted_qpc": 1780655376202,
+                  "observed_completed_qpc": 1780655542592,
+                  "start_ticks": 1793179257736473568,
+                  "end_ticks": 1793179257736508768,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 31,
+                  "submitted_qpc": 1780655542504,
+                  "observed_completed_qpc": 1780655708225,
+                  "start_ticks": 1793179257752148544,
+                  "end_ticks": 1793179257752179200,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 32,
+                  "submitted_qpc": 1780655708159,
+                  "observed_completed_qpc": 1780655873825,
+                  "start_ticks": 1793179257768621344,
+                  "end_ticks": 1793179257768653248,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 33,
+                  "submitted_qpc": 1780655873770,
+                  "observed_completed_qpc": 1780656043276,
+                  "start_ticks": 1793179257785468448,
+                  "end_ticks": 1793179257785496384,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 34,
+                  "submitted_qpc": 1780656043203,
+                  "observed_completed_qpc": 1780656207691,
+                  "start_ticks": 1793179257802257504,
+                  "end_ticks": 1793179257802291424,
+                  "frequency": 1000000000,
+                  "collected": true
+                },
+                {
+                  "frame": 35,
+                  "submitted_qpc": 1780656207636,
+                  "observed_completed_qpc": 1780656373868,
+                  "start_ticks": 1793179257818642496,
+                  "end_ticks": 1793179257818673376,
+                  "frequency": 1000000000,
+                  "collected": true
+                }
+              ],
+              "skipped": 0,
+              "invalid": 0,
+              "pending": 0,
+              "truncated": 0
+            }
+          },
+          "resources": {
+            "before_resource_drop": {
+              "live_bytes_by_owner": [
+                11059200,
+                0,
+                3686400,
+                0
+              ],
+              "retiring_bytes_by_owner": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "live_textures": 4,
+              "retiring_textures": 0,
+              "peak_live_plus_retiring_bytes": 14745600,
+              "peak_live_plus_retiring_textures": 4
+            },
+            "after_resource_drop": {
+              "live_bytes_by_owner": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "retiring_bytes_by_owner": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "live_textures": 0,
+              "retiring_textures": 0,
+              "peak_live_plus_retiring_bytes": 14745600,
+              "peak_live_plus_retiring_textures": 4
+            },
+            "after_fence": {
+              "live_bytes_by_owner": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "retiring_bytes_by_owner": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "live_textures": 0,
+              "retiring_textures": 0,
+              "peak_live_plus_retiring_bytes": 14745600,
+              "peak_live_plus_retiring_textures": 4
+            },
+            "operations": {
+              "clears": 0,
+              "shader_draws": 0,
+              "uniform_upload_bytes": 0,
+              "diagnostic_readback_pixels": 0,
+              "sdk_send_calls": 0,
+              "sdk_receive_calls": 36,
+              "sdk_texture_queries": 36,
+              "sdk_texture_observations": 36,
+              "explicit_gpu_copy_calls": 36,
+              "explicit_gpu_copy_bytes": 132710400
+            },
+            "completion_markers": 0,
+            "skipped_completion_markers": 0,
+            "sample_count": 0
+          }
+        }
+      ],
+      "elapsed_seconds": 1.4570097,
+      "unqualified": [
+        "animated/lifecycle procedural-card accuracy beyond the fixed reference inputs",
+        "native preview/scanout/DPI alignment",
+        "sustained cadence/latency/GPU critical path",
+        "physical residency, driver-internal copies and full Q05 retirement"
+      ]
+    }
+  },
+  "validation": {
+    "passed": true,
+    "full_image_pixels_verified": 8294400,
+    "tolerance_per_component": 2,
+    "scope": "fixed procedural shader/card accuracy through independent processes and source-worker bridge; no timing or scanout claim"
+  },
+  "inputs_unchanged_after_run": true
+}

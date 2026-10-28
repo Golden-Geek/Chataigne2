@@ -1,0 +1,147 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "nvidia_and_intel_fixed_card_accuracy_verification_not_full_m01",
+  "all_eight_native_source_asset_inputs_current": true,
+  "recorded_wrapper_sha256": "aeb0f212b0ea8941a746616b13487a42c3631f9ad882a62516c9cf2fb16d9d22",
+  "current_wrapper_sha256": "4a575e66bcbf07a21a66affdfec710cc202810d16a9403255ae20d253cb3bd2c",
+  "wrapper_change": "Evidence transport only: gzip-base64 default protects large integer timestamps; original capture bytes restored, no native rerun or measurement change.",
+  "input_sha256": "ad04cf11b7778a52a9fbcc3a224266af700326f9a601d7252154a17131eb1e72",
+  "runs": [
+    {
+      "passed": true,
+      "full_image_pixels_verified": 2073600,
+      "tolerance_per_component": 2,
+      "scope": "fixed procedural shader/card accuracy through independent processes and source-worker bridge; no timing or scanout claim",
+      "artifact": "mapgyver-m01-procedural-card-intel-q01-2026-10-28.json",
+      "adapter": "intel",
+      "procedural": true,
+      "maximum_error_bgra": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "passed": true,
+      "full_image_pixels_verified": 8294400,
+      "tolerance_per_component": 2,
+      "scope": "fixed procedural shader/card accuracy through independent processes and source-worker bridge; no timing or scanout claim",
+      "artifact": "mapgyver-m01-procedural-card-intel-q02-2026-10-28.json",
+      "adapter": "intel",
+      "procedural": true,
+      "maximum_error_bgra": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "passed": true,
+      "full_image_pixels_verified": 2073600,
+      "tolerance_per_component": 2,
+      "scope": "authored-image cross-process transfer and existing source-worker bridge; no timing, procedural-card or scanout claim",
+      "artifact": "mapgyver-m01-procedural-authored-control-intel-q01-2026-10-28.json",
+      "adapter": "intel",
+      "procedural": false,
+      "maximum_error_bgra": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "passed": true,
+      "full_image_pixels_verified": 8294400,
+      "tolerance_per_component": 2,
+      "scope": "authored-image cross-process transfer and existing source-worker bridge; no timing, procedural-card or scanout claim",
+      "artifact": "mapgyver-m01-procedural-authored-control-intel-q02-2026-10-28.json",
+      "adapter": "intel",
+      "procedural": false,
+      "maximum_error_bgra": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "passed": true,
+      "full_image_pixels_verified": 2073600,
+      "tolerance_per_component": 2,
+      "scope": "fixed procedural shader/card accuracy through independent processes and source-worker bridge; no timing or scanout claim",
+      "artifact": "mapgyver-m01-procedural-card-nvidia-q01-2026-10-28.json",
+      "adapter": "nvidia",
+      "procedural": true,
+      "maximum_error_bgra": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "passed": true,
+      "full_image_pixels_verified": 8294400,
+      "tolerance_per_component": 2,
+      "scope": "fixed procedural shader/card accuracy through independent processes and source-worker bridge; no timing or scanout claim",
+      "artifact": "mapgyver-m01-procedural-card-nvidia-q02-2026-10-28.json",
+      "adapter": "nvidia",
+      "procedural": true,
+      "maximum_error_bgra": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "passed": true,
+      "full_image_pixels_verified": 2073600,
+      "tolerance_per_component": 2,
+      "scope": "authored-image cross-process transfer and existing source-worker bridge; no timing, procedural-card or scanout claim",
+      "artifact": "mapgyver-m01-procedural-authored-control-nvidia-q01-2026-10-28.json",
+      "adapter": "nvidia",
+      "procedural": false,
+      "maximum_error_bgra": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "passed": true,
+      "full_image_pixels_verified": 8294400,
+      "tolerance_per_component": 2,
+      "scope": "authored-image cross-process transfer and existing source-worker bridge; no timing, procedural-card or scanout claim",
+      "artifact": "mapgyver-m01-procedural-authored-control-nvidia-q02-2026-10-28.json",
+      "adapter": "nvidia",
+      "procedural": false,
+      "maximum_error_bgra": [
+        1,
+        1,
+        1,
+        1
+      ]
+    }
+  ],
+  "artifacts": {
+    "mapgyver-m01-procedural-card-intel-q01-2026-10-28.json": "98b9f4a0025ad98812601a03dec2e5fe6bf308f6e9a6679282cfff795c39fd75",
+    "mapgyver-m01-procedural-card-intel-q02-2026-10-28.json": "62bbda0dc52294737be57a99b6e392f9ccc71792798d4be60f24b7e8affe1f88",
+    "mapgyver-m01-procedural-authored-control-intel-q01-2026-10-28.json": "87d75dbc2e4757e9c3ca4badb2555d2600c51f6cf13b73a9dba8cf8f7d437273",
+    "mapgyver-m01-procedural-authored-control-intel-q02-2026-10-28.json": "b64d3f2638a640cfb23ab6df028b53a6025a1b7cf585cd563e3d6c9c97194ebe",
+    "mapgyver-m01-procedural-card-nvidia-q01-2026-10-28.json": "e32d20dd0eb699fe0a141bc5c4262c5240d6b5647c8dfe5e6ec8f106c50a664a",
+    "mapgyver-m01-procedural-card-nvidia-q02-2026-10-28.json": "1493a7ce75bd20159485a7edb067c6189ab92ac05024b52a386c2d4073c7f4f7",
+    "mapgyver-m01-procedural-authored-control-nvidia-q01-2026-10-28.json": "39ee37033f22e5336ed5e9431e5ecc588bac5623db73395bd4ce9533d4716b02",
+    "mapgyver-m01-procedural-authored-control-nvidia-q02-2026-10-28.json": "36dc734c668b383213f57026985f9411a4a47a60bccb666aa7773fd95f58bb54",
+    "mapgyver-m01-card-accuracy-nvidia-conditions-2026-10-28.json": "9d78ce27c652779edfecda28ff6b5a01582174fbab8fde154a056a9760b118e5"
+  },
+  "original_overlay_off_preserved": true,
+  "overlay_setting_changed": false,
+  "desktop_capture_during_measurement": false,
+  "checkout_head": "73548569440f84f3ff010a3ac4c3edae5d619c4d",
+  "scope": "Both adapters fixed procedural and authored 1080p/4K images through independent processes and source-worker bridge; no full M01, animated/lifecycle, native preview/scanout, sustained timing or physical-residency claim."
+}

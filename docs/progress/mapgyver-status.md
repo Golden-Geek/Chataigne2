@@ -4,15 +4,16 @@
 
 **Updated: 2026-10-28 · Overall: `██░░░░░░░░░░░░░░░░░░` 10% · 1/10 phases complete**
 
-**Current topic:** M01 native feasibility — full color/alpha accuracy across native routes.
-Intel's fixed procedural shader cards and authored controls pass across processes and the
-source-worker bridge at 1080p/4K; broader accuracy,
-timing, display and retirement qualification remains open.
+**Current topic:** M01 native feasibility — cross-adapter card accuracy and displayed-frame capture.
+Intel/NVIDIA fixed procedural/authored cards pass across processes and the real bridge at
+1080p/4K. A short official PresentMon capture now records two unlabeled compositor streams.
+Broader display, timing, lifecycle and retirement qualification remains open.
 
-**Next:** NVIDIA accuracy, previews/output alignment and lifecycle cases, then collect
-displayed-frame evidence using the working administrator
-ETW path. **Blocker:** provider/event capture and physical latency remain unqualified; empty
-ETW session creation now passes outside the sandbox. M02 waits for the complete M01 decision.
+**Next:** publish the prepared source/evidence checkpoint, then correlate swapchains to native
+editor/output roles, retain loss evidence and collect
+sustained displayed-frame series and complete preview/lifecycle/resource checks. **Blocker:**
+physical alignment/latency and role-qualified display evidence remain missing. The administrator
+ETW route works; M02 still waits for the complete M01 feasibility decision.
 
 | Phase | State | Progress | Done / total items |
 | --- | --- | --- | --- |
@@ -56,6 +57,14 @@ Checkpoint validation:
   errors/warnings and Rust/TypeScript DTOs match. All 100 MapGyver evidence JSON files parse.
 - Required `cargo fmt --all` at the root and Golden Core manifests completed.
 
+The follow-up coherent checkpoint adds NVIDIA fixed-card accuracy, the first working official
+PresentMon capture and strict CSV analysis, plus lossless large-integer evidence transport.
+Its independent review recomputes all 1,192 trace rows exactly and verifies the four NVIDIA
+reports against their original stdout. All 44 Python tests pass again; required root/Core
+formatters and whitespace checks pass. Native sources remain unchanged from their existing
+52-test checkpoint, so no new native build or hardware result is inferred. This checkpoint
+also leaves M01 at 1/8 and overall progress at 1/10.
+
 Delivery is pending: automatic approval review rejected `git push --set-upstream origin mapgyver`
 because publishing the repository to the external origin requires explicit confirmation of the
 destination and payload. The configured origin is `git@github.com:Golden-Geek/Chataigne2.git`;
@@ -72,7 +81,7 @@ delivery blocker is separate from the unchanged M01 acceptance blockers above.
 | Native rectangle output and composited Spout send | Open | Intel fixed procedural/Spout cards pass; native preview/output visual accuracy and 4K scanout remain. |
 | Mixed DPI, negative origins, drag/resize/docking/zoom | Open | 100%/125% observations recorded; 150%/200%, negative origins and measured alignment remain. |
 | Minimized/disconnected-editor independence | Open | Intel/NVIDIA busy/blank-document continuity and reconnect pass at recorded fingerprints; full displayed/minimized qualification remains. |
-| Color/alpha, copies, cadence/latency, queues and memory | Open | Intel fixed procedural/authored cards pass through independent processes and the bridge; NVIDIA, other routes/lifecycle cards, GPU critical path, scanout and resources remain. |
+| Color/alpha, copies, cadence/latency, queues and memory | Open | Intel/NVIDIA fixed procedural/authored cards pass through independent processes and the bridge; short compositor capture works. Roles, sustained cadence, other routes/lifecycle cards, GPU critical path, scanout and resources remain. |
 | Device recreation, sustained retirement and shutdown | Open | Controlled rebuilds recorded; complete Q05, physical retirement, real removal/reset and full-process shutdown remain. |
 | Production host/backend/binding decision | Open | D3D11/sys binding and ordinary underlay remain provisional pending the full gate. |
 
@@ -88,6 +97,9 @@ Updated: 2026-10-28. Entry point: [MapGyver implementation plan](../plan/MapGyve
 The user explicitly requested implementation over successive turns on 2026-10-27, then requested
 a MapGyver branch. `mapgyver` was created from `137c9203` with the existing dirty checkout intact,
 then externally fast-forwarded from `main` to the Chataigne P11 checkpoint `40acd67d` during M00.
+The checkout was reconciled at external checkpoint `73548569` (`Checkpoint MapGyver baseline
+and partial native feasibility`). The subsequent NVIDIA/PresentMon source/evidence checkpoint
+preserves that baseline; remote publication remains pending as recorded above.
 M00 delivers the baseline tooling and fixed qualification contract. M01 owns an isolated native
 Spout/D3D11 harness with locked Tauri/Svelte underlay/output windows, an independent consumer,
 source-worker GPU bridges, bounded admission/retirement and lossless timing/resource evidence.
@@ -97,8 +109,10 @@ The current accuracy diagnostic adds a CPU oracle for the existing procedural-ca
 Intel fixed 1080p/4K cases compare all 10,368,000 composite pixels through independent processes
 and the real source-worker bridge, with no exclusions and maximum component error 1/255 against
 a fixed 2/255 tolerance. Producers upload only one 32-byte uniform each, with no CPU pixel
-uploads. Matching authored-image process controls share current fingerprints. This establishes
-fixed-card shader/transfer accuracy, not animated/lifecycle, preview, NVIDIA or performance qualification.
+uploads. Matching authored-image controls share the same native checkpoint and captured wrapper. This establishes
+fixed-card shader/transfer accuracy. NVIDIA now passes the same four cases on identical native
+inputs. A short PresentMon route control records real compositor events without assigning native
+roles or qualifying physical displays. Animated/lifecycle, previews and full performance remain open.
 The earlier lifecycle build
 verifies Intel/NVIDIA output through >60-second busy and blank-document windows, then fresh
 preview reconnect. Those captures and startup-invalid markers retain their exact earlier inputs.
@@ -115,10 +129,11 @@ meets relative growth in one cohort with a higher absolute peak, so it does not 
 
 NVIDIA qualification requires verified overlay Off before startup. The approved on/off/on
 control isolates handle growth to enabled conditions; no speculative driver teardown is added.
-The latest NVIDIA lifecycle turn verified Off before/after measurement and restored original
-On at 08:17:51 UTC. No display, driver or other settings changed. Both adapters' final lifecycle
-and normal-launch captures match the same earlier executable/source/asset fingerprints.
-The current authored-card turn uses Intel only and changes no desktop settings.
+The earlier lifecycle turn restored On at 08:17:51 UTC. Current card-accuracy observations find
+an already-Off setting at 09:19:55 and confirm Off at 09:22:32; it stays unchanged. Both adapters'
+card captures share identical native source/assets/executable. The wrapper's transport-only
+change protects large integer evidence. No overlay, display, driver or security setting changes
+are made during this turn.
 
 Primary 125% and secondary 100% native input sequences are recorded, including hidden/minimized
 intervals over 60 seconds. [ETW preflight now passes with the administrator token](mapgyver-m01-native-feasibility.md#etw-access-after-administrator-relaunch--2026-10-28);
@@ -164,8 +179,8 @@ M02 depends on this gate; do not build production editors/shell around an unqual
 - Both adapters' JS-busy/blank-document continuity now has native evidence and fresh reconnect
   ownership. Intel finite authored-image accuracy now compares every pixel through independent
   processes and the real source-worker bridge at 1080p/4K. The fixed procedural-card shader also
-  matches its CPU reference, including frame digits and marker words. Continue lifecycle accuracy,
-  previews and NVIDIA; do not substitute fixed-image checks for those remaining gates.
+  matches its CPU reference, including frame digits and marker words, on both adapters. Continue
+  lifecycle and preview/physical-output accuracy; fixed-image checks do not close those gates.
   Investigate supported cross-context GPU timing/correlation before treating context marginals,
   serial sums or CPU envelopes as the full GPU critical path. Source selection, budgets and
   native routes must stay truthful.
@@ -191,7 +206,8 @@ M02 depends on this gate; do not build production editors/shell around an unqual
   gesture observations are retained, with missing rows explicitly unavailable. The separate
   short runner control validates compaction, not reconstruction of the omitted report.
 - NVIDIA qualification requires [overlay Off before process startup](mapgyver-qualification-contract.md#nvidia-overlay-prerequisite),
-  with native verification and restoration after temporary tests. Original On is restored.
+  with native verification and preservation/restoration of the current original setting. Latest
+  card measurements started and ended with an already-Off setting; no toggle was performed.
   The on/off/on controls reproduce handle growth only when enabled, with the same loaded DLL;
   preserve those failures and do not add a speculative driver-teardown workaround.
 - Both GPUs historically complete 100 controlled device rebuilds; the NVIDIA overlay-off
@@ -213,6 +229,27 @@ behavior is unchanged. No production host/backend/binding decision is final yet.
 
 ## M01 verification — 2026-10-28
 
+- [NVIDIA/PresentMon handoff audit](evidence/mapgyver-m01-nvidia-presentmon-handoff-2026-10-28.json)
+  verifies eight exact card captures, the first official trace/analysis, source epochs, packet
+  integrity, bindings, guardrails and cleanup. All 44 Python tests pass. The unchanged native
+  source/executable retains its prior 52-test checkpoint. Required root/Core formatters and
+  whitespace checks pass; overlay Off remains unchanged and the existing collector service
+  retains PID 5864. M01 remains 1/8 (13%); overall accepted milestones remain 1/10 (10%).
+- [NVIDIA/cross-adapter card analysis](evidence/mapgyver-m01-card-accuracy-nvidia-analysis-2026-10-28.json)
+  validates all eight fixed procedural/authored captures, exact native integers, common native
+  inputs, full pixel coverage and cleanup. Current overlay Off is observed before/after and
+  left unchanged. The initial JavaScript-rounded copies remain archived; canonical files were
+  restored from exact captured stdout, with no rerun or measurement change. The wrapper now
+  defaults to opaque checksummed packets; tests preserve GPU ticks above 2^53 and adjacent ticks.
+- [Official PresentMon route](evidence/mapgyver-m01-presentmon-intel-official-route-2026-10-28.json)
+  and [independent analysis](evidence/mapgyver-m01-presentmon-official-route-analysis-2026-10-28.json)
+  retains 1,192 raw PID-filtered rows, two unlabeled chains and exact eight-second windows:
+  480 Presents/Display observations per chain, no reported drops or missing display timing.
+  Shared compositor timestamps are identical and cannot be pooled as independent physical
+  cycles. Recorded interval p99/max 20.8141/20.8759 ms remain; no timing budget passes by inference.
+  No loss is reported; independent zero-loss proof, roles, sustained series and physical latency
+  remain open. The owned session is absent after exit; the existing Intel service stays running.
+  The vendor silent failure and help-preflight failure remain preserved separately.
 - [ETW access recheck](evidence/mapgyver-m01-etw-access-2026-10-28.json): after the user's
   administrator VS Code relaunch, the release probe creates and stops its empty owned session
   successfully outside the sandbox. The sandbox account still returns status 5. The development
@@ -226,7 +263,7 @@ behavior is unchanged. No production host/backend/binding decision is final yet.
   stays 1/255, with no mismatches/exclusions against tolerance 2/255. Each producer draws once
   with 32 uniform bytes and no CPU pixel upload; renderer/ingest readbacks stay zero. Child
   identities, bounded reports, exact copy costs and six-device cleanup validate. Authored-image
-  controls share current inputs. Fifty-two deterministic Rust and thirty-six Python tests,
+  controls share that captured checkpoint's inputs. Fifty-two deterministic Rust and thirty-six Python tests,
   strict default/desktop Clippy and actual root/Core formatting pass. Broader gates remain open:
   M01 stays 1/8 (13%), and overall accepted milestones stay 1/10 (10%). The
   [saved shader audit](evidence/mapgyver-m01-procedural-card-intel-validation-2026-10-28.json)

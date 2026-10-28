@@ -1,0 +1,127 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "official_presentmon_route_receipt_not_timing_qualification",
+  "artifact_sha256": "4cb30440aeda934681f60c0b060ed0cdb66c8320b5d88f828d82e49b244451e7",
+  "native_pid": 46748,
+  "session_name": "MapGyver-M01-Present-d7e153ef03e04203aa4e8c55139364db",
+  "raw_rows": 1192,
+  "sample_window_qpc": {
+    "begin": 1801629597025,
+    "end": 1801709597025,
+    "frequency": 10000000
+  },
+  "chains": [
+    {
+      "swapchain_address": "0x237847d5f20",
+      "label": "unlabeled",
+      "raw_row_count": 596,
+      "first_present_qpc": 1801610280774,
+      "last_present_qpc": 1801709443160,
+      "rows_before_present_window": 116,
+      "rows_after_present_window": 0,
+      "present_window": {
+        "presents": 480,
+        "dropped": 0,
+        "non_dropped": 480,
+        "unavailable_display_timing": 0,
+        "usable_display_timestamps": 480,
+        "display_tails_after_window": 0
+      },
+      "display_window": {
+        "events": 480,
+        "arrivals_from_before_present_window": 0,
+        "missing_predecessor": 0,
+        "intervals_using_before_window_predecessor": 1,
+        "first_display_qpc_exact": "1801629686052",
+        "last_display_qpc_exact": "1801709561462",
+        "observed_display_intervals_ms": {
+          "samples": 480,
+          "mean_ms": 16.666798333333332,
+          "median_ms": 16.6668,
+          "p95_ms": 16.9752,
+          "p99_ms": 20.8141,
+          "maximum_ms": 20.8759
+        },
+        "reported_display_change_intervals_ms": {
+          "samples": 480,
+          "mean_ms": 16.666798333333332,
+          "median_ms": 16.6668,
+          "p95_ms": 16.9752,
+          "p99_ms": 20.8141,
+          "maximum_ms": 20.8759
+        }
+      },
+      "non_increasing_display_pairs_all_rows": 0,
+      "dropped_with_positive_display_time_all_rows": 0
+    },
+    {
+      "swapchain_address": "0x23784796030",
+      "label": "unlabeled",
+      "raw_row_count": 596,
+      "first_present_qpc": 1801610283207,
+      "last_present_qpc": 1801709443530,
+      "rows_before_present_window": 116,
+      "rows_after_present_window": 0,
+      "present_window": {
+        "presents": 480,
+        "dropped": 0,
+        "non_dropped": 480,
+        "unavailable_display_timing": 0,
+        "usable_display_timestamps": 480,
+        "display_tails_after_window": 0
+      },
+      "display_window": {
+        "events": 480,
+        "arrivals_from_before_present_window": 0,
+        "missing_predecessor": 0,
+        "intervals_using_before_window_predecessor": 1,
+        "first_display_qpc_exact": "1801629686052",
+        "last_display_qpc_exact": "1801709561462",
+        "observed_display_intervals_ms": {
+          "samples": 480,
+          "mean_ms": 16.666798333333332,
+          "median_ms": 16.6668,
+          "p95_ms": 16.9752,
+          "p99_ms": 20.8141,
+          "maximum_ms": 20.8759
+        },
+        "reported_display_change_intervals_ms": {
+          "samples": 480,
+          "mean_ms": 16.666798333333332,
+          "median_ms": 16.6668,
+          "p95_ms": 16.9752,
+          "p99_ms": 20.8141,
+          "maximum_ms": 20.8759
+        }
+      },
+      "non_increasing_display_pairs_all_rows": 0,
+      "dropped_with_positive_display_time_all_rows": 0
+    }
+  ],
+  "analysis_recomputed_exactly": true,
+  "raw_stream_hashes_verified": true,
+  "captured_helper_sha256": "872381db20714a2b1d2d18a8725238d67ee14bd558b09581ce29c4e56ac3e2ea",
+  "current_helper_sha256": "e3554ac24c77374a932214e6bf5df574fab98d73477b4981aea35f670d4581e8",
+  "helper_epoch_note": "Captured helper is preserved exactly; current helper corrects vendor scope wording and pins the verified official portable default. Native source/assets and CSV parser match the capture.",
+  "official_executable_sha256": "b2a706bc6ad475749e3b7e3409263aa1e6906d45bdcf993f6dbc0f660188f1af",
+  "official_release": "https://github.com/GameTechDev/PresentMon/releases/expanded_assets/v2.6.0",
+  "signature_observed": "Valid; CN=Intel Corporation, O=Intel Corporation, S=California, C=US",
+  "paired_compositor_timestamps_identical": true,
+  "paired_display_timestamps_per_chain": 596,
+  "loss": {
+    "no_loss_reported": true,
+    "zero_loss_independently_verified": false,
+    "scope": "collector warning observations only; absence does not prove zero ETW or analysis loss",
+    "loss_warnings": [],
+    "reported_event_loss_counts": [],
+    "reported_buffer_loss_counts": []
+  },
+  "own_session_query": {
+    "exit_code": 2150629378,
+    "stdout": "\nError:\nData Collector Set was not found.\n",
+    "stderr": "",
+    "absent": true
+  },
+  "owned_capture_and_probe_processes_remaining": 0,
+  "scope": "Short target-PID software compositor observations. Both swapchains stay unlabeled; identical compositor times are not independent physical cycles. No sustained-series, scanout, optical/input latency, alignment, full GPU critical path or full M01 qualification."
+}
