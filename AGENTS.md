@@ -2,7 +2,7 @@
 
 ## Mission
 
-This repository is building the long-term architecture for `Chataigne2`, `golden_core`, and the UI stack.
+This repository is building the long-term architecture for `Chataigne2`, `MapGyver`, `golden_core`, and the UI stack.
 
 The goal is a clean, correct, scalable foundation.
 Backward compatibility is not a goal unless a task explicitly asks for it.
@@ -13,8 +13,31 @@ Backward compatibility is not a goal unless a task explicitly asks for it.
   `docs/plan/Chataigne2_Codex_Implementation_Plan.md` as the single execution entrypoint.
 - Read its current ledger at `docs/progress/implementation-status.md` and reconcile the checkout
   before continuing the next dependency-ready task. Do not restart completed historical work.
+- For an explicit request to implement **MapGyver**, use
+  `docs/plan/MapGyver_Implementation_Plan.md` and `docs/progress/mapgyver-status.md` instead.
+  MapGyver is a sibling app sharing Golden, not a restart of Chataigne's plan. The unqualified
+  phrase “implement the plan” continues to select Chataigne's entrypoint above.
 - Documents under `docs/archive/` preserve evidence only. Their pauses, branch/push instructions,
   old status tables, and task lists are non-operative.
+
+## Implementation Plan Delivery
+
+- For every implementation plan, commit and push at each meaningful phase or coherent,
+  reviewable implementation milestone. Do not wait for the entire plan or a large phase to finish.
+- This is standing authorization to make milestone commits and push them without asking again.
+  Use the plan's selected branch and its remote; establish the upstream when needed. Do not
+  switch products or branches merely to deliver a milestone.
+- Before each milestone commit, run the relevant checks and required formatting, and update
+  the owning status ledger/dashboard with evidence, remaining scope and blockers. Include only
+  that milestone's changes; preserve unrelated work.
+- Checkpoint useful partial work and diagnostic evidence when a larger acceptance gate remains
+  open, stating those limits explicitly. A commit or push never closes an unverified gate.
+- Push the milestone before starting the next implementation batch. Reconcile remote changes,
+  preserve other contributors' commits, and never force-push or rewrite published history.
+  If validation or delivery fails, repair it where possible, retain local work and report the
+  actual blocker; report a successful push only after verifying it.
+- This rule applies to existing and future implementation plans. It does not authorize releases
+  or deployments, and an explicit user instruction can override it for a particular task.
 
 ## Core Stance
 
@@ -50,6 +73,9 @@ Backward compatibility is not a goal unless a task explicitly asks for it.
 - App-owned script templates for Chataigne module nodes must live in the app layer under `src/module`, not in `golden_core`; `golden_core` may expose only generic reusable scripting primitives and snippet expansion helpers.
 - When app-specific UI needs inspector, outliner, context-menu, dashboard, or similar customization points, add a public hook or registry in `golden_*` and register the app behavior from the app layer.
 - No app-layer code inside `golden_*`.
+- MapGyver media, composition, Matrix, screen/surface policy and specialized editors belong
+  under `apps/mapgyver`. Planned reusable GPU/runtime and native-preview mechanisms belong in
+  Golden packages and the shared desktop host; do not copy Chataigne's private modules or host.
 
 ### Alchemist Ownership
 
@@ -123,6 +149,16 @@ Backward compatibility is not a goal unless a task explicitly asks for it.
 
 ## Documentation Rules
 
+- Implementation status ledgers must start with a compact progress dashboard immediately below
+  the title: last-updated date, overall progress bar and percentage, completed/total phases,
+  current phase/topic, next action and any blocker. Include one row per phase with its state,
+  progress bar, percentage and completed/total acceptance items; link to the detailed evidence.
+- Keep that dashboard synchronized with the ledger in every implementation handoff and milestone
+  update. Define item scope before awarding progress, count only verified acceptance, and state
+  the calculation. Use fixed acceptance gates rather than commits, sessions or elapsed time;
+  partial work and unavailable checks stay open. Explain any denominator change. Apply this
+  format when next updating an existing ledger; do not rewrite inactive product ledgers solely
+  to adopt it.
 - When architecture changes, update the docs in the same change.
 - Prefer short, high-signal docs that explain boundaries, ownership, and where to start.
 - Link to deeper existing design docs instead of duplicating them.
@@ -159,10 +195,11 @@ When a task spans multiple architectural areas, prefer this order:
 
 ## Working Rules For Agents
 
-- Never invoke or spawn `run-visible-command`, computer-use, desktop-control, SendKeys,
-  AutoHotkey, or any mechanism that synthesizes keyboard or mouse input or takes control of the
-  user's desktop. A request to show output in a terminal does not authorize GUI automation; use
-  ordinary non-interactive processes or provide a command for the user to run.
+- Desktop automation is allowed for authorized development and verification tasks, including
+  keyboard/mouse input and native window inspection. Prefer the available computer-use skill
+  and its supported APIs; keep actions focused on the task's app and owned test windows.
+- Use ordinary non-interactive processes for terminal commands. Do not drive a terminal UI
+  merely to run a command or show its output.
 - Start by identifying the layer that should own the change.
 - Prefer moving responsibility to the right layer over adding glue.
 - Move parsing, timestamping, and transport-side preprocessing out of the engine loop whenever an IO/runtime boundary can do that work first; keep the engine loop focused on applying state and graph mutations.
@@ -196,6 +233,10 @@ Choose the owning source path before exploring and scope searches accordingly:
 | Chataigne Alchemist             | `apps/chataigne/systems/alchemist`     |
 | Chataigne state machine         | `apps/chataigne/systems/state_machine` |
 | App-owned UI                    | `apps/chataigne/ui`                    |
+| MapGyver shell and systems      | `apps/mapgyver` (planned)              |
+| MapGyver UI                     | `apps/mapgyver/ui` (planned)           |
+| Generic video runtime           | `crates/golden_video` (planned)        |
+| Generic video preview UI        | `packages/golden-video-ui` (planned)   |
 | `golden_ui`                     | `packages/golden-ui`                   |
 | Generic graph UI                | `packages/golden-graph-ui`             |
 

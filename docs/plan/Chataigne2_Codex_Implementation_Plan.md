@@ -95,6 +95,9 @@ Do not operate the user's keyboard, mouse, ASIO panel, or native desktop through
 
 ### Milestone delivery
 
+The standing [implementation plan delivery rules](../../AGENTS.md#implementation-plan-delivery)
+apply to every implementation plan; this plan's branch-specific delivery details follow.
+
 Treat each coherent, verified implementation batch as a delivery milestone; do not wait for
 an entire P-task or the full plan to finish. Complete the relevant checks and formatting,
 update the ledger with evidence and remaining scope, then commit and push the milestone to
