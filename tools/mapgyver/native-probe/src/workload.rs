@@ -42,6 +42,7 @@ impl Scenario {
 pub struct RunSpec {
     pub scenario: Scenario,
     presentation_policy: PresentationPolicy,
+    gpu_stages: bool,
     #[serde(flatten)]
     exercise: Exercise,
 }
@@ -94,6 +95,7 @@ impl RunSpec {
         Ok(Self {
             scenario,
             presentation_policy: PresentationPolicy::Latest,
+            gpu_stages: false,
             exercise: Exercise::Timed {
                 sample_seconds,
                 warmup_seconds,
@@ -107,8 +109,27 @@ impl RunSpec {
         if !matches!(self.exercise, Exercise::Timed { .. }) || !self.scenario.cards() {
             return Err("presentation comparison requires timed q01/q02 qualification".into());
         }
+        if self.gpu_stages && policy != PresentationPolicy::Latest {
+            return Err("GPU stage timing requires the latest presentation policy".into());
+        }
         self.presentation_policy = policy;
         Ok(self)
+    }
+
+    /// Additional timestamp queries are an explicit diagnostic in the baseline fixed scene.
+    pub fn with_gpu_stages(mut self) -> Result<Self, String> {
+        if !matches!(self.exercise, Exercise::Timed { .. }) || !self.scenario.cards() {
+            return Err("GPU stage timing requires timed q01/q02 qualification".into());
+        }
+        if self.presentation_policy != PresentationPolicy::Latest {
+            return Err("GPU stage timing requires the latest presentation policy".into());
+        }
+        self.gpu_stages = true;
+        Ok(self)
+    }
+
+    pub fn gpu_stages(self) -> bool {
+        self.gpu_stages
     }
 
     pub fn presentation_policy(self) -> PresentationPolicy {
@@ -157,6 +178,7 @@ impl RunSpec {
         Ok(Self {
             scenario,
             presentation_policy: PresentationPolicy::Latest,
+            gpu_stages: false,
             exercise: Exercise::Recreate { cycles },
         })
     }
@@ -168,6 +190,7 @@ impl RunSpec {
         Ok(Self {
             scenario,
             presentation_policy: PresentationPolicy::Latest,
+            gpu_stages: false,
             exercise: Exercise::EditorIsolation,
         })
     }

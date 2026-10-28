@@ -1,6 +1,67 @@
 use super::{GenerationEnd, PresentationPolicy, RunSpec, Scenario};
 
 #[test]
+fn gpu_stage_queries_are_explicit_in_timed_fixed_scene_reports() {
+    for scenario in [Scenario::Q01, Scenario::Q02] {
+        let baseline = RunSpec::new(scenario, 120, 30).unwrap();
+        assert!(!baseline.gpu_stages());
+        assert_eq!(serde_json::to_value(baseline).unwrap()["gpu_stages"], false);
+        let staged = baseline.with_gpu_stages().unwrap();
+        assert!(staged.gpu_stages());
+        assert!(!baseline.gpu_stages());
+        assert_eq!(staged.presentation_policy(), PresentationPolicy::Latest);
+        assert_eq!(staged.total_seconds(), baseline.total_seconds());
+        assert_eq!(staged.warmup_seconds(), baseline.warmup_seconds());
+        assert_eq!(serde_json::to_value(staged).unwrap()["gpu_stages"], true);
+        assert!(staged.with_gpu_stages().unwrap().gpu_stages());
+        assert!(
+            staged
+                .with_presentation_policy(PresentationPolicy::Latest)
+                .unwrap()
+                .gpu_stages()
+        );
+    }
+}
+
+#[test]
+fn diagnostic_and_lifecycle_exercises_keep_gpu_stage_queries_disabled() {
+    for spec in [
+        RunSpec::new(Scenario::Diagnostic, 8, 0).unwrap(),
+        RunSpec::recreation(Scenario::Q01, 1).unwrap(),
+        RunSpec::recreation(Scenario::Q02, 2).unwrap(),
+        RunSpec::editor_isolation(Scenario::Q01).unwrap(),
+        RunSpec::editor_isolation(Scenario::Q02).unwrap(),
+    ] {
+        assert!(!spec.gpu_stages());
+        assert_eq!(serde_json::to_value(spec).unwrap()["gpu_stages"], false);
+        assert!(spec.with_gpu_stages().is_err());
+    }
+}
+
+#[test]
+fn gpu_stage_queries_and_output_vblank_are_excluded_in_both_configuration_orders() {
+    let baseline = RunSpec::new(Scenario::Q02, 120, 30).unwrap();
+    let vblank = baseline
+        .with_presentation_policy(PresentationPolicy::OutputVblank)
+        .unwrap();
+    assert!(vblank.with_gpu_stages().is_err());
+    let staged = baseline.with_gpu_stages().unwrap();
+    assert!(
+        staged
+            .with_presentation_policy(PresentationPolicy::OutputVblank)
+            .is_err()
+    );
+    assert!(
+        vblank
+            .with_presentation_policy(PresentationPolicy::Latest)
+            .unwrap()
+            .with_gpu_stages()
+            .unwrap()
+            .gpu_stages()
+    );
+}
+
+#[test]
 fn presentation_comparison_parses_only_explicit_cli_choices_and_records_policy() {
     assert_eq!(
         "latest".parse::<PresentationPolicy>().unwrap(),

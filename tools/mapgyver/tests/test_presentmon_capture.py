@@ -159,6 +159,42 @@ class PresentMonPolicyTests(unittest.TestCase):
 
 
 class PresentMonCaptureTests(unittest.TestCase):
+    def test_gpu_stages_default_to_disabled_and_require_explicit_selection(self):
+        self.assertIs(CAPTURE["parse_args"](["0", "q02"]).gpu_stages, False)
+        self.assertIs(CAPTURE["parse_args"](["0", "q02", "--gpu-stages"]).gpu_stages, True)
+
+    def test_gpu_stages_with_output_vblank_are_rejected_before_any_process(self):
+        namespace = CAPTURE["main"].__globals__
+        with mock.patch.object(namespace["sys"], "argv", [
+                "capture-presentmon.py", "0", "q02", "--gpu-stages",
+                "--presentation-policy", "output-vblank",
+        ]), mock.patch.object(subprocess, "run") as run, \
+                mock.patch.object(subprocess, "Popen") as launch, \
+                contextlib.redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit) as stopped:
+                CAPTURE["main"]()
+        self.assertEqual(stopped.exception.code, 2)
+        run.assert_not_called()
+        launch.assert_not_called()
+
+    def test_native_gpu_stage_selection_and_report_presence_must_match(self):
+        for requested in (False, True):
+            valid = self._native_capture_report(requested)
+            CAPTURE["validate_gpu_stages"](valid, requested)
+            for value in (not requested, int(requested), str(requested), None):
+                broken = copy.deepcopy(valid)
+                broken["workload"]["gpu_stages"] = value
+                with self.subTest(requested=requested, native=value), self.assertRaises(ValueError):
+                    CAPTURE["validate_gpu_stages"](broken, requested)
+            broken = copy.deepcopy(valid)
+            broken["generations"][0]["timing"]["gpu_stages"] = None if requested else {}
+            with self.subTest(requested=requested, wrong_presence=True), self.assertRaises(ValueError):
+                CAPTURE["validate_gpu_stages"](broken, requested)
+            broken = copy.deepcopy(valid)
+            broken["generations"] = []
+            with self.subTest(requested=requested, no_generations=True), self.assertRaises(ValueError):
+                CAPTURE["validate_gpu_stages"](broken, requested)
+
     def test_generated_output_path_requires_target_descendant_new_file_and_existing_parent(self):
         namespace = CAPTURE["parse_args"].__globals__
         root = (Path.cwd() / "fixture-capture-root").resolve()
@@ -378,16 +414,18 @@ class PresentMonCaptureTests(unittest.TestCase):
             with self.subTest(native=native), self.assertRaises(ValueError):
                 CAPTURE["validate_etw_query"](query_report(), SESSION, native)
 
-    def test_query_launch_failure_still_retains_collector_csv_and_native_result(self):
+    @staticmethod
+    def _native_capture_report(gpu_stages=False, policy="latest"):
+        return dict(render_process_id=71, workload=dict(presentation_policy=policy, gpu_stages=gpu_stages),
+                    generations=[dict(timing=dict(gpu_stages={} if gpu_stages else None))],
+                    observer=dict(frame_age=dict(config={})))
+
+    def _collect_query_launch_failure(self, arguments, native_fixture):
         namespace = CAPTURE["collect"].__globals__
-        args = CAPTURE["parse_args"]([
-            "0", "q01", "--presentation-policy", "output-vblank", "--collector-tail-seconds", "37",
-        ])
+        args = CAPTURE["parse_args"](arguments)
         native = SimpleNamespace(pid=71)
         collector = SimpleNamespace(pid=72)
         raw_csv = "unchanged collector CSV,including dropped rows\r\n"
-        native_fixture = dict(render_process_id=71, workload=dict(presentation_policy="output_vblank"),
-                              observer=dict(frame_age=dict(config={})))
         native_stdout = json.dumps(native_fixture)
 
         def completed(process, *_args):
@@ -418,13 +456,23 @@ class PresentMonCaptureTests(unittest.TestCase):
                 mock.patch.object(namespace["platform"], "machine", return_value="test-machine"), \
                 mock.patch.object(namespace["runpy"], "run_path", side_effect=parser), \
                 mock.patch.object(subprocess, "run", side_effect=preparations), \
-                mock.patch.object(subprocess, "Popen", side_effect=[native, collector, OSError("query unavailable")]):
+                mock.patch.object(subprocess, "Popen", side_effect=[native, collector, OSError("query unavailable")]) as launch:
             result = CAPTURE["collect"](args, evidence)
         self.assertIs(result, evidence)
-        self.assertEqual(evidence["native"]["stdout"], native_stdout)
+        return evidence, validate_policy, launch
+
+    def test_query_launch_failure_still_retains_collector_csv_and_native_result(self):
+        native_fixture = self._native_capture_report(policy="output_vblank")
+        evidence, validate_policy, launch = self._collect_query_launch_failure([
+            "0", "q01", "--presentation-policy", "output-vblank", "--collector-tail-seconds", "37",
+        ], native_fixture)
+        raw_csv = "unchanged collector CSV,including dropped rows\r\n"
+        self.assertEqual(evidence["native"]["stdout"], json.dumps(native_fixture))
         self.assertEqual(evidence["presentmon"]["stdout"], raw_csv)
         self.assertEqual(evidence["etw_query"], dict(failure="query unavailable"))
-        self.assertEqual(evidence["native_command"][-1], "output-vblank")
+        self.assertEqual(evidence["native_command"][1:], ["qualify", "0", "q01", "8", "30", "output-vblank"])
+        self.assertEqual(launch.call_args_list[0].args[0], evidence["native_command"])
+        self.assertIs(evidence["requested_gpu_stages"], False)
         self.assertEqual(evidence["collector_tail_seconds"], 37)
         self.assertEqual(evidence["presentmon_timed_seconds"], 8 + 30 + 37)
         timed_index = evidence["capture_command"].index("--timed")
@@ -434,3 +482,31 @@ class PresentMonCaptureTests(unittest.TestCase):
         self.assertFalse(evidence["route_verified"])
         self.assertFalse(evidence["live_etw_query_verified"])
         self.assertIn("validation_failure", evidence)
+
+    def test_gpu_stages_select_the_exact_staged_native_command_and_record_the_flag(self):
+        native_fixture = self._native_capture_report(True)
+        evidence, validate_policy, launch = self._collect_query_launch_failure([
+            "0", "q02", "--gpu-stages", "--sample-seconds", "120",
+        ], native_fixture)
+        self.assertEqual(evidence["native_command"][1:], ["qualify-staged", "0", "q02", "120", "30"])
+        self.assertEqual(launch.call_args_list[0].args[0], evidence["native_command"])
+        self.assertIs(evidence["requested_gpu_stages"], True)
+        self.assertEqual(evidence["requested_presentation_policy"], "latest")
+        self.assertTrue(evidence["presentation_policy_verified"])
+        self.assertFalse(evidence["route_verified"])
+        self.assertEqual(evidence["etw_query"], dict(failure="query unavailable"))
+        validate_policy.assert_called_once_with(
+            evidence["presentmon"]["stdout"], "latest", native_fixture, dict(mapped=True))
+
+    def test_collection_rejects_mismatched_native_stage_selection_before_role_validation(self):
+        for arguments, fixture in (
+            (["0", "q02"], self._native_capture_report(True)),
+            (["0", "q02", "--gpu-stages"], self._native_capture_report(False)),
+        ):
+            with self.subTest(arguments=arguments):
+                evidence, validate_policy, _launch = self._collect_query_launch_failure(arguments, fixture)
+                self.assertFalse(evidence["route_verified"])
+                self.assertFalse(evidence["presentation_policy_verified"])
+                self.assertEqual(evidence["validation_failure"], "requested and native GPU stage selections differ")
+                self.assertEqual(evidence["native_report"], fixture)
+                validate_policy.assert_not_called()

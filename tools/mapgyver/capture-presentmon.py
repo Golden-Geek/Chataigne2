@@ -32,6 +32,8 @@ def parse_args(argv=None):
     parser.add_argument("--collector-tail-seconds", type=int, default=10,
                         help="additional collector duration beyond native warmup/sample total (2..60 seconds)")
     parser.add_argument("--presentation-policy", choices=("latest", "output-vblank"), default="latest")
+    parser.add_argument("--gpu-stages", action="store_true",
+                        help="record diagnostic GPU stage timestamps with the latest presentation policy")
     parser.add_argument("--output", type=Path, help="exclusively create a generated packet under the existing target directory")
     args = parser.parse_args(argv)
     if args.adapter < 0:
@@ -40,6 +42,8 @@ def parse_args(argv=None):
         parser.error("sample must be at least 8 seconds, warmup nonnegative, total at most 3600")
     if not 2 <= args.collector_tail_seconds <= 60:
         parser.error("collector tail must be between 2 and 60 seconds")
+    if args.gpu_stages and args.presentation_policy != "latest":
+        parser.error("GPU stage timing requires the latest presentation policy")
     if args.output is not None:
         args.output = args.output.resolve()
         if not args.output.is_relative_to((ROOT / "target").resolve()) or not args.output.parent.is_dir() \
@@ -63,6 +67,15 @@ def fingerprints(executable, presentmon):
 
 def decode(data):
     return data.decode("utf-8-sig", errors="replace")
+
+
+def validate_gpu_stages(native_report, requested):
+    if native_report["workload"]["gpu_stages"] is not requested:
+        raise ValueError("requested and native GPU stage selections differ")
+    generations = native_report["generations"]
+    if not generations or any((generation["timing"]["gpu_stages"] is not None) != requested
+                              for generation in generations):
+        raise ValueError("native GPU stage report presence differs from the requested selection")
 
 
 def communicate(process, seconds, presentmon=None, session=None):
@@ -163,6 +176,7 @@ def collect(args, evidence):
                     collector_tail_seconds=args.collector_tail_seconds,
                     presentmon_timed_seconds=capture_seconds, declared_nvidia_overlay_state=args.nvidia_overlay,
                     requested_presentation_policy=args.presentation_policy,
+                    requested_gpu_stages=args.gpu_stages,
                     environment=dict(platform=platform.platform(), machine=platform.machine()),
                     role_correlation_verified=False, live_etw_query_verified=False, presentation_policy_verified=False,
                     scope="PID-filtered PresentMon v1 events with separate exact native identity correlation; no optical latency, alignment or full GPU-path claim")
@@ -185,8 +199,10 @@ def collect(args, evidence):
     if "nvidia" in selected[0]["description"].lower() and args.nvidia_overlay != "off":
         raise ValueError("NVIDIA requires verified overlay Off before startup")
     evidence["adapter"] = selected[0]
-    native_command = [str(executable), "qualify", str(args.adapter), args.scenario,
-                      str(args.sample_seconds), str(args.warmup_seconds), args.presentation_policy]
+    native_command = [str(executable), "qualify-staged" if args.gpu_stages else "qualify",
+                      str(args.adapter), args.scenario, str(args.sample_seconds), str(args.warmup_seconds)]
+    if not args.gpu_stages:
+        native_command.append(args.presentation_policy)
     native = subprocess.Popen(native_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=ROOT)
     evidence["native_command"] = native_command
     evidence["native_pid"] = native.pid
@@ -226,6 +242,7 @@ def collect(args, evidence):
             raise ValueError("native report PID mismatch")
         BASE["compact_resources"](report)
         evidence["native_report"] = report
+        validate_gpu_stages(report, args.gpu_stages)
         if capture_run["exit_code"] != 0 or capture_run["timed_out"] or not capture_run["valid_utf8"]:
             raise ValueError("PresentMon failed or timed out")
         data = runpy.run_path(str(Path(__file__).with_name("presentmon_data.py")))

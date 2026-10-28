@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "predeclared_same_context_gpu_boundary_diagnostic_not_qualification",
+  "reason": "Cached-import sustained renderer intervals still reach 117.146458 ms despite CPU maximum 2.7739 ms; the whole-frame bracket covers multiple GPU and synchronization paths",
+  "adapter_index": 0,
+  "scenario": "q02",
+  "presentation_policy": "latest",
+  "instrumentation": "Opt-in five intermediate D3D11 timestamp markers inside the existing single per-frame disjoint scope; six elapsed same-context intervals bounded by existing frame start/end",
+  "boundaries_after": ["source polling", "composition", "Spout send", "native output target/draw/Present path", "editor target/draw/Present path"],
+  "unchanged": ["cached source bridge and three-slot pool", "all scene dimensions/cards", "CPU pacing", "GPU admission ceiling", "presenter buffers, flags and SyncInterval", "existing four-slot timing ring", "GetData DONOTFLUSH", "no per-stage flush or wait", "default whole-frame mode has no extra timestamp queries"],
+  "ordered_captures": [
+    {"label": "a1", "gpu_stages": false, "warmup_seconds": 30, "sample_seconds": 8},
+    {"label": "b", "gpu_stages": true, "warmup_seconds": 30, "sample_seconds": 8},
+    {"label": "a2", "gpu_stages": false, "warmup_seconds": 30, "sample_seconds": 8},
+    {"label": "sustained", "gpu_stages": true, "warmup_seconds": 30, "sample_seconds": 120, "condition": "Short captures have complete stream/identity/instrumentation integrity; cadence failures remain evidence and do not trigger replacement runs"}
+  ],
+  "collector_tail_seconds": 10,
+  "validation": ["one frozen release/source/assets/helper epoch", "same actual window context", "exact native/raw-stream hashes and role matching", "stage rows join whole-frame ticks, frequency and identity exactly", "all stage differences telescope to the frame difference", "all/sampled coverage and explicit skipped/invalid/pending/truncated counts", "existing operation/admission/import accounting", "preserve every failure"],
+  "constraints": ["one native capture at a time without builds, automation or background analysis", "no desktop/overlay/display setting changes", "lossless GPU integer transport", "no change to default presentation or scene policy"],
+  "interpretation": "Elapsed timestamp intervals can include command-delivery gaps, dependencies and scheduling. They do not measure isolated GPU busy time, establish cross-context clock alignment, physical scanout/latency or a causal repair. A/B/A observes instrumentation perturbation and drift without declaring statistical equivalence. One sustained diagnostic is not the required qualifying series; all M01 acceptance gates retain their original scope."
+}

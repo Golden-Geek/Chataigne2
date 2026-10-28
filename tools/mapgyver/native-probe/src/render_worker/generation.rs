@@ -13,6 +13,7 @@ use crate::{
     spout::Endpoint,
     timing::{Timing, TimingReport},
 };
+use mapgyver_native_probe::gpu_stage_timing::Boundary;
 use mapgyver_native_probe::operation_timing::{self, FrameTimer, GpuWork, Operation, Stamp};
 use mapgyver_native_probe::pipeline_timing::{Dependencies, DependencyTrace};
 use mapgyver_native_probe::workload::GenerationEnd;
@@ -95,7 +96,11 @@ pub fn run(session: &Session, state: &mut RunState, generation: u32) -> ProbeRes
             f32::from(a) / 255.0,
         ],
     )?;
-    let mut timing = Timing::traced(&gpu)?;
+    let mut timing = if spec.gpu_stages() {
+        Timing::staged(&gpu)?
+    } else {
+        Timing::traced(&gpu)?
+    };
     let mut dependency_trace = DependencyTrace::new(crate::clock::frequency()?);
     let mut admission = FrameAdmission::new(&gpu)?;
     let mut operation_timing = operation_timing::Recorder::new(crate::clock::frequency()?);
@@ -186,6 +191,7 @@ pub fn run(session: &Session, state: &mut RunState, generation: u32) -> ProbeRes
                 sources: std::array::from_fn(|channel| inputs[channel].frame().map(|frame| frame.batch)),
             });
         }
+        timing.checkpoint(&gpu, Boundary::Sources)?;
         operations.measure(Operation::Compose, || -> ProbeResult<()> {
             gpu.clear(&composed, [0.05, 0.05, 0.05, 1.0])?;
             for (index, input) in inputs.iter().enumerate() {
@@ -218,7 +224,9 @@ pub fn run(session: &Session, state: &mut RunState, generation: u32) -> ProbeRes
             }
             Ok(())
         })?;
+        timing.checkpoint(&gpu, Boundary::Composition)?;
         operations.measure(Operation::SendSpout, || sender.send(&composed))?;
+        timing.checkpoint(&gpu, Boundary::Spout)?;
         cadence[2].record(Instant::now(), deadline, collecting, Submission::Accepted);
         operations.measure(Operation::ObserverControl, || -> ProbeResult<()> {
             if generation > 0 && !generation_requested && inputs.iter().all(|input| input.frame().is_some()) {
@@ -261,6 +269,7 @@ pub fn run(session: &Session, state: &mut RunState, generation: u32) -> ProbeRes
             }
         };
         cadence[1].record(Instant::now(), deadline, collecting, output_presented);
+        timing.checkpoint(&gpu, Boundary::NativeOutput)?;
         let fixed_geometry = rects.len() == 2
             && output.size() == spec.scenario.extent()
             && rects.iter().zip([[640, 360], [480, 270]]).all(|(rect, expected)| {
@@ -290,6 +299,7 @@ pub fn run(session: &Session, state: &mut RunState, generation: u32) -> ProbeRes
             }
         };
         cadence[0].record(Instant::now(), deadline, collecting, editor_presented);
+        timing.checkpoint(&gpu, Boundary::Editor)?;
         operations.measure(Operation::Status, || -> ProbeResult<()> {
             let mut status = shared.status.lock().map_err(|_| "probe status poisoned")?;
             status.generation = generation;

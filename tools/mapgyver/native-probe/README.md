@@ -311,6 +311,35 @@ GPU-busy coalescing observed. Earlier Q02 stalls remain retained; this cohort do
 internal cause or a fix. The [native evidence](../../../docs/progress/mapgyver-m01-native-feasibility.md)
 records measurements and remaining gates.
 
+## Opt-in GPU stage boundaries
+
+`qualify-staged ADAPTER q01|q02 SAMPLE_SECONDS WARMUP_SECONDS` keeps the latest presentation
+policy and adds five timestamp markers to the existing renderer frame scope. The capture helper
+selects it with `--gpu-stages`; combining it with output-vblank is rejected before startup.
+Ordinary qualification, lifecycle and editor-isolation modes keep staging disabled.
+
+```powershell
+python tools/mapgyver/capture-presentmon.py 0 q02 --gpu-stages --sample-seconds 8 --warmup-seconds 30
+```
+
+The pure Rust `gpu_stage_timing` model owns bounded raw rows. `timing/stages` owns twenty extra
+queries across the existing four slots, under each slot's existing disjoint scope and event.
+No per-stage flush, wait or independent profiling ring is added. Default mode allocates no
+extra queries. Every staged row retains seven exact ticks, frequency, frame identity and
+collection flag; missing, invalid, pending and truncated rows remain explicit.
+
+The six elapsed intervals are source handoff, composition, Spout send, native output, editor
+and tail. Each includes any CPU command-delivery gap or GPU dependency/scheduling delay between
+its markers. Source handoff includes layout/polling; native output and editor include their
+target/draw/Present paths when attempted. These are not isolated GPU busy-time measurements.
+See Microsoft's [timestamp/disjoint contract](https://learn.microsoft.com/en-us/windows/win32/api/d3d11/ne-d3d11-d3d11_query).
+
+`gpu_stages.py` joins rows to the existing whole-frame trace, validates coverage and exact
+integer interval conservation, then summarizes durations. `analyze-gpu-stages.py` recomputes
+the off/on/off controls and optional sustained sample, including stream/CSV/import/admission
+checks. Top-frame CSV counts use CPU submission brackets; QPC is never subtracted from GPU
+ticks. This locates elapsed time without aligning different GPU clocks or proving a cause.
+
 ## Source lifecycle isolation
 
 Schema v10 moves source SDK receive, resize, absence/reconnect and receiver destruction into

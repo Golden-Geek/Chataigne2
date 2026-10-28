@@ -4,14 +4,16 @@
 
 **Updated: 2026-10-28 · Overall: `██░░░░░░░░░░░░░░░░░░` 10% · 1/10 phases complete**
 
-**Current topic:** M01 native feasibility — bounded renderer imports and GPU/presenter stalls.
-Cached Intel Q02 handoffs perform zero sampled opens, stay within three aliases and drain cleanly.
-The two-minute run still accepts only 6,548/7,200 output attempts and has 44 CSV output drops.
+**Current topic:** M01 native feasibility — same-context GPU stage boundaries.
+The staged two-minute Intel Q02 run locates 143.06 ms of a 153.57 ms interval between
+post-composition/post-Spout markers, with no Present in that batch's CPU bracket.
+Output still accepts 7,125/7,200 attempts with 29 CSV drops; M01 stays open.
 
-**Next:** isolate GPU/admission/readiness stalls with controlled context correlation, then
-continue the required sustained series and remaining display/lifecycle gates.
+**Next:** isolate Spout send/consumer sharing and GPU scheduling in a controlled diagnostic,
+then continue the required sustained series and remaining display/lifecycle gates.
 **Blocker:** cadence, GPU timing and consumer age remain unresolved.
-A2 loss observation, physical alignment/latency and full GPU critical path remain open. M02 waits for M01.
+Historical output-policy A2 loss observation, physical alignment/latency and full GPU critical
+path remain open. M02 waits for M01.
 
 | Phase | State | Progress | Done / total items |
 | --- | --- | --- | --- |
@@ -97,7 +99,7 @@ allows both live queries to succeed without changing the older unavailable obser
 | Native rectangle output and composited Spout send | Open | Intel/NVIDIA fixed procedural/Spout cards pass; native preview/output visual accuracy and 4K scanout remain. |
 | Mixed DPI, negative origins, drag/resize/docking/zoom | Open | 100%/125% observations recorded; 150%/200%, negative origins and measured alignment remain. |
 | Minimized/disconnected-editor independence | Open | Intel/NVIDIA busy/blank-document continuity and reconnect pass at recorded fingerprints; full displayed/minimized qualification remains. |
-| Color/alpha, copies, cadence/latency, queues and memory | Open | Bounded cached imports pass 4K fixed-card accuracy and cleanup; sampled opens are zero. Cached sustained output still accepts 6,548/7,200 attempts with 44 CSV drops. Historical output-policy drift and unavailable A2 loss counters remain. Cadence, final/analysis loss, other routes/lifecycle cards, GPU critical path, scanout and resources remain. |
+| Color/alpha, copies, cadence/latency, queues and memory | Open | Stage timing locates a 143.06 ms elapsed post-compose/post-Spout interval; current sustained output accepts 7,125/7,200 attempts with 29 CSV drops. Cache bounds/cleanup remain verified, with one sampled import per source. Historical failures and fixed-card evidence keep their fingerprints. Cadence, final/analysis loss, other routes/lifecycle cards, GPU critical path, scanout and resources remain. |
 | Device recreation, sustained retirement and shutdown | Open | Controlled rebuilds recorded; complete Q05, physical retirement, real removal/reset and full-process shutdown remain. |
 | Production host/backend/binding decision | Open | D3D11/sys binding and ordinary underlay remain provisional pending the full gate. |
 
@@ -213,6 +215,14 @@ M02 depends on this gate; do not build production editors/shell around an unqual
   presenter readiness with a controlled experiment; do not assign historical stalls a cause
   from this uncontrolled comparison. Explicit ten-second collector tails permit both live
   queries to succeed; preserve A2's earlier status-4201 failure and unverified final loss.
+- The opt-in stage diagnostic retains all 2,277/8,963 whole-frame joins for its short/sustained
+  staged runs. Its largest sampled interval contains 143.0630 ms between post-composition and
+  post-Spout markers, with zero observed Presents in that batch's CPU bracket. Isolate Spout
+  send/consumer sharing and GPU scheduling before moving responsibility or claiming an SDK
+  cause. Output still loses 75/7,200 native submissions and has 29 CSV drops; the return-to-off
+  short control also drops 76/480 output Presents despite full native acceptance. Preserve
+  separate GPU-pressure and presentation behavior, and do not infer equivalence from short
+  off/on/off distributions. One sampled import per source remains visible in the long run.
 - Both adapters' JS-busy/blank-document continuity now has native evidence and fresh reconnect
   ownership. Intel finite authored-image accuracy now compares every pixel through independent
   processes and the real source-worker bridge at 1080p/4K. The fixed procedural-card shader also
@@ -269,6 +279,15 @@ P14/P15 time and asset contracts retain their shared Golden owners under M03. Ro
 behavior is unchanged. No production host/backend/binding decision is final yet.
 
 ## M01 verification — 2026-10-28
+
+- GPU-stage milestone: 78 deterministic Rust tests and strict default/desktop Clippy pass;
+  seven hardware tests remain ignored by the standard suite. All 123 Python tests pass,
+  including raw-u64 stage identity, interval conservation, complete coverage and mode guards.
+  Generated bindings, release build and required root/Core formatting pass. The predeclared
+  Intel off/on/off controls and staged 30+120-second run retain every native/query/CSV stream;
+  independent analysis recomputes all 31,461 rows and exact stage joins. Short controls vary
+  and sustained still loses 75 output submissions, so no causal repair or qualifying series
+  is claimed. M01 remains 1/8 and overall 1/10. See [stage evidence](mapgyver-m01-native-feasibility.md#same-context-gpu-stage-boundaries--2026-10-28).
 
 - Bounded-import milestone: `cargo test --locked -p mapgyver_native_probe --features desktop`
   passes 69 deterministic tests; seven hardware tests remain ignored by that command. The two

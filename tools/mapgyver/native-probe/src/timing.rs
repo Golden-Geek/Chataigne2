@@ -1,11 +1,14 @@
 //! Bounded probe telemetry. Timestamp/event queries are polled only on the render worker.
 
+mod stages;
+
 use std::time::{Duration, Instant};
 
 use serde::Serialize;
 use windows::Win32::Graphics::Direct3D11::*;
 
 use crate::{ProbeResult, d3d::Gpu};
+use mapgyver_native_probe::gpu_stage_timing::{self, Boundary};
 use mapgyver_native_probe::operation_timing::{GpuEvent, Outliers, Stamp};
 use mapgyver_native_probe::pipeline_timing::{GpuSpan, GpuTrace};
 
@@ -22,6 +25,7 @@ pub struct TimingReport {
     pub truncated_samples: u32,
     pub gpu_outliers: Outliers<GpuEvent>,
     pub gpu_trace: Option<GpuTrace>,
+    pub gpu_stages: Option<gpu_stage_timing::Trace>,
 }
 
 struct Slot {
@@ -33,6 +37,7 @@ struct Slot {
     collected: bool,
     serial: u64,
     stamp: Stamp,
+    stages: Option<stages::Queries>,
 }
 
 pub struct Timing {
@@ -48,6 +53,7 @@ pub struct Timing {
     collecting: bool,
     gpu_outliers: Outliers<GpuEvent>,
     gpu_trace: Option<GpuTrace>,
+    gpu_stages: Option<gpu_stage_timing::Trace>,
 }
 
 fn query(gpu: &Gpu, kind: D3D11_QUERY) -> ProbeResult<ID3D11Query> {
@@ -78,6 +84,7 @@ impl Timing {
                     collected: false,
                     serial: 0,
                     stamp: Stamp { frame: 0, qpc: 0 },
+                    stages: None,
                 })
             })
             .collect::<ProbeResult<Vec<_>>>()?;
@@ -94,6 +101,7 @@ impl Timing {
             collecting: false,
             gpu_outliers: Outliers::default(),
             gpu_trace: None,
+            gpu_stages: None,
         })
     }
 
@@ -104,7 +112,19 @@ impl Timing {
         Ok(timing)
     }
 
+    pub fn staged(gpu: &Gpu) -> ProbeResult<Self> {
+        let mut timing = Self::traced(gpu)?;
+        for slot in &mut timing.slots {
+            slot.stages = Some(stages::Queries::new(gpu)?);
+        }
+        timing.gpu_stages = Some(gpu_stage_timing::Trace::default());
+        Ok(timing)
+    }
+
     pub fn begin(&mut self, gpu: &Gpu, start: Instant, collect: bool, stamp: Stamp) -> ProbeResult<bool> {
+        if self.active.is_some() {
+            return Err("previous GPU timing scope is still active".into());
+        }
         self.collecting = collect;
         self.reap(gpu)?;
         if !collect {
@@ -119,6 +139,9 @@ impl Timing {
             if let Some(trace) = &mut self.gpu_trace {
                 trace.skipped += 1;
             }
+            if let Some(trace) = &mut self.gpu_stages {
+                trace.skipped += 1;
+            }
             if collect {
                 self.skipped += 1;
             }
@@ -127,6 +150,9 @@ impl Timing {
         self.active = Some(index);
         self.slots[index].collected = collect;
         self.slots[index].stamp = stamp;
+        if let Some(stages) = &mut self.slots[index].stages {
+            stages.reset();
+        }
         // SAFETY: only one disjoint scope is active on this immediate context.
         unsafe {
             if collect || self.gpu_trace.is_some() {
@@ -135,6 +161,19 @@ impl Timing {
             }
         }
         Ok(true)
+    }
+
+    pub fn checkpoint(&mut self, gpu: &Gpu, boundary: Boundary) -> ProbeResult<()> {
+        if self.gpu_stages.is_some()
+            && let Some(index) = self.active
+        {
+            self.slots[index]
+                .stages
+                .as_mut()
+                .ok_or("GPU stage queries absent")?
+                .mark(gpu, boundary)?;
+        }
+        Ok(())
     }
 
     /// Close diagnostic markers; the runtime owns submission/flush independently of this ring.
@@ -189,7 +228,19 @@ impl Timing {
                 if let Some(trace) = &mut self.gpu_trace {
                     trace.invalid += 1;
                 }
+                if let Some(trace) = &mut self.gpu_stages {
+                    trace.invalid += 1;
+                }
             } else {
+                let stage_ticks = if let Some(stages) = &slot.stages {
+                    match stages.read(gpu)? {
+                        stages::Read::Pending => continue,
+                        stages::Read::Incomplete => None,
+                        stages::Read::Ready(ticks) => Some(ticks),
+                    }
+                } else {
+                    None
+                };
                 let event = GpuEvent {
                     stamp: slot.stamp,
                     observed_completed_qpc: crate::clock::now()?,
@@ -197,6 +248,26 @@ impl Timing {
                     end_ticks: end,
                     frequency: clock.Frequency,
                 };
+                if let Some(trace) = &mut self.gpu_stages {
+                    if let Some(ticks) = stage_ticks {
+                        let boundaries = [start, ticks[0], ticks[1], ticks[2], ticks[3], ticks[4], end];
+                        if trace
+                            .record(gpu_stage_timing::Frame {
+                                frame: slot.stamp.frame,
+                                submitted_qpc: slot.stamp.qpc,
+                                observed_completed_qpc: event.observed_completed_qpc,
+                                frequency: clock.Frequency,
+                                collected: slot.collected,
+                                boundaries,
+                            })
+                            .is_err()
+                        {
+                            trace.invalid += 1;
+                        }
+                    } else {
+                        trace.invalid += 1;
+                    }
+                }
                 if slot.collected {
                     self.gpu.push((end - start) as f64 / clock.Frequency as f64 * 1000.0);
                     self.gpu_outliers.record_gpu(event.clone());
@@ -234,6 +305,9 @@ impl Timing {
         if let Some(trace) = &mut self.gpu_trace {
             trace.pending = self.slots.iter().filter(|slot| slot.pending).count();
         }
+        if let Some(trace) = &mut self.gpu_stages {
+            trace.pending = self.slots.iter().filter(|slot| slot.pending).count();
+        }
         Ok(TimingReport {
             cpu_submission_work: self.cpu.distribution(),
             worker_start_intervals: self.intervals.distribution(),
@@ -244,6 +318,7 @@ impl Timing {
             truncated_samples: self.cpu.truncated + self.intervals.truncated + self.gpu.truncated,
             gpu_outliers: self.gpu_outliers,
             gpu_trace: self.gpu_trace,
+            gpu_stages: self.gpu_stages,
         })
     }
 }

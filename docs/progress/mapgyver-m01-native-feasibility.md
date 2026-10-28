@@ -5,6 +5,67 @@ from MapGyver's product systems. M01 is **in progress**, not a presentation-arch
 See the [ledger](mapgyver-status.md), [qualification contract](mapgyver-qualification-contract.md)
 and [harness commands/ownership](../../tools/mapgyver/native-probe/README.md).
 
+## Same-context GPU stage boundaries — 2026-10-28
+
+The [predeclared off/on/off diagnostic](evidence/mapgyver-m01-gpu-stages-plan-2026-10-28.json)
+adds opt-in renderer stage timestamps while retaining the bounded import bridge, scene,
+presentation policy and GPU admission ceiling. Five additional markers share the existing
+whole-frame disjoint scope and completion event; there are no per-stage waits or flushes.
+Ordinary qualification allocates no additional queries. The mode is restricted to timed
+Q01/Q02 with latest presentation and remains outside product/UI policy.
+
+The [strict analysis](evidence/mapgyver-m01-gpu-stages-analysis-2026-10-28.json) independently
+recomputes all four complete packets, including all 31,461 raw CSV rows. It verifies
+native/query/CSV hashes, role/policy/loss observations, operation/admission/import accounting,
+matching source/assets/helper/window context and chronological distinct sessions. All use
+release SHA256 `9f564dbaa51a40f82d05798142c323af69d412ba2586bb87d8d104f3fb5449f6`.
+
+| Intel Q02 latest | Sample | Output accepted / CSV dropped | Editor accepted / CSV dropped | Renderer GPU p99 / max ms |
+| --- | --- | --- | --- | --- |
+| [A1 stages off](evidence/mapgyver-m01-gpu-stages-a1-2026-10-28.json) | 30+8 s | 480 / 0 | 480 / 0 | 8.7732 / 9.5708 |
+| [B stages on](evidence/mapgyver-m01-gpu-stages-b-2026-10-28.json) | 30+8 s | 480 / 0 | 480 / 0 | 9.2215 / 16.5568 |
+| [A2 stages off](evidence/mapgyver-m01-gpu-stages-a2-2026-10-28.json) | 30+8 s | 480 / 76 | 480 / 17 | 12.1718 / 12.7882 |
+| [Sustained stages on](evidence/mapgyver-m01-gpu-stages-sustained-2026-10-28.json) | 30+120 s | 7,125 / 29 | 7,097 / 70 | 16.3266 / 153.5667 |
+
+All short controls have 480 attempts and full native acceptance. Their differing GPU
+distributions and A2 display drops prevent an equivalence or causal-overhead claim.
+Sustained sampling has 7,200 attempts: output's 75 busy outcomes are 33 GPU coalesced plus
+42 readiness gaps; editor's 103 are the same 33 plus 70 readiness gaps. Sampled Present Busy
+HRESULTs, occlusion, late attempts and admitted-frame source absence are zero. Sampled native
+acceptance matches CSV Present counts exactly; full-run CSV retains one fewer row per role.
+
+B retains all 2,277 renderer stage rows, including 480 sampled; sustained retains 8,963,
+including 7,167 sampled. Each row's seven raw ticks match its whole-frame endpoints, frequency,
+QPC identity and collection flag, with exact integer interval conservation. No stage/context
+row is skipped, invalid, pending or truncated. Equal adjacent ticks are valid zero elapsed
+intervals, not substituted missing measurements.
+
+The longest sustained interval is frame 2009, 3.5506956 seconds into sampling. Of its
+153.56671875 ms, 2,746,810 ticks at 19.2 MHz fall between the post-composition and post-Spout
+markers: **143.0630208333 ms**. Composition accounts for 10.3519791667 ms; the native-output,
+editor and tail intervals are zero ticks. Independent CSV counting finds **zero Presents for
+either role** in that frame's CPU submission bracket. This narrows the observed long interval
+without blaming presentation or proving an SDK-internal cause. Other large intervals span
+source handoff, composition and native output; the event is not a single universal bottleneck.
+
+Renderer CPU p99/max are 0.9233/2.6565 ms; CPU Spout send max is 0.4904 ms and source poll max
+0.7226/0.5434 ms. The marker intervals can include dependency and scheduling delays, and CPU
+command-delivery gaps. They do not isolate GPU busy time, align different context clocks,
+establish the full GPU critical path or measure physical scanout. Consumer source-age p95 is
+37.9496/34.1815 ms, with maxima 292.3700/254.8772 ms; a percentile alone does not erase the stall.
+
+The sustained run opens **one newly needed import per source during sampling**, unlike the
+earlier zero-open cache controls. It has 7,164/7,166 cache hits and two/zero same-surface polls.
+All cache/live peaks stay at most three and final aliases and logical allocations drain to
+zero. These are bounded reuse/ownership observations, not physical GPU residency proof.
+
+All live ETW queries return three zero loss counters and no collector warning. Final capture
+and analysis zero loss remain unverified. The output is still a 3840×2160 client on a
+1920×1080/60 Hz monitor, while the editor is on the 125%/240 Hz primary. No display/overlay
+setting changed. M01 remains **1/8**. Next isolate Spout send/consumer sharing and GPU scheduling
+with a controlled diagnostic; preserve the separate presenter/drop behavior and remaining
+physical alignment, lifecycle and full-path gates.
+
 ## Bounded renderer imports and split handoff timing — 2026-10-28
 
 The [predeclared diagnostic](evidence/mapgyver-m01-import-cache-plan-2026-10-28.json) adds a
@@ -1868,7 +1929,7 @@ physical scanout or unknown driver/desktop copies. Production/runtime/protocol c
 | Native rectangle output and composited Spout send | Exact Q01/Q02 client/preview extents and narrow color/alpha/lifecycle checks pass on both GPUs; visual/native output, 4K scanout and full reference-card checks remain open |
 | Mixed DPI, negative origins, drag/resize/docking/zoom | 125%→100% monitor transition, primary/secondary sequences and WebView zoom checks observed; OS 150%/200%, negative origins and quantitative alignment remain open |
 | Minimized/disconnected-editor independence | Hidden-tab and separate minimized-editor intervals exceed 60 seconds with independent native output visual/submission progress; freshness, busy/disconnected cases and displayed cadence remain open |
-| Alpha/color cards, copies, frame age/cadence, queues and memory budgets | Repaired NVIDIA Q01/Q02 each complete three 30+120-second release samples with full sampled call/context-timing coverage and scoped CPU/consumer-age targets met. Source-A warmup admission pressure persists. Earlier Intel stalls remain retained for their exact inputs. Fixed procedural/authored cards pass on both adapters. New short Intel Q01/Q02 traces match native roles exactly; Q02 retains 85 editor/20 output drops per 480 Presents despite full native acceptance. Their cause and independent zero loss remain unverified. Full GPU critical path, current-variant Intel series, sustained displayed cadence/physical latency, physical residency, SDK-internal copies, lifecycle/preview cards and remaining configurations stay open |
+| Alpha/color cards, copies, frame age/cadence, queues and memory budgets | Historical NVIDIA/Intel cohorts and fixed-card results retain their exact fingerprints. Current Intel stage traces join every renderer interval and locate 143.0630 ms between post-composition/post-Spout markers in a 153.5667 ms frame. Sustained output accepts 7,125/7,200 attempts with 29 CSV drops; return-to-off short output drops 76/480 despite full acceptance. Cache bounds and zero alias/logical cleanup pass, with one sampled import per source. No SDK cause, cadence repair or complete GPU critical path is established. Current qualifying series, displayed cadence/physical latency, final/analysis loss, physical residency, SDK-internal copies, lifecycle/preview cards and remaining configurations stay open |
 | Device recreation, sustained retirement and shutdown budgets | Repaired NVIDIA control retires 101 renderer/202 ingest scopes across 100 rebuilds with ten-second live settling and 0.531-second scoped teardown. Handles stay within ten; private growth 47.926 MiB fails the 32-MiB target. Earlier smaller-stack passes retain their exact fingerprints. Full Q05, physical retirement, complete-process/WebView shutdown and genuine removal/reset remain open |
 | Production host/backend/binding decision | OPEN: D3D11 plus the sys binding is exercised provisionally; ordinary underlay must pass or trigger DirectComposition investigation |
 

@@ -147,13 +147,17 @@ fn run() -> ProbeResult<()> {
             RunSpec::recreation(args[2].parse()?, args[3].parse()?)?,
         )?),
         #[cfg(feature = "desktop")]
-        Some("qualify") if matches!(args.len(), 5 | 6) => {
+        Some(command @ ("qualify" | "qualify-staged"))
+            if args.len() == 5 || (command == "qualify" && args.len() == 6) =>
+        {
             let scenario = args[2].parse()?;
             if scenario == Scenario::Diagnostic {
-                return Err("qualify requires q01 or q02".into());
+                return Err(format!("{command} requires q01 or q02").into());
             }
             let spec = RunSpec::new(scenario, args[3].parse()?, args[4].parse()?)?;
-            let spec = if let Some(policy) = args.get(5) {
+            let spec = if command == "qualify-staged" {
+                spec.with_gpu_stages()?
+            } else if let Some(policy) = args.get(5) {
                 spec.with_presentation_policy(policy.parse()?)?
             } else {
                 spec
@@ -180,6 +184,7 @@ fn run() -> ProbeResult<()> {
             "  color-procedural-accuracy ADAPTER q01|q02 (actual procedural shader and full CPU reference)\n",
             "  underlay ADAPTER SECONDS\n",
             "  qualify ADAPTER q01|q02 SAMPLE_SECONDS WARMUP_SECONDS [latest|output-vblank]\n",
+            "  qualify-staged ADAPTER q01|q02 SAMPLE_SECONDS WARMUP_SECONDS\n",
             "  recreate ADAPTER q01|q02 CYCLES\n",
             "  editor-isolation ADAPTER q01|q02 (busy, blank document, reconnect; 185s watchdog)\n",
             "  gpu-progress ADAPTER MODE (see native-probe README)\n",
