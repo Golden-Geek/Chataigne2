@@ -73,6 +73,7 @@ def write_capture(directory):
         renderer.append(gpu(native_token, "Renderer"))
         for output in (1, 2, 3):
             renderer.append(event("Output", {"token": native_token, "output": output, "outcome": "Accepted",
+                                              "spout_image": {"shared_handle": 300, "frame": frame} if output == 2 else None,
                                               "delivery": wall(start + 20, start + 30), "consumer_api": wall(start + 22, start + 25)}))
         stamps, words = [], []
         for index in range(2):
@@ -85,7 +86,8 @@ def write_capture(directory):
             words.extend(canonical)
             producer = token(f"producer-{index}", frame)
             sources[index].append({"kind": "source_frame", "submission": {"token": producer, "stamp": stamp,
-                                                                          "outcome": "Accepted"}, "marker_words": canonical})
+                                  "spout_image": {"shared_handle": 100 + index, "frame": frame},
+                                  "outcome": "Accepted"}, "marker_words": canonical})
             context = {"FixtureProducer": {"id": f"producer-{index}"}}
             sources[index].extend([event("SourceCpu", {"token": producer, "context": context, "wall": wall(start - 20, start),
                                                        "thread_cpu": None}), gpu(producer, context)])
@@ -95,13 +97,17 @@ def write_capture(directory):
                                                    "wall": wall(start, start + 5), "thread_cpu": None}),
                              gpu(worker, source_context),
                              event("SourceUse", {"token": native_token, "texture": source, "sequence": frame,
-                                                  "publication": {"source_token": worker}})])
+                                                  "publication": {"source_token": worker, "receive_begin_qpc": start,
+                                                  "publication_qpc": start + 5,
+                                                  "spout_image": {"shared_handle": 100 + index, "frame": frame}}})])
         capture = token("consumer", frame)
         consumer.append({"kind": "consumer_frame", "frame": {"row": frame - 1, "token": capture,
+                         "spout_image": {"shared_handle": 300, "frame": frame},
                          "receive_begin_qpc": start + 80, "completion_observed_qpc": start + 100,
                          "raw_words": words, "left": {"Ok": stamps[0]}, "right": {"Ok": stamps[1]}}})
         context = {"FixtureConsumer": {"id": "consumer"}}
         consumer.extend([event("SourceCpu", {"token": capture, "context": context, "wall": wall(start + 80, start + 90),
+                                               "receive_api": wall(start + 80, start + 90),
                                                "thread_cpu": None}), gpu(capture, context)])
     for rows in sources:
         rows.append({"kind": "source_final", "diagnostics": accounting(rows)})
@@ -273,7 +279,7 @@ class ProductionQualificationTests(unittest.TestCase):
 
     def test_old_captures_are_not_reinterpreted_using_new_generation_or_clock_semantics(self):
         manifest = ANALYZER.load_json(self.directory / "manifest.json")
-        for old in (1, 2):
+        for old in (1, 2, 3):
             with self.subTest(version=old):
                 manifest["schema_version"] = old
                 (self.directory / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")

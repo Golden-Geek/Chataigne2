@@ -115,6 +115,33 @@ pub struct OutputTrace {
     pub consumer_api: Option<CpuInterval>,
     /// Consumer API disposition.
     pub outcome: DiagnosticDelivery,
+    /// Exact accepted Spout image; absent for windows, rejected calls or unavailable metadata.
+    pub spout_image: Option<SpoutImageVersion>,
+}
+
+/// Diagnostic-only correlation for one versioned shared image, never a project/control type.
+/// A legacy share handle is an ephemeral identity, not owned here and never opened by analysis.
+/// Handle reuse can make a pair ambiguous; offline joins must reject duplicate publications.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SpoutImageVersion {
+    /// SDK SharedTextureInfo's 32-bit handle identity, independent of pointer sign extension.
+    pub shared_handle: u32,
+    /// Positive counter attached to this actual copy under the sender's access lock.
+    pub frame: i32,
+}
+
+impl SpoutImageVersion {
+    pub(crate) fn copied_legacy(handle: usize, frame: i32) -> Option<Self> {
+        // SpoutSenderNames stores uint32_t shareHandle via HandleToLong and retrieves it via
+        // LongToHandle on x64. Normalize only those zero/sign-extended legacy representations;
+        // this is not a conversion for arbitrary NT handles or a handle used for native access.
+        let legacy = handle as u32;
+        let canonical = handle == legacy as usize || handle == legacy as i32 as isize as usize;
+        (canonical && legacy != 0 && frame > 0).then_some(Self {
+            shared_handle: legacy,
+            frame,
+        })
+    }
 }
 
 /// Source publication metadata retained with the renderer texture actually containing it.
@@ -126,6 +153,8 @@ pub struct PublicationTiming {
     pub receive_begin_qpc: Option<u64>,
     /// Before publishing the owned GPU bridge lease. This is not GPU completion.
     pub publication_qpc: Option<u64>,
+    /// Exact copied image under an explicit versioning contract; unknown peers remain None.
+    pub spout_image: Option<SpoutImageVersion>,
 }
 
 /// Source frame actually used by one renderer batch, including unchanged retained frames.

@@ -114,9 +114,9 @@ samples use the default 30/120-second durations and `--samples 3`; renderer crit
 M03/gate-9 owner. Physical DPI/input and full-app/Matrix Q05 criteria retain M05/M09 owners.
 Renderer handle/growth/drain requirements remain M03 and are not waived by that distinction.
 Unknown criteria are explicit, and short samples cannot become qualification by relabeling them.
-Current captures use artifact schema 3, generated from the Rust qualification contract. The
-schema-1/2 archives below retain their own analyses and hashes; the current analyzer rejects
-both older versions rather than reinterpreting rows without resource-generation identity.
+Current captures use artifact schema 4, generated from the Rust qualification contract. The
+schema-1/2/3 archives below retain their own analyses and hashes; the current analyzer rejects
+older versions rather than inventing resource-generation or copied-image identities.
 
 ## Diagnostic checkpoint — 2026-10-29
 
@@ -403,3 +403,83 @@ lossless telemetry, and owned cleanup is unforced with zero final resource bytes
 Conservative logical peaks remain 180,633,664/578,764,864 bytes; the new shared allocations do
 not lower admission reservations. Full GPU/output age, publication/receipt/queue age, prescribed
 cadence, growth/handles and native removal/stuck retirement remain open. M03 stays **7/9**.
+
+## Exact Spout output cohorts and source-retention age — 2026-10-29
+
+Golden Video now carries diagnostic-only copied-image identity through the native source
+publication and accepted Spout output. Qualification producers record it with their canonical
+GPU marker words; the independent consumer retains it beside each actual capture/decode record.
+The SDK's existing public getters supply metadata without changing the SDK or submitting GPU
+work. Unknown/unversioned sources claim no exact version. These ephemeral values retain/open
+no resource and never enter project files or the control protocol.
+
+The native regression exposed an x64 representation distinction: Spout's sender-info record
+stores `uint32_t shareHandle`, writes it through `HandleToLong` and reads it through
+`LongToHandle`. Sender/receiver pointers can therefore be zero/sign extended. Diagnostic
+identity normalizes only those representations to the SDK's 32-bit field; arbitrary 64-bit NT
+handles are rejected. Actual native handles and resource-access paths remain unchanged.
+
+Schema-4 offline analysis defines a cohort of every sample-accepted Spout image. It joins an
+image to the renderer batch and that batch's exact retained source versions, then independently
+checks both captured GPU markers against the corresponding producer words. The first completed
+valid capture supplies one source-age observation per output image. Captures after the sample
+window still belong to their original output cohort; repeated captures cannot replace missing
+images. Recycled/duplicate handle-counter identities remain ambiguous. Missing identities,
+clocks or producer/source joins do not become zero age or complete coverage. Both editor
+interruption intervals use the same exact-cohort requirement.
+
+The fixed Q01/Q02 source pair also has receive/publication-to-accepted-output-API age
+distributions for each output. Sender API begin/end brackets bound image-copy admission to
+independent capture completion. These are CPU QPC observations and bounds, not calibrated GPU
+queue time, physical presentation age or a cross-context GPU critical path. Native-window
+presentation and plan publication/receipt remain separate measurements. M03 remains **7/9**.
+
+The [evidence packet](evidence/mapgyver-m03-output-cohort-2026-10-29.json) and
+[complete raw archive](evidence/mapgyver-m03-output-cohort-controls-2026-10-29.zip) retain one
+short release Intel Q01/Q02 pair, with unchanged scenes, queue depth, polling and budgets.
+Independent raw reconstruction checks output versions, exact source-use labels, producer stamps
+and all twelve captured words. It reproduces every sample/interruption match and mismatch.
+
+| Sample observation | Q01 | Q02 |
+| --- | --- | --- |
+| Main / Spout / editor API acceptance | 180 / 180 / 180 | 147 / 180 / 135 |
+| Accepted Spout versions with a capture | 180 / 180 | 144 / 180 |
+| Both source cards match exact renderer labels | 39 / 180 | 6 / 180 |
+| Captures with producer/renderer lineage disagreement | 141 | 138 |
+| Accepted Spout images without a capture | 0 | 36 |
+| Producer A / B API acceptance | 180 / 180 | 156 / 172 |
+| Source-publication-to-Spout-API p95 A / B | 18.435 / 7.599 ms | 22.881 / 13.928 ms |
+| Renderer-context GPU p95 / p99 | 3.701 / 4.339 ms | 19.788 / 23.902 ms |
+| Actual resource retirement | 0.096 s | 0.109 s |
+
+**Dynamic lineage fails despite valid producer marker words.** All 180/144 observed sample
+cards decode to legitimate producer records; many differ from the exact source images labeled
+by the matched renderer batch. For example, Q01 output batch 127 labels producer frames
+231/223, while the capture with that output version contains 229/222. In whole-capture offline
+comparison, 168 Q01 mismatches match the preceding renderer prediction. This identifies a
+correlation failure; it does not determine whether input copy, output copy or another GPU
+handoff first separates the labels from their pixels. No further platform or driver experiment
+was run. The next implementation needs a direct native pixel/version regression at that boundary.
+
+Q01's minimized interval has 60 exact matches among 60 accepted Spout images; its disconnected
+interval has eight among 53. Q02 has three among 55 and two among 60. Q02 disconnected captures
+also include twelve missing-source joins. Main/Spout API counts during minimization are 60/60
+and 52/55; disconnected counts are 50/53 and 58/60, against 60 opportunities per phase. Overall
+independence remains unqualified, including the required 60-second durations. Full-cohort frame
+age cannot pass using the favorable 39/six valid sample subsets. Earlier capture-age distributions
+remain producer-to-consumer observations without proven renderer-output lineage.
+
+Both samples have complete CPU source-publication/receive-to-output-API observations for every
+accepted call on all three outputs. These metadata ages cannot certify that the labeled pixels
+arrived. Sender-API-to-completed-capture bounds likewise describe only successfully joined
+subsets. GPU critical-path and presentation/queue age remain unavailable; contexts are not summed.
+
+All 248 execution fingerprints match before/after capture and current source. All four roles
+have lossless telemetry and all sample context GPU rows are valid. Cleanup is actual and
+unforced, with zero final resource bytes/in-flight work and all owned processes reaped.
+The archive contains 36 files (882,024 bytes), SHA-256
+`a2aaeec4308da3cd18401cf2e4a7fd8be613bef2b78ad7cb3240368fd07d613f`.
+Validation passes 179 regular Rust tests, eleven explicit native GPU tests and 49 production
+Python tests, strict default/native all-target Clippy, locked release x64 build and both required
+Rust formatters. The native tests establish their finite static/pixel/recovery mechanisms; the
+new dynamic lineage failures remain open under gate 9. M03 stays **7/9**, overall **3/10 (30%)**.

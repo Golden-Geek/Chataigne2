@@ -1,0 +1,1500 @@
+{
+  "schema_version": 1,
+  "artifact_schema_version": 4,
+  "date": "2026-10-29",
+  "checkpoint": "Copied-image lineage checks and source-publication age expose unresolved Spout correlation failures",
+  "source_baseline_commit": "b851a77c187eed5db7aa4309ff02958d5dc8b783",
+  "acceptance": {
+    "M03_done": 7,
+    "M03_total": 9,
+    "complete_phases": 3,
+    "total_phases": 10,
+    "qualification_gate_closed": false
+  },
+  "archive": {
+    "path": "docs/progress/evidence/mapgyver-m03-output-cohort-controls-2026-10-29.zip",
+    "bytes": 882024,
+    "sha256": "a2aaeec4308da3cd18401cf2e4a7fd8be613bef2b78ad7cb3240368fd07d613f",
+    "members": 36
+  },
+  "validation": {
+    "regular_rust_tests": 179,
+    "explicit_native_gpu_tests": 11,
+    "production_python_tests": 49,
+    "strict_default_and_native_all_target_clippy": true,
+    "release_x64_build": true,
+    "root_and_golden_core_formatters": true,
+    "full_rust_command": "cargo test --locked -p golden_video -p MapGyver --features native-qualification --lib --tests -- --include-ignored --test-threads=1",
+    "focused_checks": "native sender/receiver version equality and unknown-peer absence; SDK handle normalization; repeated/missing/ambiguous/delayed/mismatched capture oracles",
+    "raw_recomputation": "independent raw identity/card/word matching agrees for the sample and both interruption cohorts; all execution-input hashes also match current files"
+  },
+  "scope": {
+    "adapter": "Intel adapter0 LUID 00000000:00016c2a",
+    "warmup_seconds": 1,
+    "sample_seconds": 3,
+    "isolation_seconds_per_phase": 1,
+    "samples_per_scenario": 1,
+    "sdk_fork_changed": false,
+    "driver_display_overlay_settings_changed": false,
+    "reference_scenes_budgets_queue_depth_polling_changed": false
+  },
+  "findings": [
+    "The SDK sender-info shareHandle is uint32_t. Native observations accept only its zero/sign-extended representations; native access handles stay unchanged.",
+    "SDK copy-counter joins alone do not establish which producer images reached the consumer. GPU marker words independently expose the disagreement.",
+    "Q01 sample: all 180 accepted output versions are captured; 141 disagree with exact renderer source-use labels and only 39 match both source cards.",
+    "Q02 sample: 144 of 180 accepted output versions are captured; 138 disagree, six match and 36 have no independent capture.",
+    "Q01 whole-capture mismatches often match an earlier neighboring renderer prediction. Input-copy versus output-copy origin remains undetermined.",
+    "Both samples have complete CPU source-publication-to-output-API observations. These metadata ages do not prove that the labeled pixels were delivered.",
+    "Genuine native removal/bounded stuck retirement and complete renderer qualification remain open."
+  ],
+  "limitations": [
+    "Short unpinned diagnostics cannot establish prescribed qualification or causal performance differences.",
+    "Age distributions of the 39/six exact sample matches are incomplete subsets and cannot qualify full output age.",
+    "Legacy handle/counter reuse remains ambiguous; repeated captures cannot replace a missing output image.",
+    "CPU API brackets bound copy admission to capture completion; they are not GPU queue timestamps or window presentation.",
+    "Separate context-local GPU spans are never summed into a critical path.",
+    "Plan publication/receipt, GPU/presentation queue age, physical output, sustained growth/handles and complete recovery remain unverified."
+  ],
+  "offline_neighbor_diagnostics": [
+    {
+      "scenario": "Q01",
+      "expected": 180,
+      "captured": 39,
+      "missing": 141,
+      "invalid": 141,
+      "failure_reasons": {
+        "GPU marker differs from the exact renderer source image": 141
+      },
+      "whole_capture_mismatch_neighbors": {
+        "-1": 168,
+        "-2": 2,
+        "no-neighbor-pair": 17,
+        "-3": 1
+      },
+      "source_frame_differences": [
+        {
+          "0": 31,
+          "-2": 28,
+          "-1": 124,
+          "-3": 1,
+          "-7": 2,
+          "-6": 1,
+          "-4": 1
+        },
+        {
+          "0": 2,
+          "-1": 171,
+          "-2": 11,
+          "-5": 2,
+          "-3": 1,
+          "-4": 1
+        }
+      ],
+      "examples": [
+        {
+          "copy_counter": 127,
+          "renderer_token": 127,
+          "expected_source_frames": [
+            231,
+            223
+          ],
+          "observed_source_frames": [
+            229,
+            222
+          ],
+          "matching_neighbor_outputs": [
+            -1
+          ]
+        },
+        {
+          "copy_counter": 128,
+          "renderer_token": 128,
+          "expected_source_frames": [
+            232,
+            224
+          ],
+          "observed_source_frames": [
+            231,
+            223
+          ],
+          "matching_neighbor_outputs": [
+            -1
+          ]
+        },
+        {
+          "copy_counter": 129,
+          "renderer_token": 129,
+          "expected_source_frames": [
+            233,
+            225
+          ],
+          "observed_source_frames": [
+            232,
+            224
+          ],
+          "matching_neighbor_outputs": [
+            -1
+          ]
+        },
+        {
+          "copy_counter": 130,
+          "renderer_token": 130,
+          "expected_source_frames": [
+            234,
+            226
+          ],
+          "observed_source_frames": [
+            233,
+            225
+          ],
+          "matching_neighbor_outputs": [
+            -1
+          ]
+        },
+        {
+          "copy_counter": 131,
+          "renderer_token": 131,
+          "expected_source_frames": [
+            235,
+            227
+          ],
+          "observed_source_frames": [
+            234,
+            226
+          ],
+          "matching_neighbor_outputs": [
+            -1
+          ]
+        }
+      ],
+      "sample_outputs": [
+        {
+          "Accepted": 180
+        },
+        {
+          "Accepted": 180
+        },
+        {
+          "Accepted": 180
+        }
+      ],
+      "capture_marker_valid": [
+        180,
+        180
+      ]
+    },
+    {
+      "scenario": "Q02",
+      "expected": 180,
+      "captured": 6,
+      "missing": 174,
+      "invalid": 138,
+      "failure_reasons": {
+        "GPU marker differs from the exact renderer source image": 138
+      },
+      "whole_capture_mismatch_neighbors": {
+        "1": 8,
+        "2": 1,
+        "no-neighbor-pair": 140,
+        "-1": 56,
+        "-2": 13,
+        "-3": 5
+      },
+      "source_frame_differences": [
+        {
+          "0": 20,
+          "1": 9,
+          "2": 7,
+          "3": 3,
+          "4": 1,
+          "-2": 67,
+          "-3": 20,
+          "-1": 90,
+          "-4": 4,
+          "-6": 2
+        },
+        {
+          "0": 21,
+          "1": 11,
+          "2": 1,
+          "4": 1,
+          "5": 1,
+          "-1": 131,
+          "-2": 46,
+          "-4": 2,
+          "-5": 1,
+          "-3": 6,
+          "-6": 2
+        }
+      ],
+      "examples": [
+        {
+          "copy_counter": 13,
+          "renderer_token": 13,
+          "expected_source_frames": [
+            119,
+            111
+          ],
+          "observed_source_frames": [
+            123,
+            116
+          ],
+          "matching_neighbor_outputs": []
+        },
+        {
+          "copy_counter": 19,
+          "renderer_token": 19,
+          "expected_source_frames": [
+            125,
+            117
+          ],
+          "observed_source_frames": [
+            123,
+            116
+          ],
+          "matching_neighbor_outputs": []
+        },
+        {
+          "copy_counter": 23,
+          "renderer_token": 23,
+          "expected_source_frames": [
+            128,
+            121
+          ],
+          "observed_source_frames": [
+            125,
+            120
+          ],
+          "matching_neighbor_outputs": []
+        },
+        {
+          "copy_counter": 32,
+          "renderer_token": 32,
+          "expected_source_frames": [
+            139,
+            130
+          ],
+          "observed_source_frames": [
+            138,
+            130
+          ],
+          "matching_neighbor_outputs": []
+        },
+        {
+          "copy_counter": 33,
+          "renderer_token": 33,
+          "expected_source_frames": [
+            139,
+            131
+          ],
+          "observed_source_frames": [
+            138,
+            131
+          ],
+          "matching_neighbor_outputs": []
+        }
+      ],
+      "sample_outputs": [
+        {
+          "Accepted": 147,
+          "Busy": 33
+        },
+        {
+          "Accepted": 180
+        },
+        {
+          "Accepted": 135,
+          "Busy": 45
+        }
+      ],
+      "capture_marker_valid": [
+        144,
+        144
+      ]
+    }
+  ],
+  "runs": [
+    {
+      "scenario": "Q01",
+      "status": "UNAVAILABLE",
+      "raw_recomputation": [
+        {
+          "phase": "sample",
+          "accepted_images": 180,
+          "version_matched_images": 180,
+          "invalid_capture_records": 141,
+          "missing_source_join_captures": 0,
+          "exactly_matched_images": 39,
+          "uncaptured_images": 0,
+          "examples": [
+            {
+              "renderer_serial": 127,
+              "capture_row": 126,
+              "expected_producer_frames": [
+                231,
+                223
+              ],
+              "observed_producer_frames": [
+                229,
+                222
+              ]
+            },
+            {
+              "renderer_serial": 128,
+              "capture_row": 127,
+              "expected_producer_frames": [
+                232,
+                224
+              ],
+              "observed_producer_frames": [
+                231,
+                223
+              ]
+            },
+            {
+              "renderer_serial": 129,
+              "capture_row": 128,
+              "expected_producer_frames": [
+                233,
+                225
+              ],
+              "observed_producer_frames": [
+                232,
+                224
+              ]
+            }
+          ]
+        },
+        {
+          "phase": "editor_minimized",
+          "accepted_images": 60,
+          "version_matched_images": 60,
+          "invalid_capture_records": 0,
+          "missing_source_join_captures": 0,
+          "exactly_matched_images": 60,
+          "uncaptured_images": 0,
+          "examples": []
+        },
+        {
+          "phase": "editor_disconnected",
+          "accepted_images": 53,
+          "version_matched_images": 53,
+          "invalid_capture_records": 45,
+          "missing_source_join_captures": 0,
+          "exactly_matched_images": 8,
+          "uncaptured_images": 0,
+          "examples": [
+            {
+              "renderer_serial": 378,
+              "capture_row": 377,
+              "expected_producer_frames": [
+                482,
+                474
+              ],
+              "observed_producer_frames": [
+                481,
+                474
+              ]
+            },
+            {
+              "renderer_serial": 384,
+              "capture_row": 383,
+              "expected_producer_frames": [
+                488,
+                480
+              ],
+              "observed_producer_frames": [
+                487,
+                479
+              ]
+            },
+            {
+              "renderer_serial": 385,
+              "capture_row": 384,
+              "expected_producer_frames": [
+                489,
+                481
+              ],
+              "observed_producer_frames": [
+                488,
+                480
+              ]
+            }
+          ]
+        }
+      ],
+      "sample_output_counts": [
+        {
+          "output": 1,
+          "counts": {
+            "Accepted": 180
+          }
+        },
+        {
+          "output": 2,
+          "counts": {
+            "Accepted": 180
+          }
+        },
+        {
+          "output": 3,
+          "counts": {
+            "Accepted": 180
+          }
+        }
+      ],
+      "producer_counts": [
+        {
+          "Accepted": 180
+        },
+        {
+          "Accepted": 180
+        }
+      ],
+      "sample_cohort": {
+        "output": 2,
+        "expected_accepted_images": 180,
+        "captured_images": 39,
+        "missing_images": 141,
+        "repeated_captures": 0,
+        "coverage_complete": false,
+        "source_age": [
+          {
+            "samples": 39,
+            "median_ms": 6.1452,
+            "p95_ms": 24.3902,
+            "p99_ms": 24.6613,
+            "maximum_ms": 24.6613
+          },
+          {
+            "samples": 39,
+            "median_ms": 10.2925,
+            "p95_ms": 12.2724,
+            "p99_ms": 12.2931,
+            "maximum_ms": 12.2931
+          }
+        ],
+        "observed_age_p95_within_budget": true,
+        "sender_api_to_capture_completion": {
+          "lower_bound": {
+            "samples": 39,
+            "median_ms": 4.1205,
+            "p95_ms": 4.597,
+            "p99_ms": 4.6684,
+            "maximum_ms": 4.6684
+          },
+          "upper_bound": {
+            "samples": 39,
+            "median_ms": 4.2078,
+            "p95_ms": 4.6641,
+            "p99_ms": 4.7405,
+            "maximum_ms": 4.7405
+          }
+        },
+        "source_publication_age": {
+          "outputs": [
+            {
+              "output": 1,
+              "sources": [
+                {
+                  "texture": 1,
+                  "expected_output_calls": 180,
+                  "missing": 0,
+                  "publication_to_api_end": {
+                    "samples": 180,
+                    "median_ms": 1.9772,
+                    "p95_ms": 18.3478,
+                    "p99_ms": 19.432,
+                    "maximum_ms": 19.9664
+                  },
+                  "source_receive_begin_to_api_end": {
+                    "samples": 180,
+                    "median_ms": 2.1645,
+                    "p95_ms": 18.5513,
+                    "p99_ms": 19.636,
+                    "maximum_ms": 20.1477
+                  }
+                },
+                {
+                  "texture": 2,
+                  "expected_output_calls": 180,
+                  "missing": 0,
+                  "publication_to_api_end": {
+                    "samples": 180,
+                    "median_ms": 5.9593,
+                    "p95_ms": 7.507,
+                    "p99_ms": 7.6825,
+                    "maximum_ms": 7.6954
+                  },
+                  "source_receive_begin_to_api_end": {
+                    "samples": 180,
+                    "median_ms": 6.1892,
+                    "p95_ms": 7.7407,
+                    "p99_ms": 7.8925,
+                    "maximum_ms": 7.9623
+                  }
+                }
+              ],
+              "coverage_complete": true
+            },
+            {
+              "output": 2,
+              "sources": [
+                {
+                  "texture": 1,
+                  "expected_output_calls": 180,
+                  "missing": 0,
+                  "publication_to_api_end": {
+                    "samples": 180,
+                    "median_ms": 2.059,
+                    "p95_ms": 18.4352,
+                    "p99_ms": 19.6092,
+                    "maximum_ms": 20.0405
+                  },
+                  "source_receive_begin_to_api_end": {
+                    "samples": 180,
+                    "median_ms": 2.2493,
+                    "p95_ms": 18.6387,
+                    "p99_ms": 19.8132,
+                    "maximum_ms": 20.2218
+                  }
+                },
+                {
+                  "texture": 2,
+                  "expected_output_calls": 180,
+                  "missing": 0,
+                  "publication_to_api_end": {
+                    "samples": 180,
+                    "median_ms": 6.0504,
+                    "p95_ms": 7.599,
+                    "p99_ms": 7.7925,
+                    "maximum_ms": 7.8148
+                  },
+                  "source_receive_begin_to_api_end": {
+                    "samples": 180,
+                    "median_ms": 6.2793,
+                    "p95_ms": 7.8249,
+                    "p99_ms": 8.0119,
+                    "maximum_ms": 8.0723
+                  }
+                }
+              ],
+              "coverage_complete": true
+            },
+            {
+              "output": 3,
+              "sources": [
+                {
+                  "texture": 1,
+                  "expected_output_calls": 180,
+                  "missing": 0,
+                  "publication_to_api_end": {
+                    "samples": 180,
+                    "median_ms": 2.0838,
+                    "p95_ms": 18.4643,
+                    "p99_ms": 19.6272,
+                    "maximum_ms": 20.0545
+                  },
+                  "source_receive_begin_to_api_end": {
+                    "samples": 180,
+                    "median_ms": 2.279,
+                    "p95_ms": 18.6678,
+                    "p99_ms": 19.8312,
+                    "maximum_ms": 20.2358
+                  }
+                },
+                {
+                  "texture": 2,
+                  "expected_output_calls": 180,
+                  "missing": 0,
+                  "publication_to_api_end": {
+                    "samples": 180,
+                    "median_ms": 6.0764,
+                    "p95_ms": 7.6242,
+                    "p99_ms": 7.8274,
+                    "maximum_ms": 7.853
+                  },
+                  "source_receive_begin_to_api_end": {
+                    "samples": 180,
+                    "median_ms": 6.3066,
+                    "p95_ms": 7.8464,
+                    "p99_ms": 8.0501,
+                    "maximum_ms": 8.1072
+                  }
+                }
+              ],
+              "coverage_complete": true
+            }
+          ],
+          "coverage_complete": true,
+          "scope": "retained Q01/Q02 frame sources to accepted output CPU API end; not GPU/presentation queue age"
+        },
+        "scope": "every sample-accepted Spout image to its first valid completed capture, including later captures; missing images stay missing",
+        "limitations": [
+          "legacy handle/counter reuse is ambiguous and cannot be guessed",
+          "CPU API brackets bound copy admission; they are not calibrated GPU queue times",
+          "native windows, physical presentation and complete GPU critical path remain unobserved"
+        ]
+      },
+      "canonical_capture_markers": {
+        "channels": [
+          {
+            "valid": 180,
+            "invalid": [],
+            "repeated": 34,
+            "unique_frames": 146,
+            "skipped_source_frame_ids": 33,
+            "missing_canonical_words": 0,
+            "frame_age": {
+              "samples": 180,
+              "median_ms": 22.6266,
+              "p95_ms": 38.7763,
+              "p99_ms": 39.8207,
+              "maximum_ms": 39.8899
+            }
+          },
+          {
+            "valid": 180,
+            "invalid": [],
+            "repeated": 16,
+            "unique_frames": 164,
+            "skipped_source_frame_ids": 15,
+            "missing_canonical_words": 0,
+            "frame_age": {
+              "samples": 180,
+              "median_ms": 26.1206,
+              "p95_ms": 27.4682,
+              "p99_ms": 42.4957,
+              "maximum_ms": 42.72
+            }
+          }
+        ],
+        "scope": "producer CPU stamp to independent consumer's real GPU-completion observation; no scanout",
+        "complete": true,
+        "expected_samples_at_60hz": 180,
+        "capture_count_at_least_nominal": true,
+        "output_frame_cohort_coverage_complete": false,
+        "spout_output_cohort_coverage_complete": false
+      },
+      "interruption": [
+        {
+          "phase": "editor_minimized",
+          "complete": true,
+          "outputs": {
+            "1": {
+              "Accepted": 60
+            },
+            "2": {
+              "Accepted": 60
+            }
+          },
+          "cohort": {
+            "expected_accepted_images": 60,
+            "captured_images": 60,
+            "missing_images": 0,
+            "coverage_complete": true,
+            "source_age_of_exact_subset": [
+              {
+                "samples": 60,
+                "median_ms": 6.2252,
+                "p95_ms": 23.4481,
+                "p99_ms": 24.6686,
+                "maximum_ms": 24.6686
+              },
+              {
+                "samples": 60,
+                "median_ms": 10.589,
+                "p95_ms": 12.3199,
+                "p99_ms": 16.9035,
+                "maximum_ms": 16.9035
+              }
+            ]
+          }
+        },
+        {
+          "phase": "editor_disconnected",
+          "complete": false,
+          "outputs": {
+            "1": {
+              "Accepted": 50,
+              "Busy": 3
+            },
+            "2": {
+              "Accepted": 53
+            }
+          },
+          "cohort": {
+            "expected_accepted_images": 53,
+            "captured_images": 8,
+            "missing_images": 45,
+            "coverage_complete": false,
+            "source_age_of_exact_subset": [
+              {
+                "samples": 8,
+                "median_ms": 7.0204,
+                "p95_ms": 11.4282,
+                "p99_ms": 11.4282,
+                "maximum_ms": 11.4282
+              },
+              {
+                "samples": 8,
+                "median_ms": 10.7294,
+                "p95_ms": 15.6302,
+                "p99_ms": 15.6302,
+                "maximum_ms": 15.6302
+              }
+            ]
+          }
+        }
+      ],
+      "renderer_gpu": {
+        "expected_batches": 180,
+        "missing_rows": 0,
+        "statuses": {
+          "Valid": 180
+        },
+        "complete": true,
+        "context_local_execution": {
+          "samples": 180,
+          "median_ms": 3.0240104166666666,
+          "p95_ms": 3.7013541666666665,
+          "p99_ms": 4.339270833333333,
+          "maximum_ms": 4.5086458333333335
+        },
+        "scope": "one context only; never a cross-context critical path"
+      },
+      "all_other_context_gpu_rows_complete": true,
+      "preparation": {
+        "coverage_complete": true,
+        "attempts": 11,
+        "failed_attempts": 0,
+        "created_textures": 7,
+        "reused_textures": 70,
+        "unjoined_frame_rows": 0,
+        "native_preparation_wall": {
+          "samples": 11,
+          "median_ms": 0.0062,
+          "p95_ms": 6.0401,
+          "p99_ms": 6.0401,
+          "maximum_ms": 6.0401
+        },
+        "prepared_to_first_submit_wait": {
+          "samples": 6,
+          "median_ms": 5.0782,
+          "p95_ms": 15.9127,
+          "p99_ms": 15.9127,
+          "maximum_ms": 15.9127
+        },
+        "scope": "native preparation and prepared-to-first-submit wall time; publication/receipt and output queue age remain unmeasured"
+      },
+      "telemetry_roles": [
+        {
+          "complete": true,
+          "raw_diagnostic_rows": 5157,
+          "queued": 0,
+          "written": 5157,
+          "drained": 5157,
+          "dropped_full": 0,
+          "clock_failures": 0
+        },
+        {
+          "complete": true,
+          "raw_diagnostic_rows": 1635,
+          "queued": 0,
+          "written": 1635,
+          "drained": 1635,
+          "dropped_full": 0,
+          "clock_failures": 0
+        },
+        {
+          "complete": true,
+          "raw_diagnostic_rows": 1620,
+          "queued": 0,
+          "written": 1620,
+          "drained": 1620,
+          "dropped_full": 0,
+          "clock_failures": 0
+        },
+        {
+          "complete": true,
+          "raw_diagnostic_rows": 860,
+          "queued": 0,
+          "written": 860,
+          "drained": 860,
+          "dropped_full": 0,
+          "clock_failures": 0
+        }
+      ],
+      "fingerprints": {
+        "unchanged": true,
+        "count": 248,
+        "executable_sha256": "8a46d6744b85fab0a110a1986450e8017944d9c5397df8daf232ab17a9b47503"
+      },
+      "resources": {
+        "logical_reserved_peak_bytes": 180633664,
+        "renderer_local_usage_peak_bytes": 190676992,
+        "renderer_private_peak_bytes": 176136192
+      },
+      "cleanup": {
+        "state": "Stopped",
+        "failure": null,
+        "resource_bytes": 0,
+        "in_flight": 0,
+        "retirement": {
+          "actual_retirement": true,
+          "begin_qpc": 2975353126379,
+          "both_hwnds_retained_until_retirement": true,
+          "elapsed_seconds": 0.0955597,
+          "end_qpc": 2975354050566,
+          "output_destroyed_after_retirement": true
+        },
+        "launcher": {
+          "exit_code": 0,
+          "timed_out": false,
+          "forced_cleanup": false,
+          "owned_job_active_before_close": 0
+        },
+        "parent": {
+          "children": [
+            {
+              "exit_code": 0,
+              "forced": false,
+              "pid": 38720,
+              "stop_ns": "21157300",
+              "success": true
+            },
+            {
+              "exit_code": 0,
+              "forced": false,
+              "pid": 40668,
+              "stop_ns": "25918900",
+              "success": true
+            },
+            {
+              "exit_code": 0,
+              "forced": false,
+              "pid": 7880,
+              "stop_ns": "26984300",
+              "success": true
+            }
+          ],
+          "children_stop_ns": "74257000",
+          "qpc": 2975355156121,
+          "renderer_returned_ok": true,
+          "schema_version": 4
+        }
+      }
+    },
+    {
+      "scenario": "Q02",
+      "status": "UNAVAILABLE",
+      "raw_recomputation": [
+        {
+          "phase": "sample",
+          "accepted_images": 180,
+          "version_matched_images": 144,
+          "invalid_capture_records": 138,
+          "missing_source_join_captures": 0,
+          "exactly_matched_images": 6,
+          "uncaptured_images": 36,
+          "examples": [
+            {
+              "renderer_serial": 72,
+              "capture_row": 42,
+              "expected_producer_frames": [
+                179,
+                170
+              ],
+              "observed_producer_frames": [
+                177,
+                169
+              ]
+            },
+            {
+              "renderer_serial": 73,
+              "capture_row": 43,
+              "expected_producer_frames": [
+                179,
+                171
+              ],
+              "observed_producer_frames": [
+                177,
+                170
+              ]
+            },
+            {
+              "renderer_serial": 77,
+              "capture_row": 45,
+              "expected_producer_frames": [
+                184,
+                175
+              ],
+              "observed_producer_frames": [
+                184,
+                173
+              ]
+            }
+          ]
+        },
+        {
+          "phase": "editor_minimized",
+          "accepted_images": 55,
+          "version_matched_images": 40,
+          "exactly_matched_images": 3,
+          "invalid_capture_records": 37,
+          "missing_source_join_captures": 0,
+          "uncaptured_images": 15,
+          "examples": [
+            {
+              "renderer_serial": 259,
+              "capture_row": 189,
+              "expected_producer_frames": [
+                367,
+                359
+              ],
+              "observed_producer_frames": [
+                361,
+                353
+              ]
+            },
+            {
+              "renderer_serial": 260,
+              "capture_row": 190,
+              "expected_producer_frames": [
+                367,
+                359
+              ],
+              "observed_producer_frames": [
+                361,
+                353
+              ]
+            },
+            {
+              "renderer_serial": 264,
+              "capture_row": 192,
+              "expected_producer_frames": [
+                376,
+                367
+              ],
+              "observed_producer_frames": [
+                375,
+                366
+              ]
+            }
+          ]
+        },
+        {
+          "phase": "editor_disconnected",
+          "accepted_images": 60,
+          "version_matched_images": 36,
+          "invalid_capture_records": 34,
+          "missing_source_join_captures": 12,
+          "exactly_matched_images": 2,
+          "uncaptured_images": 24,
+          "examples": [
+            {
+              "renderer_serial": 321,
+              "capture_row": 237,
+              "expected_producer_frames": [
+                null,
+                null
+              ],
+              "observed_producer_frames": [
+                null,
+                null
+              ]
+            },
+            {
+              "renderer_serial": 322,
+              "capture_row": 238,
+              "expected_producer_frames": [
+                null,
+                null
+              ],
+              "observed_producer_frames": [
+                null,
+                null
+              ]
+            },
+            {
+              "renderer_serial": 323,
+              "capture_row": 239,
+              "expected_producer_frames": [
+                null,
+                null
+              ],
+              "observed_producer_frames": [
+                null,
+                null
+              ]
+            }
+          ]
+        }
+      ],
+      "sample_output_counts": [
+        {
+          "output": 1,
+          "counts": {
+            "Accepted": 147,
+            "Busy": 33
+          }
+        },
+        {
+          "output": 2,
+          "counts": {
+            "Accepted": 180
+          }
+        },
+        {
+          "output": 3,
+          "counts": {
+            "Accepted": 135,
+            "Busy": 45
+          }
+        }
+      ],
+      "producer_counts": [
+        {
+          "Accepted": 156
+        },
+        {
+          "Accepted": 172
+        }
+      ],
+      "sample_cohort": {
+        "output": 2,
+        "expected_accepted_images": 180,
+        "captured_images": 6,
+        "missing_images": 174,
+        "repeated_captures": 0,
+        "coverage_complete": false,
+        "source_age": [
+          {
+            "samples": 6,
+            "median_ms": 40.594,
+            "p95_ms": 65.8945,
+            "p99_ms": 65.8945,
+            "maximum_ms": 65.8945
+          },
+          {
+            "samples": 6,
+            "median_ms": 42.5595,
+            "p95_ms": 59.6149,
+            "p99_ms": 59.6149,
+            "maximum_ms": 59.6149
+          }
+        ],
+        "observed_age_p95_within_budget": false,
+        "sender_api_to_capture_completion": {
+          "lower_bound": {
+            "samples": 6,
+            "median_ms": 30.4577,
+            "p95_ms": 46.3918,
+            "p99_ms": 46.3918,
+            "maximum_ms": 46.3918
+          },
+          "upper_bound": {
+            "samples": 6,
+            "median_ms": 30.545,
+            "p95_ms": 46.4975,
+            "p99_ms": 46.4975,
+            "maximum_ms": 46.4975
+          }
+        },
+        "source_publication_age": {
+          "outputs": [
+            {
+              "output": 1,
+              "sources": [
+                {
+                  "texture": 1,
+                  "expected_output_calls": 147,
+                  "missing": 0,
+                  "publication_to_api_end": {
+                    "samples": 147,
+                    "median_ms": 6.0736,
+                    "p95_ms": 22.8947,
+                    "p99_ms": 37.9543,
+                    "maximum_ms": 39.6847
+                  },
+                  "source_receive_begin_to_api_end": {
+                    "samples": 147,
+                    "median_ms": 6.2795,
+                    "p95_ms": 23.0951,
+                    "p99_ms": 38.0868,
+                    "maximum_ms": 40.0845
+                  }
+                },
+                {
+                  "texture": 2,
+                  "expected_output_calls": 147,
+                  "missing": 0,
+                  "publication_to_api_end": {
+                    "samples": 147,
+                    "median_ms": 12.0462,
+                    "p95_ms": 27.9415,
+                    "p99_ms": 45.7021,
+                    "maximum_ms": 61.2963
+                  },
+                  "source_receive_begin_to_api_end": {
+                    "samples": 147,
+                    "median_ms": 12.2364,
+                    "p95_ms": 28.2117,
+                    "p99_ms": 45.9723,
+                    "maximum_ms": 61.4851
+                  }
+                }
+              ],
+              "coverage_complete": true
+            },
+            {
+              "output": 2,
+              "sources": [
+                {
+                  "texture": 1,
+                  "expected_output_calls": 180,
+                  "missing": 0,
+                  "publication_to_api_end": {
+                    "samples": 180,
+                    "median_ms": 6.1612,
+                    "p95_ms": 22.8806,
+                    "p99_ms": 38.0533,
+                    "maximum_ms": 39.8185
+                  },
+                  "source_receive_begin_to_api_end": {
+                    "samples": 180,
+                    "median_ms": 6.3723,
+                    "p95_ms": 23.0915,
+                    "p99_ms": 38.1858,
+                    "maximum_ms": 40.2183
+                  }
+                },
+                {
+                  "texture": 2,
+                  "expected_output_calls": 180,
+                  "missing": 0,
+                  "publication_to_api_end": {
+                    "samples": 180,
+                    "median_ms": 12.071,
+                    "p95_ms": 13.9284,
+                    "p99_ms": 45.8005,
+                    "maximum_ms": 61.4078
+                  },
+                  "source_receive_begin_to_api_end": {
+                    "samples": 180,
+                    "median_ms": 12.2598,
+                    "p95_ms": 14.1966,
+                    "p99_ms": 46.0707,
+                    "maximum_ms": 61.5966
+                  }
+                }
+              ],
+              "coverage_complete": true
+            },
+            {
+              "output": 3,
+              "sources": [
+                {
+                  "texture": 1,
+                  "expected_output_calls": 135,
+                  "missing": 0,
+                  "publication_to_api_end": {
+                    "samples": 135,
+                    "median_ms": 6.2044,
+                    "p95_ms": 23.1679,
+                    "p99_ms": 38.0799,
+                    "maximum_ms": 39.8593
+                  },
+                  "source_receive_begin_to_api_end": {
+                    "samples": 135,
+                    "median_ms": 6.4575,
+                    "p95_ms": 23.3636,
+                    "p99_ms": 38.2124,
+                    "maximum_ms": 40.2591
+                  }
+                },
+                {
+                  "texture": 2,
+                  "expected_output_calls": 135,
+                  "missing": 0,
+                  "publication_to_api_end": {
+                    "samples": 135,
+                    "median_ms": 11.9875,
+                    "p95_ms": 28.4156,
+                    "p99_ms": 45.8281,
+                    "maximum_ms": 61.4415
+                  },
+                  "source_receive_begin_to_api_end": {
+                    "samples": 135,
+                    "median_ms": 12.1579,
+                    "p95_ms": 28.6044,
+                    "p99_ms": 46.0983,
+                    "maximum_ms": 61.6303
+                  }
+                }
+              ],
+              "coverage_complete": true
+            }
+          ],
+          "coverage_complete": true,
+          "scope": "retained Q01/Q02 frame sources to accepted output CPU API end; not GPU/presentation queue age"
+        },
+        "scope": "every sample-accepted Spout image to its first valid completed capture, including later captures; missing images stay missing",
+        "limitations": [
+          "legacy handle/counter reuse is ambiguous and cannot be guessed",
+          "CPU API brackets bound copy admission; they are not calibrated GPU queue times",
+          "native windows, physical presentation and complete GPU critical path remain unobserved"
+        ]
+      },
+      "canonical_capture_markers": {
+        "channels": [
+          {
+            "valid": 144,
+            "invalid": [],
+            "repeated": 57,
+            "unique_frames": 87,
+            "skipped_source_frame_ids": 94,
+            "missing_canonical_words": 0,
+            "frame_age": {
+              "samples": 144,
+              "median_ms": 48.1543,
+              "p95_ms": 79.2581,
+              "p99_ms": 121.0616,
+              "maximum_ms": 122.0465
+            }
+          },
+          {
+            "valid": 144,
+            "invalid": [],
+            "repeated": 42,
+            "unique_frames": 102,
+            "skipped_source_frame_ids": 78,
+            "missing_canonical_words": 0,
+            "frame_age": {
+              "samples": 144,
+              "median_ms": 49.2105,
+              "p95_ms": 91.4085,
+              "p99_ms": 129.5445,
+              "maximum_ms": 140.9534
+            }
+          }
+        ],
+        "scope": "producer CPU stamp to independent consumer's real GPU-completion observation; no scanout",
+        "complete": true,
+        "expected_samples_at_60hz": 180,
+        "capture_count_at_least_nominal": false,
+        "output_frame_cohort_coverage_complete": false,
+        "spout_output_cohort_coverage_complete": false
+      },
+      "interruption": [
+        {
+          "phase": "editor_minimized",
+          "complete": false,
+          "outputs": {
+            "1": {
+              "Busy": 3,
+              "Accepted": 52
+            },
+            "2": {
+              "Accepted": 55
+            }
+          },
+          "cohort": {
+            "expected_accepted_images": 55,
+            "captured_images": 3,
+            "missing_images": 52,
+            "coverage_complete": false,
+            "source_age_of_exact_subset": [
+              {
+                "samples": 3,
+                "median_ms": 68.3571,
+                "p95_ms": 173.1615,
+                "p99_ms": 173.1615,
+                "maximum_ms": 173.1615
+              },
+              {
+                "samples": 3,
+                "median_ms": 57.4633,
+                "p95_ms": 163.0506,
+                "p99_ms": 163.0506,
+                "maximum_ms": 163.0506
+              }
+            ]
+          }
+        },
+        {
+          "phase": "editor_disconnected",
+          "complete": false,
+          "outputs": {
+            "1": {
+              "Accepted": 58,
+              "Busy": 2
+            },
+            "2": {
+              "Accepted": 60
+            }
+          },
+          "cohort": {
+            "expected_accepted_images": 60,
+            "captured_images": 2,
+            "missing_images": 58,
+            "coverage_complete": false,
+            "source_age_of_exact_subset": [
+              {
+                "samples": 2,
+                "median_ms": 36.317,
+                "p95_ms": 38.098,
+                "p99_ms": 38.098,
+                "maximum_ms": 38.098
+              },
+              {
+                "samples": 2,
+                "median_ms": 42.9374,
+                "p95_ms": 44.8711,
+                "p99_ms": 44.8711,
+                "maximum_ms": 44.8711
+              }
+            ]
+          }
+        }
+      ],
+      "renderer_gpu": {
+        "expected_batches": 180,
+        "missing_rows": 0,
+        "statuses": {
+          "Valid": 180
+        },
+        "complete": true,
+        "context_local_execution": {
+          "samples": 180,
+          "median_ms": 12.235260416666666,
+          "p95_ms": 19.7875,
+          "p99_ms": 23.901510416666667,
+          "maximum_ms": 24.129947916666666
+        },
+        "scope": "one context only; never a cross-context critical path"
+      },
+      "all_other_context_gpu_rows_complete": true,
+      "preparation": {
+        "coverage_complete": true,
+        "attempts": 8,
+        "failed_attempts": 0,
+        "created_textures": 7,
+        "reused_textures": 49,
+        "unjoined_frame_rows": 0,
+        "native_preparation_wall": {
+          "samples": 8,
+          "median_ms": 0.0063,
+          "p95_ms": 3.0427,
+          "p99_ms": 3.0427,
+          "maximum_ms": 3.0427
+        },
+        "prepared_to_first_submit_wait": {
+          "samples": 5,
+          "median_ms": 4.9874,
+          "p95_ms": 20.8995,
+          "p99_ms": 20.8995,
+          "maximum_ms": 20.8995
+        },
+        "scope": "native preparation and prepared-to-first-submit wall time; publication/receipt and output queue age remain unmeasured"
+      },
+      "telemetry_roles": [
+        {
+          "complete": true,
+          "raw_diagnostic_rows": 4305,
+          "queued": 0,
+          "written": 4305,
+          "drained": 4305,
+          "dropped_full": 0,
+          "clock_failures": 0
+        },
+        {
+          "complete": true,
+          "raw_diagnostic_rows": 1227,
+          "queued": 0,
+          "written": 1227,
+          "drained": 1227,
+          "dropped_full": 0,
+          "clock_failures": 0
+        },
+        {
+          "complete": true,
+          "raw_diagnostic_rows": 1395,
+          "queued": 0,
+          "written": 1395,
+          "drained": 1395,
+          "dropped_full": 0,
+          "clock_failures": 0
+        },
+        {
+          "complete": true,
+          "raw_diagnostic_rows": 548,
+          "queued": 0,
+          "written": 548,
+          "drained": 548,
+          "dropped_full": 0,
+          "clock_failures": 0
+        }
+      ],
+      "fingerprints": {
+        "unchanged": true,
+        "count": 248,
+        "executable_sha256": "8a46d6744b85fab0a110a1986450e8017944d9c5397df8daf232ab17a9b47503"
+      },
+      "resources": {
+        "logical_reserved_peak_bytes": 578764864,
+        "renderer_local_usage_peak_bytes": 574291968,
+        "renderer_private_peak_bytes": 301563904
+      },
+      "cleanup": {
+        "state": "Stopped",
+        "failure": null,
+        "resource_bytes": 0,
+        "in_flight": 0,
+        "retirement": {
+          "actual_retirement": true,
+          "begin_qpc": 2975569949918,
+          "both_hwnds_retained_until_retirement": true,
+          "elapsed_seconds": 0.1093634,
+          "end_qpc": 2975571010570,
+          "output_destroyed_after_retirement": true
+        },
+        "launcher": {
+          "exit_code": 0,
+          "timed_out": false,
+          "forced_cleanup": false,
+          "owned_job_active_before_close": 0
+        },
+        "parent": {
+          "children": [
+            {
+              "exit_code": 0,
+              "forced": false,
+              "pid": 11720,
+              "stop_ns": "82745900",
+              "success": true
+            },
+            {
+              "exit_code": 0,
+              "forced": false,
+              "pid": 36528,
+              "stop_ns": "46504300",
+              "success": true
+            },
+            {
+              "exit_code": 0,
+              "forced": false,
+              "pid": 21088,
+              "stop_ns": "26420100",
+              "success": true
+            }
+          ],
+          "children_stop_ns": "155852700",
+          "qpc": 2975573259466,
+          "renderer_returned_ok": true,
+          "schema_version": 4
+        }
+      }
+    }
+  ]
+}

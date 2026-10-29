@@ -274,6 +274,11 @@ impl Receiver {
     pub fn last_copied_frame(&self) -> Option<i32> {
         self.freshness.last_copied()
     }
+
+    pub fn copied_image_version(&self) -> Option<super::super::timing::SpoutImageVersion> {
+        self.last_copied_frame()
+            .and_then(|frame| super::super::timing::SpoutImageVersion::copied_legacy(self.handle, frame))
+    }
 }
 
 /// Counter history belongs to one validated sender-handle/descriptor lifetime. Only detailed

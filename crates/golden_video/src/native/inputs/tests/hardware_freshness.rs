@@ -220,6 +220,19 @@ fn hardware_versioned_preflight_and_busy_preserve_source_publications() {
     wait("foreign frozen-positive counter still copies", || {
         snapshot(&unknown).publications >= 3
     });
+    assert_eq!(
+        unknown
+            .latest
+            .lock()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .timing
+            .unwrap()
+            .spout_image,
+        None,
+        "an unversioned copy cannot claim an exact producer image"
+    );
     // The unversioned receiver deliberately keeps taking the same sender's access mutex.
     // A contended peek may proceed to a real receive attempt, so measure the unchanged
     // fast path only after that competing receiver has fenced its last copy and gone idle.
@@ -227,9 +240,27 @@ fn hardware_versioned_preflight_and_busy_preserve_source_publications() {
     wait("foreign receiver idle before uncontended preflight", || {
         snapshot(&unknown).state == SourceState::Idle
     });
+    let settled = snapshot(&counted).unchanged;
+    wait("counted receiver settles any prior contested peek", || {
+        snapshot(&counted).unchanged >= settled + 2
+    });
     let before = snapshot(&counted);
     assert_eq!(before.last_copied_frame, Some(1));
     assert_eq!(before.receive_copies, 1);
+    let image = sender.output.as_ref().unwrap().copied_image_version().unwrap();
+    assert_eq!(image.frame, 1);
+    assert_eq!(
+        counted
+            .latest
+            .lock()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .timing
+            .unwrap()
+            .spout_image,
+        Some(image)
+    );
     assert_eq!(snapshot(&unknown).last_copied_frame, None);
     let mut rows = Vec::new();
     recorder.drain(&mut rows, NonZeroUsize::new(4096).unwrap());

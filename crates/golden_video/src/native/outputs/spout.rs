@@ -11,7 +11,7 @@ use windows::core::{Error, HRESULT, Interface, Result};
 use crate::{PixelFormat, TextureDescriptor};
 
 use super::super::texture::Texture;
-use super::super::timing::{CpuInterval, Recorder};
+use super::super::timing::{CpuInterval, Recorder, SpoutImageVersion};
 use super::Delivery;
 
 const INVALID_ARGUMENT: HRESULT = HRESULT(0x8007_0057_u32 as i32);
@@ -93,6 +93,19 @@ impl SpoutOutput {
             Ok(delivery) => delivery,
             Err(error) => Delivery::Failed(error.code()),
         }
+    }
+
+    /// Read only immediately after this instance's accepted send, on its owning worker.
+    /// The local SDK counter is advanced under the same lock as the shared-image copy.
+    pub(crate) fn copied_image_version(&self) -> Option<SpoutImageVersion> {
+        // SAFETY: this uniquely owned SDK instance remains initialized after its accepted send.
+        let (handle, frame) = unsafe {
+            (
+                sdk::spout_dx_get_sender_handle(self.raw.as_ptr()) as usize,
+                sdk::spout_dx_get_frame(self.raw.as_ptr()),
+            )
+        };
+        SpoutImageVersion::copied_legacy(handle, frame)
     }
 
     fn try_deliver(

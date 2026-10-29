@@ -10,7 +10,7 @@ use crate::{OutputId, TextureDescriptor};
 use super::config::{D3d11Config, OutputBinding};
 use super::observation::{D3d11Control, OutputState, OutputStatus};
 use super::texture::Texture;
-use super::timing::{CpuInterval, DiagnosticDelivery, Recorder};
+use super::timing::{CpuInterval, DiagnosticDelivery, Recorder, SpoutImageVersion};
 use lifetime::Endpoint;
 use recovery::Recovery;
 
@@ -97,18 +97,22 @@ impl AdmittedOutput<'_> {
         texture: &Texture,
         recorder: Option<&Recorder>,
         consumer_api: &mut Option<CpuInterval>,
-    ) -> Delivery {
+    ) -> (Delivery, Option<SpoutImageVersion>) {
         let endpoint = self
             .binding
             .endpoint
             .begin_use(self.token.serial)
             .expect("exclusively admitted endpoint");
         let delivered = endpoint.deliver(context, texture, recorder, consumer_api);
+        let image = match (&endpoint, delivered, recorder.is_some()) {
+            (Output::Spout(sender), Delivery::Accepted, true) => sender.copied_image_version(),
+            _ => None,
+        };
         let delivered = self.binding.delivered(self.device, delivered, Instant::now());
         self.binding.publish(self.control, self.generation);
         self.control
             .observe_output(self.binding.config.id(), self.token, delivered);
-        delivered
+        (delivered, image.filter(|_| delivered == Delivery::Accepted))
     }
 }
 

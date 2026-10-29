@@ -22,6 +22,7 @@ RAW_FILES = ("manifest.json", "renderer-summary.json", "parent-summary.json", "r
              "source-1.jsonl", "source-2.jsonl", "consumer.jsonl")
 DEADLINES = runpy.run_path(str(Path(__file__).with_name("production_deadlines.py")))
 PREPARATION = runpy.run_path(str(Path(__file__).with_name("production_preparation.py")))
+COHORT = runpy.run_path(str(Path(__file__).with_name("production_cohort.py")))
 
 
 class ArtifactError(ValueError):
@@ -319,7 +320,7 @@ def producer_metrics(streams, window, frequency):
     return reports
 
 
-def independence_metrics(manifest, summary, renderer, source_rows, consumer, frequency):
+def independence_metrics(manifest, summary, renderer, source_rows, consumer, frequency, native, consumer_events):
     reports = []
     requested = manifest.get("independence_seconds", 0)
     for name in ("editor_minimized", "editor_disconnected"):
@@ -343,14 +344,17 @@ def independence_metrics(manifest, summary, renderer, source_rows, consumer, fre
                                   and in_window((row["event"]["Output"].get("delivery") or {}).get("end"), window))
                   for output in (1, 2)}
         age = marker_metrics(source_rows, consumer, window, frequency)
+        cohort = COHORT["analyze_cohort"](native, source_rows, consumer, consumer_events, window, frequency, distribution)
         expected = duration * 60
         enough = duration > 0 and all(count["Accepted"] >= expected * 0.999
                                      and not count["Failed"] and not count["DeviceLost"] for count in counts.values())
         enough = enough and age["complete"] and all(channel["valid"] >= expected * 0.999 for channel in age["channels"])
         enough = enough and all(channel["frame_age"] and channel["frame_age"]["p95_ms"] <= 50
                                 for channel in age["channels"])
+        enough = enough and cohort["coverage_complete"] and cohort["observed_age_p95_within_budget"]
         reports.append({"phase": name, "duration_seconds": duration, "main_outputs_advanced": advanced,
-                        "output_counts": counts, "frame_age": age, "complete": advanced and enough})
+                        "output_counts": counts, "frame_age": age, "spout_output_cohort": cohort,
+                        "complete": advanced and enough})
     return {"phases": reports, "complete": requested == 60 and all(report["complete"] for report in reports)}
 
 
@@ -450,8 +454,10 @@ def analyze_capture(directory):
     renderer_gpu = gpu_metrics(frame_rows, native["Gpu"], renderer=True)
     dependencies = source_dependencies(frame_rows, native)
     markers = marker_metrics((source_a, source_b), consumer, sample, frequency)
+    cohort = COHORT["analyze_cohort"](native, (source_a, source_b), consumer, consumer_events, sample, frequency, distribution)
     producers = producer_metrics((source_a, source_b), sample, frequency)
-    independence = independence_metrics(manifest, summary, renderer, (source_a, source_b), consumer, frequency)
+    independence = independence_metrics(manifest, summary, renderer, (source_a, source_b), consumer, frequency,
+                                       native, consumer_events)
     consumer_final = finals[2]["consumer"]
     consumer_complete = consumer_final.get("final_readbacks") == 1 and consumer_final.get("finished") is True \
         and consumer_final.get("overflow") == consumer_final.get("mismatch") == consumer_final.get("failed_receives") == 0 \
@@ -460,6 +466,7 @@ def analyze_capture(directory):
     markers["expected_samples_at_60hz"] = duration * 60
     markers["capture_count_at_least_nominal"] = consumer_complete and marker_count >= duration * 60 * 0.999
     markers["output_frame_cohort_coverage_complete"] = False
+    markers["spout_output_cohort_coverage_complete"] = consumer_complete and cohort["coverage_complete"]
     local_contexts = []
     for role, values in [("renderer_sources", native), ("producer_a", source_events[0]),
                          ("producer_b", source_events[1]), ("consumer", consumer_events)]:
@@ -545,7 +552,14 @@ def analyze_capture(directory):
                                          manifest.get("independence_seconds") == 60),
         "source_to_consumer_age": criterion(None, eligible,
             observed_capture_p95_within_budget=age_ok,
-            reason="capture observations can repeat or skip renderer outputs; exact output-frame cohort coverage is unavailable"),
+            reason="exact output-frame cohort measured for Spout only; native-window presentation age remains unavailable"),
+        "spout_capture_identity": criterion(cohort["coverage_complete"] if complete and consumer_complete else None, eligible,
+            scope="sample-accepted Spout output images, exact renderer source-use versions and GPU marker contents"),
+        "spout_capture_age": criterion(cohort["observed_age_p95_within_budget"]
+            if complete and consumer_complete and cohort["coverage_complete"] else None, eligible,
+            reason="one first completed independent capture per accepted Spout image; missing images cannot be omitted"),
+        "source_publication_age": criterion(cohort["source_publication_age"]["coverage_complete"] if complete else None, eligible,
+            scope="CPU source-publication/receive to output API boundaries; no GPU/presentation queue budget inferred"),
         "gpu_critical_path": criterion(None, eligible, reason=dependencies["reason"]),
         "logical_texture_charge": criterion(resources["logical_within_target"], eligible),
         "dxgi_admission": criterion(resources["admission_within_target"], eligible),
@@ -562,7 +576,7 @@ def analyze_capture(directory):
             reason="full-app Q05, including Matrix launches and transitions, has not been captured"),
         "native_preparation": criterion(preparation["coverage_complete"] if complete else None, eligible,
                                         scope="native preparation/first-use coverage; no latency budget inferred"),
-        "plan_age_and_published_queue": criterion(None, eligible, reason="native preparation/first-use measured; publication/receipt and per-output queue age remain absent"),
+        "plan_age_and_published_queue": criterion(None, eligible, reason="native preparation/first-use and source retention to output APIs measured; plan publication/receipt and GPU/presentation queue age remain absent"),
         "environment_identity": criterion(None, eligible,
                                           reason="selected MSVC/SDK, driver, WebView, power and overlay observations are not pinned"),
     }
@@ -571,6 +585,7 @@ def analyze_capture(directory):
             "dependencies": dependencies, "outputs": output_metrics, "producers": producers,
             "submission_deadlines": deadlines,
             "native_preparation": preparation,
+            "spout_output_cohort": cohort,
             "frame_age": markers, "resources": resources,
             "independence": independence,
             "active_runtime_error_history": active.get("failure"), "raw_sha256": raw_hashes(directory),
@@ -620,6 +635,7 @@ def fingerprints(executable):
     paths = [ROOT / name for name in ("Cargo.toml", "Cargo.lock", "package.json", "package-lock.json", CAPTURE_SCHEMA_FILE)]
     paths += [Path(__file__), Path(__file__).with_name("production_process.py"),
               Path(__file__).with_name("production_preparation.py"),
+              Path(__file__).with_name("production_cohort.py"),
               Path(__file__).with_name("production_deadlines.py"), ROOT / "apps/mapgyver/Cargo.toml",
               ROOT / "crates/golden_time/Cargo.toml", ROOT / "crates/golden_video/Cargo.toml",
               ROOT / "apps/mapgyver/build.rs"]

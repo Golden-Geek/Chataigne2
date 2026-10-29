@@ -270,6 +270,7 @@ impl Session {
                     source_token: token,
                     receive_begin_qpc,
                     publication_qpc: recorder.stamp(),
+                    spout_image: self.receiver.copied_image_version(),
                 }),
             });
         } else {

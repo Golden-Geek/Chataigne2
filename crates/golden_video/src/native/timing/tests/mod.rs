@@ -6,6 +6,31 @@ use crate::runtime::{CompletionToken, DeviceGeneration};
 mod hardware;
 
 #[test]
+fn copied_spout_image_uses_the_sdks_32_bit_share_handle_authority() {
+    let zero_extended = 0xc000_1234_u32 as usize;
+    let sign_extended = 0xc000_1234_u32 as i32 as isize as usize;
+    let expected = SpoutImageVersion {
+        shared_handle: 0xc000_1234,
+        frame: 17,
+    };
+    assert_eq!(SpoutImageVersion::copied_legacy(zero_extended, 17), Some(expected));
+    assert_eq!(SpoutImageVersion::copied_legacy(sign_extended, 17), Some(expected));
+    let json = serde_json::to_string(&expected).unwrap();
+    assert_eq!(serde_json::from_str::<SpoutImageVersion>(&json).unwrap(), expected);
+}
+
+#[test]
+fn unknown_counters_and_nonlegacy_handles_cannot_claim_an_image_version() {
+    assert_eq!(SpoutImageVersion::copied_legacy(0, 1), None);
+    for counter in [0, -1, i32::MIN] {
+        assert_eq!(SpoutImageVersion::copied_legacy(123, counter), None);
+    }
+    if let Ok(arbitrary_nt_handle) = usize::try_from(0x0000_0001_0000_1234_u64) {
+        assert_eq!(SpoutImageVersion::copied_legacy(arbitrary_nt_handle, 1), None);
+    }
+}
+
+#[test]
 fn schedule_serde_preserves_exact_device_token_phase_and_explicit_missing_mapping() {
     let device = DeviceGeneration::new(Uuid::new_v4(), 1);
     let row = ScheduleTrace {

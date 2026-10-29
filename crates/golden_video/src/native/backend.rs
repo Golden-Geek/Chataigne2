@@ -515,11 +515,12 @@ impl Backend for D3d11Backend {
             let admission_begin = recorder.and_then(Recorder::stamp);
             let admission = native.outputs.admit(output.id, context, converted.descriptor, token);
             let mut consumer_api = None;
-            let (conversion, delivery, outcome) = match admission {
+            let (conversion, delivery, outcome, spout_image) = match admission {
                 Err(outcome) => (
                     None,
                     recorder.and_then(|recorder| recorder.interval(admission_begin)),
                     outcome,
+                    None,
                 ),
                 Ok(admitted) => {
                     let conversion_begin = recorder.and_then(Recorder::stamp);
@@ -534,9 +535,9 @@ impl Backend for D3d11Backend {
                     pipeline.draw(context, source, None, converted, 1.0, BlendMode::Normal, filter);
                     let conversion = recorder.and_then(|recorder| recorder.interval(conversion_begin));
                     let delivery_begin = recorder.and_then(Recorder::stamp);
-                    let outcome = admitted.deliver(context, converted, recorder, &mut consumer_api);
+                    let (outcome, image) = admitted.deliver(context, converted, recorder, &mut consumer_api);
                     let delivery = recorder.and_then(|recorder| recorder.interval(delivery_begin));
-                    (conversion, delivery, outcome)
+                    (conversion, delivery, outcome, image)
                 }
             };
             if let Some(recorder) = recorder {
@@ -547,6 +548,7 @@ impl Backend for D3d11Backend {
                     delivery,
                     consumer_api,
                     outcome: outcome.into(),
+                    spout_image,
                 }));
             }
         }

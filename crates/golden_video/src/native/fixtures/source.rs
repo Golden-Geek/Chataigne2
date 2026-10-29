@@ -51,6 +51,8 @@ pub struct FixtureSubmission {
     pub stamp: CardStamp,
     /// Native SDK disposition, retained even when the send failed after queuing GPU work.
     pub outcome: DiagnosticDelivery,
+    /// Actual accepted shared-image version, distinct from attempted marker/frame serial.
+    pub spout_image: Option<super::super::timing::SpoutImageVersion>,
 }
 
 /// Sparse producer metadata; descriptor payload charges are separate from measured DXGI
@@ -241,6 +243,9 @@ impl FixtureSource {
             completion,
         }));
         let outcome = DiagnosticDelivery::from(delivery);
+        let spout_image = (delivery == Delivery::Accepted)
+            .then(|| self.output.copied_image_version())
+            .flatten();
         self.recorder.push(DiagnosticEvent::Output(OutputTrace {
             token,
             output: OutputId::new(1).expect("positive fixture-local output identity"),
@@ -248,6 +253,7 @@ impl FixtureSource {
             delivery: delivery_wall,
             consumer_api,
             outcome,
+            spout_image,
         }));
         match outcome {
             DiagnosticDelivery::Accepted => self.accepted_sends = self.accepted_sends.saturating_add(1),
@@ -257,7 +263,12 @@ impl FixtureSource {
             }
             _ => {}
         }
-        Ok(Some(FixtureSubmission { token, stamp, outcome }))
+        Ok(Some(FixtureSubmission {
+            token,
+            stamp,
+            outcome,
+            spout_image,
+        }))
     }
 
     /// Nonblocking event/query polling on this producer worker. A query error alone never

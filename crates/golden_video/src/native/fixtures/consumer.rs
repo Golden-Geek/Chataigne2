@@ -71,6 +71,7 @@ pub enum ConsumerTick {
 #[derive(Clone, Copy)]
 struct Record {
     token: CompletionToken,
+    spout_image: Option<super::super::timing::SpoutImageVersion>,
     receive_begin_qpc: Option<u64>,
     completion_observed_qpc: Option<u64>,
 }
@@ -97,6 +98,8 @@ pub struct ConsumerFrame {
     pub row: u32,
     /// Actual capture/decode completion lifetime.
     pub token: CompletionToken,
+    /// Exact SDK image version copied before this GPU marker decode; absent when unknown.
+    pub spout_image: Option<super::super::timing::SpoutImageVersion>,
     /// Before SDK receive; this is neither producer nor GPU time.
     pub receive_begin_qpc: Option<u64>,
     /// First caller poll that observed the real capture/decode event completed.
@@ -319,6 +322,7 @@ impl FixtureConsumer {
                     .map(|()| {
                         self.records.push(Record {
                             token,
+                            spout_image: self.receiver.copied_image_version(),
                             receive_begin_qpc,
                             completion_observed_qpc: None,
                         });
@@ -467,6 +471,7 @@ impl FixtureConsumer {
                 frames.push(ConsumerFrame {
                     row,
                     token: record.token,
+                    spout_image: record.spout_image,
                     receive_begin_qpc: record.receive_begin_qpc,
                     completion_observed_qpc: record.completion_observed_qpc,
                     raw_words,

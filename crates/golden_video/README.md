@@ -85,6 +85,24 @@ native preparation and prepared-to-first-submit delay. Publication/receipt and p
 age require separate coverage; a preparation record alone does not qualify them. Artifact schema
 version is Rust-owned and generated with the fixture contracts as `capture-schema.json`.
 
+Opt-in native diagnostics retain each actual copied Spout image's 32-bit SDK share-handle/counter
+pair through source publication and output delivery. These ephemeral values are diagnostic
+identities only, absent from project files and control protocols; they retain/open no native
+resource. Unknown/unversioned peers have no claimed image version. Qualification fixtures
+record the same metadata with producer markers and each independent GPU capture. Offline
+Q01/Q02 analysis joins accepted output images to their first completed capture and independently
+checks both decoded markers against the exact renderer source-use images. Repeated captures
+cannot replace missing outputs; recycled/duplicate version identities remain ambiguous. Source
+publication/receive-to-output API age and sender-API-to-capture delay bounds use CPU QPC only.
+They do not establish window presentation age, calibrated GPU queue time or a GPU critical path.
+The SDK sender-info contract stores `uint32_t shareHandle`; diagnostic identity accepts its
+zero/sign-extended pointer representations and rejects unrelated 64-bit NT handle values.
+Actual native access always retains its original validated handle.
+SDK counter agreement alone cannot certify pixel identity. The current
+[dynamic cohort checkpoint](../../docs/progress/mapgyver-m03-qualification-runner.md#exact-spout-output-cohorts-and-source-retention-age--2026-10-29)
+retains observed counter/pixel lineage disagreements; their input/output copy boundary remains
+to be isolated before complete native frame-age qualification.
+
 Baseline admission precedes backend initialization. The render core distinguishes pending first
 initialization, ready service and confirmed device loss. Initial `AllocationFailed` results retry
 on the worker with capped, cancellable backoff, retaining the original baseline reservation and
