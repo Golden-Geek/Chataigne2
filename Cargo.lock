@@ -62,9 +62,12 @@ dependencies = [
  "golden_core",
  "golden_time",
  "golden_video",
+ "serde",
  "serde_json",
  "tauri",
  "tauri-build",
+ "tempfile",
+ "ts-rs",
  "windows 0.61.3",
 ]
 
@@ -3078,8 +3081,10 @@ version = "0.1.0"
 dependencies = [
  "golden_io",
  "golden_time",
+ "serde",
  "spout2-sys",
  "thiserror 2.0.18",
+ "ts-rs",
  "uuid",
  "windows 0.61.3",
 ]

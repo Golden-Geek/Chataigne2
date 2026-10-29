@@ -262,3 +262,64 @@ open a changed foreign alias before post-update descriptor validation; owned poo
 publications stay bounded, but this does not establish a physical foreign-residency hard cap.
 Mismatch handling drains source work and disconnects before retry. These limits remain visible
 for production recovery and qualification; original budgets and failures remain unchanged.
+
+## Media/channel authoring contracts — 2026-10-29
+
+The app now owns [`src/media/`](../../apps/mapgyver/src/media/mod.rs), separate from Golden's
+renderer. `MediaId` and `ChannelId` wrap persistent Golden node UUIDs; a typed pair resolves
+only within its exact owner. A missing/deleted channel never redirects to another channel.
+Media and channels are separate nodes, keeping edits/history local to the affected authored
+leaf. Initial media/channel creation queues one detached subtree. Detached project validation
+walks nodes/children linearly and performs no native work or frame polling.
+
+The app lifecycle delegates `mapgyver.media.edit` to backend operations for creation, adding
+channels, configuration, rename, reorder, removal and inspection. Golden's existing atomic
+app-operation/history route serves transport/UI, headless callers and QuickJS. Backend defaults
+select labels and initial settings. Removing the last channel is rejected; removing its media
+makes references explicitly missing, and undo restores the authored UUIDs. Source kind and
+owner validation reject mismatched pairs without mutation or a history step.
+
+New projects include the standard Dashboard and a Media Manager authoring container. The initial
+definitions cover Solid Color and Shared Texture. Automatic size uses source metadata or the
+backend Solid Color canvas; absent sources stay unresolved. Fixed size retains its output
+extent separately from unavailable/unconfigured/incompatible status. Dimensions are nonzero
+and bounded; selector, explicit storage/color/alpha and linear color components are validated.
+The first reload run exposed sparse defaults being omitted by the shared codec. The authored
+contract now supplies those backend defaults during decode; final codec/history tests pass.
+This is normal sparse persistence, with no legacy-format migration or runtime resources in JSON.
+
+[`protocol.rs`](../../apps/mapgyver/src/media/protocol.rs) is the intent/result source of truth.
+Golden Video's data-only descriptor and filter declarations now derive Serde/TypeScript, avoiding
+an app-maintained copy. Generate the app's 20 TypeScript files with:
+
+```text
+cargo run --locked -p MapGyver --bin generate_media_protocol -- apps/mapgyver/ui/src/lib/media/generated
+```
+
+The byte-comparison drift test verifies all generated files. The UI adapter consumes the
+generated intent through the existing session interface; dedicated editor controls remain
+planned. Generated declarations use the generator's formatting with trailing spaces removed,
+and are excluded from Prettier along with Svelte build output. The thin executable delegates to the app library so
+tests and code generation use supported public modules rather than path-imported source files.
+
+Verified checks:
+
+- `cargo test --locked -p MapGyver -p golden_video --features golden_video/d3d11`: **11 app +
+  70 Video tests pass** (68 Video unit + 2 public). Two hardware tests remain explicitly ignored;
+  no GPU implementation changed or new hardware qualification is claimed here.
+- App tests cover backend defaults, different per-channel sizes, real configure undo/redo,
+  rename/reorder/remove/undo/reload identity, source selector roundtrip, atomic invalid-operation
+  rejection, production actor save/reload, QuickJS committed result/history, size/availability
+  resolution, invalid extent/color/selector rejection and generated-contract drift.
+- Strict all-target native-feature Clippy passes for app/Video and for both optional smoke
+  feature groups. Default `cargo check --locked` passes for MapGyver and Chataigne2. UI check
+  reports zero errors/warnings, UI lint passes, and both required Rust formatters pass.
+- Cargo.lock adds only dependency edges to already locked Serde, ts-rs and test-tempfile
+  packages; no dependency version or Chataigne startup default changes.
+
+Gate 5 remains **partial** and M03 stays **4/9 = 44%**. Actual app demand/configuration must still
+publish fenced runtime bindings, consume source observations and preserve these IDs through
+native resource recreation. Startup native bindings are still immutable. Full Media Manager
+controls, command nodes and app-owned script templates belong to M04; the generic QuickJS app
+operation/callback path is already exercised. Picture/assets, Composition and Matrix remain
+with their planned deliveries. No renderer, physical-output or full-app budget is relaxed.

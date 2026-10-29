@@ -4,8 +4,9 @@ MapGyver is a video mapping application alongside Chataigne, using the same Gold
 workbench, parameter system, scripting, transport, and persistence foundations. Its first target
 is Windows x64 (`x86_64-pc-windows-msvc`). The M02 shell/shared-host seams are implemented, and
 M03 has introduced Golden Video's compiler, bounded worker runtime, shared Golden Time scheduling
-and an initial D3D11 compositor with window/Spout outputs. Media, mapping, Matrix and
-the specialized editors below remain planned. Execution belongs to the
+and a D3D11 compositor with bounded Spout inputs and window/Spout outputs. Media/channel
+authoring contracts now use the shared engine/history/codec; their live renderer integration,
+mapping, Matrix and the specialized editors below remain planned. Execution belongs to the
 [MapGyver plan](../plan/MapGyver_Implementation_Plan.md) and its
 [status ledger](../progress/mapgyver-status.md).
 
@@ -16,10 +17,10 @@ editors. Golden owns reusable execution and presentation mechanisms.
 
 | Boundary | Responsibility |
 | --- | --- |
-| `apps/mapgyver/src/app/` | Implemented thin shell: lifecycle, identity and Golden startup; functional default Media/Screen managers join with M04/M05 |
-| `apps/mapgyver/systems/media/` | Media/channel definitions, source references, composition authoring, backend intents, integration nodes, Rust-owned DTOs |
-| `apps/mapgyver/systems/screen/` | Screen/surface definitions, crop/pin/calibration authoring, output policy, backend intents and integration nodes |
-| `apps/mapgyver/systems/matrix/` | Cells, layers, groups, columns, transitions, exported channels, app associations and demand policy |
+| `apps/mapgyver/src/app/` | Thin lifecycle/identity/Golden startup; registers media nodes and delegates app operations. New projects include Dashboard and the media authoring container; full manager features remain M04/M05 |
+| `apps/mapgyver/src/media/` | Implemented persistent media/channel identity, source/size contracts and atomic backend operations. Runtime binding and expanded media/editor integration continue in M03/M04/M06 |
+| `apps/mapgyver/src/screen/` (planned) | Screen/surface definitions, crop/pin/calibration authoring, output policy, backend intents and integration nodes |
+| `apps/mapgyver/src/matrix/` (planned) | Cells, layers, groups, columns, transitions, exported channels, app associations and demand policy |
 | `apps/mapgyver/ui/` | Svelte 5 Screen, Surface Source, Composition and Matrix editors; app registrations and focused editor stores |
 | `crates/golden_video/` | Compiler, bounded worker/null runtime, optional D3D11 compositor and bounded Spout input/window/Spout output mechanisms; app integration and qualification continue in M03 |
 | `crates/golden_time/` | Typed monotonic/show/sample coordinates, rational mappings, authority epochs and activation observations; apps own transport policy |
@@ -84,6 +85,24 @@ rename, reorder, size changes, disconnect/reconnect, and resource recreation. Ar
 labels are never identities. Matrix channels derive their persistent identity from the owning
 layer/group/final-output identity. Removing a channel leaves an explicit missing reference;
 consumers never silently switch to another channel. Undo/reload restores the authored identity.
+
+The implemented M03 foundation uses Golden node UUIDs wrapped as app-owned `MediaId` and
+`ChannelId`. A media and each channel are separate nodes, so a channel edit captures that leaf's
+authored data instead of cloning the catalog. `mapgyver.media.edit` accepts Rust-owned intents
+through `ProjectLifecycle::apply_app_operation`; the shared atomic transaction/history boundary
+also serves QuickJS `gc.invokeAppOperation` and headless callers. Creation uses one detached
+media/channel subtree. Labels, initial channel settings and size defaults are backend policy.
+New projects expose the authoring container; dedicated controls/command nodes/templates remain
+M04 work. This foundation currently defines Solid Color and Shared Texture authoring only;
+Picture, Composition and Matrix definitions join with their implementing milestones.
+
+`media/protocol.rs` generates TypeScript into the app UI, including Golden Video's canonical
+descriptor/filter types. `media/resolution.rs` keeps source availability separate from resolved
+extent: Automatic may remain unresolved, while Fixed retains its extent during source loss.
+The initial backend canvas is 1920×1080; dimensions are nonzero and at most 16384 texels per
+axis. Shared Texture defaults to an unconfigured exact selector and explicit BGRA8/sRGB/straight
+alpha with that maximum extent. Runtime admission can impose lower budgets. Runtime source
+observations are not project data; wiring them to fenced dynamic bindings remains M03 work.
 
 Each channel has an authored size policy, either `Automatic` or `Fixed { width, height }`, and a
 separate observed resolved extent/status. Automatic uses picture/Spout source metadata, an

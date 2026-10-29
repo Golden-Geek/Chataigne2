@@ -61,6 +61,13 @@ binding publication, preview geometry, native recovery and full GPU qualificatio
 See [Golden Video](../../crates/golden_video/README.md) and
 [Golden Time](../../crates/golden_time/README.md) for the public boundaries.
 
+MapGyver's `src/media/` owns typed persistent media/channel references and authoring operations.
+Its lifecycle delegates `mapgyver.media.edit` to Golden's existing atomic app-operation path;
+UI, QuickJS and headless callers share validation, exact result identities and history. Each
+channel is a separate authored node; observations and native resources are not persisted there.
+Rust emits app intents and canonical Golden Video extent/descriptor/filter declarations for
+the UI. Native binding publication and source-observation fencing remain pending integration.
+
 For queued native-derived edits, `golden_engine::edit::EditQueue::retain_payload` attaches an
 already-admitted Golden IO payload lease to the requests currently in the queue. Admission survives
 producer removal, ingress transfer, deferred/atomic application, coalescing and discarded suffixes.

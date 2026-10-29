@@ -13,6 +13,8 @@ d3d11 = ["dep:windows", "dep:spout2-sys"]
 [dependencies]
 golden_io.workspace = true
 golden_time.workspace = true
+serde.workspace = true
+ts-rs.workspace = true
 thiserror.workspace = true
 uuid.workspace = true
 

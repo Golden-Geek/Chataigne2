@@ -1,0 +1,3 @@
+src/lib/media/generated/
+.svelte-kit/
+build/

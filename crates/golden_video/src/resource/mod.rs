@@ -1,9 +1,11 @@
 use std::num::NonZeroU32;
 
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use ts_rs::TS;
 
 /// Nonempty texture extent in texels, independent of CSS units or desktop DPI.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 pub struct Extent2D {
     width: NonZeroU32,
     height: NonZeroU32,
@@ -30,7 +32,7 @@ impl Extent2D {
 }
 
 /// Initial supported storage formats; channel layout does not imply transfer or alpha semantics.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 pub enum PixelFormat {
     /// Eight-bit red, green, blue and alpha channels.
     Rgba8Unorm,
@@ -48,7 +50,7 @@ impl PixelFormat {
 }
 
 /// Transfer encoding of stored RGB channels. Alpha always represents linear coverage.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 pub enum ColorEncoding {
     /// Linear-light RGB.
     Linear,
@@ -57,7 +59,7 @@ pub enum ColorEncoding {
 }
 
 /// Explicit source alpha convention; never inferred from the storage format.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 pub enum AlphaMode {
     /// Stored RGB is independent of coverage alpha.
     Straight,
@@ -71,7 +73,7 @@ pub enum AlphaMode {
 }
 
 /// Declared logical image layout; contains no native interfaces or ownership handles.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 pub struct TextureDescriptor {
     /// Nonempty extent in texels.
     pub extent: Extent2D,

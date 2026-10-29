@@ -10,6 +10,8 @@ The implemented foundations are:
   separate from persistent media/channel IDs and native resource ownership/generations.
 - `resource/` declares nonempty texel extents, storage, RGB transfer encoding and alpha convention.
   Source metadata is explicit; renderer-internal targets use linear-light premultiplied alpha.
+  These data-only descriptors and the sampling filter derive Serde/TypeScript contracts, so app
+  authoring DTOs reuse their canonical definitions. Deserializing an empty extent is rejected.
 - `color/` validates finite SDR premultiplied clear colors and unit-range opacity.
 - `plan/` validates the complete submitted dependency graph and caller-supplied limits, then
   compiles only demanded sources/passes in deterministic dependency order. Multiple output

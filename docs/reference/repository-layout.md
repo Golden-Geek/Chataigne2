@@ -100,7 +100,8 @@ for the exact convention.
 
 `apps/mapgyver/` is an existing Rust/npm workspace member. Its `src/app/` declares the product
 identity, `.mapgyver` project specification and shared-host defaults; new projects contain the
-standard Dashboard. Its `ui/` mounts the reusable workbench with MapGyver branding. App-owned
+standard Dashboard and Media Manager authoring container. Its `ui/` mounts the reusable workbench
+with MapGyver branding and a typed media-intent adapter. App-owned
 Tauri configuration, icons, permissions and build script remain under that directory; UI bundling
 uses the public `golden_codegen_support::ui_bundle` boundary shared with Chataigne.
 
@@ -110,7 +111,9 @@ state, and obtains project-file labels/extensions from the required runtime snap
 
 These boundaries distinguish implemented foundations from planned product features:
 
-- `apps/mapgyver/systems/{media,screen,matrix}/`: app-owned models, operations and integration.
+- `apps/mapgyver/src/media/`: persistent media/channel nodes, typed references, backend operations,
+  source/size resolution and Rust-owned generated contracts; live render binding remains open.
+- `apps/mapgyver/src/{screen,matrix}/`: planned app-owned models, operations and integration.
 - `apps/mapgyver/ui/`: future Screen, Surface Source, Composition and Matrix editors.
 - `crates/golden_video/`: compiler, worker/null runtime and optional D3D11 compositor with
   fixed window/Spout outputs and bounded Spout source workers exist. Complete app integration/qualification

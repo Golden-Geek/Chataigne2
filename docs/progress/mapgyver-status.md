@@ -4,18 +4,18 @@
 
 **Updated: 2026-10-29 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
-**Current topic:** M03's compiler, bounded worker/null runtime and shared time authority are
-verified, and bounded Spout inputs now close native execution gate 3 (**4/9** total). The
-[native input evidence](mapgyver-m03-render-foundations.md#bounded-spout-inputs--2026-10-29)
-covers independent producers, composition, preparation/cancellation, bounded bridge pressure,
-resize/reconnect and retirement. Full native qualification remains open. M02's
-[shell and lifecycle evidence](mapgyver-m02-shell.md) remains accepted.
+**Current topic:** M03 remains **4/9** accepted gates. App-owned media/channel nodes, backend
+intents, size/source contracts and generated UI types now have history/reload/script coverage;
+[authoring evidence](mapgyver-m03-render-foundations.md#mediachannel-authoring-contracts--2026-10-29)
+is a partial gate 5 checkpoint. Live binding and resource-recreation integration stay open.
+The [native input evidence](mapgyver-m03-render-foundations.md#bounded-spout-inputs--2026-10-29)
+and M02's [shell and lifecycle evidence](mapgyver-m02-shell.md) remain accepted.
 The [approved M01 route decision](mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28)
 remains scoped functional acceptance; renderer, physical-output and full-app qualification
 retain their M03/M05/M09 owners.
 
-**Next:** implement app-owned media/channel backend contracts and their public runtime binding
-integration (gate 5); retain native recovery and qualification work under gates 4/9.
+**Next:** connect app channel demand/configuration to public runtime bindings with project,
+revision and source-observation fences (gate 5); retain recovery/qualification under gates 4/9.
 **Blocker:** none for the next M03 app-contract batch. Known cadence, memory-growth, geometry and display/input failures
 remain open under M03/M05/M09; their budgets and evidence are unchanged.
 
@@ -133,7 +133,7 @@ functional gate, not a retrospective pass of the original eight-item matrix.
 | Bounded worker/null runtime and atomic install | Done | [Runtime evidence](mapgyver-m03-render-foundations.md): Golden IO workers/fences, one preparation/latest desired plan, bounded reliable outcomes and resource admission, frame-boundary install, at most two in-flight uses/two retiring generations, completion-based worker-local destruction. Null resources simulate allocation/use; native proof stays open. |
 | D3D11/Spout backend and host integration | Done | [Native input/output evidence](mapgyver-m03-render-foundations.md#bounded-spout-inputs--2026-10-29): opaque GPU resources, explicit LUID/caller-device ownership, four-mode conversion/composition, independent-process Spout inputs and window/Spout output consumers pass. Shared-host regression passes. Full recovery/physical/steady-state budgets retain gates 4/8/9. |
 | Runtime observations and device recovery | Open | Source/output state, device removal/recreation, healthy-path independence, cancellation and bounded production recovery/retirement. |
-| App-owned media/channel backend contracts | Open | Stable IDs/references, backend size/default operations, Rust-generated contracts and actual history/reload/recreation coverage. |
+| App-owned media/channel backend contracts | Partial | [Authoring checkpoint](mapgyver-m03-render-foundations.md#mediachannel-authoring-contracts--2026-10-29): typed UUID references, backend defaults/size/source operations, Rust-generated contracts and actual history/reload/script coverage. Live binding and resource-recreation proof remain open. |
 | Shared production-time authority | Done | [Golden Time](../../crates/golden_time/README.md) supplies checked coordinates/rational mappings and authority/discontinuity epochs consumed by the threaded video scheduler; fake-time activation/shared-output and stale-epoch tests pass. Shared P14 plan records this evidence; audio/DMX acceptance remains open. |
 | Shared persistent asset/preparation boundary | Open | Stable asset IDs/locators, worker preparation/cancellation, relocation/relink, stale fencing and full live-resource admission; shared P15 evidence remains scoped. |
 | Native preview registration/geometry contracts | Open | Reusable bindings and Rust-generated control DTOs exercised by the native consumer; specialized editors/full DPI/input stay M05. |
@@ -385,6 +385,28 @@ Preserve Chataigne's unfinished engine/Spatializer P11 checkpoint (four of six f
 and its [separate ledger](implementation-status.md). Shared P12 boundary repairs belong to M02;
 P14/P15 time and asset contracts retain their shared Golden owners under M03. Root launch
 behavior is unchanged. No production host/backend/binding decision is final yet.
+
+## M03 media/channel authoring checkpoint — 2026-10-29
+
+- Entered from published `44e3ecd9` on a clean `mapgyver` checkout. The app now registers
+  separate media/channel nodes using persistent typed UUID references. Backend operations own
+  initial channels, labels, source settings, size policy and validation; creation inserts one
+  detached subtree and leaf changes use Golden's authored edit/history path.
+- [Authoring evidence](mapgyver-m03-render-foundations.md#mediachannel-authoring-contracts--2026-10-29)
+  records real project roundtrip, rename/reorder/remove/undo/redo, missing/wrong-owner rejection,
+  per-channel settings, backend size resolution and production-actor save coverage. QuickJS
+  uses the same app operation and receives the committed identity with one undo step.
+- Rust emits the app intent/result/size contracts and canonical Golden Video descriptor/filter
+  declarations; a byte-comparison drift test passes. The app UI's adapter uses its session
+  interface and generated intents, with no frontend identity/default/domain behavior.
+- **11 app tests + 70 Video tests pass** (68 unit + 2 public in Video). The two native hardware
+  tests remain explicitly ignored in this data-contract run; their prior hardware evidence is
+  retained. Strict native-feature app/Video all-target Clippy, strict optional smoke-target
+  Clippy, both default app compile checks, UI check/lint and root/Core formatting pass.
+- M03 remains **4/9 = 44%**, overall **3/10 = 30%**. Gate 5 is partial: live renderer binding,
+  fenced source observations and app identity through actual resource recreation are still
+  required. Picture/assets, dedicated controls/command nodes/script templates, Composition and
+  Matrix retain their planned owners. No new native performance/display pass is claimed.
 
 ## M03 bounded input verification — 2026-10-29
 

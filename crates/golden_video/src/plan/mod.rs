@@ -7,9 +7,11 @@ mod weight;
 pub use error::{GraphLimit, PlanError};
 
 use crate::{LinearColor, Opacity, OutputId, PassId, TextureDescriptor, TextureId};
+use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 /// Sampling applied when a source extent differs from the destination extent.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize, TS)]
 pub enum SampleFilter {
     /// Select the nearest source texel.
     Nearest,
