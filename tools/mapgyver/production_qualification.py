@@ -24,6 +24,7 @@ DEADLINES = runpy.run_path(str(Path(__file__).with_name("production_deadlines.py
 PREPARATION = runpy.run_path(str(Path(__file__).with_name("production_preparation.py")))
 PLAN_AGE = runpy.run_path(str(Path(__file__).with_name("production_plan_age.py")))
 COHORT = runpy.run_path(str(Path(__file__).with_name("production_cohort.py")))
+PRESENTMON = runpy.run_path(str(Path(__file__).with_name("production_presentmon.py")))
 
 
 class ArtifactError(ValueError):
@@ -456,6 +457,9 @@ def analyze_capture(directory):
     preparation = PREPARATION["analyze_preparation"](native["Preparation"], native["FrameCpu"], frequency, distribution)
     plan_age = PLAN_AGE["analyze_plan_age"](native["Plan"], native["Preparation"], native["FrameCpu"],
                                           native["Output"], sample, frequency, distribution)
+    presentmon = PRESENTMON["analyze_presentmon"](
+        load_json(directory / "presentmon.json") if (directory / "presentmon.json").exists() else None,
+        native, (source_a, source_b), sample, manifest["pid"], frequency, distribution)
     renderer_gpu = gpu_metrics(frame_rows, native["Gpu"], renderer=True)
     dependencies = source_dependencies(frame_rows, native)
     markers = marker_metrics((source_a, source_b), consumer, sample, frequency)
@@ -467,6 +471,10 @@ def analyze_capture(directory):
     consumer_complete = consumer_final.get("final_readbacks") == 1 and consumer_final.get("finished") is True \
         and consumer_final.get("overflow") == consumer_final.get("mismatch") == consumer_final.get("failed_receives") == 0 \
         and consumer_final.get("device_removed") is False
+    all_output_age_covered = complete and consumer_complete and cohort["coverage_complete"] and presentmon["coverage_complete"]
+    window_age_ok = presentmon["coverage_complete"] and all(
+        age is not None and age["p95_ms"] <= 50 for output in presentmon["outputs"]
+        for age in output["source_to_software_display_age"])
     marker_count = min(channel["valid"] for channel in markers["channels"])
     markers["expected_samples_at_60hz"] = duration * 60
     markers["capture_count_at_least_nominal"] = consumer_complete and marker_count >= duration * 60 * 0.999
@@ -555,9 +563,10 @@ def analyze_capture(directory):
             reason="definite unsubmitted/late-start lower bounds can fail; early APIs cannot qualify normative output deadlines"),
         "editor_independence": criterion(independence["complete"] if complete else None,
                                          manifest.get("independence_seconds") == 60),
-        "source_to_consumer_age": criterion(None, eligible,
+        "source_to_consumer_age": criterion(cohort["observed_age_p95_within_budget"] and window_age_ok
+                                            if all_output_age_covered else None, eligible,
             observed_capture_p95_within_budget=age_ok,
-            reason="exact output-frame cohort measured for Spout only; native-window presentation age remains unavailable"),
+            reason="every accepted Spout GPU capture and both exact window software-display cohorts are required; no physical scanout claim"),
         "spout_capture_identity": criterion(cohort["coverage_complete"] if complete and consumer_complete else None, eligible,
             scope="sample-accepted Spout output images, exact renderer source-use versions and GPU marker contents"),
         "spout_capture_age": criterion(cohort["observed_age_p95_within_budget"]
@@ -583,7 +592,9 @@ def analyze_capture(directory):
                                         scope="native preparation/first-use coverage; no latency budget inferred"),
         "plan_publication_age": criterion(plan_age["coverage_complete"] if complete else None, eligible,
                                           scope=plan_age["scope"]),
-        "plan_age_and_published_queue": criterion(None, eligible, reason="CPU plan publication/receipt/install/first-use and source retention to output APIs measured; GPU/presentation queue age remains absent"),
+        "window_presentation": criterion(presentmon["coverage_complete"] if complete and presentmon["captured"] else None,
+                                          eligible, scope="exact native Present/ETW software display cohort; not physical scanout"),
+        "plan_age_and_published_queue": criterion(None, eligible, reason="CPU plan/source age and optional software-display timelines measured; pending display events do not establish app/native buffer occupancy or GPU queue time"),
         "environment_identity": criterion(None, eligible,
                                           reason="selected MSVC/SDK, driver, WebView, power and overlay observations are not pinned"),
     }
@@ -593,6 +604,7 @@ def analyze_capture(directory):
             "submission_deadlines": deadlines,
             "native_preparation": preparation,
             "plan_publication_age": plan_age,
+            "window_presentation": presentmon,
             "spout_output_cohort": cohort,
             "frame_age": markers, "resources": resources,
             "independence": independence,
@@ -644,6 +656,9 @@ def fingerprints(executable):
     paths += [Path(__file__), Path(__file__).with_name("production_process.py"),
               Path(__file__).with_name("production_preparation.py"),
               Path(__file__).with_name("production_plan_age.py"),
+              Path(__file__).with_name("production_presentmon.py"),
+              Path(__file__).with_name("production_presentmon_capture.py"),
+              Path(__file__).with_name("presentmon_data.py"),
               Path(__file__).with_name("production_cohort.py"),
               Path(__file__).with_name("production_deadlines.py"), ROOT / "apps/mapgyver/Cargo.toml",
               ROOT / "crates/golden_time/Cargo.toml", ROOT / "crates/golden_video/Cargo.toml",
@@ -690,6 +705,9 @@ def parse_args(argv=None):
     run.add_argument("--isolation-seconds", type=int, default=0, help="60 verifies each required interruption interval")
     run.add_argument("--trace-capacity", type=int, default=65536)
     run.add_argument("--diagnostic", action="store_true", help="required for short controls; never promotes them to qualification")
+    run.add_argument("--presentmon", action="store_true", help="capture exact PID-filtered software window display observations")
+    run.add_argument("--presentmon-executable", type=Path)
+    run.add_argument("--trace-query-executable", type=Path)
     args = parser.parse_args(argv)
     if args.command == "run":
         if args.adapter < 0 or args.seconds < 1 or args.warmup < 0 or args.isolation_seconds < 0 \
@@ -712,18 +730,27 @@ def write_new(path, value):
 
 def run(args):
     from production_process import run_owned
+    from production_presentmon_capture import Capture, PRESENTMON, QUERY
     require(args.executable.is_file(), "production qualification executable is absent")
     args.directory.mkdir(parents=True, exist_ok=False)
     directories = []
     for index in range(1, args.samples + 1):
         directory = args.directory / f"sample-{index:03}"
+        trace = Capture((args.presentmon_executable or PRESENTMON).resolve(),
+                        (args.trace_query_executable or QUERY).resolve(),
+                        args.directory / f"sample-{index:03}-presentmon",
+                        args.warmup + args.seconds + args.isolation_seconds * 2) if args.presentmon else None
         before = fingerprints(args.executable)
+        if trace:
+            before["external_trace_tools"] = trace.current_identities()
+        write_new(args.directory / f"sample-{index:03}-inputs-before.json", before)
         command = capture_command(args, directory)
         print(f"Starting production {args.scenario} sample {index}/{args.samples}", file=sys.stderr, flush=True)
         with (args.directory / f"sample-{index:03}-stdout.log").open("xb") as stdout, \
                 (args.directory / f"sample-{index:03}-stderr.log").open("xb") as stderr:
             try:
-                execution = run_owned(command, args.warmup + args.seconds + args.isolation_seconds * 2 + 180, stdout, stderr)
+                execution = run_owned(command, args.warmup + args.seconds + args.isolation_seconds * 2 + 180,
+                                      stdout, stderr, trace.start if trace else None)
             except (OSError, RuntimeError, subprocess.SubprocessError) as error:
                 execution = {"exit_code": None, "timed_out": False, "forced_cleanup": True,
                              "watchdog_error": str(error), "owned_job_active_before_close": None}
@@ -732,7 +759,15 @@ def run(args):
                   "stdout_sha256": digest(args.directory / f"sample-{index:03}-stdout.log"),
                   "stderr_sha256": digest(args.directory / f"sample-{index:03}-stderr.log"),
                   "finished_utc": datetime.datetime.now(datetime.timezone.utc).isoformat()})
+        if trace:
+            try:
+                trace_report = trace.finish(native_failed=execution["exit_code"] != 0)
+            except (OSError, ValueError, subprocess.SubprocessError) as error:
+                trace_report = {"requested": True, "session": trace.session, "error": str(error)}
+            write_new(directory / "presentmon.json", trace_report)
         after = fingerprints(args.executable)
+        if trace:
+            after["external_trace_tools"] = trace.current_identities()
         write_new(directory / "inputs.json", {"before": before, "after": after, "unchanged": before == after})
         directories.append(directory)
         if execution["exit_code"] != 0 or execution["timed_out"] or execution["forced_cleanup"] or before != after:

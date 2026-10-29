@@ -117,6 +117,18 @@ pub struct OutputTrace {
     pub outcome: DiagnosticDelivery,
     /// Exact accepted Spout image; absent for windows, rejected calls or unavailable metadata.
     pub spout_image: Option<SpoutImageVersion>,
+    /// Actual window Present incarnation/aliases; absent when no Present API was called.
+    pub window_present: Option<WindowPresentIdentity>,
+}
+
+/// Diagnostic identity for an owned window endpoint, never an owned/openable resource.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WindowPresentIdentity {
+    /// Endpoint incarnation within this output/device lifetime; never inferred from a pointer.
+    pub generation: u64,
+    /// Raw IDXGISwapChain, IDXGISwapChain1 and IDXGISwapChain2 interface aliases.
+    /// ETW pointer equality must be checked against these values, not assumed.
+    pub addresses: [u64; 3],
 }
 
 /// Diagnostic-only correlation for one versioned shared image, never a project/control type.

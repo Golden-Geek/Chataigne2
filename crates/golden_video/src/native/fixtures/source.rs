@@ -247,6 +247,7 @@ impl FixtureSource {
             .then(|| self.output.copied_image_version())
             .flatten();
         self.recorder.push(DiagnosticEvent::Output(OutputTrace {
+            window_present: None,
             token,
             output: OutputId::new(1).expect("positive fixture-local output identity"),
             conversion: None,

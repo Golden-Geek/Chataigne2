@@ -25,11 +25,17 @@ pub(super) struct WindowOutput {
     window: HWND,
     descriptor: TextureDescriptor,
     device: ID3D11Device,
+    addresses: Option<[u64; 3]>,
     _local: PhantomData<Rc<()>>,
 }
 
 impl WindowOutput {
-    pub(super) fn new(device: &ID3D11Device, window: WindowTarget, descriptor: TextureDescriptor) -> Result<Self> {
+    pub(super) fn new(
+        device: &ID3D11Device,
+        window: WindowTarget,
+        descriptor: TextureDescriptor,
+        diagnostics: bool,
+    ) -> Result<Self> {
         let window = HWND(window.raw() as *mut _);
         let dxgi: IDXGIDevice = device.cast()?;
         // SAFETY: interfaces belong to the retained caller-selected D3D11 device.
@@ -77,14 +83,29 @@ impl WindowOutput {
             }
             OwnedHandle::from_raw_handle(handle.0)
         };
+        let addresses = if diagnostics {
+            Some([
+                chain.cast::<IDXGISwapChain>()?.as_raw() as usize as u64,
+                chain.cast::<IDXGISwapChain1>()?.as_raw() as usize as u64,
+                chain.as_raw() as usize as u64,
+            ])
+        } else {
+            None
+        };
         Ok(Self {
             readiness: Readiness::new(readiness),
             chain,
             window,
             descriptor,
             device: device.clone(),
+            addresses,
             _local: PhantomData,
         })
+    }
+
+    pub(super) fn present_identity(&self, generation: u64) -> Option<super::super::timing::WindowPresentIdentity> {
+        self.addresses
+            .map(|addresses| super::super::timing::WindowPresentIdentity { generation, addresses })
     }
 
     pub(super) fn admit(&mut self) -> std::result::Result<(), Delivery> {

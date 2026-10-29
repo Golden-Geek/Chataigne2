@@ -92,6 +92,16 @@ plan age naturally grows between edits and is not edit latency. Missing clocks/j
 unavailable. GPU queue and physical presentation age remain separate measurements. Artifact
 schema version is Rust-owned and generated with the fixture contracts as `capture-schema.json`.
 
+Optional window diagnostics retain the actual endpoint incarnation and the three DXGI
+swapchain interface aliases with each Present API bracket. Aliases are captured during cold
+endpoint creation; disabled diagnostics perform no additional interface queries. These are
+non-owning diagnostic numbers, never project/control handles and never opened by analysis.
+The production runner can opt into a pinned PID-filtered PresentMon collector. Offline joins
+require exact PID, alias and native API interval before associating a software display event
+with a renderer token, source image or authored plan. Missing/dropped/ambiguous records stay
+explicit. Software-display backlog is separate from native buffer occupancy, GPU queue time
+and physical scanout; it cannot certify those remaining budgets.
+
 Opt-in native diagnostics retain each actual copied Spout image's 32-bit SDK share-handle/counter
 pair through source publication and output delivery. These ephemeral values are diagnostic
 identities only, absent from project files and control protocols; they retain/open no native

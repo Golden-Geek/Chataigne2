@@ -1,4 +1,5 @@
 import copy
+import csv
 import contextlib
 import importlib.util
 import io
@@ -161,6 +162,32 @@ class ProductionQualificationTests(unittest.TestCase):
     def analyze(self):
         return ANALYZER.analyze_capture(self.directory)
 
+    def test_all_output_age_requires_exact_complete_spout_and_both_window_cohorts(self):
+        stream = io.StringIO(newline='')
+        writer = csv.writer(stream)
+        writer.writerow(['ProcessID', 'SwapChainAddress', 'QPCTime', 'Dropped', 'MsUntilDisplayed', 'MsBetweenDisplayChange'])
+        for row in self.renderer:
+            output = row.get('event', {}).get('Output')
+            if output and output['output'] in (1, 3):
+                address = 1000 + output['output']
+                output['window_present'] = {'generation': 1, 'addresses': [address]*3}
+                writer.writerow([100, hex(address), output['consumer_api']['begin']+1, 0, '.1', 16])
+        session = 'MapGyver-M01-Present-' + 'a'*32
+        report = {'target_pid': 100, 'session': session, 'stdout': stream.getvalue(), 'stderr': '',
+                  'exit_code': 0, 'forced_cleanup': False, 'tools_unchanged': True,
+                  'live_query': {'exit_code': 0, 'stdout': json.dumps({'status': 0, 'session_name': session,
+                      'before_qpc': END+1000, 'after_qpc': END+1001, 'response_validation_error': None,
+                      'statistics': {'returned_session_name': session, 'events_lost': 0,
+                                     'log_buffers_lost': 0, 'realtime_buffers_lost': 0}})}}
+        write_rows(self.directory/'renderer.jsonl', self.renderer)
+        (self.directory/'presentmon.json').write_text(json.dumps(report), encoding='utf-8')
+        result = self.analyze()
+        self.assertTrue(result['criteria']['source_to_consumer_age']['observed_within_target'])
+        self.assertEqual(result['criteria']['plan_age_and_published_queue']['status'], 'UNAVAILABLE')
+        report['stdout'] = report['stdout'].splitlines()[0]+'\n'+'\n'.join(report['stdout'].splitlines()[2:])+'\n'
+        (self.directory/'presentmon.json').write_text(json.dumps(report), encoding='utf-8')
+        self.assertIsNone(self.analyze()['criteria']['source_to_consumer_age']['observed_within_target'])
+
     def test_complete_short_capture_stays_diagnostic_and_contexts_never_become_critical_path(self):
         result = self.analyze()
         self.assertFalse(result["prescribed_sample"])
@@ -282,7 +309,7 @@ class ProductionQualificationTests(unittest.TestCase):
 
     def test_old_captures_are_not_reinterpreted_using_new_generation_or_clock_semantics(self):
         manifest = ANALYZER.load_json(self.directory / "manifest.json")
-        for old in (1, 2, 3, 4):
+        for old in (1, 2, 3, 4, 5):
             with self.subTest(version=old):
                 manifest["schema_version"] = old
                 (self.directory / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
@@ -352,7 +379,7 @@ class ProductionQualificationTests(unittest.TestCase):
         age = result["criteria"]["source_to_consumer_age"]
         self.assertEqual(age["status"], "UNAVAILABLE")
         self.assertTrue(age["observed_capture_p95_within_budget"])
-        self.assertIn("exact output-frame cohort", age["reason"])
+        self.assertFalse(result["window_presentation"]["captured"])
 
     def test_oversampled_valid_captures_do_not_establish_normative_output_frame_age(self):
         oversampled = []

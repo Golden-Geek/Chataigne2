@@ -5,19 +5,19 @@
 **Updated: 2026-10-29 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
 **Current topic:** M03 remains **7/9** accepted gates. The
-[CPU plan-age checkpoint](mapgyver-m03-qualification-runner.md#cpu-plan-publication-receipt-and-first-use--2026-10-29)
-records actual publication, first worker receipt, installation and first use. Both short
-controls have complete lifecycle joins: nine publications, eight receipts, six installations.
-Q01 captures 180/180 sample outputs exactly; Q02 captures 153/174, with 21 missing images and
-no observed pixel mismatch. Earlier failures remain preserved. No gate closes.
+[window display-age checkpoint](mapgyver-m03-qualification-runner.md#exact-window-presents-and-software-display-age--2026-10-29)
+joins all 2,069 PresentMon rows to exact native PID/interface/API calls. Both sample window
+cohorts have complete source/plan/software-display observations. Q01 p95 source age stays below
+33 ms; Q02 reaches 63.386 ms in the editor and retains cadence/capture failures. Physical scanout,
+buffer occupancy and GPU queue/critical-path qualification remain separate. No gate closes.
 
-**Next:** complete GPU/output queue, critical-path and native-window deadline/age measurements
+**Next:** complete GPU/output queue, critical-path and output deadline measurements
 (gate 9), then address remaining cadence, capture coverage and growth qualification. Native
 device removal and bounded stuck retirement retain gate 4.
 **Blocker:** Q02 window cadence, producer admission, complete capture coverage and age remain
 insufficient; GPU keyed ownership repairs pixel coherence, not those budgets. Full GPU
-critical-path, native-window presentation age and GPU/presentation queue coverage
-remain unavailable. Genuine device removal and stuck-driver retirement bounds remain unverified.
+critical-path and native buffer/GPU-queue coverage remain unavailable; bounded window software
+display age is now measured. Genuine device removal and stuck-driver retirement bounds remain unverified.
 Historical memory-growth, geometry and display/input failures retain their M03/M05/M09 owners.
 
 | Phase | State | Progress | Done / total items |
@@ -260,12 +260,16 @@ output and independent capture, checking GPU pixels against the exact claimed re
 Direct native regression and GPU input/conversion taps isolate the observed mismatch to the
 outgoing SDK handoff. GPU keyed outputs with zero-timeout send ownership now retain exact pixels
 in 518 available regression comparisons and the new short control captures. The latest Q02
-control still misses 21 sample images and cadence/age targets. Counter agreement alone cannot
+control still misses 18 sample images and cadence/age targets. Counter agreement alone cannot
 qualify identity.
 CPU publication/first-receipt/installation records now join exact resource generations to first
 use and per-output API age. The bounded recorder exists before worker startup; unread
 superseded plans have no invented receipt. Retained plan age grows between edits and is not
-edit latency. Complete GPU/output-age, critical-path and GPU/presentation queue measurement
+edit latency. Optional PID-filtered PresentMon now joins each actual window API call to its
+software display event and exact retained sources/plans. Q01 has complete three-output age
+observations in one short control; Q02 retains cadence/age/capture failures. Pending software
+display events do not establish native buffer occupancy. Complete GPU critical-path,
+queue/consumption and output deadline measurement
 before the prescribed qualification series (gate 9).
 Genuine native device-removal recovery and bounded stuck-drain retirement retain gate 4.
 Both gates remain required before M03 completion; all existing budgets/failures stay operative.
@@ -414,6 +418,45 @@ Preserve Chataigne's unfinished engine/Spatializer P11 checkpoint (four of six f
 and its [separate ledger](implementation-status.md). Shared P12 boundary repairs belong to M02;
 P14/P15 time and asset contracts retain their shared Golden owners under M03. Root launch
 behavior is unchanged. No production host/backend/binding decision is final yet.
+
+## M03 window Present/display correlation — 2026-10-29
+
+The [window observation checkpoint](mapgyver-m03-qualification-runner.md#exact-window-presents-and-software-display-age--2026-10-29),
+[schema-6 packet](evidence/mapgyver-m03-window-present-2026-10-29.json) and
+[raw archive](evidence/mapgyver-m03-window-present-controls-2026-10-29.zip) retain exact endpoint
+incarnations/three DXGI interface aliases and native Present API intervals. The optional pinned
+PresentMon collector targets only the new renderer PID and an owned UUID session. The retained
+probe supplies its public read-only session query, without running a legacy renderer. No
+device/driver/display/overlay, SDK, scene, polling, queue-depth or budget setting changed.
+
+All **1,194 Q01 and 875 Q02 CSV rows** join exactly to native calls, with no unmatched rows.
+The sample main/editor cohorts are 180/180 and 180/180 (Q01), 137/137 and 91/91 (Q02), with no
+missing/dropped/display/source/plan observations. Independent reconstruction reproduces every
+raw join and source/publication/display-age distribution. Q01 main source-age p95 A/B is
+32.185/28.376 ms; editor is 32.214/28.998 ms. Q02 main is 45.796/55.334 ms; editor is
+52.630/63.386 ms, exceeding the unchanged 50 ms target. These are software display events,
+not window pixel/physical scanout or optical observations. Pending-display backlog is neither
+native buffer occupancy nor a GPU critical path, and its incomplete pre-window coverage stays open.
+
+Q01 has 180/180/180 main/Spout/editor acceptances and 180 exact Spout captures. Q02 accepts
+137/179/91, with 161 exact Spout images and 18 missing. Overall Q02 age remains unavailable
+because its Spout cohort is incomplete; the unfavorable observed window distributions remain
+explicit. All 262 execution hashes per capture and both external tool hashes match, telemetry
+is lossless, live ETW counters cover the native calls, and no collector loss warning is reported.
+Final collector-shutdown loss statistics remain unavailable. Retirement is actual/unforced,
+with zero final resource bytes/in-flight work, in 0.095/0.124 s.
+
+The initial trace finalized native work but failed decoding redirected UTF-16 output. Its raw
+files and failure are preserved with unavailable input/live-query evidence. The fixed decoder
+retains original bytes and explicit encoding, and the runner persists admission fingerprints/
+native completion even if ancillary trace finalization fails. One fresh bounded pair verifies
+the correction; no earlier run is silently promoted or overwritten.
+
+Validation passes **182 regular Rust tests, twelve native GPU tests and 73 production Python
+tests**, strict default/native all-target Clippy, generated fixture contracts, locked release
+x64 build and both required formatters. Prescribed repetitions/durations, GPU critical path,
+native buffer/GPU queue/deadline measurements, growth/handles and genuine removal/stuck
+retirement remain open. **M03 stays 7/9 (78%); overall stays 3/10 (30%)**.
 
 ## M03 CPU plan lifecycle and first-use age — 2026-10-29
 

@@ -86,7 +86,7 @@ class _Job:
             self.handle = None
 
 
-def run_owned(command, timeout, stdout, stderr):
+def run_owned(command, timeout, stdout, stderr, on_started=None):
     """Never terminate by executable name or inspect unrelated jobs/processes."""
     if os.name != "nt":
         raise RuntimeError("native production capture requires Windows")
@@ -97,6 +97,8 @@ def run_owned(command, timeout, stdout, stderr):
         process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=stdout, stderr=stderr,
                                    creationflags=subprocess.CREATE_NO_WINDOW)
         job.assign(process)
+        if on_started is not None:
+            on_started(process.pid)
         try:
             process.wait(timeout=timeout)
         except subprocess.TimeoutExpired:

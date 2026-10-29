@@ -10,7 +10,7 @@ use crate::{OutputId, TextureDescriptor};
 use super::config::{D3d11Config, OutputBinding};
 use super::observation::{D3d11Control, OutputState, OutputStatus};
 use super::texture::Texture;
-use super::timing::{CpuInterval, DiagnosticDelivery, Recorder, SpoutImageVersion};
+use super::timing::{CpuInterval, DiagnosticDelivery, Recorder, SpoutImageVersion, WindowPresentIdentity};
 use lifetime::Endpoint;
 use recovery::Recovery;
 
@@ -50,10 +50,10 @@ enum Output {
 }
 
 impl Output {
-    fn new(device: &ID3D11Device, binding: &OutputBinding) -> Result<Self> {
+    fn new(device: &ID3D11Device, binding: &OutputBinding, diagnostics: bool) -> Result<Self> {
         match binding {
             OutputBinding::Window { window, .. } => {
-                window::WindowOutput::new(device, *window, binding.descriptor()).map(Self::Window)
+                window::WindowOutput::new(device, *window, binding.descriptor(), diagnostics).map(Self::Window)
             }
             OutputBinding::Spout { name, .. } => {
                 spout::SpoutOutput::new(device, name.clone(), binding.descriptor()).map(Self::Spout)
@@ -90,6 +90,12 @@ pub(super) struct AdmittedOutput<'a> {
     token: CompletionToken,
 }
 
+pub(super) struct Delivered {
+    pub outcome: Delivery,
+    pub spout_image: Option<SpoutImageVersion>,
+    pub window_present: Option<WindowPresentIdentity>,
+}
+
 impl AdmittedOutput<'_> {
     pub(super) fn deliver(
         self,
@@ -97,7 +103,7 @@ impl AdmittedOutput<'_> {
         texture: &Texture,
         recorder: Option<&Recorder>,
         consumer_api: &mut Option<CpuInterval>,
-    ) -> (Delivery, Option<SpoutImageVersion>) {
+    ) -> Delivered {
         let endpoint = self
             .binding
             .endpoint
@@ -108,11 +114,19 @@ impl AdmittedOutput<'_> {
             (Output::Spout(sender), Delivery::Accepted, true) => sender.copied_image_version(),
             _ => None,
         };
+        let window_present = match (&endpoint, consumer_api.is_some(), recorder.is_some()) {
+            (Output::Window(window), true, true) => window.present_identity(self.binding.recovery.generation),
+            _ => None,
+        };
         let delivered = self.binding.delivered(self.device, delivered, Instant::now());
         self.binding.publish(self.control, self.generation);
         self.control
             .observe_output(self.binding.config.id(), self.token, delivered);
-        (delivered, image.filter(|_| delivered == Delivery::Accepted))
+        Delivered {
+            outcome: delivered,
+            spout_image: image.filter(|_| delivered == Delivery::Accepted),
+            window_present,
+        }
     }
 }
 
@@ -121,6 +135,7 @@ struct Binding {
     endpoint: Endpoint<Output>,
     recovery: Recovery,
     flush_before_create: bool,
+    diagnostics: bool,
 }
 
 impl Binding {
@@ -143,7 +158,10 @@ impl Binding {
             }
             self.flush_before_create = false;
         }
-        match self.endpoint.create(|| Output::new(device, &self.config)) {
+        match self
+            .endpoint
+            .create(|| Output::new(device, &self.config, self.diagnostics))
+        {
             Ok(true) => {
                 self.recovery.created();
                 None
@@ -216,6 +234,7 @@ impl OutputPool {
             return Err(Error::new(INVALID_ARGUMENT, "duplicate native output identity"));
         }
         control.register_outputs(generation, config.outputs.iter().map(OutputBinding::id));
+        let diagnostics = config.diagnostics.is_some();
         let mut pool = Self {
             bindings: config
                 .outputs
@@ -228,6 +247,7 @@ impl OutputPool {
                             endpoint: Endpoint::new(),
                             recovery: Recovery::new(),
                             flush_before_create: false,
+                            diagnostics,
                         },
                     )
                 })

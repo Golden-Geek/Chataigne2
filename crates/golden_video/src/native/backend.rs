@@ -540,6 +540,7 @@ impl Backend for D3d11Backend {
             let admission_begin = recorder.and_then(Recorder::stamp);
             let admission = native.outputs.admit(output.id, context, converted.descriptor, token);
             let mut consumer_api = None;
+            let mut window_present = None;
             let (conversion, delivery, outcome, spout_image) = match admission {
                 Err(outcome) => (
                     None,
@@ -565,9 +566,10 @@ impl Backend for D3d11Backend {
                         tap.record(context, input, converted, token);
                     }
                     let delivery_begin = recorder.and_then(Recorder::stamp);
-                    let (outcome, image) = admitted.deliver(context, converted, recorder, &mut consumer_api);
+                    let delivered = admitted.deliver(context, converted, recorder, &mut consumer_api);
+                    window_present = delivered.window_present;
                     let delivery = recorder.and_then(|recorder| recorder.interval(delivery_begin));
-                    (conversion, delivery, outcome, image)
+                    (conversion, delivery, delivered.outcome, delivered.spout_image)
                 }
             };
             if let Some(recorder) = recorder {
@@ -579,6 +581,7 @@ impl Backend for D3d11Backend {
                     consumer_api,
                     outcome: outcome.into(),
                     spout_image,
+                    window_present,
                 }));
             }
         }

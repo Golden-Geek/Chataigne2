@@ -65,7 +65,7 @@ stamp to completed independent capture is distinct from display age or scanout. 
 cohorts do not pass normative frame-age coverage. GPU dependency-path and native-window
 presentation qualification remain unavailable.
 
-Schema 5 adds actual CPU plan lifecycle records from the production runtime: admitted latest
+Actual CPU plan lifecycle records come from the production runtime: admitted latest
 publication, first worker receipt, atomic installation and terminal supersession/rejection/
 cancellation. The bounded recorder is allocated before worker startup, independently of native
 resources. Installation records cover recreation of the same authored plan on a new device;
@@ -73,6 +73,24 @@ first receipt is not duplicated on a preparation retry. Exact plan/resource join
 handoff, first-use latency and retained plan age at accepted output APIs. They never substitute
 for GPU queue time or physical presentation. The current analyzer rejects older schemas; their
 original packets/analyses remain historical evidence.
+
+Schema 6 adds each actual window Present's endpoint incarnation and IDXGISwapChain/1/2 aliases,
+captured once during cold creation. Optional `--presentmon` uses the pinned portable PresentMon
+2.6.0 with the new renderer's exact PID, an owned UUID session and a bounded collection tail.
+The retained native probe supplies only its public read-only `trace-status` command; no legacy
+renderer, host or private source module is imported. Its historical session namespace is an
+observation-tool contract, not M01 acceptance work. Both external executable hashes are recorded.
+No privilege elevation, installed service or display/driver/overlay configuration is changed.
+
+The pinned collector's [v1 CSV implementation](https://github.com/GameTechDev/PresentMon/blob/v2.6.0/PresentMon/CsvOutput.cpp)
+writes QPCTime from PresentStartTime. The [console contract](https://github.com/GameTechDev/PresentMon/blob/v2.6.0/README-ConsoleApplication.md)
+defines the display-delay observation. Offline correlation requires that exact PID/address/QPC
+fall within one actual native API call; nearest-time guesses and ambiguous aliases are rejected.
+Rational display coordinates retain exact decimal numerator/denominator strings before deriving
+millisecond distributions. Every accepted native frame stays in its cohort, including missing,
+dropped and unavailable display/source/plan joins. The trace retains raw CSV/stderr and the live
+loss query separately; the latter does not establish final collector-shutdown loss statistics.
+Pending software display events do not measure native buffer occupancy or a GPU critical path.
 
 Fresh process-local DXGI LOCAL/NON_LOCAL observations retain failures and zero budgets.
 Admission uses the smaller of the workload ceiling and half the measured nonzero LOCAL budget;
@@ -656,3 +674,91 @@ unread supersession, typed rejection, missing/duplicate/foreign/contradictory ob
 resource recreation without resetting plan age. Full GPU critical path, window presentation/
 queue/deadline age, prescribed cadence/growth/handles and genuine native removal/stuck retirement
 remain open. **M03 remains 7/9; overall remains 3/10 (30%)**.
+
+## Exact window Presents and software display age — 2026-10-29
+
+Production window outputs now record their actual endpoint incarnation and three DXGI interface
+aliases with every native Present API interval. Addresses are captured during cold creation
+only when diagnostics are enabled; ordinary rendering adds no interface queries, pixel reads,
+GPU waits or presentation policy. The values are non-owning diagnostic identities, absent from
+projects/control protocols. Existing completion/endpoint retirement remains unchanged.
+
+Optional collection uses the pinned PresentMon 2.6.0 binary and a unique PID-filtered session.
+It starts only after the owned renderer is assigned to its watchdog job. A read-only query
+runs after native retirement while the collector drains a fixed tail. Timeout cleanup targets
+only this invocation's UUID session and retained collector handle. There is no administrator
+restart, installed service change, user-session stop or driver/display/overlay configuration.
+The query uses the retained probe's public `trace-status` CLI and historical owned namespace;
+no legacy native render workload runs. Both external executable hashes join input identity.
+
+Reproduction, with the existing pinned tools built/available:
+
+```text
+python -B tools/mapgyver/production_qualification.py run --directory target/qualification-q01-window-present --scenario Q01 --adapter 0 --diagnostic --samples 1 --warmup 5 --seconds 3 --isolation-seconds 1 --presentmon
+```
+
+The [schema-6 packet](evidence/mapgyver-m03-window-present-2026-10-29.json) and
+[complete archive](evidence/mapgyver-m03-window-present-controls-2026-10-29.zip) retain one
+short release Q01/Q02 pair after the decoder fix, plus the failed initial finalization.
+Five-second warmup is explicit for these controls; prescribed qualification remains three
+30-second warmups/120-second samples with the required interruption durations and unchanged
+budgets. Older schemas retain their own analyses and are rejected by the current analyzer.
+
+All **2,069 rows** (1,194/875) match the native PID, one of the three interface aliases and
+exactly one actual API interval. Recycled addresses use the new call/incarnation; duplicates,
+overlapping aliases and foreign PIDs are rejected. Unmatched rows remain explicit. Each
+sample-accepted window image stays in its cohort, including dropped/missing/display/source/
+plan failures. Exact producer/source-use and plan/resource joins extend source/publication/
+plan age to the software display observation. Decimal rational QPC coordinates remain lossless
+as numerator/denominator strings. Physical scanout, optical latency and independent window
+pixel correctness remain outside these metadata observations.
+
+| Short sample observation | Q01 | Q02 |
+| --- | --- | --- |
+| Main / Spout / editor API acceptance, expected 180 | 180 / 180 / 180 | 137 / 179 / 91 |
+| Exact main window display rows / accepted | 180 / 180 | 137 / 137 |
+| Exact editor window display rows / accepted | 180 / 180 | 91 / 91 |
+| Main source-to-software-display p95 A / B | 32.185 / 28.376 ms | 45.796 / 55.334 ms |
+| Editor source-to-software-display p95 A / B | 32.214 / 28.998 ms | 52.630 / 63.386 ms |
+| Main Present-to-software-display p95 | 15.417 ms | 27.799 ms |
+| Editor Present-to-software-display p95 | 15.200 ms | 33.818 ms |
+| Exact Spout captures / accepted | 180 / 180 | 161 / 179 |
+| Spout captured-source p95 A / B | 24.083 / 24.375 ms | 57.049 / 57.056 ms |
+| Producer A / B API acceptance | 177 / 170 | 180 / 174 |
+| Renderer-context GPU p95 / p99 | 5.998 / 6.256 ms | 19.804 / 23.269 ms |
+| Actual resource retirement | 0.095 s | 0.124 s |
+
+Both window cohorts have no missing/dropped/display/source/plan observations in these samples.
+Q01's complete three-output observed source-age distributions fit 50 ms, while its producer
+admission and the prescribed series remain unqualified. Q02 main source B and both editor
+sources exceed 50 ms, output cadence fails and eighteen accepted Spout images have no exact
+capture. Overall Q02 age stays unavailable rather than selecting a favorable subset.
+Unpinned controls with an optional collector do not establish a causal timing improvement.
+
+Known-frame pending-software-display peaks are one/two in Q01/Q02. Pre-window unknown/drop
+consumption prevents complete backlog coverage. More fundamentally, frames awaiting a software
+display event do not measure app/native buffer occupancy or calibrated GPU queue time. These
+counts do not pass the published-but-not-consumed resource budget. Native/output deadlines,
+GPU critical path and native buffer/queue qualification retain separate work.
+
+All 262 execution fingerprints and both external tool hashes per capture match before/after
+and current inputs. All four native roles have lossless telemetry; live ETW queries succeed
+after the native API interval and report zero lost events/log/realtime buffers. Final collector
+warnings report no loss. Live counters do not cover final shutdown, and absence of warnings
+does not independently certify zero analysis loss. Cleanup is actual/unforced with zero final
+resource bytes/in-flight work. Independent reconstruction matches every raw CSV/native API
+join, rational display coordinate and source/publication age distribution.
+
+The first native/collector run completed but packet finalization failed because redirected
+PresentMon stdout is UTF-16. Its original files and explicit failure are preserved; admission
+fingerprints/live-query data were not persisted by that failed runner and remain unavailable.
+The corrected strict BOM decoder retains original byte streams, encoding and hashes. The
+runner now writes pre-launch input identity and native completion independently of ancillary
+trace finalization. One fresh Q01/Q02 pair verifies the fix; no failed artifact is overwritten.
+
+The archive contains 68 files (2,324,759 bytes), SHA-256
+`d12a5f49a23e708e8c3396a9d6e5c8445d37789425729fbc6aa1eefcbaf63de4`.
+Validation passes 182 regular Rust tests, twelve native GPU tests and 73 Python tests, strict
+default/native all-target Clippy, generated fixture contracts, release x64 build and both Rust
+formatters. Full cadence/repetition, GPU/queue/deadline, growth/handle, genuine removal/stuck
+retirement and M05 physical observations remain open. **M03 stays 7/9; overall stays 3/10 (30%)**.

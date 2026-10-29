@@ -13,6 +13,7 @@ SPEC.loader.exec_module(PROCESS)
 
 
 class Process:
+    pid = 123
     def __init__(self, timeout=False):
         self.returncode = None
         self.timeout = timeout
@@ -101,6 +102,20 @@ class ProductionWatchdogTests(unittest.TestCase):
         self.assertTrue(process.killed)
         self.assertTrue(job.closed)
         self.assertIsNone(job.assigned)
+
+    def test_trace_start_occurs_after_job_assignment_and_callback_failure_cleans_owned_renderer(self):
+        process, job = Process(), Job()
+        def started(pid):
+            self.assertEqual(pid, 123)
+            self.assertIs(job.assigned, process)
+            raise RuntimeError('trace startup failed')
+        with mock.patch.object(PROCESS.os, 'name', 'nt'), mock.patch.object(PROCESS, '_Job', return_value=job), \
+                mock.patch.object(PROCESS.subprocess, 'CREATE_NO_WINDOW', 0, create=True), \
+                mock.patch.object(PROCESS.subprocess, 'Popen', return_value=process):
+            with self.assertRaisesRegex(RuntimeError, 'trace startup failed'):
+                PROCESS.run_owned(['owned-renderer'], 180, io.BytesIO(), io.BytesIO(), started)
+        self.assertTrue(process.killed)
+        self.assertTrue(job.closed)
 
 
 if __name__ == "__main__":
