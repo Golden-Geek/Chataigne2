@@ -36,6 +36,12 @@ pub struct D3d11Snapshot {
     pub uploaded_images: u64,
     /// Tight source texel bytes supplied through those one-time initial image uploads.
     pub uploaded_image_bytes: u64,
+    /// Complete texture/view allocations created during admitted plan preparation.
+    pub created_textures: u64,
+    /// Allocations shared with an existing completion-retained resource generation.
+    pub reused_textures: u64,
+    /// Weak index entries observed at the last preparation; these do not own GPU storage.
+    pub cached_texture_entries: usize,
     /// Native output submissions accepted by their API, not proved displayed frames.
     pub accepted_outputs: u64,
     /// Outputs skipped without waiting because their presentation queue was busy.

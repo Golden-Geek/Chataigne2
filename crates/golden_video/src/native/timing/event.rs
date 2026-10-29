@@ -61,6 +61,8 @@ pub struct ThreadCpuDelta {
 /// Renderer CPU observations for one submitted batch, including output API wall time.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct FrameCpuTrace {
+    /// Exact resource/authored plan identity used by this submission.
+    pub generation: crate::runtime::GenerationInfo,
     /// Exact renderer device and batch serial.
     pub token: CompletionToken,
     /// Inclusive submission wall interval, not active CPU time.
@@ -198,6 +200,8 @@ pub struct GpuTrace {
 /// Fixed-size Rust telemetry row for offline qualification. No UI event is emitted.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum DiagnosticEvent {
+    /// Native resource preparation, joined to the proposed resource and authored identities.
+    Preparation(PreparationTrace),
     /// Exact scheduler slot/admission or final coverage fence.
     Schedule(ScheduleTrace),
     /// Inclusive renderer CPU phases.
@@ -210,6 +214,23 @@ pub enum DiagnosticEvent {
     SourceCpu(SourceCpuTrace),
     /// Context-local GPU timing and explicit coverage status.
     Gpu(GpuTrace),
+}
+
+/// Native preparation submission wall time, not GPU execution or complete plan publication age.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct PreparationTrace {
+    /// Proposed resource identity; success means prepared, not installed or submitted.
+    pub generation: crate::runtime::GenerationInfo,
+    /// CPU interval including validation, source admission and resource creation/reuse.
+    pub wall: Option<CpuInterval>,
+    /// Whether preparation returned a complete resource set.
+    pub succeeded: bool,
+    /// Complete newly created texture/view sets, including any discarded on failure.
+    pub created_textures: u64,
+    /// Existing texture/view sets retained by the prepared resource generation.
+    pub reused_textures: u64,
+    /// Non-owning cache entries after expired weak references were removed.
+    pub cache_entries: usize,
 }
 
 /// Software scheduler observation; this never reports scanout or GPU completion.

@@ -114,8 +114,9 @@ samples use the default 30/120-second durations and `--samples 3`; renderer crit
 M03/gate-9 owner. Physical DPI/input and full-app/Matrix Q05 criteria retain M05/M09 owners.
 Renderer handle/growth/drain requirements remain M03 and are not waived by that distinction.
 Unknown criteria are explicit, and short samples cannot become qualification by relabeling them.
-Current captures use artifact schema 2. The original schema-1 archive below retains its own
-analysis and hashes; the current analyzer rejects schema 1 rather than reinterpreting old rows.
+Current captures use artifact schema 3, generated from the Rust qualification contract. The
+schema-1/2 archives below retain their own analyses and hashes; the current analyzer rejects
+both older versions rather than reinterpreting rows without resource-generation identity.
 
 ## Diagnostic checkpoint — 2026-10-29
 
@@ -335,3 +336,70 @@ Validation passes 177 regular Rust tests, ten explicit native GPU regressions an
 Python tests. Strict default/native all-target Clippy, the existing desktop probe's all-target
 check, the SDK's all-feature Windows build check, the locked release x64 build and both required
 Rust formatters pass. No display, driver, overlay, queue depth, polling or reference budget changed.
+
+## Native resource reuse and preparation attribution — 2026-10-29
+
+Ownership belongs to Golden Video's device-local backend. A weak index shares compatible
+textures/views across prepared, active and retiring generations. Mutable storage is keyed by
+role, logical ID and descriptor; writes and copies remain ordered on the same immediate context.
+Each generation starts with fresh source-availability/sequence hints. Immutable images share by
+exact prepared payload and descriptor, including across logical input IDs. Each uploaded texture
+pins its payload lease, so a recycled address or equal app asset ID cannot alias different content.
+Expired weak entries are pruned at preparation. The index retains no otherwise unused allocation
+or asset; existing conservative per-generation admission remains unchanged.
+
+Schema 3 gives each preparation attempt and renderer frame the same resource-generation,
+project/revision, device and reservation identity. Offline analysis joins preparation wall time
+to first submission and counts created/reused storage. Missing or mismatched joins cannot pass
+coverage. This measures native preparation and first-use waiting, not plan publication/receipt,
+per-output queue age or a GPU critical path. Earlier schema-1/2 packets keep their own analyses.
+
+The preceding source-freshness traces show responsive renderer scheduling during interruption
+stalls: Q01 has 14 busy slots while two submissions await completion; Q02 has 16, including a
+290.715 ms renderer-context GPU span. Their frame submission walls are generally below 3 ms.
+Plan changes also allocate complete texture sets. That redundant work motivates reuse, but
+these observations do not establish allocation as the cause of the long GPU stall.
+
+The native regression keeps an old generation outstanding while preparing compatible storage,
+checks shared identity and pixels, reallocates only changed descriptors/payloads, deduplicates
+one payload across two input IDs, and proves completion-based asset release without cache
+retention. The Picture app regression now expects retained uploads across channel-plan changes.
+Two older source tests now establish their synchronization preconditions: bridge pressure waits
+for actual read-lease acquisition, and unchanged preflight runs after the competing unversioned
+receiver has fenced its last copy and gone idle. Actual contested receive/Busy checks remain.
+
+Validation passes 177 regular Rust tests, eleven explicit native GPU regressions and 36 production
+Python tests. Strict default/native all-target Clippy and both required Rust formatters pass.
+
+The [schema-3 packet](evidence/mapgyver-m03-resource-reuse-2026-10-29.json) and
+[complete raw archive](evidence/mapgyver-m03-resource-reuse-controls-2026-10-29.zip) retain one
+short Intel release Q01/Q02 pair. Each creates seven textures initially and reuses all seven in
+each of seven later preparations: seven creations and 49 reuses, with no failed attempts.
+Independent raw recomputation joins all 388/385 renderer submissions to exact preparation
+identities; all 247 execution fingerprints match before/after capture and the current checkout.
+Two/three prepared generations never submit, remaining explicit rather than receiving an
+invented first-use time. The archive contains 36 files (815,395 bytes), SHA-256
+`4e64a94776f35dc2d4b11d25b354d72d275fab604d6529fbe182fb0a0326fdda`.
+
+| Observation | Q01 | Q02 |
+| --- | --- | --- |
+| Initial native preparation | 6.587 ms | 40.588 ms |
+| Maximum later native preparation | 0.0109 ms | 0.0106 ms |
+| Maximum prepared-to-first-submit wait | 12.818 ms | 22.914 ms |
+| Sample main / Spout / editor API acceptance | 180 / 180 / 180 | 155 / 180 / 124 |
+| Sample producer A / B API acceptance | 180 / 180 | 171 / 174 |
+| Renderer-context GPU p95 / p99 | 4.833 / 5.998 ms | 19.751 / 21.857 ms |
+| Captured source-age p95 A / B | 33.612 / 52.810 ms | 73.588 / 84.199 ms |
+| Minimized main / Spout acceptance, of 60 | 60 / 60 | 56 / 59 |
+| Disconnected main / Spout acceptance, expected 60 | 61 / 61 | 60 / 61 |
+| Actual resource retirement | 0.099 s | 0.115 s |
+
+Q01's short interruption observations meet cadence/age checks; Q02's do not. Q02 minimized
+source-age p95 reaches 193.446 ms despite zero new texture allocation and preparation below
+0.011 ms; reuse has not resolved qualification. Q01 sample source B also exceeds 50 ms at p95.
+These unpinned controls cannot establish causality for timing differences from older captures.
+All sample GPU rows are valid, markers match canonical producer words, all four roles have
+lossless telemetry, and owned cleanup is unforced with zero final resource bytes/in-flight work.
+Conservative logical peaks remain 180,633,664/578,764,864 bytes; the new shared allocations do
+not lower admission reservations. Full GPU/output age, publication/receipt/queue age, prescribed
+cadence, growth/handles and native removal/stuck retirement remain open. M03 stays **7/9**.

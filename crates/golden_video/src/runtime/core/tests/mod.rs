@@ -392,7 +392,7 @@ fn actual_resource_destruction_precedes_budget_release() {
         fn prepare(
             &mut self,
             _plan: &CompiledPlan,
-            _device: DeviceGeneration,
+            _generation: GenerationInfo,
         ) -> Result<Self::Resources, BackendError> {
             Ok(ObservedResource {
                 budget: self.budget.clone().unwrap(),

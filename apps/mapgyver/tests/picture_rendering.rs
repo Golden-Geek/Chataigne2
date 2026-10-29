@@ -272,8 +272,8 @@ fn authored_picture_assets_decode_upload_share_relink_reload_and_recreate_native
     assert_eq!(live.channels()[0].source, live.channels()[1].source);
     assert_eq!(
         native.snapshot().uploaded_images,
-        before_share + 1,
-        "shared asset should upload once for this plan"
+        before_share,
+        "the retained shared payload should survive the plan edit without another upload"
     );
     let before_frames = live.snapshot().frames_submitted;
     let uploads = native.snapshot().uploaded_images;

@@ -5,6 +5,9 @@ use ts_rs::TS;
 
 use crate::preview::protocol::PreviewView;
 
+/// Native artifact contract, including preparation identity and per-frame resource joins.
+pub const CAPTURE_SCHEMA_VERSION: u32 = 3;
+
 /// Host-to-fixture CSS layout updates, computed from authenticated native metrics.
 pub const QUALIFICATION_LAYOUT_EVENT: &str = "golden-qualification-layout";
 /// Host-to-fixture lifecycle commands; never a per-frame event.
@@ -119,6 +122,10 @@ pub fn export_typescript(directory: impl AsRef<std::path::Path>) -> Result<(), B
              export const QUALIFICATION_COMMAND_EVENT = {QUALIFICATION_COMMAND_EVENT:?};\n\
              export const QUALIFICATION_REPORT_EVENT = {QUALIFICATION_REPORT_EVENT:?};\n"
         ),
+    )?;
+    std::fs::write(
+        directory.join("capture-schema.json"),
+        format!("{{\"capture_schema_version\":{CAPTURE_SCHEMA_VERSION}}}\n"),
     )?;
     for entry in std::fs::read_dir(directory)? {
         let path = entry?.path();

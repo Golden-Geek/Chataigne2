@@ -5,6 +5,11 @@
 **Updated: 2026-10-29 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
 **Current topic:** M03 remains **7/9** accepted gates. The
+[resource-reuse checkpoint](mapgyver-m03-qualification-runner.md#native-resource-reuse-and-preparation-attribution--2026-10-29)
+shares compatible native storage across generations through a weak device-local index and
+joins preparation to first submission. Both short controls create seven textures initially
+and reuse all seven on every later preparation, which takes at most 0.011 ms. Q02 still misses
+window cadence and source-age targets; no qualification gate closes. The
 [source-freshness checkpoint](mapgyver-m03-qualification-runner.md#source-copy-and-freshness-boundary--2026-10-29)
 publishes only actual successful SDK copies, skips unchanged versioned GPU batches and preserves
 static sources through demand renewal. Unknown foreign senders remain unversioned and usable.
@@ -34,12 +39,13 @@ The [approved M01 route decision](mapgyver-m01-native-feasibility.md#functional-
 remains scoped functional acceptance; renderer, physical-output and full-app qualification
 retain their M03/M05/M09 owners.
 
-**Next:** finish GPU/output-age and plan/queue measurements and address interruption cadence
+**Next:** finish GPU/output-age and plan publication/receipt/queue measurements and address Q02 cadence/age
 using the production traces (gate 9), retaining native
 device-removal/recovery and bounded-retirement acceptance under gate 4.
-**Blocker:** interruption cadence/age, Q02 producer admission and complete output-age coverage
-still miss diagnostic targets. Full GPU critical-path, displayed deadline/age and plan/queue
-coverage remain unavailable. Genuine device removal and stuck-driver
+**Blocker:** Q02 interruption cadence/age, producer admission and window output cadence still
+miss diagnostic targets; Q01 sample source B age also exceeds 50 ms at p95. Full GPU critical-path,
+displayed deadline/age and publication/receipt/queue coverage remain unavailable. Native
+preparation/first-use is now measured. Genuine device removal and stuck-driver
 retirement bounds remain unverified. Known cadence, memory-growth, geometry and display/input failures
 remain open under M03/M05/M09; their budgets and evidence are unchanged.
 
@@ -270,12 +276,16 @@ Independent output retry/state, completion-fenced replacement, source withdrawal
 failed-reset/cancellation/project fencing have a recovery checkpoint. Initial allocation now
 retries within its original admitted baseline and first device generation, serving controls and
 retaining only the latest desired plan. The production Q01/Q02 runner and its short native controls
-now complete. Their schema-2 traces now retain all rows and exactly anchored software slots.
+now complete. Their traces retain all rows and exactly anchored software slots.
 Native output admission now precedes conversion, preserving readiness and retirement semantics.
 Public source copied/freshness status is now truthful, versioned unchanged polls skip GPU batches,
 and static sources survive a short demand pulse or suppressed publication. Unknown external
-senders remain unversioned. Complete GPU/output-age
-and plan/queue measurement before the prescribed qualification series (gate 9).
+senders remain unversioned. Schema-3 preparation/frame identities now measure native preparation
+and first use. Compatible native texture/view sets are reused without retaining unused storage
+or asset leases; conservative per-generation admission is unchanged. Both short controls reuse
+all seven textures after initial allocation, with later preparation below 0.011 ms. Q02 still
+misses cadence/age targets. Complete GPU/output-age and plan publication/receipt/queue
+measurement before the prescribed qualification series (gate 9).
 Genuine native device-removal recovery and bounded stuck-drain retirement retain gate 4.
 Both gates remain required before M03 completion; all existing budgets/failures stay operative.
 Deliver each coherent batch
@@ -423,6 +433,39 @@ Preserve Chataigne's unfinished engine/Spatializer P11 checkpoint (four of six f
 and its [separate ledger](implementation-status.md). Shared P12 boundary repairs belong to M02;
 P14/P15 time and asset contracts retain their shared Golden owners under M03. Root launch
 behavior is unchanged. No production host/backend/binding decision is final yet.
+
+## M03 resource reuse and preparation attribution — 2026-10-29
+
+The [checkpoint](mapgyver-m03-qualification-runner.md#native-resource-reuse-and-preparation-attribution--2026-10-29),
+[schema-3 packet](evidence/mapgyver-m03-resource-reuse-2026-10-29.json) and
+[raw archive](evidence/mapgyver-m03-resource-reuse-controls-2026-10-29.zip) retain device-local
+weak texture/view reuse and exact resource-generation preparation/first-use joins. Mutable
+storage keeps immediate-context ordering and fresh per-generation source hints; immutable
+images pin exact payload leases, deduplicating logical inputs without confusing equal asset
+IDs or recycled addresses. Expired weak entries retain no allocation or asset. Per-generation
+admission remains conservative. Old schema-1/2 captures retain their original analyses.
+
+Both short Intel release controls create seven textures, then reuse all seven in each of seven
+later preparations. Later preparation takes at most 0.0109/0.0106 ms; initial allocation takes
+6.587/40.588 ms. First-submit wait reaches 12.818/22.914 ms. Independent raw recomputation joins
+all 388/385 renderer submissions and verifies all 247 execution fingerprints. This measures
+native preparation/first use, with full publication/receipt/output-queue age still unavailable.
+
+Q01 sample outputs accept 180/180/180; Q02 accepts 155/180/124 (main/Spout/editor). Q01 short
+interruptions meet observed cadence/age checks; Q02 minimized main/Spout accepts 56/59 of 60
+and source-age p95 reaches 193.446 ms despite no new allocation. Sample captured source-age
+p95 A/B is 33.612/52.810 and 73.588/84.199 ms. Q02 producer shortfalls remain. These observations
+establish reuse, not a causal timing improvement or prescribed qualification. All roles retain
+lossless telemetry, all sample GPU rows/markers are valid, and cleanup is unforced with zero
+final resource bytes/in-flight work; actual retirement takes 0.099/0.115 s.
+
+Validation passes 177 regular Rust tests, eleven explicit native GPU regressions and 36
+production Python tests, strict default/native all-target Clippy, locked release x64 build and
+both required Rust formatters. New native checks cover outstanding-generation reuse, descriptor/
+payload changes, pixels, deduplication and actual asset release. Source tests now wait for real
+read leases and isolate uncontended preflight before retaining actual Busy coverage. No display,
+driver, overlay, polling, queue, scene or budget changed. M03 remains **7/9**, overall **3/10
+(30%)**; gates 4 and 9 retain their complete recovery/qualification scope.
 
 ## M03 source copy and freshness — 2026-10-29
 

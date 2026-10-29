@@ -13,12 +13,15 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
+CAPTURE_SCHEMA_FILE = "packages/golden-video-ui/tests/native/generated/capture-schema.json"
+CAPTURE_SCHEMA_VERSION = json.loads((ROOT / CAPTURE_SCHEMA_FILE).read_text(encoding="utf-8"))["capture_schema_version"]
 MIB = 1024 * 1024
 SCENARIOS = {"Q01": ((1920, 1080), 512 * MIB, 1024 * MIB),
              "Q02": ((3840, 2160), 1024 * MIB, 2048 * MIB)}
 RAW_FILES = ("manifest.json", "renderer-summary.json", "parent-summary.json", "renderer.jsonl",
              "source-1.jsonl", "source-2.jsonl", "consumer.jsonl")
 DEADLINES = runpy.run_path(str(Path(__file__).with_name("production_deadlines.py")))
+PREPARATION = runpy.run_path(str(Path(__file__).with_name("production_preparation.py")))
 
 
 class ArtifactError(ValueError):
@@ -113,7 +116,7 @@ def outcome(value):
 
 
 def events(rows):
-    result = {name: [] for name in ("FrameCpu", "Output", "SourceCpu", "SourceUse", "Gpu", "Schedule")}
+    result = {name: [] for name in ("Preparation", "FrameCpu", "Output", "SourceCpu", "SourceUse", "Gpu", "Schedule")}
     seen = set()
     for row in rows:
         if row["kind"] != "diagnostic":
@@ -122,7 +125,10 @@ def events(rows):
         require(isinstance(event, dict) and len(event) == 1, "invalid diagnostic enum")
         name, payload = next(iter(event.items()))
         require(name in result and isinstance(payload, dict), "unsupported diagnostic row")
-        if name == "Schedule":
+        if name == "Preparation":
+            key = (name, json.dumps(payload["generation"], sort_keys=True),
+                   json.dumps(payload.get("wall"), sort_keys=True))
+        elif name == "Schedule":
             key = (name, json.dumps(payload["device"], sort_keys=True), payload["cadence"],
                    integer(payload["frame_index"], "schedule index"), payload["disposition"] == "Fence",
                    payload["observed_monotonic_ns"] if payload["disposition"] == "Fence" else None)
@@ -404,7 +410,7 @@ def resource_metrics(manifest, summary, renderer, window, frequency):
 def analyze_capture(directory):
     directory = Path(directory)
     manifest, summary, parent = [load_json(directory / name) for name in RAW_FILES[:3]]
-    require(manifest.get("schema_version") == parent.get("schema_version") == 2, "unsupported production capture schema")
+    require(manifest.get("schema_version") == parent.get("schema_version") == CAPTURE_SCHEMA_VERSION, "unsupported production capture schema")
     require(manifest.get("scenario") in SCENARIOS, "not a Q01/Q02 production capture")
     frequency = integer(manifest["qpc_frequency"], "QPC frequency", 1)
     renderer, source_a, source_b, consumer = [load_rows(directory / name) for name in RAW_FILES[3:]]
@@ -440,6 +446,7 @@ def analyze_capture(directory):
     if not healths[0]["complete"] and deadline_verdict is True:
         deadline_verdict = None
     frame_rows, cpu = cpu_metrics(native["FrameCpu"], sample, frequency)
+    preparation = PREPARATION["analyze_preparation"](native["Preparation"], native["FrameCpu"], frequency, distribution)
     renderer_gpu = gpu_metrics(frame_rows, native["Gpu"], renderer=True)
     dependencies = source_dependencies(frame_rows, native)
     markers = marker_metrics((source_a, source_b), consumer, sample, frequency)
@@ -553,7 +560,9 @@ def analyze_capture(directory):
                                                 reason="M05-owned physical observations are absent"),
         "Q05_handles_growth": criterion(None, eligible, owner_phase="M09", owner_gate=None,
             reason="full-app Q05, including Matrix launches and transitions, has not been captured"),
-        "plan_age_and_published_queue": criterion(None, eligible, reason="per-plan publication/receipt and per-output queue-age traces are absent"),
+        "native_preparation": criterion(preparation["coverage_complete"] if complete else None, eligible,
+                                        scope="native preparation/first-use coverage; no latency budget inferred"),
+        "plan_age_and_published_queue": criterion(None, eligible, reason="native preparation/first-use measured; publication/receipt and per-output queue age remain absent"),
         "environment_identity": criterion(None, eligible,
                                           reason="selected MSVC/SDK, driver, WebView, power and overlay observations are not pinned"),
     }
@@ -561,6 +570,7 @@ def analyze_capture(directory):
             "criteria": criteria, "cpu": cpu, "renderer_gpu": renderer_gpu, "other_contexts": local_contexts,
             "dependencies": dependencies, "outputs": output_metrics, "producers": producers,
             "submission_deadlines": deadlines,
+            "native_preparation": preparation,
             "frame_age": markers, "resources": resources,
             "independence": independence,
             "active_runtime_error_history": active.get("failure"), "raw_sha256": raw_hashes(directory),
@@ -575,7 +585,7 @@ def analyze_series(directories, diagnostic=False):
     for directory in directories:
         try:
             captures.append(analyze_capture(directory))
-        except (ArtifactError, KeyError, TypeError, OSError, json.JSONDecodeError) as error:
+        except (ValueError, KeyError, TypeError, OSError) as error:
             captures.append({"directory": str(directory), "prescribed_sample": False, "artifact_error": str(error),
                              "criteria": {"artifact_integrity": criterion(False, True)},
                              "raw_sha256": raw_hashes(Path(directory)) if Path(directory).is_dir() else {}})
@@ -597,7 +607,7 @@ def analyze_series(directories, diagnostic=False):
     renderer_passed = prescribed and bool(renderer_statuses) and all(item == "PASSED_NATIVE" for item in renderer_statuses)
     renderer_status = "PASSED_NATIVE" if renderer_passed else "FAILED_NATIVE" \
         if "FAILED_NATIVE" in renderer_statuses else "UNAVAILABLE"
-    return {"schema_version": 2, "evidence_kind": "production_golden_runtime_qualification",
+    return {"schema_version": CAPTURE_SCHEMA_VERSION, "evidence_kind": "production_golden_runtime_qualification",
             "scope": "prescribed_series" if prescribed else "diagnostic_incomplete_series",
             "prescribed_three_sample_series": prescribed, "status": status, "captures": captures,
             "renderer_qualification": {"owner_phase": "M03", "owner_gate": 9, "status": renderer_status,
@@ -607,8 +617,9 @@ def analyze_series(directories, diagnostic=False):
 
 
 def fingerprints(executable):
-    paths = [ROOT / name for name in ("Cargo.toml", "Cargo.lock", "package.json", "package-lock.json")]
+    paths = [ROOT / name for name in ("Cargo.toml", "Cargo.lock", "package.json", "package-lock.json", CAPTURE_SCHEMA_FILE)]
     paths += [Path(__file__), Path(__file__).with_name("production_process.py"),
+              Path(__file__).with_name("production_preparation.py"),
               Path(__file__).with_name("production_deadlines.py"), ROOT / "apps/mapgyver/Cargo.toml",
               ROOT / "crates/golden_time/Cargo.toml", ROOT / "crates/golden_video/Cargo.toml",
               ROOT / "apps/mapgyver/build.rs"]

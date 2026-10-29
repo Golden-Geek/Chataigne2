@@ -25,7 +25,7 @@ fn files(directory: &Path) -> BTreeMap<String, String> {
 }
 
 #[test]
-fn committed_qualification_typescript_matches_rust_including_the_exact_file_set() {
+fn committed_qualification_contracts_match_rust_including_the_exact_file_set() {
     let temporary = tempfile::tempdir().unwrap();
     export_typescript(temporary.path()).unwrap();
     let generated = files(temporary.path());
@@ -38,6 +38,7 @@ fn committed_qualification_typescript_matches_rust_including_the_exact_file_set(
         "QualificationPhase.ts",
         "QualificationReport.ts",
         "QualificationView.ts",
+        "capture-schema.json",
         "constants.ts",
     ]
     .into_iter()

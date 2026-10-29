@@ -45,7 +45,7 @@ impl Backend for UnsupportedBackend {
         panic!("uninitialized backend cannot admit plan resources")
     }
 
-    fn prepare(&mut self, _: &CompiledPlan, _: DeviceGeneration) -> Result<(), BackendError> {
+    fn prepare(&mut self, _: &CompiledPlan, _: crate::runtime::GenerationInfo) -> Result<(), BackendError> {
         panic!("uninitialized backend cannot prepare resources")
     }
 

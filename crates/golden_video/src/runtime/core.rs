@@ -6,6 +6,7 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use golden_time::TimeSnapshot;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::plan::CompiledPlan;
@@ -26,7 +27,7 @@ pub struct ResourceLimits {
 }
 
 /// Metadata for one successfully prepared resource generation.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GenerationInfo {
     /// Resource-set identity, separate from authored plan identity.
     pub generation: GenerationId,
@@ -357,11 +358,6 @@ impl<B: Backend> RenderCore<B> {
                 prepared: true,
             }
         };
-        let resources = self
-            .backend
-            .prepare(&plan, self.device)
-            .map_err(|error| self.backend_error(error))?;
-        self.generation = generation;
         let info = GenerationInfo {
             generation: GenerationId::new(generation),
             identity,
@@ -369,6 +365,11 @@ impl<B: Backend> RenderCore<B> {
             bytes,
             output_count: plan.outputs().len(),
         };
+        let resources = self
+            .backend
+            .prepare(&plan, info)
+            .map_err(|error| self.backend_error(error))?;
+        self.generation = generation;
         Ok(PreparedGeneration {
             resources: Some(resources),
             plan: Some(plan),

@@ -239,7 +239,9 @@ impl Renderer {
         let mut backend = D3d11Backend::new(config, Default::default(), generation);
         backend.initialize().unwrap();
         let plan = scene(&names, 2, 2).compile(&runtime_config().plan_limits).unwrap();
-        let resources = backend.prepare(&plan, generation).unwrap();
+        let resources = backend
+            .prepare(&plan, super::generation(&backend, &plan, generation))
+            .unwrap();
         Self {
             names,
             resources: Some(resources),
@@ -277,6 +279,40 @@ impl Renderer {
         });
     }
 
+    fn retain_input_reads(&mut self) {
+        self.submitted += 1;
+        let native = self.backend.native.as_mut().unwrap();
+        let resources = self.resources.as_ref().unwrap();
+        let _submission = native.completion.begin(
+            &native.device,
+            CompletionToken {
+                device: self.generation,
+                serial: self.submitted,
+            },
+        );
+        for external in self.plan.external_textures() {
+            let previous = resources.input_sequences[&external.id].get().unwrap_or_default();
+            wait("actual source read-lease acquisition", || {
+                let copied = native
+                    .inputs
+                    .copy(
+                        external.id,
+                        &native.device,
+                        &resources.textures[&external.id],
+                        self.submitted,
+                        previous,
+                    )
+                    .unwrap();
+                if let Some(copied) = copied.filter(|copied| copied.sequence != previous.sequence) {
+                    resources.input_sequences[&external.id].set(Some(copied));
+                    true
+                } else {
+                    false
+                }
+            });
+        }
+    }
+
     fn tick(&mut self) {
         self.drain();
         self.submit();
@@ -307,7 +343,10 @@ impl Renderer {
         let plan = scene(&self.names, width, height)
             .compile(&runtime_config().plan_limits)
             .unwrap();
-        let resources = self.backend.prepare(&plan, self.generation).unwrap();
+        let resources = self
+            .backend
+            .prepare(&plan, super::generation(&self.backend, &plan, self.generation))
+            .unwrap();
         self.resources = Some(resources);
         self.plan = plan;
     }
@@ -477,29 +516,23 @@ fn hardware_inputs_receive_bound_resize_reconnect_and_retire_across_independent_
             .map(|source| source.sdk_calls)
             .collect::<Vec<_>>()
     );
-    renderer.resources = Some(renderer.backend.prepare(&renderer.plan, renderer.generation).unwrap());
+    renderer.resources = Some(
+        renderer
+            .backend
+            .prepare(
+                &renderer.plan,
+                super::generation(&renderer.backend, &renderer.plan, renderer.generation),
+            )
+            .unwrap(),
+    );
     renderer.expect_pixel([128, 0, 128, 255]);
     // Retain two renderer-use leases without observing completion. Three source slots must
     // coalesce instead of allocating a fourth, even though GPU commands may already be done.
     renderer.drain();
-    renderer.submit();
-    let before = renderer
-        .backend
-        .control
-        .sources()
-        .iter()
-        .map(|source| source.sequence)
-        .collect::<Vec<_>>();
-    wait("second source publications", || {
-        renderer
-            .backend
-            .control
-            .sources()
-            .iter()
-            .zip(&before)
-            .all(|(source, before)| source.sequence > *before)
-    });
-    renderer.submit();
+    // Publication precedes actual source GPU completion. Acquire each lease through the
+    // real copy path instead of assuming that two immediate submissions acquired both.
+    renderer.retain_input_reads();
+    renderer.retain_input_reads();
     wait("bounded source bridge pressure", || {
         renderer
             .backend
@@ -583,7 +616,10 @@ fn hardware_inputs_receive_bound_resize_reconnect_and_retire_across_independent_
         .compile(&runtime_config().plan_limits)
         .unwrap();
     assert!(matches!(
-        renderer.backend.prepare(&conflicting, renderer.generation),
+        renderer.backend.prepare(
+            &conflicting,
+            super::generation(&renderer.backend, &conflicting, renderer.generation)
+        ),
         Err(crate::runtime::backend::BackendError::UnsupportedPlan)
     ));
     renderer.expect_pixel([128, 0, 128, 255]);
@@ -595,7 +631,13 @@ fn hardware_inputs_receive_bound_resize_reconnect_and_retire_across_independent_
     };
     layers[0].source = TextureId::new(4).unwrap();
     let remapped = remapped.compile(&runtime_config().plan_limits).unwrap();
-    let next = renderer.backend.prepare(&remapped, renderer.generation).unwrap();
+    let next = renderer
+        .backend
+        .prepare(
+            &remapped,
+            super::generation(&renderer.backend, &remapped, renderer.generation),
+        )
+        .unwrap();
     let previous = renderer.resources.replace(next).unwrap();
     renderer.plan = remapped.clone();
     renderer.expect_pixel([0, 0, 255, 255]);
@@ -609,7 +651,13 @@ fn hardware_inputs_receive_bound_resize_reconnect_and_retire_across_independent_
     };
     layers[0].source = TextureId::new(5).unwrap();
     let extra_plan = extra.compile(&runtime_config().plan_limits).unwrap();
-    let extra = renderer.backend.prepare(&extra_plan, renderer.generation).unwrap();
+    let extra = renderer
+        .backend
+        .prepare(
+            &extra_plan,
+            super::generation(&renderer.backend, &extra_plan, renderer.generation),
+        )
+        .unwrap();
     let mut excess = scene(&names, 2, 2);
     excess.external_textures[0].id = TextureId::new(6).unwrap();
     let RenderOperation::Composite { layers } = &mut excess.passes[0].operation else {
@@ -618,14 +666,20 @@ fn hardware_inputs_receive_bound_resize_reconnect_and_retire_across_independent_
     layers[0].source = TextureId::new(6).unwrap();
     let excess = excess.compile(&runtime_config().plan_limits).unwrap();
     assert!(matches!(
-        renderer.backend.prepare(&excess, renderer.generation),
+        renderer.backend.prepare(
+            &excess,
+            super::generation(&renderer.backend, &excess, renderer.generation)
+        ),
         Err(crate::runtime::backend::BackendError::SourceCapacity)
     ));
     renderer.expect_pixel([0, 0, 255, 255]);
     drop(extra);
     drop(previous);
     wait("retired source capacity becomes reusable", || {
-        match renderer.backend.prepare(&excess, renderer.generation) {
+        match renderer.backend.prepare(
+            &excess,
+            super::generation(&renderer.backend, &excess, renderer.generation),
+        ) {
             Ok(resources) => {
                 drop(resources);
                 true
@@ -642,7 +696,10 @@ fn hardware_inputs_receive_bound_resize_reconnect_and_retire_across_independent_
     let mut bytes_renderer = Renderer::new(bytes_config, names.clone());
     bytes_renderer.expect_pixel([128, 0, 128, 255]);
     assert!(matches!(
-        bytes_renderer.backend.prepare(&remapped, bytes_renderer.generation),
+        bytes_renderer.backend.prepare(
+            &remapped,
+            super::generation(&bytes_renderer.backend, &remapped, bytes_renderer.generation)
+        ),
         Err(crate::runtime::backend::BackendError::SourceCapacity)
     ));
     assert_eq!(bytes_renderer.backend.control.sources().len(), 2);

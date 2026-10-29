@@ -1,5 +1,6 @@
 use std::cell::Cell;
 use std::collections::BTreeMap;
+use std::rc::Rc;
 use std::time::Duration;
 
 use golden_io::WorkerNotifier;
@@ -10,7 +11,7 @@ use windows::core::HRESULT;
 
 use crate::plan::{BlendMode, CompiledPlan, ExternalSource, RenderOperation, SampleFilter};
 use crate::runtime::backend::{Backend, BackendError};
-use crate::runtime::{CompletionToken, DeviceGeneration};
+use crate::runtime::{CompletionToken, DeviceGeneration, GenerationInfo};
 use crate::{LinearColor, OutputId, PassId, TextureDescriptor, TextureId};
 
 use super::completion::EventCompletion;
@@ -24,7 +25,10 @@ use super::timing::{
 };
 use super::{D3d11Config, D3d11Control, NativeFailure};
 
+mod resources;
+
 struct NativeState {
+    textures: resources::TextureCache,
     timing: Option<GpuTiming>,
     inputs: SourcePool,
     outputs: OutputPool,
@@ -56,9 +60,10 @@ pub(crate) struct D3d11Backend {
 }
 
 pub(crate) struct D3d11Resources {
-    textures: BTreeMap<TextureId, Texture>,
-    scratch: BTreeMap<PassId, Texture>,
-    outputs: BTreeMap<OutputId, Texture>,
+    generation: GenerationInfo,
+    textures: BTreeMap<TextureId, Rc<Texture>>,
+    scratch: BTreeMap<PassId, Rc<Texture>>,
+    outputs: BTreeMap<OutputId, Rc<Texture>>,
     input_sequences: BTreeMap<TextureId, Cell<Option<CopyFrame>>>,
     _demands: Option<SourceDemands>,
 }
@@ -144,6 +149,7 @@ impl D3d11Backend {
             state.initialized = false;
             state.adapter = None;
             state.device = None;
+            state.cached_texture_entries = 0;
             state.initialization_attempts = state.initialization_attempts.saturating_add(1);
         });
         let result = (|| {
@@ -177,6 +183,7 @@ impl D3d11Backend {
                 self.generation,
             );
             Ok::<_, windows::core::Error>(NativeState {
+                textures: Default::default(),
                 timing,
                 inputs,
                 outputs,
@@ -329,69 +336,49 @@ impl Backend for D3d11Backend {
         Ok(total)
     }
 
-    fn prepare(&mut self, plan: &CompiledPlan, device: DeviceGeneration) -> Result<Self::Resources, BackendError> {
-        self.validate(plan)?;
-        if device != self.generation {
-            return Err(BackendError::DeviceLost);
-        }
-        let native = self.native.as_mut().ok_or(BackendError::DeviceLost)?;
-        if native.device.removed() {
-            return Err(BackendError::DeviceLost);
-        }
-        native.inputs.ensure(plan)?;
+    fn prepare(&mut self, plan: &CompiledPlan, generation: GenerationInfo) -> Result<Self::Resources, BackendError> {
+        let recorder = self.diagnostics.clone();
+        let begin = recorder.as_ref().and_then(Recorder::stamp);
+        let mut counts = resources::PreparationCounts::default();
         let prepared = (|| {
-            let mut resources = D3d11Resources {
-                textures: BTreeMap::new(),
-                scratch: BTreeMap::new(),
-                outputs: BTreeMap::new(),
-                input_sequences: BTreeMap::new(),
-                _demands: None,
-            };
-            for external in plan.external_textures() {
-                let texture = match &external.source {
-                    Some(ExternalSource::Image(image)) => {
-                        let texture = Texture::from_image(&native.device.device, image.value())?;
-                        self.control.update(|state| {
-                            state.uploaded_images = state.uploaded_images.saturating_add(1);
-                            state.uploaded_image_bytes = state
-                                .uploaded_image_bytes
-                                .saturating_add(image.value().pixels().len() as u64);
-                        });
-                        texture
-                    }
-                    _ => {
-                        resources.input_sequences.insert(external.id, Cell::new(None));
-                        Texture::new(&native.device.device, external.descriptor)?
-                    }
-                };
-                resources.textures.insert(external.id, texture);
+            self.validate(plan)?;
+            if generation.device != self.generation {
+                return Err(BackendError::DeviceLost);
             }
-            for pass in plan.passes() {
-                resources
-                    .textures
-                    .insert(pass.output, Texture::new(&native.device.device, pass.descriptor)?);
-                if matches!(&pass.operation, RenderOperation::Composite { layers } if layers.len() > 1) {
-                    resources
-                        .scratch
-                        .insert(pass.id, Texture::new(&native.device.device, pass.descriptor)?);
-                }
-            }
-            for output in plan.outputs() {
-                let descriptor = native.outputs.descriptor(output.id).expect("validated output binding");
-                resources
-                    .outputs
-                    .insert(output.id, Texture::new(&native.device.device, descriptor)?);
-            }
-            resources._demands = Some(native.inputs.demands(plan));
-            Ok::<_, windows::core::Error>(resources)
-        })();
-        prepared.map_err(|_| {
+            let native = self.native.as_mut().ok_or(BackendError::DeviceLost)?;
             if native.device.removed() {
-                BackendError::DeviceLost
-            } else {
-                BackendError::AllocationFailed
+                return Err(BackendError::DeviceLost);
             }
-        })
+            native.inputs.ensure(plan)?;
+            let prepared = resources::prepare(native, plan, generation, &mut counts).map_err(|_| {
+                if native.device.removed() {
+                    BackendError::DeviceLost
+                } else {
+                    BackendError::AllocationFailed
+                }
+            });
+            native.textures.prune();
+            prepared
+        })();
+        let cache_entries = self.native.as_ref().map_or(0, |native| native.textures.len());
+        self.control.update(|state| {
+            state.created_textures = state.created_textures.saturating_add(counts.created);
+            state.reused_textures = state.reused_textures.saturating_add(counts.reused);
+            state.cached_texture_entries = cache_entries;
+            state.uploaded_images = state.uploaded_images.saturating_add(counts.uploaded_images);
+            state.uploaded_image_bytes = state.uploaded_image_bytes.saturating_add(counts.uploaded_bytes);
+        });
+        if let Some(recorder) = &recorder {
+            recorder.push(DiagnosticEvent::Preparation(super::timing::PreparationTrace {
+                generation,
+                wall: recorder.interval(begin),
+                succeeded: prepared.is_ok(),
+                created_textures: counts.created,
+                reused_textures: counts.reused,
+                cache_entries,
+            }));
+        }
+        prepared
     }
 
     fn submit(
@@ -502,7 +489,7 @@ impl Backend for D3d11Backend {
                         pipeline.draw(
                             context,
                             &resources.textures[&layer.source],
-                            previous,
+                            previous.map(Rc::as_ref),
                             target,
                             layer.opacity.get(),
                             layer.blend,
@@ -573,6 +560,7 @@ impl Backend for D3d11Backend {
         if let Some(cpu) = cpu {
             let measured = cpu.finish();
             recorder.unwrap().push(DiagnosticEvent::FrameCpu(FrameCpuTrace {
+                generation: resources.generation,
                 token,
                 wall: measured.wall,
                 thread_cpu: measured.thread_cpu,

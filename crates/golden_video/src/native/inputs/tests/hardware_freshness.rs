@@ -210,14 +210,22 @@ fn hardware_versioned_preflight_and_busy_preserve_source_publications() {
         DeviceGeneration::new(Uuid::new_v4(), 0),
     );
     pool.ensure(&plan).unwrap();
-    let demand = pool.demands(&plan);
     let counted = Arc::clone(&pool.inputs[&versioned].shared);
     let unknown = Arc::clone(&pool.inputs[&foreign].shared);
+    let counted_demand = counted.acquire_demand();
+    let unknown_demand = unknown.acquire_demand();
     wait("first copy and unchanged preflight", || {
         snapshot(&counted).unchanged >= 8
     });
     wait("foreign frozen-positive counter still copies", || {
         snapshot(&unknown).publications >= 3
+    });
+    // The unversioned receiver deliberately keeps taking the same sender's access mutex.
+    // A contended peek may proceed to a real receive attempt, so measure the unchanged
+    // fast path only after that competing receiver has fenced its last copy and gone idle.
+    drop(unknown_demand);
+    wait("foreign receiver idle before uncontended preflight", || {
+        snapshot(&unknown).state == SourceState::Idle
     });
     let before = snapshot(&counted);
     assert_eq!(before.last_copied_frame, Some(1));
@@ -240,6 +248,11 @@ fn hardware_versioned_preflight_and_busy_preserve_source_publications() {
         if matches!(trace.context, DiagnosticContext::Source { texture, .. } if texture == versioned))),
         "unchanged preflight must not submit a new source query/Flush batch"
     );
+    let unknown_demand = unknown.acquire_demand();
+    wait("foreign receiver resumed", || {
+        snapshot(&unknown).state == SourceState::Streaming
+    });
+    let demand = (counted_demand, unknown_demand);
 
     // No sender work occurs during this pulse. It may be shorter than a worker poll, but
     // clearing demand synchronously withdraws the mailbox and must not strand counter 1.

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 /// One runtime's project lifetime. Equal counters from another runtime are never equal epochs.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ProjectEpoch {
     runtime: Uuid,
     generation: u64,
@@ -44,7 +44,7 @@ impl DeviceGeneration {
 }
 
 /// Monotonic desired-plan revision assigned at publication admission.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct PlanRevision(u64);
 
 impl PlanRevision {
@@ -59,7 +59,7 @@ impl PlanRevision {
 }
 
 /// Authored plan publication, independent of its GPU resource generations.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PlanIdentity {
     /// Project lifetime captured before preparation.
     pub project: ProjectEpoch,
@@ -68,7 +68,7 @@ pub struct PlanIdentity {
 }
 
 /// One successfully prepared resource set, separate from channel and texture identities.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct GenerationId(u64);
 
 impl GenerationId {

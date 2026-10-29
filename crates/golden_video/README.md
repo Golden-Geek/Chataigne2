@@ -69,6 +69,22 @@ Native accounting reserves the fixed backend baseline before creating its pools,
 plan targets, compositing scratch and output conversion textures separately. Its owned texture
 pool/constant-buffer charge is not measured driver residency, padding or native-object overhead.
 
+Native generations retain compatible texture/view sets through a device-local weak index in
+`native/backend/resources.rs`. Mutable storage is keyed by logical role and complete descriptor;
+all its writes remain ordered on the same immediate context. Source sequence/availability state
+is revalidated by each generation before drawing, including clears for missing inputs. Immutable
+images share storage by exact prepared payload and descriptor, across logical input IDs. Each
+uploaded texture pins that payload lease, preventing address reuse while a cache entry can be
+upgraded; equal app asset IDs alone do not establish equal content. Expired weak entries are
+pruned at preparation. The index owns neither GPU storage nor asset leases. Core reservations
+still charge the full declared generation footprint, preserving the existing conservative bounds.
+
+Preparation diagnostics join proposed resource/plan identity, native creation/reuse counts and
+CPU wall time to each submitted frame's exact resource generation. Offline analysis can measure
+native preparation and prepared-to-first-submit delay. Publication/receipt and per-output queue
+age require separate coverage; a preparation record alone does not qualify them. Artifact schema
+version is Rust-owned and generated with the fixture contracts as `capture-schema.json`.
+
 Baseline admission precedes backend initialization. The render core distinguishes pending first
 initialization, ready service and confirmed device loss. Initial `AllocationFailed` results retry
 on the worker with capped, cancellable backoff, retaining the original baseline reservation and
@@ -199,9 +215,9 @@ cargo run --locked -p golden_video --bin generate_preview_protocol -- packages/g
 
 Every queued command batch ends in a preallocated D3D11 event query, including output failures
 and unwind. Output results are bounded observations, so a busy window does not abort other
-consumers or abandon already queued GPU uses. Spout API acceptance does not prove delivery:
-the pinned SDK can wait up to 67 ms on its access mutex and return success after skipping a copy
-on timeout. This limitation remains part of native cadence qualification.
+consumers or abandon already queued GPU uses. The pinned SDK's detailed transfer status
+distinguishes an actual Spout copy from an access timeout; API acceptance still does not prove
+consumer delivery or scanout. Opaque API waits remain part of native cadence qualification.
 
 `ExternalTexture::source` selects an immutable image or `ExternalSource::Spout`: exact selector, required storage/
 color/alpha, polling interval and admitted maximum extent. Bindings travel inside the same

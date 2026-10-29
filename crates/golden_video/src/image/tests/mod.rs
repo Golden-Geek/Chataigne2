@@ -44,11 +44,19 @@ impl AssetDecoder for RawDecoder {
 }
 
 pub(crate) fn prepared_image(descriptor: TextureDescriptor, pixels: &[u8]) -> PreparedImageFixture {
+    prepared_image_with_id(AssetId::new(), descriptor, pixels)
+}
+
+pub(crate) fn prepared_image_with_id(
+    id: AssetId,
+    descriptor: TextureDescriptor,
+    pixels: &[u8],
+) -> PreparedImageFixture {
     let directory = tempfile::tempdir().unwrap();
     std::fs::write(directory.path().join("pixels.bin"), pixels).unwrap();
     let scope = AssetScope::new(directory.path()).unwrap();
     let binding = AssetBinding::new(AssetRecord {
-        id: AssetId::new(),
+        id,
         locator: AssetLocator::ProjectRelative {
             path: "pixels.bin".to_string().try_into().unwrap(),
         },

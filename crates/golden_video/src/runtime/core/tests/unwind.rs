@@ -19,8 +19,8 @@ impl Backend for PanickingSubmit {
         self.inner.resource_bytes(plan)
     }
 
-    fn prepare(&mut self, plan: &CompiledPlan, device: DeviceGeneration) -> Result<Self::Resources, BackendError> {
-        self.inner.prepare(plan, device)
+    fn prepare(&mut self, plan: &CompiledPlan, generation: GenerationInfo) -> Result<Self::Resources, BackendError> {
+        self.inner.prepare(plan, generation)
     }
 
     fn submit(

@@ -66,8 +66,8 @@ impl Backend for BaselineBackend {
         self.null.resource_bytes(plan)
     }
 
-    fn prepare(&mut self, plan: &CompiledPlan, device: DeviceGeneration) -> Result<Self::Resources, BackendError> {
-        self.null.prepare(plan, device)
+    fn prepare(&mut self, plan: &CompiledPlan, generation: GenerationInfo) -> Result<Self::Resources, BackendError> {
+        self.null.prepare(plan, generation)
     }
 
     fn submit(

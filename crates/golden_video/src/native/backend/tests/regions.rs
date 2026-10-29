@@ -144,7 +144,9 @@ impl Renderer {
         let device = DeviceGeneration::new(Uuid::new_v4(), 1);
         let mut backend = D3d11Backend::new(config, Default::default(), device);
         backend.initialize().unwrap();
-        let resources = backend.prepare(plan, device).unwrap();
+        let resources = backend
+            .prepare(plan, super::generation(&backend, plan, device))
+            .unwrap();
         assert!(backend.control.sources().is_empty());
         assert_eq!(backend.control.snapshot().uploaded_images, 1);
         Self {

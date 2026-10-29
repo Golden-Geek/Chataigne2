@@ -15,10 +15,20 @@ pub(super) struct Texture {
     pub(super) srv: ID3D11ShaderResourceView,
     pub(super) rtv: ID3D11RenderTargetView,
     pub(super) descriptor: TextureDescriptor,
+    _image_lease: Option<golden_assets::PreparedAsset<crate::image::ImageData>>,
     _local: PhantomData<Rc<()>>,
 }
 
 impl Texture {
+    pub(super) fn from_asset(
+        device: &ID3D11Device,
+        image: &golden_assets::PreparedAsset<crate::image::ImageData>,
+    ) -> Result<Self> {
+        let mut texture = Self::from_image(device, image.value())?;
+        texture._image_lease = Some(image.clone());
+        Ok(texture)
+    }
+
     pub(super) fn from_image(device: &ID3D11Device, image: &crate::image::ImageData) -> Result<Self> {
         let descriptor = image.descriptor();
         let desc = D3D11_TEXTURE2D_DESC {
@@ -102,6 +112,7 @@ impl Texture {
             srv: srv.ok_or_else(missing_output)?,
             rtv: rtv.ok_or_else(missing_output)?,
             descriptor,
+            _image_lease: None,
             _local: PhantomData,
         })
     }

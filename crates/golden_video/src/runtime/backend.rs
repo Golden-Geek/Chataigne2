@@ -5,6 +5,7 @@ use thiserror::Error;
 
 use crate::plan::CompiledPlan;
 
+use super::GenerationInfo;
 use super::identity::{CompletionToken, DeviceGeneration};
 
 /// Compact backend failures; native interfaces and driver-owned payloads never cross workers.
@@ -80,7 +81,7 @@ pub(crate) trait Backend {
 
     /// Allocates without submitting untracked GPU use. Failure retires partial allocations
     /// before returning; the caller keeps the complete reservation until then.
-    fn prepare(&mut self, plan: &CompiledPlan, device: DeviceGeneration) -> Result<Self::Resources, BackendError>;
+    fn prepare(&mut self, plan: &CompiledPlan, generation: GenerationInfo) -> Result<Self::Resources, BackendError>;
 
     /// Success establishes the proposed completion token. Non-device-loss errors must occur
     /// before any GPU use; a backend may not abandon resources after a partial submission.

@@ -290,7 +290,12 @@ impl Backend for NullBackend {
             .ok_or(BackendError::ResourceSizeOverflow)
     }
 
-    fn prepare(&mut self, plan: &CompiledPlan, device: DeviceGeneration) -> Result<Self::Resources, BackendError> {
+    fn prepare(
+        &mut self,
+        plan: &CompiledPlan,
+        generation: super::GenerationInfo,
+    ) -> Result<Self::Resources, BackendError> {
+        let device = generation.device;
         self.check_device()?;
         if device != self.device {
             return Err(BackendError::DeviceLost);

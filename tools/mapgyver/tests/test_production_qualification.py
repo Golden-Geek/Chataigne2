@@ -59,10 +59,16 @@ def write_capture(directory):
     renderer = [{"kind": "capture", "process_id": 100, "adapter": ADAPTER, "scenario": "Q01",
                  "qpc_frequency": FREQUENCY, "requested_warmup_seconds": 0,
                  "requested_sample_seconds": 1, "requested_independence_seconds": 0}]
+    generation = {"generation": 1, "device": token("renderer", 0)["device"],
+                  "identity": {"project": {"runtime": "renderer", "generation": 0}, "revision": 1},
+                  "bytes": 32, "output_count": 3}
+    renderer.append(event("Preparation", {"generation": generation, "wall": wall(BEGIN - 20, BEGIN - 10),
+                                           "succeeded": True, "created_textures": 3,
+                                           "reused_textures": 0, "cache_entries": 3}))
     for frame in range(1, 61):
         start = BEGIN + (frame - 1) * 1000
         native_token = token("renderer", frame)
-        renderer.append(event("FrameCpu", {"token": native_token, "wall": wall(start + 10, start + 40),
+        renderer.append(event("FrameCpu", {"token": native_token, "generation": generation, "wall": wall(start + 10, start + 40),
                                             "thread_cpu": {"kernel_100ns": 10, "user_100ns": 30}}))
         renderer.append(gpu(native_token, "Renderer"))
         for output in (1, 2, 3):
@@ -109,7 +115,7 @@ def write_capture(directory):
         renderer.append({"kind": "process_resources", "snapshot": {"process_id": 100, "observed_qpc": coordinate,
                          "memory": {"private_bytes": 150 * MIB}, "handle_count": 100,
                          "times": {"creation_filetime_100ns": 111}}})
-    manifest = {"schema_version": 2, "run_id": "first", "scenario": "Q01", "pid": 100,
+    manifest = {"schema_version": ANALYZER.CAPTURE_SCHEMA_VERSION, "run_id": "first", "scenario": "Q01", "pid": 100,
                 "fixture_pids": [101, 102, 103], "adapter": ADAPTER, "warmup_seconds": 0, "sample_seconds": 1,
                 "independence_seconds": 0, "debug_assertions": False, "arch": "x86_64", "qpc_frequency": FREQUENCY}
     summary = {"process_id": 100, "phase_windows": [{"name": "warmup", "begin_qpc": BEGIN, "end_qpc": BEGIN},
@@ -123,7 +129,7 @@ def write_capture(directory):
                "retirement": {"begin_qpc": END + 100, "actual_retirement": True,
                               "both_hwnds_retained_until_retirement": True, "output_destroyed_after_retirement": True},
                "functional_completed": True}
-    parent = {"schema_version": 2, "renderer_returned_ok": True, "qpc": END + 900,
+    parent = {"schema_version": ANALYZER.CAPTURE_SCHEMA_VERSION, "renderer_returned_ok": True, "qpc": END + 900,
               "children": [{"pid": pid, "success": True, "forced": False} for pid in (101, 102, 103)]}
     launcher = {"exit_code": 0, "timed_out": False, "forced_cleanup": False,
                 "owned_job_active_before_close": 0, "exit_observed_qpc": END + 1000, "qpc_frequency": FREQUENCY}
@@ -265,13 +271,48 @@ class ProductionQualificationTests(unittest.TestCase):
         self.assertEqual(result["status"], "PASSED_NATIVE")
         self.assertEqual(result["renderer_qualification"]["status"], "PASSED_NATIVE")
 
-    def test_schema_one_captures_are_not_reinterpreted_using_new_clock_or_sink_semantics(self):
+    def test_old_captures_are_not_reinterpreted_using_new_generation_or_clock_semantics(self):
         manifest = ANALYZER.load_json(self.directory / "manifest.json")
-        manifest["schema_version"] = 1
-        (self.directory / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+        for old in (1, 2):
+            with self.subTest(version=old):
+                manifest["schema_version"] = old
+                (self.directory / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+                result = ANALYZER.analyze_series([self.directory])
+                self.assertEqual(result["status"], "FAILED_NATIVE")
+                self.assertIn("unsupported production capture schema", result["captures"][0]["artifact_error"])
+
+    def test_native_preparation_and_first_submit_are_joined_without_claiming_publication_age(self):
+        result = self.analyze()
+        prepared = result["native_preparation"]
+        self.assertTrue(prepared["coverage_complete"])
+        self.assertEqual((prepared["attempts"], prepared["created_textures"], prepared["reused_textures"]), (1, 3, 0))
+        self.assertEqual(prepared["records"][0]["submitted_frames"], 60)
+        self.assertEqual(prepared["prepared_to_first_submit_wait"]["p95_ms"], 20 * 1000 / FREQUENCY)
+        self.assertEqual(result["criteria"]["plan_age_and_published_queue"]["status"], "UNAVAILABLE")
+
+    def test_preparation_join_rejects_foreign_or_changed_resource_identity(self):
+        frame = next(row["event"]["FrameCpu"] for row in self.renderer if "FrameCpu" in row.get("event", {}))
+        frame["generation"] = copy.deepcopy(frame["generation"])
+        frame["generation"]["identity"]["revision"] = 9
+        write_rows(self.directory / "renderer.jsonl", self.renderer)
         result = ANALYZER.analyze_series([self.directory])
         self.assertEqual(result["status"], "FAILED_NATIVE")
-        self.assertIn("unsupported production capture schema", result["captures"][0]["artifact_error"])
+        self.assertIn("differs from preparation", result["captures"][0]["artifact_error"])
+
+    def test_missing_preparation_never_becomes_complete_coverage(self):
+        rows = [row for row in self.renderer if "Preparation" not in row.get("event", {})]
+        write_rows(self.directory / "renderer.jsonl", rows)
+        result = self.analyze()
+        self.assertFalse(result["native_preparation"]["coverage_complete"])
+        self.assertEqual(result["native_preparation"]["unjoined_frame_rows"], 60)
+
+    def test_first_submit_cannot_precede_resource_preparation(self):
+        prepared = next(row["event"]["Preparation"] for row in self.renderer if "Preparation" in row.get("event", {}))
+        prepared["wall"]["end"] = BEGIN + 11
+        write_rows(self.directory / "renderer.jsonl", self.renderer)
+        result = ANALYZER.analyze_series([self.directory])
+        self.assertEqual(result["status"], "FAILED_NATIVE")
+        self.assertIn("before resource preparation completed", result["captures"][0]["artifact_error"])
 
     def test_capture_age_observations_do_not_qualify_an_unjoined_output_frame_cohort(self):
         result = self.analyze()
