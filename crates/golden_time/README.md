@@ -8,6 +8,8 @@ once-only effect application. No audio, video, engine or IO dependency is requir
 from the original monotonic/show anchor and rational rate, rather than advancing a timeline for
 each consumer callback. `SystemClock` uses a monotonic `Instant`; clones preserve its origin.
 Clock reads must be lightweight observations, without blocking native work or advancing effects.
+`TimeError::ClockUnavailable` reports a failed observation from that declared source, separately
+from arithmetic overflow; it does not certify device loss or advance authority state.
 
 The authority publishes immutable snapshots/mappings. A transport discontinuity reanchors the
 show mapping and issues a checked next epoch. Epoch equality includes a fresh authority identity,

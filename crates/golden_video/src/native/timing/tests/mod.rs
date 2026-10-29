@@ -6,6 +6,50 @@ use crate::runtime::{CompletionToken, DeviceGeneration};
 mod hardware;
 
 #[test]
+fn schedule_serde_preserves_exact_device_token_phase_and_explicit_missing_mapping() {
+    let device = DeviceGeneration::new(Uuid::new_v4(), 1);
+    let row = ScheduleTrace {
+        device,
+        token: Some(CompletionToken { device, serial: 17 }),
+        cadence: Uuid::new_v4(),
+        frame_index: 21,
+        anchor_monotonic_ns: 0,
+        slot_start_monotonic_ns: 350_000_000,
+        slot_end_monotonic_ns: 366_666_667,
+        observed_monotonic_ns: 350_000_000,
+        rate_numerator: 60,
+        rate_denominator: 1,
+        coalesced_slots: 2,
+        skipped_slots: 4,
+        epoch_generation: 0,
+        clock: ScheduleClock::Unavailable {
+            reason: ScheduleClockError::AuthorityChanged,
+        },
+        disposition: ScheduleDisposition::Submitted,
+        recorded_qpc: Some(999),
+    };
+    let serialized = serde_json::to_string(&DiagnosticEvent::Schedule(row)).unwrap();
+    let DiagnosticEvent::Schedule(decoded) = serde_json::from_str(&serialized).unwrap() else {
+        panic!("wrong row")
+    };
+    assert_eq!(
+        (decoded.device, decoded.token, decoded.cadence),
+        (device, row.token, row.cadence)
+    );
+    assert_eq!(
+        (decoded.frame_index, decoded.skipped_slots, decoded.coalesced_slots),
+        (21, 4, 2)
+    );
+    assert_eq!(
+        decoded.clock,
+        ScheduleClock::Unavailable {
+            reason: ScheduleClockError::AuthorityChanged
+        }
+    );
+    assert_eq!(decoded.disposition, ScheduleDisposition::Submitted);
+}
+
+#[test]
 fn final_gpu_coverage_never_retires_an_incomplete_or_foreign_device_token() {
     let device = DeviceGeneration::new(Uuid::new_v4(), 1);
     let token = CompletionToken { device, serial: 10 };

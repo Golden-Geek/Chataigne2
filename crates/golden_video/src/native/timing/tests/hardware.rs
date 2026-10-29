@@ -137,7 +137,6 @@ fn hardware_diagnostics_queries_keep_two_slots_and_collect_exact_completed_conte
         assert!(row.begin.zip(row.end).is_some_and(|(begin, end)| end >= begin));
     }
     assert_eq!(recorder.snapshot().dropped_full, 0);
-    assert_eq!(recorder.snapshot().dropped_contended, 0);
     drop(drain);
     done.send(()).unwrap();
 }

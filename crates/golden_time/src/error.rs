@@ -5,6 +5,9 @@ use crate::MonotonicTime;
 /// Invalid time coordinates, conversion or activation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Error)]
 pub enum TimeError {
+    /// The declared monotonic source could not provide a valid clock observation.
+    #[error("monotonic clock observation is unavailable")]
+    ClockUnavailable,
     /// A rational rate requires a nonzero denominator.
     #[error("time rate denominator must be nonzero")]
     ZeroDenominator,

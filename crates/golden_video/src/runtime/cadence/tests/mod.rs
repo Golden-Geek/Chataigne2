@@ -6,6 +6,66 @@ fn at(nanos: u64) -> MonotonicTime {
     MonotonicTime::from_nanos(nanos)
 }
 
+fn observed(nanos: u64) -> golden_time::TimeSnapshot {
+    struct Fixed(MonotonicTime);
+    impl golden_time::Clock for Fixed {
+        fn now(&self) -> Result<MonotonicTime, TimeError> {
+            Ok(self.0)
+        }
+    }
+    golden_time::TimeAuthority::new(
+        Fixed(at(nanos)),
+        golden_time::ShowPosition::from_nanos(0),
+        golden_time::PlaybackRate::NORMAL,
+    )
+    .unwrap()
+    .sample()
+    .unwrap()
+}
+
+#[test]
+fn diagnostic_slots_keep_absolute_next_deadlines_skips_and_distinct_reset_identity() {
+    let rate = RationalRate::new(60, 1).unwrap();
+    let mut cadence = Cadence::new(rate, at(0));
+    assert!(
+        cadence.identity.is_none(),
+        "disabled cadence construction creates no UUID"
+    );
+    let first = cadence.consume_due(at(0)).unwrap().unwrap();
+    let first = cadence.schedule(first, observed(0)).unwrap();
+    assert_eq!(
+        (first.frame_index, first.slot_start, first.slot_end),
+        (0, at(0), at(16_666_667))
+    );
+    cadence.submitted(0);
+    let busy = cadence.consume_due(at(16_666_667)).unwrap().unwrap();
+    let busy = cadence.schedule(busy, observed(16_666_667)).unwrap();
+    assert_eq!(busy.frame_index, 1); // Consumed, deliberately not marked submitted.
+    let later = cadence.consume_due(at(100_000_000)).unwrap().unwrap();
+    let later = cadence.schedule(later, observed(100_000_000)).unwrap();
+    assert_eq!(
+        (later.frame_index, later.coalesced_slots, later.skipped_slots),
+        (6, 4, 5)
+    );
+    assert_eq!(later.cadence, first.cadence);
+    cadence.submitted(later.frame_index);
+    let fence = cadence.fence(observed(101_000_000)).unwrap().unwrap();
+    assert_eq!(fence.cadence, first.cadence);
+    assert_eq!(fence.frame_index, 7);
+    assert!(
+        cadence.fence(observed(102_000_000)).unwrap().is_none(),
+        "one final fence per identity"
+    );
+    let mut reset = Cadence::new(rate, at(100_000_000));
+    let tick = reset.consume_due(at(100_000_000)).unwrap().unwrap();
+    let reset = reset.schedule(tick, observed(100_000_000)).unwrap();
+    assert_eq!(reset.frame_index, 0);
+    assert_ne!(
+        reset.cadence, first.cadence,
+        "same ordinal cannot impersonate a previous phase"
+    );
+}
+
 #[test]
 fn the_anchor_is_immediately_due_and_repeated_observation_cannot_advance_it_twice() {
     let mut cadence = Cadence::new(RationalRate::new(60, 1).unwrap(), at(100));

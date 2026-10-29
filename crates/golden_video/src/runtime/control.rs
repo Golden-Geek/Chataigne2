@@ -43,7 +43,11 @@ enum BackendControl {
 enum BackendStart {
     Null(NullConfig, NullControl),
     #[cfg(all(windows, feature = "d3d11"))]
-    D3d11(crate::native::D3d11Config, crate::native::D3d11Control),
+    D3d11(
+        crate::native::D3d11Config,
+        crate::native::D3d11Control,
+        crate::native::timing::ScheduleClockSource,
+    ),
 }
 
 /// Explicit worker retirement observation for a host/shutdown worker, never an actor/UI callback.
@@ -100,10 +104,11 @@ impl VideoRuntime {
     #[cfg(all(windows, feature = "d3d11"))]
     pub fn spawn_d3d11(config: RuntimeConfig, native: crate::native::D3d11Config) -> Result<Self, RuntimeStartError> {
         native.validate(&config)?;
+        let source = crate::native::timing::ScheduleClockSource::new(native.diagnostics.is_some());
         Self::spawn(
             config,
-            Arc::new(SystemClock::new()),
-            BackendStart::D3d11(native, Default::default()),
+            source.clock(),
+            BackendStart::D3d11(native, Default::default(), source),
         )
     }
 
@@ -114,11 +119,8 @@ impl VideoRuntime {
         control: crate::native::D3d11Control,
     ) -> Result<Self, RuntimeStartError> {
         native.validate(&config)?;
-        Self::spawn(
-            config,
-            Arc::new(SystemClock::new()),
-            BackendStart::D3d11(native, control),
-        )
+        let source = crate::native::timing::ScheduleClockSource::new(native.diagnostics.is_some());
+        Self::spawn(config, source.clock(), BackendStart::D3d11(native, control, source))
     }
 
     fn spawn(config: RuntimeConfig, clock: Arc<dyn Clock>, backend: BackendStart) -> Result<Self, RuntimeStartError> {
@@ -171,7 +173,7 @@ impl VideoRuntime {
         let control = match &backend {
             BackendStart::Null(_, control) => BackendControl::Null(control.clone()),
             #[cfg(all(windows, feature = "d3d11"))]
-            BackendStart::D3d11(_, control) => BackendControl::D3d11(control.clone()),
+            BackendStart::D3d11(_, control, _) => BackendControl::D3d11(control.clone()),
         };
         let worker = BoundedWorker::<(), ()>::spawn(
             "golden-video-render",
@@ -194,12 +196,13 @@ impl VideoRuntime {
                     authority,
                 ),
                 #[cfg(all(windows, feature = "d3d11"))]
-                BackendStart::D3d11(native_config, native_control) => super::worker::run_d3d11(
+                BackendStart::D3d11(native_config, native_control, clock_source) => super::worker::run_d3d11(
                     context,
                     run_shared,
                     run_config,
                     native_config,
                     native_control,
+                    clock_source,
                     preparation_lifetimes,
                     device,
                     authority,

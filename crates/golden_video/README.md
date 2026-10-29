@@ -29,9 +29,21 @@ The implemented foundations are:
   The opt-in Windows `qualification` feature also exposes GPU source/consumer marker fixtures;
   app-owned runners select scenarios and own processes, without putting product policy in Golden.
 
-Native `D3d11Config::diagnostics` optionally enables a bounded nonblocking metadata sink, CPU
-API brackets and two GPU timestamp/disjoint slots per context. Disabled runtimes allocate no
-timing queries. Drops, invalid/skipped/uncollected timing and missing OS counters remain explicit.
+Native `D3d11Config::diagnostics` optionally enables a bounded metadata queue, CPU API brackets
+and two GPU timestamp/disjoint slots per context. The queue uses pinned
+[`concurrent-queue` 2.5.0](https://docs.rs/concurrent-queue/2.5.0/concurrent_queue/struct.ConcurrentQueue.html)
+bounded storage: concurrent source/render producers and the reporting consumer share no metadata
+mutex. Capacity pressure still drops explicitly; recording never grows storage to avoid a drop.
+Snapshots are sparse observations; exact written/drained/queued accounting requires quiescent
+producers. Disabled runtimes allocate no timing queries. Drops, invalid/skipped/uncollected timing
+and missing OS counters remain explicit.
+Opt-in native scheduling uses an explicitly captured QPC origin/frequency to map absolute
+rational cadence slots to machine-counter boundaries with checked integer rounding. Each
+consumed slot records admission and an exact submitted token when present; final fences bound
+observed coverage. Clock replacement invalidates the mapping, while show-time discontinuities
+within the same monotonic authority retain it. Failed initialization falls back to SystemClock
+with unavailable mapping. Diagnostics disabled retain SystemClock and create no cadence UUIDs.
+These are software submission observations, not GPU completion or displayed-frame deadlines.
 Context-local GPU spans and inclusive CPU wall intervals are observations, not a complete GPU
 critical path or active CPU estimate. Process-local DXGI budget/usage and sparse process resource
 APIs run outside engine/UI ticks. See the
@@ -122,6 +134,8 @@ to each explicit output color/alpha contract. Output pools persist across plan g
 windows retain two fixed-size BGRA8 backbuffers; Spout senders retain one SDK shared texture and
 an AddRef of the exact caller device. Window size changes use DXGI stretch, without reallocating
 backing buffers. The host retains each borrowed HWND through successful runtime retirement.
+Equal-extent output conversion uses one texel load; resizing retains linear filtering. Both
+paths keep the same explicit color/alpha conversion rather than copying incompatible outputs.
 
 Each configured output has one fixed endpoint slot. An endpoint's creation or delivery failure
 enters `Recovering` independently of healthy outputs, with retries starting at 250 ms and backing

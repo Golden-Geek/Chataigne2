@@ -24,6 +24,8 @@ impl<B: Backend> Runner<B> {
                 ControlKind::Clock { clock, show, rate } => {
                     TimeAuthority::new(clock.clone(), show, rate).and_then(|mut authority| {
                         let time = authority.sample()?;
+                        let previous = self.authority.sample().unwrap_or_else(|_| self.shared.snapshot().time);
+                        self.close_schedule(previous);
                         self.authority = authority;
                         self.cadence = super::Cadence::new(self.config.frame_rate, time.monotonic());
                         next_clock = Some(clock);

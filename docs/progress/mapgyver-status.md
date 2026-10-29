@@ -5,10 +5,14 @@
 **Updated: 2026-10-29 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
 **Current topic:** M03 remains **7/9** accepted gates. The
+[measurement checkpoint](mapgyver-m03-qualification-runner.md#measurement-integrity-and-equal-extent-conversion--2026-10-29)
+eliminates observed telemetry loss, maps all 180 software opportunities in each short control,
+and avoids redundant equal-size output filtering. Both controls accept 180 Spout submissions;
+native-window misses, GPU outliers and high/sparse Q02 capture age remain visible. The
 [production qualification runner](mapgyver-m03-qualification-runner.md) now connects independent
 GPU fixtures, the shared host/runtime and held previews with bounded native telemetry and
-offline analysis. Corrected release Q01/Q02 controls complete the fixed scene and owned cleanup;
-Q02 cadence still falls short and telemetry loses rows. These short controls close no gate. The
+offline analysis. Corrected release Q01/Q02 controls complete the fixed scene and owned cleanup.
+These short controls close no gate. The
 [startup retry checkpoint](mapgyver-m03-render-foundations.md#admitted-startup-retries--2026-10-29)
 holds baseline admission through initial allocation failures, preserves control/latest plans
 and recovers within the same first device generation. A real unavailable-LUID factory test
@@ -23,10 +27,12 @@ The [approved M01 route decision](mapgyver-m01-native-feasibility.md#functional-
 remains scoped functional acceptance; renderer, physical-output and full-app qualification
 retain their M03/M05/M09 owners.
 
-**Next:** remove telemetry loss, add exact deadline/queue anchors and address Q02 renderer cost (gate 9), retaining native
+**Next:** address source freshness and native-output backpressure using the complete traces;
+finish GPU/output-age and plan/queue measurements (gate 9), retaining native
 device-removal/recovery and bounded-retirement acceptance under gate 4.
-**Blocker:** Q02 cadence and context-local GPU time miss the diagnostic targets; full GPU
-critical-path/deadline/queue coverage remains unavailable. Genuine device removal and stuck-driver
+**Blocker:** native-window acceptance and context-local GPU time still miss diagnostic targets;
+Q02 capture age is high and sparse. Full GPU critical-path, displayed deadline/age and plan/queue
+coverage remain unavailable. Genuine device removal and stuck-driver
 retirement bounds remain unverified. Known cadence, memory-growth, geometry and display/input failures
 remain open under M03/M05/M09; their budgets and evidence are unchanged.
 
@@ -257,8 +263,9 @@ Independent output retry/state, completion-fenced replacement, source withdrawal
 failed-reset/cancellation/project fencing have a recovery checkpoint. Initial allocation now
 retries within its original admitted baseline and first device generation, serving controls and
 retaining only the latest desired plan. The production Q01/Q02 runner and its short native controls
-now complete. Close telemetry loss, exact deadline anchors and complete GPU/queue
-measurement coverage before attempting the prescribed qualification series (gate 9).
+now complete. Their schema-2 traces now retain all rows and exactly anchored software slots.
+Use those traces to correct source freshness/output backpressure and complete GPU/output-age
+and plan/queue measurement before the prescribed qualification series (gate 9).
 Genuine native device-removal recovery and bounded stuck-drain retirement retain gate 4.
 Both gates remain required before M03 completion; all existing budgets/failures stay operative.
 Deliver each coherent batch
@@ -406,6 +413,31 @@ Preserve Chataigne's unfinished engine/Spatializer P11 checkpoint (four of six f
 and its [separate ledger](implementation-status.md). Shared P12 boundary repairs belong to M02;
 P14/P15 time and asset contracts retain their shared Golden owners under M03. Root launch
 behavior is unchanged. No production host/backend/binding decision is final yet.
+
+## M03 measurement integrity and output conversion — 2026-10-29
+
+The [measurement checkpoint](mapgyver-m03-qualification-runner.md#measurement-integrity-and-equal-extent-conversion--2026-10-29)
+and [schema-2 evidence](evidence/mapgyver-m03-measurement-integrity-2026-10-29.json) retain two new
+short release controls. Bounded concurrent recording removes the former metadata-mutex loss;
+all four processes have exact written/drained/raw counts and no full/clock losses. Exact QPC
+mapping, per-opportunity admission and final coverage fences establish all 180 software slots
+and their output joins in each sample. Replaced clocks become explicitly unmapped. Disabled
+diagnostics retain the existing clock and create no cadence UUIDs. API deadlines remain
+separate from physical output cadence; unverified criteria never become passes.
+
+Equal-extent output conversion now uses the existing single-load path. Native finite pixel
+oracles preserve color/alpha and scaled filtering. Q02 observes 172/180 native-window and
+180/180 Spout acceptances, compared with 75/180 and 139/180 earlier. Q01 records 177/180 and
+180/180. Renderer GPU p95 is 16.906 / 19.640 ms, still above the diagnostic target; both complete
+180 valid context-local spans and 360 source joins. Q02's sparse capture observations have
+high age; repeated/source captures do not prove every output frame's age. No sustained or
+causal performance pass is claimed. Both controls exit cleanly with actual fenced retirement.
+
+Validation passes 204 regular Rust tests, nine explicit native GPU regressions, 198 Python
+tests, strict default/native Clippy, Chataigne all-target compilation, release x64 build and
+required root/Core formatting. Touched source files remain under 1,000 lines. The archive retains
+the exact inputs, statuses and unavailable observations. M03 stays **7/9**, overall **30%**;
+source freshness/output backpressure and the remaining measurement/recovery gates are next.
 
 ## M03 production qualification runner — 2026-10-29
 

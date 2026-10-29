@@ -51,6 +51,8 @@ pub(crate) struct D3d11Backend {
     native: Option<NativeState>,
     notify: Option<WorkerNotifier>,
     diagnostics: Option<Recorder>,
+    schedule_clock: super::timing::ScheduleClockSource,
+    schedule_epoch: Option<golden_time::TimeEpoch>,
 }
 
 pub(crate) struct D3d11Resources {
@@ -72,11 +74,23 @@ impl D3d11Backend {
             native: None,
             notify: None,
             diagnostics,
+            schedule_clock: super::timing::ScheduleClockSource::new(false),
+            schedule_epoch: None,
         }
     }
 
     pub(crate) fn with_notifier(mut self, notifier: WorkerNotifier) -> Self {
         self.notify = Some(notifier);
+        self
+    }
+
+    pub(crate) fn with_schedule_clock(
+        mut self,
+        source: super::timing::ScheduleClockSource,
+        epoch: golden_time::TimeEpoch,
+    ) -> Self {
+        self.schedule_clock = source;
+        self.schedule_epoch = Some(epoch);
         self
     }
 
@@ -217,6 +231,54 @@ impl D3d11Backend {
 
 impl Backend for D3d11Backend {
     type Resources = D3d11Resources;
+
+    fn observes_schedule(&self) -> bool {
+        self.diagnostics.is_some()
+    }
+
+    fn observe_schedule(
+        &mut self,
+        device: DeviceGeneration,
+        schedule: crate::runtime::FrameSchedule,
+        admission: crate::runtime::FrameAdmission,
+    ) {
+        use super::timing::{ScheduleClock, ScheduleClockError, ScheduleDisposition, ScheduleTrace};
+        use crate::runtime::FrameAdmission;
+        let Some(recorder) = &self.diagnostics else {
+            return;
+        };
+        let (token, disposition) = match admission {
+            FrameAdmission::Submitted(token) => (Some(token), ScheduleDisposition::Submitted),
+            FrameAdmission::Busy => (None, ScheduleDisposition::Busy),
+            FrameAdmission::NoDemand => (None, ScheduleDisposition::NoDemand),
+            FrameAdmission::Rejected => (None, ScheduleDisposition::Rejected),
+            FrameAdmission::Fence => (None, ScheduleDisposition::Fence),
+        };
+        let clock = self.schedule_epoch.map_or(
+            ScheduleClock::Unavailable {
+                reason: ScheduleClockError::InitializationUnavailable,
+            },
+            |epoch| self.schedule_clock.project(schedule, epoch),
+        );
+        recorder.push(super::timing::DiagnosticEvent::Schedule(ScheduleTrace {
+            device,
+            token,
+            cadence: schedule.cadence,
+            frame_index: schedule.frame_index,
+            anchor_monotonic_ns: schedule.anchor.as_nanos(),
+            slot_start_monotonic_ns: schedule.slot_start.as_nanos(),
+            slot_end_monotonic_ns: schedule.slot_end.as_nanos(),
+            observed_monotonic_ns: schedule.observed.monotonic().as_nanos(),
+            rate_numerator: schedule.rate.numerator(),
+            rate_denominator: schedule.rate.denominator(),
+            coalesced_slots: schedule.coalesced_slots,
+            skipped_slots: schedule.skipped_slots,
+            epoch_generation: schedule.observed.epoch().generation(),
+            clock,
+            disposition,
+            recorded_qpc: recorder.stamp(),
+        }));
+    }
 
     fn base_resource_bytes(&self) -> Result<u64, BackendError> {
         // This accounts every owned texture pool and the constant buffer. DXGI/driver physical
@@ -463,16 +525,16 @@ impl Backend for D3d11Backend {
         let render = recorder.and_then(|recorder| recorder.interval(render_begin));
         for output in plan.outputs() {
             let conversion_begin = recorder.and_then(Recorder::stamp);
+            let source = &resources.textures[&output.source];
             let converted = &resources.outputs[&output.id];
-            pipeline.draw(
-                context,
-                &resources.textures[&output.source],
-                None,
-                converted,
-                1.0,
-                BlendMode::Normal,
-                SampleFilter::Linear,
-            );
+            // Equal extents map texel centres exactly; avoid four-tap interpolation while
+            // retaining the shader's declared color/alpha conversion. Scaling stays linear.
+            let filter = if source.descriptor.extent == converted.descriptor.extent {
+                SampleFilter::Nearest
+            } else {
+                SampleFilter::Linear
+            };
+            pipeline.draw(context, source, None, converted, 1.0, BlendMode::Normal, filter);
             let conversion = recorder.and_then(|recorder| recorder.interval(conversion_begin));
             let delivery_begin = recorder.and_then(Recorder::stamp);
             let mut consumer_api = None;

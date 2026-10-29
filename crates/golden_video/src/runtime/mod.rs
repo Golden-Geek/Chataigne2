@@ -12,6 +12,7 @@ mod error;
 mod identity;
 mod null;
 mod preparation;
+mod schedule;
 mod shared;
 mod submission;
 mod types;
@@ -22,6 +23,7 @@ pub use core::{GenerationInfo, ResourceLimits, ResourceSnapshot};
 pub use error::{AdmissionError, RuntimeStartError};
 pub use identity::{CompletionToken, DeviceGeneration, GenerationId, PlanIdentity, PlanRevision, ProjectEpoch};
 pub use null::{NullConfig, NullControl, NullSnapshot};
+pub use schedule::{FrameAdmission, FrameSchedule};
 pub use submission::PlanSubmission;
 pub use types::{
     FailureCode, FrameObservation, LatePolicy, OutcomeKind, PlanActivation, RequestId, RuntimeConfig, RuntimeFailure,

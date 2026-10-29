@@ -410,7 +410,7 @@ pub fn renderer(mut args: Arguments) -> io::Result<()> {
     }
     let pids = children.iter().map(|child| child.child.id()).collect::<Vec<_>>();
     let mut manifest = writer(&config.directory.join("manifest.json"))?;
-    serde_json::to_writer_pretty(&mut manifest,&json!({"schema_version":1,"run_id":id,"scenario":config.workload,
+    serde_json::to_writer_pretty(&mut manifest,&json!({"schema_version":2,"run_id":id,"scenario":config.workload,
         "pid":std::process::id(),"fixture_pids":pids,"adapter":adapter,"initial_memory":memory,"memory_ceiling":memory_ceiling,
         "warmup_seconds":config.warmup.as_secs(),"sample_seconds":config.duration.as_secs(),"independence_seconds":config.independence.as_secs(),
         "trace_capacity":config.trace_capacity,"source_names":source_names,"output_name":output_name,
@@ -437,7 +437,7 @@ pub fn renderer(mut args: Arguments) -> io::Result<()> {
     let mut summary = writer(&config.directory.join("parent-summary.json"))?;
     serde_json::to_writer_pretty(
         &mut summary,
-        &json!({"schema_version":1,"renderer_returned_ok":result.is_ok(),
+        &json!({"schema_version":2,"renderer_returned_ok":result.is_ok(),
         "children":exits,"children_stop_ns":shutdown.elapsed().as_nanos().to_string(),"qpc":qpc()?}),
     )
     .map_err(Error::other)?;

@@ -464,6 +464,30 @@ impl<B: Backend> RenderCore<B> {
         }))
     }
 
+    pub(crate) fn observes_schedule(&self) -> bool {
+        self.backend.observes_schedule()
+    }
+
+    pub(crate) fn observe_schedule(&mut self, schedule: super::FrameSchedule, admission: super::FrameAdmission) {
+        self.backend.observe_schedule(self.device, schedule, admission);
+    }
+
+    pub(crate) fn submit_scheduled(
+        &mut self,
+        time: TimeSnapshot,
+        schedule: super::FrameSchedule,
+    ) -> Result<Option<SubmissionInfo>, CoreError> {
+        let result = self.submit(time);
+        let admission = match &result {
+            Ok(Some(submission)) => super::FrameAdmission::Submitted(submission.token),
+            Ok(None) => super::FrameAdmission::NoDemand,
+            Err(CoreError::InFlightFull) => super::FrameAdmission::Busy,
+            Err(_) => super::FrameAdmission::Rejected,
+        };
+        self.observe_schedule(schedule, admission);
+        result
+    }
+
     pub(crate) fn poll_completion(&mut self) -> Result<(), CoreError> {
         self.ensure_device()?;
         let token = self.backend.completion().map_err(|error| self.backend_error(error))?;

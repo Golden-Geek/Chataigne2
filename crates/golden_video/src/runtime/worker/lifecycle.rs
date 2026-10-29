@@ -23,7 +23,7 @@ impl<B: Backend> Runner<B> {
                 self.retry_at = None;
                 self.recovery.reset();
                 let time = time.unwrap_or_else(|| self.shared.snapshot().time);
-                self.cadence = super::Cadence::new(self.config.frame_rate, time.monotonic());
+                self.reset_cadence(time);
                 self.shared.backend_recovered();
                 {
                     let mut state = self.shared.lock();
@@ -60,6 +60,7 @@ impl<B: Backend> Runner<B> {
         if error != CoreError::Backend(BackendError::DeviceLost) {
             return;
         }
+        self.close_schedule(time.unwrap_or_else(|| self.shared.snapshot().time));
         if self.retry_at.is_some_and(|retry| Instant::now() < retry) {
             return;
         }
@@ -108,7 +109,7 @@ impl<B: Backend> Runner<B> {
                     }
                 }
                 let time = time.unwrap_or_else(|| self.shared.snapshot().time);
-                self.cadence = super::Cadence::new(self.config.frame_rate, time.monotonic());
+                self.reset_cadence(time);
                 if self.rebuild.is_none() {
                     self.shared.backend_recovered();
                 }
@@ -161,7 +162,7 @@ impl<B: Backend> Runner<B> {
                     self.retry_at = None;
                     self.recovery.reset();
                     let time = time.unwrap_or_else(|| self.shared.snapshot().time);
-                    self.cadence = super::Cadence::new(self.config.frame_rate, time.monotonic());
+                    self.reset_cadence(time);
                     self.shared.backend_recovered();
                     self.shared.notify();
                 }
@@ -189,6 +190,8 @@ impl<B: Backend> Runner<B> {
     }
 
     pub(super) fn shutdown(mut self) {
+        let time = self.authority.sample().unwrap_or_else(|_| self.shared.snapshot().time);
+        self.close_schedule(time);
         self.core.quiesce();
         self.shared.close();
         self.shared.lock().snapshot.state = RuntimeState::Stopping;

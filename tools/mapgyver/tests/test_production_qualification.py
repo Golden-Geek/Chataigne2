@@ -39,7 +39,7 @@ def gpu(identity, context):
 def accounting(rows):
     count = sum(row["kind"] == "diagnostic" for row in rows)
     return {"enabled": True, "queued": 0, "written": count, "drained": count,
-            "dropped_full": 0, "dropped_contended": 0, "clock_failures": 0}
+            "dropped_full": 0, "clock_failures": 0}
 
 
 def write_rows(path, rows):
@@ -109,7 +109,7 @@ def write_capture(directory):
         renderer.append({"kind": "process_resources", "snapshot": {"process_id": 100, "observed_qpc": coordinate,
                          "memory": {"private_bytes": 150 * MIB}, "handle_count": 100,
                          "times": {"creation_filetime_100ns": 111}}})
-    manifest = {"schema_version": 1, "run_id": "first", "scenario": "Q01", "pid": 100,
+    manifest = {"schema_version": 2, "run_id": "first", "scenario": "Q01", "pid": 100,
                 "fixture_pids": [101, 102, 103], "adapter": ADAPTER, "warmup_seconds": 0, "sample_seconds": 1,
                 "independence_seconds": 0, "debug_assertions": False, "arch": "x86_64", "qpc_frequency": FREQUENCY}
     summary = {"process_id": 100, "phase_windows": [{"name": "warmup", "begin_qpc": BEGIN, "end_qpc": BEGIN},
@@ -123,7 +123,7 @@ def write_capture(directory):
                "retirement": {"begin_qpc": END + 100, "actual_retirement": True,
                               "both_hwnds_retained_until_retirement": True, "output_destroyed_after_retirement": True},
                "functional_completed": True}
-    parent = {"schema_version": 1, "renderer_returned_ok": True, "qpc": END + 900,
+    parent = {"schema_version": 2, "renderer_returned_ok": True, "qpc": END + 900,
               "children": [{"pid": pid, "success": True, "forced": False} for pid in (101, 102, 103)]}
     launcher = {"exit_code": 0, "timed_out": False, "forced_cleanup": False,
                 "owned_job_active_before_close": 0, "exit_observed_qpc": END + 1000, "qpc_frequency": FREQUENCY}
@@ -259,12 +259,48 @@ class ProductionQualificationTests(unittest.TestCase):
                 self.assertIn(missing, result["renderer_qualification"]["required_criteria"])
                 self.assertEqual(result["renderer_qualification"]["status"], "UNAVAILABLE")
 
+    def test_a_prescribed_series_with_every_criterion_passed_has_consistent_aggregate_status(self):
+        result = self.classified_series(later_status="PASSED_NATIVE")
+        self.assertTrue(result["qualified"])
+        self.assertEqual(result["status"], "PASSED_NATIVE")
+        self.assertEqual(result["renderer_qualification"]["status"], "PASSED_NATIVE")
+
+    def test_schema_one_captures_are_not_reinterpreted_using_new_clock_or_sink_semantics(self):
+        manifest = ANALYZER.load_json(self.directory / "manifest.json")
+        manifest["schema_version"] = 1
+        (self.directory / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+        result = ANALYZER.analyze_series([self.directory])
+        self.assertEqual(result["status"], "FAILED_NATIVE")
+        self.assertIn("unsupported production capture schema", result["captures"][0]["artifact_error"])
+
     def test_capture_age_observations_do_not_qualify_an_unjoined_output_frame_cohort(self):
         result = self.analyze()
         age = result["criteria"]["source_to_consumer_age"]
         self.assertEqual(age["status"], "UNAVAILABLE")
         self.assertTrue(age["observed_capture_p95_within_budget"])
         self.assertIn("exact output-frame cohort", age["reason"])
+
+    def test_oversampled_valid_captures_do_not_establish_normative_output_frame_age(self):
+        oversampled = []
+        index = 0
+        for row in self.consumer:
+            oversampled.append(row)
+            if row["kind"] == "consumer_frame":
+                row["frame"]["row"] = index
+                index += 1
+                for _ in range(2):
+                    repeated = copy.deepcopy(row)
+                    repeated["frame"]["row"] = index
+                    repeated["frame"]["token"]["serial"] = 1000 + index
+                    index += 1
+                    oversampled.append(repeated)
+        write_rows(self.directory / "consumer.jsonl", oversampled)
+        result = self.analyze()
+        self.assertEqual(result["frame_age"]["channels"][0]["valid"], 180)
+        self.assertEqual(result["frame_age"]["channels"][0]["repeated"], 120)
+        self.assertTrue(result["frame_age"]["capture_count_at_least_nominal"])
+        self.assertFalse(result["frame_age"]["output_frame_cohort_coverage_complete"])
+        self.assertEqual(result["criteria"]["source_to_consumer_age"]["status"], "UNAVAILABLE")
 
     def test_full_duration_metadata_does_not_hide_incomplete_cadence_and_missing_observations(self):
         manifest = ANALYZER.load_json(self.directory / "manifest.json")

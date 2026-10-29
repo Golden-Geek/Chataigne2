@@ -84,11 +84,13 @@ pub(super) fn run_d3d11(
     config: RuntimeConfig,
     native_config: crate::native::D3d11Config,
     native_control: crate::native::D3d11Control,
+    clock_source: crate::native::timing::ScheduleClockSource,
     preparation_lifetimes: RetirementPool,
     device: DeviceGeneration,
     authority: TimeAuthority<Arc<dyn Clock>>,
 ) {
     let notify = context.wake_notifier();
+    let clock_epoch = shared.snapshot().time.epoch();
     run_backend(
         context,
         shared,
@@ -97,7 +99,11 @@ pub(super) fn run_d3d11(
         device,
         authority,
         Duration::ZERO,
-        move || Ok(crate::native::D3d11Backend::new(native_config, native_control, device).with_notifier(notify)),
+        move || {
+            Ok(crate::native::D3d11Backend::new(native_config, native_control, device)
+                .with_schedule_clock(clock_source, clock_epoch)
+                .with_notifier(notify))
+        },
     );
 }
 
@@ -183,6 +189,21 @@ fn run_backend<B: Backend>(
 }
 
 impl<B: Backend> Runner<B> {
+    fn close_schedule(&mut self, time: TimeSnapshot) {
+        if !self.core.observes_schedule() {
+            return;
+        }
+        match self.cadence.fence(time) {
+            Ok(Some(schedule)) => self.core.observe_schedule(schedule, super::FrameAdmission::Fence),
+            Ok(None) => {}
+            Err(error) => self.fault(RuntimeFailure::new(FailureCode::Time, error)),
+        }
+    }
+
+    fn reset_cadence(&mut self, time: TimeSnapshot) {
+        self.close_schedule(time);
+        self.cadence = Cadence::new(self.config.frame_rate, time.monotonic());
+    }
     fn run_loop(&mut self) {
         self.publish_snapshot();
         self.shared.notify();

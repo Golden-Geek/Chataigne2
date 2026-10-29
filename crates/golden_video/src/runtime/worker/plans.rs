@@ -180,7 +180,7 @@ impl<B: Backend> Runner<B> {
             return;
         }
         if !rendering {
-            self.cadence = super::Cadence::new(self.config.frame_rate, time.monotonic());
+            self.reset_cadence(time);
         }
         let tick = match self.cadence.consume_due(time.monotonic()) {
             Ok(Some(tick)) => tick,
@@ -189,6 +189,17 @@ impl<B: Backend> Runner<B> {
                 self.fault(RuntimeFailure::new(FailureCode::Time, error));
                 return;
             }
+        };
+        let schedule = if self.core.observes_schedule() {
+            match self.cadence.schedule(tick, time) {
+                Ok(schedule) => Some(schedule),
+                Err(error) => {
+                    self.fault(RuntimeFailure::new(FailureCode::Time, error));
+                    return;
+                }
+            }
+        } else {
+            None
         };
         {
             let mut state = self.shared.lock();
@@ -204,6 +215,11 @@ impl<B: Backend> Runner<B> {
             let admission = {
                 let state = self.shared.lock();
                 if state.closing {
+                    drop(state);
+                    if let Some(schedule) = schedule {
+                        self.core
+                            .observe_schedule(schedule, crate::runtime::FrameAdmission::NoDemand);
+                    }
                     return;
                 }
                 activation(&self.prepared.as_ref().unwrap().request, time)
@@ -247,10 +263,22 @@ impl<B: Backend> Runner<B> {
                     .is_some_and(|active| active.identity.project == state.project)
         };
         if !can_submit {
+            if let Some(schedule) = schedule {
+                self.core
+                    .observe_schedule(schedule, crate::runtime::FrameAdmission::NoDemand);
+            }
             return;
         }
-        match self.core.submit(time) {
+        let submitted = if let Some(schedule) = schedule {
+            self.core.submit_scheduled(time, schedule)
+        } else {
+            self.core.submit(time)
+        };
+        match submitted {
             Ok(Some(submission)) => {
+                if schedule.is_some() {
+                    self.cadence.submitted(tick.index);
+                }
                 self.shared.record_frame(FrameObservation {
                     frame_index: tick.index,
                     scheduled_at: tick.scheduled,

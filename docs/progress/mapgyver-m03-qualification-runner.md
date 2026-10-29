@@ -30,11 +30,26 @@ not establish source identity or freshness. This marker is not a full-image colo
 
 ## Observations and limits
 
-`D3d11Config::diagnostics` defaults to disabled. Enabling it preallocates a fixed metadata ring
-and two timestamp/disjoint query slots per context. Producers never wait for the diagnostics
-lock or query availability. Full/contention drops, clock failures, invalid/disjoint/skipped
-queries and uncollected rows remain explicit. Draining and JSON/OS recording happen on an outer
+`D3d11Config::diagnostics` defaults to disabled. Enabling it preallocates a bounded concurrent
+metadata queue and two timestamp/disjoint query slots per context. The reporting consumer holds
+no metadata mutex against source/render producers. Full-queue drops, clock failures,
+invalid/disjoint/skipped queries and uncollected rows remain explicit. Queue storage never grows
+under pressure, and final accounting is checked after producers retire. Draining and JSON/OS recording happen on an outer
 host worker, not the engine or UI thread. Timing changes no rendering admission policy.
+
+Opt-in native scheduling captures its own raw QPC origin/frequency, then computes monotonic
+coordinates and exact inverse slot boundaries with checked integer floor/ceil rounding. It
+does not guess an offset between independent `Instant` and QPC origins. Disabled diagnostics
+keep the ordinary SystemClock. Initialization failure also retains SystemClock and records an
+unavailable mapping; an arbitrary replacement clock invalidates the old mapping. Show-time
+discontinuity within the same monotonic authority preserves that origin.
+
+Each consumed cadence opportunity records Submitted/Busy/NoDemand/Rejected, skipped ordinals
+and an exact device/token where submitted. A final coverage fence prevents the analyzer from
+extrapolating a stopped trace past observation. Software API deadlines remain separate from
+GPU/display completion: API begin after a deadline can establish a definite submission-miss
+lower bound, while API end alone can include waiting or preemption. Early API acceptance cannot
+pass the normative output deadline or scanout criterion.
 
 CPU rows contain inclusive submission wall intervals, exact SDK/Present API brackets and
 optional OS-accounted thread CPU deltas. API wall time can include CPU work and waiting;
@@ -99,6 +114,8 @@ samples use the default 30/120-second durations and `--samples 3`; renderer crit
 M03/gate-9 owner. Physical DPI/input and full-app/Matrix Q05 criteria retain M05/M09 owners.
 Renderer handle/growth/drain requirements remain M03 and are not waived by that distinction.
 Unknown criteria are explicit, and short samples cannot become qualification by relabeling them.
+Current captures use artifact schema 2. The original schema-1 archive below retains its own
+analysis and hashes; the current analyzer rejects schema 1 rather than reinterpreting old rows.
 
 ## Diagnostic checkpoint — 2026-10-29
 
@@ -134,6 +151,46 @@ was modified. Computer-use screenshot approval timed out, so no visual pass is i
 Validation passes 164 regular Rust tests, nine explicit native GPU tests, 185 Python tests,
 22 UI unit tests, Svelte check/lint and actual bundled browser lifecycle/recovery checks. Strict
 native all-target Clippy, locked release x64 build and both required Rust formatters pass.
-The next bounded batch is telemetry loss and exact deadline/queue anchors, followed by measured
-renderer corrections. Complete GPU-path/age coverage, renderer resource-return series and native
+This checkpoint's telemetry-loss and software-deadline work is covered below. Complete
+GPU-path/age coverage, renderer resource-return series and native
 device removal/recovery remain open; physical and full-app qualification keep their M05/M09 owners.
+
+## Measurement integrity and equal-extent conversion — 2026-10-29
+
+The [schema-2 packet](evidence/mapgyver-m03-measurement-integrity-2026-10-29.json) and
+[raw archive](evidence/mapgyver-m03-measurement-controls-2026-10-29.zip) retain the new short
+release controls. The reference workload, adapter and 1/3/1-second diagnostic durations remain
+unchanged. No performance gate is awarded from these controls.
+
+| Observation | Q01 | Q02 |
+| --- | --- | --- |
+| Full/clock loss in each of four process traces | 0 / 0 | 0 / 0 |
+| Exactly mapped sample slots / missing slots | 180 / 0 | 180 / 0 |
+| Main window / Spout API acceptance | 177 / 180; 180 / 180 | 172 / 180; 180 / 180 |
+| Renderer valid GPU spans / source-use joins | 180 / 360 | 180 / 360 |
+| Renderer-context GPU p95 / p99 | 16.906 / 26.750 ms | 19.640 / 21.969 ms |
+| Captured source-age p95, A / B | 38.161 / 37.433 ms | 298.980 / 215.542 ms |
+
+The bounded queue removes the old mutex-contention loss; written/drained/raw counts agree in
+all four processes, with zero final queued rows. Both samples have one stable exact clock
+mapping and a conservative fence after sample end. Every expected opportunity and output row
+joins; Busy outputs remain visible. Independent raw recomputation agrees with the analyzer.
+
+Equal-size output conversions now use the existing single-texel-load path, retaining explicit
+color/alpha encoding. Scaled conversions stay linear. The earlier Q02 control accepted 75 main
+window and 139 Spout submissions; this control accepts 172 and 180. These short, unpinned
+observations are not a controlled causal comparison or sustained qualification. Q01 also has
+window misses and GPU-time outliers; no favorable average replaces either distribution.
+
+Q02 has only 59 independent-consumer capture observations per channel and 25/43 unique source
+frames; its high captured age remains visible. Q01 has 1,188 observations but 173/172 unique
+frames. Repeats and sparse captures cannot establish a complete output-frame age cohort.
+API acceptance and mapped software opportunities do not prove displayed cadence. Full GPU
+critical path, normative deadline/age, plan/queue age, growth/drain and genuine device removal
+remain open. M03 stays **7/9**, overall **3/10 (30%)**.
+
+Validation: 204 regular Rust tests, nine explicit native GPU regressions and 198 Python tests
+pass. Strict default/native all-target Clippy, Chataigne all-target compilation, locked release
+x64 build and both required Rust formatters pass. The native pixel oracles retain color/alpha
+and filtering coverage. No display, driver or overlay setting changed; all owned processes exit
+without force and HWNDs remain alive through actual retirement.

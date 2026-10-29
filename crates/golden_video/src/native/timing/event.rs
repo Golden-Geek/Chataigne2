@@ -197,6 +197,8 @@ pub struct GpuTrace {
 /// Fixed-size Rust telemetry row for offline qualification. No UI event is emitted.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum DiagnosticEvent {
+    /// Exact scheduler slot/admission or final coverage fence.
+    Schedule(ScheduleTrace),
     /// Inclusive renderer CPU phases.
     FrameCpu(FrameCpuTrace),
     /// Per-consumer CPU brackets and acceptance.
@@ -207,6 +209,106 @@ pub enum DiagnosticEvent {
     SourceCpu(SourceCpuTrace),
     /// Context-local GPU timing and explicit coverage status.
     Gpu(GpuTrace),
+}
+
+/// Software scheduler observation; this never reports scanout or GPU completion.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ScheduleDisposition {
+    /// The renderer backend established the accompanying batch token.
+    Submitted,
+    /// Existing in-flight work prevented submission.
+    Busy,
+    /// No current demanded output could be submitted.
+    NoDemand,
+    /// A backend/core error rejected the opportunity.
+    Rejected,
+    /// Final accepted clock observation for this cadence; no frame is implied.
+    Fence,
+}
+
+/// Exact counter mapping unavailability, without substituting guessed epoch offsets.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ScheduleClockError {
+    /// Diagnostic QPC source could not initialize; scheduling uses SystemClock instead.
+    InitializationUnavailable,
+    /// A QPC observation failed during this clock lifetime.
+    ClockUnavailable,
+    /// An arbitrary replacement clock has a different authority/origin.
+    AuthorityChanged,
+    /// Counter frequency was zero.
+    InvalidFrequency,
+    /// A raw counter observation preceded the captured origin.
+    BeforeOrigin,
+    /// Checked coordinate conversion exceeded its integer representation.
+    Overflow,
+    /// The declared observation cannot arise from this counter's floor conversion.
+    InvalidRange,
+}
+
+/// Relationship to the same raw QPC clock used by the diagnostic scheduler. Ceil mapping
+/// chooses the earliest QPC tick whose floored monotonic coordinate reaches each boundary.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ScheduleClock {
+    /// Exact captured origin/frequency and checked integral quantization.
+    Qpc {
+        /// Raw machine counter captured when this monotonic clock was created.
+        origin_qpc: u64,
+        /// Counter ticks per second, fixed for this source lifetime.
+        frequency: u64,
+        /// Earliest raw counter tick reaching the cadence anchor.
+        anchor_qpc: u64,
+        /// Earliest raw counter tick reaching this slot's start.
+        slot_start_qpc: u64,
+        /// Earliest raw counter tick reaching the next-slot deadline.
+        slot_end_qpc: u64,
+        /// Inclusive minimum counter tick compatible with the accepted clock observation.
+        observed_qpc_lower: u64,
+        /// Inclusive maximum tick compatible with the floor-to-nanoseconds quantization.
+        observed_qpc_upper: u64,
+    },
+    /// No trustworthy machine counter mapping exists for this observation.
+    Unavailable {
+        /// Typed reason; missing coordinates remain missing.
+        reason: ScheduleClockError,
+    },
+}
+
+/// One consumed absolute scheduler slot or a final coverage fence, joined to software
+/// acceptance by exact device/batch identity. A next-slot boundary is not a display deadline.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct ScheduleTrace {
+    /// Device lifetime serving this scheduler observation.
+    pub device: DeviceGeneration,
+    /// Present only when the backend established a submitted batch.
+    pub token: Option<CompletionToken>,
+    /// Distinct absolute cadence lifetime, including resets/replacement clocks.
+    pub cadence: Uuid,
+    /// Absolute ordinal; Fence names the next unconsumed slot.
+    pub frame_index: u64,
+    /// Cadence origin in its declared monotonic nanoseconds.
+    pub anchor_monotonic_ns: u64,
+    /// Slot opening coordinate.
+    pub slot_start_monotonic_ns: u64,
+    /// Next-slot boundary used for software deadline observations.
+    pub slot_end_monotonic_ns: u64,
+    /// Accepted authority coordinate for this consumption/final fence.
+    pub observed_monotonic_ns: u64,
+    /// Normalized frame-rate numerator.
+    pub rate_numerator: u32,
+    /// Normalized frame-rate denominator.
+    pub rate_denominator: u32,
+    /// Ordinals coalesced immediately before this consumed opportunity.
+    pub coalesced_slots: u64,
+    /// Index gap since the previous submitted opportunity; first submission uses its index.
+    pub skipped_slots: u64,
+    /// Informational show discontinuity count; cadence UUID fences monotonic phase identity.
+    pub epoch_generation: u64,
+    /// Exact raw-clock mapping or explicit unavailability.
+    pub clock: ScheduleClock,
+    /// Software admission status, not physical display/receiver delivery.
+    pub disposition: ScheduleDisposition,
+    /// Raw QPC when this metadata row was recorded, distinct from its authority observation.
+    pub recorded_qpc: Option<u64>,
 }
 
 /// Bounded telemetry health. Lost rows invalidate complete-coverage claims.
@@ -224,8 +326,6 @@ pub struct DiagnosticsSnapshot {
     pub drained: u64,
     /// Rows dropped because the ring was full.
     pub dropped_full: u64,
-    /// Rows dropped because a producer could not acquire the metadata lock immediately.
-    pub dropped_contended: u64,
     /// Failed QPC calls; associated timestamps are absent.
     pub clock_failures: u64,
     /// Machine-wide QPC tick frequency, absent if unavailable.

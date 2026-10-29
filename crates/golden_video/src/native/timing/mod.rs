@@ -5,12 +5,14 @@ mod clock;
 mod cpu;
 mod event;
 mod gpu;
+mod scheduler;
 mod sink;
 
 pub(crate) use clock::Clock;
 pub(crate) use cpu::CpuScope;
 pub use event::*;
 pub(crate) use gpu::GpuTiming;
+pub(crate) use scheduler::ScheduleClockSource;
 pub(crate) use sink::Recorder;
 
 #[cfg(test)]

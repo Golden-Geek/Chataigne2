@@ -43,6 +43,20 @@ pub enum BackendError {
 pub(crate) trait Backend {
     type Resources;
 
+    /// Enables optional scheduler telemetry. Disabled backends need no per-frame metadata.
+    fn observes_schedule(&self) -> bool {
+        false
+    }
+
+    /// Metadata only; never changes admission, submits GPU work or emits a UI frame event.
+    fn observe_schedule(
+        &mut self,
+        _device: DeviceGeneration,
+        _schedule: super::FrameSchedule,
+        _admission: super::FrameAdmission,
+    ) {
+    }
+
     /// Fixed charge for resources retained independently of prepared/live generations.
     /// Construction must defer these allocations until `initialize`, after admission.
     fn base_resource_bytes(&self) -> Result<u64, BackendError> {

@@ -3099,6 +3099,7 @@ dependencies = [
 name = "golden_video"
 version = "0.1.0"
 dependencies = [
+ "concurrent-queue",
  "golden_assets",
  "golden_io",
  "golden_time",

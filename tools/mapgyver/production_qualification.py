@@ -8,6 +8,7 @@ import json
 import math
 from pathlib import Path
 import platform
+import runpy
 import subprocess
 import sys
 
@@ -17,6 +18,7 @@ SCENARIOS = {"Q01": ((1920, 1080), 512 * MIB, 1024 * MIB),
              "Q02": ((3840, 2160), 1024 * MIB, 2048 * MIB)}
 RAW_FILES = ("manifest.json", "renderer-summary.json", "parent-summary.json", "renderer.jsonl",
              "source-1.jsonl", "source-2.jsonl", "consumer.jsonl")
+DEADLINES = runpy.run_path(str(Path(__file__).with_name("production_deadlines.py")))
 
 
 class ArtifactError(ValueError):
@@ -111,7 +113,7 @@ def outcome(value):
 
 
 def events(rows):
-    result = {name: [] for name in ("FrameCpu", "Output", "SourceCpu", "SourceUse", "Gpu")}
+    result = {name: [] for name in ("FrameCpu", "Output", "SourceCpu", "SourceUse", "Gpu", "Schedule")}
     seen = set()
     for row in rows:
         if row["kind"] != "diagnostic":
@@ -120,8 +122,13 @@ def events(rows):
         require(isinstance(event, dict) and len(event) == 1, "invalid diagnostic enum")
         name, payload = next(iter(event.items()))
         require(name in result and isinstance(payload, dict), "unsupported diagnostic row")
-        key = (name, token_key(payload["token"]), payload.get("output"), payload.get("texture"),
-               json.dumps(payload.get("context"), sort_keys=True))
+        if name == "Schedule":
+            key = (name, json.dumps(payload["device"], sort_keys=True), payload["cadence"],
+                   integer(payload["frame_index"], "schedule index"), payload["disposition"] == "Fence",
+                   payload["observed_monotonic_ns"] if payload["disposition"] == "Fence" else None)
+        else:
+            key = (name, token_key(payload["token"]), payload.get("output"), payload.get("texture"),
+                   json.dumps(payload.get("context"), sort_keys=True))
         require(key not in seen, f"duplicate {name} diagnostic identity")
         seen.add(key)
         result[name].append(payload)
@@ -131,10 +138,10 @@ def events(rows):
 def health(snapshot, rows):
     count = sum(row["kind"] == "diagnostic" for row in rows)
     counters = {name: integer(snapshot.get(name), f"diagnostics {name}") for name in
-                ("queued", "written", "drained", "dropped_full", "dropped_contended", "clock_failures")}
+                ("queued", "written", "drained", "dropped_full", "clock_failures")}
     complete = snapshot.get("enabled") is True and counters["queued"] == 0 \
         and counters["written"] == counters["drained"] == count \
-        and all(counters[name] == 0 for name in ("dropped_full", "dropped_contended", "clock_failures"))
+        and all(counters[name] == 0 for name in ("dropped_full", "clock_failures"))
     return {"complete": complete, "raw_diagnostic_rows": count, **counters}
 
 
@@ -397,7 +404,7 @@ def resource_metrics(manifest, summary, renderer, window, frequency):
 def analyze_capture(directory):
     directory = Path(directory)
     manifest, summary, parent = [load_json(directory / name) for name in RAW_FILES[:3]]
-    require(manifest.get("schema_version") == parent.get("schema_version") == 1, "unsupported production capture schema")
+    require(manifest.get("schema_version") == parent.get("schema_version") == 2, "unsupported production capture schema")
     require(manifest.get("scenario") in SCENARIOS, "not a Q01/Q02 production capture")
     frequency = integer(manifest["qpc_frequency"], "QPC frequency", 1)
     renderer, source_a, source_b, consumer = [load_rows(directory / name) for name in RAW_FILES[3:]]
@@ -428,6 +435,10 @@ def analyze_capture(directory):
     healths = [health(summary["diagnostics"], renderer)] + [health(final["diagnostics"], rows)
                 for final, rows in zip(finals, (source_a, source_b, consumer))]
     complete = all(item["complete"] for item in healths) and summary.get("fixture_report_loss") == 0
+    deadlines = DEADLINES["analyze_deadlines"](native["Schedule"], native["Output"], sample, frequency)
+    deadline_verdict = deadlines["submission_verdict"]
+    if not healths[0]["complete"] and deadline_verdict is True:
+        deadline_verdict = None
     frame_rows, cpu = cpu_metrics(native["FrameCpu"], sample, frequency)
     renderer_gpu = gpu_metrics(frame_rows, native["Gpu"], renderer=True)
     dependencies = source_dependencies(frame_rows, native)
@@ -440,7 +451,8 @@ def analyze_capture(directory):
         and consumer_final.get("device_removed") is False
     marker_count = min(channel["valid"] for channel in markers["channels"])
     markers["expected_samples_at_60hz"] = duration * 60
-    markers["observation_coverage_complete"] = consumer_complete and marker_count >= duration * 60 * 0.999
+    markers["capture_count_at_least_nominal"] = consumer_complete and marker_count >= duration * 60 * 0.999
+    markers["output_frame_cohort_coverage_complete"] = False
     local_contexts = []
     for role, values in [("renderer_sources", native), ("producer_a", source_events[0]),
                          ("producer_b", source_events[1]), ("consumer", consumer_events)]:
@@ -518,8 +530,10 @@ def analyze_capture(directory):
                                     reason="inclusive wall upper bound; exceeding it does not isolate CPU work from opaque API waits"),
         "output_api_cadence": criterion(all(row["within_target"] for row in output_metrics) if complete else None, eligible),
         "producer_api_cadence": criterion(all(row["within_target"] for row in producers) if complete else None, eligible),
-        "deadline_misses": criterion(None, eligible,
-                                     reason="per-frame scheduled deadlines lack a QPC anchor; API call shortfall is not a deadline-miss measurement"),
+        "submission_deadlines": criterion(deadline_verdict, eligible,
+            reason="anchored native API observations; early acceptance does not prove GPU/display completion"),
+        "deadline_misses": criterion(False if deadlines["definite_failure_lower_bound_exceeds_budget"] else None, eligible,
+            reason="definite unsubmitted/late-start lower bounds can fail; early APIs cannot qualify normative output deadlines"),
         "editor_independence": criterion(independence["complete"] if complete else None,
                                          manifest.get("independence_seconds") == 60),
         "source_to_consumer_age": criterion(None, eligible,
@@ -546,6 +560,7 @@ def analyze_capture(directory):
     return {"directory": str(directory), "manifest": manifest, "prescribed_sample": eligible,
             "criteria": criteria, "cpu": cpu, "renderer_gpu": renderer_gpu, "other_contexts": local_contexts,
             "dependencies": dependencies, "outputs": output_metrics, "producers": producers,
+            "submission_deadlines": deadlines,
             "frame_age": markers, "resources": resources,
             "independence": independence,
             "active_runtime_error_history": active.get("failure"), "raw_sha256": raw_hashes(directory),
@@ -574,27 +589,30 @@ def analyze_series(directories, diagnostic=False):
     prescribed = not diagnostic and len(captures) == 3 and independent and same_inputs \
         and all(capture["prescribed_sample"] for capture in captures)
     statuses = [item["status"] for capture in captures for item in capture["criteria"].values()]
-    status = "FAILED_NATIVE" if "FAILED_NATIVE" in statuses else "UNAVAILABLE"
+    full_passed = prescribed and bool(statuses) and all(item == "PASSED_NATIVE" for item in statuses)
+    status = "PASSED_NATIVE" if full_passed else "FAILED_NATIVE" if "FAILED_NATIVE" in statuses else "UNAVAILABLE"
     renderer_items = [(name, item) for capture in captures for name, item in capture["criteria"].items()
                       if item["owner_phase"] == "M03" and item["owner_gate"] == 9]
     renderer_statuses = [item["status"] for _, item in renderer_items]
     renderer_passed = prescribed and bool(renderer_statuses) and all(item == "PASSED_NATIVE" for item in renderer_statuses)
     renderer_status = "PASSED_NATIVE" if renderer_passed else "FAILED_NATIVE" \
         if "FAILED_NATIVE" in renderer_statuses else "UNAVAILABLE"
-    return {"schema_version": 1, "evidence_kind": "production_golden_runtime_qualification",
+    return {"schema_version": 2, "evidence_kind": "production_golden_runtime_qualification",
             "scope": "prescribed_series" if prescribed else "diagnostic_incomplete_series",
             "prescribed_three_sample_series": prescribed, "status": status, "captures": captures,
             "renderer_qualification": {"owner_phase": "M03", "owner_gate": 9, "status": renderer_status,
                                        "qualified": renderer_passed,
                                        "required_criteria": sorted({name for name, _ in renderer_items})},
-            "qualified": prescribed and bool(statuses) and all(status == "PASSED_NATIVE" for status in statuses)}
+            "qualified": full_passed}
 
 
 def fingerprints(executable):
     paths = [ROOT / name for name in ("Cargo.toml", "Cargo.lock", "package.json", "package-lock.json")]
-    paths += [Path(__file__), Path(__file__).with_name("production_process.py"), ROOT / "apps/mapgyver/Cargo.toml",
+    paths += [Path(__file__), Path(__file__).with_name("production_process.py"),
+              Path(__file__).with_name("production_deadlines.py"), ROOT / "apps/mapgyver/Cargo.toml",
+              ROOT / "crates/golden_time/Cargo.toml", ROOT / "crates/golden_video/Cargo.toml",
               ROOT / "apps/mapgyver/build.rs"]
-    for directory in ("crates/golden_video/src", "crates/golden_core/hosts/desktop/src",
+    for directory in ("crates/golden_time/src", "crates/golden_video/src", "crates/golden_core/hosts/desktop/src",
                       "apps/mapgyver/tests/native_qualification", "packages/golden-video-ui"):
         paths += [path for path in (ROOT / directory).rglob("*") if path.suffix in (".rs", ".hlsl", ".ts", ".svelte", ".html")]
     def git(*arguments):

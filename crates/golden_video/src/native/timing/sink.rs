@@ -1,17 +1,17 @@
-use std::collections::VecDeque;
 use std::num::NonZeroUsize;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex, TryLockError};
+
+use concurrent_queue::ConcurrentQueue;
 
 use super::{Clock, CpuInterval, DiagnosticEvent, DiagnosticsConfig, DiagnosticsSnapshot};
 
 struct Shared {
-    rows: Mutex<VecDeque<DiagnosticEvent>>,
+    rows: ConcurrentQueue<DiagnosticEvent>,
     capacity: usize,
     written: AtomicU64,
     drained: AtomicU64,
     dropped_full: AtomicU64,
-    dropped_contended: AtomicU64,
     clock_failures: AtomicU64,
     clock: Clock,
 }
@@ -19,7 +19,8 @@ struct Shared {
 #[cfg(test)]
 mod tests;
 
-/// Fixed-size sink shared only by native workers and an explicit diagnostics consumer.
+/// Preallocated bounded MPMC sink. Reporting cannot hold a metadata lock against a producer;
+/// a full queue still drops explicitly instead of waiting for the reporting worker.
 #[derive(Clone)]
 pub(crate) struct Recorder(Arc<Shared>);
 
@@ -33,31 +34,22 @@ impl Recorder {
     pub(crate) fn new(config: DiagnosticsConfig) -> Self {
         assert!(config.capacity.get() <= 65536, "validated diagnostics capacity");
         Self(Arc::new(Shared {
-            rows: Mutex::new(VecDeque::with_capacity(config.capacity.get())),
+            rows: ConcurrentQueue::bounded(config.capacity.get()),
             capacity: config.capacity.get(),
             written: AtomicU64::new(0),
             drained: AtomicU64::new(0),
             dropped_full: AtomicU64::new(0),
-            dropped_contended: AtomicU64::new(0),
             clock_failures: AtomicU64::new(0),
             clock: Clock::new(),
         }))
     }
 
     pub(crate) fn push(&self, event: DiagnosticEvent) {
-        let mut rows = match self.0.rows.try_lock() {
-            Ok(rows) => rows,
-            Err(TryLockError::Poisoned(error)) => error.into_inner(),
-            Err(TryLockError::WouldBlock) => {
-                increment(&self.0.dropped_contended);
-                return;
-            }
-        };
-        if rows.len() == self.0.capacity {
+        // This private queue is never closed. Its only rejected-push state is capacity pressure.
+        if self.0.rows.push(event).is_err() {
             increment(&self.0.dropped_full);
             return;
         }
-        rows.push_back(event);
         increment(&self.0.written);
     }
 
@@ -77,9 +69,14 @@ impl Recorder {
     }
 
     pub(crate) fn drain(&self, output: &mut Vec<DiagnosticEvent>, budget: NonZeroUsize) -> usize {
-        let mut rows = self.0.rows.lock().unwrap_or_else(|error| error.into_inner());
-        let count = rows.len().min(budget.get());
-        output.extend(rows.drain(..count));
+        let mut count = 0;
+        while count < budget.get() {
+            let Ok(row) = self.0.rows.pop() else {
+                break;
+            };
+            output.push(row);
+            count += 1;
+        }
         let _ = self
             .0
             .drained
@@ -93,11 +90,10 @@ impl Recorder {
         DiagnosticsSnapshot {
             enabled: true,
             capacity: self.0.capacity,
-            queued: self.0.rows.lock().unwrap_or_else(|error| error.into_inner()).len(),
+            queued: self.0.rows.len(),
             written: self.0.written.load(Ordering::Relaxed),
             drained: self.0.drained.load(Ordering::Relaxed),
             dropped_full: self.0.dropped_full.load(Ordering::Relaxed),
-            dropped_contended: self.0.dropped_contended.load(Ordering::Relaxed),
             clock_failures: self.0.clock_failures.load(Ordering::Relaxed),
             qpc_frequency: self.0.clock.frequency,
         }
