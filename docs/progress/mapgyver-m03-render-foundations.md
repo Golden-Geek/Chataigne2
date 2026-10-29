@@ -381,3 +381,70 @@ bridge. M03 stays **4/9 = 44%**. App demand capture, channel-to-plan publication
 observations and identity through resource recreation remain next. Gates 4/7/8/9 and all
 Q01/Q02 recovery, timing, physical residency, display/DPI and shutdown qualification remain
 open with their original budgets and failure evidence.
+
+## App channel publication bridge — 2026-10-29
+
+Gate 5 now connects the existing authoring contracts to actual renderer demand. The app owns
+[`capture.rs`](../../apps/mapgyver/src/media/capture.rs) and
+[`rendering/`](../../apps/mapgyver/src/media/rendering/mod.rs); Golden imports no app model.
+The engine owner captures only demanded leaves after transaction settlement, with no device
+access, plan construction, wait or whole-tree snapshot. A host/preparation worker drives
+`ChannelRenderer`, which publishes immutable plans through public `VideoRuntime` APIs. GPU work
+starts only with consumer demand; the default workbench does not create a renderer by itself.
+
+The typed Media Manager owns a runtime-only instance and revision lifetime. Manager membership,
+media membership and channel revisions fence captured leaves across configure, enable changes,
+removal, undo and reload. Destruction explicitly invalidates guards even when history retains
+the removed node payload. These clocks and all source observations stay out of persistence.
+Multiple output routes share one target/pass for a channel. Size/filter changes retain its
+runtime identity; changing a Spout selector/storage contract allocates a fresh binding while
+the persistent `(MediaId, ChannelId)` remains unchanged.
+
+Golden's `PlanSubmission` carries bounded revision guards and optional external source roots.
+The compiler validates and charges those roots independently of presentation, permitting
+Automatic-size receiver warmup before metadata exists. An unresolved channel reports no extent;
+its consumer gets a transparent 1×1 GPU placeholder. That texture is never an authored or observed
+channel size. Missing and Disabled join the Rust-generated availability contract. Fixed extents
+remain distinct from unavailable sources; no missing reference redirects to another channel.
+
+Native source metadata changes wake a preparation owner, excluding frame counters. Metadata and
+layout guards are captured coherently; descriptor/session/pool changes or final stop invalidate
+the guard. Availability alone does not invalidate layout, preventing warmup starvation. The app
+rechecks availability before publication, and native missing-source handling supplies zero storage
+after loss. Project/device/source stamps reject old observations; retained guards are rechecked
+before preparation, frame-boundary installation and automatic reconstruction. A removed authored
+source cannot be resurrected by device rebuilding. `channels()` reports admitted desired metadata;
+reliable Installed outcomes identify the actual live generation.
+
+The [evidence packet](evidence/mapgyver-m03-channel-bridge-2026-10-29.json) records the final
+executable hashes and check scope. The explicit
+[`channel_rendering` test](../../apps/mapgyver/tests/channel_rendering.rs) uses two independent,
+owned GPU-only Spout producers on Intel LUID `00000000:00016c2a`. Two authored channels resolve
+at 2×2 and 3×2, then selector replacement, resize to 4×3, disconnect/reconnect, undo and codec
+reload preserve their references. Each ready checkpoint requires an Installed outcome for the
+latest request and a submitted frame from that exact generation. Old project/device/layout
+observations are rejected. Full controlled close/retirement followed by a fresh runtime/device
+on the same adapter also preserves the loaded references. Owned windows/processes retire before
+release, with a finite fixture watchdog. This tests metadata, bindings and installation; it is
+not an app-output pixel oracle or actual hardware device-removal test.
+
+Verified checks:
+
+- **92 regular tests pass:** 17 app, 73 Video unit and 2 public Video tests. Two Video hardware
+  tests remain ignored in that regular run. New coverage includes capture invalidation even with
+  history retention, source-only roots/limits, guard invalidation between prepare/install,
+  stale-device/project observations, shared targets and null-backend device reconstruction.
+- The explicit app hardware test and both explicit Golden hardware tests pass; the latter retain
+  their independent finite color/alpha/filter/blend and source/admission pixel assertions. The
+  rebuilt shared-host smoke passes window-only, Spout-only and resized combined phases.
+- Strict all-target Clippy passes for app/Video both by default and with both native smoke feature
+  groups. Default checks pass for MapGyver and Chataigne2. UI check reports zero errors/warnings;
+  UI lint, generated-contract drift, required root/Core formatters and whitespace checks pass.
+- Cargo.lock adds only app edges to the already locked Golden IO and UUID packages; no version,
+  Chataigne startup default, display or overlay setting changes.
+
+This closes fixed **gate 5**, bringing M03 to **5/9 = 56%**; overall stays **3/10 = 30%**. No
+denominator or qualification budget changed. Dedicated Media Manager controls, command nodes,
+callbacks and app-owned snippets remain M04; production Screen/preview demand belongs to M05.
+Gates 4/7/8/9 remain open, including genuine device-removal recovery and sustained Q01/Q02
+qualification. Next is the shared persistent asset/preparation boundary needed by Picture media.

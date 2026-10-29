@@ -6,6 +6,7 @@ use golden_io::{BoundedWorker, PayloadPool, RetirementPool, RevisionSource, Work
 use golden_time::{Clock, PlaybackRate, ShowPosition, SystemClock, TimeAuthority, TimeError, TimeSnapshot};
 use uuid::Uuid;
 
+use super::PlanSubmission;
 use crate::plan::RenderPlan;
 
 use super::error::{AdmissionError, RuntimeStartError};
@@ -240,6 +241,20 @@ impl VideoRuntime {
         activation: PlanActivation,
         late_policy: LatePolicy,
     ) -> Result<RequestId, AdmissionError> {
+        self.submit(project, PlanSubmission::new(plan), activation, late_policy)
+    }
+
+    /// Publishes guarded CPU input, including source-only demand, from a preparation worker.
+    pub fn submit(
+        &mut self,
+        project: ProjectEpoch,
+        plan: PlanSubmission,
+        activation: PlanActivation,
+        late_policy: LatePolicy,
+    ) -> Result<RequestId, AdmissionError> {
+        if plan.guards.len() > self.config.plan_limits.max_dependencies {
+            return Err(AdmissionError::InputTooLarge);
+        }
         let weight = plan
             .retained_bytes()
             .and_then(|bytes| bytes.checked_add(2 * size_of::<usize>()))

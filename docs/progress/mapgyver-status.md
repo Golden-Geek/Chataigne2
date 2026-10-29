@@ -4,21 +4,20 @@
 
 **Updated: 2026-10-29 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
-**Current topic:** M03 remains **4/9** accepted gates. Native source subscriptions now travel
-with each plan, replacing the startup-only binding restriction. Hardware checks cover sender
-replacement, overlapping workers/storage and live-image preservation on rejection. The
-[subscription checkpoint](mapgyver-m03-render-foundations.md#plan-owned-source-subscriptions--2026-10-29)
-and accepted [authoring checkpoint](mapgyver-m03-render-foundations.md#mediachannel-authoring-contracts--2026-10-29)
-still require the app-owned live binding bridge and resource-recreation proof for gate 5.
+**Current topic:** M03 has **5/9** accepted gates. The app-owned channel bridge now publishes
+guarded plans from demanded authored leaves, consumes fenced native source metadata and preserves
+channel identity through history/reload and controlled native resource recreation. The
+[channel bridge evidence](mapgyver-m03-render-foundations.md#app-channel-publication-bridge--2026-10-29)
+closes gate 5, building on the accepted authoring and plan-owned subscription boundaries.
 The [native input evidence](mapgyver-m03-render-foundations.md#bounded-spout-inputs--2026-10-29)
 and M02's [shell and lifecycle evidence](mapgyver-m02-shell.md) remain accepted.
 The [approved M01 route decision](mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28)
 remains scoped functional acceptance; renderer, physical-output and full-app qualification
 retain their M03/M05/M09 owners.
 
-**Next:** connect app channel demand/configuration to public runtime bindings with project,
-revision and source-observation fences (gate 5); retain recovery/qualification under gates 4/9.
-**Blocker:** none for the next M03 app-contract batch. Known cadence, memory-growth, geometry and display/input failures
+**Next:** implement the shared persistent asset/preparation boundary needed by Picture media
+(gate 7); retain native recovery, preview and qualification under gates 4/8/9.
+**Blocker:** none for the next M03 asset batch. Known cadence, memory-growth, geometry and display/input failures
 remain open under M03/M05/M09; their budgets and evidence are unchanged.
 
 | Phase | State | Progress | Done / total items |
@@ -26,7 +25,7 @@ remain open under M03/M05/M09; their budgets and evidence are unchanged.
 | [M00 Baseline/workloads](mapgyver-m00-baseline.md) | Complete locally | `████████████████████` 100% | 1/1 |
 | [M01 Functional route decision](#m01-acceptance-items) | Complete locally | `████████████████████` 100% | 4/4 |
 | [M02 Multi-app seams/shell](#m02-acceptance-items) | Complete locally | `████████████████████` 100% | 7/7 |
-| [M03 Rendering/channels](#m03-acceptance-items) | In progress | `█████████░░░░░░░░░░░` 44% | 4/9 |
+| [M03 Rendering/channels](#m03-acceptance-items) | In progress | `███████████░░░░░░░░░` 56% | 5/9 |
 | [M04 Source media](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M05 Screens/Surfaces/editors](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M06 Composition/editor](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
@@ -36,7 +35,7 @@ remain open under M03/M05/M09; their budgets and evidence are unchanged.
 
 Overall counts fully accepted milestones: `3 / 10 = 30%`; partial phases do not advance it.
 Phase percentages count closed acceptance items, rounded to the nearest whole percent
-(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 4 / 9 = 44%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
+(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 5 / 9 = 56%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
 its whole plan acceptance as one item unless a fixed breakdown is recorded here before
 implementation continues. On 2026-10-28 the user explicitly approved changing M01 from eight
 full-qualification items to four functional-route items, allowing M02 to start. The original
@@ -135,7 +134,7 @@ functional gate, not a retrospective pass of the original eight-item matrix.
 | Bounded worker/null runtime and atomic install | Done | [Runtime evidence](mapgyver-m03-render-foundations.md): Golden IO workers/fences, one preparation/latest desired plan, bounded reliable outcomes and resource admission, frame-boundary install, at most two in-flight uses/two retiring generations, completion-based worker-local destruction. Null resources simulate allocation/use; native proof stays open. |
 | D3D11/Spout backend and host integration | Done | [Native input/output evidence](mapgyver-m03-render-foundations.md#bounded-spout-inputs--2026-10-29): opaque GPU resources, explicit LUID/caller-device ownership, four-mode conversion/composition, independent-process Spout inputs and window/Spout output consumers pass. Shared-host regression passes. Full recovery/physical/steady-state budgets retain gates 4/8/9. |
 | Runtime observations and device recovery | Open | Source/output state, device removal/recreation, healthy-path independence, cancellation and bounded production recovery/retirement. |
-| App-owned media/channel backend contracts | Partial | [Authoring](mapgyver-m03-render-foundations.md#mediachannel-authoring-contracts--2026-10-29) covers typed IDs, backend operations, generated contracts and history/reload/scripts. [Plan-owned subscriptions](mapgyver-m03-render-foundations.md#plan-owned-source-subscriptions--2026-10-29) remove the native startup restriction. App binding and resource-recreation proof remain open. |
+| App-owned media/channel backend contracts | Done | [Authoring and live bridge](mapgyver-m03-render-foundations.md#app-channel-publication-bridge--2026-10-29): typed persistent references, backend defaults/operations, generated contracts, demanded-leaf capture and guarded plan publication. History/reload, source changes/resize/reconnect and controlled native runtime/device recreation preserve channel identity. Genuine device-removal recovery stays gate 4; dedicated manager controls/commands/templates stay M04. |
 | Shared production-time authority | Done | [Golden Time](../../crates/golden_time/README.md) supplies checked coordinates/rational mappings and authority/discontinuity epochs consumed by the threaded video scheduler; fake-time activation/shared-output and stale-epoch tests pass. Shared P14 plan records this evidence; audio/DMX acceptance remains open. |
 | Shared persistent asset/preparation boundary | Open | Stable asset IDs/locators, worker preparation/cancellation, relocation/relink, stale fencing and full live-resource admission; shared P15 evidence remains scoped. |
 | Native preview registration/geometry contracts | Open | Reusable bindings and Rust-generated control DTOs exercised by the native consumer; specialized editors/full DPI/input stay M05. |
@@ -225,7 +224,7 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | M00 Reconciliation/workloads | VERIFIED_LOCAL | [Checkout/public-boundary/hardware handoff](mapgyver-m00-baseline.md), [captured inventory](evidence/mapgyver-baseline-2026-10-27.json), and fixed [qualification workloads/budgets](mapgyver-qualification-contract.md) |
 | M01 Functional route decision | COMPLETE_LOCAL | [Approved decision](mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28): ordinary Tauri/Wry + D3D11 + pinned Spout sys binding permit the thin shell. Full qualification remains with M03/M05/M09. |
 | M02 Multi-app seams/shell | COMPLETE_LOCAL | [Shell/isolation and typed host lifecycle](mapgyver-m02-shell.md) close all seven fixed items. The real Windows smoke verifies STA/worker/window teardown; no GPU or physical-output qualification is inferred. |
-| M03 Rendering/channels | IN_PROGRESS | [Compiler, runtime, native execution and shared time](mapgyver-m03-render-foundations.md) close 4/9 fixed gates. Native recovery, app contracts, assets, preview and native qualification remain open. |
+| M03 Rendering/channels | IN_PROGRESS | [Compiler, runtime, native execution, channel bridge and shared time](mapgyver-m03-render-foundations.md) close 5/9 fixed gates. Native recovery, assets, preview and native qualification remain open. |
 | M04 Source media | NOT_STARTED | Solid Color, Picture, concurrent Spout scope defined |
 | M05 Screens/Surfaces/editors | NOT_STARTED | Output/crop/pin/calibration contracts defined |
 | M06 Composition/editor | NOT_STARTED | Instance/canvas/dependency contracts defined |
@@ -237,10 +236,11 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 The user approved the scope correction on 2026-10-28 and explicitly instructed continuation
 to M02. Its shell/isolation and typed host lifecycle deliveries now close all seven fixed
-items. M03's fixed compiler, worker/null-runtime and shared-time gates are now verified.
+items. M03's fixed compiler, worker/null-runtime, shared-time and app channel-contract gates are verified.
 The D3D11 compositor, Spout source workers, window/Spout outputs and shared-host consumer are
-now exercised. Implement app-owned media/channel IDs, references, backend size/default intents
-and generated contracts next, including live binding publication through public runtime APIs.
+exercised. The app-owned bridge publishes guarded channel plans and preserves references through
+history/reload and controlled native resource recreation. Implement the shared persistent asset
+IDs/locators and worker preparation/cancellation boundary next (gate 7), needed by Picture media.
 Native recovery, shared assets, preview geometry and qualification retain their existing owners.
 Deliver each coherent batch
 on `mapgyver` before starting the next. Preserve
@@ -387,6 +387,27 @@ Preserve Chataigne's unfinished engine/Spatializer P11 checkpoint (four of six f
 and its [separate ledger](implementation-status.md). Shared P12 boundary repairs belong to M02;
 P14/P15 time and asset contracts retain their shared Golden owners under M03. Root launch
 behavior is unchanged. No production host/backend/binding decision is final yet.
+
+## M03 channel bridge verification — 2026-10-29
+
+- [App channel publication bridge](mapgyver-m03-render-foundations.md#app-channel-publication-bridge--2026-10-29)
+  and [small evidence packet](evidence/mapgyver-m03-channel-bridge-2026-10-29.json) record demanded
+  leaf capture, history-retained-node invalidation, source-only warmup and public guarded submission.
+  Preparation runs outside the actor/UI; per-frame counters do not trigger plan publication.
+- **92 regular tests pass:** 17 app, 73 Video unit and 2 public Video. The explicit app hardware
+  test verifies independent 2×2/3×2 channels, selector change, 4×3 resize, reconnect, undo, codec
+  reload and controlled full runtime/device recreation on Intel LUID `00000000:00016c2a`.
+  Ready assertions require latest-request installation and a submitted frame of that generation.
+  Old project/device/layout observations are rejected; persistent references remain unchanged.
+- Both explicit Golden hardware tests and the rebuilt shared-host smoke pass. Those finite
+  Golden pixel assertions remain separate from the app bridge's metadata/installation assertions.
+  Genuine hardware device removal, sustained performance, physical output and DPI are unqualified.
+- Strict default/native all-target app/Video Clippy, both-app default checks, UI check/lint,
+  generated-contract drift, root/Core formatters and whitespace checks pass. Lockfile changes
+  add only two existing dependency edges. No display/overlay setting or qualification budget changes.
+- Gate 5 closes: **M03 5/9 = 56%, overall 3/10 = 30%**. The denominator stays nine.
+  Gates 4/7/8/9 remain open. Next is shared persistent assets/preparation; full Media Manager
+  controls/commands/templates and production Screen/preview consumers retain M04/M05 ownership.
 
 ## M03 plan-owned subscription checkpoint — 2026-10-29
 

@@ -13,6 +13,7 @@ mod identity;
 mod null;
 mod preparation;
 mod shared;
+mod submission;
 mod types;
 mod worker;
 
@@ -21,6 +22,7 @@ pub use core::{GenerationInfo, ResourceLimits, ResourceSnapshot};
 pub use error::{AdmissionError, RuntimeStartError};
 pub use identity::{CompletionToken, DeviceGeneration, GenerationId, PlanIdentity, PlanRevision, ProjectEpoch};
 pub use null::{NullConfig, NullControl, NullSnapshot};
+pub use submission::PlanSubmission;
 pub use types::{
     FailureCode, FrameObservation, LatePolicy, OutcomeKind, PlanActivation, RequestId, RuntimeConfig, RuntimeFailure,
     RuntimeOutcome, RuntimeSnapshot, RuntimeState,

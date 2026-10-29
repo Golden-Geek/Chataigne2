@@ -1,6 +1,35 @@
 use super::*;
 
 #[test]
+fn source_only_demand_is_explicit_bounded_and_does_not_require_a_presentation() {
+    let plan = RenderPlan {
+        external_textures: vec![external(1)],
+        ..Default::default()
+    };
+    assert!(plan.clone().compile(&limits()).unwrap().external_textures().is_empty());
+    let warmed = plan
+        .clone()
+        .compile_with_source_demands(&limits(), &[texture(1)])
+        .unwrap();
+    assert_eq!(warmed.external_textures().len(), 1);
+    assert!(warmed.outputs().is_empty());
+    assert!(matches!(
+        plan.clone().compile_with_source_demands(&limits(), &[texture(2)]),
+        Err(PlanError::MissingSourceDemand(_))
+    ));
+    assert!(
+        plan.compile_with_source_demands(
+            &PlanLimits {
+                max_external_textures: 1,
+                ..limits()
+            },
+            &[texture(1), texture(1)]
+        )
+        .is_err()
+    );
+}
+
+#[test]
 fn source_contracts_are_validated_before_pruning_and_charge_retained_selector_capacity() {
     use crate::plan::SpoutSource;
     use std::time::Duration;

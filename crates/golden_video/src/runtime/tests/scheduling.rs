@@ -1,6 +1,59 @@
 use super::*;
 
 #[test]
+fn device_recovery_does_not_reconstruct_a_retired_authoring_source() {
+    let mut h = Harness::new(config(), NullConfig::default());
+    let owner = golden_io::RevisionSource::default();
+    let mut input = crate::runtime::PlanSubmission::new(plan(20, 1, 1));
+    input.guards = Arc::from([owner.reader().guard_at(0)]);
+    let epoch = h.runtime().read_time().unwrap().epoch();
+    let project = h.runtime().project_epoch();
+    let request = h
+        .runtime_mut()
+        .submit(project, input, PlanActivation::NextFrame(epoch), LatePolicy::Activate)
+        .unwrap();
+    let (generation, _) = h.installed(request);
+    drop(owner);
+    h.null.lose_device();
+    h.advance(1);
+    h.wait("device reconstruction without retired source", |h| {
+        h.runtime()
+            .snapshot()
+            .resources
+            .is_some_and(|resources| resources.last_submitted.device != generation.device && !resources.device_lost)
+    });
+    assert!(h.runtime().snapshot().resources.unwrap().active.is_none());
+    assert_eq!(h.null.snapshot().created, 1);
+}
+
+#[test]
+fn authoring_guards_are_rechecked_after_preparation_before_scheduled_install() {
+    let mut h = Harness::new(config(), NullConfig::default());
+    let initial = h.runtime().read_time().unwrap();
+    let project = h.runtime().project_epoch();
+    let source = golden_io::RevisionSource::default();
+    let mut input = crate::runtime::PlanSubmission::new(plan(10, 1, 1));
+    input.guards = Arc::from([source.reader().guard_at(0)]);
+    let request = h
+        .runtime_mut()
+        .submit(
+            project,
+            input,
+            PlanActivation::Scheduled(ActivationStamp::new(
+                initial.epoch(),
+                MonotonicTime::from_nanos(1_000_000_000),
+            )),
+            LatePolicy::Activate,
+        )
+        .unwrap();
+    h.wait("guarded preparation", |h| h.runtime().snapshot().prepared);
+    source.advance();
+    h.advance(1_000_000_000);
+    assert_eq!(rejected_code(h.outcome(request)), FailureCode::StaleSource);
+    assert!(h.runtime().snapshot().resources.unwrap().active.is_none());
+}
+
+#[test]
 fn scheduled_shared_outputs_install_at_the_fake_deadline_without_reader_advancement() {
     let mut h = Harness::new(config(), NullConfig::default());
     let initial = h.runtime().read_time().unwrap();

@@ -112,7 +112,8 @@ state, and obtains project-file labels/extensions from the required runtime snap
 These boundaries distinguish implemented foundations from planned product features:
 
 - `apps/mapgyver/src/media/`: persistent media/channel nodes, typed references, backend operations,
-  source/size resolution and Rust-owned generated contracts; live render binding remains open.
+  source/size resolution and Rust-owned generated contracts. `capture.rs` captures demanded leaves;
+  `rendering/` owns worker-side guarded channel publication and source-observation fencing.
 - `apps/mapgyver/src/{screen,matrix}/`: planned app-owned models, operations and integration.
 - `apps/mapgyver/ui/`: future Screen, Surface Source, Composition and Matrix editors.
 - `crates/golden_video/`: compiler, worker/null runtime and optional D3D11 compositor with
@@ -122,8 +123,10 @@ These boundaries distinguish implemented foundations from planned product featur
 
 The optional typed native-presentation host lifecycle is implemented and exercised in M02.
 Complete renderer integration and native qualification retain their M03/M05 owners. The
-owned `native_video_smoke` executable under `apps/mapgyver/tests/native_video/` for the first
-real D3D11/runtime/host consumer. The main app still uses the thin workbench. See the
+owned `native_video_smoke` executable under `apps/mapgyver/tests/native_video/` exercises the
+D3D11/runtime/host consumer. `apps/mapgyver/tests/channel_rendering.rs` exercises authored channel
+publication with independent Spout producers, history/reload and controlled resource recreation.
+The main app still uses the thin workbench. See the
 [architecture](../architecture/mapgyver.md), [plan](../plan/MapGyver_Implementation_Plan.md) and
 [current acceptance](../progress/mapgyver-status.md).
 

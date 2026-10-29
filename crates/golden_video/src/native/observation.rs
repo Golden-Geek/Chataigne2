@@ -45,11 +45,32 @@ pub struct D3d11Snapshot {
 /// Metadata-only native observation reader. It never retains devices, contexts or textures.
 #[derive(Clone, Default)]
 pub struct D3d11Control {
+    pub(super) source_notifier: Arc<Mutex<Option<golden_io::WorkerNotifier>>>,
     state: Arc<Mutex<D3d11Snapshot>>,
-    sources: Arc<Mutex<Vec<Arc<Mutex<super::SourceSnapshot>>>>>,
+    sources: Arc<Mutex<Vec<SourceRegistration>>>,
+}
+
+#[derive(Clone)]
+pub(super) struct SourceRegistration {
+    pub state: Arc<Mutex<super::SourceSnapshot>>,
+    pub revision: golden_io::RevisionReader,
+}
+
+/// Coherent metadata and a fence for its source layout/session/pool lifetime.
+#[derive(Clone, Debug)]
+pub struct SourceObservationSnapshot {
+    /// Captured source metadata.
+    pub snapshot: super::SourceSnapshot,
+    /// Rechecked by guarded plan preparation and installation.
+    pub guard: golden_io::RevisionGuard,
 }
 
 impl D3d11Control {
+    /// Registers a preparation-worker wake for source state/layout/lifetime changes.
+    /// Frame/publication counters do not trigger this notification.
+    pub fn set_source_notifier(&self, notifier: golden_io::WorkerNotifier) {
+        *self.source_notifier.lock().unwrap_or_else(|error| error.into_inner()) = Some(notifier);
+    }
     /// Copies bounded native status without joining or polling GPU work.
     pub fn snapshot(&self) -> D3d11Snapshot {
         *self.state.lock().unwrap_or_else(|error| error.into_inner())
@@ -64,11 +85,36 @@ impl D3d11Control {
         let sources = self.sources.lock().unwrap_or_else(|error| error.into_inner()).clone();
         sources
             .iter()
-            .map(|source| *source.lock().unwrap_or_else(|error| error.into_inner()))
+            .map(|source| *source.state.lock().unwrap_or_else(|error| error.into_inner()))
             .collect()
     }
 
-    pub(super) fn register_sources(&self, sources: Vec<Arc<Mutex<super::SourceSnapshot>>>) {
-        *self.sources.lock().unwrap_or_else(|error| error.into_inner()) = sources;
+    /// Captures source data and its layout revision under the same metadata lock.
+    pub fn source_observations(&self) -> Vec<SourceObservationSnapshot> {
+        let sources = self.sources.lock().unwrap_or_else(|error| error.into_inner()).clone();
+        sources
+            .iter()
+            .map(|source| {
+                let snapshot = source.state.lock().unwrap_or_else(|error| error.into_inner());
+                SourceObservationSnapshot {
+                    snapshot: *snapshot,
+                    guard: source.revision.guard_at(source.revision.current()),
+                }
+            })
+            .collect()
+    }
+
+    pub(super) fn register_sources(&self, sources: Vec<SourceRegistration>) {
+        let mut current = self.sources.lock().unwrap_or_else(|error| error.into_inner());
+        let changed = current.len() != sources.len()
+            || current
+                .iter()
+                .zip(&sources)
+                .any(|(a, b)| !Arc::ptr_eq(&a.state, &b.state));
+        *current = sources;
+        drop(current);
+        if changed && let Some(notifier) = &*self.source_notifier.lock().unwrap_or_else(|error| error.into_inner()) {
+            notifier.notify();
+        }
     }
 }

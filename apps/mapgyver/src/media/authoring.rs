@@ -2,10 +2,10 @@ use std::collections::HashSet;
 
 use golden_core::app::add_default_project_nodes;
 use golden_core::edit::{Edit, NodeTree};
-use golden_core::node::{DeclId, Folder, Node, NodeId, NodeMetaPatch};
+use golden_core::node::{Node, NodeId, NodeMetaPatch};
 use serde_json::Value;
 
-use super::nodes::{ChannelNode, MediaNode};
+use super::nodes::{ChannelNode, MediaManagerNode, MediaNode};
 use super::protocol::*;
 use crate::app::{AppEngine, AppNode};
 
@@ -13,12 +13,10 @@ const MANAGER_DECL: &str = "mapgyver_media_manager";
 
 pub fn initialize(engine: &mut AppEngine) {
     add_default_project_nodes(engine);
-    let mut folder = Folder::new("Media Manager");
-    folder.node_data_mut().meta.decl_id = DeclId(MANAGER_DECL.into());
-    engine.add_node(folder.into(), None);
+    engine.add_node(MediaManagerNode::new().into(), None);
 }
 
-fn manager(engine: &AppEngine) -> Result<NodeId, String> {
+pub(super) fn manager(engine: &AppEngine) -> Result<NodeId, String> {
     let mut child = engine
         .nodes
         .get(engine.root)
@@ -26,7 +24,7 @@ fn manager(engine: &AppEngine) -> Result<NodeId, String> {
     let mut found = None;
     while let Some(id) = child {
         let node = engine.nodes.get(id).ok_or("missing root child")?;
-        if node.node_data().meta.decl_id.0 == MANAGER_DECL && matches!(node, AppNode::Folder(_)) {
+        if node.node_data().meta.decl_id.0 == MANAGER_DECL && matches!(node, AppNode::MediaManager(_)) {
             if found.is_some() {
                 return Err("duplicate Media Manager".into());
             }
@@ -59,7 +57,7 @@ fn channel_id(engine: &AppEngine, reference: ChannelReference) -> Result<NodeId,
     if node.node_data().parent != Some(parent) {
         return Err("channel belongs to another media".into());
     }
-    if node.definition.media_kind() != kind {
+    if node.definition().media_kind() != kind {
         return Err("channel source does not match its media kind".into());
     }
     Ok(id)
@@ -73,7 +71,7 @@ pub fn channel(engine: &AppEngine, reference: ChannelReference) -> Result<Channe
     Ok(ChannelSnapshot {
         reference,
         label: node.node_data().meta.label.clone(),
-        definition: node.definition.clone(),
+        definition: node.definition().clone(),
     })
 }
 
@@ -183,7 +181,7 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
                         .as_any_mut()
                         .downcast_mut::<ChannelNode>()
                         .ok_or("channel type changed")?;
-                    channel.definition = definition;
+                    channel.set_definition(definition);
                     Ok(())
                 }),
             });
@@ -260,7 +258,7 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
                 }
             }
             AppNode::MediaChannel(node) => {
-                node.definition.validate()?;
+                node.definition().validate()?;
                 let parent = node
                     .node_data()
                     .parent
@@ -269,7 +267,7 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
                 let AppNode::Media(parent) = parent else {
                     return Err("channel owner is not media".into());
                 };
-                if parent.kind != node.definition.media_kind() {
+                if parent.kind != node.definition().media_kind() {
                     return Err("channel source does not match its media kind".into());
                 }
             }

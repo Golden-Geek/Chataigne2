@@ -20,8 +20,7 @@ fn keyed_mutex_positive_timeout_and_abandoned_codes_are_not_success() {
     assert!(acquired(HRESULT(0x8000_4005_u32 as i32)).is_err());
 }
 
-#[test]
-fn publication_coalescing_cannot_revive_a_disabled_or_retiring_input() {
+fn fixture() -> (Arc<Shared>, TextureDescriptor) {
     let descriptor = TextureDescriptor {
         extent: Extent2D::new(1, 1).unwrap(),
         format: PixelFormat::Rgba8Unorm,
@@ -47,6 +46,8 @@ fn publication_coalescing_cannot_revive_a_disabled_or_retiring_input() {
         hresult: None,
     }));
     let shared = Arc::new(Shared {
+        observation_revision: Default::default(),
+        source_notifier: Default::default(),
         latest: Mutex::new(None),
         status,
         active: AtomicBool::new(false),
@@ -59,6 +60,33 @@ fn publication_coalescing_cannot_revive_a_disabled_or_retiring_input() {
         notify: None,
         worker_notify: Mutex::new(None),
     });
+    (shared, descriptor)
+}
+
+#[test]
+fn layout_observation_fences_ignore_frames_and_availability_but_end_with_the_pool() {
+    let (shared, descriptor) = fixture();
+    let reader = shared.observation_revision.reader();
+    let initial = reader.guard_at(reader.current());
+    shared.update(|status| status.sdk_calls += 1);
+    shared.state(SourceState::WaitingForSender);
+    assert!(
+        initial.is_current(),
+        "frame/availability changes do not invalidate source warmup"
+    );
+    shared.update(|status| status.observed_descriptor = Some(descriptor));
+    assert!(!initial.is_current());
+    let layout = reader.guard_at(reader.current());
+    shared.update(|status| status.pool_generation += 1);
+    assert!(!layout.is_current());
+    let lifetime = reader.guard_at(reader.current());
+    shared.state(SourceState::Stopped);
+    assert!(!lifetime.is_current());
+}
+
+#[test]
+fn publication_coalescing_cannot_revive_a_disabled_or_retiring_input() {
+    let (shared, descriptor) = fixture();
     // This metadata-only fixture uses an owned kernel event; no GPU import is attempted.
     let handle = unsafe { CreateEventW(None, true, false, None) }.unwrap();
     let surface = Arc::new(Surface {

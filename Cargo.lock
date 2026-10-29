@@ -60,6 +60,7 @@ version = "0.1.0"
 dependencies = [
  "golden_codegen_support",
  "golden_core",
+ "golden_io",
  "golden_time",
  "golden_video",
  "serde",
@@ -68,6 +69,7 @@ dependencies = [
  "tauri-build",
  "tempfile",
  "ts-rs",
+ "uuid",
  "windows 0.61.3",
 ]
 

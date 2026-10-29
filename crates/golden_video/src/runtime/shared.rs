@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use golden_io::{RetainedPayload, RevisionGuard, WorkerNotifier};
 use golden_time::{Clock, PlaybackRate, ShowPosition, TimeError, TimeSnapshot};
 
-use crate::plan::RenderPlan;
+use super::PlanSubmission;
 
 use super::identity::{PlanIdentity, ProjectEpoch};
 use super::types::{
@@ -14,7 +14,7 @@ use super::types::{
 pub(super) struct DesiredPlan {
     pub request: RequestId,
     pub identity: PlanIdentity,
-    pub input: RetainedPayload<RenderPlan>,
+    pub input: RetainedPayload<PlanSubmission>,
     pub project_guard: RevisionGuard,
     pub desired_guard: RevisionGuard,
     pub activation: PlanActivation,
@@ -25,6 +25,7 @@ pub(super) struct DesiredPlan {
 mod tests;
 
 pub(super) struct PlanRequest {
+    pub guards: Arc<[golden_io::RevisionGuard]>,
     pub request: RequestId,
     pub identity: PlanIdentity,
     pub project_guard: RevisionGuard,
@@ -36,6 +37,7 @@ pub(super) struct PlanRequest {
 impl DesiredPlan {
     pub fn request_info(&self) -> PlanRequest {
         PlanRequest {
+            guards: self.input.guards.clone(),
             request: self.request,
             identity: self.identity,
             project_guard: self.project_guard.clone(),

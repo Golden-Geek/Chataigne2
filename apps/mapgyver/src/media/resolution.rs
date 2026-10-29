@@ -86,6 +86,8 @@ pub enum SourceObservation {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub enum ChannelAvailability {
+    Missing,
+    Disabled,
     Ready,
     Unconfigured,
     Unavailable,

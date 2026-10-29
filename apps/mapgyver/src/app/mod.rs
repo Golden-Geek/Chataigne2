@@ -2,6 +2,7 @@ use golden_core::app::{DesktopHostConfig, FrontendDevServerConfig, ProjectFileSp
 
 golden_core::define_node_enum!(
     pub enum AppNode {
+        MediaManager(crate::media::MediaManagerNode),
         Media(crate::media::MediaNode),
         MediaChannel(crate::media::ChannelNode),
     }

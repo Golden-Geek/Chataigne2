@@ -47,6 +47,12 @@ input disposal. The runtime retains one latest desired plan, one CPU preparation
 candidate, at most two submitted batches and two retiring generations. Request credits bound
 accepted work plus undrained terminal outcomes; a stalled consumer cannot block resource service
 or silently discard admitted results. Project/device/publication identities fence stale work.
+`PlanSubmission` adds bounded app-neutral `golden_io::RevisionGuard` fences and source-only demand.
+Guards are rechecked before preparation and installation and retained for device reconstruction;
+an invalidated source cannot be resurrected by automatic rebuilding. `submit_plan` remains the
+ordinary graph-only entrypoint. `RenderPlan::compile_with_source_demands` validates external roots
+and retains their resources without requiring a presentation dependency, allowing receiver warmup
+before an Automatic source has an extent. Guard and source-root storage count toward input limits.
 Admission linearizes at the final current-generation check; a use already admitted before a
 concurrent project/publication fence may finish afterward. Project-change completion waits for
 those uses, and old frames never become the replacement project's latest frame observation.
@@ -102,13 +108,18 @@ their worker has actually disconnected after native cleanup. Source/worker press
 explicit resource-pressure outcome without waiting for retirement on the renderer. Source
 snapshots carry a subscription UUID in addition to device/texture/session identity.
 
-App-owned channel demand/publication and source-observation fencing remain integration work.
+`D3d11Control::set_source_notifier` wakes a preparation owner on source state/layout/session/pool
+or registry changes, excluding per-frame counters. `source_observations` captures metadata and its
+layout revision guard under one metadata lock. Descriptor/session/pool changes and final stop
+invalidate the guard; availability alone does not, avoiding warmup starvation. An app rechecks
+availability before publication; native missing-source handling supplies zero storage after loss.
+MapGyver's app-owned channel publisher consumes these APIs; Golden imports no app model types.
 The SDK can transiently open a changed foreign alias
 before post-update validation; owned pools and published descriptors stay bounded, but this is
 not a hard driver-residency guarantee.
 
 Dynamic preview geometry, physical backing-buffer resize, native device-loss proof, full
-source/output recovery, app media/channel integration, persistent assets and sustained
+source/output recovery, production output/editor integration, persistent assets and sustained
 native qualification remain in the [M03 acceptance gates](../../docs/progress/mapgyver-status.md#m03-acceptance-items).
 The [input/native evidence](../../docs/progress/mapgyver-m03-render-foundations.md#bounded-spout-inputs--2026-10-29)
 closes the native execution mechanism gate; full native qualification stays open.

@@ -58,8 +58,10 @@ three-slot GPU bridges. Prepared resource demand warms inputs; dropping demand c
 polling, while source/renderer completion independently gates native cleanup. Actual source size
 is an observation for backend plan preparation, separate from admitted maximum storage. Native
 source subscriptions now accompany their revisioned plans, with fixed worker/storage capacity
-covering all overlapping subscriptions and asynchronous retirement. App-owned channel binding
-publication, preview geometry, native recovery and full GPU qualification remain open.
+covering all overlapping subscriptions and asynchronous retirement. Guarded `PlanSubmission`
+inputs support source-only warmup and carry authoring/source-layout revisions through installation
+and automatic device reconstruction. Preview geometry, native recovery and full GPU qualification
+remain open.
 See [Golden Video](../../crates/golden_video/README.md) and
 [Golden Time](../../crates/golden_time/README.md) for the public boundaries.
 
@@ -68,7 +70,13 @@ Its lifecycle delegates `mapgyver.media.edit` to Golden's existing atomic app-op
 UI, QuickJS and headless callers share validation, exact result identities and history. Each
 channel is a separate authored node; observations and native resources are not persisted there.
 Rust emits app intents and canonical Golden Video extent/descriptor/filter declarations for
-the UI. Native binding publication and source-observation fencing remain pending integration.
+the UI. `media/capture.rs` copies demanded leaves after transaction settlement; its runtime-only
+manager/membership/channel revisions fence history-retained removals and reload. The app's
+`media/rendering/` owner runs on a host/preparation worker, resolves source metadata and publishes
+guarded plans through public Video APIs. Shared channel consumers reuse one target; native source
+layout/session/pool guards and project/device stamps reject stale observations. Source-state
+notifications exclude per-frame counters. The owned native channel harness exercises the bridge;
+dedicated Media Manager controls and production Screen/preview consumers remain M04/M05 work.
 
 For queued native-derived edits, `golden_engine::edit::EditQueue::retain_payload` attaches an
 already-admitted Golden IO payload lease to the requests currently in the queue. Admission survives

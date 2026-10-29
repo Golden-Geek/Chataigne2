@@ -51,6 +51,11 @@ pub(super) fn start(
                         FailureCode::Superseded,
                         "newer desired plan published",
                     ))
+                } else if !job.desired.input.current() {
+                    Err(RuntimeFailure::new(
+                        FailureCode::StaleSource,
+                        "authoring source changed during preparation",
+                    ))
                 } else {
                     (*job.desired.input)
                         .clone()

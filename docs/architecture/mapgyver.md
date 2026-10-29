@@ -5,8 +5,8 @@ workbench, parameter system, scripting, transport, and persistence foundations. 
 is Windows x64 (`x86_64-pc-windows-msvc`). The M02 shell/shared-host seams are implemented, and
 M03 has introduced Golden Video's compiler, bounded worker runtime, shared Golden Time scheduling
 and a D3D11 compositor with bounded Spout inputs and window/Spout outputs. Media/channel
-authoring contracts now use the shared engine/history/codec; their live renderer integration,
-mapping, Matrix and the specialized editors below remain planned. Execution belongs to the
+authoring contracts use the shared engine/history/codec and publish guarded channel plans through
+an app-owned preparation boundary. Mapping, Matrix and the specialized editors below remain planned. Execution belongs to the
 [MapGyver plan](../plan/MapGyver_Implementation_Plan.md) and its
 [status ledger](../progress/mapgyver-status.md).
 
@@ -18,7 +18,7 @@ editors. Golden owns reusable execution and presentation mechanisms.
 | Boundary | Responsibility |
 | --- | --- |
 | `apps/mapgyver/src/app/` | Thin lifecycle/identity/Golden startup; registers media nodes and delegates app operations. New projects include Dashboard and the media authoring container; full manager features remain M04/M05 |
-| `apps/mapgyver/src/media/` | Implemented persistent media/channel identity, source/size contracts and atomic backend operations. Runtime binding and expanded media/editor integration continue in M03/M04/M06 |
+| `apps/mapgyver/src/media/` | Persistent media/channel identity, source/size contracts, atomic backend operations, demanded-leaf capture and worker-side channel-plan publication. Expanded media/editor integration continues in M04/M06 |
 | `apps/mapgyver/src/screen/` (planned) | Screen/surface definitions, crop/pin/calibration authoring, output policy, backend intents and integration nodes |
 | `apps/mapgyver/src/matrix/` (planned) | Cells, layers, groups, columns, transitions, exported channels, app associations and demand policy |
 | `apps/mapgyver/ui/` | Svelte 5 Screen, Surface Source, Composition and Matrix editors; app registrations and focused editor stores |
@@ -56,8 +56,11 @@ renderer fence and writers through their source-device fence. Admitted maximum e
 capture/bridge pools; actual size observations drive backend plan preparation without choosing
 app size policy. Source subscriptions now travel atomically with each plan; fixed global
 worker/storage capacity covers overlap through retirement, with fresh IDs for changed bindings.
-The app's channel-demand/publication bridge remains pending. Dynamic preview
-geometry remains open; the main app is still the thin workbench. See the
+The app's `media/rendering/` bridge publishes demanded channel plans through public Golden APIs.
+Authoring and source-layout guards survive preparation and installation; project/device stamps
+reject stale observations. Source metadata changes wake a preparation worker, not the engine loop.
+The owned native channel harness exercises this bridge; the main workbench does not start GPU
+work without a host consumer's demand. Dynamic preview geometry remains open. See the
 [runtime/native evidence](../progress/mapgyver-m03-render-foundations.md).
 
 The filesystem sketch above names responsibility boundaries, not a requirement to create one
@@ -104,7 +107,19 @@ extent: Automatic may remain unresolved, while Fixed retains its extent during s
 The initial backend canvas is 1920×1080; dimensions are nonzero and at most 16384 texels per
 axis. Shared Texture defaults to an unconfigured exact selector and explicit BGRA8/sRGB/straight
 alpha with that maximum extent. Runtime admission can impose lower budgets. Runtime source
-observations are not project data; wiring them to fenced dynamic bindings remains M03 work.
+observations are not project data. `media/capture.rs` copies only demanded authored leaves after
+transaction settlement. Manager-instance, membership and channel revision guards invalidate old
+captures on edits, removal, history and reload, including nodes retained by history. These clocks
+are runtime-only. `media/rendering/` runs on a host/preparation worker and publishes immutable
+plans with those guards. Multiple consumers share one channel target; changing a Spout contract
+allocates a fresh runtime binding without changing persistent channel IDs.
+
+Automatic channels without source metadata remain unresolved. Source-only demand warms the
+receiver while consumers receive a transparent 1×1 GPU placeholder; that placeholder is never
+reported as the channel's resolved extent. Missing, disabled, unconfigured and unavailable states
+remain explicit. Source-layout/session/pool guards fence resize/replacement across installation.
+Availability changes trigger preparation notifications without invalidating layout alone, allowing
+receiver warmup; native missing-source handling supplies zero storage during subsequent loss.
 
 Each channel has an authored size policy, either `Automatic` or `Fixed { width, height }`, and a
 separate observed resolved extent/status. Automatic uses picture/Spout source metadata, an

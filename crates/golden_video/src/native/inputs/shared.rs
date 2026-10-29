@@ -13,6 +13,8 @@ pub(super) struct Publication {
 }
 
 pub(super) struct Shared {
+    pub observation_revision: golden_io::RevisionSource,
+    pub source_notifier: Arc<Mutex<Option<WorkerNotifier>>>,
     pub latest: Mutex<Option<Publication>>,
     pub status: Arc<Mutex<SourceSnapshot>>,
     pub active: AtomicBool,
@@ -95,16 +97,48 @@ impl Shared {
     }
 
     pub fn update(&self, update: impl FnOnce(&mut SourceSnapshot)) {
-        update(&mut self.status.lock().unwrap_or_else(|error| error.into_inner()));
+        let mut status = self.status.lock().unwrap_or_else(|error| error.into_inner());
+        let before = (
+            status.state,
+            status.observed_descriptor,
+            status.generation,
+            status.pool_generation,
+        );
+        let layout_before = (status.observed_descriptor, status.generation, status.pool_generation);
+        update(&mut status);
+        if layout_before != (status.observed_descriptor, status.generation, status.pool_generation) {
+            self.observation_revision.advance();
+        }
+        let changed = before
+            != (
+                status.state,
+                status.observed_descriptor,
+                status.generation,
+                status.pool_generation,
+            );
+        drop(status);
+        if changed {
+            self.notify_source();
+        }
+    }
+
+    fn notify_source(&self) {
+        if let Some(notifier) = &*self.source_notifier.lock().unwrap_or_else(|error| error.into_inner()) {
+            notifier.notify();
+        }
     }
 
     pub fn state(&self, state: SourceState) {
         let mut status = self.status.lock().unwrap_or_else(|error| error.into_inner());
         let changed = status.state != state;
+        if changed && state == SourceState::Stopped {
+            self.observation_revision.advance();
+        }
         status.state = state;
         drop(status);
         if changed {
             self.wake_renderer();
+            self.notify_source();
         }
     }
 }

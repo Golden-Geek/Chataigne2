@@ -65,6 +65,8 @@ pub enum LatePolicy {
 /// Bounded diagnostic category, separate from backend/native handles.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FailureCode {
+    /// An app-owned source lifetime/revision changed before activation or reconstruction.
+    StaleSource,
     /// Render-plan validation failed.
     InvalidPlan,
     /// Allocation or bounded-retirement admission failed.

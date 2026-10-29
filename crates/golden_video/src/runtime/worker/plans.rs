@@ -8,6 +8,12 @@ use crate::runtime::shared::PlanRequest;
 use crate::runtime::types::{FailureCode, FrameObservation, LatePolicy, PlanActivation, RuntimeFailure};
 
 fn activation(request: &PlanRequest, time: TimeSnapshot) -> Result<ActivationState, RuntimeFailure> {
+    if !request.guards.iter().all(golden_io::RevisionGuard::is_current) {
+        return Err(RuntimeFailure::new(
+            FailureCode::StaleSource,
+            "authoring source changed before installation",
+        ));
+    }
     if !request.project_guard.is_current() {
         return Err(RuntimeFailure::new(FailureCode::StaleProject, "project replaced"));
     }

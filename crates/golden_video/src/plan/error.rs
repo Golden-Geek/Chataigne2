@@ -49,6 +49,8 @@ pub enum PlanError {
     DuplicateOutput(OutputId),
     /// Source selector, polling interval or actual/maximum image contract is invalid.
     InvalidSourceBinding(TextureId),
+    /// A source-only demand is not an external texture declared by this plan.
+    MissingSourceDemand(TextureId),
     /// A pass references a texture that has no definition or writer.
     MissingPassInput {
         /// Pass containing the missing reference.
@@ -107,6 +109,11 @@ pub enum PlanError {
 impl fmt::Display for PlanError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::MissingSourceDemand(texture) => write!(
+                formatter,
+                "source demand {} is not a declared external texture",
+                texture.get()
+            ),
             Self::GraphLimitExceeded { kind, actual, limit } => {
                 write!(formatter, "submitted {kind} count {actual} exceeds limit {limit}")
             }

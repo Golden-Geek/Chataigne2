@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "scope": "App-owned demanded channel capture, guarded runtime publication and persistent identity through controlled native resource recreation",
+  "source_base_commit": "5432b0524b87e3c699025365761b86ba2c379db6",
+  "local_date": "2026-10-29",
+  "checks_observed_by_utc": "2026-10-29T08:50:19Z",
+  "build_profile": "dev",
+  "selected_adapter": {"index": 0, "description": "Intel(R) Graphics", "luid": "00000000:00016c2a", "software": false},
+  "artifacts_sha256": {
+    "target/debug/native_source_fixture.exe": "77D1ED82FCDD41282A36298A8B0A6162D32FB215E786CB12BD676EC8C08B9FDF",
+    "target/debug/native_video_smoke.exe": "D5E611D6A9E6FF20B6F1113ED1E62230290194148B74FAEF6A545751118F8D85",
+    "target/debug/deps/golden_video-ede22e91af695b4e.exe": "62469FF83490BF62DE264675A53EC5F7CC6D83F7C84DE4A7055E1EB200E3FEBA",
+    "target/debug/deps/channel_rendering-a8a47cedd2d9f782.exe": "7246D8BE3B1D88E4A3C17C4649BF456357A58FCE17A4B142E027AC7269CBDB5C"
+  },
+  "regular_tests": {
+    "command": "cargo test --locked -p MapGyver -p golden_video --features MapGyver/native-video --quiet",
+    "exit_code": 0,
+    "app_passed": 17,
+    "video_unit_passed": 73,
+    "video_public_passed": 2,
+    "video_hardware_ignored": 2,
+    "total_passed": 92,
+    "coverage": [
+      "Demanded leaf capture count bound and exact-owner lookup without fallback",
+      "Configuration, enable, removal, history-retained node, undo and project reload fences",
+      "Shared targets, size/undo, missing/unconfigured placeholders and Automatic source warmup",
+      "Source-only roots bounded and validated independently of presentation outputs",
+      "Revision invalidated after prepare rejects scheduled installation as StaleSource",
+      "Retired authored source is not reconstructed after null-backend device loss",
+      "Stale device/project source observations and unchanged refresh",
+      "Rust-generated TypeScript contract drift"
+    ]
+  },
+  "app_native_test": {
+    "command": "cargo test --locked -p MapGyver --features native-video-smoke --test channel_rendering -- --ignored --nocapture --test-threads=1",
+    "exit_code": 0,
+    "passed": 1,
+    "test_runtime_seconds": 1.50,
+    "frames_before_controlled_resource_recreation": 47,
+    "producer_processes": 2,
+    "producer_pixels": "GPU-generated solid colors; commands carry metadata only",
+    "media_id": "6a921ace-b0b0-4105-baa4-4733546b2708",
+    "channel_ids": ["f3ced517-0ae7-410b-9fd1-cdcfe0de4262", "197c4fbb-282e-48bb-8ce8-73e1eeac4ccb"],
+    "initial_extents": [[2,2],[3,2]],
+    "selector_replacement_extents": [[3,2],[3,2]],
+    "resized_extents": [[4,3],[4,3]],
+    "undo_extents": [[2,2],[4,3]],
+    "reconnected_reloaded_recreated_extents": [[2,2],[3,2]],
+    "selector_change_preserves_target_and_replaces_binding": true,
+    "sender_resize_reconnect_preserve_renderer_device": true,
+    "ready_requires_latest_request_installed_and_matching_submitted_frame": true,
+    "stale_project_device_layout_observations_rejected": true,
+    "codec_reload_replaces_runtime_project_epoch": true,
+    "persistent_channel_references_preserved": true,
+    "resource_recreation": "Controlled full close/retirement, followed by a fresh runtime/device on the same adapter with loaded authored references",
+    "actual_hardware_device_removal_tested": false,
+    "owned_resource_cleanup": "RAII producer kill/wait and renderer retirement; 60-second fixture watchdog",
+    "pixel_readback_in_app_test": false
+  },
+  "golden_native_regression": {
+    "command": "cargo test --locked -p golden_video --features d3d11 -- --ignored --nocapture --test-threads=1",
+    "exit_code": 0,
+    "passed": 2,
+    "public_runtime_frames": 5,
+    "source_pixel_observations": 11,
+    "shader_pixel_cases": 9,
+    "component_tolerance_8bit_units": 2,
+    "pixel_oracles": "mapgyver-m03-plan-sources-2026-10-29.json#/hardware_tests",
+    "live_generation_preserved_on_source_capacity_rejection": true,
+    "scope": "Independent finite test-only readbacks; production frame path has no readback"
+  },
+  "shared_host_regression": {
+    "command": "target/debug/native_video_smoke.exe --adapter 0",
+    "exit_code": 0,
+    "phases": [
+      {"name": "window-only", "outputs": 1, "batches": 5, "api_accepted": 5, "busy": 0, "unavailable": 0, "peak_reserved_bytes": 3953712},
+      {"name": "spout-only", "outputs": 1, "batches": 10, "api_accepted": 10, "busy": 0, "unavailable": 0, "peak_reserved_bytes": 5142576},
+      {"name": "shared-producer-after-client-resize", "outputs": 2, "batches": 15, "api_accepted": 20, "busy": 0, "unavailable": 0, "peak_reserved_bytes": 5372976}
+    ],
+    "runtime_retired_before_owned_hwnd_release": true,
+    "scope": "API acceptance and lifetime smoke, not scanout/cadence qualification"
+  },
+  "other_checks": {
+    "strict_clippy_default_and_native_all_targets_app_video": "passed",
+    "default_check_both_apps": "passed",
+    "mapgyver_ui_check": {"errors": 0, "warnings": 0},
+    "mapgyver_ui_lint": "passed",
+    "root_and_core_cargo_fmt": "passed",
+    "lockfile_change": "Only MapGyver edges to existing golden_io and uuid entries; no version changes"
+  },
+  "acceptance": {
+    "closed_gate": "M03 gate 5",
+    "m03_done": 5,
+    "m03_total": 9,
+    "overall_complete_phases": 3,
+    "overall_total_phases": 10,
+    "remaining_m03_gates": [4,7,8,9],
+    "next": "Shared persistent asset/preparation boundary for Picture media",
+    "limitations": [
+      "Main workbench has no production Screen/preview consumer or dedicated Media Manager controls yet",
+      "Actual device-removal, sustained Q01/Q02 budgets, physical output/DPI/input remain unqualified",
+      "Existing qualification budgets/failures unchanged; no display or overlay setting changed"
+    ]
+  }
+}

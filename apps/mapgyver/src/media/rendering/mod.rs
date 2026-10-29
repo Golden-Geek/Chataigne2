@@ -1,0 +1,172 @@
+//! App-owned channel preparation/publication. Construct and drive this owner on a host or
+//! preparation worker, never the engine/UI thread. Golden owns frame cadence and GPU cleanup.
+
+mod plan;
+mod sources;
+
+use super::capture::CapturedChannels;
+use super::protocol::{ChannelReference, ChannelSource};
+use super::resolution::ChannelResolution;
+use golden_video::plan::PlanLimits;
+use golden_video::runtime::{LatePolicy, PlanActivation, RequestId, RuntimeOutcome, RuntimeSnapshot, VideoRuntime};
+use golden_video::{OutputId, TextureId};
+pub use sources::SourceObservations;
+use std::collections::HashMap;
+
+#[cfg(test)]
+mod tests;
+
+#[derive(Clone, Copy, Debug)]
+pub struct ChannelRoute {
+    pub output: OutputId,
+    pub channel: ChannelReference,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PreparedChannel {
+    pub reference: ChannelReference,
+    pub resolution: ChannelResolution,
+    pub target: TextureId,
+    pub source: Option<TextureId>,
+}
+
+#[derive(Clone)]
+struct Entry {
+    target: TextureId,
+    source: Option<(TextureId, ChannelSource)>,
+}
+
+pub struct ChannelRenderer {
+    runtime: VideoRuntime,
+    limits: PlanLimits,
+    project: Option<uuid::Uuid>,
+    next_texture: u64,
+    entries: HashMap<ChannelReference, Entry>,
+    desired: Option<(CapturedChannels, Vec<ChannelRoute>)>,
+    observations: Option<SourceObservations>,
+    channels: Vec<PreparedChannel>,
+    latest_request: Option<RequestId>,
+}
+
+impl ChannelRenderer {
+    pub fn new(runtime: VideoRuntime, limits: PlanLimits) -> Self {
+        Self {
+            runtime,
+            limits,
+            project: None,
+            next_texture: 0,
+            entries: HashMap::new(),
+            desired: None,
+            observations: None,
+            channels: Vec::new(),
+            latest_request: None,
+        }
+    }
+
+    /// Captures metadata only. Its project/device stamps are rechecked before use.
+    pub fn source_observations(&self) -> SourceObservations {
+        sources::capture(&self.runtime)
+    }
+
+    pub fn publish(&mut self, capture: CapturedChannels, routes: Vec<ChannelRoute>) -> Result<RequestId, String> {
+        if !capture.is_current() {
+            return Err("captured channels are stale".into());
+        }
+        if self.project.is_some_and(|project| project != capture.project) {
+            self.runtime.replace_project().map_err(|error| error.to_string())?;
+            self.entries.clear();
+            self.observations = None;
+            self.desired = None;
+            self.latest_request = None;
+            self.channels.clear();
+        }
+        self.project = Some(capture.project);
+        let observations = self.source_observations();
+        self.publish_observed(capture, routes, observations)
+    }
+
+    pub fn publish_observed(
+        &mut self,
+        capture: CapturedChannels,
+        routes: Vec<ChannelRoute>,
+        observations: SourceObservations,
+    ) -> Result<RequestId, String> {
+        if !capture.is_current() || self.project.is_some_and(|project| project != capture.project) {
+            return Err("captured channels belong to a stale project/revision".into());
+        }
+        let current = self.runtime.snapshot();
+        if observations.project != current.project
+            || (observations.device.is_some()
+                && observations.device != current.resources.map(|resources| resources.last_submitted.device))
+            || !observations.equivalent(&self.source_observations())
+        {
+            return Err("source observations belong to a stale renderer project/device".into());
+        }
+        let prepared = plan::build(
+            &capture,
+            &routes,
+            &self.entries,
+            &mut self.next_texture,
+            self.limits,
+            &observations,
+        )?;
+        let activation =
+            PlanActivation::NextFrame(self.runtime.read_time().map_err(|error| error.to_string())?.epoch());
+        let request = self
+            .runtime
+            .submit(current.project, prepared.submission, activation, LatePolicy::Activate)
+            .map_err(|error| error.to_string())?;
+        self.project = Some(capture.project);
+        self.entries = prepared.entries;
+        self.channels = prepared.channels;
+        self.desired = Some((capture, routes));
+        self.observations = Some(observations);
+        self.latest_request = Some(request);
+        Ok(request)
+    }
+
+    /// Invoke on a worker notification. Frame counters are excluded from observation equality;
+    /// unchanged metadata produces no plan construction/publication.
+    pub fn refresh(&mut self) -> Result<Option<RequestId>, String> {
+        let observations = self.source_observations();
+        if self
+            .observations
+            .as_ref()
+            .is_some_and(|previous| previous.equivalent(&observations))
+        {
+            return Ok(None);
+        }
+        let Some((capture, routes)) = self.desired.clone() else {
+            return Ok(None);
+        };
+        self.publish_observed(capture, routes, observations).map(Some)
+    }
+
+    /// Latest admitted desired metadata; reliable Installed outcomes identify the live generation.
+    pub fn channels(&self) -> &[PreparedChannel] {
+        &self.channels
+    }
+    pub fn latest_request(&self) -> Option<RequestId> {
+        self.latest_request
+    }
+    pub fn snapshot(&self) -> RuntimeSnapshot {
+        self.runtime.snapshot()
+    }
+    pub fn drain_outcomes(&self, outcomes: &mut Vec<RuntimeOutcome>, budget: std::num::NonZeroUsize) -> usize {
+        self.runtime.drain_outcomes(outcomes, budget)
+    }
+    pub fn null_control(&self) -> Option<golden_video::runtime::NullControl> {
+        self.runtime.null_control()
+    }
+    pub fn retirement(&self) -> golden_video::runtime::RuntimeRetirement {
+        self.runtime.retirement()
+    }
+    pub fn close(&self) {
+        self.runtime.close();
+    }
+
+    #[cfg(all(windows, feature = "native-video"))]
+    pub fn native_control(&self) -> Option<golden_video::native::D3d11Control> {
+        self.runtime.d3d11_control()
+    }
+}

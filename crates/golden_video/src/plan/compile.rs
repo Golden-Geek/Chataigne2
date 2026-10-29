@@ -15,7 +15,16 @@ struct Resource {
     bytes: u64,
 }
 
-pub(super) fn compile(mut plan: RenderPlan, limits: &PlanLimits) -> Result<CompiledPlan, PlanError> {
+pub(super) fn compile(
+    mut plan: RenderPlan,
+    limits: &PlanLimits,
+    source_demands: &[TextureId],
+) -> Result<CompiledPlan, PlanError> {
+    check_count(
+        GraphLimit::ExternalTextures,
+        source_demands.len(),
+        limits.max_external_textures,
+    )?;
     check_submitted_work(&plan, limits)?;
 
     let mut pass_indices = BTreeMap::new();
@@ -68,8 +77,17 @@ pub(super) fn compile(mut plan: RenderPlan, limits: &PlanLimits) -> Result<Compi
 
     // Validate every branch before pruning. Kahn's algorithm is iterative even for very
     // deep composition chains; the ordered ready set gives stable pass-ID tie breaking.
+    for id in source_demands {
+        if !resources
+            .get(id)
+            .is_some_and(|resource| matches!(resource.writer, Writer::External))
+        {
+            return Err(PlanError::MissingSourceDemand(*id));
+        }
+    }
     let ordered = topological_order(&plan, &pass_indices, &resources)?;
-    let demanded = demanded_textures(&plan, &resources);
+    let mut demanded = demanded_textures(&plan, &resources);
+    demanded.extend(source_demands.iter().copied());
     let footprint = footprint(&demanded, &resources, limits.max_texture_bytes)?;
     let mut rank = vec![0; plan.passes.len()];
     for (position, index) in ordered.into_iter().enumerate() {
@@ -89,6 +107,7 @@ pub(super) fn compile(mut plan: RenderPlan, limits: &PlanLimits) -> Result<Compi
     }
     plan.outputs.sort_unstable_by_key(|output| output.id);
     Ok(CompiledPlan {
+        guards: std::sync::Arc::from([]),
         external_textures: plan.external_textures.into_boxed_slice(),
         passes: plan.passes.into_boxed_slice(),
         outputs: plan.outputs.into_boxed_slice(),

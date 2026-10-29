@@ -21,6 +21,7 @@ use crate::runtime::backend::BackendError;
 use crate::{TextureDescriptor, TextureId};
 
 use super::device::Device;
+use super::observation::SourceRegistration;
 use super::{AdapterId, D3d11Control, InputLimits};
 use reader::{Imported, Reader};
 use shared::Shared;
@@ -146,6 +147,8 @@ impl SourcePool {
             hresult: None,
         }));
         let shared = Arc::new(Shared {
+            observation_revision: Default::default(),
+            source_notifier: self.control.source_notifier.clone(),
             latest: Mutex::new(None),
             status,
             active: AtomicBool::new(false),
@@ -198,8 +201,15 @@ impl SourcePool {
     }
 
     fn publish_statuses(&self) {
-        self.control
-            .register_sources(self.inputs.values().map(|input| input.shared.status.clone()).collect());
+        self.control.register_sources(
+            self.inputs
+                .values()
+                .map(|input| SourceRegistration {
+                    state: input.shared.status.clone(),
+                    revision: input.shared.observation_revision.reader(),
+                })
+                .collect(),
+        );
     }
 
     pub fn ensure(&mut self, plan: &CompiledPlan) -> std::result::Result<(), BackendError> {

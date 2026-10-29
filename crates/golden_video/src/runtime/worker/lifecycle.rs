@@ -94,6 +94,11 @@ impl<B: Backend> Runner<B> {
             return;
         };
         let project = self.shared.lock().project;
+        if !self.rebuild.as_ref().unwrap().1.admission_is_current() {
+            self.rebuild = None;
+            self.retry_at = None;
+            return;
+        }
         if identity.project != project
             || self.core.snapshot().active.is_some_and(|active| {
                 active.identity.project == project && active.identity.revision >= identity.revision

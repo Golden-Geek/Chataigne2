@@ -157,7 +157,16 @@ impl RenderPlan {
     /// Rejection creates no backend resources and cannot change another compiled/live plan.
     /// Cycles and invalid metadata are rejected even in currently undemanded branches.
     pub fn compile(self, limits: &PlanLimits) -> Result<CompiledPlan, PlanError> {
-        compile::compile(self, limits)
+        self.compile_with_source_demands(limits, &[])
+    }
+
+    /// Keeps explicit external sources demanded even when no presentation consumes them.
+    pub fn compile_with_source_demands(
+        self,
+        limits: &PlanLimits,
+        source_demands: &[TextureId],
+    ) -> Result<CompiledPlan, PlanError> {
+        compile::compile(self, limits, source_demands)
     }
 }
 
@@ -192,6 +201,7 @@ pub struct TextureFootprint {
 /// Validated immutable graph containing only demanded resources and passes.
 #[derive(Clone, Debug)]
 pub struct CompiledPlan {
+    pub(crate) guards: std::sync::Arc<[golden_io::RevisionGuard]>,
     external_textures: Box<[ExternalTexture]>,
     passes: Box<[RenderPass]>,
     outputs: Box<[PlanOutput]>,
@@ -199,6 +209,10 @@ pub struct CompiledPlan {
 }
 
 impl CompiledPlan {
+    /// Whether captured authoring sources still permit initial installation/reconstruction.
+    pub fn admission_is_current(&self) -> bool {
+        self.guards.iter().all(golden_io::RevisionGuard::is_current)
+    }
     /// Demanded external textures, sorted by texture identity.
     pub fn external_textures(&self) -> &[ExternalTexture] {
         &self.external_textures
