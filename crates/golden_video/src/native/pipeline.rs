@@ -14,6 +14,25 @@ use super::texture::Texture;
 
 const SHADER: &str = include_str!("shader.hlsl");
 
+/// A prepared destination view; its owner retains storage through actual GPU completion.
+#[derive(Clone, Copy)]
+pub(super) struct RenderTarget<'a> {
+    pub view: &'a ID3D11RenderTargetView,
+    pub descriptor: crate::TextureDescriptor,
+    /// Encoding expected from the shader, before the view's optional fixed-function transfer.
+    pub shader_encoding: ColorEncoding,
+}
+
+impl<'a> From<&'a Texture> for RenderTarget<'a> {
+    fn from(texture: &'a Texture) -> Self {
+        Self {
+            view: &texture.rtv,
+            descriptor: texture.descriptor,
+            shader_encoding: texture.descriptor.color_encoding,
+        }
+    }
+}
+
 #[repr(C)]
 struct Parameters {
     source_extent: [u32; 2],
@@ -137,7 +156,7 @@ impl Pipeline {
         context: &ID3D11DeviceContext,
         source: &Texture,
         previous: Option<&Texture>,
-        target: &Texture,
+        target: RenderTarget<'_>,
         opacity: f32,
         blend: BlendMode,
         filter: SampleFilter,
@@ -169,7 +188,7 @@ impl Pipeline {
             context,
             source,
             None,
-            target,
+            target.into(),
             DrawSettings {
                 opacity: 1.0,
                 blend: BlendMode::Normal,
@@ -185,7 +204,7 @@ impl Pipeline {
         context: &ID3D11DeviceContext,
         source: &Texture,
         previous: Option<&Texture>,
-        target: &Texture,
+        target: RenderTarget<'_>,
         settings: DrawSettings,
     ) {
         let DrawSettings {
@@ -205,7 +224,7 @@ impl Pipeline {
             source_extent: [source.descriptor.extent.width(), source.descriptor.extent.height()],
             source_encoding: encoding(source_encoding),
             source_alpha: alpha(source.descriptor.alpha_mode),
-            target_encoding: encoding(target.descriptor.color_encoding),
+            target_encoding: encoding(target.shader_encoding),
             target_alpha: alpha(target.descriptor.alpha_mode),
             filter: u32::from(filter == SampleFilter::Linear),
             blend: match blend {
@@ -247,7 +266,7 @@ impl Pipeline {
             );
             context.OMSetDepthStencilState(None, 0);
             context.OMSetBlendState(None, None, u32::MAX);
-            context.OMSetRenderTargets(Some(&[Some(target.rtv.clone())]), None);
+            context.OMSetRenderTargets(Some(&[Some(target.view.clone())]), None);
             context.RSSetState(&self.rasterizer);
             context.RSSetViewports(Some(&[D3D11_VIEWPORT {
                 TopLeftX: destination.x * width,

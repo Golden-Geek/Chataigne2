@@ -5,20 +5,21 @@
 **Updated: 2026-10-29 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
 **Current topic:** M03 remains **7/9** accepted gates. The
-[renderer GPU stage checkpoint](mapgyver-m03-qualification-runner.md#renderer-gpu-stage-partitions--2026-10-29)
-partitions all 300 sample frames in each new Q01/Q02 control into inputs, rendering and
-outputs using one GPU counter/disjoint scope. Outputs are the largest interval in 271/300
-Q02 frames, with median/p95 9.5033/15.2477 ms. The spans include waits and command-feed gaps;
-they do not identify pure GPU work or a cross-context critical path. No gate closes.
+[direct window rendering checkpoint](mapgyver-m03-qualification-runner.md#direct-window-backbuffer-rendering--2026-10-29)
+removes each window's conversion texture/copy and uses hardware sRGB encoding. The short Q02
+control accepts 300/300 main and 271/300 editor opportunities, with 299/299 exact accepted
+Spout captures. Renderer-context GPU p95 changes 21.7279 → 16.9713 ms; logical reserved peak
+falls 70.3125 MiB. Cadence/producer admission and full qualification still fail. No gate closes.
 
-**Next:** target output conversion/delivery, the measured dominant Q02 interval; complete GPU
+**Next:** address the remaining Q02 output/producer cadence and GPU cost; complete GPU
 critical-path and native buffer/GPU-queue measurements (gate 9), then address remaining
 cadence, capture coverage and growth qualification. Native
 device removal and bounded stuck retirement retain gate 4.
-**Blocker:** Q02 window cadence, producer admission, complete capture coverage and age remain
-insufficient; Q02 window delivery deadlines now have proven failures. Full GPU
-critical-path and native buffer/GPU-queue coverage remain unavailable; bounded window software
-display age is now measured. Genuine device removal and stuck-driver retirement bounds remain unverified.
+**Blocker:** Q02 editor/Spout cadence, producer admission and GPU cost remain insufficient.
+The latest accepted-Spout capture cohort is complete, but does not establish displayed
+cadence or three-output age. Prior Q02 window deadline failures remain open. Full GPU
+critical-path and native buffer/GPU-queue coverage remain unavailable. Genuine device removal
+and stuck-driver retirement bounds remain unverified.
 Historical memory-growth, geometry and display/input failures retain their M03/M05/M09 owners.
 
 | Phase | State | Progress | Done / total items |
@@ -275,7 +276,12 @@ sample. Q01 has 180 on-time observations per output; Q02 window deadlines fail, 
 Spout polling stays uncertain. Source-local hardware sRGB decoding now reduces isolated sampler
 cost by 33%; its short Q02 control still misses six of 295 accepted Spout images and does not
 improve renderer-context GPU p95. Schema 7 now partitions every sample renderer span on its
-own GPU counter. Outputs dominate 271/300 Q02 frames; target conversion/delivery at that owner.
+own GPU counter. Outputs dominate 271/300 Q02 frames in the prior control, motivating the
+completed direct-window change at that output boundary.
+Direct window rendering now removes two conversion textures and copies. Its Q02 control has
+full main acceptance and exact accepted-Spout coverage, but editor/Spout/producer cadence and
+the GPU budget remain insufficient. The output interval's median stays near 9.5 ms even as
+its p95 and the enclosing renderer p95 fall; do not treat that as a complete critical-path fix.
 Complete GPU critical-path and queue/consumption measurement
 before the prescribed qualification series (gate 9).
 Genuine native device-removal recovery and bounded stuck-drain retirement retain gate 4.
@@ -425,6 +431,38 @@ Preserve Chataigne's unfinished engine/Spatializer P11 checkpoint (four of six f
 and its [separate ledger](implementation-status.md). Shared P12 boundary repairs belong to M02;
 P14/P15 time and asset contracts retain their shared Golden owners under M03. Root launch
 behavior is unchanged. No production host/backend/binding decision is final yet.
+
+## M03 direct window backbuffer rendering — 2026-10-29
+
+Golden Video now borrows a prepared render target from each admitted window endpoint and
+draws directly into its SRGB backbuffer view. The shader emits opaque linear RGB over black;
+the view encodes once. Window conversion textures and their copy disappear, while fixed
+two-backbuffer ownership, readiness permits and completion-fenced endpoint retirement remain.
+Spout's UNORM conversion/storage, color/alpha handling and keyed sender path are unchanged.
+The latency handle is owned before fallible view creation, and foreign contexts are rejected
+before drawing. Tests read all 16 backbuffer pixels across six presentations against scalar
+transfer oracles, and verify actual preparation allocates only the render-pass texture.
+
+The [packet](evidence/mapgyver-m03-direct-window-2026-10-29.json) and
+[raw controls](evidence/mapgyver-m03-direct-window-controls-2026-10-29.zip) preserve new Q01/Q02
+release controls and reference the immutable prior stage controls. Scene, adapter, queue,
+polling and budgets stay fixed. Each uses a five-second warmup/sample and one-second
+interruption intervals. Initial generation textures fall 7 → 5. Q02 logical reserved peak
+falls 578,764,864 → 505,036,864 bytes (70.3125 MiB); this is not a physical-residency claim.
+
+Q02 main/Spout/editor acceptance changes 276/294/165 → 300/299/271 of 300 opportunities.
+Exact accepted Spout captures change 272/294 → 299/299, with no invalid comparisons. Whole
+renderer-context GPU p95 changes 21.7279 → 16.9713 ms; output-interval p95 changes 15.2477 →
+13.1157 ms while its median stays 9.5033 → 9.5441 ms. These sequential short controls do not
+isolate causality or establish a full GPU critical path. The Q02 CPU-start-selected GPU
+cohort has 299 complete spans because one accepted output belongs to a frame starting before
+the sample boundary; all 300 anchored deadline opportunities remain. Updated Q01 retains
+300/300 acceptance/capture and GPU p95 3.8944 ms. No displayed-frame pass is inferred.
+
+Validation: 152 regular Rust tests, all 15 native tests, 92 production Python tests, strict
+clippy, final release runner build and both Rust formatters pass on the final source.
+Genuine removal/stuck retirement, GPU/queue, cadence/admission, growth and full series remain
+open. **M03 stays 7/9 (78%); overall stays 3/10 (30%)**.
 
 ## M03 renderer GPU stage partitions — 2026-10-29
 

@@ -366,8 +366,15 @@ impl Fixture {
         blend: BlendMode,
         filter: SampleFilter,
     ) {
-        self.pipeline
-            .draw(&self.gpu.context, source, previous, target, opacity, blend, filter);
+        self.pipeline.draw(
+            &self.gpu.context,
+            source,
+            previous,
+            target.into(),
+            opacity,
+            blend,
+            filter,
+        );
     }
 
     fn check(&self, texture: &Texture, expected: [f64; 4], label: &str) {

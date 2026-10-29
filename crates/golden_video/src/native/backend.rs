@@ -23,7 +23,7 @@ use super::texture::Texture;
 use super::timing::{
     CpuScope, DiagnosticContext, DiagnosticEvent, FrameCpuTrace, GpuTiming, OutputTrace, Recorder, SourceUseTrace,
 };
-use super::{D3d11Config, D3d11Control, NativeFailure};
+use super::{D3d11Config, D3d11Control, NativeFailure, OutputBinding};
 
 mod resources;
 
@@ -354,9 +354,11 @@ impl Backend for D3d11Backend {
                 .iter()
                 .find(|binding| binding.id() == output.id)
                 .unwrap();
-            total = total
-                .checked_add(bytes(binding.descriptor())?)
-                .ok_or(BackendError::ResourceSizeOverflow)?;
+            if matches!(binding, OutputBinding::Spout { .. }) {
+                total = total
+                    .checked_add(bytes(binding.descriptor())?)
+                    .ok_or(BackendError::ResourceSizeOverflow)?;
+            }
         }
         Ok(total)
     }
@@ -490,7 +492,7 @@ impl Backend for D3d11Backend {
                         context,
                         &resources.textures[source],
                         None,
-                        output,
+                        output.as_ref().into(),
                         1.0,
                         BlendMode::Normal,
                         *filter,
@@ -518,7 +520,7 @@ impl Backend for D3d11Backend {
                             context,
                             &resources.textures[&layer.source],
                             previous.map(Rc::as_ref),
-                            target,
+                            target.as_ref().into(),
                             layer.opacity.get(),
                             layer.blend,
                             layer.filter,
@@ -542,9 +544,10 @@ impl Backend for D3d11Backend {
         }
         let render = recorder.and_then(|recorder| recorder.interval(render_begin));
         for output in plan.outputs() {
-            let converted = &resources.outputs[&output.id];
+            let converted = resources.outputs.get(&output.id).map(Rc::as_ref);
+            let descriptor = native.outputs.descriptor(output.id).expect("validated native output");
             let admission_begin = recorder.and_then(Recorder::stamp);
-            let admission = native.outputs.admit(output.id, context, converted.descriptor, token);
+            let admission = native.outputs.admit(output.id, context, descriptor, token);
             let mut consumer_api = None;
             let mut window_present = None;
             let (conversion, delivery, outcome, spout_image) = match admission {
@@ -554,25 +557,28 @@ impl Backend for D3d11Backend {
                     outcome,
                     None,
                 ),
-                Ok(admitted) => {
+                Ok(mut admitted) => {
                     let conversion_begin = recorder.and_then(Recorder::stamp);
                     let source = &resources.textures[&output.source];
                     // Equal extents map texel centres exactly; avoid four-tap interpolation
                     // while retaining color/alpha conversion. Scaling stays linear.
-                    let filter = if source.descriptor.extent == converted.descriptor.extent {
+                    let target = admitted.render_target(converted);
+                    let filter = if source.descriptor.extent == target.descriptor.extent {
                         SampleFilter::Nearest
                     } else {
                         SampleFilter::Linear
                     };
-                    pipeline.draw(context, source, None, converted, 1.0, BlendMode::Normal, filter);
+                    pipeline.draw(context, source, None, target, 1.0, BlendMode::Normal, filter);
                     let conversion = recorder.and_then(|recorder| recorder.interval(conversion_begin));
                     #[cfg(all(test, feature = "qualification"))]
-                    if let Some(tap) = &mut native.copy_tap {
+                    if let Some(tap) = &mut native.copy_tap
+                        && let Some(converted) = converted
+                    {
                         let input = &resources.textures[&plan.external_textures()[0].id];
                         tap.record(context, input, converted, token);
                     }
                     let delivery_begin = recorder.and_then(Recorder::stamp);
-                    let delivered = admitted.deliver(context, converted, recorder, &mut consumer_api);
+                    let delivered = admitted.deliver(converted, recorder, &mut consumer_api);
                     window_present = delivered.window_present;
                     let delivery = recorder.and_then(|recorder| recorder.interval(delivery_begin));
                     (conversion, delivery, delivered.outcome, delivered.spout_image)

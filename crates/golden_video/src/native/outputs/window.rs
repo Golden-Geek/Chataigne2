@@ -3,17 +3,19 @@ use std::os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle};
 use std::rc::Rc;
 
 use windows::Win32::Foundation::{DXGI_STATUS_OCCLUDED, HANDLE, HWND, RECT, WAIT_FAILED, WAIT_OBJECT_0, WAIT_TIMEOUT};
-use windows::Win32::Graphics::Direct3D11::{ID3D11Device, ID3D11DeviceContext, ID3D11Texture2D};
-use windows::Win32::Graphics::Dxgi::Common::{DXGI_ALPHA_MODE_IGNORE, DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_SAMPLE_DESC};
+use windows::Win32::Graphics::Direct3D11::*;
+use windows::Win32::Graphics::Dxgi::Common::{
+    DXGI_ALPHA_MODE_IGNORE, DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_FORMAT_B8G8R8A8_UNORM_SRGB, DXGI_SAMPLE_DESC,
+};
 use windows::Win32::Graphics::Dxgi::*;
 use windows::Win32::System::Threading::WaitForSingleObject;
 use windows::Win32::UI::WindowsAndMessaging::{GetClientRect, IsIconic, IsWindowVisible};
 use windows::core::{Error, HRESULT, Interface, Result};
 
-use crate::TextureDescriptor;
+use crate::{ColorEncoding, TextureDescriptor};
 
 use super::super::config::WindowTarget;
-use super::super::texture::Texture;
+use super::super::pipeline::RenderTarget;
 use super::super::timing::{CpuInterval, Recorder};
 use super::Delivery;
 
@@ -21,10 +23,10 @@ use super::Delivery;
 pub(super) struct WindowOutput {
     // DXGI transfers ownership of this handle. Close it before releasing the chain.
     readiness: Readiness,
+    target: ID3D11RenderTargetView,
     chain: IDXGISwapChain2,
     window: HWND,
     descriptor: TextureDescriptor,
-    device: ID3D11Device,
     addresses: Option<[u64; 3]>,
     _local: PhantomData<Rc<()>>,
 }
@@ -83,6 +85,26 @@ impl WindowOutput {
             }
             OwnedHandle::from_raw_handle(handle.0)
         };
+        // Own the wait handle before further fallible creation, so a view failure closes it.
+        // D3D11 permits an SRGB RTV on a fully typed UNORM swapchain backbuffer. The
+        // view follows buffer zero across flip-model presents; resizing recreates this owner.
+        let mut target = None;
+        // SAFETY: fixed admitted swapchain/device. All fallible view creation stays cold.
+        unsafe {
+            let buffer: ID3D11Texture2D = chain.GetBuffer(0)?;
+            device.CreateRenderTargetView(
+                &buffer,
+                Some(&D3D11_RENDER_TARGET_VIEW_DESC {
+                    Format: DXGI_FORMAT_B8G8R8A8_UNORM_SRGB,
+                    ViewDimension: D3D11_RTV_DIMENSION_TEXTURE2D,
+                    Anonymous: D3D11_RENDER_TARGET_VIEW_DESC_0 {
+                        Texture2D: D3D11_TEX2D_RTV { MipSlice: 0 },
+                    },
+                }),
+                Some(&mut target),
+            )?;
+        }
+        let target = target.ok_or_else(|| Error::new(HRESULT(0x8000_4005_u32 as i32), "missing backbuffer RTV"))?;
         let addresses = if diagnostics {
             Some([
                 chain.cast::<IDXGISwapChain>()?.as_raw() as usize as u64,
@@ -94,10 +116,10 @@ impl WindowOutput {
         };
         Ok(Self {
             readiness: Readiness::new(readiness),
+            target,
             chain,
             window,
             descriptor,
-            device: device.clone(),
             addresses,
             _local: PhantomData,
         })
@@ -125,45 +147,23 @@ impl WindowOutput {
         }
     }
 
-    pub(super) fn deliver(
-        &mut self,
-        context: &ID3D11DeviceContext,
-        texture: &Texture,
-        recorder: Option<&Recorder>,
-        consumer_api: &mut Option<CpuInterval>,
-    ) -> Delivery {
-        match self.try_deliver(context, texture, recorder, consumer_api) {
-            Ok(delivery) => delivery,
-            Err(error) => Delivery::Failed(error.code()),
+    pub(super) fn render_target(&self) -> RenderTarget<'_> {
+        RenderTarget {
+            view: &self.target,
+            descriptor: self.descriptor,
+            shader_encoding: ColorEncoding::Linear,
         }
     }
 
-    fn try_deliver(
-        &mut self,
-        context: &ID3D11DeviceContext,
-        texture: &Texture,
-        recorder: Option<&Recorder>,
-        consumer_api: &mut Option<CpuInterval>,
-    ) -> Result<Delivery> {
+    pub(super) fn present(&mut self, recorder: Option<&Recorder>, consumer_api: &mut Option<CpuInterval>) -> Delivery {
         debug_assert!(self.readiness.permit, "delivery requires an admitted frame permit");
-        // SAFETY: all interfaces remain on this worker. The native texture wrapper validates
-        // storage, while explicit pointer checks reject accidental cross-device submission.
+        // SAFETY: this owned chain and its admitted slot remain on the render worker. The
+        // pipeline unbound its prepared backbuffer view after drawing directly into it.
         unsafe {
-            if texture.descriptor != self.descriptor
-                || texture.texture.GetDevice()?.as_raw() != self.device.as_raw()
-                || context.GetDevice()?.as_raw() != self.device.as_raw()
-            {
-                return Err(Error::new(
-                    HRESULT(0x8007_0057_u32 as i32),
-                    "window output texture/context does not match its admitted descriptor/device",
-                ));
-            }
-            let target: ID3D11Texture2D = self.chain.GetBuffer(0)?;
-            context.CopyResource(&target, &texture.texture);
             let begin = recorder.and_then(Recorder::stamp);
             let result = self.chain.Present(0, DXGI_PRESENT_DO_NOT_WAIT);
             *consumer_api = recorder.and_then(|recorder| recorder.interval(begin));
-            Ok(self.readiness.presented(result))
+            self.readiness.presented(result)
         }
     }
 }
@@ -213,3 +213,6 @@ impl Readiness {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;

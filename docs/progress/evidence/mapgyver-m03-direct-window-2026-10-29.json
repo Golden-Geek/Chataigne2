@@ -1,0 +1,2375 @@
+{
+	"schema_version": 1,
+	"native_artifact_schema_version": 7,
+	"date": "2026-10-29",
+	"checkpoint": "Direct admitted window rendering with hardware sRGB encoding",
+	"source_baseline_commit": "5e1e102e6319fe152841cdfdfa1cdac81a167d99",
+	"acceptance": {
+		"M03_done": 7,
+		"M03_total": 9,
+		"complete_phases": 3,
+		"total_phases": 10,
+		"qualification_gate_closed": false
+	},
+	"baseline": {
+		"packet": "docs/progress/evidence/mapgyver-m03-gpu-stages-2026-10-29.json",
+		"packet_sha256": "06fa924dc90e092f237fd6ffcf4a38cbdac57ae87cf64c785e64cac358a549ec",
+		"archive": {
+			"path": "docs/progress/evidence/mapgyver-m03-gpu-stages-controls-2026-10-29.zip",
+			"sha256": "ddc1e88ad54f458d63e21c20f00911deca21d3b4d10cc1aa3fd1869b27abdd3e",
+			"bytes": 1656790,
+			"members": 48
+		},
+		"raw_members_unchanged": true,
+		"captures": [
+			{
+				"scenario": "Q01",
+				"manifest": {
+					"adapter": {
+						"high": 0,
+						"low": 93226
+					},
+					"arch": "x86_64",
+					"debug_assertions": false,
+					"fixture_pids": [49860, 43868, 37744],
+					"independence_seconds": 1,
+					"initial_memory": {
+						"adapter": {
+							"high": 0,
+							"low": 93226
+						},
+						"dedicated_video_bytes": 134217728,
+						"local": {
+							"available_for_reservation_bytes": 9351168942,
+							"budget_bytes": 18433902428,
+							"current_reservation_bytes": 0,
+							"current_usage_bytes": 0
+						},
+						"local_hresult": null,
+						"nonlocal": {
+							"available_for_reservation_bytes": 0,
+							"budget_bytes": 0,
+							"current_reservation_bytes": 0,
+							"current_usage_bytes": 0
+						},
+						"nonlocal_hresult": null,
+						"observed_qpc": 3102750138801,
+						"process_id": 7288,
+						"qpc_frequency": 10000000,
+						"shared_system_capacity_bytes": 19239208796
+					},
+					"memory_ceiling": 536870912,
+					"output_name": "GoldenQ-8dd6fced-51b1-4a60-ac46-41d88faff30b-Output",
+					"pid": 7288,
+					"qpc_frequency": 10000000,
+					"run_id": "8dd6fced-51b1-4a60-ac46-41d88faff30b",
+					"sample_seconds": 5,
+					"scenario": "Q01",
+					"schema_version": 7,
+					"source_names": [
+						"GoldenQ-8dd6fced-51b1-4a60-ac46-41d88faff30b-A",
+						"GoldenQ-8dd6fced-51b1-4a60-ac46-41d88faff30b-B"
+					],
+					"trace_capacity": 65536,
+					"warmup_seconds": 5
+				},
+				"raw_sha256": {
+					"consumer.jsonl": "5585063629cfd8148785673088fff74133811d06bf3fc984ab21a9775b925734",
+					"fixture-0-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+					"fixture-0-stdout.jsonl": "742e7decd984101506349ba226b9354514a498f586a63589a1060dc769ec9911",
+					"fixture-1-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+					"fixture-1-stdout.jsonl": "2d385fcf9e3b2e91b7f904f65863ca39697e8c4d1f64fd6cac40ccad3810fb65",
+					"fixture-2-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+					"fixture-2-stdout.jsonl": "ed401a76d7b39236555e1d26b58026d73448b23f8630c2e6713c0720f1eba2c6",
+					"inputs.json": "718c7e5014d8466450c6521e0aef7f33e9f331444b0c3cd7c6998facc0ce3d07",
+					"launcher.json": "9bd17ac54ede3a90589b8ebea1e9c92a80dddbc9779308fa572b6b872ffb4fcd",
+					"manifest.json": "2b557af3dc699218e7a297db2062e684d8a7d4882f41bfc17194d07897aa9824",
+					"parent-summary.json": "43f62ea1142505b51321e16cf5e19daa8c876cc2c9101efb395dd7a0c4d9c1e0",
+					"renderer-summary.json": "90cd654aeb1028067a6ffd4664e273342c3f732f54e0d328c0e68763bd7fb5ae",
+					"renderer.jsonl": "de3c5d874a44cfed7301cb213063e3af3d6271f9a7ba06d21ba60c1db3872234",
+					"source-1.jsonl": "96cf92d55668109adc79ece903df8f6e240150d920a1d0f5ae958994225b659e",
+					"source-2.jsonl": "988044ad5d278920988f2b267b28dc2b376ec4e070b091b60b7ae9ab0c76d531"
+				},
+				"capture_execution_inputs_unchanged": true,
+				"executable_sha256": "15595e79e6981df9d071cabdeaa3956d63fa01f3669bfbfd3fe0357ce8770673",
+				"renderer_gpu": {
+					"expected_batches": 300,
+					"missing_rows": 0,
+					"statuses": {
+						"Valid": 300
+					},
+					"complete": true,
+					"context_local_execution": {
+						"samples": 300,
+						"median_ms": 3.3348958333333334,
+						"p95_ms": 3.9428645833333333,
+						"p99_ms": 4.263958333333333,
+						"maximum_ms": 4.802760416666667
+					},
+					"scope": "one context only; never a cross-context critical path"
+				},
+				"stage_partitions": {
+					"expected_batches": 300,
+					"covered_batches": 300,
+					"coverage_complete": true,
+					"coverage": {
+						"complete": 300
+					},
+					"stages": {
+						"inputs": {
+							"samples": 300,
+							"median_ms": 0.58484375,
+							"p95_ms": 1.0758854166666667,
+							"p99_ms": 1.1727083333333332,
+							"maximum_ms": 1.2613020833333333
+						},
+						"render": {
+							"samples": 300,
+							"median_ms": 0.5897395833333333,
+							"p95_ms": 0.6639583333333333,
+							"p99_ms": 0.678125,
+							"maximum_ms": 2.06796875
+						},
+						"outputs": {
+							"samples": 300,
+							"median_ms": 2.1480729166666666,
+							"p95_ms": 2.3158333333333334,
+							"p99_ms": 2.64703125,
+							"maximum_ms": 3.4615104166666666
+						}
+					},
+					"largest_stage_counts": {
+						"outputs": 299,
+						"render": 1
+					},
+					"scope": "same-clock partitions of each exact renderer span; includes GPU waits, scheduling and command-feed gaps",
+					"limitations": [
+						"stage percentiles cannot be added to reconstruct a frame percentile",
+						"these spans do not separate active GPU work from queue or dependency waits",
+						"no cross-context critical path or native buffer occupancy is inferred"
+					]
+				},
+				"outputs": [
+					{
+						"output": 1,
+						"counts": {
+							"Accepted": 300
+						},
+						"expected_at_60hz": 300.0,
+						"accepted_shortfall": 0,
+						"accepted_shortfall_fraction": 0.0,
+						"accepted_call_intervals": {
+							"samples": 299,
+							"median_ms": 16.6938,
+							"p95_ms": 17.9437,
+							"p99_ms": 18.3464,
+							"maximum_ms": 18.3726
+						},
+						"consumer_api_wall": {
+							"samples": 300,
+							"median_ms": 0.0133,
+							"p95_ms": 0.0278,
+							"p99_ms": 0.0514,
+							"maximum_ms": 0.1791
+						},
+						"within_target": true
+					},
+					{
+						"output": 2,
+						"counts": {
+							"Accepted": 300
+						},
+						"expected_at_60hz": 300.0,
+						"accepted_shortfall": 0,
+						"accepted_shortfall_fraction": 0.0,
+						"accepted_call_intervals": {
+							"samples": 299,
+							"median_ms": 16.6754,
+							"p95_ms": 17.9339,
+							"p99_ms": 18.3415,
+							"maximum_ms": 18.3931
+						},
+						"consumer_api_wall": {
+							"samples": 300,
+							"median_ms": 0.2094,
+							"p95_ms": 0.3107,
+							"p99_ms": 0.3441,
+							"maximum_ms": 0.369
+						},
+						"within_target": true
+					},
+					{
+						"output": 3,
+						"counts": {
+							"Accepted": 300
+						},
+						"expected_at_60hz": 300.0,
+						"accepted_shortfall": 0,
+						"accepted_shortfall_fraction": 0.0,
+						"accepted_call_intervals": {
+							"samples": 299,
+							"median_ms": 16.6702,
+							"p95_ms": 17.9405,
+							"p99_ms": 18.342,
+							"maximum_ms": 18.4104
+						},
+						"consumer_api_wall": {
+							"samples": 300,
+							"median_ms": 0.0116,
+							"p95_ms": 0.0215,
+							"p99_ms": 0.0493,
+							"maximum_ms": 0.3451
+						},
+						"within_target": true
+					}
+				],
+				"producers": [
+					{
+						"source": 1,
+						"counts": {
+							"Accepted": 296,
+							"Busy": 4
+						},
+						"expected_at_60hz": 300.0,
+						"accepted_shortfall_fraction": 0.013333333333333334,
+						"submission_intervals": {
+							"samples": 299,
+							"median_ms": 16.7128,
+							"p95_ms": 17.8382,
+							"p99_ms": 17.9743,
+							"maximum_ms": 18.0008
+						},
+						"within_target": false
+					},
+					{
+						"source": 2,
+						"counts": {
+							"Accepted": 296,
+							"Busy": 4
+						},
+						"expected_at_60hz": 300.0,
+						"accepted_shortfall_fraction": 0.013333333333333334,
+						"submission_intervals": {
+							"samples": 299,
+							"median_ms": 16.7521,
+							"p95_ms": 17.7799,
+							"p99_ms": 17.9746,
+							"maximum_ms": 18.0777
+						},
+						"within_target": false
+					}
+				],
+				"spout": {
+					"expected_accepted_images": 300,
+					"captured_images": 300,
+					"missing_images": 0,
+					"invalid_captures": [],
+					"coverage_complete": true,
+					"source_age": [
+						{
+							"samples": 300,
+							"median_ms": 10.7592,
+							"p95_ms": 12.3638,
+							"p99_ms": 26.7796,
+							"maximum_ms": 28.8253
+						},
+						{
+							"samples": 300,
+							"median_ms": 12.3246,
+							"p95_ms": 13.9028,
+							"p99_ms": 28.5027,
+							"maximum_ms": 30.6824
+						}
+					]
+				},
+				"independent_audit": {
+					"exact_raw_partitions_agree": true,
+					"frames_verified": 300,
+					"distribution_and_largest_stage_agree": true
+				},
+				"criteria": {
+					"functional_completion": {
+						"status": "PASSED_NATIVE",
+						"observed_within_target": true,
+						"owner_phase": "M03",
+						"owner_gate": 9
+					},
+					"fixed_scene": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": true,
+						"owner_phase": "M03",
+						"owner_gate": 9
+					},
+					"telemetry_coverage": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": true,
+						"owner_phase": "M03",
+						"owner_gate": 9,
+						"roles": [
+							{
+								"complete": true,
+								"raw_diagnostic_rows": 8991,
+								"queued": 0,
+								"written": 8991,
+								"drained": 8991,
+								"dropped_full": 0,
+								"clock_failures": 0
+							},
+							{
+								"complete": true,
+								"raw_diagnostic_rows": 2577,
+								"queued": 0,
+								"written": 2577,
+								"drained": 2577,
+								"dropped_full": 0,
+								"clock_failures": 0
+							},
+							{
+								"complete": true,
+								"raw_diagnostic_rows": 2556,
+								"queued": 0,
+								"written": 2556,
+								"drained": 2556,
+								"dropped_full": 0,
+								"clock_failures": 0
+							},
+							{
+								"complete": true,
+								"raw_diagnostic_rows": 1500,
+								"queued": 0,
+								"written": 1500,
+								"drained": 1500,
+								"dropped_full": 0,
+								"clock_failures": 0
+							}
+						]
+					},
+					"input_identity": {
+						"status": "PASSED_NATIVE",
+						"observed_within_target": true,
+						"owner_phase": "M03",
+						"owner_gate": 9
+					},
+					"gpu_context_coverage": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": true,
+						"owner_phase": "M03",
+						"owner_gate": 9
+					},
+					"cpu_submission": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": true,
+						"owner_phase": "M03",
+						"owner_gate": 9,
+						"reason": "inclusive wall upper bound; exceeding it does not isolate CPU work from opaque API waits"
+					},
+					"output_api_cadence": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": true,
+						"owner_phase": "M03",
+						"owner_gate": 9
+					},
+					"producer_api_cadence": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": false,
+						"owner_phase": "M03",
+						"owner_gate": 9
+					},
+					"submission_deadlines": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": true,
+						"owner_phase": "M03",
+						"owner_gate": 9,
+						"reason": "anchored native API observations; early acceptance does not prove GPU/display completion"
+					},
+					"deadline_misses": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": null,
+						"owner_phase": "M03",
+						"owner_gate": 9,
+						"reason": "exact anchored opportunities; window software display and Spout ready-time bounds; late completion polls stay unknown"
+					},
+					"editor_independence": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": false,
+						"owner_phase": "M03",
+						"owner_gate": 9
+					},
+					"source_to_consumer_age": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": null,
+						"owner_phase": "M03",
+						"owner_gate": 9,
+						"observed_capture_p95_within_budget": true,
+						"reason": "every accepted Spout GPU capture and both exact window software-display cohorts are required; no physical scanout claim"
+					},
+					"spout_capture_identity": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": true,
+						"owner_phase": "M03",
+						"owner_gate": 9,
+						"scope": "sample-accepted Spout output images, exact renderer source-use versions and GPU marker contents"
+					},
+					"spout_capture_age": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": true,
+						"owner_phase": "M03",
+						"owner_gate": 9,
+						"reason": "one first completed independent capture per accepted Spout image; missing images cannot be omitted"
+					},
+					"source_publication_age": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": true,
+						"owner_phase": "M03",
+						"owner_gate": 9,
+						"scope": "CPU source-publication/receive to output API boundaries; no GPU/presentation queue budget inferred"
+					},
+					"gpu_critical_path": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": null,
+						"owner_phase": "M03",
+						"owner_gate": 9,
+						"reason": "exact dependency identities do not calibrate separate GPU-context clocks or establish critical-path elapsed time"
+					},
+					"logical_texture_charge": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": true,
+						"owner_phase": "M03",
+						"owner_gate": 9
+					},
+					"dxgi_admission": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": true,
+						"owner_phase": "M03",
+						"owner_gate": 9
+					},
+					"renderer_private_memory": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": true,
+						"owner_phase": "M03",
+						"owner_gate": 9
+					},
+					"completion_retirement": {
+						"status": "PASSED_NATIVE",
+						"observed_within_target": true,
+						"owner_phase": "M03",
+						"owner_gate": 9
+					},
+					"shutdown": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": true,
+						"owner_phase": "M03",
+						"owner_gate": 9,
+						"scoped_elapsed_ms": 398.2334
+					},
+					"renderer_handle_growth": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": null,
+						"owner_phase": "M03",
+						"owner_gate": 9,
+						"required_handle_delta_maximum": 10,
+						"required_private_growth_bytes": 33554432,
+						"required_drain_seconds": 10,
+						"reason": "applicable renderer lifecycle/resource-return series is absent; timing samples do not verify its handle/private-growth budgets"
+					},
+					"physical_display_dpi_input": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": null,
+						"owner_phase": "M05",
+						"owner_gate": null,
+						"reason": "M05-owned physical observations are absent"
+					},
+					"Q05_handles_growth": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": null,
+						"owner_phase": "M09",
+						"owner_gate": null,
+						"reason": "full-app Q05, including Matrix launches and transitions, has not been captured"
+					},
+					"native_preparation": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": true,
+						"owner_phase": "M03",
+						"owner_gate": 9,
+						"scope": "native preparation/first-use coverage; no latency budget inferred"
+					},
+					"plan_publication_age": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": true,
+						"owner_phase": "M03",
+						"owner_gate": 9,
+						"scope": "CPU admitted publication to first worker receipt, atomic install, first submit and accepted output API; retained plan age is not edit latency"
+					},
+					"window_presentation": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": null,
+						"owner_phase": "M03",
+						"owner_gate": 9,
+						"scope": "exact native Present/ETW software display cohort; not physical scanout"
+					},
+					"plan_age_and_published_queue": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": null,
+						"owner_phase": "M03",
+						"owner_gate": 9,
+						"reason": "CPU plan/source age and optional software-display timelines measured; pending display events do not establish app/native buffer occupancy or GPU queue time"
+					},
+					"environment_identity": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": null,
+						"owner_phase": "M03",
+						"owner_gate": 9,
+						"reason": "selected MSVC/SDK, driver, WebView, power and overlay observations are not pinned"
+					}
+				},
+				"qualified": false
+			},
+			{
+				"scenario": "Q02",
+				"manifest": {
+					"adapter": {
+						"high": 0,
+						"low": 93226
+					},
+					"arch": "x86_64",
+					"debug_assertions": false,
+					"fixture_pids": [39012, 41812, 48272],
+					"independence_seconds": 1,
+					"initial_memory": {
+						"adapter": {
+							"high": 0,
+							"low": 93226
+						},
+						"dedicated_video_bytes": 134217728,
+						"local": {
+							"available_for_reservation_bytes": 9351168942,
+							"budget_bytes": 18433902428,
+							"current_reservation_bytes": 0,
+							"current_usage_bytes": 0
+						},
+						"local_hresult": null,
+						"nonlocal": {
+							"available_for_reservation_bytes": 0,
+							"budget_bytes": 0,
+							"current_reservation_bytes": 0,
+							"current_usage_bytes": 0
+						},
+						"nonlocal_hresult": null,
+						"observed_qpc": 3102476047931,
+						"process_id": 27924,
+						"qpc_frequency": 10000000,
+						"shared_system_capacity_bytes": 19239208796
+					},
+					"memory_ceiling": 1073741824,
+					"output_name": "GoldenQ-c9a0d370-fcd2-416e-a9e3-38248acc1442-Output",
+					"pid": 27924,
+					"qpc_frequency": 10000000,
+					"run_id": "c9a0d370-fcd2-416e-a9e3-38248acc1442",
+					"sample_seconds": 5,
+					"scenario": "Q02",
+					"schema_version": 7,
+					"source_names": [
+						"GoldenQ-c9a0d370-fcd2-416e-a9e3-38248acc1442-A",
+						"GoldenQ-c9a0d370-fcd2-416e-a9e3-38248acc1442-B"
+					],
+					"trace_capacity": 65536,
+					"warmup_seconds": 5
+				},
+				"raw_sha256": {
+					"consumer.jsonl": "4dee72b3fde5e3a0966fc323ef63e6e62468f315ad2b9a3f03afa8d3e15f9149",
+					"fixture-0-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+					"fixture-0-stdout.jsonl": "6feb137d715d3f203c6d679c2596f096a4fd224d71c224a068cccff74d7fecdb",
+					"fixture-1-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+					"fixture-1-stdout.jsonl": "e8ae533d5742066ad3cc564f98e7a258c273c008cd4cbb94105f7a45f763c39b",
+					"fixture-2-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+					"fixture-2-stdout.jsonl": "3014d0df9c213c047c62f9b84d9e5ad09bf4a0bee49153bc3a47b2c21b6a7233",
+					"inputs.json": "718c7e5014d8466450c6521e0aef7f33e9f331444b0c3cd7c6998facc0ce3d07",
+					"launcher.json": "7cbc292ad8f58417bd051347ffe1b01becdb958f210dfefefb00ac1bacf0c7e3",
+					"manifest.json": "309df622adb95c2695ac7814dd170594b80b297a118f3db969fc880174bd2c16",
+					"parent-summary.json": "4de71af3f8f21a6393fc2c1a5e4eadaf1d42aa0dc3e8f064900195f25de1ab19",
+					"renderer-summary.json": "4a935705f6df6db1b041f1bd481ec277345b79d8cf4b1430b6fa4cbe43c74cb7",
+					"renderer.jsonl": "920f60db32877eded6dab2a5ac904e6a20dc8e7d4652d7a2db4cf4d8d47cfa1a",
+					"source-1.jsonl": "5e146dea231ea3f1e78bc5c7c609041467bf289fc65f8046686b28586f91bfb5",
+					"source-2.jsonl": "eba790e942b3016e7b360b471e07fcba1d355d1c9f3347b0a17888f9a79ef3a2"
+				},
+				"capture_execution_inputs_unchanged": true,
+				"executable_sha256": "15595e79e6981df9d071cabdeaa3956d63fa01f3669bfbfd3fe0357ce8770673",
+				"renderer_gpu": {
+					"expected_batches": 300,
+					"missing_rows": 0,
+					"statuses": {
+						"Valid": 300
+					},
+					"complete": true,
+					"context_local_execution": {
+						"samples": 300,
+						"median_ms": 14.963541666666666,
+						"p95_ms": 21.727864583333332,
+						"p99_ms": 24.070104166666667,
+						"maximum_ms": 25.54953125
+					},
+					"scope": "one context only; never a cross-context critical path"
+				},
+				"stage_partitions": {
+					"expected_batches": 300,
+					"covered_batches": 300,
+					"coverage_complete": true,
+					"coverage": {
+						"complete": 300
+					},
+					"stages": {
+						"inputs": {
+							"samples": 300,
+							"median_ms": 1.3808333333333334,
+							"p95_ms": 7.27828125,
+							"p99_ms": 8.3578125,
+							"maximum_ms": 10.44640625
+						},
+						"render": {
+							"samples": 300,
+							"median_ms": 2.201510416666667,
+							"p95_ms": 7.499791666666667,
+							"p99_ms": 7.812083333333334,
+							"maximum_ms": 8.65515625
+						},
+						"outputs": {
+							"samples": 300,
+							"median_ms": 9.503333333333334,
+							"p95_ms": 15.247708333333334,
+							"p99_ms": 16.607135416666665,
+							"maximum_ms": 19.480989583333333
+						}
+					},
+					"largest_stage_counts": {
+						"outputs": 271,
+						"inputs": 16,
+						"render": 13
+					},
+					"scope": "same-clock partitions of each exact renderer span; includes GPU waits, scheduling and command-feed gaps",
+					"limitations": [
+						"stage percentiles cannot be added to reconstruct a frame percentile",
+						"these spans do not separate active GPU work from queue or dependency waits",
+						"no cross-context critical path or native buffer occupancy is inferred"
+					]
+				},
+				"outputs": [
+					{
+						"output": 1,
+						"counts": {
+							"Accepted": 276,
+							"Busy": 24
+						},
+						"expected_at_60hz": 300.0,
+						"accepted_shortfall": 24.0,
+						"accepted_shortfall_fraction": 0.08,
+						"accepted_call_intervals": {
+							"samples": 275,
+							"median_ms": 16.8024,
+							"p95_ms": 33.2979,
+							"p99_ms": 34.0582,
+							"maximum_ms": 34.4082
+						},
+						"consumer_api_wall": {
+							"samples": 276,
+							"median_ms": 0.0137,
+							"p95_ms": 0.0265,
+							"p99_ms": 0.0752,
+							"maximum_ms": 0.2762
+						},
+						"within_target": false
+					},
+					{
+						"output": 2,
+						"counts": {
+							"Accepted": 294,
+							"Busy": 6
+						},
+						"expected_at_60hz": 300.0,
+						"accepted_shortfall": 6.0,
+						"accepted_shortfall_fraction": 0.02,
+						"accepted_call_intervals": {
+							"samples": 293,
+							"median_ms": 16.7706,
+							"p95_ms": 17.9863,
+							"p99_ms": 33.5903,
+							"maximum_ms": 34.5214
+						},
+						"consumer_api_wall": {
+							"samples": 300,
+							"median_ms": 0.1766,
+							"p95_ms": 0.2723,
+							"p99_ms": 0.3108,
+							"maximum_ms": 0.4297
+						},
+						"within_target": false
+					},
+					{
+						"output": 3,
+						"counts": {
+							"Accepted": 165,
+							"Busy": 135
+						},
+						"expected_at_60hz": 300.0,
+						"accepted_shortfall": 135.0,
+						"accepted_shortfall_fraction": 0.45,
+						"accepted_call_intervals": {
+							"samples": 164,
+							"median_ms": 33.1644,
+							"p95_ms": 34.537,
+							"p99_ms": 34.9234,
+							"maximum_ms": 34.9348
+						},
+						"consumer_api_wall": {
+							"samples": 165,
+							"median_ms": 0.0126,
+							"p95_ms": 0.0216,
+							"p99_ms": 0.0765,
+							"maximum_ms": 0.0773
+						},
+						"within_target": false
+					}
+				],
+				"producers": [
+					{
+						"source": 1,
+						"counts": {
+							"Accepted": 300
+						},
+						"expected_at_60hz": 300.0,
+						"accepted_shortfall_fraction": 0.0,
+						"submission_intervals": {
+							"samples": 299,
+							"median_ms": 16.7498,
+							"p95_ms": 17.5594,
+							"p99_ms": 17.9018,
+							"maximum_ms": 18.0884
+						},
+						"within_target": true
+					},
+					{
+						"source": 2,
+						"counts": {
+							"Accepted": 289,
+							"Busy": 11
+						},
+						"expected_at_60hz": 300.0,
+						"accepted_shortfall_fraction": 0.03666666666666667,
+						"submission_intervals": {
+							"samples": 299,
+							"median_ms": 16.6943,
+							"p95_ms": 17.7844,
+							"p99_ms": 17.952,
+							"maximum_ms": 18.099
+						},
+						"within_target": false
+					}
+				],
+				"spout": {
+					"expected_accepted_images": 294,
+					"captured_images": 272,
+					"missing_images": 22,
+					"invalid_captures": [],
+					"coverage_complete": false,
+					"source_age": [
+						{
+							"samples": 272,
+							"median_ms": 36.4022,
+							"p95_ms": 49.7103,
+							"p99_ms": 59.5895,
+							"maximum_ms": 80.9572
+						},
+						{
+							"samples": 272,
+							"median_ms": 28.5707,
+							"p95_ms": 44.3996,
+							"p99_ms": 55.9769,
+							"maximum_ms": 58.3634
+						}
+					]
+				},
+				"independent_audit": {
+					"exact_raw_partitions_agree": true,
+					"frames_verified": 300,
+					"distribution_and_largest_stage_agree": true
+				},
+				"criteria": {
+					"functional_completion": {
+						"status": "PASSED_NATIVE",
+						"observed_within_target": true,
+						"owner_phase": "M03",
+						"owner_gate": 9
+					},
+					"fixed_scene": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": true,
+						"owner_phase": "M03",
+						"owner_gate": 9
+					},
+					"telemetry_coverage": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": true,
+						"owner_phase": "M03",
+						"owner_gate": 9,
+						"roles": [
+							{
+								"complete": true,
+								"raw_diagnostic_rows": 8778,
+								"queued": 0,
+								"written": 8778,
+								"drained": 8778,
+								"dropped_full": 0,
+								"clock_failures": 0
+							},
+							{
+								"complete": true,
+								"raw_diagnostic_rows": 2496,
+								"queued": 0,
+								"written": 2496,
+								"drained": 2496,
+								"dropped_full": 0,
+								"clock_failures": 0
+							},
+							{
+								"complete": true,
+								"raw_diagnostic_rows": 2550,
+								"queued": 0,
+								"written": 2550,
+								"drained": 2550,
+								"dropped_full": 0,
+								"clock_failures": 0
+							},
+							{
+								"complete": true,
+								"raw_diagnostic_rows": 1282,
+								"queued": 0,
+								"written": 1282,
+								"drained": 1282,
+								"dropped_full": 0,
+								"clock_failures": 0
+							}
+						]
+					},
+					"input_identity": {
+						"status": "PASSED_NATIVE",
+						"observed_within_target": true,
+						"owner_phase": "M03",
+						"owner_gate": 9
+					},
+					"gpu_context_coverage": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": true,
+						"owner_phase": "M03",
+						"owner_gate": 9
+					},
+					"cpu_submission": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": true,
+						"owner_phase": "M03",
+						"owner_gate": 9,
+						"reason": "inclusive wall upper bound; exceeding it does not isolate CPU work from opaque API waits"
+					},
+					"output_api_cadence": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": false,
+						"owner_phase": "M03",
+						"owner_gate": 9
+					},
+					"producer_api_cadence": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": false,
+						"owner_phase": "M03",
+						"owner_gate": 9
+					},
+					"submission_deadlines": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": null,
+						"owner_phase": "M03",
+						"owner_gate": 9,
+						"reason": "anchored native API observations; early acceptance does not prove GPU/display completion"
+					},
+					"deadline_misses": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": false,
+						"owner_phase": "M03",
+						"owner_gate": 9,
+						"reason": "exact anchored opportunities; window software display and Spout ready-time bounds; late completion polls stay unknown"
+					},
+					"editor_independence": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": false,
+						"owner_phase": "M03",
+						"owner_gate": 9
+					},
+					"source_to_consumer_age": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": null,
+						"owner_phase": "M03",
+						"owner_gate": 9,
+						"observed_capture_p95_within_budget": true,
+						"reason": "every accepted Spout GPU capture and both exact window software-display cohorts are required; no physical scanout claim"
+					},
+					"spout_capture_identity": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": false,
+						"owner_phase": "M03",
+						"owner_gate": 9,
+						"scope": "sample-accepted Spout output images, exact renderer source-use versions and GPU marker contents"
+					},
+					"spout_capture_age": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": null,
+						"owner_phase": "M03",
+						"owner_gate": 9,
+						"reason": "one first completed independent capture per accepted Spout image; missing images cannot be omitted"
+					},
+					"source_publication_age": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": true,
+						"owner_phase": "M03",
+						"owner_gate": 9,
+						"scope": "CPU source-publication/receive to output API boundaries; no GPU/presentation queue budget inferred"
+					},
+					"gpu_critical_path": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": null,
+						"owner_phase": "M03",
+						"owner_gate": 9,
+						"reason": "exact dependency identities do not calibrate separate GPU-context clocks or establish critical-path elapsed time"
+					},
+					"logical_texture_charge": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": true,
+						"owner_phase": "M03",
+						"owner_gate": 9
+					},
+					"dxgi_admission": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": true,
+						"owner_phase": "M03",
+						"owner_gate": 9
+					},
+					"renderer_private_memory": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": true,
+						"owner_phase": "M03",
+						"owner_gate": 9
+					},
+					"completion_retirement": {
+						"status": "PASSED_NATIVE",
+						"observed_within_target": true,
+						"owner_phase": "M03",
+						"owner_gate": 9
+					},
+					"shutdown": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": true,
+						"owner_phase": "M03",
+						"owner_gate": 9,
+						"scoped_elapsed_ms": 455.546
+					},
+					"renderer_handle_growth": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": null,
+						"owner_phase": "M03",
+						"owner_gate": 9,
+						"required_handle_delta_maximum": 10,
+						"required_private_growth_bytes": 33554432,
+						"required_drain_seconds": 10,
+						"reason": "applicable renderer lifecycle/resource-return series is absent; timing samples do not verify its handle/private-growth budgets"
+					},
+					"physical_display_dpi_input": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": null,
+						"owner_phase": "M05",
+						"owner_gate": null,
+						"reason": "M05-owned physical observations are absent"
+					},
+					"Q05_handles_growth": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": null,
+						"owner_phase": "M09",
+						"owner_gate": null,
+						"reason": "full-app Q05, including Matrix launches and transitions, has not been captured"
+					},
+					"native_preparation": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": true,
+						"owner_phase": "M03",
+						"owner_gate": 9,
+						"scope": "native preparation/first-use coverage; no latency budget inferred"
+					},
+					"plan_publication_age": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": true,
+						"owner_phase": "M03",
+						"owner_gate": 9,
+						"scope": "CPU admitted publication to first worker receipt, atomic install, first submit and accepted output API; retained plan age is not edit latency"
+					},
+					"window_presentation": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": null,
+						"owner_phase": "M03",
+						"owner_gate": 9,
+						"scope": "exact native Present/ETW software display cohort; not physical scanout"
+					},
+					"plan_age_and_published_queue": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": null,
+						"owner_phase": "M03",
+						"owner_gate": 9,
+						"reason": "CPU plan/source age and optional software-display timelines measured; pending display events do not establish app/native buffer occupancy or GPU queue time"
+					},
+					"environment_identity": {
+						"status": "UNAVAILABLE",
+						"observed_within_target": null,
+						"owner_phase": "M03",
+						"owner_gate": 9,
+						"reason": "selected MSVC/SDK, driver, WebView, power and overlay observations are not pinned"
+					}
+				},
+				"qualified": false
+			}
+		]
+	},
+	"archive": {
+		"path": "docs/progress/evidence/mapgyver-m03-direct-window-controls-2026-10-29.zip",
+		"sha256": "5ab38560b5025e3d33e3da9b1fbc7f181c42cd83c250f05150b6525d7fcfb99e",
+		"bytes": 1670621,
+		"members": 45
+	},
+	"changed_execution_inputs": [
+		"crates/golden_video/src/native/backend.rs",
+		"crates/golden_video/src/native/backend/resources.rs",
+		"crates/golden_video/src/native/outputs.rs",
+		"crates/golden_video/src/native/outputs/window.rs",
+		"crates/golden_video/src/native/outputs/window/tests/mod.rs",
+		"crates/golden_video/src/native/pipeline.rs",
+		"crates/golden_video/src/native/tests/pixels.rs"
+	],
+	"execution_input_sha256": {
+		"apps/mapgyver/build.rs": "cc58d91cfe8530a781d48211dc1a01456ba2aa35df75ba0ba668abdf809568c2",
+		"apps/mapgyver/Cargo.toml": "2196b9dd0a9724a3f042c343a8ca956fb81edf93385a84575636d0c14a9865f4",
+		"apps/mapgyver/tests/native_qualification/config.rs": "cf801be64ec7146cd36d2f6c6ca742578e758f95d5d108ca58d3e0a5f5006f76",
+		"apps/mapgyver/tests/native_qualification/host/preview.rs": "97ccb0028b71db975fb0df93955464f6fa492937311aeacc902d416258c8d1bf",
+		"apps/mapgyver/tests/native_qualification/host/record.rs": "1ddfd6cbcdcd9b0979d62de8687c72ca3db5a11795c5ada81e29f71b33731e90",
+		"apps/mapgyver/tests/native_qualification/host/worker.rs": "7c54774d837a085ae50faa11a5ee6fb8e8c7c381524b72d2f5ee56dc4b4819df",
+		"apps/mapgyver/tests/native_qualification/host.rs": "a7ce6e91de41b1d143696c4dca3970337d6cedfd97f0f45036c0b3b26beb8e90",
+		"apps/mapgyver/tests/native_qualification/roles.rs": "cca863b9eb8232d30a563e89b99c587d20d1ec86a7fdeb6c2c5aac390baf024a",
+		"apps/mapgyver/tests/native_qualification/runner.rs": "506be4e7ad39a26ac790b619e6dfcc86eceb04c0e9bd8b87b2fee3240fedad41",
+		"apps/mapgyver/tests/native_qualification/scene.rs": "4797df1482e41db4673d96bbfd75bcb87bcf5f778910597870a1474c6acc17ca",
+		"Cargo.lock": "fbd793ac57bdd7d78219d1c0086cba963f3372c7cef7b614705567e9e640b83d",
+		"Cargo.toml": "0b46414662cc3291a81385cc1f2abba3e242aa0d05f5a3f5faddea1a417ea4e2",
+		"crates/golden_core/hosts/desktop/src/desktop/tests/mod.rs": "ffe7a9cd4937d0d4722d48edcfd2e45b5e74d6c69ec165c09a81238bbff50722",
+		"crates/golden_core/hosts/desktop/src/desktop.rs": "1cade475ae5ebbdf3b1c204ea2e979957d46b51b67c927a77f97c545e0b90998",
+		"crates/golden_core/hosts/desktop/src/desktop_commands.rs": "5a200eb339dacb1fe039a163c0da273c4b00fb4d72fad072423b0a3a9abf128e",
+		"crates/golden_core/hosts/desktop/src/desktop_window.rs": "27cf8e514e110d3012b08a81591ff47690e7a47a21377a9b38989f3a1b2dc15c",
+		"crates/golden_core/hosts/desktop/src/host_config/tests/mod.rs": "f1129d183a2045fbc13ef50b2e217a613ed9240a1b053fc0b6ccc3d8cc1813f6",
+		"crates/golden_core/hosts/desktop/src/host_config.rs": "259111a58b3fb46685f4ab03b5febbc6864a061b2a3ec0dc571f34b7248f86ec",
+		"crates/golden_core/hosts/desktop/src/lib.rs": "a46b253832715c61a4ac0c0b79e888507be13593946db2e34b2b0146ecab0d85",
+		"crates/golden_core/hosts/desktop/src/native_presentation/control/tests/mod.rs": "3a476e1ce41a8ce390cb4c60a22bff5d95c211e9ca468c3a3293c44894d70234",
+		"crates/golden_core/hosts/desktop/src/native_presentation/control.rs": "eaa0f0e98db3f73a66d847f5a1e35e33d38e77de05de819929d20ba1a4f0beb9",
+		"crates/golden_core/hosts/desktop/src/native_presentation/host/tests/mod.rs": "7ae611aa3494972531f9636507c7b832b07805f6f3677a71ed6098d8dd4b8605",
+		"crates/golden_core/hosts/desktop/src/native_presentation/host.rs": "e56b32e56fe5265681e5d9c7e84cbf4cbcfb0c7d7d2694968bb1c223874edb5e",
+		"crates/golden_core/hosts/desktop/src/native_presentation/mod.rs": "aee66473ca97e6cd60f49b2a3faa1afa5fd7889fbae99a961eeb51c0aa714005",
+		"crates/golden_core/hosts/desktop/src/native_presentation/tests/mod.rs": "63e4b97b287445c084d55d978a51e7eededbb3d78e53d73b73a395f37e1e1a4e",
+		"crates/golden_core/hosts/desktop/src/native_presentation/worker.rs": "8375e7fb4d45373b2d27ba2dc48b47c92bf43c3e8ea7c0cbd7a18ef9022d9626",
+		"crates/golden_core/hosts/desktop/src/tests/desktop.rs": "84a0a6cec030b918964cdf858532f4b645891037e16f2380359b3dec1ccafe70",
+		"crates/golden_core/hosts/desktop/src/tests/launch_args.rs": "2adb41506458b353914294303b96b06b0a8d70c989db9fed11e444f82eaf8d4b",
+		"crates/golden_core/hosts/desktop/src/tests/mod.rs": "5ca94c1a370204e9a6b4b756e512f0d4c94f5b0a6a962794d51a174ee4794440",
+		"crates/golden_core/hosts/desktop/src/tests/window_state.rs": "7f22372522a7ed20a5a40d86838d67ca0436c0f725254b98f11bb1df2524b3d8",
+		"crates/golden_core/hosts/desktop/src/window_state.rs": "29980ad04f03efd5bd1cd19fc497717abe83067fb7ad0aba802bf2847ebc4ca2",
+		"crates/golden_core/hosts/desktop/src/windows_process_job.rs": "fa142e629b71f66a62b5a786c670165c8b71d3adc8b1a61de2b85a67b8173503",
+		"crates/golden_time/Cargo.toml": "a036451786be3c2b1792a1950f4dbd5936ae22557bdc47d02aa4330b293dda93",
+		"crates/golden_time/src/activation/mod.rs": "996e4143425dc601b8e48cb1666691f64f4b520bc755f386270f7ebec276c436",
+		"crates/golden_time/src/activation/tests/mod.rs": "baad4b960c80cdaf705b0fcd36625b1a3329dc1772c7869d45e45bfaa9955859",
+		"crates/golden_time/src/authority/mod.rs": "ade63191a640d6daae608c6fea76679c79f87fc47bbf73dd248c68e8d70d43b8",
+		"crates/golden_time/src/authority/tests/mod.rs": "ee48155eb29013336cd4953ab7f89f5e1d0cc31e042de03d599ce676266eaffb",
+		"crates/golden_time/src/error.rs": "aff58573ebd82b1d89f5f490ac6a7bd6939bd1f5306258885a6de8854724ee76",
+		"crates/golden_time/src/lib.rs": "01ae2d5eb9ae816b2486bf7e16a709e09e4ff08755ab85e62e92895adc01887e",
+		"crates/golden_time/src/mapping/mod.rs": "79b09bac38a33122f52d44c0dea0d98fc8f559b53accb79f0aa642b9a5e45a46",
+		"crates/golden_time/src/mapping/tests/mod.rs": "40619be1e03cbb8631485b4cf63d0c5cf1e1dde484e1d8382e30a7f3dc58f997",
+		"crates/golden_time/src/rate/mod.rs": "1ee392c7cb96c68ac2271d7aac74f7bf7f5999330778e67bc418708cbcd12438",
+		"crates/golden_time/src/rate/tests/mod.rs": "4c3bbeaab01b19519f0b43b3d87517d2529cb2d77963641cd7e62938582e00fa",
+		"crates/golden_time/src/tests/mod.rs": "7507f7f01e1d700a258ce73aea4c86784c60219caf7095e663f0da6f385787e5",
+		"crates/golden_time/src/value/mod.rs": "edb1ec2de997dbadc2bfb8da4c4122bb62fcee9d90bbf47433c1a368bf701c74",
+		"crates/golden_time/src/value/tests/mod.rs": "871392aa929cdbafe3cd53099bc5a61d5068501d757590a9cfc3b66bb54417d9",
+		"crates/golden_video/Cargo.toml": "94625da46a1bd21553ec3a27335dec9ae24ff9e23d4dbf40e6b73a70ee2a1f38",
+		"crates/golden_video/src/bin/generate_preview_protocol.rs": "690b84817660f7ecb4b608e8cbdaccf924fef744b73a008a96c2b7d046f634b4",
+		"crates/golden_video/src/bin/generate_qualification_protocol.rs": "41b0e9937730472b21d51273fe607851699bde944d6c02c50f10a8dc5fd3d5c1",
+		"crates/golden_video/src/color/mod.rs": "3244b837e291f25e3e49d210111a6699bf8cbd53031be3c3bac49ece7133c355",
+		"crates/golden_video/src/color/tests/mod.rs": "9fd3f79d3c5fb8d1b2aacc5c6cba83935468999a959873c1bfeef0779ff9a48d",
+		"crates/golden_video/src/identity/tests/mod.rs": "18fe4060278b0da5afe1f1f1b7af5d18adf435ef746ef1765df3827863aae1ab",
+		"crates/golden_video/src/identity.rs": "ec154e214502e983eea7511c441ecc9ff35d62b4f7a919fd097ff214b44403ee",
+		"crates/golden_video/src/image/mod.rs": "5b59d8f8405518b7aa8259f8ad5a532c0e5a7cc7d6da6de2525a0367495b2fee",
+		"crates/golden_video/src/image/tests/mod.rs": "2d618d2c41111d93aa048e1fb4ab8e0629594afb178612a2fe2ae18f4b39af8d",
+		"crates/golden_video/src/lib.rs": "9c232ec59f6d165da96f3de218b2c567dc2bd99565994bd577e62329867b6d90",
+		"crates/golden_video/src/native/backend/resources.rs": "3313f3e5b6cb6453ffb05804f376804abc63a54126a6afb841f2582a178b17ab",
+		"crates/golden_video/src/native/backend/tests/copy_tap.hlsl": "332de38a4558904d867b4ecca646139d9b40fe4362596e121f8aae66830ab76e",
+		"crates/golden_video/src/native/backend/tests/copy_tap.rs": "44ca43bb8ae5b41e875ccf5a67f9f8ce15d0afe7ca0353ad5805900fd4d51ca8",
+		"crates/golden_video/src/native/backend/tests/images.rs": "abe38cf315c2a9d012bd481876d4628df9bf3640336062834be6aea3ba6cb988",
+		"crates/golden_video/src/native/backend/tests/inputs.rs": "1c6d53d37eb9f09925b8e999b441f565124255377e6fd375d67628d5fc74e8bb",
+		"crates/golden_video/src/native/backend/tests/mod.rs": "c9ad1f5cca22707d01bf37905c340507d23cad079bba079ec2df3005411af783",
+		"crates/golden_video/src/native/backend/tests/regions.rs": "0516020311b729974f9f688bf8391ab7dc84f1d34bec2e86bbf7f291cef9b547",
+		"crates/golden_video/src/native/backend/tests/startup.rs": "b50d56cae498219cb2e6f2f44e7d4558aae0c7b62cc752408be324440ba681e0",
+		"crates/golden_video/src/native/backend.rs": "a530fce756936b0029b7a5e256f1e724602fbd61e763cf649bdecc3366eb3b21",
+		"crates/golden_video/src/native/completion.rs": "3fc02ccebe13ab24ebf9daa25619bd6201091895e241a6e4cb13517cb8a4a06d",
+		"crates/golden_video/src/native/config.rs": "06d6db62f136d270c3a4ca07d2d96a8792f0e7f0eb3e6c4b3b29a7df32f1945c",
+		"crates/golden_video/src/native/device.rs": "293935c6e4b03dd5180925fc8c913ccb07eba2c31bce72e3300b91b6754408df",
+		"crates/golden_video/src/native/fixtures/card.hlsl": "985dcd4159861ff810722dfcec29ce35f6197d6153f35473a3347353e8b39cee",
+		"crates/golden_video/src/native/fixtures/consumer/log/tests/mod.rs": "f52713e788cd47f2f9c8d1640ce59cdb969c57e6ea7deeb923c3345a6c99fb7a",
+		"crates/golden_video/src/native/fixtures/consumer/log.rs": "f21dbf37c742fc7456dbddc3674a024026678173e47fae432c4687ca6566c59c",
+		"crates/golden_video/src/native/fixtures/consumer.hlsl": "a85415745c89d13e08991cc9d7235b2d4f1ea73f73619ed49f9242f549f2a34f",
+		"crates/golden_video/src/native/fixtures/consumer.rs": "52f91b7a223b1bbb2e3efb62eac010b5609eeb0a646d760f55ed54070c039e84",
+		"crates/golden_video/src/native/fixtures/marker.rs": "511fbc491589254a55f78d3f0ebcfa6a43e9060ec77175717917062984d00f62",
+		"crates/golden_video/src/native/fixtures/mod.rs": "9daf15bc74706e51b723a3144da67cba910746199e62ed6a7496479f06f75a2e",
+		"crates/golden_video/src/native/fixtures/pipeline_helper.rs": "ab060113356af9b4043a5d888f0ba679f90d6d73b47d477c4dcd3305e619f130",
+		"crates/golden_video/src/native/fixtures/source.rs": "0910c600da44a1b80958b89bbcc25f641e042eca418a3d863ed3ba3ff2bf864b",
+		"crates/golden_video/src/native/fixtures/tests/copy_lineage/bridge.rs": "cb6d448b86e7ca7310f7407dc09a62fcb9ae45e9ca629811f7044b4a403359cd",
+		"crates/golden_video/src/native/fixtures/tests/copy_lineage/keyed_access.rs": "867f21521fadeb52468bc22190afaf1b1697c2e83c5d7d83e0f607d4a87d56fd",
+		"crates/golden_video/src/native/fixtures/tests/copy_lineage/runtime_capture.rs": "1f04ed5d2d41f31bf3d82076b6ff23522136c423d3fc8407789d422841516d7f",
+		"crates/golden_video/src/native/fixtures/tests/copy_lineage.rs": "256df3eaca0ea04c8fc859b8ecacf65405f126645c7d6e84972ece4192194eb8",
+		"crates/golden_video/src/native/fixtures/tests/mod.rs": "0778b7214138ce44e4031771f07619278e09b13b2b0ab3145cf7b6dc560a7bbb",
+		"crates/golden_video/src/native/fixtures/tests/shader.rs": "0c7f5be8ae4adcd6e9afbdff932e3d6d1283abbe35efcfbd67da2c1665ea64a4",
+		"crates/golden_video/src/native/fixtures/tests/single_source.hlsl": "a70af675e9bc8f17d0279cfc0be70e10750f75c85e898ad17e312d5f85003776",
+		"crates/golden_video/src/native/inputs/mod.rs": "beb2a181637b3f7c303c6b0a6d4b161d686def192a1d42f49a5a25a2841ad87d",
+		"crates/golden_video/src/native/inputs/reader.rs": "29310b1269b9c0a29e0eeaa8d240d51a743baafe21a8fc4c496a719a6368d51b",
+		"crates/golden_video/src/native/inputs/receiver.rs": "811c1214cbc2441917e6876dda07db57f0e40b56e2f94c308dfc05fd9a756ea0",
+		"crates/golden_video/src/native/inputs/shared.rs": "c9814d6c9ba338f0784860dd9013c0b8945fb96375439fb18b1bc83e1f5da10c",
+		"crates/golden_video/src/native/inputs/surface.rs": "6fc12382569cb02d0411c9b6c31688b6e11d0068052248f50989cd070fa66ac5",
+		"crates/golden_video/src/native/inputs/tests/freshness.rs": "2b6a4fe33bc33b49a8d0bfc53572b347449ad2067e5e601f5419cbe8b5a7756c",
+		"crates/golden_video/src/native/inputs/tests/hardware_freshness.rs": "91ab9621b8096f73f5a9928ad258a8caa2ba381b721160ae9a49e8370b3afda8",
+		"crates/golden_video/src/native/inputs/tests/mod.rs": "21c3801a96f0b8450bb95b761c7a5de0893dcc573c4adf3cd3bc9ae934bc453d",
+		"crates/golden_video/src/native/inputs/tests/retirement.rs": "3006448396723a992017f111f8fb6900d9611c40ea221c177b52e1c47b10fe35",
+		"crates/golden_video/src/native/inputs/worker.rs": "1f9c7c84a06fb3c8bbb0685ee81c0601d71503452df20b80bd10145b11b49331",
+		"crates/golden_video/src/native/memory/tests/mod.rs": "05189ad6104a48b9e43d15ebd458a2457130445476536a7450295c2075a86852",
+		"crates/golden_video/src/native/memory.rs": "1404e3a7d8904a28dc166c84617b6117885c898ef946efa2e7d7bb652755be4f",
+		"crates/golden_video/src/native/mod.rs": "0626e1fc74d8a9dfb2e5a124f8e52fd1b7e0aba490daaa341d42d71422e58c00",
+		"crates/golden_video/src/native/observation/tests/mod.rs": "7ea7198c0c804f408e808c58b7335644c6497b6efb763d5009185c55dfa97430",
+		"crates/golden_video/src/native/observation/tests/notifier.rs": "5a7baf2836dadbf71530c4e7c66c843e208e60c35e7c07c641be4993a9c0bd84",
+		"crates/golden_video/src/native/observation.rs": "2a8aedc7ea1c76a4d07edd450783646e626efa7a9f7ded601bac79568c04129e",
+		"crates/golden_video/src/native/outputs/lifetime.rs": "58af1c3b1d8319b94ee7162e30dba88a3fdebf222e90e3053f24f366d7cb5084",
+		"crates/golden_video/src/native/outputs/recovery.rs": "fdaddc1a0cbc96b7fc0a26f210c13adeb1abff7a6012f268e044925e1d2e96ef",
+		"crates/golden_video/src/native/outputs/spout.rs": "4cf38bc640cdd562b7de35cb275abc2ba53966fe88a3ccd0e971f79d64cc224f",
+		"crates/golden_video/src/native/outputs/tests/admission.rs": "aadc279aab18b0bf88458d496f5e869c6eeddf6ecbc377dab6f106ad1fa427dc",
+		"crates/golden_video/src/native/outputs/tests/hardware.rs": "ec1009b9300b4e80525810217de3cde372b1ee5accd892cb3a2f0480dd522762",
+		"crates/golden_video/src/native/outputs/tests/lifetime.rs": "3468d9c40d67db0ee5458e74b43a39b616171de522f9fc11a0f29cd361ff8089",
+		"crates/golden_video/src/native/outputs/tests/mod.rs": "05aa5683b7af4ba60a423555f967d9abec616dbd8ae64bdbfc81dbd3dff18454",
+		"crates/golden_video/src/native/outputs/tests/recovery.rs": "9dc042cc436735a6cef23d6cda2c1354109aa211c1c4dd7517f26a897e61cec9",
+		"crates/golden_video/src/native/outputs/window/tests/mod.rs": "b777378dff441126a0b42521e80bd0c3c8cc2994314fb759ae74d70d3386056e",
+		"crates/golden_video/src/native/outputs/window.rs": "7fd1bc0661d996fcce93fd5924ec98538ee124aba84966fac76eb8fcbc3f28be",
+		"crates/golden_video/src/native/outputs.rs": "d335d3985e8dc080f25e0e7adffe87bd8cce39479f6b75faed382d60f539a2ae",
+		"crates/golden_video/src/native/pipeline.rs": "88d93c9c1a8a67221a251b067b178a99622cc487822c137ed5e634c6da128836",
+		"crates/golden_video/src/native/process/tests/mod.rs": "237cc7769ec49deaf03b3c225946ea3146d33cca5f5d65fddbf0546d72239574",
+		"crates/golden_video/src/native/process.rs": "a05daca712f5cbfa10b2d4bb8842ee1ab3d5543997e087ca3ba7b12832430ad8",
+		"crates/golden_video/src/native/shader.hlsl": "9f3a5b21acad065094710125afe4877eb1621fe7727ac6faf01773b285b0803c",
+		"crates/golden_video/src/native/tests/contracts.rs": "06f37baf7528c12054d9dc01127156cc2b75da4d02d9f746721fc262ecfa29f8",
+		"crates/golden_video/src/native/tests/initialization_gate.rs": "698031dfdc0644da01e2d23e37969c2ad05a6055ddd89ddc8637db2f84b153b7",
+		"crates/golden_video/src/native/tests/mod.rs": "a84bad412f4ab709a2546ce2983cb09d9f611c02f075f90715ab9b38cdd69ede",
+		"crates/golden_video/src/native/tests/pixels.rs": "2db7f809d2f9a0a4ad8e1da3c07033257c1e8b727844a483bb3fe1c178069037",
+		"crates/golden_video/src/native/texture.rs": "f5ad5cc35e1ac22e759a49f1b1dcc403b03400fadbdd4faa818d6c751b3d891f",
+		"crates/golden_video/src/native/timing/clock.rs": "e786df7532f1e2e00fda4661ca02408046323e3c45df5e79e6ea4b84f30c410d",
+		"crates/golden_video/src/native/timing/cpu.rs": "d68cb767bfbb81864c29c91dea8ce82350ede306e92864d9a70a6e219cfa52d8",
+		"crates/golden_video/src/native/timing/event.rs": "c0d025b662f963cdb7d04c74af50ee360c8619317a16ffc8c1b97012649903d1",
+		"crates/golden_video/src/native/timing/gpu.rs": "020526df4b28e9169094c8d20607a637c5c3f6dc6f6a420db34cb1168edf9e82",
+		"crates/golden_video/src/native/timing/mod.rs": "42e9e18b7edcfc1db4dbed7465da8a4d63e2878982409a715b9058609921c161",
+		"crates/golden_video/src/native/timing/plan.rs": "7227022ef016d9c9e1b20c3a01f1125e913069082eda5e834c24b2c02ea1fb6c",
+		"crates/golden_video/src/native/timing/scheduler/tests/mod.rs": "d5756e9ef9cc3cbe687ea143ee173a388b7a6f9afb5abc2a06512e922a88bdaa",
+		"crates/golden_video/src/native/timing/scheduler.rs": "b66996c63ce6cb4c3240c5a3adc795745524464e46bfdfc46d543474c17e7317",
+		"crates/golden_video/src/native/timing/sink/tests/mod.rs": "b61e25046ca9c620637faea51a1dcaa06967624c00d21027cf0fa4ad36525fa0",
+		"crates/golden_video/src/native/timing/sink.rs": "a2c06640e014f2f4c20f3b7f38a70d0656bfad93245190b0b54c091f1074805e",
+		"crates/golden_video/src/native/timing/tests/hardware.rs": "c1c2a6a2fa853ca4455b37fa29eaf62990f3410e7754c72f4f8f999faad777a6",
+		"crates/golden_video/src/native/timing/tests/mod.rs": "60b6a6dbb2585d157aa65696033b759e250545f873cad1126966d188e158f87f",
+		"crates/golden_video/src/plan/compile.rs": "f777dfb8cea353df3d9dd83d8b65a65deb902432f7238750785edc4e3f20324b",
+		"crates/golden_video/src/plan/error.rs": "12dae6f67ab6a710b60d6d4491d2490bc15b4fe9ec56d142366d7bfc12220746",
+		"crates/golden_video/src/plan/mod.rs": "6f10b1e69eb71b0ed837101df245aeb91ab63eb36992b54a4f0d92056d279324",
+		"crates/golden_video/src/plan/region.rs": "c689e88b9d53e1fdc77c7ba37c07c690a29d1fc89bff9b654b5b8f8315bcf1af",
+		"crates/golden_video/src/plan/tests/mod.rs": "72dc56693c0e1dc0dedc0026d552177a27c3c246f06f4b0d374e9f54960c8d6f",
+		"crates/golden_video/src/plan/tests/regions.rs": "6a88e7b8920bbbcdfe1f7d2aec0a448fb0980a8743ea463e2542b6abff83d7f8",
+		"crates/golden_video/src/plan/tests/topology.rs": "3897edc1eb303c44311f1ea286f0df1223dcfeb764ae1b60475becc75265f4a1",
+		"crates/golden_video/src/plan/tests/validation.rs": "fa2efb96d92d23a8c910edbb39dd912d2b0c5730f4a265f221e49adecb0dc925",
+		"crates/golden_video/src/plan/weight.rs": "b6dc468bc86348604c0a471bcd254dae42ebfba6620a1911449747f4803f0dd2",
+		"crates/golden_video/src/preview/geometry.rs": "a895c7157d35749a83733459078b1e14ee17317ddf7062dc1a8f5c2053e8181b",
+		"crates/golden_video/src/preview/mod.rs": "10365fc992d0ea430e1b135f9ea84ba202dfa8407a40d31c89855598a48e7fc4",
+		"crates/golden_video/src/preview/protocol.rs": "a9ca0150659667eaf0fdca0b98dc2868599429b8ec99872d51461bbf1dfdac75",
+		"crates/golden_video/src/preview/tests/mod.rs": "df3953ec32e4f5278073e55ae242a54ad1a7f5bb40340702671860609a4c4a9c",
+		"crates/golden_video/src/qualification/mod.rs": "bca3c30a202997f8c1be70d272cac2a982faf81307e3718c75c85a2cda77b3d0",
+		"crates/golden_video/src/qualification/protocol.rs": "f77f601b09a1708377bdab7549facad3690db9e41e827613560d1789bb3eb66e",
+		"crates/golden_video/src/qualification/tests/mod.rs": "6faa9b8662f741373d6a23d6adf26c5486528388886177ef852ed176535e6dc6",
+		"crates/golden_video/src/resource/mod.rs": "d8def306d350634ee3487ea28d1141aebd2b61b36fd5a300eaff03f8bbd91231",
+		"crates/golden_video/src/resource/tests/mod.rs": "ba8a8f44db9317252b1e719775f89888764b00c328c7adfd3fd44051e5e6caec",
+		"crates/golden_video/src/runtime/backend.rs": "2d72ccf806051e86ac69ffe1d127a7227ab468135deb3cbf3f76e9e2e6b8cfc0",
+		"crates/golden_video/src/runtime/cadence/tests/mod.rs": "7397a03047542c5e09b7d85cbac21fd340a947d4bea1256fe4930d1ddbf4e558",
+		"crates/golden_video/src/runtime/cadence.rs": "ff8b4a0af8aea06944839dac51db357af8c84e804012c66360eda99ee228942b",
+		"crates/golden_video/src/runtime/control.rs": "4d468f573ca9323447f7ebaa188a338a146fce30336c8747787422f1e4f21429",
+		"crates/golden_video/src/runtime/core/tests/baseline.rs": "498bdc65602cc6b9ac64c9cb5acd7aac1dc7d5a356ff022f95e76de0b735dacc",
+		"crates/golden_video/src/runtime/core/tests/mod.rs": "b57aafc70eb4ce94400850c7dc1af07bccfc5359d32db14dccb4efa569d8f27f",
+		"crates/golden_video/src/runtime/core/tests/unwind.rs": "62832169ad161efc8884a16481c4972bf0febef149c556f98d7fa605883fb81c",
+		"crates/golden_video/src/runtime/core.rs": "4d63751dae70579acfe08027db519b8a20cd373e62de994d74cde4724fecb297",
+		"crates/golden_video/src/runtime/error.rs": "864bd6ada30c0395abfa6fac254184e34d1bb853ba02b344f671eb3f5de8a034",
+		"crates/golden_video/src/runtime/identity.rs": "d022bc9601fac3186acffa8f7d3f5af85f937e921a16fb559bc837abaa52e4f9",
+		"crates/golden_video/src/runtime/mod.rs": "e78524f7d3be91ea7507d1d91473895f2647fb4ca118d7013bed2574b60f78a3",
+		"crates/golden_video/src/runtime/null/tests/mod.rs": "a9a5304b3b088686805b63508f2146e78efe3f8c3658728ff12303afa5bd374d",
+		"crates/golden_video/src/runtime/null.rs": "faa84e676aa54058035bce52932868b60fbd4c90e69505b0a277d1022e2c3b8c",
+		"crates/golden_video/src/runtime/observation.rs": "c4b5bbfb366bd43baebacfde62968167001b761c1c4db64f0efe6cf41f230a55",
+		"crates/golden_video/src/runtime/preparation.rs": "7c707dce7723a65256cf828606000ca5d010cba6ad3d1cf0b70e994cdb928241",
+		"crates/golden_video/src/runtime/schedule.rs": "c28b0167c9c92dbb7b254fc9cd3241c10e277992990067dc1b8580dce8313dc4",
+		"crates/golden_video/src/runtime/shared/tests/mod.rs": "700c0960ce25a6b1123cbaf46891403bca11da9bac3a3d5693ca6e95467bb19e",
+		"crates/golden_video/src/runtime/shared/tests/observation.rs": "e2118173f622ee999980bcd5a360bdb1ef7d9f7c226d294e85349ad2f6f1b81a",
+		"crates/golden_video/src/runtime/shared.rs": "9d630ac33eadfa57f96e15db2c378b424a89890e909d84de904d09f569752310",
+		"crates/golden_video/src/runtime/submission.rs": "2256f9359a072929c069585b49ac54c4850e2c1c3176565e1100a2756d2b9a04",
+		"crates/golden_video/src/runtime/tests/admission.rs": "818cd3c6fdc28f13bbbeda058355fc6347f861630e637d4f3d5afecf607d73d2",
+		"crates/golden_video/src/runtime/tests/images.rs": "dc7e18baf059f8962ccd9d267c36a527255662db3d84dc64dc543109b7a6c732",
+		"crates/golden_video/src/runtime/tests/mod.rs": "d7b04403786d0445a1ff02a084b9a5afa55b19305642406ea9e3a7c919f7765d",
+		"crates/golden_video/src/runtime/tests/ownership.rs": "fbbc4a7f958ddae250e3ace5c8c2806fa21f5f6d4c138b2abf93edbcda2d1097",
+		"crates/golden_video/src/runtime/tests/recovery.rs": "d7ac24ca9f1c2d45db855f0fe10eedf9f34bc9e526b5af3ab7df50b0343a44b5",
+		"crates/golden_video/src/runtime/tests/recovery_project.rs": "9269f51c6ee82a5e50cb123a6e6bd34fbaab1514775b59ecc02acba3ca6ca899",
+		"crates/golden_video/src/runtime/tests/scheduling.rs": "a21a56e943f6e26c2202f4d3a6222b1b2ac2db1b8ca1b619d875b2a59f23035b",
+		"crates/golden_video/src/runtime/tests/startup.rs": "238f7e053b4f106eb712637e1dc2925832744381efbf78c95eb46378f80f9dbc",
+		"crates/golden_video/src/runtime/types/tests/mod.rs": "796893f1a40ff0981bf908e0068874095dd42a40bf096721594c18a3fbc5ce73",
+		"crates/golden_video/src/runtime/types.rs": "db8695954c9fcbe5e053750f9bc819fbcb262b6e586215d2bc3c3cd1d8b74a30",
+		"crates/golden_video/src/runtime/worker/commands.rs": "a4a1ddf1f44979d1e9b51da2bf4717498b9144247f18c40a69f7018b0cf0630e",
+		"crates/golden_video/src/runtime/worker/lifecycle.rs": "df48c43400a99cb90b1f1e92fde3df4ab3fa4c64cba7117dc2b74bb96f986a8a",
+		"crates/golden_video/src/runtime/worker/mod.rs": "a81a50d623850b997a1022c102558425c0701d4461b804af07a709f0501f862b",
+		"crates/golden_video/src/runtime/worker/plans.rs": "b1f55aa673cdc33627bd5137357cacb7a21e057b735230ecfa9b26aa79577a4e",
+		"crates/golden_video/src/runtime/worker/tests/mod.rs": "445406e248e69a3435dbc5c9812bdc1544e9bd99f8da8f395b30765328a2b7e7",
+		"package-lock.json": "3af5e4a065cf95532a7d6b82b1f42820b7b758bf800e5422ba52dfd7ec73b8d4",
+		"package.json": "0b3afaddd45b6a0b69acc2aad844b2b165cc3ee723cf62353e346ef295cc2472",
+		"packages/golden-video-ui/generated/constants.ts": "8c12260df4b277586a85325a8e9bd05f0bec8d5fbff44acc4e88cce18fe3cd09",
+		"packages/golden-video-ui/generated/CssRect.ts": "a927b6e723328e1e2c1e3cb9bb3ec50c2ae2912987b6b40229adc41f45c8ba7b",
+		"packages/golden-video-ui/generated/PreviewRejection.ts": "ac8375e34ab848b2fa4d39ca182de4a9321e9bbb6865547e3ec1e096d0a55ff3",
+		"packages/golden-video-ui/generated/PreviewRequest.ts": "82bf9303ae4ab4b86d086a85f44bceda716b3c4f7ecbc7697bf613ade25da91d",
+		"packages/golden-video-ui/generated/PreviewResponse.ts": "ed08fff60de7f9c4b88cfea16c3e753ef8ca2eb7b728f6bfa8d6adf94adbca78",
+		"packages/golden-video-ui/generated/PreviewView.ts": "14ca993dfd2f9b279aa4401a42ce6155ba83cf6a1feb533eb8cd3628f8efb1a3",
+		"packages/golden-video-ui/geometry.ts": "e82fe382029128ecae98d2dcd37cdc8027fd8a5601df0446a401ddc6ba0ae06b",
+		"packages/golden-video-ui/index.ts": "7957d825ca5a09c3b13bb90c45e97c57050f8ddd4f342d2a1426a39836048485",
+		"packages/golden-video-ui/NativePreview.svelte": "e1af9e32408a257a4052c2e6a1e6bac725102b2c4a11dcb7096fe3174cf224e5",
+		"packages/golden-video-ui/observation.ts": "d8af15bb1633512cc8289c9c6ca2d206c198d35cb36204342c77abbc2c46af8b",
+		"packages/golden-video-ui/retirement.ts": "4a4d4b4df660af8872aa5ab43ce7de52fb3e1385eb6cbc51d63854670e3750d6",
+		"packages/golden-video-ui/session.ts": "3cb80d12fd49dab7ffbd86869f32b86c4c6df47bf7766aa2faea8f4fbaf37ded",
+		"packages/golden-video-ui/tests/geometry.test.ts": "2089e3438b336a8a2d30058248d4061ae2566d3b5673d8e94100975bb3d4dfe5",
+		"packages/golden-video-ui/tests/native/Fixture.svelte": "149aa5201cf873c400e171338b43bed998cfbd544963492e688d5cac935c2473",
+		"packages/golden-video-ui/tests/native/generated/capture-schema.json": "b494651e1d02b6c687e827d4ef1325b3d91f24a89add38e1da17b056c269d51e",
+		"packages/golden-video-ui/tests/native/generated/constants.ts": "7053a4ac8d812927f9b6a8535d7fb8f77352c843349c23403b54038543da1cfc",
+		"packages/golden-video-ui/tests/native/generated/CssRect.ts": "a927b6e723328e1e2c1e3cb9bb3ec50c2ae2912987b6b40229adc41f45c8ba7b",
+		"packages/golden-video-ui/tests/native/generated/PreviewView.ts": "14ca993dfd2f9b279aa4401a42ce6155ba83cf6a1feb533eb8cd3628f8efb1a3",
+		"packages/golden-video-ui/tests/native/generated/QualificationAction.ts": "4ce915d580464d6507a560cbe39e4a84e4e35d0d63a6bce7ee6c0056c76ec1e9",
+		"packages/golden-video-ui/tests/native/generated/QualificationCommand.ts": "945cc6b2f063059fc8d4ca836a5dd7ed6e294acc082bb2c007f23715735c774c",
+		"packages/golden-video-ui/tests/native/generated/QualificationLayout.ts": "26dac4baa74ad0ebbc1a76fa9283fa587dcb62f896d4cc8564e804a0ad19a548",
+		"packages/golden-video-ui/tests/native/generated/QualificationPhase.ts": "3eecab23fe08fbeddf7eb9b338c60b88b5bff07d0bea70ded210ca29f58cb855",
+		"packages/golden-video-ui/tests/native/generated/QualificationReport.ts": "354833f7dcfb5eb7210256fbaf57b791e84de1a96002b91cf1f7466f6893bf75",
+		"packages/golden-video-ui/tests/native/generated/QualificationView.ts": "7c46d5d0c3c197b851f6f5af7b06c2270ee773e991f81b47b749eb1b46d055eb",
+		"packages/golden-video-ui/tests/native/index.html": "865f83db813f73c5456466e97f1a967e9971b77736ca3e87f787ecc42248d6aa",
+		"packages/golden-video-ui/tests/native/main.ts": "0931bc4337e316aec22dc494642ec75551a0f3f1486231d3786b66275354aecc",
+		"packages/golden-video-ui/tests/native/Qualification.svelte": "6a2442ae495a6fe6e4a1328298f2e7c625cf4c68321ef5290c5abfba0cce0f27",
+		"packages/golden-video-ui/tests/native/qualification.ts": "259408ce0bba07e137e61507234649c8dabce13355dd86635b2cc30f89467608",
+		"packages/golden-video-ui/tests/native/vite.config.ts": "cf754b5af033a2eb3a5083b29a2e9c3235a73d56dd659249d9fd9e389cee4935",
+		"packages/golden-video-ui/tests/native-dist/index.html": "4c14c34bcc3759eb3b4a7f08c2974d39c563ffdbccc9958ff9344694fd938674",
+		"packages/golden-video-ui/tests/retirement.test.ts": "6030ee3657310fcdd0ad3e482750788640bd4d59f0da7c9d208b976d69881317",
+		"packages/golden-video-ui/tests/session.test.ts": "66040da3b7160e4126acf08e55c13e1ce3fc15ae2c4b43839097ea5270cbe001",
+		"packages/golden-video-ui/transport.ts": "e3e197336da618b24862254cde02ef20248c15593f8783b6fdae496503cd5d39",
+		"tools/mapgyver/presentmon_data.py": "c5ce44d3e6801d97449f83f79a28ce072c9d7a407775685f67189604aae8c682",
+		"tools/mapgyver/production_cohort.py": "42cf95b6d3ff4e1c4ba251297360d36cca2ccf15a5fc938182adb2b647b3a168",
+		"tools/mapgyver/production_deadlines.py": "c8618cd592819f1908901b1710b837f99865531ea51ff25db07e000098c979e7",
+		"tools/mapgyver/production_delivery_deadlines.py": "927bf27f5095c7fc738fa85675d01d8938b9f21214f3b4f6b60c098f0b2af8b7",
+		"tools/mapgyver/production_gpu_stages.py": "b54ce13d7860682434d2d94fd6be4353e741d5ba9a3e9dc6643be99ce9f439b9",
+		"tools/mapgyver/production_plan_age.py": "0d4f15ca08b689ba35893a208e5fdf3fc711dd8aefb9b0af3a299f31aa86938b",
+		"tools/mapgyver/production_preparation.py": "d96a9ce6607db3437a3cce96f7379ad84625c498ac7f99bb410f46b1a5052f19",
+		"tools/mapgyver/production_presentmon.py": "f825196d4a1a76200e47e791dac4c837db58df96386692a41fcb8339190caa55",
+		"tools/mapgyver/production_presentmon_capture.py": "7189f08c81364e3aa4e5ca310d37df15db5062bdf6470d77fb49d396d9eca99d",
+		"tools/mapgyver/production_process.py": "314f826b2bf97a6a97671790aff527d73ba14bc54b973ade335d6790c39da8bb",
+		"tools/mapgyver/production_qualification.py": "deae023486a7173ea409b386e873f45c1b4354a6a8f13fa562acc3678a7a2e68",
+		"vendor/spout2-sys-0.1.1/build.rs": "57835fd55d335eccb57b99ba0d409d7457907786b9255412327f2588afdecd73",
+		"vendor/spout2-sys-0.1.1/Cargo.toml": "38c7981939028d12158313e5bfe362f7d917fe1b29b6838a3fe8ad6e63a9251f",
+		"vendor/spout2-sys-0.1.1/PATCHES.json": "8df0d2589abcd97019592912ee18266c75901c463c1547acae1753573120571d",
+		"vendor/spout2-sys-0.1.1/shim/spout_shim.cpp": "1ac92d6dc94e00224387017e2e1fd3f367fc9f23faf91b068dcfd6333f92c11a",
+		"vendor/spout2-sys-0.1.1/shim/spout_shim.h": "85bc0c1cffc049c51ddc7cbef61b4eb32b16ec53998fad5111cbb7ff38e94696",
+		"vendor/spout2-sys-0.1.1/src/lib.rs": "3e48bf8e5b847a105dd15592df509d978361d4af95c82fdf6faf08691f880c70",
+		"vendor/spout2-sys-0.1.1/UPSTREAM.json": "92eb5e2a8d460009a6196b97de1119a4a2af0aafcfc9b38ecb45a32ff608b5fe",
+		"vendor/spout2-sys-0.1.1/vendor/Spout2/SPOUTSDK/SpoutDirectX/SpoutDX/SpoutDX.cpp": "f07d3ab4790589271420e847395571f23536075349396cad2d04989036c7dfbe",
+		"vendor/spout2-sys-0.1.1/vendor/Spout2/SPOUTSDK/SpoutDirectX/SpoutDX/SpoutDX.h": "fb888618c946106f170ceb45cee3130bf04e08cd5fe9c012938f411d4c81368b",
+		"vendor/spout2-sys-0.1.1/vendor/Spout2/SPOUTSDK/SpoutDirectX/SpoutDX/SpoutDX12/SpoutDX12.cpp": "4c8ded4a561d74dcc95fdc2ab7f76b5a90c940990ef19280843d0e023ee002e3",
+		"vendor/spout2-sys-0.1.1/vendor/Spout2/SPOUTSDK/SpoutDirectX/SpoutDX/SpoutDX12/SpoutDX12.h": "5e48a55a0b70a274b303d20ea4c688ba8e100fce2c8eb9df6ad361d341271cb8",
+		"vendor/spout2-sys-0.1.1/vendor/Spout2/SPOUTSDK/SpoutGL/Spout.cpp": "81bede16bce6b2a98d013fd7d3544cbd168a243f1355fe2ffae6c44cd65bfa77",
+		"vendor/spout2-sys-0.1.1/vendor/Spout2/SPOUTSDK/SpoutGL/Spout.h": "6ffb2ca50b672a602be6a1315305f26c2a79ad0b33e501723193c70fac3db342",
+		"vendor/spout2-sys-0.1.1/vendor/Spout2/SPOUTSDK/SpoutGL/SpoutCommon.h": "3bbed9ae197e2d989add6e06a21c3c7a08e46a5f0e728d2d223cb56b3bbaa363",
+		"vendor/spout2-sys-0.1.1/vendor/Spout2/SPOUTSDK/SpoutGL/SpoutCopy.cpp": "acf8d909e35767d647d945cf272080880a263cdca4ffa2ca42dca7f84353e331",
+		"vendor/spout2-sys-0.1.1/vendor/Spout2/SPOUTSDK/SpoutGL/SpoutCopy.h": "bbf8f110903266b713c1937c12ff6c1045123b78e32bc9df34a61b96cb332c49",
+		"vendor/spout2-sys-0.1.1/vendor/Spout2/SPOUTSDK/SpoutGL/SpoutDirectX.cpp": "4b045d95c78f1a2d406b1ad60b48de776205442dd26764ec2f9f5915458c582d",
+		"vendor/spout2-sys-0.1.1/vendor/Spout2/SPOUTSDK/SpoutGL/SpoutDirectX.h": "2b6e3ef973adcb7d1831a133203b23753b8a38200607e7369486a39301456cc2",
+		"vendor/spout2-sys-0.1.1/vendor/Spout2/SPOUTSDK/SpoutGL/SpoutFrameCount.cpp": "18d9a11442c273403e179feb10e478b0e27634724e64a503ce805bd384eea6c6",
+		"vendor/spout2-sys-0.1.1/vendor/Spout2/SPOUTSDK/SpoutGL/SpoutFrameCount.h": "71584b4bc07f24c1f6fd968d32d1b9fef9d247989ceefc2c8da103a65f355847",
+		"vendor/spout2-sys-0.1.1/vendor/Spout2/SPOUTSDK/SpoutGL/SpoutGL.cpp": "a2144638e55e067c9ff216f73df2682f185681979f86a69ca1b206527b608b8c",
+		"vendor/spout2-sys-0.1.1/vendor/Spout2/SPOUTSDK/SpoutGL/SpoutGL.h": "2da817fe4e68179096935840c6bae958a05bd561f8a66adee857a4f6eec8797e",
+		"vendor/spout2-sys-0.1.1/vendor/Spout2/SPOUTSDK/SpoutGL/SpoutGLextensions.cpp": "f588d435447c5fa3aab0d19b94b7fd12841fd61850ca2f4e17289b75b97bfe85",
+		"vendor/spout2-sys-0.1.1/vendor/Spout2/SPOUTSDK/SpoutGL/SpoutGLextensions.h": "168d7bec912620ff9f247c04d986edb20b24f22fbb28ab9ded8bd95b9e6c47d7",
+		"vendor/spout2-sys-0.1.1/vendor/Spout2/SPOUTSDK/SpoutGL/SpoutReceiver.cpp": "51920558c77f50fdf0e83521c11bb638c7d8cb29d7f6961ef2465e7aa36f43ed",
+		"vendor/spout2-sys-0.1.1/vendor/Spout2/SPOUTSDK/SpoutGL/SpoutReceiver.h": "b0183dd61cade5aff6a049ef84372f5412dba3e6629367ea0ba054645a43f0b6",
+		"vendor/spout2-sys-0.1.1/vendor/Spout2/SPOUTSDK/SpoutGL/SpoutSender.cpp": "cdf4f128264cca0106e0bf8f32be80776f5deae20db5b89ebfc95f73427a618d",
+		"vendor/spout2-sys-0.1.1/vendor/Spout2/SPOUTSDK/SpoutGL/SpoutSender.h": "64def4ac8b6c35d449170ecfc896b4721cfae651df02b828cadf6671223711cf",
+		"vendor/spout2-sys-0.1.1/vendor/Spout2/SPOUTSDK/SpoutGL/SpoutSenderNames.cpp": "87dd3715afdd81ca7bd703850d3beeca16ee180fa2d34b12eb19742239a22259",
+		"vendor/spout2-sys-0.1.1/vendor/Spout2/SPOUTSDK/SpoutGL/SpoutSenderNames.h": "530fd0f4de124b60884a03f840eee8a4b7041831a238821e56ede2b872c153d9",
+		"vendor/spout2-sys-0.1.1/vendor/Spout2/SPOUTSDK/SpoutGL/SpoutSharedMemory.cpp": "a8dea8d6db97953102ec1b2750b945c97c996b1b75b0cf053fda0cef59adf35c",
+		"vendor/spout2-sys-0.1.1/vendor/Spout2/SPOUTSDK/SpoutGL/SpoutSharedMemory.h": "053a315f2c0d57b2c0206d5f4f71a05618bbdba779fca4060771b925ace31b77",
+		"vendor/spout2-sys-0.1.1/vendor/Spout2/SPOUTSDK/SpoutGL/SpoutUtils.cpp": "d2cdb3ff0ca6355739ea11bf01cbb96b11023aac31203dcaabfb9301b1703df9",
+		"vendor/spout2-sys-0.1.1/vendor/Spout2/SPOUTSDK/SpoutGL/SpoutUtils.h": "19c8f9088e64fc643ad5b7636b1103862e0c43c8d37e7e53c2aa4c0e0ecc1f0a"
+	},
+	"executable_sha256": "686ebdbdf54bfd34d833c765d0b5c38bfb000ecd83d28e1048f0a2a92ab27b59",
+	"validation": {
+		"ordinary_rust_tests": 152,
+		"native_tests": 15,
+		"production_python_tests": 92,
+		"strict_clippy": true,
+		"both_rust_formatters": true,
+		"final_release_runner_build": true,
+		"direct_backbuffer_pixel_frames": 6,
+		"pixels_per_frame": 16,
+		"tolerance": "2/255"
+	},
+	"captures": [
+		{
+			"scenario": "Q01",
+			"manifest": {
+				"adapter": {
+					"high": 0,
+					"low": 93226
+				},
+				"arch": "x86_64",
+				"debug_assertions": false,
+				"fixture_pids": [16600, 50728, 24384],
+				"independence_seconds": 1,
+				"initial_memory": {
+					"adapter": {
+						"high": 0,
+						"low": 93226
+					},
+					"dedicated_video_bytes": 134217728,
+					"local": {
+						"available_for_reservation_bytes": 9351168942,
+						"budget_bytes": 18433902428,
+						"current_reservation_bytes": 0,
+						"current_usage_bytes": 0
+					},
+					"local_hresult": null,
+					"nonlocal": {
+						"available_for_reservation_bytes": 0,
+						"budget_bytes": 0,
+						"current_reservation_bytes": 0,
+						"current_usage_bytes": 0
+					},
+					"nonlocal_hresult": null,
+					"observed_qpc": 3117099458150,
+					"process_id": 48680,
+					"qpc_frequency": 10000000,
+					"shared_system_capacity_bytes": 19239208796
+				},
+				"memory_ceiling": 536870912,
+				"output_name": "GoldenQ-d270e7b8-7499-40df-b90e-1e700f4639b5-Output",
+				"pid": 48680,
+				"qpc_frequency": 10000000,
+				"run_id": "d270e7b8-7499-40df-b90e-1e700f4639b5",
+				"sample_seconds": 5,
+				"scenario": "Q01",
+				"schema_version": 7,
+				"source_names": [
+					"GoldenQ-d270e7b8-7499-40df-b90e-1e700f4639b5-A",
+					"GoldenQ-d270e7b8-7499-40df-b90e-1e700f4639b5-B"
+				],
+				"trace_capacity": 65536,
+				"warmup_seconds": 5
+			},
+			"raw_sha256": {
+				"consumer.jsonl": "8484834272b845f9e5a56d33a8f6ed8a71cedba2f34bf4ebfc09801eaa203603",
+				"fixture-0-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+				"fixture-0-stdout.jsonl": "57a10343d0d9294ad30b4312d19e16654d1eafe93dda7d3f83c8cac5b7d47de4",
+				"fixture-1-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+				"fixture-1-stdout.jsonl": "d4820cd027b8d871329504d59eed391c2d37147547e0aac9bf790977bc5137f5",
+				"fixture-2-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+				"fixture-2-stdout.jsonl": "2b56c7fc1f76399b4e64a16c8b215206c517a4428e6268c5e85e35b5020e6db9",
+				"inputs.json": "ffcf0f36f4e0d5cf24fa4ba71199b54c98bcbca8b218d2e88e7e326ad781a7f3",
+				"launcher.json": "f5dac4795a0e722d1501503580b6a8351493764eb6ea2f37c6e2abd4256ca7ca",
+				"manifest.json": "23e5603cdcdfb0c7194445222ee9369564d95c79fa76d6df20d0673530c463b9",
+				"parent-summary.json": "2b648d02a8686b013dddc2d82b05a770d487d27493d8a60c8db2fa621a89595e",
+				"renderer-summary.json": "0d51d86c24eaff3ca41d29a8e975655df2866e28d248aa76a03080498bf4057f",
+				"renderer.jsonl": "0d7a447d5952c7b657192380014f45cd50426cc5e3782d33a42a56303258d55e",
+				"source-1.jsonl": "2cb991dd815af083a5182431749544d34e6dda9dbdcc04e5d2fec3b8995dd6ca",
+				"source-2.jsonl": "1755bc5907f25565540d62c7134f253909a3ebf5301dbae369bd9e1d5abf6d0b"
+			},
+			"execution_inputs_stable": true,
+			"renderer_gpu": {
+				"expected_batches": 300,
+				"missing_rows": 0,
+				"statuses": {
+					"Valid": 300
+				},
+				"complete": true,
+				"context_local_execution": {
+					"samples": 300,
+					"median_ms": 2.9565104166666667,
+					"p95_ms": 3.894375,
+					"p99_ms": 5.395572916666667,
+					"maximum_ms": 5.77046875
+				},
+				"scope": "one context only; never a cross-context critical path"
+			},
+			"stage_partitions": {
+				"expected_batches": 300,
+				"covered_batches": 300,
+				"coverage_complete": true,
+				"coverage": {
+					"complete": 300
+				},
+				"stages": {
+					"inputs": {
+						"samples": 300,
+						"median_ms": 0.5226041666666666,
+						"p95_ms": 0.7328645833333334,
+						"p99_ms": 0.8436979166666667,
+						"maximum_ms": 0.9607291666666666
+					},
+					"render": {
+						"samples": 300,
+						"median_ms": 0.5872916666666667,
+						"p95_ms": 0.6597395833333334,
+						"p99_ms": 0.6660416666666666,
+						"maximum_ms": 0.6742708333333334
+					},
+					"outputs": {
+						"samples": 300,
+						"median_ms": 1.8197916666666667,
+						"p95_ms": 2.804895833333333,
+						"p99_ms": 4.27953125,
+						"maximum_ms": 4.644635416666667
+					}
+				},
+				"largest_stage_counts": {
+					"outputs": 300
+				},
+				"scope": "same-clock partitions of each exact renderer span; includes GPU waits, scheduling and command-feed gaps",
+				"limitations": [
+					"stage percentiles cannot be added to reconstruct a frame percentile",
+					"these spans do not separate active GPU work from queue or dependency waits",
+					"no cross-context critical path or native buffer occupancy is inferred"
+				]
+			},
+			"outputs": [
+				{
+					"output": 1,
+					"counts": {
+						"Accepted": 300
+					},
+					"expected_at_60hz": 300.0,
+					"accepted_shortfall": 0,
+					"accepted_shortfall_fraction": 0.0,
+					"accepted_call_intervals": {
+						"samples": 299,
+						"median_ms": 16.7157,
+						"p95_ms": 17.841,
+						"p99_ms": 18.0675,
+						"maximum_ms": 18.408
+					},
+					"consumer_api_wall": {
+						"samples": 300,
+						"median_ms": 0.0149,
+						"p95_ms": 0.0338,
+						"p99_ms": 0.0535,
+						"maximum_ms": 0.2311
+					},
+					"within_target": true
+				},
+				{
+					"output": 2,
+					"counts": {
+						"Accepted": 300
+					},
+					"expected_at_60hz": 300.0,
+					"accepted_shortfall": 0,
+					"accepted_shortfall_fraction": 0.0,
+					"accepted_call_intervals": {
+						"samples": 299,
+						"median_ms": 16.7217,
+						"p95_ms": 17.7862,
+						"p99_ms": 18.0579,
+						"maximum_ms": 18.3179
+					},
+					"consumer_api_wall": {
+						"samples": 300,
+						"median_ms": 0.1909,
+						"p95_ms": 0.2751,
+						"p99_ms": 0.3254,
+						"maximum_ms": 0.3867
+					},
+					"within_target": true
+				},
+				{
+					"output": 3,
+					"counts": {
+						"Accepted": 300
+					},
+					"expected_at_60hz": 300.0,
+					"accepted_shortfall": 0,
+					"accepted_shortfall_fraction": 0.0,
+					"accepted_call_intervals": {
+						"samples": 299,
+						"median_ms": 16.7161,
+						"p95_ms": 17.7985,
+						"p99_ms": 18.0359,
+						"maximum_ms": 18.3075
+					},
+					"consumer_api_wall": {
+						"samples": 300,
+						"median_ms": 0.0143,
+						"p95_ms": 0.0244,
+						"p99_ms": 0.0375,
+						"maximum_ms": 0.2194
+					},
+					"within_target": true
+				}
+			],
+			"producers": [
+				{
+					"source": 1,
+					"counts": {
+						"Accepted": 299,
+						"Busy": 1
+					},
+					"expected_at_60hz": 300.0,
+					"accepted_shortfall_fraction": 0.0033333333333333335,
+					"submission_intervals": {
+						"samples": 299,
+						"median_ms": 16.7432,
+						"p95_ms": 17.7772,
+						"p99_ms": 17.9155,
+						"maximum_ms": 17.9711
+					},
+					"within_target": false
+				},
+				{
+					"source": 2,
+					"counts": {
+						"Accepted": 296,
+						"Busy": 4
+					},
+					"expected_at_60hz": 300.0,
+					"accepted_shortfall_fraction": 0.013333333333333334,
+					"submission_intervals": {
+						"samples": 299,
+						"median_ms": 16.7097,
+						"p95_ms": 17.7899,
+						"p99_ms": 18.0118,
+						"maximum_ms": 18.1298
+					},
+					"within_target": false
+				}
+			],
+			"spout": {
+				"expected_accepted_images": 300,
+				"captured_images": 300,
+				"missing_images": 0,
+				"invalid_captures": [],
+				"coverage_complete": true,
+				"source_age": [
+					{
+						"samples": 300,
+						"median_ms": 16.4416,
+						"p95_ms": 18.1924,
+						"p99_ms": 18.9931,
+						"maximum_ms": 32.3534
+					},
+					{
+						"samples": 300,
+						"median_ms": 8.7614,
+						"p95_ms": 10.7016,
+						"p99_ms": 25.3451,
+						"maximum_ms": 26.0571
+					}
+				]
+			},
+			"logical_reserved_peak_bytes": 156672064,
+			"initial_generation_textures": 5,
+			"independent_audit": {
+				"partition_records_verified": 300,
+				"anchored_opportunities": 300,
+				"pre_window_main_frames": [],
+				"raw_bytes_and_clocks_verified": true
+			},
+			"criteria": {
+				"functional_completion": {
+					"status": "PASSED_NATIVE",
+					"observed_within_target": true,
+					"owner_phase": "M03",
+					"owner_gate": 9
+				},
+				"fixed_scene": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": true,
+					"owner_phase": "M03",
+					"owner_gate": 9
+				},
+				"telemetry_coverage": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": true,
+					"owner_phase": "M03",
+					"owner_gate": 9,
+					"roles": [
+						{
+							"complete": true,
+							"raw_diagnostic_rows": 8941,
+							"queued": 0,
+							"written": 8941,
+							"drained": 8941,
+							"dropped_full": 0,
+							"clock_failures": 0
+						},
+						{
+							"complete": true,
+							"raw_diagnostic_rows": 2559,
+							"queued": 0,
+							"written": 2559,
+							"drained": 2559,
+							"dropped_full": 0,
+							"clock_failures": 0
+						},
+						{
+							"complete": true,
+							"raw_diagnostic_rows": 2541,
+							"queued": 0,
+							"written": 2541,
+							"drained": 2541,
+							"dropped_full": 0,
+							"clock_failures": 0
+						},
+						{
+							"complete": true,
+							"raw_diagnostic_rows": 1492,
+							"queued": 0,
+							"written": 1492,
+							"drained": 1492,
+							"dropped_full": 0,
+							"clock_failures": 0
+						}
+					]
+				},
+				"input_identity": {
+					"status": "PASSED_NATIVE",
+					"observed_within_target": true,
+					"owner_phase": "M03",
+					"owner_gate": 9
+				},
+				"gpu_context_coverage": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": true,
+					"owner_phase": "M03",
+					"owner_gate": 9
+				},
+				"cpu_submission": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": true,
+					"owner_phase": "M03",
+					"owner_gate": 9,
+					"reason": "inclusive wall upper bound; exceeding it does not isolate CPU work from opaque API waits"
+				},
+				"output_api_cadence": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": true,
+					"owner_phase": "M03",
+					"owner_gate": 9
+				},
+				"producer_api_cadence": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": false,
+					"owner_phase": "M03",
+					"owner_gate": 9
+				},
+				"submission_deadlines": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": true,
+					"owner_phase": "M03",
+					"owner_gate": 9,
+					"reason": "anchored native API observations; early acceptance does not prove GPU/display completion"
+				},
+				"deadline_misses": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": null,
+					"owner_phase": "M03",
+					"owner_gate": 9,
+					"reason": "exact anchored opportunities; window software display and Spout ready-time bounds; late completion polls stay unknown"
+				},
+				"editor_independence": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": false,
+					"owner_phase": "M03",
+					"owner_gate": 9
+				},
+				"source_to_consumer_age": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": null,
+					"owner_phase": "M03",
+					"owner_gate": 9,
+					"observed_capture_p95_within_budget": true,
+					"reason": "every accepted Spout GPU capture and both exact window software-display cohorts are required; no physical scanout claim"
+				},
+				"spout_capture_identity": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": true,
+					"owner_phase": "M03",
+					"owner_gate": 9,
+					"scope": "sample-accepted Spout output images, exact renderer source-use versions and GPU marker contents"
+				},
+				"spout_capture_age": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": true,
+					"owner_phase": "M03",
+					"owner_gate": 9,
+					"reason": "one first completed independent capture per accepted Spout image; missing images cannot be omitted"
+				},
+				"source_publication_age": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": true,
+					"owner_phase": "M03",
+					"owner_gate": 9,
+					"scope": "CPU source-publication/receive to output API boundaries; no GPU/presentation queue budget inferred"
+				},
+				"gpu_critical_path": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": null,
+					"owner_phase": "M03",
+					"owner_gate": 9,
+					"reason": "exact dependency identities do not calibrate separate GPU-context clocks or establish critical-path elapsed time"
+				},
+				"logical_texture_charge": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": true,
+					"owner_phase": "M03",
+					"owner_gate": 9
+				},
+				"dxgi_admission": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": true,
+					"owner_phase": "M03",
+					"owner_gate": 9
+				},
+				"renderer_private_memory": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": true,
+					"owner_phase": "M03",
+					"owner_gate": 9
+				},
+				"completion_retirement": {
+					"status": "PASSED_NATIVE",
+					"observed_within_target": true,
+					"owner_phase": "M03",
+					"owner_gate": 9
+				},
+				"shutdown": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": true,
+					"owner_phase": "M03",
+					"owner_gate": 9,
+					"scoped_elapsed_ms": 397.5021
+				},
+				"renderer_handle_growth": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": null,
+					"owner_phase": "M03",
+					"owner_gate": 9,
+					"required_handle_delta_maximum": 10,
+					"required_private_growth_bytes": 33554432,
+					"required_drain_seconds": 10,
+					"reason": "applicable renderer lifecycle/resource-return series is absent; timing samples do not verify its handle/private-growth budgets"
+				},
+				"physical_display_dpi_input": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": null,
+					"owner_phase": "M05",
+					"owner_gate": null,
+					"reason": "M05-owned physical observations are absent"
+				},
+				"Q05_handles_growth": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": null,
+					"owner_phase": "M09",
+					"owner_gate": null,
+					"reason": "full-app Q05, including Matrix launches and transitions, has not been captured"
+				},
+				"native_preparation": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": true,
+					"owner_phase": "M03",
+					"owner_gate": 9,
+					"scope": "native preparation/first-use coverage; no latency budget inferred"
+				},
+				"plan_publication_age": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": true,
+					"owner_phase": "M03",
+					"owner_gate": 9,
+					"scope": "CPU admitted publication to first worker receipt, atomic install, first submit and accepted output API; retained plan age is not edit latency"
+				},
+				"window_presentation": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": null,
+					"owner_phase": "M03",
+					"owner_gate": 9,
+					"scope": "exact native Present/ETW software display cohort; not physical scanout"
+				},
+				"plan_age_and_published_queue": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": null,
+					"owner_phase": "M03",
+					"owner_gate": 9,
+					"reason": "CPU plan/source age and optional software-display timelines measured; pending display events do not establish app/native buffer occupancy or GPU queue time"
+				},
+				"environment_identity": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": null,
+					"owner_phase": "M03",
+					"owner_gate": 9,
+					"reason": "selected MSVC/SDK, driver, WebView, power and overlay observations are not pinned"
+				}
+			},
+			"qualified": false
+		},
+		{
+			"scenario": "Q02",
+			"manifest": {
+				"adapter": {
+					"high": 0,
+					"low": 93226
+				},
+				"arch": "x86_64",
+				"debug_assertions": false,
+				"fixture_pids": [17448, 1676, 35280],
+				"independence_seconds": 1,
+				"initial_memory": {
+					"adapter": {
+						"high": 0,
+						"low": 93226
+					},
+					"dedicated_video_bytes": 134217728,
+					"local": {
+						"available_for_reservation_bytes": 9351168942,
+						"budget_bytes": 18433902428,
+						"current_reservation_bytes": 0,
+						"current_usage_bytes": 0
+					},
+					"local_hresult": null,
+					"nonlocal": {
+						"available_for_reservation_bytes": 0,
+						"budget_bytes": 0,
+						"current_reservation_bytes": 0,
+						"current_usage_bytes": 0
+					},
+					"nonlocal_hresult": null,
+					"observed_qpc": 3116857451114,
+					"process_id": 14672,
+					"qpc_frequency": 10000000,
+					"shared_system_capacity_bytes": 19239208796
+				},
+				"memory_ceiling": 1073741824,
+				"output_name": "GoldenQ-12e65b2e-0921-4763-8252-336ae2efed87-Output",
+				"pid": 14672,
+				"qpc_frequency": 10000000,
+				"run_id": "12e65b2e-0921-4763-8252-336ae2efed87",
+				"sample_seconds": 5,
+				"scenario": "Q02",
+				"schema_version": 7,
+				"source_names": [
+					"GoldenQ-12e65b2e-0921-4763-8252-336ae2efed87-A",
+					"GoldenQ-12e65b2e-0921-4763-8252-336ae2efed87-B"
+				],
+				"trace_capacity": 65536,
+				"warmup_seconds": 5
+			},
+			"raw_sha256": {
+				"consumer.jsonl": "a44fc34ba3e4a33a1c49dd32210df885694cdc58734ddcc23bebac600f64a5e4",
+				"fixture-0-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+				"fixture-0-stdout.jsonl": "505010fca013deef57167c6368675895e4099fe62760f913cb47acc0617a48fa",
+				"fixture-1-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+				"fixture-1-stdout.jsonl": "b6bf1647bb0c063e74d1bf7bc82aec9179452ab8c4d05506a0cfab37ee0fd71a",
+				"fixture-2-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+				"fixture-2-stdout.jsonl": "6278d12d0bc7425ed0b84e014838bea00de095878f0ada3df8cd40c2197758db",
+				"inputs.json": "ffcf0f36f4e0d5cf24fa4ba71199b54c98bcbca8b218d2e88e7e326ad781a7f3",
+				"launcher.json": "dd31a5f19ec8c65e49d182977a0b8af024c68e83fc8f4b4ca0799988b8dc4c4b",
+				"manifest.json": "c45bde68a97749036ac258aa6522a1692020a486d883377aabe73eadaa93b4aa",
+				"parent-summary.json": "42ab517b9e23931fdc50f9049beb4ca0f36eb55b900eb677dcacceece1b38399",
+				"renderer-summary.json": "83843f971ea3a7353ed319a328d4a170bde628bc5b9a5ba64407c0ab3b39f141",
+				"renderer.jsonl": "9c6623a8fb1a7bb8afc9353b6ed682e6c22f3e371666724fb54385b66a0601be",
+				"source-1.jsonl": "c98216f9964e999b5075bdf9c26d45a90397d7e7d026ff8d4772c90b3a35bcd6",
+				"source-2.jsonl": "e5d1656dce89fb9d023ce5469bda49f245fa22f08c80420d23d766defbc6bf81"
+			},
+			"execution_inputs_stable": true,
+			"renderer_gpu": {
+				"expected_batches": 299,
+				"missing_rows": 0,
+				"statuses": {
+					"Valid": 299
+				},
+				"complete": true,
+				"context_local_execution": {
+					"samples": 299,
+					"median_ms": 13.2065625,
+					"p95_ms": 16.971302083333335,
+					"p99_ms": 18.339114583333334,
+					"maximum_ms": 20.6978125
+				},
+				"scope": "one context only; never a cross-context critical path"
+			},
+			"stage_partitions": {
+				"expected_batches": 299,
+				"covered_batches": 299,
+				"coverage_complete": true,
+				"coverage": {
+					"complete": 299
+				},
+				"stages": {
+					"inputs": {
+						"samples": 299,
+						"median_ms": 1.3790104166666666,
+						"p95_ms": 2.3197916666666667,
+						"p99_ms": 4.106145833333334,
+						"maximum_ms": 6.401979166666667
+					},
+					"render": {
+						"samples": 299,
+						"median_ms": 1.95578125,
+						"p95_ms": 3.10671875,
+						"p99_ms": 3.5546875,
+						"maximum_ms": 3.9884375
+					},
+					"outputs": {
+						"samples": 299,
+						"median_ms": 9.544114583333334,
+						"p95_ms": 13.115729166666666,
+						"p99_ms": 14.513333333333334,
+						"maximum_ms": 15.51421875
+					}
+				},
+				"largest_stage_counts": {
+					"outputs": 299
+				},
+				"scope": "same-clock partitions of each exact renderer span; includes GPU waits, scheduling and command-feed gaps",
+				"limitations": [
+					"stage percentiles cannot be added to reconstruct a frame percentile",
+					"these spans do not separate active GPU work from queue or dependency waits",
+					"no cross-context critical path or native buffer occupancy is inferred"
+				]
+			},
+			"outputs": [
+				{
+					"output": 1,
+					"counts": {
+						"Accepted": 300
+					},
+					"expected_at_60hz": 300.0,
+					"accepted_shortfall": 0,
+					"accepted_shortfall_fraction": 0.0,
+					"accepted_call_intervals": {
+						"samples": 299,
+						"median_ms": 16.727,
+						"p95_ms": 17.8956,
+						"p99_ms": 18.0704,
+						"maximum_ms": 18.2341
+					},
+					"consumer_api_wall": {
+						"samples": 300,
+						"median_ms": 0.0142,
+						"p95_ms": 0.0275,
+						"p99_ms": 0.0841,
+						"maximum_ms": 0.3807
+					},
+					"within_target": true
+				},
+				{
+					"output": 2,
+					"counts": {
+						"Accepted": 299,
+						"Busy": 1
+					},
+					"expected_at_60hz": 300.0,
+					"accepted_shortfall": 1.0,
+					"accepted_shortfall_fraction": 0.0033333333333333335,
+					"accepted_call_intervals": {
+						"samples": 298,
+						"median_ms": 16.7225,
+						"p95_ms": 17.8922,
+						"p99_ms": 18.1708,
+						"maximum_ms": 34.1915
+					},
+					"consumer_api_wall": {
+						"samples": 300,
+						"median_ms": 0.1741,
+						"p95_ms": 0.2788,
+						"p99_ms": 0.3285,
+						"maximum_ms": 0.4726
+					},
+					"within_target": false
+				},
+				{
+					"output": 3,
+					"counts": {
+						"Accepted": 271,
+						"Busy": 29
+					},
+					"expected_at_60hz": 300.0,
+					"accepted_shortfall": 29.0,
+					"accepted_shortfall_fraction": 0.09666666666666666,
+					"accepted_call_intervals": {
+						"samples": 270,
+						"median_ms": 16.8544,
+						"p95_ms": 33.1911,
+						"p99_ms": 33.7014,
+						"maximum_ms": 33.9385
+					},
+					"consumer_api_wall": {
+						"samples": 271,
+						"median_ms": 0.0143,
+						"p95_ms": 0.0211,
+						"p99_ms": 0.0497,
+						"maximum_ms": 0.0913
+					},
+					"within_target": false
+				}
+			],
+			"producers": [
+				{
+					"source": 1,
+					"counts": {
+						"Accepted": 295,
+						"Busy": 5
+					},
+					"expected_at_60hz": 300.0,
+					"accepted_shortfall_fraction": 0.016666666666666666,
+					"submission_intervals": {
+						"samples": 299,
+						"median_ms": 16.6765,
+						"p95_ms": 17.5426,
+						"p99_ms": 17.9382,
+						"maximum_ms": 18.1068
+					},
+					"within_target": false
+				},
+				{
+					"source": 2,
+					"counts": {
+						"Accepted": 292,
+						"Busy": 8
+					},
+					"expected_at_60hz": 300.0,
+					"accepted_shortfall_fraction": 0.02666666666666667,
+					"submission_intervals": {
+						"samples": 299,
+						"median_ms": 16.6726,
+						"p95_ms": 17.8736,
+						"p99_ms": 17.994,
+						"maximum_ms": 18.0369
+					},
+					"within_target": false
+				}
+			],
+			"spout": {
+				"expected_accepted_images": 299,
+				"captured_images": 299,
+				"missing_images": 0,
+				"invalid_captures": [],
+				"coverage_complete": true,
+				"source_age": [
+					{
+						"samples": 299,
+						"median_ms": 21.4378,
+						"p95_ms": 32.7012,
+						"p99_ms": 41.375,
+						"maximum_ms": 49.5021
+					},
+					{
+						"samples": 299,
+						"median_ms": 24.1827,
+						"p95_ms": 37.9231,
+						"p99_ms": 43.9079,
+						"maximum_ms": 44.414
+					}
+				]
+			},
+			"logical_reserved_peak_bytes": 505036864,
+			"initial_generation_textures": 5,
+			"independent_audit": {
+				"partition_records_verified": 299,
+				"anchored_opportunities": 300,
+				"pre_window_main_frames": [
+					{
+						"consumer_api": {
+							"begin": 3116928064176,
+							"end": 3116928064309
+						},
+						"conversion": {
+							"begin": 3116928064133,
+							"end": 3116928064175
+						},
+						"delivery": {
+							"begin": 3116928064176,
+							"end": 3116928064314
+						},
+						"outcome": "Accepted",
+						"output": 1,
+						"spout_image": null,
+						"token": {
+							"device": {
+								"generation": 1,
+								"runtime": "6dc34c3c-c854-4ce6-97d0-0f41c2c481df"
+							},
+							"serial": 311
+						},
+						"window_present": {
+							"addresses": [1709218072592, 1709218072592, 1709218072592],
+							"generation": 1
+						}
+					}
+				],
+				"raw_bytes_and_clocks_verified": true
+			},
+			"criteria": {
+				"functional_completion": {
+					"status": "PASSED_NATIVE",
+					"observed_within_target": true,
+					"owner_phase": "M03",
+					"owner_gate": 9
+				},
+				"fixed_scene": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": true,
+					"owner_phase": "M03",
+					"owner_gate": 9
+				},
+				"telemetry_coverage": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": true,
+					"owner_phase": "M03",
+					"owner_gate": 9,
+					"roles": [
+						{
+							"complete": true,
+							"raw_diagnostic_rows": 8870,
+							"queued": 0,
+							"written": 8870,
+							"drained": 8870,
+							"dropped_full": 0,
+							"clock_failures": 0
+						},
+						{
+							"complete": true,
+							"raw_diagnostic_rows": 2562,
+							"queued": 0,
+							"written": 2562,
+							"drained": 2562,
+							"dropped_full": 0,
+							"clock_failures": 0
+						},
+						{
+							"complete": true,
+							"raw_diagnostic_rows": 2565,
+							"queued": 0,
+							"written": 2565,
+							"drained": 2565,
+							"dropped_full": 0,
+							"clock_failures": 0
+						},
+						{
+							"complete": true,
+							"raw_diagnostic_rows": 1410,
+							"queued": 0,
+							"written": 1410,
+							"drained": 1410,
+							"dropped_full": 0,
+							"clock_failures": 0
+						}
+					]
+				},
+				"input_identity": {
+					"status": "PASSED_NATIVE",
+					"observed_within_target": true,
+					"owner_phase": "M03",
+					"owner_gate": 9
+				},
+				"gpu_context_coverage": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": true,
+					"owner_phase": "M03",
+					"owner_gate": 9
+				},
+				"cpu_submission": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": true,
+					"owner_phase": "M03",
+					"owner_gate": 9,
+					"reason": "inclusive wall upper bound; exceeding it does not isolate CPU work from opaque API waits"
+				},
+				"output_api_cadence": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": false,
+					"owner_phase": "M03",
+					"owner_gate": 9
+				},
+				"producer_api_cadence": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": false,
+					"owner_phase": "M03",
+					"owner_gate": 9
+				},
+				"submission_deadlines": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": null,
+					"owner_phase": "M03",
+					"owner_gate": 9,
+					"reason": "anchored native API observations; early acceptance does not prove GPU/display completion"
+				},
+				"deadline_misses": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": false,
+					"owner_phase": "M03",
+					"owner_gate": 9,
+					"reason": "exact anchored opportunities; window software display and Spout ready-time bounds; late completion polls stay unknown"
+				},
+				"editor_independence": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": false,
+					"owner_phase": "M03",
+					"owner_gate": 9
+				},
+				"source_to_consumer_age": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": null,
+					"owner_phase": "M03",
+					"owner_gate": 9,
+					"observed_capture_p95_within_budget": true,
+					"reason": "every accepted Spout GPU capture and both exact window software-display cohorts are required; no physical scanout claim"
+				},
+				"spout_capture_identity": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": true,
+					"owner_phase": "M03",
+					"owner_gate": 9,
+					"scope": "sample-accepted Spout output images, exact renderer source-use versions and GPU marker contents"
+				},
+				"spout_capture_age": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": true,
+					"owner_phase": "M03",
+					"owner_gate": 9,
+					"reason": "one first completed independent capture per accepted Spout image; missing images cannot be omitted"
+				},
+				"source_publication_age": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": true,
+					"owner_phase": "M03",
+					"owner_gate": 9,
+					"scope": "CPU source-publication/receive to output API boundaries; no GPU/presentation queue budget inferred"
+				},
+				"gpu_critical_path": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": null,
+					"owner_phase": "M03",
+					"owner_gate": 9,
+					"reason": "exact dependency identities do not calibrate separate GPU-context clocks or establish critical-path elapsed time"
+				},
+				"logical_texture_charge": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": true,
+					"owner_phase": "M03",
+					"owner_gate": 9
+				},
+				"dxgi_admission": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": true,
+					"owner_phase": "M03",
+					"owner_gate": 9
+				},
+				"renderer_private_memory": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": true,
+					"owner_phase": "M03",
+					"owner_gate": 9
+				},
+				"completion_retirement": {
+					"status": "PASSED_NATIVE",
+					"observed_within_target": true,
+					"owner_phase": "M03",
+					"owner_gate": 9
+				},
+				"shutdown": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": true,
+					"owner_phase": "M03",
+					"owner_gate": 9,
+					"scoped_elapsed_ms": 437.4874
+				},
+				"renderer_handle_growth": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": null,
+					"owner_phase": "M03",
+					"owner_gate": 9,
+					"required_handle_delta_maximum": 10,
+					"required_private_growth_bytes": 33554432,
+					"required_drain_seconds": 10,
+					"reason": "applicable renderer lifecycle/resource-return series is absent; timing samples do not verify its handle/private-growth budgets"
+				},
+				"physical_display_dpi_input": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": null,
+					"owner_phase": "M05",
+					"owner_gate": null,
+					"reason": "M05-owned physical observations are absent"
+				},
+				"Q05_handles_growth": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": null,
+					"owner_phase": "M09",
+					"owner_gate": null,
+					"reason": "full-app Q05, including Matrix launches and transitions, has not been captured"
+				},
+				"native_preparation": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": true,
+					"owner_phase": "M03",
+					"owner_gate": 9,
+					"scope": "native preparation/first-use coverage; no latency budget inferred"
+				},
+				"plan_publication_age": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": true,
+					"owner_phase": "M03",
+					"owner_gate": 9,
+					"scope": "CPU admitted publication to first worker receipt, atomic install, first submit and accepted output API; retained plan age is not edit latency"
+				},
+				"window_presentation": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": null,
+					"owner_phase": "M03",
+					"owner_gate": 9,
+					"scope": "exact native Present/ETW software display cohort; not physical scanout"
+				},
+				"plan_age_and_published_queue": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": null,
+					"owner_phase": "M03",
+					"owner_gate": 9,
+					"reason": "CPU plan/source age and optional software-display timelines measured; pending display events do not establish app/native buffer occupancy or GPU queue time"
+				},
+				"environment_identity": {
+					"status": "UNAVAILABLE",
+					"observed_within_target": null,
+					"owner_phase": "M03",
+					"owner_gate": 9,
+					"reason": "selected MSVC/SDK, driver, WebView, power and overlay observations are not pinned"
+				}
+			},
+			"qualified": false
+		}
+	],
+	"limitations": [
+		"short sequential controls; no full qualification or broad causal inference",
+		"Q01 p99 and output p95 tails increase and are retained",
+		"Q02 editor/Spout/producer cadence and GPU cost remain insufficient",
+		"logical reservation reduction is not physical GPU residency",
+		"no calibrated queues, native buffer occupancy, full GPU critical path or new display-age proof",
+		"genuine removal/stuck retirement and the prescribed series remain open"
+	]
+}

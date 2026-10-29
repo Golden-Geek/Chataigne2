@@ -80,7 +80,7 @@ prepared/live/retiring ownership and actual resource destruction. Backend charge
 padding, bridge/presentation pools and retained cache leases. Null charges simulate these bounds;
 they are not native memory measurements. Missing DXGI counters do not establish a zero-usage policy.
 Native accounting reserves the fixed backend baseline before creating its pools, then charges
-plan targets, compositing scratch and output conversion textures separately. Its owned texture
+plan targets, compositing scratch and Spout output conversion textures separately. Its owned texture
 pool/constant-buffer charge is not measured driver residency, padding or native-object overhead.
 
 Native generations retain compatible texture/view sets through a device-local weak index in
@@ -209,6 +209,12 @@ to each explicit output color/alpha contract. Output pools persist across plan g
 windows retain two fixed-size BGRA8 backbuffers; Spout senders retain one SDK shared texture and
 an AddRef of the exact caller device. Window size changes use DXGI stretch, without reallocating
 backing buffers. The host retains each borrowed HWND through successful runtime retirement.
+An admitted window renders directly through a cold-prepared SRGB backbuffer view, with opaque
+linear shader output encoded by the view. It allocates no generation conversion texture and
+performs no conversion-to-backbuffer copy. A borrowed `pipeline::RenderTarget` separates the
+destination view/encoding from texture ownership. Admission still precedes drawing; the endpoint
+retains that view through completion-fenced failure/recreation. Spout retains its UNORM texture
+and existing shader color/alpha conversion, including encoded premultiplied output semantics.
 Equal-extent output conversion uses one texel load; resizing retains linear filtering. Both
 paths keep the same explicit color/alpha conversion rather than copying incompatible outputs.
 

@@ -2,13 +2,14 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::time::Instant;
 
 use windows::Win32::Graphics::Direct3D11::{ID3D11Device, ID3D11DeviceContext};
-use windows::core::{Error, HRESULT, Result};
+use windows::core::{Error, HRESULT, Interface, Result};
 
 use crate::runtime::{CompletionToken, DeviceGeneration};
 use crate::{OutputId, TextureDescriptor};
 
 use super::config::{D3d11Config, OutputBinding};
 use super::observation::{D3d11Control, OutputState, OutputStatus};
+use super::pipeline::RenderTarget;
 use super::texture::Texture;
 use super::timing::{CpuInterval, DiagnosticDelivery, Recorder, SpoutImageVersion, WindowPresentIdentity};
 use lifetime::Endpoint;
@@ -68,14 +69,17 @@ impl Output {
     }
     fn deliver(
         &mut self,
-        context: &ID3D11DeviceContext,
-        texture: &Texture,
+        texture: Option<&Texture>,
         recorder: Option<&Recorder>,
         consumer_api: &mut Option<CpuInterval>,
     ) -> Delivery {
         match self {
-            Self::Window(output) => output.deliver(context, texture, recorder, consumer_api),
-            Self::Spout(output) => output.deliver(texture, recorder, consumer_api),
+            Self::Window(output) => output.present(recorder, consumer_api),
+            Self::Spout(output) => output.deliver(
+                texture.expect("prepared Spout conversion texture"),
+                recorder,
+                consumer_api,
+            ),
         }
     }
 }
@@ -97,10 +101,21 @@ pub(super) struct Delivered {
 }
 
 impl AdmittedOutput<'_> {
+    pub(super) fn render_target<'a>(&'a mut self, converted: Option<&'a Texture>) -> RenderTarget<'a> {
+        let endpoint = self
+            .binding
+            .endpoint
+            .begin_use(self.token.serial)
+            .expect("admitted endpoint");
+        match endpoint {
+            Output::Window(window) => window.render_target(),
+            Output::Spout(_) => converted.expect("prepared Spout conversion texture").into(),
+        }
+    }
+
     pub(super) fn deliver(
         self,
-        context: &ID3D11DeviceContext,
-        texture: &Texture,
+        texture: Option<&Texture>,
         recorder: Option<&Recorder>,
         consumer_api: &mut Option<CpuInterval>,
     ) -> Delivered {
@@ -109,7 +124,7 @@ impl AdmittedOutput<'_> {
             .endpoint
             .begin_use(self.token.serial)
             .expect("exclusively admitted endpoint");
-        let delivered = endpoint.deliver(context, texture, recorder, consumer_api);
+        let delivered = endpoint.deliver(texture, recorder, consumer_api);
         let image = match (&endpoint, delivered, recorder.is_some()) {
             (Output::Spout(sender), Delivery::Accepted, true) => sender.copied_image_version(),
             _ => None,
@@ -271,6 +286,13 @@ impl OutputPool {
         self.bindings.get(&id).map(|binding| binding.config.descriptor())
     }
 
+    pub(super) fn needs_conversion_texture(&self, id: OutputId) -> bool {
+        matches!(
+            self.bindings.get(&id).map(|binding| &binding.config),
+            Some(OutputBinding::Spout { .. })
+        )
+    }
+
     pub(super) fn admit(
         &mut self,
         id: OutputId,
@@ -283,6 +305,12 @@ impl OutputPool {
         };
         if token.device != self.generation {
             return Err(Delivery::Failed(INVALID_ARGUMENT));
+        }
+        // Reject a foreign context before rendering into an admitted endpoint's storage.
+        // SAFETY: the retained COM context is queried only on its owning render worker.
+        match unsafe { context.GetDevice() } {
+            Ok(device) if device.as_raw() == self.device.as_raw() => {}
+            _ => return Err(Delivery::Failed(INVALID_ARGUMENT)),
         }
         let now = Instant::now();
         let admission = if self.stopping {

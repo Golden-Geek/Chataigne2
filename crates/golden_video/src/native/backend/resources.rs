@@ -146,6 +146,9 @@ pub(super) fn prepare(
         }
     }
     for output in plan.outputs() {
+        if !native.outputs.needs_conversion_texture(output.id) {
+            continue;
+        }
         let descriptor = native.outputs.descriptor(output.id).expect("validated output binding");
         resources.outputs.insert(
             output.id,

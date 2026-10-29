@@ -764,6 +764,67 @@ default/native all-target Clippy, generated fixture contracts, release x64 build
 formatters. Full cadence/repetition, GPU/queue/deadline, growth/handle, genuine removal/stuck
 retirement and M05 physical observations remain open. **M03 stays 7/9; overall stays 3/10 (30%)**.
 
+## Direct window backbuffer rendering — 2026-10-29
+
+The measured output interval motivates a change at Golden Video's native output boundary.
+`pipeline::RenderTarget` borrows a prepared view and its storage/effective shader encoding.
+After output admission, windows supply their cold-prepared SRGB backbuffer view; the shader
+emits opaque linear RGB over black and the view encodes it once. D3D11 explicitly permits
+[SRGB views on UNORM swapchain backbuffers](https://learn.microsoft.com/en-us/windows/win32/direct3ddxgi/converting-data-color-space).
+Spout retains its raw UNORM target and shader encoding, preserving straight and encoded
+premultiplied output semantics and its existing SDK storage format.
+
+Window generations allocate no conversion texture or conversion-to-backbuffer copy. The
+native baseline still charges two fixed backbuffers, and every source/pass/Spout allocation
+remains charged. View creation stays cold; the owned latency handle precedes fallible view
+creation. Context ownership is checked before drawing. An admitted endpoint retains its view
+through last-use completion and failure/recreation; busy/hidden outputs cannot draw early.
+Native pixel tests verify all 16 pixels for six changing colors across actual presentations,
+including black, low transfer values and partial coverage, within 2/255. A separate native
+test verifies exact logical charges, one actual prepared pass texture and foreign-context
+rejection. Existing readiness, recovery and marker-lineage tests also pass.
+
+The [new packet](evidence/mapgyver-m03-direct-window-2026-10-29.json) and
+[control archive](evidence/mapgyver-m03-direct-window-controls-2026-10-29.zip) preserve updated
+Q01/Q02 controls on the same Intel LUID `00000000:00016c2a`, and reference the immutable
+[prior stage archive](evidence/mapgyver-m03-gpu-stages-controls-2026-10-29.zip) for comparison.
+All controls use five-second warmup/sample and one-second interruptions; scenes, rational
+cadence, queue depth, polling and budgets are unchanged. Artifact schema remains 7 and no
+analyzer/protocol change is required. No PresentMon collector is enabled.
+
+| Short native observation | Prior Q02 | Direct Q02 | Direct Q01 |
+| --- | ---: | ---: | ---: |
+| Main / Spout / editor accepted, expected 300 each | 276/294/165 | 300/299/271 | 300/300/300 |
+| Exact completed Spout images / accepted | 272/294 | 299/299 | 300/300 |
+| Invalid capture comparisons | 0 | 0 | 0 |
+| Renderer context GPU p95 / p99 (ms) | 21.7279 / 24.0701 | 16.9713 / 18.3391 | 3.8944 / 5.3956 |
+| Output interval p95 / median (ms) | 15.2477 / 9.5033 | 13.1157 / 9.5441 | 2.8049 / 1.8198 |
+| Logical reserved peak (bytes) | 578,764,864 | 505,036,864 | 156,672,064 |
+| Initial generation texture allocations | 7 | 5 | 5 |
+
+Q02's CPU-start-selected GPU cohort contains 299 complete spans: one frame begins before the
+sample boundary while its output is accepted within the sample. The output/deadline cohorts
+retain all 300 opportunities; no missing slot is discarded or cadence denominator reduced.
+The independent audit retains that boundary frame and compares exact raw GPU stage joins.
+Captured Spout source-age p95 is 32.7012/37.9231 ms for Q02 and 18.1924/10.7016 ms for Q01.
+Window display age is not recaptured, so this does not establish three-output age acceptance.
+Q01 tails are mixed: its whole-context p99 rises 4.2640 → 5.3956 ms and output p95 rises
+2.3158 → 2.8049 ms, despite its lower output median. These observations remain in the evidence.
+
+The logical Q02 reduction is 73,728,000 bytes (70.3125 MiB), including conservative overlapping
+generation reservations; it is not a measured physical-residency reduction. Sequential short
+controls support the reported observations, not a broad causal/performance qualification.
+The unchanged output median, remaining Q02 editor/Spout/producer cadence and GPU cost retain
+their failures. GPU spans still include waits and command-feed gaps, without calibrated queue
+time or a cross-context critical path. Physical output/DPI and full-app acceptance retain
+M05/M09. No prior failure is erased.
+
+Validation on the final source: 148 ordinary library tests plus four public integration tests,
+all 15 explicit native tests, 92 production Python tests, strict clippy, final release runner
+build and both Rust formatters. Capture execution fingerprints stay stable. The audit checks
+the prior archive, every new raw byte/hash, resource charge reduction and GPU partitions.
+**M03 remains 7/9; overall remains 3/10.**
+
 ## Renderer GPU stage partitions — 2026-10-29
 
 `native/timing/gpu.rs` preallocates two intermediate timestamp queries in each of the two
