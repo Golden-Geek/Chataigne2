@@ -151,20 +151,26 @@ fn scene(names: &[String; 2], width: u32, height: u32) -> RenderPlan {
             ExternalTexture {
                 id: TextureId::new(1).unwrap(),
                 descriptor: external(width, height),
-                source: Some(SpoutSource {
-                    sender: names[0].clone(),
-                    descriptor: external(4, 4),
-                    poll_interval: Duration::from_millis(5),
-                }),
+                source: Some(
+                    SpoutSource {
+                        sender: names[0].clone(),
+                        descriptor: external(4, 4),
+                        poll_interval: Duration::from_millis(5),
+                    }
+                    .into(),
+                ),
             },
             ExternalTexture {
                 id: TextureId::new(2).unwrap(),
                 descriptor: external(2, 2),
-                source: Some(SpoutSource {
-                    sender: names[1].clone(),
-                    descriptor: external(4, 4),
-                    poll_interval: Duration::from_millis(5),
-                }),
+                source: Some(
+                    SpoutSource {
+                        sender: names[1].clone(),
+                        descriptor: external(4, 4),
+                        poll_interval: Duration::from_millis(5),
+                    }
+                    .into(),
+                ),
             },
         ],
         passes: vec![RenderPass {
@@ -391,7 +397,10 @@ fn hardware_inputs_receive_bound_resize_reconnect_and_retire_across_independent_
         let active = runtime.snapshot().resources.unwrap().active.unwrap();
         let before = runtime.snapshot().frames_submitted;
         let mut excessive = scene(&names, 2, 2);
-        excessive.external_textures[0].source.as_mut().unwrap().descriptor = external(16, 16);
+        let crate::plan::ExternalSource::Spout(source) = excessive.external_textures[0].source.as_mut().unwrap() else {
+            unreachable!()
+        };
+        source.descriptor = external(16, 16);
         let rejected = runtime
             .submit_plan(
                 runtime.project_epoch(),

@@ -50,10 +50,16 @@ impl AssetScope {
     }
 
     pub fn capture(&self, binding: &AssetBinding) -> AssetCapture {
+        self.capture_record(binding.record.clone(), guard(&binding.revision))
+    }
+
+    /// A consumer with an existing authored lifetime can reuse its revision fence rather than
+    /// maintaining a second catalog/binding clock. The record and guard must be captured together.
+    pub fn capture_record(&self, record: AssetRecord, source: RevisionGuard) -> AssetCapture {
         AssetCapture {
-            record: binding.record.clone(),
+            record,
             root: self.root.clone(),
-            guards: [guard(&self.revision), guard(&binding.revision)],
+            guards: [guard(&self.revision), source],
         }
     }
 }

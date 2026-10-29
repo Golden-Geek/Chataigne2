@@ -91,8 +91,47 @@ pub struct ExternalTexture {
     pub id: TextureId,
     /// Explicit extent, storage, color and alpha contract.
     pub descriptor: TextureDescriptor,
-    /// Optional GPU source binding, installed atomically with this plan. Null backends simulate it.
-    pub source: Option<SpoutSource>,
+    /// Optional prepared source, installed atomically with this plan. Null backends simulate it.
+    pub source: Option<ExternalSource>,
+}
+
+/// A source's immutable CPU admission contract. Native resources remain worker-owned.
+#[derive(Clone, Debug)]
+pub enum ExternalSource {
+    /// Bounded asynchronous GPU receiver subscription.
+    Spout(SpoutSource),
+    /// Immutable decoder pixels and their preparation/resource lifetime lease.
+    Image(golden_assets::PreparedAsset<crate::image::ImageData>),
+}
+
+impl ExternalSource {
+    /// Returns a GPU receiver subscription, excluding immutable image uploads.
+    pub fn spout(&self) -> Option<&SpoutSource> {
+        match self {
+            Self::Spout(source) => Some(source),
+            Self::Image(_) => None,
+        }
+    }
+
+    pub(crate) fn current(&self) -> bool {
+        match self {
+            Self::Spout(_) => true,
+            Self::Image(image) => image.is_current(),
+        }
+    }
+
+    pub(crate) fn retained_bytes(&self) -> usize {
+        match self {
+            Self::Spout(source) => source.sender.capacity(),
+            Self::Image(image) => image.retained_bytes(),
+        }
+    }
+}
+
+impl From<SpoutSource> for ExternalSource {
+    fn from(source: SpoutSource) -> Self {
+        Self::Spout(source)
+    }
 }
 
 /// Immutable Spout subscription. Changing this contract requires a fresh logical texture ID
@@ -212,6 +251,10 @@ impl CompiledPlan {
     /// Whether captured authoring sources still permit initial installation/reconstruction.
     pub fn admission_is_current(&self) -> bool {
         self.guards.iter().all(golden_io::RevisionGuard::is_current)
+            && self
+                .external_textures
+                .iter()
+                .all(|texture| texture.source.as_ref().is_none_or(ExternalSource::current))
     }
     /// Demanded external textures, sorted by texture identity.
     pub fn external_textures(&self) -> &[ExternalTexture] {

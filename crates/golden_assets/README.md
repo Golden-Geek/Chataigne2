@@ -54,6 +54,10 @@ disposer. Consumers own change notifications, retry/recovery policy and format-s
 Run `cargo test --locked -p golden_assets`. The public Video synthetic-descriptor consumer is
 `crates/golden_video/tests/asset_preparation.rs`: it installs a valid null generation, then rejects
 an invalidated prepared descriptor before scheduled installation while preserving the live plan.
-It is not Picture decoding/upload, native pixel or full GPU resource qualification. MapGyver
-gate 7 and Chataigne P15 still need their app/persistence/media integration; see the
-[M03 evidence](../../docs/progress/mapgyver-m03-render-foundations.md#shared-asset-reference-and-preparation-foundation--2026-10-29).
+MapGyver now also consumes this boundary for app-owned catalog/history, Picture decoding and
+immutable Video image upload. `AssetScope::capture_record` lets an authored node forward its
+existing lifetime guard, and `PreparedAsset::retained_bytes` exposes the conservative sealed
+charge to downstream admission. Native Video inputs automatically forward image guards. These
+consumers do not complete Chataigne's audio migration/collect/scheduled-playback P15 acceptance
+or full GPU qualification. See the
+[app integration evidence](../../docs/progress/mapgyver-m03-render-foundations.md#app-assets-and-picture-resources--2026-10-29).

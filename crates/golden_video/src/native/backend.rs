@@ -5,7 +5,7 @@ use std::time::Duration;
 use golden_io::WorkerNotifier;
 use golden_time::TimeSnapshot;
 
-use crate::plan::{BlendMode, CompiledPlan, RenderOperation, SampleFilter};
+use crate::plan::{BlendMode, CompiledPlan, ExternalSource, RenderOperation, SampleFilter};
 use crate::runtime::backend::{Backend, BackendError};
 use crate::runtime::{CompletionToken, DeviceGeneration};
 use crate::{LinearColor, OutputId, PassId, TextureDescriptor, TextureId};
@@ -70,28 +70,33 @@ impl D3d11Backend {
     }
 
     fn validate(&self, plan: &CompiledPlan) -> Result<(), BackendError> {
-        if plan.external_textures().iter().any(|external| {
-            external.source.as_ref().is_none_or(|binding| {
+        if plan.external_textures().iter().any(|external| match &external.source {
+            Some(ExternalSource::Spout(binding)) => {
                 !binding.accepts(external.descriptor)
                     || binding.descriptor.extent.width() > 16_384
                     || binding.descriptor.extent.height() > 16_384
-            })
+            }
+            Some(ExternalSource::Image(image)) => image.value().descriptor() != external.descriptor,
+            None => true,
         }) {
             self.control
                 .update(|state| state.failure = Some(NativeFailure::UnsupportedExternalInput));
             return Err(BackendError::UnsupportedPlan);
         }
-        let source_bytes = plan.external_textures().iter().try_fold(0_u64, |total, source| {
+        let spout_sources = plan
+            .external_textures()
+            .iter()
+            .filter_map(|source| source.source.as_ref().and_then(ExternalSource::spout));
+        let source_bytes = spout_sources.clone().try_fold(0_u64, |total, source| {
             total
                 .checked_add(
-                    bytes(source.source.as_ref().expect("validated source").descriptor)?
+                    bytes(source.descriptor)?
                         .checked_mul(5)
                         .ok_or(BackendError::ResourceSizeOverflow)?,
                 )
                 .ok_or(BackendError::ResourceSizeOverflow)
         })?;
-        if plan.external_textures().len() > self.config.inputs.max_sources
-            || source_bytes > self.config.inputs.max_storage_bytes
+        if spout_sources.count() > self.config.inputs.max_sources || source_bytes > self.config.inputs.max_storage_bytes
         {
             return Err(BackendError::SourceCapacity);
         }
@@ -222,10 +227,23 @@ impl Backend for D3d11Backend {
                 _demands: None,
             };
             for external in plan.external_textures() {
-                resources
-                    .textures
-                    .insert(external.id, Texture::new(&native.device.device, external.descriptor)?);
-                resources.input_sequences.insert(external.id, Cell::new(None));
+                let texture = match &external.source {
+                    Some(ExternalSource::Image(image)) => {
+                        let texture = Texture::from_image(&native.device.device, image.value())?;
+                        self.control.update(|state| {
+                            state.uploaded_images = state.uploaded_images.saturating_add(1);
+                            state.uploaded_image_bytes = state
+                                .uploaded_image_bytes
+                                .saturating_add(image.value().pixels().len() as u64);
+                        });
+                        texture
+                    }
+                    _ => {
+                        resources.input_sequences.insert(external.id, Cell::new(None));
+                        Texture::new(&native.device.device, external.descriptor)?
+                    }
+                };
+                resources.textures.insert(external.id, texture);
             }
             for pass in plan.passes() {
                 resources
@@ -273,6 +291,9 @@ impl Backend for D3d11Backend {
         let context = &native.device.context;
         let pipeline = &native.pipeline;
         for external in plan.external_textures() {
+            if !matches!(external.source, Some(ExternalSource::Spout(_))) {
+                continue;
+            }
             let target = &resources.textures[&external.id];
             let sequence = &resources.input_sequences[&external.id];
             if sequence.get().is_none() {

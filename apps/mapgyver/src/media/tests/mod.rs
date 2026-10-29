@@ -1,3 +1,4 @@
+mod assets;
 mod authoring;
 mod resolution;
 mod script;

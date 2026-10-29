@@ -1,4 +1,5 @@
 mod capture;
+mod pictures;
 mod publication;
 
 use super::*;

@@ -20,7 +20,7 @@ impl RenderPlan {
         }
         for texture in &self.external_textures {
             if let Some(source) = &texture.source {
-                bytes = bytes.checked_add(source.sender.capacity())?;
+                bytes = bytes.checked_add(source.retained_bytes())?;
             }
         }
         Some(bytes)

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use golden_io::RevisionGuard;
 
 use crate::TextureId;
-use crate::plan::{CompiledPlan, PlanError, PlanLimits, RenderPlan};
+use crate::plan::{CompiledPlan, ExternalSource, PlanError, PlanLimits, RenderPlan};
 
 /// Retained CPU preparation input. Source-only roots can warm receivers without inventing
 /// an output extent; guards fence app-owned authoring state before preparation/installation.
@@ -29,6 +29,36 @@ impl PlanSubmission {
 
     pub(crate) fn current(&self) -> bool {
         self.guards.iter().all(RevisionGuard::is_current)
+            && self
+                .plan
+                .external_textures
+                .iter()
+                .all(|texture| texture.source.as_ref().is_none_or(ExternalSource::current))
+    }
+
+    pub(crate) fn attach_image_guards(&mut self, maximum: usize) -> Option<()> {
+        let count = self
+            .plan
+            .external_textures
+            .iter()
+            .try_fold(self.guards.len(), |count, texture| match &texture.source {
+                Some(ExternalSource::Image(image)) => count.checked_add(image.guards().len()),
+                _ => Some(count),
+            })?;
+        if count > maximum {
+            return None;
+        }
+        if count != self.guards.len() {
+            let mut guards = Vec::with_capacity(count);
+            guards.extend_from_slice(&self.guards);
+            for texture in &self.plan.external_textures {
+                if let Some(ExternalSource::Image(image)) = &texture.source {
+                    guards.extend_from_slice(image.guards());
+                }
+            }
+            self.guards = Arc::from(guards);
+        }
+        Some(())
     }
 
     pub(crate) fn retained_bytes(&self) -> Option<usize> {

@@ -99,6 +99,7 @@ fn missing_and_unconfigured_channels_publish_explicit_transparent_placeholders()
         &mut 0,
         config().plan_limits,
         &observations,
+        None,
     )
     .unwrap();
     assert_eq!(
@@ -122,6 +123,7 @@ fn missing_and_unconfigured_channels_publish_explicit_transparent_placeholders()
         &mut 0,
         config().plan_limits,
         &observations,
+        None,
     )
     .unwrap();
     assert_eq!(built.channels[0].resolution.availability, ChannelAvailability::Missing);

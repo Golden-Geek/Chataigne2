@@ -28,6 +28,10 @@ pub struct D3d11Snapshot {
     pub initialized: bool,
     /// GPU command batches with an established completion query.
     pub submitted: u64,
+    /// Immutable CPU images supplied as initial data at native texture creation, never per frame.
+    pub uploaded_images: u64,
+    /// Tight source texel bytes supplied through those one-time initial image uploads.
+    pub uploaded_image_bytes: u64,
     /// Native output submissions accepted by their API, not proved displayed frames.
     pub accepted_outputs: u64,
     /// Outputs skipped without waiting because their presentation queue was busy.

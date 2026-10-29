@@ -149,13 +149,16 @@ impl<B: Backend> Runner<B> {
                     CoreError::Backend(crate::runtime::backend::BackendError::SourceCapacity) => true,
                     _ => false,
                 };
-                let code = if pressure {
+                let stale = error == CoreError::StaleSource;
+                let code = if stale {
+                    FailureCode::StaleSource
+                } else if pressure {
                     FailureCode::ResourcePressure
                 } else {
                     FailureCode::Backend
                 };
                 self.reject(request, RuntimeFailure::new(code, error));
-                if !pressure {
+                if !pressure && !stale {
                     self.core_fault(error, time);
                 }
             }
@@ -222,10 +225,12 @@ impl<B: Backend> Runner<B> {
                         });
                     }
                     Err(error) => {
-                        let failure = RuntimeFailure::new(
-                            FailureCode::StaleDevice,
-                            format_args!("install rejected: {:?}", error.reason()),
-                        );
+                        let code = if error.reason() == InstallFailure::StaleSource {
+                            FailureCode::StaleSource
+                        } else {
+                            FailureCode::StaleDevice
+                        };
+                        let failure = RuntimeFailure::new(code, format_args!("install rejected: {:?}", error.reason()));
                         drop(error.into_prepared());
                         self.reject(candidate.request, failure);
                     }

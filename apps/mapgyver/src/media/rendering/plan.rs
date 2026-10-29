@@ -32,6 +32,7 @@ pub(super) fn build(
     next: &mut u64,
     limits: PlanLimits,
     observations: &SourceObservations,
+    pictures: Option<&crate::media::picture::Pictures>,
 ) -> Result<Prepared, String> {
     if routes.len() > limits.max_outputs || capture.channels.len() > limits.max_passes {
         return Err("channel scene exceeds admitted route/channel counts".into());
@@ -47,6 +48,7 @@ pub(super) fn build(
     let mut submission = PlanSubmission::new(RenderPlan::default());
     submission.guards = capture.guards.clone();
     let mut guards = capture.guards.to_vec();
+    let mut image_sources = HashMap::new();
     for route in routes {
         if !seen_outputs.insert(route.output) {
             return Err("output routes must be unique".into());
@@ -73,6 +75,50 @@ pub(super) fn build(
                 .filter(|_| channel.enabled)
                 .map(|definition| &definition.source);
             match source {
+                Some(source @ ChannelSource::Picture { asset }) => {
+                    let value = asset.and_then(|id| pictures.and_then(|pictures| pictures.get(id)));
+                    resolution = resolution::resolve(
+                        channel.definition.as_ref().unwrap(),
+                        value.map_or(SourceObservation::Unavailable, |value| {
+                            SourceObservation::Available(value.value().descriptor())
+                        }),
+                    )?;
+                    entry.source = None;
+                    if let Some(value) = value {
+                        let asset = value.id();
+                        let id = if let Some(id) = image_sources.get(&asset) {
+                            *id
+                        } else {
+                            let id = match previous.get(&route.channel).and_then(|entry| entry.source.as_ref()) {
+                                Some((id, configured)) if configured == source => *id,
+                                _ => allocate(next)?,
+                            };
+                            submission.plan.external_textures.push(ExternalTexture {
+                                id,
+                                descriptor: value.value().descriptor(),
+                                source: Some(golden_video::plan::ExternalSource::Image(value.clone())),
+                            });
+                            image_sources.insert(asset, id);
+                            id
+                        };
+                        entry.source = Some((id, source.clone()));
+                        operation = RenderOperation::Sample {
+                            source: id,
+                            filter: channel.definition.as_ref().unwrap().filter,
+                        };
+                    } else if asset
+                        .and_then(|id| pictures.and_then(|pictures| pictures.failure(id)))
+                        .is_some_and(|error| {
+                            matches!(
+                                error,
+                                golden_assets::PreparationFailure::Decode
+                                    | golden_assets::PreparationFailure::SourceTooLarge
+                            )
+                        })
+                    {
+                        resolution.availability = ChannelAvailability::Incompatible;
+                    }
+                }
                 Some(ChannelSource::SolidColor { rgba }) => {
                     entry.source = None;
                     resolution =
@@ -111,11 +157,14 @@ pub(super) fn build(
                         descriptor: actual
                             .filter(|_| resolution.availability == ChannelAvailability::Ready)
                             .unwrap_or(*maximum),
-                        source: Some(SpoutSource {
-                            sender: sender.clone(),
-                            descriptor: *maximum,
-                            poll_interval: Duration::from_millis(16),
-                        }),
+                        source: Some(
+                            SpoutSource {
+                                sender: sender.clone(),
+                                descriptor: *maximum,
+                                poll_interval: Duration::from_millis(16),
+                            }
+                            .into(),
+                        ),
                     });
                     submission.source_demands.push(id);
                     if resolution.availability == ChannelAvailability::Ready {

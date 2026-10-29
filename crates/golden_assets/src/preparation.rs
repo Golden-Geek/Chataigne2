@@ -109,6 +109,7 @@ impl AssetRequestId {
 }
 
 struct Prepared<T> {
+    retained_bytes: usize,
     capture: AssetCapture,
     fingerprint: SourceFingerprint,
     value: T,
@@ -144,6 +145,10 @@ impl<T: Send + Sync + 'static> PreparedAsset<T> {
     }
     pub fn fingerprint(&self) -> SourceFingerprint {
         self.0.fingerprint
+    }
+    /// Conservative sealed CPU storage charge, including captured source/guard metadata.
+    pub fn retained_bytes(&self) -> usize {
+        self.0.retained_bytes
     }
     /// Forward these admission fences when a downstream preparation/installation outlives this
     /// call. Hold a prepared lease separately for as long as its data is needed by that consumer.
@@ -342,6 +347,7 @@ fn prepare<D: AssetDecoder>(
     drop(current);
     crate::input::check(&capture, cancel)?;
     let prepared = Prepared {
+        retained_bytes: weight,
         capture,
         fingerprint,
         value,

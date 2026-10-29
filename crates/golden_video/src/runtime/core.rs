@@ -79,6 +79,9 @@ pub struct ResourceSnapshot {
 /// Worker-local admission or backend error.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Error)]
 pub enum CoreError {
+    /// Captured authoring/prepared-asset state changed before resource admission.
+    #[error("render plan source changed before preparation")]
+    StaleSource,
     /// A configured bound violates the fixed renderer contract.
     #[error("invalid resource limits: {0}")]
     InvalidLimits(&'static str),
@@ -129,6 +132,7 @@ pub enum CoreError {
 /// Non-destructive installation rejection.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum InstallFailure {
+    StaleSource,
     RetirementFull,
     ForeignDevice,
     ForeignCore,
@@ -289,6 +293,9 @@ impl<B: Backend> RenderCore<B> {
         identity: PlanIdentity,
         plan: CompiledPlan,
     ) -> Result<PreparedGeneration<B::Resources>, CoreError> {
+        if !plan.admission_is_current() {
+            return Err(CoreError::StaleSource);
+        }
         self.poll_completion()?;
         self.ensure_device()?;
         let generation = self.generation.checked_add(1).ok_or(CoreError::CounterExhausted)?;
@@ -345,7 +352,9 @@ impl<B: Backend> RenderCore<B> {
         &mut self,
         mut prepared: PreparedGeneration<B::Resources>,
     ) -> Result<GenerationInfo, InstallError<B::Resources>> {
-        let reason = if self.device_lost {
+        let reason = if !prepared.plan().admission_is_current() {
+            Some(InstallFailure::StaleSource)
+        } else if self.device_lost {
             Some(InstallFailure::DeviceLost)
         } else if prepared.info.device != self.device {
             Some(InstallFailure::ForeignDevice)

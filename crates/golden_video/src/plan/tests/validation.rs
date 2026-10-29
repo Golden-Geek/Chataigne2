@@ -38,9 +38,9 @@ fn source_contracts_are_validated_before_pruning_and_charge_retained_selector_ca
         descriptor: descriptor(4, 4),
         poll_interval: Duration::from_millis(16),
     };
-    let make = |source| RenderPlan {
+    let make = |source: SpoutSource| RenderPlan {
         external_textures: vec![ExternalTexture {
-            source: Some(source),
+            source: Some(source.into()),
             ..external(1)
         }],
         ..Default::default()

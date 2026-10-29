@@ -21,6 +21,7 @@ use super::{
 };
 
 mod admission;
+mod images;
 mod ownership;
 mod scheduling;
 

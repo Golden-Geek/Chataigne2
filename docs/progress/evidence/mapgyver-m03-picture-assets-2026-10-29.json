@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "scope": "App asset catalog/history, worker PNG/JPEG preparation and immutable native image admission/upload",
+  "source_base_commit": "2a09ad2a4cc916bb895de27755225099be50514b",
+  "local_date": "2026-10-29",
+  "native_checks_observed_by_utc": "2026-10-29T09:42:23Z",
+  "build_profile": "dev",
+  "selected_adapter": {"index": 0, "description": "Intel(R) Graphics", "luid": "00000000:00016c2a", "software": false},
+  "artifacts_sha256": {
+    "target/debug/native_source_fixture.exe": "49496B817CB773561376D2F6E1AEC436DE7EB3E4137137C243B9E1E7C2758A43",
+    "target/debug/native_video_smoke.exe": "DDFA240E77D1C03BE80AD364E85F4091F528B401DC5C2FE579887D60EAAB7444",
+    "target/debug/deps/golden_video-d78c32ec81551389.exe": "A20C7D53AE0FAD8FDF4BA1F42ECA547683BD506F7920AF9548E6EC33773A64BD",
+    "target/debug/deps/picture_rendering-7ffdba7c1b22e761.exe": "7807DFC7ECA851EF6E3F07E2B8443AFE9C0C799A5E0B0B6AC588F2A8E5920A09",
+    "target/debug/deps/channel_rendering-30dd128e0c64fcbc.exe": "D5487AF68BEC65992E5A7960370AA537C578920BB0C68843FCCEAE13D4A23D66"
+  },
+  "regular_tests": {
+    "command": "cargo test --locked -p MapGyver -p golden_video -p golden_assets --features MapGyver/native-video --quiet",
+    "exit_code": 0,
+    "mapgyver_passed": 30,
+    "assets_passed": 16,
+    "video_unit_passed": 79,
+    "video_public_passed": 3,
+    "total_passed": 128,
+    "video_hardware_ignored": 3,
+    "scope": "Asset identity/locator/history/full+sparse codec/QuickJS, seven PNG/JPEG cases, Picture lifecycle/healthy-source isolation, CPU input admission and final image fences"
+  },
+  "golden_hardware": {
+    "command": "cargo test --locked -p golden_video --features d3d11 -- --ignored --nocapture --test-threads=1",
+    "exit_code": 0,
+    "passed": 3,
+    "new_image_pixel_observations": [
+      {"actual": [[0,128,0,128]], "expected": [[0,128,0,128]]},
+      {"actual": [[0,128,0,128]], "expected": [[0,128,0,128]]},
+      {"actual": [[0,128,0,128]], "expected": [[0,128,0,128]]},
+      {"actual": [[0,0,0,0],[0,255,0,255]], "expected": [[0,0,0,0],[0,255,0,255]]}
+    ],
+    "component_tolerance_8bit_units": 2,
+    "image_upload_count_unchanged_across_subsequent_frames": true,
+    "fresh_device_recreation_from_retained_image_lease": true,
+    "image_spout_receiver_slots": 0,
+    "existing_shader_cases": 9,
+    "existing_input_pixel_cases": 11,
+    "public_spout_runtime_frames": 5,
+    "actual_hardware_device_removal_tested": false,
+    "readback_scope": "Finite test-only pixels; recurring production frames have no readback"
+  },
+  "app_hardware": {
+    "command": "cargo test --locked -p MapGyver --features native-video-smoke --test picture_rendering --test channel_rendering -- --ignored --nocapture --test-threads=1",
+    "exit_code": 0,
+    "passed": 2,
+    "picture_test_runtime_seconds": 0.35,
+    "picture_frames_before_recreation": 7,
+    "picture_uploads_before_recreation": 4,
+    "picture_initial_extents": [[2,2],[3,2]],
+    "picture_shared_asset_source_texture_ids": [5,5],
+    "picture_relinked_extents": [[4,3],[4,3]],
+    "picture_media_id": "38d8e3b9-b194-47f5-b9d5-ad0247fecb1a",
+    "picture_channel_ids": ["ee5e506f-7963-4455-a6a5-4247557e27d9","4ac4f816-604f-4927-9e87-ca252367cb7d"],
+    "ready_requires_latest_installed_request_and_submitted_frame": true,
+    "real_png_decode_to_native_resource_creation": true,
+    "shared_image_upload_not_repeated_per_frame": true,
+    "asset_and_channel_identity_preserved_through_relink_reload_new_runtime": true,
+    "video_and_picture_retirement_observed": true,
+    "spout_channel_regression_frames": 47,
+    "scope": "Public app authoring/preparation/native installation metadata and counts; app output pixels are not read back"
+  },
+  "host_regression": {
+    "command": "target/debug/native_video_smoke.exe --adapter 0",
+    "exit_code": 0,
+    "phase_api_accepted": {"window_only": 5, "spout_only": 10, "shared_after_client_resize": 20},
+    "phase_peak_reserved_bytes": [3953712,5142576,5372976],
+    "busy": 0,
+    "unavailable": 0,
+    "runtime_retired_before_owned_hwnd_release": true
+  },
+  "other_checks": {
+    "strict_clippy_default_and_native_all_targets": "passed",
+    "default_check_both_apps": "passed",
+    "generated_contract_drift": "passed",
+    "mapgyver_ui_check": {"errors": 0, "warnings": 0},
+    "mapgyver_ui_lint": "passed",
+    "root_and_core_formatters": "passed",
+    "lockfile_change": "Only MapGyver dependency edges to already locked golden_assets/image/png; no versions changed"
+  },
+  "acceptance": {
+    "closed_gate": "M03 gate 7",
+    "m03_done": 6,
+    "m03_total": 9,
+    "overall_complete_phases": 3,
+    "overall_total_phases": 10,
+    "remaining_m03_gates": [4,8,9],
+    "next": "Reusable native preview registration and geometry",
+    "limitations": "Dedicated Media Manager controls/commands/callbacks/snippets/ready-file watching, genuine native device-removal recovery, Q01/Q02 budgets, physical output/DPI and Chataigne P15 product acceptance remain open; no display or overlay setting changes"
+  }
+}

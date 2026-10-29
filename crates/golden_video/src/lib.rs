@@ -8,6 +8,7 @@
 
 mod color;
 mod identity;
+pub mod image;
 pub mod plan;
 mod resource;
 pub mod runtime;

@@ -22,6 +22,7 @@ impl Default for ChannelDefinition {
 impl ChannelDefinition {
     pub fn for_media(kind: MediaKind) -> Self {
         let source = match kind {
+            MediaKind::Picture => ChannelSource::Picture { asset: None },
             MediaKind::SolidColor => ChannelSource::SolidColor { rgba: [1.0; 4] },
             MediaKind::SharedTexture => ChannelSource::Spout {
                 sender: None,
@@ -42,6 +43,7 @@ impl ChannelDefinition {
 
     pub fn media_kind(&self) -> MediaKind {
         match self.source {
+            ChannelSource::Picture { .. } => MediaKind::Picture,
             ChannelSource::SolidColor { .. } => MediaKind::SolidColor,
             ChannelSource::Spout { .. } => MediaKind::SharedTexture,
         }
@@ -52,6 +54,7 @@ impl ChannelDefinition {
             validate_extent(extent)?;
         }
         match &self.source {
+            ChannelSource::Picture { .. } => {}
             ChannelSource::SolidColor { rgba } => {
                 LinearColor::from_straight(rgba[0], rgba[1], rgba[2], rgba[3]).map_err(|e| e.to_string())?;
             }
@@ -104,6 +107,11 @@ pub fn resolve(definition: &ChannelDefinition, observed: SourceObservation) -> R
     definition.validate()?;
     let (intrinsic, availability) = match &definition.source {
         ChannelSource::SolidColor { .. } => (Some(default_canvas()), ChannelAvailability::Ready),
+        ChannelSource::Picture { asset: None } => (None, ChannelAvailability::Unconfigured),
+        ChannelSource::Picture { asset: Some(_) } => match observed {
+            SourceObservation::Unavailable => (None, ChannelAvailability::Unavailable),
+            SourceObservation::Available(actual) => (Some(actual.extent), ChannelAvailability::Ready),
+        },
         ChannelSource::Spout { sender: None, .. } => (None, ChannelAvailability::Unconfigured),
         ChannelSource::Spout { maximum, .. } => match observed {
             SourceObservation::Unavailable => (None, ChannelAvailability::Unavailable),

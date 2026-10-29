@@ -121,7 +121,8 @@ These boundaries distinguish implemented foundations from planned product featur
   fixed window/Spout outputs and plan-owned bounded Spout subscriptions exist. Complete app integration/qualification
   continue in M03, using the shared `crates/golden_time/` authority.
 - `crates/golden_assets/`: shared source-reference/locator and bounded preparation boundary;
-  app catalogs, Picture decoding/upload and project/history integration remain at their owners.
+  `apps/mapgyver/src/media/assets.rs` owns catalog/history and `media/picture/` owns PNG/JPEG
+  preparation. Golden Video consumes immutable decoded-image leases for worker-owned GPU upload.
 - `packages/golden-video-ui/`: future reusable native-preview bindings; host integration stays shared.
 
 The optional typed native-presentation host lifecycle is implemented and exercised in M02.

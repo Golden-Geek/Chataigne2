@@ -100,8 +100,8 @@ through `ProjectLifecycle::apply_app_operation`; the shared atomic transaction/h
 also serves QuickJS `gc.invokeAppOperation` and headless callers. Creation uses one detached
 media/channel subtree. Labels, initial channel settings and size defaults are backend policy.
 New projects expose the authoring container; dedicated controls/command nodes/templates remain
-M04 work. This foundation currently defines Solid Color and Shared Texture authoring only;
-Picture, Composition and Matrix definitions join with their implementing milestones.
+M04 work. This foundation defines Solid Color, Shared Texture and Picture authoring;
+Composition and Matrix definitions join with their implementing milestones.
 
 `media/protocol.rs` generates TypeScript into the app UI, including Golden Video's canonical
 descriptor/filter types. `media/resolution.rs` keeps source availability separate from resolved
@@ -203,7 +203,29 @@ scope/binding-fence and bounded CPU-preparation foundation. Apps keep authored c
 collect/relink/history policy. File resolution/hash/decode run on its worker; prepared leases
 retain admission through every consumer and off-thread final destruction. The public synthetic
 Video consumer forwards its guards into actual null-runtime installation. MapGyver Picture,
-project/history and GPU-upload integration, and Chataigne's audio/P15 acceptance, remain open.
+project/history and GPU-upload integration now use this same boundary. Chataigne's audio/P15
+acceptance remains open.
+
+`media/assets.rs` owns catalog nodes alongside media definitions. An asset reuses its node UUID
+as its `AssetId`; only the source locator is authored node data. Import/relink/remove/inspect
+use the same atomic backend intent/history route as channels. A removed asset leaves explicit
+missing references; undo/reload restores its ID. Demanded-leaf capture copies only referenced
+asset records and ownership guards. No filesystem access runs on the engine owner.
+
+`media/picture/` owns PNG/JPEG codecs and demanded preparation. Initial support is static SDR8,
+with EXIF orientation and tightly packed sRGB/straight-alpha RGBA. Untagged files assume sRGB;
+explicit unsupported profiles, APNG and 16-bit PNG fail visibly. Codec quotas/dimension checks
+are declared allocation admission, not allocator/OS-memory measurements. Golden owns source
+staging, cancellation and retained leases; Video owns worker-local GPU upload and retirement.
+Multiple channels share a prepared asset/upload while retaining independent output targets/sizes.
+
+Hosts configure Picture preparation with an explicit project directory and budgets. Completion
+notifications and coarse one-second missing/IO/capacity retries run through the preparation owner;
+they do not poll the engine. File-change callbacks can retry one asset without invalidating
+healthy sources. Relocation invalidates the appropriate runtime scopes; source bytes, fingerprints
+and GPU handles remain absent from project/control JSON. Ready-file watching and dedicated manager
+controls/commands/callbacks/snippets remain M04 work. The default workbench still creates no GPU
+renderer without a native consumer's demand.
 
 ## Screens and surfaces
 

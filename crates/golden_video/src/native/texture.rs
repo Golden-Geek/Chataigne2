@@ -19,6 +19,31 @@ pub(super) struct Texture {
 }
 
 impl Texture {
+    pub(super) fn from_image(device: &ID3D11Device, image: &crate::image::ImageData) -> Result<Self> {
+        let descriptor = image.descriptor();
+        let desc = D3D11_TEXTURE2D_DESC {
+            Width: descriptor.extent.width(),
+            Height: descriptor.extent.height(),
+            MipLevels: 1,
+            ArraySize: 1,
+            Format: format(descriptor.format),
+            SampleDesc: DXGI_SAMPLE_DESC { Count: 1, Quality: 0 },
+            Usage: D3D11_USAGE_DEFAULT,
+            BindFlags: (D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE).0 as u32,
+            ..Default::default()
+        };
+        let data = D3D11_SUBRESOURCE_DATA {
+            pSysMem: image.pixels().as_ptr().cast(),
+            SysMemPitch: descriptor.extent.width() * 4,
+            SysMemSlicePitch: 0,
+        };
+        let mut texture = None;
+        // SAFETY: ImageData validates tight four-byte storage and bounded dimensions. The initial
+        // bytes stay immutable and alive through this creation call; no per-frame upload follows.
+        unsafe { device.CreateTexture2D(&desc, Some(&data), Some(&mut texture))? };
+        Self::from_native(device, texture.ok_or_else(missing_output)?, descriptor)
+    }
+
     pub(super) fn new(device: &ID3D11Device, descriptor: TextureDescriptor) -> Result<Self> {
         let desc = D3D11_TEXTURE2D_DESC {
             Width: descriptor.extent.width(),

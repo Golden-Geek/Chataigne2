@@ -9,6 +9,10 @@ use crate::locator::AssetLocator;
 pub struct AssetId(Uuid);
 
 impl AssetId {
+    /// Reuses an authored owner's persistent UUID without introducing a second identity.
+    pub const fn from_uuid(id: Uuid) -> Self {
+        Self(id)
+    }
     /// Allocates a new authored identity using a version-four UUID.
     pub fn new() -> Self {
         Self(Uuid::new_v4())

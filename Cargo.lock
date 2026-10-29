@@ -58,11 +58,14 @@ dependencies = [
 name = "MapGyver"
 version = "0.1.0"
 dependencies = [
+ "golden_assets",
  "golden_codegen_support",
  "golden_core",
  "golden_io",
  "golden_time",
  "golden_video",
+ "image",
+ "png 0.18.1",
  "serde",
  "serde_json",
  "tauri",

@@ -128,11 +128,22 @@ impl<B: Backend> Runner<B> {
                     self.shared.notify();
                 }
                 Err(error) => {
+                    if error.reason() == super::super::core::InstallFailure::StaleSource {
+                        drop(error.into_prepared());
+                        self.rebuild = None;
+                        self.retry_at = None;
+                        return;
+                    }
                     drop(error.into_prepared());
                     self.retry_at = Some(self.recovery.schedule(Instant::now()));
                 }
             },
             Err(error) => {
+                if error == super::super::core::CoreError::StaleSource {
+                    self.rebuild = None;
+                    self.retry_at = None;
+                    return;
+                }
                 self.fault(RuntimeFailure::new(FailureCode::Backend, error));
                 self.retry_at = Some(self.recovery.schedule(Instant::now()));
             }

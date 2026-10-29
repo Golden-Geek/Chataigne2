@@ -70,10 +70,21 @@ Time transport policy remains app-owned; video does not depend on audio to obtai
 Clock replacement publishes the new mapping and its clock origin together for reader consistency.
 
 [Golden Assets](../golden_assets/README.md) supplies persistent source references and bounded CPU
-preparation separately from render identities. Its public synthetic-descriptor consumer forwards
-prepared-asset guards into `PlanSubmission` and verifies actual null-generation installation and
-stale-source rejection. This test-only dependency does not introduce Picture decode/upload or an
-asset catalog into Video; those consumers still need integration.
+preparation separately from render identities. `ExternalSource::Image` retains a
+`PreparedAsset<ImageData>` with immutable tight RGBA8/BGRA8 texels and explicit color/alpha metadata.
+Video input admission charges that lease's retained reservation; GPU admission charges each native
+texture through prepared/live/retiring use. Submit automatically captures image revision guards,
+and core preparation/final installation/reconstruction recheck them without turning stale source
+rejection into a device fault. Apps own image codecs, asset catalogs and relink/retry policy.
+
+The D3D11 backend supplies immutable image bytes as
+[`CreateTexture2D` initial data](https://learn.microsoft.com/en-us/windows/win32/api/d3d11/nf-d3d11-id3d11device-createtexture2d)
+during preparation. It performs no recurring CPU upload/readback. An image consumes no Spout input
+worker or bridge capacity. `uploaded_images`/`uploaded_image_bytes` count native creations, not
+frames, GPU residency or delivery. Current retained assets can recreate resources on a fresh
+device; invalidated assets cannot install or rebuild. Native finite tests separately verify alpha
+filtering, unchanged upload count across frames and controlled completed teardown/new-device
+recreation. Actual hardware removal and sustained memory/timing budgets remain unqualified.
 
 The native pipeline executes the demanded DAG with clear, sample and ordered Normal/Add/Multiply/
 Screen composition. It decodes sRGB and premultiplies coverage before filtering, then converts
@@ -88,7 +99,7 @@ consumers or abandon already queued GPU uses. Spout API acceptance does not prov
 the pinned SDK can wait up to 67 ms on its access mutex and return success after skipping a copy
 on timeout. This limitation remains part of native cadence qualification.
 
-`ExternalTexture::source` carries an optional `SpoutSource`: exact selector, required storage/
+`ExternalTexture::source` selects an immutable image or `ExternalSource::Spout`: exact selector, required storage/
 color/alpha, polling interval and admitted maximum extent. Bindings travel inside the same
 revisioned plan as their consumers. `D3d11Config::inputs` reserves `InputLimits` before native
 allocation: at most 32 overlapping source workers and an explicit descriptor-storage capacity.
@@ -125,7 +136,7 @@ before post-update validation; owned pools and published descriptors stay bounde
 not a hard driver-residency guarantee.
 
 Dynamic preview geometry, physical backing-buffer resize, native device-loss proof, full
-source/output recovery, production output/editor integration, persistent assets and sustained
+source/output recovery, production output/editor integration and sustained
 native qualification remain in the [M03 acceptance gates](../../docs/progress/mapgyver-status.md#m03-acceptance-items).
 The [input/native evidence](../../docs/progress/mapgyver-m03-render-foundations.md#bounded-spout-inputs--2026-10-29)
 closes the native execution mechanism gate; full native qualification stays open.

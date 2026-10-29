@@ -71,7 +71,12 @@ catalogs and authoring policy. Runtime project scopes/bindings capture revision 
 Golden IO workers resolve/hash and invoke budgeted codecs. Prepared payload leases keep resources
 charged through consumers and final background destruction, and forward their guards to later
 execution admission. File-change/retry policy and app persistence/media integration remain with
-consumers; this foundation does not migrate Chataigne audio or complete MapGyver Picture media.
+consumers. MapGyver's asset nodes reuse their node UUIDs as asset IDs and persist locators only;
+backend import/relink/remove/history and sparse/full reload preserve references. Its Picture
+worker consumes the shared preparation boundary, and Video plans retain immutable image leases
+and automatically forward their guards through final installation/reconstruction. GPU uploads
+occur during resource creation, never the recurring frame/control loop. This does not migrate
+Chataigne audio or deliver the remaining Media Manager controls and native qualification.
 
 MapGyver's `src/media/` owns typed persistent media/channel references and authoring operations.
 Its lifecycle delegates `mapgyver.media.edit` to Golden's existing atomic app-operation path;

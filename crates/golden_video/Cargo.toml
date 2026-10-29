@@ -11,6 +11,7 @@ description = "App-neutral video render plans and worker-owned resource foundati
 d3d11 = ["dep:windows", "dep:spout2-sys"]
 
 [dependencies]
+golden_assets.workspace = true
 golden_io.workspace = true
 golden_time.workspace = true
 serde.workspace = true
@@ -19,7 +20,6 @@ thiserror.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
-golden_assets.workspace = true
 tempfile.workspace = true
 
 [target.'cfg(windows)'.dependencies]

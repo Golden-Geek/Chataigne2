@@ -1,5 +1,6 @@
 //! Rust-owned app intents and authored contracts, also used by project codecs.
 
+pub use golden_assets::{AssetId, AssetLocator, AssetRecord};
 use golden_core::model::NodeUuid;
 use golden_video::plan::SampleFilter;
 use golden_video::{Extent2D, TextureDescriptor};
@@ -23,6 +24,7 @@ pub struct ChannelReference {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub enum MediaKind {
+    Picture,
     SolidColor,
     SharedTexture,
 }
@@ -37,8 +39,13 @@ pub enum SizePolicy {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum ChannelSource {
+    Picture {
+        asset: Option<AssetId>,
+    },
     /// Straight linear-light RGBA. Conversion/premultiplication happens in the backend.
-    SolidColor { rgba: [f32; 4] },
+    SolidColor {
+        rgba: [f32; 4],
+    },
     /// A missing selector is authored as unconfigured, never the global active sender.
     Spout {
         sender: Option<String>,
@@ -58,6 +65,20 @@ pub struct ChannelDefinition {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MediaEdit {
+    ImportAsset {
+        locator: AssetLocator,
+        label: Option<String>,
+    },
+    RelinkAsset {
+        asset: AssetId,
+        locator: AssetLocator,
+    },
+    RemoveAsset {
+        asset: AssetId,
+    },
+    InspectAsset {
+        asset: AssetId,
+    },
     CreateMedia {
         media_kind: MediaKind,
         label: Option<String>,
@@ -103,6 +124,8 @@ pub struct ChannelSnapshot {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MediaEditResult {
+    AssetCreated { asset: AssetId },
+    Asset { record: AssetRecord },
     Created { reference: ChannelReference },
     Changed,
     Channel { snapshot: ChannelSnapshot },

@@ -123,12 +123,58 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
     }
     let edit: MediaEdit = serde_json::from_value(payload).map_err(|error| error.to_string())?;
     let result = match edit {
+        MediaEdit::ImportAsset {
+            locator,
+            label: requested,
+        } => {
+            let parent = manager(engine)?;
+            let fallback = match &locator {
+                AssetLocator::ProjectRelative { path } => path.as_str(),
+                AssetLocator::Absolute { path } => path.as_str(),
+            }
+            .rsplit(['/', '\\'])
+            .next()
+            .unwrap_or("Asset");
+            let node = super::assets::AssetNode::new(label(engine, parent, requested, fallback)?, Some(locator));
+            let asset = node.id();
+            engine.edits.push(Edit::AddNodeTree {
+                parent,
+                prev_sibling: engine.nodes.get(parent).and_then(|node| node.node_data().last_child),
+                tree: NodeTree::new(node),
+            });
+            MediaEditResult::AssetCreated { asset }
+        }
+        MediaEdit::RelinkAsset { asset, locator } => {
+            let id = super::assets::node_id(engine, asset)?;
+            engine.edits.push(Edit::CallNodeMutation {
+                node: id,
+                needs_tree_snapshot: false,
+                callback: Box::new(move |node, _| {
+                    let node = node
+                        .as_any_mut()
+                        .downcast_mut::<super::AssetNode>()
+                        .ok_or("asset type changed")?;
+                    node.set_locator(Some(locator));
+                    Ok(())
+                }),
+            });
+            MediaEditResult::Changed
+        }
+        MediaEdit::RemoveAsset { asset } => {
+            let id = super::assets::node_id(engine, asset)?;
+            engine.edits.push(Edit::RemoveNode { node: id });
+            MediaEditResult::Changed
+        }
+        MediaEdit::InspectAsset { asset } => MediaEditResult::Asset {
+            record: super::assets::asset(engine, asset)?,
+        },
         MediaEdit::CreateMedia {
             media_kind,
             label: requested,
         } => {
             let parent = manager(engine)?;
             let fallback = match media_kind {
+                MediaKind::Picture => "Picture",
                 MediaKind::SolidColor => "Solid Color",
                 MediaKind::SharedTexture => "Shared Texture",
             };
@@ -240,6 +286,11 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
     let manager = manager(engine)?;
     for (_, node) in engine.nodes.iter() {
         match node {
+            AppNode::MediaAsset(node) => {
+                if node.node_data().parent != Some(manager) {
+                    return Err("asset is outside its catalog".into());
+                }
+            }
             AppNode::Media(node) => {
                 if node.node_data().parent != Some(manager) {
                     return Err("media is outside its manager".into());

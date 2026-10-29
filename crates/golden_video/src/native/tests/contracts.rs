@@ -124,14 +124,17 @@ fn input_reservations_cover_maximum_pools_while_plans_charge_actual_extents() {
         RenderPlan {
             external_textures: vec![ExternalTexture {
                 id: TextureId::new(1).unwrap(),
-                source: Some(SpoutSource {
-                    sender: "uninitialized-source".into(),
-                    descriptor: TextureDescriptor {
-                        extent: Extent2D::new(4, 4).unwrap(),
-                        ..descriptor()
-                    },
-                    poll_interval: std::time::Duration::from_millis(16),
-                }),
+                source: Some(
+                    SpoutSource {
+                        sender: "uninitialized-source".into(),
+                        descriptor: TextureDescriptor {
+                            extent: Extent2D::new(4, 4).unwrap(),
+                            ..descriptor()
+                        },
+                        poll_interval: std::time::Duration::from_millis(16),
+                    }
+                    .into(),
+                ),
                 descriptor: TextureDescriptor {
                     extent: Extent2D::new(width, 2).unwrap(),
                     ..descriptor()

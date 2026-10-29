@@ -46,6 +46,7 @@ pub struct ChannelRenderer {
     observations: Option<SourceObservations>,
     channels: Vec<PreparedChannel>,
     latest_request: Option<RequestId>,
+    pictures: Option<super::picture::Pictures>,
 }
 
 impl ChannelRenderer {
@@ -60,7 +61,48 @@ impl ChannelRenderer {
             observations: None,
             channels: Vec::new(),
             latest_request: None,
+            pictures: None,
         }
+    }
+
+    /// Configure one bounded picture worker from a host/preparation owner. No file work occurs
+    /// on this caller. Pass the owner's notifier for completion/coarse missing-file retry wakes.
+    pub fn enable_pictures(
+        &mut self,
+        root: &std::path::Path,
+        limits: golden_assets::PreparationLimits,
+        notifier: Option<golden_io::WorkerNotifier>,
+    ) -> Result<(), String> {
+        if self.pictures.is_some() {
+            return Err("picture preparation is already configured".into());
+        }
+        self.pictures = Some(super::picture::Pictures::new(root, limits, notifier)?);
+        Ok(())
+    }
+    pub fn retry_pictures(&mut self) -> Result<(), String> {
+        self.pictures
+            .as_mut()
+            .ok_or("picture preparation is not configured")?
+            .retry()
+    }
+    /// File-change/relink recovery for one source; healthy prepared sources remain admitted.
+    pub fn retry_picture(&mut self, asset: super::protocol::AssetId) -> Result<(), String> {
+        self.pictures
+            .as_mut()
+            .ok_or("picture preparation is not configured")?
+            .retry_asset(asset)
+    }
+    pub fn relocate_pictures(&mut self, root: &std::path::Path) -> Result<(), String> {
+        self.pictures
+            .as_mut()
+            .ok_or("picture preparation is not configured")?
+            .relocate(root)
+    }
+    pub fn picture_retirement(&self) -> Option<golden_assets::AssetRetirement> {
+        self.pictures.as_ref().map(|pictures| pictures.retirement())
+    }
+    pub fn next_picture_retry_deadline(&self) -> Option<std::time::Instant> {
+        self.pictures.as_ref().and_then(|pictures| pictures.next_retry())
     }
 
     /// Captures metadata only. Its project/device stamps are rechecked before use.
@@ -102,6 +144,9 @@ impl ChannelRenderer {
         {
             return Err("source observations belong to a stale renderer project/device".into());
         }
+        if let Some(pictures) = &mut self.pictures {
+            pictures.sync(&capture, &routes, self.limits.max_external_textures)?;
+        }
         let prepared = plan::build(
             &capture,
             &routes,
@@ -109,6 +154,7 @@ impl ChannelRenderer {
             &mut self.next_texture,
             self.limits,
             &observations,
+            self.pictures.as_ref(),
         )?;
         let activation =
             PlanActivation::NextFrame(self.runtime.read_time().map_err(|error| error.to_string())?.epoch());
@@ -128,11 +174,18 @@ impl ChannelRenderer {
     /// Invoke on a worker notification. Frame counters are excluded from observation equality;
     /// unchanged metadata produces no plan construction/publication.
     pub fn refresh(&mut self) -> Result<Option<RequestId>, String> {
+        let pictures_changed = self
+            .pictures
+            .as_mut()
+            .map(|pictures| pictures.service())
+            .transpose()?
+            .unwrap_or(false);
         let observations = self.source_observations();
-        if self
-            .observations
-            .as_ref()
-            .is_some_and(|previous| previous.equivalent(&observations))
+        if !pictures_changed
+            && self
+                .observations
+                .as_ref()
+                .is_some_and(|previous| previous.equivalent(&observations))
         {
             return Ok(None);
         }
@@ -162,6 +215,9 @@ impl ChannelRenderer {
         self.runtime.retirement()
     }
     pub fn close(&self) {
+        if let Some(pictures) = &self.pictures {
+            pictures.close();
+        }
         self.runtime.close();
     }
 

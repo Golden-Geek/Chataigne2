@@ -501,3 +501,74 @@ remain M04; source watching/recovery and GPU lifetime admission must be exercise
 shared [P15 plan](../plan/Chataigne2_Codex_Implementation_Plan.md#p15--establish-asset-identity-and-preparation)
 records this reusable evidence without claiming Chataigne audio migration, collect/relink,
 scheduled playback or complete P15 acceptance. Native gates 4/8/9 remain open.
+
+## App assets and Picture resources — 2026-10-29
+
+The app now consumes Golden Assets through [`media/assets.rs`](../../apps/mapgyver/src/media/assets.rs)
+and [`media/picture/`](../../apps/mapgyver/src/media/picture/mod.rs). Catalog nodes reuse their
+persistent node UUID as the asset ID and persist only locators. Import/relink/remove/inspect use
+the existing atomic intent/history boundary, also serving QuickJS/headless callers. Missing
+references stay explicit; undo, sparse/full codec reload and relocation retain identity. Source
+captures include only demanded leaves/asset records and ownership guards, with no engine-thread
+filesystem work. Generic catalog moves are fenced after backend transaction settlement as well.
+
+Picture codecs run on the admitted Golden Assets worker. Initial support is static SDR8 PNG/JPEG,
+straight-alpha sRGB RGBA, grayscale/palette expansion and EXIF orientation. Untagged sources assume
+sRGB; explicit unsupported profiles, APNG and 16-bit PNG fail instead of being mislabelled. PNG
+uses pinned `png` 0.18.1 quota/metadata APIs; JPEG uses pinned `image` 0.25.10. Dimensions and
+working allocations are checked before materialization. JPEG admission is conservative declared
+codec storage: [image's limits](https://docs.rs/image/0.25.10/image/struct.Limits.html) do not promise
+a strict total allocator bound. It does not establish measured OS/physical memory usage.
+
+One per-source scope fences retries independently. Missing/IO/source-change/capacity failures
+schedule a coarse one-second owner wake; ready-file notifications can call `retry_picture(id)`
+without invalidating healthy sources. An owner without a notifier can use the exposed next retry
+deadline. Relocation invalidates source scopes and prepares against the new directory. Full
+Media Manager controls, command nodes, callbacks/snippets and ready-file watching remain M04;
+the workbench still starts no GPU work without a consumer's demand.
+
+Golden Video now accepts `ExternalSource::Image(PreparedAsset<ImageData>)` beside Spout sources.
+Image pixels are immutable, tightly packed and retain their CPU lifetime reservation in desired,
+prepared/live/retiring/rebuild ownership. Video input admission includes that conservative storage
+charge. Image guards automatically enter submission fences, including a final core check after
+native allocation and before installation; stale rejection preserves the healthy live generation.
+GPU texture charge remains under existing runtime admission and completion-based retirement.
+
+D3D11 uses [CreateTexture2D initial data](https://learn.microsoft.com/en-us/windows/win32/api/d3d11/nf-d3d11-id3d11device-createtexture2d)
+once per resource generation. Recurring frames perform no CPU upload/readback. Multiple channels
+of one asset share its prepared source/upload while retaining independently sized output targets.
+Image inputs consume no Spout receiver slots. Upload counters count admitted resource creations,
+including candidates, and are not displayed-frame, physical-residency or delivery measurements.
+Color/alpha conversion remains in the existing linear-premultiplied sampling pipeline.
+
+Verified checks and [artifact packet](evidence/mapgyver-m03-picture-assets-2026-10-29.json):
+
+- **128 regular tests:** 30 app, 16 Assets, 79 Video unit, 3 public Video. App tests cover seven
+  Picture codec cases, catalog history/full+sparse reload/QuickJS, independently sized channels,
+  shared assets, fixed sizing/undo, missing/replaced/relinked/relocated files, healthy-source
+  preservation throughout targeted retry and retirement. Generated TypeScript matches Rust.
+- Three explicit Golden hardware tests pass on Intel LUID `00000000:00016c2a`. The new image
+  test verifies transparent/red plus opaque/green filtering gives `[0,128,0,128]` at 2/255 tolerance,
+  unchanged upload count across three subsequent frames, completed teardown and fresh-device
+  recreation from the retained lease with exact 2×1 transparent/green pixels. Existing finite
+  conversion/composition and independent Spout/admission tests remain green.
+- Both explicit app native tests pass. The new public Picture test takes real 2×2/3×2 PNG assets
+  through authoring, worker decode and actual native generation installation/submission; sharing,
+  4×3 relink, codec reload and fresh runtime retain IDs. It proves source bindings/installation
+  and upload counts, not app-output pixel readback. The Golden pixel test supplies that separate
+  finite shader/upload oracle. Controlled recreation is not genuine hardware device removal.
+- Rebuilt shared-host window/Spout/resized smoke, strict default/native all-target Clippy, default
+  checks for both apps, UI check/lint and required root/Core formatting pass. Lockfile changes
+  only add app dependency edges to already locked packages; no version or Chataigne launch changes.
+
+The initial Picture suite caught a PNG metadata API mismatch: decoded gAMA/cHRM require
+`gamma()`/`chromaticities()`, while the older `source_*` fields are encoder inputs. The final strict
+profile tests pass. The extra generic-move test initially used unsettled low-level edits; it now
+uses the actual UI/backend transaction route required by capture's documented ownership contract.
+No qualification tolerance or production recovery budget changed.
+
+This closes **gate 7**: M03 is **6/9 = 67%**, overall **3/10 = 30%**, with unchanged denominators.
+Chataigne P15's audio migration, collect/relink and scheduled playback acceptance remain open;
+the shared plan links this consumer evidence. Gates 4/8/9 remain required, including genuine
+device-removal recovery and unchanged Q01/Q02 measurements. Next is generic preview registration
+and geometry, keeping specialized editors and full physical/DPI/input qualification with M05.

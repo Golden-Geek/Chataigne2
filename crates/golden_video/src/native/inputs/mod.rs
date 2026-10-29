@@ -16,7 +16,7 @@ use std::time::Duration;
 use golden_io::{BoundedWorker, PendingDrainState, RetirementPool, WorkerLimits, WorkerNotifier};
 use windows::core::{Error, HRESULT, Result};
 
-use crate::plan::{CompiledPlan, SpoutSource};
+use crate::plan::{CompiledPlan, ExternalSource, SpoutSource};
 use crate::runtime::backend::BackendError;
 use crate::{TextureDescriptor, TextureId};
 
@@ -218,7 +218,10 @@ impl SourcePool {
         for (id, input) in &mut self.inputs {
             if input.shared.demands.load(Ordering::Acquire) == 0
                 && !self.readers.iter().any(|(_, source, _)| source == id)
-                && !plan.external_textures().iter().any(|source| source.id == *id)
+                && !plan
+                    .external_textures()
+                    .iter()
+                    .any(|source| source.id == *id && source.source.as_ref().and_then(ExternalSource::spout).is_some())
             {
                 Self::stop(input);
             }
@@ -238,7 +241,9 @@ impl SourcePool {
             })
             .ok_or(BackendError::ResourceSizeOverflow)?;
         for source in plan.external_textures() {
-            let binding = source.source.as_ref().ok_or(BackendError::UnsupportedPlan)?;
+            let Some(binding) = source.source.as_ref().and_then(ExternalSource::spout) else {
+                continue;
+            };
             if let Some(input) = self.inputs.get(&source.id) {
                 if input.binding != *binding {
                     return Err(BackendError::UnsupportedPlan);
@@ -268,11 +273,11 @@ impl SourcePool {
         }
         let mut created = Vec::new();
         for source in plan.external_textures() {
+            let Some(binding) = source.source.as_ref().and_then(ExternalSource::spout) else {
+                continue;
+            };
             if !self.inputs.contains_key(&source.id) {
-                if self
-                    .spawn(source.id, source.source.clone().expect("validated source binding"))
-                    .is_err()
-                {
+                if self.spawn(source.id, binding.clone()).is_err() {
                     for id in created {
                         Self::stop(self.inputs.get_mut(&id).unwrap());
                     }
@@ -291,6 +296,7 @@ impl SourcePool {
             _leases: plan
                 .external_textures()
                 .iter()
+                .filter(|source| source.source.as_ref().and_then(ExternalSource::spout).is_some())
                 .map(|source| self.inputs[&source.id].shared.acquire_demand())
                 .collect(),
         }

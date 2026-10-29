@@ -137,6 +137,28 @@ fn two_output_plan() -> CompiledPlan {
 }
 
 #[test]
+fn source_admission_is_rechecked_at_core_prepare_and_final_install_without_disturbing_live_resources() {
+    let mut fixture = Fixture::new(12, 2);
+    let live = fixture.install(1);
+    let source = golden_io::RevisionSource::default();
+    let mut guarded = plan(1);
+    guarded.guards = std::sync::Arc::from([source.reader().guard_at(0)]);
+    let prepared = fixture.core.prepare(fixture.identity(2), guarded.clone()).unwrap();
+    source.advance();
+    let rejected = fixture.core.install(prepared).unwrap_err();
+    assert_eq!(rejected.reason(), InstallFailure::StaleSource);
+    drop(rejected.into_prepared());
+    assert_eq!(fixture.core.snapshot().active, Some(live));
+    let created = fixture.control.snapshot().created;
+    assert!(matches!(
+        fixture.core.prepare(fixture.identity(3), guarded),
+        Err(CoreError::StaleSource)
+    ));
+    assert_eq!(fixture.control.snapshot().created, created);
+    assert_eq!(fixture.core.snapshot().bytes_used, 4);
+}
+
+#[test]
 fn budget_rejection_precedes_allocation_and_failed_prepare_preserves_the_live_generation() {
     let mut fixture = Fixture::new(12, 2);
     let original = fixture.install(1);

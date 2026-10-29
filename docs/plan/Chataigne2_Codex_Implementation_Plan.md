@@ -452,8 +452,9 @@ and sample/epoch monotonicity. Measure native synchronization separately when av
 MapGyver M03 has introduced [Golden Assets](../../crates/golden_assets/README.md): shared UUID
 references/validated locators, runtime scope/binding fences and bounded worker preparation with
 consumer-lifetime resource admission. Its public synthetic Video consumer exercises installation
-fences. This is shared foundation evidence, not P15 completion: audio path migration, collect/relink,
-scheduled playback, app codec/history and full independent-media integration below remain open.
+fences. MapGyver now exercises its asset catalog/history/codecs and Picture/native image upload
+through this boundary. This is shared evidence, not P15 completion: Chataigne audio path migration,
+collect/relink, scheduled playback and the product acceptance below remain open.
 
 Provide persistent project asset IDs and source locators separate from decoded buffers, backend
 handles, and cache fingerprints. Keep authored catalog/policy in the app; generic resolution,

@@ -5,6 +5,7 @@ golden_core::define_node_enum!(
         MediaManager(crate::media::MediaManagerNode),
         Media(crate::media::MediaNode),
         MediaChannel(crate::media::ChannelNode),
+        MediaAsset(crate::media::AssetNode),
     }
 );
 
