@@ -27,6 +27,7 @@ members = [
     "crates/golden_core/support/codegen",
     "crates/golden_core/support/macros",
     "crates/golden_audio",
+    "crates/golden_assets",
     "crates/golden_graph",
     "crates/golden_time",
     "crates/golden_video",
@@ -57,6 +58,7 @@ chataigne_spatializer_protocol = { path = "apps/chataigne/systems/spatializer_pr
 delaunator = "1.1.0"
 golden_application = { path = "crates/golden_core/foundation/application" }
 golden_audio = { path = "crates/golden_audio" }
+golden_assets = { path = "crates/golden_assets" }
 golden_context = { path = "crates/golden_core/foundation/context" }
 golden_graph = { path = "crates/golden_graph" }
 golden_io = { path = "crates/golden_core/runtime/io" }

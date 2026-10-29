@@ -65,6 +65,14 @@ remain open.
 See [Golden Video](../../crates/golden_video/README.md) and
 [Golden Time](../../crates/golden_time/README.md) for the public boundaries.
 
+[`golden_assets`](../../crates/golden_assets/README.md) owns canonical persistent UUID references
+and validated source locators, separate from content fingerprints or prepared resources. Apps own
+catalogs and authoring policy. Runtime project scopes/bindings capture revision guards without IO;
+Golden IO workers resolve/hash and invoke budgeted codecs. Prepared payload leases keep resources
+charged through consumers and final background destruction, and forward their guards to later
+execution admission. File-change/retry policy and app persistence/media integration remain with
+consumers; this foundation does not migrate Chataigne audio or complete MapGyver Picture media.
+
 MapGyver's `src/media/` owns typed persistent media/channel references and authoring operations.
 Its lifecycle delegates `mapgyver.media.edit` to Golden's existing atomic app-operation path;
 UI, QuickJS and headless callers share validation, exact result identities and history. Each

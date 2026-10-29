@@ -449,6 +449,12 @@ and sample/epoch monotonicity. Measure native synchronization separately when av
 
 ### P15 — Establish asset identity and preparation
 
+MapGyver M03 has introduced [Golden Assets](../../crates/golden_assets/README.md): shared UUID
+references/validated locators, runtime scope/binding fences and bounded worker preparation with
+consumer-lifetime resource admission. Its public synthetic Video consumer exercises installation
+fences. This is shared foundation evidence, not P15 completion: audio path migration, collect/relink,
+scheduled playback, app codec/history and full independent-media integration below remain open.
+
 Provide persistent project asset IDs and source locators separate from decoded buffers, backend
 handles, and cache fingerprints. Keep authored catalog/policy in the app; generic resolution,
 preparation, codec/persistence, and execution contracts stay in their reusable owners. Reuse

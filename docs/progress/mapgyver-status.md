@@ -4,19 +4,21 @@
 
 **Updated: 2026-10-29 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
-**Current topic:** M03 has **5/9** accepted gates. The app-owned channel bridge now publishes
-guarded plans from demanded authored leaves, consumes fenced native source metadata and preserves
-channel identity through history/reload and controlled native resource recreation. The
-[channel bridge evidence](mapgyver-m03-render-foundations.md#app-channel-publication-bridge--2026-10-29)
-closes gate 5, building on the accepted authoring and plan-owned subscription boundaries.
+**Current topic:** M03 has **5/9** accepted gates. The new shared asset foundation supplies
+persistent UUID/locator contracts, scope/binding fences, immutable worker-side source staging and
+budgeted prepared leases. A public Video consumer verifies installation and stale-asset rejection.
+The [asset checkpoint](mapgyver-m03-render-foundations.md#shared-asset-reference-and-preparation-foundation--2026-10-29)
+keeps gate 7 partial until app Picture/persistence/resource integration is exercised. The accepted
+[channel bridge](mapgyver-m03-render-foundations.md#app-channel-publication-bridge--2026-10-29)
+preserves references through history/reload and controlled native resource recreation (gate 5).
 The [native input evidence](mapgyver-m03-render-foundations.md#bounded-spout-inputs--2026-10-29)
 and M02's [shell and lifecycle evidence](mapgyver-m02-shell.md) remain accepted.
 The [approved M01 route decision](mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28)
 remains scoped functional acceptance; renderer, physical-output and full-app qualification
 retain their M03/M05/M09 owners.
 
-**Next:** implement the shared persistent asset/preparation boundary needed by Picture media
-(gate 7); retain native recovery, preview and qualification under gates 4/8/9.
+**Next:** integrate app-owned asset records with project/history and Picture preparation/resources
+using the shared boundary (gate 7); retain recovery, preview and qualification under gates 4/8/9.
 **Blocker:** none for the next M03 asset batch. Known cadence, memory-growth, geometry and display/input failures
 remain open under M03/M05/M09; their budgets and evidence are unchanged.
 
@@ -136,7 +138,7 @@ functional gate, not a retrospective pass of the original eight-item matrix.
 | Runtime observations and device recovery | Open | Source/output state, device removal/recreation, healthy-path independence, cancellation and bounded production recovery/retirement. |
 | App-owned media/channel backend contracts | Done | [Authoring and live bridge](mapgyver-m03-render-foundations.md#app-channel-publication-bridge--2026-10-29): typed persistent references, backend defaults/operations, generated contracts, demanded-leaf capture and guarded plan publication. History/reload, source changes/resize/reconnect and controlled native runtime/device recreation preserve channel identity. Genuine device-removal recovery stays gate 4; dedicated manager controls/commands/templates stay M04. |
 | Shared production-time authority | Done | [Golden Time](../../crates/golden_time/README.md) supplies checked coordinates/rational mappings and authority/discontinuity epochs consumed by the threaded video scheduler; fake-time activation/shared-output and stale-epoch tests pass. Shared P14 plan records this evidence; audio/DMX acceptance remains open. |
-| Shared persistent asset/preparation boundary | Open | Stable asset IDs/locators, worker preparation/cancellation, relocation/relink, stale fencing and full live-resource admission; shared P15 evidence remains scoped. |
+| Shared persistent asset/preparation boundary | Partial | [Golden Assets foundation](mapgyver-m03-render-foundations.md#shared-asset-reference-and-preparation-foundation--2026-10-29): persistent UUIDs/validated locators, relocation/relink fences, immutable worker preparation, bounded source/codec/retained leases and public Video admission. App codec/history/Picture and full GPU resource integration remain open; shared P15 evidence remains scoped. |
 | Native preview registration/geometry contracts | Open | Reusable bindings and Rust-generated control DTOs exercised by the native consumer; specialized editors/full DPI/input stay M05. |
 | Native renderer qualification | Open | Unchanged Q01/Q02 CPU/GPU/cadence/frame-age/admission/memory/handle/shutdown budgets and applicable recovery against the production replacement; historical failures preserved. |
 
@@ -239,8 +241,9 @@ to M02. Its shell/isolation and typed host lifecycle deliveries now close all se
 items. M03's fixed compiler, worker/null-runtime, shared-time and app channel-contract gates are verified.
 The D3D11 compositor, Spout source workers, window/Spout outputs and shared-host consumer are
 exercised. The app-owned bridge publishes guarded channel plans and preserves references through
-history/reload and controlled native resource recreation. Implement the shared persistent asset
-IDs/locators and worker preparation/cancellation boundary next (gate 7), needed by Picture media.
+history/reload and controlled native resource recreation. Shared persistent asset IDs/locators,
+worker preparation/cancellation and consumer-lifetime admission now have a reusable owner.
+Integrate app asset records with project/history and Picture preparation/resources next (gate 7).
 Native recovery, shared assets, preview geometry and qualification retain their existing owners.
 Deliver each coherent batch
 on `mapgyver` before starting the next. Preserve
@@ -387,6 +390,22 @@ Preserve Chataigne's unfinished engine/Spatializer P11 checkpoint (four of six f
 and its [separate ledger](implementation-status.md). Shared P12 boundary repairs belong to M02;
 P14/P15 time and asset contracts retain their shared Golden owners under M03. Root launch
 behavior is unchanged. No production host/backend/binding decision is final yet.
+
+## M03 shared asset checkpoint — 2026-10-29
+
+- [Shared asset foundation](mapgyver-m03-render-foundations.md#shared-asset-reference-and-preparation-foundation--2026-10-29)
+  implements persistent references/validated locators, pure capture/relocation/relink, guarded
+  immutable worker preparation and lifetime admission through every prepared consumer.
+- **16 Assets tests** verify contracts, missing/replaced sources, relocation/relink, cancellation,
+  source/codec/item/byte bounds and off-thread final disposal. The independent public Video test
+  installs a prepared synthetic extent and rejects a stale scheduled replacement while keeping
+  its live generation. The complete regular app/Assets/native-feature Video suite passes **109**.
+- Strict default/native-feature Clippy, both-app default checks, root/Core formatting and
+  whitespace checks pass. Native/UI implementations and qualification budgets are unchanged;
+  no new hardware or Picture decode/upload qualification is inferred.
+- Gate 7 remains partial pending app codec/history/Picture and GPU resource integration. M03 is
+  still **5/9 = 56%**, overall **3/10 = 30%**, with unchanged scope/counts. Shared P15 plan evidence
+  is updated; Chataigne's audio migration, collect/relink and scheduled-media acceptance stay open.
 
 ## M03 channel bridge verification — 2026-10-29
 

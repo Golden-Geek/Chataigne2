@@ -35,6 +35,7 @@ crates/
 │       ├── codegen/             supported build/codegen API
 │       └── macros/              proc macros
 ├── golden_graph/                app-agnostic graph documents and transactions
+├── golden_assets/               persistent references, validated locators and bounded CPU preparation
 ├── golden_time/                 shared coordinates, rational mapping and time/activation authority
 └── golden_video/                compiler, bounded worker/null runtime and optional Windows D3D11/output backend
 ```
@@ -119,6 +120,8 @@ These boundaries distinguish implemented foundations from planned product featur
 - `crates/golden_video/`: compiler, worker/null runtime and optional D3D11 compositor with
   fixed window/Spout outputs and plan-owned bounded Spout subscriptions exist. Complete app integration/qualification
   continue in M03, using the shared `crates/golden_time/` authority.
+- `crates/golden_assets/`: shared source-reference/locator and bounded preparation boundary;
+  app catalogs, Picture decoding/upload and project/history integration remain at their owners.
 - `packages/golden-video-ui/`: future reusable native-preview bindings; host integration stays shared.
 
 The optional typed native-presentation host lifecycle is implemented and exercised in M02.

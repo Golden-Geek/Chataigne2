@@ -69,6 +69,12 @@ late policy and one authority snapshot per submission, rather than advancing tim
 Time transport policy remains app-owned; video does not depend on audio to obtain time.
 Clock replacement publishes the new mapping and its clock origin together for reader consistency.
 
+[Golden Assets](../golden_assets/README.md) supplies persistent source references and bounded CPU
+preparation separately from render identities. Its public synthetic-descriptor consumer forwards
+prepared-asset guards into `PlanSubmission` and verifies actual null-generation installation and
+stale-source rejection. This test-only dependency does not introduce Picture decode/upload or an
+asset catalog into Video; those consumers still need integration.
+
 The native pipeline executes the demanded DAG with clear, sample and ordered Normal/Add/Multiply/
 Screen composition. It decodes sRGB and premultiplies coverage before filtering, then converts
 to each explicit output color/alpha contract. Output pools persist across plan generations:

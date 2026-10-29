@@ -2830,6 +2830,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "golden_assets"
+version = "0.1.0"
+dependencies = [
+ "golden_io",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 2.0.18",
+ "ts-rs",
+ "uuid",
+]
+
+[[package]]
 name = "golden_audio"
 version = "0.1.0"
 dependencies = [
@@ -3081,10 +3095,12 @@ dependencies = [
 name = "golden_video"
 version = "0.1.0"
 dependencies = [
+ "golden_assets",
  "golden_io",
  "golden_time",
  "serde",
  "spout2-sys",
+ "tempfile",
  "thiserror 2.0.18",
  "ts-rs",
  "uuid",

@@ -6,7 +6,8 @@ is Windows x64 (`x86_64-pc-windows-msvc`). The M02 shell/shared-host seams are i
 M03 has introduced Golden Video's compiler, bounded worker runtime, shared Golden Time scheduling
 and a D3D11 compositor with bounded Spout inputs and window/Spout outputs. Media/channel
 authoring contracts use the shared engine/history/codec and publish guarded channel plans through
-an app-owned preparation boundary. Mapping, Matrix and the specialized editors below remain planned. Execution belongs to the
+an app-owned preparation boundary. Mapping, Matrix and the specialized editors below remain
+planned. Execution belongs to the
 [MapGyver plan](../plan/MapGyver_Implementation_Plan.md) and its
 [status ledger](../progress/mapgyver-status.md).
 
@@ -24,6 +25,7 @@ editors. Golden owns reusable execution and presentation mechanisms.
 | `apps/mapgyver/ui/` | Svelte 5 Screen, Surface Source, Composition and Matrix editors; app registrations and focused editor stores |
 | `crates/golden_video/` | Compiler, bounded worker/null runtime, optional D3D11 compositor and bounded Spout input/window/Spout output mechanisms; app integration and qualification continue in M03 |
 | `crates/golden_time/` | Typed monotonic/show/sample coordinates, rational mappings, authority epochs and activation observations; apps own transport policy |
+| `crates/golden_assets/` | Persistent asset references/validated locators and bounded CPU preparation with scope/binding fences and consumer-lifetime leases; app catalogs and media integration remain with their owners |
 | `packages/golden-video-ui/` (proposed) | Reusable native preview registration, geometry and capability bindings; no mapping policy |
 | Existing Golden Core hosts and Golden UI | Shared desktop/headless startup, native window integration, workbench, inspectors, history, dialogs, generated transport and persistence |
 
@@ -195,9 +197,13 @@ stall all outputs or the control engine. Independent displays are not implicitly
 worker schedules from absolute rational frame deadlines and samples this authority once per
 submission for all consumers; reader projections do not advance effects. Replacement authorities
 have distinct identities even at generation zero. This is shared P14 foundation evidence;
-Chataigne's audio/DMX integration and synchronization acceptance remain open. P15 asset identity,
-locators and preparation still need their shared boundary, rather than app-local file identities
-or cache protocols. The MapGyver plan names the required acceptance.
+Chataigne's audio/DMX integration and synchronization acceptance remain open.
+[`golden_assets`](../../crates/golden_assets/README.md) now supplies P15's shared UUID/locator,
+scope/binding-fence and bounded CPU-preparation foundation. Apps keep authored catalogs and
+collect/relink/history policy. File resolution/hash/decode run on its worker; prepared leases
+retain admission through every consumer and off-thread final destruction. The public synthetic
+Video consumer forwards its guards into actual null-runtime installation. MapGyver Picture,
+project/history and GPU-upload integration, and Chataigne's audio/P15 acceptance, remain open.
 
 ## Screens and surfaces
 

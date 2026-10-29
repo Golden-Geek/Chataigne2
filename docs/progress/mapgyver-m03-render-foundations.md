@@ -448,3 +448,56 @@ denominator or qualification budget changed. Dedicated Media Manager controls, c
 callbacks and app-owned snippets remain M04; production Screen/preview demand belongs to M05.
 Gates 4/7/8/9 remain open, including genuine device-removal recovery and sustained Q01/Q02
 qualification. Next is the shared persistent asset/preparation boundary needed by Picture media.
+
+## Shared asset reference and preparation foundation — 2026-10-29
+
+[`golden_assets`](../../crates/golden_assets/README.md) now supplies the shared P15 foundation
+instead of creating app-local file identities or promoting audio cache fingerprints to project
+truth. `AssetRecord` contains only a persistent UUID and a validated project-relative/absolute
+locator; Serde and TypeScript derive from the same Rust declarations. Apps retain catalog,
+collect/relink/history policy. Runtime scopes and bindings capture project/source revision guards
+without filesystem work; relocation/relink invalidates preparation while preserving authored IDs.
+
+One Golden IO worker resolves and stages encoded sources, checks file/read/seek limits, invokes
+a trusted budgeted codec, then reopens the path and verifies its current content fingerprint.
+The decoder sees immutable staged bytes. This avoids both stale old-handle acceptance after atomic
+replacement and inconsistent reads from transient in-place writes. Content observations are not
+a filesystem lock/snapshot guarantee: external changes can follow admission. Consumer change
+notifications/retries invalidate bindings; downstream preparation must forward the guards.
+
+Golden IO payload capacity is reserved before source staging/decoding. It covers maximum encoded
+staging, codec working allocation and captured metadata. Encoded capacity is released only after
+that buffer is dropped; decoded capacity survives outcomes, all consumer clones and actual final
+background destruction. The codec must enforce its allocation budget; this is a declared-resource
+bound, not measured allocator/OS overhead. A blocked OS/codec operation keeps its sole worker slot;
+cancel/drop does not join or certify retirement. Source files, queues and read work have explicit
+bounds, and notifications allow event-driven consumer service.
+
+Verification covers **16 asset tests** (4 contracts + 12 public integration cases): validated
+path/JSON roundtrip, duplicate reference identity, worker-only decode, relocation/relink,
+missing/directory/oversized status, equal-length atomic replacement, transient in-place writes,
+stale preparation, cancellation, read/seek budgets, independent item/byte pressure and off-consumer
+destruction after held clones release. The Windows directory case initially reported permission
+denied before handle metadata; worker preflight now produces NotAFile while still rechecking the
+opened handle. The new transient-write regression verifies exact original bytes and SHA-256.
+
+The independent [public Video consumer](../../crates/golden_video/tests/asset_preparation.rs)
+prepares a synthetic 320×180 descriptor on this worker, forwards its guards to `PlanSubmission`,
+installs a real null generation, then invalidates a scheduled replacement and verifies StaleSource
+with the prior live generation intact. This proves the public preparation/execution boundary;
+it does not claim Picture decoding, native pixels or GPU upload/admission.
+
+The combined regular suite passes **109 tests**: 17 MapGyver, 16 Assets, 73 Video unit and 3 public
+Video tests; two hardware cases remain explicitly ignored. Strict all-target Clippy passes for
+Assets/Video by default and Assets/Video/MapGyver with the native-video feature. Both apps compile
+with default features, both required Rust formatters and whitespace checks pass. Cargo.lock adds
+the new workspace crate and only dependency edges to existing locked packages; root defaults
+remain Chataigne. No native implementation, UI, display/overlay or qualification budget changes.
+
+Gate 7 remains **partial**, so M03 stays **5/9 = 56%**, overall **3/10 = 30%**, with unchanged
+denominators. Next is app-owned asset catalog/codec/history and Picture preparation/resource
+integration using this boundary. Full Picture/Media Manager controls, commands/callbacks/snippets
+remain M04; source watching/recovery and GPU lifetime admission must be exercised there. The
+shared [P15 plan](../plan/Chataigne2_Codex_Implementation_Plan.md#p15--establish-asset-identity-and-preparation)
+records this reusable evidence without claiming Chataigne audio migration, collect/relink,
+scheduled playback or complete P15 acceptance. Native gates 4/8/9 remain open.

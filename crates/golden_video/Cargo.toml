@@ -18,6 +18,10 @@ ts-rs.workspace = true
 thiserror.workspace = true
 uuid.workspace = true
 
+[dev-dependencies]
+golden_assets.workspace = true
+tempfile.workspace = true
+
 [target.'cfg(windows)'.dependencies]
 spout2-sys = { version = "=0.1.1", default-features = false, features = ["dx"], optional = true }
 windows = { version = "=0.61.3", optional = true, features = [
