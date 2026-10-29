@@ -200,9 +200,10 @@ impl Pipeline {
             debug_assert!(previous.descriptor.is_compositing_target());
             debug_assert_eq!(previous.descriptor.extent, target.descriptor.extent);
         }
+        let (source_view, source_encoding) = source.sampling_view();
         let parameters = Parameters {
             source_extent: [source.descriptor.extent.width(), source.descriptor.extent.height()],
-            source_encoding: encoding(source.descriptor.color_encoding),
+            source_encoding: encoding(source_encoding),
             source_alpha: alpha(source.descriptor.alpha_mode),
             target_encoding: encoding(target.descriptor.color_encoding),
             target_alpha: alpha(target.descriptor.alpha_mode),
@@ -242,7 +243,7 @@ impl Pipeline {
             context.PSSetConstantBuffers(0, Some(&[Some(self.constants.clone())]));
             context.PSSetShaderResources(
                 0,
-                Some(&[Some(source.srv.clone()), previous.map(|texture| texture.srv.clone())]),
+                Some(&[Some(source_view.clone()), previous.map(|texture| texture.srv.clone())]),
             );
             context.OMSetDepthStencilState(None, 0);
             context.OMSetBlendState(None, None, u32::MAX);

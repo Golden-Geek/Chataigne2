@@ -125,6 +125,183 @@ fn hardware_pipeline_matches_finite_color_alpha_filter_and_blend_oracles() {
     );
 }
 
+#[test]
+#[ignore = "requires an explicitly available Windows hardware D3D11 adapter"]
+fn hardware_source_views_preserve_srgb_and_alpha_before_filtering() {
+    let fixture = Fixture::new();
+    let target = fixture.target(internal(PixelFormat::Rgba8Unorm));
+    // Nontrivial transfer values and transparent colored storage detect double decoding,
+    // interpolation in encoded space, and premultiplication in the wrong order.
+    let pixels = [[46, 182, 247, 0], [117, 53, 37, 128]];
+    for format in [PixelFormat::Rgba8Unorm, PixelFormat::Bgra8Unorm] {
+        for alpha in [AlphaMode::Straight, AlphaMode::Opaque, AlphaMode::Premultiplied] {
+            let desc = descriptor(2, format, ColorEncoding::Srgb, alpha);
+            let source = Texture::new_sampled(&fixture.gpu.device, desc).expect("prepare sampled source");
+            let expected_encoding = if alpha == AlphaMode::Premultiplied {
+                ColorEncoding::Srgb
+            } else {
+                ColorEncoding::Linear
+            };
+            assert_eq!(source.sampling_view().1, expected_encoding);
+            fixture.write(&source, &pixels);
+            let decode_pixel = |pixel: [u8; 4]| {
+                let coverage = if alpha == AlphaMode::Opaque {
+                    1.0
+                } else {
+                    f64::from(pixel[3]) / 255.0
+                };
+                let mut result = [0.0; 4];
+                if coverage > 0.0 {
+                    for channel in 0..3 {
+                        let stored = f64::from(pixel[channel]) / 255.0;
+                        let straight = if alpha == AlphaMode::Premultiplied {
+                            stored / coverage
+                        } else {
+                            stored
+                        };
+                        result[channel] = decode(straight) * coverage;
+                    }
+                    result[3] = coverage;
+                }
+                result
+            };
+            let left = decode_pixel(pixels[0]);
+            let right = decode_pixel(pixels[1]);
+            let expected = std::array::from_fn(|channel| (left[channel] + right[channel]) * 0.5);
+            fixture.draw(&source, None, &target, 1.0, BlendMode::Normal, SampleFilter::Linear);
+            fixture.check(&target, expected, &format!("source view {format:?}/{alpha:?}"));
+            fixture.draw(&source, None, &target, 1.0, BlendMode::Normal, SampleFilter::Nearest);
+            fixture.check(&target, right, "nearest source view decodes exactly once");
+        }
+        let linear = Texture::new_sampled(
+            &fixture.gpu.device,
+            descriptor(2, format, ColorEncoding::Linear, AlphaMode::Straight),
+        )
+        .expect("prepare linear source");
+        assert_eq!(linear.sampling_view().1, ColorEncoding::Linear);
+        fixture.write(&linear, &pixels);
+        fixture.draw(&linear, None, &target, 1.0, BlendMode::Normal, SampleFilter::Linear);
+        let coverage = 128.0 / 255.0;
+        fixture.check(
+            &target,
+            [
+                117.0 / 255.0 * coverage / 2.0,
+                53.0 / 255.0 * coverage / 2.0,
+                37.0 / 255.0 * coverage / 2.0,
+                coverage / 2.0,
+            ],
+            "linear sources retain their transfer",
+        );
+    }
+}
+
+#[test]
+#[ignore = "requires an explicitly available Windows hardware D3D11 adapter"]
+fn hardware_srgb_source_decode_cost_control() {
+    use std::num::NonZeroUsize;
+    use uuid::Uuid;
+
+    use crate::native::completion::EventCompletion;
+    use crate::native::timing::{
+        DiagnosticContext, DiagnosticEvent, DiagnosticsConfig, GpuSampleStatus, GpuTiming, Recorder,
+    };
+    use crate::runtime::{CompletionToken, DeviceGeneration};
+
+    let fixture = Fixture::new();
+    let source_desc = TextureDescriptor {
+        extent: Extent2D::new(1920, 1080).unwrap(),
+        format: PixelFormat::Bgra8Unorm,
+        color_encoding: ColorEncoding::Srgb,
+        alpha_mode: AlphaMode::Straight,
+    };
+    let sources = [
+        fixture.target(source_desc),
+        Texture::new_sampled(&fixture.gpu.device, source_desc).unwrap(),
+    ];
+    let target = fixture.target(TextureDescriptor {
+        extent: Extent2D::new(3840, 2160).unwrap(),
+        ..internal(PixelFormat::Rgba8Unorm)
+    });
+    for source in &sources {
+        // SAFETY: finite test-owned raw views; both paths receive identical encoded texels.
+        unsafe {
+            fixture
+                .gpu
+                .context
+                .ClearRenderTargetView(&source.rtv, &[0.18, 0.57, 0.83, 0.63])
+        };
+    }
+    let recorder = Recorder::new(DiagnosticsConfig {
+        capacity: NonZeroUsize::new(4).unwrap(),
+    });
+    let mut timing = GpuTiming::new(&fixture.gpu.device, recorder.clone(), DiagnosticContext::Renderer);
+    let mut completion = EventCompletion::new(&fixture.gpu).unwrap();
+    let generation = DeviceGeneration::new(Uuid::new_v4(), 1);
+    let mut measurements = [Vec::new(), Vec::new()];
+    let mut rows = Vec::new();
+    let mut serial = 0;
+    for pair in 0..16 {
+        // Alternate order to avoid consistently favoring one path after idle/warmup.
+        for index in if pair % 2 == 0 { [0, 1] } else { [1, 0] } {
+            serial += 1;
+            let token = CompletionToken {
+                device: generation,
+                serial,
+            };
+            {
+                let _completion = completion.begin(&fixture.gpu, token);
+                let _timing = timing.begin(&fixture.gpu.context, token);
+                for _ in 0..4 {
+                    fixture.draw(
+                        &sources[index],
+                        None,
+                        &target,
+                        1.0,
+                        BlendMode::Normal,
+                        SampleFilter::Linear,
+                    );
+                }
+            }
+            let deadline = Instant::now() + Duration::from_secs(5);
+            loop {
+                let done = completion.completed(&fixture.gpu, generation).unwrap();
+                timing.poll(&fixture.gpu.context, done);
+                recorder.drain(&mut rows, NonZeroUsize::new(4).unwrap());
+                if done.serial == serial && !rows.is_empty() {
+                    break;
+                }
+                assert!(Instant::now() < deadline, "finite sampler GPU timing drain");
+                std::thread::sleep(Duration::from_millis(1));
+            }
+            assert_eq!(rows.len(), 1);
+            let DiagnosticEvent::Gpu(row) = rows.pop().unwrap() else {
+                panic!("expected GPU timing")
+            };
+            assert_eq!(row.token, token);
+            assert_eq!(row.status, GpuSampleStatus::Valid);
+            if pair >= 4 {
+                measurements[index].push(
+                    (row.end.unwrap() - row.begin.unwrap()) as f64 * 1000.0 / row.frequency.unwrap() as f64 / 4.0,
+                );
+            }
+        }
+    }
+    assert_eq!(recorder.snapshot().dropped_full, 0);
+    eprintln!(
+        "SAMPLER_TIMING {}",
+        serde_json::json!({
+            "warmup_pairs": 4,
+            "measured_pairs": 12,
+            "draws_per_batch": 4,
+            "source": [1920, 1080],
+            "target": [3840, 2160],
+            "manual_decode_gpu_ms_per_draw": measurements[0],
+            "hardware_decode_gpu_ms_per_draw": measurements[1],
+            "scope": "isolated sampler cost; not an end-to-end renderer critical path",
+        })
+    );
+}
+
 struct Fixture {
     gpu: Device,
     pipeline: Pipeline,
@@ -151,10 +328,16 @@ impl Fixture {
     }
 
     fn upload(&self, descriptor: TextureDescriptor, rgba: &[[u8; 4]]) -> Texture {
+        let texture = self.target(descriptor);
+        self.write(&texture, rgba);
+        texture
+    }
+
+    fn write(&self, texture: &Texture, rgba: &[[u8; 4]]) {
+        let descriptor = texture.descriptor;
         assert_eq!(descriptor.extent.height(), 1);
         assert!(descriptor.extent.width() <= 2);
         assert_eq!(rgba.len(), descriptor.extent.width() as usize);
-        let texture = self.target(descriptor);
         let storage = rgba
             .iter()
             .copied()
@@ -171,7 +354,6 @@ impl Fixture {
                 0,
             );
         }
-        texture
     }
 
     #[allow(clippy::too_many_arguments)]

@@ -5,11 +5,11 @@
 **Updated: 2026-10-29 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
 **Current topic:** M03 remains **7/9** accepted gates. The
-[delivery deadline checkpoint](mapgyver-m03-qualification-runner.md#anchored-delivery-deadline-bounds--2026-10-29)
-classifies all 180 anchored opportunities per output from the existing immutable captures.
-Q01 has 180 proven on-time observations on each output. Q02 main/editor miss all 180; Spout
-has three on time, one proven miss and 176 unknown GPU-ready times. Late completion polls are
-not automatically called GPU misses. No native workload reran and no gate closes.
+[hardware sRGB sampling checkpoint](mapgyver-m03-qualification-runner.md#hardware-srgb-source-decoding--2026-10-29)
+removes shader gamma decoding from eligible source sampling. An isolated alternating cost
+control reduces median GPU time per 4K draw from 2.0702 to 1.3827 ms (33%). A short Q01
+control accepts/captures all 300 sample frames; Q02 still fails cadence/capture coverage and
+its renderer-context GPU p95 does not improve. No acceptance gate closes.
 
 **Next:** complete GPU critical-path and native buffer/GPU-queue measurements
 (gate 9), then address remaining cadence, capture coverage and growth qualification. Native
@@ -259,8 +259,8 @@ misses cadence/age targets. Schema 4 joins copied-image labels across producer, 
 output and independent capture, checking GPU pixels against the exact claimed renderer inputs.
 Direct native regression and GPU input/conversion taps isolate the observed mismatch to the
 outgoing SDK handoff. GPU keyed outputs with zero-timeout send ownership now retain exact pixels
-in 518 available regression comparisons and the new short control captures. The latest Q02
-control still misses 18 sample images and cadence/age targets. Counter agreement alone cannot
+in 518 available regression comparisons and the new short control captures. The Q02
+window-Present control misses 18 sample images and cadence/age targets. Counter agreement alone cannot
 qualify identity.
 CPU publication/first-receipt/installation records now join exact resource generations to first
 use and per-output API age. The bounded recorder exists before worker startup; unread
@@ -271,7 +271,9 @@ observations in one short control; Q02 retains cadence/age/capture failures. Pen
 display events do not establish native buffer occupancy. Anchored delivery-deadline analysis
 now retains every opportunity, including a pre-window API call whose deadline belongs to the
 sample. Q01 has 180 on-time observations per output; Q02 window deadlines fail, while late
-Spout polling stays uncertain. Complete GPU critical-path and queue/consumption measurement
+Spout polling stays uncertain. Source-local hardware sRGB decoding now reduces isolated sampler
+cost by 33%; its short Q02 control still misses six of 295 accepted Spout images and does not
+improve renderer-context GPU p95. Complete GPU critical-path and queue/consumption measurement
 before the prescribed qualification series (gate 9).
 Genuine native device-removal recovery and bounded stuck-drain retirement retain gate 4.
 Both gates remain required before M03 completion; all existing budgets/failures stay operative.
@@ -420,6 +422,35 @@ Preserve Chataigne's unfinished engine/Spatializer P11 checkpoint (four of six f
 and its [separate ledger](implementation-status.md). Shared P12 boundary repairs belong to M02;
 P14/P15 time and asset contracts retain their shared Golden owners under M03. Root launch
 behavior is unchanged. No production host/backend/binding decision is final yet.
+
+## M03 hardware sRGB source decoding — 2026-10-29
+
+Golden Video now prepares a decoded SRGB view for source-local straight/opaque sRGB storage,
+while keeping raw views, shared input/output UNORM formats, logical byte charges and all
+queue/admission limits unchanged. Encoded premultiplied sources still unpremultiply before
+shader decoding. Hardware pixel oracles cover RGBA/BGRA, transparent colored texels, nearest/
+linear filtering, straight/opaque/premultiplied alpha, and linear sources; the native input,
+image recreation, region, recovery, marker-lineage and timing regressions pass.
+
+The [evidence packet](evidence/mapgyver-m03-srgb-sampling-2026-10-29.json) and
+[raw controls](evidence/mapgyver-m03-srgb-sampling-controls-2026-10-29.zip) retain one unchanged
+Q02 baseline and updated Q01/Q02 controls on Intel LUID `00000000:00016c2a`. Each uses a
+five-second warmup, five-second sample and one-second interruption controls. An isolated
+same-device alternating sampler experiment reports 12 measured pairs after four warmup pairs,
+four 4K draws per batch: median cost 2.0702 → 1.3827 ms per draw (33% reduction).
+
+Q02 main acceptance changes 249/300 → 292/300, editor 156/300 → 174/300 and Spout 294/300 →
+295/300; exact independent captures change 267/294 → 289/295 with no invalid comparisons.
+These short sequential controls cannot attribute all end-to-end differences to this change:
+renderer-context GPU p95 is 19.9860 → 20.3868 ms, so no overall GPU latency improvement is
+claimed. Updated Q01 accepts and captures 300/300 on each applicable output/cohort.
+PresentMon was not enabled; the previous window display/deadline evidence is preserved.
+
+Validation: 148 regular library tests plus four public integration tests, 11 native regression
+tests plus the isolated native cost control, strict Golden Video clippy, release runner build
+and both Rust formatters. Native captures have stable before/after execution fingerprints;
+the final source adds only the cost-test code after capture. No workload, budget or gate
+denominator changes. **M03 stays 7/9 (78%); overall stays 3/10 (30%)**.
 
 ## M03 anchored delivery deadline bounds — 2026-10-29
 

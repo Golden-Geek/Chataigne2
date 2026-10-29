@@ -764,6 +764,66 @@ default/native all-target Clippy, generated fixture contracts, release x64 build
 formatters. Full cadence/repetition, GPU/queue/deadline, growth/handle, genuine removal/stuck
 retirement and M05 physical observations remain open. **M03 stays 7/9; overall stays 3/10 (30%)**.
 
+## Hardware sRGB source decoding — 2026-10-29
+
+Golden Video's `native/texture.rs` now prepares typeless source-local storage and a decoded
+SRGB view for straight/opaque sRGB sources. `native/pipeline.rs` selects that view and marks
+its sampled values linear, so the existing per-texel premultiplication/interpolation does not
+decode twice. Encoded premultiplied data retains its raw view and shader unpremultiplication
+before decoding. `native/backend/resources.rs` selects source allocation during preparation;
+output conversion storage and shared Spout formats stay UNORM. Extra views have no extra
+texture payload, and creation is outside per-frame submission.
+
+The view/copy contracts follow Microsoft's
+[typed resource views](https://microsoft.github.io/DirectX-Specs/d3d/archive/D3D11_3_FunctionalSpec.htm#ResourceViews)
+and [compatible-format GPU copies](https://learn.microsoft.com/en-us/windows/win32/api/d3d11/nf-d3d11-id3d11devicecontext-copyresource).
+Only source-local storage changes; raw marker views still observe encoded bits. Color tests
+compare finite outputs to independent scalar transfer/coverage oracles within 2/255. Both
+RGBA/BGRA layouts, opaque ignored alpha, transparent colored storage, encoded premultiplication,
+nearest/linear filters and unchanged linear transfer are exercised.
+
+The [packet](evidence/mapgyver-m03-srgb-sampling-2026-10-29.json) links raw native captures,
+test logs and exact source/binary fingerprints in the
+[control archive](evidence/mapgyver-m03-srgb-sampling-controls-2026-10-29.zip).
+The same Intel LUID `00000000:00016c2a` runs one pre-change Q02 baseline and updated Q02/Q01
+controls, each with five-second warmup/sample and one-second interruption intervals. There
+is no display/driver/overlay change or PresentMon collector in this batch.
+
+| Short native observation | Q02 baseline | Q02 decoded view | Q01 decoded view |
+| --- | ---: | ---: | ---: |
+| Renderer context GPU p95 / p99 (ms) | 19.9860 / 22.4258 | 20.3868 / 21.5081 | 3.8439 / 4.5881 |
+| Main accepted / 300 opportunities | 249 | 292 | 300 |
+| Spout accepted / 300 opportunities | 294 | 295 | 300 |
+| Editor accepted / 300 opportunities | 156 | 174 | 300 |
+| Exact completed Spout captures / accepted | 267/294 | 289/295 | 300/300 |
+| Invalid capture comparisons | 0 | 0 | 0 |
+| Logical reserved peak (bytes) | 578,764,864 | 578,764,864 | recorded in packet |
+
+The isolated sampler cost test uses the production pipeline, identical encoded source texels
+and one device, alternating path order. Four warmup pairs precede 12 measured pairs; each
+timestamp/disjoint span covers four draws from 1920×1080 to 3840×2160. It observes median
+2.0702 ms per manual-decode draw and 1.3827 ms per hardware-decode draw, a 33% reduction for
+this operation. Valid completed timing records and zero diagnostic drops are asserted; no
+performance ratio is a flaky test assertion. This is an isolated operation cost, not a whole
+frame or cross-context critical path. The end-to-end Q02 GPU p95 does not improve, and the
+sequential short controls do not prove the cause of their cadence/capture differences.
+
+Reproduce the bounded cost experiment:
+
+```powershell
+cargo test -p golden_video --features qualification --lib hardware_srgb_source_decode_cost_control -- --ignored --test-threads=1 --nocapture
+```
+
+Validation: 148 ordinary library tests, four public integration tests, the 11-test native
+regression matrix and the new isolated native cost test pass. Strict Golden Video clippy,
+the release `native_qualification` build and both Rust formatters complete. The native
+capture execution hashes remain stable within every run; only cost-test source was added
+after the captures, without changing runtime code or the executable. Original input records
+are retained. The prior 85 Python test baseline is unchanged; no new analyzer is introduced.
+Q02 cadence, incomplete capture and age/queue/GPU/recovery qualification stay open; missing
+images are not omitted. No displayed cadence, optical scanout or deadline pass is inferred
+from these API observations. **M03 remains 7/9; overall remains 3/10.**
+
 ## Anchored delivery deadline bounds — 2026-10-29
 
 Deadline measurement belongs in the app-owned qualification tools. `production_deadlines.py`

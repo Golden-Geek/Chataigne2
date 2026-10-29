@@ -78,7 +78,10 @@ impl TextureCache {
                 image: None,
             },
             counts,
-            || Texture::new(device, descriptor),
+            || match role {
+                Role::External(_) => Texture::new_sampled(device, descriptor),
+                _ => Texture::new(device, descriptor),
+            },
         )
     }
 }

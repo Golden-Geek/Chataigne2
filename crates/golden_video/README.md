@@ -29,6 +29,14 @@ The implemented foundations are:
   The opt-in Windows `qualification` feature also exposes GPU source/consumer marker fixtures;
   app-owned runners select scenarios and own processes, without putting product policy in Golden.
 
+Source-local sRGB textures with straight or opaque alpha use typeless storage with separate
+raw UNORM and decoded SRGB views. The sampler selects the decoded view and skips shader gamma
+decoding, then premultiplies each texel before interpolation. Encoded premultiplied sources
+retain shader unpremultiplication before gamma decoding. Shared input/output formats and raw
+copy/marker views remain UNORM; no extra texture or per-frame view allocation is introduced.
+See the [sampling checkpoint](../../docs/progress/mapgyver-m03-qualification-runner.md#hardware-srgb-source-decoding--2026-10-29)
+for finite color tests and the bounded cost comparison.
+
 Native `D3d11Config::diagnostics` optionally enables a bounded metadata queue, CPU API brackets
 and two GPU timestamp/disjoint slots per context. The queue uses pinned
 [`concurrent-queue` 2.5.0](https://docs.rs/concurrent-queue/2.5.0/concurrent_queue/struct.ConcurrentQueue.html)
