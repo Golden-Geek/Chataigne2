@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "baseline": "UPSTREAM.json",
+  "purpose": "Truthful per-call copy status, explicit instance-local counting and synchronized unchanged preflight",
+  "files": [
+    {
+      "path": "build.rs",
+      "baseline_sha256": "0749bff731f62134befc965bc5a9582a8a65a7105ccd80cf8837ebdcadd8eca1",
+      "patched_sha256": "57835fd55d335eccb57b99ba0d409d7457907786b9255412327f2588afdecd73"
+    },
+    {
+      "path": "Cargo.toml",
+      "baseline_sha256": "9243b506583953b227e7f229fdf879ba682a66a39edf6f234baf53a9b06a245e",
+      "patched_sha256": "38c7981939028d12158313e5bfe362f7d917fe1b29b6838a3fe8ad6e63a9251f"
+    },
+    {
+      "path": "shim/spout_shim.cpp",
+      "baseline_sha256": "612da9fa30c40447c52d5cbd8f3a00fd1df85ebe50ae801ea693d35825718e9e",
+      "patched_sha256": "9240902daa4bcb65d6c08ee82eb809152184c8f1f76ac8d502ba03eff9a8cf81"
+    },
+    {
+      "path": "shim/spout_shim.h",
+      "baseline_sha256": "615895c561c7bc6cc8dbc41aacba51db97c126d549c48ad2d95bbb3ff41eec29",
+      "patched_sha256": "61a796d266ce7ace052fee27583875613b69710cdf6c1197ba8dcb809ebb18ad"
+    },
+    {
+      "path": "src/lib.rs",
+      "baseline_sha256": "3efa0a646fb5a93080f17504c769ea70f0584727097f3d5ec2c26c8370032fbc",
+      "patched_sha256": "b5ea3b406f40449694c20623f617741710f75b8f3018e5b3b34905254e4ece5a"
+    },
+    {
+      "path": "vendor/Spout2/SPOUTSDK/SpoutDirectX/SpoutDX/SpoutDX.cpp",
+      "baseline_sha256": "486dd128039e4d26d11ef220fc0d72435333e06f5c8a391c829e5415c106f064",
+      "patched_sha256": "8355612f49c2c0652ac20092ea6c24214eb036bb539c9f55c7819c599669cdf8"
+    },
+    {
+      "path": "vendor/Spout2/SPOUTSDK/SpoutDirectX/SpoutDX/SpoutDX.h",
+      "baseline_sha256": "71f57a0388648ee24f2002eb100d77df3b0cf935ea01c2c97e5c7caf03d76cbf",
+      "patched_sha256": "2452ba74c5f441e304635bfc56d1efdb945518ffed685c950055d3cd751923a9"
+    },
+    {
+      "path": "vendor/Spout2/SPOUTSDK/SpoutGL/SpoutFrameCount.cpp",
+      "baseline_sha256": "20decd8556e80ec503fc6de3da8acf89c475dffe26b63e12e3156cc405e40e9f",
+      "patched_sha256": "711dad139bab5a8016960cc4144ba9a1112dddf4bfc37502690e87e3c297c8fe"
+    },
+    {
+      "path": "vendor/Spout2/SPOUTSDK/SpoutGL/SpoutFrameCount.h",
+      "baseline_sha256": "eda21eaf52caab878e1f9ae9e6bb462872a4660242a3c22ad423a62ef1c3fe3a",
+      "patched_sha256": "71584b4bc07f24c1f6fd968d32d1b9fef9d247989ceefc2c8da103a65f355847"
+    }
+  ],
+  "documentation": {
+    "UPSTREAM.json": "92eb5e2a8d460009a6196b97de1119a4a2af0aafcfc9b38ecb45a32ff608b5fe",
+    "GOLDEN_PATCH.md": "5be5754cba1a0465515b1c19d4a6056dc555970e44ef3ff2b0f6ce88a011174e"
+  }
+}

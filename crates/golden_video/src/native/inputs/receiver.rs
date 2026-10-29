@@ -7,12 +7,15 @@ use windows::Win32::Graphics::Direct3D11::{D3D11_TEXTURE2D_DESC, ID3D11Device, I
 use windows::core::{Error, HRESULT, Interface, Result};
 
 use super::super::texture::{Texture, format};
+use crate::plan::SpoutFrameCount;
 use crate::{Extent2D, TextureDescriptor};
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Received {
     Absent,
     Waiting,
     Unchanged,
+    Busy,
     Mismatch,
     Frame,
 }
@@ -26,13 +29,21 @@ pub(crate) struct Receiver {
     descriptor: TextureDescriptor,
     handle: usize,
     alias: Option<ID3D11Texture2D>,
-    last_frame: Option<i32>,
+    freshness: Freshness,
     clear_capture: bool,
     actual_descriptor: Option<TextureDescriptor>,
 }
 
 impl Receiver {
-    pub fn new(device: &ID3D11Device, name: &str, descriptor: TextureDescriptor) -> Result<Self> {
+    pub fn new(
+        device: &ID3D11Device,
+        name: &str,
+        descriptor: TextureDescriptor,
+        frame_count: SpoutFrameCount,
+    ) -> Result<Self> {
+        if !frame_count.accepts_sender_name(name) {
+            return Err(invalid());
+        }
         let name = CString::new(name).map_err(|_| invalid())?;
         // SAFETY: uniquely owned SDK instance, retained device AddRef outlives its borrowed pointer.
         let raw = NonNull::new(unsafe { sdk::spout_dx_create() }).ok_or_else(invalid)?;
@@ -43,11 +54,18 @@ impl Receiver {
             descriptor,
             handle: 0,
             alias: None,
-            last_frame: None,
+            freshness: Freshness::new(frame_count),
             clear_capture: true,
             actual_descriptor: None,
         };
         unsafe {
+            let mode = match frame_count {
+                SpoutFrameCount::Unversioned => sdk::SPOUT_DX_FRAME_COUNT_UNVERSIONED,
+                SpoutFrameCount::VersionedV1 => sdk::SPOUT_DX_FRAME_COUNT_RECEIVER_VERSIONED,
+            };
+            if sdk::spout_dx_set_frame_count_mode(raw.as_ptr(), mode) == 0 {
+                return Err(invalid());
+            }
             if sdk::spout_dx_open_directx11(raw.as_ptr(), receiver.device.as_raw()) == 0
                 || sdk::spout_dx_get_device(raw.as_ptr()) != receiver.device.as_raw()
             {
@@ -96,6 +114,17 @@ impl Receiver {
             if !self.validate_alias(handle, descriptor)? {
                 return Ok(Some(Received::Mismatch));
             }
+            // Withdraw the old endpoint's publication before a replacement can be Busy.
+            return Ok(Some(Received::Waiting));
+        }
+        if self.freshness.policy == SpoutFrameCount::VersionedV1 {
+            let mut frame = 0;
+            // SAFETY: explicit caller-owned counter contract; this CPU peek does not consume
+            // receiver state or queue GPU work. Missing/zero/reset counts proceed to receive.
+            let available = unsafe { sdk::spout_dx_peek_frame_count(self.raw.as_ptr(), &mut frame) != 0 };
+            if self.freshness.unchanged(available.then_some(frame)) {
+                return Ok(Some(Received::Unchanged));
+            }
         }
         Ok(None)
     }
@@ -103,8 +132,7 @@ impl Receiver {
     pub fn receive(&mut self, capture: &Texture) -> Result<Received> {
         let expected = self.actual_descriptor.ok_or_else(invalid)?;
         if self.clear_capture {
-            // SAFETY: first accepted session starts from deterministic zero storage. SDK may
-            // report acceptance without copying after a mutex timeout; never expose garbage.
+            // SAFETY: no source bytes become observable before a successful detailed copy.
             unsafe {
                 self.device
                     .GetImmediateContext()?
@@ -113,14 +141,32 @@ impl Receiver {
             self.clear_capture = false;
         }
         let mut texture = capture.texture.as_raw();
+        let mut frame = 0;
+        let mut counter_available = 0;
         // SAFETY: a fixed matching receiver texture on the exact caller device. Unlike the
         // no-argument overload this public SDK API does not allocate a private receiving image.
-        let connected = unsafe { sdk::spout_dx_receive_texture_into(self.raw.as_ptr(), &mut texture) != 0 };
-        let updated = unsafe { sdk::spout_dx_is_updated(self.raw.as_ptr()) != 0 };
+        let status = unsafe {
+            sdk::spout_dx_receive_texture_into_status(
+                self.raw.as_ptr(),
+                &mut texture,
+                &mut frame,
+                &mut counter_available,
+            )
+        };
+        // SAFETY: read-only device status; preserve its actual removal HRESULT on failure.
+        unsafe {
+            self.device.GetDeviceRemovedReason()?;
+        }
+        let received = classify(status)?;
         if texture != capture.texture.as_raw()
             || unsafe { sdk::spout_dx_get_device(self.raw.as_ptr()) } != self.device.as_raw()
         {
             return Err(invalid());
+        }
+        if matches!(received, Received::Waiting | Received::Absent) {
+            self.freshness.transferred(received, None);
+            self.clear_capture = true;
+            return Ok(received);
         }
         let actual = unsafe { sdk::spout_dx_get_sender_handle(self.raw.as_ptr()) };
         if !actual.is_null() && actual as usize != self.handle {
@@ -145,11 +191,8 @@ impl Receiver {
             if !self.validate_alias(actual, descriptor)? {
                 return Ok(Received::Mismatch);
             }
-            self.last_frame = None;
+            self.freshness.reset();
             self.clear_capture = true;
-            return Ok(Received::Waiting);
-        }
-        if !connected || updated {
             return Ok(Received::Waiting);
         }
         let (actual_width, actual_height, actual_format) = unsafe {
@@ -175,13 +218,9 @@ impl Receiver {
         {
             return Err(invalid());
         }
-        let new_frame = unsafe { sdk::spout_dx_is_frame_new(self.raw.as_ptr()) != 0 };
-        let frame = unsafe { sdk::spout_dx_get_sender_frame(self.raw.as_ptr()) };
-        if !new_frame || (frame != 0 && self.last_frame == Some(frame)) {
-            return Ok(Received::Unchanged);
-        }
-        self.last_frame = Some(frame);
-        Ok(Received::Frame)
+        self.freshness
+            .transferred(received, (counter_available != 0).then_some(frame));
+        Ok(received)
     }
 
     fn validate_alias(&mut self, handle: *mut std::ffi::c_void, descriptor: TextureDescriptor) -> Result<bool> {
@@ -223,13 +262,66 @@ impl Receiver {
         }
         self.alias = None;
         self.handle = 0;
-        self.last_frame = None;
+        self.freshness.reset();
         self.clear_capture = true;
         self.actual_descriptor = None;
     }
 
     pub fn descriptor(&self) -> Option<TextureDescriptor> {
         self.actual_descriptor
+    }
+
+    pub fn last_copied_frame(&self) -> Option<i32> {
+        self.freshness.last_copied()
+    }
+}
+
+/// Counter history belongs to one validated sender-handle/descriptor lifetime. Only detailed
+/// successful copies advance it; a semaphore's mere presence never enables the optimization.
+pub(super) struct Freshness {
+    policy: SpoutFrameCount,
+    last_copied: Option<i32>,
+}
+impl Freshness {
+    pub(super) fn new(policy: SpoutFrameCount) -> Self {
+        Self {
+            policy,
+            last_copied: None,
+        }
+    }
+    pub(super) fn transferred(&mut self, outcome: Received, frame: Option<i32>) {
+        match outcome {
+            Received::Frame => {
+                self.last_copied = if self.policy == SpoutFrameCount::VersionedV1 {
+                    frame
+                } else {
+                    None
+                };
+            }
+            Received::Absent | Received::Waiting | Received::Mismatch => self.reset(),
+            Received::Busy | Received::Unchanged => {}
+        }
+    }
+    pub(super) fn unchanged(&self, frame: Option<i32>) -> bool {
+        self.policy == SpoutFrameCount::VersionedV1
+            && frame.is_some_and(|frame| frame > 0 && self.last_copied == Some(frame))
+    }
+    pub(super) fn reset(&mut self) {
+        self.last_copied = None;
+    }
+    pub(super) fn last_copied(&self) -> Option<i32> {
+        self.last_copied
+    }
+}
+
+pub(super) fn classify(status: i32) -> Result<Received> {
+    match status {
+        sdk::SPOUT_DX_TRANSFER_COPIED => Ok(Received::Frame),
+        sdk::SPOUT_DX_TRANSFER_UNCHANGED => Ok(Received::Unchanged),
+        sdk::SPOUT_DX_TRANSFER_BUSY => Ok(Received::Busy),
+        sdk::SPOUT_DX_TRANSFER_UPDATED => Ok(Received::Waiting),
+        sdk::SPOUT_DX_TRANSFER_DISCONNECTED => Ok(Received::Absent),
+        _ => Err(Error::from_hresult(HRESULT(0x8000_4005_u32 as i32))),
     }
 }
 

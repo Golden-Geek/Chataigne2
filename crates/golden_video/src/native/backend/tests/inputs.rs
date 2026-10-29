@@ -157,6 +157,7 @@ fn scene(names: &[String; 2], width: u32, height: u32) -> RenderPlan {
                         sender: names[0].clone(),
                         descriptor: external(4, 4),
                         poll_interval: Duration::from_millis(5),
+                        frame_count: crate::plan::SpoutFrameCount::VersionedV1,
                     }
                     .into(),
                 ),
@@ -169,6 +170,7 @@ fn scene(names: &[String; 2], width: u32, height: u32) -> RenderPlan {
                         sender: names[1].clone(),
                         descriptor: external(4, 4),
                         poll_interval: Duration::from_millis(5),
+                        frame_count: crate::plan::SpoutFrameCount::VersionedV1,
                     }
                     .into(),
                 ),

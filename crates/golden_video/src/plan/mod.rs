@@ -150,6 +150,30 @@ impl From<SpoutSource> for ExternalSource {
     }
 }
 
+/// Explicit endpoint counter capability; semaphore presence never establishes this contract.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SpoutFrameCount {
+    /// No versioned counter guarantee. Every actual successful copy can publish, even when
+    /// a foreign sender's counter is missing, positive or stale.
+    #[default]
+    Unversioned,
+    /// Caller guarantees this endpoint and every replacement use the version-one instance-local
+    /// counting contract. Use only for controlled peers with names at most 239 bytes (room for
+    /// the SDK counter suffix); source-handle changes reset observations.
+    VersionedV1,
+}
+
+impl SpoutFrameCount {
+    pub(crate) fn accepts_sender_name(self, name: &str) -> bool {
+        // Pinned SDK counter storage is 256 bytes including its 16-byte suffix and terminator.
+        let limit = match self {
+            Self::Unversioned => 255,
+            Self::VersionedV1 => 239,
+        };
+        !name.is_empty() && name.len() <= limit && !name.contains('\0')
+    }
+}
+
 /// Immutable Spout subscription. Changing this contract requires a fresh logical texture ID
 /// while any prepared/live/retiring generation still retains the old binding.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -160,6 +184,8 @@ pub struct SpoutSource {
     pub descriptor: TextureDescriptor,
     /// Dedicated source-worker polling interval, between one millisecond and one second.
     pub poll_interval: Duration,
+    /// Explicit peer capability, supplied by the endpoint owner rather than inferred at runtime.
+    pub frame_count: SpoutFrameCount,
 }
 
 impl SpoutSource {

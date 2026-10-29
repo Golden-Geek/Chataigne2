@@ -12,6 +12,8 @@ use super::surface::{Surface, acquired};
 use super::*;
 use crate::runtime::DeviceGeneration;
 
+mod freshness;
+mod hardware_freshness;
 mod retirement;
 
 #[test]
@@ -40,6 +42,10 @@ fn fixture() -> (Arc<Shared>, TextureDescriptor) {
         pool_generation: 0,
         bridge_slots: 0,
         sdk_calls: 0,
+        receive_copies: 0,
+        receive_busy: 0,
+        unchanged: 0,
+        last_copied_frame: None,
         publications: 0,
         sequence: 0,
         bridge_busy: 0,

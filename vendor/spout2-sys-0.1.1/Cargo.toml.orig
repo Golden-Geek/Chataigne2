@@ -1,0 +1,36 @@
+[package]
+name = "spout2-sys"
+version = "0.1.1"
+edition = "2024"
+rust-version = "1.85"
+license = "BSD-2-Clause"
+description = "Raw FFI bindings to the Spout2 SDK via a hand-written C++ shim (Windows only)"
+documentation = "https://docs.rs/spout2-sys/latest/spout2_sys/"
+links = "spout2"
+build = "build.rs"
+include = [
+    "Cargo.toml",
+    "build.rs",
+    "src/**",
+    "shim/**",
+    "vendor/Spout2/LICENSE",
+    "vendor/Spout2/SPOUTSDK/licence.txt",
+    "vendor/Spout2/SPOUTSDK/SpoutGL/*.cpp",
+    "vendor/Spout2/SPOUTSDK/SpoutGL/*.h",
+    "vendor/Spout2/SPOUTSDK/SpoutDirectX/SpoutDX/SpoutDX.cpp",
+    "vendor/Spout2/SPOUTSDK/SpoutDirectX/SpoutDX/SpoutDX.h",
+    "vendor/Spout2/SPOUTSDK/SpoutDirectX/SpoutDX/SpoutDX12/SpoutDX12.cpp",
+    "vendor/Spout2/SPOUTSDK/SpoutDirectX/SpoutDX/SpoutDX12/SpoutDX12.h",
+]
+
+[lib]
+name = "spout2_sys"
+
+[features]
+default = ["dx", "gl"]
+dx = []
+dx12 = []
+gl = []
+
+[build-dependencies]
+cc = "1"

@@ -34,7 +34,7 @@ members = [
     "tools/mapgyver/native-probe",
     "xtask",
 ]
-exclude = ["vendor/cpal-0.18.1"]
+exclude = ["vendor/cpal-0.18.1", "vendor/spout2-sys-0.1.1"]
 default-members = ["apps/chataigne"]
 resolver = "2"
 
@@ -113,6 +113,9 @@ symphonia = { version = "0.6.0", default-features = false, features = [
 
 [[workspace.metadata.docs.rs]]
 all-features = true
+
+[patch.crates-io]
+spout2-sys = { path = "vendor/spout2-sys-0.1.1" }
 
 [profile.release]
 opt-level = 3

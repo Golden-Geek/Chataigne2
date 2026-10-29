@@ -31,10 +31,10 @@ pub(crate) struct SpoutOutput {
 
 impl SpoutOutput {
     pub(crate) fn new(device: &ID3D11Device, name: String, descriptor: TextureDescriptor) -> Result<Self> {
-        if name.is_empty() || name.len() > 255 {
+        if !crate::plan::SpoutFrameCount::VersionedV1.accepts_sender_name(&name) {
             return Err(Error::new(
                 INVALID_ARGUMENT,
-                "Spout sender name must contain 1 to 255 bytes",
+                "counted Spout sender name must contain 1 to 239 bytes without NUL",
             ));
         }
         let name =
@@ -55,6 +55,9 @@ impl SpoutOutput {
         // SAFETY: output owns the instance and an AddRef of the exact borrowed device.
         // Any early return drops output, destroying the SDK before releasing that AddRef.
         unsafe {
+            if sdk::spout_dx_set_frame_count_mode(output.raw.as_ptr(), sdk::SPOUT_DX_FRAME_COUNT_SENDER_LOCAL) == 0 {
+                return Err(Error::new(FAILURE, "Spout rejected instance-local frame counting"));
+            }
             if sdk::spout_dx_open_directx11(output.raw.as_ptr(), output.device.as_raw()) == 0
                 || sdk::spout_dx_get_device(output.raw.as_ptr()) != output.device.as_raw()
                 || sdk::spout_dx_get_context(output.raw.as_ptr()).is_null()
@@ -75,9 +78,8 @@ impl SpoutOutput {
         Ok(output)
     }
 
-    /// Accepted means SDK submission, not receiver delivery. SDK 2.007.017 may wait up to
-    /// 67 ms for texture access and still return success after a timeout without copying.
-    /// Its published shim does not expose that timeout, so it cannot be reported as Busy.
+    /// Accepted means an actual SDK copy submission, not receiver delivery or scanout.
+    /// Texture-access timeout is Busy and never advances the owned sender's frame counter.
     pub(crate) fn deliver(
         &mut self,
         texture: &Texture,
@@ -88,7 +90,7 @@ impl SpoutOutput {
             return Delivery::Failed(failure);
         }
         match self.try_deliver(texture, recorder, consumer_api) {
-            Ok(()) => Delivery::Accepted,
+            Ok(delivery) => delivery,
             Err(error) => Delivery::Failed(error.code()),
         }
     }
@@ -98,7 +100,7 @@ impl SpoutOutput {
         texture: &Texture,
         recorder: Option<&Recorder>,
         consumer_api: &mut Option<CpuInterval>,
-    ) -> Result<()> {
+    ) -> Result<Delivery> {
         let mut desc = D3D11_TEXTURE2D_DESC::default();
         // SAFETY: this worker retains both the texture and caller-selected device.
         unsafe {
@@ -127,7 +129,7 @@ impl SpoutOutput {
         // SAFETY: exact device, storage and subresource layout were checked above. The pool
         // reserved this sender's single shared texture before its lazy SDK allocation here.
         let begin = recorder.and_then(Recorder::stamp);
-        let accepted = unsafe { sdk::spout_dx_send_texture(self.raw.as_ptr(), texture.texture.as_raw()) != 0 };
+        let status = unsafe { sdk::spout_dx_send_texture_status(self.raw.as_ptr(), texture.texture.as_raw()) };
         *consumer_api = recorder.and_then(|recorder| recorder.interval(begin));
         // Registration during SendTexture can rename a sender even after SetSenderName passed.
         if !self.has_exact_name() {
@@ -135,7 +137,10 @@ impl SpoutOutput {
         }
         // SAFETY: this is the retained caller-selected device; prefer its actual failure code.
         unsafe { self.device.GetDeviceRemovedReason()? };
-        if !accepted {
+        if status == sdk::SPOUT_DX_TRANSFER_BUSY {
+            return Ok(Delivery::Busy);
+        }
+        if status != sdk::SPOUT_DX_TRANSFER_COPIED {
             return Err(Error::new(FAILURE, "Spout SendTexture failed"));
         }
         // SAFETY: the successful send must have initialized this immutable sender layout.
@@ -147,7 +152,7 @@ impl SpoutOutput {
         if !initialized {
             return Err(Error::new(FAILURE, "Spout sender did not retain its admitted extent"));
         }
-        Ok(())
+        Ok(Delivery::Accepted)
     }
 
     fn has_exact_name(&self) -> bool {
@@ -162,7 +167,7 @@ impl SpoutOutput {
                 .all(|(actual, expected)| *actual as u8 == *expected)
     }
 
-    fn reject_renamed_sender(&mut self) -> Result<()> {
+    fn reject_renamed_sender(&mut self) -> Result<Delivery> {
         // Do not release SDK storage here: SendTexture may already have queued a copy. The
         // pool latches this failure and destroys the instance only after its last-use fence.
         self.failure = Some(NAME_COLLISION);

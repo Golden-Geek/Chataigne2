@@ -37,6 +37,7 @@ fn source_contracts_are_validated_before_pruning_and_charge_retained_selector_ca
         sender: "Source".into(),
         descriptor: descriptor(4, 4),
         poll_interval: Duration::from_millis(16),
+        frame_count: SpoutFrameCount::Unversioned,
     };
     let make = |source: SpoutSource| RenderPlan {
         external_textures: vec![ExternalTexture {
@@ -46,6 +47,24 @@ fn source_contracts_are_validated_before_pruning_and_charge_retained_selector_ca
         ..Default::default()
     };
     assert!(make(valid.clone()).compile(&limits()).is_ok());
+    for (frame_count, length, accepted) in [
+        (SpoutFrameCount::VersionedV1, 239, true),
+        (SpoutFrameCount::VersionedV1, 240, false),
+        (SpoutFrameCount::Unversioned, 255, true),
+        (SpoutFrameCount::Unversioned, 256, false),
+    ] {
+        assert_eq!(
+            make(SpoutSource {
+                sender: "x".repeat(length),
+                frame_count,
+                ..valid.clone()
+            })
+            .compile(&limits())
+            .is_ok(),
+            accepted,
+            "{frame_count:?} name length {length}"
+        );
+    }
     let mut invalid = Vec::new();
     for sender in [String::new(), "x".repeat(256), "bad\0source".into()] {
         invalid.push(SpoutSource {

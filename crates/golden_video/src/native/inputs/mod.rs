@@ -38,11 +38,11 @@ pub(super) struct CopyFrame {
 pub enum SourceState {
     /// No prepared/live/retiring generation retains demand; no SDK receive polling occurs.
     Idle,
-    /// The exact sender is absent or has not provided an SDK-reported frame yet.
+    /// The exact sender is absent or has not completed a successful image-copy submission yet.
     WaitingForSender,
     /// Sender storage/extent differs from the admitted immutable descriptor.
     DescriptorMismatch,
-    /// SDK-reported frames have been relayed to the bounded GPU bridge.
+    /// Successful SDK image copies have been relayed to the bounded GPU bridge.
     /// As with SDK sends, this observation is not a delivery/cadence proof.
     Streaming,
     /// Its device/bridge is retiring before a bounded retry; healthy inputs keep running.
@@ -74,7 +74,15 @@ pub struct SourceSnapshot {
     pub bridge_slots: usize,
     /// SDK receive calls, performed only on this source's worker.
     pub sdk_calls: u64,
-    /// SDK-reported frames handed to the GPU bridge, not proved fresh source deliveries.
+    /// Actual SDK image-copy submissions, not unique frames from an unversioned producer.
+    pub receive_copies: u64,
+    /// SDK access attempts that returned Busy without submitting an image copy.
+    pub receive_busy: u64,
+    /// Polls proven unchanged, including CPU preflight skips that submit no GPU work.
+    pub unchanged: u64,
+    /// Last successfully copied known positive counter; unavailable/unversioned observations are None.
+    pub last_copied_frame: Option<i32>,
+    /// Successful SDK image copies handed to the GPU bridge, not proved fresh source deliveries.
     pub publications: u64,
     /// The latest runtime-local publication sequence; never reused after reconnect.
     pub sequence: u64,
@@ -146,6 +154,10 @@ impl SourcePool {
             bridge_slots: 0,
             observed_descriptor: None,
             sdk_calls: 0,
+            receive_copies: 0,
+            receive_busy: 0,
+            unchanged: 0,
+            last_copied_frame: None,
             publications: 0,
             sequence: 0,
             bridge_busy: 0,

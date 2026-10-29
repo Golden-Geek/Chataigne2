@@ -258,3 +258,80 @@ Validation: 172 regular Rust tests, nine explicit native GPU regressions and 31 
 analyzer/deadline tests pass. Strict default/native all-target Clippy, locked release x64 build,
 both required Rust formatters and whitespace checks pass. The native finite pixel tests retain
 color/alpha/filtering coverage; app source/history/reconnect and endpoint-recovery regressions pass.
+
+## Source copy and freshness boundary — 2026-10-29
+
+The pinned public Spout binding now distinguishes copied, unchanged, busy, updated, disconnected
+and failed calls. A retained legacy `IsFrameNew` flag no longer authorizes publication after an
+access timeout. Golden publishes only an actual successful copy, preserving the previous valid
+publication when access is busy and withdrawing it when the endpoint/session changes.
+
+The [local SDK patch](../../vendor/spout2-sys-0.1.1/GOLDEN_PATCH.md) enables counting per sender
+instance, without writing the global frame-count registry setting. Known controlled peers opt
+into `SpoutFrameCount::VersionedV1`; ordinary app-configured external sources remain explicitly
+unversioned. Counter existence or an old positive value cannot establish that a foreign sender
+versions its images. Unversioned successful copies may repeat producer contents and carry no
+known producer version. Runtime publication sequence and producer counter remain separate.
+
+A CPU preflight checks the current named sender's handle/layout before using a synchronized,
+zero-timeout counter hint. Equality with the last successfully copied known version skips source
+and independent-consumer GPU batches before query/copy/flush admission. Missing, invalid or busy
+counter observations proceed to detailed receive; endpoint replacement resets the comparison.
+Polling intervals, fixed 60 Hz workloads, queue bounds and qualification budgets are unchanged.
+
+The vendored package's original hashes, licenses and normalized source baseline are retained.
+SDK edits invalidate the native static archive even if the shim is unchanged. This repairs the
+copy/freshness mechanism; it does not establish the complete GPU critical path, displayed
+cadence/output-age cohort or genuine device-removal/retirement bounds. M03 remains **7/9**.
+
+The [evidence packet](evidence/mapgyver-m03-source-freshness-2026-10-29.json) and
+[complete raw archive](evidence/mapgyver-m03-source-freshness-controls-2026-10-29.zip) retain the
+same short Intel release controls. All 244 execution fingerprints match before/after capture
+and the current checkout, including the native sources, headers and provenance manifests.
+
+| Sample observation | Q01 | Q02 |
+| --- | --- | --- |
+| Main / Spout / editor API acceptance | 180 / 180 / 180 | 180 / 180 / 180 |
+| Submitted producer frames A / B | 180 / 180 | 169 / 173 |
+| Source-worker GPU batches A / B | 180 / 180 | 169 / 173 |
+| Prior output-admission control's source batches A / B | 1,156 / 1,231 | 306 / 482 |
+| Independent-consumer GPU batches | 180 | 157 |
+| Renderer-context GPU p95 / p99 | 3.809 / 4.378 ms | 9.471 / 13.112 ms |
+| Captured source-age p95 A / B | 22.988 / 9.803 ms | 66.250 / 67.934 ms |
+| Valid captures per channel / unique A / unique B | 180 / 166 / 175 | 157 / 99 / 112 |
+
+The static-source native regression establishes that unchanged versioned polls submit no GPU
+batch, that unknown peers keep copying with a frozen positive counter, and that actual access
+timeouts after a copy preserve the previous publication. It also catches a repaired demand
+lifecycle bug: a brief 0→1 demand pulse or a suppressed publication could clear the mailbox
+without clearing copied-counter history. The worker now re-arms only missing publications with
+known copied history, after prior source completion, allowing the static source to publish again.
+Same-name smaller replacements reset comparison and pool lifetimes. Counted output names are
+validated at the shared 239-byte boundary; unversioned input names retain their 255-byte limit.
+
+Whole-capture copy/publication counts are 373/373 for each Q01 source, and 339/338 and 357/357
+for Q02. A successful copy need not publish if demand/quiescence suppresses it. The `unchanged`
+poll counters include bridge-capacity skips, which also have their own `bridge_busy` count;
+neither counter counts unique producer frames. SDK receive Busy is zero in these controls;
+forced named-mutex Busy is covered by the native regression. Keyed-mutex changes are compiled
+and source-reviewed, without a new keyed hardware claim.
+
+Every sample opportunity and all 540 output API-end observations per scenario map to their
+software slots. All context GPU rows are valid, source-use joins are complete, and all four
+roles have exact raw/written/drained counts with zero telemetry loss. Cleanup stops both
+runtimes with zero resource bytes/in-flight work, clears endpoints and exits all owned processes
+without force. Actual retirement takes 0.100/0.117 s. These work-count observations establish
+the correction; unpinned controls do not establish a causal timing improvement.
+
+Qualification remains open. Minimized main/Spout acceptance is 45/46 (Q01) and 28/44 (Q02) of
+60 expected opportunities, with observed source-age p95 reaching 279.459/308.800 ms. Q02's
+disconnected phase accepts 50/60 main/Spout submissions. Q02 producer shortfalls, sparse output
+coverage and GPU outliers remain; its consumer GPU p95/p99 is 21.485/43.043 ms and producer A
+has a 254.351 ms maximum context span. Separate context spans are never summed. One-second
+interruptions and a single three-second sample cannot replace the prescribed series or close
+full GPU-path, displayed deadline/age, plan/queue, growth/drain or recovery acceptance.
+
+Validation passes 177 regular Rust tests, ten explicit native GPU regressions and 32 production
+Python tests. Strict default/native all-target Clippy, the existing desktop probe's all-target
+check, the SDK's all-feature Windows build check, the locked release x64 build and both required
+Rust formatters pass. No display, driver, overlay, queue depth, polling or reference budget changed.

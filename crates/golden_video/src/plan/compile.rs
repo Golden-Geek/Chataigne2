@@ -42,9 +42,7 @@ pub(super) fn compile(
         match &texture.source {
             Some(ExternalSource::Spout(source)) => {
                 validate_descriptor(texture.id, &source.descriptor, limits)?;
-                if source.sender.is_empty()
-                    || source.sender.len() > 255
-                    || source.sender.contains('\0')
+                if !source.frame_count.accepts_sender_name(&source.sender)
                     || source.poll_interval < std::time::Duration::from_millis(1)
                     || source.poll_interval > std::time::Duration::from_secs(1)
                     || !source.accepts(texture.descriptor)

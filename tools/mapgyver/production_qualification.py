@@ -615,6 +615,9 @@ def fingerprints(executable):
     for directory in ("crates/golden_time/src", "crates/golden_video/src", "crates/golden_core/hosts/desktop/src",
                       "apps/mapgyver/tests/native_qualification", "packages/golden-video-ui"):
         paths += [path for path in (ROOT / directory).rglob("*") if path.suffix in (".rs", ".hlsl", ".ts", ".svelte", ".html")]
+    vendor = ROOT / "vendor/spout2-sys-0.1.1"
+    paths += [path for path in vendor.rglob("*") if path.suffix in (".rs", ".cpp", ".h", ".toml")]
+    paths += [vendor / "UPSTREAM.json", vendor / "PATCHES.json"]
     def git(*arguments):
         result = subprocess.run(["git", *arguments], cwd=ROOT, capture_output=True, text=True, check=False)
         return result.stdout.strip() if result.returncode == 0 else None

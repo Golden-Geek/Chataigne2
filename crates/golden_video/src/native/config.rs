@@ -143,7 +143,7 @@ impl D3d11Config {
                     return Err(invalid("multiple swapchains cannot attach to one native window"));
                 }
                 OutputBinding::Spout { name, .. }
-                    if name.is_empty() || name.len() > 255 || name.contains('\0') || !names.insert(name) =>
+                    if !crate::plan::SpoutFrameCount::VersionedV1.accepts_sender_name(name) || !names.insert(name) =>
                 {
                     return Err(invalid("invalid or duplicate Spout sender name"));
                 }

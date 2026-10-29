@@ -1,0 +1,277 @@
+{
+  "schema_version": 1,
+  "package": {
+    "name": "spout2-sys",
+    "version": "0.1.1",
+    "registry_checksum": "670dd837cb0132982b6113a6c553e99453b0f8ba3014bd697bd7236e1a9d88aa",
+    "wrapper_vcs_revision": "04db4225b261b8dacc8da0eeae9734bd75320557",
+    "sdk_version": "2.007.017",
+    "sdk_revision": "f49e2f469f8cb25f559a6eaa61a3f5b8173fc100"
+  },
+  "normalization": [
+    "CRLF converted to LF.",
+    "Terminal newline added to .cargo_vcs_info.json.",
+    "SpoutCopy.cpp CP1252 author-comment accents converted to UTF-8."
+  ],
+  "files": [
+    {
+      "path": ".cargo_vcs_info.json",
+      "original_bytes": 97,
+      "original_sha256": "c0776fd35761922cba59aa4b182cb326255839d93f5ce4ebf6ffe5c83afaf0d0",
+      "source_encoding": "utf-8",
+      "repository_sha256": "062ab7cc993eac41336078991ae873c348a61b4eb2ff1ef56863c4ea1b3ec76e"
+    },
+    {
+      "path": "build.rs",
+      "original_bytes": 4901,
+      "original_sha256": "0749bff731f62134befc965bc5a9582a8a65a7105ccd80cf8837ebdcadd8eca1",
+      "source_encoding": "utf-8",
+      "repository_sha256": "0749bff731f62134befc965bc5a9582a8a65a7105ccd80cf8837ebdcadd8eca1"
+    },
+    {
+      "path": "Cargo.lock",
+      "original_bytes": 804,
+      "original_sha256": "35646d704081b73bc476855e52d58620736f1e98a78dec5a3e171e1afc8ff51e",
+      "source_encoding": "utf-8",
+      "repository_sha256": "35646d704081b73bc476855e52d58620736f1e98a78dec5a3e171e1afc8ff51e"
+    },
+    {
+      "path": "Cargo.toml",
+      "original_bytes": 1544,
+      "original_sha256": "9243b506583953b227e7f229fdf879ba682a66a39edf6f234baf53a9b06a245e",
+      "source_encoding": "utf-8",
+      "repository_sha256": "9243b506583953b227e7f229fdf879ba682a66a39edf6f234baf53a9b06a245e"
+    },
+    {
+      "path": "Cargo.toml.orig",
+      "original_bytes": 931,
+      "original_sha256": "12dd95efa25369ceb184f0e096673dab81573a4082b38a8a1cb108d49c40a235",
+      "source_encoding": "utf-8",
+      "repository_sha256": "12dd95efa25369ceb184f0e096673dab81573a4082b38a8a1cb108d49c40a235"
+    },
+    {
+      "path": "shim/spout_shim.cpp",
+      "original_bytes": 27346,
+      "original_sha256": "612da9fa30c40447c52d5cbd8f3a00fd1df85ebe50ae801ea693d35825718e9e",
+      "source_encoding": "utf-8",
+      "repository_sha256": "612da9fa30c40447c52d5cbd8f3a00fd1df85ebe50ae801ea693d35825718e9e"
+    },
+    {
+      "path": "shim/spout_shim.h",
+      "original_bytes": 12408,
+      "original_sha256": "615895c561c7bc6cc8dbc41aacba51db97c126d549c48ad2d95bbb3ff41eec29",
+      "source_encoding": "utf-8",
+      "repository_sha256": "615895c561c7bc6cc8dbc41aacba51db97c126d549c48ad2d95bbb3ff41eec29"
+    },
+    {
+      "path": "src/lib.rs",
+      "original_bytes": 14264,
+      "original_sha256": "3efa0a646fb5a93080f17504c769ea70f0584727097f3d5ec2c26c8370032fbc",
+      "source_encoding": "utf-8",
+      "repository_sha256": "3efa0a646fb5a93080f17504c769ea70f0584727097f3d5ec2c26c8370032fbc"
+    },
+    {
+      "path": "vendor/Spout2/LICENSE",
+      "original_bytes": 1351,
+      "original_sha256": "17b575f5413ff794f656de3bef230db8af72ec14b0e87e9ae832f6f6695239c8",
+      "source_encoding": "utf-8",
+      "repository_sha256": "7b602b5c652a76ced1c6ff5f3f4c15c37a733230eeb5b8d075f1282b446b10be"
+    },
+    {
+      "path": "vendor/Spout2/SPOUTSDK/licence.txt",
+      "original_bytes": 1396,
+      "original_sha256": "2d9ec5349c3b608ad4b08916abf32b6247f9d59c20cb4779e9b26a2c29ba9b85",
+      "source_encoding": "utf-8",
+      "repository_sha256": "ceb95822939d47fcdd8bc671d93df04103642a7eb4b8c9beaa8731ea0ccd8e48"
+    },
+    {
+      "path": "vendor/Spout2/SPOUTSDK/SpoutDirectX/SpoutDX/SpoutDX.cpp",
+      "original_bytes": 95395,
+      "original_sha256": "8db8fe52474d6d081a1833324ef8646f0da1899e3864ec126928bfe299c21bc4",
+      "source_encoding": "utf-8",
+      "repository_sha256": "486dd128039e4d26d11ef220fc0d72435333e06f5c8a391c829e5415c106f064"
+    },
+    {
+      "path": "vendor/Spout2/SPOUTSDK/SpoutDirectX/SpoutDX/SpoutDX.h",
+      "original_bytes": 12426,
+      "original_sha256": "b181be79f2cc3d1830a6c4cf38d8b63dda25fdc4f3558d606b2d1d23b3816446",
+      "source_encoding": "utf-8",
+      "repository_sha256": "71f57a0388648ee24f2002eb100d77df3b0cf935ea01c2c97e5c7caf03d76cbf"
+    },
+    {
+      "path": "vendor/Spout2/SPOUTSDK/SpoutDirectX/SpoutDX/SpoutDX12/SpoutDX12.cpp",
+      "original_bytes": 20626,
+      "original_sha256": "f4003d2d4390fe5a575c1846950dc17ca5c68537a353f59abb03a7a3caad2e1b",
+      "source_encoding": "utf-8",
+      "repository_sha256": "4c8ded4a561d74dcc95fdc2ab7f76b5a90c940990ef19280843d0e023ee002e3"
+    },
+    {
+      "path": "vendor/Spout2/SPOUTSDK/SpoutDirectX/SpoutDX/SpoutDX12/SpoutDX12.h",
+      "original_bytes": 5738,
+      "original_sha256": "698c30c41c3a2ecb21b1dd55ef24f57cf9d1a2ce289f3900c6a4ca5b7c3191d2",
+      "source_encoding": "utf-8",
+      "repository_sha256": "5e48a55a0b70a274b303d20ea4c688ba8e100fce2c8eb9df6ad361d341271cb8"
+    },
+    {
+      "path": "vendor/Spout2/SPOUTSDK/SpoutGL/Spout.cpp",
+      "original_bytes": 106434,
+      "original_sha256": "a1fb6db0d1c50f5e049e960b010e7c08c7e0bd6783522c9bcf48df6559052be6",
+      "source_encoding": "utf-8",
+      "repository_sha256": "81bede16bce6b2a98d013fd7d3544cbd168a243f1355fe2ffae6c44cd65bfa77"
+    },
+    {
+      "path": "vendor/Spout2/SPOUTSDK/SpoutGL/Spout.h",
+      "original_bytes": 11467,
+      "original_sha256": "d1de5fdb48869ab41eb2e7a066130229dec0f3de5c6b2f80102b1efb08a5c39a",
+      "source_encoding": "utf-8",
+      "repository_sha256": "6ffb2ca50b672a602be6a1315305f26c2a79ad0b33e501723193c70fac3db342"
+    },
+    {
+      "path": "vendor/Spout2/SPOUTSDK/SpoutGL/SpoutCommon.h",
+      "original_bytes": 3422,
+      "original_sha256": "9dbe0846831f9b396578b1b3288b684f7653c7f35718f429499097a9bf9bf063",
+      "source_encoding": "utf-8",
+      "repository_sha256": "3bbed9ae197e2d989add6e06a21c3c7a08e46a5f0e728d2d223cb56b3bbaa363"
+    },
+    {
+      "path": "vendor/Spout2/SPOUTSDK/SpoutGL/SpoutCopy.cpp",
+      "original_bytes": 64428,
+      "original_sha256": "c7d559f4ed0527ef2d39b6828c0760f630d2592300c1c801cfe584c4200cf8e5",
+      "source_encoding": "windows-1252",
+      "repository_sha256": "acf8d909e35767d647d945cf272080880a263cdca4ffa2ca42dca7f84353e331"
+    },
+    {
+      "path": "vendor/Spout2/SPOUTSDK/SpoutGL/SpoutCopy.h",
+      "original_bytes": 9704,
+      "original_sha256": "0ca6e26cb5c3e280ca85854b36187dfc996437f11702410f4e028cbc7e4b6503",
+      "source_encoding": "utf-8",
+      "repository_sha256": "bbf8f110903266b713c1937c12ff6c1045123b78e32bc9df34a61b96cb332c49"
+    },
+    {
+      "path": "vendor/Spout2/SPOUTSDK/SpoutGL/SpoutDirectX.cpp",
+      "original_bytes": 70717,
+      "original_sha256": "314a65b5070488731dadf6ab374753d445f3e7fa8392bcd872c4820f86abeb3d",
+      "source_encoding": "utf-8",
+      "repository_sha256": "4b045d95c78f1a2d406b1ad60b48de776205442dd26764ec2f9f5915458c582d"
+    },
+    {
+      "path": "vendor/Spout2/SPOUTSDK/SpoutGL/SpoutDirectX.h",
+      "original_bytes": 7445,
+      "original_sha256": "809f678d270b4a22ea1854a2a83daf4c534535f20a18b2eab8fa5038086bc397",
+      "source_encoding": "utf-8",
+      "repository_sha256": "2b6e3ef973adcb7d1831a133203b23753b8a38200607e7369486a39301456cc2"
+    },
+    {
+      "path": "vendor/Spout2/SPOUTSDK/SpoutGL/SpoutFrameCount.cpp",
+      "original_bytes": 43390,
+      "original_sha256": "4eba0851b2b6294379079689376c2f1e0c77490ec9b3ff2e76162e5323ace06d",
+      "source_encoding": "utf-8",
+      "repository_sha256": "20decd8556e80ec503fc6de3da8acf89c475dffe26b63e12e3156cc405e40e9f"
+    },
+    {
+      "path": "vendor/Spout2/SPOUTSDK/SpoutGL/SpoutFrameCount.h",
+      "original_bytes": 5943,
+      "original_sha256": "5e09d1aa49005f3cfb8dd1ed5328b78d0223d08630c06eee66213cbcdaf3b4f9",
+      "source_encoding": "utf-8",
+      "repository_sha256": "eda21eaf52caab878e1f9ae9e6bb462872a4660242a3c22ad423a62ef1c3fe3a"
+    },
+    {
+      "path": "vendor/Spout2/SPOUTSDK/SpoutGL/SpoutGL.cpp",
+      "original_bytes": 147415,
+      "original_sha256": "01befc7914b171823ced4d1c7af4ce3dd7f02af7f8a34e5e6fa533452fff7cd3",
+      "source_encoding": "utf-8",
+      "repository_sha256": "a2144638e55e067c9ff216f73df2682f185681979f86a69ca1b206527b608b8c"
+    },
+    {
+      "path": "vendor/Spout2/SPOUTSDK/SpoutGL/SpoutGL.h",
+      "original_bytes": 16712,
+      "original_sha256": "f034328dd772cc265788637f9805c1fc404a1da98d5124a6cb6df68d819cfd2a",
+      "source_encoding": "utf-8",
+      "repository_sha256": "2da817fe4e68179096935840c6bae958a05bd561f8a66adee857a4f6eec8797e"
+    },
+    {
+      "path": "vendor/Spout2/SPOUTSDK/SpoutGL/SpoutGLextensions.cpp",
+      "original_bytes": 32907,
+      "original_sha256": "cc9d2c8e2e9998b52cf5a6128c96f0f4835cf441fe92ac462953d77ff7528a8c",
+      "source_encoding": "utf-8",
+      "repository_sha256": "f588d435447c5fa3aab0d19b94b7fd12841fd61850ca2f4e17289b75b97bfe85"
+    },
+    {
+      "path": "vendor/Spout2/SPOUTSDK/SpoutGL/SpoutGLextensions.h",
+      "original_bytes": 37355,
+      "original_sha256": "483e8bdfab238a38a48c7d0cefe92d73ce0b1ae457a85938e169253bea1ecf81",
+      "source_encoding": "utf-8",
+      "repository_sha256": "168d7bec912620ff9f247c04d986edb20b24f22fbb28ab9ded8bd95b9e6c47d7"
+    },
+    {
+      "path": "vendor/Spout2/SPOUTSDK/SpoutGL/SpoutReceiver.cpp",
+      "original_bytes": 23088,
+      "original_sha256": "ebd33af38c69b81ecab5a98fc284ae7833a6c97b3fe51bc1ea8431f53058c02e",
+      "source_encoding": "utf-8",
+      "repository_sha256": "51920558c77f50fdf0e83521c11bb638c7d8cb29d7f6961ef2465e7aa36f43ed"
+    },
+    {
+      "path": "vendor/Spout2/SPOUTSDK/SpoutGL/SpoutReceiver.h",
+      "original_bytes": 11794,
+      "original_sha256": "87311011fe3078abf3308b23e054c076b0a310f1f1eb1d66ffbbb1dc7d74d4bb",
+      "source_encoding": "utf-8",
+      "repository_sha256": "b0183dd61cade5aff6a049ef84372f5412dba3e6629367ea0ba054645a43f0b6"
+    },
+    {
+      "path": "vendor/Spout2/SPOUTSDK/SpoutGL/SpoutSender.cpp",
+      "original_bytes": 21188,
+      "original_sha256": "173f7eeba8f36d2711d51950caf42308842cd5e5dbf4cd63012616d211cd0d5c",
+      "source_encoding": "utf-8",
+      "repository_sha256": "cdf4f128264cca0106e0bf8f32be80776f5deae20db5b89ebfc95f73427a618d"
+    },
+    {
+      "path": "vendor/Spout2/SPOUTSDK/SpoutGL/SpoutSender.h",
+      "original_bytes": 10267,
+      "original_sha256": "34c561085fd0123dbae821ade704b9fa8cdc12032166a4b7c25820f6a5a9d159",
+      "source_encoding": "utf-8",
+      "repository_sha256": "64def4ac8b6c35d449170ecfc896b4721cfae651df02b828cadf6671223711cf"
+    },
+    {
+      "path": "vendor/Spout2/SPOUTSDK/SpoutGL/SpoutSenderNames.cpp",
+      "original_bytes": 42942,
+      "original_sha256": "97965a1512cdf527086838e89b741158cd3fe9ea215eb322f4cbc94d74f42d04",
+      "source_encoding": "utf-8",
+      "repository_sha256": "87dd3715afdd81ca7bd703850d3beeca16ee180fa2d34b12eb19742239a22259"
+    },
+    {
+      "path": "vendor/Spout2/SPOUTSDK/SpoutGL/SpoutSenderNames.h",
+      "original_bytes": 8545,
+      "original_sha256": "d9ce7069c9403378eac4cb4d3082ce2657504269cd92bb4b8bb3461be2ec4e83",
+      "source_encoding": "utf-8",
+      "repository_sha256": "530fd0f4de124b60884a03f840eee8a4b7041831a238821e56ede2b872c153d9"
+    },
+    {
+      "path": "vendor/Spout2/SPOUTSDK/SpoutGL/SpoutSharedMemory.cpp",
+      "original_bytes": 8961,
+      "original_sha256": "db606f85b648daab438637520c6f2f99b92c26aaece3e9938629502dba544a17",
+      "source_encoding": "utf-8",
+      "repository_sha256": "a8dea8d6db97953102ec1b2750b945c97c996b1b75b0cf053fda0cef59adf35c"
+    },
+    {
+      "path": "vendor/Spout2/SPOUTSDK/SpoutGL/SpoutSharedMemory.h",
+      "original_bytes": 2772,
+      "original_sha256": "5567da567945d0feed074c73ffcf76c5917c10506f86d167fc765da5aa62271d",
+      "source_encoding": "utf-8",
+      "repository_sha256": "053a315f2c0d57b2c0206d5f4f71a05618bbdba779fca4060771b925ace31b77"
+    },
+    {
+      "path": "vendor/Spout2/SPOUTSDK/SpoutGL/SpoutUtils.cpp",
+      "original_bytes": 82200,
+      "original_sha256": "05bd391bc8907cbb4ad2c7efc5c65cb5b826def4aa0a56e606740d982b52c1b1",
+      "source_encoding": "utf-8",
+      "repository_sha256": "d2cdb3ff0ca6355739ea11bf01cbb96b11023aac31203dcaabfb9301b1703df9"
+    },
+    {
+      "path": "vendor/Spout2/SPOUTSDK/SpoutGL/SpoutUtils.h",
+      "original_bytes": 15025,
+      "original_sha256": "22346227a4815855ada400b4980dd9a50a026dbf6d398fefbef4d34c0f4349eb",
+      "source_encoding": "utf-8",
+      "repository_sha256": "19c8f9088e64fc643ad5b7636b1103862e0c43c8d37e7e53c2aa4c0e0ecc1f0a"
+    }
+  ]
+}

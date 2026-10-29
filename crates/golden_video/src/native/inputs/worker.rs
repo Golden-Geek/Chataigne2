@@ -62,7 +62,7 @@ pub(super) fn run(context: WorkerContext<(), ()>, adapter: AdapterId, config: Sp
 impl Session {
     fn new(adapter: AdapterId, config: &SpoutSource, shared: Arc<Shared>) -> Result<Self> {
         let device = Device::new(adapter)?;
-        let receiver = Receiver::new(&device.device, &config.sender, config.descriptor)?;
+        let receiver = Receiver::new(&device.device, &config.sender, config.descriptor, config.frame_count)?;
         let completion = EventCompletion::new(&device)?;
         let slots = Vec::new();
         let generation = DeviceGeneration::new(Uuid::new_v4(), 0);
@@ -132,9 +132,15 @@ impl Session {
                     missing.reset();
                     config.poll_interval
                 }
-                Ok(Received::Unchanged) => config.poll_interval,
+                Ok(Received::Unchanged) => {
+                    self.shared
+                        .update(|status| status.unchanged = status.unchanged.saturating_add(1));
+                    config.poll_interval
+                }
+                Ok(Received::Busy) => config.poll_interval,
                 Ok(Received::Absent) => {
                     self.shared.clear();
+                    self.shared.update(|status| status.last_copied_frame = None);
                     self.shared.state(SourceState::WaitingForSender);
                     missing
                         .schedule(Instant::now())
@@ -142,6 +148,7 @@ impl Session {
                 }
                 Ok(Received::Mismatch) => {
                     self.shared.clear();
+                    self.shared.update(|status| status.last_copied_frame = None);
                     self.shared.state(SourceState::DescriptorMismatch);
                     self.drain_source();
                     self.receiver.disconnect();
@@ -151,6 +158,7 @@ impl Session {
                 }
                 Ok(Received::Waiting) => {
                     self.shared.clear();
+                    self.shared.update(|status| status.last_copied_frame = None);
                     self.shared.state(SourceState::WaitingForSender);
                     config.poll_interval
                 }
@@ -164,6 +172,21 @@ impl Session {
     }
 
     fn step(&mut self, sequence: &mut u64) -> Result<Received> {
+        // The source loop observed completion of every prior command before entering step.
+        // A demand 0→1 pulse can clear the mailbox without the worker observing inactivity;
+        // publication can also be suppressed when demand falls during receive. Re-arm the
+        // SDK comparator only after a copied version loses its retained publication, so a
+        // static sender can republish without repeatedly resetting the initial handshake.
+        let unpublished_copy = self.receiver.last_copied_frame().is_some()
+            && self
+                .shared
+                .latest
+                .lock()
+                .unwrap_or_else(|error| error.into_inner())
+                .is_none();
+        if unpublished_copy {
+            self.receiver.disconnect();
+        }
         if let Some(outcome) = self.receiver.preflight()? {
             return Ok(outcome);
         }
@@ -189,7 +212,7 @@ impl Session {
         let Some(slot) = selected else {
             self.shared
                 .update(|status| status.bridge_busy = status.bridge_busy.saturating_add(1));
-            return Ok(Received::Unchanged);
+            return Ok(Received::Busy);
         };
         // Admit bridge capacity before SDK receive/copy, not after queuing wasted GPU work.
         let mut writer = Writer {
@@ -219,6 +242,14 @@ impl Session {
         let receive_begin_qpc = recorder.and_then(Recorder::stamp);
         let received = self.receiver.receive(capture);
         let receive_api = recorder.and_then(|recorder| recorder.interval(receive_begin_qpc));
+        self.shared.update(|status| match &received {
+            Ok(Received::Frame) => {
+                status.receive_copies = status.receive_copies.saturating_add(1);
+                status.last_copied_frame = self.receiver.last_copied_frame();
+            }
+            Ok(Received::Busy) => status.receive_busy = status.receive_busy.saturating_add(1),
+            _ => {}
+        });
         let bridge_begin = recorder.and_then(Recorder::stamp);
         if matches!(&received, Ok(Received::Frame)) && self.shared.active.load(Ordering::Acquire) {
             unsafe {

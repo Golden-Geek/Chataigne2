@@ -217,6 +217,7 @@ pub fn consumer(mut args: Arguments) -> io::Result<()> {
     let mut fixture = FixtureConsumer::new(FixtureConsumerConfig {
         adapter: config.adapter,
         sender_name: config.name,
+        frame_count: golden_video::plan::SpoutFrameCount::VersionedV1,
         descriptor: descriptor(config.width, config.height, AlphaMode::Straight)?,
         max_frames,
         instance: config.instance,

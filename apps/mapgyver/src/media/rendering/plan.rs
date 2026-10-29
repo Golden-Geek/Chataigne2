@@ -162,6 +162,7 @@ pub(super) fn build(
                                 sender: sender.clone(),
                                 descriptor: *maximum,
                                 poll_interval: Duration::from_millis(16),
+                                frame_count: golden_video::plan::SpoutFrameCount::Unversioned,
                             }
                             .into(),
                         ),

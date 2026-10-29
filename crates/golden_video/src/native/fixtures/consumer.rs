@@ -31,6 +31,8 @@ pub struct FixtureConsumerConfig {
     pub adapter: AdapterId,
     /// Exact renderer Spout sender identity.
     pub sender_name: String,
+    /// Caller-declared counter contract; owned qualification peers use VersionedV1.
+    pub frame_count: crate::plan::SpoutFrameCount,
     /// Immutable expected sRGB UNORM target layout; actual extent must match exactly.
     pub descriptor: TextureDescriptor,
     /// Maximum GPU log rows, from one through 65,536, tiled in pages at most 16,384 high.
@@ -45,7 +47,7 @@ pub struct FixtureConsumerConfig {
 /// One receiver tick, without CPU pixel access or a blocking GPU wait.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum ConsumerTick {
-    /// A new SDK-reported frame was captured and its marker decode queued into one GPU row.
+    /// An actual SDK image copy was submitted and its marker decode queued into one GPU row.
     Logged {
         /// Append-only zero-based log row.
         row: u32,
@@ -56,11 +58,11 @@ pub enum ConsumerTick {
     Absent,
     /// SDK connection/update handshake has not yielded a frame.
     Waiting,
-    /// SDK reported no new sender frame.
+    /// An explicitly versioned sender counter was proven unchanged, without an image copy.
     Unchanged,
     /// Actual storage/extent differs from the immutable expected descriptor.
     Mismatch,
-    /// Previous capture/log batch still owns its native resources.
+    /// Previous capture/log work or SDK texture access is busy; no copy is published.
     Busy,
     /// GPU log capacity is exhausted; overflow is counted without overwriting old evidence.
     Full,
@@ -76,6 +78,9 @@ struct Record {
 #[derive(Default)]
 struct Counters {
     busy: u64,
+    receive_busy: u64,
+    receive_copies: u64,
+    last_copied_frame: Option<i32>,
     absent: u64,
     waiting: u64,
     unchanged: u64,
@@ -124,13 +129,21 @@ pub struct FixtureConsumerSnapshot {
     pub last_submitted: CompletionToken,
     /// Latest actually observed completed token.
     pub last_completed: CompletionToken,
-    /// Receive calls skipped because previous native work had not completed.
+    /// Receive ticks skipped because previous work or SDK access was busy.
     pub busy: u64,
+    /// Detailed receives that submitted an actual SDK image copy, without a uniqueness claim.
+    pub receive_copies: u64,
+    /// Detailed receives that were SDK-access Busy, separate from GPU log admission.
+    pub receive_busy: u64,
+    /// Caller-declared frame-counter contract, never inferred from a semaphore.
+    pub frame_count: crate::plan::SpoutFrameCount,
+    /// Counter attached to the last actual copy; absent for unversioned/unknown peers.
+    pub last_copied_frame: Option<i32>,
     /// Ticks observing no exact named sender.
     pub absent: u64,
     /// SDK connection/update handshakes without a frame.
     pub waiting: u64,
-    /// SDK-reported unchanged frames.
+    /// Polls proven unchanged, including CPU preflight without a new GPU batch.
     pub unchanged: u64,
     /// Descriptor/storage mismatches.
     pub mismatch: u64,
@@ -209,7 +222,12 @@ impl FixtureConsumer {
         let log = GpuLog::new(&device.device, config.max_frames)?;
         let completion = EventCompletion::new(&device)?;
         let timing = GpuTiming::new(&device.device, recorder.clone(), context);
-        let receiver = Receiver::new(&device.device, &config.sender_name, config.descriptor)?;
+        let receiver = Receiver::new(
+            &device.device,
+            &config.sender_name,
+            config.descriptor,
+            config.frame_count,
+        )?;
         let records = Vec::with_capacity(config.max_frames as usize);
         Ok(Self {
             receiver,
@@ -277,6 +295,14 @@ impl FixtureConsumer {
         let receive_begin_qpc = self.recorder.stamp();
         let received = self.receiver.receive(&self.capture);
         let receive_api = self.recorder.interval(receive_begin_qpc);
+        match &received {
+            Ok(Received::Frame) => {
+                self.counters.receive_copies = self.counters.receive_copies.saturating_add(1);
+                self.counters.last_copied_frame = self.receiver.last_copied_frame();
+            }
+            Ok(Received::Busy) => self.counters.receive_busy = self.counters.receive_busy.saturating_add(1),
+            _ => {}
+        }
         let bridge_begin = self.recorder.stamp();
         let result = match received {
             Ok(Received::Frame) => {
@@ -379,6 +405,10 @@ impl FixtureConsumer {
                 serial: self.completed,
             },
             busy: self.counters.busy,
+            receive_copies: self.counters.receive_copies,
+            receive_busy: self.counters.receive_busy,
+            frame_count: self.config.frame_count,
+            last_copied_frame: self.counters.last_copied_frame,
             absent: self.counters.absent,
             waiting: self.counters.waiting,
             unchanged: self.counters.unchanged,
@@ -479,6 +509,7 @@ fn classify(received: Received) -> ConsumerTick {
         Received::Absent => ConsumerTick::Absent,
         Received::Waiting => ConsumerTick::Waiting,
         Received::Unchanged => ConsumerTick::Unchanged,
+        Received::Busy => ConsumerTick::Busy,
         Received::Mismatch => ConsumerTick::Mismatch,
         Received::Frame => unreachable!("only a completed GPU log draw constructs Logged"),
     }

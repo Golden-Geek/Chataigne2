@@ -73,8 +73,10 @@ pub struct FixtureSourceSnapshot {
     pub constant_buffer_bytes: u64,
     /// Actual batches admitted to the producer GPU context, including failed sends.
     pub submitted_batches: u64,
-    /// SDK-accepted sends, without claiming receiver delivery.
+    /// Actual SDK copy submissions, without claiming receiver delivery or unique consumption.
     pub accepted_sends: u64,
+    /// SDK access was busy, with no shared-image copy or frame-counter advance.
+    pub busy_sends: u64,
     /// Native failed sends, including confirmed producer-device removal.
     pub failed_sends: u64,
     /// Attempts skipped before native work because both real completion slots were retained.
@@ -106,6 +108,7 @@ pub struct FixtureSource {
     completed: u64,
     submitted_batches: u64,
     accepted_sends: u64,
+    busy_sends: u64,
     failed_sends: u64,
     admission_busy: u64,
     last_stamp: Option<CardStamp>,
@@ -157,6 +160,7 @@ impl FixtureSource {
             completed: 0,
             submitted_batches: 0,
             accepted_sends: 0,
+            busy_sends: 0,
             failed_sends: 0,
             admission_busy: 0,
             last_stamp: None,
@@ -247,6 +251,7 @@ impl FixtureSource {
         }));
         match outcome {
             DiagnosticDelivery::Accepted => self.accepted_sends = self.accepted_sends.saturating_add(1),
+            DiagnosticDelivery::Busy => self.busy_sends = self.busy_sends.saturating_add(1),
             DiagnosticDelivery::Failed { .. } | DiagnosticDelivery::DeviceLost { .. } => {
                 self.failed_sends = self.failed_sends.saturating_add(1);
             }
@@ -320,6 +325,7 @@ impl FixtureSource {
             constant_buffer_bytes: CONSTANT_BYTES,
             submitted_batches: self.submitted_batches,
             accepted_sends: self.accepted_sends,
+            busy_sends: self.busy_sends,
             failed_sends: self.failed_sends,
             admission_busy: self.admission_busy,
             last_submitted: CompletionToken {

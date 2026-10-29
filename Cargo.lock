@@ -6579,8 +6579,6 @@ dependencies = [
 [[package]]
 name = "spout2-sys"
 version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "670dd837cb0132982b6113a6c553e99453b0f8ba3014bd697bd7236e1a9d88aa"
 dependencies = [
  "cc",
 ]

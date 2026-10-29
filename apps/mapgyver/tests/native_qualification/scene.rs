@@ -95,6 +95,7 @@ pub fn plan(
                     sender: sources[index].clone(),
                     descriptor,
                     poll_interval: Duration::from_millis(1),
+                    frame_count: golden_video::plan::SpoutFrameCount::VersionedV1,
                 })),
             }
         })

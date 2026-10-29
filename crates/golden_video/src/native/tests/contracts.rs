@@ -72,6 +72,46 @@ fn clear_plan(output: u64) -> RenderPlan {
 }
 
 #[test]
+fn counted_output_name_limit_is_rejected_before_native_startup() {
+    use crate::runtime::{ResourceLimits, RuntimeConfig};
+    use std::num::NonZeroUsize;
+    use std::time::Duration;
+
+    let runtime = RuntimeConfig {
+        plan_limits: limits(),
+        resource_limits: ResourceLimits {
+            max_bytes: 65536,
+            max_in_flight: NonZeroUsize::MIN,
+            max_retiring: 1,
+        },
+        frame_rate: golden_time::RationalRate::new(60, 1).unwrap(),
+        max_outstanding: NonZeroUsize::MIN,
+        max_input_bytes: NonZeroUsize::new(65536).unwrap(),
+        max_retained_input_bytes: NonZeroUsize::new(65536).unwrap(),
+        recovery_delay: Duration::from_millis(10),
+        max_recovery_delay: Duration::from_millis(100),
+        notifier: None,
+    };
+    for (length, accepted) in [(239, true), (240, false)] {
+        let config = D3d11Config {
+            diagnostics: None,
+            adapter: AdapterId { low: 0, high: 0 },
+            inputs: InputLimits::default(),
+            outputs: vec![OutputBinding::Spout {
+                id: OutputId::new(1).unwrap(),
+                name: "x".repeat(length),
+                descriptor: descriptor(),
+            }],
+        };
+        assert_eq!(
+            config.validate(&runtime).is_ok(),
+            accepted,
+            "counted output name length {length}"
+        );
+    }
+}
+
+#[test]
 fn native_resource_charges_include_persistent_sdk_storage_and_generation_conversion() {
     let (backend, control) = backend();
     // One four-byte SDK share plus the pipeline's declared uniform storage; no GPU is created.
@@ -142,6 +182,7 @@ fn input_reservations_cover_maximum_pools_while_plans_charge_actual_extents() {
                             ..descriptor()
                         },
                         poll_interval: std::time::Duration::from_millis(16),
+                        frame_count: crate::plan::SpoutFrameCount::Unversioned,
                     }
                     .into(),
                 ),
