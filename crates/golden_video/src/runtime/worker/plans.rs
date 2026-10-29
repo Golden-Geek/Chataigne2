@@ -137,16 +137,21 @@ impl<B: Backend> Runner<B> {
         match self.core.prepare(request.identity, plan) {
             Ok(resources) => self.prepared = Some(Candidate { resources, request }),
             Err(error) => {
-                let code = if matches!(
-                    error,
-                    CoreError::ResourceBudgetExceeded { .. } | CoreError::PreparationBusy
-                ) {
+                let pressure = match error {
+                    CoreError::ResourceBudgetExceeded { .. } | CoreError::PreparationBusy => true,
+                    #[cfg(all(windows, feature = "d3d11"))]
+                    CoreError::Backend(crate::runtime::backend::BackendError::SourceCapacity) => true,
+                    _ => false,
+                };
+                let code = if pressure {
                     FailureCode::ResourcePressure
                 } else {
                     FailureCode::Backend
                 };
                 self.reject(request, RuntimeFailure::new(code, error));
-                self.core_fault(error, time);
+                if !pressure {
+                    self.core_fault(error, time);
+                }
             }
         }
     }

@@ -11,7 +11,8 @@ use golden_time::{PlaybackRate, RationalRate, ShowPosition, SystemClock, TimeAut
 use uuid::Uuid;
 
 use super::super::*;
-use crate::native::{AdapterId, OutputBinding, SourceState, SpoutInput, adapters};
+use crate::native::{AdapterId, InputLimits, OutputBinding, SourceState, adapters};
+use crate::plan::SpoutSource;
 use crate::plan::{ExternalTexture, Layer, PlanLimits, PlanOutput, RenderPass, RenderPlan};
 use crate::runtime::{LatePolicy, PlanActivation, ResourceLimits, RuntimeConfig, RuntimeState, VideoRuntime};
 use crate::{AlphaMode, ColorEncoding, Extent2D, Opacity, PixelFormat};
@@ -104,19 +105,13 @@ fn internal() -> TextureDescriptor {
     }
 }
 
-fn native_config(adapter: AdapterId, names: &[String; 2], output_name: String) -> D3d11Config {
+fn native_config(adapter: AdapterId, output_name: String) -> D3d11Config {
     D3d11Config {
         adapter,
-        inputs: names
-            .iter()
-            .enumerate()
-            .map(|(index, sender)| SpoutInput {
-                texture: TextureId::new(index as u64 + 1).unwrap(),
-                sender: sender.clone(),
-                descriptor: external(4, 4),
-                poll_interval: Duration::from_millis(5),
-            })
-            .collect(),
+        inputs: InputLimits {
+            max_sources: 4,
+            max_storage_bytes: 5 * 5 * 4 * 4 * 4,
+        },
         outputs: vec![OutputBinding::Spout {
             id: OutputId::new(1).unwrap(),
             name: output_name,
@@ -150,16 +145,26 @@ fn runtime_config() -> RuntimeConfig {
     }
 }
 
-fn scene(width: u32, height: u32) -> RenderPlan {
+fn scene(names: &[String; 2], width: u32, height: u32) -> RenderPlan {
     RenderPlan {
         external_textures: vec![
             ExternalTexture {
                 id: TextureId::new(1).unwrap(),
                 descriptor: external(width, height),
+                source: Some(SpoutSource {
+                    sender: names[0].clone(),
+                    descriptor: external(4, 4),
+                    poll_interval: Duration::from_millis(5),
+                }),
             },
             ExternalTexture {
                 id: TextureId::new(2).unwrap(),
                 descriptor: external(2, 2),
+                source: Some(SpoutSource {
+                    sender: names[1].clone(),
+                    descriptor: external(4, 4),
+                    poll_interval: Duration::from_millis(5),
+                }),
             },
         ],
         passes: vec![RenderPass {
@@ -211,6 +216,7 @@ impl Drop for RuntimeGuard {
 }
 
 struct Renderer {
+    names: [String; 2],
     resources: Option<D3d11Resources>,
     backend: D3d11Backend,
     plan: CompiledPlan,
@@ -219,13 +225,14 @@ struct Renderer {
 }
 
 impl Renderer {
-    fn new(config: D3d11Config) -> Self {
+    fn new(config: D3d11Config, names: [String; 2]) -> Self {
         let generation = DeviceGeneration::new(Uuid::new_v4(), 1);
         let mut backend = D3d11Backend::new(config, Default::default(), generation);
         backend.initialize().unwrap();
-        let plan = scene(2, 2).compile(&runtime_config().plan_limits).unwrap();
+        let plan = scene(&names, 2, 2).compile(&runtime_config().plan_limits).unwrap();
         let resources = backend.prepare(&plan, generation).unwrap();
         Self {
+            names,
             resources: Some(resources),
             backend,
             plan,
@@ -288,7 +295,9 @@ impl Renderer {
 
     fn replace(&mut self, width: u32, height: u32) {
         self.drain();
-        let plan = scene(width, height).compile(&runtime_config().plan_limits).unwrap();
+        let plan = scene(&self.names, width, height)
+            .compile(&runtime_config().plan_limits)
+            .unwrap();
         let resources = self.backend.prepare(&plan, self.generation).unwrap();
         self.resources = Some(resources);
         self.plan = plan;
@@ -353,7 +362,7 @@ fn hardware_inputs_receive_bound_resize_reconnect_and_retire_across_independent_
         let mut guard = RuntimeGuard(Some(
             VideoRuntime::spawn_d3d11(
                 runtime_config(),
-                native_config(adapter.id, &names, format!("GoldenInputPublic-{identity}")),
+                native_config(adapter.id, format!("GoldenInputPublic-{identity}")),
             )
             .unwrap(),
         ));
@@ -361,7 +370,7 @@ fn hardware_inputs_receive_bound_resize_reconnect_and_retire_across_independent_
         runtime
             .submit_plan(
                 runtime.project_epoch(),
-                scene(2, 2),
+                scene(&names, 2, 2),
                 PlanActivation::NextFrame(runtime.read_time().unwrap().epoch()),
                 LatePolicy::Activate,
             )
@@ -379,6 +388,31 @@ fn hardware_inputs_receive_bound_resize_reconnect_and_retire_across_independent_
             runtime.snapshot().frames_submitted,
             runtime.d3d11_control().unwrap().sources()
         );
+        let active = runtime.snapshot().resources.unwrap().active.unwrap();
+        let before = runtime.snapshot().frames_submitted;
+        let mut excessive = scene(&names, 2, 2);
+        excessive.external_textures[0].source.as_mut().unwrap().descriptor = external(16, 16);
+        let rejected = runtime
+            .submit_plan(
+                runtime.project_epoch(),
+                excessive,
+                PlanActivation::NextFrame(runtime.read_time().unwrap().epoch()),
+                LatePolicy::Activate,
+            )
+            .unwrap();
+        wait("public source-capacity rejection", || {
+            let mut outcomes = Vec::new();
+            runtime.drain_outcomes(&mut outcomes, NonZeroUsize::new(4).unwrap());
+            outcomes.iter().any(|outcome| outcome.request == rejected && matches!(&outcome.result,
+                crate::runtime::OutcomeKind::Rejected(failure) if failure.code() == crate::runtime::FailureCode::ResourcePressure))
+        });
+        wait("live frames continue after source pressure", || {
+            runtime.snapshot().frames_submitted > before
+        });
+        assert_eq!(runtime.snapshot().state, RuntimeState::Running);
+        assert!(runtime.snapshot().failure.is_none());
+        assert_eq!(runtime.snapshot().resources.unwrap().active.unwrap(), active);
+        eprintln!("public source pressure preserves Running state, live generation and continued frames");
         runtime.close();
         assert!(runtime.retirement().wait(WAIT));
         assert_eq!(runtime.snapshot().state, RuntimeState::Stopped);
@@ -392,11 +426,10 @@ fn hardware_inputs_receive_bound_resize_reconnect_and_retire_across_independent_
                 .all(|source| source.state == SourceState::Stopped)
         );
     }
-    let mut renderer = Renderer::new(native_config(
-        adapter.id,
-        &names,
-        format!("GoldenInputPixels-{identity}"),
-    ));
+    let mut renderer = Renderer::new(
+        native_config(adapter.id, format!("GoldenInputPixels-{identity}")),
+        names.clone(),
+    );
     wait("prepared inputs warm before render activation", || {
         renderer
             .backend
@@ -532,7 +565,78 @@ fn hardware_inputs_receive_bound_resize_reconnect_and_retire_across_independent_
         "native input recovery passed LUID{:08x}:{:08x}; final sources={sources:?}",
         adapter.id.high as u32, adapter.id.low
     );
+    // A new sender subscription is prepared while the old generation still owns its
+    // source. Changing the meaning of an existing binding is rejected atomically.
+    let conflicting = scene(&[names[1].clone(), names[1].clone()], 2, 2)
+        .compile(&runtime_config().plan_limits)
+        .unwrap();
+    assert!(matches!(
+        renderer.backend.prepare(&conflicting, renderer.generation),
+        Err(crate::runtime::backend::BackendError::UnsupportedPlan)
+    ));
+    renderer.expect_pixel([128, 0, 128, 255]);
+    let original_binding = renderer.backend.control.sources()[0].binding;
+    let mut remapped = scene(&[names[1].clone(), names[1].clone()], 2, 2);
+    remapped.external_textures[0].id = TextureId::new(4).unwrap();
+    let RenderOperation::Composite { layers } = &mut remapped.passes[0].operation else {
+        unreachable!()
+    };
+    layers[0].source = TextureId::new(4).unwrap();
+    let remapped = remapped.compile(&runtime_config().plan_limits).unwrap();
+    let next = renderer.backend.prepare(&remapped, renderer.generation).unwrap();
+    let previous = renderer.resources.replace(next).unwrap();
+    renderer.plan = remapped.clone();
+    renderer.expect_pixel([0, 0, 255, 255]);
+    assert_eq!(renderer.backend.control.sources().len(), 3);
+    assert_eq!(renderer.backend.control.sources()[0].binding, original_binding);
+    assert_ne!(renderer.backend.control.sources()[2].binding, original_binding);
+    let mut extra = scene(&names, 2, 2);
+    extra.external_textures[0].id = TextureId::new(5).unwrap();
+    let RenderOperation::Composite { layers } = &mut extra.passes[0].operation else {
+        unreachable!()
+    };
+    layers[0].source = TextureId::new(5).unwrap();
+    let extra_plan = extra.compile(&runtime_config().plan_limits).unwrap();
+    let extra = renderer.backend.prepare(&extra_plan, renderer.generation).unwrap();
+    let mut excess = scene(&names, 2, 2);
+    excess.external_textures[0].id = TextureId::new(6).unwrap();
+    let RenderOperation::Composite { layers } = &mut excess.passes[0].operation else {
+        unreachable!()
+    };
+    layers[0].source = TextureId::new(6).unwrap();
+    let excess = excess.compile(&runtime_config().plan_limits).unwrap();
+    assert!(matches!(
+        renderer.backend.prepare(&excess, renderer.generation),
+        Err(crate::runtime::backend::BackendError::SourceCapacity)
+    ));
+    renderer.expect_pixel([0, 0, 255, 255]);
+    drop(extra);
+    drop(previous);
+    wait("retired source capacity becomes reusable", || {
+        match renderer.backend.prepare(&excess, renderer.generation) {
+            Ok(resources) => {
+                drop(resources);
+                true
+            }
+            Err(crate::runtime::backend::BackendError::SourceCapacity) => false,
+            Err(error) => panic!("source replacement: {error}"),
+        }
+    });
+    assert_eq!(renderer.backend.control.snapshot().device, Some(renderer.generation));
+    eprintln!("dynamic subscription replacement, old-binding fence and four-source overlap bound passed");
     drop(renderer);
+    let mut bytes_config = native_config(adapter.id, format!("GoldenInputBytes-{identity}"));
+    bytes_config.inputs.max_storage_bytes = 2 * 5 * 4 * 4 * 4;
+    let mut bytes_renderer = Renderer::new(bytes_config, names.clone());
+    bytes_renderer.expect_pixel([128, 0, 128, 255]);
+    assert!(matches!(
+        bytes_renderer.backend.prepare(&remapped, bytes_renderer.generation),
+        Err(crate::runtime::backend::BackendError::SourceCapacity)
+    ));
+    assert_eq!(bytes_renderer.backend.control.sources().len(), 2);
+    bytes_renderer.expect_pixel([128, 0, 128, 255]);
+    eprintln!("source storage ceiling rejects a third subscription despite four available worker slots");
+    drop(bytes_renderer);
     red.command("exit");
     blue.command("exit");
     let _ = done.send(());

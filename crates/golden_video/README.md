@@ -76,8 +76,13 @@ consumers or abandon already queued GPU uses. Spout API acceptance does not prov
 the pinned SDK can wait up to 67 ms on its access mutex and return success after skipping a copy
 on timeout. This limitation remains part of native cadence qualification.
 
-`D3d11Config::inputs` binds up to 32 Spout inputs with exact sender selectors, required storage/
-color/alpha and admitted maximum extents. Each source owns a Golden IO worker and a separate
+`ExternalTexture::source` carries an optional `SpoutSource`: exact selector, required storage/
+color/alpha, polling interval and admitted maximum extent. Bindings travel inside the same
+revisioned plan as their consumers. `D3d11Config::inputs` reserves `InputLimits` before native
+allocation: at most 32 overlapping source workers and an explicit descriptor-storage capacity.
+That capacity remains charged while unused; each subscription consumes five maximum-size
+images (capture, three bridge slots and sender alias). Old/prepared/retiring subscriptions share
+these limits. Each source owns a Golden IO worker and a separate
 device on the selected adapter. Prepared resource generations hold demand leases, warming inputs
 before activation; discarding the last demand stops receive polling. SDK work never runs in the
 renderer or engine loop.
@@ -90,8 +95,15 @@ and cached aliases before replacing its pool within the same reservation. Source
 actual extents; a plan must adopt that descriptor before copying the resized input. Missing or
 mismatched input has zero storage (black for opaque descriptors), with explicit source state.
 
-Startup bindings are currently immutable. App-owned binding publication/lifetime policy remains
-part of the media/channel integration work. The SDK can transiently open a changed foreign alias
+Changing a retained binding requires a fresh logical texture ID; reusing an ID with a different
+subscription is rejected without changing the live generation. Identical bindings are shared
+across generations. Unused subscriptions cancel asynchronously; they consume capacity until
+their worker has actually disconnected after native cleanup. Source/worker pressure returns an
+explicit resource-pressure outcome without waiting for retirement on the renderer. Source
+snapshots carry a subscription UUID in addition to device/texture/session identity.
+
+App-owned channel demand/publication and source-observation fencing remain integration work.
+The SDK can transiently open a changed foreign alias
 before post-update validation; owned pools and published descriptors stay bounded, but this is
 not a hard driver-residency guarantee.
 

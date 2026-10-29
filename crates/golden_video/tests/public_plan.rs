@@ -27,6 +27,7 @@ fn public_plan_contract_shares_a_composition_across_outputs_and_preserves_source
         external_textures: vec![ExternalTexture {
             id: source,
             descriptor: source_descriptor,
+            source: None,
         }],
         passes: vec![
             RenderPass {

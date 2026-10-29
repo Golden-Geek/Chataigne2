@@ -323,3 +323,61 @@ native resource recreation. Startup native bindings are still immutable. Full Me
 controls, command nodes and app-owned script templates belong to M04; the generic QuickJS app
 operation/callback path is already exercised. Picture/assets, Composition and Matrix remain
 with their planned deliveries. No renderer, physical-output or full-app budget is relaxed.
+
+## Plan-owned source subscriptions — 2026-10-29
+
+The channel bridge needed a reusable boundary repair first: Spout inputs were fixed at runtime
+startup, so app channel changes could not publish new source configurations with a plan.
+`ExternalTexture::source` now carries immutable `SpoutSource` metadata through the existing
+project/revision/device preparation and installation fences. The compiler validates selectors,
+polling intervals and actual/maximum image contracts even in inactive branches. Retained input
+admission includes selector capacity. No endpoint update can race separately from its plan.
+
+`D3d11Config::inputs` now reserves `InputLimits`, rather than a startup subscription list.
+Its global baseline charges the explicit storage capacity, including unused capacity. Each
+subscription consumes five maximum-size images; worker count (at most 32) and storage capacity
+bound all prepared/live/retiring overlap. Plan targets are charged separately as before.
+An unchanged subscription shares its worker across generations. A changed contract needs a
+fresh logical texture ID while the old binding is retained; an identity conflict is rejected
+without changing the live plan. Fixed native output bindings/HWND ownership are unchanged.
+
+Unused subscriptions cancel asynchronously. Their metadata/worker/storage slots remain occupied
+until the worker's event channel disconnects after native cleanup. The renderer never waits
+for this retirement during preparation. Overload reports resource pressure and preserves the
+current scene; callers retry after capacity becomes available. Source snapshots include an
+exact subscription UUID as well as device, texture and source-session identity. These are
+runtime observations, distinct from persistent MapGyver media/channel IDs.
+
+The expanded owned hardware harness verifies the original reception/resize/reconnect/static
+frame/retirement cases, then prepares a new blue subscription while the old red subscription
+is retained. Reusing the old binding with a different selector is rejected and leaves purple
+pixels intact; a fresh binding produces blue without device replacement. A fifth overlapping
+subscription exceeds four-worker capacity without changing that live blue image. Releasing
+unused generations permits asynchronous capacity reuse. A separate two-source storage ceiling
+rejects a third subscription despite four worker slots, preserving the purple image.
+The public runtime also verifies a resource-pressure outcome with unchanged live generation,
+continued frames, `Running` state and no runtime fault. Review corrected source-capacity
+rejection so ordinary admission pressure does not enter the backend-fault path.
+
+The [retained packet](evidence/mapgyver-m03-plan-sources-2026-10-29.json) records executable
+hashes, eleven input pixel observations and the host regression. The existing nine finite
+color/alpha/filter/blend cases pass. During the final regression, the pixel helper initially
+received `DXGI_ERROR_WAS_STILL_DRAWING` (`0x887A000A`) from nonblocking `Map` after its query
+completed. The test-only helper now polls that specific readiness result within the same total
+five-second deadline; every other error still fails. This follows the documented
+[nonblocking Map contract](https://learn.microsoft.com/en-us/windows/win32/api/d3d11/nf-d3d11-id3d11devicecontext-map).
+The failed run remains recorded; this helper repair changes no pixel oracle, tolerance,
+production path or budget.
+
+Verified checks: **82 regular tests** (11 app, 69 Video unit + 2 public), plus both explicitly
+selected hardware tests on Intel LUID `00000000:00016c2a`; strict native all-target app/Video
+Clippy including smoke targets; strict default Video Clippy; default checks for both apps;
+required root/Core formatters and whitespace checks. The rebuilt shared-host smoke passes its
+window-only, Spout-only and combined resized-client phases with retirement before HWND release.
+No dependency version, generated control contract, UI or display/overlay setting changes.
+
+This is the native prerequisite for gate 5's app-owned channel bridge, not completion of that
+bridge. M03 stays **4/9 = 44%**. App demand capture, channel-to-plan publication, fenced source
+observations and identity through resource recreation remain next. Gates 4/7/8/9 and all
+Q01/Q02 recovery, timing, physical residency, display/DPI and shutdown qualification remain
+open with their original budgets and failure evidence.

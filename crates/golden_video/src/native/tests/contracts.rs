@@ -1,7 +1,8 @@
 use uuid::Uuid;
 
 use crate::native::backend::D3d11Backend;
-use crate::native::{AdapterId, D3d11Config, D3d11Control, NativeFailure, OutputBinding, SpoutInput};
+use crate::native::{AdapterId, D3d11Config, D3d11Control, InputLimits, NativeFailure, OutputBinding};
+use crate::plan::SpoutSource;
 use crate::plan::{ExternalTexture, PlanLimits, PlanOutput, RenderOperation, RenderPass, RenderPlan};
 use crate::runtime::DeviceGeneration;
 use crate::runtime::backend::{Backend, BackendError};
@@ -30,10 +31,10 @@ fn limits() -> PlanLimits {
 }
 
 fn backend() -> (D3d11Backend, D3d11Control) {
-    configured_backend(Vec::new())
+    configured_backend(InputLimits::default())
 }
 
-fn configured_backend(inputs: Vec<SpoutInput>) -> (D3d11Backend, D3d11Control) {
+fn configured_backend(inputs: InputLimits) -> (D3d11Backend, D3d11Control) {
     let control = D3d11Control::default();
     let backend = D3d11Backend::new(
         D3d11Config {
@@ -95,6 +96,7 @@ fn unsupported_inputs_and_unbound_outputs_are_rejected_without_silent_fallback()
         external_textures: vec![ExternalTexture {
             id: TextureId::new(1).unwrap(),
             descriptor: descriptor(),
+            source: None,
         }],
         passes: vec![],
         outputs: vec![PlanOutput {
@@ -114,19 +116,22 @@ fn unsupported_inputs_and_unbound_outputs_are_rejected_without_silent_fallback()
 
 #[test]
 fn input_reservations_cover_maximum_pools_while_plans_charge_actual_extents() {
-    let (backend, control) = configured_backend(vec![SpoutInput {
-        texture: TextureId::new(1).unwrap(),
-        sender: "uninitialized-source".into(),
-        descriptor: TextureDescriptor {
-            extent: Extent2D::new(4, 4).unwrap(),
-            ..descriptor()
-        },
-        poll_interval: std::time::Duration::from_millis(16),
-    }]);
+    let (backend, control) = configured_backend(InputLimits {
+        max_sources: 1,
+        max_storage_bytes: 5 * 4 * 4 * 4,
+    });
     let compile = |width| {
         RenderPlan {
             external_textures: vec![ExternalTexture {
                 id: TextureId::new(1).unwrap(),
+                source: Some(SpoutSource {
+                    sender: "uninitialized-source".into(),
+                    descriptor: TextureDescriptor {
+                        extent: Extent2D::new(4, 4).unwrap(),
+                        ..descriptor()
+                    },
+                    poll_interval: std::time::Duration::from_millis(16),
+                }),
                 descriptor: TextureDescriptor {
                     extent: Extent2D::new(width, 2).unwrap(),
                     ..descriptor()
@@ -139,14 +144,13 @@ fn input_reservations_cover_maximum_pools_while_plans_charge_actual_extents() {
             }],
         }
         .compile(&limits())
-        .unwrap()
     };
     // Existing uniform/sender charge52 plus five admitted4x4 image stores.
     assert_eq!(backend.base_resource_bytes().unwrap(), 52 + 5 * 4 * 4 * 4);
     // Actual2x2 generation input plus its1x1 output conversion.
-    assert_eq!(backend.resource_bytes(&compile(2)).unwrap(), 16 + 4);
-    assert_eq!(backend.resource_bytes(&compile(3)).unwrap(), 24 + 4);
-    assert_eq!(backend.resource_bytes(&compile(5)), Err(BackendError::UnsupportedPlan));
+    assert_eq!(backend.resource_bytes(&compile(2).unwrap()).unwrap(), 16 + 4);
+    assert_eq!(backend.resource_bytes(&compile(3).unwrap()).unwrap(), 24 + 4);
+    assert!(compile(5).is_err());
     assert!(!control.snapshot().initialized);
     assert!(
         control.sources().is_empty(),

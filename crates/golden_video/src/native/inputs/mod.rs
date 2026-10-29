@@ -13,14 +13,15 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use golden_io::{BoundedWorker, RetirementPool, WorkerLimits, WorkerNotifier};
+use golden_io::{BoundedWorker, PendingDrainState, RetirementPool, WorkerLimits, WorkerNotifier};
 use windows::core::{Error, HRESULT, Result};
 
-use crate::plan::CompiledPlan;
+use crate::plan::{CompiledPlan, SpoutSource};
+use crate::runtime::backend::BackendError;
 use crate::{TextureDescriptor, TextureId};
 
 use super::device::Device;
-use super::{AdapterId, D3d11Control, SpoutInput};
+use super::{AdapterId, D3d11Control, InputLimits};
 use reader::{Imported, Reader};
 use shared::Shared;
 
@@ -45,6 +46,8 @@ pub enum SourceState {
 /// Bounded metadata only; no source device, texture or shared handle leaves the native layer.
 #[derive(Clone, Copy, Debug)]
 pub struct SourceSnapshot {
+    /// Exact subscription lifetime, including re-creation on the same renderer device.
+    pub binding: uuid::Uuid,
     /// Renderer device lifetime owning this binding and its reservation.
     pub device: crate::runtime::DeviceGeneration,
     /// Logical external texture binding.
@@ -78,6 +81,8 @@ pub struct SourceSnapshot {
 }
 
 struct Input {
+    binding: SpoutSource,
+    stopping: bool,
     shared: Arc<Shared>,
     worker: BoundedWorker<(), ()>,
     imports: [Option<std::rc::Rc<Imported>>; 3],
@@ -87,6 +92,11 @@ pub(super) struct SourcePool {
     inputs: BTreeMap<TextureId, Input>,
     readers: Vec<(u64, TextureId, Reader)>,
     lifetimes: RetirementPool,
+    adapter: AdapterId,
+    limits: InputLimits,
+    control: D3d11Control,
+    notify: Option<WorkerNotifier>,
+    device: crate::runtime::DeviceGeneration,
 }
 
 pub(super) struct SourceDemands {
@@ -96,76 +106,174 @@ pub(super) struct SourceDemands {
 impl SourcePool {
     pub fn new(
         adapter: AdapterId,
-        bindings: &[SpoutInput],
+        limits: InputLimits,
         control: &D3d11Control,
         notify: Option<WorkerNotifier>,
         device: crate::runtime::DeviceGeneration,
-    ) -> Result<Self> {
-        let lifetimes = RetirementPool::new(NonZeroUsize::new(bindings.len().max(1)).unwrap());
-        let mut pool = Self {
+    ) -> Self {
+        control.register_sources(Vec::new());
+        let lifetimes = RetirementPool::new(NonZeroUsize::new(limits.max_sources.max(1)).unwrap());
+        Self {
             inputs: BTreeMap::new(),
-            readers: Vec::with_capacity(bindings.len() * 2),
+            readers: Vec::with_capacity(limits.max_sources * 2),
             lifetimes,
-        };
-        let mut statuses = Vec::with_capacity(bindings.len());
-        for binding in bindings {
-            let status = Arc::new(Mutex::new(SourceSnapshot {
-                device,
-                texture: binding.texture,
-                descriptor: binding.descriptor,
-                state: SourceState::Idle,
-                generation: 0,
-                pool_generation: 0,
-                bridge_slots: 0,
-                observed_descriptor: None,
-                sdk_calls: 0,
-                publications: 0,
-                sequence: 0,
-                bridge_busy: 0,
-                imports: 0,
-                renderer_copies: 0,
-                hresult: None,
-            }));
-            statuses.push(status.clone());
-            let shared = Arc::new(Shared {
-                latest: Mutex::new(None),
-                status,
-                active: AtomicBool::new(false),
-                retiring: AtomicBool::new(false),
-                demands: AtomicUsize::new(0),
-                quiescing: AtomicBool::new(false),
-                released: AtomicBool::new(false),
-                unlock_failed: AtomicBool::new(false),
-                shutdown: AtomicBool::new(false),
-                notify: notify.clone(),
-                worker_notify: Mutex::new(None),
-            });
-            let worker_shared = shared.clone();
-            let config = binding.clone();
-            let worker = BoundedWorker::spawn(
-                "golden-video-source",
-                &pool.lifetimes,
-                WorkerLimits {
-                    command_items: 1,
-                    command_weight: 1,
-                    event_items: 1,
-                    event_weight: 1,
-                },
-                move |context| worker::run(context, adapter, config, worker_shared),
-            )
-            .map_err(|error| Error::new(HRESULT(0x8000_4005_u32 as i32), error.to_string()))?;
-            *shared.worker_notify.lock().unwrap_or_else(|error| error.into_inner()) = Some(worker.wake_notifier());
-            pool.inputs.insert(
-                binding.texture,
-                Input {
-                    shared,
-                    worker,
-                    imports: [None, None, None],
-                },
-            );
+            adapter,
+            limits,
+            control: control.clone(),
+            notify,
+            device,
         }
-        control.register_sources(statuses);
-        Ok(pool)
+    }
+
+    fn spawn(&mut self, texture: TextureId, binding: SpoutSource) -> Result<()> {
+        let device = self.device;
+        let status = Arc::new(Mutex::new(SourceSnapshot {
+            binding: uuid::Uuid::new_v4(),
+            device,
+            texture,
+            descriptor: binding.descriptor,
+            state: SourceState::Idle,
+            generation: 0,
+            pool_generation: 0,
+            bridge_slots: 0,
+            observed_descriptor: None,
+            sdk_calls: 0,
+            publications: 0,
+            sequence: 0,
+            bridge_busy: 0,
+            imports: 0,
+            renderer_copies: 0,
+            hresult: None,
+        }));
+        let shared = Arc::new(Shared {
+            latest: Mutex::new(None),
+            status,
+            active: AtomicBool::new(false),
+            retiring: AtomicBool::new(false),
+            demands: AtomicUsize::new(0),
+            quiescing: AtomicBool::new(false),
+            released: AtomicBool::new(false),
+            unlock_failed: AtomicBool::new(false),
+            shutdown: AtomicBool::new(false),
+            notify: self.notify.clone(),
+            worker_notify: Mutex::new(None),
+        });
+        let worker_shared = shared.clone();
+        let config = binding.clone();
+        let adapter = self.adapter;
+        let worker = BoundedWorker::spawn(
+            "golden-video-source",
+            &self.lifetimes,
+            WorkerLimits {
+                command_items: 1,
+                command_weight: 1,
+                event_items: 1,
+                event_weight: 1,
+            },
+            move |context| worker::run(context, adapter, config, worker_shared),
+        )
+        .map_err(|error| Error::new(HRESULT(0x8000_4005_u32 as i32), error.to_string()))?;
+        *shared.worker_notify.lock().unwrap_or_else(|error| error.into_inner()) = Some(worker.wake_notifier());
+        self.inputs.insert(
+            texture,
+            Input {
+                binding,
+                stopping: false,
+                shared,
+                worker,
+                imports: [None, None, None],
+            },
+        );
+        Ok(())
+    }
+
+    fn stop(input: &mut Input) {
+        input.stopping = true;
+        input.shared.quiesce();
+        input.imports = [None, None, None];
+        input.shared.clear();
+        input.shared.shutdown.store(true, Ordering::Release);
+        input.shared.released.store(true, Ordering::Release);
+        input.worker.cancel();
+    }
+
+    fn publish_statuses(&self) {
+        self.control
+            .register_sources(self.inputs.values().map(|input| input.shared.status.clone()).collect());
+    }
+
+    pub fn ensure(&mut self, plan: &CompiledPlan) -> std::result::Result<(), BackendError> {
+        // A binding may outlive its plan through GPU retirement. Only unused cache entries
+        // can be evicted; cancellation never waits for SDK/GPU work on the renderer.
+        for (id, input) in &mut self.inputs {
+            if input.shared.demands.load(Ordering::Acquire) == 0
+                && !self.readers.iter().any(|(_, source, _)| source == id)
+                && !plan.external_textures().iter().any(|source| source.id == *id)
+            {
+                Self::stop(input);
+            }
+        }
+        self.inputs.retain(|_, input| {
+            !input.stopping
+                || input.worker.drain_events(&mut Vec::new(), NonZeroUsize::MIN).state
+                    != PendingDrainState::Disconnected
+        });
+        self.publish_statuses();
+        let mut count = self.inputs.len();
+        let mut bytes = self
+            .inputs
+            .values()
+            .try_fold(0_u64, |sum, input| {
+                sum.checked_add(input.binding.descriptor.byte_len().ok()?.checked_mul(5)?)
+            })
+            .ok_or(BackendError::ResourceSizeOverflow)?;
+        for source in plan.external_textures() {
+            let binding = source.source.as_ref().ok_or(BackendError::UnsupportedPlan)?;
+            if let Some(input) = self.inputs.get(&source.id) {
+                if input.binding != *binding {
+                    return Err(BackendError::UnsupportedPlan);
+                }
+                if input.stopping {
+                    return Err(BackendError::SourceCapacity);
+                }
+            } else {
+                count += 1;
+                bytes = bytes
+                    .checked_add(
+                        binding
+                            .descriptor
+                            .byte_len()
+                            .map_err(|_| BackendError::ResourceSizeOverflow)?
+                            .checked_mul(5)
+                            .ok_or(BackendError::ResourceSizeOverflow)?,
+                    )
+                    .ok_or(BackendError::ResourceSizeOverflow)?;
+            }
+        }
+        if count > self.limits.max_sources
+            || bytes > self.limits.max_storage_bytes
+            || self.lifetimes.metrics().active + count - self.inputs.len() > self.limits.max_sources
+        {
+            return Err(BackendError::SourceCapacity);
+        }
+        let mut created = Vec::new();
+        for source in plan.external_textures() {
+            if !self.inputs.contains_key(&source.id) {
+                if self
+                    .spawn(source.id, source.source.clone().expect("validated source binding"))
+                    .is_err()
+                {
+                    for id in created {
+                        Self::stop(self.inputs.get_mut(&id).unwrap());
+                    }
+                    self.publish_statuses();
+                    return Err(BackendError::AllocationFailed);
+                }
+                created.push(source.id);
+            }
+        }
+        self.publish_statuses();
+        Ok(())
     }
 
     pub fn demands(&self, plan: &CompiledPlan) -> SourceDemands {
@@ -272,12 +380,7 @@ impl Drop for SourcePool {
         // replacement pool until these aliases are acknowledged as released.
         self.readers.clear();
         for input in self.inputs.values_mut() {
-            input.shared.quiesce();
-            input.imports = [None, None, None];
-            input.shared.clear();
-            input.shared.shutdown.store(true, Ordering::Release);
-            input.shared.released.store(true, Ordering::Release);
-            input.worker.cancel();
+            Self::stop(input);
         }
         while !self.lifetimes.wait_for_idle(Duration::from_millis(20)) {}
     }

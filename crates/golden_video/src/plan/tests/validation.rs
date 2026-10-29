@@ -1,6 +1,69 @@
 use super::*;
 
 #[test]
+fn source_contracts_are_validated_before_pruning_and_charge_retained_selector_capacity() {
+    use crate::plan::SpoutSource;
+    use std::time::Duration;
+    let valid = SpoutSource {
+        sender: "Source".into(),
+        descriptor: descriptor(4, 4),
+        poll_interval: Duration::from_millis(16),
+    };
+    let make = |source| RenderPlan {
+        external_textures: vec![ExternalTexture {
+            source: Some(source),
+            ..external(1)
+        }],
+        ..Default::default()
+    };
+    assert!(make(valid.clone()).compile(&limits()).is_ok());
+    let mut invalid = Vec::new();
+    for sender in [String::new(), "x".repeat(256), "bad\0source".into()] {
+        invalid.push(SpoutSource {
+            sender,
+            ..valid.clone()
+        });
+    }
+    invalid.push(SpoutSource {
+        poll_interval: Duration::ZERO,
+        ..valid.clone()
+    });
+    invalid.push(SpoutSource {
+        poll_interval: Duration::from_secs(2),
+        ..valid.clone()
+    });
+    invalid.push(SpoutSource {
+        descriptor: TextureDescriptor {
+            alpha_mode: AlphaMode::Straight,
+            ..valid.descriptor
+        },
+        ..valid.clone()
+    });
+    invalid.push(SpoutSource {
+        descriptor: descriptor(1, 1),
+        ..valid.clone()
+    });
+    for source in invalid {
+        assert!(matches!(
+            make(source).compile(&limits()),
+            Err(PlanError::InvalidSourceBinding(_))
+        ));
+    }
+    let compact = make(valid.clone()).retained_bytes().unwrap();
+    let mut retained = String::with_capacity(65536);
+    retained.push_str("Source");
+    assert!(
+        make(SpoutSource {
+            sender: retained,
+            ..valid
+        })
+        .retained_bytes()
+        .unwrap()
+            >= compact + 65000
+    );
+}
+
+#[test]
 fn pass_writer_and_output_identities_are_unique() {
     let mut duplicate_pass = diamond();
     duplicate_pass.passes.push(clear(20, 20));
@@ -161,6 +224,7 @@ fn descriptor_and_summed_footprint_overflow_never_wrap_into_admission() {
         external_textures: vec![ExternalTexture {
             id: texture(1),
             descriptor: descriptor(u32::MAX, u32::MAX),
+            source: None,
         }],
         ..Default::default()
     };
@@ -176,10 +240,12 @@ fn descriptor_and_summed_footprint_overflow_never_wrap_into_admission() {
                 ExternalTexture {
                     id: texture(1),
                     descriptor: half_range,
+                    source: None,
                 },
                 ExternalTexture {
                     id: texture(2),
                     descriptor: half_range,
+                    source: None,
                 },
             ],
             outputs: vec![output(1, 1), output(2, 2)],
@@ -189,6 +255,7 @@ fn descriptor_and_summed_footprint_overflow_never_wrap_into_admission() {
             external_textures: vec![ExternalTexture {
                 id: texture(1),
                 descriptor: half_range,
+                source: None,
             }],
             passes: vec![RenderPass {
                 descriptor: half_range,

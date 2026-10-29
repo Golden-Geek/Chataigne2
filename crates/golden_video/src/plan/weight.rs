@@ -18,6 +18,11 @@ impl RenderPlan {
                 bytes = bytes.checked_add(layers.capacity().checked_mul(size_of::<Layer>())?)?;
             }
         }
+        for texture in &self.external_textures {
+            if let Some(source) = &texture.source {
+                bytes = bytes.checked_add(source.sender.capacity())?;
+            }
+        }
         Some(bytes)
     }
 }

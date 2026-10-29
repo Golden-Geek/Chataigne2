@@ -116,7 +116,7 @@ These boundaries distinguish implemented foundations from planned product featur
 - `apps/mapgyver/src/{screen,matrix}/`: planned app-owned models, operations and integration.
 - `apps/mapgyver/ui/`: future Screen, Surface Source, Composition and Matrix editors.
 - `crates/golden_video/`: compiler, worker/null runtime and optional D3D11 compositor with
-  fixed window/Spout outputs and bounded Spout source workers exist. Complete app integration/qualification
+  fixed window/Spout outputs and plan-owned bounded Spout subscriptions exist. Complete app integration/qualification
   continue in M03, using the shared `crates/golden_time/` authority.
 - `packages/golden-video-ui/`: future reusable native-preview bindings; host integration stays shared.
 

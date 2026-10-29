@@ -8,6 +8,7 @@ pub use error::{GraphLimit, PlanError};
 
 use crate::{LinearColor, Opacity, OutputId, PassId, TextureDescriptor, TextureId};
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 use ts_rs::TS;
 
 /// Sampling applied when a source extent differs from the destination extent.
@@ -90,6 +91,31 @@ pub struct ExternalTexture {
     pub id: TextureId,
     /// Explicit extent, storage, color and alpha contract.
     pub descriptor: TextureDescriptor,
+    /// Optional GPU source binding, installed atomically with this plan. Null backends simulate it.
+    pub source: Option<SpoutSource>,
+}
+
+/// Immutable Spout subscription. Changing this contract requires a fresh logical texture ID
+/// while any prepared/live/retiring generation still retains the old binding.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SpoutSource {
+    /// Exact sender selector; never the SDK's active-sender fallback.
+    pub sender: String,
+    /// Maximum admitted storage/extent and explicitly declared transfer/alpha.
+    pub descriptor: TextureDescriptor,
+    /// Dedicated source-worker polling interval, between one millisecond and one second.
+    pub poll_interval: Duration,
+}
+
+impl SpoutSource {
+    pub(crate) fn accepts(&self, actual: TextureDescriptor) -> bool {
+        let maximum = self.descriptor;
+        actual.extent.width() <= maximum.extent.width()
+            && actual.extent.height() <= maximum.extent.height()
+            && actual.format == maximum.format
+            && actual.color_encoding == maximum.color_encoding
+            && actual.alpha_mode == maximum.alpha_mode
+    }
 }
 
 /// One writer producing a linear premultiplied target texture.

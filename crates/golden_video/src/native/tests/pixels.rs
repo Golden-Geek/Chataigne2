@@ -2,6 +2,7 @@ use std::time::{Duration, Instant};
 
 use windows::Win32::Foundation::S_OK;
 use windows::Win32::Graphics::Direct3D11::*;
+use windows::Win32::Graphics::Dxgi::DXGI_ERROR_WAS_STILL_DRAWING;
 use windows::core::Interface;
 
 use crate::plan::{BlendMode, SampleFilter};
@@ -270,17 +271,32 @@ pub(in crate::native) fn readback(gpu: &Device, texture: &Texture) -> Vec<[u8; 4
         std::thread::sleep(Duration::from_millis(1));
     }
     let mut mapped = D3D11_MAPPED_SUBRESOURCE::default();
-    // SAFETY: event completed; nonblocking Map cannot turn this into a UI/driver wait.
-    unsafe {
-        gpu.context
-            .Map(
+    let mut map_busy = 0;
+    loop {
+        // SAFETY: staging belongs to this device. DO_NOT_WAIT keeps readiness explicit,
+        // even if the driver reports Map busy after the event query completed.
+        let result = unsafe {
+            gpu.context.Map(
                 &staging,
                 0,
                 D3D11_MAP_READ,
                 D3D11_MAP_FLAG_DO_NOT_WAIT.0 as u32,
                 Some(&mut mapped),
             )
-            .expect("map completed finite GPU copy");
+        };
+        match result {
+            Ok(()) => break,
+            Err(error)
+                if error.code() == DXGI_ERROR_WAS_STILL_DRAWING && started.elapsed() < Duration::from_secs(5) =>
+            {
+                map_busy += 1;
+                std::thread::sleep(Duration::from_millis(1));
+            }
+            Err(error) => panic!("finite GPU readback map failed or exceeded its five-second deadline: {error}"),
+        }
+    }
+    if map_busy != 0 {
+        eprintln!("finite readback Map busy polls={map_busy}");
     }
     if mapped.pData.is_null() || mapped.RowPitch < extent.width() * 4 {
         // SAFETY: successful map must always be unmapped, including an invalid-layout failure.

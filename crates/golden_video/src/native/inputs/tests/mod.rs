@@ -29,6 +29,7 @@ fn publication_coalescing_cannot_revive_a_disabled_or_retiring_input() {
         alpha_mode: AlphaMode::Premultiplied,
     };
     let status = Arc::new(Mutex::new(SourceSnapshot {
+        binding: uuid::Uuid::new_v4(),
         device: DeviceGeneration::new(Uuid::new_v4(), 0),
         texture: TextureId::new(1).unwrap(),
         descriptor,

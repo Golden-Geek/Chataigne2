@@ -54,7 +54,9 @@ runtime with Golden's window lifecycle. Bounded Spout inputs now own separate IO
 prepared/live/retiring generations hold input demand, while bridge readers retire through the
 renderer fence and writers through their source-device fence. Admitted maximum extents bound
 capture/bridge pools; actual size observations drive backend plan preparation without choosing
-app size policy. Startup bindings remain immutable pending app integration. Dynamic preview
+app size policy. Source subscriptions now travel atomically with each plan; fixed global
+worker/storage capacity covers overlap through retirement, with fresh IDs for changed bindings.
+The app's channel-demand/publication bridge remains pending. Dynamic preview
 geometry remains open; the main app is still the thin workbench. See the
 [runtime/native evidence](../progress/mapgyver-m03-render-foundations.md).
 

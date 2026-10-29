@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "scope": "Plan-owned native source subscriptions, finite admission/replacement pixels and shared-host regression",
+  "source_base_commit": "a307eeacd4acf78b5f18d0f5116facb62d70d4a2",
+  "local_date": "2026-10-29",
+  "build_profile": "dev",
+  "selected_adapter": {"index": 0, "description": "Intel(R) Graphics", "luid": "00000000:00016c2a", "software": false},
+  "artifacts_sha256": {
+    "target/debug/native_source_fixture.exe": "D4FC7F1D138ABE58402ABE14ABC5B449FC2EFA6CB5D233141E778786DDCB659C",
+    "target/debug/native_video_smoke.exe": "4B44B7FECE7F3113620AE2F940EA91029327D1333092343C7B339C78D1E0422A",
+    "target/debug/deps/golden_video-ede22e91af695b4e.exe": "59D7F25B80F5A81872073262B142D726E3018BFAA6A5BDFE1928B6EA2861EF5B"
+  },
+  "hardware_tests": {
+    "command": "cargo test --locked -p golden_video --features d3d11 -- --ignored --nocapture --test-threads=1",
+    "observed_finished_at_utc": "2026-10-29T01:44:49Z",
+    "exit_code": 0,
+    "passed": 2,
+    "public_runtime_frames": 5,
+    "public_source_pressure": {"outcome": "ResourcePressure", "runtime_state": "Running", "failure": null, "live_generation_preserved": true, "subsequent_frames_observed": true},
+    "source_fixture": "Two owned independent processes using public VideoRuntime Spout senders",
+    "component_tolerance_8bit_units": 2,
+    "input_pixels": [
+      {"stage": "initial composition", "rgba8": [128,0,128,255], "expected": [128,0,128,255]},
+      {"stage": "new generation with paused producers", "rgba8": [128,0,128,255], "expected": [128,0,128,255]},
+      {"stage": "red sender absent", "rgba8": [0,0,128,255], "expected": [0,0,128,255]},
+      {"stage": "admitted red resize", "rgba8": [128,0,128,255], "expected": [128,0,128,255]},
+      {"stage": "oversized red rejected", "rgba8": [0,0,128,255], "expected": [0,0,128,255]},
+      {"stage": "red recovered", "rgba8": [128,0,128,255], "expected": [128,0,128,255]},
+      {"stage": "conflicting binding ID rejected", "rgba8": [128,0,128,255], "expected": [128,0,128,255]},
+      {"stage": "fresh blue subscription while old red retained", "rgba8": [0,0,255,255], "expected": [0,0,255,255]},
+      {"stage": "fifth overlapping worker rejected", "rgba8": [0,0,255,255], "expected": [0,0,255,255]},
+      {"stage": "separate storage ceiling baseline", "rgba8": [128,0,128,255], "expected": [128,0,128,255]},
+      {"stage": "third subscription exceeds storage ceiling", "rgba8": [128,0,128,255], "expected": [128,0,128,255]}
+    ],
+    "independent_source_capacity_checks": {
+      "maximum_input_extent": [4,4],
+      "reserved_bytes_per_subscription": 320,
+      "worker_ceiling": {"max_workers": 4, "max_storage_bytes": 1600, "attempted_overlapping_workers": 5, "attempted_storage_bytes": 1600, "rejected": true},
+      "storage_ceiling": {"max_workers": 4, "max_storage_bytes": 640, "attempted_overlapping_workers": 3, "attempted_storage_bytes": 960, "rejected": true},
+      "capacity_reused_after_unused_generation_release": true,
+      "renderer_device_replaced_during_subscription_switch": false,
+      "old_binding_uuid_preserved_while_retained": true,
+      "new_subscription_has_distinct_binding_uuid": true
+    },
+    "existing_shader_cases_rgba8": [[128,128,128,255],[0,128,0,128],[27,7,67,128],[52,41,74,181],[62,43,93,218],[43,22,71,181],[58,42,89,181],[110,69,143,255],[76,48,98,128]],
+    "shader_oracles": "mapgyver-m03-native-smoke-2026-10-29.json#/pixel_test/cases",
+    "final_readback_map_busy_poll_messages": [],
+    "readback_scope": "Test-only finite pixels; no production frame readback"
+  },
+  "retained_readback_failure": {
+    "stage": "Before bounded nonblocking Map readiness handling",
+    "hardware_suite_exit_code": 1,
+    "input_test_passed": true,
+    "shader_test_passed": false,
+    "error_hresult": "0x887A000A",
+    "error_name": "DXGI_ERROR_WAS_STILL_DRAWING",
+    "operation": "D3D11 staging Map with DO_NOT_WAIT after completed event query",
+    "failed_executable_sha256": null,
+    "hash_limit": "Failed executable was rebuilt before its hash was captured",
+    "repair": "Poll only this readiness result within the existing total five-second deadline; every other error still fails",
+    "repaired_busy_observation": {"test_executable_sha256": "976E757FEF11EFEA7BBDE879235F660FBCBAD709EEE8E7CE98CA32AC89597808", "busy_poll_messages": [1]},
+    "pixel_tolerance_or_production_behavior_changed": false,
+    "api_contract": "https://learn.microsoft.com/en-us/windows/win32/api/d3d11/nf-d3d11-id3d11devicecontext-map"
+  },
+  "host_smoke": {
+    "command": "target/debug/native_video_smoke.exe --adapter 0",
+    "observed_finished_at_utc": "2026-10-29T01:44:49Z",
+    "exit_code": 0,
+    "listener": "127.0.0.1:54619",
+    "phases": [
+      {"name": "window-only", "cumulative_batches": 5, "cumulative_api_accepted": 5, "busy": 0, "unavailable": 0, "peak_reserved_descriptor_bytes": 3953712},
+      {"name": "spout-only", "cumulative_batches": 10, "cumulative_api_accepted": 10, "busy": 0, "unavailable": 0, "peak_reserved_descriptor_bytes": 5142576},
+      {"name": "shared-producer-after-client-resize", "cumulative_batches": 15, "cumulative_api_accepted": 20, "busy": 0, "unavailable": 0, "peak_reserved_descriptor_bytes": 5372976}
+    ],
+    "retirement_before_hwnd_release_assertions_passed": true
+  },
+  "regular_checks": {"app_tests": 11, "video_unit_tests": 69, "video_public_tests": 2, "native_all_target_clippy": "passed", "default_video_clippy": "passed", "both_default_app_checks": "passed", "root_and_golden_core_formatters": "passed"},
+  "continuing_limits": [
+    "App-owned channel demand/publication and source-observation fencing remain pending",
+    "No claim of app identity through actual resource recreation or gate 5 completion",
+    "Fixed source storage capacity stays reserved while unused; descriptor charges are not physical driver residency",
+    "SDK handoffs/API output acceptance do not prove fresh delivery or scanout; SDK mutex may wait 67 ms and skip copying",
+    "Changed foreign sender alias may be transiently opened before post-update validation",
+    "Full native recovery/healthy-output independence, Q01/Q02 budgets, physical display/DPI and full-app qualification remain open"
+  ],
+  "acceptance": {"newly_closed_gates": [], "m03_done": 4, "m03_total": 9, "overall_complete_phases": 3, "overall_total_phases": 10}
+}

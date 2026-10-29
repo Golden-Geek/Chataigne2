@@ -71,18 +71,29 @@ impl D3d11Backend {
 
     fn validate(&self, plan: &CompiledPlan) -> Result<(), BackendError> {
         if plan.external_textures().iter().any(|external| {
-            !self.config.inputs.iter().any(|binding| {
-                binding.texture == external.id
-                    && binding.descriptor.format == external.descriptor.format
-                    && binding.descriptor.color_encoding == external.descriptor.color_encoding
-                    && binding.descriptor.alpha_mode == external.descriptor.alpha_mode
-                    && external.descriptor.extent.width() <= binding.descriptor.extent.width()
-                    && external.descriptor.extent.height() <= binding.descriptor.extent.height()
+            external.source.as_ref().is_none_or(|binding| {
+                !binding.accepts(external.descriptor)
+                    || binding.descriptor.extent.width() > 16_384
+                    || binding.descriptor.extent.height() > 16_384
             })
         }) {
             self.control
                 .update(|state| state.failure = Some(NativeFailure::UnsupportedExternalInput));
             return Err(BackendError::UnsupportedPlan);
+        }
+        let source_bytes = plan.external_textures().iter().try_fold(0_u64, |total, source| {
+            total
+                .checked_add(
+                    bytes(source.source.as_ref().expect("validated source").descriptor)?
+                        .checked_mul(5)
+                        .ok_or(BackendError::ResourceSizeOverflow)?,
+                )
+                .ok_or(BackendError::ResourceSizeOverflow)
+        })?;
+        if plan.external_textures().len() > self.config.inputs.max_sources
+            || source_bytes > self.config.inputs.max_storage_bytes
+        {
+            return Err(BackendError::SourceCapacity);
         }
         if plan
             .outputs()
@@ -104,11 +115,11 @@ impl D3d11Backend {
             let outputs = OutputPool::new(&device.device, self.config.clone())?;
             let inputs = SourcePool::new(
                 self.config.adapter,
-                &self.config.inputs,
+                self.config.inputs,
                 &self.control,
                 self.notify.clone(),
                 self.generation,
-            )?;
+            );
             Ok::<_, windows::core::Error>(NativeState {
                 inputs,
                 outputs,
@@ -147,17 +158,9 @@ impl Backend for D3d11Backend {
     fn base_resource_bytes(&self) -> Result<u64, BackendError> {
         // This accounts every owned texture pool and the constant buffer. DXGI/driver physical
         // residency, alignment and native-object overhead need separate measured qualification.
-        let base = self.config.inputs.iter().try_fold(48_u64, |total, input| {
-            // Capture + three bridge slots + one retained sender-storage alias. Renderer
-            // aliases of bridge slots do not duplicate their underlying pixel storage.
-            total
-                .checked_add(
-                    bytes(input.descriptor)?
-                        .checked_mul(5)
-                        .ok_or(BackendError::ResourceSizeOverflow)?,
-                )
-                .ok_or(BackendError::ResourceSizeOverflow)
-        })?;
+        let base = 48_u64
+            .checked_add(self.config.inputs.max_storage_bytes)
+            .ok_or(BackendError::ResourceSizeOverflow)?;
         self.config.outputs.iter().try_fold(base, |total, binding| {
             let bytes = bytes(binding.descriptor())?
                 .checked_mul(binding.persistent_copies())
@@ -205,10 +208,11 @@ impl Backend for D3d11Backend {
         if device != self.generation {
             return Err(BackendError::DeviceLost);
         }
-        let native = self.native.as_ref().ok_or(BackendError::DeviceLost)?;
+        let native = self.native.as_mut().ok_or(BackendError::DeviceLost)?;
         if native.device.removed() {
             return Err(BackendError::DeviceLost);
         }
+        native.inputs.ensure(plan)?;
         let prepared = (|| {
             let mut resources = D3d11Resources {
                 textures: BTreeMap::new(),

@@ -56,8 +56,10 @@ shared-host smoke consumer. Persistent pools reserve a baseline before allocatio
 records survive submission unwind. Spout sources use dedicated Golden IO/device workers and
 three-slot GPU bridges. Prepared resource demand warms inputs; dropping demand cancels receive
 polling, while source/renderer completion independently gates native cleanup. Actual source size
-is an observation for backend plan preparation, separate from admitted maximum storage. Dynamic
-binding publication, preview geometry, native recovery and full GPU qualification remain open.
+is an observation for backend plan preparation, separate from admitted maximum storage. Native
+source subscriptions now accompany their revisioned plans, with fixed worker/storage capacity
+covering all overlapping subscriptions and asynchronous retirement. App-owned channel binding
+publication, preview geometry, native recovery and full GPU qualification remain open.
 See [Golden Video](../../crates/golden_video/README.md) and
 [Golden Time](../../crates/golden_time/README.md) for the public boundaries.
 

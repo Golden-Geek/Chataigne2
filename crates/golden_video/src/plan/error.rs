@@ -47,6 +47,8 @@ pub enum PlanError {
     DuplicateTextureWriter(TextureId),
     /// More than one consumer has the same output identity.
     DuplicateOutput(OutputId),
+    /// Source selector, polling interval or actual/maximum image contract is invalid.
+    InvalidSourceBinding(TextureId),
     /// A pass references a texture that has no definition or writer.
     MissingPassInput {
         /// Pass containing the missing reference.
@@ -139,6 +141,9 @@ impl fmt::Display for PlanError {
                 texture.get()
             ),
             Self::InvalidTexture { texture, source } => write!(formatter, "texture {}: {source}", texture.get()),
+            Self::InvalidSourceBinding(texture) => {
+                write!(formatter, "texture {} has an invalid source binding", texture.get())
+            }
             Self::InvalidTargetContract { pass, output } => write!(
                 formatter,
                 "pass {} target {} must be linear and premultiplied",

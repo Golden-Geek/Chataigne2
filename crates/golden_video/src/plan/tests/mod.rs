@@ -32,6 +32,7 @@ fn external(id: u64) -> ExternalTexture {
     ExternalTexture {
         id: texture(id),
         descriptor: descriptor(2, 2),
+        source: None,
     }
 }
 

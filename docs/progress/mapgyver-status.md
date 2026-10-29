@@ -4,10 +4,12 @@
 
 **Updated: 2026-10-29 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
-**Current topic:** M03 remains **4/9** accepted gates. App-owned media/channel nodes, backend
-intents, size/source contracts and generated UI types now have history/reload/script coverage;
-[authoring evidence](mapgyver-m03-render-foundations.md#mediachannel-authoring-contracts--2026-10-29)
-is a partial gate 5 checkpoint. Live binding and resource-recreation integration stay open.
+**Current topic:** M03 remains **4/9** accepted gates. Native source subscriptions now travel
+with each plan, replacing the startup-only binding restriction. Hardware checks cover sender
+replacement, overlapping workers/storage and live-image preservation on rejection. The
+[subscription checkpoint](mapgyver-m03-render-foundations.md#plan-owned-source-subscriptions--2026-10-29)
+and accepted [authoring checkpoint](mapgyver-m03-render-foundations.md#mediachannel-authoring-contracts--2026-10-29)
+still require the app-owned live binding bridge and resource-recreation proof for gate 5.
 The [native input evidence](mapgyver-m03-render-foundations.md#bounded-spout-inputs--2026-10-29)
 and M02's [shell and lifecycle evidence](mapgyver-m02-shell.md) remain accepted.
 The [approved M01 route decision](mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28)
@@ -133,7 +135,7 @@ functional gate, not a retrospective pass of the original eight-item matrix.
 | Bounded worker/null runtime and atomic install | Done | [Runtime evidence](mapgyver-m03-render-foundations.md): Golden IO workers/fences, one preparation/latest desired plan, bounded reliable outcomes and resource admission, frame-boundary install, at most two in-flight uses/two retiring generations, completion-based worker-local destruction. Null resources simulate allocation/use; native proof stays open. |
 | D3D11/Spout backend and host integration | Done | [Native input/output evidence](mapgyver-m03-render-foundations.md#bounded-spout-inputs--2026-10-29): opaque GPU resources, explicit LUID/caller-device ownership, four-mode conversion/composition, independent-process Spout inputs and window/Spout output consumers pass. Shared-host regression passes. Full recovery/physical/steady-state budgets retain gates 4/8/9. |
 | Runtime observations and device recovery | Open | Source/output state, device removal/recreation, healthy-path independence, cancellation and bounded production recovery/retirement. |
-| App-owned media/channel backend contracts | Partial | [Authoring checkpoint](mapgyver-m03-render-foundations.md#mediachannel-authoring-contracts--2026-10-29): typed UUID references, backend defaults/size/source operations, Rust-generated contracts and actual history/reload/script coverage. Live binding and resource-recreation proof remain open. |
+| App-owned media/channel backend contracts | Partial | [Authoring](mapgyver-m03-render-foundations.md#mediachannel-authoring-contracts--2026-10-29) covers typed IDs, backend operations, generated contracts and history/reload/scripts. [Plan-owned subscriptions](mapgyver-m03-render-foundations.md#plan-owned-source-subscriptions--2026-10-29) remove the native startup restriction. App binding and resource-recreation proof remain open. |
 | Shared production-time authority | Done | [Golden Time](../../crates/golden_time/README.md) supplies checked coordinates/rational mappings and authority/discontinuity epochs consumed by the threaded video scheduler; fake-time activation/shared-output and stale-epoch tests pass. Shared P14 plan records this evidence; audio/DMX acceptance remains open. |
 | Shared persistent asset/preparation boundary | Open | Stable asset IDs/locators, worker preparation/cancellation, relocation/relink, stale fencing and full live-resource admission; shared P15 evidence remains scoped. |
 | Native preview registration/geometry contracts | Open | Reusable bindings and Rust-generated control DTOs exercised by the native consumer; specialized editors/full DPI/input stay M05. |
@@ -385,6 +387,27 @@ Preserve Chataigne's unfinished engine/Spatializer P11 checkpoint (four of six f
 and its [separate ledger](implementation-status.md). Shared P12 boundary repairs belong to M02;
 P14/P15 time and asset contracts retain their shared Golden owners under M03. Root launch
 behavior is unchanged. No production host/backend/binding decision is final yet.
+
+## M03 plan-owned subscription checkpoint — 2026-10-29
+
+- Entered from published `a307eeac` on a clean `mapgyver` checkout. Repairing the native
+  startup-only binding restriction was the next prerequisite for live app channel publication.
+  Subscriptions now travel inside revisioned plans; startup configuration reserves explicit
+  worker/storage capacity across all overlapping prepared/live/retiring sources.
+- [Subscription evidence](mapgyver-m03-render-foundations.md#plan-owned-source-subscriptions--2026-10-29)
+  and its [artifact packet](evidence/mapgyver-m03-plan-sources-2026-10-29.json) cover fresh
+  sender replacement, conflicting-ID rejection, independent worker/storage ceilings,
+  asynchronous capacity reuse and preserved live pixels/device identity. The original
+  receive/resize/reconnect cases and shared-host output smoke also pass. Public source-pressure
+  rejection preserves `Running` state, the live generation and continued frame submissions.
+- **82 regular tests + 2 explicit hardware tests pass**. Strict native app/Video/smoke and
+  default Video Clippy, both default app checks, root/Core formatting and whitespace pass.
+  A transient test-only nonblocking readback failure is preserved; its bounded readiness
+  handling uses the original five-second deadline and unchanged numerical pixel tolerances.
+- M03 remains **4/9 = 44%**, overall **3/10 = 30%**, with no denominator or budget change.
+  The app-owned demand/publication/observation bridge and resource-recreation proof are next;
+  the native subscription prerequisite does not itself close gate 5. No M01 profiling,
+  display/overlay changes or native performance qualification was performed.
 
 ## M03 media/channel authoring checkpoint — 2026-10-29
 

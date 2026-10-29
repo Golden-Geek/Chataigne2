@@ -92,6 +92,7 @@ fn direct_external_outputs_preserve_the_declared_source_contract() {
         external_textures: vec![ExternalTexture {
             id: texture(1),
             descriptor: source,
+            source: None,
         }],
         outputs: vec![output(1, 1), output(2, 1)],
         ..Default::default()
@@ -191,6 +192,7 @@ fn a_ten_thousand_pass_chain_compiles_iteratively() {
         external_textures: vec![ExternalTexture {
             id: texture(1),
             descriptor: one_pixel,
+            source: None,
         }],
         passes,
         outputs: vec![output(1, COUNT + 1)],

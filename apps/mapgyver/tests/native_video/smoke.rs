@@ -218,7 +218,7 @@ mod windows_smoke {
             Ok(NativePresentationTask::new(move |stop| {
                 let config = D3d11Config {
                     adapter,
-                    inputs: Vec::new(),
+                    inputs: Default::default(),
                     outputs: vec![
                         OutputBinding::Window {
                             id: scene::output(1),

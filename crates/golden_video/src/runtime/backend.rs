@@ -10,6 +10,10 @@ use super::identity::{CompletionToken, DeviceGeneration};
 /// Compact backend failures; native interfaces and driver-owned payloads never cross workers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Error)]
 pub enum BackendError {
+    /// Overlapping source subscriptions still consume admitted worker/storage capacity.
+    #[error("native source capacity is retained by existing or retiring subscriptions")]
+    #[cfg(all(windows, feature = "d3d11"))]
+    SourceCapacity,
     /// The owning device lifetime has ended and its completion serials are no longer usable.
     #[error("render device was lost")]
     DeviceLost,

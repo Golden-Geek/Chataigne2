@@ -57,7 +57,7 @@ mod fixture {
             config(),
             D3d11Config {
                 adapter,
-                inputs: vec![],
+                inputs: Default::default(),
                 outputs: vec![OutputBinding::Spout {
                     id: OutputId::new(1).unwrap(),
                     name: name.into(),

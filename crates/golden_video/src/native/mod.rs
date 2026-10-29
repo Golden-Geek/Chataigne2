@@ -15,7 +15,7 @@ mod outputs;
 mod pipeline;
 mod texture;
 
-pub use config::{AdapterId, D3d11Config, NativeConfigError, OutputBinding, SpoutInput, WindowTarget};
+pub use config::{AdapterId, D3d11Config, InputLimits, NativeConfigError, OutputBinding, WindowTarget};
 pub use device::{AdapterInfo, adapters};
 pub use inputs::{SourceSnapshot, SourceState};
 pub use observation::{D3d11Control, D3d11Snapshot, NativeFailure};

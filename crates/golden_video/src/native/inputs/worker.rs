@@ -7,12 +7,13 @@ use golden_io::{ReconnectBackoff, WorkerContext};
 use uuid::Uuid;
 use windows::core::{Error, HRESULT, Result};
 
-use super::super::{AdapterId, SpoutInput, completion::EventCompletion, device::Device, texture::Texture};
+use super::super::{AdapterId, completion::EventCompletion, device::Device, texture::Texture};
 use super::SourceState;
 use super::receiver::{Received, Receiver};
 use super::shared::{Publication, Shared};
 use super::surface::Slot;
 use crate::TextureDescriptor;
+use crate::plan::SpoutSource;
 use crate::runtime::{CompletionToken, DeviceGeneration};
 
 struct Session {
@@ -26,7 +27,7 @@ struct Session {
     shared: Arc<Shared>,
 }
 
-pub(super) fn run(context: WorkerContext<(), ()>, adapter: AdapterId, config: SpoutInput, shared: Arc<Shared>) {
+pub(super) fn run(context: WorkerContext<(), ()>, adapter: AdapterId, config: SpoutSource, shared: Arc<Shared>) {
     let mut retry = ReconnectBackoff::new(Duration::from_millis(100), Duration::from_secs(1));
     let mut sequence = 0_u64;
     while !context.cancellation().is_cancelled() {
@@ -54,7 +55,7 @@ pub(super) fn run(context: WorkerContext<(), ()>, adapter: AdapterId, config: Sp
 }
 
 impl Session {
-    fn new(adapter: AdapterId, config: &SpoutInput, shared: Arc<Shared>) -> Result<Self> {
+    fn new(adapter: AdapterId, config: &SpoutSource, shared: Arc<Shared>) -> Result<Self> {
         let device = Device::new(adapter)?;
         let receiver = Receiver::new(&device.device, &config.sender, config.descriptor)?;
         let completion = EventCompletion::new(&device)?;
@@ -83,7 +84,7 @@ impl Session {
         })
     }
 
-    fn serve(&mut self, context: &WorkerContext<(), ()>, config: &SpoutInput, sequence: &mut u64) -> Result<()> {
+    fn serve(&mut self, context: &WorkerContext<(), ()>, config: &SpoutSource, sequence: &mut u64) -> Result<()> {
         let mut missing = ReconnectBackoff::new(Duration::from_millis(100), Duration::from_secs(1));
         loop {
             let checkpoint = context.wake_checkpoint();
