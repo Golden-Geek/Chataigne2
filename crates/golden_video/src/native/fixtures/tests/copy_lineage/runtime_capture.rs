@@ -55,7 +55,7 @@ impl RuntimeCapture {
                 adapter,
                 inputs: InputLimits {
                     max_sources: 1,
-                    max_storage_bytes: bytes * 5,
+                    max_storage_bytes: InputLimits::source_storage_bytes(descriptor()).unwrap(),
                 },
                 outputs: vec![OutputBinding::Spout {
                     id: OutputId::new(1).unwrap(),

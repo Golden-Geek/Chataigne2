@@ -195,7 +195,8 @@ pub struct SourceCpuTrace {
     pub thread_cpu: Option<ThreadCpuDelta>,
     /// SDK receive API wall interval; no inference about freshness or blocking is made.
     pub receive_api: Option<CpuInterval>,
-    /// Bridge copy, flush and keyed-mutex handoff wall interval.
+    /// Bridge submission/flush and keyed-mutex handoff wall interval. Direct bridge copies
+    /// occur inside `receive_api`; no second image copy is implied by this field.
     pub bridge: Option<CpuInterval>,
     /// Completion query End/Flush wall interval.
     pub completion: Option<CpuInterval>,

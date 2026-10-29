@@ -111,7 +111,7 @@ fn native_config(adapter: AdapterId, output_name: String) -> D3d11Config {
         adapter,
         inputs: InputLimits {
             max_sources: 4,
-            max_storage_bytes: 5 * 5 * 4 * 4 * 4,
+            max_storage_bytes: 5 * InputLimits::source_storage_bytes(external(4, 4)).unwrap(),
         },
         outputs: vec![OutputBinding::Spout {
             id: OutputId::new(1).unwrap(),
@@ -692,7 +692,7 @@ fn hardware_inputs_receive_bound_resize_reconnect_and_retire_across_independent_
     eprintln!("dynamic subscription replacement, old-binding fence and four-source overlap bound passed");
     drop(renderer);
     let mut bytes_config = native_config(adapter.id, format!("GoldenInputBytes-{identity}"));
-    bytes_config.inputs.max_storage_bytes = 2 * 5 * 4 * 4 * 4;
+    bytes_config.inputs.max_storage_bytes = 2 * InputLimits::source_storage_bytes(external(4, 4)).unwrap();
     let mut bytes_renderer = Renderer::new(bytes_config, names.clone());
     bytes_renderer.expect_pixel([128, 0, 128, 255]);
     assert!(matches!(

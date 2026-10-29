@@ -20,6 +20,7 @@ use crate::plan::{CompiledPlan, ExternalSource, SpoutSource};
 use crate::runtime::backend::BackendError;
 use crate::{TextureDescriptor, TextureId};
 
+use super::config::INPUT_BRIDGE_SLOTS;
 use super::device::Device;
 use super::observation::SourceRegistration;
 use super::{AdapterId, D3d11Control, InputLimits};
@@ -68,7 +69,7 @@ pub struct SourceSnapshot {
     pub state: SourceState,
     /// Successful source-device sessions in this renderer lifetime.
     pub generation: u64,
-    /// Successfully created capture/bridge pools, including bounded size changes.
+    /// Successfully created bridge pools, including bounded size changes.
     pub pool_generation: u64,
     /// Owned bridge slots currently allocated, at most three.
     pub bridge_slots: usize,
@@ -101,7 +102,7 @@ struct Input {
     stopping: bool,
     shared: Arc<Shared>,
     worker: BoundedWorker<(), ()>,
-    imports: [Option<std::rc::Rc<Imported>>; 3],
+    imports: [Option<std::rc::Rc<Imported>>; INPUT_BRIDGE_SLOTS],
 }
 
 pub(super) struct SourcePool {
@@ -204,7 +205,7 @@ impl SourcePool {
                 stopping: false,
                 shared,
                 worker,
-                imports: [None, None, None],
+                imports: std::array::from_fn(|_| None),
             },
         );
         Ok(())
@@ -213,7 +214,7 @@ impl SourcePool {
     fn stop(input: &mut Input) {
         input.stopping = true;
         input.shared.quiesce();
-        input.imports = [None, None, None];
+        input.imports = std::array::from_fn(|_| None);
         input.shared.clear();
         input.shared.shutdown.store(true, Ordering::Release);
         input.shared.released.store(true, Ordering::Release);
@@ -257,7 +258,7 @@ impl SourcePool {
             .inputs
             .values()
             .try_fold(0_u64, |sum, input| {
-                sum.checked_add(input.binding.descriptor.byte_len().ok()?.checked_mul(5)?)
+                sum.checked_add(InputLimits::source_storage_bytes(input.binding.descriptor).ok()?)
             })
             .ok_or(BackendError::ResourceSizeOverflow)?;
         for source in plan.external_textures() {
@@ -275,12 +276,8 @@ impl SourcePool {
                 count += 1;
                 bytes = bytes
                     .checked_add(
-                        binding
-                            .descriptor
-                            .byte_len()
-                            .map_err(|_| BackendError::ResourceSizeOverflow)?
-                            .checked_mul(5)
-                            .ok_or(BackendError::ResourceSizeOverflow)?,
+                        InputLimits::source_storage_bytes(binding.descriptor)
+                            .map_err(|_| BackendError::ResourceSizeOverflow)?,
                     )
                     .ok_or(BackendError::ResourceSizeOverflow)?;
             }
@@ -333,7 +330,7 @@ impl SourcePool {
         for (id, input) in &mut self.inputs {
             if input.shared.retiring.load(Ordering::Acquire) && !self.readers.iter().any(|(_, source, _)| source == id)
             {
-                input.imports = [None, None, None];
+                input.imports = std::array::from_fn(|_| None);
                 input.shared.released.store(true, Ordering::Release);
             }
         }

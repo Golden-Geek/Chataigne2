@@ -145,7 +145,7 @@ fn renderer(adapter: golden_video::native::AdapterId, name: &str) -> OwnedRender
             adapter,
             inputs: InputLimits {
                 max_sources: 4,
-                max_storage_bytes: 4 * 5 * 4 * 4 * 4,
+                max_storage_bytes: 4 * InputLimits::source_storage_bytes(descriptor(4, 4)).unwrap(),
             },
             outputs: (1..=2)
                 .map(|id| OutputBinding::Spout {

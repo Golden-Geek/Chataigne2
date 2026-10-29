@@ -23,7 +23,7 @@ use super::texture::Texture;
 use super::timing::{
     CpuScope, DiagnosticContext, DiagnosticEvent, FrameCpuTrace, GpuTiming, OutputTrace, Recorder, SourceUseTrace,
 };
-use super::{D3d11Config, D3d11Control, NativeFailure, OutputBinding};
+use super::{D3d11Config, D3d11Control, InputLimits, NativeFailure, OutputBinding};
 
 mod resources;
 
@@ -136,9 +136,8 @@ impl D3d11Backend {
         let source_bytes = spout_sources.clone().try_fold(0_u64, |total, source| {
             total
                 .checked_add(
-                    bytes(source.descriptor)?
-                        .checked_mul(5)
-                        .ok_or(BackendError::ResourceSizeOverflow)?,
+                    InputLimits::source_storage_bytes(source.descriptor)
+                        .map_err(|_| BackendError::ResourceSizeOverflow)?,
                 )
                 .ok_or(BackendError::ResourceSizeOverflow)
         })?;

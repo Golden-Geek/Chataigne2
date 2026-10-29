@@ -47,7 +47,7 @@ impl BridgeCapture {
             adapter,
             InputLimits {
                 max_sources: 1,
-                max_storage_bytes: descriptor().byte_len().unwrap() * 5,
+                max_storage_bytes: InputLimits::source_storage_bytes(descriptor()).unwrap(),
             },
             &control,
             None,

@@ -168,7 +168,11 @@ fn unsupported_inputs_and_unbound_outputs_are_rejected_without_silent_fallback()
 fn input_reservations_cover_maximum_pools_while_plans_charge_actual_extents() {
     let (backend, control) = configured_backend(InputLimits {
         max_sources: 1,
-        max_storage_bytes: 5 * 4 * 4 * 4,
+        max_storage_bytes: InputLimits::source_storage_bytes(TextureDescriptor {
+            extent: Extent2D::new(4, 4).unwrap(),
+            ..descriptor()
+        })
+        .unwrap(),
     });
     let compile = |width| {
         RenderPlan {
@@ -199,10 +203,10 @@ fn input_reservations_cover_maximum_pools_while_plans_charge_actual_extents() {
         }
         .compile(&limits())
     };
-    // Uniform/sender storage plus five admitted4x4 image stores.
+    // Uniform/sender storage plus four admitted4x4 image stores.
     assert_eq!(
         backend.base_resource_bytes().unwrap(),
-        CONSTANT_BYTES + 4 + 5 * 4 * 4 * 4
+        CONSTANT_BYTES + 4 + 4 * 4 * 4 * 4
     );
     // Actual2x2 generation input plus its1x1 output conversion.
     assert_eq!(backend.resource_bytes(&compile(2).unwrap()).unwrap(), 16 + 4);
@@ -213,4 +217,20 @@ fn input_reservations_cover_maximum_pools_while_plans_charge_actual_extents() {
         control.sources().is_empty(),
         "charge validation must not start source workers"
     );
+}
+
+#[test]
+fn public_input_storage_charge_counts_four_images_and_checks_pool_overflow() {
+    let make = |width, height| TextureDescriptor {
+        extent: Extent2D::new(width, height).unwrap(),
+        ..descriptor()
+    };
+    assert_eq!(InputLimits::source_storage_bytes(make(1, 1)).unwrap(), 16);
+    assert_eq!(InputLimits::source_storage_bytes(make(4, 4)).unwrap(), 256);
+    let large = make(u32::MAX, 1_000_000_000);
+    assert!(
+        large.byte_len().is_ok(),
+        "one image fits while its complete source reservation does not"
+    );
+    assert!(InputLimits::source_storage_bytes(large).is_err());
 }

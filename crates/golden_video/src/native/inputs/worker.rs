@@ -7,10 +7,11 @@ use golden_io::{ReconnectBackoff, WorkerContext};
 use uuid::Uuid;
 use windows::core::{Error, HRESULT, Result};
 
+use super::super::config::INPUT_BRIDGE_SLOTS;
 use super::super::timing::{
     CpuScope, DiagnosticContext, DiagnosticEvent, GpuTiming, PublicationTiming, Recorder, SourceCpuTrace,
 };
-use super::super::{AdapterId, completion::EventCompletion, device::Device, texture::Texture};
+use super::super::{AdapterId, completion::EventCompletion, device::Device};
 use super::SourceState;
 use super::receiver::{Received, Receiver};
 use super::shared::{Publication, Shared};
@@ -23,7 +24,7 @@ struct Session {
     timing: Option<GpuTiming>,
     diagnostic_context: DiagnosticContext,
     receiver: Receiver,
-    capture: Option<Texture>,
+    descriptor: Option<TextureDescriptor>,
     slots: Vec<Slot>,
     completion: EventCompletion,
     device: Device,
@@ -91,7 +92,7 @@ impl Session {
             timing,
             diagnostic_context,
             receiver,
-            capture: None,
+            descriptor: None,
             slots,
             completion,
             device,
@@ -191,12 +192,7 @@ impl Session {
             return Ok(outcome);
         }
         let descriptor = self.receiver.descriptor().expect("validated receiver layout");
-        if self
-            .capture
-            .as_ref()
-            .is_none_or(|capture| capture.descriptor != descriptor)
-            && !self.rebuild(descriptor)?
-        {
+        if self.descriptor != Some(descriptor) && !self.rebuild(descriptor)? {
             return Ok(Received::Waiting);
         }
         if !self.shared.active.load(Ordering::Acquire) {
@@ -238,9 +234,10 @@ impl Session {
         self.submitted = serial;
         self.shared
             .update(|status| status.sdk_calls = status.sdk_calls.saturating_add(1));
-        let capture = self.capture.as_ref().expect("prepared capture");
         let receive_begin_qpc = recorder.and_then(Recorder::stamp);
-        let received = self.receiver.receive(capture);
+        // This free bridge slot is already write-locked. The SDK's checked caller-owned
+        // destination path copies directly into it, with no private intermediate image.
+        let received = self.receiver.receive(&slot.texture);
         let receive_api = recorder.and_then(|recorder| recorder.interval(receive_begin_qpc));
         self.shared.update(|status| match &received {
             Ok(Received::Frame) => {
@@ -253,9 +250,6 @@ impl Session {
         let bridge_begin = recorder.and_then(Recorder::stamp);
         if matches!(&received, Ok(Received::Frame)) && self.shared.active.load(Ordering::Acquire) {
             unsafe {
-                self.device
-                    .context
-                    .CopyResource(&slot.texture.texture, &capture.texture);
                 self.device.context.Flush();
             }
             writer.key = 1;
@@ -303,7 +297,7 @@ impl Session {
             self.retire_imports();
         }
         self.slots.clear();
-        self.capture = None;
+        self.descriptor = None;
         self.shared.update(|status| {
             status.bridge_slots = 0;
             status.observed_descriptor = Some(descriptor);
@@ -312,8 +306,7 @@ impl Session {
             self.shared.retiring.store(false, Ordering::Release);
             return Ok(false);
         }
-        let capture = Texture::new(&self.device.device, descriptor)?;
-        let slots = (0..3)
+        let slots = (0..INPUT_BRIDGE_SLOTS)
             .map(|index| Slot::new(&self.device, descriptor, index))
             .collect::<Result<Vec<_>>>()?;
         let next = self
@@ -324,11 +317,11 @@ impl Session {
             .pool_generation
             .checked_add(1)
             .ok_or_else(|| Error::from_hresult(HRESULT(0x8000_4005_u32 as i32)))?;
-        self.capture = Some(capture);
+        self.descriptor = Some(descriptor);
         self.slots = slots;
         self.shared.update(|status| {
             status.pool_generation = next;
-            status.bridge_slots = 3;
+            status.bridge_slots = INPUT_BRIDGE_SLOTS;
         });
         self.shared.released.store(false, Ordering::Release);
         self.shared.retiring.store(false, Ordering::Release);
@@ -397,7 +390,7 @@ impl Drop for Writer<'_> {
 impl Drop for Session {
     fn drop(&mut self) {
         // The source has its own device/context completion authority. Renderer completion alone
-        // cannot retire the SDK alias, capture texture or bridge writer's GPU work.
+        // cannot retire the SDK alias or bridge writer's GPU work.
         retire_source(
             &self.shared,
             || self.device.removed(),

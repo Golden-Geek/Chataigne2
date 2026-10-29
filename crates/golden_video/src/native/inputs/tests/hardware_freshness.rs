@@ -204,7 +204,7 @@ fn hardware_versioned_preflight_and_busy_preserve_source_publications() {
         adapter,
         InputLimits {
             max_sources: 2,
-            max_storage_bytes: 2560,
+            max_storage_bytes: 2 * InputLimits::source_storage_bytes(descriptor(8)).unwrap(),
         },
         &control,
         None,

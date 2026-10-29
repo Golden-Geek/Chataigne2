@@ -2,20 +2,21 @@
 
 ## At a glance
 
-**Updated: 2026-10-29 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
+**Updated: 2026-10-30 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
 **Current topic:** M03 remains **7/9** accepted gates. The
-[direct window rendering checkpoint](mapgyver-m03-qualification-runner.md#direct-window-backbuffer-rendering--2026-10-29)
-removes each window's conversion texture/copy and uses hardware sRGB encoding. The short Q02
-control accepts 300/300 main and 271/300 editor opportunities, with 299/299 exact accepted
-Spout captures. Renderer-context GPU p95 changes 21.7279 → 16.9713 ms; logical reserved peak
-falls 70.3125 MiB. Cadence/producer admission and full qualification still fail. No gate closes.
+[direct input bridge checkpoint](mapgyver-m03-qualification-runner.md#direct-input-bridge-receive--2026-10-29)
+removes one private texture/copy per input and centralizes admission arithmetic. The short Q02
+control accepts 300/300 main and Spout, 296/300 editor, with 300/300 exact captures. GPU p95
+changes 16.9713 → 15.5987 ms. Input reservation falls 35.15625 MiB, but total recorded logical
+peak rises 505,036,864 → 575,078,464 bytes. Producer/editor cadence and full qualification
+remain open; no gate closes.
 
 **Next:** address the remaining Q02 output/producer cadence and GPU cost; complete GPU
 critical-path and native buffer/GPU-queue measurements (gate 9), then address remaining
 cadence, capture coverage and growth qualification. Native
 device removal and bounded stuck retirement retain gate 4.
-**Blocker:** Q02 editor/Spout cadence, producer admission and GPU cost remain insufficient.
+**Blocker:** Q02 editor cadence, producer admission and GPU cost remain insufficient.
 The latest accepted-Spout capture cohort is complete, but does not establish displayed
 cadence or three-output age. Prior Q02 window deadline failures remain open. Full GPU
 critical-path and native buffer/GPU-queue coverage remain unavailable. Genuine device removal
@@ -282,6 +283,10 @@ Direct window rendering now removes two conversion textures and copies. Its Q02 
 full main acceptance and exact accepted-Spout coverage, but editor/Spout/producer cadence and
 the GPU budget remain insufficient. The output interval's median stays near 9.5 ms even as
 its p95 and the enclosing renderer p95 fall; do not treat that as a complete critical-path fix.
+The direct input receive path now removes private capture staging and one GPU copy per input.
+The next control retains complete main/Spout acceptance and exact captures, but producer/editor
+cadence remains insufficient. Its higher logical reservation peak is preserved, despite the
+smaller per-source allocation; native buffer/queue and generation-overlap evidence remain distinct.
 Complete GPU critical-path and queue/consumption measurement
 before the prescribed qualification series (gate 9).
 Genuine native device-removal recovery and bounded stuck-drain retirement retain gate 4.
@@ -431,6 +436,36 @@ Preserve Chataigne's unfinished engine/Spatializer P11 checkpoint (four of six f
 and its [separate ledger](implementation-status.md). Shared P12 boundary repairs belong to M02;
 P14/P15 time and asset contracts retain their shared Golden owners under M03. Root launch
 behavior is unchanged. No production host/backend/binding decision is final yet.
+
+## M03 direct input bridge receive — 2026-10-29
+
+The source worker now passes a free write-locked bridge slot directly to the pinned SDK's
+receive-into API. It removes the private capture texture and capture-to-bridge copy, retaining
+three slots, source/renderer completion authorities, static-image freshness, withdrawal and
+resize/reconnect fences. `InputLimits::source_storage_bytes` shares one checked layout with
+backend validation, source-pool admission and app fixtures: three bridge images plus one
+sender alias. Source counts, pacing, marker identities and workload ceilings are unchanged.
+
+The [packet](evidence/mapgyver-m03-direct-bridge-2026-10-29.json) and
+[raw controls](evidence/mapgyver-m03-direct-bridge-controls-2026-10-29.zip) preserve new release
+Q01/Q02 controls and the prior immutable baseline reference. Each uses five-second warmup/
+sample and one-second interruption intervals, on the existing Intel route. Q02 main/Spout/
+editor acceptance changes 300/299/271 → 300/300/296, with 300/300 exact Spout captures and no
+invalid comparisons. Renderer GPU p95/p99 changes 16.9713/18.3391 → 15.5987/16.0877 ms; median
+changes 13.2066 → 13.4602 ms. Q01 retains 300/300 outputs/captures and GPU p95 3.2120 ms.
+Producer admission still fails; Q01 source A acceptance worsens 299 → 288/300.
+
+Q02 baseline reservation falls 291,225,664 → 254,361,664 bytes (35.15625 MiB), while the recorded
+total peak rises 505,036,864 → 575,078,464 bytes. The latter equals the new baseline plus three
+106,905,600-byte generation charges; the prior peak equals its baseline plus two. This arithmetic
+does not identify the unsampled transient roles or physical residency. Both peaks remain below
+the unchanged 1 GiB bound, and no growth/retirement gate is closed.
+
+Final checks: 153 ordinary Rust tests, 15 Golden native tests, two app-native channel/Picture
+tests, 92 production Python tests, strict clippy, release runner and both Rust formatters pass.
+Development checks caught and fixed an old admission multiplier and a missing app-fixture import.
+No displayed age, critical-path, queue, genuine removal or full-series pass is inferred.
+**M03 stays 7/9 (78%); overall stays 3/10 (30%)**.
 
 ## M03 direct window backbuffer rendering — 2026-10-29
 

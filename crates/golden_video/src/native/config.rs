@@ -7,6 +7,8 @@ use thiserror::Error;
 use crate::runtime::{RuntimeConfig, RuntimeStartError};
 use crate::{AlphaMode, ColorEncoding, Extent2D, OutputId, PixelFormat, TextureDescriptor};
 
+pub(super) const INPUT_BRIDGE_SLOTS: usize = 3;
+
 /// DXGI adapter LUID. Enumeration indices are not persistent adapter identity.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AdapterId {
@@ -109,9 +111,23 @@ pub struct D3d11Config {
 pub struct InputLimits {
     /// Maximum overlapping subscriptions/workers, including those still retiring; at most 32.
     pub max_sources: usize,
-    /// Admitted descriptor storage for capture + three bridge slots + sender alias per input.
+    /// Admitted descriptor storage for three bridge slots and one sender alias per input.
     /// This capacity stays reserved even while unused; physical driver residency is separate.
     pub max_storage_bytes: u64,
+}
+
+impl InputLimits {
+    /// Checked conservative storage for one source: three bridge images plus its sender alias.
+    /// This is a logical admission charge, not a measurement of physical driver residency.
+    pub fn source_storage_bytes(descriptor: TextureDescriptor) -> Result<u64, crate::TextureError> {
+        descriptor
+            .byte_len()?
+            .checked_mul(INPUT_BRIDGE_SLOTS as u64 + 1)
+            .ok_or(crate::TextureError::ByteSizeOverflow {
+                width: descriptor.extent.width(),
+                height: descriptor.extent.height(),
+            })
+    }
 }
 
 impl D3d11Config {

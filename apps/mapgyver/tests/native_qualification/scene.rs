@@ -4,6 +4,7 @@ use std::{num::NonZeroUsize, time::Duration};
 
 use golden_io::WorkerNotifier;
 use golden_time::RationalRate;
+use golden_video::native::InputLimits;
 use golden_video::plan::{
     BlitRegion, ExternalSource, ExternalTexture, PlanLimits, PlanOutput, RenderOperation, RenderPass, RenderPlan,
     SampleFilter, SpoutSource, UnitRect,
@@ -42,7 +43,7 @@ pub fn source_extents(output: Extent2D) -> [Extent2D; 2] {
 pub fn input_bytes(output: Extent2D) -> u64 {
     source_extents(output)
         .into_iter()
-        .map(|extent| source_descriptor(extent).byte_len().unwrap() * 5)
+        .map(|extent| InputLimits::source_storage_bytes(source_descriptor(extent)).unwrap())
         .sum()
 }
 

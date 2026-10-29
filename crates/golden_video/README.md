@@ -288,17 +288,21 @@ consumer delivery or scanout. Opaque API waits remain part of native cadence qua
 color/alpha, polling interval and admitted maximum extent. Bindings travel inside the same
 revisioned plan as their consumers. `D3d11Config::inputs` reserves `InputLimits` before native
 allocation: at most 32 overlapping source workers and an explicit descriptor-storage capacity.
-That capacity remains charged while unused; each subscription consumes five maximum-size
-images (capture, three bridge slots and sender alias). Old/prepared/retiring subscriptions share
+That capacity remains charged while unused; each subscription consumes four maximum-size
+image charges (three bridge slots and sender alias). The public checked
+`InputLimits::source_storage_bytes` derives this charge from the same slot count used by
+allocation and renderer import caches; apps do not duplicate pool-layout arithmetic.
+Old/prepared/retiring subscriptions share
 these limits. Each source owns a Golden IO worker and a separate
 device on the selected adapter. Prepared resource generations hold demand leases, warming inputs
 before activation; discarding the last demand stops receive polling. SDK work never runs in the
 renderer or engine loop.
 
-The public receive-into API uses admitted capture storage instead of an SDK-allocated receiving
-copy. Three NT-handle/keyed-mutex bridge slots coalesce input; capacity is checked before receive.
+The public receive-into API copies directly into a free, write-locked bridge slot, without an
+SDK-allocated receiving image or a private capture-to-bridge copy. Three NT-handle/keyed-mutex
+bridge slots coalesce input; capacity is checked before receive.
 Renderer imports stay local and retain reader leases through renderer completion. Source-device
-completion separately protects SDK aliases and writer/capture work. Resize retires old readers
+completion separately protects SDK aliases and bridge-writer work. Resize retires old readers
 and cached aliases before replacing its pool within the same reservation. Source snapshots report
 actual extents; a plan must adopt that descriptor before copying the resized input. Missing or
 mismatched input has zero storage (black for opaque descriptors), with explicit source state.
@@ -311,7 +315,7 @@ explicit resource-pressure outcome without waiting for retirement on the rendere
 snapshots carry a subscription UUID in addition to device/texture/session identity.
 
 A retiring source session withdraws its latest publication, enters `Recovering` and invalidates
-its observation guard before draining source-device completion. Reader, capture, bridge and SDK
+its observation guard before draining source-device completion. Reader, bridge and SDK
 ownership remain retained through their respective completion fences. Query failures remain
 visible in source metadata; cancellation and a renderer release acknowledgment do not establish
 source-device completion. A persistently failing or blocked drain can still retain ownership

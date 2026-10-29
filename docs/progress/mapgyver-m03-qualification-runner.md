@@ -764,6 +764,60 @@ default/native all-target Clippy, generated fixture contracts, release x64 build
 formatters. Full cadence/repetition, GPU/queue/deadline, growth/handle, genuine removal/stuck
 retirement and M05 physical observations remain open. **M03 stays 7/9; overall stays 3/10 (30%)**.
 
+## Direct input bridge receive — 2026-10-29
+
+`native/inputs/worker.rs` receives directly into its already write-locked free bridge slot.
+The SDK checks/copies the foreign sender into that caller-owned destination; the private
+capture image and subsequent copy disappear. A successful receive retains the existing flush,
+keyed handoff and publication sequence. Busy, unchanged, inactive, mismatch and error paths do
+not publish a slot. Source-device completion still precedes reuse, and renderer reader leases
+still prevent overwrite. Resize/recovery drains old owners before replacing the three-slot pool.
+
+The public checked `InputLimits::source_storage_bytes` derives four image charges from the
+same bridge-slot constant used by allocation and import caches. Backend validation, source-pool
+admission and app/test fixtures consume it. Overflow is tested both for minimal storage and
+for a descriptor whose single image fits while the whole source reservation overflows.
+No producer pacing/retry, source identity, slot count, frame budget or overall ceiling changes.
+The derived per-source reservation decreases because the allocation was removed. SourceCpu's
+`receive_api` contains the direct copy; `bridge` measures flush/handoff without implying a
+second image copy. Raw DTO fields and artifact schema 7 are unchanged.
+
+The [packet](evidence/mapgyver-m03-direct-bridge-2026-10-29.json) and
+[new raw archive](evidence/mapgyver-m03-direct-bridge-controls-2026-10-29.zip) reference the
+immutable [direct-window baseline](evidence/mapgyver-m03-direct-window-controls-2026-10-29.zip).
+Controls retain the same Intel route, five-second warmup/sample, one-second interruptions,
+60 Hz pacing, two inputs, queue limits and fixed scenes. There is no PresentMon collector.
+
+| Short native observation | Prior Q02 | Direct-bridge Q02 | Direct-bridge Q01 |
+| --- | ---: | ---: | ---: |
+| Main / Spout / editor acceptance, expected 300 each | 300/299/271 | 300/300/296 | 300/300/300 |
+| Exact accepted Spout captures | 299/299 | 300/300 | 300/300 |
+| Renderer context GPU p95 / p99 (ms) | 16.9713 / 18.3391 | 15.5987 / 16.0877 | 3.2120 / 3.7696 |
+| Renderer context median (ms) | 13.2066 | 13.4602 | 2.8399 |
+| Producer A / B accepted opportunities | 295/292 | 294/293 | 288/296 |
+| Spout source-age p95 A / B (ms) | 32.7012 / 37.9231 | 27.1990 / 33.5152 | 17.3411 / 22.8673 |
+| Logical reserved peak (bytes) | 505,036,864 | 575,078,464 | 144,691,264 |
+
+Each new GPU cohort contains all 300 CPU-start-selected frames with ordered stage partitions.
+The baseline Q02 cohort retains its documented 299-frame boundary case; all cadence/deadline
+denominators stay 300. Q01's source A acceptance worsens 299 → 288, and source B age p95 rises
+10.7016 → 22.8673 ms. These mixed observations and Q02's higher median/total reservation peak
+are retained, without a broad causal performance claim from short sequential controls.
+
+The fixed Q02 baseline reservation decreases by 36,864,000 bytes, from 291,225,664 to 254,361,664.
+The recorded total peak instead rises: it equals the new baseline plus three full generation
+charges, compared with two in the prior control. Sparse snapshots do not identify the precise
+transient roles at that peak. This is logical reservation accounting, not GPU residency or a
+leak diagnosis, and the unchanged 1 GiB bound is respected. Repetition/growth, calibrated queues,
+native buffer occupancy, full GPU critical path and genuine removal/stuck retirement remain open.
+
+Validation: 149 library plus four public integration tests, all 15 Golden native tests and two
+app-native channel/Picture tests, 92 Python tests, strict clippy, final release build and both
+Rust formatters pass. The native matrix covers bridge pixels, actual busy access, demand pulses,
+resize/reconnect, capacity/retirement, source withdrawal and exact GPU marker lineage. Final
+logs follow repairs to one stale admission multiplier and an app-fixture import; no failed
+qualification history is overwritten. **M03 stays 7/9; overall stays 3/10.**
+
 ## Direct window backbuffer rendering — 2026-10-29
 
 The measured output interval motivates a change at Golden Video's native output boundary.
