@@ -11,6 +11,10 @@ struct PanickingSubmit {
 impl Backend for PanickingSubmit {
     type Resources = <NullBackend as Backend>::Resources;
 
+    fn initialize(&mut self) -> Result<(), BackendError> {
+        self.inner.initialize()
+    }
+
     fn resource_bytes(&self, plan: &CompiledPlan) -> Result<u64, BackendError> {
         self.inner.resource_bytes(plan)
     }
@@ -74,7 +78,7 @@ fn unwinding_submission_keeps_its_generation_until_the_claimed_use_completes() {
             .unwrap(),
             entered: entered_tx,
         };
-        let mut core = RenderCore::new(
+        let mut core = RenderCore::admit(
             backend,
             device,
             ResourceLimits {
@@ -84,6 +88,7 @@ fn unwinding_submission_keeps_its_generation_until_the_claimed_use_completes() {
             },
         )
         .unwrap();
+        core.initialize().unwrap();
         let prepared = core
             .prepare(
                 PlanIdentity {

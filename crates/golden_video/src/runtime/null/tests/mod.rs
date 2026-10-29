@@ -22,6 +22,7 @@ fn explicit_device_loss_wakes_a_worker_only_completion_wait() {
     let (started, ready) = mpsc::channel();
     let worker = thread::spawn(move || {
         let mut backend = NullBackend::new(NullConfig::default(), device, worker_control.clone()).unwrap();
+        backend.initialize().unwrap();
         {
             let mut state = worker_control.0.state.lock().unwrap();
             state.snapshot.last_submitted = Some(CompletionToken { device, serial: 1 });
@@ -35,4 +36,64 @@ fn explicit_device_loss_wakes_a_worker_only_completion_wait() {
     ready.recv_timeout(Duration::from_secs(2)).unwrap();
     control.lose_device();
     worker.join().unwrap();
+}
+
+#[test]
+fn initial_allocation_failures_do_not_initialize_or_replace_the_bound_device() {
+    let control = NullControl::new();
+    let device = DeviceGeneration::new(Uuid::new_v4(), 0);
+    let mut backend = NullBackend::new(
+        NullConfig {
+            initialization_failures: 2,
+            ..Default::default()
+        },
+        device,
+        control.clone(),
+    )
+    .unwrap();
+    assert_eq!(control.snapshot().device, Some(device));
+    assert_eq!(control.snapshot().initialization_attempts, 0);
+    assert!(!control.snapshot().initialized);
+    assert_eq!(backend.completion(), Err(BackendError::AllocationFailed));
+    for attempts in 1..=2 {
+        assert_eq!(backend.initialize(), Err(BackendError::AllocationFailed));
+        let snapshot = control.snapshot();
+        assert_eq!(snapshot.initialization_attempts, attempts);
+        assert_eq!(snapshot.device, Some(device));
+        assert!(!snapshot.initialized);
+        assert!(!snapshot.device_lost);
+        assert_eq!(snapshot.created, 0);
+        assert_eq!(snapshot.reset_attempts, 0);
+    }
+    backend.initialize().unwrap();
+    assert!(control.snapshot().initialized);
+    assert_eq!(control.snapshot().initialization_attempts, 3);
+    backend.initialize().unwrap();
+    assert_eq!(control.snapshot().initialization_attempts, 3);
+    drop(backend);
+    assert!(!control.snapshot().initialized);
+}
+
+#[test]
+fn initialization_failure_budget_can_be_released_without_injecting_device_loss() {
+    let control = NullControl::new();
+    let device = DeviceGeneration::new(Uuid::new_v4(), 0);
+    let mut backend = NullBackend::new(
+        NullConfig {
+            initialization_failures: usize::MAX,
+            ..Default::default()
+        },
+        device,
+        control.clone(),
+    )
+    .unwrap();
+    assert_eq!(backend.initialize(), Err(BackendError::AllocationFailed));
+    control.fail_next_initializations(0);
+    backend.initialize().unwrap();
+    let snapshot = control.snapshot();
+    assert!(snapshot.initialized);
+    assert!(!snapshot.device_lost);
+    assert_eq!(snapshot.device, Some(device));
+    assert_eq!(snapshot.initialization_attempts, 2);
+    assert_eq!(snapshot.reset_attempts, 0);
 }

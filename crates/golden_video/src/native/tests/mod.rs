@@ -3,6 +3,7 @@ use windows::Win32::Graphics::Direct3D::ID3DBlob;
 use windows::core::s;
 
 mod contracts;
+pub(in crate::native) mod initialization_gate;
 pub(in crate::native) mod pixels;
 
 #[test]

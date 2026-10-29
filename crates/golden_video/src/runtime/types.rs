@@ -207,7 +207,7 @@ pub struct RuntimeSnapshot {
     pub project: ProjectEpoch,
     /// Last accepted time observation/mapping.
     pub time: TimeSnapshot,
-    /// Worker-owned resource accounting once the backend exists.
+    /// Worker-owned accounting once the baseline is admitted, including pending initialization.
     pub resources: Option<ResourceSnapshot>,
     /// Whether one CPU preparation is in flight.
     pub preparing: bool,

@@ -20,6 +20,10 @@ pub enum BackendError {
     /// Allocation failed; partially created resources have already been released.
     #[error("render resource allocation failed")]
     AllocationFailed,
+    /// The selected backend lacks a required initialization capability or valid native contract.
+    #[error("render backend initialization is unsupported")]
+    #[cfg(all(windows, feature = "d3d11"))]
+    UnsupportedInitialization,
     /// Submission was rejected before the proposed token acquired any GPU use.
     #[error("render submission failed before GPU use")]
     SubmissionFailed,
@@ -45,8 +49,9 @@ pub(crate) trait Backend {
         Ok(0)
     }
 
-    /// Allocates the admitted baseline without submitting untracked GPU work. On failure,
-    /// the backend is dropped while its reservation remains held, including partial resources.
+    /// Allocates the admitted baseline without submitting GPU work. Failure must dispose all
+    /// partial native resources before returning. AllocationFailed can be retried on this same
+    /// owner while its original baseline reservation remains held; other errors are terminal.
     fn initialize(&mut self) -> Result<(), BackendError> {
         Ok(())
     }

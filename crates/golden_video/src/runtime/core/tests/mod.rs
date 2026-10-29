@@ -31,7 +31,7 @@ impl Fixture {
             control.clone(),
         )
         .unwrap();
-        let core = RenderCore::new(
+        let mut core = RenderCore::admit(
             backend,
             device,
             ResourceLimits {
@@ -41,6 +41,7 @@ impl Fixture {
             },
         )
         .unwrap();
+        core.initialize().unwrap();
         Self { core, control, runtime }
     }
 
@@ -428,7 +429,7 @@ fn actual_resource_destruction_precedes_budget_release() {
         budget: None,
         used_at_drop: used_at_drop.clone(),
     };
-    let mut core = RenderCore::new(
+    let mut core = RenderCore::admit(
         backend,
         device,
         ResourceLimits {
@@ -438,6 +439,7 @@ fn actual_resource_destruction_precedes_budget_release() {
         },
     )
     .unwrap();
+    core.initialize().unwrap();
     core.backend.budget = Some(core.budget.clone());
     let identity = PlanIdentity {
         project: ProjectEpoch::new(runtime, 0),

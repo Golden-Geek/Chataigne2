@@ -8,6 +8,44 @@ use crate::runtime::core::CoreError;
 use crate::runtime::types::{FailureCode, RuntimeFailure, RuntimeState};
 
 impl<B: Backend> Runner<B> {
+    pub(super) fn initialize(&mut self, time: Option<TimeSnapshot>) -> bool {
+        if self.context.cancellation().is_cancelled() || self.shared.lock().closing {
+            return false;
+        }
+        if self.core.has_initialized() {
+            return true;
+        }
+        if self.retry_at.is_some_and(|retry| Instant::now() < retry) {
+            return false;
+        }
+        match self.core.initialize() {
+            Ok(()) => {
+                self.retry_at = None;
+                self.recovery.reset();
+                let time = time.unwrap_or_else(|| self.shared.snapshot().time);
+                self.cadence = super::Cadence::new(self.config.frame_rate, time.monotonic());
+                self.shared.backend_recovered();
+                {
+                    let mut state = self.shared.lock();
+                    if !state.closing && state.snapshot.state == RuntimeState::Starting {
+                        state.snapshot.state = RuntimeState::Running;
+                    }
+                }
+                self.shared.notify();
+                !self.context.cancellation().is_cancelled() && !self.shared.lock().closing
+            }
+            Err(error) => {
+                self.fault(RuntimeFailure::new(FailureCode::Backend, error));
+                if error == CoreError::Backend(BackendError::AllocationFailed) {
+                    self.retry_at = Some(self.recovery.schedule(Instant::now()));
+                } else {
+                    self.shared.close();
+                }
+                false
+            }
+        }
+    }
+
     pub(super) fn core_fault(&mut self, error: CoreError, time: Option<TimeSnapshot>) {
         if matches!(
             error,
@@ -176,7 +214,9 @@ impl<B: Backend> Runner<B> {
 
         // Closing never waits on reply capacity. Resource waits stay on this worker, and a
         // timeout does not drop resources or falsely authorize destruction of its native window.
-        loop {
+        // Pending initialization has never admitted native work. It must not query a device
+        // that does not exist or turn an allocation failure into a fabricated device loss.
+        while self.core.has_initialized() {
             match self.core.poll_completion() {
                 Ok(()) if !self.core.has_pending_uses() => break,
                 Err(CoreError::Backend(BackendError::DeviceLost)) => {

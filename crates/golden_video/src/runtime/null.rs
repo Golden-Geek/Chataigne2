@@ -14,6 +14,8 @@ use super::identity::{CompletionToken, DeviceGeneration};
 /// Qualification backend settings. No pixel buffers or native interfaces are created.
 #[derive(Clone, Copy, Debug)]
 pub struct NullConfig {
+    /// Fail this many initial baseline allocations before succeeding in the same device lifetime.
+    pub initialization_failures: usize,
     /// Complete successful simulated submissions immediately.
     pub auto_complete: bool,
     /// Extra simulated allocation charge for each distinct texture.
@@ -25,6 +27,7 @@ pub struct NullConfig {
 impl Default for NullConfig {
     fn default() -> Self {
         Self {
+            initialization_failures: 0,
             auto_complete: true,
             padding_per_texture: 0,
             preparation_delay: Duration::ZERO,
@@ -37,6 +40,10 @@ impl Default for NullConfig {
 pub struct NullSnapshot {
     /// Device bound to this control; absent before backend startup.
     pub device: Option<DeviceGeneration>,
+    /// Initial baseline allocation attempts, including injected failures.
+    pub initialization_attempts: u64,
+    /// This backend currently has an initialized device, rather than only a bound identity.
+    pub initialized: bool,
     /// Number of simulated texture objects constructed over this lifetime.
     pub created: u64,
     /// Number of simulated texture objects destroyed over this lifetime.
@@ -64,6 +71,7 @@ pub struct NullSnapshot {
 #[derive(Default)]
 struct State {
     snapshot: NullSnapshot,
+    fail_initializations: usize,
     fail_prepare_after: Option<usize>,
     fail_submit: bool,
     fail_resets: usize,
@@ -95,6 +103,18 @@ impl NullControl {
     /// Observes control changes through an existing nonblocking worker notification.
     pub(crate) fn set_waker(&self, waker: WorkerNotifier) {
         self.0.state.lock().unwrap_or_else(|p| p.into_inner()).waker = Some(waker);
+    }
+
+    /// Fails this many remaining initial allocation attempts; zero permits the next retry.
+    /// Changing this budget wakes service without representing completion or device removal.
+    pub fn fail_next_initializations(&self, attempts: usize) {
+        let waker = {
+            let mut state = self.0.state.lock().unwrap_or_else(|p| p.into_inner());
+            state.fail_initializations = attempts;
+            state.changed = state.changed.wrapping_add(1);
+            state.waker.clone()
+        };
+        self.notify(waker);
     }
 
     /// Advances the current device's simulated completion. Foreign/older tokens are ignored.
@@ -145,6 +165,7 @@ impl NullControl {
         let waker = {
             let mut state = self.0.state.lock().unwrap_or_else(|p| p.into_inner());
             state.snapshot.device_lost = true;
+            state.snapshot.initialized = false;
             state.changed = state.changed.wrapping_add(1);
             state.waker.clone()
         };
@@ -210,6 +231,7 @@ impl NullBackend {
                 return Err(BackendError::AlreadyBound);
             }
             state.snapshot.device = Some(device);
+            state.fail_initializations = config.initialization_failures;
             state.snapshot.completed = Some(CompletionToken { device, serial: 0 });
             state.snapshot.last_submitted = Some(CompletionToken { device, serial: 0 });
         }
@@ -225,6 +247,8 @@ impl NullBackend {
         let snapshot = self.control.snapshot();
         if snapshot.device_lost || snapshot.device != Some(self.device) {
             Err(BackendError::DeviceLost)
+        } else if !snapshot.initialized {
+            Err(BackendError::AllocationFailed)
         } else {
             Ok(())
         }
@@ -233,6 +257,23 @@ impl NullBackend {
 
 impl Backend for NullBackend {
     type Resources = NullResources;
+
+    fn initialize(&mut self) -> Result<(), BackendError> {
+        let mut state = self.control.0.state.lock().unwrap_or_else(|p| p.into_inner());
+        if state.snapshot.device_lost || state.snapshot.device != Some(self.device) {
+            return Err(BackendError::DeviceLost);
+        }
+        if state.snapshot.initialized {
+            return Ok(());
+        }
+        state.snapshot.initialization_attempts = state.snapshot.initialization_attempts.saturating_add(1);
+        if state.fail_initializations != 0 {
+            state.fail_initializations -= 1;
+            return Err(BackendError::AllocationFailed);
+        }
+        state.snapshot.initialized = true;
+        Ok(())
+    }
 
     fn resource_bytes(&self, plan: &CompiledPlan) -> Result<u64, BackendError> {
         self.check_device()?;
@@ -371,12 +412,25 @@ impl Backend for NullBackend {
         self.device = device;
         state.snapshot.device = Some(device);
         state.snapshot.device_lost = false;
+        state.snapshot.initialized = true;
         state.snapshot.completed = Some(CompletionToken { device, serial: 0 });
         state.snapshot.last_submitted = Some(CompletionToken { device, serial: 0 });
         state.snapshot.last_submission_time = None;
         state.changed = state.changed.wrapping_add(1);
         self.control.0.changed.notify_all();
         Ok(())
+    }
+}
+
+impl Drop for NullBackend {
+    fn drop(&mut self) {
+        let waker = {
+            let mut state = self.control.0.state.lock().unwrap_or_else(|p| p.into_inner());
+            state.snapshot.initialized = false;
+            state.changed = state.changed.wrapping_add(1);
+            state.waker.clone()
+        };
+        self.control.notify(waker);
     }
 }
 

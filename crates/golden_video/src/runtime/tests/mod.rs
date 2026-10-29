@@ -26,6 +26,7 @@ mod ownership;
 mod recovery;
 mod recovery_project;
 mod scheduling;
+mod startup;
 
 const DEADLINE: Duration = Duration::from_secs(5);
 

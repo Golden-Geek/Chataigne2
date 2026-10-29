@@ -45,6 +45,14 @@ retirement pools. One preparation and the latest desired plan feed frame-boundar
 reliable outcomes retain admission credits until drained. Worker-local backend resources remain
 charged across prepared/live/retiring generations until matching device completion. Control drop
 does not join; the host must observe actual retirement before destroying an owned native window.
+The core admits the complete baseline before initializing the backend and distinguishes pending,
+ready and confirmed-lost stages. Initial `AllocationFailed` results retry with capped background
+backoff in the same first device generation; invalid limits, budget rejection and unsupported capabilities
+remain terminal. Pending startup still serves time/project intents and retains the latest desired
+plan, while preparation and completion service wait for initialized resources. The resource
+snapshot's `initialized` flag records first success through later device loss; backend/native
+`initialized` observations describe resources currently present. Cancellation wakes waits between
+attempts but cannot guarantee interruption of a blocked driver call or early baseline release.
 The null backend exercises ownership with simulated allocation/completion. The optional Windows
 backend now executes demanded clear/sample/composite passes, all four blend modes and declared
 color/alpha conversion on D3D11. Native output pools belong to the device lifetime and reserve a
@@ -416,7 +424,7 @@ alongside successful frames; the renderer must keep serving healthy independent 
 An endpoint error does not authorize device-wide resource discard: the native device must report
 removal. Output retries reset their backoff after actual API acceptance, and quiescing cancels
 future retries. Clock intents do not clear unrelated runtime faults; recovery is reported when
-service resumes. The M03 recovery gate remains open for retry after initial whole-device allocation
-failure, genuine device-removal qualification and finite bounds for stuck source/driver drains.
+service resumes. The M03 recovery gate remains open for genuine device-removal qualification and
+finite bounds for stuck source/driver drains.
 Immediate source withdrawal protects visibility and stale-plan fences while those drains retain
 ownership; it does not establish that cleanup has completed.

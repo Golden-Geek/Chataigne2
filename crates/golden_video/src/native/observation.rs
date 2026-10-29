@@ -27,6 +27,8 @@ pub struct D3d11Snapshot {
     pub device: Option<DeviceGeneration>,
     /// Whether initialized native resources currently exist.
     pub initialized: bool,
+    /// Saturating count of actual baseline initialization attempts, including failures.
+    pub initialization_attempts: u64,
     /// GPU command batches with an established completion query.
     pub submitted: u64,
     /// Immutable CPU images supplied as initial data at native texture creation, never per frame.
@@ -116,6 +118,8 @@ struct OutputRegistry {
 /// Metadata-only native observation reader. It never retains devices, contexts or textures.
 #[derive(Clone, Default)]
 pub struct D3d11Control {
+    #[cfg(test)]
+    pub(super) initialization_gate: Arc<Mutex<Option<super::tests::initialization_gate::InitializationGate>>>,
     pub(super) source_notifier: Arc<Mutex<Option<golden_io::WorkerNotifier>>>,
     output_notifier: Arc<Mutex<Option<golden_io::WorkerNotifier>>>,
     state: Arc<Mutex<D3d11Snapshot>>,

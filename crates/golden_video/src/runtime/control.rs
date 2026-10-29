@@ -107,6 +107,20 @@ impl VideoRuntime {
         )
     }
 
+    #[cfg(all(test, windows, feature = "d3d11"))]
+    pub(crate) fn spawn_d3d11_with_control(
+        config: RuntimeConfig,
+        native: crate::native::D3d11Config,
+        control: crate::native::D3d11Control,
+    ) -> Result<Self, RuntimeStartError> {
+        native.validate(&config)?;
+        Self::spawn(
+            config,
+            Arc::new(SystemClock::new()),
+            BackendStart::D3d11(native, control),
+        )
+    }
+
     fn spawn(config: RuntimeConfig, clock: Arc<dyn Clock>, backend: BackendStart) -> Result<Self, RuntimeStartError> {
         if config.max_input_bytes > config.max_retained_input_bytes {
             return Err(RuntimeStartError::InvalidConfig(

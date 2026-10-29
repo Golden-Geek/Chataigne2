@@ -72,6 +72,9 @@ pub struct ResourceSnapshot {
     pub last_submitted: CompletionToken,
     /// Latest validated completion on this device.
     pub last_completed: CompletionToken,
+    /// Whether first initialization succeeded. Remains true through later device-loss recovery;
+    /// `device_lost` fences that separate stage. False never authorizes GPU use or completion.
+    pub initialized: bool,
     /// Whether a backend operation confirmed device loss.
     pub device_lost: bool,
 }
@@ -79,6 +82,9 @@ pub struct ResourceSnapshot {
 /// Worker-local admission or backend error.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Error)]
 pub enum CoreError {
+    /// Baseline admission succeeded but first backend initialization has not.
+    #[error("render backend has not initialized")]
+    NotInitialized,
     /// Captured authoring/prepared-asset state changed before resource admission.
     #[error("render plan source changed before preparation")]
     StaleSource,
@@ -132,6 +138,7 @@ pub enum CoreError {
 /// Non-destructive installation rejection.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum InstallFailure {
+    NotInitialized,
     StaleSource,
     RetirementFull,
     ForeignDevice,
@@ -226,6 +233,13 @@ struct LiveGeneration<R> {
     last_use: u64,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum DeviceState {
+    Uninitialized,
+    Ready,
+    Lost,
+}
+
 pub(crate) struct RenderCore<B: Backend> {
     backend: B,
     device: DeviceGeneration,
@@ -237,14 +251,15 @@ pub(crate) struct RenderCore<B: Backend> {
     generation: u64,
     submitted: u64,
     completed: u64,
-    device_lost: bool,
+    device_state: DeviceState,
     rebuild: Option<(PlanIdentity, CompiledPlan)>,
     // Last field: even failed initialization/unwinding drops the backend before its charge.
     _base_lease: BudgetLease,
 }
 
 impl<B: Backend> RenderCore<B> {
-    pub(crate) fn new(backend: B, device: DeviceGeneration, limits: ResourceLimits) -> Result<Self, CoreError> {
+    /// Reserves the complete baseline before native initialization, which may be retried.
+    pub(crate) fn admit(backend: B, device: DeviceGeneration, limits: ResourceLimits) -> Result<Self, CoreError> {
         if limits.max_in_flight.get() > 2 {
             return Err(CoreError::InvalidLimits("at most two in-flight batches"));
         }
@@ -269,7 +284,7 @@ impl<B: Backend> RenderCore<B> {
             bytes,
             prepared: false,
         };
-        let mut core = Self {
+        Ok(Self {
             backend,
             device,
             limits,
@@ -280,12 +295,28 @@ impl<B: Backend> RenderCore<B> {
             generation: 0,
             submitted: 0,
             completed: 0,
-            device_lost: false,
+            device_state: DeviceState::Uninitialized,
             rebuild: None,
             _base_lease: base_lease,
-        };
-        core.backend.initialize().map_err(|error| core.backend_error(error))?;
-        Ok(core)
+        })
+    }
+
+    pub(crate) fn initialize(&mut self) -> Result<(), CoreError> {
+        match self.device_state {
+            DeviceState::Ready => return Ok(()),
+            DeviceState::Lost => return Err(CoreError::Backend(BackendError::DeviceLost)),
+            DeviceState::Uninitialized => {}
+        }
+        // A failed first allocation is not a published device loss. Partial cleanup belongs
+        // to the backend, while this original baseline charge and device identity stay held.
+        self.backend.initialize()?;
+        self.device_state = DeviceState::Ready;
+        Ok(())
+    }
+
+    /// Distinguishes pending first allocation from later confirmed-loss/reset service.
+    pub(crate) fn has_initialized(&self) -> bool {
+        self.device_state != DeviceState::Uninitialized
     }
 
     pub(crate) fn prepare(
@@ -354,7 +385,9 @@ impl<B: Backend> RenderCore<B> {
     ) -> Result<GenerationInfo, InstallError<B::Resources>> {
         let reason = if !prepared.plan().admission_is_current() {
             Some(InstallFailure::StaleSource)
-        } else if self.device_lost {
+        } else if self.device_state == DeviceState::Uninitialized {
+            Some(InstallFailure::NotInitialized)
+        } else if self.device_state == DeviceState::Lost {
             Some(InstallFailure::DeviceLost)
         } else if prepared.info.device != self.device {
             Some(InstallFailure::ForeignDevice)
@@ -432,12 +465,14 @@ impl<B: Backend> RenderCore<B> {
     }
 
     pub(crate) fn poll_completion(&mut self) -> Result<(), CoreError> {
+        self.ensure_device()?;
         let token = self.backend.completion().map_err(|error| self.backend_error(error))?;
         self.complete(token)?;
         Ok(())
     }
 
     pub(crate) fn complete(&mut self, token: CompletionToken) -> Result<bool, CoreError> {
+        self.ensure_device()?;
         if token.device != self.device || token.serial < self.completed {
             return Ok(false);
         }
@@ -491,13 +526,14 @@ impl<B: Backend> RenderCore<B> {
     }
 
     pub(crate) fn wait_for_completion(&mut self, timeout: Duration) -> Result<(), CoreError> {
+        self.ensure_device()?;
         self.backend
             .wait_for_completion(timeout)
             .map_err(|error| self.backend_error(error))
     }
 
     pub(crate) fn lose_device(&mut self) -> Result<(), CoreError> {
-        if !self.device_lost {
+        if self.device_state != DeviceState::Lost {
             return Err(CoreError::DeviceNotLost);
         }
         if self.budget.borrow().prepared != 0 {
@@ -523,7 +559,7 @@ impl<B: Backend> RenderCore<B> {
         self.device = device;
         self.submitted = 0;
         self.completed = 0;
-        self.device_lost = false;
+        self.device_state = DeviceState::Ready;
         Ok(self.rebuild.take())
     }
 
@@ -545,20 +581,23 @@ impl<B: Backend> RenderCore<B> {
                 device: self.device,
                 serial: self.completed,
             },
-            device_lost: self.device_lost,
+            initialized: self.has_initialized(),
+            device_lost: self.device_state == DeviceState::Lost,
         }
     }
 
     fn ensure_device(&self) -> Result<(), CoreError> {
-        if self.device_lost {
-            Err(CoreError::Backend(BackendError::DeviceLost))
-        } else {
-            Ok(())
+        match self.device_state {
+            DeviceState::Uninitialized => Err(CoreError::NotInitialized),
+            DeviceState::Ready => Ok(()),
+            DeviceState::Lost => Err(CoreError::Backend(BackendError::DeviceLost)),
         }
     }
 
     fn backend_error(&mut self, error: BackendError) -> CoreError {
-        self.device_lost |= error == BackendError::DeviceLost;
+        if error == BackendError::DeviceLost {
+            self.device_state = DeviceState::Lost;
+        }
         CoreError::Backend(error)
     }
 }
@@ -569,7 +608,7 @@ impl<B: Backend> Drop for RenderCore<B> {
         // This core is constructed and retained only by the render worker. Even an unwind
         // cannot certify retirement while native uses remain: keep its lifetime/window gate
         // held until completion or confirmed loss, then dispose resources before the backend.
-        while self.has_pending_uses() && !self.device_lost {
+        while self.has_pending_uses() && self.device_state != DeviceState::Lost {
             match self.poll_completion() {
                 Ok(()) if self.has_pending_uses() => {
                     let _ = self.wait_for_completion(Duration::from_millis(10));

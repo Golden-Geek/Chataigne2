@@ -19,6 +19,9 @@ mod commands;
 mod lifecycle;
 mod plans;
 
+#[cfg(test)]
+mod tests;
+
 struct Candidate<R> {
     resources: PreparedGeneration<R>,
     request: PlanRequest,
@@ -113,7 +116,7 @@ fn run_backend<B: Backend>(
     let prepare_pool = preparation_lifetimes.clone();
     let result = catch_unwind(AssertUnwindSafe(move || {
         let backend = create()?;
-        let core = RenderCore::new(backend, device, config.resource_limits)
+        let core = RenderCore::admit(backend, device, config.resource_limits)
             .map_err(|error| RuntimeFailure::new(FailureCode::ResourcePressure, error))?;
         let preparation = preparation::start(
             &prepare_pool,
@@ -181,12 +184,7 @@ fn run_backend<B: Backend>(
 
 impl<B: Backend> Runner<B> {
     fn run_loop(&mut self) {
-        {
-            let mut state = self.shared.lock();
-            if !state.closing {
-                state.snapshot.state = RuntimeState::Running;
-            }
-        }
+        self.publish_snapshot();
         self.shared.notify();
         loop {
             // Capture before servicing domain state: a publication during service cannot be lost.
@@ -196,19 +194,26 @@ impl<B: Backend> Runner<B> {
             }
             self.commands();
             let time = self.observe_time();
-            if let Err(error) = self.core.poll_completion() {
-                self.core_fault(error, time);
-            }
-            self.retry_rebuild(time);
-            self.quiesce_old_project();
-            self.validate_prepared(time);
-            self.preparation_result(time);
-            self.start_preparation(time);
-            if let Some(time) = self.observe_time() {
-                self.frame(time);
+            if self.initialize(time) {
+                if let Err(error) = self.core.poll_completion() {
+                    self.core_fault(error, time);
+                }
+                self.retry_rebuild(time);
+                self.quiesce_old_project();
+                self.validate_prepared(time);
+                self.preparation_result(time);
+                self.start_preparation(time);
+                if let Some(time) = self.observe_time() {
+                    self.frame(time);
+                }
             }
             self.finish_projects();
             self.publish_snapshot();
+            // Fatal startup can close before the caller installs Shared's wake notifier.
+            // Never depend on a notification to observe a close made by this same service.
+            if self.context.cancellation().is_cancelled() || self.shared.lock().closing {
+                break;
+            }
             if !self.shared.lock().commands.is_empty() {
                 continue;
             }
@@ -246,7 +251,8 @@ impl<B: Backend> Runner<B> {
 
     fn deadline(&self, time: Option<TimeSnapshot>) -> Instant {
         let Some(time) = time else {
-            return Instant::now() + Duration::from_millis(50);
+            let poll = Instant::now() + Duration::from_millis(50);
+            return self.retry_at.map_or(poll, |retry| retry.min(poll));
         };
         let project = self.shared.lock().project;
         let rendering = self

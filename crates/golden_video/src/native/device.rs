@@ -7,7 +7,8 @@ use windows::Win32::Graphics::Direct3D11::{
     D3D11_CREATE_DEVICE_BGRA_SUPPORT, D3D11_SDK_VERSION, D3D11CreateDevice, ID3D11Device, ID3D11DeviceContext,
 };
 use windows::Win32::Graphics::Dxgi::{
-    CreateDXGIFactory1, DXGI_ADAPTER_FLAG_SOFTWARE, DXGI_ERROR_NOT_FOUND, IDXGIAdapter1, IDXGIFactory1,
+    CreateDXGIFactory1, DXGI_ADAPTER_FLAG_SOFTWARE, DXGI_ERROR_NOT_FOUND, DXGI_ERROR_UNSUPPORTED, IDXGIAdapter1,
+    IDXGIFactory1,
 };
 use windows::core::{Error, HRESULT, Result};
 
@@ -78,7 +79,10 @@ impl Device {
                 Err(error) => return Err(error),
             };
             let info = describe(&adapter)?;
-            if info.id == id && !info.software {
+            if info.id == id {
+                if info.software {
+                    return Err(Error::from_hresult(DXGI_ERROR_UNSUPPORTED));
+                }
                 selected = Some(adapter);
                 break;
             }

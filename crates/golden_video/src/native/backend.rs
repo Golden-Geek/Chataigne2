@@ -4,6 +4,9 @@ use std::time::Duration;
 
 use golden_io::WorkerNotifier;
 use golden_time::TimeSnapshot;
+use windows::Win32::Foundation::{E_INVALIDARG, E_NOINTERFACE};
+use windows::Win32::Graphics::Dxgi::{DXGI_ERROR_INVALID_CALL, DXGI_ERROR_UNSUPPORTED};
+use windows::core::HRESULT;
 
 use crate::plan::{BlendMode, CompiledPlan, ExternalSource, RenderOperation, SampleFilter};
 use crate::runtime::backend::{Backend, BackendError};
@@ -113,9 +116,25 @@ impl D3d11Backend {
     }
 
     fn allocate(&mut self) -> Result<(), BackendError> {
+        debug_assert!(self.native.is_none());
         self.control.clear_outputs();
+        self.control.update(|state| {
+            state.initialized = false;
+            state.adapter = None;
+            state.device = None;
+            state.initialization_attempts = state.initialization_attempts.saturating_add(1);
+        });
         let result = (|| {
-            let device = Device::new(self.config.adapter)?;
+            let selected = self.config.adapter;
+            #[cfg(test)]
+            let selected = self
+                .control
+                .initialization_gate
+                .lock()
+                .unwrap_or_else(|error| error.into_inner())
+                .as_ref()
+                .map_or(selected, |gate| gate.adapter(selected));
+            let device = Device::new(selected)?;
             let pipeline = Pipeline::new(&device.device)?;
             let completion = EventCompletion::new(&device)?;
             let outputs = OutputPool::new(
@@ -148,16 +167,20 @@ impl D3d11Backend {
                     state.device = Some(self.generation);
                     state.initialized = true;
                     state.failure = None;
+                    state.hresult = None;
                 });
                 Ok(())
             }
             Err(error) => {
+                self.control.clear_outputs();
                 self.control.update(|state| {
                     state.initialized = false;
+                    state.adapter = None;
+                    state.device = None;
                     state.failure = Some(NativeFailure::Initialization);
                     state.hresult = Some(error.code().0);
                 });
-                Err(BackendError::AllocationFailed)
+                Err(initialization_error(error.code()))
             }
         }
     }
@@ -181,7 +204,7 @@ impl Backend for D3d11Backend {
     }
 
     fn initialize(&mut self) -> Result<(), BackendError> {
-        self.allocate()
+        if self.native.is_some() { Ok(()) } else { self.allocate() }
     }
 
     fn quiesce(&mut self) {
@@ -455,7 +478,22 @@ impl Drop for D3d11Backend {
     fn drop(&mut self) {
         self.native = None;
         self.control.clear_outputs();
-        self.control.update(|state| state.initialized = false);
+        self.control.update(|state| {
+            state.initialized = false;
+            state.adapter = None;
+            state.device = None;
+        });
+    }
+}
+
+fn initialization_error(error: HRESULT) -> BackendError {
+    match error {
+        DXGI_ERROR_INVALID_CALL | DXGI_ERROR_UNSUPPORTED | E_INVALIDARG | E_NOINTERFACE => {
+            BackendError::UnsupportedInitialization
+        }
+        // Missing selected hardware and transient driver/allocation failures can recover on
+        // the same admitted baseline. No initialization HRESULT establishes device loss.
+        _ => BackendError::AllocationFailed,
     }
 }
 

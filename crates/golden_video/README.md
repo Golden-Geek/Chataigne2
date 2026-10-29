@@ -45,6 +45,21 @@ Native accounting reserves the fixed backend baseline before creating its pools,
 plan targets, compositing scratch and output conversion textures separately. Its owned texture
 pool/constant-buffer charge is not measured driver residency, padding or native-object overhead.
 
+Baseline admission precedes backend initialization. The render core distinguishes pending first
+initialization, ready service and confirmed device loss. Initial `AllocationFailed` results retry
+on the worker with capped, cancellable backoff, retaining the original baseline reservation and
+first device identity. Invalid limits, budget rejection and unsupported capabilities are terminal;
+an initialization failure does not manufacture device loss or advance the device generation.
+While initialization is pending, the worker continues serving time/project intents and retaining
+the latest desired plan. Plan preparation and GPU completion service begin after initialization.
+
+`ResourceSnapshot.initialized` records the first successful initialization and remains true through
+later loss/reconstruction; `device_lost` identifies that separate stage. Native
+`D3d11Snapshot.initialized` and qualification `NullSnapshot.initialized` report whether their backend
+currently has initialized resources. Cancellation wakes retry waits between attempts; it cannot
+guarantee interruption of a blocked driver call. Cleanup and baseline release still require actual
+owner retirement, including partial allocations from a failed attempt.
+
 `golden_io` supplies bounded workers, cancellation, publication fences, readiness and off-publisher
 input disposal. The runtime retains one latest desired plan, one CPU preparation, one prepared
 candidate, at most two submitted batches and two retiring generations. Request credits bound
@@ -205,8 +220,8 @@ The SDK can transiently open a changed foreign alias
 before post-update validation; owned pools and published descriptors stay bounded, but this is
 not a hard driver-residency guarantee.
 
-The M03 recovery gate remains open for retry after initial whole-device allocation failure,
-genuine device-removal qualification and bounded recovery from stuck source/driver drains.
+The M03 recovery gate remains open for genuine device-removal qualification and bounded recovery
+from stuck source/driver drains.
 Physical backing-buffer resize, production output/editor integration and sustained native
 qualification retain their [M03 acceptance gates](../../docs/progress/mapgyver-status.md#m03-acceptance-items).
 The [input/native evidence](../../docs/progress/mapgyver-m03-render-foundations.md#bounded-spout-inputs--2026-10-29)
@@ -214,8 +229,8 @@ closes the native execution mechanism gate; full native qualification stays open
 
 Run `cargo test --locked -p golden_video -p golden_time -p golden_io` for contract, worker/null
 runtime and shared-time coverage. On Windows, add `--features golden_video/d3d11` for native
-contracts and real shader compilation. The ignored hardware pixel test is a separate explicit
-run; it uses finite readbacks outside the production frame path. The owned host consumer runs
+contracts and real shader compilation. Hardware cases remain separate explicit runs; their finite
+pixel oracles use readbacks outside the production frame path. The owned host consumer runs
 with `cargo run --locked -p MapGyver --features native-video-smoke --bin native_video_smoke -- --adapter <index>`
 and reports the observed adapter/LUID. Its API-acceptance and retirement checks do not establish
 scanout, delivery, physical/DPI correctness or Q01/Q02 budgets.

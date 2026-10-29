@@ -739,3 +739,72 @@ Review after the first regular pass found the close/late-time race and overlappi
 the final shared-state implementation and two new regressions resolve both. No native tolerance,
 resource limit, qualification budget or gate denominator was relaxed. This is a useful partial
 gate-4 checkpoint, not a native device-removal or complete recovery pass.
+
+## Admitted startup retries — 2026-10-29
+
+This resolves the initial-allocation gap recorded by the preceding endpoint checkpoint, without
+converting it into a complete recovery pass. Golden Video's worker owns retries and control
+service; `RenderCore` owns admission/readiness and the backend owns partial native cleanup.
+
+Core admission reserves the complete baseline before any native allocation. Explicit initialization
+then moves its typed device state from Uninitialized to Ready; only an observed later loss can
+enter Lost. Pending preparation, submission, completion and waits return NotInitialized without
+calling the backend. A failed first allocation leaves the original reservation and first device
+identity intact. Initialization is idempotent after success; it cannot be used to bypass the
+confirmed-loss/reset path. Partial native objects are disposed before a failed attempt returns,
+while the original baseline charge remains held.
+
+The worker retries AllocationFailed with the existing configured capped backoff. Missing selected
+adapter, allocation pressure and an unpublished device-removal error can retry; unsupported native
+capabilities/contracts are terminal. Software adapter selection is explicitly unsupported, with
+no WARP or alternate-adapter fallback. Invalid limits and baseline pressure still fail before
+native initialization. A terminal startup checks close before sleeping, including the race where
+the caller has not installed Shared's wake notifier yet.
+
+While pending, project/time commands and reliable outcomes remain responsive. One latest desired
+plan stays admitted without CPU/GPU plan preparation; superseded or replaced-project work cannot
+revive after startup succeeds. Cancellation wakes the retry wait and retires actual owners. This
+does not promise interruption of a blocked OS/driver call. Successful initialization resolves only
+the Backend fault domain and resets cadence/backoff; unresolved Time faults and close fences
+remain effective. The latest error stays diagnostic history after serving resumes.
+
+`ResourceSnapshot.initialized` records first successful initialization and remains true through
+later confirmed-loss recovery; `device_lost` identifies that distinct stage. Native control's
+`initialized` instead reports currently existing native state, with adapter/device absent during
+failed initial attempts and after final cleanup. Its saturating attempt count reports actual
+native factory attempts. Successful native initialization clears its current initialization
+HRESULT; no pixels or GPU objects enter these observations.
+
+The test-only selector lives under `native/tests/`, scoped to one owned control. It chooses a
+verified nonexistent LUID while closed, so the real DXGI factory path reports adapter absence,
+then releases to the original configured hardware LUID. The ordinary production constructor and
+retry path are shared; production has no selector gate or fallback policy. This proves recovery
+from unavailable initial selection, not physical adapter removal or hotplug identity policy.
+
+The [startup evidence packet](evidence/mapgyver-m03-startup-retry-2026-10-29.json) records the final
+regular/native checks and exact artifacts. Pure coverage also verifies partial-object destruction
+under a held reservation, no pre-initialization GPU calls, same-device retries, latest-plan/time
+and project controls, cancellation during a ten-second backoff, and terminal failure without an
+installed wake notifier. Earlier evidence packets preserve the previously missing startup route.
+
+Final checks pass **147 regular tests** (30 app, 113 Video unit and four public Video), all
+**six Golden hardware tests**, and both app native tests. The startup native case makes four
+real factory attempts, holds its pending 320-byte baseline/peak with zero submissions, then
+installs the retained plan on the same first device. Active reservation/peak is 832 bytes under
+the unchanged 65,536-byte fixture ceiling; two frames submit and its output accepts a token from
+that device. Actual native retirement clears current device/adapter/output observations.
+The app regressions retain authoring and record 46 channel frames and six Picture frames/four
+uploads before controlled recreation.
+
+Both shared-host smokes pass: the real Svelte preview reports six phases, 103 frames and 206
+accepted output calls; window-only/Spout-only/resized output reports cumulative acceptance
+5/10/20 and unchanged peak reservations 3,953,728/5,142,592/5,372,992 bytes. Runtime retirement
+precedes owned HWND release. Strict default/native all-target Clippy, both-app compilation,
+generated drift, root/Core formatting and whitespace checks pass. UI source, wire contracts and
+lockfiles are unchanged; static UI checks were not repeated. The test-only fixture move into
+`native/tests/` was followed by final Rust/native verification and artifact recapture.
+
+M03 remains **7/9 = 78%**, overall **3/10 = 30%**, with unchanged denominators and budgets. Genuine
+native device-removal/recreation and bounded retirement under stuck source SDK/query work remain
+gate 4. The production Q01/Q02 qualification runner is next under gate 9; no M01 investigation,
+display/overlay change or native performance/physical-output pass is inferred.
