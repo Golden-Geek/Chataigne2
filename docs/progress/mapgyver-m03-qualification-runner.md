@@ -764,6 +764,61 @@ default/native all-target Clippy, generated fixture contracts, release x64 build
 formatters. Full cadence/repetition, GPU/queue/deadline, growth/handle, genuine removal/stuck
 retirement and M05 physical observations remain open. **M03 stays 7/9; overall stays 3/10 (30%)**.
 
+## DMA packet decoder boundary — 2026-10-30
+
+The app-owned [offline diagnostic](../../tools/mapgyver/trace-packets/README.md) exercises
+Microsoft's pinned [TraceProcessor API](https://learn.microsoft.com/en-us/windows/apps/trace-processing/tutorial).
+It exports only the renderer and three fixture PIDs from an existing native manifest. The
+Rust runtime, shaders, SDK, scene, pacing, admission, DTOs and graphics settings are unchanged.
+The scope is decoder/provider feasibility, not a performance comparison or qualification run.
+
+Three short Intel adapter-0 Q02 controls retain 2 s warmup, 3 s sample and 1 s per interruption:
+
+1. An owned UUID xperf user session with DxgKrnl and Kernel-Process providers starts/stops
+   successfully and reports zero loss, but decodes no DMA packets. Its native process exits 0.
+2. A UUID WPR built-in GPU profile finishes the native run, but an undersized 15 s stop/merge
+   timeout kills the stop subprocess. Its incomplete ETL is unavailable evidence. The exact
+   named recording is subsequently verified inactive.
+3. The same profile with `-skipPdbGen` and a 120 s subprocess bound stops successfully after
+   the native process exits 0 and reaps its children. Final metadata reports zero lost events
+   and buffers. The completed ETL is 1,181,745,152 bytes (1.10 GiB) and decodes 19,263 packets
+   across the system, of which 16,272 belong to the four manifest PIDs.
+
+| Owned role | Decoded packets | Complete timing records |
+| --- | --- | --- |
+| Renderer | 9,638 | 0 |
+| Source A | 2,512 | 0 |
+| Source B | 2,332 | 0 |
+| Consumer | 1,790 | 0 |
+
+All seven timing fields on every owned packet have `has_value=true` **and** `is_partial=true`.
+The API rejects raw timestamp access in that state. Both bundled and installed-toolkit probe
+configurations show the same absent complete timing coverage. The cause is undetermined;
+there is no driver, HAGS, power, display or overlay change. Queue times stay null. No zero
+queue, per-frame GPU activity, selected-adapter mapping, native-buffer occupancy or calibrated
+critical path is inferred. Trace-local adapter/node IDs and process packet counts cannot
+replace exact D3D11 context/batch/source/output joins.
+
+The exporter records manifest/ETL hashes before and after processing, its assembly and decoder
+identities, and the locked native-toolkit files. Its Python audit keeps the entire packet
+denominator, checks identity/clocks/loss/order/duration consistency and rejects fabricated
+values on partial records. Eight new tests cover these limits; all 267 Python tests pass.
+Locked C# restore/build has zero warnings/errors; C# whitespace verification and both required
+Rust formatters pass. Native production tests are not rerun because production code is unchanged.
+
+The [evidence](evidence/mapgyver-m03-dma-boundary-2026-10-30.json) and
+[filtered raw archive](evidence/mapgyver-m03-dma-boundary-controls-2026-10-30.zip) preserve the
+unsuccessful controls, owned native artifacts, exported packet records, derived analysis and
+validation. Experimental wrappers did not fingerprint the native binary/sources before and
+after capture; no immutable-input performance comparison is claimed. The full system-wide
+ETL stays local and is identified by hash. The historical capture script was evolved between
+controls; their recorded commands, rather than its final contents, identify each invocation.
+
+The built-in profile's size and unavailable timings do not justify repeating it without a
+concrete decoder/provider change. Return to Q02 output cost and producer/editor cadence.
+Full queue/critical-path measurements and genuine removal/stuck retirement stay required;
+**M03 remains 7/9 and overall progress 30%**.
+
 ## Direct input bridge receive — 2026-10-29
 
 `native/inputs/worker.rs` receives directly into its already write-locked free bridge slot.

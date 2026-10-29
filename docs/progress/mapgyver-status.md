@@ -5,6 +5,10 @@
 **Updated: 2026-10-30 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
 **Current topic:** M03 remains **7/9** accepted gates. The
+[DMA decoder experiment](mapgyver-m03-qualification-runner.md#dma-packet-decoder-boundary--2026-10-30)
+finds 16,272 owned packets but zero complete timing records; queue/critical-path coverage
+stays unavailable. The experiment is bounded and will not be repeated without a concrete
+decoder/provider change. The last production
 [direct input bridge checkpoint](mapgyver-m03-qualification-runner.md#direct-input-bridge-receive--2026-10-29)
 removes one private texture/copy per input and centralizes admission arithmetic. The short Q02
 control accepts 300/300 main and Spout, 296/300 editor, with 300/300 exact captures. GPU p95
@@ -12,7 +16,7 @@ changes 16.9713 → 15.5987 ms. Input reservation falls 35.15625 MiB, but total 
 peak rises 505,036,864 → 575,078,464 bytes. Producer/editor cadence and full qualification
 remain open; no gate closes.
 
-**Next:** address the remaining Q02 output/producer cadence and GPU cost; complete GPU
+**Next:** return to the remaining Q02 output/producer cadence and GPU cost; complete GPU
 critical-path and native buffer/GPU-queue measurements (gate 9), then address remaining
 cadence, capture coverage and growth qualification. Native
 device removal and bounded stuck retirement retain gate 4.
@@ -287,6 +291,10 @@ The direct input receive path now removes private capture staging and one GPU co
 The next control retains complete main/Spout acceptance and exact captures, but producer/editor
 cadence remains insufficient. Its higher logical reservation peak is preserved, despite the
 smaller per-source allocation; native buffer/queue and generation-overlap evidence remain distinct.
+The bounded DMA decoder experiment now preserves all 16,272 owned packet records, with all
+timing fields partial. Its zero reported ETW loss does not establish queue coverage. Do not
+repeat the built-in WPR GPU profile without a concrete decoder/provider change; return to
+Q02 output GPU cost and producer/editor cadence. No graphics settings were changed.
 Complete GPU critical-path and queue/consumption measurement
 before the prescribed qualification series (gate 9).
 Genuine native device-removal recovery and bounded stuck-drain retirement retain gate 4.
@@ -436,6 +444,22 @@ Preserve Chataigne's unfinished engine/Spatializer P11 checkpoint (four of six f
 and its [separate ledger](implementation-status.md). Shared P12 boundary repairs belong to M02;
 P14/P15 time and asset contracts retain their shared Golden owners under M03. Root launch
 behavior is unchanged. No production host/backend/binding decision is final yet.
+
+## M03 DMA decoder boundary — 2026-10-30
+
+The app-owned [offline exporter](../../tools/mapgyver/trace-packets/README.md) uses Microsoft's
+locked TraceProcessor API. It filters the four manifest PIDs, preserves partial/missing values
+as null, records decoder/input hashes and refuses to overwrite evidence. Its analyzer retains
+every exported packet, reports missing fields and checks loss, clocks, identity and ordering.
+No runtime, workload, shader, queue depth, DTO or graphics-setting change is made.
+
+The [native experiment and limitations](mapgyver-m03-qualification-runner.md#dma-packet-decoder-boundary--2026-10-30)
+retain the two unsuccessful capture controls and the completed GPU-profile capture. The latter
+has zero reported final ETW loss but 16,272/16,272 owned packet timings partial, so queue and
+critical-path acceptance remain unavailable. The 1.10 GiB system-wide ETL stays local; only
+filtered observations and owned native artifacts are published. The profile is not added to
+routine qualification. Root/Core formatting, a strict locked C# build and all 267 Python tests
+pass, including eight new packet-coverage tests. **M03 stays 7/9; overall stays 30%.**
 
 ## M03 direct input bridge receive — 2026-10-29
 

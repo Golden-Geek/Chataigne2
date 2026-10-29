@@ -39,6 +39,8 @@ target
 !/apps/mapgyver/icons/icon.ico
 /tools/mapgyver/native-probe/ui/dist/
 /tools/mapgyver/native-probe/gen/
+/tools/mapgyver/trace-packets/bin/
+/tools/mapgyver/trace-packets/obj/
 
 # Reproducible language and test caches
 **/node_modules/

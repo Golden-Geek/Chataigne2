@@ -1,0 +1,389 @@
+{
+	"schema_version": 1,
+	"evidence_kind": "m03_dma_decoder_boundary_not_qualification",
+	"date": "2026-10-30",
+	"baseline_commit": "baed134f195c824757ccaaf5aded9b9f66a38c9e",
+	"native_implementation_changed": false,
+	"qualification_gate_closed": false,
+	"progress": {
+		"M03_completed_gates": 7,
+		"M03_total_gates": 9,
+		"completed_phases": 3,
+		"total_phases": 10
+	},
+	"complete_capture": {
+		"start": [
+			"wpr",
+			"-start",
+			"GPU",
+			"-filemode",
+			"-instancename",
+			"MapGyver-M03-Dma-82648f644f3946c3ade13d5e5c7120e5"
+		],
+		"session": "MapGyver-M03-Dma-82648f644f3946c3ade13d5e5c7120e5",
+		"start_result": {
+			"command": [
+				"wpr",
+				"-start",
+				"GPU",
+				"-filemode",
+				"-instancename",
+				"MapGyver-M03-Dma-82648f644f3946c3ade13d5e5c7120e5"
+			],
+			"exit_code": 0,
+			"stdout": "",
+			"stderr": ""
+		},
+		"native": {
+			"exit_code": 0,
+			"timed_out": false,
+			"forced_cleanup": false,
+			"owned_job_active_before_close": 0,
+			"elapsed_seconds": 10.189206700015347,
+			"exit_observed_qpc": 3147335302136,
+			"qpc_frequency": 10000000,
+			"job_assignment_atomic": false,
+			"watchdog_scope": "one newly created renderer and its inherited job descendants"
+		},
+		"stop_result": {
+			"command": [
+				"wpr",
+				"-stop",
+				"D:\\Projects\\Dev\\Chataigne2\\target\\qualification-dma-wpr-complete-q02-2026-10-30\\dma.etl",
+				"-skipPdbGen",
+				"-instancename",
+				"MapGyver-M03-Dma-82648f644f3946c3ade13d5e5c7120e5"
+			],
+			"exit_code": 0,
+			"stdout": "Press Ctrl+C to cancel the stop operation.\nThe trace was successfully saved.\n",
+			"stderr": ""
+		}
+	},
+	"native_executable_sha256_observed_at_packaging": "a966621de9b45555de0b19ebfc44cafd4b2b9c9a30516fc51fb68d0f4b25f425",
+	"native_fingerprint_limitation": "Experimental capture wrapper did not hash sources/binary before and after execution; no immutable execution-input or performance comparison is claimed.",
+	"source_etl": {
+		"local_path": "D:\\Projects\\Dev\\Chataigne2\\target\\qualification-dma-wpr-complete-q02-2026-10-30\\dma.etl",
+		"bytes": 1181745152,
+		"sha256": "c83e12183cd604dde33cb1121a490b8b58bcac0b89783d2e814d41cb59bd3d9e",
+		"published": false,
+		"scope": "system-wide ETL; retained locally, excluded from published filtered archive"
+	},
+	"decoder": {
+		"package_version": "1.12.10",
+		"runtime": "8.0.6",
+		"modules": [
+			{
+				"name": "Microsoft.Windows.EventTracing.Graphics.dll",
+				"sha256": "f197b6314a0776af903cd5507ce6bfee76ab38d0792395df40d800f8cc17144f"
+			},
+			{
+				"name": "Microsoft.Windows.EventTracing.Processes.dll",
+				"sha256": "6f140046aed85d1ed9fad4f11af0eeb09100bf5e16a88f3a1b3aaa025936601f"
+			},
+			{
+				"name": "Microsoft.Windows.EventTracing.Processing.dll",
+				"sha256": "d3dc9524cfbeef6f9f79dda2adb5723ed33dc8efdb56088991ebce5502f70a7e"
+			}
+		],
+		"toolkit_files": {
+			"msdia140.dll": "0a08a0fb5625f323a604821f9d456779041f7cf812f32ac6e946ce36e92366d6",
+			"perf_dynamic.dll": "902202d9ae1ca6e92d883e93be6be72d3e3d69ee1d3bb6b6f2911e7279bd0308",
+			"perf_e3.dll": "1250a3fac974427bea495226e0433ac9252a60bbb394f3445bad382c173c9c2b",
+			"perf_frames.dll": "f100c0ec797c1fb19b42befd06b786518519c81e709ed6f3493facdf4ebea79b",
+			"perf_heapsnapshot.dll": "eddc9b153b951e371ec3601c3efd5b5990ff0706ee6922218669bf572e614d67",
+			"perf_memory.dll": "2e7ba6901106bb2e50c4dfe84c9ab25b06705287f42349960d0181f3ea8e2be9",
+			"perf_nt_g.dll": "3c35b526fc2510bfec84a08db16cb23f12e3e666111ce4a2e851d478487df0d4",
+			"perf_nt.dll": "88a097f2360c3be4b846ac09752e993bd209b8027b93dec2286f4c4102b16e89",
+			"perf_onoff.dll": "2e28a36415742699c879d48623551321a00a046686b1f6b43548237705a0ff70",
+			"perf_pep.dll": "f8079e4d8aa513fae34b95debc43eb93f3c5ebb657857d3b3145ee7d4625a9ee",
+			"perf_pmc.dll": "f77c1fc4c46df35fe592cfb80bd1070ae15378a00c06e6cec80a60eda52c2284",
+			"perf_pofx.dll": "ab3248b77dd8b013408cb65833a0608324b0c2b195cee1d7551e4cf92e241d96",
+			"perf_pool.dll": "b41f64cfe26292ef5887dca08ad1015e50b30e3d94b0c282dd835b462cbe6dca",
+			"perf_ppm.dll": "761d1bd7f49a57366187979cb973ce78dcdb239a9e9587ea649adb380fdcaa30",
+			"perf_regions.dll": "d2cd6df37cba0b3dfa4d79a342e56b68b5f204b7abef19b948c41503be31ecc1",
+			"perf_tdh.dll": "5151a1f93a16f9fab20503adbc9cdc3e6c017ba6a1e5aa8addf92af896df1a65",
+			"perf_utc.dll": "26cda98e47c81dab80972555ad22fce87e2f70718e2948a9f52da8af54aa3cbc",
+			"perf_wininet.dll": "9385d219a75ffae4662e1caf024c12429d1c0a384db8fb3e16e4c1b38ddc1bb1",
+			"perf_wpp.dll": "9ec1bf8da1b30e6ad6ba018878910d9e5fbd442bbbffa3435ee90cf6e1e10c85",
+			"perf_wpr.dll": "7dd7f586841467c5ae72a359741e4b4eb91328432b932436f3a5bb44efb4e7c2",
+			"perfcore.dll": "9a255b6afc44d68dc85ceb475daf6ddb9313b3facb455fcbc8c198dbeb5c04d6",
+			"perfg.dll": "726f709ab42d317d14bd19441836ef3e92d01446a8e6c0a449411cf9923f5aa8",
+			"symcache.dll": "6415b95ab62aba8bcc781b30981edb77ac561a757d010c050730f6f3b9b2648e",
+			"symsrv.dll": "c86171e400db0ac6ef955d433f909f59400e368789c8631828342add87885c4f"
+		},
+		"exporter_sha256": "dbd72c9b34fe0775a612914b0797c2f9472a90f7378e75fd3176635a8a96a033"
+	},
+	"packet_analysis": {
+		"schema_version": 1,
+		"evidence_kind": "owned_dma_packet_coverage_not_qualification",
+		"run_id": "721888a0-e6c9-48e5-81e2-699bc431036c",
+		"clock_compatible": true,
+		"lost_events": 0,
+		"lost_buffers": 0,
+		"timing_coverage_complete": false,
+		"roles": [
+			{
+				"role": "renderer",
+				"pid": 9124,
+				"expected_packets": 9638,
+				"complete_packets": 0,
+				"unavailable_packets": 9638,
+				"missing_fields": {
+					"software_submit": 9638,
+					"hardware_submit": 9638,
+					"execution_start": 9638,
+					"execution_complete": 9638,
+					"software_queue": 9638,
+					"hardware_queue": 9638,
+					"execution": 9638
+				},
+				"timing_coverage_complete": false,
+				"observed_complete_packet_intervals": {
+					"software_queue": null,
+					"hardware_queue": null,
+					"execution": null
+				}
+			},
+			{
+				"role": "source-1",
+				"pid": 51064,
+				"expected_packets": 2512,
+				"complete_packets": 0,
+				"unavailable_packets": 2512,
+				"missing_fields": {
+					"software_submit": 2512,
+					"hardware_submit": 2512,
+					"execution_start": 2512,
+					"execution_complete": 2512,
+					"software_queue": 2512,
+					"hardware_queue": 2512,
+					"execution": 2512
+				},
+				"timing_coverage_complete": false,
+				"observed_complete_packet_intervals": {
+					"software_queue": null,
+					"hardware_queue": null,
+					"execution": null
+				}
+			},
+			{
+				"role": "source-2",
+				"pid": 28448,
+				"expected_packets": 2332,
+				"complete_packets": 0,
+				"unavailable_packets": 2332,
+				"missing_fields": {
+					"software_submit": 2332,
+					"hardware_submit": 2332,
+					"execution_start": 2332,
+					"execution_complete": 2332,
+					"software_queue": 2332,
+					"hardware_queue": 2332,
+					"execution": 2332
+				},
+				"timing_coverage_complete": false,
+				"observed_complete_packet_intervals": {
+					"software_queue": null,
+					"hardware_queue": null,
+					"execution": null
+				}
+			},
+			{
+				"role": "consumer",
+				"pid": 33820,
+				"expected_packets": 1790,
+				"complete_packets": 0,
+				"unavailable_packets": 1790,
+				"missing_fields": {
+					"software_submit": 1790,
+					"hardware_submit": 1790,
+					"execution_start": 1790,
+					"execution_complete": 1790,
+					"software_queue": 1790,
+					"hardware_queue": 1790,
+					"execution": 1790
+				},
+				"timing_coverage_complete": false,
+				"observed_complete_packet_intervals": {
+					"software_queue": null,
+					"hardware_queue": null,
+					"execution": null
+				}
+			}
+		],
+		"gpu_critical_path_status": "UNAVAILABLE",
+		"limitations": [
+			"packet intervals have no exact frame, source-image, D3D11 context or output association",
+			"trace-local adapter/node IDs do not identify the selected DXGI adapter LUID",
+			"missing packets are not detectable from this API; complete observed records do not prove complete native coverage",
+			"no native-buffer occupancy, per-output queue or GPU critical-path gate is closed"
+		]
+	},
+	"experimental_controls": [
+		{
+			"kind": "user-session-only",
+			"directory": "target/qualification-dma-probe-q02-2026-10-30",
+			"native_exit_code": 0,
+			"trace_stop_exit_code": 0,
+			"reported_loss_events_buffers": [0, 0],
+			"decoded_packets": 0,
+			"status": "UNAVAILABLE"
+		},
+		{
+			"kind": "first-built-in-GPU-profile",
+			"directory": "target/qualification-dma-wpr-probe-q02-2026-10-30",
+			"renderer_returned_ok": true,
+			"trace_stop_timeout_seconds": 15,
+			"status": "UNAVAILABLE",
+			"reason": "Stop/merge subprocess exceeded an undersized timeout; killed by subprocess.run. Its named recording was later verified not recording. Partial ETL is not accepted."
+		}
+	],
+	"api_boundary": {
+		"DxTimingCaptureLibrary": "D3D12 command-list tooling; no D3D11 exact context/batch route established",
+		"PresentMon_v2_6_0": "GPU packet accounting is process-wide and splits running packets at frame boundaries; not exact per-output D3D11 queue attribution",
+		"TraceProcessor_v1_12_10": "Owned DMA packets are decoded but every timing value is partial on this capture. Cause undetermined; no driver/HAGS change attempted."
+	},
+	"validation": {
+		"python-tests": {
+			"command": [
+				"C:\\Python314\\python.exe",
+				"-B",
+				"-m",
+				"unittest",
+				"discover",
+				"-s",
+				"tools/mapgyver/tests"
+			],
+			"exit_code": 0
+		},
+		"restore": {
+			"command": [
+				"dotnet",
+				"restore",
+				"tools/mapgyver/trace-packets/trace-packets.csproj",
+				"--locked-mode",
+				"--nologo"
+			],
+			"exit_code": 0
+		},
+		"build": {
+			"command": [
+				"dotnet",
+				"build",
+				"tools/mapgyver/trace-packets/trace-packets.csproj",
+				"-c",
+				"Release",
+				"--no-restore",
+				"--nologo"
+			],
+			"exit_code": 0
+		},
+		"dotnet-format": {
+			"command": [
+				"dotnet",
+				"format",
+				"tools/mapgyver/trace-packets/trace-packets.csproj",
+				"whitespace",
+				"--no-restore",
+				"--verify-no-changes"
+			],
+			"exit_code": 0
+		},
+		"root-format": {
+			"command": ["cargo", "fmt", "--all"],
+			"exit_code": 0
+		},
+		"golden-core-format": {
+			"command": ["cargo", "fmt", "--all", "--manifest-path", "crates/golden_core/Cargo.toml"],
+			"exit_code": 0
+		},
+		"diff-check": {
+			"command": ["git", "diff", "--check"],
+			"exit_code": 0
+		}
+	},
+	"diagnostic_source_sha256": {
+		"tools/mapgyver/dma_packets.py": "afb7e9130b79f84ee281d4314c069973e2443c1bf26f850c0b3ef02937197ced",
+		"tools/mapgyver/tests/test_dma_packets.py": "eb05d7c0754ef53dc72fd77355b127fb1573fc73f05ef167b219b087230c5576",
+		"tools/mapgyver/trace-packets/PacketRecord.cs": "e7cd3116295cf0620a96a979191260951f6c5017759a83144809c80193b9d37d",
+		"tools/mapgyver/trace-packets/Program.cs": "3c1e334bc7d7519ea8ac14c1fb1cee3161470dfc1d5ed8fac398f2b1b585d2d9",
+		"tools/mapgyver/trace-packets/trace-packets.csproj": "dc6b0b2b7b610ebd2c549fef2e43baafcc288c57b97ca37a2a86de6586f75ca6",
+		"tools/mapgyver/trace-packets/packages.lock.json": "9ca492c2f6f05481dafe24d433683a3c0909317a5df335c8cb09cc8e1c9c5c37"
+	},
+	"next_action": "Return to Q02 output GPU cost and producer/editor cadence. Do not repeat built-in GPU-profile tracing without a concrete decoder/provider change. Full calibrated GPU/queue and genuine removal/stuck retirement remain open.",
+	"archive": {
+		"path": "docs/progress/evidence/mapgyver-m03-dma-boundary-controls-2026-10-30.zip",
+		"bytes": 1411315,
+		"sha256": "8e3aaa71a05ffee89e4aa562896b0ca653396445b82e5ce5a25602bd446c93bd",
+		"members": 62
+	},
+	"artifact_sha256": {
+		"target/qualification-dma-wpr-complete-q02-2026-10-30/owned-packets-reviewed.json": "744682a50f77c60b4bef8ffc27f8305e63e731d0000e727d9c90dbc18875f614",
+		"target/qualification-dma-wpr-complete-q02-2026-10-30/packet-analysis-reviewed.json": "9896143c1de3612b10537ea2209bd5474655f8c556cf61ab55cb988c0c9987fd",
+		"target/qualification-dma-wpr-complete-q02-2026-10-30/capture.json": "7f042fec6a13e137614a31fd982cb9abf9e3b5e54669902f2724576fee09a882",
+		"target/qualification-dma-wpr-complete-q02-2026-10-30/stdout.log": "ebc5b7257f4cd254da97b544216124e8e349226c5ea24dfd77ae84740553a10f",
+		"target/qualification-dma-wpr-complete-q02-2026-10-30/stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+		"target/qualification-dma-wpr-complete-q02-2026-10-30/sample-001/consumer.jsonl": "8c5073d342af8c136c6146bf42f3f5e6020df7f64447b0b6e41ab914d6a05980",
+		"target/qualification-dma-wpr-complete-q02-2026-10-30/sample-001/fixture-0-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+		"target/qualification-dma-wpr-complete-q02-2026-10-30/sample-001/fixture-0-stdout.jsonl": "108de42f9789844d0e4f3394d9081019f0bc68b7870134fe94f455e533386c0d",
+		"target/qualification-dma-wpr-complete-q02-2026-10-30/sample-001/fixture-1-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+		"target/qualification-dma-wpr-complete-q02-2026-10-30/sample-001/fixture-1-stdout.jsonl": "2810ea6f5a04ae5d939b083f0c56d8217507c8127a606e1c88b5b043f836dac9",
+		"target/qualification-dma-wpr-complete-q02-2026-10-30/sample-001/fixture-2-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+		"target/qualification-dma-wpr-complete-q02-2026-10-30/sample-001/fixture-2-stdout.jsonl": "709cb15140cfda4704ca99072ec8a647f4daa6ed6b7f0728cd1893d53ce9f492",
+		"target/qualification-dma-wpr-complete-q02-2026-10-30/sample-001/manifest.json": "ef73376656df3f8370763840e2786d1d139e58d05de89b2cd01e32fce9896e7d",
+		"target/qualification-dma-wpr-complete-q02-2026-10-30/sample-001/parent-summary.json": "b4e3934805efc707cc7862da49b975b39bfc0d872f9d39bd8225615f35280251",
+		"target/qualification-dma-wpr-complete-q02-2026-10-30/sample-001/renderer-summary.json": "4c688b3e2037dbbc8fc2e2e251befee2cdac23b10d85b6f2aaa99aac407d199d",
+		"target/qualification-dma-wpr-complete-q02-2026-10-30/sample-001/renderer.jsonl": "5b7324f4eeac2f5a3af8fdcb552d9dcd8f267866007eac08d4c3eb64eac0f556",
+		"target/qualification-dma-wpr-complete-q02-2026-10-30/sample-001/source-1.jsonl": "f2c7f30e47244c41d7c72ba6348a30f85e10322d3288a86892b796a0537d4bb0",
+		"target/qualification-dma-wpr-complete-q02-2026-10-30/sample-001/source-2.jsonl": "519558134283a3b1088edfc984447635527794711d526a1b00e9a6483883d4e0",
+		"target/qualification-dma-probe-q02-2026-10-30/capture.json": "1ac8d53cb8e624f2e87366f10ff9562ca56cfccb2ac691b93e80a836a99a4a57",
+		"target/qualification-dma-probe-q02-2026-10-30/sample-001/consumer.jsonl": "0a0b6e8ac0827019f24e06dde94e3ad63f5ae9a7221159a05f7f026772a150d0",
+		"target/qualification-dma-probe-q02-2026-10-30/sample-001/fixture-0-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+		"target/qualification-dma-probe-q02-2026-10-30/sample-001/fixture-0-stdout.jsonl": "9c0c785701db526ee1755c5cebfe5ed3a5c192ff26a8fcbd32ebe5c01edecc4d",
+		"target/qualification-dma-probe-q02-2026-10-30/sample-001/fixture-1-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+		"target/qualification-dma-probe-q02-2026-10-30/sample-001/fixture-1-stdout.jsonl": "558b248b6ee448d08cdc0f1acaf4d56a18598e703f5e065209e104f228fca0e8",
+		"target/qualification-dma-probe-q02-2026-10-30/sample-001/fixture-2-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+		"target/qualification-dma-probe-q02-2026-10-30/sample-001/fixture-2-stdout.jsonl": "ec16c4ce92e030b79ef2621064121a27d83a2ff71bba2e77d2967487e4d0cbad",
+		"target/qualification-dma-probe-q02-2026-10-30/sample-001/manifest.json": "86d5afebe7bff526837813df972b98783172276f04ffbc8445a5ec1f07d809ec",
+		"target/qualification-dma-probe-q02-2026-10-30/sample-001/parent-summary.json": "5d3c3bcd8c65fee13be63c5e9799c818a03933c759640c9519ba288cb2308d62",
+		"target/qualification-dma-probe-q02-2026-10-30/sample-001/renderer-summary.json": "86de24eb36716667626e0050a56132f7f684438c4fb4ce1aab75beabd029fe63",
+		"target/qualification-dma-probe-q02-2026-10-30/sample-001/renderer.jsonl": "c69b628e6a6a3b81dc1f4a7abdb88ad688a572552da90e47cb2ad4ce28de506c",
+		"target/qualification-dma-probe-q02-2026-10-30/sample-001/source-1.jsonl": "acda42c1cfa4ec6c7c03555b16e95b57bbbbad0dd89db6805952af64985be9a1",
+		"target/qualification-dma-probe-q02-2026-10-30/sample-001/source-2.jsonl": "b00aa556dc2682a68e5ffae772a8591d10299fa2c19ff4958b5c25ab071df77d",
+		"target/qualification-dma-probe-q02-2026-10-30/stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+		"target/qualification-dma-probe-q02-2026-10-30/stdout.log": "8799f3a3d228c3944988eda825130aac5108e9d64e609bcb5bdca053c874b361",
+		"target/qualification-dma-wpr-probe-q02-2026-10-30/sample-001/consumer.jsonl": "5e51be61af8a890bf77019515bacd1055d1cd9bee599509673995a9b1c2cc52f",
+		"target/qualification-dma-wpr-probe-q02-2026-10-30/sample-001/fixture-0-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+		"target/qualification-dma-wpr-probe-q02-2026-10-30/sample-001/fixture-0-stdout.jsonl": "60441a4a1885ccd7b53d3c490e218c48710355d2601b56a987bc02a0019a6d7f",
+		"target/qualification-dma-wpr-probe-q02-2026-10-30/sample-001/fixture-1-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+		"target/qualification-dma-wpr-probe-q02-2026-10-30/sample-001/fixture-1-stdout.jsonl": "0739bab92a59f76904f99ed507a04dc891c33023f4efc687e80a8eacef454654",
+		"target/qualification-dma-wpr-probe-q02-2026-10-30/sample-001/fixture-2-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+		"target/qualification-dma-wpr-probe-q02-2026-10-30/sample-001/fixture-2-stdout.jsonl": "69a5597f4ced28d1bcc7e2cae2b4cdcbf0db5b314d2d52dadbb58182b71484db",
+		"target/qualification-dma-wpr-probe-q02-2026-10-30/sample-001/manifest.json": "ffe08d436dfcc1a0ae0495f6b9f2015cb7e8d0c2a682241ce21583dd47bb229c",
+		"target/qualification-dma-wpr-probe-q02-2026-10-30/sample-001/parent-summary.json": "4471d9234247fb82e578b4d6d11390893968129c1066444212c327b624a4f23d",
+		"target/qualification-dma-wpr-probe-q02-2026-10-30/sample-001/renderer-summary.json": "da78c5be708cb0b6a746c1896e17cfbf06576207c94e8456873d5cd6a4c5e7d4",
+		"target/qualification-dma-wpr-probe-q02-2026-10-30/sample-001/renderer.jsonl": "c10e7b6ce14410093a20723bd07c3e5120a104882f67fe088690e89cf87dfd07",
+		"target/qualification-dma-wpr-probe-q02-2026-10-30/sample-001/source-1.jsonl": "25f024e147730a7902fc225193a71e16a419693b25aa11ef923fbfd3d173b59f",
+		"target/qualification-dma-wpr-probe-q02-2026-10-30/sample-001/source-2.jsonl": "4e98dc7cdb010401752474add75134561a4d4d01378b258c0533d0519661faff",
+		"target/qualification-dma-wpr-probe-q02-2026-10-30/stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+		"target/qualification-dma-wpr-probe-q02-2026-10-30/stdout.log": "c71e5ff97b1ba22d5fa2220cea56a611cbb636a352eee7d0c08c0a5bed0cdedc",
+		"target/qualification-dma-checkpoint-validation-2026-10-30/build.log": "efc7022a1bc31d3f4211c730641fee45d8ccbd4e5ce4a27687ec488077467666",
+		"target/qualification-dma-checkpoint-validation-2026-10-30/diff-check.log": "92ce4783891338d22398aa125982cc2d535bc42e7f615158c7dae26fc1d5aea7",
+		"target/qualification-dma-checkpoint-validation-2026-10-30/dotnet-format.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+		"target/qualification-dma-checkpoint-validation-2026-10-30/golden-core-format.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+		"target/qualification-dma-checkpoint-validation-2026-10-30/python-tests.log": "557ac2b5df8ebc2e7ec9d3e912e8dc0aa2a55770f173420847fe92926da4f538",
+		"target/qualification-dma-checkpoint-validation-2026-10-30/restore.log": "2ad9967f2280d0195ad457a92fe6a353a8492625846632386df6dfc446efe4bc",
+		"target/qualification-dma-checkpoint-validation-2026-10-30/results.json": "76be779d6228391664f9d1d1e65f856aa98d2c81a430de074ca17b1d83e8f6c6",
+		"target/qualification-dma-checkpoint-validation-2026-10-30/root-format.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+		"target/trace-api-probe/Program.cs": "98ff5d18ef17dbd695d679a4d32ede5e54ef649e6bbd5936648ea972c26bc055",
+		"target/trace-api-probe/trace-api-probe.csproj": "9e840deec6134c3ab70f9f0c7cfa8355dfa5e87b724e1f56622f1bdba4cd06a2",
+		"target/trace-api-probe/capture.py": "427226df023c7c15f5c884f1b6a38bdefeef09f50c1eff50631c1b435dd1561a",
+		"target/trace-api-probe/invalid-manifest.json": "4a402b7d50e48c9b817e290b2c00370df6bb1dd8bbddcf299b6d00d9c61deade",
+		"target/trace-api-probe/checkpoint.py": "5d0e04f7ed69ccb4bce03e45f1b339213d3d9c02e13e4d529069235a6b3c4217"
+	},
+	"references": [
+		"https://learn.microsoft.com/en-us/windows/apps/trace-processing/tutorial",
+		"https://github.com/microsoft/DxTimingCaptureLibrary/blob/main/README.md",
+		"https://github.com/GameTechDev/PresentMon/blob/v2.6.0/PresentData/GpuTrace.cpp"
+	]
+}
