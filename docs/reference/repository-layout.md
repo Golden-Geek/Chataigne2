@@ -118,18 +118,27 @@ These boundaries distinguish implemented foundations from planned product featur
 - `apps/mapgyver/src/{screen,matrix}/`: planned app-owned models, operations and integration.
 - `apps/mapgyver/ui/`: future Screen, Surface Source, Composition and Matrix editors.
 - `crates/golden_video/`: compiler, worker/null runtime and optional D3D11 compositor with
-  fixed window/Spout outputs and plan-owned bounded Spout subscriptions exist. Complete app integration/qualification
-  continue in M03, using the shared `crates/golden_time/` authority.
+  fixed window/Spout outputs, plan-owned bounded Spout subscriptions and normalized region blits.
+  `src/preview/` owns local registration/layout/status contracts, coalesced geometry and leases;
+  native integration/qualification continues in M03 using the shared `crates/golden_time/` authority.
 - `crates/golden_assets/`: shared source-reference/locator and bounded preparation boundary;
   `apps/mapgyver/src/media/assets.rs` owns catalog/history and `media/picture/` owns PNG/JPEG
   preparation. Golden Video consumes immutable decoded-image leases for worker-owned GPU upload.
-- `packages/golden-video-ui/`: future reusable native-preview bindings; host integration stays shared.
+- `packages/golden-video-ui/`: reusable Svelte `NativePreview`, window-scoped session/transport,
+  DOM clipping measurement and installation/retirement covers. `generated/` comes from Video's
+  Rust preview DTOs. Browser editing remains available with truthful preview unavailability.
+
+The shared desktop host's optional `NativePresentation::with_control` and bounded
+`native_presentation_control` command supply authenticated UI-thread WebView/window metrics;
+apps do not duplicate host bootstrap or put native resources into protocol state.
 
 The optional typed native-presentation host lifecycle is implemented and exercised in M02.
 Complete renderer integration and native qualification retain their M03/M05 owners. The
 owned `native_video_smoke` executable under `apps/mapgyver/tests/native_video/` exercises the
 D3D11/runtime/host consumer. `apps/mapgyver/tests/channel_rendering.rs` exercises authored channel
 publication with independent Spout producers, history/reload and controlled resource recreation.
+`apps/mapgyver/tests/native_preview/` is the owned shared-host/Svelte preview consumer fixture;
+its source routing remains outside Golden's app-neutral registration contract.
 The main app still uses the thin workbench. See the
 [architecture](../architecture/mapgyver.md), [plan](../plan/MapGyver_Implementation_Plan.md) and
 [current acceptance](../progress/mapgyver-status.md).

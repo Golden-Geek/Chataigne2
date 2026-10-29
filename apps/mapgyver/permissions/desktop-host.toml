@@ -2,6 +2,7 @@
 identifier = "desktop-host"
 description = "Allows the main MapGyver window to use the commands exposed by golden_host_desktop."
 commands.allow = [
+  "native_presentation_control",
   "window_minimize",
   "window_toggle_maximize",
   "window_close",

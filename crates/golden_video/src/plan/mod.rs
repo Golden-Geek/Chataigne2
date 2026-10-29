@@ -2,9 +2,11 @@
 
 mod compile;
 mod error;
+mod region;
 mod weight;
 
 pub use error::{GraphLimit, PlanError};
+pub use region::{BlitRegion, UnitRect};
 
 use crate::{LinearColor, Opacity, OutputId, PassId, TextureDescriptor, TextureId};
 use serde::{Deserialize, Serialize};
@@ -63,6 +65,15 @@ pub enum RenderOperation {
         /// Layers in draw order, first layer drawn first.
         layers: Vec<Layer>,
     },
+    /// Clear the target, then replace ordered bounded regions. Empty regions clear stale views.
+    Regions {
+        /// Painter order; each source crop is stretched only into its destination rectangle.
+        regions: Vec<BlitRegion>,
+        /// Optional per-frame presentation lifetime. An invalidated fence clears this pass
+        /// without drawing its regions, even while an older plan remains active. It does not
+        /// change source demand, resource admission or any independent output.
+        visibility: Option<golden_io::RevisionGuard>,
+    },
 }
 
 impl RenderOperation {
@@ -71,16 +82,21 @@ impl RenderOperation {
             Self::Clear(_) => 0,
             Self::Sample { .. } => 1,
             Self::Composite { layers } => layers.len(),
+            Self::Regions { regions, .. } => regions.len(),
         }
     }
 
     fn sources(&self) -> impl Iterator<Item = TextureId> + '_ {
-        let (sample, layers) = match self {
-            Self::Clear(_) => (None, &[][..]),
-            Self::Sample { source, .. } => (Some(*source), &[][..]),
-            Self::Composite { layers } => (None, layers.as_slice()),
+        let (sample, layers, regions) = match self {
+            Self::Clear(_) => (None, &[][..], &[][..]),
+            Self::Sample { source, .. } => (Some(*source), &[][..], &[][..]),
+            Self::Composite { layers } => (None, layers.as_slice(), &[][..]),
+            Self::Regions { regions, .. } => (None, &[][..], regions.as_slice()),
         };
-        sample.into_iter().chain(layers.iter().map(|layer| layer.source))
+        sample
+            .into_iter()
+            .chain(layers.iter().map(|layer| layer.source))
+            .chain(regions.iter().map(|region| region.source))
     }
 }
 

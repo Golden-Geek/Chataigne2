@@ -21,4 +21,6 @@ pub use desktop::{
     run_default_with_ui_assets_and_dev_server,
 };
 pub use host_config::{DesktopHostConfig, FrontendDevServerConfig};
-pub use native_presentation::{NativePresentation, NativePresentationStop, NativePresentationTask};
+pub use native_presentation::{
+    NativePresentation, NativePresentationStop, NativePresentationTask, NativePresentationViewport,
+};

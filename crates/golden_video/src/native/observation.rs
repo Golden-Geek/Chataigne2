@@ -1,8 +1,9 @@
 use std::sync::{Arc, Mutex};
 
-use crate::runtime::DeviceGeneration;
+use crate::OutputId;
+use crate::runtime::{CompletionToken, DeviceGeneration};
 
-use super::AdapterId;
+use super::{AdapterId, outputs::Delivery};
 
 /// Compact failure stage. No COM objects, driver strings or pixel payloads leave the worker.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -46,12 +47,29 @@ pub struct D3d11Snapshot {
     pub hresult: Option<i32>,
 }
 
+/// One fixed native consumer's last API-accepted submission. This is neither scanout nor a GPU
+/// completion certificate; consumers must check the exact device and required frame serial.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct OutputSnapshot {
+    /// Logical consumer from the immutable native output configuration.
+    pub id: OutputId,
+    /// Most recent batch accepted by this consumer's API in its current device lifetime.
+    pub last_accepted: Option<CompletionToken>,
+}
+
+#[derive(Default)]
+struct OutputRegistry {
+    device: Option<DeviceGeneration>,
+    entries: Vec<OutputSnapshot>,
+}
+
 /// Metadata-only native observation reader. It never retains devices, contexts or textures.
 #[derive(Clone, Default)]
 pub struct D3d11Control {
     pub(super) source_notifier: Arc<Mutex<Option<golden_io::WorkerNotifier>>>,
     state: Arc<Mutex<D3d11Snapshot>>,
     sources: Arc<Mutex<Vec<SourceRegistration>>>,
+    outputs: Arc<Mutex<OutputRegistry>>,
 }
 
 #[derive(Clone)]
@@ -78,6 +96,55 @@ impl D3d11Control {
     /// Copies bounded native status without joining or polling GPU work.
     pub fn snapshot(&self) -> D3d11Snapshot {
         *self.state.lock().unwrap_or_else(|error| error.into_inner())
+    }
+
+    /// Copies metadata for the fixed configured consumers, without GPU polling or native
+    /// resources. Busy, unavailable and failed deliveries never advance these acceptance tokens.
+    pub fn output_snapshots(&self) -> Vec<OutputSnapshot> {
+        self.outputs
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .entries
+            .clone()
+    }
+
+    pub(super) fn register_outputs(&self, device: DeviceGeneration, outputs: impl Iterator<Item = OutputId>) {
+        *self.outputs.lock().unwrap_or_else(|error| error.into_inner()) = OutputRegistry {
+            device: Some(device),
+            entries: outputs
+                .map(|id| OutputSnapshot {
+                    id,
+                    last_accepted: None,
+                })
+                .collect(),
+        };
+    }
+
+    pub(super) fn clear_outputs(&self) {
+        let mut outputs = self.outputs.lock().unwrap_or_else(|error| error.into_inner());
+        outputs.device = None;
+        outputs.entries.clear();
+    }
+
+    pub(super) fn observe_output(&self, id: OutputId, token: CompletionToken, delivery: Delivery) {
+        self.update(|state| match delivery {
+            Delivery::Accepted => state.accepted_outputs = state.accepted_outputs.saturating_add(1),
+            Delivery::Busy => state.busy_outputs = state.busy_outputs.saturating_add(1),
+            Delivery::Unavailable => state.unavailable_outputs = state.unavailable_outputs.saturating_add(1),
+            Delivery::Failed(error) => {
+                state.failed_outputs = state.failed_outputs.saturating_add(1);
+                state.failure = Some(NativeFailure::Output);
+                state.hresult = Some(error.0);
+            }
+        });
+        if delivery == Delivery::Accepted {
+            let mut outputs = self.outputs.lock().unwrap_or_else(|error| error.into_inner());
+            if outputs.device == Some(token.device)
+                && let Some(output) = outputs.entries.iter_mut().find(|output| output.id == id)
+            {
+                output.last_accepted = Some(token);
+            }
+        }
     }
 
     pub(super) fn update(&self, update: impl FnOnce(&mut D3d11Snapshot)) {
@@ -122,3 +189,6 @@ impl D3d11Control {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;

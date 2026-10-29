@@ -19,6 +19,9 @@ The implemented foundations are:
 - `runtime/` owns bounded publication, preparation, frame scheduling, generation installation
   and completion-based resource retirement. `VideoRuntime` starts either the pixel-free null
   qualification backend or the opt-in Windows D3D11 backend through the same control/core path.
+- `preview/` owns metadata-only session negotiation, full-layout replacement, installation status,
+  host geometry conversion and coalesced leased registration. Apps resolve opaque source keys;
+  neither app-domain types nor native handles belong in these DTOs.
 - `native/`, enabled by `d3d11` on Windows, owns caller-selected adapter/device creation, the
   shader pipeline, persistent window/Spout output pools and device-scoped event completion.
   `D3d11Config` contains endpoint metadata; native interfaces stay on the render worker.
@@ -93,6 +96,50 @@ windows retain two fixed-size BGRA8 backbuffers; Spout senders retain one SDK sh
 an AddRef of the exact caller device. Window size changes use DXGI stretch, without reallocating
 backing buffers. The host retains each borrowed HWND through successful runtime retirement.
 
+`RenderOperation::Regions` draws ordered normalized `BlitRegion`s onto a cleared target.
+Destination clipping retains the matching source crop; the native pipeline uses viewport/scissor
+geometry and the same source color/alpha conversion. An empty region set produces a clear, so
+omitted, hidden or expired preview registrations need no stale image reuse. A supplied visibility
+guard also clears an already active target after invalidation without reallocating its resources;
+independent outputs continue while replacement preparation is pending. Region dependencies and
+retained storage use the existing graph/input limits. The shader constant buffer now reserves
+64 bytes, including the source rectangle; native resource accounting includes that baseline.
+
+The local preview owner accepts one current frontend session and bounded full layouts. New layout
+revisions replace desired geometry; unchanged heartbeat geometry renews the lease without
+invalidating an installed generation. Session replacement, invalid layout, explicit disconnect,
+expiry and close invalidate geometry guards. Drive `PreviewReceiver` on notifications or its next
+lease deadline from a host/preparation worker, not an engine/UI polling loop.
+
+The shared desktop host's optional `NativePresentation::with_control` routes the bounded local
+`native_presentation_control` command to this metadata owner. UI-thread callbacks sample actual
+native client and WebView bounds, BoundsMode, rasterization and zoom; CSS-to-physical scale is not
+provided by the frontend. Clipped geometry becomes normalized client coordinates, preserving
+projection onto the admitted backing when DXGI stretches a fixed-size window output.
+
+[`golden-video-ui`](../../packages/golden-video-ui/README.md) supplies the reusable Svelte component,
+session and transport adapter. It coalesces DOM layout changes, retains one in-flight IPC and the
+latest desired layout, and keeps opaque covers until the latest native installation is confirmed.
+Removed views retain bounded opaque retirement masks until an installed clear is acknowledged;
+lease expiry is the fallback after frontend interruption. CSS-pixel placement of measured masks
+is a deliberate geometry exception; product layout remains in relative units. Browser sessions
+report native preview unavailable while editing continues. These bindings own no app mutation or
+source policy and carry no pixel frames.
+
+`Applied.installed` is distinct from metadata acceptance. The native owner must observe a reliable
+Video Installed outcome and a submitted frame of that exact identity before `mark_installed`.
+The owned consumer also verifies that window output's accepted completion token through
+`D3d11Control::output_snapshots`; acceptance by another output cannot establish preview readiness.
+Neither acknowledgement proves scanout, delivery, physical alignment or input correctness.
+The shared-host/Svelte consumer lives under `apps/mapgyver/tests/native_preview/`; specialized
+editors and full display/DPI/input qualification retain their app milestone owners.
+
+Generate its canonical TypeScript contracts with:
+
+```text
+cargo run --locked -p golden_video --bin generate_preview_protocol -- packages/golden-video-ui/generated
+```
+
 Every queued command batch ends in a preallocated D3D11 event query, including output failures
 and unwind. Output results are bounded observations, so a busy window does not abort other
 consumers or abandon already queued GPU uses. Spout API acceptance does not prove delivery:
@@ -135,7 +182,7 @@ The SDK can transiently open a changed foreign alias
 before post-update validation; owned pools and published descriptors stay bounded, but this is
 not a hard driver-residency guarantee.
 
-Dynamic preview geometry, physical backing-buffer resize, native device-loss proof, full
+Physical backing-buffer resize, native device-loss proof, full
 source/output recovery, production output/editor integration and sustained
 native qualification remain in the [M03 acceptance gates](../../docs/progress/mapgyver-status.md#m03-acceptance-items).
 The [input/native evidence](../../docs/progress/mapgyver-m03-render-foundations.md#bounded-spout-inputs--2026-10-29)

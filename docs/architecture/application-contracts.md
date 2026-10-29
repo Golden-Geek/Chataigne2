@@ -42,8 +42,26 @@ The host defers exit while that worker retires and joins only after `run_return`
 on its own leaves the editor and unsaved work intact. The workbench still owns save/discard/cancel;
 its confirmed `window_destroy` command routes through retirement. App capabilities omit direct
 Tauri destroy permission. Headless/default launches create no presentation lifecycle. The current
-extension covers the main editor underlay; renderer, preview geometry and output-window policy
-retain their M03/M05 owners. See the [MapGyver evidence](../progress/mapgyver-m02-shell.md).
+extension covers the main editor underlay; output-window policy and full physical presentation
+qualification retain their M03/M05 owners. See the [MapGyver evidence](../progress/mapgyver-m02-shell.md).
+
+`NativePresentation::with_control` optionally attaches metadata control to that retained window.
+The shared `native_presentation_control` command admits at most eight pending UI callbacks and
+64 KiB per request/result/error. Its scoped WebView callback samples actual HWND client bounds,
+WebView origin/extent/BoundsMode, rasterization scale and HTML zoom. No frontend DPR, frame pixels
+or renderer objects are trusted or transferred. The async reply does not block the UI thread;
+queued callbacks retain their capacity until they actually end. Window mismatch, unavailable
+control and retirement reject calls, including tickets queued before cancellation.
+
+`golden_video::preview` owns the Rust-generated local negotiation/layout/status DTOs, bounded
+coalesced registration and session leases. Its worker receiver supplies geometry snapshots and
+admission guards, then acknowledges only current geometry after a reliable Video Installed
+outcome and a matching submitted frame. `packages/golden-video-ui` owns Svelte measurement,
+registration, opaque installation/retirement covers and browser-only unavailability. App source
+routing and editing remain app-owned. The preview path carries CSS rectangles, clipping,
+visibility, identities and revisions; the host converts CSS to physical coordinates once and
+normalized region geometry maps onto the admitted native backing. Layout acceptance or submitted
+frames do not prove physical alignment, scanout or delivery.
 
 `golden_time` owns typed time coordinates, checked rational conversion, immutable show mappings
 and authority/discontinuity epochs. Apps own transport policy; specialized schedulers own
@@ -60,8 +78,9 @@ is an observation for backend plan preparation, separate from admitted maximum s
 source subscriptions now accompany their revisioned plans, with fixed worker/storage capacity
 covering all overlapping subscriptions and asynchronous retirement. Guarded `PlanSubmission`
 inputs support source-only warmup and carry authoring/source-layout revisions through installation
-and automatic device reconstruction. Preview geometry, native recovery and full GPU qualification
-remain open.
+and automatic device reconstruction. Generic preview region blits clear their target and draw only
+the current clipped source regions; source crop is preserved when the destination is clipped.
+Native device recovery, full physical/DPI/input behavior and GPU qualification remain open.
 See [Golden Video](../../crates/golden_video/README.md) and
 [Golden Time](../../crates/golden_time/README.md) for the public boundaries.
 

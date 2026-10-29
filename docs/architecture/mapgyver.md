@@ -26,7 +26,7 @@ editors. Golden owns reusable execution and presentation mechanisms.
 | `crates/golden_video/` | Compiler, bounded worker/null runtime, optional D3D11 compositor and bounded Spout input/window/Spout output mechanisms; app integration and qualification continue in M03 |
 | `crates/golden_time/` | Typed monotonic/show/sample coordinates, rational mappings, authority epochs and activation observations; apps own transport policy |
 | `crates/golden_assets/` | Persistent asset references/validated locators and bounded CPU preparation with scope/binding fences and consumer-lifetime leases; app catalogs and media integration remain with their owners |
-| `packages/golden-video-ui/` (proposed) | Reusable native preview registration, geometry and capability bindings; no mapping policy |
+| `packages/golden-video-ui/` | Reusable Svelte preview registration, DOM geometry/clipping, negotiated host transport and installation/retirement covers; no mapping policy |
 | Existing Golden Core hosts and Golden UI | Shared desktop/headless startup, native window integration, workbench, inspectors, history, dialogs, generated transport and persistence |
 
 Media, Screen, Surface and Matrix product nodes never live in `golden_*`. Neither Golden Video
@@ -62,7 +62,9 @@ The app's `media/rendering/` bridge publishes demanded channel plans through pub
 Authoring and source-layout guards survive preparation and installation; project/device stamps
 reject stale observations. Source metadata changes wake a preparation worker, not the engine loop.
 The owned native channel harness exercises this bridge; the main workbench does not start GPU
-work without a host consumer's demand. Dynamic preview geometry remains open. See the
+work without a host consumer's demand. Golden's generic preview registry/region-blit mechanisms
+and reusable UI bindings now exist; specialized app editors and full physical qualification
+remain with their app milestones. See the
 [runtime/native evidence](../progress/mapgyver-m03-render-foundations.md).
 
 The filesystem sketch above names responsibility boundaries, not a requirement to create one
@@ -334,11 +336,29 @@ channel allocation and Matrix/app semantics. A gesture becomes one coherent hist
 do not create a history entry per frame or implement a second rule engine in TypeScript.
 
 The native preview uses transparent regions in the WebView over one native GPU underlay per
-editor window, with DOM/SVG interaction handles above it. The shared host provides an optional
-public native-presentation extension. Geometry registration contains only view/channel IDs,
-client rectangles, clipping, visibility and layout revisions. Convert to physical pixels once
-at the host boundary; coalesce layout changes, hide unregistered/stale views and bound visible
-previews. Full frames and native texture handles never travel through JSON/WebSocket.
+editor window, with DOM/SVG interaction handles above it. Golden Video's `preview/` owns the
+Rust-generated negotiation/layout/status contract and bounded coalesced session leases.
+`packages/golden-video-ui` supplies `NativePreview`, a window-scoped session and desktop transport,
+CSS rectangle/ancestor clipping measurement, heartbeat/reconnect and opaque covers while native
+installation is pending. App routing resolves opaque source keys into app channels; Golden owns
+no channel defaults, graph edits or mapping behavior.
+
+The shared `NativePresentation::with_control` extension exposes the bounded metadata-only
+`native_presentation_control` command for its retained window. Its UI callback queries actual
+client/WebView bounds, BoundsMode, rasterization and HTML zoom, converting CSS to physical pixels
+once. The worker projects clipped normalized regions onto the admitted backing. New layouts
+coalesce, and an invalidated visibility guard clears the active target without waiting for a new
+resource allocation. The next installed region plan draws the current views. Removed DOM
+components keep bounded opaque retirement masks until that clear is acknowledged; measured masks
+use CSS-pixel placement while ordinary product layout keeps relative units. Full frames, render
+graphs and native texture handles never travel through this control protocol.
+
+Layout acceptance does not uncover a preview. The native owner first verifies a reliable plan
+installation and a matching submitted frame, then acknowledges the current geometry generation;
+stale acknowledgements cannot revive a replacement layout. This asynchronous handshake does not
+claim frame-atomic DOM/native movement, physical alignment or scanout. The owned shared-host/Svelte
+fixture lives at `apps/mapgyver/tests/native_preview/`; full display/DPI/input qualification and
+the four specialized editors remain at their planned app milestones.
 
 Treat native preview as a negotiated host capability. Browser sessions retain control/editing
 with truthful preview availability; remote video streaming is a separate future adapter.

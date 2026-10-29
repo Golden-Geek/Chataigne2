@@ -12,6 +12,7 @@ name = "mapgyver"
 native-video = ["golden_video/d3d11"]
 native-presentation-smoke = ["dep:windows"]
 native-video-smoke = ["native-video", "dep:golden_time", "dep:windows"]
+native-preview-smoke = ["native-video-smoke"]
 
 [dependencies]
 golden_assets.workspace = true
@@ -51,6 +52,13 @@ path = "tests/native_video/smoke.rs"
 test = false
 bench = false
 required-features = ["native-video-smoke"]
+
+[[bin]]
+name = "native_preview_smoke"
+path = "tests/native_preview/smoke.rs"
+test = false
+bench = false
+required-features = ["native-preview-smoke"]
 
 [[bin]]
 name = "native_source_fixture"

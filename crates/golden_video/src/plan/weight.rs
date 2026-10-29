@@ -1,6 +1,6 @@
 use std::mem::size_of;
 
-use super::{ExternalTexture, Layer, PlanOutput, RenderOperation, RenderPass, RenderPlan};
+use super::{BlitRegion, ExternalTexture, Layer, PlanOutput, RenderOperation, RenderPass, RenderPlan};
 
 impl RenderPlan {
     /// Counts actual retained vector capacity, not just active graph values.
@@ -14,8 +14,17 @@ impl RenderPlan {
             .checked_add(self.passes.capacity().checked_mul(size_of::<RenderPass>())?)?
             .checked_add(self.outputs.capacity().checked_mul(size_of::<PlanOutput>())?)?;
         for pass in &self.passes {
-            if let RenderOperation::Composite { layers } = &pass.operation {
-                bytes = bytes.checked_add(layers.capacity().checked_mul(size_of::<Layer>())?)?;
+            match &pass.operation {
+                RenderOperation::Composite { layers } => {
+                    bytes = bytes.checked_add(layers.capacity().checked_mul(size_of::<Layer>())?)?;
+                }
+                RenderOperation::Regions { regions, visibility } => {
+                    bytes = bytes.checked_add(regions.capacity().checked_mul(size_of::<BlitRegion>())?)?;
+                    if let Some(visibility) = visibility {
+                        bytes = bytes.checked_add(visibility.retained_heap_bytes())?;
+                    }
+                }
+                _ => {}
             }
         }
         for texture in &self.external_textures {

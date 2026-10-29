@@ -12,6 +12,7 @@ cbuffer Parameters : register(b0) {
     float opacity;
     uint has_previous;
     uint2 reserved;
+    float4 source_rect;
 };
 
 static const uint ENCODING_SRGB = 1;
@@ -121,7 +122,7 @@ float4 encode_target(float4 value) {
 }
 
 float4 ps_main(Vertex input) : SV_Target {
-    float4 result = sample_source(input.uv) * opacity;
+    float4 result = sample_source(source_rect.xy + input.uv * source_rect.zw) * opacity;
     if (has_previous != 0) {
         float4 previous = previous_image.Load(int3(int2(input.position.xy), 0));
         result = composite(result, previous);

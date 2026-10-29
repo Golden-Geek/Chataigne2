@@ -108,7 +108,7 @@ pub mod app {
     };
     pub use golden_host_desktop::{
         DesktopHostConfig, FrontendDevServerConfig, LaunchArgs, NativePresentation, NativePresentationStop,
-        NativePresentationTask, launch_engine_with_args, launch_engine_with_config,
+        NativePresentationTask, NativePresentationViewport, launch_engine_with_args, launch_engine_with_config,
         launch_engine_with_native_presentation, launch_engine_with_ui_assets,
         launch_engine_with_ui_assets_and_dev_server, launch_with_args, launch_with_config, launch_with_ui_assets,
         launch_with_ui_assets_and_dev_server, parse_launch_args, parse_launch_args_from_env, run_default,

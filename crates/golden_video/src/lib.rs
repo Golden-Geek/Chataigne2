@@ -10,6 +10,7 @@ mod color;
 mod identity;
 pub mod image;
 pub mod plan;
+pub mod preview;
 mod resource;
 pub mod runtime;
 

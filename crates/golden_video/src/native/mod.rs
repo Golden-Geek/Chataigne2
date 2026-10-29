@@ -18,7 +18,7 @@ mod texture;
 pub use config::{AdapterId, D3d11Config, InputLimits, NativeConfigError, OutputBinding, WindowTarget};
 pub use device::{AdapterInfo, adapters};
 pub use inputs::{SourceSnapshot, SourceState};
-pub use observation::{D3d11Control, D3d11Snapshot, NativeFailure, SourceObservationSnapshot};
+pub use observation::{D3d11Control, D3d11Snapshot, NativeFailure, OutputSnapshot, SourceObservationSnapshot};
 
 pub(crate) use backend::D3d11Backend;
 

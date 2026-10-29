@@ -69,6 +69,16 @@ pub(super) fn compile(
                 output: pass.output,
             });
         }
+        if let RenderOperation::Regions { regions, .. } = &pass.operation {
+            for (index, region) in regions.iter().enumerate() {
+                if !region.destination.is_valid() || !region.source_rect.is_valid() {
+                    return Err(PlanError::InvalidRegion {
+                        pass: pass.id,
+                        region: index,
+                    });
+                }
+            }
+        }
         insert_resource(&mut resources, pass.output, Writer::Pass(index), bytes)?;
     }
 
@@ -111,8 +121,10 @@ pub(super) fn compile(
     plan.passes.retain(|pass| demanded.contains(&pass.output));
     plan.passes.sort_unstable_by_key(|pass| rank[pass_indices[&pass.id]]);
     for pass in &mut plan.passes {
-        if let RenderOperation::Composite { layers } = &mut pass.operation {
-            layers.shrink_to_fit();
+        match &mut pass.operation {
+            RenderOperation::Composite { layers } => layers.shrink_to_fit(),
+            RenderOperation::Regions { regions, .. } => regions.shrink_to_fit(),
+            _ => {}
         }
     }
     plan.outputs.sort_unstable_by_key(|output| output.id);

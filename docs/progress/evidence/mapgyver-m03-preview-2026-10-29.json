@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "scope": "Reusable native preview registration, host-owned geometry, clipped region rendering and Svelte lifecycle through the shared desktop host",
+  "source_base_commit": "791da55b106a09eef698879c86b29a2cdfce3bd8",
+  "local_date": "2026-10-29",
+  "native_checks_observed_by_utc": "2026-10-29T11:05:44Z",
+  "build_profile": "Cargo test profile, optimized with debuginfo; exact final executables below",
+  "selected_adapter": {"index": 0, "description": "Intel(R) Graphics", "luid": "00000000:00016c2a", "software": false},
+  "artifacts_sha256": {
+    "target/debug/native_preview_smoke.exe": "B92658AD90C66419D3EC5478A80E79897B79723CF9F27EF659DD36242BF86732",
+    "target/debug/native_video_smoke.exe": "2B3E7B2FE86C4140A395FBD8F2A86F4A75EB79028AFF50FDD5B4643F0D7B13A7",
+    "target/debug/native_source_fixture.exe": "9D4DAB0F6F4CC80F5F9E1CE675DA7CDDCFBC8A9667D4E93FE2DD3F38F8D81FD4",
+    "target/debug/deps/golden_video-d952cdcc76413bbb.exe": "128CCA7E137668937CE2471C8CEC89BAA24B1194778E63EEA7DC574A877EAE5D",
+    "target/debug/deps/picture_rendering-8c1c3e690fa2ba5b.exe": "C8EE0544A6AEDD98127178F588CB7385C5F65B11FFCA74D51D84A1532BEC0D78",
+    "target/debug/deps/channel_rendering-0fe37e068b1f7ecb.exe": "52B76D0BCB6CD7E1A69900C50414D14C8C10C08920801A36E460F8F29AAFA8C3"
+  },
+  "regular_tests": {
+    "command": "cargo test --locked -p MapGyver -p golden_assets -p golden_video -p golden_host_desktop --features MapGyver/native-preview-smoke --quiet",
+    "exit_code": 0,
+    "mapgyver_passed": 30,
+    "assets_passed": 16,
+    "desktop_host_passed": 29,
+    "video_unit_passed": 92,
+    "video_public_passed": 4,
+    "total_passed": 171,
+    "ignored": {"app_hardware": 2, "desktop_host_subprocess_helper": 1, "video_hardware": 4},
+    "generated_typescript_drift": "passed"
+  },
+  "preview_native": {
+    "command": "target/debug/native_preview_smoke.exe --adapter 0",
+    "exit_code": 0,
+    "phases": [
+      {"phase": "initial", "visible": 2, "generation": 2, "frames": 5},
+      {"phase": "clipped", "visible": 2, "generation": 3, "frames": 26},
+      {"phase": "hidden", "visible": 1, "generation": 4, "frames": 48},
+      {"phase": "unregistered", "visible": 0, "generation": 5, "frames": 70},
+      {"phase": "empty", "visible": 0, "generation": 5, "frames": 85},
+      {"phase": "done", "visible": 0, "generation": 6, "frames": 100}
+    ],
+    "final_frames_submitted": 103,
+    "final_api_accepted_outputs": 206,
+    "host_metrics": {"client_width": 1500, "client_height": 1000, "webview_origin_x": 0, "webview_origin_y": 0, "webview_width": 1500, "webview_height": 1000, "css_scale": 1.25},
+    "admitted_preview_backing": [512,320],
+    "spout_receiver_slots": 0,
+    "readiness_requires": ["current reliable Installed outcome", "matching submitted generation/frame", "that window output's accepted completion token"],
+    "independent_output_continues_after_dispose": true,
+    "runtime_retired_before_owned_hwnd_release": true,
+    "claim": "Control, geometry and native API acceptance; no physical scanout, latency or display alignment claim"
+  },
+  "golden_hardware": {
+    "preparation_command": "cargo test --locked -p golden_video --features d3d11 -- --ignored --nocapture --test-threads=1",
+    "final_command": "target/debug/deps/golden_video-d952cdcc76413bbb.exe --ignored --nocapture --test-threads=1",
+    "exit_code": 0,
+    "passed": 4,
+    "new_region_oracle": {"extent": [4,4], "frames": 4, "outputs": 2, "compared_grids": 8, "compared_pixels": 128, "component_tolerance_8bit_units": 2, "api_accepted_outputs": 8, "immutable_image_uploads": 1, "visibility_withdrawal_reuses_active_resources": true, "independent_output_stays_green": true, "crop_removal_and_empty_clear": true},
+    "existing_image_spout_and_shader_regressions": "passed",
+    "final_run_binds_rebuilt_source_fixture": true,
+    "production_readback_added": false
+  },
+  "app_hardware": {
+    "command": "cargo test --locked -p MapGyver --features native-preview-smoke --test picture_rendering --test channel_rendering -- --ignored --nocapture --test-threads=1",
+    "exit_code": 0,
+    "passed": 2,
+    "picture_frames_before_recreation": 7,
+    "picture_uploads_before_recreation": 4,
+    "channel_frames": 47,
+    "identity_relink_reload_and_controlled_recreation": "passed",
+    "actual_hardware_device_removal_tested": false
+  },
+  "host_regression": {
+    "command": "target/debug/native_video_smoke.exe --adapter 0",
+    "exit_code": 0,
+    "phase_api_accepted": {"window_only": 5, "spout_only": 10, "shared_after_client_resize": 20},
+    "phase_peak_reserved_bytes": [3953728,5142592,5372992],
+    "busy": 0,
+    "unavailable": 0,
+    "runtime_retired_before_owned_hwnd_release": true,
+    "shader_constant_bytes_before": 48,
+    "shader_constant_bytes_after": 64,
+    "admission_accounts_for_additional_16_bytes": true
+  },
+  "ui_checks": {
+    "workspace": "golden_video_ui",
+    "unit_tests_passed": 22,
+    "svelte_check": {"errors": 0, "warnings": 0},
+    "prettier_lint": "passed",
+    "built_fixture_browser": {"visible_counts": [2,2,1,0,0], "metadata_requests": 16, "retirement_mask_peak": 2, "page_errors": [], "browser_unavailable_editing_control": true, "native_adapter": "mock metadata only; not GPU evidence"},
+    "mapgyver_ui_check": {"errors": 0, "warnings": 0},
+    "mapgyver_ui_lint": "passed"
+  },
+  "other_checks": {
+    "strict_all_target_clippy_four_packages_default_and_native_preview": "passed",
+    "strict_video_d3d11_clippy_after_test_helper_fix": "passed",
+    "default_check_both_apps": "passed",
+    "root_and_core_cargo_fmt": "passed",
+    "source_line_limit": "all touched nongenerated Rust/TypeScript/Svelte files below 1000 lines",
+    "lockfiles": "New workspace/dependency edges to already locked versions; no package versions changed",
+    "display_or_overlay_settings_changed": false
+  },
+  "failures_and_corrections": [
+    {"observation": "First live native preview run hit the 60-second watchdog without phase reports", "resolution": "Built browser fixture exposed a real unchanged-DOM-frame acknowledgement race; reconciliation fixed with regression, diagnostics improved, actual native fixture passes", "limit": "The original timeout alone does not prove its exact cause"},
+    {"observation": "An intermediate native run's tool output was truncated", "resolution": "Outcome not counted; subsequent passing runs retain logs and terminal exit codes"},
+    {"observation": "The first resource oracle expected 372 bytes but observed 388", "resolution": "Shared source-UV uniform grows 48 to 64 bytes; authoritative constant and test charge corrected without changing budgets"},
+    {"observation": "The first region pixel run rejected a 4x4 texture in the old 1-2x1 finite readback helper", "resolution": "Test-only helper now bounds readback to 4x4 and copies each row using native RowPitch; all four hardware tests and strict Clippy pass", "production_change": false}
+  ],
+  "acceptance": {
+    "closed_gate": "M03 gate 8",
+    "m03_done": 7,
+    "m03_total": 9,
+    "overall_complete_phases": 3,
+    "overall_total_phases": 10,
+    "remaining_m03_gates": [4,9],
+    "next": "Production source/output/device recovery and bounded retirement, then unchanged Q01/Q02 renderer qualification",
+    "limitations": ["No genuine hardware device removal or sustained qualification pass", "Fixed backing projection is not physical-size fidelity or scanout", "Specialized editors/full physical/DPI/input remain M05-M07", "Default app remains the thin workbench; this fixture consumes generic preview mechanisms", "Media Manager controls/commands/callbacks/snippets/ready-file watching remain M04", "All historical qualification failures and budgets remain unchanged"]
+  }
+}

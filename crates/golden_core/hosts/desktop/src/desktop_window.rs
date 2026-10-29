@@ -103,6 +103,7 @@ pub(super) fn run_tauri<R: Runtime>(
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            crate::desktop_commands::native_presentation_control,
             crate::desktop_commands::window_minimize,
             crate::desktop_commands::window_toggle_maximize,
             crate::desktop_commands::window_close,

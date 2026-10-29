@@ -1,12 +1,13 @@
 use std::marker::PhantomData;
 use std::rc::Rc;
 
+use windows::Win32::Foundation::RECT;
 use windows::Win32::Graphics::Direct3D::Fxc::D3DCompile;
 use windows::Win32::Graphics::Direct3D::{D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST, ID3DBlob};
 use windows::Win32::Graphics::Direct3D11::*;
 use windows::core::{Error, HRESULT, Result, s};
 
-use crate::plan::{BlendMode, SampleFilter};
+use crate::plan::{BlendMode, BlitRegion, SampleFilter, UnitRect};
 use crate::{AlphaMode, ColorEncoding, LinearColor};
 
 use super::texture::Texture;
@@ -25,9 +26,19 @@ struct Parameters {
     opacity: f32,
     has_previous: u32,
     reserved: [u32; 2],
+    source_rect: [f32; 4],
 }
 
-const _: () = assert!(size_of::<Parameters>() == 48);
+const _: () = assert!(size_of::<Parameters>() == 64);
+pub(super) const CONSTANT_BYTES: u64 = size_of::<Parameters>() as u64;
+
+struct DrawSettings {
+    opacity: f32,
+    blend: BlendMode,
+    filter: SampleFilter,
+    destination: UnitRect,
+    source_rect: UnitRect,
+}
 
 /// All fallible shader/state allocation precedes frame submission.
 pub(super) struct Pipeline {
@@ -99,6 +110,7 @@ impl Pipeline {
                     FillMode: D3D11_FILL_SOLID,
                     CullMode: D3D11_CULL_NONE,
                     DepthClipEnable: true.into(),
+                    ScissorEnable: true.into(),
                     ..Default::default()
                 },
                 Some(&mut rasterizer),
@@ -130,6 +142,59 @@ impl Pipeline {
         blend: BlendMode,
         filter: SampleFilter,
     ) {
+        self.draw_view(
+            context,
+            source,
+            previous,
+            target,
+            DrawSettings {
+                opacity,
+                blend,
+                filter,
+                destination: UnitRect::FULL,
+                source_rect: UnitRect::FULL,
+            },
+        );
+    }
+
+    pub(super) fn draw_region(
+        &self,
+        context: &ID3D11DeviceContext,
+        source: &Texture,
+        target: &Texture,
+        region: &BlitRegion,
+    ) {
+        debug_assert!(region.destination.is_valid() && region.source_rect.is_valid());
+        self.draw_view(
+            context,
+            source,
+            None,
+            target,
+            DrawSettings {
+                opacity: 1.0,
+                blend: BlendMode::Normal,
+                filter: region.filter,
+                destination: region.destination,
+                source_rect: region.source_rect,
+            },
+        );
+    }
+
+    fn draw_view(
+        &self,
+        context: &ID3D11DeviceContext,
+        source: &Texture,
+        previous: Option<&Texture>,
+        target: &Texture,
+        settings: DrawSettings,
+    ) {
+        let DrawSettings {
+            opacity,
+            blend,
+            filter,
+            destination,
+            source_rect,
+        } = settings;
         debug_assert!(opacity.is_finite() && (0.0..=1.0).contains(&opacity));
         if let Some(previous) = previous {
             debug_assert!(previous.descriptor.is_compositing_target());
@@ -151,7 +216,10 @@ impl Pipeline {
             opacity,
             has_previous: u32::from(previous.is_some()),
             reserved: [0; 2],
+            source_rect: [source_rect.x, source_rect.y, source_rect.width, source_rect.height],
         };
+        let width = target.descriptor.extent.width() as f32;
+        let height = target.descriptor.extent.height() as f32;
         // SAFETY: all resources and views were prepared on this device. Only uniform metadata
         // is uploaded; no fallible API operation occurs after acquiring GPU use.
         // Every resource view is unbound before returning, avoiding read/write/retirement hazards.
@@ -181,11 +249,18 @@ impl Pipeline {
             context.OMSetRenderTargets(Some(&[Some(target.rtv.clone())]), None);
             context.RSSetState(&self.rasterizer);
             context.RSSetViewports(Some(&[D3D11_VIEWPORT {
-                Width: target.descriptor.extent.width() as f32,
-                Height: target.descriptor.extent.height() as f32,
+                TopLeftX: destination.x * width,
+                TopLeftY: destination.y * height,
+                Width: destination.width * width,
+                Height: destination.height * height,
                 MinDepth: 0.0,
                 MaxDepth: 1.0,
-                ..Default::default()
+            }]));
+            context.RSSetScissorRects(Some(&[RECT {
+                left: (destination.x * width).floor() as i32,
+                top: (destination.y * height).floor() as i32,
+                right: ((destination.x + destination.width) * width).ceil().min(width) as i32,
+                bottom: ((destination.y + destination.height) * height).ceil().min(height) as i32,
             }]));
             context.Draw(3, 0);
             context.PSSetShaderResources(0, Some(&[None, None]));

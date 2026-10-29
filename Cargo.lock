@@ -2968,6 +2968,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tauri",
+ "webview2-com",
  "windows 0.61.3",
 ]
 
@@ -3102,6 +3103,7 @@ dependencies = [
  "golden_io",
  "golden_time",
  "serde",
+ "serde_json",
  "spout2-sys",
  "tempfile",
  "thiserror 2.0.18",

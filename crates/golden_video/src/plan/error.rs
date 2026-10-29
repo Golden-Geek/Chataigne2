@@ -90,6 +90,13 @@ pub enum PlanError {
         /// Target texture identity.
         output: TextureId,
     },
+    /// A replacement blit contains an invalid normalized source or destination rectangle.
+    InvalidRegion {
+        /// Pass containing the malformed region, even if it is currently undemanded.
+        pass: PassId,
+        /// Submitted region index in painter order.
+        region: usize,
+    },
     /// A cycle prevents ordering part of the submitted graph.
     Cycle {
         /// Sorted passes left blocked, including downstream dependents, not exact cycle members.
@@ -156,6 +163,11 @@ impl fmt::Display for PlanError {
                 "pass {} target {} must be linear and premultiplied",
                 pass.get(),
                 output.get()
+            ),
+            Self::InvalidRegion { pass, region } => write!(
+                formatter,
+                "pass {} region {region} has an invalid unit rectangle",
+                pass.get()
             ),
             Self::Cycle { blocked_passes } => {
                 formatter.write_str("render graph contains a cycle; blocked passes [")?;

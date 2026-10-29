@@ -212,8 +212,7 @@ impl Drop for Fixture {
 
 pub(in crate::native) fn readback(gpu: &Device, texture: &Texture) -> Vec<[u8; 4]> {
     let extent = texture.descriptor.extent;
-    assert_eq!(extent.height(), 1);
-    assert!(extent.width() <= 2);
+    assert!(extent.width() <= 4 && extent.height() <= 4);
     let mut desc = D3D11_TEXTURE2D_DESC::default();
     // SAFETY: owned texture and writable descriptor.
     unsafe { texture.texture.GetDesc(&mut desc) };
@@ -303,14 +302,19 @@ pub(in crate::native) fn readback(gpu: &Device, texture: &Texture) -> Vec<[u8; 4
         unsafe { gpu.context.Unmap(&staging, 0) };
         panic!("invalid finite readback layout");
     }
-    let mut pixels = vec![[0; 4]; extent.width() as usize];
-    // SAFETY: one initialized mapped row, copied without padding into an exact-size buffer.
+    let width = extent.width() as usize;
+    let height = extent.height() as usize;
+    let mut pixels = vec![[0; 4]; width * height];
+    // SAFETY: the matching staging descriptor supplies every mapped row. Copy only its
+    // initialized pixels, respecting native row padding and the exact destination extent.
     unsafe {
-        std::ptr::copy_nonoverlapping(
-            mapped.pData.cast::<u8>(),
-            pixels.as_mut_ptr().cast::<u8>(),
-            pixels.len() * 4,
-        );
+        for row in 0..height {
+            std::ptr::copy_nonoverlapping(
+                mapped.pData.cast::<u8>().add(row * mapped.RowPitch as usize),
+                pixels.as_mut_ptr().cast::<u8>().add(row * width * 4),
+                width * 4,
+            );
+        }
         gpu.context.Unmap(&staging, 0);
     }
     for pixel in &mut pixels {

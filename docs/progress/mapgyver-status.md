@@ -4,22 +4,21 @@
 
 **Updated: 2026-10-29 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
-**Current topic:** M03 has **6/9** accepted gates. App asset catalog/history, Picture preparation
-and native image upload now exercise the shared asset boundary. Independent channels retain
-their references through relink, missing-source retry, relocation, reload and controlled native
-resource recreation. The [Picture/asset evidence](mapgyver-m03-render-foundations.md#app-assets-and-picture-resources--2026-10-29)
-closes gate 7. The accepted
+**Current topic:** M03 has **7/9** accepted gates. Reusable Rust-generated preview contracts,
+Svelte registration/clipping and the shared host's bounded metadata control now run through
+an [actual native consumer](mapgyver-m03-render-foundations.md#native-preview-registration-and-geometry--2026-10-29).
+Hide/unregister/dispose clears previews while an independent output continues. Gate 8 closes;
+specialized editors and full physical/DPI/input qualification remain M05–M07.
+The accepted [Picture/assets](mapgyver-m03-render-foundations.md#app-assets-and-picture-resources--2026-10-29),
 [channel bridge](mapgyver-m03-render-foundations.md#app-channel-publication-bridge--2026-10-29)
-preserves references through history/reload and controlled native resource recreation (gate 5).
-The [native input evidence](mapgyver-m03-render-foundations.md#bounded-spout-inputs--2026-10-29)
-and M02's [shell and lifecycle evidence](mapgyver-m02-shell.md) remain accepted.
+and [native inputs](mapgyver-m03-render-foundations.md#bounded-spout-inputs--2026-10-29) remain verified.
 The [approved M01 route decision](mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28)
 remains scoped functional acceptance; renderer, physical-output and full-app qualification
 retain their M03/M05/M09 owners.
 
-**Next:** implement reusable native preview registration/geometry contracts (gate 8); retain
-production device recovery and native qualification under gates 4/9.
-**Blocker:** none for the next M03 preview batch. Known cadence, memory-growth, geometry and display/input failures
+**Next:** production source/output/device recovery and bounded retirement (gate 4), followed by
+native renderer qualification (gate 9).
+**Blocker:** none for the next recovery implementation batch. Known cadence, memory-growth, geometry and display/input failures
 remain open under M03/M05/M09; their budgets and evidence are unchanged.
 
 | Phase | State | Progress | Done / total items |
@@ -27,7 +26,7 @@ remain open under M03/M05/M09; their budgets and evidence are unchanged.
 | [M00 Baseline/workloads](mapgyver-m00-baseline.md) | Complete locally | `████████████████████` 100% | 1/1 |
 | [M01 Functional route decision](#m01-acceptance-items) | Complete locally | `████████████████████` 100% | 4/4 |
 | [M02 Multi-app seams/shell](#m02-acceptance-items) | Complete locally | `████████████████████` 100% | 7/7 |
-| [M03 Rendering/channels](#m03-acceptance-items) | In progress | `█████████████░░░░░░░` 67% | 6/9 |
+| [M03 Rendering/channels](#m03-acceptance-items) | In progress | `████████████████░░░░` 78% | 7/9 |
 | [M04 Source media](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M05 Screens/Surfaces/editors](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M06 Composition/editor](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
@@ -37,7 +36,7 @@ remain open under M03/M05/M09; their budgets and evidence are unchanged.
 
 Overall counts fully accepted milestones: `3 / 10 = 30%`; partial phases do not advance it.
 Phase percentages count closed acceptance items, rounded to the nearest whole percent
-(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 6 / 9 = 67%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
+(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 7 / 9 = 78%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
 its whole plan acceptance as one item unless a fixed breakdown is recorded here before
 implementation continues. On 2026-10-28 the user explicitly approved changing M01 from eight
 full-qualification items to four functional-route items, allowing M02 to start. The original
@@ -134,12 +133,12 @@ functional gate, not a retrospective pass of the original eight-item matrix.
 | --- | --- | --- |
 | Immutable render/resource plan compiler | Done | [Compiler evidence](mapgyver-m03-render-foundations.md#immutable-render-plan-compiler--2026-10-28): explicit texture/color/alpha, deterministic whole-graph validation/demand compilation, bounded raw work/checked logical bytes, 29 tests including a 10k chain. No runtime/native admission pass is inferred. |
 | Bounded worker/null runtime and atomic install | Done | [Runtime evidence](mapgyver-m03-render-foundations.md): Golden IO workers/fences, one preparation/latest desired plan, bounded reliable outcomes and resource admission, frame-boundary install, at most two in-flight uses/two retiring generations, completion-based worker-local destruction. Null resources simulate allocation/use; native proof stays open. |
-| D3D11/Spout backend and host integration | Done | [Native input/output evidence](mapgyver-m03-render-foundations.md#bounded-spout-inputs--2026-10-29): opaque GPU resources, explicit LUID/caller-device ownership, four-mode conversion/composition, independent-process Spout inputs and window/Spout output consumers pass. Shared-host regression passes. Full recovery/physical/steady-state budgets retain gates 4/8/9. |
+| D3D11/Spout backend and host integration | Done | [Native input/output evidence](mapgyver-m03-render-foundations.md#bounded-spout-inputs--2026-10-29): opaque GPU resources, explicit LUID/caller-device ownership, four-mode conversion/composition, independent-process Spout inputs and window/Spout output consumers pass. Shared-host regression passes. Full recovery/steady-state budgets retain gates 4/9; physical presentation remains M05. |
 | Runtime observations and device recovery | Open | Source/output state, device removal/recreation, healthy-path independence, cancellation and bounded production recovery/retirement. |
 | App-owned media/channel backend contracts | Done | [Authoring and live bridge](mapgyver-m03-render-foundations.md#app-channel-publication-bridge--2026-10-29): typed persistent references, backend defaults/operations, generated contracts, demanded-leaf capture and guarded plan publication. History/reload, source changes/resize/reconnect and controlled native runtime/device recreation preserve channel identity. Genuine device-removal recovery stays gate 4; dedicated manager controls/commands/templates stay M04. |
 | Shared production-time authority | Done | [Golden Time](../../crates/golden_time/README.md) supplies checked coordinates/rational mappings and authority/discontinuity epochs consumed by the threaded video scheduler; fake-time activation/shared-output and stale-epoch tests pass. Shared P14 plan records this evidence; audio/DMX acceptance remains open. |
 | Shared persistent asset/preparation boundary | Done | [App Picture/asset integration](mapgyver-m03-render-foundations.md#app-assets-and-picture-resources--2026-10-29): app-owned stable references/locators, sparse/full codec/history/QuickJS, missing/replaced/relinked/relocated sources, bounded worker decode and retained CPU/GPU resources. Native upload/share/recreation and stale installation rejection pass. Chataigne audio/collect/scheduling P15 acceptance and full native qualification remain open. |
-| Native preview registration/geometry contracts | Open | Reusable bindings and Rust-generated control DTOs exercised by the native consumer; specialized editors/full DPI/input stay M05. |
+| Native preview registration/geometry contracts | Done | [Preview contract/native consumer](mapgyver-m03-render-foundations.md#native-preview-registration-and-geometry--2026-10-29): Rust-generated DTOs, host-owned metrics, coalesced leased layout, Svelte clipping/visibility/retirement, finite crop/clear pixel oracle and actual shared-host lifecycle pass. Specialized editors/full physical/DPI/input stay M05–M07. |
 | Native renderer qualification | Open | Unchanged Q01/Q02 CPU/GPU/cadence/frame-age/admission/memory/handle/shutdown budgets and applicable recovery against the production replacement; historical failures preserved. |
 
 The [nine-item definition](../plan/MapGyver_Implementation_Plan.md#m03--deliver-renderresource-and-channel-foundations)
@@ -226,7 +225,7 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | M00 Reconciliation/workloads | VERIFIED_LOCAL | [Checkout/public-boundary/hardware handoff](mapgyver-m00-baseline.md), [captured inventory](evidence/mapgyver-baseline-2026-10-27.json), and fixed [qualification workloads/budgets](mapgyver-qualification-contract.md) |
 | M01 Functional route decision | COMPLETE_LOCAL | [Approved decision](mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28): ordinary Tauri/Wry + D3D11 + pinned Spout sys binding permit the thin shell. Full qualification remains with M03/M05/M09. |
 | M02 Multi-app seams/shell | COMPLETE_LOCAL | [Shell/isolation and typed host lifecycle](mapgyver-m02-shell.md) close all seven fixed items. The real Windows smoke verifies STA/worker/window teardown; no GPU or physical-output qualification is inferred. |
-| M03 Rendering/channels | IN_PROGRESS | [Compiler, runtime, native execution, channels, shared time and assets](mapgyver-m03-render-foundations.md) close 6/9 fixed gates. Native recovery, preview and native qualification remain open. |
+| M03 Rendering/channels | IN_PROGRESS | [Compiler, runtime, native execution, channels, shared time/assets and preview contracts](mapgyver-m03-render-foundations.md) close 7/9 fixed gates. Production recovery and native qualification remain open. |
 | M04 Source media | NOT_STARTED | Solid Color, Picture, concurrent Spout scope defined |
 | M05 Screens/Surfaces/editors | NOT_STARTED | Output/crop/pin/calibration contracts defined |
 | M06 Composition/editor | NOT_STARTED | Instance/canvas/dependency contracts defined |
@@ -244,8 +243,10 @@ exercised. The app-owned bridge publishes guarded channel plans and preserves re
 history/reload and controlled native resource recreation. Shared persistent asset IDs/locators,
 worker preparation/cancellation and consumer-lifetime admission now have a reusable owner.
 App asset records now exercise project/history, Picture preparation and native resources (gate 7).
-Implement reusable native preview registration/geometry next (gate 8). Production device recovery
-and full native qualification remain gates 4/9; all three remain required before M03 completion.
+Reusable native preview registration/geometry now passes its real shared-host consumer (gate 8).
+Implement production source/output/device recovery and bounded retirement next (gate 4), then
+measure the renderer against the unchanged native qualification contract (gate 9). Both remain
+required before M03 completion.
 Deliver each coherent batch
 on `mapgyver` before starting the next. Preserve
 Chataigne's root default and unfinished P11 work. No new M01 captures, consumer-control cohorts,
@@ -391,6 +392,29 @@ Preserve Chataigne's unfinished engine/Spatializer P11 checkpoint (four of six f
 and its [separate ledger](implementation-status.md). Shared P12 boundary repairs belong to M02;
 P14/P15 time and asset contracts retain their shared Golden owners under M03. Root launch
 behavior is unchanged. No production host/backend/binding decision is final yet.
+
+## M03 preview contract verification — 2026-10-29
+
+- [Preview registration and geometry](mapgyver-m03-render-foundations.md#native-preview-registration-and-geometry--2026-10-29)
+  and [artifact packet](evidence/mapgyver-m03-preview-2026-10-29.json) close gate 8. Rust generates
+  the local protocol; Golden owns bounded leased metadata, region crop/clear and Svelte bindings.
+  The shared host supplies actual WebView/window metrics through its optional bounded callback.
+- The real Svelte/native consumer passes initial/clipped/hidden/unregistered/empty/disposed
+  phases, 103 submitted frames and 206 accepted output calls on Intel. It requires the window
+  output's own accepted token before uncovering a current installed generation. Independent
+  output and retirement before HWND release pass; this is not scanout or physical alignment.
+- **171 regular Rust tests** and **22 preview UI tests** pass. All **six explicit native tests**
+  pass, including eight finite 4×4 region grids with unchanged 2/255 tolerance, crop/removal/clear,
+  active visibility withdrawal without reallocation, and existing image/Spout/app regressions.
+  The host window-only/Spout-only/resized regression also passes.
+- Built-fixture browser regression covers real DOM callback ordering, covers, clipping/removal
+  and browser-only editing. Svelte checks report zero errors/warnings; both UI lints, strict
+  default/native Clippy, both-app compilation, generated drift and root/Core formatting pass.
+  The first native timeout, DOM acknowledgement race and finite-readback helper correction are
+  retained in the packet; no tolerance or qualification budget was relaxed.
+- **M03 7/9 = 78%, overall 3/10 = 30%**. Gates 4/9 remain open. Production recovery and bounded
+  retirement are next; specialized editors/full physical/DPI/input remain M05–M07. No new M01
+  investigation or display/NVIDIA overlay changes.
 
 ## M03 Picture/asset verification — 2026-10-29
 

@@ -7,6 +7,16 @@ use tauri::Manager;
 use crate::native_presentation::host::PresentationHost;
 use crate::window_state::{WindowStatePersistence, save_window_state};
 
+/// Dispatches bounded metadata to the active native presentation using fresh UI-thread metrics.
+/// No native rendering resources, waits or frame data cross this command boundary.
+#[tauri::command]
+pub async fn native_presentation_control<R: tauri::Runtime>(
+    window: tauri::WebviewWindow<R>,
+    request: String,
+) -> Result<String, String> {
+    crate::native_presentation::control::invoke(window, request).await
+}
+
 /// Writes `contents` to `file_name` inside a subdirectory of the OS
 /// shared application-data directory, creating it if needed. `subdir_segments`
 /// is joined onto the app-data root (e.g. `["MyApp", "presets"]`); the app

@@ -3,6 +3,7 @@ use std::sync::{Arc, Mutex};
 
 use tauri::{Manager, Runtime, WebviewWindow};
 
+use super::control::{ControlState, ControlTicket};
 use super::{NativePresentation, PresentationWorker};
 
 #[derive(Default)]
@@ -55,6 +56,7 @@ impl Retirement {
 /// Host-owned control contains no WebView COM objects or renderer resources.
 #[derive(Default)]
 pub(crate) struct PresentationHost {
+    control: Mutex<ControlState>,
     retirement: Mutex<Retirement>,
     worker: Mutex<Option<PresentationWorker>>,
     error: Mutex<Option<Error>>,
@@ -67,10 +69,13 @@ impl PresentationHost {
         window: &WebviewWindow<R>,
     ) -> io::Result<()> {
         configure_underlay(window)?;
+        let control = presentation.control.clone();
         let task = presentation.prepare(window)?;
+        self.control.lock().unwrap().attach(window.label(), control);
         let state = self.clone();
         let app = window.app_handle().clone();
         let worker = PresentationWorker::spawn(task, move |succeeded| {
+            state.control.lock().unwrap().close();
             // Task locals and captures have retired on their worker before this signal.
             // AppHandle queues exit onto Tauri's event loop; no COM/window work runs here.
             let code = state.retirement.lock().unwrap().complete(succeeded);
@@ -85,6 +90,7 @@ impl PresentationHost {
     }
 
     pub(crate) fn exit_action(&self, code: i32) -> ExitAction {
+        self.control.lock().unwrap().close();
         let action = self.retirement.lock().unwrap().request_exit(code);
         if action == ExitAction::Wait
             && let Some(worker) = self.worker.lock().unwrap().as_ref()
@@ -95,6 +101,7 @@ impl PresentationHost {
     }
 
     pub(crate) fn window_destroyed(&self) -> Option<i32> {
+        self.control.lock().unwrap().close();
         let early = !self.retirement.lock().unwrap().finished;
         if early {
             self.record_error(Error::other(
@@ -107,6 +114,7 @@ impl PresentationHost {
     }
 
     pub(crate) fn teardown_failed(&self, error: Error) -> i32 {
+        self.control.lock().unwrap().close();
         self.record_error(error);
         // The worker has retired, so an OS teardown error can leave with an explicit
         // failure instead of hanging the UI or claiming successful window destruction.
@@ -120,12 +128,14 @@ impl PresentationHost {
     }
 
     pub(crate) fn fail_before_start(&self, error: Error) {
+        self.control.lock().unwrap().close();
         self.record_error(error);
         self.retirement.lock().unwrap().complete(false);
     }
 
     /// Called only after run_return: joining cannot block an active WebView STA.
     pub(crate) fn finish(&self) -> io::Result<()> {
+        self.control.lock().unwrap().close();
         let worker = self.worker.lock().unwrap().take();
         let result = worker.map_or(Ok(()), |worker| {
             worker.request_stop();
@@ -135,6 +145,10 @@ impl PresentationHost {
             return Err(error);
         }
         result
+    }
+
+    pub(super) fn admit_control(&self, window: &str, request: &str) -> Result<ControlTicket, String> {
+        self.control.lock().unwrap().admit(window, request)
     }
 }
 

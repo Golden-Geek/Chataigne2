@@ -13,8 +13,8 @@ use crate::{LinearColor, OutputId, PassId, TextureDescriptor, TextureId};
 use super::completion::EventCompletion;
 use super::device::Device;
 use super::inputs::{SourceDemands, SourcePool};
-use super::outputs::{Delivery, OutputPool};
-use super::pipeline::Pipeline;
+use super::outputs::OutputPool;
+use super::pipeline::{CONSTANT_BYTES, Pipeline};
 use super::texture::Texture;
 use super::{D3d11Config, D3d11Control, NativeFailure};
 
@@ -113,6 +113,7 @@ impl D3d11Backend {
     }
 
     fn allocate(&mut self) -> Result<(), BackendError> {
+        self.control.clear_outputs();
         let result = (|| {
             let device = Device::new(self.config.adapter)?;
             let pipeline = Pipeline::new(&device.device)?;
@@ -137,6 +138,8 @@ impl D3d11Backend {
             Ok(native) => {
                 let adapter = native.device.adapter;
                 self.native = Some(native);
+                self.control
+                    .register_outputs(self.generation, self.config.outputs.iter().map(|output| output.id()));
                 self.control.update(|state| {
                     state.adapter = Some(adapter);
                     state.device = Some(self.generation);
@@ -163,7 +166,7 @@ impl Backend for D3d11Backend {
     fn base_resource_bytes(&self) -> Result<u64, BackendError> {
         // This accounts every owned texture pool and the constant buffer. DXGI/driver physical
         // residency, alignment and native-object overhead need separate measured qualification.
-        let base = 48_u64
+        let base = CONSTANT_BYTES
             .checked_add(self.config.inputs.max_storage_bytes)
             .ok_or(BackendError::ResourceSizeOverflow)?;
         self.config.outputs.iter().try_fold(base, |total, binding| {
@@ -374,6 +377,16 @@ impl Backend for D3d11Backend {
                         );
                     }
                 }
+                RenderOperation::Regions { regions, visibility } => {
+                    // Reconstruct every region each frame; hidden/unregistered views cannot
+                    // leave pixels behind in a reused target or expose a previous source.
+                    pipeline.clear(context, output, LinearColor::TRANSPARENT);
+                    if visibility.as_ref().is_none_or(|guard| guard.is_current()) {
+                        for region in regions {
+                            pipeline.draw_region(context, &resources.textures[&region.source], output, region);
+                        }
+                    }
+                }
             }
         }
         for output in plan.outputs() {
@@ -388,16 +401,7 @@ impl Backend for D3d11Backend {
                 SampleFilter::Linear,
             );
             let delivered = native.outputs.deliver(output.id, context, converted);
-            self.control.update(|state| match delivered {
-                Delivery::Accepted => state.accepted_outputs = state.accepted_outputs.saturating_add(1),
-                Delivery::Busy => state.busy_outputs = state.busy_outputs.saturating_add(1),
-                Delivery::Unavailable => state.unavailable_outputs = state.unavailable_outputs.saturating_add(1),
-                Delivery::Failed(error) => {
-                    state.failed_outputs = state.failed_outputs.saturating_add(1);
-                    state.failure = Some(NativeFailure::Output);
-                    state.hresult = Some(error.0);
-                }
-            });
+            self.control.observe_output(output.id, token, delivered);
         }
         drop(submission);
         self.control
@@ -442,6 +446,7 @@ impl Backend for D3d11Backend {
 impl Drop for D3d11Backend {
     fn drop(&mut self) {
         self.native = None;
+        self.control.clear_outputs();
         self.control.update(|state| state.initialized = false);
     }
 }

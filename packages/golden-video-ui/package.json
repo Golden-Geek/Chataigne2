@@ -1,0 +1,42 @@
+{
+	"name": "golden_video_ui",
+	"private": true,
+	"version": "0.1.0",
+	"license": "GPL-3.0-only",
+	"type": "module",
+	"svelte": "./index.ts",
+	"types": "./index.ts",
+	"exports": {
+		".": {
+			"types": "./index.ts",
+			"svelte": "./index.ts",
+			"default": "./index.ts"
+		}
+	},
+	"scripts": {
+		"test": "vitest run tests --exclude tests/native/**",
+		"test:browser": "npm run build:smoke && node tests/browser/lifecycle.mjs",
+		"check": "svelte-check --tsconfig ./tsconfig.json",
+		"lint": "prettier --check .",
+		"build": "npm run build:smoke",
+		"build:smoke": "vite build --config tests/native/vite.config.ts"
+	},
+	"dependencies": {
+		"golden_ui": "*"
+	},
+	"peerDependencies": {
+		"svelte": "^5.0.0"
+	},
+	"devDependencies": {
+		"@sveltejs/vite-plugin-svelte": "7.2.0",
+		"@tauri-apps/api": "^2.11.1",
+		"prettier": "^3.9.5",
+		"prettier-plugin-svelte": "^4.1.1",
+		"playwright-core": "1.61.1",
+		"svelte": "5.57.1",
+		"svelte-check": "^4.6.0",
+		"typescript": "^6.0.3",
+		"vite": "8.1.6",
+		"vitest": "4.1.12"
+	}
+}

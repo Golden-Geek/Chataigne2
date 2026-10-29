@@ -572,3 +572,90 @@ Chataigne P15's audio migration, collect/relink and scheduled playback acceptanc
 the shared plan links this consumer evidence. Gates 4/8/9 remain required, including genuine
 device-removal recovery and unchanged Q01/Q02 measurements. Next is generic preview registration
 and geometry, keeping specialized editors and full physical/DPI/input qualification with M05.
+
+## Native preview registration and geometry — 2026-10-29
+
+[`golden_video::preview`](../../crates/golden_video/src/preview/mod.rs) owns the reusable
+window-scoped metadata controller. Rust generates the versioned Connect/Layout/Status/Disconnect
+contracts consumed by [`golden_video_ui`](../../packages/golden-video-ui/README.md). Source keys
+are opaque consumer-owned references; view IDs are transient presentation identities. Requests
+contain rectangles, clipping and visibility, never pixels, GPU handles or app graph mutations.
+Specialized editors and production Screen/source routing remain at their app owners.
+
+The shared desktop host's optional `NativePresentation::with_control` extension dispatches bounded
+metadata callbacks on the WebView thread. The callback must not perform IO, GPU work or waits.
+It receives fresh HWND client bounds, WebView origin/extent and native rasterization × HTML zoom,
+queried through scoped WebView2 access. Client-supplied devicePixelRatio is not authoritative.
+Requests/results are capped at 64 KiB with eight pending UI callbacks; a timed-out callback retains
+its permit until it actually returns. Window/lifecycle fences reject stale controls. Both apps
+allow the generic command; default/headless hosts without a provider report unavailable.
+
+Golden Video maps CSS source/clipping rectangles through those host metrics into normalized
+client destinations and source UV crops. A fixed admitted backing remains fixed when its client
+resizes; this proves the geometry contract, not physical-size fidelity. Layouts coalesce to one
+latest snapshot, with at most 64 views by default. Identical heartbeat layouts renew a 2.5-second
+lease without rebuilding a generation. Session replacement, invalid current geometry, unregister,
+disconnect or expiry invalidate visibility and stale preparation; old-session requests cannot
+withdraw a newer session. Worker notifications and lease deadlines service this state off the
+engine/UI tick. Host-metric changes invalidate Status readiness until geometry is republished.
+
+`RenderOperation::Regions` validates bounded destination/source rectangles and charges all stored
+regions and visibility guards. D3D11 clears the entire target before drawing clipped regions. An
+expired visibility guard clears an already active preview with the same resources, even before
+a replacement can be admitted, while an independent output continues. Ordinary full-target draws
+restore the viewport/scissor. The shader constant buffer grows from 48 to 64 bytes for source UVs;
+the authoritative resource oracle and admission charge include those additional 16 bytes.
+
+The Svelte 5 component measures axis-aligned DOM/ancestor clipping, scroll and visibility, keeping
+one metadata IPC in flight and one newest desired layout. It reconnects with bounded backoff and
+reports a truthful browser-only fallback. Unsupported rotation/skew/partial opacity hides a view.
+DOM covers remain until the latest layout is installed. Session-owned, bounded retirement masks
+survive component removal; dispose publishes an empty layout and awaits its installed clear before
+disconnecting. Failed confirmation retains masks and an error. Fixed CSS-pixel mask positioning
+is the documented measured-geometry exception, not a product layout policy.
+
+Installation acknowledgement is an explicit consumer obligation. The native fixture requires a
+reliable Installed outcome, a matching submitted generation/frame and WindowOutput 1's accepted
+completion token before `mark_installed`. The independent Spout output cannot supply that proof.
+These are native API acceptance observations, not physical scanout, source availability or display
+latency. No per-frame notifications or production readback enter the UI transport.
+
+The [owned native consumer](../../apps/mapgyver/tests/native_preview/smoke.rs) embeds the real
+Svelte fixture through the public UI-bundle helper and launches Golden's existing host. On Intel
+LUID `00000000:00016c2a`, it passes six phases: initial two views, clipped two, hidden one,
+unregistered zero, empty zero and disposed/done zero. It records **103 submitted frames and 206
+accepted output calls**, with a 1500×1000 physical client/WebView, zero origin and CSS scale 1.25.
+The independent output runs at least three more frames after disposal. Runtime retirement precedes
+release of the owned HWND. No display or NVIDIA overlay setting changes were made.
+
+The first native run timed out at its watchdog without phase reports. A subsequent built-fixture
+browser run exposed a real ordering bug: an unchanged DOM resize callback could withhold the
+installation acknowledgement without restarting Status checks. The corrected reconciliation has
+a dedicated regression and passes the actual Svelte/native run. The original timeout alone does
+not prove its exact cause. An intermediate run's result was lost to tool-output truncation and is
+not counted; the reported passing run retained its diagnostics and terminal exit code 0.
+
+Final checks pass **171 regular Rust tests** (30 app, 16 Assets, 29 host, 92 Video unit and four
+public Video), **22 preview UI tests**, four explicit Golden hardware tests and both app native
+tests. The region oracle compares eight 4×4 output grids at the unchanged 2/255 tolerance,
+including active visibility withdrawal without reallocation and independent green output. Its
+first run exposed the old test helper's one-row restriction; finite readback now permits at most
+4×4 pixels and copies rows using native RowPitch. The first resource test also exposed its old
+372-byte expectation after the shader uniform grew; the corrected authoritative charge is 388.
+These are resolved test-oracle issues, not relaxed runtime or qualification limits. The final
+hardware run binds the source fixture rebuilt during app regression preparation.
+
+The built browser fixture verifies visible counts `[2,2,1,0,0]`, 16 serialized metadata requests,
+two peak retirement masks and no page errors, plus browser-only editing. Both UI checks/lints,
+strict default/native all-target Clippy, both-app default compilation, generated-contract drift,
+root/Core formatters and the rebuilt host window/Spout/resized smoke pass. Lockfiles add only
+new workspace/dependency edges to existing versions.
+
+Verification, exact artifacts and remaining limits are recorded in the
+[preview evidence packet](evidence/mapgyver-m03-preview-2026-10-29.json). The live fixture supplies
+control/lifecycle evidence; finite Golden hardware pixel tests separately supply the crop/clear
+oracle. Neither establishes the unchanged sustained Q01/Q02 budgets or full physical/DPI/input
+qualification. This closes fixed **gate 8** after those checks: **M03 7/9 = 78%**, overall
+**3/10 = 30%**, with no denominator or qualification-budget changes. Gates 4/9 remain required;
+next is production source/output/device recovery and bounded retirement, followed by renderer
+qualification. Full presentation and specialized editors remain M05–M07.

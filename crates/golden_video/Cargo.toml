@@ -15,6 +15,7 @@ golden_assets.workspace = true
 golden_io.workspace = true
 golden_time.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 ts-rs.workspace = true
 thiserror.workspace = true
 uuid.workspace = true

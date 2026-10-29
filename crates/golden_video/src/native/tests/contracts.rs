@@ -1,6 +1,7 @@
 use uuid::Uuid;
 
 use crate::native::backend::D3d11Backend;
+use crate::native::pipeline::CONSTANT_BYTES;
 use crate::native::{AdapterId, D3d11Config, D3d11Control, InputLimits, NativeFailure, OutputBinding};
 use crate::plan::SpoutSource;
 use crate::plan::{ExternalTexture, PlanLimits, PlanOutput, RenderOperation, RenderPass, RenderPlan};
@@ -72,8 +73,8 @@ fn clear_plan(output: u64) -> RenderPlan {
 #[test]
 fn native_resource_charges_include_persistent_sdk_storage_and_generation_conversion() {
     let (backend, control) = backend();
-    // One four-byte SDK share plus the 48-byte uniform buffer; no GPU is created here.
-    assert_eq!(backend.base_resource_bytes().unwrap(), 52);
+    // One four-byte SDK share plus the pipeline's declared uniform storage; no GPU is created.
+    assert_eq!(backend.base_resource_bytes().unwrap(), CONSTANT_BYTES + 4);
     assert_eq!(
         backend
             .resource_bytes(&clear_plan(1).compile(&limits()).unwrap())
@@ -148,8 +149,11 @@ fn input_reservations_cover_maximum_pools_while_plans_charge_actual_extents() {
         }
         .compile(&limits())
     };
-    // Existing uniform/sender charge52 plus five admitted4x4 image stores.
-    assert_eq!(backend.base_resource_bytes().unwrap(), 52 + 5 * 4 * 4 * 4);
+    // Uniform/sender storage plus five admitted4x4 image stores.
+    assert_eq!(
+        backend.base_resource_bytes().unwrap(),
+        CONSTANT_BYTES + 4 + 5 * 4 * 4 * 4
+    );
     // Actual2x2 generation input plus its1x1 output conversion.
     assert_eq!(backend.resource_bytes(&compile(2).unwrap()).unwrap(), 16 + 4);
     assert_eq!(backend.resource_bytes(&compile(3).unwrap()).unwrap(), 24 + 4);
