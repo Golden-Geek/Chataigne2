@@ -199,3 +199,66 @@ admission/memory/handle/shutdown budgets and full recovery remain open.
 Gate 3 remains **partial** and M03 remains **3/9** accepted gates. No gate was awarded for this
 checkpoint; gates 4, 8 and 9 retain their unverified native scope. The original Q01/Q02 budgets
 and failures remain with their [continuing owners](mapgyver-qualification-contract.md#acceptance-ownership-after-the-m01-scope-correction).
+
+## Bounded Spout inputs — 2026-10-29
+
+This delivery extends the native backend above with independent Spout source workers. The
+public `SpoutInput` binding supplies a texture identity, exact sender selector, maximum admitted
+extent, required storage/color/alpha and polling interval. At most 32 live bindings are admitted;
+this is a native worker limit, not a media-catalog limit. Bindings are immutable at startup;
+app-owned live binding publication remains gate 5 work.
+
+Each Golden IO worker owns its source SDK instance, exact-LUID D3D11 device, capture texture,
+three NT-handle/keyed-mutex bridge slots and event-query completion. Preparation acquires demand
+before frame submission; prepared, live and retiring generations retain it. Last-demand release
+stops SDK receive polling. Baseline admission reserves five maximum-size images per configured
+input: capture, three bridge slots and the foreign sender-storage alias. Renderer generation
+targets remain charged separately. This accounts for owned descriptor storage, not physical
+driver residency, alignment or object overhead.
+
+The pinned SDK's public receive-into operation avoids an SDK-private receiving image. Bridge
+capacity is admitted before receive/copy. Publications coalesce; renderer imports cache by weak
+allocation identity, with at most three per source. Strong reader leases and keyed-mutex access
+survive until matching renderer completion. Source GPU work drains independently before its
+pool or SDK alias is released. Shutdown quiesces producers before renderer drain and waits for
+source retirement off the actor/UI thread.
+
+Actual extent is observed separately from the admitted maximum. An accepted resize retires
+renderer aliases/readers and source work before replacing that source's pool; the renderer
+device is retained. An unavailable or incompatible source resolves to zero storage (black for
+opaque sampling). A new generation can reuse the last image of a paused sender without waiting
+for another publication. Source absence/reconnect/backoff is independent per worker.
+
+The [hardware input test](../../crates/golden_video/src/native/backend/tests/inputs.rs) runs two
+owned independent producer processes using public Golden Video APIs. It verifies:
+
+- Public runtime reception and close/retirement with stopped sources and zero reserved bytes.
+- Prepared-demand warmup before rendering, cancellation to idle and stable SDK-call counts.
+- Three-slot bridge pressure stopping SDK receive work while renderer reader leases are held.
+- Two-source composition, paused-sender frame reuse and continued healthy-source content when
+  the other sender stops or exceeds its admitted maximum.
+- Stop/restart, an admitted 2×2 → 3×2 resize, rejected 8×8 input against a 4×4 maximum, and
+  return to 2×2. Only the affected pool changes; both source devices and renderer stay intact.
+- Six finite pixel observations within `2/255` component tolerance, with test-only readback.
+
+The [retained packet](evidence/mapgyver-m03-spout-inputs-2026-10-29.json) records the exact
+executables, selected Intel LUID, six observations and final source counters. Both explicit
+hardware tests pass; the existing nine finite color/alpha/filter/blend cases remain green.
+The regular native-feature IO/Time/Video suites pass 161 tests, with those two hardware tests
+selected separately. Default Video passes 62 unit + 2 public tests. Strict native/default
+Clippy, strict fixture/smoke Clippy, both default app checks and root/Core formatting pass.
+The rebuilt public shared-host smoke also passes all three output phases and retirement
+assertions. No dependency versions or app defaults changed.
+
+This closes fixed M03 gate 3, bringing M03 to **4/9 = 44%**; it does not close M03. Native
+forced device-loss/recreation is not hardware-qualified. Dynamic app binding publication,
+media/channel identity/history/generated contracts, persistent assets, preview contracts and
+Q01/Q02 native measurements retain gates 4/5/7/8/9. Output HWND backing remains fixed DXGI
+stretch. No physical display, DPI, scanout, sustained timing or memory/handle pass is inferred.
+
+The SDK may wait 67 ms for its mutex and report success without a new copy. Publications count
+SDK-reported handoffs, not proved fresh delivery. During a sender change the SDK can transiently
+open a changed foreign alias before post-update descriptor validation; owned pools and accepted
+publications stay bounded, but this does not establish a physical foreign-residency hard cap.
+Mismatch handling drains source work and disconnects before retry. These limits remain visible
+for production recovery and qualification; original budgets and failures remain unchanged.

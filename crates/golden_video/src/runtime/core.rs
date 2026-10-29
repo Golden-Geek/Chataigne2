@@ -467,6 +467,10 @@ impl<B: Backend> RenderCore<B> {
         !self.in_flight.is_empty()
     }
 
+    pub(crate) fn quiesce(&mut self) {
+        self.backend.quiesce();
+    }
+
     pub(crate) fn has_project(&self, project: super::identity::ProjectEpoch) -> bool {
         self.live
             .as_ref()
@@ -552,6 +556,7 @@ impl<B: Backend> RenderCore<B> {
 
 impl<B: Backend> Drop for RenderCore<B> {
     fn drop(&mut self) {
+        self.quiesce();
         // This core is constructed and retained only by the render worker. Even an unwind
         // cannot certify retirement while native uses remain: keep its lifetime/window gate
         // held until completion or confirmed loss, then dispose resources before the backend.

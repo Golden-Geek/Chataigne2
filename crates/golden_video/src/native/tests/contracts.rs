@@ -1,7 +1,7 @@
 use uuid::Uuid;
 
 use crate::native::backend::D3d11Backend;
-use crate::native::{AdapterId, D3d11Config, D3d11Control, NativeFailure, OutputBinding};
+use crate::native::{AdapterId, D3d11Config, D3d11Control, NativeFailure, OutputBinding, SpoutInput};
 use crate::plan::{ExternalTexture, PlanLimits, PlanOutput, RenderOperation, RenderPass, RenderPlan};
 use crate::runtime::DeviceGeneration;
 use crate::runtime::backend::{Backend, BackendError};
@@ -30,10 +30,15 @@ fn limits() -> PlanLimits {
 }
 
 fn backend() -> (D3d11Backend, D3d11Control) {
+    configured_backend(Vec::new())
+}
+
+fn configured_backend(inputs: Vec<SpoutInput>) -> (D3d11Backend, D3d11Control) {
     let control = D3d11Control::default();
     let backend = D3d11Backend::new(
         D3d11Config {
             adapter: AdapterId { low: 0, high: 0 },
+            inputs,
             outputs: vec![OutputBinding::Spout {
                 id: OutputId::new(1).unwrap(),
                 name: "uninitialized-test".into(),
@@ -105,4 +110,46 @@ fn unsupported_inputs_and_unbound_outputs_are_rejected_without_silent_fallback()
         Some(NativeFailure::UnsupportedExternalInput)
     );
     assert!(!control.snapshot().initialized);
+}
+
+#[test]
+fn input_reservations_cover_maximum_pools_while_plans_charge_actual_extents() {
+    let (backend, control) = configured_backend(vec![SpoutInput {
+        texture: TextureId::new(1).unwrap(),
+        sender: "uninitialized-source".into(),
+        descriptor: TextureDescriptor {
+            extent: Extent2D::new(4, 4).unwrap(),
+            ..descriptor()
+        },
+        poll_interval: std::time::Duration::from_millis(16),
+    }]);
+    let compile = |width| {
+        RenderPlan {
+            external_textures: vec![ExternalTexture {
+                id: TextureId::new(1).unwrap(),
+                descriptor: TextureDescriptor {
+                    extent: Extent2D::new(width, 2).unwrap(),
+                    ..descriptor()
+                },
+            }],
+            passes: vec![],
+            outputs: vec![PlanOutput {
+                id: OutputId::new(1).unwrap(),
+                source: TextureId::new(1).unwrap(),
+            }],
+        }
+        .compile(&limits())
+        .unwrap()
+    };
+    // Existing uniform/sender charge52 plus five admitted4x4 image stores.
+    assert_eq!(backend.base_resource_bytes().unwrap(), 52 + 5 * 4 * 4 * 4);
+    // Actual2x2 generation input plus its1x1 output conversion.
+    assert_eq!(backend.resource_bytes(&compile(2)).unwrap(), 16 + 4);
+    assert_eq!(backend.resource_bytes(&compile(3)).unwrap(), 24 + 4);
+    assert_eq!(backend.resource_bytes(&compile(5)), Err(BackendError::UnsupportedPlan));
+    assert!(!control.snapshot().initialized);
+    assert!(
+        control.sources().is_empty(),
+        "charge validation must not start source workers"
+    );
 }

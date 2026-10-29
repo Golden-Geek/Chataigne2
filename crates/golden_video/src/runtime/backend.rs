@@ -47,6 +47,10 @@ pub(crate) trait Backend {
         Ok(())
     }
 
+    /// Stops new background producer admissions without waiting. Backend-global IO pools
+    /// retain their reservations and drain their own uses during final backend cleanup.
+    fn quiesce(&mut self) {}
+
     /// Declared resource charge including every pool retained by this generation. Backends
     /// must distinguish descriptor storage from measured physical/driver memory claims.
     fn resource_bytes(&self, plan: &CompiledPlan) -> Result<u64, BackendError>;

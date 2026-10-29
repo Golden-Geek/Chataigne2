@@ -21,7 +21,7 @@ editors. Golden owns reusable execution and presentation mechanisms.
 | `apps/mapgyver/systems/screen/` | Screen/surface definitions, crop/pin/calibration authoring, output policy, backend intents and integration nodes |
 | `apps/mapgyver/systems/matrix/` | Cells, layers, groups, columns, transitions, exported channels, app associations and demand policy |
 | `apps/mapgyver/ui/` | Svelte 5 Screen, Surface Source, Composition and Matrix editors; app registrations and focused editor stores |
-| `crates/golden_video/` | Compiler, bounded worker/null runtime and optional Windows D3D11 compositor/window/Spout outputs; source workers, complete native integration and qualification continue in M03 |
+| `crates/golden_video/` | Compiler, bounded worker/null runtime, optional D3D11 compositor and bounded Spout input/window/Spout output mechanisms; app integration and qualification continue in M03 |
 | `crates/golden_time/` | Typed monotonic/show/sample coordinates, rational mappings, authority epochs and activation observations; apps own transport policy |
 | `packages/golden-video-ui/` (proposed) | Reusable native preview registration, geometry and capability bindings; no mapping policy |
 | Existing Golden Core hosts and Golden UI | Shared desktop/headless startup, native window integration, workbench, inspectors, history, dialogs, generated transport and persistence |
@@ -49,8 +49,12 @@ visible baseline before allocation; generation charges include conversion and co
 textures. These descriptor-storage charges do not measure opaque driver overhead or residency.
 Completion queries are preallocated, and unwind also marks the admitted use before resource drain.
 The [owned host consumer](../../apps/mapgyver/tests/native_video/smoke.rs) composes this public
-runtime with Golden's window lifecycle. External source workers and dynamic preview geometry
-remain open; the main app is still the thin workbench. See the
+runtime with Golden's window lifecycle. Bounded Spout inputs now own separate IO/device workers;
+prepared/live/retiring generations hold input demand, while bridge readers retire through the
+renderer fence and writers through their source-device fence. Admitted maximum extents bound
+capture/bridge pools; actual size observations drive backend plan preparation without choosing
+app size policy. Startup bindings remain immutable pending app integration. Dynamic preview
+geometry remains open; the main app is still the thin workbench. See the
 [runtime/native evidence](../progress/mapgyver-m03-render-foundations.md).
 
 The filesystem sketch above names responsibility boundaries, not a requirement to create one

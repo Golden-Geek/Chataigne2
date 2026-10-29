@@ -53,8 +53,12 @@ resource retirement. Its control/events contain CPU inputs or metadata, never ba
 The null backend verifies ownership and scheduling. The optional Windows D3D11 backend now
 executes composition and fixed window/Spout outputs through the same runtime, with an owned
 shared-host smoke consumer. Persistent pools reserve a baseline before allocation; completion
-records survive submission unwind. External sources, dynamic preview bindings, native recovery
-and full GPU qualification remain open. See [Golden Video](../../crates/golden_video/README.md) and
+records survive submission unwind. Spout sources use dedicated Golden IO/device workers and
+three-slot GPU bridges. Prepared resource demand warms inputs; dropping demand cancels receive
+polling, while source/renderer completion independently gates native cleanup. Actual source size
+is an observation for backend plan preparation, separate from admitted maximum storage. Dynamic
+binding publication, preview geometry, native recovery and full GPU qualification remain open.
+See [Golden Video](../../crates/golden_video/README.md) and
 [Golden Time](../../crates/golden_time/README.md) for the public boundaries.
 
 For queued native-derived edits, `golden_engine::edit::EditQueue::retain_payload` attaches an

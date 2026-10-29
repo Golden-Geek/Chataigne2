@@ -85,6 +85,7 @@ pub(super) fn run_d3d11(
     device: DeviceGeneration,
     authority: TimeAuthority<Arc<dyn Clock>>,
 ) {
+    let notify = context.wake_notifier();
     run_backend(
         context,
         shared,
@@ -93,7 +94,7 @@ pub(super) fn run_d3d11(
         device,
         authority,
         Duration::ZERO,
-        move || Ok(crate::native::D3d11Backend::new(native_config, native_control, device)),
+        move || Ok(crate::native::D3d11Backend::new(native_config, native_control, device).with_notifier(notify)),
     );
 }
 

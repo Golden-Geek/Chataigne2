@@ -135,6 +135,7 @@ impl<B: Backend> Runner<B> {
     }
 
     pub(super) fn shutdown(mut self) {
+        self.core.quiesce();
         self.shared.close();
         self.shared.lock().snapshot.state = RuntimeState::Stopping;
         self.shared.notify();

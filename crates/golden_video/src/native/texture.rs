@@ -82,7 +82,7 @@ impl Texture {
     }
 }
 
-fn format(format: PixelFormat) -> DXGI_FORMAT {
+pub(super) fn format(format: PixelFormat) -> DXGI_FORMAT {
     match format {
         PixelFormat::Rgba8Unorm => DXGI_FORMAT_R8G8B8A8_UNORM,
         PixelFormat::Bgra8Unorm => DXGI_FORMAT_B8G8R8A8_UNORM,

@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "scope": "Finite bounded native Spout input lifecycle and output-host regression; no sustained qualification",
+  "local_date": "2026-10-29",
+  "source_base_commit": "03c71423878589a9803239e576566104f79eca16",
+  "build_profile": "dev",
+  "observed_finished_at_utc": "2026-10-29T00:36:00Z",
+  "selected_adapter": {
+    "index": 0,
+    "description": "Intel(R) Graphics",
+    "luid": "00000000:00016c2a",
+    "software": false
+  },
+  "artifacts_sha256": {
+    "target/debug/native_source_fixture.exe": "B7A315C940FAB23C25314113220B42BF1028D4708CCC2C3232205592E0C94575",
+    "target/debug/native_video_smoke.exe": "52A5A4D806A5E3684ADED1578965EED3604C6B0604CFB683A469D1F98EE73A35",
+    "target/debug/deps/golden_video-a8885735fdc7d5f8.exe": "2ABEAD608DEFE4DFBFAB2D8D81D71E81A65C3339C69E013D912A080E30890650"
+  },
+  "hardware_tests": {
+    "command": "cargo test --locked -p golden_video --features d3d11 -- --ignored --nocapture --test-threads=1",
+    "exit_code": 0,
+    "passed": 2,
+    "input_test": "native::backend::tests::inputs::hardware_inputs_receive_bound_resize_reconnect_and_retire_across_independent_processes",
+    "producers": "Two owned independent OS processes using public VideoRuntime Spout senders, each with its own device",
+    "public_runtime": {
+      "submitted_frames": 5,
+      "renderer_generation": 1,
+      "final_streaming_sources": [
+        {"source": 1, "max_extent": [4,4], "observed_extent": [2,2], "source_generation": 1, "pool_generation": 1, "bridge_slots": 3, "sdk_calls": 3, "publications": 2, "sequence": 2, "bridge_busy": 0, "imports": 1, "renderer_copies": 1, "hresult": null},
+        {"source": 2, "max_extent": [4,4], "observed_extent": [2,2], "source_generation": 1, "pool_generation": 1, "bridge_slots": 3, "sdk_calls": 5, "publications": 4, "sequence": 4, "bridge_busy": 0, "imports": 2, "renderer_copies": 2, "hresult": null}
+      ],
+      "retirement_proved": true,
+      "final_runtime_stopped": true,
+      "final_reserved_bytes": 0,
+      "all_sources_stopped": true
+    },
+    "native_pixel_stage": {
+      "renderer_generation": 1,
+      "component_tolerance_8bit_units": 2,
+      "readback": "Test-only, at most two pixels; no production frame readback",
+      "observations": [
+        {"stage": "initial two-source composite", "rgba8": [128,0,128,255], "expected_rgba8": [128,0,128,255]},
+        {"stage": "new generation with paused producers", "rgba8": [128,0,128,255], "expected_rgba8": [128,0,128,255]},
+        {"stage": "red sender stopped; blue remains live", "rgba8": [0,0,128,255], "expected_rgba8": [0,0,128,255]},
+        {"stage": "red returns at admitted 3x2 extent", "rgba8": [128,0,128,255], "expected_rgba8": [128,0,128,255]},
+        {"stage": "red 8x8 exceeds 4x4 maximum; blue remains live", "rgba8": [0,0,128,255], "expected_rgba8": [0,0,128,255]},
+        {"stage": "red returns at 2x2 extent", "rgba8": [128,0,128,255], "expected_rgba8": [128,0,128,255]}
+      ],
+      "final_streaming_sources": [
+        {"source": 1, "max_extent": [4,4], "observed_extent": [2,2], "source_generation": 1, "pool_generation": 3, "bridge_slots": 3, "sdk_calls": 50, "publications": 46, "sequence": 46, "bridge_busy": 6, "imports": 4, "renderer_copies": 7, "hresult": null},
+        {"source": 2, "max_extent": [4,4], "observed_extent": [2,2], "source_generation": 1, "pool_generation": 1, "bridge_slots": 3, "sdk_calls": 112, "publications": 109, "sequence": 109, "bridge_busy": 6, "imports": 2, "renderer_copies": 27, "hresult": null}
+      ]
+    },
+    "assertions_passed": [
+      "Preparation warms sources before any renderer submission",
+      "Discarding prepared resources stops SDK polling with no active demand",
+      "Full three-slot bridge stops SDK receive work while renderer leases are retained",
+      "New generations reuse static last-frame publications without another sender frame",
+      "Absent sender resolves to black while healthy sender continues",
+      "Admitted resize retires reader aliases and old pool before replacement",
+      "Oversized sender enters DescriptorMismatch without replacement pool allocation",
+      "Healthy source publication sequence advances during other-source mismatch",
+      "Returning sender reconnects without replacing source devices or renderer device",
+      "Public runtime close proves native retirement, stopped sources and zero reservation"
+    ],
+    "existing_pipeline_regression": {
+      "finite_cases_passed": 9,
+      "component_tolerance_8bit_units": 2,
+      "observed_rgba8": [[128,128,128,255],[0,128,0,128],[27,7,67,128],[52,41,74,181],[62,43,93,218],[43,22,71,181],[58,42,89,181],[110,69,143,255],[76,48,98,128]],
+      "oracle_reference": "mapgyver-m03-native-smoke-2026-10-29.json#/pixel_test/cases"
+    }
+  },
+  "host_smoke": {
+    "command": "target/debug/native_video_smoke.exe --adapter 0",
+    "exit_code": 0,
+    "execution": "Normal desktop access; isolated smoke preferences identity",
+    "listener": "127.0.0.1:61999",
+    "phases": [
+      {"name": "window-only", "cumulative_batches": 5, "cumulative_api_accepted": 5, "busy": 0, "unavailable": 0, "peak_reserved_descriptor_bytes": 3953712},
+      {"name": "spout-only", "cumulative_batches": 10, "cumulative_api_accepted": 10, "busy": 0, "unavailable": 0, "peak_reserved_descriptor_bytes": 5142576},
+      {"name": "shared-producer-after-client-resize", "cumulative_batches": 15, "cumulative_api_accepted": 20, "busy": 0, "unavailable": 0, "peak_reserved_descriptor_bytes": 5372976}
+    ],
+    "assertions_passed": [
+      "UI pumps and HWND stays live through outer presentation-task retirement",
+      "Runtime stopped, reserved bytes zero and native initialized false after retirement",
+      "HWND destroyed after shared host returns"
+    ]
+  },
+  "regular_checks": {
+    "native_feature_tests_passed": 161,
+    "default_video_tests_passed": 64,
+    "native_and_default_strict_clippy": "passed",
+    "source_fixture_and_host_smoke_strict_clippy": "passed",
+    "both_default_app_checks": "passed",
+    "root_and_golden_core_formatting": "passed"
+  },
+  "continuing_limits": [
+    "Bindings are immutable at startup; app-owned dynamic binding publication remains gate 5",
+    "SDK-reported source handoffs and output API acceptance do not prove fresh delivery or scanout",
+    "SDK mutex can wait 67 ms and report success without copying after timeout",
+    "Changed foreign sender alias can be transiently opened before post-update validation; no physical foreign-residency hard cap is established",
+    "Descriptor reservations do not measure driver alignment, object overhead or physical residency",
+    "Native forced device-loss/recreation and full healthy-output independence remain unqualified",
+    "Window backing extent is fixed; client resize uses DXGI stretch",
+    "Sustained Q01/Q02 budgets, physical display/DPI/input and full-app qualification remain open",
+    "Main app remains the workbench; no product Media Manager is delivered by this batch"
+  ],
+  "acceptance": {"newly_closed_m03_gate": 3, "m03_done": 4, "m03_total": 9, "overall_complete_phases": 3, "overall_total_phases": 10}
+}

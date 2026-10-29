@@ -5,17 +5,18 @@
 **Updated: 2026-10-29 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
 **Current topic:** M03's compiler, bounded worker/null runtime and shared time authority are
-verified (3/9). The initial [native compositor/output path](mapgyver-m03-render-foundations.md)
-now passes finite pixel checks and an owned shared-host smoke. Native gate 3 remains partial:
-bounded receiver workers and complete native integration are still open. M02's
+verified, and bounded Spout inputs now close native execution gate 3 (**4/9** total). The
+[native input evidence](mapgyver-m03-render-foundations.md#bounded-spout-inputs--2026-10-29)
+covers independent producers, composition, preparation/cancellation, bounded bridge pressure,
+resize/reconnect and retirement. Full native qualification remains open. M02's
 [shell and lifecycle evidence](mapgyver-m02-shell.md) remains accepted.
 The [approved M01 route decision](mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28)
 remains scoped functional acceptance; renderer, physical-output and full-app qualification
 retain their M03/M05/M09 owners.
 
-**Next:** add bounded Spout source workers with descriptor admission, reconnect and independent
-GPU-use retirement; consume them through the existing native runtime.
-**Blocker:** none for the next M03 source batch. Known cadence, memory-growth, geometry and display/input failures
+**Next:** implement app-owned media/channel backend contracts and their public runtime binding
+integration (gate 5); retain native recovery and qualification work under gates 4/9.
+**Blocker:** none for the next M03 app-contract batch. Known cadence, memory-growth, geometry and display/input failures
 remain open under M03/M05/M09; their budgets and evidence are unchanged.
 
 | Phase | State | Progress | Done / total items |
@@ -23,7 +24,7 @@ remain open under M03/M05/M09; their budgets and evidence are unchanged.
 | [M00 Baseline/workloads](mapgyver-m00-baseline.md) | Complete locally | `████████████████████` 100% | 1/1 |
 | [M01 Functional route decision](#m01-acceptance-items) | Complete locally | `████████████████████` 100% | 4/4 |
 | [M02 Multi-app seams/shell](#m02-acceptance-items) | Complete locally | `████████████████████` 100% | 7/7 |
-| [M03 Rendering/channels](#m03-acceptance-items) | In progress | `███████░░░░░░░░░░░░░` 33% | 3/9 |
+| [M03 Rendering/channels](#m03-acceptance-items) | In progress | `█████████░░░░░░░░░░░` 44% | 4/9 |
 | [M04 Source media](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M05 Screens/Surfaces/editors](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M06 Composition/editor](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
@@ -33,7 +34,7 @@ remain open under M03/M05/M09; their budgets and evidence are unchanged.
 
 Overall counts fully accepted milestones: `3 / 10 = 30%`; partial phases do not advance it.
 Phase percentages count closed acceptance items, rounded to the nearest whole percent
-(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 3 / 9 = 33%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
+(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 4 / 9 = 44%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
 its whole plan acceptance as one item unless a fixed breakdown is recorded here before
 implementation continues. On 2026-10-28 the user explicitly approved changing M01 from eight
 full-qualification items to four functional-route items, allowing M02 to start. The original
@@ -130,7 +131,7 @@ functional gate, not a retrospective pass of the original eight-item matrix.
 | --- | --- | --- |
 | Immutable render/resource plan compiler | Done | [Compiler evidence](mapgyver-m03-render-foundations.md#immutable-render-plan-compiler--2026-10-28): explicit texture/color/alpha, deterministic whole-graph validation/demand compilation, bounded raw work/checked logical bytes, 29 tests including a 10k chain. No runtime/native admission pass is inferred. |
 | Bounded worker/null runtime and atomic install | Done | [Runtime evidence](mapgyver-m03-render-foundations.md): Golden IO workers/fences, one preparation/latest desired plan, bounded reliable outcomes and resource admission, frame-boundary install, at most two in-flight uses/two retiring generations, completion-based worker-local destruction. Null resources simulate allocation/use; native proof stays open. |
-| D3D11/Spout backend and host integration | Open | [Initial native delivery](mapgyver-m03-render-foundations.md): explicit hardware LUID/caller-device ownership, four-mode composition/conversion, window/Spout outputs and real shared-host smoke pass. External receiver workers are explicitly unsupported pending bounded integration; the full gate remains open. |
+| D3D11/Spout backend and host integration | Done | [Native input/output evidence](mapgyver-m03-render-foundations.md#bounded-spout-inputs--2026-10-29): opaque GPU resources, explicit LUID/caller-device ownership, four-mode conversion/composition, independent-process Spout inputs and window/Spout output consumers pass. Shared-host regression passes. Full recovery/physical/steady-state budgets retain gates 4/8/9. |
 | Runtime observations and device recovery | Open | Source/output state, device removal/recreation, healthy-path independence, cancellation and bounded production recovery/retirement. |
 | App-owned media/channel backend contracts | Open | Stable IDs/references, backend size/default operations, Rust-generated contracts and actual history/reload/recreation coverage. |
 | Shared production-time authority | Done | [Golden Time](../../crates/golden_time/README.md) supplies checked coordinates/rational mappings and authority/discontinuity epochs consumed by the threaded video scheduler; fake-time activation/shared-output and stale-epoch tests pass. Shared P14 plan records this evidence; audio/DMX acceptance remains open. |
@@ -145,7 +146,7 @@ must be implemented and exercised once; audio-specific clocks/caches are not app
 
 ## Detailed status
 
-Updated: 2026-10-28. Entry point: [MapGyver implementation plan](../plan/MapGyver_Implementation_Plan.md).
+Updated: 2026-10-29. Entry point: [MapGyver implementation plan](../plan/MapGyver_Implementation_Plan.md).
 
 **State: M00, revised M01 and M02 complete locally; M03 implementation in progress.**
 The user explicitly requested implementation over successive turns on 2026-10-27, then requested
@@ -222,7 +223,7 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | M00 Reconciliation/workloads | VERIFIED_LOCAL | [Checkout/public-boundary/hardware handoff](mapgyver-m00-baseline.md), [captured inventory](evidence/mapgyver-baseline-2026-10-27.json), and fixed [qualification workloads/budgets](mapgyver-qualification-contract.md) |
 | M01 Functional route decision | COMPLETE_LOCAL | [Approved decision](mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28): ordinary Tauri/Wry + D3D11 + pinned Spout sys binding permit the thin shell. Full qualification remains with M03/M05/M09. |
 | M02 Multi-app seams/shell | COMPLETE_LOCAL | [Shell/isolation and typed host lifecycle](mapgyver-m02-shell.md) close all seven fixed items. The real Windows smoke verifies STA/worker/window teardown; no GPU or physical-output qualification is inferred. |
-| M03 Rendering/channels | IN_PROGRESS | [Compiler, bounded runtime and shared time](mapgyver-m03-render-foundations.md) close 3/9 fixed gates. Native integration/recovery, app contracts, assets, preview and native qualification remain open. |
+| M03 Rendering/channels | IN_PROGRESS | [Compiler, runtime, native execution and shared time](mapgyver-m03-render-foundations.md) close 4/9 fixed gates. Native recovery, app contracts, assets, preview and native qualification remain open. |
 | M04 Source media | NOT_STARTED | Solid Color, Picture, concurrent Spout scope defined |
 | M05 Screens/Surfaces/editors | NOT_STARTED | Output/crop/pin/calibration contracts defined |
 | M06 Composition/editor | NOT_STARTED | Instance/canvas/dependency contracts defined |
@@ -235,9 +236,10 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 The user approved the scope correction on 2026-10-28 and explicitly instructed continuation
 to M02. Its shell/isolation and typed host lifecycle deliveries now close all seven fixed
 items. M03's fixed compiler, worker/null-runtime and shared-time gates are now verified.
-The first D3D11 compositor/window/Spout output path and shared-host consumer are now exercised.
-Add bounded Spout source workers next, with admitted descriptors, reconnect and their own GPU
-completion before retirement. App-owned channel, shared asset and preview contracts retain their public owners.
+The D3D11 compositor, Spout source workers, window/Spout outputs and shared-host consumer are
+now exercised. Implement app-owned media/channel IDs, references, backend size/default intents
+and generated contracts next, including live binding publication through public runtime APIs.
+Native recovery, shared assets, preview geometry and qualification retain their existing owners.
 Deliver each coherent batch
 on `mapgyver` before starting the next. Preserve
 Chataigne's root default and unfinished P11 work. No new M01 captures, consumer-control cohorts,
@@ -383,6 +385,34 @@ Preserve Chataigne's unfinished engine/Spatializer P11 checkpoint (four of six f
 and its [separate ledger](implementation-status.md). Shared P12 boundary repairs belong to M02;
 P14/P15 time and asset contracts retain their shared Golden owners under M03. Root launch
 behavior is unchanged. No production host/backend/binding decision is final yet.
+
+## M03 bounded input verification — 2026-10-29
+
+- Entered from published `03c71423` on a clean `mapgyver` checkout. Golden Video now owns
+  independent demand-driven Spout receiver workers on the explicitly selected adapter LUID.
+  Prepared/live/retiring plans retain demand. Each source has a capture texture, three bounded
+  GPU bridge slots and independent completion; renderer leases survive through matching GPU
+  completion. No pixels or native handles enter the engine/control protocol.
+- [Input evidence](mapgyver-m03-render-foundations.md#bounded-spout-inputs--2026-10-29) and its
+  [exact-artifact packet](evidence/mapgyver-m03-spout-inputs-2026-10-29.json) retain two owned
+  independent producer processes, public-runtime reception, six finite composition observations,
+  prepared-demand cancellation, full-bridge backpressure, static-frame reuse, reconnect, admitted
+  resize, oversized-source rejection and continued healthy-source progress. Actual extent is
+  observed separately from the configured maximum; startup bindings remain immutable.
+- Native-feature suites pass **161 regular tests**: IO 58 unit, Time 32 unit + 1 public, Video
+  68 unit + 2 public. Both separately selected hardware tests pass on Intel LUID
+  `00000000:00016c2a`, including the nine existing color/alpha/filter/blend cases. The current
+  shared-host smoke again passes window-only, Spout-only and combined resized-client phases,
+  with stopped/zero-reservation observations and retirement before HWND destruction.
+- Default Video tests pass **62 unit + 2 public**. Strict default/native all-target Clippy,
+  strict source-fixture/host-smoke Clippy, both default app checks and root/Core formatters pass.
+  No dependency versions, generated protocol contracts, main app or frontend changed.
+- This closes fixed native execution **gate 3**: M03 is **4/9 = 44%**, overall **3/10 = 30%**.
+  The denominator and all qualification budgets are unchanged. Gate 4 device-loss/full recovery,
+  gate 5 app contracts/dynamic binding publication, gate 7 assets, gate 8 previews and gate 9
+  native measurements remain open. SDK receive/send acceptance is not proof of fresh delivery;
+  its possible 67-ms mutex wait and transient foreign-alias import remain documented limits.
+  The main app is still the workbench. Next is gate 5's app-owned media/channel contracts.
 
 ## M03 native checkpoint — 2026-10-29
 

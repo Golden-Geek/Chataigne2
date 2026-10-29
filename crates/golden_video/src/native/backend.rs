@@ -1,6 +1,8 @@
+use std::cell::Cell;
 use std::collections::BTreeMap;
 use std::time::Duration;
 
+use golden_io::WorkerNotifier;
 use golden_time::TimeSnapshot;
 
 use crate::plan::{BlendMode, CompiledPlan, RenderOperation, SampleFilter};
@@ -10,12 +12,14 @@ use crate::{LinearColor, OutputId, PassId, TextureDescriptor, TextureId};
 
 use super::completion::EventCompletion;
 use super::device::Device;
+use super::inputs::{SourceDemands, SourcePool};
 use super::outputs::{Delivery, OutputPool};
 use super::pipeline::Pipeline;
 use super::texture::Texture;
 use super::{D3d11Config, D3d11Control, NativeFailure};
 
 struct NativeState {
+    inputs: SourcePool,
     outputs: OutputPool,
     pipeline: Pipeline,
     completion: EventCompletion,
@@ -38,12 +42,15 @@ pub(crate) struct D3d11Backend {
     control: D3d11Control,
     generation: DeviceGeneration,
     native: Option<NativeState>,
+    notify: Option<WorkerNotifier>,
 }
 
 pub(crate) struct D3d11Resources {
     textures: BTreeMap<TextureId, Texture>,
     scratch: BTreeMap<PassId, Texture>,
     outputs: BTreeMap<OutputId, Texture>,
+    input_sequences: BTreeMap<TextureId, Cell<Option<u64>>>,
+    _demands: Option<SourceDemands>,
 }
 
 impl D3d11Backend {
@@ -53,11 +60,26 @@ impl D3d11Backend {
             control,
             generation,
             native: None,
+            notify: None,
         }
     }
 
+    pub(crate) fn with_notifier(mut self, notifier: WorkerNotifier) -> Self {
+        self.notify = Some(notifier);
+        self
+    }
+
     fn validate(&self, plan: &CompiledPlan) -> Result<(), BackendError> {
-        if !plan.external_textures().is_empty() {
+        if plan.external_textures().iter().any(|external| {
+            !self.config.inputs.iter().any(|binding| {
+                binding.texture == external.id
+                    && binding.descriptor.format == external.descriptor.format
+                    && binding.descriptor.color_encoding == external.descriptor.color_encoding
+                    && binding.descriptor.alpha_mode == external.descriptor.alpha_mode
+                    && external.descriptor.extent.width() <= binding.descriptor.extent.width()
+                    && external.descriptor.extent.height() <= binding.descriptor.extent.height()
+            })
+        }) {
             self.control
                 .update(|state| state.failure = Some(NativeFailure::UnsupportedExternalInput));
             return Err(BackendError::UnsupportedPlan);
@@ -80,7 +102,15 @@ impl D3d11Backend {
             let pipeline = Pipeline::new(&device.device)?;
             let completion = EventCompletion::new(&device)?;
             let outputs = OutputPool::new(&device.device, self.config.clone())?;
+            let inputs = SourcePool::new(
+                self.config.adapter,
+                &self.config.inputs,
+                &self.control,
+                self.notify.clone(),
+                self.generation,
+            )?;
             Ok::<_, windows::core::Error>(NativeState {
+                inputs,
                 outputs,
                 pipeline,
                 completion,
@@ -117,7 +147,18 @@ impl Backend for D3d11Backend {
     fn base_resource_bytes(&self) -> Result<u64, BackendError> {
         // This accounts every owned texture pool and the constant buffer. DXGI/driver physical
         // residency, alignment and native-object overhead need separate measured qualification.
-        self.config.outputs.iter().try_fold(48_u64, |total, binding| {
+        let base = self.config.inputs.iter().try_fold(48_u64, |total, input| {
+            // Capture + three bridge slots + one retained sender-storage alias. Renderer
+            // aliases of bridge slots do not duplicate their underlying pixel storage.
+            total
+                .checked_add(
+                    bytes(input.descriptor)?
+                        .checked_mul(5)
+                        .ok_or(BackendError::ResourceSizeOverflow)?,
+                )
+                .ok_or(BackendError::ResourceSizeOverflow)
+        })?;
+        self.config.outputs.iter().try_fold(base, |total, binding| {
             let bytes = bytes(binding.descriptor())?
                 .checked_mul(binding.persistent_copies())
                 .ok_or(BackendError::ResourceSizeOverflow)?;
@@ -127,6 +168,12 @@ impl Backend for D3d11Backend {
 
     fn initialize(&mut self) -> Result<(), BackendError> {
         self.allocate()
+    }
+
+    fn quiesce(&mut self) {
+        if let Some(native) = &self.native {
+            native.inputs.quiesce();
+        }
     }
 
     fn resource_bytes(&self, plan: &CompiledPlan) -> Result<u64, BackendError> {
@@ -167,7 +214,15 @@ impl Backend for D3d11Backend {
                 textures: BTreeMap::new(),
                 scratch: BTreeMap::new(),
                 outputs: BTreeMap::new(),
+                input_sequences: BTreeMap::new(),
+                _demands: None,
             };
+            for external in plan.external_textures() {
+                resources
+                    .textures
+                    .insert(external.id, Texture::new(&native.device.device, external.descriptor)?);
+                resources.input_sequences.insert(external.id, Cell::new(None));
+            }
             for pass in plan.passes() {
                 resources
                     .textures
@@ -184,6 +239,7 @@ impl Backend for D3d11Backend {
                     .outputs
                     .insert(output.id, Texture::new(&native.device.device, descriptor)?);
             }
+            resources._demands = Some(native.inputs.demands(plan));
             Ok::<_, windows::core::Error>(resources)
         })();
         prepared.map_err(|_| {
@@ -212,6 +268,41 @@ impl Backend for D3d11Backend {
         let submission = native.completion.begin(&native.device, token);
         let context = &native.device.context;
         let pipeline = &native.pipeline;
+        for external in plan.external_textures() {
+            let target = &resources.textures[&external.id];
+            let sequence = &resources.input_sequences[&external.id];
+            if sequence.get().is_none() {
+                // Absent input has deterministic zero storage (opaque descriptors read black).
+                unsafe {
+                    context.ClearRenderTargetView(&target.rtv, &[0.0; 4]);
+                }
+                sequence.set(Some(0));
+            }
+            match native.inputs.copy(
+                external.id,
+                &native.device,
+                target,
+                token.serial,
+                sequence.get().unwrap(),
+            ) {
+                Ok(Some(next)) => sequence.set(Some(next)),
+                Ok(None) => {
+                    if sequence.get() != Some(0) {
+                        unsafe {
+                            context.ClearRenderTargetView(&target.rtv, &[0.0; 4]);
+                        }
+                        sequence.set(Some(0));
+                    }
+                }
+                Err(error) => {
+                    native.inputs.fault(external.id, error);
+                    unsafe {
+                        context.ClearRenderTargetView(&target.rtv, &[0.0; 4]);
+                    }
+                    sequence.set(Some(0));
+                }
+            }
+        }
         // Every fallible native allocation/view lookup completed during preparation. From the
         // first command onward, output errors are observations and this token is always marked.
         for pass in plan.passes() {
@@ -294,7 +385,7 @@ impl Backend for D3d11Backend {
         if native.device.removed() {
             return Err(BackendError::DeviceLost);
         }
-        native
+        let completed = native
             .completion
             .completed(&native.device, self.generation)
             .map_err(|_| {
@@ -303,7 +394,9 @@ impl Backend for D3d11Backend {
                 } else {
                     BackendError::SubmissionFailed
                 }
-            })
+            })?;
+        native.inputs.retire(completed.serial);
+        Ok(completed)
     }
 
     fn wait_for_completion(&mut self, timeout: Duration) -> Result<(), BackendError> {
@@ -331,3 +424,6 @@ impl Drop for D3d11Backend {
 fn bytes(descriptor: TextureDescriptor) -> Result<u64, BackendError> {
     descriptor.byte_len().map_err(|_| BackendError::ResourceSizeOverflow)
 }
+
+#[cfg(test)]
+mod tests;

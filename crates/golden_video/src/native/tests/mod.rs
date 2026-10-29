@@ -3,7 +3,7 @@ use windows::Win32::Graphics::Direct3D::ID3DBlob;
 use windows::core::s;
 
 mod contracts;
-mod pixels;
+pub(in crate::native) mod pixels;
 
 #[test]
 fn embedded_native_shader_compiles_both_real_entrypoints() {

@@ -209,7 +209,7 @@ impl Drop for Fixture {
     }
 }
 
-fn readback(gpu: &Device, texture: &Texture) -> Vec<[u8; 4]> {
+pub(in crate::native) fn readback(gpu: &Device, texture: &Texture) -> Vec<[u8; 4]> {
     let extent = texture.descriptor.extent;
     assert_eq!(extent.height(), 1);
     assert!(extent.width() <= 2);

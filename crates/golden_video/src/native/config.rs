@@ -1,10 +1,11 @@
 use std::collections::BTreeSet;
 use std::num::NonZeroIsize;
+use std::time::{Duration, Instant};
 
 use thiserror::Error;
 
 use crate::runtime::{RuntimeConfig, RuntimeStartError};
-use crate::{AlphaMode, ColorEncoding, Extent2D, OutputId, PixelFormat, TextureDescriptor};
+use crate::{AlphaMode, ColorEncoding, Extent2D, OutputId, PixelFormat, TextureDescriptor, TextureId};
 
 /// DXGI adapter LUID. Enumeration indices are not persistent adapter identity.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -97,11 +98,53 @@ pub struct D3d11Config {
     pub adapter: AdapterId,
     /// Fixed bindings admitted before their native pools are created.
     pub outputs: Vec<OutputBinding>,
+    /// At most 32 fixed live bindings, each with its own bounded IO/device worker.
+    pub inputs: Vec<SpoutInput>,
+}
+
+/// One explicitly selected Spout source and its admitted immutable image contract.
+#[derive(Clone, Debug)]
+pub struct SpoutInput {
+    /// External texture identity referenced by compiled plans.
+    pub texture: TextureId,
+    /// Exact sender selector; the active-sender UI is never used.
+    pub sender: String,
+    /// Maximum admitted extent and required storage/transfer/alpha convention.
+    /// Actual extent is observed separately; incompatible senders remain unavailable.
+    pub descriptor: TextureDescriptor,
+    /// Dedicated worker polling interval, from one millisecond through one second.
+    pub poll_interval: Duration,
 }
 
 impl D3d11Config {
     pub(crate) fn validate(&self, runtime: &RuntimeConfig) -> Result<(), RuntimeStartError> {
         let invalid = RuntimeStartError::InvalidConfig;
+        if self.inputs.len() > runtime.plan_limits.max_external_textures || self.inputs.len() > 32 {
+            return Err(invalid("native input bindings exceed admitted source-worker limit"));
+        }
+        let mut inputs = BTreeSet::new();
+        for input in &self.inputs {
+            if !inputs.insert(input.texture)
+                || input.sender.is_empty()
+                || input.sender.len() > 255
+                || input.sender.contains('\0')
+            {
+                return Err(invalid("invalid or duplicate native input binding"));
+            }
+            let extent = input.descriptor.extent;
+            let limit = runtime.plan_limits.max_texture_dimension.min(16_384);
+            if extent.width() > limit || extent.height() > limit {
+                return Err(invalid("native input extent exceeds admitted device/plan limit"));
+            }
+            if input.poll_interval < Duration::from_millis(1)
+                || input.poll_interval > Duration::from_secs(1)
+                || Instant::now().checked_add(input.poll_interval).is_none()
+            {
+                return Err(invalid(
+                    "native input polling interval is outside one millisecond to one second",
+                ));
+            }
+        }
         if self.outputs.len() > runtime.plan_limits.max_outputs {
             return Err(invalid("native output bindings exceed plan output limit"));
         }

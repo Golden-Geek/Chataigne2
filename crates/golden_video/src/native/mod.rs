@@ -2,22 +2,25 @@
 //!
 //! Only configuration and bounded observations leave this module's worker. The host owns HWND
 //! lifetime; neither COM objects nor textures enter engine/UI mailboxes. Dynamic preview geometry
-//! and external source workers are separate integration work.
+//! remains separate integration work. Bounded source workers own their SDK and device work;
+//! renderer imports retain allocation leases through their own matching completion.
 
 mod backend;
 mod completion;
 mod config;
 mod device;
+mod inputs;
 mod observation;
 mod outputs;
 mod pipeline;
 mod texture;
 
-pub use config::{AdapterId, D3d11Config, NativeConfigError, OutputBinding, WindowTarget};
+pub use config::{AdapterId, D3d11Config, NativeConfigError, OutputBinding, SpoutInput, WindowTarget};
 pub use device::{AdapterInfo, adapters};
+pub use inputs::{SourceSnapshot, SourceState};
 pub use observation::{D3d11Control, D3d11Snapshot, NativeFailure};
 
 pub(crate) use backend::D3d11Backend;
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

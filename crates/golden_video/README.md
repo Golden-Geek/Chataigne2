@@ -74,12 +74,30 @@ consumers or abandon already queued GPU uses. Spout API acceptance does not prov
 the pinned SDK can wait up to 67 ms on its access mutex and return success after skipping a copy
 on timeout. This limitation remains part of native cadence qualification.
 
-External textures/Spout receivers are explicitly rejected by this backend until bounded source
-workers exist. Dynamic preview geometry, physical backing-buffer resize, native device-loss
-proof, source/output recovery, app media/channel integration, persistent assets and sustained
+`D3d11Config::inputs` binds up to 32 Spout inputs with exact sender selectors, required storage/
+color/alpha and admitted maximum extents. Each source owns a Golden IO worker and a separate
+device on the selected adapter. Prepared resource generations hold demand leases, warming inputs
+before activation; discarding the last demand stops receive polling. SDK work never runs in the
+renderer or engine loop.
+
+The public receive-into API uses admitted capture storage instead of an SDK-allocated receiving
+copy. Three NT-handle/keyed-mutex bridge slots coalesce input; capacity is checked before receive.
+Renderer imports stay local and retain reader leases through renderer completion. Source-device
+completion separately protects SDK aliases and writer/capture work. Resize retires old readers
+and cached aliases before replacing its pool within the same reservation. Source snapshots report
+actual extents; a plan must adopt that descriptor before copying the resized input. Missing or
+mismatched input has zero storage (black for opaque descriptors), with explicit source state.
+
+Startup bindings are currently immutable. App-owned binding publication/lifetime policy remains
+part of the media/channel integration work. The SDK can transiently open a changed foreign alias
+before post-update validation; owned pools and published descriptors stay bounded, but this is
+not a hard driver-residency guarantee.
+
+Dynamic preview geometry, physical backing-buffer resize, native device-loss proof, full
+source/output recovery, app media/channel integration, persistent assets and sustained
 native qualification remain in the [M03 acceptance gates](../../docs/progress/mapgyver-status.md#m03-acceptance-items).
-The [native milestone evidence](../../docs/progress/mapgyver-m03-render-foundations.md#native-d3d11-execution-and-owned-host-consumer--2026-10-29)
-keeps gate 3 partial; finite pixel/host checks do not close the full gate.
+The [input/native evidence](../../docs/progress/mapgyver-m03-render-foundations.md#bounded-spout-inputs--2026-10-29)
+closes the native execution mechanism gate; full native qualification stays open.
 
 Run `cargo test --locked -p golden_video -p golden_time -p golden_io` for contract, worker/null
 runtime and shared-time coverage. On Windows, add `--features golden_video/d3d11` for native
@@ -88,3 +106,9 @@ run; it uses finite readbacks outside the production frame path. The owned host 
 with `cargo run --locked -p MapGyver --features native-video-smoke --bin native_video_smoke -- --adapter <index>`
 and reports the observed adapter/LUID. Its API-acceptance and retirement checks do not establish
 scanout, delivery, physical/DPI correctness or Q01/Q02 budgets.
+
+For cross-process input verification, first build `native_source_fixture` with the same MapGyver
+feature, then run `cargo test --locked -p golden_video --features d3d11 -- --ignored --nocapture --test-threads=1`.
+The owned fixture accepts only finite test commands and uses GPU-generated colors; its control
+pipe carries no video frames. The tests cover preparation/cancellation, bridge pressure, static
+frame reuse, disconnect/reconnect, bounded resize and oversized-source rejection.

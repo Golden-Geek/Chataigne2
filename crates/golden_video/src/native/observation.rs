@@ -9,7 +9,7 @@ use super::AdapterId;
 pub enum NativeFailure {
     /// Native device/pipeline/output initialization failed.
     Initialization,
-    /// External inputs require the separate bounded source-worker integration.
+    /// External input is unbound or exceeds its declared storage/extent contract.
     UnsupportedExternalInput,
     /// A plan demanded a consumer that has no native binding.
     UnboundOutput,
@@ -44,15 +44,31 @@ pub struct D3d11Snapshot {
 
 /// Metadata-only native observation reader. It never retains devices, contexts or textures.
 #[derive(Clone, Default)]
-pub struct D3d11Control(Arc<Mutex<D3d11Snapshot>>);
+pub struct D3d11Control {
+    state: Arc<Mutex<D3d11Snapshot>>,
+    sources: Arc<Mutex<Vec<Arc<Mutex<super::SourceSnapshot>>>>>,
+}
 
 impl D3d11Control {
     /// Copies bounded native status without joining or polling GPU work.
     pub fn snapshot(&self) -> D3d11Snapshot {
-        *self.0.lock().unwrap_or_else(|error| error.into_inner())
+        *self.state.lock().unwrap_or_else(|error| error.into_inner())
     }
 
     pub(super) fn update(&self, update: impl FnOnce(&mut D3d11Snapshot)) {
-        update(&mut self.0.lock().unwrap_or_else(|error| error.into_inner()));
+        update(&mut self.state.lock().unwrap_or_else(|error| error.into_inner()));
+    }
+
+    /// Bounded source metadata. This does not poll any native endpoint or retain GPU objects.
+    pub fn sources(&self) -> Vec<super::SourceSnapshot> {
+        let sources = self.sources.lock().unwrap_or_else(|error| error.into_inner()).clone();
+        sources
+            .iter()
+            .map(|source| *source.lock().unwrap_or_else(|error| error.into_inner()))
+            .collect()
+    }
+
+    pub(super) fn register_sources(&self, sources: Vec<Arc<Mutex<super::SourceSnapshot>>>) {
+        *self.sources.lock().unwrap_or_else(|error| error.into_inner()) = sources;
     }
 }
