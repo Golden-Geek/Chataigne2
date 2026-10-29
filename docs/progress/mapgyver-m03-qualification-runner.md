@@ -49,7 +49,8 @@ and an exact device/token where submitted. A final coverage fence prevents the a
 extrapolating a stopped trace past observation. Software API deadlines remain separate from
 GPU/display completion: API begin after a deadline can establish a definite submission-miss
 lower bound, while API end alone can include waiting or preemption. Early API acceptance cannot
-pass the normative output deadline or scanout criterion.
+pass the output deadline or scanout criterion. The delivery analysis below adds exact window
+software-display points and Spout ready-time upper bounds, with explicit unknown outcomes.
 
 CPU rows contain inclusive submission wall intervals, exact SDK/Present API brackets and
 optional OS-accounted thread CPU deltas. API wall time can include CPU work and waiting;
@@ -762,3 +763,79 @@ Validation passes 182 regular Rust tests, twelve native GPU tests and 73 Python 
 default/native all-target Clippy, generated fixture contracts, release x64 build and both Rust
 formatters. Full cadence/repetition, GPU/queue/deadline, growth/handle, genuine removal/stuck
 retirement and M05 physical observations remain open. **M03 stays 7/9; overall stays 3/10 (30%)**.
+
+## Anchored delivery deadline bounds — 2026-10-29
+
+Deadline measurement belongs in the app-owned qualification tools. `production_deadlines.py`
+provides the checked absolute slot/cadence/device cohort, explicit skip/unconsumed ranges and
+final coverage fence. `production_presentmon.py` exposes exact API/display observations over
+the whole capture; `production_cohort.py` retains the first valid completed GPU-capture upper
+bound for an exact Spout image. `production_delivery_deadlines.py` joins those witnesses to
+each expected slot/output and classifies OnTime, Miss or Unknown. Native schema 6 already
+contains every required input; no native protocol, runtime, shader or capture policy changes.
+
+Deadline membership uses the anchored next-slot boundary in `[sample begin, sample end)`.
+The first deadline can belong to a native API call before sample begin. Restricting the join
+to API calls inside the sample would incorrectly lose that frame. Full-capture witnesses are
+joined by exact device/batch/output/endpoint/image identities; repeats and foreign same-serial
+records cannot replace missing frames. Every expected opportunity remains in the denominator.
+
+The classification distinguishes direct observations from bounds:
+
+- A reported window software display at/before its deadline proves that software endpoint on
+  time. A later event or reported dropped frame establishes an observed software-display miss.
+- An exact completed independent Spout capture observed by the deadline proves the published
+  image was GPU-ready by that time. A later completion poll provides only an upper bound;
+  readiness could have occurred earlier, so it remains Unknown.
+- A publication API beginning after the deadline proves it could not publish that frame in
+  time. Known unsubmitted/nonaccepted opportunities supply separate failure bounds. A missing
+  schedule/output/witness stays Unknown. Contradictory nonaccepted/display observations do not
+  become a passing frame.
+- CPU API return can be preempted after successful delivery. A late return never overrides an
+  earlier valid display/readiness witness. Partial/untrusted telemetry cannot certify a pass.
+
+Each output reports lower/upper miss fractions, accounting for all Unknowns in the upper
+bound, plus its exact classification records. A failure is proven when the known miss lower
+bound exceeds 1/1000. A pass requires complete classification/telemetry within that budget;
+other cases remain unavailable. Integer/rational comparison preserves the inclusive boundary.
+These observations do not certify physical scanout, optical latency, native buffer occupancy
+or a calibrated GPU critical path.
+
+The [analysis packet](evidence/mapgyver-m03-delivery-deadlines-2026-10-29.json) and
+[derived archive](evidence/mapgyver-m03-delivery-deadlines-analysis-2026-10-29.zip) use the
+unchanged [existing raw archive](evidence/mapgyver-m03-window-present-controls-2026-10-29.zip),
+SHA-256 `d12a5f49a23e708e8c3396a9d6e5c8445d37789425729fbc6aa1eefcbaf63de4`.
+All 68 original member bytes and original analyses remain intact. Only four captured analysis
+source files differ; the new analyzer/helper hashes are recorded separately. The other 258
+captured execution hashes and native executable still match. No new native/collector run,
+device/driver/display/overlay change or workload/budget adjustment occurred.
+
+| Anchored delivery classification, expected 180 per output | Q01 on time / miss / unknown | Q02 on time / miss / unknown |
+| --- | --- | --- |
+| Main window software display | 180 / 0 / 0 | 0 / 180 / 0 |
+| Spout GPU-ready bounds | 180 / 0 / 0 | 3 / 1 / 176 |
+| Editor window software display | 180 / 0 / 0 | 0 / 180 / 0 |
+
+Q01 proves its observed three-output deadlines in this short control. Q02 main combines 137
+late displays and 43 nonaccepted frames; editor combines 91 late displays and 89 nonaccepted
+frames. Main/editor observed lateness p95 is 11.355/18.397 ms beyond their slot deadlines.
+Q02 Spout has 158 late completion upper bounds and eighteen missing exact captures, all
+Unknown. Its one known nonaccepted frame is already 0.556%, exceeding 0.1%. The total miss
+fraction is bounded by 0.556%–98.333%; it is not asserted to be the upper value. No late GPU
+miss count is inferred by subtracting a polling delay or guessing a ready timestamp.
+
+Independent raw reconstruction recomputes nested-ceil slot boundaries, native API/CSV
+matches, rational display time and exact producer/source-use/capture words. It agrees for all
+1,080 slot/output classifications, including the pre-window call. Source-age/cadence and all
+earlier capture/qualification failures remain preserved. Three-second diagnostic evidence
+does not qualify the required repeated 120-second samples or 60-second interruptions.
+
+The five-member derived archive is 190,528 bytes, SHA-256
+`930548d805d6ae35e92d255ccb079095af5a3b1cbac83220da44af081e8b9824`.
+It includes full new analyses, independent reconstruction source/results and the test log.
+Validation passes 85 production Python tests and both Rust formatters. Tests cover exact
+budget inclusivity, polling/preemption bounds, anchored boundary membership, rejected and
+missing frames, trust/clock faults, endpoint/device identity and duplicate witnesses. Native
+implementation is unchanged; the prior 182 regular/twelve native test baseline is retained,
+without a new native-test or performance claim. GPU/queue, growth/handle, genuine removal/stuck
+retirement and full prescribed qualification remain open. **M03 stays 7/9; overall stays 30%**.

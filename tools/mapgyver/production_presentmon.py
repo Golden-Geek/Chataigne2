@@ -93,6 +93,17 @@ def analyze_presentmon(report, native, sources, window, pid, frequency, distribu
     loss = DATA['loss_observation'](report['stdout'], report.get('stderr', ''))
     healthy = live and loss['no_loss_reported'] and report.get('exit_code') == 0 \
         and not report.get('forced_cleanup') and not report.get('timed_out') and report.get('tools_unchanged') is True
+    observations = []
+    for entry in calls:
+        output, row = entry['output'], entry['csv']
+        displayed = row.display_qpc if row else None
+        observations.append({'token': output['token'], 'output': output['output'],
+                             'endpoint': output['window_present'],
+                             'present_qpc': row.qpc if row else None,
+                             'disposition': 'Missing' if row is None else 'Dropped' if row.dropped else
+                                            'DisplayTimeUnavailable' if displayed is None else 'Displayed',
+                             'display_qpc': {'numerator': str(displayed.numerator), 'denominator': str(displayed.denominator)}
+                                            if displayed is not None else None})
     reports = []
     for output_id in (1, 3):
         accepted = [r for r in native['Output'] if r['output'] == output_id and r['outcome'] == 'Accepted'
@@ -192,6 +203,7 @@ def analyze_presentmon(report, native, sources, window, pid, frequency, distribu
                                             'scope': 'known Present start to software display; not app/native buffer occupancy; unknown/drop retirement is not guessed'},
                         'records': records})
     return {'captured': True, 'coverage_complete': all(r['coverage_complete'] for r in reports),
+            'present_observations': observations,
             'csv_rows': total, 'unmatched_rows': unmatched, 'nonaccepted_native_rows': rejected,
             'collector_healthy': healthy, 'live_loss_query_covers_native_calls': live,
             'loss_observation': loss, 'outputs': reports,

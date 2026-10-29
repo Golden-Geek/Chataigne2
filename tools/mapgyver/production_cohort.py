@@ -159,6 +159,7 @@ def analyze_cohort(native, streams, consumer, consumer_events, window, frequency
         image = _image(output.get("spout_image"))
         record = {"token": output["token"], "spout_image": output.get("spout_image"),
                   "capture_row": None, "source_frames": None, "source_ages_ms": None,
+                  "completion_observed_qpc": None,
                   "sender_api_capture_delay_ms": None, "missing": None}
         records.append(record)
         if image is None or len(publications[image]) != 1:
@@ -180,6 +181,7 @@ def analyze_cohort(native, streams, consumer, consumer_events, window, frequency
         completed = first["completion_observed_qpc"]
         api = _api(output)
         record["capture_row"] = first["row"]
+        record["completion_observed_qpc"] = completed
         record["source_frames"] = [row["submission"]["stamp"]["frame"] for row in expected]
         record["source_ages_ms"] = [(completed - row["submission"]["stamp"]["qpc"]) * 1000 / frequency
                                     for row in expected]

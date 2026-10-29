@@ -25,6 +25,7 @@ PREPARATION = runpy.run_path(str(Path(__file__).with_name("production_preparatio
 PLAN_AGE = runpy.run_path(str(Path(__file__).with_name("production_plan_age.py")))
 COHORT = runpy.run_path(str(Path(__file__).with_name("production_cohort.py")))
 PRESENTMON = runpy.run_path(str(Path(__file__).with_name("production_presentmon.py")))
+DELIVERY_DEADLINES = runpy.run_path(str(Path(__file__).with_name("production_delivery_deadlines.py")))
 
 
 class ArtifactError(ValueError):
@@ -471,6 +472,14 @@ def analyze_capture(directory):
     consumer_complete = consumer_final.get("final_readbacks") == 1 and consumer_final.get("finished") is True \
         and consumer_final.get("overflow") == consumer_final.get("mismatch") == consumer_final.get("failed_receives") == 0 \
         and consumer_final.get("device_removed") is False
+    output_stamps = [(o.get("delivery") or {}).get("end") for o in native["Output"]]
+    output_stamps = [stamp for stamp in output_stamps if stamp is not None]
+    full_spout = COHORT["analyze_cohort"](native, (source_a, source_b), consumer, consumer_events,
+        {"begin_qpc": min(output_stamps, default=sample["begin_qpc"]),
+         "end_qpc": max(output_stamps, default=sample["end_qpc"]) + 1}, frequency, distribution)
+    delivery_deadlines = DELIVERY_DEADLINES["analyze_delivery_deadlines"](
+        deadlines, native["Output"], presentmon, full_spout, frequency, distribution,
+        telemetry_complete=complete, capture_complete=consumer_complete)
     all_output_age_covered = complete and consumer_complete and cohort["coverage_complete"] and presentmon["coverage_complete"]
     window_age_ok = presentmon["coverage_complete"] and all(
         age is not None and age["p95_ms"] <= 50 for output in presentmon["outputs"]
@@ -559,8 +568,9 @@ def analyze_capture(directory):
         "producer_api_cadence": criterion(all(row["within_target"] for row in producers) if complete else None, eligible),
         "submission_deadlines": criterion(deadline_verdict, eligible,
             reason="anchored native API observations; early acceptance does not prove GPU/display completion"),
-        "deadline_misses": criterion(False if deadlines["definite_failure_lower_bound_exceeds_budget"] else None, eligible,
-            reason="definite unsubmitted/late-start lower bounds can fail; early APIs cannot qualify normative output deadlines"),
+        "deadline_misses": criterion(False if deadlines["definite_failure_lower_bound_exceeds_budget"] else
+                                      delivery_deadlines["deadline_verdict"], eligible,
+            reason="exact anchored opportunities; window software display and Spout ready-time bounds; late completion polls stay unknown"),
         "editor_independence": criterion(independence["complete"] if complete else None,
                                          manifest.get("independence_seconds") == 60),
         "source_to_consumer_age": criterion(cohort["observed_age_p95_within_budget"] and window_age_ok
@@ -602,6 +612,7 @@ def analyze_capture(directory):
             "criteria": criteria, "cpu": cpu, "renderer_gpu": renderer_gpu, "other_contexts": local_contexts,
             "dependencies": dependencies, "outputs": output_metrics, "producers": producers,
             "submission_deadlines": deadlines,
+            "delivery_deadlines": delivery_deadlines,
             "native_preparation": preparation,
             "plan_publication_age": plan_age,
             "window_presentation": presentmon,
@@ -661,6 +672,7 @@ def fingerprints(executable):
               Path(__file__).with_name("presentmon_data.py"),
               Path(__file__).with_name("production_cohort.py"),
               Path(__file__).with_name("production_deadlines.py"), ROOT / "apps/mapgyver/Cargo.toml",
+              Path(__file__).with_name("production_delivery_deadlines.py"),
               ROOT / "crates/golden_time/Cargo.toml", ROOT / "crates/golden_video/Cargo.toml",
               ROOT / "apps/mapgyver/build.rs"]
     for directory in ("crates/golden_time/src", "crates/golden_video/src", "crates/golden_core/hosts/desktop/src",

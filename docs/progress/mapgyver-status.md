@@ -5,17 +5,17 @@
 **Updated: 2026-10-29 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
 **Current topic:** M03 remains **7/9** accepted gates. The
-[window display-age checkpoint](mapgyver-m03-qualification-runner.md#exact-window-presents-and-software-display-age--2026-10-29)
-joins all 2,069 PresentMon rows to exact native PID/interface/API calls. Both sample window
-cohorts have complete source/plan/software-display observations. Q01 p95 source age stays below
-33 ms; Q02 reaches 63.386 ms in the editor and retains cadence/capture failures. Physical scanout,
-buffer occupancy and GPU queue/critical-path qualification remain separate. No gate closes.
+[delivery deadline checkpoint](mapgyver-m03-qualification-runner.md#anchored-delivery-deadline-bounds--2026-10-29)
+classifies all 180 anchored opportunities per output from the existing immutable captures.
+Q01 has 180 proven on-time observations on each output. Q02 main/editor miss all 180; Spout
+has three on time, one proven miss and 176 unknown GPU-ready times. Late completion polls are
+not automatically called GPU misses. No native workload reran and no gate closes.
 
-**Next:** complete GPU/output queue, critical-path and output deadline measurements
+**Next:** complete GPU critical-path and native buffer/GPU-queue measurements
 (gate 9), then address remaining cadence, capture coverage and growth qualification. Native
 device removal and bounded stuck retirement retain gate 4.
 **Blocker:** Q02 window cadence, producer admission, complete capture coverage and age remain
-insufficient; GPU keyed ownership repairs pixel coherence, not those budgets. Full GPU
+insufficient; Q02 window delivery deadlines now have proven failures. Full GPU
 critical-path and native buffer/GPU-queue coverage remain unavailable; bounded window software
 display age is now measured. Genuine device removal and stuck-driver retirement bounds remain unverified.
 Historical memory-growth, geometry and display/input failures retain their M03/M05/M09 owners.
@@ -268,8 +268,10 @@ superseded plans have no invented receipt. Retained plan age grows between edits
 edit latency. Optional PID-filtered PresentMon now joins each actual window API call to its
 software display event and exact retained sources/plans. Q01 has complete three-output age
 observations in one short control; Q02 retains cadence/age/capture failures. Pending software
-display events do not establish native buffer occupancy. Complete GPU critical-path,
-queue/consumption and output deadline measurement
+display events do not establish native buffer occupancy. Anchored delivery-deadline analysis
+now retains every opportunity, including a pre-window API call whose deadline belongs to the
+sample. Q01 has 180 on-time observations per output; Q02 window deadlines fail, while late
+Spout polling stays uncertain. Complete GPU critical-path and queue/consumption measurement
 before the prescribed qualification series (gate 9).
 Genuine native device-removal recovery and bounded stuck-drain retirement retain gate 4.
 Both gates remain required before M03 completion; all existing budgets/failures stay operative.
@@ -418,6 +420,39 @@ Preserve Chataigne's unfinished engine/Spatializer P11 checkpoint (four of six f
 and its [separate ledger](implementation-status.md). Shared P12 boundary repairs belong to M02;
 P14/P15 time and asset contracts retain their shared Golden owners under M03. Root launch
 behavior is unchanged. No production host/backend/binding decision is final yet.
+
+## M03 anchored delivery deadline bounds — 2026-10-29
+
+The [deadline checkpoint](mapgyver-m03-qualification-runner.md#anchored-delivery-deadline-bounds--2026-10-29),
+[analysis packet](evidence/mapgyver-m03-delivery-deadlines-2026-10-29.json) and
+[derived archive](evidence/mapgyver-m03-delivery-deadlines-analysis-2026-10-29.zip) reanalyze
+the existing [schema-6 raw archive](evidence/mapgyver-m03-window-present-controls-2026-10-29.zip)
+without changing or rerunning native code. Independently reconstructed nested-ceil scheduler
+boundaries, exact API/display joins and canonical source-word/capture joins reproduce every
+classification. Original raw files and analyses remain unchanged; the new analyzer version is
+hashed separately. All non-analysis capture hashes and the native binary still match.
+
+Each output retains **180 anchored opportunities**. Q01 main/Spout/editor each have **180 on
+time, zero proven misses and zero unknowns**. Q02 main has 137 late software displays plus 43
+nonaccepted frames; editor has 91 late displays plus 89 nonaccepted frames. Both therefore
+miss all 180 opportunities. Q02 Spout has **three proven on time, one nonaccepted/proven miss,
+176 unknowns**: 158 late completion upper bounds and eighteen missing exact captures. Its one
+known miss already exceeds the unchanged 0.1% budget; unknowns are not relabeled as GPU misses.
+
+Window observations use reported software display time. An exact completed Spout capture can
+prove GPU readiness by its CPU observation time; a late poll alone cannot prove late readiness.
+Late publication API start and known unsubmitted/nonaccepted opportunities supply separate
+failure bounds. Missing slots/witnesses remain in the denominator, and even a late CPU API
+return cannot erase an earlier valid delivery witness. Physical scanout, queue occupancy and
+GPU critical path remain separate evidence. The short controls do not satisfy the prescribed
+series. The five-member derived archive is 190,528 bytes, SHA-256
+`930548d805d6ae35e92d255ccb079095af5a3b1cbac83220da44af081e8b9824`.
+
+Validation passes **85 production Python tests**, including exact 1/1000 inclusivity, pre-window
+API/deadline cohorts, late polling, CPU preemption, missing/foreign/duplicate/stale witnesses
+and partial telemetry; both required Rust formatters run. Rust/native implementation is
+unchanged, so the earlier 182 regular/twelve native test baseline is retained without claiming
+a new native run. Gates 4/9 remain open. **M03 stays 7/9 (78%); overall stays 3/10 (30%)**.
 
 ## M03 window Present/display correlation — 2026-10-29
 

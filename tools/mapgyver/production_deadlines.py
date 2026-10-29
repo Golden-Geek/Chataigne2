@@ -165,7 +165,7 @@ def analyze_deadlines(schedule_rows, output_rows, window, frequency, output_ids=
         indexed_outputs[key] = output
     ranges.sort()
     reports = {output: Counter() for output in output_ids}
-    missing_slots, examples = [], []
+    missing_slots, examples, slots = [], [], []
     range_index = 0
     for index, deadline in expected:
         while range_index < len(ranges) and ranges[range_index][1] <= index:
@@ -173,6 +173,12 @@ def analyze_deadlines(schedule_rows, output_rows, window, frequency, output_ids=
         skipped = range_index < len(ranges) and ranges[range_index][0] <= index < ranges[range_index][1]
         row = consumed.get(index)
         fenced_tail = index >= fence["index"]
+        known = row is not None or skipped or fenced_tail
+        slots.append({"frame_index": index, "deadline_qpc": deadline,
+                      "token": row["row"]["token"] if row is not None else None,
+                      "disposition": row["row"]["disposition"] if row is not None else
+                                     "Skipped" if skipped else "Unconsumed" if fenced_tail else "Missing",
+                      "known": known})
         if row is None and not skipped and not fenced_tail:
             missing_slots.append(index)
             continue
@@ -222,6 +228,7 @@ def analyze_deadlines(schedule_rows, output_rows, window, frequency, output_ids=
     failed = any(row["definite_miss_fraction_lower_bound"] > MISS_BUDGET for row in outputs)
     upper_pass = complete and all(row["observed_miss_fraction"] <= MISS_BUDGET for row in outputs)
     return {"mapping_available": True, "coverage_complete": bool(complete), "expected_slots": len(expected),
+            "device": rows[0]["row"]["device"], "slots": slots,
             "first_frame_index": expected[0][0], "last_frame_index": expected[-1][0],
             "cadence": identity[1], "fence_observed_qpc_lower": fence["observed_lower"],
             "missing_schedule_slots": missing_slots, "outputs": outputs, "late_examples": examples,
