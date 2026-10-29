@@ -72,7 +72,7 @@ impl<B: Backend> Runner<B> {
                 let time = time.unwrap_or_else(|| self.shared.snapshot().time);
                 self.cadence = super::Cadence::new(self.config.frame_rate, time.monotonic());
                 if self.rebuild.is_none() {
-                    self.shared.lock().snapshot.state = RuntimeState::Running;
+                    self.shared.backend_recovered();
                 }
                 self.shared.notify();
             }
@@ -124,7 +124,7 @@ impl<B: Backend> Runner<B> {
                     self.recovery.reset();
                     let time = time.unwrap_or_else(|| self.shared.snapshot().time);
                     self.cadence = super::Cadence::new(self.config.frame_rate, time.monotonic());
-                    self.shared.lock().snapshot.state = RuntimeState::Running;
+                    self.shared.backend_recovered();
                     self.shared.notify();
                 }
                 Err(error) => {

@@ -12,6 +12,8 @@ use super::surface::{Surface, acquired};
 use super::*;
 use crate::runtime::DeviceGeneration;
 
+mod retirement;
+
 #[test]
 fn keyed_mutex_positive_timeout_and_abandoned_codes_are_not_success() {
     assert!(acquired(HRESULT(0)).unwrap());
@@ -79,6 +81,9 @@ fn layout_observation_fences_ignore_frames_and_availability_but_end_with_the_poo
     let layout = reader.guard_at(reader.current());
     shared.update(|status| status.pool_generation += 1);
     assert!(!layout.is_current());
+    let session = reader.guard_at(reader.current());
+    shared.update(|status| status.generation += 1);
+    assert!(!session.is_current());
     let lifetime = reader.guard_at(reader.current());
     shared.state(SourceState::Stopped);
     assert!(!lifetime.is_current());

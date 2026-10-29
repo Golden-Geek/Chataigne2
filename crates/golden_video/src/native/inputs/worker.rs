@@ -255,26 +255,43 @@ impl Session {
     }
 
     fn drain_source(&mut self) {
-        while !self.device.removed() {
-            match self.completion.completed(&self.device, self.generation) {
-                Ok(done) if done.serial >= self.submitted => break,
-                _ => std::thread::sleep(Duration::from_millis(1)),
-            }
-        }
+        drain_source(
+            &self.shared,
+            || self.device.removed(),
+            || {
+                self.completion
+                    .completed(&self.device, self.generation)
+                    .map(|done| done.serial >= self.submitted)
+            },
+        );
     }
 
     fn retire_imports(&self) {
-        self.shared.clear();
-        self.shared.released.store(false, Ordering::Release);
-        self.shared.retiring.store(true, Ordering::Release);
-        self.shared.state(SourceState::Recovering);
-        self.shared.wake_renderer();
+        self.shared.withdraw();
         while !self.shared.shutdown.load(Ordering::Acquire) && !self.shared.released.load(Ordering::Acquire) {
             std::thread::sleep(Duration::from_millis(1));
         }
         while self.slots.iter().any(|slot| Arc::strong_count(&slot.surface) != 1) {
             std::thread::sleep(Duration::from_millis(1));
         }
+    }
+}
+
+pub(super) fn retire_source(shared: &Shared, removed: impl FnMut() -> bool, completed: impl FnMut() -> Result<bool>) {
+    // Withdrawal precedes a potentially blocked/erroring query. This changes visibility,
+    // not ownership: cancellation cannot certify completion of queued source-device work.
+    shared.withdraw();
+    drain_source(shared, removed, completed);
+}
+
+fn drain_source(shared: &Shared, mut removed: impl FnMut() -> bool, mut completed: impl FnMut() -> Result<bool>) {
+    while !removed() {
+        match completed() {
+            Ok(true) => break,
+            Err(error) => shared.update(|status| status.hresult = Some(error.code().0)),
+            Ok(false) => {}
+        }
+        std::thread::sleep(Duration::from_millis(1));
     }
 }
 
@@ -298,7 +315,15 @@ impl Drop for Session {
     fn drop(&mut self) {
         // The source has its own device/context completion authority. Renderer completion alone
         // cannot retire the SDK alias, capture texture or bridge writer's GPU work.
-        self.drain_source();
+        retire_source(
+            &self.shared,
+            || self.device.removed(),
+            || {
+                self.completion
+                    .completed(&self.device, self.generation)
+                    .map(|done| done.serial >= self.submitted)
+            },
+        );
         self.retire_imports();
         self.shared.update(|status| status.bridge_slots = 0);
         // SDK/native fields drop on this source worker only, while its pool lifetime stays held.

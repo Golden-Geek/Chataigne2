@@ -177,7 +177,7 @@ pub enum RuntimeState {
     Stopping,
     /// Resource and preparation workers finished cleanup.
     Stopped,
-    /// A recoverable time/backend observation failed; control remains responsive.
+    /// A time/backend fault remains unresolved; control remains responsive.
     Faulted,
 }
 
@@ -223,7 +223,7 @@ pub struct RuntimeSnapshot {
     pub missed_frames: u64,
     /// Latest submitted frame's shared-time observation.
     pub last_frame: Option<FrameObservation>,
-    /// Latest bounded error, separate from per-request terminal results.
+    /// Latest bounded error, retained as history after recovery and separate from request results.
     pub failure: Option<RuntimeFailure>,
 }
 

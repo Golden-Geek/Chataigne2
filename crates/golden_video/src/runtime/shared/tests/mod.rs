@@ -6,7 +6,7 @@ use golden_time::{
 use uuid::Uuid;
 
 use crate::runtime::identity::{CompletionToken, DeviceGeneration, GenerationId, PlanIdentity, PlanRevision};
-use crate::runtime::types::FrameObservation;
+use crate::runtime::types::{FrameObservation, RuntimeFailure};
 
 use super::*;
 
@@ -148,4 +148,83 @@ fn concurrent_time_publication_never_pairs_one_authoritys_mapping_with_another_c
         invalid.is_none(),
         "reader observed mixed authority/clock publication: {invalid:?}"
     );
+}
+
+#[test]
+fn time_intents_do_not_certify_backend_recovery_or_revive_a_stopping_runtime() {
+    let runtime = Uuid::new_v4();
+    let project = ProjectEpoch::new(runtime, 0);
+    let (clock, time) = clock_pair(100, 0);
+    let shared = Shared::new(project, time, clock, 4, None);
+    shared.fault(RuntimeFailure::new(
+        FailureCode::Backend,
+        "backend is still unavailable",
+    ));
+    let (clock, changed) = clock_pair(200, 10);
+    shared.publish_time(changed, Some(clock));
+    assert_eq!(shared.snapshot().state, RuntimeState::Faulted);
+    assert_eq!(shared.snapshot().failure.unwrap().code(), FailureCode::Backend);
+    let frame = |project, serial| FrameObservation {
+        frame_index: serial,
+        scheduled_at: changed.monotonic(),
+        completion: CompletionToken {
+            device: DeviceGeneration::new(runtime, 1),
+            serial,
+        },
+        generation: GenerationId::new(serial),
+        identity: PlanIdentity {
+            project,
+            revision: PlanRevision::new(serial),
+        },
+        time: changed,
+    };
+    shared.record_frame(frame(ProjectEpoch::new(runtime, 1), 1));
+    assert_eq!(shared.snapshot().state, RuntimeState::Faulted);
+    shared.record_frame(frame(project, 2));
+    assert_eq!(shared.snapshot().state, RuntimeState::Running);
+    assert_eq!(shared.snapshot().failure.unwrap().code(), FailureCode::Backend);
+
+    shared.close();
+    shared.lock().snapshot.state = RuntimeState::Stopping;
+    shared.publish_time(changed, None);
+    shared.record_frame(frame(project, 3));
+    assert_eq!(shared.snapshot().state, RuntimeState::Stopping);
+}
+
+#[test]
+fn close_fences_late_time_observations_faults_and_backend_recovery() {
+    let (clock, time) = clock_pair(100, 0);
+    let shared = Shared::new(ProjectEpoch::new(Uuid::new_v4(), 0), time, clock, 4, None);
+    shared.fault(RuntimeFailure::new(FailureCode::Time, "clock unavailable"));
+    assert_eq!(shared.snapshot().state, RuntimeState::Faulted);
+    shared.close();
+    assert_eq!(shared.snapshot().state, RuntimeState::Stopping);
+    shared.publish_time(time, None);
+    shared.backend_recovered();
+    shared.fault(RuntimeFailure::new(FailureCode::Time, "late clock failure"));
+    assert_eq!(shared.snapshot().state, RuntimeState::Stopping);
+    shared.lock().snapshot.state = RuntimeState::Stopped;
+    shared.close();
+    assert_eq!(shared.snapshot().state, RuntimeState::Stopped);
+}
+
+#[test]
+fn overlapping_time_and_backend_faults_require_independent_recovery() {
+    let (clock, time) = clock_pair(100, 0);
+    let shared = Shared::new(ProjectEpoch::new(Uuid::new_v4(), 0), time, clock, 4, None);
+    shared.fault(RuntimeFailure::new(FailureCode::Backend, "backend unavailable"));
+    shared.fault(RuntimeFailure::new(FailureCode::Time, "clock unavailable"));
+    shared.publish_time(time, None);
+    assert_eq!(shared.snapshot().state, RuntimeState::Faulted);
+    shared.backend_recovered();
+    assert_eq!(shared.snapshot().state, RuntimeState::Running);
+    assert_eq!(shared.snapshot().failure.unwrap().code(), FailureCode::Time);
+
+    shared.fault(RuntimeFailure::new(FailureCode::Time, "clock unavailable"));
+    shared.fault(RuntimeFailure::new(FailureCode::Backend, "backend unavailable"));
+    shared.backend_recovered();
+    assert_eq!(shared.snapshot().state, RuntimeState::Faulted);
+    shared.publish_time(time, None);
+    assert_eq!(shared.snapshot().state, RuntimeState::Running);
+    assert_eq!(shared.snapshot().failure.unwrap().code(), FailureCode::Backend);
 }

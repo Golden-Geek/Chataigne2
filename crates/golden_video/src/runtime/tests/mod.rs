@@ -23,6 +23,8 @@ use super::{
 mod admission;
 mod images;
 mod ownership;
+mod recovery;
+mod recovery_project;
 mod scheduling;
 
 const DEADLINE: Duration = Duration::from_secs(5);

@@ -118,7 +118,12 @@ impl D3d11Backend {
             let device = Device::new(self.config.adapter)?;
             let pipeline = Pipeline::new(&device.device)?;
             let completion = EventCompletion::new(&device)?;
-            let outputs = OutputPool::new(&device.device, self.config.clone())?;
+            let outputs = OutputPool::new(
+                &device.device,
+                self.config.clone(),
+                self.control.clone(),
+                self.generation,
+            )?;
             let inputs = SourcePool::new(
                 self.config.adapter,
                 self.config.inputs,
@@ -138,8 +143,6 @@ impl D3d11Backend {
             Ok(native) => {
                 let adapter = native.device.adapter;
                 self.native = Some(native);
-                self.control
-                    .register_outputs(self.generation, self.config.outputs.iter().map(|output| output.id()));
                 self.control.update(|state| {
                     state.adapter = Some(adapter);
                     state.device = Some(self.generation);
@@ -182,8 +185,9 @@ impl Backend for D3d11Backend {
     }
 
     fn quiesce(&mut self) {
-        if let Some(native) = &self.native {
+        if let Some(native) = &mut self.native {
             native.inputs.quiesce();
+            native.outputs.quiesce();
         }
     }
 
@@ -400,13 +404,16 @@ impl Backend for D3d11Backend {
                 BlendMode::Normal,
                 SampleFilter::Linear,
             );
-            let delivered = native.outputs.deliver(output.id, context, converted);
-            self.control.observe_output(output.id, token, delivered);
+            native.outputs.deliver(output.id, context, converted, token);
         }
         drop(submission);
         self.control
             .update(|state| state.submitted = state.submitted.saturating_add(1));
-        Ok(())
+        if native.device.removed() {
+            Err(BackendError::DeviceLost)
+        } else {
+            Ok(())
+        }
     }
 
     fn completion(&mut self) -> Result<CompletionToken, BackendError> {
@@ -425,6 +432,7 @@ impl Backend for D3d11Backend {
                 }
             })?;
         native.inputs.retire(completed.serial);
+        native.outputs.retire(completed.serial);
         Ok(completed)
     }
 

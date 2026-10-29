@@ -150,11 +150,9 @@ impl SpoutOutput {
     }
 
     fn reject_renamed_sender(&mut self) -> Result<()> {
-        // Releasing clears the SDK name. Latch failure so a later delivery cannot silently
-        // recreate an executable-named sender outside this output's explicit identity.
+        // Do not release SDK storage here: SendTexture may already have queued a copy. The
+        // pool latches this failure and destroys the instance only after its last-use fence.
         self.failure = Some(NAME_COLLISION);
-        // SAFETY: this uniquely owned sender instance remains on its owning worker.
-        unsafe { sdk::spout_dx_release_sender(self.raw.as_ptr()) };
         Err(Error::new(NAME_COLLISION, "Spout changed the requested sender name"))
     }
 }

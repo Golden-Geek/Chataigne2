@@ -51,6 +51,12 @@ color/alpha conversion on D3D11. Native output pools belong to the device lifeti
 visible baseline before allocation; generation charges include conversion and compositing scratch
 textures. These descriptor-storage charges do not measure opaque driver overhead or residency.
 Completion queries are preallocated, and unwind also marks the admitted use before resource drain.
+Each configured output retains one endpoint slot and its baseline reservation. Creation/delivery
+failure retries that endpoint with bounded backoff while healthy outputs continue. The failed
+endpoint remains owned until real renderer completion covers its last attempted batch; destruction
+precedes replacement allocation, with no overlapping endpoint pools. Busy or occluded windows
+retain their endpoint. Output lifecycle observations and transition notifications expose recovery;
+recovery withdraws the old accepted token until the replacement actually accepts a submission.
 The [owned host consumer](../../apps/mapgyver/tests/native_video/smoke.rs) composes this public
 runtime with Golden's window lifecycle. Bounded Spout inputs now own separate IO/device workers;
 prepared/live/retiring generations hold input demand, while bridge readers retire through the
@@ -58,6 +64,9 @@ renderer fence and writers through their source-device fence. Admitted maximum e
 capture/bridge pools; actual size observations drive backend plan preparation without choosing
 app size policy. Source subscriptions now travel atomically with each plan; fixed global
 worker/storage capacity covers overlap through retirement, with fresh IDs for changed bindings.
+Source-session retirement withdraws publication and invalidates observation guards before waiting
+for source-device completion. The worker retains native ownership through that wait; cancellation
+or renderer acknowledgment cannot substitute for completion of source-device commands.
 The app's `media/rendering/` bridge publishes demanded channel plans through public Golden APIs.
 Authoring and source-layout guards survive preparation and installation; project/device stamps
 reject stale observations. Source metadata changes wake a preparation worker, not the engine loop.
@@ -403,3 +412,11 @@ initially renders transparent with an unavailable status; optional hold-last-fra
 be explicit. Retain stable references, rebuild dependent views/resources after device reset,
 and reject stale completions. Verify teardown, repeated load/unload and memory/handle bounds
 alongside successful frames; the renderer must keep serving healthy independent outputs.
+
+An endpoint error does not authorize device-wide resource discard: the native device must report
+removal. Output retries reset their backoff after actual API acceptance, and quiescing cancels
+future retries. Clock intents do not clear unrelated runtime faults; recovery is reported when
+service resumes. The M03 recovery gate remains open for retry after initial whole-device allocation
+failure, genuine device-removal qualification and finite bounds for stuck source/driver drains.
+Immediate source withdrawal protects visibility and stale-plan fences while those drains retain
+ownership; it does not establish that cleanup has completed.

@@ -53,6 +53,27 @@ impl Shared {
         self.latest.lock().unwrap_or_else(|error| error.into_inner()).take();
     }
 
+    pub fn withdraw(&self) {
+        let mut latest = self.latest.lock().unwrap_or_else(|error| error.into_inner());
+        let mut status = self.status.lock().unwrap_or_else(|error| error.into_inner());
+        let beginning = !self.retiring.load(Ordering::Acquire);
+        if beginning {
+            // A renderer acknowledgment may arrive as soon as retiring becomes visible.
+            self.released.store(false, Ordering::Release);
+            self.retiring.store(true, Ordering::Release);
+            self.observation_revision.advance();
+        }
+        latest.take();
+        let changed = status.state != SourceState::Recovering;
+        status.state = SourceState::Recovering;
+        drop(status);
+        drop(latest);
+        self.wake_renderer();
+        if beginning || changed {
+            self.notify_source();
+        }
+    }
+
     pub fn wake_renderer(&self) {
         if let Some(notify) = &self.notify {
             notify.notify();

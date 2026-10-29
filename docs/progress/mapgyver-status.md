@@ -4,21 +4,23 @@
 
 **Updated: 2026-10-29 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
-**Current topic:** M03 has **7/9** accepted gates. Reusable Rust-generated preview contracts,
-Svelte registration/clipping and the shared host's bounded metadata control now run through
-an [actual native consumer](mapgyver-m03-render-foundations.md#native-preview-registration-and-geometry--2026-10-29).
-Hide/unregister/dispose clears previews while an independent output continues. Gate 8 closes;
-specialized editors and full physical/DPI/input qualification remain M05–M07.
-The accepted [Picture/assets](mapgyver-m03-render-foundations.md#app-assets-and-picture-resources--2026-10-29),
-[channel bridge](mapgyver-m03-render-foundations.md#app-channel-publication-bridge--2026-10-29)
-and [native inputs](mapgyver-m03-render-foundations.md#bounded-spout-inputs--2026-10-29) remain verified.
+**Current topic:** M03 remains **7/9** accepted gates. The
+[endpoint recovery checkpoint](mapgyver-m03-render-foundations.md#independent-native-endpoint-recovery--2026-10-29)
+adds independent native output retries, completion-fenced replacement, immediate source
+withdrawal before draining, and truthful runtime fault/stop state. Gate 4 remains open;
+this checkpoint does not advance the acceptance count.
+Accepted [preview contracts](mapgyver-m03-render-foundations.md#native-preview-registration-and-geometry--2026-10-29),
+[Picture/assets](mapgyver-m03-render-foundations.md#app-assets-and-picture-resources--2026-10-29)
+and [channel/input mechanisms](mapgyver-m03-render-foundations.md#app-channel-publication-bridge--2026-10-29)
+remain verified. Specialized editors/full physical/DPI/input remain M05–M07.
 The [approved M01 route decision](mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28)
 remains scoped functional acceptance; renderer, physical-output and full-app qualification
 retain their M03/M05/M09 owners.
 
-**Next:** production source/output/device recovery and bounded retirement (gate 4), followed by
-native renderer qualification (gate 9).
-**Blocker:** none for the next recovery implementation batch. Known cadence, memory-growth, geometry and display/input failures
+**Next:** retry initial device allocation through the admitted runtime lifecycle; then complete
+native removal/recovery and retirement evidence (gate 4), followed by renderer qualification (gate 9).
+**Blocker:** none for the startup-retry implementation batch. Genuine device removal and stuck-driver
+retirement bounds remain unverified. Known cadence, memory-growth, geometry and display/input failures
 remain open under M03/M05/M09; their budgets and evidence are unchanged.
 
 | Phase | State | Progress | Done / total items |
@@ -134,7 +136,7 @@ functional gate, not a retrospective pass of the original eight-item matrix.
 | Immutable render/resource plan compiler | Done | [Compiler evidence](mapgyver-m03-render-foundations.md#immutable-render-plan-compiler--2026-10-28): explicit texture/color/alpha, deterministic whole-graph validation/demand compilation, bounded raw work/checked logical bytes, 29 tests including a 10k chain. No runtime/native admission pass is inferred. |
 | Bounded worker/null runtime and atomic install | Done | [Runtime evidence](mapgyver-m03-render-foundations.md): Golden IO workers/fences, one preparation/latest desired plan, bounded reliable outcomes and resource admission, frame-boundary install, at most two in-flight uses/two retiring generations, completion-based worker-local destruction. Null resources simulate allocation/use; native proof stays open. |
 | D3D11/Spout backend and host integration | Done | [Native input/output evidence](mapgyver-m03-render-foundations.md#bounded-spout-inputs--2026-10-29): opaque GPU resources, explicit LUID/caller-device ownership, four-mode conversion/composition, independent-process Spout inputs and window/Spout output consumers pass. Shared-host regression passes. Full recovery/steady-state budgets retain gates 4/9; physical presentation remains M05. |
-| Runtime observations and device recovery | Open | Source/output state, device removal/recreation, healthy-path independence, cancellation and bounded production recovery/retirement. |
+| Runtime observations and device recovery | Open | [Partial endpoint recovery](mapgyver-m03-render-foundations.md#independent-native-endpoint-recovery--2026-10-29): isolated output retry/state/fenced replacement, source withdrawal and simulated failed-reset/cancellation/project fencing. Initial device allocation retry, genuine native removal/recreation and stuck-drain recovery/retirement bounds remain required. |
 | App-owned media/channel backend contracts | Done | [Authoring and live bridge](mapgyver-m03-render-foundations.md#app-channel-publication-bridge--2026-10-29): typed persistent references, backend defaults/operations, generated contracts, demanded-leaf capture and guarded plan publication. History/reload, source changes/resize/reconnect and controlled native runtime/device recreation preserve channel identity. Genuine device-removal recovery stays gate 4; dedicated manager controls/commands/templates stay M04. |
 | Shared production-time authority | Done | [Golden Time](../../crates/golden_time/README.md) supplies checked coordinates/rational mappings and authority/discontinuity epochs consumed by the threaded video scheduler; fake-time activation/shared-output and stale-epoch tests pass. Shared P14 plan records this evidence; audio/DMX acceptance remains open. |
 | Shared persistent asset/preparation boundary | Done | [App Picture/asset integration](mapgyver-m03-render-foundations.md#app-assets-and-picture-resources--2026-10-29): app-owned stable references/locators, sparse/full codec/history/QuickJS, missing/replaced/relinked/relocated sources, bounded worker decode and retained CPU/GPU resources. Native upload/share/recreation and stale installation rejection pass. Chataigne audio/collect/scheduling P15 acceptance and full native qualification remain open. |
@@ -244,9 +246,11 @@ history/reload and controlled native resource recreation. Shared persistent asse
 worker preparation/cancellation and consumer-lifetime admission now have a reusable owner.
 App asset records now exercise project/history, Picture preparation and native resources (gate 7).
 Reusable native preview registration/geometry now passes its real shared-host consumer (gate 8).
-Implement production source/output/device recovery and bounded retirement next (gate 4), then
-measure the renderer against the unchanged native qualification contract (gate 9). Both remain
-required before M03 completion.
+Independent output retry/state, completion-fenced replacement, source withdrawal and simulated
+failed-reset/cancellation/project fencing now have a recovery checkpoint. Implement retryable
+initial device allocation next; genuine native device-removal recovery and bounded stuck-drain
+retirement still retain gate 4. Then measure the renderer against the unchanged native
+qualification contract (gate 9). Both gates remain required before M03 completion.
 Deliver each coherent batch
 on `mapgyver` before starting the next. Preserve
 Chataigne's root default and unfinished P11 work. No new M01 captures, consumer-control cohorts,
@@ -392,6 +396,24 @@ Preserve Chataigne's unfinished engine/Spatializer P11 checkpoint (four of six f
 and its [separate ledger](implementation-status.md). Shared P12 boundary repairs belong to M02;
 P14/P15 time and asset contracts retain their shared Golden owners under M03. Root launch
 behavior is unchanged. No production host/backend/binding decision is final yet.
+
+## M03 endpoint recovery checkpoint — 2026-10-29
+
+- [Endpoint recovery](mapgyver-m03-render-foundations.md#independent-native-endpoint-recovery--2026-10-29)
+  and [artifact packet](evidence/mapgyver-m03-endpoint-recovery-2026-10-29.json) record partial gate 4.
+  Fixed output slots retry independently at 250 ms–2 s, retaining failed native objects until
+  real completion and destroying them before replacement. Busy/occluded endpoints stay allocated.
+- Sources withdraw publication/old guards and report Recovering before a possibly stuck drain.
+  Cancellation and renderer acknowledgement retain GPU ownership; they do not certify retirement.
+  Runtime Time/Backend faults resolve separately; close fences late recovery and exposes Stopping.
+- **138 regular tests** and **seven explicit native tests** pass. The owned Spout collision test
+  proves initial output failure isolation, healthy-path continuation and exact-name recovery on
+  attempt 3 with the same renderer device. Source/image/region/app regressions and both real
+  shared-host smokes pass. Strict Clippy, both-app compilation, generated drift and formatting pass.
+- **M03 remains 7/9 = 78%, overall 3/10 = 30%**. No new acceptance item closes. Initial device
+  allocation retry is next; genuine native removal and bounded stuck-source recovery/retirement
+  remain required for gate 4, followed by unchanged gate-9 renderer qualification. No M01 or
+  display/NVIDIA overlay investigation was reopened.
 
 ## M03 preview contract verification — 2026-10-29
 

@@ -57,6 +57,8 @@ pub struct NullSnapshot {
     pub last_submission_time: Option<TimeSnapshot>,
     /// Explicit injected device-loss state.
     pub device_lost: bool,
+    /// Valid device-reset attempts, including explicitly injected allocation failures.
+    pub reset_attempts: u64,
 }
 
 #[derive(Default)]
@@ -64,6 +66,7 @@ struct State {
     snapshot: NullSnapshot,
     fail_prepare_after: Option<usize>,
     fail_submit: bool,
+    fail_resets: usize,
     changed: u64,
     waker: Option<WorkerNotifier>,
 }
@@ -142,6 +145,18 @@ impl NullControl {
         let waker = {
             let mut state = self.0.state.lock().unwrap_or_else(|p| p.into_inner());
             state.snapshot.device_lost = true;
+            state.changed = state.changed.wrapping_add(1);
+            state.waker.clone()
+        };
+        self.notify(waker);
+    }
+
+    /// Fails this many upcoming reset allocations while preserving simulated device loss.
+    /// This tests retry/backoff and cancellation; it is not native hardware-removal evidence.
+    pub fn fail_next_resets(&self, attempts: usize) {
+        let waker = {
+            let mut state = self.0.state.lock().unwrap_or_else(|p| p.into_inner());
+            state.fail_resets = attempts;
             state.changed = state.changed.wrapping_add(1);
             state.waker.clone()
         };
@@ -347,6 +362,11 @@ impl Backend for NullBackend {
         let mut state = self.control.0.state.lock().unwrap_or_else(|p| p.into_inner());
         if !state.snapshot.device_lost {
             return Err(BackendError::DeviceLost);
+        }
+        state.snapshot.reset_attempts = state.snapshot.reset_attempts.saturating_add(1);
+        if state.fail_resets != 0 {
+            state.fail_resets -= 1;
+            return Err(BackendError::AllocationFailed);
         }
         self.device = device;
         state.snapshot.device = Some(device);

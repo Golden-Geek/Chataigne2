@@ -1,23 +1,34 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
+use std::time::Instant;
 
 use windows::Win32::Graphics::Direct3D11::{ID3D11Device, ID3D11DeviceContext};
 use windows::core::{Error, HRESULT, Result};
 
+use crate::runtime::{CompletionToken, DeviceGeneration};
 use crate::{OutputId, TextureDescriptor};
 
 use super::config::{D3d11Config, OutputBinding};
+use super::observation::{D3d11Control, OutputState, OutputStatus};
 use super::texture::Texture;
+use lifetime::Endpoint;
+use recovery::Recovery;
 
+mod lifetime;
+mod recovery;
 mod spout;
 mod window;
 
-/// Output-local delivery does not invalidate commands already submitted for other consumers.
+const INVALID_ARGUMENT: HRESULT = HRESULT(0x80070057_u32 as i32);
+
+/// Local failures preserve healthy outputs. DeviceLost is reserved for an actual failed
+/// GetDeviceRemovedReason query, never an output HRESULT alone.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Delivery {
     Accepted,
     Busy,
     Unavailable,
     Failed(HRESULT),
+    DeviceLost(HRESULT),
 }
 
 enum Output {
@@ -25,54 +36,223 @@ enum Output {
     Spout(spout::SpoutOutput),
 }
 
-struct Binding {
-    descriptor: TextureDescriptor,
-    output: Output,
+impl Output {
+    fn new(device: &ID3D11Device, binding: &OutputBinding) -> Result<Self> {
+        match binding {
+            OutputBinding::Window { window, .. } => {
+                window::WindowOutput::new(device, *window, binding.descriptor()).map(Self::Window)
+            }
+            OutputBinding::Spout { name, .. } => {
+                spout::SpoutOutput::new(device, name.clone(), binding.descriptor()).map(Self::Spout)
+            }
+        }
+    }
+    fn deliver(&mut self, context: &ID3D11DeviceContext, texture: &Texture) -> Delivery {
+        match self {
+            Self::Window(output) => output.deliver(context, texture),
+            Self::Spout(output) => output.deliver(texture),
+        }
+    }
 }
 
-/// One persistent output pool per device, independently of prepared/live plan generations.
+struct Binding {
+    config: OutputBinding,
+    endpoint: Endpoint<Output>,
+    recovery: Recovery,
+    flush_before_create: bool,
+}
+
+impl Binding {
+    fn create(
+        &mut self,
+        device: &ID3D11Device,
+        context: Option<&ID3D11DeviceContext>,
+        now: Instant,
+    ) -> Option<Delivery> {
+        if !self.endpoint.can_create() || !self.recovery.begin_attempt(now) {
+            return None;
+        }
+        if self.flush_before_create
+            && let Some(context) = context
+        {
+            // Completed old uses and released references precede this nonblocking flush. DXGI
+            // can defer flip-chain destruction; never overlap replacements on the same HWND.
+            unsafe {
+                context.Flush();
+            }
+            self.flush_before_create = false;
+        }
+        match self.endpoint.create(|| Output::new(device, &self.config)) {
+            Ok(true) => {
+                self.recovery.created();
+                None
+            }
+            Ok(false) => None,
+            Err(error) => {
+                self.flush_before_create = matches!(self.config, OutputBinding::Window { .. });
+                if let Some(removed) = removed(device) {
+                    self.recovery.device_lost(removed);
+                    Some(Delivery::DeviceLost(removed))
+                } else {
+                    self.recovery.failed(error.code(), now);
+                    Some(Delivery::Failed(error.code()))
+                }
+            }
+        }
+    }
+
+    fn delivered(&mut self, device: &ID3D11Device, delivery: Delivery, now: Instant) -> Delivery {
+        let delivery = match delivery {
+            Delivery::Failed(error) => removed(device).map_or(Delivery::Failed(error), Delivery::DeviceLost),
+            other => other,
+        };
+        match delivery {
+            Delivery::Accepted => self.recovery.accepted(),
+            Delivery::Busy => self.recovery.state = OutputState::Busy,
+            Delivery::Unavailable => self.recovery.state = OutputState::Unavailable,
+            Delivery::Failed(error) => {
+                self.endpoint.fail();
+                self.recovery.failed(error, now);
+            }
+            Delivery::DeviceLost(error) => self.recovery.device_lost(error),
+        }
+        delivery
+    }
+
+    fn publish(&self, control: &D3d11Control, device: DeviceGeneration) {
+        control.output_state(
+            self.config.id(),
+            device,
+            OutputStatus {
+                state: self.recovery.state,
+                generation: self.recovery.generation,
+                attempts: self.recovery.attempts,
+                hresult: self.recovery.error.map(|error| error.0),
+            },
+        );
+    }
+}
+
+/// One fixed endpoint slot per binding. Its baseline reservation covers healthy, missing and
+/// retiring ownership; no replacement is created before the failed endpoint's completion/drop.
 pub(super) struct OutputPool {
     bindings: BTreeMap<OutputId, Binding>,
+    device: ID3D11Device,
+    generation: DeviceGeneration,
+    control: D3d11Control,
+    stopping: bool,
 }
 
 impl OutputPool {
-    /// The caller reserves all persistent native backing storage before construction.
-    pub(super) fn new(device: &ID3D11Device, config: D3d11Config) -> Result<Self> {
-        let mut bindings = BTreeMap::new();
-        for binding in config.outputs {
-            let id = binding.id();
-            if bindings.contains_key(&id) {
-                return Err(Error::new(
-                    HRESULT(0x8007_0057_u32 as i32),
-                    "duplicate native output identity",
-                ));
-            }
-            let descriptor = binding.descriptor();
-            let output = match binding {
-                OutputBinding::Window { window, .. } => {
-                    Output::Window(window::WindowOutput::new(device, window, descriptor)?)
-                }
-                OutputBinding::Spout { name, .. } => Output::Spout(spout::SpoutOutput::new(device, name, descriptor)?),
-            };
-            bindings.insert(id, Binding { descriptor, output });
+    pub(super) fn new(
+        device: &ID3D11Device,
+        config: D3d11Config,
+        control: D3d11Control,
+        generation: DeviceGeneration,
+    ) -> Result<Self> {
+        let ids = config.outputs.iter().map(OutputBinding::id).collect::<BTreeSet<_>>();
+        if ids.len() != config.outputs.len() {
+            return Err(Error::new(INVALID_ARGUMENT, "duplicate native output identity"));
         }
-        Ok(Self { bindings })
+        control.register_outputs(generation, config.outputs.iter().map(OutputBinding::id));
+        let mut pool = Self {
+            bindings: config
+                .outputs
+                .into_iter()
+                .map(|config| {
+                    (
+                        config.id(),
+                        Binding {
+                            config,
+                            endpoint: Endpoint::new(),
+                            recovery: Recovery::new(),
+                            flush_before_create: false,
+                        },
+                    )
+                })
+                .collect(),
+            device: device.clone(),
+            generation,
+            control,
+            stopping: false,
+        };
+        for binding in pool.bindings.values_mut() {
+            let result = binding.create(device, None, Instant::now());
+            binding.publish(&pool.control, generation);
+            if let Some(Delivery::DeviceLost(error)) = result {
+                return Err(Error::from_hresult(error));
+            }
+        }
+        Ok(pool)
     }
 
     pub(super) fn descriptor(&self, id: OutputId) -> Option<TextureDescriptor> {
-        self.bindings.get(&id).map(|binding| binding.descriptor)
+        self.bindings.get(&id).map(|binding| binding.config.descriptor())
     }
 
-    pub(super) fn deliver(&mut self, id: OutputId, context: &ID3D11DeviceContext, texture: &Texture) -> Delivery {
+    pub(super) fn deliver(
+        &mut self,
+        id: OutputId,
+        context: &ID3D11DeviceContext,
+        texture: &Texture,
+        token: CompletionToken,
+    ) -> Delivery {
         let Some(binding) = self.bindings.get_mut(&id) else {
             return Delivery::Unavailable;
         };
-        if texture.descriptor != binding.descriptor {
-            return Delivery::Failed(HRESULT(0x8007_0057_u32 as i32));
+        if token.device != self.generation {
+            return Delivery::Failed(INVALID_ARGUMENT);
         }
-        match &mut binding.output {
-            Output::Window(output) => output.deliver(context, texture),
-            Output::Spout(output) => output.deliver(texture),
+        let now = Instant::now();
+        let delivered = if self.stopping {
+            Delivery::Unavailable
+        } else if texture.descriptor != binding.config.descriptor() {
+            binding.delivered(&self.device, Delivery::Failed(INVALID_ARGUMENT), now)
+        } else if let Some(delivery) = binding.create(&self.device, Some(context), now) {
+            delivery
+        } else if let Some(endpoint) = binding.endpoint.begin_use(token.serial) {
+            let delivery = endpoint.deliver(context, texture);
+            binding.delivered(&self.device, delivery, now)
+        } else {
+            Delivery::Unavailable
+        };
+        binding.publish(&self.control, self.generation);
+        self.control.observe_output(id, token, delivered);
+        delivered
+    }
+
+    pub(super) fn retire(&mut self, completed: u64) {
+        for binding in self.bindings.values_mut() {
+            if binding.endpoint.retire(completed) {
+                binding.flush_before_create = matches!(binding.config, OutputBinding::Window { .. });
+            }
+        }
+    }
+
+    pub(super) fn quiesce(&mut self) {
+        self.stopping = true;
+        for binding in self.bindings.values_mut() {
+            binding.recovery.stop();
+            binding.publish(&self.control, self.generation);
         }
     }
 }
+
+impl Drop for OutputPool {
+    fn drop(&mut self) {
+        for binding in self.bindings.values_mut() {
+            // The backend drops its baseline only after GPU completion or confirmed removal.
+            binding.endpoint.clear();
+            binding.recovery.state = OutputState::Stopped;
+            binding.publish(&self.control, self.generation);
+        }
+    }
+}
+
+fn removed(device: &ID3D11Device) -> Option<HRESULT> {
+    // An output HRESULT alone does not establish device removal or permit early destruction.
+    unsafe { device.GetDeviceRemovedReason().err().map(|error| error.code()) }
+}
+
+#[cfg(test)]
+mod tests;

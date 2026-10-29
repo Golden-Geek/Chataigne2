@@ -181,7 +181,12 @@ fn run_backend<B: Backend>(
 
 impl<B: Backend> Runner<B> {
     fn run_loop(&mut self) {
-        self.shared.lock().snapshot.state = RuntimeState::Running;
+        {
+            let mut state = self.shared.lock();
+            if !state.closing {
+                state.snapshot.state = RuntimeState::Running;
+            }
+        }
         self.shared.notify();
         loop {
             // Capture before servicing domain state: a publication during service cannot be lost.
@@ -216,34 +221,13 @@ impl<B: Backend> Runner<B> {
     }
 
     fn fault(&self, failure: RuntimeFailure) {
-        let mut state = self.shared.lock();
-        let changed = state.snapshot.failure.as_ref() != Some(&failure);
-        state.snapshot.failure = Some(failure);
-        state.snapshot.state = RuntimeState::Faulted;
-        drop(state);
-        if changed {
-            self.shared.notify();
-        }
+        self.shared.fault(failure);
     }
 
     fn observe_time(&mut self) -> Option<TimeSnapshot> {
         match self.authority.sample() {
             Ok(time) => {
-                let mut state = self.shared.lock();
-                state.snapshot.time = time;
-                let recovered = state.snapshot.state == RuntimeState::Faulted
-                    && state
-                        .snapshot
-                        .failure
-                        .as_ref()
-                        .is_some_and(|failure| failure.code() == FailureCode::Time);
-                if recovered {
-                    state.snapshot.state = RuntimeState::Running;
-                }
-                drop(state);
-                if recovered {
-                    self.shared.notify();
-                }
+                self.shared.publish_time(time, None);
                 Some(time)
             }
             Err(error) => {

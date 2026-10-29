@@ -659,3 +659,83 @@ qualification. This closes fixed **gate 8** after those checks: **M03 7/9 = 78%*
 **3/10 = 30%**, with no denominator or qualification-budget changes. Gates 4/9 remain required;
 next is production source/output/device recovery and bounded retirement, followed by renderer
 qualification. Full presentation and specialized editors remain M05–M07.
+
+## Independent native endpoint recovery — 2026-10-29
+
+This checkpoint continues fixed gate 4 without closing it. Golden Video owns native endpoint
+state and recovery; app code still owns output configuration and window lifetime. A failed
+configured consumer can no longer prevent healthy consumers from starting or keep its sender
+permanently latched after an external Spout name collision disappears.
+
+Each fixed output binding retains one physical endpoint slot and its original baseline charge.
+Ordinary failures withdraw that consumer's acceptance token, expose Recovering and schedule
+Golden IO backoff from 250 ms to two seconds. Busy/occluded delivery retains the endpoint.
+Successful allocation alone does not reset backoff: actual API acceptance does. Retry occurs
+on demanded render service, without an engine/UI polling loop or per-frame status events.
+Snapshots retain logical ID, state, endpoint incarnation, attempts and HRESULT; transition-only
+notifications let owners service those observations outside the engine tick.
+
+A failed output can already have queued a texture copy before its API reports failure. Its
+endpoint therefore stays owned through the last attempted submission's real completion fence.
+Only then is it destroyed, before replacement allocation, so retries never overlap two physical
+endpoints under one reservation. Window replacement also flushes deferred DXGI destruction;
+it does not wait for GPU completion on a UI/engine callback. A removal HRESULT alone cannot
+authorize discarding GPU uses: only the owning device's failed `GetDeviceRemovedReason` can
+escalate to DeviceLost. Independent healthy consumers continue after ordinary endpoint errors.
+
+Source-session retirement now clears publication, exposes Recovering and invalidates old
+observation guards **before** draining potentially failing source-device queries. It blocks late
+publication and preserves an already received renderer acknowledgement across repeated withdrawal.
+Cancellation, renderer release and a query timeout still do not prove source GPU completion;
+resource owners and admitted source capacity stay held until actual completion or removal.
+This prevents stale Streaming metadata without introducing unsafe force-freeing.
+
+The runtime's serving-state recovery is also explicit. A time/transport intent cannot erase an
+unrelated backend fault or revive Stopping. A subsequent successful current-project frame restores
+Running after a pre-use submission failure while retaining the last bounded error as history.
+Time and backend faults are tracked independently, so resolving either cannot hide the other.
+Close immediately exposes Stopping and fences late time observations, resets and startup from
+restoring Running; it still certifies no resource retirement.
+Null qualification controls can fail reset allocations; tests exercise repeated reset/backoff,
+same-plan reconstruction, cancellation during a ten-second retry wait, and project replacement
+without old-authoring resurrection or foreign-token retirement. These are simulated device-loss
+tests, not native hardware-removal evidence.
+
+Gate 4 remains open for retryable initial device allocation, genuine native device-removal
+recovery, and bounded recovery/retirement under a stuck source SDK/query. Initial device
+initialization failure still terminates the runtime; it is not disguised as successful
+initialization or fabricated device loss. Ordinary D3D11's
+[ID3D11Device5](https://learn.microsoft.com/en-us/windows/win32/api/d3d11_4/nn-d3d11_4-id3d11device5)
+adds fence methods; the owned
+[RemoveDevice method](https://learn.microsoft.com/en-us/windows/win32/api/d3d12/nf-d3d12-id3d12device5-removedevice)
+belongs to D3D12. No driver/display reset is used by this checkpoint. Unchanged Q01/Q02 renderer
+qualification remains gate 9; M03 stays **7/9 = 78%**, overall **3/10 = 30%**.
+
+Verified checks and [artifact packet](evidence/mapgyver-m03-endpoint-recovery-2026-10-29.json):
+
+- **138 regular tests pass:** 30 app, 104 Video unit and four public Video cases. Seven hardware
+  cases are explicitly ignored in that regular run and executed separately. Pure coverage
+  includes fenced endpoint storage, exact retry delays, coalesced output notifications, source
+  withdrawal/ownership, failed resets, cancellation, project fencing and concurrent fault domains.
+- **Five explicit Golden hardware tests pass.** The new public-runtime test starts two outputs
+  while an owned sender occupies one name. Its failed consumer reports Recovering, generation 0,
+  attempt 1 and HRESULT `0x800700B7`; the healthy consumer keeps running. After a 550 ms hold the
+  failed consumer has made only two attempts. Releasing the completed collider permits attempt 3
+  to create generation 1 and accept serial 46. The healthy consumer retains generation/attempt 1,
+  accepts serial 46 and the renderer device remains unchanged. Actual runtime/endpoint retirement
+  completes. Existing finite image/region/color and independent-source assertions remain green.
+- Both app native tests pass: channels publish 46 frames and Picture records seven frames/four
+  uploads before controlled recreation, preserving authoring through source and project changes.
+  The source fixture was reused without recompilation between the Golden and app runs.
+- The real Svelte/shared-host preview regression passes six phases, 103 frames and 206 accepted
+  output calls. The host window-only/Spout-only/resized regression passes with accepted counts
+  5/10/18 and peak reservations 3,953,728/5,142,592/5,372,992 bytes. Retirement precedes owned HWND
+  release. These are functional acceptance observations, not cadence or scanout qualification.
+- Strict default/native all-target Clippy, both-app compilation, generated drift, required
+  root/Core formatting and whitespace checks pass. UI source, wire contracts and lockfiles are
+  unchanged; static UI checks were not repeated. The embedded Svelte fixture was rerun.
+
+Review after the first regular pass found the close/late-time race and overlapping-fault gap;
+the final shared-state implementation and two new regressions resolve both. No native tolerance,
+resource limit, qualification budget or gate denominator was relaxed. This is a useful partial
+gate-4 checkpoint, not a native device-removal or complete recovery pass.

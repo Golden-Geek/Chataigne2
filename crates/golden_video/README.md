@@ -96,6 +96,22 @@ windows retain two fixed-size BGRA8 backbuffers; Spout senders retain one SDK sh
 an AddRef of the exact caller device. Window size changes use DXGI stretch, without reallocating
 backing buffers. The host retains each borrowed HWND through successful runtime retirement.
 
+Each configured output has one fixed endpoint slot. An endpoint's creation or delivery failure
+enters `Recovering` independently of healthy outputs, with retries starting at 250 ms and backing
+off to two seconds. The baseline remains reserved while an endpoint is absent. Failed native
+resources remain owned until the renderer completes their last attempted batch; the old endpoint
+is then destroyed before its replacement is created. A retry cannot overlap two endpoint pools.
+Busy or occluded windows retain their endpoint, and retry backoff resets only after API acceptance.
+Quiescing stops retries without joining from the UI or control engine.
+
+Output snapshots expose lifecycle state, endpoint generation, creation attempts and the last
+HRESULT. Recovery withdraws the prior accepted completion token, so acceptance from an earlier
+endpoint cannot establish readiness for its replacement. Output state notifications wake consumers
+on transitions rather than requiring UI/engine polling. An output error alone does not prove device
+removal; only the retained device's removal authority permits device-wide discard and reconstruction.
+Runtime clock intents update time and command outcomes; they do not clear an unrelated backend fault.
+Recovery state reflects resumed service rather than receipt of a clock change.
+
 `RenderOperation::Regions` draws ordered normalized `BlitRegion`s onto a cleared target.
 Destination clipping retains the matching source crop; the native pipeline uses viewport/scissor
 geometry and the same source color/alpha conversion. An empty region set produces a clear, so
@@ -172,19 +188,27 @@ their worker has actually disconnected after native cleanup. Source/worker press
 explicit resource-pressure outcome without waiting for retirement on the renderer. Source
 snapshots carry a subscription UUID in addition to device/texture/session identity.
 
+A retiring source session withdraws its latest publication, enters `Recovering` and invalidates
+its observation guard before draining source-device completion. Reader, capture, bridge and SDK
+ownership remain retained through their respective completion fences. Query failures remain
+visible in source metadata; cancellation and a renderer release acknowledgment do not establish
+source-device completion. A persistently failing or blocked drain can still retain ownership
+indefinitely; bounded stuck-drain recovery remains unqualified.
+
 `D3d11Control::set_source_notifier` wakes a preparation owner on source state/layout/session/pool
 or registry changes, excluding per-frame counters. `source_observations` captures metadata and its
-layout revision guard under one metadata lock. Descriptor/session/pool changes and final stop
-invalidate the guard; availability alone does not, avoiding warmup starvation. An app rechecks
-availability before publication; native missing-source handling supplies zero storage after loss.
+layout revision guard under one metadata lock. Descriptor/session/pool changes, retirement withdrawal
+and final stop invalidate the guard; availability alone does not, avoiding warmup starvation. An app
+rechecks availability before publication; native missing-source handling supplies zero storage after loss.
 MapGyver's app-owned channel publisher consumes these APIs; Golden imports no app model types.
 The SDK can transiently open a changed foreign alias
 before post-update validation; owned pools and published descriptors stay bounded, but this is
 not a hard driver-residency guarantee.
 
-Physical backing-buffer resize, native device-loss proof, full
-source/output recovery, production output/editor integration and sustained
-native qualification remain in the [M03 acceptance gates](../../docs/progress/mapgyver-status.md#m03-acceptance-items).
+The M03 recovery gate remains open for retry after initial whole-device allocation failure,
+genuine device-removal qualification and bounded recovery from stuck source/driver drains.
+Physical backing-buffer resize, production output/editor integration and sustained native
+qualification retain their [M03 acceptance gates](../../docs/progress/mapgyver-status.md#m03-acceptance-items).
 The [input/native evidence](../../docs/progress/mapgyver-m03-render-foundations.md#bounded-spout-inputs--2026-10-29)
 closes the native execution mechanism gate; full native qualification stays open.
 

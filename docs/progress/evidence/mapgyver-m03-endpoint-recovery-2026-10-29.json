@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "scope": "Independent native endpoint state/retry, completion-fenced replacement, source withdrawal and runtime fault/close correctness; partial M03 gate 4",
+  "source_base_commit": "767b679d40d0b8add6d2613c5375782bd5676d58",
+  "local_date": "2026-10-29",
+  "native_checks_observed_by_utc": "2026-10-29T11:40:52Z",
+  "build_profile": "Cargo test profile, optimized with debuginfo; exact executables below",
+  "selected_adapter": {"index": 0, "description": "Intel(R) Graphics", "luid": "00000000:00016c2a", "software": false},
+  "artifacts_sha256": {
+    "target/debug/native_preview_smoke.exe": "AE3EEF1205767990C11FB8B724647E08F5B4297316CE5D3CB2BDCE46274FFC4E",
+    "target/debug/native_video_smoke.exe": "158709E996B5E031B4AD4321CF76AAD5B8B0FFF402343DE0B5FCBE78593AC189",
+    "target/debug/native_source_fixture.exe": "F13BEA0F1401CFFB8DC788DCB823F2926F24EC00E7A44A8C073E64D27EC75295",
+    "target/debug/deps/golden_video-d952cdcc76413bbb.exe": "C60300E52AB88713B70D67B3059AFBCACCFE778D8736B81DA534A6E38781A68B",
+    "target/debug/deps/picture_rendering-8c1c3e690fa2ba5b.exe": "EDE9BF9BE71D2D84A76541E7315E03DA6C55073EF6ABB54FF3FBF4CB7ED8F02E",
+    "target/debug/deps/channel_rendering-0fe37e068b1f7ecb.exe": "37843F4D4B57B5C54464E059869D836F54107969B24897DF578CD39389350871"
+  },
+  "regular_tests": {
+    "command": "cargo test --locked -p MapGyver -p golden_video --features MapGyver/native-preview-smoke --quiet",
+    "exit_code": 0,
+    "mapgyver_passed": 30,
+    "video_unit_passed": 104,
+    "video_public_passed": 4,
+    "total_passed": 138,
+    "ignored": {"app_hardware": 2, "video_hardware": 5},
+    "generated_contract_drift": "passed",
+    "new_coverage": [
+      "Failed endpoint retains last attempted GPU use; factory cannot overlap its charged slot",
+      "Retry delays 250/500/1000/2000/2000 ms; construction does not reset backoff, acceptance does",
+      "Output callback can read snapshots without holding registry locks; repeated acceptance and Ready/Busy changes coalesce",
+      "Source withdrawal precedes blocked/erroring drain; cancellation and renderer acknowledgment do not release source owners",
+      "Repeated withdrawal preserves acknowledgment, invalidates old guards and rejects late publication",
+      "A successful current frame restores serving after pre-use failure without changing the installed plan",
+      "Two failed reset allocations preserve authoring and retry exactly the next device lifetime",
+      "Cancellation wakes a ten-second reset retry wait and actual owners retire within the five-second test deadline",
+      "Project replacement during failed reset never resurrects old authoring; foreign completion cannot retire the new device",
+      "Close fences late time/backend recovery and startup; Time/Backend faults resolve independently in either order"
+    ],
+    "device_loss_in_null_tests_is_simulated": true
+  },
+  "golden_hardware": {
+    "command": "cargo test --locked -p golden_video --features d3d11 -- --ignored --nocapture --test-threads=1",
+    "exit_code": 0,
+    "passed": 5,
+    "runtime_seconds": 3.27,
+    "owned_collision_test": {
+      "public_api": "VideoRuntime::spawn_d3d11",
+      "configured_outputs": 2,
+      "spout_receiver_slots": 0,
+      "resource_limit_bytes": 65536,
+      "failed": {"id": 1, "state": "Recovering", "generation": 0, "attempts": 1, "hresult": -2147024713, "last_accepted": null},
+      "after_collision_hold_ms": 550,
+      "retried": {"id": 1, "state": "Recovering", "generation": 0, "attempts": 2, "hresult": -2147024713, "last_accepted": null},
+      "recovered": {"id": 1, "state": "Ready", "generation": 1, "attempts": 3, "hresult": null, "accepted_serial": 46},
+      "healthy": {"id": 2, "state": "Ready", "generation": 1, "attempts": 1, "hresult": null, "accepted_serial": 46},
+      "frames_submitted": 46,
+      "renderer_device_generation": 1,
+      "same_renderer_device_through_recovery": true,
+      "runtime_running_while_initial_endpoint_construction_fails": true,
+      "healthy_endpoint_incarnation_unchanged": true,
+      "owned_collider_gpu_query_completed_before_name_release": true,
+      "runtime_and_endpoint_retirement_observed": true,
+      "claim": "Native construction/name collision and exact-name recovery through the production runtime; API acceptance is not scanout or remote delivery"
+    },
+    "existing_source_image_regions_and_shader_pixel_regressions": "passed",
+    "unchanged_component_tolerance_8bit_units": 2,
+    "production_readback_added": false,
+    "actual_hardware_device_removal_tested": false
+  },
+  "app_hardware": {
+    "command": "cargo test --locked -p MapGyver --features native-preview-smoke --test picture_rendering --test channel_rendering -- --ignored --nocapture --test-threads=1",
+    "exit_code": 0,
+    "passed": 2,
+    "channel_frames": 46,
+    "picture_frames_before_recreation": 7,
+    "picture_uploads_before_recreation": 4,
+    "authoring_identity_relink_reload_and_controlled_recreation": "passed",
+    "source_fixture_recompiled_between_golden_and_app_runs": false
+  },
+  "preview_host_regression": {
+    "command": "target/debug/native_preview_smoke.exe --adapter 0",
+    "exit_code": 0,
+    "phases": ["initial", "clipped", "hidden", "unregistered", "empty", "done"],
+    "visible_counts": [2,2,1,0,0,0],
+    "frames_submitted": 103,
+    "api_accepted_outputs": 206,
+    "host_metrics": {"client_width": 1500, "client_height": 1000, "webview_origin_x": 0, "webview_origin_y": 0, "webview_width": 1500, "webview_height": 1000, "css_scale": 1.25},
+    "runtime_retired_before_owned_hwnd_release": true
+  },
+  "video_host_regression": {
+    "command": "target/debug/native_video_smoke.exe --adapter 0",
+    "exit_code": 0,
+    "phase_api_accepted": {"window_only": 5, "spout_only": 10, "shared_after_client_resize": 18},
+    "phase_peak_reserved_bytes": [3953728,5142592,5372992],
+    "busy": 0,
+    "unavailable": 0,
+    "runtime_retired_before_owned_hwnd_release": true
+  },
+  "other_checks": {
+    "strict_all_target_clippy_default": "passed",
+    "strict_all_target_clippy_native_preview": "passed",
+    "default_check_both_apps": "passed",
+    "root_and_core_cargo_fmt": "passed",
+    "ui_source_or_wire_contract_changed": false,
+    "ui_static_checks_rerun": false,
+    "ui_validation_scope": "Real embedded Svelte/native regression rerun; existing package UI tests are unchanged",
+    "lockfile_or_dependency_version_changes": false,
+    "display_or_overlay_settings_changed": false
+  },
+  "review_corrections": [
+    "Regular tests alone missed a close/late-time recovery race; shared lifecycle now owns independent unresolved fault domains and close fences, with two additional regressions",
+    "Never reinterpret an ordinary output HRESULT as confirmed device removal or fabricate removal to free in-flight GPU owners"
+  ],
+  "acceptance": {
+    "gate_4": "partial; remains open",
+    "new_gates_closed": 0,
+    "m03_done": 7,
+    "m03_total": 9,
+    "overall_complete_phases": 3,
+    "overall_total_phases": 10,
+    "remaining_m03_gates": [4,9],
+    "next": "Retry initial whole-device allocation through an admitted, cancellable runtime lifecycle",
+    "remaining_gate_4_scope": ["Initial whole-device initialization failure still terminates the runtime", "Genuine native device-removal and recreation evidence", "Bounded recovery/retirement under a stuck source SDK or completion query"],
+    "limitations": ["Null device loss/reset controls are simulated", "Source ownership remains held if completion/removal cannot be proved; cancellation is not retirement", "Native accepted calls do not establish display/remote delivery or latency", "Q01/Q02 and all historical budgets/failures remain unchanged", "Full physical/DPI/input and specialized editors remain M05-M07", "Main app remains the thin workbench"]
+  }
+}

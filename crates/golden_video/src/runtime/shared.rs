@@ -8,7 +8,8 @@ use super::PlanSubmission;
 
 use super::identity::{PlanIdentity, ProjectEpoch};
 use super::types::{
-    FrameObservation, LatePolicy, OutcomeKind, PlanActivation, RequestId, RuntimeOutcome, RuntimeSnapshot, RuntimeState,
+    FailureCode, FrameObservation, LatePolicy, OutcomeKind, PlanActivation, RequestId, RuntimeFailure, RuntimeOutcome,
+    RuntimeSnapshot, RuntimeState,
 };
 
 pub(super) struct DesiredPlan {
@@ -86,6 +87,19 @@ pub(super) struct State {
     pub closing: bool,
     pub snapshot: RuntimeSnapshot,
     pub clock: Arc<dyn Clock>,
+    time_fault: bool,
+    backend_fault: bool,
+}
+
+impl State {
+    fn resume(&mut self) -> bool {
+        if !self.closing && !self.time_fault && !self.backend_fault && self.snapshot.state == RuntimeState::Faulted {
+            self.snapshot.state = RuntimeState::Running;
+            true
+        } else {
+            false
+        }
+    }
 }
 
 impl Shared {
@@ -120,6 +134,8 @@ impl Shared {
                     failure: None,
                 },
                 clock,
+                time_fault: false,
+                backend_fault: false,
             }),
             wake: Mutex::new(None),
             notifier,
@@ -195,8 +211,43 @@ impl Shared {
             state.clock = clock;
         }
         state.snapshot.time = time;
-        state.snapshot.state = RuntimeState::Running;
-        state.snapshot.failure = None;
+        // Independent fault domains cannot certify one another's recovery. Keep the latest
+        // error as bounded history; lifecycle follows the still-unresolved domains.
+        state.time_fault = false;
+        let recovered = state.resume();
+        drop(state);
+        if recovered {
+            self.notify();
+        }
+    }
+
+    pub fn fault(&self, failure: RuntimeFailure) {
+        let mut state = self.lock();
+        let prior = state.snapshot.state;
+        let changed = state.snapshot.failure.as_ref() != Some(&failure);
+        match failure.code() {
+            FailureCode::Time => state.time_fault = true,
+            _ => state.backend_fault = true,
+        }
+        state.snapshot.failure = Some(failure);
+        if !state.closing {
+            state.snapshot.state = RuntimeState::Faulted;
+        }
+        let changed = changed || prior != state.snapshot.state;
+        drop(state);
+        if changed {
+            self.notify();
+        }
+    }
+
+    pub fn backend_recovered(&self) {
+        let mut state = self.lock();
+        state.backend_fault = false;
+        let recovered = state.resume();
+        drop(state);
+        if recovered {
+            self.notify();
+        }
     }
 
     pub fn record_frame(&self, frame: FrameObservation) {
@@ -207,14 +258,32 @@ impl Shared {
         if frame.identity.project == state.project {
             state.snapshot.last_frame = Some(frame);
         }
+        let recovered = if frame.identity.project == state.project && !state.closing {
+            state.backend_fault = false;
+            state.resume()
+        } else {
+            false
+        };
+        drop(state);
+        if recovered {
+            self.notify();
+        }
     }
 
     pub fn close(&self) {
-        {
+        let changed = {
             let mut state = self.lock();
+            let changed = !state.closing;
             state.accepting = false;
             state.closing = true;
-        }
+            if state.snapshot.state != RuntimeState::Stopped {
+                state.snapshot.state = RuntimeState::Stopping;
+            }
+            changed
+        };
         self.wake();
+        if changed {
+            self.notify();
+        }
     }
 }

@@ -3,6 +3,8 @@ use windows::core::HRESULT;
 
 use super::*;
 
+mod notifier;
+
 fn output(id: u64) -> OutputId {
     OutputId::new(id).unwrap()
 }
@@ -20,11 +22,11 @@ fn fixed_output_acceptance_is_consumer_and_device_specific_and_ignores_backpress
         [
             OutputSnapshot {
                 id: output(1),
-                last_accepted: None
+                ..OutputSnapshot::starting(output(1))
             },
             OutputSnapshot {
                 id: output(2),
-                last_accepted: None
+                ..OutputSnapshot::starting(output(2))
             },
         ]
     );
@@ -41,11 +43,12 @@ fn fixed_output_acceptance_is_consumer_and_device_specific_and_ignores_backpress
         [
             OutputSnapshot {
                 id: output(1),
-                last_accepted: None
+                ..OutputSnapshot::starting(output(1))
             },
             OutputSnapshot {
                 id: output(2),
-                last_accepted: Some(token(device, 1))
+                last_accepted: Some(token(device, 1)),
+                ..OutputSnapshot::starting(output(2))
             },
         ]
     );
@@ -57,11 +60,13 @@ fn fixed_output_acceptance_is_consumer_and_device_specific_and_ignores_backpress
         [
             OutputSnapshot {
                 id: output(1),
-                last_accepted: Some(token(device, 2))
+                last_accepted: Some(token(device, 2)),
+                ..OutputSnapshot::starting(output(1))
             },
             OutputSnapshot {
                 id: output(2),
-                last_accepted: Some(token(device, 1))
+                last_accepted: Some(token(device, 1)),
+                ..OutputSnapshot::starting(output(2))
             },
         ],
         "an unknown consumer cannot grow the fixed registry or advance another consumer"
