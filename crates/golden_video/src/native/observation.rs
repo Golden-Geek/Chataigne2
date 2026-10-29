@@ -125,6 +125,8 @@ struct OutputRegistry {
 /// Metadata-only native observation reader. It never retains devices, contexts or textures.
 #[derive(Clone, Default)]
 pub struct D3d11Control {
+    #[cfg(all(test, feature = "qualification"))]
+    pub(super) copy_tap: super::backend::tests::copy_tap::Control,
     pub(super) diagnostics: Arc<Mutex<Option<super::timing::Recorder>>>,
     #[cfg(test)]
     pub(super) initialization_gate: Arc<Mutex<Option<super::tests::initialization_gate::InitializationGate>>>,

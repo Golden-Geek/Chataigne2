@@ -98,10 +98,20 @@ They do not establish window presentation age, calibrated GPU queue time or a GP
 The SDK sender-info contract stores `uint32_t shareHandle`; diagnostic identity accepts its
 zero/sign-extended pointer representations and rejects unrelated 64-bit NT handle values.
 Actual native access always retains its original validated handle.
-SDK counter agreement alone cannot certify pixel identity. The current
-[dynamic cohort checkpoint](../../docs/progress/mapgyver-m03-qualification-runner.md#exact-spout-output-cohorts-and-source-retention-age--2026-10-29)
-retains observed counter/pixel lineage disagreements; their input/output copy boundary remains
-to be isolated before complete native frame-age qualification.
+SDK counter agreement alone cannot certify pixel identity. The
+[GPU ownership checkpoint](../../docs/progress/mapgyver-m03-qualification-runner.md#gpu-keyed-spout-image-handoff--2026-10-29)
+isolates observed counter/pixel disagreements after renderer conversion at the outgoing SDK
+handoff. Owned Spout outputs now request GPU keyed shared textures before initialization;
+creation failure never downgrades synchronization. Detailed sends acquire CPU metadata then GPU
+ownership with zero timeout; Busy copies no shared pixels and advances no counter. Unchanged
+counter hints take only the CPU metadata lock. Existing completion fences still cover work
+submitted before a rejected send. A late Spout Busy can follow conversion; the window preflight
+alone rejects before conversion. Legacy incoming peers retain their own synchronization contract.
+The pinned SDK fork's [ownership/provenance notes](../../vendor/spout2-sys-0.1.1/GOLDEN_PATCH.md)
+document the public extension and DX11 peer requirement. Test-only GPU taps and a final readback
+check input, conversion and outgoing pixels; ordinary rendering adds no pixel readback. Short
+controls now have exact Q01 lineage and no observed Q02 pixel mismatch, but Q02 capture coverage,
+cadence/age and complete native qualification remain open. Earlier failed captures are preserved.
 
 Baseline admission precedes backend initialization. The render core distinguishes pending first
 initialization, ready service and confirmed device loss. Initial `AllocationFailed` results retry

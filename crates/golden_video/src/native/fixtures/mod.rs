@@ -6,6 +6,9 @@ mod marker;
 pub(super) mod pipeline_helper;
 mod source;
 
+#[cfg(test)]
+pub(in crate::native) use consumer::log::GpuLog;
+
 pub use consumer::{ConsumerFrame, ConsumerTick, FixtureConsumer, FixtureConsumerConfig, FixtureConsumerSnapshot};
 pub use marker::{
     CardStamp, MARKER_CELLS, MARKER_COLUMNS, MARKER_EXTENT, MARKER_ORIGIN, MARKER_ROWS, MarkerError, decode_marker,

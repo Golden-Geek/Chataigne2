@@ -405,14 +405,15 @@ bool spoutFrameCount::PeekFrameCount(long& value, ID3D11Texture2D* texture)
 	value = 0;
 	if (!m_bLocalFrameCount || !m_bOpenExistingCountOnly || !texture)
 		return false;
-	// A semaphore decrement/restore is coherent only under the sender's real texture lock.
-	// A legacy unkeyed sender without a named lock yields no optimization hint.
-	if (!IsKeyedMutex(texture) && !m_hAccessMutex)
+	// All local-counter transfers also hold this CPU metadata lock, including keyed images.
+	// A hint never takes GPU image ownership: unchanged polling must not fence or starve a
+	// sender's context. The detailed transfer still acquires the GPU keyed mutex before copy.
+	if (!m_hAccessMutex)
 		return false;
-	if (!CheckTextureAccess(texture, 0))
+	if (!CheckAccess(0))
 		return false;
 	const bool available = ReadFrameCountLocal(value);
-	const bool released = AllowTextureAccess(texture);
+	const bool released = ReleaseMutex(m_hAccessMutex) != FALSE;
 	return available && released;
 }
 
@@ -881,8 +882,15 @@ bool spoutFrameCount::CheckTextureAccess(ID3D11Texture2D* D3D11texture, DWORD ti
 	// Test for a keyed mutex.
 	// If no texture was passed in, the function returns false
 	if (IsKeyedMutex(D3D11texture)) {
-		// Use a keyed mutex if the DX11 texture supports it
-		return CheckKeyedAccess(D3D11texture, timeout);
+		// CPU counter observation and GPU image ownership are separate locks. Always take
+		// the CPU lock first; the receiver's unchanged hint needs only that metadata lock.
+		if (!CheckAccess(timeout))
+			return false;
+		if (CheckKeyedAccess(D3D11texture, timeout))
+			return true;
+		if (m_hAccessMutex)
+			ReleaseMutex(m_hAccessMutex);
+		return false;
 	}
 	else {
 		// Texture is not keyed or no texture passed in. Use the named mutex.
@@ -904,8 +912,9 @@ bool spoutFrameCount::AllowTextureAccess(ID3D11Texture2D* D3D11texture)
 	// Test for a keyed mutex.
 	// If no texture was passed in, the function returns false
 	if (IsKeyedMutex(D3D11texture)) {
-		// Use a keyed mutex if the DX11 texture supports it
-		return(AllowKeyedAccess(D3D11texture));
+		const bool gpuReleased = AllowKeyedAccess(D3D11texture);
+		const bool cpuReleased = !m_hAccessMutex || ReleaseMutex(m_hAccessMutex) != FALSE;
+		return gpuReleased && cpuReleased;
 	}
 	else {
 		// Texture is not keyed or no texture passed in, use the named mutex

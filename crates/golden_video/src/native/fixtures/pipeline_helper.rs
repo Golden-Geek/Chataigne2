@@ -6,7 +6,7 @@ use windows::core::{Error, HRESULT, Result, s};
 const INVALID_ARGUMENT: HRESULT = HRESULT(0x8007_0057_u32 as i32);
 
 /// Fixed shader/state allocation shared by the qualification producer and GPU log consumer.
-pub(super) struct Pipeline {
+pub(in crate::native) struct Pipeline {
     vertex: ID3D11VertexShader,
     pixel: ID3D11PixelShader,
     constants: Option<ID3D11Buffer>,
@@ -16,7 +16,7 @@ pub(super) struct Pipeline {
 }
 
 impl Pipeline {
-    pub(super) fn new(device: &ID3D11Device, source: &str, constants_bytes: u32) -> Result<Self> {
+    pub(in crate::native) fn new(device: &ID3D11Device, source: &str, constants_bytes: u32) -> Result<Self> {
         if constants_bytes > 65536 || !constants_bytes.is_multiple_of(16) {
             return Err(Error::from_hresult(INVALID_ARGUMENT));
         }
@@ -111,7 +111,7 @@ impl Pipeline {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub(super) fn draw_region(
+    pub(in crate::native) fn draw_region(
         &self,
         context: &ID3D11DeviceContext,
         target: &ID3D11RenderTargetView,

@@ -61,8 +61,11 @@ mod ffi {
 
         /// Selects instance-only frame counting before initialization; zero means rejected.
         pub fn spout_dx_set_frame_count_mode(h: *mut spout_dx_t, mode: c_int) -> c_int;
-        /// Returns an exact SPOUT_DX_TRANSFER status for this GPU send call.
+        /// Zero-timeout image ownership admission with exact SPOUT_DX_TRANSFER status.
+        /// Busy queues no shared-image copy; callers still fence preceding draw commands.
         pub fn spout_dx_send_texture_status(h: *mut spout_dx_t, texture: *mut c_void) -> c_int;
+        /// Selects GPU keyed sharing for this sender before initialization; zero rejects it.
+        pub fn spout_dx_set_sender_keyed_mutex(h: *mut spout_dx_t, enabled: c_int) -> c_int;
         /// Copies only when this call reports COPIED. Counter outputs reset every call;
         /// availability is independent of copy status, and zero/errors mean unknown freshness.
         /// UPDATED acknowledges upstream IsUpdated, allowing the next receive to proceed.

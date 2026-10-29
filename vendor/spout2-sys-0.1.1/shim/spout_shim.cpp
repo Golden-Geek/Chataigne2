@@ -182,10 +182,20 @@ static_assert(static_cast<int>(SpoutDXTransferStatus::Disconnected) == SPOUT_DX_
 int spout_dx_send_texture_status(spout_dx_t* h, void* texture) {
     if (!h) return SPOUT_DX_TRANSFER_FAILED;
     try {
-        as_dx(h)->SendTexture(reinterpret_cast<ID3D11Texture2D*>(texture));
+        // Detailed renderer admission never waits on a foreign consumer's GPU ownership.
+        as_dx(h)->SendTexture(reinterpret_cast<ID3D11Texture2D*>(texture), 0);
         return as_dx(h)->GetTransferStatus();
     } catch (...) {
         return SPOUT_DX_TRANSFER_FAILED;
+    }
+}
+
+int spout_dx_set_sender_keyed_mutex(spout_dx_t* h, int enabled) {
+    if (!h) return 0;
+    try {
+        return as_dx(h)->SetSenderKeyedMutex(enabled != 0) ? 1 : 0;
+    } catch (...) {
+        return 0;
     }
 }
 

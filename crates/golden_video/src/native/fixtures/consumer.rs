@@ -20,7 +20,7 @@ use crate::runtime::{CompletionToken, DeviceGeneration};
 use crate::{ColorEncoding, TextureDescriptor};
 use log::GpuLog;
 
-mod log;
+pub(in crate::native) mod log;
 
 const INVALID_ARGUMENT: HRESULT = HRESULT(0x80070057_u32 as i32);
 
@@ -203,6 +203,10 @@ impl FixtureConsumer {
     /// Allocates every shader/query/capture/log/staging object before measurement. It does
     /// not receive pixels, clear/map textures, or submit native work during construction.
     pub fn new(config: FixtureConsumerConfig) -> Result<Self> {
+        Self::with_marker_shader(config, include_str!("consumer.hlsl"))
+    }
+
+    pub(super) fn with_marker_shader(config: FixtureConsumerConfig, shader: &str) -> Result<Self> {
         if config.max_frames == 0
             || config.max_frames > 65536
             || config.diagnostics.capacity.get() > 65536
@@ -216,11 +220,7 @@ impl FixtureConsumer {
         let recorder = Recorder::new(config.diagnostics);
         let generation = DeviceGeneration::new(config.instance, 0);
         let context = DiagnosticContext::FixtureConsumer { id: config.instance };
-        let pipeline = Pipeline::new(
-            &device.device,
-            &format!("{}\n{}", marker_hlsl(), include_str!("consumer.hlsl")),
-            0,
-        )?;
+        let pipeline = Pipeline::new(&device.device, &format!("{}\n{}", marker_hlsl(), shader), 0)?;
         let capture = Texture::new(&device.device, config.descriptor)?;
         let log = GpuLog::new(&device.device, config.max_frames)?;
         let completion = EventCompletion::new(&device)?;

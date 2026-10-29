@@ -203,6 +203,7 @@
 spoutDX::spoutDX()
 {
 	m_FrameCountMode = 0;
+	m_SenderKeyedMutex = false;
 	frame.ConfigureFrameCountLocal(false, false);
 	ResetTransferStatus();
 	// Initialize variables
@@ -258,6 +259,14 @@ bool spoutDX::SetFrameCountMode(int mode)
 int spoutDX::GetTransferStatus() const
 {
 	return static_cast<int>(m_TransferStatus);
+}
+
+bool spoutDX::SetSenderKeyedMutex(bool enabled)
+{
+	if (m_bSpoutInitialized || m_bConnected)
+		return false;
+	m_SenderKeyedMutex = enabled;
+	return true;
 }
 
 bool spoutDX::GetTransferFrame(long& value) const
@@ -544,6 +553,11 @@ bool spoutDX::SendBackBuffer()
 //
 bool spoutDX::SendTexture(ID3D11Texture2D* pTexture)
 {
+	return SendTexture(pTexture, 67);
+}
+
+bool spoutDX::SendTexture(ID3D11Texture2D* pTexture, DWORD accessTimeout)
+{
 	ResetTransferStatus();
 	if (m_FrameCountMode == 2)
 		return false;
@@ -568,7 +582,7 @@ bool spoutDX::SendTexture(ID3D11Texture2D* pTexture)
 		return false;
 
 	// Check the sender mutex for access the shared texture
-	if (frame.CheckTextureAccess(m_pSharedTexture)) {
+	if (frame.CheckTextureAccess(m_pSharedTexture, accessTimeout)) {
 		// The same access lock protects counter and image. Reserve the local version before
 		// copying so counter exhaustion/failure cannot change an image without advancing it.
 		if (m_FrameCountMode == 1 && !frame.TrySetNewFrameLocal()) {
@@ -2289,7 +2303,7 @@ bool spoutDX::CheckSender(unsigned int width, unsigned int height, DWORD dwForma
 		// A sender creates a new texture with a new share handle
 		// the existing shared texture is released
 		m_dxShareHandle = nullptr;
-		if (!spoutdx.CreateSharedDX11Texture(m_pd3dDevice, width, height, (DXGI_FORMAT)dwFormat, &m_pSharedTexture, m_dxShareHandle)) {
+		if (!spoutdx.CreateSharedDX11Texture(m_pd3dDevice, width, height, (DXGI_FORMAT)dwFormat, &m_pSharedTexture, m_dxShareHandle, m_SenderKeyedMutex)) {
 			SpoutLogWarning("spoutDX::CheckSender - could not create shared texture");
 			return false;
 		}
@@ -2334,7 +2348,7 @@ bool spoutDX::CheckSender(unsigned int width, unsigned int height, DWORD dwForma
 		m_pSharedTexture = nullptr;
 		m_dxShareHandle = nullptr;
 
-		if (!spoutdx.CreateSharedDX11Texture(m_pd3dDevice, width, height, (DXGI_FORMAT)dwFormat, &m_pSharedTexture, m_dxShareHandle)) {
+		if (!spoutdx.CreateSharedDX11Texture(m_pd3dDevice, width, height, (DXGI_FORMAT)dwFormat, &m_pSharedTexture, m_dxShareHandle, m_SenderKeyedMutex)) {
 			SpoutLogWarning("spoutDX::CheckSender - could not re-create shared texture");
 			return false;
 		}

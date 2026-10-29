@@ -58,7 +58,8 @@ impl Sender {
     fn new(adapter: AdapterId, name: String, descriptor: TextureDescriptor) -> Self {
         let device = Device::new(adapter).unwrap();
         let texture = Texture::new(&device.device, descriptor).unwrap();
-        let output = SpoutOutput::new(&device.device, name, descriptor).unwrap();
+        // This simulates a legacy named-mutex peer; normal Golden senders use GPU keyed sharing.
+        let output = SpoutOutput::legacy_named_fixture(&device.device, name, descriptor).unwrap();
         let completion = EventCompletion::new(&device).unwrap();
         let token = CompletionToken {
             device: DeviceGeneration::new(Uuid::new_v4(), 0),

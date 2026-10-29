@@ -42,7 +42,7 @@ impl Layout {
 }
 
 /// Append-only integer GPU rows and one equally bounded, initially unmapped final staging copy.
-pub(super) struct GpuLog {
+pub(in crate::native) struct GpuLog {
     pub target: ID3D11RenderTargetView,
     pub texture: ID3D11Texture2D,
     pub staging: ID3D11Texture2D,

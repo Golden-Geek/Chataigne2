@@ -28,7 +28,7 @@ continue to follow repository layout and size rules. Do not perform unrelated up
 
 ## Extension ownership
 
-The local patch has four responsibilities:
+The local patch has five responsibilities:
 
 - Report the exact result of each DX11 send/receive attempt. A retained legacy new-frame flag
   cannot establish that the current call copied an image. `Copied` follows actual copy/flush;
@@ -38,6 +38,9 @@ The local patch has four responsibilities:
   external sender uses the unversioned path even if an old positive semaphore still exists.
 - Offer a synchronized, nonblocking CPU counter hint so proven unchanged polls can skip GPU
   query/copy/flush batches. A missing, busy or invalid observation is not proof of no new frame.
+- Let an owned DX11 sender select GPU keyed sharing before initialization. Detailed send
+  admission has zero timeout; Busy queues no shared-image copy or counter advance. The original
+  Boolean send API retains its timeout. There is no automatic downgrade to CPU-only ownership.
 - Rebuild the native archive when SDK sources or headers change, alongside the original shim
   invalidation rules. Rust's caller-selected CRT and Windows/MSVC build constraints are retained.
 
@@ -45,6 +48,29 @@ Counter availability is separate from the runtime's local publication sequence a
 completion. The SDK's signed counter is bounded; the extension does not invent monotonic wrap
 semantics. Known versioned capability is an endpoint-owner contract for every replacement,
 not something inferred from a sender name, semaphore existence or a positive counter value.
+
+## GPU and metadata ownership
+
+Golden's owned outputs opt into the SDK's existing keyed-texture allocation path, keeping the
+standard Spout 32-bit legacy share-handle representation. Peers must support D3D11 keyed shared
+textures; DX9 texture interoperability is outside this route. Ordinary unversioned/legacy
+incoming senders remain supported. Sharing and counter modes are separate instance choices,
+with no registry writes or changes to other applications' settings.
+
+The named CPU lock protects counter decrement/restore and copy enqueueing. Keyed transfers
+acquire that metadata lock before GPU ownership and release both after enqueueing. Counter
+peek uses only the CPU lock, so unchanged polling does not fence or monopolize the GPU image.
+Detailed transfers still acquire the keyed mutex before touching shared pixels. Zero-timeout
+send admission preserves healthy consumers when a peer retains GPU ownership.
+
+A CPU mutex and `Flush` do not establish GPU completion:
+[Microsoft's Flush contract](https://learn.microsoft.com/en-us/windows/desktop/api/d3d11/nf-d3d11-id3d11devicecontext-flush)
+is asynchronous. Shared-image rendering access uses
+[IDXGIKeyedMutex](https://learn.microsoft.com/windows/win32/api/dxgi/nn-dxgi-idxgikeyedmutex).
+The native regression isolates direct receive, the keyed source bridge, the full renderer and
+test-only GPU input/output taps. One final readback checks exact marker/version lineage;
+normal rendering adds no CPU pixel reads. A test-owned legacy named sender separately preserves
+the static foreign/counter/Busy cases. Full current acceptance remains in the product ledger.
 
 [PATCHES.json](PATCHES.json) records the resulting local file hashes and affected paths after
 validation. Source transfer, reconnect, resize, foreign/unversioned behavior and GPU ownership

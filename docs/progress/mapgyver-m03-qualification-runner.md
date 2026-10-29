@@ -483,3 +483,87 @@ Validation passes 179 regular Rust tests, eleven explicit native GPU tests and 4
 Python tests, strict default/native all-target Clippy, locked release x64 build and both required
 Rust formatters. The native tests establish their finite static/pixel/recovery mechanisms; the
 new dynamic lineage failures remain open under gate 9. M03 stays **7/9**, overall **3/10 (30%)**.
+
+## GPU keyed Spout image handoff — 2026-10-29
+
+The [SDK ownership extension](../../vendor/spout2-sys-0.1.1/GOLDEN_PATCH.md) belongs in the pinned
+Spout fork; Golden Video selects it for its owned outputs. App shells and the control protocol
+own no synchronization policy. The [evidence packet](evidence/mapgyver-m03-keyed-handoff-2026-10-29.json)
+and [complete raw archive](evidence/mapgyver-m03-keyed-handoff-controls-2026-10-29.zip) preserve
+the failed isolation runs, passing full native matrix and one short release Q01/Q02 pair.
+The earlier schema-4 failure packet above remains unchanged.
+
+The new single-source 4K native regression removes windows/WebView and separately checks fenced
+SDK copy, concurrent SDK copy, SourcePool/keyed bridge copy and full production VideoRuntime
+conversion/Spout output. Direct/bridge cases pass while the original full runtime has 22
+marker/version disagreements. Renderer-worker GPU taps then decode the retained input and
+converted output before SDK send: both stages have zero mismatches, but one outgoing capture
+has preceding pixels. This locates the observed disagreement after conversion at shared-image
+handoff. It is not evidence of a broken input bridge, shader or CPU marker decoder.
+
+Owned outputs now opt into the SDK's existing GPU keyed shared-texture allocation before
+initialization, including resize. Failure does not downgrade ownership. The existing legacy
+32-bit share-handle contract is unchanged; peers need D3D11 keyed sharing support. Detailed
+sends acquire CPU metadata then GPU image ownership with zero timeout. A held GPU owner returns
+Busy without a shared copy/counter advance; after release the counter advances exactly once.
+Counter peek acquires only CPU metadata, so an unchanged hint neither submits GPU work nor
+acquires another device's GPU image. The original Boolean SDK send API retains its timeout;
+ordinary unversioned/legacy incoming senders remain supported with their own synchronization
+contract. No registry, driver, device, display or overlay setting changes are involved.
+
+Renderer completion fences still cover all work submitted before a rejected send. A late Spout
+Busy follows conversion and can retain conversion/API intervals; it is separate from the
+existing window preflight rejection before conversion. Resource pools, admission reservations,
+source polling, queue depth, scenes and budgets are unchanged.
+
+The final full native matrix has **518 available-image comparisons and zero disagreements**:
+24 fenced, 120 concurrent SDK, 120 source bridge, 127 untapped full runtime, 125 tapped runtime
+and two held-GPU/resume captures. The tapped runtime explicitly excludes one startup capture
+without a source. Its input, conversion and outgoing mismatch counts are all zero. Tap stages
+are null when not measured. Test-only GPU logs are read once after actual retirement; normal
+rendering adds no recurring CPU pixel readback. The untapped runtime case supplements the
+instrumented case because taps can perturb timing. The legacy named-sender fixture continues
+to exercise static foreign inputs, CPU access contention and freshness behavior.
+
+| Short sample observation | Q01 | Q02 |
+| --- | --- | --- |
+| Main / Spout / editor API acceptance, expected 180 | 180 / 180 / 180 | 138 / 176 / 100 |
+| Exact source-word captures / accepted Spout images | 180 / 180 | 148 / 176 |
+| Observed pixel-lineage mismatches | 0 | 0 |
+| Accepted images without an exact capture | 0 | 28 |
+| Producer A / B API acceptance | 176 / 177 | 176 / 175 |
+| Producer A / B Busy attempts | 4 / 4 | 1 / 3 |
+| Source-publication-to-Spout-API p95 A / B | 11.352 / 7.441 ms | 16.129 / 6.129 ms |
+| Captured source-age p95 A / B | 16.482 / 12.618 ms | 58.565 / 48.107 ms |
+| Renderer-context GPU p95 / p99 | 3.839 / 4.438 ms | 19.478 / 23.794 ms |
+| Actual resource retirement | 0.095 s | 0.120 s |
+
+Q01's one-second minimized and disconnected phases each capture all 60 accepted Spout images
+with exact pixels. Q02's minimized phase captures 46/58 exactly (main acceptance 51); its
+disconnected phase captures 36/61 exactly (main acceptance 58), with 16 additional captures
+having no exact source join. The latter do not become pixel matches or zero-age observations.
+All observed sample images match their exact source-use labels, but Q02's missing images and
+source-A age prevent full-cohort qualification. Producer admission also remains insufficient.
+GPU keyed sharing repairs the observed coherence failure; these controls do not establish a
+timing improvement or pass the unchanged steady-state/interruption budgets.
+
+Independent raw reconstruction joins every output/version/source-use/producer/capture and
+checks all twelve GPU words plus first-capture ages in all six cohorts. All 255 execution
+fingerprints per capture match before/after and current source. All roles have lossless
+telemetry, sample GPU rows are valid, seven textures are created once and reused 49 times, and
+cleanup is actual/unforced with zero final resource bytes/in-flight work. The archive contains
+42 files (900,156 bytes), SHA-256
+`939a8e36658cf2fd0fcce87e45d73227fe328665b8ae20be387a285f6e6614f8`.
+It includes the reconstruction/packaging script, raw test stdout/stderr and baseline tool
+captures. The first untapped failure also misclassified watchdog-channel disconnection as an
+expiry; that harness error was corrected. The tapped baseline has panic stderr interleaved
+inside JSON; its raw text is preserved and the packaging script removes only that injected
+span to read the report. Neither artifact is silently rewritten as a passing result.
+
+Validation passes 179 regular Rust tests, twelve explicit native GPU tests and 49 production
+Python tests, strict default/native all-target Clippy, SDK all-feature/all-target check, legacy
+desktop probe all-target check, locked release x64 build and both Rust formatters. The SDK's
+37-file baseline and nine patched files match their provenance manifest. No M03 gate closes:
+plan publication/receipt, GPU critical path, window/queue/presentation age, complete capture
+coverage, prescribed cadence/growth/handle series and genuine removal/stuck retirement remain
+required. **M03 remains 7/9; overall remains 3/10 (30%)**.

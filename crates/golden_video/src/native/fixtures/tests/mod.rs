@@ -1,5 +1,6 @@
 use super::*;
 
+mod copy_lineage;
 mod shader;
 
 #[test]

@@ -70,7 +70,10 @@ int spout_dx_set_frame_count_mode(spout_dx_t* h, int mode);
  * are unversioned. UPDATED acknowledges IsUpdated so the next call can copy. */
 int spout_dx_receive_texture_into_status(spout_dx_t* h, void** pp_texture,
                                        long* frame, int* counter_available);
+/* Zero-timeout send ownership admission; Busy queues no shared-image copy. */
 int spout_dx_send_texture_status(spout_dx_t* h, void* texture);
+/* Instance-only GPU keyed sharing before initialization; does not alter global SDK policy. */
+int spout_dx_set_sender_keyed_mutex(spout_dx_t* h, int enabled);
 
 /* Non-consuming receiver-counter hint under the same real texture mutex, timeout0.
  * Does not create counters or change last-received state. Unavailable means do not skip. */

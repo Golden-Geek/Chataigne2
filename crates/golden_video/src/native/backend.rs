@@ -28,6 +28,8 @@ use super::{D3d11Config, D3d11Control, NativeFailure};
 mod resources;
 
 struct NativeState {
+    #[cfg(all(test, feature = "qualification"))]
+    copy_tap: Option<tests::copy_tap::Tap>,
     textures: resources::TextureCache,
     timing: Option<GpuTiming>,
     inputs: SourcePool,
@@ -39,6 +41,10 @@ struct NativeState {
 
 impl Drop for NativeState {
     fn drop(&mut self) {
+        #[cfg(all(test, feature = "qualification"))]
+        if let Some(tap) = &mut self.copy_tap {
+            tap.finish(&self.device);
+        }
         // SAFETY: core retirement has completed all uses (or confirmed removal) before this
         // owner is destroyed. Release context bindings before output/pipeline/device fields.
         unsafe {
@@ -183,6 +189,8 @@ impl D3d11Backend {
                 self.generation,
             );
             Ok::<_, windows::core::Error>(NativeState {
+                #[cfg(all(test, feature = "qualification"))]
+                copy_tap: tests::copy_tap::Tap::new(&device, self.control.copy_tap.clone())?,
                 textures: Default::default(),
                 timing,
                 inputs,
@@ -534,6 +542,11 @@ impl Backend for D3d11Backend {
                     };
                     pipeline.draw(context, source, None, converted, 1.0, BlendMode::Normal, filter);
                     let conversion = recorder.and_then(|recorder| recorder.interval(conversion_begin));
+                    #[cfg(all(test, feature = "qualification"))]
+                    if let Some(tap) = &mut native.copy_tap {
+                        let input = &resources.textures[&plan.external_textures()[0].id];
+                        tap.record(context, input, converted, token);
+                    }
                     let delivery_begin = recorder.and_then(Recorder::stamp);
                     let (outcome, image) = admitted.deliver(context, converted, recorder, &mut consumer_api);
                     let delivery = recorder.and_then(|recorder| recorder.interval(delivery_begin));
@@ -642,4 +655,4 @@ fn bytes(descriptor: TextureDescriptor) -> Result<u64, BackendError> {
 }
 
 #[cfg(test)]
-mod tests;
+pub(in crate::native) mod tests;

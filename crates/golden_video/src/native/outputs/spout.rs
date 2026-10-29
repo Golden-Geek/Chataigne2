@@ -31,6 +31,19 @@ pub(crate) struct SpoutOutput {
 
 impl SpoutOutput {
     pub(crate) fn new(device: &ID3D11Device, name: String, descriptor: TextureDescriptor) -> Result<Self> {
+        Self::configured(device, name, descriptor, true)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn legacy_named_fixture(
+        device: &ID3D11Device,
+        name: String,
+        descriptor: TextureDescriptor,
+    ) -> Result<Self> {
+        Self::configured(device, name, descriptor, false)
+    }
+
+    fn configured(device: &ID3D11Device, name: String, descriptor: TextureDescriptor, keyed: bool) -> Result<Self> {
         if !crate::plan::SpoutFrameCount::VersionedV1.accepts_sender_name(&name) {
             return Err(Error::new(
                 INVALID_ARGUMENT,
@@ -55,6 +68,12 @@ impl SpoutOutput {
         // SAFETY: output owns the instance and an AddRef of the exact borrowed device.
         // Any early return drops output, destroying the SDK before releasing that AddRef.
         unsafe {
+            if sdk::spout_dx_set_sender_keyed_mutex(output.raw.as_ptr(), i32::from(keyed)) == 0 {
+                return Err(Error::new(
+                    FAILURE,
+                    "Spout rejected instance-local GPU sharing synchronization",
+                ));
+            }
             if sdk::spout_dx_set_frame_count_mode(output.raw.as_ptr(), sdk::SPOUT_DX_FRAME_COUNT_SENDER_LOCAL) == 0 {
                 return Err(Error::new(FAILURE, "Spout rejected instance-local frame counting"));
             }

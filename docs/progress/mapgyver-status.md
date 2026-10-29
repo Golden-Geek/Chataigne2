@@ -5,17 +5,17 @@
 **Updated: 2026-10-29 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
 **Current topic:** M03 remains **7/9** accepted gates. The
-[copied-image checkpoint](mapgyver-m03-qualification-runner.md#exact-spout-output-cohorts-and-source-retention-age--2026-10-29)
-joins SDK copy labels to renderer source-use metadata and independently checks captured GPU
-markers. Q01 has 141 lineage mismatches among 180 accepted Spout outputs; Q02 has 138 and 36
-uncaptured images. Source-publication-to-output-API age is now measured. No gate closes.
+[GPU ownership checkpoint](mapgyver-m03-qualification-runner.md#gpu-keyed-spout-image-handoff--2026-10-29)
+isolates and fixes observed outgoing Spout pixel/counter disagreement with GPU keyed sharing.
+The finite native regression has 518 exact available-image comparisons. Q01 captures 180/180
+sample outputs exactly; Q02 has 148 exact captures, 28 uncaptured images and no observed pixel
+mismatch. Earlier failures remain preserved. No gate closes.
 
-**Next:** isolate the input/output copy boundary where SDK labels and pixels diverge, using a
-direct native pixel/version regression. Then complete plan publication/receipt and GPU/output
-queue/deadline/age measurements (gate 9). Native device removal and bounded stuck retirement
-retain gate 4.
-**Blocker:** dynamic copied-image lineage is unresolved; SDK counters alone cannot establish
-pixel identity. Q02 window cadence, producer admission and age remain insufficient. Full GPU
+**Next:** complete plan publication/receipt and GPU/output queue/deadline/age measurements
+(gate 9), then address remaining cadence, capture coverage and growth qualification. Native
+device removal and bounded stuck retirement retain gate 4.
+**Blocker:** Q02 window cadence, producer admission, complete capture coverage and age remain
+insufficient; GPU keyed ownership repairs pixel coherence, not those budgets. Full GPU
 critical-path, native-window presentation age and plan publication/receipt/GPU-queue coverage
 remain unavailable. Genuine device removal and stuck-driver retirement bounds remain unverified.
 Historical memory-growth, geometry and display/input failures retain their M03/M05/M09 owners.
@@ -255,11 +255,13 @@ senders remain unversioned. Preparation/frame identities now measure native prep
 and first use. Compatible native texture/view sets are reused without retaining unused storage
 or asset leases; conservative per-generation admission is unchanged. Both short controls reuse
 all seven textures after initial allocation, with later preparation below 0.011 ms. Q02 still
-misses cadence/age targets. Schema 4 now joins copied-image labels across producer, source use,
+misses cadence/age targets. Schema 4 joins copied-image labels across producer, source use,
 output and independent capture, checking GPU pixels against the exact claimed renderer inputs.
-The new short controls expose many lineage disagreements despite valid producer marker words.
-Isolate input versus output copy provenance with a direct native pixel/version regression;
-counter agreement alone cannot qualify identity. Complete GPU/output-age and plan
+Direct native regression and GPU input/conversion taps isolate the observed mismatch to the
+outgoing SDK handoff. GPU keyed outputs with zero-timeout send ownership now retain exact pixels
+in 518 available regression comparisons and the new short control captures. Q02 still misses
+28 sample images and cadence/age targets. Counter agreement alone cannot qualify identity.
+Complete GPU/output-age and plan
 publication/receipt/queue measurement before the prescribed qualification series (gate 9).
 Genuine native device-removal recovery and bounded stuck-drain retirement retain gate 4.
 Both gates remain required before M03 completion; all existing budgets/failures stay operative.
@@ -408,6 +410,39 @@ Preserve Chataigne's unfinished engine/Spatializer P11 checkpoint (four of six f
 and its [separate ledger](implementation-status.md). Shared P12 boundary repairs belong to M02;
 P14/P15 time and asset contracts retain their shared Golden owners under M03. Root launch
 behavior is unchanged. No production host/backend/binding decision is final yet.
+
+## M03 GPU keyed Spout handoff — 2026-10-29
+
+The [ownership checkpoint](mapgyver-m03-qualification-runner.md#gpu-keyed-spout-image-handoff--2026-10-29),
+[schema-4 packet](evidence/mapgyver-m03-keyed-handoff-2026-10-29.json) and
+[raw archive](evidence/mapgyver-m03-keyed-handoff-controls-2026-10-29.zip) retain the isolated
+failure, SDK fix and one bounded release Q01/Q02 control pair. GPU taps show correct renderer
+input/conversion pixels and an incorrect outgoing image. Owned Spout senders now request GPU
+keyed shared textures; detailed sends use zero-timeout CPU metadata then GPU ownership. Busy
+copies no shared image and advances no counter. Unchanged hints need only CPU metadata access.
+No device, driver, monitor or overlay setting changed. Scenes and budgets are unchanged.
+
+The native regression checks direct SDK, source bridge, full runtime with/without GPU taps and
+held-GPU Busy/resume: **518 available-image comparisons, zero mismatches**. One tapped startup
+capture has no available source and is explicitly excluded. Test taps/readback are absent from
+production builds. Legacy named/unversioned input tests continue to pass. SDK baseline and all
+nine patched file hashes are verified; no fallback to CPU-only output ownership is added.
+
+Q01 has **180/180 exact sample captures**, plus 60/60 in each short editor interruption. Q02
+has **148/176 exact sample captures**, no observed pixel mismatch and 28 uncaptured images.
+Its minimized/disconnected phases have 46/58 and 36/61 exact captures; the latter also has 16
+missing-source captures. Q02 main/Spout/editor API acceptance is 138/176/100 of 180; source-age
+p95 A/B is 58.565/48.107 ms on the observed sample subset. Those failures retain gate 9.
+Q01 source admission also rejects four attempts per source; output coherence is not a producer
+cadence pass. All 255 execution fingerprints match per capture, telemetry is lossless, and
+retirement is actual/unforced with zero final resource bytes/in-flight work (0.095/0.120 s).
+
+Validation passes **179 regular Rust tests, twelve explicit native GPU tests, 49 Python tests**,
+strict default/native all-target Clippy, SDK all-feature/all-target and legacy desktop probe
+checks, release x64 build and both required formatters. Independent raw reconstruction agrees
+for every sample/interruption cohort. Full plan/queue/presentation/critical-path measurements,
+prescribed series, growth/handles and genuine removal/stuck retirement remain open. **M03 stays
+7/9 (78%); overall stays 3/10 (30%)**. The denominator and historical failures are unchanged.
 
 ## M03 copied-image lineage and source-retention age — 2026-10-29
 

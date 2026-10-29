@@ -80,6 +80,8 @@ class SPOUT_DLLEXP spoutDX {
 	// Instance-only policy before sender/receiver initialization: 0 unversioned (default),
 	// 1 local sender counter, 2 explicitly versioned receiver/open-existing-only.
 	bool SetFrameCountMode(int mode);
+	// Instance-only DX11 sender synchronization, selected before initialization.
+	bool SetSenderKeyedMutex(bool enabled);
 	int GetTransferStatus() const;
 	bool GetTransferFrame(long& value) const;
 	bool PeekFrameCount(long& value);
@@ -108,6 +110,7 @@ class SPOUT_DLLEXP spoutDX {
 	bool SendBackBuffer();
 	// Send a texture
 	bool SendTexture(ID3D11Texture2D* pTexture);
+	bool SendTexture(ID3D11Texture2D* pTexture, DWORD accessTimeout);
 	// Send part of a texture
 	bool SendTexture(ID3D11Texture2D* pTexture,
 		unsigned int xoffset, unsigned int yoffset,
@@ -336,6 +339,7 @@ class SPOUT_DLLEXP spoutDX {
 
 protected :
 	int m_FrameCountMode;
+	bool m_SenderKeyedMutex;
 	SpoutDXTransferStatus m_TransferStatus;
 	bool m_TransferFrameAvailable;
 	long m_TransferFrame;

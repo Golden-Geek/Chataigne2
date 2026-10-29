@@ -5,7 +5,11 @@ use super::marker_hlsl;
 
 #[test]
 fn fixture_marker_and_card_shaders_compile_without_a_gpu_device() {
-    for body in [include_str!("../card.hlsl"), include_str!("../consumer.hlsl")] {
+    for body in [
+        include_str!("../card.hlsl"),
+        include_str!("../consumer.hlsl"),
+        include_str!("single_source.hlsl"),
+    ] {
         compile(body);
     }
 }
