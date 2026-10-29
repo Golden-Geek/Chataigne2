@@ -5,8 +5,8 @@ use ts_rs::TS;
 
 use crate::preview::protocol::PreviewView;
 
-/// Native artifact contract, including exact window Present incarnation/interface aliases.
-pub const CAPTURE_SCHEMA_VERSION: u32 = 6;
+/// Native artifact contract, including same-clock renderer GPU stage boundaries.
+pub const CAPTURE_SCHEMA_VERSION: u32 = 7;
 
 /// Host-to-fixture CSS layout updates, computed from authenticated native metrics.
 pub const QUALIFICATION_LAYOUT_EVENT: &str = "golden-qualification-layout";

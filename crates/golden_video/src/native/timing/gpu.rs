@@ -13,6 +13,27 @@ struct Slot {
     begin: ID3D11Query,
     end: ID3D11Query,
     pending: Option<CompletionToken>,
+    renderer: Option<RendererQueries>,
+}
+
+struct RendererQueries {
+    inputs_end: ID3D11Query,
+    render_end: ID3D11Query,
+    state: MarkerState,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum MarkerState {
+    Empty,
+    Inputs,
+    Complete,
+    Invalid,
+}
+
+#[derive(Clone, Copy)]
+enum RendererStage {
+    Inputs,
+    Render,
 }
 
 /// Two context-local query slots. No extra event/flush, admission dependency or blocking read.
@@ -28,6 +49,36 @@ pub(crate) struct GpuScope<'a> {
     owner: &'a mut GpuTiming,
     context: &'a ID3D11DeviceContext,
     active: Option<usize>,
+}
+
+impl GpuScope<'_> {
+    pub(crate) fn inputs_complete(&mut self) {
+        self.mark_renderer(RendererStage::Inputs);
+    }
+
+    pub(crate) fn render_complete(&mut self) {
+        self.mark_renderer(RendererStage::Render);
+    }
+
+    fn mark_renderer(&mut self, stage: RendererStage) {
+        let Some(index) = self.active else { return };
+        let Some(markers) = &mut self.owner.slots.as_mut().unwrap()[index].renderer else {
+            return;
+        };
+        let (next, query) = match (markers.state, stage) {
+            (MarkerState::Empty, RendererStage::Inputs) => (MarkerState::Inputs, &markers.inputs_end),
+            (MarkerState::Inputs, RendererStage::Render) => (MarkerState::Complete, &markers.render_end),
+            _ => {
+                // Duplicate/out-of-order marks cannot certify a partition or end a query twice.
+                markers.state = MarkerState::Invalid;
+                return;
+            }
+        };
+        // SAFETY: this active renderer scope owns these prepared queries. No nested disjoint,
+        // flush, allocation, wait or read is introduced between GPU stage boundaries.
+        unsafe { self.context.End(query) };
+        markers.state = next;
+    }
 }
 
 impl Drop for GpuScope<'_> {
@@ -108,6 +159,15 @@ impl GpuTiming {
                 begin: query(device, D3D11_QUERY_TIMESTAMP)?,
                 end: query(device, D3D11_QUERY_TIMESTAMP)?,
                 pending: None,
+                renderer: if context == DiagnosticContext::Renderer {
+                    Some(RendererQueries {
+                        inputs_end: query(device, D3D11_QUERY_TIMESTAMP)?,
+                        render_end: query(device, D3D11_QUERY_TIMESTAMP)?,
+                        state: MarkerState::Empty,
+                    })
+                } else {
+                    None
+                },
             })
         };
         let slots = (|| Ok::<_, Error>([create()?, create()?]))();
@@ -135,6 +195,8 @@ impl GpuTiming {
             begin: None,
             end: None,
             frequency: None,
+            renderer_inputs_end: None,
+            renderer_render_end: None,
         }));
     }
 
@@ -146,6 +208,9 @@ impl GpuTiming {
         if let Some(index) = active {
             let slot = &mut self.slots.as_mut().unwrap()[index];
             slot.pending = Some(token);
+            if let Some(markers) = &mut slot.renderer {
+                markers.state = MarkerState::Empty;
+            }
             // SAFETY: the slot is unused and exactly one disjoint scope is active at a time.
             unsafe {
                 context.Begin(&slot.disjoint);
@@ -189,17 +254,33 @@ impl GpuTiming {
                 let Some(end) = unsafe { read::<u64>(context, &slot.end) }? else {
                     return Ok(None);
                 };
-                Ok::<_, Error>(Some((begin, end, clock)))
+                let mut inputs_end = None;
+                let mut render_end = None;
+                if let Some(markers) = &slot.renderer
+                    && markers.state == MarkerState::Complete
+                {
+                    let Some(inputs) = (unsafe { read::<u64>(context, &markers.inputs_end) })? else {
+                        return Ok(None);
+                    };
+                    let Some(render) = (unsafe { read::<u64>(context, &markers.render_end) })? else {
+                        return Ok(None);
+                    };
+                    inputs_end = Some(inputs);
+                    render_end = Some(render);
+                }
+                Ok::<_, Error>(Some((begin, end, clock, inputs_end, render_end)))
             })();
             let row = match result {
                 Ok(None) => continue,
-                Ok(Some((begin, end, clock))) => GpuTrace {
+                Ok(Some((begin, end, clock, inputs_end, render_end))) => GpuTrace {
                     token,
                     context: self.context,
                     status: validity(begin, end, clock.Frequency, clock.Disjoint.as_bool()),
                     begin: Some(begin),
                     end: Some(end),
                     frequency: Some(clock.Frequency),
+                    renderer_inputs_end: inputs_end,
+                    renderer_render_end: render_end,
                 },
                 Err(error) => GpuTrace {
                     token,
@@ -210,6 +291,8 @@ impl GpuTiming {
                     begin: None,
                     end: None,
                     frequency: None,
+                    renderer_inputs_end: None,
+                    renderer_render_end: None,
                 },
             };
             // The real event completed this batch, so neither a failed read nor slot reuse
@@ -235,6 +318,8 @@ impl GpuTiming {
                         begin: None,
                         end: None,
                         frequency: None,
+                        renderer_inputs_end: None,
+                        renderer_render_end: None,
                     }));
                 }
             }
@@ -254,6 +339,8 @@ impl GpuTiming {
                         begin: None,
                         end: None,
                         frequency: None,
+                        renderer_inputs_end: None,
+                        renderer_render_end: None,
                     }));
                 }
             }

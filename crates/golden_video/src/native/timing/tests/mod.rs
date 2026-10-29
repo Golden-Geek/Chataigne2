@@ -139,6 +139,8 @@ fn gpu_validity_and_offline_rows_preserve_missing_disjoint_and_exact_context_ide
         begin: None,
         end: None,
         frequency: None,
+        renderer_inputs_end: None,
+        renderer_render_end: None,
     });
     let decoded: DiagnosticEvent = serde_json::from_str(&serde_json::to_string(&row).unwrap()).unwrap();
     let DiagnosticEvent::Gpu(decoded) = decoded else {

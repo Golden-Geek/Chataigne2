@@ -236,6 +236,10 @@ pub struct GpuTrace {
     pub end: Option<u64>,
     /// GPU counter ticks per second for this disjoint scope.
     pub frequency: Option<u64>,
+    /// Renderer-only input-copy boundary on this same GPU counter; absent if not marked/read.
+    pub renderer_inputs_end: Option<u64>,
+    /// Renderer-only render-pass boundary; outputs occupy the remainder through `end`.
+    pub renderer_render_end: Option<u64>,
 }
 
 /// Fixed-size Rust telemetry row for offline qualification. No UI event is emitted.

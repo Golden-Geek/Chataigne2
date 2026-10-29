@@ -5,14 +5,15 @@
 **Updated: 2026-10-29 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
 **Current topic:** M03 remains **7/9** accepted gates. The
-[hardware sRGB sampling checkpoint](mapgyver-m03-qualification-runner.md#hardware-srgb-source-decoding--2026-10-29)
-removes shader gamma decoding from eligible source sampling. An isolated alternating cost
-control reduces median GPU time per 4K draw from 2.0702 to 1.3827 ms (33%). A short Q01
-control accepts/captures all 300 sample frames; Q02 still fails cadence/capture coverage and
-its renderer-context GPU p95 does not improve. No acceptance gate closes.
+[renderer GPU stage checkpoint](mapgyver-m03-qualification-runner.md#renderer-gpu-stage-partitions--2026-10-29)
+partitions all 300 sample frames in each new Q01/Q02 control into inputs, rendering and
+outputs using one GPU counter/disjoint scope. Outputs are the largest interval in 271/300
+Q02 frames, with median/p95 9.5033/15.2477 ms. The spans include waits and command-feed gaps;
+they do not identify pure GPU work or a cross-context critical path. No gate closes.
 
-**Next:** complete GPU critical-path and native buffer/GPU-queue measurements
-(gate 9), then address remaining cadence, capture coverage and growth qualification. Native
+**Next:** target output conversion/delivery, the measured dominant Q02 interval; complete GPU
+critical-path and native buffer/GPU-queue measurements (gate 9), then address remaining
+cadence, capture coverage and growth qualification. Native
 device removal and bounded stuck retirement retain gate 4.
 **Blocker:** Q02 window cadence, producer admission, complete capture coverage and age remain
 insufficient; Q02 window delivery deadlines now have proven failures. Full GPU
@@ -273,7 +274,9 @@ now retains every opportunity, including a pre-window API call whose deadline be
 sample. Q01 has 180 on-time observations per output; Q02 window deadlines fail, while late
 Spout polling stays uncertain. Source-local hardware sRGB decoding now reduces isolated sampler
 cost by 33%; its short Q02 control still misses six of 295 accepted Spout images and does not
-improve renderer-context GPU p95. Complete GPU critical-path and queue/consumption measurement
+improve renderer-context GPU p95. Schema 7 now partitions every sample renderer span on its
+own GPU counter. Outputs dominate 271/300 Q02 frames; target conversion/delivery at that owner.
+Complete GPU critical-path and queue/consumption measurement
 before the prescribed qualification series (gate 9).
 Genuine native device-removal recovery and bounded stuck-drain retirement retain gate 4.
 Both gates remain required before M03 completion; all existing budgets/failures stay operative.
@@ -422,6 +425,38 @@ Preserve Chataigne's unfinished engine/Spatializer P11 checkpoint (four of six f
 and its [separate ledger](implementation-status.md). Shared P12 boundary repairs belong to M02;
 P14/P15 time and asset contracts retain their shared Golden owners under M03. Root launch
 behavior is unchanged. No production host/backend/binding decision is final yet.
+
+## M03 renderer GPU stage partitions — 2026-10-29
+
+Golden Video's optional diagnostics now prepare two intermediate timestamp queries per
+renderer slot, inside its existing disjoint scope. Input-copy and render-pass boundaries
+partition the exact completed batch; output conversion/delivery occupies the remaining
+interval. There are still two slots and no additional frame allocation, event, flush,
+admission dependency or wait. Source/fixture contexts allocate no intermediate queries.
+Incomplete/out-of-order/duplicated marks cannot certify a partition, and slot reuse resets
+marker state. Rust artifact schema 7 and its generated metadata advance together.
+
+The [packet](evidence/mapgyver-m03-gpu-stages-2026-10-29.json) and
+[raw control archive](evidence/mapgyver-m03-gpu-stages-controls-2026-10-29.zip) preserve new
+release Q01/Q02 runs on the existing Intel route, each with five-second warmup/sample and
+one-second interruption controls. All 600 sample spans have exact ordered stage joins.
+Q02 input/render/output p95 are 7.2783/7.4998/15.2477 ms; these percentiles are not summed.
+Outputs are the largest interval in 271/300 Q02 frames, median 9.5033 ms. The next performance
+change should target output conversion/delivery. These elapsed spans include GPU scheduling,
+dependency waits and command-feed gaps; they cannot attribute the interval solely to shaders.
+
+Q01 accepts all 300 opportunities per output and independently captures 300/300 exact Spout
+images. Q02 accepts 276/294/165 main/Spout/editor opportunities, with 272/294 exact captures
+and no invalid comparisons. Missing captures and qualification failures remain open. No
+PresentMon collector or display/driver/overlay change occurs; earlier display/deadline
+evidence stays immutable. Whole renderer-context GPU p95 is 3.9429/21.7279 ms for Q01/Q02.
+
+Validation: 152 ordinary Rust library/public tests, 13 native tests, a repeated two-test
+timing check after the clippy style repair, 92 production Python tests, strict clippy, the
+final release runner build and both Rust formatters. Independent raw reconstruction verifies
+all 600 stage partitions and unchanged capture fingerprints. This measures an existing
+failure; no resource, cadence, frame-age or recovery budget is relaxed. **M03 stays 7/9
+(78%); overall stays 3/10 (30%)**.
 
 ## M03 hardware sRGB source decoding — 2026-10-29
 

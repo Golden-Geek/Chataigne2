@@ -424,7 +424,7 @@ impl Backend for D3d11Backend {
         let cpu = recorder.map(CpuScope::new);
         let submission = native.completion.begin(&native.device, token);
         let context = &native.device.context;
-        let gpu = native.timing.as_mut().map(|timing| timing.begin(context, token));
+        let mut gpu = native.timing.as_mut().map(|timing| timing.begin(context, token));
         let inputs_begin = recorder.and_then(Recorder::stamp);
         let pipeline = &native.pipeline;
         for external in plan.external_textures() {
@@ -473,6 +473,9 @@ impl Backend for D3d11Backend {
                     publication: frame.timing,
                 }));
             }
+        }
+        if let Some(gpu) = &mut gpu {
+            gpu.inputs_complete();
         }
         let inputs = recorder.and_then(|recorder| recorder.interval(inputs_begin));
         let render_begin = recorder.and_then(Recorder::stamp);
@@ -533,6 +536,9 @@ impl Backend for D3d11Backend {
                     }
                 }
             }
+        }
+        if let Some(gpu) = &mut gpu {
+            gpu.render_complete();
         }
         let render = recorder.and_then(|recorder| recorder.interval(render_begin));
         for output in plan.outputs() {

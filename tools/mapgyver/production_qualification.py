@@ -26,6 +26,7 @@ PLAN_AGE = runpy.run_path(str(Path(__file__).with_name("production_plan_age.py")
 COHORT = runpy.run_path(str(Path(__file__).with_name("production_cohort.py")))
 PRESENTMON = runpy.run_path(str(Path(__file__).with_name("production_presentmon.py")))
 DELIVERY_DEADLINES = runpy.run_path(str(Path(__file__).with_name("production_delivery_deadlines.py")))
+GPU_STAGES = runpy.run_path(str(Path(__file__).with_name("production_gpu_stages.py")))
 
 
 class ArtifactError(ValueError):
@@ -184,10 +185,13 @@ def gpu_metrics(cpu_rows, gpu_rows, renderer=False):
             end = integer(row["end"], "GPU end", begin)
             frequency = integer(row["frequency"], "GPU frequency", 1)
             durations.append((end - begin) * 1000 / frequency)
-    return {"expected_batches": len(cpu_rows), "missing_rows": missing, "statuses": dict(states),
+    result = {"expected_batches": len(cpu_rows), "missing_rows": missing, "statuses": dict(states),
             "complete": bool(cpu_rows) and len(durations) == len(cpu_rows),
             "context_local_execution": distribution(durations),
             "scope": "one context only; never a cross-context critical path"}
+    if renderer:
+        result["stage_partitions"] = GPU_STAGES["analyze_renderer_stages"](cpu_rows, gpu_rows, distribution)
+    return result
 
 
 def source_dependencies(frames, native):
@@ -673,6 +677,7 @@ def fingerprints(executable):
               Path(__file__).with_name("production_cohort.py"),
               Path(__file__).with_name("production_deadlines.py"), ROOT / "apps/mapgyver/Cargo.toml",
               Path(__file__).with_name("production_delivery_deadlines.py"),
+              Path(__file__).with_name("production_gpu_stages.py"),
               ROOT / "crates/golden_time/Cargo.toml", ROOT / "crates/golden_video/Cargo.toml",
               ROOT / "apps/mapgyver/build.rs"]
     for directory in ("crates/golden_time/src", "crates/golden_video/src", "crates/golden_core/hosts/desktop/src",

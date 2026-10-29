@@ -135,8 +135,110 @@ fn hardware_diagnostics_queries_keep_two_slots_and_collect_exact_completed_conte
         assert_eq!(row.status, GpuSampleStatus::Valid);
         assert!(row.frequency.is_some_and(|frequency| frequency > 0));
         assert!(row.begin.zip(row.end).is_some_and(|(begin, end)| end >= begin));
+        assert_eq!((row.renderer_inputs_end, row.renderer_render_end), (None, None));
     }
     assert_eq!(recorder.snapshot().dropped_full, 0);
     drop(drain);
     done.send(()).unwrap();
+}
+
+#[test]
+#[ignore = "requires hardware D3D11"]
+fn hardware_renderer_stage_markers_require_ordered_complete_scopes_and_reset_on_reuse() {
+    let adapter = adapters()
+        .unwrap()
+        .into_iter()
+        .find(|adapter| !adapter.software)
+        .unwrap()
+        .id;
+    let device = Device::new(adapter).unwrap();
+    let texture = Texture::new(
+        &device.device,
+        TextureDescriptor {
+            extent: Extent2D::new(8, 8).unwrap(),
+            format: PixelFormat::Rgba8Unorm,
+            color_encoding: ColorEncoding::Linear,
+            alpha_mode: AlphaMode::Premultiplied,
+        },
+    )
+    .unwrap();
+    let recorder = Recorder::new(DiagnosticsConfig {
+        capacity: NonZeroUsize::new(8).unwrap(),
+    });
+    let mut timing = GpuTiming::new(&device.device, recorder.clone(), DiagnosticContext::Renderer);
+    let mut completion = EventCompletion::new(&device).unwrap();
+    let generation = DeviceGeneration::new(Uuid::new_v4(), 1);
+    let mut drain = Drain {
+        device: &device,
+        completion: &mut completion,
+        timing: &mut timing,
+        generation,
+        submitted: 0,
+    };
+    for serial in 1..=5 {
+        let token = CompletionToken {
+            device: generation,
+            serial,
+        };
+        drain.submitted = serial;
+        {
+            let _completion = drain.completion.begin(&device, token);
+            let mut scope = drain.timing.begin(&device.context, token);
+            // SAFETY: finite owned texture on this same context, between prepared timestamps.
+            unsafe {
+                device
+                    .context
+                    .ClearRenderTargetView(&texture.rtv, &[0.1, 0.2, 0.3, 1.0])
+            };
+            match serial {
+                1 | 5 => {
+                    scope.inputs_complete();
+                    scope.render_complete();
+                }
+                2 => scope.inputs_complete(),
+                3 => {
+                    scope.render_complete();
+                    scope.inputs_complete();
+                }
+                4 => {
+                    scope.inputs_complete();
+                    scope.inputs_complete();
+                    scope.render_complete();
+                }
+                _ => unreachable!(),
+            }
+        }
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            let completed = drain.completion.completed(&device, generation).unwrap();
+            drain.timing.poll(&device.context, completed);
+            if completed.serial == serial && recorder.snapshot().written == serial {
+                break;
+            }
+            assert!(Instant::now() < deadline, "finite stage query completion");
+            std::thread::sleep(Duration::from_millis(1));
+        }
+    }
+    let mut rows = Vec::new();
+    recorder.drain(&mut rows, NonZeroUsize::new(8).unwrap());
+    assert_eq!(rows.len(), 5);
+    for event in rows {
+        let DiagnosticEvent::Gpu(row) = event else {
+            panic!("expected GPU row")
+        };
+        assert_eq!(row.status, GpuSampleStatus::Valid);
+        assert_eq!(row.token.device, generation);
+        if matches!(row.token.serial, 1 | 5) {
+            let inputs = row.renderer_inputs_end.expect("complete input stage");
+            let render = row.renderer_render_end.expect("complete rendering stage");
+            assert!(row.begin.unwrap() <= inputs && inputs <= render && render <= row.end.unwrap());
+            assert_eq!(
+                (inputs - row.begin.unwrap()) + (render - inputs) + (row.end.unwrap() - render),
+                row.end.unwrap() - row.begin.unwrap()
+            );
+        } else {
+            assert_eq!((row.renderer_inputs_end, row.renderer_render_end), (None, None));
+        }
+    }
+    assert_eq!(recorder.snapshot().dropped_full, 0);
 }

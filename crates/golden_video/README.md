@@ -45,6 +45,12 @@ mutex. Capacity pressure still drops explicitly; recording never grows storage t
 Snapshots are sparse observations; exact written/drained/queued accounting requires quiescent
 producers. Disabled runtimes allocate no timing queries. Drops, invalid/skipped/uncollected timing
 and missing OS counters remain explicit.
+Renderer slots also prepare two intermediate timestamps on the same disjoint scope, after
+input copying and after render passes. Completed rows partition that exact batch into inputs,
+rendering and outputs; incomplete/invalid marker order cannot certify partitions, and slot
+reuse clears marker state. Source/fixture contexts allocate no intermediate queries. These
+elapsed intervals include GPU scheduling, dependency waits and command-feed gaps. They do not
+isolate active shader work, measure native buffer occupancy or align clocks across contexts.
 Opt-in native scheduling uses an explicitly captured QPC origin/frequency to map absolute
 rational cadence slots to machine-counter boundaries with checked integer rounding. Each
 consumed slot records admission and an exact submitted token when present; final fences bound

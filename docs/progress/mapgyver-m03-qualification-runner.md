@@ -143,8 +143,8 @@ samples use the default 30/120-second durations and `--samples 3`; renderer crit
 M03/gate-9 owner. Physical DPI/input and full-app/Matrix Q05 criteria retain M05/M09 owners.
 Renderer handle/growth/drain requirements remain M03 and are not waived by that distinction.
 Unknown criteria are explicit, and short samples cannot become qualification by relabeling them.
-Current captures use artifact schema 4, generated from the Rust qualification contract. The
-schema-1/2/3 archives below retain their own analyses and hashes; the current analyzer rejects
+Current captures use artifact schema 7, generated from the Rust qualification contract. The
+schema-1 through schema-6 archives below retain their own analyses and hashes; the current analyzer rejects
 older versions rather than inventing resource-generation or copied-image identities.
 
 ## Diagnostic checkpoint — 2026-10-29
@@ -763,6 +763,61 @@ Validation passes 182 regular Rust tests, twelve native GPU tests and 73 Python 
 default/native all-target Clippy, generated fixture contracts, release x64 build and both Rust
 formatters. Full cadence/repetition, GPU/queue/deadline, growth/handle, genuine removal/stuck
 retirement and M05 physical observations remain open. **M03 stays 7/9; overall stays 3/10 (30%)**.
+
+## Renderer GPU stage partitions — 2026-10-29
+
+`native/timing/gpu.rs` preallocates two intermediate timestamp queries in each of the two
+renderer slots. `native/backend.rs` marks the end of input copies and the end of render
+passes. The existing enclosing begin/end pair bounds output conversion/delivery as the
+third partition. All four points share the same disjoint observation and frequency, following
+the [D3D11 timestamp reliability contract](https://learn.microsoft.com/en-us/windows/win32/api/d3d11/ns-d3d11-d3d11_query_data_timestamp_disjoint).
+No nested disjoint scope, extra event, flush, allocation, read or wait is added to submission.
+Source/fixture contexts retain their original query counts, and disabled diagnostics allocate
+no queries. Existing real completion tokens govern collection and reuse.
+
+Typed marker state rejects duplicated or out-of-order boundaries. Incomplete scopes report
+no partition; a reused slot cannot carry prior markers. Artifact schema 7 adds the optional
+raw `renderer_inputs_end` and `renderer_render_end` fields to the Rust GPU row; the generated
+capture metadata and Python consumer change together. `production_gpu_stages.py` joins the
+full device/batch/context identity, retains every expected frame, validates ordered integer
+boundaries inside the enclosing span and computes distributions for each partition. Missing/
+invalid spans remain unavailable. Historical schema-6 archives retain their own analyses.
+
+The [evidence packet](evidence/mapgyver-m03-gpu-stages-2026-10-29.json) and
+[raw archive](evidence/mapgyver-m03-gpu-stages-controls-2026-10-29.zip) preserve two new
+five-second warmup/sample release controls with one-second interruption intervals, on Intel
+LUID `00000000:00016c2a`. The independent audit reconstructs every partition from raw GPU
+rows, rejects clock/token mismatches, checks exact integer telescoping and agrees with all
+600 frame records and their distributions. Capture fingerprints stay stable throughout.
+
+| Same-context observation (ms, p95 unless named) | Q01 | Q02 |
+| --- | ---: | ---: |
+| Covered / expected sample GPU partitions | 300/300 | 300/300 |
+| Input-copy interval | 1.0759 | 7.2783 |
+| Render-pass interval | 0.6640 | 7.4998 |
+| Output interval | 2.3158 | 15.2477 |
+| Output median | 2.1481 | 9.5033 |
+| Whole context interval | 3.9429 | 21.7279 |
+| Frames with output as largest interval | 299/300 | 271/300 |
+| Main / Spout / editor accepted opportunities | 300/300/300 | 276/294/165 |
+| Exact completed Spout captures / accepted | 300/300 | 272/294 |
+
+Each frame's three raw tick differences sum exactly to its enclosing difference. Distribution
+percentiles cannot be summed. Elapsed GPU intervals include scheduler/dependency waits and
+command-feed gaps: this identifies output conversion/delivery as the dominant interval in
+this Q02 control, without isolating active GPU work or a specific API within it. The next
+performance change should target that output path. Contexts are not aligned or summed into
+a full critical path; native buffer occupancy, calibrated queue delay and software/physical
+display observations are not provided by these markers. PresentMon was not enabled here.
+
+Validation: 148 regular library tests plus four public integration tests, all 13 explicit
+native tests, the two timing hardware tests repeated after the clippy style correction,
+92 production Python tests, strict clippy, final release runner build and both Rust formatters.
+Raw validation logs retain the initial clippy failure and its successful repair. The full
+native matrix precedes only that equivalent conditional-style repair; the focused final
+timing check and native controls exercise the final source. Q02 missing captures, cadence,
+GPU/queue, growth and genuine removal/stuck retirement remain open. No gate closes, no
+denominator changes, and no workload or budget is relaxed. **M03 remains 7/9; overall 3/10.**
 
 ## Hardware sRGB source decoding — 2026-10-29
 
