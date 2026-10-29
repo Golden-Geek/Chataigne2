@@ -107,6 +107,7 @@ fn internal() -> TextureDescriptor {
 
 fn native_config(adapter: AdapterId, output_name: String) -> D3d11Config {
     D3d11Config {
+        diagnostics: None,
         adapter,
         inputs: InputLimits {
             max_sources: 4,

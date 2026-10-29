@@ -135,6 +135,7 @@ fn hardware_initial_native_allocation_retries_real_unavailable_adapter_then_serv
         VideoRuntime::spawn_d3d11_with_control(
             config(),
             D3d11Config {
+                diagnostics: None,
                 adapter: selected,
                 inputs: InputLimits::default(),
                 outputs: vec![OutputBinding::Spout {

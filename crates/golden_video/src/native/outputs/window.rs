@@ -14,6 +14,7 @@ use crate::TextureDescriptor;
 
 use super::super::config::WindowTarget;
 use super::super::texture::Texture;
+use super::super::timing::{CpuInterval, Recorder};
 use super::Delivery;
 
 /// Fixed admitted backing size; DXGI stretches it when the host's physical client size changes.
@@ -88,14 +89,26 @@ impl WindowOutput {
         })
     }
 
-    pub(super) fn deliver(&mut self, context: &ID3D11DeviceContext, texture: &Texture) -> Delivery {
-        match self.try_deliver(context, texture) {
+    pub(super) fn deliver(
+        &mut self,
+        context: &ID3D11DeviceContext,
+        texture: &Texture,
+        recorder: Option<&Recorder>,
+        consumer_api: &mut Option<CpuInterval>,
+    ) -> Delivery {
+        match self.try_deliver(context, texture, recorder, consumer_api) {
             Ok(delivery) => delivery,
             Err(error) => Delivery::Failed(error.code()),
         }
     }
 
-    fn try_deliver(&mut self, context: &ID3D11DeviceContext, texture: &Texture) -> Result<Delivery> {
+    fn try_deliver(
+        &mut self,
+        context: &ID3D11DeviceContext,
+        texture: &Texture,
+        recorder: Option<&Recorder>,
+        consumer_api: &mut Option<CpuInterval>,
+    ) -> Result<Delivery> {
         let mut rect = RECT::default();
         // SAFETY: this lease's host-owned HWND is retained until the renderer has retired.
         unsafe {
@@ -136,7 +149,9 @@ impl WindowOutput {
             }
             let target: ID3D11Texture2D = self.chain.GetBuffer(0)?;
             context.CopyResource(&target, &texture.texture);
+            let begin = recorder.and_then(Recorder::stamp);
             let result = self.chain.Present(0, DXGI_PRESENT_DO_NOT_WAIT);
+            *consumer_api = recorder.and_then(|recorder| recorder.interval(begin));
             if result == DXGI_ERROR_WAS_STILL_DRAWING {
                 // Retain the readiness permit until a presentation actually consumes it.
                 return Ok(Delivery::Busy);

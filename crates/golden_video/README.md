@@ -25,6 +25,18 @@ The implemented foundations are:
 - `native/`, enabled by `d3d11` on Windows, owns caller-selected adapter/device creation, the
   shader pipeline, persistent window/Spout output pools and device-scoped event completion.
   `D3d11Config` contains endpoint metadata; native interfaces stay on the render worker.
+- `qualification/` owns Rust-generated metadata for the held native-preview test fixture.
+  The opt-in Windows `qualification` feature also exposes GPU source/consumer marker fixtures;
+  app-owned runners select scenarios and own processes, without putting product policy in Golden.
+
+Native `D3d11Config::diagnostics` optionally enables a bounded nonblocking metadata sink, CPU
+API brackets and two GPU timestamp/disjoint slots per context. Disabled runtimes allocate no
+timing queries. Drops, invalid/skipped/uncollected timing and missing OS counters remain explicit.
+Context-local GPU spans and inclusive CPU wall intervals are observations, not a complete GPU
+critical path or active CPU estimate. Process-local DXGI budget/usage and sparse process resource
+APIs run outside engine/UI ticks. See the
+[production qualification runner](../../docs/progress/mapgyver-m03-qualification-runner.md)
+for fixture ownership, reproduction and remaining measurement limitations.
 
 Run compilation on a preparation worker when desired state changes, outside engine ticks,
 UI callbacks and per-frame rendering. Compiled storage prunes inactive metadata and compacts

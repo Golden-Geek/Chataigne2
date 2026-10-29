@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { preview } from 'vite';
 import { chromium } from 'playwright-core';
+import { verifyQualification } from './qualification.mjs';
 
 const server = await preview({
 	configFile: path.resolve('tests/native/vite.config.ts'),
@@ -100,12 +101,14 @@ try {
 	await browserPage.getByRole('button', { name: 'DOM overlay control' }).click();
 	await browserPage.getByText('Overlay clicks: 1', { exact: true }).waitFor();
 	assert.deepEqual(browserErrors, []);
+	const qualification = await verifyQualification(browser, `http://127.0.0.1:${address.port}/`);
 	console.log(
 		JSON.stringify({
 			fakeNativeVisibleCounts: report.trace.map((item) => item.state.visibleViews),
 			retirementMaskPeak: report.maxRetirementMasks,
 			metadataRequests: requests.length,
 			browserUnavailableEditingControl: true,
+			qualification,
 			pageErrors: []
 		})
 	);

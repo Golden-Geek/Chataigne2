@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 /// One runtime's project lifetime. Equal counters from another runtime are never equal epochs.
@@ -19,7 +20,7 @@ impl ProjectEpoch {
 }
 
 /// One native device lifetime, fencing completion values that may restart after recreation.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct DeviceGeneration {
     runtime: Uuid,
     generation: u64,
@@ -82,7 +83,7 @@ impl GenerationId {
 }
 
 /// A completion serial interpreted only within its exact native device lifetime.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CompletionToken {
     /// Device that owns the submission/fence.
     pub device: DeviceGeneration,

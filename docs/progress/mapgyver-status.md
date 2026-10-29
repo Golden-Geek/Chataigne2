@@ -5,6 +5,10 @@
 **Updated: 2026-10-29 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
 **Current topic:** M03 remains **7/9** accepted gates. The
+[production qualification runner](mapgyver-m03-qualification-runner.md) now connects independent
+GPU fixtures, the shared host/runtime and held previews with bounded native telemetry and
+offline analysis. Corrected release Q01/Q02 controls complete the fixed scene and owned cleanup;
+Q02 cadence still falls short and telemetry loses rows. These short controls close no gate. The
 [startup retry checkpoint](mapgyver-m03-render-foundations.md#admitted-startup-retries--2026-10-29)
 holds baseline admission through initial allocation failures, preserves control/latest plans
 and recovers within the same first device generation. A real unavailable-LUID factory test
@@ -19,9 +23,10 @@ The [approved M01 route decision](mapgyver-m01-native-feasibility.md#functional-
 remains scoped functional acceptance; renderer, physical-output and full-app qualification
 retain their M03/M05/M09 owners.
 
-**Next:** build the production Q01/Q02 qualification runner (gate 9), retaining native
+**Next:** remove telemetry loss, add exact deadline/queue anchors and address Q02 renderer cost (gate 9), retaining native
 device-removal/recovery and bounded-retirement acceptance under gate 4.
-**Blocker:** none for the qualification-runner implementation batch. Genuine device removal and stuck-driver
+**Blocker:** Q02 cadence and context-local GPU time miss the diagnostic targets; full GPU
+critical-path/deadline/queue coverage remains unavailable. Genuine device removal and stuck-driver
 retirement bounds remain unverified. Known cadence, memory-growth, geometry and display/input failures
 remain open under M03/M05/M09; their budgets and evidence are unchanged.
 
@@ -251,8 +256,10 @@ Reusable native preview registration/geometry now passes its real shared-host co
 Independent output retry/state, completion-fenced replacement, source withdrawal and simulated
 failed-reset/cancellation/project fencing have a recovery checkpoint. Initial allocation now
 retries within its original admitted baseline and first device generation, serving controls and
-retaining only the latest desired plan. Build the production Q01/Q02 qualification runner next
-(gate 9). Genuine native device-removal recovery and bounded stuck-drain retirement retain gate 4.
+retaining only the latest desired plan. The production Q01/Q02 runner and its short native controls
+now complete. Close telemetry loss, exact deadline anchors and complete GPU/queue
+measurement coverage before attempting the prescribed qualification series (gate 9).
+Genuine native device-removal recovery and bounded stuck-drain retirement retain gate 4.
 Both gates remain required before M03 completion; all existing budgets/failures stay operative.
 Deliver each coherent batch
 on `mapgyver` before starting the next. Preserve
@@ -399,6 +406,37 @@ Preserve Chataigne's unfinished engine/Spatializer P11 checkpoint (four of six f
 and its [separate ledger](implementation-status.md). Shared P12 boundary repairs belong to M02;
 P14/P15 time and asset contracts retain their shared Golden owners under M03. Root launch
 behavior is unchanged. No production host/backend/binding decision is final yet.
+
+## M03 production qualification runner — 2026-10-29
+
+The [runner boundaries and reproduction](mapgyver-m03-qualification-runner.md) and
+[evidence packet](evidence/mapgyver-m03-qualification-runner-2026-10-29.json) retain five native
+captures in a SHA-256-identified [raw archive](evidence/mapgyver-m03-qualification-controls-2026-10-29.zip).
+Independent GPU producers/consumer exercise the production Golden host/runtime, two held previews,
+bounded opt-in CPU/GPU/source metadata, real LOCAL DXGI admission and sparse process observations.
+Rust-generated fixture contracts, GPU marker checks, owned-process watchdog and offline analysis
+preserve missing/invalid/lost observations. Normative GPU critical-path and output-frame age remain
+unavailable; API/consumer-capture observations are not relabeled as those measurements.
+
+Corrected controls use one-second warmup, three-second sample and one-second minimized/disconnected
+intervals, on Intel adapter 0. Q01 accepts 180/180 main window and Spout submissions. Q02 accepts
+75/180 main-window and 139/180 Spout submissions; its renderer-context GPU p95 is 25.268 ms.
+Both achieve the requested output client/backing and 640×360 / 480×270 preview registrations,
+advance main outputs through the short editor interruptions, retain both HWNDs through actual
+retirement and exit all owned processes without force. Final native retirement takes 0.101 / 0.139 s.
+Renderer telemetry drops 286 / 17 contended rows respectively; complete coverage is not established.
+
+The three failed controls remain retained. Fixes select the known loopback fixture URL instead of
+the WebView's recorded `about:blank`, settle the physical client after the 125%→100% monitor move,
+and observe actual HWND destruction after Tauri's asynchronous destroy request. No display/driver/
+overlay setting changed. Screenshot approval timed out; no visual/physical qualification is inferred.
+
+Validation: 164 regular Rust tests, nine explicit native GPU regressions, 185 Python tests,
+22 UI unit tests, Svelte check/lint and browser fixture/recovery checks pass. Strict all-target
+native Clippy, locked release x64 build, both required formatters and whitespace checks pass.
+M03 stays **7/9**, overall **3/10 (30%)**. No prescribed three-sample series was run while measurement
+coverage and observed performance remain insufficient. M05/M09 criteria retain their owners;
+renderer handle/growth/drain and genuine removal/recovery remain required under M03.
 
 ## M03 admitted startup verification — 2026-10-29
 

@@ -76,7 +76,11 @@ impl Collider {
                     .context
                     .ClearRenderTargetView(&collider.texture.rtv, &[1.0, 0.0, 0.0, 1.0]);
             }
-            delivered = collider.output.as_mut().unwrap().deliver(&collider.texture);
+            delivered = collider
+                .output
+                .as_mut()
+                .unwrap()
+                .deliver(&collider.texture, None, &mut None);
         }
         collider.drain();
         assert_eq!(delivered, Delivery::Accepted);
@@ -196,6 +200,7 @@ fn hardware_output_collision_recovers_through_public_runtime_without_stopping_he
         VideoRuntime::spawn_d3d11(
             config(),
             D3d11Config {
+                diagnostics: None,
                 adapter: adapter.id,
                 inputs: InputLimits::default(),
                 outputs: vec![

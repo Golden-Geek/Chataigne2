@@ -56,6 +56,7 @@ mod fixture {
         let mut runtime = VideoRuntime::spawn_d3d11(
             config(),
             D3d11Config {
+                diagnostics: None,
                 adapter,
                 inputs: Default::default(),
                 outputs: vec![OutputBinding::Spout {

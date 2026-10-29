@@ -34,6 +34,7 @@ fn withdrawal_precedes_a_blocked_failing_drain_without_certifying_retirement() {
     assert!(shared.publish(Publication {
         surface: source_owner.clone(),
         sequence: 1,
+        timing: None,
     }));
     let reader = shared.observation_revision.reader();
     let guard = reader.guard_at(reader.current());
@@ -99,6 +100,7 @@ fn repeated_withdrawal_preserves_renderer_acknowledgment_and_rejects_late_public
     assert!(shared.publish(Publication {
         surface: source.clone(),
         sequence: 1,
+        timing: None,
     }));
     let reader = shared.observation_revision.reader();
     let before = reader.guard_at(reader.current());
@@ -117,6 +119,7 @@ fn repeated_withdrawal_preserves_renderer_acknowledgment_and_rejects_late_public
     assert!(!shared.publish(Publication {
         surface: source,
         sequence: 2,
+        timing: None,
     }));
     assert!(shared.latest.lock().unwrap().is_none());
     assert_eq!(shared.status.lock().unwrap().publications, 1);

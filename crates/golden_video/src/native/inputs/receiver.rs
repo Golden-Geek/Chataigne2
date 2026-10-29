@@ -9,7 +9,7 @@ use windows::core::{Error, HRESULT, Interface, Result};
 use super::super::texture::{Texture, format};
 use crate::{Extent2D, TextureDescriptor};
 
-pub(super) enum Received {
+pub(crate) enum Received {
     Absent,
     Waiting,
     Unchanged,
@@ -19,7 +19,7 @@ pub(super) enum Received {
 
 /// The receive-into overload never creates the SDK's unbounded private receiving copy.
 /// All endpoint operations run on a dedicated source device/context.
-pub(super) struct Receiver {
+pub(crate) struct Receiver {
     raw: NonNull<sdk::spout_dx_t>,
     device: ID3D11Device,
     name: CString,

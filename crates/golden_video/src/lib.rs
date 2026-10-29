@@ -11,6 +11,7 @@ mod identity;
 pub mod image;
 pub mod plan;
 pub mod preview;
+pub mod qualification;
 mod resource;
 pub mod runtime;
 

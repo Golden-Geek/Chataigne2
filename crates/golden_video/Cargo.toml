@@ -9,6 +9,7 @@ description = "App-neutral video render plans and worker-owned resource foundati
 
 [features]
 d3d11 = ["dep:windows", "dep:spout2-sys"]
+qualification = ["d3d11"]
 
 [dependencies]
 golden_assets.workspace = true
@@ -34,5 +35,7 @@ windows = { version = "=0.61.3", optional = true, features = [
     "Win32_Graphics_Dxgi",
     "Win32_Graphics_Dxgi_Common",
     "Win32_System_Threading",
+    "Win32_System_Performance",
+    "Win32_System_ProcessStatus",
     "Win32_UI_WindowsAndMessaging",
 ] }

@@ -1,0 +1,1368 @@
+{
+  "schema_version": 1,
+  "checkpoint": "production qualification runner",
+  "date": "2026-10-29",
+  "branch": "mapgyver",
+  "gate_counts": {
+    "overall_completed": 3,
+    "overall_total": 10,
+    "M03_completed": 7,
+    "M03_total": 9
+  },
+  "acceptance_advanced": false,
+  "adapter_route": "Intel adapter 0; no display/driver/overlay changes",
+  "archive": {
+    "path": "mapgyver-m03-qualification-controls-2026-10-29.zip",
+    "bytes": 5994024,
+    "sha256": "d07ed9e730503e055ba544508e674094297151b9b15fcfb8133f4bc4e96b4e21",
+    "members": 85
+  },
+  "validation": {
+    "rust_regular_passed": 164,
+    "native_explicit_passed": 9,
+    "python_passed": 185,
+    "ui_unit_passed": 22,
+    "ui_check_errors": 0,
+    "ui_check_warnings": 0,
+    "ui_lint": "passed",
+    "browser_fixture_and_recovery": "passed",
+    "strict_native_all_target_clippy": "passed",
+    "release_x64_build": "passed",
+    "root_and_golden_core_formatters": "passed"
+  },
+  "controls": [
+    {
+      "archive_directory": "qualification-q01-control-2026-10-29",
+      "stage": "initial transient-URL failure",
+      "scenario": "Q01",
+      "adapter": {
+        "high": 0,
+        "low": 93226
+      },
+      "requested_seconds": {
+        "warmup": 1,
+        "sample": 8,
+        "each_isolation": 2
+      },
+      "debug_assertions": false,
+      "arch": "x86_64",
+      "functional_completed": false,
+      "error": "timed out waiting for two source streams and installed physical preview geometry; runtime=RuntimeSnapshot { state: Running, project: ProjectEpoch { runtime: 321ac117-96ad-40b6-9d38-bef1363a14db, gener",
+      "window": {
+        "backing": [
+          1920,
+          1080
+        ],
+        "client": [
+          1534,
+          863
+        ],
+        "monitor_count": 2,
+        "physical_display_qualification": false,
+        "position": [
+          2560,
+          0
+        ],
+        "scale": 1,
+        "selected_monitor": {
+          "name": "\\\\.\\DISPLAY2",
+          "origin": [
+            2560,
+            0
+          ],
+          "scale": 1,
+          "size": [
+            1920,
+            1080
+          ]
+        }
+      },
+      "geometry": null,
+      "diagnostics": {
+        "capacity": 65536,
+        "clock_failures": 0,
+        "drained": 53450,
+        "dropped_contended": 284,
+        "dropped_full": 0,
+        "enabled": true,
+        "qpc_frequency": 10000000,
+        "queued": 0,
+        "written": 53450
+      },
+      "retirement": {
+        "actual_retirement": true,
+        "begin_qpc": 2794926141053,
+        "both_hwnds_retained_until_retirement": true,
+        "elapsed_seconds": 0.0964467,
+        "end_qpc": 2794927098124,
+        "output_destroyed_after_retirement": false
+      },
+      "children": [
+        {
+          "exit_code": 0,
+          "forced": false,
+          "pid": 11656,
+          "stop_ns": "26041900",
+          "success": true
+        },
+        {
+          "exit_code": 0,
+          "forced": false,
+          "pid": 15016,
+          "stop_ns": "26360900",
+          "success": true
+        },
+        {
+          "exit_code": 0,
+          "forced": false,
+          "pid": 748,
+          "stop_ns": "70336800",
+          "success": true
+        }
+      ],
+      "phase_windows": [
+        {
+          "begin_qpc": 2794626075615,
+          "end_qpc": null,
+          "name": "startup"
+        }
+      ],
+      "analysis_status": "FAILED_NATIVE",
+      "qualified": false,
+      "input_identity_unchanged": null
+    },
+    {
+      "archive_directory": "qualification-q01-wrapper-2026-10-29",
+      "stage": "pre-cleanup-and-DPI-correction",
+      "scenario": "Q01",
+      "adapter": {
+        "high": 0,
+        "low": 93226
+      },
+      "requested_seconds": {
+        "warmup": 1,
+        "sample": 3,
+        "each_isolation": 1
+      },
+      "debug_assertions": false,
+      "arch": "x86_64",
+      "functional_completed": false,
+      "error": null,
+      "window": {
+        "backing": [
+          1920,
+          1080
+        ],
+        "client": [
+          1534,
+          863
+        ],
+        "fixture_url": "http://127.0.0.1:65415/?mode=qualification",
+        "initial_editor_url": "about:blank",
+        "monitor_count": 2,
+        "physical_display_qualification": false,
+        "position": [
+          2560,
+          0
+        ],
+        "scale": 1,
+        "selected_monitor": {
+          "name": "\\\\.\\DISPLAY2",
+          "origin": [
+            2560,
+            0
+          ],
+          "scale": 1,
+          "size": [
+            1920,
+            1080
+          ]
+        }
+      },
+      "geometry": {
+        "full_physical_dpi_qualification": false,
+        "generation": 8,
+        "host": {
+          "client": [
+            1280,
+            720
+          ],
+          "css_scale": 1.25,
+          "webview_extent": [
+            1280,
+            720
+          ],
+          "webview_origin": [
+            0,
+            0
+          ]
+        },
+        "layout_revision": 1,
+        "tolerance_physical_pixels": 1,
+        "views": [
+          {
+            "destination": [
+              0.015625,
+              0.16527777910232544,
+              0.5,
+              0.5
+            ],
+            "physical_size": [
+              640,
+              360
+            ],
+            "source": "source-a",
+            "source_rect": [
+              0,
+              0,
+              1,
+              1
+            ]
+          },
+          {
+            "destination": [
+              0.53125,
+              0.16527777910232544,
+              0.375,
+              0.375
+            ],
+            "physical_size": [
+              480,
+              270
+            ],
+            "source": "source-b",
+            "source_rect": [
+              0,
+              0,
+              1,
+              1
+            ]
+          }
+        ]
+      },
+      "diagnostics": {
+        "capacity": 65536,
+        "clock_failures": 0,
+        "drained": 11441,
+        "dropped_contended": 250,
+        "dropped_full": 0,
+        "enabled": true,
+        "qpc_frequency": 10000000,
+        "queued": 0,
+        "written": 11441
+      },
+      "retirement": {
+        "actual_retirement": true,
+        "begin_qpc": 2830376986343,
+        "both_hwnds_retained_until_retirement": true,
+        "elapsed_seconds": 0.1033686,
+        "end_qpc": 2830378009041,
+        "output_destroyed_after_retirement": false
+      },
+      "children": [
+        {
+          "exit_code": 0,
+          "forced": false,
+          "pid": 49388,
+          "stop_ns": "25642100",
+          "success": true
+        },
+        {
+          "exit_code": 0,
+          "forced": false,
+          "pid": 47048,
+          "stop_ns": "20509800",
+          "success": true
+        },
+        {
+          "exit_code": 0,
+          "forced": false,
+          "pid": 23356,
+          "stop_ns": "32675600",
+          "success": true
+        }
+      ],
+      "phase_windows": [
+        {
+          "begin_qpc": 2830311171081,
+          "end_qpc": 2830313674785,
+          "name": "startup"
+        },
+        {
+          "begin_qpc": 2830313674785,
+          "end_qpc": 2830323674785,
+          "name": "warmup"
+        },
+        {
+          "begin_qpc": 2830323794374,
+          "end_qpc": 2830353794374,
+          "name": "sample"
+        },
+        {
+          "begin_qpc": 2830353971059,
+          "end_qpc": 2830363971059,
+          "name": "editor_minimized"
+        },
+        {
+          "begin_qpc": 2830366866958,
+          "end_qpc": 2830376866958,
+          "name": "editor_disconnected"
+        }
+      ],
+      "analysis_status": "FAILED_NATIVE",
+      "qualified": false,
+      "input_identity_unchanged": true
+    },
+    {
+      "archive_directory": "qualification-q02-wrapper-2026-10-29",
+      "stage": "pre-cleanup-and-DPI-correction",
+      "scenario": "Q02",
+      "adapter": {
+        "high": 0,
+        "low": 93226
+      },
+      "requested_seconds": {
+        "warmup": 1,
+        "sample": 3,
+        "each_isolation": 1
+      },
+      "debug_assertions": false,
+      "arch": "x86_64",
+      "functional_completed": false,
+      "error": null,
+      "window": {
+        "backing": [
+          3840,
+          2160
+        ],
+        "client": [
+          3070,
+          1727
+        ],
+        "fixture_url": "http://127.0.0.1:60680/?mode=qualification",
+        "initial_editor_url": "about:blank",
+        "monitor_count": 2,
+        "physical_display_qualification": false,
+        "position": [
+          2560,
+          0
+        ],
+        "scale": 1,
+        "selected_monitor": {
+          "name": "\\\\.\\DISPLAY2",
+          "origin": [
+            2560,
+            0
+          ],
+          "scale": 1,
+          "size": [
+            1920,
+            1080
+          ]
+        }
+      },
+      "geometry": {
+        "full_physical_dpi_qualification": false,
+        "generation": 8,
+        "host": {
+          "client": [
+            1280,
+            720
+          ],
+          "css_scale": 1.25,
+          "webview_extent": [
+            1280,
+            720
+          ],
+          "webview_origin": [
+            0,
+            0
+          ]
+        },
+        "layout_revision": 1,
+        "tolerance_physical_pixels": 1,
+        "views": [
+          {
+            "destination": [
+              0.015625,
+              0.16527777910232544,
+              0.5,
+              0.5
+            ],
+            "physical_size": [
+              640,
+              360
+            ],
+            "source": "source-a",
+            "source_rect": [
+              0,
+              0,
+              1,
+              1
+            ]
+          },
+          {
+            "destination": [
+              0.53125,
+              0.16527777910232544,
+              0.375,
+              0.375
+            ],
+            "physical_size": [
+              480,
+              270
+            ],
+            "source": "source-b",
+            "source_rect": [
+              0,
+              0,
+              1,
+              1
+            ]
+          }
+        ]
+      },
+      "diagnostics": {
+        "capacity": 65536,
+        "clock_failures": 0,
+        "drained": 3574,
+        "dropped_contended": 26,
+        "dropped_full": 0,
+        "enabled": true,
+        "qpc_frequency": 10000000,
+        "queued": 0,
+        "written": 3574
+      },
+      "retirement": {
+        "actual_retirement": true,
+        "begin_qpc": 2830477603451,
+        "both_hwnds_retained_until_retirement": true,
+        "elapsed_seconds": 0.1970643,
+        "end_qpc": 2830479560722,
+        "output_destroyed_after_retirement": false
+      },
+      "children": [
+        {
+          "exit_code": 0,
+          "forced": false,
+          "pid": 38556,
+          "stop_ns": "851863600",
+          "success": true
+        },
+        {
+          "exit_code": 0,
+          "forced": false,
+          "pid": 27104,
+          "stop_ns": "540812700",
+          "success": true
+        },
+        {
+          "exit_code": 0,
+          "forced": false,
+          "pid": 50156,
+          "stop_ns": "99884000",
+          "success": true
+        }
+      ],
+      "phase_windows": [
+        {
+          "begin_qpc": 2830410365011,
+          "end_qpc": 2830413292196,
+          "name": "startup"
+        },
+        {
+          "begin_qpc": 2830413292196,
+          "end_qpc": 2830423292196,
+          "name": "warmup"
+        },
+        {
+          "begin_qpc": 2830423350746,
+          "end_qpc": 2830453350746,
+          "name": "sample"
+        },
+        {
+          "begin_qpc": 2830453562998,
+          "end_qpc": 2830463562998,
+          "name": "editor_minimized"
+        },
+        {
+          "begin_qpc": 2830467449055,
+          "end_qpc": 2830477449055,
+          "name": "editor_disconnected"
+        }
+      ],
+      "analysis_status": "FAILED_NATIVE",
+      "qualified": false,
+      "input_identity_unchanged": true
+    },
+    {
+      "archive_directory": "qualification-q01-final-2026-10-29",
+      "stage": "corrected final control",
+      "scenario": "Q01",
+      "adapter": {
+        "high": 0,
+        "low": 93226
+      },
+      "requested_seconds": {
+        "warmup": 1,
+        "sample": 3,
+        "each_isolation": 1
+      },
+      "debug_assertions": false,
+      "arch": "x86_64",
+      "functional_completed": true,
+      "error": null,
+      "window": {
+        "backing": [
+          1920,
+          1080
+        ],
+        "client": [
+          1920,
+          1080
+        ],
+        "client_before_settle": [
+          1534,
+          863
+        ],
+        "client_extent_verified": true,
+        "client_settle_attempts": 1,
+        "fixture_url": "http://127.0.0.1:55668/?mode=qualification",
+        "initial_editor_url": "about:blank",
+        "monitor_count": 2,
+        "physical_display_qualification": false,
+        "position": [
+          2560,
+          0
+        ],
+        "scale": 1,
+        "selected_monitor": {
+          "name": "\\\\.\\DISPLAY2",
+          "origin": [
+            2560,
+            0
+          ],
+          "scale": 1,
+          "size": [
+            1920,
+            1080
+          ]
+        }
+      },
+      "geometry": {
+        "full_physical_dpi_qualification": false,
+        "generation": 8,
+        "host": {
+          "client": [
+            1280,
+            720
+          ],
+          "css_scale": 1.25,
+          "webview_extent": [
+            1280,
+            720
+          ],
+          "webview_origin": [
+            0,
+            0
+          ]
+        },
+        "layout_revision": 1,
+        "tolerance_physical_pixels": 1,
+        "views": [
+          {
+            "destination": [
+              0.015625,
+              0.16527777910232544,
+              0.5,
+              0.5
+            ],
+            "physical_size": [
+              640,
+              360
+            ],
+            "source": "source-a",
+            "source_rect": [
+              0,
+              0,
+              1,
+              1
+            ]
+          },
+          {
+            "destination": [
+              0.53125,
+              0.16527777910232544,
+              0.375,
+              0.375
+            ],
+            "physical_size": [
+              480,
+              270
+            ],
+            "source": "source-b",
+            "source_rect": [
+              0,
+              0,
+              1,
+              1
+            ]
+          }
+        ]
+      },
+      "diagnostics": {
+        "capacity": 65536,
+        "clock_failures": 0,
+        "drained": 15371,
+        "dropped_contended": 286,
+        "dropped_full": 0,
+        "enabled": true,
+        "qpc_frequency": 10000000,
+        "queued": 0,
+        "written": 15371
+      },
+      "retirement": {
+        "actual_retirement": true,
+        "begin_qpc": 2838400686963,
+        "both_hwnds_retained_until_retirement": true,
+        "elapsed_seconds": 0.1014152,
+        "end_qpc": 2838401667030,
+        "output_destroyed_after_retirement": true
+      },
+      "children": [
+        {
+          "exit_code": 0,
+          "forced": false,
+          "pid": 50164,
+          "stop_ns": "21016100",
+          "success": true
+        },
+        {
+          "exit_code": 0,
+          "forced": false,
+          "pid": 46212,
+          "stop_ns": "21282100",
+          "success": true
+        },
+        {
+          "exit_code": 0,
+          "forced": false,
+          "pid": 35084,
+          "stop_ns": "32015800",
+          "success": true
+        }
+      ],
+      "phase_windows": [
+        {
+          "begin_qpc": 2838303889047,
+          "end_qpc": 2838337375085,
+          "name": "startup"
+        },
+        {
+          "begin_qpc": 2838337375085,
+          "end_qpc": 2838347375085,
+          "name": "warmup"
+        },
+        {
+          "begin_qpc": 2838347570001,
+          "end_qpc": 2838377570001,
+          "name": "sample"
+        },
+        {
+          "begin_qpc": 2838377811924,
+          "end_qpc": 2838387811924,
+          "name": "editor_minimized"
+        },
+        {
+          "begin_qpc": 2838390516940,
+          "end_qpc": 2838400516940,
+          "name": "editor_disconnected"
+        }
+      ],
+      "analysis_status": "UNAVAILABLE",
+      "qualified": false,
+      "renderer_qualification": {
+        "owner_phase": "M03",
+        "owner_gate": 9,
+        "status": "UNAVAILABLE",
+        "qualified": false,
+        "required_criteria": [
+          "completion_retirement",
+          "cpu_submission",
+          "deadline_misses",
+          "dxgi_admission",
+          "editor_independence",
+          "environment_identity",
+          "fixed_scene",
+          "functional_completion",
+          "gpu_context_coverage",
+          "gpu_critical_path",
+          "input_identity",
+          "logical_texture_charge",
+          "output_api_cadence",
+          "plan_age_and_published_queue",
+          "producer_api_cadence",
+          "renderer_handle_growth",
+          "renderer_private_memory",
+          "shutdown",
+          "source_to_consumer_age",
+          "telemetry_coverage"
+        ]
+      },
+      "criteria": {
+        "functional_completion": "PASSED_NATIVE",
+        "fixed_scene": "UNAVAILABLE",
+        "telemetry_coverage": "UNAVAILABLE",
+        "input_identity": "PASSED_NATIVE",
+        "gpu_context_coverage": "UNAVAILABLE",
+        "cpu_submission": "UNAVAILABLE",
+        "output_api_cadence": "UNAVAILABLE",
+        "producer_api_cadence": "UNAVAILABLE",
+        "deadline_misses": "UNAVAILABLE",
+        "editor_independence": "UNAVAILABLE",
+        "source_to_consumer_age": "UNAVAILABLE",
+        "gpu_critical_path": "UNAVAILABLE",
+        "logical_texture_charge": "UNAVAILABLE",
+        "dxgi_admission": "UNAVAILABLE",
+        "renderer_private_memory": "UNAVAILABLE",
+        "completion_retirement": "PASSED_NATIVE",
+        "shutdown": "UNAVAILABLE",
+        "renderer_handle_growth": "UNAVAILABLE",
+        "physical_display_dpi_input": "UNAVAILABLE",
+        "Q05_handles_growth": "UNAVAILABLE",
+        "plan_age_and_published_queue": "UNAVAILABLE",
+        "environment_identity": "UNAVAILABLE"
+      },
+      "cpu": {
+        "inclusive_wall_upper_bound": {
+          "samples": 180,
+          "median_ms": 0.5505,
+          "p95_ms": 0.9831,
+          "p99_ms": 1.8178,
+          "maximum_ms": 2.4965
+        },
+        "os_accounted_thread_cpu": {
+          "samples": 180,
+          "median_ms": 0,
+          "p95_ms": 0,
+          "p99_ms": 15.625,
+          "maximum_ms": 15.625
+        },
+        "thread_cpu_scope": "GetThreadTimes accounting granularity; not inferred by subtracting API wall time",
+        "missing_thread_accounting": 0
+      },
+      "renderer_gpu": {
+        "expected_batches": 180,
+        "missing_rows": 0,
+        "statuses": {
+          "Valid": 180
+        },
+        "complete": true,
+        "context_local_execution": {
+          "samples": 180,
+          "median_ms": 7.77328125,
+          "p95_ms": 12.051354166666666,
+          "p99_ms": 14.296041666666667,
+          "maximum_ms": 14.491145833333333
+        },
+        "scope": "one context only; never a cross-context critical path"
+      },
+      "outputs": [
+        {
+          "output": 1,
+          "counts": {
+            "Accepted": 180
+          },
+          "expected_at_60hz": 180,
+          "accepted_shortfall": 0,
+          "accepted_shortfall_fraction": 0,
+          "accepted_call_intervals": {
+            "samples": 179,
+            "median_ms": 16.6646,
+            "p95_ms": 17.7337,
+            "p99_ms": 18.4214,
+            "maximum_ms": 18.6726
+          },
+          "consumer_api_wall": {
+            "samples": 180,
+            "median_ms": 0.0281,
+            "p95_ms": 0.0447,
+            "p99_ms": 0.0914,
+            "maximum_ms": 0.3683
+          },
+          "within_target": true
+        },
+        {
+          "output": 2,
+          "counts": {
+            "Accepted": 180
+          },
+          "expected_at_60hz": 180,
+          "accepted_shortfall": 0,
+          "accepted_shortfall_fraction": 0,
+          "accepted_call_intervals": {
+            "samples": 179,
+            "median_ms": 16.679,
+            "p95_ms": 17.7175,
+            "p99_ms": 18.0939,
+            "maximum_ms": 18.165
+          },
+          "consumer_api_wall": {
+            "samples": 180,
+            "median_ms": 0.1345,
+            "p95_ms": 0.2736,
+            "p99_ms": 0.7772,
+            "maximum_ms": 1.1885
+          },
+          "within_target": true
+        },
+        {
+          "output": 3,
+          "counts": {
+            "Accepted": 180
+          },
+          "expected_at_60hz": 180,
+          "accepted_shortfall": 0,
+          "accepted_shortfall_fraction": 0,
+          "accepted_call_intervals": {
+            "samples": 179,
+            "median_ms": 16.6794,
+            "p95_ms": 17.717,
+            "p99_ms": 18.0949,
+            "maximum_ms": 18.1581
+          },
+          "consumer_api_wall": {
+            "samples": 180,
+            "median_ms": 0.0163,
+            "p95_ms": 0.0237,
+            "p99_ms": 0.0674,
+            "maximum_ms": 0.0806
+          },
+          "within_target": true
+        }
+      ],
+      "independence": [
+        {
+          "phase": "editor_minimized",
+          "duration_seconds": 1,
+          "main_outputs_advanced": true
+        },
+        {
+          "phase": "editor_disconnected",
+          "duration_seconds": 1,
+          "main_outputs_advanced": true
+        }
+      ],
+      "frame_age": {
+        "scope": "producer CPU stamp to independent consumer's real GPU-completion observation; no scanout",
+        "channels": [
+          {
+            "valid": 1298,
+            "repeated": 1118,
+            "unique_frames": 180,
+            "skipped_source_frame_ids": 0,
+            "missing_canonical_words": 0,
+            "frame_age": {
+              "samples": 1298,
+              "median_ms": 27.18,
+              "p95_ms": 36.6464,
+              "p99_ms": 38.7514,
+              "maximum_ms": 40.718
+            },
+            "invalid_count": 0
+          },
+          {
+            "valid": 1298,
+            "repeated": 1137,
+            "unique_frames": 161,
+            "skipped_source_frame_ids": 19,
+            "missing_canonical_words": 0,
+            "frame_age": {
+              "samples": 1298,
+              "median_ms": 30.6247,
+              "p95_ms": 41.0778,
+              "p99_ms": 43.1274,
+              "maximum_ms": 45.2666
+            },
+            "invalid_count": 0
+          }
+        ]
+      },
+      "launcher": {
+        "exit_code": 0,
+        "timed_out": false,
+        "forced_cleanup": false,
+        "owned_job_active_before_close": 0,
+        "elapsed_seconds": 12.237366299959831,
+        "exit_observed_qpc": 2838405090941,
+        "qpc_frequency": 10000000,
+        "job_assignment_atomic": false,
+        "watchdog_scope": "one newly created renderer and its inherited job descendants",
+        "command": [
+          "D:\\Projects\\Dev\\Chataigne2\\target\\release\\native_qualification.exe",
+          "--role",
+          "renderer",
+          "--directory",
+          "D:\\Projects\\Dev\\Chataigne2\\target\\qualification-q01-final-2026-10-29\\sample-001",
+          "--scenario",
+          "Q01",
+          "--adapter",
+          "0",
+          "--warmup",
+          "1",
+          "--seconds",
+          "3",
+          "--independence",
+          "1",
+          "--trace-capacity",
+          "65536"
+        ],
+        "stdout_sha256": "2c65118a54a5fa4a43ab996ad99e45426d1267bd5d44eda388e7196b1c032108",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "finished_utc": "2026-10-29T14:43:54.907487+00:00"
+      },
+      "input_identity_unchanged": true
+    },
+    {
+      "archive_directory": "qualification-q02-final-2026-10-29",
+      "stage": "corrected final control",
+      "scenario": "Q02",
+      "adapter": {
+        "high": 0,
+        "low": 93226
+      },
+      "requested_seconds": {
+        "warmup": 1,
+        "sample": 3,
+        "each_isolation": 1
+      },
+      "debug_assertions": false,
+      "arch": "x86_64",
+      "functional_completed": true,
+      "error": null,
+      "window": {
+        "backing": [
+          3840,
+          2160
+        ],
+        "client": [
+          3840,
+          2160
+        ],
+        "client_before_settle": [
+          3070,
+          1727
+        ],
+        "client_extent_verified": true,
+        "client_settle_attempts": 1,
+        "fixture_url": "http://127.0.0.1:51563/?mode=qualification",
+        "initial_editor_url": "about:blank",
+        "monitor_count": 2,
+        "physical_display_qualification": false,
+        "position": [
+          2560,
+          0
+        ],
+        "scale": 1,
+        "selected_monitor": {
+          "name": "\\\\.\\DISPLAY2",
+          "origin": [
+            2560,
+            0
+          ],
+          "scale": 1,
+          "size": [
+            1920,
+            1080
+          ]
+        }
+      },
+      "geometry": {
+        "full_physical_dpi_qualification": false,
+        "generation": 8,
+        "host": {
+          "client": [
+            1280,
+            720
+          ],
+          "css_scale": 1.25,
+          "webview_extent": [
+            1280,
+            720
+          ],
+          "webview_origin": [
+            0,
+            0
+          ]
+        },
+        "layout_revision": 1,
+        "tolerance_physical_pixels": 1,
+        "views": [
+          {
+            "destination": [
+              0.015625,
+              0.16527777910232544,
+              0.5,
+              0.5
+            ],
+            "physical_size": [
+              640,
+              360
+            ],
+            "source": "source-a",
+            "source_rect": [
+              0,
+              0,
+              1,
+              1
+            ]
+          },
+          {
+            "destination": [
+              0.53125,
+              0.16527777910232544,
+              0.375,
+              0.375
+            ],
+            "physical_size": [
+              480,
+              270
+            ],
+            "source": "source-b",
+            "source_rect": [
+              0,
+              0,
+              1,
+              1
+            ]
+          }
+        ]
+      },
+      "diagnostics": {
+        "capacity": 65536,
+        "clock_failures": 0,
+        "drained": 4199,
+        "dropped_contended": 17,
+        "dropped_full": 0,
+        "enabled": true,
+        "qpc_frequency": 10000000,
+        "queued": 0,
+        "written": 4199
+      },
+      "retirement": {
+        "actual_retirement": true,
+        "begin_qpc": 2838720249458,
+        "both_hwnds_retained_until_retirement": true,
+        "elapsed_seconds": 0.13904,
+        "end_qpc": 2838721589268,
+        "output_destroyed_after_retirement": true
+      },
+      "children": [
+        {
+          "exit_code": 0,
+          "forced": false,
+          "pid": 24932,
+          "stop_ns": "25703500",
+          "success": true
+        },
+        {
+          "exit_code": 0,
+          "forced": false,
+          "pid": 3668,
+          "stop_ns": "20602800",
+          "success": true
+        },
+        {
+          "exit_code": 0,
+          "forced": false,
+          "pid": 6356,
+          "stop_ns": "48324500",
+          "success": true
+        }
+      ],
+      "phase_windows": [
+        {
+          "begin_qpc": 2838636294618,
+          "end_qpc": 2838656677706,
+          "name": "startup"
+        },
+        {
+          "begin_qpc": 2838656677706,
+          "end_qpc": 2838666677706,
+          "name": "warmup"
+        },
+        {
+          "begin_qpc": 2838666844932,
+          "end_qpc": 2838696844932,
+          "name": "sample"
+        },
+        {
+          "begin_qpc": 2838696968772,
+          "end_qpc": 2838706968772,
+          "name": "editor_minimized"
+        },
+        {
+          "begin_qpc": 2838710173892,
+          "end_qpc": 2838720173892,
+          "name": "editor_disconnected"
+        }
+      ],
+      "analysis_status": "UNAVAILABLE",
+      "qualified": false,
+      "renderer_qualification": {
+        "owner_phase": "M03",
+        "owner_gate": 9,
+        "status": "UNAVAILABLE",
+        "qualified": false,
+        "required_criteria": [
+          "completion_retirement",
+          "cpu_submission",
+          "deadline_misses",
+          "dxgi_admission",
+          "editor_independence",
+          "environment_identity",
+          "fixed_scene",
+          "functional_completion",
+          "gpu_context_coverage",
+          "gpu_critical_path",
+          "input_identity",
+          "logical_texture_charge",
+          "output_api_cadence",
+          "plan_age_and_published_queue",
+          "producer_api_cadence",
+          "renderer_handle_growth",
+          "renderer_private_memory",
+          "shutdown",
+          "source_to_consumer_age",
+          "telemetry_coverage"
+        ]
+      },
+      "criteria": {
+        "functional_completion": "PASSED_NATIVE",
+        "fixed_scene": "UNAVAILABLE",
+        "telemetry_coverage": "UNAVAILABLE",
+        "input_identity": "PASSED_NATIVE",
+        "gpu_context_coverage": "UNAVAILABLE",
+        "cpu_submission": "UNAVAILABLE",
+        "output_api_cadence": "UNAVAILABLE",
+        "producer_api_cadence": "UNAVAILABLE",
+        "deadline_misses": "UNAVAILABLE",
+        "editor_independence": "UNAVAILABLE",
+        "source_to_consumer_age": "UNAVAILABLE",
+        "gpu_critical_path": "UNAVAILABLE",
+        "logical_texture_charge": "UNAVAILABLE",
+        "dxgi_admission": "UNAVAILABLE",
+        "renderer_private_memory": "UNAVAILABLE",
+        "completion_retirement": "PASSED_NATIVE",
+        "shutdown": "UNAVAILABLE",
+        "renderer_handle_growth": "UNAVAILABLE",
+        "physical_display_dpi_input": "UNAVAILABLE",
+        "Q05_handles_growth": "UNAVAILABLE",
+        "plan_age_and_published_queue": "UNAVAILABLE",
+        "environment_identity": "UNAVAILABLE"
+      },
+      "cpu": {
+        "inclusive_wall_upper_bound": {
+          "samples": 139,
+          "median_ms": 0.4044,
+          "p95_ms": 0.6966,
+          "p99_ms": 1.0864,
+          "maximum_ms": 1.1027
+        },
+        "os_accounted_thread_cpu": {
+          "samples": 139,
+          "median_ms": 0,
+          "p95_ms": 0,
+          "p99_ms": 15.625,
+          "maximum_ms": 15.625
+        },
+        "thread_cpu_scope": "GetThreadTimes accounting granularity; not inferred by subtracting API wall time",
+        "missing_thread_accounting": 0
+      },
+      "renderer_gpu": {
+        "expected_batches": 139,
+        "missing_rows": 0,
+        "statuses": {
+          "Valid": 139
+        },
+        "complete": true,
+        "context_local_execution": {
+          "samples": 139,
+          "median_ms": 16.838958333333334,
+          "p95_ms": 25.26765625,
+          "p99_ms": 30.077395833333334,
+          "maximum_ms": 31.11546875
+        },
+        "scope": "one context only; never a cross-context critical path"
+      },
+      "outputs": [
+        {
+          "output": 1,
+          "counts": {
+            "Accepted": 75,
+            "Busy": 64
+          },
+          "expected_at_60hz": 180,
+          "accepted_shortfall": 105,
+          "accepted_shortfall_fraction": 0.5833333333333334,
+          "accepted_call_intervals": {
+            "samples": 74,
+            "median_ms": 33.8195,
+            "p95_ms": 50.7058,
+            "p99_ms": 51.1625,
+            "maximum_ms": 51.1625
+          },
+          "consumer_api_wall": {
+            "samples": 75,
+            "median_ms": 0.0268,
+            "p95_ms": 0.0526,
+            "p99_ms": 0.3799,
+            "maximum_ms": 0.3799
+          },
+          "within_target": false
+        },
+        {
+          "output": 2,
+          "counts": {
+            "Accepted": 139
+          },
+          "expected_at_60hz": 180,
+          "accepted_shortfall": 41,
+          "accepted_shortfall_fraction": 0.22777777777777777,
+          "accepted_call_intervals": {
+            "samples": 138,
+            "median_ms": 16.8685,
+            "p95_ms": 34.223,
+            "p99_ms": 34.5172,
+            "maximum_ms": 35.2657
+          },
+          "consumer_api_wall": {
+            "samples": 139,
+            "median_ms": 0.1173,
+            "p95_ms": 0.2521,
+            "p99_ms": 0.4154,
+            "maximum_ms": 0.5129
+          },
+          "within_target": false
+        },
+        {
+          "output": 3,
+          "counts": {
+            "Accepted": 70,
+            "Busy": 69
+          },
+          "expected_at_60hz": 180,
+          "accepted_shortfall": 110,
+          "accepted_shortfall_fraction": 0.6111111111111112,
+          "accepted_call_intervals": {
+            "samples": 69,
+            "median_ms": 49.1215,
+            "p95_ms": 51.0004,
+            "p99_ms": 51.4284,
+            "maximum_ms": 51.4284
+          },
+          "consumer_api_wall": {
+            "samples": 70,
+            "median_ms": 0.0174,
+            "p95_ms": 0.0348,
+            "p99_ms": 0.0735,
+            "maximum_ms": 0.0735
+          },
+          "within_target": false
+        }
+      ],
+      "independence": [
+        {
+          "phase": "editor_minimized",
+          "duration_seconds": 1,
+          "main_outputs_advanced": true
+        },
+        {
+          "phase": "editor_disconnected",
+          "duration_seconds": 1,
+          "main_outputs_advanced": true
+        }
+      ],
+      "frame_age": {
+        "scope": "producer CPU stamp to independent consumer's real GPU-completion observation; no scanout",
+        "channels": [
+          {
+            "valid": 394,
+            "repeated": 291,
+            "unique_frames": 103,
+            "skipped_source_frame_ids": 78,
+            "missing_canonical_words": 0,
+            "frame_age": {
+              "samples": 394,
+              "median_ms": 62.0315,
+              "p95_ms": 88.6343,
+              "p99_ms": 96.2423,
+              "maximum_ms": 111.7283
+            },
+            "invalid_count": 0
+          },
+          {
+            "valid": 394,
+            "repeated": 287,
+            "unique_frames": 107,
+            "skipped_source_frame_ids": 75,
+            "missing_canonical_words": 0,
+            "frame_age": {
+              "samples": 394,
+              "median_ms": 56.0763,
+              "p95_ms": 79.4287,
+              "p99_ms": 91.6338,
+              "maximum_ms": 97.8398
+            },
+            "invalid_count": 0
+          }
+        ]
+      },
+      "launcher": {
+        "exit_code": 0,
+        "timed_out": false,
+        "forced_cleanup": false,
+        "owned_job_active_before_close": 0,
+        "elapsed_seconds": 10.942550599982496,
+        "exit_observed_qpc": 2838724949324,
+        "qpc_frequency": 10000000,
+        "job_assignment_atomic": false,
+        "watchdog_scope": "one newly created renderer and its inherited job descendants",
+        "command": [
+          "D:\\Projects\\Dev\\Chataigne2\\target\\release\\native_qualification.exe",
+          "--role",
+          "renderer",
+          "--directory",
+          "D:\\Projects\\Dev\\Chataigne2\\target\\qualification-q02-final-2026-10-29\\sample-001",
+          "--scenario",
+          "Q02",
+          "--adapter",
+          "0",
+          "--warmup",
+          "1",
+          "--seconds",
+          "3",
+          "--independence",
+          "1",
+          "--trace-capacity",
+          "65536"
+        ],
+        "stdout_sha256": "087c39ab20aed6e90820ab0a1cfdfc7b01ef5ae23cefca208574b56ad8154585",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "finished_utc": "2026-10-29T14:44:26.893981+00:00"
+      },
+      "input_identity_unchanged": true
+    }
+  ],
+  "limitations": [
+    "Diagnostic durations only, not the prescribed three 30+120-second samples per scenario",
+    "Native telemetry contention loss invalidates complete coverage",
+    "No calibrated complete multi-context GPU critical path",
+    "No exact scheduled-deadline QPC or per-output queue-age coverage",
+    "Consumer capture-age cohort does not identify every renderer output frame",
+    "Renderer handle/growth/drain series and genuine hardware removal/recreation remain open",
+    "Physical display/DPI/input belongs to M05; full-app/Matrix Q05 belongs to M09",
+    "Full environment pinning and WebView process accounting remain unavailable",
+    "Computer-use screenshot approval timed out; no visual pass is inferred"
+  ]
+}

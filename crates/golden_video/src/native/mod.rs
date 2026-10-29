@@ -9,17 +9,33 @@ mod backend;
 mod completion;
 mod config;
 mod device;
+#[cfg(feature = "qualification")]
+pub mod fixtures;
 mod inputs;
+mod memory;
 mod observation;
 mod outputs;
 mod pipeline;
+mod process;
 mod texture;
+pub(crate) mod timing;
 
 pub use config::{AdapterId, D3d11Config, InputLimits, NativeConfigError, OutputBinding, WindowTarget};
 pub use device::{AdapterInfo, adapters};
 pub use inputs::{SourceSnapshot, SourceState};
+pub use memory::{
+    AdapterMemorySnapshot, MemoryAdmissionError, MemoryQueryError, MemorySegmentSnapshot, query_adapter_memory,
+};
 pub use observation::{
     D3d11Control, D3d11Snapshot, NativeFailure, OutputSnapshot, OutputState, SourceObservationSnapshot,
+};
+pub use process::{
+    ProcessMemorySnapshot, ProcessQueryError, ProcessResourceSnapshot, ProcessTimeSnapshot, query_process_resources,
+};
+pub use timing::{
+    CpuInterval, DiagnosticContext, DiagnosticDelivery, DiagnosticEvent, DiagnosticsConfig, DiagnosticsSnapshot,
+    FrameCpuTrace, GpuSampleStatus, GpuTrace, OutputTrace, PublicationTiming, SourceCpuTrace, SourceUseTrace,
+    ThreadCpuDelta,
 };
 
 pub(crate) use backend::D3d11Backend;

@@ -11,6 +11,7 @@ use windows::core::{Error, HRESULT, Interface, Result};
 use crate::{PixelFormat, TextureDescriptor};
 
 use super::super::texture::Texture;
+use super::super::timing::{CpuInterval, Recorder};
 use super::Delivery;
 
 const INVALID_ARGUMENT: HRESULT = HRESULT(0x8007_0057_u32 as i32);
@@ -18,7 +19,7 @@ const FAILURE: HRESULT = HRESULT(0x8000_4005_u32 as i32);
 const NAME_COLLISION: HRESULT = HRESULT(0x8007_00b7_u32 as i32);
 
 /// Worker-local sender; its one lazily allocated SDK shared texture is budgeted by the pool.
-pub(super) struct SpoutOutput {
+pub(crate) struct SpoutOutput {
     raw: NonNull<sdk::spout_dx_t>,
     // The SDK borrows this pointer without AddRef. Drop destroys the SDK before fields drop.
     device: ID3D11Device,
@@ -29,7 +30,7 @@ pub(super) struct SpoutOutput {
 }
 
 impl SpoutOutput {
-    pub(super) fn new(device: &ID3D11Device, name: String, descriptor: TextureDescriptor) -> Result<Self> {
+    pub(crate) fn new(device: &ID3D11Device, name: String, descriptor: TextureDescriptor) -> Result<Self> {
         if name.is_empty() || name.len() > 255 {
             return Err(Error::new(
                 INVALID_ARGUMENT,
@@ -77,17 +78,27 @@ impl SpoutOutput {
     /// Accepted means SDK submission, not receiver delivery. SDK 2.007.017 may wait up to
     /// 67 ms for texture access and still return success after a timeout without copying.
     /// Its published shim does not expose that timeout, so it cannot be reported as Busy.
-    pub(super) fn deliver(&mut self, texture: &Texture) -> Delivery {
+    pub(crate) fn deliver(
+        &mut self,
+        texture: &Texture,
+        recorder: Option<&Recorder>,
+        consumer_api: &mut Option<CpuInterval>,
+    ) -> Delivery {
         if let Some(failure) = self.failure {
             return Delivery::Failed(failure);
         }
-        match self.try_deliver(texture) {
+        match self.try_deliver(texture, recorder, consumer_api) {
             Ok(()) => Delivery::Accepted,
             Err(error) => Delivery::Failed(error.code()),
         }
     }
 
-    fn try_deliver(&mut self, texture: &Texture) -> Result<()> {
+    fn try_deliver(
+        &mut self,
+        texture: &Texture,
+        recorder: Option<&Recorder>,
+        consumer_api: &mut Option<CpuInterval>,
+    ) -> Result<()> {
         let mut desc = D3D11_TEXTURE2D_DESC::default();
         // SAFETY: this worker retains both the texture and caller-selected device.
         unsafe {
@@ -115,7 +126,9 @@ impl SpoutOutput {
         }
         // SAFETY: exact device, storage and subresource layout were checked above. The pool
         // reserved this sender's single shared texture before its lazy SDK allocation here.
+        let begin = recorder.and_then(Recorder::stamp);
         let accepted = unsafe { sdk::spout_dx_send_texture(self.raw.as_ptr(), texture.texture.as_raw()) != 0 };
+        *consumer_api = recorder.and_then(|recorder| recorder.interval(begin));
         // Registration during SendTexture can rename a sender even after SetSenderName passed.
         if !self.has_exact_name() {
             return self.reject_renamed_sender();

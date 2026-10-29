@@ -15,13 +15,17 @@ use crate::{LinearColor, OutputId, PassId, TextureDescriptor, TextureId};
 
 use super::completion::EventCompletion;
 use super::device::Device;
-use super::inputs::{SourceDemands, SourcePool};
+use super::inputs::{CopyFrame, SourceDemands, SourcePool};
 use super::outputs::OutputPool;
 use super::pipeline::{CONSTANT_BYTES, Pipeline};
 use super::texture::Texture;
+use super::timing::{
+    CpuScope, DiagnosticContext, DiagnosticEvent, FrameCpuTrace, GpuTiming, OutputTrace, Recorder, SourceUseTrace,
+};
 use super::{D3d11Config, D3d11Control, NativeFailure};
 
 struct NativeState {
+    timing: Option<GpuTiming>,
     inputs: SourcePool,
     outputs: OutputPool,
     pipeline: Pipeline,
@@ -46,24 +50,28 @@ pub(crate) struct D3d11Backend {
     generation: DeviceGeneration,
     native: Option<NativeState>,
     notify: Option<WorkerNotifier>,
+    diagnostics: Option<Recorder>,
 }
 
 pub(crate) struct D3d11Resources {
     textures: BTreeMap<TextureId, Texture>,
     scratch: BTreeMap<PassId, Texture>,
     outputs: BTreeMap<OutputId, Texture>,
-    input_sequences: BTreeMap<TextureId, Cell<Option<u64>>>,
+    input_sequences: BTreeMap<TextureId, Cell<Option<CopyFrame>>>,
     _demands: Option<SourceDemands>,
 }
 
 impl D3d11Backend {
     pub(crate) fn new(config: D3d11Config, control: D3d11Control, generation: DeviceGeneration) -> Self {
+        let diagnostics = config.diagnostics.map(Recorder::new);
+        *control.diagnostics.lock().unwrap_or_else(|error| error.into_inner()) = diagnostics.clone();
         Self {
             config,
             control,
             generation,
             native: None,
             notify: None,
+            diagnostics,
         }
     }
 
@@ -137,6 +145,10 @@ impl D3d11Backend {
             let device = Device::new(selected)?;
             let pipeline = Pipeline::new(&device.device)?;
             let completion = EventCompletion::new(&device)?;
+            let timing = self
+                .diagnostics
+                .as_ref()
+                .map(|recorder| GpuTiming::new(&device.device, recorder.clone(), DiagnosticContext::Renderer));
             let outputs = OutputPool::new(
                 &device.device,
                 self.config.clone(),
@@ -151,6 +163,7 @@ impl D3d11Backend {
                 self.generation,
             );
             Ok::<_, windows::core::Error>(NativeState {
+                timing,
                 inputs,
                 outputs,
                 pipeline,
@@ -181,6 +194,22 @@ impl D3d11Backend {
                     state.hresult = Some(error.code().0);
                 });
                 Err(initialization_error(error.code()))
+            }
+        }
+    }
+}
+
+impl D3d11Backend {
+    fn close_diagnostics(&mut self) {
+        if let Some(native) = &mut self.native
+            && let Some(timing) = &mut native.timing
+        {
+            if native.device.removed() {
+                timing.abandon();
+            } else if let Ok(done) = native.completion.completed(&native.device, self.generation) {
+                timing.finish(&native.device.context, done);
+            } else {
+                timing.abandon();
             }
         }
     }
@@ -317,8 +346,12 @@ impl Backend for D3d11Backend {
         if !native.completion.can_submit() {
             return Err(BackendError::SubmissionFailed);
         }
+        let recorder = self.diagnostics.as_ref();
+        let cpu = recorder.map(CpuScope::new);
         let submission = native.completion.begin(&native.device, token);
         let context = &native.device.context;
+        let gpu = native.timing.as_mut().map(|timing| timing.begin(context, token));
+        let inputs_begin = recorder.and_then(Recorder::stamp);
         let pipeline = &native.pipeline;
         for external in plan.external_textures() {
             if !matches!(external.source, Some(ExternalSource::Spout(_))) {
@@ -331,7 +364,7 @@ impl Backend for D3d11Backend {
                 unsafe {
                     context.ClearRenderTargetView(&target.rtv, &[0.0; 4]);
                 }
-                sequence.set(Some(0));
+                sequence.set(Some(CopyFrame::default()));
             }
             match native.inputs.copy(
                 external.id,
@@ -342,11 +375,11 @@ impl Backend for D3d11Backend {
             ) {
                 Ok(Some(next)) => sequence.set(Some(next)),
                 Ok(None) => {
-                    if sequence.get() != Some(0) {
+                    if sequence.get().is_some_and(|frame| frame.sequence != 0) {
                         unsafe {
                             context.ClearRenderTargetView(&target.rtv, &[0.0; 4]);
                         }
-                        sequence.set(Some(0));
+                        sequence.set(Some(CopyFrame::default()));
                     }
                 }
                 Err(error) => {
@@ -354,10 +387,21 @@ impl Backend for D3d11Backend {
                     unsafe {
                         context.ClearRenderTargetView(&target.rtv, &[0.0; 4]);
                     }
-                    sequence.set(Some(0));
+                    sequence.set(Some(CopyFrame::default()));
                 }
             }
+            if let Some(recorder) = recorder {
+                let frame = sequence.get().unwrap_or_default();
+                recorder.push(DiagnosticEvent::SourceUse(SourceUseTrace {
+                    token,
+                    texture: external.id,
+                    sequence: frame.sequence,
+                    publication: frame.timing,
+                }));
+            }
         }
+        let inputs = recorder.and_then(|recorder| recorder.interval(inputs_begin));
+        let render_begin = recorder.and_then(Recorder::stamp);
         // Every fallible native allocation/view lookup completed during preparation. From the
         // first command onward, output errors are observations and this token is always marked.
         for pass in plan.passes() {
@@ -416,7 +460,9 @@ impl Backend for D3d11Backend {
                 }
             }
         }
+        let render = recorder.and_then(|recorder| recorder.interval(render_begin));
         for output in plan.outputs() {
+            let conversion_begin = recorder.and_then(Recorder::stamp);
             let converted = &resources.outputs[&output.id];
             pipeline.draw(
                 context,
@@ -427,16 +473,43 @@ impl Backend for D3d11Backend {
                 BlendMode::Normal,
                 SampleFilter::Linear,
             );
-            native.outputs.deliver(output.id, context, converted, token);
+            let conversion = recorder.and_then(|recorder| recorder.interval(conversion_begin));
+            let delivery_begin = recorder.and_then(Recorder::stamp);
+            let mut consumer_api = None;
+            let outcome = native
+                .outputs
+                .deliver(output.id, context, converted, token, recorder, &mut consumer_api);
+            let delivery = recorder.and_then(|recorder| recorder.interval(delivery_begin));
+            if let Some(recorder) = recorder {
+                recorder.push(DiagnosticEvent::Output(OutputTrace {
+                    token,
+                    output: output.id,
+                    conversion,
+                    delivery,
+                    consumer_api,
+                    outcome: outcome.into(),
+                }));
+            }
         }
+        drop(gpu);
+        let completion_begin = recorder.and_then(Recorder::stamp);
         drop(submission);
+        let completion = recorder.and_then(|recorder| recorder.interval(completion_begin));
         self.control
             .update(|state| state.submitted = state.submitted.saturating_add(1));
-        if native.device.removed() {
-            Err(BackendError::DeviceLost)
-        } else {
-            Ok(())
+        let removed = native.device.removed();
+        if let Some(cpu) = cpu {
+            let measured = cpu.finish();
+            recorder.unwrap().push(DiagnosticEvent::FrameCpu(FrameCpuTrace {
+                token,
+                wall: measured.wall,
+                thread_cpu: measured.thread_cpu,
+                inputs,
+                render,
+                completion,
+            }));
         }
+        if removed { Err(BackendError::DeviceLost) } else { Ok(()) }
     }
 
     fn completion(&mut self) -> Result<CompletionToken, BackendError> {
@@ -456,6 +529,9 @@ impl Backend for D3d11Backend {
             })?;
         native.inputs.retire(completed.serial);
         native.outputs.retire(completed.serial);
+        if let Some(timing) = &mut native.timing {
+            timing.poll(&native.device.context, completed);
+        }
         Ok(completed)
     }
 
@@ -468,6 +544,7 @@ impl Backend for D3d11Backend {
     fn reset(&mut self, device: DeviceGeneration) -> Result<(), BackendError> {
         // Core calls only after confirmed removal and old generation disposal. The baseline
         // reservation survives this destruction/recreation, including unsuccessful attempts.
+        self.close_diagnostics();
         self.native = None;
         self.generation = device;
         self.allocate()
@@ -476,6 +553,7 @@ impl Backend for D3d11Backend {
 
 impl Drop for D3d11Backend {
     fn drop(&mut self) {
+        self.close_diagnostics();
         self.native = None;
         self.control.clear_outputs();
         self.control.update(|state| {

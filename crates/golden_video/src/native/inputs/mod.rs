@@ -2,7 +2,7 @@
 //! renderer imports are local and remain leased through matching renderer completion.
 
 mod reader;
-mod receiver;
+pub(crate) mod receiver;
 mod shared;
 mod surface;
 mod worker;
@@ -25,6 +25,13 @@ use super::observation::SourceRegistration;
 use super::{AdapterId, D3d11Control, InputLimits};
 use reader::{Imported, Reader};
 use shared::Shared;
+
+/// Exact contents retained by one renderer target, including unchanged/busy source reads.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct CopyFrame {
+    pub sequence: u64,
+    pub timing: Option<super::PublicationTiming>,
+}
 
 /// Source state is independent of other inputs and of the renderer's device state.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -147,6 +154,7 @@ impl SourcePool {
             hresult: None,
         }));
         let shared = Arc::new(Shared {
+            diagnostics: self.control.recorder(),
             observation_revision: Default::default(),
             source_notifier: self.control.source_notifier.clone(),
             latest: Mutex::new(None),
@@ -338,8 +346,8 @@ impl SourcePool {
         device: &Device,
         target: &super::texture::Texture,
         serial: u64,
-        previous: u64,
-    ) -> Result<Option<u64>> {
+        previous: CopyFrame,
+    ) -> Result<Option<CopyFrame>> {
         let input = self.inputs.get_mut(&id).expect("validated input binding");
         if input.shared.retiring.load(Ordering::Acquire) {
             return Ok(None);
@@ -355,7 +363,7 @@ impl SourcePool {
         if publication.surface.descriptor != target.descriptor {
             return Ok(None);
         }
-        if publication.sequence == previous {
+        if publication.sequence == previous.sequence {
             return Ok(Some(previous));
         }
         let index = publication.surface.index;
@@ -385,7 +393,10 @@ impl SourcePool {
         input
             .shared
             .update(|status| status.renderer_copies = status.renderer_copies.saturating_add(1));
-        Ok(Some(publication.sequence))
+        Ok(Some(CopyFrame {
+            sequence: publication.sequence,
+            timing: publication.timing,
+        }))
     }
 }
 

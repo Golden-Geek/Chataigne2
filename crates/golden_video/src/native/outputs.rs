@@ -10,12 +10,13 @@ use crate::{OutputId, TextureDescriptor};
 use super::config::{D3d11Config, OutputBinding};
 use super::observation::{D3d11Control, OutputState, OutputStatus};
 use super::texture::Texture;
+use super::timing::{CpuInterval, DiagnosticDelivery, Recorder};
 use lifetime::Endpoint;
 use recovery::Recovery;
 
 mod lifetime;
 mod recovery;
-mod spout;
+pub(crate) mod spout;
 mod window;
 
 const INVALID_ARGUMENT: HRESULT = HRESULT(0x80070057_u32 as i32);
@@ -23,12 +24,24 @@ const INVALID_ARGUMENT: HRESULT = HRESULT(0x80070057_u32 as i32);
 /// Local failures preserve healthy outputs. DeviceLost is reserved for an actual failed
 /// GetDeviceRemovedReason query, never an output HRESULT alone.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum Delivery {
+pub(crate) enum Delivery {
     Accepted,
     Busy,
     Unavailable,
     Failed(HRESULT),
     DeviceLost(HRESULT),
+}
+
+impl From<Delivery> for DiagnosticDelivery {
+    fn from(delivery: Delivery) -> Self {
+        match delivery {
+            Delivery::Accepted => Self::Accepted,
+            Delivery::Busy => Self::Busy,
+            Delivery::Unavailable => Self::Unavailable,
+            Delivery::Failed(error) => Self::Failed { hresult: error.0 },
+            Delivery::DeviceLost(error) => Self::DeviceLost { hresult: error.0 },
+        }
+    }
 }
 
 enum Output {
@@ -47,10 +60,16 @@ impl Output {
             }
         }
     }
-    fn deliver(&mut self, context: &ID3D11DeviceContext, texture: &Texture) -> Delivery {
+    fn deliver(
+        &mut self,
+        context: &ID3D11DeviceContext,
+        texture: &Texture,
+        recorder: Option<&Recorder>,
+        consumer_api: &mut Option<CpuInterval>,
+    ) -> Delivery {
         match self {
-            Self::Window(output) => output.deliver(context, texture),
-            Self::Spout(output) => output.deliver(texture),
+            Self::Window(output) => output.deliver(context, texture, recorder, consumer_api),
+            Self::Spout(output) => output.deliver(texture, recorder, consumer_api),
         }
     }
 }
@@ -196,6 +215,8 @@ impl OutputPool {
         context: &ID3D11DeviceContext,
         texture: &Texture,
         token: CompletionToken,
+        recorder: Option<&Recorder>,
+        consumer_api: &mut Option<CpuInterval>,
     ) -> Delivery {
         let Some(binding) = self.bindings.get_mut(&id) else {
             return Delivery::Unavailable;
@@ -211,7 +232,7 @@ impl OutputPool {
         } else if let Some(delivery) = binding.create(&self.device, Some(context), now) {
             delivery
         } else if let Some(endpoint) = binding.endpoint.begin_use(token.serial) {
-            let delivery = endpoint.deliver(context, texture);
+            let delivery = endpoint.deliver(context, texture, recorder, consumer_api);
             binding.delivered(&self.device, delivery, now)
         } else {
             Delivery::Unavailable

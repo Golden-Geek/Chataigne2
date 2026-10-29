@@ -42,3 +42,9 @@ The shared host's optional native-presentation seam has an explicit Windows life
 Set `APPDATA` for that child process to an owned test directory, and unset `GC_UI_BIND` and
 `GC_UI_FRONTEND_URL`. It opens/closes only its own window and uses a separate application ID.
 Default tests do not launch it. This checks UI/worker/window lifetime, without GPU qualification.
+
+The production renderer's owned Q01/Q02 runner lives under `tests/native_qualification` and
+uses Golden's shared host/runtime with independent GPU source and consumer processes. Build it
+with `--features native-qualification --bin native_qualification`; see the
+[runner contract](../../docs/progress/mapgyver-m03-qualification-runner.md) for commands,
+observations and qualification limits. Short diagnostic controls do not close native quality gates.

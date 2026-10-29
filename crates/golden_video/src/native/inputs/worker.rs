@@ -7,6 +7,9 @@ use golden_io::{ReconnectBackoff, WorkerContext};
 use uuid::Uuid;
 use windows::core::{Error, HRESULT, Result};
 
+use super::super::timing::{
+    CpuScope, DiagnosticContext, DiagnosticEvent, GpuTiming, PublicationTiming, Recorder, SourceCpuTrace,
+};
 use super::super::{AdapterId, completion::EventCompletion, device::Device, texture::Texture};
 use super::SourceState;
 use super::receiver::{Received, Receiver};
@@ -17,6 +20,8 @@ use crate::plan::SpoutSource;
 use crate::runtime::{CompletionToken, DeviceGeneration};
 
 struct Session {
+    timing: Option<GpuTiming>,
+    diagnostic_context: DiagnosticContext,
     receiver: Receiver,
     capture: Option<Texture>,
     slots: Vec<Slot>,
@@ -72,7 +77,19 @@ impl Session {
         shared.retiring.store(false, Ordering::Release);
         shared.unlock_failed.store(false, Ordering::Release);
         shared.update(|status| status.generation = next);
+        let status = *shared.status.lock().unwrap_or_else(|error| error.into_inner());
+        let diagnostic_context = DiagnosticContext::Source {
+            binding: status.binding,
+            texture: status.texture,
+            renderer_device: status.device,
+        };
+        let timing = shared
+            .diagnostics
+            .as_ref()
+            .map(|recorder| GpuTiming::new(&device.device, recorder.clone(), diagnostic_context));
         Ok(Self {
+            timing,
+            diagnostic_context,
             receiver,
             capture: None,
             slots,
@@ -94,7 +111,11 @@ impl Session {
             if self.device.removed() || self.shared.unlock_failed.load(Ordering::Acquire) {
                 return Err(Error::from_hresult(HRESULT(0x887a_0005_u32 as i32)));
             }
-            if self.completion.completed(&self.device, self.generation)?.serial < self.submitted {
+            let completed = self.completion.completed(&self.device, self.generation)?;
+            if let Some(timing) = &mut self.timing {
+                timing.poll(&self.device.context, completed);
+            }
+            if completed.serial < self.submitted {
                 context.wait_until(checkpoint, Instant::now() + Duration::from_millis(1));
                 continue;
             }
@@ -180,19 +201,26 @@ impl Session {
             .submitted
             .checked_add(1)
             .ok_or_else(|| Error::from_hresult(HRESULT(0x8000_4005_u32 as i32)))?;
-        let guard = self.completion.begin(
-            &self.device,
-            CompletionToken {
-                device: self.generation,
-                serial,
-            },
-        );
+        let token = CompletionToken {
+            device: self.generation,
+            serial,
+        };
+        let recorder = self.shared.diagnostics.as_ref();
+        let cpu = recorder.map(CpuScope::new);
+        let guard = self.completion.begin(&self.device, token);
+        let gpu = self
+            .timing
+            .as_mut()
+            .map(|timing| timing.begin(&self.device.context, token));
         self.submitted = serial;
         self.shared
             .update(|status| status.sdk_calls = status.sdk_calls.saturating_add(1));
         let capture = self.capture.as_ref().expect("prepared capture");
-        let received = self.receiver.receive(capture)?;
-        if matches!(received, Received::Frame) && self.shared.active.load(Ordering::Acquire) {
+        let receive_begin_qpc = recorder.and_then(Recorder::stamp);
+        let received = self.receiver.receive(capture);
+        let receive_api = recorder.and_then(|recorder| recorder.interval(receive_begin_qpc));
+        let bridge_begin = recorder.and_then(Recorder::stamp);
+        if matches!(&received, Ok(Received::Frame)) && self.shared.active.load(Ordering::Acquire) {
             unsafe {
                 self.device
                     .context
@@ -207,12 +235,33 @@ impl Session {
             self.shared.publish(Publication {
                 surface: slot.surface.clone(),
                 sequence: *sequence,
+                timing: recorder.map(|recorder| PublicationTiming {
+                    source_token: token,
+                    receive_begin_qpc,
+                    publication_qpc: recorder.stamp(),
+                }),
             });
         } else {
             drop(writer);
         }
+        let bridge = recorder.and_then(|recorder| recorder.interval(bridge_begin));
+        drop(gpu);
+        let completion_begin = recorder.and_then(Recorder::stamp);
         drop(guard);
-        Ok(received)
+        let completion = recorder.and_then(|recorder| recorder.interval(completion_begin));
+        if let Some(cpu) = cpu {
+            let measured = cpu.finish();
+            recorder.unwrap().push(DiagnosticEvent::SourceCpu(SourceCpuTrace {
+                token,
+                context: self.diagnostic_context,
+                wall: measured.wall,
+                thread_cpu: measured.thread_cpu,
+                receive_api,
+                bridge,
+                completion,
+            }));
+        }
+        received
     }
 
     fn rebuild(&mut self, descriptor: TextureDescriptor) -> Result<bool> {
@@ -259,9 +308,11 @@ impl Session {
             &self.shared,
             || self.device.removed(),
             || {
-                self.completion
-                    .completed(&self.device, self.generation)
-                    .map(|done| done.serial >= self.submitted)
+                let done = self.completion.completed(&self.device, self.generation)?;
+                if let Some(timing) = &mut self.timing {
+                    timing.poll(&self.device.context, done);
+                }
+                Ok(done.serial >= self.submitted)
             },
         );
     }
@@ -319,13 +370,24 @@ impl Drop for Session {
             &self.shared,
             || self.device.removed(),
             || {
-                self.completion
-                    .completed(&self.device, self.generation)
-                    .map(|done| done.serial >= self.submitted)
+                let done = self.completion.completed(&self.device, self.generation)?;
+                if let Some(timing) = &mut self.timing {
+                    timing.poll(&self.device.context, done);
+                }
+                Ok(done.serial >= self.submitted)
             },
         );
         self.retire_imports();
         self.shared.update(|status| status.bridge_slots = 0);
+        if let Some(timing) = &mut self.timing {
+            if self.device.removed() {
+                timing.abandon();
+            } else if let Ok(done) = self.completion.completed(&self.device, self.generation) {
+                timing.finish(&self.device.context, done);
+            } else {
+                timing.abandon();
+            }
+        }
         // SDK/native fields drop on this source worker only, while its pool lifetime stays held.
         unsafe {
             self.device.context.ClearState();

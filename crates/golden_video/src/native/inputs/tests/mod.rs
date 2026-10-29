@@ -48,6 +48,7 @@ fn fixture() -> (Arc<Shared>, TextureDescriptor) {
         hresult: None,
     }));
     let shared = Arc::new(Shared {
+        diagnostics: None,
         observation_revision: Default::default(),
         source_notifier: Default::default(),
         latest: Mutex::new(None),
@@ -102,6 +103,7 @@ fn publication_coalescing_cannot_revive_a_disabled_or_retiring_input() {
     let publication = |sequence| Publication {
         surface: surface.clone(),
         sequence,
+        timing: None,
     };
     assert!(!shared.publish(publication(1)));
     let first = shared.acquire_demand();

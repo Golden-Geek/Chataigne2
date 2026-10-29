@@ -75,6 +75,7 @@ fn renderer(adapter: AdapterId, directory: &Path) -> OwnedRenderer {
     let runtime = VideoRuntime::spawn_d3d11(
         config.clone(),
         D3d11Config {
+            diagnostics: None,
             adapter,
             inputs: InputLimits {
                 max_sources: 0,

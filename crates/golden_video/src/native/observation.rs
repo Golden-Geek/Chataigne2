@@ -1,3 +1,4 @@
+use std::num::NonZeroUsize;
 use std::sync::{Arc, Mutex};
 
 use crate::OutputId;
@@ -118,6 +119,7 @@ struct OutputRegistry {
 /// Metadata-only native observation reader. It never retains devices, contexts or textures.
 #[derive(Clone, Default)]
 pub struct D3d11Control {
+    pub(super) diagnostics: Arc<Mutex<Option<super::timing::Recorder>>>,
     #[cfg(test)]
     pub(super) initialization_gate: Arc<Mutex<Option<super::tests::initialization_gate::InitializationGate>>>,
     pub(super) source_notifier: Arc<Mutex<Option<golden_io::WorkerNotifier>>>,
@@ -143,6 +145,24 @@ pub struct SourceObservationSnapshot {
 }
 
 impl D3d11Control {
+    /// Drains at most budget fixed-size telemetry rows. Call from a diagnostics/qualification
+    /// worker; native workers never wait for this consumer and count every dropped row.
+    pub fn drain_diagnostics(&self, output: &mut Vec<super::DiagnosticEvent>, budget: NonZeroUsize) -> usize {
+        self.recorder().map_or(0, |recorder| recorder.drain(output, budget))
+    }
+
+    /// Reads bounded telemetry health, including explicit full-ring/contended-producer loss.
+    pub fn diagnostics_snapshot(&self) -> super::DiagnosticsSnapshot {
+        self.recorder()
+            .map_or_else(Default::default, |recorder| recorder.snapshot())
+    }
+
+    pub(super) fn recorder(&self) -> Option<super::timing::Recorder> {
+        self.diagnostics
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+    }
     /// Registers a preparation-worker wake for source state/layout/lifetime changes.
     /// Frame/publication counters do not trigger this notification.
     pub fn set_source_notifier(&self, notifier: golden_io::WorkerNotifier) {

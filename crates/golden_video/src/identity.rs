@@ -4,7 +4,8 @@ use std::num::NonZeroU64;
 macro_rules! identifier {
     ($name:ident, $doc:literal) => {
         #[doc = $doc]
-        #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+        #[serde(transparent)]
         pub struct $name(NonZeroU64);
 
         impl $name {
@@ -42,3 +43,6 @@ identifier!(
     OutputId,
     "Runtime output binding identity; endpoint selection and authored identity remain app-owned."
 );
+
+#[cfg(test)]
+mod tests;

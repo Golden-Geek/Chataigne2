@@ -10,9 +10,11 @@ use super::{SourceSnapshot, SourceState};
 pub(super) struct Publication {
     pub surface: Arc<Surface>,
     pub sequence: u64,
+    pub timing: Option<super::super::PublicationTiming>,
 }
 
 pub(super) struct Shared {
+    pub diagnostics: Option<super::super::timing::Recorder>,
     pub observation_revision: golden_io::RevisionSource,
     pub source_notifier: Arc<Mutex<Option<WorkerNotifier>>>,
     pub latest: Mutex<Option<Publication>>,

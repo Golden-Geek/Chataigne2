@@ -63,6 +63,7 @@ struct Renderer {
 impl Renderer {
     fn new(adapter: AdapterId, image: &PreparedImageFixture, width: u32) -> Self {
         let config = D3d11Config {
+            diagnostics: None,
             adapter,
             inputs: InputLimits {
                 max_sources: 0,

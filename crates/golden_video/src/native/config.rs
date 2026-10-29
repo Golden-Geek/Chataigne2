@@ -1,13 +1,14 @@
 use std::collections::BTreeSet;
 use std::num::NonZeroIsize;
 
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::runtime::{RuntimeConfig, RuntimeStartError};
 use crate::{AlphaMode, ColorEncoding, Extent2D, OutputId, PixelFormat, TextureDescriptor};
 
 /// DXGI adapter LUID. Enumeration indices are not persistent adapter identity.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AdapterId {
     /// Low unsigned LUID word.
     pub low: u32,
@@ -93,6 +94,8 @@ impl OutputBinding {
 /// Explicit hardware adapter and bounded immutable native consumers.
 #[derive(Clone, Debug)]
 pub struct D3d11Config {
+    /// Optional bounded native telemetry. None performs no timing-query or clock sampling.
+    pub diagnostics: Option<super::DiagnosticsConfig>,
     /// Hardware adapter selected by observed LUID; no automatic WARP or adapter fallback.
     pub adapter: AdapterId,
     /// Fixed bindings admitted before their native pools are created.
@@ -114,6 +117,9 @@ pub struct InputLimits {
 impl D3d11Config {
     pub(crate) fn validate(&self, runtime: &RuntimeConfig) -> Result<(), RuntimeStartError> {
         let invalid = RuntimeStartError::InvalidConfig;
+        if self.diagnostics.is_some_and(|config| config.capacity.get() > 65536) {
+            return Err(invalid("native diagnostics exceed the fixed trace row capacity"));
+        }
         if self.inputs.max_sources > 32 || (self.inputs.max_sources == 0) != (self.inputs.max_storage_bytes == 0) {
             return Err(invalid("native input bindings exceed admitted source-worker limit"));
         }

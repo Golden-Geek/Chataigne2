@@ -39,6 +39,7 @@ fn configured_backend(inputs: InputLimits) -> (D3d11Backend, D3d11Control) {
     let control = D3d11Control::default();
     let backend = D3d11Backend::new(
         D3d11Config {
+            diagnostics: None,
             adapter: AdapterId { low: 0, high: 0 },
             inputs,
             outputs: vec![OutputBinding::Spout {
@@ -83,6 +84,14 @@ fn native_resource_charges_include_persistent_sdk_storage_and_generation_convers
     );
     assert!(!control.snapshot().initialized);
     assert!(control.snapshot().adapter.is_none());
+    let diagnostics = control.diagnostics_snapshot();
+    assert!(!diagnostics.enabled);
+    assert_eq!(
+        (diagnostics.capacity, diagnostics.queued, diagnostics.written),
+        (0, 0, 0)
+    );
+    let mut rows = Vec::new();
+    assert_eq!(control.drain_diagnostics(&mut rows, std::num::NonZeroUsize::MIN), 0);
 }
 
 #[test]

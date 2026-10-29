@@ -89,6 +89,7 @@ mod windows_smoke {
         let runtime = VideoRuntime::spawn_d3d11(
             scene::config(notifier),
             D3d11Config {
+                diagnostics: None,
                 adapter,
                 inputs: InputLimits {
                     max_sources: 0,
