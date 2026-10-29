@@ -20,12 +20,11 @@ use super::Delivery;
 /// Fixed admitted backing size; DXGI stretches it when the host's physical client size changes.
 pub(super) struct WindowOutput {
     // DXGI transfers ownership of this handle. Close it before releasing the chain.
-    readiness: OwnedHandle,
+    readiness: Readiness,
     chain: IDXGISwapChain2,
     window: HWND,
     descriptor: TextureDescriptor,
     device: ID3D11Device,
-    permit: bool,
     _local: PhantomData<Rc<()>>,
 }
 
@@ -79,14 +78,30 @@ impl WindowOutput {
             OwnedHandle::from_raw_handle(handle.0)
         };
         Ok(Self {
-            readiness,
+            readiness: Readiness::new(readiness),
             chain,
             window,
             descriptor,
             device: device.clone(),
-            permit: false,
             _local: PhantomData,
         })
+    }
+
+    pub(super) fn admit(&mut self) -> std::result::Result<(), Delivery> {
+        let available = self.available().map_err(|error| Delivery::Failed(error.code()))?;
+        self.readiness.admit(available)
+    }
+
+    fn available(&self) -> Result<bool> {
+        let mut rect = RECT::default();
+        // SAFETY: this lease's host-owned HWND is retained until the renderer has retired.
+        unsafe {
+            GetClientRect(self.window, &mut rect)?;
+            Ok(!IsIconic(self.window).as_bool()
+                && IsWindowVisible(self.window).as_bool()
+                && rect.right > rect.left
+                && rect.bottom > rect.top)
+        }
     }
 
     pub(super) fn deliver(
@@ -109,32 +124,7 @@ impl WindowOutput {
         recorder: Option<&Recorder>,
         consumer_api: &mut Option<CpuInterval>,
     ) -> Result<Delivery> {
-        let mut rect = RECT::default();
-        // SAFETY: this lease's host-owned HWND is retained until the renderer has retired.
-        unsafe {
-            GetClientRect(self.window, &mut rect)?;
-            if IsIconic(self.window).as_bool()
-                || !IsWindowVisible(self.window).as_bool()
-                || rect.right <= rect.left
-                || rect.bottom <= rect.top
-            {
-                return Ok(Delivery::Unavailable);
-            }
-        }
-        if !self.permit {
-            // SAFETY: this is the owned DXGI handle. Zero timeout never stalls other outputs.
-            match unsafe { WaitForSingleObject(HANDLE(self.readiness.as_raw_handle()), 0) } {
-                WAIT_OBJECT_0 => self.permit = true,
-                WAIT_TIMEOUT => return Ok(Delivery::Busy),
-                WAIT_FAILED => return Err(Error::from_win32()),
-                _ => {
-                    return Err(Error::new(
-                        HRESULT(0x8000_4005_u32 as i32),
-                        "unexpected DXGI wait result",
-                    ));
-                }
-            }
-        }
+        debug_assert!(self.readiness.permit, "delivery requires an admitted frame permit");
         // SAFETY: all interfaces remain on this worker. The native texture wrapper validates
         // storage, while explicit pointer checks reject accidental cross-device submission.
         unsafe {
@@ -152,16 +142,53 @@ impl WindowOutput {
             let begin = recorder.and_then(Recorder::stamp);
             let result = self.chain.Present(0, DXGI_PRESENT_DO_NOT_WAIT);
             *consumer_api = recorder.and_then(|recorder| recorder.interval(begin));
-            if result == DXGI_ERROR_WAS_STILL_DRAWING {
-                // Retain the readiness permit until a presentation actually consumes it.
-                return Ok(Delivery::Busy);
-            }
-            self.permit = false;
-            if result == DXGI_STATUS_OCCLUDED {
-                return Ok(Delivery::Unavailable);
-            }
-            result.ok()?;
+            Ok(self.readiness.presented(result))
         }
-        Ok(Delivery::Accepted)
+    }
+}
+
+/// One acquired frame-latency signal, retained until an actual presentation consumes it.
+pub(super) struct Readiness {
+    handle: OwnedHandle,
+    permit: bool,
+}
+
+impl Readiness {
+    pub(super) fn new(handle: OwnedHandle) -> Self {
+        Self { handle, permit: false }
+    }
+
+    pub(super) fn admit(&mut self, available: bool) -> std::result::Result<(), Delivery> {
+        if !available {
+            return Err(Delivery::Unavailable);
+        }
+        if self.permit {
+            return Ok(());
+        }
+        // SAFETY: the owned waitable handle remains retained. Zero timeout never stalls
+        // another output, and the successful signal is consumed only once for this permit.
+        match unsafe { WaitForSingleObject(HANDLE(self.handle.as_raw_handle()), 0) } {
+            WAIT_OBJECT_0 => {
+                self.permit = true;
+                Ok(())
+            }
+            WAIT_TIMEOUT => Err(Delivery::Busy),
+            WAIT_FAILED => Err(Delivery::Failed(Error::from_win32().code())),
+            _ => Err(Delivery::Failed(HRESULT(0x8000_4005_u32 as i32))),
+        }
+    }
+
+    pub(super) fn presented(&mut self, result: HRESULT) -> Delivery {
+        if result == DXGI_ERROR_WAS_STILL_DRAWING {
+            return Delivery::Busy;
+        }
+        self.permit = false;
+        if result == DXGI_STATUS_OCCLUDED {
+            return Delivery::Unavailable;
+        }
+        match result.ok() {
+            Ok(()) => Delivery::Accepted,
+            Err(error) => Delivery::Failed(error.code()),
+        }
     }
 }

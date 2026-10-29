@@ -524,24 +524,34 @@ impl Backend for D3d11Backend {
         }
         let render = recorder.and_then(|recorder| recorder.interval(render_begin));
         for output in plan.outputs() {
-            let conversion_begin = recorder.and_then(Recorder::stamp);
-            let source = &resources.textures[&output.source];
             let converted = &resources.outputs[&output.id];
-            // Equal extents map texel centres exactly; avoid four-tap interpolation while
-            // retaining the shader's declared color/alpha conversion. Scaling stays linear.
-            let filter = if source.descriptor.extent == converted.descriptor.extent {
-                SampleFilter::Nearest
-            } else {
-                SampleFilter::Linear
-            };
-            pipeline.draw(context, source, None, converted, 1.0, BlendMode::Normal, filter);
-            let conversion = recorder.and_then(|recorder| recorder.interval(conversion_begin));
-            let delivery_begin = recorder.and_then(Recorder::stamp);
+            let admission_begin = recorder.and_then(Recorder::stamp);
+            let admission = native.outputs.admit(output.id, context, converted.descriptor, token);
             let mut consumer_api = None;
-            let outcome = native
-                .outputs
-                .deliver(output.id, context, converted, token, recorder, &mut consumer_api);
-            let delivery = recorder.and_then(|recorder| recorder.interval(delivery_begin));
+            let (conversion, delivery, outcome) = match admission {
+                Err(outcome) => (
+                    None,
+                    recorder.and_then(|recorder| recorder.interval(admission_begin)),
+                    outcome,
+                ),
+                Ok(admitted) => {
+                    let conversion_begin = recorder.and_then(Recorder::stamp);
+                    let source = &resources.textures[&output.source];
+                    // Equal extents map texel centres exactly; avoid four-tap interpolation
+                    // while retaining color/alpha conversion. Scaling stays linear.
+                    let filter = if source.descriptor.extent == converted.descriptor.extent {
+                        SampleFilter::Nearest
+                    } else {
+                        SampleFilter::Linear
+                    };
+                    pipeline.draw(context, source, None, converted, 1.0, BlendMode::Normal, filter);
+                    let conversion = recorder.and_then(|recorder| recorder.interval(conversion_begin));
+                    let delivery_begin = recorder.and_then(Recorder::stamp);
+                    let outcome = admitted.deliver(context, converted, recorder, &mut consumer_api);
+                    let delivery = recorder.and_then(|recorder| recorder.interval(delivery_begin));
+                    (conversion, delivery, outcome)
+                }
+            };
             if let Some(recorder) = recorder {
                 recorder.push(DiagnosticEvent::Output(OutputTrace {
                     token,

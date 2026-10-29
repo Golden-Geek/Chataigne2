@@ -105,7 +105,8 @@ pub struct OutputTrace {
     pub output: OutputId,
     /// Conversion draw submission wall interval.
     pub conversion: Option<CpuInterval>,
-    /// Entire endpoint delivery wall interval, including validation and consumer API work.
+    /// Rejected admission's check interval, or the admitted endpoint's post-conversion delivery
+    /// interval. Successful admission is not separately attributed; FrameCpu wall retains it.
     pub delivery: Option<CpuInterval>,
     /// Exact Window Present or Spout SendTexture API interval. It can contain CPU work and
     /// waiting; the elapsed interval alone does not distinguish those components.

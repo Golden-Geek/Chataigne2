@@ -60,6 +60,12 @@ impl Output {
             }
         }
     }
+    fn admit(&mut self) -> std::result::Result<(), Delivery> {
+        match self {
+            Self::Window(output) => output.admit(),
+            Self::Spout(_) => Ok(()),
+        }
+    }
     fn deliver(
         &mut self,
         context: &ID3D11DeviceContext,
@@ -71,6 +77,38 @@ impl Output {
             Self::Window(output) => output.deliver(context, texture, recorder, consumer_api),
             Self::Spout(output) => output.deliver(texture, recorder, consumer_api),
         }
+    }
+}
+
+/// Exclusive endpoint admission for one renderer batch. Conversion may run only while
+/// this handle retains the binding; delivery consumes it without waiting on readiness again.
+pub(super) struct AdmittedOutput<'a> {
+    binding: &'a mut Binding,
+    device: &'a ID3D11Device,
+    generation: DeviceGeneration,
+    control: &'a D3d11Control,
+    token: CompletionToken,
+}
+
+impl AdmittedOutput<'_> {
+    pub(super) fn deliver(
+        self,
+        context: &ID3D11DeviceContext,
+        texture: &Texture,
+        recorder: Option<&Recorder>,
+        consumer_api: &mut Option<CpuInterval>,
+    ) -> Delivery {
+        let endpoint = self
+            .binding
+            .endpoint
+            .begin_use(self.token.serial)
+            .expect("exclusively admitted endpoint");
+        let delivered = endpoint.deliver(context, texture, recorder, consumer_api);
+        let delivered = self.binding.delivered(self.device, delivered, Instant::now());
+        self.binding.publish(self.control, self.generation);
+        self.control
+            .observe_output(self.binding.config.id(), self.token, delivered);
+        delivered
     }
 }
 
@@ -209,37 +247,48 @@ impl OutputPool {
         self.bindings.get(&id).map(|binding| binding.config.descriptor())
     }
 
-    pub(super) fn deliver(
+    pub(super) fn admit(
         &mut self,
         id: OutputId,
         context: &ID3D11DeviceContext,
-        texture: &Texture,
+        descriptor: TextureDescriptor,
         token: CompletionToken,
-        recorder: Option<&Recorder>,
-        consumer_api: &mut Option<CpuInterval>,
-    ) -> Delivery {
+    ) -> std::result::Result<AdmittedOutput<'_>, Delivery> {
         let Some(binding) = self.bindings.get_mut(&id) else {
-            return Delivery::Unavailable;
+            return Err(Delivery::Unavailable);
         };
         if token.device != self.generation {
-            return Delivery::Failed(INVALID_ARGUMENT);
+            return Err(Delivery::Failed(INVALID_ARGUMENT));
         }
         let now = Instant::now();
-        let delivered = if self.stopping {
-            Delivery::Unavailable
-        } else if texture.descriptor != binding.config.descriptor() {
-            binding.delivered(&self.device, Delivery::Failed(INVALID_ARGUMENT), now)
+        let admission = if self.stopping {
+            Err(Delivery::Unavailable)
+        } else if descriptor != binding.config.descriptor() {
+            Err(binding.delivered(&self.device, Delivery::Failed(INVALID_ARGUMENT), now))
         } else if let Some(delivery) = binding.create(&self.device, Some(context), now) {
-            delivery
+            Err(delivery)
         } else if let Some(endpoint) = binding.endpoint.begin_use(token.serial) {
-            let delivery = endpoint.deliver(context, texture, recorder, consumer_api);
-            binding.delivered(&self.device, delivery, now)
+            endpoint
+                .admit()
+                .map_err(|delivery| binding.delivered(&self.device, delivery, now))
         } else {
-            Delivery::Unavailable
+            // A recovering endpoint can still retain its old allocation or retry deadline.
+            Err(Delivery::Unavailable)
         };
-        binding.publish(&self.control, self.generation);
-        self.control.observe_output(id, token, delivered);
-        delivered
+        match admission {
+            Ok(()) => Ok(AdmittedOutput {
+                binding,
+                device: &self.device,
+                generation: self.generation,
+                control: &self.control,
+                token,
+            }),
+            Err(delivered) => {
+                binding.publish(&self.control, self.generation);
+                self.control.observe_output(id, token, delivered);
+                Err(delivered)
+            }
+        }
     }
 
     pub(super) fn retire(&mut self, completed: u64) {

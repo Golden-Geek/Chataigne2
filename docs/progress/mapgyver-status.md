@@ -5,6 +5,10 @@
 **Updated: 2026-10-29 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
 **Current topic:** M03 remains **7/9** accepted gates. The
+[output-admission checkpoint](mapgyver-m03-qualification-runner.md#output-admission-before-conversion--2026-10-29)
+moves native availability/readiness before conversion, preserving independent healthy outputs,
+one retained readiness permit and completion-fenced endpoint ownership. Source freshness remains
+the next bounded correction. The
 [measurement checkpoint](mapgyver-m03-qualification-runner.md#measurement-integrity-and-equal-extent-conversion--2026-10-29)
 eliminates observed telemetry loss, maps all 180 software opportunities in each short control,
 and avoids redundant equal-size output filtering. Both controls accept 180 Spout submissions;
@@ -27,7 +31,7 @@ The [approved M01 route decision](mapgyver-m01-native-feasibility.md#functional-
 remains scoped functional acceptance; renderer, physical-output and full-app qualification
 retain their M03/M05/M09 owners.
 
-**Next:** address source freshness and native-output backpressure using the complete traces;
+**Next:** correct source copied/freshness semantics at the public Spout binding;
 finish GPU/output-age and plan/queue measurements (gate 9), retaining native
 device-removal/recovery and bounded-retirement acceptance under gate 4.
 **Blocker:** native-window acceptance and context-local GPU time still miss diagnostic targets;
@@ -264,7 +268,8 @@ failed-reset/cancellation/project fencing have a recovery checkpoint. Initial al
 retries within its original admitted baseline and first device generation, serving controls and
 retaining only the latest desired plan. The production Q01/Q02 runner and its short native controls
 now complete. Their schema-2 traces now retain all rows and exactly anchored software slots.
-Use those traces to correct source freshness/output backpressure and complete GPU/output-age
+Native output admission now precedes conversion, preserving readiness and retirement semantics.
+Correct source copied/freshness semantics at the public Spout binding, then complete GPU/output-age
 and plan/queue measurement before the prescribed qualification series (gate 9).
 Genuine native device-removal recovery and bounded stuck-drain retirement retain gate 4.
 Both gates remain required before M03 completion; all existing budgets/failures stay operative.
@@ -413,6 +418,44 @@ Preserve Chataigne's unfinished engine/Spatializer P11 checkpoint (four of six f
 and its [separate ledger](implementation-status.md). Shared P12 boundary repairs belong to M02;
 P14/P15 time and asset contracts retain their shared Golden owners under M03. Root launch
 behavior is unchanged. No production host/backend/binding decision is final yet.
+
+## M03 output admission before conversion — 2026-10-29
+
+The [output-admission checkpoint](mapgyver-m03-qualification-runner.md#output-admission-before-conversion--2026-10-29)
+moves zero-timeout window readiness and availability ahead of per-output conversion. An exclusive
+admitted-output borrow spans conversion through delivery; busy/hidden/recovering endpoints skip
+that work while healthy outputs continue. Late Present Busy retains its readiness permit and
+completion tracking covers the preceding backbuffer copy. Buffering, maximum latency, source
+polling and all budgets are unchanged. Schema-2 rejected rows have no conversion/API interval;
+successful preflight is retained in inclusive frame wall time without separate attribution.
+
+Independent review found no material issue. The owned kernel-event test exercises real signal
+consumption, hidden/resume behavior and late-Busy retention; it does not substitute for native
+GPU trace evidence. Source copied/freshness status remains the next checkpoint at the public
+binding, without registry changes or freezing unknown foreign senders on an untrusted counter.
+No SDK/source-publication change is included. M03 stays **7/9**, overall **3/10 (30%)**.
+
+The [packet](evidence/mapgyver-m03-output-admission-2026-10-29.json) and
+[raw archive](evidence/mapgyver-m03-output-admission-controls-2026-10-29.zip) retain one short
+Intel release Q01/Q02 pair. Every busy/unavailable row skips conversion/API: 68/223 rows across
+the respective whole captures. Minimized editor rows skip all 60/47 conversions. Independent
+raw recomputation verifies ordered brackets for all 1,093/878 accepted rows. Both sample main
+and Spout outputs accept 180/180 submissions; editor acceptance is 180/119. Telemetry loss is
+zero in all four roles, all 180 sample GPU spans are valid, fingerprints are stable, and cleanup
+is actual, unforced and error-free. No late API Busy occurred in these native controls.
+
+Renderer-context GPU p95/p99 is 7.533/10.285 ms (Q01), 18.470/21.025 ms (Q02); captured source-age
+p95 A/B is 35.679/34.025 ms and 216.710/146.563 ms respectively. Capture age still lacks the full
+output cohort. Independence does not pass: minimized main/Spout acceptance is 57/60 and 27/47
+of 60 expected opportunities; Q02 disconnected acceptance is 30/56 of 60. The one-second
+interruptions are shorter than the prescribed 60 seconds. Main output progress is functional
+evidence, not a cadence pass. These unpinned diagnostics establish avoided work without a causal
+performance claim. No device-removal, retirement-bound or qualification gate closes.
+
+Validation passes 172 regular Rust tests, nine explicit native GPU regressions, 31 production
+analyzer/deadline tests, strict default/native all-target Clippy, the locked release x64 build
+and both required Rust formatters. Native finite pixel and app source/history/recovery checks
+remain green. No display, driver, overlay, queue-depth or source-polling setting changed.
 
 ## M03 measurement integrity and output conversion — 2026-10-29
 

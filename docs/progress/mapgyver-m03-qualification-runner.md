@@ -194,3 +194,67 @@ pass. Strict default/native all-target Clippy, Chataigne all-target compilation,
 x64 build and both required Rust formatters pass. The native pixel oracles retain color/alpha
 and filtering coverage. No display, driver or overlay setting changed; all owned processes exit
 without force and HWNDs remain alive through actual retirement.
+
+## Output admission before conversion — 2026-10-29
+
+Golden Video now checks a native output's availability and zero-timeout frame-latency signal
+before submitting its conversion draw. An exclusive admitted-output borrow spans conversion
+through delivery, preventing endpoint replacement or another readiness wait between them.
+Busy, hidden and recovering outputs skip conversion and backbuffer copying; shared render
+passes and healthy outputs continue. A late `DXGI_ERROR_WAS_STILL_DRAWING` still retains the
+acquired permit, and completion tracking still covers the copy preceding that Present attempt.
+Swapchain buffering, maximum latency, source polling, workload rates and budgets are unchanged.
+
+Schema 2 already represents skipped work: rejected admission has `conversion = null` and
+`consumer_api = null`, with `delivery` bracketing the admission check. Admitted conversion and
+post-conversion delivery retain separate intervals. Successful preflight time is included in
+`FrameCpu.wall` but has no separate attribution; these intervals must not be treated as a complete
+breakdown of submission wall time. API acceptance remains distinct from displayed delivery.
+
+An owned auto-reset kernel-event test verifies busy/hidden rejection, readiness retention after
+a late Present Busy, resumption and exactly one permit consumption after acceptance. It does
+not issue GPU work; native trace checks separately verify conversion is skipped. Independent
+source review found no material issues in admission, retirement or trace semantics.
+
+Source freshness is a separate next checkpoint. The locked SDK can retain an earlier new-frame
+flag after failed access and can copy repeated contents when counting is unavailable. A correct
+fix needs exact per-call copied status and explicit counter availability at the public binding,
+without registry writes or equality-gating unknown foreign senders. This checkpoint does not
+change the SDK, source polling or source publication semantics. M03 remains **7/9**, overall
+**3/10 (30%)**; recovery and qualification gates remain open.
+
+The [evidence packet](evidence/mapgyver-m03-output-admission-2026-10-29.json) identifies the
+[complete raw archive](evidence/mapgyver-m03-output-admission-controls-2026-10-29.zip), including
+both analyses and pre/post input fingerprints. The same Intel adapter 0, fixed scenes and
+1/3/1-second diagnostic durations are retained; no display, driver or overlay setting changed.
+
+| Observation | Q01 | Q02 |
+| --- | --- | --- |
+| Sample main / Spout / editor API acceptance | 180 / 180 / 180 | 180 / 180 / 119 |
+| Sample opportunities per output | 180 | 180 |
+| Busy/unavailable conversions skipped, whole capture | 68 | 223 |
+| Minimized editor rows without conversion/API | 60 / 60 | 47 / 47 |
+| Renderer-context GPU p95 / p99 | 7.533 / 10.285 ms | 18.470 / 21.025 ms |
+| Captured source-age p95, A / B | 35.679 / 34.025 ms | 216.710 / 146.563 ms |
+| Consumer observations per channel / unique A / unique B | 771 / 177 / 175 | 66 / 38 / 56 |
+| Actual runtime retirement | 0.106 s | 0.126 s |
+
+Independent raw recomputation confirms every busy/unavailable row has no conversion or API
+interval. All 1,093/878 accepted rows retain ordered, non-overlapping conversion and delivery
+brackets. Both controls have zero telemetry loss across all four roles, 180 valid sample GPU
+spans, complete source-use joins, stable input fingerprints and clean unforced owned cleanup.
+No late API Busy occurred in these controls; that permit-retention branch is exercised by the
+kernel-event regression, not newly established by native captures.
+
+Editor independence has **not** passed. During minimization, main/Spout acceptance is 57/60 of
+60 expected opportunities in Q01 and 27/47 of 60 in Q02; Q02's disconnected phase accepts
+30/56 of 60. Both main outputs advance, but missed opportunities, busy windows and Q02 age
+outliers remain. The one-second interruptions also fall short of the prescribed 60 seconds.
+These unpinned short runs establish the skipped-work mechanism, not a causal timing improvement
+or qualification. Full GPU-path/deadline/age, plan/queue, growth/drain and genuine device-removal
+acceptance remain open. No additional performance or recovery gate closes.
+
+Validation: 172 regular Rust tests, nine explicit native GPU regressions and 31 production
+analyzer/deadline tests pass. Strict default/native all-target Clippy, locked release x64 build,
+both required Rust formatters and whitespace checks pass. The native finite pixel tests retain
+color/alpha/filtering coverage; app source/history/reconnect and endpoint-recovery regressions pass.
