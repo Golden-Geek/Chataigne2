@@ -72,7 +72,7 @@ impl<B: Backend> Runner<B> {
         if self.preparing.is_some() {
             return;
         }
-        let desired = self.shared.lock().latest.take();
+        let desired = self.shared.take_plan();
         let Some(desired) = desired else { return };
         let request = desired.request_info();
         if let Err(failure) = activation(&request, time.unwrap_or_else(|| self.shared.snapshot().time)) {

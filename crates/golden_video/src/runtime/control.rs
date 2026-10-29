@@ -12,7 +12,7 @@ use crate::plan::RenderPlan;
 use super::error::{AdmissionError, RuntimeStartError};
 use super::identity::{DeviceGeneration, PlanIdentity, PlanRevision, ProjectEpoch};
 use super::null::{NullConfig, NullControl};
-use super::shared::{ControlCommand, ControlKind, DesiredPlan, Shared};
+use super::shared::{ControlCommand, ControlKind, DesiredPlan, RequestState, Shared};
 use super::types::{
     LatePolicy, OutcomeKind, PlanActivation, RequestId, RuntimeConfig, RuntimeOutcome, RuntimeSnapshot,
 };
@@ -149,13 +149,27 @@ impl VideoRuntime {
         let device = DeviceGeneration::new(runtime, 1);
         let project_source = RevisionSource::default();
         let desired_source = RevisionSource::default();
-        let shared = Arc::new(Shared::new(
-            project,
-            time,
-            clock,
-            config.max_outstanding.get(),
-            config.notifier.clone(),
-        ));
+        #[cfg(all(windows, feature = "d3d11"))]
+        let diagnostics = match &backend {
+            BackendStart::Null(..) => None,
+            BackendStart::D3d11(config, ..) => config.diagnostics.map(crate::native::timing::Recorder::new),
+        };
+        #[cfg(not(all(windows, feature = "d3d11")))]
+        let observer = None;
+        #[cfg(all(windows, feature = "d3d11"))]
+        let observer = diagnostics
+            .clone()
+            .map(|recorder| Arc::new(recorder) as Arc<dyn super::PlanObserver>);
+        let shared = Arc::new(
+            Shared::new(
+                project,
+                time,
+                clock,
+                config.max_outstanding.get(),
+                config.notifier.clone(),
+            )
+            .with_plan_observer(observer),
+        );
         let lifetimes = RetirementPool::new(NonZeroUsize::MIN);
         let preparation_lifetimes = RetirementPool::new(NonZeroUsize::MIN);
         let payloads = PayloadPool::new(
@@ -203,6 +217,7 @@ impl VideoRuntime {
                     native_config,
                     native_control,
                     clock_source,
+                    diagnostics,
                     preparation_lifetimes,
                     device,
                     authority,
@@ -305,19 +320,20 @@ impl VideoRuntime {
         );
         let revision = self.desired_source.advance();
         self.next_request = request.0;
-        state.requests.insert(request, false);
+        let identity = PlanIdentity {
+            project,
+            revision: PlanRevision::new(revision),
+        };
         let old = state.latest.replace(DesiredPlan {
             request,
-            identity: PlanIdentity {
-                project,
-                revision: PlanRevision::new(revision),
-            },
+            identity,
             input,
             project_guard: self.project_source.reader().guard_at(project.generation()),
             desired_guard: self.desired_source.reader().guard_at(revision),
             activation,
             late_policy,
         });
+        self.shared.publish_plan(&mut state, request, identity);
         drop(state);
         if let Some(old) = old {
             self.shared.complete(old.request, OutcomeKind::Superseded);
@@ -349,7 +365,7 @@ impl VideoRuntime {
         self.next_request = request.0;
         state.project = current;
         state.snapshot.last_frame = None;
-        state.requests.insert(request, false);
+        state.requests.insert(request, RequestState::command());
         state.commands.push_back(ControlCommand {
             request,
             kind: ControlKind::Project { previous, current },
@@ -398,7 +414,7 @@ impl VideoRuntime {
                 .ok_or(AdmissionError::IdentityExhausted)?,
         );
         self.next_request = request.0;
-        state.requests.insert(request, false);
+        state.requests.insert(request, RequestState::command());
         state.commands.push_back(ControlCommand { request, kind });
         drop(state);
         self.shared.wake();
@@ -413,7 +429,13 @@ impl VideoRuntime {
             let Some(outcome) = state.outcomes.pop_front() else {
                 break;
             };
-            assert_eq!(state.requests.remove(&outcome.request), Some(true));
+            assert!(
+                state
+                    .requests
+                    .remove(&outcome.request)
+                    .expect("accepted outcome")
+                    .completed
+            );
             output.push(outcome);
             drained += 1;
         }

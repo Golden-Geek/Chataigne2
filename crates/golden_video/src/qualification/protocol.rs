@@ -5,8 +5,8 @@ use ts_rs::TS;
 
 use crate::preview::protocol::PreviewView;
 
-/// Native artifact contract, including exact source/output/consumer copied-image joins.
-pub const CAPTURE_SCHEMA_VERSION: u32 = 4;
+/// Native artifact contract, including exact copied-image joins and CPU plan lifecycle.
+pub const CAPTURE_SCHEMA_VERSION: u32 = 5;
 
 /// Host-to-fixture CSS layout updates, computed from authenticated native metrics.
 pub const QUALIFICATION_LAYOUT_EVENT: &str = "golden-qualification-layout";

@@ -85,6 +85,7 @@ pub(super) fn run_d3d11(
     native_config: crate::native::D3d11Config,
     native_control: crate::native::D3d11Control,
     clock_source: crate::native::timing::ScheduleClockSource,
+    diagnostics: Option<crate::native::timing::Recorder>,
     preparation_lifetimes: RetirementPool,
     device: DeviceGeneration,
     authority: TimeAuthority<Arc<dyn Clock>>,
@@ -100,9 +101,11 @@ pub(super) fn run_d3d11(
         authority,
         Duration::ZERO,
         move || {
-            Ok(crate::native::D3d11Backend::new(native_config, native_control, device)
-                .with_schedule_clock(clock_source, clock_epoch)
-                .with_notifier(notify))
+            Ok(
+                crate::native::D3d11Backend::with_diagnostics(native_config, native_control, device, diagnostics)
+                    .with_schedule_clock(clock_source, clock_epoch)
+                    .with_notifier(notify),
+            )
         },
     );
 }
@@ -170,7 +173,7 @@ fn run_backend<B: Backend>(
             state
                 .requests
                 .iter()
-                .filter_map(|(&id, &queued)| (!queued).then_some(id))
+                .filter_map(|(&id, status)| (!status.completed).then_some(id))
                 .collect::<Vec<_>>()
         };
         for request in pending {

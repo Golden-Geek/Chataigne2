@@ -10,6 +10,8 @@ use crate::runtime::types::{FrameObservation, RuntimeFailure};
 
 use super::*;
 
+mod observation;
+
 #[test]
 fn concurrent_terminal_claims_publish_once_even_after_the_result_is_drained() {
     let clock = Arc::new(SystemClock::new());
@@ -22,7 +24,7 @@ fn concurrent_terminal_claims_publish_once_even_after_the_result_is_drained() {
         None,
     ));
     let request = RequestId(1);
-    shared.lock().requests.insert(request, false);
+    shared.lock().requests.insert(request, RequestState::command());
     let barrier = Arc::new(Barrier::new(3));
     let contenders = (0..2)
         .map(|_| {
@@ -42,7 +44,7 @@ fn concurrent_terminal_claims_publish_once_even_after_the_result_is_drained() {
         let mut state = shared.lock();
         assert_eq!(state.outcomes.len(), 1);
         assert_eq!(state.outcomes.pop_front().unwrap().request, request);
-        assert_eq!(state.requests.remove(&request), Some(true));
+        assert!(state.requests.remove(&request).unwrap().completed);
     }
     shared.complete(request, OutcomeKind::Cancelled);
     assert!(shared.lock().outcomes.is_empty());

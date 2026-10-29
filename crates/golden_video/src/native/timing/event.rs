@@ -229,6 +229,8 @@ pub struct GpuTrace {
 /// Fixed-size Rust telemetry row for offline qualification. No UI event is emitted.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum DiagnosticEvent {
+    /// CPU plan publication, first receipt, installation or terminal rejection/cancellation.
+    Plan(PlanTrace),
     /// Native resource preparation, joined to the proposed resource and authored identities.
     Preparation(PreparationTrace),
     /// Exact scheduler slot/admission or final coverage fence.
@@ -243,6 +245,17 @@ pub enum DiagnosticEvent {
     SourceCpu(SourceCpuTrace),
     /// Context-local GPU timing and explicit coverage status.
     Gpu(GpuTrace),
+}
+
+/// One CPU plan lifecycle observation. This is not GPU execution or presentation age.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct PlanTrace {
+    /// Authored identity, preserved across resource/device recreation.
+    pub identity: crate::runtime::PlanIdentity,
+    /// Actual metadata handoff or installation, never inferred from a frame snapshot.
+    pub stage: crate::runtime::PlanStage,
+    /// Machine QPC observation; clock failure stays absent and increments diagnostic health.
+    pub observed_qpc: Option<u64>,
 }
 
 /// Native preparation submission wall time, not GPU execution or complete plan publication age.

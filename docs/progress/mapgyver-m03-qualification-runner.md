@@ -58,11 +58,21 @@ granularity. Context-local GPU timestamp spans are reported separately. They do 
 the full multi-context critical path, and their percentiles must not be added together.
 
 Retained source metadata identifies the source-worker publication actually copied into each
-renderer texture, including reuse. The independent consumer reports producer-to-observed-copy
-completion age as an upper bound, not display age or scanout. It does not yet identify an exact
-renderer output token. Repeated or skipped consumer captures also do not establish a complete
-output-frame age cohort. Both normative frame-age and GPU dependency-path qualification remain
-unavailable; the observed capture-age distribution stays separate.
+renderer texture, including reuse. Versioned Spout metadata joins each accepted output to its
+exact renderer token/source-use images and independently decoded GPU words. Every accepted
+image belongs to the cohort; repeated captures cannot replace missing outputs. CPU producer
+stamp to completed independent capture is distinct from display age or scanout. Incomplete
+cohorts do not pass normative frame-age coverage. GPU dependency-path and native-window
+presentation qualification remain unavailable.
+
+Schema 5 adds actual CPU plan lifecycle records from the production runtime: admitted latest
+publication, first worker receipt, atomic installation and terminal supersession/rejection/
+cancellation. The bounded recorder is allocated before worker startup, independently of native
+resources. Installation records cover recreation of the same authored plan on a new device;
+first receipt is not duplicated on a preparation retry. Exact plan/resource joins measure CPU
+handoff, first-use latency and retained plan age at accepted output APIs. They never substitute
+for GPU queue time or physical presentation. The current analyzer rejects older schemas; their
+original packets/analyses remain historical evidence.
 
 Fresh process-local DXGI LOCAL/NON_LOCAL observations retain failures and zero budgets.
 Admission uses the smaller of the workload ceiling and half the measured nonzero LOCAL budget;
@@ -567,3 +577,82 @@ desktop probe all-target check, locked release x64 build and both Rust formatter
 plan publication/receipt, GPU critical path, window/queue/presentation age, complete capture
 coverage, prescribed cadence/growth/handle series and genuine removal/stuck retirement remain
 required. **M03 remains 7/9; overall remains 3/10 (30%)**.
+
+## CPU plan publication, receipt and first use — 2026-10-29
+
+The production runtime now owns an optional metadata-only plan observer at
+`runtime/observation.rs`. Admitted mailbox publication and first receipt are observed under the
+existing short control lock; the bounded native recorder is allocated before render-worker
+startup, so initial publication is not lost to initialization. First receipt is recorded once
+if CPU preparation is retried on a new device. Reliable request state retains the exact authored
+identity through terminal supersession/rejection/cancellation, without additional outcome credits
+or payload ownership. Failed admission emits no accepted publication.
+
+Core records each actual atomic installation before disposal of an unused previous generation.
+Device recreation emits a distinct resource/device installation of the same authored plan,
+without fabricating a fresh publication or resetting its age. The diagnostic observer never
+submits GPU work, opens resources or invokes UI callbacks. Disabled diagnostics add no recorder
+or per-frame lifecycle event. Native frame/resource identities and accepted output API brackets
+supply first-use and retained plan-age joins offline.
+
+Schema 5 and `production_plan_age.py` distinguish CPU publication-to-receipt, receipt-to-native
+preparation, installation-to-first-submit, publication-to-first-submit and per-output accepted
+API age. Unread superseded inputs have no receipt/first-use sample. Missing clocks or exact
+joins stay incomplete; duplicates, conflicting terminals, changed resource/device identities
+and reversed time order are rejected. A retained plan naturally becomes older between edits;
+its age is not edit latency. No latency target is invented. The lifecycle criterion measures
+coverage; combined GPU/presentation queue qualification remains unavailable.
+
+The [schema-5 packet](evidence/mapgyver-m03-plan-age-2026-10-29.json) and
+[complete raw archive](evidence/mapgyver-m03-plan-age-controls-2026-10-29.zip) retain one short
+release Intel Q01/Q02 pair with the existing fixed scenes and budgets. The current analyzer
+rejects schemas 1–4; the earlier failed packets and their analyses remain unchanged.
+
+| Whole-capture CPU lifecycle observation | Q01 | Q02 |
+| --- | --- | --- |
+| Accepted publications / first receipts | 9 / 8 | 9 / 8 |
+| Installed generations / superseded inputs | 6 / 3 | 6 / 3 |
+| Superseded without receipt or first use | 1 | 1 |
+| Native frame rows with exact lifecycle joins | 389 / 389 | 385 / 385 |
+| Publication-to-receipt median / maximum | 0.016 / 76.504 ms | 0.016 / 80.916 ms |
+| Publication-to-first-submit median / maximum | 11.271 / 82.708 ms | 4.392 / 97.093 ms |
+
+Both captures have complete lifecycle/counter/frame/output joins. Maxima include startup;
+with only eight receipts/six first uses, these are finite observations, not prescribed
+steady-state edit-latency qualification. Retained-plan-to-Spout-API p95 is approximately
+4.084/4.098 seconds during the sample because that same plan remains installed; it does not
+mean an edit waited four seconds to appear.
+
+| Short sample observation | Q01 | Q02 |
+| --- | --- | --- |
+| Main / Spout / editor API acceptance, expected 180 | 180 / 180 / 180 | 158 / 174 / 108 |
+| Exact source-word captures / accepted Spout images | 180 / 180 | 153 / 174 |
+| Observed pixel-lineage disagreements | 0 | 0 |
+| Accepted images without an exact capture | 0 | 21 |
+| Producer A / B API acceptance | 175 / 179 | 174 / 180 |
+| Source-age p95 A / B, observed captures | 11.842 / 11.239 ms | 56.572 / 46.691 ms |
+| Renderer-context GPU p95 / p99 | 4.306 / 4.567 ms | 19.402 / 22.218 ms |
+| Actual retirement | 0.094 s | 0.114 s |
+
+Q01's short minimized/disconnected phases capture 60/60 and 61/61 accepted Spout images exactly.
+Q02 captures 31/56 and 41/59 exactly; those incomplete cohorts include eleven/three captures
+without exact source joins. Its main output accepts 48 calls in each phase. Complete output
+coverage, producer admission, Q02 cadence and source age remain insufficient; missing images
+cannot be discarded from qualification. These unpinned controls do not establish a causal
+performance difference from earlier captures.
+
+Independent raw reconstruction reproduces every lifecycle stage, exact resource/frame join,
+handoff/first-use duration and sample per-output API age. All 259 execution fingerprints per
+capture match before/after and current files, all roles have lossless telemetry, sample GPU
+rows are valid, and cleanup is actual/unforced with zero final resource bytes/in-flight work.
+The archive contains 42 files (902,377 bytes), SHA-256
+`f624a0705413137dae5a7574a48c66661bf98de1c19e7536b42cecba9b93f30e`.
+It includes the independent reconstruction script and raw full-matrix/release-build logs.
+
+Validation passes 182 regular Rust tests, twelve native GPU tests and 60 production Python
+tests, strict default/native all-target Clippy, Rust-generated fixture-contract checks, locked
+release x64 build and both required formatters. Tests cover receipt-once retry, terminal races,
+unread supersession, typed rejection, missing/duplicate/foreign/contradictory observations and
+resource recreation without resetting plan age. Full GPU critical path, window presentation/
+queue/deadline age, prescribed cadence/growth/handles and genuine native removal/stuck retirement
+remain open. **M03 remains 7/9; overall remains 3/10 (30%)**.

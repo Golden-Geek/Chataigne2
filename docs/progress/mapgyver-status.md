@@ -5,18 +5,18 @@
 **Updated: 2026-10-29 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
 **Current topic:** M03 remains **7/9** accepted gates. The
-[GPU ownership checkpoint](mapgyver-m03-qualification-runner.md#gpu-keyed-spout-image-handoff--2026-10-29)
-isolates and fixes observed outgoing Spout pixel/counter disagreement with GPU keyed sharing.
-The finite native regression has 518 exact available-image comparisons. Q01 captures 180/180
-sample outputs exactly; Q02 has 148 exact captures, 28 uncaptured images and no observed pixel
-mismatch. Earlier failures remain preserved. No gate closes.
+[CPU plan-age checkpoint](mapgyver-m03-qualification-runner.md#cpu-plan-publication-receipt-and-first-use--2026-10-29)
+records actual publication, first worker receipt, installation and first use. Both short
+controls have complete lifecycle joins: nine publications, eight receipts, six installations.
+Q01 captures 180/180 sample outputs exactly; Q02 captures 153/174, with 21 missing images and
+no observed pixel mismatch. Earlier failures remain preserved. No gate closes.
 
-**Next:** complete plan publication/receipt and GPU/output queue/deadline/age measurements
+**Next:** complete GPU/output queue, critical-path and native-window deadline/age measurements
 (gate 9), then address remaining cadence, capture coverage and growth qualification. Native
 device removal and bounded stuck retirement retain gate 4.
 **Blocker:** Q02 window cadence, producer admission, complete capture coverage and age remain
 insufficient; GPU keyed ownership repairs pixel coherence, not those budgets. Full GPU
-critical-path, native-window presentation age and plan publication/receipt/GPU-queue coverage
+critical-path, native-window presentation age and GPU/presentation queue coverage
 remain unavailable. Genuine device removal and stuck-driver retirement bounds remain unverified.
 Historical memory-growth, geometry and display/input failures retain their M03/M05/M09 owners.
 
@@ -259,10 +259,14 @@ misses cadence/age targets. Schema 4 joins copied-image labels across producer, 
 output and independent capture, checking GPU pixels against the exact claimed renderer inputs.
 Direct native regression and GPU input/conversion taps isolate the observed mismatch to the
 outgoing SDK handoff. GPU keyed outputs with zero-timeout send ownership now retain exact pixels
-in 518 available regression comparisons and the new short control captures. Q02 still misses
-28 sample images and cadence/age targets. Counter agreement alone cannot qualify identity.
-Complete GPU/output-age and plan
-publication/receipt/queue measurement before the prescribed qualification series (gate 9).
+in 518 available regression comparisons and the new short control captures. The latest Q02
+control still misses 21 sample images and cadence/age targets. Counter agreement alone cannot
+qualify identity.
+CPU publication/first-receipt/installation records now join exact resource generations to first
+use and per-output API age. The bounded recorder exists before worker startup; unread
+superseded plans have no invented receipt. Retained plan age grows between edits and is not
+edit latency. Complete GPU/output-age, critical-path and GPU/presentation queue measurement
+before the prescribed qualification series (gate 9).
 Genuine native device-removal recovery and bounded stuck-drain retirement retain gate 4.
 Both gates remain required before M03 completion; all existing budgets/failures stay operative.
 Deliver each coherent batch
@@ -410,6 +414,40 @@ Preserve Chataigne's unfinished engine/Spatializer P11 checkpoint (four of six f
 and its [separate ledger](implementation-status.md). Shared P12 boundary repairs belong to M02;
 P14/P15 time and asset contracts retain their shared Golden owners under M03. Root launch
 behavior is unchanged. No production host/backend/binding decision is final yet.
+
+## M03 CPU plan lifecycle and first-use age — 2026-10-29
+
+The [runtime observation checkpoint](mapgyver-m03-qualification-runner.md#cpu-plan-publication-receipt-and-first-use--2026-10-29),
+[schema-5 packet](evidence/mapgyver-m03-plan-age-2026-10-29.json) and
+[raw archive](evidence/mapgyver-m03-plan-age-controls-2026-10-29.zip) record admitted publication,
+first worker receipt, atomic installation and terminal supersession/rejection/cancellation.
+Golden's bounded recorder is allocated before worker startup. Receipt is recorded once across
+preparation retries; reconstruction records a new resource/device installation with the same
+authored identity. CPU metadata alone crosses these boundaries. GPU queue, physical presentation
+and critical-path measurements remain separate. Schemas 1–4 retain their original analyses.
+
+Each bounded Q01/Q02 control has nine published plans, eight first receipts, six installed/used
+generations and three superseded inputs, including one unread input. All 389/385 native frame
+rows and every accepted sample output join their exact lifecycle/resource identity. Independent
+raw reconstruction reproduces every reported handoff/first-use/per-output age. Median
+publication-to-receipt is 0.0161/0.0157 ms; the startup observations reach 76.504/80.916 ms.
+Publication-to-first-use maxima are 82.708/97.093 ms across six observations, including startup.
+These finite distributions establish measurement coverage, not a new latency budget or a
+steady-state edit-latency pass. Retained plan age grows naturally while the same plan is used.
+
+Q01 accepts 180/180/180 main/Spout/editor calls and captures all 180 exactly. Q02 accepts
+158/174/108; 153 Spout images match exactly and 21 remain uncaptured, with no observed pixel
+disagreement. Its observed source-A age p95 is 56.572 ms. Minimized/disconnected Q02 phases
+still have incomplete capture/source joins and cadence failures. No device/driver/display/
+overlay, SDK, scene, polling, queue-depth or budget change is included. All 259 execution
+fingerprints per capture match; telemetry is lossless; cleanup is actual/unforced with zero
+final bytes/in-flight work, retiring in 0.094/0.114 s.
+
+Validation passes **182 regular Rust tests, twelve native GPU tests, 60 production Python
+tests**, strict default/native all-target Clippy, generated fixture contracts, release x64
+build and both required formatters. Existing complete GPU/output qualification, growth/handle
+series and genuine device-removal/stuck retirement remain open. **M03 stays 7/9 (78%); overall
+stays 3/10 (30%)**. No denominator, budget or historical failure is changed.
 
 ## M03 GPU keyed Spout handoff — 2026-10-29
 

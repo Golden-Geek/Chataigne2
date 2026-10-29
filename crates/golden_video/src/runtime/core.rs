@@ -412,6 +412,7 @@ impl<B: Backend> RenderCore<B> {
         prepared.installed();
         let info = prepared.info;
         let old = self.live.replace(LiveGeneration { prepared, last_use: 0 });
+        self.backend.observe_install(info);
         if let Some(old) = old {
             if old.last_use > self.completed {
                 self.retiring.push(old);

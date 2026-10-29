@@ -11,6 +11,7 @@ use super::types::{
     FailureCode, FrameObservation, LatePolicy, OutcomeKind, PlanActivation, RequestId, RuntimeFailure, RuntimeOutcome,
     RuntimeSnapshot, RuntimeState,
 };
+use super::{PlanObserver, PlanStage};
 
 pub(super) struct DesiredPlan {
     pub request: RequestId,
@@ -75,6 +76,24 @@ pub(super) struct Shared {
     wake: Mutex<Option<WorkerNotifier>>,
     notifier: Option<WorkerNotifier>,
     capacity: usize,
+    plan_observer: Option<Arc<dyn PlanObserver>>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct RequestState {
+    pub completed: bool,
+    plan: Option<PlanIdentity>,
+    received: bool,
+}
+
+impl RequestState {
+    pub fn command() -> Self {
+        Self {
+            completed: false,
+            plan: None,
+            received: false,
+        }
+    }
 }
 
 pub(super) struct State {
@@ -82,7 +101,7 @@ pub(super) struct State {
     pub latest: Option<DesiredPlan>,
     pub commands: VecDeque<ControlCommand>,
     pub outcomes: VecDeque<RuntimeOutcome>,
-    pub requests: BTreeMap<RequestId, bool>,
+    pub requests: BTreeMap<RequestId, RequestState>,
     pub accepting: bool,
     pub closing: bool,
     pub snapshot: RuntimeSnapshot,
@@ -140,6 +159,40 @@ impl Shared {
             wake: Mutex::new(None),
             notifier,
             capacity,
+            plan_observer: None,
+        }
+    }
+
+    pub fn with_plan_observer(mut self, observer: Option<Arc<dyn PlanObserver>>) -> Self {
+        self.plan_observer = observer;
+        self
+    }
+
+    pub fn publish_plan(&self, state: &mut State, request: RequestId, identity: PlanIdentity) {
+        state.requests.insert(
+            request,
+            RequestState {
+                plan: Some(identity),
+                ..RequestState::command()
+            },
+        );
+        self.observe_plan(identity, PlanStage::Published);
+    }
+
+    pub fn take_plan(&self) -> Option<DesiredPlan> {
+        let mut state = self.lock();
+        let desired = state.latest.take()?;
+        let request = state.requests.get_mut(&desired.request).expect("accepted desired plan");
+        if !request.received {
+            request.received = true;
+            self.observe_plan(desired.identity, PlanStage::Received);
+        }
+        Some(desired)
+    }
+
+    fn observe_plan(&self, identity: PlanIdentity, stage: PlanStage) {
+        if let Some(observer) = &self.plan_observer {
+            observer.observe(identity, stage);
         }
     }
 
@@ -174,13 +227,25 @@ impl Shared {
         let mut state = self.lock();
         // Fatal worker finalization can race a publisher superseding its detached old
         // slot. Claim the terminal state once; later contenders must not duplicate it.
-        let Some(queued) = state.requests.get_mut(&request) else {
+        let Some(status) = state.requests.get_mut(&request) else {
             return;
         };
-        if *queued {
+        if status.completed {
             return;
         }
-        *queued = true;
+        status.completed = true;
+        if let Some(identity) = status.plan {
+            let stage = match &result {
+                OutcomeKind::Superseded => Some(PlanStage::Superseded),
+                OutcomeKind::Rejected(failure) => Some(PlanStage::Rejected { code: failure.code() }),
+                OutcomeKind::Cancelled => Some(PlanStage::Cancelled),
+                // Core records every successful install, including device recreation.
+                OutcomeKind::Installed { .. } | OutcomeKind::TimeChanged(_) | OutcomeKind::ProjectChanged(_) => None,
+            };
+            if let Some(stage) = stage {
+                self.observe_plan(identity, stage);
+            }
+        }
         state.outcomes.push_back(RuntimeOutcome { request, result });
         debug_assert!(state.outcomes.len() <= self.capacity);
         drop(state);

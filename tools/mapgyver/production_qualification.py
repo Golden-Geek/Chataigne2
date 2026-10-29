@@ -22,6 +22,7 @@ RAW_FILES = ("manifest.json", "renderer-summary.json", "parent-summary.json", "r
              "source-1.jsonl", "source-2.jsonl", "consumer.jsonl")
 DEADLINES = runpy.run_path(str(Path(__file__).with_name("production_deadlines.py")))
 PREPARATION = runpy.run_path(str(Path(__file__).with_name("production_preparation.py")))
+PLAN_AGE = runpy.run_path(str(Path(__file__).with_name("production_plan_age.py")))
 COHORT = runpy.run_path(str(Path(__file__).with_name("production_cohort.py")))
 
 
@@ -117,7 +118,7 @@ def outcome(value):
 
 
 def events(rows):
-    result = {name: [] for name in ("Preparation", "FrameCpu", "Output", "SourceCpu", "SourceUse", "Gpu", "Schedule")}
+    result = {name: [] for name in ("Plan", "Preparation", "FrameCpu", "Output", "SourceCpu", "SourceUse", "Gpu", "Schedule")}
     seen = set()
     for row in rows:
         if row["kind"] != "diagnostic":
@@ -126,7 +127,9 @@ def events(rows):
         require(isinstance(event, dict) and len(event) == 1, "invalid diagnostic enum")
         name, payload = next(iter(event.items()))
         require(name in result and isinstance(payload, dict), "unsupported diagnostic row")
-        if name == "Preparation":
+        if name == "Plan":
+            key = (name, json.dumps(payload["identity"], sort_keys=True), json.dumps(payload["stage"], sort_keys=True))
+        elif name == "Preparation":
             key = (name, json.dumps(payload["generation"], sort_keys=True),
                    json.dumps(payload.get("wall"), sort_keys=True))
         elif name == "Schedule":
@@ -451,6 +454,8 @@ def analyze_capture(directory):
         deadline_verdict = None
     frame_rows, cpu = cpu_metrics(native["FrameCpu"], sample, frequency)
     preparation = PREPARATION["analyze_preparation"](native["Preparation"], native["FrameCpu"], frequency, distribution)
+    plan_age = PLAN_AGE["analyze_plan_age"](native["Plan"], native["Preparation"], native["FrameCpu"],
+                                          native["Output"], sample, frequency, distribution)
     renderer_gpu = gpu_metrics(frame_rows, native["Gpu"], renderer=True)
     dependencies = source_dependencies(frame_rows, native)
     markers = marker_metrics((source_a, source_b), consumer, sample, frequency)
@@ -576,7 +581,9 @@ def analyze_capture(directory):
             reason="full-app Q05, including Matrix launches and transitions, has not been captured"),
         "native_preparation": criterion(preparation["coverage_complete"] if complete else None, eligible,
                                         scope="native preparation/first-use coverage; no latency budget inferred"),
-        "plan_age_and_published_queue": criterion(None, eligible, reason="native preparation/first-use and source retention to output APIs measured; plan publication/receipt and GPU/presentation queue age remain absent"),
+        "plan_publication_age": criterion(plan_age["coverage_complete"] if complete else None, eligible,
+                                          scope=plan_age["scope"]),
+        "plan_age_and_published_queue": criterion(None, eligible, reason="CPU plan publication/receipt/install/first-use and source retention to output APIs measured; GPU/presentation queue age remains absent"),
         "environment_identity": criterion(None, eligible,
                                           reason="selected MSVC/SDK, driver, WebView, power and overlay observations are not pinned"),
     }
@@ -585,6 +592,7 @@ def analyze_capture(directory):
             "dependencies": dependencies, "outputs": output_metrics, "producers": producers,
             "submission_deadlines": deadlines,
             "native_preparation": preparation,
+            "plan_publication_age": plan_age,
             "spout_output_cohort": cohort,
             "frame_age": markers, "resources": resources,
             "independence": independence,
@@ -635,6 +643,7 @@ def fingerprints(executable):
     paths = [ROOT / name for name in ("Cargo.toml", "Cargo.lock", "package.json", "package-lock.json", CAPTURE_SCHEMA_FILE)]
     paths += [Path(__file__), Path(__file__).with_name("production_process.py"),
               Path(__file__).with_name("production_preparation.py"),
+              Path(__file__).with_name("production_plan_age.py"),
               Path(__file__).with_name("production_cohort.py"),
               Path(__file__).with_name("production_deadlines.py"), ROOT / "apps/mapgyver/Cargo.toml",
               ROOT / "crates/golden_time/Cargo.toml", ROOT / "crates/golden_video/Cargo.toml",

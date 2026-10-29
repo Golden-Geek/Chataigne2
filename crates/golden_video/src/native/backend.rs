@@ -75,8 +75,18 @@ pub(crate) struct D3d11Resources {
 }
 
 impl D3d11Backend {
+    #[cfg(test)]
     pub(crate) fn new(config: D3d11Config, control: D3d11Control, generation: DeviceGeneration) -> Self {
         let diagnostics = config.diagnostics.map(Recorder::new);
+        Self::with_diagnostics(config, control, generation, diagnostics)
+    }
+
+    pub(crate) fn with_diagnostics(
+        config: D3d11Config,
+        control: D3d11Control,
+        generation: DeviceGeneration,
+        diagnostics: Option<Recorder>,
+    ) -> Self {
         *control.diagnostics.lock().unwrap_or_else(|error| error.into_inner()) = diagnostics.clone();
         Self {
             config,
@@ -246,6 +256,13 @@ impl D3d11Backend {
 
 impl Backend for D3d11Backend {
     type Resources = D3d11Resources;
+
+    fn observe_install(&mut self, generation: GenerationInfo) {
+        use crate::runtime::PlanObserver;
+        if let Some(recorder) = &self.diagnostics {
+            recorder.observe(generation.identity, crate::runtime::PlanStage::Installed { generation });
+        }
+    }
 
     fn observes_schedule(&self) -> bool {
         self.diagnostics.is_some()

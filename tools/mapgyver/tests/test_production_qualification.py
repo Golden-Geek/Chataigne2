@@ -62,6 +62,9 @@ def write_capture(directory):
     generation = {"generation": 1, "device": token("renderer", 0)["device"],
                   "identity": {"project": {"runtime": "renderer", "generation": 0}, "revision": 1},
                   "bytes": 32, "output_count": 3}
+    renderer.extend([event("Plan", {"identity": generation["identity"], "stage": stage, "observed_qpc": stamp})
+                     for stage, stamp in [("Published", BEGIN - 40), ("Received", BEGIN - 30),
+                                          ({"Installed": {"generation": generation}}, BEGIN - 5)]])
     renderer.append(event("Preparation", {"generation": generation, "wall": wall(BEGIN - 20, BEGIN - 10),
                                            "succeeded": True, "created_textures": 3,
                                            "reused_textures": 0, "cache_entries": 3}))
@@ -279,7 +282,7 @@ class ProductionQualificationTests(unittest.TestCase):
 
     def test_old_captures_are_not_reinterpreted_using_new_generation_or_clock_semantics(self):
         manifest = ANALYZER.load_json(self.directory / "manifest.json")
-        for old in (1, 2, 3):
+        for old in (1, 2, 3, 4):
             with self.subTest(version=old):
                 manifest["schema_version"] = old
                 (self.directory / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
@@ -287,14 +290,38 @@ class ProductionQualificationTests(unittest.TestCase):
                 self.assertEqual(result["status"], "FAILED_NATIVE")
                 self.assertIn("unsupported production capture schema", result["captures"][0]["artifact_error"])
 
-    def test_native_preparation_and_first_submit_are_joined_without_claiming_publication_age(self):
+    def test_native_preparation_and_cpu_plan_age_are_measured_without_claiming_gpu_queue_age(self):
         result = self.analyze()
         prepared = result["native_preparation"]
         self.assertTrue(prepared["coverage_complete"])
         self.assertEqual((prepared["attempts"], prepared["created_textures"], prepared["reused_textures"]), (1, 3, 0))
         self.assertEqual(prepared["records"][0]["submitted_frames"], 60)
         self.assertEqual(prepared["prepared_to_first_submit_wait"]["p95_ms"], 20 * 1000 / FREQUENCY)
+        self.assertTrue(result["plan_publication_age"]["coverage_complete"])
+        self.assertEqual(result["plan_publication_age"]["publication_to_receipt"]["p95_ms"], 10 * 1000 / FREQUENCY)
+        self.assertEqual(result["plan_publication_age"]["publication_to_first_submit"]["p95_ms"], 50 * 1000 / FREQUENCY)
+        self.assertTrue(result["criteria"]["plan_publication_age"]["observed_within_target"])
         self.assertEqual(result["criteria"]["plan_age_and_published_queue"]["status"], "UNAVAILABLE")
+
+    def test_missing_plan_receipt_or_counter_read_is_incomplete_even_with_all_frames_present(self):
+        original = copy.deepcopy(self.renderer)
+        for missing in ("Received", "clock"):
+            with self.subTest(missing=missing):
+                self.renderer = copy.deepcopy(original)
+                if missing == "Received":
+                    self.renderer = [row for row in self.renderer
+                                     if row.get("event", {}).get("Plan", {}).get("stage") != "Received"]
+                else:
+                    next(row["event"]["Plan"] for row in self.renderer
+                         if "Plan" in row.get("event", {}))["observed_qpc"] = None
+                summary = ANALYZER.load_json(self.directory / "renderer-summary.json")
+                summary["diagnostics"] = accounting(self.renderer)
+                (self.directory / "renderer-summary.json").write_text(json.dumps(summary), encoding="utf-8")
+                write_rows(self.directory / "renderer.jsonl", self.renderer)
+                result = self.analyze()
+                self.assertTrue(result["criteria"]["telemetry_coverage"]["observed_within_target"])
+                self.assertFalse(result["criteria"]["plan_publication_age"]["observed_within_target"])
+                self.assertEqual(result["criteria"]["plan_age_and_published_queue"]["status"], "UNAVAILABLE")
 
     def test_preparation_join_rejects_foreign_or_changed_resource_identity(self):
         frame = next(row["event"]["FrameCpu"] for row in self.renderer if "FrameCpu" in row.get("event", {}))

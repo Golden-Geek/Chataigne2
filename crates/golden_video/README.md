@@ -81,9 +81,16 @@ still charge the full declared generation footprint, preserving the existing con
 
 Preparation diagnostics join proposed resource/plan identity, native creation/reuse counts and
 CPU wall time to each submitted frame's exact resource generation. Offline analysis can measure
-native preparation and prepared-to-first-submit delay. Publication/receipt and per-output queue
-age require separate coverage; a preparation record alone does not qualify them. Artifact schema
-version is Rust-owned and generated with the fixture contracts as `capture-schema.json`.
+native preparation and prepared-to-first-submit delay. Optional plan lifecycle records come
+from the runtime's admitted mailbox publication, first worker receipt and atomic resource
+installation. Superseded/rejected/cancelled input retains its own terminal observation; device
+recreation retains the authored identity and records a distinct installation. The bounded
+diagnostic recorder exists before the render worker starts so its first publication cannot be
+lost to startup. First receipt is recorded once across preparation retries. Offline analysis
+joins the exact resource generation to first use and per-output accepted CPU API age. Retained
+plan age naturally grows between edits and is not edit latency. Missing clocks/joins stay
+unavailable. GPU queue and physical presentation age remain separate measurements. Artifact
+schema version is Rust-owned and generated with the fixture contracts as `capture-schema.json`.
 
 Opt-in native diagnostics retain each actual copied Spout image's 32-bit SDK share-handle/counter
 pair through source publication and output delivery. These ephemeral values are diagnostic

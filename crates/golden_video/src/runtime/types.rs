@@ -63,7 +63,7 @@ pub enum LatePolicy {
 }
 
 /// Bounded diagnostic category, separate from backend/native handles.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum FailureCode {
     /// An app-owned source lifetime/revision changed before activation or reconstruction.
     StaleSource,

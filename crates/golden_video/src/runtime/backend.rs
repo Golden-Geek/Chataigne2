@@ -44,6 +44,9 @@ pub enum BackendError {
 pub(crate) trait Backend {
     type Resources;
 
+    /// Actual atomic installation, including rebuilds without a new publication request.
+    fn observe_install(&mut self, _generation: GenerationInfo) {}
+
     /// Enables optional scheduler telemetry. Disabled backends need no per-frame metadata.
     fn observes_schedule(&self) -> bool {
         false

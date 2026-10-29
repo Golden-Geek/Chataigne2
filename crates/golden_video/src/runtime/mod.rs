@@ -11,6 +11,7 @@ mod core;
 mod error;
 mod identity;
 mod null;
+mod observation;
 mod preparation;
 mod schedule;
 mod shared;
@@ -23,6 +24,8 @@ pub use core::{GenerationInfo, ResourceLimits, ResourceSnapshot};
 pub use error::{AdmissionError, RuntimeStartError};
 pub use identity::{CompletionToken, DeviceGeneration, GenerationId, PlanIdentity, PlanRevision, ProjectEpoch};
 pub use null::{NullConfig, NullControl, NullSnapshot};
+pub(crate) use observation::PlanObserver;
+pub use observation::PlanStage;
 pub use schedule::{FrameAdmission, FrameSchedule};
 pub use submission::PlanSubmission;
 pub use types::{

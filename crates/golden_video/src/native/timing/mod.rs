@@ -5,6 +5,7 @@ mod clock;
 mod cpu;
 mod event;
 mod gpu;
+mod plan;
 mod scheduler;
 mod sink;
 
