@@ -764,6 +764,87 @@ default/native all-target Clippy, generated fixture contracts, release x64 build
 formatters. Full cadence/repetition, GPU/queue/deadline, growth/handle, genuine removal/stuck
 retirement and M05 physical observations remain open. **M03 stays 7/9; overall stays 3/10 (30%)**.
 
+## Rejected native output-order experiments — 2026-10-30
+
+Golden Video owns native output admission, conversion and publication. Its existing loop
+delivers outputs in compiled plan order, with each exclusive admission immediately followed
+by conversion and delivery. Two implementations tested whether changing CPU command order
+would improve Q02: a per-frame conversion staging buffer, then a simpler shared-first schedule
+prepared once per resource generation. Both retain logical output/source identities, leases,
+copies, formats, fences, queue depth, source pacing and SDK. Both are **rejected and removed**:
+the controls show no Q02 benefit worth retaining their added scheduling responsibility.
+Native execution sources are restored exactly to published `b68a5f06`.
+
+Each variant has one release diagnostic per Q01/Q02 on Intel adapter 0, LUID
+`00000000:00016c2a`: 5 s warmup, 5 s sample and 1 s per interruption. The unchanged published
+opaque-branch controls supply the baseline. These sequential observations do not isolate
+causality or qualify the prescribed series. No PresentMon/WPR capture or graphics setting
+change is introduced. Every capture has stable before/after execution fingerprints.
+
+| Scenario / variant | Renderer GPU median / p95 / p99 / max, ms | Output-stage GPU p95, ms |
+| --- | --- | --- |
+| Q01 baseline | 4.0304 / 4.7699 / 5.4131 / 5.6359 | 3.3967 |
+| Q01 staged | 2.8923 / 3.7407 / 4.5872 / 6.3505 | 2.0599 |
+| Q01 shared-first | 3.8448 / 4.8264 / 5.3223 / 5.6825 | 3.2157 |
+| Q02 baseline | 10.0680 / 11.4896 / 13.5165 / 16.2388 | 7.9353 |
+| Q02 staged | 10.5353 / 14.3252 / 16.3292 / 18.2595 | 9.8289 |
+| Q02 shared-first | 14.9774 / 17.4177 / 17.9461 / 19.4191 | 11.8626 |
+
+| Scenario / variant | Main / Spout / editor accepted calls | Producer A / B accepted, of 300 each | Source A / B capture age p95, ms |
+| --- | --- | --- | --- |
+| Q01 baseline | 301 / 300 / 300 | 293 / 295 | 23.4243 / 11.1482 |
+| Q01 staged | 300 / 300 / 300 | 297 / 297 | 18.2162 / 10.6754 |
+| Q01 shared-first | 300 / 300 / 300 | 295 / 293 | 23.0830 / 13.3091 |
+| Q02 baseline | 300 / 300 / 299 | 290 / 296 | 18.0635 / 19.9329 |
+| Q02 staged | 298 / 300 / 298 | 294 / 298 | 22.5083 / 30.1465 |
+| Q02 shared-first | 270 / 300 / 251 | 295 / 294 | 38.9549 / 43.8136 |
+
+Q02 shared-first has 30 main and 49 editor Busy outcomes, although all shared publications
+are accepted. Correct CPU submission order therefore does not establish output independence
+or displayed cadence. Q01 staged p95 improves while its maximum worsens; those mixed tails
+remain visible. Each GPU/CPU-start cohort and anchored deadline cohort retains 300 frames/
+opportunities. The baseline's 301 main API calls are a different boundary-selected cohort,
+not a revised denominator. All six controls retain 300/300 exact accepted-Spout captures,
+zero invalid captures and unchanged logical peaks: Q01 144,691,264 / Q02 468,172,864 bytes.
+
+The retained app-owned `production_output_order.py` joins every CPU-start-selected frame
+token to outputs 1/2/3. It requires trustworthy frame-contained timing, each conversion before
+its API, and the shared delivery phase ending before window conversion/API work. Missing
+records/timing remain unknown; duplicates/invalid clocks are rejected, and early Busy endpoints
+need no invented conversion/API. This is a diagnostic hypothesis, **not an acceptance criterion**;
+the restored renderer's ordinary plan order correctly does not satisfy shared-first ordering.
+The rejected staged capture's derived schema 1 checks its former conversion-before-all-APIs
+property. Derived schema 2 checks shared-first, with all 600 shared-first frames covered and
+zero violations/unknowns. Recomputing schema 2 for staged Q01/Q02 finds 300/298 violating frames
+of 300 each; early Busy can skip window work. Both original analyses remain unchanged. Native
+artifact schema 7 is unchanged. CPU ordering proves neither GPU execution/completion order,
+queue delay, native occupancy nor the full GPU critical path. GPU context/stage spans contain
+waits and CPU command-feed gaps; their percentiles are never added.
+
+The [packet](evidence/mapgyver-m03-shared-first-2026-10-30.json) and
+[4,963,163-byte archive](evidence/mapgyver-m03-shared-first-controls-2026-10-30.zip)
+(658 members, SHA-256 `9a3bd7ba9dac4c719fc293a7791b79de8833603796eeb1e6a83c7ecd6c79765c`)
+preserve four new raw controls/analyses, both rejected execution-source sets, original test
+logs and all six derived order audits. The unchanged baseline packet/archive remain linked
+by hash. Independent reconstruction verifies all 1,800 GPU partitions against native ticks
+and all 1,800 accepted-Spout images against exact renderer source-use/producer versions and
+every matching consumer's raw marker words. No missing image is renormalized away.
+
+Before removal, each corrected experiment passes 156 ordinary Rust tests, 17 Golden native
+tests, two app-native tests, strict Golden clippy and a release build; final shared-first
+validation also passes 274 Python tests. The initial staging-only clippy failure is retained
+as such. The delivered renderer has no source change from the previously validated baseline
+(153 ordinary/17 native/two app-native tests); these are inherited evidence, not a fresh
+post-rollback native run. Final retained Python tests, both Rust formatters, source equality,
+archive and whitespace checks pass; the qualification executable is rebuilt from the restored
+renderer. No SDK/vendor change or schedule implementation survives.
+
+Investigate sender/receiver ownership at the source publication boundary next, preserving
+both independent 60 Hz sources and nonblocking renderer admission. Do not repeat scheduling
+variants or relax source cadence to hide Busy. Gate 9 still requires complete GPU/queue,
+deadline/cadence/age and applicable growth qualification; genuine removal/stuck retirement
+retain gate 4. **M03 stays 7/9; overall stays 3/10 (30%).**
+
 ## Opaque output shader branch — 2026-10-30
 
 FXC disassembly identifies an existing cost on opaque output: the conditional expression

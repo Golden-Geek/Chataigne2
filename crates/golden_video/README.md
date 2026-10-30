@@ -150,6 +150,12 @@ check input, conversion and outgoing pixels; ordinary rendering adds no pixel re
 controls now have exact Q01 lineage and no observed Q02 pixel mismatch, but Q02 capture coverage,
 cadence/age and complete native qualification remain open. Earlier failed captures are preserved.
 
+Native output conversion/publication retains compiled plan order. The
+[rejected scheduling controls](../../docs/progress/mapgyver-m03-qualification-runner.md#rejected-native-output-order-experiments--2026-10-30)
+preserve staged-conversion and shared-first experiments whose Q02 controls regressed. The
+app-owned offline CPU-order audit describes those experiments; it adds no runtime acceptance
+requirement and establishes no GPU readiness, queue depth or critical path.
+
 Baseline admission precedes backend initialization. The render core distinguishes pending first
 initialization, ready service and confirmed device loss. Initial `AllocationFailed` results retry
 on the worker with capped, cancellable backoff, retaining the original baseline reservation and

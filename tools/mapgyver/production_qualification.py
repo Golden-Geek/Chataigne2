@@ -27,6 +27,7 @@ COHORT = runpy.run_path(str(Path(__file__).with_name("production_cohort.py")))
 PRESENTMON = runpy.run_path(str(Path(__file__).with_name("production_presentmon.py")))
 DELIVERY_DEADLINES = runpy.run_path(str(Path(__file__).with_name("production_delivery_deadlines.py")))
 GPU_STAGES = runpy.run_path(str(Path(__file__).with_name("production_gpu_stages.py")))
+OUTPUT_ORDER = runpy.run_path(str(Path(__file__).with_name("production_output_order.py")))
 
 
 class ArtifactError(ValueError):
@@ -615,6 +616,8 @@ def analyze_capture(directory):
     return {"directory": str(directory), "manifest": manifest, "prescribed_sample": eligible,
             "criteria": criteria, "cpu": cpu, "renderer_gpu": renderer_gpu, "other_contexts": local_contexts,
             "dependencies": dependencies, "outputs": output_metrics, "producers": producers,
+            "output_submission_order": OUTPUT_ORDER["analyze_output_order"](
+                frame_rows, native["Output"], healthy=healths[0]["complete"]),
             "submission_deadlines": deadlines,
             "delivery_deadlines": delivery_deadlines,
             "native_preparation": preparation,
@@ -678,6 +681,7 @@ def fingerprints(executable):
               Path(__file__).with_name("production_deadlines.py"), ROOT / "apps/mapgyver/Cargo.toml",
               Path(__file__).with_name("production_delivery_deadlines.py"),
               Path(__file__).with_name("production_gpu_stages.py"),
+              Path(__file__).with_name("production_output_order.py"),
               ROOT / "crates/golden_time/Cargo.toml", ROOT / "crates/golden_video/Cargo.toml",
               ROOT / "apps/mapgyver/build.rs"]
     for directory in ("crates/golden_time/src", "crates/golden_video/src", "crates/golden_core/hosts/desktop/src",

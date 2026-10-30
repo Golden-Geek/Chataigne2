@@ -5,15 +5,15 @@
 **Updated: 2026-10-30 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
 **Current topic:** M03 remains **7/9** accepted gates. The
-[opaque output branch](mapgyver-m03-qualification-runner.md#opaque-output-shader-branch--2026-10-30)
-reduces isolated 4K draw median 0.802858 → 0.683555 ms (14.86%). The short branch-only Q02
-control has renderer-context GPU p95 14.8372 → 11.4896 ms, main/Spout 300 accepted calls and
-editor 299, with 300/300 exact Spout captures. Q01 p95 worsens 3.8685 → 4.7699 ms; producer
-results remain mixed. A more complex hardware-Spout/SDK experiment is rejected and removed,
-with its failures/source preserved. No full GPU-path or cadence gate closes.
+[output-order controls](mapgyver-m03-qualification-runner.md#rejected-native-output-order-experiments--2026-10-30)
+reject both conversion staging and a cold-prepared shared-first schedule: short Q02 GPU p95
+worsens from 11.4896 to 14.3252 and 17.4177 ms respectively. The latter also accepts only
+270 main and 251 editor calls of 300 opportunities. Both experiments are removed; the renderer
+is restored to the published opaque-branch baseline. Exact sources, raw controls and a focused
+CPU-order audit preserve the result. No full GPU-path or cadence gate closes.
 
-**Next:** address Q02 producer/editor cadence and inspect native publication/dependency ordering
-before more pixel-math work; complete GPU
+**Next:** inspect source sender/receiver ownership and the existing zero-timeout publication
+boundary before choosing a bounded admission fix; do not repeat output-order variants. Complete GPU
 critical-path and native buffer/GPU-queue measurements (gate 9), then address remaining
 cadence, capture coverage and growth qualification. Native
 device removal and bounded stuck retirement retain gate 4.
@@ -295,9 +295,14 @@ repeat the built-in WPR GPU profile without a concrete decoder/provider change.
 The opaque shader branch now skips unused transfer math for linear targets. Its isolated
 4K draw control improves about 15%, and branch-only Q02 renderer-context p95 falls to 11.4896 ms.
 Q01 tails regress and source-A admission worsens; accepted-Spout capture coverage remains
-complete. The rejected hardware-Spout/SDK path is fully removed. Inspect publication/dependency
-ordering and source/editor admission next; a gap between different benchmarks is not measured
-queue time. No graphics settings were changed.
+complete. The rejected hardware-Spout/SDK path is fully removed. Publication/dependency
+ordering was the next experiment: both staged conversion and cold-prepared shared-first
+schedules now regress Q02 and are removed. Their complete evidence is retained, including
+the shared-first main/editor shortfalls. The next bounded investigation is sender/receiver
+ownership at the source publication boundary; preserve both independent 60 Hz source contracts,
+renderer nonblocking admission, every attempted publication and existing qualification budgets.
+Do not start another output-order variant or change fixture pacing to hide Busy outcomes.
+A gap between different benchmarks is not measured queue time. No graphics settings were changed.
 Complete GPU critical-path and queue/consumption measurement
 before the prescribed qualification series (gate 9).
 Genuine native device-removal recovery and bounded stuck-drain retirement retain gate 4.
@@ -447,6 +452,38 @@ Preserve Chataigne's unfinished engine/Spatializer P11 checkpoint (four of six f
 and its [separate ledger](implementation-status.md). Shared P12 boundary repairs belong to M02;
 P14/P15 time and asset contracts retain their shared Golden owners under M03. Root launch
 behavior is unchanged. No production host/backend/binding decision is final yet.
+
+## M03 rejected output-order experiments — 2026-10-30
+
+Two bounded output-order experiments did not justify a renderer change. Staging every output
+conversion before publication regresses short Q02 renderer-context GPU p95 from 11.4896 to
+14.3252 ms. A simpler schedule prepared once per generation publishes shared outputs before
+window conversion/Present, but regresses Q02 p95 further to 17.4177 ms and accepts only
+270/300 main and 251/300 editor calls. Q01 p95 is 4.7699/3.7407/4.8264 ms for baseline/staged/shared.
+These sequential short controls do not isolate cause; neither experiment earns retention.
+
+Both implementations and their three schedule tests are removed. Golden Video native sources
+match published `b68a5f06`; its shader branch, resource pools, source pacing, fences, copies,
+SDK and plan-order output delivery remain intact. The retained app-owned offline audit observes
+the rejected shared-first hypothesis on exact CPU frame tokens. It is descriptive, outside
+the acceptance criteria, and correctly returns false for the restored plan order. CPU order
+does not certify GPU readiness or queues.
+
+The [packet](evidence/mapgyver-m03-shared-first-2026-10-30.json) and
+[raw archive](evidence/mapgyver-m03-shared-first-controls-2026-10-30.zip) retain four new controls,
+both rejected execution-source sets, validation logs and six independently reconstructed
+cohorts including the unchanged published baseline. All 1,800 GPU partitions and 1,800 exact
+accepted-Spout image/source-marker joins verify; no missing accepted image is discarded.
+The shared-first property covers all 600 final experiment frames with zero unknowns, despite
+its cadence/performance regression. Fixed acceptance remains **7/9; overall 30%**.
+
+Experimental validation passes 156 ordinary Rust, 17 Golden native, two app-native and 274
+Python tests, strict clippy and release build. After rollback, native source equality retains
+the baseline's 153 ordinary/17 native/two app-native evidence; those hardware checks are not
+claimed as newly rerun on the restored tree. Final Python, both formatters, whitespace and
+archive checks and a rebuilt release executable validate the retained tools/docs checkpoint.
+Source admission, complete GPU/
+queue and cadence/growth coverage, genuine removal and stuck retirement remain open.
 
 ## M03 opaque output branch — 2026-10-30
 
