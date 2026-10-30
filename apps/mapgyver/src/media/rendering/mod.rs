@@ -9,6 +9,8 @@ pub use preview::ChannelPreview;
 use super::capture::CapturedChannels;
 use super::protocol::{ChannelReference, ChannelSource};
 use super::resolution::ChannelResolution;
+use crate::screens::protocol::ScreenId;
+pub use crate::screens::rendering::ScreenRoute;
 use golden_video::plan::PlanLimits;
 use golden_video::runtime::{LatePolicy, PlanActivation, RequestId, RuntimeOutcome, RuntimeSnapshot, VideoRuntime};
 use golden_video::{OutputId, TextureId};
@@ -44,6 +46,7 @@ pub struct ChannelRenderer {
     project: Option<uuid::Uuid>,
     next_texture: u64,
     entries: HashMap<ChannelReference, Entry>,
+    screen_entries: HashMap<ScreenId, TextureId>,
     desired: Option<Desired>,
     observations: Option<SourceObservations>,
     channels: Vec<PreparedChannel>,
@@ -56,6 +59,7 @@ struct Desired {
     capture: CapturedChannels,
     routes: Vec<ChannelRoute>,
     preview: Option<ChannelPreview>,
+    screens: Vec<ScreenRoute>,
 }
 
 impl ChannelRenderer {
@@ -67,6 +71,7 @@ impl ChannelRenderer {
             // Textures 1..=3 belong to this owner's window compositor.
             next_texture: 3,
             entries: HashMap::new(),
+            screen_entries: HashMap::new(),
             desired: None,
             observations: None,
             channels: Vec::new(),
@@ -140,12 +145,26 @@ impl ChannelRenderer {
         routes: Vec<ChannelRoute>,
         preview: Option<ChannelPreview>,
     ) -> Result<RequestId, String> {
+        self.publish_screen_targets(capture, routes, Vec::new(), preview)
+    }
+
+    /// Publish media routes and composed Screen textures through one shared renderer generation.
+    /// Callers capture the union of demanded channel references, so shared sources render once.
+    pub fn publish_screen_targets(
+        &mut self,
+        capture: CapturedChannels,
+        routes: Vec<ChannelRoute>,
+        screens: Vec<ScreenRoute>,
+        preview: Option<ChannelPreview>,
+    ) -> Result<RequestId, String> {
         if !capture.is_current() {
             return Err("captured channels are stale".into());
         }
+        self.validate_screens(&capture, &screens)?;
         if self.project.is_some_and(|project| project != capture.project) {
             self.runtime.replace_project().map_err(|error| error.to_string())?;
             self.entries.clear();
+            self.screen_entries.clear();
             self.observations = None;
             self.desired = None;
             self.latest_request = None;
@@ -153,7 +172,7 @@ impl ChannelRenderer {
         }
         self.project = Some(capture.project);
         let observations = self.source_observations();
-        self.publish_observed_targets(capture, routes, observations, preview)
+        self.publish_observed_targets(capture, routes, observations, preview, screens)
     }
 
     pub fn publish_observed(
@@ -162,7 +181,7 @@ impl ChannelRenderer {
         routes: Vec<ChannelRoute>,
         observations: SourceObservations,
     ) -> Result<RequestId, String> {
-        self.publish_observed_targets(capture, routes, observations, None)
+        self.publish_observed_targets(capture, routes, observations, None, Vec::new())
     }
 
     fn publish_observed_targets(
@@ -171,10 +190,12 @@ impl ChannelRenderer {
         routes: Vec<ChannelRoute>,
         observations: SourceObservations,
         preview: Option<ChannelPreview>,
+        screens: Vec<ScreenRoute>,
     ) -> Result<RequestId, String> {
         if !capture.is_current() || self.project.is_some_and(|project| project != capture.project) {
             return Err("captured channels belong to a stale project/revision".into());
         }
+        self.validate_screens(&capture, &screens)?;
         let current = self.runtime.snapshot();
         if observations.project != current.project
             || (observations.device.is_some()
@@ -188,6 +209,9 @@ impl ChannelRenderer {
             if let Some(preview) = &preview {
                 demanded.extend(preview.references()?);
             }
+            for screen in &screens {
+                demanded.extend(screen.screen.references());
+            }
             pictures.sync(&capture, &demanded, self.limits.max_external_textures)?;
         }
         let prepared = plan::build(
@@ -195,8 +219,12 @@ impl ChannelRenderer {
             plan::Targets {
                 routes: &routes,
                 preview: preview.as_ref(),
+                screens: &screens,
             },
-            &self.entries,
+            plan::Previous {
+                channels: &self.entries,
+                screens: &self.screen_entries,
+            },
             &mut self.next_texture,
             self.limits,
             &observations,
@@ -210,15 +238,28 @@ impl ChannelRenderer {
             .map_err(|error| error.to_string())?;
         self.project = Some(capture.project);
         self.entries = prepared.entries;
+        self.screen_entries = prepared.screens;
         self.channels = prepared.channels;
         self.desired = Some(Desired {
             capture,
             routes,
             preview,
+            screens,
         });
         self.observations = Some(observations);
         self.latest_request = Some(request);
         Ok(request)
+    }
+
+    fn validate_screens(&self, capture: &CapturedChannels, screens: &[ScreenRoute]) -> Result<(), String> {
+        if screens.len() > self.limits.max_outputs
+            || screens
+                .iter()
+                .any(|route| route.screen.project != capture.project || !route.screen.is_current())
+        {
+            return Err("Screen routes exceed limits or belong to a stale/different project".into());
+        }
+        Ok(())
     }
 
     /// Invoke on a worker notification. Frame counters are excluded from observation equality;
@@ -242,8 +283,14 @@ impl ChannelRenderer {
         let Some(desired) = self.desired.clone() else {
             return Ok(None);
         };
-        self.publish_observed_targets(desired.capture, desired.routes, observations, desired.preview)
-            .map(Some)
+        self.publish_observed_targets(
+            desired.capture,
+            desired.routes,
+            observations,
+            desired.preview,
+            desired.screens,
+        )
+        .map(Some)
     }
 
     /// Latest admitted desired metadata; reliable Installed outcomes identify the live generation.

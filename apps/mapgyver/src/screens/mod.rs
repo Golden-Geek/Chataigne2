@@ -2,9 +2,9 @@
 
 mod authoring;
 mod commands;
-mod geometry;
 mod nodes;
 pub mod protocol;
+pub mod rendering;
 mod scripting;
 
 pub use authoring::{apply_operation, initialize, inspect, validate_project};

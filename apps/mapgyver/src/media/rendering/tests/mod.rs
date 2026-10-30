@@ -2,6 +2,7 @@ mod capture;
 mod pictures;
 mod preview;
 mod publication;
+mod screens;
 
 use super::*;
 use crate::app::AppEngine;

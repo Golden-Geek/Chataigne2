@@ -3,8 +3,8 @@ use crate::TextureId;
 use super::SampleFilter;
 
 /// Rectangle in normalized source or target coordinates. Execution validation requires finite
-/// coordinates, positive extents and containment in the unit square. This is not a wire type.
-#[derive(Clone, Copy, Debug, PartialEq)]
+/// coordinates, positive extents and containment in the unit square.
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize, ts_rs::TS)]
 pub struct UnitRect {
     /// Left edge as a fraction of the source or target width.
     pub x: f32,

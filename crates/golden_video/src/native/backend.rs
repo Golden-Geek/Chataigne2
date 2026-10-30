@@ -515,14 +515,12 @@ impl Backend for D3d11Backend {
                                 output
                             }
                         });
-                        pipeline.draw(
+                        pipeline.draw_layer(
                             context,
                             &resources.textures[&layer.source],
                             previous.map(Rc::as_ref),
                             target.as_ref().into(),
-                            layer.opacity.get(),
-                            layer.blend,
-                            layer.filter,
+                            layer,
                         );
                     }
                 }

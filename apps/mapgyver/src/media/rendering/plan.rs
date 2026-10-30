@@ -1,7 +1,8 @@
-use super::{ChannelRoute, Entry, PreparedChannel, SourceObservations};
+use super::{ChannelRoute, Entry, PreparedChannel, ScreenRoute, SourceObservations};
 use crate::media::capture::CapturedChannels;
 use crate::media::protocol::{ChannelReference, ChannelSource};
 use crate::media::resolution::{self, ChannelAvailability, ChannelResolution, SourceObservation};
+use crate::screens::protocol::ScreenId;
 use golden_video::plan::{
     ExternalTexture, PlanLimits, PlanOutput, RenderOperation, RenderPass, RenderPlan, SpoutSource,
 };
@@ -16,6 +17,12 @@ pub(super) struct Prepared {
     pub submission: PlanSubmission,
     pub entries: HashMap<ChannelReference, Entry>,
     pub channels: Vec<PreparedChannel>,
+    pub screens: HashMap<ScreenId, TextureId>,
+}
+
+pub(super) struct Previous<'a> {
+    pub channels: &'a HashMap<ChannelReference, Entry>,
+    pub screens: &'a HashMap<ScreenId, TextureId>,
 }
 
 fn allocate(next: &mut u64) -> Result<TextureId, String> {
@@ -28,19 +35,31 @@ fn allocate(next: &mut u64) -> Result<TextureId, String> {
 pub(super) struct Targets<'a> {
     pub routes: &'a [ChannelRoute],
     pub preview: Option<&'a super::ChannelPreview>,
+    pub screens: &'a [ScreenRoute],
 }
 
 pub(super) fn build(
     capture: &CapturedChannels,
     targets: Targets<'_>,
-    previous: &HashMap<ChannelReference, Entry>,
+    previous: Previous<'_>,
     next: &mut u64,
     limits: PlanLimits,
     observations: &SourceObservations,
     pictures: Option<&crate::media::picture::Pictures>,
 ) -> Result<Prepared, String> {
-    let Targets { routes, preview } = targets;
-    if routes.len() > limits.max_outputs || capture.channels.len() > limits.max_passes {
+    let Targets {
+        routes,
+        preview,
+        screens,
+    } = targets;
+    let screen_count = screens
+        .iter()
+        .map(|route| route.screen.id)
+        .collect::<HashSet<_>>()
+        .len();
+    if routes.len().saturating_add(screens.len()) > limits.max_outputs
+        || capture.channels.len().saturating_add(screen_count) > limits.max_passes
+    {
         return Err("channel scene exceeds admitted route/channel counts".into());
     }
     let captured = capture
@@ -64,12 +83,19 @@ pub(super) fn build(
     if let Some(preview) = preview {
         references.extend(preview.references()?);
     }
+    for route in screens {
+        if route.screen.project != capture.project || !route.screen.is_current() {
+            return Err("Screen belongs to a stale/different project".into());
+        }
+        guards.extend(route.screen.guards.iter().cloned());
+        references.extend(route.screen.references());
+    }
     for reference in references {
         if let std::collections::hash_map::Entry::Vacant(slot) = entries.entry(reference) {
             let channel = captured
                 .get(&reference)
                 .ok_or("route was not captured from the backend")?;
-            let mut entry = match previous.get(&reference) {
+            let mut entry = match previous.channels.get(&reference) {
                 Some(entry) => entry.clone(),
                 None => Entry {
                     target: allocate(next)?,
@@ -101,7 +127,11 @@ pub(super) fn build(
                         let id = if let Some(id) = image_sources.get(&asset) {
                             *id
                         } else {
-                            let id = match previous.get(&reference).and_then(|entry| entry.source.as_ref()) {
+                            let id = match previous
+                                .channels
+                                .get(&reference)
+                                .and_then(|entry| entry.source.as_ref())
+                            {
                                 Some((id, configured)) if configured == source => *id,
                                 _ => allocate(next)?,
                             };
@@ -227,6 +257,44 @@ pub(super) fn build(
             source: entries[&route.channel].target,
         });
     }
+    let mut screen_entries = HashMap::new();
+    let mut screen_extents = HashMap::new();
+    let source_targets = entries
+        .iter()
+        .map(|(reference, entry)| (*reference, entry.target))
+        .collect();
+    for route in screens {
+        if !seen_outputs.insert(route.output) {
+            return Err("Screen output duplicates an output route".into());
+        }
+        if let std::collections::hash_map::Entry::Vacant(slot) = screen_entries.entry(route.screen.id) {
+            let target = match previous.screens.get(&route.screen.id) {
+                Some(target) => *target,
+                None => allocate(next)?,
+            };
+            slot.insert(target);
+            screen_extents.insert(route.screen.id, route.extent);
+            submission.plan.passes.push(RenderPass {
+                id: PassId::new(target.get()).unwrap(),
+                output: target,
+                descriptor: TextureDescriptor {
+                    extent: route.extent,
+                    format: PixelFormat::Rgba8Unorm,
+                    color_encoding: ColorEncoding::Linear,
+                    alpha_mode: AlphaMode::Premultiplied,
+                },
+                operation: RenderOperation::Composite {
+                    layers: route.screen.layers(&source_targets)?,
+                },
+            });
+        } else if screen_extents.get(&route.screen.id) != Some(&route.extent) {
+            return Err("a Screen may have only one authored output extent per generation".into());
+        }
+        submission.plan.outputs.push(PlanOutput {
+            id: route.output,
+            source: screen_entries[&route.screen.id],
+        });
+    }
     if let Some(preview) = preview {
         if !seen_outputs.insert(preview.output) {
             return Err("preview output duplicates an output route".into());
@@ -244,5 +312,6 @@ pub(super) fn build(
         submission,
         entries,
         channels,
+        screens: screen_entries,
     })
 }

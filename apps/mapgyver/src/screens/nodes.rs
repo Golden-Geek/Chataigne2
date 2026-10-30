@@ -18,6 +18,7 @@ use super::{
 pub struct ScreenManagerNode {
     data: NodeData,
     owner: Arc<()>,
+    revision: RevisionSource,
 }
 
 impl ScreenManagerNode {
@@ -27,7 +28,12 @@ impl ScreenManagerNode {
         Self {
             data,
             owner: Arc::new(()),
+            revision: RevisionSource::default(),
         }
+    }
+    pub(crate) fn guard(&self) -> RevisionGuard {
+        let reader = self.revision.reader();
+        reader.guard_at(reader.current())
     }
 }
 
@@ -60,9 +66,14 @@ impl Node for ScreenManagerNode {
         (node_type == "mapgyver.screen.manager").then(Self::new)
     }
     fn destroy(&mut self, _: &mut ProcessCtx) {
+        self.revision.advance();
         self.owner = Arc::new(());
     }
+    fn on_structure_changed(&mut self, _: &mut ProcessCtx) {
+        self.revision.advance();
+    }
     fn on_effective_enabled_changed(&mut self, _: &mut ProcessCtx, enabled: bool) {
+        self.revision.advance();
         if !enabled {
             self.owner = Arc::new(());
         }

@@ -1,7 +1,7 @@
 # Golden Video
 
 Golden Video owns app-neutral video execution contracts. MapGyver owns media/channel identity,
-authored size policy, source selection, mapping and editor behavior. The desktop host owns native
+authored size policy, source selection, mapping policy and editor behavior. The desktop host owns native
 window construction and WebView UI-thread access. Video plans depend on neither app nodes nor Tauri.
 
 The implemented foundations are:
@@ -16,6 +16,14 @@ The implemented foundations are:
 - `plan/` validates the complete submitted dependency graph and caller-supplied limits, then
   compiles only demanded sources/passes in deterministic dependency order. Multiple output
   bindings can share one texture without duplicating its producer or logical storage charge.
+- `plan/mapping.rs` prepares checked crop/projective geometry for ordered compositing layers.
+  Coefficients are solved in f64 and admitted only after checking their f32 corner correspondence
+  and positive denominator branch. Normalized `Point`, `Quad` and `UnitRect` are canonical
+  Serde/TypeScript contracts; applications own their authored meaning and selection policy.
+  Native mapped layers inverse-project target coordinates before sampling the source crop,
+  preserving the accumulated backdrop outside the quad. No intermediate texture per layer is
+  added; composition keeps its existing shared ping-pong storage. Unmapped draws retain the
+  ordinary pixel entry point; the mapped pixel entry point is prepared with the pipeline.
 - `runtime/` owns bounded publication, preparation, frame scheduling, generation installation
   and completion-based resource retirement. `VideoRuntime` starts either the pixel-free null
   qualification backend or the opt-in Windows D3D11 backend through the same control/core path.

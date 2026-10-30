@@ -1,6 +1,7 @@
 use super::*;
 use crate::{AlphaMode, ColorEncoding, Extent2D, PixelFormat};
 
+mod mapping;
 mod regions;
 mod topology;
 mod validation;
@@ -62,6 +63,7 @@ fn layer(source: u64) -> Layer {
         opacity: Opacity::OPAQUE,
         blend: BlendMode::Normal,
         filter: SampleFilter::Linear,
+        mapping: None,
     }
 }
 

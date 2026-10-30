@@ -7,7 +7,7 @@ use windows::Win32::Graphics::Direct3D::{D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST, ID
 use windows::Win32::Graphics::Direct3D11::*;
 use windows::core::{Error, HRESULT, Result, s};
 
-use crate::plan::{BlendMode, BlitRegion, SampleFilter, UnitRect};
+use crate::plan::{BlendMode, BlitRegion, Layer, ProjectiveMapping, SampleFilter, UnitRect};
 use crate::{AlphaMode, ColorEncoding, LinearColor};
 
 use super::texture::Texture;
@@ -49,9 +49,10 @@ struct Parameters {
     has_previous: u32,
     reserved: [u32; 2],
     source_rect: [f32; 4],
+    inverse: [[f32; 4]; 3],
 }
 
-const _: () = assert!(size_of::<Parameters>() == 64);
+const _: () = assert!(size_of::<Parameters>() == 112);
 pub(super) const CONSTANT_BYTES: u64 = size_of::<Parameters>() as u64;
 
 struct DrawSettings {
@@ -60,12 +61,14 @@ struct DrawSettings {
     filter: SampleFilter,
     destination: UnitRect,
     source_rect: UnitRect,
+    mapping: Option<ProjectiveMapping>,
 }
 
 /// All fallible shader/state allocation precedes frame submission.
 pub(super) struct Pipeline {
     vertex: ID3D11VertexShader,
     pixel: ID3D11PixelShader,
+    mapped_pixel: ID3D11PixelShader,
     constants: ID3D11Buffer,
     rasterizer: ID3D11RasterizerState,
     _local: PhantomData<Rc<()>>,
@@ -75,8 +78,10 @@ impl Pipeline {
     pub(super) fn new(device: &ID3D11Device) -> Result<Self> {
         let mut vertex_code = None;
         let mut pixel_code = None;
+        let mut mapped_code = None;
         let mut vertex = None;
         let mut pixel = None;
+        let mut mapped_pixel = None;
         let mut constants = None;
         let mut rasterizer = None;
         // SAFETY: fixed in-memory source, no includes/macros or external compiler inputs.
@@ -117,6 +122,24 @@ impl Pipeline {
                 None,
                 Some(&mut pixel),
             )?;
+            D3DCompile(
+                SHADER.as_ptr().cast(),
+                SHADER.len(),
+                s!("golden-video"),
+                None,
+                None,
+                s!("ps_mapped"),
+                s!("ps_5_0"),
+                0,
+                0,
+                &mut mapped_code,
+                None,
+            )?;
+            device.CreatePixelShader(
+                blob(mapped_code.as_ref().ok_or_else(missing_output)?),
+                None,
+                Some(&mut mapped_pixel),
+            )?;
             device.CreateBuffer(
                 &D3D11_BUFFER_DESC {
                     ByteWidth: size_of::<Parameters>() as u32,
@@ -141,6 +164,7 @@ impl Pipeline {
         Ok(Self {
             vertex: vertex.ok_or_else(missing_output)?,
             pixel: pixel.ok_or_else(missing_output)?,
+            mapped_pixel: mapped_pixel.ok_or_else(missing_output)?,
             constants: constants.ok_or_else(missing_output)?,
             rasterizer: rasterizer.ok_or_else(missing_output)?,
             _local: PhantomData,
@@ -175,6 +199,7 @@ impl Pipeline {
                 filter,
                 destination: UnitRect::FULL,
                 source_rect: UnitRect::FULL,
+                mapping: None,
             },
         );
     }
@@ -198,6 +223,31 @@ impl Pipeline {
                 filter: region.filter,
                 destination: region.destination,
                 source_rect: region.source_rect,
+                mapping: None,
+            },
+        );
+    }
+
+    pub(super) fn draw_layer(
+        &self,
+        context: &ID3D11DeviceContext,
+        source: &Texture,
+        previous: Option<&Texture>,
+        target: RenderTarget<'_>,
+        layer: &Layer,
+    ) {
+        self.draw_view(
+            context,
+            source,
+            previous,
+            target,
+            DrawSettings {
+                opacity: layer.opacity.get(),
+                blend: layer.blend,
+                filter: layer.filter,
+                destination: UnitRect::FULL,
+                source_rect: layer.mapping.map_or(UnitRect::FULL, ProjectiveMapping::crop),
+                mapping: layer.mapping,
             },
         );
     }
@@ -216,6 +266,7 @@ impl Pipeline {
             filter,
             destination,
             source_rect,
+            mapping,
         } = settings;
         debug_assert!(opacity.is_finite() && (0.0..=1.0).contains(&opacity));
         if let Some(previous) = previous {
@@ -240,6 +291,7 @@ impl Pipeline {
             has_previous: u32::from(previous.is_some()),
             reserved: [0; 2],
             source_rect: [source_rect.x, source_rect.y, source_rect.width, source_rect.height],
+            inverse: mapping.map_or([[0.0; 4]; 3], ProjectiveMapping::inverse_rows),
         };
         let width = target.descriptor.extent.width() as f32;
         let height = target.descriptor.extent.height() as f32;
@@ -261,7 +313,15 @@ impl Pipeline {
             context.GSSetShader(None, None);
             context.HSSetShader(None, None);
             context.DSSetShader(None, None);
-            context.PSSetShader(&self.pixel, None);
+            // Existing full-target/region draws retain their original pixel entry point.
+            context.PSSetShader(
+                if mapping.is_some() {
+                    &self.mapped_pixel
+                } else {
+                    &self.pixel
+                },
+                None,
+            );
             context.PSSetConstantBuffers(0, Some(&[Some(self.constants.clone())]));
             context.PSSetShaderResources(
                 0,

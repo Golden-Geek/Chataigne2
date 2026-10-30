@@ -233,7 +233,7 @@ fn calibration_and_source_deletion_preserve_routing_and_allow_missing_source_edi
     };
     let mut authored = definition(&engine, reference);
     authored.source = Some(source);
-    authored.crop = Crop {
+    authored.crop = UnitRect {
         x: 0.25,
         y: 0.0,
         width: 0.5,

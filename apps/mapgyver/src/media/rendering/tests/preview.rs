@@ -49,10 +49,14 @@ fn preview_reuses_channel_textures_and_withdraws_geometry_without_revoking_other
     let prepared = super::super::plan::build(
         &capture,
         super::super::plan::Targets {
+            screens: &[],
             routes: &routes(reference),
             preview: Some(&preview),
         },
-        &HashMap::new(),
+        super::super::plan::Previous {
+            channels: &HashMap::new(),
+            screens: &HashMap::new(),
+        },
         &mut next,
         config().plan_limits,
         &renderer.source_observations(),

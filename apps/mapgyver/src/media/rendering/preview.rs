@@ -70,6 +70,7 @@ impl ChannelPreview {
                         opacity: Opacity::OPAQUE,
                         blend: BlendMode::Normal,
                         filter: SampleFilter::Linear,
+                        mapping: None,
                     })
                     .collect(),
             },

@@ -13,6 +13,9 @@ cbuffer Parameters : register(b0) {
     uint has_previous;
     uint2 reserved;
     float4 source_rect;
+    float4 inverse_row0;
+    float4 inverse_row1;
+    float4 inverse_row2;
 };
 
 static const uint ENCODING_SRGB = 1;
@@ -127,11 +130,32 @@ float4 encode_target(float4 value) {
     return float4(color, value.a);
 }
 
-float4 ps_main(Vertex input) : SV_Target {
-    float4 result = sample_source(source_rect.xy + input.uv * source_rect.zw) * opacity;
+float4 finish_pixel(Vertex input, float4 result) {
     if (has_previous != 0) {
         float4 previous = previous_image.Load(int3(int2(input.position.xy), 0));
         result = composite(result, previous);
     }
     return encode_target(result);
+}
+
+float4 ps_main(Vertex input) : SV_Target {
+    return finish_pixel(input, sample_source(source_rect.xy + input.uv * source_rect.zw) * opacity);
+}
+
+float4 ps_mapped(Vertex input) : SV_Target {
+    float3 position = float3(input.uv, 1);
+    float3 projected = float3(
+        dot(inverse_row0.xyz, position),
+        dot(inverse_row1.xyz, position),
+        dot(inverse_row2.xyz, position));
+    float4 source = 0;
+    if (projected.z > 0) {
+        float2 uv = projected.xy / projected.z;
+        if (all(uv >= 0) && all(uv <= 1)) {
+            source = sample_source(source_rect.xy + uv * source_rect.zw) * opacity;
+        }
+    }
+    // Transparent outside the quad preserves the accumulated backdrop, including mirrored
+    // or partially off-target mappings. Crop is applied in source space after inverse warp.
+    return finish_pixel(input, source);
 }

@@ -2,10 +2,12 @@
 
 mod compile;
 mod error;
+mod mapping;
 mod region;
 mod weight;
 
 pub use error::{GraphLimit, PlanError};
+pub use mapping::{MappingError, Point, ProjectiveMapping, Quad};
 pub use region::{BlitRegion, UnitRect};
 
 use crate::{LinearColor, Opacity, OutputId, PassId, TextureDescriptor, TextureId};
@@ -35,7 +37,7 @@ pub enum BlendMode {
     Screen,
 }
 
-/// A full-target sampled layer; geometry belongs to later exercised operations.
+/// An ordered sampled layer, optionally cropped and mapped into a perspective quad.
 #[derive(Clone, Debug)]
 pub struct Layer {
     /// Texture sampled by this layer.
@@ -46,6 +48,8 @@ pub struct Layer {
     pub blend: BlendMode,
     /// Sampling when the source and destination extents differ.
     pub filter: SampleFilter,
+    /// Checked during preparation, never solved on the rendering thread.
+    pub mapping: Option<ProjectiveMapping>,
 }
 
 /// A generic pass operation; no app node or native handle crosses this boundary.

@@ -27,26 +27,26 @@ fn crops_and_quads_admit_offscreen_mirrored_mapping_but_reject_invalid_geometry(
         assert!(Quad { corners }.validate().is_err());
     }
     for crop in [
-        Crop {
+        UnitRect {
             x: 0.0,
             y: 0.0,
             width: 0.0,
             height: 1.0,
         },
-        Crop {
+        UnitRect {
             x: -0.1,
-            ..Crop::default()
+            ..UnitRect::default()
         },
-        Crop {
+        UnitRect {
             width: f32::INFINITY,
-            ..Crop::default()
+            ..UnitRect::default()
         },
-        Crop {
+        UnitRect {
             x: 0.5,
             width: 0.6,
-            ..Crop::default()
+            ..UnitRect::default()
         },
     ] {
-        assert!(crop.validate().is_err());
+        assert!(!crop.is_valid());
     }
 }

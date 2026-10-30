@@ -5,8 +5,8 @@ use golden_video::Extent2D;
 use serde::{Deserialize, Serialize};
 use ts_rs::{Config, TS};
 
-pub use super::geometry::{Crop, Point, Quad};
 use crate::media::protocol::ChannelReference;
+pub use golden_video::plan::{Point, Quad, UnitRect};
 
 pub const SCREEN_NAMESPACE: &str = "mapgyver.screens";
 pub const SCREEN_OPERATION: &str = "edit";
@@ -68,7 +68,7 @@ pub enum Calibration {
 pub struct SurfaceDefinition {
     /// Kept while calibration is active and while the source is missing/deleted.
     pub source: Option<ChannelReference>,
-    pub crop: Crop,
+    pub crop: UnitRect,
     /// Ordered top-left, top-right, bottom-right, bottom-left in normalized Screen coordinates.
     pub quad: Quad,
     pub opacity: f32,
@@ -80,7 +80,7 @@ impl Default for SurfaceDefinition {
     fn default() -> Self {
         Self {
             source: None,
-            crop: Crop::default(),
+            crop: UnitRect::default(),
             quad: Quad::default(),
             opacity: 1.0,
             calibration: Calibration::Off,
@@ -196,8 +196,7 @@ impl ScreenDefinition {
 
 impl SurfaceDefinition {
     pub fn validate(&self) -> Result<(), String> {
-        self.crop.validate()?;
-        self.quad.validate()?;
+        golden_video::plan::ProjectiveMapping::new(self.crop, self.quad).map_err(|error| error.to_string())?;
         if !self.opacity.is_finite() || !(0.0..=1.0).contains(&self.opacity) {
             return Err("surface opacity must be finite and in 0..1".into());
         }

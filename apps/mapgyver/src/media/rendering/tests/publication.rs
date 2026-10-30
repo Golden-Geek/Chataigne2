@@ -95,10 +95,14 @@ fn missing_and_unconfigured_channels_publish_explicit_transparent_placeholders()
     let built = super::super::plan::build(
         &capture,
         super::super::plan::Targets {
+            screens: &[],
             routes: &routes(reference),
             preview: None,
         },
-        &HashMap::new(),
+        super::super::plan::Previous {
+            channels: &HashMap::new(),
+            screens: &HashMap::new(),
+        },
         &mut 0,
         config().plan_limits,
         &observations,
@@ -122,10 +126,14 @@ fn missing_and_unconfigured_channels_publish_explicit_transparent_placeholders()
     let built = super::super::plan::build(
         &capture_channels(&engine, &[wrong], 16).unwrap(),
         super::super::plan::Targets {
+            screens: &[],
             routes: &routes(wrong),
             preview: None,
         },
-        &HashMap::new(),
+        super::super::plan::Previous {
+            channels: &HashMap::new(),
+            screens: &HashMap::new(),
+        },
         &mut 0,
         config().plan_limits,
         &observations,

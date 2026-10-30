@@ -11,8 +11,8 @@ use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct CapturedChannels {
-    pub(super) project: uuid::Uuid,
-    pub(super) guards: Arc<[RevisionGuard]>,
+    pub(crate) project: uuid::Uuid,
+    pub(crate) guards: Arc<[RevisionGuard]>,
     pub(super) channels: Vec<CapturedChannel>,
     pub(super) assets: Vec<CapturedAsset>,
 }

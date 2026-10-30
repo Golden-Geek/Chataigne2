@@ -81,7 +81,18 @@ The focused authoring controller refreshes from committed history, project/conne
 app events rather than polling. Session/project/request fences reject late inspection/edit replies;
 unmount retires the controller. Catalogs do not create thousands of DOM controls: navigation pages
 contain 50 Screens/Surfaces and source search shows at most 100 matches plus the selected source.
-Target connections/windows, perspective rendering, calibration output, display recovery and full
+`src/screens/rendering.rs` captures bounded Screen/Surface metadata and revision guards on the
+control actor. The preparation worker resolves channel textures, validates project identity and
+builds ordered mapped layers through Golden Video. `ChannelRenderer::publish_screen_targets`
+publishes these Screen textures and media routes together, deduplicating demanded channels and
+sharing each Screen pass across same-sized consumers. Surface edits invalidate captures while
+runtime texture identities remain stable. Source deletion keeps an explicit transparent channel
+placeholder and Undo restores it. Initial Surface resampling is linear.
+
+Golden owns checked inverse homographies and GPU sampling; authoring uses these same validation
+primitives before mutation. Source crop precedes perspective mapping, with mirrored/off-screen
+quads supported. Finite native reference patterns cover crop/warp and alpha/backdrop preservation.
+Screen preview/target connections, calibration output, display recovery and full
 graphical Screen/Surface Source editor gestures remain M05 work. Authored target data alone does
 not open an output or establish native display qualification; the panel states that limit.
 
