@@ -27,4 +27,5 @@ mod schedule_ordering;
 mod script_arguments;
 mod script_properties;
 mod tree_revisions;
+mod trigger_history;
 mod ui_event_ordering;

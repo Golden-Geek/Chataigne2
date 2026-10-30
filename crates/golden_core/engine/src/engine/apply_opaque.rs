@@ -253,11 +253,15 @@ impl<T: Node> Engine<T> {
         callback: impl FnOnce(&mut T, &mut ProcessCtx) -> Result<(), String>,
         reject: impl Fn(String, String) -> EngineEditError,
     ) -> Result<AppliedEdit<Option<AuthoredNodeEffect>>, EngineEditError> {
-        let target = self.nodes.get(node).ok_or(EngineEditError::NodeNotFound {
+        let values = &self.parameter_values_cache;
+        let target = self.nodes.get_mut(node).ok_or(EngineEditError::NodeNotFound {
             edit_index,
             operation,
             node,
         })?;
+        // Synchronize before history capture: refreshing a handle cache is not an authored edit.
+        // This also covers direct method calls immediately after project decode.
+        target.engine_sync_bound_param_handles(&mut |id| values.get(&id).cloned());
         let node_type = target.get_type().to_string();
         let binding = NodeBinding::capture(target.node_data());
         let old = if capture {

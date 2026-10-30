@@ -149,7 +149,7 @@ impl<'a> NodeScriptHostBridge<'a> {
 impl ScriptHostBridge for NodeScriptHostBridge<'_> {
     fn invoke_app_operation(&mut self, request: crate::script::ScriptAppOperationRequest) -> Result<(), String> {
         self.ctx
-            .enqueue_script_app_operation(self.script_node, self.operation_owner.clone(), request);
+            .enqueue_app_operation(self.script_node, self.operation_owner.clone(), request);
         Ok(())
     }
     fn owner_node(&self) -> Option<NodeId> {

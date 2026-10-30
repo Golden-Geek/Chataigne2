@@ -331,6 +331,11 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
     let manager = manager(engine)?;
     for (_, node) in engine.nodes.iter() {
         match node {
+            AppNode::MediaCommand(node) => {
+                if node.node_data().parent != Some(manager) {
+                    return Err("media command is outside its manager".into());
+                }
+            }
             AppNode::MediaAsset(node) => {
                 if node.node_data().parent != Some(manager) {
                     return Err("asset is outside its catalog".into());

@@ -23,7 +23,7 @@ const WAIT: Duration = Duration::from_secs(5);
 struct OwnedRenderer(Option<ChannelRenderer>);
 impl Drop for OwnedRenderer {
     fn drop(&mut self) {
-        if let Some(renderer) = self.0.take() {
+        if let Some(mut renderer) = self.0.take() {
             let video = renderer.retirement();
             let pictures = renderer.picture_retirement();
             renderer.close();

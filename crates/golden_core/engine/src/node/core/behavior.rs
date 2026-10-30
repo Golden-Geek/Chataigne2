@@ -278,12 +278,27 @@ pub trait Node: Send + Any {
     }
 
     #[doc(hidden)]
+    /// Handles app-specific methods before the standard node script methods.
+    /// Return `false` to retain ordinary node behavior such as metadata edits and child creation.
+    fn engine_call_custom_script_method(
+        &mut self,
+        _ctx: &mut ProcessCtx,
+        _method: &str,
+        _args: &[ParamValue],
+    ) -> Result<bool, String> {
+        Ok(false)
+    }
+
+    #[doc(hidden)]
     fn engine_call_script_method(
         &mut self,
         ctx: &mut ProcessCtx,
         method: &str,
         args: &[ParamValue],
     ) -> Result<bool, String> {
+        if self.engine_call_custom_script_method(ctx, method, args)? {
+            return Ok(true);
+        }
         match method {
             "setName" => {
                 let Some(label) = args.first().and_then(ParamValue::as_str) else {

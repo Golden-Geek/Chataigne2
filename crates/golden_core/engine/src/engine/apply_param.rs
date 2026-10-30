@@ -164,6 +164,12 @@ impl<T: Node> Engine<T> {
             }
         }
 
+        // A trigger pulse emits an event without changing authored state. Recording it in
+        // history adds an empty undo step and can execute a command again during replay.
+        if matches!((&old_value, &new_value), (ParamValue::Trigger(), ParamValue::Trigger())) {
+            return Ok(None);
+        }
+
         Ok(Some(SetParamEffect {
             node,
             old_value,

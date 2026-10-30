@@ -4,17 +4,18 @@
 
 **Updated: 2026-10-30 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
-**Current topic:** M04 has Solid Color authoring, Picture import/selection/relink and Shared Texture
-source controls.
+**Current topic:** M04's Media Manager/module integration gate is accepted: default registration,
+backend authoring/inspection, commands, script methods, committed-result callbacks and embedded
+app-owned snippets. Solid Color, Picture and Shared Texture source controls are implemented.
 Atomic Picture import is verified through the backend and QuickJS; its interactive UI check is
 still open. The first Solid Color UI slice was exercised live. M03 remains **7/9**;
 its open qualification no longer serializes all feature development. The
 [execution correction](../plan/MapGyver_Implementation_Plan.md#execution-correction--2026-10-30)
-changes work order, not acceptance. M04 remains **0/6 complete gates** because its full source,
-native preview and module integration scope is still open; see the verified slice below.
+changes work order, not acceptance. M04 is **1/6 complete gates (17%)**; its full source,
+native preview, recovery and UI parity acceptance remains open.
 
-**Next:** deliver Media Manager module commands/script methods/callbacks/snippets, then bounded
-sender discovery. Picture investigation has reached this batch's two-experiment limit; its
+**Next:** bounded Shared Texture sender discovery and source selection. Picture investigation
+reached product batch 4's two-experiment limit; its
 post-accounting-fix native check remains parked. The ordinary app now
 shows a native Solid Color preview. No timing/driver qualification or M03 stash work is scheduled.
 **Implementation limits:** Picture display is unverified after its admission-accounting correction;
@@ -33,7 +34,7 @@ must be satisfied for production readiness, within the bounded qualification lan
 | [M01 Functional route decision](#m01-acceptance-items) | Complete locally | `████████████████████` 100% | 4/4 |
 | [M02 Multi-app seams/shell](#m02-acceptance-items) | Complete locally | `████████████████████` 100% | 7/7 |
 | [M03 Rendering/channels](#m03-acceptance-items) | Foundations ready; qualification open | `████████████████░░░░` 78% | 7/9 |
-| [M04 Source media](#m04-acceptance-items) | In progress | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/6 |
+| [M04 Source media](#m04-acceptance-items) | Module integration accepted; source acceptance open | `███░░░░░░░░░░░░░░░░░` 17% | 1/6 |
 | [M05 Screens/Surfaces/editors](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M06 Composition/editor](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M07 Matrix/editor](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
@@ -42,7 +43,7 @@ must be satisfied for production readiness, within the bounded qualification lan
 
 Overall counts fully accepted milestones: `3 / 10 = 30%`; partial phases do not advance it.
 Phase percentages count closed acceptance items, rounded to the nearest whole percent
-(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 7 / 9 = 78%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
+(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 7 / 9 = 78%`, `M04: 1 / 6 = 17%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
 its whole plan acceptance as one item unless a fixed breakdown is recorded here before
 implementation continues. On 2026-10-28 the user explicitly approved changing M01 from eight
 full-qualification items to four functional-route items, allowing M02 to start. The original
@@ -57,6 +58,14 @@ denominator changes. See [milestones](#milestones) and [next action](#next-actio
 
 ### M04 acceptance items
 
+**Product batch 5:** started 2026-10-30 **19:59 UTC**, recorded stop **20:44 UTC**.
+Deliver Media Manager command nodes, script-callable methods, committed-result callbacks and
+app-owned snippets through the existing typed media operations. Owner: `apps/mapgyver/src/media`
+and its app registration. Proof: real command/QuickJS execution, atomic failure/history/project
+tests, generated-contract checks and the bundled app build. Keep native qualification parked.
+Any investigation stops after 20 minutes/two experiments; preserve incomplete integration if
+the public command boundary requires more than this batch, without shrinking full M04 scope.
+
 Defined before M04 source implementation on 2026-10-30. This replaces the provisional
 whole-phase item with six fixed gates covering the same complete acceptance; no scope is
 removed and all six start open. M04 percentage is verified closed gates divided by six;
@@ -64,12 +73,57 @@ overall remains fully accepted phases divided by ten.
 
 | Gate | Acceptance | State |
 | --- | --- | --- |
-| 1 | Media Manager in the default project, backend authoring/inspection and module commands, script methods, callbacks and app-owned snippets wired through the same operations | Open |
+| 1 | Media Manager in the default project, backend authoring/inspection and module commands, script methods, callbacks and app-owned snippets wired through the same operations | Accepted — [evidence](#media-module-commands-and-scripts--2026-10-30) |
 | 2 | Solid Color with at least two differently sized channels, automatic/fixed sizing, color/alpha and shared consumers through the app/native rendering path | Open |
 | 3 | Picture worker decode/preparation, pixel/decode/cache bounds, color/alpha, missing/relinked/replaced assets and shared consumers | Open |
 | 4 | Independent multi-channel Shared Texture selection/discovery, absence/restart/rename/resize recovery, one failed channel remaining isolated and explicit adapter mismatch | Open |
 | 5 | App-owned Media Manager UI for inspection and channel/source/size/rename/reorder/delete operations, using backend intents and generated contracts | Open |
 | 6 | UI/script/headless intent parity, stable references through project/history roundtrip and functional native/resource-recreation checks across the source types | Open |
+
+#### Media module commands and scripts — 2026-10-30
+
+- Media Manager now offers a Media Operation command, Rust-serialized creation presets for Solid
+  Color/Picture/Shared Texture and a hosted Media Script. A command's Request parameter accepts
+  the canonical `MediaEdit`, covering all existing authoring/inspection operations; Execute and
+  its script `execute()` method use the same route. No second domain model or Chataigne-private
+  command/module dependency was introduced.
+- Manager methods `editMedia(requestId, requestJson)` and `inspectMedia(requestId)` expose the same
+  operations. App-owned snippets are embedded with `include_str!`, work in packaged builds and
+  subscribe once for `onAppOperationResult`. Applied callbacks carry committed backend identities;
+  domain rejections carry no partial mutation or history. Request JSON is bounded to 64 KiB before
+  DTO decoding; Golden retains its existing request/result lifetime admission and eight-per-turn
+  service bound. Manager/command nodes are passive and command inboxes read bound values without
+  requiring a whole-tree snapshot. Catalog/inspection remains separate from command/script nodes.
+- Golden exposes its existing deferred app request path to nodes via
+  `ProcessCtx::enqueue_app_operation`, preserving callback completion fences, weak source ownership,
+  atomic authoring and admitted result disposal. App source owners expire on destruction/disablement;
+  disabled commands reject execution. Undo does not resurrect abandoned requests. A small custom
+  script-method hook preserves ordinary node methods when adding app-specific methods.
+- Functional tests caught and fixed two shared runtime defects: opaque method/mutation callbacks
+  now synchronize bound parameter values before running (including immediately after project load),
+  and identical trigger pulses emit events without an authored undo step or clearing redo. Command
+  undo therefore reverses the structural operation once; replay does not fire the command again.
+- **Verified:** **50/50 MapGyver tests pass**, including nine new command/method suites for
+  all creation presets through public user-item/trigger intents, real hosted QuickJS success and
+  rejection callbacks, read-only inspection, cancellation/deletion/disablement, failed originating
+  batches, default-method fallback, embedded factory snippets and command project roundtrip with
+  no load-time execution. The production actor services an ordinary UI trigger without manual
+  request pumping, creates exactly one history step and undoes the structural operation once.
+  That test initially compared history before startup cleared it; its corrected baseline is
+  captured after runtime startup. The final code passes **656 shared engine tests**, with three
+  existing ignored tests, including a new trigger-event/history/redo regression. Strict Clippy
+  passes for app/engine **all features, bins and tests**; the bundled desktop build passes.
+  All-feature compilation also exposed two native test cleanup callers missed by the earlier
+  mutable `close` API change; both are corrected. Native test code was type-checked by Clippy,
+  not executed, and no native Picture or M03 experiment was started in this batch. The
+  `--no-default-features --bins` check also passes, preserving engine/headless launch paths.
+- **M04 gate 1 closes** from the verified module integration above. M04 advances **0/6 → 1/6
+  (17%)**; no denominator or acceptance scope changes. M03 remains **7/9**, overall **3/10 (30%)**.
+  Gates 2–6 retain the full source/native/recovery/UI parity requirements, including unavailable
+  interactive form checks, sender discovery and the retained Picture display/admission limits.
+- Implementation/check work completed at **20:33 UTC**, before the recorded **20:44 UTC** stop.
+  Both workspaces are formatted. This is a reviewable product checkpoint for milestone delivery;
+  the next batch starts with sender discovery, without restoring M03's parked investigation.
 
 **First product batch:** started 2026-10-30 18:07 UTC, feature verification completed at 18:32 UTC,
 within the recorded **18:52 UTC** stop (45 minutes). Owners: `apps/mapgyver/src/media` and
@@ -264,14 +318,15 @@ batches per diagnostic-only batch; no consecutive diagnostic-only turns by defau
 two batches without a usable capability or acceptance closure, reduce the feature slice or
 choose another functionally ready product task. Do not add another measurement prerequisite.
 
-**Product-delivery count since correction: 4/4. Diagnostic-only batch allowance: 1, unused.**
+**Product-delivery count since correction: 5. Diagnostic-only batch allowance: 1, unused.**
 The first authoring slice and the new atomic Picture import capability (verified through backend/
 QuickJS) count as product delivery; the earlier workflow/docs checkpoint does not. Picture UI
 interaction is not counted as verified acceptance. The observed ordinary-app Solid Color preview
 is the third usable capability. Shared Texture source editing is the fourth; its backend/native
 metadata observation does not claim interactive form or recovery acceptance. The failed Picture
 display checks are not gate closure. The available diagnostic batch is not the default next task;
-module commands/scripts remain the next product deliverable.
+module commands/scripts are the fifth delivered capability and close M04 gate 1. Sender discovery
+is the next product deliverable.
 Qualification may interrupt only for a reproduced blocker on the selected product path or an
 explicit user request; otherwise it resumes in its scheduled lane after product delivery.
 
@@ -470,18 +525,19 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-Deliver **M04 module commands/script methods/callbacks/app-owned snippets**, then bounded sender
-discovery. Shared Texture source editing is available; native Picture display after the admission
+Deliver **M04 bounded Shared Texture sender discovery/selection**. Module commands, script methods,
+callbacks and snippets are verified through the same backend route; gate 1 is accepted. Shared
+Texture source editing is available; native Picture display after the admission
 correction stays parked after this batch's two experiments. The ordinary-app Solid Color preview
 and normal shutdown after Picture demand are observed; use bounded functional checks.
-Keep Picture UI verification and the module's
-commands/methods/callbacks/app-owned snippets in M04's remaining acceptance. Preserve Chataigne's
+Keep Picture/source UI verification, live source recovery and complete cross-source parity in
+M04's remaining acceptance. Preserve Chataigne's
 root default and unfinished P11 work.
 
 Record the slice's owner, observable result, validation and 45-minute stopping time before
 coding. Ship and push a coherent product checkpoint before the next implementation batch.
-The delivered authoring/import/native Solid Color/Shared Texture editing capabilities advance the
-counter to **4/4**; documentation alone earns no credit. One diagnostic-only batch is available but
+The delivered authoring/import/native Solid Color/Shared Texture editing/module integration
+capabilities advance the product counter to **5**; documentation alone earns no credit. One diagnostic-only batch is available but
 not scheduled. Continue the product path; retained M03 qualification is not the default work queue.
 
 M03 gates 4 and 9 remain open and owned by M03. Preserve every original budget, failure and

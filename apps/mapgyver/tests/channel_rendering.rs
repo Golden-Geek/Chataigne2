@@ -88,7 +88,7 @@ impl Drop for Producer {
 struct OwnedRenderer(Option<ChannelRenderer>);
 impl Drop for OwnedRenderer {
     fn drop(&mut self) {
-        if let Some(renderer) = self.0.take() {
+        if let Some(mut renderer) = self.0.take() {
             let retirement = renderer.retirement();
             renderer.close();
             drop(renderer);

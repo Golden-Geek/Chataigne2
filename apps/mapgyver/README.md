@@ -38,6 +38,28 @@ does not allocate identities, choose backend defaults or mutate node internals.
 App invariants run at the detached candidate-validation boundary, after queued
 default/load edits attach and before live activation, for both startup and replacement.
 
+Media Manager's Add menu offers Media Operation commands, creation presets for each source kind,
+and a Media Script with app-owned function/callback snippets. Commands keep a JSON `MediaEdit`
+request and correlation id in ordinary authored parameters; Execute or `command.execute()` runs
+it through the same atomic backend route. The generic command supports the complete operation
+contract, including channel configuration, import/relink, rename, reorder, removal and inspection.
+Presets are serialized from Rust operations rather than separate schemas or default policies.
+
+Hosted scripts expose `local.editMedia(requestId, requestJson)` and
+`local.inspectMedia(requestId)`. Call `local.listen({ level: 1 })` once to receive
+`onAppOperationResult(reply)` for manager methods and its direct commands. Applied replies carry
+the committed `MediaEditResult`; rejected operations carry a message and no partial changes.
+Use distinct correlation ids for concurrent requests. Any script can also use Golden's existing
+`gc.invokeAppOperation` route. The ready-to-use snippets live under
+`src/media/script_templates/snippets` and are embedded in the app, including packaged builds.
+
+Golden's public `ProcessCtx::enqueue_app_operation` admits node requests under the same bounded
+service, callback completion fences and result/disposal ownership as script requests. Source
+destruction or disablement expires MapGyver's request owner, so Undo cannot resurrect abandoned
+work. Manager and command nodes are passive; no polling or recurring engine work was added.
+Command triggers emit pulses without an empty history entry. One successful structural operation
+is one Undo step, and merely loading a saved command does not execute it.
+
 On Windows, the ordinary app now enables worker-owned native channel previews by default.
 The selected channel registers a clipped region through `golden_video_ui`; app routing and
 preparation live under `src/media/preview` and `src/media/rendering`. Golden owns the window,
@@ -58,8 +80,8 @@ scratch allowance. Actual retained bytes and working reservations remain bounded
 per-plan input bound still limits larger pictures and shared-input counts; full source-budget
 integration remains open. This is functional integration, not timing, color/DPI, recovery or resource
 qualification. The retained native failures are recorded in the ledger.
-Module command nodes and app-owned script snippets
-also remain part of M04. See the [active acceptance ledger](../../docs/progress/mapgyver-status.md#m04-acceptance-items).
+Remaining M04 source/recovery/UI parity checks are tracked in the
+[active acceptance ledger](../../docs/progress/mapgyver-status.md#m04-acceptance-items).
 The native feasibility probe under `tools/mapgyver/native-probe` remains a separate
 diagnostic executable; it is not the app's rendering implementation.
 

@@ -72,7 +72,7 @@ fn history_callback_requests_receive_rejection_without_authored_effects() {
         .finish(json!("must-not-exist"))
         .unwrap();
     let mut ctx = ProcessCtx::new(crate::process_ctx::ExecutionPhase::EngineTick, engine.time);
-    ctx.enqueue_script_app_operation(source, std::sync::Arc::downgrade(&owner), request);
+    ctx.enqueue_app_operation(source, std::sync::Arc::downgrade(&owner), request);
     engine.absorb_history_callback_edits(&mut ctx).unwrap();
     service_script_app_operations(&mut engine).unwrap();
     assert_eq!(engine.nodes.len(), nodes);
@@ -141,7 +141,7 @@ fn rolled_back_originating_callbacks_cannot_apply_deferred_app_operations() {
             .finish(json!("must-not-exist"))
             .unwrap();
         let mut ctx = ProcessCtx::new(crate::process_ctx::ExecutionPhase::EngineTick, engine.time);
-        ctx.enqueue_script_app_operation(source, std::sync::Arc::downgrade(&owner), request);
+        ctx.enqueue_app_operation(source, std::sync::Arc::downgrade(&owner), request);
         engine.absorb_edits(&mut ctx)?;
         engine.apply_edits()?;
         service_script_app_operations(engine)?;

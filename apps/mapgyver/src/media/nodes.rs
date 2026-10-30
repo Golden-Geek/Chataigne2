@@ -1,7 +1,10 @@
-use std::any::Any;
+use std::{any::Any, sync::Arc};
 
-use golden_core::node::{Node, NodeData};
+use golden_core::events::CustomEvent;
+use golden_core::node::{Node, NodeData, NodeScriptDescriptor, UserContainerRules, UserCreatableItem};
+use golden_core::parameter::ParamValue;
 use golden_core::process_ctx::ProcessCtx;
+use golden_core::script::{ScriptHostPolicy, ScriptNode};
 use golden_io::{RevisionGuard, RevisionSource};
 use serde_json::Value;
 
@@ -12,6 +15,7 @@ pub struct MediaManagerNode {
     pub(crate) instance: uuid::Uuid,
     project: RevisionSource,
     membership: RevisionSource,
+    operation_owner: Arc<()>,
 }
 
 impl MediaManagerNode {
@@ -23,6 +27,7 @@ impl MediaManagerNode {
             instance: uuid::Uuid::new_v4(),
             project: RevisionSource::default(),
             membership: RevisionSource::default(),
+            operation_owner: Arc::new(()),
         }
     }
     pub(crate) fn project_guard(&self) -> RevisionGuard {
@@ -36,10 +41,23 @@ impl MediaManagerNode {
 }
 
 impl Node for MediaManagerNode {
+    fn needs_update(&self) -> bool {
+        false
+    }
+
+    fn execution_rule(&self) -> golden_core::engine::NodeExecutionRule {
+        golden_core::engine::NodeExecutionRule::passive()
+    }
+
+    fn inbox_requires_tree_snapshot(&self, _: &golden_core::events::EventFrame) -> bool {
+        false
+    }
+
     fn destroy(&mut self, _: &mut ProcessCtx) {
         self.project.advance();
         self.membership.advance();
         self.instance = uuid::Uuid::new_v4();
+        self.operation_owner = Arc::new(());
     }
     fn node_data(&self) -> &NodeData {
         &self.data
@@ -61,6 +79,54 @@ impl Node for MediaManagerNode {
     }
     fn on_structure_changed(&mut self, _: &mut ProcessCtx) {
         self.membership.advance();
+    }
+
+    fn script_host_policy(&self) -> Option<ScriptHostPolicy> {
+        Some(ScriptHostPolicy::default_scriptable())
+    }
+
+    fn user_container_rules(&self) -> Option<UserContainerRules> {
+        Some(UserContainerRules::new(&[
+            super::commands::MEDIA_COMMAND_TYPE,
+            "script",
+        ]))
+    }
+
+    fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
+        let mut items = super::commands::catalog();
+        items.push(UserCreatableItem::new("script", "script", "Media Script"));
+        items
+    }
+
+    fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
+        match node_type {
+            super::commands::MEDIA_COMMAND_TYPE => Some(Box::new(super::commands::MediaCommandNode::create())),
+            "script" => Some(Box::new(ScriptNode::new("Media Script", super::scripting::template()))),
+            _ => None,
+        }
+    }
+
+    fn engine_script_descriptor(&self) -> NodeScriptDescriptor {
+        super::scripting::manager_descriptor()
+    }
+
+    fn engine_call_custom_script_method(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        method: &str,
+        args: &[ParamValue],
+    ) -> Result<bool, String> {
+        super::scripting::manager_method(ctx, self.id(), &self.operation_owner, method, args)
+    }
+
+    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
+        super::scripting::forward_result(ctx, self.id(), event);
+    }
+
+    fn on_effective_enabled_changed(&mut self, _: &mut ProcessCtx, enabled: bool) {
+        if !enabled {
+            self.operation_owner = Arc::new(());
+        }
     }
 }
 

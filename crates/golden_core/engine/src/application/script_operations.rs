@@ -54,7 +54,7 @@ pub fn service_script_app_operations<T: ProjectLifecycle>(
             continue;
         }
         let event = CustomEvent::from_shared_payload(
-            "golden.script.appOperation",
+            crate::script::app_operations::APP_OPERATION_RESULT_TOPIC,
             Some(pending.source),
             payload,
             CustomEventRetention::Transient,

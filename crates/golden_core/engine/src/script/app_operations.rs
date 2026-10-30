@@ -1,4 +1,4 @@
-//! Deferred application work admitted by a script callback, with its originating edit receipt.
+//! Deferred application work admitted by a node callback, with its originating edit receipt.
 
 use crate::{
     edit::{Edit, EditCompletion},
@@ -8,7 +8,11 @@ use crate::{
 };
 use std::sync::{Arc, OnceLock, Weak};
 
-/// Internal edit payload for a callback-owned app request. Constructed only by the script bridge.
+/// Topic delivered directly to an app request's source node after atomic application.
+/// The shared payload uses the standard `onAppOperationResult` callback envelope.
+pub const APP_OPERATION_RESULT_TOPIC: &str = "golden.script.appOperation";
+
+/// Internal edit payload for a callback-owned app request.
 pub struct PendingScriptAppOperation {
     pub(crate) source: NodeId,
     pub(crate) owner: Weak<()>,
@@ -17,12 +21,13 @@ pub struct PendingScriptAppOperation {
 }
 
 impl ProcessCtx {
-    pub(crate) fn enqueue_script_app_operation(
-        &mut self,
-        source: NodeId,
-        owner: Weak<()>,
-        request: ScriptAppOperationRequest,
-    ) {
+    /// Queues an already-admitted app request from a node or script callback.
+    ///
+    /// `owner` must belong to the live source instance and expire on destruction/reload.
+    /// Requests run only after the originating callback edits commit. The bounded application
+    /// service returns the committed result or rejection directly to `source` through
+    /// [`APP_OPERATION_RESULT_TOPIC`]; dropping the owner cancels abandoned requests.
+    pub fn enqueue_app_operation(&mut self, source: NodeId, owner: Weak<()>, request: ScriptAppOperationRequest) {
         let pending = PendingScriptAppOperation {
             source,
             owner,
