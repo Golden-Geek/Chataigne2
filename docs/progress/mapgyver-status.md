@@ -4,38 +4,28 @@
 
 **Updated: 2026-10-30 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
-**Current topic:** M03 remains **7/9** accepted gates. The
-[reader-ownership fix](mapgyver-m03-qualification-runner.md#shared-reader-ownership-across-plan-generations--2026-10-30)
-removes recursive keyed-mutex acquisition when a new plan copies a publication still owned by
-an earlier frame. The controlled native repro fails with `0x887A0001` before the fix and now
-verifies both images plus latest-fence retirement. New controls retain both sources in their
-first generation and remove the ten Q02 interruption lineage failures. Q02 still misses
-capture/cadence/age budgets; instrumented GPU p95 is 15.8522 ms. No qualification gate closes.
+**Current topic:** M04 product implementation is next. M03's seven verified foundation gates
+provide usable contracts; its two open qualification gates no longer serialize all feature
+development. The [execution correction](../plan/MapGyver_Implementation_Plan.md#execution-correction--2026-10-30)
+changes work order, not acceptance. M03 remains **7/9**, and no phase is newly declared complete.
 
-**Next:** attribute the remaining Q02 renderer/consumer stalls from retained CPU, GPU-context
-and exact software-display timelines, then establish supported GPU-clock/queue calibration
-before changing GPU work. Preserve slot-owned leases, explicit source policy and nonblocking
-renderer admission; do not repeat output-order variants or recollect identical traces. Complete GPU
-critical-path and native buffer/GPU-queue measurements (gate 9), then address remaining
-cadence, capture coverage and growth qualification. Native
-device removal and bounded stuck retirement retain gate 4.
-**Blocker:** new Q02 sample calls are main/Spout/editor 300/300/295. Minimized-editor main/Spout
-calls are 55/59 in one second, with four Spout images uncaptured; disconnect captures 51/60,
-with covered source A/B p95 age 62.11/66.17 ms. There are no current lineage-invalid captures
-or source restarts. The remaining interruption failures, prescribed cadence coverage and
-window deadline failures remain open. The short
-renderer-context timing does not qualify displayed cadence, three-output age or the full GPU
-critical path. Full GPU
-critical-path and native buffer/GPU-queue coverage remain unavailable. Genuine device removal
-and stuck-driver retirement bounds remain unverified.
-Historical memory-growth, geometry and display/input failures retain their M03/M05/M09 owners.
+**Next:** define M04's fixed acceptance breakdown, then deliver Media Manager and Solid Color
+functionality through `apps/mapgyver/src/media` and the MapGyver UI. Use a 45-minute feature
+batch with a concrete working slice. Do not resume GPU-clock research or add another probe.
+**Product-work blocker:** none identified for that slice. Fix any reproduced correctness
+defect on its actual path; do not substitute speculative qualification work.
+**Qualification debt:** M03 gate 4 retains genuine device removal/stuck retirement; gate 9
+retains full GPU/queue, cadence, capture/age, growth and deadline requirements. Latest Q02
+sample calls remain 300/300/295; minimize/disconnect still miss four/nine Spout images and
+age budgets. All recorded failures and original budgets remain operative. These requirements
+must be satisfied for production readiness, within the bounded qualification lane below.
 
 | Phase | State | Progress | Done / total items |
 | --- | --- | --- | --- |
 | [M00 Baseline/workloads](mapgyver-m00-baseline.md) | Complete locally | `████████████████████` 100% | 1/1 |
 | [M01 Functional route decision](#m01-acceptance-items) | Complete locally | `████████████████████` 100% | 4/4 |
 | [M02 Multi-app seams/shell](#m02-acceptance-items) | Complete locally | `████████████████████` 100% | 7/7 |
-| [M03 Rendering/channels](#m03-acceptance-items) | In progress | `████████████████░░░░` 78% | 7/9 |
+| [M03 Rendering/channels](#m03-acceptance-items) | Foundations ready; qualification open | `████████████████░░░░` 78% | 7/9 |
 | [M04 Source media](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M05 Screens/Surfaces/editors](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M06 Composition/editor](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
@@ -57,6 +47,35 @@ work; the combined scope and native budgets are unchanged, and all nine started 
 These counts measure accepted scope, not effort or product readiness. Partial evidence earns
 no item closure; future breakdowns must preserve the complete acceptance scope and explain
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
+
+### Anti-drift correction — 2026-10-30
+
+The user identified the prolonged M03 investigation as a failure to advance the product.
+The agent had treated two broad qualification gates as an unlimited prerequisite for M04,
+allowing each diagnostic to create another measurement task. Useful fixes did not justify
+that execution pattern. The plan now separates functional dependencies from final acceptance;
+all original gates remain required. The dashboard denominator and completed counts are unchanged.
+
+Apply [AGENTS.md's limits](../../AGENTS.md#autonomous-progress-and-anti-drift): 45-minute feature
+batches; investigations stop at 20 minutes or two experiments; at least four product-delivery
+batches per diagnostic-only batch; no consecutive diagnostic-only turns by default. After
+two batches without a usable capability or acceptance closure, reduce the feature slice or
+choose another functionally ready product task. Do not add another measurement prerequisite.
+
+**Product-delivery count since correction: 0/4. Diagnostic-only batch allowance: 0.**
+This workflow/documentation checkpoint does not count as an app capability. The next batch is
+M04 Media Manager/Solid Color, with its concrete scope, proof and stopping time recorded before
+coding. Qualification may interrupt only for a reproduced blocker on that path or an explicit
+user request; otherwise it resumes in its scheduled lane after product delivery.
+
+Unfinished agent-owned clock/collector work is parked locally in stash
+`67adbae342a0ec851b581974e616dedfc16d2179`
+(`mapgyver: parked M03 clock and collector investigation after anti-drift correction 2026-10-30`).
+It contains the SDK clock probe and an unverified native collector-policy change. The probe
+built and returned data; it does not establish calibrated production timing. Raw local results
+remain under `target/qualification-clock-calibration-cmd-fixed-2026-10-30`. Do not automatically
+restore or continue this stash on goal continuation. Published renderer behavior remains at
+`6350f5ac`; no unfinished diagnostic change is part of the product baseline.
 
 ### Delivery checkpoint — 2026-10-28
 
@@ -244,92 +263,23 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-The user approved the scope correction on 2026-10-28 and explicitly instructed continuation
-to M02. Its shell/isolation and typed host lifecycle deliveries now close all seven fixed
-items. M03's fixed compiler, worker/null-runtime, shared-time and app channel-contract gates are verified.
-The D3D11 compositor, Spout source workers, window/Spout outputs and shared-host consumer are
-exercised. The app-owned bridge publishes guarded channel plans and preserves references through
-history/reload and controlled native resource recreation. Shared persistent asset IDs/locators,
-worker preparation/cancellation and consumer-lifetime admission now have a reusable owner.
-App asset records now exercise project/history, Picture preparation and native resources (gate 7).
-Reusable native preview registration/geometry now passes its real shared-host consumer (gate 8).
-Independent output retry/state, completion-fenced replacement, source withdrawal and simulated
-failed-reset/cancellation/project fencing have a recovery checkpoint. Initial allocation now
-retries within its original admitted baseline and first device generation, serving controls and
-retaining only the latest desired plan. The production Q01/Q02 runner and its short native controls
-now complete. Their traces retain all rows and exactly anchored software slots.
-Native output admission now precedes conversion, preserving readiness and retirement semantics.
-Public source copied/freshness status is now truthful, versioned unchanged polls skip GPU batches,
-and static sources survive a short demand pulse or suppressed publication. Unknown external
-senders remain unversioned. Preparation/frame identities now measure native preparation
-and first use. Compatible native texture/view sets are reused without retaining unused storage
-or asset leases; conservative per-generation admission is unchanged. Both short controls reuse
-all seven textures after initial allocation, with later preparation below 0.011 ms. Q02 still
-misses cadence/age targets. Schema 4 joins copied-image labels across producer, source use,
-output and independent capture, checking GPU pixels against the exact claimed renderer inputs.
-Direct native regression and GPU input/conversion taps isolate the observed mismatch to the
-outgoing SDK handoff. GPU keyed outputs with zero-timeout send ownership now retain exact pixels
-in 518 available regression comparisons and the new short control captures. The Q02
-window-Present control misses 18 sample images and cadence/age targets. Counter agreement alone cannot
-qualify identity.
-CPU publication/first-receipt/installation records now join exact resource generations to first
-use and per-output API age. The bounded recorder exists before worker startup; unread
-superseded plans have no invented receipt. Retained plan age grows between edits and is not
-edit latency. Optional PID-filtered PresentMon now joins each actual window API call to its
-software display event and exact retained sources/plans. Q01 has complete three-output age
-observations in one short control; Q02 retains cadence/age/capture failures. Pending software
-display events do not establish native buffer occupancy. Anchored delivery-deadline analysis
-now retains every opportunity, including a pre-window API call whose deadline belongs to the
-sample. Q01 has 180 on-time observations per output; Q02 window deadlines fail, while late
-Spout polling stays uncertain. Source-local hardware sRGB decoding now reduces isolated sampler
-cost by 33%; its short Q02 control still misses six of 295 accepted Spout images and does not
-improve renderer-context GPU p95. Schema 7 now partitions every sample renderer span on its
-own GPU counter. Outputs dominate 271/300 Q02 frames in the prior control, motivating the
-completed direct-window change at that output boundary.
-Direct window rendering now removes two conversion textures and copies. Its Q02 control has
-full main acceptance and exact accepted-Spout coverage, but editor/Spout/producer cadence and
-the GPU budget remain insufficient. The output interval's median stays near 9.5 ms even as
-its p95 and the enclosing renderer p95 fall; do not treat that as a complete critical-path fix.
-The direct input receive path now removes private capture staging and one GPU copy per input.
-The next control retains complete main/Spout acceptance and exact captures, but producer/editor
-cadence remains insufficient. Its higher logical reservation peak is preserved, despite the
-smaller per-source allocation; native buffer/queue and generation-overlap evidence remain distinct.
-The bounded DMA decoder experiment now preserves all 16,272 owned packet records, with all
-timing fields partial. Its zero reported ETW loss does not establish queue coverage. Do not
-repeat the built-in WPR GPU profile without a concrete decoder/provider change.
-The opaque shader branch now skips unused transfer math for linear targets. Its isolated
-4K draw control improves about 15%, and branch-only Q02 renderer-context p95 falls to 11.4896 ms.
-Q01 tails regress and source-A admission worsens; accepted-Spout capture coverage remains
-complete. The rejected hardware-Spout/SDK path is fully removed. Publication/dependency
-ordering was the next experiment: both staged conversion and cold-prepared shared-first
-schedules now regress Q02 and are removed. Their complete evidence is retained, including
-the shared-first main/editor shortfalls. The sender/receiver ownership investigation at the
-source publication boundary now gives isolated fixture
-producers an explicit 2 ms per-lock wait, while renderer sends remain at zero. The versioned
-schema 8 controls preserve both independent 60 Hz source contracts and all existing budgets;
-their samples have complete source/output acceptance and exact captures. Q02 editor minimized/
-disconnected phases still fail cadence/capture/age, including 14/four missing accepted Spout
-images. The transition investigation now reproduces recursive renderer ownership with a
-static source. Slot-owned reader leases and latest-use retirement fix it; truthful fault
-reporting replaces the old fabricated removal code. Both sources remain in generation 1 in
-the new controls, with no unversioned source-use frames during the measured phases. Exact
-window/software-display rows now cover all accepted sample calls. Q02 still misses four/nine
-Spout images during minimize/disconnect, with capture-age and sample editor cadence failures.
-Its consumer GPU-context spans reach 65.509 ms despite short SDK API calls; these spans do not
-calibrate queue delay or GPU readiness. Use the retained traces to attribute those remaining
-stalls and establish supported clock/queue observations before further GPU-work changes.
-Do not infer full independence from sample counts or repeat the same instrumentation.
-Do not start another output-order variant or change fixture pacing to hide Busy outcomes.
-A gap between different benchmarks is not measured queue time. No graphics settings were changed.
-Complete GPU critical-path and queue/consumption measurement
-before the prescribed qualification series (gate 9).
-Genuine native device-removal recovery and bounded stuck-drain retirement retain gate 4.
-Both gates remain required before M03 completion; all existing budgets/failures stay operative.
-Deliver each coherent batch
-on `mapgyver` before starting the next. Preserve
-Chataigne's root default and unfinished P11 work. No new M01 captures, duplicate consumer-only
-cohorts, overlay investigation or identical WPR profiles are needed. Future clock/queue
-instrumentation requires a concrete supported measurement change. The user confirms overlay Off.
+Start **M04 Media Manager and Solid Color product functionality**, using the verified M03
+media/channel, persistence, runtime and preview contracts. Define the fixed M04 acceptance
+breakdown before source work, then choose a working slice in `apps/mapgyver/src/media` and
+`apps/mapgyver/ui`. Include the module's commands, script methods/callbacks and app-owned
+snippets at the same boundary. Preserve Chataigne's root default and unfinished P11 work.
+
+Record the slice's owner, observable result, validation and 45-minute stopping time before
+coding. Ship and push a coherent product checkpoint before the next implementation batch.
+The current workflow correction earns no product-delivery credit: the counter starts at 0/4.
+No new M03 diagnostic-only work is scheduled until four product-delivery batches, except for
+an explicit user request or a reproduced correctness/safety blocker on the selected feature.
+
+M03 gates 4 and 9 remain open and owned by M03. Preserve every original budget, failure and
+required verification. They are production-readiness requirements, not authorization to spend
+another open-ended session on profiling before implementing the app. The parked clock/collector
+stash is evidence of unfinished work, not the next execution entrypoint. Do not restore it by
+default. Physical output/DPI and full-app qualification retain their M05/M09 owners.
 
 **Approved scope correction — continuing acceptance ownership:**
 

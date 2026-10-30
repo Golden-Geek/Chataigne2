@@ -65,12 +65,31 @@ architecture and remain backend policies that can change during implementation r
 | M01 | Functional native WebView underlay and Spout/D3D11 route decision | M00 |
 | M02 | Clean multi-app workspace, host and UI seams; runnable MapGyver shell | M01 functional route decision |
 | M03 | Golden Video execution and MapGyver media/channel contracts | M02 |
-| M04 | Solid Color, Picture and concurrent Spout media | M03 |
-| M05 | Screens, Surfaces, output targets and two mapping editors | M04 |
-| M06 | Composition media and 2D editor | M04, M05 |
-| M07 | Matrix rendering, exported channels and grid editor | M06 |
-| M08 | Column-controlled app lifecycle and neighbor demand | M07 |
-| M09 | Complete-app qualification and Windows artifact | M05–M08 |
+| M04 | Solid Color, Picture and concurrent Spout media | M03 functional foundations: gates 1–3 and 5–8 |
+| M05 | Screens, Surfaces, output targets and two mapping editors | M04 working media/channel contracts |
+| M06 | Composition media and 2D editor | M04/M05 working media, surface and editor contracts |
+| M07 | Matrix rendering, exported channels and grid editor | M06 working composition/channel contracts |
+| M08 | Column-controlled app lifecycle and neighbor demand | M07 working column/transition contracts |
+| M09 | Complete-app qualification and Windows artifact | All feature and qualification acceptance in M03–M08 |
+
+### Execution correction — 2026-10-30
+
+The user requested concrete anti-drift rules and product advancement after prolonged M03
+investigation. Functional prerequisites now govern **implementation order**, separately from
+milestone acceptance. The seven verified M03 foundation gates permit M04 product work now.
+M03 gates 4 and 9 remain open, owned by M03, with their complete original scope, budgets and
+failed evidence intact. They are not moved wholesale to M09 and do not count as passed.
+Likewise, missing exhaustive physical/display qualification must not prevent implementing
+Composition or Matrix against working, verified contracts. A reproduced correctness or resource
+ownership defect on the selected feature path must still be fixed before building on that path.
+
+Apply [the anti-drift rules](../../AGENTS.md#autonomous-progress-and-anti-drift): 45-minute feature
+batches, 20-minute/two-experiment investigation limits, and at least four product-delivery
+batches per diagnostic-only batch. The immediate next deliverable is M04 Media Manager and
+Solid Color functionality through the existing app-owned media/channel model. Define M04's
+fixed acceptance breakdown before starting its implementation. Checkpoint working product
+slices instead of extending the renderer measurement chain. Functional readiness never closes
+an unverified milestone or authorizes release; M09 still requires every retained gate.
 
 ### M00 — Reconcile and define evidence
 

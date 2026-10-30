@@ -39,6 +39,42 @@ Backward compatibility is not a goal unless a task explicitly asks for it.
 - This rule applies to existing and future implementation plans. It does not authorize releases
   or deployments, and an explicit user instruction can override it for a particular task.
 
+## Autonomous Progress And Anti-Drift
+
+- At the start of each implementation batch, record one concrete product deliverable, its
+  owning layer, the check that proves it works, and a stopping time in the active ledger.
+  Default to a reviewable feature slice within 45 minutes, including investigation and checks.
+  Larger features may span batches; keep advancing the same product behavior rather than
+  replacing it with an expanding infrastructure investigation. Splitting delivery must preserve
+  the full planned feature and its acceptance requirements.
+- Time-box an investigation to 20 minutes and at most two experiments, including the baseline.
+  State the hypothesis and what result would change the implementation before running them.
+  Reaching the limit means preserve the findings and choose the next action; do not invent
+  another probe, profiler, benchmark variant or measurement prerequisite to extend the chain.
+  A live check may finish or be handed off with its verified handle; do not restart it to fit a box.
+- Spend at least four product-delivery batches for each diagnostic-only qualification batch.
+  Never run consecutive diagnostic-only batches unless the user explicitly requests that work
+  or a reproduced correctness/safety defect blocks the selected feature. A new report, archive,
+  test count, refactor or commit alone is not a delivered product capability.
+- After two batches without a usable capability or acceptance closure, reduce the current
+  feature slice or select the next functionally ready product task. Explain the concrete
+  obstacle once; do not keep returning with the same phase percentage and another research plan.
+- Distinguish implemented, functionally verified and production-qualified work. Follow the
+  selected plan's explicit functional dependencies to build subsequent features while retained
+  qualification work proceeds in its bounded lane. Never count an unverified gate as passed,
+  relax budgets, hide failures, or claim release readiness to show progress. Record any execution
+  ordering change in the plan and ledger; do not silently reinterpret their acceptance scope.
+- Reopen a parked investigation only for a reproduced blocker on the current product path,
+  a scheduled qualification batch within the allocation above, or an explicit user request.
+  Preserve unfinished agent work in a named stash or separate checkout before switching focus;
+  record its exact reference and limits, and do not automatically restore it on continuation.
+- Prefer existing evidence and the smallest useful reproducer. Do not add diagnostic frameworks,
+  full source snapshots or large evidence archives unless a named acceptance requirement needs
+  them and the current batch has a specific decision they will resolve.
+- End each handoff with the new app capability, relevant checks, actual gate changes and the
+  next product deliverable. Keep qualification debt visible without making it the default work
+  queue. Explicit user priorities override these default allocations.
+
 ## Core Stance
 
 - Prefer the cleanest architecture over the smallest diff.
