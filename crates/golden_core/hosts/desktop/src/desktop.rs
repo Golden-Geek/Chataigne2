@@ -15,8 +15,13 @@ use crate::native_presentation::{NativePresentation, host::validate_platform};
 #[cfg(target_os = "windows")]
 use crate::windows_process_job::WindowsProcessJob;
 use golden_engine::app::{ProjectLifecycle, create_new_project_engine};
+use golden_engine::application::ProductionRuntime;
 use golden_engine::engine::Engine;
-use golden_transport_server::{UiAsset, UiPreferencesConfig, UiServerConfig, run_with_ui_server_config};
+use golden_transport_server::{
+    UiAsset, UiPreferencesConfig, UiServerConfig, run_with_ui_server_config, run_with_ui_server_config_and_ready,
+};
+
+type PresentationFactory<T, R> = Box<dyn FnOnce(ProductionRuntime<T>) -> std::io::Result<NativePresentation<R>> + Send>;
 
 const UI_STARTUP_TIMEOUT: Duration = Duration::from_secs(5);
 const UI_PROBE_INTERVAL: Duration = Duration::from_millis(50);
@@ -151,7 +156,7 @@ where
 pub fn run_default_with_native_presentation<T, R>(
     tauri_context: tauri::Context<R>,
     config: DesktopHostConfig,
-    presentation: NativePresentation<R>,
+    presentation: impl FnOnce(ProductionRuntime<T>) -> std::io::Result<NativePresentation<R>> + Send + 'static,
 ) -> std::io::Result<()>
 where
     T: ProjectLifecycle + 'static,
@@ -348,13 +353,13 @@ pub fn launch_engine_with_native_presentation<T, R>(
     args: LaunchArgs,
     tauri_context: tauri::Context<R>,
     host_config: DesktopHostConfig,
-    presentation: NativePresentation<R>,
+    presentation: impl FnOnce(ProductionRuntime<T>) -> std::io::Result<NativePresentation<R>> + Send + 'static,
 ) -> std::io::Result<()>
 where
     T: ProjectLifecycle + 'static,
     R: Runtime,
 {
-    launch_configured_engine(engine, args, tauri_context, host_config, Some(presentation))
+    launch_configured_engine(engine, args, tauri_context, host_config, Some(Box::new(presentation)))
 }
 
 fn launch_configured_engine<T, R>(
@@ -362,7 +367,7 @@ fn launch_configured_engine<T, R>(
     args: LaunchArgs,
     tauri_context: tauri::Context<R>,
     host_config: DesktopHostConfig,
-    presentation: Option<NativePresentation<R>>,
+    presentation: Option<PresentationFactory<T, R>>,
 ) -> std::io::Result<()>
 where
     T: ProjectLifecycle + 'static,
@@ -437,8 +442,11 @@ where
     }
 
     let (startup_tx, startup_rx) = mpsc::channel::<std::io::Result<()>>();
+    let (runtime_tx, runtime_rx) = mpsc::sync_channel(1);
     thread::spawn(move || {
-        let result = run_with_ui_server_config(engine, config);
+        let result = run_with_ui_server_config_and_ready(engine, config, move |runtime| {
+            let _ = runtime_tx.send(runtime);
+        });
         let _ = startup_tx.send(result);
     });
 
@@ -451,6 +459,15 @@ where
     }
 
     wait_for_ui_server(&endpoint.connect_addr, UI_STARTUP_TIMEOUT)?;
+
+    let presentation = presentation
+        .map(|factory| {
+            let runtime = runtime_rx
+                .recv_timeout(UI_STARTUP_TIMEOUT)
+                .map_err(|error| Error::other(format!("authoritative runtime was not ready: {error}")))?;
+            factory(runtime)
+        })
+        .transpose()?;
 
     let dev_server_process = if args.dev && configured_frontend_url.is_none() {
         spawn_frontend_dev_server(dev_server, &frontend_url, &endpoint.connect_addr, args.show_output)?

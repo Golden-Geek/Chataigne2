@@ -65,6 +65,57 @@ fn picture_renderer(root: &Path) -> ChannelRenderer {
     renderer
 }
 
+#[test]
+fn close_releases_picture_leases_before_waiting_for_retirement_without_dropping_the_renderer() {
+    let root = tempfile::tempdir().unwrap();
+    png(root.path(), "source.png", 2, 2, [255, 0, 0, 255]);
+    let mut engine = engine();
+    let asset = import(&mut engine, "source.png");
+    let reference = create(&mut engine, MediaKind::Picture);
+    select(&mut engine, reference, asset);
+    let other = create(&mut engine, MediaKind::Picture);
+    select(&mut engine, other, asset);
+    let mut renderer = picture_renderer(root.path());
+    publish(&mut renderer, &engine, [reference, other]);
+    settled(
+        &mut renderer,
+        [(ChannelAvailability::Ready, Some(Extent2D::new(2, 2).unwrap())); 2],
+    );
+    let pictures = renderer.picture_retirement().unwrap();
+    renderer.close();
+    assert!(renderer.retirement().wait(Duration::from_secs(5)));
+    assert!(pictures.wait(Duration::from_secs(5)));
+}
+
+#[test]
+fn relocating_the_picture_root_reprepares_relative_sources_without_reauthoring_channels() {
+    let first = tempfile::tempdir().unwrap();
+    let second = tempfile::tempdir().unwrap();
+    png(first.path(), "source.png", 2, 3, [255, 0, 0, 255]);
+    png(second.path(), "source.png", 5, 4, [0, 255, 0, 255]);
+    let mut engine = engine();
+    let asset = import(&mut engine, "source.png");
+    let a = create(&mut engine, MediaKind::Picture);
+    let b = create(&mut engine, MediaKind::Picture);
+    for reference in [a, b] {
+        select(&mut engine, reference, asset);
+    }
+    let mut renderer = picture_renderer(first.path());
+    publish(&mut renderer, &engine, [a, b]);
+    settled(
+        &mut renderer,
+        [(ChannelAvailability::Ready, Some(Extent2D::new(2, 3).unwrap())); 2],
+    );
+    assert!(renderer.set_picture_root(second.path()).unwrap());
+    publish(&mut renderer, &engine, [a, b]);
+    settled(
+        &mut renderer,
+        [(ChannelAvailability::Ready, Some(Extent2D::new(5, 4).unwrap())); 2],
+    );
+    assert!(!renderer.set_picture_root(second.path()).unwrap());
+    close(renderer);
+}
+
 fn two_routes(references: [ChannelReference; 2]) -> Vec<ChannelRoute> {
     references
         .into_iter()
@@ -138,7 +189,7 @@ fn ready(width: u32, height: u32) -> (ChannelAvailability, Option<Extent2D>) {
     (ChannelAvailability::Ready, Some(Extent2D::new(width, height).unwrap()))
 }
 
-fn finish(renderer: ChannelRenderer) {
+fn finish(mut renderer: ChannelRenderer) {
     let pictures: AssetRetirement = renderer.picture_retirement().expect("picture owner");
     let video = renderer.retirement();
     renderer.close();

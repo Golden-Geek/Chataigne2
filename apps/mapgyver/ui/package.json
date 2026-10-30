@@ -29,6 +29,8 @@
 		"vite": "8.1.6"
 	},
 	"dependencies": {
+		"@tauri-apps/api": "^2.11.1",
+		"golden_video_ui": "*",
 		"golden_ui": "*"
 	}
 }

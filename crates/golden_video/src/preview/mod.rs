@@ -317,6 +317,16 @@ impl PreviewController {
 }
 
 impl PreviewReceiver {
+    /// Withdraws a prior installation when its renderer is rebuilding or unavailable.
+    /// Geometry stays registered; only a fresh installation/frame proof may expose it again.
+    pub fn mark_uninstalled(&self, generation: u64) -> bool {
+        let mut state = self.0.state.lock().unwrap_or_else(|error| error.into_inner());
+        if state.closed || state.revision.reader().current() != generation {
+            return false;
+        }
+        state.installed = None;
+        true
+    }
     /// Acknowledges installation only for the current, unexpired geometry generation.
     /// The caller must first observe a reliable Video Installed outcome and a submitted frame
     /// with that exact installed identity. This does not prove scanout, delivery or source readiness.

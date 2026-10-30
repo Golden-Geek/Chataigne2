@@ -33,8 +33,24 @@ does not allocate identities, choose backend defaults or mutate node internals.
 App invariants run at the detached candidate-validation boundary, after queued
 default/load edits attach and before live activation, for both startup and replacement.
 
-The authoring panel does not yet provide native channel previews or Shared Texture
-source editing. Module command nodes and app-owned script snippets
+On Windows, the ordinary app now enables worker-owned native channel previews by default.
+The selected channel registers a clipped region through `golden_video_ui`; app routing and
+preparation live under `src/media/preview` and `src/media/rendering`. Golden owns the window,
+native geometry, renderer and retirement. Browser/headless editing starts no presentation;
+`--no-default-features` also retains the engine-only build. Preview metadata/status crosses IPC,
+while images upload once on the rendering boundary and frames remain native.
+
+The shared host supplies the existing authoritative `ProductionRuntime` to its presentation
+factory. `capture_app` captures bounded owned data/revision guards on the control actor; all
+IO, plan building and rendering stay on the preparation worker. Picture roots follow the
+current project's directory. A coarse worker wake detects authored guard changes without
+polling the actor; geometry, GPU and file completion also notify the worker.
+
+Native Solid Color output has been observed in the ordinary app. Native Picture switching and
+normal shutdown after Picture demand still require a follow-up run after the retirement fix;
+the retained failed run is recorded in the ledger. This is functional integration, not timing,
+color/DPI, recovery or resource qualification. Shared Texture source editing remains open.
+Module command nodes and app-owned script snippets
 also remain part of M04. See the [active acceptance ledger](../../docs/progress/mapgyver-status.md#m04-acceptance-items).
 The native feasibility probe under `tools/mapgyver/native-probe` remains a separate
 diagnostic executable; it is not the app's rendering implementation.

@@ -2,7 +2,6 @@ use super::PictureDecoder;
 use crate::media::{
     capture::{CapturedAsset, CapturedChannels},
     protocol::ChannelSource,
-    rendering::ChannelRoute,
 };
 use golden_assets::{
     AssetId, AssetPreparer, AssetRequestId, AssetRetirement, AssetScope, PreparationAdmissionError, PreparationFailure,
@@ -33,6 +32,16 @@ pub(crate) struct Pictures {
 }
 
 impl Pictures {
+    pub fn set_root(&mut self, root: &Path) -> Result<bool, String> {
+        AssetScope::new(root).map_err(|error| error.to_string())?;
+        if self.root == root {
+            return Ok(false);
+        }
+        self.entries.clear();
+        self.project = None;
+        self.root = root.to_path_buf();
+        Ok(true)
+    }
     pub fn new(root: &Path, limits: PreparationLimits, notifier: Option<WorkerNotifier>) -> Result<Self, String> {
         AssetScope::new(root).map_err(|error| error.to_string())?;
         let retry_wake = notifier.clone().map(DelayedNotifier::new).transpose()?;
@@ -50,8 +59,13 @@ impl Pictures {
         })
     }
 
-    pub fn sync(&mut self, capture: &CapturedChannels, routes: &[ChannelRoute], limit: usize) -> Result<bool, String> {
-        let wanted_routes = routes.iter().map(|route| route.channel).collect::<HashSet<_>>();
+    pub fn sync(
+        &mut self,
+        capture: &CapturedChannels,
+        references: &[crate::media::protocol::ChannelReference],
+        limit: usize,
+    ) -> Result<bool, String> {
+        let wanted_routes = references.iter().copied().collect::<HashSet<_>>();
         let demanded = capture
             .channels
             .iter()

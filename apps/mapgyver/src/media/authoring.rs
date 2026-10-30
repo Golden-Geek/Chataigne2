@@ -133,6 +133,7 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
         return Err("unsupported media operation".into());
     }
     let edit: MediaEdit = serde_json::from_value(payload).map_err(|error| error.to_string())?;
+    let pending_before = engine.edits.pending.len();
     let result = match edit {
         MediaEdit::ImportPicture { locator, target, label } => {
             super::importing::picture(engine, locator, target, label)?
@@ -269,6 +270,13 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             snapshot: channel(engine, reference)?,
         },
     };
+    if engine.edits.pending.len() != pending_before {
+        // Published inside the atomic edit boundary, including script/headless callers.
+        // The app namespace is also its retained authored-media notification topic.
+        let event = golden_core::events::CustomEvent::from_latest_payload(MEDIA_NAMESPACE, None, &())
+            .map_err(|error| error.to_string())?;
+        engine.edits.push(Edit::EmitCustomEvent { event });
+    }
     serde_json::to_value(result).map_err(|error| error.to_string())
 }
 

@@ -180,7 +180,7 @@ mod windows_smoke {
             },
             context,
             config,
-            presentation,
+            move |_| Ok(presentation),
         );
         let _ = done_tx.send(());
         watchdog.join().map_err(|_| Error::other("smoke watchdog panicked"))?;

@@ -2,7 +2,9 @@
 //! preparation worker, never the engine/UI thread. Golden owns frame cadence and GPU cleanup.
 
 mod plan;
+mod preview;
 mod sources;
+pub use preview::ChannelPreview;
 
 use super::capture::CapturedChannels;
 use super::protocol::{ChannelReference, ChannelSource};
@@ -42,11 +44,18 @@ pub struct ChannelRenderer {
     project: Option<uuid::Uuid>,
     next_texture: u64,
     entries: HashMap<ChannelReference, Entry>,
-    desired: Option<(CapturedChannels, Vec<ChannelRoute>)>,
+    desired: Option<Desired>,
     observations: Option<SourceObservations>,
     channels: Vec<PreparedChannel>,
     latest_request: Option<RequestId>,
     pictures: Option<super::picture::Pictures>,
+}
+
+#[derive(Clone)]
+struct Desired {
+    capture: CapturedChannels,
+    routes: Vec<ChannelRoute>,
+    preview: Option<ChannelPreview>,
 }
 
 impl ChannelRenderer {
@@ -55,7 +64,8 @@ impl ChannelRenderer {
             runtime,
             limits,
             project: None,
-            next_texture: 0,
+            // Textures 1..=3 belong to this owner's window compositor.
+            next_texture: 3,
             entries: HashMap::new(),
             desired: None,
             observations: None,
@@ -105,12 +115,31 @@ impl ChannelRenderer {
         self.pictures.as_ref().and_then(|pictures| pictures.next_retry())
     }
 
+    /// Rebase relative source preparation after save-as/project relocation on the owner worker.
+    pub fn set_picture_root(&mut self, root: &std::path::Path) -> Result<bool, String> {
+        self.pictures
+            .as_mut()
+            .map(|pictures| pictures.set_root(root))
+            .transpose()
+            .map(|changed| changed.unwrap_or(false))
+    }
+
     /// Captures metadata only. Its project/device stamps are rechecked before use.
     pub fn source_observations(&self) -> SourceObservations {
         sources::capture(&self.runtime)
     }
 
     pub fn publish(&mut self, capture: CapturedChannels, routes: Vec<ChannelRoute>) -> Result<RequestId, String> {
+        self.publish_targets(capture, routes, None)
+    }
+
+    /// Publishes native output routes and an optional clipped editor-window composition.
+    pub fn publish_targets(
+        &mut self,
+        capture: CapturedChannels,
+        routes: Vec<ChannelRoute>,
+        preview: Option<ChannelPreview>,
+    ) -> Result<RequestId, String> {
         if !capture.is_current() {
             return Err("captured channels are stale".into());
         }
@@ -124,7 +153,7 @@ impl ChannelRenderer {
         }
         self.project = Some(capture.project);
         let observations = self.source_observations();
-        self.publish_observed(capture, routes, observations)
+        self.publish_observed_targets(capture, routes, observations, preview)
     }
 
     pub fn publish_observed(
@@ -132,6 +161,16 @@ impl ChannelRenderer {
         capture: CapturedChannels,
         routes: Vec<ChannelRoute>,
         observations: SourceObservations,
+    ) -> Result<RequestId, String> {
+        self.publish_observed_targets(capture, routes, observations, None)
+    }
+
+    fn publish_observed_targets(
+        &mut self,
+        capture: CapturedChannels,
+        routes: Vec<ChannelRoute>,
+        observations: SourceObservations,
+        preview: Option<ChannelPreview>,
     ) -> Result<RequestId, String> {
         if !capture.is_current() || self.project.is_some_and(|project| project != capture.project) {
             return Err("captured channels belong to a stale project/revision".into());
@@ -145,11 +184,18 @@ impl ChannelRenderer {
             return Err("source observations belong to a stale renderer project/device".into());
         }
         if let Some(pictures) = &mut self.pictures {
-            pictures.sync(&capture, &routes, self.limits.max_external_textures)?;
+            let mut demanded = routes.iter().map(|route| route.channel).collect::<Vec<_>>();
+            if let Some(preview) = &preview {
+                demanded.extend(preview.references()?);
+            }
+            pictures.sync(&capture, &demanded, self.limits.max_external_textures)?;
         }
         let prepared = plan::build(
             &capture,
-            &routes,
+            plan::Targets {
+                routes: &routes,
+                preview: preview.as_ref(),
+            },
             &self.entries,
             &mut self.next_texture,
             self.limits,
@@ -165,7 +211,11 @@ impl ChannelRenderer {
         self.project = Some(capture.project);
         self.entries = prepared.entries;
         self.channels = prepared.channels;
-        self.desired = Some((capture, routes));
+        self.desired = Some(Desired {
+            capture,
+            routes,
+            preview,
+        });
         self.observations = Some(observations);
         self.latest_request = Some(request);
         Ok(request)
@@ -189,10 +239,11 @@ impl ChannelRenderer {
         {
             return Ok(None);
         }
-        let Some((capture, routes)) = self.desired.clone() else {
+        let Some(desired) = self.desired.clone() else {
             return Ok(None);
         };
-        self.publish_observed(capture, routes, observations).map(Some)
+        self.publish_observed_targets(desired.capture, desired.routes, observations, desired.preview)
+            .map(Some)
     }
 
     /// Latest admitted desired metadata; reliable Installed outcomes identify the live generation.
@@ -214,11 +265,12 @@ impl ChannelRenderer {
     pub fn retirement(&self) -> golden_video::runtime::RuntimeRetirement {
         self.runtime.retirement()
     }
-    pub fn close(&self) {
-        if let Some(pictures) = &self.pictures {
+    pub fn close(&mut self) {
+        self.runtime.close();
+        self.desired = None;
+        if let Some(pictures) = self.pictures.take() {
             pictures.close();
         }
-        self.runtime.close();
     }
 
     #[cfg(all(windows, feature = "native-video"))]

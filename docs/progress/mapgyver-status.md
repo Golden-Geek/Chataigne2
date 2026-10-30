@@ -12,9 +12,9 @@ its open qualification no longer serializes all feature development. The
 changes work order, not acceptance. M04 remains **0/6 complete gates** because its full source,
 native preview and module integration scope is still open; see the verified slice below.
 
-**Next:** integrate a selected channel's native preview in the ordinary app, using the existing
-renderer and Golden host/preview contracts. Shared Texture editing, module command/script work
-and Picture UI interaction remain open. Record the next feature slice's proof and stop before coding.
+**Next:** finish the bounded native Picture-switch/shutdown verification after the retirement fix,
+then continue Shared Texture editing and module command/script delivery. The ordinary app now
+shows a native Solid Color preview. No timing/driver qualification or M03 stash work is scheduled.
 **Implementation blocker:** none identified. Interactive UI verification is currently limited:
 the browser connector is unavailable and automatic approval review rejected launching Edge.
 Do not turn that limitation into another automation investigation or resume GPU-clock research.
@@ -116,6 +116,57 @@ qualification was performed. Full M04 acceptance stays open.
 
 #### Picture authoring — 2026-10-30
 
+**Product batch 3 checkpoint:** started 2026-10-30 18:57 UTC; stop by **19:42 UTC** (45 minutes).
+Owners: MapGyver's app/media preview integration and the existing public Golden host/video
+preview seams. Deliver a native preview of the selected authored channel in the ordinary app,
+including explicit unavailable-source state. Reuse the production renderer; no CPU frame/HTML
+image transport or app-private host copies. Proof: routing/lifetime tests, builds and a bounded
+native functional observation where automation permits. Timing/resource qualification stays
+with M03; its stash remains parked. Preserve all remaining M04 source/module acceptance.
+
+#### Ordinary app native preview — 2026-10-30
+
+- Integrated the public Golden preview session/component and production ChannelRenderer into
+  the ordinary Windows app. Native video is the Windows default; headless and engine-only builds
+  start no presentation. GPU construction is deferred until a visible region is demanded.
+- Added a typed host presentation factory receiving the existing authoritative runtime, and
+  bounded read-only `capture_app` for owned app metadata. No duplicate engine, private host imports,
+  live engine access from UI, CPU frame transport or qualification-host copy was introduced.
+  Existing public-host/native smoke call sites use the new factory contract.
+- The app compositor shares channel textures across views, preserves independent native output
+  routes, applies Golden's clipping/visibility guard and uses an opaque dark window backing.
+  Generic dock mounts now forward Svelte context; explicit background hooks reveal only installed
+  native surfaces. Status/availability uses Rust-generated DTOs and metadata events.
+- Picture preparation follows the current saved project directory, including save-as rebasing.
+  Authored media operations now emit one retained atomic notification for other UI/script/headless
+  callers. Inspection remains read-only. This fixed a reproduced stale catalog after HTTP edits;
+  complete cross-client history parity remains part of M04 gate 6.
+- **Native functional observation:** the actual bundled `MapGyver.exe` was driven through its
+  authenticated public loopback app-operation API. Creating/configuring a red **640×360** Solid
+  Color updated the ordinary UI and produced an observed red native region. The worker confirmed
+  matching installation, frame identity and accepted output token. This is not scanout/color/DPI
+  or latency qualification. Native input remains limited; no Edge permission bypass was attempted.
+- The Picture follow-up imported the owned alpha PNG and switched away from Solid Color, but
+  remained covered as unavailable. The worker incorrectly treated superseded older outcomes as
+  current failures; handling now checks the latest request. Shutdown then waited with Picture
+  leases still held by the renderer. `close` now releases preparation/desired state before waiting,
+  and the native owner captures retirement handles before closing. Added a regression checking
+  retirement while the renderer object remains alive. The old owned test process **16492** was
+  terminated after confirming the stuck shutdown; this is retained failure evidence, not success.
+  **Native Picture switch/relink/missing-source and post-fix native shutdown remain unverified.**
+- Available verification before final lifetime fix: **40 MapGyver tests passed**, including
+  compositor sharing/fences, authoritative capture, picture-root relocation and generated DTOs;
+  **88 transport tests passed / one existing ignored**, **6 Golden preview tests passed**, public
+  default-host test passed, all-feature app/smoke binaries checked, Svelte **0 errors / 0 warnings**,
+  bundled build and Clippy passed. Final lifetime regression and strict checks are rerun below;
+  do not infer their result from the earlier pass. The batch stops here for verification/delivery.
+- Final lifetime-fix checks completed at **19:41 UTC**: **41/41 app tests passed**, including
+  retirement without dropping the renderer; strict Clippy passed. Both workspaces formatted.
+  No further native experiment was started before the 19:42 stop. Post-fix native Picture and
+  shutdown verification are the next bounded action; the earlier successful red preview stands.
+- No M03/M04 acceptance gate closes. M03 remains **7/9** and M04 **0/6**; source/native/module,
+  recovery and qualification requirements retain their original scope and budgets.
+
 - Added one typed `ImportPicture` app intent. A new Picture imports an asset and detached
   media/channel tree in one transaction. Importing into an existing Picture channel preserves
   its output settings and leaves other channels unchanged. Rust owns IDs, default source/size/
@@ -158,10 +209,12 @@ batches per diagnostic-only batch; no consecutive diagnostic-only turns by defau
 two batches without a usable capability or acceptance closure, reduce the feature slice or
 choose another functionally ready product task. Do not add another measurement prerequisite.
 
-**Product-delivery count since correction: 2/4. Diagnostic-only batch allowance: 0.**
+**Product-delivery count since correction: 3/4. Diagnostic-only batch allowance: 0.**
 The first authoring slice and the new atomic Picture import capability (verified through backend/
 QuickJS) count as product delivery; the earlier workflow/docs checkpoint does not. Picture UI
-interaction is not counted as verified acceptance. Two further product batches are needed before a diagnostic-only batch.
+interaction is not counted as verified acceptance. The observed ordinary-app Solid Color preview
+is the third usable capability; its unverified Picture/shutdown follow-up is not counted as gate
+closure. One further product batch is needed before a diagnostic-only batch.
 Qualification may interrupt only for a reproduced blocker on the selected product path or an
 explicit user request; otherwise it resumes in its scheduled lane after product delivery.
 
@@ -360,16 +413,16 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-Continue **M04 native channel preview integration in the ordinary app** through the existing
-production renderer and public Golden host/preview contracts. Deliver an observable selected
-channel output and source availability; use bounded functional verification, not another timing
-qualification effort. Keep Shared Texture editing, Picture UI verification and the module's
+Finish **M04 native Picture switching and shutdown verification** after the retained failure/fix,
+then deliver Shared Texture editing and the module's commands/scripts. The ordinary-app Solid
+Color preview is observed; use bounded functional checks, not another timing qualification effort.
+Keep Picture UI verification and the module's
 commands/methods/callbacks/app-owned snippets in M04's remaining acceptance. Preserve Chataigne's
 root default and unfinished P11 work.
 
 Record the slice's owner, observable result, validation and 45-minute stopping time before
 coding. Ship and push a coherent product checkpoint before the next implementation batch.
-The delivered authoring/import capabilities advance the product-delivery counter to **2/4**;
+The delivered authoring/import/native Solid Color capabilities advance the counter to **3/4**;
 documentation alone earns no credit. No new M03 diagnostic-only work is scheduled until four product batches, except for
 an explicit user request or a reproduced correctness/safety blocker on the selected feature.
 

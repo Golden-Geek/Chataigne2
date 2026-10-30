@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { mount, onMount, unmount } from 'svelte';
+	import { getAllContexts, mount, onMount, unmount } from 'svelte';
+	const panelContext = getAllContexts();
 	import {
 		DockviewComponent,
 		type AddPanelOptions,
@@ -245,6 +246,7 @@
 				};
 
 				mountedPanel = mount(PanelComponent, {
+					context: panelContext,
 					target: hostElement,
 					props: {
 						panelApi,
@@ -450,6 +452,7 @@
 		element.className = 'gc-group-panel-add-host';
 
 		let mountedAction: MountedHeaderAction | null = mount(GroupPanelAddAction, {
+			context: panelContext,
 			target: element,
 			props: {
 				availablePanels: availablePanelDefinitions,

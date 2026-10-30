@@ -25,15 +25,21 @@ fn allocate(next: &mut u64) -> Result<TextureId, String> {
     Ok(TextureId::new(*next).expect("checked nonzero texture identity"))
 }
 
+pub(super) struct Targets<'a> {
+    pub routes: &'a [ChannelRoute],
+    pub preview: Option<&'a super::ChannelPreview>,
+}
+
 pub(super) fn build(
     capture: &CapturedChannels,
-    routes: &[ChannelRoute],
+    targets: Targets<'_>,
     previous: &HashMap<ChannelReference, Entry>,
     next: &mut u64,
     limits: PlanLimits,
     observations: &SourceObservations,
     pictures: Option<&crate::media::picture::Pictures>,
 ) -> Result<Prepared, String> {
+    let Targets { routes, preview } = targets;
     if routes.len() > limits.max_outputs || capture.channels.len() > limits.max_passes {
         return Err("channel scene exceeds admitted route/channel counts".into());
     }
@@ -53,11 +59,17 @@ pub(super) fn build(
         if !seen_outputs.insert(route.output) {
             return Err("output routes must be unique".into());
         }
-        if let std::collections::hash_map::Entry::Vacant(slot) = entries.entry(route.channel) {
+    }
+    let mut references = routes.iter().map(|route| route.channel).collect::<Vec<_>>();
+    if let Some(preview) = preview {
+        references.extend(preview.references()?);
+    }
+    for reference in references {
+        if let std::collections::hash_map::Entry::Vacant(slot) = entries.entry(reference) {
             let channel = captured
-                .get(&route.channel)
+                .get(&reference)
                 .ok_or("route was not captured from the backend")?;
-            let mut entry = match previous.get(&route.channel) {
+            let mut entry = match previous.get(&reference) {
                 Some(entry) => entry.clone(),
                 None => Entry {
                     target: allocate(next)?,
@@ -89,7 +101,7 @@ pub(super) fn build(
                         let id = if let Some(id) = image_sources.get(&asset) {
                             *id
                         } else {
-                            let id = match previous.get(&route.channel).and_then(|entry| entry.source.as_ref()) {
+                            let id = match previous.get(&reference).and_then(|entry| entry.source.as_ref()) {
                                 Some((id, configured)) if configured == source => *id,
                                 _ => allocate(next)?,
                             };
@@ -201,17 +213,25 @@ pub(super) fn build(
                 operation,
             });
             channels.push(PreparedChannel {
-                reference: route.channel,
+                reference,
                 resolution,
                 target: entry.target,
                 source: entry.source.as_ref().map(|(id, _)| *id),
             });
             slot.insert(entry);
         }
+    }
+    for route in routes {
         submission.plan.outputs.push(PlanOutput {
             id: route.output,
             source: entries[&route.channel].target,
         });
+    }
+    if let Some(preview) = preview {
+        if !seen_outputs.insert(preview.output) {
+            return Err("preview output duplicates an output route".into());
+        }
+        preview.append(&mut submission, &entries)?;
     }
     // Pure preparation validation, before publication can change a live runtime's desired plan.
     submission

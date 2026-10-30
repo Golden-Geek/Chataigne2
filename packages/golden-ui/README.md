@@ -3,6 +3,11 @@
 `golden_ui` is the reusable core UI package for the Golden stack. It is a root JavaScript workspace
 package under `packages/golden-ui/`, separate from app-local SvelteKit source.
 
+Programmatically mounted dock panels inherit their Svelte parent's context, including app-owned
+providers. The shell exposes `--gc-workbench-background` and `--gc-dock-panel-background` overrides
+for native-underlay consumers; applications withdraw opaque backgrounds only after their native
+installation acknowledgement. Defaults preserve the ordinary Golden theme.
+
 ## Ownership
 
 - `golden_ui` owns the reusable workbench shell, dock/panel framework, session stores, transport

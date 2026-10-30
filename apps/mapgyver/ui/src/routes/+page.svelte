@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import { provideMediaPreview } from '../lib/media/preview-context.svelte';
 	import {
 		MainWindow,
 		useApplicationHost,
@@ -8,6 +10,8 @@
 	import MediaManagerPanel from '../lib/media/MediaManagerPanel.svelte';
 
 	const host = useApplicationHost();
+	const preview = provideMediaPreview();
+	onMount(() => preview.mount());
 	const userPanels: UserPanelDefinitionMap = {
 		mediaManager: { title: 'Media Manager', component: MediaManagerPanel }
 	};
@@ -33,9 +37,22 @@
 	];
 </script>
 
-<MainWindow
-	application={host.application}
-	{initialPanels}
-	{userPanels}
-	httpBaseUrl={host.endpoints.httpBaseUrl}
-	wsUrl={host.endpoints.wsUrl} />
+<div
+	class="app"
+	style:--gc-workbench-background={preview.state.transparent ? 'transparent' : undefined}
+	style:--gc-dock-panel-background={preview.state.transparent ? 'transparent' : undefined}
+	style:--mapgyver-panel-background={preview.state.transparent ? 'transparent' : undefined}>
+	<MainWindow
+		application={host.application}
+		{initialPanels}
+		{userPanels}
+		httpBaseUrl={host.endpoints.httpBaseUrl}
+		wsUrl={host.endpoints.wsUrl} />
+</div>
+
+<style>
+	.app {
+		height: 100%;
+		width: 100%;
+	}
+</style>

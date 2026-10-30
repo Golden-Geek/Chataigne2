@@ -1,5 +1,6 @@
 mod capture;
 mod pictures;
+mod preview;
 mod publication;
 
 use super::*;
@@ -120,7 +121,7 @@ fn installed(renderer: &ChannelRenderer, request: RequestId) {
         })
     });
 }
-fn close(renderer: ChannelRenderer) {
+fn close(mut renderer: ChannelRenderer) {
     let retirement = renderer.retirement();
     renderer.close();
     drop(renderer);

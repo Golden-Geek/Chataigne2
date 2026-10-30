@@ -357,6 +357,18 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
         self.inner.read_model.clone()
     }
 
+    /// Captures app-owned immutable metadata on the authoritative control thread.
+    ///
+    /// The callback must be bounded and perform no IO, waiting, rendering or graph mutation.
+    /// Return owned data/revision guards, then prepare it on the caller's worker. This is an
+    /// on-demand bridge for app subsystems, not a per-frame engine polling interface.
+    pub fn capture_app<R: Send + 'static>(
+        &self,
+        capture: impl FnOnce(&Engine<T>) -> R + Send + 'static,
+    ) -> Result<R, ApplicationError> {
+        self.call_engine(move |engine| capture(engine))
+    }
+
     /// Returns lock-free control/runtime metrics for diagnostics projection.
     pub fn runtime_metrics(&self) -> RuntimeMetricsSnapshot {
         self.inner.control.metrics().snapshot()

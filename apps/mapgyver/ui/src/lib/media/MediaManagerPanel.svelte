@@ -10,6 +10,8 @@
 	import SolidChannelEditor from './SolidChannelEditor.svelte';
 	import PictureChannelEditor from './PictureChannelEditor.svelte';
 	import AssetLocatorForm from './AssetLocatorForm.svelte';
+	import ChannelPreview from './ChannelPreview.svelte';
+	import { MEDIA_NAMESPACE } from './generated/constants';
 
 	let { panelId, panelType, title, params }: PanelProps = $props();
 	let panel = $state<PanelState | null>(null);
@@ -60,6 +62,7 @@
 			void current.currentHistoryStateId;
 			void current.snapshotGeneration;
 			void current.status;
+			void current.getCustomEventSequence(MEDIA_NAMESPACE);
 		}
 		untrack(() => {
 			void refresh();
@@ -211,6 +214,7 @@
 			</nav>
 			<div class="editor">
 				{#if selectedChannel && selectedMedia}
+					<ChannelPreview channel={selectedChannel} />
 					<form
 						class="name"
 						onsubmit={(event) => {
@@ -262,7 +266,7 @@
 		padding: 1.2rem;
 		box-sizing: border-box;
 		color: #dedfe5;
-		background: #181b22;
+		background: var(--mapgyver-panel-background, #181b22);
 		font-size: 0.9rem;
 	}
 	header {

@@ -486,17 +486,35 @@ enum UiWebSocketPoll {
 
 /// Prepares an engine and runs it through the built-in HTTP and WebSocket host.
 pub fn run_with_ui_server_config<T: ProjectLifecycle + 'static>(
+    engine: Engine<T>,
+    config: UiServerConfig,
+) -> std::io::Result<()> {
+    run_with_ui_server_config_and_ready(engine, config, |_| {})
+}
+
+/// Prepares the authoritative runtime and exposes its facade once the listener is bound.
+/// The callback only wires host services; it must not block or start another engine.
+pub fn run_with_ui_server_config_and_ready<T: ProjectLifecycle + 'static>(
     mut engine: Engine<T>,
     config: UiServerConfig,
+    ready: impl FnOnce(ProductionRuntime<T>),
 ) -> std::io::Result<()> {
     project_host::load_preferences_into_engine(&mut engine, config.preferences.as_ref()).map_err(Error::other)?;
     startup::prepare_engine_for_host_startup(&mut engine)?;
     apply_preferences_runtime_limits(&mut engine);
-    run_ui_server(engine, config)
+    run_ui_server_with_ready(engine, config, ready)
 }
 
 /// Runs the built-in HTTP and WebSocket host through the production application facade.
 pub fn run_ui_server<T: ProjectLifecycle + 'static>(engine: Engine<T>, config: UiServerConfig) -> std::io::Result<()> {
+    run_ui_server_with_ready(engine, config, |_| {})
+}
+
+fn run_ui_server_with_ready<T: ProjectLifecycle + 'static>(
+    engine: Engine<T>,
+    config: UiServerConfig,
+    ready: impl FnOnce(ProductionRuntime<T>),
+) -> std::io::Result<()> {
     let frontend_security = Arc::new(FrontendSecurity::prepare(config.frontend_assets)?);
     let request_access = Arc::new(RequestAccessPolicy::new(
         &config.allowed_origins,
@@ -521,6 +539,7 @@ pub fn run_ui_server<T: ProjectLifecycle + 'static>(engine: Engine<T>, config: U
     );
 
     let listener = TcpListener::bind(&config.bind_addr)?;
+    ready(runtime.clone());
     println!(
         "UI host listening on http://{} (bundled_frontend={})",
         config.bind_addr,

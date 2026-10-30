@@ -72,6 +72,12 @@ fn host_scale_origin_and_clip_preserve_source_crop_in_normalized_backing_space()
     let snapshot = reader.snapshot();
     let image = &snapshot.views[0];
     assert!(reader.mark_installed(snapshot.generation));
+    assert!(reader.mark_uninstalled(snapshot.generation));
+    assert!(matches!(
+        control.handle(PreviewRequest::Status { session, revision: 1 }, host()),
+        PreviewResponse::Applied { installed: false, .. }
+    ));
+    assert!(reader.mark_installed(snapshot.generation));
     assert_eq!(
         control.handle(PreviewRequest::Status { session, revision: 1 }, host()),
         PreviewResponse::Applied {

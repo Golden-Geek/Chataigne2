@@ -94,7 +94,10 @@ fn missing_and_unconfigured_channels_publish_explicit_transparent_placeholders()
     close(probe);
     let built = super::super::plan::build(
         &capture,
-        &routes(reference),
+        super::super::plan::Targets {
+            routes: &routes(reference),
+            preview: None,
+        },
         &HashMap::new(),
         &mut 0,
         config().plan_limits,
@@ -118,7 +121,10 @@ fn missing_and_unconfigured_channels_publish_explicit_transparent_placeholders()
     };
     let built = super::super::plan::build(
         &capture_channels(&engine, &[wrong], 16).unwrap(),
-        &routes(wrong),
+        super::super::plan::Targets {
+            routes: &routes(wrong),
+            preview: None,
+        },
         &HashMap::new(),
         &mut 0,
         config().plan_limits,
@@ -159,7 +165,7 @@ fn automatic_spout_warms_without_inventing_an_extent_and_changed_selector_gets_a
     };
     *sender = Some("B".into());
     edit(&mut engine, MediaEdit::ConfigureChannel { reference, definition });
-    let stale = renderer.desired.as_ref().unwrap().0.clone();
+    let stale = renderer.desired.as_ref().unwrap().capture.clone();
     assert!(!stale.is_current());
     assert!(renderer.publish(stale, routes(reference)).is_err());
     let request = renderer

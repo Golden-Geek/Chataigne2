@@ -207,7 +207,7 @@ pub fn run(config: HostConfig) -> io::Result<()> {
         },
         context,
         host,
-        presentation,
+        move |_| Ok(presentation),
     )
 }
 

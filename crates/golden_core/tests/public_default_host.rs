@@ -46,7 +46,9 @@ where
     T: ProjectLifecycle + 'static,
     R: Runtime,
 {
-    launch_engine_with_native_presentation(engine, args, context, DesktopHostConfig::default(), presentation)
+    launch_engine_with_native_presentation(engine, args, context, DesktopHostConfig::default(), move |_| {
+        Ok(presentation)
+    })
 }
 
 #[test]

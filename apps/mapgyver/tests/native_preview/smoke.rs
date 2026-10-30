@@ -388,7 +388,7 @@ mod windows_smoke {
             },
             context,
             config,
-            presentation,
+            move |_| Ok(presentation),
         );
         let _ = done.send(());
         let _ = watchdog.join();

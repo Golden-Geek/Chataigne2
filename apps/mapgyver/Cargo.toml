@@ -9,7 +9,8 @@ default-run = "MapGyver"
 name = "mapgyver"
 
 [features]
-native-video = ["golden_video/d3d11"]
+default = ["native-video"]
+native-video = ["golden_video/d3d11", "dep:windows", "dep:golden_time"]
 native-presentation-smoke = ["dep:windows"]
 native-video-smoke = ["native-video", "dep:golden_time", "dep:windows"]
 native-preview-smoke = ["native-video-smoke"]

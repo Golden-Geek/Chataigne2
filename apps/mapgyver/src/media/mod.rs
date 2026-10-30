@@ -7,6 +7,8 @@ mod catalog;
 mod importing;
 mod nodes;
 pub mod picture;
+#[cfg(all(windows, feature = "native-video"))]
+pub(crate) mod preview;
 pub mod protocol;
 pub mod rendering;
 pub mod resolution;

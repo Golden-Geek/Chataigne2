@@ -32,7 +32,7 @@ html {
 	box-sizing: border-box;
 	user-select: none;
 	overflow: hidden;
-	background-color: var(--gc-color-background);
+	background-color: var(--gc-workbench-background, var(--gc-color-background));
 }
 
 .gc-main.os-linux {
@@ -397,7 +397,7 @@ select {
 		box-sizing: border-box;
 		border-radius: 0.4rem;
 		border: solid 0.05rem rgba(255, 255, 255, 0.05);
-		background-color: var(--gc-color-panel);
+		background-color: var(--gc-dock-panel-background, var(--gc-color-panel));
 		box-shadow: 0.05rem 0.05rem 0.6rem rgba(0, 0, 0, 0.6);
 		padding: 0.25rem;
 		/* overflow: visible !important; */

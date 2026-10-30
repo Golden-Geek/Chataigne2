@@ -70,7 +70,18 @@ pub fn run() -> std::io::Result<()> {
             url: "http://127.0.0.1:5174",
         }),
     };
-    golden_core::app::run_default_with_config::<AppNode, tauri::Wry>(tauri::generate_context!(), config)
+    #[cfg(all(windows, feature = "native-video"))]
+    {
+        golden_core::app::run_default_with_native_presentation::<AppNode, tauri::Wry>(
+            tauri::generate_context!(),
+            config,
+            crate::media::preview::presentation,
+        )
+    }
+    #[cfg(not(all(windows, feature = "native-video")))]
+    {
+        golden_core::app::run_default_with_config::<AppNode, tauri::Wry>(tauri::generate_context!(), config)
+    }
 }
 
 #[cfg(test)]
