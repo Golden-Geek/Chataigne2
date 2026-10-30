@@ -95,6 +95,25 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
         ScreenEdit::ConfigureScreen { screen, definition } => {
             let node = screen_id(engine, screen)?;
             definition.validate()?;
+            if definition.enabled
+                && let Some(ScreenTarget::Spout { sender, .. }) = &definition.target
+            {
+                let mut child = engine
+                    .nodes
+                    .get(manager(engine)?)
+                    .and_then(|node| node.node_data().first_child);
+                while let Some(other) = child {
+                    let candidate = engine.nodes.get(other).ok_or("Screen Manager child is missing")?;
+                    child = candidate.node_data().next_sibling;
+                    if other != node
+                        && let AppNode::Screen(candidate) = candidate
+                        && candidate.definition().enabled
+                        && matches!(&candidate.definition().target, Some(ScreenTarget::Spout { sender: name, .. }) if name == sender)
+                    {
+                        return Err("enabled Screens must have distinct Spout sender names".into());
+                    }
+                }
+            }
             engine.edits.push(Edit::CallNodeMutation {
                 node,
                 needs_tree_snapshot: false,
@@ -241,6 +260,7 @@ pub fn inspect(engine: &AppEngine) -> Result<ScreenManagerSnapshot, String> {
 
 pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
     let manager = manager(engine)?;
+    let mut senders = std::collections::HashSet::new();
     for (_, node) in engine.nodes.iter() {
         match node {
             AppNode::ScreenManager(node) => {
@@ -258,6 +278,12 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
                     return Err("Screen is outside its manager".into());
                 }
                 node.definition().validate()?;
+                if node.definition().enabled
+                    && let Some(ScreenTarget::Spout { sender, .. }) = &node.definition().target
+                    && !senders.insert(sender)
+                {
+                    return Err("enabled Screens must have distinct Spout sender names".into());
+                }
                 let mut child = node.node_data().first_child;
                 while let Some(id) = child {
                     let Some(AppNode::Surface(surface)) = engine.nodes.get(id) else {

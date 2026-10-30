@@ -1,6 +1,7 @@
 //! Shared app preview: the host owns HWND lifetime; this task owns rendering/preparation.
 pub(crate) mod config;
 mod discovery;
+mod targets;
 mod worker;
 
 use crate::app::AppNode;
@@ -40,12 +41,16 @@ pub(crate) fn presentation(runtime: ProductionRuntime<AppNode>) -> io::Result<Na
     let control = controller.clone();
     Ok(NativePresentation::new(move |window: &tauri::WebviewWindow| {
         let hwnd = window.hwnd().map_err(io::Error::other)?.0 as isize;
+        let size = window.inner_size().map_err(io::Error::other)?;
+        let initial_extent =
+            golden_video::Extent2D::new(size.width.max(1), size.height.max(1)).map_err(io::Error::other)?;
         let window = window.clone();
         Ok(NativePresentationTask::new(move |stop| {
             worker::run(worker::Input {
                 runtime,
                 window,
                 hwnd,
+                initial_extent,
                 controller,
                 receiver,
                 viewport,

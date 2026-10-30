@@ -4,7 +4,10 @@ use super::protocol::{PreviewSource, PreviewStatus};
 use crate::{
     app::AppEngine,
     media::{CapturedChannels, capture_channels},
-    screens::rendering::{ScreenRoute, capture_screen, membership_guard},
+    screens::{
+        protocol::ScreenId,
+        rendering::{ScreenRoute, VirtualOutput, capture_outputs, capture_screen, membership_guard},
+    },
 };
 use golden_io::RevisionGuard;
 use std::collections::HashSet;
@@ -13,6 +16,8 @@ use std::collections::HashSet;
 pub struct CapturedPreview {
     pub channels: CapturedChannels,
     pub screens: Vec<ScreenRoute>,
+    pub catalog: Vec<ScreenId>,
+    pub outputs: Vec<VirtualOutput>,
     statuses: Vec<PreviewStatus>,
     guards: Vec<RevisionGuard>,
 }
@@ -118,7 +123,56 @@ pub fn capture_preview(
     Ok(CapturedPreview {
         channels: capture_channels(engine, &channels, maximum_sources)?,
         screens,
+        catalog: Vec::new(),
+        outputs: Vec::new(),
         statuses,
         guards,
     })
+}
+
+/// Union of editor demand and enabled outputs. Channel and Screen passes remain shared, while
+/// closing/minimizing all previews cannot withdraw an authored virtual output.
+pub fn capture_presentation(
+    engine: &AppEngine,
+    sources: &[PreviewSource],
+    maximum_sources: usize,
+    maximum_surfaces: usize,
+) -> Result<CapturedPreview, String> {
+    let mut result = capture_preview(engine, sources, maximum_sources, maximum_surfaces)?;
+    let captured = capture_outputs(engine, 128, crate::screens::rendering::MAX_VIRTUAL_OUTPUTS)?;
+    result.catalog = captured.catalog;
+    result.guards.extend(captured.guards);
+    let mut references = sources
+        .iter()
+        .filter_map(|source| match source {
+            PreviewSource::Channel { reference } => Some(*reference),
+            PreviewSource::Screen { .. } => None,
+        })
+        .collect::<Vec<_>>();
+    for route in &result.screens {
+        references.extend(route.screen.references());
+    }
+    for output in &captured.outputs {
+        if result.screens.iter().any(|route| route.screen.id() == output.screen) {
+            continue;
+        }
+        let screen = capture_screen(engine, output.screen, maximum_surfaces)?;
+        result.statuses.push(PreviewStatus {
+            source: PreviewSource::Screen { screen: output.screen },
+            extent: Some(output.extent),
+            error: None,
+            message: (!screen.has_content()).then(|| "No enabled sources assigned".into()),
+        });
+        references.extend(screen.references());
+        result.screens.push(ScreenRoute {
+            output: None,
+            extent: output.extent,
+            screen,
+        });
+    }
+    let mut seen = HashSet::new();
+    references.retain(|reference| seen.insert(*reference));
+    result.channels = capture_channels(engine, &references, maximum_sources)?;
+    result.outputs = captured.outputs;
+    Ok(result)
 }

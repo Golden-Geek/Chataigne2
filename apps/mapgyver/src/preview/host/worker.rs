@@ -2,7 +2,7 @@ use crate::{
     app::AppNode,
     media::rendering::{ChannelRenderer, PreviewLayout},
     preview::{
-        capture::{CapturedPreview, capture_preview},
+        capture::{CapturedPreview, capture_presentation},
         protocol::{PREVIEW_STATUS_EVENT, PreviewSource, PreviewStatus},
     },
 };
@@ -41,7 +41,12 @@ impl Drop for SessionOwner {
     }
 }
 
-fn create(hwnd: isize, extent: Extent2D, notifier: WorkerNotifier) -> io::Result<(Owner, D3d11Control)> {
+fn create(
+    hwnd: isize,
+    extent: Extent2D,
+    targets: &[super::targets::Target],
+    notifier: WorkerNotifier,
+) -> io::Result<(Owner, D3d11Control)> {
     let adapter = adapters()
         .map_err(io::Error::other)?
         .into_iter()
@@ -50,6 +55,13 @@ fn create(hwnd: isize, extent: Extent2D, notifier: WorkerNotifier) -> io::Result
         .id;
     let config = super::config::configuration(Some(notifier.clone()));
     let limits = config.video.plan_limits;
+    let mut outputs = vec![OutputBinding::Window {
+        id: OutputId::new(1).unwrap(),
+        // SAFETY: Golden retains this HWND until this task and GPU retirement finish.
+        window: unsafe { WindowTarget::from_raw(hwnd).map_err(io::Error::other)? },
+        extent,
+    }];
+    outputs.extend(targets.iter().map(super::targets::Target::binding));
     let runtime = VideoRuntime::spawn_d3d11(
         config.video,
         D3d11Config {
@@ -59,12 +71,7 @@ fn create(hwnd: isize, extent: Extent2D, notifier: WorkerNotifier) -> io::Result
                 max_sources: 8,
                 max_storage_bytes: 256 * 1024 * 1024,
             },
-            outputs: vec![OutputBinding::Window {
-                id: OutputId::new(1).unwrap(),
-                // SAFETY: Golden retains this HWND until this task and GPU retirement finish.
-                window: unsafe { WindowTarget::from_raw(hwnd).map_err(io::Error::other)? },
-                extent,
-            }],
+            outputs,
         },
     )
     .map_err(io::Error::other)?;
@@ -75,6 +82,7 @@ fn create(hwnd: isize, extent: Extent2D, notifier: WorkerNotifier) -> io::Result
         .renderer
         .native_control()
         .ok_or_else(|| io::Error::other("native preview control missing"))?;
+    native.set_output_notifier(notifier.clone());
     owner
         .renderer
         .enable_pictures(&std::env::current_dir()?, config.pictures, Some(notifier))
@@ -86,6 +94,7 @@ pub(super) struct Input {
     pub runtime: ProductionRuntime<AppNode>,
     pub window: tauri::WebviewWindow,
     pub hwnd: isize,
+    pub initial_extent: Extent2D,
     pub controller: PreviewController,
     pub receiver: PreviewReceiver,
     pub viewport: Arc<Mutex<Option<HostViewport>>>,
@@ -106,6 +115,10 @@ pub(super) fn run(input: Input) -> io::Result<()> {
     let mut confirmed = None;
     let mut retry = Instant::now();
     let mut discovery = None;
+    let mut targets = super::targets::Targets::default();
+    let mut topology = Vec::new();
+    let mut last_error = None;
+    let mut output_states = Vec::new();
     while !input.stop.is_requested() {
         if let Some(revision) = input.discovery.take() {
             let result = (|| {
@@ -133,29 +146,14 @@ pub(super) fn run(input: Input) -> io::Result<()> {
             .viewport
             .lock()
             .map_err(|_| io::Error::other("preview viewport lock poisoned"))?;
-        if let Some(host) =
-            host.filter(|host| host.client_width > 0 && host.client_height > 0 && Instant::now() >= retry)
-        {
+        if Instant::now() >= retry {
             let result = (|| -> Result<(), String> {
-                let extent = Extent2D::new(host.client_width, host.client_height).map_err(|e| e.to_string())?;
-                if owner.is_none() {
-                    if layout.views.is_empty() || Instant::now() < retry {
-                        return Ok(());
-                    }
-                    let (created, control) =
-                        create(input.hwnd, extent, input.notifier.clone()).map_err(|e| e.to_string())?;
-                    native = Some(control);
-                    owner = Some(created);
-                }
-                let renderer = &mut owner.as_mut().unwrap().renderer;
-                let project = input.runtime.read_model().current_project_file();
-                let root = project
-                    .current_path
-                    .as_deref()
-                    .and_then(|path| std::path::Path::new(path).parent())
-                    .map(std::path::Path::to_path_buf)
-                    .unwrap_or(std::env::current_dir().map_err(|e| e.to_string())?);
-                let root_changed = renderer.set_picture_root(&root)?;
+                let extent = host
+                    .filter(|host| host.client_width > 0 && host.client_height > 0)
+                    .map(|host| Extent2D::new(host.client_width, host.client_height))
+                    .transpose()
+                    .map_err(|e| e.to_string())?
+                    .unwrap_or(input.initial_extent);
                 let preview = PreviewLayout {
                     output: OutputId::new(1).unwrap(),
                     descriptor: TextureDescriptor {
@@ -166,15 +164,52 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                     },
                     layout: layout.clone(),
                 };
-                if root_changed
-                    || published != Some(layout.generation)
-                    || capture.as_ref().is_none_or(|capture| !capture.is_current())
-                {
+                let mut changed = published != Some(layout.generation)
+                    || capture.as_ref().is_none_or(|capture| !capture.is_current());
+                if changed {
                     let sources = preview.sources()?;
-                    let next = input
+                    let mut next = input
                         .runtime
-                        .capture_app(move |engine| capture_preview(engine, &sources, 8, 128))
+                        .capture_app(move |engine| capture_presentation(engine, &sources, 8, 128))
                         .map_err(|e| e.to_string())??;
+                    let desired = targets.assign(&mut next)?;
+                    if desired != topology {
+                        // The public native contract has immutable bindings. Complete actual GPU
+                        // retirement before replacing a topology, including the same HWND/name.
+                        if let Some(previous) = owner.take() {
+                            drop(previous);
+                            eprintln!("[mapgyver-output] native session retired");
+                        }
+                        native = None;
+                        output_states.clear();
+                        topology = desired;
+                        installed = None;
+                        confirmed = None;
+                    }
+                    capture = Some(next);
+                }
+                if owner.is_none() {
+                    if layout.views.is_empty() && topology.is_empty() {
+                        published = Some(layout.generation);
+                        return Ok(());
+                    }
+                    let (created, control) =
+                        create(input.hwnd, extent, &topology, input.notifier.clone()).map_err(|e| e.to_string())?;
+                    native = Some(control);
+                    owner = Some(created);
+                    changed = true;
+                }
+                let renderer = &mut owner.as_mut().unwrap().renderer;
+                let project = input.runtime.read_model().current_project_file();
+                let root = project
+                    .current_path
+                    .as_deref()
+                    .and_then(|path| std::path::Path::new(path).parent())
+                    .map(std::path::Path::to_path_buf)
+                    .unwrap_or(std::env::current_dir().map_err(|e| e.to_string())?);
+                changed |= renderer.set_picture_root(&root)?;
+                if changed {
+                    let next = capture.as_ref().ok_or("presentation capture missing")?;
                     renderer.publish_screen_targets(
                         next.channels.clone(),
                         Vec::new(),
@@ -182,7 +217,6 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                         Some(preview),
                     )?;
                     input.receiver.mark_uninstalled(layout.generation);
-                    capture = Some(next);
                     published = Some(layout.generation);
                     installed = None;
                     confirmed = None;
@@ -196,6 +230,12 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                         OutcomeKind::Installed { generation, .. }
                             if Some(outcome.request) == renderer.latest_request() =>
                         {
+                            eprintln!(
+                                "[mapgyver-presentation] plan installed; channels={} screens={} virtual_outputs={}",
+                                renderer.channels().len(),
+                                capture.as_ref().map_or(0, |capture| capture.screens.len()),
+                                topology.len()
+                            );
                             installed = Some((layout.generation, generation, None));
                         }
                         OutcomeKind::Rejected(failure) if Some(outcome.request) == renderer.latest_request() => {
@@ -227,10 +267,43 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                         confirmed = Some(*generation);
                     }
                 }
-                let statuses = capture
+                let mut statuses = capture
                     .as_ref()
                     .map(|capture| capture.statuses(renderer.channels()))
                     .unwrap_or_default();
+                let observations = native.as_ref().unwrap().output_snapshots();
+                let states = observations
+                    .iter()
+                    .filter(|output| output.id != OutputId::new(1).unwrap())
+                    .map(|output| (output.id, output.state, output.generation, output.hresult))
+                    .collect::<Vec<_>>();
+                if states != output_states {
+                    for (id, state, generation, hresult) in &states {
+                        eprintln!(
+                            "[mapgyver-output] id={} state={state:?} incarnation={generation} hresult={hresult:?}",
+                            id.get()
+                        );
+                    }
+                    output_states = states;
+                }
+                if let Some(capture) = &capture {
+                    for route in capture.screens.iter().filter(|route| route.output.is_some()) {
+                        if let Some(output) = observations.iter().find(|output| Some(output.id) == route.output)
+                            && let Some(status) = statuses.iter_mut().find(|status| {
+                                status.source
+                                    == PreviewSource::Screen {
+                                        screen: route.screen.id(),
+                                    }
+                            })
+                            && !matches!(output.state, golden_video::native::OutputState::Ready)
+                        {
+                            status.message = Some(format!("Spout output {:?}", output.state));
+                            if let Some(hresult) = output.hresult {
+                                status.error = Some(format!("Spout output error 0x{:08X}", hresult as u32));
+                            }
+                        }
+                    }
+                }
                 if statuses != last_status {
                     input
                         .window
@@ -238,9 +311,14 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                         .map_err(|e| e.to_string())?;
                     last_status = statuses;
                 }
+                last_error = None;
                 Ok(())
             })();
             if let Err(error) = result {
+                if last_error.as_ref() != Some(&error) {
+                    eprintln!("[mapgyver-presentation] {error}");
+                    last_error = Some(error.clone());
+                }
                 input.receiver.mark_uninstalled(layout.generation);
                 let statuses = layout
                     .views
@@ -254,7 +332,6 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                     })
                     .collect::<Vec<_>>();
                 if statuses != last_status {
-                    eprintln!("[mapgyver-preview] {error}");
                     let _ = input.window.emit(PREVIEW_STATUS_EVENT, &statuses);
                     last_status = statuses;
                 }

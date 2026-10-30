@@ -251,7 +251,7 @@ impl ChannelRenderer {
     }
 
     fn validate_screens(&self, capture: &CapturedChannels, screens: &[ScreenRoute]) -> Result<(), String> {
-        if screens.len() > self.limits.max_outputs
+        if screens.len() > self.limits.max_passes
             || screens
                 .iter()
                 .any(|route| route.screen.project != capture.project || !route.screen.is_current())

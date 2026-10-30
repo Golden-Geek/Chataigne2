@@ -185,7 +185,8 @@ impl ScreenDefinition {
                     .ok_or("rectangle bottom edge overflows physical coordinates")?;
             }
             Some(ScreenTarget::Spout { sender, extent: size }) => {
-                text(sender, 255, "Spout sender")?;
+                // Golden's versioned frame counter reserves 16 bytes of the SDK name limit.
+                text(sender, 239, "Spout sender")?;
                 extent(*size)?;
             }
             None => {}

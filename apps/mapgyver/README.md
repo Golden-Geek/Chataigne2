@@ -103,11 +103,30 @@ fill the mapped quad while retaining the authored source/crop for Off. Quad, ord
 opacity continue to apply. Active calibration adds no media/asset/input demand and creates no
 calibration texture; Golden evaluates it at target resolution. Switching Off restores the saved
 source route and crop without changing their identities. Backend/runtime and finite GPU checks
-verify these semantics; ordinary-app calibration visual/input acceptance remains open.
+verify these semantics. An ordinary-app, independent Spout receiver flow also verifies delivery
+with no editor loaded for Grid/Bars, restored media routing and enable/disable/resize recovery.
+Calibration visual/form-input acceptance remains open.
 
-Physical/Spout target activation, display recovery and full
-graphical Screen/Surface Source editor gestures remain M05 work. Authored target data alone does
-not open an output or establish native display qualification; the panel states that limit.
+Enabled virtual Spout Screen targets now publish through this same renderer. Output capture is
+independent of preview registrations; hiding or closing views cannot remove its source demand.
+The host worker captures at most 128 Screen definitions and admits seven virtual targets plus
+the host preview consumer within the existing eight-output budget. Runtime output IDs remain
+stable through toggle/rename/reorder and are separate from persisted Screen identities. Duplicate
+enabled sender names fail atomically; names admit 239 UTF-8 bytes, reserving the SDK counter
+namespace. Native output storage is BGRA8 sRGB with straight alpha; Golden converts at delivery.
+Output availability/errors reuse app preview status; the native backend retains its bounded
+independent endpoint retry strategy.
+
+Golden's public native bindings are immutable per renderer session. Target enablement, name or
+extent changes therefore retire the shared session through actual GPU completion before creating
+the replacement; this can briefly interrupt other outputs and restarts prepared source sessions.
+Surface edits and editor geometry/visibility changes only replace the render plan. This explicit
+session boundary avoids overlapping same-name SDK senders or swapchains on one HWND. Physical
+target windows, display recovery and full graphical Screen/Surface Source editor gestures remain
+M05 work. No physical display, minimize, latency, color or full target-concurrency pass is inferred.
+The finite delivery check is `node apps/mapgyver/tests/native_output/check.mjs` from the workspace
+root, after building `MapGyver` and `native_qualification` with `--features native-qualification`.
+It uses an isolated port, ephemeral unsaved authoring and clean shutdown; artifacts stay in `target`.
 
 Media Manager's Add menu offers Media Operation commands, creation presets for each source kind,
 and a Media Script with app-owned function/callback snippets. Commands keep a JSON `MediaEdit`
@@ -131,7 +150,8 @@ work. Manager and command nodes are passive; no polling or recurring engine work
 Command triggers emit pulses without an empty history entry. One successful structural operation
 is one Undo step, and merely loading a saved command does not execute it.
 
-On Windows, the ordinary app enables worker-owned native Channel and Screen previews by default.
+On Windows, the ordinary app enables worker-owned native Channel/Screen previews and enabled
+virtual Screen outputs by default, without requiring any preview to initialize the renderer.
 Each view registers a clipped region through `golden_video_ui`; app source resolution and shared
 host preparation live under `src/preview`, with media rendering under `src/media/rendering`.
 Golden owns the window,

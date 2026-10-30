@@ -28,7 +28,7 @@ pub(crate) fn configuration(notifier: Option<WorkerNotifier>) -> Config {
             plan_limits: PlanLimits {
                 max_passes: 24,
                 max_external_textures: 8,
-                max_outputs: 8,
+                max_outputs: crate::screens::rendering::MAX_VIRTUAL_OUTPUTS + 1,
                 max_dependencies: 128,
                 max_texture_dimension: 8192,
                 max_texture_bytes: 256 * 1024 * 1024,

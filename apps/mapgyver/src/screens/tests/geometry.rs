@@ -1,6 +1,20 @@
 use super::*;
 
 #[test]
+fn virtual_sender_names_leave_room_for_the_native_frame_counter_namespace() {
+    for (length, valid) in [(239, true), (240, false)] {
+        let definition = ScreenDefinition {
+            enabled: true,
+            target: Some(ScreenTarget::Spout {
+                sender: "a".repeat(length),
+                extent: golden_video::Extent2D::new(64, 64).unwrap(),
+            }),
+        };
+        assert_eq!(definition.validate().is_ok(), valid);
+    }
+}
+
+#[test]
 fn crops_and_quads_admit_offscreen_mirrored_mapping_but_reject_invalid_geometry() {
     let mut quad = Quad::default();
     quad.corners[0].x = -0.2;

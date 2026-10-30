@@ -14,6 +14,9 @@ use golden_video::plan::{BlendMode, Layer, LayerSource, ProjectiveMapping, Sampl
 use golden_video::{Extent2D, Opacity, OutputId, TextureId};
 use std::collections::{HashMap, HashSet};
 
+/// The shared renderer admits eight consumers, with one reserved for the host preview window.
+pub const MAX_VIRTUAL_OUTPUTS: usize = 7;
+
 #[derive(Clone)]
 pub struct CapturedScreen {
     pub(crate) project: uuid::Uuid,
@@ -30,6 +33,64 @@ pub struct ScreenRoute {
     pub output: Option<OutputId>,
     pub extent: Extent2D,
     pub screen: CapturedScreen,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct VirtualOutput {
+    pub screen: ScreenId,
+    pub sender: String,
+    pub extent: Extent2D,
+}
+
+pub struct CapturedOutputs {
+    pub catalog: Vec<ScreenId>,
+    pub outputs: Vec<VirtualOutput>,
+    pub guards: Vec<RevisionGuard>,
+}
+
+/// Capture output policy independently of editor registrations. Disabled Screens still contribute
+/// guards, so enabling one invalidates the snapshot without scanning the actor every worker tick.
+pub fn capture_outputs(
+    engine: &AppEngine,
+    maximum_screens: usize,
+    maximum_outputs: usize,
+) -> Result<CapturedOutputs, String> {
+    let manager = authoring::manager(engine)?;
+    let owner = engine.nodes.get(manager).ok_or("Screen Manager is missing")?;
+    let mut child = owner.node_data().first_child;
+    let mut screens = Vec::new();
+    let mut outputs = Vec::new();
+    let mut guards = vec![membership_guard(engine)?];
+    let mut names = HashSet::new();
+    while let Some(id) = child {
+        let node = engine.nodes.get(id).ok_or("Screen Manager child is missing")?;
+        child = node.node_data().next_sibling;
+        let AppNode::Screen(node) = node else { continue };
+        if screens.len() == maximum_screens {
+            return Err("Screen catalog exceeds admitted count".into());
+        }
+        let screen = ScreenId(node.node_data().meta.uuid);
+        screens.push(screen);
+        guards.push(node.guard());
+        if node.definition().enabled
+            && node.node_data().effective_enabled
+            && let Some(ScreenTarget::Spout { sender, extent }) = &node.definition().target
+        {
+            if outputs.len() == maximum_outputs || !names.insert(sender.clone()) {
+                return Err("virtual outputs exceed admitted count or duplicate a sender name".into());
+            }
+            outputs.push(VirtualOutput {
+                screen,
+                sender: sender.clone(),
+                extent: *extent,
+            });
+        }
+    }
+    Ok(CapturedOutputs {
+        catalog: screens,
+        outputs,
+        guards,
+    })
 }
 
 impl CapturedScreen {

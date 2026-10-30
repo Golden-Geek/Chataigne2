@@ -3,7 +3,7 @@ use crate::screens::{protocol::*, rendering::capture_screen};
 use golden_video::plan::{LayerSource, Pattern};
 use golden_video::plan::{Point, RenderOperation, UnitRect};
 
-fn screen_edit(engine: &mut AppEngine, edit: ScreenEdit) -> ScreenEditResult {
+pub(super) fn screen_edit(engine: &mut AppEngine, edit: ScreenEdit) -> ScreenEditResult {
     let result = apply_project_intent(
         engine,
         UiEditIntent::InvokeAppOperation {
@@ -16,7 +16,7 @@ fn screen_edit(engine: &mut AppEngine, edit: ScreenEdit) -> ScreenEditResult {
     serde_json::from_value(result.result.unwrap().value).unwrap()
 }
 
-fn screen(engine: &mut AppEngine, channel: ChannelReference) -> (ScreenId, SurfaceReference) {
+pub(super) fn screen(engine: &mut AppEngine, channel: ChannelReference) -> (ScreenId, SurfaceReference) {
     let ScreenEditResult::ScreenCreated { screen, surface } =
         screen_edit(engine, ScreenEdit::CreateScreen { label: None })
     else {
