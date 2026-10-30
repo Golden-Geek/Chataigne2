@@ -1,6 +1,7 @@
 export { createGraphStore } from './store/graph.svelte';
 export type { GraphState, GraphStore } from './store/graph.svelte';
 export { createWorkbenchSession } from './store/workbench.svelte';
+export { appState } from './store/app-state.svelte';
 export {
 	clearPerformanceSamples,
 	performanceProfilerState,

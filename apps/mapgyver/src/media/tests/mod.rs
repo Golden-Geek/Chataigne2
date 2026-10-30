@@ -1,5 +1,6 @@
 mod assets;
 mod authoring;
+mod catalog;
 mod resolution;
 mod script;
 mod typescript;

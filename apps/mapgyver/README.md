@@ -2,12 +2,29 @@
 
 This crate owns MapGyver's identity, project policy, frontend composition, and
 desktop packaging configuration. Golden owns the engine, persistence, transport,
-desktop host, and generic UI. Media and mapping systems will be added here as
-app-owned systems through those public boundaries.
+desktop host, and generic UI. App-owned media contracts and rendering policy
+live under `src/media`; mapping and composition systems build on those boundaries.
 
-The initial project uses Golden's standard empty Dashboard. It contains no media,
-composition, screen, or surface nodes yet. The native feasibility probe under
-`tools/mapgyver/native-probe` remains a separate diagnostic executable.
+The initial project contains a Media Manager and Golden's standard empty Dashboard.
+The primary app panel creates Solid Color media with backend-owned defaults and
+edits independent channel color/alpha, automatic/fixed size and sampling. Media and
+channels can be renamed, channels reordered, and media/channels removed through the
+same history-aware app operations used by scripts and headless clients. Undo/redo,
+project replacement and reconnection refresh the panel without polling.
+
+`src/media/protocol.rs` owns those DTOs; `generate_media_protocol` generates the
+frontend contracts. `src/media/catalog.rs` provides ordered, read-only inspection
+in one media/channel traversal. The UI under `ui/src/lib/media` registers through
+Golden's public panel API and consumes its public workbench session facade. It
+does not allocate identities, choose backend defaults or mutate node internals.
+App invariants run at the detached candidate-validation boundary, after queued
+default/load edits attach and before live activation, for both startup and replacement.
+
+This first authoring panel does not yet provide native channel previews or Picture/
+Shared Texture source editors. Module command nodes and app-owned script snippets
+also remain part of M04. See the [active acceptance ledger](../../docs/progress/mapgyver-status.md#m04-acceptance-items).
+The native feasibility probe under `tools/mapgyver/native-probe` remains a separate
+diagnostic executable; it is not the app's rendering implementation.
 
 Run these commands from the workspace root:
 

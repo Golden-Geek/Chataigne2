@@ -123,6 +123,9 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
     }
     let edit: MediaEdit = serde_json::from_value(payload).map_err(|error| error.to_string())?;
     let result = match edit {
+        MediaEdit::InspectManager => MediaEditResult::Manager {
+            snapshot: super::catalog::inspect(engine)?,
+        },
         MediaEdit::ImportAsset {
             locator,
             label: requested,

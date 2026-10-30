@@ -9,9 +9,7 @@ use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use futures_util::{SinkExt, StreamExt};
-use golden_engine::app::{
-    ProjectGeneration, ProjectLifecycle, apply_preferences_runtime_limits, prepare_engine_for_runtime,
-};
+use golden_engine::app::{ProjectGeneration, ProjectLifecycle, apply_preferences_runtime_limits};
 use golden_engine::application::{ApplicationError, AppliedUiTransaction, ProductionRuntime, UiClientLease};
 use golden_engine::engine::{Engine, EngineTime};
 use golden_engine::events::CustomEventRetention;
@@ -50,6 +48,7 @@ mod delivery;
 mod http;
 mod hub;
 mod session;
+mod startup;
 mod websocket;
 
 use application_error::*;
@@ -491,8 +490,7 @@ pub fn run_with_ui_server_config<T: ProjectLifecycle + 'static>(
     config: UiServerConfig,
 ) -> std::io::Result<()> {
     project_host::load_preferences_into_engine(&mut engine, config.preferences.as_ref()).map_err(Error::other)?;
-    T::project_opened(&mut engine).map_err(Error::other)?;
-    prepare_engine_for_runtime(&mut engine)?;
+    startup::prepare_engine_for_host_startup(&mut engine)?;
     apply_preferences_runtime_limits(&mut engine);
     run_ui_server(engine, config)
 }

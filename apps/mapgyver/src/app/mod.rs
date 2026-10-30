@@ -52,9 +52,6 @@ impl ProjectLifecycle for AppNode {
         }
     }
 
-    fn project_opened(engine: &mut AppEngine) -> Result<(), String> {
-        crate::media::validate_project(engine)
-    }
     fn prepare_project_candidate(engine: &mut AppEngine) -> Result<(), String> {
         crate::media::validate_project(engine)
     }

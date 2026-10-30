@@ -3,5 +3,6 @@ import type { AssetId } from "./AssetId";
 import type { AssetRecord } from "./AssetRecord";
 import type { ChannelReference } from "./ChannelReference";
 import type { ChannelSnapshot } from "./ChannelSnapshot";
+import type { MediaManagerSnapshot } from "./MediaManagerSnapshot";
 
-export type MediaEditResult = { "kind": "AssetCreated", asset: AssetId, } | { "kind": "Asset", record: AssetRecord, } | { "kind": "Created", reference: ChannelReference, } | { "kind": "Changed" } | { "kind": "Channel", snapshot: ChannelSnapshot, };
+export type MediaEditResult = { "kind": "Manager", snapshot: MediaManagerSnapshot, } | { "kind": "AssetCreated", asset: AssetId, } | { "kind": "Asset", record: AssetRecord, } | { "kind": "Created", reference: ChannelReference, } | { "kind": "Changed" } | { "kind": "Channel", snapshot: ChannelSnapshot, };

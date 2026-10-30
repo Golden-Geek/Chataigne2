@@ -16,6 +16,7 @@ mod project_generation;
 mod request_access;
 mod session_admission;
 mod snapshot_encoding;
+mod startup;
 
 #[test]
 fn runtime_pacer_keeps_an_absolute_deadline_across_ordinary_wake_lateness() {

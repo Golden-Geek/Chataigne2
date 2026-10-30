@@ -3,6 +3,7 @@
 mod assets;
 mod authoring;
 mod capture;
+mod catalog;
 mod nodes;
 pub mod picture;
 pub mod protocol;

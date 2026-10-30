@@ -65,6 +65,7 @@ pub struct ChannelDefinition {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MediaEdit {
+    InspectManager,
     ImportAsset {
         locator: AssetLocator,
         label: Option<String>,
@@ -121,9 +122,23 @@ pub struct ChannelSnapshot {
     pub definition: ChannelDefinition,
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct MediaSnapshot {
+    pub id: MediaId,
+    pub label: String,
+    pub media_kind: MediaKind,
+    pub channels: Vec<ChannelSnapshot>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct MediaManagerSnapshot {
+    pub media: Vec<MediaSnapshot>,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MediaEditResult {
+    Manager { snapshot: MediaManagerSnapshot },
     AssetCreated { asset: AssetId },
     Asset { record: AssetRecord },
     Created { reference: ChannelReference },

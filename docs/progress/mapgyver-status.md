@@ -4,16 +4,17 @@
 
 **Updated: 2026-10-30 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
-**Current topic:** M04 product implementation is next. M03's seven verified foundation gates
-provide usable contracts; its two open qualification gates no longer serialize all feature
-development. The [execution correction](../plan/MapGyver_Implementation_Plan.md#execution-correction--2026-10-30)
-changes work order, not acceptance. M03 remains **7/9**, and no phase is newly declared complete.
+**Current topic:** M04's first Media Manager/Solid Color authoring slice is functionally verified.
+The app can create media, edit independent channels and use shared history. M03 remains **7/9**;
+its open qualification no longer serializes all feature development. The
+[execution correction](../plan/MapGyver_Implementation_Plan.md#execution-correction--2026-10-30)
+changes work order, not acceptance. M04 remains **0/6 complete gates** because its full source,
+native preview and module integration scope is still open; see the verified slice below.
 
-**Next:** define M04's fixed acceptance breakdown, then deliver Media Manager and Solid Color
-functionality through `apps/mapgyver/src/media` and the MapGyver UI. Use a 45-minute feature
-batch with a concrete working slice. Do not resume GPU-clock research or add another probe.
-**Product-work blocker:** none identified for that slice. Fix any reproduced correctness
-defect on its actual path; do not substitute speculative qualification work.
+**Next:** deliver Picture source authoring (create/import/select/relink) through the existing
+app-owned asset/media operations. Keep the remaining native preview and module command/script
+work explicit. Record the next feature slice's proof and 45-minute stop before coding.
+**Product-work blocker:** none identified. Do not resume GPU-clock research or add another probe.
 **Qualification debt:** M03 gate 4 retains genuine device removal/stuck retirement; gate 9
 retains full GPU/queue, cadence, capture/age, growth and deadline requirements. Latest Q02
 sample calls remain 300/300/295; minimize/disconnect still miss four/nine Spout images and
@@ -26,7 +27,7 @@ must be satisfied for production readiness, within the bounded qualification lan
 | [M01 Functional route decision](#m01-acceptance-items) | Complete locally | `████████████████████` 100% | 4/4 |
 | [M02 Multi-app seams/shell](#m02-acceptance-items) | Complete locally | `████████████████████` 100% | 7/7 |
 | [M03 Rendering/channels](#m03-acceptance-items) | Foundations ready; qualification open | `████████████████░░░░` 78% | 7/9 |
-| [M04 Source media](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
+| [M04 Source media](#m04-acceptance-items) | In progress | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/6 |
 | [M05 Screens/Surfaces/editors](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M06 Composition/editor](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M07 Matrix/editor](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
@@ -48,6 +49,59 @@ These counts measure accepted scope, not effort or product readiness. Partial ev
 no item closure; future breakdowns must preserve the complete acceptance scope and explain
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
 
+### M04 acceptance items
+
+Defined before M04 source implementation on 2026-10-30. This replaces the provisional
+whole-phase item with six fixed gates covering the same complete acceptance; no scope is
+removed and all six start open. M04 percentage is verified closed gates divided by six;
+overall remains fully accepted phases divided by ten.
+
+| Gate | Acceptance | State |
+| --- | --- | --- |
+| 1 | Media Manager in the default project, backend authoring/inspection and module commands, script methods, callbacks and app-owned snippets wired through the same operations | Open |
+| 2 | Solid Color with at least two differently sized channels, automatic/fixed sizing, color/alpha and shared consumers through the app/native rendering path | Open |
+| 3 | Picture worker decode/preparation, pixel/decode/cache bounds, color/alpha, missing/relinked/replaced assets and shared consumers | Open |
+| 4 | Independent multi-channel Shared Texture selection/discovery, absence/restart/rename/resize recovery, one failed channel remaining isolated and explicit adapter mismatch | Open |
+| 5 | App-owned Media Manager UI for inspection and channel/source/size/rename/reorder/delete operations, using backend intents and generated contracts | Open |
+| 6 | UI/script/headless intent parity, stable references through project/history roundtrip and functional native/resource-recreation checks across the source types | Open |
+
+**First product batch:** started 2026-10-30 18:07 UTC, feature verification completed at 18:32 UTC,
+within the recorded **18:52 UTC** stop (45 minutes). Owners: `apps/mapgyver/src/media` and
+`apps/mapgyver/ui`. The deliverable was a usable Media Manager/Solid Color authoring panel with
+backend defaults, ordered channel inspection and typed color/size editing. The M03 stash stayed parked.
+
+#### First authoring slice — 2026-10-30
+
+- Delivered a registered, primary Media Manager panel: create Solid Color media; add/select,
+  rename, reorder and remove channels; rename/remove media; edit straight linear RGBA,
+  automatic/fixed extent and sampling. Backend operations retain ownership of IDs, defaults,
+  label allocation, validation and history. The UI collects explicit user intents only.
+- Added Rust-owned `InspectManager` and generated ordered media/channel DTOs. Catalog inspection
+  walks the manager/media/channel lists once, excludes assets and does not mutate history.
+  History/snapshot/reconnection signals refresh the panel without engine polling.
+- Fixed the reproduced default-app startup failure (`Media Manager is missing`) at the lifecycle
+  boundary. Golden's shared transport startup now settles detached initialization, runs the
+  app candidate hook and its queued edits/validation, then activates resources. MapGyver's
+  structural validation belongs in that candidate hook, rather than the earlier post-load hook.
+  This ordering matches project replacement and applies to desktop/headless startup.
+- Verification: **32/32 MapGyver library tests**, including read-only catalog, ordering/history,
+  project roundtrip and generated-contract drift; **88 shared transport tests passed**, one
+  existing ignored; both relevant Clippy runs with warnings denied; Svelte check **0 errors /
+  0 warnings**, production UI build and bundled desktop build. Both workspaces formatted.
+- Live bundled app opened on backend 7011. Native inspection worked; native input was limited by
+  the helper/app integrity mismatch. Edge exercised the actual bundled UI against that app's
+  real backend: create Solid Color, add a second channel, author `[0.2, 0.4, 0.6, 0.5]` at
+  **640×360 / Nearest**, leave the first channel white/automatic/Linear, Undo/Redo, rename,
+  reorder and reload/reconnect. Final UI build committed the same settings. Narrow-pane check
+  verified `scrollWidth == clientWidth == 224` after removing implicit grid minimum overflow.
+  A local review screenshot is `target/mapgyver-m04-authoring.jpg` (not a qualification archive).
+- Scope still open: native app preview/consumer integration, Picture/Shared Texture editors and
+  remaining source acceptance, module command nodes/methods/callbacks/app-owned snippets, and
+  complete cross-source UI/script/headless/native verification. Existing backend/script tests
+  are useful evidence, not full module integration. No M04 gate closes from this slice alone.
+
+Architecture/entrypoints: [app ownership and authoring guide](../../apps/mapgyver/README.md).
+
 ### Anti-drift correction — 2026-10-30
 
 The user identified the prolonged M03 investigation as a failure to advance the product.
@@ -62,11 +116,11 @@ batches per diagnostic-only batch; no consecutive diagnostic-only turns by defau
 two batches without a usable capability or acceptance closure, reduce the feature slice or
 choose another functionally ready product task. Do not add another measurement prerequisite.
 
-**Product-delivery count since correction: 0/4. Diagnostic-only batch allowance: 0.**
-This workflow/documentation checkpoint does not count as an app capability. The next batch is
-M04 Media Manager/Solid Color, with its concrete scope, proof and stopping time recorded before
-coding. Qualification may interrupt only for a reproduced blocker on that path or an explicit
-user request; otherwise it resumes in its scheduled lane after product delivery.
+**Product-delivery count since correction: 1/4. Diagnostic-only batch allowance: 0.**
+The first authoring slice above counts as a usable app capability; the earlier workflow/docs
+checkpoint does not. Three further product batches are needed before a diagnostic-only batch.
+Qualification may interrupt only for a reproduced blocker on the selected product path or an
+explicit user request; otherwise it resumes in its scheduled lane after product delivery.
 
 Unfinished agent-owned clock/collector work is parked locally in stash
 `67adbae342a0ec851b581974e616dedfc16d2179`
@@ -254,7 +308,7 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | M01 Functional route decision | COMPLETE_LOCAL | [Approved decision](mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28): ordinary Tauri/Wry + D3D11 + pinned Spout sys binding permit the thin shell. Full qualification remains with M03/M05/M09. |
 | M02 Multi-app seams/shell | COMPLETE_LOCAL | [Shell/isolation and typed host lifecycle](mapgyver-m02-shell.md) close all seven fixed items. The real Windows smoke verifies STA/worker/window teardown; no GPU or physical-output qualification is inferred. |
 | M03 Rendering/channels | IN_PROGRESS | [Compiler, runtime, native execution, channels, shared time/assets and preview contracts](mapgyver-m03-render-foundations.md) close 7/9 fixed gates. Production recovery and native qualification remain open. |
-| M04 Source media | NOT_STARTED | Solid Color, Picture, concurrent Spout scope defined |
+| M04 Source media | IN_PROGRESS | [First Media Manager/Solid Color authoring slice](#first-authoring-slice--2026-10-30) verified; full six-gate source/native/module acceptance remains open |
 | M05 Screens/Surfaces/editors | NOT_STARTED | Output/crop/pin/calibration contracts defined |
 | M06 Composition/editor | NOT_STARTED | Instance/canvas/dependency contracts defined |
 | M07 Matrix/editor | NOT_STARTED | Layers/groups/exports/transition contracts defined |
@@ -263,16 +317,15 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-Start **M04 Media Manager and Solid Color product functionality**, using the verified M03
-media/channel, persistence, runtime and preview contracts. Define the fixed M04 acceptance
-breakdown before source work, then choose a working slice in `apps/mapgyver/src/media` and
-`apps/mapgyver/ui`. Include the module's commands, script methods/callbacks and app-owned
-snippets at the same boundary. Preserve Chataigne's root default and unfinished P11 work.
+Continue **M04 Picture source authoring** using the existing app-owned asset/media contracts:
+create Picture media, import/select an asset and relink it through backend intents. Keep native
+channel preview integration and the module's commands, script methods/callbacks and app-owned
+snippets in M04's remaining acceptance. Preserve Chataigne's root default and unfinished P11 work.
 
 Record the slice's owner, observable result, validation and 45-minute stopping time before
 coding. Ship and push a coherent product checkpoint before the next implementation batch.
-The current workflow correction earns no product-delivery credit: the counter starts at 0/4.
-No new M03 diagnostic-only work is scheduled until four product-delivery batches, except for
+The first usable authoring slice advances the product-delivery counter to **1/4**; documentation
+alone earns no credit. No new M03 diagnostic-only work is scheduled until four product batches, except for
 an explicit user request or a reproduced correctness/safety blocker on the selected feature.
 
 M03 gates 4 and 9 remain open and owned by M03. Preserve every original budget, failure and
