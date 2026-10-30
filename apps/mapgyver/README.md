@@ -70,10 +70,20 @@ and mirrored winding are allowed. Deleting a source preserves its reference for 
 edits retain routing even while that source is missing.
 
 `src/screens/protocol.rs` generates `ui/src/lib/screens/generated` through
-`generate_screen_protocol`; the typed UI operation adapter consumes that contract. This delivery
-is backend authoring: target connections/windows, perspective rendering, calibration output,
-display recovery and the Screen/Surface Source editor panels remain M05 work. Authored target
-data alone does not open an output or establish native display qualification.
+`generate_screen_protocol`; the typed UI operation adapter consumes that contract. The registered
+Screen Manager tab exposes Screen/Surface creation, selection, names, order and removal, target
+settings and a Surface Source form for assignment, crop, destination corners, opacity and
+calibration. Forms start from authored backend data; selecting a target mode supplies no guessed
+extent, origin or display identity. Apply submits one atomic operation. Missing channel selections
+remain explicit, including when a source disappears while its form is open.
+
+The focused authoring controller refreshes from committed history, project/connection changes and
+app events rather than polling. Session/project/request fences reject late inspection/edit replies;
+unmount retires the controller. Catalogs do not create thousands of DOM controls: navigation pages
+contain 50 Screens/Surfaces and source search shows at most 100 matches plus the selected source.
+Target connections/windows, perspective rendering, calibration output, display recovery and full
+graphical Screen/Surface Source editor gestures remain M05 work. Authored target data alone does
+not open an output or establish native display qualification; the panel states that limit.
 
 Media Manager's Add menu offers Media Operation commands, creation presets for each source kind,
 and a Media Script with app-owned function/callback snippets. Commands keep a JSON `MediaEdit`

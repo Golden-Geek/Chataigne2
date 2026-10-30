@@ -6,8 +6,10 @@
 
 **Current topic:** M05 Screen Manager/backend authoring is verified: persistent Screens, ordered
 Surfaces, typed output targets, source/crop/quad/opacity/calibration data, atomic history and
-commands/script methods/callbacks/snippets. M05 gate 1 is accepted, **1/8 (13%)**. Native output
-plans/windows, display recovery and the two mapping editors remain open.
+commands/script methods/callbacks/snippets. The registered Screen Manager UI now exposes that
+authoring route, target settings and Surface Source fields with event-driven refresh and bounded
+lists. M05 gate 1 is accepted, **1/8 (13%)**. Native output plans/windows, display recovery,
+rendered mapping, drag gestures and full editor/native acceptance remain open.
 M04's module integration is accepted; source controls, sender discovery and native 4K PNG
 display/relink/missing/recovery are delivered, with full source/UI/parity acceptance still open.
 M03 remains **7/9**; its open qualification no longer serializes all feature development. The
@@ -15,8 +17,8 @@ M03 remains **7/9**; its open qualification no longer serializes all feature dev
 changes work order, not acceptance. M04 is **1/6 complete gates (17%)**; its full source,
 native preview, recovery and UI parity acceptance remains open.
 
-**Next:** M05 Screen Manager/Screen editor authoring UI, consuming the verified ScreenEdit
-contract. M04's full source/UI/recovery gates remain open and owned by M04. No timing/driver
+**Next:** M05 Surface render plans with source crop and perspective warp through Golden Video.
+M04's full source/UI/recovery gates remain open and owned by M04. No timing/driver
 qualification or M03 stash work is scheduled.
 **Implementation limits:** native checks cover opaque PNGs and explicit relink, not full source,
 color/alpha or physical-output qualification. Interactive UI verification is limited:
@@ -57,6 +59,47 @@ no item closure; future breakdowns must preserve the complete acceptance scope a
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
 
 ### M05 acceptance items
+
+**Product batch 9:** started 2026-10-30 **21:55 UTC**, recorded stop **22:40 UTC**.
+Deliver the registered Screen Manager authoring panel: Screen/Surface selection and CRUD,
+explicit target settings, channel assignment and authored mapping/calibration controls using
+the generated ScreenEdit contract. Owner: `apps/mapgyver/ui/src/lib/screens` and app UI registration.
+Proof: Svelte/build checks, operation/client tests and a bounded native UI observation if the
+supported desktop route is available. A form/field change is one submitted atomic edit; graphical
+drag gestures and rendered mapping remain separate acceptance. Investigation stops by
+**22:15 UTC** or two experiments; do not recover the unavailable browser or resume M03 diagnostics.
+
+**Batch 9 result:** the required Screen Manager tab is registered beside Media Manager through
+Golden's public panel API. It exposes Screen/ordered Surface creation, selection, rename, moves
+and removal; explicit fullscreen identity/physical rectangle/Spout settings; and source, crop,
+destination corners, opacity, enablement and calibration forms. Draft values come from the
+authored DTOs, with explicit input for new target fields and no frontend domain defaults/IDs.
+Each Apply uses one ScreenEdit through the existing session interface. Missing source references
+remain selectable; disappearance while editing does not silently choose another source.
+
+`authoring.ts` owns presentation state and asynchronous reply fencing. History, snapshots,
+connection/loading and both app-event topics refresh the catalogs without polling or a private
+WebSocket dependency. Late responses from old reads, sessions, projects and disposed panels are
+ignored. Navigation pages bound Screen/Surface rows to 50; source search bounds options to 100
+matches plus the exact selected source, avoiding an unbounded DOM for large authored catalogs.
+
+Validation: Svelte checking passes with zero errors/warnings; all **7/7** app UI tests pass
+(five new authoring-controller lifecycle/rejection/duplicate-submit cases plus the two existing
+media cases). The final bundled app build, Prettier and both workspace formatters pass.
+Implementation/checks finished by **22:11 UTC**, before the recorded **22:40 UTC** stop.
+The ordinary bundled app displayed the registered
+Screen Manager and empty state. The single native run used public loopback operations to author
+a signed physical rectangle and cropped/calibration-selected Surface from a Solid Color channel;
+the live UI issued fresh event-driven catalog reads. Configured-field captures were obscured by
+another window, and helper/app integrity still limits input. No input automation, configured-form
+visual correctness or full UI/script/headless parity is claimed. The owned app exited **0** at
+**22:03:26 UTC**; native investigation ended well before 22:15 with no second experiment.
+
+The UI explicitly states that authored settings do not yet activate outputs. Graphical mapping,
+one-drag/one-Undo, the complete editor pair and runtime/native requirements remain open:
+M05 stays **1/8 (13%)**, M04 **1/6**, M03 **7/9**, overall **3/10 (30%)**. This is the ninth
+product capability; no gate closes from form/build evidence. Next is actual crop/warp rendering,
+not another desktop automation or qualification investigation.
 
 **Product batch 8:** started 2026-10-30 **21:44 UTC**, recorded stop **22:29 UTC**.
 Deliver persistent Screen Manager/Screen/ordered Surface authoring through the atomic app
@@ -462,7 +505,7 @@ batches per diagnostic-only batch; no consecutive diagnostic-only turns by defau
 two batches without a usable capability or acceptance closure, reduce the feature slice or
 choose another functionally ready product task. Do not add another measurement prerequisite.
 
-**Product-delivery count since correction: 8. Diagnostic-only batch allowance: 2, unused.**
+**Product-delivery count since correction: 9. Diagnostic-only batch allowance: 2, unused.**
 The first authoring slice and the new atomic Picture import capability (verified through backend/
 QuickJS) count as product delivery; the earlier workflow/docs checkpoint does not. Picture UI
 interaction is not counted as verified acceptance. The observed ordinary-app Solid Color preview
@@ -473,6 +516,7 @@ module commands/scripts are the fifth delivered capability and close M04 gate 1.
 discovery/selection is the sixth; its native registry check does not close full source acceptance.
 Native 4K PNG display with relink/missing/recovery is the seventh; full Picture acceptance stays open.
 Screen/Surface backend authoring with commands/scripts is the eighth and closes M05 gate 1.
+The registered Screen Manager authoring UI is the ninth; full editor/input acceptance stays open.
 The allowance follows the four-product-to-one-diagnostic ratio; neither available diagnostic batch
 is scheduled, and consecutive diagnostic-only batches remain prohibited by default.
 Qualification may interrupt only for a reproduced blocker on the selected product path or an
@@ -673,17 +717,17 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-Deliver **M05 Screen Manager/Screen editor authoring UI** through the generated ScreenEdit
-contract and existing workbench session. Backend Screen/ordered Surface authoring, commands and
-scripts are verified; M05 gate 1 is accepted. Define the next observable UI slice and proof before
-coding. Runtime warp/calibration, target windows/Spout, display recovery and full editor/native
-acceptance remain M05 gates 2–8. M04 gates 2–6 retain their full source, UI, lifecycle and parity
-scope. Preserve Chataigne's root default and unfinished P11 work.
+Deliver **M05 Surface render plans with source crop and perspective warp** through Golden Video's
+public app-neutral renderer contracts. Backend authoring and the Screen Manager forms are shipped;
+M05 gate 1 is accepted. Define the observable rendering slice and its reference-pattern proof before
+coding. Retain complete crop/warp, calibration/order/alpha, target windows/Spout, display recovery,
+graphical editor/gesture and physical qualification scope in M05 gates 2–8. M04 gates 2–6 retain
+their full source, UI, lifecycle and parity scope. Preserve Chataigne's root default and unfinished P11 work.
 
 Record the slice's owner, observable result, validation and 45-minute stopping time before
 coding. Ship and push a coherent product checkpoint before the next implementation batch.
 The delivered authoring/import/native Solid Color/Shared Texture editing/module integration/sender
-discovery/native Picture/Screen authoring capabilities advance the product counter to **8**;
+discovery/native Picture/Screen authoring/Screen Manager UI capabilities advance the product counter to **9**;
 documentation alone earns no credit. Two diagnostic-only batches are allowed by the ratio but
 neither is scheduled. Continue the product path; retained M03 qualification is not the default work queue.
 
