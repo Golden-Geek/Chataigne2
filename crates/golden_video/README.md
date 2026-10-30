@@ -24,6 +24,12 @@ The implemented foundations are:
   preserving the accumulated backdrop outside the quad. No intermediate texture per layer is
   added; composition keeps its existing shared ping-pong storage. Unmapped draws retain the
   ordinary pixel entry point; the mapped pixel entry point is prepared with the pipeline.
+- `plan/pattern.rs` provides checked grid and eight-bar procedural layer sources alongside
+  texture sources. The mapped shader evaluates patterns directly at target resolution, with no
+  source texture, intermediate calibration image, decoder or CPU pixel transport. Applications
+  choose cell counts, palettes and activation policy. Procedural draws consume the same submitted
+  draw/dependency admission units as sampled layers. Both shared shader constant buffers are
+  charged by native resource accounting; the configured resource ceiling is unchanged.
 - `runtime/` owns bounded publication, preparation, frame scheduling, generation installation
   and completion-based resource retirement. `VideoRuntime` starts either the pixel-free null
   qualification backend or the opt-in Windows D3D11 backend through the same control/core path.

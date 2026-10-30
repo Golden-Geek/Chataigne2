@@ -63,13 +63,13 @@ fn hardware_pipeline_projective_crop_matches_independent_texel_and_alpha_oracles
     ];
     for (case, quad) in quads.into_iter().enumerate() {
         let layer = Layer {
-            source: TextureId::new(1).unwrap(),
+            source: TextureId::new(1).unwrap().into(),
             opacity: Opacity::new(0.5).unwrap(),
             blend: BlendMode::Normal,
             filter: SampleFilter::Nearest,
             mapping: Some(ProjectiveMapping::new(crop, quad).unwrap()),
         };
-        pipeline.draw_layer(&gpu.context, &source, Some(&previous), (&target).into(), &layer);
+        pipeline.draw_layer(&gpu.context, Some(&source), Some(&previous), (&target).into(), &layer);
         let actual = crate::native::tests::pixels::readback(&gpu, &target);
         let mut checked = 0;
         for (index, pixel) in actual.into_iter().enumerate() {

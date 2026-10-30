@@ -36,7 +36,7 @@ fn public_plan_contract_shares_a_composition_across_outputs_and_preserves_source
                 descriptor: target_descriptor,
                 operation: RenderOperation::Composite {
                     layers: vec![Layer {
-                        source: sampled,
+                        source: sampled.into(),
                         opacity: Opacity::new(0.5).unwrap(),
                         blend: BlendMode::Normal,
                         filter: SampleFilter::Linear,

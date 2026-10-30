@@ -72,28 +72,28 @@ pub fn plan(outputs: &[u64]) -> RenderPlan {
         operation: RenderOperation::Composite {
             layers: vec![
                 Layer {
-                    source: texture(1),
+                    source: texture(1).into(),
                     opacity: Opacity::OPAQUE,
                     blend: BlendMode::Normal,
                     filter: SampleFilter::Nearest,
                     mapping: None,
                 },
                 Layer {
-                    source: texture(2),
+                    source: texture(2).into(),
                     opacity: Opacity::new(0.2).unwrap(),
                     blend: BlendMode::Add,
                     filter: SampleFilter::Linear,
                     mapping: None,
                 },
                 Layer {
-                    source: texture(2),
+                    source: texture(2).into(),
                     opacity: Opacity::new(0.3).unwrap(),
                     blend: BlendMode::Multiply,
                     filter: SampleFilter::Nearest,
                     mapping: None,
                 },
                 Layer {
-                    source: texture(2),
+                    source: texture(2).into(),
                     opacity: Opacity::new(0.4).unwrap(),
                     blend: BlendMode::Screen,
                     filter: SampleFilter::Linear,

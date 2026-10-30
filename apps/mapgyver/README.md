@@ -97,7 +97,15 @@ Channel previews, including while its authored output is disabled. Screen rectan
 define preview resolution; unconfigured/fullscreen targets use the backend's default canvas until
 the display catalog can resolve an extent. Optional Screen-route bindings allow a preview-only
 texture to feed the existing window compositor without opening a physical or Spout output.
-Physical/Spout target activation, calibration output, display recovery and full
+Calibration Grid and Color Bars are now source-independent procedural layers. Grid uses the
+app's 16×9 white-on-black policy; bars use white/yellow/cyan/green/magenta/red/blue/black. Patterns
+fill the mapped quad while retaining the authored source/crop for Off. Quad, order, enablement and
+opacity continue to apply. Active calibration adds no media/asset/input demand and creates no
+calibration texture; Golden evaluates it at target resolution. Switching Off restores the saved
+source route and crop without changing their identities. Backend/runtime and finite GPU checks
+verify these semantics; ordinary-app calibration visual/input acceptance remains open.
+
+Physical/Spout target activation, display recovery and full
 graphical Screen/Surface Source editor gestures remain M05 work. Authored target data alone does
 not open an output or establish native display qualification; the panel states that limit.
 

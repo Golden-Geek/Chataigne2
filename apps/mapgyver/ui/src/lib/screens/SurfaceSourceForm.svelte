@@ -98,6 +98,9 @@
 					</select></label>
 			</div>
 			<p class="hint">Calibration keeps the assigned source for when you switch it off.</p>
+			<p class="hint">
+				Patterns cover the full mapped quad. The source crop is restored when calibration is Off.
+			</p>
 			<h4>Source crop</h4>
 			<div class="fields">
 				<label

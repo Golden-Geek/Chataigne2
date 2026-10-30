@@ -7,9 +7,14 @@ pub(in crate::native) mod initialization_gate;
 pub(in crate::native) mod pixels;
 
 #[test]
-fn embedded_native_shader_compiles_both_real_entrypoints() {
+fn embedded_native_shader_compiles_all_real_entrypoints() {
     let source = include_str!("../shader.hlsl");
-    for (entry, profile) in [(s!("vs_main"), s!("vs_5_0")), (s!("ps_main"), s!("ps_5_0"))] {
+    for (entry, profile) in [
+        (s!("vs_main"), s!("vs_5_0")),
+        (s!("ps_main"), s!("ps_5_0")),
+        (s!("ps_mapped"), s!("ps_5_0")),
+        (s!("ps_pattern"), s!("ps_5_0")),
+    ] {
         let mut bytecode = None;
         let mut diagnostics = None;
         // SAFETY: fixed source bytes, no includes/macros and initialized owned output slots.

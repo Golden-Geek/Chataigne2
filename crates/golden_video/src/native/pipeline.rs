@@ -7,8 +7,10 @@ use windows::Win32::Graphics::Direct3D::{D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST, ID
 use windows::Win32::Graphics::Direct3D11::*;
 use windows::core::{Error, HRESULT, Result, s};
 
-use crate::plan::{BlendMode, BlitRegion, Layer, ProjectiveMapping, SampleFilter, UnitRect};
+use crate::plan::{BlendMode, BlitRegion, Layer, LayerSource, Pattern, ProjectiveMapping, SampleFilter, UnitRect};
+mod pattern;
 use crate::{AlphaMode, ColorEncoding, LinearColor};
+use pattern::PatternParameters;
 
 use super::texture::Texture;
 
@@ -53,7 +55,7 @@ struct Parameters {
 }
 
 const _: () = assert!(size_of::<Parameters>() == 112);
-pub(super) const CONSTANT_BYTES: u64 = size_of::<Parameters>() as u64;
+pub(super) const CONSTANT_BYTES: u64 = (size_of::<Parameters>() + size_of::<PatternParameters>()) as u64;
 
 struct DrawSettings {
     opacity: f32,
@@ -62,6 +64,7 @@ struct DrawSettings {
     destination: UnitRect,
     source_rect: UnitRect,
     mapping: Option<ProjectiveMapping>,
+    pattern: Option<Pattern>,
 }
 
 /// All fallible shader/state allocation precedes frame submission.
@@ -69,7 +72,9 @@ pub(super) struct Pipeline {
     vertex: ID3D11VertexShader,
     pixel: ID3D11PixelShader,
     mapped_pixel: ID3D11PixelShader,
+    pattern_pixel: ID3D11PixelShader,
     constants: ID3D11Buffer,
+    pattern_constants: ID3D11Buffer,
     rasterizer: ID3D11RasterizerState,
     _local: PhantomData<Rc<()>>,
 }
@@ -79,10 +84,13 @@ impl Pipeline {
         let mut vertex_code = None;
         let mut pixel_code = None;
         let mut mapped_code = None;
+        let mut pattern_code = None;
         let mut vertex = None;
         let mut pixel = None;
         let mut mapped_pixel = None;
+        let mut pattern_pixel = None;
         let mut constants = None;
+        let mut pattern_constants = None;
         let mut rasterizer = None;
         // SAFETY: fixed in-memory source, no includes/macros or external compiler inputs.
         unsafe {
@@ -160,12 +168,42 @@ impl Pipeline {
                 },
                 Some(&mut rasterizer),
             )?;
+            D3DCompile(
+                SHADER.as_ptr().cast(),
+                SHADER.len(),
+                s!("golden-video"),
+                None,
+                None,
+                s!("ps_pattern"),
+                s!("ps_5_0"),
+                0,
+                0,
+                &mut pattern_code,
+                None,
+            )?;
+            device.CreatePixelShader(
+                blob(pattern_code.as_ref().ok_or_else(missing_output)?),
+                None,
+                Some(&mut pattern_pixel),
+            )?;
+            device.CreateBuffer(
+                &D3D11_BUFFER_DESC {
+                    ByteWidth: size_of::<PatternParameters>() as u32,
+                    Usage: D3D11_USAGE_DEFAULT,
+                    BindFlags: D3D11_BIND_CONSTANT_BUFFER.0 as u32,
+                    ..Default::default()
+                },
+                None,
+                Some(&mut pattern_constants),
+            )?;
         }
         Ok(Self {
             vertex: vertex.ok_or_else(missing_output)?,
             pixel: pixel.ok_or_else(missing_output)?,
             mapped_pixel: mapped_pixel.ok_or_else(missing_output)?,
+            pattern_pixel: pattern_pixel.ok_or_else(missing_output)?,
             constants: constants.ok_or_else(missing_output)?,
+            pattern_constants: pattern_constants.ok_or_else(missing_output)?,
             rasterizer: rasterizer.ok_or_else(missing_output)?,
             _local: PhantomData,
         })
@@ -190,7 +228,7 @@ impl Pipeline {
     ) {
         self.draw_view(
             context,
-            source,
+            Some(source),
             previous,
             target,
             DrawSettings {
@@ -200,6 +238,7 @@ impl Pipeline {
                 destination: UnitRect::FULL,
                 source_rect: UnitRect::FULL,
                 mapping: None,
+                pattern: None,
             },
         );
     }
@@ -214,7 +253,7 @@ impl Pipeline {
         debug_assert!(region.destination.is_valid() && region.source_rect.is_valid());
         self.draw_view(
             context,
-            source,
+            Some(source),
             None,
             target.into(),
             DrawSettings {
@@ -224,6 +263,7 @@ impl Pipeline {
                 destination: region.destination,
                 source_rect: region.source_rect,
                 mapping: None,
+                pattern: None,
             },
         );
     }
@@ -231,7 +271,7 @@ impl Pipeline {
     pub(super) fn draw_layer(
         &self,
         context: &ID3D11DeviceContext,
-        source: &Texture,
+        source: Option<&Texture>,
         previous: Option<&Texture>,
         target: RenderTarget<'_>,
         layer: &Layer,
@@ -248,6 +288,10 @@ impl Pipeline {
                 destination: UnitRect::FULL,
                 source_rect: layer.mapping.map_or(UnitRect::FULL, ProjectiveMapping::crop),
                 mapping: layer.mapping,
+                pattern: match layer.source {
+                    LayerSource::Pattern(pattern) => Some(pattern),
+                    LayerSource::Texture(_) => None,
+                },
             },
         );
     }
@@ -255,7 +299,7 @@ impl Pipeline {
     fn draw_view(
         &self,
         context: &ID3D11DeviceContext,
-        source: &Texture,
+        source: Option<&Texture>,
         previous: Option<&Texture>,
         target: RenderTarget<'_>,
         settings: DrawSettings,
@@ -267,17 +311,25 @@ impl Pipeline {
             destination,
             source_rect,
             mapping,
+            pattern,
         } = settings;
         debug_assert!(opacity.is_finite() && (0.0..=1.0).contains(&opacity));
         if let Some(previous) = previous {
             debug_assert!(previous.descriptor.is_compositing_target());
             debug_assert_eq!(previous.descriptor.extent, target.descriptor.extent);
         }
-        let (source_view, source_encoding) = source.sampling_view();
+        let (source_view, source_encoding) = source
+            .map(|source| {
+                let (view, encoding) = source.sampling_view();
+                (Some(view), encoding)
+            })
+            .unwrap_or((None, ColorEncoding::Linear));
         let parameters = Parameters {
-            source_extent: [source.descriptor.extent.width(), source.descriptor.extent.height()],
+            source_extent: source.map_or([1, 1], |source| {
+                [source.descriptor.extent.width(), source.descriptor.extent.height()]
+            }),
             source_encoding: encoding(source_encoding),
-            source_alpha: alpha(source.descriptor.alpha_mode),
+            source_alpha: alpha(source.map_or(AlphaMode::Premultiplied, |source| source.descriptor.alpha_mode)),
             target_encoding: encoding(target.shader_encoding),
             target_alpha: alpha(target.descriptor.alpha_mode),
             filter: u32::from(filter == SampleFilter::Linear),
@@ -299,6 +351,18 @@ impl Pipeline {
         // is uploaded; no fallible API operation occurs after acquiring GPU use.
         // Every resource view is unbound before returning, avoiding read/write/retirement hazards.
         unsafe {
+            if let Some(pattern) = pattern {
+                let data = PatternParameters::new(pattern, mapping.is_some());
+                context.UpdateSubresource(
+                    &self.pattern_constants,
+                    0,
+                    None,
+                    (&data as *const PatternParameters).cast(),
+                    0,
+                    0,
+                );
+                context.PSSetConstantBuffers(1, Some(&[Some(self.pattern_constants.clone())]));
+            }
             context.UpdateSubresource(
                 &self.constants,
                 0,
@@ -315,7 +379,9 @@ impl Pipeline {
             context.DSSetShader(None, None);
             // Existing full-target/region draws retain their original pixel entry point.
             context.PSSetShader(
-                if mapping.is_some() {
+                if pattern.is_some() {
+                    &self.pattern_pixel
+                } else if mapping.is_some() {
                     &self.mapped_pixel
                 } else {
                     &self.pixel
@@ -325,7 +391,7 @@ impl Pipeline {
             context.PSSetConstantBuffers(0, Some(&[Some(self.constants.clone())]));
             context.PSSetShaderResources(
                 0,
-                Some(&[Some(source_view.clone()), previous.map(|texture| texture.srv.clone())]),
+                Some(&[source_view.cloned(), previous.map(|texture| texture.srv.clone())]),
             );
             context.OMSetDepthStencilState(None, 0);
             context.OMSetBlendState(None, None, u32::MAX);

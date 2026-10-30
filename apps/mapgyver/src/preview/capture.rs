@@ -92,19 +92,15 @@ pub fn capture_preview(
                     Ok(captured) => {
                         guards.extend(captured.guards.iter().cloned());
                         let extent = captured.preview_extent();
-                        let error = captured.preview_error();
                         let references = captured.references();
-                        let message =
-                            (error.is_none() && references.is_empty()).then(|| "No enabled sources assigned".into());
-                        if error.is_none() {
-                            channels.extend(references);
-                            screens.push(ScreenRoute {
-                                output: None,
-                                extent,
-                                screen: captured,
-                            });
-                        }
-                        (Some(extent), error, message)
+                        let message = (!captured.has_content()).then(|| "No enabled sources assigned".into());
+                        channels.extend(references);
+                        screens.push(ScreenRoute {
+                            output: None,
+                            extent,
+                            screen: captured,
+                        });
+                        (Some(extent), None, message)
                     }
                     Err(error) => (None, Some(error), None),
                 };

@@ -517,7 +517,10 @@ impl Backend for D3d11Backend {
                         });
                         pipeline.draw_layer(
                             context,
-                            &resources.textures[&layer.source],
+                            layer
+                                .source
+                                .texture()
+                                .map(|source| resources.textures[&source].as_ref()),
                             previous.map(Rc::as_ref),
                             target.as_ref().into(),
                             layer,

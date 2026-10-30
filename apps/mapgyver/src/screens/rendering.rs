@@ -10,7 +10,7 @@ use crate::{
 };
 use golden_core::node::Node;
 use golden_io::RevisionGuard;
-use golden_video::plan::{BlendMode, Layer, ProjectiveMapping, SampleFilter};
+use golden_video::plan::{BlendMode, Layer, LayerSource, ProjectiveMapping, SampleFilter, UnitRect};
 use golden_video::{Extent2D, Opacity, OutputId, TextureId};
 use std::collections::{HashMap, HashSet};
 
@@ -37,11 +37,10 @@ impl CapturedScreen {
         self.target_extent
             .unwrap_or_else(crate::media::resolution::default_canvas)
     }
-    pub fn preview_error(&self) -> Option<String> {
+    pub fn has_content(&self) -> bool {
         self.surfaces
             .iter()
-            .any(|surface| surface.enabled && surface.calibration != Calibration::Off)
-            .then(|| "Calibration pattern rendering is not available yet".into())
+            .any(|surface| surface.enabled && (surface.source.is_some() || surface.calibration != Calibration::Off))
     }
     pub fn id(&self) -> ScreenId {
         self.id
@@ -66,16 +65,22 @@ impl CapturedScreen {
         }
         let mut layers = Vec::with_capacity(self.surfaces.len());
         for surface in self.surfaces.iter().filter(|surface| surface.enabled) {
-            if surface.calibration != Calibration::Off {
-                return Err("calibration pattern rendering is not implemented yet".into());
-            }
-            let Some(source) = surface.source else { continue };
+            let (source, crop) = if let Some(pattern) = super::calibration::pattern(surface.calibration) {
+                // Calibration covers the complete authored quad; the saved source crop is retained.
+                (LayerSource::Pattern(pattern), UnitRect::FULL)
+            } else {
+                let Some(source) = surface.source else { continue };
+                (
+                    (*channels.get(&source).ok_or("Surface source was not captured")?).into(),
+                    surface.crop,
+                )
+            };
             layers.push(Layer {
-                source: *channels.get(&source).ok_or("Surface source was not captured")?,
+                source,
                 opacity: Opacity::new(surface.opacity).map_err(|error| error.to_string())?,
                 blend: BlendMode::Normal,
                 filter: SampleFilter::Linear,
-                mapping: Some(ProjectiveMapping::new(surface.crop, surface.quad).map_err(|error| error.to_string())?),
+                mapping: Some(ProjectiveMapping::new(crop, surface.quad).map_err(|error| error.to_string())?),
             });
         }
         Ok(layers)

@@ -278,7 +278,7 @@ fn mixed_screen_and_channel_views_share_sources_and_invalidate_on_surface_edits_
 }
 
 #[test]
-fn unsupported_screen_preview_is_isolated_and_recovers_on_an_authored_revision() {
+fn missing_screen_preview_is_isolated_and_recovers_after_undo() {
     use crate::preview::{capture::capture_preview, protocol::PreviewSource};
     use crate::screens::protocol::*;
     let mut engine = engine();
@@ -299,6 +299,7 @@ fn unsupported_screen_preview_is_isolated_and_recovers_on_an_authored_revision()
             },
         },
     );
+    screen_edit(&mut engine, ScreenEdit::RemoveScreen { screen });
     let sources = [PreviewSource::Channel { reference }, PreviewSource::Screen { screen }];
     let capture = capture_preview(&engine, &sources, 8, 8).unwrap();
     assert!(capture.screens.is_empty());
@@ -316,16 +317,7 @@ fn unsupported_screen_preview_is_isolated_and_recovers_on_an_authored_revision()
             .iter()
             .any(|status| status.source == sources[1] && status.error.is_some())
     );
-    screen_edit(
-        &mut engine,
-        ScreenEdit::ConfigureSurface {
-            reference: surface,
-            definition: SurfaceDefinition {
-                source: Some(reference),
-                ..Default::default()
-            },
-        },
-    );
+    assert!(engine.undo().unwrap());
     assert!(!capture.is_current());
     let recovered = capture_preview(&engine, &sources, 8, 8).unwrap();
     assert_eq!(recovered.screens.len(), 1);

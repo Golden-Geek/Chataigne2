@@ -2,6 +2,7 @@ use super::*;
 use crate::{AlphaMode, ColorEncoding, Extent2D, PixelFormat};
 
 mod mapping;
+mod pattern;
 mod regions;
 mod topology;
 mod validation;
@@ -59,7 +60,7 @@ fn sample(id: u64, target: u64, source: u64) -> RenderPass {
 
 fn layer(source: u64) -> Layer {
     Layer {
-        source: texture(source),
+        source: texture(source).into(),
         opacity: Opacity::OPAQUE,
         blend: BlendMode::Normal,
         filter: SampleFilter::Linear,

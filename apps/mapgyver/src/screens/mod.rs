@@ -1,6 +1,7 @@
 //! App-owned mapping authoring. Native outputs and render resources are not project state.
 
 mod authoring;
+mod calibration;
 mod commands;
 mod nodes;
 pub mod protocol;

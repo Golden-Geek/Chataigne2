@@ -18,6 +18,15 @@ cbuffer Parameters : register(b0) {
     float4 inverse_row2;
 };
 
+cbuffer PatternParameters : register(b1) {
+    uint pattern_kind;
+    uint pattern_mapped;
+    uint2 pattern_cells;
+    float pattern_width;
+    uint3 pattern_reserved;
+    float4 pattern_colors[8];
+};
+
 static const uint ENCODING_SRGB = 1;
 static const uint ALPHA_STRAIGHT = 0;
 static const uint ALPHA_PREMULTIPLIED = 1;
@@ -158,4 +167,27 @@ float4 ps_mapped(Vertex input) : SV_Target {
     // Transparent outside the quad preserves the accumulated backdrop, including mirrored
     // or partially off-target mappings. Crop is applied in source space after inverse warp.
     return finish_pixel(input, source);
+}
+
+float4 ps_pattern(Vertex input) : SV_Target {
+    float3 position = float3(input.uv, 1);
+    float3 projected = pattern_mapped != 0 ? float3(
+        dot(inverse_row0.xyz, position), dot(inverse_row1.xyz, position),
+        dot(inverse_row2.xyz, position)) : position;
+    float4 color = 0;
+    if (projected.z > 0) {
+        float2 uv = projected.xy / projected.z;
+        if (all(uv >= 0) && all(uv <= 1)) {
+            uv = source_rect.xy + uv * source_rect.zw;
+            if (pattern_kind == 0) {
+                float2 phase = frac(uv * pattern_cells);
+                bool is_grid_line = any(min(phase, 1-phase) < pattern_width);
+                color = is_grid_line ? pattern_colors[0] : pattern_colors[1];
+            } else {
+                uint stripe = min((uint)floor(uv.x * 8), 7);
+                color = pattern_colors[stripe];
+            }
+        }
+    }
+    return finish_pixel(input, color * opacity);
 }

@@ -77,7 +77,7 @@ impl PreviewLayout {
                 layers: [background, texture]
                     .into_iter()
                     .map(|source| Layer {
-                        source,
+                        source: source.into(),
                         opacity: Opacity::OPAQUE,
                         blend: BlendMode::Normal,
                         filter: SampleFilter::Linear,

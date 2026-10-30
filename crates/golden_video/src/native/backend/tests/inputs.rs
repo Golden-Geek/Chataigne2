@@ -183,14 +183,14 @@ fn scene(names: &[String; 2], width: u32, height: u32) -> RenderPlan {
             operation: RenderOperation::Composite {
                 layers: vec![
                     Layer {
-                        source: TextureId::new(1).unwrap(),
+                        source: TextureId::new(1).unwrap().into(),
                         opacity: Opacity::OPAQUE,
                         blend: BlendMode::Normal,
                         filter: SampleFilter::Nearest,
                         mapping: None,
                     },
                     Layer {
-                        source: TextureId::new(2).unwrap(),
+                        source: TextureId::new(2).unwrap().into(),
                         opacity: Opacity::new(0.5).unwrap(),
                         blend: BlendMode::Normal,
                         filter: SampleFilter::Nearest,
@@ -631,7 +631,7 @@ fn hardware_inputs_receive_bound_resize_reconnect_and_retire_across_independent_
     let RenderOperation::Composite { layers } = &mut remapped.passes[0].operation else {
         unreachable!()
     };
-    layers[0].source = TextureId::new(4).unwrap();
+    layers[0].source = TextureId::new(4).unwrap().into();
     let remapped = remapped.compile(&runtime_config().plan_limits).unwrap();
     let next = renderer
         .backend
@@ -651,7 +651,7 @@ fn hardware_inputs_receive_bound_resize_reconnect_and_retire_across_independent_
     let RenderOperation::Composite { layers } = &mut extra.passes[0].operation else {
         unreachable!()
     };
-    layers[0].source = TextureId::new(5).unwrap();
+    layers[0].source = TextureId::new(5).unwrap().into();
     let extra_plan = extra.compile(&runtime_config().plan_limits).unwrap();
     let extra = renderer
         .backend
@@ -665,7 +665,7 @@ fn hardware_inputs_receive_bound_resize_reconnect_and_retire_across_independent_
     let RenderOperation::Composite { layers } = &mut excess.passes[0].operation else {
         unreachable!()
     };
-    layers[0].source = TextureId::new(6).unwrap();
+    layers[0].source = TextureId::new(6).unwrap().into();
     let excess = excess.compile(&runtime_config().plan_limits).unwrap();
     assert!(matches!(
         renderer.backend.prepare(

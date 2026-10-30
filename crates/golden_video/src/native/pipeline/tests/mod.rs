@@ -1,5 +1,6 @@
 use super::*;
 mod mapping;
+mod pattern;
 use std::num::NonZeroUsize;
 use std::time::{Duration, Instant};
 

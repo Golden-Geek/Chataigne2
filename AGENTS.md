@@ -56,6 +56,9 @@ Backward compatibility is not a goal unless a task explicitly asks for it.
   Never run consecutive diagnostic-only batches unless the user explicitly requests that work
   or a reproduced correctness/safety defect blocks the selected feature. A new report, archive,
   test count, refactor or commit alone is not a delivered product capability.
+- Gate native/hardware experiments on terminal success of prerequisite compile/software checks.
+  Inspect returned results before issuing dependent validation; do not spend the experiment
+  allowance on a known failing build or continue a validation chain after its prerequisite fails.
 - After two batches without a usable capability or acceptance closure, reduce the current
   feature slice or select the next functionally ready product task. Explain the concrete
   obstacle once; do not keep returning with the same phase percentage and another research plan.

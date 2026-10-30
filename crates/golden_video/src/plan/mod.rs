@@ -3,11 +3,13 @@
 mod compile;
 mod error;
 mod mapping;
+mod pattern;
 mod region;
 mod weight;
 
 pub use error::{GraphLimit, PlanError};
 pub use mapping::{MappingError, Point, ProjectiveMapping, Quad};
+pub use pattern::{GridPattern, LayerSource, Pattern};
 pub use region::{BlitRegion, UnitRect};
 
 use crate::{LinearColor, Opacity, OutputId, PassId, TextureDescriptor, TextureId};
@@ -37,11 +39,11 @@ pub enum BlendMode {
     Screen,
 }
 
-/// An ordered sampled layer, optionally cropped and mapped into a perspective quad.
+/// An ordered sampled or procedural layer, optionally cropped and mapped into a perspective quad.
 #[derive(Clone, Debug)]
 pub struct Layer {
-    /// Texture sampled by this layer.
-    pub source: TextureId,
+    /// Sampled texture or generated procedural content.
+    pub source: LayerSource,
     /// Layer opacity applied before blending.
     pub opacity: Opacity,
     /// Blend mode against the accumulated destination.
@@ -64,7 +66,7 @@ pub enum RenderOperation {
         /// Sampling when the source and destination extents differ.
         filter: SampleFilter,
     },
-    /// Composite ordered full-target layers over an initially transparent destination.
+    /// Composite ordered sampled/procedural layers over an initially transparent destination.
     Composite {
         /// Layers in draw order, first layer drawn first.
         layers: Vec<Layer>,
@@ -99,7 +101,7 @@ impl RenderOperation {
         };
         sample
             .into_iter()
-            .chain(layers.iter().map(|layer| layer.source))
+            .chain(layers.iter().filter_map(|layer| layer.source.texture()))
             .chain(regions.iter().map(|region| region.source))
     }
 }
@@ -264,7 +266,7 @@ pub struct PlanLimits {
     pub max_external_textures: usize,
     /// Maximum submitted output declarations.
     pub max_outputs: usize,
-    /// Maximum submitted input references, including repeated samples and undemanded branches.
+    /// Maximum submitted input/draw units, including repeated samples, procedural layers and undemanded branches.
     pub max_dependencies: usize,
     /// Maximum width or height of any submitted texture.
     pub max_texture_dimension: u32,

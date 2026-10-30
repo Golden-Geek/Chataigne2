@@ -2,7 +2,7 @@
 
 ## At a glance
 
-**Updated: 2026-10-30 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
+**Updated: 2026-10-31 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
 **Current topic:** M05 Screen Manager/backend authoring is verified: persistent Screens, ordered
 Surfaces, typed output targets, source/crop/quad/opacity/calibration data, atomic history and
@@ -10,8 +10,10 @@ commands/script methods/callbacks/snippets. The registered Screen Manager UI now
 authoring route, target settings and Surface Source fields with event-driven refresh and bounded
 lists. Checked crop/perspective rendering and Screen plan publication now pass reference-pattern
 and integration checks. Native Screen preview now works in the ordinary app, including live
-Surface withdraw/restore while output is disabled. M05 gates 1–2 remain accepted, **2/8 (25%)**.
-Physical/Spout target windows, calibration, display recovery, drag gestures and full editor/native
+Surface withdraw/restore while output is disabled. Source-independent calibration, routing
+restoration and ordered alpha composition now pass backend/runtime and finite GPU checks.
+M05 gates 1–3 are accepted, **3/8 (38%)**. Physical/Spout target windows, ordinary-app calibration
+visual/input acceptance, display recovery, drag gestures and full editor/native
 acceptance remain open.
 M04's module integration is accepted; source controls, sender discovery and native 4K PNG
 display/relink/missing/recovery are delivered, with full source/UI/parity acceptance still open.
@@ -20,7 +22,7 @@ M03 remains **7/9**; its open qualification no longer serializes all feature dev
 changes work order, not acceptance. M04 is **1/6 complete gates (17%)**; its full source,
 native preview, recovery and UI parity acceptance remains open.
 
-**Next:** M05 generated calibration patterns with no source and restoration of authored source routing.
+**Next:** M05 virtual Spout target activation, including an end-to-end calibration source check.
 M04's full source/UI/recovery gates remain open and owned by M04. No timing/driver
 qualification or M03 stash work is scheduled.
 **Implementation limits:** native checks cover PNG relink, finite crop/warp/color oracles and live
@@ -40,7 +42,7 @@ must be satisfied for production readiness, within the bounded qualification lan
 | [M02 Multi-app seams/shell](#m02-acceptance-items) | Complete locally | `████████████████████` 100% | 7/7 |
 | [M03 Rendering/channels](#m03-acceptance-items) | Foundations ready; qualification open | `████████████████░░░░` 78% | 7/9 |
 | [M04 Source media](#m04-acceptance-items) | Module integration accepted; source acceptance open | `███░░░░░░░░░░░░░░░░░` 17% | 1/6 |
-| [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Authoring/crop-warp accepted; outputs/editors open | `█████░░░░░░░░░░░░░░░` 25% | 2/8 |
+| [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Authoring/mapping/calibration accepted; outputs/editors open | `████████░░░░░░░░░░░░` 38% | 3/8 |
 | [M06 Composition/editor](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M07 Matrix/editor](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M08 App lifetimes](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
@@ -48,7 +50,7 @@ must be satisfied for production readiness, within the bounded qualification lan
 
 Overall counts fully accepted milestones: `3 / 10 = 30%`; partial phases do not advance it.
 Phase percentages count closed acceptance items, rounded to the nearest whole percent
-(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 7 / 9 = 78%`, `M04: 1 / 6 = 17%`, `M05: 2 / 8 = 25%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
+(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 7 / 9 = 78%`, `M04: 1 / 6 = 17%`, `M05: 3 / 8 = 38%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
 its whole plan acceptance as one item unless a fixed breakdown is recorded here before
 implementation continues. On 2026-10-28 the user explicitly approved changing M01 from eight
 full-qualification items to four functional-route items, allowing M02 to start. The original
@@ -62,6 +64,59 @@ no item closure; future breakdowns must preserve the complete acceptance scope a
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
 
 ### M05 acceptance items
+
+**Product batch 12:** started 2026-10-30 **22:57 UTC**, recorded stop **23:42 UTC**.
+Deliver Grid/Color Bars calibration without a source, retaining authored source/crop/routing for
+restoration when calibration is Off, plus ordered Surface alpha composition. Owners: Golden's
+generic procedural layer/shader contract and MapGyver's calibration policy. Proof: bounded layer
+admission, routing/history tests, finite native pixel oracles and a functional app preview flow.
+Native hypothesis: procedural patterns render through the same mapped compositing path without
+source textures or CPU frame transport; turning Off restores the original source definition.
+Native investigation stops by **23:17 UTC** or two experiments (including the pixel baseline).
+Keep full output/display/editor qualification open; no M03 profiling or automation recovery.
+
+**Batch 12 result:** Golden layers now carry a typed texture or procedural source. Checked
+GridPattern and an eight-color bar palette render directly in the mapped shader at target
+resolution, with no source texture, per-Surface calibration texture, decoder or CPU frame pixels.
+Procedural layers still consume the existing draw/dependency limit, so zero texture dependencies
+cannot bypass draw admission. Native accounting includes the **112 + 160 = 272 bytes** of shared
+shader constant buffers; no resource, input, timing or qualification ceiling was increased.
+
+MapGyver owns its 16×9 white/black grid and eight-bar RGB palette. Calibration substitutes the
+procedural source only in the prepared layer and covers the full authored quad, preserving the
+saved source/crop. Quad, opacity, enablement and painter order still apply. Active calibration
+demands no media channel or asset; Off restores the original source route/crop/identity. Preview
+capture recognizes source-independent content and no longer reports calibration as unsupported.
+The UI explains that calibration leaves source crop saved for Off. Source-independent patterns
+also work with an explicitly unassigned source. Surface reorder/Undo retains each layer's alpha
+and mapping.
+
+**Native evidence:** the first hardware attempt failed during shader creation because `line` is
+an HLSL keyword. The agent had launched it before inspecting the prerequisite suite failure;
+AGENTS.md now explicitly requires terminal prerequisite success before dependent native checks.
+The identifier was corrected and the software shader test expanded to all four real entry points.
+Only after that test passed did the second/final hardware experiment run: **448/448 pixels**
+matched independent bars, grid, source crop, mapped coverage, fractional alpha, reversed overlap
+order and subsequent texture-path oracles at **2/255** tolerance. It completed **23:13:15 UTC**,
+before the 23:17 stop. Both native experiments are consumed; no ordinary-app calibration preview
+flow ran. That visual/input evidence remains open with editor/target integration; no third native
+run or timing/automation investigation was added.
+
+Validation: **77/77** default-feature and **71/71** engine-only app library tests pass, including
+Grid/Bars/Off routing, zero source demand, retained crop/quad/opacity, truly unassigned source,
+Surface order/Undo and generated-contract drift. Golden's **110** portable unit tests and **4**
+integration tests pass; its D3D11 suite has **149** passing and **18** ignored tests. All shader
+entry points compile; the procedural hardware oracle was run explicitly as above. Strict app/
+Golden all-feature bins/tests Clippy, Svelte checking and the real bundled build pass.
+Implementation and validation finished by **23:24 UTC**, within the recorded batch stop;
+both workspace formatters and the final whitespace check pass before milestone delivery.
+
+**M05 gate 3 closes** for runtime source-independent calibration/restoration and ordered alpha
+composition from backend/runtime and finite GPU evidence: **3/8 (38%)**, denominator unchanged.
+Ordinary-app calibration visual/input acceptance remains an explicit editor evidence gap; it is
+not inferred from the pixel fixture. Physical/Spout activation, display recovery, graphical editor
+gestures and full physical qualification retain gates 4–8. Overall remains **3/10 (30%)**, M03
+**7/9**, M04 **1/6**. Next is virtual Spout output activation with an end-to-end calibration check.
 
 **Product batch 11:** started 2026-10-30 **22:34 UTC**, recorded stop **23:19 UTC**.
 Deliver native composed Screen preview in the Screen Manager through the existing shared host:
@@ -218,7 +273,7 @@ fixed gates. Overall phase count remains 10; none is accepted by defining this b
 | --- | --- | --- |
 | 1 | Default Screen Manager; atomic Screen/ordered Surface authoring with stable source references, validated targets/crops/quads, project/history roundtrip, commands, script methods, callbacks and app-owned snippets. | Accepted — batch 8 evidence below |
 | 2 | Runtime crop followed by perspective warp matches reference patterns; invalid/singular mapping fails atomically. | Accepted — batch 10 reference and publication evidence above |
-| 3 | Calibration with no source restores authored routing; overlapping Surfaces preserve order and alpha. | Open |
+| 3 | Calibration with no source restores authored routing; overlapping Surfaces preserve order and alpha. | Accepted — batch 12 backend/runtime and finite GPU evidence |
 | 4 | Physical fullscreen, physical desktop rectangle and virtual Spout targets work concurrently and continue when editors close/minimize. | Open |
 | 5 | Display catalog/recovery preserves intended identity across hotplug, mixed DPI and negative desktop origins. | Open |
 | 6 | Screen editor/source selection uses backend intents; one drag is one undoable gesture. | Open |
@@ -607,7 +662,7 @@ batches per diagnostic-only batch; no consecutive diagnostic-only turns by defau
 two batches without a usable capability or acceptance closure, reduce the feature slice or
 choose another functionally ready product task. Do not add another measurement prerequisite.
 
-**Product-delivery count since correction: 11. Diagnostic-only batch allowance: 2, unused.**
+**Product-delivery count since correction: 12. Diagnostic-only batch allowance: 3, unused.**
 The first authoring slice and the new atomic Picture import capability (verified through backend/
 QuickJS) count as product delivery; the earlier workflow/docs checkpoint does not. Picture UI
 interaction is not counted as verified acceptance. The observed ordinary-app Solid Color preview
@@ -621,8 +676,10 @@ Screen/Surface backend authoring with commands/scripts is the eighth and closes 
 The registered Screen Manager authoring UI is the ninth; full editor/input acceptance stays open.
 Checked GPU crop/warp plus shared Screen-plan publication is the tenth and closes M05 gate 2.
 Native Screen preview with observed Surface withdraw/restore is the eleventh; full editor gates stay open.
-The allowance follows the four-product-to-one-diagnostic ratio; neither available diagnostic batch
-is scheduled, and consecutive diagnostic-only batches remain prohibited by default.
+Source-independent calibration/restoration and ordered procedural layers are the twelfth and close
+M05 gate 3. The three diagnostic batches allowed by the ratio are unscheduled.
+The allowance follows the four-product-to-one-diagnostic ratio; none of the three allowed diagnostic
+batches is scheduled, and consecutive diagnostic-only batches remain prohibited by default.
 Qualification may interrupt only for a reproduced blocker on the selected product path or an
 explicit user request; otherwise it resumes in its scheduled lane after product delivery.
 
@@ -821,19 +878,21 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-Deliver **M05 calibration patterns** without a source and restoration of authored source routing
-when calibration is disabled. Native Screen preview is delivered through the existing shared host;
-M05 gates 1–2 are accepted. Define the generated-pattern slice and proof before coding.
-Retain full calibration/order/alpha, target windows/Spout, display recovery,
-graphical editor/gesture and physical qualification scope in M05 gates 3–8. M04 gates 2–6 retain
+Deliver **M05 virtual Spout target activation** from authored Screen target/enabled state, sharing
+composed textures with preview and preserving output when editor views close. Include an end-to-end
+calibration source check; ordinary-app calibration visual/input evidence remains open. M05 gates
+1–3 are accepted. Define target ownership/recovery and proof before coding. Retain all target
+modes, display recovery, graphical editor/gesture and physical qualification scope in M05 gates
+4–8. M04 gates 2–6 retain
 their full source, UI, lifecycle and parity scope. Preserve Chataigne's root default and unfinished P11 work.
 
 Record the slice's owner, observable result, validation and 45-minute stopping time before
 coding. Ship and push a coherent product checkpoint before the next implementation batch.
 The delivered authoring/import/native Solid Color/Shared Texture editing/module integration/sender
-discovery/native Picture/Screen authoring/Screen Manager UI/crop-warp/native Screen preview capabilities advance the product counter to **11**;
-documentation alone earns no credit. Two diagnostic-only batches are allowed by the ratio but
-neither is scheduled. Continue the product path; retained M03 qualification is not the default work queue.
+discovery/native Picture/Screen authoring/Screen Manager UI/crop-warp/native Screen preview/calibration
+capabilities advance the product counter to **12**; documentation alone earns no credit. Three
+diagnostic-only batches are allowed by the ratio but none is scheduled. Continue the product path;
+retained M03 qualification is not the default work queue.
 
 M03 gates 4 and 9 remain open and owned by M03. Preserve every original budget, failure and
 required verification. They are production-readiness requirements, not authorization to spend
