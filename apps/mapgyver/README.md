@@ -6,11 +6,24 @@ desktop host, and generic UI. App-owned media contracts and rendering policy
 live under `src/media`; mapping and composition systems build on those boundaries.
 
 The initial project contains a Media Manager and Golden's standard empty Dashboard.
-The primary app panel creates Solid Color media with backend-owned defaults and
-edits independent channel color/alpha, automatic/fixed size and sampling. Media and
+The primary app panel creates Solid Color and Picture media with backend-owned defaults and
+edits independent channel sources, color/alpha, automatic/fixed size and sampling. Media and
 channels can be renamed, channels reordered, and media/channels removed through the
 same history-aware app operations used by scripts and headless clients. Undo/redo,
 project replacement and reconnection refresh the panel without polling.
+
+Picture imports use one `ImportPicture` app intent: the backend builds the asset and
+detached media/channel tree atomically, or imports/assigns a source to an existing Picture
+channel while preserving its output settings. One Undo reverses the complete import.
+The asset catalog appears separately in manager inspection. Channels can select the same
+asset, and relinking that asset preserves its identity for every consumer. Missing asset
+references stay explicit instead of silently selecting another source.
+
+The Picture editor accepts explicit project-relative or absolute host paths; the native
+desktop also offers Golden's file picker. This is source-file linking, not a browser upload.
+Asset path validation, ID/label allocation and all domain changes stay in Rust. Worker
+decode, color/alpha handling and preparation budgets remain owned by the existing Picture
+and Golden Assets runtime; the editor performs no image decoding or frame transport.
 
 `src/media/protocol.rs` owns those DTOs; `generate_media_protocol` generates the
 frontend contracts. `src/media/catalog.rs` provides ordered, read-only inspection
@@ -20,8 +33,8 @@ does not allocate identities, choose backend defaults or mutate node internals.
 App invariants run at the detached candidate-validation boundary, after queued
 default/load edits attach and before live activation, for both startup and replacement.
 
-This first authoring panel does not yet provide native channel previews or Picture/
-Shared Texture source editors. Module command nodes and app-owned script snippets
+The authoring panel does not yet provide native channel previews or Shared Texture
+source editing. Module command nodes and app-owned script snippets
 also remain part of M04. See the [active acceptance ledger](../../docs/progress/mapgyver-status.md#m04-acceptance-items).
 The native feasibility probe under `tools/mapgyver/native-probe` remains a separate
 diagnostic executable; it is not the app's rendering implementation.

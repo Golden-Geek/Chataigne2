@@ -66,6 +66,12 @@ pub struct ChannelDefinition {
 #[serde(tag = "kind")]
 pub enum MediaEdit {
     InspectManager,
+    /// Atomically imports an asset and creates Picture media, or assigns an existing Picture channel.
+    ImportPicture {
+        locator: AssetLocator,
+        target: Option<ChannelReference>,
+        label: Option<String>,
+    },
     ImportAsset {
         locator: AssetLocator,
         label: Option<String>,
@@ -133,17 +139,39 @@ pub struct MediaSnapshot {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct MediaManagerSnapshot {
     pub media: Vec<MediaSnapshot>,
+    pub assets: Vec<AssetSnapshot>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct AssetSnapshot {
+    pub id: AssetId,
+    pub label: String,
+    pub locator: Option<AssetLocator>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MediaEditResult {
-    Manager { snapshot: MediaManagerSnapshot },
-    AssetCreated { asset: AssetId },
-    Asset { record: AssetRecord },
-    Created { reference: ChannelReference },
+    Manager {
+        snapshot: MediaManagerSnapshot,
+    },
+    PictureImported {
+        reference: ChannelReference,
+        asset: AssetId,
+    },
+    AssetCreated {
+        asset: AssetId,
+    },
+    Asset {
+        record: AssetRecord,
+    },
+    Created {
+        reference: ChannelReference,
+    },
     Changed,
-    Channel { snapshot: ChannelSnapshot },
+    Channel {
+        snapshot: ChannelSnapshot,
+    },
 }
 
 pub fn export_typescript(directory: impl AsRef<std::path::Path>) -> Result<(), Box<dyn std::error::Error>> {

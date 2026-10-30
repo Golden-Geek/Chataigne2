@@ -25,6 +25,13 @@ impl AssetNode {
     pub fn id(&self) -> AssetId {
         AssetId::from_uuid(self.data.meta.uuid.0)
     }
+    pub(super) fn snapshot(&self) -> super::protocol::AssetSnapshot {
+        super::protocol::AssetSnapshot {
+            id: self.id(),
+            label: self.data.meta.label.clone(),
+            locator: self.locator.clone(),
+        }
+    }
     pub fn record(&self) -> Result<AssetRecord, String> {
         Ok(AssetRecord {
             id: self.id(),

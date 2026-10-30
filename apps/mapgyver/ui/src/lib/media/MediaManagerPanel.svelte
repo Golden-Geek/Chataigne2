@@ -8,6 +8,8 @@
 	import type { ChannelDefinition } from './generated/ChannelDefinition';
 	import { invokeMediaEdit } from './operations';
 	import SolidChannelEditor from './SolidChannelEditor.svelte';
+	import PictureChannelEditor from './PictureChannelEditor.svelte';
+	import AssetLocatorForm from './AssetLocatorForm.svelte';
 
 	let { panelId, panelType, title, params }: PanelProps = $props();
 	let panel = $state<PanelState | null>(null);
@@ -18,6 +20,7 @@
 	let catalog = $state<MediaManagerSnapshot | null>(null);
 	let selected = $state<ChannelId | null>(null);
 	let pending = $state(false);
+	let importing = $state(false);
 	const busy = $derived(pending || session?.status !== 'connected' || session.loading.visible);
 	let error = $state('');
 	let request = 0;
@@ -69,7 +72,8 @@
 		error = '';
 		try {
 			const result = await invokeMediaEdit(session, intent);
-			if (result.kind === 'Created') selected = result.reference.channel;
+			if (result.kind === 'Created' || result.kind === 'PictureImported')
+				selected = result.reference.channel;
 			await refresh();
 			return result;
 		} catch (cause) {
@@ -99,8 +103,27 @@
 			disabled={busy || session?.status !== 'connected'}
 			onclick={() => edit({ kind: 'CreateMedia', media_kind: 'SolidColor', label: null })}
 			>Add Solid Color</button>
+		<button
+			disabled={busy}
+			onclick={() => edit({ kind: 'CreateMedia', media_kind: 'Picture', label: null })}
+			>Add Picture</button>
+		<button
+			disabled={busy}
+			aria-expanded={importing}
+			onclick={() => {
+				importing = !importing;
+			}}>Import Picture…</button>
 		<button disabled={busy || session?.status !== 'connected'} onclick={refresh}>Refresh</button>
 	</header>
+	{#if importing}
+		<AssetLocatorForm
+			disabled={busy}
+			submitLabel="Import Picture"
+			submit={async (locator) => {
+				if (await edit({ kind: 'ImportPicture', locator, target: null, label: null }))
+					importing = false;
+			}} />
+	{/if}
 	{#if error}<p class="error" role="alert">{error}</p>{/if}
 	{#if session?.status !== 'connected'}
 		<p class="empty">Connect to MapGyver to edit media.</p>
@@ -109,7 +132,7 @@
 	{:else if catalog.media.length === 0}
 		<div class="empty">
 			<h3>No media yet</h3>
-			<p>Add a Solid Color, then create channels with their own color, alpha and size.</p>
+			<p>Add a Solid Color or Picture, then create channels with their own sources and sizes.</p>
 		</div>
 	{:else}
 		<div class="workspace">
@@ -205,6 +228,13 @@
 					</form>
 					{#if selectedChannel.definition.source.kind === 'SolidColor'}
 						<SolidChannelEditor channel={selectedChannel} disabled={busy} {configure} />
+					{:else if selectedChannel.definition.source.kind === 'Picture'}
+						<PictureChannelEditor
+							channel={selectedChannel}
+							assets={catalog.assets}
+							disabled={busy}
+							{configure}
+							{edit} />
 					{:else}
 						<p>
 							Source: {selectedChannel.definition.source.kind}. Source settings are not available in

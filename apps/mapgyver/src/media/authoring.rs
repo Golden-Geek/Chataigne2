@@ -76,12 +76,23 @@ pub fn channel(engine: &AppEngine, reference: ChannelReference) -> Result<Channe
 }
 
 fn label(engine: &AppEngine, parent: NodeId, requested: Option<String>, fallback: &str) -> Result<String, String> {
+    label_with_reserved(engine, parent, requested, fallback, &[])
+}
+
+pub(super) fn label_with_reserved(
+    engine: &AppEngine,
+    parent: NodeId,
+    requested: Option<String>,
+    fallback: &str,
+    reserved: &[&str],
+) -> Result<String, String> {
     let requested = requested.unwrap_or_else(|| fallback.into());
     let requested = requested.trim();
     if requested.is_empty() || requested.len() > 255 || requested.contains('\0') {
         return Err("label must contain 1..255 UTF-8 bytes without NUL".into());
     }
     let mut labels = HashSet::new();
+    labels.extend(reserved.iter().copied());
     let mut child = engine.nodes.get(parent).and_then(|node| node.node_data().first_child);
     while let Some(id) = child {
         let node = engine.nodes.get(id).ok_or("missing sibling")?;
@@ -123,6 +134,9 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
     }
     let edit: MediaEdit = serde_json::from_value(payload).map_err(|error| error.to_string())?;
     let result = match edit {
+        MediaEdit::ImportPicture { locator, target, label } => {
+            super::importing::picture(engine, locator, target, label)?
+        }
         MediaEdit::InspectManager => MediaEditResult::Manager {
             snapshot: super::catalog::inspect(engine)?,
         },
@@ -131,13 +145,7 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             label: requested,
         } => {
             let parent = manager(engine)?;
-            let fallback = match &locator {
-                AssetLocator::ProjectRelative { path } => path.as_str(),
-                AssetLocator::Absolute { path } => path.as_str(),
-            }
-            .rsplit(['/', '\\'])
-            .next()
-            .unwrap_or("Asset");
+            let fallback = locator_label(&locator);
             let node = super::assets::AssetNode::new(label(engine, parent, requested, fallback)?, Some(locator));
             let asset = node.id();
             engine.edits.push(Edit::AddNodeTree {
@@ -181,13 +189,10 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
                 MediaKind::SolidColor => "Solid Color",
                 MediaKind::SharedTexture => "Shared Texture",
             };
-            let media = MediaNode::new(label(engine, parent, requested, fallback)?, media_kind);
-            let channel = ChannelNode::new("Channel 1".into(), ChannelDefinition::for_media(media_kind));
-            let reference = ChannelReference {
-                media: MediaId(media.node_data().meta.uuid),
-                channel: ChannelId(channel.node_data().meta.uuid),
-            };
-            let tree = NodeTree::new(media).with_child(NodeTree::new(channel));
+            let (tree, reference) = media_tree(
+                label(engine, parent, requested, fallback)?,
+                ChannelDefinition::for_media(media_kind),
+            );
             engine.edits.push(Edit::AddNodeTree {
                 tree,
                 parent,
@@ -216,24 +221,7 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             MediaEditResult::Created { reference }
         }
         MediaEdit::ConfigureChannel { reference, definition } => {
-            let id = channel_id(engine, reference)?;
-            let (_, kind) = media(engine, reference.media)?;
-            definition.validate()?;
-            if definition.media_kind() != kind {
-                return Err("channel source does not match its media kind".into());
-            }
-            engine.edits.push(Edit::CallNodeMutation {
-                node: id,
-                needs_tree_snapshot: false,
-                callback: Box::new(move |node, _| {
-                    let channel = node
-                        .as_any_mut()
-                        .downcast_mut::<ChannelNode>()
-                        .ok_or("channel type changed")?;
-                    channel.set_definition(definition);
-                    Ok(())
-                }),
-            });
+            configure_channel(engine, reference, definition)?;
             MediaEditResult::Changed
         }
         MediaEdit::RenameMedia { media: owner, label } => {
@@ -282,6 +270,52 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
         },
     };
     serde_json::to_value(result).map_err(|error| error.to_string())
+}
+
+pub(super) fn locator_label(locator: &AssetLocator) -> &str {
+    match locator {
+        AssetLocator::ProjectRelative { path } => path.as_str(),
+        AssetLocator::Absolute { path } => path.as_str(),
+    }
+    .rsplit(['/', '\\'])
+    .find(|segment| !segment.is_empty())
+    .unwrap_or("Asset")
+}
+
+pub(super) fn media_tree(label: String, definition: ChannelDefinition) -> (NodeTree, ChannelReference) {
+    let media = MediaNode::new(label, definition.media_kind());
+    let channel = ChannelNode::new("Channel 1".into(), definition);
+    let reference = ChannelReference {
+        media: MediaId(media.node_data().meta.uuid),
+        channel: ChannelId(channel.node_data().meta.uuid),
+    };
+    (NodeTree::new(media).with_child(NodeTree::new(channel)), reference)
+}
+
+pub(super) fn configure_channel(
+    engine: &mut AppEngine,
+    reference: ChannelReference,
+    definition: ChannelDefinition,
+) -> Result<(), String> {
+    let id = channel_id(engine, reference)?;
+    let (_, kind) = media(engine, reference.media)?;
+    definition.validate()?;
+    if definition.media_kind() != kind {
+        return Err("channel source does not match its media kind".into());
+    }
+    engine.edits.push(Edit::CallNodeMutation {
+        node: id,
+        needs_tree_snapshot: false,
+        callback: Box::new(move |node, _| {
+            let channel = node
+                .as_any_mut()
+                .downcast_mut::<ChannelNode>()
+                .ok_or("channel type changed")?;
+            channel.set_definition(definition);
+            Ok(())
+        }),
+    });
+    Ok(())
 }
 
 pub fn validate_project(engine: &AppEngine) -> Result<(), String> {

@@ -7,7 +7,10 @@ use crate::app::{AppEngine, AppNode};
 
 pub(super) fn inspect(engine: &AppEngine) -> Result<MediaManagerSnapshot, String> {
     let manager = super::authoring::manager(engine)?;
-    let mut result = MediaManagerSnapshot { media: Vec::new() };
+    let mut result = MediaManagerSnapshot {
+        media: Vec::new(),
+        assets: Vec::new(),
+    };
     let mut child = engine
         .nodes
         .get(manager)
@@ -17,6 +20,10 @@ pub(super) fn inspect(engine: &AppEngine) -> Result<MediaManagerSnapshot, String
     while let Some(id) = child {
         let node = engine.nodes.get(id).ok_or("missing manager child")?;
         child = node.node_data().next_sibling;
+        if let AppNode::MediaAsset(asset) = node {
+            result.assets.push(asset.snapshot());
+            continue;
+        }
         let AppNode::Media(media) = node else {
             continue;
         };

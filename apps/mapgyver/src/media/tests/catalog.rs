@@ -83,4 +83,7 @@ fn catalog_lists_media_kinds_without_exposing_assets_as_media() {
     assert_eq!(snapshot.media.len(), 3);
     assert_eq!(snapshot.media[2].media_kind, MediaKind::SharedTexture);
     assert!(snapshot.media.iter().all(|media| media.channels.len() == 1));
+    assert_eq!(snapshot.assets.len(), 1);
+    assert_eq!(snapshot.assets[0].label, "image.png");
+    assert!(snapshot.assets[0].locator.is_some());
 }
