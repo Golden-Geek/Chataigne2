@@ -1,4 +1,5 @@
 //! Ordinary app preview: shared host owns HWND lifetime; this task owns rendering/preparation.
+mod discovery;
 mod worker;
 
 use crate::app::AppNode;
@@ -10,6 +11,13 @@ use std::{
     io,
     sync::{Arc, Mutex, mpsc},
 };
+
+#[derive(serde::Deserialize)]
+#[serde(untagged)]
+enum Request {
+    Media(crate::media::protocol::MediaNativeRequest),
+    Preview(golden_video::preview::protocol::PreviewRequest),
+}
 
 pub(crate) fn presentation(runtime: ProductionRuntime<AppNode>) -> io::Result<NativePresentation<tauri::Wry>> {
     let (send, signal) = mpsc::sync_channel(1);
@@ -25,6 +33,8 @@ pub(crate) fn presentation(runtime: ProductionRuntime<AppNode>) -> io::Result<Na
     )
     .map_err(io::Error::other)?;
     let viewport = Arc::new(Mutex::new(None));
+    let discovery = discovery::Discovery::new(notifier.clone());
+    let discovery_control = discovery.clone();
     let control_viewport = viewport.clone();
     let control = controller.clone();
     Ok(NativePresentation::new(move |window: &tauri::WebviewWindow| {
@@ -41,10 +51,18 @@ pub(crate) fn presentation(runtime: ProductionRuntime<AppNode>) -> io::Result<Na
                 notifier,
                 signal,
                 stop,
+                discovery,
             })
         }))
     })
     .with_control(move |request, metrics| {
+        let request: Request = serde_json::from_str(request).map_err(|error| error.to_string())?;
+        let request = match request {
+            Request::Media(crate::media::protocol::MediaNativeRequest::Senders { refresh }) => {
+                return serde_json::to_string(&discovery_control.request(refresh)?).map_err(|error| error.to_string());
+            }
+            Request::Preview(request) => request,
+        };
         let host = HostViewport {
             client_width: metrics.physical_width,
             client_height: metrics.physical_height,
@@ -57,7 +75,9 @@ pub(crate) fn presentation(runtime: ProductionRuntime<AppNode>) -> io::Result<Na
         *control_viewport
             .lock()
             .map_err(|_| "preview viewport lock is poisoned")? = Some(host);
-        let request = serde_json::from_str(request).map_err(|error| error.to_string())?;
         serde_json::to_string(&control.handle(request, host)).map_err(|error| error.to_string())
     }))
 }
+
+#[cfg(test)]
+mod tests;

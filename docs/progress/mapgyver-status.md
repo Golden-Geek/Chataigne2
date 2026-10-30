@@ -6,7 +6,8 @@
 
 **Current topic:** M04's Media Manager/module integration gate is accepted: default registration,
 backend authoring/inspection, commands, script methods, committed-result callbacks and embedded
-app-owned snippets. Solid Color, Picture and Shared Texture source controls are implemented.
+app-owned snippets. Solid Color, Picture and Shared Texture source controls are implemented,
+including a bounded desktop sender catalog and explicit selection/refresh.
 Atomic Picture import is verified through the backend and QuickJS; its interactive UI check is
 still open. The first Solid Color UI slice was exercised live. M03 remains **7/9**;
 its open qualification no longer serializes all feature development. The
@@ -14,9 +15,10 @@ its open qualification no longer serializes all feature development. The
 changes work order, not acceptance. M04 is **1/6 complete gates (17%)**; its full source,
 native preview, recovery and UI parity acceptance remains open.
 
-**Next:** bounded Shared Texture sender discovery and source selection. Picture investigation
-reached product batch 4's two-experiment limit; its
-post-accounting-fix native check remains parked. The ordinary app now
+**Next:** native Picture integration within the declared source-memory bounds, then remaining
+multi-channel source acceptance. The earlier Picture investigation reached product batch 4's
+two-experiment limit; reopen it only as the selected product correctness task, with a fresh
+bounded batch and the retained evidence. The ordinary app now
 shows a native Solid Color preview. No timing/driver qualification or M03 stash work is scheduled.
 **Implementation limits:** Picture display is unverified after its admission-accounting correction;
 the app's 1 MiB plan-input bound still excludes larger decoded pictures. Interactive UI verification is limited:
@@ -57,6 +59,21 @@ no item closure; future breakdowns must preserve the complete acceptance scope a
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
 
 ### M04 acceptance items
+
+**Product batch 6:** started 2026-10-30 **20:34 UTC**, recorded stop **21:19 UTC**.
+Deliver bounded native Spout sender discovery with explicit channel selection in the Shared
+Texture editor. Owners: Golden Video's native SDK boundary and MapGyver's metadata worker/UI.
+Proof: bounded decoding/service tests, generated DTO drift, Svelte/build/Clippy checks and one
+bounded native discovery observation using existing sender fixtures where practical. Discovery
+must not initialize the renderer, poll the engine or select an active sender implicitly. Native
+Picture/M03 qualification remains parked. Any investigation stops after 20 minutes/two experiments.
+
+Native functional experiment 1 will reuse the existing independent source fixture: one unique
+owned sender must be absent before start, present after accepted frames, absent after stop,
+present after restart and absent after an exit-zero teardown. The discovery caller opens no
+renderer/receiver. This tests registry freshness and exact-name enumeration, not timing/resource
+qualification. A failure permits one focused correction/rerun within the investigation limit;
+do not add a sender-count sweep or resume M03 measurement work.
 
 **Product batch 5:** started 2026-10-30 **19:59 UTC**, recorded stop **20:44 UTC**.
 Deliver Media Manager command nodes, script-callable methods, committed-result callbacks and
@@ -124,6 +141,47 @@ overall remains fully accepted phases divided by ten.
 - Implementation/check work completed at **20:33 UTC**, before the recorded **20:44 UTC** stop.
   Both workspaces are formatted. This is a reviewable product checkpoint for milestone delivery;
   the next batch starts with sender discovery, without restoring M03's parked investigation.
+
+#### Shared Texture sender discovery — 2026-10-30
+
+- Golden Video now exposes a worker-local Spout discovery owner and bounded exact-name catalog.
+  Enumeration never opens a graphics device/receiver, selects the global active sender or exposes
+  native handles. SDK calls are capped independently of the advertised count; names are validated
+  as exact UTF-8, sorted and deduplicated. Invalid/omitted entries and count truncation are explicit.
+- MapGyver's existing native metadata worker scans only on an explicit request. The host control
+  callback reads a cache/sets one coalesced flag; it performs no SDK enumeration, engine polling or
+  renderer construction. Failed scans keep the prior names and allow a fresh SDK owner on retry.
+  The app caps output at 64 names and 48 KiB of encoded names, preserving the host's existing
+  **64 KiB** control reply bound even for heavily escaped names. No resource budget was raised.
+- Added Rust-owned native request/snapshot DTOs and generated TypeScript. App requests coexist
+  with the unchanged Golden preview protocol. Revisioned metadata events reject late scanning
+  replies after completion. Catalog state is ephemeral and absent from project/history data.
+- Shared Texture now offers discovered-name selection, refresh and exact-name entry. Scans never
+  choose a sender, infer source format/defaults or replace a missing authored name. Selection is
+  a draft until the existing Apply intent commits it. Browser/headless exact-name authoring remains
+  available; the live catalog currently uses the desktop-native capability. Interactive form
+  behavior and complete cross-host/source parity remain unverified/open under gates 5/6.
+- **Native functional experiment 1 passed:** the existing independent fixture's unique owned
+  sender was absent before start, present after accepted frames, absent after stop, present after
+  restart and absent after its verified **exit 0** teardown. The discovery caller opened no
+  renderer/receiver. This proves live registry freshness/exact-name enumeration, not timing,
+  resource, pixel delivery or full per-channel recovery qualification. No second native experiment,
+  native Picture run, M03 profiling or diagnostic archive was added.
+- **Verification:** **55/55 app tests**, **2/2 Golden native discovery tests**, **2/2 Node identity/
+  stale-reply tests** pass. Tests cover native call/count bounds, invalid names/churn, cache
+  coalescing/recovery/revision exhaustion, encoded reply bounds, late-response ordering, all
+  existing preview request variants and generated-contract drift. Svelte check: **0 errors /
+  0 warnings**; Prettier, strict app/video Clippy with **all features/bins/tests**, bundled desktop
+  build and `--no-default-features --bins` check pass. Both workspaces formatted.
+- No further M04 gate closes: **1/6 (17%)**, M03 **7/9**, overall **3/10 (30%)**. Full multi-channel
+  rendering/recovery, explicit adapter mismatch, interactive selection and source/native parity
+  retain their complete acceptance scope. Next product deliverable: native Picture integration
+  within the existing source-memory contract, without reopening GPU-clock qualification.
+- Implementation/check work finished at **20:59 UTC**, before the recorded **21:19 UTC** stop.
+  The native check reused `native_source_fixture` and the ignored
+  `channel_rendering::discovery_tracks_owned_sender_start_stop_and_restart_without_creating_a_receiver`
+  test; its source process and test exited successfully. The milestone is delivered before the
+  next implementation batch.
 
 **First product batch:** started 2026-10-30 18:07 UTC, feature verification completed at 18:32 UTC,
 within the recorded **18:52 UTC** stop (45 minutes). Owners: `apps/mapgyver/src/media` and
@@ -318,15 +376,15 @@ batches per diagnostic-only batch; no consecutive diagnostic-only turns by defau
 two batches without a usable capability or acceptance closure, reduce the feature slice or
 choose another functionally ready product task. Do not add another measurement prerequisite.
 
-**Product-delivery count since correction: 5. Diagnostic-only batch allowance: 1, unused.**
+**Product-delivery count since correction: 6. Diagnostic-only batch allowance: 1, unused.**
 The first authoring slice and the new atomic Picture import capability (verified through backend/
 QuickJS) count as product delivery; the earlier workflow/docs checkpoint does not. Picture UI
 interaction is not counted as verified acceptance. The observed ordinary-app Solid Color preview
 is the third usable capability. Shared Texture source editing is the fourth; its backend/native
 metadata observation does not claim interactive form or recovery acceptance. The failed Picture
 display checks are not gate closure. The available diagnostic batch is not the default next task;
-module commands/scripts are the fifth delivered capability and close M04 gate 1. Sender discovery
-is the next product deliverable.
+module commands/scripts are the fifth delivered capability and close M04 gate 1. Desktop sender
+discovery/selection is the sixth; its native registry check does not close full source acceptance.
 Qualification may interrupt only for a reproduced blocker on the selected product path or an
 explicit user request; otherwise it resumes in its scheduled lane after product delivery.
 
@@ -525,10 +583,11 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-Deliver **M04 bounded Shared Texture sender discovery/selection**. Module commands, script methods,
-callbacks and snippets are verified through the same backend route; gate 1 is accepted. Shared
-Texture source editing is available; native Picture display after the admission
-correction stays parked after this batch's two experiments. The ordinary-app Solid Color preview
+Deliver **M04 native Picture integration within declared source-memory bounds**, using the retained
+admission evidence and one bounded correctness batch. Then continue complete multi-channel source
+acceptance. Desktop sender discovery/selection and module commands/methods/callbacks/snippets are
+delivered; gate 1 is accepted. Native Picture display after the admission correction remains
+unverified. The ordinary-app Solid Color preview
 and normal shutdown after Picture demand are observed; use bounded functional checks.
 Keep Picture/source UI verification, live source recovery and complete cross-source parity in
 M04's remaining acceptance. Preserve Chataigne's
@@ -536,8 +595,8 @@ root default and unfinished P11 work.
 
 Record the slice's owner, observable result, validation and 45-minute stopping time before
 coding. Ship and push a coherent product checkpoint before the next implementation batch.
-The delivered authoring/import/native Solid Color/Shared Texture editing/module integration
-capabilities advance the product counter to **5**; documentation alone earns no credit. One diagnostic-only batch is available but
+The delivered authoring/import/native Solid Color/Shared Texture editing/module integration/sender
+discovery capabilities advance the product counter to **6**; documentation alone earns no credit. One diagnostic-only batch is available but
 not scheduled. Continue the product path; retained M03 qualification is not the default work queue.
 
 M03 gates 4 and 9 remain open and owned by M03. Preserve every original budget, failure and

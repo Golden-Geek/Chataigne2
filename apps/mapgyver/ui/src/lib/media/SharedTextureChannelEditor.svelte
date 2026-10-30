@@ -3,6 +3,7 @@
 	import type { ChannelDefinition } from './generated/ChannelDefinition';
 	import type { TextureDescriptor } from './generated/TextureDescriptor';
 	import ChannelSettingsForm from './ChannelSettingsForm.svelte';
+	import SpoutSenderPicker from './SpoutSenderPicker.svelte';
 
 	let {
 		channel,
@@ -30,7 +31,7 @@
 		{configure}
 		title="Shared Texture"
 		source={{ kind: 'Spout', sender: sender === '' ? null : sender, maximum }}>
-		<label>Spout sender name<input type="text" bind:value={sender} /></label>
+		<SpoutSenderPicker bind:sender {disabled} />
 		<p class="hint">
 			Use the exact sender name. Leave empty to disconnect this channel. The receiver reconnects to
 			that name when it becomes available; other channels keep their own selections.

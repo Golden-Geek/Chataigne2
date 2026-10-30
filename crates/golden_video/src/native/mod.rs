@@ -9,6 +9,7 @@ mod backend;
 mod completion;
 mod config;
 mod device;
+mod discovery;
 #[cfg(feature = "qualification")]
 pub mod fixtures;
 mod inputs;
@@ -22,6 +23,7 @@ pub(crate) mod timing;
 
 pub use config::{AdapterId, D3d11Config, InputLimits, NativeConfigError, OutputBinding, WindowTarget};
 pub use device::{AdapterInfo, adapters};
+pub use discovery::{DiscoveryError, MAX_DISCOVERY_SENDERS, SpoutDiscovery, SpoutSenderCatalog};
 pub use inputs::{SourceSnapshot, SourceState};
 pub use memory::{
     AdapterMemorySnapshot, MemoryAdmissionError, MemoryQueryError, MemorySegmentSnapshot, query_adapter_memory,

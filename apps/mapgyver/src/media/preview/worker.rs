@@ -119,6 +119,7 @@ pub(super) struct Input {
     pub notifier: WorkerNotifier,
     pub signal: mpsc::Receiver<()>,
     pub stop: NativePresentationStop,
+    pub discovery: super::discovery::Discovery,
 }
 
 pub(super) fn run(input: Input) -> io::Result<()> {
@@ -131,7 +132,29 @@ pub(super) fn run(input: Input) -> io::Result<()> {
     let mut last_status = Vec::new();
     let mut confirmed = None;
     let mut retry = Instant::now();
+    let mut discovery = None;
     while !input.stop.is_requested() {
+        if let Some(revision) = input.discovery.take() {
+            let result = (|| {
+                if discovery.is_none() {
+                    discovery = Some(golden_video::native::SpoutDiscovery::new().map_err(|error| error.to_string())?);
+                }
+                let catalog = discovery
+                    .as_mut()
+                    .unwrap()
+                    .snapshot(NonZeroUsize::new(super::discovery::MAX_NAMES).unwrap())
+                    .map_err(|error| error.to_string())?;
+                Ok((catalog.names, catalog.truncated))
+            })();
+            if result.is_err() {
+                discovery = None;
+            }
+            if let Some(snapshot) = input.discovery.complete(revision, result) {
+                let _ = input
+                    .window
+                    .emit(crate::media::protocol::SENDER_DISCOVERY_EVENT, snapshot);
+            }
+        }
         let layout = input.receiver.snapshot();
         let host = *input
             .viewport

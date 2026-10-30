@@ -22,7 +22,20 @@ references stay explicit instead of silently selecting another source.
 Shared Texture channels accept an exact Spout sender name, independent source maximum dimensions,
 storage/color/alpha requirements and output size/sampling. An empty selection explicitly disconnects
 that channel. Existing native supervision reconnects to the selected name without choosing a global
-active sender. Sender discovery and full multi-source recovery verification remain open in M04.
+active sender. The desktop editor also lists discovered names and offers explicit refresh. Missing
+authored names remain selectable and editable; a scan never changes the channel definition.
+
+Golden Video's public `native::SpoutDiscovery` owns worker-local SDK enumeration without opening
+a renderer or receiver. MapGyver's existing presentation metadata worker performs on-demand scans,
+coalesces concurrent refreshes and caches at most 64 exact names. Its encoded-name budget is 48 KiB,
+leaving room within the shared host's unchanged 64 KiB reply limit; partial catalogs are explicit.
+The native control callback reads the cache and signals the worker, without SDK/engine work.
+Rust owns the request/snapshot DTOs and generates their TypeScript. Revisioned completion events
+prevent an older scanning reply from overwriting a finished catalog.
+
+Discovery currently uses the desktop-native metadata capability. Browser/headless callers retain
+exact-name authoring. Interactive selection, cross-host/source parity and full independent-source
+rendering/recovery acceptance remain open in M04.
 
 The Picture editor accepts explicit project-relative or absolute host paths; the native
 desktop also offers Golden's file picker. This is source-file linking, not a browser upload.

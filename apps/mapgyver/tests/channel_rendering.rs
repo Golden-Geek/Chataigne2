@@ -231,6 +231,45 @@ fn ready(renderer: &mut ChannelRenderer, extents: [Extent2D; 2]) {
 
 #[test]
 #[ignore = "requires hardware D3D11 and built native_source_fixture"]
+fn discovery_tracks_owned_sender_start_stop_and_restart_without_creating_a_receiver() {
+    let children = Arc::new(Mutex::new(Vec::<Weak<Mutex<Child>>>::new()));
+    let watched = children.clone();
+    let (done, finished) = mpsc::channel();
+    std::thread::spawn(move || {
+        if finished.recv_timeout(Duration::from_secs(30)).is_err() {
+            for child in watched.lock().unwrap().iter().filter_map(Weak::upgrade) {
+                let _ = child.lock().unwrap().kill();
+            }
+            eprintln!("native discovery watchdog expired");
+            std::process::exit(1);
+        }
+    });
+    let index = adapters()
+        .unwrap()
+        .iter()
+        .position(|adapter| !adapter.software)
+        .unwrap();
+    let name = format!("MapGyverDiscovery-{}", uuid::Uuid::new_v4());
+    let mut discovery = golden_video::native::SpoutDiscovery::new().unwrap();
+    let limit = NonZeroUsize::new(64).unwrap();
+    assert!(!discovery.snapshot(limit).unwrap().names.contains(&name));
+    let mut source = Producer::new(index, &name, &children);
+    source.command("start 2 2 1 0 0");
+    assert!(discovery.snapshot(limit).unwrap().names.contains(&name));
+    source.command("stop");
+    assert!(!discovery.snapshot(limit).unwrap().names.contains(&name));
+    source.command("start 3 2 0 0 1");
+    assert!(discovery.snapshot(limit).unwrap().names.contains(&name));
+    source.command("exit");
+    assert!(source.child.lock().unwrap().wait().unwrap().success());
+    assert!(!discovery.snapshot(limit).unwrap().names.contains(&name));
+    drop(discovery);
+    drop(source);
+    done.send(()).unwrap();
+}
+
+#[test]
+#[ignore = "requires hardware D3D11 and built native_source_fixture"]
 fn authored_channels_publish_resize_reconnect_reject_stale_observations_and_recreate_resources() {
     let children = Arc::new(Mutex::new(Vec::<Weak<Mutex<Child>>>::new()));
     let watched = children.clone();
