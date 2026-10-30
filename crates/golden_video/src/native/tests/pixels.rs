@@ -302,6 +302,63 @@ fn hardware_srgb_source_decode_cost_control() {
     );
 }
 
+#[test]
+#[ignore = "requires an explicitly available Windows hardware D3D11 adapter"]
+fn hardware_output_transfer_branch_matches_color_and_alpha_oracles() {
+    let fixture = Fixture::new();
+    let source = fixture.target(internal(PixelFormat::Rgba8Unorm));
+    let pixels = [[0, 0, 0, 0], [1, 2, 3, 17], [10, 32, 65, 128], [255, 120, 255, 255]];
+    for format in [PixelFormat::Rgba8Unorm, PixelFormat::Bgra8Unorm] {
+        for encoding in [ColorEncoding::Linear, ColorEncoding::Srgb] {
+            for alpha in [AlphaMode::Opaque, AlphaMode::Straight, AlphaMode::Premultiplied] {
+                let target = fixture.target(descriptor(1, format, encoding, alpha));
+                for pixel in pixels {
+                    fixture.write(&source, &[pixel]);
+                    for opacity in [1.0_f32, 0.125] {
+                        fixture.draw(
+                            &source,
+                            None,
+                            &target,
+                            opacity,
+                            BlendMode::Normal,
+                            SampleFilter::Nearest,
+                        );
+                        let coverage = f64::from(pixel[3]) / 255.0 * f64::from(opacity);
+                        let expected = std::array::from_fn(|channel| {
+                            if channel == 3 {
+                                return if alpha == AlphaMode::Opaque { 1.0 } else { coverage };
+                            }
+                            let linear = f64::from(pixel[channel]) / 255.0 * f64::from(opacity);
+                            let straight = if alpha == AlphaMode::Opaque {
+                                linear
+                            } else if coverage > 0.0 {
+                                linear / coverage
+                            } else {
+                                0.0
+                            };
+                            let transferred = if encoding == ColorEncoding::Srgb {
+                                encode(straight)
+                            } else {
+                                straight
+                            };
+                            if alpha == AlphaMode::Premultiplied {
+                                transferred * coverage
+                            } else {
+                                transferred
+                            }
+                        });
+                        fixture.check(
+                            &target,
+                            expected,
+                            &format!("output view {format:?}/{encoding:?}/{alpha:?}"),
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
 struct Fixture {
     gpu: Device,
     pipeline: Pipeline,

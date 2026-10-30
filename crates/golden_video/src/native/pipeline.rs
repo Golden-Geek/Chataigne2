@@ -14,6 +14,9 @@ use super::texture::Texture;
 
 const SHADER: &str = include_str!("shader.hlsl");
 
+#[cfg(test)]
+mod tests;
+
 /// A prepared destination view; its owner retains storage through actual GPU completion.
 #[derive(Clone, Copy)]
 pub(super) struct RenderTarget<'a> {

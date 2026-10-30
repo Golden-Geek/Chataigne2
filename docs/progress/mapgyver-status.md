@@ -5,22 +5,20 @@
 **Updated: 2026-10-30 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
 **Current topic:** M03 remains **7/9** accepted gates. The
-[DMA decoder experiment](mapgyver-m03-qualification-runner.md#dma-packet-decoder-boundary--2026-10-30)
-finds 16,272 owned packets but zero complete timing records; queue/critical-path coverage
-stays unavailable. The experiment is bounded and will not be repeated without a concrete
-decoder/provider change. The last production
-[direct input bridge checkpoint](mapgyver-m03-qualification-runner.md#direct-input-bridge-receive--2026-10-29)
-removes one private texture/copy per input and centralizes admission arithmetic. The short Q02
-control accepts 300/300 main and Spout, 296/300 editor, with 300/300 exact captures. GPU p95
-changes 16.9713 → 15.5987 ms. Input reservation falls 35.15625 MiB, but total recorded logical
-peak rises 505,036,864 → 575,078,464 bytes. Producer/editor cadence and full qualification
-remain open; no gate closes.
+[opaque output branch](mapgyver-m03-qualification-runner.md#opaque-output-shader-branch--2026-10-30)
+reduces isolated 4K draw median 0.802858 → 0.683555 ms (14.86%). The short branch-only Q02
+control has renderer-context GPU p95 14.8372 → 11.4896 ms, main/Spout 300 accepted calls and
+editor 299, with 300/300 exact Spout captures. Q01 p95 worsens 3.8685 → 4.7699 ms; producer
+results remain mixed. A more complex hardware-Spout/SDK experiment is rejected and removed,
+with its failures/source preserved. No full GPU-path or cadence gate closes.
 
-**Next:** return to the remaining Q02 output/producer cadence and GPU cost; complete GPU
+**Next:** address Q02 producer/editor cadence and inspect native publication/dependency ordering
+before more pixel-math work; complete GPU
 critical-path and native buffer/GPU-queue measurements (gate 9), then address remaining
 cadence, capture coverage and growth qualification. Native
 device removal and bounded stuck retirement retain gate 4.
-**Blocker:** Q02 editor cadence, producer admission and GPU cost remain insufficient.
+**Blocker:** Q02 editor cadence and producer admission remain insufficient. The short
+renderer-context timing does not qualify the full GPU critical path.
 The latest accepted-Spout capture cohort is complete, but does not establish displayed
 cadence or three-output age. Prior Q02 window deadline failures remain open. Full GPU
 critical-path and native buffer/GPU-queue coverage remain unavailable. Genuine device removal
@@ -293,8 +291,13 @@ cadence remains insufficient. Its higher logical reservation peak is preserved, 
 smaller per-source allocation; native buffer/queue and generation-overlap evidence remain distinct.
 The bounded DMA decoder experiment now preserves all 16,272 owned packet records, with all
 timing fields partial. Its zero reported ETW loss does not establish queue coverage. Do not
-repeat the built-in WPR GPU profile without a concrete decoder/provider change; return to
-Q02 output GPU cost and producer/editor cadence. No graphics settings were changed.
+repeat the built-in WPR GPU profile without a concrete decoder/provider change.
+The opaque shader branch now skips unused transfer math for linear targets. Its isolated
+4K draw control improves about 15%, and branch-only Q02 renderer-context p95 falls to 11.4896 ms.
+Q01 tails regress and source-A admission worsens; accepted-Spout capture coverage remains
+complete. The rejected hardware-Spout/SDK path is fully removed. Inspect publication/dependency
+ordering and source/editor admission next; a gap between different benchmarks is not measured
+queue time. No graphics settings were changed.
 Complete GPU critical-path and queue/consumption measurement
 before the prescribed qualification series (gate 9).
 Genuine native device-removal recovery and bounded stuck-drain retirement retain gate 4.
@@ -444,6 +447,30 @@ Preserve Chataigne's unfinished engine/Spatializer P11 checkpoint (four of six f
 and its [separate ledger](implementation-status.md). Shared P12 boundary repairs belong to M02;
 P14/P15 time and asset contracts retain their shared Golden owners under M03. Root launch
 behavior is unchanged. No production host/backend/binding decision is final yet.
+
+## M03 opaque output branch — 2026-10-30
+
+The production change is one uniform shader branch that skips unnecessary sRGB transfer math
+for opaque linear targets, including the existing hardware-encoded window path. SDK, wire
+formats, resource pools, scheduling and generated contracts are unchanged. New native tests
+check 96 independent finite color/alpha cases and alternate forced-flatten/branch draw controls.
+The isolated 4K median is 0.802858 → 0.683555 ms, a 14.86% reduction, without a full-path claim.
+
+The [paired native controls](mapgyver-m03-qualification-runner.md#opaque-output-shader-branch--2026-10-30)
+retain fresh before-runs, a rejected combined hardware-Spout experiment and final branch-only
+runs. Q02 renderer GPU p95/p99 changes 14.8372/16.6638 → 11.4896/13.5165 ms; Q01 p95 worsens
+3.8685 → 4.7699 ms. All six runs retain 300/300 exact accepted-Spout captures and stable input
+fingerprints. Final Q02 main/Spout accepts 300 calls each, editor 299; producers accept 290/296,
+so cadence stays open. Fresh before/final logical peaks remain 144,691,264/468,172,864 bytes
+for Q01/Q02. No memory reduction or physical-residency claim is made.
+
+The unsupported-benefit SDK/storage change is removed completely; its 266 execution sources,
+successful finite/native tests and regressing controls remain in the 5,824,018-byte evidence
+archive. Independent reconstruction verifies all 1,800 renderer GPU partitions and 1,800 exact
+accepted-Spout image joins. Final validation passes 153 ordinary Rust, 17 Golden native,
+two app-native and 267 Python tests, strict Golden clippy, release build and both formatters.
+Full GPU/queue, prescribed display/cadence/growth and genuine removal/stuck retirement remain
+open. **M03 stays 7/9; overall stays 30%.**
 
 ## M03 DMA decoder boundary — 2026-10-30
 

@@ -105,7 +105,13 @@ float4 composite(float4 source, float4 destination) {
 float4 encode_target(float4 value) {
     if (target_alpha == ALPHA_OPAQUE) {
         // Opaque presentation composites coverage over black before transfer encoding.
-        float3 color = target_encoding == ENCODING_SRGB ? encode_rgb(value.rgb) : value.rgb;
+        float3 color = value.rgb;
+        // The transfer is uniform for this draw. A select can still evaluate all pow calls
+        // when an SRGB target view does the encoding; retain an actual coherent branch.
+        [branch]
+        if (target_encoding == ENCODING_SRGB) {
+            color = encode_rgb(color);
+        }
         return float4(color, 1);
     }
     if (target_encoding != ENCODING_SRGB && target_alpha == ALPHA_PREMULTIPLIED) {

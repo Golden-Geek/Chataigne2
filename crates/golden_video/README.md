@@ -37,6 +37,12 @@ copy/marker views remain UNORM; no extra texture or per-frame view allocation is
 See the [sampling checkpoint](../../docs/progress/mapgyver-m03-qualification-runner.md#hardware-srgb-source-decoding--2026-10-29)
 for finite color tests and the bounded cost comparison.
 
+Opaque output transfer uses an explicit draw-uniform shader branch. Linear shader targets,
+including hardware-encoded window views, skip unused sRGB transfer math. Raw sRGB Spout
+targets retain shader encoding. Native tests cover finite color/alpha cases and a paired
+isolated draw-cost control; see the
+[output branch checkpoint](../../docs/progress/mapgyver-m03-qualification-runner.md#opaque-output-shader-branch--2026-10-30).
+
 Native `D3d11Config::diagnostics` optionally enables a bounded metadata queue, CPU API brackets
 and two GPU timestamp/disjoint slots per context. The queue uses pinned
 [`concurrent-queue` 2.5.0](https://docs.rs/concurrent-queue/2.5.0/concurrent_queue/struct.ConcurrentQueue.html)

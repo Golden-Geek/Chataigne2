@@ -764,6 +764,75 @@ default/native all-target Clippy, generated fixture contracts, release x64 build
 formatters. Full cadence/repetition, GPU/queue/deadline, growth/handle, genuine removal/stuck
 retirement and M05 physical observations remain open. **M03 stays 7/9; overall stays 3/10 (30%)**.
 
+## Opaque output shader branch — 2026-10-30
+
+FXC disassembly identifies an existing cost on opaque output: the conditional expression
+evaluates the sRGB logarithm/exponential instructions even for a linear shader target, then
+selects the linear result. An explicit uniform
+[`branch`](https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-if)
+now skips those instructions for hardware-encoded targets, including the existing window
+backbuffer path. Raw UNORM Spout output still performs shader encoding. The production SDK,
+storage formats, copy counts, resource admission, queue depth and DTOs remain unchanged.
+
+A new finite native test checks 96 color/alpha/opacity cases in both RGBA/BGRA and linear/sRGB
+against independent scalar references at the unchanged 2/255 tolerance. A separate native
+draw-cost control compiles the same production source with `branch` and a forced `flatten`
+companion. Both use one device, the same 4K linear source and hardware SRGB target; alternating
+order, four warmup pairs and twelve measured pairs of four draws retain every measurement.
+Median observed per-draw GPU time changes **0.802858 → 0.683555 ms (−14.86%)**, using the ordinary
+median (mean of the two middle values). This is an
+isolated draw observation with no Present/SDK work, not an end-to-end renderer result or gate.
+The assembly controls retain the pre-existing X3571/X4000 shader warnings.
+
+An earlier combined experiment also added private typeless Spout conversion and an explicit
+typed wire-copy SDK API. Native color, wire-identity and rejection tests passed, but short
+Q01/Q02 renderer p95 worsened **3.8685 → 4.7771 ms** and **14.8372 → 15.6990 ms**. Those sequential
+observations do not isolate cause. They do not justify the added API/storage complexity;
+that implementation is removed. Its exact execution sources, test logs and raw controls are
+preserved as rejected evidence, including its complete 300/300 accepted-Spout marker captures
+at each size. The final source retains the shader branch and focused tests only.
+
+The release Q01/Q02 controls retain Intel adapter 0, 5 s warmup, 5 s sample, 1 s per interruption,
+the fixed scene and 60 Hz opportunities. No PresentMon/WPR collector or graphics setting is
+changed. Each run retains stable before/after execution fingerprints and all raw records.
+
+| Metric | Q01 before | Q01 branch | Q02 before | Q02 branch |
+| --- | --- | --- | --- | --- |
+| Renderer GPU median / p95 / p99, ms | 2.9505 / 3.8685 / 4.7698 | 4.0304 / 4.7699 / 5.4131 | 12.7681 / 14.8372 / 16.6638 | 10.0680 / 11.4896 / 13.5165 |
+| Output-stage GPU p95, ms | 2.7336 | 3.3967 | 10.5201 | 7.9353 |
+| Accepted API calls main / Spout / editor | 300 / 300 / 300 | 301 / 300 / 300 | 300 / 300 / 298 | 300 / 300 / 299 |
+| Producer A / B accepted, of 300 each | 296 / 296 | 293 / 295 | 297 / 294 | 290 / 296 |
+| Exact accepted-Spout images captured | 300/300 | 300/300 | 300/300 | 300/300 |
+| Source A / B to Spout capture p95, ms | 10.7890 / 18.5535 | 23.4243 / 11.1482 | 30.1226 / 33.7702 | 18.0635 / 19.9329 |
+| Recorded logical peak, bytes | 144,691,264 | 144,691,264 | 468,172,864 | 468,172,864 |
+
+Q01's final API window includes 301 main deliveries while the CPU-start GPU cohort and anchored
+deadline cohorts remain 300. These are different boundary-selected cohorts; no opportunity is
+removed or renormalized. API acceptance does not prove software display deadlines. Spout has
+zero invalid captures in all six runs. Q01 tails/source age and source-A admission regressions
+remain visible, and Q02 still has one editor Busy plus ten/four producer Busy results.
+
+The final Q02 renderer span fits the numerical 12/16.667 ms p95/p99 targets in this short
+control, but is still one context including waits and command-feed gaps. It does not qualify
+the asynchronous GPU critical path. Stage percentiles are not added. Neither the isolated
+draw comparison nor subtraction from a renderer span measures queue time.
+
+The [evidence](evidence/mapgyver-m03-output-branch-2026-10-30.json) and
+[5,824,018-byte raw archive](evidence/mapgyver-m03-output-branch-controls-2026-10-30.zip)
+(418 members, SHA-256 `9b311e93807622e31eaf4eec2da6844b871f8ddf9610ef3ee9b22bf9dad4b0a4`)
+include six controls, the rejected implementation's 266 execution sources, assembly controls,
+test logs and independent reconstruction. All 1,800 GPU partitions and 1,800 exact accepted
+Spout source-use/image-version/marker joins verify against raw data. The initial test-only
+COM shader output-slot compile error is retained; the corrected final source passes 153
+ordinary Rust, 17 Golden native, two app-native and 267 Python tests, strict Golden clippy and
+the release build. Both Rust formatters and whitespace checks pass. Vendor changes are absent
+and the original patch/documentation hashes verify. No SDK API or typeless output experiment
+is retained in production.
+
+Inspect remaining publication/dependency ordering and producer/editor admission next. No
+additional pixel-math optimization is justified by these controls alone. M03 remains 7/9;
+full GPU/queue, prescribed cadence/growth and genuine removal/stuck retirement stay required.
+
 ## DMA packet decoder boundary — 2026-10-30
 
 The app-owned [offline diagnostic](../../tools/mapgyver/trace-packets/README.md) exercises
