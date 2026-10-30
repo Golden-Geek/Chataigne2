@@ -179,11 +179,11 @@ static_assert(static_cast<int>(SpoutDXTransferStatus::Busy) == SPOUT_DX_TRANSFER
 static_assert(static_cast<int>(SpoutDXTransferStatus::Updated) == SPOUT_DX_TRANSFER_UPDATED);
 static_assert(static_cast<int>(SpoutDXTransferStatus::Disconnected) == SPOUT_DX_TRANSFER_DISCONNECTED);
 
-int spout_dx_send_texture_status(spout_dx_t* h, void* texture) {
-    if (!h) return SPOUT_DX_TRANSFER_FAILED;
+int spout_dx_send_texture_status(spout_dx_t* h, void* texture, unsigned int access_timeout_ms) {
+    if (!h || access_timeout_ms == INFINITE) return SPOUT_DX_TRANSFER_FAILED;
     try {
-        // Detailed renderer admission never waits on a foreign consumer's GPU ownership.
-        as_dx(h)->SendTexture(reinterpret_cast<ID3D11Texture2D*>(texture), 0);
+        // The owner selects the wait; renderers use zero, isolated producers may wait briefly.
+        as_dx(h)->SendTexture(reinterpret_cast<ID3D11Texture2D*>(texture), access_timeout_ms);
         return as_dx(h)->GetTransferStatus();
     } catch (...) {
         return SPOUT_DX_TRANSFER_FAILED;

@@ -86,7 +86,7 @@ impl Sender {
                 .output
                 .as_mut()
                 .unwrap()
-                .deliver(&sender.texture, None, &mut None);
+                .deliver(&sender.texture, 0, None, &mut None);
         }
         wait("one-shot sender completion", || {
             sender

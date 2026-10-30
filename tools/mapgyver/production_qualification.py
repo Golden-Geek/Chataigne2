@@ -14,7 +14,9 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 CAPTURE_SCHEMA_FILE = "packages/golden-video-ui/tests/native/generated/capture-schema.json"
-CAPTURE_SCHEMA_VERSION = json.loads((ROOT / CAPTURE_SCHEMA_FILE).read_text(encoding="utf-8"))["capture_schema_version"]
+CAPTURE_CONTRACT = json.loads((ROOT / CAPTURE_SCHEMA_FILE).read_text(encoding="utf-8"))
+CAPTURE_SCHEMA_VERSION = CAPTURE_CONTRACT["capture_schema_version"]
+SOURCE_SEND_ACCESS_TIMEOUT_MS = CAPTURE_CONTRACT["source_send_access_timeout_ms"]
 MIB = 1024 * 1024
 SCENARIOS = {"Q01": ((1920, 1080), 512 * MIB, 1024 * MIB),
              "Q02": ((3840, 2160), 1024 * MIB, 2048 * MIB)}
@@ -322,6 +324,7 @@ def producer_metrics(streams, window, frequency):
         shortfall = max(0, expected - counts["Accepted"])
         stamps = [frame["stamp"]["qpc"] for frame in frames]
         reports.append({"source": source, "counts": dict(counts), "expected_at_60hz": expected,
+                        "send_access_timeout_ms": one(rows, "source_config")["source"]["send_access_timeout_ms"],
                         "accepted_shortfall_fraction": shortfall / expected,
                         "submission_intervals": distribution([(right - left) * 1000 / frequency
                                                                for left, right in zip(stamps, stamps[1:])]),
@@ -452,6 +455,13 @@ def analyze_capture(directory):
     native, source_events, consumer_events = events(renderer), [events(source_a), events(source_b)], events(consumer)
     require(all(row["output"] in (1, 2, 3) for row in native["Output"]), "unknown renderer output binding")
     finals = [one(source_a, "source_final"), one(source_b, "source_final"), one(consumer, "consumer_final")]
+    source_configs = [one(source_a, "source_config"), one(source_b, "source_config")]
+    for config, final in zip(source_configs, finals):
+        wait = config["source"].get("send_access_timeout_ms")
+        require(type(wait) is int and wait == SOURCE_SEND_ACCESS_TIMEOUT_MS,
+                "source send ownership wait differs from the canonical fixture contract")
+        require(final.get("source", {}).get("send_access_timeout_ms") == wait,
+                "source send ownership wait changed during capture")
     healths = [health(summary["diagnostics"], renderer)] + [health(final["diagnostics"], rows)
                 for final, rows in zip(finals, (source_a, source_b, consumer))]
     complete = all(item["complete"] for item in healths) and summary.get("fixture_report_loss") == 0
@@ -519,7 +529,6 @@ def analyze_capture(directory):
                                "within_target": bool(rows) and shortfall / expected <= 0.001
                                                 and not counts["Failed"] and not counts["DeviceLost"]})
     extent = list(SCENARIOS[manifest["scenario"]][0])
-    source_configs = [one(source_a, "source_config"), one(source_b, "source_config")]
     geometry = summary.get("geometry") or {}
     sizes = [view.get("physical_size") for view in geometry.get("views", [])]
     geometry_ok = len(sizes) == 2 and all(len(size) == 2 and all(abs(actual - expected) <= 1 for actual, expected in zip(size, target))

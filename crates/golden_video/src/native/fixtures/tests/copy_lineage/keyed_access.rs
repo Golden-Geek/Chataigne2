@@ -5,7 +5,8 @@ use windows::core::Interface;
 
 use super::Captures;
 use super::{
-    AdapterId, ConsumerTick, DiagnosticDelivery, Recorder, collect, consumer, diagnostics, source, stamp, wait,
+    AdapterId, ConsumerTick, DiagnosticDelivery, Recorder, collect, consumer, diagnostics, source_with_wait, stamp,
+    wait,
 };
 use crate::native::device::Device;
 use crate::native::timing::SpoutImageVersion;
@@ -49,10 +50,11 @@ impl Drop for GpuOwner {
     }
 }
 
-pub(super) fn verify(adapter: AdapterId) -> serde_json::Value {
+pub(super) fn verify(adapter: AdapterId, timeout_ms: u32) -> serde_json::Value {
     let name = format!("GoldenKeyedBusy-{}", uuid::Uuid::new_v4());
     let clock = Recorder::new(diagnostics());
-    let mut source = source(adapter, &name);
+    let mut source = source_with_wait(adapter, &name, timeout_ms);
+    assert_eq!(source.snapshot().send_access_timeout_ms, timeout_ms);
     let first = source.submit(stamp(&clock, 1)).unwrap().unwrap();
     wait("initial keyed image completion", || {
         source.poll().unwrap().serial >= first.token.serial
@@ -100,6 +102,7 @@ pub(super) fn verify(adapter: AdapterId) -> serde_json::Value {
     let mut report = collect(Captures::direct(frames), &[first, busy, next]);
     assert!(report["mismatches"].as_array().unwrap().is_empty());
     report["busy_outcome"] = serde_json::json!(busy.outcome);
+    report["send_access_timeout_ms"] = serde_json::json!(timeout_ms);
     report["counter_after_resume"] = serde_json::json!(next.spout_image.unwrap().frame);
     report["unchanged_hint_while_gpu_owned"] = serde_json::json!(true);
     report

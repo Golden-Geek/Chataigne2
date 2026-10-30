@@ -70,8 +70,9 @@ int spout_dx_set_frame_count_mode(spout_dx_t* h, int mode);
  * are unversioned. UPDATED acknowledges IsUpdated so the next call can copy. */
 int spout_dx_receive_texture_into_status(spout_dx_t* h, void** pp_texture,
                                        long* frame, int* counter_available);
-/* Zero-timeout send ownership admission; Busy queues no shared-image copy. */
-int spout_dx_send_texture_status(spout_dx_t* h, void* texture);
+/* Finite timeout per ownership lock. Renderer callers pass zero; Busy queues no shared-image copy.
+ * INFINITE is rejected. This does not bound other SDK/driver work in the complete call. */
+int spout_dx_send_texture_status(spout_dx_t* h, void* texture, unsigned int access_timeout_ms);
 /* Instance-only GPU keyed sharing before initialization; does not alter global SDK policy. */
 int spout_dx_set_sender_keyed_mutex(spout_dx_t* h, int enabled);
 

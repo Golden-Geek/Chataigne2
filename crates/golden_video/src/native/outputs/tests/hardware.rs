@@ -80,7 +80,7 @@ impl Collider {
                 .output
                 .as_mut()
                 .unwrap()
-                .deliver(&collider.texture, None, &mut None);
+                .deliver(&collider.texture, 0, None, &mut None);
         }
         collider.drain();
         assert_eq!(delivered, Delivery::Accepted);

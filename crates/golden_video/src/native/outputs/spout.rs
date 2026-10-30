@@ -102,13 +102,14 @@ impl SpoutOutput {
     pub(crate) fn deliver(
         &mut self,
         texture: &Texture,
+        access_timeout_ms: u32,
         recorder: Option<&Recorder>,
         consumer_api: &mut Option<CpuInterval>,
     ) -> Delivery {
         if let Some(failure) = self.failure {
             return Delivery::Failed(failure);
         }
-        match self.try_deliver(texture, recorder, consumer_api) {
+        match self.try_deliver(texture, access_timeout_ms, recorder, consumer_api) {
             Ok(delivery) => delivery,
             Err(error) => Delivery::Failed(error.code()),
         }
@@ -130,6 +131,7 @@ impl SpoutOutput {
     fn try_deliver(
         &mut self,
         texture: &Texture,
+        access_timeout_ms: u32,
         recorder: Option<&Recorder>,
         consumer_api: &mut Option<CpuInterval>,
     ) -> Result<Delivery> {
@@ -161,7 +163,9 @@ impl SpoutOutput {
         // SAFETY: exact device, storage and subresource layout were checked above. The pool
         // reserved this sender's single shared texture before its lazy SDK allocation here.
         let begin = recorder.and_then(Recorder::stamp);
-        let status = unsafe { sdk::spout_dx_send_texture_status(self.raw.as_ptr(), texture.texture.as_raw()) };
+        let status = unsafe {
+            sdk::spout_dx_send_texture_status(self.raw.as_ptr(), texture.texture.as_raw(), access_timeout_ms)
+        };
         *consumer_api = recorder.and_then(|recorder| recorder.interval(begin));
         // Registration during SendTexture can rename a sender even after SetSenderName passed.
         if !self.has_exact_name() {

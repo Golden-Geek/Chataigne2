@@ -140,7 +140,10 @@ SDK counter agreement alone cannot certify pixel identity. The
 isolates observed counter/pixel disagreements after renderer conversion at the outgoing SDK
 handoff. Owned Spout outputs now request GPU keyed shared textures before initialization;
 creation failure never downgrades synchronization. Detailed sends acquire CPU metadata then GPU
-ownership with zero timeout; Busy copies no shared pixels and advances no counter. Unchanged
+ownership with an explicit finite timeout per lock. Renderer outputs pass zero; isolated fixture
+source workers request at most 2 ms and record that policy in their snapshots. Neither request
+bounds opaque SDK/driver work in the whole call. Busy copies no shared pixels and advances no
+counter. Unchanged
 counter hints take only the CPU metadata lock. Existing completion fences still cover work
 submitted before a rejected send. A late Spout Busy can follow conversion; the window preflight
 alone rejects before conversion. Legacy incoming peers retain their own synchronization contract.

@@ -39,8 +39,9 @@ The local patch has five responsibilities:
 - Offer a synchronized, nonblocking CPU counter hint so proven unchanged polls can skip GPU
   query/copy/flush batches. A missing, busy or invalid observation is not proof of no new frame.
 - Let an owned DX11 sender select GPU keyed sharing before initialization. Detailed send
-  admission has zero timeout; Busy queues no shared-image copy or counter advance. The original
-  Boolean send API retains its timeout. There is no automatic downgrade to CPU-only ownership.
+  admission takes an explicit finite timeout per ownership lock; renderer callers pass zero.
+  Busy queues no shared-image copy or counter advance. The original Boolean send API retains
+  its timeout. There is no automatic downgrade to CPU-only ownership.
 - Rebuild the native archive when SDK sources or headers change, alongside the original shim
   invalidation rules. Rust's caller-selected CRT and Windows/MSVC build constraints are retained.
 
@@ -61,7 +62,14 @@ The named CPU lock protects counter decrement/restore and copy enqueueing. Keyed
 acquire that metadata lock before GPU ownership and release both after enqueueing. Counter
 peek uses only the CPU lock, so unchanged polling does not fence or monopolize the GPU image.
 Detailed transfers still acquire the keyed mutex before touching shared pixels. Zero-timeout
-send admission preserves healthy consumers when a peer retains GPU ownership.
+renderer send admission preserves healthy consumers when a peer retains GPU ownership.
+Isolated qualification-source workers explicitly request at most 2 ms per lock, preserving
+their caller's 60 Hz pacing and reporting the policy in their source snapshots. The C/Rust
+detailed-send API now requires that finite timeout argument; `INFINITE` is rejected rather
+than silently installing an unbounded wait. The two locks can each consume their timeout;
+this does not bound opaque SDK/driver work or establish whole-call wall-time/shutdown limits.
+The existing SDK timeout overload implements the wait; no additional queue, retry, texture
+or counter is introduced. A rejected attempt remains Busy and does not publish a new image.
 
 A CPU mutex and `Flush` do not establish GPU completion:
 [Microsoft's Flush contract](https://learn.microsoft.com/en-us/windows/desktop/api/d3d11/nf-d3d11-id3d11devicecontext-flush)

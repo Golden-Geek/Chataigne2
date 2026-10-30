@@ -764,6 +764,83 @@ default/native all-target Clippy, generated fixture contracts, release x64 build
 formatters. Full cadence/repetition, GPU/queue/deadline, growth/handle, genuine removal/stuck
 retirement and M05 physical observations remain open. **M03 stays 7/9; overall stays 3/10 (30%)**.
 
+## Isolated source send ownership wait — 2026-10-30
+
+Golden Video's renderer and qualification producers previously shared the same zero-timeout
+Spout send wrapper. The renderer must preserve progress when a foreign consumer retains GPU
+ownership; an isolated source has its own worker and a separate 60 Hz publication duty.
+The detailed C/Rust send API now requires an explicit finite timeout. Renderer endpoints pass
+zero, while the isolated fixture source configuration requests at most **2 ms per ownership
+lock**. The existing SDK overload performs this wait. `INFINITE` is rejected at the C boundary;
+fixture configuration rejects requests above 2 ms before opening a device. No compatibility
+wrapper, retry, queue, extra texture or source-pacing change is added.
+
+The CPU metadata and GPU ownership locks can each consume the requested interval. This is
+neither a whole-call wall-time guarantee nor a stuck-driver shutdown bound; other SDK/driver
+work remains opaque. Microsoft's [AcquireSync contract](https://learn.microsoft.com/en-us/windows/win32/api/dxgi/nf-dxgi-idxgikeyedmutex-acquiresync)
+defines zero as an immediate ownership test. Busy still queues no shared copy or counter
+advance, and all preceding draw commands remain completion-fenced. Native forced-ownership
+tests verify Busy/unchanged version and exact resumed pixels for both requested waits.
+
+Rust's canonical fixture protocol generates artifact schema **8** and the fixed source wait.
+Initial/final source snapshots record the request; analysis rejects missing, excessive or
+changed policy and reports it per producer. The unchanged 60 Hz denominator still includes
+shortfalls, and complete-run admission-busy/missed-deadline counters remain visible. They
+are not exact sample-slot identities. The previous schema 7 controls and source hashes remain
+unchanged historical evidence, without a fabricated timeout field. Generated TS event types
+are unchanged; the capture-schema JSON is regenerated from Rust. The binding patch manifest
+verifies all nine file hashes; only the three C/Rust binding files change, with upstream SDK
+implementation sources intact.
+
+One release diagnostic per scene uses Intel adapter 0, LUID `00000000:00016c2a`, 5 s warmup,
+5 s sample and 1 s per interruption. No PresentMon/WPR collector or graphics setting changes.
+Before/after execution fingerprints match within both new captures. The published opaque-branch
+controls supply the baseline; these sequential observations do not isolate whole-renderer cause.
+
+| Metric | Q01 baseline | Q01 source wait | Q02 baseline | Q02 source wait |
+| --- | --- | --- | --- | --- |
+| Renderer GPU median / p95 / p99 / max, ms | 4.0304 / 4.7699 / 5.4131 / 5.6359 | 3.5804 / 4.1983 / 4.7224 / 6.3955 | 10.0680 / 11.4896 / 13.5165 / 16.2388 | 10.3355 / 11.7707 / 15.2588 / 16.9607 |
+| Output-stage GPU p95, ms | 3.3967 | 2.8863 | 7.9353 | 7.6247 |
+| Accepted API calls main / Spout / editor | 301 / 300 / 300 | 300 / 300 / 300 | 300 / 300 / 299 | 300 / 300 / 300 |
+| Producer A / B accepted, of 300 each | 293 / 295 | 300 / 300 | 290 / 296 | 300 / 300 |
+| Producer A / B send API wall p95, ms | 0.2664 / 0.2638 | 0.2862 / 0.3108 | 0.2430 / 0.2679 | 0.2352 / 0.1994 |
+| Exact accepted-Spout images captured | 300/300 | 300/300 | 300/300 | 300/300 |
+| Source A / B to Spout capture p95, ms | 23.4243 / 11.1482 | 23.6461 / 12.3820 | 18.0635 / 19.9329 | 16.9018 / 27.0118 |
+| Recorded logical peak, bytes | 144,691,264 | 144,691,264 | 468,172,864 | 468,172,864 |
+
+All four renderer GPU cohorts and every producer API cohort retain 300 frame records, and every new sample
+output/source call is accepted. API timing coverage is complete; Q01 source A/B maximum API
+wall times are 0.6983/1.1781 ms, Q02 0.2773/0.3209 ms. These are observations, not new limits.
+The baseline's 301 main calls remain a different API-boundary cohort. Q02 renderer tails and
+source-B capture age worsen despite the improved sample admission; no GPU performance claim
+or complete critical-path inference follows. Context/stage spans include waits and command-feed
+gaps, and percentiles are never added.
+
+The editor-interruption results remain separate failures. Q01's two one-second phases each
+accept 60 main/Spout calls and capture 60 Spout images. Q02 minimized-editor accepts main 56 with three Busy and
+Spout 59, capturing only 45/59 accepted Spout images. Disconnect accepts main 61 / Spout 60,
+captures 56/60, and covered source A/B p95 ages reach 48.3461/57.0987 ms. Missing images remain
+missing. Whole-run source admission-busy counters are five/seven in Q02, with zero reported
+fixture missed deadlines; these counters are not reclassified as sample passes. The required
+60-second interruption qualification is absent in both diagnostics.
+
+The [packet](evidence/mapgyver-m03-source-send-wait-2026-10-30.json) and
+[2,473,166-byte raw archive](evidence/mapgyver-m03-source-send-wait-controls-2026-10-30.zip)
+(322 members, SHA-256 `b770ca7d8af7b35ed00ade0c11e4d03238aaaea4dcbfda87248e2b32dc747226`)
+retain both new controls/analyses, all 268 selected execution sources, native/regular validation
+logs and binding licenses. The unchanged baseline packet/archive remain linked by hash.
+Independent reconstruction verifies all 1,200 same-context GPU partitions and 1,200 exact
+accepted-Spout image/source-use/producer-marker joins, including the baseline. Native held
+ownership checks retain both 0/2 ms Busy results, unchanged counters and exact recovery pixels.
+
+Validation passes 154 ordinary Rust tests, 17 Golden native tests, two app-native tests and
+275 Python tests, strict Golden clippy, release build, generated contracts, both formatters
+and vendor patch hashes. The next bounded task is Q02 visibility-transition/capture attribution,
+with exact window/software-display joins where useful. Do not repeat scheduling variants or
+the built-in WPR profile without a concrete provider/decoder change. Full GPU/queue, displayed
+deadlines/age, prescribed cadence/interruption/growth and genuine removal/stuck retirement
+remain required. **M03 stays 7/9; overall stays 3/10 (30%).**
+
 ## Rejected native output-order experiments — 2026-10-30
 
 Golden Video owns native output admission, conversion and publication. Its existing loop

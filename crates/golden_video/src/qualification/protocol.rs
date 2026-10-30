@@ -5,8 +5,12 @@ use ts_rs::TS;
 
 use crate::preview::protocol::PreviewView;
 
-/// Native artifact contract, including same-clock renderer GPU stage boundaries.
-pub const CAPTURE_SCHEMA_VERSION: u32 = 7;
+/// Native artifact contract, including explicit isolated-source send ownership waits.
+pub const CAPTURE_SCHEMA_VERSION: u32 = 8;
+
+/// Per-lock wait on isolated 60 Hz fixture producers; renderer outputs continue to pass zero.
+/// Two locks may each wait this long, excluding opaque SDK/driver work.
+pub const SOURCE_SEND_ACCESS_TIMEOUT_MS: u32 = 2;
 
 /// Host-to-fixture CSS layout updates, computed from authenticated native metrics.
 pub const QUALIFICATION_LAYOUT_EVENT: &str = "golden-qualification-layout";
@@ -125,7 +129,9 @@ pub fn export_typescript(directory: impl AsRef<std::path::Path>) -> Result<(), B
     )?;
     std::fs::write(
         directory.join("capture-schema.json"),
-        format!("{{\"capture_schema_version\":{CAPTURE_SCHEMA_VERSION}}}\n"),
+        format!(
+            "{{\"capture_schema_version\":{CAPTURE_SCHEMA_VERSION},\"source_send_access_timeout_ms\":{SOURCE_SEND_ACCESS_TIMEOUT_MS}}}\n"
+        ),
     )?;
     for entry in std::fs::read_dir(directory)? {
         let path = entry?.path();

@@ -23,6 +23,9 @@ use crate::{AlphaMode, ColorEncoding, OutputId, PixelFormat, TextureDescriptor};
 const INVALID_ARGUMENT: HRESULT = HRESULT(0x8007_0057_u32 as i32);
 const CONSTANT_BYTES: u64 = 32;
 
+#[cfg(test)]
+mod tests;
+
 /// Explicit producer configuration. Run this worker-local fixture in its own owned process;
 /// it is a GPU card generator and does not submit per-frame render plans or image uploads.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -37,6 +40,9 @@ pub struct FixtureSourceConfig {
     pub instance: Uuid,
     /// Exact externally visible Spout sender identity; collisions fail explicitly.
     pub sender_name: String,
+    /// Finite wait per SDK ownership lock, at most the canonical isolated-source limit.
+    /// This does not change caller pacing or guarantee the whole call's wall time.
+    pub send_access_timeout_ms: u32,
     /// Explicit bounded metadata capacity, at most 65,536 rows.
     pub diagnostics: DiagnosticsConfig,
 }
@@ -69,6 +75,8 @@ pub struct FixtureSourceSnapshot {
     pub adapter: AdapterId,
     /// Immutable card storage/color/alpha layout.
     pub descriptor: TextureDescriptor,
+    /// Requested wait per CPU/GPU ownership lock; rendering outputs independently use zero.
+    pub send_access_timeout_ms: u32,
     /// One owned card texture plus the SDK's one admitted shared sender texture.
     pub admitted_texture_bytes: u64,
     /// The one fixed uniform buffer; uniform updates are not CPU pixel uploads.
@@ -129,6 +137,7 @@ impl FixtureSource {
             || descriptor.extent.width() > 16_384
             || descriptor.extent.height() > 16_384
             || config.diagnostics.capacity.get() > 65_536
+            || config.send_access_timeout_ms > crate::qualification::protocol::SOURCE_SEND_ACCESS_TIMEOUT_MS
         {
             return Err(Error::from_hresult(INVALID_ARGUMENT));
         }
@@ -215,9 +224,12 @@ impl FixtureSource {
         let begin_delivery = self.recorder.stamp();
         let mut consumer_api = None;
         let mut delivery = match draw {
-            Ok(()) => self
-                .output
-                .deliver(&self.texture, Some(&self.recorder), &mut consumer_api),
+            Ok(()) => self.output.deliver(
+                &self.texture,
+                self.config.send_access_timeout_ms,
+                Some(&self.recorder),
+                &mut consumer_api,
+            ),
             Err(error) => Delivery::Failed(error.code()),
         };
         let delivery_wall = self.recorder.interval(begin_delivery);
@@ -333,6 +345,7 @@ impl FixtureSource {
             source_id: self.config.source_id,
             adapter: self.config.adapter,
             descriptor: self.config.descriptor,
+            send_access_timeout_ms: self.config.send_access_timeout_ms,
             admitted_texture_bytes: self.admitted_texture_bytes,
             constant_buffer_bytes: CONSTANT_BYTES,
             submitted_batches: self.submitted_batches,

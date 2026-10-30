@@ -77,6 +77,7 @@ impl Output {
             Self::Window(output) => output.present(recorder, consumer_api),
             Self::Spout(output) => output.deliver(
                 texture.expect("prepared Spout conversion texture"),
+                0, // Renderer progress must never wait for a foreign consumer's ownership.
                 recorder,
                 consumer_api,
             ),

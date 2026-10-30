@@ -97,12 +97,17 @@ fn descriptor() -> TextureDescriptor {
 }
 
 fn source(adapter: AdapterId, name: &str) -> FixtureSource {
+    source_with_wait(adapter, name, 0)
+}
+
+fn source_with_wait(adapter: AdapterId, name: &str, send_access_timeout_ms: u32) -> FixtureSource {
     FixtureSource::new(FixtureSourceConfig {
         adapter,
         descriptor: descriptor(),
         source_id: 1,
         instance: Uuid::new_v4(),
         sender_name: name.into(),
+        send_access_timeout_ms,
         diagnostics: diagnostics(),
     })
     .unwrap()
@@ -320,7 +325,8 @@ fn hardware_native_copy_lineage_preserves_completed_gpu_markers() {
         .find(|adapter| !adapter.software)
         .unwrap();
     let baseline = fenced(adapter.id);
-    let keyed_access = keyed_access::verify(adapter.id);
+    let keyed_access = [0, crate::qualification::protocol::SOURCE_SEND_ACCESS_TIMEOUT_MS]
+        .map(|timeout| keyed_access::verify(adapter.id, timeout));
     let dynamic = concurrent(adapter.id, Boundary::Sdk);
     let bridge = concurrent(adapter.id, Boundary::Bridge);
     let runtime = concurrent(adapter.id, Boundary::Runtime);

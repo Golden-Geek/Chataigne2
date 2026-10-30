@@ -53,6 +53,7 @@ def write_capture(directory):
                                         "color_encoding": "Srgb", "alpha_mode": "Straight"}
     sources = [[{"kind": "source_config", "pid": 101 + index, "qpc_frequency": FREQUENCY,
                  "source": {"instance": f"producer-{index}", "adapter": ADAPTER,
+                            "send_access_timeout_ms": ANALYZER.SOURCE_SEND_ACCESS_TIMEOUT_MS,
                             "descriptor": descriptor(*( (1920, 1080) if index == 0 else (1280, 720)))}}]
                for index in range(2)]
     consumer = [{"kind": "consumer_config", "pid": 103, "qpc_frequency": FREQUENCY,
@@ -114,7 +115,8 @@ def write_capture(directory):
                                                "receive_api": wall(start + 80, start + 90),
                                                "thread_cpu": None}), gpu(capture, context)])
     for rows in sources:
-        rows.append({"kind": "source_final", "diagnostics": accounting(rows)})
+        rows.append({"kind": "source_final", "diagnostics": accounting(rows),
+                     "source": {"send_access_timeout_ms": ANALYZER.SOURCE_SEND_ACCESS_TIMEOUT_MS}})
     consumer.append({"kind": "consumer_final", "diagnostics": accounting(consumer),
                      "consumer": {"final_readbacks": 1, "finished": True, "overflow": 0, "mismatch": 0,
                                   "failed_receives": 0, "device_removed": False}})
@@ -161,6 +163,25 @@ class ProductionQualificationTests(unittest.TestCase):
 
     def analyze(self):
         return ANALYZER.analyze_capture(self.directory)
+
+    def test_source_wait_is_explicit_and_cannot_change_or_relax_the_60hz_contract(self):
+        result = self.analyze()
+        for row in result['producers']:
+            self.assertEqual(row['send_access_timeout_ms'], ANALYZER.SOURCE_SEND_ACCESS_TIMEOUT_MS)
+            self.assertEqual(row['expected_at_60hz'], 60)
+        for value in (None, False, 0, 3, 0xffffffff):
+            with self.subTest(value=value):
+                changed = json.loads(json.dumps(self.sources[0]))
+                changed[0]['source']['send_access_timeout_ms'] = value
+                write_rows(self.directory/'source-1.jsonl', changed)
+                with self.assertRaises(ANALYZER.ArtifactError):
+                    self.analyze()
+        write_rows(self.directory/'source-1.jsonl', self.sources[0])
+        changed = json.loads(json.dumps(self.sources[0]))
+        changed[-1]['source']['send_access_timeout_ms'] = 0
+        write_rows(self.directory/'source-1.jsonl', changed)
+        with self.assertRaises(ANALYZER.ArtifactError):
+            self.analyze()
 
     def test_all_output_age_requires_exact_complete_spout_and_both_window_cohorts(self):
         stream = io.StringIO(newline='')

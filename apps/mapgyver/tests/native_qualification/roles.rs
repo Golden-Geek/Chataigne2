@@ -144,6 +144,7 @@ pub fn source(mut args: Arguments) -> io::Result<()> {
         source_id: config.source_id,
         instance: config.instance,
         sender_name: config.name,
+        send_access_timeout_ms: golden_video::qualification::protocol::SOURCE_SEND_ACCESS_TIMEOUT_MS,
         diagnostics: DiagnosticsConfig {
             capacity: config.capacity,
         },
