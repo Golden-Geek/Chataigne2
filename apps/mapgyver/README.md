@@ -6,7 +6,7 @@ desktop host, and generic UI. App-owned media contracts and rendering policy
 live under `src/media`; mapping and composition systems build on those boundaries.
 
 The initial project contains a Media Manager and Golden's standard empty Dashboard.
-The primary app panel creates Solid Color and Picture media with backend-owned defaults and
+The primary app panel creates Solid Color, Picture and Shared Texture media with backend-owned defaults and
 edits independent channel sources, color/alpha, automatic/fixed size and sampling. Media and
 channels can be renamed, channels reordered, and media/channels removed through the
 same history-aware app operations used by scripts and headless clients. Undo/redo,
@@ -18,6 +18,11 @@ channel while preserving its output settings. One Undo reverses the complete imp
 The asset catalog appears separately in manager inspection. Channels can select the same
 asset, and relinking that asset preserves its identity for every consumer. Missing asset
 references stay explicit instead of silently selecting another source.
+
+Shared Texture channels accept an exact Spout sender name, independent source maximum dimensions,
+storage/color/alpha requirements and output size/sampling. An empty selection explicitly disconnects
+that channel. Existing native supervision reconnects to the selected name without choosing a global
+active sender. Sender discovery and full multi-source recovery verification remain open in M04.
 
 The Picture editor accepts explicit project-relative or absolute host paths; the native
 desktop also offers Golden's file picker. This is source-file linking, not a browser upload.
@@ -46,10 +51,13 @@ IO, plan building and rendering stay on the preparation worker. Picture roots fo
 current project's directory. A coarse worker wake detects authored guard changes without
 polling the actor; geometry, GPU and file completion also notify the worker.
 
-Native Solid Color output has been observed in the ordinary app. Native Picture switching and
-normal shutdown after Picture demand still require a follow-up run after the retirement fix;
-the retained failed run is recorded in the ledger. This is functional integration, not timing,
-color/DPI, recovery or resource qualification. Shared Texture source editing remains open.
+Native Solid Color output and normal shutdown after Picture demand have been observed in the
+ordinary app. Picture display remains unverified after correcting a reproduced admission-accounting
+failure: prepared assets now retain their decoded result's weight, rather than the whole decode
+scratch allowance. Actual retained bytes and working reservations remain bounded. The app's 1 MiB
+per-plan input bound still limits larger pictures and shared-input counts; full source-budget
+integration remains open. This is functional integration, not timing, color/DPI, recovery or resource
+qualification. The retained native failures are recorded in the ledger.
 Module command nodes and app-owned script snippets
 also remain part of M04. See the [active acceptance ledger](../../docs/progress/mapgyver-status.md#m04-acceptance-items).
 The native feasibility probe under `tools/mapgyver/native-probe` remains a separate

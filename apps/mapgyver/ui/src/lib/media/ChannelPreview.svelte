@@ -2,10 +2,11 @@
 	import { NativePreview } from 'golden_video_ui';
 	import type { ChannelSnapshot } from './generated/ChannelSnapshot';
 	import { useMediaPreview } from './preview-context.svelte';
+	import { channelKey } from './identity';
 	let { channel }: { channel: ChannelSnapshot } = $props();
 	const owner = useMediaPreview();
 	const source = $derived(JSON.stringify(channel.reference));
-	const status = $derived(owner.statuses.get(source));
+	const status = $derived(owner.statuses.get(channelKey(channel.reference)));
 	const extent = $derived(status?.resolution?.extent);
 </script>
 

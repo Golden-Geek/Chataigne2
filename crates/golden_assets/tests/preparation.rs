@@ -99,6 +99,37 @@ fn decoder() -> BytesDecoder {
 }
 
 #[test]
+fn tiny_results_release_decode_scratch_allowance_while_consumers_retain_them() {
+    let project = tempfile::tempdir().unwrap();
+    std::fs::write(project.path().join("source.bin"), b"tiny-result").unwrap();
+    let scope = AssetScope::new(project.path()).unwrap();
+    let binding = binding("source.bin");
+    let mut preparer = AssetPreparer::new(
+        decoder(),
+        PreparationLimits {
+            max_source_bytes: 4096,
+            max_decode_bytes: NonZeroUsize::new(128 * 1024 * 1024).unwrap(),
+            max_prepared_bytes: NonZeroUsize::new(128 * 1024 * 1024 + 65536).unwrap(),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    preparer.submit(scope.capture(&binding)).unwrap();
+    let first = outcome(&preparer).result.unwrap();
+    assert!(first.retained_bytes() < 65536);
+    // The pool fits one worst-case decoder, but also two small retained results.
+    preparer.submit(scope.capture(&binding)).unwrap();
+    let second = outcome(&preparer).result.unwrap();
+    assert_eq!(first.value(), second.value());
+    assert_eq!(first.retained_bytes(), second.retained_bytes());
+    let retirement = preparer.retirement();
+    drop(first);
+    drop(second);
+    drop(preparer);
+    assert!(retirement.wait(WAIT));
+}
+
+#[test]
 fn public_consumer_decodes_on_worker_and_duplicate_references_keep_identity_and_fingerprint() {
     let project = tempfile::tempdir().unwrap();
     std::fs::write(project.path().join("source.bin"), b"source-data").unwrap();
@@ -434,14 +465,14 @@ fn prepared_item_pressure_counts_held_clones_until_every_consumer_releases_them(
 #[test]
 fn prepared_byte_pressure_rejects_before_decode_even_with_an_available_item_slot() {
     let project = tempfile::tempdir().unwrap();
-    std::fs::write(project.path().join("source.bin"), b"source").unwrap();
+    std::fs::write(project.path().join("source.bin"), vec![0; 512 * 1024]).unwrap();
     let scope = AssetScope::new(project.path()).unwrap();
     let binding = binding("source.bin");
     let limits = PreparationLimits {
-        max_source_bytes: 64,
+        max_source_bytes: 512 * 1024,
         max_decode_bytes: NonZeroUsize::new(1024 * 1024).unwrap(),
         max_prepared_items: NonZeroUsize::new(2).unwrap(),
-        max_prepared_bytes: NonZeroUsize::new(1280 * 1024).unwrap(),
+        max_prepared_bytes: NonZeroUsize::new(1792 * 1024).unwrap(),
         ..Default::default()
     };
     let (sent, decoded_on) = mpsc::channel();

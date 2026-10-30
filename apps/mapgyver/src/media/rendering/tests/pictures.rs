@@ -55,8 +55,9 @@ fn picture_renderer(root: &Path) -> ChannelRenderer {
             root,
             PreparationLimits {
                 max_source_bytes: 64 * 1024,
-                max_decode_bytes: NonZeroUsize::new(128 * 1024).unwrap(),
-                max_prepared_bytes: NonZeroUsize::new(4 * 1024 * 1024).unwrap(),
+                // Match the native app's decode allowance with its 1 MiB plan bound above.
+                max_decode_bytes: NonZeroUsize::new(128 * 1024 * 1024).unwrap(),
+                max_prepared_bytes: NonZeroUsize::new(256 * 1024 * 1024).unwrap(),
                 ..Default::default()
             },
             None,

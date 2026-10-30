@@ -334,7 +334,8 @@ fn prepare<D: AssetDecoder>(
     let decoded = decoder.decode(&mut input, limits.max_decode_bytes.get());
     input.check()?;
     let value = decoded?;
-    if decoder.retained_bytes(&value) > limits.max_decode_bytes.get() {
+    let decoded_bytes = decoder.retained_bytes(&value);
+    if decoded_bytes > limits.max_decode_bytes.get() {
         return Err(PreparationFailure::ResourcePressure);
     }
     drop(input);
@@ -346,15 +347,18 @@ fn prepare<D: AssetDecoder>(
     // Release encoded staging before shrinking the reservation to retained decoded storage.
     drop(current);
     crate::input::check(&capture, cancel)?;
+    // The working reservation covers worst-case scratch. Consumers retain only the result,
+    // not that scratch allowance; propagating the allowance rejects even tiny image plans.
+    let retained_weight = weight - limits.max_decode_bytes.get() + decoded_bytes;
     let prepared = Prepared {
-        retained_bytes: weight,
+        retained_bytes: retained_weight,
         capture,
         fingerprint,
         value,
     };
     Ok(PreparedAsset(
         reservation
-            .retain(prepared, weight)
+            .retain(prepared, retained_weight)
             .map_err(|_| PreparationFailure::ResourcePressure)?,
     ))
 }

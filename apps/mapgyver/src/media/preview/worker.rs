@@ -257,6 +257,7 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                     })
                     .collect::<Vec<_>>();
                 if statuses != last_status {
+                    eprintln!("[mapgyver-preview] {error}");
                     let _ = input.window.emit(PREVIEW_STATUS_EVENT, &statuses);
                     last_status = statuses;
                 }

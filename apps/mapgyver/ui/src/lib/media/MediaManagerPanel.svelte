@@ -9,6 +9,7 @@
 	import { invokeMediaEdit } from './operations';
 	import SolidChannelEditor from './SolidChannelEditor.svelte';
 	import PictureChannelEditor from './PictureChannelEditor.svelte';
+	import SharedTextureChannelEditor from './SharedTextureChannelEditor.svelte';
 	import AssetLocatorForm from './AssetLocatorForm.svelte';
 	import ChannelPreview from './ChannelPreview.svelte';
 	import { MEDIA_NAMESPACE } from './generated/constants';
@@ -112,6 +113,10 @@
 			>Add Picture</button>
 		<button
 			disabled={busy}
+			onclick={() => edit({ kind: 'CreateMedia', media_kind: 'SharedTexture', label: null })}
+			>Add Shared Texture</button>
+		<button
+			disabled={busy}
 			aria-expanded={importing}
 			onclick={() => {
 				importing = !importing;
@@ -135,7 +140,7 @@
 	{:else if catalog.media.length === 0}
 		<div class="empty">
 			<h3>No media yet</h3>
-			<p>Add a Solid Color or Picture, then create channels with their own sources and sizes.</p>
+			<p>Add Solid Color, Picture or Shared Texture media, then configure independent channels.</p>
 		</div>
 	{:else}
 		<div class="workspace">
@@ -239,11 +244,8 @@
 							disabled={busy}
 							{configure}
 							{edit} />
-					{:else}
-						<p>
-							Source: {selectedChannel.definition.source.kind}. Source settings are not available in
-							this editor yet.
-						</p>
+					{:else if selectedChannel.definition.source.kind === 'Spout'}
+						<SharedTextureChannelEditor channel={selectedChannel} disabled={busy} {configure} />
 					{/if}
 					<button
 						class="danger"

@@ -4,7 +4,8 @@
 
 **Updated: 2026-10-30 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
-**Current topic:** M04 has Solid Color authoring and now Picture import/selection/relink controls.
+**Current topic:** M04 has Solid Color authoring, Picture import/selection/relink and Shared Texture
+source controls.
 Atomic Picture import is verified through the backend and QuickJS; its interactive UI check is
 still open. The first Solid Color UI slice was exercised live. M03 remains **7/9**;
 its open qualification no longer serializes all feature development. The
@@ -12,10 +13,12 @@ its open qualification no longer serializes all feature development. The
 changes work order, not acceptance. M04 remains **0/6 complete gates** because its full source,
 native preview and module integration scope is still open; see the verified slice below.
 
-**Next:** finish the bounded native Picture-switch/shutdown verification after the retirement fix,
-then continue Shared Texture editing and module command/script delivery. The ordinary app now
+**Next:** deliver Media Manager module commands/script methods/callbacks/snippets, then bounded
+sender discovery. Picture investigation has reached this batch's two-experiment limit; its
+post-accounting-fix native check remains parked. The ordinary app now
 shows a native Solid Color preview. No timing/driver qualification or M03 stash work is scheduled.
-**Implementation blocker:** none identified. Interactive UI verification is currently limited:
+**Implementation limits:** Picture display is unverified after its admission-accounting correction;
+the app's 1 MiB plan-input bound still excludes larger decoded pictures. Interactive UI verification is limited:
 the browser connector is unavailable and automatic approval review rejected launching Edge.
 Do not turn that limitation into another automation investigation or resume GPU-clock research.
 **Qualification debt:** M03 gate 4 retains genuine device removal/stuck retirement; gate 9
@@ -126,6 +129,57 @@ with M03; its stash remains parked. Preserve all remaining M04 source/module acc
 
 #### Ordinary app native preview — 2026-10-30
 
+**Product batch 4:** started 2026-10-30 19:43 UTC; stop by **20:28 UTC**.
+Deliverable: working native Picture preview/switching with normal owned shutdown after the
+retained fixes, then functionally ready Shared Texture source editing. Owners: app media preview,
+rendering and editor components. The correctness investigation stops by **20:03 UTC**, at most
+two experiments including the baseline. Hypothesis: old-request rejection and retained picture
+leases caused the prior covered preview/stuck exit; the current fixes should produce a visible
+PNG, update on relink/missing-source changes and exit zero through the shutdown sentinel.
+If contradicted, inspect the failing boundary once, apply a focused correction and rerun once;
+then preserve the evidence and continue independent source authoring instead of adding probes.
+Proof: existing relevant tests/checks and bounded public-API/native observation. No M03 profiling.
+
+#### Shared Texture source editor and bounded Picture correction — 2026-10-30
+
+- Added Shared Texture creation and per-channel exact sender selection/disconnection, accepted
+  source maximum dimensions, storage/color/alpha and independent automatic/fixed output size and
+  sampling. Every field starts from the backend's generated definition; existing `ConfigureChannel`
+  owns validation, history and persistence. No implicit active-sender fallback or UI-owned defaults.
+  Discovery and live multi-sender recovery remain open; this is the source-editing slice.
+- The two Picture experiments are consumed. The baseline remained unavailable but exited **0**
+  through its owned shutdown sentinel, verifying the earlier lease-retirement fix. The second run
+  exposed the actual error: **render plan input metadata exceeds its admission bound**. The second
+  app/listener are stopped; its final exit code was not retained. No third native Picture run was
+  started in this batch, and native switching/relink/missing-source display remains unverified.
+- Fixed the status lookup: snapshot and native-event references serialize object properties in
+  different orders; stable channel identity now uses the explicit media/channel tuple. Added one
+  passing Node regression. Errors also log once when the worker's published status changes.
+- One source inspection found preparation retaining the entire **128 MiB** decode scratch allowance
+  for a tiny result, exceeding the native app's **1 MiB** plan bound. Golden Assets now shrinks the
+  reservation to the decoder's retained result plus the existing envelope. Worst-case working
+  reservations, source/decode/cache/admission bounds and M03 budgets are unchanged. A regression
+  proves two tiny retained results coexist with room for only one worst-case decoder; the byte-
+  pressure test uses a real retained allocation and still proves rejection before decoder entry.
+- Verification so far: **17 Golden Assets tests**, **41 MapGyver tests**, **107 Golden Video tests**
+  and **1 Node identity test** pass. Picture renderer tests now use the native app's 128 MiB decode
+  allowance with its unchanged 1 MiB plan bound. Svelte check: **0 errors / 0 warnings**; strict
+  Clippy for app/assets bins/tests passes. Native Picture display after the accounting correction
+  stays open; larger pictures still need explicit integration within the complete source budgets.
+  The bundled desktop build also passes. Both workspaces formatted.
+- Live bundled-app check used the authenticated public app-operation API to create two Shared
+  Texture channels. Configuring A with an exact missing sender, **640×360** source maximum,
+  opaque alpha and **480×270 / Nearest** output left B unconfigured/automatic with its original
+  **1920×1080** source maximum. Structural inspection assertions passed. An initial ad-hoc
+  assertion compared JSON property order and was corrected to structural equality; this was a
+  checker error, not a failed authoring transaction. The visible app showed both channels, the
+  authored size and **Source Unavailable**, and confirmed native layout installation. Native
+  scrolling remained ineffective under the known integrity mismatch, so source-form interaction
+  itself remains unverified. The owned app exited **0** through its sentinel.
+- Feature/check work finished at **19:58 UTC**, before the 20:28 stop. No acceptance gate closes;
+  source editing is delivered, while discovery, full recovery, module integration and cross-source
+  acceptance remain open. Next product batch: module commands/script methods/callbacks/snippets.
+
 - Integrated the public Golden preview session/component and production ChannelRenderer into
   the ordinary Windows app. Native video is the Windows default; headless and engine-only builds
   start no presentation. GPU construction is deferred until a visible region is demanded.
@@ -153,7 +207,8 @@ with M03; its stash remains parked. Preserve all remaining M04 source/module acc
   and the native owner captures retirement handles before closing. Added a regression checking
   retirement while the renderer object remains alive. The old owned test process **16492** was
   terminated after confirming the stuck shutdown; this is retained failure evidence, not success.
-  **Native Picture switch/relink/missing-source and post-fix native shutdown remain unverified.**
+  **At the batch-3 cutoff, native Picture switch/relink/missing-source and post-fix native shutdown
+  were unverified.** Batch 4 above records the subsequent baseline shutdown pass and display failure.
 - Available verification before final lifetime fix: **40 MapGyver tests passed**, including
   compositor sharing/fences, authoritative capture, picture-root relocation and generated DTOs;
   **88 transport tests passed / one existing ignored**, **6 Golden preview tests passed**, public
@@ -209,12 +264,14 @@ batches per diagnostic-only batch; no consecutive diagnostic-only turns by defau
 two batches without a usable capability or acceptance closure, reduce the feature slice or
 choose another functionally ready product task. Do not add another measurement prerequisite.
 
-**Product-delivery count since correction: 3/4. Diagnostic-only batch allowance: 0.**
+**Product-delivery count since correction: 4/4. Diagnostic-only batch allowance: 1, unused.**
 The first authoring slice and the new atomic Picture import capability (verified through backend/
 QuickJS) count as product delivery; the earlier workflow/docs checkpoint does not. Picture UI
 interaction is not counted as verified acceptance. The observed ordinary-app Solid Color preview
-is the third usable capability; its unverified Picture/shutdown follow-up is not counted as gate
-closure. One further product batch is needed before a diagnostic-only batch.
+is the third usable capability. Shared Texture source editing is the fourth; its backend/native
+metadata observation does not claim interactive form or recovery acceptance. The failed Picture
+display checks are not gate closure. The available diagnostic batch is not the default next task;
+module commands/scripts remain the next product deliverable.
 Qualification may interrupt only for a reproduced blocker on the selected product path or an
 explicit user request; otherwise it resumes in its scheduled lane after product delivery.
 
@@ -413,18 +470,19 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-Finish **M04 native Picture switching and shutdown verification** after the retained failure/fix,
-then deliver Shared Texture editing and the module's commands/scripts. The ordinary-app Solid
-Color preview is observed; use bounded functional checks, not another timing qualification effort.
+Deliver **M04 module commands/script methods/callbacks/app-owned snippets**, then bounded sender
+discovery. Shared Texture source editing is available; native Picture display after the admission
+correction stays parked after this batch's two experiments. The ordinary-app Solid Color preview
+and normal shutdown after Picture demand are observed; use bounded functional checks.
 Keep Picture UI verification and the module's
 commands/methods/callbacks/app-owned snippets in M04's remaining acceptance. Preserve Chataigne's
 root default and unfinished P11 work.
 
 Record the slice's owner, observable result, validation and 45-minute stopping time before
 coding. Ship and push a coherent product checkpoint before the next implementation batch.
-The delivered authoring/import/native Solid Color capabilities advance the counter to **3/4**;
-documentation alone earns no credit. No new M03 diagnostic-only work is scheduled until four product batches, except for
-an explicit user request or a reproduced correctness/safety blocker on the selected feature.
+The delivered authoring/import/native Solid Color/Shared Texture editing capabilities advance the
+counter to **4/4**; documentation alone earns no credit. One diagnostic-only batch is available but
+not scheduled. Continue the product path; retained M03 qualification is not the default work queue.
 
 M03 gates 4 and 9 remain open and owned by M03. Preserve every original budget, failure and
 required verification. They are production-readiness requirements, not authorization to spend

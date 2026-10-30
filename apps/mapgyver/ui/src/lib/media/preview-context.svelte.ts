@@ -5,6 +5,7 @@ import { hasDesktopHost } from 'golden_ui/host/desktop';
 import { createPreviewSession, createDesktopPreviewTransport } from 'golden_video_ui';
 import type { PreviewStatus } from './generated/PreviewStatus';
 import { PREVIEW_STATUS_EVENT } from './generated/constants';
+import { channelKey } from './identity';
 
 const key = Symbol('mapgyver-media-preview');
 
@@ -25,8 +26,7 @@ export function provideMediaPreview() {
 			if (hasDesktopHost()) {
 				void listen<PreviewStatus[]>(PREVIEW_STATUS_EVENT, (event) => {
 					statuses.clear();
-					for (const status of event.payload)
-						statuses.set(JSON.stringify(status.reference), status);
+					for (const status of event.payload) statuses.set(channelKey(status.reference), status);
 				})
 					.then((dispose) => {
 						if (stopped) dispose();
