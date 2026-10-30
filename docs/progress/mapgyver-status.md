@@ -4,21 +4,20 @@
 
 **Updated: 2026-10-30 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
-**Current topic:** M04's Media Manager/module integration gate is accepted: default registration,
-backend authoring/inspection, commands, script methods, committed-result callbacks and embedded
-app-owned snippets. Solid Color, Picture and Shared Texture source controls are implemented,
-including a bounded desktop sender catalog and explicit selection/refresh.
-Atomic Picture import is verified through the backend and QuickJS; its interactive UI check is
-still open. Native 4K PNG display, explicit relink, missing-file feedback and recovery are observed.
-The first Solid Color UI slice was exercised live. M03 remains **7/9**;
-its open qualification no longer serializes all feature development. The
+**Current topic:** M05 Screen Manager/backend authoring is verified: persistent Screens, ordered
+Surfaces, typed output targets, source/crop/quad/opacity/calibration data, atomic history and
+commands/script methods/callbacks/snippets. M05 gate 1 is accepted, **1/8 (13%)**. Native output
+plans/windows, display recovery and the two mapping editors remain open.
+M04's module integration is accepted; source controls, sender discovery and native 4K PNG
+display/relink/missing/recovery are delivered, with full source/UI/parity acceptance still open.
+M03 remains **7/9**; its open qualification no longer serializes all feature development. The
 [execution correction](../plan/MapGyver_Implementation_Plan.md#execution-correction--2026-10-30)
 changes work order, not acceptance. M04 is **1/6 complete gates (17%)**; its full source,
 native preview, recovery and UI parity acceptance remains open.
 
-**Next:** M05 Screen/Surface authoring against the working media/channel contracts, as permitted
-by the plan's functional dependency. M04's full source/UI/recovery gates remain open and owned
-by M04. No timing/driver qualification or M03 stash work is scheduled.
+**Next:** M05 Screen Manager/Screen editor authoring UI, consuming the verified ScreenEdit
+contract. M04's full source/UI/recovery gates remain open and owned by M04. No timing/driver
+qualification or M03 stash work is scheduled.
 **Implementation limits:** native checks cover opaque PNGs and explicit relink, not full source,
 color/alpha or physical-output qualification. Interactive UI verification is limited:
 the browser connector is unavailable and automatic approval review rejected launching Edge.
@@ -36,7 +35,7 @@ must be satisfied for production readiness, within the bounded qualification lan
 | [M02 Multi-app seams/shell](#m02-acceptance-items) | Complete locally | `████████████████████` 100% | 7/7 |
 | [M03 Rendering/channels](#m03-acceptance-items) | Foundations ready; qualification open | `████████████████░░░░` 78% | 7/9 |
 | [M04 Source media](#m04-acceptance-items) | Module integration accepted; source acceptance open | `███░░░░░░░░░░░░░░░░░` 17% | 1/6 |
-| [M05 Screens/Surfaces/editors](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
+| [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Backend authoring accepted; outputs/editors open | `███░░░░░░░░░░░░░░░░░` 13% | 1/8 |
 | [M06 Composition/editor](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M07 Matrix/editor](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M08 App lifetimes](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
@@ -44,7 +43,7 @@ must be satisfied for production readiness, within the bounded qualification lan
 
 Overall counts fully accepted milestones: `3 / 10 = 30%`; partial phases do not advance it.
 Phase percentages count closed acceptance items, rounded to the nearest whole percent
-(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 7 / 9 = 78%`, `M04: 1 / 6 = 17%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
+(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 7 / 9 = 78%`, `M04: 1 / 6 = 17%`, `M05: 1 / 8 = 13%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
 its whole plan acceptance as one item unless a fixed breakdown is recorded here before
 implementation continues. On 2026-10-28 the user explicitly approved changing M01 from eight
 full-qualification items to four functional-route items, allowing M02 to start. The original
@@ -56,6 +55,60 @@ work; the combined scope and native budgets are unchanged, and all nine started 
 These counts measure accepted scope, not effort or product readiness. Partial evidence earns
 no item closure; future breakdowns must preserve the complete acceptance scope and explain
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
+
+### M05 acceptance items
+
+**Product batch 8:** started 2026-10-30 **21:44 UTC**, recorded stop **22:29 UTC**.
+Deliver persistent Screen Manager/Screen/ordered Surface authoring through the atomic app
+operation route, including command nodes, script methods, callbacks and embedded snippets.
+Owner: `apps/mapgyver/src/screens`; public media/channel references connect existing sources.
+Proof: create/configure/reorder/remove, invalid edits with no state/history change, source
+delete/undo, project roundtrip and actual command/QuickJS execution. No native experiment is
+needed for this backend deliverable. Investigation stops by **22:04 UTC** or two experiments.
+
+Before implementation, M05's former single whole-phase placeholder is expanded to these eight
+fixed gates. Overall phase count remains 10; none is accepted by defining this breakdown.
+
+| # | Acceptance scope | State |
+| --- | --- | --- |
+| 1 | Default Screen Manager; atomic Screen/ordered Surface authoring with stable source references, validated targets/crops/quads, project/history roundtrip, commands, script methods, callbacks and app-owned snippets. | Accepted — batch 8 evidence below |
+| 2 | Runtime crop followed by perspective warp matches reference patterns; invalid/singular mapping fails atomically. | Open |
+| 3 | Calibration with no source restores authored routing; overlapping Surfaces preserve order and alpha. | Open |
+| 4 | Physical fullscreen, physical desktop rectangle and virtual Spout targets work concurrently and continue when editors close/minimize. | Open |
+| 5 | Display catalog/recovery preserves intended identity across hotplug, mixed DPI and negative desktop origins. | Open |
+| 6 | Screen editor/source selection uses backend intents; one drag is one undoable gesture. | Open |
+| 7 | Surface Source editor exposes crop/mapping/calibration with coherent source, history and script behavior. | Open |
+| 8 | Full retained physical presentation matrix: exact geometry, alpha/color/reference patterns, 100/125/150/200% and mixed DPI, negative origins, overlays/pointer capture, measured alignment/input latency and editor independence. Unavailable configurations remain open. | Open |
+
+**Batch 8 result:** `src/screens` owns persistent Screen Manager, Screen and Surface nodes and
+the `mapgyver.screens.edit` route. CreateScreen builds the Screen and first full-source/full-screen
+Surface as one detached subtree and one history entry. Backend labels/IDs, configure, rename,
+ordered Screen/Surface moves, removal and read-only inspection work through typed operations.
+Screens default to disabled/unconfigured; authored fullscreen identity, signed physical desktop
+rectangle and exact-name virtual Spout target data does not itself create outputs.
+
+Surfaces retain channel references while calibration is authored or a source is deleted.
+Missing-source crop/calibration edits preserve routing; Undo restores the source. New assignment
+validates ownership against the public media API. Invalid crops, nonfinite/concave/crossed/collapsed
+quads, opacity and physical bounds are rejected before mutation. Off-screen convex/mirrored quads
+are allowed. Source availability, native handles and device observations are not persisted.
+
+Screen Manager's Add menu exposes Screen Operation, Create Screen and an embedded Screen Script.
+`editScreens`/`inspectScreens`, command Execute/`execute()` and committed/rejected
+`onAppOperationResult` callbacks use Golden's existing bounded atomic operation service. Disabled
+or destroyed request owners and failed originating edit batches cannot leak queued operations.
+Rust generates the UI DTOs; the typed operation adapter consumes them without domain defaults.
+Shared backend label allocation moved to `src/app/labels.rs`; existing media behavior is retained.
+
+Validation: **69/69** default-feature and **63/63** no-default-feature library tests pass, including
+real QuickJS manager calls, command trigger/callbacks, production actor dispatch/Undo, project
+roundtrips for all three target descriptions, order/removal/source recovery and generated DTO drift.
+Strict all-feature bins/tests Clippy, Svelte checking, the bundled app build and both workspace
+formatters pass. Implementation/checks finished by **21:55 UTC**, before the **22:29 UTC** stop;
+the batch finishes early rather than expanding its scope. No native experiment or M03 investigation was needed.
+Only M05 gate 1 closes: **1/8 (13%)**; overall remains **3/10 (30%)**, M03 **7/9**, M04 **1/6**.
+Next product slice is the Screen Manager/Screen editor authoring UI; actual warp/calibration,
+physical/Spout outputs and display/editor qualification retain gates 2–8.
 
 ### M04 acceptance items
 
@@ -409,7 +462,7 @@ batches per diagnostic-only batch; no consecutive diagnostic-only turns by defau
 two batches without a usable capability or acceptance closure, reduce the feature slice or
 choose another functionally ready product task. Do not add another measurement prerequisite.
 
-**Product-delivery count since correction: 7. Diagnostic-only batch allowance: 1, unused.**
+**Product-delivery count since correction: 8. Diagnostic-only batch allowance: 2, unused.**
 The first authoring slice and the new atomic Picture import capability (verified through backend/
 QuickJS) count as product delivery; the earlier workflow/docs checkpoint does not. Picture UI
 interaction is not counted as verified acceptance. The observed ordinary-app Solid Color preview
@@ -419,6 +472,9 @@ display checks are not gate closure. The available diagnostic batch is not the d
 module commands/scripts are the fifth delivered capability and close M04 gate 1. Desktop sender
 discovery/selection is the sixth; its native registry check does not close full source acceptance.
 Native 4K PNG display with relink/missing/recovery is the seventh; full Picture acceptance stays open.
+Screen/Surface backend authoring with commands/scripts is the eighth and closes M05 gate 1.
+The allowance follows the four-product-to-one-diagnostic ratio; neither available diagnostic batch
+is scheduled, and consecutive diagnostic-only batches remain prohibited by default.
 Qualification may interrupt only for a reproduced blocker on the selected product path or an
 explicit user request; otherwise it resumes in its scheduled lane after product delivery.
 
@@ -617,18 +673,19 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-Deliver **M05 Screen/Surface authoring** against the working media/channel contracts, following
-the plan's explicit functional prerequisite and execution correction. Native Solid Color and
-4K PNG Picture preview, relink/missing/recovery and normal shutdown provide functional evidence.
-M04 gate 1 is accepted; gates 2–6 retain their full source, UI, lifecycle and parity scope.
-Define M05's fixed acceptance breakdown before implementation; do not count authoring as physical
-output/editor qualification. Preserve Chataigne's root default and unfinished P11 work.
+Deliver **M05 Screen Manager/Screen editor authoring UI** through the generated ScreenEdit
+contract and existing workbench session. Backend Screen/ordered Surface authoring, commands and
+scripts are verified; M05 gate 1 is accepted. Define the next observable UI slice and proof before
+coding. Runtime warp/calibration, target windows/Spout, display recovery and full editor/native
+acceptance remain M05 gates 2–8. M04 gates 2–6 retain their full source, UI, lifecycle and parity
+scope. Preserve Chataigne's root default and unfinished P11 work.
 
 Record the slice's owner, observable result, validation and 45-minute stopping time before
 coding. Ship and push a coherent product checkpoint before the next implementation batch.
 The delivered authoring/import/native Solid Color/Shared Texture editing/module integration/sender
-discovery/native Picture capabilities advance the product counter to **7**; documentation alone earns no credit. One diagnostic-only batch is available but
-not scheduled. Continue the product path; retained M03 qualification is not the default work queue.
+discovery/native Picture/Screen authoring capabilities advance the product counter to **8**;
+documentation alone earns no credit. Two diagnostic-only batches are allowed by the ratio but
+neither is scheduled. Continue the product path; retained M03 qualification is not the default work queue.
 
 M03 gates 4 and 9 remain open and owned by M03. Preserve every original budget, failure and
 required verification. They are production-readiness requirements, not authorization to spend

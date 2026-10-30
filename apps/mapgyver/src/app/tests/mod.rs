@@ -5,7 +5,7 @@ use super::AppNode;
 mod preview_capture;
 
 #[test]
-fn new_project_contains_the_standard_dashboard_and_media_manager() {
+fn new_project_contains_the_standard_dashboard_media_and_screen_managers() {
     let mut engine = create_new_project_engine::<AppNode>().expect("create MapGyver project");
     engine.apply_edits().expect("attach default project");
     let children = engine
@@ -13,12 +13,17 @@ fn new_project_contains_the_standard_dashboard_and_media_manager() {
         .iter()
         .filter(|(_, node)| node.node_data().parent == Some(engine.root))
         .collect::<Vec<_>>();
-    assert_eq!(children.len(), 2);
+    assert_eq!(children.len(), 3);
     assert!(children.iter().any(|(_, node)| matches!(node, AppNode::Dashboard(_))));
     assert!(
         children
             .iter()
             .any(|(_, node)| node.node_data().meta.decl_id.0 == "mapgyver_media_manager")
+    );
+    assert!(
+        children
+            .iter()
+            .any(|(_, node)| matches!(node, AppNode::ScreenManager(_)))
     );
 }
 

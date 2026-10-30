@@ -3,9 +3,10 @@
 This crate owns MapGyver's identity, project policy, frontend composition, and
 desktop packaging configuration. Golden owns the engine, persistence, transport,
 desktop host, and generic UI. App-owned media contracts and rendering policy
-live under `src/media`; mapping and composition systems build on those boundaries.
+live under `src/media`; mapping authoring lives under `src/screens`. Composition builds on
+those public app-owned contracts. `src/app/labels.rs` shares backend label allocation.
 
-The initial project contains a Media Manager and Golden's standard empty Dashboard.
+The initial project contains Media and Screen managers and Golden's standard empty Dashboard.
 The primary app panel creates Solid Color, Picture and Shared Texture media with backend-owned defaults and
 edits independent channel sources, color/alpha, automatic/fixed size and sampling. Media and
 channels can be renamed, channels reordered, and media/channels removed through the
@@ -50,6 +51,29 @@ Golden's public panel API and consumes its public workbench session facade. It
 does not allocate identities, choose backend defaults or mutate node internals.
 App invariants run at the detached candidate-validation boundary, after queued
 default/load edits attach and before live activation, for both startup and replacement.
+
+Screen Manager owns Screens and ordered Surfaces. Its Add menu offers Screen Operation commands,
+a Create Screen preset and a Screen Script with embedded method/callback snippets. The public
+`mapgyver.screens.edit` app operation accepts the Rust `ScreenEdit` contract. Hosted scripts use
+`local.editScreens(requestId, requestJson)` and `local.inspectScreens(requestId)`; results arrive
+through `onAppOperationResult` after commit or rejection. Commands also expose `execute()`.
+Creation allocates a Screen and initial full-source/full-screen Surface in one detached subtree
+and Undo step. Rename, reorder, configuration and removal use the same atomic route for every
+caller. Screen and Surface identities survive history and project reload.
+
+Screens start disabled with no target. Authored targets distinguish a stable fullscreen display
+identity, a rectangle in signed physical desktop pixels, and an exact virtual Spout sender name
+with texture extent. Surfaces store a media/channel reference, normalized source crop, destination
+quad, opacity, calibration mode and enablement. Invalid extents, crop, crossed/concave/degenerate
+quads, opacity and cross-owner references are rejected before mutation. Off-screen convex quads
+and mirrored winding are allowed. Deleting a source preserves its reference for Undo; calibration
+edits retain routing even while that source is missing.
+
+`src/screens/protocol.rs` generates `ui/src/lib/screens/generated` through
+`generate_screen_protocol`; the typed UI operation adapter consumes that contract. This delivery
+is backend authoring: target connections/windows, perspective rendering, calibration output,
+display recovery and the Screen/Surface Source editor panels remain M05 work. Authored target
+data alone does not open an output or establish native display qualification.
 
 Media Manager's Add menu offers Media Operation commands, creation presets for each source kind,
 and a Media Script with app-owned function/callback snippets. Commands keep a JSON `MediaEdit`

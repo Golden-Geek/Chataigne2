@@ -1,5 +1,7 @@
 use golden_core::app::{DesktopHostConfig, FrontendDevServerConfig, ProjectFileSpec, ProjectLifecycle, UiServerConfig};
 
+pub(crate) mod labels;
+
 golden_core::define_node_enum!(
     pub enum AppNode {
         MediaManager(crate::media::MediaManagerNode),
@@ -7,6 +9,10 @@ golden_core::define_node_enum!(
         MediaChannel(crate::media::ChannelNode),
         MediaAsset(crate::media::AssetNode),
         MediaCommand(crate::media::MediaCommandNode),
+        ScreenManager(crate::screens::ScreenManagerNode),
+        Screen(crate::screens::ScreenNode),
+        Surface(crate::screens::SurfaceNode),
+        ScreenCommand(crate::screens::ScreenCommandNode),
     }
 );
 
@@ -37,6 +43,7 @@ impl ProjectLifecycle for AppNode {
 
     fn initialize_new_project(engine: &mut AppEngine) -> Result<(), String> {
         crate::media::initialize(engine);
+        crate::screens::initialize(engine);
         Ok(())
     }
 
@@ -48,13 +55,16 @@ impl ProjectLifecycle for AppNode {
     ) -> Result<serde_json::Value, String> {
         if namespace == crate::media::protocol::MEDIA_NAMESPACE {
             crate::media::apply_operation(engine, operation, payload)
+        } else if namespace == crate::screens::protocol::SCREEN_NAMESPACE {
+            crate::screens::apply_operation(engine, operation, payload)
         } else {
             Err(format!("unsupported app operation '{namespace}.{operation}'"))
         }
     }
 
     fn prepare_project_candidate(engine: &mut AppEngine) -> Result<(), String> {
-        crate::media::validate_project(engine)
+        crate::media::validate_project(engine)?;
+        crate::screens::validate_project(engine)
     }
 }
 
