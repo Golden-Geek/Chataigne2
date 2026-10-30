@@ -34,7 +34,7 @@ fn allocate(next: &mut u64) -> Result<TextureId, String> {
 
 pub(super) struct Targets<'a> {
     pub routes: &'a [ChannelRoute],
-    pub preview: Option<&'a super::ChannelPreview>,
+    pub preview: Option<&'a super::PreviewLayout>,
     pub screens: &'a [ScreenRoute],
 }
 
@@ -57,7 +57,10 @@ pub(super) fn build(
         .map(|route| route.screen.id)
         .collect::<HashSet<_>>()
         .len();
-    if routes.len().saturating_add(screens.len()) > limits.max_outputs
+    if routes
+        .len()
+        .saturating_add(screens.iter().filter(|route| route.output.is_some()).count())
+        > limits.max_outputs
         || capture.channels.len().saturating_add(screen_count) > limits.max_passes
     {
         return Err("channel scene exceeds admitted route/channel counts".into());
@@ -264,7 +267,7 @@ pub(super) fn build(
         .map(|(reference, entry)| (*reference, entry.target))
         .collect();
     for route in screens {
-        if !seen_outputs.insert(route.output) {
+        if route.output.is_some_and(|output| !seen_outputs.insert(output)) {
             return Err("Screen output duplicates an output route".into());
         }
         if let std::collections::hash_map::Entry::Vacant(slot) = screen_entries.entry(route.screen.id) {
@@ -290,16 +293,18 @@ pub(super) fn build(
         } else if screen_extents.get(&route.screen.id) != Some(&route.extent) {
             return Err("a Screen may have only one authored output extent per generation".into());
         }
-        submission.plan.outputs.push(PlanOutput {
-            id: route.output,
-            source: screen_entries[&route.screen.id],
-        });
+        if let Some(output) = route.output {
+            submission.plan.outputs.push(PlanOutput {
+                id: output,
+                source: screen_entries[&route.screen.id],
+            });
+        }
     }
     if let Some(preview) = preview {
         if !seen_outputs.insert(preview.output) {
             return Err("preview output duplicates an output route".into());
         }
-        preview.append(&mut submission, &entries)?;
+        preview.append(&mut submission, &source_targets, &screen_entries)?;
     }
     // Pure preparation validation, before publication can change a live runtime's desired plan.
     submission

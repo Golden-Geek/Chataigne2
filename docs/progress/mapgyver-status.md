@@ -9,8 +9,10 @@ Surfaces, typed output targets, source/crop/quad/opacity/calibration data, atomi
 commands/script methods/callbacks/snippets. The registered Screen Manager UI now exposes that
 authoring route, target settings and Surface Source fields with event-driven refresh and bounded
 lists. Checked crop/perspective rendering and Screen plan publication now pass reference-pattern
-and integration checks. M05 gates 1–2 are accepted, **2/8 (25%)**. Native Screen preview/target
-windows, calibration, display recovery, drag gestures and full editor/native acceptance remain open.
+and integration checks. Native Screen preview now works in the ordinary app, including live
+Surface withdraw/restore while output is disabled. M05 gates 1–2 remain accepted, **2/8 (25%)**.
+Physical/Spout target windows, calibration, display recovery, drag gestures and full editor/native
+acceptance remain open.
 M04's module integration is accepted; source controls, sender discovery and native 4K PNG
 display/relink/missing/recovery are delivered, with full source/UI/parity acceptance still open.
 M03 remains **7/9**; its open qualification no longer serializes all feature development. The
@@ -18,13 +20,13 @@ M03 remains **7/9**; its open qualification no longer serializes all feature dev
 changes work order, not acceptance. M04 is **1/6 complete gates (17%)**; its full source,
 native preview, recovery and UI parity acceptance remains open.
 
-**Next:** M05 native Screen preview using the existing shared preview host and composed Screen textures.
+**Next:** M05 generated calibration patterns with no source and restoration of authored source routing.
 M04's full source/UI/recovery gates remain open and owned by M04. No timing/driver
 qualification or M03 stash work is scheduled.
-**Implementation limits:** native checks cover opaque PNGs and explicit relink, not full source,
-color/alpha or physical-output qualification. Interactive UI verification is limited:
-the browser connector is unavailable and automatic approval review rejected launching Edge.
-Do not turn that limitation into another automation investigation or resume GPU-clock research.
+**Implementation limits:** native checks cover PNG relink, finite crop/warp/color oracles and live
+Screen composition/Surface revisions. Full source/color/physical-output qualification remains open.
+Native authoring used backend operations; form input and graphical drag cases were not exercised.
+Keep these limits explicit without opening another automation or GPU-clock investigation.
 **Qualification debt:** M03 gate 4 retains genuine device removal/stuck retirement; gate 9
 retains full GPU/queue, cadence, capture/age, growth and deadline requirements. Latest Q02
 sample calls remain 300/300/295; minimize/disconnect still miss four/nine Spout images and
@@ -60,6 +62,52 @@ no item closure; future breakdowns must preserve the complete acceptance scope a
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
 
 ### M05 acceptance items
+
+**Product batch 11:** started 2026-10-30 **22:34 UTC**, recorded stop **23:19 UTC**.
+Deliver native composed Screen preview in the Screen Manager through the existing shared host:
+typed app-owned preview source keys, bounded Screen/channel capture, shared renderer demand,
+revision invalidation and status/error presentation. Owners: MapGyver preview preparation and UI;
+Golden keeps native geometry, visibility fences and GPU lifetimes. Proof: mixed Screen/channel
+plan and capture tests, generated-contract/Svelte/app checks and at most two native functional
+experiments. Hypothesis: the Screen source key resolves to the same composed texture as runtime
+Screen publication, clipped by the existing native compositor, without a separate renderer.
+Native investigation stops by **22:54 UTC** or two experiments; if capture/input remains limited,
+retain that limit and finish the software-backed delivery without automation recovery or M03 work.
+
+**Batch 11 result:** the Screen Manager shows composed native Screen textures through the same
+preview session, renderer and window compositor as Channels. Tagged Rust-owned Channel/Screen
+source keys and status DTOs have a dedicated generator and UI consumer. Shared routing/capture/
+host code moved from `media/preview` to `src/preview`; Golden geometry/visibility/GPU mechanisms
+are unchanged. Channel rendering still owns source preparation; app preview captures bounded
+Screen/channel unions and guards on the actor, then prepares their shared dependency graph on
+the worker. Preview-only Screen routes require no physical/Spout binding. Existing limits remain.
+
+Screen and Surface edits invalidate the capture even when channel definitions remain current.
+Screen deletion/Undo and capture-limit/unsupported-calibration errors retain recovery guards.
+Unavailable Screen views have explicit per-source status and no resolved region; healthy Channel
+views continue. Typed source identities remain distinct and stable across JSON property order.
+Rectangle/Spout targets supply preview extents; unresolved fullscreen/unconfigured targets use
+the existing backend default canvas. Target activation is still separate and unimplemented.
+
+**Native evidence:** one ordinary bundled-app run displayed a red perspective-mapped Surface
+and a half-opacity green Surface, with visible overlap and the physical rectangle target disabled.
+Disabling the green Surface removed its pixels; restoring the same authored Surface brought them
+back. Native layout 3 installed with channel counts **2 → 1 → 2**. Backend operations authored the
+fixture; supported native screenshots observed output. No Windows input/drag, physical output,
+quantitative color/alpha or latency acceptance is claimed from those images. The owned app exited
+**0 at 22:47:55 UTC**; native investigation ended before 22:54 after one functional flow. No second
+experiment, browser recovery, settings change or M03 investigation was needed.
+
+Validation: **75/75** default-feature and **69/69** engine-only library tests pass, including mixed
+Channel/Screen view deduplication, one compositor output, Surface guards, deletion/Undo, isolated
+unsupported Screen recovery, bounds and generated DTO drift. All **8/8** app UI tests pass; strict
+all-feature bins/tests Clippy, Svelte checks and the real bundled build pass. The new generator
+initially needed `GC_SKIP_UI_BUILD=1` to bootstrap its frontend imports; the native run used the
+subsequent ordinary build with embedded UI. Both workspace formatters pass. Implementation/checks
+finished by **22:55 UTC**, before the recorded **23:19 UTC** stop; the batch finishes early.
+M05 stays **2/8 (25%)**: complete calibration/order/alpha, target/output, display, graphical editor/
+gesture and physical qualification gates remain open. Overall **3/10 (30%)**, M03 **7/9**, M04 **1/6**.
+The next product deliverable is generated calibration without a source and restored routing.
 
 **Product batch 10:** started 2026-10-30 **22:13 UTC**, recorded stop **22:58 UTC**.
 Deliver checked source-crop/perspective mapping in Golden Video's ordered compositing layers and
@@ -559,7 +607,7 @@ batches per diagnostic-only batch; no consecutive diagnostic-only turns by defau
 two batches without a usable capability or acceptance closure, reduce the feature slice or
 choose another functionally ready product task. Do not add another measurement prerequisite.
 
-**Product-delivery count since correction: 10. Diagnostic-only batch allowance: 2, unused.**
+**Product-delivery count since correction: 11. Diagnostic-only batch allowance: 2, unused.**
 The first authoring slice and the new atomic Picture import capability (verified through backend/
 QuickJS) count as product delivery; the earlier workflow/docs checkpoint does not. Picture UI
 interaction is not counted as verified acceptance. The observed ordinary-app Solid Color preview
@@ -572,6 +620,7 @@ Native 4K PNG display with relink/missing/recovery is the seventh; full Picture 
 Screen/Surface backend authoring with commands/scripts is the eighth and closes M05 gate 1.
 The registered Screen Manager authoring UI is the ninth; full editor/input acceptance stays open.
 Checked GPU crop/warp plus shared Screen-plan publication is the tenth and closes M05 gate 2.
+Native Screen preview with observed Surface withdraw/restore is the eleventh; full editor gates stay open.
 The allowance follows the four-product-to-one-diagnostic ratio; neither available diagnostic batch
 is scheduled, and consecutive diagnostic-only batches remain prohibited by default.
 Qualification may interrupt only for a reproduced blocker on the selected product path or an
@@ -772,17 +821,17 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-Deliver **M05 native Screen preview** through the existing shared presentation host, consuming
-the verified composed Screen texture and app-owned source keys. Backend authoring, Screen Manager
-forms and crop/warp rendering are shipped; M05 gates 1–2 are accepted. Define the preview slice and
-its proof before coding. Retain full calibration/order/alpha, target windows/Spout, display recovery,
+Deliver **M05 calibration patterns** without a source and restoration of authored source routing
+when calibration is disabled. Native Screen preview is delivered through the existing shared host;
+M05 gates 1–2 are accepted. Define the generated-pattern slice and proof before coding.
+Retain full calibration/order/alpha, target windows/Spout, display recovery,
 graphical editor/gesture and physical qualification scope in M05 gates 3–8. M04 gates 2–6 retain
 their full source, UI, lifecycle and parity scope. Preserve Chataigne's root default and unfinished P11 work.
 
 Record the slice's owner, observable result, validation and 45-minute stopping time before
 coding. Ship and push a coherent product checkpoint before the next implementation batch.
 The delivered authoring/import/native Solid Color/Shared Texture editing/module integration/sender
-discovery/native Picture/Screen authoring/Screen Manager UI/crop-warp capabilities advance the product counter to **10**;
+discovery/native Picture/Screen authoring/Screen Manager UI/crop-warp/native Screen preview capabilities advance the product counter to **11**;
 documentation alone earns no credit. Two diagnostic-only batches are allowed by the ratio but
 neither is scheduled. Continue the product path; retained M03 qualification is not the default work queue.
 

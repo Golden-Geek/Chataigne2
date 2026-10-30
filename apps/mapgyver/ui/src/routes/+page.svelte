@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { provideMediaPreview } from '../lib/media/preview-context.svelte';
+	import { providePreview } from '../lib/preview/context.svelte';
 	import {
 		MainWindow,
 		useApplicationHost,
@@ -11,7 +11,7 @@
 	import ScreenManagerPanel from '../lib/screens/ScreenManagerPanel.svelte';
 
 	const host = useApplicationHost();
-	const preview = provideMediaPreview();
+	const preview = providePreview();
 	onMount(() => preview.mount());
 	const userPanels: UserPanelDefinitionMap = {
 		mediaManager: { title: 'Media Manager', component: MediaManagerPanel },

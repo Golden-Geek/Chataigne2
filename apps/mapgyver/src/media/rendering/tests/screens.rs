@@ -60,7 +60,7 @@ fn screen_routes(engine: &AppEngine, screen: ScreenId) -> Vec<ScreenRoute> {
     [1, 2]
         .into_iter()
         .map(|id| ScreenRoute {
-            output: OutputId::new(id).unwrap(),
+            output: Some(OutputId::new(id).unwrap()),
             extent: Extent2D::new(320, 180).unwrap(),
             screen: capture.clone(),
         })

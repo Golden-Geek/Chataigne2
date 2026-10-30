@@ -92,7 +92,12 @@ placeholder and Undo restores it. Initial Surface resampling is linear.
 Golden owns checked inverse homographies and GPU sampling; authoring uses these same validation
 primitives before mutation. Source crop precedes perspective mapping, with mirrored/off-screen
 quads supported. Finite native reference patterns cover crop/warp and alpha/backdrop preservation.
-Screen preview/target connections, calibration output, display recovery and full
+The Screen Manager now previews these composed textures through the same native session as
+Channel previews, including while its authored output is disabled. Screen rectangle/Spout extents
+define preview resolution; unconfigured/fullscreen targets use the backend's default canvas until
+the display catalog can resolve an extent. Optional Screen-route bindings allow a preview-only
+texture to feed the existing window compositor without opening a physical or Spout output.
+Physical/Spout target activation, calibration output, display recovery and full
 graphical Screen/Surface Source editor gestures remain M05 work. Authored target data alone does
 not open an output or establish native display qualification; the panel states that limit.
 
@@ -118,9 +123,10 @@ work. Manager and command nodes are passive; no polling or recurring engine work
 Command triggers emit pulses without an empty history entry. One successful structural operation
 is one Undo step, and merely loading a saved command does not execute it.
 
-On Windows, the ordinary app now enables worker-owned native channel previews by default.
-The selected channel registers a clipped region through `golden_video_ui`; app routing and
-preparation live under `src/media/preview` and `src/media/rendering`. Golden owns the window,
+On Windows, the ordinary app enables worker-owned native Channel and Screen previews by default.
+Each view registers a clipped region through `golden_video_ui`; app source resolution and shared
+host preparation live under `src/preview`, with media rendering under `src/media/rendering`.
+Golden owns the window,
 native geometry, renderer and retirement. Browser/headless editing starts no presentation;
 `--no-default-features` also retains the engine-only build. Preview metadata/status crosses IPC,
 while images upload once on the rendering boundary and frames remain native.
@@ -131,12 +137,22 @@ IO, plan building and rendering stay on the preparation worker. Picture roots fo
 current project's directory. A coarse worker wake detects authored guard changes without
 polling the actor; geometry, GPU and file completion also notify the worker.
 
+`src/preview/protocol.rs` owns tagged Channel/Screen source keys and sparse status metadata;
+`generate_preview_protocol` generates the shared UI contracts under `ui/src/lib/preview/generated`.
+The shared UI context owns one session and separate typed source identities. Bounded actor capture
+deduplicates channel demand across views and Surfaces, and includes Screen membership/definition
+guards so edit, deletion and Undo trigger fresh preparation. An unavailable/unsupported Screen
+has its own status and no resolved region; healthy Channel views continue. Screen warnings are
+overlays over the composed result. No frame pixels, native handles or per-frame matrix solving
+cross the UI boundary. Generator bootstrapping may use `GC_SKIP_UI_BUILD=1`; bundled/native
+verification uses the ordinary build with frontend embedding enabled.
+
 Native Solid Color and 4K PNG Picture output have been observed in the ordinary app. Explicit
 relink to an HD image, missing-file feedback, relink recovery and normal Picture shutdown also
 worked with stable channel/asset references. These checks used public backend operations;
 interactive Picture controls and complete source/recovery/parity acceptance remain open.
 
-`src/media/preview/config.rs` owns production admission. Raw plan-input limits increased from
+`src/preview/host/config.rs` owns production admission. Raw plan-input limits increased from
 1/4 MiB per-plan/aggregate to 257/260 MiB because their accounting includes retained image leases.
 This adds no pixel copy: the preparation cache remains capped at 256 MiB, source input at 64 MiB,
 decode workspace at 128 MiB, GPU resources at 512 MiB and native Spout input at 256 MiB.

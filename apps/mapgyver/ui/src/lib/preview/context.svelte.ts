@@ -5,11 +5,11 @@ import { hasDesktopHost } from 'golden_ui/host/desktop';
 import { createPreviewSession, createDesktopPreviewTransport } from 'golden_video_ui';
 import type { PreviewStatus } from './generated/PreviewStatus';
 import { PREVIEW_STATUS_EVENT } from './generated/constants';
-import { channelKey } from './identity';
+import { previewKey } from './identity';
 
-const key = Symbol('mapgyver-media-preview');
+const key = Symbol('mapgyver-preview');
 
-export function provideMediaPreview() {
+export function providePreview() {
 	const session = createPreviewSession(createDesktopPreviewTransport());
 	const statuses = new SvelteMap<string, PreviewStatus>();
 	const state = $state({ transparent: false });
@@ -26,7 +26,7 @@ export function provideMediaPreview() {
 			if (hasDesktopHost()) {
 				void listen<PreviewStatus[]>(PREVIEW_STATUS_EVENT, (event) => {
 					statuses.clear();
-					for (const status of event.payload) statuses.set(channelKey(status.reference), status);
+					for (const status of event.payload) statuses.set(previewKey(status.source), status);
 				})
 					.then((dispose) => {
 						if (stopped) dispose();
@@ -53,4 +53,4 @@ export function provideMediaPreview() {
 	return owner;
 }
 
-export const useMediaPreview = () => getContext<ReturnType<typeof provideMediaPreview>>(key);
+export const usePreview = () => getContext<ReturnType<typeof providePreview>>(key);

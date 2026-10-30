@@ -10,6 +10,7 @@
 	import SurfaceNavigation from './SurfaceNavigation.svelte';
 	import ScreenTargetForm from './ScreenTargetForm.svelte';
 	import SurfaceSourceForm from './SurfaceSourceForm.svelte';
+	import ScreenPreview from './ScreenPreview.svelte';
 
 	let { panelId, panelType, title }: PanelProps = $props();
 	let panel = $state<PanelState | null>(null);
@@ -67,7 +68,7 @@
 			onclick={() => controller.refresh()}>Refresh</button>
 	</header>
 	<p class="notice">
-		Output rendering is not available yet. Screen and Surface settings are saved with your project.
+		Native preview shows the mapped Screen. Physical and Spout output targets are not active yet.
 	</p>
 	{#if view.error}<p class="error" role="alert">{view.error}</p>{/if}
 	{#if session?.status !== 'connected'}
@@ -90,6 +91,7 @@
 			<div class="editor">
 				{#if screen}
 					{#key screen.id}
+						<ScreenPreview {screen} />
 						<ScreenTargetForm
 							{screen}
 							disabled={busy}

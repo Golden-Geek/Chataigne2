@@ -86,7 +86,7 @@ pub fn run() -> std::io::Result<()> {
         golden_core::app::run_default_with_native_presentation::<AppNode, tauri::Wry>(
             tauri::generate_context!(),
             config,
-            crate::media::preview::presentation,
+            crate::preview::host::presentation,
         )
     }
     #[cfg(not(all(windows, feature = "native-video")))]

@@ -1,9 +1,9 @@
 use crate::{
     app::AppNode,
-    media::{
-        CapturedChannels, capture_channels,
-        protocol::{PREVIEW_STATUS_EVENT, PreviewStatus},
-        rendering::{ChannelPreview, ChannelRenderer},
+    media::rendering::{ChannelRenderer, PreviewLayout},
+    preview::{
+        capture::{CapturedPreview, capture_preview},
+        protocol::{PREVIEW_STATUS_EVENT, PreviewSource, PreviewStatus},
     },
 };
 use golden_core::{app::NativePresentationStop, application::ProductionRuntime};
@@ -99,7 +99,7 @@ pub(super) fn run(input: Input) -> io::Result<()> {
     let _session = SessionOwner(input.controller.clone());
     let mut owner: Option<Owner> = None;
     let mut native: Option<D3d11Control> = None;
-    let mut capture: Option<CapturedChannels> = None;
+    let mut capture: Option<CapturedPreview> = None;
     let mut published = None;
     let mut installed: Option<(u64, GenerationInfo, Option<CompletionToken>)> = None;
     let mut last_status = Vec::new();
@@ -156,7 +156,7 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                     .map(std::path::Path::to_path_buf)
                     .unwrap_or(std::env::current_dir().map_err(|e| e.to_string())?);
                 let root_changed = renderer.set_picture_root(&root)?;
-                let preview = ChannelPreview {
+                let preview = PreviewLayout {
                     output: OutputId::new(1).unwrap(),
                     descriptor: TextureDescriptor {
                         extent,
@@ -170,12 +170,17 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                     || published != Some(layout.generation)
                     || capture.as_ref().is_none_or(|capture| !capture.is_current())
                 {
-                    let references = preview.references()?;
+                    let sources = preview.sources()?;
                     let next = input
                         .runtime
-                        .capture_app(move |engine| capture_channels(engine, &references, 8))
+                        .capture_app(move |engine| capture_preview(engine, &sources, 8, 128))
                         .map_err(|e| e.to_string())??;
-                    renderer.publish_targets(next.clone(), Vec::new(), Some(preview))?;
+                    renderer.publish_screen_targets(
+                        next.channels.clone(),
+                        Vec::new(),
+                        next.screens.clone(),
+                        Some(preview),
+                    )?;
                     input.receiver.mark_uninstalled(layout.generation);
                     capture = Some(next);
                     published = Some(layout.generation);
@@ -222,15 +227,10 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                         confirmed = Some(*generation);
                     }
                 }
-                let statuses = renderer
-                    .channels()
-                    .iter()
-                    .map(|channel| PreviewStatus {
-                        reference: channel.reference,
-                        resolution: Some(channel.resolution),
-                        error: None,
-                    })
-                    .collect::<Vec<_>>();
+                let statuses = capture
+                    .as_ref()
+                    .map(|capture| capture.statuses(renderer.channels()))
+                    .unwrap_or_default();
                 if statuses != last_status {
                     input
                         .window
@@ -245,11 +245,12 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                 let statuses = layout
                     .views
                     .iter()
-                    .filter_map(|view| serde_json::from_str(&view.source).ok())
-                    .map(|reference| PreviewStatus {
-                        reference,
-                        resolution: None,
+                    .filter_map(|view| serde_json::from_str::<PreviewSource>(&view.source).ok())
+                    .map(|source| PreviewStatus {
+                        source,
+                        extent: None,
                         error: Some(error.clone()),
+                        message: None,
                     })
                     .collect::<Vec<_>>();
                 if statuses != last_status {

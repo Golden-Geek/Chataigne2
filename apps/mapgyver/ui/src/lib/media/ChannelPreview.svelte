@@ -1,13 +1,15 @@
 <script lang="ts">
 	import { NativePreview } from 'golden_video_ui';
 	import type { ChannelSnapshot } from './generated/ChannelSnapshot';
-	import { useMediaPreview } from './preview-context.svelte';
-	import { channelKey } from './identity';
+	import { usePreview } from '../preview/context.svelte';
+	import { previewKey } from '../preview/identity';
+	import type { PreviewSource } from '../preview/generated/PreviewSource';
 	let { channel }: { channel: ChannelSnapshot } = $props();
-	const owner = useMediaPreview();
-	const source = $derived(JSON.stringify(channel.reference));
-	const status = $derived(owner.statuses.get(channelKey(channel.reference)));
-	const extent = $derived(status?.resolution?.extent);
+	const owner = usePreview();
+	const identity = $derived<PreviewSource>({ kind: 'Channel', reference: channel.reference });
+	const source = $derived(JSON.stringify(identity));
+	const status = $derived(owner.statuses.get(previewKey(identity)));
+	const extent = $derived(status?.extent);
 </script>
 
 <section aria-label="Channel preview">
@@ -15,9 +17,9 @@
 		class="surface"
 		style:aspect-ratio={extent ? `${extent.width} / ${extent.height}` : '16 / 9'}>
 		<NativePreview session={owner.session} {source} label={`Preview of ${channel.label}`}>
-			{#if status && (status.error || status.resolution?.availability !== 'Ready')}
+			{#if status && (status.error || status.message)}
 				<div class="message">
-					{status.error ?? `Source ${status.resolution?.availability ?? 'unavailable'}`}
+					{status.error ?? status.message}
 				</div>
 			{/if}
 		</NativePreview>

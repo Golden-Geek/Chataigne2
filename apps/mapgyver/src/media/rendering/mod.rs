@@ -2,9 +2,8 @@
 //! preparation worker, never the engine/UI thread. Golden owns frame cadence and GPU cleanup.
 
 mod plan;
-mod preview;
 mod sources;
-pub use preview::ChannelPreview;
+pub use crate::preview::layout::PreviewLayout;
 
 use super::capture::CapturedChannels;
 use super::protocol::{ChannelReference, ChannelSource};
@@ -58,7 +57,7 @@ pub struct ChannelRenderer {
 struct Desired {
     capture: CapturedChannels,
     routes: Vec<ChannelRoute>,
-    preview: Option<ChannelPreview>,
+    preview: Option<PreviewLayout>,
     screens: Vec<ScreenRoute>,
 }
 
@@ -143,7 +142,7 @@ impl ChannelRenderer {
         &mut self,
         capture: CapturedChannels,
         routes: Vec<ChannelRoute>,
-        preview: Option<ChannelPreview>,
+        preview: Option<PreviewLayout>,
     ) -> Result<RequestId, String> {
         self.publish_screen_targets(capture, routes, Vec::new(), preview)
     }
@@ -155,7 +154,7 @@ impl ChannelRenderer {
         capture: CapturedChannels,
         routes: Vec<ChannelRoute>,
         screens: Vec<ScreenRoute>,
-        preview: Option<ChannelPreview>,
+        preview: Option<PreviewLayout>,
     ) -> Result<RequestId, String> {
         if !capture.is_current() {
             return Err("captured channels are stale".into());
@@ -189,7 +188,7 @@ impl ChannelRenderer {
         capture: CapturedChannels,
         routes: Vec<ChannelRoute>,
         observations: SourceObservations,
-        preview: Option<ChannelPreview>,
+        preview: Option<PreviewLayout>,
         screens: Vec<ScreenRoute>,
     ) -> Result<RequestId, String> {
         if !capture.is_current() || self.project.is_some_and(|project| project != capture.project) {

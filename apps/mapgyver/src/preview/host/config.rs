@@ -1,4 +1,4 @@
-//! Preview admission includes image leases already bounded by the preparation cache.
+//! Shared preview admission includes image leases bounded by the preparation cache.
 
 use golden_assets::PreparationLimits;
 use golden_io::WorkerNotifier;

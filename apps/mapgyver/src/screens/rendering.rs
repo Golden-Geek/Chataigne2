@@ -2,7 +2,7 @@
 
 use super::{
     authoring,
-    protocol::{Calibration, ScreenId, SurfaceDefinition},
+    protocol::{Calibration, ScreenId, ScreenTarget, SurfaceDefinition},
 };
 use crate::{
     app::{AppEngine, AppNode},
@@ -20,18 +20,29 @@ pub struct CapturedScreen {
     pub(crate) id: ScreenId,
     pub(crate) guards: Vec<RevisionGuard>,
     surfaces: Vec<SurfaceDefinition>,
+    target_extent: Option<Extent2D>,
 }
 
 /// Demand for a composed Screen texture. Target activation/placement is a separate host owner;
 /// editor previews may demand this texture while the authored physical output is disabled.
 #[derive(Clone)]
 pub struct ScreenRoute {
-    pub output: OutputId,
+    pub output: Option<OutputId>,
     pub extent: Extent2D,
     pub screen: CapturedScreen,
 }
 
 impl CapturedScreen {
+    pub fn preview_extent(&self) -> Extent2D {
+        self.target_extent
+            .unwrap_or_else(crate::media::resolution::default_canvas)
+    }
+    pub fn preview_error(&self) -> Option<String> {
+        self.surfaces
+            .iter()
+            .any(|surface| surface.enabled && surface.calibration != Calibration::Off)
+            .then(|| "Calibration pattern rendering is not available yet".into())
+    }
     pub fn id(&self) -> ScreenId {
         self.id
     }
@@ -106,5 +117,24 @@ pub fn capture_screen(engine: &AppEngine, screen: ScreenId, maximum_surfaces: us
         id: screen,
         guards,
         surfaces,
+        target_extent: match &node.definition().target {
+            Some(ScreenTarget::Rectangle { bounds }) => Some(bounds.extent),
+            Some(ScreenTarget::Spout { extent, .. }) => Some(*extent),
+            _ => None,
+        },
     })
+}
+
+pub(crate) fn membership_guard(engine: &AppEngine) -> Result<RevisionGuard, String> {
+    let id = authoring::manager(engine)?;
+    let Some(AppNode::ScreenManager(manager)) = engine.nodes.get(id) else {
+        unreachable!()
+    };
+    Ok(manager.guard())
+}
+
+pub(crate) fn screen_guard(engine: &AppEngine, screen: ScreenId) -> Option<RevisionGuard> {
+    let node = engine.node_id_by_uuid(screen.0).and_then(|id| engine.nodes.get(id))?;
+    let AppNode::Screen(node) = node else { return None };
+    Some(node.guard())
 }

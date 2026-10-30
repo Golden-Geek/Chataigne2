@@ -2,4 +2,5 @@
 
 pub mod app;
 pub mod media;
+pub mod preview;
 pub mod screens;

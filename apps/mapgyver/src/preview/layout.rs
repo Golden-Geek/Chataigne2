@@ -1,6 +1,7 @@
 //! The app resolves opaque preview source keys; Golden retains geometry and visibility fences.
-use super::Entry;
+use super::protocol::PreviewSource;
 use crate::media::protocol::ChannelReference;
+use crate::screens::protocol::ScreenId;
 use golden_video::plan::{BlendMode, Layer, PlanOutput, RenderOperation, RenderPass, SampleFilter};
 use golden_video::preview::PreviewSnapshot;
 use golden_video::runtime::PlanSubmission;
@@ -8,28 +9,38 @@ use golden_video::{Extent2D, LinearColor, Opacity, OutputId, PassId, TextureDesc
 use std::collections::HashMap;
 
 #[derive(Clone)]
-pub struct ChannelPreview {
+pub struct PreviewLayout {
     pub output: OutputId,
     pub descriptor: TextureDescriptor,
     pub layout: PreviewSnapshot,
 }
 
-impl ChannelPreview {
-    pub fn references(&self) -> Result<Vec<ChannelReference>, String> {
+impl PreviewLayout {
+    pub fn sources(&self) -> Result<Vec<PreviewSource>, String> {
         self.layout
             .views
             .iter()
             .map(|view| {
-                serde_json::from_str(&view.source)
-                    .map_err(|error| format!("invalid channel preview reference: {error}"))
+                serde_json::from_str(&view.source).map_err(|error| format!("invalid app preview source: {error}"))
             })
             .collect()
     }
+    pub fn references(&self) -> Result<Vec<ChannelReference>, String> {
+        Ok(self
+            .sources()?
+            .into_iter()
+            .filter_map(|source| match source {
+                PreviewSource::Channel { reference } => Some(reference),
+                PreviewSource::Screen { .. } => None,
+            })
+            .collect())
+    }
 
-    pub(super) fn append(
+    pub(crate) fn append(
         &self,
         submission: &mut PlanSubmission,
-        entries: &HashMap<ChannelReference, Entry>,
+        channels: &HashMap<ChannelReference, TextureId>,
+        screens: &HashMap<ScreenId, TextureId>,
     ) -> Result<(), String> {
         self.references()?;
         let texture = TextureId::new(1).unwrap();
@@ -39,12 +50,12 @@ impl ChannelPreview {
             descriptor: self.descriptor,
             operation: RenderOperation::Regions {
                 visibility: Some(self.layout.guard.clone()),
-                regions: self.layout.regions(|source| {
-                    serde_json::from_str::<ChannelReference>(source)
-                        .ok()
-                        .and_then(|reference| entries.get(&reference))
-                        .map(|entry| entry.target)
-                }),
+                regions: self
+                    .layout
+                    .regions(|source| match serde_json::from_str::<PreviewSource>(source).ok()? {
+                        PreviewSource::Channel { reference } => channels.get(&reference).copied(),
+                        PreviewSource::Screen { screen } => screens.get(&screen).copied(),
+                    }),
             },
         });
         let background = TextureId::new(2).unwrap();
