@@ -322,6 +322,16 @@ and cached aliases before replacing its pool within the same reservation. Source
 actual extents; a plan must adopt that descriptor before copying the resized input. Missing or
 mismatched input has zero storage (black for opaque descriptors), with explicit source state.
 
+Each input owns one reader lease per admitted bridge slot. Multiple prepared targets can copy
+the same immutable publication using that device's existing ownership, extending retirement
+to the latest submitted use. Keyed ownership is never acquired recursively. Exact allocation
+identity fences reuse; a replacement cannot displace an unfinished reader. This fixed-size
+index needs no per-frame reader allocation or cross-source search. Source recovery publishes
+the actual import/ownership error before signaling its worker; real device status is queried
+separately rather than manufacturing a device-removal HRESULT. The
+[plan-transition regression](../../docs/progress/mapgyver-m03-qualification-runner.md#shared-reader-ownership-across-plan-generations--2026-10-30)
+checks two targets' pixels, latest-fence retirement and truthful logical-fault recovery.
+
 Changing a retained binding requires a fresh logical texture ID; reusing an ID with a different
 subscription is rejected without changing the live generation. Identical bindings are shared
 across generations. Unused subscriptions cancel asynchronously; they consume capacity until

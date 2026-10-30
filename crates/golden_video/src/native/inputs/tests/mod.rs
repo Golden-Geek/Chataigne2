@@ -64,7 +64,7 @@ fn fixture() -> (Arc<Shared>, TextureDescriptor) {
         quiescing: AtomicBool::new(false),
         retiring: AtomicBool::new(false),
         released: AtomicBool::new(false),
-        unlock_failed: AtomicBool::new(false),
+        faulted: AtomicBool::new(false),
         shutdown: AtomicBool::new(false),
         notify: None,
         worker_notify: Mutex::new(None),

@@ -76,7 +76,7 @@ impl Session {
             .ok_or_else(|| Error::from_hresult(HRESULT(0x8000_4005_u32 as i32)))?;
         shared.released.store(false, Ordering::Release);
         shared.retiring.store(false, Ordering::Release);
-        shared.unlock_failed.store(false, Ordering::Release);
+        shared.faulted.store(false, Ordering::Release);
         shared.update(|status| status.generation = next);
         let status = *shared.status.lock().unwrap_or_else(|error| error.into_inner());
         let diagnostic_context = DiagnosticContext::Source {
@@ -109,8 +109,16 @@ impl Session {
             if context.cancellation().is_cancelled() {
                 return Ok(());
             }
-            if self.device.removed() || self.shared.unlock_failed.load(Ordering::Acquire) {
-                return Err(Error::from_hresult(HRESULT(0x887a_0005_u32 as i32)));
+            // SAFETY: this worker retains the exact source device; preserve its real removal code.
+            unsafe { self.device.device.GetDeviceRemovedReason()? };
+            if self.shared.faulted.load(Ordering::Acquire) {
+                let cause = self
+                    .shared
+                    .status
+                    .lock()
+                    .unwrap_or_else(|error| error.into_inner())
+                    .hresult;
+                return Err(Error::from_hresult(HRESULT(cause.unwrap_or(0x8000_4005_u32 as i32))));
             }
             let completed = self.completion.completed(&self.device, self.generation)?;
             if let Some(timing) = &mut self.timing {
@@ -381,8 +389,7 @@ impl Drop for Writer<'_> {
     fn drop(&mut self) {
         // SAFETY: construction follows only a successful zero-timeout keyed-mutex acquisition.
         if let Err(error) = unsafe { self.slot.mutex.ReleaseSync(self.key) } {
-            self.shared.unlock_failed.store(true, Ordering::Release);
-            self.shared.update(|status| status.hresult = Some(error.code().0));
+            self.shared.record_fault(error.code().0);
         }
     }
 }

@@ -458,7 +458,7 @@ impl Drop for Fixture {
 
 pub(in crate::native) fn readback(gpu: &Device, texture: &Texture) -> Vec<[u8; 4]> {
     let extent = texture.descriptor.extent;
-    assert!(extent.width() <= 4 && extent.height() <= 4);
+    assert!(extent.width() <= 8 && extent.height() <= 8);
     let mut desc = D3D11_TEXTURE2D_DESC::default();
     // SAFETY: owned texture and writable descriptor.
     unsafe { texture.texture.GetDesc(&mut desc) };

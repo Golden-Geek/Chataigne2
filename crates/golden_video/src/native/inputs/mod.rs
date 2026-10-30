@@ -103,11 +103,12 @@ struct Input {
     shared: Arc<Shared>,
     worker: BoundedWorker<(), ()>,
     imports: [Option<std::rc::Rc<Imported>>; INPUT_BRIDGE_SLOTS],
+    // One ownership lease per admitted bridge slot, fenced through its latest renderer use.
+    readers: [Option<(u64, Reader)>; INPUT_BRIDGE_SLOTS],
 }
 
 pub(super) struct SourcePool {
     inputs: BTreeMap<TextureId, Input>,
-    readers: Vec<(u64, TextureId, Reader)>,
     lifetimes: RetirementPool,
     adapter: AdapterId,
     limits: InputLimits,
@@ -132,7 +133,6 @@ impl SourcePool {
         let lifetimes = RetirementPool::new(NonZeroUsize::new(limits.max_sources.max(1)).unwrap());
         Self {
             inputs: BTreeMap::new(),
-            readers: Vec::with_capacity(limits.max_sources * 2),
             lifetimes,
             adapter,
             limits,
@@ -177,7 +177,7 @@ impl SourcePool {
             demands: AtomicUsize::new(0),
             quiescing: AtomicBool::new(false),
             released: AtomicBool::new(false),
-            unlock_failed: AtomicBool::new(false),
+            faulted: AtomicBool::new(false),
             shutdown: AtomicBool::new(false),
             notify: self.notify.clone(),
             worker_notify: Mutex::new(None),
@@ -206,6 +206,7 @@ impl SourcePool {
                 shared,
                 worker,
                 imports: std::array::from_fn(|_| None),
+                readers: std::array::from_fn(|_| None),
             },
         );
         Ok(())
@@ -238,7 +239,7 @@ impl SourcePool {
         // can be evicted; cancellation never waits for SDK/GPU work on the renderer.
         for (id, input) in &mut self.inputs {
             if input.shared.demands.load(Ordering::Acquire) == 0
-                && !self.readers.iter().any(|(_, source, _)| source == id)
+                && input.readers.iter().all(Option::is_none)
                 && !plan
                     .external_textures()
                     .iter()
@@ -326,10 +327,13 @@ impl SourcePool {
     }
 
     pub fn retire(&mut self, completed: u64) {
-        self.readers.retain(|(serial, _, _)| *serial > completed);
-        for (id, input) in &mut self.inputs {
-            if input.shared.retiring.load(Ordering::Acquire) && !self.readers.iter().any(|(_, source, _)| source == id)
-            {
+        for input in self.inputs.values_mut() {
+            for reader in &mut input.readers {
+                if reader.as_ref().is_some_and(|(serial, _)| *serial <= completed) {
+                    reader.take();
+                }
+            }
+            if input.shared.retiring.load(Ordering::Acquire) && input.readers.iter().all(Option::is_none) {
                 input.imports = std::array::from_fn(|_| None);
                 input.shared.released.store(true, Ordering::Release);
             }
@@ -339,8 +343,7 @@ impl SourcePool {
     pub fn fault(&self, id: TextureId, error: Error) {
         let shared = &self.inputs[&id].shared;
         shared.clear();
-        shared.unlock_failed.store(true, Ordering::Release);
-        shared.update(|status| status.hresult = Some(error.code().0));
+        shared.record_fault(error.code().0);
         shared.state(SourceState::Recovering);
         if let Some(notify) = &*shared.worker_notify.lock().unwrap_or_else(|error| error.into_inner()) {
             notify.notify();
@@ -387,12 +390,22 @@ impl SourcePool {
                 imported
             }
         };
-        let Some(reader) = Reader::acquire(imported, publication.surface, input.shared.clone())? else {
-            return Ok(Some(previous));
-        };
-        // Lease before entering native CopyResource, including unwinding submission paths.
-        self.readers.push((serial, id, reader));
-        let reader = &self.readers.last().unwrap().2;
+        if let Some((last_use, reader)) = &mut input.readers[index] {
+            if !reader.imported.same_surface(&publication.surface) {
+                // A replacement allocation cannot displace ownership of unfinished work.
+                return Ok(Some(previous));
+            }
+            // Prepared generations may copy the same immutable publication into different
+            // targets. Reuse this device's ownership; keyed mutexes are not recursive.
+            *last_use = (*last_use).max(serial);
+        } else {
+            let Some(reader) = Reader::acquire(imported, publication.surface, input.shared.clone())? else {
+                return Ok(Some(previous));
+            };
+            input.readers[index] = Some((serial, reader));
+        }
+        // Establish/extend the lease before CopyResource, including unwinding submissions.
+        let reader = &input.readers[index].as_ref().unwrap().1;
         // SAFETY: both descriptors were checked and imports belong to this renderer device.
         unsafe {
             device
@@ -414,8 +427,8 @@ impl Drop for SourcePool {
         // The owning core has drained renderer uses or confirmed renderer-device removal.
         // Release leases/imports/mailboxes before cancellation; no worker may allocate its
         // replacement pool until these aliases are acknowledged as released.
-        self.readers.clear();
         for input in self.inputs.values_mut() {
+            input.readers = std::array::from_fn(|_| None);
             Self::stop(input);
         }
         while !self.lifetimes.wait_for_idle(Duration::from_millis(20)) {}

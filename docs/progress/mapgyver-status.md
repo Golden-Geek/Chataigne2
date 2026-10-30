@@ -5,23 +5,25 @@
 **Updated: 2026-10-30 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
 **Current topic:** M03 remains **7/9** accepted gates. The
-[explicit source ownership wait](mapgyver-m03-qualification-runner.md#isolated-source-send-ownership-wait--2026-10-30)
-keeps renderer sends nonblocking while isolated source workers request 2 ms per ownership lock.
-Both short Q01/Q02 samples now accept 300/300 publications from each source and 300 calls on
-each output, with 300/300 exact Spout captures. Q02 renderer-context GPU p95/p99 is 11.7707/
-15.2588 ms. Its editor-interruption phases still miss captures and cadence/age budgets; no
-complete GPU-path or cadence gate closes. Rejected output-order variants remain removed.
+[reader-ownership fix](mapgyver-m03-qualification-runner.md#shared-reader-ownership-across-plan-generations--2026-10-30)
+removes recursive keyed-mutex acquisition when a new plan copies a publication still owned by
+an earlier frame. The controlled native repro fails with `0x887A0001` before the fix and now
+verifies both images plus latest-fence retirement. New controls retain both sources in their
+first generation and remove the ten Q02 interruption lineage failures. Q02 still misses
+capture/cadence/age budgets; instrumented GPU p95 is 15.8522 ms. No qualification gate closes.
 
-**Next:** trace Q02 editor-visibility transitions and independent-consumer capture, using the
-existing exact window/software-display collector where needed. Preserve the explicit source
-policy and renderer nonblocking admission; do not repeat output-order variants. Complete GPU
+**Next:** attribute the remaining Q02 renderer/consumer stalls from retained CPU, GPU-context
+and exact software-display timelines, then establish supported GPU-clock/queue calibration
+before changing GPU work. Preserve slot-owned leases, explicit source policy and nonblocking
+renderer admission; do not repeat output-order variants or recollect identical traces. Complete GPU
 critical-path and native buffer/GPU-queue measurements (gate 9), then address remaining
 cadence, capture coverage and growth qualification. Native
 device removal and bounded stuck retirement retain gate 4.
-**Blocker:** short-sample source/output acceptance is observed, but Q02 minimized-editor main/
-Spout calls are 56/59 in one second, with 14 accepted Spout images missing. Disconnect misses
-four more images and covered source-B age p95 reaches 57.10 ms. These interruption failures,
-prescribed cadence coverage and prior window deadline failures remain open. The short
+**Blocker:** new Q02 sample calls are main/Spout/editor 300/300/295. Minimized-editor main/Spout
+calls are 55/59 in one second, with four Spout images uncaptured; disconnect captures 51/60,
+with covered source A/B p95 age 62.11/66.17 ms. There are no current lineage-invalid captures
+or source restarts. The remaining interruption failures, prescribed cadence coverage and
+window deadline failures remain open. The short
 renderer-context timing does not qualify displayed cadence, three-output age or the full GPU
 critical path. Full GPU
 critical-path and native buffer/GPU-queue coverage remain unavailable. Genuine device removal
@@ -301,14 +303,22 @@ Q01 tails regress and source-A admission worsens; accepted-Spout capture coverag
 complete. The rejected hardware-Spout/SDK path is fully removed. Publication/dependency
 ordering was the next experiment: both staged conversion and cold-prepared shared-first
 schedules now regress Q02 and are removed. Their complete evidence is retained, including
-the shared-first main/editor shortfalls. The next bounded investigation is sender/receiver
-ownership at the source publication boundary. That investigation now gives isolated fixture
+the shared-first main/editor shortfalls. The sender/receiver ownership investigation at the
+source publication boundary now gives isolated fixture
 producers an explicit 2 ms per-lock wait, while renderer sends remain at zero. The versioned
 schema 8 controls preserve both independent 60 Hz source contracts and all existing budgets;
 their samples have complete source/output acceptance and exact captures. Q02 editor minimized/
 disconnected phases still fail cadence/capture/age, including 14/four missing accepted Spout
-images. Trace those visibility transitions and independent consumer work next, with exact
-window/software-display joins where needed. Do not infer full independence from sample counts.
+images. The transition investigation now reproduces recursive renderer ownership with a
+static source. Slot-owned reader leases and latest-use retirement fix it; truthful fault
+reporting replaces the old fabricated removal code. Both sources remain in generation 1 in
+the new controls, with no unversioned source-use frames during the measured phases. Exact
+window/software-display rows now cover all accepted sample calls. Q02 still misses four/nine
+Spout images during minimize/disconnect, with capture-age and sample editor cadence failures.
+Its consumer GPU-context spans reach 65.509 ms despite short SDK API calls; these spans do not
+calibrate queue delay or GPU readiness. Use the retained traces to attribute those remaining
+stalls and establish supported clock/queue observations before further GPU-work changes.
+Do not infer full independence from sample counts or repeat the same instrumentation.
 Do not start another output-order variant or change fixture pacing to hide Busy outcomes.
 A gap between different benchmarks is not measured queue time. No graphics settings were changed.
 Complete GPU critical-path and queue/consumption measurement
@@ -317,8 +327,9 @@ Genuine native device-removal recovery and bounded stuck-drain retirement retain
 Both gates remain required before M03 completion; all existing budgets/failures stay operative.
 Deliver each coherent batch
 on `mapgyver` before starting the next. Preserve
-Chataigne's root default and unfinished P11 work. No new M01 captures, consumer-control cohorts,
-overlay investigation or profiling are needed for this work. The user confirms overlay Off.
+Chataigne's root default and unfinished P11 work. No new M01 captures, duplicate consumer-only
+cohorts, overlay investigation or identical WPR profiles are needed. Future clock/queue
+instrumentation requires a concrete supported measurement change. The user confirms overlay Off.
 
 **Approved scope correction — continuing acceptance ownership:**
 
@@ -460,6 +471,37 @@ Preserve Chataigne's unfinished engine/Spatializer P11 checkpoint (four of six f
 and its [separate ledger](implementation-status.md). Shared P12 boundary repairs belong to M02;
 P14/P15 time and asset contracts retain their shared Golden owners under M03. Root launch
 behavior is unchanged. No production host/backend/binding decision is final yet.
+
+## M03 shared reader ownership — 2026-10-30
+
+A controlled static-source regression reproduces `DXGI_ERROR_INVALID_CALL` when a second
+prepared target recursively acquires the same renderer device's already-held keyed mutex.
+Previously, this caused source fallback/recovery; the old worker also converted every
+ownership fault into `0x887A0005`, so that historical report cannot prove physical device loss.
+Each input now has one fixed reader lease per bridge slot, reused for the same immutable
+allocation and retained through its latest renderer completion serial. Retirement stays
+completion-based, with no new texture, copy stage, queue or per-frame reader allocation.
+Source recovery publishes the actual fault code before its request flag; actual source-device
+removal status remains separate. Renderer send wait stays zero, source wait stays 2 ms per lock.
+
+The [paired controls and exact display evidence](mapgyver-m03-qualification-runner.md#shared-reader-ownership-across-plan-generations--2026-10-30)
+keep both sources at generation/pool 1, with no reported fault and no absent source-use
+publication in the measured phases. The ten Q02 minimized-phase lineage-invalid captures are
+gone. Both samples keep 300/300 exact accepted-Spout captures; Q02 editor accepts 295 calls.
+All accepted sample window calls have exact software-display rows, but anchored deadline
+failures remain. Q02 minimize captures 55/59 Spout images; disconnect captures 51/60 and
+covered source ages reach 62.1145/66.1716 ms. Its instrumented renderer p95 is 15.8522 ms,
+compared with 11.7707 ms before; added PresentMon means no isolated timing comparison is claimed.
+
+The packet/archive retain two new native captures, per-phase image/software-display audits,
+269 execution sources, the failing native repro and passing validation. Independent audit
+checks all 1,199 sample GPU partitions and 1,647 exact accepted-Spout images across the sample/
+interruption cohorts, preserving missing images and unknown pre-fix lineage. Validation passes
+154 ordinary Rust, 17 Golden native, two app-native and 275 Python tests, strict clippy,
+release build and both formatters. The native regression verifies two exact target images,
+latest-fence retention and logical-fault recovery without a fabricated removal code.
+**M03 stays 7/9; overall stays 30%.** Full GPU/queue, prescribed cadence/interruption/growth,
+display deadlines/age and genuine removal/stuck retirement remain open.
 
 ## M03 explicit source send ownership wait — 2026-10-30
 

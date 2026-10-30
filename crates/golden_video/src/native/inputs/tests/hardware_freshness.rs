@@ -23,6 +23,8 @@ use crate::{AlphaMode, ColorEncoding, Extent2D, PixelFormat, TextureDescriptor, 
 
 const WAIT: Duration = Duration::from_secs(6);
 
+mod reader_leases;
+
 fn descriptor(side: u32) -> TextureDescriptor {
     TextureDescriptor {
         extent: Extent2D::new(side, side).unwrap(),
@@ -218,6 +220,7 @@ fn hardware_versioned_preflight_and_busy_preserve_source_publications() {
     wait("first copy and unchanged preflight", || {
         snapshot(&counted).unchanged >= 8
     });
+    reader_leases::verify(adapter, &mut pool, versioned, descriptor(8));
     wait("foreign frozen-positive counter still copies", || {
         snapshot(&unknown).publications >= 3
     });
@@ -368,4 +371,5 @@ fn hardware_versioned_preflight_and_busy_preserve_source_publications() {
     });
     assert_eq!(snapshot(&counted).last_copied_frame, Some(1));
     assert_eq!(recorder.snapshot().dropped_full, 0);
+    reader_leases::verify_fault_cause(&mut pool, versioned);
 }

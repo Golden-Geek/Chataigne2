@@ -764,6 +764,96 @@ default/native all-target Clippy, generated fixture contracts, release x64 build
 formatters. Full cadence/repetition, GPU/queue/deadline, growth/handle, genuine removal/stuck
 retirement and M05 physical observations remain open. **M03 stays 7/9; overall stays 3/10 (30%)**.
 
+## Shared reader ownership across plan generations — 2026-10-30
+
+The prior Q02 minimize trace contains 14 renderer frames with no source-B publication.
+Its worker restarts with generation/pool 2, and ten captured Spout images cannot join an exact
+source-use version. Four more images are never captured. Source A stays in generation 1.
+The independent output HWND is created without an editor owner; the failure is not explained
+by hiding that window through ownership.
+
+Golden Video's input pool previously acquired a new keyed-mutex Reader for each target copy.
+A prepared generation starts with no prior copy, so it may copy an unchanged publication
+already owned by an earlier in-flight renderer frame. The keyed mutex is
+[nonrecursive](https://learn.microsoft.com/en-us/windows/win32/api/dxgi/nf-dxgi-idxgikeyedmutex-acquiresync).
+A controlled static-source regression reproduces **`DXGI_ERROR_INVALID_CALL (0x887A0001)`**
+on the second target while the first Reader is retained. Its failing log is preserved.
+
+Each input now owns one Reader per admitted bridge slot. A matching immutable allocation
+reuses that device's existing ownership and extends its completion serial to the latest
+submitted use. Reuse checks exact allocation identity, not just a recycled slot index. A
+replacement cannot displace an unfinished reader. The fixed three-slot index needs no
+per-frame metadata allocation or cross-source lookup; retirement is still completion-based. No new
+texture, copy stage, in-flight capacity or source-pacing change is introduced. The native
+regression verifies both target images, retention after the first completion serial, and
+release after the last. Its small independent readback helper now supports the 8×8 case.
+
+Source recovery also records the actual import/ownership HRESULT before publishing its fault
+flag. The source device's removal reason is queried separately. Previously, any ownership
+fault caused the worker to report `0x887A0005`; the historical source-B report therefore cannot
+prove genuine device removal. A separate controlled logical-fault recovery verifies the
+original `0x887A0001` remains observable. This does not qualify real device removal or stuck
+retirement. The source wait remains 2 ms per lock and renderer send admission remains zero.
+Artifact schema 8 and the generated control contracts are unchanged.
+
+One release diagnostic per scenario retains Intel adapter 0, LUID `00000000:00016c2a`, 5 s
+warmup, 5 s sample and 1 s per interruption. The fixed controls add the existing pinned,
+PID-filtered PresentMon collector; the published before controls have no collector. Inputs
+and executables remain stable within each run. This is a functional/regression comparison,
+not an isolated timing experiment. No graphics setting or WPR profile changes.
+
+| Metric | Q01 before | Q01 fixed + collector | Q02 before | Q02 fixed + collector |
+| --- | --- | --- | --- | --- |
+| Renderer GPU median / p95 / p99 / max, ms | 3.5804 / 4.1983 / 4.7224 / 6.3955 | 2.9971 / 4.0514 / 4.2478 / 4.2837 | 10.3355 / 11.7707 / 15.2588 / 16.9607 | 14.4418 / 15.8522 / 16.4395 / 17.2716 |
+| Accepted API calls main / Spout / editor | 300 / 300 / 300 | 300 / 300 / 300 | 300 / 300 / 300 | 300 / 300 / 295 |
+| Producer A / B accepted, of 300 each | 300 / 300 | 300 / 300 | 300 / 300 | 300 / 300 |
+| Exact sample Spout captures | 300/300 | 300/300 | 300/300 | 300/300 |
+| Source-B generation / pool at end | 1 / 1 | 1 / 1 | 2 / 2 | 1 / 1 |
+| Source A / B to sample Spout capture p95, ms | 23.6461 / 12.3820 | 13.8049 / 15.1107 | 16.9018 / 27.0118 | 27.6082 / 31.6767 |
+| Minimized-editor exact Spout captures | 60/60 | 60/60 | 45/59 | 55/59 |
+| Disconnected-editor exact Spout captures | 60/60 | 60/60 | 56/60 | 51/60 |
+| Logical reservation peak, bytes | 144,691,264 | 144,691,264 | 468,172,864 | 468,172,864 |
+
+Both fixed controls keep both sources in generation/pool 1 with no reported error, no missing
+source-use publication in sample/interruption CPU cohorts, and no invalid captured lineage.
+Q02 minimized-editor still has main 55 accepted / four Busy and Spout 59 accepted, with four
+uncaptured Spout images and covered source ages p95 46.2674/58.9162 ms. Disconnect accepts
+main 58 / two Busy and Spout 60, capturing 51/60 with ages 62.1145/66.1716 ms. Those failures
+are preserved. The required 60-second interruption observations are still absent.
+
+The exact collector is healthy with zero reported live ETW loss. Q01 sample joins all 300
+main and 300 editor calls; Q02 joins all 300 main and 295 editor calls. No joined call is
+dropped or lacks a software-display time/source. Source-to-software-display p95 ages for Q02
+are 30.3812/34.2884 ms on main and 35.0849/39.1127 ms on editor. Minimized main still reaches
+51.2597/50.9728 ms. All 55 minimized main calls have exact rows, but 55 calls cannot replace
+60 opportunities. The intentionally minimized editor makes zero API calls; its empty display
+cohort remains empty rather than a pass. Exact accepted-call coverage does not qualify cadence,
+anchored deadlines, physical scanout, GPU readiness, native buffer occupancy or queue time.
+
+Remaining consumer timings also do not identify a UI/CPU block: Q02 minimized receive API
+wall p95/max is 0.259/0.376 ms, while its GPU-context span p95/max is 25.238/65.509 ms and first
+completed-poll delay is 27.111/65.953 ms. Disconnect values are API 0.309/0.330 ms, GPU-context
+44.543/51.982 ms and observed completion delay 47.778/54.065 ms. Query spans include waits and
+command-feed gaps; late polls do not prove late GPU readiness. These retained observations
+motivate supported GPU-clock/queue calibration, not another copy/scheduling variant.
+
+The [packet](evidence/mapgyver-m03-reader-lease-2026-10-30.json) and
+[3,147,211-byte raw archive](evidence/mapgyver-m03-reader-lease-controls-2026-10-30.zip)
+(343 members, SHA-256 `34bd4426bc7912f4b5cd349fde8543edcbbda09f9a54f527a2a70bcc99a85885`)
+retain both fixed captures/collectors, per-phase image/display audits, 269 execution sources,
+the failing repro and passing validation. The original repro definition is reconstructed
+from its retained test text; no pre-run source fingerprint was captured. The published before
+packet/archive remain unchanged and are linked by hash. Independent audits verify all 1,199
+sample GPU partitions and 1,647 exact Spout images among 1,678 accepted sample/interruption
+images, retaining 21 uncaptured images and ten unknown pre-fix lineages. Fixed Q01's GPU cohort
+is 299 CPU-start-selected frames with 299 valid rows and zero missing rows, while its API and
+anchored opportunity cohorts remain 300; their boundaries are not renormalized.
+
+Validation passes 154 ordinary Rust tests, 17 Golden native tests, two app-native tests,
+275 Python tests, strict Golden clippy, release build and both Rust formatters. Gate 9 retains
+complete GPU/queue, prescribed cadence/interruption/growth and display deadline/age requirements;
+genuine device removal/stuck retirement retain gate 4. **M03 stays 7/9; overall stays 30%.**
+
 ## Isolated source send ownership wait — 2026-10-30
 
 Golden Video's renderer and qualification producers previously shared the same zero-timeout

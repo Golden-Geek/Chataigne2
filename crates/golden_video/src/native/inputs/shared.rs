@@ -24,7 +24,7 @@ pub(super) struct Shared {
     pub quiescing: AtomicBool,
     pub retiring: AtomicBool,
     pub released: AtomicBool,
-    pub unlock_failed: AtomicBool,
+    pub faulted: AtomicBool,
     pub shutdown: AtomicBool,
     pub notify: Option<WorkerNotifier>,
     pub worker_notify: Mutex<Option<WorkerNotifier>>,
@@ -80,6 +80,12 @@ impl Shared {
         if let Some(notify) = &self.notify {
             notify.notify();
         }
+    }
+
+    pub fn record_fault(&self, hresult: i32) {
+        self.update(|status| status.hresult = Some(hresult));
+        // Publish the cause before the worker observes the recovery request.
+        self.faulted.store(true, Ordering::Release);
     }
 
     fn update_demand(&self, add: bool) {

@@ -1,6 +1,5 @@
 use std::os::windows::io::AsRawHandle;
 use std::rc::Rc;
-use std::sync::atomic::Ordering;
 use std::sync::{Arc, Weak};
 
 use windows::Win32::Foundation::HANDLE;
@@ -61,8 +60,7 @@ impl Drop for Reader {
         // SAFETY: only a successful AcquireSync constructs a Reader; core completion precedes
         // normal destruction. The surface lease is released after this native handoff.
         if let Err(error) = unsafe { self.imported.mutex.ReleaseSync(0) } {
-            self.shared.unlock_failed.store(true, Ordering::Release);
-            self.shared.update(|status| status.hresult = Some(error.code().0));
+            self.shared.record_fault(error.code().0);
         }
     }
 }
