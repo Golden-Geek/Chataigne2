@@ -66,6 +66,47 @@ fn picture_renderer(root: &Path) -> ChannelRenderer {
     renderer
 }
 
+#[cfg(all(windows, feature = "native-video"))]
+#[test]
+fn production_preview_budget_admits_a_4k_picture_shared_by_differently_sized_channels() {
+    let root = tempfile::tempdir().unwrap();
+    png(root.path(), "large.png", 3840, 2160, [255, 0, 0, 255]);
+    let mut engine = engine();
+    let asset = import(&mut engine, "large.png");
+    let first = create(&mut engine, MediaKind::Picture);
+    let MediaEditResult::Created { reference: second } = edit(
+        &mut engine,
+        MediaEdit::AddChannel {
+            media: first.media,
+            label: None,
+        },
+    ) else {
+        panic!()
+    };
+    select(&mut engine, first, asset);
+    select(&mut engine, second, asset);
+    let mut definition = channel(&engine, second).unwrap().definition;
+    definition.size = SizePolicy::Fixed {
+        extent: Extent2D::new(640, 360).unwrap(),
+    };
+    edit(
+        &mut engine,
+        MediaEdit::ConfigureChannel {
+            reference: second,
+            definition,
+        },
+    );
+    let config = crate::media::preview::config::configuration(None);
+    let mut renderer = ChannelRenderer::new(
+        VideoRuntime::spawn_null(config.video.clone(), NullConfig::default()).unwrap(),
+        config.video.plan_limits,
+    );
+    renderer.enable_pictures(root.path(), config.pictures, None).unwrap();
+    publish(&mut renderer, &engine, [first, second]);
+    settled(&mut renderer, [ready(3840, 2160), ready(640, 360)]);
+    finish(renderer);
+}
+
 #[test]
 fn close_releases_picture_leases_before_waiting_for_retirement_without_dropping_the_renderer() {
     let root = tempfile::tempdir().unwrap();

@@ -9,11 +9,8 @@ use crate::{
 use golden_core::{app::NativePresentationStop, application::ProductionRuntime};
 use golden_io::WorkerNotifier;
 use golden_video::native::{D3d11Config, D3d11Control, InputLimits, OutputBinding, WindowTarget, adapters};
-use golden_video::plan::PlanLimits;
 use golden_video::preview::{HostViewport, PreviewController, PreviewReceiver};
-use golden_video::runtime::{
-    CompletionToken, GenerationInfo, OutcomeKind, ResourceLimits, RuntimeConfig, VideoRuntime,
-};
+use golden_video::runtime::{CompletionToken, GenerationInfo, OutcomeKind, VideoRuntime};
 use golden_video::{AlphaMode, ColorEncoding, Extent2D, OutputId, PixelFormat, TextureDescriptor};
 use std::{
     io,
@@ -51,30 +48,10 @@ fn create(hwnd: isize, extent: Extent2D, notifier: WorkerNotifier) -> io::Result
         .find(|adapter| !adapter.software)
         .ok_or_else(|| io::Error::other("no native preview adapter"))?
         .id;
-    let limits = PlanLimits {
-        max_passes: 24,
-        max_external_textures: 8,
-        max_outputs: 8,
-        max_dependencies: 128,
-        max_texture_dimension: 8192,
-        max_texture_bytes: 256 * 1024 * 1024,
-    };
+    let config = super::config::configuration(Some(notifier.clone()));
+    let limits = config.video.plan_limits;
     let runtime = VideoRuntime::spawn_d3d11(
-        RuntimeConfig {
-            plan_limits: limits,
-            resource_limits: ResourceLimits {
-                max_bytes: 512 * 1024 * 1024,
-                max_in_flight: NonZeroUsize::new(2).unwrap(),
-                max_retiring: 2,
-            },
-            frame_rate: golden_time::RationalRate::new(60, 1).unwrap(),
-            max_outstanding: NonZeroUsize::new(8).unwrap(),
-            max_input_bytes: NonZeroUsize::new(1024 * 1024).unwrap(),
-            max_retained_input_bytes: NonZeroUsize::new(4 * 1024 * 1024).unwrap(),
-            recovery_delay: Duration::from_millis(100),
-            max_recovery_delay: Duration::from_secs(2),
-            notifier: Some(notifier.clone()),
-        },
+        config.video,
         D3d11Config {
             diagnostics: None,
             adapter,
@@ -98,13 +75,9 @@ fn create(hwnd: isize, extent: Extent2D, notifier: WorkerNotifier) -> io::Result
         .renderer
         .native_control()
         .ok_or_else(|| io::Error::other("native preview control missing"))?;
-    let preparation = golden_assets::PreparationLimits {
-        max_decode_bytes: NonZeroUsize::new(128 * 1024 * 1024).unwrap(),
-        ..Default::default()
-    };
     owner
         .renderer
-        .enable_pictures(&std::env::current_dir()?, preparation, Some(notifier))
+        .enable_pictures(&std::env::current_dir()?, config.pictures, Some(notifier))
         .map_err(io::Error::other)?;
     Ok((owner, native))
 }

@@ -94,9 +94,11 @@ fn decode_png(input: &mut AssetInput, maximum_bytes: usize) -> Result<Decoded, P
     if header.bit_depth == png::BitDepth::Sixteen {
         return Err(PreparationFailure::Decode);
     }
-    // Four raw bytes and two RGBA buffers include a possible orientation allocation.
-    let output_work = pixels.checked_mul(12).ok_or(PreparationFailure::ResourcePressure)?;
-    if output_work > available - codec_bytes {
+    // The reader/codec is dropped before conversion; conversion's raw buffer is dropped
+    // before orientation. Charge the peak live phase, rather than adding disjoint buffers.
+    let raw_work = pixels.checked_mul(4).ok_or(PreparationFailure::ResourcePressure)?;
+    let conversion_work = pixels.checked_mul(8).ok_or(PreparationFailure::ResourcePressure)?;
+    if raw_work > available - codec_bytes || conversion_work > available {
         return Err(PreparationFailure::ResourcePressure);
     }
     let mut reader = decoder.read_info().map_err(png_failure)?;

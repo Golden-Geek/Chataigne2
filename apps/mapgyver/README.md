@@ -86,13 +86,19 @@ IO, plan building and rendering stay on the preparation worker. Picture roots fo
 current project's directory. A coarse worker wake detects authored guard changes without
 polling the actor; geometry, GPU and file completion also notify the worker.
 
-Native Solid Color output and normal shutdown after Picture demand have been observed in the
-ordinary app. Picture display remains unverified after correcting a reproduced admission-accounting
-failure: prepared assets now retain their decoded result's weight, rather than the whole decode
-scratch allowance. Actual retained bytes and working reservations remain bounded. The app's 1 MiB
-per-plan input bound still limits larger pictures and shared-input counts; full source-budget
-integration remains open. This is functional integration, not timing, color/DPI, recovery or resource
-qualification. The retained native failures are recorded in the ledger.
+Native Solid Color and 4K PNG Picture output have been observed in the ordinary app. Explicit
+relink to an HD image, missing-file feedback, relink recovery and normal Picture shutdown also
+worked with stable channel/asset references. These checks used public backend operations;
+interactive Picture controls and complete source/recovery/parity acceptance remain open.
+
+`src/media/preview/config.rs` owns production admission. Raw plan-input limits increased from
+1/4 MiB per-plan/aggregate to 257/260 MiB because their accounting includes retained image leases.
+This adds no pixel copy: the preparation cache remains capped at 256 MiB, source input at 64 MiB,
+decode workspace at 128 MiB, GPU resources at 512 MiB and native Spout input at 256 MiB.
+PNG workspace admission now charges peak overlapping buffer lifetimes rather than adding
+disjoint codec/conversion/orientation phases. JPEG admission remains conservative; 4K JPEG was
+not verified. No M03 qualification budget changed or is claimed satisfied. Physical 4K output,
+color/alpha accuracy, timing and resource qualification retain their existing gates and failures.
 Remaining M04 source/recovery/UI parity checks are tracked in the
 [active acceptance ledger](../../docs/progress/mapgyver-status.md#m04-acceptance-items).
 The native feasibility probe under `tools/mapgyver/native-probe` remains a separate

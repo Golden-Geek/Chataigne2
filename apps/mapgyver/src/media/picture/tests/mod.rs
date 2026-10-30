@@ -158,7 +158,7 @@ fn unsupported_explicit_gamma_chromaticities_and_sixteen_bit_png_fail() {
 fn dimensions_and_working_allocation_are_admitted_before_pixel_decode() {
     let overwide = png(info(16_385, 1, png::ColorType::Rgba), &vec![0; 16_385 * 4]);
     assert!(matches!(prepare(&overwide, BUDGET), Err(PreparationFailure::Decode)));
-    let small = png(info(64, 64, png::ColorType::Rgba), &vec![0; 64 * 64 * 4]);
+    let small = png(info(128, 128, png::ColorType::Rgba), &vec![0; 128 * 128 * 4]);
     assert!(matches!(
         prepare(&small, 128 * 1024),
         Err(PreparationFailure::ResourcePressure)
