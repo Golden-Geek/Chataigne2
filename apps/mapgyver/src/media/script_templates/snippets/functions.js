@@ -1,4 +1,4 @@
-// Media Manager functions. All edits use the Rust MediaEdit contract and one atomic history step.
+// Media Manager functions. Authored edits use the Rust MediaEdit contract and one atomic history step.
 // local.editMedia(requestId, JSON.stringify(mediaEdit))
 // local.inspectMedia(requestId)
 // A command node exposes execute(), using its authored Request and Request Id parameters.
@@ -29,6 +29,11 @@
 // SetCells accepts assignments: [{ layer, column, source: channelReferenceOrNull }].
 // Configure/ConfigureItem/ConfigureColumn, copy, move/reorder, rename and removal use the same route.
 // Authored cells reference channels without owning them; feedback is rejected across all media.
+// local.editMedia("launch", JSON.stringify({ kind: "Matrix", media: matrixMediaId,
+//   edit: { kind: "LaunchColumn", column: columnId, mode: "Cut" } }));
+// InspectPlayback reads committed desired state, independently of selection or renderer installation.
+// Launches are ephemeral and do not add authored history. Configured nonzero fades currently reject;
+// use an explicit Cut until timed transition execution is available.
 
 function init() {
   // Subscribe once. No update callback or periodic polling is needed.

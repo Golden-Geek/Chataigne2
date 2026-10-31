@@ -157,6 +157,11 @@ pub struct CellAssignment {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MatrixEdit {
+    LaunchColumn {
+        column: ColumnId,
+        mode: LaunchMode,
+    },
+    InspectPlayback,
     Inspect,
     Configure {
         definition: MatrixDefinition,
@@ -212,4 +217,17 @@ pub enum MatrixEdit {
     SetCells {
         assignments: Vec<CellAssignment>,
     },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub enum LaunchMode {
+    Configured,
+    Cut,
+}
+
+/// Committed desired state, distinct from UI selection and actual renderer installation.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct MatrixPlaybackSnapshot {
+    pub desired_column: Option<ColumnId>,
+    pub launch_id: Option<uuid::Uuid>,
 }

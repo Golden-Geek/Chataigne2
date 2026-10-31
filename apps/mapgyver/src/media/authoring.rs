@@ -84,6 +84,18 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
         return Err("unsupported media operation".into());
     }
     let edit: MediaEdit = serde_json::from_value(payload).map_err(|error| error.to_string())?;
+    if let MediaEdit::Matrix {
+        media,
+        edit: crate::matrix::protocol::MatrixEdit::LaunchColumn { column, mode },
+    } = edit
+    {
+        return serde_json::to_value(crate::matrix::apply(
+            engine,
+            media,
+            crate::matrix::protocol::MatrixEdit::LaunchColumn { column, mode },
+        )?)
+        .map_err(|error| error.to_string());
+    }
     let pending_before = engine.edits.pending.len();
     let result = match edit {
         MediaEdit::Matrix { media, edit } => crate::matrix::apply(engine, media, edit)?,

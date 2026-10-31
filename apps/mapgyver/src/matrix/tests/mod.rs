@@ -10,6 +10,7 @@ use golden_core::{
 };
 
 mod copying;
+mod playback;
 mod validation;
 
 fn fixture() -> AppEngine {

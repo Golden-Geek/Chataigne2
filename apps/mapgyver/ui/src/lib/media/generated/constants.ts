@@ -2,3 +2,4 @@
 export const MEDIA_NAMESPACE = "mapgyver.media";
 export const MEDIA_OPERATION = "edit";
 export const SENDER_DISCOVERY_EVENT = "mapgyver-sender-discovery";
+export const MATRIX_PLAYBACK_EVENT = "mapgyver.matrix.playback";

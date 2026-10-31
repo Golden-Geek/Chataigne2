@@ -8,7 +8,8 @@
 	import type { MediaEdit } from './generated/MediaEdit';
 	import type { MediaEditResult } from './generated/MediaEditResult';
 	import type { TransitionCurve } from './generated/TransitionCurve';
-	import { MEDIA_NAMESPACE } from './generated/constants';
+	import { MEDIA_NAMESPACE, MATRIX_PLAYBACK_EVENT } from './generated/constants';
+	import type { MatrixPlaybackSnapshot } from './generated/MatrixPlaybackSnapshot';
 	import { invokeMediaEdit } from './operations';
 	import { channelKey, channelReferenceFromKey } from './identity';
 	import SourcePicker from '../composition/SourcePicker.svelte';
@@ -25,6 +26,58 @@
 	} = $props();
 	const session = $derived(appState.session);
 	let snapshot = $state<MatrixSnapshot | null>(null);
+	let playback = $state<MatrixPlaybackSnapshot | null>(null);
+	const columnLabels = $derived(
+		new Map(snapshot?.columns.map((column) => [column.id, column.label]))
+	);
+	let playbackRequest = 0;
+	async function refreshPlayback(current = session, media = channel.reference.media) {
+		const request = ++playbackRequest,
+			generation = current?.snapshotGeneration;
+		playback = null;
+		if (!current || current.status !== 'connected' || current.loading.visible) return;
+		try {
+			const result = await invokeMediaEdit(current, {
+				kind: 'Matrix',
+				media,
+				edit: { kind: 'InspectPlayback' }
+			});
+			if (
+				request === playbackRequest &&
+				session === current &&
+				current.status === 'connected' &&
+				!current.loading.visible &&
+				current.snapshotGeneration === generation &&
+				channel.reference.media === media &&
+				result.kind === 'MatrixPlayback'
+			)
+				playback = result.snapshot;
+		} catch (cause) {
+			if (
+				request === playbackRequest &&
+				session === current &&
+				current.snapshotGeneration === generation &&
+				channel.reference.media === media
+			)
+				error = String(cause);
+		}
+	}
+	$effect(() => {
+		const current = session,
+			media = channel.reference.media;
+		if (current) {
+			void current.status;
+			void current.loading.visible;
+			void current.snapshotGeneration;
+			void current.getCustomEventSequence(MATRIX_PLAYBACK_EVENT);
+		}
+		untrack(() => {
+			void refreshPlayback(current, media);
+		});
+		return () => {
+			++playbackRequest;
+		};
+	});
 	let refreshing = $state(false),
 		pending = $state(false),
 		error = $state('');
@@ -164,7 +217,8 @@
 				current?.snapshotGeneration === generation &&
 				channel.reference.media === media
 			)
-				await refresh(current, media);
+				if (result.kind === 'MatrixLaunched') await refreshPlayback(current, media);
+				else await refresh(current, media);
 		} finally {
 			pending = false;
 		}
@@ -191,6 +245,30 @@
 			<button disabled={busy} onclick={() => mutate({ kind: 'AddColumns', count: 1 })}
 				>Add column</button>
 		</div>
+		<fieldset disabled={busy}>
+			<legend>Column playback</legend>
+			<p>
+				Requested column: {playback?.desired_column
+					? (columnLabels.get(playback.desired_column) ?? 'Missing column')
+					: 'None'}
+			</p>
+			<p>Cut launches switch immediately. Timed transitions are not available yet.</p>
+			<input
+				type="search"
+				aria-label="Find column to launch"
+				placeholder="Find a column…"
+				bind:value={columnSearch} />
+			<div class="actions">
+				{#each visibleColumns as column (column.id)}
+					<button
+						type="button"
+						onclick={() => mutate({ kind: 'LaunchColumn', column: column.id, mode: 'Cut' })}
+						>Cut to {column.label}</button>
+				{/each}
+			</div>
+			<small
+				>Shows up to 100 matching columns. Requested state is distinct from renderer installation.</small>
+		</fieldset>
 		<form
 			onsubmit={(event) => {
 				event.preventDefault();

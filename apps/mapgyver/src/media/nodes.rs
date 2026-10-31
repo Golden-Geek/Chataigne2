@@ -1,4 +1,7 @@
-use std::{any::Any, sync::Arc};
+use std::{
+    any::Any,
+    sync::{Arc, OnceLock},
+};
 
 use golden_core::events::CustomEvent;
 use golden_core::node::{Node, NodeData, NodeScriptDescriptor, UserContainerRules, UserCreatableItem};
@@ -134,6 +137,7 @@ pub struct MediaNode {
     data: NodeData,
     pub(crate) kind: MediaKind,
     membership: RevisionSource,
+    matrix_root: OnceLock<golden_core::node::NodeUuid>,
 }
 
 impl MediaNode {
@@ -142,11 +146,18 @@ impl MediaNode {
             data: NodeData::new(label),
             kind,
             membership: RevisionSource::default(),
+            matrix_root: OnceLock::new(),
         }
     }
     pub(crate) fn guard(&self) -> RevisionGuard {
         let reader = self.membership.reader();
         reader.guard_at(reader.current())
+    }
+    pub(crate) fn matrix_root(&self) -> Option<golden_core::node::NodeUuid> {
+        self.matrix_root.get().copied()
+    }
+    pub(crate) fn cache_matrix_root(&self, root: golden_core::node::NodeUuid) {
+        let _ = self.matrix_root.set(root);
     }
 }
 
@@ -198,14 +209,23 @@ pub struct ChannelNode {
     data: NodeData,
     definition: ChannelDefinition,
     revision: RevisionSource,
+    matrix_playback: Option<crate::matrix::playback::PlaybackControl>,
 }
 
 impl ChannelNode {
     pub(crate) fn new(label: String, definition: ChannelDefinition) -> Self {
+        let matrix_playback = matches!(
+            definition.source,
+            super::protocol::ChannelSource::Matrix {
+                output: crate::matrix::protocol::MatrixOutput::Final { .. }
+            }
+        )
+        .then(crate::matrix::playback::PlaybackControl::default);
         Self {
             data: NodeData::new(label),
             definition,
             revision: RevisionSource::default(),
+            matrix_playback,
         }
     }
     pub(crate) fn definition(&self) -> &ChannelDefinition {
@@ -213,6 +233,21 @@ impl ChannelNode {
     }
     pub(crate) fn set_definition(&mut self, definition: ChannelDefinition) {
         if self.definition != definition {
+            if let Some(control) = &self.matrix_playback {
+                control.invalidate();
+            }
+            let final_output = matches!(
+                definition.source,
+                super::protocol::ChannelSource::Matrix {
+                    output: crate::matrix::protocol::MatrixOutput::Final { .. }
+                }
+            );
+            if final_output && self.matrix_playback.is_none() {
+                self.matrix_playback = Some(crate::matrix::playback::PlaybackControl::default());
+            }
+            if !final_output && let Some(control) = self.matrix_playback.take() {
+                control.clear();
+            }
             self.revision.advance();
             self.definition = definition;
         }
@@ -221,10 +256,16 @@ impl ChannelNode {
         let reader = self.revision.reader();
         reader.guard_at(reader.current())
     }
+    pub(crate) fn matrix_playback(&self) -> Option<&crate::matrix::playback::PlaybackControl> {
+        self.matrix_playback.as_ref()
+    }
 }
 
 impl Node for ChannelNode {
     fn on_structure_changed(&mut self, _: &mut ProcessCtx) {
+        if let Some(control) = &self.matrix_playback {
+            control.invalidate();
+        }
         self.revision.advance();
     }
     fn user_container_rules(&self) -> Option<UserContainerRules> {
@@ -282,6 +323,9 @@ impl Node for ChannelNode {
         })
     }
     fn destroy(&mut self, _: &mut ProcessCtx) {
+        if let Some(control) = &self.matrix_playback {
+            control.clear();
+        }
         self.revision.advance();
     }
     fn on_effective_enabled_changed(&mut self, _: &mut ProcessCtx, _: bool) {

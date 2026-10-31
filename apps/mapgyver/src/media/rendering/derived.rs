@@ -1,9 +1,9 @@
-//! Bounded graph ordering and affine mapping run on the preparation worker.
+//! Bounded derived-channel ordering and geometry run on the preparation worker.
 use super::PreparedChannel;
 use crate::media::resolution::ChannelAvailability;
 use crate::media::{
     capture::{CapturedChannel, CapturedChannels},
-    protocol::{ChannelReference, ChannelSource},
+    protocol::ChannelReference,
 };
 use golden_video::plan::{Layer, Point, ProjectiveMapping, Quad, SampleFilter, UnitRect};
 use golden_video::{Extent2D, Opacity};
@@ -14,6 +14,7 @@ pub(super) fn ordered(
     roots: &[ChannelReference],
     mut budget: usize,
     mut guard_budget: usize,
+    mut extra_passes: usize,
 ) -> Result<(Vec<ChannelReference>, HashSet<ChannelReference>), String> {
     let channels = capture
         .channels
@@ -33,7 +34,7 @@ pub(super) fn ordered(
             }
             match states.get(&reference) {
                 Some(2) => continue,
-                Some(1) => return Err("captured Composition dependency cycle".into()),
+                Some(1) => return Err("captured channel dependency cycle".into()),
                 _ => {}
             }
             let channel = channels
@@ -41,23 +42,19 @@ pub(super) fn ordered(
                 .ok_or("dependency was not captured from the backend")?;
             states.insert(reference, 1);
             pending.push((reference, true));
-            if channel.enabled
-                && channel
-                    .definition
-                    .as_ref()
-                    .is_some_and(|definition| matches!(definition.source, ChannelSource::Composition { .. }))
-            {
-                match &channel.instances {
-                    Some(instances) if instances.len() <= budget && channel.instance_guards.len() <= guard_budget => {
-                        budget -= instances.len();
+            if channel.enabled && channel.derived() {
+                let extra = usize::from(channel.matrix.as_ref().is_some_and(|matrix| matrix.needs_scratch()));
+                let count = channel.dependencies().count() + extra;
+                match channel.instances.is_some() || channel.matrix.is_some() {
+                    true if count <= budget
+                        && channel.instance_guards.len() <= guard_budget
+                        && extra <= extra_passes =>
+                    {
+                        budget -= count;
                         guard_budget -= channel.instance_guards.len();
-                        pending.extend(
-                            instances
-                                .iter()
-                                .rev()
-                                .filter_map(|instance| instance.source)
-                                .map(|source| (source, false)),
-                        );
+                        extra_passes -= extra;
+                        let children = channel.dependencies().collect::<Vec<_>>();
+                        pending.extend(children.into_iter().rev().map(|source| (source, false)));
                     }
                     _ => {
                         rejected.insert(reference);
@@ -69,7 +66,7 @@ pub(super) fn ordered(
     Ok((result, rejected))
 }
 
-pub(super) fn layers(
+pub(super) fn composition_layers(
     channel: &CapturedChannel,
     canvas: Extent2D,
     filter: SampleFilter,
@@ -128,9 +125,33 @@ pub(super) fn reachable(
         if !live.insert(reference) || rejected.contains(&reference) {
             continue;
         }
-        if let Some(instances) = channels.get(&reference).and_then(|channel| channel.instances.as_ref()) {
-            pending.extend(instances.iter().filter_map(|instance| instance.source));
+        if let Some(channel) = channels.get(&reference) {
+            pending.extend(channel.dependencies());
         }
     }
     live
+}
+
+pub(super) fn matrix_layers(
+    channel: &CapturedChannel,
+    filter: SampleFilter,
+    prepared: &HashMap<ChannelReference, PreparedChannel>,
+) -> Vec<Layer> {
+    channel
+        .matrix
+        .as_ref()
+        .unwrap()
+        .inputs
+        .iter()
+        .filter_map(|input| {
+            let source = prepared.get(&input.source)?;
+            (source.resolution.availability == ChannelAvailability::Ready).then(|| Layer {
+                source: source.target.into(),
+                opacity: Opacity::OPAQUE,
+                blend: input.blend,
+                filter,
+                mapping: None,
+            })
+        })
+        .collect()
 }

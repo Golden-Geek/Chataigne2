@@ -1,7 +1,7 @@
 //! App-owned channel preparation/publication. Construct and drive this owner on a host or
 //! preparation worker, never the engine/UI thread. Golden owns frame cadence and GPU cleanup.
 
-mod composition;
+mod derived;
 mod plan;
 mod sources;
 pub use crate::preview::layout::PreviewLayout;
@@ -38,6 +38,7 @@ pub struct PreparedChannel {
 struct Entry {
     target: TextureId,
     source: Option<(TextureId, ChannelSource)>,
+    scratch: Option<TextureId>,
 }
 
 pub struct ChannelRenderer {
@@ -212,11 +213,12 @@ impl ChannelRenderer {
             for screen in &screens {
                 demanded.extend(screen.screen.references());
             }
-            demanded = composition::ordered(
+            demanded = derived::ordered(
                 &capture,
                 &demanded,
                 self.limits.max_dependencies,
                 self.limits.max_dependencies,
+                self.limits.max_passes.saturating_sub(capture.channels.len()),
             )?
             .0;
             pictures.sync(&capture, &demanded, self.limits.max_external_textures)?;

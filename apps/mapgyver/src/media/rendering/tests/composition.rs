@@ -90,7 +90,7 @@ fn demanded_nested_channels_render_once_for_shared_instances_and_outputs() {
         panic!()
     };
     assert_eq!(
-        layers.iter().map(|layer| layer.source.clone()).collect::<Vec<_>>(),
+        layers.iter().map(|layer| layer.source).collect::<Vec<_>>(),
         vec![LayerSource::Texture(inner_target), LayerSource::Texture(leaf_target)]
     );
     assert!(

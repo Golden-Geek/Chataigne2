@@ -89,7 +89,7 @@
 			const result = await invokeMediaEdit(session, intent);
 			if (result.kind === 'Created' || result.kind === 'PictureImported')
 				selected = result.reference.channel;
-			await refresh();
+			if (result.kind !== 'MatrixLaunched') await refresh();
 			return result;
 		} catch (cause) {
 			error = String(cause);

@@ -5,8 +5,8 @@
 **Updated: 2026-10-31 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
 **Current topic:** M07 Matrix document/module foundation accepted, **1/4 gates (25%)**;
-sparse authoring, stable layer/group/final exports, history and command/script integration now work.
-Playback/launch transitions and the virtualized grid remain open. M06 authoring remains **1/4**;
+sparse authoring, explicit atomic Cut launches and shared layer/group/final production now work.
+Timed transitions and the virtualized grid remain open. M06 authoring remains **1/4**;
 demanded nested rendering is implemented with software and native submission/lifetime smoke.
 The dockable Composition editor now includes source/instance/canvas controls, native preview binding
 and graphical selection/drag/rotate/scale with backend geometry and grouped history. Software
@@ -26,12 +26,13 @@ full source/UI/parity gates still open. M03 remains **7/9**; qualification no lo
 changes work order, not acceptance. M04 is **1/6 complete gates (17%)**; its full source,
 native preview, recovery and UI parity acceptance remains open.
 
-**Next:** M07 atomic column launch/transition state and demanded layer/group/final producer through
-shared Golden Time and the existing renderer, retaining outgoing sources and bounded publications.
-**Last delivered capability:** sparse Matrix authoring with stable exported channels, atomic cell
-assignment, group/column copy, all-media feedback rejection and complete module/script integration;
-Media Manager includes Matrix creation/settings/assignment controls (batch 22). Playback remains
-explicitly unavailable until the producer is implemented; interactive Matrix evidence is still open.
+**Next:** M07 shared frame-time fades and interruption state, preserving outgoing source demand
+through final use with bounded publications; then the virtualized grid.
+**Last delivered capability:** atomic ephemeral Matrix Cut launches, demanded shared layer/group/final
+passes, post-composite group opacity and transparent empty columns. Media Manager has bounded Cut
+controls and requested-column feedback (batch 23). Software verification covers commit/discard,
+bursts, deduplication, admission, mute/deletion/Undo and index reuse. Native Matrix pixels and actual
+editor interaction remain unverified; configured nonzero fades reject explicitly.
 M04's full source/UI/recovery gates remain open and owned by M04. No timing/driver
 qualification or M03 stash work is scheduled.
 **Implementation limits:** native checks cover PNG relink, finite crop/warp/color oracles, live
@@ -75,6 +76,56 @@ no item closure; future breakdowns must preserve the complete acceptance scope a
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
 
 ### M07 acceptance items
+
+**Product batch 23:** started 2026-10-31 **03:58 UTC**, recorded stop **04:43 UTC**.
+Deliver atomic Matrix column launches and demanded layer/group/final execution through the existing
+renderer and Golden Time boundary. Own launch/empty-cell/transition policy in MapGyver; keep frame
+evaluation off the engine and UI. Preserve outgoing source demand through interrupted transitions
+and keep submissions, retained state and resource admission bounded. Start with fake-time/reference
+checks and shared-source/output deduplication, then the ordinary build. If the full transition
+mechanism needs a separate shared primitive, checkpoint a coherent working launch/producer slice
+with the complete remaining transition acceptance explicit; do not invent native qualification
+prerequisites. At most two finite native experiments/20 minutes after software prerequisites pass.
+No desktop/driver/clock recovery is scheduled, and M07 gate 2 stays open until its full scope passes.
+
+Batch 23 scope decision: Golden currently has static layer opacity, not frame-time interpolation.
+Deliver explicit Cut launches and shared Matrix production first; configured nonzero transitions
+must reject rather than silently cut or resubmit plans every frame. Timed fades/interruption and
+outgoing retention remain the next required slice, with the full gate 2 acceptance unchanged.
+Use existing edit-completion receipts to keep ephemeral launch state invisible until commit and
+discard failed requests; no new Golden Core callback/journal mechanism is needed.
+
+**Batch 23 result:** explicit `LaunchColumn { mode: Cut }` now selects one column atomically for
+all derived exports. A pending edit receipt cannot publish state; failed/discarded requests preserve
+the preceding committed launch. Requests keep one latest ephemeral slot, add no authored history
+and reset on reload. `Configured` accepts a zero-duration column override but rejects nonzero fades;
+the existing 250 ms default is not silently converted to a cut. Foreign-column ownership rejects.
+One dedicated playback event and small `InspectPlayback` response avoid catalog/document refreshes
+on each launch. Existing commands/scripts/callbacks and updated snippets use the same generated DTOs.
+
+The Final owner caches a sparse immutable authored index. Cuts reuse it; demand walks populated
+immediate children and skips already represented group subtrees. Element changes/structure/enable,
+deletion and Undo invalidate cached captures. The first capture after an authored revision rebuilds
+the document index; its full large-grid cost remains qualification work. Matrix and Composition
+share dependency ordering and one pass per demanded channel. Independent Final/Group/Layer consumers
+share leaf sources. Groups apply opacity once after compositing their ordered children via a bounded
+scratch pass when needed. Empty/unlaunched/deleted columns render transparent and demand no sources.
+Scratch/edge admission preserves existing limits and can withdraw the affected producer while a
+healthy output continues. Preview/Screen pass overhead is reserved before admitting scratch targets.
+
+Media Manager now exposes bounded searchable explicit Cut buttons and committed requested-column
+feedback, distinct from renderer installation; selecting or assigning a source never launches it.
+The virtualized grid, preparation/live indicators, shared-time fades/interruption/outgoing retention
+and full native/interactive/large-grid checks remain required. **No gate closes; M07 stays 1/4.**
+No native/desktop experiment or recovery investigation ran in this batch.
+Validation: **128 passing / 1 ignored** default Rust tests and **118/118** headless tests;
+generated protocol drift checks, strict all-target app Clippy, **26/26** frontend tests, Svelte
+**0 errors / 0 warnings**, app Prettier, both root/Golden Core formatting and the ordinary bundled
+MapGyver build pass. Tests include 1,000 launches without authored history/data changes, pending/
+discard isolation, zero-duration override and foreign-column rejection, shared-pass/post-group-alpha
+plan structure, scratch admission beside a healthy output, empty columns, mute/delete/Undo and index
+Arc reuse across cuts. Plan compilation/null execution does not verify native blend/alpha pixels.
+The build and checks finished before the recorded 04:43 UTC stop; no investigation was extended.
 
 Before M07 source implementation, its provisional whole-phase item is split into four fixed gates.
 Together these retain the complete plan acceptance. All start open; M07 progress is closed gates / 4.
@@ -1166,7 +1217,7 @@ The 2026-10-31 reinforcement requires checking the recorded cutoff before expand
 continuations do not reset investigation limits. The dashboard names a delivered capability
 alongside phase gates. Batch 16 retains its original 01:25 UTC cutoff.
 
-**Product-delivery count since correction: 22. Diagnostic-only batch allowance: 5, unused.**
+**Product-delivery count since correction: 23. Diagnostic-only batch allowance: 5, unused.**
 The first authoring slice and the new atomic Picture import capability (verified through backend/
 QuickJS) count as product delivery; the earlier workflow/docs checkpoint does not. Picture UI
 interaction is not counted as verified acceptance. The observed ordinary-app Solid Color preview
@@ -1201,7 +1252,9 @@ Graphical Composition selection/geometry and grouped history are the twenty-firs
 submission foundations permit M07, with real input and complete native pixel qualification open.
 Sparse Matrix authoring/module integration is the twenty-second and closes M07 gate 1; runtime
 launches/transitions, the virtualized grid and native qualification remain open.
-The allowance remains five at `floor(22 / 4)`, following the four-product-to-one-diagnostic ratio;
+Atomic Matrix cuts, shared derived production and explicit launch controls are the twenty-third;
+full timed transitions, virtualized grid, native pixels and interaction qualification remain open.
+The allowance remains five at `floor(23 / 4)`, following the four-product-to-one-diagnostic ratio;
 none of the five allowed diagnostic
 batches is scheduled, and consecutive diagnostic-only batches remain prohibited by default.
 Qualification may interrupt only for a reproduced blocker on the selected product path or an
@@ -1402,12 +1455,12 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-Deliver **M07 atomic column launch/transition state and demanded production** against the accepted
-sparse document and existing Composition/channel contracts. Use Golden Time for deterministic
-progress, preserve outgoing source demand through interrupted transitions, and publish shared
-layer/group/final targets once per demanded output. Keep product policy in MapGyver and reusable
-execution in Golden, with unchanged resource/admission budgets. Define fake-time/reference checks
-before implementation; the virtualized grid follows a coherent runtime checkpoint. Do not reopen
+Deliver **M07 frame-time fades and interruption state** against the working Cut/producer checkpoint.
+Use Golden Time for deterministic progress, preserve outgoing source demand through interrupted
+transitions and final use, and retain shared layer/group/final production. Keep product policy in
+MapGyver and add only the reusable interpolation primitive needed in Golden; no per-frame engine
+edits or plan churn. Preserve resource/admission budgets. Define fake-time/reference checks before
+implementation; the virtualized grid follows a coherent timed-runtime checkpoint. Do not reopen
 browser/privilege/driver/clock recovery to qualify the preceding editor before this work.
 Native checks must follow passing software prerequisites and stop after two runs/20 minutes;
 unavailable interactive evidence stays open. The 2D editor, Matrix-inclusive cycles and complete
@@ -1418,7 +1471,7 @@ their full source, UI, lifecycle and parity scope. Preserve Chataigne's root def
 
 Record the slice's owner, observable result, validation and 45-minute stopping time before
 coding. Ship and push a coherent product checkpoint before the next implementation batch.
-Twenty-two product slices are delivered; documentation checkpoints are excluded. Five diagnostic-only
+Twenty-three product slices are delivered; documentation checkpoints are excluded. Five diagnostic-only
 batches are allowed by the ratio but none is scheduled. Continue the product path;
 retained M03 qualification is not the default work queue.
 

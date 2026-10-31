@@ -126,11 +126,16 @@ pub(super) fn build(
         .saturating_sub(guards.len())
         .saturating_sub(observations.sources.len())
         .saturating_sub(image_guards);
-    let (references, mut rejected) = super::composition::ordered(
+    let (references, mut rejected) = super::derived::ordered(
         capture,
         &roots,
         limits.max_dependencies.saturating_sub(reserved),
         guard_budget,
+        limits
+            .max_passes
+            .saturating_sub(capture.channels.len())
+            .saturating_sub(screen_count)
+            .saturating_sub(if preview.is_some() { 3 } else { 0 }),
     )?;
     for reference in references {
         if let std::collections::hash_map::Entry::Vacant(slot) = entries.entry(reference) {
@@ -142,6 +147,7 @@ pub(super) fn build(
                 None => Entry {
                     target: allocate(next)?,
                     source: None,
+                    scratch: None,
                 },
             };
             let mut resolution = ChannelResolution {
@@ -214,15 +220,64 @@ pub(super) fn build(
                 }
                 Some(ChannelSource::Matrix { .. }) => {
                     entry.source = None;
-                    resolution =
-                        resolution::resolve(channel.definition.as_ref().unwrap(), SourceObservation::Unavailable)?;
+                    let definition = channel.definition.as_ref().unwrap();
+                    resolution = resolution::resolve(definition, SourceObservation::Unavailable)?;
+                    if !rejected.contains(&reference)
+                        && let Some(matrix) = &channel.matrix
+                    {
+                        let extent = match definition.size {
+                            crate::media::protocol::SizePolicy::Automatic => matrix.canvas,
+                            crate::media::protocol::SizePolicy::Fixed { extent } => extent,
+                        };
+                        let descriptor = TextureDescriptor {
+                            extent,
+                            format: PixelFormat::Rgba8Unorm,
+                            color_encoding: ColorEncoding::Linear,
+                            alpha_mode: AlphaMode::Premultiplied,
+                        };
+                        let mut layers = super::derived::matrix_layers(channel, definition.filter, &prepared_channels);
+                        if matrix.opacity < 1.0 && layers.len() > 1 {
+                            let scratch = match entry.scratch {
+                                Some(scratch) => scratch,
+                                None => allocate(next)?,
+                            };
+                            entry.scratch = Some(scratch);
+                            submission.plan.passes.push(RenderPass {
+                                id: PassId::new(scratch.get()).unwrap(),
+                                output: scratch,
+                                descriptor,
+                                operation: RenderOperation::Composite { layers },
+                            });
+                            layers = vec![golden_video::plan::Layer {
+                                source: scratch.into(),
+                                opacity: golden_video::Opacity::new(matrix.opacity)
+                                    .map_err(|error| error.to_string())?,
+                                blend: golden_video::plan::BlendMode::Normal,
+                                filter: definition.filter,
+                                mapping: None,
+                            }];
+                        } else {
+                            entry.scratch = None;
+                            if let Some(layer) = layers.first_mut() {
+                                layer.opacity =
+                                    golden_video::Opacity::new(matrix.opacity).map_err(|error| error.to_string())?;
+                            }
+                        }
+                        operation = RenderOperation::Composite { layers };
+                        resolution = resolution::resolve(definition, SourceObservation::Available(descriptor))?;
+                    }
                 }
                 Some(ChannelSource::Composition { canvas }) => {
                     entry.source = None;
                     let definition = channel.definition.as_ref().unwrap();
                     resolution = resolution::resolve(definition, SourceObservation::Unavailable)?;
                     if !rejected.contains(&reference) {
-                        match super::composition::layers(channel, *canvas, definition.filter, &prepared_channels) {
+                        match super::derived::composition_layers(
+                            channel,
+                            *canvas,
+                            definition.filter,
+                            &prepared_channels,
+                        ) {
                             Ok(layers) => {
                                 guards.extend(channel.instance_guards.iter().cloned());
                                 let descriptor = TextureDescriptor {
@@ -324,11 +379,14 @@ pub(super) fn build(
             slot.insert(entry);
         }
     }
-    // A rejected Composition never keeps otherwise-undemanded inputs or IO alive.
-    let live = super::composition::reachable(capture, &roots, &rejected);
+    // A rejected derived channel never keeps otherwise-undemanded inputs or IO alive.
+    let live = super::derived::reachable(capture, &roots, &rejected);
     entries.retain(|reference, _| live.contains(reference));
     channels.retain(|channel| live.contains(&channel.reference));
-    let targets = entries.values().map(|entry| entry.target).collect::<HashSet<_>>();
+    let targets = entries
+        .values()
+        .flat_map(|entry| std::iter::once(entry.target).chain(entry.scratch))
+        .collect::<HashSet<_>>();
     let sources = entries
         .values()
         .filter_map(|entry| entry.source.as_ref().map(|(source, _)| *source))

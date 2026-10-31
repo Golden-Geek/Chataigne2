@@ -32,6 +32,29 @@ pub(super) struct CapturedChannel {
     /// Admitted active Composition instances; None for leaves or rejected instance admission.
     pub instances: Option<Vec<InstanceDefinition>>,
     pub instance_guards: Vec<RevisionGuard>,
+    pub matrix: Option<crate::matrix::capture::CapturedMatrix>,
+}
+
+impl CapturedChannel {
+    pub fn dependencies(&self) -> impl Iterator<Item = ChannelReference> + '_ {
+        self.instances
+            .iter()
+            .flatten()
+            .filter_map(|instance| instance.source)
+            .chain(
+                self.matrix
+                    .iter()
+                    .flat_map(|matrix| matrix.inputs.iter().map(|input| input.source)),
+            )
+    }
+    pub fn derived(&self) -> bool {
+        self.definition.as_ref().is_some_and(|definition| {
+            matches!(
+                definition.source,
+                ChannelSource::Composition { .. } | ChannelSource::Matrix { .. }
+            )
+        })
+    }
 }
 
 impl CapturedChannels {
@@ -62,6 +85,8 @@ pub fn capture_channels(
     let mut channels = Vec::new();
     let mut assets = Vec::new();
     let mut seen_assets = HashSet::<AssetId>::new();
+    let mut guarded_matrices = HashSet::new();
+    let mut guarded_media = HashSet::new();
     let mut pending = std::collections::VecDeque::new();
     for &reference in references {
         if seen.insert(reference) {
@@ -76,7 +101,9 @@ pub fn capture_channels(
             .and_then(|id| engine.nodes.get(id));
         let definition = match media {
             Some(AppNode::Media(media)) if media.node_data().parent == Some(manager_id) => {
-                guards.push(media.guard());
+                if guarded_media.insert(reference.media) {
+                    guards.push(media.guard());
+                }
                 let channel = engine
                     .node_id_by_uuid(reference.channel.0)
                     .and_then(|id| engine.nodes.get(id));
@@ -104,6 +131,7 @@ pub fn capture_channels(
         };
         let mut instances = None;
         let mut instance_guards = Vec::new();
+        let mut matrix = None;
         if enabled
             && definition
                 .as_ref()
@@ -156,6 +184,36 @@ pub fn capture_channels(
         }
         if enabled
             && let Some(ChannelDefinition {
+                source: ChannelSource::Matrix { output },
+                ..
+            }) = &definition
+        {
+            matrix = crate::matrix::capture::capture(
+                engine,
+                reference,
+                output,
+                &mut instance_budget,
+                &mut guarded_matrices,
+                &mut guards,
+            )?;
+            let additions = matrix
+                .iter()
+                .flat_map(|matrix| matrix.inputs.iter().map(|input| input.source))
+                .filter(|source| !seen.contains(source))
+                .collect::<HashSet<_>>();
+            if seen.len().saturating_add(additions.len()) > limit {
+                matrix = None;
+            }
+            if let Some(matrix) = &matrix {
+                for source in matrix.inputs.iter().map(|input| input.source) {
+                    if seen.insert(source) {
+                        pending.push_back(source);
+                    }
+                }
+            }
+        }
+        if enabled
+            && let Some(ChannelDefinition {
                 source: ChannelSource::Picture { asset: Some(asset) },
                 ..
             }) = &definition
@@ -185,6 +243,7 @@ pub fn capture_channels(
             enabled,
             instances,
             instance_guards,
+            matrix,
         });
     }
     Ok(CapturedChannels {

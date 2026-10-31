@@ -6,6 +6,7 @@ use golden_core::{
 use golden_io::RevisionSource;
 use serde_json::Value;
 use std::any::Any;
+use std::sync::OnceLock;
 pub const LAYER_TYPE: &str = "mapgyver.matrix.layer";
 pub const GROUP_TYPE: &str = "mapgyver.matrix.group";
 pub const COLUMN_TYPE: &str = "mapgyver.matrix.column";
@@ -14,6 +15,7 @@ pub struct ElementNode {
     data: NodeData,
     definition: ElementDefinition,
     revision: RevisionSource,
+    runtime: OnceLock<super::playback::RuntimeBinding>,
 }
 impl ElementNode {
     pub(crate) fn new(label: String, definition: ElementDefinition) -> Self {
@@ -21,10 +23,20 @@ impl ElementNode {
             data: NodeData::new(label),
             definition,
             revision: RevisionSource::default(),
+            runtime: OnceLock::new(),
         }
     }
     pub(crate) fn definition(&self) -> &ElementDefinition {
         &self.definition
+    }
+    pub(super) fn bind_runtime(&self, binding: super::playback::RuntimeBinding) {
+        let _ = self.runtime.set(binding);
+    }
+    fn invalidate(&self) {
+        self.revision.advance();
+        if let Some(binding) = self.runtime.get() {
+            binding.invalidate();
+        }
     }
     pub(crate) fn set_definition(&mut self, definition: ElementDefinition) -> Result<(), String> {
         if std::mem::discriminant(&definition) != std::mem::discriminant(&self.definition) {
@@ -34,7 +46,7 @@ impl ElementNode {
             settings.validate()?;
         }
         if self.definition != definition {
-            self.revision.advance();
+            self.invalidate();
             self.definition = definition;
         }
         Ok(())
@@ -101,13 +113,13 @@ impl Node for ElementNode {
         create(node_type).map(|node| Box::new(node) as Box<dyn Node>)
     }
     fn on_structure_changed(&mut self, _: &mut ProcessCtx) {
-        self.revision.advance();
+        self.invalidate();
     }
     fn on_effective_enabled_changed(&mut self, _: &mut ProcessCtx, _: bool) {
-        self.revision.advance();
+        self.invalidate();
     }
     fn destroy(&mut self, _: &mut ProcessCtx) {
-        self.revision.advance();
+        self.invalidate();
     }
     fn project_encode_data(&self) -> Result<Value, String> {
         match &self.definition {

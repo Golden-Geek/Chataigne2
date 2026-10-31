@@ -1,10 +1,13 @@
 //! MapGyver Matrix document ownership. Golden supplies graph edits, history and execution mechanisms.
 mod admission;
 mod authoring;
+pub(crate) mod capture;
 mod cells;
 mod copying;
 pub(crate) mod document;
 pub(crate) mod node;
+pub(crate) mod playback;
+mod projection;
 pub mod protocol;
 pub(crate) use admission::validate_ui_intent;
 pub(crate) use authoring::apply;

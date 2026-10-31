@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn an_unimplemented_matrix_producer_is_unavailable_without_disrupting_a_healthy_output() {
+fn an_unlaunched_matrix_is_ready_and_transparent_alongside_a_healthy_output() {
     let mut engine = engine();
     let matrix = create(&mut engine, MediaKind::Matrix);
     let healthy = create(&mut engine, MediaKind::SolidColor);
@@ -33,7 +33,7 @@ fn an_unimplemented_matrix_producer_is_unavailable_without_disrupting_a_healthy_
             .unwrap()
             .resolution
             .availability,
-        ChannelAvailability::Unavailable
+        ChannelAvailability::Ready
     );
     assert_eq!(
         owner
