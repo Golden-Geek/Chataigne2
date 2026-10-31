@@ -26,6 +26,10 @@
 // local.editMedia("layers", JSON.stringify({ kind: "Matrix", media: matrixMediaId,
 //   edit: { kind: "AddLayers", parent: null, count: 4 } }));
 // Matrix Inspect returns ordered items/columns and sparse cells. AddColumns does not create cells.
+// For large documents, InspectViewport accepts viewport: { row_start, row_count, column_start,
+// column_count }; responses contain only that window (maximum 4096 addresses, 128 rows, 64 columns).
+// InspectChoices uses query: { scope: "All" | "MatrixFinal", search, start, count } for bounded
+// source/media selection (maximum 128 choices). Neither read creates history or launches playback.
 // SetCells accepts assignments: [{ layer, column, source: channelReferenceOrNull }].
 // Configure/ConfigureItem/ConfigureColumn, copy, move/reorder, rename and removal use the same route.
 // Authored cells reference channels without owning them; feedback is rejected across all media.

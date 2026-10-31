@@ -85,6 +85,9 @@ fn admit_count(document: &Document, count: u16) -> Result<usize, String> {
 }
 
 pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) -> Result<MediaEditResult, String> {
+    if let MatrixEdit::InspectViewport { viewport } = edit {
+        return super::view::inspect(engine, media, viewport);
+    }
     if let MatrixEdit::LaunchColumn { column, mode } = edit {
         return super::playback::launch(engine, media, column, mode);
     }
@@ -93,6 +96,7 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
     }
     let document = Document::load(engine, media)?;
     match edit {
+        MatrixEdit::InspectViewport { .. } => unreachable!(),
         MatrixEdit::LaunchColumn { .. } => unreachable!(),
         MatrixEdit::InspectPlayback => unreachable!(),
         MatrixEdit::Inspect => {

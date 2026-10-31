@@ -8,7 +8,8 @@ and a D3D11 compositor with bounded Spout inputs and window/Spout outputs. Media
 authoring contracts use the shared engine/history/codec and publish guarded channel plans through
 an app-owned preparation boundary. Screen/Surface authoring and output, Composition production/editor
 mechanisms and the sparse Matrix document/module are implemented to the extent recorded in the ledger.
-Matrix timed playback is implemented; the virtualized grid and full native/editor qualification remain open. Execution belongs to the
+Matrix timed playback and an initial virtualized grid are implemented; full editor parity and
+native/editor qualification remain open. Execution belongs to the
 [MapGyver plan](../plan/MapGyver_Implementation_Plan.md) and its
 [status ledger](../progress/mapgyver-status.md).
 
@@ -466,6 +467,22 @@ reuse Golden transport/session abstractions. Svelte collects gestures and uses t
 feedback; backend intents own defaults, naming, validation, graph edits, crop/pin legality,
 channel allocation and Matrix/app semantics. A gesture becomes one coherent history operation;
 do not create a history entry per frame or implement a second rule engine in TypeScript.
+
+The app-owned `ui/src/lib/matrix/` panel separates cell selection, explicit source assignment and
+column launch/Cut. It exposes sparse layer/group/column creation, copy/removal and the existing
+native Final preview. `MatrixEdit::InspectViewport` returns at most 128 rows, 64 columns and 4,096
+addresses; the UI requests at most 64 by 32 and mounts only that window. Compressed rem-based scroll
+ranges retain normal cell dimensions without giant browser canvases. Each controller keeps one
+active read and one latest replacement, fenced by session, project generation and history. Switching
+Matrices resets the grid's scroll context. `InspectChoices` supplies searched, paged channel IDs and
+labels without copying channel definitions; Matrix selection filters to Final outputs.
+
+Rust owns the sparse address/order index, cached at the authored revision. Visible labels, settings
+and payloads read current nodes; scrolling neither materializes empty cells nor changes history or
+playback. Initial construction/rebuild still visits the document and needs large-grid qualification.
+The grid marks only the requested column; requested state does not certify installed/live output.
+Full settings/reorder controls, installed state presentation and actual editor interaction remain
+M07 gate 3 work; complete large-grid/native/recovery checks remain gate 4.
 
 The app-owned `ui/src/lib/composition/` panel/controller/forms expose Composition channel selection,
 searchable source assignment, ordered instance creation/copy/rename/reorder/removal, transform and

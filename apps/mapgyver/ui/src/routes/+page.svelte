@@ -11,6 +11,7 @@
 	import ScreenManagerPanel from '../lib/screens/ScreenManagerPanel.svelte';
 	import SurfaceSourcePanel from '../lib/screens/SurfaceSourcePanel.svelte';
 	import CompositionPanel from '../lib/composition/CompositionPanel.svelte';
+	import MatrixPanel from '../lib/matrix/MatrixPanel.svelte';
 	import { provideScreenAuthoring } from '../lib/screens/context.svelte';
 
 	const host = useApplicationHost();
@@ -21,7 +22,8 @@
 		mediaManager: { title: 'Media Manager', component: MediaManagerPanel },
 		screenManager: { title: 'Screen Manager', component: ScreenManagerPanel },
 		surfaceSource: { title: 'Surface Source', component: SurfaceSourcePanel },
-		composition: { title: 'Composition', component: CompositionPanel }
+		composition: { title: 'Composition', component: CompositionPanel },
+		matrix: { title: 'Matrix', component: MatrixPanel }
 	};
 
 	const initialPanels: PanelSpawnRequest[] = [
@@ -54,6 +56,12 @@
 			panelId: 'logger',
 			panelType: 'logger',
 			position: { referencePanelId: 'media-manager', direction: 'below' }
+		},
+		{
+			panelId: 'matrix',
+			panelType: 'matrix',
+			required: true,
+			position: { referencePanelId: 'media-manager', direction: 'within' }
 		},
 		{
 			panelId: 'inspector',

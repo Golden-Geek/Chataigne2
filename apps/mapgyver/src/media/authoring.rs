@@ -98,6 +98,9 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
     }
     let pending_before = engine.edits.pending.len();
     let result = match edit {
+        MediaEdit::InspectChoices { query } => MediaEditResult::Choices {
+            page: super::catalog::choices(engine, query)?,
+        },
         MediaEdit::Matrix { media, edit } => crate::matrix::apply(engine, media, edit)?,
         MediaEdit::Composition { reference, edit } => super::composition::apply(engine, reference, edit)?,
         MediaEdit::ImportPicture { locator, target, label } => {

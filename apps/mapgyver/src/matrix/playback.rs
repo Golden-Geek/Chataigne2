@@ -32,6 +32,7 @@ struct State {
     pending: Option<(MatrixPlaybackSnapshot, EditCompletion)>,
     index: Option<Arc<RenderIndex>>,
     timeline: super::timeline::Timeline,
+    view: Option<(u64, Arc<super::view::ViewIndex>)>,
 }
 
 #[derive(Clone)]
@@ -52,6 +53,22 @@ impl RuntimeBinding {
 }
 
 impl PlaybackControl {
+    pub fn view(&self) -> Option<Arc<super::view::ViewIndex>> {
+        self.0
+            .state
+            .lock()
+            .expect("Matrix playback lock poisoned")
+            .view
+            .as_ref()
+            .filter(|(revision, _)| *revision == self.authoring_revision())
+            .map(|(_, index)| index.clone())
+    }
+    pub fn cache_view(&self, index: Arc<super::view::ViewIndex>) {
+        self.0.state.lock().expect("Matrix playback lock poisoned").view = Some((self.authoring_revision(), index));
+    }
+    pub fn authoring_revision(&self) -> u64 {
+        self.0.authored.reader().current()
+    }
     pub fn settle(&self, time: golden_time::TimeSnapshot) {
         self.0
             .state

@@ -6,7 +6,8 @@
 
 **Current topic:** M07 document/module and timed runtime accepted, **2/4 gates (50%)**;
 sparse authoring, Linear/SmoothStep fades, interrupted clip mixes and shared layer/group/final
-production now preserve outgoing bindings across edits/removal/relaunch. The virtualized grid is next;
+production now preserve outgoing bindings across edits/removal/relaunch. An initial virtualized grid
+now exposes bounded source assignment, row/column authoring, copy/removal and explicit launch/Cut;
 full native/interactive/large-grid qualification remains open. M06 remains **1/4**;
 demanded nested rendering is implemented with software and native submission/lifetime smoke.
 The dockable Composition editor now includes source/instance/canvas controls, native preview binding
@@ -27,13 +28,13 @@ full source/UI/parity gates still open. M03 remains **7/9**; qualification no lo
 changes work order, not acceptance. M04 is **1/6 complete gates (17%)**; its full source,
 native preview, recovery and UI parity acceptance remains open.
 
-**Next:** deliver the app-registered virtualized Matrix grid with bounded viewport reads and editing,
-separate selection/preparation/live feedback and the same backend/module/script intents.
-**Last delivered capability:** bounded resolved clip bindings preserve outgoing sources through
-column removal, cell reassignment, Undo and same-column interruption (batch 25). The former failing
-regression passes normally; retained dependencies cannot be removed to admit runtime feedback.
-Native Final/layer output frames, installed cleanup and retirement pass. **Product blocker:** none
-for grid implementation. Independent app pixel consumption, full recovery/scale and actual editor
+**Next:** complete Matrix editor settings/reorder controls and distinguish requested from installed
+runtime feedback, then bounded real interaction verification using the existing backend intents.
+**Last delivered capability:** dockable virtualized Matrix grid with bounded viewport/source reads,
+sparse assignment, create/copy/remove and separate selection/launch/Cut, plus native Final preview
+binding (batch 26). Backend/software checks pass; actual UI gestures remain unverified.
+**Product blocker:** none for the remaining editor controls. Independent app pixel consumption,
+full recovery/scale and actual editor
 interaction remain unverified under gate 4 and their owning phases.
 M04's full source/UI/recovery gates remain open and owned by M04. No timing/driver
 qualification or M03 stash work is scheduled.
@@ -78,6 +79,46 @@ no item closure; future breakdowns must preserve the complete acceptance scope a
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
 
 ### M07 acceptance items
+
+**Product batch 26:** started 2026-10-31 **05:28 UTC**, recorded stop **06:13 UTC**.
+Deliver bounded Matrix viewport queries and an app-registered virtualized grid with separate cell
+selection, source assignment and explicit column launch controls. MapGyver owns query/intent policy;
+the Svelte panel owns only viewport presentation and transport-fenced focused state. Do not transfer
+or mount an eager full grid. Prove bounds, sparse cell addressing, stale-response fencing and
+selection-versus-launch behavior with backend/frontend checks, then ordinary app build. Full copy/
+reorder/configuration parity and actual interactive/live installation evidence remain gate 3 work
+until verified. At most two finite interaction/native checks/20 minutes after software prerequisites
+pass; no browser/privilege/driver/clock recovery or parked M03 work is scheduled.
+
+**Batch 26 result:** the registered dockable Matrix panel now provides searched/paged Matrix and
+source selection, bounded two-axis scrolling, sparse cell assignment, layer/group/column creation,
+row/column copy/removal, explicit configured launch/Cut and the existing native Final preview binding.
+Selecting a cell and assigning its source never launch a column. The grid labels requested state
+only; installation/live output is not inferred from a successful launch request.
+
+The Rust-generated viewport contract admits **128 rows, 64 columns and 4,096 addresses** maximum;
+the UI requests at most **64 by 32 = 2,048** mounted addresses. Source choices return at most 128
+IDs/labels per request (UI pages of 64), filtering Matrix selectors to Final channels. A cached sparse
+address/order index is reused while the authored revision is unchanged; visible labels/settings/cell
+payloads read current nodes. First construction/rebuild still visits the document and is not a
+large-grid performance acceptance. Empty addresses remain absent from persistence/history. The UI
+retains one active read and one latest replacement, fences stale session/project/history replies and
+errors, and resets scrolling when switching Matrices. Transport session interfaces remain the only
+connection dependency; all mutations use the existing backend/module/script route.
+
+**Verification:** **143 app tests pass/1 pre-existing hardware-only ignore**, **133 headless tests
+pass**, strict app all-target/all-feature Clippy and the ordinary bundled app build pass. All **32
+frontend tests pass**, including 1,000 rapid scroll requests, stale replacement/disconnect/disposal,
+selection/assignment-versus-launch and compressed 100,000-row/column address geometry. Backend tests
+exercise a 1,000-by-1,000 sparse document, cache reuse, window bounds, rename/reorder/Undo/source loss
+and project roundtrip without read-side history changes. Svelte checking reports **0 errors/0
+warnings**; app Prettier passes. No native/desktop experiment or automation recovery ran. Generated
+DTO drift and both workspace formatters are checked before delivery.
+
+**No gate closes: M07 remains 2/4 = 50%; overall remains 3/10 = 30%.** Gate 3 still requires complete
+settings/reorder controls, requested/preparation/installed feedback and real interaction/parity
+evidence. Gate 4 retains full native pixels, large-grid budgets and recovery. This first usable grid
+slice advances the product without reopening M03 qualification or changing any acceptance budget.
 
 **Product batch 25:** started 2026-10-31 **04:56 UTC**, recorded stop **05:41 UTC**.
 Repair retained Matrix clip bindings across column removal, cell reassignment and same-column
@@ -268,7 +309,7 @@ Overall remains 3/10 (30%); no existing gate, budget or qualification ownership 
 | --- | --- | --- |
 | 1 | Stable Matrix/layer/group/column/cell and exported channel identities; grouping, source assignment, create/copy/reorder/remove, validation including all-media feedback, project roundtrip and Undo/Redo; command/script/callback/snippet parity for the authored model. | Accepted — batch 22 evidence below |
 | 2 | Atomic column launches and explicit empty-cell policy use shared time; deterministic layer/group/final blending and interrupted transitions preserve outgoing source demand until final use; independent consumers share passes and bursts cannot accumulate unbounded plans. | Accepted — batches 23–25 evidence above |
-| 3 | App-registered virtualized Matrix editor with source assignment, authoring/copy/reorder and separate selection/preparation/live state; complete UI/script/headless intent parity and real interactive evidence. | Open |
+| 3 | App-registered virtualized Matrix editor with source assignment, authoring/copy/reorder and separate selection/preparation/live state; complete UI/script/headless intent parity and real interactive evidence. | Open — initial bounded grid/assignment/create/copy/remove/launch slice software-verified in batch 26; full controls, installed feedback and interaction remain |
 | 4 | Native preview and independently consumed layer/group/final output pixels, ordering/blends/alpha/transition interruptions, source loss/Undo/recovery and bounded large-grid runtime/lifetime behavior satisfy the retained qualification requirements. | Open |
 
 **Product batch 22:** started 2026-10-31 **03:15 UTC**, recorded stop **04:00 UTC**.
@@ -1586,18 +1627,18 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | M04 Source media | IN_PROGRESS | [Solid Color authoring](#first-authoring-slice--2026-10-30) and [atomic Picture import/editor](#picture-authoring--2026-10-30) delivered; Picture UI interaction and the six full source/native/module gates remain open |
 | M05 Screens/Surfaces/editors | IN_PROGRESS | [Authoring, crop/warp and calibration](#m05-acceptance-items) close gates 1–3; native preview, all targets, display recovery and both dockable editors are implemented. Native source-preview, actual input/hotplug/minimize and full physical qualification remain open. |
 | M06 Composition/editor | IN_PROGRESS | [Authoring, nested production and graphical editor](#m06-acceptance-items): gate 1/4 accepted; producer software/native submission smoke and editor geometry/history/routing/fencing pass. Matrix dependencies, native pixels and real editor acceptance remain open. |
-| M07 Matrix/editor | IN_PROGRESS | [Document/module and timed production](#m07-acceptance-items): gates 1–2/4 accepted; retained bindings repair edit/removal/relaunch lifetimes, shared exports and bounded cleanup pass. Virtualized grid/input parity and full qualification remain open. |
+| M07 Matrix/editor | IN_PROGRESS | [Document/module, timed production and initial grid](#m07-acceptance-items): gates 1–2/4 accepted; bounded viewport/assignment/create/copy/remove/launch UI slice passes software checks. Full editor controls, installed feedback, interaction and qualification remain open. |
 | M08 App lifetimes | NOT_STARTED | Neighbor demand and owned-process lifecycle specified |
 | M09 App/artifact qualification | NOT_STARTED | Requires implemented product and fixed native workloads |
 
 ## Next action
 
-Deliver **M07 app-registered virtualized Matrix grid** against the accepted authored/runtime
-contracts. Keep cell/item/column behavior and defaults in backend intents; provide bounded viewport
-inspection rather than transferring or mounting an eager full grid. Expose selection, preparation
-and live/installed state distinctly and reuse the module/script route for create/copy/reorder/remove,
-assignment and launch. Start with a coherent usable grid slice and focused store/viewport tests,
-then ordinary app build and bounded interaction checks. Preserve all budgets. Do not reopen
+Complete **M07 Matrix editor controls and runtime feedback** on the delivered bounded grid:
+row/column naming, grouping/reorder, layer/group blend/opacity, Matrix canvas/empty-cell/transition
+settings and column configuration through existing backend intents. Keep selection, source assignment,
+requested launch and observed preparation/installation distinct; do not infer live state from request
+acceptance. Follow with relevant software/build checks and at most two bounded real interaction
+checks. Preserve all budgets. Do not reopen
 browser/privilege/driver/clock recovery to qualify the preceding editor before this work.
 Native checks must follow passing software prerequisites and stop after two runs/20 minutes;
 unavailable interactive evidence stays open. The 2D editor, Matrix-inclusive cycles and complete
@@ -1608,7 +1649,7 @@ their full source, UI, lifecycle and parity scope. Preserve Chataigne's root def
 
 Record the slice's owner, observable result, validation and 45-minute stopping time before
 coding. Ship and push a coherent product checkpoint before the next implementation batch.
-Twenty-five product slices are delivered; documentation checkpoints are excluded. Six diagnostic-only
+Twenty-six product slices are delivered; documentation checkpoints are excluded. Six diagnostic-only
 batches are allowed by the ratio but none is scheduled. Continue the product path;
 retained M03 qualification is not the default work queue.
 

@@ -14,6 +14,7 @@ mod copying;
 mod playback;
 mod timeline;
 mod validation;
+mod view;
 
 fn fixture() -> AppEngine {
     let mut engine = create_new_project_engine::<AppNode>().unwrap();

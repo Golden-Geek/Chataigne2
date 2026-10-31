@@ -11,6 +11,7 @@ pub(crate) mod playback;
 mod projection;
 pub mod protocol;
 mod timeline;
+mod view;
 pub(crate) use admission::validate_ui_intent;
 pub(crate) use authoring::apply;
 pub(crate) use document::{inspect, validate_project};

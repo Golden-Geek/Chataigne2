@@ -49,6 +49,30 @@ pub enum MediaKind {
     Matrix,
 }
 
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
+pub enum ChannelChoiceScope {
+    All,
+    MatrixFinal,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct ChannelChoiceQuery {
+    pub scope: ChannelChoiceScope,
+    pub search: String,
+    pub start: u32,
+    pub count: u16,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct ChannelChoice {
+    pub reference: ChannelReference,
+    pub label: String,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct ChannelChoicePage {
+    pub choices: Vec<ChannelChoice>,
+    pub total: u32,
+    pub start: u32,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum SizePolicy {
@@ -91,6 +115,9 @@ pub struct ChannelDefinition {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MediaEdit {
+    InspectChoices {
+        query: ChannelChoiceQuery,
+    },
     Matrix {
         media: MediaId,
         edit: crate::matrix::protocol::MatrixEdit,
@@ -186,6 +213,12 @@ pub struct AssetSnapshot {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MediaEditResult {
+    Choices {
+        page: ChannelChoicePage,
+    },
+    MatrixViewport {
+        snapshot: crate::matrix::protocol::MatrixViewportSnapshot,
+    },
     MatrixLaunched {
         snapshot: crate::matrix::protocol::MatrixPlaybackSnapshot,
     },

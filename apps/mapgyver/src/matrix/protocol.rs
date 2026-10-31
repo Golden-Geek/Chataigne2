@@ -154,9 +154,45 @@ pub struct CellAssignment {
     pub column: ColumnId,
     pub source: Option<ChannelReference>,
 }
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
+pub struct MatrixViewport {
+    pub row_start: u32,
+    pub row_count: u16,
+    pub column_start: u32,
+    pub column_count: u16,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct MatrixViewRow {
+    pub item: MatrixItemSnapshot,
+    pub depth: u8,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct MatrixViewCell {
+    pub cell: CellSnapshot,
+    pub source_label: Option<String>,
+    pub source_missing: bool,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct MatrixViewportSnapshot {
+    pub media: MediaId,
+    pub final_output: crate::media::protocol::ChannelSnapshot,
+    pub revision: u64,
+    pub row_total: u32,
+    pub column_total: u32,
+    pub row_start: u32,
+    pub column_start: u32,
+    pub rows: Vec<MatrixViewRow>,
+    pub columns: Vec<ColumnSnapshot>,
+    pub cells: Vec<MatrixViewCell>,
+    pub playback: MatrixPlaybackSnapshot,
+}
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MatrixEdit {
+    InspectViewport {
+        viewport: MatrixViewport,
+    },
     LaunchColumn {
         column: ColumnId,
         mode: LaunchMode,
