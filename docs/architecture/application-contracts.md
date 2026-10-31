@@ -95,7 +95,14 @@ backend import/relink/remove/history and sparse/full reload preserve references.
 worker consumes the shared preparation boundary, and Video plans retain immutable image leases
 and automatically forward their guards through final installation/reconstruction. GPU uploads
 occur during resource creation, never the recurring frame/control loop. This does not migrate
-Chataigne audio or deliver the remaining Media Manager controls and native qualification.
+Chataigne audio; qualification evidence remains in the app's status ledger.
+
+MapGyver's explicit `ReloadAsset` intent invalidates only that asset's runtime revision. It keeps
+the authored locator, asset/channel IDs and undo history unchanged. Existing capture guards make
+the presentation worker recapture and reprepare a replaced file; file IO/decode stays on the asset
+worker and unrelated prepared sources remain retained. Media Manager's Reload Picture control,
+module commands, hosted/generic scripts and headless callers use the same backend intent. This
+does not add an automatic filesystem watcher or move file checks into the engine loop.
 
 MapGyver's `src/media/` owns typed persistent media/channel references and authoring operations.
 Its lifecycle delegates `mapgyver.media.edit` to Golden's existing atomic app-operation path;

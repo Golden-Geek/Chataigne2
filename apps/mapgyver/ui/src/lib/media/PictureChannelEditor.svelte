@@ -55,6 +55,11 @@
 	<section aria-label="Relink selected Picture asset">
 		<h3>Relink {record.label}</h3>
 		<p class="hint">This is a shared asset. Relinking updates every channel that uses it.</p>
+		<button
+			type="button"
+			disabled={disabled || !record.locator}
+			onclick={() => edit({ kind: 'ReloadAsset', asset: record!.id })}>Reload Picture</button>
+		<p class="hint">Reload the current file after replacing it, or retry a failed decode.</p>
 		{#key record.id}
 			<AssetLocatorForm
 				{disabled}
@@ -78,6 +83,20 @@
 		margin: 0;
 		overflow-wrap: anywhere;
 		opacity: 0.7;
+	}
+	button {
+		justify-self: start;
+		font: inherit;
+		padding: 0.5em 0.65em;
+		color: inherit;
+		background: #416caa50;
+		border: 0.0625rem solid #ffffff30;
+		border-radius: 0.3rem;
+		cursor: pointer;
+	}
+	button:disabled {
+		opacity: 0.45;
+		cursor: default;
 	}
 	.hint {
 		margin: 0;

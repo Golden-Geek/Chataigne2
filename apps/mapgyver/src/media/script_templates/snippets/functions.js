@@ -17,6 +17,8 @@
 // Use the returned channel reference for ConfigureChannel, RenameChannel, ReorderChannel,
 // RemoveChannel or InspectChannel. ImportPicture, asset operations and media operations use
 // this same entrypoint; definitions come from the catalog rather than UI/script defaults.
+// Reload a replaced host file or retry a failed Picture decode without changing IDs/history:
+// local.editMedia("reload", JSON.stringify({kind: "ReloadAsset", asset: assetId}));
 // Composition media uses media_kind: "Composition". Add ordered instances through:
 // local.editMedia("instances", JSON.stringify({
 //   kind: "Composition", reference: compositionChannelReference,

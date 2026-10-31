@@ -48,6 +48,10 @@ impl AssetNode {
         let reader = self.revision.reader();
         reader.guard_at(reader.current())
     }
+    /// Withdraw captured/prepared content without changing the authored locator or identity.
+    pub(super) fn reload(&mut self) {
+        self.revision.advance();
+    }
 }
 
 impl Node for AssetNode {

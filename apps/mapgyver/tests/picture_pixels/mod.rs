@@ -374,7 +374,8 @@ fn authored_picture_pixels_recover_share_relink_replace_reject_color_and_reload_
         assert_eq!(fixture.uploaded(), uploads + 1);
         let history = engine.undo_len();
         source_png(&replacement, 4, 3, &[255, 0, 0, 64].repeat(12), false);
-        fixture.live().retry_picture(second_asset).unwrap();
+        edit(&mut engine, MediaEdit::ReloadAsset { asset: second_asset });
+        fixture.publish(&engine, references);
         fixture.settle([ready(2, 2), ready(3, 2)], Some(healthy));
         fixture.pixels(adapter.id, [&PATTERN, &[[255, 0, 0, 64]]], "in-place-replacement");
         assert_eq!(

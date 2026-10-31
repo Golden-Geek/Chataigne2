@@ -145,6 +145,10 @@ pub enum MediaEdit {
         asset: AssetId,
         locator: AssetLocator,
     },
+    /// Reprepare the current host file without changing its locator or authored history.
+    ReloadAsset {
+        asset: AssetId,
+    },
     RemoveAsset {
         asset: AssetId,
     },

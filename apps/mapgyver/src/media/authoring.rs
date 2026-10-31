@@ -152,6 +152,15 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             });
             MediaEditResult::Changed
         }
+        MediaEdit::ReloadAsset { asset } => {
+            super::assets::asset(engine, asset)?;
+            let id = super::assets::node_id(engine, asset)?;
+            let Some(AppNode::MediaAsset(node)) = engine.nodes.get_mut(id) else {
+                unreachable!("validated asset");
+            };
+            node.reload();
+            MediaEditResult::Changed
+        }
         MediaEdit::RemoveAsset { asset } => {
             let id = super::assets::node_id(engine, asset)?;
             engine.edits.push(Edit::RemoveNode { node: id });

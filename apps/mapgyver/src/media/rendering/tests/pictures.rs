@@ -330,10 +330,21 @@ fn missing_picture_recovery_replacement_and_project_relocation_keep_the_healthy_
     let healthy = renderer.channels()[0];
 
     png(project.path(), "missing.png", 3, 2, [0, 0, 255, 255]);
-    renderer.retry_picture(second_asset).unwrap();
+    let stale = capture_channels(&engine, &references, 16).unwrap();
+    let document = golden_core::app::to_sparse_project_json_pretty(&engine).unwrap();
+    let history = engine.undo_len();
+    edit(&mut engine, MediaEdit::ReloadAsset { asset: second_asset });
+    assert!(!stale.is_current());
+    assert_eq!(engine.undo_len(), history);
+    assert_eq!(
+        golden_core::app::to_sparse_project_json_pretty(&engine).unwrap(),
+        document
+    );
+    publish(&mut renderer, &engine, references);
     settled_preserving(&mut renderer, [ready(2, 2), ready(3, 2)], Some(healthy));
     png(project.path(), "missing.png", 4, 3, [0, 255, 0, 255]);
-    renderer.retry_picture(second_asset).unwrap();
+    edit(&mut engine, MediaEdit::ReloadAsset { asset: second_asset });
+    publish(&mut renderer, &engine, references);
     settled_preserving(&mut renderer, [ready(2, 2), ready(4, 3)], Some(healthy));
     assert_eq!(crate::media::asset(&engine, second_asset).unwrap().id, second_asset);
 
